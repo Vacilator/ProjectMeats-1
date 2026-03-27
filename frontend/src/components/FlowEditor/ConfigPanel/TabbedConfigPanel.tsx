@@ -274,8 +274,8 @@ export const TabbedConfigPanel: React.FC<TabbedConfigPanelProps> = ({
               >
                 <LiveFormPreview
                   fields={(node.data?.fields as FormField[]) || []}
-                  title={node.data?.label || node.data?.title || 'Form Preview'}
-                  description={node.data?.description}
+                  title={String((node.data as any)?.label ?? (node.data as any)?.title ?? 'Form Preview')}
+                  description={typeof (node.data as any)?.description === 'string' ? (node.data as any).description : undefined}
                 />
               </TabPanel>
             )}

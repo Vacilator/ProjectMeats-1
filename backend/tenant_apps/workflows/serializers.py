@@ -19,9 +19,9 @@ from .models import (
 
 class TenantListSerializer(serializers.ModelSerializer):
     """Serializer for TenantList model."""
-    
+
     option_count = serializers.SerializerMethodField()
-    
+
     class Meta:
         model = TenantList
         fields = [
@@ -29,9 +29,60 @@ class TenantListSerializer(serializers.ModelSerializer):
             'is_active', 'created_at', 'updated_at'
         ]
         read_only_fields = ['id', 'created_at', 'updated_at']
-    
+
     def get_option_count(self, obj):
         return len(obj.options) if obj.options else 0
+
+    def validate_name(self, value):
+        """Enforce per-tenant list name uniqueness and avoid IntegrityError 500s."""
+        request = self.context.get('request')
+        tenant = getattr(request, 'tenant', None) if request else None
+
+        if not tenant:
+            raise serializers.ValidationError('Tenant context is required to create option lists.')
+
+        normalized = str(value or '').strip()
+        if not normalized:
+            raise serializers.ValidationError('Name is required.')
+
+        qs = TenantList.objects.filter(tenant=tenant, name=normalized)
+        if self.instance is not None:
+            qs = qs.exclude(pk=self.instance.pk)
+
+        if qs.exists():
+            raise serializers.ValidationError('A custom list with this name already exists for this tenant.')
+
+        return normalized
+
+    def validate_options(self, value):
+        """Validate and normalize option rows."""
+        if value is None:
+            return []
+
+        if not isinstance(value, list):
+            raise serializers.ValidationError('Options must be a list of {value,label} objects.')
+
+        normalized = []
+        seen = set()
+
+        for opt in value:
+            if not isinstance(opt, dict):
+                raise serializers.ValidationError('Each option must be an object with value and label.')
+
+            v = str(opt.get('value', '')).strip()
+            l = str(opt.get('label', '')).strip()
+
+            if not v or not l:
+                raise serializers.ValidationError('Each option must include a non-empty value and label.')
+
+            key = v.lower()
+            if key in seen:
+                raise serializers.ValidationError(f'Duplicate option value: "{v}"')
+            seen.add(key)
+
+            normalized.append({'value': v, 'label': l})
+
+        return normalized
 
 
 # =============================================================================

@@ -15,7 +15,7 @@
  * Created: 2026-02-04 - Phase 2.1 Batch 2
  */
 import React from 'react';
-import { NodeProps } from '@xyflow/react';
+import type { Node, NodeProps } from '@xyflow/react';
 import styled from 'styled-components';
 import { CheckCircle2, XCircle, Ban } from 'lucide-react';
 import { BaseNode, BaseNodeData } from './BaseNode';
@@ -128,7 +128,7 @@ const getTerminalTypeInfo = (terminalType: TerminalType) => {
 // Component
 // ============================================================================
 
-export const TerminalNode = React.memo<NodeProps<TerminalNodeData>>(({ data, id, selected }) => {
+export const TerminalNode = React.memo<NodeProps<Node<TerminalNodeData>>>(({ data, id, selected }) => {
   const {
     terminalType,
     message,
@@ -201,12 +201,12 @@ export const TerminalNode = React.memo<NodeProps<TerminalNodeData>>(({ data, id,
       nodeType={{
         id: 'terminal',
         name: typeInfo.label,
-        category: 'logic',
+        category: 'terminal',
         color: typeInfo.color,
-        icon: 'CheckCircle2',
+        icon: '🏁',
+        description: typeInfo.label,
         maxInputs: 1,
         maxOutputs: 0,
-        config: {},
       }}
     />
   );

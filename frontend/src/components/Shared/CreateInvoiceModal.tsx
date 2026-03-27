@@ -341,7 +341,7 @@ export const CreateInvoiceModal: React.FC<CreateInvoiceModalProps> = ({
               <SearchableSelect
                 label="Customer"
                 value={formData.customer}
-                options={customers}
+                options={(customers ?? []).map((c) => ({ id: c.id, name: c.name }))}
                 onChange={(value) => handleSelectChange('customer', value)}
                 placeholder="Select Customer"
                 required

@@ -1,13 +1,13 @@
 /**
  * Forms & Flows Catalog Page
- * 
+ *
  * Browse, create, and manage form flows.
  * Phase 4.1.1: Enhanced Catalog with "Create New" flow
  * Phase 5: Tabbed View ("Logic" vs "Data")
- * 
+ *
  * Created: 2026-02-03
  * Updated: 2026-02-25 - Phase 5 Management UI
- * 
+ *
  * Features:
  * - Browse existing forms/workflows
  * - Tabbed view: "Workflows" (Logic) and "Forms" (Data Capture)
@@ -22,35 +22,61 @@ import { logger } from '@/utils/logger';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import styled from 'styled-components';
-import { Plus, Search, Grid, List, Filter, Sparkles, FileText, Workflow, Clock, Star, Lock, Boxes, Database, Play, Loader } from 'lucide-react';
+import {
+  Plus,
+  Search,
+  Grid,
+  List,
+  Filter,
+  Sparkles,
+  FileText,
+  Workflow,
+  Clock,
+  Star,
+  Lock,
+  Boxes,
+  Database,
+  Play,
+  Loader,
+} from 'lucide-react';
 import { PageContainer } from '../../components/ui/PageContainer';
 import { Card, CardHeader, CardContent, CardFooter } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { TemplateSelector } from '../../components/FlowEditor/templates/TemplateSelector';
-import { FlowTemplate } from '../../components/FlowEditor/templates/flowTemplates';
-import { FormPreviewModal } from '../../components/WorkForms/FormPreviewModal';
-import { apiClient } from '../../services/apiService';
+import { FLOW_TEMPLATES, FlowTemplate } from '../../components/FlowEditor/templates/flowTemplates';
+import { createFormSubmission, getAvailableWorkForms } from '../../services/workformsApi';
 import { useWorkFormPermissions, getUpgradeMessage } from '../../hooks/useWorkFormPermissions';
 
 // ============================================================================
 // TypeScript Interfaces
 // ============================================================================
 
-interface TenantForm {
+interface CatalogItem {
   id: string;
   name: string;
   description: string;
-  status: 'draft' | 'active' | 'inactive';
-  icon: string;
-  entity_count: number;
-  is_multi_entity: boolean;
-  is_system_template: boolean;
+  status: 'draft' | 'active' | 'inactive' | 'archived';
+
+  // Legacy form fields (may be absent for TenantWorkForm list items)
+  icon?: string;
+  entity_count?: number;
+  is_multi_entity?: boolean;
+  is_system_template?: boolean;
   created_at: string;
   updated_at: string;
-  flow_data?: any; // Add flow_data for advanced filtering
-  protein_type?: string; // NEW: Protein category (beef, pork, poultry, seafood, etc.)
-  department?: string; // NEW: Department (receiving, processing, packaging, quality_control)
-  can_quick_run?: boolean; // NEW: Flag if workflow supports one-click execution
+  flow_data?: any;
+
+  // TenantWorkForm list fields
+  node_count?: number;
+  edge_count?: number;
+  execution_count?: number;
+  last_executed_at?: string;
+  version?: number;
+
+  // Experimental UI filters (not available on TenantWorkForm list response yet)
+  protein_type?: string;
+  department?: string;
+  can_quick_run?: boolean;
 }
 
 type ViewMode = 'grid' | 'list';
@@ -58,7 +84,6 @@ type FilterOption = 'all' | 'active' | 'draft' | 'recent' | 'favorites';
 type TabOption = 'workflows' | 'forms' | 'templates';
 type ProteinType = 'all' | 'beef' | 'pork' | 'poultry' | 'seafood' | 'lamb' | 'other';
 type Department = 'all' | 'receiving' | 'processing' | 'packaging' | 'quality_control' | 'shipping';
-
 
 // ============================================================================
 // Styled Components
@@ -104,13 +129,13 @@ const SearchInput = styled.input`
   background: rgb(var(--color-background));
   color: rgb(var(--color-text-primary));
   font-size: 0.875rem;
-  
+
   &:focus {
     outline: none;
     border-color: rgb(var(--color-primary));
-    box-shadow: 0 0 0 3px rgb(var(--color-primary) / 0.10);
+    box-shadow: 0 0 0 3px rgb(var(--color-primary) / 0.1);
   }
-  
+
   &::placeholder {
     color: rgb(var(--color-text-muted));
   }
@@ -147,7 +172,8 @@ const Tab = styled.button<{ $active?: boolean }>`
   padding: 0.75rem 1.5rem;
   border: none;
   background: transparent;
-  color: ${props => props.$active ? 'rgb(var(--color-primary))' : 'rgb(var(--color-text-secondary))'};
+  color: ${(props) =>
+    props.$active ? 'rgb(var(--color-primary))' : 'rgb(var(--color-text-secondary))'};
   font-size: 0.9375rem;
   font-weight: 600;
   cursor: pointer;
@@ -155,16 +181,18 @@ const Tab = styled.button<{ $active?: boolean }>`
   position: relative;
   border-bottom: 2px solid transparent;
   margin-bottom: -2px;
-  
-  ${props => props.$active && `
+
+  ${(props) =>
+    props.$active &&
+    `
     border-bottom-color: rgb(var(--color-primary));
   `}
-  
+
   &:hover {
     color: rgb(var(--color-primary));
     background: rgb(var(--color-primary) / 0.05);
   }
-  
+
   svg {
     width: 1.125rem;
     height: 1.125rem;
@@ -190,20 +218,22 @@ const FilterChip = styled.button<{ $active?: boolean }>`
   align-items: center;
   gap: 0.375rem;
   padding: 0.5rem 1rem;
-  border: 1px solid ${props => props.$active ? 'rgb(var(--color-primary))' : 'rgb(var(--color-border))'};
-  background: ${props => props.$active ? 'rgb(var(--color-primary) / 0.10)' : 'transparent'};
-  color: ${props => props.$active ? 'rgb(var(--color-primary))' : 'rgb(var(--color-text-secondary))'};
+  border: 1px solid
+    ${(props) => (props.$active ? 'rgb(var(--color-primary))' : 'rgb(var(--color-border))')};
+  background: ${(props) => (props.$active ? 'rgb(var(--color-primary) / 0.10)' : 'transparent')};
+  color: ${(props) =>
+    props.$active ? 'rgb(var(--color-primary))' : 'rgb(var(--color-text-secondary))'};
   border-radius: var(--radius-full);
   font-size: 0.875rem;
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s;
-  
+
   &:hover {
     border-color: rgb(var(--color-primary));
     background: rgb(var(--color-primary) / 0.05);
   }
-  
+
   svg {
     width: 1rem;
     height: 1rem;
@@ -219,20 +249,21 @@ const ViewToggle = styled.div`
 
 const ViewButton = styled.button<{ $active?: boolean }>`
   padding: 0.5rem 0.75rem;
-  background: ${props => props.$active ? 'rgb(var(--color-primary) / 0.10)' : 'transparent'};
-  color: ${props => props.$active ? 'rgb(var(--color-primary))' : 'rgb(var(--color-text-secondary))'};
+  background: ${(props) => (props.$active ? 'rgb(var(--color-primary) / 0.10)' : 'transparent')};
+  color: ${(props) =>
+    props.$active ? 'rgb(var(--color-primary))' : 'rgb(var(--color-text-secondary))'};
   border: none;
   cursor: pointer;
   transition: all 0.2s;
-  
+
   &:not(:last-child) {
     border-right: 1px solid rgb(var(--color-border));
   }
-  
+
   &:hover {
     background: rgb(var(--color-primary) / 0.05);
   }
-  
+
   svg {
     width: 1.25rem;
     height: 1.25rem;
@@ -275,7 +306,7 @@ const CategorySelect = styled.select`
   &:focus {
     outline: none;
     border-color: rgb(var(--color-primary));
-    box-shadow: 0 0 0 3px rgb(var(--color-primary) / 0.10);
+    box-shadow: 0 0 0 3px rgb(var(--color-primary) / 0.1);
   }
 `;
 
@@ -285,22 +316,22 @@ const QuickRunButton = styled.button<{ $isRunning?: boolean }>`
   align-items: center;
   gap: 0.5rem;
   padding: 0.5rem 1rem;
-  background: ${props => props.$isRunning 
-    ? 'rgb(234 179 8 / 0.10)' 
-    : 'linear-gradient(135deg, rgb(var(--color-success)) 0%, rgb(34, 197, 94) 100%)'
-  };
-  color: ${props => props.$isRunning ? 'rgb(234, 179, 8)' : 'white'};
-  border: none;
+  background: ${(props) =>
+    props.$isRunning ? 'rgba(var(--color-warning), 0.10)' : 'rgba(var(--color-success), 0.12)'};
+  color: ${(props) => (props.$isRunning ? 'rgb(var(--color-warning))' : 'rgb(var(--color-success))')};
+  border: 1px solid
+    ${(props) =>
+      props.$isRunning ? 'rgba(var(--color-warning), 0.35)' : 'rgba(var(--color-success), 0.35)'};
   border-radius: var(--radius-md);
   font-size: 0.875rem;
   font-weight: 600;
-  cursor: ${props => props.$isRunning ? 'wait' : 'pointer'};
+  cursor: ${(props) => (props.$isRunning ? 'wait' : 'pointer')};
   transition: all 0.2s;
-  opacity: ${props => props.$isRunning ? 0.7 : 1};
+  opacity: ${(props) => (props.$isRunning ? 0.7 : 1)};
 
   &:hover:not(:disabled) {
     transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgb(34 197 94 / 0.30);
+    box-shadow: 0 4px 12px rgb(var(--color-success) / 0.18);
   }
 
   &:disabled {
@@ -311,14 +342,20 @@ const QuickRunButton = styled.button<{ $isRunning?: boolean }>`
   svg {
     width: 1rem;
     height: 1rem;
-    ${props => props.$isRunning && `
+    ${(props) =>
+      props.$isRunning &&
+      `
       animation: spin 1s linear infinite;
     `}
   }
 
   @keyframes spin {
-    from { transform: rotate(0deg); }
-    to { transform: rotate(360deg); }
+    from {
+      transform: rotate(0deg);
+    }
+    to {
+      transform: rotate(360deg);
+    }
   }
 `;
 
@@ -326,7 +363,7 @@ const GridContainer = styled.div`
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
   gap: 1.5rem;
-  
+
   @media (max-width: 768px) {
     grid-template-columns: 1fr;
   }
@@ -341,10 +378,10 @@ const ListContainer = styled.div`
 const FormCard = styled(Card)`
   cursor: pointer;
   transition: all 0.2s;
-  
+
   &:hover {
     transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgb(var(--color-text-primary) / 0.10);
+    box-shadow: 0 4px 12px rgb(var(--color-text-primary) / 0.1);
   }
 `;
 
@@ -389,7 +426,7 @@ const MetaItem = styled.span`
   display: flex;
   align-items: center;
   gap: 0.25rem;
-  
+
   svg {
     width: 0.875rem;
     height: 0.875rem;
@@ -403,26 +440,28 @@ const StatusBadge = styled.span<{ $status: string }>`
   border-radius: var(--radius-full);
   font-size: 0.75rem;
   font-weight: 500;
-  background: ${props => {
+  background: ${(props) => {
     switch (props.$status) {
       case 'active':
-        return 'rgb(34 197 94 / 0.10)';
+        return 'rgba(var(--color-success), 0.10)';
       case 'draft':
-        return 'rgb(234 179 8 / 0.10)';
+        return 'rgba(var(--color-warning), 0.10)';
+      case 'archived':
       case 'inactive':
-        return 'rgb(107 114 128 / 0.10)';
+        return 'rgb(var(--color-text-muted) / 0.10)';
       default:
         return 'rgb(var(--color-text-muted) / 0.10)';
     }
   }};
-  color: ${props => {
+  color: ${(props) => {
     switch (props.$status) {
       case 'active':
-        return 'rgb(34, 197, 94)';
+        return 'rgb(var(--color-success))';
       case 'draft':
-        return 'rgb(234, 179, 8)';
+        return 'rgb(var(--color-warning))';
+      case 'archived':
       case 'inactive':
-        return 'rgb(107, 114, 128)';
+        return 'rgb(var(--color-text-muted))';
       default:
         return 'rgb(var(--color-text-muted))';
     }
@@ -474,50 +513,60 @@ const FormsFlowsCatalog: React.FC = () => {
   const [filter, setFilter] = useState<FilterOption>('all');
   const [activeTab, setActiveTab] = useState<TabOption>('workflows');
   const [showTemplateSelector, setShowTemplateSelector] = useState(false);
-  const [previewForm, setPreviewForm] = useState<TenantForm | null>(null);
+  // (Preview modal removed)
   const [proteinTypeFilter, setProteinTypeFilter] = useState<ProteinType>('all'); // NEW
   const [departmentFilter, setDepartmentFilter] = useState<Department>('all'); // NEW
   const [isQuickRunning, setIsQuickRunning] = useState<string | null>(null); // NEW: Track running workflow ID
-  
+
   // Phase 4.2: Get user permissions
   const { permissions, isLoading: permissionsLoading } = useWorkFormPermissions();
 
-  // Debug: Log when previewForm changes
-  React.useEffect(() => {
-    logger.debug('[Catalog] previewForm state changed:', previewForm);
-    if (previewForm) {
-      logger.debug('[Catalog] Modal should now be visible for form:', previewForm.name);
-    }
-  }, [previewForm]);
-
-  // Fetch existing forms
-  const { data: forms = [], isLoading, error } = useQuery<TenantForm[]>({
-    queryKey: ['tenant-forms'],
+  // Fetch existing workflows (TenantWorkForm)
+  const {
+    data: forms = [],
+    isLoading,
+    error,
+  } = useQuery<CatalogItem[]>({
+    queryKey: ['tenant-workforms'],
     queryFn: async () => {
       try {
-        const response = await apiClient.get('/workflows/forms/');
-        logger.debug('[Catalog] API Response:', response.data);
-        
-        // Handle both paginated and non-paginated responses
-        const data = response.data;
-        
-        // If paginated response with results array
-        if (data && typeof data === 'object' && 'results' in data) {
-          logger.debug('[Catalog] Returning paginated results:', data.results?.length || 0);
-          return Array.isArray(data.results) ? data.results : [];
-        }
-        
-        // If direct array response
-        if (Array.isArray(data)) {
-          logger.debug('[Catalog] Returning direct array:', data.length);
-          return data;
-        }
-        
-        // Fallback to empty array
-        logger.warn('[Catalog] Unexpected API response format:', data);
-        return [];
+        const workforms = await getAvailableWorkForms();
+        const nowIso = new Date().toISOString();
+
+        // Adapt TenantWorkForm list items into the catalog's expected shape.
+        return workforms.map((wf) => {
+          const anyWf = wf as any;
+          const updated = String(anyWf.updated_at ?? nowIso);
+          const created = String(anyWf.created_at ?? updated);
+
+          return {
+            id: String(anyWf.id),
+            name: String(anyWf.name ?? 'Untitled WorkForm'),
+            description: String(anyWf.description ?? ''),
+            status: (anyWf.status as CatalogItem['status']) ?? 'draft',
+            icon: '🧩',
+            // Prefer node_count for workflows; used for the primary metric row.
+            node_count: typeof anyWf.node_count === 'number' ? anyWf.node_count : undefined,
+            edge_count: typeof anyWf.edge_count === 'number' ? anyWf.edge_count : undefined,
+            execution_count:
+              typeof anyWf.execution_count === 'number' ? anyWf.execution_count : undefined,
+            last_executed_at: anyWf.last_executed_at ? String(anyWf.last_executed_at) : undefined,
+            version: typeof anyWf.version === 'number' ? anyWf.version : undefined,
+            // Keep legacy fields present so existing UI doesn't crash.
+            entity_count:
+              typeof anyWf.node_count === 'number'
+                ? anyWf.node_count
+                : typeof anyWf.entity_count === 'number'
+                  ? anyWf.entity_count
+                  : 0,
+            is_multi_entity: true,
+            is_system_template: false,
+            created_at: created,
+            updated_at: updated,
+          };
+        });
       } catch (error) {
-        logger.error('[Catalog] Error fetching forms:', error);
+        logger.error('[Catalog] Error fetching workforms:', error);
         return [];
       }
     },
@@ -530,22 +579,26 @@ const FormsFlowsCatalog: React.FC = () => {
     }
   }, [error]);
 
-  // Helper to determine if a form should be classified as a Workflow (Logic)
-  const isWorkflow = React.useCallback((form: TenantForm) => {
+  // Helper to determine if an item should be classified as a Workflow (Logic)
+  const isWorkflow = React.useCallback((form: CatalogItem) => {
+    // New system: TenantWorkForm list items include node_count.
+    if (typeof form.node_count === 'number') return true;
+
+    // Legacy heuristics (kept for backward compatibility).
     if (form.is_multi_entity) return true;
     if (form.entity_count && form.entity_count > 1) return true;
 
-    // Inspect flow_data to see if it uses advanced workflow nodes
     if (form.flow_data?.nodes && Array.isArray(form.flow_data.nodes)) {
-      const hasAdvancedNodes = form.flow_data.nodes.some((n: any) =>
-        n.type === 'formProcessGroup' ||
-        n.type === 'formProcess' ||
-        n.type === 'formMultiStepContainer' ||
-        n.type === 'conditionIf' ||
-        n.type === 'conditionSwitch' ||
-        (n.type && n.type.startsWith('action')) ||
-        (n.type && n.type.startsWith('trigger') && n.type !== 'triggerManual') ||
-        (n.type && n.type.startsWith('document'))
+      const hasAdvancedNodes = form.flow_data.nodes.some(
+        (n: any) =>
+          n.type === 'formProcessGroup' ||
+          n.type === 'formProcess' ||
+          n.type === 'formMultiStepContainer' ||
+          n.type === 'conditionIf' ||
+          n.type === 'conditionSwitch' ||
+          (n.type && n.type.startsWith('action')) ||
+          (n.type && n.type.startsWith('trigger') && n.type !== 'triggerManual') ||
+          (n.type && n.type.startsWith('document'))
       );
       if (hasAdvancedNodes) return true;
     }
@@ -557,69 +610,69 @@ const FormsFlowsCatalog: React.FC = () => {
   const filteredForms = React.useMemo(() => {
     // Safety check: ensure forms is an array
     if (!forms || !Array.isArray(forms)) {
-      logger.warn('[Catalog] Forms is not an array:', forms, 'isLoading:', isLoading);
+      logger.warn('[Catalog] Forms is not an array', { component: 'Catalog', metadata: { forms, isLoading } });
       return [];
     }
-    
+
     let filtered = forms;
-    
+
     // Apply tab filter first
     if (activeTab === 'workflows') {
       // Workflows: Forms with logic/automation nodes or multi-step containers
-      filtered = filtered.filter(form => !form.is_system_template && isWorkflow(form));
+      filtered = filtered.filter((form) => !form.is_system_template && isWorkflow(form));
     } else if (activeTab === 'forms') {
       // Forms: Simple single-step data capture forms
-      filtered = filtered.filter(form => !form.is_system_template && !isWorkflow(form));
+      filtered = filtered.filter((form) => !form.is_system_template && !isWorkflow(form));
     } else if (activeTab === 'templates') {
-      // Templates: Industry-standard system templates
-      filtered = filtered.filter(form => form.is_system_template === true);
+      return [];
     }
-    
+
     // Apply search filter
     if (searchQuery) {
-      filtered = filtered.filter(form =>
-        form.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        form.description?.toLowerCase().includes(searchQuery.toLowerCase())
+      filtered = filtered.filter(
+        (form) =>
+          form.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          form.description?.toLowerCase().includes(searchQuery.toLowerCase())
       );
     }
 
     // NEW: Apply protein type filter
     if (proteinTypeFilter !== 'all') {
-      filtered = filtered.filter(form => form.protein_type === proteinTypeFilter);
+      filtered = filtered.filter((form) => form.protein_type === proteinTypeFilter);
     }
 
     // NEW: Apply department filter
     if (departmentFilter !== 'all') {
-      filtered = filtered.filter(form => form.department === departmentFilter);
+      filtered = filtered.filter((form) => form.department === departmentFilter);
     }
-    
+
     // Apply status filter
     if (filter !== 'all') {
       if (filter === 'active') {
-        filtered = filtered.filter(form => form.status === 'active');
+        filtered = filtered.filter((form) => form.status === 'active');
       } else if (filter === 'draft') {
-        filtered = filtered.filter(form => form.status === 'draft');
+        filtered = filtered.filter((form) => form.status === 'draft');
       } else if (filter === 'recent') {
         // Sort by updated_at and take top 10
-        filtered = [...filtered].sort((a, b) => 
-          new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
-        ).slice(0, 10);
+        filtered = [...filtered]
+          .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
+          .slice(0, 10);
       }
       // TODO: Implement favorites when backend supports it
     }
-    
+
     return filtered;
   }, [forms, searchQuery, filter, activeTab, proteinTypeFilter, departmentFilter, isWorkflow]);
 
   // Count forms by type for tab badges
   const workflowsCount = React.useMemo(() => {
     if (!forms || !Array.isArray(forms)) return 0;
-    return forms.filter(f => !f.is_system_template && isWorkflow(f)).length;
+    return forms.filter((f) => !f.is_system_template && isWorkflow(f)).length;
   }, [forms, isWorkflow]);
 
   const formsCount = React.useMemo(() => {
     if (!forms || !Array.isArray(forms)) return 0;
-    return forms.filter(f => !f.is_system_template && !isWorkflow(f)).length;
+    return forms.filter((f) => !f.is_system_template && !isWorkflow(f)).length;
   }, [forms, isWorkflow]);
 
   // Handle template selection
@@ -641,11 +694,8 @@ const FormsFlowsCatalog: React.FC = () => {
     try {
       logger.info('[Catalog] Quick Run initiated for form:', formId);
       // Create a new submission and navigate directly to the editor
-      const response = await apiClient.post(`/forms/${formId}/submissions/`, {
-        quick_run: true,
-        auto_save: true,
-      });
-      const submissionId = response.data.id;
+      const submission = await createFormSubmission(formId);
+      const submissionId = submission.id;
       logger.info('[Catalog] Submission created:', submissionId);
       // Navigate to in-progress view with the new submission
       navigate(`/workforms/in-progress/${submissionId}`);
@@ -657,21 +707,9 @@ const FormsFlowsCatalog: React.FC = () => {
     }
   };
 
-  // Handle edit form (now opens preview modal)
+  // Open a workform in the editor
   const handleEditForm = (formId: string) => {
-    logger.debug('[Catalog] handleEditForm called with formId:', formId);
-    logger.debug('[Catalog] Current forms array:', forms);
-    logger.debug('[Catalog] Looking for form with id:', formId);
-    
-    const form = forms?.find(f => f.id === formId);
-    logger.debug('[Catalog] Found form:', form);
-    
-    if (form) {
-      logger.debug('[Catalog] Setting previewForm state to:', form);
-      setPreviewForm(form);
-    } else {
-      logger.error('[Catalog] Form not found for id:', formId);
-    }
+    navigate(`/workforms/editor/${formId}`);
   };
 
   // Format date
@@ -700,7 +738,11 @@ const FormsFlowsCatalog: React.FC = () => {
             variant="primary"
             onClick={() => setShowTemplateSelector(true)}
             disabled={!permissions.can_create || permissionsLoading}
-            title={!permissions.can_create ? getUpgradeMessage(permissions.role, 'create') : 'Create a new form or workflow'}
+            title={
+              !permissions.can_create
+                ? getUpgradeMessage('create', permissions.role)
+                : 'Create a new form or workflow'
+            }
           >
             {!permissions.can_create && <Lock size={16} style={{ marginRight: '0.5rem' }} />}
             <Plus size={18} />
@@ -711,114 +753,145 @@ const FormsFlowsCatalog: React.FC = () => {
 
       {/* Phase 5: Tabbed View - Logic vs Data + Templates (Phase 2.2) */}
       <TabsContainer>
-        <Tab
-          $active={activeTab === 'workflows'}
-          onClick={() => setActiveTab('workflows')}
-        >
+        <Tab $active={activeTab === 'workflows'} onClick={() => setActiveTab('workflows')}>
           <Workflow size={18} />
           Workflows (Logic)
           {workflowsCount > 0 && <TabBadge>{workflowsCount}</TabBadge>}
         </Tab>
-        <Tab
-          $active={activeTab === 'forms'}
-          onClick={() => setActiveTab('forms')}
-        >
+        <Tab $active={activeTab === 'forms'} onClick={() => setActiveTab('forms')}>
           <Database size={18} />
           Forms (Data)
           {formsCount > 0 && <TabBadge>{formsCount}</TabBadge>}
         </Tab>
-        <Tab
-          $active={activeTab === 'templates'}
-          onClick={() => setActiveTab('templates')}
-        >
+        <Tab $active={activeTab === 'templates'} onClick={() => setActiveTab('templates')}>
           <Boxes size={18} />
           Industry Templates
-          <TabBadge style={{ background: 'rgb(var(--color-success))' }}>
-            {forms.filter(f => f.is_system_template).length}
-          </TabBadge>
+          <TabBadge style={{ background: 'rgb(var(--color-success))' }}>{FLOW_TEMPLATES.length}</TabBadge>
         </Tab>
       </TabsContainer>
 
-      {/* NEW: Category Filters for Protein Type and Department */}
-      <CategoryBar>
-        <CategoryLabel>Protein Type:</CategoryLabel>
-        <CategorySelect 
-          value={proteinTypeFilter} 
-          onChange={(e) => setProteinTypeFilter(e.target.value as ProteinType)}
-        >
-          <option value="all">All Types</option>
-          <option value="beef">🥩 Beef</option>
-          <option value="pork">🐖 Pork</option>
-          <option value="poultry">🐔 Poultry</option>
-          <option value="seafood">🐟 Seafood</option>
-          <option value="lamb">🐑 Lamb</option>
-          <option value="other">🥓 Other</option>
-        </CategorySelect>
-
-        <CategoryLabel>Department:</CategoryLabel>
-        <CategorySelect 
-          value={departmentFilter} 
-          onChange={(e) => setDepartmentFilter(e.target.value as Department)}
-        >
-          <option value="all">All Departments</option>
-          <option value="receiving">📦 Receiving</option>
-          <option value="processing">⚙️ Processing</option>
-          <option value="packaging">📦 Packaging</option>
-          <option value="quality_control">✅ Quality Control</option>
-          <option value="shipping">🚚 Shipping</option>
-        </CategorySelect>
-      </CategoryBar>
-
-      <FilterBar>
-        <FilterChip
-          $active={filter === 'all'}
-          onClick={() => setFilter('all')}
-        >
-          All Forms
-        </FilterChip>
-        <FilterChip
-          $active={filter === 'active'}
-          onClick={() => setFilter('active')}
-        >
-          <Sparkles size={14} />
-          Active
-        </FilterChip>
-        <FilterChip
-          $active={filter === 'draft'}
-          onClick={() => setFilter('draft')}
-        >
-          <FileText size={14} />
-          Drafts
-        </FilterChip>
-        <FilterChip
-          $active={filter === 'recent'}
-          onClick={() => setFilter('recent')}
-        >
-          <Clock size={14} />
-          Recent
-        </FilterChip>
-        
-        <div style={{ marginLeft: 'auto' }}>
-          <ViewToggle>
-            <ViewButton
-              $active={viewMode === 'grid'}
-              onClick={() => setViewMode('grid')}
-              title="Grid view"
+      {activeTab !== 'templates' && (
+        <>
+          {/* NEW: Category Filters for Protein Type and Department */}
+          <CategoryBar>
+            <CategoryLabel>Protein Type:</CategoryLabel>
+            <CategorySelect
+              value={proteinTypeFilter}
+              onChange={(e) => setProteinTypeFilter(e.target.value as ProteinType)}
             >
-              <Grid />
-            </ViewButton>
-            <ViewButton
-              $active={viewMode === 'list'}
-              onClick={() => setViewMode('list')}
-              title="List view"
-            >
-              <List />
-            </ViewButton>
-          </ViewToggle>
-        </div>
-      </FilterBar>
+              <option value="all">All Types</option>
+              <option value="beef">🥩 Beef</option>
+              <option value="pork">🐖 Pork</option>
+              <option value="poultry">🐔 Poultry</option>
+              <option value="seafood">🐟 Seafood</option>
+              <option value="lamb">🐑 Lamb</option>
+              <option value="other">🥓 Other</option>
+            </CategorySelect>
 
-      {isLoading ? (
+            <CategoryLabel>Department:</CategoryLabel>
+            <CategorySelect
+              value={departmentFilter}
+              onChange={(e) => setDepartmentFilter(e.target.value as Department)}
+            >
+              <option value="all">All Departments</option>
+              <option value="receiving">📦 Receiving</option>
+              <option value="processing">⚙️ Processing</option>
+              <option value="packaging">📦 Packaging</option>
+              <option value="quality_control">✅ Quality Control</option>
+              <option value="shipping">🚚 Shipping</option>
+            </CategorySelect>
+          </CategoryBar>
+
+          <FilterBar>
+            <FilterChip $active={filter === 'all'} onClick={() => setFilter('all')}>
+              All Forms
+            </FilterChip>
+            <FilterChip $active={filter === 'active'} onClick={() => setFilter('active')}>
+              <Sparkles size={14} />
+              Active
+            </FilterChip>
+            <FilterChip $active={filter === 'draft'} onClick={() => setFilter('draft')}>
+              <FileText size={14} />
+              Drafts
+            </FilterChip>
+            <FilterChip $active={filter === 'recent'} onClick={() => setFilter('recent')}>
+              <Clock size={14} />
+              Recent
+            </FilterChip>
+
+            <div style={{ marginLeft: 'auto' }}>
+              <ViewToggle>
+                <ViewButton
+                  $active={viewMode === 'grid'}
+                  onClick={() => setViewMode('grid')}
+                  title="Grid view"
+                >
+                  <Grid />
+                </ViewButton>
+                <ViewButton
+                  $active={viewMode === 'list'}
+                  onClick={() => setViewMode('list')}
+                  title="List view"
+                >
+                  <List />
+                </ViewButton>
+              </ViewToggle>
+            </div>
+          </FilterBar>
+        </>
+      )}
+
+      {activeTab === 'templates' ? (
+        (() => {
+          const filteredTemplates = FLOW_TEMPLATES.filter((t) => {
+            const q = searchQuery.trim().toLowerCase();
+            if (!q) return true;
+            return (
+              t.name.toLowerCase().includes(q) ||
+              t.description.toLowerCase().includes(q) ||
+              t.tags.some((tag) => tag.toLowerCase().includes(q))
+            );
+          });
+
+          if (filteredTemplates.length === 0) {
+            return (
+              <EmptyState>
+                <EmptyStateIcon>📦</EmptyStateIcon>
+                <EmptyStateTitle>No templates found</EmptyStateTitle>
+                <EmptyStateDescription>Try adjusting your search</EmptyStateDescription>
+              </EmptyState>
+            );
+          }
+
+          return (
+            <GridContainer>
+              {filteredTemplates.map((template) => (
+                <FormCard key={template.id}>
+                  <CardContent onClick={() => handleTemplateSelect(template)} style={{ cursor: 'pointer' }}>
+                    <FormCardHeader>
+                      <FormIcon>{template.thumbnail || '📋'}</FormIcon>
+                      <FormInfo>
+                        <FormTitle>{template.name}</FormTitle>
+                        <FormDescription>{template.description || 'No description'}</FormDescription>
+                      </FormInfo>
+                    </FormCardHeader>
+                    <FormMeta>
+                      <MetaItem>
+                        <Boxes size={14} />
+                        {template.category}
+                      </MetaItem>
+                      <MetaItem>
+                        <Star size={14} />
+                        {template.difficulty}
+                      </MetaItem>
+                    </FormMeta>
+                  </CardContent>
+                </FormCard>
+              ))}
+            </GridContainer>
+          );
+        })()
+      ) : isLoading ? (
         <LoadingState>Loading forms...</LoadingState>
       ) : filteredForms.length === 0 ? (
         <EmptyState>
@@ -832,10 +905,7 @@ const FormsFlowsCatalog: React.FC = () => {
               : 'Get started by creating your first form or workflow'}
           </EmptyStateDescription>
           {!searchQuery && filter === 'all' && (
-            <Button
-              variant="primary"
-              onClick={() => setShowTemplateSelector(true)}
-            >
+            <Button variant="primary" onClick={() => setShowTemplateSelector(true)}>
               <Plus size={18} />
               Create Your First Form
             </Button>
@@ -845,33 +915,35 @@ const FormsFlowsCatalog: React.FC = () => {
         <GridContainer>
           {filteredForms.map((form) => (
             <FormCard key={form.id}>
-              <CardContent
-                onClick={() => handleEditForm(form.id)}
-                style={{ cursor: 'pointer' }}
-              >
+              <CardContent onClick={() => handleEditForm(form.id)} style={{ cursor: 'pointer' }}>
                 <FormCardHeader>
                   <FormIcon>{form.icon || '📋'}</FormIcon>
                   <FormInfo>
                     <FormTitle>{form.name}</FormTitle>
-                    <FormDescription>
-                      {form.description || 'No description'}
-                    </FormDescription>
+                    <FormDescription>{form.description || 'No description'}</FormDescription>
                   </FormInfo>
                 </FormCardHeader>
                 <FormMeta>
                   <MetaItem>
                     <Workflow size={14} />
-                    {form.entity_count} {form.entity_count === 1 ? 'step' : 'steps'}
+                    {typeof form.node_count === 'number'
+                      ? form.node_count
+                      : form.entity_count || 0}{' '}
+                    {typeof form.node_count === 'number'
+                      ? form.node_count === 1
+                        ? 'node'
+                        : 'nodes'
+                      : (form.entity_count || 0) === 1
+                        ? 'step'
+                        : 'steps'}
                   </MetaItem>
                   <MetaItem>
                     <Clock size={14} />
                     {formatDate(form.updated_at)}
                   </MetaItem>
-                  <StatusBadge $status={form.status}>
-                    {form.status}
-                  </StatusBadge>
+                  <StatusBadge $status={form.status}>{form.status}</StatusBadge>
                 </FormMeta>
-                
+
                 {/* NEW: Quick Run Button (if workflow supports it) */}
                 {form.can_quick_run && form.status === 'active' && (
                   <div style={{ marginTop: '1rem' }}>
@@ -904,8 +976,7 @@ const FormsFlowsCatalog: React.FC = () => {
           {filteredForms.map((form) => (
             <FormCard key={form.id}>
               <CardContent
-                onClick={(e) => {
-                  logger.debug('[Catalog] CardContent (List) CLICKED!', form.id, e);
+                onClick={() => {
                   handleEditForm(form.id);
                 }}
                 style={{ cursor: 'pointer' }}
@@ -914,25 +985,30 @@ const FormsFlowsCatalog: React.FC = () => {
                   <FormIcon>{form.icon || '📋'}</FormIcon>
                   <FormInfo>
                     <FormTitle>{form.name}</FormTitle>
-                    <FormDescription>
-                      {form.description || 'No description'}
-                    </FormDescription>
+                    <FormDescription>{form.description || 'No description'}</FormDescription>
                   </FormInfo>
                   <FormMeta>
                     <MetaItem>
                       <Workflow size={14} />
-                      {form.entity_count} {form.entity_count === 1 ? 'step' : 'steps'}
+                      {typeof form.node_count === 'number'
+                        ? form.node_count
+                        : form.entity_count || 0}{' '}
+                      {typeof form.node_count === 'number'
+                        ? form.node_count === 1
+                          ? 'node'
+                          : 'nodes'
+                        : (form.entity_count || 0) === 1
+                          ? 'step'
+                          : 'steps'}
                     </MetaItem>
                     <MetaItem>
                       <Clock size={14} />
                       {formatDate(form.updated_at)}
                     </MetaItem>
-                    <StatusBadge $status={form.status}>
-                      {form.status}
-                    </StatusBadge>
+                    <StatusBadge $status={form.status}>{form.status}</StatusBadge>
                   </FormMeta>
                 </FormCardHeader>
-                
+
                 {/* NEW: Quick Run Button (if workflow supports it) */}
                 {form.can_quick_run && form.status === 'active' && (
                   <div style={{ marginTop: '1rem', marginLeft: '4rem' }}>
@@ -969,20 +1045,6 @@ const FormsFlowsCatalog: React.FC = () => {
         onSelectTemplate={handleTemplateSelect}
         onStartBlank={handleCreateBlank}
       />
-      
-      {/* Form Preview Modal */}
-      {previewForm && (
-        <FormPreviewModal
-          form={previewForm}
-          onClose={() => {
-            logger.debug('[Catalog] Closing preview modal');
-            setPreviewForm(null);
-          }}
-        />
-      )}
-      
-      {/* Debug: Show preview state */}
-      {logger.debug('[Catalog] Current previewForm state:', previewForm)}
     </Container>
   );
 };

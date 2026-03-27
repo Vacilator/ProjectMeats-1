@@ -20,19 +20,19 @@ describe('Theme Configuration', () => {
     it('returns light theme for light mode', () => {
       const config = getThemeConfig('light');
       expect(config).toEqual(lightTheme);
-      expect(config.token?.colorPrimary).toBe('#667eea');
+      expect(String(config.token?.colorPrimary)).toContain('--color-primary');
     });
 
     it('returns dark theme for dark mode', () => {
       const config = getThemeConfig('dark');
       expect(config).toEqual(darkTheme);
-      expect(config.token?.colorPrimary).toBe('#818cf8');
+      expect(String(config.token?.colorPrimary)).toContain('--color-primary');
     });
 
     it('returns high contrast theme for high-contrast mode', () => {
       const config = getThemeConfig('high-contrast');
       expect(config).toEqual(highContrastTheme);
-      expect(config.token?.colorPrimary).toBe('#0000ff');
+      expect(String(config.token?.colorPrimary)).toContain('--color-primary');
     });
 
     it('defaults to light theme for unknown mode', () => {
@@ -44,11 +44,11 @@ describe('Theme Configuration', () => {
   describe('Theme Token Values', () => {
     it('light theme has correct tokens', () => {
       expect(lightTheme.token).toMatchObject({
-        colorPrimary: '#667eea',
-        colorSuccess: '#22c55e',
-        colorWarning: '#eab308',
-        colorError: '#ef4444',
-        colorInfo: '#3b82f6',
+        colorPrimary: 'rgb(var(--color-primary))',
+        colorSuccess: 'rgb(34, 197, 94)',
+        colorWarning: 'rgb(234, 179, 8)',
+        colorError: 'rgb(239, 68, 68)',
+        colorInfo: 'rgb(59, 130, 246)',
         fontSize: 14,
         borderRadius: 6,
       });
@@ -56,11 +56,11 @@ describe('Theme Configuration', () => {
 
     it('dark theme has correct tokens', () => {
       expect(darkTheme.token).toMatchObject({
-        colorPrimary: '#818cf8',
-        colorSuccess: '#4ade80',
-        colorWarning: '#fbbf24',
-        colorError: '#f87171',
-        colorInfo: '#60a5fa',
+        colorPrimary: 'rgb(var(--color-primary))',
+        colorSuccess: 'rgb(34, 197, 94)',
+        colorWarning: 'rgb(234, 179, 8)',
+        colorError: 'rgb(239, 68, 68)',
+        colorInfo: 'rgb(59, 130, 246)',
         fontSize: 14,
         borderRadius: 6,
       });
@@ -68,10 +68,10 @@ describe('Theme Configuration', () => {
 
     it('high contrast theme has accessibility-focused tokens', () => {
       expect(highContrastTheme.token).toMatchObject({
-        colorPrimary: '#0000ff',
-        colorSuccess: '#008000',
-        colorWarning: '#ffaa00',
-        colorError: '#cc0000',
+        colorPrimary: 'rgb(var(--color-primary))',
+        colorSuccess: 'rgb(0, 128, 0)',
+        colorWarning: 'rgb(255, 170, 0)',
+        colorError: 'rgb(204, 0, 0)',
         fontSize: 16, // Larger for accessibility
         borderRadius: 2, // Sharper edges
         lineWidth: 2, // Thicker borders

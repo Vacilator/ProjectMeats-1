@@ -193,15 +193,31 @@ class IntentResult:
 
 
 class IntentEngine:
-    """AI-powered intent recognition + document understanding for email processing.
+    """AI-powered intent recognition + document understanding for inbound email processing.
 
     Phase 6.5 adds *document* classification (PO / invoice / claim / BOL / inquiry)
-    in addition to the earlier intent classification.
+    in addition to earlier intent classification.
+
+    Args:
+        tenant: Optional tenant object used to resolve per-tenant AIConfiguration.
+        api_key: Optional OpenAI API key override.
+        model_name: Optional model override.
+
+    Returns:
+        Methods return dictionaries / dataclasses containing:
+        - intent / document_type
+        - confidence
+        - extracted variables / metadata
+        - routing hints (e.g., requires_human_review)
+
+    Side effects:
+        - May call OpenAI chat completions.
+        - Must degrade gracefully when OpenAI is unavailable.
 
     Design goals:
-    - Tenant-aware credentials: prefer per-tenant AIConfiguration; fall back to env.
-    - Soft dependency on openai: methods degrade gracefully if package/key missing.
-    - Bounded prompts: cap attachment text to avoid token blowups.
+        - Tenant-aware credentials: prefer per-tenant AIConfiguration; fall back to env.
+        - Soft dependency on openai: degrade gracefully if package/key missing.
+        - Bounded prompts: cap attachment text to avoid token blowups.
     """
 
     DEFAULT_DOCUMENT_MODEL = os.environ.get('OPENAI_DOCUMENT_MODEL', 'gpt-4o-mini')

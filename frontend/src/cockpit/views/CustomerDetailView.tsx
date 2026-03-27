@@ -1,5 +1,9 @@
 import React, { useMemo, useState } from 'react';
 import styled from 'styled-components';
+
+import { InquiryCreateModal } from '@/components/Inquiry';
+import { ScheduleCallModal } from '@/components/Shared';
+import { InquiryCallModal } from '@/components/Calls/InquiryCallModal';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { Building2, Mail, MapPin, Phone, Plus, Sparkles, StickyNote } from 'lucide-react';
@@ -453,6 +457,10 @@ export const CustomerDetailView: React.FC<CustomerDetailViewProps> = ({
   const [leftFilter, setLeftFilter] = useState('');
   const [activeTab, setActiveTab] = useState<DetailTab>('products');
   const [isNewMenuOpen, setIsNewMenuOpen] = useState(false);
+  const [isInquiryCreateOpen, setIsInquiryCreateOpen] = useState(false);
+  const [showScheduleCallModal, setShowScheduleCallModal] = useState(false);
+  const [defaultCallPurpose, setDefaultCallPurpose] = useState<string | undefined>(undefined);
+  const [showInquiryCallModal, setShowInquiryCallModal] = useState(false);
 
   const entityQuery = useQuery({
     queryKey: ['cockpit-entity', canonicalType, entityId],
@@ -552,17 +560,29 @@ export const CustomerDetailView: React.FC<CustomerDetailViewProps> = ({
     };
   }, [canonicalType, counts]);
 
+  const startNewCall = (purpose: string) => {
+    setIsNewMenuOpen(false);
+
+    if (purpose === 'inquiry') {
+      setShowInquiryCallModal(true);
+      return;
+    }
+
+    setDefaultCallPurpose(purpose);
+    setShowScheduleCallModal(true);
+  };
+
   const handleNewAction = (action: 'product' | 'order' | 'call' | 'inquiry') => {
     setIsNewMenuOpen(false);
 
     if (action === 'inquiry') {
-      navigate('/inquiries', {
-        state: {
-          openCreateModal: true,
-          entityType: canonicalType,
-          entityId: String(entityId),
-        },
-      });
+      setIsInquiryCreateOpen(true);
+      return;
+    }
+
+    if (action === 'call') {
+      // Default to follow-up if user used keyboard/quick action.
+      startNewCall('follow_up');
       return;
     }
 
@@ -593,6 +613,41 @@ export const CustomerDetailView: React.FC<CustomerDetailViewProps> = ({
 
   return (
     <Page>
+      <InquiryCreateModal
+        isOpen={isInquiryCreateOpen}
+        onClose={() => setIsInquiryCreateOpen(false)}
+        onSuccess={() => {
+          void countsQuery.refetch();
+          void tabItemsQuery.refetch();
+          setIsInquiryCreateOpen(false);
+        }}
+        initialEntityType={canonicalType ?? undefined}
+        initialEntityId={entityId}
+      />
+
+      <ScheduleCallModal
+        isOpen={showScheduleCallModal}
+        onClose={() => setShowScheduleCallModal(false)}
+        onSuccess={() => {
+          void countsQuery.refetch();
+          void tabItemsQuery.refetch();
+        }}
+        defaultCallPurpose={defaultCallPurpose}
+        defaultEntityType={canonicalType ?? undefined}
+        defaultEntityId={Number.isFinite(Number(entityId)) ? entityId : undefined}
+      />
+
+      <InquiryCallModal
+        isOpen={showInquiryCallModal}
+        onClose={() => setShowInquiryCallModal(false)}
+        onSuccess={() => {
+          void countsQuery.refetch();
+          void tabItemsQuery.refetch();
+          setShowInquiryCallModal(false);
+        }}
+        initialEntityType={canonicalType ?? undefined}
+        initialEntityId={Number.isFinite(Number(entityId)) ? entityId : undefined}
+      />
       <StickyHeader>
         <HeaderInner>
           <div style={{ minWidth: 0 }}>
@@ -740,8 +795,23 @@ export const CustomerDetailView: React.FC<CustomerDetailViewProps> = ({
                     <MenuItem type="button" onClick={() => handleNewAction('order')} role="menuitem">
                       New Order <span>↵</span>
                     </MenuItem>
-                    <MenuItem type="button" onClick={() => handleNewAction('call')} role="menuitem">
-                      New Call Log <span>↵</span>
+                    <MenuItem type="button" onClick={() => startNewCall('follow_up')} role="menuitem">
+                      New Call (Follow-up) <span>↵</span>
+                    </MenuItem>
+                    <MenuItem type="button" onClick={() => startNewCall('inquiry')} role="menuitem">
+                      New Call (Inquiry) <span>↵</span>
+                    </MenuItem>
+                    <MenuItem type="button" onClick={() => startNewCall('complaint')} role="menuitem">
+                      New Call (Complaint) <span>↵</span>
+                    </MenuItem>
+                    <MenuItem type="button" onClick={() => startNewCall('order')} role="menuitem">
+                      New Call (Order) <span>↵</span>
+                    </MenuItem>
+                    <MenuItem type="button" onClick={() => startNewCall('support')} role="menuitem">
+                      New Call (Support) <span>↵</span>
+                    </MenuItem>
+                    <MenuItem type="button" onClick={() => startNewCall('other')} role="menuitem">
+                      New Call (Other) <span>↵</span>
                     </MenuItem>
                     <MenuItem type="button" onClick={() => handleNewAction('inquiry')} role="menuitem">
                       New Inquiry <span>↵</span>

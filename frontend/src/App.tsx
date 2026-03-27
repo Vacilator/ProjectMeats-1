@@ -4,8 +4,9 @@
  * ProjectMeats3 React Application
  * Full Business Management System with AI Assistant
  */
-import React, { useEffect } from 'react';
+import React, { Suspense, lazy, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { Skeleton } from 'antd';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider } from './contexts/AuthContext';
 import { NavigationProvider } from './contexts/NavigationContext';
@@ -78,7 +79,6 @@ import InquiryTemplates from './pages/InquiryTemplates';
 import InquiryAnalytics from './pages/InquiryAnalytics';
 import OptionListsPage from './pages/Admin/OptionLists';
 import ConfigurationsPage from './pages/Admin/Configurations';
-import CustomizationsPage from './pages/Admin/Customizations';
 import UsersPage from './pages/Admin/Users';
 import AdminProfilePage from './pages/Admin/Profile';
 import BillingPage from './pages/Admin/Billing';
@@ -87,7 +87,7 @@ import AdminWorkspaceHome from './pages/Admin/Home';
 import AdminErrorBoundary from './components/Admin/AdminErrorBoundary';
 import { ErrorBoundary as ProductionErrorBoundary } from './components/common/ErrorBoundary';
 import { logger } from './utils/logger';
-import CockpitPage from './pages/Cockpit';
+const CockpitPage = lazy(() => import('./pages/Cockpit'));
 import ProcessMonitor from './pages/Cockpit/ProcessMonitor';
 import CockpitEntityRedirect from './pages/Cockpit/CockpitEntityRedirect';
 import { NotificationPreferences } from './pages/Settings/index';
@@ -96,7 +96,7 @@ import WorkFormsLayout from './pages/WorkForms';
 import WorkFormsCatalog from './pages/WorkForms/Catalog';
 import WorkFormsInProgress from './pages/WorkForms/InProgress';
 import WorkFormsHistory from './pages/WorkForms/History';
-import WorkFormsEditor from './pages/WorkForms/Editor';
+const WorkFormsEditor = lazy(() => import('./pages/WorkForms/Editor'));
 import WorkFormsMonitoring from './pages/WorkForms/Monitoring';
 
 // Wrapper component to access QuickActions context
@@ -292,8 +292,22 @@ const App: React.FC = () => {
                   <Route path="monitoring" element={<WorkFormsMonitoring />} />
                   <Route path="catalog" element={<WorkFormsCatalog />} />
                   <Route path="history" element={<WorkFormsHistory />} />
-                  <Route path="editor" element={<WorkFormsEditor />} />
-                  <Route path="editor/:id" element={<WorkFormsEditor />} />
+                  <Route
+                    path="editor"
+                    element={
+                      <Suspense fallback={<Skeleton active />}> 
+                        <WorkFormsEditor />
+                      </Suspense>
+                    }
+                  />
+                  <Route
+                    path="editor/:id"
+                    element={
+                      <Suspense fallback={<Skeleton active />}> 
+                        <WorkFormsEditor />
+                      </Suspense>
+                    }
+                  />
                 </Route>
                 
                 {/* Legacy routes - redirect to WorkForms */}
@@ -323,11 +337,10 @@ const App: React.FC = () => {
                     <ConfigurationsPage />
                   </AdminErrorBoundary>
                 } />
-                <Route path="workspace/customizations" element={
-                  <AdminErrorBoundary fallbackTitle="Customizations Error">
-                    <CustomizationsPage />
-                  </AdminErrorBoundary>
-                } />
+                <Route
+                  path="workspace/customizations"
+                  element={<Navigate to="/workspace/option-lists?tab=overrides" replace />}
+                />
                 <Route path="workspace/users" element={
                   <AdminErrorBoundary fallbackTitle="Users Management Error">
                     <UsersPage />
@@ -353,7 +366,14 @@ const App: React.FC = () => {
                 <Route path="admin/*" element={<Navigate to={`/workspace/${window.location.pathname.replace('/admin/', '')}`} replace />} />
                 
                 {/* Cockpit (Command Center Dashboard) */}
-                <Route path="cockpit" element={<CockpitPage />} />
+                <Route
+                  path="cockpit"
+                  element={
+                    <Suspense fallback={<Skeleton active />}> 
+                      <CockpitPage />
+                    </Suspense>
+                  }
+                />
                 <Route path="cockpit/process-monitor" element={<ProcessMonitor />} />
                 {/* Legacy deep-link route (redirects into /cockpit breadcrumb UX) */}
                 <Route path="cockpit/entity/:entityType/:entityId" element={<CockpitEntityRedirect />} />

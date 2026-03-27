@@ -285,7 +285,7 @@ export function useWorkflowContext(
       
       result.push({
         nodeId,
-        nodeLabel: node.data?.label || node.id,
+        nodeLabel: String((node.data as any)?.label ?? node.id),
         nodeType: node.type || 'unknown',
         fields,
       });

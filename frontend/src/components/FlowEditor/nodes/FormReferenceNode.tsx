@@ -9,7 +9,7 @@
  */
 import React from 'react';
 import styled from 'styled-components';
-import { NodeProps } from '@xyflow/react';
+import type { Node, NodeProps } from '@xyflow/react';
 import { BaseNode, BaseNodeData } from './BaseNode';
 import { FileText, ExternalLink, Edit, Eye } from 'lucide-react';
 
@@ -184,7 +184,7 @@ const Badge = styled.span<{ $type?: 'warning' | 'info' }>`
 // Form Reference Node Component
 // ============================================================================
 
-export const FormReferenceNode = React.memo<NodeProps<FormReferenceNodeData>>(({ data, selected, id }) => {
+export const FormReferenceNode = React.memo<NodeProps<Node<FormReferenceNodeData>>>(({ data, selected, id }) => {
   const hasForm = data.formId && data.formName;
   
   const handleEditForm = () => {
@@ -277,10 +277,10 @@ export const FormReferenceNode = React.memo<NodeProps<FormReferenceNodeData>>(({
         name: 'Form Reference',
         category: 'form',
         color: 'rgb(99, 102, 241)', // Indigo
-        icon: 'FileText',
+        icon: '📋',
+        description: 'Embed a reusable form inside the workflow',
         maxInputs: 1,
         maxOutputs: 1,
-        config: {},
       }}
     >
       <Container>{displayNode}</Container>

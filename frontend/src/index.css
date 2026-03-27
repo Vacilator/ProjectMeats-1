@@ -33,7 +33,14 @@
   
   --color-text-primary: 44, 62, 80;
   --color-text-secondary: 108, 117, 125;
+  --color-text-muted: var(--color-text-secondary);
   --color-text-disabled: 173, 181, 189;
+
+  /* Tailwind theme vars (must exist or utilities will fall back to defaults like black) */
+  --color-accent: var(--color-primary);
+
+  /* Back-compat alias used by some pages (e.g. FlowEditor) */
+  --color-bg-layout: var(--color-background);
   
   --color-border: 222, 226, 230; /* gray-300 */
   --color-border-light: 233, 236, 239; /* gray-200 */
@@ -96,7 +103,14 @@
   
   --color-text-primary: 224, 224, 224;
   --color-text-secondary: 160, 160, 160;
+  --color-text-muted: var(--color-text-secondary);
   --color-text-disabled: 96, 96, 96;
+
+  /* Tailwind theme vars */
+  --color-accent: var(--color-primary);
+
+  /* Back-compat alias */
+  --color-bg-layout: var(--color-background);
   
   --color-border: 61, 61, 61;
   --color-border-light: 77, 77, 77;
@@ -121,8 +135,11 @@ body {
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background-color: rgb(var(--color-background));
-  color: rgb(var(--color-text-primary));
+
+  /* Prefer Ant Design theme variables when cssVar is enabled; fall back to our design-system vars. */
+  background-color: var(--ant-color-bg-layout, rgb(var(--color-background)));
+  color: var(--ant-color-text, rgb(var(--color-text-primary)));
+
   transition: background-color 0.3s ease, color 0.3s ease;
 }
 

@@ -24,12 +24,14 @@ import {
 } from 'lucide-react';
 import debounce from 'lodash/debounce';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Tabs, Spin, Button } from 'antd';
+import { Tabs, Spin, Button, Dropdown, message, type MenuProps } from 'antd';
 import { NotesAndCallsDrawer } from './NotesAndCallsDrawer';
 import { businessApi } from '../../services/businessApi';
 import { useCockpitNavigation } from '../../contexts/CockpitNavigationContext';
-import UniversalEntityForm from '../Shared/UniversalEntityForm';
-import QuickCreateModal from '../FormSubmission/QuickCreateModal';
+// UniversalEntityForm usage consolidated via EntityFormSurface
+
+import { EntityFormSurface } from '../Shared';
+import { InquiryCreateModal } from '../Inquiry';
 import { EntityProfileHeader } from './EntityProfileHeader';
 import { AIOverviewCard } from './AIOverviewCard';
 
@@ -219,14 +221,14 @@ const ResultCard = styled.button`
   }
 `;
 
-const ResultIcon = styled.div<{ $color?: string }>`
+const ResultIcon = styled.div<{ $tone?: string }>`
   display: flex;
   align-items: center;
   justify-content: center;
   width: 36px;
   height: 36px;
-  background: ${props => props.$color ? `${props.$color}15` : 'rgb(var(--color-background-primary))'};
-  color: ${props => props.$color || 'rgb(var(--color-primary))'};
+  background: ${props => props.$tone ? `rgba(${props.$tone}, 0.12)` : 'rgba(var(--color-primary), 0.12)'};
+  color: ${props => props.$tone ? `rgb(${props.$tone})` : 'rgb(var(--color-primary))'};
   border-radius: 6px;
   flex-shrink: 0;
 `;
@@ -330,15 +332,23 @@ const getEntityIcon = (type: SearchEntity['type'], size = 20) => {
   }
 };
 
-const getEntityColor = (type: SearchEntity['type']) => {
+const getEntityTone = (type: SearchEntity['type']) => {
+  // Return an RGB tuple CSS var (e.g. "var(--color-success)") so we can use rgb()/rgba() safely.
   switch (type) {
-    case 'customer': return 'rgb(34, 197, 94)';
-    case 'supplier': return 'rgb(168, 85, 247)';
-    case 'contact': return 'rgb(59, 130, 246)';
-    case 'product': return 'rgb(249, 115, 22)';
-    case 'order': return 'rgb(234, 179, 8)';
-    case 'inquiry': return 'rgb(239, 68, 68)';
-    default: return 'rgb(var(--color-primary))';
+    case 'customer':
+      return 'var(--color-success)';
+    case 'supplier':
+      return 'var(--color-primary)';
+    case 'contact':
+      return 'var(--color-info)';
+    case 'product':
+      return 'var(--color-warning)';
+    case 'order':
+      return 'var(--color-warning)';
+    case 'inquiry':
+      return 'var(--color-error)';
+    default:
+      return 'var(--color-primary)';
   }
 };
 
@@ -517,14 +527,12 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
     setIsSearching(true);
 
     try {
-      console.log('[SmartSearch] Searching for:', searchQuery);
       
       // Call universal search API (correct endpoint)
       const response = await businessApi.get('/search/universal/', {
         params: { q: searchQuery, limit: 5 },
       });
 
-      console.log('[SmartSearch] Search response:', response.data);
 
       // The API returns results already grouped by type
       // Format: { results: [{type, id, title, subtitle, metadata}], counts: {}, total: N }
@@ -546,7 +554,6 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
         });
       }
 
-      console.log('[SmartSearch] Grouped results:', grouped);
       setResults(grouped);
     } catch (error: any) {
       console.error('[SmartSearch] Search failed:', error);
@@ -591,14 +598,12 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
     setIsRelationsLoading(true);
 
     try {
-      console.log('[SmartSearch] Loading relationships for:', entity);
       
       // Use unified Entity Graph API
       const response = await businessApi.get(
         `/system/entities/${entity.type}/${entity.id}/relationships/`
       );
       
-      console.log('[SmartSearch] Entity relationships:', response.data);
       
       const chunks: RelationalChunk[] = [];
       const { relationships } = response.data;
@@ -630,7 +635,6 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
           { params: { max_results: 30 } }
         );
         
-        console.log('[SmartSearch] Fuzzy matches:', fuzzyResponse.data);
         
         if (fuzzyResponse.data.fuzzy_matches && fuzzyResponse.data.fuzzy_matches.length > 0) {
           // Group fuzzy matches by type
@@ -667,8 +671,7 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
         }
       } catch (fuzzyError) {
         // Fuzzy discovery is optional - don't fail if it errors
-        console.warn('[SmartSearch] Fuzzy discovery failed (non-fatal):', fuzzyError);
-      }
+        }
 
       // Add Quick Actions chunk at the end
       const quickActions = getQuickActionsForEntity(entity);
@@ -678,7 +681,7 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
 
       setRelationalChunks(chunks);
     } catch (error) {
-      console.error('[SmartSearch] Failed to load relational chunks:', error);
+      // Non-fatal: keep UI responsive even if relationships endpoint is temporarily unhealthy.
       setRelationalChunks([]);
     } finally {
       setIsRelationsLoading(false);
@@ -733,7 +736,13 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
 
     switch (actionType) {
       case 'create_po': {
+        // Cockpit requirement: embedded creation (no redirects) when the host provides inline create.
+        if (onOpenInlineCreate && activeEntity) {
+          onOpenInlineCreate('purchase_order', activeEntity);
+          return;
+        }
 
+        // Backwards-compatible fallback: redirect to entity page.
         const supplierId = entityId ? String(entityId) : '';
         const params = new URLSearchParams({ action: 'create' });
         if (supplierId) params.set('supplier_id', supplierId);
@@ -757,7 +766,21 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
         window.dispatchEvent(new CustomEvent('pm:open-tool', { detail: { toolId: 'tool:email' } }));
         break;
       case 'create_so': {
+        // Cockpit requirement: embedded creation (no redirects).
+        // Preferred: full Universal form embedded for sales orders.
+        if (activeEntity && String(activeEntity.type).toLowerCase() === 'customer') {
+          const next = new URLSearchParams(searchParams);
+          next.set('cockpit_subview', 'create_so');
+          setSearchParams(next);
+          return;
+        }
 
+        if (onOpenInlineCreate && activeEntity) {
+          onOpenInlineCreate('sales_order', activeEntity);
+          return;
+        }
+
+        // Backwards-compatible fallback: redirect to entity page.
         const customerId = entityId ? String(entityId) : '';
         const params = new URLSearchParams({ action: 'create' });
         if (customerId) params.set('customer_id', customerId);
@@ -779,7 +802,7 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
       default:
         console.warn('Unhandled quick action:', actionType, 'for entity', entityId);
     }
-  }, [navigate, navigation.path, onOpenInlineCreate, query]);
+  }, [navigate, navigation.path, onOpenInlineCreate, query, searchParams, setSearchParams]);
 
   /**
    * Toggle favorite
@@ -848,18 +871,49 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
     return raw === 'customer' || raw === 'supplier';
   }, [activeEntity?.type]);
 
+  const buildCascadeContext = useCallback((source: SearchEntity | null, targetType: string) => {
+    if (!source) return {};
+
+    const sourceType = String(source.type ?? '').toLowerCase();
+    const sourceId = String(source.id ?? '').trim();
+    const target = String(targetType ?? '').toLowerCase();
+
+    if (!sourceType || !sourceId) return {};
+
+    const ctx: Record<string, any> = {
+      source: 'cockpit',
+      source_entity_type: sourceType,
+      source_entity_id: sourceId,
+    };
+
+    // Always include the "{type}_id" alias for safety.
+    ctx[`${sourceType}_id`] = sourceId;
+
+    if (sourceType === 'customer') {
+      ctx.customer = sourceId;
+      ctx.customer_id = sourceId;
+
+      if (target === 'sales_order' || target === 'invoice' || target === 'inquiry' || target === 'contact') {
+        ctx.customer = sourceId;
+      }
+    }
+
+    if (sourceType === 'supplier') {
+      ctx.supplier = sourceId;
+      ctx.supplier_id = sourceId;
+
+      if (target === 'purchase_order' || target === 'inquiry' || target === 'contact') {
+        ctx.supplier = sourceId;
+      }
+    }
+
+    return ctx;
+  }, []);
+
   const openQuickCreate = useCallback((type: string) => {
-    const ctxType = String(activeEntity?.type ?? '').toLowerCase();
-    const ctxId = String(activeEntity?.id ?? '');
-
-    const context = ctxType === 'customer'
-      ? { customer: ctxId }
-      : ctxType === 'supplier'
-      ? { supplier: ctxId }
-      : {};
-
+    const context = buildCascadeContext(activeEntity, type);
     setQuickCreateConfig({ isOpen: true, type, context });
-  }, [activeEntity]);
+  }, [activeEntity, buildCascadeContext]);
 
   const closeQuickCreate = useCallback(() => {
     setQuickCreateConfig({ isOpen: false, type: '', context: {} });
@@ -882,10 +936,9 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
 
     setLoadingRelationTab(tabKey);
     try {
-      const response = await businessApi.get(
-        `/system/entities/${encodeURIComponent(entity.type)}/${encodeURIComponent(entity.id)}/relationships/`,
-        { params: { relationship_types: relationshipType } }
-      );
+      // CRITICAL: trailing slash before query params prevents redirect loops (Nginx/Django APPEND_SLASH)
+      const url = `/system/entities/${encodeURIComponent(entity.type)}/${encodeURIComponent(entity.id)}/relationships/?relationship_types=${encodeURIComponent(relationshipType)}`;
+      const response = await businessApi.get(url);
 
       const items = (response.data?.relationships?.[relationshipType] ?? []) as any[];
       const count = Number(response.data?.counts?.[relationshipType] ?? items.length);
@@ -903,7 +956,7 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
         [tabKey]: { items: mapped, count },
       }));
     } catch (error) {
-      console.error('[SmartSearch] Failed to load relationship tab:', tabKey, error);
+      // Non-fatal: avoid noisy console errors for intermittent 5xxs.
       setRelationTabData(prev => ({
         ...prev,
         [tabKey]: { items: [], count: 0 },
@@ -975,7 +1028,7 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
                 key={entity.id}
                 onClick={() => handleSelectEntity(entity)}
               >
-                <ResultIcon $color={getEntityColor(entity.type)}>
+                <ResultIcon $tone={getEntityTone(entity.type)}>
                   {getEntityIcon(entity.type)}
                 </ResultIcon>
 
@@ -1040,7 +1093,7 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
               onClick={() => chunk.type === 'actions' ? handleQuickAction(item) : handleSelectEntity(item)}
               style={chunk.type === 'actions' ? { cursor: 'pointer', borderStyle: 'dashed' } : {}}
             >
-              <ResultIcon $color={getEntityColor(item.type)}>
+              <ResultIcon $tone={getEntityTone(item.type)}>
                 {getEntityIcon(item.type)}
               </ResultIcon>
 
@@ -1109,53 +1162,97 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
     if (activeRelationTab === 'orders') {
       const type = String(activeEntity.type).toLowerCase();
       const isSupplier = type === 'supplier';
-      const targetType = isSupplier ? 'purchase_order' : 'sales_order';
-      const label = isSupplier ? '+ New Purchase Order' : '+ New Sales Order';
+
+      if (isSupplier) {
+        return (
+          <Button
+            type="primary"
+            onClick={() => {
+              if (onOpenInlineCreate) {
+                onOpenInlineCreate('purchase_order', activeEntity);
+                return;
+              }
+              openQuickCreate('purchase_order');
+            }}
+          >
+            + New Purchase Order
+          </Button>
+        );
+      }
 
       return (
-        <Button
-          type="primary"
-          onClick={() => {
-            const actionType = isSupplier ? 'create_po' : 'create_so';
-            handleQuickAction({
-              id: `action:${actionType}`,
-              type: 'action',
-              name: label,
-              metadata: {
-                action: actionType,
-                entityId: activeEntity.id,
-              },
-            });
-          }}
-        >
-          {label}
+        <Button type="primary" onClick={openInlineCreateSalesOrder}>
+          + New Sales Order
+        </Button>
+      );
+    }
+
+    if (activeRelationTab === 'invoices') {
+      return (
+        <Button type="primary" onClick={() => openQuickCreate('invoice')}>
+          + New Invoice
+        </Button>
+      );
+    }
+
+    if (activeRelationTab === 'contacts') {
+      return (
+        <Button type="primary" onClick={() => openQuickCreate('contact')}>
+          + New Contact
         </Button>
       );
     }
 
     if (activeRelationTab === 'inquiries') {
       return (
-        <Button
-          type="primary"
-          onClick={() => {
-            const type = String(activeEntity.type).toLowerCase();
-            const entityType = type === 'supplier' ? 'supplier' : 'customer';
-            navigate('/inquiries', {
-              state: {
-                openCreateModal: true,
-                entityType,
-                entityId: String(activeEntity.id),
-              },
-            });
-          }}
-        >
+        <Button type="primary" onClick={() => openQuickCreate('inquiry')}>
           + New Inquiry
         </Button>
       );
     }
 
+    if (activeRelationTab === 'more') {
+      const type = String(activeEntity.type).toLowerCase();
+      const isSupplier = type === 'supplier';
+
+      const items: MenuProps['items'] = (isSupplier
+        ? [
+            { key: 'purchase_order', label: 'Purchase Order' },
+            { key: 'contact', label: 'Contact' },
+            { key: 'inquiry', label: 'Inquiry' },
+          ]
+        : [
+            { key: 'sales_order', label: 'Sales Order' },
+            { key: 'invoice', label: 'Invoice' },
+            { key: 'contact', label: 'Contact' },
+            { key: 'inquiry', label: 'Inquiry' },
+          ]) as MenuProps['items'];
+
+      return (
+        <Dropdown
+          trigger={['click']}
+          menu={{
+            items,
+            onClick: ({ key }) => {
+              if (key === 'sales_order') {
+                openInlineCreateSalesOrder();
+                return;
+              }
+              if (key === 'purchase_order' && onOpenInlineCreate) {
+                onOpenInlineCreate('purchase_order', activeEntity);
+                return;
+              }
+              openQuickCreate(String(key));
+            },
+          }}
+        >
+          <Button type="primary">+ New…</Button>
+        </Dropdown>
+      );
+    }
+
     return null;
-  }, [activeEntity, activeRelationTab, handleQuickAction, isPrimaryEntity, navigate, onOpenInlineCreate]);
+  }, [activeEntity, activeRelationTab, isPrimaryEntity, onOpenInlineCreate, openInlineCreateSalesOrder, openQuickCreate]);
 
   return (
     <Container>
@@ -1204,53 +1301,164 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
 
         {quickCreateConfig.isOpen && (
           <div style={{ marginTop: 12 }}>
-            <QuickCreateModal
-              entityType={quickCreateConfig.type}
-              isOpen={true}
-              inline={true}
-              contextData={quickCreateConfig.context}
-              onClose={closeQuickCreate}
-              onCreated={() => {
-                if (activeEntity) {
-                  if (activeRelationTab !== 'more') {
-                    void loadRelationshipTab(activeRelationTab, activeEntity);
+            {String(quickCreateConfig.type).toLowerCase() === 'inquiry' ? (
+              <InquiryCreateModal
+                isOpen={true}
+                onClose={closeQuickCreate}
+                onSuccess={() => {
+                  if (activeEntity) {
+                    if (activeRelationTab !== 'more') {
+                      void loadRelationshipTab(activeRelationTab, activeEntity);
+                    }
+                    void loadRelationalChunks(activeEntity);
                   }
-                  void loadRelationalChunks(activeEntity);
+                  closeQuickCreate();
+                }}
+                initialEntityType={
+                  quickCreateConfig.context?.customer || quickCreateConfig.context?.customer_id
+                    ? 'customer'
+                    : quickCreateConfig.context?.supplier || quickCreateConfig.context?.supplier_id
+                      ? 'supplier'
+                      : undefined
                 }
-                closeQuickCreate();
-              }}
-            />
+                initialEntityId={
+                  quickCreateConfig.context?.customer ||
+                  quickCreateConfig.context?.customer_id ||
+                  quickCreateConfig.context?.supplier ||
+                  quickCreateConfig.context?.supplier_id
+                }
+              />
+            ) : (
+              <EntityFormSurface
+                entityType={quickCreateConfig.type}
+                mode="create"
+                isOpen={true}
+                onClose={closeQuickCreate}
+                context={{
+                  customerId: quickCreateConfig.context?.customer || quickCreateConfig.context?.customer_id,
+                  supplierId: quickCreateConfig.context?.supplier || quickCreateConfig.context?.supplier_id,
+                  contactId: quickCreateConfig.context?.contact || quickCreateConfig.context?.contact_id,
+                }}
+                onSuccess={(created) => {
+                  const row = (created && typeof created === 'object' ? (created as any) : {}) as any;
+                  const createdId = String(row?.id ?? row?.uuid ?? row?.pk ?? '').trim();
+                  const rawType = String(quickCreateConfig.type ?? '').toLowerCase();
+                  const createdType =
+                    rawType === 'customers'
+                      ? 'customer'
+                      : rawType === 'suppliers'
+                        ? 'supplier'
+                        : rawType === 'contacts'
+                          ? 'contact'
+                          : rawType === 'products'
+                            ? 'product'
+                            : rawType === 'invoices'
+                              ? 'invoice'
+                              : rawType;
+
+                  const createdName = String(row?.name ?? row?.title ?? row?.code ?? '').trim();
+
+                  if (createdId) {
+                    message.success(`Created ${formatEntityLabel(createdType)}${createdName ? `: ${createdName}` : ''}`);
+                  }
+
+                  // Master data creates are not always a "relation" of the currently focused entity.
+                  // Navigate to the created record so the user can immediately see/confirm it exists.
+                  const shouldNavigateToCreated = Boolean(
+                    createdId && ['customer', 'supplier', 'contact', 'product', 'invoice'].includes(createdType)
+                  );
+
+                  if (shouldNavigateToCreated) {
+                    handleSelectEntity({
+                      id: createdId,
+                      type: createdType,
+                      name: createdName || `New ${formatEntityLabel(createdType)}`,
+                    });
+
+                    if (query?.trim()) {
+                      void searchEntities(query);
+                    }
+
+                    closeQuickCreate();
+                    return;
+                  }
+
+                  if (activeEntity) {
+                    if (activeRelationTab !== 'more') {
+                      void loadRelationshipTab(activeRelationTab, activeEntity);
+                    }
+                    void loadRelationalChunks(activeEntity);
+                  }
+
+                  closeQuickCreate();
+                }}
+              />
+            )}
           </div>
         )}
 
         {inlineAction && activeEntity && (
           <div style={{ marginTop: 12 }}>
-            <QuickCreateModal
-              entityType={inlineAction.entityType}
-              isOpen={true}
-              inline={true}
-              contextData={inlineAction.contextData}
-              onClose={() => onInlineCancel?.()}
-              onCreated={() => {
-                if (activeEntity) {
-                  if (activeRelationTab !== 'more') {
-                    void loadRelationshipTab(activeRelationTab, activeEntity);
+            {String(inlineAction.entityType).toLowerCase() === 'inquiry' ? (
+              <InquiryCreateModal
+                isOpen={true}
+                onClose={() => onInlineCancel?.()}
+                onSuccess={() => {
+                  if (activeEntity) {
+                    if (activeRelationTab !== 'more') {
+                      void loadRelationshipTab(activeRelationTab, activeEntity);
+                    }
+                    void loadRelationalChunks(activeEntity);
                   }
-                  void loadRelationalChunks(activeEntity);
+                  onInlineSuccess?.();
+                }}
+                initialEntityType={
+                  inlineAction.contextData?.customer || inlineAction.contextData?.customer_id
+                    ? 'customer'
+                    : inlineAction.contextData?.supplier || inlineAction.contextData?.supplier_id
+                      ? 'supplier'
+                      : undefined
                 }
-                onInlineSuccess?.();
-              }}
-            />
+                initialEntityId={
+                  inlineAction.contextData?.customer ||
+                  inlineAction.contextData?.customer_id ||
+                  inlineAction.contextData?.supplier ||
+                  inlineAction.contextData?.supplier_id
+                }
+              />
+            ) : (
+              <EntityFormSurface
+                entityType={inlineAction.entityType}
+                mode="create"
+                isOpen={true}
+                onClose={() => onInlineCancel?.()}
+                context={{
+                  customerId: inlineAction.contextData?.customer || inlineAction.contextData?.customer_id,
+                  supplierId: inlineAction.contextData?.supplier || inlineAction.contextData?.supplier_id,
+                  contactId: inlineAction.contextData?.contact || inlineAction.contextData?.contact_id,
+                }}
+                onSuccess={() => {
+                  if (activeEntity) {
+                    if (activeRelationTab !== 'more') {
+                      void loadRelationshipTab(activeRelationTab, activeEntity);
+                    }
+                    void loadRelationalChunks(activeEntity);
+                  }
+                  onInlineSuccess?.();
+                }}
+              />
+            )}
           </div>
         )}
 
         {isInlineCreateSalesOrderOpen && activeEntity && String(activeEntity.type).toLowerCase() === 'customer' && (
-          <UniversalEntityForm
+          <EntityFormSurface
             entityType="sales-orders"
+            mode="create"
             isOpen={true}
             onClose={closeInlineSubview}
             onSuccess={() => closeInlineSubview()}
-            initialValues={{ customer: String(activeEntity.id) } as any}
+            context={{ customerId: String(activeEntity.id) }}
           />
         )}
 
@@ -1294,7 +1502,7 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
                     <ResultGrid>
                       {relationTabData.orders.items.map(item => (
                         <ResultCard key={item.id} onClick={() => handleSelectEntity(item)}>
-                          <ResultIcon $color={getEntityColor(item.type)}>
+                          <ResultIcon $tone={getEntityTone(item.type)}>
                             {getEntityIcon(item.type)}
                           </ResultIcon>
                           <ResultContent>
@@ -1321,7 +1529,7 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
                     <ResultGrid>
                       {relationTabData.invoices.items.map(item => (
                         <ResultCard key={item.id} onClick={() => handleSelectEntity(item)}>
-                          <ResultIcon $color={getEntityColor(item.type)}>
+                          <ResultIcon $tone={getEntityTone(item.type)}>
                             {getEntityIcon(item.type)}
                           </ResultIcon>
                           <ResultContent>
@@ -1348,7 +1556,7 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
                     <ResultGrid>
                       {relationTabData.contacts.items.map(item => (
                         <ResultCard key={item.id} onClick={() => handleSelectEntity(item)}>
-                          <ResultIcon $color={getEntityColor(item.type)}>
+                          <ResultIcon $tone={getEntityTone(item.type)}>
                             {getEntityIcon(item.type)}
                           </ResultIcon>
                           <ResultContent>
@@ -1375,7 +1583,7 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
                     <ResultGrid>
                       {relationTabData.inquiries.items.map(item => (
                         <ResultCard key={item.id} onClick={() => handleSelectEntity(item)}>
-                          <ResultIcon $color={getEntityColor(item.type)}>
+                          <ResultIcon $tone={getEntityTone(item.type)}>
                             {getEntityIcon(item.type)}
                           </ResultIcon>
                           <ResultContent>

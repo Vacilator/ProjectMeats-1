@@ -23,11 +23,9 @@ export { FieldConfigurationPanel } from './FieldConfigurationPanel';
 export { FieldPropertiesEditor } from './FieldPropertiesEditor'; // Phase C.1.2
 
 export type { NodeConfigPanelWithShadowProps } from './NodeConfigPanelWithShadow'; // Phase 2
-export type { FormSelectionPanelProps } from './FormSelectionPanel';
-export type { EntityFieldPickerProps, SelectedField } from './EntityFieldPicker';
-export type { FieldConfigurationPanelProps, FieldConfig } from './FieldConfigurationPanel';
+export type { SelectedField } from './EntityFieldPicker';
+export type { FieldConfig } from './FieldConfigurationPanel';
 export type { FieldPropertiesEditorProps, FieldProperties } from './FieldPropertiesEditor'; // Phase C.1.2
-export type { FieldWithContextProps } from './FieldWithContext'; // Phase 5
 export { StepManagerPanel } from './StepManagerPanel';
 export { FormProcessConfigPanel } from './FormProcessConfigPanel';
 

@@ -17,7 +17,7 @@
 
 import React from 'react';
 import styled from 'styled-components';
-import { NodeProps } from '@xyflow/react';
+import type { Node, NodeProps } from '@xyflow/react';
 import { BaseNodeData } from './BaseNode';
 
 // ============================================================================
@@ -37,7 +37,9 @@ export interface FormProcessChildData extends BaseNodeData {
   parentId?: string;
 }
 
-export interface FormProcessChildWrapperProps extends NodeProps<FormProcessChildData> {
+export type ChildWrapperProps = FormProcessChildWrapperProps;
+
+export interface FormProcessChildWrapperProps extends NodeProps<Node<FormProcessChildData>> {
   /** Child content to render */
   children?: React.ReactNode;
 }
@@ -223,7 +225,7 @@ export const FormProcessChildWrapper: React.FC<FormProcessChildWrapperProps> = (
  * @param WrappedComponent - The node component to wrap
  * @returns Wrapped component with child layout behavior
  */
-export function withChildWrapper<P extends NodeProps>(
+export function withChildWrapper<P extends NodeProps<Node<any>>>(
   WrappedComponent: React.ComponentType<P>
 ): React.FC<P> {
   return (props: P) => {

@@ -403,9 +403,10 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({
     
     // Find all form-related nodes
     nodes.forEach(node => {
-      if (node.type === 'formStep' && node.data?.fields) {
+      const nodeFields = (node.data as any)?.fields;
+      if (node.type === 'formStep' && Array.isArray(nodeFields)) {
         // FormStep node with multiple fields
-        node.data.fields.forEach((field: any) => {
+        nodeFields.forEach((field: any) => {
           fields.push({
             id: field.id || field.name,
             label: field.label || field.name,

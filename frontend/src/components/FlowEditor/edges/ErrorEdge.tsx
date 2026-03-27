@@ -7,15 +7,15 @@
  * Sprint 1: Visual Excellence - Task 1.1
  * Created: 2026-02-17
  */
-import React from 'react';
-import { EdgeProps, getBezierPath, EdgeLabelRenderer, MarkerType } from '@xyflow/react';
-import styled from 'styled-components';
+import React, { useCallback, useState } from 'react';
+import { type Edge, EdgeProps, getBezierPath, EdgeLabelRenderer, MarkerType, EdgeToolbar, useReactFlow } from '@xyflow/react';
+import styled, { keyframes } from 'styled-components';
 
 // ============================================================================
 // Types
 // ============================================================================
 
-interface ErrorEdgeData {
+interface ErrorEdgeData extends Record<string, unknown> {
   label?: string;
   errorType?: string;
   animated?: boolean;
@@ -26,14 +26,23 @@ interface ErrorEdgeData {
 // Styled Components
 // ============================================================================
 
+const dashMove = keyframes`
+  0% {
+    stroke-dashoffset: 20;
+  }
+  100% {
+    stroke-dashoffset: 0;
+  }
+`;
+
 const ErrorLabel = styled.div`
   position: absolute;
   background: rgb(254, 226, 226);
-  border: 2px solid rgb(239, 68, 68);
+  border: 2px solid rgb(var(--color-error));
   border-radius: var(--radius-md, 6px);
   padding: 4px 12px;
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 700;
   color: rgb(153, 27, 27);
   pointer-events: all;
   cursor: pointer;
@@ -41,7 +50,7 @@ const ErrorLabel = styled.div`
   box-shadow: 0 2px 4px rgb(239 68 68 / 0.2);
 
   &:hover {
-    background: rgb(239, 68, 68);
+    background: rgb(var(--color-error));
     color: white;
     transform: scale(1.05);
     box-shadow: 0 4px 8px rgb(239 68 68 / 0.3);
@@ -50,11 +59,42 @@ const ErrorLabel = styled.div`
   &::before {
     content: '⚠';
     display: inline-block;
-    margin-right: 4px;
+    margin-right: 6px;
     font-size: 14px;
   }
 `;
 
+const ErrorPath = styled.path<{ $animate: boolean }>`
+  stroke: rgb(var(--color-error));
+  stroke-width: 2.5;
+  stroke-dasharray: 5 5;
+  fill: none;
+  transition: all 0.2s ease;
+
+  ${(p) =>
+    p.$animate
+      ? `
+    animation: ${dashMove} 1.2s linear infinite;
+  `
+      : ''}
+`;
+
+const ToolbarBtn = styled.button`
+  appearance: none;
+  border: 1px solid rgb(var(--color-border));
+  background: rgba(var(--color-background-primary), 0.95);
+  color: rgb(var(--color-text-primary));
+  border-radius: 8px;
+  padding: 6px 8px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+
+  &:hover {
+    border-color: rgb(var(--color-error));
+    color: rgb(var(--color-error));
+  }
+`;
 const ErrorBadge = styled.div`
   position: absolute;
   background: rgb(220, 38, 38);
@@ -84,7 +124,7 @@ const ErrorBadge = styled.div`
 // Component
 // ============================================================================
 
-export const ErrorEdge = React.memo<EdgeProps<ErrorEdgeData>>(({
+export const ErrorEdge = React.memo<EdgeProps<Edge<ErrorEdgeData>>>(({
   id,
   sourceX,
   sourceY,
@@ -94,6 +134,7 @@ export const ErrorEdge = React.memo<EdgeProps<ErrorEdgeData>>(({
   targetPosition,
   style = {},
   data,
+  selected,
 }) => {
   const [edgePath, labelX, labelY] = getBezierPath({
     sourceX,
@@ -104,15 +145,42 @@ export const ErrorEdge = React.memo<EdgeProps<ErrorEdgeData>>(({
     targetPosition,
   });
 
-  const label = data?.label || data?.errorType || 'Error Handler';
-  const animated = data?.animated || false;
+  const label = data?.label || data?.errorType || 'Catch';
+  const animated = data?.animated ?? true;
   const errorCount = data?.errorCount;
 
+  const [isHovered, setIsHovered] = useState(false);
+  const { setEdges } = useReactFlow();
+
+  const handleConvertToNormalEdge = useCallback(
+    (e: React.MouseEvent) => {
+      e.stopPropagation();
+      setEdges((eds) =>
+        eds.map((edge) =>
+          edge.id === id
+            ? {
+                ...edge,
+                type: ((edge.data as any)?.pmPrevType as string) || 'enhanced',
+                data: {
+                  ...(edge.data as any),
+                },
+              }
+            : edge
+        )
+      );
+    },
+    [id, setEdges]
+  );
+
+  const handleDelete = useCallback(
+    (e: React.MouseEvent) => {
+      e.stopPropagation();
+      setEdges((eds) => eds.filter((edge) => edge.id !== id));
+    },
+    [id, setEdges]
+  );
+
   const edgeStyle: React.CSSProperties = {
-    stroke: 'rgb(239, 68, 68)', // Red
-    strokeWidth: 2.5,
-    strokeDasharray: '6,6',
-    transition: 'all 0.3s ease',
     ...style,
   };
 
@@ -157,13 +225,15 @@ export const ErrorEdge = React.memo<EdgeProps<ErrorEdgeData>>(({
       </defs>
 
       {/* Main edge path */}
-      <path
+      <ErrorPath
         id={id}
         className="react-flow__edge-path"
         d={edgePath}
-        fill="none"
         style={edgeStyle}
         markerEnd={`url(#warning-${id})`}
+        $animate={animated}
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
       />
 
       {/* Animated pulsing dots for errors */}
@@ -185,10 +255,33 @@ export const ErrorEdge = React.memo<EdgeProps<ErrorEdgeData>>(({
           style={{
             transform: `translate(-50%, -50%) translate(${labelX}px,${labelY}px)`,
           }}
-          title={`Error Handler: ${data?.errorType || 'Click to configure'}`}
+          title={`Error Edge: ${data?.errorType || 'Convert back or delete'}`}
+          onMouseEnter={() => setIsHovered(true)}
+          onMouseLeave={() => setIsHovered(false)}
         >
           {label}
         </ErrorLabel>
+
+        <EdgeToolbar edgeId={id} x={labelX} y={labelY - 40} isVisible>
+          <div
+            style={{
+              display: 'flex',
+              gap: 8,
+              opacity: isHovered || !!selected ? 1 : 0,
+              pointerEvents: isHovered || !!selected ? 'all' : 'none',
+            }}
+            onMouseEnter={() => setIsHovered(true)}
+            onMouseLeave={() => setIsHovered(false)}
+            onMouseDown={(e) => e.stopPropagation()}
+          >
+            <ToolbarBtn title="Convert back to normal" onClick={handleConvertToNormalEdge}>
+              Normal
+            </ToolbarBtn>
+            <ToolbarBtn title="Delete edge" onClick={handleDelete}>
+              Delete
+            </ToolbarBtn>
+          </div>
+        </EdgeToolbar>
 
         {/* Error count badge (if errors have occurred) */}
         {errorCount !== undefined && errorCount > 0 && (

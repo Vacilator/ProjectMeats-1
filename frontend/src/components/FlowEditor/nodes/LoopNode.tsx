@@ -9,9 +9,11 @@
 
 import React from 'react';
 import styled from 'styled-components';
-import { Handle, Position, NodeProps } from '@xyflow/react';
-import { BaseNode, BaseNodeData } from './BaseNode';
-import { Repeat, RefreshCw } from 'lucide-react';
+import { Handle, Position, type Node, type NodeProps } from '@xyflow/react';
+import { Card } from 'antd';
+import { Repeat } from 'lucide-react';
+
+import type { BaseNodeData } from './BaseNode';
 
 // ============================================================================
 // TypeScript Interfaces
@@ -20,10 +22,7 @@ import { Repeat, RefreshCw } from 'lucide-react';
 /**
  * Loop iteration types
  */
-export type LoopType = 
-  | 'for_each'      // Iterate over array/collection
-  | 'while'         // Loop while condition is true
-  | 'for_range';    // Loop with start/end/step
+export type LoopType = 'for_each' | 'while' | 'for_range';
 
 /**
  * Data structure for Loop Node
@@ -63,137 +62,79 @@ export interface LoopNodeData extends BaseNodeData {
   onDelete?: () => void;
 }
 
-export interface LoopNodeProps extends NodeProps<LoopNodeData> {}
+export interface LoopNodeProps extends NodeProps<Node<LoopNodeData>> {}
 
 // ============================================================================
 // Styled Components
 // ============================================================================
 
-const NodeContainer = styled.div<{ isExecuting?: boolean }>`
-  min-width: 260px;
-  background: rgb(var(--color-surface));
-  border: 2px solid ${props => 
-    props.isExecuting 
-      ? 'rgb(234, 179, 8)' 
-      : 'rgb(var(--color-border))'
-  };
-  border-radius: var(--radius-md);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  transition: all 0.2s ease;
-  
-  &:hover {
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
-  }
+const Wrapper = styled.div`
+  min-width: 280px;
 `;
 
-const NodeHeader = styled.div`
+const HeaderRow = styled.div`
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 12px 16px;
-  background: rgba(234, 179, 8, 0.08);
-  border-bottom: 1px solid rgba(234, 179, 8, 0.2);
+  justify-content: space-between;
+  gap: 10px;
 `;
 
-const IconWrapper = styled.div<{ isExecuting?: boolean }>`
-  display: flex;
-  align-items: center;
-  color: rgb(234, 179, 8);
-  
-  ${props => props.isExecuting && `
-    animation: spin 2s linear infinite;
-    
-    @keyframes spin {
-      from { transform: rotate(0deg); }
-      to { transform: rotate(360deg); }
-    }
-  `}
-`;
-
-const NodeTitle = styled.div`
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-`;
-
-const NodeLabel = styled.div`
-  font-weight: 600;
-  font-size: 14px;
-  color: rgb(var(--color-text-primary));
-`;
-
-const NodeDescription = styled.div`
-  font-size: 12px;
-  color: rgb(var(--color-text-secondary));
-`;
-
-const NodeBody = styled.div`
-  padding: 16px;
-`;
-
-const LoopConfig = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin-bottom: 12px;
-`;
-
-const ConfigRow = styled.div`
+const Title = styled.div`
   display: flex;
   align-items: center;
   gap: 8px;
+  font-weight: 800;
   font-size: 13px;
-`;
-
-const ConfigLabel = styled.div`
-  color: rgb(var(--color-text-secondary));
-  min-width: 80px;
-`;
-
-const ConfigValue = styled.div`
-  flex: 1;
-  font-family: 'Monaco', 'Menlo', 'Courier New', monospace;
-  font-size: 12px;
-  padding: 4px 8px;
-  background: rgba(234, 179, 8, 0.05);
-  border-radius: var(--radius-xs);
   color: rgb(var(--color-text-primary));
-  border: 1px solid rgba(234, 179, 8, 0.2);
 `;
 
-const LoopTypeBadge = styled.div`
-  padding: 4px 12px;
+const Subtitle = styled.div`
+  margin-top: 2px;
+  font-size: 12px;
+  color: rgb(var(--color-text-tertiary));
+`;
+
+const Badge = styled.div`
+  padding: 2px 10px;
+  border-radius: 999px;
   font-size: 11px;
-  font-weight: 600;
-  text-transform: uppercase;
-  border-radius: var(--radius-sm);
-  background: rgba(234, 179, 8, 0.15);
+  font-weight: 800;
+  background: rgba(234, 179, 8, 0.14);
+  border: 1px solid rgba(234, 179, 8, 0.28);
   color: rgb(234, 179, 8);
-  text-align: center;
+`;
+
+const HandleLabel = styled.div<{ $side: 'left' | 'right' }>`
+  position: absolute;
+  ${p => (p.$side === 'left' ? 'left: -2px;' : 'right: -2px;')}
+  transform: translate(${p => (p.$side === 'left' ? '-100%' : '100%')}, -50%);
+  font-size: 10px;
+  font-weight: 700;
+  color: rgb(var(--color-text-tertiary));
+  white-space: nowrap;
+  pointer-events: none;
+`;
+
+const BodyHint = styled.div`
+  margin-top: 10px;
+  padding: 10px;
+  border-radius: var(--radius-md);
+  border: 1px dashed rgba(234, 179, 8, 0.35);
+  background: rgba(234, 179, 8, 0.06);
+  color: rgb(var(--color-text-secondary));
+  font-size: 12px;
 `;
 
 const IterationCounter = styled.div`
-  margin-top: 12px;
-  padding: 8px 12px;
-  font-size: 12px;
-  font-weight: 500;
-  border-radius: var(--radius-sm);
+  margin-top: 10px;
+  padding: 8px 10px;
+  border-radius: var(--radius-md);
   background: rgba(234, 179, 8, 0.1);
   color: rgb(234, 179, 8);
-  text-align: center;
-`;
-
-const LoopBody = styled.div`
-  margin-top: 12px;
-  padding: 12px;
-  border: 2px dashed rgba(234, 179, 8, 0.3);
-  border-radius: var(--radius-sm);
-  text-align: center;
   font-size: 12px;
-  color: rgb(var(--color-text-secondary));
+  font-weight: 700;
+  text-align: center;
 `;
-
 // ============================================================================
 // Helper Functions
 // ============================================================================
@@ -210,61 +151,6 @@ function getLoopTypeLabel(loopType: LoopType): string {
   return labels[loopType];
 }
 
-/**
- * Get loop configuration display
- */
-function getLoopConfigDisplay(data: LoopNodeData): React.ReactNode {
-  const { loopType, dataSource, iteratorName, whileCondition, rangeStart, rangeEnd, rangeStep } = data;
-  
-  switch (loopType) {
-    case 'for_each':
-      return (
-        <>
-          {dataSource && (
-            <ConfigRow>
-              <ConfigLabel>Source:</ConfigLabel>
-              <ConfigValue>{dataSource}</ConfigValue>
-            </ConfigRow>
-          )}
-          {iteratorName && (
-            <ConfigRow>
-              <ConfigLabel>Item:</ConfigLabel>
-              <ConfigValue>{iteratorName}</ConfigValue>
-            </ConfigRow>
-          )}
-        </>
-      );
-      
-    case 'while':
-      return whileCondition && (
-        <ConfigRow>
-          <ConfigLabel>Condition:</ConfigLabel>
-          <ConfigValue>{whileCondition}</ConfigValue>
-        </ConfigRow>
-      );
-      
-    case 'for_range':
-      return (
-        <>
-          <ConfigRow>
-            <ConfigLabel>Range:</ConfigLabel>
-            <ConfigValue>
-              {rangeStart ?? 0} to {rangeEnd ?? 10} (step {rangeStep ?? 1})
-            </ConfigValue>
-          </ConfigRow>
-          {iteratorName && (
-            <ConfigRow>
-              <ConfigLabel>Counter:</ConfigLabel>
-              <ConfigValue>{iteratorName}</ConfigValue>
-            </ConfigRow>
-          )}
-        </>
-      );
-      
-    default:
-      return null;
-  }
-}
 
 // ============================================================================
 // Component
@@ -323,83 +209,86 @@ function getLoopConfigDisplay(data: LoopNodeData): React.ReactNode {
  * };
  * ```
  */
-export const LoopNode: React.FC<LoopNodeProps> = ({ data, selected }) => {
+export const LoopNode: React.FC<LoopNodeProps> = ({ data }) => {
   const isExecuting = data.currentIteration !== undefined && data.currentIteration !== null;
-  
+
   const loopTypeLabel = getLoopTypeLabel(data.loopType);
-  const configDisplay = getLoopConfigDisplay(data);
 
   return (
-    <NodeContainer isExecuting={isExecuting}>
-      {/* Input handle */}
-      <Handle
-        type="target"
-        position={Position.Left}
-        id="input"
-        style={{ top: '50%' }}
-      />
-      
-      {/* Header */}
-      <NodeHeader>
-        <IconWrapper isExecuting={isExecuting}>
-          <Repeat size={18} />
-        </IconWrapper>
-        <NodeTitle>
-          <NodeLabel>{data.label || 'Loop'}</NodeLabel>
-          {data.description && (
-            <NodeDescription>{data.description}</NodeDescription>
+    <Wrapper>
+      {/* Target handles (2): Input Array + Trigger */}
+      <Handle type="target" position={Position.Left} id="input-array" style={{ top: '38%' }} />
+      <HandleLabel $side="left" style={{ top: '38%' }}>
+        Input Array
+      </HandleLabel>
+
+      <Handle type="target" position={Position.Left} id="trigger" style={{ top: '70%' }} />
+      <HandleLabel $side="left" style={{ top: '70%' }}>
+        Trigger
+      </HandleLabel>
+
+      <Card
+        size="small"
+        styles={{
+          body: { padding: 12 },
+          header: { padding: '10px 12px' },
+        }}
+        title={
+          <div>
+            <HeaderRow>
+              <div>
+                <Title>
+                  <Repeat size={16} /> Repeat
+                </Title>
+                {data.description ? <Subtitle>{data.description}</Subtitle> : null}
+              </div>
+              <Badge>{loopTypeLabel}</Badge>
+            </HeaderRow>
+          </div>
+        }
+      >
+        <div style={{ fontSize: 12, color: 'rgb(var(--color-text-secondary))' }}>
+          {data.loopType === 'for_each' ? (
+            <>
+              Loop over: <strong>{(data as any).arrayVariable ?? (data as any).dataSource ?? '—'}</strong>
+              <br />
+              Item var: <strong>{(data as any).itemVariable ?? (data as any).iteratorName ?? 'item'}</strong>
+            </>
+          ) : data.loopType === 'while' ? (
+            <>
+              Condition: <strong>{(data as any).condition ?? (data as any).whileCondition ?? '—'}</strong>
+            </>
+          ) : (
+            <>
+              Range loop
+            </>
           )}
-        </NodeTitle>
-      </NodeHeader>
-      
-      {/* Body */}
-      <NodeBody>
-        {/* Loop type badge */}
-        <LoopTypeBadge>{loopTypeLabel}</LoopTypeBadge>
-        
-        {/* Configuration */}
-        {configDisplay && (
-          <LoopConfig>{configDisplay}</LoopConfig>
-        )}
-        
-        {/* Max iterations */}
-        {data.maxIterations && (
-          <ConfigRow>
-            <ConfigLabel>Max:</ConfigLabel>
-            <ConfigValue>{data.maxIterations} iterations</ConfigValue>
-          </ConfigRow>
-        )}
-        
-        {/* Loop body indicator */}
-        <LoopBody>
-          Loop Body
-          <br />
-          <small>(Connect child nodes here)</small>
-        </LoopBody>
-        
-        {/* Iteration counter (runtime) */}
-        {data.showIterationCount && isExecuting && (
+        </div>
+
+        <BodyHint>
+          Connect nodes to <strong>Loop Body</strong> to run per-item, and use <strong>On Complete</strong> for the
+          post-loop path.
+        </BodyHint>
+
+        {data.showIterationCount && isExecuting ? (
           <IterationCounter>
-            Iteration {data.currentIteration} 
-            {data.totalIterations && ` of ${data.totalIterations}`}
+            Iteration {data.currentIteration}
+            {data.totalIterations ? ` of ${data.totalIterations}` : ''}
           </IterationCounter>
-        )}
-      </NodeBody>
-      
-      {/* Output handles */}
-      <Handle
-        type="source"
-        position={Position.Right}
-        id="loop-body"
-        style={{ top: '50%', background: 'rgb(234, 179, 8)' }}
-      />
-      <Handle
-        type="source"
-        position={Position.Bottom}
-        id="complete"
-        style={{ left: '50%' }}
-      />
-    </NodeContainer>
+        ) : null}
+      </Card>
+
+      {/* Source handles (2): Loop Body + On Complete */}
+      <Handle type="source" position={Position.Right} id="loop-body" style={{ top: '45%' }} />
+      <HandleLabel $side="right" style={{ top: '45%' }}>
+        Loop Body
+      </HandleLabel>
+
+      <Handle type="source" position={Position.Right} id="on-complete" style={{ top: '78%' }} />
+      <HandleLabel $side="right" style={{ top: '78%' }}>
+        On Complete
+      </HandleLabel>
+    </Wrapper>
   );
 };
 

@@ -13,7 +13,7 @@
  */
 import React from 'react';
 import styled from 'styled-components';
-import { NodeProps } from '@xyflow/react';
+import type { Node, NodeProps } from '@xyflow/react';
 import { BaseNode, BaseNodeData } from './BaseNode';
 import { getNodeTypeDefinition } from '../nodeTypes';
 
@@ -134,7 +134,7 @@ const EmptyState = styled.div`
 // Component
 // ============================================================================
 
-export const ParallelPathNode: React.FC<NodeProps<ParallelPathNodeData>> = (props) => {
+export const ParallelPathNode: React.FC<NodeProps<Node<ParallelPathNodeData>>> = (props) => {
   const { data } = props;
   const nodeTypeDef = getNodeTypeDefinition('parallelPath');
   

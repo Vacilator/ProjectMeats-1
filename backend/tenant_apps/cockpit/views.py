@@ -168,9 +168,12 @@ class EntityAIOverviewView(APIView):
         try:
             from openai import OpenAI
 
+            from apps.system.services.ai_model_resolver import get_active_openai_model_id
+
+            model_id = get_active_openai_model_id(fallback='gpt-4o-mini')
             client = OpenAI(api_key=openai_api_key)
             completion = client.chat.completions.create(
-                model='gpt-4o-mini',
+                model=model_id,
                 messages=[{'role': 'user', 'content': prompt}],
             )
             ai_response_text = ((completion.choices[0].message.content or '') if completion.choices else '').strip()

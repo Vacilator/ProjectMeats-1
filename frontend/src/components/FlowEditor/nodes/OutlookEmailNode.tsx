@@ -2,7 +2,8 @@
  * OutlookEmailNode - Node for sending emails via Microsoft Outlook
  */
 import React from 'react';
-import { Handle, Position, NodeProps } from '@xyflow/react';
+import { Handle, Position, type Node, type NodeProps } from '@xyflow/react';
+import type { BaseNodeData } from './BaseNode';
 import { Mail } from 'lucide-react';
 import styled from 'styled-components';
 
@@ -57,8 +58,7 @@ const RecipientsList = styled.div`
   font-size: 11px;
 `;
 
-export interface OutlookEmailNodeData {
-  label?: string;
+export interface OutlookEmailNodeData extends BaseNodeData {
   to: string[];
   subject: string;
   body: string;
@@ -67,7 +67,7 @@ export interface OutlookEmailNodeData {
   importance?: 'low' | 'normal' | 'high';
 }
 
-export const OutlookEmailNode = React.memo<NodeProps<OutlookEmailNodeData>>(({ 
+export const OutlookEmailNode = React.memo<NodeProps<Node<OutlookEmailNodeData>>>(({ 
   data, 
   selected,
   id

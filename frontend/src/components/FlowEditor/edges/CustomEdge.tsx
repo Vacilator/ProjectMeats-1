@@ -12,14 +12,14 @@
  * Created: 2026-02-04 - Phase 2.1 Batch 2
  */
 import React from 'react';
-import { EdgeProps, getBezierPath, EdgeLabelRenderer } from '@xyflow/react';
+import { type Edge, EdgeProps, getBezierPath, EdgeLabelRenderer } from '@xyflow/react';
 import styled from 'styled-components';
 
 // ============================================================================
 // Types
 // ============================================================================
 
-interface CustomEdgeData {
+interface CustomEdgeData extends Record<string, unknown> {
   label?: string;
   edgeType?: 'default' | 'conditional' | 'success' | 'error';
   animated?: boolean;
@@ -119,7 +119,7 @@ const getEdgeStyle = (edgeType?: string, animated?: boolean) => {
 // Component
 // ============================================================================
 
-export const CustomEdge = React.memo<EdgeProps<CustomEdgeData>>(({
+export const CustomEdge = React.memo<EdgeProps<Edge<CustomEdgeData>>>(({
   id,
   source,
   target,

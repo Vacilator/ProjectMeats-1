@@ -126,16 +126,16 @@ export function useContainerDragAndDrop(
 
       // Find nearest snap point
       const nodeCenterY = nodePosition.y + nodeSize.height / 2;
-      let nearestPoint: XYPosition | null = null;
+      let nearestPoint: { x: number; y: number } | null = null;
       let minDistance = Infinity;
 
-      snapPoints.forEach(point => {
+      for (const point of snapPoints) {
         const distance = Math.abs(point.y - nodeCenterY);
         if (distance < minDistance && distance < snapThreshold) {
           minDistance = distance;
           nearestPoint = point;
         }
-      });
+      }
 
       if (!nearestPoint) {
         // No snap point close enough, just center horizontally

@@ -16,7 +16,7 @@
  * Created: 2026-02-04 - Phase 2.1 Batch 2
  */
 import React from 'react';
-import { NodeProps } from '@xyflow/react';
+import type { Node, NodeProps } from '@xyflow/react';
 import styled from 'styled-components';
 import { Clock, UserCheck, FileText, MessageSquare, CreditCard, AlertCircle } from 'lucide-react';
 import { BaseNode, BaseNodeData } from './BaseNode';
@@ -137,7 +137,7 @@ const formatDeadline = (deadline?: { type: string; value: number | string }) => 
 // Component
 // ============================================================================
 
-export const WaitStateNode = React.memo<NodeProps<WaitStateNodeData>>(({ data, id, selected }) => {
+export const WaitStateNode = React.memo<NodeProps<Node<WaitStateNodeData>>>(({ data, id, selected }) => {
   const { waitType, assignedTo, deadline, reminderEnabled, escalationEnabled, message } = data;
   const typeInfo = getWaitTypeInfo(waitType);
   const Icon = typeInfo.icon;
@@ -219,12 +219,12 @@ export const WaitStateNode = React.memo<NodeProps<WaitStateNodeData>>(({ data, i
       nodeType={{
         id: 'waitState',
         name: typeInfo.label,
-        category: 'logic',
+        category: 'wait',
         color: typeInfo.color,
-        icon: 'Clock',
+        icon: '⏳',
+        description: typeInfo.label,
         maxInputs: 1,
         maxOutputs: 1,
-        config: {},
       }}
     />
   );

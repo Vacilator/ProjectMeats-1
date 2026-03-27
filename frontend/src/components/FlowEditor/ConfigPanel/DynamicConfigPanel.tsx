@@ -404,8 +404,12 @@ export const DynamicConfigPanel: React.FC<DynamicConfigPanelProps> = ({
       suggestion
     );
 
-    setFormData(updatedNode.data || {});
-    onUpdateNode(node.id, updatedNode.data || {});
+    const nextData = (updatedNode.data || {}) as Record<string, unknown>;
+    setFormData(nextData);
+
+    // Stage the full updated node data into shadow state so dirty tracking is reliable
+    // and the outer Apply/Discard bar appears after applying suggestions.
+    onUpdateNode(node.id, nextData as Record<string, any>);
 
     // UX: hide applied suggestions so the user gets immediate feedback.
     setRejectedSuggestionIds((prev) => {
@@ -431,8 +435,12 @@ export const DynamicConfigPanel: React.FC<DynamicConfigPanelProps> = ({
       autoMap
     );
 
-    setFormData(updatedNode.data || {});
-    onUpdateNode(node.id, updatedNode.data || {});
+    const nextData = (updatedNode.data || {}) as Record<string, unknown>;
+    setFormData(nextData);
+
+    // Stage the full updated node data into shadow state so dirty tracking is reliable
+    // and the outer Apply/Discard bar appears after applying suggestions.
+    onUpdateNode(node.id, nextData as Record<string, any>);
 
     // UX: hide the auto-applied suggestions from the list.
     const autoAppliedIds = (autoMap.suggestions || []).filter((s) => s.autoApply).map((s) => s.id);

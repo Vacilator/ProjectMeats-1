@@ -39,8 +39,10 @@ export const LanguageSelector: React.FC<LanguageSelectorProps> = ({
 }) => {
   const { currentLanguage, changeLanguage } = useTranslation();
 
-  const handleChange = (value: SupportedLanguage) => {
-    changeLanguage(value);
+  const handleChange = (value: unknown) => {
+    if (typeof value === 'string' && (supportedLanguages as readonly string[]).includes(value)) {
+      changeLanguage(value as SupportedLanguage);
+    }
   };
 
   const options = supportedLanguages.map((lang) => ({

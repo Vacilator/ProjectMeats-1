@@ -21,6 +21,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Modal, Select, Table, Button, Space, Typography, Alert, message, Tag } from 'antd';
+import type { ColumnsType } from 'antd/es/table';
 import { PlusOutlined, DeleteOutlined, CheckCircleOutlined } from '@ant-design/icons';
 import { businessApi } from '@/services/businessApi';
 import styled from 'styled-components';
@@ -62,7 +63,9 @@ const StyledModal = styled(Modal)`
   }
 `;
 
-const MappingTable = styled(Table)`
+type MappingRow = FieldMapping & { key: number };
+
+const MappingTable = styled(Table<MappingRow>)`
   .mapping-row {
     &:hover {
       background-color: rgba(var(--color-primary), 0.05);
@@ -217,13 +220,13 @@ export const EntityMapperModal: React.FC<EntityMapperModalProps> = ({
     return field ? field.label : fieldId;
   };
 
-  const columns = [
+  const columns: ColumnsType<MappingRow> = [
     {
       title: 'Form Field',
       dataIndex: 'formFieldId',
       key: 'formFieldId',
       width: '40%',
-      render: (value: string, record: FieldMapping, index: number) => (
+      render: (value: string, _record: MappingRow, index: number) => (
         <Select
           style={{ width: '100%' }}
           placeholder="Select form field"
@@ -250,7 +253,7 @@ export const EntityMapperModal: React.FC<EntityMapperModalProps> = ({
       dataIndex: 'entityAttribute',
       key: 'entityAttribute',
       width: '40%',
-      render: (value: string, record: FieldMapping, index: number) => (
+      render: (value: string, _record: MappingRow, index: number) => (
         <Select
           style={{ width: '100%' }}
           placeholder="Select entity attribute"
@@ -273,7 +276,7 @@ export const EntityMapperModal: React.FC<EntityMapperModalProps> = ({
       key: 'actions',
       width: '15%',
       align: 'center' as const,
-      render: (_: any, record: FieldMapping, index: number) => (
+      render: (_: unknown, _record: MappingRow, index: number) => (
         <Button
           type="text"
           danger
@@ -370,7 +373,7 @@ export const EntityMapperModal: React.FC<EntityMapperModalProps> = ({
 
         <MappingTable
           columns={columns}
-          dataSource={mappings.map((mapping, index) => ({ ...mapping, key: index }))}
+          dataSource={mappings.map((mapping, index): MappingRow => ({ ...mapping, key: index }))}
           pagination={false}
           loading={loading}
           locale={{

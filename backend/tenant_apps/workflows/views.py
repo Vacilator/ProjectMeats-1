@@ -9,11 +9,12 @@ import logging
 from datetime import timedelta
 
 from django.contrib.auth.models import User
-from django.db import transaction
+from django.db import IntegrityError, transaction
 from django.db.models import Avg, Count, F, Max, Prefetch, Q
 from django.utils import timezone
 from rest_framework import mixins, serializers, status, viewsets
 from rest_framework.decorators import action
+from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import IsAdminUser, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -36,7 +37,13 @@ from .models import (
     WorkflowExecutionLog,
     WorkflowStatus,
 )
-from .permissions import CanEditWorkForm, CanPublishWorkForm, IsTenantAdminOrOwner, WorkFormPermissionHelper
+from .permissions import (
+    CanEditWorkForm,
+    CanPublishWorkForm,
+    IsTenantAdminOrOwner,
+    IsTenantAdminOrOwnerOrReadOnly,
+    WorkFormPermissionHelper,
+)
 from .serializers import (
     TenantFormCreateSerializer,
     TenantFormEntitySerializer,
@@ -835,9 +842,21 @@ class FormRuleDetailAPIView(APIView):
 
 
 class TenantFilteredModelViewSet(viewsets.ModelViewSet):
-    """Base ViewSet that filters by tenant."""
+    """Base ViewSet that filters by tenant.
+
+    Note: With PostgreSQL RLS enabled, many tenant-scoped tables rely on the
+    `app.current_tenant` session var. Middleware normally sets it, but we also
+    set it here (best-effort) to avoid 500s during serializer validation or
+    read paths when the session var isn't present.
+    """
 
     permission_classes = [IsAuthenticated]
+
+    def initial(self, request, *args, **kwargs):
+        super().initial(request, *args, **kwargs)
+        tenant = getattr(request, "tenant", None)
+        if tenant:
+            self._ensure_rls_session_vars(str(tenant.id))
 
     def get_queryset(self):
         """Filter queryset by current tenant."""
@@ -846,14 +865,54 @@ class TenantFilteredModelViewSet(viewsets.ModelViewSet):
             return qs.filter(tenant=self.request.tenant)
         return qs.none()
 
+    def _ensure_rls_session_vars(self, tenant_id: str) -> None:
+        """Best-effort: (re)set Postgres session vars used by RLS.
+
+        TenantMiddleware normally sets these, but on write paths we re-assert
+        them to avoid "new row violates row-level security policy" 500s if the
+        middleware couldn't set them earlier.
+        """
+
+        from apps.tenants.rls import set_current_tenant
+
+        result = set_current_tenant(tenant_id)
+        if not result.ok:
+            logger.warning(
+                "RLS: failed to set session vars for tenant=%s: %s",
+                tenant_id,
+                result.error,
+            )
+
     def perform_create(self, serializer):
-        """Set tenant and created_by on create."""
-        save_kwargs = {}
-        if hasattr(self.request, "tenant") and self.request.tenant:
-            save_kwargs["tenant"] = self.request.tenant
-        if hasattr(serializer.Meta.model, "created_by"):
+        """Set tenant and created_by on create.
+
+        Important: tenant context is mandatory for all tenant-scoped models.
+        Without this, the DB unique constraints / RLS can surface as 500s.
+        """
+        tenant = getattr(self.request, "tenant", None)
+        if not tenant:
+            raise ValidationError({"tenant": "Tenant context is required (X-Tenant-ID header)."})
+
+        self._ensure_rls_session_vars(str(tenant.id))
+
+        save_kwargs = {"tenant": tenant}
+
+        if hasattr(serializer.Meta.model, "created_by") and getattr(self.request, "user", None):
             save_kwargs["created_by"] = self.request.user
+
         serializer.save(**save_kwargs)
+
+    def perform_update(self, serializer):
+        tenant = getattr(self.request, "tenant", None)
+        if tenant:
+            self._ensure_rls_session_vars(str(tenant.id))
+        serializer.save()
+
+    def perform_destroy(self, instance):
+        tenant = getattr(self.request, "tenant", None)
+        if tenant:
+            self._ensure_rls_session_vars(str(tenant.id))
+        instance.delete()
 
 
 # =============================================================================
@@ -870,6 +929,17 @@ class TenantListViewSet(TenantFilteredModelViewSet):
 
     queryset = TenantList.objects.all()
     serializer_class = TenantListSerializer
+    permission_classes = [IsTenantAdminOrOwnerOrReadOnly]
+
+    def create(self, request, *args, **kwargs):
+        """Create list with a friendly error instead of 500 on IntegrityError."""
+        try:
+            return super().create(request, *args, **kwargs)
+        except IntegrityError:
+            return Response(
+                {"error": "A custom list with this name already exists for this tenant."},
+                status=status.HTTP_409_CONFLICT,
+            )
 
     def get_queryset(self):
         qs = super().get_queryset()
@@ -2617,10 +2687,31 @@ class QuickCreateEntityAPIView(APIView):
         required_fields = []
 
         # Optional quick-create fields we still want to expose for better UX.
+        # Keep this ordered (so forms feel consistent) and conservative (so quick create doesn't become overwhelming).
+        common_extra_keys = [
+            "name",
+            "title",
+            "company_name",
+            "contact_person",
+            "first_name",
+            "last_name",
+            "email",
+            "phone",
+            "address",
+            "city",
+            "state",
+            "zip_code",
+            "country",
+            "notes",
+            "description",
+        ]
+
+        # Entity-specific extras appended after the common set.
         # These are especially important for Master Product compliance.
         extra_fields_by_entity = {
-            "customer": {"preferred_protein_types", "products"},
-            "supplier": {"preferred_protein_types", "products"},
+            "customer": ["industry_array", "preferred_protein_types", "products"],
+            "supplier": ["departments_array", "preferred_protein_types", "products"],
+            "contact": ["position", "department"],
         }
         excluded = {
             "id",
@@ -2684,42 +2775,46 @@ class QuickCreateEntityAPIView(APIView):
         # Add a small allowlisted set of optional fields (non-breaking additive change).
         # These fields are not required but are critical for the create flow UX.
         extras = []
-        allow = extra_fields_by_entity.get(entity_type, set())
-        if allow:
-            already = {f["key"] for f in required_fields}
-            for field in model._meta.get_fields():
-                if not hasattr(field, "name"):
-                    continue
-                if field.name in excluded:
-                    continue
-                if field.name not in allow:
-                    continue
-                if field.name in already:
-                    continue
+        already = {f["key"] for f in required_fields}
 
-                field_type = type(field).__name__
-                form_type = "text"
-                if field_type in ("IntegerField", "DecimalField", "FloatField"):
-                    form_type = "number"
-                elif field_type == "EmailField":
-                    form_type = "email"
-                elif field_type == "BooleanField":
-                    form_type = "checkbox"
-                elif field_type == "DateField":
-                    form_type = "date"
-                elif field_type == "ArrayField":
-                    form_type = "multiselect"
-                elif getattr(field, "many_to_many", False):
-                    form_type = "multiselect"
+        # Build an ordered allowlist: common keys first, then entity-specific keys.
+        allow_order = list(common_extra_keys) + list(extra_fields_by_entity.get(entity_type, []))
 
-                extras.append(
-                    {
-                        "key": field.name,
-                        "label": str(getattr(field, "verbose_name", field.name)).replace("_", " ").title(),
-                        "type": form_type,
-                        "required": False,
-                    }
-                )
+        for key in allow_order:
+            if key in excluded or key in already:
+                continue
+
+            field = next((f for f in model._meta.get_fields() if hasattr(f, "name") and f.name == key), None)
+            if not field:
+                continue
+
+            # Skip reverse/auto-created relations.
+            if getattr(field, "auto_created", False) and not getattr(field, "concrete", False):
+                continue
+
+            field_type = type(field).__name__
+            form_type = "text"
+            if field_type in ("IntegerField", "DecimalField", "FloatField"):
+                form_type = "number"
+            elif field_type == "EmailField":
+                form_type = "email"
+            elif field_type == "BooleanField":
+                form_type = "checkbox"
+            elif field_type == "DateField":
+                form_type = "date"
+            elif field_type == "ArrayField":
+                form_type = "multiselect"
+            elif getattr(field, "many_to_many", False):
+                form_type = "multiselect"
+
+            extras.append(
+                {
+                    "key": field.name,
+                    "label": str(getattr(field, "verbose_name", field.name)).replace("_", " ").title(),
+                    "type": form_type,
+                    "required": False,
+                }
+            )
 
         return Response(
             {

@@ -1,6 +1,6 @@
 import React from 'react';
 import styled from 'styled-components';
-import type { NodeProps } from '@xyflow/react';
+import type { Node, NodeProps } from '@xyflow/react';
 import { Plus } from 'lucide-react';
 
 export type FormProcessAddButtonData = {
@@ -48,7 +48,7 @@ const CircleButton = styled.button`
   }
 `;
 
-export const FormProcessAddButtonNode = React.memo<NodeProps<FormProcessAddButtonData>>(({ data }) => {
+export const FormProcessAddButtonNode = React.memo<NodeProps<Node<FormProcessAddButtonData>>>(({ data }) => {
   return (
     <Wrap className="nodrag nopan">
       <CircleButton

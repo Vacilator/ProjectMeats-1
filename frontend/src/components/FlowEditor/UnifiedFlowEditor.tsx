@@ -39,12 +39,13 @@ import toast, { Toaster } from 'react-hot-toast'; // Phase 8.1
 import * as Sentry from '@sentry/react'; // Error tracking
 import { logger } from '../../utils/logger'; // Centralized logging
 import { isTypingInInput } from './utils/keyboardUtils'; // Phase 4
-import Joyride from 'react-joyride'; // Gap Analysis Phase 1.1
+import { Joyride } from 'react-joyride'; // Gap Analysis Phase 1.1
 import { useRenderPerformance } from '../../utils/performance'; // Phase 7.5
 import { 
-  useOnboardingTour, 
-  workflowEditorTourSteps, 
-  tourStyles 
+  useOnboardingTour,
+  workflowEditorTourSteps,
+  tourOptions,
+  tourStyles,
 } from './hooks/useOnboardingTour'; // Gap Analysis Phase 1.1
 import {
   ReactFlow,
@@ -63,6 +64,7 @@ import {
   OnSelectionChangeParams,
   useReactFlow,
   MarkerType,
+  ConnectionLineType,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import './UnifiedFlowEditor.responsive.css'; // Gap Analysis Phase 1.2
@@ -122,6 +124,7 @@ import {
   DocumentNode,
   UtilityNode,
   TerminalNode,
+  LoopNode,
 } from './nodes';
 import { CustomEdge, ConditionalEdge, ErrorEdge, SuccessEdge, InsertNodeEdge, EnhancedConnectionEdge } from './edges';
 import { FormBuilder } from '../form-builder';
@@ -129,6 +132,7 @@ import { useFormBuilder } from './hooks/useFormBuilder';
 import { ValidationDrawer } from './components/ValidationDrawer';
 import { validateWorkflow, type ValidationResult } from './utils/validationEngine';
 import { NODE_TYPE_REGISTRY, NodeCategory, CATEGORY_LABELS, CATEGORY_ORDER, getNodeTypeDefinition } from './nodeTypes';
+import type { FormStepData } from './Modals/EntityFormStepModal';
 import { schemaRegistry } from './config/schemaRegistry';
 import { calculateContainerLayout, autoConnectSequentialSteps, LAYOUT_CONSTANTS } from './utils/containerLayout'; // Phase 3-4
 import { NodeContextMenu, useContextMenu } from './NodeContextMenu'; // Phase E.3
@@ -137,7 +141,12 @@ import { saveWorkflow, loadWorkflow, listWorkflows, deleteWorkflow, type Workflo
 import { workformsApi } from '../../services/workformsApi'; // Task 2: Ghost Node Deletion
 import { sortNodesTopologically } from './utils/nodeSorting'; // Phase 2 Critical Fix
 import { normalizeNodeData, normalizeNodes } from './utils/nodeNormalization'; // Fix test imports
-import { NodeConfigPanelWithShadow, TabbedConfigPanelWithShadow } from './ConfigPanel';
+import {
+  NodeConfigPanelWithShadow,
+  TabbedConfigPanelWithShadow,
+  FormStepConfigPanel,
+  FormFieldConfigPanel,
+} from './ConfigPanel';
 import { getLayoutedElements, alignNodesHorizontally, alignNodesVertically, distributeNodesHorizontally, distributeNodesVertically } from './utils/autoLayout'; // Phase 2: UI/UX
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts'; // Phase 2: UI/UX
 import { useCollaboration } from './hooks/useCollaboration'; // Phase 9.2
@@ -152,8 +161,6 @@ import { FlowEditorProvider, useFlowEditor } from './context';
 // Error Boundary (2026-02-21 Comprehensive Enhancements)
 import { ErrorBoundary } from './ErrorBoundary';
 // NUCLEAR CLEANUP: All hardcoded panels removed - DynamicConfigPanel is now the ONLY renderer
-import { FormStepConfigPanel } from './ConfigPanel/FormStepConfigPanel'; // Phase 7: Re-enabled for Smart Auto-Map
-// import { FormFieldConfigPanel } from './ConfigPanel/FormFieldConfigPanel';
 // import { SectionConfigPanel } from './ConfigPanel/SectionConfigPanel';
 // import { DocumentConfigPanel } from './ConfigPanel/DocumentConfigPanel';
 // import { CreateRecordConfigPanel } from './ConfigPanel/CreateRecordConfigPanel';
@@ -197,7 +204,7 @@ interface UnifiedFlowEditorProps {
   initialWorkflowName?: string;
   initialWorkflowDescription?: string;
   initialWorkflowStatus?: 'draft' | 'active' | 'archived';
-  onWorkflowSaved?: (workflow: { id: string; name: string }) => void;
+  onWorkflowSaved?: (workflow: { id: string; name: string; status?: 'draft' | 'active' | 'archived' }) => void;
 
   readOnly?: boolean;
   editorMode?: EditorMode;
@@ -223,18 +230,23 @@ const ENABLE_FULL_DYNAMIC_MODE = true;
 
 const EditorContainer = styled.div<{ $isFullscreen?: boolean }>`
   width: 100%;
-  /* Better default sizing on page load */
-  height: ${props => props.$isFullscreen ? '100vh' : 'clamp(640px, calc(100vh - 220px), 980px)'};
-  background: rgb(var(--color-background));
-  border: ${props => props.$isFullscreen ? 'none' : '1px solid rgb(var(--color-border))'};
-  border-radius: ${props => props.$isFullscreen ? '0' : 'var(--radius-lg)'};
-  overflow: hidden;
-  position: ${props => props.$isFullscreen ? 'fixed' : 'relative'};
-  top: ${props => props.$isFullscreen ? '0' : 'auto'};
-  left: ${props => props.$isFullscreen ? '0' : 'auto'};
-  right: ${props => props.$isFullscreen ? '0' : 'auto'};
-  bottom: ${props => props.$isFullscreen ? '0' : 'auto'};
-  z-index: ${props => props.$isFullscreen ? '9990' : 'auto'};
+  height: ${(props) => (props.$isFullscreen ? '100vh' : '100%')};
+  min-height: ${(props) => (props.$isFullscreen ? '100vh' : '640px')};
+
+  position: ${(props) => (props.$isFullscreen ? 'fixed' : 'relative')};
+  top: ${(props) => (props.$isFullscreen ? '0' : 'auto')};
+  left: ${(props) => (props.$isFullscreen ? '0' : 'auto')};
+  right: ${(props) => (props.$isFullscreen ? '0' : 'auto')};
+  bottom: ${(props) => (props.$isFullscreen ? '0' : 'auto')};
+  z-index: ${(props) => (props.$isFullscreen ? '9990' : 'auto')};
+
+  overflow: hidden; /* Prevent page scroll / blank bottom space */
+  background: rgb(var(--color-bg-layout));
+  display: flex;
+  flex-direction: column;
+
+  border: ${(props) => (props.$isFullscreen ? 'none' : '1px solid rgb(var(--color-border))')};
+  border-radius: ${(props) => (props.$isFullscreen ? '0' : 'var(--radius-lg)')};
   
   /* Phase 7.2: Smart Snapping - Connection Line Animation */
   @keyframes dash {
@@ -245,7 +257,7 @@ const EditorContainer = styled.div<{ $isFullscreen?: boolean }>`
   
   /* Phase 7.2: Smart Snapping - Visual Connection Indicators */
   .react-flow__connection-path {
-    stroke: #667eea !important;
+    stroke: rgb(var(--color-primary)) !important;
     stroke-width: 3 !important;
     stroke-dasharray: 5, 5;
     animation: dash 0.5s linear infinite;
@@ -789,15 +801,16 @@ const ProgressDot = styled.div<{ $active: boolean; $completed: boolean }>`
 
 const EditorWrapper = styled.div`
   flex: 1;
+  min-height: 0;
   overflow: hidden;
 `;
 
 const NodePalette = styled.div`
   position: absolute;
-  top: 12px;
+  top: 64px; /* Increased from 12px to clear the top Toolbar */
   left: 12px;
   width: 220px;
-  max-height: calc(100% - 24px);
+  max-height: calc(100% - 120px); /* Decreased to clear the bottom ViewportToolbar */
   background: rgb(var(--color-surface));
   border: 1px solid rgb(var(--color-border));
   border-radius: var(--radius-lg);
@@ -1115,9 +1128,17 @@ const Toolbar = styled.div`
   position: absolute;
   top: 12px;
   right: 12px;
+  left: 12px; /* Anchor left to allow full width wrapping */
   display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
   gap: 8px;
   z-index: 10;
+  pointer-events: none; /* Let canvas clicks pass through empty flex space */
+
+  & > * {
+    pointer-events: auto; /* Re-enable clicks on the actual buttons */
+  }
 `;
 
 const ToolbarButton = styled.button`
@@ -1714,9 +1735,11 @@ const ToggleSwitch = styled.button<{ $active: boolean }>`
 // ============================================================================
 
 // Static node types (not containers that need node access)
-// NOTE: NodeTypes typing is overly strict with mixed memo/FC node components;
-// we cast here to keep editor typing stable while runtime behavior remains unchanged.
-const staticNodeTypes = {
+// NOTE: React.memo() node components type as NamedExoticComponent which is not assignable to
+// React.ComponentType under strict NodeTypes. Keep a loose registry and cast at the ReactFlow boundary.
+type AnyNodeComponent = React.ComponentType<any>;
+
+const staticNodeTypes: Record<string, AnyNodeComponent> = {
   // Form nodes (Phase E - 2026-02-19)
   form: FormStepNode, // Form Step (Page)
   formStepSingle: FormStepSingleNode, // Backward compatibility
@@ -1741,17 +1764,18 @@ const staticNodeTypes = {
   document: DocumentNode,
   utility: UtilityNode,
   terminal: TerminalNode,
-} as unknown as NodeTypes;
+};
 
 // Dynamically build the full registry map statically ONCE outside the component.
 // This avoids TDZ / initialization crashes seen when building nodeTypes inside hooks.
-const dynamicNodeTypes: NodeTypes = { ...staticNodeTypes };
+const dynamicNodeTypes: Record<string, AnyNodeComponent> = { ...staticNodeTypes };
 Object.keys(NODE_TYPE_REGISTRY).forEach((typeId) => {
   if (dynamicNodeTypes[typeId]) return;
 
   if (typeId.startsWith('trigger')) dynamicNodeTypes[typeId] = TriggerNode;
   else if (typeId.startsWith('action')) dynamicNodeTypes[typeId] = ActionNode;
   else if (typeId.startsWith('condition') || typeId === 'parallelPath') dynamicNodeTypes[typeId] = ConditionIfNode;
+  else if (typeId.startsWith('loop')) dynamicNodeTypes[typeId] = LoopNode;
   else if (typeId.startsWith('wait') || typeId.startsWith('timer') || typeId.startsWith('pending')) dynamicNodeTypes[typeId] = WaitStateNode;
   else if (typeId.startsWith('document')) dynamicNodeTypes[typeId] = DocumentNode;
   else if (typeId.startsWith('terminal') || typeId.startsWith('end')) dynamicNodeTypes[typeId] = TerminalNode;
@@ -1859,15 +1883,18 @@ class ConfigPanelErrorBoundary extends React.Component<
   { children: React.ReactNode },
   { hasError: boolean; error: Error | null }
 > {
-  state = { hasError: false, error: null };
-  
-  static getDerivedStateFromError(error: Error) {
+  state: { hasError: boolean; error: Error | null } = { hasError: false, error: null };
+
+  static getDerivedStateFromError(error: Error): { hasError: boolean; error: Error } {
     return { hasError: true, error };
   }
-  
+
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    logger.error('[Config Panel] Error caught:', error, errorInfo);
-    
+    logger.error('[Config Panel] Error caught', {
+      component: 'ConfigPanelErrorBoundary',
+      metadata: { componentStack: errorInfo.componentStack },
+    }, error);
+
     // Send to Sentry for monitoring
     Sentry.captureException(error, {
       extra: {
@@ -1877,8 +1904,8 @@ class ConfigPanelErrorBoundary extends React.Component<
       },
     });
   }
-  
-  render() {
+
+  render() { 
     if (this.state.hasError) {
       return (
         <div style={{
@@ -1938,10 +1965,15 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   // Normalize nodes to ensure all have required properties (maxInputs, maxOutputs)
   const normalizedInitialNodes = useMemo(() => normalizeNodes(initialNodes), [initialNodes]);
   
-  const [nodes, setNodes, onNodesChangeBase] = useNodesState(normalizedInitialNodes);
-  const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
-  const [nodeIdCounter, setNodeIdCounter] = useState(normalizedInitialNodes.length + 1);
+  const [nodes, setNodes, onNodesChangeBase] = useNodesState<Node<any>>(
+    normalizedInitialNodes as unknown as Node<any>[]
+  );
+  const [edges, setEdges, onEdgesChange] = useEdgesState<Edge<any>>(initialEdges as unknown as Edge<any>[]);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+
+  const generateNodeId = useCallback(() => {
+    return `node-${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 7)}`;
+  }, []);
 
   const queryClient = useQueryClient();
   
@@ -2170,7 +2202,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       width: min(450px, 100vw);
       height: 100vh;
       overflow-y: auto;
-      background: #fff;
+      background: rgb(var(--color-surface));
       /* Must sit above fullscreen canvas (EditorContainer uses z-index: 9990) */
       z-index: 10050;
       box-shadow: -4px 0 12px rgba(0,0,0,0.1);
@@ -2210,7 +2242,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
           width: min(450px, 100vw);
           height: 100vh;
           overflow-y: auto;
-          background: #fff;
+          background: rgb(var(--color-surface));
           /* Must sit above fullscreen canvas (EditorContainer uses z-index: 9990) */
           z-index: 10050;
           box-shadow: -4px 0 12px rgba(0,0,0,0.1);
@@ -2255,9 +2287,10 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       const containerIds = new Set(containerNodes.map(c => c.id));
       
       // Check for orphaned nodes (containerNodeId pointing to non-existent container)
-      const orphanedNodes = normalizedInitialNodes.filter(
-        n => n.data?.containerNodeId && !containerIds.has(n.data.containerNodeId)
-      );
+      const orphanedNodes = normalizedInitialNodes.filter((n) => {
+        const containerNodeId = (n.data as any)?.containerNodeId;
+        return typeof containerNodeId === 'string' && !containerIds.has(containerNodeId);
+      });
       
       if (orphanedNodes.length > 0) {
         logger.warn(
@@ -2266,15 +2299,18 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         );
         
         // Clean up orphaned nodes by removing their containerNodeId
-        setNodes((nds) => nds.map(n => {
-          if (n.data?.containerNodeId && !containerIds.has(n.data.containerNodeId)) {
-            const cleanedData = { ...n.data };
-            delete cleanedData.containerNodeId;
-            logger.debug(`[Container Restore] Cleaned orphaned node ${n.id}`);
-            return { ...n, data: cleanedData };
-          }
-          return n;
-        }));
+        setNodes((nds) =>
+          nds.map((n) => {
+            const containerNodeId = (n.data as any)?.containerNodeId;
+            if (typeof containerNodeId === 'string' && !containerIds.has(containerNodeId)) {
+              const cleanedData = { ...(n.data as any) };
+              delete cleanedData.containerNodeId;
+              logger.debug(`[Container Restore] Cleaned orphaned node ${n.id}`);
+              return { ...n, data: cleanedData };
+            }
+            return n;
+          })
+        );
       }
       
       if (containerNodes.length > 0) {
@@ -2295,11 +2331,13 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
             nodeTypeBreakdown[nodeType] = (nodeTypeBreakdown[nodeType] || 0) + 1;
             
             // Collect form references
-            if (node.data?.formId) {
-              formReferences.push(node.data.formId);
+            const formId = (node.data as any)?.formId;
+            if (typeof formId === 'string') {
+              formReferences.push(formId);
             }
-            if (node.data?.tenantFormId) {
-              formReferences.push(node.data.tenantFormId);
+            const tenantFormId = (node.data as any)?.tenantFormId;
+            if (typeof tenantFormId === 'string') {
+              formReferences.push(tenantFormId);
             }
           });
           
@@ -2343,7 +2381,10 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       const uniqueTypes = [...new Set(foundDeprecated.map(n => n.type))];
       setHasDeprecatedNodes(true);
       setDeprecatedNodeTypes(uniqueTypes as string[]);
-      logger.debug('[Phase 6] Deprecated nodes detected:', uniqueTypes, foundDeprecated.length);
+      logger.debug('[Phase 6] Deprecated nodes detected', {
+        types: uniqueTypes,
+        count: foundDeprecated.length,
+      });
     } else {
       setHasDeprecatedNodes(false);
       setDeprecatedNodeTypes([]);
@@ -2822,12 +2863,13 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   // NOTE: selectedNode and selectedNodeId moved to top of component to fix TDZ
   
   // FormStep specialized configuration (Phase 4.2.B Integration) - For nested field editing
-  const [selectedFormStep, setSelectedFormStep] = useState<Node | null>(null);
+  const [selectedFormStep, setSelectedFormStep] = useState<Node<any> | null>(null);
+  const [formStepModalOpen, setFormStepModalOpen] = useState(false);
   const [editingField, setEditingField] = useState<any | null>(null);
   
   // Container configuration (Phase 4.3) - FormProcess special handling
   const [containerModalOpen, setContainerModalOpen] = useState(false);
-  const [selectedContainer, setSelectedContainer] = useState<Node | null>(null);
+  const [selectedContainer, setSelectedContainer] = useState<Node<any> | null>(null);
   
   // Preview panel (Phase 5.1)
   const [isPreviewVisible, setIsPreviewVisible] = useState(false);
@@ -2855,6 +2897,23 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     },
     staleTime: 5 * 60 * 1000, // 5 minutes
     enabled: !!editingField, // Only fetch when needed
+  });
+
+  // Fetch system choice lists for dropdown options (SystemChoiceList)
+  const { data: systemChoiceLists = [] } = useQuery({
+    queryKey: ['system', 'choice-lists'],
+    queryFn: async () => {
+      const response = await adminClient.get('/system/choice-lists/');
+      const raw = response.data as unknown;
+      if (Array.isArray(raw)) return raw;
+      if (raw && typeof raw === 'object') {
+        const obj = raw as Record<string, unknown>;
+        if (Array.isArray(obj.results)) return obj.results;
+      }
+      return [];
+    },
+    staleTime: 5 * 60 * 1000,
+    enabled: !!editingField,
   });
   
   // Drag-drop state for ghost preview and smart snapping
@@ -3068,32 +3127,35 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     setWizardState(prev => ({ ...prev, flowName: name }));
   }, []);
   
-  const wizardAddNode = useCallback((nodeType: string) => {
-    const newNode = {
-      id: `node-${nodeIdCounter}`,
-      type: nodeType,
-      position: { x: 250 + (wizardState.addedNodeCount * 200), y: 100 },
-      data: { label: NODE_TYPE_REGISTRY[nodeType]?.label || 'New Node' },
-    };
-    
-    setNodes((nds) => [...nds, newNode]);
-    setNodeIdCounter((c) => c + 1);
-    setWizardState(prev => ({ 
-      ...prev, 
-      addedNodeCount: prev.addedNodeCount + 1,
-    }));
-    
-    // Auto-connect to previous node if exists
-    if (nodes.length > 0 && wizardState.addedNodeCount > 0) {
-      const prevNode = nodes[nodes.length - 1];
-      const newEdge: Edge = {
-        id: `edge-${prevNode.id}-${newNode.id}`,
-        source: prevNode.id,
-        target: newNode.id,
+  const wizardAddNode = useCallback(
+    (nodeType: string) => {
+      const newNodeId = generateNodeId();
+      const newNode = {
+        id: newNodeId,
+        type: nodeType,
+        position: { x: 250 + wizardState.addedNodeCount * 200, y: 100 },
+        data: { label: NODE_TYPE_REGISTRY[nodeType]?.name || 'New Node' },
       };
-      setEdges((eds) => [...eds, newEdge]);
-    }
-  }, [nodeIdCounter, wizardState.addedNodeCount, nodes, setNodes, setEdges]);
+
+      setNodes((nds) => [...nds, newNode]);
+      setWizardState((prev) => ({
+        ...prev,
+        addedNodeCount: prev.addedNodeCount + 1,
+      }));
+
+      // Auto-connect to previous node if exists
+      if (nodes.length > 0 && wizardState.addedNodeCount > 0) {
+        const prevNode = nodes[nodes.length - 1];
+        const newEdge: Edge = {
+          id: `edge-${prevNode.id}-${newNode.id}`,
+          source: prevNode.id,
+          target: newNode.id,
+        };
+        setEdges((eds) => [...eds, newEdge]);
+      }
+    },
+    [generateNodeId, wizardState.addedNodeCount, nodes, setNodes, setEdges]
+  );
   
   const getNodeSuggestionsForFlowType = (flowType: FlowType): string[] => {
     // Use actual NODE_TYPE_REGISTRY IDs instead of generic names
@@ -3293,12 +3355,13 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   }, []);
   
   // Helper function to safely get max connections from node data or type definition
-  const getNodeMaxConnections = useCallback((node: Node): { maxInputs: number; maxOutputs: number } => {
+  const getNodeMaxConnections = useCallback((node: Node<any>): { maxInputs: number; maxOutputs: number } => {
     // First try to get from node data
-    if (node.data && typeof node.data.maxInputs !== 'undefined' && typeof node.data.maxOutputs !== 'undefined') {
+    const data = node.data as any;
+    if (data && typeof data.maxInputs === 'number' && typeof data.maxOutputs === 'number') {
       return {
-        maxInputs: node.data.maxInputs,
-        maxOutputs: node.data.maxOutputs,
+        maxInputs: data.maxInputs,
+        maxOutputs: data.maxOutputs,
       };
     }
     
@@ -3321,7 +3384,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   }, []);
   
   // Real-time connection validation for React Flow
-  const isValidConnection = useCallback((connection: Connection) => {
+  const isValidConnection = useCallback((connection: Connection | Edge) => {
     const sourceNode = nodes.find(n => n.id === connection.source);
     const targetNode = nodes.find(n => n.id === connection.target);
     
@@ -3445,9 +3508,10 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
 
     // Ghost cleanup
     for (const node of deletedNodes) {
-      if (node.type === 'formMultiStepContainer' && node.data.tenantFormId) {
+      const tenantFormId = node.data?.tenantFormId;
+      if (node.type === 'formMultiStepContainer' && typeof tenantFormId === 'string' && tenantFormId.length > 0) {
         try {
-          const result = await workformsApi.decrementFormUsage(node.data.tenantFormId);
+          const result = await workformsApi.decrementFormUsage(tenantFormId);
           logger.debug(`[Ghost Cleanup] ✅ Decremented usage for container: ${result.usage_count} remaining`);
 
           if (result.can_delete) {
@@ -3542,8 +3606,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
 
       const isNewContainer = isFormProcessContainerType(nodeTypeId);
 
-      const containerNodeId = `node-${nodeIdCounter}`;
-      const newNodeId = containerNodeId;
+      const newNodeId = generateNodeId();
       const reactFlowType = getReactFlowNodeType(nodeTypeId);
 
       // Ensure default dimensions upfront (prevents React Flow dimension errors)
@@ -3577,8 +3640,8 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       }
 
       const spawnDefaultFormPages = (parentId: string) => {
-        const page1Id = `node-${nodeIdCounter + 1}`;
-        const page2Id = `node-${nodeIdCounter + 2}`;
+        const page1Id = generateNodeId();
+        const page2Id = generateNodeId();
 
         const makePage = (id: string, index: number): Node => ({
           id,
@@ -3641,18 +3704,15 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
 
         const nodesToAdd: Node[] = [newNode];
         let selectedId = newNodeId;
-        let counterDelta = 1;
 
         if (isNewContainer) {
           const { pageNodes, pageIds } = spawnDefaultFormPages(newNodeId);
           nodesToAdd.push(...pageNodes);
           selectedId = pageIds[0];
-          counterDelta = 3;
         }
 
         const nextNodes = selectOnly([...nodes, ...nodesToAdd], selectedId);
 
-        setNodeIdCounter((prev) => prev + counterDelta);
         setPendingInsertEdgeId(null);
         setPendingInsertAnchorNodeId(null);
         setSelectedNodeId(selectedId);
@@ -3717,18 +3777,15 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
 
         const nodesToAdd: Node[] = [newNode];
         let selectedId = newNodeId;
-        let counterDelta = 1;
 
         if (isNewContainer) {
           const { pageNodes, pageIds } = spawnDefaultFormPages(newNodeId);
           nodesToAdd.push(...pageNodes);
           selectedId = pageIds[0];
-          counterDelta = 3;
         }
 
         const nextNodes = selectOnly([...nodes, ...nodesToAdd], selectedId);
 
-        setNodeIdCounter((prev) => prev + counterDelta);
         setSelectedNodeId(selectedId);
         setSelectedNode(null);
 
@@ -3759,18 +3816,15 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
 
         const nodesToAdd: Node[] = [newNode];
         let selectedId = newNodeId;
-        let counterDelta = 1;
 
         if (isNewContainer) {
           const { pageNodes, pageIds } = spawnDefaultFormPages(newNodeId);
           nodesToAdd.push(...pageNodes);
           selectedId = pageIds[0];
-          counterDelta = 3;
         }
 
         const nextNodes = selectOnly([...nodes, ...nodesToAdd], selectedId);
 
-        setNodeIdCounter((prev) => prev + counterDelta);
         setPendingInsertAnchorNodeId(null);
         setSelectedNodeId(selectedId);
         setSelectedNode(null);
@@ -3806,7 +3860,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       pendingInsertAnchorNodeId,
       edges,
       nodes,
-      nodeIdCounter,
+      generateNodeId,
       selectedNode,
       selectedNodeId,
       applyAutoLayoutImmediate,
@@ -4113,8 +4167,9 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         ? { width: 600, height: 400 } // Larger for containers
         : undefined; // Let React Flow calculate for regular nodes
 
+      const newNodeId = generateNodeId();
       const newNode: Node = {
-        id: `node-${nodeIdCounter}`,
+        id: newNodeId,
         type: getReactFlowNodeType(type),
         position,
         ...(defaultDimensions && { style: defaultDimensions }), // Only set if defined
@@ -4217,9 +4272,6 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
             ...nodes.slice(parentIndex + 1),
           ];
           
-          // Don't call setNodes here - batch all updates into ONE call below to avoid race conditions
-          setNodeIdCounter((prev) => prev + 1);
-          
           // Phase 3.3: Trigger auto-layout for container
           logger.debug(`[Container] Triggering auto-layout for container ${targetContainer.id}`);
           const layoutResult = calculateContainerLayout(
@@ -4305,13 +4357,12 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
 
       const nodesToAdd: Node[] = [newNode];
       const edgesToAdd: Edge[] = [];
-      let counterDelta = 1;
 
       // Auto-spawn TWO default Form Steps inside a new Form Process container
       // (Validation requires 2 steps minimum; this keeps the node immediately usable.)
       if (isContainerNode) {
-        const page1Id = `node-${nodeIdCounter + 1}`;
-        const page2Id = `node-${nodeIdCounter + 2}`;
+        const page1Id = generateNodeId();
+        const page2Id = generateNodeId();
 
         const makePage = (id: string, index: number): Node => ({
           id,
@@ -4334,7 +4385,6 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         });
 
         nodesToAdd.push(makePage(page1Id, 0), makePage(page2Id, 1));
-        counterDelta = 3;
       }
 
       const updatedNodes = nodes.concat(nodesToAdd);
@@ -4402,14 +4452,12 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         setHasUnsavedChanges(true);
       }
 
-      setNodeIdCounter((prev) => prev + counterDelta);
-
       // Clear nearby node state
       setNearbyNode(null);
       setPendingInsertEdgeId(null);
     },
     [
-      nodeIdCounter,
+      generateNodeId,
       setNodes,
       reactFlowInstance,
       nodes,
@@ -4488,8 +4536,18 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         setNodes(sortedNodes);
         
         // Update container dimensions if needed
-        if (layoutResult.containerWidth > (container.style?.width || 400) || 
-            layoutResult.containerHeight > (container.style?.height || 300)) {
+        const currentWidth = typeof container.style?.width === 'number'
+          ? container.style.width
+          : typeof container.style?.width === 'string'
+            ? Number(container.style.width) || 400
+            : 400;
+        const currentHeight = typeof container.style?.height === 'number'
+          ? container.style.height
+          : typeof container.style?.height === 'string'
+            ? Number(container.style.height) || 300
+            : 300;
+
+        if (layoutResult.containerWidth > currentWidth || layoutResult.containerHeight > currentHeight) {
           setNodes((nds) =>
             nds.map((n) => {
               if (n.id === container.id) {
@@ -4497,8 +4555,22 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
                   ...n,
                   style: {
                     ...n.style,
-                    width: Math.max(layoutResult.containerWidth, n.style?.width || 400),
-                    height: Math.max(layoutResult.containerHeight, n.style?.height || 300),
+                    width: Math.max(
+                      layoutResult.containerWidth,
+                      typeof n.style?.width === 'number'
+                        ? n.style.width
+                        : typeof n.style?.width === 'string'
+                          ? Number(n.style.width) || 400
+                          : 400
+                    ),
+                    height: Math.max(
+                      layoutResult.containerHeight,
+                      typeof n.style?.height === 'number'
+                        ? n.style.height
+                        : typeof n.style?.height === 'string'
+                          ? Number(n.style.height) || 300
+                          : 300
+                    ),
                   },
                 };
               }
@@ -4921,7 +4993,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   /**
    * Save workflow to backend
    */
-  const handleSaveWorkflow = useCallback(async () => {
+  const handleSaveWorkflow = useCallback(async (opts?: { status?: 'draft' | 'active' | 'archived' }) => {
     if (isSaving) return; // Prevent double-save
     
     // Phase 8.5: Validate containers before saving
@@ -4936,9 +5008,13 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     
     setIsSaving(true);
     
+    const statusToSave = opts?.status ?? currentWorkflowStatus;
+
     // Show loading toast
     const loadingToast = toast.loading(
-      currentWorkflowId ? 'Updating workflow...' : 'Creating workflow...'
+      statusToSave === 'active'
+        ? (currentWorkflowId ? 'Publishing workflow...' : 'Publishing new workflow...')
+        : (currentWorkflowId ? 'Updating workflow...' : 'Creating workflow...')
     );
     
     try {
@@ -4953,7 +5029,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         viewport,
         currentWorkflowId, // Undefined = create new, string = update existing
         currentWorkflowDescription, // Phase 8.2: Use description from state
-        currentWorkflowStatus // Phase 8.2: Use status from state
+        statusToSave // Phase 8.2: Use status from action (save vs publish)
       );
       
       // Update current workflow ID if this was a new workflow
@@ -4961,7 +5037,12 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         setCurrentWorkflowId(savedWorkflow.id);
       }
 
-      onWorkflowSaved?.({ id: savedWorkflow.id, name: savedWorkflow.name });
+      setCurrentWorkflowStatus((savedWorkflow.status as 'draft' | 'active' | 'archived') || statusToSave);
+      onWorkflowSaved?.({
+        id: savedWorkflow.id,
+        name: savedWorkflow.name,
+        status: (savedWorkflow.status as 'draft' | 'active' | 'archived') || statusToSave,
+      });
 
       // Refresh any UI surfaces that list available forms/workforms.
       queryClient.invalidateQueries({ queryKey: ['tenant-forms'] });
@@ -4970,9 +5051,13 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       setHasUnsavedChanges(false);
       logger.debug('✅ Workflow saved:', savedWorkflow.name);
       
+      const verb = statusToSave === 'active'
+        ? 'published'
+        : (currentWorkflowId ? 'updated' : 'created');
+
       // Show success toast
       toast.success(
-        `Workflow "${savedWorkflow.name}" ${currentWorkflowId ? 'updated' : 'created'} successfully!`,
+        `Workflow "${savedWorkflow.name}" ${verb} successfully!`,
         { id: loadingToast }
       );
     } catch (error) {
@@ -4987,6 +5072,16 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       setIsSaving(false);
     }
   }, [nodes, edges, currentWorkflowId, currentWorkflowName, isSaving, reactFlowInstance, validateContainers, currentWorkflowDescription, currentWorkflowStatus, onWorkflowSaved, queryClient]);
+
+  const handlePublishWorkflow = useCallback(async () => {
+    if (validationResult.errorCount > 0) {
+      setShowValidationDrawer(true);
+      toast.error('Fix validation errors before publishing.');
+      return;
+    }
+
+    await handleSaveWorkflow({ status: 'active' });
+  }, [handleSaveWorkflow, validationResult.errorCount]);
 
   // Populate forward ref now that the real save handler exists.
   handleSaveRef.current = () => {
@@ -5137,7 +5232,13 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       }
     };
 
-    const createId = () => (globalThis.crypto?.randomUUID ? crypto.randomUUID() : uuidv4());
+    const createId = () => {
+      const cryptoObj = globalThis.crypto;
+      if (cryptoObj && typeof cryptoObj.randomUUID === 'function') {
+        return cryptoObj.randomUUID();
+      }
+      return uuidv4();
+    };
     const idMap = new Map<string, string>();
 
     for (const n of clipboardData) {
@@ -5774,7 +5875,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     const selectedNodes = params.nodes || [];
     if (selectedNodes.length === 1) {
       const node = selectedNodes[0];
-      logger.debug('[Selection] Node selected (border highlight only):', node.type, node.id);
+      logger.debug('[Selection] Node selected (border highlight only)', { nodeType: node.type, nodeId: node.id });
       
       // Track selected node ID for keyboard shortcuts and debugging
       setSelectedNodeId(node.id);
@@ -5807,7 +5908,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     const node = nodes.find(n => n.id === nodeId);
     if (!node) return;
     
-    logger.debug('✏️ [EDIT BUTTON] Opening config panel for:', node.type, nodeId);
+    logger.debug('✏️ [EDIT BUTTON] Opening config panel for', { nodeType: node.type, nodeId });
     
     // Close container modal (only legacy modal remaining)
     setContainerModalOpen(false);
@@ -5930,7 +6031,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
 
     const nodeToDelete = nodes.find((n) => n.id === nodeId);
     if (!nodeToDelete) {
-      toast.warning('Node not found');
+      toast.error('Node not found');
       return;
     }
 
@@ -5953,7 +6054,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       if (nodeToDelete.type === 'formProcess' || nodeToDelete.type === 'formMultiStepContainer') {
         const tenantFormId = nodeToDelete.data?.tenantFormId;
 
-        if (tenantFormId) {
+        if (typeof tenantFormId === 'string' && tenantFormId.length > 0) {
           try {
             await adminClient.post(`/api/system/forms/${tenantFormId}/decrement-usage/`);
           } catch (error) {
@@ -5985,7 +6086,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   
   // Batch 4: Handler to update node title
   const handleNodeTitleChange = useCallback((nodeId: string, newTitle: string) => {
-    logger.debug('[UnifiedFlowEditor] Updating node title:', nodeId, newTitle);
+    logger.debug('[UnifiedFlowEditor] Updating node title', { nodeId, newTitle });
     
     setNodes(nds => 
       nds.map(node => {
@@ -6157,13 +6258,17 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   // Convert node data to EntityFormStepModal format (Phase 3 - WF-ENH-2026-Q1)
   const convertNodeDataToFormStepData = useCallback((node: Node): FormStepData | undefined => {
     if (!node.data) return undefined;
-    
+
+    const data = node.data as any;
+
+    const formId: string | undefined = typeof data.formId === 'string' ? data.formId : undefined;
+
     return {
-      formId: node.data.formId,
-      formName: node.data.formName || node.data.stepTitle || node.data.label || 'Untitled Form',
-      entityType: node.data.entityType || 'supplier',
-      fields: node.data.fields || [],
-      mode: node.data.formId ? 'existing' : 'new',
+      formId,
+      formName: String(data.formName || data.stepTitle || data.label || 'Untitled Form'),
+      entityType: String(data.entityType || 'supplier'),
+      fields: Array.isArray(data.fields) ? data.fields : [],
+      mode: formId ? 'existing' : 'new',
     };
   }, []);
   
@@ -6194,19 +6299,23 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   }, [selectedFormStep, handleNodeUpdate]);
   
   // Convert node data to ContainerData format (Phase 4.3)
-  const convertNodeDataToContainerData = useCallback((node: Node): ContainerData | undefined => {
+  const convertNodeDataToContainerData = useCallback((node: Node<any>): ContainerData | undefined => {
     if (!node.data) return undefined;
-    
+
+    const data = node.data as any;
+    const workflowId: string | undefined = typeof data.tenantWorkFormId === 'string' ? data.tenantWorkFormId : undefined;
+
     return {
-      workflowId: node.data.tenantWorkFormId,
-      containerName: node.data.containerName || node.data.label || 'Unnamed Container',
-      containerDescription: node.data.containerDescription,
-      mode: node.data.tenantWorkFormId ? 'existing' : 'new',
-      showProgressIndicator: node.data.showProgressIndicator ?? true,
-      allowBackNavigation: node.data.allowBackNavigation ?? true,
-      allowSkipSteps: node.data.allowSkipSteps ?? false,
-      autoAdvance: node.data.autoAdvance ?? false,
-      confirmOnExit: node.data.confirmOnExit ?? true,
+      workflowId,
+      containerName: String(data.containerName || data.label || 'Unnamed Container'),
+      containerDescription:
+        typeof data.containerDescription === 'string' ? data.containerDescription : undefined,
+      mode: workflowId ? 'existing' : 'new',
+      showProgressIndicator: typeof data.showProgressIndicator === 'boolean' ? data.showProgressIndicator : true,
+      allowBackNavigation: typeof data.allowBackNavigation === 'boolean' ? data.allowBackNavigation : true,
+      allowSkipSteps: typeof data.allowSkipSteps === 'boolean' ? data.allowSkipSteps : false,
+      autoAdvance: typeof data.autoAdvance === 'boolean' ? data.autoAdvance : false,
+      confirmOnExit: typeof data.confirmOnExit === 'boolean' ? data.confirmOnExit : true,
     };
   }, []);
   
@@ -6272,7 +6381,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     );
 
     upstreamFormNodes.forEach((node) => {
-      const fields = node.data?.fields || [];
+      const fields = Array.isArray((node.data as any)?.fields) ? (node.data as any).fields : [];
       fields.forEach((field: any) => {
         allFields.push({
           ...field,
@@ -6345,13 +6454,15 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     // Map template nodes to proper React Flow node types with full metadata
     const mappedNodes = template.nodes.map(node => {
       // Get node definition from registry for metadata (color, icon, etc.)
-      const nodeDef = getNodeTypeDefinition(node.type);
-      
+      const rawType = node.type ?? '';
+
+      const nodeDef = getNodeTypeDefinition(rawType);
+
       // Ensure node has proper type mapping
-      const reactFlowType = getReactFlowNodeType(node.type);
-      
+      const reactFlowType = getReactFlowNodeType(rawType);
+
       // Merge default data + template data + registry metadata
-      const defaultData = getDefaultNodeData(node.type);
+      const defaultData = getDefaultNodeData(rawType);
       
       return {
         ...node,
@@ -6381,16 +6492,6 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     setHistory(newHistory);
     setHistoryIndex(0);
     
-    // Update node ID counter based on loaded nodes
-    const maxId = Math.max(
-      0,
-      ...template.nodes.map(n => {
-        const match = n.id.match(/node-(\d+)/);
-        return match ? parseInt(match[1], 10) : 0;
-      })
-    );
-    setNodeIdCounter(maxId + 1);
-    
     // Close modal
     setIsTemplateModalOpen(false);
     
@@ -6412,9 +6513,6 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     // Reset history
     setHistory([{ nodes: [], edges: [] }]);
     setHistoryIndex(0);
-    
-    // Reset node ID counter
-    setNodeIdCounter(1);
     
     // Close modal
     setIsTemplateModalOpen(false);
@@ -6812,6 +6910,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     <FormBuilderProvider onNodeDataUpdate={handleNodeDataUpdate}>
     <FlowEditorProvider
       tenantLists={tenantLists}
+      systemChoiceLists={systemChoiceLists}
       availableFields={selectedFormStep?.data?.fields || []}
       currentNodeId={selectedFormStep?.id || null}
     >
@@ -6861,14 +6960,14 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
               {CATEGORY_ORDER.filter((category) => paletteCategories.has(category)).map((category) => {
                 const isActive = activeFilters.has(category);
                 const categoryColor = {
-                  trigger: '#10b981',
-                  form: '#3b82f6',
-                  logic: '#f59e0b',
-                  action: '#8b5cf6',
-                  wait: '#ef4444',
-                  document: '#06b6d4',
-                  utility: '#64748b',
-                  terminal: '#059669',
+                  trigger: 'rgb(var(--color-success))',
+                  form: 'rgb(var(--color-primary))',
+                  logic: 'rgb(var(--color-warning))',
+                  action: 'rgb(var(--color-info))',
+                  wait: 'rgb(var(--color-error))',
+                  document: 'rgb(var(--color-info))',
+                  utility: 'rgb(var(--color-text-secondary))',
+                  terminal: 'rgb(var(--color-success))',
                 }[category];
 
                 return (
@@ -7125,7 +7224,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
             )}
           </LoadMenuContainer>
           <ToolbarButton 
-            onClick={handleSaveWorkflow} 
+            onClick={() => handleSaveWorkflow()} 
             title="Save Workflow (Ctrl+S)"
             disabled={isSaving}
             style={hasUnsavedChanges ? {
@@ -7136,6 +7235,32 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
           >
             <Save size={14} style={{ marginRight: '4px' }} />
             {isSaving ? 'Saving...' : 'Save'}
+          </ToolbarButton>
+
+          <ToolbarButton
+            onClick={handlePublishWorkflow}
+            title={
+              currentWorkflowStatus === 'active'
+                ? 'Workflow is published'
+                : (validationResult.errorCount > 0
+                    ? 'Fix validation errors before publishing'
+                    : 'Publish Workflow')
+            }
+            disabled={
+              isSaving ||
+              nodes.length === 0 ||
+              currentWorkflowStatus === 'active' ||
+              validationResult.errorCount > 0
+            }
+            style={currentWorkflowStatus !== 'active' ? {
+              background: 'rgb(var(--color-success) / 0.12)',
+              color: 'rgb(var(--color-success))',
+              borderColor: 'rgb(var(--color-success) / 0.35)',
+              fontWeight: 700,
+            } : {}}
+          >
+            <CheckCircle size={14} style={{ marginRight: '4px' }} />
+            {currentWorkflowStatus === 'active' ? 'Published' : 'Publish'}
           </ToolbarButton>
           
           {/* Task 1: Workflow Execution Integration */}
@@ -7237,7 +7362,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
           <Settings />
         </ViewportButton>
         <div style={{ width: '1px', height: '20px', background: 'rgb(var(--color-border))' }} />
-        <ViewportButton onClick={fitView} title="Fit to View (F)">
+        <ViewportButton onClick={() => fitView({ padding: 0.2, duration: 300 })} title="Fit to View (F)">
           <Maximize2 />
         </ViewportButton>
         <ViewportButton onClick={zoomIn} title="Zoom In">
@@ -7287,9 +7412,11 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         </ModeSelectorContainer>
       )}
 
+      <EditorWrapper>
       {/* React Flow Canvas - Visual Mode */}
       {normalizedEditorMode === 'visual' && (
         <DebugAwareReactFlow
+        style={{ width: '100%', height: '100%' }}
         nodes={nodesForCanvas}
         edges={edgesForCanvas}
         onNodesChange={onNodesChange}
@@ -7297,7 +7424,6 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         onConnect={onConnect}
         onNodesDelete={onNodesDelete}
         nodesDraggable={true}
-        nodeDragHandle=".custom-drag-handle"
         nodesConnectable={false}
         isValidConnection={isValidConnection}
         onDrop={onDrop}
@@ -7312,15 +7438,15 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
           if (!reactFlowInstance?.screenToFlowPosition) return;
 
           const pos = reactFlowInstance.screenToFlowPosition({
-            x: (event as MouseEvent).clientX,
-            y: (event as MouseEvent).clientY,
+            x: event.clientX,
+            y: event.clientY,
           });
 
           collabSendCursorDebounced(pos);
         }}
         onSelectionChange={handleSelectionChange}
-        nodeTypes={dynamicNodeTypes}
-        edgeTypes={staticEdgeTypes}
+        nodeTypes={dynamicNodeTypes as unknown as NodeTypes}
+        edgeTypes={staticEdgeTypes as unknown as EdgeTypes}
         // Phase 7.5/9: Always render only visible elements for large-editor performance
         onlyRenderVisibleElements={true}
         elevateNodesOnSelect={nodes.length < 200}
@@ -7346,7 +7472,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
           strokeDasharray: '5,5',
           animation: 'dash 0.5s linear infinite',
         }}
-        connectionLineType="step"
+        connectionLineType={ConnectionLineType.SmoothStep}
         snapToGrid={snapToGrid}
         snapGrid={[gridSize, gridSize]}
         connectionRadius={20}
@@ -7411,8 +7537,9 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         {isMinimapVisible && (
           <MiniMap 
             nodeColor={(node) => {
-              const registry = NODE_TYPE_REGISTRY[node.type];
-              return registry?.color || '#94a3b8';
+              const type = node.type;
+              const registry = type ? NODE_TYPE_REGISTRY[type] : undefined;
+              return registry?.color || 'rgb(var(--color-text-tertiary))';
             }}
             maskColor="rgba(0, 0, 0, 0.1)"
             style={{
@@ -7711,7 +7838,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
                           {nodeConfig.icon}
                         </NodeIconCircle>
                         <WizardNodeInfo>
-                          <WizardNodeLabel>{nodeConfig.label}</WizardNodeLabel>
+                          <WizardNodeLabel>{nodeConfig.name}</WizardNodeLabel>
                           <WizardNodeDesc>{nodeConfig.description?.slice(0, 40)}...</WizardNodeDesc>
                         </WizardNodeInfo>
                         <Plus size={16} />
@@ -7778,7 +7905,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
           </WizardCard>
         </WizardContainer>
       )}
-      
+      </EditorWrapper>
 
       {/* Drag Ghost Preview */}
       {isDragging && dragPosition && dragNodeType && (
@@ -8134,7 +8261,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
 
       {/* Help Modal (Workform Batch 2) */}
       {isHelpModalOpen && (
-        <HelpModal onClose={() => setIsHelpModalOpen(false)} />
+        <HelpModal isOpen={isHelpModalOpen} onClose={() => setIsHelpModalOpen(false)} />
       )}
 
       {/* FormBuilder Modal (Phase 6) */}
@@ -8152,10 +8279,9 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         steps={tourSteps}
         run={runTour}
         stepIndex={tourStepIndex}
-        callback={handleTourCallback}
+        onEvent={handleTourCallback}
         continuous
-        showProgress
-        showSkipButton
+        options={tourOptions}
         styles={tourStyles}
         locale={{
           back: 'Back',

@@ -243,11 +243,6 @@ export const adminWorkspaceNavigation: NavigationItem[] = [
         path: '/workspace/configurations',
       },
       {
-        label: 'Customizations',
-        icon: '🎨',
-        path: '/workspace/customizations',
-      },
-      {
         label: 'Users & Invitations',
         icon: '👥',
         path: '/workspace/users',

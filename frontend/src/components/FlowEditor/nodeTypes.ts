@@ -47,7 +47,7 @@ export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDefinition> = {
     name: 'Manual Trigger',
     category: 'trigger',
     icon: '▶️',
-    color: '#10b981', // green
+    color: 'rgb(var(--color-success))', // green
     description: 'User clicks a button to start the flow',
     maxInputs: 0,
     maxOutputs: 1,
@@ -58,7 +58,7 @@ export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDefinition> = {
     name: 'Schedule Trigger',
     category: 'trigger',
     icon: '⏰',
-    color: '#10b981',
+    color: 'rgb(var(--color-success))',
     description: 'Runs on a schedule (cron/time-based)',
     maxInputs: 0,
     maxOutputs: 1,
@@ -70,7 +70,7 @@ export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDefinition> = {
     name: 'Webhook Trigger',
     category: 'trigger',
     icon: '🔗',
-    color: '#10b981',
+    color: 'rgb(var(--color-success))',
     description: 'Receives data from external API calls',
     maxInputs: 0,
     maxOutputs: 1,
@@ -82,7 +82,7 @@ export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDefinition> = {
     name: 'Event Trigger',
     category: 'trigger',
     icon: '⚡',
-    color: '#10b981',
+    color: 'rgb(var(--color-success))',
     description: 'Fires when a record is created/updated/deleted',
     maxInputs: 0,
     maxOutputs: 1,
@@ -94,7 +94,7 @@ export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDefinition> = {
     name: 'Form Submit',
     category: 'trigger',
     icon: '📝',
-    color: '#10b981',
+    color: 'rgb(var(--color-success))',
     description: 'Triggered when a form is submitted',
     maxInputs: 0,
     maxOutputs: 1,
@@ -109,7 +109,7 @@ export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDefinition> = {
     name: 'Form Step',
     category: 'form',
     icon: '📄',
-    color: '#3b82f6', // blue
+    color: 'rgb(var(--color-primary))', // blue
     description: 'Single form step (page). Use inside a Form (Book) container or standalone.',
     maxInputs: 1,
     maxOutputs: 1,
@@ -124,7 +124,7 @@ export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDefinition> = {
     name: 'Form (Legacy)',
     category: 'form',
     icon: '📋',
-    color: '#3b82f6', // blue
+    color: 'rgb(var(--color-primary))', // blue
     description: '[DEPRECATED] Use the "Form" node instead. This exists for backward compatibility only.',
     maxInputs: 1,
     maxOutputs: 1,
@@ -138,7 +138,7 @@ export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDefinition> = {
     name: 'Form Process',
     category: 'form',
     icon: '📦',
-    color: '#8b5cf6', // purple - distinct from regular form blue
+    color: 'rgb(var(--color-info))', // purple - distinct from regular form blue
     description: 'Multi-step container that keeps child form steps constrained and arranged horizontally.',
     maxInputs: 1,
     maxOutputs: 1,
@@ -151,7 +151,7 @@ export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDefinition> = {
     name: 'Form (Legacy Container)',
     category: 'form',
     icon: '📚',
-    color: '#a78bfa',
+    color: 'rgb(var(--color-info))',
     description: '[HIDDEN] Legacy alias. Loads as Form Process at runtime.',
     maxInputs: 1,
     maxOutputs: 1,
@@ -166,7 +166,7 @@ export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDefinition> = {
     name: 'Smart WorkForm (Hidden)',
     category: 'form',
     icon: '🧠',
-    color: '#a78bfa',
+    color: 'rgb(var(--color-info))',
     description: '[HIDDEN] Backward compatibility. Use Form Process instead.',
     maxInputs: 1,
     maxOutputs: 1,
@@ -179,7 +179,7 @@ export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDefinition> = {
     name: 'Form Process (Legacy Alias)',
     category: 'form',
     icon: '📦',
-    color: '#9ca3af',
+    color: 'rgb(var(--color-text-muted))',
     description: '[HIDDEN] Legacy alias. Loads as Form Process at runtime.',
     maxInputs: 1,
     maxOutputs: 1,
@@ -194,7 +194,7 @@ export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDefinition> = {
     name: 'Form Step (Deprecated)',
     category: 'form',
     icon: '📋',
-    color: '#9ca3af', // gray - deprecated
+    color: 'rgb(var(--color-text-muted))', // gray - deprecated
     description: '[DEPRECATED] This node type has been renamed to "Form". Existing workflows will continue to work.',
     maxInputs: 1,
     maxOutputs: 1,
@@ -207,7 +207,7 @@ export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDefinition> = {
     name: 'Multi-Step Container (DEPRECATED - use formProcess)',
     category: 'form',
     icon: '📦',
-    color: '#9ca3af', // gray - deprecated
+    color: 'rgb(var(--color-text-muted))', // gray - deprecated
     description: '[DEPRECATED] This node type has been renamed to formProcess. Existing workflows will continue to work.',
     maxInputs: 1,
     maxOutputs: 1,
@@ -221,7 +221,7 @@ export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDefinition> = {
     name: 'Form Reference',
     category: 'form',
     icon: '📄',
-    color: '#3b82f6',
+    color: 'rgb(var(--color-primary))',
     description: 'Reference a reusable form from the library',
     maxInputs: 1,
     maxOutputs: 1,
@@ -233,7 +233,7 @@ export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDefinition> = {
     name: 'Signature Field',
     category: 'form',
     icon: '✍️',
-    color: '#3b82f6',
+    color: 'rgb(var(--color-primary))',
     description: 'Electronic signature capture',
     maxInputs: 1,
     maxOutputs: 1,
@@ -245,7 +245,7 @@ export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDefinition> = {
     name: 'File Upload',
     category: 'form',
     icon: '📎',
-    color: '#3b82f6',
+    color: 'rgb(var(--color-primary))',
     description: 'Document/file upload field',
     maxInputs: 1,
     maxOutputs: 1,
@@ -260,7 +260,7 @@ export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDefinition> = {
     name: 'If/Else Condition',
     category: 'logic',
     icon: '🔀',
-    color: '#f59e0b', // amber
+    color: 'rgb(var(--color-warning))', // amber
     description: 'Branch flow based on a condition',
     maxInputs: 1,
     maxOutputs: 2, // true and false branches
@@ -272,7 +272,7 @@ export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDefinition> = {
     name: 'Switch/Case',
     category: 'logic',
     icon: '🔀',
-    color: '#f59e0b',
+    color: 'rgb(var(--color-warning))',
     description: 'Multi-branch routing based on value',
     maxInputs: 1,
     maxOutputs: -1, // unlimited
@@ -284,7 +284,7 @@ export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDefinition> = {
     name: 'Filter Records',
     category: 'logic',
     icon: '🔍',
-    color: '#f59e0b',
+    color: 'rgb(var(--color-warning))',
     description: 'Filter items based on criteria',
     maxInputs: 1,
     maxOutputs: 1,
@@ -296,10 +296,10 @@ export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDefinition> = {
     name: 'For Each Loop',
     category: 'logic',
     icon: '🔁',
-    color: '#f59e0b',
+    color: 'rgb(var(--color-warning))',
     description: 'Iterate over a collection',
-    maxInputs: 1,
-    maxOutputs: 1,
+    maxInputs: 2,
+    maxOutputs: 2,
     requiresConfig: true,
   },
   
@@ -308,10 +308,10 @@ export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDefinition> = {
     name: 'While Loop',
     category: 'logic',
     icon: '🔄',
-    color: '#f59e0b',
+    color: 'rgb(var(--color-warning))',
     description: 'Repeat until condition is false',
-    maxInputs: 1,
-    maxOutputs: 1,
+    maxInputs: 2,
+    maxOutputs: 2,
     requiresConfig: true,
   },
   
@@ -321,7 +321,7 @@ export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDefinition> = {
     name: 'Parallel Paths',
     category: 'logic',
     icon: '⚡',
-    color: '#8b5cf6', // purple
+    color: 'rgb(var(--color-info))', // purple
     description: 'Split execution into parallel branches',
     maxInputs: 1,
     maxOutputs: -1, // unlimited (one per path)
@@ -333,7 +333,7 @@ export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDefinition> = {
     name: 'Sub-Workflow',
     category: 'logic',
     icon: '🔗',
-    color: '#6366f1', // indigo
+    color: 'rgb(var(--color-info))', // indigo
     description: 'Execute another workflow as a sub-process',
     maxInputs: 1,
     maxOutputs: 1,
@@ -347,7 +347,7 @@ export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDefinition> = {
     name: 'Send Email',
     category: 'action',
     icon: '✉️',
-    color: '#8b5cf6', // purple
+    color: 'rgb(var(--color-info))', // purple
     description: 'Send an email notification',
     maxInputs: 1,
     maxOutputs: 1,
@@ -360,7 +360,7 @@ export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDefinition> = {
     name: 'Send Email (Outlook)',
     category: 'action',
     icon: '📧',
-    color: '#0078d4', // Microsoft blue
+    color: 'rgb(var(--color-info))', // Microsoft blue
     description: 'Send email via Microsoft Outlook integration',
     maxInputs: 1,
     maxOutputs: 1,
@@ -373,7 +373,7 @@ export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDefinition> = {
     name: 'In-App Notification',
     category: 'action',
     icon: '🔔',
-    color: '#8b5cf6',
+    color: 'rgb(var(--color-info))',
     description: 'Send an in-app notification',
     maxInputs: 1,
     maxOutputs: 1,
@@ -386,7 +386,7 @@ export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDefinition> = {
     name: 'Send SMS',
     category: 'action',
     icon: '💬',
-    color: '#8b5cf6',
+    color: 'rgb(var(--color-info))',
     description: 'Send SMS message (future)',
     maxInputs: 1,
     maxOutputs: 1,
@@ -399,7 +399,7 @@ export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDefinition> = {
     name: 'Create Record',
     category: 'action',
     icon: '➕',
-    color: '#8b5cf6',
+    color: 'rgb(var(--color-info))',
     description: 'Create a new database record',
     maxInputs: 1,
     maxOutputs: 1,
@@ -412,7 +412,7 @@ export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDefinition> = {
     name: 'Update Record',
     category: 'action',
     icon: '✏️',
-    color: '#8b5cf6',
+    color: 'rgb(var(--color-info))',
     description: 'Update an existing record',
     maxInputs: 1,
     maxOutputs: 1,
@@ -425,7 +425,7 @@ export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDefinition> = {
     name: 'Delete Record',
     category: 'action',
     icon: '🗑️',
-    color: '#8b5cf6',
+    color: 'rgb(var(--color-info))',
     description: 'Delete a database record',
     maxInputs: 1,
     maxOutputs: 1,
@@ -438,7 +438,7 @@ export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDefinition> = {
     name: 'HTTP Request',
     category: 'action',
     icon: '🌐',
-    color: '#8b5cf6',
+    color: 'rgb(var(--color-info))',
     description: 'Make an external API call',
     maxInputs: 1,
     maxOutputs: 1,
@@ -451,7 +451,7 @@ export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDefinition> = {
     name: 'Run Script',
     category: 'action',
     icon: '💻',
-    color: '#8b5cf6',
+    color: 'rgb(var(--color-info))',
     description: 'Execute custom JavaScript/Python code',
     maxInputs: 1,
     maxOutputs: 1,
@@ -465,7 +465,7 @@ export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDefinition> = {
     name: 'Approval Required',
     category: 'wait',
     icon: '✋',
-    color: '#ef4444', // red
+    color: 'rgb(var(--color-error))', // red
     description: 'Wait for internal approval',
     maxInputs: 1,
     maxOutputs: 2, // approved and rejected
@@ -477,7 +477,7 @@ export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDefinition> = {
     name: 'Document Upload',
     category: 'wait',
     icon: '📄',
-    color: '#ef4444',
+    color: 'rgb(var(--color-error))',
     description: 'Wait for document upload',
     maxInputs: 1,
     maxOutputs: 1,
@@ -489,7 +489,7 @@ export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDefinition> = {
     name: 'External Response',
     category: 'wait',
     icon: '⏳',
-    color: '#ef4444',
+    color: 'rgb(var(--color-error))',
     description: 'Wait for external party response',
     maxInputs: 1,
     maxOutputs: 1,
@@ -501,7 +501,7 @@ export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDefinition> = {
     name: 'Payment Confirmation',
     category: 'wait',
     icon: '💳',
-    color: '#ef4444',
+    color: 'rgb(var(--color-error))',
     description: 'Wait for payment confirmation',
     maxInputs: 1,
     maxOutputs: 2, // paid and cancelled
@@ -513,7 +513,7 @@ export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDefinition> = {
     name: 'Delay',
     category: 'wait',
     icon: '⏱️',
-    color: '#ef4444',
+    color: 'rgb(var(--color-error))',
     description: 'Wait for a specified duration',
     maxInputs: 1,
     maxOutputs: 1,
@@ -525,7 +525,7 @@ export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDefinition> = {
     name: 'Wait Until',
     category: 'wait',
     icon: '📅',
-    color: '#ef4444',
+    color: 'rgb(var(--color-error))',
     description: 'Wait until a specific date/time',
     maxInputs: 1,
     maxOutputs: 1,
@@ -538,7 +538,7 @@ export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDefinition> = {
     name: 'Generate Document',
     category: 'document',
     icon: '📄',
-    color: '#06b6d4', // cyan
+    color: 'rgb(var(--color-info))', // cyan
     description: 'Generate PDF/Word document from template',
     maxInputs: 1,
     maxOutputs: 1,
@@ -551,7 +551,7 @@ export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDefinition> = {
     name: 'Merge Documents',
     category: 'document',
     icon: '📑',
-    color: '#06b6d4',
+    color: 'rgb(var(--color-info))',
     description: 'Combine multiple documents',
     maxInputs: -1, // unlimited
     maxOutputs: 1,
@@ -564,7 +564,7 @@ export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDefinition> = {
     name: 'Request Signature',
     category: 'document',
     icon: '✍️',
-    color: '#06b6d4',
+    color: 'rgb(var(--color-info))',
     description: 'Request electronic signature',
     maxInputs: 1,
     maxOutputs: 1,
@@ -577,7 +577,7 @@ export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDefinition> = {
     name: 'Store Document',
     category: 'document',
     icon: '💾',
-    color: '#06b6d4',
+    color: 'rgb(var(--color-info))',
     description: 'Save document to storage',
     maxInputs: 1,
     maxOutputs: 1,
@@ -590,7 +590,7 @@ export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDefinition> = {
     name: 'Upload Document',
     category: 'document',
     icon: '📤',
-    color: '#06b6d4',
+    color: 'rgb(var(--color-info))',
     description: 'Upload document to external service',
     maxInputs: 1,
     maxOutputs: 1,
@@ -604,7 +604,7 @@ export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDefinition> = {
     name: 'Transform Data',
     category: 'utility',
     icon: '🔄',
-    color: '#64748b', // slate
+    color: 'rgb(var(--color-text-secondary))', // slate
     description: 'Map and transform data fields',
     maxInputs: 1,
     maxOutputs: 1,
@@ -616,7 +616,7 @@ export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDefinition> = {
     name: 'Lookup Record',
     category: 'utility',
     icon: '🔍',
-    color: '#64748b',
+    color: 'rgb(var(--color-text-secondary))',
     description: 'Query related database records',
     maxInputs: 1,
     maxOutputs: 1,
@@ -629,7 +629,7 @@ export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDefinition> = {
     name: 'Merge Data',
     category: 'utility',
     icon: '🔗',
-    color: '#64748b',
+    color: 'rgb(var(--color-text-secondary))',
     description: 'Combine data from multiple branches',
     maxInputs: -1, // unlimited
     maxOutputs: 1,
@@ -641,7 +641,7 @@ export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDefinition> = {
     name: 'Note',
     category: 'utility',
     icon: '📝',
-    color: '#64748b',
+    color: 'rgb(var(--color-text-secondary))',
     description: 'Add visual annotation (not executed)',
     maxInputs: 0,
     maxOutputs: 0,
@@ -652,7 +652,7 @@ export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDefinition> = {
     name: 'Sub-Workflow',
     category: 'utility',
     icon: '📦',
-    color: '#64748b',
+    color: 'rgb(var(--color-text-secondary))',
     description: 'Encapsulate reusable sub-workflow',
     maxInputs: 1,
     maxOutputs: 1,
@@ -665,7 +665,7 @@ export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDefinition> = {
     name: 'Success End',
     category: 'terminal',
     icon: '✅',
-    color: '#22c55e', // green
+    color: 'rgb(var(--color-success))', // green
     description: 'Successful completion of workflow',
     maxInputs: 1,
     maxOutputs: 0,
@@ -676,7 +676,7 @@ export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDefinition> = {
     name: 'Error End',
     category: 'terminal',
     icon: '❌',
-    color: '#ef4444', // red
+    color: 'rgb(var(--color-error))', // red
     description: 'Error termination of workflow',
     maxInputs: 1,
     maxOutputs: 0,
@@ -687,7 +687,7 @@ export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDefinition> = {
     name: 'Cancel End',
     category: 'terminal',
     icon: '⛔',
-    color: '#f59e0b', // amber
+    color: 'rgb(var(--color-warning))', // amber
     description: 'User-initiated cancellation',
     maxInputs: 1,
     maxOutputs: 0,
@@ -706,7 +706,7 @@ export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDefinition> = {
     name: 'Form Field (DEPRECATED)',
     category: 'form',
     icon: '📝',
-    color: '#9ca3af', // gray - deprecated
+    color: 'rgb(var(--color-text-muted))', // gray - deprecated
     description: '[DEPRECATED] Use Form Step instead. This node will be migrated automatically.',
     maxInputs: 1,
     maxOutputs: 1,
@@ -719,7 +719,7 @@ export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDefinition> = {
     name: 'Form Section (DEPRECATED)',
     category: 'form',
     icon: '📑',
-    color: '#9ca3af', // gray - deprecated
+    color: 'rgb(var(--color-text-muted))', // gray - deprecated
     description: '[DEPRECATED] Use Form Step with section header. This node will be migrated automatically.',
     maxInputs: 1,
     maxOutputs: 1,

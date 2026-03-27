@@ -116,7 +116,7 @@ function extractNodeOutputs(node: Node): UpstreamOutput[] {
       outputs.push({
         nodeId: node.id,
         nodeLabel: data.label || 'Create Record',
-        nodeType: node.type,
+        nodeType: node.type ?? 'unknown',
         fieldName: field.name,
         fieldLabel: field.label,
         fieldType: field.type,
@@ -131,7 +131,7 @@ function extractNodeOutputs(node: Node): UpstreamOutput[] {
       outputs.push({
         nodeId: node.id,
         nodeLabel: data.label || 'Lookup',
-        nodeType: node.type,
+        nodeType: node.type ?? 'unknown',
         fieldName: key,
         fieldLabel: humanize(key),
         fieldType: inferType(value),
@@ -146,7 +146,7 @@ function extractNodeOutputs(node: Node): UpstreamOutput[] {
       outputs.push({
         nodeId: node.id,
         nodeLabel: data.label || 'API Response',
-        nodeType: node.type,
+        nodeType: node.type ?? 'unknown',
         fieldName: key,
         fieldLabel: humanize(key),
         fieldType: inferType(value),
@@ -161,7 +161,7 @@ function extractNodeOutputs(node: Node): UpstreamOutput[] {
       outputs.push({
         nodeId: node.id,
         nodeLabel: data.label || 'Variables',
-        nodeType: node.type,
+        nodeType: node.type ?? 'unknown',
         fieldName: variable.key || variable.name,
         fieldLabel: variable.label || humanize(variable.key || variable.name),
         fieldType: variable.type || 'text',

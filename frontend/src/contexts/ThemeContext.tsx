@@ -11,10 +11,11 @@
  * Components now reference CSS variables (--color-primary) instead of hardcoded colors.
  * This allows the same component to look completely different for each tenant.
  */
-import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
-import { ConfigProvider } from 'antd';
+import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback, useMemo } from 'react';
+import { ConfigProvider, theme as antdTheme } from 'antd';
+import type { ThemeConfig } from 'antd';
 import { Theme, themes, injectTenantColors } from '../config/theme';
-import { getThemeConfig, applyCanvasTheme } from '../theme/themeConfig';
+import { applyCanvasTheme } from '../theme/themeConfig';
 import { getRuntimeConfig } from '../config/runtime';
 import { apiClient } from '../services/apiService';
 import { useAuth } from './AuthContext';
@@ -230,12 +231,30 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
     tenantBranding,
   };
 
-  // Get AntD theme configuration based on current theme mode
-  const antdTheme = getThemeConfig(themeName);
+  const antdConfig: ThemeConfig = useMemo(() => {
+    const isDarkMode = themeName === 'dark';
+
+    // CRITICAL: Let Ant Design algorithms own background/surface tokens.
+    // We only override the brand (primary) color.
+    const primary = tenantBranding
+      ? (isDarkMode ? tenantBranding.primaryColorDark : tenantBranding.primaryColorLight)
+      : null;
+
+    const hasValidPrimary = typeof primary === 'string' && /^#[0-9A-Fa-f]{6}$/.test(primary);
+
+    return {
+      algorithm: isDarkMode ? antdTheme.darkAlgorithm : antdTheme.defaultAlgorithm,
+      cssVar: { prefix: 'pm' },
+      token: hasValidPrimary ? { colorPrimary: primary } : {},
+      // Do NOT override colorBgBase/colorBgContainer/colorBgLayout/colorText here.
+      // Those overrides can corrupt surfaces and render components pure black.
+      components: {},
+    };
+  }, [tenantBranding, themeName]);
 
   return (
     <ThemeContext.Provider value={value}>
-      <ConfigProvider theme={antdTheme}>
+      <ConfigProvider theme={antdConfig}>
         {children}
       </ConfigProvider>
     </ThemeContext.Provider>

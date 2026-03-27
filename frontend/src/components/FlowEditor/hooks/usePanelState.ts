@@ -95,7 +95,7 @@ export interface UsePanelStateReturn {
   /**
    * Ref to attach to panel container
    */
-  panelRef: React.RefObject<HTMLDivElement>;
+  panelRef: React.RefObject<HTMLDivElement | null>;
   
   /**
    * Bring panel to front (increase z-index)
@@ -144,7 +144,7 @@ export function usePanelState(options: UsePanelStateOptions = {}): UsePanelState
   
   const [isOpen, setIsOpen] = useState(defaultOpen);
   const [zIndex, setZIndex] = useState(baseZIndex);
-  const panelRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDivElement | null>(null);
   
   const open = useCallback(() => {
     setIsOpen(true);

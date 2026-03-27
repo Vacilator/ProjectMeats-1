@@ -1,12 +1,13 @@
-# ProjectMeats Development Roadmap
+# ProjectMeats Development Roadmap (Reference)
 
-**Visual progress tracking for Gap Analysis Phases 1-9**
+**Scope:** Visual progress tracking for Gap Analysis Phases 1-9  
+**Authority:** This is **not** the canonical status tracker. For current truth and backlog, see `MASTER_PLAN.md`.
 
 ---
 
 ## 📊 Overall Progress
 
-**Current Status**: 100% Complete (35/35 todos, 0 blocked)
+**Current Status (historical snapshot)**: previously reported as “100% complete” here; treat as *non-authoritative* if it conflicts with `MASTER_PLAN.md`.
 
 ```
 [████████████████████████████████████████████] 100%

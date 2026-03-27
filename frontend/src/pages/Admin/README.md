@@ -102,8 +102,10 @@ frontend/src/pages/Admin/
 
 **Permissions**: Owners only
 
-### 7. Customizations (Placeholder)
-**Route**: `/workspace/customizations`
+### 7. Customizations (Consolidated)
+Customizations have been consolidated into **Option Lists** under the "Tenant Overrides" tab.
+
+**Route Redirect**: `/workspace/customizations` → `/workspace/option-lists?tab=overrides`
 
 - UI customization options (coming soon)
 - Custom fields (coming soon)

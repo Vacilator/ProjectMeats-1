@@ -13,7 +13,7 @@ export interface AIOverviewCardProps {
 type SummaryState =
   | { status: 'idle' | 'loading' }
   | { status: 'ready'; text: string }
-  | { status: 'unavailable' }
+  | { status: 'unavailable'; message?: string }
   | { status: 'error'; message: string };
 
 const Card = styled.div`
@@ -132,7 +132,17 @@ export const AIOverviewCard: React.FC<AIOverviewCardProps> = ({ entityType, enti
 
     try {
       const resp = await businessApi.get(endpoint);
-      const text = normalizeSummaryText((resp.data as any)?.summary ?? (resp.data as any)?.text);
+      const payload = resp.data as any;
+      const apiStatus = String(payload?.status ?? '');
+      const text = normalizeSummaryText(payload?.summary ?? payload?.text);
+
+      if (apiStatus && apiStatus !== 'success') {
+        setState({
+          status: 'unavailable',
+          message: text || 'AI overview unavailable for this environment.',
+        });
+        return;
+      }
 
       if (!text) {
         setState({ status: 'unavailable' });
@@ -176,7 +186,13 @@ export const AIOverviewCard: React.FC<AIOverviewCardProps> = ({ entityType, enti
     if (state.status === 'unavailable') {
       return (
         <Placeholder>
-          AI overview is <strong>enabled for this environment</strong>. No summary is available yet for this record.
+          {state.message ? (
+            state.message
+          ) : (
+            <>
+              AI overview is <strong>enabled for this environment</strong>. No summary is available yet for this record.
+            </>
+          )}
         </Placeholder>
       );
     }
@@ -187,6 +203,11 @@ export const AIOverviewCard: React.FC<AIOverviewCardProps> = ({ entityType, enti
           {state.message}
         </Placeholder>
       );
+    }
+
+    if (state.status !== 'ready') {
+      // Defensive: all other cases are handled above, but keep TS narrowing strict.
+      return null;
     }
 
     return (

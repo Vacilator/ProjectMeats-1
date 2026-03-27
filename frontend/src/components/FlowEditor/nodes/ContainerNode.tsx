@@ -17,7 +17,7 @@
  */
 
 import React, { memo, useState, useCallback, useMemo } from 'react';
-import { NodeProps, Handle, Position } from '@xyflow/react';
+import { Handle, Position, type Node, type NodeProps } from '@xyflow/react';
 import styled from 'styled-components';
 import { ChevronDown, ChevronRight, Maximize2, Minimize2, Folder } from 'lucide-react';
 import { Tooltip } from 'antd';
@@ -26,7 +26,7 @@ import { Tooltip } from 'antd';
 // Types
 // ============================================================================
 
-export interface ContainerNodeData {
+export interface ContainerNodeData extends Record<string, unknown> {
   label: string;
   description?: string;
   collapsed?: boolean;
@@ -227,12 +227,12 @@ const NodeCount = styled.div`
  *     description: 'User login and session management',
  *     childNodeIds: ['node-1', 'node-2', 'node-3'],
  *     backgroundColor: 'rgba(103, 126, 234, 0.05)',
- *     borderColor: '#667eea',
+ *     borderColor: 'rgb(var(--color-primary))',
  *   },
  * };
  * ```
  */
-export const ContainerNode: React.FC<NodeProps<ContainerNodeData>> = memo(
+export const ContainerNode: React.FC<NodeProps<Node<ContainerNodeData>>> = memo(
   ({ data, selected }) => {
     const {
       label,

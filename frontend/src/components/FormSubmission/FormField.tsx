@@ -38,7 +38,7 @@ interface FormFieldProps {
 const FieldContainer = styled.div`
   margin-bottom: 1.25rem;
   padding-bottom: 1.25rem;
-  border-bottom: 1px solid var(--border-color, #dee2e6);
+  border-bottom: 1px solid var(--border-color, rgb(var(--color-border)));
   
   &:last-child {
     margin-bottom: 0;
@@ -61,43 +61,43 @@ const FieldIcon = styled.span`
 const Label = styled.label<{ required?: boolean }>`
   flex: 1;
   font-weight: 500;
-  color: var(--text-primary, #1a1a2e);
+  color: var(--text-primary, rgb(var(--color-text-primary)));
   font-size: 0.875rem;
 
   ${({ required }) => required && `
     &::after {
       content: ' *';
-      color: var(--color-error, #dc3545);
+      color: var(--color-error, rgb(var(--color-error)));
     }
   `}
 `;
 
 const FieldTypeBadge = styled.span`
   padding: 0.125rem 0.5rem;
-  background: var(--bg-secondary, #f8f9fa);
+  background: var(--bg-secondary, rgb(var(--color-surface)));
   border-radius: 0.25rem;
   font-size: 0.6875rem;
-  color: var(--text-secondary, #6c757d);
+  color: var(--text-secondary, rgb(var(--color-text-muted)));
   text-transform: uppercase;
 `;
 
 const HelpText = styled.span`
   display: block;
   font-size: 0.75rem;
-  color: var(--text-secondary, #6c757d);
+  color: var(--text-secondary, rgb(var(--color-text-muted)));
   margin-top: 0.25rem;
 `;
 
 const ErrorText = styled.span`
   display: block;
   font-size: 0.75rem;
-  color: var(--color-error, #dc3545);
+  color: var(--color-error, rgb(var(--color-error)));
   margin-top: 0.25rem;
 `;
 
 const SavingIndicator = styled.span`
   font-size: 0.75rem;
-  color: var(--color-info, #17a2b8);
+  color: var(--color-info, rgb(var(--color-info)));
   margin-left: 0.5rem;
 `;
 
@@ -106,25 +106,25 @@ const inputStyles = `
   padding: 0.625rem 0.75rem;
   font-size: 0.875rem;
   line-height: 1.5;
-  color: var(--text-primary, #1a1a2e);
-  background-color: var(--input-bg, #ffffff);
-  border: 1px solid var(--border-color, #dee2e6);
+  color: var(--text-primary, rgb(var(--color-text-primary)));
+  background-color: var(--input-bg, rgb(var(--color-surface)));
+  border: 1px solid var(--border-color, rgb(var(--color-border)));
   border-radius: 0.375rem;
   transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
 
   &:focus {
     outline: none;
-    border-color: var(--color-primary, #0d6efd);
+    border-color: var(--color-primary, rgb(var(--color-primary)));
     box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
   }
 
   &:disabled {
-    background-color: var(--input-disabled-bg, #e9ecef);
+    background-color: var(--input-disabled-bg, rgb(var(--color-border)));
     cursor: not-allowed;
   }
 
   &.error {
-    border-color: var(--color-error, #dc3545);
+    border-color: var(--color-error, rgb(var(--color-error)));
   }
 `;
 
@@ -155,13 +155,13 @@ const Checkbox = styled.input`
 
 const CheckboxLabel = styled.label<{ required?: boolean }>`
   font-weight: 500;
-  color: var(--text-primary, #1a1a2e);
+  color: var(--text-primary, rgb(var(--color-text-primary)));
   cursor: pointer;
 
   ${({ required }) => required && `
     &::after {
       content: ' *';
-      color: var(--color-error, #dc3545);
+      color: var(--color-error, rgb(var(--color-error)));
     }
   `}
 `;
@@ -171,8 +171,8 @@ const MultiSelectContainer = styled.div`
   flex-wrap: wrap;
   gap: 0.5rem;
   padding: 0.5rem;
-  background: var(--input-bg, #ffffff);
-  border: 1px solid var(--border-color, #dee2e6);
+  background: var(--input-bg, rgb(var(--color-surface)));
+  border: 1px solid var(--border-color, rgb(var(--color-border)));
   border-radius: 0.375rem;
   min-height: 2.5rem;
 `;
@@ -182,14 +182,14 @@ const MultiSelectOption = styled.label<{ selected?: boolean }>`
   align-items: center;
   gap: 0.25rem;
   padding: 0.25rem 0.5rem;
-  background: ${({ selected }) => selected ? 'var(--color-primary-light, #cfe2ff)' : 'var(--bg-secondary, #f8f9fa)'};
+  background: ${({ selected }) => selected ? 'var(--color-primary-light, rgba(var(--color-primary), 0.14))' : 'var(--bg-secondary, rgb(var(--color-surface)))'};
   border-radius: 0.25rem;
   cursor: pointer;
   font-size: 0.8125rem;
   transition: background-color 0.15s ease;
 
   &:hover {
-    background: var(--color-primary-light, #cfe2ff);
+    background: var(--color-primary-light, rgba(var(--color-primary), 0.14));
   }
 `;
 
@@ -200,8 +200,8 @@ const EmptyOptionsContainer = styled.div`
   align-items: center;
   gap: 0.75rem;
   padding: 1rem;
-  background: var(--bg-secondary, #f8f9fa);
-  border: 1px dashed var(--border-color, #dee2e6);
+  background: var(--bg-secondary, rgb(var(--color-surface)));
+  border: 1px dashed var(--border-color, rgb(var(--color-border)));
   border-radius: 0.375rem;
   text-align: center;
 `;
@@ -209,7 +209,7 @@ const EmptyOptionsContainer = styled.div`
 const EmptyOptionsText = styled.p`
   margin: 0;
   font-size: 0.875rem;
-  color: var(--text-secondary, #6c757d);
+  color: var(--text-secondary, rgb(var(--color-text-muted)));
 `;
 
 const CreateEntityButton = styled.button`
@@ -219,19 +219,19 @@ const CreateEntityButton = styled.button`
   padding: 0.5rem 1rem;
   font-size: 0.875rem;
   font-weight: 500;
-  color: #fff;
-  background: var(--color-primary, #0d6efd);
+  color: rgb(var(--color-surface));
+  background: var(--color-primary, rgb(var(--color-primary)));
   border: none;
   border-radius: 0.375rem;
   cursor: pointer;
   transition: background-color 0.15s ease;
 
   &:hover {
-    background: var(--color-primary-hover, #0b5ed7);
+    background: var(--color-primary-hover, rgb(var(--color-primary)));
   }
 
   &:disabled {
-    background: var(--text-secondary, #6c757d);
+    background: var(--text-secondary, rgb(var(--color-text-muted)));
     cursor: not-allowed;
   }
 `;

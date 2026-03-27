@@ -157,6 +157,15 @@ export const getAvailableWorkForms = async (params?: {
   return Array.isArray(data) ? data : [];
 };
 
+export interface FormSubmissionCreateResponse {
+  id: string;
+}
+
+export const createFormSubmission = async (formId: string): Promise<FormSubmissionCreateResponse> => {
+  const response = await apiClient.post('/workflows/form-submissions/', { form: formId });
+  return response.data;
+};
+
 // ============================================================================
 // Entity APIs (Phase 1.1-1.3)
 // ============================================================================
@@ -443,6 +452,18 @@ export const validateWorkForm = async (
   return response.data;
 };
 
+export interface SuggestNodesResponse {
+  suggestions: any[];
+  confidence?: number;
+  mode?: 'ai' | 'static';
+  cached?: boolean;
+}
+
+export const suggestNodes = async (payload: any): Promise<SuggestNodesResponse> => {
+  const response = await apiClient.post('/suggest-nodes/', payload);
+  return response.data;
+};
+
 // ============================================================================
 // Container APIs (Phase 4)
 // ============================================================================
@@ -547,6 +568,7 @@ const workformsApi = {
   cloneWorkForm,
   getWorkFormUsage,
   validateWorkForm,
+  suggestNodes,
   
   // Container utilities
   listWorkFormContainers,

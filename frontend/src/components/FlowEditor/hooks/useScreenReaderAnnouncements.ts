@@ -8,7 +8,7 @@
  * @see Phase 7.6: Accessibility & i18n
  */
 
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect, useRef, useCallback, useState } from 'react';
 
 /**
  * Priority level for announcements

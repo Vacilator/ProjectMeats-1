@@ -398,6 +398,11 @@ const ProcessMonitor: React.FC = () => {
       );
       return res.data;
     },
+    // Circuit breaker: don't hammer the server on 5xx crashes (prevents UI stutter)
+    retry: (failureCount, error: any) => {
+      if (error?.response?.status >= 500) return false;
+      return failureCount < 3;
+    },
     staleTime: 15_000,
     refetchOnWindowFocus: true,
   });
@@ -565,10 +570,6 @@ const ProcessMonitor: React.FC = () => {
                   readOnly={true}
                   initialNodes={nodes as any}
                   initialEdges={edges as any}
-                  punchIn={{
-                    activeNodeId,
-                    centerOnActiveNode: true,
-                  }}
                 />
               )}
             </EditorPane>

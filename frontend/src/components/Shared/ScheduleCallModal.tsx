@@ -26,8 +26,8 @@
  */
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
-import { apiClient } from '../../services/apiService';
-import UniversalEntityForm from './UniversalEntityForm';
+import { businessApi } from '../../services/businessApi';
+import { EntityFormSurface } from './EntityFormSurface';
 import { CallTimer } from '../Calls';
 
 // ============================================================================
@@ -56,7 +56,18 @@ interface ScheduleCallModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
-  initialData?: ScheduledCallData | null;  // For editing
+  initialData?: ScheduledCallData | null; // For editing
+  /**
+   * Used by entry points that pre-select a purpose before opening the modal.
+   * Only applied in create mode.
+   */
+  defaultCallPurpose?: string;
+  /**
+   * Used by entry points that already know the target entity (e.g. Cockpit entity detail).
+   * Only applied in create mode.
+   */
+  defaultEntityType?: EntityType;
+  defaultEntityId?: string | number;
 }
 
 // Restrict to only Supplier and Customer per requirements
@@ -236,7 +247,7 @@ const SubmitButton = styled.button`
 `;
 
 const ErrorMessage = styled.div`
-  color: #dc2626;
+  color: rgb(var(--color-error));
   font-size: 0.875rem;
   margin-top: 0.5rem;
   padding: 0.5rem;
@@ -316,6 +327,9 @@ export const ScheduleCallModal: React.FC<ScheduleCallModalProps> = ({
   onClose,
   onSuccess,
   initialData,
+  defaultCallPurpose,
+  defaultEntityType,
+  defaultEntityId,
 }) => {
   const isEditMode = !!initialData?.id;
   
@@ -346,22 +360,27 @@ export const ScheduleCallModal: React.FC<ScheduleCallModalProps> = ({
     if (initialData && isOpen) {
       setTitle(initialData.title || '');
       setDescription(initialData.description || '');
-      setEntityType(initialData.entity_type as EntityType || 'supplier');
+      setEntityType((initialData.entity_type as EntityType) || 'supplier');
       setEntityId(String(initialData.entity_id || ''));
-      
+
       // Format date for datetime-local input (remove Z and seconds for local timezone)
-      const formattedDate = initialData.scheduled_for 
-        ? new Date(initialData.scheduled_for).toISOString().slice(0, 16)
-        : '';
+      const formattedDate = initialData.scheduled_for ? new Date(initialData.scheduled_for).toISOString().slice(0, 16) : '';
       setScheduledFor(formattedDate);
-      
+
       setDurationMinutes(String(initialData.duration_minutes || 30));
       setCallPurpose(initialData.call_purpose || 'follow_up');
       setOutcome(initialData.outcome || '');
     } else if (isOpen) {
       resetForm();
+      setCallPurpose(defaultCallPurpose || 'follow_up');
+      if (defaultEntityType) {
+        setEntityType(defaultEntityType);
+      }
+      if (defaultEntityId !== undefined && defaultEntityId !== null && String(defaultEntityId).trim() !== '') {
+        setEntityId(String(defaultEntityId));
+      }
     }
-  }, [initialData, isOpen]);
+  }, [initialData, isOpen, defaultCallPurpose, defaultEntityId, defaultEntityType]);
 
   // Fetch entity options when entity type changes
   useEffect(() => {
@@ -373,8 +392,8 @@ export const ScheduleCallModal: React.FC<ScheduleCallModalProps> = ({
   const fetchEntityOptions = async (type: EntityType) => {
     setLoadingEntities(true);
     try {
-      const endpoint = type === 'supplier' ? 'suppliers/' : 'customers/';
-      const response = await apiClient.get(endpoint);
+      const endpoint = type === 'supplier' ? '/suppliers/' : '/customers/';
+      const response = await businessApi.get(endpoint);
       const data = response.data.results || response.data;
       
       // Map to consistent format
@@ -448,10 +467,10 @@ export const ScheduleCallModal: React.FC<ScheduleCallModalProps> = ({
 
       if (isEditMode && initialData?.id) {
         // Update existing call
-        await apiClient.patch(`workspace/scheduled-calls/${initialData.id}/`, payload);
+        await businessApi.patch(`/workspace/scheduled-calls/${initialData.id}/`, payload);
       } else {
         // Create new call
-        await apiClient.post('workspace/scheduled-calls/', payload);
+        await businessApi.post('/workspace/scheduled-calls/', payload);
       }
 
       // Success
@@ -650,20 +669,20 @@ export const ScheduleCallModal: React.FC<ScheduleCallModalProps> = ({
 
       {/* Inquiry Modal */}
       {showInquiryModal && initialData?.id && (
-        <UniversalEntityForm
+        <EntityFormSurface
           entityType="inquiries"
+          mode="create"
           isOpen={showInquiryModal}
           onClose={() => setShowInquiryModal(false)}
-          onSuccess={(inquiry) => {
+          onSuccess={() => {
             setShowInquiryModal(false);
-            console.log('Inquiry created:', inquiry?.inquiry_number);
           }}
-          initialValues={{
-            source_type: 'scheduled_call',
-            source_call: String(initialData.id),
-            entity_type: entityType,
-            ...(String(entityType).toLowerCase() === 'supplier' ? { supplier: entityId } : { customer: entityId }),
-          } as any}
+          context={{
+            sourceCallId: initialData.id,
+            ...(String(entityType).toLowerCase() === 'supplier'
+              ? { supplierId: entityId }
+              : { customerId: entityId }),
+          }}
         />
       )}
     </Overlay>

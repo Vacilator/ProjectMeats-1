@@ -45,7 +45,7 @@ const Overlay = styled.div`
 `;
 
 const Modal = styled.div`
-  background: var(--bg-primary, #ffffff);
+  background: var(--bg-primary, rgb(var(--color-surface)));
   border-radius: 0.75rem;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
   width: 90%;
@@ -71,15 +71,15 @@ const ModalHeader = styled.div`
   align-items: center;
   justify-content: space-between;
   padding: 1rem 1.25rem;
-  border-bottom: 1px solid var(--border-color, #dee2e6);
-  background: var(--bg-secondary, #f8f9fa);
+  border-bottom: 1px solid var(--border-color, rgb(var(--color-border)));
+  background: var(--bg-secondary, rgb(var(--color-surface)));
 `;
 
 const ModalTitle = styled.h3`
   margin: 0;
   font-size: 1.125rem;
   font-weight: 600;
-  color: var(--text-primary, #1a1a2e);
+  color: var(--text-primary, rgb(var(--color-text-primary)));
   display: flex;
   align-items: center;
   gap: 0.5rem;
@@ -89,14 +89,14 @@ const CloseButton = styled.button`
   background: none;
   border: none;
   font-size: 1.5rem;
-  color: var(--text-secondary, #6c757d);
+  color: var(--text-secondary, rgb(var(--color-text-muted)));
   cursor: pointer;
   padding: 0.25rem;
   line-height: 1;
   transition: color 0.15s ease;
 
   &:hover {
-    color: var(--text-primary, #1a1a2e);
+    color: var(--text-primary, rgb(var(--color-text-primary)));
   }
 `;
 
@@ -119,12 +119,12 @@ const Label = styled.label<{ required?: boolean }>`
   margin-bottom: 0.375rem;
   font-weight: 500;
   font-size: 0.875rem;
-  color: var(--text-primary, #1a1a2e);
+  color: var(--text-primary, rgb(var(--color-text-primary)));
 
   ${({ required }) => required && `
     &::after {
       content: ' *';
-      color: var(--color-error, #dc3545);
+      color: var(--color-error, rgb(var(--color-error)));
     }
   `}
 `;
@@ -134,32 +134,32 @@ const Input = styled.input`
   padding: 0.625rem 0.75rem;
   font-size: 0.875rem;
   line-height: 1.5;
-  color: var(--text-primary, #1a1a2e);
-  background-color: var(--input-bg, #ffffff);
-  border: 1px solid var(--border-color, #dee2e6);
+  color: var(--text-primary, rgb(var(--color-text-primary)));
+  background-color: var(--input-bg, rgb(var(--color-surface)));
+  border: 1px solid var(--border-color, rgb(var(--color-border)));
   border-radius: 0.375rem;
   transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
 
   &:focus {
     outline: none;
-    border-color: var(--color-primary, #0d6efd);
+    border-color: var(--color-primary, rgb(var(--color-primary)));
     box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
   }
 
   &:disabled {
-    background-color: var(--input-disabled-bg, #e9ecef);
+    background-color: var(--input-disabled-bg, rgb(var(--color-border)));
     cursor: not-allowed;
   }
 
   &.error {
-    border-color: var(--color-error, #dc3545);
+    border-color: var(--color-error, rgb(var(--color-error)));
   }
 `;
 
 const ErrorText = styled.span`
   display: block;
   font-size: 0.75rem;
-  color: var(--color-error, #dc3545);
+  color: var(--color-error, rgb(var(--color-error)));
   margin-top: 0.25rem;
 `;
 
@@ -168,8 +168,14 @@ const ModalFooter = styled.div`
   justify-content: flex-end;
   gap: 0.75rem;
   padding: 1rem 1.25rem;
-  border-top: 1px solid var(--border-color, #dee2e6);
-  background: var(--bg-secondary, #f8f9fa);
+  border-top: 1px solid var(--border-color, rgb(var(--color-border)));
+  background: var(--bg-secondary, rgb(var(--color-surface)));
+
+  /* Keep the save action visible in embedded mode */
+  position: sticky;
+  bottom: 0;
+  z-index: 5;
+  box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.08);
 `;
 
 const Button = styled.button<{ variant?: 'primary' | 'secondary' }>`
@@ -184,21 +190,21 @@ const Button = styled.button<{ variant?: 'primary' | 'secondary' }>`
   transition: all 0.15s ease;
 
   ${({ variant }) => variant === 'primary' ? `
-    background: var(--color-primary, #0d6efd);
-    color: #fff;
-    border: 1px solid var(--color-primary, #0d6efd);
+    background: var(--color-primary, rgb(var(--color-primary)));
+    color: rgb(var(--color-surface));
+    border: 1px solid var(--color-primary, rgb(var(--color-primary)));
 
     &:hover:not(:disabled) {
-      background: var(--color-primary-hover, #0b5ed7);
-      border-color: var(--color-primary-hover, #0b5ed7);
+      background: var(--color-primary-hover, rgb(var(--color-primary)));
+      border-color: var(--color-primary-hover, rgb(var(--color-primary)));
     }
   ` : `
-    background: var(--bg-primary, #ffffff);
-    color: var(--text-primary, #1a1a2e);
-    border: 1px solid var(--border-color, #dee2e6);
+    background: var(--bg-primary, rgb(var(--color-surface)));
+    color: var(--text-primary, rgb(var(--color-text-primary)));
+    border: 1px solid var(--border-color, rgb(var(--color-border)));
 
     &:hover:not(:disabled) {
-      background: var(--bg-secondary, #f8f9fa);
+      background: var(--bg-secondary, rgb(var(--color-surface)));
     }
   `}
 
@@ -229,7 +235,7 @@ const LoadingContainer = styled.div`
   justify-content: center;
   padding: 2rem;
   gap: 1rem;
-  color: var(--text-secondary, #6c757d);
+  color: var(--text-secondary, rgb(var(--color-text-muted)));
 `;
 
 const InlineContainer = styled.div`
@@ -301,9 +307,15 @@ const QuickCreateModal: React.FC<QuickCreateModalProps> = ({
       setEntityLabel(response.entity_label);
       
       // Initialize form data with empty values (plus optional context prefill)
+      // Use type-appropriate defaults to avoid sending invalid placeholders.
       const initialData: Record<string, any> = { ...(mergedContext || {}) };
       response.fields.forEach((f) => {
-        if (initialData[f.key] === undefined) {
+        if (initialData[f.key] !== undefined) return;
+        if (f.type === 'checkbox') {
+          initialData[f.key] = false;
+        } else if (f.type === 'multiselect') {
+          initialData[f.key] = [];
+        } else {
           initialData[f.key] = '';
         }
       });
@@ -339,8 +351,11 @@ const QuickCreateModal: React.FC<QuickCreateModalProps> = ({
         params: {
           search: search || undefined,
           is_active: true,
+          // Some environments allow client-set page sizing; some don't.
+          // Include both params for maximum compatibility.
           page_size: 50,
-          ...(normalizedProteins.length ? { protein: normalizedProteins } : {}),
+          limit: 50,
+          ...(normalizedProteins.length ? { protein: normalizedProteins.join(',') } : {}),
         },
       });
 
@@ -398,12 +413,57 @@ const QuickCreateModal: React.FC<QuickCreateModalProps> = ({
 
     setIsSubmitting(true);
     try {
-      const response = await entityOptionsService.quickCreate(entityType, formData);
+      // Avoid sending empty-string placeholders; these can break numeric/FK/boolean fields
+      // and cause "Save" to appear non-functional.
+      const payload: Record<string, any> = {};
+
+      // Include context values first (if any)
+      Object.entries(mergedContext || {}).forEach(([k, v]) => {
+        if (v === undefined || v === null) return;
+        if (typeof v === 'string' && v.trim() === '') return;
+        if (Array.isArray(v) && v.length === 0) return;
+        payload[k] = v;
+      });
+
+      fields.forEach((field) => {
+        const raw = formData[field.key];
+
+        // Skip empty values
+        if (raw === undefined || raw === null) return;
+        if (typeof raw === 'string' && raw.trim() === '') return;
+        if (Array.isArray(raw) && raw.filter((x) => String(x).trim() !== '').length === 0) return;
+
+        if (field.type === 'number') {
+          const n = typeof raw === 'number' ? raw : Number(raw);
+          if (!Number.isFinite(n)) return;
+          payload[field.key] = n;
+          return;
+        }
+
+        if (field.type === 'checkbox') {
+          payload[field.key] = Boolean(raw);
+          return;
+        }
+
+        if (field.type === 'multiselect') {
+          payload[field.key] = Array.isArray(raw) ? raw : [raw];
+          return;
+        }
+
+        payload[field.key] = raw;
+      });
+
+      const response = await entityOptionsService.quickCreate(entityType, payload);
+
+      if (!response || response.success !== true || !response.value) {
+        throw new Error('Failed to create record');
+      }
+
       onCreated({ value: response.value, label: response.label });
       onClose();
     } catch (err: any) {
       console.error('Failed to create entity:', err);
-      const errorMessage = err.response?.data?.error || 'Failed to create record';
+      const errorMessage = err.response?.data?.error || err.response?.data?.detail || 'Failed to create record';
       setErrors({ _general: errorMessage });
     } finally {
       setIsSubmitting(false);
@@ -483,10 +543,18 @@ const QuickCreateModal: React.FC<QuickCreateModalProps> = ({
                         disabled={isSubmitting}
                         style={{ width: '100%' }}
                       />
+                    ) : field.type === 'checkbox' ? (
+                      <input
+                        id={`quick-create-${field.key}`}
+                        type="checkbox"
+                        checked={Boolean(formData[field.key])}
+                        onChange={(e) => handleInputChange(field.key, e.target.checked)}
+                        disabled={isSubmitting}
+                      />
                     ) : (
                       <Input
                         id={`quick-create-${field.key}`}
-                        type={field.type === 'email' ? 'email' : field.type === 'number' ? 'number' : 'text'}
+                        type={field.type === 'email' ? 'email' : field.type === 'number' ? 'number' : field.type === 'date' ? 'date' : 'text'}
                         value={formData[field.key] || ''}
                         onChange={(e) => handleInputChange(field.key, e.target.value)}
                         className={errors[field.key] ? 'error' : ''}
@@ -590,10 +658,18 @@ const QuickCreateModal: React.FC<QuickCreateModalProps> = ({
                         disabled={isSubmitting}
                         style={{ width: '100%' }}
                       />
+                    ) : field.type === 'checkbox' ? (
+                      <input
+                        id={`quick-create-${field.key}`}
+                        type="checkbox"
+                        checked={Boolean(formData[field.key])}
+                        onChange={(e) => handleInputChange(field.key, e.target.checked)}
+                        disabled={isSubmitting}
+                      />
                     ) : (
                       <Input
                         id={`quick-create-${field.key}`}
-                        type={field.type === 'email' ? 'email' : field.type === 'number' ? 'number' : 'text'}
+                        type={field.type === 'email' ? 'email' : field.type === 'number' ? 'number' : field.type === 'date' ? 'date' : 'text'}
                         value={formData[field.key] || ''}
                         onChange={(e) => handleInputChange(field.key, e.target.value)}
                         className={errors[field.key] ? 'error' : ''}

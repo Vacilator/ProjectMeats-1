@@ -69,16 +69,18 @@ export type FieldType =
  * Comparison operators for conditional rules
  */
 export type ConditionalOperator =
-  | 'equals'       // Field value equals target value
-  | 'notEquals'    // Field value does not equal target value
-  | 'contains'     // Field value contains target value (arrays/strings)
-  | 'notContains'  // Field value does not contain target value
-  | 'greaterThan'  // Field value > target value (numbers/dates)
-  | 'lessThan'     // Field value < target value (numbers/dates)
+  | 'equals' // Field value equals target value
+  | 'notEquals' // Field value does not equal target value
+  | 'contains' // Field value contains target value (arrays/strings)
+  | 'notContains' // Field value does not contain target value
+  | 'greaterThan' // Field value > target value (numbers/dates)
+  | 'lessThan' // Field value < target value (numbers/dates)
   | 'greaterThanOrEqual' // Field value >= target value
-  | 'lessThanOrEqual'    // Field value <= target value
-  | 'isEmpty'      // Field value is null/undefined/empty string
-  | 'isNotEmpty';  // Field value is not null/undefined/empty string
+  | 'lessThanOrEqual' // Field value <= target value
+  | 'isEmpty' // Field value is null/undefined/empty string
+  | 'isNotEmpty' // Field value is not null/undefined/empty string
+  | 'in' // Field value is contained in a provided list
+  | 'notIn'; // Field value is not contained in a provided list
 
 /**
  * Logical operators for combining multiple conditions
@@ -131,15 +133,16 @@ export interface ConditionalRule {
  * Built-in validation rule types
  */
 export type ValidationRuleType =
-  | 'required'       // Field must have a value
-  | 'minLength'      // Minimum string length
-  | 'maxLength'      // Maximum string length
-  | 'min'            // Minimum number value
-  | 'max'            // Maximum number value
-  | 'regex'          // Regular expression match
-  | 'email'          // Valid email format
-  | 'url'            // Valid URL format
-  | 'custom';        // Custom validation function
+  | 'required' // Field must have a value
+  | 'minLength' // Minimum string length
+  | 'maxLength' // Maximum string length
+  | 'min' // Minimum number value
+  | 'max' // Maximum number value
+  | 'regex' // Regular expression match
+  | 'pattern' // Alias for regex (legacy schemas)
+  | 'email' // Valid email format
+  | 'url' // Valid URL format
+  | 'custom'; // Custom validation function
 
 /**
  * Validation rule definition
@@ -218,7 +221,7 @@ export interface ConfigField {
   label: string;
   
   /** Placeholder text (for text inputs) */
-  placeholder?: string;
+  placeholder?: string | { key: string; value: string };
   
   /** Help text (shown in tooltip or below field) */
   helpText?: string;
@@ -231,6 +234,9 @@ export interface ConfigField {
   
   /** Options for select/multiselect fields */
   options?: SelectOption[];
+
+  /** UI hint: enable/disable auto-suggest (used by search-like fields) */
+  showAutoSuggest?: boolean;
   
   /** Validation rules */
   validation?: ValidationRule[];
@@ -240,7 +246,37 @@ export interface ConfigField {
   
   /** Disabled state */
   disabled?: boolean;
-  
+
+  /** Read-only state (renderer should prevent edits) */
+  readOnly?: boolean;
+
+  /** Allow multiple values (used by keyValue/multiselect-like fields) */
+  multiple?: boolean;
+
+  /** UI hint: button styling / severity */
+  variant?: string;
+
+  /** UI hint: language for code editors */
+  language?: string;
+
+  /** UI hint: minimum numeric value */
+  min?: number;
+
+  /** UI hint: maximum numeric value */
+  max?: number;
+
+  /** Key-value field: label for add button */
+  addButtonText?: string;
+
+  /** Entity-field picker: pre-selected field id */
+  entityFieldId?: string;
+
+  /** Array-like fields: schema for items */
+  itemSchema?: Record<string, any>;
+
+  /** Button fields: click handler (dynamic config panels may wrap/augment this) */
+  onClick?: (...args: any[]) => any;
+
   /** Custom component (for type='custom') */
   component?: ComponentType<any>;
   
@@ -363,6 +399,9 @@ export interface NodeConfigSchema {
   
   /** Human-readable name */
   displayName: string;
+
+  /** Optional category (used by schemaRegistry fallbacks + UI grouping) */
+  category?: string;
   
   /** Description of what this node does */
   description?: string;

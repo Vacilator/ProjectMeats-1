@@ -61,7 +61,7 @@ export interface FormOutputField {
 /**
  * Hook return type
  */
-interface UseFormDataMappingReturn {
+export interface UseFormDataMappingReturn {
   /** Generate output fields from form node data */
   generateFormOutputs: (node: Node) => FormOutputField[];
   /** Get all mappings for a form node */
@@ -100,11 +100,11 @@ export const useFormDataMapping = (): UseFormDataMappingReturn => {
         fields.forEach((field: FormField, fieldIndex: number) => {
           outputs.push({
             id: field.id,
-            name: field.name,
+            name: field.id,
             type: field.type,
-            label: field.label || field.name,
+            label: field.label || field.id,
             handleId: `output-${stepIndex}-${fieldIndex}-${field.id}`,
-            required: field.validation?.required || false,
+            required: field.required || false,
           });
         });
       });
@@ -114,11 +114,11 @@ export const useFormDataMapping = (): UseFormDataMappingReturn => {
       fields.forEach((field: FormField, index: number) => {
         outputs.push({
           id: field.id,
-          name: field.name,
+          name: field.id,
           type: field.type,
-          label: field.label || field.name,
+          label: field.label || field.id,
           handleId: `output-${index}-${field.id}`,
-          required: field.validation?.required || false,
+          required: field.required || false,
         });
       });
     }

@@ -111,19 +111,19 @@ const iconMap: Record<NodeIconType, React.ComponentType<any>> = {
 // ============================================================================
 
 export const iconColors = {
-  form: '#667eea',         // Purple
-  logic: '#f59e0b',        // Orange
-  data: '#3b82f6',         // Blue
-  communication: '#10b981', // Green
-  integration: '#8b5cf6',  // Violet
-  container: '#64748b',    // Slate
-  utility: '#6b7280',      // Gray
-  control: '#6366f1',      // Indigo
+  form: 'rgb(var(--color-primary))',         // Purple
+  logic: 'rgb(var(--color-warning))',        // Orange
+  data: 'rgb(var(--color-primary))',         // Blue
+  communication: 'rgb(var(--color-success))', // Green
+  integration: 'rgb(var(--color-info))',  // Violet
+  container: 'rgb(var(--color-text-secondary))',    // Slate
+  utility: 'rgb(var(--color-text-muted))',      // Gray
+  control: 'rgb(var(--color-info))',      // Indigo
   status: {
-    success: '#22c55e',    // Green
-    error: '#ef4444',      // Red
-    warning: '#f59e0b',    // Orange
-    info: '#3b82f6',       // Blue
+    success: 'rgb(var(--color-success))',    // Green
+    error: 'rgb(var(--color-error))',      // Red
+    warning: 'rgb(var(--color-warning))',    // Orange
+    info: 'rgb(var(--color-primary))',       // Blue
   },
 };
 

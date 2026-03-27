@@ -1,29 +1,145 @@
-# ProjectMeats Master Plan - Phase Tracking & Technical Debt
+# MASTER_PLAN.md (Canonical)
 
-**Status**: 🔄 LIVING DOCUMENT  
-**Last Updated**: March 23, 2026  
-**Current Focus**: Phase 7 Stabilization + Production Credential Configuration 🚀  
-**Overall Progress**: 100% (all 9 phases complete) — external secrets required for UAT/Production activation  
-**Infrastructure Status**: All phases fully operational in dev
+**Status**: 🔄 Living document (canonical source of truth)  
+**Last Updated**: 2026-03-26  
+**Primary Focus**: Phase 7 (Intelligent Workform Editor) stability + business-usable Admin/Cockpit workflows  
 
-**Latest Progress (Power Automate UX)**  
-- Vanguard: Inquiry-Flow-Template v2 – First in Use Template + Full Fields/Cascading + Aesthetic Polish.
-- Vanguard: Cockpit-Detail-View-Template – Complete.
-- Vanguard: Cockpit Customer Detail View – Complete & Whiteboard-Accurate.
-- Vanguard: Workform Editor UX Polish – Auto-realign + Line fix + Circular Add Button.
-- Vanguard: Workform Editor Node Palette – Trigger-only on blank canvas; hide Triggers + End Points after Trigger placed.
-- Vanguard: Workform Editor Guided Empty State – Trigger-first CTAs (Add Manual Trigger / Use Template / Browse Triggers).
-- Vanguard: Microsoft Outlook Connect Button – Fixed for admin_test_development_1 (full OAuth flow).
-- Completed Batch 2: disabled manual node dragging/connecting, defaulted edges to inline insertion type, added "+" edge event listener to open the node palette with context, and enforced strict top-to-bottom auto-layout centering.
-- Hotfix: restored dev-site load by fixing nodeConfigSchemas TDZ initialization ordering (PR #3557).
-- Ops hardening: env secret audit aligned to manifests/env.manifest.json v5.1 + email_integration model/schema cleanup (PR #3558).
-- Frontend deps: safe Vite 8 upgrade (Tailwind pinned to 3.4.19 pending dedicated v4 migration) (PR #3559).
-- Deploy unblock: add missing integrations EmailLog migration + RLS policy (PR #3561) — dev pipeline green; dev site/health now 200.
-- Ops: harden migration validation script to match shared-schema and validate tenant_apps too (PR #3563).
-- Docs: clean up remaining django-tenants/migrate_schemas guidance in backend readmes (PR #3565).
-- Phase 8 (PM-AS): added staff-only swarm router preview endpoint `POST /api/v1/ai-assistant/swarm/invoke/` (PR #3693).
-- Phase 8 (PM-AS): added AIAgentWidget “Route preview” button to display router decision (PR #3694).
-- UI Hardening: Restored Form Process node rendering (avoids blank placeholder) by aligning nodeTypes/normalization to Friday baseline (PR #3778).
+This file is the **canonical plan + current truth snapshot**.
+- **PR execution log (append-only):** `.github/MASTER_PLAN.md`
+- **Reference roadmaps:** `ROADMAP.md`, `UI_ROADMAP.md` (may contain outdated “100% complete” claims; do not treat as authoritative)
+
+---
+
+## Reality Snapshot (as of 2026-03-26)
+
+### What is actively in progress
+- **Type-check hardening:** `pr-golden-sweep-typecheck` (tracked in SQL session todos)
+
+### Recently shipped fixes (evidence)
+- Reports Summary 500 fixed — PR #3949
+- Tenant Lists create 500 fixed/hardened — PR #3950
+- Email Ingestion “Sync Now” correctness + pagination + error surfacing — PR #3951
+- Docs: canonicalize Master Plan + gap audit + demote non-canonical roadmaps — PR #3952, #3953, #3962
+- Forms consolidation: unify inquiry create + add EntityFormSurface + harden UniversalEntityForm + expose key_fields + migrate SalesOrders/Claims — PR #3956, #3957, #3958, #3959, #3969
+- Cockpit create UX: +New entity modal fix + +New call purpose/inquiry modal + confirm+navigate after create — PR #3960, #3961, #3966
+- FlowEditor: auto-map Apply shows Apply Changes + Form Process node not transparent — PR #3963, #3964
+- Backend: prevent RLS-related 500s — PR #3965
+- Email sync: find new order emails reliably — PR #3967
+- Admin Billing: payment method portal + plan select — PR #3968
+- Admin Invitations: avoid 500 when email fails — PR #3970
+- Reports: use tenant-aware service + show warnings — PR #3972
+- WorkForms Catalog: Quick Run uses /workflows/form-submissions + Templates tab renders FLOW_TEMPLATES — PR #3978
+- Quick Actions: use shared JWT-aware apiClient (fixes flaky quick create/quick actions auth) — PR #3980
+- Frontend standards: remove remaining hardcoded hex colors; `npm -C frontend run verify-standards` passes — PR #3982
+- Forms consolidation: route remaining create entrypoints through EntityFormSurface (schedule call → inquiry, SmartSearch → sales order) — PR #3984
+
+### Current blockers / external dependencies
+- Some features require environment secrets/infra to activate fully (e.g., OpenAI key, OAuth credentials). Code must degrade gracefully when secrets are missing.
+
+---
+
+## Source-of-Truth Rules
+
+1. **This file** defines:
+   - what is “done” vs “in progress” vs “pending”
+   - what counts as evidence
+   - what we execute next
+2. “Done” requires evidence:
+   - merged PR/commit + verification note (tests/manual/CI)
+3. Plans and historical notes below may be retained for context, but **the snapshot + status tables above override old statements**.
+
+---
+
+## Backlog (High-signal, execution-ordered)
+
+### P0 — Stability / correctness
+- Finish TypeScript type-check hardening (`npm run type-check` clean).
+- Workforms Editor: maintain hook safety, node config save UX, and layout predictability.
+
+### P0 — Business usability
+- Admin Workspace: option lists/system lists visibility + custom list create/edit flows.
+- Email ingestion monitor: correctness, diagnostics, and attachment-aware detection.
+
+### P1 — Operational excellence
+- CI automation: promotion PRs dev→uat and uat→prod/main remain green and observable.
+- Documentation hygiene: demote/label duplicated roadmaps, remove contradictory “100% complete” claims.
+
+---
+
+## Evidence Index (where to look)
+- `.github/MASTER_PLAN.md` (append-only PR log)
+- `docs/prompts/last-25-prompts-2026-03-24.md` (prompt backlog inputs)
+- Verification artifacts: `PHASE_VERIFICATION_COMPLETE.md`, `EXECUTION_SUMMARY.txt`
+
+---
+
+## Gaps & Improvements (Repo audit output)
+
+This section captures the highest-signal gaps found during repo review, with concrete acceptance criteria.
+
+### 1) Documentation consistency (avoid contradictory “100% complete” claims)
+**Gap:** Multiple docs (e.g. `ROADMAP.md`, some verification reports) contain “100% complete / all phases complete” statements that can conflict with the real operational backlog.
+
+**Plan:**
+- Add explicit “reference/historical” banners to non-canonical docs.
+- Ensure only `MASTER_PLAN.md` claims current-state status.
+
+**Acceptance criteria:**
+- No non-canonical doc presents itself as the current source of truth without a pointer to `MASTER_PLAN.md`.
+
+### 2) Verification levels (make “done” unambiguous)
+**Gap:** “Merged” is sometimes treated as “verified”. This blurs true readiness.
+
+**Plan:** adopt a lightweight evidence rubric in this master plan:
+- **Merged**: PR merged.
+- **Tested**: relevant repo tests/scripts run (existing tooling only).
+- **Verified (manual)**: user-facing flow spot-checked.
+
+**Acceptance criteria:**
+- New “done” entries in the snapshot include at least: PR/commit + verification level.
+
+### 3) Local backend test ergonomics (extensions/infrastructure assumptions)
+**Gap:** Some environments cannot run backend tests due to missing PostgreSQL extensions (e.g. `vector` / pgvector).
+
+**Plan:**
+- Document a supported local testing path (Docker Postgres image with required extensions, or a fallback test profile).
+- Ensure CI remains the authoritative verification channel when local infra is incomplete.
+
+**Acceptance criteria:**
+- A contributor can follow existing docs/scripts to run backend tests without bespoke manual DB tinkering.
+
+### 4) Multi-tenant safety + RLS drift prevention
+**Gap:** Tenant context and RLS policies remain a recurring failure mode.
+
+**Plan:**
+- Every new tenant-aware table migration must include RLS policy (per `docs/workforms/MIGRATION_STANDARDS.md`).
+- Keep “tenant-required” API contracts explicit (fail fast with 400/403, not 500).
+
+**Acceptance criteria:**
+- No tenant-scoped create endpoints throw unhandled IntegrityError/permission errors in normal use.
+
+### 5) Frontend API contract drift
+**Gap:** Some pages historically bypassed the service layer or used inconsistent URL shapes (trailing slash / tenant in path).
+
+**Plan:**
+- Enforce “service layer only” (`businessApi` / `workformsApi`) and normalize endpoint shapes.
+
+**Acceptance criteria:**
+- New frontend code does not introduce raw axios instances or hardcoded `/api/v1/tenants/{id}` paths.
+
+### 6) Operational reliability (promotion + deploy workflows)
+**Gap:** Auto-promotion and deployment workflows are critical and require ongoing observability.
+
+**Plan:**
+- Keep promotion workflows green and ensure failures are actionable (clear logs, no silent success).
+
+**Acceptance criteria:**
+- Promotion PR creation is reproducible (dev→uat, uat→main/prod) and failures surface as failed jobs (not “success with no-op”).
+
+---
+
+## Appendix: Historical Plan Notes (for context)
+
 
 ---
 

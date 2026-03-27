@@ -25,13 +25,13 @@ const providerConfig = {
   microsoft: {
     name: 'Outlook',
     displayName: 'Microsoft Outlook',
-    color: '#0078d4',
+    color: 'rgb(var(--color-info))',
     description: 'Connect your Microsoft 365 or Outlook.com account',
   },
   google: {
     name: 'Gmail',
     displayName: 'Google Gmail',
-    color: '#ea4335',
+    color: 'rgb(var(--color-error))',
     description: 'Connect your Gmail account',
     comingSoon: true,
   },
@@ -48,9 +48,10 @@ export const EmailConnection: React.FC<EmailConnectionProps> = ({
 }) => {
   const [isConnecting, setIsConnecting] = useState(false);
   const config = providerConfig[provider];
+  const isComingSoon = 'comingSoon' in config && Boolean((config as any).comingSoon);
 
   const handleConnect = async () => {
-    if (config.comingSoon) {
+    if (isComingSoon) {
       toast.error('Gmail integration coming soon!');
       return;
     }
@@ -115,7 +116,7 @@ export const EmailConnection: React.FC<EmailConnectionProps> = ({
           </ConnectionInfo>
 
           {isExpired && (
-            <ReconnectButton onClick={handleConnect} disabled={isConnecting}>
+            <ReconnectButton onClick={handleConnect} disabled={isConnecting} color={config.color}>
               {isConnecting ? 'Reconnecting...' : 'Reconnect'}
             </ReconnectButton>
           )}
@@ -132,7 +133,7 @@ export const EmailConnection: React.FC<EmailConnectionProps> = ({
             the connected account.
           </HelpCopy>
 
-          {config.comingSoon ? (
+          {isComingSoon ? (
             <ComingSoonBadge>Coming Soon</ComingSoonBadge>
           ) : (
             <ConnectButton 
@@ -320,7 +321,7 @@ const ConnectButton = styled.button<{ color: string }>`
   }
 `;
 
-const ReconnectButton = styled(ConnectButton).attrs({ color: '#667eea' })``;
+const ReconnectButton = styled(ConnectButton).attrs({ color: 'rgb(var(--color-primary))' })``;
 
 const ComingSoonBadge = styled.div`
   display: inline-flex;

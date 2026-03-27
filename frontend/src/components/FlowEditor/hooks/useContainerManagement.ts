@@ -105,7 +105,7 @@ export function useContainerManagement(): ContainerManagementResult {
         return [];
       }
 
-      const containerData = containerNode.data as ContainerNodeData;
+      const containerData = containerNode.data as unknown as ContainerNodeData;
       const childNodeIds = containerData.childNodeIds || [];
 
       return nodes.filter((node) => childNodeIds.includes(node.id));

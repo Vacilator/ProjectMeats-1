@@ -16,8 +16,7 @@ import styled from 'styled-components';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { apiClient } from '../services/apiService';
 import { InquiryListItem, InquiryStatus, InquiryTemplateListItem } from '../types';
-import { InquiryDetailModal, CloneInquiryModal } from '../components/Inquiry';
-import UniversalEntityForm from '../components/Shared/UniversalEntityForm';
+import { InquiryDetailModal, CloneInquiryModal, InquiryCreateModal } from '../components/Inquiry';
 
 // ============================================================================
 // Styled Components
@@ -664,16 +663,12 @@ const Inquiries: React.FC = () => {
       </Table>
 
       {/* Create Inquiry Modal */}
-      <UniversalEntityForm
-        entityType="inquiries"
+      <InquiryCreateModal
         isOpen={showCreateModal}
         onClose={() => setShowCreateModal(false)}
-        onSuccess={handleCreateSuccess}
-        initialValues={{
-          ...(prefillEntityType ? { entity_type: prefillEntityType } : {}),
-          ...(prefillEntityType === 'supplier' && prefillEntityId ? { supplier: prefillEntityId } : {}),
-          ...(prefillEntityType === 'customer' && prefillEntityId ? { customer: prefillEntityId } : {}),
-        } as any}
+        onSuccess={() => handleCreateSuccess()}
+        initialEntityType={prefillEntityType}
+        initialEntityId={prefillEntityId}
       />
 
       {/* Inquiry Detail Modal */}

@@ -475,8 +475,8 @@ const CustomerLocations: React.FC = () => {
       </TableControls>
 
       <StyledTable
-        columns={columns}
-        dataSource={filteredLocations}
+        columns={columns as any}
+        dataSource={filteredLocations as any}
         rowKey="id"
         loading={loading}
         pagination={{

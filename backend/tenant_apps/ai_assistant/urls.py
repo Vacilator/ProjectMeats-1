@@ -13,6 +13,7 @@ from .views import (
     AIDocumentViewSet,
     AIFeedbackViewSet,
     AIAgentChatView,
+    AILearningMetricsAPIView,
     ChatBotAPIViewSet,
     ChatMessageViewSet,
     ChatSessionViewSet,
@@ -42,6 +43,7 @@ urlpatterns = [
 
     # Clean endpoints
     path('chat/', AIAgentChatView.as_view(), name='ai-chat'),
+    path('metrics/', AILearningMetricsAPIView.as_view(), name='ai-metrics'),
     path('review/pending/', PendingReviewView.as_view(), name='pending-review'),
     path('tools/openapi/', ToolsOpenAPIView.as_view(), name='tools-openapi'),
 

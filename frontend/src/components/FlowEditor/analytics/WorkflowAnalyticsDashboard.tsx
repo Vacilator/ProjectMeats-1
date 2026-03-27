@@ -94,7 +94,7 @@ const STATUS_COLORS = {
   running: 'rgb(59, 130, 246)'
 };
 
-const CHART_COLORS = ['#667eea', '#764ba2', '#f093fb', '#4facfe'];
+const CHART_COLORS = ['rgb(var(--color-primary))', 'rgb(var(--color-info))', 'rgb(var(--color-info))', 'rgb(var(--color-info))'];
 
 export const WorkflowAnalyticsDashboard: React.FC<WorkflowAnalyticsDashboardProps> = ({
   workflowId,
@@ -166,7 +166,7 @@ export const WorkflowAnalyticsDashboard: React.FC<WorkflowAnalyticsDashboardProp
     };
 
     fetchMetrics();
-  }, [tenant?.id, selectedWorkflowId, dateRange, timeframe]);
+  }, [selectedWorkflowId, dateRange, timeframe]);
 
   const renderKPIs = () => {
     if (!metrics) return null;
@@ -186,8 +186,8 @@ export const WorkflowAnalyticsDashboard: React.FC<WorkflowAnalyticsDashboardProp
             <Statistic
               title="Total Executions"
               value={totalExecutions}
-              prefix={<Activity size={20} style={{ color: '#667eea' }} />}
-              valueStyle={{ color: '#667eea' }}
+              prefix={<Activity size={20} style={{ color: 'rgb(var(--color-primary))' }} />}
+              valueStyle={{ color: 'rgb(var(--color-primary))' }}
             />
           </Card>
         </Col>
@@ -233,10 +233,10 @@ export const WorkflowAnalyticsDashboard: React.FC<WorkflowAnalyticsDashboardProp
                 ) : durationTrend === 'down' ? (
                   <TrendingDown size={20} style={{ color: STATUS_COLORS.failure }} />
                 ) : (
-                  <Clock size={20} style={{ color: '#667eea' }} />
+                  <Clock size={20} style={{ color: 'rgb(var(--color-primary))' }} />
                 )
               }
-              valueStyle={{ color: '#667eea' }}
+              valueStyle={{ color: 'rgb(var(--color-primary))' }}
             />
           </Card>
         </Col>
@@ -309,7 +309,7 @@ export const WorkflowAnalyticsDashboard: React.FC<WorkflowAnalyticsDashboardProp
             />
             <YAxis />
             <RechartsTooltip />
-            <Bar dataKey="count" fill="#667eea" />
+            <Bar dataKey="count" fill="rgb(var(--color-primary))" />
           </BarChart>
         </ResponsiveContainer>
       </Card>
@@ -394,9 +394,9 @@ export const WorkflowAnalyticsDashboard: React.FC<WorkflowAnalyticsDashboardProp
                   cx="50%"
                   cy="50%"
                   labelLine={false}
-                  label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                  label={({ name, percent }) => `${name}: ${(((percent ?? 0) * 100)).toFixed(0)}%`}
                   outerRadius={80}
-                  fill="#8884d8"
+                  fill="rgb(var(--color-info))"
                   dataKey="value"
                 >
                   {pieData.map((entry, index) => (

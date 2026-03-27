@@ -8,14 +8,14 @@
  * Created: 2026-02-17
  */
 import React from 'react';
-import { EdgeProps, getBezierPath, EdgeLabelRenderer, MarkerType } from '@xyflow/react';
+import { type Edge, EdgeProps, getBezierPath, EdgeLabelRenderer, MarkerType } from '@xyflow/react';
 import styled from 'styled-components';
 
 // ============================================================================
 // Types
 // ============================================================================
 
-interface SuccessEdgeData {
+interface SuccessEdgeData extends Record<string, unknown> {
   label?: string;
   successMessage?: string;
   animated?: boolean;
@@ -84,7 +84,7 @@ const SuccessBadge = styled.div`
 // Component
 // ============================================================================
 
-export const SuccessEdge = React.memo<EdgeProps<SuccessEdgeData>>(({
+export const SuccessEdge = React.memo<EdgeProps<Edge<SuccessEdgeData>>>(({
   id,
   sourceX,
   sourceY,

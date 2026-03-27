@@ -44,6 +44,38 @@ class PendingReviewResolveRequestSerializer(serializers.Serializer):
         return value
 
 
+class AIFeedbackSubmitSerializer(serializers.Serializer):
+    """Public-ish write path for HITL corrections.
+
+    The frontend HITL card posts corrected key/value fields here.
+    """
+
+    document_id = serializers.UUIDField()
+    document_type = serializers.CharField(required=False, allow_blank=True, default='unknown', max_length=64)
+
+    original_extracted_data = serializers.JSONField(required=False, default=dict)
+    user_corrected_data = serializers.JSONField(required=False, default=dict)
+
+    confidence_score = serializers.FloatField(required=False, default=0.0)
+
+    def validate_original_extracted_data(self, value):
+        if not isinstance(value, dict):
+            raise serializers.ValidationError('original_extracted_data must be an object')
+        return value
+
+    def validate_user_corrected_data(self, value):
+        if not isinstance(value, dict):
+            raise serializers.ValidationError('user_corrected_data must be an object')
+        return value
+
+
+class AILearningMetricsSerializer(serializers.Serializer):
+    totalDocumentsParsed = serializers.IntegerField(min_value=0)
+    correctionsLearned = serializers.IntegerField(min_value=0)
+    precisionScore = serializers.FloatField(min_value=0.0, max_value=1.0)
+    confidenceTrend = serializers.ListField(child=serializers.DictField(), required=False)
+
+
 class ChatSessionListSerializer(serializers.ModelSerializer):
     """Serializer for chat session list view."""
 

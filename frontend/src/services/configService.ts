@@ -128,7 +128,7 @@ interface ConfigCache {
 let memoryCache: ConfigCache = {};
 
 // Pending requests deduplication (prevent duplicate API calls)
-const pendingRequests: Record<string, Promise<unknown>> = {};
+const pendingRequests: Record<string, Promise<unknown> | undefined> = {};
 
 // Performance metrics tracking
 let cacheHits = 0;
@@ -594,8 +594,8 @@ export async function getThemeConfig(): Promise<{
   logoUrl?: string;
 }> {
   const [primaryColor, secondaryColor, logoUrl] = await Promise.all([
-    resolveConfig<string>('ui.theme.primary_color', '#667eea'),
-    resolveConfig<string>('ui.theme.secondary_color', '#764ba2'),
+    resolveConfig<string>('ui.theme.primary_color', 'rgb(var(--color-primary))'),
+    resolveConfig<string>('ui.theme.secondary_color', 'rgb(var(--color-info))'),
     resolveConfig<string | undefined>('ui.theme.logo_url'),
   ]);
 

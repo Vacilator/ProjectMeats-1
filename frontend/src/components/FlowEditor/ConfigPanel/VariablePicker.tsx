@@ -97,14 +97,14 @@ function getTypeIcon(type: string): React.ReactNode {
 
 function getNodeTypeColor(nodeType: string): string {
   const colorMap: Record<string, string> = {
-    trigger: '#10b981',
-    form: '#3b82f6',
-    condition: '#f59e0b',
-    action: '#8b5cf6',
-    wait: '#ec4899',
-    document: '#14b8a6',
-    loop: '#f97316',
-    default: '#6366f1',
+    trigger: 'rgb(var(--color-success))',
+    form: 'rgb(var(--color-primary))',
+    condition: 'rgb(var(--color-warning))',
+    action: 'rgb(var(--color-info))',
+    wait: 'rgb(var(--color-info))',
+    document: 'rgb(var(--color-info))',
+    loop: 'rgb(var(--color-warning))',
+    default: 'rgb(var(--color-info))',
   };
   
   return colorMap[nodeType] || colorMap.default;

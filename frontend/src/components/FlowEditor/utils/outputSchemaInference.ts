@@ -39,6 +39,7 @@ export interface NodeOutputSchema {
 export function inferOutputSchemaFromFormNode(node: Node): NodeOutputSchema | null {
   try {
     const { data } = node;
+    const dataAny = data as any;
     const fields: OutputFieldSchema[] = [];
 
     // Check if node has form fields
@@ -49,7 +50,7 @@ export function inferOutputSchemaFromFormNode(node: Node): NodeOutputSchema | nu
           fieldName: field.name || field.id,
           fieldType: field.type || 'text',
           label: field.label || field.name,
-          entityType: data.entityType,
+          entityType: typeof dataAny.entityType === 'string' ? dataAny.entityType : undefined,
           required: field.required || false,
           defaultValue: field.defaultValue,
         });
@@ -66,7 +67,10 @@ export function inferOutputSchemaFromFormNode(node: Node): NodeOutputSchema | nu
               fieldName: field.name || field.id,
               fieldType: field.type || 'text',
               label: field.label || field.name,
-              entityType: step.entityType || data.entityType,
+              entityType:
+                typeof step.entityType === 'string'
+                  ? step.entityType
+                  : (typeof dataAny.entityType === 'string' ? dataAny.entityType : undefined),
               required: field.required || false,
               defaultValue: field.defaultValue,
             });
@@ -82,7 +86,7 @@ export function inferOutputSchemaFromFormNode(node: Node): NodeOutputSchema | nu
     return {
       nodeId: node.id,
       nodeType: node.type || 'form',
-      entityType: data.entityType,
+      entityType: typeof dataAny.entityType === 'string' ? dataAny.entityType : undefined,
       outputFields: fields,
       timestamp: Date.now(),
     };
@@ -97,9 +101,14 @@ export function inferOutputSchemaFromFormNode(node: Node): NodeOutputSchema | nu
  */
 export function inferOutputSchema(node: Node): NodeOutputSchema | null {
   // Use existing outputSchema if available and recent (< 5 minutes old)
-  if (node.data?.outputSchema && 
-      Date.now() - node.data.outputSchema.timestamp < 5 * 60 * 1000) {
-    return node.data.outputSchema;
+  const existing = (node.data as any)?.outputSchema;
+  if (
+    existing &&
+    typeof existing === 'object' &&
+    typeof existing.timestamp === 'number' &&
+    Date.now() - existing.timestamp < 5 * 60 * 1000
+  ) {
+    return existing as NodeOutputSchema;
   }
 
   // Infer based on node type

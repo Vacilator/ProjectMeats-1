@@ -214,14 +214,14 @@ export function importSubFlow(
     return {
       id: newId,
       type: childTemplate.type!,
-      data: childTemplate.data,
+      data: childTemplate.data ?? {},
       position: childTemplate.position!,
       parentId: containerNewId,
-      extent: childTemplate.extent || 'parent',
+      extent: (childTemplate.extent ?? 'parent') as any,
       expandParent: childTemplate.expandParent,
       width: childTemplate.width,
       height: childTemplate.height,
-    };
+    } as Node;
   });
   
   // Create edges with new IDs

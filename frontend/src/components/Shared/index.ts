@@ -1,6 +1,6 @@
 /**
  * Shared Components - Phase 4 Frontend Integration
- * 
+ *
  * Export all shared UI components for easy importing
  */
 
@@ -11,6 +11,7 @@ export { RecordPaymentModal } from './RecordPaymentModal';
 export { PaymentHistoryList } from './PaymentHistoryList';
 export { ScheduleCallModal } from './ScheduleCallModal';
 export { UniversalEntityForm } from './UniversalEntityForm';
+export { EntityFormSurface } from './EntityFormSurface';
 export { CreateInvoiceModal } from './CreateInvoiceModal';
 export { SearchableSelect } from './SearchableSelect';
 export type { LocationSelectorProps } from './LocationSelector';

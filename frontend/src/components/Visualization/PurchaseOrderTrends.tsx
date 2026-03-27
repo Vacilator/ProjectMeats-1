@@ -42,14 +42,18 @@ const PurchaseOrderTrends: React.FC<PurchaseOrderTrendsProps> = ({ data, height 
           <YAxis yAxisId="left" />
           <YAxis yAxisId="right" orientation="right" />
           <Tooltip
-            formatter={(value: number, name: string) => {
-              if (name === 'value' || name === 'averageValue') {
+            formatter={(value, name) => {
+              const numericValue = typeof value === 'number' ? value : Number(value ?? 0);
+              const label = typeof name === 'string' ? name : String(name ?? '');
+
+              if (label === 'value' || label === 'averageValue') {
                 return [
-                  `$${value.toLocaleString()}`,
-                  name === 'value' ? 'Total Value' : 'Average Value',
+                  `$${numericValue.toLocaleString()}`,
+                  label === 'value' ? 'Total Value' : 'Average Value',
                 ];
               }
-              return [value, 'Orders'];
+
+              return [numericValue, 'Orders'];
             }}
           />
           <Legend />
@@ -57,7 +61,7 @@ const PurchaseOrderTrends: React.FC<PurchaseOrderTrendsProps> = ({ data, height 
             yAxisId="left"
             type="monotone"
             dataKey="orders"
-            stroke="#3498db"
+            stroke={`rgb(var(--color-info))`}
             strokeWidth={2}
             name="Number of Orders"
           />
@@ -65,7 +69,7 @@ const PurchaseOrderTrends: React.FC<PurchaseOrderTrendsProps> = ({ data, height 
             yAxisId="right"
             type="monotone"
             dataKey="value"
-            stroke="#2ecc71"
+            stroke={`rgb(var(--color-success))`}
             strokeWidth={2}
             name="Total Value ($)"
           />
@@ -73,7 +77,7 @@ const PurchaseOrderTrends: React.FC<PurchaseOrderTrendsProps> = ({ data, height 
             yAxisId="right"
             type="monotone"
             dataKey="averageValue"
-            stroke="#f39c12"
+            stroke={`rgb(var(--color-warning))`}
             strokeWidth={2}
             strokeDasharray="5 5"
             name="Average Order Value ($)"
@@ -94,7 +98,7 @@ const ChartContainer = styled.div`
 
 const ChartTitle = styled.h3`
   margin: 0 0 20px 0;
-  color: #2c3e50;
+  color: rgb(var(--color-text-primary));
   font-size: 18px;
   font-weight: 600;
 `;

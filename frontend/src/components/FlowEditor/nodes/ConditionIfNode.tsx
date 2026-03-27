@@ -8,7 +8,7 @@
  */
 import React from 'react';
 import styled from 'styled-components';
-import { NodeProps, Handle, Position } from '@xyflow/react';
+import { Handle, Position, type Node, type NodeProps } from '@xyflow/react';
 import { BaseNode, BaseNodeData } from './BaseNode';
 import { getNodeTypeDefinition } from '../nodeTypes';
 
@@ -144,21 +144,9 @@ const OPERATOR_LABELS: Record<string, string> = {
 // Component
 // ============================================================================
 
-export const ConditionIfNode = React.memo<NodeProps<ConditionIfNodeData>>((props) => {
+export const ConditionIfNode = React.memo<NodeProps<Node<ConditionIfNodeData>>>((props) => {
   const { data, selected, id } = props;
   const nodeTypeDef = getNodeTypeDefinition('conditionIf');
-  
-  // Safety check: provide fallback if nodeType is undefined
-  const nodeType = nodeTypeDef || {
-    id: 'conditionIf',
-    name: 'If Condition',
-    category: 'logic' as const,
-    color: 'rgb(249, 115, 22)',
-    icon: 'GitBranch',
-    maxInputs: 1,
-    maxOutputs: 2,
-    config: {},
-  };
   
   const { rules = [], logicalOperator = 'AND' } = data;
 
@@ -168,7 +156,7 @@ export const ConditionIfNode = React.memo<NodeProps<ConditionIfNodeData>>((props
         id={id}
         data={{...data, label: data.label || 'If Condition'}}
         selected={selected}
-        nodeType={nodeType}
+        nodeType={nodeTypeDef}
       >
         <div>
           {rules.length === 0 ? (

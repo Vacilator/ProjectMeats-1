@@ -219,8 +219,11 @@ export function validateNode(node: Node, allNodes?: Node[], allEdges?: any[]): V
   
   // Validate each field
   for (const fieldSchema of allFields) {
-    const fieldName = fieldSchema.name;
-    const fieldValue = values[fieldName];
+    const fieldAny = fieldSchema as any;
+    const fieldName = String(fieldAny.key ?? fieldAny.name ?? fieldAny.id ?? '');
+    if (!fieldName) continue;
+
+    const fieldValue = (values as Record<string, any>)[fieldName];
     
     // Check conditional visibility
     if (!isFieldVisible(fieldSchema, values)) {

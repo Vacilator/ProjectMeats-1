@@ -8,14 +8,14 @@
  * Created: 2026-02-17
  */
 import React from 'react';
-import { EdgeProps, getBezierPath, EdgeLabelRenderer, MarkerType } from '@xyflow/react';
+import { type Edge, EdgeProps, getBezierPath, EdgeLabelRenderer, MarkerType } from '@xyflow/react';
 import styled from 'styled-components';
 
 // ============================================================================
 // Types
 // ============================================================================
 
-interface ConditionalEdgeData {
+interface ConditionalEdgeData extends Record<string, unknown> {
   label?: string;
   condition?: string;
   animated?: boolean;
@@ -81,7 +81,7 @@ const TrueFalseIndicator = styled.div<{ isTrue?: boolean }>`
 // Component
 // ============================================================================
 
-export const ConditionalEdge = React.memo<EdgeProps<ConditionalEdgeData>>(({
+export const ConditionalEdge = React.memo<EdgeProps<Edge<ConditionalEdgeData>>>(({
   id,
   sourceX,
   sourceY,

@@ -61,14 +61,21 @@ export const MultiSelect: React.FC<MultiSelectProps> = ({
         id={id}
         mode="multiple"
         showSearch
+        allowClear
         optionFilterProp="label"
+        // CRITICAL FIX: Explicitly force local string matching on every keystroke
+        filterOption={(input, option) =>
+          (option?.label ?? '').toString().toLowerCase().includes(input.toLowerCase())
+        }
         value={value}
-        onChange={(values) => onChange((values ?? []).map(String))}
+        onChange={(newValues) => {
+          onChange(newValues as string[]);
+        }}
+        options={options}
         disabled={disabled}
         placeholder={placeholder}
         style={{ width: '100%' }}
-        options={options}
-        status={error ? 'error' : undefined}
+        status={error ? 'error' : ''}
         aria-label={ariaLabel || label}
       />
 

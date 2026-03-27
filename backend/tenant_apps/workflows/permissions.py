@@ -14,35 +14,35 @@ from .models import TenantForm, TenantWorkflow
 
 
 class IsTenantAdminOrOwner(permissions.BasePermission):
-    """
-    Permission class for admin-level operations.
-    Grants access to users with 'owner' or 'admin' role.
-    """
-    
+    """Allow access for users with 'owner' or 'admin' role."""
+
     def has_permission(self, request, view):
-        """Check if user has admin or owner role."""
         if not request.user or not request.user.is_authenticated:
             return False
-        
-        # Superusers always have access
+
         if request.user.is_superuser:
             return True
-        
-        # Check tenant role
+
         if not hasattr(request, 'tenant') or not request.tenant:
             return False
-        
-        # Get user's role in this tenant
+
         from apps.tenants.models import TenantUser
+
         try:
-            tenant_user = TenantUser.objects.get(
-                user=request.user,
-                tenant=request.tenant,
-                is_active=True
-            )
+            tenant_user = TenantUser.objects.get(user=request.user, tenant=request.tenant, is_active=True)
             return tenant_user.role in ['owner', 'admin']
         except TenantUser.DoesNotExist:
             return False
+
+
+class IsTenantAdminOrOwnerOrReadOnly(permissions.BasePermission):
+    """Read-only for authenticated users; write for tenant admins/owners."""
+
+    def has_permission(self, request, view):
+        if request.method in permissions.SAFE_METHODS:
+            return bool(request.user and request.user.is_authenticated)
+
+        return IsTenantAdminOrOwner().has_permission(request, view)
 
 
 class CanEditWorkForm(permissions.BasePermission):

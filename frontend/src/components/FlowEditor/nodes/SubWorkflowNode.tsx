@@ -14,7 +14,7 @@
  */
 import React from 'react';
 import styled from 'styled-components';
-import { NodeProps } from '@xyflow/react';
+import type { Node, NodeProps } from '@xyflow/react';
 import { BaseNode, BaseNodeData } from './BaseNode';
 import { getNodeTypeDefinition } from '../nodeTypes';
 
@@ -236,7 +236,7 @@ const EmptyState = styled.div`
 // Component
 // ============================================================================
 
-export const SubWorkflowNode: React.FC<NodeProps<SubWorkflowNodeData>> = (props) => {
+export const SubWorkflowNode: React.FC<NodeProps<Node<SubWorkflowNodeData>>> = (props) => {
   const { data } = props;
   const nodeTypeDef = getNodeTypeDefinition('subWorkflow');
   

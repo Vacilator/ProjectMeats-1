@@ -4,7 +4,10 @@
 > 
 > Blueprint: `docs/plans/V3_FINAL_PUSH_PERFECTION.md`
 
-This file is the **PR-referenceable execution log** for ongoing initiatives. It complements the repo-root `MASTER_PLAN.md` (the living plan).
+This file is the **append-only PR-referenceable execution log**.
+
+- **Canonical plan + status snapshot:** repo-root `MASTER_PLAN.md`
+- This file should not claim global completion percentages; it should only record shipped PRs and notable operational notes.
 
 ## Active Initiative: V3.0 Final Push (Consolidation + Scale + Polish)
 
@@ -43,6 +46,56 @@ This file is the **PR-referenceable execution log** for ongoing initiatives. It 
 
 ### PR Log (append-only)
 
+- 2026-03-26 — Reports Summary 500 fixed — PR: #3949.
+- 2026-03-26 — Tenant Option Lists (Tenant Lists) create 500 hardened — PR: #3950.
+- 2026-03-26 — Email Ingestion “Sync Now” correctness + pagination + error surfacing — PR: #3951.
+- 2026-03-26 — Docs: canonicalize Master Plan — PR: #3952.
+- 2026-03-26 — Docs: master plan gap audit — PR: #3953.
+- 2026-03-26 — Unify Inquiry create form across Cockpit — PR: #3956.
+- 2026-03-26 — Add EntityFormSurface consolidation layer — PR: #3957.
+- 2026-03-26 — Harden UniversalEntityForm submit + key-field ordering — PR: #3958.
+- 2026-03-26 — Add key_fields to universal form schema — PR: #3959.
+- 2026-03-26 — Cockpit: fix +New entity create modal — PR: #3960.
+- 2026-03-26 — Cockpit: + New call purpose + inquiry modal — PR: #3961.
+- 2026-03-26 — Docs: demote non-canonical roadmaps — PR: #3962.
+- 2026-03-26 — FlowEditor: auto-map Apply shows Apply Changes — PR: #3963.
+- 2026-03-26 — FlowEditor: Form Process node not transparent — PR: #3964.
+- 2026-03-26 — Backend: prevent RLS-related 500s — PR: #3965.
+- 2026-03-26 — Cockpit: confirm + navigate after create — PR: #3966.
+- 2026-03-26 — Email sync: find new order emails reliably — PR: #3967.
+- 2026-03-26 — Admin Billing: payment method portal + plan select — PR: #3968.
+- 2026-03-26 — Forms: migrate SalesOrders/Claims to EntityFormSurface — PR: #3969.
+- 2026-03-26 — Fix Admin Invitations 500 when email fails — PR: #3970.
+- 2026-03-26 — Reports: use tenant-aware service + show warnings — PR: #3972.
+- 2026-03-26 — WorkForms Catalog: fix Quick Run + Templates tab rendering — PR: #3978.
+- 2026-03-26 — Quick Actions: use shared JWT-aware apiClient (fix quick-create auth drift) — PR: #3980.
+- 2026-03-26 — Frontend standards: remove remaining hardcoded hex colors; verify-standards passes — PR: #3982.
+- 2026-03-26 — Forms: consolidate remaining create entrypoints via EntityFormSurface (schedule call → inquiry, SmartSearch → sales order) — PR: #3984.
+
+- 2026-03-24 — Fixed global Ant Design theme corruption (Sanitized background tokens causing pure black component rendering) — PR: #3925.
+- 2026-03-24 — Admin Workspace: Organization Profile save hardened (avoid multipart PATCH 502s) — PR: #3924.
+- 2026-03-24 — Workforms: restored Publish button (status=active) in FlowEditor toolbar — PR: #3923.
+- 2026-03-24 — Restored and Expanded AI Tool Registry: Microsoft Graph Email Sync, Outlook Email Drafting, and Database Search natively connected to the Swarm — PR: #3922.
+- 2026-03-24 — Fixed theme token fallbacks (Defined missing CSS vars to prevent UI elements rendering black) — PR: #3921.
+- 2026-03-24 — Hardened network request resiliency (Fixed trailing slashes causing 502 loops & added 500 error circuit breakers) — PR: #3920.
+- 2026-03-24 — Fixed Workform Editor CSS viewport height + layout overlaps (Eliminated blank bottom space; NodePalette cushions; Toolbar flex-wrapping) — PR: #3919.
+- 2026-03-24 — Fixed Workform Editor React Crash #310 (Migrated from sequential counters to unique IDs to prevent hook collisions) — PR: #3918.
+- 2026-03-24 — Restored automated environment promotion PR creation (development→uat, uat→main) — PR: #3916.
+- 2026-03-24 — Fixed Email OData 400 crash patterns (14-day local filtering) & wired Real OpenAI Chatbot with Email Context injection — PR: #3915.
+- 2026-03-24 — Admin Workspace: fixed Invite User 500 by hardening invitation create validation + IntegrityError handling — PR: #3914.
+- 2026-03-24 — Admin Workspace: Billing “Manage Plan” modal wired to Tenant Configurations — PR: #3913.
+- 2026-03-24 — Admin Workspace: consolidate Customizations into Option Lists (Tenant Overrides tab) — PR: #3912.
+- 2026-03-24 — FlowEditor: System Choice Lists selectable for dropdown field options — PR: #3909.
+- 2026-03-24 — Workforms: Custom Tenant Lists "Coming Soon" placeholder CTA (ready to wire TenantListModal) — PR: #3907.
+- 2026-03-24 — Frontend unified dependency bumps (supersedes Dependabot #3886) — PR: #3905.
+- 2026-03-24 — Dependabot: bump frontend TypeScript to 6.0.2 — PR: #3890.
+- 2026-03-24 — Dependabot: bump frontend lucide-react to 1.0.1 — PR: #3888.
+- 2026-03-24 — Golden Standard Sweep (Docs/Typing): ARCHITECTURE_V3 reference + docstrings + removed remaining TS `any` in key UI components — PR: #3903.
+- 2026-03-24 — Golden Standard Sweep (Frontend): route-level lazy loading + logger/type hardening — PR: #3900.
+- 2026-03-24 — Phase 4 polish: global keyboard shortcuts + SearchableSelect fuzzy search + theme token strictness — PR: #3899.
+- 2026-03-24 — Phase 3 AI Swarm UX: HITL Review Card + AI Learning Metrics Dashboard — PR: #3897.
+- 2026-03-24 — WorkFormEngine: loop-body scheduling + error-edge try/catch routing — PR: #3896.
+- 2026-03-24 — FlowEditor control-flow UX: LoopNode (2-in/2-out) + ErrorEdge conversion toggle — PR: #3894.
 - 2026-03-23 — Universal Form Standardization, AntD Searchable MultiSelect, and Live AI Overviews — PR: #3875.
 - 2026-03-23 — Fixed Protein-to-Product cascading filters (Backend case-sensitivity, URL serialization, and removed aggressive UX auto-add) — PR: #3874.
 - 2026-03-23 — Admin Workspace Finalization: Option Lists enhancement & Billing Dashboard implementation — PR: #3873.
@@ -905,4 +958,6 @@ Deliverables:
 ## PR Log (append-only) — Workforms UI Hardening (merge-safe)
 
 - 2026-03-23 — Workforms Debugger polish: docked panel + execution timeline for stepping + breakpoint-first entry selection — PR: #3878.
+- 2026-03-23 — Fixed MultiSelect internal search filtering (Explicit AntD filterOption injection) — PR: #3891.
 - 2026-03-22T19:05:59Z — UI Hardening: Restored standard default container for 'formProcess' nodes, disabling 'formProcessGroup' purple canonicalization/styling overrides.
+- 2026-03-24 — Frontend: react-joyride v3 upgrade (tour API migration) — PR: #3911.

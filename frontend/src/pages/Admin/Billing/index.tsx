@@ -1,6 +1,22 @@
-import React from 'react';
+import React, { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Button, Card, Col, Row, Space, Statistic, Table, Tag, Typography, message } from 'antd';
+import {
+  Button,
+  Card,
+  Col,
+  Form,
+  Input,
+  InputNumber,
+  Modal,
+  Row,
+  Select,
+  Space,
+  Statistic,
+  Table,
+  Tag,
+  Typography,
+  message,
+} from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { DownloadOutlined } from '@ant-design/icons';
 
@@ -25,6 +41,38 @@ interface InvoiceRow {
   status: InvoiceStatus;
 }
 
+interface TenantConfiguration {
+  id: string;
+  key: string;
+  value: string;
+  category: string;
+  data_type: 'string' | 'integer' | 'float' | 'boolean' | 'json';
+}
+
+interface ManagePlanFormValues {
+  planName: string;
+  billingCycle: 'Monthly' | 'Annual';
+  userLimit: number;
+}
+
+interface PaymentMethodFormValues {
+  billingPortalUrl: string;
+}
+
+const BILLING_CONFIG_KEYS = {
+  planName: 'billing.plan_name',
+  billingCycle: 'billing.billing_cycle',
+  userLimit: 'billing.user_limit',
+
+  /** If provided, the UI will open this URL to manage payment methods (e.g., Stripe customer portal). */
+  billingPortalUrl: 'billing.portal_url',
+
+  // Optional display-only fields (can be populated by an external billing integration later).
+  paymentBrand: 'billing.payment_method_brand',
+  paymentLast4: 'billing.payment_method_last4',
+  paymentExp: 'billing.payment_method_exp',
+} as const;
+
 const BillingPage: React.FC = () => {
   const currentTenantQuery = useQuery<TenantCurrent>({
     queryKey: ['tenants', 'current', 'billing-dashboard'],
@@ -37,17 +85,192 @@ const BillingPage: React.FC = () => {
 
   const tenant = currentTenantQuery.data;
 
-  // Mock subscription/payment/invoice data for initial dashboard render.
-  const planName = 'Enterprise Tier';
-  const billingCycle = 'Monthly';
+  const billingConfigsQuery = useQuery<TenantConfiguration[]>({
+    queryKey: ['tenant-configurations', 'billing'],
+    queryFn: async () => {
+      const res = await apiClient.get('/configurations/', { params: { search: 'billing.' } });
+      const raw = res.data as unknown;
+      const data = Array.isArray(raw)
+        ? raw
+        : typeof raw === 'object' && raw !== null && Array.isArray((raw as any).results)
+          ? (raw as any).results
+          : [];
+      return data as TenantConfiguration[];
+    },
+    staleTime: 60 * 1000,
+  });
+
+  const billingConfigByKey = useMemo(() => {
+    const map = new Map<string, TenantConfiguration>();
+    (billingConfigsQuery.data || []).forEach((c) => {
+      if (c?.key) map.set(c.key, c);
+    });
+    return map;
+  }, [billingConfigsQuery.data]);
+
+  const planName = billingConfigByKey.get(BILLING_CONFIG_KEYS.planName)?.value || 'Enterprise Tier';
+  const billingCycle =
+    (billingConfigByKey.get(BILLING_CONFIG_KEYS.billingCycle)?.value as
+      | ManagePlanFormValues['billingCycle']
+      | undefined) || 'Monthly';
+  const userLimit = Number(billingConfigByKey.get(BILLING_CONFIG_KEYS.userLimit)?.value || 50);
+
+  const billingPortalUrl = billingConfigByKey.get(BILLING_CONFIG_KEYS.billingPortalUrl)?.value || '';
+
+  const paymentBrand = billingConfigByKey.get(BILLING_CONFIG_KEYS.paymentBrand)?.value || '';
+  const paymentLast4 = billingConfigByKey.get(BILLING_CONFIG_KEYS.paymentLast4)?.value || '';
+  const paymentExp = billingConfigByKey.get(BILLING_CONFIG_KEYS.paymentExp)?.value || '';
+
+  const planOptions = useMemo(() => {
+    // Intentionally fixed choices: you can select a plan, but you can't edit plan names.
+    const defaults = ['Starter', 'Growth', 'Enterprise Tier'];
+    const unique = new Set<string>([...defaults, planName].filter(Boolean));
+    return Array.from(unique).map((value) => ({ value, label: value }));
+  }, [planName]);
+
+  // Mock subscription/invoice data for initial dashboard render.
   const nextBillingDate = '2026-04-01';
-  const userLimit = 50;
   const activeUsers = tenant?.user_count ?? 0;
 
-  const paymentMethod = {
-    brand: 'Visa',
-    last4: '4242',
-    exp: '12/27',
+  const [isManagePlanOpen, setIsManagePlanOpen] = useState(false);
+  const [isSavingPlan, setIsSavingPlan] = useState(false);
+  const [managePlanForm] = Form.useForm<ManagePlanFormValues>();
+
+  const [isPaymentMethodOpen, setIsPaymentMethodOpen] = useState(false);
+  const [isSavingPaymentMethod, setIsSavingPaymentMethod] = useState(false);
+  const [paymentMethodForm] = Form.useForm<PaymentMethodFormValues>();
+
+  const openManagePlan = () => {
+    managePlanForm.setFieldsValue({
+      planName,
+      billingCycle: billingCycle === 'Annual' ? 'Annual' : 'Monthly',
+      userLimit: Number.isFinite(userLimit) ? userLimit : 50,
+    });
+    setIsManagePlanOpen(true);
+  };
+
+  const openPaymentMethod = () => {
+    paymentMethodForm.setFieldsValue({
+      billingPortalUrl,
+    });
+    setIsPaymentMethodOpen(true);
+  };
+
+  const openBillingPortal = () => {
+    const url = String(billingPortalUrl || '').trim();
+    if (!url) {
+      openPaymentMethod();
+      return;
+    }
+
+    try {
+      window.open(url, '_blank', 'noopener,noreferrer');
+    } catch {
+      message.error('Failed to open billing portal.');
+    }
+  };
+
+  const upsertConfig = async (cfg: {
+    key: string;
+    value: string;
+    display_name: string;
+    description: string;
+    data_type: TenantConfiguration['data_type'];
+    category: string;
+    default_value?: string;
+  }) => {
+    const existing = billingConfigByKey.get(cfg.key);
+
+    if (existing?.id) {
+      await apiClient.patch(`/configurations/${existing.id}/`, { value: cfg.value });
+      return;
+    }
+
+    await apiClient.post('/configurations/', {
+      category: cfg.category,
+      key: cfg.key,
+      display_name: cfg.display_name,
+      description: cfg.description,
+      value: cfg.value,
+      data_type: cfg.data_type,
+      default_value: cfg.default_value ?? '',
+      is_system: false,
+      is_required: false,
+    });
+  };
+
+  const savePlan = async () => {
+    try {
+      const values = await managePlanForm.validateFields();
+      setIsSavingPlan(true);
+
+      await upsertConfig({
+        category: 'integrations',
+        key: BILLING_CONFIG_KEYS.planName,
+        display_name: 'Billing Plan Name',
+        description: 'Selected tenant billing plan shown in the Admin Workspace Billing dashboard.',
+        value: values.planName.trim() || 'Enterprise Tier',
+        data_type: 'string',
+        default_value: 'Enterprise Tier',
+      });
+
+      await upsertConfig({
+        category: 'integrations',
+        key: BILLING_CONFIG_KEYS.billingCycle,
+        display_name: 'Billing Cycle',
+        description: 'Billing cycle for the tenant plan (Monthly or Annual).',
+        value: values.billingCycle,
+        data_type: 'string',
+        default_value: 'Monthly',
+      });
+
+      await upsertConfig({
+        category: 'integrations',
+        key: BILLING_CONFIG_KEYS.userLimit,
+        display_name: 'Plan User Limit',
+        description:
+          'Maximum active users allowed by the tenant billing plan (display-only unless enforced elsewhere).',
+        value: String(values.userLimit),
+        data_type: 'integer',
+        default_value: '50',
+      });
+
+      await billingConfigsQuery.refetch();
+      message.success('Plan updated.');
+      setIsManagePlanOpen(false);
+    } catch (e: any) {
+      if (e?.errorFields) return; // antd validation
+      message.error('Failed to update plan.');
+    } finally {
+      setIsSavingPlan(false);
+    }
+  };
+
+  const savePaymentMethod = async () => {
+    try {
+      const values = await paymentMethodForm.validateFields();
+      setIsSavingPaymentMethod(true);
+
+      await upsertConfig({
+        category: 'integrations',
+        key: BILLING_CONFIG_KEYS.billingPortalUrl,
+        display_name: 'Billing Portal URL',
+        description:
+          'URL to a secure billing portal (e.g., Stripe customer portal) for managing payment methods.',
+        value: String(values.billingPortalUrl || '').trim(),
+        data_type: 'string',
+        default_value: '',
+      });
+
+      await billingConfigsQuery.refetch();
+      message.success('Billing portal saved.');
+      setIsPaymentMethodOpen(false);
+    } catch (e: any) {
+      if (e?.errorFields) return;
+      message.error('Failed to save billing portal.');
+    } finally {
+      setIsSavingPaymentMethod(false);
+    }
   };
 
   const invoices: InvoiceRow[] = [
@@ -127,6 +350,84 @@ const BillingPage: React.FC = () => {
       description="Subscription, payment method, and invoice history."
       icon="💳"
     >
+      <Modal
+        title="Manage Plan"
+        open={isManagePlanOpen}
+        onCancel={() => setIsManagePlanOpen(false)}
+        onOk={() => void savePlan()}
+        okText="Save"
+        confirmLoading={isSavingPlan}
+        destroyOnClose
+      >
+        <Form form={managePlanForm} layout="vertical" preserve={false}>
+          <Form.Item
+            label="Plan"
+            name="planName"
+            rules={[{ required: true, message: 'Plan is required' }]}
+          >
+            <Select
+              options={planOptions}
+              showSearch
+              optionFilterProp="label"
+              placeholder="Select a plan"
+            />
+          </Form.Item>
+
+          <Form.Item label="Billing cycle" name="billingCycle" rules={[{ required: true }]}>
+            <Select
+              options={[
+                { value: 'Monthly', label: 'Monthly' },
+                { value: 'Annual', label: 'Annual' },
+              ]}
+            />
+          </Form.Item>
+
+          <Form.Item
+            label="User limit"
+            name="userLimit"
+            rules={[
+              { required: true, type: 'number', min: 1, message: 'User limit must be at least 1' },
+            ]}
+          >
+            <InputNumber min={1} style={{ width: '100%' }} />
+          </Form.Item>
+
+          <Text type="secondary">
+            This updates the tenant Billing dashboard display values via Tenant Configurations.
+          </Text>
+        </Form>
+      </Modal>
+
+      <Modal
+        title="Manage Payment Method"
+        open={isPaymentMethodOpen}
+        onCancel={() => setIsPaymentMethodOpen(false)}
+        onOk={() => void savePaymentMethod()}
+        okText="Save"
+        confirmLoading={isSavingPaymentMethod}
+        destroyOnClose
+      >
+        <Form form={paymentMethodForm} layout="vertical" preserve={false}>
+          <Form.Item
+            label="Billing portal URL"
+            name="billingPortalUrl"
+            rules={[
+              {
+                required: true,
+                message: 'Add a billing portal URL to manage payment methods securely (no card data stored in ProjectMeats).',
+              },
+              { type: 'url', message: 'Enter a valid URL (https://...)' },
+            ]}
+          >
+            <Input placeholder="https://billing.example.com/portal" />
+          </Form.Item>
+
+          <Text type="secondary">
+            This opens your secure billing portal (e.g., Stripe customer portal) to update cards.
+            ProjectMeats does not store card details.
+          </Text>
+        </Form>
+      </Modal>
       <AdminGuard
         feature="billing"
         allow={(p) => p.can_manage_billing}
@@ -155,7 +456,8 @@ const BillingPage: React.FC = () => {
                   extra={
                     <Button
                       type="primary"
-                      onClick={() => message.info('Plan management will be connected shortly.')}
+                      onClick={openManagePlan}
+                      loading={billingConfigsQuery.isFetching}
                     >
                       Manage Plan
                     </Button>
@@ -175,10 +477,7 @@ const BillingPage: React.FC = () => {
                       />
                     </Col>
                     <Col span={12}>
-                      <Statistic
-                        title="Active Users"
-                        value={`${activeUsers}/${userLimit}`}
-                      />
+                      <Statistic title="Active Users" value={`${activeUsers}/${userLimit}`} />
                     </Col>
                   </Row>
                 </Card>
@@ -188,17 +487,32 @@ const BillingPage: React.FC = () => {
                 <Card
                   title="Payment Method"
                   extra={
-                    <Button onClick={() => message.info('Payment method updates will be available soon.')}
-                    >
-                      Update Payment Method
+                    <Button onClick={openBillingPortal}>
+                      {billingPortalUrl ? 'Manage Payment Method' : 'Set Billing Portal'}
                     </Button>
                   }
                 >
                   <Space direction="vertical" size={4}>
-                    <Text strong>
-                      {paymentMethod.brand} ending in {paymentMethod.last4}
-                    </Text>
-                    <Text type="secondary">Expires {paymentMethod.exp}</Text>
+                    {billingPortalUrl ? (
+                      <>
+                        <Text strong>Managed in billing portal</Text>
+                        {paymentBrand && paymentLast4 ? (
+                          <Text type="secondary">
+                            {paymentBrand} ending in {paymentLast4}
+                            {paymentExp ? ` • Expires ${paymentExp}` : ''}
+                          </Text>
+                        ) : (
+                          <Text type="secondary">Payment details will appear once connected.</Text>
+                        )}
+                      </>
+                    ) : (
+                      <>
+                        <Text strong>No billing portal configured</Text>
+                        <Text type="secondary">
+                          Add a secure billing portal URL to manage payment methods (no card data stored in ProjectMeats).
+                        </Text>
+                      </>
+                    )}
                     <Text type="secondary">Tenant: {tenant.name}</Text>
                   </Space>
                 </Card>

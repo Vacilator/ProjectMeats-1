@@ -21,10 +21,10 @@
  */
 
 import React, { useState, useMemo, useCallback, memo } from 'react';
-import { FixedSizeList as List } from 'react-window';
+import { List, type RowComponentProps } from 'react-window';
 import styled from 'styled-components';
 import { Search, X } from 'lucide-react';
-import { NodeType } from '../types';
+
 
 // ============================================================================
 // TypeScript Interfaces
@@ -102,21 +102,16 @@ NodeItem.displayName = 'NodeItem';
 /**
  * Virtualized list row renderer
  */
-const Row = memo<{
-  index: number;
-  style: React.CSSProperties;
-  data: ListItemData;
-}>(({ index, style, data }) => {
-  const item = data.items[index];
+const Row = (props: RowComponentProps<ListItemData>): React.ReactElement => {
+  const { index, style, items, onDragStart } = props;
+  const item = items[index];
 
   return (
     <div style={style}>
-      <NodeItem item={item} onDragStart={data.onDragStart} />
+      <NodeItem item={item} onDragStart={onDragStart} />
     </div>
   );
-});
-
-Row.displayName = 'VirtualizedRow';
+};
 
 // ============================================================================
 // Main Component
@@ -244,14 +239,12 @@ export const VirtualizedNodePalette: React.FC<VirtualizedNodePaletteProps> = ({
         </EmptyState>
       ) : (
         <List
-          height={height}
-          itemCount={displayNodes.length}
-          itemSize={itemHeight}
-          width="100%"
-          itemData={itemData}
-        >
-          {Row}
-        </List>
+          rowCount={displayNodes.length}
+          rowHeight={itemHeight}
+          rowComponent={Row}
+          rowProps={itemData}
+          style={{ height, width: '100%' }}
+        />
       )}
 
       <NodeCount>

@@ -437,21 +437,23 @@ const AccountsReceivables: React.FC = () => {
     }
   };
 
+  const invoiceAmount = (r: Invoice): number => Number(r.total ?? r.subtotal ?? 0) || 0;
+
   const getTotalAmount = () =>
     Array.isArray(receivables)
-      ? receivables.reduce((sum, r) => sum + (Number(r.amount) || 0), 0)
+      ? receivables.reduce((sum, r) => sum + invoiceAmount(r), 0)
       : 0;
   const getPendingAmount = () =>
     Array.isArray(receivables)
       ? receivables
           .filter((r) => r.status === 'pending')
-          .reduce((sum, r) => sum + (Number(r.amount) || 0), 0)
+          .reduce((sum, r) => sum + invoiceAmount(r), 0)
       : 0;
   const getOverdueAmount = () =>
     Array.isArray(receivables)
       ? receivables
           .filter((r) => r.status === 'overdue')
-          .reduce((sum, r) => sum + (Number(r.amount) || 0), 0)
+          .reduce((sum, r) => sum + invoiceAmount(r), 0)
       : 0;
 
   if (loading) {

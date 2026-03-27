@@ -220,7 +220,7 @@ const SmallInput = styled(Input)`
 const RemoveButton = styled.button`
   background: none;
   border: none;
-  color: #ef4444;
+  color: rgb(var(--color-error));
   cursor: pointer;
   padding: 4px 8px;
   font-size: 1.1rem;

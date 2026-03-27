@@ -171,7 +171,7 @@ const Label = styled.label`
   display: block;
   font-size: 14px;
   font-weight: 500;
-  color: #374151;
+  color: rgb(var(--color-text-secondary));
   margin-bottom: 6px;
 `;
 
@@ -181,19 +181,19 @@ const Trigger = styled.button<{ $disabled: boolean; $isOpen: boolean }>`
   gap: 10px;
   width: 100%;
   padding: 10px 12px;
-  background: ${p => p.$disabled ? '#f3f4f6' : 'white'};
-  border: 1px solid ${p => p.$isOpen ? '#3b82f6' : '#d1d5db'};
+  background: ${p => p.$disabled ? 'rgb(var(--color-surface-hover))' : 'white'};
+  border: 1px solid ${p => p.$isOpen ? 'rgb(var(--color-primary))' : 'rgb(var(--color-border))'};
   border-radius: 8px;
   cursor: ${p => p.$disabled ? 'not-allowed' : 'pointer'};
   transition: all 0.2s;
   
   &:hover {
-    border-color: ${p => !p.$disabled && '#3b82f6'};
+    border-color: ${p => !p.$disabled && 'rgb(var(--color-primary))'};
   }
   
   &:focus {
     outline: none;
-    border-color: #3b82f6;
+    border-color: rgb(var(--color-primary));
     box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
   }
 `;
@@ -204,20 +204,20 @@ const IconPreview = styled.div`
   justify-content: center;
   width: 32px;
   height: 32px;
-  background: #f3f4f6;
+  background: rgb(var(--color-surface-hover));
   border-radius: 6px;
-  color: #4b5563;
+  color: rgb(var(--color-text-secondary));
 `;
 
 const TriggerLabel = styled.span`
   flex: 1;
   text-align: left;
   font-size: 14px;
-  color: #374151;
+  color: rgb(var(--color-text-secondary));
 `;
 
 const ChevronIcon = styled.span<{ $isOpen: boolean }>`
-  color: #9ca3af;
+  color: rgb(var(--color-text-muted));
   transition: transform 0.2s;
   transform: ${p => p.$isOpen ? 'rotate(180deg)' : 'rotate(0)'};
   display: flex;
@@ -230,7 +230,7 @@ const Dropdown = styled.div`
   left: 0;
   right: 0;
   background: white;
-  border: 1px solid #e5e7eb;
+  border: 1px solid rgb(var(--color-border));
   border-radius: 10px;
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
   z-index: 1000;
@@ -242,24 +242,24 @@ const Dropdown = styled.div`
 
 const SearchSection = styled.div`
   padding: 12px;
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 1px solid rgb(var(--color-border));
 `;
 
 const SearchInput = styled.input`
   width: 100%;
   padding: 10px 12px;
-  border: 1px solid #e5e7eb;
+  border: 1px solid rgb(var(--color-border));
   border-radius: 6px;
   font-size: 14px;
   
   &:focus {
     outline: none;
-    border-color: #3b82f6;
+    border-color: rgb(var(--color-primary));
     box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
   }
   
   &::placeholder {
-    color: #9ca3af;
+    color: rgb(var(--color-text-muted));
   }
 `;
 
@@ -267,7 +267,7 @@ const CategoryTabs = styled.div`
   display: flex;
   gap: 4px;
   padding: 8px 12px;
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 1px solid rgb(var(--color-border));
   overflow-x: auto;
   flex-shrink: 0;
   
@@ -276,19 +276,19 @@ const CategoryTabs = styled.div`
   }
   
   &::-webkit-scrollbar-track {
-    background: #f3f4f6;
+    background: rgb(var(--color-surface-hover));
   }
   
   &::-webkit-scrollbar-thumb {
-    background: #d1d5db;
+    background: rgb(var(--color-border));
     border-radius: 2px;
   }
 `;
 
 const CategoryTab = styled.button<{ $active: boolean }>`
   padding: 6px 10px;
-  background: ${p => p.$active ? '#3b82f6' : 'transparent'};
-  color: ${p => p.$active ? 'white' : '#6b7280'};
+  background: ${p => p.$active ? 'rgb(var(--color-primary))' : 'transparent'};
+  color: ${p => p.$active ? 'white' : 'rgb(var(--color-text-muted))'};
   border: none;
   border-radius: 4px;
   font-size: 12px;
@@ -298,7 +298,7 @@ const CategoryTab = styled.button<{ $active: boolean }>`
   transition: all 0.15s;
   
   &:hover {
-    background: ${p => p.$active ? '#3b82f6' : '#f3f4f6'};
+    background: ${p => p.$active ? 'rgb(var(--color-primary))' : 'rgb(var(--color-surface-hover))'};
   }
 `;
 
@@ -319,7 +319,7 @@ const CategorySection = styled.div`
 const CategoryHeader = styled.div`
   font-size: 11px;
   font-weight: 600;
-  color: #9ca3af;
+  color: rgb(var(--color-text-muted));
   text-transform: uppercase;
   letter-spacing: 0.5px;
   margin-bottom: 8px;
@@ -338,23 +338,23 @@ const IconButton = styled.button<{ $selected: boolean }>`
   justify-content: center;
   width: 36px;
   height: 36px;
-  border: 1px solid ${p => p.$selected ? '#3b82f6' : 'transparent'};
-  background: ${p => p.$selected ? '#eff6ff' : 'transparent'};
+  border: 1px solid ${p => p.$selected ? 'rgb(var(--color-primary))' : 'transparent'};
+  background: ${p => p.$selected ? 'rgba(var(--color-primary), 0.10)' : 'transparent'};
   border-radius: 6px;
-  color: ${p => p.$selected ? '#3b82f6' : '#4b5563'};
+  color: ${p => p.$selected ? 'rgb(var(--color-primary))' : 'rgb(var(--color-text-secondary))'};
   cursor: pointer;
   transition: all 0.15s;
   
   &:hover {
-    background: ${p => p.$selected ? '#eff6ff' : '#f3f4f6'};
-    border-color: ${p => p.$selected ? '#3b82f6' : '#e5e7eb'};
+    background: ${p => p.$selected ? 'rgba(var(--color-primary), 0.10)' : 'rgb(var(--color-surface-hover))'};
+    border-color: ${p => p.$selected ? 'rgb(var(--color-primary))' : 'rgb(var(--color-border))'};
   }
 `;
 
 const EmptyState = styled.div`
   text-align: center;
   padding: 24px;
-  color: #9ca3af;
+  color: rgb(var(--color-text-muted));
   font-size: 14px;
 `;
 

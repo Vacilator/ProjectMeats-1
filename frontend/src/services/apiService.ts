@@ -11,6 +11,7 @@
  */
 import axios, { AxiosError as AxiosErrorType, InternalAxiosRequestConfig } from 'axios';
 import { config } from '../config/runtime';
+import { logger } from '../utils/logger';
 import {
   getAuthHeader,
   needsRefresh,
@@ -559,32 +560,37 @@ export class ApiService {
 
   async createSupplier(supplier: Partial<Supplier>): Promise<Supplier> {
     try {
-      // Log request details for debugging (excluding sensitive data)
-      // eslint-disable-next-line no-console
-      console.debug('[API] Creating supplier:', {
-        endpoint: '/suppliers/',
-        hasAuth: !!localStorage.getItem('authToken'),
-        hasTenant: !!localStorage.getItem('tenantId'),
-        baseURL: API_BASE_URL,
+      logger.debug('[API] Creating supplier', {
+        component: 'ApiService',
+        metadata: {
+          endpoint: '/suppliers/',
+          hasAuth: !!localStorage.getItem('authToken'),
+          hasTenant: !!localStorage.getItem('tenantId'),
+          baseURL: API_BASE_URL,
+        },
       });
       
       const response = await apiClient.post('/suppliers/', supplier);
-      // eslint-disable-next-line no-console
-      console.debug('[API] Supplier created successfully:', response.data);
+      logger.debug('[API] Supplier created successfully', {
+        component: 'ApiService',
+        metadata: { endpoint: '/suppliers/' },
+      }, response.data);
       return response.data;
     } catch (error: unknown) {
       // Log detailed error information for debugging
       const axiosError = error as AxiosError;
-      // eslint-disable-next-line no-console
-      console.error('[API] Failed to create supplier:', {
-        message: getErrorMessage(error),
-        status: axiosError.response?.status,
-        statusText: axiosError.response?.statusText,
-        errorCode: axiosError.code,
-        url: axiosError.config?.url,
-        baseURL: axiosError.config?.baseURL,
-        hasResponse: !!axiosError.response,
-        hasRequest: !!axiosError.request,
+      logger.error('[API] Failed to create supplier', {
+        component: 'ApiService',
+        metadata: {
+          message: getErrorMessage(error),
+          status: axiosError.response?.status,
+          statusText: axiosError.response?.statusText,
+          errorCode: axiosError.code,
+          url: axiosError.config?.url,
+          baseURL: axiosError.config?.baseURL,
+          hasResponse: !!axiosError.response,
+          hasRequest: !!axiosError.request,
+        },
       });
       
       // Re-throw with enhanced error message
@@ -594,24 +600,30 @@ export class ApiService {
 
   async updateSupplier(id: number, supplier: Partial<Supplier>): Promise<Supplier> {
     try {
-      // eslint-disable-next-line no-console
-      console.debug('[API] Updating supplier:', {
-        id,
-        endpoint: `/suppliers/${id}/`,
-        baseURL: API_BASE_URL,
+      logger.debug('[API] Updating supplier', {
+        component: 'ApiService',
+        metadata: {
+          id,
+          endpoint: `/suppliers/${id}/`,
+          baseURL: API_BASE_URL,
+        },
       });
       
       const response = await apiClient.patch(`/suppliers/${id}/`, supplier);
-      // eslint-disable-next-line no-console
-      console.debug('[API] Supplier updated successfully:', response.data);
+      logger.debug('[API] Supplier updated successfully', {
+        component: 'ApiService',
+        metadata: { id, endpoint: `/suppliers/${id}/` },
+      }, response.data);
       return response.data;
     } catch (error: unknown) {
       const axiosError = error as AxiosError;
-      // eslint-disable-next-line no-console
-      console.error('[API] Failed to update supplier:', {
-        message: getErrorMessage(error),
-        status: axiosError.response?.status,
-        errorCode: axiosError.code,
+      logger.error('[API] Failed to update supplier', {
+        component: 'ApiService',
+        metadata: {
+          message: getErrorMessage(error),
+          status: axiosError.response?.status,
+          errorCode: axiosError.code,
+        },
       });
       
       throw new Error(getErrorMessage(error));

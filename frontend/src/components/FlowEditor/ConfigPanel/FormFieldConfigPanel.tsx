@@ -17,6 +17,7 @@
  */
 import React, { useState, useEffect, useMemo } from 'react';
 import styled from 'styled-components';
+import { Modal } from 'antd';
 import { useReactFlow } from '@xyflow/react';
 import ReactSelect from 'react-select';
 import { Eye, EyeOff, ChevronDown, ChevronUp, Zap } from 'lucide-react';
@@ -85,8 +86,9 @@ export interface FormField {
   
   // Multi-option fields (select, radio, multi-select)
   options?: {
-    source: 'manual' | 'tenant-list' | 'entity';
+    source: 'manual' | 'system-choice-list' | 'tenant-list' | 'entity';
     manualOptions?: string[];
+    systemChoiceListSlug?: string;
     tenantListId?: string;
     entityType?: string;
     entityField?: string;
@@ -352,7 +354,7 @@ export const FormFieldConfigPanel: React.FC<FormFieldConfigPanelProps> = ({
   onChange,
   onClose,
 }) => {
-  const { tenantLists, availableFields, currentNodeId } = useFlowEditor();
+  const { tenantLists, systemChoiceLists, availableFields, currentNodeId } = useFlowEditor();
   // Ensure required arrays are always initialized
   const [localField, setLocalField] = useState<FormField>({
     ...field,
@@ -414,6 +416,20 @@ export const FormFieldConfigPanel: React.FC<FormFieldConfigPanelProps> = ({
       newCollapsed.add(sectionId);
     }
     setCollapsedSections(newCollapsed);
+  };
+
+  const openCreateCustomTenantList = () => {
+    Modal.info({
+      title: 'Create Custom Tenant List (Coming Soon)',
+      content: (
+        <div>
+          <p>
+            Custom Tenant Lists will support workflow-specific dropdown fields (tenant-owned choice lists).
+          </p>
+          <p>For now, this is a placeholder. If/when a TenantListModal exists, we can wire it here.</p>
+        </div>
+      ),
+    });
   };
 
   return (
@@ -646,6 +662,7 @@ export const FormFieldConfigPanel: React.FC<FormFieldConfigPanelProps> = ({
                   }
                 >
                   <option value="manual">Manual Entry</option>
+                  <option value="system-choice-list">System Choice List</option>
                   <option value="tenant-list">Tenant List</option>
                   <option value="entity">Entity (Database)</option>
                 </Select>
@@ -670,6 +687,31 @@ export const FormFieldConfigPanel: React.FC<FormFieldConfigPanelProps> = ({
                 </FormField>
               )}
 
+              {localField.options?.source === 'system-choice-list' && (
+                <FormField>
+                  <Label>Select System Choice List</Label>
+                  <Select
+                    value={localField.options?.systemChoiceListSlug || ''}
+                    onChange={(e) =>
+                      handleUpdate({
+                        options: {
+                          ...(localField.options ?? { source: 'system-choice-list' }),
+                          systemChoiceListSlug: e.target.value,
+                        },
+                      })
+                    }
+                  >
+                    <option value="">Choose a list...</option>
+                    {systemChoiceLists.map((list) => (
+                      <option key={list.id} value={list.slug}>
+                        {list.name}
+                      </option>
+                    ))}
+                  </Select>
+                  <HelpText>Options will be loaded from the selected system choice list.</HelpText>
+                </FormField>
+              )}
+
               {localField.options?.source === 'tenant-list' && (
                 <FormField>
                   <Label>Select Tenant List</Label>
@@ -685,13 +727,16 @@ export const FormFieldConfigPanel: React.FC<FormFieldConfigPanelProps> = ({
                     }
                   >
                     <option value="">Choose a list...</option>
-                    {tenantLists.map(list => (
+                    {tenantLists.map((list) => (
                       <option key={list.id} value={list.id}>
                         {list.name}
                       </option>
                     ))}
                   </Select>
-                  <HelpText>Options will be loaded from the selected tenant list</HelpText>
+                  <HelpText>Options will be loaded from the selected tenant list.</HelpText>
+                  <SecondaryButton type="button" onClick={openCreateCustomTenantList}>
+                    Create Custom Tenant List (Coming Soon)
+                  </SecondaryButton>
                 </FormField>
               )}
 

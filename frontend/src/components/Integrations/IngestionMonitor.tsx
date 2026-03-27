@@ -88,23 +88,42 @@ export const IngestionMonitor: React.FC = () => {
         await new Promise((resolve) => setTimeout(resolve, 1500 - elapsedTime));
       }
 
+      const ok = response.data?.ok;
+      const hint = response.data?.hint;
       const stats = response.data?.stats;
 
+      // Soft-fail path: backend can return 200 with ok:false when Outlook/Graph is unhealthy.
+      if (ok === false) {
+        const err = response.data?.error || 'Email sync failed.';
+        message.error(hint ? `${err} ${hint}` : err);
+        await fetchEmailLogs();
+        return;
+      }
+
       if (stats) {
-        if (stats.emails_saved > 0) {
-          message.success(`Sync complete: Found and saved ${stats.emails_saved} new emails.`);
-        } else if (stats.emails_skipped > 0) {
-          message.info(
-            `Sync complete: Found ${stats.emails_skipped} order emails, but they were already in the system.`
-          );
+        const scanned = stats.emails_scanned ?? 0;
+        const matched = stats.emails_matched ?? 0;
+        const saved = stats.emails_saved ?? 0;
+        const skipped = stats.emails_skipped ?? 0;
+        const errors = stats.errors ?? 0;
+
+        if (errors > 0) {
+          const detail = (stats.errors_detail && stats.errors_detail[0]) ? String(stats.errors_detail[0]) : undefined;
+          message.warning(detail ? `Sync completed with warnings: ${detail}` : 'Sync completed with warnings.');
+        }
+
+        if (saved > 0) {
+          message.success(`Sync complete: Saved ${saved} new emails (matched ${matched}, scanned ${scanned}).`);
+        } else if (skipped > 0) {
+          message.info(`Sync complete: ${skipped} emails were already in the system (matched ${matched}, scanned ${scanned}).`);
         } else {
-          message.info('Sync complete: Scanned recent emails, no new order-related emails found.');
+          message.info(`Sync complete: No new matching emails found (matched ${matched}, scanned ${scanned}).`);
         }
       } else {
         message.success('Email sync completed.');
       }
 
-      fetchEmailLogs();
+      await fetchEmailLogs();
     } catch (error: any) {
       console.error('Failed to trigger sync:', error);
       message.error(error?.response?.data?.error || 'Failed to start email sync');
@@ -182,7 +201,7 @@ export const IngestionMonitor: React.FC = () => {
                   ].filter(Boolean)}
                 >
                   <List.Item.Meta
-                    avatar={<MailOutlined style={{ fontSize: '24px', color: '#1890ff' }} />}
+                    avatar={<MailOutlined style={{ fontSize: '24px', color: 'rgb(var(--color-primary))' }} />}
                     title={
                       <Space direction="vertical" size={0}>
                         <Text strong>{email.subject}</Text>
@@ -215,7 +234,14 @@ export const IngestionMonitor: React.FC = () => {
         </Spin>
 
         {/* Status Legend */}
-        <div style={{ padding: '12px', background: '#f5f5f5', borderRadius: '4px' }}>
+        <div
+          style={{
+            padding: '12px',
+            background: 'rgb(var(--color-surface))',
+            border: '1px solid rgb(var(--color-border))',
+            borderRadius: 'var(--radius-sm)',
+          }}
+        >
           <Text type="secondary" strong>Status Legend:</Text>
           <div style={{ marginTop: '8px' }}>
             <Space wrap>

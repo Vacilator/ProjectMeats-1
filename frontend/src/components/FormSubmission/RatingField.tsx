@@ -18,7 +18,7 @@ const Star = styled.button<{ $filled: boolean; $hovered: boolean }>`
   font-size: 28px;
   cursor: pointer;
   transition: transform 0.1s ease, color 0.15s ease;
-  color: ${props => props.$filled || props.$hovered ? '#fbbf24' : '#d1d5db'};
+  color: ${props => props.$filled || props.$hovered ? 'rgb(var(--color-warning))' : 'rgb(var(--color-border))'};
   transform: ${props => props.$hovered ? 'scale(1.15)' : 'scale(1)'};
   padding: 2px;
   
@@ -27,7 +27,7 @@ const Star = styled.button<{ $filled: boolean; $hovered: boolean }>`
   }
   
   &:focus {
-    outline: 2px solid #3b82f6;
+    outline: 2px solid rgb(var(--color-primary));
     outline-offset: 2px;
     border-radius: 4px;
   }
@@ -36,7 +36,7 @@ const Star = styled.button<{ $filled: boolean; $hovered: boolean }>`
 const RatingLabel = styled.span`
   margin-left: 12px;
   font-size: 14px;
-  color: #6b7280;
+  color: rgb(var(--color-text-muted));
   min-width: 60px;
 `;
 

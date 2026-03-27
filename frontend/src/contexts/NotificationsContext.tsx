@@ -59,7 +59,7 @@ export interface NotificationPreferences {
   email_enabled: boolean;
   sms_enabled: boolean;
   push_enabled: boolean;
-  type_preferences: Record<NotificationType, string[]>;
+  type_preferences: Record<NotificationType, Array<'email' | 'push' | 'in_app'>>;
   quiet_hours_enabled: boolean;
   quiet_hours_start: string | null;
   quiet_hours_end: string | null;
@@ -242,7 +242,16 @@ async function fetchActionItemsAPI(): Promise<ActionItem[]> {
 async function fetchActionItemCountsAPI(): Promise<ActionItemCounts> {
   try {
     const authToken = localStorage.getItem('authToken');
-    if (!authToken) return { pending: 0, overdue: 0, completed_today: 0 };
+    if (!authToken) {
+      return {
+        total: 0,
+        overdue: 0,
+        due_today: 0,
+        due_this_week: 0,
+        by_priority: {},
+        by_form: [],
+      };
+    }
     
     const response = await fetch(`${API_BASE}/action-items/counts/`, {
       headers: {
@@ -252,13 +261,27 @@ async function fetchActionItemCountsAPI(): Promise<ActionItemCounts> {
     });
     
     if (response.status === 401 || response.status === 404) {
-      return { pending: 0, overdue: 0, completed_today: 0 };
+      return {
+        total: 0,
+        overdue: 0,
+        due_today: 0,
+        due_this_week: 0,
+        by_priority: {},
+        by_form: [],
+      };
     }
     if (!response.ok) throw new Error('Failed to fetch action item counts');
     return response.json();
   } catch (error) {
     console.warn('[NotificationsContext] Action item counts API not available:', error);
-    return { pending: 0, overdue: 0, completed_today: 0 };
+    return {
+      total: 0,
+      overdue: 0,
+      due_today: 0,
+      due_this_week: 0,
+      by_priority: {},
+      by_form: [],
+    };
   }
 }
 
@@ -266,7 +289,20 @@ async function fetchPreferencesAPI(): Promise<NotificationPreferences> {
   try {
     const authToken = localStorage.getItem('authToken');
     if (!authToken) {
-      return { email_enabled: true, push_enabled: false, action_item_reminders: true };
+      return {
+        id: '',
+        user: 0,
+        notifications_enabled: true,
+        email_enabled: true,
+        sms_enabled: false,
+        push_enabled: false,
+        type_preferences: {} as Record<NotificationType, Array<'email' | 'push' | 'in_app'>>,
+        quiet_hours_enabled: false,
+        quiet_hours_start: null,
+        quiet_hours_end: null,
+        daily_digest_enabled: false,
+        weekly_digest_enabled: false,
+      };
     }
     
     const response = await fetch(`${API_BASE}/notification-preferences/`, {
@@ -277,13 +313,39 @@ async function fetchPreferencesAPI(): Promise<NotificationPreferences> {
     });
     
     if (response.status === 401 || response.status === 404) {
-      return { email_enabled: true, push_enabled: false, action_item_reminders: true };
+      return {
+        id: '',
+        user: 0,
+        notifications_enabled: true,
+        email_enabled: true,
+        sms_enabled: false,
+        push_enabled: false,
+        type_preferences: {} as Record<NotificationType, Array<'email' | 'push' | 'in_app'>>,
+        quiet_hours_enabled: false,
+        quiet_hours_start: null,
+        quiet_hours_end: null,
+        daily_digest_enabled: false,
+        weekly_digest_enabled: false,
+      };
     }
     if (!response.ok) throw new Error('Failed to fetch preferences');
     return response.json();
   } catch (error) {
     console.warn('[NotificationsContext] Preferences API not available:', error);
-    return { email_enabled: true, push_enabled: false, action_item_reminders: true };
+    return {
+      id: '',
+      user: 0,
+      notifications_enabled: true,
+      email_enabled: true,
+      sms_enabled: false,
+      push_enabled: false,
+      type_preferences: {} as Record<NotificationType, Array<'email' | 'push' | 'in_app'>>,
+      quiet_hours_enabled: false,
+      quiet_hours_start: null,
+      quiet_hours_end: null,
+      daily_digest_enabled: false,
+      weekly_digest_enabled: false,
+    };
   }
 }
 

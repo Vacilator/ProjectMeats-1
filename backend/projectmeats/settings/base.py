@@ -276,6 +276,9 @@ REST_FRAMEWORK = {
         "user": "100/minute",     # Authenticated users: 100 requests/minute
         "auth": "5/minute",       # Auth endpoints (login/register): 5/minute
         "burst": "60/minute",     # Burst-allowed endpoints: 60/minute
+        # AI endpoints (billing guardrails)
+        "ai_chat": "20/minute",
+        "ai_feedback": "30/minute",
     },
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
     "PAGE_SIZE": 20,

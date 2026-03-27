@@ -106,7 +106,7 @@ export function useAutoSave<T>(
 
   const retryCountRef = useRef(0);
   const previousDataRef = useRef<T>(data);
-  const savedIndicatorTimerRef = useRef<NodeJS.Timeout>();
+  const savedIndicatorTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   /**
    * Core save function with retry logic

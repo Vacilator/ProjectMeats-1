@@ -14,6 +14,7 @@
 
 import React, { memo, useCallback, useMemo, useRef, useState } from 'react';
 import {
+  type Edge,
   EdgeProps,
   getSmoothStepPath,
   EdgeLabelRenderer,
@@ -22,7 +23,7 @@ import {
   useReactFlow,
 } from '@xyflow/react';
 import styled, { keyframes } from 'styled-components';
-import { CheckCircle, AlertCircle, XCircle, Info, Pencil, Trash2, Plus } from 'lucide-react';
+import { CheckCircle, AlertCircle, XCircle, Info, Pencil, Trash2, Plus, AlertTriangle } from 'lucide-react';
 
 // ============================================================================
 // Types
@@ -30,7 +31,7 @@ import { CheckCircle, AlertCircle, XCircle, Info, Pencil, Trash2, Plus } from 'l
 
 export type ConnectionStatus = 'valid' | 'invalid' | 'warning' | 'info' | 'default';
 
-export interface EnhancedEdgeData {
+export interface EnhancedEdgeData extends Record<string, unknown> {
   /** Connection validation status */
   status?: ConnectionStatus;
   /** Label text */
@@ -311,7 +312,7 @@ function getStatusIcon(status: ConnectionStatus): React.ReactNode {
  * };
  * ```
  */
-export const EnhancedConnectionEdge: React.FC<EdgeProps<EnhancedEdgeData>> = memo(
+export const EnhancedConnectionEdge: React.FC<EdgeProps<Edge<EnhancedEdgeData>>> = memo(
   ({
     id,
     source,
@@ -432,11 +433,35 @@ export const EnhancedConnectionEdge: React.FC<EdgeProps<EnhancedEdgeData>> = mem
       setEdges((eds) => eds.filter((edge) => edge.id !== id));
     };
 
+    const handleConvertToErrorEdge = useCallback(
+      (e: React.MouseEvent) => {
+        e.stopPropagation();
+        setEdges((eds) =>
+          eds.map((edge) =>
+            edge.id === id
+              ? {
+                  ...edge,
+                  type: 'error',
+                  data: {
+                    ...(edge.data as any),
+                    pmPrevType: edge.type,
+                    animated: true,
+                    label: (edge.data as any)?.label ?? 'Catch',
+                  },
+                }
+              : edge
+          )
+        );
+      },
+      [id, setEdges]
+    );
+
     const dataKeys = useMemo(() => {
       const sourceNode = source ? getNode(source) : undefined;
       const keys: string[] = [];
 
-      const outputFields = sourceNode?.data?.outputSchema?.outputFields;
+      const sourceData = (sourceNode?.data ?? {}) as any;
+      const outputFields = sourceData?.outputSchema?.outputFields;
       if (Array.isArray(outputFields)) {
         for (const f of outputFields) {
           const key = f?.fieldName || f?.fieldId;
@@ -581,6 +606,9 @@ export const EnhancedConnectionEdge: React.FC<EdgeProps<EnhancedEdgeData>> = mem
               </EdgeBtn>
               <EdgeBtn title="Edit Edge" onClick={handleEditEdge}>
                 <Pencil size={14} />
+              </EdgeBtn>
+              <EdgeBtn title="Convert to Error Edge" onClick={handleConvertToErrorEdge}>
+                <AlertTriangle size={14} />
               </EdgeBtn>
               <EdgeBtn title="Delete Edge" onClick={handleDeleteEdge}>
                 <Trash2 size={14} />

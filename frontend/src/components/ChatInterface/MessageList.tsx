@@ -107,17 +107,17 @@ const MessageItem = styled.div<{ messageType: string }>`
   border-radius: 12px;
   background: ${(props) =>
     props.messageType === 'user'
-      ? '#e0f2fe'
+      ? 'rgba(var(--color-info), 0.12)'
       : props.messageType === 'assistant'
-        ? '#f8fafc'
-        : '#fff7ed'};
+        ? 'rgb(var(--color-surface))'
+        : 'rgb(var(--color-surface))7ed'};
   border: 1px solid
     ${(props) =>
       props.messageType === 'user'
-        ? '#b3e5fc'
+        ? 'rgba(var(--color-info), 0.14)'
         : props.messageType === 'assistant'
-          ? '#e2e8f0'
-          : '#fed7aa'};
+          ? 'rgb(var(--color-border))'
+          : 'rgba(var(--color-warning), 0.18)'};
 
   ${(props) =>
     props.messageType === 'user' &&
@@ -153,18 +153,18 @@ const MessageInfo = styled.div`
 const MessageType = styled.span`
   font-weight: 600;
   font-size: 14px;
-  color: #374151;
+  color: rgb(var(--color-text-secondary));
 `;
 
 const MessageTime = styled.span`
   font-size: 12px;
-  color: #9ca3af;
+  color: rgb(var(--color-text-muted));
 `;
 
 const MessageContent = styled.div`
   font-size: 14px;
   line-height: 1.6;
-  color: #111827;
+  color: rgb(var(--color-text-primary));
   white-space: pre-wrap;
   word-wrap: break-word;
 `;
@@ -172,7 +172,7 @@ const MessageContent = styled.div`
 const MessageMetadata = styled.div`
   margin-top: 8px;
   padding-top: 8px;
-  border-top: 1px solid #e5e7eb;
+  border-top: 1px solid rgb(var(--color-border));
   display: flex;
   flex-wrap: wrap;
   gap: 12px;
@@ -180,8 +180,8 @@ const MessageMetadata = styled.div`
 
 const MetadataItem = styled.span`
   font-size: 11px;
-  color: #6b7280;
-  background: #f3f4f6;
+  color: rgb(var(--color-text-muted));
+  background: rgb(var(--color-surface-hover));
   padding: 2px 6px;
   border-radius: 4px;
 `;
