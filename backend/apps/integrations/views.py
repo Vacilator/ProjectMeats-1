@@ -335,7 +335,9 @@ def sync_emails(request):
     try:
         from tenant_apps.integrations.services.email_ingestion import EmailIngestionService
 
-        service = EmailIngestionService()
+        # User-triggered sync must be fast enough for an HTTP request.
+        # Scan a bounded number of pages; deeper scans happen via scheduled/background jobs.
+        service = EmailIngestionService(max_pages_attachments=2, max_pages_all=2, max_messages=400)
         stats = service.poll_tenant_by_id(tenant_id)
 
         if isinstance(stats, dict) and stats.get('error'):
