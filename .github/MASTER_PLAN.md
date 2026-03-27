@@ -11,6 +11,12 @@ This file is the **append-only PR-referenceable execution log**.
 
 ## Active Initiative: V3.0 Final Push (Consolidation + Scale + Polish)
 
+### 2026-03-27 — Emergency Fix - OAuth Decryption
+- Verified Microsoft OAuth encryption salt remains `projectmeats_oauth_encryption_v1` (no drift).
+- Added management command: `python manage.py diagnose_oauth_encryption --tenant-id <uuid>` to distinguish `InvalidToken` (key mismatch) vs missing data.
+- AI Swarm: Microsoft Graph tools now catch token decryption failures and return structured payload:
+  `{ "status": "error", "error_code": "DECRYPTION_FAILED", "message": "Your Outlook connection needs to be refreshed for security reasons." }`
+
 ### 2026-03-27 — Sentry-GitHub-Copilot Loop
 - Sentry Passthrough to GitHub — **ACTIVE** (webhook receiver + ownership routing groundwork).
 - AI Assistant Sentry Bridge — **STABILIZED** (tenant-scoped `get_recent_errors` tool + admin diagnostics endpoint; uses GitHub Environment secret injection for `SENTRY_AUTH_TOKEN` and defaults org slug to `meats-central` if unset).

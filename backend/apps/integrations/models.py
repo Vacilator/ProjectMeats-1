@@ -3,9 +3,10 @@ ExternalAuthProvider model for storing encrypted OAuth tokens.
 """
 import os
 from datetime import timedelta
+
+from cryptography.fernet import Fernet, InvalidToken
 from django.db import models
 from django.utils import timezone
-from cryptography.fernet import Fernet
 
 
 class ExternalAuthProvider(models.Model):
@@ -138,6 +139,9 @@ class ExternalAuthProvider(models.Model):
         
         try:
             return fernet.decrypt(encrypted.encode()).decode()
+        except InvalidToken as e:
+            # Preserve InvalidToken so callers can differentiate key-mismatch from other failures.
+            raise
         except Exception as e:
             raise ValueError(f"Failed to decrypt token: {str(e)}")
     
