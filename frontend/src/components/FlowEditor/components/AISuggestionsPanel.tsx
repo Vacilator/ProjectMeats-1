@@ -11,7 +11,11 @@ import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { Node, Edge } from '@xyflow/react';
 import { Skeleton } from 'antd';
-import { AINodeSuggestionService, NodeSuggestion } from '@/services/aiNodeSuggestionService';
+import {
+  AINodeSuggestionService,
+  canonicalizeNodeTypeId,
+  NodeSuggestion,
+} from '@/services/aiNodeSuggestionService';
 import { Sparkles, Plus, TrendingUp, Zap, AlertCircle } from 'lucide-react';
 import { workformsApi } from '@/services/workformsApi';
 import { useTranslation } from '@/i18n';
@@ -303,12 +307,12 @@ export const AISuggestionsPanel: React.FC<AISuggestionsPanelProps> = ({
         
         // Convert API suggestions to NodeSuggestion format
         const formattedSuggestions: NodeSuggestion[] = apiSuggestions.map((s: any) => ({
-          nodeType: s.type || 'basic',
+          nodeType: canonicalizeNodeTypeId(s.type || ''),
           label: s.label,
           description: s.description,
           reason: s.reasoning || s.reason || 'Recommended based on workflow context',
           confidence: s.confidence || confidence || 0.7,
-          position: s.position
+          position: s.position,
         }));
         
         setSuggestions(formattedSuggestions);
@@ -336,7 +340,7 @@ export const AISuggestionsPanel: React.FC<AISuggestionsPanelProps> = ({
   }, [nodes, edges, selectedNodeId]);
   
   const handleAddNode = (suggestion: NodeSuggestion) => {
-    onAddNode(suggestion.nodeType, suggestion.position);
+    onAddNode(canonicalizeNodeTypeId(suggestion.nodeType), suggestion.position);
   };
   
   const handleRetry = () => {

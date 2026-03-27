@@ -13,6 +13,53 @@
 import { Node, Edge } from '@xyflow/react';
 
 // ============================================================================
+// Canonical Node Type IDs
+// ============================================================================
+
+/**
+ * Canonicalize legacy / mislabeled node type IDs into the current registry IDs.
+ *
+ * IMPORTANT: UnifiedFlowEditor expects IDs that exist in NODE_TYPE_REGISTRY.
+ */
+export function canonicalizeNodeTypeId(rawType: string): string {
+  const type = String(rawType ?? '');
+  const map: Record<string, string> = {
+    // Triggers
+    triggerManualStart: 'triggerManual',
+    triggerManual: 'triggerManual',
+    triggerScheduled: 'triggerSchedule',
+    triggerSchedule: 'triggerSchedule',
+
+    // Forms (legacy variants)
+    FormStepSingle: 'form',
+    formStepSingle: 'form',
+    formStep: 'form',
+    formStepSingleNode: 'form',
+    form: 'form',
+
+    // Containers
+    FormProcessGroup: 'formProcess',
+    formProcessGroup: 'formProcess',
+    formMultiStepContainer: 'formProcess',
+    formBook: 'formProcess',
+    formProcess: 'formProcess',
+
+    // Legacy wait/utility/terminal IDs
+    waitApproval: 'pendingApproval',
+    waitTimer: 'timerDelay',
+    utilityTransform: 'dataTransform',
+
+    terminalSuccess: 'endSuccess',
+    terminalFailure: 'endError',
+    terminalCancelled: 'endCancel',
+
+    // Everything else stays as-is
+  };
+
+  return map[type] || type;
+}
+
+// ============================================================================
 // TypeScript Interfaces
 // ============================================================================
 
@@ -37,77 +84,77 @@ export interface WorkflowPattern {
 
 const WORKFLOW_PATTERNS: WorkflowPattern[] = [
   {
-    pattern: ['triggerManualStart'],
-    nextSuggestions: ['FormStepSingle', 'actionCreateRecord', 'conditionIf'],
+    pattern: ['triggerManual'],
+    nextSuggestions: ['form', 'actionCreateRecord', 'conditionIf'],
     description: 'After manual trigger, typically add form input or business logic',
   },
   {
-    pattern: ['FormStepSingle'],
+    pattern: ['form'],
     nextSuggestions: ['conditionIf', 'actionCreateRecord', 'actionEmail'],
     description: 'After form input, validate data or save to database',
   },
   {
     pattern: ['conditionIf'],
-    nextSuggestions: ['actionEmail', 'actionCreateRecord', 'terminalSuccess', 'terminalFailure'],
+    nextSuggestions: ['actionEmail', 'actionCreateRecord', 'endSuccess', 'endError'],
     description: 'Conditional branches need outcome actions',
   },
   {
     pattern: ['actionCreateRecord'],
-    nextSuggestions: ['actionEmail', 'terminalSuccess', 'actionUpdateRecord'],
+    nextSuggestions: ['actionEmail', 'endSuccess', 'actionUpdateRecord'],
     description: 'After creating records, notify users or complete workflow',
   },
   {
     pattern: ['actionEmail'],
-    nextSuggestions: ['terminalSuccess', 'waitApproval', 'actionCreateRecord'],
+    nextSuggestions: ['endSuccess', 'pendingApproval', 'actionCreateRecord'],
     description: 'After notification, either complete or wait for action',
   },
   {
-    pattern: ['waitApproval'],
-    nextSuggestions: ['conditionIf', 'actionEmail', 'terminalSuccess'],
+    pattern: ['pendingApproval'],
+    nextSuggestions: ['conditionIf', 'actionEmail', 'endSuccess'],
     description: 'After approval wait, branch based on decision',
   },
   // ── Supply-chain domain patterns ──────────────────────────────────────────
   // Cold-storage monitoring
   {
-    pattern: ['triggerScheduled', 'actionHTTP'],
-    nextSuggestions: ['actionCreateRecord', 'conditionIf', 'utilityTransform'],
+    pattern: ['triggerSchedule', 'actionHTTP'],
+    nextSuggestions: ['actionCreateRecord', 'conditionIf', 'dataTransform'],
     description: 'After polling IoT sensor, log the reading and evaluate thresholds',
   },
   {
     pattern: ['actionHTTP', 'actionCreateRecord', 'conditionIf'],
-    nextSuggestions: ['actionEmail', 'actionUpdateRecord', 'terminalSuccess'],
+    nextSuggestions: ['actionEmail', 'actionUpdateRecord', 'endSuccess'],
     description: 'Cold-storage: after breach check, alert QA or mark compliant',
   },
   {
     pattern: ['conditionIf', 'actionEmail', 'actionUpdateRecord'],
-    nextSuggestions: ['waitApproval', 'terminalSuccess', 'terminalFailure'],
+    nextSuggestions: ['pendingApproval', 'endSuccess', 'endError'],
     description: 'Cold-storage: after flagging zone, wait for QA disposition',
   },
   // Quality inspection
   {
-    pattern: ['triggerManualStart', 'FormStepSingle', 'actionCreateRecord'],
-    nextSuggestions: ['conditionIf', 'actionEmail', 'waitApproval'],
+    pattern: ['triggerManual', 'form', 'actionCreateRecord'],
+    nextSuggestions: ['conditionIf', 'actionEmail', 'pendingApproval'],
     description: 'Quality inspection: after recording lot data, evaluate pass/fail',
   },
   {
     pattern: ['conditionIf', 'actionCreateRecord'],
-    nextSuggestions: ['actionEmail', 'waitApproval', 'terminalSuccess', 'terminalFailure'],
+    nextSuggestions: ['actionEmail', 'pendingApproval', 'endSuccess', 'endError'],
     description: 'Quality inspection: NCR raised — notify stakeholders and await disposition',
   },
   {
-    pattern: ['waitApproval', 'actionCreateRecord'],
-    nextSuggestions: ['terminalSuccess', 'terminalFailure', 'actionEmail'],
+    pattern: ['pendingApproval', 'actionCreateRecord'],
+    nextSuggestions: ['endSuccess', 'endError', 'actionEmail'],
     description: 'Quality inspection: disposition approved — close with CAPA or accept lot',
   },
   // Carrier compliance
   {
-    pattern: ['triggerManualStart', 'actionHTTP', 'conditionIf'],
-    nextSuggestions: ['FormStepSingle', 'actionEmail', 'terminalFailure'],
+    pattern: ['triggerManual', 'actionHTTP', 'conditionIf'],
+    nextSuggestions: ['form', 'actionEmail', 'endError'],
     description: 'Carrier compliance: after vetting, run pre-trip inspection or reject',
   },
   {
-    pattern: ['FormStepSingle', 'conditionIf', 'actionCreateRecord'],
-    nextSuggestions: ['waitApproval', 'actionEmail', 'terminalFailure'],
+    pattern: ['form', 'conditionIf', 'actionCreateRecord'],
+    nextSuggestions: ['pendingApproval', 'actionEmail', 'endError'],
     description: 'Carrier compliance: after BOL creation, capture driver e-signature',
   },
   {
@@ -116,8 +163,8 @@ const WORKFLOW_PATTERNS: WorkflowPattern[] = [
     // second waits for the receiver's proof-of-delivery (POD) submission.
     // An intermediate actionCreateRecord (BOL generation) separates them in the
     // full template; this pattern anchors the tail of that sequence.
-    pattern: ['waitApproval', 'waitApproval', 'actionCreateRecord'],
-    nextSuggestions: ['terminalSuccess', 'actionEmail'],
+    pattern: ['pendingApproval', 'pendingApproval', 'actionCreateRecord'],
+    nextSuggestions: ['endSuccess', 'actionEmail'],
     description: 'Carrier compliance: POD received — close freight audit',
   },
 ];
@@ -128,35 +175,35 @@ const WORKFLOW_PATTERNS: WorkflowPattern[] = [
 
 const NODE_AFFINITIES: Record<string, string[]> = {
   // Triggers naturally lead to forms or logic
-  triggerManualStart: ['FormStepSingle', 'conditionIf', 'actionCreateRecord'],
-  triggerScheduled: ['actionHTTP', 'actionCreateRecord', 'actionEmail', 'FormStepSingle'],
+  triggerManual: ['form', 'conditionIf', 'actionCreateRecord'],
+  triggerSchedule: ['actionHTTP', 'actionCreateRecord', 'actionEmail', 'form'],
   triggerWebhook: ['actionCreateRecord', 'conditionIf', 'actionHTTP'],
 
   // Forms typically followed by validation or persistence
-  FormStepSingle: ['conditionIf', 'actionCreateRecord', 'actionEmail', 'actionUpdateRecord'],
-  FormProcessGroup: ['actionCreateRecord', 'actionEmail', 'terminalSuccess'],
+  form: ['conditionIf', 'actionCreateRecord', 'actionEmail', 'actionUpdateRecord'],
+  formProcess: ['actionCreateRecord', 'actionEmail', 'endSuccess'],
 
   // Conditions branch to actions or terminals
-  conditionIf: ['actionEmail', 'actionCreateRecord', 'terminalSuccess', 'terminalFailure'],
+  conditionIf: ['actionEmail', 'actionCreateRecord', 'endSuccess', 'endError'],
 
   // Actions can chain or terminate
-  actionCreateRecord: ['actionEmail', 'actionUpdateRecord', 'terminalSuccess', 'waitApproval'],
-  actionUpdateRecord: ['actionEmail', 'terminalSuccess'],
-  actionEmail: ['terminalSuccess', 'waitApproval', 'actionCreateRecord'],
+  actionCreateRecord: ['actionEmail', 'actionUpdateRecord', 'endSuccess', 'pendingApproval'],
+  actionUpdateRecord: ['actionEmail', 'endSuccess'],
+  actionEmail: ['endSuccess', 'pendingApproval', 'actionCreateRecord'],
   // HTTP actions (IoT polls, FMCSA queries) feed into record-creation or conditions
-  actionHTTP: ['actionCreateRecord', 'conditionIf', 'utilityTransform', 'terminalSuccess'],
+  actionHTTP: ['actionCreateRecord', 'conditionIf', 'dataTransform', 'endSuccess'],
 
   // Waits need follow-up logic
-  waitApproval: ['conditionIf', 'actionEmail', 'actionCreateRecord', 'terminalSuccess', 'terminalFailure'],
-  waitTimer: ['actionEmail', 'actionCreateRecord', 'terminalSuccess'],
+  pendingApproval: ['conditionIf', 'actionEmail', 'actionCreateRecord', 'endSuccess', 'endError'],
+  timerDelay: ['actionEmail', 'actionCreateRecord', 'endSuccess'],
 
   // Utilities can go anywhere
-  utilityTransform: ['actionCreateRecord', 'actionEmail', 'conditionIf'],
+  dataTransform: ['actionCreateRecord', 'actionEmail', 'conditionIf'],
 
   // Terminals are always end nodes
-  terminalSuccess: [],
-  terminalFailure: [],
-  terminalCancelled: [],
+  endSuccess: [],
+  endError: [],
+  endCancel: [],
 };
 
 // ============================================================================
@@ -194,11 +241,11 @@ export class AINodeSuggestionService {
     // 4. Terminal suggestions (workflows need end states)
     if (!this.hasTerminals(nodes)) {
       suggestions.push({
-        nodeType: 'terminalSuccess',
-        label: 'Add Success Terminal',
+        nodeType: 'endSuccess',
+        label: 'Add Success End',
         description: 'Complete successful workflows',
         confidence: 0.9,
-        reason: 'Workflow needs at least one terminal node',
+        reason: 'Workflow needs at least one end node',
       });
     }
     
@@ -215,7 +262,7 @@ export class AINodeSuggestionService {
     edges: Edge[]
   ): NodeSuggestion[] {
     const suggestions: NodeSuggestion[] = [];
-    const nodeType = selectedNode.type || 'default';
+    const nodeType = canonicalizeNodeTypeId(selectedNode.type || 'default');
     
     // Get typical next nodes for this type
     const affinities = NODE_AFFINITIES[nodeType] || [];
@@ -271,16 +318,18 @@ export class AINodeSuggestionService {
   private static getGapSuggestions(nodes: Node[], edges: Edge[]): NodeSuggestion[] {
     const suggestions: NodeSuggestion[] = [];
     
-    const hasForm = nodes.some(n => n.type?.includes('Form'));
-    const hasCondition = nodes.some(n => n.type?.includes('condition'));
-    const hasAction = nodes.some(n => n.type?.includes('action'));
-    const hasTerminal = nodes.some(n => n.type?.includes('terminal'));
+    const canonicalTypes = nodes.map((n) => canonicalizeNodeTypeId(n.type || ''));
+
+    const hasForm = canonicalTypes.some((t) => t === 'form' || t === 'formProcess');
+    const hasCondition = canonicalTypes.some((t) => t.startsWith('condition'));
+    const hasAction = canonicalTypes.some((t) => t.startsWith('action'));
+    const hasTerminal = canonicalTypes.some((t) => t.startsWith('end'));
     
     // Suggest forms if none exist
     if (!hasForm && nodes.length > 1) {
       suggestions.push({
-        nodeType: 'FormStepSingle',
-        label: 'Add Form Input',
+        nodeType: 'form',
+        label: 'Add Form Step',
         description: 'Collect data from users',
         confidence: 0.6,
         reason: 'Workflow lacks user input',
@@ -301,8 +350,8 @@ export class AINodeSuggestionService {
     // Suggest terminals if workflow has content but no end
     if (nodes.length > 2 && !hasTerminal) {
       suggestions.push({
-        nodeType: 'terminalSuccess',
-        label: 'Add Success Terminal',
+        nodeType: 'endSuccess',
+        label: 'Add Success End',
         description: 'Mark successful completion',
         confidence: 0.7,
         reason: 'Workflow needs clear end state',
@@ -316,7 +365,7 @@ export class AINodeSuggestionService {
    * Check if workflow has terminal nodes
    */
   private static hasTerminals(nodes: Node[]): boolean {
-    return nodes.some(n => n.type?.startsWith('terminal'));
+    return nodes.some((n) => canonicalizeNodeTypeId(n.type || '').startsWith('end'));
   }
   
   /**
@@ -336,7 +385,7 @@ export class AINodeSuggestionService {
     let current: (typeof triggerNode) | undefined = triggerNode;
     while (current && !visited.has(current.id)) {
       visited.add(current.id);
-      sequence.push(current.type || 'default');
+      sequence.push(canonicalizeNodeTypeId(current.type || 'default'));
       
       // Find next node via edge
       const currentId: string = current.id;
@@ -410,21 +459,22 @@ export class AINodeSuggestionService {
    */
   private static getNodeLabel(nodeType: string): string {
     const labels: Record<string, string> = {
-      triggerManualStart: 'Manual Start',
-      triggerScheduled: 'Scheduled Trigger',
+      triggerManual: 'Manual Trigger',
+      triggerSchedule: 'Schedule Trigger',
       triggerWebhook: 'Webhook Trigger',
-      FormStepSingle: 'Form Input',
-      FormProcessGroup: 'Multi-Step Form',
+      form: 'Form Step',
+      formProcess: 'Form Process',
       conditionIf: 'If/Then Condition',
       actionCreateRecord: 'Create Record',
       actionUpdateRecord: 'Update Record',
       actionEmail: 'Send Email',
       actionHTTP: 'HTTP / IoT Request',
-      waitApproval: 'Wait for Approval',
-      waitTimer: 'Wait Timer',
-      terminalSuccess: 'Success',
-      terminalFailure: 'Failure',
-      utilityTransform: 'Transform Data',
+      pendingApproval: 'Approval Required',
+      timerDelay: 'Delay',
+      endSuccess: 'Success End',
+      endError: 'Error End',
+      endCancel: 'Cancel End',
+      dataTransform: 'Transform Data',
     };
     
     return labels[nodeType] || nodeType;
@@ -435,21 +485,22 @@ export class AINodeSuggestionService {
    */
   private static getNodeDescription(nodeType: string): string {
     const descriptions: Record<string, string> = {
-      triggerManualStart: 'Start workflow manually',
-      triggerScheduled: 'Run workflow on schedule (cron)',
+      triggerManual: 'Start workflow manually',
+      triggerSchedule: 'Run workflow on schedule (cron)',
       triggerWebhook: 'Start on external event or IoT signal',
-      FormStepSingle: 'Collect input from users',
-      FormProcessGroup: 'Multi-page form with steps',
+      form: 'Collect input from users',
+      formProcess: 'Multi-step container (Form Process)',
       conditionIf: 'Branch based on conditions',
       actionCreateRecord: 'Save data to database',
       actionUpdateRecord: 'Update existing records',
       actionEmail: 'Send notification emails',
       actionHTTP: 'Call external API or IoT gateway',
-      waitApproval: 'Pause for human decision',
-      waitTimer: 'Delay execution',
-      terminalSuccess: 'Mark as successful',
-      terminalFailure: 'Mark as failed',
-      utilityTransform: 'Transform or calculate data',
+      pendingApproval: 'Wait for internal approval',
+      timerDelay: 'Wait for a specified duration',
+      endSuccess: 'Successful completion of workflow',
+      endError: 'Error termination of workflow',
+      endCancel: 'User-initiated cancellation',
+      dataTransform: 'Transform or calculate data',
     };
     
     return descriptions[nodeType] || 'Workflow node';
