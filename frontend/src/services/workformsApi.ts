@@ -460,7 +460,7 @@ export interface SuggestNodesResponse {
 }
 
 export const suggestNodes = async (payload: any): Promise<SuggestNodesResponse> => {
-  const response = await apiClient.post('/suggest-nodes/', payload);
+  const response = await apiClient.post('/workflows/suggest-nodes/', payload);
   return response.data;
 };
 
