@@ -153,3 +153,33 @@ def search_vector_memory(embedding: List[float], top_k: int = 5) -> Dict[str, An
     """
 
     return {"status": "use_api_endpoint", "top_k": top_k}
+
+
+@registry.register
+def create_record(entity: str, data: Dict[str, Any]) -> Dict[str, Any]:
+    """Create a tenant-scoped record.
+
+    Executed via the Swarm tool loop in /api/v1/ai-assistant/chat/.
+    """
+
+    return {"status": "available_via_chat", "entity": entity}
+
+
+@registry.register
+def search_entities(query: str, entity_types: List[str] | None = None, limit: int = 5) -> Dict[str, Any]:
+    """Search tenant entities.
+
+    Executed via the Swarm tool loop in /api/v1/ai-assistant/chat/.
+    """
+
+    return {"status": "available_via_chat", "query": query, "limit": limit}
+
+
+@registry.register
+def get_recent_activity(entity_type: str, entity_id: str, limit: int = 10) -> Dict[str, Any]:
+    """Fetch recent ActivityLog entries for an entity.
+
+    Executed via the Swarm tool loop in /api/v1/ai-assistant/chat/.
+    """
+
+    return {"status": "available_via_chat", "entity_type": entity_type, "entity_id": entity_id, "limit": limit}
