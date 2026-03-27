@@ -15,7 +15,7 @@ This file is the **append-only PR-referenceable execution log**.
 - Sentry Passthrough to GitHub — **ACTIVE** (webhook receiver + ownership routing groundwork).
 - AI Assistant Sentry Bridge — **STABILIZED** (tenant-scoped `get_recent_errors` tool + admin diagnostics endpoint; uses GitHub Environment secret injection for `SENTRY_AUTH_TOKEN` and defaults org slug to `meats-central` if unset).
   - PR: #4007
-  - Follow-up PR: (fill after merge)
+  - Follow-up PR: #4008
 
 **Phase 6.5: AI Document Understanding & Agentic Workflows**
 
