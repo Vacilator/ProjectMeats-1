@@ -14,7 +14,7 @@ This file is the **append-only PR-referenceable execution log**.
 ### 2026-03-27 — Sentry-GitHub-Copilot Loop
 - Sentry Passthrough to GitHub — **ACTIVE** (webhook receiver + ownership routing groundwork).
 - AI Assistant Sentry Bridge — **COMPLETE** (tenant-scoped `get_recent_errors` tool + admin diagnostics endpoint; requires GitHub Environment secret injection for `SENTRY_AUTH_TOKEN` + `SENTRY_ORG_SLUG`).
-  - PR: (fill after merge)
+  - PR: #4007
 
 **Phase 6.5: AI Document Understanding & Agentic Workflows**
 
