@@ -604,7 +604,7 @@ export const BaseNode: React.FC<BaseNodeProps & { children?: React.ReactNode }> 
 
       {/* Body (collapsible) */}
       {isExpanded && (
-        <NodeBody className="nodrag">
+        <NodeBody>
           <NodeContent>
             {children || (
               <>
