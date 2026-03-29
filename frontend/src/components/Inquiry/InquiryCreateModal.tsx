@@ -356,6 +356,7 @@ export const InquiryCreateModal: React.FC<InquiryCreateModalProps> = ({
   const [entityOptions, setEntityOptions] = useState<EntityOption[]>([]);
   const [loadingEntities, setLoadingEntities] = useState(false);
 
+  const [shippingType, setShippingType] = useState<'tenant' | 'customer_pickup' | 'supplier_delivering'>('tenant');
   const [validUntil, setValidUntil] = useState('');
   const [notes, setNotes] = useState('');
   const [lines, setLines] = useState<LineItem[]>([newLine()]);
@@ -456,6 +457,7 @@ export const InquiryCreateModal: React.FC<InquiryCreateModalProps> = ({
 
   const reset = () => {
     setError(null);
+    setShippingType('tenant');
     setValidUntil('');
     setNotes('');
     setLines([newLine()]);
@@ -535,6 +537,7 @@ export const InquiryCreateModal: React.FC<InquiryCreateModalProps> = ({
 
       const payload: Record<string, unknown> = {
         entity_type: entityType,
+        shipping_type: shippingType,
         source_type: sourceCallId ? 'scheduled_call' : 'other',
         ...(sourceCallId ? { source_call: Number(sourceCallId) } : {}),
         valid_until: validUntil || undefined,
@@ -635,6 +638,18 @@ export const InquiryCreateModal: React.FC<InquiryCreateModalProps> = ({
               <SectionTitle>Inquiry</SectionTitle>
               <Grid>
                 <Field $span={4}>
+                  <Label>Shipping Type</Label>
+                  <Select
+                    value={shippingType}
+                    onChange={(e) => setShippingType(e.target.value as any)}
+                    disabled={!canSubmit}
+                  >
+                    <option value="tenant">Tenant</option>
+                    <option value="customer_pickup">Customer Pick-Up</option>
+                    <option value="supplier_delivering">Supplier Delivering</option>
+                  </Select>
+                </Field>
+                <Field $span={4}>
                   <Label>Valid Until</Label>
                   <Input
                     type="date"
@@ -643,7 +658,7 @@ export const InquiryCreateModal: React.FC<InquiryCreateModalProps> = ({
                     disabled={!canSubmit}
                   />
                 </Field>
-                <Field $span={8}>
+                <Field $span={12}>
                   <Label>Notes</Label>
                   <TextArea
                     value={notes}

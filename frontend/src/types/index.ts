@@ -462,12 +462,15 @@ export interface InquiryProduct {
 /**
  * Inquiry entity - tracks product interest from calls
  */
+export type ShippingType = 'tenant' | 'customer_pickup' | 'supplier_delivering';
+
 export interface Inquiry {
   id: string;
   tenant: string;
   inquiry_number: string;
   status: InquiryStatus;
   entity_type: InquiryEntityType;
+  shipping_type?: ShippingType;
   supplier?: string;
   supplier_name?: string;
   customer?: string;
@@ -538,6 +541,7 @@ export interface Fulfillment {
   fulfillment_number: string;
   inquiry: string;
   inquiry_number?: string;
+  shipping_type?: ShippingType;
   supplier?: string;
   supplier_name?: string;
   customer?: string;
@@ -569,6 +573,7 @@ export interface InquiryListItem {
   inquiry_number: string;
   status: InquiryStatus;
   entity_type: InquiryEntityType;
+  shipping_type?: ShippingType;
   supplier_name?: string;
   customer_name?: string;
   contact_name?: string;

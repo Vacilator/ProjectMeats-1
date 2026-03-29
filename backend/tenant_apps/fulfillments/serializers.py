@@ -45,6 +45,7 @@ class FulfillmentListSerializer(serializers.ModelSerializer):
             'id', 'fulfillment_number', 'inquiry', 'inquiry_number', 'status',
             'supplier', 'supplier_name', 'customer', 'customer_name',
             'carrier', 'carrier_name',
+            'shipping_type',
             'ship_date', 'expected_delivery', 'actual_delivery',
             'product_count', 'total_value', 'tracking_numbers',
             'created_on'
@@ -76,6 +77,7 @@ class FulfillmentDetailSerializer(serializers.ModelSerializer):
             'id', 'fulfillment_number', 'inquiry', 'inquiry_number', 'status',
             'supplier', 'supplier_name', 'customer', 'customer_name',
             'carrier', 'carrier_name',
+            'shipping_type',
             'ship_date', 'expected_delivery', 'actual_delivery',
             'tracking_numbers', 'notes',
             'products', 'total_value', 'is_partial',
@@ -97,6 +99,7 @@ class FulfillmentCreateSerializer(serializers.ModelSerializer):
         model = Fulfillment
         fields = [
             'inquiry', 'supplier', 'customer', 'carrier',
+            'shipping_type',
             'ship_date', 'expected_delivery',
             'tracking_numbers', 'notes', 'products'
         ]
@@ -108,6 +111,12 @@ class FulfillmentCreateSerializer(serializers.ModelSerializer):
         # Set tenant from inquiry and created_by from context
         request = self.context.get('request')
         inquiry = validated_data.get('inquiry')
+
+        # Default cascades from inquiry if not provided explicitly.
+        if inquiry and not validated_data.get('customer') and getattr(inquiry, 'customer_id', None):
+            validated_data['customer_id'] = inquiry.customer_id
+        if inquiry and not validated_data.get('shipping_type') and getattr(inquiry, 'shipping_type', None):
+            validated_data['shipping_type'] = inquiry.shipping_type
         
         validated_data['tenant'] = inquiry.tenant
         if request:

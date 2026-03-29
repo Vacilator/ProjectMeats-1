@@ -143,6 +143,7 @@ class InquiryViewSet(viewsets.ModelViewSet):
             inquiry=inquiry,
             supplier_id=supplier_id,
             customer=inquiry.customer,
+            shipping_type=getattr(inquiry, 'shipping_type', None) or 'tenant',
             created_by=request.user
         )
         
