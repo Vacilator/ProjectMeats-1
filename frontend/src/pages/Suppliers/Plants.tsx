@@ -637,7 +637,7 @@ const Plants: React.FC = () => {
             <Input type="email" placeholder="Email Address" />
           </Form.Item>
 
-          <div style={{ fontWeight: 600, marginTop: 8 }}>Booking Contact</div>
+          <div style={{ fontWeight: 700, fontSize: 16, marginTop: 8 }}>Booking Contact</div>
 
           <Form.Item
             name="booking_contact_email"

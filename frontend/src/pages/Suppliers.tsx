@@ -891,7 +891,7 @@ const Suppliers: React.FC = () => {
                   />
                 </FormGroup>
 
-                <div style={{ gridColumn: '1 / -1', fontWeight: 600 }}>Booking Contact</div>
+                <div style={{ gridColumn: '1 / -1', fontWeight: 700, fontSize: 16 }}>Booking Contact</div>
 
                 <FormGroup>
                   <Label $theme={theme}>Booking Email</Label>
