@@ -12,8 +12,10 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 import styled from 'styled-components';
+import { Select as AntSelect } from 'antd';
 import { businessApi } from '../../services/businessApi';
 import { getChoices, type ChoiceOption } from '../../services/choicesService';
+import { PROTEIN_TYPE_CHOICES } from '../../utils/constants/choices';
 import { SmartProductAutocomplete } from '../Inquiry/SmartProductAutocomplete';
 import type { Product } from '../../types';
 
@@ -359,6 +361,7 @@ export const InquiryCallModal: React.FC<InquiryCallModalProps> = ({
   const [entityOptions, setEntityOptions] = useState<EntityOption[]>([]);
   const [loadingEntities, setLoadingEntities] = useState(false);
   const [uomOptions, setUomOptions] = useState<ChoiceOption[]>([]);
+  const [proteinFilter, setProteinFilter] = useState<string[]>([]);
 
   const canSubmit = useMemo(() => !submitting, [submitting]);
 
@@ -605,6 +608,30 @@ export const InquiryCallModal: React.FC<InquiryCallModalProps> = ({
 
             <Section>
               <SectionTitle>Inquiry Products</SectionTitle>
+
+              <div style={{ marginBottom: 10, maxWidth: 420 }}>
+                <Label>Protein Types Filter</Label>
+                <AntSelect
+                  mode="multiple"
+                  value={proteinFilter}
+                  onChange={(vals) => setProteinFilter(vals as string[])}
+                  options={PROTEIN_TYPE_CHOICES.map((o) => ({ value: o.value, label: o.label }))}
+                  placeholder="Search protein types"
+                  showSearch
+                  allowClear
+                  optionFilterProp="label"
+                  filterOption={(input, option) =>
+                    String(option?.label || '')
+                      .toLowerCase()
+                      .includes(String(input || '').toLowerCase())
+                  }
+                  style={{ width: '100%' }}
+                />
+                <Muted style={{ marginTop: 6 }}>
+                  Product search will be filtered by selected protein type(s).
+                </Muted>
+              </div>
+
               <LinesTable>
                 <LinesHeader>
                   <div>Product</div>
@@ -625,6 +652,7 @@ export const InquiryCallModal: React.FC<InquiryCallModalProps> = ({
                         onChange={(productId, product) => updateLine(l.key, { productId, product })}
                         placeholder="Search products…"
                         disabled={!canSubmit}
+                        proteinTypeFilter={proteinFilter}
                       />
                     </RowCell>
                     <RowCell>

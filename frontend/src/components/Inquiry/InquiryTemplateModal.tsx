@@ -6,8 +6,10 @@
  */
 import React, { useState, useEffect, useCallback } from 'react';
 import styled from 'styled-components';
+import { Select as AntSelect } from 'antd';
 import { businessApi } from '../../services/businessApi';
 import { InquiryTemplate, InquiryEntityType } from '../../types';
+import { PROTEIN_TYPE_CHOICES } from '../../utils/constants/choices';
 
 // ============================================================================
 // Types
@@ -209,9 +211,6 @@ const TableCell = styled.td`
   vertical-align: middle;
 `;
 
-const ProductSelect = styled(Select)`
-  min-width: 200px;
-`;
 
 const SmallInput = styled(Input)`
   width: 80px;
@@ -324,6 +323,8 @@ export const InquiryTemplateModal: React.FC<InquiryTemplateModalProps> = ({
   const [defaultValidDays, setDefaultValidDays] = useState(7);
   const [defaultNotes, setDefaultNotes] = useState('');
   const [products, setProducts] = useState<TemplateProductLine[]>([]);
+
+  const [proteinFilter, setProteinFilter] = useState<string[]>([]);
   
   // Data state
   const [availableProducts, setAvailableProducts] = useState<ProductOption[]>([]);
@@ -331,15 +332,24 @@ export const InquiryTemplateModal: React.FC<InquiryTemplateModalProps> = ({
   
   // Load products list
   useEffect(() => {
-    if (isOpen) {
-      businessApi.get('system/products/', { params: { page_size: 500, is_active: true } })
-        .then(res => {
-          const data = res.data.results || res.data;
-          setAvailableProducts(data);
-        })
-        .catch(console.error);
-    }
-  }, [isOpen]);
+    if (!isOpen) return;
+
+    businessApi
+      .get('system/products/', {
+        params: {
+          page_size: 500,
+          is_active: true,
+          ...(proteinFilter.length
+            ? { protein: proteinFilter.map((t) => String(t).toLowerCase()) }
+            : {}),
+        },
+      })
+      .then((res) => {
+        const data = res.data.results || res.data;
+        setAvailableProducts(data);
+      })
+      .catch(console.error);
+  }, [isOpen, proteinFilter.join('|')]);
   
   // Initialize form when template changes
   useEffect(() => {
@@ -517,6 +527,29 @@ export const InquiryTemplateModal: React.FC<InquiryTemplateModalProps> = ({
           {/* Products */}
           <FormSection>
             <SectionTitle>📦 Default Products</SectionTitle>
+
+            <FormRow>
+              <FormGroup>
+                <Label>Protein Types Filter</Label>
+                <AntSelect
+                  mode="multiple"
+                  value={proteinFilter}
+                  onChange={(vals) => setProteinFilter(vals as string[])}
+                  options={PROTEIN_TYPE_CHOICES.map((o) => ({ value: o.value, label: o.label }))}
+                  placeholder="Search protein types"
+                  showSearch
+                  allowClear
+                  optionFilterProp="label"
+                  filterOption={(input, option) =>
+                    String(option?.label || '')
+                      .toLowerCase()
+                      .includes(String(input || '').toLowerCase())
+                  }
+                  style={{ width: '100%' }}
+                />
+              </FormGroup>
+            </FormRow>
+
             {products.length > 0 ? (
               <ProductsTable>
                 <thead>
@@ -533,17 +566,24 @@ export const InquiryTemplateModal: React.FC<InquiryTemplateModalProps> = ({
                   {products.map((p, index) => (
                     <tr key={index}>
                       <TableCell>
-                        <ProductSelect
-                          value={p.product}
-                          onChange={e => handleProductChange(index, 'product', e.target.value)}
-                        >
-                          <option value="">Select product...</option>
-                          {availableProducts.map(prod => (
-                            <option key={prod.id} value={prod.id}>
-                              {prod.product_code} - {prod.description_of_product_item?.substring(0, 40)}
-                            </option>
-                          ))}
-                        </ProductSelect>
+                        <AntSelect
+                          value={p.product || undefined}
+                          onChange={(val) => handleProductChange(index, 'product', String(val || ''))}
+                          placeholder="Search products..."
+                          showSearch
+                          allowClear
+                          optionFilterProp="label"
+                          options={availableProducts.map((prod) => ({
+                            value: prod.id,
+                            label: `${prod.product_code} - ${String(prod.description_of_product_item || '').slice(0, 60)}`,
+                          }))}
+                          filterOption={(input, option) =>
+                            String(option?.label || '')
+                              .toLowerCase()
+                              .includes(String(input || '').toLowerCase())
+                          }
+                          style={{ minWidth: 240, width: '100%' }}
+                        />
                       </TableCell>
                       <TableCell>
                         <SmallInput
