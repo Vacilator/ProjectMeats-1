@@ -452,7 +452,10 @@ class InquiryProduct(models.Model):
         ordering = ['id']
 
     def __str__(self):
-        return f"{self.inquiry.inquiry_number} - {self.product.description_of_product_item[:50]}"
+        if not self.product:
+            return f"{self.inquiry.inquiry_number} - (No product)"
+        label = getattr(self.product, 'name', None) or getattr(self.product, 'product_code', None) or 'Product'
+        return f"{self.inquiry.inquiry_number} - {str(label)[:50]}"
 
     @property
     def tenant(self):
@@ -595,7 +598,10 @@ class InquiryTemplateProduct(models.Model):
         unique_together = [['template', 'product']]
     
     def __str__(self):
-        return f"{self.template.name} - {self.product.description_of_product_item[:30]}"
+        if not self.product:
+            return f"{self.template.name} - (No product)"
+        label = getattr(self.product, 'name', None) or getattr(self.product, 'product_code', None) or 'Product'
+        return f"{self.template.name} - {str(label)[:30]}"
     
     @property
     def tenant(self):
