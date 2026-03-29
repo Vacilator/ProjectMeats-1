@@ -7,7 +7,7 @@ import { Theme } from '../config/theme';
 import { apiService, Customer, apiClient } from '../services/apiService';
 import { PhoneInput, Select } from '../components/ui';
 import { MultiSelect } from '../components/Shared';
-import QuickCreateModal from '../components/FormSubmission/QuickCreateModal';
+
 import { US_STATES } from '../utils/constants/states';
 import { INDUSTRY_CHOICES, PROTEIN_TYPE_CHOICES } from '../utils/constants/choices';
 
@@ -46,7 +46,6 @@ const Customers: React.FC = () => {
   const navigate = useNavigate();
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showForm, setShowForm] = useState(false);
   const [showEditForm, setShowEditForm] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
   const { theme } = useTheme();
@@ -96,7 +95,9 @@ const Customers: React.FC = () => {
   // Auto-open form if ?action=create in URL
   useEffect(() => {
     if (searchParams.get('action') === 'create') {
-      setShowForm(true);
+      setEditingCustomer(null);
+      resetForm();
+      setShowEditForm(true);
       searchParams.delete('action');
       setSearchParams(searchParams);
     }
@@ -386,7 +387,6 @@ const Customers: React.FC = () => {
   };
 
   const handleCancel = () => {
-    setShowForm(false);
     setShowEditForm(false);
     setEditingCustomer(null);
     resetForm();
@@ -419,7 +419,13 @@ const Customers: React.FC = () => {
           <SecondaryButton type="button" onClick={() => navigate('/customers/contacts')}>
             Contacts
           </SecondaryButton>
-          <AddButton onClick={() => { setEditingCustomer(null); setShowForm(true); }}>
+          <AddButton
+            onClick={() => {
+              setEditingCustomer(null);
+              resetForm();
+              setShowEditForm(true);
+            }}
+          >
             + New Customer
           </AddButton>
         </HeaderActions>
@@ -435,14 +441,6 @@ const Customers: React.FC = () => {
         />
       </TableControls>
 
-      {showForm && (
-        <QuickCreateModal
-          entityType="customer"
-          isOpen={showForm}
-          onClose={() => setShowForm(false)}
-          onCreated={() => fetchCustomers()}
-        />
-      )}
 
       {showEditForm && (
         <FormOverlay>
@@ -600,7 +598,7 @@ const Customers: React.FC = () => {
                   Cancel
                 </CancelButton>
                 <SubmitButton type="submit">
-                  {editingCustomer ? 'Update' : 'Update'} Customer
+                  {editingCustomer ? 'Update' : 'Create'} Customer
                 </SubmitButton>
               </FormActions>
             </Form>
