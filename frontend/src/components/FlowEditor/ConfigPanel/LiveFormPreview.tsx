@@ -275,7 +275,6 @@ const renderFieldInput = (field: FormField): React.ReactNode => {
   switch (field.type) {
     case 'text':
     case 'email':
-    case 'phone':
     case 'number':
     case 'date':
     case 'datetime':
@@ -283,6 +282,18 @@ const renderFieldInput = (field: FormField): React.ReactNode => {
         <Input
           type={field.type === 'datetime' ? 'datetime-local' : field.type}
           placeholder={field.placeholder || `Enter ${field.label.toLowerCase()}`}
+          disabled
+        />
+      );
+
+    case 'phone':
+      return (
+        <Input
+          type="tel"
+          inputMode="numeric"
+          maxLength={13}
+          autoComplete="tel"
+          placeholder={field.placeholder || '(XXX)XXX-XXXX'}
           disabled
         />
       );

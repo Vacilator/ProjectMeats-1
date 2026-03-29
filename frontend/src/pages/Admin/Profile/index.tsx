@@ -10,6 +10,7 @@ import { useAdminPermissions } from '@/hooks/useAdminPermissions';
 import { getRuntimeConfig } from '@/config/runtime';
 import { extractBrandColors } from '@/utils/themeUtils';
 import { injectTenantColors } from '@/config/theme';
+import { formatUsPhone } from '@/utils/phone';
 
 interface Tenant {
   id: string;
@@ -152,7 +153,7 @@ const AdminProfilePage: React.FC = () => {
       name: tenant.name || '',
       description: tenant.description || '',
       contact_email: tenant.contact_email || '',
-      contact_phone: tenant.contact_phone || '',
+      contact_phone: formatUsPhone(tenant.contact_phone || ''),
       address: tenant.address || '',
       website: tenant.website || '',
       primary_color_light: tenant.branding?.primary_color_light || defaults.light,
@@ -208,7 +209,7 @@ const AdminProfilePage: React.FC = () => {
       name: tenant.name || '',
       description: tenant.description || '',
       contact_email: tenant.contact_email || '',
-      contact_phone: tenant.contact_phone || '',
+      contact_phone: formatUsPhone(tenant.contact_phone || ''),
       address: tenant.address || '',
       website: tenant.website || '',
       primary_color_light: tenant.branding?.primary_color_light || defaults.light,
@@ -225,7 +226,10 @@ const AdminProfilePage: React.FC = () => {
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+    setFormData((prev) => ({
+      ...prev,
+      [name]: name === 'contact_phone' ? formatUsPhone(value) : value,
+    }));
   };
 
   const handleColorChange = (field: 'primary_color_light' | 'primary_color_dark', value: string) => {
@@ -325,7 +329,7 @@ const AdminProfilePage: React.FC = () => {
       name: tenant.name || '',
       description: tenant.description || '',
       contact_email: tenant.contact_email || '',
-      contact_phone: tenant.contact_phone || '',
+      contact_phone: formatUsPhone(tenant.contact_phone || ''),
       address: tenant.address || '',
       website: tenant.website || '',
       primary_color_light: tenant.branding?.primary_color_light || defaults.light,
@@ -496,9 +500,12 @@ const AdminProfilePage: React.FC = () => {
                   id="contact_phone"
                   name="contact_phone"
                   type="tel"
+                  inputMode="numeric"
+                  maxLength={13}
                   value={formData.contact_phone}
                   onChange={handleInputChange}
-                  placeholder="+1 (555) 123-4567"
+                  placeholder="(XXX)XXX-XXXX"
+                  autoComplete="tel"
                 />
               </Field>
 
