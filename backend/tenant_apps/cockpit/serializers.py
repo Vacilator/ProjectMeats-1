@@ -44,10 +44,10 @@ class OrderSlotSerializer(serializers.ModelSerializer):
 
 
 class ActivityLogSerializer(serializers.ModelSerializer):
-    """Serializer for ActivityLog model."""
-    
+    """Read serializer for ActivityLog model."""
+
     created_by_name = serializers.SerializerMethodField()
-    
+
     class Meta:
         model = ActivityLog
         fields = [
@@ -64,12 +64,61 @@ class ActivityLogSerializer(serializers.ModelSerializer):
             "modified_on",
         ]
         read_only_fields = ["id", "created_on", "modified_on", "created_by_name"]
-    
+
     def get_created_by_name(self, obj):
         """Get the name of the user who created this log."""
         if obj.created_by:
             return f"{obj.created_by.first_name} {obj.created_by.last_name}".strip() or obj.created_by.username
         return "System"
+
+
+class ActivityLogCreateSerializer(serializers.ModelSerializer):
+    """Write serializer for creating ActivityLog notes.
+
+    We intentionally do NOT allow the client to set tenant/created_by.
+    """
+
+    class Meta:
+        model = ActivityLog
+        fields = [
+            "id",
+            "entity_type",
+            "entity_id",
+            "title",
+            "content",
+            "is_pinned",
+            "tags",
+            "created_on",
+            "modified_on",
+        ]
+        read_only_fields = ["id", "created_on", "modified_on"]
+
+
+class ActivityLogUpdateSerializer(serializers.ModelSerializer):
+    """Write serializer for editing existing ActivityLog notes.
+
+    Editing is limited to the note body/metadata. Entity linkage + author are immutable.
+    """
+
+    class Meta:
+        model = ActivityLog
+        fields = [
+            "id",
+            "title",
+            "content",
+            "is_pinned",
+            "tags",
+            "created_on",
+            "modified_on",
+        ]
+        read_only_fields = ["id", "created_on", "modified_on"]
+
+    def update(self, instance, validated_data):
+        validated_data.pop("entity_type", None)
+        validated_data.pop("entity_id", None)
+        validated_data.pop("created_by", None)
+        validated_data.pop("tenant", None)
+        return super().update(instance, validated_data)
 
 
 class ScheduledCallSerializer(serializers.ModelSerializer):

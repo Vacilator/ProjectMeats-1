@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Drawer, Button, Input, List, Typography, Tag, Spin } from 'antd';
+import { Drawer, Button, Input, List, Typography, Tag, Spin, Modal } from 'antd';
 import styled from 'styled-components';
 import { businessApi } from '../../services/businessApi';
 
@@ -75,6 +75,12 @@ export const NotesAndCallsDrawer: React.FC<NotesAndCallsDrawerProps> = ({
   const [items, setItems] = useState<TimelineItem[]>([]);
   const [noteText, setNoteText] = useState('');
   const [savingNote, setSavingNote] = useState(false);
+
+  const [editOpen, setEditOpen] = useState(false);
+  const [editId, setEditId] = useState<number | null>(null);
+  const [editTitle, setEditTitle] = useState('');
+  const [editContent, setEditContent] = useState('');
+  const [savingEdit, setSavingEdit] = useState(false);
 
   const fetchTimeline = useCallback(async () => {
     if (!open) return;
@@ -162,6 +168,43 @@ export const NotesAndCallsDrawer: React.FC<NotesAndCallsDrawerProps> = ({
     }
   }, [entityId, entityType, fetchTimeline, noteText]);
 
+  const openEdit = useCallback((item: TimelineItem) => {
+    if (item.kind !== 'note') return;
+    const raw = String(item.id || '');
+    const noteId = Number(raw.startsWith('note:') ? raw.split(':')[1] : raw);
+    if (!Number.isFinite(noteId)) return;
+
+    setEditId(noteId);
+    setEditTitle(item.title || 'Note');
+    setEditContent(item.content || '');
+    setEditOpen(true);
+  }, []);
+
+  const handleSaveEdit = useCallback(async () => {
+    if (!editId) return;
+
+    const nextTitle = editTitle.trim() || 'Note';
+    const nextContent = editContent.trim();
+    if (!nextContent) return;
+
+    setSavingEdit(true);
+    try {
+      await businessApi.patch(`/workspace/activity-logs/${editId}/`, {
+        title: nextTitle,
+        content: nextContent,
+      });
+      setEditOpen(false);
+      setEditId(null);
+      setEditTitle('');
+      setEditContent('');
+      void fetchTimeline();
+    } catch (err) {
+      console.error('[NotesAndCallsDrawer] Failed to edit note', err);
+    } finally {
+      setSavingEdit(false);
+    }
+  }, [editContent, editId, editTitle, fetchTimeline]);
+
   return (
     <Drawer
       title={title}
@@ -190,12 +233,17 @@ export const NotesAndCallsDrawer: React.FC<NotesAndCallsDrawerProps> = ({
             <List.Item style={{ alignItems: 'flex-start' }}>
               <List.Item.Meta
                 title={
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%' }}>
                     <Tag color={item.kind === 'note' ? 'blue' : 'gold'}>{item.kind.toUpperCase()}</Tag>
                     <span style={{ fontWeight: 600 }}>{item.title}</span>
-                    <Text type="secondary" style={{ marginLeft: 'auto' }}>
-                      {new Date(item.createdAt).toLocaleString()}
-                    </Text>
+                    <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
+                      {item.kind === 'note' ? (
+                        <Button size="small" onClick={() => openEdit(item)}>
+                          Edit
+                        </Button>
+                      ) : null}
+                      <Text type="secondary">{new Date(item.createdAt).toLocaleString()}</Text>
+                    </div>
                   </div>
                 }
                 description={
@@ -213,6 +261,36 @@ export const NotesAndCallsDrawer: React.FC<NotesAndCallsDrawerProps> = ({
           )}
         />
       )}
+
+      <Modal
+        title="Edit Note"
+        open={editOpen}
+        onCancel={() => {
+          if (savingEdit) return;
+          setEditOpen(false);
+          setEditId(null);
+          setEditTitle('');
+          setEditContent('');
+        }}
+        onOk={() => void handleSaveEdit()}
+        okText="Save"
+        confirmLoading={savingEdit}
+        okButtonProps={{ disabled: !editContent.trim() }}
+        destroyOnClose
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <Input value={editTitle} onChange={(e) => setEditTitle(e.target.value)} placeholder="Title" />
+          <Input.TextArea
+            value={editContent}
+            onChange={(e) => setEditContent(e.target.value)}
+            placeholder="Note"
+            autoSize={{ minRows: 4, maxRows: 10 }}
+          />
+          <Text type="secondary">
+            Only the note author (or staff) can edit.
+          </Text>
+        </div>
+      </Modal>
 
       <Composer>
         <Input.TextArea
