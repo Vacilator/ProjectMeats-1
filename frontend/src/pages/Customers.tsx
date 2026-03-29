@@ -772,7 +772,24 @@ const Customers: React.FC = () => {
             <TableBody>
               {visibleCustomers.map((customer) => (
                 <React.Fragment key={customer.id}>
-                <TableRow $theme={theme} key={customer.id}>
+                <TableRow
+                  $theme={theme}
+                  key={customer.id}
+                  role="button"
+                  tabIndex={0}
+                  aria-expanded={selectedCustomerId === customer.id}
+                  style={{ cursor: 'pointer' }}
+                  onClick={(e) => {
+                    const target = e.target as HTMLElement | null;
+                    if (target?.closest('button, a, input, textarea, select, [role="button"]')) return;
+                    void toggleCustomerDrilldown(customer);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key !== 'Enter' && e.key !== ' ') return;
+                    e.preventDefault();
+                    void toggleCustomerDrilldown(customer);
+                  }}
+                >
                   <TableCell $theme={theme}>
                     <CompanyButton
                       $theme={theme}
