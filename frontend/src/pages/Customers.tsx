@@ -35,7 +35,7 @@ interface CustomerContact {
   company?: string;
 }
 
-const PHONE_TYPE_OPTIONS = [
+const LOCATION_PHONE_TYPE_OPTIONS = [
   { value: 'office', label: 'Office' },
   { value: 'mobile', label: 'Mobile' },
 ];
@@ -79,8 +79,11 @@ const Customers: React.FC = () => {
     name: '',
     contact_person: '',
     email: '',
-    phone: '',
-    phone_type: 'office' as 'office' | 'mobile',
+
+    phone_mobile: '',
+    phone_office: '',
+    phone_office_extension: '',
+
     address: '',
     city: '',
     state: '',
@@ -354,8 +357,15 @@ const Customers: React.FC = () => {
       name: customer.name,
       contact_person: customer.contact_person || '',
       email: customer.email || '',
-      phone: customer.phone || '',
-      phone_type: customer.phone_type || 'office',
+
+      phone_mobile:
+        (customer as any).phone_mobile ||
+        ((customer.phone_type === 'mobile' && customer.phone) ? customer.phone : ''),
+      phone_office:
+        (customer as any).phone_office ||
+        ((customer.phone_type !== 'mobile' && customer.phone) ? customer.phone : ''),
+      phone_office_extension: (customer as any).phone_office_extension || '',
+
       address: customer.address || '',
       city: customer.city || '',
       state: customer.state || '',
@@ -408,8 +418,11 @@ const Customers: React.FC = () => {
       name: '',
       contact_person: '',
       email: '',
-      phone: '',
-      phone_type: 'office',
+
+      phone_mobile: '',
+      phone_office: '',
+      phone_office_extension: '',
+
       address: '',
       city: '',
       state: '',
@@ -433,7 +446,16 @@ const Customers: React.FC = () => {
 
   const visibleCustomers = customers.filter((c) => {
     if (!searchText.trim()) return true;
-    const haystack = [c.name, c.contact_person, c.email, c.phone, c.city, c.state]
+    const haystack = [
+      c.name,
+      c.contact_person,
+      c.email,
+      (c as any).phone_office,
+      (c as any).phone_mobile,
+      c.phone,
+      c.city,
+      c.state,
+    ]
       .filter(Boolean)
       .join(' ')
       .toLowerCase();
@@ -521,20 +543,38 @@ const Customers: React.FC = () => {
                 </FormGroup>
 
                 <FormGroup>
-                  <Label $theme={theme}>Phone</Label>
-                  <Select
-                    value={formData.phone_type}
-                    onChange={(value) => setFormData({ ...formData, phone_type: value as 'office' | 'mobile' })}
-                    options={PHONE_TYPE_OPTIONS}
-                    placeholder="Phone type"
-                    aria-label="Phone type"
+                  <Label $theme={theme}>Mobile Phone</Label>
+                  <PhoneInput
+                    value={formData.phone_mobile}
+                    onChange={(value) => setFormData({ ...formData, phone_mobile: value })}
+                    placeholder="(XXX) XXX-XXXX"
+                    aria-label="Mobile phone"
+                  />
+                </FormGroup>
+
+                <FormGroup>
+                  <Label $theme={theme}>Office Phone</Label>
+                  <PhoneInput
+                    value={formData.phone_office}
+                    onChange={(value) => setFormData({ ...formData, phone_office: value })}
+                    placeholder="(XXX) XXX-XXXX"
+                    aria-label="Office phone"
                   />
                   <div style={{ height: 8 }} />
-                  <PhoneInput
-                    value={formData.phone}
-                    onChange={(value) => setFormData({ ...formData, phone: value })}
-                    placeholder="(XXX) XXX-XXXX"
-                    aria-label="Phone number"
+                  <Label $theme={theme}>Extension</Label>
+                  <Input
+                    $theme={theme}
+                    type="text"
+                    value={formData.phone_office_extension}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        phone_office_extension: e.target.value.replace(/\D/g, '').slice(0, 6),
+                      })
+                    }
+                    placeholder="e.g., 123"
+                    inputMode="numeric"
+                    aria-label="Office extension"
                   />
                 </FormGroup>
 
@@ -762,7 +802,7 @@ const Customers: React.FC = () => {
                   <Select
                     value={locationForm.phone_type}
                     onChange={(value) => setLocationForm((p) => ({ ...p, phone_type: value as 'office' | 'mobile' }))}
-                    options={PHONE_TYPE_OPTIONS}
+                    options={LOCATION_PHONE_TYPE_OPTIONS}
                     placeholder="Phone type"
                     aria-label="Location phone type"
                   />

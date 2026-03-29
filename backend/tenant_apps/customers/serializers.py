@@ -4,6 +4,8 @@ Customers serializers for ProjectMeats.
 Provides serialization for customer API endpoints.
 """
 from rest_framework import serializers
+
+from apps.core.models import PhoneTypeChoices
 from tenant_apps.customers.models import Customer
 from tenant_apps.locations.serializers import LocationListSerializer
 
@@ -33,6 +35,9 @@ class CustomerSerializer(serializers.ModelSerializer):
             "name",
             "contact_person",
             "email",
+            "phone_mobile",
+            "phone_office",
+            "phone_office_extension",
             "phone",
             "phone_type",
             "address",
@@ -80,3 +85,53 @@ class CustomerSerializer(serializers.ModelSerializer):
         if value and '@' not in value:
             raise serializers.ValidationError("Invalid email format.")
         return value
+
+    def _sync_phone_fields(self, attrs: dict) -> dict:
+        """Keep legacy (phone/phone_type) and new explicit phone slots in sync.
+
+        Priority for legacy primary phone:
+        - office phone if present
+        - else mobile phone if present
+        """
+
+        # Normalize empties
+        def _clean(v: object) -> str:
+            return str(v).strip() if isinstance(v, str) else ''
+
+        has_mobile_key = 'phone_mobile' in attrs
+        has_office_key = 'phone_office' in attrs
+        has_legacy_phone_key = 'phone' in attrs
+        has_legacy_type_key = 'phone_type' in attrs
+
+        mobile = _clean(attrs.get('phone_mobile')) if has_mobile_key else ''
+        office = _clean(attrs.get('phone_office')) if has_office_key else ''
+
+        # If an older client sends legacy phone only, populate new slots.
+        if has_legacy_phone_key and not has_mobile_key and not has_office_key:
+            legacy_phone = _clean(attrs.get('phone'))
+            legacy_type = _clean(attrs.get('phone_type')) if has_legacy_type_key else ''
+
+            if legacy_phone:
+                if legacy_type == PhoneTypeChoices.MOBILE:
+                    attrs['phone_mobile'] = legacy_phone
+                else:
+                    attrs['phone_office'] = legacy_phone
+
+        # If new slots are provided and legacy phone isn't, derive legacy.
+        if (mobile or office) and not (has_legacy_phone_key and _clean(attrs.get('phone'))):
+            if office:
+                attrs['phone'] = office
+                attrs['phone_type'] = PhoneTypeChoices.OFFICE
+            else:
+                attrs['phone'] = mobile
+                attrs['phone_type'] = PhoneTypeChoices.MOBILE
+
+        return attrs
+
+    def create(self, validated_data):
+        validated_data = self._sync_phone_fields(validated_data)
+        return super().create(validated_data)
+
+    def update(self, instance, validated_data):
+        validated_data = self._sync_phone_fields(validated_data)
+        return super().update(instance, validated_data)
