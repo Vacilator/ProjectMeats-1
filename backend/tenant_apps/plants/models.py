@@ -74,6 +74,26 @@ class Plant(TenantAwareModel):
         help_text="Plant phone type (mobile or office)",
     )
     email = models.EmailField(blank=True, default='')
+
+    booking_contact_email = models.EmailField(
+        blank=True,
+        default='',
+        help_text='Booking contact email (optional)',
+    )
+    booking_contact_phone = models.CharField(
+        max_length=20,
+        blank=True,
+        default='',
+        help_text='Booking contact phone (optional)',
+    )
+    booking_contact_phone_type = models.CharField(
+        max_length=10,
+        choices=PhoneTypeChoices.choices,
+        blank=True,
+        default=PhoneTypeChoices.OFFICE,
+        help_text='Booking contact phone type (mobile or office)',
+    )
+
     manager = models.CharField(max_length=100, blank=True, default='')
     capacity = models.PositiveIntegerField(
         help_text="Capacity in units", null=True, blank=True
