@@ -89,6 +89,7 @@ class ProteinTypeChoices(models.TextChoices):
 
     BEEF = "Beef", "Beef"
     CHICKEN = "Chicken", "Chicken"
+    DUCK = "Duck", "Duck"
     PORK = "Pork", "Pork"
     LAMB = "Lamb", "Lamb"
     TURKEY = "Turkey", "Turkey"

@@ -38,6 +38,7 @@ export const PROTEIN_TYPE_CHOICES: MultiSelectOption[] = [
   { value: 'Beef', label: 'Beef' },
   { value: 'Pork', label: 'Pork' },
   { value: 'Chicken', label: 'Chicken' },
+  { value: 'Duck', label: 'Duck' },
   { value: 'Turkey', label: 'Turkey' },
   { value: 'Lamb', label: 'Lamb' },
   { value: 'Fish', label: 'Fish' },
