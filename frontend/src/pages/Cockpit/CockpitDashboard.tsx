@@ -169,12 +169,14 @@ const ToolbarWrapper = styled.div`
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 16px 24px;
+  padding: 12px 16px;
+  margin: 16px 24px 0;
   background: rgb(var(--color-surface));
-  border-bottom: 1px solid rgb(var(--color-border));
-  
+  border: 1px solid rgb(var(--color-border));
+  border-radius: var(--radius-lg);
+
   @media (max-width: 640px) {
-    padding: 12px 16px;
+    margin: 12px 16px 0;
     flex-wrap: wrap;
     gap: 12px;
   }
@@ -684,7 +686,37 @@ export const CockpitDashboard: React.FC = () => {
 
   return (
     <Container>
-      {/* Layout toolbar (only shown when dashboard widgets are visible) */}
+      {/* Guided Tour */}
+      <CockpitTour enabled={true} />
+
+      {/* Breadcrumb navigation bar - Elevated above search and grid */}
+      {navigation.path.length > 0 && (
+        <div style={{ padding: '16px 24px 0 24px' }}>
+          <BreadcrumbBar
+            extraCrumbs={
+              inlineAction
+                ? [{ label: `New ${inlineAction.entityType.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())}` }]
+                : []
+            }
+          />
+        </div>
+      )}
+
+      {/* Hero Search (SmartSearch) */}
+      <HeroSearchSection>
+        <HeroSearchInner>
+          <SmartSearch
+            query={cockpitQuery}
+            onQueryChange={handleQueryChange}
+            inlineAction={inlineAction}
+            onInlineCancel={() => setInlineAction(null)}
+            onInlineSuccess={() => setInlineAction(null)}
+            onOpenInlineCreate={openInlineCreate}
+          />
+        </HeroSearchInner>
+      </HeroSearchSection>
+
+      {/* Widget layout toolbar (applies to widgets only) */}
       {showDashboardWidgets && (
         <ToolbarWrapper>
           <ToolbarLeft>
@@ -716,36 +748,6 @@ export const CockpitDashboard: React.FC = () => {
           </ToolbarActions>
         </ToolbarWrapper>
       )}
-      
-      {/* Guided Tour */}
-      <CockpitTour enabled={true} />
-
-      {/* Breadcrumb navigation bar - Elevated above search and grid */}
-      {navigation.path.length > 0 && (
-        <div style={{ padding: '16px 24px 0 24px' }}>
-          <BreadcrumbBar
-            extraCrumbs={
-              inlineAction
-                ? [{ label: `New ${inlineAction.entityType.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())}` }]
-                : []
-            }
-          />
-        </div>
-      )}
-
-      {/* Hero Search (SmartSearch) */}
-      <HeroSearchSection>
-        <HeroSearchInner>
-          <SmartSearch
-            query={cockpitQuery}
-            onQueryChange={handleQueryChange}
-            inlineAction={inlineAction}
-            onInlineCancel={() => setInlineAction(null)}
-            onInlineSuccess={() => setInlineAction(null)}
-            onOpenInlineCreate={openInlineCreate}
-          />
-        </HeroSearchInner>
-      </HeroSearchSection>
 
       {/* Phase 3: AI Learning Metrics */}
       {showDashboardWidgets && (
