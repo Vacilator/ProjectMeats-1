@@ -9,13 +9,14 @@
  */
 import React, { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Button, Card, Input, Modal, Space, Table, Tabs, Tag, Typography, message } from 'antd';
+import { Button, Card, Divider, Form, Input, Modal, Select, Space, Switch, Table, Tabs, Tag, Typography, message } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { PlusOutlined, ReloadOutlined } from '@ant-design/icons';
 
 import { apiClient } from '@/services/apiService';
 import { AdminGuard, AdminPage, EmptyState, LoadingSkeleton } from '@/components/Admin';
 import { useAdminPermissions } from '@/hooks/useAdminPermissions';
+import { getChoices, type ChoiceOption } from '@/services/choicesService';
 
 import { TenantChoiceOverride } from '@/components/Admin/TenantChoiceOverride';
 
@@ -25,6 +26,25 @@ import { TenantListModal, type TenantList } from './TenantListModal';
 const { Text } = Typography;
 
 type ActiveTabKey = 'system' | 'custom' | 'overrides';
+
+interface MasterProduct {
+  id: string;
+  product_code: string;
+  name: string;
+  description?: string;
+  category?: string;
+  protein_type?: string;
+  fresh_or_frozen?: string;
+  package_type?: string;
+  carton_type?: string;
+  unit_weight?: string | number | null;
+  uom?: string;
+  tested_product?: boolean;
+  is_active?: boolean;
+  is_system?: boolean;
+  created_at?: string;
+  updated_at?: string;
+}
 
 interface SystemChoiceList {
   id: string;
@@ -58,6 +78,13 @@ const OptionListsPage: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [editingList, setEditingList] = useState<SystemChoiceList | null>(null);
 
+  const [products, setProducts] = useState<MasterProduct[]>([]);
+  const [productsLoading, setProductsLoading] = useState(false);
+  const [productModalOpen, setProductModalOpen] = useState(false);
+  const [editingProduct, setEditingProduct] = useState<MasterProduct | null>(null);
+  const [savingProduct, setSavingProduct] = useState(false);
+  const [proteinChoices, setProteinChoices] = useState<ChoiceOption[]>([]);
+
   const [customLists, setCustomLists] = useState<CustomTenantList[]>([]);
   const [customLoading, setCustomLoading] = useState(false);
   const [editingCustomList, setEditingCustomList] = useState<CustomTenantList | null>(null);
@@ -71,10 +98,13 @@ const OptionListsPage: React.FC = () => {
     // Only run on mount / tab param change
   }, [searchParams]);
 
+  const canEditProducts = permissions.role === 'superuser';
+
   useEffect(() => {
     if (!canView) return;
     void loadChoiceLists();
     void loadCustomLists();
+    void loadMasterProducts();
   }, [canView]);
 
   const loadChoiceLists = async () => {
@@ -109,6 +139,27 @@ const OptionListsPage: React.FC = () => {
     }
   };
 
+  const loadMasterProducts = async () => {
+    setProductsLoading(true);
+    try {
+      const response = await apiClient.get('/system/products/', {
+        params: {
+          include_inactive: true,
+          page_size: 500,
+        },
+      });
+      const raw = response.data as any;
+      const data = Array.isArray(raw) ? raw : Array.isArray(raw?.results) ? raw.results : [];
+      setProducts(data);
+    } catch (error) {
+      console.error('Failed to load master products:', error);
+      message.error('Failed to load master products');
+      setProducts([]);
+    } finally {
+      setProductsLoading(false);
+    }
+  };
+
   const filteredSystemLists = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
     if (!q) return lists;
@@ -120,6 +171,19 @@ const OptionListsPage: React.FC = () => {
       return name.includes(q) || slug.includes(q) || desc.includes(q);
     });
   }, [lists, searchQuery]);
+
+  const filteredMasterProducts = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return products;
+
+    return products.filter((p) => {
+      const code = String(p.product_code || '').toLowerCase();
+      const name = String(p.name || '').toLowerCase();
+      const protein = String(p.protein_type || '').toLowerCase();
+      const category = String(p.category || '').toLowerCase();
+      return code.includes(q) || name.includes(q) || protein.includes(q) || category.includes(q);
+    });
+  }, [products, searchQuery]);
 
   const filteredCustomLists = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
@@ -311,6 +375,147 @@ const OptionListsPage: React.FC = () => {
     },
   ];
 
+  const [productForm] = Form.useForm();
+
+  useEffect(() => {
+    if (!productModalOpen) return;
+
+    void (async () => {
+      try {
+        const opts = await getChoices('protein_type');
+        setProteinChoices(opts);
+      } catch {
+        setProteinChoices([]);
+      }
+    })();
+  }, [productModalOpen]);
+
+  useEffect(() => {
+    if (!productModalOpen) return;
+
+    if (editingProduct) {
+      productForm.setFieldsValue({
+        product_code: editingProduct.product_code,
+        name: editingProduct.name,
+        protein_type: editingProduct.protein_type || '',
+        category: editingProduct.category || 'OTHER',
+        is_active: Boolean(editingProduct.is_active ?? true),
+        is_system: Boolean(editingProduct.is_system ?? true),
+      });
+      return;
+    }
+
+    productForm.resetFields();
+    productForm.setFieldsValue({
+      product_code: '',
+      name: '',
+      protein_type: '',
+      category: 'OTHER',
+      is_active: true,
+      is_system: true,
+    });
+  }, [editingProduct, productForm, productModalOpen]);
+
+  const handleSaveProduct = async (values: any) => {
+    if (!canEditProducts) {
+      message.info('Only superusers can modify master products.');
+      return;
+    }
+
+    setSavingProduct(true);
+    try {
+      const payload = {
+        product_code: String(values.product_code || '').trim(),
+        name: String(values.name || '').trim(),
+        protein_type: String(values.protein_type || '').trim() || '',
+        category: String(values.category || 'OTHER'),
+        is_active: Boolean(values.is_active),
+        is_system: Boolean(values.is_system),
+      };
+
+      if (editingProduct?.id) {
+        await apiClient.patch(`/system/products/${editingProduct.id}/`, payload);
+        message.success('Product updated');
+      } else {
+        await apiClient.post('/system/products/', payload);
+        message.success('Product created');
+      }
+
+      setProductModalOpen(false);
+      setEditingProduct(null);
+      await loadMasterProducts();
+    } catch (err: any) {
+      message.error(err?.response?.data?.detail || err?.response?.data?.error || 'Failed to save product');
+    } finally {
+      setSavingProduct(false);
+    }
+  };
+
+  const productColumns: ColumnsType<MasterProduct> = [
+    {
+      title: 'Code',
+      dataIndex: 'product_code',
+      key: 'product_code',
+      width: 160,
+      render: (value: string) => <Text strong>{value}</Text>,
+    },
+    {
+      title: 'Name',
+      dataIndex: 'name',
+      key: 'name',
+      render: (value: string) => <Text>{value}</Text>,
+    },
+    {
+      title: 'Protein',
+      dataIndex: 'protein_type',
+      key: 'protein_type',
+      width: 120,
+      render: (value: string) => <Text type="secondary">{value || '—'}</Text>,
+    },
+    {
+      title: 'Category',
+      dataIndex: 'category',
+      key: 'category',
+      width: 120,
+      render: (value: string) => <Text type="secondary">{value || '—'}</Text>,
+      responsive: ['md'],
+    },
+    {
+      title: 'Active',
+      dataIndex: 'is_active',
+      key: 'is_active',
+      width: 90,
+      render: (isActive: boolean) => (isActive ? <Tag color="green">Active</Tag> : <Tag>Inactive</Tag>),
+    },
+    {
+      title: 'System',
+      dataIndex: 'is_system',
+      key: 'is_system',
+      width: 90,
+      render: (isSystem: boolean) => (isSystem ? <Tag color="blue">System</Tag> : <Tag>Custom</Tag>),
+      responsive: ['md'],
+    },
+    {
+      title: 'Actions',
+      key: 'actions',
+      width: 120,
+      render: (_: unknown, record) => (
+        <Space>
+          <Button
+            type="default"
+            disabled={!canEditProducts}
+            onClick={() => {
+              setEditingProduct(record);
+              setProductModalOpen(true);
+            }}
+          >
+            Edit
+          </Button>
+        </Space>
+      ),
+    },
+  ];
+
   return (
     <AdminPage
       title="Option Lists"
@@ -318,6 +523,19 @@ const OptionListsPage: React.FC = () => {
       icon="📋"
       headerExtras={
         <Space wrap>
+          {activeTab === 'system' && (
+            <Button
+              type="primary"
+              icon={<PlusOutlined />}
+              disabled={!canEditProducts}
+              onClick={() => {
+                setEditingProduct(null);
+                setProductModalOpen(true);
+              }}
+            >
+              Add Product
+            </Button>
+          )}
           {activeTab === 'custom' && (
             <Button type="primary" icon={<PlusOutlined />} onClick={openCreateCustomList}>
               Create Custom List
@@ -335,8 +553,9 @@ const OptionListsPage: React.FC = () => {
             onClick={() => {
               void loadChoiceLists();
               void loadCustomLists();
+              void loadMasterProducts();
             }}
-            loading={loading || customLoading}
+            loading={loading || customLoading || productsLoading}
           />
         </Space>
       }
@@ -372,10 +591,39 @@ const OptionListsPage: React.FC = () => {
                   label: 'System Choice Lists',
                   children: (
                     <Space direction="vertical" size="middle" style={{ width: '100%' }}>
-                      <Card size="small" title="Master Products">
+                      <Card
+                        size="small"
+                        title="Master Products"
+                        extra={!canEditProducts ? <Tag>View only</Tag> : <Tag color="green">Editable</Tag>}
+                      >
                         <Text type="secondary">
-                          Tier 1 system catalog used across product selectors. This is seeded and maintained centrally.
+                          System products power product selectors (Inquiry products, workflow quick create, etc.).
+                          {canEditProducts
+                            ? ' You can add/edit products here.'
+                            : ' Contact a superuser to modify this list.'}
                         </Text>
+                        <Divider style={{ margin: '12px 0' }} />
+
+                        {productsLoading ? (
+                          <LoadingSkeleton type="card" rows={2} />
+                        ) : filteredMasterProducts.length === 0 ? (
+                          <EmptyState
+                            icon="📦"
+                            title={searchQuery ? 'No matches' : 'No products returned'}
+                            message={
+                              searchQuery
+                                ? 'No master products match your search.'
+                                : 'No master products were returned from the API.'
+                            }
+                          />
+                        ) : (
+                          <Table
+                            rowKey="id"
+                            columns={productColumns}
+                            dataSource={filteredMasterProducts}
+                            pagination={{ pageSize: 10, showSizeChanger: true }}
+                          />
+                        )}
                       </Card>
 
                       {filteredSystemLists.length === 0 ? (
@@ -472,6 +720,82 @@ const OptionListsPage: React.FC = () => {
           }}
           onSaved={() => void loadCustomLists()}
         />
+
+        <Modal
+          open={productModalOpen}
+          title={editingProduct ? 'Edit Master Product' : 'Add Master Product'}
+          onCancel={() => {
+            if (savingProduct) return;
+            setProductModalOpen(false);
+            setEditingProduct(null);
+          }}
+          okText={savingProduct ? 'Saving…' : 'Save'}
+          okButtonProps={{
+            loading: savingProduct,
+            disabled: savingProduct || !canEditProducts,
+          }}
+          cancelButtonProps={{ disabled: savingProduct }}
+          onOk={() => productForm.submit()}
+          destroyOnClose
+        >
+          <Form form={productForm} layout="vertical" onFinish={handleSaveProduct}>
+            <Form.Item
+              name="product_code"
+              label="Product Code"
+              rules={[{ required: true, message: 'Product code is required' }]}
+            >
+              <Input placeholder="e.g., BEEF-RIBEYE-001" disabled={savingProduct} />
+            </Form.Item>
+
+            <Form.Item
+              name="name"
+              label="Name"
+              rules={[{ required: true, message: 'Name is required' }]}
+            >
+              <Input placeholder="e.g., Ribeye" disabled={savingProduct} />
+            </Form.Item>
+
+            <Form.Item name="protein_type" label="Protein Type">
+              <Select
+                showSearch
+                allowClear
+                placeholder="Select protein type"
+                options={proteinChoices.map((o) => ({ value: o.value, label: o.label }))}
+                disabled={savingProduct}
+              />
+            </Form.Item>
+
+            <Form.Item name="category" label="Category">
+              <Select
+                disabled={savingProduct}
+                options={[
+                  { value: 'BEEF', label: 'Beef' },
+                  { value: 'PORK', label: 'Pork' },
+                  { value: 'POULTRY', label: 'Poultry' },
+                  { value: 'SEAFOOD', label: 'Seafood' },
+                  { value: 'LAMB', label: 'Lamb' },
+                  { value: 'VEAL', label: 'Veal' },
+                  { value: 'GAME', label: 'Game' },
+                  { value: 'OTHER', label: 'Other' },
+                ]}
+              />
+            </Form.Item>
+
+            <Form.Item name="is_active" label="Active" valuePropName="checked">
+              <Switch disabled={savingProduct} />
+            </Form.Item>
+
+            <Form.Item name="is_system" label="System Product" valuePropName="checked">
+              <Switch disabled={savingProduct} />
+            </Form.Item>
+
+            {!canEditProducts && (
+              <div style={{ marginTop: 8 }}>
+                <Text type="secondary">Only superusers can edit master products.</Text>
+              </div>
+            )}
+          </Form>
+        </Modal>
       </AdminGuard>
     </AdminPage>
   );
