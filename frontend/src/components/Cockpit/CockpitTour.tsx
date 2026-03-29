@@ -248,7 +248,7 @@ export const CockpitTour: React.FC<CockpitTourProps> = ({
       continuous
       options={options}
       styles={styles}
-      onEvent={handleJoyrideCallback}
+      callback={handleJoyrideCallback}
       locale={{
         back: 'Back',
         close: 'Close',
