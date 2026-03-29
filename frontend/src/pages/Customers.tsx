@@ -5,10 +5,8 @@ import styled from 'styled-components';
 import { useTheme } from '../contexts/ThemeContext';
 import { Theme } from '../config/theme';
 import { apiService, Customer, apiClient } from '../services/apiService';
-import { PhoneInput, Select } from '../components/ui';
+import { PhoneInput, Select, StateSelect } from '../components/ui';
 import { MultiSelect } from '../components/Shared';
-
-import { US_STATES } from '../utils/constants/states';
 import { INDUSTRY_CHOICES, PROTEIN_TYPE_CHOICES } from '../utils/constants/choices';
 
 interface CustomerLocation {
@@ -523,11 +521,10 @@ const Customers: React.FC = () => {
 
                 <FormGroup>
                   <Label $theme={theme}>State</Label>
-                  <Select
+                  <StateSelect
                     value={formData.state}
                     onChange={(value) => setFormData({ ...formData, state: value })}
-                    options={US_STATES}
-                    placeholder="Select state"
+                    placeholder="Search state"
                     aria-label="State"
                   />
                 </FormGroup>
@@ -666,11 +663,10 @@ const Customers: React.FC = () => {
 
                 <FormGroup>
                   <Label $theme={theme}>State</Label>
-                  <Select
+                  <StateSelect
                     value={locationForm.state}
                     onChange={(value) => setLocationForm((p) => ({ ...p, state: value }))}
-                    options={US_STATES}
-                    placeholder="Select state"
+                    placeholder="Search state"
                     aria-label="State"
                   />
                 </FormGroup>

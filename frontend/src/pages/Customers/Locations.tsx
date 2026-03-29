@@ -13,6 +13,7 @@ import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Table, Input, Button, Modal, Form, Select, message, Tag, Space } from 'antd';
+import { US_STATES } from '../../utils/constants/states';
 import type { ColumnsType } from 'antd/es/table';
 import { SearchOutlined, PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import { apiClient } from '../../services/apiService';
@@ -559,7 +560,17 @@ const CustomerLocations: React.FC = () => {
           </Form.Item>
 
           <Form.Item name="state" label={<Label>State</Label>}>
-            <Input placeholder="State" />
+            <Select
+              placeholder="Search state"
+              allowClear
+              showSearch
+              optionFilterProp="label"
+              options={US_STATES}
+              filterOption={(input, option) =>
+                String(option?.label || '').toLowerCase().includes(input.toLowerCase())
+                || String(option?.value || '').toLowerCase().includes(input.toLowerCase())
+              }
+            />
           </Form.Item>
 
           <Form.Item name="zip_code" label={<Label>ZIP Code</Label>}>

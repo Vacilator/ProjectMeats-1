@@ -3,10 +3,9 @@ import { isValidEmail } from '../shared/utils';
 import { logger } from '@/utils/logger';
 
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { PhoneInput, Select } from '../components/ui';
+import { PhoneInput, Select, StateSelect } from '../components/ui';
 import { MultiSelect } from '../components/Shared';
 import QuickCreateModal from '../components/FormSubmission/QuickCreateModal';
-import { US_STATES } from '../utils/constants/states';
 import { DEPARTMENT_CHOICES, PROTEIN_TYPE_CHOICES } from '../utils/constants/choices';
 import styled from 'styled-components';
 import { apiService, apiClient, Supplier } from '../services/apiService';
@@ -581,11 +580,10 @@ const Suppliers: React.FC = () => {
 
                 <FormGroup>
                   <Label $theme={theme}>State</Label>
-                  <Select
+                  <StateSelect
                     value={formData.state}
                     onChange={(value) => setFormData({ ...formData, state: value })}
-                    options={US_STATES}
-                    placeholder="Select state"
+                    placeholder="Search state"
                     aria-label="State"
                   />
                 </FormGroup>
