@@ -573,8 +573,13 @@ const CustomerLocations: React.FC = () => {
             />
           </Form.Item>
 
-          <Form.Item name="zip_code" label={<Label>ZIP Code</Label>}>
-            <Input placeholder="ZIP Code" />
+          <Form.Item
+            name="zip_code"
+            label={<Label>ZIP Code</Label>}
+            rules={[{ pattern: /^\d{5}$/, message: 'ZIP Code must be exactly 5 digits' }]}
+            getValueFromEvent={(e) => String(e?.target?.value ?? '').replace(/\D/g, '').slice(0, 5)}
+          >
+            <Input placeholder="12345" maxLength={5} inputMode="numeric" />
           </Form.Item>
 
           <Form.Item name="country" label={<Label>Country</Label>}>

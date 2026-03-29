@@ -677,7 +677,15 @@ const Customers: React.FC = () => {
                     $theme={theme}
                     type="text"
                     value={locationForm.zip_code}
-                    onChange={(e) => setLocationForm((p) => ({ ...p, zip_code: e.target.value }))}
+                    onChange={(e) => {
+                      const value = e.target.value.replace(/\D/g, '').slice(0, 5);
+                      setLocationForm((p) => ({ ...p, zip_code: value }));
+                    }}
+                    maxLength={5}
+                    inputMode="numeric"
+                    pattern="^\d{5}$"
+                    placeholder="12345"
+                    aria-label="ZIP Code"
                   />
                 </FormGroup>
 

@@ -512,6 +512,16 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
           .filter((f) => emailKeySet.has(f.key))
           .map((f) => [f.key, f.label || f.key] as const)
       );
+      const zipKeySet = new Set(
+        (scalarFields || [])
+          .filter((f) => String(f.key || '').toLowerCase().includes('zip_code'))
+          .map((f) => f.key)
+      );
+      const zipLabelByKey = new Map(
+        (scalarFields || [])
+          .filter((f) => zipKeySet.has(f.key))
+          .map((f) => [f.key, f.label || f.key] as const)
+      );
 
       Object.entries(payload).forEach(([k, v]) => {
         if (v === '') {
@@ -522,6 +532,10 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
           const trimmed = v.trim();
           if (!trimmed) {
             delete payload[k];
+            return;
+          }
+          if (zipKeySet.has(k)) {
+            payload[k] = trimmed.replace(/\D/g, '').slice(0, 5);
             return;
           }
           if (numberKeys.has(k)) {
@@ -539,6 +553,16 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
         if (typeof v === 'string' && v.trim() && !isValidEmail(v.trim())) {
           const label = emailLabelByKey.get(k) || k;
           message.error(`Please enter a valid email for ${label}`);
+          return;
+        }
+      }
+
+      // Validate ZIP code(s) before submit.
+      for (const k of zipKeySet) {
+        const v = payload[k];
+        if (typeof v === 'string' && v.trim() && !/^\d{5}$/.test(v.trim())) {
+          const label = zipLabelByKey.get(k) || k;
+          message.error(`${label} must be exactly 5 digits`);
           return;
         }
       }
