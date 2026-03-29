@@ -2738,7 +2738,7 @@ const triggerEventSchema: NodeConfigSchema = {
   displayName: 'Event Trigger',
   description: 'Trigger on database events',
   icon: Zap,
-  version: '1.0.0',
+  version: '1.1.0',
   tags: ['trigger', 'event'],
   contextAware: false,
   sections: [
@@ -2750,21 +2750,28 @@ const triggerEventSchema: NodeConfigSchema = {
       fields: [
         {
           id: 'entityType',
-          type: 'text',
-          label: 'Entity Type',
-          placeholder: 'e.g., PurchaseOrder',
+          type: 'entityType',
+          label: 'Entity',
+          placeholder: 'Select entity...',
+          helpText: 'Select which business entity should trigger this workflow',
           required: true,
+          validation: [{ type: 'required', message: 'Entity is required' }],
         },
         {
           id: 'eventType',
           type: 'select',
           label: 'Event Type',
           options: [
-            { value: 'created', label: 'Created' },
-            { value: 'updated', label: 'Updated' },
-            { value: 'deleted', label: 'Deleted' },
+            { value: 'create', label: 'Created' },
+            { value: 'update', label: 'Updated' },
+            { value: 'delete', label: 'Deleted' },
+            // Backward compatibility for older saved workflows
+            { value: 'created', label: 'Created (legacy)' },
+            { value: 'updated', label: 'Updated (legacy)' },
+            { value: 'deleted', label: 'Deleted (legacy)' },
           ],
           required: true,
+          validation: [{ type: 'required', message: 'Event type is required' }],
         },
       ]
     }

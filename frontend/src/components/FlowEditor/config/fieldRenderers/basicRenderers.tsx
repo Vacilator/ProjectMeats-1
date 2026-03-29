@@ -185,20 +185,33 @@ export function renderEntityTypeSelect(
         onChange={(e) => onChange(e.target.value)}
         disabled={field.disabled || props.disabled || isLoading}
       >
-        {isLoading && entities.length === 0 ? (
-          <option value="">Loading entities...</option>
-        ) : fetchError ? (
-          <option value="">Error loading entities (using fallback)</option>
-        ) : (
-          <>
-            <option value="">-- Select Entity Type --</option>
-            {entities.map(entity => (
-              <option key={entity.id} value={entity.id}>
-                {entity.label}
-              </option>
-            ))}
-          </>
-        )}
+        {(() => {
+          const safeValue = (value || '') as string;
+          const hasValue = Boolean(safeValue);
+          const hasValueInList = hasValue && entities.some((e) => e.id === safeValue);
+
+          if (isLoading && entities.length === 0) {
+            return <option value="">Loading entities...</option>;
+          }
+
+          if (fetchError) {
+            return <option value="">Error loading entities (using fallback)</option>;
+          }
+
+          return (
+            <>
+              {hasValue && !hasValueInList && (
+                <option value={safeValue}>{safeValue} (legacy)</option>
+              )}
+              <option value="">-- Select Entity Type --</option>
+              {entities.map((entity) => (
+                <option key={entity.id} value={entity.id}>
+                  {entity.label}
+                </option>
+              ))}
+            </>
+          );
+        })()}
       </Select>
       {field.helpText && !error && !fetchError && <HelpText>{field.helpText}</HelpText>}
       {fetchError && <ErrorMessage>Using fallback entities (API unavailable)</ErrorMessage>}
