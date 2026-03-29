@@ -12,7 +12,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import styled from 'styled-components';
 import { apiClient } from '../services/apiService';
 import { FulfillmentListItem, FulfillmentStatus } from '../types';
-import { FulfillmentDetailModal } from '../components/Fulfillment';
+import { FulfillmentDetailModal, CreateFulfillmentModal } from '../components/Fulfillment';
 
 // ============================================================================
 // Styled Components
@@ -335,6 +335,9 @@ const Fulfillments: React.FC = () => {
   // Action loading
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   
+  // Create modal
+  const [showCreateModal, setShowCreateModal] = useState(false);
+
   // Detail modal
   const [selectedFulfillmentId, setSelectedFulfillmentId] = useState<string | null>(null);
 
@@ -441,6 +444,9 @@ const Fulfillments: React.FC = () => {
     <Container>
       <Header>
         <Title>📦 Fulfillments</Title>
+        <ActionButton variant="primary" onClick={() => setShowCreateModal(true)}>
+          + Create Fulfillment
+        </ActionButton>
       </Header>
 
       <FiltersBar>
@@ -533,7 +539,7 @@ const Fulfillments: React.FC = () => {
                     <span style={{ color: 'rgb(var(--color-text-secondary))' }}>No tracking</span>
                   )}
                 </TrackingInfo>
-                <DateCell>{formatDate(fulfillment.estimated_delivery)}</DateCell>
+                <DateCell>{formatDate((fulfillment as any).expected_delivery ?? (fulfillment as any).estimated_delivery)}</DateCell>
                 <div>{getActionButton(fulfillment)}</div>
               </TableRow>
             ))}
@@ -562,6 +568,18 @@ const Fulfillments: React.FC = () => {
           </>
         )}
       </Table>
+
+      {/* Create Fulfillment Modal (guided selection) */}
+      {showCreateModal && (
+        <CreateFulfillmentModal
+          isOpen={showCreateModal}
+          onClose={() => setShowCreateModal(false)}
+          onSuccess={() => {
+            setShowCreateModal(false);
+            void fetchFulfillments();
+          }}
+        />
+      )}
 
       {/* Fulfillment Detail Modal */}
       {selectedFulfillmentId && (

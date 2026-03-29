@@ -29,16 +29,64 @@ class InquiryViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
     
     def get_queryset(self):
-        """Filter by tenant (avoid 500s if tenant context is missing)."""
+        """Filter by tenant and apply common list filters.
+
+        The UI expects query params like:
+        - search: free-text search
+        - status: filter by Inquiry.status
+        - entity_type: customer|supplier
+        - customer / customer_id
+        - supplier / supplier_id
+        - ordering: inquiry_date|created_on (prefix with - for desc)
+        """
         tenant = getattr(self.request, 'tenant', None)
         if not tenant:
             return Inquiry.objects.none()
 
-        return (
+        qs = (
             Inquiry.objects.filter(tenant=tenant)
             .select_related('supplier', 'customer', 'contact', 'source_call', 'created_by')
             .prefetch_related('products')
         )
+
+        params = getattr(self.request, 'query_params', {})
+
+        status_value = params.get('status')
+        if status_value:
+            qs = qs.filter(status=status_value)
+
+        entity_type = params.get('entity_type')
+        if entity_type in ('customer', 'supplier'):
+            qs = qs.filter(entity_type=entity_type)
+
+        customer_id = params.get('customer') or params.get('customer_id')
+        if customer_id:
+            qs = qs.filter(customer_id=customer_id)
+
+        supplier_id = params.get('supplier') or params.get('supplier_id')
+        if supplier_id:
+            qs = qs.filter(supplier_id=supplier_id)
+
+        search = params.get('search')
+        if search:
+            qs = qs.filter(
+                Q(inquiry_number__icontains=search)
+                | Q(contact_name__icontains=search)
+                | Q(customer__name__icontains=search)
+                | Q(supplier__name__icontains=search)
+            )
+
+        ordering = params.get('ordering')
+        allowed = {
+            'inquiry_date',
+            '-inquiry_date',
+            'created_on',
+            '-created_on',
+        }
+        if ordering in allowed:
+            qs = qs.order_by(ordering)
+
+        return qs
     
     def get_serializer_class(self):
         """Return appropriate serializer based on action."""

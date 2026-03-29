@@ -39,25 +39,48 @@ class InquiryProductSerializer(serializers.ModelSerializer):
 
 
 class InquiryListSerializer(serializers.ModelSerializer):
-    """Lightweight serializer for inquiry list views."""
-    
+    """Lightweight serializer for inquiry list views.
+
+    NOTE: The frontend expects a few convenience aliases (customer_name, supplier_name, source, created_on).
+    We expose those additively without removing the canonical model fields.
+    """
+
     entity_name = serializers.SerializerMethodField()
+    customer = serializers.IntegerField(source='customer_id', read_only=True, allow_null=True, required=False)
+    supplier = serializers.IntegerField(source='supplier_id', read_only=True, allow_null=True, required=False)
+    customer_name = serializers.CharField(source='customer.name', read_only=True)
+    supplier_name = serializers.CharField(source='supplier.name', read_only=True)
+    source = serializers.CharField(source='source_type', read_only=True)
     product_count = serializers.IntegerField(source='products.count', read_only=True)
-    total_desired = serializers.DecimalField(
-        max_digits=12, decimal_places=2, read_only=True
-    )
-    total_actual = serializers.DecimalField(
-        max_digits=12, decimal_places=2, read_only=True
-    )
+    total_desired = serializers.DecimalField(max_digits=12, decimal_places=2, read_only=True)
+    total_actual = serializers.DecimalField(max_digits=12, decimal_places=2, read_only=True)
     is_expired = serializers.BooleanField(read_only=True)
     
     class Meta:
         model = Inquiry
         fields = [
-            'id', 'inquiry_number', 'status', 'source_type', 'entity_type',
-            'entity_name', 'contact_name', 'contact_company',
-            'inquiry_date', 'valid_until', 'is_expired',
-            'product_count', 'total_desired', 'total_actual'
+            'id',
+            'inquiry_number',
+            'status',
+            # Canonical model fields
+            'source_type',
+            'entity_type',
+            # Convenience aliases (frontend)
+            'source',
+            'customer',
+            'customer_name',
+            'supplier',
+            'supplier_name',
+            'entity_name',
+            'contact_name',
+            'contact_company',
+            'inquiry_date',
+            'created_on',
+            'valid_until',
+            'is_expired',
+            'product_count',
+            'total_desired',
+            'total_actual',
         ]
     
     def get_entity_name(self, obj):
@@ -70,16 +93,27 @@ class InquiryListSerializer(serializers.ModelSerializer):
 
 
 class InquiryDetailSerializer(serializers.ModelSerializer):
-    """Full serializer for inquiry detail views."""
-    
+    """Full serializer for inquiry detail views.
+
+    Exposes frontend-friendly aliases additively (source, customer_name/supplier_name,
+    contact_snapshot_* fields) while keeping canonical fields.
+    """
+
     products = InquiryProductSerializer(many=True, read_only=True)
     entity_name = serializers.SerializerMethodField()
-    total_desired = serializers.DecimalField(
-        max_digits=12, decimal_places=2, read_only=True
-    )
-    total_actual = serializers.DecimalField(
-        max_digits=12, decimal_places=2, read_only=True
-    )
+    customer_name = serializers.CharField(source='customer.name', read_only=True)
+    supplier_name = serializers.CharField(source='supplier.name', read_only=True)
+    source = serializers.CharField(source='source_type', read_only=True)
+    scheduled_call = serializers.IntegerField(source='source_call_id', read_only=True, allow_null=True, required=False)
+
+    contact_snapshot_name = serializers.CharField(source='contact_name', read_only=True)
+    contact_snapshot_email = serializers.CharField(source='contact_email', read_only=True)
+    contact_snapshot_phone = serializers.CharField(source='contact_phone', read_only=True)
+    contact_snapshot_company = serializers.CharField(source='contact_company', read_only=True)
+    contact_snapshot_position = serializers.CharField(source='contact_position', read_only=True)
+
+    total_desired = serializers.DecimalField(max_digits=12, decimal_places=2, read_only=True)
+    total_actual = serializers.DecimalField(max_digits=12, decimal_places=2, read_only=True)
     total_margin = serializers.DecimalField(
         max_digits=12, decimal_places=2, read_only=True
     )
@@ -94,22 +128,59 @@ class InquiryDetailSerializer(serializers.ModelSerializer):
     class Meta:
         model = Inquiry
         fields = [
-            'id', 'inquiry_number', 'status', 'source_type', 'entity_type',
+            'id',
+            'inquiry_number',
+            'status',
+            # Canonical model fields
+            'source_type',
+            'entity_type',
+            # Convenience aliases (frontend)
+            'source',
+            'customer_name',
+            'supplier_name',
+            'scheduled_call',
             # Entity links
-            'supplier', 'customer', 'contact', 'entity_name',
-            # Contact snapshot
-            'contact_name', 'contact_email', 'contact_phone', 'contact_phone_type',
-            'contact_company', 'contact_position',
+            'supplier',
+            'customer',
+            'contact',
+            'entity_name',
+            # Contact snapshot (canonical)
+            'contact_name',
+            'contact_email',
+            'contact_phone',
+            'contact_phone_type',
+            'contact_company',
+            'contact_position',
+            # Contact snapshot (aliases)
+            'contact_snapshot_name',
+            'contact_snapshot_email',
+            'contact_snapshot_phone',
+            'contact_snapshot_company',
+            'contact_snapshot_position',
             # Dates
-            'inquiry_date', 'quoted_date', 'decision_date', 'valid_until', 'is_expired',
+            'inquiry_date',
+            'quoted_date',
+            'decision_date',
+            'valid_until',
+            'is_expired',
             # Totals
-            'total_desired', 'total_actual', 'total_margin', 'total_margin_percent',
+            'total_desired',
+            'total_actual',
+            'total_margin',
+            'total_margin_percent',
             # Notes
-            'notes', 'competitor_names', 'competitor_pricing_notes', 'win_loss_reason',
+            'notes',
+            'competitor_names',
+            'competitor_pricing_notes',
+            'win_loss_reason',
             # Related
-            'source_call', 'products',
+            'source_call',
+            'products',
             # Meta
-            'created_by', 'created_by_name', 'created_on', 'modified_on'
+            'created_by',
+            'created_by_name',
+            'created_on',
+            'modified_on',
         ]
         read_only_fields = [
             'id', 'inquiry_number', 'created_on', 'modified_on',

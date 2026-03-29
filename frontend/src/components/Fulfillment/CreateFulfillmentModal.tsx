@@ -25,8 +25,9 @@ import {
 interface CreateFulfillmentModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSuccess: (fulfillment: Fulfillment) => void;
-  inquiry: Inquiry;
+  onSuccess: (fulfillment: Fulfillment | Fulfillment[]) => void;
+  /** Optional: when provided, the modal acts as “Create fulfillment from this inquiry” */
+  inquiry?: Inquiry;
 }
 
 interface SupplierOption {
@@ -417,6 +418,16 @@ export const CreateFulfillmentModal: React.FC<CreateFulfillmentModalProps> = ({
   onSuccess,
   inquiry,
 }) => {
+  const [resolvedInquiry, setResolvedInquiry] = useState<Inquiry | null>(inquiry ?? null);
+
+  // Guided selection (when inquiry is not provided)
+  const [selectedCustomerId, setSelectedCustomerId] = useState('');
+  const [selectedInquiryId, setSelectedInquiryId] = useState('');
+  const [customerOptions, setCustomerOptions] = useState<Array<{ id: string; name: string }>>([]);
+  const [inquiryOptions, setInquiryOptions] = useState<Array<{ id: string; label: string }>>([]);
+  const [loadingCustomers, setLoadingCustomers] = useState(false);
+  const [loadingInquiries, setLoadingInquiries] = useState(false);
+
   // Form state
   const [supplierId, setSupplierId] = useState('');
   const [carrierId, setCarrierId] = useState('');
@@ -437,10 +448,127 @@ export const CreateFulfillmentModal: React.FC<CreateFulfillmentModalProps> = ({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Guided selection: load customers ordered by most recent inquiry
+  const loadRecentCustomers = useCallback(async () => {
+    setLoadingCustomers(true);
+    try {
+      const resp = await apiClient.get('inquiries/', {
+        params: {
+          entity_type: 'customer',
+          ordering: '-inquiry_date',
+          page_size: 200,
+        },
+      });
+
+      const rows = (resp.data?.results ?? resp.data ?? []) as any[];
+      const seen = new Set<string>();
+      const customers: Array<{ id: string; name: string }> = [];
+
+      for (const r of rows) {
+        const id = r.customer != null ? String(r.customer) : '';
+        if (!id || seen.has(id)) continue;
+        seen.add(id);
+        const name = String(r.customer_name || r.entity_name || '').trim();
+        customers.push({ id, name: name || `Customer #${id}` });
+      }
+
+      setCustomerOptions(customers);
+    } catch (err) {
+      setCustomerOptions([]);
+    } finally {
+      setLoadingCustomers(false);
+    }
+  }, []);
+
+  const loadCustomerInquiries = useCallback(async (customerId: string) => {
+    if (!customerId) {
+      setInquiryOptions([]);
+      return;
+    }
+
+    setLoadingInquiries(true);
+    try {
+      const resp = await apiClient.get('inquiries/', {
+        params: {
+          entity_type: 'customer',
+          customer: customerId,
+          ordering: '-inquiry_date',
+          page_size: 100,
+        },
+      });
+
+      const rows = (resp.data?.results ?? resp.data ?? []) as any[];
+      setInquiryOptions(
+        rows.map((r) => {
+          const id = String(r.id ?? '').trim();
+          const num = String(r.inquiry_number ?? '').trim();
+          const when = r.inquiry_date ? new Date(r.inquiry_date).toLocaleString() : '';
+          return { id, label: `${num || `Inquiry #${id}`}${when ? ` — ${when}` : ''}` };
+        }).filter((r) => r.id)
+      );
+    } catch (err) {
+      setInquiryOptions([]);
+    } finally {
+      setLoadingInquiries(false);
+    }
+  }, []);
+
+  const loadInquiryDetail = useCallback(async (inquiryId: string) => {
+    if (!inquiryId) {
+      setResolvedInquiry(null);
+      return;
+    }
+
+    try {
+      const resp = await apiClient.get(`inquiries/${inquiryId}/`);
+      setResolvedInquiry(resp.data as Inquiry);
+    } catch (err) {
+      setResolvedInquiry(null);
+    }
+  }, []);
+
+  // When opening: either use provided inquiry, or run guided selection.
+  useEffect(() => {
+    if (!isOpen) return;
+
+    if (inquiry) {
+      setResolvedInquiry(inquiry);
+      setSelectedCustomerId(inquiry.customer ? String(inquiry.customer) : '');
+      setSelectedInquiryId(inquiry.id);
+      return;
+    }
+
+    setResolvedInquiry(null);
+    setSelectedInquiryId('');
+    setSelectedCustomerId('');
+    setInquiryOptions([]);
+    void loadRecentCustomers();
+  }, [inquiry, isOpen, loadRecentCustomers]);
+
+  // Load inquiry options when customer changes (guided mode)
+  useEffect(() => {
+    if (!isOpen) return;
+    if (inquiry) return; // locked
+
+    setSelectedInquiryId('');
+    setResolvedInquiry(null);
+    void loadCustomerInquiries(selectedCustomerId);
+  }, [inquiry, isOpen, loadCustomerInquiries, selectedCustomerId]);
+
+  // Load inquiry detail when selected (guided mode)
+  useEffect(() => {
+    if (!isOpen) return;
+    if (inquiry) return;
+    void loadInquiryDetail(selectedInquiryId);
+  }, [inquiry, isOpen, loadInquiryDetail, selectedInquiryId]);
+
   // Initialize line items from inquiry products
   useEffect(() => {
-    if (isOpen && inquiry.products) {
-      const items: FulfillmentLineItem[] = inquiry.products.map((p: InquiryProduct) => ({
+    if (isOpen && resolvedInquiry?.products) {
+      // When the inquiry changes, reset fulfillment-specific fields.
+      resetFulfillmentFields();
+
+      const items: FulfillmentLineItem[] = resolvedInquiry.products.map((p: InquiryProduct) => ({
         inquiryProductId: p.id,
         productId: p.product,
         productCode: p.product_code,
@@ -451,12 +579,11 @@ export const CreateFulfillmentModal: React.FC<CreateFulfillmentModalProps> = ({
         selected: true, // Select all by default
       }));
       setLineItems(items);
-      
-      // Load suppliers that have these products
-      const productIds = inquiry.products.map((p: InquiryProduct) => p.product);
+
+      const productIds = resolvedInquiry.products.map((p: InquiryProduct) => p.product);
       fetchSuppliers(productIds);
     }
-  }, [isOpen, inquiry]);
+  }, [isOpen, resetFulfillmentFields, resolvedInquiry]);
 
   // Load carriers
   useEffect(() => {
@@ -547,7 +674,7 @@ export const CreateFulfillmentModal: React.FC<CreateFulfillmentModalProps> = ({
     [selectedItems]
   );
 
-  const resetForm = () => {
+  const resetFulfillmentFields = useCallback(() => {
     setSupplierId('');
     setCarrierId('');
     setTrackingNumbers('');
@@ -555,6 +682,17 @@ export const CreateFulfillmentModal: React.FC<CreateFulfillmentModalProps> = ({
     setNotes('');
     setLineItems([]);
     setError(null);
+  }, []);
+
+  const resetForm = () => {
+    resetFulfillmentFields();
+
+    if (!inquiry) {
+      setResolvedInquiry(null);
+      setSelectedCustomerId('');
+      setSelectedInquiryId('');
+      setInquiryOptions([]);
+    }
   };
 
   const handleClose = () => {
@@ -567,6 +705,11 @@ export const CreateFulfillmentModal: React.FC<CreateFulfillmentModalProps> = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+
+    if (!resolvedInquiry) {
+      setError('Please select a customer and inquiry');
+      return;
+    }
 
     // Validation
     if (!supplierId) {
@@ -583,11 +726,12 @@ export const CreateFulfillmentModal: React.FC<CreateFulfillmentModalProps> = ({
 
     try {
       const payload = {
-        inquiry: inquiry.id,
+        inquiry: resolvedInquiry.id,
         supplier: supplierId,
-        shipped_by: carrierId || undefined,
+        customer: resolvedInquiry.customer || undefined,
+        carrier: carrierId || undefined,
         tracking_numbers: trackingNumbers ? trackingNumbers.split(',').map(t => t.trim()).filter(Boolean) : undefined,
-        estimated_delivery: estimatedDelivery || undefined,
+        expected_delivery: estimatedDelivery || undefined,
         notes: notes || undefined,
         products: selectedItems.map(item => ({
           inquiry_product: item.inquiryProductId,
@@ -597,7 +741,7 @@ export const CreateFulfillmentModal: React.FC<CreateFulfillmentModalProps> = ({
       };
 
       const response = await apiClient.post('fulfillments/', payload);
-      
+
       resetForm();
       onSuccess(response.data);
       onClose();
@@ -629,36 +773,76 @@ export const CreateFulfillmentModal: React.FC<CreateFulfillmentModalProps> = ({
           <ModalBody>
             {error && <ErrorMessage>{error}</ErrorMessage>}
 
+            {/* Selection (guided mode) */}
+            {!inquiry && (
+              <Section>
+                <SectionTitle>Select Customer & Inquiry</SectionTitle>
+                <FormRow>
+                  <FormGroup>
+                    <Label>Customer *</Label>
+                    <Select
+                      value={selectedCustomerId}
+                      onChange={(e) => setSelectedCustomerId(e.target.value)}
+                      disabled={submitting || loadingCustomers}
+                    >
+                      <option value="">{loadingCustomers ? 'Loading…' : 'Select customer'}</option>
+                      {customerOptions.map((c) => (
+                        <option key={c.id} value={c.id}>{c.name}</option>
+                      ))}
+                    </Select>
+                    <HelpText>Customers are ordered by most recent inquiry created.</HelpText>
+                  </FormGroup>
+
+                  <FormGroup>
+                    <Label>Inquiry *</Label>
+                    <Select
+                      value={selectedInquiryId}
+                      onChange={(e) => setSelectedInquiryId(e.target.value)}
+                      disabled={submitting || !selectedCustomerId || loadingInquiries}
+                    >
+                      <option value="">{loadingInquiries ? 'Loading…' : 'Select inquiry'}</option>
+                      {inquiryOptions.map((opt) => (
+                        <option key={opt.id} value={opt.id}>{opt.label}</option>
+                      ))}
+                    </Select>
+                    <HelpText>Inquiries are ordered most recent first.</HelpText>
+                  </FormGroup>
+                </FormRow>
+              </Section>
+            )}
+
             {/* Inquiry Info */}
-            <Section>
-              <SectionTitle>Inquiry Information</SectionTitle>
-              <InquiryInfoCard>
-                <InquiryInfoRow>
-                  <InquiryInfoItem>
-                    <span className="label">Inquiry #</span>
-                    <span className="value">{inquiry.inquiry_number}</span>
-                  </InquiryInfoItem>
-                  <InquiryInfoItem>
-                    <span className="label">Status</span>
-                    <StatusBadge status={inquiry.status}>{inquiry.status}</StatusBadge>
-                  </InquiryInfoItem>
-                  <InquiryInfoItem>
-                    <span className="label">{inquiry.entity_type === 'customer' ? 'Customer' : 'Supplier'}</span>
-                    <span className="value">{inquiry.customer_name || inquiry.supplier_name}</span>
-                  </InquiryInfoItem>
-                  {inquiry.contact_name && (
+            {resolvedInquiry && (
+              <Section>
+                <SectionTitle>Inquiry Information</SectionTitle>
+                <InquiryInfoCard>
+                  <InquiryInfoRow>
                     <InquiryInfoItem>
-                      <span className="label">Contact</span>
-                      <span className="value">{inquiry.contact_name}</span>
+                      <span className="label">Inquiry #</span>
+                      <span className="value">{resolvedInquiry.inquiry_number}</span>
                     </InquiryInfoItem>
-                  )}
-                  <InquiryInfoItem>
-                    <span className="label">Total Value</span>
-                    <span className="value">${inquiry.total_actual?.toLocaleString() || inquiry.total_desired?.toLocaleString() || '0'}</span>
-                  </InquiryInfoItem>
-                </InquiryInfoRow>
-              </InquiryInfoCard>
-            </Section>
+                    <InquiryInfoItem>
+                      <span className="label">Status</span>
+                      <StatusBadge status={resolvedInquiry.status}>{resolvedInquiry.status}</StatusBadge>
+                    </InquiryInfoItem>
+                    <InquiryInfoItem>
+                      <span className="label">Customer</span>
+                      <span className="value">{resolvedInquiry.customer_name || resolvedInquiry.supplier_name}</span>
+                    </InquiryInfoItem>
+                    {(resolvedInquiry.contact_snapshot_name || resolvedInquiry.contact_name) && (
+                      <InquiryInfoItem>
+                        <span className="label">Contact</span>
+                        <span className="value">{resolvedInquiry.contact_snapshot_name || resolvedInquiry.contact_name}</span>
+                      </InquiryInfoItem>
+                    )}
+                    <InquiryInfoItem>
+                      <span className="label">Total Value</span>
+                      <span className="value">${resolvedInquiry.total_actual?.toLocaleString() || resolvedInquiry.total_desired?.toLocaleString() || '0'}</span>
+                    </InquiryInfoItem>
+                  </InquiryInfoRow>
+                </InquiryInfoCard>
+              </Section>
+            )}
 
             {/* Supplier & Carrier Selection */}
             <Section>
