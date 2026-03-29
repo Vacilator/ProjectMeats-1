@@ -551,10 +551,10 @@ class EntityViewSet(viewsets.ViewSet):
         try:
             Inquiry = apps.get_model('inquiries', 'Inquiry')
             qs = Inquiry.objects.filter(tenant=tenant, customer=customer)
-            qs = self._order_queryset_recent_first(qs)
+            qs = self._order_queryset_recent_first(qs).prefetch_related('products__product')
             return {
                 "count": qs.count(),
-                "items": [self._serialize_entity(inq, 'inquiry') for inq in qs[:10]],
+                "items": [self._serialize_inquiry_relationship_item(inq) for inq in qs[:10]],
             }
         except LookupError:
             return None
@@ -624,10 +624,10 @@ class EntityViewSet(viewsets.ViewSet):
         try:
             Inquiry = apps.get_model('inquiries', 'Inquiry')
             qs = Inquiry.objects.filter(tenant=tenant, supplier=supplier)
-            qs = self._order_queryset_recent_first(qs)
+            qs = self._order_queryset_recent_first(qs).prefetch_related('products__product')
             return {
                 "count": qs.count(),
-                "items": [self._serialize_entity(inq, 'inquiry') for inq in qs[:10]],
+                "items": [self._serialize_inquiry_relationship_item(inq) for inq in qs[:10]],
             }
         except LookupError:
             return None
@@ -858,6 +858,54 @@ class EntityViewSet(viewsets.ViewSet):
             }
         return None
     
+    def _serialize_inquiry_relationship_item(self, inquiry):
+        """Serialize Inquiry items for Cockpit relationship panels.
+
+        The Cockpit Customer → Inquiries panel needs:
+        - inquiry number
+        - created/modified timestamps
+        - a small product summary list (up to 4)
+        """
+        base = self._serialize_entity(inquiry, 'inquiry')
+
+        # Preserve the existing metadata shape but add inquiry-specific fields.
+        meta = dict(base.get('metadata') or {})
+        meta['inquiry_number'] = getattr(inquiry, 'inquiry_number', None)
+        meta['created_on'] = getattr(inquiry, 'created_on', None)
+        meta['modified_on'] = getattr(inquiry, 'modified_on', None)
+
+        # Product summary (up to 4 items)
+        product_summary = []
+        more_count = 0
+        try:
+            rel = getattr(inquiry, 'products', None)
+            if rel is not None:
+                qs = rel.select_related('product').order_by('created_on')
+                total = qs.count()
+                for row in qs[:4]:
+                    product = getattr(row, 'product', None)
+                    label = (
+                        getattr(product, 'product_code', None)
+                        or getattr(product, 'name', None)
+                        or getattr(product, 'description', None)
+                    )
+                    if label:
+                        product_summary.append(str(label))
+                more_count = max(0, total - len(product_summary))
+        except Exception:
+            product_summary = []
+            more_count = 0
+
+        meta['product_summary'] = product_summary
+        meta['product_more_count'] = more_count
+        base['metadata'] = meta
+
+        # Convenience timestamps at the top-level too.
+        if meta.get('modified_on') is not None:
+            base['updated_at'] = meta.get('modified_on')
+
+        return base
+
     def _serialize_entity(self, entity, entity_type):
         """Minimal serialization for entity references."""
         base = {

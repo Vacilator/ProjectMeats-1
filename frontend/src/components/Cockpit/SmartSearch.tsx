@@ -1871,17 +1871,53 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
                   ) : relationTabData.inquiries?.items?.length ? (
                     <div>
                       <ResultGrid>
-                        {relationTabData.inquiries.items.map(item => (
-                          <ResultCard key={item.id} onClick={() => void handleSelectEmbeddedInquiry(item.id)}>
-                            <ResultIcon $tone={getEntityTone(item.type)}>
-                              {getEntityIcon(item.type)}
-                            </ResultIcon>
-                            <ResultContent>
-                              <ResultTitle>{item.name}</ResultTitle>
-                              {item.subtitle && <ResultSubtitle>{item.subtitle}</ResultSubtitle>}
-                            </ResultContent>
-                          </ResultCard>
-                        ))}
+                        {relationTabData.inquiries.items.map(item => {
+                          const meta = (item.metadata ?? {}) as Record<string, any>;
+                          const inquiryNumber = String(meta.inquiry_number ?? item.name ?? '').trim() || 'Inquiry';
+                          const productSummary = Array.isArray(meta.product_summary) ? (meta.product_summary as unknown[]) : [];
+                          const productsText = productSummary
+                            .slice(0, 4)
+                            .map((v) => String(v))
+                            .filter(Boolean)
+                            .join(' • ');
+                          const moreCount = Number(meta.product_more_count ?? 0);
+                          const createdOn = String(meta.created_on ?? '').slice(0, 10);
+                          const modifiedOn = String(meta.modified_on ?? '').slice(0, 10);
+
+                          return (
+                            <ResultCard key={item.id} onClick={() => void handleSelectEmbeddedInquiry(item.id)}>
+                              <ResultIcon $tone={getEntityTone(item.type)}>
+                                {getEntityIcon(item.type)}
+                              </ResultIcon>
+                              <ResultContent style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
+                                <div style={{ minWidth: 0 }}>
+                                  <ResultTitle>{inquiryNumber}</ResultTitle>
+                                  <ResultSubtitle>
+                                    {productsText ? (
+                                      <span>
+                                        {productsText}
+                                        {moreCount > 0 ? ` +${moreCount} more` : ''}
+                                      </span>
+                                    ) : item.subtitle ? (
+                                      item.subtitle
+                                    ) : (
+                                      '—'
+                                    )}
+                                  </ResultSubtitle>
+                                </div>
+
+                                <div style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
+                                  <div style={{ fontSize: 12, color: 'rgb(var(--color-text-secondary))' }}>
+                                    Modified: {modifiedOn || '—'}
+                                  </div>
+                                  <div style={{ fontSize: 12, color: 'rgb(var(--color-text-secondary))' }}>
+                                    Created: {createdOn || '—'}
+                                  </div>
+                                </div>
+                              </ResultContent>
+                            </ResultCard>
+                          );
+                        })}
                       </ResultGrid>
 
                       <div style={{ marginTop: 12 }}>
