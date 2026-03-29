@@ -7,6 +7,7 @@
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import axios from 'axios';
+import { showAlert } from '@/utils/uiDialogs';
 import { Inquiry } from '../../types';
 
 // ============================================================================
@@ -301,7 +302,11 @@ export const CloneInquiryModal: React.FC<CloneInquiryModalProps> = ({
       onClose();
     } catch (error) {
       console.error('Failed to clone inquiry:', error);
-      alert('Failed to clone inquiry');
+      showAlert({
+        type: 'error',
+        title: 'Error',
+        content: 'Failed to clone inquiry',
+      });
     } finally {
       setCloning(false);
     }

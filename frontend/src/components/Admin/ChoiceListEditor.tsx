@@ -42,6 +42,7 @@ import {
   X,
 } from 'lucide-react';
 import { apiClient } from '@/services/apiService';
+import { confirmDialog } from '@/utils/uiDialogs';
 
 interface ChoiceItem {
   id: string;
@@ -303,7 +304,15 @@ export const ChoiceListEditor: React.FC<ChoiceListEditorProps> = ({
   };
 
   const handleDeleteItem = async (item: ChoiceItem) => {
-    if (!confirm(`Delete "${item.label}"?`)) return;
+    const confirmed = await confirmDialog({
+      title: 'Delete item?',
+      content: `Delete "${item.label}"?`,
+      okText: 'Delete',
+      cancelText: 'Cancel',
+      danger: true,
+    });
+
+    if (!confirmed) return;
 
     try {
       await apiClient.delete(`/system/choice-items/${item.id}/`);

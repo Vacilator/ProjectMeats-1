@@ -7,6 +7,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation } from '@tanstack/react-query';
+import { showAlert } from '@/utils/uiDialogs';
 import { adminClient } from '../../services/apiService';
 import styled from 'styled-components';
 import { PageContainer } from '../../components/ui/PageContainer';
@@ -134,10 +135,11 @@ export const WorkflowList: React.FC = () => {
     },
     onError: (error: any) => {
       console.error('Failed to start workflow:', error);
-      alert(
-        error.response?.data?.error || 
-        'Failed to start workflow. Please try again.'
-      );
+      showAlert({
+        type: 'error',
+        title: 'Error',
+        content: error.response?.data?.error || 'Failed to start workflow. Please try again.',
+      });
       setStartingWorkflow(null);
     },
   });

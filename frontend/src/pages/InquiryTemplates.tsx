@@ -5,6 +5,7 @@
  */
 import React, { useState, useEffect, useCallback } from 'react';
 import styled from 'styled-components';
+import { confirmDialog, showAlert } from '@/utils/uiDialogs';
 import { apiClient } from '../services/apiService';
 import { InquiryTemplate, InquiryEntityType } from '../types';
 import { InquiryTemplateModal } from '../components/Inquiry';
@@ -290,16 +291,22 @@ const InquiryTemplates: React.FC = () => {
   };
   
   const handleDeleteClick = async (template: InquiryTemplate) => {
-    if (!window.confirm(`Delete template "${template.name}"? This cannot be undone.`)) {
-      return;
-    }
-    
+    const confirmed = await confirmDialog({
+      title: 'Delete template?',
+      content: `Delete template "${template.name}"? This cannot be undone.`,
+      okText: 'Delete',
+      cancelText: 'Cancel',
+      danger: true,
+    });
+
+    if (!confirmed) return;
+
     try {
       await apiClient.delete(`/api/v1/inquiry-templates/${template.id}/`);
       setTemplates(prev => prev.filter(t => t.id !== template.id));
     } catch (error) {
       console.error('Failed to delete template:', error);
-      alert('Failed to delete template');
+      showAlert({ type: 'error', title: 'Error', content: 'Failed to delete template' });
     }
   };
   
@@ -313,7 +320,7 @@ const InquiryTemplates: React.FC = () => {
       ));
     } catch (error) {
       console.error('Failed to update template:', error);
-      alert('Failed to update template');
+      showAlert({ type: 'error', title: 'Error', content: 'Failed to update template' });
     }
   };
   

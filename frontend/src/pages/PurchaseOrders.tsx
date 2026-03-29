@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation, useSearchParams } from 'react-router-dom';
 import styled from 'styled-components';
+import { confirmDialog, showAlert } from '@/utils/uiDialogs';
 import { apiService, PurchaseOrder, Supplier } from '../services/apiService';
 import { LocationSelector } from '../components/Shared';
 import PurchaseOrderWorkflow from '../components/Workflow/PurchaseOrderWorkflow';
@@ -535,7 +536,11 @@ const PurchaseOrders: React.FC = () => {
         } : 'No response data'
       });
       // Display user-friendly error to the UI
-      alert(`Failed to save purchase order: ${err.message || 'Please try again later'}`);
+      showAlert({
+        type: 'error',
+        title: 'Error',
+        content: `Failed to save purchase order: ${err.message || 'Please try again later'}`,
+      });
     }
   };
 
@@ -557,21 +562,37 @@ const PurchaseOrders: React.FC = () => {
   };
 
   const handleDelete = async (id: number) => {
-    if (window.confirm('Are you sure you want to delete this purchase order?')) {
-      try {
-        await apiService.deletePurchaseOrder(id);
-        alert('Purchase order deleted successfully!');
-        await loadPurchaseOrders(); // Re-fetch to update the list
-      } catch (error: unknown) {
-        // Type-safe error handling: Use 'unknown' instead of 'any' and assert expected structure
-        console.error('Error deleting purchase order:', error);
-        const err = error as { response?: { data?: { detail?: string; message?: string } }; message?: string };
-        const errorMessage = err?.response?.data?.detail 
-          || err?.response?.data?.message 
-          || err?.message 
-          || 'Failed to delete purchase order';
-        alert(`Error: ${errorMessage}`);
-      }
+    const confirmed = await confirmDialog({
+      title: 'Delete purchase order?',
+      content: 'Are you sure you want to delete this purchase order?',
+      okText: 'Delete',
+      cancelText: 'Cancel',
+      danger: true,
+    });
+
+    if (!confirmed) return;
+
+    try {
+      await apiService.deletePurchaseOrder(id);
+      showAlert({
+        type: 'success',
+        title: 'Deleted',
+        content: 'Purchase order deleted successfully.',
+      });
+      await loadPurchaseOrders(); // Re-fetch to update the list
+    } catch (error: unknown) {
+      // Type-safe error handling: Use 'unknown' instead of 'any' and assert expected structure
+      console.error('Error deleting purchase order:', error);
+      const err = error as { response?: { data?: { detail?: string; message?: string } }; message?: string };
+      const errorMessage = err?.response?.data?.detail
+        || err?.response?.data?.message
+        || err?.message
+        || 'Failed to delete purchase order';
+      showAlert({
+        type: 'error',
+        title: 'Error',
+        content: `Error: ${errorMessage}`,
+      });
     }
   };
 

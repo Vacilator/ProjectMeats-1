@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { isValidEmail } from '../shared/utils';
 import { logger } from '@/utils/logger';
+import { confirmDialog, showAlert } from '../utils/uiDialogs';
 
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { CountrySelect, PhoneInput, Select, StateSelect } from '../components/ui';
@@ -254,12 +255,20 @@ const Suppliers: React.FC = () => {
     if (!selectedSupplierId) return;
 
     if (!plantForm.name.trim() || !plantForm.code.trim()) {
-      alert('Plant name and code are required');
+      showAlert({
+        type: 'warning',
+        title: 'Validation',
+        content: 'Plant name and code are required',
+      });
       return;
     }
 
     if (plantForm.email?.trim() && !isValidEmail(plantForm.email.trim())) {
-      alert('Please enter a valid email address for the plant');
+      showAlert({
+        type: 'warning',
+        title: 'Validation',
+        content: 'Please enter a valid email address for the plant',
+      });
       return;
     }
 
@@ -278,7 +287,11 @@ const Suppliers: React.FC = () => {
       await loadSupplierPlants(selectedSupplierId);
     } catch (error: unknown) {
       logger.error('[Suppliers] Failed to create plant:', error);
-      alert('Failed to create plant');
+      showAlert({
+        type: 'error',
+        title: 'Error',
+        content: 'Failed to create plant',
+      });
     }
   };
 
@@ -333,7 +346,11 @@ const Suppliers: React.FC = () => {
     e.preventDefault();
 
     if (formData.email?.trim() && !isValidEmail(formData.email.trim())) {
-      alert('Please enter a valid email address');
+      showAlert({
+        type: 'warning',
+        title: 'Validation',
+        content: 'Please enter a valid email address',
+      });
       return;
     }
 
@@ -352,7 +369,11 @@ const Suppliers: React.FC = () => {
         await syncSupplierAvailableProducts(supplierId, availableProductIds);
       } catch (error) {
         logger.error('[Suppliers] Supplier saved but product sync failed:', error);
-        alert('Supplier saved, but products could not be updated. Please try again from the supplier Products page.');
+        showAlert({
+          type: 'warning',
+          title: 'Saved with warnings',
+          content: 'Supplier saved, but products could not be updated. Please try again from the supplier Products page.',
+        });
       }
 
       setShowEditForm(false);
@@ -369,7 +390,11 @@ const Suppliers: React.FC = () => {
         action: editingSupplier ? 'update' : 'create',
       });
 
-      alert(errorMessage);
+      showAlert({
+        type: 'error',
+        title: 'Error',
+        content: errorMessage,
+      });
     }
   };
 
@@ -397,22 +422,38 @@ const Suppliers: React.FC = () => {
   };
 
   const handleDelete = async (id: number) => {
-    if (window.confirm('Are you sure you want to delete this supplier?')) {
-      try {
-        await apiService.deleteSupplier(id);
-        alert('Supplier deleted successfully!');
-        await fetchSuppliers(); // Re-fetch to update the list
-      } catch (error: unknown) {
-        // Type-safe error handling: Use 'unknown' instead of 'any' and assert expected structure
-        // This ensures we handle errors safely while maintaining type checking
-        logger.error('Error deleting supplier:', error);
-        const err = error as { response?: { data?: { detail?: string; message?: string } }; message?: string };
-        const errorMessage = err?.response?.data?.detail 
-          || err?.response?.data?.message 
-          || err?.message 
-          || 'Failed to delete supplier';
-        alert(`Error: ${errorMessage}`);
-      }
+    const confirmed = await confirmDialog({
+      title: 'Delete supplier?',
+      content: 'Are you sure you want to delete this supplier?',
+      okText: 'Delete',
+      cancelText: 'Cancel',
+      danger: true,
+    });
+
+    if (!confirmed) return;
+
+    try {
+      await apiService.deleteSupplier(id);
+      showAlert({
+        type: 'success',
+        title: 'Deleted',
+        content: 'Supplier deleted successfully.',
+      });
+      await fetchSuppliers(); // Re-fetch to update the list
+    } catch (error: unknown) {
+      // Type-safe error handling: Use 'unknown' instead of 'any' and assert expected structure
+      // This ensures we handle errors safely while maintaining type checking
+      logger.error('Error deleting supplier:', error);
+      const err = error as { response?: { data?: { detail?: string; message?: string } }; message?: string };
+      const errorMessage = err?.response?.data?.detail
+        || err?.response?.data?.message
+        || err?.message
+        || 'Failed to delete supplier';
+      showAlert({
+        type: 'error',
+        title: 'Error',
+        content: `Error: ${errorMessage}`,
+      });
     }
   };
 

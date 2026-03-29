@@ -17,6 +17,7 @@
  */
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
+import { confirmDialog, showAlert } from '@/utils/uiDialogs';
 import { Play, Clock, Filter, RefreshCw, FileText, X } from 'lucide-react';
 import { businessApi } from '../../services/businessApi';
 import { useQuickActions } from '../../contexts/QuickActionsContext';
@@ -502,7 +503,11 @@ const FormsFlowsInProgress: React.FC = () => {
       setSelectedSubmission(null);
     } catch (error) {
       console.error('Failed to cancel workflow:', error);
-      alert('Failed to cancel workflow. Please try again.');
+      showAlert({
+        type: 'error',
+        title: 'Error',
+        content: 'Failed to cancel workflow. Please try again.',
+      });
     } finally {
       setCancelingId(null);
     }

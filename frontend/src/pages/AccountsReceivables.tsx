@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
+import { confirmDialog, showAlert } from '@/utils/uiDialogs';
 import { apiService, Invoice } from '../services/apiService';
 
 // Styled Components
@@ -377,7 +378,11 @@ const AccountsReceivables: React.FC = () => {
         } : 'No response data'
       });
       // Display user-friendly error to the UI
-      alert(`Failed to save invoice: ${err.message || 'Please try again later'}`);
+      showAlert({
+        type: 'error',
+        title: 'Error',
+        content: `Failed to save invoice: ${err.message || 'Please try again later'}`,
+      });
     }
   };
 
@@ -394,21 +399,37 @@ const AccountsReceivables: React.FC = () => {
   };
 
   const handleDelete = async (id: number) => {
-    if (window.confirm('Are you sure you want to delete this invoice?')) {
-      try {
-        await apiService.deleteInvoice(id);
-        alert('Invoice deleted successfully!');
-        await loadReceivables(); // Re-fetch to update the list
-      } catch (error: unknown) {
-        // Type-safe error handling: Use 'unknown' instead of 'any' and assert expected structure
-        console.error('Error deleting accounts receivable:', error);
-        const err = error as { response?: { data?: { detail?: string; message?: string } }; message?: string };
-        const errorMessage = err?.response?.data?.detail 
-          || err?.response?.data?.message 
-          || err?.message 
-          || 'Failed to delete accounts receivable';
-        alert(`Error: ${errorMessage}`);
-      }
+    const confirmed = await confirmDialog({
+      title: 'Delete invoice?',
+      content: 'Are you sure you want to delete this invoice?',
+      okText: 'Delete',
+      cancelText: 'Cancel',
+      danger: true,
+    });
+
+    if (!confirmed) return;
+
+    try {
+      await apiService.deleteInvoice(id);
+      showAlert({
+        type: 'success',
+        title: 'Deleted',
+        content: 'Invoice deleted successfully.',
+      });
+      await loadReceivables(); // Re-fetch to update the list
+    } catch (error: unknown) {
+      // Type-safe error handling: Use 'unknown' instead of 'any' and assert expected structure
+      console.error('Error deleting accounts receivable:', error);
+      const err = error as { response?: { data?: { detail?: string; message?: string } }; message?: string };
+      const errorMessage = err?.response?.data?.detail
+        || err?.response?.data?.message
+        || err?.message
+        || 'Failed to delete accounts receivable';
+      showAlert({
+        type: 'error',
+        title: 'Error',
+        content: `Error: ${errorMessage}`,
+      });
     }
   };
 

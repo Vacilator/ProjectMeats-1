@@ -10,6 +10,7 @@
 
 import React, { useState } from 'react';
 import styled from 'styled-components';
+import { confirmDialog } from '@/utils/uiDialogs';
 import { ChevronDown, ChevronRight, GripVertical, Plus, Edit2, Trash2, Settings, Wand2 } from 'lucide-react';
 import { FormStep } from './types';
 import { useFormBuilderStore } from './store';
@@ -245,18 +246,34 @@ export const StepCard: React.FC<StepCardProps> = ({ step }) => {
   };
   
   const handleRemoveStep = () => {
-    const confirmed = window.confirm(`Delete "${step.name}"? This cannot be undone.`);
-    if (confirmed) {
-      removeStep(step.id);
-    }
+    void (async () => {
+      const confirmed = await confirmDialog({
+        title: 'Delete step?',
+        content: `Delete "${step.name}"? This cannot be undone.`,
+        okText: 'Delete',
+        cancelText: 'Cancel',
+        danger: true,
+      });
+      if (confirmed) {
+        removeStep(step.id);
+      }
+    })();
   };
   
   const handleRemoveField = (fieldId: string) => {
-    const field = step.fields.find(f => f.id === fieldId);
-    const confirmed = window.confirm(`Delete field "${field?.label}"?`);
-    if (confirmed) {
-      removeField(step.id, fieldId);
-    }
+    void (async () => {
+      const field = step.fields.find(f => f.id === fieldId);
+      const confirmed = await confirmDialog({
+        title: 'Delete field?',
+        content: `Delete field "${field?.label}"?`,
+        okText: 'Delete',
+        cancelText: 'Cancel',
+        danger: true,
+      });
+      if (confirmed) {
+        removeField(step.id, fieldId);
+      }
+    })();
   };
   
   return (

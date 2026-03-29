@@ -17,6 +17,7 @@
  */
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
+import { showAlert } from '@/utils/uiDialogs';
 import { 
   CheckCircle, XCircle, Calendar, Search, Download, 
   Eye, Filter, RefreshCw, FileText, ChevronRight, ChevronDown,
@@ -640,7 +641,11 @@ const FormsFlowsHistory: React.FC = () => {
   // Export to CSV - Planned for Wave F (Features) - see REMAINING_WORK_OUTLINE.md
   const handleExport = () => {
     // Feature F3.5: Export to Excel/PDF - scheduled for implementation
-    alert('Export functionality coming soon!');
+    showAlert({
+      type: 'info',
+      title: 'Coming soon',
+      content: 'Export functionality coming soon!',
+    });
   };
   
   const totalPages = Math.ceil(totalCount / pageSize);

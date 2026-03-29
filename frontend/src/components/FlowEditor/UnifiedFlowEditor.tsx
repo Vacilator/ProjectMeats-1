@@ -33,6 +33,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { createPortal } from 'react-dom';
 import styled from 'styled-components';
 import { debounce } from 'lodash';
+import { showAlert } from '@/utils/uiDialogs';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { adminClient } from '../../services/apiService';
 import toast, { Toaster } from 'react-hot-toast'; // Phase 8.1
@@ -5980,7 +5981,11 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     logger.debug(`[Phase 6] Migration complete: ${nodesToMigrate.length} nodes migrated`);
     
     // Show success message
-    alert(`Successfully migrated ${nodesToMigrate.length} deprecated node(s) to modern format!\n\nPlease review the migrated nodes and save your workflow.`);
+    showAlert({
+      type: 'success',
+      title: 'Migration complete',
+      content: `Successfully migrated ${nodesToMigrate.length} deprecated node(s) to modern format!\n\nPlease review the migrated nodes and save your workflow.`,
+    });
   }, [nodes, setNodes]);
 
   // ============================================================================

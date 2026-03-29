@@ -8,6 +8,7 @@ import { apiService, Customer, apiClient } from '../services/apiService';
 import { CountrySelect, PhoneInput, Select, StateSelect } from '../components/ui';
 import { MultiSelect } from '../components/Shared';
 import { INDUSTRY_CHOICES, PROTEIN_TYPE_CHOICES } from '../utils/constants/choices';
+import { confirmDialog, showAlert } from '../utils/uiDialogs';
 
 interface CustomerLocation {
   id: number;
@@ -243,12 +244,20 @@ const Customers: React.FC = () => {
     if (!selectedCustomerId) return;
 
     if (!locationForm.name.trim()) {
-      alert('Location name is required');
+      showAlert({
+        type: 'warning',
+        title: 'Validation',
+        content: 'Location name is required',
+      });
       return;
     }
 
     if (locationForm.email?.trim() && !isValidEmail(locationForm.email.trim())) {
-      alert('Please enter a valid email address for the location');
+      showAlert({
+        type: 'warning',
+        title: 'Validation',
+        content: 'Please enter a valid email address for the location',
+      });
       return;
     }
 
@@ -270,7 +279,11 @@ const Customers: React.FC = () => {
       await loadCustomerLocations(selectedCustomerId);
     } catch (error) {
       console.error('[Customers] Failed to create location:', error);
-      alert('Failed to create location');
+      showAlert({
+        type: 'error',
+        title: 'Error',
+        content: 'Failed to create location',
+      });
     }
   };
 
@@ -291,7 +304,11 @@ const Customers: React.FC = () => {
     e.preventDefault();
 
     if (formData.email?.trim() && !isValidEmail(formData.email.trim())) {
-      alert('Please enter a valid email address');
+      showAlert({
+        type: 'warning',
+        title: 'Validation',
+        content: 'Please enter a valid email address',
+      });
       return;
     }
 
@@ -323,7 +340,11 @@ const Customers: React.FC = () => {
         } : 'No response data'
       });
       // Display user-friendly error to the UI
-      alert(`Failed to save customer: ${err.message || 'Please try again later'}`);
+      showAlert({
+        type: 'error',
+        title: 'Error',
+        content: `Failed to save customer: ${err.message || 'Please try again later'}`,
+      });
     }
   };
 
@@ -348,21 +369,37 @@ const Customers: React.FC = () => {
   };
 
   const handleDelete = async (id: number) => {
-    if (window.confirm('Are you sure you want to delete this customer?')) {
-      try {
-        await apiService.deleteCustomer(id);
-        alert('Customer deleted successfully!');
-        await fetchCustomers(); // Re-fetch to update the list
-      } catch (error: unknown) {
-        // Type-safe error handling: Use 'unknown' instead of 'any' and assert expected structure
-        console.error('Error deleting customer:', error);
-        const err = error as { response?: { data?: { detail?: string; message?: string } }; message?: string };
-        const errorMessage = err?.response?.data?.detail 
-          || err?.response?.data?.message 
-          || err?.message 
-          || 'Failed to delete customer';
-        alert(`Error: ${errorMessage}`);
-      }
+    const confirmed = await confirmDialog({
+      title: 'Delete customer?',
+      content: 'Are you sure you want to delete this customer?',
+      okText: 'Delete',
+      cancelText: 'Cancel',
+      danger: true,
+    });
+
+    if (!confirmed) return;
+
+    try {
+      await apiService.deleteCustomer(id);
+      showAlert({
+        type: 'success',
+        title: 'Deleted',
+        content: 'Customer deleted successfully.',
+      });
+      await fetchCustomers(); // Re-fetch to update the list
+    } catch (error: unknown) {
+      // Type-safe error handling: Use 'unknown' instead of 'any' and assert expected structure
+      console.error('Error deleting customer:', error);
+      const err = error as { response?: { data?: { detail?: string; message?: string } }; message?: string };
+      const errorMessage = err?.response?.data?.detail
+        || err?.response?.data?.message
+        || err?.message
+        || 'Failed to delete customer';
+      showAlert({
+        type: 'error',
+        title: 'Error',
+        content: `Error: ${errorMessage}`,
+      });
     }
   };
 

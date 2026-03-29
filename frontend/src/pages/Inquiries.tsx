@@ -14,6 +14,7 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react';
 import styled from 'styled-components';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { showAlert } from '@/utils/uiDialogs';
 import { apiClient } from '../services/apiService';
 import { InquiryListItem, InquiryStatus, InquiryTemplateListItem } from '../types';
 import { InquiryDetailModal, CloneInquiryModal, InquiryCreateModal } from '../components/Inquiry';
@@ -486,7 +487,11 @@ const Inquiries: React.FC = () => {
       fetchInquiries();
     } catch (err) {
       console.error('Failed to create inquiry from template:', err);
-      alert('Failed to create inquiry from template');
+      showAlert({
+        type: 'error',
+        title: 'Error',
+        content: 'Failed to create inquiry from template',
+      });
     }
   };
 

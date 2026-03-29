@@ -16,6 +16,7 @@
  */
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
+import { showAlert } from '@/utils/uiDialogs';
 import { 
   Link, Unlink, ArrowRight, AlertCircle, CheckCircle, 
   ChevronDown, ChevronUp, Zap
@@ -599,7 +600,11 @@ export const FieldMappingPanel: React.FC<FieldMappingPanelProps> = ({
             onClick={() => {
               const count = autoSuggestMappings();
               if (count === 0) {
-                alert('No good matches found. Try mapping fields manually.');
+                showAlert({
+                  type: 'info',
+                  title: 'No matches',
+                  content: 'No good matches found. Try mapping fields manually.',
+                });
               }
             }}
             style={{ display: 'flex', alignItems: 'center', gap: '6px' }}

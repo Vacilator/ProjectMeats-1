@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { useLocation } from 'react-router-dom';
+import { confirmDialog, showAlert } from '@/utils/uiDialogs';
 import { apiService, Contact } from '../services/apiService';
 import { apiClient } from '../services/apiService';
 import { PhoneInput } from '../components/ui/PhoneInput';
@@ -408,7 +409,7 @@ const Contacts: React.FC = () => {
     e.preventDefault();
 
     if (formData.email?.trim() && !isValidEmail(formData.email.trim())) {
-      alert('Please enter a valid email address');
+      showAlert({ type: 'warning', title: 'Validation', content: 'Please enter a valid email address' });
       return;
     }
 
@@ -446,7 +447,11 @@ const Contacts: React.FC = () => {
         } : 'No response data'
       });
       // Display user-friendly error to the UI
-      alert(`Failed to save contact: ${err.message || 'Please try again later'}`);
+      showAlert({
+        type: 'error',
+        title: 'Error',
+        content: `Failed to save contact: ${err.message || 'Please try again later'}`,
+      });
     }
   };
 
@@ -473,21 +478,37 @@ const Contacts: React.FC = () => {
   };
 
   const handleDelete = async (id: number) => {
-    if (window.confirm('Are you sure you want to delete this contact?')) {
-      try {
-        await apiService.deleteContact(id);
-        alert('Contact deleted successfully!');
-        await loadContacts(); // Re-fetch to update the list
-      } catch (error: unknown) {
-        // Type-safe error handling: Use 'unknown' instead of 'any' and assert expected structure
-        console.error('Error deleting contact:', error);
-        const err = error as { response?: { data?: { detail?: string; message?: string } }; message?: string };
-        const errorMessage = err?.response?.data?.detail 
-          || err?.response?.data?.message 
-          || err?.message 
-          || 'Failed to delete contact';
-        alert(`Error: ${errorMessage}`);
-      }
+    const confirmed = await confirmDialog({
+      title: 'Delete contact?',
+      content: 'Are you sure you want to delete this contact?',
+      okText: 'Delete',
+      cancelText: 'Cancel',
+      danger: true,
+    });
+
+    if (!confirmed) return;
+
+    try {
+      await apiService.deleteContact(id);
+      showAlert({
+        type: 'success',
+        title: 'Deleted',
+        content: 'Contact deleted successfully.',
+      });
+      await loadContacts(); // Re-fetch to update the list
+    } catch (error: unknown) {
+      // Type-safe error handling: Use 'unknown' instead of 'any' and assert expected structure
+      console.error('Error deleting contact:', error);
+      const err = error as { response?: { data?: { detail?: string; message?: string } }; message?: string };
+      const errorMessage = err?.response?.data?.detail
+        || err?.response?.data?.message
+        || err?.message
+        || 'Failed to delete contact';
+      showAlert({
+        type: 'error',
+        title: 'Error',
+        content: `Error: ${errorMessage}`,
+      });
     }
   };
 

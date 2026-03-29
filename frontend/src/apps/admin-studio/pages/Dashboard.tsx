@@ -52,7 +52,7 @@ export const Dashboard: React.FC = () => {
             </Link>
             <button 
               className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 font-medium transition-colors"
-              onClick={() => alert('Create new blueprint functionality to be implemented')}
+              onClick={() => showAlert({ type: 'info', title: 'Coming soon', content: 'Create new blueprint functionality to be implemented' })}
             >
               + Create New Blueprint
             </button>
