@@ -397,10 +397,20 @@ const QuickCreateModal: React.FC<QuickCreateModalProps> = ({
 
   const validate = (): boolean => {
     const newErrors: Record<string, string> = {};
-    
-    fields.forEach(field => {
-      if (field.required && !formData[field.key]) {
+
+    fields.forEach((field) => {
+      const raw = formData[field.key];
+
+      if (field.required && !raw) {
         newErrors[field.key] = `${field.label} is required`;
+        return;
+      }
+
+      if (field.key === 'zip_code' && raw) {
+        const zip = String(raw).trim();
+        if (!/^\d{5}$/.test(zip)) {
+          newErrors[field.key] = 'ZIP code must be 5 digits';
+        }
       }
     });
 
@@ -556,7 +566,17 @@ const QuickCreateModal: React.FC<QuickCreateModalProps> = ({
                         id={`quick-create-${field.key}`}
                         type={field.type === 'email' ? 'email' : field.type === 'number' ? 'number' : field.type === 'date' ? 'date' : 'text'}
                         value={formData[field.key] || ''}
-                        onChange={(e) => handleInputChange(field.key, e.target.value)}
+                        onChange={(e) => {
+                          const raw = e.target.value;
+                          if (field.key === 'zip_code') {
+                            handleInputChange(field.key, raw.replace(/\D/g, '').slice(0, 5));
+                            return;
+                          }
+                          handleInputChange(field.key, raw);
+                        }}
+                        maxLength={field.key === 'zip_code' ? 5 : undefined}
+                        inputMode={field.key === 'zip_code' ? 'numeric' : undefined}
+                        pattern={field.key === 'zip_code' ? '^\\d{5}$' : undefined}
                         className={errors[field.key] ? 'error' : ''}
                         disabled={isSubmitting}
                         autoFocus={fields.indexOf(field) === 0}
@@ -671,7 +691,17 @@ const QuickCreateModal: React.FC<QuickCreateModalProps> = ({
                         id={`quick-create-${field.key}`}
                         type={field.type === 'email' ? 'email' : field.type === 'number' ? 'number' : field.type === 'date' ? 'date' : 'text'}
                         value={formData[field.key] || ''}
-                        onChange={(e) => handleInputChange(field.key, e.target.value)}
+                        onChange={(e) => {
+                          const raw = e.target.value;
+                          if (field.key === 'zip_code') {
+                            handleInputChange(field.key, raw.replace(/\D/g, '').slice(0, 5));
+                            return;
+                          }
+                          handleInputChange(field.key, raw);
+                        }}
+                        maxLength={field.key === 'zip_code' ? 5 : undefined}
+                        inputMode={field.key === 'zip_code' ? 'numeric' : undefined}
+                        pattern={field.key === 'zip_code' ? '^\\d{5}$' : undefined}
                         className={errors[field.key] ? 'error' : ''}
                         disabled={isSubmitting}
                         autoFocus={fields.indexOf(field) === 0}
