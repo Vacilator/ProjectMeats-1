@@ -74,7 +74,15 @@ export const useOnboardingTour = (tourConfig: TourConfig) => {
         const target = (tourConfig.steps?.[index] as any)?.target;
         // eslint-disable-next-line no-console
         console.warn(`[Tour:${tourConfig.name}] Target not found for step ${index}: ${String(target)}`);
-        setStepIndex(index + 1);
+
+        const nextIndex = index + 1;
+        if (nextIndex >= (tourConfig.steps?.length || 0)) {
+          setRun(false);
+          setStepIndex(0);
+          return;
+        }
+
+        setStepIndex(nextIndex);
         return;
       }
 
@@ -171,17 +179,19 @@ export const workflowEditorTourSteps: Step[] = [
     placement: 'bottom',
   },
   {
-    target: '[data-tour="config-panel"]',
+    // Target the canvas (always present) so the user can click nodes.
+    // The config panel may be hidden until a node is selected.
+    target: '.react-flow__pane',
     content: (
       <div>
-        <h3 style={{ margin: '0 0 8px 0' }}>⚙️ Configuration Panel</h3>
+        <h3 style={{ margin: '0 0 8px 0' }}>⚙️ Configure Nodes</h3>
         <p style={{ margin: 0 }}>
-          When you click a node, configure its properties here.
-          Changes are saved automatically as you type.
+          Click any node on the canvas to open its <strong>Configuration Panel</strong>.
+          That&apos;s where you edit fields, rules, and settings for the selected node.
         </p>
       </div>
     ),
-    placement: 'left',
+    placement: 'top',
     skipBeacon: true,
   },
   {
