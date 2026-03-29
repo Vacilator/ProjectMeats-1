@@ -6,9 +6,10 @@
  * Fixed-height preview (320px) with internal vertical scroll for many fields.
  */
 
-import React, { useCallback, useMemo } from 'react';
+import React, { useMemo } from 'react';
 import styled from 'styled-components';
-import { Handle, Position, useReactFlow, type Node, type NodeProps } from '@xyflow/react';
+import { Handle, NodeToolbar, Position, type Node, type NodeProps } from '@xyflow/react';
+import { ArrowDown, ArrowUp, Edit2, Trash2 } from 'lucide-react';
 
 type PreviewField = {
   id: string;
@@ -24,6 +25,12 @@ export type FormStepNodeData = {
   fields?: PreviewField[];
   entityType?: string;
   order?: number;
+
+  // Injected by UnifiedFlowEditor via nodesWithHandlers
+  onEdit?: () => void;
+  onDelete?: () => void;
+  onMoveUp?: () => void;
+  onMoveDown?: () => void;
 } & Record<string, unknown>;
 
 const Page = styled.div<{ $selected: boolean }>`
@@ -122,6 +129,39 @@ const PageBadge = styled.div`
   border: 1px solid rgb(var(--color-border));
 `;
 
+const ToolbarCard = styled.div`
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px;
+  border-radius: 10px;
+  background: rgb(var(--color-surface));
+  border: 1px solid rgb(var(--color-border));
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.12);
+`;
+
+const ToolbarBtn = styled.button<{ $danger?: boolean }>`
+  width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  border: 1px solid rgb(var(--color-border));
+  background: rgb(var(--color-background));
+  color: ${(p) => (p.$danger ? 'rgb(239, 68, 68)' : 'rgb(var(--color-text-primary))')};
+  cursor: pointer;
+
+  &:hover {
+    background: rgb(var(--color-background-secondary));
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+`;
+
 const Meta = styled.div`
   margin-top: 4px;
   font-size: 11px;
@@ -181,9 +221,7 @@ const PreviewMore = styled.div`
   margin-top: 2px;
 `;
 
-export const FormStepNode = React.memo<NodeProps<Node<FormStepNodeData>>>(({ id, data, selected }) => {
-  const { setNodes } = useReactFlow();
-
+export const FormStepNode = React.memo<NodeProps<Node<FormStepNodeData>>>(({ data, selected }) => {
   const fields = Array.isArray(data.fields) ? data.fields : [];
 
   const title = data.stepTitle || data.label || 'Step';
@@ -192,88 +230,139 @@ export const FormStepNode = React.memo<NodeProps<Node<FormStepNodeData>>>(({ id,
 
   const previewFields = useMemo(() => fields.slice(0, 4), [fields]);
 
-  const updateTitle = useCallback(
-    (next: string) => {
-      setNodes((nds) =>
-        nds.map((n) => {
-          if (n.id !== id) return n;
-          return {
-            ...n,
-            data: {
-              ...(n.data || {}),
-              stepTitle: next,
-              label: next,
-            },
-          };
-        })
-      );
-    },
-    [id, setNodes]
-  );
+  const showToolbar = Boolean(selected);
 
   return (
-    <Page $selected={!!selected}>
-      <Header className="custom-drag-handle">
-        <TitleRow>
-          <Title title={title}>{title}</Title>
-          {pageNumber !== undefined && <PageBadge title="Step order">{pageNumber}</PageBadge>}
-        </TitleRow>
-        <Meta title={entityType}>{entityType || 'Form Step'}</Meta>
-      </Header>
-
-      <ScrollBody>
-        <PreviewCard>
-          <PreviewTitle>Fields ({fields.length})</PreviewTitle>
-          {previewFields.map((f) => (
-            <PreviewFieldRow key={f.id}>
-              <PreviewFieldLabel title={f.label || f.id}>
-                {f.label || f.id}
-                {f.required ? ' *' : ''}
-              </PreviewFieldLabel>
-              <PreviewFieldBox />
-            </PreviewFieldRow>
-          ))}
-          {fields.length > previewFields.length && (
-            <PreviewMore>+{fields.length - previewFields.length} more</PreviewMore>
+    <>
+      <NodeToolbar isVisible={!!selected} position={Position.Top}>
+        <ToolbarCard
+          className="nodrag"
+          style={{
+            opacity: showToolbar ? 1 : 0,
+            transform: `translateY(${showToolbar ? 0 : -4}px) scale(${showToolbar ? 1 : 0.98})`,
+            pointerEvents: showToolbar ? 'auto' : 'none',
+            transition: 'opacity 0.15s ease, transform 0.15s ease',
+          }}
+        >
+          {(data.onMoveUp || data.onMoveDown) && (
+            <>
+              <ToolbarBtn
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  data.onMoveUp?.();
+                }}
+                title="Move up"
+                disabled={!data.onMoveUp}
+              >
+                <ArrowUp size={16} />
+              </ToolbarBtn>
+              <ToolbarBtn
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  data.onMoveDown?.();
+                }}
+                title="Move down"
+                disabled={!data.onMoveDown}
+              >
+                <ArrowDown size={16} />
+              </ToolbarBtn>
+            </>
           )}
-        </PreviewCard>
 
-        {/* Placeholder for future inline editing */}
-        <div style={{ marginTop: 10, fontSize: 11, color: 'rgb(var(--color-text-tertiary))' }}>
-          Double-click title to rename
-        </div>
-      </ScrollBody>
+          {data.onEdit && (
+            <ToolbarBtn
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                data.onEdit?.();
+              }}
+              title="Edit step"
+            >
+              <Edit2 size={16} />
+            </ToolbarBtn>
+          )}
 
-      {/* Handles (kept for compatibility with existing edge patterns) */}
-      <Handle
-        type="target"
-        position={Position.Top}
-        style={{
-          left: '50%',
-          width: 14,
-          height: 14,
-          background: 'rgb(var(--color-primary))',
-          border: '2px solid rgb(var(--color-surface))',
-          borderRadius: 6,
-          transform: 'translateX(-50%)',
-        }}
-        aria-label="Form Step input"
-      />
-      <Handle
-        type="source"
-        position={Position.Bottom}
-        style={{
-          left: '50%',
-          width: 14,
-          height: 14,
-          background: 'rgb(var(--color-primary))',
-          border: '2px solid rgb(var(--color-surface))',
-          borderRadius: 6,
-          transform: 'translateX(-50%)',
-        }}
-        aria-label="Form Step output"
-      />
-    </Page>
+          {data.onDelete && (
+            <ToolbarBtn
+              type="button"
+              $danger
+              onClick={(e) => {
+                e.stopPropagation();
+                data.onDelete?.();
+              }}
+              title="Delete step"
+            >
+              <Trash2 size={16} />
+            </ToolbarBtn>
+          )}
+        </ToolbarCard>
+      </NodeToolbar>
+
+      <Page $selected={!!selected}>
+        <Header className="custom-drag-handle">
+          <TitleRow>
+            <Title title={title}>{title}</Title>
+            {pageNumber !== undefined && <PageBadge title="Step order">{pageNumber}</PageBadge>}
+          </TitleRow>
+          <Meta title={entityType}>{entityType || 'Form Step'}</Meta>
+        </Header>
+
+        <ScrollBody>
+          <PreviewCard>
+            <PreviewTitle>Fields ({fields.length})</PreviewTitle>
+            {previewFields.map((f) => (
+              <PreviewFieldRow key={f.id}>
+                <PreviewFieldLabel title={f.label || f.id}>
+                  {f.label || f.id}
+                  {f.required ? ' *' : ''}
+                </PreviewFieldLabel>
+                <PreviewFieldBox />
+              </PreviewFieldRow>
+            ))}
+            {fields.length > previewFields.length && (
+              <PreviewMore>+{fields.length - previewFields.length} more</PreviewMore>
+            )}
+          </PreviewCard>
+
+          {/* Placeholder for future inline editing */}
+          <div style={{ marginTop: 10, fontSize: 11, color: 'rgb(var(--color-text-tertiary))' }}>
+            Double-click title to rename
+          </div>
+        </ScrollBody>
+
+        {/* Handles (kept for compatibility with existing edge patterns) */}
+        <Handle
+          type="target"
+          position={Position.Top}
+          style={{
+            left: '50%',
+            width: 14,
+            height: 14,
+            background: 'rgb(var(--color-primary))',
+            border: '2px solid rgb(var(--color-surface))',
+            borderRadius: 6,
+            transform: 'translateX(-50%)',
+          }}
+          aria-label="Form Step input"
+        />
+        <Handle
+          type="source"
+          position={Position.Bottom}
+          style={{
+            left: '50%',
+            width: 14,
+            height: 14,
+            background: 'rgb(var(--color-primary))',
+            border: '2px solid rgb(var(--color-surface))',
+            borderRadius: 6,
+            transform: 'translateX(-50%)',
+          }}
+          aria-label="Form Step output"
+        />
+      </Page>
+    </>
   );
 });
 
