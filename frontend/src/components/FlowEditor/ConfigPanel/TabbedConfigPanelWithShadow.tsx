@@ -224,7 +224,7 @@ export const TabbedConfigPanelWithShadow: React.FC<TabbedConfigPanelWithShadowPr
 
   return (
     <>
-      <ShadowWrapper>
+      <ShadowWrapper data-tour="config-panel">
         {/* Dirty Indicator Banner */}
         <DirtyIndicatorBanner $show={isDirty}>
           <AlertCircle size={18} />

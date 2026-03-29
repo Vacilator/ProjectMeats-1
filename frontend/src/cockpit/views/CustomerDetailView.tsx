@@ -21,6 +21,11 @@ type EntityRecord = {
   contact_person?: string;
   email?: string;
   phone?: string;
+
+  phone_mobile?: string;
+  phone_office?: string;
+  phone_office_extension?: string;
+
   notes?: string;
   [key: string]: unknown;
 };
@@ -684,7 +689,17 @@ export const CustomerDetailView: React.FC<CustomerDetailViewProps> = ({
                 <InfoKey>Phone</InfoKey>
                 <InfoValue>
                   <Phone size={14} />
-                  {safeText(entity?.phone) ? safeText(entity?.phone) : <Muted>—</Muted>}
+                  {(() => {
+                    const office = safeText(entity?.phone_office);
+                    const ext = safeText(entity?.phone_office_extension);
+                    const mobile = safeText(entity?.phone_mobile);
+                    const legacy = safeText(entity?.phone);
+
+                    if (office) return ext ? `${office} x${ext}` : office;
+                    if (mobile) return mobile;
+                    if (legacy) return legacy;
+                    return <Muted>—</Muted>;
+                  })()}
                 </InfoValue>
               </InfoRow>
               <InfoRow>

@@ -238,24 +238,26 @@ const CustomerProducts: React.FC = () => {
   };
 
   const handleRemoveProduct = async (productId: string) => {
-    Modal.confirm({
+    const confirmed = await confirmDialog({
       title: 'Remove Product Association',
       content: 'Are you sure you want to remove this product from this customer?',
       okText: 'Remove',
-      okType: 'danger',
-      onOk: async () => {
-        try {
-          await apiClient.patch(`/customers/${id}/`, {
-            products: products.filter(p => p.id !== productId).map(p => p.id),
-          });
-          message.success('Product association removed successfully');
-          fetchProducts();
-        } catch (error) {
-          console.error('Error removing product:', error);
-          message.error('Failed to remove product association');
-        }
-      },
+      cancelText: 'Cancel',
+      danger: true,
     });
+
+    if (!confirmed) return;
+
+    try {
+      await apiClient.patch(`/customers/${id}/`, {
+        products: products.filter(p => p.id !== productId).map(p => p.id),
+      });
+      message.success('Product association removed successfully');
+      fetchProducts();
+    } catch (error) {
+      console.error('Error removing product:', error);
+      message.error('Failed to remove product association');
+    }
   };
 
   const columns: ColumnsType<Product> = [

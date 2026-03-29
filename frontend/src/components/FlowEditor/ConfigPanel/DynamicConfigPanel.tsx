@@ -332,6 +332,8 @@ export const DynamicConfigPanel: React.FC<DynamicConfigPanelProps> = ({
     const field = findFieldById(schema, fieldId);
 
     setFormData((prev) => {
+      const semanticNodeType = (((node?.data as any)?.nodeType as string | undefined) || node.type) as string;
+
       // If entity type changes on form-like nodes, reset fields and trigger smart defaults.
       if (
         fieldId === 'entityType' &&
@@ -339,6 +341,13 @@ export const DynamicConfigPanel: React.FC<DynamicConfigPanelProps> = ({
       ) {
         pendingAutoDefaultsRef.current = value as string;
         const next = { ...prev, entityType: value, fields: [] };
+        onUpdateNode(node.id, next);
+        return next;
+      }
+
+      // Legacy triggerEvent schema uses entityType; TriggerNode expects eventEntity for display.
+      if (fieldId === 'entityType' && semanticNodeType === 'triggerEvent') {
+        const next = { ...prev, entityType: value, eventEntity: value };
         onUpdateNode(node.id, next);
         return next;
       }

@@ -180,6 +180,7 @@ class IndustryChoices(models.TextChoices):
     """Common choices for customer industry."""
 
     PET_SECTOR = "Pet Sector", "Pet Sector"
+    PET_FOODS = "Pet Foods", "Pet Foods"
     PROCESSOR = "Processor", "Processor"
     RETAIL = "Retail", "Retail"
     WHOLESALER = "Wholesaler", "Wholesaler"

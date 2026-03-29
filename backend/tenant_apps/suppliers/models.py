@@ -41,6 +41,8 @@ class Supplier(TenantAwareModel):
         max_length=255, blank=True, null=True, help_text="Primary contact person name"
     )
     email = models.EmailField(blank=True, null=True, help_text="Primary contact email")
+
+    # Legacy primary phone (kept for backward compatibility)
     phone = models.CharField(
         max_length=20, blank=True, null=True, help_text="Primary contact phone number"
     )
@@ -50,6 +52,26 @@ class Supplier(TenantAwareModel):
         blank=True,
         default=PhoneTypeChoices.OFFICE,
         help_text="Primary contact phone type (mobile or office)",
+    )
+
+    # New: explicit phone slots for creation/edit UX
+    phone_mobile = models.CharField(
+        max_length=20,
+        blank=True,
+        default='',
+        help_text="Mobile phone number",
+    )
+    phone_office = models.CharField(
+        max_length=20,
+        blank=True,
+        default='',
+        help_text="Office phone number",
+    )
+    phone_office_extension = models.CharField(
+        max_length=10,
+        blank=True,
+        default='',
+        help_text="Office phone extension",
     )
 
     # Address fields - keeping existing structure but adding street_address for clarity

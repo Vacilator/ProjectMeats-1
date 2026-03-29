@@ -23,6 +23,7 @@ export function showAlert(options: {
     title,
     content,
     centered: true,
+    zIndex: 2000,
   });
 }
 
@@ -40,6 +41,7 @@ export function confirmDialog(options: {
       title,
       content,
       centered: true,
+      zIndex: 2000,
       okText: okText ?? 'Confirm',
       cancelText: cancelText ?? 'Cancel',
       okButtonProps: danger ? { danger: true } : undefined,
@@ -64,6 +66,7 @@ export function promptDialog(options: {
     Modal.confirm({
       title,
       centered: true,
+      zIndex: 2000,
       okText: okText ?? 'OK',
       cancelText: cancelText ?? 'Cancel',
       content: (

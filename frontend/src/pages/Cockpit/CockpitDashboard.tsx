@@ -450,13 +450,21 @@ export const CockpitDashboard: React.FC = () => {
   const cockpitQuery = searchParams.get('q') ?? '';
   
   // Handle search query changes from SmartSearch component
+  // NOTE: use replace=true so typing doesn't spam browser history.
   const handleQueryChange = useCallback((newQuery: string) => {
-    if (newQuery) {
-      setSearchParams({ q: newQuery });
+    const next = new URLSearchParams(searchParams);
+
+    if (newQuery && newQuery.trim().length > 0) {
+      next.set('q', newQuery);
     } else {
-      setSearchParams({});
+      next.delete('q');
     }
-  }, [setSearchParams]);
+
+    // This subview is only meaningful when a record context is active.
+    next.delete('cockpit_subview');
+
+    setSearchParams(next, { replace: true });
+  }, [searchParams, setSearchParams]);
   
   // Cockpit navigation context
   const navigation = useCockpitNavigation();
@@ -465,6 +473,22 @@ export const CockpitDashboard: React.FC = () => {
   const isSearchActive = cockpitQuery.trim().length > 0;
   const isRecordActive = navigation.path.length > 0;
   const showDashboardWidgets = !isSearchActive && !isRecordActive;
+
+  // If the user edits the search input, we should exit any selected record context
+  // so results refresh immediately on every keystroke.
+  const lastQueryRef = useRef<string>(cockpitQuery);
+  useEffect(() => {
+    if (lastQueryRef.current === cockpitQuery) return;
+    lastQueryRef.current = cockpitQuery;
+
+    if (navigation.path.length > 0) {
+      navigation.clearPath();
+    }
+
+    if (inlineAction) {
+      setInlineAction(null);
+    }
+  }, [cockpitQuery, inlineAction, navigation]);
 
   const generateSmartContext = useCallback((sourceEntity: any, targetType: string) => {
     if (!sourceEntity) return {};

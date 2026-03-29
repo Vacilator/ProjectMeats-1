@@ -360,7 +360,7 @@ export const SmartProductAutocomplete: React.FC<SmartProductAutocompleteProps> =
             search: query,
             is_active: true,
             page_size: 20,
-            ...(normalizedProteinFilter ? { protein: normalizedProteinFilter } : {}),
+            ...(normalizedProteinFilter ? { protein: normalizedProteinFilter.join(',') } : {}),
           },
         });
 

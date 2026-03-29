@@ -10,9 +10,7 @@ class InquiryProductSerializer(serializers.ModelSerializer):
     """Serializer for InquiryProduct model."""
     
     product_code = serializers.CharField(source='product.product_code', read_only=True)
-    product_description = serializers.CharField(
-        source='product.description_of_product_item', read_only=True
-    )
+    product_description = serializers.CharField(source='product.description', read_only=True)
     margin = serializers.DecimalField(
         max_digits=12, decimal_places=2, read_only=True
     )
@@ -212,9 +210,7 @@ class InquiryTemplateProductSerializer(serializers.ModelSerializer):
     """Serializer for template products."""
     
     product_code = serializers.CharField(source='product.product_code', read_only=True)
-    product_description = serializers.CharField(
-        source='product.description_of_product_item', read_only=True
-    )
+    product_description = serializers.CharField(source='product.description', read_only=True)
     
     class Meta:
         model = InquiryTemplateProduct

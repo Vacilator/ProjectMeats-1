@@ -135,9 +135,10 @@ const OptionListsPage: React.FC = () => {
 
   const openCreateCustomList = () => {
     if (!canEdit) {
-      Modal.info({
+      showAlert({
         title: 'Access restricted',
         content: 'Only tenant administrators can create custom option lists.',
+        type: 'info',
       });
       return;
     }
@@ -152,22 +153,25 @@ const OptionListsPage: React.FC = () => {
       return;
     }
 
-    Modal.confirm({
-      title: `Delete custom list "${record.name}"?`,
-      content: 'This will permanently delete the list and all of its options.',
-      okText: 'Delete',
-      okButtonProps: { danger: true },
-      cancelText: 'Cancel',
-      onOk: async () => {
-        try {
-          await apiClient.delete(`/workflows/lists/${record.id}/`);
-          message.success('Custom list deleted');
-          await loadCustomLists();
-        } catch (err: any) {
-          message.error(err?.response?.data?.error || 'Failed to delete custom list');
-        }
-      },
-    });
+    void (async () => {
+      const confirmed = await confirmDialog({
+        title: `Delete custom list "${record.name}"?`,
+        content: 'This will permanently delete the list and all of its options.',
+        okText: 'Delete',
+        cancelText: 'Cancel',
+        danger: true,
+      });
+
+      if (!confirmed) return;
+
+      try {
+        await apiClient.delete(`/workflows/lists/${record.id}/`);
+        message.success('Custom list deleted');
+        await loadCustomLists();
+      } catch (err: any) {
+        message.error(err?.response?.data?.error || 'Failed to delete custom list');
+      }
+    })();
   };
 
   const systemColumns: ColumnsType<SystemChoiceList> = [

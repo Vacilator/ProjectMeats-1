@@ -13,6 +13,7 @@ import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Table, Input, Button, Modal, Form, Select, message, Tag, Space } from 'antd';
+import { confirmDialog } from '@/utils/uiDialogs';
 import { CountrySelect } from '../../components/ui';
 import { US_STATES } from '../../utils/constants/states';
 import type { ColumnsType } from 'antd/es/table';
@@ -305,24 +306,25 @@ const CustomerLocations: React.FC = () => {
     setShowModal(true);
   };
 
-  const handleDelete = (loc: Location) => {
-    Modal.confirm({
+  const handleDelete = async (loc: Location) => {
+    const confirmed = await confirmDialog({
       title: 'Delete Location',
       content: `Are you sure you want to delete ${loc.name}?`,
       okText: 'Delete',
-      okType: 'danger',
       cancelText: 'Cancel',
-      onOk: async () => {
-        try {
-          await apiClient.delete(`locations/${loc.id}/`);
-          message.success('Location deleted successfully');
-          loadLocations();
-        } catch (error: any) {
-          console.error('Error deleting location:', error);
-          message.error('Failed to delete location');
-        }
-      },
+      danger: true,
     });
+
+    if (!confirmed) return;
+
+    try {
+      await apiClient.delete(`locations/${loc.id}/`);
+      message.success('Location deleted successfully');
+      loadLocations();
+    } catch (error: any) {
+      console.error('Error deleting location:', error);
+      message.error('Failed to delete location');
+    }
   };
 
   const handleSubmit = async () => {

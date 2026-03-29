@@ -56,25 +56,41 @@ export const useOnboardingTour = (tourConfig: TourConfig) => {
 
       if (status === STATUS.FINISHED || status === STATUS.SKIPPED) {
         // Mark tour as completed
-        const completedTours = JSON.parse(
-          localStorage.getItem(TOUR_STORAGE_KEY) || '[]'
-        );
+        const completedTours = JSON.parse(localStorage.getItem(TOUR_STORAGE_KEY) || '[]');
 
         if (!completedTours.includes(tourConfig.name)) {
           completedTours.push(tourConfig.name);
-          localStorage.setItem(
-            TOUR_STORAGE_KEY,
-            JSON.stringify(completedTours)
-          );
+          localStorage.setItem(TOUR_STORAGE_KEY, JSON.stringify(completedTours));
         }
 
         setRun(false);
         setStepIndex(0);
-      } else if (type === EVENTS.STEP_AFTER) {
+        return;
+      }
+
+      // If a step target doesn't exist, Joyride can leave a grey overlay and block UI.
+      // Advance past missing targets to keep the tour usable.
+      if (type === EVENTS.TARGET_NOT_FOUND) {
+        const target = (tourConfig.steps?.[index] as any)?.target;
+        // eslint-disable-next-line no-console
+        console.warn(`[Tour:${tourConfig.name}] Target not found for step ${index}: ${String(target)}`);
+
+        const nextIndex = index + 1;
+        if (nextIndex >= (tourConfig.steps?.length || 0)) {
+          setRun(false);
+          setStepIndex(0);
+          return;
+        }
+
+        setStepIndex(nextIndex);
+        return;
+      }
+
+      if (type === EVENTS.STEP_AFTER) {
         setStepIndex(index + (action === 'prev' ? -1 : 1));
       }
     },
-    [tourConfig.name]
+    [tourConfig.name, tourConfig.steps]
   );
 
   const startTour = useCallback(() => {
@@ -163,17 +179,19 @@ export const workflowEditorTourSteps: Step[] = [
     placement: 'bottom',
   },
   {
-    target: '.node-config-panel',
+    // Target the canvas (always present) so the user can click nodes.
+    // The config panel may be hidden until a node is selected.
+    target: '.react-flow__pane',
     content: (
       <div>
-        <h3 style={{ margin: '0 0 8px 0' }}>⚙️ Configuration Panel</h3>
+        <h3 style={{ margin: '0 0 8px 0' }}>⚙️ Configure Nodes</h3>
         <p style={{ margin: 0 }}>
-          When you click a node, configure its properties here.
-          Changes are saved automatically as you type.
+          Click any node on the canvas to open its <strong>Configuration Panel</strong>.
+          That&apos;s where you edit fields, rules, and settings for the selected node.
         </p>
       </div>
     ),
-    placement: 'left',
+    placement: 'top',
     skipBeacon: true,
   },
   {
@@ -279,9 +297,11 @@ export const tourOptions: Partial<Options> = {
   backgroundColor: 'rgb(var(--color-background))',
   arrowColor: 'rgb(var(--color-background))',
   overlayColor: 'rgba(0, 0, 0, 0.5)',
-  zIndex: 10000,
+  zIndex: 10050,
   showProgress: true,
   buttons: ['back', 'close', 'primary', 'skip'],
+  spotlightClicks: true,
+  disableOverlayClose: false,
 };
 
 export const tourStyles: PartialDeep<Styles> = {

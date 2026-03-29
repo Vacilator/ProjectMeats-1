@@ -534,7 +534,44 @@ const QuickCreateModal: React.FC<QuickCreateModalProps> = ({
                     <Label required={field.required} htmlFor={`quick-create-${field.key}`}>
                       {field.label}
                     </Label>
-                    {field.key === 'preferred_protein_types' ? (
+                    {field.key === 'phone_mobile' ? (
+                      <Input
+                        id={`quick-create-${field.key}`}
+                        type="tel"
+                        value={formData[field.key] || ''}
+                        onChange={(e) => handleInputChange(field.key, e.target.value.replace(/\D/g, '').slice(0, 20))}
+                        className={errors[field.key] ? 'error' : ''}
+                        disabled={isSubmitting}
+                        autoFocus={fields.indexOf(field) === 0}
+                        placeholder="(XXX) XXX-XXXX"
+                        inputMode="tel"
+                      />
+                    ) : field.key === 'phone_office' ? (
+                      <Input
+                        id={`quick-create-${field.key}`}
+                        type="tel"
+                        value={formData[field.key] || ''}
+                        onChange={(e) => handleInputChange(field.key, e.target.value.replace(/\D/g, '').slice(0, 20))}
+                        className={errors[field.key] ? 'error' : ''}
+                        disabled={isSubmitting}
+                        autoFocus={fields.indexOf(field) === 0}
+                        placeholder="(XXX) XXX-XXXX"
+                        inputMode="tel"
+                      />
+                    ) : field.key === 'phone_office_extension' ? (
+                      <Input
+                        id={`quick-create-${field.key}`}
+                        type="text"
+                        value={formData[field.key] || ''}
+                        onChange={(e) => handleInputChange(field.key, e.target.value.replace(/\D/g, '').slice(0, 6))}
+                        maxLength={6}
+                        inputMode="numeric"
+                        className={errors[field.key] ? 'error' : ''}
+                        disabled={isSubmitting}
+                        autoFocus={fields.indexOf(field) === 0}
+                        placeholder="e.g., 123"
+                      />
+                    ) : field.key === 'preferred_protein_types' ? (
                       <Select
                         mode="multiple"
                         value={proteinTypeValue}
@@ -675,7 +712,44 @@ const QuickCreateModal: React.FC<QuickCreateModalProps> = ({
                     <Label required={field.required} htmlFor={`quick-create-${field.key}`}>
                       {field.label}
                     </Label>
-                    {field.key === 'preferred_protein_types' ? (
+                    {field.key === 'phone_mobile' ? (
+                      <Input
+                        id={`quick-create-${field.key}`}
+                        type="tel"
+                        value={formData[field.key] || ''}
+                        onChange={(e) => handleInputChange(field.key, e.target.value.replace(/\D/g, '').slice(0, 20))}
+                        className={errors[field.key] ? 'error' : ''}
+                        disabled={isSubmitting}
+                        autoFocus={fields.indexOf(field) === 0}
+                        placeholder="(XXX) XXX-XXXX"
+                        inputMode="tel"
+                      />
+                    ) : field.key === 'phone_office' ? (
+                      <Input
+                        id={`quick-create-${field.key}`}
+                        type="tel"
+                        value={formData[field.key] || ''}
+                        onChange={(e) => handleInputChange(field.key, e.target.value.replace(/\D/g, '').slice(0, 20))}
+                        className={errors[field.key] ? 'error' : ''}
+                        disabled={isSubmitting}
+                        autoFocus={fields.indexOf(field) === 0}
+                        placeholder="(XXX) XXX-XXXX"
+                        inputMode="tel"
+                      />
+                    ) : field.key === 'phone_office_extension' ? (
+                      <Input
+                        id={`quick-create-${field.key}`}
+                        type="text"
+                        value={formData[field.key] || ''}
+                        onChange={(e) => handleInputChange(field.key, e.target.value.replace(/\D/g, '').slice(0, 6))}
+                        maxLength={6}
+                        inputMode="numeric"
+                        className={errors[field.key] ? 'error' : ''}
+                        disabled={isSubmitting}
+                        autoFocus={fields.indexOf(field) === 0}
+                        placeholder="e.g., 123"
+                      />
+                    ) : field.key === 'preferred_protein_types' ? (
                       <Select
                         mode="multiple"
                         value={proteinTypeValue}

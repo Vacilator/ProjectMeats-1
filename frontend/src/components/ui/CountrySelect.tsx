@@ -9,7 +9,7 @@
 import React from 'react';
 import { Select as AntSelect } from 'antd';
 
-import { COUNTRY_OPTIONS } from '../../utils/constants/countries';
+import { COUNTRY_OPTIONS, DEFAULT_COUNTRY } from '../../utils/constants/countries';
 
 export interface CountrySelectProps {
   value: string;
@@ -28,10 +28,12 @@ export const CountrySelect: React.FC<CountrySelectProps> = ({
   allowClear = true,
   'aria-label': ariaLabel,
 }) => {
+  const effectiveValue = value || DEFAULT_COUNTRY;
+
   return (
     <AntSelect
-      value={value || undefined}
-      onChange={(next) => onChange(String(next || ''))}
+      value={effectiveValue || undefined}
+      onChange={(next) => onChange(String(next || DEFAULT_COUNTRY))}
       placeholder={placeholder}
       disabled={disabled}
       allowClear={allowClear}

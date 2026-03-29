@@ -423,6 +423,13 @@ export interface Supplier {
   name: string;
   contact_person?: string;
   email?: string;
+
+  // New explicit phone slots
+  phone_mobile?: string;
+  phone_office?: string;
+  phone_office_extension?: string;
+
+  // Legacy primary phone (kept for backward compatibility)
   phone?: string;
   phone_type?: 'mobile' | 'office';
   address?: string;
@@ -441,8 +448,16 @@ export interface Customer {
   name: string;
   contact_person?: string;
   email?: string;
+
+  // New explicit phone slots
+  phone_mobile?: string;
+  phone_office?: string;
+  phone_office_extension?: string;
+
+  // Legacy primary phone (kept for backward compatibility)
   phone?: string;
   phone_type?: 'mobile' | 'office';
+
   address?: string;
   city?: string;
   state?: string;

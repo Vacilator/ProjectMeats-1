@@ -82,8 +82,11 @@ const Suppliers: React.FC = () => {
     name: '',
     contact_person: '',
     email: '',
-    phone: '',
-    phone_type: 'office' as 'office' | 'mobile',
+
+    phone_mobile: '',
+    phone_office: '',
+    phone_office_extension: '',
+
     address: '',
     city: '',
     state: '',
@@ -385,14 +388,26 @@ const Suppliers: React.FC = () => {
       return;
     }
 
+    const mobile = String(formData.phone_mobile || '').trim();
+    const office = String(formData.phone_office || '').trim();
+    const payload = {
+      ...formData,
+      // Backward compatible payload: older backends may only accept phone/phone_type.
+      ...(office
+        ? { phone: office, phone_type: 'office' as const }
+        : mobile
+          ? { phone: mobile, phone_type: 'mobile' as const }
+          : {}),
+    };
+
     try {
       let supplierId: number;
 
       if (editingSupplier) {
-        const updated = await apiService.updateSupplier(editingSupplier.id, formData);
+        const updated = await apiService.updateSupplier(editingSupplier.id, payload);
         supplierId = updated.id;
       } else {
-        const created = await apiService.createSupplier(formData);
+        const created = await apiService.createSupplier(payload);
         supplierId = created.id;
       }
 
@@ -435,8 +450,13 @@ const Suppliers: React.FC = () => {
       name: supplier.name,
       contact_person: supplier.contact_person || '',
       email: supplier.email || '',
-      phone: supplier.phone || '',
-      phone_type: supplier.phone_type || 'office',
+
+      phone_mobile:
+        (supplier as any).phone_mobile || ((supplier.phone_type === 'mobile' && supplier.phone) ? supplier.phone : ''),
+      phone_office:
+        (supplier as any).phone_office || ((supplier.phone_type !== 'mobile' && supplier.phone) ? supplier.phone : ''),
+      phone_office_extension: (supplier as any).phone_office_extension || '',
+
       address: supplier.address || '',
       city: supplier.city || '',
       state: supplier.state || '',
@@ -493,8 +513,11 @@ const Suppliers: React.FC = () => {
       name: '',
       contact_person: '',
       email: '',
-      phone: '',
-      phone_type: 'office',
+
+      phone_mobile: '',
+      phone_office: '',
+      phone_office_extension: '',
+
       address: '',
       city: '',
       state: '',
@@ -520,7 +543,16 @@ const Suppliers: React.FC = () => {
 
   const visibleSuppliers = suppliers.filter((s) => {
     if (!searchText.trim()) return true;
-    const haystack = [s.name, s.contact_person, s.email, s.phone, s.city, s.state]
+    const haystack = [
+      s.name,
+      s.contact_person,
+      s.email,
+      (s as any).phone_office,
+      (s as any).phone_mobile,
+      s.phone,
+      s.city,
+      s.state,
+    ]
       .filter(Boolean)
       .join(' ')
       .toLowerCase();
@@ -613,20 +645,38 @@ const Suppliers: React.FC = () => {
                 </FormGroup>
 
                 <FormGroup>
-                  <Label $theme={theme}>Phone</Label>
-                  <Select
-                    value={formData.phone_type}
-                    onChange={(value) => setFormData({ ...formData, phone_type: value as 'office' | 'mobile' })}
-                    options={PHONE_TYPE_OPTIONS}
-                    placeholder="Phone type"
-                    aria-label="Phone type"
+                  <Label $theme={theme}>Mobile Phone</Label>
+                  <PhoneInput
+                    value={formData.phone_mobile}
+                    onChange={(value) => setFormData({ ...formData, phone_mobile: value })}
+                    placeholder="(XXX) XXX-XXXX"
+                    aria-label="Mobile phone"
+                  />
+                </FormGroup>
+
+                <FormGroup>
+                  <Label $theme={theme}>Office Phone</Label>
+                  <PhoneInput
+                    value={formData.phone_office}
+                    onChange={(value) => setFormData({ ...formData, phone_office: value })}
+                    placeholder="(XXX) XXX-XXXX"
+                    aria-label="Office phone"
                   />
                   <div style={{ height: 8 }} />
-                  <PhoneInput
-                    value={formData.phone}
-                    onChange={(value) => setFormData({ ...formData, phone: value })}
-                    placeholder="(XXX) XXX-XXXX"
-                    aria-label="Phone number"
+                  <Label $theme={theme}>Extension</Label>
+                  <Input
+                    $theme={theme}
+                    type="text"
+                    value={formData.phone_office_extension}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        phone_office_extension: e.target.value.replace(/\D/g, '').slice(0, 6),
+                      })
+                    }
+                    placeholder="e.g., 123"
+                    inputMode="numeric"
+                    aria-label="Office extension"
                   />
                 </FormGroup>
 
@@ -715,8 +765,17 @@ const Suppliers: React.FC = () => {
                       label: `${p.product_code} - ${p.effective_name || p.product_name || p.name || 'Unknown'}`
                     })) : []}
                     label="Available Products"
-                    placeholder="Select products this supplier can provide"
+                    placeholder={
+                      formData.preferred_protein_types.length
+                        ? 'Search products (filtered by protein types)…'
+                        : 'Search products…'
+                    }
                   />
+                  {formData.preferred_protein_types.length > 0 && (
+                    <HelperText $theme={theme}>
+                      Showing {products.length} product(s) filtered by selected protein types
+                    </HelperText>
+                  )}
                 </FormGroup>
               </FormGrid>
 
@@ -832,7 +891,7 @@ const Suppliers: React.FC = () => {
                   />
                 </FormGroup>
 
-                <div style={{ gridColumn: '1 / -1', fontWeight: 600 }}>Booking Contact</div>
+                <div style={{ gridColumn: '1 / -1', fontWeight: 700, fontSize: 16 }}>Booking Contact</div>
 
                 <FormGroup>
                   <Label $theme={theme}>Booking Email</Label>
@@ -930,7 +989,19 @@ const Suppliers: React.FC = () => {
                   </TableCell>
                   <TableCell $theme={theme}>{supplier.contact_person || '-'}</TableCell>
                   <TableCell $theme={theme}>{supplier.email || '-'}</TableCell>
-                  <TableCell $theme={theme}>{supplier.phone || '-'}</TableCell>
+                  <TableCell $theme={theme}>
+                    {(() => {
+                      const office = String((supplier as any).phone_office || '').trim();
+                      const ext = String((supplier as any).phone_office_extension || '').trim();
+                      const mobile = String((supplier as any).phone_mobile || '').trim();
+                      const legacy = String(supplier.phone || '').trim();
+
+                      if (office) return ext ? `${office} x${ext}` : office;
+                      if (mobile) return mobile;
+                      if (legacy) return legacy;
+                      return '-';
+                    })()}
+                  </TableCell>
                   <TableCell $theme={theme}>
                     {supplier.city && supplier.state
                       ? `${supplier.city}, ${supplier.state}`
