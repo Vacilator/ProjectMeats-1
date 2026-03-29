@@ -782,7 +782,24 @@ const Suppliers: React.FC = () => {
             <TableBody>
               {visibleSuppliers.map((supplier) => (
                 <React.Fragment key={supplier.id}>
-                <TableRow key={supplier.id} $theme={theme}>
+                <TableRow
+                  key={supplier.id}
+                  $theme={theme}
+                  role="button"
+                  tabIndex={0}
+                  aria-expanded={selectedSupplierId === supplier.id}
+                  style={{ cursor: 'pointer' }}
+                  onClick={(e) => {
+                    const target = e.target as HTMLElement | null;
+                    if (target?.closest('button, a, input, textarea, select, [role="button"]')) return;
+                    void toggleSupplierDrilldown(supplier);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key !== 'Enter' && e.key !== ' ') return;
+                    e.preventDefault();
+                    void toggleSupplierDrilldown(supplier);
+                  }}
+                >
                   <TableCell $theme={theme}>
                     <CompanyButton
                       $theme={theme}
