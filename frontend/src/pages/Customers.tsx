@@ -315,17 +315,24 @@ const Customers: React.FC = () => {
       return;
     }
 
+    const mobile = String(formData.phone_mobile || '').trim();
+    const office = String(formData.phone_office || '').trim();
+    const payload = {
+      ...formData,
+      products: formData.products,
+      // Backward compatible payload: older backends may only accept phone/phone_type.
+      ...(office
+        ? { phone: office, phone_type: 'office' as const }
+        : mobile
+          ? { phone: mobile, phone_type: 'mobile' as const }
+          : {}),
+    };
+
     try {
       if (editingCustomer) {
-        await apiService.updateCustomer(editingCustomer.id, {
-          ...formData,
-          products: formData.products,
-        });
+        await apiService.updateCustomer(editingCustomer.id, payload);
       } else {
-        await apiService.createCustomer({
-          ...formData,
-          products: formData.products,
-        });
+        await apiService.createCustomer(payload);
       }
       setShowEditForm(false);
       setEditingCustomer(null);
@@ -503,7 +510,7 @@ const Customers: React.FC = () => {
         <FormOverlay>
           <FormContainer $theme={theme}>
             <FormHeader $theme={theme}>
-              <FormTitle $theme={theme}>{editingCustomer ? 'Edit Customer' : 'Edit Customer'}</FormTitle>
+              <FormTitle $theme={theme}>{editingCustomer ? 'Edit Customer' : 'Create Customer'}</FormTitle>
               <CloseButton $theme={theme} onClick={handleCancel}>×</CloseButton>
             </FormHeader>
 
