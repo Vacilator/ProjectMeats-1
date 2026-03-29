@@ -414,8 +414,8 @@ class EntityViewSet(viewsets.ViewSet):
         """Return default relationship types for each entity."""
         defaults = {
             # Cockpit UX defaults (continuous browsing): emphasize the primary panels.
-            'customer': ['contacts', 'recent_orders', 'invoices', 'related_products'],
-            'supplier': ['contacts', 'recent_orders', 'related_products'],
+            'customer': ['contacts', 'recent_orders', 'invoices', 'inquiries', 'related_products'],
+            'supplier': ['contacts', 'recent_orders', 'inquiries', 'related_products'],
             'product': ['purchase_orders', 'sales_orders'],
             # Keep lightweight, reliable relationships for order-like entities.
             'purchase_order': ['supplier', 'product', 'sales_order'],
@@ -439,6 +439,8 @@ class EntityViewSet(viewsets.ViewSet):
                 return self._get_invoices_for_customer(entity, tenant)
             if rel_type in ('related_products', 'products'):
                 return self._get_related_products_for_customer(entity, tenant)
+            if rel_type == 'inquiries':
+                return self._get_inquiries_for_customer(entity, tenant)
             # Legacy key (PurchaseOrder has no customer FK in current schema)
             if rel_type == 'purchase_orders':
                 return {"count": 0, "items": []}
@@ -453,6 +455,8 @@ class EntityViewSet(viewsets.ViewSet):
                 return self._get_sales_orders_for_supplier(entity, tenant)
             if rel_type == 'recent_orders':
                 return self._get_recent_orders_for_supplier(entity, tenant)
+            if rel_type == 'inquiries':
+                return self._get_inquiries_for_supplier(entity, tenant)
             if rel_type in ('related_products', 'products'):
                 return self._get_related_products_for_supplier(entity, tenant)
 
@@ -542,6 +546,19 @@ class EntityViewSet(viewsets.ViewSet):
         except LookupError:
             return None
 
+    def _get_inquiries_for_customer(self, customer, tenant):
+        """Get inquiries for a customer."""
+        try:
+            Inquiry = apps.get_model('inquiries', 'Inquiry')
+            qs = Inquiry.objects.filter(tenant=tenant, customer=customer)
+            qs = self._order_queryset_recent_first(qs)
+            return {
+                "count": qs.count(),
+                "items": [self._serialize_entity(inq, 'inquiry') for inq in qs[:10]],
+            }
+        except LookupError:
+            return None
+
     def _get_sales_orders_for_supplier(self, supplier, tenant):
         """Get sales orders for a supplier."""
         try:
@@ -577,6 +594,19 @@ class EntityViewSet(viewsets.ViewSet):
             return {
                 "count": qs.count(),
                 "items": [self._serialize_entity(po, 'purchase_order') for po in qs[:10]],
+            }
+        except LookupError:
+            return None
+
+    def _get_inquiries_for_supplier(self, supplier, tenant):
+        """Get inquiries for a supplier."""
+        try:
+            Inquiry = apps.get_model('inquiries', 'Inquiry')
+            qs = Inquiry.objects.filter(tenant=tenant, supplier=supplier)
+            qs = self._order_queryset_recent_first(qs)
+            return {
+                "count": qs.count(),
+                "items": [self._serialize_entity(inq, 'inquiry') for inq in qs[:10]],
             }
         except LookupError:
             return None
@@ -815,6 +845,11 @@ class EntityViewSet(viewsets.ViewSet):
             base['title'] = (
                 getattr(entity, 'invoice_number', None)
                 or f"Invoice {entity.pk}"
+            )
+        elif entity_type == 'inquiry':
+            base['title'] = (
+                getattr(entity, 'inquiry_number', None)
+                or f"Inquiry {entity.pk}"
             )
         elif entity_type == 'product':
             base['title'] = (
