@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { isValidEmail } from '../shared/utils';
 import { logger } from '@/utils/logger';
 
 import { useSearchParams, useNavigate } from 'react-router-dom';
@@ -258,6 +259,11 @@ const Suppliers: React.FC = () => {
       return;
     }
 
+    if (plantForm.email?.trim() && !isValidEmail(plantForm.email.trim())) {
+      alert('Please enter a valid email address for the plant');
+      return;
+    }
+
     try {
       await apiClient.post('plants/', {
         supplier: selectedSupplierId,
@@ -326,6 +332,12 @@ const Suppliers: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (formData.email?.trim() && !isValidEmail(formData.email.trim())) {
+      alert('Please enter a valid email address');
+      return;
+    }
+
     try {
       let supplierId: number;
 

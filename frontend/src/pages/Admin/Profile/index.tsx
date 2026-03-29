@@ -11,6 +11,7 @@ import { getRuntimeConfig } from '@/config/runtime';
 import { extractBrandColors } from '@/utils/themeUtils';
 import { injectTenantColors } from '@/config/theme';
 import { PhoneInput } from '@/components/ui/PhoneInput';
+import { isValidEmail } from '@/shared/utils';
 
 interface Tenant {
   id: string;
@@ -344,6 +345,11 @@ const AdminProfilePage: React.FC = () => {
     e.preventDefault();
 
     if (!tenant) return;
+
+    if (!isValidEmail(formData.contact_email.trim())) {
+      toast.error('Please enter a valid email address');
+      return;
+    }
 
     const settings = {
       theme: {

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { isValidEmail } from '../shared/utils';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
 import { useTheme } from '../contexts/ThemeContext';
@@ -247,6 +248,11 @@ const Customers: React.FC = () => {
       return;
     }
 
+    if (locationForm.email?.trim() && !isValidEmail(locationForm.email.trim())) {
+      alert('Please enter a valid email address for the location');
+      return;
+    }
+
     try {
       await apiClient.post('locations/', {
         customer: selectedCustomerId,
@@ -284,6 +290,12 @@ const Customers: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (formData.email?.trim() && !isValidEmail(formData.email.trim())) {
+      alert('Please enter a valid email address');
+      return;
+    }
+
     try {
       if (editingCustomer) {
         await apiService.updateCustomer(editingCustomer.id, {

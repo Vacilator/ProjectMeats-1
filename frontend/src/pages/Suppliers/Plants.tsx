@@ -601,7 +601,11 @@ const Plants: React.FC = () => {
             <Input placeholder="Phone Number" />
           </Form.Item>
 
-          <Form.Item name="email" label={<Label>Email</Label>}>
+          <Form.Item
+            name="email"
+            label={<Label>Email</Label>}
+            rules={[{ type: 'email', message: 'Please enter a valid email address' }]}
+          >
             <Input type="email" placeholder="Email Address" />
           </Form.Item>
 

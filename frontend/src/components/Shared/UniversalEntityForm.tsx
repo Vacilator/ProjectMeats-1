@@ -20,6 +20,7 @@ import { businessApi } from '../../services/businessApi';
 import { apiClient } from '../../services/apiService';
 import DynamicFormEngine from '../../features/system/DynamicFormEngine';
 import EntityOptionsSelect from '../FormSubmission/SearchableSelect';
+import { isValidEmail } from '../../shared/utils';
 
 export interface UniversalEntityFormProps {
   entityType: string;
@@ -497,6 +498,21 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
       const numberKeys = new Set(
         (scalarFields || []).filter((f) => String(f.type).toLowerCase() === 'number').map((f) => f.key)
       );
+      const emailKeySet = new Set(
+        (scalarFields || [])
+          .filter((f) => {
+            const key = String(f.key || '').toLowerCase();
+            const type = String(f.type || '').toLowerCase();
+            return key.includes('email') || type.includes('email');
+          })
+          .map((f) => f.key)
+      );
+      const emailLabelByKey = new Map(
+        (scalarFields || [])
+          .filter((f) => emailKeySet.has(f.key))
+          .map((f) => [f.key, f.label || f.key] as const)
+      );
+
       Object.entries(payload).forEach(([k, v]) => {
         if (v === '') {
           delete payload[k];
@@ -516,6 +532,16 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
           }
         }
       });
+
+      // Validate email(s) before submit.
+      for (const k of emailKeySet) {
+        const v = payload[k];
+        if (typeof v === 'string' && v.trim() && !isValidEmail(v.trim())) {
+          const label = emailLabelByKey.get(k) || k;
+          message.error(`Please enter a valid email for ${label}`);
+          return;
+        }
+      }
 
       try {
         setSubmitting(true);

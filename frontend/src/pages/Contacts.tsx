@@ -4,6 +4,7 @@ import { useLocation } from 'react-router-dom';
 import { apiService, Contact } from '../services/apiService';
 import { apiClient } from '../services/apiService';
 import { PhoneInput } from '../components/ui/PhoneInput';
+import { isValidEmail } from '../shared/utils';
 
 // Styled Components
 const Container = styled.div`
@@ -405,6 +406,12 @@ const Contacts: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (formData.email?.trim() && !isValidEmail(formData.email.trim())) {
+      alert('Please enter a valid email address');
+      return;
+    }
+
     try {
       if (editingContact) {
         await apiService.updateContact(editingContact.id, formData);
