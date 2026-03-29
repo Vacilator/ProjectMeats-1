@@ -1109,69 +1109,136 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
       );
     }
 
-    return types.map(type => {
+    const isEntityFavorited = (entity: SearchEntity) => {
+      return isFavorited(String(entity.type).toLowerCase(), Number(entity.id));
+    };
+
+    const favoritesInResults: SearchEntity[] = [];
+    const seenFavoriteKeys = new Set<string>();
+
+    for (const type of types) {
       const entities = results[type] ?? [];
-      const count = resultCounts[type] ?? entities.length;
-      const typeLabel = formatEntityTypePluralLabel(type);
+      for (const entity of entities) {
+        if (!isEntityFavorited(entity)) continue;
+        const key = `${String(entity.type).toLowerCase()}:${String(entity.id)}`;
+        if (seenFavoriteKeys.has(key)) continue;
+        seenFavoriteKeys.add(key);
+        favoritesInResults.push(entity);
+      }
+    }
 
-      return (
-        <Section key={type}>
-          <SectionHeader>
-            <SectionTitle>
-              {getEntityIcon(type as SearchEntity['type'], 16)}
-              {typeLabel}
-              <SectionCount>({count})</SectionCount>
-            </SectionTitle>
-            <Button size="small" type="primary" onClick={() => openQuickCreate(type)}>
-              + New {formatEntityLabel(type)}
-            </Button>
-          </SectionHeader>
+    return (
+      <>
+        {favoritesInResults.length > 0 && (
+          <Section key="favorites">
+            <SectionHeader>
+              <SectionTitle>
+                <Star size={16} />
+                Favorites
+                <SectionCount>({favoritesInResults.length})</SectionCount>
+              </SectionTitle>
+            </SectionHeader>
 
-          <ResultGrid>
-            {entities.map(entity => (
-              <ResultCard
-                key={entity.id}
-                onClick={() => handleSelectEntity(entity)}
-                onKeyDown={(e) => handleCardKeyDown(e, () => handleSelectEntity(entity))}
-              >
-                <ResultIcon $tone={getEntityTone(entity.type)}>
-                  {getEntityIcon(entity.type)}
-                </ResultIcon>
-
-                <ResultContent>
-                  <ResultTitle>{entity.name}</ResultTitle>
-                  {entity.subtitle && (
-                    <ResultSubtitle>{entity.subtitle}</ResultSubtitle>
-                  )}
-                  <ResultMeta>
-                    <Clock size={10} />
-                    Last modified: Today
-                  </ResultMeta>
-                </ResultContent>
-
-                <FavoriteButton
-                  type="button"
-                  $isFavorite={isFavorited(String(entity.type).toLowerCase(), Number(entity.id))}
-                  onClick={(e) => toggleFavorite(entity.type, entity.id, entity.name, e)}
-                  title={
-                    isFavorited(String(entity.type).toLowerCase(), Number(entity.id))
-                      ? 'Remove from favorites'
-                      : 'Add to favorites'
-                  }
-                  aria-label={
-                    isFavorited(String(entity.type).toLowerCase(), Number(entity.id))
-                      ? 'Remove from favorites'
-                      : 'Add to favorites'
-                  }
+            <ResultGrid>
+              {favoritesInResults.map((entity) => (
+                <ResultCard
+                  key={`${String(entity.type)}:${String(entity.id)}`}
+                  onClick={() => handleSelectEntity(entity)}
+                  onKeyDown={(e) => handleCardKeyDown(e, () => handleSelectEntity(entity))}
                 >
-                  <Star size={16} />
-                </FavoriteButton>
-              </ResultCard>
-            ))}
-          </ResultGrid>
-        </Section>
-      );
-    });
+                  <ResultIcon $tone={getEntityTone(entity.type)}>
+                    {getEntityIcon(entity.type)}
+                  </ResultIcon>
+
+                  <ResultContent>
+                    <ResultTitle>{entity.name}</ResultTitle>
+                    {entity.subtitle && <ResultSubtitle>{entity.subtitle}</ResultSubtitle>}
+                    <ResultMeta>
+                      <Clock size={10} />
+                      Last modified: Today
+                    </ResultMeta>
+                  </ResultContent>
+
+                  <FavoriteButton
+                    type="button"
+                    $isFavorite={true}
+                    onClick={(e) => toggleFavorite(entity.type, entity.id, entity.name, e)}
+                    title="Remove from favorites"
+                    aria-label="Remove from favorites"
+                  >
+                    <Star size={16} />
+                  </FavoriteButton>
+                </ResultCard>
+              ))}
+            </ResultGrid>
+          </Section>
+        )}
+
+        {types.map((type) => {
+          const entities = (results[type] ?? []).filter((entity) => !isEntityFavorited(entity));
+          if (entities.length === 0) return null;
+
+          const count = resultCounts[type] ?? entities.length;
+          const typeLabel = formatEntityTypePluralLabel(type);
+
+          return (
+            <Section key={type}>
+              <SectionHeader>
+                <SectionTitle>
+                  {getEntityIcon(type as SearchEntity['type'], 16)}
+                  {typeLabel}
+                  <SectionCount>({count})</SectionCount>
+                </SectionTitle>
+                <Button size="small" type="primary" onClick={() => openQuickCreate(type)}>
+                  + New {formatEntityLabel(type)}
+                </Button>
+              </SectionHeader>
+
+              <ResultGrid>
+                {entities.map((entity) => (
+                  <ResultCard
+                    key={entity.id}
+                    onClick={() => handleSelectEntity(entity)}
+                    onKeyDown={(e) => handleCardKeyDown(e, () => handleSelectEntity(entity))}
+                  >
+                    <ResultIcon $tone={getEntityTone(entity.type)}>
+                      {getEntityIcon(entity.type)}
+                    </ResultIcon>
+
+                    <ResultContent>
+                      <ResultTitle>{entity.name}</ResultTitle>
+                      {entity.subtitle && <ResultSubtitle>{entity.subtitle}</ResultSubtitle>}
+                      <ResultMeta>
+                        <Clock size={10} />
+                        Last modified: Today
+                      </ResultMeta>
+                    </ResultContent>
+
+                    <FavoriteButton
+                      type="button"
+                      $isFavorite={isFavorited(String(entity.type).toLowerCase(), Number(entity.id))}
+                      onClick={(e) => toggleFavorite(entity.type, entity.id, entity.name, e)}
+                      title={
+                        isFavorited(String(entity.type).toLowerCase(), Number(entity.id))
+                          ? 'Remove from favorites'
+                          : 'Add to favorites'
+                      }
+                      aria-label={
+                        isFavorited(String(entity.type).toLowerCase(), Number(entity.id))
+                          ? 'Remove from favorites'
+                          : 'Add to favorites'
+                      }
+                    >
+                      <Star size={16} />
+                    </FavoriteButton>
+                  </ResultCard>
+                ))}
+              </ResultGrid>
+            </Section>
+          );
+        })}
+      </>
+    );
   };
 
   /**
