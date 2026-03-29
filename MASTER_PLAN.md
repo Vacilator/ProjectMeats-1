@@ -1,12 +1,44 @@
 # MASTER_PLAN.md (Canonical)
 
 **Status**: 🔄 Living document (canonical source of truth)  
-**Last Updated**: 2026-03-26  
+**Last Updated**: 2026-03-27  
 **Primary Focus**: Phase 7 (Intelligent Workform Editor) stability + business-usable Admin/Cockpit workflows  
 
 This file is the **canonical plan + current truth snapshot**.
 - **PR execution log (append-only):** `.github/MASTER_PLAN.md`
 - **Reference roadmaps:** `ROADMAP.md`, `UI_ROADMAP.md` (may contain outdated “100% complete” claims; do not treat as authoritative)
+
+---
+
+## Recovery Execution Plan (as of 2026-03-27T17:03Z)
+
+We are re-validating and completing the last ~25 prompts with **evidence-based acceptance criteria** and strict shipping discipline.
+
+## State Audit & Remaining P0s (as of 2026-03-27T18:47Z)
+
+### Observed runtime issues
+- Workforms AI Suggestions: frontend calling `POST /api/v1/suggest-nodes/` gets 404; backend `SuggestNodesView` exists but is not routed. Align to `POST /api/v1/workflows/suggest-nodes/`.
+- AI Chat: lessons memory NameError fixed (PR #4045); remaining 400s should be treated as environment config issues (missing OPENAI_API_KEY) with graceful messaging.
+- Charts: Recharts `ResponsiveContainer` warnings (width/height -1) indicate parent container sizing gaps; fix to reduce noise.
+
+### Priority execution strategy
+1) Quick wins: fix suggest-nodes route drift; reduce chart sizing warnings.
+2) Universal Forms + Cockpit Search: make forms truly usable (save/create CTA, key-fields-first + expand-all, single edit toggle, searchable FK by name, per-keystroke refresh where required).
+3) Workform Editor UX: connectors top/bottom, remove conflicting collapse buttons, drag body, inline title edit, reorder arrows swap edges, show key config summary in-node.
+
+**Shipping discipline (MANDATORY):** every batch is shipped via **new branch → PR → merge to `development`**.
+
+### Execution order (P0→P1)
+1. **Docs plan** (this section + PR log entry) — merge first.
+2. **Cockpit Favorites (industry-grade):** replace localStorage favorites with backend favorites API + optimistic UX, tenant-safe, RLS-backed.
+3. **Email Ingestion Monitor “Sync Now”:** ensure decrypt errors surface as stable structured codes and the UI shows a reconnect CTA (no raw string).
+4. **AI Document Upload:** reproduce via `test_document_upload` command and eliminate remaining 500s.
+5. **Verify prior batches:** Universal Forms, Cockpit Search relevance/entity coverage, Workform Editor UX.
+
+### Acceptance criteria (high signal)
+- Favorites persist across reload and do not collide across tenants.
+- Sync Now never emits raw decrypt error strings; always shows reconnect guidance.
+- PDF upload returns 201/400 only (no 500) with actionable error payloads.
 
 ---
 

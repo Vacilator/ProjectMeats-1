@@ -489,15 +489,25 @@ class UserPreferences(models.Model):
 class UserFavorite(models.Model):
     """
     User-specific favorites for quick access to entities.
-    
+
     Allows users to bookmark entities (customers, suppliers, products, etc.)
-    for quick access in the Cockpit interface. User-scoped (not tenant-scoped).
+    for quick access in the Cockpit interface.
+
+    IMPORTANT: Favorites are tenant-scoped to prevent ID collisions across tenants.
     """
     user = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
         related_name='favorites',
         help_text="User who favorited this entity"
+    )
+    tenant = models.ForeignKey(
+        'tenants.Tenant',
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='user_favorites',
+        help_text="Tenant context for this favorite"
     )
     entity_type = models.CharField(
         max_length=50,
@@ -522,13 +532,13 @@ class UserFavorite(models.Model):
         ordering = ['-created_at']
         constraints = [
             models.UniqueConstraint(
-                fields=['user', 'entity_type', 'entity_id'],
-                name='unique_user_favorite'
+                fields=['user', 'tenant', 'entity_type', 'entity_id'],
+                name='unique_user_tenant_favorite'
             )
         ]
         indexes = [
             models.Index(fields=['user', '-created_at'], name='core_userfa_user_created_idx'),
-            models.Index(fields=['user', 'entity_type'], name='core_userfa_user_entity_idx'),
+            models.Index(fields=['user', 'tenant', 'entity_type'], name='core_userfa_user_entity_idx'),
         ]
         verbose_name = 'User Favorite'
         verbose_name_plural = 'User Favorites'

@@ -11,6 +11,16 @@ This file is the **append-only PR-referenceable execution log**.
 
 ## Active Initiative: V3.0 Final Push (Consolidation + Scale + Polish)
 
+### 2026-03-27T17:03Z — Recovery Execution Plan (Last ~25 prompts)
+- Merged recovery plan into `MASTER_PLAN.md` (canonical snapshot). PR: #4036.
+- Execution policy: all remaining work ships **only via**: branch → PR → merge to `development`.
+- P0 execution order:
+  1) Cockpit Favorites (backend persistence + optimistic UX, tenant-safe, RLS-backed)
+  2) Email Ingestion Monitor “Sync Now” decrypt error surfacing (stable codes + reconnect CTA)
+  3) AI Document Upload stability (no 500s; verify via `test_document_upload`)
+
+## Active Initiative: V3.0 Final Push (Consolidation + Scale + Polish)
+
 ### 2026-03-27 — Workform Editor: Node Opacity Fix
 - Fixed "all nodes semi-transparent" regression caused by debug session decorations being left active when the Dry Run Debugger panel was hidden.
 - Debugger panel now stops/resets debug session when closed and unmounts the debugger UI when not visible.
@@ -56,6 +66,7 @@ This file is the **append-only PR-referenceable execution log**.
 ### 2026-03-27 — Phase 9.5: AI Document Stability
 - AI Assistant documents: updated `AIDocument.file.upload_to` to include tenant UUID + unique prefix to prevent naming collisions.
 - Upload hardening follow-up: switched to a flat tenant+UUID filename (avoids deep mkdir permission issues on mounted media volumes) and assert RLS session vars right before saving.
+- Error hardening follow-up: database exceptions now map to actionable 400s (e.g., missing migrations/table) instead of misleading RLS messages or 500s. PR: #4039.
 - Added diagnostic command to reproduce uploads and capture tracebacks without needing the frontend:
   - `python manage.py test_document_upload --tenant-id 0f024884-b9ef-4e50-8fc0-89b2eb7c8c69`
   - Safe default: temp `MEDIA_ROOT` (no persistent artifacts)
@@ -114,6 +125,50 @@ This file is the **append-only PR-referenceable execution log**.
 - Option Lists: "Master Products" entry now appears under the System Choice Lists tab; Tenant Overrides now use the same Card/Table layout as other admin screens.
 - Workflow Lists: tenant list create asserts RLS session vars before validation/save to prevent RLS-related write failures.
 
+### 2026-03-27 — Workform Editor: Initial Canvas Buttons Clickable
+- Fixed empty-canvas CTA buttons (Add Manual Trigger / Use Template / Browse Triggers) not being clickable due to ReactFlow pane overlay capturing pointer events.
+
+### 2026-03-27 — Purchase Orders: Location Fields Auth Fix
+- LocationSelector now uses the standard JWT-aware apiClient (instead of raw axios + legacy Token auth), preventing spurious “Authentication required” errors on the New PO form.
+- Pick-up / Delivery locations are treated as optional (omitted from payload when unset).
+
+### 2026-03-27 — Cockpit Favorites: Backend Persistence (Tenant-Safe)
+- SmartSearch + FavoritesWidget now use the backend favorites API (optimistic toggles; no localStorage dependence).
+- Favorites are tenant-scoped to prevent cross-tenant entity_id collisions; includes RLS policy on `core_userfavorite`.
+- PR: #4037.
+
+### 2026-03-27 — Cockpit Reports: Metrics Available
+- Fixed Reports Summary API incorrectly marking purchase_orders/sales_orders/workforms as “metrics unavailable” due to Django `aggregate()` alias collisions (e.g. `total_amount=Sum('total_amount')` shadowing the field name used by `Avg('total_amount')`, raising FieldError).
+- PR: #4043.
+
+### 2026-03-27 — Cockpit Search: Favorites Icon Clickable
+- Fixed the SmartSearch results “favorite” (star) icon doing nothing. Root cause: nested <button> inside <button> (invalid HTML) prevented click events.
+- Result cards now render as accessible div-buttons with keyboard activation; favorite toggle surfaces errors.
+- PR: #4044.
+
+### 2026-03-27 — AI Chat: Lessons Block NameError
+- Fixed AI chat failing with `NameError: lessons_block is not defined` by defining lessons_block in SwarmOrchestrator.run_tool_loop via memory_service (safe fallback when memory fails).
+- PR: #4045.
+
+### 2026-03-27T18:47Z — State Audit (Remaining P0s)
+- Identified remaining gaps from runtime logs and repeated UX reports.
+- Next execution order:
+  1) Fix Workforms AI suggestions route drift (frontend currently calls /api/v1/suggest-nodes/ but backend suggests /api/v1/workflows/suggest-nodes/).
+  2) Universal Forms + Cockpit Search usability hardening (save/create CTA, key-fields-first + expand, searchable FK by name, per-keystroke refresh).
+  3) Workform Editor UX hardening (connectors top+bottom, remove conflicting collapse buttons, drag body, inline title, reorder swaps edges).
+
+### 2026-03-27 — Workforms: AI Suggestions Endpoint Routed
+- Fixed 404s for Workforms AI Suggestions by routing `SuggestNodesView` under `/api/v1/workflows/suggest-nodes/` and updating the frontend to call `/workflows/suggest-nodes/`.
+- PR: #4047.
+
+### 2026-03-27 — Charts: ResponsiveContainer Sizing Warning Reduced
+- Added explicit width/height and min dimensions for `ResponsiveContainer` in AI Learning Metrics widget to reduce `width(-1)/height(-1)` console warnings.
+- PR: #4048.
+
+### 2026-03-27 — Cockpit Search: Better Type Discoverability
+- SmartSearch now uses backend counts to render entity sections even when a type has 0 results and shows correct plural labels (Purchase Orders, Inquiries, Tenant Users, etc.).
+- PR: #4049.
+
 ### PR Log (append-only)
 
 - 2026-03-26 — Reports Summary 500 fixed — PR: #3949.
@@ -147,6 +202,7 @@ This file is the **append-only PR-referenceable execution log**.
 - 2026-03-27 — Fix: cockpit favorites + inquiry create — PR: #3993.
 - 2026-03-27 — Fix: product associations persist — PR: #3994.
 - 2026-03-27 — Fix: Email Sync Now avoids timeouts — PR: #3995.
+- 2026-03-27 — Fix: Email Sync Now decryption failures always return stable `code=decryption_failed` (UI shows reconnect CTA) — PR: #4038.
 - 2026-03-27 — Hotfix: restore development deployments (main-pipeline workflow file issue) — PR: #4011.
 - 2026-03-27 — Fix: plant available products save — PR: #3996.
 - 2026-03-27 — UI: facelift customer + supplier pages — PR: #3997.

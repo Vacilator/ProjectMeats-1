@@ -1046,6 +1046,9 @@ const NodeDesc = styled.div`
 `;
 
 const EmptyState = styled.div`
+  position: absolute;
+  inset: 0;
+  z-index: 50;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1054,6 +1057,14 @@ const EmptyState = styled.div`
   color: rgb(var(--color-text-tertiary));
   padding: 40px;
   text-align: center;
+
+  /* ReactFlow's pane can sit above generic children; keep the overlay visible,
+     but only make the content clickable (so canvas can still be panned). */
+  pointer-events: none;
+
+  & > * {
+    pointer-events: auto;
+  }
 `;
 
 const EmptyIcon = styled.div`
@@ -2195,6 +2206,9 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       created = true;
     }
 
+    // Used by the onboarding tour (react-joyride)
+    portal.setAttribute('data-tour', 'config-panel');
+
     portal.style.cssText = `
       position: fixed;
       right: 0;
@@ -2235,6 +2249,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         logger.warn('[Portal] Portal missing when panel opened - recreating');
         const newPortal = document.createElement('div');
         newPortal.id = 'config-portal';
+        newPortal.setAttribute('data-tour', 'config-panel');
         newPortal.style.cssText = `
           position: fixed;
           right: 0;
@@ -2254,6 +2269,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         logger.debug('[Portal] Portal mounted and visible');
       } else {
         // Show portal when node is selected
+        portal.setAttribute('data-tour', 'config-panel');
         portal.style.display = 'flex';
         portal.style.pointerEvents = 'auto';
         logger.debug('[Portal] Portal shown');

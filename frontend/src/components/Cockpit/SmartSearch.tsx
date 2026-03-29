@@ -34,6 +34,7 @@ import { EntityFormSurface } from '../Shared';
 import { InquiryCreateModal } from '../Inquiry';
 import { EntityProfileHeader } from './EntityProfileHeader';
 import { AIOverviewCard } from './AIOverviewCard';
+import { useFavorites } from '../../hooks/useFavorites';
 
 // ============================================================================
 // TypeScript Interfaces
@@ -202,7 +203,7 @@ const ResultGrid = styled.div`
   gap: 8px;
 `;
 
-const ResultCard = styled.button`
+const ResultCard = styled.div.attrs({ role: 'button', tabIndex: 0 })`
   display: flex;
   align-items: center;
   gap: 12px;
@@ -218,6 +219,11 @@ const ResultCard = styled.button`
     background: rgb(var(--color-background-tertiary));
     border-color: rgb(var(--color-primary));
     transform: translateX(4px);
+  }
+
+  &:focus-visible {
+    outline: 2px solid rgba(var(--color-primary), 0.6);
+    outline-offset: 2px;
   }
 `;
 
@@ -503,8 +509,10 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
   const [internalQuery, setInternalQuery] = useState(initialQuery);
   const query = controlledQuery ?? internalQuery;
   const [results, setResults] = useState<Record<string, SearchEntity[]>>({});
+  const [resultCounts, setResultCounts] = useState<Record<string, number>>({});
   const [relationalChunks, setRelationalChunks] = useState<RelationalChunk[]>([]);
-  const [favorites, setFavorites] = useState<Set<string>>(new Set());
+  const { toggleFavorite: toggleFavoriteMutation, isFavorited, isLoading: isFavoritesLoading } = useFavorites();
+  const [hasMigratedLegacyFavorites, setHasMigratedLegacyFavorites] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
   const [isRelationsLoading, setIsRelationsLoading] = useState(false);
 
@@ -517,37 +525,56 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
     { isOpen: false, type: '', context: {} }
   );
 
-  /**
-   * Load favorites from localStorage
-   */
+  // Legacy migration: older builds stored favorites in localStorage. Best-effort ingest typed keys.
   useEffect(() => {
+    if (hasMigratedLegacyFavorites) return;
+    if (isFavoritesLoading) return;
+
     const savedFavorites = localStorage.getItem('cockpit_favorites');
-    if (savedFavorites) {
-      try {
-        const raw = JSON.parse(savedFavorites) as unknown;
-        const ids = Array.isArray(raw) ? (raw as unknown[]) : [];
-        const normalized = ids.map((v) => String(v));
-        setFavorites(new Set(normalized));
-      } catch (error) {
-        console.error('[SmartSearch] Failed to load favorites:', error);
-      }
+    if (!savedFavorites) {
+      setHasMigratedLegacyFavorites(true);
+      return;
     }
-  }, []);
 
-  /**
-   * Save favorites to localStorage
-   */
-  const saveFavorites = useCallback((newFavorites: Set<string>) => {
-    localStorage.setItem('cockpit_favorites', JSON.stringify(Array.from(newFavorites)));
-    window.dispatchEvent(new Event('cockpit_favorites_updated'));
-  }, []);
+    try {
+      const raw = JSON.parse(savedFavorites) as unknown;
+      const ids = Array.isArray(raw) ? (raw as unknown[]) : [];
+      const normalized = ids.map((v) => String(v)).filter(Boolean);
 
+      const typed = normalized
+        .map((key) => {
+          if (!key.includes(':')) return null;
+          const [t, ...rest] = key.split(':');
+          const type = String(t || '').trim().toLowerCase();
+          const id = Number(rest.join(':'));
+          if (!type || !Number.isFinite(id)) return null;
+          return { type, id };
+        })
+        .filter((v): v is { type: string; id: number } => Boolean(v));
+
+      for (const f of typed.slice(0, 50)) {
+        if (!isFavorited(f.type, f.id)) {
+          toggleFavoriteMutation.mutate({ entity_type: f.type, entity_id: f.id, entity_title: '' });
+        }
+      }
+    } catch {
+      // ignore
+    } finally {
+      try {
+        localStorage.removeItem('cockpit_favorites');
+      } catch {
+        // ignore
+      }
+      setHasMigratedLegacyFavorites(true);
+    }
+  }, [hasMigratedLegacyFavorites, isFavoritesLoading, isFavorited, toggleFavoriteMutation]);
   /**
    * Search entities with debouncing
    */
   const searchEntities = useCallback(async (searchQuery: string) => {
     if (!searchQuery.trim()) {
       setResults({});
+      setResultCounts({});
       return;
     }
 
@@ -561,16 +588,14 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
       });
 
 
-      // The API returns results already grouped by type
-      // Format: { results: [{type, id, title, subtitle, metadata}], counts: {}, total: N }
+      // The API returns flat results + counts per entity type.
+      // Format: { results: [{type, id, title, subtitle, metadata}], counts: {type: count}, total: N }
       const grouped: Record<string, SearchEntity[]> = {};
-      
+
       if (response.data.results && Array.isArray(response.data.results)) {
         response.data.results.forEach((item: any) => {
           const type = String(item.type ?? 'unknown');
-          if (!grouped[type]) {
-            grouped[type] = [];
-          }
+          if (!grouped[type]) grouped[type] = [];
           grouped[type].push({
             id: String(item.id ?? ''),
             type,
@@ -581,7 +606,17 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
         });
       }
 
+      const countsObj = response.data?.counts && typeof response.data.counts === 'object'
+        ? (response.data.counts as Record<string, unknown>)
+        : {};
+      const normalizedCounts: Record<string, number> = {};
+      for (const [k, v] of Object.entries(countsObj)) {
+        const n = typeof v === 'number' ? v : Number(v ?? 0);
+        normalizedCounts[String(k)] = Number.isFinite(n) ? n : 0;
+      }
+
       setResults(grouped);
+      setResultCounts(normalizedCounts);
     } catch (error: any) {
       console.error('[SmartSearch] Search failed:', error);
       console.error('[SmartSearch] Error details:', {
@@ -590,6 +625,7 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
         status: error.response?.status
       });
       setResults({});
+      setResultCounts({});
     } finally {
       setIsSearching(false);
     }
@@ -834,25 +870,26 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
   /**
    * Toggle favorite
    */
-  const toggleFavorite = useCallback((entityType: string, entityId: string, e: React.MouseEvent) => {
+  const toggleFavorite = useCallback((entityType: string, entityId: string, entityTitle: string, e: React.MouseEvent) => {
     e.stopPropagation();
 
-    const key = `${String(entityType).toLowerCase()}:${String(entityId)}`;
-    const legacyKey = String(entityId);
+    const type = String(entityType || '').toLowerCase();
+    const id = Number(entityId);
+    if (!type || !Number.isFinite(id)) return;
 
-    setFavorites((prev) => {
-      const newFavorites = new Set(prev);
-      const isFav = newFavorites.has(key) || newFavorites.has(legacyKey);
-      if (isFav) {
-        newFavorites.delete(key);
-        newFavorites.delete(legacyKey);
-      } else {
-        newFavorites.add(key);
+    toggleFavoriteMutation.mutate(
+      {
+        entity_type: type,
+        entity_id: id,
+        entity_title: entityTitle || '',
+      },
+      {
+        onError: () => {
+          message.error('Failed to update favorite. Please try again.');
+        },
       }
-      saveFavorites(newFavorites);
-      return newFavorites;
-    });
-  }, [saveFavorites]);
+    );
+  }, [toggleFavoriteMutation]);
 
   /**
    * Clear search
@@ -865,12 +902,22 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
     }
 
     setResults({});
+    setResultCounts({});
     setRelationalChunks([]);
     navigation.clearPath();
     onClose?.();
   }, [controlledQuery, navigation, onQueryChange, onClose]);
 
   const activeStep = navigation.path[navigation.path.length - 1];
+
+  const handleCardKeyDown = useCallback((e: React.KeyboardEvent, onActivate: () => void) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      e.stopPropagation();
+      onActivate();
+    }
+  }, []);
+
 
   const handleNavigateToEntity = useCallback((nextType: string, nextId: string, label: string) => {
     navigation.addStep({
@@ -957,6 +1004,31 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
     return cleaned.split(' ').map((w) => w ? w[0].toUpperCase() + w.slice(1) : '').join(' ');
   }, []);
 
+  const formatEntityTypePluralLabel = useCallback((raw: string) => {
+    const type = String(raw || '').toLowerCase();
+    const overrides: Record<string, string> = {
+      purchase_order: 'Purchase Orders',
+      sales_order: 'Sales Orders',
+      tenant_user: 'Tenant Users',
+      inquiry: 'Inquiries',
+      claim: 'Claims',
+      call: 'Calls',
+      invoice: 'Invoices',
+      customer: 'Customers',
+      supplier: 'Suppliers',
+      contact: 'Contacts',
+      product: 'Products',
+      plant: 'Plants',
+      carrier: 'Carriers',
+    };
+    if (overrides[type]) return overrides[type];
+
+    const base = formatEntityLabel(type);
+    if (!base) return 'Records';
+    if (base.endsWith('s')) return base;
+    return `${base}s`;
+  }, [formatEntityLabel]);
+
   const loadRelationshipTab = useCallback(async (tabKey: 'orders' | 'invoices' | 'contacts' | 'inquiries', entity: SearchEntity) => {
     const relationshipType = tabKey === 'orders'
       ? 'recent_orders'
@@ -1021,7 +1093,7 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
    * Render search results (top-5 per type)
    */
   const renderSearchResults = () => {
-    const types = Object.keys(results);
+    const types = Object.keys(resultCounts).length ? Object.keys(resultCounts) : Object.keys(results);
 
     if (types.length === 0) {
       return (
@@ -1038,8 +1110,9 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
     }
 
     return types.map(type => {
-      const entities = results[type];
-      const typeLabel = type.charAt(0).toUpperCase() + type.slice(1) + 's';
+      const entities = results[type] ?? [];
+      const count = resultCounts[type] ?? entities.length;
+      const typeLabel = formatEntityTypePluralLabel(type);
 
       return (
         <Section key={type}>
@@ -1047,7 +1120,7 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
             <SectionTitle>
               {getEntityIcon(type as SearchEntity['type'], 16)}
               {typeLabel}
-              <SectionCount>({entities.length})</SectionCount>
+              <SectionCount>({count})</SectionCount>
             </SectionTitle>
             <Button size="small" type="primary" onClick={() => openQuickCreate(type)}>
               + New {formatEntityLabel(type)}
@@ -1059,6 +1132,7 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
               <ResultCard
                 key={entity.id}
                 onClick={() => handleSelectEntity(entity)}
+                onKeyDown={(e) => handleCardKeyDown(e, () => handleSelectEntity(entity))}
               >
                 <ResultIcon $tone={getEntityTone(entity.type)}>
                   {getEntityIcon(entity.type)}
@@ -1076,14 +1150,16 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
                 </ResultContent>
 
                 <FavoriteButton
-                  $isFavorite={
-                    favorites.has(`${String(entity.type).toLowerCase()}:${entity.id}`) ||
-                    favorites.has(String(entity.id))
-                  }
-                  onClick={(e) => toggleFavorite(entity.type, entity.id, e)}
+                  type="button"
+                  $isFavorite={isFavorited(String(entity.type).toLowerCase(), Number(entity.id))}
+                  onClick={(e) => toggleFavorite(entity.type, entity.id, entity.name, e)}
                   title={
-                    favorites.has(`${String(entity.type).toLowerCase()}:${entity.id}`) ||
-                    favorites.has(String(entity.id))
+                    isFavorited(String(entity.type).toLowerCase(), Number(entity.id))
+                      ? 'Remove from favorites'
+                      : 'Add to favorites'
+                  }
+                  aria-label={
+                    isFavorited(String(entity.type).toLowerCase(), Number(entity.id))
                       ? 'Remove from favorites'
                       : 'Add to favorites'
                   }
@@ -1131,6 +1207,7 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
             <ResultCard
               key={item.id}
               onClick={() => chunk.type === 'actions' ? handleQuickAction(item) : handleSelectEntity(item)}
+              onKeyDown={(e) => handleCardKeyDown(e, () => chunk.type === 'actions' ? handleQuickAction(item) : handleSelectEntity(item))}
               style={chunk.type === 'actions' ? { cursor: 'pointer', borderStyle: 'dashed' } : {}}
             >
               <ResultIcon $tone={getEntityTone(item.type)}>
@@ -1146,14 +1223,16 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
 
               {chunk.type !== 'actions' && (
                 <FavoriteButton
-                  $isFavorite={
-                    favorites.has(`${String(item.type).toLowerCase()}:${item.id}`) ||
-                    favorites.has(String(item.id))
-                  }
-                  onClick={(e) => toggleFavorite(item.type, item.id, e)}
+                  type="button"
+                  $isFavorite={isFavorited(String(item.type).toLowerCase(), Number(item.id))}
+                  onClick={(e) => toggleFavorite(item.type, item.id, item.name, e)}
                   title={
-                    favorites.has(`${String(item.type).toLowerCase()}:${item.id}`) ||
-                    favorites.has(String(item.id))
+                    isFavorited(String(item.type).toLowerCase(), Number(item.id))
+                      ? 'Remove from favorites'
+                      : 'Add to favorites'
+                  }
+                  aria-label={
+                    isFavorited(String(item.type).toLowerCase(), Number(item.id))
                       ? 'Remove from favorites'
                       : 'Add to favorites'
                   }

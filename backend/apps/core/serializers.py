@@ -29,8 +29,10 @@ class UserPreferencesSerializer(serializers.ModelSerializer):
 
 class UserFavoriteSerializer(serializers.ModelSerializer):
     """Serializer for UserFavorite model."""
-    
+
+    tenant_id = serializers.UUIDField(source='tenant.id', read_only=True)
+
     class Meta:
         model = UserFavorite
-        fields = ['id', 'entity_type', 'entity_id', 'entity_title', 'created_at']
-        read_only_fields = ['id', 'created_at']
+        fields = ['id', 'tenant_id', 'entity_type', 'entity_id', 'entity_title', 'created_at']
+        read_only_fields = ['id', 'tenant_id', 'created_at']
