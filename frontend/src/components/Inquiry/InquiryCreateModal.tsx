@@ -24,6 +24,8 @@ type EntityOption = { id: number; name: string };
 type LineItem = {
   key: string;
   productId: string;
+  supplierId: string;
+  plantId: string;
   quantity: string;
   desiredUom: string;
   desiredPricePerUnit: string;
@@ -37,6 +39,12 @@ export interface InquiryCreateModalProps {
   onSuccess: (created?: unknown) => void;
   initialEntityType?: EntityType;
   initialEntityId?: string | number;
+
+  /**
+   * When enabled, customer inquiries can select a supplier + plant per product line.
+   * (Used for Cockpit → customer inquiry creation.)
+   */
+  enableSupplierPlantSelection?: boolean;
 
   /** Optional: link the inquiry to a scheduled call (e.g., created from ScheduleCallModal). */
   sourceCallId?: string | number;
@@ -222,9 +230,12 @@ const LinesTable = styled.div`
   overflow: visible;
 `;
 
-const LinesHeader = styled.div`
+const LinesHeader = styled.div<{ $withSourcing?: boolean }>`
   display: grid;
-  grid-template-columns: 2.5fr 1fr 1fr 1fr 1fr 1fr 1.5fr 44px;
+  grid-template-columns: ${(p) =>
+    p.$withSourcing
+      ? '2.2fr 1.6fr 1.6fr 0.9fr 0.9fr 1fr 1fr 1fr 1.2fr 44px'
+      : '2.5fr 1fr 1fr 1fr 1fr 1fr 1.5fr 44px'};
   gap: 0;
   padding: 0.75rem 0.75rem;
   background: rgb(var(--color-background));
@@ -239,9 +250,12 @@ const LinesHeader = styled.div`
   }
 `;
 
-const LinesRow = styled.div`
+const LinesRow = styled.div<{ $withSourcing?: boolean }>`
   display: grid;
-  grid-template-columns: 2.5fr 1fr 1fr 1fr 1fr 1fr 1.5fr 44px;
+  grid-template-columns: ${(p) =>
+    p.$withSourcing
+      ? '2.2fr 1.6fr 1.6fr 0.9fr 0.9fr 1fr 1fr 1fr 1.2fr 44px'
+      : '2.5fr 1fr 1fr 1fr 1fr 1fr 1.5fr 44px'};
   gap: 0.5rem;
   padding: 0.75rem;
   border-bottom: 1px solid rgb(var(--color-border));
@@ -328,6 +342,8 @@ const Button = styled.button<{ $variant?: 'primary' | 'secondary' }>`
 const newLine = (): LineItem => ({
   key: `line-${Date.now()}-${Math.random().toString(16).slice(2)}`,
   productId: '',
+  supplierId: '',
+  plantId: '',
   quantity: '',
   desiredUom: 'LBS',
   desiredPricePerUnit: '',
@@ -341,6 +357,7 @@ export const InquiryCreateModal: React.FC<InquiryCreateModalProps> = ({
   onSuccess,
   initialEntityType,
   initialEntityId,
+  enableSupplierPlantSelection = false,
   sourceCallId,
 }) => {
   const [submitting, setSubmitting] = useState(false);
@@ -359,6 +376,14 @@ export const InquiryCreateModal: React.FC<InquiryCreateModalProps> = ({
   const [uomOptions, setUomOptions] = useState<ChoiceOption[]>([]);
 
   const canSubmit = useMemo(() => !submitting, [submitting]);
+
+  const showSupplierPlantSelection = enableSupplierPlantSelection && entityType === 'customer';
+
+  type SupplierChoice = { id: number; name: string; has_product?: boolean };
+  type PlantChoice = { id: number; name: string; code?: string; has_product?: boolean };
+
+  const [supplierChoicesByProduct, setSupplierChoicesByProduct] = useState<Record<string, SupplierChoice[]>>({});
+  const [plantChoicesBySupplierProduct, setPlantChoicesBySupplierProduct] = useState<Record<string, PlantChoice[]>>({});
 
   const computeVarianceTotal = (line: LineItem): number | null => {
     const qty = Number(line.quantity);
@@ -412,6 +437,69 @@ export const InquiryCreateModal: React.FC<InquiryCreateModalProps> = ({
       }
     })();
   }, [entityType, isOpen]);
+
+  // Supplier + plant option loading (customer inquiries only)
+  useEffect(() => {
+    if (!isOpen || !showSupplierPlantSelection) return;
+
+    const productIds = Array.from(new Set(lines.map((l) => l.productId).filter(Boolean)));
+
+    void (async () => {
+      for (const productId of productIds) {
+        if (supplierChoicesByProduct[productId]) continue;
+        try {
+          const resp = await businessApi.get('/suppliers/for-product/', { params: { product: productId } });
+          const rows = (resp.data?.results ?? resp.data) as any[];
+          setSupplierChoicesByProduct((prev) => ({
+            ...prev,
+            [productId]: (Array.isArray(rows) ? rows : []).map((r: any) => ({
+              id: Number(r.id),
+              name: String(r.name ?? '').trim() || `Supplier #${r.id}`,
+              has_product: Boolean(r.has_product),
+            })),
+          }));
+        } catch {
+          setSupplierChoicesByProduct((prev) => ({ ...prev, [productId]: [] }));
+        }
+      }
+    })();
+  }, [isOpen, lines, showSupplierPlantSelection]);
+
+  useEffect(() => {
+    if (!isOpen || !showSupplierPlantSelection) return;
+
+    const keys = Array.from(
+      new Set(
+        lines
+          .filter((l) => l.productId && l.supplierId)
+          .map((l) => `${l.supplierId}::${l.productId}`)
+      )
+    );
+
+    void (async () => {
+      for (const key of keys) {
+        if (plantChoicesBySupplierProduct[key]) continue;
+        const [supplierId, productId] = key.split('::');
+        try {
+          const resp = await businessApi.get('/plants/for-supplier-product/', {
+            params: { supplier: supplierId, product: productId },
+          });
+          const rows = (resp.data?.results ?? resp.data) as any[];
+          setPlantChoicesBySupplierProduct((prev) => ({
+            ...prev,
+            [key]: (Array.isArray(rows) ? rows : []).map((r: any) => ({
+              id: Number(r.id),
+              name: String(r.name ?? '').trim() || `Plant #${r.id}`,
+              code: String(r.code ?? '').trim() || undefined,
+              has_product: Boolean(r.has_product),
+            })),
+          }));
+        } catch {
+          setPlantChoicesBySupplierProduct((prev) => ({ ...prev, [key]: [] }));
+        }
+      }
+    })();
+  }, [isOpen, lines, showSupplierPlantSelection]);
 
   const reset = () => {
     setError(null);
@@ -595,8 +683,10 @@ export const InquiryCreateModal: React.FC<InquiryCreateModalProps> = ({
             <Section>
               <SectionTitle>Products</SectionTitle>
               <LinesTable>
-                <LinesHeader>
+                <LinesHeader $withSourcing={showSupplierPlantSelection}>
                   <div>Product</div>
+                  {showSupplierPlantSelection && <div>Supplier</div>}
+                  {showSupplierPlantSelection && <div>Plant</div>}
                   <div>Qty</div>
                   <div>UOM</div>
                   <div>Desired $/U</div>
@@ -607,15 +697,55 @@ export const InquiryCreateModal: React.FC<InquiryCreateModalProps> = ({
                 </LinesHeader>
 
                 {lines.map((line) => (
-                  <LinesRow key={line.key}>
+                  <LinesRow key={line.key} $withSourcing={showSupplierPlantSelection}>
                     <LineCell>
                       <Label>Product *</Label>
                       <SmartProductAutocomplete
                         value={line.productId}
-                        onChange={(productId) => updateLine(line.key, { productId })}
+                        onChange={(productId) =>
+                          updateLine(line.key, { productId, supplierId: '', plantId: '' })
+                        }
                         disabled={!canSubmit}
                       />
                     </LineCell>
+                    {showSupplierPlantSelection && (
+                      <LineCell>
+                        <Label>Supplier</Label>
+                        <Select
+                          value={line.supplierId}
+                          onChange={(e) =>
+                            updateLine(line.key, { supplierId: e.target.value, plantId: '' })
+                          }
+                          disabled={!canSubmit || !line.productId}
+                        >
+                          <option value="">Select…</option>
+                          {(supplierChoicesByProduct[line.productId] || []).map((s) => (
+                            <option key={String(s.id)} value={String(s.id)}>
+                              {s.has_product ? '✓ ' : ''}{s.name}
+                            </option>
+                          ))}
+                        </Select>
+                      </LineCell>
+                    )}
+
+                    {showSupplierPlantSelection && (
+                      <LineCell>
+                        <Label>Plant</Label>
+                        <Select
+                          value={line.plantId}
+                          onChange={(e) => updateLine(line.key, { plantId: e.target.value })}
+                          disabled={!canSubmit || !line.productId || !line.supplierId}
+                        >
+                          <option value="">Select…</option>
+                          {(plantChoicesBySupplierProduct[`${line.supplierId}::${line.productId}`] || []).map((p) => (
+                            <option key={String(p.id)} value={String(p.id)}>
+                              {p.has_product ? '✓ ' : ''}{p.code ? `${p.code} - ` : ''}{p.name}
+                            </option>
+                          ))}
+                        </Select>
+                      </LineCell>
+                    )}
+
                     <LineCell>
                       <Label>Qty *</Label>
                       <Input

@@ -24,6 +24,7 @@ class InquiryProductSerializer(serializers.ModelSerializer):
         model = InquiryProduct
         fields = [
             'id', 'product', 'product_code', 'product_description', 'quantity',
+            'supplier', 'plant',
             # Desired fields
             'desired_total', 'desired_price_per_unit', 'desired_uom', 'desired_uom_value',
             'desired_processed_date', 'desired_expiration_date', 'desired_available_date',

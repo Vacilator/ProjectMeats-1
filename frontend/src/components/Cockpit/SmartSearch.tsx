@@ -1441,6 +1441,9 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
                   }
                   closeQuickCreate();
                 }}
+                enableSupplierPlantSelection={Boolean(
+                  quickCreateConfig.context?.customer || quickCreateConfig.context?.customer_id
+                )}
                 initialEntityType={
                   quickCreateConfig.context?.customer || quickCreateConfig.context?.customer_id
                     ? 'customer'
@@ -1539,6 +1542,9 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
                   }
                   onInlineSuccess?.();
                 }}
+                enableSupplierPlantSelection={Boolean(
+                  inlineAction.contextData?.customer || inlineAction.contextData?.customer_id
+                )}
                 initialEntityType={
                   inlineAction.contextData?.customer || inlineAction.contextData?.customer_id
                     ? 'customer'
