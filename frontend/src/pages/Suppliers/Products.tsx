@@ -400,8 +400,15 @@ const SupplierProducts: React.FC = () => {
               value={proteinFilter}
               onChange={(vals) => setProteinFilter(vals)}
               options={PROTEIN_TYPE_CHOICES.map((o) => ({ value: o.value, label: o.label }))}
-              placeholder="All proteins"
+              placeholder="Search protein types"
               style={{ width: '100%' }}
+              showSearch
+              optionFilterProp="label"
+              filterOption={(input, option) =>
+                String(option?.label || '')
+                  .toLowerCase()
+                  .includes(String(input || '').toLowerCase())
+              }
             />
           </div>
         </div>

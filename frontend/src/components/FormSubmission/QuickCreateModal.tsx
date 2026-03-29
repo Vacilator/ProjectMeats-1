@@ -540,8 +540,16 @@ const QuickCreateModal: React.FC<QuickCreateModalProps> = ({
                         value={proteinTypeValue}
                         onChange={(vals) => handleInputChange(field.key, vals)}
                         options={PROTEIN_TYPE_CHOICES.map((o) => ({ value: o.value, label: o.label }))}
-                        placeholder="Select protein types"
+                        placeholder="Search protein types"
                         disabled={isSubmitting}
+                        showSearch
+                        optionFilterProp="label"
+                        filterOption={(input, option) => {
+                          const q = String(input || '').toLowerCase();
+                          const label = String((option as any)?.label || '').toLowerCase();
+                          const value = String((option as any)?.value || '').toLowerCase();
+                          return label.includes(q) || value.includes(q);
+                        }}
                         style={{ width: '100%' }}
                       />
                     ) : field.key === 'products' && (entityType === 'customer' || entityType === 'supplier') ? (
@@ -673,8 +681,16 @@ const QuickCreateModal: React.FC<QuickCreateModalProps> = ({
                         value={proteinTypeValue}
                         onChange={(vals) => handleInputChange(field.key, vals)}
                         options={PROTEIN_TYPE_CHOICES.map((o) => ({ value: o.value, label: o.label }))}
-                        placeholder="Select protein types"
+                        placeholder="Search protein types"
                         disabled={isSubmitting}
+                        showSearch
+                        optionFilterProp="label"
+                        filterOption={(input, option) => {
+                          const q = String(input || '').toLowerCase();
+                          const label = String((option as any)?.label || '').toLowerCase();
+                          const value = String((option as any)?.value || '').toLowerCase();
+                          return label.includes(q) || value.includes(q);
+                        }}
                         style={{ width: '100%' }}
                       />
                     ) : field.key === 'products' && (entityType === 'customer' || entityType === 'supplier') ? (
