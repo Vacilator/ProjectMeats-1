@@ -9,7 +9,23 @@
  */
 import React, { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Button, Card, Divider, Form, Input, Modal, Select, Space, Switch, Table, Tabs, Tag, Typography, message } from 'antd';
+import {
+  Button,
+  Card,
+  Divider,
+  Form,
+  Input,
+  InputNumber,
+  Modal,
+  Select,
+  Space,
+  Switch,
+  Table,
+  Tabs,
+  Tag,
+  Typography,
+  message,
+} from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { PlusOutlined, ReloadOutlined } from '@ant-design/icons';
 
@@ -43,6 +59,22 @@ interface MasterProduct {
   is_active?: boolean;
   is_system?: boolean;
   created_at?: string;
+  updated_at?: string;
+}
+
+interface TenantProductPreference {
+  id: string;
+  product: string;
+  product_code?: string;
+  product_name?: string;
+  display_name?: string;
+  internal_code?: string;
+  notes?: string;
+  default_price?: string | number | null;
+  default_cost?: string | number | null;
+  is_active?: boolean;
+  is_favorite?: boolean;
+  sort_order?: number;
   updated_at?: string;
 }
 
@@ -85,6 +117,16 @@ const OptionListsPage: React.FC = () => {
   const [savingProduct, setSavingProduct] = useState(false);
   const [proteinChoices, setProteinChoices] = useState<ChoiceOption[]>([]);
 
+  // Tenant overrides for master products (TenantProductPreference)
+  const [productPreferences, setProductPreferences] = useState<Record<string, TenantProductPreference>>({});
+  const [productPrefsLoading, setProductPrefsLoading] = useState(false);
+  const [productPrefModalOpen, setProductPrefModalOpen] = useState(false);
+  const [editingProductPref, setEditingProductPref] = useState<{
+    product: MasterProduct;
+    pref: TenantProductPreference | null;
+  } | null>(null);
+  const [savingProductPref, setSavingProductPref] = useState(false);
+
   const [customLists, setCustomLists] = useState<CustomTenantList[]>([]);
   const [customLoading, setCustomLoading] = useState(false);
   const [editingCustomList, setEditingCustomList] = useState<CustomTenantList | null>(null);
@@ -105,6 +147,7 @@ const OptionListsPage: React.FC = () => {
     void loadChoiceLists();
     void loadCustomLists();
     void loadMasterProducts();
+    void loadProductPreferences();
   }, [canView]);
 
   const loadChoiceLists = async () => {
@@ -157,6 +200,93 @@ const OptionListsPage: React.FC = () => {
       setProducts([]);
     } finally {
       setProductsLoading(false);
+    }
+  };
+
+  const loadProductPreferences = async () => {
+    if (!permissions.tenant_id) {
+      setProductPreferences({});
+      return;
+    }
+
+    setProductPrefsLoading(true);
+    try {
+      const response = await apiClient.get('/system/product-preferences/', {
+        params: { page_size: 2000 },
+      });
+      const raw = response.data as any;
+      const data: TenantProductPreference[] = Array.isArray(raw)
+        ? raw
+        : Array.isArray(raw?.results)
+          ? raw.results
+          : [];
+
+      const next: Record<string, TenantProductPreference> = {};
+      for (const row of data) {
+        if (!row?.product) continue;
+        next[String(row.product)] = row;
+      }
+      setProductPreferences(next);
+    } catch (error) {
+      console.error('Failed to load tenant product preferences:', error);
+      message.error('Failed to load tenant product overrides');
+      setProductPreferences({});
+    } finally {
+      setProductPrefsLoading(false);
+    }
+  };
+
+  const canEditProductOverrides = Boolean(permissions.can_manage_customizations);
+
+  const upsertProductPreference = async (
+    productId: string,
+    patch: Partial<TenantProductPreference>
+  ): Promise<boolean> => {
+    if (!canEditProductOverrides) {
+      message.info('Only tenant administrators can edit product overrides.');
+      return;
+    }
+
+    const pid = String(productId || '').trim();
+    if (!pid) return;
+
+    const existing = productPreferences[pid];
+    try {
+      if (existing?.id) {
+        const payload: Record<string, unknown> = {
+          display_name: patch.display_name ?? existing.display_name ?? '',
+          internal_code: patch.internal_code ?? existing.internal_code ?? '',
+          notes: patch.notes ?? existing.notes ?? '',
+          default_price: patch.default_price ?? existing.default_price ?? null,
+          default_cost: patch.default_cost ?? existing.default_cost ?? null,
+          is_active: patch.is_active ?? existing.is_active ?? true,
+          is_favorite: patch.is_favorite ?? existing.is_favorite ?? false,
+          sort_order: patch.sort_order ?? existing.sort_order ?? 0,
+        };
+
+        const resp = await apiClient.patch(`/system/product-preferences/${existing.id}/`, payload);
+        const updated = resp.data as TenantProductPreference;
+        setProductPreferences((prev) => ({ ...prev, [pid]: updated }));
+        return;
+      }
+
+      const payload: Record<string, unknown> = {
+        product: pid,
+        display_name: patch.display_name ?? '',
+        internal_code: patch.internal_code ?? '',
+        notes: patch.notes ?? '',
+        default_price: patch.default_price ?? null,
+        default_cost: patch.default_cost ?? null,
+        is_active: patch.is_active ?? true,
+        is_favorite: patch.is_favorite ?? false,
+        sort_order: patch.sort_order ?? 0,
+      };
+
+      const resp = await apiClient.post('/system/product-preferences/', payload);
+      const created = resp.data as TenantProductPreference;
+      setProductPreferences((prev) => ({ ...prev, [pid]: created }));
+    } catch (err: any) {
+      message.error(err?.response?.data?.detail || err?.response?.data?.error || 'Failed to save product override');
     }
   };
 
@@ -376,6 +506,7 @@ const OptionListsPage: React.FC = () => {
   ];
 
   const [productForm] = Form.useForm();
+  const [productPrefForm] = Form.useForm();
 
   useEffect(() => {
     if (!productModalOpen) return;
@@ -389,6 +520,25 @@ const OptionListsPage: React.FC = () => {
       }
     })();
   }, [productModalOpen]);
+
+  useEffect(() => {
+    if (!productPrefModalOpen) return;
+    if (!editingProductPref) return;
+
+    const product = editingProductPref.product;
+    const pref = editingProductPref.pref;
+
+    productPrefForm.setFieldsValue({
+      is_active: pref ? Boolean(pref.is_active) : Boolean(product.is_active ?? true),
+      display_name: pref?.display_name ?? '',
+      internal_code: pref?.internal_code ?? '',
+      default_price: pref?.default_price ?? null,
+      default_cost: pref?.default_cost ?? null,
+      is_favorite: Boolean(pref?.is_favorite ?? false),
+      sort_order: pref?.sort_order ?? 0,
+      notes: pref?.notes ?? '',
+    });
+  }, [editingProductPref, productPrefForm, productPrefModalOpen]);
 
   useEffect(() => {
     if (!productModalOpen) return;
@@ -463,7 +613,36 @@ const OptionListsPage: React.FC = () => {
       title: 'Name',
       dataIndex: 'name',
       key: 'name',
-      render: (value: string) => <Text>{value}</Text>,
+      render: (value: string, record) => {
+        const pref = productPreferences[String(record.id)];
+        const overrideName = String(pref?.display_name || '').trim();
+        return (
+          <Space direction="vertical" size={0}>
+            <Text>{value}</Text>
+            {overrideName ? (
+              <Text type="secondary" style={{ fontSize: 12 }}>
+                Tenant override: <strong>{overrideName}</strong>
+              </Text>
+            ) : null}
+          </Space>
+        );
+      },
+    },
+    {
+      title: 'Tenant Active',
+      key: 'tenant_active',
+      width: 130,
+      render: (_: unknown, record) => {
+        const pref = productPreferences[String(record.id)];
+        const tenantActive = pref ? Boolean(pref.is_active) : Boolean(record.is_active ?? true);
+        return (
+          <Switch
+            checked={tenantActive}
+            disabled={!canEditProductOverrides}
+            onChange={(checked) => void upsertProductPreference(String(record.id), { is_active: checked })}
+          />
+        );
+      },
     },
     {
       title: 'Protein',
@@ -481,26 +660,29 @@ const OptionListsPage: React.FC = () => {
       responsive: ['md'],
     },
     {
-      title: 'Active',
+      title: 'System Active',
       dataIndex: 'is_active',
       key: 'is_active',
-      width: 90,
+      width: 110,
       render: (isActive: boolean) => (isActive ? <Tag color="green">Active</Tag> : <Tag>Inactive</Tag>),
-    },
-    {
-      title: 'System',
-      dataIndex: 'is_system',
-      key: 'is_system',
-      width: 90,
-      render: (isSystem: boolean) => (isSystem ? <Tag color="blue">System</Tag> : <Tag>Custom</Tag>),
       responsive: ['md'],
     },
     {
       title: 'Actions',
       key: 'actions',
-      width: 120,
+      width: 240,
       render: (_: unknown, record) => (
         <Space>
+          <Button
+            type="default"
+            disabled={!canEditProductOverrides}
+            onClick={() => {
+              setEditingProductPref({ product: record, pref: productPreferences[String(record.id)] ?? null });
+              setProductPrefModalOpen(true);
+            }}
+          >
+            Tenant Override
+          </Button>
           <Button
             type="default"
             disabled={!canEditProducts}
@@ -509,7 +691,7 @@ const OptionListsPage: React.FC = () => {
               setProductModalOpen(true);
             }}
           >
-            Edit
+            Edit System
           </Button>
         </Space>
       ),
@@ -554,8 +736,9 @@ const OptionListsPage: React.FC = () => {
               void loadChoiceLists();
               void loadCustomLists();
               void loadMasterProducts();
+              void loadProductPreferences();
             }}
-            loading={loading || customLoading || productsLoading}
+            loading={loading || customLoading || productsLoading || productPrefsLoading}
           />
         </Space>
       }
@@ -594,17 +777,26 @@ const OptionListsPage: React.FC = () => {
                       <Card
                         size="small"
                         title="Master Products"
-                        extra={!canEditProducts ? <Tag>View only</Tag> : <Tag color="green">Editable</Tag>}
+                        extra={
+                          <Space size="small">
+                            {canEditProductOverrides ? (
+                              <Tag color="blue">Tenant overrides</Tag>
+                            ) : (
+                              <Tag>Tenant overrides (view)</Tag>
+                            )}
+                            {canEditProducts ? <Tag color="green">System editable</Tag> : <Tag>System locked</Tag>}
+                          </Space>
+                        }
                       >
                         <Text type="secondary">
                           System products power product selectors (Inquiry products, workflow quick create, etc.).
-                          {canEditProducts
-                            ? ' You can add/edit products here.'
-                            : ' Contact a superuser to modify this list.'}
+                          {canEditProductOverrides
+                            ? ' Tenant admins can override display/pricing/active per tenant without changing the system catalog.'
+                            : ' Tenant overrides are read-only for your role.'}
                         </Text>
                         <Divider style={{ margin: '12px 0' }} />
 
-                        {productsLoading ? (
+                        {productsLoading || productPrefsLoading ? (
                           <LoadingSkeleton type="card" rows={2} />
                         ) : filteredMasterProducts.length === 0 ? (
                           <EmptyState
@@ -720,6 +912,177 @@ const OptionListsPage: React.FC = () => {
           }}
           onSaved={() => void loadCustomLists()}
         />
+
+        <Modal
+          open={productPrefModalOpen}
+          title="Tenant Product Override"
+          onCancel={() => {
+            if (savingProductPref) return;
+            setProductPrefModalOpen(false);
+            setEditingProductPref(null);
+          }}
+          okText={savingProductPref ? 'Saving…' : 'Save'}
+          okButtonProps={{
+            loading: savingProductPref,
+            disabled: savingProductPref || !canEditProductOverrides,
+          }}
+          cancelButtonProps={{ disabled: savingProductPref }}
+          onOk={() => productPrefForm.submit()}
+          destroyOnClose
+          footer={(() => {
+            const hasOverride = Boolean(editingProductPref?.pref?.id);
+            const canRemove = hasOverride && canEditProductOverrides;
+
+            return [
+              canRemove ? (
+                <Button
+                  key="remove"
+                  danger
+                  disabled={savingProductPref}
+                  onClick={() => {
+                    const productId = String(editingProductPref?.product?.id || '');
+                    if (!productId) return;
+
+                    Modal.confirm({
+                      title: 'Remove tenant override?',
+                      content: 'This will revert this product to system defaults for your tenant.',
+                      okText: 'Remove override',
+                      okButtonProps: { danger: true },
+                      cancelText: 'Cancel',
+                      onOk: async () => {
+                        setSavingProductPref(true);
+                        const ok = await deleteProductPreference(productId);
+                        setSavingProductPref(false);
+                        if (!ok) return;
+                        message.success('Override removed');
+                        setProductPrefModalOpen(false);
+                        setEditingProductPref(null);
+                      },
+                    });
+                  }}
+                >
+                  Remove override
+                </Button>
+              ) : null,
+              <Button
+                key="cancel"
+                disabled={savingProductPref}
+                onClick={() => {
+                  setProductPrefModalOpen(false);
+                  setEditingProductPref(null);
+                }}
+              >
+                Cancel
+              </Button>,
+              <Button
+                key="save"
+                type="primary"
+                loading={savingProductPref}
+                disabled={savingProductPref || !canEditProductOverrides}
+                onClick={() => productPrefForm.submit()}
+              >
+                Save
+              </Button>,
+            ].filter(Boolean);
+          })()}
+        >
+          {!editingProductPref ? (
+            <EmptyState icon="📦" title="No product selected" message="Select a product to edit tenant overrides." />
+          ) : (
+            <Form
+              form={productPrefForm}
+              layout="vertical"
+              onFinish={async (values) => {
+                if (!editingProductPref) return;
+                const productId = String(editingProductPref.product.id);
+
+                setSavingProductPref(true);
+                const ok = await upsertProductPreference(productId, {
+                  is_active: Boolean(values.is_active),
+                  display_name: String(values.display_name || '').trim(),
+                  internal_code: String(values.internal_code || '').trim(),
+                  default_price: values.default_price ?? null,
+                  default_cost: values.default_cost ?? null,
+                  is_favorite: Boolean(values.is_favorite),
+                  sort_order: Number(values.sort_order ?? 0),
+                  notes: String(values.notes || '').trim(),
+                });
+                setSavingProductPref(false);
+
+                if (!ok) return;
+                message.success('Override saved');
+                setProductPrefModalOpen(false);
+                setEditingProductPref(null);
+              }}
+            >
+              <div style={{ marginBottom: 8 }}>
+                <Space direction="vertical" size={0}>
+                  <Text strong>
+                    {editingProductPref.product.product_code} — {editingProductPref.product.name}
+                  </Text>
+                  <Text type="secondary">
+                    These settings apply only to your current tenant. System catalog fields are unchanged.
+                  </Text>
+                </Space>
+              </div>
+
+              <Form.Item name="is_active" label="Tenant Active" valuePropName="checked">
+                <Switch disabled={!canEditProductOverrides || savingProductPref} />
+              </Form.Item>
+
+              <Form.Item name="display_name" label="Display Name (override)">
+                <Input placeholder="Leave blank to use system name" disabled={!canEditProductOverrides || savingProductPref} />
+              </Form.Item>
+
+              <Form.Item name="internal_code" label="Internal Code (tenant)" >
+                <Input placeholder="Optional" disabled={!canEditProductOverrides || savingProductPref} />
+              </Form.Item>
+
+              <Space size="large" style={{ width: '100%' }} wrap>
+                <Form.Item name="default_price" label="Default Price" style={{ minWidth: 180 }}>
+                  <InputNumber
+                    min={0}
+                    style={{ width: '100%' }}
+                    placeholder="Optional"
+                    disabled={!canEditProductOverrides || savingProductPref}
+                  />
+                </Form.Item>
+
+                <Form.Item name="default_cost" label="Default Cost" style={{ minWidth: 180 }}>
+                  <InputNumber
+                    min={0}
+                    style={{ width: '100%' }}
+                    placeholder="Optional"
+                    disabled={!canEditProductOverrides || savingProductPref}
+                  />
+                </Form.Item>
+
+                <Form.Item name="sort_order" label="Sort Order" style={{ minWidth: 140 }}>
+                  <InputNumber
+                    style={{ width: '100%' }}
+                    disabled={!canEditProductOverrides || savingProductPref}
+                  />
+                </Form.Item>
+              </Space>
+
+              <Form.Item name="is_favorite" label="Favorite" valuePropName="checked">
+                <Switch disabled={!canEditProductOverrides || savingProductPref} />
+              </Form.Item>
+
+              <Form.Item name="notes" label="Notes">
+                <Input.TextArea
+                  autoSize={{ minRows: 3, maxRows: 6 }}
+                  placeholder="Optional"
+                  disabled={!canEditProductOverrides || savingProductPref}
+                />
+              </Form.Item>
+
+              {!canEditProductOverrides && (
+                <Text type="secondary">Only tenant administrators can edit tenant overrides.</Text>
+              )}
+            </Form>
+          )}
+        </Modal>
 
         <Modal
           open={productModalOpen}
