@@ -7,6 +7,7 @@
  * Wave 4 - Task 4.12: Integrated with ConfigResolver for dynamic settings.
  */
 import React, { useMemo, useState, useEffect } from 'react';
+import { Select as AntSelect } from 'antd';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -374,6 +375,44 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
                 placeholder={field.placeholder || 'Search country'}
                 disabled={isSubmitting}
                 aria-label={field.label}
+              />
+            )}
+          />
+          {formConfig.showHelpText && field.help_text && <HelpText>{field.help_text}</HelpText>}
+          {error && <ErrorText>{error.message as string}</ErrorText>}
+        </FieldGroup>
+      );
+    }
+
+    const normalizedKey = String(field.key).toLowerCase();
+    const isIndustryField = normalizedKey === 'industry' || normalizedKey === 'industry_array';
+
+    if (isIndustryField && field.type === 'select') {
+      const options = getFieldOptions(field);
+      return (
+        <FieldGroup key={field.key}>
+          <Label htmlFor={field.key} required={showRequired}>
+            {field.label}
+          </Label>
+          <Controller
+            name={field.key}
+            control={control}
+            render={({ field: controllerField }) => (
+              <AntSelect
+                value={controllerField.value || undefined}
+                onChange={controllerField.onChange}
+                options={options}
+                placeholder={field.placeholder || 'Search industry'}
+                disabled={isSubmitting}
+                showSearch
+                allowClear
+                optionFilterProp="label"
+                style={{ width: '100%' }}
+                filterOption={(input, option) =>
+                  String(option?.label || '')
+                    .toLowerCase()
+                    .includes(String(input || '').toLowerCase())
+                }
               />
             )}
           />

@@ -561,7 +561,7 @@ const Customers: React.FC = () => {
                     onChange={(values) => setFormData({ ...formData, industry_array: values })}
                     options={INDUSTRY_CHOICES}
                     label="Industries"
-                    placeholder="Select industries (hold Ctrl/Cmd for multiple)"
+                    placeholder="Search industries…"
                   />
                 </FormGroup>
 
