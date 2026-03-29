@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Drawer, Button, Input, List, Typography, Tag, Spin, Modal } from 'antd';
+import { Drawer, Button, Input, List, Typography, Tag, Spin, Modal, message } from 'antd';
 import styled from 'styled-components';
 import { businessApi } from '../../services/businessApi';
 
@@ -81,6 +81,7 @@ export const NotesAndCallsDrawer: React.FC<NotesAndCallsDrawerProps> = ({
   const [editTitle, setEditTitle] = useState('');
   const [editContent, setEditContent] = useState('');
   const [savingEdit, setSavingEdit] = useState(false);
+  const [deletingNoteId, setDeletingNoteId] = useState<number | null>(null);
 
   const fetchTimeline = useCallback(async () => {
     if (!open) return;
@@ -168,17 +169,48 @@ export const NotesAndCallsDrawer: React.FC<NotesAndCallsDrawerProps> = ({
     }
   }, [entityId, entityType, fetchTimeline, noteText]);
 
-  const openEdit = useCallback((item: TimelineItem) => {
-    if (item.kind !== 'note') return;
+  const getNoteId = useCallback((item: TimelineItem): number | null => {
+    if (item.kind !== 'note') return null;
     const raw = String(item.id || '');
     const noteId = Number(raw.startsWith('note:') ? raw.split(':')[1] : raw);
-    if (!Number.isFinite(noteId)) return;
+    if (!Number.isFinite(noteId)) return null;
+    return noteId;
+  }, []);
+
+  const openEdit = useCallback((item: TimelineItem) => {
+    const noteId = getNoteId(item);
+    if (!noteId) return;
 
     setEditId(noteId);
     setEditTitle(item.title || 'Note');
     setEditContent(item.content || '');
     setEditOpen(true);
-  }, []);
+  }, [getNoteId]);
+
+  const handleDeleteNote = useCallback((item: TimelineItem) => {
+    const noteId = getNoteId(item);
+    if (!noteId) return;
+
+    Modal.confirm({
+      title: 'Delete note?',
+      content: 'This cannot be undone.',
+      okText: 'Delete',
+      okButtonProps: { danger: true },
+      cancelText: 'Cancel',
+      onOk: async () => {
+        setDeletingNoteId(noteId);
+        try {
+          await businessApi.delete(`/workspace/activity-logs/${noteId}/`);
+          message.success('Note deleted');
+          void fetchTimeline();
+        } catch (err) {
+          message.error('Failed to delete note');
+        } finally {
+          setDeletingNoteId(null);
+        }
+      },
+    });
+  }, [fetchTimeline, getNoteId]);
 
   const handleSaveEdit = useCallback(async () => {
     if (!editId) return;
@@ -238,9 +270,19 @@ export const NotesAndCallsDrawer: React.FC<NotesAndCallsDrawerProps> = ({
                     <span style={{ fontWeight: 600 }}>{item.title}</span>
                     <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
                       {item.kind === 'note' ? (
-                        <Button size="small" onClick={() => openEdit(item)}>
-                          Edit
-                        </Button>
+                        <>
+                          <Button size="small" onClick={() => openEdit(item)}>
+                            Edit
+                          </Button>
+                          <Button
+                            size="small"
+                            danger
+                            loading={deletingNoteId === getNoteId(item)}
+                            onClick={() => handleDeleteNote(item)}
+                          >
+                            Delete
+                          </Button>
+                        </>
                       ) : null}
                       <Text type="secondary">{new Date(item.createdAt).toLocaleString()}</Text>
                     </div>
