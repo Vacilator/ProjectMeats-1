@@ -58,12 +58,38 @@ ENTITY_RELATIONSHIPS = {
                 'label': 'Plants',
                 'direction': 'outgoing',
             },
+            'locations': {
+                # Cockpit detail view calls this relationship for both customers + suppliers.
+                'related_model': ('locations', 'Location'),
+                'field': 'supplier',
+                'reverse': True,
+                'label': 'Locations',
+                'direction': 'outgoing',
+                'entity_type': 'location',
+            },
+            'inquiries': {
+                'related_model': ('inquiries', 'Inquiry'),
+                'field': 'supplier',
+                'reverse': True,
+                'label': 'Inquiries',
+                'direction': 'outgoing',
+                'entity_type': 'inquiry',
+            },
+            'products': {
+                # Cockpit detail view calls this relationship name.
+                'computed': 'supplier_related_products',
+                'related_model': ('system', 'Product'),
+                'label': 'Products',
+                'direction': 'outgoing',
+                'entity_type': 'product',
+            },
             'related_products': {
-                # Products are system-wide; relate via orders instead of a direct FK.
+                # Back-compat: older UI uses this label.
                 'computed': 'supplier_related_products',
                 'related_model': ('system', 'Product'),
                 'label': 'Related Products',
                 'direction': 'outgoing',
+                'entity_type': 'product',
             },
         },
     },
@@ -102,12 +128,37 @@ ENTITY_RELATIONSHIPS = {
                 'label': 'Invoices',
                 'direction': 'outgoing',
             },
+            'locations': {
+                'related_model': ('locations', 'Location'),
+                'field': 'customer',
+                'reverse': True,
+                'label': 'Locations',
+                'direction': 'outgoing',
+                'entity_type': 'location',
+            },
+            'inquiries': {
+                'related_model': ('inquiries', 'Inquiry'),
+                'field': 'customer',
+                'reverse': True,
+                'label': 'Inquiries',
+                'direction': 'outgoing',
+                'entity_type': 'inquiry',
+            },
+            'products': {
+                # Cockpit detail view calls this relationship name.
+                'computed': 'customer_related_products',
+                'related_model': ('system', 'Product'),
+                'label': 'Products',
+                'direction': 'outgoing',
+                'entity_type': 'product',
+            },
             'related_products': {
-                # Products are system-wide; relate via orders instead of a direct FK.
+                # Back-compat: older UI uses this label.
                 'computed': 'customer_related_products',
                 'related_model': ('system', 'Product'),
                 'label': 'Related Products',
                 'direction': 'outgoing',
+                'entity_type': 'product',
             },
         },
     },
@@ -236,6 +287,8 @@ ENTITY_VISUALS = {
     'contact': {'icon': 'User', 'color': '#06b6d4'},
     'invoice': {'icon': 'FileText', 'color': '#14b8a6'},
     'plant': {'icon': 'Factory', 'color': '#f97316'},
+    'location': {'icon': 'MapPin', 'color': '#f97316'},
+    'inquiry': {'icon': 'ClipboardList', 'color': '#0ea5e9'},
     'carrier': {'icon': 'Truck', 'color': '#6366f1'},
     'line_item': {'icon': 'List', 'color': '#6b7280'},
     'fulfillment': {'icon': 'Package', 'color': '#22c55e'},
