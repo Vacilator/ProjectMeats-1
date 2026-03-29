@@ -254,11 +254,11 @@ const Suppliers: React.FC = () => {
   const submitPlant = async () => {
     if (!selectedSupplierId) return;
 
-    if (!plantForm.name.trim() || !plantForm.code.trim()) {
+    if (!plantForm.name.trim()) {
       showAlert({
         type: 'warning',
         title: 'Validation',
-        content: 'Plant name and code are required',
+        content: 'Plant name is required',
       });
       return;
     }
@@ -273,16 +273,22 @@ const Suppliers: React.FC = () => {
     }
 
     try {
-      await apiClient.post('plants/', {
+      const payload: Record<string, unknown> = {
         supplier: selectedSupplierId,
         name: plantForm.name.trim(),
-        code: plantForm.code.trim(),
         plant_type: plantForm.plant_type,
         manager: plantForm.manager,
         email: plantForm.email,
         phone: plantForm.phone,
         phone_type: plantForm.phone_type,
-      });
+      };
+
+      const code = plantForm.code.trim();
+      if (code) {
+        payload.code = code;
+      }
+
+      await apiClient.post('plants/', payload);
       setShowPlantModal(false);
       await loadSupplierPlants(selectedSupplierId);
     } catch (error: unknown) {
@@ -724,13 +730,13 @@ const Suppliers: React.FC = () => {
                 </FormGroup>
 
                 <FormGroup>
-                  <Label $theme={theme}>Code *</Label>
+                  <Label $theme={theme}>Code (optional)</Label>
                   <Input
                     $theme={theme}
                     type="text"
                     value={plantForm.code}
                     onChange={(e) => setPlantForm((p) => ({ ...p, code: e.target.value }))}
-                    required
+                    placeholder="Leave blank to auto-generate"
                   />
                 </FormGroup>
 
