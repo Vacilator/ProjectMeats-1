@@ -29,6 +29,7 @@ class SupplierSerializer(serializers.ModelSerializer):
             "contact_person",
             "email",
             "phone",
+            "phone_type",
             "address",
             "street_address",
             "city",

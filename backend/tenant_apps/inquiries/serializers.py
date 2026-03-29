@@ -100,7 +100,7 @@ class InquiryDetailSerializer(serializers.ModelSerializer):
             # Entity links
             'supplier', 'customer', 'contact', 'entity_name',
             # Contact snapshot
-            'contact_name', 'contact_email', 'contact_phone',
+            'contact_name', 'contact_email', 'contact_phone', 'contact_phone_type',
             'contact_company', 'contact_position',
             # Dates
             'inquiry_date', 'quoted_date', 'decision_date', 'valid_until', 'is_expired',
@@ -136,7 +136,7 @@ class InquiryCreateSerializer(serializers.ModelSerializer):
         model = Inquiry
         fields = [
             'entity_type', 'supplier', 'customer', 'contact',
-            'contact_name', 'contact_email', 'contact_phone',
+            'contact_name', 'contact_email', 'contact_phone', 'contact_phone_type',
             'contact_company', 'contact_position',
             'source_type', 'source_call', 'valid_until',
             'notes', 'competitor_names', 'competitor_pricing_notes',

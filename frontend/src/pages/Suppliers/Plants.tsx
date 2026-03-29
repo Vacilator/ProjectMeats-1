@@ -34,6 +34,7 @@ interface Plant {
   zip_code?: string;
   country?: string;
   phone?: string;
+  phone_type?: 'office' | 'mobile';
   email?: string;
   manager?: string;
   capacity?: number;
@@ -263,6 +264,8 @@ const Plants: React.FC = () => {
     setEditingPlant(null);
     setFormErrors({});
     form.resetFields();
+
+    form.setFieldsValue({ phone_type: 'office' });
     
     // Pre-fill supplier if context exists
     if (contextSupplierId) {
@@ -285,6 +288,7 @@ const Plants: React.FC = () => {
       state: plant.state || '',
       zip_code: plant.zip_code || '',
       country: plant.country || 'USA',
+      phone_type: plant.phone_type || 'office',
       phone: plant.phone || '',
       email: plant.email || '',
       manager: plant.manager || '',
@@ -584,6 +588,13 @@ const Plants: React.FC = () => {
 
           <Form.Item name="country" label={<Label>Country</Label>}>
             <Input placeholder="Country" />
+          </Form.Item>
+
+          <Form.Item name="phone_type" label={<Label>Phone Type</Label>}>
+            <Select placeholder="Select type">
+              <Select.Option value="office">Office</Select.Option>
+              <Select.Option value="mobile">Mobile</Select.Option>
+            </Select>
           </Form.Item>
 
           <Form.Item name="phone" label={<Label>Phone</Label>}>

@@ -13,6 +13,7 @@ from django.contrib.auth.models import User
 from apps.tenants.models import Tenant
 from apps.core.models import (
     AppointmentMethodChoices,
+    PhoneTypeChoices,
     TenantAwareModel,
     TenantManager,
     TimestampModel,
@@ -100,6 +101,13 @@ class Location(TenantAwareModel):
         blank=True,
         default='',
         help_text="Location phone number"
+    )
+    phone_type = models.CharField(
+        max_length=10,
+        choices=PhoneTypeChoices.choices,
+        blank=True,
+        default=PhoneTypeChoices.OFFICE,
+        help_text="Location phone type (mobile or office)",
     )
     email = models.EmailField(
         blank=True,

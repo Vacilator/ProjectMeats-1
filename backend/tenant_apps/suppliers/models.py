@@ -22,6 +22,7 @@ from apps.core.models import (
     NetOrCatchChoices,
     OriginChoices,
     PackageTypeChoices,
+    PhoneTypeChoices,
     PlantTypeChoices,
     Protein,
     ProteinTypeChoices,
@@ -42,6 +43,13 @@ class Supplier(TenantAwareModel):
     email = models.EmailField(blank=True, null=True, help_text="Primary contact email")
     phone = models.CharField(
         max_length=20, blank=True, null=True, help_text="Primary contact phone number"
+    )
+    phone_type = models.CharField(
+        max_length=10,
+        choices=PhoneTypeChoices.choices,
+        blank=True,
+        default=PhoneTypeChoices.OFFICE,
+        help_text="Primary contact phone type (mobile or office)",
     )
 
     # Address fields - keeping existing structure but adding street_address for clarity

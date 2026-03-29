@@ -26,6 +26,7 @@ class TenantSerializer(serializers.ModelSerializer):
             "domain",
             "contact_email",
             "contact_phone",
+            "contact_phone_type",
             "address",
             "website",
             "is_active",

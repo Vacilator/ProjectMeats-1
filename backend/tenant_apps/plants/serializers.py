@@ -66,6 +66,7 @@ class PlantSerializer(serializers.ModelSerializer):
             "zip_code",
             "country",
             "phone",
+            "phone_type",
             "email",
             "manager",
             "capacity",

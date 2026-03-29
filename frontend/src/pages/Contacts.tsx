@@ -3,6 +3,7 @@ import styled from 'styled-components';
 import { useLocation } from 'react-router-dom';
 import { apiService, Contact } from '../services/apiService';
 import { apiClient } from '../services/apiService';
+import { PhoneInput } from '../components/ui/PhoneInput';
 
 // Styled Components
 const Container = styled.div`
@@ -317,6 +318,13 @@ const SubmitButton = styled.button`
   }
 `;
 
+const PHONE_TYPE_OPTIONS = [
+  { value: 'office', label: 'Office' },
+  { value: 'mobile', label: 'Mobile' },
+];
+
+type PhoneType = 'office' | 'mobile';
+
 const Contacts: React.FC = () => {
   const location = useLocation();
   const [contacts, setContacts] = useState<Contact[]>([]);
@@ -335,6 +343,7 @@ const Contacts: React.FC = () => {
     last_name: '',
     email: '',
     phone: '',
+    phone_type: 'office' as PhoneType,
     company: '',
     position: '',
     supplier: '',
@@ -412,6 +421,7 @@ const Contacts: React.FC = () => {
         last_name: '',
         email: '',
         phone: '',
+        phone_type: 'office',
         company: '',
         position: '',
         supplier: '',
@@ -440,6 +450,7 @@ const Contacts: React.FC = () => {
       last_name: contact.last_name,
       email: contact.email || '',
       phone: contact.phone || '',
+      phone_type: (contact as any).phone_type || 'office',
       company: contact.company || '',
       position: contact.position || '',
       supplier: String((contact as any).supplier || ''),
@@ -592,11 +603,23 @@ const Contacts: React.FC = () => {
               </FormGroup>
               <FormGroup>
                 <Label>Phone</Label>
-                <Input
-                  type="tel"
-                  name="phone"
+                <FormSelect
+                  value={formData.phone_type}
+                  onChange={(e) => setFormData((p) => ({ ...p, phone_type: e.target.value as PhoneType }))}
+                  aria-label="Phone type"
+                >
+                  {PHONE_TYPE_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </FormSelect>
+                <div style={{ height: 8 }} />
+                <PhoneInput
                   value={formData.phone}
-                  onChange={handleInputChange}
+                  onChange={(value) => setFormData((p) => ({ ...p, phone: value }))}
+                  placeholder="(XXX) XXX-XXXX"
+                  aria-label="Phone number"
                 />
               </FormGroup>
               <FormGroup>

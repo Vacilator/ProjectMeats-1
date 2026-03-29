@@ -46,6 +46,7 @@ class LocationSerializer(serializers.ModelSerializer):
             'zip_code',
             'country',
             'phone',
+            'phone_type',
             'email',
             'contact_name',
             'is_active',

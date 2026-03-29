@@ -34,6 +34,7 @@ interface Location {
   zip_code?: string;
   country?: string;
   phone?: string;
+  phone_type?: 'office' | 'mobile';
   email?: string;
   contact_name?: string;
   is_active?: boolean;
@@ -270,6 +271,8 @@ const CustomerLocations: React.FC = () => {
     setEditingLocation(null);
     setFormErrors({});
     form.resetFields();
+
+    form.setFieldsValue({ phone_type: 'office' });
     
     // Pre-fill customer if context exists
     if (contextCustomerId) {
@@ -292,6 +295,7 @@ const CustomerLocations: React.FC = () => {
       state: loc.state || '',
       zip_code: loc.zip_code || '',
       country: loc.country || 'USA',
+      phone_type: loc.phone_type || 'office',
       phone: loc.phone || '',
       email: loc.email || '',
       contact_name: loc.contact_name || '',
@@ -564,6 +568,13 @@ const CustomerLocations: React.FC = () => {
 
           <Form.Item name="country" label={<Label>Country</Label>}>
             <Input placeholder="Country" />
+          </Form.Item>
+
+          <Form.Item name="phone_type" label={<Label>Phone Type</Label>}>
+            <Select placeholder="Select type">
+              <Select.Option value="office">Office</Select.Option>
+              <Select.Option value="mobile">Mobile</Select.Option>
+            </Select>
           </Form.Item>
 
           <Form.Item name="phone" label={<Label>Phone</Label>}>

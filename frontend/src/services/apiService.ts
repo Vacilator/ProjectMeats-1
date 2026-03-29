@@ -424,6 +424,7 @@ export interface Supplier {
   contact_person?: string;
   email?: string;
   phone?: string;
+  phone_type?: 'mobile' | 'office';
   address?: string;
   city?: string;
   state?: string;
@@ -441,6 +442,7 @@ export interface Customer {
   contact_person?: string;
   email?: string;
   phone?: string;
+  phone_type?: 'mobile' | 'office';
   address?: string;
   city?: string;
   state?: string;
@@ -477,6 +479,7 @@ export interface Contact {
   last_name: string;
   email?: string;
   phone?: string;
+  phone_type?: 'mobile' | 'office';
   company?: string;
   position?: string;
   created_at: string;
@@ -492,6 +495,7 @@ export interface Plant {
   zip_code?: string;
   country?: string;
   phone?: string;
+  phone_type?: 'mobile' | 'office';
   manager?: string;
   created_at: string;
   updated_at: string;
@@ -503,6 +507,7 @@ export interface Carrier {
   contact_person?: string;
   email?: string;
   phone?: string;
+  phone_type?: 'mobile' | 'office';
   address?: string;
   service_areas?: string;
   created_at: string;

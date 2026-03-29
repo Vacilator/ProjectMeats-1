@@ -6,7 +6,7 @@ Defines contact entities and related business logic.
 Implements tenant ForeignKey field for shared-schema multi-tenancy.
 """
 from django.db import models
-from apps.core.models import ContactTypeChoices, StatusChoices, TenantAwareModel
+from apps.core.models import ContactTypeChoices, PhoneTypeChoices, StatusChoices, TenantAwareModel
 
 
 class Contact(TenantAwareModel):
@@ -62,6 +62,13 @@ class Contact(TenantAwareModel):
     email = models.EmailField(blank=True, null=True, help_text="Contact email address")
     phone = models.CharField(
         max_length=20, blank=True, null=True, help_text="Contact phone number"
+    )
+    phone_type = models.CharField(
+        max_length=10,
+        choices=PhoneTypeChoices.choices,
+        blank=True,
+        default=PhoneTypeChoices.OFFICE,
+        help_text="Contact phone type (mobile or office)",
     )
     company = models.CharField(
         max_length=255, blank=True, null=True, help_text="Company or organization"

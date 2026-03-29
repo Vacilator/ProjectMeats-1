@@ -10,6 +10,7 @@ import { useAdminPermissions } from '@/hooks/useAdminPermissions';
 import { getRuntimeConfig } from '@/config/runtime';
 import { extractBrandColors } from '@/utils/themeUtils';
 import { injectTenantColors } from '@/config/theme';
+import { PhoneInput } from '@/components/ui/PhoneInput';
 
 interface Tenant {
   id: string;
@@ -18,6 +19,7 @@ interface Tenant {
   description: string;
   contact_email: string;
   contact_phone: string;
+  contact_phone_type?: 'office' | 'mobile';
   address: string;
   website: string;
   logo: string | null;
@@ -35,6 +37,7 @@ interface ProfileFormData {
   description: string;
   contact_email: string;
   contact_phone: string;
+  contact_phone_type: 'office' | 'mobile';
   address: string;
   website: string;
   primary_color_light: string;
@@ -137,6 +140,7 @@ const AdminProfilePage: React.FC = () => {
     description: '',
     contact_email: '',
     contact_phone: '',
+    contact_phone_type: 'office',
     address: '',
     website: '',
     primary_color_light: defaults.light,
@@ -151,6 +155,7 @@ const AdminProfilePage: React.FC = () => {
       description: tenant.description || '',
       contact_email: tenant.contact_email || '',
       contact_phone: tenant.contact_phone || '',
+      contact_phone_type: tenant.contact_phone_type || 'office',
       address: tenant.address || '',
       website: tenant.website || '',
       primary_color_light: tenant.branding?.primary_color_light || defaults.light,
@@ -207,6 +212,7 @@ const AdminProfilePage: React.FC = () => {
       description: tenant.description || '',
       contact_email: tenant.contact_email || '',
       contact_phone: tenant.contact_phone || '',
+      contact_phone_type: tenant.contact_phone_type || 'office',
       address: tenant.address || '',
       website: tenant.website || '',
       primary_color_light: tenant.branding?.primary_color_light || defaults.light,
@@ -221,7 +227,7 @@ const AdminProfilePage: React.FC = () => {
     );
   }, [defaults.dark, defaults.light, formData, logoFile, logoPreview, removeLogo, tenant]);
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
@@ -322,6 +328,7 @@ const AdminProfilePage: React.FC = () => {
       description: tenant.description || '',
       contact_email: tenant.contact_email || '',
       contact_phone: tenant.contact_phone || '',
+      contact_phone_type: tenant.contact_phone_type || 'office',
       address: tenant.address || '',
       website: tenant.website || '',
       primary_color_light: tenant.branding?.primary_color_light || defaults.light,
@@ -488,13 +495,22 @@ const AdminProfilePage: React.FC = () => {
 
               <Field>
                 <Label htmlFor="contact_phone">Phone</Label>
-                <Input
-                  id="contact_phone"
-                  name="contact_phone"
-                  type="tel"
-                  value={formData.contact_phone}
+                <Select
+                  id="contact_phone_type"
+                  name="contact_phone_type"
+                  value={formData.contact_phone_type}
                   onChange={handleInputChange}
-                  placeholder="+1 (555) 123-4567"
+                  aria-label="Phone type"
+                >
+                  <option value="office">Office</option>
+                  <option value="mobile">Mobile</option>
+                </Select>
+                <div style={{ height: 8 }} />
+                <PhoneInput
+                  value={formData.contact_phone}
+                  onChange={(value) => setFormData((p) => ({ ...p, contact_phone: value }))}
+                  placeholder="(XXX) XXX-XXXX"
+                  aria-label="Contact phone"
                 />
               </Field>
 
@@ -726,6 +742,10 @@ const TextArea = styled.textarea`
   ${inputStyles}
   resize: vertical;
   min-height: 88px;
+`;
+
+const Select = styled.select`
+  ${inputStyles}
 `;
 
 const BrandingGrid = styled.div`

@@ -11,7 +11,7 @@ from django.contrib.postgres.fields import ArrayField
 from django.db import models
 from django.utils import timezone
 
-from apps.core.models import TenantAwareModel, TenantManager
+from apps.core.models import PhoneTypeChoices, TenantAwareModel, TenantManager
 
 
 class InquiryStatusChoices(models.TextChoices):
@@ -138,6 +138,13 @@ class Inquiry(TenantAwareModel):
         blank=True,
         default='',
         help_text="Contact phone at time of inquiry"
+    )
+    contact_phone_type = models.CharField(
+        max_length=10,
+        choices=PhoneTypeChoices.choices,
+        blank=True,
+        default=PhoneTypeChoices.OFFICE,
+        help_text="Contact phone type at time of inquiry (mobile or office)",
     )
     contact_company = models.CharField(
         max_length=255,

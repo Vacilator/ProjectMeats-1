@@ -204,6 +204,13 @@ class AppointmentMethodChoices(models.TextChoices):
     FCFS = "First Come First Serve", "First Come First Serve"
 
 
+class PhoneTypeChoices(models.TextChoices):
+    """Common choices for phone number type."""
+
+    MOBILE = "mobile", "Mobile"
+    OFFICE = "office", "Office"
+
+
 class ContactTypeChoices(models.TextChoices):
     """Common choices for contact types."""
 

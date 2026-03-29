@@ -15,6 +15,7 @@ from apps.core.models import (
     CarrierDepartmentChoices,
     CarrierTypeChoices,
     CreditLimitChoices,
+    PhoneTypeChoices,
     TenantManager,
     TenantAwareModel,
 )
@@ -29,6 +30,13 @@ class Carrier(TenantAwareModel):
     )
     contact_person = models.CharField(max_length=100, blank=True, default='')
     phone = models.CharField(max_length=20, blank=True, default='')
+    phone_type = models.CharField(
+        max_length=10,
+        choices=PhoneTypeChoices.choices,
+        blank=True,
+        default=PhoneTypeChoices.OFFICE,
+        help_text="Carrier phone type (mobile or office)",
+    )
     email = models.EmailField(blank=True, default='')
     address = models.TextField(blank=True, default='')
     city = models.CharField(max_length=100, blank=True, default='')

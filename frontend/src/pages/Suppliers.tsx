@@ -32,6 +32,11 @@ interface SupplierContact {
 import { useTheme } from '../contexts/ThemeContext';
 import { Theme } from '../config/theme';
 
+const PHONE_TYPE_OPTIONS = [
+  { value: 'office', label: 'Office' },
+  { value: 'mobile', label: 'Mobile' },
+];
+
 const Suppliers: React.FC = () => {
   const { theme } = useTheme();
   const navigate = useNavigate();
@@ -61,6 +66,7 @@ const Suppliers: React.FC = () => {
     manager: '',
     email: '',
     phone: '',
+    phone_type: 'office' as 'office' | 'mobile',
   });
 
   const [formData, setFormData] = useState({
@@ -68,6 +74,7 @@ const Suppliers: React.FC = () => {
     contact_person: '',
     email: '',
     phone: '',
+    phone_type: 'office' as 'office' | 'mobile',
     address: '',
     city: '',
     state: '',
@@ -238,6 +245,7 @@ const Suppliers: React.FC = () => {
       manager: '',
       email: '',
       phone: '',
+      phone_type: 'office',
     });
     setShowPlantModal(true);
   };
@@ -259,6 +267,7 @@ const Suppliers: React.FC = () => {
         manager: plantForm.manager,
         email: plantForm.email,
         phone: plantForm.phone,
+        phone_type: plantForm.phone_type,
       });
       setShowPlantModal(false);
       await loadSupplierPlants(selectedSupplierId);
@@ -360,6 +369,7 @@ const Suppliers: React.FC = () => {
       contact_person: supplier.contact_person || '',
       email: supplier.email || '',
       phone: supplier.phone || '',
+      phone_type: supplier.phone_type || 'office',
       address: supplier.address || '',
       city: supplier.city || '',
       state: supplier.state || '',
@@ -401,6 +411,7 @@ const Suppliers: React.FC = () => {
       contact_person: '',
       email: '',
       phone: '',
+      phone_type: 'office',
       address: '',
       city: '',
       state: '',
@@ -520,6 +531,14 @@ const Suppliers: React.FC = () => {
 
                 <FormGroup>
                   <Label $theme={theme}>Phone</Label>
+                  <Select
+                    value={formData.phone_type}
+                    onChange={(value) => setFormData({ ...formData, phone_type: value as 'office' | 'mobile' })}
+                    options={PHONE_TYPE_OPTIONS}
+                    placeholder="Phone type"
+                    aria-label="Phone type"
+                  />
+                  <div style={{ height: 8 }} />
                   <PhoneInput
                     value={formData.phone}
                     onChange={(value) => setFormData({ ...formData, phone: value })}
@@ -703,6 +722,14 @@ const Suppliers: React.FC = () => {
 
                 <FormGroup>
                   <Label $theme={theme}>Phone</Label>
+                  <Select
+                    value={plantForm.phone_type}
+                    onChange={(value) => setPlantForm((p) => ({ ...p, phone_type: value as 'office' | 'mobile' }))}
+                    options={PHONE_TYPE_OPTIONS}
+                    placeholder="Phone type"
+                    aria-label="Plant phone type"
+                  />
+                  <div style={{ height: 8 }} />
                   <PhoneInput
                     value={plantForm.phone}
                     onChange={(value) => setPlantForm((p) => ({ ...p, phone: value }))}

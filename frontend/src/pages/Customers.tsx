@@ -35,6 +35,11 @@ interface CustomerContact {
   company?: string;
 }
 
+const PHONE_TYPE_OPTIONS = [
+  { value: 'office', label: 'Office' },
+  { value: 'mobile', label: 'Mobile' },
+];
+
 const Customers: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -69,12 +74,14 @@ const Customers: React.FC = () => {
     contact_name: '',
     email: '',
     phone: '',
+    phone_type: 'office' as 'office' | 'mobile',
   });
   const [formData, setFormData] = useState({
     name: '',
     contact_person: '',
     email: '',
     phone: '',
+    phone_type: 'office' as 'office' | 'mobile',
     address: '',
     city: '',
     state: '',
@@ -227,6 +234,7 @@ const Customers: React.FC = () => {
       contact_name: '',
       email: '',
       phone: '',
+      phone_type: 'office',
     });
     setShowLocationModal(true);
   };
@@ -315,6 +323,7 @@ const Customers: React.FC = () => {
       contact_person: customer.contact_person || '',
       email: customer.email || '',
       phone: customer.phone || '',
+      phone_type: customer.phone_type || 'office',
       address: customer.address || '',
       city: customer.city || '',
       state: customer.state || '',
@@ -352,6 +361,7 @@ const Customers: React.FC = () => {
       contact_person: '',
       email: '',
       phone: '',
+      phone_type: 'office',
       address: '',
       city: '',
       state: '',
@@ -467,6 +477,14 @@ const Customers: React.FC = () => {
 
                 <FormGroup>
                   <Label $theme={theme}>Phone</Label>
+                  <Select
+                    value={formData.phone_type}
+                    onChange={(value) => setFormData({ ...formData, phone_type: value as 'office' | 'mobile' })}
+                    options={PHONE_TYPE_OPTIONS}
+                    placeholder="Phone type"
+                    aria-label="Phone type"
+                  />
+                  <div style={{ height: 8 }} />
                   <PhoneInput
                     value={formData.phone}
                     onChange={(value) => setFormData({ ...formData, phone: value })}
@@ -689,6 +707,14 @@ const Customers: React.FC = () => {
 
                 <FormGroup>
                   <Label $theme={theme}>Contact Phone</Label>
+                  <Select
+                    value={locationForm.phone_type}
+                    onChange={(value) => setLocationForm((p) => ({ ...p, phone_type: value as 'office' | 'mobile' }))}
+                    options={PHONE_TYPE_OPTIONS}
+                    placeholder="Phone type"
+                    aria-label="Location phone type"
+                  />
+                  <div style={{ height: 8 }} />
                   <PhoneInput
                     value={locationForm.phone}
                     onChange={(value) => setLocationForm((p) => ({ ...p, phone: value }))}

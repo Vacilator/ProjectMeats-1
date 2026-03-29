@@ -5,7 +5,7 @@ Implements tenant ForeignKey field for shared-schema multi-tenancy.
 """
 
 from django.db import models
-from apps.core.models import TenantManager, TenantAwareModel
+from apps.core.models import PhoneTypeChoices, TenantManager, TenantAwareModel
 from django.contrib.auth.models import User
 from apps.tenants.models import Tenant
 
@@ -66,6 +66,13 @@ class Plant(TenantAwareModel):
     zip_code = models.CharField(max_length=20, default='', blank=True)
     country = models.CharField(max_length=100, default="USA")
     phone = models.CharField(max_length=20, blank=True, default='')
+    phone_type = models.CharField(
+        max_length=10,
+        choices=PhoneTypeChoices.choices,
+        blank=True,
+        default=PhoneTypeChoices.OFFICE,
+        help_text="Plant phone type (mobile or office)",
+    )
     email = models.EmailField(blank=True, default='')
     manager = models.CharField(max_length=100, blank=True, default='')
     capacity = models.PositiveIntegerField(

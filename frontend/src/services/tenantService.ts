@@ -12,6 +12,7 @@ export interface Tenant {
   domain?: string;
   contact_email: string;
   contact_phone?: string;
+  contact_phone_type?: 'office' | 'mobile';
   is_active: boolean;
   is_trial: boolean;
   trial_ends_at?: string;

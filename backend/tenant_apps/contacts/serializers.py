@@ -23,6 +23,7 @@ class ContactSerializer(serializers.ModelSerializer):
             "last_name",
             "email",
             "phone",
+            "phone_type",
             "company",
             "position",
             "status",
