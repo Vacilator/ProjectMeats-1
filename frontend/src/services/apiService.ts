@@ -474,6 +474,16 @@ export interface PurchaseOrder {
   id: number;
   order_number: string;
   supplier: number;
+
+  product?: string | null; // system.Product UUID
+  item_description?: string;
+  fresh_or_frozen?: string;
+  package_type?: string;
+  quantity?: number | null;
+  total_weight?: number | null;
+  weight_unit?: string;
+  price_per_unit?: number | null; // cost per lb
+
   total_amount: number;
   status: string;
   order_date: string;
@@ -482,8 +492,6 @@ export interface PurchaseOrder {
   created_at: string;
   updated_at: string;
   logistics_scenario?: string;
-  total_weight?: number;
-  weight_unit?: string;
   pick_up_location?: string | null; // Phase 4: Location UUID
   delivery_location?: string | null; // Phase 4: Location UUID
 }
