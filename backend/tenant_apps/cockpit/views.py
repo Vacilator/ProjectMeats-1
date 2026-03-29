@@ -9,6 +9,7 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.exceptions import ValidationError
 from rest_framework.views import APIView
+from rest_framework.exceptions import PermissionDenied
 
 from django.conf import settings
 from django.db.models import Q
@@ -21,6 +22,8 @@ from .serializers import (
     SupplierSlotSerializer,
     OrderSlotSerializer,
     ActivityLogSerializer,
+    ActivityLogCreateSerializer,
+    ActivityLogUpdateSerializer,
     ScheduledCallSerializer,
     UserWorkspaceLayoutSerializer,
 )
@@ -239,20 +242,26 @@ class ActivityLogViewSet(viewsets.ModelViewSet):
     
     Supports filtering by entity_type and entity_id for entity-specific note feeds.
     """
-    serializer_class = ActivityLogSerializer
     permission_classes = [IsAuthenticated]
-    
+
+    def get_serializer_class(self):
+        if self.action == 'create':
+            return ActivityLogCreateSerializer
+        if self.action in ('update', 'partial_update'):
+            return ActivityLogUpdateSerializer
+        return ActivityLogSerializer
+
     def get_queryset(self):
         """Filter activity logs by tenant and optional entity filters."""
         if not hasattr(self.request, 'tenant') or not self.request.tenant:
             return ActivityLog.objects.none()
-        
+
         queryset = ActivityLog.objects.filter(tenant=self.request.tenant)
-        
+
         # Filter by entity if provided
         entity_type = self.request.query_params.get('entity_type')
         entity_id = self.request.query_params.get('entity_id')
-        
+
         if entity_type and entity_id:
             queryset = queryset.filter(entity_type=entity_type, entity_id=entity_id)
 
@@ -267,13 +276,36 @@ class ActivityLogViewSet(viewsets.ModelViewSet):
                 pass
 
         return queryset
-    
+
+    def _can_edit_log(self, log: ActivityLog) -> bool:
+        user = getattr(self.request, 'user', None)
+        if not user or not user.is_authenticated:
+            return False
+
+        if getattr(user, 'is_staff', False) or getattr(user, 'is_superuser', False):
+            return True
+
+        # For user-created notes, allow the author to edit.
+        if log.created_by_id and log.created_by_id == user.id:
+            return True
+
+        # System-generated notes (created_by is NULL) are not editable by normal users.
+        return False
+
     def perform_create(self, serializer):
         """Auto-assign tenant and created_by on create."""
-        serializer.save(
-            tenant=self.request.tenant,
-            created_by=self.request.user
-        )
+        serializer.save(tenant=self.request.tenant, created_by=self.request.user)
+
+    def perform_update(self, serializer):
+        log = self.get_object()
+        if not self._can_edit_log(log):
+            raise PermissionDenied('You do not have permission to edit this note')
+        serializer.save()
+
+    def perform_destroy(self, instance):
+        if not self._can_edit_log(instance):
+            raise PermissionDenied('You do not have permission to delete this note')
+        instance.delete()
 
 
 class ScheduledCallViewSet(viewsets.ModelViewSet):
