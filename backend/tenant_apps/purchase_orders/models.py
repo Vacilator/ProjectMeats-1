@@ -50,11 +50,11 @@ class PurchaseOrderStatus(models.TextChoices):
 
 
 class LogisticsScenarioChoices(models.TextChoices):
-    """Logistics scenario for purchase orders (determines field visibility)."""
-    
-    CUSTOMER_PICKUP = "customer_pickup", "Customer Pickup"
-    SUPPLIER_DELIVERY = "supplier_delivery", "Supplier Delivery"
-    WE_PICKUP = "we_pickup", "We Pickup (Our Logistics)"
+    """Type of pick up for purchase orders (business-friendly labels)."""
+
+    CUSTOMER_PICKUP = "customer_pickup", "Customer - Picking Up"
+    SUPPLIER_DELIVERY = "supplier_delivery", "Supplier - Delivering"
+    WE_PICKUP = "we_pickup", "Tenant - Pickup (We Handle Logistics)"
 
 
 class PurchaseOrder(OrderMethodsMixin, TenantAwareModel):
@@ -337,75 +337,51 @@ class PurchaseOrder(OrderMethodsMixin, TenantAwareModel):
 
     def __str__(self):
         return f"PO-{self.order_number}"
-    
+
+    @classmethod
+    def generate_next_order_number(cls, tenant: Tenant) -> str:
+        """Generate the next Purchase Order number using format: 2YYNNN.
+
+        - 2 = Purchase Order indicator
+        - YY = 2-digit year
+        - NNN = zero-padded increment (per-tenant, per-year)
+
+        Example: 226040 => 2 + 26 + 040
+        """
+        from django.db import transaction
+        from django.utils import timezone
+
+        prefix = f"2{timezone.now().strftime('%y')}"
+
+        with transaction.atomic():
+            # Ensure we have a lock even if there are zero POs yet.
+            try:
+                Tenant.objects.select_for_update().filter(id=tenant.id).first()
+            except Exception:
+                pass
+
+            existing = (
+                cls.objects.filter(tenant=tenant, order_number__startswith=prefix)
+                .select_for_update()
+                .values_list('order_number', flat=True)
+            )
+
+            max_seq = 0
+            for val in existing:
+                tail = str(val or '')[len(prefix):]
+                if tail.isdigit():
+                    max_seq = max(max_seq, int(tail))
+
+            return f"{prefix}{max_seq + 1:03d}"
+
     def save(self, *args, **kwargs):
+        """Auto-generate order_number if missing.
+
+        We keep this at the model layer so admin/scripts are consistent with the API.
         """
-        Override save to auto-generate order_number if not provided.
-        
-        Only auto-generates if order_number is empty/None.
-        If user provides a value, it respects it.
-        Uniqueness is enforced by the database constraint.
-        """
-        if not self.order_number and self.tenant:
-            # Auto-generate order_number only if empty
-            from django.db import transaction
-            
-            with transaction.atomic():
-                # Get all existing purchase orders for this tenant with a lock
-                existing_pos = PurchaseOrder.objects.filter(
-                    tenant=self.tenant
-                ).select_for_update()
-                
-                # Find the highest numeric order number
-                max_order_num = 0
-                for po in existing_pos:
-                    try:
-                        # Try to extract numeric value from order_number
-                        num = int(po.order_number)
-                        if num > max_order_num:
-                            max_order_num = num
-                    except (ValueError, TypeError):
-                        # Skip non-numeric order numbers
-                        continue
-                
-                # Increment and assign
-                self.order_number = str(max_order_num + 1)
-        
-        super().save(*args, **kwargs)
-    
-    def save(self, *args, **kwargs):
-        """
-        Override save to auto-generate order_number if not provided.
-        
-        Only auto-generates if order_number is empty/None.
-        If user provides a value, it respects it.
-        Uniqueness is enforced by the database constraint.
-        """
-        if not self.order_number and self.tenant:
-            # Auto-generate order_number only if empty
-            from django.db import transaction
-            
-            with transaction.atomic():
-                # Get all existing purchase orders for this tenant with a lock
-                existing_pos = PurchaseOrder.objects.filter(
-                    tenant=self.tenant
-                ).select_for_update()
-                
-                # Find the highest numeric order number
-                max_order_num = 0
-                for po in existing_pos:
-                    try:
-                        # Try to extract numeric value from order_number
-                        num = int(po.order_number)
-                        if num > max_order_num:
-                            max_order_num = num
-                    except (ValueError, TypeError):
-                        # Skip non-numeric order numbers
-                        continue
-                
-                # Increment and assign
-                self.order_number = str(max_order_num + 1)
-        
+        if not self.order_number and self.tenant_id:
+            self.order_number = PurchaseOrder.generate_next_order_number(self.tenant)
+
         super().save(*args, **kwargs)
 
 

@@ -5,6 +5,8 @@ import { confirmDialog, showAlert } from '@/utils/uiDialogs';
 import { apiService, PurchaseOrder, Supplier } from '../services/apiService';
 import { LocationSelector } from '../components/Shared';
 import PurchaseOrderWorkflow from '../components/Workflow/PurchaseOrderWorkflow';
+import { SmartProductAutocomplete } from '../components/Inquiry/SmartProductAutocomplete';
+import { getChoices, type ChoiceOption } from '@/services/choicesService';
 
 // Styled Components
 const Header = styled.div`
@@ -368,19 +370,61 @@ const PurchaseOrders: React.FC = () => {
   const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const [freshFrozenOptions, setFreshFrozenOptions] = useState<ChoiceOption[]>([]);
+  const [packageTypeOptions, setPackageTypeOptions] = useState<ChoiceOption[]>([]);
+  const [weightUnitOptions, setWeightUnitOptions] = useState<ChoiceOption[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [editingPurchaseOrder, setEditingPurchaseOrder] = useState<PurchaseOrder | null>(null);
-  const [formData, setFormData] = useState({
+
+  type PurchaseOrderFormData = {
+    order_number: string;
+    supplier: string;
+
+    product: string;
+    item_description: string;
+    fresh_or_frozen: string;
+    package_type: string;
+    quantity: string;
+    weight_per_unit: string;
+    price_per_unit: string;
+
+    total_weight: string;
+    weight_unit: string;
+
+    total_amount: string;
+    status: string;
+    order_date: string;
+    delivery_date: string;
+    notes: string;
+    logistics_scenario: string;
+    pick_up_location: string | null;
+    delivery_location: string | null;
+  };
+
+  const [formData, setFormData] = useState<PurchaseOrderFormData>({
     order_number: '',
     supplier: '',
+
+    product: '',
+    item_description: '',
+    fresh_or_frozen: '',
+    package_type: '',
+    quantity: '',
+    weight_per_unit: '',
+    price_per_unit: '',
+
+    total_weight: '',
+    weight_unit: 'LBS',
+
     total_amount: '',
     status: 'pending',
     order_date: '',
     delivery_date: '',
     notes: '',
     logistics_scenario: 'supplier_delivery',
-    pick_up_location: null as string | null, // Phase 4: Location integration
-    delivery_location: null as string | null, // Phase 4: Location integration
+    pick_up_location: null, // Phase 4: Location integration
+    delivery_location: null, // Phase 4: Location integration
   });
 
   // Auto-open form if ?action=create in URL (e.g., from Cockpit suggested actions)
@@ -444,6 +488,52 @@ const PurchaseOrders: React.FC = () => {
     loadData();
   }, []);
 
+  useEffect(() => {
+    void (async () => {
+      try {
+        const [ff, pkg, wu] = await Promise.all([
+          getChoices('fresh_or_frozen'),
+          getChoices('package_type'),
+          getChoices('weight_unit'),
+        ]);
+        setFreshFrozenOptions(ff);
+        setPackageTypeOptions(pkg);
+        setWeightUnitOptions(wu);
+      } catch {
+        setFreshFrozenOptions([]);
+        setPackageTypeOptions([]);
+        setWeightUnitOptions([]);
+      }
+    })();
+  }, []);
+
+  const effectiveFreshFrozenOptions: ChoiceOption[] = freshFrozenOptions.length
+    ? freshFrozenOptions
+    : [
+        { value: 'Fresh', label: 'Fresh' },
+        { value: 'Frozen', label: 'Frozen' },
+      ];
+
+  const effectivePackageTypeOptions: ChoiceOption[] = packageTypeOptions.length
+    ? packageTypeOptions
+    : [
+        { value: 'Boxed wax lined', label: 'Boxed wax lined' },
+        { value: 'Boxed CO2', label: 'Boxed CO2' },
+        { value: 'Combo bins', label: 'Combo bins' },
+        { value: 'Totes', label: 'Totes' },
+        { value: 'Bags', label: 'Bags' },
+        { value: 'Bulk', label: 'Bulk' },
+        { value: 'Poly-Multiple', label: 'Poly-Multiple' },
+        { value: 'Nude', label: 'Nude' },
+      ];
+
+  const effectiveWeightUnitOptions: ChoiceOption[] = weightUnitOptions.length
+    ? weightUnitOptions
+    : [
+        { value: 'LBS', label: 'LBS' },
+        { value: 'KG', label: 'KG' },
+      ];
+
   const loadData = async () => {
     try {
       setLoading(true);
@@ -469,39 +559,51 @@ const PurchaseOrders: React.FC = () => {
     }
   };
 
-  // Calculate next suggested order number
+  // Calculate next suggested order number (display-only): 2YYNNN
   const getNextOrderNumber = () => {
-    if (purchaseOrders.length === 0) return '1';
-    
-    // Find highest numeric order number
-    let maxNum = 0;
+    const year2 = String(new Date().getFullYear()).slice(-2);
+    const prefix = `2${year2}`;
+
+    let maxSeq = 0;
     purchaseOrders.forEach((po) => {
-      const num = parseInt(po.order_number);
-      if (!isNaN(num) && num > maxNum) {
-        maxNum = num;
-      }
+      const val = String(po.order_number || '');
+      if (!val.startsWith(prefix)) return;
+      const tail = val.slice(prefix.length);
+      if (!/^[0-9]+$/.test(tail)) return;
+      const seq = Number(tail);
+      if (Number.isFinite(seq)) maxSeq = Math.max(maxSeq, seq);
     });
-    
-    return String(maxNum + 1);
+
+    const next = maxSeq + 1;
+    return `${prefix}${String(next).padStart(3, '0')}`;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const purchaseOrderData: any = {
-        ...formData,
-        total_amount: parseFloat(formData.total_amount),
+      const purchaseOrderData: Partial<PurchaseOrder> & { supplier: number; total_amount: number } = {
         supplier: parseInt(formData.supplier),
+        total_amount: parseFloat(formData.total_amount),
+        status: formData.status,
+        order_date: formData.order_date,
+        delivery_date: formData.delivery_date || undefined,
+        notes: formData.notes || undefined,
+        logistics_scenario: formData.logistics_scenario,
+        pick_up_location: formData.pick_up_location || undefined,
+        delivery_location: formData.delivery_location || undefined,
+
+        product: formData.product || undefined,
+        item_description: formData.item_description || undefined,
+        fresh_or_frozen: formData.fresh_or_frozen || undefined,
+        package_type: formData.package_type || undefined,
+        quantity: formData.quantity ? parseInt(formData.quantity) : undefined,
+        total_weight: formData.total_weight ? parseFloat(formData.total_weight) : undefined,
+        weight_unit: formData.weight_unit || undefined,
+        price_per_unit: formData.price_per_unit ? parseFloat(formData.price_per_unit) : undefined,
       };
 
-      // Location fields are optional; omit when unset to avoid backend validation surprises.
-      if (!purchaseOrderData.pick_up_location) purchaseOrderData.pick_up_location = undefined;
-      if (!purchaseOrderData.delivery_location) purchaseOrderData.delivery_location = undefined;
-      
-      // Remove order_number if empty - let backend auto-generate
-      if (!purchaseOrderData.order_number || purchaseOrderData.order_number.trim() === '') {
-        purchaseOrderData.order_number = undefined;
-      }
+      // Always let backend auto-generate order_number (2YYNNN).
+      // We intentionally omit order_number from the payload.
 
       if (editingPurchaseOrder) {
         await apiService.updatePurchaseOrder(editingPurchaseOrder.id, purchaseOrderData);
@@ -515,6 +617,18 @@ const PurchaseOrders: React.FC = () => {
       setFormData({
         order_number: '',
         supplier: '',
+
+        product: '',
+        item_description: '',
+        fresh_or_frozen: '',
+        package_type: '',
+        quantity: '',
+        weight_per_unit: '',
+        price_per_unit: '',
+
+        total_weight: '',
+        weight_unit: 'LBS',
+
         total_amount: '',
         status: 'pending',
         order_date: '',
@@ -549,6 +663,18 @@ const PurchaseOrders: React.FC = () => {
     setFormData({
       order_number: purchaseOrder.order_number,
       supplier: purchaseOrder.supplier.toString(),
+
+      product: (purchaseOrder.product || '') as string,
+      item_description: purchaseOrder.item_description || '',
+      fresh_or_frozen: purchaseOrder.fresh_or_frozen || '',
+      package_type: purchaseOrder.package_type || '',
+      quantity: purchaseOrder.quantity != null ? String(purchaseOrder.quantity) : '',
+      weight_per_unit: '',
+      price_per_unit: purchaseOrder.price_per_unit != null ? String(purchaseOrder.price_per_unit) : '',
+
+      total_weight: purchaseOrder.total_weight != null ? String(purchaseOrder.total_weight) : '',
+      weight_unit: purchaseOrder.weight_unit || 'LBS',
+
       total_amount: purchaseOrder.total_amount.toString(),
       status: purchaseOrder.status,
       order_date: purchaseOrder.order_date,
@@ -600,10 +726,23 @@ const PurchaseOrders: React.FC = () => {
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
   ) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
+
+    setFormData((prev) => {
+      const key = name as keyof PurchaseOrderFormData;
+      const next = { ...prev, [key]: value } as PurchaseOrderFormData;
+
+      const qty = Number(next.quantity);
+      const wpu = Number(next.weight_per_unit);
+      if (key === 'quantity' || key === 'weight_per_unit') {
+        if (Number.isFinite(qty) && qty > 0 && Number.isFinite(wpu) && wpu > 0) {
+          next.total_weight = String(qty * wpu);
+        } else if (!next.total_weight) {
+          next.total_weight = '';
+        }
+      }
+
+      return next;
+    });
   };
 
   const getStatusColor = (status: string) => {
@@ -634,6 +773,18 @@ const PurchaseOrders: React.FC = () => {
             setFormData({
               order_number: getNextOrderNumber(),
               supplier: '',
+
+              product: '',
+              item_description: '',
+              fresh_or_frozen: '',
+              package_type: '',
+              quantity: '',
+              weight_per_unit: '',
+              price_per_unit: '',
+
+              total_weight: '',
+              weight_unit: 'LBS',
+
               total_amount: '',
               status: 'pending',
               order_date: '',
@@ -802,33 +953,36 @@ const PurchaseOrders: React.FC = () => {
             </FormHeader>
             <Form onSubmit={handleSubmit}>
               <FormGroup>
-                <Label>Logistics Scenario</Label>
+                <Label>Type of Pick Up</Label>
                 <Select 
                   name="logistics_scenario" 
                   value={formData.logistics_scenario} 
                   onChange={handleInputChange}
                   required
                 >
-                  <option value="customer_pickup">Customer Pickup</option>
-                  <option value="supplier_delivery">Supplier Delivery</option>
-                  <option value="we_pickup">We Pickup (Our Logistics)</option>
+                  <option value="we_pickup">Tenant - Pickup (We Handle Logistics)</option>
+                  <option value="supplier_delivery">Supplier - Delivering</option>
+                  <option value="customer_pickup">Customer - Picking Up</option>
                 </Select>
                 <FieldHint>
-                  {formData.logistics_scenario === 'customer_pickup' && '🚗 Customer handles pickup'}
+                  {formData.logistics_scenario === 'customer_pickup' && '🚗 Customer picks up from supplier'}
                   {formData.logistics_scenario === 'supplier_delivery' && '🚚 Supplier delivers to us'}
-                  {formData.logistics_scenario === 'we_pickup' && '🚛 We handle logistics'}
+                  {formData.logistics_scenario === 'we_pickup' && '🚛 Tenant pickup / our logistics'}
                 </FieldHint>
               </FormGroup>
+
               <FormGroup>
-                <Label>Order Number (Optional - Auto-generated if left blank)</Label>
+                <Label>Purchase Order Number</Label>
                 <Input
                   type="text"
                   name="order_number"
-                  value={formData.order_number}
+                  value={formData.order_number || getNextOrderNumber()}
                   onChange={handleInputChange}
-                  placeholder="Leave blank for auto-generation"
+                  disabled
                 />
+                <FieldHint>Auto-generated format: 2YYNNN (example: 226040)</FieldHint>
               </FormGroup>
+
               <FormGroup>
                 <Label>Supplier</Label>
                 <Select
@@ -845,6 +999,115 @@ const PurchaseOrders: React.FC = () => {
                   ))}
                 </Select>
               </FormGroup>
+
+              <FormGroup>
+                <Label>Product</Label>
+                <SmartProductAutocomplete
+                  value={formData.product}
+                  onChange={(productId, product) => {
+                    setFormData((prev) => ({
+                      ...prev,
+                      product: productId,
+                      item_description:
+                        prev.item_description
+                        || product?.name
+                        || product?.description
+                        || product?.description_of_product_item
+                        || '',
+                      fresh_or_frozen: prev.fresh_or_frozen || product?.fresh_or_frozen || '',
+                      package_type: prev.package_type || product?.package_type || '',
+                    }));
+                  }}
+                />
+              </FormGroup>
+
+              <FormGroup>
+                <Label>Description</Label>
+                <TextArea
+                  name="item_description"
+                  value={formData.item_description}
+                  onChange={handleInputChange}
+                  rows={2}
+                  placeholder="Auto-filled from product name (editable)"
+                />
+              </FormGroup>
+
+              <FormGroup>
+                <Label>Fresh / Frozen</Label>
+                <Select name="fresh_or_frozen" value={formData.fresh_or_frozen} onChange={handleInputChange} required>
+                  <option value="">Select…</option>
+                  {effectiveFreshFrozenOptions.map((o) => (
+                    <option key={o.value} value={String(o.value)}>
+                      {o.label}
+                    </option>
+                  ))}
+                </Select>
+              </FormGroup>
+
+              <FormGroup>
+                <Label>Package Type</Label>
+                <Select name="package_type" value={formData.package_type} onChange={handleInputChange} required>
+                  <option value="">Select…</option>
+                  {effectivePackageTypeOptions.map((o) => (
+                    <option key={o.value} value={String(o.value)}>
+                      {o.label}
+                    </option>
+                  ))}
+                </Select>
+              </FormGroup>
+
+              <FormGroup>
+                <Label>Qty</Label>
+                <Input type="number" name="quantity" value={formData.quantity} onChange={handleInputChange} required />
+              </FormGroup>
+
+              <FormGroup>
+                <Label>Weight per Unit</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  name="weight_per_unit"
+                  value={formData.weight_per_unit}
+                  onChange={handleInputChange}
+                  required
+                />
+              </FormGroup>
+
+              <FormGroup>
+                <Label>Total Weight</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  name="total_weight"
+                  value={formData.total_weight}
+                  onChange={handleInputChange}
+                  placeholder="Auto-calculated (qty * weight per unit)"
+                />
+              </FormGroup>
+
+              <FormGroup>
+                <Label>Weight Unit</Label>
+                <Select name="weight_unit" value={formData.weight_unit} onChange={handleInputChange} required>
+                  {effectiveWeightUnitOptions.map((o) => (
+                    <option key={o.value} value={String(o.value)}>
+                      {o.label}
+                    </option>
+                  ))}
+                </Select>
+              </FormGroup>
+
+              <FormGroup>
+                <Label>Cost per lb</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  name="price_per_unit"
+                  value={formData.price_per_unit}
+                  onChange={handleInputChange}
+                  required
+                />
+              </FormGroup>
+
               <FormGroup>
                 <Label>Total Amount</Label>
                 <Input
