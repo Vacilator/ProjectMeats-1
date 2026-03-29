@@ -505,8 +505,15 @@ class EntityViewSet(viewsets.ViewSet):
             return qs
 
         candidates = [
-            'created_at',
+            # Tenant-app models typically use created_on/modified_on
+            'modified_on',
+            'created_on',
+            # Inquiries use inquiry_date as their primary business timestamp
+            'inquiry_date',
+            # System models typically use created_at/updated_at
             'updated_at',
+            'created_at',
+            # Legacy timestamp field names
             'date_time_stamp',
             'date_time_stamp_created',
         ]
