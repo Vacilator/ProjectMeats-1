@@ -14,6 +14,7 @@ import styled from 'styled-components';
 import { Button } from '../../components/ui/Button';
 import { Select } from '../../components/ui/Select';
 import { resolveConfig } from '../../services/configService';
+import { formatUsPhone } from '../../utils/phone';
 import { getChoicesForField, isStaticChoiceField } from '../../services/choicesService';
 
 // Field definition types
@@ -429,8 +430,37 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
           </FieldGroup>
         );
 
+      case 'phone':
+        return (
+          <FieldGroup key={field.key}>
+            <Label htmlFor={field.key} required={showRequired}>
+              {field.label}
+            </Label>
+            <Controller
+              name={field.key}
+              control={control}
+              render={({ field: controllerField }) => (
+                <Input
+                  type="tel"
+                  inputMode="numeric"
+                  maxLength={13}
+                  id={field.key}
+                  value={formatUsPhone(String(controllerField.value || ''))}
+                  onChange={(e) => controllerField.onChange(formatUsPhone(e.target.value))}
+                  placeholder={field.placeholder || '(XXX)XXX-XXXX'}
+                  hasError={hasError}
+                  disabled={isSubmitting}
+                  autoComplete="tel"
+                />
+              )}
+            />
+            {formConfig.showHelpText && field.help_text && <HelpText>{field.help_text}</HelpText>}
+            {error && <ErrorText>{error.message as string}</ErrorText>}
+          </FieldGroup>
+        );
+
       default:
-        // text, number, date, email, phone, url, file, datetime
+        // text, number, date, email, url, file, datetime
         return (
           <FieldGroup key={field.key}>
             <Label htmlFor={field.key} required={showRequired}>

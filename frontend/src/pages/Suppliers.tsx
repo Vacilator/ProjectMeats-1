@@ -523,7 +523,7 @@ const Suppliers: React.FC = () => {
                   <PhoneInput
                     value={formData.phone}
                     onChange={(value) => setFormData({ ...formData, phone: value })}
-                    placeholder="(XXX) XXX-XXXX"
+                    placeholder="(XXX)XXX-XXXX"
                     aria-label="Phone number"
                   />
                 </FormGroup>
@@ -706,7 +706,7 @@ const Suppliers: React.FC = () => {
                   <PhoneInput
                     value={plantForm.phone}
                     onChange={(value) => setPlantForm((p) => ({ ...p, phone: value }))}
-                    placeholder="(XXX) XXX-XXXX"
+                    placeholder="(XXX)XXX-XXXX"
                     aria-label="Plant phone"
                   />
                 </FormGroup>

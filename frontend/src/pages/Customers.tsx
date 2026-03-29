@@ -470,7 +470,7 @@ const Customers: React.FC = () => {
                   <PhoneInput
                     value={formData.phone}
                     onChange={(value) => setFormData({ ...formData, phone: value })}
-                    placeholder="(XXX) XXX-XXXX"
+                    placeholder="(XXX)XXX-XXXX"
                     aria-label="Phone number"
                   />
                 </FormGroup>
@@ -692,7 +692,7 @@ const Customers: React.FC = () => {
                   <PhoneInput
                     value={locationForm.phone}
                     onChange={(value) => setLocationForm((p) => ({ ...p, phone: value }))}
-                    placeholder="(XXX) XXX-XXXX"
+                    placeholder="(XXX)XXX-XXXX"
                     aria-label="Location phone"
                   />
                 </FormGroup>

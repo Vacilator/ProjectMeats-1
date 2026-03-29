@@ -688,7 +688,7 @@ export const NodeConfigPanel: React.FC<NodeConfigPanelProps> = ({
   
   const fieldTemplates = [
     { label: 'Email Address', type: 'email', required: true, placeholder: 'user@example.com' },
-    { label: 'Phone Number', type: 'tel', required: false, placeholder: '(555) 123-4567' },
+    { label: 'Phone Number', type: 'tel', required: false, placeholder: '(XXX)XXX-XXXX' },
     { label: 'Full Name', type: 'text', required: true, placeholder: 'John Doe' },
     { label: 'Company Name', type: 'text', required: false, placeholder: 'Acme Corp' },
     { label: 'Address', type: 'text', required: false, placeholder: '123 Main St' },

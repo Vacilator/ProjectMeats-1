@@ -3,6 +3,7 @@ import styled from 'styled-components';
 import { useLocation } from 'react-router-dom';
 import { apiService, Contact } from '../services/apiService';
 import { apiClient } from '../services/apiService';
+import { formatUsPhone } from '@/utils/phone';
 
 // Styled Components
 const Container = styled.div`
@@ -477,7 +478,7 @@ const Contacts: React.FC = () => {
     const { name, value } = e.target;
     setFormData((prev) => ({
       ...prev,
-      [name]: value,
+      [name]: name === 'phone' ? formatUsPhone(value) : value,
     }));
   };
 
@@ -594,6 +595,10 @@ const Contacts: React.FC = () => {
                 <Label>Phone</Label>
                 <Input
                   type="tel"
+                  inputMode="numeric"
+                  maxLength={13}
+                  autoComplete="tel"
+                  placeholder="(XXX)XXX-XXXX"
                   name="phone"
                   value={formData.phone}
                   onChange={handleInputChange}

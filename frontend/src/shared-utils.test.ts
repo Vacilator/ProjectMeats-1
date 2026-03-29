@@ -128,7 +128,7 @@ describe('shared/utils', () => {
     });
 
     it('validates phone with parentheses', () => {
-      expect(isValidPhone('(555) 123-4567')).toBe(true);
+      expect(isValidPhone('(555)123-4567')).toBe(true);
     });
 
     it('rejects short numbers', () => {
