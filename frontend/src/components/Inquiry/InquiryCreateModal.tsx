@@ -9,10 +9,11 @@
  * - Actually create an Inquiry on save
  */
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import styled from 'styled-components';
 
 import { Select as AntSelect } from 'antd';
+import debounce from 'lodash/debounce';
 
 import { businessApi } from '@/services/businessApi';
 import { formatCurrency } from '@/utils/formatters';
@@ -22,7 +23,7 @@ import { SmartProductAutocomplete } from './SmartProductAutocomplete';
 
 type EntityType = 'supplier' | 'customer';
 
-type EntityOption = { id: number; name: string };
+type EntityOption = { id: string | number; name: string };
 
 type LineItem = {
   key: string;
@@ -384,19 +385,23 @@ export const InquiryCreateModal: React.FC<InquiryCreateModalProps> = ({
     })();
   }, [isOpen]);
 
-  useEffect(() => {
-    if (!isOpen) return;
-
-    void (async () => {
+  const fetchEntityOptions = useCallback(
+    async (search: string) => {
       setLoadingEntities(true);
+
       try {
-        const endpoint = entityType === 'supplier' ? '/suppliers/' : '/customers/';
-        const resp = await businessApi.get(endpoint, { params: { page_size: 500 } });
-        const rows = (resp.data?.results ?? resp.data) as any[];
+        const resp = await businessApi.get(`/entities/${encodeURIComponent(entityType)}/lookup/`, {
+          params: {
+            search: search || undefined,
+            page_size: 25,
+          },
+        });
+
+        const rows = (resp.data?.results ?? resp.data?.options ?? []) as any[];
         setEntityOptions(
           (Array.isArray(rows) ? rows : []).map((r: any) => ({
-            id: r.id,
-            name: r.name || r.company_name || r.title || `${entityType} #${r.id}`,
+            id: r.value ?? r.id,
+            name: r.label ?? r.name ?? `${entityType} #${r.value ?? r.id}`,
           }))
         );
       } catch {
@@ -404,8 +409,50 @@ export const InquiryCreateModal: React.FC<InquiryCreateModalProps> = ({
       } finally {
         setLoadingEntities(false);
       }
-    })();
-  }, [entityType, isOpen]);
+    },
+    [entityType]
+  );
+
+  const debouncedFetchEntityOptions = useMemo(
+    () =>
+      debounce((search: string) => {
+        void fetchEntityOptions(search);
+      }, 180),
+    [fetchEntityOptions]
+  );
+
+  // When opened from a specific entity (e.g., Cockpit Customer → New Inquiry),
+  // fetch only that entity name instead of pulling hundreds of rows.
+  useEffect(() => {
+    if (!isOpen) return;
+
+    if (initialEntityId != null) {
+      void (async () => {
+        setLoadingEntities(true);
+        try {
+          const endpoint = entityType === 'supplier'
+            ? `/suppliers/${encodeURIComponent(String(initialEntityId))}/`
+            : `/customers/${encodeURIComponent(String(initialEntityId))}/`;
+          const resp = await businessApi.get(endpoint);
+          const row = resp.data ?? {};
+          const name = row.name || row.company_name || row.title || `${entityType} #${String(initialEntityId)}`;
+          setEntityOptions([{ id: initialEntityId, name: String(name) }]);
+        } catch {
+          setEntityOptions([{ id: initialEntityId, name: `${entityType} #${String(initialEntityId)}` }]);
+        } finally {
+          setLoadingEntities(false);
+        }
+      })();
+
+      return;
+    }
+
+    debouncedFetchEntityOptions('');
+
+    return () => {
+      debouncedFetchEntityOptions.cancel();
+    };
+  }, [debouncedFetchEntityOptions, entityType, initialEntityId, isOpen]);
 
   const reset = () => {
     setError(null);
@@ -548,6 +595,7 @@ export const InquiryCreateModal: React.FC<InquiryCreateModalProps> = ({
                     onChange={(e) => {
                       setEntityType(e.target.value as EntityType);
                       setEntityId('');
+                      setEntityOptions([]);
                     }}
                     disabled={!canSubmit || Boolean(initialEntityType)}
                   >
@@ -557,18 +605,27 @@ export const InquiryCreateModal: React.FC<InquiryCreateModalProps> = ({
                 </Field>
                 <Field $span={9}>
                   <Label>{entityType === 'customer' ? 'Customer' : 'Supplier'} *</Label>
-                  <Select
-                    value={entityId}
-                    onChange={(e) => setEntityId(e.target.value)}
+                  <AntSelect
+                    value={entityId || undefined}
+                    onChange={(val) => setEntityId(String(val ?? ''))}
                     disabled={!canSubmit || loadingEntities || Boolean(initialEntityId)}
-                  >
-                    <option value="">Select…</option>
-                    {entityOptions.map((o) => (
-                      <option key={o.id} value={String(o.id)}>
-                        {o.name}
-                      </option>
-                    ))}
-                  </Select>
+                    placeholder="Select…"
+                    style={{ width: '100%' }}
+                    showSearch
+                    allowClear
+                    filterOption={false}
+                    onSearch={(val) => {
+                      const next = String(val ?? '').trim();
+                      debouncedFetchEntityOptions(next);
+                    }}
+                    onClear={() => {
+                      debouncedFetchEntityOptions('');
+                    }}
+                    options={entityOptions.map((o) => ({
+                      value: String(o.id),
+                      label: o.name,
+                    }))}
+                  />
                   {loadingEntities && <Muted>Loading…</Muted>}
                 </Field>
               </Grid>
