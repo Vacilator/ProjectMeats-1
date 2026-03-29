@@ -1183,19 +1183,22 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
       return isFavorited(String(entity.type).toLowerCase(), Number(entity.id));
     };
 
-    const favoritesInResults: SearchEntity[] = [];
-    const seenFavoriteKeys = new Set<string>();
+    const q = String(query || '').toLowerCase().trim();
 
-    for (const type of types) {
-      const entities = results[type] ?? [];
-      for (const entity of entities) {
-        if (!isEntityFavorited(entity)) continue;
-        const key = `${String(entity.type).toLowerCase()}:${String(entity.id)}`;
-        if (seenFavoriteKeys.has(key)) continue;
-        seenFavoriteKeys.add(key);
-        favoritesInResults.push(entity);
-      }
-    }
+    // Favorites section should be driven by the user's saved favorites (not only what's returned
+    // in the top-N results per entity type). Filter by the current query so it stays relevant.
+    const favoritesInResults: SearchEntity[] = (q
+      ? favorites
+          .filter((f) => String(f.entity_title || '').toLowerCase().includes(q))
+          .slice(0, 12)
+          .map((f) => ({
+            id: String(f.entity_id),
+            type: String(f.entity_type),
+            name: String(f.entity_title || '').trim() || `${String(f.entity_type)} #${String(f.entity_id)}`,
+            subtitle: 'Favorite',
+            metadata: { favorite_created_at: f.created_at },
+          }))
+      : []);
 
     return (
       <>
@@ -1210,36 +1213,40 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
             </SectionHeader>
 
             <ResultGrid>
-              {favoritesInResults.map((entity) => (
-                <ResultCard
-                  key={`${String(entity.type)}:${String(entity.id)}`}
-                  onClick={() => handleSelectEntity(entity)}
-                  onKeyDown={(e) => handleCardKeyDown(e, () => handleSelectEntity(entity))}
-                >
-                  <ResultIcon $tone={getEntityTone(entity.type)}>
-                    {getEntityIcon(entity.type)}
-                  </ResultIcon>
+              {favoritesInResults.map((entity) => {
+                const favoritedOn = String((entity.metadata as any)?.favorite_created_at || '').slice(0, 10);
 
-                  <ResultContent>
-                    <ResultTitle>{entity.name}</ResultTitle>
-                    {entity.subtitle && <ResultSubtitle>{entity.subtitle}</ResultSubtitle>}
-                    <ResultMeta>
-                      <Clock size={10} />
-                      Last modified: Today
-                    </ResultMeta>
-                  </ResultContent>
-
-                  <FavoriteButton
-                    type="button"
-                    $isFavorite={true}
-                    onClick={(e) => toggleFavorite(entity.type, entity.id, entity.name, e)}
-                    title="Remove from favorites"
-                    aria-label="Remove from favorites"
+                return (
+                  <ResultCard
+                    key={`${String(entity.type)}:${String(entity.id)}`}
+                    onClick={() => handleSelectEntity(entity)}
+                    onKeyDown={(e) => handleCardKeyDown(e, () => handleSelectEntity(entity))}
                   >
-                    <Star size={16} />
-                  </FavoriteButton>
-                </ResultCard>
-              ))}
+                    <ResultIcon $tone={getEntityTone(entity.type)}>
+                      {getEntityIcon(entity.type)}
+                    </ResultIcon>
+
+                    <ResultContent>
+                      <ResultTitle>{entity.name}</ResultTitle>
+                      {entity.subtitle && <ResultSubtitle>{entity.subtitle}</ResultSubtitle>}
+                      <ResultMeta>
+                        <Clock size={10} />
+                        Favorited: {favoritedOn || '—'}
+                      </ResultMeta>
+                    </ResultContent>
+
+                    <FavoriteButton
+                      type="button"
+                      $isFavorite={true}
+                      onClick={(e) => toggleFavorite(entity.type, entity.id, entity.name, e)}
+                      title="Remove from favorites"
+                      aria-label="Remove from favorites"
+                    >
+                      <Star size={16} />
+                    </FavoriteButton>
+                  </ResultCard>
+                );
+              })}
             </ResultGrid>
           </Section>
         )}
