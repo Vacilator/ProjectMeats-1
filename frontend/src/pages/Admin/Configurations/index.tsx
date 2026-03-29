@@ -14,6 +14,7 @@ import { Button } from '@/components/ui/Button';
 import { useToast } from '@/hooks/useToast';
 import { useAdminPermissions } from '@/hooks/useAdminPermissions';
 import { captureSentryException } from '@/utils/sentry';
+import { confirmDialog } from '@/utils/uiDialogs';
 
 interface Configuration {
   id: string;
@@ -317,9 +318,15 @@ const ConfigurationsPage: React.FC = () => {
       return;
     }
 
-    if (!window.confirm(`Delete configuration "${config.display_name}"?`)) {
-      return;
-    }
+    const confirmed = await confirmDialog({
+      title: 'Delete configuration?',
+      content: `Delete configuration "${config.display_name}"?`,
+      okText: 'Delete',
+      cancelText: 'Cancel',
+      danger: true,
+    });
+
+    if (!confirmed) return;
 
     try {
       await apiClient.delete(`/configurations/${config.id}/`);

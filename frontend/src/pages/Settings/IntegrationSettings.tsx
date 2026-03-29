@@ -3,6 +3,7 @@
  */
 import React, { useState, useEffect } from 'react';
 import { AlertCircle, CheckCircle, Mail, ExternalLink } from 'lucide-react';
+import { confirmDialog } from '@/utils/uiDialogs';
 import { apiClient as axios } from '../../services/apiService';
 
 interface Connection {
@@ -69,9 +70,15 @@ export const IntegrationSettings: React.FC = () => {
   };
 
   const handleDisconnect = async (provider: string) => {
-    if (!confirm(`Are you sure you want to disconnect this email account?`)) {
-      return;
-    }
+    const confirmed = await confirmDialog({
+      title: 'Disconnect email account?',
+      content: 'Are you sure you want to disconnect this email account?',
+      okText: 'Disconnect',
+      cancelText: 'Cancel',
+      danger: true,
+    });
+
+    if (!confirmed) return;
 
     setDisconnecting(provider);
     setError(null);

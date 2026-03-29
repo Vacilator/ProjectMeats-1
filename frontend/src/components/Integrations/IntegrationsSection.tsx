@@ -2,6 +2,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import styled from 'styled-components';
 import { apiClient } from '../../services/apiService'; // FIX: Use authenticated client
 import { toast } from 'react-hot-toast';
+import { confirmDialog } from '@/utils/uiDialogs';
 import { Trash2, RefreshCw } from 'lucide-react';
 import { EmailConnection } from './EmailConnection';
 import { IngestionMonitor } from './IngestionMonitor';
@@ -62,9 +63,13 @@ export const IntegrationsSection: React.FC = () => {
   }, [loadConnections]);
 
   const handleDisconnect = async (provider: string) => {
-    const confirmed = window.confirm(
-      `Are you sure you want to disconnect ${provider}?`
-    );
+    const confirmed = await confirmDialog({
+      title: 'Disconnect integration?',
+      content: `Are you sure you want to disconnect ${provider}?`,
+      okText: 'Disconnect',
+      cancelText: 'Cancel',
+      danger: true,
+    });
     if (!confirmed) return;
 
     setIsDisconnecting(provider);

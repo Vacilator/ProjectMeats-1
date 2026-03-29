@@ -7,6 +7,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import styled from 'styled-components';
 import { Select as AntSelect } from 'antd';
+import { showAlert } from '@/utils/uiDialogs';
 import { businessApi } from '../../services/businessApi';
 import { InquiryTemplate, InquiryEntityType } from '../../types';
 import { PROTEIN_TYPE_CHOICES } from '../../utils/constants/choices';
@@ -416,7 +417,11 @@ export const InquiryTemplateModal: React.FC<InquiryTemplateModalProps> = ({
   
   const handleSave = async () => {
     if (!name.trim()) {
-      alert('Template name is required');
+      showAlert({
+        type: 'warning',
+        title: 'Validation',
+        content: 'Template name is required',
+      });
       return;
     }
     
@@ -450,7 +455,11 @@ export const InquiryTemplateModal: React.FC<InquiryTemplateModalProps> = ({
       onClose();
     } catch (error) {
       console.error('Failed to save template:', error);
-      alert('Failed to save template');
+      showAlert({
+        type: 'error',
+        title: 'Error',
+        content: 'Failed to save template',
+      });
     } finally {
       setSaving(false);
     }

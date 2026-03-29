@@ -8,6 +8,7 @@ import styled from 'styled-components';
 import { X, Plus, Save, Trash2, ChevronUp, ChevronDown, Lock, Globe, Building } from 'lucide-react';
 import Modal from '@/components/Modal/Modal';
 import { apiClient } from '@/services/apiService';
+import { confirmDialog } from '@/utils/uiDialogs';
 import { useToast } from '@/hooks/useToast';
 
 // ============================================================================
@@ -426,9 +427,15 @@ export const OptionListModal: React.FC<OptionListModalProps> = ({
   const handleDeleteItem = async (id: string) => {
     if (!isExtensible) return;
 
-    if (!window.confirm('Are you sure you want to delete this item?')) {
-      return;
-    }
+    const confirmed = await confirmDialog({
+      title: 'Delete item?',
+      content: 'Are you sure you want to delete this item?',
+      okText: 'Delete',
+      cancelText: 'Cancel',
+      danger: true,
+    });
+
+    if (!confirmed) return;
 
     // If it's a new item (not saved yet), just remove from local state
     if (id.startsWith('temp-')) {
@@ -526,13 +533,22 @@ export const OptionListModal: React.FC<OptionListModalProps> = ({
   };
 
   const handleClose = () => {
-    if (hasChanges) {
-      if (window.confirm('You have unsaved changes. Discard them?')) {
+    void (async () => {
+      if (hasChanges) {
+        const confirmed = await confirmDialog({
+          title: 'Discard changes?',
+          content: 'You have unsaved changes. Discard them?',
+          okText: 'Discard',
+          cancelText: 'Keep editing',
+          danger: true,
+        });
+        if (confirmed) {
+          onClose();
+        }
+      } else {
         onClose();
       }
-    } else {
-      onClose();
-    }
+    })();
   };
 
   return (

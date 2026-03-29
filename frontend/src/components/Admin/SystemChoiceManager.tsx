@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import { apiClient } from '../../services/apiService';
 import Modal from '../Modal/Modal';
+import { confirmDialog } from '@/utils/uiDialogs';
 
 // ============================================================================
 // TypeScript Interfaces
@@ -179,7 +180,15 @@ export const SystemChoiceManager: React.FC<SystemChoiceManagerProps> = ({
    * Delete choice list
    */
   const handleDeleteList = useCallback(async (listId: string) => {
-    if (!confirm('Are you sure you want to delete this choice list?')) return;
+    const confirmed = await confirmDialog({
+      title: 'Delete choice list?',
+      content: 'Are you sure you want to delete this choice list?',
+      okText: 'Delete',
+      cancelText: 'Cancel',
+      danger: true,
+    });
+
+    if (!confirmed) return;
 
     try {
       await apiClient.delete(`/system/choice-lists/${listId}/`);
@@ -224,7 +233,15 @@ export const SystemChoiceManager: React.FC<SystemChoiceManagerProps> = ({
    * Delete item
    */
   const handleDeleteItem = useCallback(async (itemId: string) => {
-    if (!confirm('Are you sure you want to delete this item?')) return;
+    const confirmed = await confirmDialog({
+      title: 'Delete item?',
+      content: 'Are you sure you want to delete this item?',
+      okText: 'Delete',
+      cancelText: 'Cancel',
+      danger: true,
+    });
+
+    if (!confirmed) return;
 
     try {
       await apiClient.delete(`/system/choice-items/${itemId}/`);

@@ -18,6 +18,7 @@
  */
 import React, { useState } from 'react';
 import { logger } from '@/utils/logger';
+import { showAlert } from '@/utils/uiDialogs';
 
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
@@ -701,7 +702,11 @@ const FormsFlowsCatalog: React.FC = () => {
       navigate(`/workforms/in-progress/${submissionId}`);
     } catch (error) {
       logger.error('[Catalog] Quick Run failed:', error);
-      alert('Failed to start workflow. Please try again.');
+      showAlert({
+        type: 'error',
+        title: 'Error',
+        content: 'Failed to start workflow. Please try again.',
+      });
     } finally {
       setIsQuickRunning(null);
     }

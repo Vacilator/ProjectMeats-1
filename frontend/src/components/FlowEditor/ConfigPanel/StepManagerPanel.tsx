@@ -30,6 +30,7 @@ import {
 } from 'lucide-react';
 import { Node, Edge } from '@xyflow/react';
 import { calculateStepOrder } from '../utils/stepOrderingUtils';
+import { confirmDialog } from '@/utils/uiDialogs';
 import {
   EmptyState,
   EmptyIcon,
@@ -347,13 +348,19 @@ export const StepManagerPanel: React.FC<StepManagerPanelProps> = ({
 
   // Handle delete with confirmation
   const handleDelete = useCallback((stepId: string, stepLabel: string) => {
-    const confirmed = window.confirm(
-      `Are you sure you want to delete "${stepLabel}"?\n\nThis will remove the step and all its connections.`
-    );
-    
-    if (confirmed) {
-      onDeleteNode(stepId);
-    }
+    void (async () => {
+      const confirmed = await confirmDialog({
+        title: 'Delete step?',
+        content: `Are you sure you want to delete "${stepLabel}"?\n\nThis will remove the step and all its connections.`,
+        okText: 'Delete',
+        cancelText: 'Cancel',
+        danger: true,
+      });
+
+      if (confirmed) {
+        onDeleteNode(stepId);
+      }
+    })();
   }, [onDeleteNode]);
 
   return (

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import SchemaEditor from '../components/SchemaEditorSimple';
 import { adminClient } from '@/services/apiService';
+import { confirmDialog, showAlert } from '@/utils/uiDialogs';
 // Use UnifiedFlowEditor instead of WorkflowCanvas
 import { UnifiedFlowEditor } from '../../../components/FlowEditor';
 import { VersionHistory } from '../components/VersionHistory';
@@ -67,58 +68,87 @@ const Editor: React.FC<EditorProps> = () => {
   const handlePublish = async () => {
     if (!blueprintId || !csrfToken) return;
 
-    if (confirm('Publish this workflow? It will become available to all tenant users.')) {
-      try {
-        setPublishing(true);
-        await adminClient.post(
-          `/admin/system-config/api/studio/versions/${blueprintId}/publish/`,
-          {},
-          {
-            headers: csrfToken
-              ? {
-                  'X-CSRFToken': csrfToken,
-                  'Content-Type': 'application/json',
-                }
-              : undefined,
-          }
-        );
-        setIsPublished(true);
-        alert('✅ Workflow published successfully!');
-      } catch (error: any) {
-        console.error('Error publishing:', error);
-        alert(`❌ Failed to publish: ${error.message}`);
-      } finally {
-        setPublishing(false);
-      }
+    const ok = await confirmDialog({
+      title: 'Publish this workflow?',
+      content: 'It will become available to all tenant users.',
+      okText: 'Publish',
+      cancelText: 'Cancel',
+    });
+    if (!ok) return;
+
+    try {
+      setPublishing(true);
+      await adminClient.post(
+        `/admin/system-config/api/studio/versions/${blueprintId}/publish/`,
+        {},
+        {
+          headers: csrfToken
+            ? {
+                'X-CSRFToken': csrfToken,
+                'Content-Type': 'application/json',
+              }
+            : undefined,
+        }
+      );
+      setIsPublished(true);
+      showAlert({
+        title: 'Published',
+        content: 'Workflow published successfully.',
+        type: 'success',
+      });
+    } catch (error: any) {
+      console.error('Error publishing:', error);
+      showAlert({
+        title: 'Publish failed',
+        content: error?.message ?? 'Failed to publish workflow.',
+        type: 'error',
+      });
+    } finally {
+      setPublishing(false);
     }
   };
 
   const handleUnpublish = async () => {
     if (!blueprintId || !csrfToken) return;
 
-    if (confirm('Unpublish this workflow? It will be removed from the catalog.')) {
-      try {
-        setPublishing(true);
-        await adminClient.post(
-          `/admin/system-config/api/studio/versions/${blueprintId}/unpublish/`,
-          {},
-          {
-            headers: csrfToken
-              ? {
-                  'X-CSRFToken': csrfToken,
-                  'Content-Type': 'application/json',
-                }
-              : undefined,
-          }
-        );
-        setIsPublished(false);
-        alert('✅ Workflow unpublished successfully!');
-      } catch (error: any) {
-        console.error('Error unpublishing:', error);
-        alert(`❌ Failed to unpublish: ${error.message}`);
-      } finally {
-        setPublishing(false);
-      }
+    const ok = await confirmDialog({
+      title: 'Unpublish this workflow?',
+      content: 'It will be removed from the catalog.',
+      okText: 'Unpublish',
+      cancelText: 'Cancel',
+      danger: true,
+    });
+    if (!ok) return;
+
+    try {
+      setPublishing(true);
+      await adminClient.post(
+        `/admin/system-config/api/studio/versions/${blueprintId}/unpublish/`,
+        {},
+        {
+          headers: csrfToken
+            ? {
+                'X-CSRFToken': csrfToken,
+                'Content-Type': 'application/json',
+              }
+            : undefined,
+        }
+      );
+      setIsPublished(false);
+      showAlert({
+        title: 'Unpublished',
+        content: 'Workflow unpublished successfully.',
+        type: 'success',
+      });
+    } catch (error: any) {
+      console.error('Error unpublishing:', error);
+      showAlert({
+        title: 'Unpublish failed',
+        content: error?.message ?? 'Failed to unpublish workflow.',
+        type: 'error',
+      });
+    } finally {
+      setPublishing(false);
     }
   };
 
@@ -242,7 +272,11 @@ const Editor: React.FC<EditorProps> = () => {
               window.location.href = `/admin/system-config/studio/${versionId}/`;
             }}
             onRollback={(newVersionId) => {
-              alert('Rolled back successfully! Redirecting to new version...');
+              showAlert({
+                title: 'Rolled back',
+                content: 'Rollback succeeded. Redirecting to the new version...',
+                type: 'success',
+              });
               window.location.href = `/admin/system-config/studio/${newVersionId}/`;
             }}
           />

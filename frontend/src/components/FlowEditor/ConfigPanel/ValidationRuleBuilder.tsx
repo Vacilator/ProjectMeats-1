@@ -14,6 +14,7 @@
  */
 import React, { useState } from 'react';
 import styled from 'styled-components';
+import { showAlert } from '@/utils/uiDialogs';
 import { Plus, Trash2, Edit2, AlertCircle } from 'lucide-react';
 import {
   FormField,
@@ -442,7 +443,11 @@ export const ValidationRuleBuilder: React.FC<ValidationRuleBuilderProps> = ({
     
     // Validate required value
     if (ruleDefinition.requiresValue && !formData.value) {
-      alert('Please provide a value for this rule');
+      showAlert({
+        type: 'warning',
+        title: 'Validation',
+        content: 'Please provide a value for this rule',
+      });
       return;
     }
 

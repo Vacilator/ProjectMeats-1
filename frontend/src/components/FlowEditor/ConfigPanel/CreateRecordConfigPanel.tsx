@@ -24,6 +24,7 @@
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { Save, X, AlertCircle } from 'lucide-react';
+import { confirmDialog } from '@/utils/uiDialogs';
 import { Node, Edge } from '@xyflow/react';
 import { FieldMappingPanel, FieldMapping } from './FieldMappingPanel';
 import { InsertVariableButton } from './InsertVariableButton';
@@ -147,13 +148,22 @@ export const CreateRecordConfigPanel: React.FC<CreateRecordConfigPanelProps> = (
   };
 
   const handleClose = () => {
-    if (hasUnsavedChanges) {
-      if (window.confirm('You have unsaved changes. Are you sure you want to close?')) {
+    void (async () => {
+      if (hasUnsavedChanges) {
+        const confirmed = await confirmDialog({
+          title: 'Discard changes?',
+          content: 'You have unsaved changes. Are you sure you want to close?',
+          okText: 'Discard',
+          cancelText: 'Keep editing',
+          danger: true,
+        });
+        if (confirmed) {
+          onClose();
+        }
+      } else {
         onClose();
       }
-    } else {
-      onClose();
-    }
+    })();
   };
 
   return (

@@ -5,6 +5,7 @@
 
 import React, { useState, useRef, useCallback } from 'react';
 import styled from 'styled-components';
+import { promptDialog } from '@/utils/uiDialogs';
 
 const RichTextContainer = styled.div<{ $hasError?: boolean }>`
   border: 1px solid ${props => props.$hasError ? 'rgb(var(--color-error))' : 'rgb(var(--color-border))'};
@@ -191,10 +192,17 @@ export const RichTextField: React.FC<RichTextFieldProps> = ({
   }, [execCommand]);
 
   const insertLink = useCallback(() => {
-    const url = prompt('Enter URL:');
-    if (url) {
-      execCommand('createLink', url);
-    }
+    void (async () => {
+      const url = await promptDialog({
+        title: 'Insert link',
+        placeholder: 'https://',
+        okText: 'Insert',
+      });
+
+      if (url?.trim()) {
+        execCommand('createLink', url.trim());
+      }
+    })();
   }, [execCommand]);
 
   const getCharCount = () => {

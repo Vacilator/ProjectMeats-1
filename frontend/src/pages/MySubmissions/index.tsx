@@ -5,6 +5,7 @@
  */
 import React, { useState, useEffect, useCallback } from 'react';
 import styled from 'styled-components';
+import { confirmDialog, showAlert } from '@/utils/uiDialogs';
 import { formSubmissionService, FormSubmissionListItem } from '../../services/quickActionsService';
 import { useQuickActions } from '../../contexts/QuickActionsContext';
 
@@ -301,7 +302,13 @@ const MySubmissions: React.FC = () => {
   }, [openFormModal]);
 
   const handleCancel = useCallback(async (submissionId: string) => {
-    const confirmed = window.confirm('Are you sure you want to cancel this submission?');
+    const confirmed = await confirmDialog({
+      title: 'Cancel submission?',
+      content: 'Are you sure you want to cancel this submission?',
+      okText: 'Cancel submission',
+      cancelText: 'Keep',
+      danger: true,
+    });
     if (!confirmed) return;
 
     try {
@@ -309,12 +316,22 @@ const MySubmissions: React.FC = () => {
       loadSubmissions();
     } catch (err: any) {
       console.error('Failed to cancel submission:', err);
-      alert(err.message || 'Failed to cancel submission');
+      showAlert({
+        type: 'error',
+        title: 'Error',
+        content: err.message || 'Failed to cancel submission',
+      });
     }
   }, [loadSubmissions]);
 
   const handleDelete = useCallback(async (submissionId: string) => {
-    const confirmed = window.confirm('Are you sure you want to delete this submission? This cannot be undone.');
+    const confirmed = await confirmDialog({
+      title: 'Delete submission?',
+      content: 'Are you sure you want to delete this submission? This cannot be undone.',
+      okText: 'Delete',
+      cancelText: 'Cancel',
+      danger: true,
+    });
     if (!confirmed) return;
 
     try {
@@ -322,7 +339,11 @@ const MySubmissions: React.FC = () => {
       loadSubmissions();
     } catch (err: any) {
       console.error('Failed to delete submission:', err);
-      alert(err.message || 'Failed to delete submission');
+      showAlert({
+        type: 'error',
+        title: 'Error',
+        content: err.message || 'Failed to delete submission',
+      });
     }
   }, [loadSubmissions]);
 

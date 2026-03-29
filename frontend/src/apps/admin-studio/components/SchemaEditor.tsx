@@ -21,6 +21,7 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useParams } from 'react-router-dom';
 import styled, { keyframes } from 'styled-components';
 import { adminClient } from '@/services/apiService';
+import { confirmDialog, showAlert } from '@/utils/uiDialogs';
 import {
   useReactTable,
   getCoreRowModel,
@@ -942,9 +943,18 @@ const SortableRow: React.FC<{
                 <ActionButton 
                   variant="danger"
                   onClick={() => {
-                    if (window.confirm(`Delete field "${row.original.label}"? This cannot be undone.`)) {
-                      onDelete(row.original.id);
-                    }
+                    void (async () => {
+                      const ok = await confirmDialog({
+                        title: 'Delete field?',
+                        content: `Delete field "${row.original.label}"? This cannot be undone.`,
+                        okText: 'Delete',
+                        cancelText: 'Cancel',
+                        danger: true,
+                      });
+                      if (ok) {
+                        onDelete(row.original.id);
+                      }
+                    })();
                   }}
                   title="Delete"
                 >
@@ -1049,7 +1059,7 @@ const SchemaEditor: React.FC = () => {
       // Delete: Delete selected
       if (e.key === 'Delete' && selectedFields.size > 0) {
         e.preventDefault();
-        handleBulkDelete();
+        void handleBulkDelete();
       }
       // Escape: Clear selection
       if (e.key === 'Escape') {
@@ -1095,15 +1105,23 @@ const SchemaEditor: React.FC = () => {
   };
 
   // Bulk delete selected fields
-  const handleBulkDelete = () => {
+  const handleBulkDelete = async () => {
     if (selectedFields.size === 0) return;
-    if (window.confirm(`Delete ${selectedFields.size} selected field(s)? This cannot be undone.`)) {
-      const newFields = fields.filter(f => !selectedFields.has(f.id));
-      setFields(newFields);
-      setSelectedFields(new Set());
-      saveToHistory(newFields, 'Bulk delete');
-      triggerAutoSave();
-    }
+
+    const ok = await confirmDialog({
+      title: `Delete ${selectedFields.size} selected field(s)?`,
+      content: 'This cannot be undone.',
+      okText: 'Delete',
+      cancelText: 'Cancel',
+      danger: true,
+    });
+    if (!ok) return;
+
+    const newFields = fields.filter(f => !selectedFields.has(f.id));
+    setFields(newFields);
+    setSelectedFields(new Set());
+    saveToHistory(newFields, 'Bulk delete');
+    triggerAutoSave();
   };
 
   // Select all fields
@@ -1194,14 +1212,26 @@ const SchemaEditor: React.FC = () => {
               ...f,
               id: `imported_${Date.now()}_${i}`,
             }));
-            if (window.confirm(`Import ${importedFields.length} fields? This will replace current schema.`)) {
+            void (async () => {
+              const ok = await confirmDialog({
+                title: `Import ${importedFields.length} fields?`,
+                content: 'This will replace current schema.',
+                okText: 'Import',
+                cancelText: 'Cancel',
+              });
+              if (!ok) return;
+
               setFields(importedFields);
               saveToHistory(importedFields, 'Import schema');
               triggerAutoSave();
-            }
+            })();
           }
         } catch (err) {
-          alert('Invalid JSON file. Please check the format.');
+          showAlert({
+            title: 'Invalid JSON',
+            content: 'Invalid JSON file. Please check the format.',
+            type: 'error',
+          });
         }
       };
       reader.readAsText(file);

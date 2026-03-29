@@ -9,6 +9,7 @@
  */
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import styled from 'styled-components';
+import { showAlert } from '@/utils/uiDialogs';
 import { useNotifications, ActionItem } from '../../contexts/NotificationsContext';
 import { DelegateTaskModal, DelegationData, User } from '../../components/Delegation';
 import { DelegationHistory } from '../../components/Delegation';
@@ -621,7 +622,11 @@ export const MyTasks: React.FC = () => {
       window.location.href = `/workflows/run/${execution.id}`;
     } catch (err) {
       console.error('Failed to resume workflow:', err);
-      alert('Failed to resume workflow. Please try again.');
+      showAlert({
+        type: 'error',
+        title: 'Error',
+        content: 'Failed to resume workflow. Please try again.',
+      });
     } finally {
       setResumingId(null);
     }

@@ -5,6 +5,7 @@
  * Helps users visualize their field configurations before saving.
  */
 import React, { useState } from 'react';
+import { showAlert } from '@/utils/uiDialogs';
 
 interface Field {
   id: string;
@@ -29,7 +30,18 @@ const FormPreview: React.FC<FormPreviewProps> = ({ fields, onClose }) => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    alert('Preview mode - form not submitted\n\nData:\n' + JSON.stringify(formData, null, 2));
+    showAlert({
+      title: 'Preview mode',
+      content: (
+        <div>
+          <div style={{ marginBottom: 8 }}>Form not submitted. Data:</div>
+          <pre style={{ whiteSpace: 'pre-wrap', margin: 0 }}>
+            {JSON.stringify(formData, null, 2)}
+          </pre>
+        </div>
+      ),
+      type: 'info',
+    });
   };
 
   const renderField = (field: Field) => {

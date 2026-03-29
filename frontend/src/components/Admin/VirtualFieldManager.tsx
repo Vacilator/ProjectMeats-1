@@ -25,6 +25,7 @@ import {
 } from 'lucide-react';
 import { apiClient } from '../../services/apiService';
 import Modal from '../Modal/Modal';
+import { confirmDialog, showAlert } from '@/utils/uiDialogs';
 
 // ============================================================================
 // TypeScript Interfaces
@@ -153,7 +154,7 @@ export const VirtualFieldManager: React.FC<VirtualFieldManagerProps> = ({
       setEditingField(null);
     } catch (error) {
       console.error('[VirtualFieldManager] Failed to save field:', error);
-      alert('Failed to save field');
+      showAlert({ type: 'error', title: 'Error', content: 'Failed to save field' });
     }
   }, [editingField, tenantId, selectedModel, loadFields]);
 
@@ -161,7 +162,15 @@ export const VirtualFieldManager: React.FC<VirtualFieldManagerProps> = ({
    * Delete field
    */
   const handleDeleteField = useCallback(async (fieldId: string) => {
-    if (!confirm('Are you sure you want to delete this field?')) return;
+    const confirmed = await confirmDialog({
+      title: 'Delete field?',
+      content: 'Are you sure you want to delete this field?',
+      okText: 'Delete',
+      cancelText: 'Cancel',
+      danger: true,
+    });
+
+    if (!confirmed) return;
 
     try {
       await apiClient.delete(`/system/field-schemas/${fieldId}/`);

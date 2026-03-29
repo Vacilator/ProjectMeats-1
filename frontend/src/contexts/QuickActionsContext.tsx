@@ -5,6 +5,7 @@
  * Handles loading, caching, and updating user's quick actions.
  */
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
+import { showAlert } from '@/utils/uiDialogs';
 import {
   quickActionsService,
   formSubmissionService,
@@ -173,7 +174,11 @@ export const QuickActionsProvider: React.FC<QuickActionsProviderProps> = ({ chil
       const errorMsg = err?.response?.data?.error || err?.message || 'Failed to start form';
       setError(errorMsg);
       // Alert the user since the modal won't open
-      alert(`Error: ${errorMsg}`);
+      showAlert({
+        type: 'error',
+        title: 'Error',
+        content: errorMsg,
+      });
     }
   }, [startFormSubmission]);
 
