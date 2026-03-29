@@ -1,3 +1,5 @@
+import uuid
+
 from rest_framework import serializers
 
 from apps.system.models import Product as SystemProduct
@@ -19,6 +21,8 @@ class MasterProductMinimalSerializer(serializers.ModelSerializer):
 
 
 class PlantSerializer(serializers.ModelSerializer):
+    code = serializers.CharField(required=False, allow_blank=True)
+
     created_by_name = serializers.CharField(
         source="created_by.username", read_only=True
     )
@@ -84,6 +88,31 @@ class PlantSerializer(serializers.ModelSerializer):
             "created_by_name",
         ]
 
+    def _generate_code(self, name: str | None) -> str:
+        base = (name or 'Plant').strip().upper()
+        base = ''.join(ch for ch in base if ch.isalnum())
+        prefix = (base[:3] or 'PLT').ljust(3, 'T')
+
+        for _ in range(20):
+            candidate = f"{prefix}-{uuid.uuid4().hex[:8].upper()}"
+            if not Plant.objects.filter(code=candidate).exists():
+                return candidate
+
+        return f"PLT-{uuid.uuid4().hex[:12].upper()}"
+
     def create(self, validated_data):
         validated_data["created_by"] = self.context["request"].user
+
+        code = validated_data.get('code')
+        if not code or not str(code).strip():
+            validated_data['code'] = self._generate_code(validated_data.get('name'))
+
         return super().create(validated_data)
+
+    def update(self, instance, validated_data):
+        if 'code' in validated_data:
+            code = validated_data.get('code')
+            if not code or not str(code).strip():
+                validated_data['code'] = self._generate_code(validated_data.get('name') or instance.name)
+
+        return super().update(instance, validated_data)

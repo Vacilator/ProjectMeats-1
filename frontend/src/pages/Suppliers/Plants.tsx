@@ -323,11 +323,15 @@ const Plants: React.FC = () => {
     try {
       const values = await form.validateFields();
       setFormErrors({});
-      
-      const payload = {
+
+      const payload: Record<string, unknown> = {
         ...values,
         capacity: values.capacity ? parseInt(values.capacity) : null,
       };
+
+      if (typeof values.code === 'string' && values.code.trim() === '') {
+        delete payload.code;
+      }
       
       if (editingPlant) {
         await apiClient.patch(`plants/${editingPlant.id}/`, payload);
@@ -534,12 +538,11 @@ const Plants: React.FC = () => {
 
           <Form.Item
             name="code"
-            label={<><Label>Code<RequiredMark>*</RequiredMark></Label></>}
-            rules={[{ required: true, message: 'Plant code is required' }]}
+            label={<><Label>Code</Label></>}
             validateStatus={formErrors.code ? 'error' : ''}
             help={formErrors.code && <ErrorMessage>⚠ {formErrors.code[0]}</ErrorMessage>}
           >
-            <Input placeholder="Plant Code (e.g., PLT001)" />
+            <Input placeholder="Plant Code (optional; auto-generated if blank)" />
           </Form.Item>
 
           <Form.Item

@@ -6,7 +6,10 @@ Uses shared-schema multi-tenancy with tenant ForeignKey isolation.
 import uuid
 from django.test import TestCase
 from django.contrib.auth.models import User
+from rest_framework.test import APIRequestFactory
+
 from tenant_apps.plants.models import Plant
+from tenant_apps.plants.serializers import PlantSerializer
 from tenant_apps.suppliers.models import Supplier
 from apps.tenants.models import Tenant, TenantUser
 
@@ -52,6 +55,31 @@ class PlantModelTest(TestCase):
         self.assertEqual(plant.name, f"Processing Plant {unique_id}")
         self.assertEqual(plant.code, f"PP-{unique_id}")
         self.assertEqual(plant.plant_type, "processing")
+        self.assertEqual(plant.tenant, self.tenant)
+
+    def test_create_plant_without_code_generates_code(self):
+        """Plant code should be optional in API input (auto-generated if blank)."""
+        unique_id = uuid.uuid4().hex[:8]
+
+        factory = APIRequestFactory()
+        request = factory.post('/api/v1/plants/', {})
+        request.user = self.user
+        request.tenant = self.tenant
+
+        serializer = PlantSerializer(
+            data={
+                'name': f"Processing Plant {unique_id}",
+                'plant_type': 'processing',
+                'supplier': self.supplier.id,
+                'code': '',
+            },
+            context={'request': request},
+        )
+        serializer.is_valid(raise_exception=True)
+        plant = serializer.save(tenant=self.tenant)
+
+        self.assertTrue(isinstance(plant.code, str) and plant.code)
+        self.assertIn('-', plant.code)
         self.assertEqual(plant.tenant, self.tenant)
 
     def test_plant_str_representation(self):
