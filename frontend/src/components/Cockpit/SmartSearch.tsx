@@ -31,8 +31,9 @@ import { useCockpitNavigation } from '../../contexts/CockpitNavigationContext';
 // UniversalEntityForm usage consolidated via EntityFormSurface
 
 import { EntityFormSurface, ScheduleCallModal } from '../Shared';
-import { InquiryCreateModal } from '../Inquiry';
+import { InquiryCreateModal, InquiryEmbeddedView } from '../Inquiry';
 import { EntityProfileHeader } from './EntityProfileHeader';
+import { type Inquiry } from '@/types';
 import { AIOverviewCard } from './AIOverviewCard';
 import { useFavorites } from '../../hooks/useFavorites';
 
@@ -523,6 +524,11 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
   const [relationTabData, setRelationTabData] = useState<Record<string, { items: SearchEntity[]; count: number }>>({});
   const [loadingRelationTab, setLoadingRelationTab] = useState<string | null>(null);
 
+  // Embedded Inquiry view (for customer → Inquiries tab). Keeps the user in Cockpit without opening a modal.
+  const [embeddedInquiry, setEmbeddedInquiry] = useState<Inquiry | null>(null);
+  const [isEmbeddedInquiryLoading, setIsEmbeddedInquiryLoading] = useState(false);
+  const [embeddedInquiryError, setEmbeddedInquiryError] = useState<string | null>(null);
+
   const [quickCreateConfig, setQuickCreateConfig] = useState<{ isOpen: boolean; type: string; context: any }>(
     { isOpen: false, type: '', context: {} }
   );
@@ -983,6 +989,36 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
     const raw = String(activeEntity?.type ?? '').toLowerCase();
     return raw === 'customer' || raw === 'supplier';
   }, [activeEntity?.type]);
+
+  useEffect(() => {
+    // Only customer records should embed inquiry details. Clear selection when changing the active record.
+    setEmbeddedInquiry(null);
+    setEmbeddedInquiryError(null);
+    setIsEmbeddedInquiryLoading(false);
+  }, [activeEntity?.id, activeEntity?.type]);
+
+  const handleSelectEmbeddedInquiry = useCallback(async (inquiryId: string) => {
+    const id = String(inquiryId || '').trim();
+    if (!id) return;
+
+    setIsEmbeddedInquiryLoading(true);
+    setEmbeddedInquiryError(null);
+
+    try {
+      const response = await businessApi.get(`/inquiries/${id}/`);
+      setEmbeddedInquiry(response.data as Inquiry);
+    } catch (err: any) {
+      const msg =
+        err?.response?.data?.detail ||
+        err?.response?.data?.error ||
+        err?.message ||
+        'Failed to load inquiry details.';
+      setEmbeddedInquiry(null);
+      setEmbeddedInquiryError(String(msg));
+    } finally {
+      setIsEmbeddedInquiryLoading(false);
+    }
+  }, []);
 
   const buildCascadeContext = useCallback((source: SearchEntity | null, targetType: string) => {
     if (!source) return {};
@@ -1833,19 +1869,35 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
                   children: loadingRelationTab === 'inquiries' ? (
                     <div style={{ padding: 12 }}><Spin /></div>
                   ) : relationTabData.inquiries?.items?.length ? (
-                    <ResultGrid>
-                      {relationTabData.inquiries.items.map(item => (
-                        <ResultCard key={item.id} onClick={() => handleSelectEntity(item)}>
-                          <ResultIcon $tone={getEntityTone(item.type)}>
-                            {getEntityIcon(item.type)}
-                          </ResultIcon>
-                          <ResultContent>
-                            <ResultTitle>{item.name}</ResultTitle>
-                            {item.subtitle && <ResultSubtitle>{item.subtitle}</ResultSubtitle>}
-                          </ResultContent>
-                        </ResultCard>
-                      ))}
-                    </ResultGrid>
+                    <div>
+                      <ResultGrid>
+                        {relationTabData.inquiries.items.map(item => (
+                          <ResultCard key={item.id} onClick={() => void handleSelectEmbeddedInquiry(item.id)}>
+                            <ResultIcon $tone={getEntityTone(item.type)}>
+                              {getEntityIcon(item.type)}
+                            </ResultIcon>
+                            <ResultContent>
+                              <ResultTitle>{item.name}</ResultTitle>
+                              {item.subtitle && <ResultSubtitle>{item.subtitle}</ResultSubtitle>}
+                            </ResultContent>
+                          </ResultCard>
+                        ))}
+                      </ResultGrid>
+
+                      <div style={{ marginTop: 12 }}>
+                        {embeddedInquiryError ? (
+                          <div style={{ padding: 10, border: '1px solid rgb(var(--color-border))', borderRadius: 'var(--radius-md)', color: 'rgb(var(--color-error))' }}>
+                            {embeddedInquiryError}
+                          </div>
+                        ) : null}
+
+                        {isEmbeddedInquiryLoading ? (
+                          <div style={{ padding: 12 }}><Spin /></div>
+                        ) : embeddedInquiry ? (
+                          <InquiryEmbeddedView inquiry={embeddedInquiry} onClose={() => setEmbeddedInquiry(null)} />
+                        ) : null}
+                      </div>
+                    </div>
                   ) : (
                     <EmptyState>
                       <EmptyIcon><FileText size={48} /></EmptyIcon>
