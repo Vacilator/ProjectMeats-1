@@ -626,7 +626,7 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
       });
       setResults({});
       setResultCounts({});
-    } finally {"}}]}
+    } finally {
       setIsSearching(false);
     }
   }, []);

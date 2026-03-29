@@ -2206,6 +2206,9 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       created = true;
     }
 
+    // Used by the onboarding tour (react-joyride)
+    portal.setAttribute('data-tour', 'config-panel');
+
     portal.style.cssText = `
       position: fixed;
       right: 0;
@@ -2246,6 +2249,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         logger.warn('[Portal] Portal missing when panel opened - recreating');
         const newPortal = document.createElement('div');
         newPortal.id = 'config-portal';
+        newPortal.setAttribute('data-tour', 'config-panel');
         newPortal.style.cssText = `
           position: fixed;
           right: 0;
@@ -2265,6 +2269,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         logger.debug('[Portal] Portal mounted and visible');
       } else {
         // Show portal when node is selected
+        portal.setAttribute('data-tour', 'config-panel');
         portal.style.display = 'flex';
         portal.style.pointerEvents = 'auto';
         logger.debug('[Portal] Portal shown');
