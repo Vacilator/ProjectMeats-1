@@ -32,6 +32,10 @@ import { useFormBuilderContext } from '../../../contexts/FormBuilderContext';
 // Configuration engine imports
 import { schemaRegistry } from '../config';
 import { NodeConfigSchema, ConfigSection, ConfigField } from '../config/types';
+import {
+  buildCronExpressionFromFriendlySchedule,
+  buildScheduleSummary,
+} from '../utils/scheduleCron';
 import { evaluateCondition } from '../config/conditionalLogic';
 import { validateField } from '../config/validationEngine';
 
@@ -352,6 +356,75 @@ export const DynamicConfigPanel: React.FC<DynamicConfigPanelProps> = ({
         return next;
       }
 
+      // Schedule trigger: keep UI business-friendly but always persist an underlying cron string.
+      if (semanticNodeType === 'triggerSchedule') {
+        const draft = { ...prev, [fieldId]: value } as any;
+        const mode = (draft.scheduleMode as string) || 'friendly';
+
+        // If user edits cron directly, force cron mode.
+        if (fieldId === 'cronExpression') {
+          const cron = String(value || '').trim();
+          const next = {
+            ...draft,
+            scheduleMode: 'cron',
+            cronExpression: cron,
+            schedule: cron,
+            scheduleSummary: cron ? `Cron: ${cron}` : undefined,
+          };
+          onUpdateNode(node.id, next);
+          return next;
+        }
+
+        // Switching modes: keep data consistent.
+        if (fieldId === 'scheduleMode') {
+          const nextMode = String(value || 'friendly');
+
+          if (nextMode === 'cron') {
+            const cron = String(draft.cronExpression || draft.schedule || '').trim();
+            const next = {
+              ...draft,
+              scheduleMode: 'cron',
+              cronExpression: cron,
+              schedule: cron,
+              scheduleSummary: cron ? `Cron: ${cron}` : draft.scheduleSummary,
+            };
+            onUpdateNode(node.id, next);
+            return next;
+          }
+
+          // Switch to friendly: regenerate cron from selections.
+          const cron = buildCronExpressionFromFriendlySchedule(draft);
+          const summary = buildScheduleSummary(draft);
+          const next = {
+            ...draft,
+            scheduleMode: 'friendly',
+            cronExpression: cron,
+            schedule: cron,
+            scheduleSummary: summary,
+          };
+          onUpdateNode(node.id, next);
+          return next;
+        }
+
+        // Friendly mode: regenerate cron + summary whenever the user changes schedule inputs.
+        if (mode !== 'cron') {
+          const cron = buildCronExpressionFromFriendlySchedule(draft);
+          const summary = buildScheduleSummary(draft);
+          const next = {
+            ...draft,
+            cronExpression: cron,
+            schedule: cron,
+            scheduleSummary: summary,
+          };
+          onUpdateNode(node.id, next);
+          return next;
+        }
+
+        // Cron mode: just update the field.
+        onUpdateNode(node.id, draft);
+        return draft;
+      }
+
       const next = { ...prev, [fieldId]: value };
       onUpdateNode(node.id, next);
 
@@ -493,6 +566,7 @@ export const DynamicConfigPanel: React.FC<DynamicConfigPanelProps> = ({
       case 'text':
       case 'textarea':
       case 'number':
+      case 'time':
       case 'email':
       case 'password':
       case 'codeEditor':

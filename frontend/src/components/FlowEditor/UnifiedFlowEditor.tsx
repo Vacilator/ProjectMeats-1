@@ -8598,10 +8598,15 @@ function getDefaultNodeData(nodeTypeId: string): Record<string, any> {
     defaults.maxOutputs = 0;
   }
 
-  // Auto-extract defaults from schema to fix DynamicConfigPanel visibility conditions
+  // Auto-extract defaults from schema to fix DynamicConfigPanel visibility conditions.
+  // Prefer the specific nodeTypeId schema (e.g., triggerSchedule) over the rendered ReactFlow type
+  // (e.g., trigger) so newly-created nodes pick up the correct defaults.
   try {
-    if (schemaRegistry.hasSchema(resolvedType)) {
-      const schema = schemaRegistry.getSchema(resolvedType);
+    const schemaIdsToTry = Array.from(new Set([nodeTypeId, resolvedType]));
+
+    schemaIdsToTry.forEach((schemaId) => {
+      if (!schemaRegistry.hasSchema(schemaId)) return;
+      const schema = schemaRegistry.getSchema(schemaId);
       schema.sections.forEach((section) => {
         section.fields.forEach((field) => {
           if (field.defaultValue !== undefined && defaults[field.id] === undefined) {
@@ -8609,9 +8614,9 @@ function getDefaultNodeData(nodeTypeId: string): Record<string, any> {
           }
         });
       });
-    }
+    });
   } catch {
-    logger.warn(`Could not extract schema defaults for ${resolvedType}`);
+    logger.warn(`Could not extract schema defaults for ${nodeTypeId}`);
   }
 
   return defaults;

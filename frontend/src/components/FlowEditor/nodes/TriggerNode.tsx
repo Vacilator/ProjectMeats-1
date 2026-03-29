@@ -111,6 +111,8 @@ export const TriggerNode = React.memo<NodeProps<Node<TriggerNodeData>>>((props) 
     eventType,
     formId,
   } = data;
+
+  const scheduleSummary = (data as any)?.scheduleSummary as string | undefined;
   
   // Get the appropriate node type definition
   const nodeTypeMap = {
@@ -149,10 +151,12 @@ export const TriggerNode = React.memo<NodeProps<Node<TriggerNodeData>>>((props) 
         
         {(schedule || webhookUrl || eventEntity || formId) && (
           <TriggerConfig>
-            {triggerType === 'schedule' && schedule && (
+            {triggerType === 'schedule' && (scheduleSummary || schedule) && (
               <ConfigRow>
                 <ConfigLabel>Schedule:</ConfigLabel>
-                <ConfigValue>{schedule}</ConfigValue>
+                <ConfigValue title={schedule || scheduleSummary}>
+                  {scheduleSummary || schedule}
+                </ConfigValue>
               </ConfigRow>
             )}
             

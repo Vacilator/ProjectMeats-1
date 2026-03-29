@@ -2663,9 +2663,9 @@ const triggerManualSchema: NodeConfigSchema = {
 const triggerScheduleSchema: NodeConfigSchema = {
   nodeType: 'triggerSchedule',
   displayName: 'Schedule Trigger',
-  description: 'Run workflow on schedule',
+  description: 'Run workflow on a schedule',
   icon: Clock,
-  version: '1.0.0',
+  version: '2.0.0',
   tags: ['trigger', 'schedule'],
   contextAware: false,
   sections: [
@@ -2676,23 +2676,131 @@ const triggerScheduleSchema: NodeConfigSchema = {
       defaultExpanded: true,
       fields: [
         {
-          id: 'cronExpression',
-          type: 'text',
-          label: 'Cron Expression',
-          placeholder: '0 9 * * MON-FRI',
-          helpText: 'Standard cron syntax',
+          id: 'scheduleMode',
+          type: 'select',
+          label: 'Mode',
+          options: [
+            { value: 'friendly', label: 'Simple (Recommended)' },
+            { value: 'cron', label: 'Cron (Advanced)' },
+          ],
+          defaultValue: 'friendly',
+          helpText: 'Use the simple scheduler unless you need a custom cron expression.',
+          validation: [{ type: 'required', message: 'Select a mode' }],
+        },
+        {
+          id: 'frequency',
+          type: 'select',
+          label: 'Frequency',
+          options: [
+            { value: 'hourly', label: 'Hourly' },
+            { value: 'daily', label: 'Daily' },
+            { value: 'weekly', label: 'Weekly' },
+            { value: 'monthly', label: 'Monthly' },
+          ],
+          defaultValue: 'daily',
           required: true,
+          conditional: { field: 'scheduleMode', operator: 'equals', value: 'friendly' },
+          validation: [{ type: 'required', message: 'Select a frequency' }],
+        },
+        {
+          id: 'atTime',
+          type: 'time',
+          label: 'Time',
+          placeholder: '09:00',
+          defaultValue: '09:00',
+          required: true,
+          conditional: { field: 'scheduleMode', operator: 'equals', value: 'friendly' },
+          helpText: 'For hourly schedules, only the minutes are used.',
+          validation: [{ type: 'required', message: 'Time is required' }],
+        },
+        {
+          id: 'daysOfWeek',
+          type: 'multiselect',
+          label: 'Days of Week',
+          options: [
+            { value: 'MON', label: 'Monday' },
+            { value: 'TUE', label: 'Tuesday' },
+            { value: 'WED', label: 'Wednesday' },
+            { value: 'THU', label: 'Thursday' },
+            { value: 'FRI', label: 'Friday' },
+            { value: 'SAT', label: 'Saturday' },
+            { value: 'SUN', label: 'Sunday' },
+          ],
+          defaultValue: ['MON'],
+          required: true,
+          conditional: {
+            logic: 'AND',
+            conditions: [
+              { field: 'scheduleMode', operator: 'equals', value: 'friendly' },
+              { field: 'frequency', operator: 'equals', value: 'weekly' },
+            ],
+          },
+          validation: [{ type: 'required', message: 'Select at least one day' }],
+        },
+        {
+          id: 'dayOfMonth',
+          type: 'number',
+          label: 'Day of Month',
+          placeholder: '1',
+          defaultValue: 1,
+          required: true,
+          conditional: {
+            logic: 'AND',
+            conditions: [
+              { field: 'scheduleMode', operator: 'equals', value: 'friendly' },
+              { field: 'frequency', operator: 'equals', value: 'monthly' },
+            ],
+          },
+          validation: [
+            { type: 'required', message: 'Day of month is required' },
+            { type: 'min', value: 1, message: 'Minimum is 1' },
+            { type: 'max', value: 31, message: 'Maximum is 31' },
+          ],
         },
         {
           id: 'timezone',
-          type: 'text',
+          type: 'select',
           label: 'Timezone',
-          placeholder: 'America/New_York',
+          options: [
+            { value: 'UTC', label: 'UTC' },
+            { value: 'America/New_York', label: 'Eastern Time (US)' },
+            { value: 'America/Chicago', label: 'Central Time (US)' },
+            { value: 'America/Denver', label: 'Mountain Time (US)' },
+            { value: 'America/Los_Angeles', label: 'Pacific Time (US)' },
+            { value: 'Europe/London', label: 'London (GMT/BST)' },
+            { value: 'Australia/Sydney', label: 'Sydney (AEST/AEDT)' },
+          ],
           defaultValue: 'UTC',
+          helpText: 'Used for display; actual execution timezone depends on scheduler support.',
         },
-      ]
-    }
-  ]
+        {
+          id: 'cronExpression',
+          type: 'text',
+          label: 'Cron Expression',
+          placeholder: '0 9 * * 1-5',
+          helpText: 'Generated automatically in Simple mode. In Cron mode, you can edit directly.',
+          conditional: {
+            logic: 'OR',
+            conditions: [
+              { field: 'scheduleMode', operator: 'equals', value: 'cron' },
+              { field: 'showAdvancedCron', operator: 'equals', value: true },
+            ],
+          },
+          validation: [
+            { type: 'required', message: 'Cron expression is required' },
+            { type: 'pattern', value: '^[^\n\r]+$', message: 'Invalid cron expression' },
+          ],
+        },
+        {
+          id: 'showAdvancedCron',
+          type: 'toggle',
+          label: 'Show Cron Preview',
+          defaultValue: false,
+          conditional: { field: 'scheduleMode', operator: 'equals', value: 'friendly' },
+        },
+      ],
+    },
+  ],
 };
 
 const triggerWebhookSchema: NodeConfigSchema = {
