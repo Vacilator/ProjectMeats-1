@@ -2725,7 +2725,14 @@ class QuickCreateEntityAPIView(APIView):
                 "preferred_protein_types",
                 "products",
             ],
-            "supplier": ["departments_array", "preferred_protein_types", "products"],
+            "supplier": [
+                "phone_mobile",
+                "phone_office",
+                "phone_office_extension",
+                "departments_array",
+                "preferred_protein_types",
+                "products",
+            ],
             "contact": ["position", "department"],
         }
         excluded = {
@@ -2795,9 +2802,9 @@ class QuickCreateEntityAPIView(APIView):
         # Build an ordered allowlist: common keys first, then entity-specific keys.
         allow_order = list(common_extra_keys) + list(extra_fields_by_entity.get(entity_type, []))
 
-        # Customer UX: we collect mobile + office + extension explicitly.
+        # Customer/Supplier UX: we collect mobile + office + extension explicitly.
         # Hide the legacy single phone field from quick-create to avoid confusion.
-        if entity_type == 'customer':
+        if entity_type in {'customer', 'supplier'}:
             allow_order = [k for k in allow_order if k != 'phone']
 
         for key in allow_order:
@@ -2890,8 +2897,8 @@ class QuickCreateEntityAPIView(APIView):
             if hasattr(model, "tenant"):
                 create_kwargs["tenant"] = tenant
 
-            # Customer quick-create: sync legacy phone fields for backward compatibility.
-            if entity_type == 'customer':
+            # Customer/Supplier quick-create: sync legacy phone fields for backward compatibility.
+            if entity_type in {'customer', 'supplier'}:
                 mobile = str(create_kwargs.get('phone_mobile') or '').strip()
                 office = str(create_kwargs.get('phone_office') or '').strip()
                 legacy_phone = str(create_kwargs.get('phone') or '').strip()
