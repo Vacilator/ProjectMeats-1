@@ -99,6 +99,10 @@ class Plant(TenantAwareModel):
         help_text="Capacity in units", null=True, blank=True
     )
     is_active = models.BooleanField(default=True)
+    fcfs = models.BooleanField(
+        default=False,
+        help_text='FCFS (First Come First Serve) plant scheduling/availability flag',
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     created_by = models.ForeignKey(

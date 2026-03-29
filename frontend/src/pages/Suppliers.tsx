@@ -22,6 +22,7 @@ interface SupplierPlant {
   booking_contact_email?: string;
   booking_contact_phone?: string;
   booking_contact_phone_type?: 'office' | 'mobile';
+  fcfs?: boolean;
 }
 
 interface SupplierContact {
@@ -74,6 +75,7 @@ const Suppliers: React.FC = () => {
     booking_contact_email: '',
     booking_contact_phone: '',
     booking_contact_phone_type: 'office' as 'office' | 'mobile',
+    fcfs: false,
   });
 
   const [formData, setFormData] = useState({
@@ -256,6 +258,7 @@ const Suppliers: React.FC = () => {
       booking_contact_email: '',
       booking_contact_phone: '',
       booking_contact_phone_type: 'office',
+      fcfs: false,
     });
     setShowPlantModal(true);
   };
@@ -302,6 +305,7 @@ const Suppliers: React.FC = () => {
         booking_contact_email: plantForm.booking_contact_email,
         booking_contact_phone: plantForm.booking_contact_phone,
         booking_contact_phone_type: plantForm.booking_contact_phone_type,
+        fcfs: plantForm.fcfs,
       };
 
       const code = plantForm.code.trim();
@@ -779,6 +783,18 @@ const Suppliers: React.FC = () => {
                 </FormGroup>
 
                 <FormGroup>
+                  <Label $theme={theme}>FCFS (First Come First Serve)</Label>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <input
+                      type="checkbox"
+                      checked={plantForm.fcfs}
+                      onChange={(e) => setPlantForm((p) => ({ ...p, fcfs: e.target.checked }))}
+                    />
+                    <span>{plantForm.fcfs ? 'Yes' : 'No'}</span>
+                  </label>
+                </FormGroup>
+
+                <FormGroup>
                   <Label $theme={theme}>Manager</Label>
                   <Input
                     $theme={theme}
@@ -995,6 +1011,10 @@ const Suppliers: React.FC = () => {
                               <MetaRow>
                                 <MetaKey>Booking Phone</MetaKey>
                                 <MetaValue>{selectedPlant.booking_contact_phone || '—'}</MetaValue>
+                              </MetaRow>
+                              <MetaRow>
+                                <MetaKey>FCFS</MetaKey>
+                                <MetaValue>{selectedPlant.fcfs ? 'Yes' : 'No'}</MetaValue>
                               </MetaRow>
                             </MetaCard>
                           ) : (

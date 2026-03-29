@@ -12,7 +12,7 @@
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Table, Input, Button, Modal, Form, Select, message, Tag, Space } from 'antd';
+import { Table, Input, Button, Modal, Form, Select, Checkbox, message, Tag, Space } from 'antd';
 import { CountrySelect, PhoneInput } from '../../components/ui';
 import { US_STATES } from '../../utils/constants/states';
 import type { ColumnsType } from 'antd/es/table';
@@ -41,6 +41,7 @@ interface Plant {
   booking_contact_email?: string;
   booking_contact_phone?: string;
   booking_contact_phone_type?: 'office' | 'mobile';
+  fcfs?: boolean;
   manager?: string;
   capacity?: number;
   is_active?: boolean;
@@ -270,7 +271,7 @@ const Plants: React.FC = () => {
     setFormErrors({});
     form.resetFields();
 
-    form.setFieldsValue({ phone_type: 'office', booking_contact_phone_type: 'office', country: 'USA' });
+    form.setFieldsValue({ phone_type: 'office', booking_contact_phone_type: 'office', fcfs: false, country: 'USA' });
     
     // Pre-fill supplier if context exists
     if (contextSupplierId) {
@@ -297,6 +298,7 @@ const Plants: React.FC = () => {
       phone: plant.phone || '',
       email: plant.email || '',
       booking_contact_email: plant.booking_contact_email || '',
+      fcfs: !!plant.fcfs,
       booking_contact_phone_type: plant.booking_contact_phone_type || 'office',
       booking_contact_phone: plant.booking_contact_phone || '',
       manager: plant.manager || '',
@@ -642,6 +644,10 @@ const Plants: React.FC = () => {
             rules={[{ type: 'email', message: 'Please enter a valid booking email address' }]}
           >
             <Input type="email" placeholder="booking@example.com" />
+          </Form.Item>
+
+          <Form.Item name="fcfs" valuePropName="checked">
+            <Checkbox>FCFS (First Come First Serve)</Checkbox>
           </Form.Item>
 
           <Form.Item name="booking_contact_phone_type" label={<Label>Booking Phone Type</Label>}>

@@ -78,6 +78,7 @@ class PlantSerializer(serializers.ModelSerializer):
             "manager",
             "capacity",
             "is_active",
+            "fcfs",
             "created_at",
             "updated_at",
             "created_by",
