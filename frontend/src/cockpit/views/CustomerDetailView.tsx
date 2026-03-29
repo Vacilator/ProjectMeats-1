@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import styled from 'styled-components';
 
 import { InquiryCreateModal } from '@/components/Inquiry';
-import { ScheduleCallModal } from '@/components/Shared';
+import { EntityFormSurface, ScheduleCallModal } from '@/components/Shared';
 import { InquiryCallModal } from '@/components/Calls/InquiryCallModal';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
@@ -463,6 +463,7 @@ export const CustomerDetailView: React.FC<CustomerDetailViewProps> = ({
   const [activeTab, setActiveTab] = useState<DetailTab>('products');
   const [isNewMenuOpen, setIsNewMenuOpen] = useState(false);
   const [isInquiryCreateOpen, setIsInquiryCreateOpen] = useState(false);
+  const [isSalesOrderCreateOpen, setIsSalesOrderCreateOpen] = useState(false);
   const [showScheduleCallModal, setShowScheduleCallModal] = useState(false);
   const [defaultCallPurpose, setDefaultCallPurpose] = useState<string | undefined>(undefined);
   const [showInquiryCallModal, setShowInquiryCallModal] = useState(false);
@@ -585,6 +586,17 @@ export const CustomerDetailView: React.FC<CustomerDetailViewProps> = ({
       return;
     }
 
+    if (action === 'order') {
+      if (canonicalType === 'customer') {
+        setIsSalesOrderCreateOpen(true);
+        setActiveTab('orders');
+        return;
+      }
+
+      toast.info('Coming soon: New purchase order');
+      return;
+    }
+
     if (action === 'call') {
       // Default to follow-up if user used keyboard/quick action.
       startNewCall('follow_up');
@@ -629,6 +641,21 @@ export const CustomerDetailView: React.FC<CustomerDetailViewProps> = ({
         initialEntityType={canonicalType ?? undefined}
         initialEntityId={entityId}
       />
+
+      {canonicalType === 'customer' && (
+        <EntityFormSurface
+          entityType="sales-orders"
+          mode="create"
+          isOpen={isSalesOrderCreateOpen}
+          onClose={() => setIsSalesOrderCreateOpen(false)}
+          context={{ customerId: entityId }}
+          onSuccess={() => {
+            void countsQuery.refetch();
+            void tabItemsQuery.refetch();
+            setIsSalesOrderCreateOpen(false);
+          }}
+        />
+      )}
 
       <ScheduleCallModal
         isOpen={showScheduleCallModal}
@@ -808,7 +835,7 @@ export const CustomerDetailView: React.FC<CustomerDetailViewProps> = ({
                       New Product <span>↵</span>
                     </MenuItem>
                     <MenuItem type="button" onClick={() => handleNewAction('order')} role="menuitem">
-                      New Order <span>↵</span>
+                      {canonicalType === 'customer' ? 'New Sales Order' : 'New Purchase Order'} <span>↵</span>
                     </MenuItem>
                     <MenuItem type="button" onClick={() => startNewCall('follow_up')} role="menuitem">
                       New Call (Follow-up) <span>↵</span>
