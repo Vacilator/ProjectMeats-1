@@ -60,6 +60,7 @@ export function renderTextField(
             field.type === 'number' ? 'number'
             : field.type === 'email' ? 'email'
             : field.type === 'password' ? 'password'
+            : field.type === 'time' ? 'time'
             : 'text'
           }
           value={value || ''}
