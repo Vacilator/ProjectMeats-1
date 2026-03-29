@@ -8467,7 +8467,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         steps={tourSteps}
         run={runTour}
         stepIndex={tourStepIndex}
-        onEvent={handleTourCallback}
+        callback={handleTourCallback}
         continuous
         options={tourOptions}
         styles={tourStyles}

@@ -219,7 +219,7 @@ const Error = styled.div`
 const LinesTable = styled.div`
   border: 1px solid rgb(var(--color-border));
   border-radius: var(--radius-lg);
-  overflow: hidden;
+  overflow: visible;
 `;
 
 const LinesHeader = styled.div`
