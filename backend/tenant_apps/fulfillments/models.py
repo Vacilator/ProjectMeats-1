@@ -24,6 +24,13 @@ class FulfillmentStatusChoices(models.TextChoices):
     CANCELLED = "cancelled", "Cancelled"
 
 
+class FulfillmentShippingTypeChoices(models.TextChoices):
+    """Shipping type for fulfillment (defaults from inquiry)."""
+    TENANT = "tenant", "Tenant"
+    CUSTOMER_PICKUP = "customer_pickup", "Customer Pick-Up"
+    SUPPLIER_DELIVERING = "supplier_delivering", "Supplier Delivering"
+
+
 class Fulfillment(TenantAwareModel):
     """
     Fulfillment model for tracking shipments from inquiries.
@@ -80,6 +87,14 @@ class Fulfillment(TenantAwareModel):
         blank=True,
         related_name='fulfillments',
         help_text="Shipment carrier"
+    )
+
+    shipping_type = models.CharField(
+        max_length=32,
+        choices=FulfillmentShippingTypeChoices.choices,
+        default=FulfillmentShippingTypeChoices.TENANT,
+        db_index=True,
+        help_text="Shipping type (cascaded from inquiry)",
     )
     
     # Logistics and dates

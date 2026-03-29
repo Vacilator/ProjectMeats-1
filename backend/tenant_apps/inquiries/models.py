@@ -42,6 +42,13 @@ class InquiryEntityTypeChoices(models.TextChoices):
     CUSTOMER = "customer", "Customer"
 
 
+class InquiryShippingTypeChoices(models.TextChoices):
+    """Shipping type for the inquiry (used for fulfillment/logistics defaults)."""
+    TENANT = "tenant", "Tenant"
+    CUSTOMER_PICKUP = "customer_pickup", "Customer Pick-Up"
+    SUPPLIER_DELIVERING = "supplier_delivering", "Supplier Delivering"
+
+
 class UOMChoices(models.TextChoices):
     """Unit of measure choices aligned with existing WeightUnitChoices."""
     LBS = "LBS", "Pounds"
@@ -119,6 +126,14 @@ class Inquiry(TenantAwareModel):
         blank=True,
         related_name='inquiries',
         help_text="Primary contact person"
+    )
+
+    shipping_type = models.CharField(
+        max_length=32,
+        choices=InquiryShippingTypeChoices.choices,
+        default=InquiryShippingTypeChoices.TENANT,
+        db_index=True,
+        help_text="Shipping type (cascades into fulfillment/logistics)",
     )
     
     # Contact info snapshot (preserved at time of inquiry)

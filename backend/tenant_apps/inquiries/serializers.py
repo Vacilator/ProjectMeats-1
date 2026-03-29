@@ -65,6 +65,7 @@ class InquiryListSerializer(serializers.ModelSerializer):
             # Canonical model fields
             'source_type',
             'entity_type',
+            'shipping_type',
             # Convenience aliases (frontend)
             'source',
             'customer',
@@ -134,6 +135,7 @@ class InquiryDetailSerializer(serializers.ModelSerializer):
             # Canonical model fields
             'source_type',
             'entity_type',
+            'shipping_type',
             # Convenience aliases (frontend)
             'source',
             'customer_name',
@@ -204,7 +206,7 @@ class InquiryCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Inquiry
         fields = [
-            'entity_type', 'supplier', 'customer', 'contact',
+            'entity_type', 'shipping_type', 'supplier', 'customer', 'contact',
             'contact_name', 'contact_email', 'contact_phone', 'contact_phone_type',
             'contact_company', 'contact_position',
             'source_type', 'source_call', 'valid_until',

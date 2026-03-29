@@ -429,6 +429,7 @@ export const CreateFulfillmentModal: React.FC<CreateFulfillmentModalProps> = ({
   const [loadingInquiries, setLoadingInquiries] = useState(false);
 
   // Form state
+  const [shippingType, setShippingType] = useState<'tenant' | 'customer_pickup' | 'supplier_delivering'>('tenant');
   const [supplierId, setSupplierId] = useState('');
   const [carrierId, setCarrierId] = useState('');
   const [trackingNumbers, setTrackingNumbers] = useState('');
@@ -567,6 +568,7 @@ export const CreateFulfillmentModal: React.FC<CreateFulfillmentModalProps> = ({
     if (isOpen && resolvedInquiry?.products) {
       // When the inquiry changes, reset fulfillment-specific fields.
       resetFulfillmentFields();
+      setShippingType(resolvedInquiry.shipping_type || 'tenant');
 
       const items: FulfillmentLineItem[] = resolvedInquiry.products.map((p: InquiryProduct) => ({
         inquiryProductId: p.id,
@@ -675,6 +677,7 @@ export const CreateFulfillmentModal: React.FC<CreateFulfillmentModalProps> = ({
   );
 
   const resetFulfillmentFields = useCallback(() => {
+    setShippingType('tenant');
     setSupplierId('');
     setCarrierId('');
     setTrackingNumbers('');
@@ -730,6 +733,7 @@ export const CreateFulfillmentModal: React.FC<CreateFulfillmentModalProps> = ({
         supplier: supplierId,
         customer: resolvedInquiry.customer || undefined,
         carrier: carrierId || undefined,
+        shipping_type: shippingType,
         tracking_numbers: trackingNumbers ? trackingNumbers.split(',').map(t => t.trim()).filter(Boolean) : undefined,
         expected_delivery: estimatedDelivery || undefined,
         notes: notes || undefined,
@@ -848,6 +852,19 @@ export const CreateFulfillmentModal: React.FC<CreateFulfillmentModalProps> = ({
             <Section>
               <SectionTitle>Shipping Information</SectionTitle>
               <FormRow>
+                <FormGroup>
+                  <Label>Shipping Type</Label>
+                  <Select
+                    value={shippingType}
+                    onChange={(e) => setShippingType(e.target.value as any)}
+                    disabled={submitting}
+                  >
+                    <option value="tenant">Tenant</option>
+                    <option value="customer_pickup">Customer Pick-Up</option>
+                    <option value="supplier_delivering">Supplier Delivering</option>
+                  </Select>
+                </FormGroup>
+
                 <FormGroup>
                   <Label>Supplier *</Label>
                   <Select
