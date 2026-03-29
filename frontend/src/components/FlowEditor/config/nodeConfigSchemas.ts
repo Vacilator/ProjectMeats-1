@@ -75,7 +75,7 @@ export const formSchema: NodeConfigSchema = {
           id: 'name',
           type: 'text',
           label: 'Step Name',
-          placeholder: 'e.g., Customer Information',
+          placeholder: 'e.g., Customer Contact Info',
           helpText: 'Internal name for this step (shown in workflow editor)',
           required: true,
           validation: [
@@ -99,7 +99,7 @@ export const formSchema: NodeConfigSchema = {
           id: 'description',
           type: 'textarea',
           label: 'Description',
-          placeholder: 'Describe what this form collects...',
+          placeholder: 'e.g., Collect customer name, email, phone_mobile, phone_office + extension',
           helpText: 'Optional description for documentation and user guidance',
           validation: [
             {
@@ -113,7 +113,7 @@ export const formSchema: NodeConfigSchema = {
           id: 'displayTitle',
           type: 'text',
           label: 'Display Title',
-          placeholder: 'e.g., Tell us about yourself',
+          placeholder: 'e.g., Customer Contact Information',
           helpText: 'Title shown to end users when filling out the form',
           validation: [
             {
@@ -182,7 +182,7 @@ export const formSchema: NodeConfigSchema = {
           id: 'entityId',
           type: 'variable-picker',
           label: 'Record ID',
-          placeholder: 'Select variable containing record ID',
+          placeholder: 'e.g., {{customer.id}}',
           helpText: 'Variable from previous steps containing the ID of the record to update',
           required: true,
           conditional: {
@@ -326,7 +326,7 @@ export const formSchema: NodeConfigSchema = {
           id: 'redirectOnSubmit',
           type: 'text',
           label: 'Redirect URL',
-          placeholder: '/thank-you',
+          placeholder: '/cockpit',
           helpText: 'URL to redirect to after successful submission (leave empty to stay on page)',
           conditional: {
             field: 'allowMultipleSubmissions',
@@ -338,7 +338,7 @@ export const formSchema: NodeConfigSchema = {
           id: 'submitButtonText',
           type: 'text',
           label: 'Submit Button Text',
-          placeholder: 'Submit',
+          placeholder: 'Continue',
           helpText: 'Custom text for the submit button',
           defaultValue: 'Submit'
         },
@@ -353,7 +353,7 @@ export const formSchema: NodeConfigSchema = {
           id: 'cancelButtonText',
           type: 'text',
           label: 'Cancel Button Text',
-          placeholder: 'Cancel',
+          placeholder: 'Back',
           helpText: 'Custom text for the cancel button (if enabled)',
           conditional: {
             field: 'showCancelButton',
@@ -2128,7 +2128,7 @@ const formStepSchema: NodeConfigSchema = {
   displayName: 'Form Step',
   description: 'Single step within a multi-step form. Fully supported for new and existing workflows.',
   icon: FileText,
-  version: '1.1.1',
+  version: '1.1.2',
   tags: ['form', 'step'],
   contextAware: true,
   sections: [
@@ -2142,7 +2142,7 @@ const formStepSchema: NodeConfigSchema = {
           id: 'name',
           type: 'text',
           label: 'Step Name',
-          placeholder: 'e.g., Customer Information',
+          placeholder: 'e.g., Supplier Booking Contact',
           required: true,
           validation: [
             { type: 'required', message: 'Step name is required' },
@@ -2153,7 +2153,7 @@ const formStepSchema: NodeConfigSchema = {
           id: 'description',
           type: 'textarea',
           label: 'Description',
-          placeholder: 'Describe this form step...',
+          placeholder: 'e.g., Capture booking contact email/phone + FCFS option',
           helpText: 'Optional description for documentation'
         },
       ]
@@ -2232,7 +2232,7 @@ const formFieldSchema: NodeConfigSchema = {
           id: 'label',
           type: 'text',
           label: 'Field Label',
-          placeholder: 'e.g., Email Address',
+          placeholder: 'e.g., Phone (Office)',
           required: true,
           validation: [
             { type: 'required', message: 'Field label is required' },
@@ -2243,7 +2243,7 @@ const formFieldSchema: NodeConfigSchema = {
           id: 'fieldName',
           type: 'text',
           label: 'Field Name (Key)',
-          placeholder: 'e.g., email',
+          placeholder: 'e.g., phone_office_extension',
           helpText: 'Internal field name used for data storage (no spaces, lowercase)',
           required: true,
           validation: [
@@ -2280,21 +2280,21 @@ const formFieldSchema: NodeConfigSchema = {
           id: 'placeholder',
           type: 'text',
           label: 'Placeholder',
-          placeholder: 'e.g., Enter your email...',
+          placeholder: 'e.g., (555) 123-4567',
           helpText: 'Hint text shown when field is empty'
         },
         {
           id: 'helpText',
           type: 'textarea',
           label: 'Help Text',
-          placeholder: 'Additional guidance for users...',
+          placeholder: 'e.g., Include extension if applicable',
           helpText: 'Helpful instructions displayed below the field'
         },
         {
           id: 'defaultValue',
           type: 'text',
           label: 'Default Value',
-          placeholder: 'Default value',
+          placeholder: 'e.g., USA',
           helpText: 'Pre-filled value when form loads'
         }
       ]
