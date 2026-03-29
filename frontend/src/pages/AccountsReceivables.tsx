@@ -527,7 +527,18 @@ const AccountsReceivables: React.FC = () => {
           </TableHeader>
           <TableBody>
             {receivables.map((receivable) => (
-              <TableRow key={receivable.id}>
+              <TableRow
+                key={receivable.id}
+                onClick={() => handleEdit(receivable)}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    handleEdit(receivable);
+                  }
+                }}
+              >
                 <TableCell>{receivable.invoice_number}</TableCell>
                 <TableCell>{receivable.customer_name || receivable.customer}</TableCell>
                 <TableCell>${(Number(receivable.total) || 0).toFixed(2)}</TableCell>
@@ -538,8 +549,22 @@ const AccountsReceivables: React.FC = () => {
                   </StatusBadge>
                 </TableCell>
                 <TableCell>
-                  <ActionButton onClick={() => handleEdit(receivable)}>Edit</ActionButton>
-                  <DeleteButton onClick={() => handleDelete(receivable.id)}>Delete</DeleteButton>
+                  <ActionButton
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleEdit(receivable);
+                    }}
+                  >
+                    Edit
+                  </ActionButton>
+                  <DeleteButton
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDelete(receivable.id);
+                    }}
+                  >
+                    Delete
+                  </DeleteButton>
                 </TableCell>
               </TableRow>
             ))}

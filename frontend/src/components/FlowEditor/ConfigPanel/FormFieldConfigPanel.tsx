@@ -419,7 +419,7 @@ export const FormFieldConfigPanel: React.FC<FormFieldConfigPanelProps> = ({
   };
 
   const openCreateCustomTenantList = () => {
-    Modal.info({
+    showAlert({
       title: 'Create Custom Tenant List (Coming Soon)',
       content: (
         <div>
@@ -429,6 +429,7 @@ export const FormFieldConfigPanel: React.FC<FormFieldConfigPanelProps> = ({
           <p>For now, this is a placeholder. If/when a TenantListModal exists, we can wire it here.</p>
         </div>
       ),
+      type: 'info',
     });
   };
 

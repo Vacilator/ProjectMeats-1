@@ -56,25 +56,33 @@ export const useOnboardingTour = (tourConfig: TourConfig) => {
 
       if (status === STATUS.FINISHED || status === STATUS.SKIPPED) {
         // Mark tour as completed
-        const completedTours = JSON.parse(
-          localStorage.getItem(TOUR_STORAGE_KEY) || '[]'
-        );
+        const completedTours = JSON.parse(localStorage.getItem(TOUR_STORAGE_KEY) || '[]');
 
         if (!completedTours.includes(tourConfig.name)) {
           completedTours.push(tourConfig.name);
-          localStorage.setItem(
-            TOUR_STORAGE_KEY,
-            JSON.stringify(completedTours)
-          );
+          localStorage.setItem(TOUR_STORAGE_KEY, JSON.stringify(completedTours));
         }
 
         setRun(false);
         setStepIndex(0);
-      } else if (type === EVENTS.STEP_AFTER) {
+        return;
+      }
+
+      // If a step target doesn't exist, Joyride can leave a grey overlay and block UI.
+      // Advance past missing targets to keep the tour usable.
+      if (type === EVENTS.TARGET_NOT_FOUND) {
+        const target = (tourConfig.steps?.[index] as any)?.target;
+        // eslint-disable-next-line no-console
+        console.warn(`[Tour:${tourConfig.name}] Target not found for step ${index}: ${String(target)}`);
+        setStepIndex(index + 1);
+        return;
+      }
+
+      if (type === EVENTS.STEP_AFTER) {
         setStepIndex(index + (action === 'prev' ? -1 : 1));
       }
     },
-    [tourConfig.name]
+    [tourConfig.name, tourConfig.steps]
   );
 
   const startTour = useCallback(() => {
@@ -163,7 +171,7 @@ export const workflowEditorTourSteps: Step[] = [
     placement: 'bottom',
   },
   {
-    target: '.node-config-panel',
+    target: '[data-tour="config-panel"]',
     content: (
       <div>
         <h3 style={{ margin: '0 0 8px 0' }}>⚙️ Configuration Panel</h3>
@@ -279,9 +287,11 @@ export const tourOptions: Partial<Options> = {
   backgroundColor: 'rgb(var(--color-background))',
   arrowColor: 'rgb(var(--color-background))',
   overlayColor: 'rgba(0, 0, 0, 0.5)',
-  zIndex: 10000,
+  zIndex: 10050,
   showProgress: true,
   buttons: ['back', 'close', 'primary', 'skip'],
+  spotlightClicks: true,
+  disableOverlayClose: false,
 };
 
 export const tourStyles: PartialDeep<Styles> = {

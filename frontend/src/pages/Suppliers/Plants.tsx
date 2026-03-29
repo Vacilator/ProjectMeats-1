@@ -307,24 +307,25 @@ const Plants: React.FC = () => {
     setShowModal(true);
   };
 
-  const handleDelete = (plant: Plant) => {
-    Modal.confirm({
+  const handleDelete = async (plant: Plant) => {
+    const confirmed = await confirmDialog({
       title: 'Delete Plant',
       content: `Are you sure you want to delete ${plant.name}?`,
       okText: 'Delete',
-      okType: 'danger',
       cancelText: 'Cancel',
-      onOk: async () => {
-        try {
-          await apiClient.delete(`plants/${plant.id}/`);
-          message.success('Plant deleted successfully');
-          loadPlants();
-        } catch (error: any) {
-          console.error('Error deleting plant:', error);
-          message.error('Failed to delete plant');
-        }
-      },
+      danger: true,
     });
+
+    if (!confirmed) return;
+
+    try {
+      await apiClient.delete(`plants/${plant.id}/`);
+      message.success('Plant deleted successfully');
+      loadPlants();
+    } catch (error: any) {
+      console.error('Error deleting plant:', error);
+      message.error('Failed to delete plant');
+    }
   };
 
   const handleSubmit = async () => {

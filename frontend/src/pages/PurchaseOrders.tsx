@@ -735,7 +735,18 @@ const PurchaseOrders: React.FC = () => {
             {purchaseOrders.map((purchaseOrder) => {
               const supplier = suppliers.find((s) => s.id === purchaseOrder.supplier);
               return (
-                <TableRow key={purchaseOrder.id}>
+                <TableRow
+                  key={purchaseOrder.id}
+                  onClick={() => handleEdit(purchaseOrder)}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      handleEdit(purchaseOrder);
+                    }
+                  }}
+                >
                   <TableCell>{purchaseOrder.order_number}</TableCell>
                   <TableCell>{supplier?.name || `ID: ${purchaseOrder.supplier}`}</TableCell>
                   <TableCell>
@@ -756,8 +767,22 @@ const PurchaseOrders: React.FC = () => {
                       : 'Not set'}
                   </TableCell>
                   <TableCell>
-                    <ActionButton onClick={() => handleEdit(purchaseOrder)}>Edit</ActionButton>
-                    <DeleteButton onClick={() => handleDelete(purchaseOrder.id)}>Delete</DeleteButton>
+                    <ActionButton
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleEdit(purchaseOrder);
+                      }}
+                    >
+                      Edit
+                    </ActionButton>
+                    <DeleteButton
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDelete(purchaseOrder.id);
+                      }}
+                    >
+                      Delete
+                    </DeleteButton>
                   </TableCell>
                 </TableRow>
               );

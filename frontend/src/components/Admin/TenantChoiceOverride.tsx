@@ -276,18 +276,21 @@ export const TenantChoiceOverride: React.FC<TenantChoiceOverrideProps> = ({ tena
   }, [selectedList, disabledItems, customOrder, tenantOverride, loadListData, toast]);
 
   const handleReset = useCallback(() => {
-    Modal.confirm({
-      title: 'Reset to system defaults?',
-      content: 'This will remove all tenant customizations for this list.',
-      okText: 'Reset',
-      okButtonProps: { danger: true },
-      cancelText: 'Cancel',
-      onOk: async () => {
-        setDisabledItems(new Set());
-        setCustomOrder([]);
-        toast.success('Reset to defaults (not yet saved)');
-      },
-    });
+    void (async () => {
+      const confirmed = await confirmDialog({
+        title: 'Reset to system defaults?',
+        content: 'This will remove all tenant customizations for this list.',
+        okText: 'Reset',
+        cancelText: 'Cancel',
+        danger: true,
+      });
+
+      if (!confirmed) return;
+
+      setDisabledItems(new Set());
+      setCustomOrder([]);
+      toast.success('Reset to defaults (not yet saved)');
+    })();
   }, [toast]);
 
   const columns: ColumnsType<TableRow> = useMemo(() => {

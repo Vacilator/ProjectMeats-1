@@ -235,22 +235,24 @@ const SupplierProducts: React.FC = () => {
   };
 
   const handleRemoveItem = async (item: AvailableItem) => {
-    Modal.confirm({
+    const confirmed = await confirmDialog({
       title: 'Remove Available Product',
       content: `Remove "${item.product_name || item.product_code}" from this supplier's available products?`,
       okText: 'Remove',
-      okType: 'danger',
-      onOk: async () => {
-        try {
-          await apiClient.delete(`/suppliers/${id}/available-products/${item.product}/`);
-          message.success('Product removed successfully');
-          fetchItems();
-        } catch (error) {
-          console.error('Error removing product:', error);
-          message.error('Failed to remove product');
-        }
-      },
+      cancelText: 'Cancel',
+      danger: true,
     });
+
+    if (!confirmed) return;
+
+    try {
+      await apiClient.delete(`/suppliers/${id}/available-products/${item.product}/`);
+      message.success('Product removed successfully');
+      fetchItems();
+    } catch (error) {
+      console.error('Error removing product:', error);
+      message.error('Failed to remove product');
+    }
   };
 
   const filteredItems = items.filter(item => {
