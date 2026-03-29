@@ -332,7 +332,6 @@ const Plants: React.FC = () => {
 
       const payload: Record<string, unknown> = {
         ...values,
-        capacity: values.capacity ? parseInt(values.capacity) : null,
       };
 
       if (typeof values.code === 'string' && values.code.trim() === '') {
@@ -660,9 +659,7 @@ const Plants: React.FC = () => {
             <Input placeholder="Facility Manager Name" />
           </Form.Item>
 
-          <Form.Item name="capacity" label={<Label>Capacity</Label>}>
-            <Input type="number" placeholder="Annual Capacity (tons)" />
-          </Form.Item>
+
         </Form>
       </Modal>
     </PageContainer>
