@@ -21,25 +21,14 @@ from apps.system.services.product_visibility import visible_products_qs
 logger = logging.getLogger(__name__)
 
 
-class SystemProductViewSet(viewsets.ReadOnlyModelViewSet):
+class SystemProductViewSet(viewsets.ModelViewSet):
+    """ViewSet for system-wide products.
+
+    - GET is available to authenticated users (tenant visibility rules apply).
+    - Writes are restricted to staff users (Admin Workspace power feature).
     """
-    Read-only ViewSet for system products.
-    
-    All tenants share the same product catalog (system.Product).
-    Products are created via management command: python manage.py seed_system_products
-    
-    Permissions:
-    - Authenticated users can view all system products
-    - System products are READ-ONLY (managed by admins only)
-    
-    Filters:
-    - Search: product_code, name, description
-    - Filter: category, protein_type, fresh_or_frozen, is_active
-    - Ordering: product_code, name, category, unit_weight
-    """
-    
-    queryset = Product.objects.filter(is_active=True)
-    permission_classes = [permissions.IsAuthenticated]
+
+    queryset = Product.objects.all()
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     
     # Search fields
@@ -59,33 +48,38 @@ class SystemProductViewSet(viewsets.ReadOnlyModelViewSet):
     ordering_fields = ['product_code', 'name', 'category', 'unit_weight', 'created_at']
     ordering = ['product_code']
     
+    def get_permissions(self):
+        if self.request.method in permissions.SAFE_METHODS:
+            return [permissions.IsAuthenticated()]
+        return [permissions.IsAdminUser()]
+
     def get_serializer_class(self):
-        """Return appropriate serializer based on action."""
-        from apps.system.serializers import SystemProductSerializer
-        return SystemProductSerializer
+        from apps.system.serializers import SystemProductSerializer, SystemProductWriteSerializer
+
+        if self.request.method in permissions.SAFE_METHODS:
+            return SystemProductSerializer
+        return SystemProductWriteSerializer
     
     def get_queryset(self):
         """Return products visible to the current tenant.
 
-        Three-tier strategy:
-        - System products (golden list) are visible by default.
-        - Tenants can hide/override via TenantProductPreference.
-        - Tenant custom products are represented as system.Product rows with
-          is_system=False and are visible only to the owning tenant.
-
-        Cascade filtering (protein → product):
-        - ?protein=beef&protein=pork - Multiple protein types (lowercase slugs)
-        - ?protein_type=beef - Single protein type
-        - Case-insensitive matching for backward compatibility
+        Staff users get the full catalog (optionally including inactive).
+        Regular users get tenant-visible products only.
         """
 
-        # Base queryset is active products; visibility rules are applied next.
+        include_inactive_raw = str(self.request.query_params.get('include_inactive') or '').lower()
+        include_inactive = include_inactive_raw in ('1', 'true', 'yes')
+
         queryset = Product.objects.all()
 
-        tenant = getattr(self.request, "tenant", None)
-        queryset = visible_products_qs(tenant=tenant, qs=queryset)
+        if self.request.user.is_staff or self.request.user.is_superuser:
+            if not include_inactive:
+                queryset = queryset.filter(is_active=True)
+            return queryset
 
-        # Prefetch tenant preference rows for serializer/UI overlays.
+        tenant = getattr(self.request, "tenant", None)
+        queryset = visible_products_qs(tenant=tenant, qs=queryset, include_inactive=include_inactive)
+
         if tenant:
             queryset = queryset.prefetch_related(
                 Prefetch(
@@ -94,9 +88,7 @@ class SystemProductViewSet(viewsets.ReadOnlyModelViewSet):
                 )
             )
 
-        # Protein type filtering (comma-separated, case-insensitive)
         protein_param = self.request.query_params.get("protein") or self.request.query_params.get("protein_type")
-
         if protein_param:
             from django.db.models import Q
 
@@ -105,7 +97,6 @@ class SystemProductViewSet(viewsets.ReadOnlyModelViewSet):
             for p in proteins:
                 q_objects |= Q(protein_type__iexact=p)
             queryset = queryset.filter(q_objects)
-            logger.debug(f"Filtered products by protein types: {proteins}")
 
         return queryset
     
