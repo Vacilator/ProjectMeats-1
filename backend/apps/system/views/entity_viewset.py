@@ -573,11 +573,32 @@ class EntityViewSet(viewsets.ViewSet):
             return None
 
     def _get_contacts_for_customer(self, customer, tenant):
-        """Get contacts for a customer."""
+        """Get contacts for a customer.
+
+        Contacts may be linked either via:
+        - Modern M2M: Customer.contacts
+        - Legacy FK: Contact.customer
+        """
         try:
             Contact = apps.get_model('contacts', 'Contact')
-            qs = Contact.objects.filter(tenant=tenant, customer=customer)
-            qs = qs.order_by('last_name', 'first_name')
+
+            legacy_ids = set(
+                Contact.objects.filter(tenant=tenant, customer=customer).values_list('id', flat=True)
+            )
+
+            m2m_ids: set[int] = set()
+            try:
+                rel = getattr(customer, 'contacts', None)
+                if rel is not None:
+                    m2m_ids = set(rel.filter(tenant=tenant).values_list('id', flat=True))
+            except Exception:
+                m2m_ids = set()
+
+            contact_ids = legacy_ids | m2m_ids
+            if not contact_ids:
+                return {"count": 0, "items": []}
+
+            qs = Contact.objects.filter(tenant=tenant, id__in=list(contact_ids)).order_by('last_name', 'first_name')
             return {
                 "count": qs.count(),
                 "items": [self._serialize_entity(contact, 'contact') for contact in qs[:10]],
@@ -636,11 +657,32 @@ class EntityViewSet(viewsets.ViewSet):
         }
 
     def _get_contacts_for_supplier(self, supplier, tenant):
-        """Get contacts for a supplier."""
+        """Get contacts for a supplier.
+
+        Contacts may be linked either via:
+        - Modern M2M: Supplier.contacts
+        - Legacy FK: Contact.supplier
+        """
         try:
             Contact = apps.get_model('contacts', 'Contact')
-            qs = Contact.objects.filter(tenant=tenant, supplier=supplier)
-            qs = qs.order_by('last_name', 'first_name')
+
+            legacy_ids = set(
+                Contact.objects.filter(tenant=tenant, supplier=supplier).values_list('id', flat=True)
+            )
+
+            m2m_ids: set[int] = set()
+            try:
+                rel = getattr(supplier, 'contacts', None)
+                if rel is not None:
+                    m2m_ids = set(rel.filter(tenant=tenant).values_list('id', flat=True))
+            except Exception:
+                m2m_ids = set()
+
+            contact_ids = legacy_ids | m2m_ids
+            if not contact_ids:
+                return {"count": 0, "items": []}
+
+            qs = Contact.objects.filter(tenant=tenant, id__in=list(contact_ids)).order_by('last_name', 'first_name')
             return {
                 "count": qs.count(),
                 "items": [self._serialize_entity(contact, 'contact') for contact in qs[:10]],
