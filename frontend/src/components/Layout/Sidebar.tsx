@@ -201,6 +201,8 @@ const Logo = styled.div`
   display: flex;
   align-items: center;
   gap: 12px;
+  flex: 1;
+  min-width: 0; /* allow text to shrink so lock button stays visible */
 `;
 
 const LogoIconWrapper = styled.div<{ $isDarkMode: boolean }>`
@@ -228,6 +230,9 @@ const LogoText = styled.h2<{ $isDarkMode: boolean }>`
   font-weight: 600;
   margin: 0;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
   color: rgb(var(--color-text-primary));
   letter-spacing: 0.01em;
 `;
@@ -238,6 +243,7 @@ const PinButton = styled.button<{ $theme: Theme; $active: boolean; $isDarkMode: 
   justify-content: center;
   width: 32px;
   height: 32px;
+  flex: 0 0 auto;
   background: ${(props) => props.$active 
     ? 'rgba(var(--color-primary), 0.2)' 
     : 'transparent'};
