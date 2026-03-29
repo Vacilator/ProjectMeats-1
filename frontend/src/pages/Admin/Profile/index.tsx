@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import styled from 'styled-components';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Building2, Image as ImageIcon, X, Sparkles } from 'lucide-react';
@@ -119,6 +119,8 @@ const AdminProfilePage: React.FC = () => {
   const [removeLogo, setRemoveLogo] = useState(false);
   const [extractingColors, setExtractingColors] = useState(false);
 
+  const logoInputRef = useRef<HTMLInputElement | null>(null);
+
   const {
     data: tenant,
     isLoading,
@@ -232,6 +234,8 @@ const AdminProfilePage: React.FC = () => {
 
   const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
+    // Allow re-selecting the same file to trigger onChange again.
+    e.target.value = '';
     if (!file) return;
 
     if (!file.type.startsWith('image/')) {
@@ -547,16 +551,20 @@ const AdminProfilePage: React.FC = () => {
 
                 <div>
                   <HiddenFileInput
+                    ref={logoInputRef}
                     id="logo"
                     type="file"
                     accept="image/*"
                     onChange={handleLogoChange}
                   />
-                  <label htmlFor="logo">
-                    <Button type="button" variant="outline" size="sm">
-                      Upload Logo
-                    </Button>
-                  </label>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => logoInputRef.current?.click()}
+                  >
+                    Upload Logo
+                  </Button>
                   <Hint>PNG/JPG/WebP up to 5MB.</Hint>
                 </div>
               </LogoBlock>
