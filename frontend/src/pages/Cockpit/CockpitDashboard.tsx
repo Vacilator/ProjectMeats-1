@@ -740,6 +740,13 @@ export const CockpitDashboard: React.FC = () => {
         </HeroSearchInner>
       </HeroSearchSection>
 
+      {/* Phase 3: AI Learning Metrics */}
+      {showDashboardWidgets && (
+        <div style={{ padding: '16px 24px 0' }}>
+          <AILearningMetricsWidget />
+        </div>
+      )}
+
       {/* Widget layout toolbar (applies to widgets only) */}
       {showDashboardWidgets && (
         <ToolbarWrapper>
@@ -771,13 +778,6 @@ export const CockpitDashboard: React.FC = () => {
             )}
           </ToolbarActions>
         </ToolbarWrapper>
-      )}
-
-      {/* Phase 3: AI Learning Metrics */}
-      {showDashboardWidgets && (
-        <div style={{ padding: '16px 24px 0' }}>
-          <AILearningMetricsWidget />
-        </div>
       )}
 
       {/* Widget Grid (hidden when searching or a record is active) */}
