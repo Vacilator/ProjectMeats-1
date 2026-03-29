@@ -30,7 +30,7 @@ import { businessApi } from '../../services/businessApi';
 import { useCockpitNavigation } from '../../contexts/CockpitNavigationContext';
 // UniversalEntityForm usage consolidated via EntityFormSurface
 
-import { EntityFormSurface } from '../Shared';
+import { EntityFormSurface, ScheduleCallModal } from '../Shared';
 import { InquiryCreateModal } from '../Inquiry';
 import { EntityProfileHeader } from './EntityProfileHeader';
 import { AIOverviewCard } from './AIOverviewCard';
@@ -518,6 +518,8 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
 
   const [activeRelationTab, setActiveRelationTab] = useState<'orders' | 'invoices' | 'contacts' | 'inquiries' | 'more'>('orders');
   const [isNotesDrawerOpen, setIsNotesDrawerOpen] = useState(false);
+  const [showScheduleCallModal, setShowScheduleCallModal] = useState(false);
+  const [defaultCallPurpose, setDefaultCallPurpose] = useState<string | undefined>(undefined);
   const [relationTabData, setRelationTabData] = useState<Record<string, { items: SearchEntity[]; count: number }>>({});
   const [loadingRelationTab, setLoadingRelationTab] = useState<string | null>(null);
 
@@ -821,10 +823,36 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
         });
         break;
       }
+      case 'create_invoice': {
+        // Prefer embedded quick-create with customer context.
+        if (onOpenInlineCreate && activeEntity) {
+          onOpenInlineCreate('invoice', activeEntity);
+          return;
+        }
+
+        if (activeEntity) {
+          setActiveRelationTab('invoices');
+        }
+        openQuickCreate('invoice');
+        break;
+      }
+      case 'schedule_call': {
+        setDefaultCallPurpose('follow_up');
+        setShowScheduleCallModal(true);
+        break;
+      }
       case 'view_purchase_history':
-      case 'view_history':
         navigate(`/purchase-orders?supplier_id=${entityId}`);
         break;
+      case 'view_history': {
+        const t = String(activeEntity?.type ?? '').toLowerCase();
+        if (t === 'customer') {
+          navigate(`/sales-orders?customer_id=${entityId}`);
+        } else {
+          navigate(`/purchase-orders?supplier_id=${entityId}`);
+        }
+        break;
+      }
       case 'send_email':
         window.dispatchEvent(new CustomEvent('pm:open-tool', { detail: { toolId: 'tool:email' } }));
         break;
@@ -862,10 +890,16 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
       case 'view_sales_history':
         navigate(`/sales-orders?customer_id=${entityId}`);
         break;
+      case 'adjust_inventory':
+      case 'update_pricing':
+      case 'view_movement':
+      case 'schedule_meeting':
+        message.info('Coming soon');
+        break;
       default:
         console.warn('Unhandled quick action:', actionType, 'for entity', entityId);
     }
-  }, [navigate, navigation.path, onOpenInlineCreate, query, searchParams, setSearchParams]);
+  }, [activeEntity, navigate, navigation.path, onOpenInlineCreate, openQuickCreate, query, searchParams, setSearchParams]);
 
   /**
    * Toggle favorite
@@ -1491,6 +1525,31 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
           entityType={String(activeEntity?.type ?? '')}
           entityId={String(activeEntity?.id ?? '')}
           entityLabel={activeEntity?.name}
+        />
+
+        <ScheduleCallModal
+          isOpen={showScheduleCallModal}
+          onClose={() => {
+            setShowScheduleCallModal(false);
+            setDefaultCallPurpose(undefined);
+          }}
+          onSuccess={() => {
+            setShowScheduleCallModal(false);
+            setDefaultCallPurpose(undefined);
+            if (activeEntity) {
+              if (activeRelationTab !== 'more') {
+                void loadRelationshipTab(activeRelationTab, activeEntity);
+              }
+              void loadRelationalChunks(activeEntity);
+            }
+          }}
+          defaultCallPurpose={defaultCallPurpose}
+          defaultEntityType={
+            activeEntity && ['customer', 'supplier'].includes(String(activeEntity.type).toLowerCase())
+              ? (String(activeEntity.type).toLowerCase() as 'customer' | 'supplier')
+              : undefined
+          }
+          defaultEntityId={Number.isFinite(Number(activeEntity?.id)) ? Number(activeEntity?.id) : undefined}
         />
 
         {quickCreateConfig.isOpen && (
