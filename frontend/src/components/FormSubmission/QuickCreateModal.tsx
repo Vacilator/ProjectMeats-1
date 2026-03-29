@@ -7,6 +7,7 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import styled from 'styled-components';
 import { Select, Spin } from 'antd';
+import { CountrySelect } from '../ui';
 import debounce from 'lodash/debounce';
 import {
   entityOptionsService,
@@ -311,6 +312,10 @@ const QuickCreateModal: React.FC<QuickCreateModalProps> = ({
       const initialData: Record<string, any> = { ...(mergedContext || {}) };
       response.fields.forEach((f) => {
         if (initialData[f.key] !== undefined) return;
+        if (f.key === 'country') {
+          initialData[f.key] = 'USA';
+          return;
+        }
         if (f.type === 'checkbox') {
           initialData[f.key] = false;
         } else if (f.type === 'multiselect') {
@@ -553,6 +558,14 @@ const QuickCreateModal: React.FC<QuickCreateModalProps> = ({
                         disabled={isSubmitting}
                         style={{ width: '100%' }}
                       />
+                    ) : field.key === 'country' ? (
+                      <CountrySelect
+                        value={String(formData[field.key] || '')}
+                        onChange={(val) => handleInputChange(field.key, val)}
+                        placeholder="Search country"
+                        disabled={isSubmitting}
+                        aria-label="Country"
+                      />
                     ) : field.type === 'checkbox' ? (
                       <input
                         id={`quick-create-${field.key}`}
@@ -677,6 +690,14 @@ const QuickCreateModal: React.FC<QuickCreateModalProps> = ({
                         notFoundContent={isLoadingProducts ? <Spin size="small" /> : null}
                         disabled={isSubmitting}
                         style={{ width: '100%' }}
+                      />
+                    ) : field.key === 'country' ? (
+                      <CountrySelect
+                        value={String(formData[field.key] || '')}
+                        onChange={(val) => handleInputChange(field.key, val)}
+                        placeholder="Search country"
+                        disabled={isSubmitting}
+                        aria-label="Country"
                       />
                     ) : field.type === 'checkbox' ? (
                       <input

@@ -3,7 +3,7 @@ import { isValidEmail } from '../shared/utils';
 import { logger } from '@/utils/logger';
 
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { PhoneInput, Select, StateSelect } from '../components/ui';
+import { CountrySelect, PhoneInput, Select, StateSelect } from '../components/ui';
 import { MultiSelect } from '../components/Shared';
 import QuickCreateModal from '../components/FormSubmission/QuickCreateModal';
 import { DEPARTMENT_CHOICES, PROTEIN_TYPE_CHOICES } from '../utils/constants/choices';
@@ -79,7 +79,7 @@ const Suppliers: React.FC = () => {
     city: '',
     state: '',
     zip_code: '',
-    country: '',
+    country: 'USA',
     departments_array: [] as string[], // Phase 4: ArrayField integration
     preferred_protein_types: [] as string[], // NEW: Protein filtering
   });
@@ -385,7 +385,7 @@ const Suppliers: React.FC = () => {
       city: supplier.city || '',
       state: supplier.state || '',
       zip_code: supplier.zip_code || '',
-      country: supplier.country || '',
+      country: supplier.country || 'USA',
       departments_array: supplier.departments_array || [], // Phase 4: Populate array
       preferred_protein_types: supplier.preferred_protein_types || [], // NEW: Populate protein types
     });
@@ -427,7 +427,7 @@ const Suppliers: React.FC = () => {
       city: '',
       state: '',
       zip_code: '',
-      country: '',
+      country: 'USA',
       departments_array: [], // Phase 4: Reset array
       preferred_protein_types: [], // NEW: Reset protein types
     });
@@ -606,11 +606,11 @@ const Suppliers: React.FC = () => {
 
                 <FormGroup>
                   <Label $theme={theme}>Country</Label>
-                  <Input
-                    $theme={theme}
-                    type="text"
+                  <CountrySelect
                     value={formData.country}
-                    onChange={(e) => setFormData({ ...formData, country: e.target.value })}
+                    onChange={(value) => setFormData({ ...formData, country: value })}
+                    placeholder="Search country"
+                    aria-label="Country"
                   />
                 </FormGroup>
 

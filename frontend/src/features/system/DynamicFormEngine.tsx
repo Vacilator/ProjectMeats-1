@@ -13,6 +13,8 @@ import * as z from 'zod';
 import styled from 'styled-components';
 import { Button } from '../../components/ui/Button';
 import { Select } from '../../components/ui/Select';
+import { CountrySelect } from '../../components/ui';
+import { DEFAULT_COUNTRY } from '../../utils/constants/countries';
 import { resolveConfig } from '../../services/configService';
 import { getChoicesForField, isStaticChoiceField } from '../../services/choicesService';
 
@@ -302,6 +304,16 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
     loadOptions();
   }, [schema.fields]);
 
+  const defaultValues = useMemo(() => {
+    const next: Record<string, any> = { ...(initialValues || {}) };
+    for (const f of schema.fields) {
+      if (String(f.key).toLowerCase() === 'country' && !next[f.key]) {
+        next[f.key] = DEFAULT_COUNTRY;
+      }
+    }
+    return next;
+  }, [initialValues, schema.fields]);
+
   const {
     register,
     handleSubmit,
@@ -309,7 +321,7 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
     formState: { errors },
   } = useForm({
     resolver: zodResolver(validationSchema),
-    defaultValues: initialValues,
+    defaultValues,
     mode: formConfig.validateOnChange ? 'onChange' : 'onSubmit',
   });
   
@@ -345,6 +357,31 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
     const hasError = !!error;
     // Use config for required indicator (Wave 4 - Task 4.12)
     const showRequired = formConfig.showRequiredIndicator && field.required;
+
+    if (String(field.key).toLowerCase() === 'country') {
+      return (
+        <FieldGroup key={field.key}>
+          <Label htmlFor={field.key} required={showRequired}>
+            {field.label}
+          </Label>
+          <Controller
+            name={field.key}
+            control={control}
+            render={({ field: controllerField }) => (
+              <CountrySelect
+                value={String(controllerField.value || DEFAULT_COUNTRY)}
+                onChange={controllerField.onChange}
+                placeholder={field.placeholder || 'Search country'}
+                disabled={isSubmitting}
+                aria-label={field.label}
+              />
+            )}
+          />
+          {formConfig.showHelpText && field.help_text && <HelpText>{field.help_text}</HelpText>}
+          {error && <ErrorText>{error.message as string}</ErrorText>}
+        </FieldGroup>
+      );
+    }
 
     switch (field.type) {
       case 'textarea':

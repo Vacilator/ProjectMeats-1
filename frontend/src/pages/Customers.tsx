@@ -5,7 +5,7 @@ import styled from 'styled-components';
 import { useTheme } from '../contexts/ThemeContext';
 import { Theme } from '../config/theme';
 import { apiService, Customer, apiClient } from '../services/apiService';
-import { PhoneInput, Select, StateSelect } from '../components/ui';
+import { CountrySelect, PhoneInput, Select, StateSelect } from '../components/ui';
 import { MultiSelect } from '../components/Shared';
 import { INDUSTRY_CHOICES, PROTEIN_TYPE_CHOICES } from '../utils/constants/choices';
 
@@ -84,7 +84,7 @@ const Customers: React.FC = () => {
     city: '',
     state: '',
     zip_code: '',
-    country: '',
+    country: 'USA',
     industry_array: [] as string[], // Phase 4: ArrayField integration
     preferred_protein_types: [] as string[], // Phase 4: ArrayField integration
     products: [] as string[], // Product IDs for M2M
@@ -339,7 +339,7 @@ const Customers: React.FC = () => {
       city: customer.city || '',
       state: customer.state || '',
       zip_code: customer.zip_code || '',
-      country: customer.country || '',
+      country: customer.country || 'USA',
       industry_array: customer.industry_array || [], // Phase 4: Populate array
       preferred_protein_types: customer.preferred_protein_types || [], // Phase 4: Populate array
       products: (customer.products || []).map(String), // Populate product IDs
@@ -377,7 +377,7 @@ const Customers: React.FC = () => {
       city: '',
       state: '',
       zip_code: '',
-      country: '',
+      country: 'USA',
       industry_array: [], // Phase 4: Reset array
       preferred_protein_types: [], // Phase 4: Reset array
       products: [], // Reset products
@@ -547,10 +547,11 @@ const Customers: React.FC = () => {
 
                 <FormGroup>
                   <Label $theme={theme}>Country</Label>
-                  <Input $theme={theme}
-                    type="text"
+                  <CountrySelect
                     value={formData.country}
-                    onChange={(e) => setFormData({ ...formData, country: e.target.value })}
+                    onChange={(value) => setFormData({ ...formData, country: value })}
+                    placeholder="Search country"
+                    aria-label="Country"
                   />
                 </FormGroup>
 
@@ -691,11 +692,11 @@ const Customers: React.FC = () => {
 
                 <FormGroup>
                   <Label $theme={theme}>Country</Label>
-                  <Input
-                    $theme={theme}
-                    type="text"
+                  <CountrySelect
                     value={locationForm.country}
-                    onChange={(e) => setLocationForm((p) => ({ ...p, country: e.target.value }))}
+                    onChange={(value) => setLocationForm((p) => ({ ...p, country: value }))}
+                    placeholder="Search country"
+                    aria-label="Country"
                   />
                 </FormGroup>
 

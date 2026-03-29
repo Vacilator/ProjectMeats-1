@@ -13,6 +13,7 @@ import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Table, Input, Button, Modal, Form, Select, message, Tag, Space } from 'antd';
+import { CountrySelect } from '../../components/ui';
 import { US_STATES } from '../../utils/constants/states';
 import type { ColumnsType } from 'antd/es/table';
 import { SearchOutlined, PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
@@ -273,7 +274,7 @@ const CustomerLocations: React.FC = () => {
     setFormErrors({});
     form.resetFields();
 
-    form.setFieldsValue({ phone_type: 'office' });
+    form.setFieldsValue({ phone_type: 'office', country: 'USA' });
     
     // Pre-fill customer if context exists
     if (contextCustomerId) {
@@ -583,7 +584,7 @@ const CustomerLocations: React.FC = () => {
           </Form.Item>
 
           <Form.Item name="country" label={<Label>Country</Label>}>
-            <Input placeholder="Country" />
+            <CountrySelect placeholder="Search country" aria-label="Country" />
           </Form.Item>
 
           <Form.Item name="phone_type" label={<Label>Phone Type</Label>}>
