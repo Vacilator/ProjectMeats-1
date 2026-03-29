@@ -19,6 +19,9 @@ interface SupplierPlant {
   manager?: string;
   email?: string;
   phone?: string;
+  booking_contact_email?: string;
+  booking_contact_phone?: string;
+  booking_contact_phone_type?: 'office' | 'mobile';
 }
 
 interface SupplierContact {
@@ -68,6 +71,9 @@ const Suppliers: React.FC = () => {
     email: '',
     phone: '',
     phone_type: 'office' as 'office' | 'mobile',
+    booking_contact_email: '',
+    booking_contact_phone: '',
+    booking_contact_phone_type: 'office' as 'office' | 'mobile',
   });
 
   const [formData, setFormData] = useState({
@@ -247,6 +253,9 @@ const Suppliers: React.FC = () => {
       email: '',
       phone: '',
       phone_type: 'office',
+      booking_contact_email: '',
+      booking_contact_phone: '',
+      booking_contact_phone_type: 'office',
     });
     setShowPlantModal(true);
   };
@@ -272,6 +281,15 @@ const Suppliers: React.FC = () => {
       return;
     }
 
+    if (plantForm.booking_contact_email?.trim() && !isValidEmail(plantForm.booking_contact_email.trim())) {
+      showAlert({
+        type: 'warning',
+        title: 'Validation',
+        content: 'Please enter a valid booking email address',
+      });
+      return;
+    }
+
     try {
       const payload: Record<string, unknown> = {
         supplier: selectedSupplierId,
@@ -281,6 +299,9 @@ const Suppliers: React.FC = () => {
         email: plantForm.email,
         phone: plantForm.phone,
         phone_type: plantForm.phone_type,
+        booking_contact_email: plantForm.booking_contact_email,
+        booking_contact_phone: plantForm.booking_contact_phone,
+        booking_contact_phone_type: plantForm.booking_contact_phone_type,
       };
 
       const code = plantForm.code.trim();
@@ -794,6 +815,39 @@ const Suppliers: React.FC = () => {
                     aria-label="Plant phone"
                   />
                 </FormGroup>
+
+                <div style={{ gridColumn: '1 / -1', fontWeight: 600 }}>Booking Contact</div>
+
+                <FormGroup>
+                  <Label $theme={theme}>Booking Email</Label>
+                  <Input
+                    $theme={theme}
+                    type="email"
+                    value={plantForm.booking_contact_email}
+                    onChange={(e) => setPlantForm((p) => ({ ...p, booking_contact_email: e.target.value }))}
+                    placeholder="booking@example.com"
+                  />
+                </FormGroup>
+
+                <FormGroup>
+                  <Label $theme={theme}>Booking Phone</Label>
+                  <Select
+                    value={plantForm.booking_contact_phone_type}
+                    onChange={(value) =>
+                      setPlantForm((p) => ({ ...p, booking_contact_phone_type: value as 'office' | 'mobile' }))
+                    }
+                    options={PHONE_TYPE_OPTIONS}
+                    placeholder="Phone type"
+                    aria-label="Booking phone type"
+                  />
+                  <div style={{ height: 8 }} />
+                  <PhoneInput
+                    value={plantForm.booking_contact_phone}
+                    onChange={(value) => setPlantForm((p) => ({ ...p, booking_contact_phone: value }))}
+                    placeholder="(XXX) XXX-XXXX"
+                    aria-label="Booking phone"
+                  />
+                </FormGroup>
               </FormGrid>
 
               <FormActions>
@@ -933,6 +987,14 @@ const Suppliers: React.FC = () => {
                               <MetaRow>
                                 <MetaKey>Phone</MetaKey>
                                 <MetaValue>{selectedPlant.phone || '—'}</MetaValue>
+                              </MetaRow>
+                              <MetaRow>
+                                <MetaKey>Booking Email</MetaKey>
+                                <MetaValue>{selectedPlant.booking_contact_email || '—'}</MetaValue>
+                              </MetaRow>
+                              <MetaRow>
+                                <MetaKey>Booking Phone</MetaKey>
+                                <MetaValue>{selectedPlant.booking_contact_phone || '—'}</MetaValue>
                               </MetaRow>
                             </MetaCard>
                           ) : (

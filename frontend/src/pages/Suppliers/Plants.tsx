@@ -13,7 +13,7 @@ import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Table, Input, Button, Modal, Form, Select, message, Tag, Space } from 'antd';
-import { CountrySelect } from '../../components/ui';
+import { CountrySelect, PhoneInput } from '../../components/ui';
 import { US_STATES } from '../../utils/constants/states';
 import type { ColumnsType } from 'antd/es/table';
 import { SearchOutlined, PlusOutlined, EditOutlined, DeleteOutlined, AppstoreOutlined } from '@ant-design/icons';
@@ -38,6 +38,9 @@ interface Plant {
   phone?: string;
   phone_type?: 'office' | 'mobile';
   email?: string;
+  booking_contact_email?: string;
+  booking_contact_phone?: string;
+  booking_contact_phone_type?: 'office' | 'mobile';
   manager?: string;
   capacity?: number;
   is_active?: boolean;
@@ -267,7 +270,7 @@ const Plants: React.FC = () => {
     setFormErrors({});
     form.resetFields();
 
-    form.setFieldsValue({ phone_type: 'office', country: 'USA' });
+    form.setFieldsValue({ phone_type: 'office', booking_contact_phone_type: 'office', country: 'USA' });
     
     // Pre-fill supplier if context exists
     if (contextSupplierId) {
@@ -293,6 +296,9 @@ const Plants: React.FC = () => {
       phone_type: plant.phone_type || 'office',
       phone: plant.phone || '',
       email: plant.email || '',
+      booking_contact_email: plant.booking_contact_email || '',
+      booking_contact_phone_type: plant.booking_contact_phone_type || 'office',
+      booking_contact_phone: plant.booking_contact_phone || '',
       manager: plant.manager || '',
       capacity: plant.capacity || '',
     });
@@ -627,6 +633,27 @@ const Plants: React.FC = () => {
             rules={[{ type: 'email', message: 'Please enter a valid email address' }]}
           >
             <Input type="email" placeholder="Email Address" />
+          </Form.Item>
+
+          <div style={{ fontWeight: 600, marginTop: 8 }}>Booking Contact</div>
+
+          <Form.Item
+            name="booking_contact_email"
+            label={<Label>Booking Email</Label>}
+            rules={[{ type: 'email', message: 'Please enter a valid booking email address' }]}
+          >
+            <Input type="email" placeholder="booking@example.com" />
+          </Form.Item>
+
+          <Form.Item name="booking_contact_phone_type" label={<Label>Booking Phone Type</Label>}>
+            <Select placeholder="Select type">
+              <Select.Option value="office">Office</Select.Option>
+              <Select.Option value="mobile">Mobile</Select.Option>
+            </Select>
+          </Form.Item>
+
+          <Form.Item name="booking_contact_phone" label={<Label>Booking Phone</Label>}>
+            <PhoneInput aria-label="Booking phone" />
           </Form.Item>
 
           <Form.Item name="manager" label={<Label>Manager</Label>}>
