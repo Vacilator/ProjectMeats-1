@@ -5,6 +5,7 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
+from django.conf import settings
 from django.contrib.auth.models import User
 from django.db import transaction, IntegrityError
 from typing import Any, Type
@@ -14,6 +15,7 @@ import logging
 
 from apps.tenants.models import Tenant, TenantUser, TenantInvitation
 from apps.tenants.invitation_email import schedule_invitation_email, send_invitation_email_now
+from apps.tenants.email_utils import classify_email_send_exception
 from apps.tenants.invitation_serializers import (
     TenantInvitationCreateSerializer,
     TenantInvitationListSerializer,
@@ -159,13 +161,17 @@ class TenantInvitationViewSet(viewsets.ModelViewSet):
             send_invitation_email_now(invitation)
         except Exception as e:
             logger.exception('Failed to send invitation resend email invitation_id=%s', invitation.id)
-            return Response(
-                {
-                    'error': 'Failed to send invitation email',
-                    'detail': str(e),
-                },
-                status=status.HTTP_502_BAD_GATEWAY,
-            )
+
+            classified = classify_email_send_exception(e)
+            payload = {
+                'error': classified['message'],
+                'error_code': classified['error_code'],
+                'retryable': classified['retryable'],
+            }
+            if getattr(settings, 'DEBUG', False):
+                payload['detail'] = str(e)
+
+            return Response(payload, status=classified['http_status'])
 
         logger.info("Resent invitation %s to %s", invitation.id, invitation.email)
 

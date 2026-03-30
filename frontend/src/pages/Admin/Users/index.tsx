@@ -21,6 +21,7 @@ import {
 import { Button } from '@/components/ui/Button';
 import { useToast } from '@/hooks/useToast';
 import { useAdminPermissions } from '@/hooks/useAdminPermissions';
+import { useHealth } from '@/hooks/useHealth';
 import { useAuth } from '@/contexts/AuthContext';
 import Modal from '@/components/Modal/Modal';
 
@@ -59,6 +60,9 @@ const UsersPage: React.FC = () => {
   const queryClient = useQueryClient();
   const { user: currentUser } = useAuth();
   const { permissions } = useAdminPermissions();
+  const { data: health } = useHealth();
+
+  const emailEnabled = Boolean(health?.features?.email_send);
   const canAccess =
     permissions.can_manage_users || permissions.can_invite_users || permissions.can_change_roles;
 
@@ -147,16 +151,30 @@ const UsersPage: React.FC = () => {
     [invitations, normalizedQuery]
   );
 
+  const getApiErrorMessage = (error: any): string => {
+    const data = error?.response?.data;
+
+    const message =
+      data?.message ||
+      data?.error ||
+      data?.detail ||
+      error?.message ||
+      'Request failed';
+
+    const code = data?.error_code ? ` (${String(data.error_code)})` : '';
+    return `${String(message)}${code}`;
+  };
+
   const inviteMutation = useMutation({
     mutationFn: async (data: { email: string; role: string }) => apiClient.post('/invitations/', data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tenant-invitations'] });
-      toast.success('Invitation sent successfully');
+      toast.success(emailEnabled ? 'Invitation sent successfully' : 'Invitation created (email sending is disabled)');
       setShowInviteModal(false);
       setInviteEmail('');
     },
     onError: (error: any) => {
-      toast.error(error.response?.data?.detail || 'Failed to send invitation');
+      toast.error(getApiErrorMessage(error) || 'Failed to send invitation');
     },
   });
 
@@ -227,7 +245,7 @@ const UsersPage: React.FC = () => {
       toast.success('Invitation resent');
     },
     onError: (error: any) => {
-      toast.error(error.response?.data?.detail || 'Failed to resend invitation');
+      toast.error(getApiErrorMessage(error) || 'Failed to resend invitation');
     },
   });
 
@@ -423,6 +441,12 @@ const UsersPage: React.FC = () => {
           )}
 
           <AdminSection title={`Pending Invitations (${pendingInvitations.length})`}>
+            {!emailEnabled && (
+              <InlineWarning role="status">
+                Email sending is currently disabled for this environment. You can still create invitations, but no email
+                will be delivered until email is configured.
+              </InlineWarning>
+            )}
             {invitationsLoading ? (
               <LoadingSkeleton type="list" rows={3} />
             ) : pendingInvitations.length === 0 ? (
@@ -459,7 +483,7 @@ const UsersPage: React.FC = () => {
                         variant="outline"
                         size="sm"
                         onClick={() => resendMutation.mutate(inv.id)}
-                        disabled={resendMutation.isPending}
+                        disabled={!emailEnabled || resendMutation.isPending}
                       >
                         Resend
                       </Button>
@@ -481,6 +505,12 @@ const UsersPage: React.FC = () => {
       </AdminGuard>
 
       <Modal isOpen={showInviteModal} onClose={() => setShowInviteModal(false)} title="Invite User">
+        {!emailEnabled && (
+          <InlineWarning role="status">
+            Email sending is disabled, so this invite will be created but no email will be delivered. Configure SendGrid
+            (SENDGRID_API_KEY / DEFAULT_FROM_EMAIL) then use Resend.
+          </InlineWarning>
+        )}
         <Form
           onSubmit={(e) => {
             e.preventDefault();
@@ -604,6 +634,15 @@ const InlineError = styled.div`
   background: rgb(var(--color-error) / 0.08);
   border: 1px solid rgb(var(--color-error) / 0.25);
   color: rgb(var(--color-error));
+  font-size: 14px;
+`;
+
+const InlineWarning = styled.div`
+  padding: 12px 14px;
+  border-radius: var(--radius-lg);
+  background: rgb(var(--color-warning) / 0.1);
+  border: 1px solid rgb(var(--color-warning) / 0.35);
+  color: rgb(var(--color-text-primary));
   font-size: 14px;
 `;
 
