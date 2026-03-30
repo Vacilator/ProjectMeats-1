@@ -276,6 +276,12 @@ This file is the **append-only PR-referenceable execution log**.
 - Extended `validate-migrations.sh` to enforce RLS SQL (`ENABLE ROW LEVEL SECURITY` + `CREATE POLICY`) on newly-changed tenant-aware `CreateModel` migrations.
 - PRs: #4197, #4198.
 
+### 2026-03-30T20:20:30Z — RLS: tenant isolation for InquiryProduct/FulfillmentProduct
+- Resolved `tenant` @property collisions so the real tenant FK can be persisted on through tables.
+- Added `tenant_id` + `custom_data` to `InquiryProduct` and `FulfillmentProduct`, backfilled from parent records, and enforced NOT NULL.
+- Enabled RLS on `inquiries_inquiryproduct` and `fulfillments_fulfillmentproduct` with tenant isolation + insert policies.
+- PR: #4200.
+
 ### 2026-03-30 — Phase 9.5: Billing Interface Dynamic Wiring — COMPLETE
 - Admin Billing invoice history now loads subscription invoices dynamically (no hardcoded rows).
 
