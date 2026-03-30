@@ -8,7 +8,7 @@ CRITICAL: Never store raw Microsoft access tokens in plaintext.
 from django.conf import settings
 from cryptography.fernet import Fernet
 from cryptography.hazmat.primitives import hashes
-from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2
+from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 from base64 import urlsafe_b64encode
 import logging
 
@@ -44,7 +44,7 @@ class TokenEncryptionService:
         salt = b'projectmeats_oauth_encryption_v1'
         
         # Derive 32 bytes using PBKDF2
-        kdf = PBKDF2(
+        kdf = PBKDF2HMAC(
             algorithm=hashes.SHA256(),
             length=32,
             salt=salt,

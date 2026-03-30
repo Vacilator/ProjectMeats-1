@@ -21,13 +21,13 @@ from .models import TenantInvitation
 logger = logging.getLogger(__name__)
 
 
-def _build_invitation_message(invitation: TenantInvitation) -> tuple[str, str]:
-    """Return ``(subject, message)`` for an invitation email."""
+def _build_invitation_email(invitation: TenantInvitation) -> tuple[str, str, str]:
     base_url = getattr(settings, "FRONTEND_URL", "https://meatscentral.com")
     invite_url = f"{base_url}/signup?token={invitation.token}"
 
     subject = f"You've been invited to join {invitation.tenant.name} on Meats Central"
-    message = (
+
+    body = (
         "Hello,\n\n\n"
         f"You have been invited to join '{invitation.tenant.name}' as a {invitation.role}. "
         "Join us on Meats Central!\n\n\n"
@@ -37,7 +37,58 @@ def _build_invitation_message(invitation: TenantInvitation) -> tuple[str, str]:
         "Welcome to easy,\n\n"
         "The Meats Central Team"
     )
-    return subject, message
+
+    return subject, body, invite_url
+
+
+def send_invitation_email_now(invitation: TenantInvitation) -> None:
+    """Send invitation email immediately.
+
+    Use this when the caller needs immediate feedback (e.g., resend endpoint).
+
+    Raises:
+        RuntimeError: If the SendGrid backend is configured but the API key is missing.
+        Exception: Re-raises quota-exceeded errors as CRITICAL so Sentry captures them.
+    """
+
+    if invitation.status != "pending" or not invitation.email:
+        return
+
+    # Common operational misconfig: SendGrid backend enabled but no API key.
+    if (
+        str(getattr(settings, 'EMAIL_BACKEND', '')).endswith('SendgridBackend')
+        and not getattr(settings, 'SENDGRID_API_KEY', '')
+    ):
+        raise RuntimeError('SENDGRID_API_KEY is not set for SendGrid email backend')
+
+    subject, body, invite_url = _build_invitation_email(invitation)
+
+    logger.info(
+        "📤 Sending invitation email to %s (tenant=%s, role=%s, invite_url=%s)",
+        invitation.email,
+        invitation.tenant_id,
+        invitation.role,
+        invite_url,
+    )
+
+    try:
+        send_mail(
+            subject=subject,
+            message=body,
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=[invitation.email],
+            fail_silently=False,
+        )
+    except Exception as exc:
+        if is_sendgrid_quota_exceeded(exc):
+            logger.critical(
+                "🚨 SendGrid quota exceeded — invitation email to %s NOT sent. "
+                "Please upgrade the SendGrid plan or wait for the quota to reset. "
+                "Error: %s",
+                invitation.email,
+                exc,
+            )
+        raise
 
 
 def schedule_invitation_email(invitation: TenantInvitation) -> None:
@@ -48,7 +99,7 @@ def schedule_invitation_email(invitation: TenantInvitation) -> None:
     direct inline send when the task queue is unavailable.
 
     Safe to call multiple times. No-op if the invitation is not a pending 1:1
-    email invite.
+    email invite.  Email failures must never break invitation creation/resend.
     """
 
     if invitation.status != "pending" or not invitation.email:
@@ -81,41 +132,9 @@ def schedule_invitation_email(invitation: TenantInvitation) -> None:
                 "Celery unavailable — falling back to direct invitation email send for %s",
                 invitation.email,
             )
-            _send_direct(invitation)
+            try:
+                send_invitation_email_now(invitation)
+            except Exception:
+                logger.exception("❌ Failed to send invitation email to %s", invitation.email)
 
     transaction.on_commit(_enqueue)
-
-
-def _send_direct(invitation: TenantInvitation) -> None:
-    """Inline (synchronous) invitation email send — used as a fallback.
-
-    Quota-exceeded errors are logged at CRITICAL level so they are captured by
-    Sentry with high priority.  All other failures are logged as errors.
-    """
-    subject, message = _build_invitation_message(invitation)
-
-    try:
-        logger.info(
-            "📤 Sending invitation email to %s (tenant=%s, role=%s)",
-            invitation.email,
-            invitation.tenant_id,
-            invitation.role,
-        )
-        send_mail(
-            subject=subject,
-            message=message,
-            from_email=settings.DEFAULT_FROM_EMAIL,
-            recipient_list=[invitation.email],
-            fail_silently=False,
-        )
-    except Exception as exc:
-        if is_sendgrid_quota_exceeded(exc):
-            logger.critical(
-                "🚨 SendGrid quota exceeded — invitation email to %s NOT sent. "
-                "Please upgrade the SendGrid plan or wait for the quota to reset. "
-                "Error: %s",
-                invitation.email,
-                exc,
-            )
-        else:
-            logger.exception("❌ Failed to send invitation email to %s", invitation.email)

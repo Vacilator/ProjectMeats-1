@@ -1,12 +1,31 @@
-"""
+"""apps.integrations.models
+
 ExternalAuthProvider model for storing encrypted OAuth tokens.
+
+This project historically supported multiple token encryption mechanisms:
+- OAUTH_ENCRYPTION_KEY (preferred when set)
+- SECRET_KEY-derived Fernet key (fallback; used by older code paths)
+
+To prevent false "reconnect required" failures when deployments/config drift, we
+attempt decryption with both keys.
 """
+
+import logging
 import os
+from base64 import urlsafe_b64encode
 from datetime import timedelta
 
 from cryptography.fernet import Fernet, InvalidToken
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+from django.conf import settings
 from django.db import models
 from django.utils import timezone
+
+logger = logging.getLogger(__name__)
+
+_DERIVED_SALT = b'projectmeats_oauth_encryption_v1'
+_DERIVED_ITERATIONS = 100000
 
 
 class ExternalAuthProvider(models.Model):
@@ -81,18 +100,48 @@ class ExternalAuthProvider(models.Model):
         return f"{self.tenant.name} - {self.get_provider_type_display()}"
     
     @staticmethod
-    def _get_encryption_key():
+    def _derive_key_from_secret(secret_key: str) -> bytes:
+        """Derive a Fernet key from Django SECRET_KEY.
+
+        This matches `apps.integrations.microsoft.encryption.TokenEncryptionService`.
         """
-        Get encryption key from environment.
-        In production, use a secure key management service.
-        """
+        kdf = PBKDF2HMAC(
+            algorithm=hashes.SHA256(),
+            length=32,
+            salt=_DERIVED_SALT,
+            iterations=_DERIVED_ITERATIONS,
+        )
+        raw = kdf.derive(secret_key.encode('utf-8'))
+        return urlsafe_b64encode(raw)
+
+    @classmethod
+    def _get_derived_encryption_key(cls) -> bytes:
+        return cls._derive_key_from_secret(settings.SECRET_KEY)
+
+    @staticmethod
+    def _get_env_encryption_key() -> bytes | None:
         key = os.environ.get('OAUTH_ENCRYPTION_KEY')
         if not key:
-            raise ValueError(
-                "OAUTH_ENCRYPTION_KEY environment variable not set. "
-                "Generate one with: python -c 'from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())'"
-            )
-        return key.encode()
+            return None
+        return key.encode('utf-8')
+
+    @classmethod
+    def _get_primary_encryption_key(cls) -> bytes:
+        """Return the encryption key used for NEW token writes."""
+        return cls._get_env_encryption_key() or cls._get_derived_encryption_key()
+
+    @classmethod
+    def _get_decryption_keys(cls) -> list[bytes]:
+        """Return keys to try during decryption (most-preferred first)."""
+        keys: list[bytes] = []
+        env_key = cls._get_env_encryption_key()
+        if env_key:
+            keys.append(env_key)
+        derived = cls._get_derived_encryption_key()
+        # Avoid duplicates if someone set OAUTH_ENCRYPTION_KEY equal to derived key.
+        if derived not in keys:
+            keys.append(derived)
+        return keys
     
     def set_encrypted_token(self, token_type: str, token: str):
         """
@@ -105,8 +154,8 @@ class ExternalAuthProvider(models.Model):
         if not token:
             return
         
-        fernet = Fernet(self._get_encryption_key())
-        encrypted = fernet.encrypt(token.encode())
+        fernet = Fernet(self._get_primary_encryption_key())
+        encrypted = fernet.encrypt(token.encode('utf-8'))
         
         if token_type == 'access':
             self.access_token = encrypted.decode()
@@ -125,25 +174,31 @@ class ExternalAuthProvider(models.Model):
         Returns:
             Decrypted token string
         """
-        fernet = Fernet(self._get_encryption_key())
-        
         if token_type == 'access':
             encrypted = self.access_token
         elif token_type == 'refresh':
             encrypted = self.refresh_token
         else:
             raise ValueError(f"Invalid token type: {token_type}")
-        
+
         if not encrypted:
             return None
-        
-        try:
-            return fernet.decrypt(encrypted.encode()).decode()
-        except InvalidToken as e:
-            # Preserve InvalidToken so callers can differentiate key-mismatch from other failures.
-            raise
-        except Exception as e:
-            raise ValueError(f"Failed to decrypt token: {str(e)}")
+
+        last_err: Exception | None = None
+        for key in self._get_decryption_keys():
+            try:
+                fernet = Fernet(key)
+                return fernet.decrypt(str(encrypted).encode('utf-8')).decode('utf-8')
+            except InvalidToken as e:
+                last_err = e
+                continue
+            except Exception as e:
+                last_err = e
+                continue
+
+        if isinstance(last_err, InvalidToken):
+            raise last_err
+        raise InvalidToken()
     
     def is_token_expired(self) -> bool:
         """

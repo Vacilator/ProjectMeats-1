@@ -37,7 +37,7 @@ def send_invitation_email_task(self, invitation_id: str) -> dict:
         A dict with ``{"success": True}`` on success.
     """
     # Deferred imports to avoid circular references at module load time.
-    from .invitation_email import _build_invitation_message  # noqa: PLC0415
+    from .invitation_email import _build_invitation_email  # noqa: PLC0415
     from .models import TenantInvitation  # noqa: PLC0415
 
     try:
@@ -55,7 +55,7 @@ def send_invitation_email_task(self, invitation_id: str) -> dict:
         )
         return {"success": False, "error": "Invitation is not sendable"}
 
-    subject, message = _build_invitation_message(invitation)
+    subject, body, _invite_url = _build_invitation_email(invitation)
 
     try:
         logger.info(
@@ -68,7 +68,7 @@ def send_invitation_email_task(self, invitation_id: str) -> dict:
         )
         send_mail(
             subject=subject,
-            message=message,
+            message=body,
             from_email=settings.DEFAULT_FROM_EMAIL,
             recipient_list=[invitation.email],
             fail_silently=False,
