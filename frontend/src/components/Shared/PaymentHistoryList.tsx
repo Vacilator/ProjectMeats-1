@@ -18,6 +18,7 @@
  */
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
+import { getErrorMessage } from '../../hooks/useToast';
 import { apiClient } from '../../services/apiService';
 import { formatCurrency } from '../../shared/utils';
 import { formatDateLocal } from '../../utils/formatters';
@@ -156,9 +157,9 @@ export const PaymentHistoryList: React.FC<PaymentHistoryListProps> = ({
       });
       
       setPayments(sortedPayments);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Error fetching payment history:', err);
-      setError('Failed to load payment history');
+      setError(getErrorMessage(err, 'Failed to load payment history'));
     } finally {
       setLoading(false);
     }

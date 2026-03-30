@@ -15,6 +15,7 @@ import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { Theme } from '../../config/theme';
 import { useTheme } from '../../contexts/ThemeContext';
+import { getErrorMessage } from '../../hooks/useToast';
 import { Location } from '../../types/index';
 import { apiClient } from '../../services/apiService';
 
@@ -64,21 +65,36 @@ export const LocationSelector: React.FC<LocationSelectorProps> = ({
       const raw = response.data as unknown;
       const data = Array.isArray(raw)
         ? (raw as Location[])
-        : ((raw as any)?.results || []) as Location[];
+        : (() => {
+            const obj = raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : null;
+            const results = obj && Array.isArray(obj.results) ? (obj.results as Location[]) : [];
+            return results;
+          })();
 
       setLocations(data);
-    } catch (err: any) {
+    } catch (err: unknown) {
+      type AxiosishError = {
+        response?: {
+          status?: unknown;
+        };
+        code?: unknown;
+      };
+
+      const e = err as AxiosishError;
+      const status = typeof e.response?.status === 'number' ? e.response.status : null;
+      const code = typeof e.code === 'string' ? e.code : null;
+
       // Graceful error handling for RLS and auth failures
-      if (err.response?.status === 403) {
+      if (status === 403) {
         setFetchError('Access denied - insufficient permissions');
         console.error('[LocationSelector] RLS policy rejected request:', err);
-      } else if (err.response?.status === 401) {
+      } else if (status === 401) {
         setFetchError('Authentication required');
         console.error('[LocationSelector] Not authenticated:', err);
-      } else if (err.code === 'ECONNABORTED') {
+      } else if (code === 'ECONNABORTED') {
         setFetchError('Request timeout - please try again');
       } else {
-        setFetchError('Failed to load locations');
+        setFetchError(getErrorMessage(err, 'Failed to load locations'));
         console.error('[LocationSelector] Error fetching locations:', err);
       }
     } finally {
