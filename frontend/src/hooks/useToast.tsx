@@ -29,7 +29,11 @@ interface Toast {
 
 interface ToastContextValue {
   success: (message: string, duration?: number) => void;
-  error: (message: string, duration?: number) => void;
+  /**
+   * Error toast that accepts either a pre-formatted string or an unknown error object.
+   * Unknown errors are normalized via `getErrorMessage()`.
+   */
+  error: (messageOrError: string | unknown, duration?: number) => void;
   info: (message: string, duration?: number) => void;
   warning: (message: string, duration?: number) => void;
   dismiss: (id: string) => void;
@@ -65,7 +69,8 @@ export const ToastProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
   const value: ToastContextValue = {
     success: (message, duration) => addToast('success', message, duration),
-    error: (message, duration) => addToast('error', message, duration),
+    error: (messageOrError, duration) =>
+      addToast('error', getErrorMessage(messageOrError), duration),
     info: (message, duration) => addToast('info', message, duration),
     warning: (message, duration) => addToast('warning', message, duration),
     dismiss,
@@ -104,6 +109,43 @@ export function useToast(): ToastContextValue {
     throw new Error('useToast must be used within a ToastProvider');
   }
   return context;
+}
+
+export function getErrorMessage(err: unknown, fallback: string = 'Something went wrong'): string {
+  if (!err) return fallback;
+  if (typeof err === 'string') return err;
+
+  const e = err as {
+    message?: unknown;
+    response?: {
+      data?: unknown;
+    };
+  };
+
+  const data = e.response?.data;
+  if (typeof data === 'string' && data.trim()) return data;
+
+  if (data && typeof data === 'object') {
+    const obj = data as Record<string, unknown>;
+    const direct =
+      (typeof obj.detail === 'string' && obj.detail) ||
+      (typeof obj.error === 'string' && obj.error) ||
+      (typeof obj.message === 'string' && obj.message) ||
+      null;
+
+    if (direct) return direct;
+
+    const first = Object.entries(obj).find(([, v]) => typeof v === 'string' || Array.isArray(v));
+    if (first) {
+      const v = first[1];
+      if (typeof v === 'string' && v.trim()) return v;
+      if (Array.isArray(v) && v.length > 0) return String(v[0]);
+    }
+  }
+
+  if (typeof e.message === 'string' && e.message.trim()) return e.message;
+
+  return fallback;
 }
 
 // Helper function to get icon for toast type

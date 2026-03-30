@@ -140,6 +140,10 @@ This file is the **append-only PR-referenceable execution log**.
 - UniversalEntityForm now targets canonical `/accounting/*` endpoints for invoice/claim CRUD.
 - PR: #4154.
 
+### 2026-03-30T17:28:48Z — Phase 9.5: Global toast error mapping normalization
+- `useToast().error()` now accepts unknown error objects and normalizes message extraction across `err.response.data.detail`, `error`, `message`, and `err.message`.
+- PR: #4155.
+
 ### 2026-03-30 — Phase 9.5: Billing Interface Dynamic Wiring — COMPLETE
 - Admin Billing invoice history now loads subscription invoices dynamically (no hardcoded rows).
 
