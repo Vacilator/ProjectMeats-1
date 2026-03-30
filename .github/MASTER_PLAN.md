@@ -271,6 +271,11 @@ This file is the **append-only PR-referenceable execution log**.
 - Pytest no longer attempts to collect `archived/` test suites that reference removed modules.
 - PR: #4195.
 
+### 2026-03-30T20:04:04Z — Migrations: missing migration + RLS enforcement
+- Added missing migration for ActivityLog action choices so `makemigrations --check` passes again.
+- Extended `validate-migrations.sh` to enforce RLS SQL (`ENABLE ROW LEVEL SECURITY` + `CREATE POLICY`) on newly-changed tenant-aware `CreateModel` migrations.
+- PRs: #4197, #4198.
+
 ### 2026-03-30 — Phase 9.5: Billing Interface Dynamic Wiring — COMPLETE
 - Admin Billing invoice history now loads subscription invoices dynamically (no hardcoded rows).
 
