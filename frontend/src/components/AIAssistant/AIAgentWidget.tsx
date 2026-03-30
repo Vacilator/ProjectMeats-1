@@ -31,6 +31,7 @@ import {
 
 import { useToast } from '../../hooks/useToast';
 import { businessApi } from '../../services/businessApi';
+import { useHealth } from '@/hooks/useHealth';
 import { HITLReviewCard } from './HITLReviewCard';
 
 type AgentState = 'idle' | 'thinking' | 'action_required';
@@ -530,6 +531,8 @@ export const AIAgentWidget: React.FC = () => {
 
   const [state, setState] = useState<AgentState>('idle');
   const [expanded, setExpanded] = useState(false);
+  const { data: health } = useHealth();
+  const aiEnabled = health?.features?.ai ?? true;
   const [detail, setDetail] = useState<ReviewRequiredDetail>({});
   const [draft, setDraft] = useState('');
 
@@ -730,6 +733,10 @@ export const AIAgentWidget: React.FC = () => {
   };
 
   const addAttachments = async (files: File[]) => {
+    if (!aiEnabled) {
+      toast.error('AI is not enabled for this environment. Configure OpenAI in Settings, then retry.');
+      return;
+    }
     const accepted: File[] = [];
     for (const f of files) {
       const err = validateFile(f);
@@ -1012,6 +1019,21 @@ export const AIAgentWidget: React.FC = () => {
     async (text: string, contextOverride?: Record<string, unknown>) => {
       if (!text) return;
 
+      if (!aiEnabled) {
+        setMessages((m) => [
+          ...m,
+          {
+            id: newId(),
+            role: 'assistant',
+            content:
+              'AI is disabled for this environment (missing configuration). Set OPENAI_API_KEY (and related settings), then retry.',
+            createdAt: Date.now(),
+          },
+        ]);
+        setState('action_required');
+        return;
+      }
+
       setState('thinking');
       try {
         const sid = await ensureSession();
@@ -1050,7 +1072,7 @@ export const AIAgentWidget: React.FC = () => {
         setState('action_required');
       }
     },
-    [ensureSession, loadSessionMessages, pageContext, reloadSessions, setAttachments, setMessages, setState]
+    [aiEnabled, ensureSession, loadSessionMessages, pageContext, reloadSessions, setAttachments, setMessages, setState]
   );
 
   sendTextRef.current = sendText;
@@ -1058,6 +1080,25 @@ export const AIAgentWidget: React.FC = () => {
   const handleSend = async () => {
     const text = draft.trim();
     if (!text && attachments.length === 0) return;
+
+    // Allow local-only help even when AI is disabled.
+    const isLocalCommand = text === '/help';
+    if (!isLocalCommand && !aiEnabled) {
+      setExpanded(true);
+      setDraft('');
+      setMessages((m) => [
+        ...m,
+        {
+          id: newId(),
+          role: 'assistant',
+          content:
+            'AI is disabled for this environment (missing configuration). Set OPENAI_API_KEY (and related settings), then retry.',
+          createdAt: Date.now(),
+        },
+      ]);
+      setState('action_required');
+      return;
+    }
 
     setExpanded(true);
     setDraft('');
