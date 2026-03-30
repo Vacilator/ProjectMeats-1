@@ -170,9 +170,17 @@ class ScheduledCallSerializer(serializers.ModelSerializer):
         return "System"
 
 
+class WorkspaceLayoutPayloadSerializer(serializers.Serializer):
+    """Schema serializer for WorkspaceLayoutView payloads (saved or default)."""
+
+    version = serializers.IntegerField()
+    layout = serializers.ListField(child=serializers.DictField())
+    widgets = serializers.ListField(child=serializers.DictField())
+
+
 class UserWorkspaceLayoutSerializer(serializers.ModelSerializer):
     """Serializer for UserWorkspaceLayout model."""
-    
+
     class Meta:
         model = UserWorkspaceLayout
         fields = [

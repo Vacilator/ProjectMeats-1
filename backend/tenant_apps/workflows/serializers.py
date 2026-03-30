@@ -584,8 +584,32 @@ class QuickActionItemSerializer(serializers.Serializer):
 
 class QuickActionsSerializer(serializers.Serializer):
     """Serializer for user's quick actions list."""
-    
+
     items = QuickActionItemSerializer(many=True)
+
+
+class QuickActionsGetResponseSerializer(serializers.Serializer):
+    items = QuickActionItemSerializer(many=True)
+
+
+class QuickActionsPutResponseSerializer(serializers.Serializer):
+    success = serializers.BooleanField()
+    items = QuickActionItemSerializer(many=True)
+
+
+class AvailableQuickActionTargetSerializer(serializers.Serializer):
+    """Schema serializer for AvailableFormsViewSet unified response."""
+
+    id = serializers.CharField()
+    type = serializers.ChoiceField(choices=["form", "workflow"])
+    name = serializers.CharField()
+    description = serializers.CharField(required=False, allow_blank=True)
+    icon = serializers.CharField(required=False, allow_blank=True)
+    status = serializers.CharField()
+    is_default = serializers.BooleanField(required=False)
+    is_quick_action_enabled = serializers.BooleanField(required=False)
+    step_count = serializers.IntegerField(required=False)
+    node_count = serializers.IntegerField(required=False, allow_null=True)
 
 
 # =============================================================================

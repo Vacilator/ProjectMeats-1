@@ -19,6 +19,8 @@ from rest_framework.permissions import IsAdminUser, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from drf_spectacular.utils import extend_schema
+
 logger = logging.getLogger(__name__)
 
 from .models import (
@@ -1909,11 +1911,14 @@ class WorkflowExecutionLogViewSet(viewsets.ReadOnlyModelViewSet):
 
 from .serializers import (
     AvailableFormSerializer,
+    AvailableQuickActionTargetSerializer,
     FormStepSubmissionSerializer,
     FormSubmissionAutoSaveSerializer,
     FormSubmissionCreateSerializer,
     FormSubmissionDetailSerializer,
     FormSubmissionListSerializer,
+    QuickActionsGetResponseSerializer,
+    QuickActionsPutResponseSerializer,
     QuickActionsSerializer,
 )
 
@@ -2456,6 +2461,7 @@ class FormSubmissionViewSet(viewsets.ModelViewSet):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
+@extend_schema(tags=["Workflows", "Quick Actions"])
 class AvailableFormsViewSet(viewsets.ReadOnlyModelViewSet):
     """List Quick Actions targets.
 
@@ -2478,6 +2484,7 @@ class AvailableFormsViewSet(viewsets.ReadOnlyModelViewSet):
 
         return queryset.prefetch_related('entities').order_by('name')
 
+    @extend_schema(responses={200: AvailableQuickActionTargetSerializer(many=True)})
     def list(self, request, *args, **kwargs):
         from apps.system.models.tenant_workform import TenantWorkForm, WorkFormStatusChoices
 
@@ -2515,6 +2522,7 @@ class AvailableFormsViewSet(viewsets.ReadOnlyModelViewSet):
         return Response(combined)
 
 
+@extend_schema(tags=["Workflows", "Quick Actions"])
 class QuickActionsAPIView(APIView):
     """
     API endpoint for managing user's quick actions.
@@ -2525,6 +2533,7 @@ class QuickActionsAPIView(APIView):
 
     permission_classes = [IsAuthenticated]
 
+    @extend_schema(responses={200: QuickActionsGetResponseSerializer})
     def get(self, request):
         """Get user's quick actions from preferences."""
         try:
@@ -2535,6 +2544,10 @@ class QuickActionsAPIView(APIView):
 
         return Response({"items": quick_actions})
 
+    @extend_schema(
+        request=QuickActionsSerializer,
+        responses={200: QuickActionsPutResponseSerializer},
+    )
     def put(self, request):
         """Update user's quick actions."""
         try:

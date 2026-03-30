@@ -11,6 +11,8 @@ from rest_framework.exceptions import ValidationError
 from rest_framework.views import APIView
 from rest_framework.exceptions import PermissionDenied
 
+from drf_spectacular.utils import OpenApiTypes, extend_schema
+
 from django.conf import settings
 from django.db.models import Q
 from django.db import IntegrityError
@@ -26,6 +28,7 @@ from .serializers import (
     ActivityLogUpdateSerializer,
     ScheduledCallSerializer,
     UserWorkspaceLayoutSerializer,
+    WorkspaceLayoutPayloadSerializer,
 )
 from .models import ActivityLog, ScheduledCall, UserWorkspaceLayout
 from tenant_apps.customers.models import Customer
@@ -481,6 +484,7 @@ class ScheduledCallViewSet(viewsets.ModelViewSet):
         )
 
 
+@extend_schema(tags=["Cockpit"])
 class WorkspaceLayoutView(APIView):
     """
     API view for managing user workspace layouts.
@@ -490,7 +494,8 @@ class WorkspaceLayoutView(APIView):
     DELETE: Reset to default layout (deletes saved layout)
     """
     permission_classes = [IsAuthenticated]
-    
+
+    @extend_schema(responses={200: WorkspaceLayoutPayloadSerializer})
     def get(self, request):
         """
         Get the current user's workspace layout.
@@ -525,6 +530,10 @@ class WorkspaceLayoutView(APIView):
             }
             return Response(default_response, status=status.HTTP_200_OK)
     
+    @extend_schema(
+        request=WorkspaceLayoutPayloadSerializer,
+        responses={200: WorkspaceLayoutPayloadSerializer},
+    )
     def put(self, request):
         """Save or update the user's workspace layout."""
         try:
@@ -577,6 +586,7 @@ class WorkspaceLayoutView(APIView):
             )
 
 
+@extend_schema(tags=["Cockpit"])
 class WorkspaceStatsView(APIView):
     """
     API view for Cockpit dashboard statistics.
@@ -591,6 +601,7 @@ class WorkspaceStatsView(APIView):
     """
     permission_classes = [IsAuthenticated]
     
+    @extend_schema(responses={200: OpenApiTypes.OBJECT})
     def get(self, request):
         """Get workspace statistics for the current user's tenant."""
         if not hasattr(request, 'tenant') or not request.tenant:
