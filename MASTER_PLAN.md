@@ -30,7 +30,7 @@ We are re-validating and completing the last ~25 prompts with **evidence-based a
 
 ### Execution order (P0→P1)
 1. **Docs plan** (this section + PR log entry) — merge first.
-2. **Cockpit Favorites (industry-grade):** replace localStorage favorites with backend favorites API + optimistic UX, tenant-safe, RLS-backed.
+2. ✅ **Cockpit Favorites (industry-grade)** — shipped (backend favorites API + optimistic UX, tenant-safe, RLS-backed). PR: **#4037**.
 3. **Email Ingestion Monitor “Sync Now”:** ensure decrypt errors surface as stable structured codes and the UI shows a reconnect CTA (no raw string).
 4. **AI Document Upload:** reproduce via `test_document_upload` command and eliminate remaining 500s.
 5. **Verify prior batches:** Universal Forms, Cockpit Search relevance/entity coverage, Workform Editor UX.
@@ -48,6 +48,7 @@ We are re-validating and completing the last ~25 prompts with **evidence-based a
 - **Type-check hardening:** `pr-golden-sweep-typecheck` (tracked in SQL session todos)
 
 ### Recently shipped fixes (evidence)
+- Cockpit Favorites: backend persistence + optimistic UX + RLS policy — PR #4037
 - Reports Summary 500 fixed — PR #3949
 - Tenant Lists create 500 fixed/hardened — PR #3950
 - Email Ingestion “Sync Now” correctness + pagination + error surfacing — PR #3951
