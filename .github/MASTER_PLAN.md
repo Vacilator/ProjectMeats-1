@@ -133,6 +133,10 @@ This file is the **append-only PR-referenceable execution log**.
 ### 2026-03-30 — Phase 9.5: Billing Interface Dynamic Wiring — COMPLETE
 - Admin Billing invoice history now loads subscription invoices dynamically (no hardcoded rows).
 
+### 2026-03-30 — Phase 9.5: Resolved Master Data Pagination & Export Scaling (Products/Choice Lists)
+- System Products: increased max page size to 1000 and added an unpaginated export route to avoid 20-item exports.
+- System Choice Items: supports `?limit=1000` and `?paginate=false` to fetch full lists; frontend loaders now request `limit=1000` and accept `{results: []}` responses.
+
 ### 2026-03-27 — Phase 9.5: Admin Workspace Hardening
 - Invitations: resend action now uses the shared invitation email helper (extracted from `signals.py`), and create prefers the current request tenant.
 - Tenant Users: admins can remove a user (hard delete) as long as the role is not `owner`.

@@ -101,9 +101,11 @@ export const SystemChoiceManager: React.FC<SystemChoiceManagerProps> = ({
   const loadItems = useCallback(async (listId: string) => {
     setIsLoading(true);
     try {
-      const response = await apiClient.get(`/system/choice-lists/${listId}/items/`);
+      const response = await apiClient.get(`/system/choice-lists/${listId}/items/?limit=1000`);
       console.log('[SystemChoiceManager] Loaded items:', response.data);
-      setItems(response.data);
+      const raw = response.data as any;
+      const data = Array.isArray(raw) ? raw : Array.isArray(raw?.results) ? raw.results : [];
+      setItems(data);
     } catch (error) {
       console.error('[SystemChoiceManager] Failed to load items:', error);
       setItems([]);
@@ -124,7 +126,7 @@ export const SystemChoiceManager: React.FC<SystemChoiceManagerProps> = ({
    */
   useEffect(() => {
     if (selectedList) {
-      loadItems(selectedList.id);
+      loadItems(selectedList.slug);
     } else {
       setItems([]);
     }
@@ -221,7 +223,7 @@ export const SystemChoiceManager: React.FC<SystemChoiceManagerProps> = ({
         await apiClient.post('/system/choice-items/', itemData);
       }
 
-      await loadItems(selectedList.id);
+      await loadItems(selectedList.slug);
       setIsItemModalOpen(false);
       setEditingItem(null);
     } catch (error) {
@@ -246,7 +248,7 @@ export const SystemChoiceManager: React.FC<SystemChoiceManagerProps> = ({
     try {
       await apiClient.delete(`/system/choice-items/${itemId}/`);
       if (selectedList) {
-        await loadItems(selectedList.id);
+        await loadItems(selectedList.slug);
       }
     } catch (error) {
       console.error('[SystemChoiceManager] Failed to delete item:', error);
@@ -262,7 +264,7 @@ export const SystemChoiceManager: React.FC<SystemChoiceManagerProps> = ({
         is_active: !item.is_active,
       });
       if (selectedList) {
-        await loadItems(selectedList.id);
+        await loadItems(selectedList.slug);
       }
     } catch (error) {
       console.error('[SystemChoiceManager] Failed to toggle item:', error);

@@ -10,6 +10,7 @@ Provides DRF ViewSets for:
 """
 from rest_framework import viewsets, permissions, status
 from rest_framework.decorators import action
+from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
 from django.db.models import Q
 from django_filters.rest_framework import DjangoFilterBackend
@@ -51,6 +52,32 @@ def _get_client_ip(request):
     if x_forwarded_for:
         return x_forwarded_for.split(',')[0].strip()
     return request.META.get('REMOTE_ADDR')
+
+
+class SystemChoiceItemsPagination(PageNumberPagination):
+    """Pagination tuned for master-data choice lists.
+
+    Supports both `?limit=` (preferred) and legacy `?page_size=`.
+    """
+
+    page_size = 20
+    page_size_query_param = "limit"
+    max_page_size = 1000
+
+    def get_page_size(self, request):
+        raw = request.query_params.get("limit") or request.query_params.get("page_size")
+        if raw is None:
+            return self.page_size
+
+        try:
+            parsed = int(raw)
+        except (TypeError, ValueError):
+            return self.page_size
+
+        if parsed <= 0:
+            return self.page_size
+
+        return min(parsed, self.max_page_size)
 
 
 class IsAdminOrReadOnly(permissions.BasePermission):
@@ -136,6 +163,31 @@ class SystemChoiceListViewSet(viewsets.ReadOnlyModelViewSet):
                 items = items.filter(tenant__isnull=True)
             
             items = items.order_by('order', 'label')
+
+            paginate_raw = str(request.query_params.get('paginate') or '').lower()
+            paginate = paginate_raw not in ('0', 'false', 'no')
+
+            limit_raw = request.query_params.get('limit') or request.query_params.get('page_size')
+            limit = None
+            if limit_raw is not None:
+                try:
+                    limit = int(limit_raw)
+                except (TypeError, ValueError):
+                    limit = None
+
+            # Allow callers to explicitly disable pagination.
+            if (not paginate) or (limit is not None and limit >= 1000):
+                serializer = SystemChoiceItemSerializer(items, many=True)
+                return Response(serializer.data)
+
+            # Optional pagination for large lists when requested.
+            if (limit is not None) or request.query_params.get('page'):
+                paginator = SystemChoiceItemsPagination()
+                page = paginator.paginate_queryset(items, request, view=self)
+                if page is not None:
+                    serializer = SystemChoiceItemSerializer(page, many=True)
+                    return paginator.get_paginated_response(serializer.data)
+
             serializer = SystemChoiceItemSerializer(items, many=True)
             return Response(serializer.data)
         
@@ -280,6 +332,25 @@ class SystemChoiceItemViewSet(viewsets.ModelViewSet):
     """
     serializer_class = SystemChoiceItemSerializer
     permission_classes = [IsTenantAdminOrReadOnly]
+    pagination_class = SystemChoiceItemsPagination
+
+    def paginate_queryset(self, queryset):
+        paginate_raw = str(self.request.query_params.get('paginate') or '').lower()
+        paginate = paginate_raw not in ('0', 'false', 'no')
+        if not paginate:
+            return None
+
+        limit_raw = self.request.query_params.get('limit') or self.request.query_params.get('page_size')
+        if limit_raw is not None:
+            try:
+                limit = int(limit_raw)
+            except (TypeError, ValueError):
+                limit = None
+            else:
+                if limit >= 1000:
+                    return None
+
+        return super().paginate_queryset(queryset)
     
     def get_queryset(self):
         tenant = getattr(self.request, 'tenant', None)

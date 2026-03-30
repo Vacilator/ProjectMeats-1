@@ -11,6 +11,7 @@ import logging
 from django.db.models import Prefetch
 from rest_framework import viewsets, permissions, status
 from rest_framework.decorators import action
+from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
 from rest_framework.filters import SearchFilter, OrderingFilter
 from django_filters.rest_framework import DjangoFilterBackend
@@ -19,6 +20,33 @@ from apps.system.models import Product, TenantProductPreference
 from apps.system.services.product_visibility import visible_products_qs
 
 logger = logging.getLogger(__name__)
+
+
+class SystemProductPagination(PageNumberPagination):
+    """Product pagination tuned for admin master-data workflows.
+
+    Global defaults are intentionally conservative; for Master Products screens we
+    need to safely fetch larger batches.
+    """
+
+    page_size = 20
+    page_size_query_param = "limit"
+    max_page_size = 1000
+
+    def get_page_size(self, request):
+        raw = request.query_params.get("limit") or request.query_params.get("page_size")
+        if raw is None:
+            return self.page_size
+
+        try:
+            parsed = int(raw)
+        except (TypeError, ValueError):
+            return self.page_size
+
+        if parsed <= 0:
+            return self.page_size
+
+        return min(parsed, self.max_page_size)
 
 
 class SystemProductViewSet(viewsets.ModelViewSet):
@@ -30,6 +58,7 @@ class SystemProductViewSet(viewsets.ModelViewSet):
 
     queryset = Product.objects.all()
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
+    pagination_class = SystemProductPagination
     
     # Search fields
     search_fields = ['product_code', 'name', 'description', 'namp_code', 'usda_code']
@@ -99,7 +128,18 @@ class SystemProductViewSet(viewsets.ModelViewSet):
             queryset = queryset.filter(q_objects)
 
         return queryset
-    
+
+    @action(detail=False, methods=["get"], url_path="export", pagination_class=None)
+    def export(self, request):
+        """Export all visible products (unpaginated).
+
+        Respects the same filters as the list endpoint.
+        """
+
+        queryset = self.filter_queryset(self.get_queryset())
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data)
+
     @action(detail=False, methods=['get'], url_path='my-products')
     def my_products(self, request):
         """

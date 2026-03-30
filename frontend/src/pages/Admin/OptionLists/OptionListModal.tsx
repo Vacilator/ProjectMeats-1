@@ -361,9 +361,9 @@ export const OptionListModal: React.FC<OptionListModalProps> = ({
   const loadItems = async () => {
     setLoading(true);
     try {
-      const response = await apiClient.get(`/system/choice-lists/${listSlug}/items/`);
-      // Ensure response.data is always an array
-      const itemsData = Array.isArray(response.data) ? response.data : [];
+      const response = await apiClient.get(`/system/choice-lists/${listSlug}/items/?limit=1000`);
+      const raw = response.data as any;
+      const itemsData = Array.isArray(raw) ? raw : Array.isArray(raw?.results) ? raw.results : [];
       setItems(itemsData);
       setHasChanges(false);
     } catch (error) {
