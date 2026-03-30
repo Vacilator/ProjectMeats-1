@@ -15,10 +15,10 @@
  */
 import React, { useState, useMemo, useCallback } from 'react';
 import styled from 'styled-components';
-import { NodeProps, Node, Edge, useReactFlow, useNodes, useEdges } from '@xyflow/react';
+import { NodeProps, Node, Edge, NodeToolbar, Position, useReactFlow, useNodes, useEdges } from '@xyflow/react';
 import { BaseNode, BaseNodeData } from './BaseNode';
 import { getNodeTypeDefinition } from '../nodeTypes';
-import { ChevronDown, ChevronRight, LogIn, Edit2, Trash2 } from 'lucide-react';
+import { ChevronDown, ChevronRight, LogIn, Edit2, Trash2, Plus, Copy } from 'lucide-react';
 import { calculateStepOrder, getStepLabel } from '../utils/stepOrderingUtils'; // Phase B.1
 // REMOVED: import { MiniReactFlow } from '../NestedContainer/MiniReactFlow';
 
@@ -58,6 +58,7 @@ export interface FormProcessNodeProps extends NodeProps<Node<ContainerNodeData>>
 // ============================================================================
 
 const ContainerWrapper = styled.div<{ isExpanded: boolean }>`
+  position: relative;
   min-width: ${props => props.isExpanded ? '800px' : '320px'};
   min-height: ${props => props.isExpanded ? '500px' : 'auto'};
   max-width: ${props => props.isExpanded ? 'none' : '400px'};
@@ -342,49 +343,30 @@ const ConfigButton = styled.button`
   }
 `;
 
-// Control Buttons (copied from BaseNode)
-const NodeControls = styled.div`
-  position: absolute;
-  top: 8px;
-  right: 8px;
+const ToolbarCard = styled.div`
   display: flex;
   gap: 4px;
-  opacity: 1; /* Always visible */
-  transition: opacity 0.2s ease;
-  z-index: 10; /* Ensure buttons appear above other elements */
+  background: rgb(var(--color-surface));
+  padding: 6px;
+  border-radius: 8px;
+  border: 1px solid rgb(var(--color-border));
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 50;
 `;
 
-const ControlButton = styled.button<{ $variant?: 'edit' | 'delete' }>`
-  width: 24px;
-  height: 24px;
-  border-radius: var(--radius-sm);
+const ToolbarBtn = styled.button<{ $danger?: boolean }>`
+  padding: 6px;
+  border-radius: 6px;
   border: none;
+  background: transparent;
   cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s ease;
-  background: ${props => props.$variant === 'delete' 
-    ? 'rgba(239, 68, 68, 0.1)' 
-    : 'rgba(var(--color-primary), 0.1)'};
-  color: ${props => props.$variant === 'delete'
-    ? 'rgb(239, 68, 68)'
-    : 'rgb(var(--color-primary))'};
+  color: ${(props) => (props.$danger ? 'rgb(239, 68, 68)' : 'rgb(var(--color-text-secondary))')};
+  transition: all 0.15s ease;
 
   &:hover {
-    background: ${props => props.$variant === 'delete'
-      ? 'rgba(239, 68, 68, 0.2)'
-      : 'rgba(var(--color-primary), 0.2)'};
-    transform: scale(1.1);
-  }
-
-  &:active {
-    transform: scale(0.95);
-  }
-
-  svg {
-    width: 14px;
-    height: 14px;
+    background: ${(props) =>
+      props.$danger ? 'rgba(239, 68, 68, 0.1)' : 'rgba(var(--color-primary), 0.1)'};
+    color: ${(props) => (props.$danger ? 'rgb(239, 68, 68)' : 'rgb(var(--color-primary))')};
   }
 `;
 
@@ -595,29 +577,57 @@ export const FormProcessNode = React.memo<FormProcessNodeProps>(({
   
   return (
     <>
-      {/* Edit/Delete Controls */}
-      <NodeControls>
-        <ControlButton 
-          $variant="edit" 
-          onClick={(e) => {
-            e.stopPropagation();
-            if (data.onEdit) data.onEdit();
-          }}
-          title="Edit container configuration"
-        >
-          <Edit2 size={14} />
-        </ControlButton>
-        <ControlButton 
-          $variant="delete" 
-          onClick={(e) => {
-            e.stopPropagation();
-            if (data.onDelete) data.onDelete();
-          }}
-          title="Delete container"
-        >
-          <Trash2 size={14} />
-        </ControlButton>
-      </NodeControls>
+      <NodeToolbar isVisible={!!selected} position={Position.Top}>
+        <ToolbarCard className="nodrag">
+          <ToolbarBtn
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              if (!isExpanded) {
+                setIsExpanded(true);
+                setNodes((current) =>
+                  current.map((n) => (n.parentId === id ? { ...n, hidden: false } : n))
+                );
+              }
+              (data as any)?.onAddStepInsideForm?.();
+            }}
+            title="Add step"
+          >
+            <Plus size={16} />
+          </ToolbarBtn>
+          <ToolbarBtn
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              (data as any)?.onDuplicate?.();
+            }}
+            title="Duplicate"
+          >
+            <Copy size={16} />
+          </ToolbarBtn>
+          <ToolbarBtn
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              if (data.onEdit) data.onEdit();
+            }}
+            title="Edit"
+          >
+            <Edit2 size={16} />
+          </ToolbarBtn>
+          <ToolbarBtn
+            type="button"
+            $danger
+            onClick={(e) => {
+              e.stopPropagation();
+              if (data.onDelete) data.onDelete();
+            }}
+            title="Delete"
+          >
+            <Trash2 size={16} />
+          </ToolbarBtn>
+        </ToolbarCard>
+      </NodeToolbar>
 
       {/* Container custom UI */}
       <ContainerWrapper 
