@@ -570,10 +570,16 @@ class InquiryTemplate(TenantAwareModel):
         return f"{self.name} ({self.entity_type})"
 
 
-class InquiryTemplateProduct(models.Model):
+class InquiryTemplateProduct(TenantAwareModel):
     """Products included in an inquiry template with default values."""
-    
-    objects = TenantManager()
+
+    # Persist tenant_id for RLS isolation (backfilled from parent template).
+    tenant = models.ForeignKey(
+        'tenants.Tenant',
+        on_delete=models.CASCADE,
+        help_text="Tenant this entity belongs to",
+        related_name='inquiry_template_products',
+    )
     
     template = models.ForeignKey(
         InquiryTemplate,
@@ -630,7 +636,12 @@ class InquiryTemplateProduct(models.Model):
         label = getattr(self.product, 'name', None) or getattr(self.product, 'product_code', None) or 'Product'
         return f"{self.template.name} - {str(label)[:30]}"
     
+    def save(self, *args, **kwargs):
+        if getattr(self, 'tenant_id', None) is None and self.template_id is not None:
+            self.tenant = self.template.tenant
+        super().save(*args, **kwargs)
+
     @property
-    def tenant(self):
-        """Inherit tenant from parent template."""
+    def parent_tenant(self):
+        """Tenant derived from the parent template (legacy call sites)."""
         return self.template.tenant
