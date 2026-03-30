@@ -13,7 +13,7 @@ from django.db.models import QuerySet
 import logging
 
 from apps.tenants.models import Tenant, TenantUser, TenantInvitation
-from apps.tenants.invitation_email import schedule_invitation_email
+from apps.tenants.invitation_email import schedule_invitation_email, send_invitation_email_now
 from apps.tenants.invitation_serializers import (
     TenantInvitationCreateSerializer,
     TenantInvitationListSerializer,
@@ -154,8 +154,18 @@ class TenantInvitationViewSet(viewsets.ModelViewSet):
         invitation.expires_at = timezone.now() + timezone.timedelta(days=7)
         invitation.save()
 
-        # Best-effort: resend email using the same helper as the post_save signal.
-        schedule_invitation_email(invitation)
+        # Resend should provide immediate feedback to the user.
+        try:
+            send_invitation_email_now(invitation)
+        except Exception as e:
+            logger.exception('Failed to send invitation resend email invitation_id=%s', invitation.id)
+            return Response(
+                {
+                    'error': 'Failed to send invitation email',
+                    'detail': str(e),
+                },
+                status=status.HTTP_502_BAD_GATEWAY,
+            )
 
         logger.info("Resent invitation %s to %s", invitation.id, invitation.email)
 
