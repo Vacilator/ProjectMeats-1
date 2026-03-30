@@ -448,7 +448,7 @@ export const formSchema: NodeConfigSchema = {
  * into a cohesive workflow with navigation and behavior settings.
  */
 export const formProcessSchema: NodeConfigSchema = {
-  nodeType: 'formMultiStepContainer',
+  nodeType: 'formProcess',
   displayName: 'Form Process',
   description: 'Container for multi-step forms with navigation controls',
   icon: Package,
@@ -944,6 +944,8 @@ const buildAllSchemas = (): NodeConfigSchema[] => [
   // === CORE SCHEMAS (Phase 1-3) ===
   formSchema,  // NEW: Primary form step schema (Phase E - 2026-02-19)
   formProcessSchema,
+  // Backward compatibility: legacy node type for the same concept.
+  { ...formProcessSchema, nodeType: 'formMultiStepContainer' },
   formBookSchema,
   formProcessGroupSchema,
   createRecordSchema,

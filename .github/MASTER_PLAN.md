@@ -125,6 +125,11 @@ This file is the **append-only PR-referenceable execution log**.
 
 ## Phase 9.5: Preemptive Hardening & Advanced UX (Workforms Editor)
 
+### 2026-03-30 — Phase 9.5: AI Assistant + Workforms API Stabilization (V3.0)
+- AI Assistant uploads: assert RLS session vars via `set_current_tenant()` inside the upload save transaction (reduces intermittent RLS write failures).
+- FlowEditor node schemas: `formProcessSchema` now uses `nodeType: 'formProcess'` and registers a legacy alias for `formMultiStepContainer`.
+- Entity API: `_get_entity_or_404` now resolves entity types case-insensitively and maps short-names (e.g., `Inquiry`) to canonical keys.
+
 ### 2026-03-27 — Phase 9.5: Admin Workspace Hardening
 - Invitations: resend action now uses the shared invitation email helper (extracted from `signals.py`), and create prefers the current request tenant.
 - Tenant Users: admins can remove a user (hard delete) as long as the role is not `owner`.

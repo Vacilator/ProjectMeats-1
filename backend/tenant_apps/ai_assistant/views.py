@@ -432,26 +432,34 @@ class AIDocumentViewSet(viewsets.ModelViewSet):
             raise ValidationError('Tenant context required.')
 
         tenant_id = str(getattr(tenant, 'id', '') or '')
-        if tenant_id:
-            # Defense-in-depth: assert RLS vars right before the write.
-            try:
-                with connection.cursor() as cursor:
-                    cursor.execute("SET app.current_tenant_id = %s", [tenant_id])
-                    cursor.execute("SET app.current_tenant = %s", [tenant_id])
-            except Exception:
-                logger.warning('AIDocument upload: failed to assert RLS session vars', exc_info=True)
 
         try:
-            instance = serializer.save(
-                tenant=tenant,
-                owner=self.request.user,
-                original_filename=getattr(self.request.FILES.get('file'), 'name', ''),
-                content_type=getattr(self.request.FILES.get('file'), 'content_type', '') or '',
-                file_size=getattr(self.request.FILES.get('file'), 'size', 0) or 0,
-            )
-        except Exception as e:
+            from django.db import transaction
             from django.db.utils import DatabaseError, ProgrammingError
             from rest_framework.exceptions import ValidationError
+
+            from apps.tenants.rls import set_current_tenant
+
+            with transaction.atomic():
+                # Defense-in-depth: assert RLS vars on the active connection inside the write transaction.
+                if tenant_id:
+                    rls = set_current_tenant(tenant_id)
+                    if not rls.ok:
+                        logger.warning(
+                            'AIDocument upload: failed to assert RLS session vars tenant=%s err=%s',
+                            tenant_id,
+                            rls.error,
+                            exc_info=True,
+                        )
+
+                instance = serializer.save(
+                    tenant=tenant,
+                    owner=self.request.user,
+                    original_filename=getattr(self.request.FILES.get('file'), 'name', ''),
+                    content_type=getattr(self.request.FILES.get('file'), 'content_type', '') or '',
+                    file_size=getattr(self.request.FILES.get('file'), 'size', 0) or 0,
+                )
+        except Exception as e:
 
             if isinstance(e, ValidationError):
                 raise

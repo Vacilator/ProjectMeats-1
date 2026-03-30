@@ -341,10 +341,38 @@ class EntityViewSet(viewsets.ViewSet):
     def _get_entity_or_404(self, request, *, type, pk):
         tenant = request.tenant
 
-        if type not in self.MODEL_MAP:
-            raise ValueError(f'Unknown entity type: {type}')
+        raw_type = str(type or '').strip()
+        if not raw_type:
+            raise ValueError('Unknown entity type:')
 
-        app_label, model_name = self.MODEL_MAP[type]
+        # Allow case-insensitive and short-name inputs (e.g., "Inquiry" instead of "inquiry").
+        candidate = raw_type.replace('-', '_').strip()
+        candidate_lc = candidate.lower()
+
+        resolved_type = None
+        if candidate_lc in self.MODEL_MAP:
+            resolved_type = candidate_lc
+        else:
+            import re
+
+            # CamelCase/PascalCase -> snake_case
+            snake = re.sub(r'(.)([A-Z][a-z]+)', r'\1_\2', candidate)
+            snake = re.sub(r'([a-z0-9])([A-Z])', r'\1_\2', snake).lower()
+            if snake in self.MODEL_MAP:
+                resolved_type = snake
+            elif snake.endswith('s') and snake[:-1] in self.MODEL_MAP:
+                resolved_type = snake[:-1]
+            else:
+                # Map model/app short names (e.g., Inquiry, inquiries) to canonical keys.
+                for key, (app_label, model_name) in self.MODEL_MAP.items():
+                    if candidate_lc == model_name.lower() or candidate_lc == app_label.lower():
+                        resolved_type = key
+                        break
+
+        if not resolved_type:
+            raise ValueError(f'Unknown entity type: {raw_type}')
+
+        app_label, model_name = self.MODEL_MAP[resolved_type]
         try:
             Model = apps.get_model(app_label, model_name)
         except LookupError as exc:
@@ -355,7 +383,7 @@ class EntityViewSet(viewsets.ViewSet):
         else:
             entity = Model.objects.get(pk=pk)
 
-        return entity, type, Model
+        return entity, resolved_type, Model
 
     def _entity_type_for_model(self, model):
         """Best-effort mapping from Django model to Cockpit entity type string."""
