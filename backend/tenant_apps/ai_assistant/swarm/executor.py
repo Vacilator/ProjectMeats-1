@@ -117,13 +117,11 @@ DEFAULT_OPENAI_TOOLS = [
         'type': 'function',
         'function': {
             'name': 'get_recent_errors',
-            'description': 'Fetch the most recent Sentry issues for the active tenant_id (last 5).',
+            'description': 'Fetch the most recent Sentry issues for the active tenant (last 5).',
             'parameters': {
                 'type': 'object',
-                'properties': {
-                    'tenant_id': {'type': 'string', 'description': 'Tenant UUID (must match active tenant)'}
-                },
-                'required': ['tenant_id'],
+                'properties': {},
+                'additionalProperties': False,
             },
         },
     },
@@ -260,7 +258,13 @@ class ToolExecutor:
                     default=str,
                 )
 
-            result = fn(arguments or {}, tenant, user)
+            # Implicit tenant scoping: never require the LLM to provide tenant_id.
+            # If a tool previously took tenant_id, inject it from the authenticated session.
+            safe_args = dict(arguments or {})
+            if tool_name == 'get_recent_errors' and not safe_args.get('tenant_id'):
+                safe_args['tenant_id'] = tenant_id
+
+            result = fn(safe_args, tenant, user)
             return json.dumps({'ok': True, 'tool': tool_name, 'tenant_id': tenant_id, 'data': result}, default=str)
         except Exception as e:
             tenant_id = str(getattr(tenant, 'id', '') or '')
@@ -628,9 +632,10 @@ class ToolExecutor:
 
         if not active_tenant_id:
             raise ValueError('Tenant context missing')
-        if not tenant_id_arg:
-            raise ValueError('Missing required parameter: tenant_id')
-        if tenant_id_arg != active_tenant_id:
+
+        # Implicit tenant scoping: tenant_id is injected server-side from the authenticated session.
+        # If a caller provides tenant_id anyway, treat mismatches as an explicit cross-tenant attempt.
+        if tenant_id_arg and tenant_id_arg != active_tenant_id:
             raise ValueError('tenant_id must match the active tenant')
 
         from tenant_apps.ai_assistant.services.sentry_issues import fetch_recent_sentry_issues_for_tenant

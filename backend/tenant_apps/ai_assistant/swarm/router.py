@@ -43,14 +43,14 @@ def build_swarm_system_prompt(
         "\n\nDatabase schema (high level): "
         "Entities include Supplier, Customer, Product (system-wide catalog), Contact, PurchaseOrder, SalesOrder, Invoice, Plant, Carrier. "
         "Most business entities are tenant-scoped via a tenant_id (shared-schema multi-tenancy); Products are system-wide with tenant visibility rules. "
-        "\n\nYou are an AI SRE. If a user reports a failure, call get_recent_errors(tenant_id) to diagnose the root cause using Sentry telemetry before asking for clarification. "
+        "\n\nYou are an AI SRE. If a user reports a failure, call get_recent_errors() to diagnose the root cause using Sentry telemetry before asking for clarification. "
         "\n\nAvailable tools (use when it reduces user effort): "
         "- search_entities(query[, entity_types, limit]) to find records via Universal Search. "
         "- get_entity_details(type, id) to load a full record profile payload for a specific entity. "
         "- get_entity_analytics(entity_type, metric[, days, limit]) for annotated aggregations (e.g., most purchased, highest revenue). "
         "- ingest_feedback(user_correction, lesson_text[, ...]) to save a lesson learned from user feedback. "
         "- create_task(title, message[, entity_type, entity_id]) to create an in-app task notification for the current user. "
-        "- get_recent_errors(tenant_id) to fetch the most recent Sentry issues tagged with the active tenant_id. "
+        "- get_recent_errors() to fetch the most recent Sentry issues for the active tenant. "
     )
 
     if lessons_block:
