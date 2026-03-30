@@ -649,12 +649,25 @@ const QuickCreateModal: React.FC<QuickCreateModalProps> = ({
         </ModalBody>
 
         <ModalFooter>
-          <Button variant="secondary" onClick={onClose} disabled={isSubmitting}>
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={(e) => {
+              e.stopPropagation();
+              onClose();
+            }}
+            disabled={isSubmitting}
+          >
             Cancel
           </Button>
-          <Button 
-            variant="primary" 
-            onClick={handleSubmit} 
+          <Button
+            type="button"
+            variant="primary"
+            onClick={(e) => {
+              e.stopPropagation();
+              if (isSubmitting) return;
+              void handleSubmit();
+            }}
             disabled={isLoading || isSubmitting || fields.length === 0}
           >
             {isSubmitting ? (
@@ -827,12 +840,25 @@ const QuickCreateModal: React.FC<QuickCreateModalProps> = ({
         </ModalBody>
 
         <ModalFooter>
-          <Button variant="secondary" onClick={onClose} disabled={isSubmitting}>
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={(e) => {
+              e.stopPropagation();
+              onClose();
+            }}
+            disabled={isSubmitting}
+          >
             Cancel
           </Button>
           <Button
+            type="button"
             variant="primary"
-            onClick={handleSubmit}
+            onClick={(e) => {
+              e.stopPropagation();
+              if (isSubmitting) return;
+              void handleSubmit();
+            }}
             disabled={isLoading || isSubmitting || fields.length === 0}
           >
             {isSubmitting ? (
