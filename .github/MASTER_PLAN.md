@@ -221,6 +221,12 @@ This file is the **append-only PR-referenceable execution log**.
 - Purchase Orders: weight_per_unit is no longer required so edits aren’t blocked.
 - PR: #4176.
 
+### 2026-03-30T19:07:23Z — Phase 9.5: Final Sentry sweep
+- Email sync now uses a stable exception variable in `sync_emails` error handling.
+- Cockpit ActivityLog update avoids an extra DB fetch by using `serializer.instance`.
+- Inquiry relationship product preview `more_count` now uses `total - 4` (preview slice) math.
+- PR: #4178.
+
 ### 2026-03-30 — Phase 9.5: Billing Interface Dynamic Wiring — COMPLETE
 - Admin Billing invoice history now loads subscription invoices dynamically (no hardcoded rows).
 
