@@ -67,7 +67,7 @@ import Profile from './pages/Profile';
 import Settings from './pages/Settings';
 import { ComingSoon } from './pages/ComingSoon';
 import ApiTestComponent from './components/ApiTestComponent';
-import { WorkflowRunner } from './pages/Workflows';
+import { WorkflowRunner, PerfHarness } from './pages/Workflows';
 import { WorkflowMonitor } from './pages/Workflows/WorkflowMonitor';
 import { WorkflowExecutionDetails } from './pages/Workflows/WorkflowExecutionDetails';
 import { FormSubmissionModal } from './components/FormSubmission';
@@ -341,6 +341,14 @@ const App: React.FC = () => {
                 <Route path="workflows/monitor" element={<WorkflowMonitor />} />
                 <Route path="workflows/run/:runId" element={<WorkflowRunner />} />
                 <Route path="workflows/details/:runId" element={<WorkflowExecutionDetails />} />
+                <Route
+                  path="workflows/perf-harness"
+                  element={
+                    (import.meta.env.DEV || process.env.NODE_ENV === 'development')
+                      ? <PerfHarness />
+                      : <Navigate to="/workforms/catalog" replace />
+                  }
+                />
                 
                 {/* Form Submissions */}
                 <Route path="my-submissions" element={<MySubmissions />} />
