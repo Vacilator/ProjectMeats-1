@@ -1654,11 +1654,19 @@ class UserNotificationPreferences(models.Model):
     """
     
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    user = models.OneToOneField(
+    user = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
         related_name='notification_preferences',
-        help_text="User for these preferences"
+        help_text='User for these preferences',
+    )
+    tenant = models.ForeignKey(
+        'tenants.Tenant',
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='user_notification_preferences',
+        help_text='Tenant context for these preferences',
     )
     
     # Global settings
@@ -1720,6 +1728,9 @@ class UserNotificationPreferences(models.Model):
     class Meta:
         verbose_name = "User Notification Preferences"
         verbose_name_plural = "User Notification Preferences"
+        constraints = [
+            models.UniqueConstraint(fields=['user', 'tenant'], name='uniq_user_tenant_notification_prefs'),
+        ]
     
     def __str__(self):
         return f"Notification Preferences for {self.user.username}"
@@ -1746,31 +1757,25 @@ class UserNotificationPreferences(models.Model):
         return channel == DeliveryChannel.IN_APP
     
     @classmethod
-    def get_defaults(cls):
+    def get_defaults(cls) -> dict[str, list[str]]:
         """Return default notification preferences.
 
-        NOTE: Explicitly cast TextChoices keys/values to plain strings so the
-        JSONField default is always JSON-serializable (prevents get_or_create
-        serialization issues under some DRF/psycopg paths).
+        Ensures keys/values are primitive JSON types (str/list[str]) so JSONField
+        defaults are always serializable.
         """
 
-        def _k(value) -> str:
-            return str(value)
+        email_enabled_types = {
+            NotificationType.TASK_ASSIGNED,
+            NotificationType.TASK_DUE_SOON,
+            NotificationType.TASK_OVERDUE,
+            NotificationType.FORM_APPROVED,
+            NotificationType.FORM_REJECTED,
+        }
 
-        def _v(*channels) -> list[str]:
-            return [str(c) for c in channels]
+        in_app = str(DeliveryChannel.IN_APP.value)
+        email = str(DeliveryChannel.EMAIL.value)
 
         return {
-            _k(NotificationType.TASK_ASSIGNED): _v(DeliveryChannel.IN_APP, DeliveryChannel.EMAIL),
-            _k(NotificationType.TASK_DUE_SOON): _v(DeliveryChannel.IN_APP, DeliveryChannel.EMAIL),
-            _k(NotificationType.TASK_OVERDUE): _v(DeliveryChannel.IN_APP, DeliveryChannel.EMAIL),
-            _k(NotificationType.TASK_COMPLETED): _v(DeliveryChannel.IN_APP),
-            _k(NotificationType.FORM_SUBMITTED): _v(DeliveryChannel.IN_APP),
-            _k(NotificationType.FORM_APPROVED): _v(DeliveryChannel.IN_APP, DeliveryChannel.EMAIL),
-            _k(NotificationType.FORM_REJECTED): _v(DeliveryChannel.IN_APP, DeliveryChannel.EMAIL),
-            _k(NotificationType.MENTION): _v(DeliveryChannel.IN_APP),
-            _k(NotificationType.COMMENT): _v(DeliveryChannel.IN_APP),
-            _k(NotificationType.STATUS_CHANGE): _v(DeliveryChannel.IN_APP),
-            _k(NotificationType.WORKFLOW_TRIGGER): _v(DeliveryChannel.IN_APP),
-            _k(NotificationType.SYSTEM): _v(DeliveryChannel.IN_APP),
+            str(nt.value): ([in_app, email] if nt in email_enabled_types else [in_app])
+            for nt in NotificationType
         }

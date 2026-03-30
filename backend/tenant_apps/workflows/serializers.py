@@ -711,14 +711,14 @@ class UserNotificationPreferencesSerializer(serializers.ModelSerializer):
     class Meta:
         model = UserNotificationPreferences
         fields = [
-            'id', 'user', 'notifications_enabled',
+            'id', 'tenant', 'user', 'notifications_enabled',
             'email_enabled', 'sms_enabled', 'push_enabled',
             'type_preferences',
             'quiet_hours_enabled', 'quiet_hours_start', 'quiet_hours_end',
             'daily_digest_enabled', 'weekly_digest_enabled',
             'created_at', 'updated_at'
         ]
-        read_only_fields = ['id', 'user', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'tenant', 'user', 'created_at', 'updated_at']
 
 
 class ActionItemSerializer(serializers.Serializer):

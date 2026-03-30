@@ -391,7 +391,7 @@ class ActionExecutor:
             'purchase_order': ('purchase_orders', 'PurchaseOrder'),
             'sales_order': ('sales_orders', 'SalesOrder'),
             'invoice': ('invoices', 'Invoice'),
-            'product': ('products', 'Product'),
+            'product': ('system', 'Product'),
         }
         
         if entity_type not in model_map:
@@ -400,7 +400,10 @@ class ActionExecutor:
         app_label, model_name = model_map[entity_type]
         
         try:
+            if app_label == 'system':
+                return apps.get_model('system', model_name)
+
             return apps.get_model(f'tenant_apps.{app_label}', model_name)
         except LookupError:
-            logger.error(f"Model not found: tenant_apps.{app_label}.{model_name}")
+            logger.error(f"Model not found: {app_label}.{model_name}")
             return None

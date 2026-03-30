@@ -145,6 +145,11 @@ This file is the **append-only PR-referenceable execution log**.
 - UI: Quick Actions empty state now reads: "No active forms available for Quick Actions. Publish a form in the Workforms Editor first.".
 - UI: Login password input now sets `autoComplete="current-password"`.
 
+### 2026-03-30 — Phase 9.5: Notification Preferences 500 Fix (Tenant Injection + JSON Defaults)
+- Notification Preferences endpoint now tenant-scopes the get_or_create call and sets RLS session vars before DB access.
+- Defaults are generated via primitive-only comprehensions to prevent JSON serialization errors.
+- Errors are surfaced as `{error: "..."}` with HTTP 500 to aid debugging if failures persist.
+
 ### 2026-03-27 — Phase 9.5: Admin Workspace Hardening
 - Invitations: resend action now uses the shared invitation email helper (extracted from `signals.py`), and create prefers the current request tenant.
 - Tenant Users: admins can remove a user (hard delete) as long as the role is not `owner`.

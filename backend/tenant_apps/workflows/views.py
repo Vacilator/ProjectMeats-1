@@ -3486,17 +3486,54 @@ class UserNotificationPreferencesView(APIView):
 
     def get(self, request):
         """Get or create notification preferences for current user."""
-        prefs, created = UserNotificationPreferences.objects.get_or_create(
-            user=request.user, defaults={"type_preferences": UserNotificationPreferences.get_defaults()}
-        )
+        tenant = getattr(request, 'tenant', None)
+        if not tenant:
+            return Response({"error": "Tenant context required"}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            # Ensure RLS session vars are set before touching tenant-aware tables.
+            from apps.tenants.rls import set_current_tenant
+
+            set_current_tenant(str(tenant.id))
+
+            defaults = {"type_preferences": UserNotificationPreferences.get_defaults()}
+
+            prefs, _created = UserNotificationPreferences.objects.get_or_create(
+                user=request.user,
+                tenant=tenant,
+                defaults=defaults,
+            )
+
+        except Exception as e:
+            logger.error(f"[NotificationPreferences] get_or_create failed: {e}", exc_info=True)
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
         serializer = UserNotificationPreferencesSerializer(prefs)
         return Response(serializer.data)
 
     def put(self, request):
         """Update notification preferences."""
-        prefs, created = UserNotificationPreferences.objects.get_or_create(
-            user=request.user, defaults={"type_preferences": UserNotificationPreferences.get_defaults()}
-        )
+        tenant = getattr(request, 'tenant', None)
+        if not tenant:
+            return Response({"error": "Tenant context required"}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            from apps.tenants.rls import set_current_tenant
+
+            set_current_tenant(str(tenant.id))
+
+            defaults = {"type_preferences": UserNotificationPreferences.get_defaults()}
+
+            prefs, _created = UserNotificationPreferences.objects.get_or_create(
+                user=request.user,
+                tenant=tenant,
+                defaults=defaults,
+            )
+
+        except Exception as e:
+            logger.error(f"[NotificationPreferences] get_or_create failed: {e}", exc_info=True)
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
         serializer = UserNotificationPreferencesSerializer(prefs, data=request.data, partial=True)
         if serializer.is_valid():
             serializer.save()

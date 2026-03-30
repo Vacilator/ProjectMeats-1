@@ -38,7 +38,7 @@ ENTITY_MODEL_REGISTRY: Dict[str, Tuple[str, str]] = {
     'location': ('locations', 'Location'),
     'contact': ('contacts', 'Contact'),
     'carrier': ('carriers', 'Carrier'),
-    'product': ('products', 'Product'),
+    'product': ('system', 'Product'),
     'inquiry': ('inquiries', 'Inquiry'),
     'fulfillment': ('fulfillments', 'Fulfillment'),
 }

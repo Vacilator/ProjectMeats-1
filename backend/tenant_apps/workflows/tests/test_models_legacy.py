@@ -645,7 +645,14 @@ class UserNotificationPreferencesModelTest(TestCase):
     def setUpTestData(cls):
         import uuid
 
+        from apps.tenants.models import Tenant
+
         unique_id = uuid.uuid4().hex[:8]
+        cls.tenant = Tenant.objects.create(
+            name=f"Prefs Tenant {unique_id}",
+            slug=f"prefs-tenant-{unique_id}",
+            contact_email=f"prefs-tenant-{unique_id}@example.com",
+        )
         cls.user = User.objects.create_user(
             username=f"prefuser_{unique_id}", email=f"prefuser_{unique_id}@example.com", password="testpass123"
         )
@@ -655,7 +662,12 @@ class UserNotificationPreferencesModelTest(TestCase):
         from ..models import UserNotificationPreferences
 
         prefs = UserNotificationPreferences.objects.create(
-            user=self.user, notifications_enabled=True, email_enabled=True, sms_enabled=False, push_enabled=True
+            tenant=self.tenant,
+            user=self.user,
+            notifications_enabled=True,
+            email_enabled=True,
+            sms_enabled=False,
+            push_enabled=True,
         )
 
         self.assertTrue(prefs.notifications_enabled)
@@ -668,7 +680,10 @@ class UserNotificationPreferencesModelTest(TestCase):
         from ..models import DeliveryChannel, UserNotificationPreferences
 
         prefs = UserNotificationPreferences.objects.create(
-            user=self.user, notifications_enabled=False, email_enabled=True
+            tenant=self.tenant,
+            user=self.user,
+            notifications_enabled=False,
+            email_enabled=True,
         )
 
         result = prefs.should_notify("task_assigned", DeliveryChannel.EMAIL)
@@ -679,7 +694,10 @@ class UserNotificationPreferencesModelTest(TestCase):
         from ..models import DeliveryChannel, UserNotificationPreferences
 
         prefs = UserNotificationPreferences.objects.create(
-            user=self.user, notifications_enabled=True, email_enabled=False
+            tenant=self.tenant,
+            user=self.user,
+            notifications_enabled=True,
+            email_enabled=False,
         )
 
         result = prefs.should_notify("task_assigned", DeliveryChannel.EMAIL)
@@ -690,6 +708,7 @@ class UserNotificationPreferencesModelTest(TestCase):
         from ..models import DeliveryChannel, UserNotificationPreferences
 
         prefs = UserNotificationPreferences.objects.create(
+            tenant=self.tenant,
             user=self.user,
             notifications_enabled=True,
             email_enabled=True,
@@ -713,12 +732,12 @@ class UserNotificationPreferencesModelTest(TestCase):
         defaults = UserNotificationPreferences.get_defaults()
 
         # Task assigned should have in_app and email
-        self.assertIn(DeliveryChannel.IN_APP, defaults[NotificationType.TASK_ASSIGNED])
-        self.assertIn(DeliveryChannel.EMAIL, defaults[NotificationType.TASK_ASSIGNED])
+        self.assertIn(DeliveryChannel.IN_APP.value, defaults[NotificationType.TASK_ASSIGNED.value])
+        self.assertIn(DeliveryChannel.EMAIL.value, defaults[NotificationType.TASK_ASSIGNED.value])
 
         # Task completed should have in_app only
-        self.assertIn(DeliveryChannel.IN_APP, defaults[NotificationType.TASK_COMPLETED])
-        self.assertNotIn(DeliveryChannel.EMAIL, defaults[NotificationType.TASK_COMPLETED])
+        self.assertIn(DeliveryChannel.IN_APP.value, defaults[NotificationType.TASK_COMPLETED.value])
+        self.assertNotIn(DeliveryChannel.EMAIL.value, defaults[NotificationType.TASK_COMPLETED.value])
 
 
 class FormSubmissionAssignedToFilterTest(TestCase):
