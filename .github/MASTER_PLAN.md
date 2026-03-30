@@ -300,6 +300,11 @@ This file is the **append-only PR-referenceable execution log**.
 - Enabled RLS on `inquiries_inquirytemplateproduct` with tenant isolation + insert policies.
 - PR: #4206.
 
+### 2026-03-30T20:59:00Z — Migrations: resolve inquiries 0007 leaf conflict
+- Added a Django merge migration (`0008_merge_...`) to resolve multiple leaf nodes in `tenant_apps.inquiries`.
+- Unblocks the CI migration sanity gate (`python manage.py makemigrations --check --dry-run`).
+- PR: #4209.
+
 ### 2026-03-30 — Phase 9.5: Billing Interface Dynamic Wiring — COMPLETE
 - Admin Billing invoice history now loads subscription invoices dynamically (no hardcoded rows).
 
