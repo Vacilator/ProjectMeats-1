@@ -566,6 +566,7 @@ class TenantUserViewSet(viewsets.ModelViewSet):
         removed_user_id = getattr(instance.user, 'id', None)
         removed_user_email = getattr(instance.user, 'email', None)
         tenant = instance.tenant
+        tenant_user_id = instance.id
 
         instance.delete()
 
@@ -576,8 +577,8 @@ class TenantUserViewSet(viewsets.ModelViewSet):
                 action='user.remove',
                 description=f"Removed user from tenant ({removed_user_email or removed_user_id or 'unknown'}).",
                 entity_type='TenantUser',
-                entity_id=None,
-                metadata={'user_id': removed_user_id, 'tenant_user_id': getattr(instance, 'id', None)},
+                entity_id=tenant_user_id,
+                metadata={'user_id': removed_user_id, 'tenant_user_id': tenant_user_id},
                 ip_address=_get_client_ip(request),
             )
         except Exception:

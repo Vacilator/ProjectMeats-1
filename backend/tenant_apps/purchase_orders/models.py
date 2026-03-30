@@ -379,10 +379,13 @@ class PurchaseOrder(OrderMethodsMixin, TenantAwareModel):
 
         We keep this at the model layer so admin/scripts are consistent with the API.
         """
-        if not self.order_number and self.tenant_id:
-            self.order_number = PurchaseOrder.generate_next_order_number(self.tenant)
+        from django.db import transaction
 
-        super().save(*args, **kwargs)
+        with transaction.atomic():
+            if not self.order_number and self.tenant_id:
+                self.order_number = PurchaseOrder.generate_next_order_number(self.tenant)
+
+            super().save(*args, **kwargs)
 
 
 class CarrierPurchaseOrder(TenantAwareModel):
