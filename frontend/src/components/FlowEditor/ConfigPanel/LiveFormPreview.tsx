@@ -80,7 +80,7 @@ const FormTitle = styled.h2`
 
 const FormDescription = styled.p`
   font-size: 14px;
-  color: #666;
+  color: rgb(var(--color-text-secondary));
   margin: 0 0 24px 0;
   line-height: 1.6;
 `;
@@ -117,7 +117,7 @@ const RequiredStar = styled.span`
 
 const HelpText = styled.span`
   font-size: 12px;
-  color: #666;
+  color: rgb(var(--color-text-secondary));
   font-weight: 400;
   display: flex;
   align-items: center;
