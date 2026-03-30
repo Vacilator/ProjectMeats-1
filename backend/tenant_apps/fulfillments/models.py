@@ -264,7 +264,12 @@ class FulfillmentProduct(models.Model):
         ordering = ['id']
 
     def __str__(self):
-        product_name = self.inquiry_product.product.description_of_product_item[:30]
+        product = self.inquiry_product.product if self.inquiry_product else None
+        product_name = (
+            getattr(product, 'name', '').strip()
+            or getattr(product, 'product_code', '').strip()
+            or 'Product'
+        )[:30]
         return f"{self.fulfillment.fulfillment_number} - {product_name}"
 
     @property

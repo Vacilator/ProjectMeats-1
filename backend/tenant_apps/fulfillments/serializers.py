@@ -10,7 +10,7 @@ class FulfillmentProductSerializer(serializers.ModelSerializer):
         source='inquiry_product.product.product_code', read_only=True
     )
     product_description = serializers.CharField(
-        source='inquiry_product.product.description_of_product_item', read_only=True
+        source='inquiry_product.product.description', read_only=True
     )
     inquiry_quantity = serializers.DecimalField(
         source='inquiry_product.quantity',
