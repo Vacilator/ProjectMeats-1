@@ -30,11 +30,12 @@ def backfill_tenant_for_stepassignment(apps, schema_editor):
             WHERE tenant_id IS NULL;
 
             IF orphan_count > 0 THEN
-                RAISE EXCEPTION
-                    'Cannot backfill tenant_id: % StepAssignment row(s) have no resolvable '
-                    'tenant (form deleted or form.tenant_id is NULL). Resolve these rows before '
-                    're-running the migration.',
-                    orphan_count;
+                RAISE EXCEPTION (
+                    'Cannot backfill tenant_id: '
+                    || orphan_count
+                    || ' StepAssignment row(s) have no resolvable tenant (form deleted or form.tenant_id is NULL). '
+                    || 'Resolve these rows before re-running the migration.'
+                );
             END IF;
         END $$;
     """)
