@@ -314,16 +314,22 @@ class Inquiry(TenantAwareModel):
         return self.supplier if self.entity_type == InquiryEntityTypeChoices.SUPPLIER else self.customer
 
 
-class InquiryProduct(models.Model):
+class InquiryProduct(TenantAwareModel):
     """
     Through table for Inquiry products with desired vs actual tracking.
-    
-    Each line tracks expected (desired) values from the inquiry and
-    confirmed (actual) values from the quote/negotiation.
+
+    This is tenant-aware (shared schema): we persist tenant_id directly for
+    consistent RLS enforcement, even though the parent Inquiry is already tenant-aware.
     """
-    
-    objects = TenantManager()
-    
+
+    # NOTE: temporarily nullable for data backfill migration.
+    tenant = models.ForeignKey(
+        'tenants.Tenant',
+        on_delete=models.CASCADE,
+        db_index=True,
+        related_name='inquiry_products',
+    )
+
     inquiry = models.ForeignKey(
         Inquiry,
         on_delete=models.CASCADE,
@@ -472,9 +478,15 @@ class InquiryProduct(models.Model):
         label = getattr(self.product, 'name', None) or getattr(self.product, 'product_code', None) or 'Product'
         return f"{self.inquiry.inquiry_number} - {str(label)[:50]}"
 
+    def save(self, *args, **kwargs):
+        # Ensure tenant is persisted for RLS isolation.
+        if getattr(self, 'tenant_id', None) is None and self.inquiry_id is not None:
+            self.tenant = self.inquiry.tenant
+        super().save(*args, **kwargs)
+
     @property
-    def tenant(self):
-        """Inherit tenant from parent inquiry."""
+    def parent_tenant(self):
+        """Tenant derived from the parent Inquiry (for legacy call sites)."""
         return self.inquiry.tenant
 
     @property
