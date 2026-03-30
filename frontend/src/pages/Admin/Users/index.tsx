@@ -349,6 +349,11 @@ const UsersPage: React.FC = () => {
         key: 'username',
         label: 'User',
         sortable: true,
+        exportValue: (_: unknown, row: TenantUser) => {
+          const name = getDisplayName(row);
+          const email = getEmail(row);
+          return email ? `${name} <${email}>` : name;
+        },
         render: (_: any, row: TenantUser) => (
           <div>
             <div style={{ fontWeight: 600 }}>{getDisplayName(row)}</div>
@@ -555,6 +560,7 @@ const UsersPage: React.FC = () => {
               data={activeUsers}
               actions={actions as any}
               loading={usersLoading}
+              csvExport={{ fileName: 'active-users.csv' }}
               emptyState={{
                 icon: '👥',
                 title: 'No users',
@@ -580,6 +586,7 @@ const UsersPage: React.FC = () => {
                 data={inactiveUsers}
                 actions={actions as any}
                 loading={usersLoading}
+                csvExport={{ fileName: 'inactive-users.csv' }}
                 emptyState={{
                   icon: '👥',
                   title: 'No inactive users',
@@ -660,6 +667,7 @@ const UsersPage: React.FC = () => {
                 actions={invitationActions as any}
                 loading={invitationsLoading}
                 selectable
+                csvExport={{ fileName: 'pending-invitations.csv' }}
                 onSelectionChange={(ids) => {
                   const next = ids.map((v) => Number(v)).filter((v) => Number.isFinite(v));
                   setSelectedInvitationIds(next);
