@@ -12,6 +12,7 @@
  * - Create from templates
  */
 import React, { useRef, useState, useEffect, useCallback } from 'react';
+import { Skeleton } from 'antd';
 import styled from 'styled-components';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { showAlert } from '@/utils/uiDialogs';
@@ -594,7 +595,9 @@ const Inquiries: React.FC = () => {
         </TableHeader>
 
         {loading ? (
-          <LoadingState>Loading inquiries...</LoadingState>
+          <LoadingState>
+            <Skeleton active paragraph={{ rows: 6 }} />
+          </LoadingState>
         ) : error ? (
           <EmptyState>
             <div className="icon">⚠️</div>

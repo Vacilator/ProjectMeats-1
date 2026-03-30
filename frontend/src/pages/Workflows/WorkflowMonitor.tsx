@@ -5,6 +5,7 @@
  * progress tracking, and filtering capabilities.
  */
 import React, { useState, useEffect } from 'react';
+import { Skeleton } from 'antd';
 import { useNavigate } from 'react-router-dom';
 import { adminClient } from '../../services/apiService';
 import { Activity, Clock, CheckCircle, XCircle, AlertCircle, ChevronRight, RefreshCw, Play, Filter } from 'lucide-react';
@@ -434,10 +435,7 @@ export const WorkflowMonitor: React.FC = () => {
       >
         <Card>
           <LoadingState>
-            <Spinner />
-            <span style={{ color: 'rgb(var(--color-text-secondary))' }}>
-              Loading workflow runs...
-            </span>
+            <Skeleton active paragraph={{ rows: 8 }} />
           </LoadingState>
         </Card>
       </PageContainer>

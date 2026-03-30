@@ -9,6 +9,7 @@
  * - Ship/Deliver/Complete actions
  */
 import React, { useState, useEffect, useCallback } from 'react';
+import { Skeleton } from 'antd';
 import styled from 'styled-components';
 import { apiClient } from '../services/apiService';
 import { FulfillmentListItem, FulfillmentStatus } from '../types';
@@ -489,7 +490,9 @@ const Fulfillments: React.FC = () => {
         </TableHeader>
 
         {loading ? (
-          <LoadingState>Loading fulfillments...</LoadingState>
+          <LoadingState>
+            <Skeleton active paragraph={{ rows: 6 }} />
+          </LoadingState>
         ) : error ? (
           <EmptyState>
             <div className="icon">⚠️</div>

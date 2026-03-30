@@ -1,4 +1,6 @@
 import React, { useState } from 'react';
+import { Skeleton } from 'antd';
+
 import { useAuth } from '../contexts/AuthContext';
 import styled from 'styled-components';
 import UserAvatar from '../components/Profile/UserAvatar';
@@ -96,7 +98,9 @@ const Profile: React.FC = () => {
   if (!user) {
     return (
       <Container>
-        <LoadingMessage>Loading profile...</LoadingMessage>
+        <div style={{ padding: 16 }}>
+          <Skeleton active paragraph={{ rows: 6 }} />
+        </div>
       </Container>
     );
   }

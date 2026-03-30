@@ -18,6 +18,8 @@
  */
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
+import { Skeleton } from 'antd';
+
 import { showAlert } from '@/utils/uiDialogs';
 import { ActivityFeed, EntityFormSurface } from '../../components/Shared';
 import { apiClient } from '../../services/apiService';
@@ -599,7 +601,9 @@ export const Claims: React.FC = () => {
           {/* Table */}
           <TableContainer>
             {loading ? (
-              <LoadingState>Loading claims...</LoadingState>
+              <div style={{ padding: 16 }}>
+                <Skeleton active paragraph={{ rows: 8 }} />
+              </div>
             ) : filteredClaims.length === 0 ? (
               <EmptyState>
                 <p>No {statusFilter !== 'all' ? statusFilter : ''} claims found.</p>

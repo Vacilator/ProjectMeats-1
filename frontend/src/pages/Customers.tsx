@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Skeleton } from 'antd';
 import { isValidEmail } from '../shared/utils';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
@@ -448,7 +449,11 @@ const Customers: React.FC = () => {
   };
 
   if (loading) {
-    return <LoadingContainer $theme={theme}>Loading customers...</LoadingContainer>;
+    return (
+      <LoadingContainer $theme={theme}>
+        <Skeleton active paragraph={{ rows: 8 }} />
+      </LoadingContainer>
+    );
   }
 
   const visibleCustomers = customers.filter((c) => {

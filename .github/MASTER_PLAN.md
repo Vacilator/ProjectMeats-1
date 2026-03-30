@@ -148,6 +148,10 @@ This file is the **append-only PR-referenceable execution log**.
 - Added `/workflows/perf-harness` (dev-only) to render a synthetic 150/500/1000-node graph in `UnifiedFlowEditor` for profiling.
 - PR: #4156.
 
+### 2026-03-30T17:44:16Z — Phase 9.5: Skeleton loaders sweep (pages)
+- Replaced ad-hoc page loading spinners/placeholder messages with consistent Ant Design `Skeleton` loaders across `frontend/src/pages/**`.
+- PR: #4157.
+
 ### 2026-03-30 — Phase 9.5: Billing Interface Dynamic Wiring — COMPLETE
 - Admin Billing invoice history now loads subscription invoices dynamically (no hardcoded rows).
 

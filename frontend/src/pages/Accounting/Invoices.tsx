@@ -14,6 +14,8 @@
  */
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
+import { Skeleton } from 'antd';
+
 import { ActivityFeed, RecordPaymentModal, PaymentHistoryList, EntityFormSurface } from '../../components/Shared';
 import { apiClient } from '../../services/apiService';
 import { formatCurrency } from '../../shared/utils';
@@ -500,7 +502,9 @@ const Invoices: React.FC = () => {
 
           <TableContainer>
             {loading ? (
-              <LoadingMessage>Loading invoices...</LoadingMessage>
+              <div style={{ padding: 16 }}>
+                <Skeleton active paragraph={{ rows: 8 }} />
+              </div>
             ) : error ? (
               <ErrorMessage>{error}</ErrorMessage>
             ) : filteredInvoices.length === 0 ? (

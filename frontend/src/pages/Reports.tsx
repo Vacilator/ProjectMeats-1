@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import styled from 'styled-components';
 import dayjs from 'dayjs';
-import { Alert, Button, DatePicker, Segmented, Spin, Tabs } from 'antd';
+import { Alert, Button, DatePicker, Segmented, Skeleton, Tabs } from 'antd';
 import type { TabsProps } from 'antd';
 
 import PurchaseOrderTrends from '../components/Visualization/PurchaseOrderTrends';
@@ -230,8 +230,7 @@ const Reports: React.FC = () => {
 
       {loading ? (
         <LoadingBlock>
-          <Spin />
-          <span>Loading reports…</span>
+          <Skeleton active paragraph={{ rows: 8 }} />
         </LoadingBlock>
       ) : (
         <Tabs defaultActiveKey="overview" items={items} />

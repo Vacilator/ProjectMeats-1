@@ -17,6 +17,7 @@
  * Updated: 2026-02-03 - Renamed from "Call Log" to "Calls"
  */
 import React, { useEffect, useRef, useState } from 'react';
+import { Skeleton } from 'antd';
 import styled from 'styled-components';
 import { Calendar, Badge, Segmented } from 'antd';
 import { confirmDialog, showAlert } from '@/utils/uiDialogs';
@@ -1236,7 +1237,9 @@ export const CallLog: React.FC = () => {
           {error && <ErrorState>{error}</ErrorState>}
 
           {loading ? (
-            <LoadingState>Loading scheduled calls...</LoadingState>
+            <LoadingState>
+              <Skeleton active paragraph={{ rows: 8 }} />
+            </LoadingState>
           ) : (
             <CalendarContainer>
               {viewMode === 'month' && (

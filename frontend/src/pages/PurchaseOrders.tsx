@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Skeleton } from 'antd';
 import { useLocation, useSearchParams } from 'react-router-dom';
 import styled from 'styled-components';
 import { confirmDialog, showAlert } from '@/utils/uiDialogs';
@@ -761,7 +762,11 @@ const PurchaseOrders: React.FC = () => {
   };
 
   if (loading) {
-    return <LoadingMessage>Loading purchase orders...</LoadingMessage>;
+    return (
+      <div style={{ padding: 16 }}>
+        <Skeleton active paragraph={{ rows: 8 }} />
+      </div>
+    );
   }
 
   return (

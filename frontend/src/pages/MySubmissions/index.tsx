@@ -4,6 +4,7 @@
  * Lists user's form submissions with status and ability to resume.
  */
 import React, { useState, useEffect, useCallback } from 'react';
+import { Skeleton } from 'antd';
 import styled from 'styled-components';
 import { confirmDialog, showAlert } from '@/utils/uiDialogs';
 import { formSubmissionService, FormSubmissionListItem } from '../../services/quickActionsService';
@@ -368,7 +369,9 @@ const MySubmissions: React.FC = () => {
       </FilterTabs>
 
       {isLoading ? (
-        <LoadingState>Loading submissions...</LoadingState>
+        <LoadingState>
+          <Skeleton active paragraph={{ rows: 8 }} />
+        </LoadingState>
       ) : error ? (
         <EmptyState>
           <EmptyIcon>⚠️</EmptyIcon>

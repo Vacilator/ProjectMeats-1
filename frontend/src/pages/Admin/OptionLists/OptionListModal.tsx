@@ -4,6 +4,7 @@
  * Modal for editing system choice list items with inline CRUD operations
  */
 import React, { useState, useEffect } from 'react';
+import { Skeleton } from 'antd';
 import styled from 'styled-components';
 import { X, Plus, Save, Trash2, ChevronUp, ChevronDown, Lock, Globe, Building } from 'lucide-react';
 import Modal from '@/components/Modal/Modal';
@@ -562,7 +563,9 @@ export const OptionListModal: React.FC<OptionListModalProps> = ({
         </Header>
 
         {loading ? (
-          <LoadingState>Loading items...</LoadingState>
+          <LoadingState>
+            <Skeleton active paragraph={{ rows: 8 }} />
+          </LoadingState>
         ) : (
           <>
             <SectionTitle>System items</SectionTitle>

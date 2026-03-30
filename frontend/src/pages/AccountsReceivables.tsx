@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
+import { Skeleton } from 'antd';
+
 import { confirmDialog, showAlert } from '@/utils/uiDialogs';
 import { apiService, Invoice } from '../services/apiService';
 
@@ -478,7 +480,11 @@ const AccountsReceivables: React.FC = () => {
       : 0;
 
   if (loading) {
-    return <LoadingMessage>Loading accounts receivables...</LoadingMessage>;
+    return (
+      <div style={{ padding: 16 }}>
+        <Skeleton active paragraph={{ rows: 8 }} />
+      </div>
+    );
   }
 
   return (

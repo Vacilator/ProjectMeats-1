@@ -15,6 +15,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useLocation, useSearchParams } from 'react-router-dom';
 import styled from 'styled-components';
+import { Skeleton } from 'antd';
+
 import { ActivityFeed, EntityFormSurface } from '../../components/Shared';
 import { apiClient } from '../../services/apiService';
 import { formatCurrency } from '../../shared/utils';
@@ -600,7 +602,9 @@ export const SalesOrdersPage: React.FC = () => {
           {/* Table */}
           <TableContainer>
             {loading ? (
-              <LoadingState>Loading sales orders...</LoadingState>
+              <LoadingState>
+                <Skeleton active paragraph={{ rows: 8 }} />
+              </LoadingState>
             ) : filteredOrders.length === 0 ? (
               <EmptyState>
                 <p>No sales orders found.</p>

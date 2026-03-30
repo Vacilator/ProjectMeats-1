@@ -2,6 +2,7 @@
  * Integration Settings Page - Connect email providers (Microsoft, Gmail, etc.)
  */
 import React, { useState, useEffect } from 'react';
+import { Skeleton } from 'antd';
 import { AlertCircle, CheckCircle, Mail, ExternalLink } from 'lucide-react';
 import { confirmDialog } from '@/utils/uiDialogs';
 import { apiClient as axios } from '../../services/apiService';
@@ -136,9 +137,8 @@ export const IntegrationSettings: React.FC = () => {
 
       {/* Loading State */}
       {loading && (
-        <div className="text-center py-12">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading integrations...</p>
+        <div style={{ padding: 16 }}>
+          <Skeleton active paragraph={{ rows: 8 }} />
         </div>
       )}
 

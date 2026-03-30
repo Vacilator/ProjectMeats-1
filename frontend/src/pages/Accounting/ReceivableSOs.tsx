@@ -14,6 +14,8 @@
  */
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
+import { Skeleton } from 'antd';
+
 import { ActivityFeed } from '../../components/Shared/ActivityFeed';
 import { RecordPaymentModal, PaymentHistoryList } from '../../components/Shared';
 import { apiClient } from '../../services/apiService';
@@ -403,7 +405,9 @@ const ReceivableSOs: React.FC = () => {
 
           <TableContainer>
             {loading ? (
-              <LoadingMessage>Loading sales orders...</LoadingMessage>
+              <div style={{ padding: 16 }}>
+                <Skeleton active paragraph={{ rows: 8 }} />
+              </div>
             ) : error ? (
               <ErrorMessage>{error}</ErrorMessage>
             ) : orders.length === 0 ? (

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Skeleton } from 'antd';
 import { isValidEmail } from '../shared/utils';
 import { logger } from '@/utils/logger';
 import { confirmDialog, showAlert } from '../utils/uiDialogs';
@@ -538,7 +539,11 @@ const Suppliers: React.FC = () => {
   };
 
   if (loading) {
-    return <LoadingContainer $theme={theme}>Loading suppliers...</LoadingContainer>;
+    return (
+      <LoadingContainer $theme={theme}>
+        <Skeleton active paragraph={{ rows: 8 }} />
+      </LoadingContainer>
+    );
   }
 
   const visibleSuppliers = suppliers.filter((s) => {

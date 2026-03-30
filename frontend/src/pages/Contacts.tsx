@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Skeleton } from 'antd';
 import styled from 'styled-components';
 import { useLocation } from 'react-router-dom';
 import { confirmDialog, showAlert } from '@/utils/uiDialogs';
@@ -523,7 +524,9 @@ const Contacts: React.FC = () => {
   if (loading) {
     return (
       <Container>
-        <LoadingMessage>Loading contacts...</LoadingMessage>
+        <div style={{ padding: 16 }}>
+          <Skeleton active paragraph={{ rows: 8 }} />
+        </div>
       </Container>
     );
   }

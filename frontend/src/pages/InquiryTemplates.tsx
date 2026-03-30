@@ -4,6 +4,7 @@
  * Manage inquiry templates for quick inquiry creation
  */
 import React, { useState, useEffect, useCallback } from 'react';
+import { Skeleton } from 'antd';
 import styled from 'styled-components';
 import { confirmDialog, showAlert } from '@/utils/uiDialogs';
 import { apiClient } from '../services/apiService';
@@ -364,7 +365,9 @@ const InquiryTemplates: React.FC = () => {
       </Header>
       
       {loading ? (
-        <LoadingState>Loading templates...</LoadingState>
+        <LoadingState>
+          <Skeleton active paragraph={{ rows: 8 }} />
+        </LoadingState>
       ) : templates.length === 0 ? (
         <EmptyState>
           <EmptyIcon>📋</EmptyIcon>

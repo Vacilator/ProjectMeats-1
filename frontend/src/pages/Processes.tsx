@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { Skeleton } from 'antd';
 import styled from 'styled-components';
 import { useTheme } from '../contexts/ThemeContext';
 import { Theme } from '../config/theme';
@@ -41,7 +42,9 @@ const Processes: React.FC = () => {
   if (loading) {
     return (
       <Container>
-        <LoadingMessage $theme={theme}>Loading processes...</LoadingMessage>
+        <div style={{ padding: 16 }}>
+          <Skeleton active paragraph={{ rows: 8 }} />
+        </div>
       </Container>
     );
   }

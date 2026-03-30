@@ -5,6 +5,7 @@
  * Displays published blueprints as cards with "Start Workflow" actions.
  */
 import React, { useState } from 'react';
+import { Skeleton } from 'antd';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { showAlert } from '@/utils/uiDialogs';
@@ -166,7 +167,7 @@ export const WorkflowList: React.FC = () => {
     >
       {isLoading && (
         <LoadingState>
-          <span>Loading workflows...</span>
+          <Skeleton active paragraph={{ rows: 8 }} />
         </LoadingState>
       )}
 

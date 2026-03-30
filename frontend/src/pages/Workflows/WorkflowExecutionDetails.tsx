@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Skeleton } from 'antd';
 import { useParams } from 'react-router-dom';
 import { adminClient } from '../../services/apiService';
 import { Clock, CheckCircle, Activity, AlertCircle, ChevronDown, ChevronRight } from 'lucide-react';
@@ -92,11 +93,8 @@ export const WorkflowExecutionDetails: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin inline-block w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full"></div>
-          <p className="mt-4 text-gray-600">Loading execution details...</p>
-        </div>
+      <div style={{ padding: 16, maxWidth: 1100, margin: '0 auto' }}>
+        <Skeleton active paragraph={{ rows: 10 }} />
       </div>
     );
   }
