@@ -282,6 +282,12 @@ This file is the **append-only PR-referenceable execution log**.
 - Enabled RLS on `inquiries_inquiryproduct` and `fulfillments_fulfillmentproduct` with tenant isolation + insert policies.
 - PR: #4200.
 
+### 2026-03-30T20:28:25Z — CI: caching/speed improvements (pip + workflow hygiene)
+- Added pip cache to the Golden Drift Gate infra check to speed up PyYAML install.
+- Removed redundant pip/node_modules cache steps from docker-only build jobs (Docker layer caching remains the primary accelerator).
+- Enabled pip caching for the `check-migrations` job dependency install.
+- PR: #4204.
+
 ### 2026-03-30T20:30:00Z — Repo hygiene: archive plans + purge superseded scripts
 - Moved `docs/plans/*.md` (except `README.md` and `V3_FINAL_PUSH_PERFECTION.md`) into `docs/plans/archive/`.
 - Deleted `*.bak` files from `.github/archived-workflows/`.
