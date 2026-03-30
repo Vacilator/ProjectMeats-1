@@ -363,6 +363,14 @@ const HeaderContainer = styled.header<{ $theme: Theme }>`
   box-shadow: 0 2px 4px ${(props) => props.$theme.colors.shadow};
   transition: all 0.3s ease;
   gap: 20px;
+
+  @media (max-width: 640px) {
+    padding: 10px 12px;
+    height: auto;
+    min-height: 60px;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
 `;
 
 const HeaderTitle = styled.h1<{ $theme: Theme }>`
@@ -371,6 +379,10 @@ const HeaderTitle = styled.h1<{ $theme: Theme }>`
   color: ${(props) => props.$theme.colors.headerText};
   margin: 0;
   white-space: nowrap;
+
+  @media (max-width: 640px) {
+    display: none;
+  }
 `;
 
 const SearchForm = styled.form`
@@ -378,6 +390,12 @@ const SearchForm = styled.form`
   max-width: 500px;
   display: flex;
   align-items: center;
+
+  @media (max-width: 640px) {
+    order: 3;
+    flex: 1 1 100%;
+    max-width: none;
+  }
 `;
 
 const SearchInputWrapper = styled.div<{ $theme: Theme }>`
@@ -421,6 +439,10 @@ const HeaderActions = styled.div`
   display: flex;
   align-items: center;
   gap: 15px;
+
+  @media (max-width: 640px) {
+    gap: 10px;
+  }
 `;
 
 const QuickMenuContainer = styled.div`

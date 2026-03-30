@@ -693,7 +693,13 @@ const SearchRow = styled.div`
   border: 1px solid rgb(var(--color-border));
   border-radius: var(--radius-lg);
   background: rgb(var(--color-surface));
-  min-width: 320px;
+  min-width: 0;
+  width: 100%;
+
+  @media (min-width: 768px) {
+    min-width: 320px;
+    width: auto;
+  }
 `;
 
 const SearchIcon = styled(Search)`

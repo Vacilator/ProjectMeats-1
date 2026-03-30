@@ -35,6 +35,11 @@ const CurrentTenantButton = styled.button<{ $theme: Theme }>`
   cursor: pointer;
   transition: all 0.2s ease;
   max-width: 200px;
+
+  @media (max-width: 640px) {
+    max-width: 140px;
+    padding: 6px 10px;
+  }
   
   &:hover {
     border-color: ${props => props.$theme.colors.primary};
@@ -70,6 +75,11 @@ const Dropdown = styled.div<{ $theme: Theme }>`
   border-radius: 8px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   z-index: 1000;
+
+  @media (max-width: 640px) {
+    min-width: 0;
+    width: 92vw;
+  }
 `;
 
 const DropdownHeader = styled.div<{ $theme: Theme }>`

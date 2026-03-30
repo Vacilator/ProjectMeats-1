@@ -21,8 +21,8 @@ import { useNotifications, Notification, NotificationType } from '../../contexts
 // ============================================================================
 
 const Panel = styled.div`
-  width: 380px;
-  max-height: 500px;
+  width: min(380px, 92vw);
+  max-height: min(500px, 70vh);
   background: rgb(var(--color-surface));
   border: 1px solid rgb(var(--color-border));
   border-radius: 12px;

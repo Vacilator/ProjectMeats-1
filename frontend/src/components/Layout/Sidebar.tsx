@@ -183,6 +183,12 @@ const SidebarContainer = styled.div<{ $isOpen: boolean; $theme: Theme; $isDarkMo
     : '2px 0 12px rgba(0, 0, 0, 0.08)'};
   will-change: width;
   overflow: hidden;
+
+  @media (max-width: 768px) {
+    width: ${(props) => (props.$isOpen ? '100%' : '0')};
+    transform: translateX(${(props) => (props.$isOpen ? '0' : '-100%')});
+    transition: width 0.3s, transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
 `;
 
 const SidebarHeader = styled.div<{ $theme: Theme; $isExpanded: boolean; $isDarkMode: boolean }>`

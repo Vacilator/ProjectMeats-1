@@ -80,6 +80,10 @@ const MainArea = styled.div<{ $sidebarOpen: boolean; $sidebarHovered: boolean }>
   flex-direction: column;
   min-height: 100vh;
   will-change: margin-left;
+
+  @media (max-width: 768px) {
+    margin-left: 0;
+  }
 `;
 
 const Content = styled.main<{ $theme: Theme }>`
