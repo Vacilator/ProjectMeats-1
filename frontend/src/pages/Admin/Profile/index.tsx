@@ -347,7 +347,8 @@ const AdminProfilePage: React.FC = () => {
 
     if (!tenant) return;
 
-    if (!isValidEmail(formData.contact_email.trim())) {
+    const contactEmail = formData.contact_email?.trim();
+    if (contactEmail && !isValidEmail(contactEmail)) {
       toast.error('Please enter a valid email address');
       return;
     }

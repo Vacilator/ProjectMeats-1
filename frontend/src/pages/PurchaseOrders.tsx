@@ -1074,7 +1074,6 @@ const PurchaseOrders: React.FC = () => {
                   name="weight_per_unit"
                   value={formData.weight_per_unit}
                   onChange={handleInputChange}
-                  required
                 />
               </FormGroup>
 
