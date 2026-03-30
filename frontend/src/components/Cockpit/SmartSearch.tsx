@@ -783,7 +783,7 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
   /**
    * Handle quick action click
    */
-  const handleQuickAction = useCallback((action: SearchEntity) => {
+  const handleQuickAction = (action: SearchEntity) => {
     const actionType = action.metadata?.action as string | undefined;
     const entityId = (action.metadata?.entityId as string | number | undefined) ?? action.id;
 
@@ -905,7 +905,7 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
       default:
         console.warn('Unhandled quick action:', actionType, 'for entity', entityId);
     }
-  }, [activeEntity, navigate, navigation.path, onOpenInlineCreate, openQuickCreate, query, searchParams, setSearchParams]);
+  };
 
   /**
    * Toggle favorite
