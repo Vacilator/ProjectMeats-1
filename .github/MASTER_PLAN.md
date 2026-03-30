@@ -262,6 +262,10 @@ This file is the **append-only PR-referenceable execution log**.
 - `frontend/src/components/Inquiry/CloneInquiryModal.tsx` now uses `businessApi` for entity/contact fetches and cloning, avoiding direct axios calls in components.
 - PR: #4191.
 
+### 2026-03-30T19:54:09Z — Frontend hygiene: replace hardcoded hex colors
+- Replaced a small set of runtime hardcoded hex colors with theme/CSS-variable tokens (QuickActions meta text, FlowEditor preview/help text, onboarding tour, and FlowEditor print styles).
+- PR: #4193.
+
 ### 2026-03-30 — Phase 9.5: Billing Interface Dynamic Wiring — COMPLETE
 - Admin Billing invoice history now loads subscription invoices dynamically (no hardcoded rows).
 
