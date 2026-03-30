@@ -133,6 +133,11 @@ This file is the **append-only PR-referenceable execution log**.
 ### 2026-03-30 — Phase 9.5: Billing Interface Dynamic Wiring — COMPLETE
 - Admin Billing invoice history now loads subscription invoices dynamically (no hardcoded rows).
 
+### 2026-03-30 — Phase 9.5: Quick Actions + Task Assignment Notifications
+- Quick Actions: activating a form now also enables it for Quick Actions (`is_quick_action_enabled=True`).
+- Notifications: when a `FormStepSubmission` transitions to `ACTION_NEEDED`, the assigned user (via `StepAssignment`) receives an in-app `UserNotification`.
+- UI: Quick Actions editor now distinguishes between "no active forms exist" vs "all active forms already added".
+
 ### 2026-03-27 — Phase 9.5: Admin Workspace Hardening
 - Invitations: resend action now uses the shared invitation email helper (extracted from `signals.py`), and create prefers the current request tenant.
 - Tenant Users: admins can remove a user (hard delete) as long as the role is not `owner`.

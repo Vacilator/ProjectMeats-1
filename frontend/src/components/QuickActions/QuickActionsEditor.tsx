@@ -160,9 +160,13 @@ const QuickActionsEditor: React.FC<QuickActionsEditorProps> = ({ isOpen, onClose
           <Section>
             <SectionTitle $theme={theme}>Available Forms</SectionTitle>
             <AvailableList $theme={theme}>
-              {availableToAdd.length === 0 ? (
+              {availableForms.length === 0 ? (
                 <EmptyMessage $theme={theme}>
-                  All available forms have been added.
+                  No active forms are available for Quick Actions yet.
+                </EmptyMessage>
+              ) : availableToAdd.length === 0 ? (
+                <EmptyMessage $theme={theme}>
+                  All active forms have been added.
                 </EmptyMessage>
               ) : (
                 availableToAdd.map((form) => (
