@@ -110,8 +110,10 @@ class CascadingFieldService:
         module_path = entity_to_app[entity_type]
         module = __import__(module_path, fromlist=[''])
         
+        from apps.core.utils.naming import snake_to_pascal
+
         # Convert snake_case to PascalCase (e.g., purchase_order -> PurchaseOrder)
-        model_name = ''.join(word.capitalize() for word in entity_type.split('_'))
+        model_name = snake_to_pascal(entity_type)
         
         if not hasattr(module, model_name):
             raise ImportError(f"Model {model_name} not found in {module_path}")
