@@ -85,6 +85,11 @@ export const navigation: NavigationItem[] = [
     path: '/suppliers',
     children: [
       {
+        label: 'New Supplier',
+        icon: '➕',
+        path: '/suppliers/new',
+      },
+      {
         label: 'Plants',
         icon: '🏢',
         path: '/suppliers/plants',
@@ -101,6 +106,11 @@ export const navigation: NavigationItem[] = [
     icon: '👥',
     path: '/customers',
     children: [
+      {
+        label: 'New Customer',
+        icon: '➕',
+        path: '/customers/new',
+      },
       {
         label: 'Locations',
         icon: '📍',

@@ -41,6 +41,7 @@ const queryClient = new QueryClient({
 // Page imports - Note: Dashboard replaced by Workspace, WorkflowList replaced by FormsFlows/Catalog
 import Suppliers from './pages/Suppliers';
 import Customers from './pages/Customers';
+import UniversalEntityRecordPage from './pages/Entities/UniversalEntityRecordPage';
 import PurchaseOrders from './pages/PurchaseOrders';
 import SalesOrders from './pages/SalesOrders';
 import AccountsReceivables from './pages/AccountsReceivables';
@@ -236,6 +237,18 @@ const App: React.FC = () => {
                 
                 {/* Suppliers & Related */}
                 <Route path="suppliers" element={<Suppliers />} />
+                <Route
+                  path="suppliers/new"
+                  element={<UniversalEntityRecordPage entityType="supplier" basePath="/suppliers" mode="create" />}
+                />
+                <Route
+                  path="suppliers/:id/edit"
+                  element={<UniversalEntityRecordPage entityType="supplier" basePath="/suppliers" mode="edit" />}
+                />
+                <Route
+                  path="suppliers/:id"
+                  element={<UniversalEntityRecordPage entityType="supplier" basePath="/suppliers" mode="view" />}
+                />
                 <Route path="suppliers/contacts" element={<Contacts />} />
                 <Route path="suppliers/plants" element={<Plants />} />
                 <Route path="suppliers/:id/products" element={<SupplierProducts />} />
@@ -243,6 +256,18 @@ const App: React.FC = () => {
                 
                 {/* Customers & Related */}
                 <Route path="customers" element={<Customers />} />
+                <Route
+                  path="customers/new"
+                  element={<UniversalEntityRecordPage entityType="customer" basePath="/customers" mode="create" />}
+                />
+                <Route
+                  path="customers/:id/edit"
+                  element={<UniversalEntityRecordPage entityType="customer" basePath="/customers" mode="edit" />}
+                />
+                <Route
+                  path="customers/:id"
+                  element={<UniversalEntityRecordPage entityType="customer" basePath="/customers" mode="view" />}
+                />
                 <Route path="customers/contacts" element={<Contacts />} />
                 <Route path="customers/locations" element={<CustomerLocations />} />
                 <Route path="customers/:id/products" element={<CustomerProducts />} />
