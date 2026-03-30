@@ -266,6 +266,11 @@ This file is the **append-only PR-referenceable execution log**.
 - Replaced a small set of runtime hardcoded hex colors with theme/CSS-variable tokens (QuickActions meta text, FlowEditor preview/help text, onboarding tour, and FlowEditor print styles).
 - PR: #4193.
 
+### 2026-03-30T19:59:51Z — Testing: fixtures + archived test ignore
+- Backend pytest fixtures now use correct `tenant_apps.*` imports for tenant model factories; added `tenant` alias fixture for consistent naming.
+- Pytest no longer attempts to collect `archived/` test suites that reference removed modules.
+- PR: #4195.
+
 ### 2026-03-30 — Phase 9.5: Billing Interface Dynamic Wiring — COMPLETE
 - Admin Billing invoice history now loads subscription invoices dynamically (no hardcoded rows).
 
