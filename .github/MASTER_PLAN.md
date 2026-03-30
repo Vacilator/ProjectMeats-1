@@ -130,6 +130,11 @@ This file is the **append-only PR-referenceable execution log**.
 - FlowEditor node schemas: `formProcessSchema` now uses `nodeType: 'formProcess'` and registers a legacy alias for `formMultiStepContainer`.
 - Entity API: `_get_entity_or_404` now resolves entity types case-insensitively and maps short-names (e.g., `Inquiry`) to canonical keys.
 
+### 2026-03-30T17:10:57Z — Phase 9.5: Universal Forms schema contract expansion (V3.0)
+- System form schema endpoint now returns per-field `relationship` metadata (`fk`/`m2m`/`choice`) and `ui` hints (`widget`, `read_only`) while preserving backward-compatible keys (`related_entity`, `choices`, `key_fields`).
+- Adds stable per-field `order` to avoid random UI rendering.
+- PR: #4153.
+
 ### 2026-03-30 — Phase 9.5: Billing Interface Dynamic Wiring — COMPLETE
 - Admin Billing invoice history now loads subscription invoices dynamically (no hardcoded rows).
 

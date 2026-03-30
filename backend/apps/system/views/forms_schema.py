@@ -26,7 +26,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework import status
 
-from apps.system.services.entity_introspection import get_entity_fields
+from apps.system.services.entity_introspection import get_entity_display_fields, get_entity_fields
 
 
 _SKIP_FIELDS = {
@@ -80,22 +80,62 @@ class SystemFormSchemaView(APIView):
             return Response({'error': f'Entity not found: {entity_type}'}, status=status.HTTP_404_NOT_FOUND)
 
         mapped_fields = []
-        for f in fields:
+        for idx, f in enumerate(fields):
             name = str(f.get('name') or '').strip()
             if not name or name in _SKIP_FIELDS:
                 continue
+
+            introspected_type = str(f.get('field_type') or 'text')
+            mapped_type = _map_field_type(introspected_type)
+
+            relationship = None
+            ui: dict[str, Any] = {'read_only': bool(f.get('read_only', False))}
+
+            field_type_raw = introspected_type.lower()
+            related_entity = f.get('related_entity')
+
+            if field_type_raw in {'foreign_key', 'many_to_many'}:
+                kind = 'fk' if field_type_raw == 'foreign_key' else 'm2m'
+                display_field = None
+                if related_entity:
+                    try:
+                        display_fields = get_entity_display_fields(str(related_entity))
+                        display_field = display_fields[0] if display_fields else None
+                    except Exception:
+                        display_field = None
+
+                relationship = {
+                    'kind': kind,
+                    'entity_type': str(related_entity or ''),
+                    'display_field': display_field,
+                }
+                ui['widget'] = 'searchable_select'
+
+            elif f.get('choices'):
+                relationship = {
+                    'kind': 'choice',
+                    'entity_type': 'choice',
+                    'display_field': None,
+                }
+                ui['widget'] = 'select'
+
+            if mapped_type in {'textarea', 'date', 'datetime', 'email'}:
+                ui.setdefault('widget', mapped_type)
 
             mapped_fields.append(
                 {
                     'key': name,
                     'label': f.get('label') or name.replace('_', ' ').title(),
-                    'type': _map_field_type(str(f.get('field_type') or 'text')),
+                    'type': mapped_type,
                     'required': bool(f.get('is_required')),
-                    'placeholder': None,
+                    'placeholder': f.get('placeholder'),
                     'help_text': f.get('help_text') or '',
-                    # Future: relationship metadata / options injection
-                    'related_entity': f.get('related_entity'),
+                    'relationship': relationship,
+                    'ui': ui,
+                    # Backward-compat for existing clients
+                    'related_entity': related_entity,
                     'choices': f.get('choices') or None,
+                    'order': idx,
                 }
             )
 
