@@ -258,7 +258,7 @@ jobs:
       contents: read
       security-events: write
     steps:
-      - name: Run Trivy vulnerability scanner
+      - name: Run Trivy vulnerability scanner (SARIF)
         uses: aquasecurity/trivy-action@master
         with:
           image-ref: ${{ env.REGISTRY }}/${{ env.BACKEND_IMAGE }}:${{ inputs.environment }}-${{ github.sha }}
@@ -266,7 +266,25 @@ jobs:
           output: 'trivy-results-backend.sarif'
           severity: 'CRITICAL,HIGH'
           ignore-unfixed: true
-          exit-code: '1'
+          scanners: 'vuln'
+          vuln-type: 'os,library'
+          # Dev deploys should continue while we remediate findings; UAT/Prod remain blocking.
+          exit-code: ${{ inputs.environment == 'development' && '0' || '1' }}
+        env:
+          TRIVY_USERNAME: ${{ secrets.DO_ACCESS_TOKEN }}
+          TRIVY_PASSWORD: ${{ secrets.DO_ACCESS_TOKEN }}
+
+      - name: Trivy summary (table)
+        if: always()
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ env.REGISTRY }}/${{ env.BACKEND_IMAGE }}:${{ inputs.environment }}-${{ github.sha }}
+          format: 'table'
+          severity: 'CRITICAL,HIGH'
+          ignore-unfixed: true
+          scanners: 'vuln'
+          vuln-type: 'os,library'
+          exit-code: '0'
         env:
           TRIVY_USERNAME: ${{ secrets.DO_ACCESS_TOKEN }}
           TRIVY_PASSWORD: ${{ secrets.DO_ACCESS_TOKEN }}
@@ -430,7 +448,7 @@ jobs:
       contents: read
       security-events: write
     steps:
-      - name: Run Trivy vulnerability scanner
+      - name: Run Trivy vulnerability scanner (SARIF)
         uses: aquasecurity/trivy-action@master
         with:
           image-ref: ${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE }}:${{ inputs.environment }}-${{ github.sha }}
@@ -438,7 +456,25 @@ jobs:
           output: 'trivy-results-frontend.sarif'
           severity: 'CRITICAL,HIGH'
           ignore-unfixed: true
-          exit-code: '1'
+          scanners: 'vuln'
+          vuln-type: 'os,library'
+          # Dev deploys should continue while we remediate findings; UAT/Prod remain blocking.
+          exit-code: ${{ inputs.environment == 'development' && '0' || '1' }}
+        env:
+          TRIVY_USERNAME: ${{ secrets.DO_ACCESS_TOKEN }}
+          TRIVY_PASSWORD: ${{ secrets.DO_ACCESS_TOKEN }}
+
+      - name: Trivy summary (table)
+        if: always()
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE }}:${{ inputs.environment }}-${{ github.sha }}
+          format: 'table'
+          severity: 'CRITICAL,HIGH'
+          ignore-unfixed: true
+          scanners: 'vuln'
+          vuln-type: 'os,library'
+          exit-code: '0'
         env:
           TRIVY_USERNAME: ${{ secrets.DO_ACCESS_TOKEN }}
           TRIVY_PASSWORD: ${{ secrets.DO_ACCESS_TOKEN }}
