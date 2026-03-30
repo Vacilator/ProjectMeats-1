@@ -1135,12 +1135,12 @@ Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
 - **Handoff Document**: `docs/HANDOFF.md`
 
 ### Phase-Specific Docs
-- Phase 1: `docs/plans/PHASE1_INTEGRATION_COMPLETE.md`
-- Phase 2: `docs/plans/PHASE2_EXECUTION_COMPLETE.md`
-- Phase 3: `docs/plans/PHASE3_DEPLOYMENT_CHECKLIST.md`
-- Phase 4: `docs/plans/PHASE4_COMPLETE_IMPLEMENTATION.md`
-- Phase 5: `docs/plans/PHASE5_IMPLEMENTATION_SUMMARY.md`
-- Phase 6: `docs/plans/PHASE6_SUMMARY.md`, `docs/plans/PHASE_6_*_COMPLETE.md`
+- Phase 1: `docs/plans/archive/PHASE1_INTEGRATION_COMPLETE.md`
+- Phase 2: `docs/plans/archive/PHASE2_EXECUTION_COMPLETE.md`
+- Phase 3: `docs/plans/archive/PHASE3_DEPLOYMENT_CHECKLIST.md`
+- Phase 4: `docs/plans/archive/PHASE4_EXECUTION_SUMMARY.md`
+- Phase 5: `docs/plans/archive/PHASE5_IMPLEMENTATION_SUMMARY.md`
+- Phase 6: `docs/plans/archive/PHASE6_SUMMARY.md`, `docs/plans/archive/PHASE_6_*_COMPLETE.md`
 
 ---
 

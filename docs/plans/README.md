@@ -8,12 +8,12 @@ This directory contains supporting long-form plans and historical context. If an
 
 ## 📌 Key Supporting Plans
 
-### **[Intelligent Workform Editor - Master Implementation Plan](./INTELLIGENT_WORKFORM_EDITOR_MASTER_PLAN.md)**
+### **[Intelligent Workform Editor - Master Implementation Plan](./archive/INTELLIGENT_WORKFORM_EDITOR_MASTER_PLAN.md)**
 **Status:** Reference deep dive (not the canonical status tracker)
 
 **Supporting Documents:**
-- [Architecture Decision Analysis](./ARCHITECTURE_DECISION_ANALYSIS.md)
-- [Phase F Schema Completion Guide](./PHASE_F_SCHEMA_COMPLETION_GUIDE.md)
+- [Architecture Decision Analysis](./archive/ARCHITECTURE_DECISION_ANALYSIS.md)
+- [Phase F Schema Completion Guide](./archive/PHASE_F_SCHEMA_COMPLETION_GUIDE.md)
 
 ---
 
