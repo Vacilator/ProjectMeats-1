@@ -687,7 +687,7 @@ export const CreateFulfillmentModal: React.FC<CreateFulfillmentModalProps> = ({
     [selectedItems]
   );
 
-  const resetForm = () => {
+  function resetForm(): void {
     resetFulfillmentFields();
 
     if (!inquiry) {
@@ -696,16 +696,16 @@ export const CreateFulfillmentModal: React.FC<CreateFulfillmentModalProps> = ({
       setSelectedInquiryId('');
       setInquiryOptions([]);
     }
-  };
+  }
 
-  const handleClose = () => {
+  function handleClose(): void {
     if (!submitting) {
       resetForm();
       onClose();
     }
-  };
+  }
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  async function handleSubmit(e: React.FormEvent): Promise<void> {
     e.preventDefault();
     setError(null);
 
@@ -759,7 +759,7 @@ export const CreateFulfillmentModal: React.FC<CreateFulfillmentModalProps> = ({
     } finally {
       setSubmitting(false);
     }
-  };
+  }
 
   if (!isOpen) return null;
 
