@@ -152,6 +152,12 @@ This file is the **append-only PR-referenceable execution log**.
 - Replaced ad-hoc page loading spinners/placeholder messages with consistent Ant Design `Skeleton` loaders across `frontend/src/pages/**`.
 - PR: #4157.
 
+### 2026-03-30T17:52:00Z — Phase 9.5: RLHF JSONL compilation (redaction + weekly schedule)
+- Added management command `compile_rlhf_data` to compile `AIFeedbackLog` rows into OpenAI chat JSONL.
+- Redaction: strips obvious PII/secrets (emails/phones/tokens) and removes tenant/document IDs from the training payload.
+- Added Celery task `ai_assistant.compile_rlhf_data` + weekly beat schedule (Sun 03:00 UTC) writing artifacts to `/tmp` (or `--out`).
+- PR: #4158.
+
 ### 2026-03-30 — Phase 9.5: Billing Interface Dynamic Wiring — COMPLETE
 - Admin Billing invoice history now loads subscription invoices dynamically (no hardcoded rows).
 
