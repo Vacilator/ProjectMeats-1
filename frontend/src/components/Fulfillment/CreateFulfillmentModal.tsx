@@ -563,6 +563,17 @@ export const CreateFulfillmentModal: React.FC<CreateFulfillmentModalProps> = ({
     void loadInquiryDetail(selectedInquiryId);
   }, [inquiry, isOpen, loadInquiryDetail, selectedInquiryId]);
 
+  const resetFulfillmentFields = useCallback(() => {
+    setShippingType('tenant');
+    setSupplierId('');
+    setCarrierId('');
+    setTrackingNumbers('');
+    setEstimatedDelivery('');
+    setNotes('');
+    setLineItems([]);
+    setError(null);
+  }, []);
+
   // Initialize line items from inquiry products
   useEffect(() => {
     if (isOpen && resolvedInquiry?.products) {
@@ -675,17 +686,6 @@ export const CreateFulfillmentModal: React.FC<CreateFulfillmentModalProps> = ({
     ),
     [selectedItems]
   );
-
-  const resetFulfillmentFields = useCallback(() => {
-    setShippingType('tenant');
-    setSupplierId('');
-    setCarrierId('');
-    setTrackingNumbers('');
-    setEstimatedDelivery('');
-    setNotes('');
-    setLineItems([]);
-    setError(null);
-  }, []);
 
   const resetForm = () => {
     resetFulfillmentFields();

@@ -15,8 +15,14 @@ import { Theme } from '../../config/theme';
 import { useTheme } from '../../contexts/ThemeContext';
 
 export interface PhoneInputProps {
-  value: string;
-  onChange: (value: string) => void;
+  /**
+   * Optional to support AntD Form.Item injecting value/onChange at runtime.
+   */
+  value?: string;
+  /**
+   * Optional to support AntD Form.Item injecting value/onChange at runtime.
+   */
+  onChange?: (value: string) => void;
   placeholder?: string;
   error?: string;
   disabled?: boolean;
@@ -40,14 +46,14 @@ export const PhoneInput: React.FC<PhoneInputProps> = ({
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     // Strip formatting and pass raw digits
     const rawValue = e.target.value.replace(/\D/g, '');
-    onChange(rawValue);
+    onChange?.(rawValue);
   };
 
   return (
     <PhoneInputContainer>
       <StyledInputMask
         mask="(999) 999-9999"
-        value={value}
+        value={value ?? ''}
         onChange={handleChange}
         disabled={disabled}
         placeholder={placeholder}

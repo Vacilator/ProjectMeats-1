@@ -278,7 +278,7 @@ export const InquiryEmbeddedView: React.FC<InquiryEmbeddedViewProps> = ({ inquir
             </Field>
             <Field $span={6}>
               <Label>Company</Label>
-              <ValueBox>{inquiry.contact_snapshot_company || inquiry.contact_company || '-'}</ValueBox>
+              <ValueBox>{inquiry.contact_snapshot_company || entityLabel || '-'}</ValueBox>
             </Field>
           </Grid>
         </Section>

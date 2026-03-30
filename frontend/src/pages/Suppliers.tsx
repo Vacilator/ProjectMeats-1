@@ -1192,6 +1192,12 @@ const Subtitle = styled.p`
   color: rgb(var(--color-text-secondary));
 `;
 
+const HelperText = styled.div<{ $theme: Theme }>`
+  margin-top: 6px;
+  font-size: 12px;
+  color: ${(props) => props.$theme.colors.textSecondary};
+`;
+
 const HeaderActions = styled.div`
   display: flex;
   gap: 10px;

@@ -300,8 +300,9 @@ export const tourOptions: Partial<Options> = {
   zIndex: 10050,
   showProgress: true,
   buttons: ['back', 'close', 'primary', 'skip'],
-  spotlightClicks: true,
-  disableOverlayClose: false,
+  // Allow clicking the highlighted target and avoid overlay clicks ending the tour.
+  blockTargetInteraction: false,
+  overlayClickAction: false,
 };
 
 export const tourStyles: PartialDeep<Styles> = {

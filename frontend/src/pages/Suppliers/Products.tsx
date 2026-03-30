@@ -12,6 +12,7 @@ import type { ColumnsType } from 'antd/es/table';
 import { SearchOutlined, PlusOutlined, DeleteOutlined, ArrowLeftOutlined } from '@ant-design/icons';
 import { apiClient } from '../../services/apiService';
 import { PROTEIN_TYPE_CHOICES } from '../../utils/constants/choices';
+import { confirmDialog } from '@/utils/uiDialogs';
 
 interface AvailableItem {
   id: number;

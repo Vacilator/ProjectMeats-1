@@ -512,7 +512,12 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
   const [results, setResults] = useState<Record<string, SearchEntity[]>>({});
   const [resultCounts, setResultCounts] = useState<Record<string, number>>({});
   const [relationalChunks, setRelationalChunks] = useState<RelationalChunk[]>([]);
-  const { toggleFavorite: toggleFavoriteMutation, isFavorited, isLoading: isFavoritesLoading } = useFavorites();
+  const {
+    favorites,
+    toggleFavorite: toggleFavoriteMutation,
+    isFavorited,
+    isLoading: isFavoritesLoading,
+  } = useFavorites();
   const [hasMigratedLegacyFavorites, setHasMigratedLegacyFavorites] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
   const [isRelationsLoading, setIsRelationsLoading] = useState(false);

@@ -33,6 +33,7 @@ import { apiClient } from '@/services/apiService';
 import { AdminGuard, AdminPage, EmptyState, LoadingSkeleton } from '@/components/Admin';
 import { useAdminPermissions } from '@/hooks/useAdminPermissions';
 import { getChoices, type ChoiceOption } from '@/services/choicesService';
+import { confirmDialog, showAlert } from '@/utils/uiDialogs';
 
 import { TenantChoiceOverride } from '@/components/Admin/TenantChoiceOverride';
 
@@ -244,11 +245,11 @@ const OptionListsPage: React.FC = () => {
   ): Promise<boolean> => {
     if (!canEditProductOverrides) {
       message.info('Only tenant administrators can edit product overrides.');
-      return;
+      return false;
     }
 
     const pid = String(productId || '').trim();
-    if (!pid) return;
+    if (!pid) return false;
 
     const existing = productPreferences[pid];
     try {
@@ -267,7 +268,7 @@ const OptionListsPage: React.FC = () => {
         const resp = await apiClient.patch(`/system/product-preferences/${existing.id}/`, payload);
         const updated = resp.data as TenantProductPreference;
         setProductPreferences((prev) => ({ ...prev, [pid]: updated }));
-        return;
+        return true;
       }
 
       const payload: Record<string, unknown> = {
@@ -285,8 +286,43 @@ const OptionListsPage: React.FC = () => {
       const resp = await apiClient.post('/system/product-preferences/', payload);
       const created = resp.data as TenantProductPreference;
       setProductPreferences((prev) => ({ ...prev, [pid]: created }));
+      return true;
     } catch (err: any) {
       message.error(err?.response?.data?.detail || err?.response?.data?.error || 'Failed to save product override');
+      return false;
+    }
+  };
+
+  const deleteProductPreference = async (productId: string): Promise<boolean> => {
+    if (!canEditProductOverrides) {
+      message.info('Only tenant administrators can edit product overrides.');
+      return false;
+    }
+
+    const pid = String(productId || '').trim();
+    if (!pid) return false;
+
+    const existing = productPreferences[pid];
+    if (!existing?.id) {
+      setProductPreferences((prev) => {
+        const next = { ...prev };
+        delete next[pid];
+        return next;
+      });
+      return true;
+    }
+
+    try {
+      await apiClient.delete(`/system/product-preferences/${existing.id}/`);
+      setProductPreferences((prev) => {
+        const next = { ...prev };
+        delete next[pid];
+        return next;
+      });
+      return true;
+    } catch (err: any) {
+      message.error(err?.response?.data?.detail || err?.response?.data?.error || 'Failed to remove product override');
+      return false;
     }
   };
 
