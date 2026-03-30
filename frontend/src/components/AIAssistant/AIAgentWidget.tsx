@@ -751,9 +751,8 @@ export const AIAgentWidget: React.FC = () => {
         form.append('file', file);
         form.append('session', sid);
 
-        const res = await businessApi.post('/ai-assistant/ai-documents/', form, {
-          headers: { 'Content-Type': 'multipart/form-data' },
-        });
+        const res = await businessApi.post('/ai-assistant/ai-documents/', form);
+
 
         const doc = (res.data && typeof res.data === 'object' ? (res.data as Record<string, unknown>) : {}) || {};
         const next: UploadedAttachment = {
