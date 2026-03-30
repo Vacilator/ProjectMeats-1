@@ -282,6 +282,12 @@ This file is the **append-only PR-referenceable execution log**.
 - Enabled RLS on `inquiries_inquiryproduct` and `fulfillments_fulfillmentproduct` with tenant isolation + insert policies.
 - PR: #4200.
 
+### 2026-03-30T20:30:00Z — Repo hygiene: archive plans + purge superseded scripts
+- Moved `docs/plans/*.md` (except `README.md` and `V3_FINAL_PUSH_PERFECTION.md`) into `docs/plans/archive/`.
+- Deleted `*.bak` files from `.github/archived-workflows/`.
+- Removed deployment bash scripts superseded by the GitHub Actions Golden Pipeline (and updated key in-repo references).
+- PR: #4202.
+
 ### 2026-03-30 — Phase 9.5: Billing Interface Dynamic Wiring — COMPLETE
 - Admin Billing invoice history now loads subscription invoices dynamically (no hardcoded rows).
 
