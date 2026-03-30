@@ -451,15 +451,16 @@ def sync_emails(request):
         )
 
     except Exception as e:
-        logger.error('Failed to sync emails for tenant %s: %s', tenant_id, str(e), exc_info=True)
+        sync_err = e
+        logger.error('Failed to sync emails for tenant %s: %s', tenant_id, str(sync_err), exc_info=True)
 
         # If this is an auth token decryption failure, always return a stable reconnect CTA.
         # This protects the UX even if downstream code paths change.
         try:
             from cryptography.fernet import InvalidToken
 
-            is_decrypt = isinstance(e, InvalidToken) or any(
-                token in str(e).lower()
+            is_decrypt = isinstance(sync_err, InvalidToken) or any(
+                token in str(sync_err).lower()
                 for token in [
                     'decrypt',
                     'invalidtoken',
@@ -467,7 +468,7 @@ def sync_emails(request):
                 ]
             )
         except Exception:
-            is_decrypt = 'decrypt' in str(e).lower()
+            is_decrypt = 'decrypt' in str(sync_err).lower()
 
         if is_decrypt:
             return Response(
@@ -490,7 +491,7 @@ def sync_emails(request):
 
         # This is a user-triggered action. Prefer a 200 + structured failure payload so the UI
         # can display actionable guidance instead of treating it as a hard outage.
-        error_detail = str(e) if getattr(settings, 'DEBUG', False) else "Email sync failed. Outlook connection may be expired or misconfigured."
+        error_detail = str(sync_err) if getattr(settings, 'DEBUG', False) else "Email sync failed. Outlook connection may be expired or misconfigured."
         return Response(
             {
                 "ok": False,

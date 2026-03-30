@@ -298,7 +298,7 @@ class ActivityLogViewSet(viewsets.ModelViewSet):
         serializer.save(tenant=self.request.tenant, created_by=self.request.user)
 
     def perform_update(self, serializer):
-        log = self.get_object()
+        log = serializer.instance
         if not self._can_edit_log(log):
             raise PermissionDenied('You do not have permission to edit this note')
         serializer.save()
