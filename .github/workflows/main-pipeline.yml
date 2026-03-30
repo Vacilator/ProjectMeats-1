@@ -31,10 +31,20 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
+
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
           python-version: '3.12'
+
+      - name: Cache pip (infra)
+        uses: actions/cache@v5
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-infra-${{ hashFiles('.github/scripts/check_infrastructure.sh', '.github/scripts/validate-workflows.sh') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-infra-
+
       - name: Run infrastructure checks
         run: bash .github/scripts/check_infrastructure.sh
 
