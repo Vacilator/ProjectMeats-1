@@ -163,6 +163,12 @@ This file is the **append-only PR-referenceable execution log**.
 - Adds runtime flag `USE_UNIVERSAL_INQUIRY_CREATE=true` to switch Inquiry create to schema-driven `UniversalEntityForm` when ready.
 - PR: #4159.
 
+### 2026-03-30T18:05:43Z — Phase 9.5: Master Products global active enforcement
+- Tenant-visible product catalogs now always respect global `system.Product.is_active`.
+- Non-staff users cannot opt into inactive products via query params; tenant preferences cannot resurrect globally inactive products.
+- Regression test added in `apps.system.tests.test_product_visibility`.
+- PR: #4160.
+
 ### 2026-03-30 — Phase 9.5: Billing Interface Dynamic Wiring — COMPLETE
 - Admin Billing invoice history now loads subscription invoices dynamically (no hardcoded rows).
 
