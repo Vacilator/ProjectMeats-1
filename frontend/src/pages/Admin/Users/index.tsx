@@ -3,7 +3,7 @@
  *
  * Tenant admin management for users, invitations, and roles.
  */
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import styled from 'styled-components';
 import { Search } from 'lucide-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -71,6 +71,9 @@ const UsersPage: React.FC = () => {
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeactivateConfirm, setShowDeactivateConfirm] = useState(false);
   const [showRemoveConfirm, setShowRemoveConfirm] = useState(false);
+  const [showBulkRevokeConfirm, setShowBulkRevokeConfirm] = useState(false);
+  const [selectedInvitationIds, setSelectedInvitationIds] = useState<number[]>([]);
+  const [invitationTableKey, setInvitationTableKey] = useState(0);
   const [selectedUser, setSelectedUser] = useState<TenantUser | null>(null);
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState<string>('user');
@@ -150,6 +153,12 @@ const UsersPage: React.FC = () => {
     () => invitations.filter((inv) => inv.status === 'pending' || !inv.status).filter(matchesInvitation),
     [invitations, normalizedQuery]
   );
+
+  useEffect(() => {
+    // Reset selection when filtering changes to avoid stale selections.
+    setSelectedInvitationIds([]);
+    setInvitationTableKey((k) => k + 1);
+  }, [normalizedQuery]);
 
   const getApiErrorMessage = (error: any): string => {
     const data = error?.response?.data;
@@ -249,6 +258,91 @@ const UsersPage: React.FC = () => {
     },
   });
 
+  const bulkResendMutation = useMutation({
+    mutationFn: async (ids: number[]) => {
+      const succeeded: number[] = [];
+      const failed: Array<{ id: number; message: string }> = [];
+
+      for (const id of ids) {
+        try {
+          await apiClient.post(`/invitations/${id}/resend/`);
+          succeeded.push(id);
+        } catch (error: any) {
+          failed.push({ id, message: getApiErrorMessage(error) });
+        }
+      }
+
+      return { succeeded, failed };
+    },
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: ['tenant-invitations'] });
+      setSelectedInvitationIds([]);
+      setInvitationTableKey((k) => k + 1);
+
+      const failures = result.failed.length;
+      const successes = result.succeeded.length;
+
+      if (successes > 0 && failures === 0) {
+        toast.success(`Resent ${successes} invitation${successes === 1 ? '' : 's'}.`);
+        return;
+      }
+
+      if (successes > 0 && failures > 0) {
+        toast.warning(`Resent ${successes}. ${failures} failed — check logs/toasts for details.`);
+        if (result.failed[0]?.message) toast.error(result.failed[0].message);
+        return;
+      }
+
+      toast.error(result.failed[0]?.message || 'Failed to resend invitations');
+    },
+    onError: (error: any) => {
+      toast.error(getApiErrorMessage(error) || 'Failed to resend invitations');
+    },
+  });
+
+  const bulkRevokeMutation = useMutation({
+    mutationFn: async (ids: number[]) => {
+      const succeeded: number[] = [];
+      const failed: Array<{ id: number; message: string }> = [];
+
+      for (const id of ids) {
+        try {
+          await apiClient.post(`/invitations/${id}/revoke/`);
+          succeeded.push(id);
+        } catch (error: any) {
+          failed.push({ id, message: getApiErrorMessage(error) });
+        }
+      }
+
+      return { succeeded, failed };
+    },
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: ['tenant-invitations'] });
+      setSelectedInvitationIds([]);
+      setInvitationTableKey((k) => k + 1);
+      setShowBulkRevokeConfirm(false);
+
+      const failures = result.failed.length;
+      const successes = result.succeeded.length;
+
+      if (successes > 0 && failures === 0) {
+        toast.success(`Revoked ${successes} invitation${successes === 1 ? '' : 's'}.`);
+        return;
+      }
+
+      if (successes > 0 && failures > 0) {
+        toast.warning(`Revoked ${successes}. ${failures} failed — check logs/toasts for details.`);
+        if (result.failed[0]?.message) toast.error(result.failed[0].message);
+        return;
+      }
+
+      toast.error(result.failed[0]?.message || 'Failed to revoke invitations');
+    },
+    onError: (error: any) => {
+      toast.error(getApiErrorMessage(error) || 'Failed to revoke invitations');
+    },
+  });
+
   const columns = useMemo(
     () => [
       {
@@ -282,6 +376,61 @@ const UsersPage: React.FC = () => {
       },
     ],
     []
+  );
+
+  const invitationColumns = useMemo(
+    () => [
+      {
+        key: 'email',
+        label: 'Email',
+        sortable: true,
+        render: (value: string) => <div style={{ fontWeight: 600 }}>{String(value || '')}</div>,
+      },
+      {
+        key: 'role',
+        label: 'Role',
+        sortable: true,
+        render: (value: string) => <RoleBadge role={value as any} />,
+      },
+      {
+        key: 'expires_at',
+        label: 'Expires',
+        sortable: true,
+        render: (value: string) => new Date(value).toLocaleDateString(),
+      },
+      {
+        key: 'created_at',
+        label: 'Sent',
+        sortable: true,
+        render: (value: string) => new Date(value).toLocaleDateString(),
+      },
+    ],
+    []
+  );
+
+  const invitationActions = useMemo(
+    () => [
+      {
+        label: 'Resend',
+        icon: '↩️',
+        onClick: (inv: Invitation) => {
+          if (!emailEnabled) {
+            toast.error('Email sending is disabled for this environment.');
+            return;
+          }
+          resendMutation.mutate(inv.id);
+        },
+        hidden: () => !permissions.can_invite_users,
+      },
+      {
+        label: 'Revoke',
+        icon: '🗑️',
+        variant: 'danger' as const,
+        onClick: (inv: Invitation) => revokeMutation.mutate(inv.id),
+        hidden: () => !permissions.can_invite_users,
+      },
+    ],
+    [emailEnabled, permissions.can_invite_users, resendMutation, revokeMutation, toast]
   );
 
   const actions = useMemo(
@@ -440,7 +589,43 @@ const UsersPage: React.FC = () => {
             </AdminSection>
           )}
 
-          <AdminSection title={`Pending Invitations (${pendingInvitations.length})`}>
+          <AdminSection
+            title={`Pending Invitations (${pendingInvitations.length})`}
+            actions={
+              pendingInvitations.length > 0 ? (
+                <BulkActions>
+                  {selectedInvitationIds.length > 0 && (
+                    <BulkSelectionLabel>{selectedInvitationIds.length} selected</BulkSelectionLabel>
+                  )}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => bulkResendMutation.mutate(selectedInvitationIds)}
+                    disabled={
+                      !emailEnabled ||
+                      selectedInvitationIds.length === 0 ||
+                      bulkResendMutation.isPending ||
+                      invitationsLoading
+                    }
+                  >
+                    Resend Selected
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowBulkRevokeConfirm(true)}
+                    disabled={
+                      selectedInvitationIds.length === 0 ||
+                      bulkRevokeMutation.isPending ||
+                      invitationsLoading
+                    }
+                  >
+                    Revoke Selected
+                  </Button>
+                </BulkActions>
+              ) : null
+            }
+          >
             {!emailEnabled && (
               <InlineWarning role="status">
                 Email sending is currently disabled for this environment. You can still create invitations, but no email
@@ -468,41 +653,33 @@ const UsersPage: React.FC = () => {
                 )}
               </EmptyInvites>
             ) : (
-              <InvitationList role="list">
-                {pendingInvitations.map((inv) => (
-                  <InvitationRow key={inv.id} role="listitem">
-                    <div>
-                      <div style={{ fontWeight: 600 }}>{inv.email}</div>
-                      <MetaRow>
-                        <RoleBadge role={inv.role as any} />
-                        <MetaText>Expires {new Date(inv.expires_at).toLocaleDateString()}</MetaText>
-                      </MetaRow>
-                    </div>
-                    <div style={{ display: 'flex', gap: 8 }}>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => resendMutation.mutate(inv.id)}
-                        disabled={!emailEnabled || resendMutation.isPending}
-                      >
-                        Resend
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => revokeMutation.mutate(inv.id)}
-                        disabled={revokeMutation.isPending}
-                      >
-                        Revoke
-                      </Button>
-                    </div>
-                  </InvitationRow>
-                ))}
-              </InvitationList>
+              <AdminTable
+                key={invitationTableKey}
+                columns={invitationColumns as any}
+                data={pendingInvitations}
+                actions={invitationActions as any}
+                loading={invitationsLoading}
+                selectable
+                onSelectionChange={(ids) => {
+                  const next = ids.map((v) => Number(v)).filter((v) => Number.isFinite(v));
+                  setSelectedInvitationIds(next);
+                }}
+              />
             )}
           </AdminSection>
         </>
       </AdminGuard>
+
+      <ConfirmDialog
+        isOpen={showBulkRevokeConfirm}
+        onClose={() => setShowBulkRevokeConfirm(false)}
+        onConfirm={() => bulkRevokeMutation.mutate(selectedInvitationIds)}
+        title="Revoke invitations"
+        message={`Revoke ${selectedInvitationIds.length} pending invitation${selectedInvitationIds.length === 1 ? '' : 's'}? This cannot be undone.`}
+        confirmText="Revoke"
+        confirmVariant="danger"
+        loading={bulkRevokeMutation.isPending}
+      />
 
       <Modal isOpen={showInviteModal} onClose={() => setShowInviteModal(false)} title="Invite User">
         {!emailEnabled && (
@@ -656,34 +833,19 @@ const EmptyInvites = styled.div`
   border-radius: var(--radius-lg);
 `;
 
-const InvitationList = styled.div`
+const BulkActions = styled.div`
   display: flex;
-  flex-direction: column;
-  gap: 12px;
-`;
-
-const InvitationRow = styled.div`
-  display: flex;
-  justify-content: space-between;
   align-items: center;
-  gap: 16px;
-  padding: 14px 16px;
-  background: rgb(var(--color-surface));
-  border: 1px solid rgb(var(--color-border));
-  border-radius: var(--radius-lg);
+  gap: 8px;
+  flex-wrap: wrap;
 `;
 
-const MetaRow = styled.div`
-  display: flex;
-  gap: 10px;
-  align-items: center;
-  margin-top: 8px;
-`;
-
-const MetaText = styled.span`
-  font-size: 12px;
+const BulkSelectionLabel = styled.span`
+  font-size: 13px;
+  font-weight: 600;
   color: rgb(var(--color-text-secondary));
 `;
+
 
 const SearchRow = styled.div`
   display: flex;
