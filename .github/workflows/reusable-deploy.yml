@@ -251,7 +251,6 @@ jobs:
     name: "Security Scan: Backend"
     needs: [build-backend]
     runs-on: ubuntu-latest
-    continue-on-error: true
     permissions:
       contents: read
       security-events: write
@@ -264,7 +263,7 @@ jobs:
           output: 'trivy-results-backend.sarif'
           severity: 'CRITICAL,HIGH'
           ignore-unfixed: true
-          exit-code: '0'
+          exit-code: '1'
         env:
           TRIVY_USERNAME: ${{ secrets.DO_ACCESS_TOKEN }}
           TRIVY_PASSWORD: ${{ secrets.DO_ACCESS_TOKEN }}
@@ -433,7 +432,6 @@ jobs:
     name: "Security Scan: Frontend"
     needs: [build-frontend]
     runs-on: ubuntu-latest
-    continue-on-error: true
     permissions:
       contents: read
       security-events: write
@@ -446,7 +444,7 @@ jobs:
           output: 'trivy-results-frontend.sarif'
           severity: 'CRITICAL,HIGH'
           ignore-unfixed: true
-          exit-code: '0'
+          exit-code: '1'
         env:
           TRIVY_USERNAME: ${{ secrets.DO_ACCESS_TOKEN }}
           TRIVY_PASSWORD: ${{ secrets.DO_ACCESS_TOKEN }}
@@ -920,7 +918,7 @@ jobs:
 
   deploy-backend:
     name: "Deploy Backend Container"
-    needs: [migrate]
+    needs: [migrate, security-scan-backend]
     runs-on: ubuntu-latest
     environment: ${{ inputs.backend_environment }}
     timeout-minutes: 15
