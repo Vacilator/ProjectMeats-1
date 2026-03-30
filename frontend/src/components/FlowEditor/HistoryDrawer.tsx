@@ -17,6 +17,7 @@
 import React, { useEffect, useState } from 'react';
 import { Drawer, Timeline, Typography, Tag, Avatar, Button, Empty, Spin, message } from 'antd';
 import { ClockCircleOutlined, UserOutlined, RollbackOutlined } from '@ant-design/icons';
+import { getErrorMessage } from '@/hooks/useToast';
 import { businessApi } from '@/services/businessApi';
 import styled from 'styled-components';
 
@@ -170,10 +171,11 @@ export const HistoryDrawer: React.FC<HistoryDrawerProps> = ({
         `/workflows/form-submissions/${submissionId}/history/`
       );
       setHistory(response.data || []);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Failed to fetch history:', err);
-      setError(err.response?.data?.message || 'Failed to load history');
-      message.error('Failed to load version history');
+      const errMsg = getErrorMessage(err, 'Failed to load history');
+      setError(errMsg);
+      message.error(errMsg);
     } finally {
       setLoading(false);
     }
