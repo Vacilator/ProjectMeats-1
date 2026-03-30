@@ -181,7 +181,7 @@ class ChatBotAPIViewSet(viewsets.ViewSet):
             # right before tool execution to avoid "0 records found" due to missing RLS session vars.
             try:
                 with connection.cursor() as cursor:
-                    cursor.execute(f"SET app.current_tenant = '{tenant_id}'")
+                    cursor.execute('SET app.current_tenant = %s', [tenant_id])
             except Exception as e:
                 logger.warning('Failed to SET app.current_tenant=%s: %s', tenant_id, str(e), exc_info=True)
                 return Response(

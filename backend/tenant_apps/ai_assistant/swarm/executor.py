@@ -676,13 +676,10 @@ class ToolExecutor:
         service = UniversalSearchService(tenant=tenant)
         results = service.search(query, limit_per_type=limit_int, entity_types=entity_types)
 
-        # UniversalSearchService returns a stable dict, but we defensively normalize the "empty" case.
+        # UniversalSearchService returns a stable dict with a flat `results` list.
         results_obj = results if isinstance(results, dict) else {'results': results}
         groups = results_obj.get('results') if isinstance(results_obj.get('results'), list) else []
-        total = 0
-        for g in groups:
-            if isinstance(g, dict) and isinstance(g.get('items'), list):
-                total += len(g.get('items') or [])
+        total = len(groups)
 
         message = None
         if total == 0:
@@ -844,7 +841,7 @@ class ToolExecutor:
             )
             data = [
                 {
-                    'bucket': (r['bucket'].date().isoformat() if r.get('bucket') else None),
+                    'bucket': (r['bucket'].isoformat() if r.get('bucket') else None),
                     'orders': int(r.get('orders') or 0),
                     'value': float(r.get('value') or 0),
                     'averageValue': float(r.get('averageValue') or 0),
