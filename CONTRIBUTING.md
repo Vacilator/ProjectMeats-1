@@ -65,6 +65,19 @@ All branches **must** follow: `<type>/<short-description>`
 
 ---
 
+## 🧷 PR-Only Policy (Mandatory)
+
+**Do not commit directly to `development`, `uat`, or `main`.**
+
+All changes must follow:
+1. Create a new branch
+2. Open a Pull Request targeting `development`
+3. Merge via PR (squash merge preferred) and delete the branch
+
+This ensures review history, CI checks, and reliable rollbacks.
+
+---
+
 ## 🧹 Branch Hygiene
 
 **Critical: feature branches must be deleted after merging.**
