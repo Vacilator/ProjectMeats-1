@@ -6311,7 +6311,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       }
     };
 
-    const isContainer = original.type === 'formProcessGroup';
+    const isContainer = isFormProcessContainerType(((original.data as any)?.nodeType as string | undefined) || original.type);
 
     const toCloneIds: string[] = [original.id];
     if (isContainer) {
@@ -6992,6 +6992,11 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
           ? (data as any).onDelete
           : () => handleNodeDelete(node.id);
 
+      const onDuplicate =
+        typeof (data as any).onDuplicate === 'function'
+          ? (data as any).onDuplicate
+          : () => duplicateNode(node.id);
+
       const onSave =
         typeof (data as any).onSave === 'function'
           ? (data as any).onSave
@@ -7038,6 +7043,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
           ...data,
           onEdit,
           onDelete,
+          onDuplicate,
           onSave,
           onTitleChange,
           onInsertAfter,
@@ -7048,7 +7054,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         },
       };
     });
-  }, [addFormStepInsideContainer, handleNodeDelete, handleNodeEdit, handleNodeTitleChange, handleSaveWorkflow, lastNodeIdSet, nodes]);
+  }, [addFormStepInsideContainer, duplicateNode, handleNodeDelete, handleNodeEdit, handleNodeTitleChange, handleSaveWorkflow, lastNodeIdSet, nodes]);
 
   // Render-time edge virtualization: when a form process group is collapsed, edges to hidden child nodes
   // are re-targeted to virtual handles on the container boundary so connectivity remains visible.
