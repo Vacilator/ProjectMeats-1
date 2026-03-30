@@ -1032,6 +1032,8 @@ class FavoritesViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         tenant = self._get_tenant()
+        if not tenant:
+            raise ValidationError({'error': 'Tenant context required'})
         serializer.save(user=self.request.user, tenant=tenant)
     
     @action(detail=False, methods=['post'])

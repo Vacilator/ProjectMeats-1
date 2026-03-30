@@ -267,13 +267,14 @@ class ActivityLogViewSet(viewsets.ModelViewSet):
 
         queryset = queryset.order_by('-is_pinned', '-created_on')
 
-        limit_raw = self.request.query_params.get('limit')
-        if limit_raw:
-            try:
-                limit = max(1, min(50, int(limit_raw)))
-                queryset = queryset[:limit]
-            except (TypeError, ValueError):
-                pass
+        if self.action == 'list':
+            limit_raw = self.request.query_params.get('limit')
+            if limit_raw:
+                try:
+                    limit = max(1, min(50, int(limit_raw)))
+                    queryset = queryset[:limit]
+                except (TypeError, ValueError):
+                    pass
 
         return queryset
 
@@ -338,13 +339,14 @@ class ScheduledCallViewSet(viewsets.ModelViewSet):
 
         queryset = queryset.order_by('-scheduled_for')
 
-        limit_raw = self.request.query_params.get('limit')
-        if limit_raw:
-            try:
-                limit = max(1, min(50, int(limit_raw)))
-                queryset = queryset[:limit]
-            except (TypeError, ValueError):
-                pass
+        if self.action == 'list':
+            limit_raw = self.request.query_params.get('limit')
+            if limit_raw:
+                try:
+                    limit = max(1, min(50, int(limit_raw)))
+                    queryset = queryset[:limit]
+                except (TypeError, ValueError):
+                    pass
 
         return queryset
     

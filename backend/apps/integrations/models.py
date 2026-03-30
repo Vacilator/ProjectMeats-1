@@ -196,8 +196,8 @@ class ExternalAuthProvider(models.Model):
                 last_err = e
                 continue
 
-        if isinstance(last_err, InvalidToken):
-            raise last_err
+        if last_err is not None:
+            raise InvalidToken() from last_err
         raise InvalidToken()
     
     def is_token_expired(self) -> bool:
