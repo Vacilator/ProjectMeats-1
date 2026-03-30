@@ -1,173 +1,203 @@
-#!/usr/bin/env python
-"""
-Verification script for staging.meatscentral.com configuration.
+#!/usr/bin/env python3
+"""verify_staging_config.py
 
-This script checks that all necessary configuration is in place for
-staging.meatscentral.com to work correctly.
+Verify staging.meatscentral.com configuration.
+
+This script is intended for one-off troubleshooting. It checks:
+- ALLOWED_HOSTS contains the configured domain
+- At least one active tenant exists
+- TenantDomain mapping exists and points to an active tenant
+- Logging config is able to emit INFO for apps.tenants.middleware
 
 Usage:
-    python verify_staging_config.py
+  python scripts/maintenance/verify_staging_config.py --help
+  python scripts/maintenance/verify_staging_config.py --domain staging.meatscentral.com
+
+Notes:
+- Requires Django settings and (for DB checks) a reachable database.
+- Safe to run: read-only.
 """
 
+from __future__ import annotations
+
+import argparse
 import os
 import sys
-
-# Add the backend directory to the Python path
-backend_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'backend')
-sys.path.insert(0, backend_dir)
-
-# Setup Django
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'projectmeats.settings.staging')
-
-import django
-django.setup()
-
-from django.conf import settings
-from apps.tenants.models import Tenant, TenantDomain
+from pathlib import Path
 
 
-def check_allowed_hosts():
-    """Check if staging.meatscentral.com is in ALLOWED_HOSTS."""
-    print("=" * 70)
-    print("1. Checking ALLOWED_HOSTS configuration...")
-    print("=" * 70)
-    
-    domain = "staging.meatscentral.com"
-    allowed_hosts = settings.ALLOWED_HOSTS
-    
-    print(f"ALLOWED_HOSTS: {allowed_hosts}")
-    
-    if domain in allowed_hosts or '*' in allowed_hosts:
-        print(f"✓ {domain} is allowed")
-        return True
-    else:
-        print(f"✗ {domain} is NOT in ALLOWED_HOSTS")
-        print(f"  Add it to STAGING_HOSTS in backend/projectmeats/settings/staging.py")
-        return False
+def _setup_django(settings_module: str) -> int:
+    repo_root = Path(__file__).resolve().parents[2]
+    backend_dir = repo_root / 'backend'
+    sys.path.insert(0, str(backend_dir))
 
+    os.environ.setdefault('DJANGO_SETTINGS_MODULE', settings_module)
 
-def check_tenant_domain():
-    """Check if TenantDomain entry exists for staging.meatscentral.com."""
-    print("\n" + "=" * 70)
-    print("2. Checking TenantDomain entry...")
-    print("=" * 70)
-    
-    domain = "staging.meatscentral.com"
-    
     try:
-        tenant_domain = TenantDomain.objects.get(domain=domain)
-        print(f"✓ TenantDomain entry exists")
-        print(f"  Domain: {tenant_domain.domain}")
-        print(f"  Tenant: {tenant_domain.tenant.slug} (ID: {tenant_domain.tenant.id})")
-        print(f"  Tenant Name: {tenant_domain.tenant.name}")
-        print(f"  Tenant Active: {tenant_domain.tenant.is_active}")
-        print(f"  Is Primary: {tenant_domain.is_primary}")
-        
-        if not tenant_domain.tenant.is_active:
-            print(f"✗ WARNING: Tenant '{tenant_domain.tenant.slug}' is INACTIVE")
-            return False
-        
+        import django
+
+        django.setup()
+    except Exception as e:
+        print(f"❌ Failed to setup Django ({settings_module}): {e}")
+        return 1
+
+    return 0
+
+
+def check_allowed_hosts(domain: str) -> bool:
+    from django.conf import settings
+
+    print('=' * 70)
+    print('1. Checking ALLOWED_HOSTS configuration...')
+    print('=' * 70)
+
+    allowed_hosts = settings.ALLOWED_HOSTS
+    print(f'ALLOWED_HOSTS: {allowed_hosts}')
+
+    if domain in allowed_hosts or '*' in allowed_hosts:
+        print(f'✓ {domain} is allowed')
         return True
-    except TenantDomain.DoesNotExist:
-        print(f"✗ No TenantDomain entry for {domain}")
-        print(f"\nTo fix this, run:")
-        print(f"  python manage.py add_tenant_domain --domain={domain} --tenant-slug=<TENANT_SLUG>")
-        print(f"\nAvailable tenants:")
-        
-        tenants = Tenant.objects.filter(is_active=True).values_list('slug', 'name')
-        for slug, name in tenants:
-            print(f"  - {slug}: {name}")
-        
+
+    print(f'✗ {domain} is NOT in ALLOWED_HOSTS')
+    print('  Add it to STAGING_HOSTS in backend/projectmeats/settings/staging.py')
+    return False
+
+
+def check_tenant_exists() -> bool:
+    from apps.tenants.models import Tenant
+
+    print('\n' + '=' * 70)
+    print('2. Checking active tenants...')
+    print('=' * 70)
+
+    try:
+        active_tenants = Tenant.objects.filter(is_active=True)
+        count = active_tenants.count()
+    except Exception as e:
+        print(f'✗ Could not query tenants (DB not reachable?): {e}')
         return False
 
+    print(f'Active tenants found: {count}')
 
-def check_tenant_exists():
-    """Check if any active tenants exist."""
-    print("\n" + "=" * 70)
-    print("3. Checking active tenants...")
-    print("=" * 70)
-    
-    active_tenants = Tenant.objects.filter(is_active=True)
-    count = active_tenants.count()
-    
-    print(f"Active tenants found: {count}")
-    
     if count == 0:
-        print("✗ No active tenants found")
-        print("  You need to create a tenant first using:")
-        print("  python manage.py create_tenant --schema-name=... --name=...")
+        print('✗ No active tenants found')
+        print('  Create a tenant first using:')
+        print('  python manage.py create_tenant --name=... --slug=...')
         return False
-    
-    print("✓ Active tenants:")
+
+    print('✓ Active tenants:')
     for tenant in active_tenants:
-        print(f"  - {tenant.slug}: {tenant.name} (ID: {tenant.id})")
-    
+        print(f'  - {tenant.slug}: {tenant.name} (ID: {tenant.id})')
+
     return True
 
 
-def check_logging_config():
-    """Check if logging is configured to capture debug messages."""
-    print("\n" + "=" * 70)
-    print("4. Checking logging configuration...")
-    print("=" * 70)
-    
-    import logging
-    
-    # Get the logger used by the middleware
-    logger = logging.getLogger('apps.tenants.middleware')
-    
-    print(f"Logger level: {logging.getLevelName(logger.level)}")
-    print(f"Effective level: {logging.getLevelName(logger.getEffectiveLevel())}")
-    
-    if logger.isEnabledFor(logging.INFO):
-        print("✓ INFO logging is enabled (debug logs will be visible)")
-        return True
-    else:
-        print("✗ INFO logging is disabled (debug logs will NOT be visible)")
-        print("  Update LOGGING configuration in settings to enable INFO level")
+def check_tenant_domain(domain: str) -> bool:
+    from apps.tenants.models import Tenant, TenantDomain
+
+    print('\n' + '=' * 70)
+    print('3. Checking TenantDomain entry...')
+    print('=' * 70)
+
+    try:
+        tenant_domain = TenantDomain.objects.select_related('tenant').get(domain=domain)
+    except TenantDomain.DoesNotExist:
+        print(f'✗ No TenantDomain entry for {domain}')
+        print('\nTo fix this, run:')
+        print(f'  python manage.py add_tenant_domain --domain={domain} --tenant-slug=<TENANT_SLUG>')
+        print('\nAvailable active tenants:')
+        for slug, name in Tenant.objects.filter(is_active=True).values_list('slug', 'name'):
+            print(f'  - {slug}: {name}')
+        return False
+    except Exception as e:
+        print(f'✗ Could not query TenantDomain (DB not reachable?): {e}')
         return False
 
+    print('✓ TenantDomain entry exists')
+    print(f'  Domain: {tenant_domain.domain}')
+    print(f'  Tenant: {tenant_domain.tenant.slug} (ID: {tenant_domain.tenant.id})')
+    print(f'  Tenant Name: {tenant_domain.tenant.name}')
+    print(f'  Tenant Active: {tenant_domain.tenant.is_active}')
+    print(f'  Is Primary: {tenant_domain.is_primary}')
 
-def main():
-    """Run all verification checks."""
-    print("\n" + "=" * 70)
-    print("STAGING.MEATSCENTRAL.COM CONFIGURATION VERIFICATION")
-    print("=" * 70)
-    print()
-    
+    if not tenant_domain.tenant.is_active:
+        print(f"✗ WARNING: Tenant '{tenant_domain.tenant.slug}' is INACTIVE")
+        return False
+
+    return True
+
+
+def check_logging_config() -> bool:
+    print('\n' + '=' * 70)
+    print('4. Checking logging configuration...')
+    print('=' * 70)
+
+    import logging
+
+    logger = logging.getLogger('apps.tenants.middleware')
+
+    print(f'Logger level: {logging.getLevelName(logger.level)}')
+    print(f'Effective level: {logging.getLevelName(logger.getEffectiveLevel())}')
+
+    if logger.isEnabledFor(logging.INFO):
+        print('✓ INFO logging is enabled (debug logs will be visible)')
+        return True
+
+    print('✗ INFO logging is disabled (debug logs will NOT be visible)')
+    print('  Update LOGGING configuration in settings to enable INFO level')
+    return False
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description='Verify staging domain configuration (Django).')
+    parser.add_argument(
+        '--settings',
+        default='projectmeats.settings.staging',
+        help='DJANGO_SETTINGS_MODULE to use (default: projectmeats.settings.staging)',
+    )
+    parser.add_argument(
+        '--domain',
+        default='staging.meatscentral.com',
+        help='Domain to verify (default: staging.meatscentral.com)',
+    )
+
+    args = parser.parse_args()
+
+    setup_rc = _setup_django(args.settings)
+    if setup_rc != 0:
+        return setup_rc
+
+    print('\n' + '=' * 70)
+    print('STAGING CONFIGURATION VERIFICATION')
+    print('=' * 70)
+
     results = {
-        'ALLOWED_HOSTS': check_allowed_hosts(),
+        'ALLOWED_HOSTS': check_allowed_hosts(args.domain),
         'Active Tenants': check_tenant_exists(),
-        'TenantDomain': check_tenant_domain(),
+        'TenantDomain': check_tenant_domain(args.domain),
         'Logging': check_logging_config(),
     }
-    
-    print("\n" + "=" * 70)
-    print("SUMMARY")
-    print("=" * 70)
-    
+
+    print('\n' + '=' * 70)
+    print('SUMMARY')
+    print('=' * 70)
+
     all_passed = True
     for check, passed in results.items():
-        status = "✓ PASS" if passed else "✗ FAIL"
-        print(f"{status}: {check}")
+        status = '✓ PASS' if passed else '✗ FAIL'
+        print(f'{status}: {check}')
         if not passed:
             all_passed = False
-    
-    print("=" * 70)
-    
+
+    print('=' * 70)
+
     if all_passed:
-        print("\n✓ All checks passed! staging.meatscentral.com should work correctly.")
+        print('\n✓ All checks passed!')
         return 0
-    else:
-        print("\n✗ Some checks failed. Please fix the issues above.")
-        return 1
+
+    print('\n✗ Some checks failed. Please fix the issues above.')
+    return 1
 
 
 if __name__ == '__main__':
-    try:
-        sys.exit(main())
-    except Exception as e:
-        print(f"\n✗ Error running verification: {e}")
-        import traceback
-        traceback.print_exc()
-        sys.exit(1)
+    sys.exit(main())
