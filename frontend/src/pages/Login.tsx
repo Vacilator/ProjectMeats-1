@@ -85,6 +85,7 @@ const Login: React.FC = () => {
               value={credentials.username}
               onChange={handleInputChange}
               placeholder="Enter your username"
+              autoComplete="username"
               disabled={loading}
               required
             />
