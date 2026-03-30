@@ -236,6 +236,12 @@ This file is the **append-only PR-referenceable execution log**.
 - Smart Auto-Map suggestion application now stages a partial `{fieldMappings}` patch into shadow config so `isDirty` flips true and the “Apply Changes” CTA appears.
 - PR: #4182.
 
+### 2026-03-30T19:40:05Z — Phase 9.5: FlowEditor canonical node titles + inline edit
+- Consolidated node title editing to canonical `data.title` for core Workforms node schemas (with legacy keys mapped in node normalization).
+- BaseNode/FormNode/FormProcessNode now display title fallback (including entityType formatting) and support double-click inline editing.
+- Title updates now keep `label` and key legacy fields in sync for backward compatibility.
+- PR: #4184.
+
 ### 2026-03-30 — Phase 9.5: Billing Interface Dynamic Wiring — COMPLETE
 - Admin Billing invoice history now loads subscription invoices dynamically (no hardcoded rows).
 
