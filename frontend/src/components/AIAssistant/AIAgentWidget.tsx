@@ -779,8 +779,33 @@ export const AIAgentWidget: React.FC = () => {
     } catch (e: unknown) {
       const errObj = e && typeof e === 'object' ? (e as Record<string, unknown>) : null;
       const response = errObj?.response && typeof errObj.response === 'object' ? (errObj.response as Record<string, unknown>) : null;
-      const data = response?.data && typeof response.data === 'object' ? (response.data as Record<string, unknown>) : null;
-      const serverError = typeof data?.error === 'string' ? data.error : null;
+      const data = response?.data as unknown;
+
+      const formatSerializerErrors = (obj: Record<string, unknown>): string | null => {
+        const parts: string[] = [];
+        for (const [key, value] of Object.entries(obj)) {
+          if (typeof value === 'string') {
+            parts.push(`${key}: ${value}`);
+            continue;
+          }
+          if (Array.isArray(value) && value.length > 0) {
+            const first = value[0];
+            if (typeof first === 'string') parts.push(`${key}: ${first}`);
+          }
+        }
+        return parts.length ? parts.join(' • ') : null;
+      };
+
+      let serverError: string | null = null;
+      if (typeof data === 'string') {
+        serverError = data;
+      } else if (data && typeof data === 'object') {
+        const obj = data as Record<string, unknown>;
+        if (typeof obj.error === 'string') serverError = obj.error;
+        else if (typeof obj.detail === 'string') serverError = obj.detail;
+        else serverError = formatSerializerErrors(obj);
+      }
+
       toast.error(serverError || 'Failed to upload attachment(s)');
     } finally {
       setUploadingAttachments((n) => Math.max(0, n - accepted.length));
