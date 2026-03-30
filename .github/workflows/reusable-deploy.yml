@@ -146,10 +146,20 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
+
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
           python-version: '3.12'
+
+      - name: Cache pip (infra)
+        uses: actions/cache@v5
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-infra-${{ hashFiles('.github/scripts/check_infrastructure.sh', '.github/scripts/validate-workflows.sh') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-infra-
+
       - name: Run infrastructure checks
         run: bash .github/scripts/check_infrastructure.sh
 
@@ -206,13 +216,6 @@ jobs:
             echo "✓ Disk usage under 80%, skipping cleanup for faster run"
           fi
 
-      - name: Setup Python cache
-        uses: actions/cache@v5
-        with:
-          path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ hashFiles('backend/requirements.txt') }}
-          restore-keys: |
-            ${{ runner.os }}-pip-
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
@@ -385,15 +388,6 @@ jobs:
             echo "✓ Disk usage under 80%, skipping cleanup for faster run"
           fi
 
-      - name: Setup Node.js cache
-        uses: actions/cache@v5
-        with:
-          path: |
-            frontend/node_modules
-            ~/.npm
-          key: ${{ runner.os }}-node-${{ hashFiles('frontend/package-lock.json') }}
-          restore-keys: |
-            ${{ runner.os }}-node-
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
@@ -488,10 +482,13 @@ jobs:
         uses: actions/setup-python@v6
         with:
           python-version: '3.12'
+          cache: 'pip'
+          cache-dependency-path: 'backend/requirements.txt'
       
       - name: Install dependencies
         working-directory: ./backend
         run: |
+          pip install --upgrade pip
           pip install -r requirements.txt
       
       - name: Check for unapplied migrations
