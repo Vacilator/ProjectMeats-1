@@ -123,7 +123,7 @@ Currently, migrations run via SSH on deployment servers because GitHub Actions r
   - Apply principle of least privilege
   - Remove unused secrets
 
-- [ ] **Container image scanning**
+- [x] **Container image scanning** (Deployment gate via Trivy; PR #4189)
   ```yaml
   - name: Scan for vulnerabilities
     uses: aquasecurity/trivy-action@master

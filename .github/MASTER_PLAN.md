@@ -253,6 +253,11 @@ This file is the **append-only PR-referenceable execution log**.
 - Preserves: PAT-based PR creation, “skip if no commits”, and “skip if PR already open” behavior.
 - PR: #4187.
 
+### 2026-03-30T19:46:39Z — CI: gate deployments on Trivy (HIGH/CRITICAL)
+- Trivy image scans for backend/frontend are now *blocking* (fail the pipeline if HIGH/CRITICAL vulnerabilities are detected; `ignore-unfixed` remains enabled).
+- Backend deploy is now gated on `security-scan-backend`.
+- PR: #4189.
+
 ### 2026-03-30 — Phase 9.5: Billing Interface Dynamic Wiring — COMPLETE
 - Admin Billing invoice history now loads subscription invoices dynamically (no hardcoded rows).
 
