@@ -195,6 +195,11 @@ This file is the **append-only PR-referenceable execution log**.
 - Login username input now sets `autoComplete="username"` to satisfy browser autocomplete best practices.
 - PR: #4168.
 
+### 2026-03-30T18:52:38Z — Phase 9.5: Action Items API optimization
+- Eliminates N+1 DB queries in Action Items list + counts by bulk-fetching step submissions for assigned steps.
+- Preserves strict tenant isolation (`tenant=...` and `submission__tenant=...`).
+- PR: #4170.
+
 ### 2026-03-30 — Phase 9.5: Billing Interface Dynamic Wiring — COMPLETE
 - Admin Billing invoice history now loads subscription invoices dynamically (no hardcoded rows).
 
