@@ -4,6 +4,7 @@ const require = createRequire(import.meta.url);
 
 const tsPlugin = require('@typescript-eslint/eslint-plugin');
 const tsParser = require('@typescript-eslint/parser');
+const reactPlugin = require('eslint-plugin-react');
 const reactHooksPlugin = require('eslint-plugin-react-hooks');
 
 const browserGlobals = {
@@ -45,8 +46,35 @@ export default [
     },
     plugins: {
       '@typescript-eslint': tsPlugin,
+      react: reactPlugin,
       'react-hooks': reactHooksPlugin,
     },
-    rules: {},
+    settings: {
+      react: { version: 'detect' },
+    },
+    rules: {
+      // React hooks correctness (warn-only to avoid breaking current baseline)
+      'react-hooks/rules-of-hooks': 'warn',
+      'react-hooks/exhaustive-deps': 'warn',
+
+      // Prefer TS-aware unused-vars
+      'no-unused-vars': 'off',
+      '@typescript-eslint/no-unused-vars': [
+        'warn',
+        {
+          argsIgnorePattern: '^_',
+          varsIgnorePattern: '^_',
+          caughtErrorsIgnorePattern: '^_',
+          ignoreRestSiblings: true,
+        },
+      ],
+
+      // Keep console noise down without blocking builds
+      'no-console': ['warn', { allow: ['warn', 'error'] }],
+
+      // Baseline React linting (non-blocking)
+      'react/jsx-no-useless-fragment': 'warn',
+      'react/self-closing-comp': 'warn',
+    },
   },
 ];
