@@ -158,6 +158,11 @@ This file is the **append-only PR-referenceable execution log**.
 - Added Celery task `ai_assistant.compile_rlhf_data` + weekly beat schedule (Sun 03:00 UTC) writing artifacts to `/tmp` (or `--out`).
 - PR: #4158.
 
+### 2026-03-30T17:58:00Z — Phase 9.5: Great Deletion — Inquiry create consolidation
+- Inquiries page + Cockpit SmartSearch + Customer Detail now route Inquiry create through `EntityFormSurface` (single consolidation point).
+- Adds runtime flag `USE_UNIVERSAL_INQUIRY_CREATE=true` to switch Inquiry create to schema-driven `UniversalEntityForm` when ready.
+- PR: #4159.
+
 ### 2026-03-30 — Phase 9.5: Billing Interface Dynamic Wiring — COMPLETE
 - Admin Billing invoice history now loads subscription invoices dynamically (no hardcoded rows).
 

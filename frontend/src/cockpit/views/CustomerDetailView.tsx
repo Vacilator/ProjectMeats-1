@@ -1,7 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import styled from 'styled-components';
 
-import { InquiryCreateModal } from '@/components/Inquiry';
 import { EntityFormSurface, ScheduleCallModal } from '@/components/Shared';
 import { InquiryCallModal } from '@/components/Calls/InquiryCallModal';
 import { useNavigate } from 'react-router-dom';
@@ -630,16 +629,20 @@ export const CustomerDetailView: React.FC<CustomerDetailViewProps> = ({
 
   return (
     <Page>
-      <InquiryCreateModal
+      <EntityFormSurface
+        entityType="inquiry"
+        mode="create"
         isOpen={isInquiryCreateOpen}
         onClose={() => setIsInquiryCreateOpen(false)}
+        context={{
+          customerId: canonicalType === 'customer' ? entityId : undefined,
+          supplierId: canonicalType === 'supplier' ? entityId : undefined,
+        }}
         onSuccess={() => {
           void countsQuery.refetch();
           void tabItemsQuery.refetch();
           setIsInquiryCreateOpen(false);
         }}
-        initialEntityType={canonicalType ?? undefined}
-        initialEntityId={entityId}
       />
 
       {canonicalType === 'customer' && (

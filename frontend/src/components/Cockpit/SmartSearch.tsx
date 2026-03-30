@@ -33,7 +33,6 @@ import { useCockpitNavigation } from '../../contexts/CockpitNavigationContext';
 
 import { EntityFormSurface } from '../Shared/EntityFormSurface';
 import { ScheduleCallModal } from '../Shared/ScheduleCallModal';
-import { InquiryCreateModal } from '../Inquiry/InquiryCreateModal';
 import { InquiryEmbeddedView } from '../Inquiry/InquiryEmbeddedView';
 import { EntityProfileHeader } from './EntityProfileHeader';
 import { type Inquiry } from '@/types';
@@ -1735,9 +1734,15 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
         {quickCreateConfig.isOpen && (
           <div style={{ marginTop: 12 }}>
             {String(quickCreateConfig.type).toLowerCase() === 'inquiry' ? (
-              <InquiryCreateModal
+              <EntityFormSurface
+                entityType="inquiry"
+                mode="create"
                 isOpen={true}
                 onClose={closeQuickCreate}
+                context={{
+                  customerId: quickCreateConfig.context?.customer || quickCreateConfig.context?.customer_id,
+                  supplierId: quickCreateConfig.context?.supplier || quickCreateConfig.context?.supplier_id,
+                }}
                 onSuccess={() => {
                   if (activeEntity) {
                     if (activeRelationTab !== 'more') {
@@ -1747,19 +1752,6 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
                   }
                   closeQuickCreate();
                 }}
-                initialEntityType={
-                  quickCreateConfig.context?.customer || quickCreateConfig.context?.customer_id
-                    ? 'customer'
-                    : quickCreateConfig.context?.supplier || quickCreateConfig.context?.supplier_id
-                      ? 'supplier'
-                      : undefined
-                }
-                initialEntityId={
-                  quickCreateConfig.context?.customer ||
-                  quickCreateConfig.context?.customer_id ||
-                  quickCreateConfig.context?.supplier ||
-                  quickCreateConfig.context?.supplier_id
-                }
               />
             ) : (
               <EntityFormSurface
@@ -1833,9 +1825,15 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
         {inlineAction && activeEntity && (
           <div style={{ marginTop: 12 }}>
             {String(inlineAction.entityType).toLowerCase() === 'inquiry' ? (
-              <InquiryCreateModal
+              <EntityFormSurface
+                entityType="inquiry"
+                mode="create"
                 isOpen={true}
                 onClose={() => onInlineCancel?.()}
+                context={{
+                  customerId: inlineAction.contextData?.customer || inlineAction.contextData?.customer_id,
+                  supplierId: inlineAction.contextData?.supplier || inlineAction.contextData?.supplier_id,
+                }}
                 onSuccess={() => {
                   if (activeEntity) {
                     if (activeRelationTab !== 'more') {
@@ -1845,19 +1843,6 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
                   }
                   onInlineSuccess?.();
                 }}
-                initialEntityType={
-                  inlineAction.contextData?.customer || inlineAction.contextData?.customer_id
-                    ? 'customer'
-                    : inlineAction.contextData?.supplier || inlineAction.contextData?.supplier_id
-                      ? 'supplier'
-                      : undefined
-                }
-                initialEntityId={
-                  inlineAction.contextData?.customer ||
-                  inlineAction.contextData?.customer_id ||
-                  inlineAction.contextData?.supplier ||
-                  inlineAction.contextData?.supplier_id
-                }
               />
             ) : (
               <EntityFormSurface

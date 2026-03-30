@@ -13,6 +13,8 @@
 
 import React, { useMemo } from 'react';
 
+import { getRuntimeConfigBoolean } from '@/config/runtime';
+
 import UniversalEntityForm from './UniversalEntityForm';
 import { InquiryCreateModal } from '../Inquiry/InquiryCreateModal';
 
@@ -77,8 +79,10 @@ export const EntityFormSurface: React.FC<EntityFormSurfaceProps> = ({
 }) => {
   const normalized = useMemo(() => normalizeEntityType(entityType), [entityType]);
 
-  // Enhanced form: Inquiry (create).
-  if (normalized === 'inquiry' && mode === 'create') {
+  const useUniversalInquiryCreate = getRuntimeConfigBoolean('USE_UNIVERSAL_INQUIRY_CREATE', false);
+
+  // Enhanced form: Inquiry (create) — can be swapped to UniversalEntityForm via runtime flag.
+  if (normalized === 'inquiry' && mode === 'create' && !useUniversalInquiryCreate) {
     const initialEntityType = context?.customerId
       ? 'customer'
       : context?.supplierId
