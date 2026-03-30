@@ -248,6 +248,11 @@ This file is the **append-only PR-referenceable execution log**.
 - Verified frontend uses multi-stage build (Node 20 Alpine → Nginx Alpine).
 - No code changes required; parity is already aligned.
 
+### 2026-03-30T19:44:19Z — CI: auto-promotion workflow consolidation
+- Consolidated duplicate auto-promotion workflows (dev→uat and uat→main) into a single workflow with branch-based routing.
+- Preserves: PAT-based PR creation, “skip if no commits”, and “skip if PR already open” behavior.
+- PR: #4187.
+
 ### 2026-03-30 — Phase 9.5: Billing Interface Dynamic Wiring — COMPLETE
 - Admin Billing invoice history now loads subscription invoices dynamically (no hardcoded rows).
 
