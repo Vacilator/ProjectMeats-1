@@ -2453,27 +2453,62 @@ class FormSubmissionViewSet(viewsets.ModelViewSet):
 
 
 class AvailableFormsViewSet(viewsets.ReadOnlyModelViewSet):
-    """
-    ViewSet for listing forms available for Quick Actions.
+    """List Quick Actions targets.
 
-    Only returns forms that are:
-    - Active or Draft (status in [active, draft])
-    - Belonging to the user's tenant (or all tenants for superusers)
+    Returns a unified list including:
+    - TenantForm (data capture forms)
+    - TenantWorkForm (workflow graphs from the WorkForms editor)
+
+    Both are filtered to status in (active, draft).
     """
 
     permission_classes = [IsAuthenticated]
     serializer_class = AvailableFormSerializer
 
     def get_queryset(self):
-        # Base query - active or draft forms (Quick Actions supports pinning draft/saved workform processes)
+        # TenantForms: active or draft
         queryset = TenantForm.objects.filter(status__in=[FormStatus.ACTIVE, FormStatus.DRAFT])
 
-        # For superusers, show all available forms
-        # For regular users, filter by their tenant
         if not self.request.user.is_superuser:
             queryset = queryset.filter(tenant=self.request.tenant)
 
-        return queryset.prefetch_related("entities").order_by("name")
+        return queryset.prefetch_related('entities').order_by('name')
+
+    def list(self, request, *args, **kwargs):
+        from apps.system.models.tenant_workform import TenantWorkForm, WorkFormStatusChoices
+
+        forms_qs = self.filter_queryset(self.get_queryset())
+        forms_data = AvailableFormSerializer(forms_qs, many=True).data
+        for row in forms_data:
+            row['type'] = 'form'
+            row['node_count'] = None
+
+        workforms_qs = TenantWorkForm.objects.filter(
+            status__in=[WorkFormStatusChoices.ACTIVE, WorkFormStatusChoices.DRAFT]
+        ).order_by('name')
+        if not request.user.is_superuser:
+            workforms_qs = workforms_qs.filter(tenant=request.tenant)
+
+        workforms_data = []
+        for wf in workforms_qs:
+            workforms_data.append(
+                {
+                    'id': str(wf.id),
+                    'type': 'workflow',
+                    'name': wf.name,
+                    'description': wf.description or '',
+                    'icon': 'layers',
+                    'status': wf.status,
+                    'is_default': False,
+                    'is_quick_action_enabled': True,
+                    'step_count': 0,
+                    'node_count': wf.get_node_count(),
+                }
+            )
+
+        combined = list(forms_data) + workforms_data
+        combined.sort(key=lambda r: str(r.get('name') or '').lower())
+        return Response(combined)
 
 
 class QuickActionsAPIView(APIView):
@@ -2513,25 +2548,22 @@ class QuickActionsAPIView(APIView):
 
             items = serializer.validated_data["items"]
 
-            # Validate that referenced forms exist and are available
+            # Validate that referenced targets exist and are available
+            from apps.system.models.tenant_workform import TenantWorkForm
+
             for item in items:
                 if item["type"] == "form" and item.get("form_id"):
-                    # First try to find form for current tenant
                     form = TenantForm.objects.filter(
                         id=item["form_id"],
                         tenant=request.tenant,
                     ).first()
 
-                    # If not found and user is superuser, try to find form in any tenant
                     if not form and request.user.is_superuser:
-                        form = TenantForm.objects.filter(
-                            id=item["form_id"],
-                        ).first()
+                        form = TenantForm.objects.filter(id=item["form_id"]).first()
                         if form:
                             logger.info(f"Superuser accessing form {item['form_id']} from tenant {form.tenant}")
 
                     if not form:
-                        # Check if form exists at all (to give better error message)
                         any_form = TenantForm.objects.filter(id=item["form_id"]).first()
                         if any_form:
                             logger.warning(
@@ -2542,11 +2574,42 @@ class QuickActionsAPIView(APIView):
                                 {"error": f'Form "{any_form.name}" belongs to a different tenant'},
                                 status=status.HTTP_400_BAD_REQUEST,
                             )
-                        else:
-                            logger.warning(f"Form {item['form_id']} does not exist in any tenant")
-                            return Response(
-                                {"error": f'Form {item["form_id"]} not found'}, status=status.HTTP_400_BAD_REQUEST
+
+                        logger.warning(f"Form {item['form_id']} does not exist in any tenant")
+                        return Response(
+                            {"error": f'Form {item["form_id"]} not found'}, status=status.HTTP_400_BAD_REQUEST
+                        )
+
+                if item["type"] == "workflow" and item.get("workflow_id"):
+                    wf = TenantWorkForm.objects.filter(
+                        id=item["workflow_id"],
+                        tenant=request.tenant,
+                    ).first()
+
+                    if not wf and request.user.is_superuser:
+                        wf = TenantWorkForm.objects.filter(id=item["workflow_id"]).first()
+                        if wf:
+                            logger.info(
+                                f"Superuser accessing workform {item['workflow_id']} from tenant {wf.tenant_id}"
                             )
+
+                    if not wf:
+                        any_wf = TenantWorkForm.objects.filter(id=item["workflow_id"]).first()
+                        if any_wf:
+                            logger.warning(
+                                f"WorkForm {item['workflow_id']} exists in tenant {any_wf.tenant_id} "
+                                f"but user's tenant is {request.tenant}"
+                            )
+                            return Response(
+                                {"error": 'WorkForm belongs to a different tenant'},
+                                status=status.HTTP_400_BAD_REQUEST,
+                            )
+
+                        logger.warning(f"WorkForm {item['workflow_id']} does not exist in any tenant")
+                        return Response(
+                            {"error": f'WorkForm {item["workflow_id"]} not found'},
+                            status=status.HTTP_400_BAD_REQUEST,
+                        )
 
 
             # Update preferences
