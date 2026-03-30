@@ -910,6 +910,7 @@ class EntityViewSet(viewsets.ViewSet):
         meta['modified_on'] = getattr(inquiry, 'modified_on', None)
 
         # Product summary (up to 4 items)
+        preview_limit = 4
         product_summary = []
         more_count = 0
         try:
@@ -917,7 +918,7 @@ class EntityViewSet(viewsets.ViewSet):
             if rel is not None:
                 qs = rel.select_related('product').order_by('created_on')
                 total = qs.count()
-                for row in qs[:4]:
+                for row in qs[:preview_limit]:
                     product = getattr(row, 'product', None)
                     label = (
                         getattr(product, 'product_code', None)
@@ -926,7 +927,7 @@ class EntityViewSet(viewsets.ViewSet):
                     )
                     if label:
                         product_summary.append(str(label))
-                more_count = max(0, total - len(product_summary))
+                more_count = max(0, total - preview_limit)
         except Exception:
             product_summary = []
             more_count = 0
