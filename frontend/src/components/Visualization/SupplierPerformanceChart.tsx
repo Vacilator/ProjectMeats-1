@@ -30,7 +30,7 @@ const SupplierPerformanceChart: React.FC<SupplierPerformanceChartProps> = ({
   return (
     <ChartContainer>
       <ChartTitle>Supplier Performance</ChartTitle>
-      <ResponsiveContainer width="100%" height={height}>
+      <ResponsiveContainer width="100%" height={height} minWidth={1} minHeight={1}>
         <BarChart
           data={data}
           margin={{

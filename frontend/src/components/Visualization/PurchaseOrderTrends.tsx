@@ -27,7 +27,7 @@ const PurchaseOrderTrends: React.FC<PurchaseOrderTrendsProps> = ({ data, height 
   return (
     <ChartContainer>
       <ChartTitle>Purchase Order Trends</ChartTitle>
-      <ResponsiveContainer width="100%" height={height}>
+      <ResponsiveContainer width="100%" height={height} minWidth={1} minHeight={1}>
         <LineChart
           data={data}
           margin={{
