@@ -1318,3 +1318,4 @@ Deliverables:
 - 2026-03-30 — Frontend: TypeScript strictness follow-up (explicit strict flags + unknown error typing) — PR: #4212.
 - 2026-03-30 — Suppliers: fix QuickCreateModal footer button click handling (New Supplier “Save” works) — PR: #4216.
 - 2026-03-30 — FlowEditor: FormProcess containers restored NodeToolbar actions + Add Step button — PR: #4218.
+- 2026-03-30 — Backend: expanded drf-spectacular schemas for Workflows + Cockpit slots (polymorphic search) — PR: #4220.
