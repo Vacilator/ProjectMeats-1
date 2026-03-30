@@ -398,7 +398,7 @@ const FormName = styled.div`
 
 const FormMeta = styled.div`
   font-size: 12px;
-  color: #666;
+  color: rgb(var(--color-text-secondary));
 `;
 
 const AddButton = styled.button<{ $theme: Theme }>`

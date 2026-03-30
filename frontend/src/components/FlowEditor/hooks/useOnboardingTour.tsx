@@ -208,7 +208,13 @@ export const workflowEditorTourSteps: Step[] = [
           <li>Add more nodes and connect them</li>
           <li>Click <strong>Save</strong> when done</li>
         </ol>
-        <p style={{ margin: '8px 0 0 0', fontSize: '14px', color: '#666' }}>
+        <p
+          style={{
+            margin: '8px 0 0 0',
+            fontSize: '14px',
+            color: 'rgb(var(--color-text-secondary))',
+          }}
+        >
           💡 Press <code>Shift+?</code> anytime to see all keyboard shortcuts
         </p>
       </div>
