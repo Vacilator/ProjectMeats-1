@@ -47,7 +47,7 @@ This file is the **append-only PR-referenceable execution log**.
   - SDK hardening: sendDefaultPii enabled (frontend+backend); backend in_app_include set for CODEOWNERS mapping — PR: #4009.
   - Runtime wiring + secret mapping: `SENTRY_DSN` (runtime env) → `/usr/share/nginx/html/env-config.js` → `window.ENV.SENTRY_DSN` (fallback: build-time `REACT_APP_SENTRY_DSN`), and deploy sets `REACT_APP_SENTRY_DSN` on `docker run`.
   - Verification: Admin→Configurations "Sentry Test" emits `Error(\"Sentry Orchestration Handshake Verified\")`.
-  - AI SRE prompt: explicitly calls get_recent_errors(tenant_id) before asking for clarification.
+  - AI SRE prompt: calls get_recent_errors() (tenant is implicitly scoped from the authenticated session).
   - PR: #4010
 
 **Phase 6.5: AI Document Understanding & Agentic Workflows**
@@ -155,6 +155,10 @@ This file is the **append-only PR-referenceable execution log**.
 ### 2026-03-27 — AI Chat: Lessons Block NameError
 - Fixed AI chat failing with `NameError: lessons_block is not defined` by defining lessons_block in SwarmOrchestrator.run_tool_loop via memory_service (safe fallback when memory fails).
 - PR: #4045.
+
+### 2026-03-30 — AI Assistant: Implicit Tenant Scoping
+- Tool schemas removed explicit tenant_id arguments (e.g., `get_recent_errors()` now takes no parameters).
+- Tool execution injects tenant scope server-side via the authenticated session (request.tenant); mismatched tenant_id (if provided) is rejected (defense-in-depth).
 
 ### 2026-03-27T18:47Z — State Audit (Remaining P0s)
 - Identified remaining gaps from runtime logs and repeated UX reports.

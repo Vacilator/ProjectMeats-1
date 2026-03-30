@@ -171,10 +171,13 @@ def create_task(title: str, message: str, entity_type: str | None = None, entity
 
 
 @registry.register
-def get_recent_errors(tenant_id: str) -> Dict[str, Any]:
-    """Fetch recent Sentry issues for a tenant (last 5)."""
+def get_recent_errors() -> Dict[str, Any]:
+    """Fetch recent Sentry issues for the active tenant (last 5).
 
-    return {"status": "available_via_chat", "tenant_id": tenant_id}
+    Tenant scoping is injected server-side from the authenticated session.
+    """
+
+    return {"status": "available_via_chat"}
 
 
 @registry.register
