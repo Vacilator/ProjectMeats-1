@@ -23,7 +23,10 @@ logger = logging.getLogger(__name__)
 
 from .models import (
     FormStatus,
+    FormStatusHistory,
     FormStepSubmission,
+    FormSubmission,
+    FormSubmissionStatus,
     StepAssignment,
     StepSubmissionStatus,
     TenantForm,
@@ -34,6 +37,8 @@ from .models import (
     TenantWorkflow,
     TenantWorkflowAction,
     TenantWorkflowCondition,
+    UserNotification,
+    UserNotificationPreferences,
     WorkflowExecutionLog,
     WorkflowStatus,
 )
@@ -1902,7 +1907,6 @@ class WorkflowExecutionLogViewSet(viewsets.ReadOnlyModelViewSet):
 # FORM SUBMISSION API VIEWS
 # =============================================================================
 
-from .models import FormStepSubmission, FormSubmission, FormSubmissionStatus, StepSubmissionStatus
 from .serializers import (
     AvailableFormSerializer,
     FormStepSubmissionSerializer,
@@ -3370,13 +3374,6 @@ class FormTestDataAPIView(APIView):
 # WAVE 3: FORMS & FLOWS ENHANCEMENT VIEWS
 # =============================================================================
 
-from .models import (
-    FormStatusHistory,
-    StepAssignment,
-    StepSubmissionStatus,
-    UserNotification,
-    UserNotificationPreferences,
-)
 from .serializers import (
     ActionItemCountsSerializer,
     ActionItemSerializer,
@@ -3630,58 +3627,71 @@ class ActionItemsAPIView(APIView):
             action_items = []
 
             # Get step assignments for user (explicit tenant filter)
-            assignments = StepAssignment.objects.filter(
-                assigned_user=user,
-                tenant=tenant,
-            ).select_related("form", "step")
+            assignments = list(
+                StepAssignment.objects.filter(
+                    assigned_user=user,
+                    tenant=tenant,
+                ).select_related("form", "step")
+            )
 
-            # Find submissions that have this user's assigned steps in action_needed status
-            for assignment in assignments:
-                # Find step submissions in action_needed status.
-                # Both tenant= and submission__tenant= are set intentionally:
-                # - tenant= enforces RLS at the FormStepSubmission level (defense in depth)
-                # - submission__tenant= guards the parent FormSubmission
-                # See manifests/RLS_POLICIES.md for the PostgreSQL policy pattern.
-                step_submissions = FormStepSubmission.objects.filter(
-                    step=assignment.step,
+            if not assignments:
+                return Response([])
+
+            assignment_by_step_id = {a.step_id: a for a in assignments}
+            step_ids = list(assignment_by_step_id.keys())
+
+            # Bulk fetch step submissions in action_needed status.
+            # Both tenant= and submission__tenant= are set intentionally for defense-in-depth RLS.
+            step_submissions = (
+                FormStepSubmission.objects.filter(
+                    step_id__in=step_ids,
                     tenant=tenant,
                     status=StepSubmissionStatus.ACTION_NEEDED,
                     submission__status="in_progress",
                     submission__tenant=tenant,
-                ).select_related("submission", "submission__form")
+                )
+                .select_related("submission", "submission__form", "step")
+                .order_by("-created_at")
+            )
 
-                for step_sub in step_submissions:
-                    # Calculate due date
-                    due_date = None
-                    is_overdue = False
-                    if assignment.due_days:
-                        due_date = step_sub.created_at + timedelta(days=assignment.due_days)
-                        is_overdue = due_date < now
+            for step_sub in step_submissions:
+                assignment = assignment_by_step_id.get(step_sub.step_id)
+                if not assignment:
+                    continue
 
-                    action_items.append(
-                        {
-                            "id": step_sub.id,
-                            "type": "form_step",
-                            "title": f"{assignment.form.name}: {assignment.step.step_name or assignment.step.entity_type}",
-                            "description": assignment.form.description or "",
-                            "form_name": assignment.form.name,
-                            "step_name": assignment.step.step_name or assignment.step.entity_type,
-                            "submission_id": step_sub.submission_id,
-                            "priority": "urgent" if is_overdue else ("high" if assignment.is_required else "normal"),
-                            "status": step_sub.status,
-                            "due_date": due_date,
-                            "is_overdue": is_overdue,
-                            "assigned_at": step_sub.created_at,
-                            "entity_type": assignment.step.entity_type,
-                            "entity_id": step_sub.id,
-                            # PO value fields: null by default; populated in a future iteration
-                            # once FormSubmission gains a FK to a PurchaseOrder entity.
-                            # The frontend ActionItem interface already accepts these as optional.
-                            # TODO: Populate from submission.data or a linked PO entity when available.
-                            "related_po_value": None,
-                            "related_po_currency": None,
-                        }
-                    )
+                form = assignment.form or getattr(step_sub.submission, "form", None)
+                form_name = form.name if form else ""
+                form_description = getattr(form, "description", "") or ""
+
+                step = assignment.step or step_sub.step
+                step_name = (step.step_name if step else None) or (step.entity_type if step else "")
+
+                due_date = None
+                is_overdue = False
+                if assignment.due_days:
+                    due_date = step_sub.created_at + timedelta(days=assignment.due_days)
+                    is_overdue = due_date < now
+
+                action_items.append(
+                    {
+                        "id": step_sub.id,
+                        "type": "form_step",
+                        "title": f"{form_name}: {step_name}",
+                        "description": form_description,
+                        "form_name": form_name,
+                        "step_name": step_name,
+                        "submission_id": step_sub.submission_id,
+                        "priority": "urgent" if is_overdue else ("high" if assignment.is_required else "normal"),
+                        "status": step_sub.status,
+                        "due_date": due_date,
+                        "is_overdue": is_overdue,
+                        "assigned_at": step_sub.created_at,
+                        "entity_type": step.entity_type if step else "",
+                        "entity_id": step_sub.id,
+                        "related_po_value": None,
+                        "related_po_currency": None,
+                    }
+                )
 
             # Sort by priority and due date
             action_items.sort(
@@ -3754,41 +3764,63 @@ class ActionItemCountsAPIView(APIView):
             form_counts = defaultdict(int)
 
             # Get step assignments for user with explicit tenant filter
-            assignments = StepAssignment.objects.filter(
-                assigned_user=user,
-                tenant=tenant  # EXPLICIT tenant filter
-            ).select_related("form", "step")
+            assignments = list(
+                StepAssignment.objects.filter(
+                    assigned_user=user,
+                    tenant=tenant,
+                ).select_related("form", "step")
+            )
 
-            for assignment in assignments:
-                # Both tenant= and submission__tenant= are set intentionally for defense-in-depth RLS.
-                step_submissions = FormStepSubmission.objects.filter(
-                    step=assignment.step,
+            if not assignments:
+                serializer = ActionItemCountsSerializer({
+                    **counts,
+                    "by_priority": {},
+                    "by_form": [],
+                })
+                return Response(serializer.data)
+
+            assignment_by_step_id = {a.step_id: a for a in assignments}
+            step_ids = list(assignment_by_step_id.keys())
+
+            # Bulk fetch step submissions in action_needed status.
+            step_submissions = (
+                FormStepSubmission.objects.filter(
+                    step_id__in=step_ids,
                     tenant=tenant,
                     status=StepSubmissionStatus.ACTION_NEEDED,
                     submission__status="in_progress",
-                    submission__tenant=tenant,  # EXPLICIT tenant filter
+                    submission__tenant=tenant,
                 )
+                .select_related("submission", "submission__form", "step")
+                .order_by("-created_at")
+            )
 
-                for step_sub in step_submissions:
-                    counts["total"] += 1
-                    form_counts[assignment.form.name] += 1
+            for step_sub in step_submissions:
+                assignment = assignment_by_step_id.get(step_sub.step_id)
+                if not assignment:
+                    continue
 
-                    # Calculate due date and priority
-                    due_date = None
-                    is_overdue = False
-                    if assignment.due_days:
-                        due_date = step_sub.created_at + timedelta(days=assignment.due_days)
-                        is_overdue = due_date < now
+                counts["total"] += 1
 
-                        if is_overdue:
-                            counts["overdue"] += 1
-                        elif due_date.date() == today:
-                            counts["due_today"] += 1
-                        elif due_date.date() <= week_from_now:
-                            counts["due_this_week"] += 1
+                form = assignment.form or getattr(step_sub.submission, "form", None)
+                if form:
+                    form_counts[form.name] += 1
 
-                    priority = "urgent" if is_overdue else ("high" if assignment.is_required else "normal")
-                    counts["by_priority"][priority] += 1
+                due_date = None
+                is_overdue = False
+                if assignment.due_days:
+                    due_date = step_sub.created_at + timedelta(days=assignment.due_days)
+                    is_overdue = due_date < now
+
+                    if is_overdue:
+                        counts["overdue"] += 1
+                    elif due_date.date() == today:
+                        counts["due_today"] += 1
+                    elif due_date.date() <= week_from_now:
+                        counts["due_this_week"] += 1
+
+                priority = "urgent" if is_overdue else ("high" if assignment.is_required else "normal")
+                counts["by_priority"][priority] += 1
 
             counts["by_form"] = [
                 {"form_name": name, "count": count} for name, count in sorted(form_counts.items(), key=lambda x: -x[1])
