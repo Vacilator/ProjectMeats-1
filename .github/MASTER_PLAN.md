@@ -186,6 +186,11 @@ This file is the **append-only PR-referenceable execution log**.
 - Forms submenu continues to only show runnable forms (filters out workflows).
 - PR: #4164.
 
+### 2026-03-30T18:24:30Z — Phase 9.5: Inquiry product dropdown options visible
+- `SmartProductAutocomplete` now renders its results dropdown via a portal (fixed positioning) to avoid being clipped by the Inquiry modal’s scroll container.
+- Fixes product options appearing “missing” in the Inquiry create products list.
+- PR: #4166.
+
 ### 2026-03-30 — Phase 9.5: Billing Interface Dynamic Wiring — COMPLETE
 - Admin Billing invoice history now loads subscription invoices dynamically (no hardcoded rows).
 
