@@ -216,6 +216,11 @@ This file is the **append-only PR-referenceable execution log**.
 - Integrations token decryption errors now preserve context via exception chaining.
 - PR: #4174.
 
+### 2026-03-30T19:04:16Z — Phase 9.5: Frontend UX blockers
+- Admin Profile: contact_email validation only runs when the field is non-empty.
+- Purchase Orders: weight_per_unit is no longer required so edits aren’t blocked.
+- PR: #4176.
+
 ### 2026-03-30 — Phase 9.5: Billing Interface Dynamic Wiring — COMPLETE
 - Admin Billing invoice history now loads subscription invoices dynamically (no hardcoded rows).
 
