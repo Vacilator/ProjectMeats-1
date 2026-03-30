@@ -770,14 +770,61 @@ class ActionItemSerializer(serializers.Serializer):
 class ActionItemCountsSerializer(serializers.Serializer):
     """
     Serializer for action item counts.
-    
+
     All fields are nullable to handle graceful degradation when
     database queries fail or tables are empty.
     """
-    
+
     total = serializers.IntegerField(required=False, allow_null=True, default=0)
     overdue = serializers.IntegerField(required=False, allow_null=True, default=0)
     due_today = serializers.IntegerField(required=False, allow_null=True, default=0)
     due_this_week = serializers.IntegerField(required=False, allow_null=True, default=0)
     by_priority = serializers.DictField(child=serializers.IntegerField(), required=False, allow_null=True, default=dict)
     by_form = serializers.ListField(child=serializers.DictField(), required=False, allow_null=True, default=list)
+
+
+class EntityOptionSerializer(serializers.Serializer):
+    value = serializers.CharField()
+    label = serializers.CharField()
+
+
+class EntityOptionsResponseSerializer(serializers.Serializer):
+    entity_type = serializers.CharField()
+    options = EntityOptionSerializer(many=True)
+    count = serializers.IntegerField()
+    total_count = serializers.IntegerField()
+    can_create = serializers.BooleanField()
+    entity_label = serializers.CharField()
+    has_more = serializers.BooleanField()
+
+
+class QuickCreateFieldSerializer(serializers.Serializer):
+    key = serializers.CharField()
+    label = serializers.CharField()
+    type = serializers.CharField()
+    required = serializers.BooleanField()
+
+
+class QuickCreateFieldsResponseSerializer(serializers.Serializer):
+    entity_type = serializers.CharField()
+    entity_label = serializers.CharField()
+    fields = QuickCreateFieldSerializer(many=True)
+
+
+class QuickCreateCreateResponseSerializer(serializers.Serializer):
+    success = serializers.BooleanField()
+    id = serializers.CharField()
+    value = serializers.CharField()
+    label = serializers.CharField()
+    entity_type = serializers.CharField()
+
+
+class SmartFieldMatchRequestSerializer(serializers.Serializer):
+    source_field = serializers.DictField()
+    target_entity_type = serializers.CharField()
+
+
+class SmartFieldMatchResponseSerializer(serializers.Serializer):
+    source_field = serializers.DictField()
+    target_entity_type = serializers.CharField()
+    matches = serializers.ListField(child=serializers.DictField())

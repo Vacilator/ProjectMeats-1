@@ -178,6 +178,11 @@ class WorkspaceLayoutPayloadSerializer(serializers.Serializer):
     widgets = serializers.ListField(child=serializers.DictField())
 
 
+class EntityAIOverviewResponseSerializer(serializers.Serializer):
+    status = serializers.CharField()
+    summary = serializers.CharField(required=False, allow_blank=True)
+
+
 class UserWorkspaceLayoutSerializer(serializers.ModelSerializer):
     """Serializer for UserWorkspaceLayout model."""
 

@@ -11,7 +11,7 @@ from rest_framework.exceptions import ValidationError
 from rest_framework.views import APIView
 from rest_framework.exceptions import PermissionDenied
 
-from drf_spectacular.utils import OpenApiTypes, extend_schema
+from drf_spectacular.utils import OpenApiTypes, PolymorphicProxySerializer, extend_schema
 
 from django.conf import settings
 from django.db.models import Q
@@ -29,6 +29,7 @@ from .serializers import (
     ScheduledCallSerializer,
     UserWorkspaceLayoutSerializer,
     WorkspaceLayoutPayloadSerializer,
+    EntityAIOverviewResponseSerializer,
 )
 from .models import ActivityLog, ScheduledCall, UserWorkspaceLayout
 from tenant_apps.customers.models import Customer
@@ -38,6 +39,7 @@ from tenant_apps.suppliers.models import Supplier
 from tenant_apps.purchase_orders.models import PurchaseOrder
 
 
+@extend_schema(tags=["Cockpit", "AI"])
 class EntityAIOverviewView(APIView):
     """AI overview for a Cockpit entity.
 
@@ -47,6 +49,7 @@ class EntityAIOverviewView(APIView):
 
     permission_classes = [IsAuthenticated]
 
+    @extend_schema(responses={200: EntityAIOverviewResponseSerializer})
     def get(self, request, entity_type: str, entity_id: str):
         tenant = getattr(request, 'tenant', None) or getattr(request.user, 'current_tenant', None)
         if not tenant:
@@ -193,6 +196,17 @@ class EntityAIOverviewView(APIView):
         return Response({'summary': ai_response_text, 'status': 'success'})
 
 
+@extend_schema(
+    tags=["Cockpit", "Search"],
+    responses={
+        200: PolymorphicProxySerializer(
+            component_name="CockpitSlot",
+            serializers=[CustomerSlotSerializer, SupplierSlotSerializer, OrderSlotSerializer],
+            resource_type_field_name="type",
+            many=True,
+        )
+    },
+)
 class CockpitSlotViewSet(viewsets.ReadOnlyModelViewSet):
     """
     Aggregated search across tenant models (Customer, Supplier, PurchaseOrder).
@@ -239,6 +253,7 @@ class CockpitSlotViewSet(viewsets.ReadOnlyModelViewSet):
         return Response(results)
 
 
+@extend_schema(tags=["Cockpit", "Activity"])
 class ActivityLogViewSet(viewsets.ModelViewSet):
     """
     ViewSet for Activity Logs with strict tenant isolation.
@@ -312,6 +327,7 @@ class ActivityLogViewSet(viewsets.ModelViewSet):
         instance.delete()
 
 
+@extend_schema(tags=["Cockpit", "Calls"])
 class ScheduledCallViewSet(viewsets.ModelViewSet):
     """
     ViewSet for Scheduled Calls with strict tenant isolation.
