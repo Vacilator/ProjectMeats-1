@@ -23,6 +23,7 @@ import {
   Users, Building2, Package, TrendingUp, X
 } from 'lucide-react';
 import debounce from 'lodash/debounce';
+import Fuse from 'fuse.js';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Tabs, Spin, Button, Dropdown, message, type MenuProps } from 'antd';
 import { NotesAndCallsDrawer } from './NotesAndCallsDrawer';
@@ -55,6 +56,124 @@ export interface RelationalChunk {
   items: SearchEntity[];
   icon: React.ReactNode;
 }
+
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
+
+const normalizeQuery = (q: string): string => String(q || '').toLowerCase().trim();
+
+const getEntityTimestampMs = (entity: SearchEntity): number | null => {
+  const meta = entity.metadata ?? {};
+
+  const candidates = [
+    'modified_on',
+    'modified_at',
+    'updated_on',
+    'updated_at',
+    'created_on',
+    'created_at',
+    'last_activity',
+    'last_activity_at',
+    'timestamp',
+    'date',
+  ];
+
+  for (const key of candidates) {
+    const raw = (meta as Record<string, unknown>)[key];
+    if (!raw) continue;
+
+    if (typeof raw === 'number' && Number.isFinite(raw)) {
+      // Heuristic: seconds vs ms
+      return raw > 1_000_000_000_000 ? raw : raw * 1000;
+    }
+
+    if (typeof raw === 'string') {
+      const parsed = Date.parse(raw);
+      if (Number.isFinite(parsed)) return parsed;
+    }
+  }
+
+  return null;
+};
+
+const formatRecencyLabel = (entity: SearchEntity): string => {
+  const ts = getEntityTimestampMs(entity);
+  if (!ts) return '—';
+
+  const ageDays = Math.floor((Date.now() - ts) / MS_PER_DAY);
+  if (ageDays <= 0) return 'Today';
+  if (ageDays === 1) return '1 day ago';
+  if (ageDays < 30) return `${ageDays} days ago`;
+
+  const months = Math.floor(ageDays / 30);
+  return months === 1 ? '1 month ago' : `${months} months ago`;
+};
+
+const rankSearchEntities = (
+  items: SearchEntity[],
+  query: string,
+  entityType: string,
+  isFavoritedFn: (entityType: string, entityId: number) => boolean
+): SearchEntity[] => {
+  const q = normalizeQuery(query);
+  if (!q) return items;
+
+  const typeFallback = String(entityType || '').toLowerCase();
+
+  // Use Fuse for fuzzy ordering (we do not expand results beyond what the server returned).
+  const fuse = new Fuse(items, {
+    includeScore: true,
+    threshold: 0.4,
+    ignoreLocation: true,
+    minMatchCharLength: 2,
+    keys: ['name', 'subtitle'],
+  });
+
+  const scoreById = new Map<string, number>();
+  for (const r of fuse.search(q)) {
+    scoreById.set(String(r.item.id), typeof r.score === 'number' ? r.score : 1);
+  }
+
+  return [...items].sort((a, b) => {
+    const aId = String(a.id);
+    const bId = String(b.id);
+
+    const aBase = scoreById.get(aId) ?? 1.2;
+    const bBase = scoreById.get(bId) ?? 1.2;
+
+    const aName = normalizeQuery(a.name);
+    const bName = normalizeQuery(b.name);
+
+    const aType = String(a.type || typeFallback).toLowerCase();
+    const bType = String(b.type || typeFallback).toLowerCase();
+
+    const aFav = isFavoritedFn(aType, Number(a.id));
+    const bFav = isFavoritedFn(bType, Number(b.id));
+
+    const aTs = getEntityTimestampMs(a);
+    const bTs = getEntityTimestampMs(b);
+
+    const aAgeDays = aTs ? (Date.now() - aTs) / MS_PER_DAY : null;
+    const bAgeDays = bTs ? (Date.now() - bTs) / MS_PER_DAY : null;
+
+    const aRecencyPenalty = aAgeDays !== null ? Math.min(aAgeDays / 365, 1) * 0.05 : 0;
+    const bRecencyPenalty = bAgeDays !== null ? Math.min(bAgeDays / 365, 1) * 0.05 : 0;
+
+    const aPrefixBoost = aName.startsWith(q) ? -0.12 : aName.includes(q) ? -0.06 : 0;
+    const bPrefixBoost = bName.startsWith(q) ? -0.12 : bName.includes(q) ? -0.06 : 0;
+
+    const aFavBoost = aFav ? -0.18 : 0;
+    const bFavBoost = bFav ? -0.18 : 0;
+
+    const aScore = aBase + aRecencyPenalty + aPrefixBoost + aFavBoost;
+    const bScore = bBase + bRecencyPenalty + bPrefixBoost + bFavBoost;
+
+    if (aScore !== bScore) return aScore - bScore;
+
+    // Stable tie-breakers
+    if (aName !== bName) return aName.localeCompare(bName);
+    return aId.localeCompare(bId);
+  });
+};
 
 // NOTE: Breadcrumb UI is owned by CockpitDashboard via <BreadcrumbBar />.
 // SmartSearch reacts to navigation path changes to implement continuous browsing.
@@ -518,6 +637,17 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
     isFavorited,
     isLoading: isFavoritesLoading,
   } = useFavorites();
+
+  const rankedResults = useMemo(() => {
+    const q = normalizeQuery(query);
+    if (!q) return results;
+
+    const next: Record<string, SearchEntity[]> = {};
+    for (const [type, items] of Object.entries(results)) {
+      next[type] = rankSearchEntities(items, q, type, isFavorited);
+    }
+    return next;
+  }, [isFavorited, query, results]);
   const [hasMigratedLegacyFavorites, setHasMigratedLegacyFavorites] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
   const [isRelationsLoading, setIsRelationsLoading] = useState(false);
@@ -1168,7 +1298,7 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
    * Render search results (top-5 per type)
    */
   const renderSearchResults = () => {
-    const types = Object.keys(resultCounts).length ? Object.keys(resultCounts) : Object.keys(results);
+    const types = Object.keys(resultCounts).length ? Object.keys(resultCounts) : Object.keys(rankedResults);
 
     if (types.length === 0) {
       return (
@@ -1257,7 +1387,7 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
         )}
 
         {types.map((type) => {
-          const entities = (results[type] ?? []).filter((entity) => !isEntityFavorited(entity));
+          const entities = (rankedResults[type] ?? []).filter((entity) => !isEntityFavorited(entity));
           if (entities.length === 0) return null;
 
           const count = resultCounts[type] ?? entities.length;
@@ -1292,7 +1422,7 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
                       {entity.subtitle && <ResultSubtitle>{entity.subtitle}</ResultSubtitle>}
                       <ResultMeta>
                         <Clock size={10} />
-                        Last modified: Today
+                        Last modified: {formatRecencyLabel(entity)}
                       </ResultMeta>
                     </ResultContent>
 
