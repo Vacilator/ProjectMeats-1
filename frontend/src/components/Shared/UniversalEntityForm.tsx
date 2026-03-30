@@ -462,16 +462,30 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
     return new Set(preferredKeys.map((k) => String(k).toLowerCase()));
   }, [preferredKeys]);
 
+  const preferredKeyRank = useMemo(() => {
+    return new Map(preferredKeys.map((k, idx) => [String(k).toLowerCase(), idx] as const));
+  }, [preferredKeys]);
+
   const fkFields = useMemo(() => {
     return (schema?.fields ?? []).filter((f) => !shouldSkipField(f.key) && Boolean(f.related_entity));
   }, [schema?.fields]);
 
   const keyFkFields = useMemo(() => {
-    return fkFields.filter((f) => preferredKeySet.has(String(f.key).toLowerCase()));
-  }, [fkFields, preferredKeySet]);
+    const keyOnes = fkFields.filter((f) => preferredKeySet.has(String(f.key).toLowerCase()));
+
+    return [...keyOnes].sort((a, b) => {
+      const ka = String(a.key).toLowerCase();
+      const kb = String(b.key).toLowerCase();
+      const ra = preferredKeyRank.has(ka) ? (preferredKeyRank.get(ka) as number) : 9999;
+      const rb = preferredKeyRank.has(kb) ? (preferredKeyRank.get(kb) as number) : 9999;
+      if (ra !== rb) return ra - rb;
+      return String(a.label || a.key).localeCompare(String(b.label || b.key));
+    });
+  }, [fkFields, preferredKeyRank, preferredKeySet]);
 
   const otherFkFields = useMemo(() => {
-    return fkFields.filter((f) => !preferredKeySet.has(String(f.key).toLowerCase()));
+    const others = fkFields.filter((f) => !preferredKeySet.has(String(f.key).toLowerCase()));
+    return [...others].sort((a, b) => String(a.label || a.key).localeCompare(String(b.label || b.key)));
   }, [fkFields, preferredKeySet]);
 
   const scalarFields = useMemo(() => {
@@ -531,6 +545,11 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
           return v === undefined || v === null || v === '';
         });
       if (missingFk.length) {
+        const missingHiddenFk = missingFk.filter((f) => !preferredKeySet.has(String(f.key).toLowerCase()));
+        if (missingHiddenFk.length && !showAllFields) {
+          setShowAllFields(true);
+        }
+
         message.error(`Please select ${missingFk[0].label || missingFk[0].key}`);
         return;
       }
@@ -667,7 +686,19 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
         setSubmitting(false);
       }
     },
-    [endpoint, entityId, fkFields, fkValues, formInitialValues, initialValues, onClose, onSuccess, scalarFields]
+    [
+      endpoint,
+      entityId,
+      fkFields,
+      fkValues,
+      formInitialValues,
+      initialValues,
+      onClose,
+      onSuccess,
+      preferredKeySet,
+      scalarFields,
+      showAllFields,
+    ]
   );
 
   const fetchProducts = useCallback(
