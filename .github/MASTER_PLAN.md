@@ -180,6 +180,12 @@ This file is the **append-only PR-referenceable execution log**.
 - Quick Actions save now validates `workflow_id` targets against `TenantWorkForm` (tenant-scoped; superuser override).
 - PR: #4162.
 
+### 2026-03-30T18:20:30Z — Phase 9.5: Quick Actions UI supports WorkForms
+- Quick Actions editor now renders unified available targets and saves workflow quick actions with `type='workflow'` + `workflow_id`.
+- Header quick actions now navigate workflow targets to `/workforms/editor/:id`.
+- Forms submenu continues to only show runnable forms (filters out workflows).
+- PR: #4164.
+
 ### 2026-03-30 — Phase 9.5: Billing Interface Dynamic Wiring — COMPLETE
 - Admin Billing invoice history now loads subscription invoices dynamically (no hardcoded rows).
 
