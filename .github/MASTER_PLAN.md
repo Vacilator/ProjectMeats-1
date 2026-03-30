@@ -174,6 +174,12 @@ This file is the **append-only PR-referenceable execution log**.
 - After saving a choice list, cached `is_active` values won’t linger in other open tabs.
 - PR: #4161.
 
+### 2026-03-30T18:16:30Z — Phase 9.5: Quick Actions unified available targets (WorkForms)
+- Quick Actions “Available Forms” now returns both `TenantForm` and `TenantWorkForm` records (status in `active`/`draft`).
+- Unified payload includes `type` discriminator (`form`/`workflow`) and `node_count` for workforms.
+- Quick Actions save now validates `workflow_id` targets against `TenantWorkForm` (tenant-scoped; superuser override).
+- PR: #4162.
+
 ### 2026-03-30 — Phase 9.5: Billing Interface Dynamic Wiring — COMPLETE
 - Admin Billing invoice history now loads subscription invoices dynamically (no hardcoded rows).
 
