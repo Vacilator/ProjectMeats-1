@@ -80,29 +80,23 @@ class Command(BaseCommand):
             )
             return
 
-        # Derive Fernet from OAUTH_ENCRYPTION_KEY (the active storage mechanism).
-        try:
-            key = ExternalAuthProvider._get_encryption_key()
-        except Exception as e:
-            self.stdout.write(
-                json.dumps(
-                    {
-                        'ok': False,
-                        'tenant_id': tenant_id,
-                        'provider_type': provider_type,
-                        'provider_id': row.id,
-                        'token_type': token_type,
-                        'error_type': 'DATA_MISSING',
-                        'message': f'Cannot load OAUTH_ENCRYPTION_KEY: {type(e).__name__}: {e}',
-                    }
-                )
-            )
-            return
+        # Attempt decryption using the same multi-key logic used by the model.
+        keys = ExternalAuthProvider._get_decryption_keys()
+        results = []
+        plaintext = None
 
-        fernet = Fernet(key)
+        for idx, key in enumerate(keys):
+            try:
+                fernet = Fernet(key)
+                plaintext = fernet.decrypt(str(encrypted).encode('utf-8'))
+                results.append({'key_index': idx, 'ok': True})
+                break
+            except InvalidToken:
+                results.append({'key_index': idx, 'ok': False, 'error_type': 'INVALID_TOKEN'})
+            except Exception as e:
+                results.append({'key_index': idx, 'ok': False, 'error_type': type(e).__name__, 'message': str(e)})
 
-        try:
-            plaintext = fernet.decrypt(str(encrypted).encode('utf-8'))
+        if plaintext is not None:
             self.stdout.write(
                 json.dumps(
                     {
@@ -113,35 +107,24 @@ class Command(BaseCommand):
                         'token_type': token_type,
                         'token_length': len(plaintext or b''),
                         'message': 'Decryption OK',
+                        'attempts': results,
                     }
                 )
             )
-        except InvalidToken:
-            self.stdout.write(
-                json.dumps(
-                    {
-                        'ok': False,
-                        'tenant_id': tenant_id,
-                        'provider_type': provider_type,
-                        'provider_id': row.id,
-                        'token_type': token_type,
-                        'error_type': 'INVALID_TOKEN',
-                        'message': 'cryptography.fernet.InvalidToken (key mismatch or token was re-encrypted with a different key).',
-                        'hint': 'Reconnect Outlook for this tenant to refresh encrypted tokens.',
-                    }
-                )
+            return
+
+        self.stdout.write(
+            json.dumps(
+                {
+                    'ok': False,
+                    'tenant_id': tenant_id,
+                    'provider_type': provider_type,
+                    'provider_id': row.id,
+                    'token_type': token_type,
+                    'error_type': 'INVALID_TOKEN',
+                    'message': 'Token could not be decrypted with any configured key (env OAUTH_ENCRYPTION_KEY or SECRET_KEY-derived).',
+                    'hint': 'Reconnect Outlook for this tenant to refresh encrypted tokens.',
+                    'attempts': results,
+                }
             )
-        except Exception as e:
-            self.stdout.write(
-                json.dumps(
-                    {
-                        'ok': False,
-                        'tenant_id': tenant_id,
-                        'provider_type': provider_type,
-                        'provider_id': row.id,
-                        'token_type': token_type,
-                        'error_type': 'UNKNOWN',
-                        'message': f'{type(e).__name__}: {e}',
-                    }
-                )
-            )
+        )
