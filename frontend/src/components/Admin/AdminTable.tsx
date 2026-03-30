@@ -35,6 +35,7 @@
 
 import React, { useState, useMemo, useCallback } from 'react';
 import styled from 'styled-components';
+import { buildCsv, downloadCsv } from '@/utils/csv';
 import { LoadingSkeleton } from './LoadingSkeleton';
 import { EmptyState } from './EmptyState';
 
@@ -208,58 +209,18 @@ export function AdminTable<T extends Record<string, any>>({
     );
   }
 
-  const normalizeCsvCell = (raw: unknown): string => {
-    if (raw == null) return '';
-    if (raw instanceof Date) return raw.toISOString();
-    if (typeof raw === 'string') return raw;
-    if (typeof raw === 'number' || typeof raw === 'boolean' || typeof raw === 'bigint') return String(raw);
-
-    try {
-      return JSON.stringify(raw);
-    } catch {
-      return String(raw);
-    }
-  };
-
-  const escapeCsvCell = (value: string): string => {
-    const next = value.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
-    const needsQuotes = /[\n",]/.test(next);
-    const escaped = next.replace(/"/g, '""');
-    return needsQuotes ? `"${escaped}"` : escaped;
-  };
-
-  const downloadCsv = (fileName: string, csv: string) => {
-    if (typeof document === 'undefined') return;
-
-    const safeName = fileName.toLowerCase().endsWith('.csv') ? fileName : `${fileName}.csv`;
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-
-    const link = document.createElement('a');
-    link.href = url;
-    link.setAttribute('download', safeName);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-
-    URL.revokeObjectURL(url);
-  };
-
   const handleExportCsv = () => {
     const exportColumns = columns.filter((c) => c.exportable !== false);
-    const headers = exportColumns.map((c) => escapeCsvCell(String(c.exportLabel ?? c.label ?? c.key)));
+    const headers = exportColumns.map((c) => String(c.exportLabel ?? c.label ?? c.key));
 
-    const rows = sortedData.map((row) => {
-      return exportColumns
-        .map((c) => {
-          const raw = resolveValue(row, c.key);
-          const exported = c.exportValue ? c.exportValue(raw, row) : raw;
-          return escapeCsvCell(normalizeCsvCell(exported));
-        })
-        .join(',');
-    });
+    const rows = sortedData.map((row) =>
+      exportColumns.map((c) => {
+        const raw = resolveValue(row, c.key);
+        return c.exportValue ? c.exportValue(raw, row) : raw;
+      })
+    );
 
-    const csv = [headers.join(','), ...rows].join('\n');
+    const csv = buildCsv({ headers, rows });
     downloadCsv(csvExport?.fileName ?? 'export.csv', csv);
   };
 

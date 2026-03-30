@@ -27,13 +27,14 @@ import {
   message,
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
-import { PlusOutlined, ReloadOutlined } from '@ant-design/icons';
+import { DownloadOutlined, PlusOutlined, ReloadOutlined } from '@ant-design/icons';
 
 import { apiClient } from '@/services/apiService';
 import { AdminGuard, AdminPage, EmptyState, LoadingSkeleton } from '@/components/Admin';
 import { useAdminPermissions } from '@/hooks/useAdminPermissions';
 import { getChoices, type ChoiceOption } from '@/services/choicesService';
 import { confirmDialog, showAlert } from '@/utils/uiDialogs';
+import { buildCsv, downloadCsv } from '@/utils/csv';
 
 import { TenantChoiceOverride } from '@/components/Admin/TenantChoiceOverride';
 
@@ -362,6 +363,92 @@ const OptionListsPage: React.FC = () => {
       return name.includes(q) || desc.includes(q) || id.includes(q);
     });
   }, [customLists, searchQuery]);
+
+  const exportDate = new Date().toISOString().split('T')[0];
+
+  const exportSystemListsCsv = () => {
+    if (loading || filteredSystemLists.length === 0) {
+      message.info('No system choice lists to export.');
+      return;
+    }
+
+    const headers = [
+      'Name',
+      'Slug',
+      'Description',
+      'Items Count',
+      'Extensible',
+      'Reorderable',
+      'Model Field Path',
+      'Updated At',
+    ];
+
+    const rows = filteredSystemLists.map((l) => [
+      l.name,
+      l.slug,
+      l.description,
+      l.items_count,
+      l.is_extensible,
+      l.is_reorderable,
+      l.model_field_path,
+      l.updated_at,
+    ]);
+
+    downloadCsv(`system-choice-lists_${exportDate}.csv`, buildCsv({ headers, rows }));
+  };
+
+  const exportCustomListsCsv = () => {
+    if (customLoading || filteredCustomLists.length === 0) {
+      message.info('No custom tenant lists to export.');
+      return;
+    }
+
+    const headers = ['Name', 'ID', 'Description', 'Option Count', 'Active', 'Updated At'];
+    const rows = filteredCustomLists.map((l) => [l.name, l.id, l.description, l.option_count, l.is_active, l.updated_at]);
+
+    downloadCsv(`custom-lists_${exportDate}.csv`, buildCsv({ headers, rows }));
+  };
+
+  const exportMasterProductsCsv = () => {
+    if (productsLoading || productPrefsLoading || filteredMasterProducts.length === 0) {
+      message.info('No master products to export.');
+      return;
+    }
+
+    const headers = [
+      'Product Code',
+      'System Name',
+      'Protein Type',
+      'Category',
+      'System Active',
+      'Tenant Display Name',
+      'Tenant Internal Code',
+      'Tenant Active',
+      'Tenant Favorite',
+      'Tenant Sort Order',
+      'Tenant Notes',
+    ];
+
+    const rows = filteredMasterProducts.map((p) => {
+      const pref = productPreferences[String(p.id)];
+      const tenantActive = pref ? Boolean(pref.is_active) : Boolean(p.is_active ?? true);
+      return [
+        p.product_code,
+        p.name,
+        p.protein_type,
+        p.category,
+        Boolean(p.is_active ?? true),
+        pref?.display_name ?? '',
+        pref?.internal_code ?? '',
+        tenantActive,
+        Boolean(pref?.is_favorite ?? false),
+        pref?.sort_order ?? 0,
+        pref?.notes ?? '',
+      ];
+    });
+
+    downloadCsv(`master-products_${exportDate}.csv`, buildCsv({ headers, rows }));
+  };
 
   const openCreateCustomList = () => {
     if (!canEdit) {
@@ -754,9 +841,36 @@ const OptionListsPage: React.FC = () => {
               Add Product
             </Button>
           )}
+          {activeTab === 'system' && (
+            <Button
+              icon={<DownloadOutlined />}
+              onClick={exportMasterProductsCsv}
+              disabled={productsLoading || productPrefsLoading || filteredMasterProducts.length === 0}
+            >
+              Export Products
+            </Button>
+          )}
+          {activeTab === 'system' && (
+            <Button
+              icon={<DownloadOutlined />}
+              onClick={exportSystemListsCsv}
+              disabled={loading || filteredSystemLists.length === 0}
+            >
+              Export Choice Lists
+            </Button>
+          )}
           {activeTab === 'custom' && (
             <Button type="primary" icon={<PlusOutlined />} onClick={openCreateCustomList}>
               Create Custom List
+            </Button>
+          )}
+          {activeTab === 'custom' && (
+            <Button
+              icon={<DownloadOutlined />}
+              onClick={exportCustomListsCsv}
+              disabled={customLoading || filteredCustomLists.length === 0}
+            >
+              Export Custom Lists
             </Button>
           )}
           <Input.Search
