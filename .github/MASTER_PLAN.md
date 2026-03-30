@@ -242,6 +242,12 @@ This file is the **append-only PR-referenceable execution log**.
 - Title updates now keep `label` and key legacy fields in sync for backward compatibility.
 - PR: #4184.
 
+### 2026-03-30T19:41:04Z — Local dev parity audit (compose/devcontainer/docker)
+- Verified `docker-compose.yml` and `.devcontainer/docker-compose.yml` both use `postgres:15`.
+- Verified backend base image targets Python 3.12 slim (`backend/Dockerfile`).
+- Verified frontend uses multi-stage build (Node 20 Alpine → Nginx Alpine).
+- No code changes required; parity is already aligned.
+
 ### 2026-03-30 — Phase 9.5: Billing Interface Dynamic Wiring — COMPLETE
 - Admin Billing invoice history now loads subscription invoices dynamically (no hardcoded rows).
 
