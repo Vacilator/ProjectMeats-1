@@ -294,6 +294,12 @@ This file is the **append-only PR-referenceable execution log**.
 - Removed deployment bash scripts superseded by the GitHub Actions Golden Pipeline (and updated key in-repo references).
 - PR: #4202.
 
+### 2026-03-30T20:36:00Z — RLS: InquiryTemplateProduct tenant isolation
+- Made `InquiryTemplateProduct` tenant-aware by persisting `tenant_id` (backfilled from parent `InquiryTemplate`).
+- Added timestamps + `custom_data` for TenantAwareModel compliance.
+- Enabled RLS on `inquiries_inquirytemplateproduct` with tenant isolation + insert policies.
+- PR: #4206.
+
 ### 2026-03-30 — Phase 9.5: Billing Interface Dynamic Wiring — COMPLETE
 - Admin Billing invoice history now loads subscription invoices dynamically (no hardcoded rows).
 
