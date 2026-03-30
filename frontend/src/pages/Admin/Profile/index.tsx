@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import styled from 'styled-components';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Building2, Image as ImageIcon, X, Sparkles } from 'lucide-react';
@@ -122,6 +122,7 @@ const AdminProfilePage: React.FC = () => {
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const [removeLogo, setRemoveLogo] = useState(false);
   const [extractingColors, setExtractingColors] = useState(false);
+  const logoInputRef = useRef<HTMLInputElement | null>(null);
 
   const {
     data: tenant,
@@ -569,16 +570,21 @@ const AdminProfilePage: React.FC = () => {
 
                 <div>
                   <HiddenFileInput
+                    ref={logoInputRef}
                     id="logo"
                     type="file"
                     accept="image/*"
                     onChange={handleLogoChange}
+                    aria-label="Upload logo"
                   />
-                  <label htmlFor="logo">
-                    <Button type="button" variant="outline" size="sm">
-                      Upload Logo
-                    </Button>
-                  </label>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => logoInputRef.current?.click()}
+                  >
+                    Upload Logo
+                  </Button>
                   <Hint>PNG/JPG/WebP up to 5MB.</Hint>
                 </div>
               </LogoBlock>
@@ -845,7 +851,19 @@ const RemoveLogoButton = styled.button`
 `;
 
 const HiddenFileInput = styled.input`
-  display: none;
+  /*
+   * Keep the input in the DOM (not display:none) so programmatic clicks and
+   * label associations work reliably across browsers.
+   */
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 `;
 
 const Hint = styled.p`
