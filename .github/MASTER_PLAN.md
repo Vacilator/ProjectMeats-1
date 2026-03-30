@@ -232,6 +232,10 @@ This file is the **append-only PR-referenceable execution log**.
 - Updated manifest validation lists to include the new secret names (no secret values committed).
 - PR: #4180.
 
+### 2026-03-30T19:25:57Z — Phase 9.5: FlowEditor Smart Auto-Map apply marks dirty
+- Smart Auto-Map suggestion application now stages a partial `{fieldMappings}` patch into shadow config so `isDirty` flips true and the “Apply Changes” CTA appears.
+- PR: #4182.
+
 ### 2026-03-30 — Phase 9.5: Billing Interface Dynamic Wiring — COMPLETE
 - Admin Billing invoice history now loads subscription invoices dynamically (no hardcoded rows).
 
