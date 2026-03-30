@@ -99,7 +99,7 @@ export const documentsApi = {
     const formData = new FormData();
     formData.append('file', file);
     if (sessionId) {
-      formData.append('session_id', sessionId);
+      formData.append('session', sessionId);
     }
 
     const res = await businessApi.post<DocumentUploadResponse>('/ai-assistant/ai-documents/', formData);
