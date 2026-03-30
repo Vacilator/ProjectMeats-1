@@ -205,14 +205,22 @@ class Fulfillment(TenantAwareModel):
         return False
 
 
-class FulfillmentProduct(models.Model):
+class FulfillmentProduct(TenantAwareModel):
     """
     Through table for Fulfillment products with quantity tracking.
-    
-    Tracks how much of each inquiry product line is being fulfilled
-    in this particular fulfillment (supports partial fulfillment).
+
+    This is tenant-aware (shared schema): we persist tenant_id directly for
+    consistent RLS enforcement, even though the parent Fulfillment is already tenant-aware.
     """
-    
+
+    # NOTE: temporarily nullable for data backfill migration.
+    tenant = models.ForeignKey(
+        'tenants.Tenant',
+        on_delete=models.CASCADE,
+        db_index=True,
+        related_name='fulfillment_products',
+    )
+
     fulfillment = models.ForeignKey(
         Fulfillment,
         on_delete=models.CASCADE,
@@ -273,8 +281,8 @@ class FulfillmentProduct(models.Model):
         return f"{self.fulfillment.fulfillment_number} - {product_name}"
 
     @property
-    def tenant(self):
-        """Inherit tenant from parent fulfillment."""
+    def parent_tenant(self):
+        """Tenant derived from the parent Fulfillment (for legacy call sites)."""
         return self.fulfillment.tenant
 
     @property
@@ -284,6 +292,9 @@ class FulfillmentProduct(models.Model):
 
     def save(self, *args, **kwargs):
         """Auto-calculate total if unit_price is set."""
+        if getattr(self, 'tenant_id', None) is None and self.fulfillment_id is not None:
+            self.tenant = self.fulfillment.tenant
+
         if self.unit_price and self.quantity_fulfilled and not self.total:
             self.total = self.unit_price * self.quantity_fulfilled
         super().save(*args, **kwargs)
