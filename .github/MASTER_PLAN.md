@@ -207,6 +207,15 @@ This file is the **append-only PR-referenceable execution log**.
 - UniversalSearch now computes total counts before slicing and falls back on `created_at`/`created_on` when ordering.
 - PR: #4172.
 
+### 2026-03-30T18:59:45Z — Phase 9.5: Core ORM + audit integrity fixes
+- ActivityLog now includes `user.remove` action choice.
+- Tenant user removal logging now captures tenant_user_id before delete.
+- Favorites creation now errors if tenant context is missing (prevents orphan favorites).
+- Cockpit viewsets only apply `?limit=` slicing on list actions.
+- PurchaseOrder order number generation + save now run in a single DB transaction.
+- Integrations token decryption errors now preserve context via exception chaining.
+- PR: #4174.
+
 ### 2026-03-30 — Phase 9.5: Billing Interface Dynamic Wiring — COMPLETE
 - Admin Billing invoice history now loads subscription invoices dynamically (no hardcoded rows).
 
