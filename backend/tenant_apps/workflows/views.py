@@ -1059,7 +1059,8 @@ class TenantFormViewSet(TenantFilteredModelViewSet):
         """Activate a form."""
         form = self.get_object()
         form.status = FormStatus.ACTIVE
-        form.save(update_fields=["status", "updated_at"])
+        form.is_quick_action_enabled = True
+        form.save(update_fields=["status", "is_quick_action_enabled", "updated_at"])
         return Response({"status": "activated"})
 
     @action(detail=True, methods=["post"])

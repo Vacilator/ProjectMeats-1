@@ -1747,18 +1747,30 @@ class UserNotificationPreferences(models.Model):
     
     @classmethod
     def get_defaults(cls):
-        """Return default notification preferences."""
+        """Return default notification preferences.
+
+        NOTE: Explicitly cast TextChoices keys/values to plain strings so the
+        JSONField default is always JSON-serializable (prevents get_or_create
+        serialization issues under some DRF/psycopg paths).
+        """
+
+        def _k(value) -> str:
+            return str(value)
+
+        def _v(*channels) -> list[str]:
+            return [str(c) for c in channels]
+
         return {
-            NotificationType.TASK_ASSIGNED: [DeliveryChannel.IN_APP, DeliveryChannel.EMAIL],
-            NotificationType.TASK_DUE_SOON: [DeliveryChannel.IN_APP, DeliveryChannel.EMAIL],
-            NotificationType.TASK_OVERDUE: [DeliveryChannel.IN_APP, DeliveryChannel.EMAIL],
-            NotificationType.TASK_COMPLETED: [DeliveryChannel.IN_APP],
-            NotificationType.FORM_SUBMITTED: [DeliveryChannel.IN_APP],
-            NotificationType.FORM_APPROVED: [DeliveryChannel.IN_APP, DeliveryChannel.EMAIL],
-            NotificationType.FORM_REJECTED: [DeliveryChannel.IN_APP, DeliveryChannel.EMAIL],
-            NotificationType.MENTION: [DeliveryChannel.IN_APP],
-            NotificationType.COMMENT: [DeliveryChannel.IN_APP],
-            NotificationType.STATUS_CHANGE: [DeliveryChannel.IN_APP],
-            NotificationType.WORKFLOW_TRIGGER: [DeliveryChannel.IN_APP],
-            NotificationType.SYSTEM: [DeliveryChannel.IN_APP],
+            _k(NotificationType.TASK_ASSIGNED): _v(DeliveryChannel.IN_APP, DeliveryChannel.EMAIL),
+            _k(NotificationType.TASK_DUE_SOON): _v(DeliveryChannel.IN_APP, DeliveryChannel.EMAIL),
+            _k(NotificationType.TASK_OVERDUE): _v(DeliveryChannel.IN_APP, DeliveryChannel.EMAIL),
+            _k(NotificationType.TASK_COMPLETED): _v(DeliveryChannel.IN_APP),
+            _k(NotificationType.FORM_SUBMITTED): _v(DeliveryChannel.IN_APP),
+            _k(NotificationType.FORM_APPROVED): _v(DeliveryChannel.IN_APP, DeliveryChannel.EMAIL),
+            _k(NotificationType.FORM_REJECTED): _v(DeliveryChannel.IN_APP, DeliveryChannel.EMAIL),
+            _k(NotificationType.MENTION): _v(DeliveryChannel.IN_APP),
+            _k(NotificationType.COMMENT): _v(DeliveryChannel.IN_APP),
+            _k(NotificationType.STATUS_CHANGE): _v(DeliveryChannel.IN_APP),
+            _k(NotificationType.WORKFLOW_TRIGGER): _v(DeliveryChannel.IN_APP),
+            _k(NotificationType.SYSTEM): _v(DeliveryChannel.IN_APP),
         }

@@ -137,6 +137,14 @@ This file is the **append-only PR-referenceable execution log**.
 - System Products: increased max page size to 1000 and added an unpaginated export route to avoid 20-item exports.
 - System Choice Items: supports `?limit=1000` and `?paginate=false` to fetch full lists; frontend loaders now request `limit=1000` and accept `{results: []}` responses.
 
+### 2026-03-30 — Phase 9.5: Quick Actions + Task Assignment Notifications
+- Quick Actions: activating a form now also enables it for Quick Actions (`is_quick_action_enabled=True`).
+- Notifications: when a `FormStepSubmission` transitions to `ACTION_NEEDED`, the assigned user (via `StepAssignment`) receives an in-app `UserNotification`.
+- Notifications: UserNotificationPreferences defaults explicitly cast TextChoices keys/values to `str` to avoid JSON serialization errors during get_or_create.
+- Action Items APIs: verified imports (e.g., StepSubmissionStatus) and compiled clean to prevent worker crashes / 502s.
+- UI: Quick Actions empty state now reads: "No active forms available for Quick Actions. Publish a form in the Workforms Editor first.".
+- UI: Login password input now sets `autoComplete="current-password"`.
+
 ### 2026-03-27 — Phase 9.5: Admin Workspace Hardening
 - Invitations: resend action now uses the shared invitation email helper (extracted from `signals.py`), and create prefers the current request tenant.
 - Tenant Users: admins can remove a user (hard delete) as long as the role is not `owner`.

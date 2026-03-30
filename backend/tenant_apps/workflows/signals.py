@@ -7,10 +7,19 @@ is created, and captures form snapshot for versioning.
 import logging
 
 from django.db import transaction
-from django.db.models.signals import post_save
+from django.db.models.signals import post_save, pre_save
 from django.dispatch import receiver
 
-from .models import FormSubmission, FormStepSubmission, StepSubmissionStatus
+from .models import (
+    AssignmentType,
+    FormSubmission,
+    FormStepSubmission,
+    NotificationPriority,
+    NotificationType,
+    StepAssignment,
+    StepSubmissionStatus,
+    UserNotification,
+)
 from .services import FieldRegistry
 from .services.field_registry import ENTITY_MODEL_MAP
 
@@ -79,6 +88,84 @@ def create_step_submissions(sender, instance, created, **kwargs):
         if not instance.form_snapshot:
             instance.form_snapshot = _build_form_snapshot(instance.form)
             instance.save(update_fields=['form_snapshot', 'current_step'])
+
+
+@receiver(pre_save, sender=FormStepSubmission)
+def _cache_previous_step_submission_status(sender, instance: FormStepSubmission, **kwargs):
+    """Cache previous status so post_save can detect transitions."""
+    if not instance.pk:
+        instance._previous_status = None
+        return
+
+    try:
+        instance._previous_status = (
+            FormStepSubmission.objects.only("status").get(pk=instance.pk).status
+        )
+    except FormStepSubmission.DoesNotExist:
+        instance._previous_status = None
+
+
+@receiver(post_save, sender=FormStepSubmission)
+def notify_action_needed_assignee(sender, instance: FormStepSubmission, created: bool, **kwargs):
+    """Notify assigned users when a step becomes ACTION_NEEDED."""
+    previous_status = getattr(instance, "_previous_status", None)
+
+    if instance.status != StepSubmissionStatus.ACTION_NEEDED:
+        return
+
+    # Only notify on transition into ACTION_NEEDED.
+    if previous_status == StepSubmissionStatus.ACTION_NEEDED:
+        return
+
+    try:
+        assignments = (
+            StepAssignment.objects.filter(
+                tenant=instance.tenant,
+                form=instance.submission.form,
+                step=instance.step,
+                assignment_type=AssignmentType.USER,
+                assigned_user__isnull=False,
+            )
+            .select_related("assigned_user")
+            .only("assigned_user", "assigned_user_id")
+        )
+
+        users = {a.assigned_user for a in assignments if a.assigned_user_id}
+        if not users:
+            return
+
+        step_label = (
+            getattr(instance.step, "step_name", None)
+            or getattr(instance.step, "name", None)
+            or str(instance.step)
+        )
+        form_name = getattr(instance.submission.form, "name", "Form")
+
+        def _create_notifications():
+            for user in users:
+                UserNotification.objects.create(
+                    user=user,
+                    tenant=instance.tenant,
+                    notification_type=NotificationType.TASK_ASSIGNED,
+                    title=f"Action needed: {form_name}",
+                    message=f"{step_label} requires your attention.",
+                    priority=NotificationPriority.HIGH,
+                    entity_type="form_submission",
+                    entity_id=instance.submission_id,
+                    metadata={
+                        "form_id": str(instance.submission.form_id),
+                        "step_id": str(instance.step_id),
+                        "step_submission_id": str(instance.id),
+                        "status": instance.status,
+                    },
+                )
+
+        transaction.on_commit(_create_notifications)
+
+    except Exception as e:
+        logger.exception(
+            f"[Signals] Failed to create ACTION_NEEDED notification for step_submission={instance.id}: {e}"
+        )
 
 
 def _build_form_snapshot(form):
