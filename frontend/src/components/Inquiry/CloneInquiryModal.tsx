@@ -6,9 +6,20 @@
  */
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
-import axios from 'axios';
 import { showAlert } from '@/utils/uiDialogs';
+import { businessApi } from '@/services/businessApi';
 import { Inquiry } from '../../types';
+
+function unwrapResults<T>(data: { results?: T[] } | T[]): T[] {
+  return Array.isArray(data) ? data : (data.results ?? []);
+}
+
+interface CloneInquiryPayload {
+  include_products: boolean;
+  include_pricing: boolean;
+  new_entity_id?: string;
+  new_contact_id?: string;
+}
 
 // ============================================================================
 // Types
@@ -235,14 +246,13 @@ export const CloneInquiryModal: React.FC<CloneInquiryModalProps> = ({
   // Load entities based on inquiry type
   useEffect(() => {
     if (isOpen && inquiry) {
-      const endpoint = inquiry.entity_type === 'supplier' 
-        ? '/api/v1/suppliers/'
-        : '/api/v1/customers/';
+      const endpoint = inquiry.entity_type === 'supplier'
+        ? '/suppliers/'
+        : '/customers/';
       
-      axios.get(endpoint, { params: { page_size: 500 } })
-        .then(res => {
-          const data = res.data.results || res.data;
-          setEntities(data);
+      businessApi.get<{ results?: Entity[] } | Entity[]>(endpoint, { params: { page_size: 500 } })
+        .then((res) => {
+          setEntities(unwrapResults<Entity>(res.data));
         })
         .catch(console.error);
     }
@@ -251,16 +261,15 @@ export const CloneInquiryModal: React.FC<CloneInquiryModalProps> = ({
   // Load contacts when entity changes
   useEffect(() => {
     if (newEntityId) {
-      axios.get('/api/v1/contacts/', { 
-        params: { 
+      businessApi.get<{ results?: Contact[] } | Contact[]>('/contacts/', {
+        params: {
           entity_type: inquiry.entity_type,
           entity_id: newEntityId,
-          page_size: 100 
-        } 
+          page_size: 100,
+        },
       })
-        .then(res => {
-          const data = res.data.results || res.data;
-          setContacts(data);
+        .then((res) => {
+          setContacts(unwrapResults<Contact>(res.data));
         })
         .catch(() => setContacts([]));
     } else {
@@ -281,7 +290,7 @@ export const CloneInquiryModal: React.FC<CloneInquiryModalProps> = ({
   const handleClone = async () => {
     setCloning(true);
     try {
-      const payload: any = {
+      const payload: CloneInquiryPayload = {
         include_products: includeProducts,
         include_pricing: includePricing,
       };
@@ -293,10 +302,7 @@ export const CloneInquiryModal: React.FC<CloneInquiryModalProps> = ({
         payload.new_contact_id = newContactId;
       }
       
-      const response = await axios.post(
-        `/api/v1/inquiries/${inquiry.id}/clone/`,
-        payload
-      );
+      const response = await businessApi.post<Inquiry>(`/inquiries/${inquiry.id}/clone/`, payload);
       
       onCloned(response.data);
       onClose();
