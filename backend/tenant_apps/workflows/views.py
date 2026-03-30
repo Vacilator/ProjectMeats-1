@@ -2652,8 +2652,31 @@ class EntityOptionsAPIView(APIView):
 
                 options.append({"value": str(obj.pk), "label": label})
 
-            # Determine if user can create new records
-            can_create = request.user.has_perm(f"{model._meta.app_label}.add_{model._meta.model_name}")
+            # Determine if user can create new records.
+            # Many ProjectMeats APIs use tenant membership / app-level RBAC rather than Django model permissions.
+            QUICK_CREATE_MEMBER_ENTITY_TYPES = {
+                "supplier",
+                "customer",
+                "contact",
+                "carrier",
+                "plant",
+                "location",
+            }
+
+            def _is_active_tenant_member() -> bool:
+                try:
+                    from apps.tenants.models import TenantUser
+
+                    return TenantUser.objects.filter(user=request.user, tenant=tenant, is_active=True).exists()
+                except Exception:
+                    return False
+
+            is_global_admin = request.user.groups.filter(name='Global System Admins').exists()
+
+            if entity_type in QUICK_CREATE_MEMBER_ENTITY_TYPES:
+                can_create = bool(getattr(request.user, "is_superuser", False)) or is_global_admin or _is_active_tenant_member()
+            else:
+                can_create = request.user.has_perm(f"{model._meta.app_label}.add_{model._meta.model_name}")
 
             return Response(
                 {
@@ -2863,9 +2886,35 @@ class QuickCreateEntityAPIView(APIView):
         if not tenant:
             return Response({"error": "Tenant context required"}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Check permission
-        if not request.user.has_perm(f"{model._meta.app_label}.add_{model._meta.model_name}"):
-            return Response({"error": "Permission denied"}, status=status.HTTP_403_FORBIDDEN)
+        # Check permission.
+        # Quick-create is primarily for reference data (supplier/customer/contact/etc.).
+        # For those, we rely on tenant membership (plus Global System Admin / superuser),
+        # which matches the permission model of many tenant ViewSets.
+        QUICK_CREATE_MEMBER_ENTITY_TYPES = {
+            "supplier",
+            "customer",
+            "contact",
+            "carrier",
+            "plant",
+            "location",
+        }
+
+        def _is_active_tenant_member() -> bool:
+            try:
+                from apps.tenants.models import TenantUser
+
+                return TenantUser.objects.filter(user=request.user, tenant=tenant, is_active=True).exists()
+            except Exception:
+                return False
+
+        is_global_admin = request.user.groups.filter(name='Global System Admins').exists()
+
+        if entity_type in QUICK_CREATE_MEMBER_ENTITY_TYPES:
+            if not (getattr(request.user, "is_superuser", False) or is_global_admin or _is_active_tenant_member()):
+                return Response({"error": "Permission denied"}, status=status.HTTP_403_FORBIDDEN)
+        else:
+            if not request.user.has_perm(f"{model._meta.app_label}.add_{model._meta.model_name}"):
+                return Response({"error": "Permission denied"}, status=status.HTTP_403_FORBIDDEN)
 
         try:
             # Build kwargs from request data
