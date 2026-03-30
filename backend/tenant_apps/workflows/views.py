@@ -2457,8 +2457,7 @@ class AvailableFormsViewSet(viewsets.ReadOnlyModelViewSet):
     ViewSet for listing forms available for Quick Actions.
 
     Only returns forms that are:
-    - Active (status=active)
-    - Quick action enabled
+    - Active or Draft (status in [active, draft])
     - Belonging to the user's tenant (or all tenants for superusers)
     """
 
@@ -2466,8 +2465,8 @@ class AvailableFormsViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = AvailableFormSerializer
 
     def get_queryset(self):
-        # Base query - active and quick-action enabled forms
-        queryset = TenantForm.objects.filter(status=FormStatus.ACTIVE, is_quick_action_enabled=True)
+        # Base query - active or draft forms (Quick Actions supports pinning draft/saved workform processes)
+        queryset = TenantForm.objects.filter(status__in=[FormStatus.ACTIVE, FormStatus.DRAFT])
 
         # For superusers, show all available forms
         # For regular users, filter by their tenant
@@ -2549,12 +2548,6 @@ class QuickActionsAPIView(APIView):
                                 {"error": f'Form {item["form_id"]} not found'}, status=status.HTTP_400_BAD_REQUEST
                             )
 
-                    if not form.is_quick_action_enabled:
-                        logger.warning(f"Form {item['form_id']} is not enabled for quick actions")
-                        return Response(
-                            {"error": f'Form "{form.name}" is not enabled for quick actions'},
-                            status=status.HTTP_400_BAD_REQUEST,
-                        )
 
             # Update preferences
             from apps.core.models import UserPreferences

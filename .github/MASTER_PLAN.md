@@ -150,6 +150,10 @@ This file is the **append-only PR-referenceable execution log**.
 - Defaults are generated via primitive-only comprehensions to prevent JSON serialization errors.
 - Errors are surfaced as `{error: "..."}` with HTTP 500 to aid debugging if failures persist.
 
+### 2026-03-30 — Phase 9.5: Relaxed Quick Actions filtering to natively support Draft/Saved Workform processes
+- Quick Actions “Available Forms” now includes both `ACTIVE` and `DRAFT` TenantForms.
+- Quick Actions save no longer blocks on `is_quick_action_enabled`; user pinning explicitly overrides the flag.
+
 ### 2026-03-27 — Phase 9.5: Admin Workspace Hardening
 - Invitations: resend action now uses the shared invitation email helper (extracted from `signals.py`), and create prefers the current request tenant.
 - Tenant Users: admins can remove a user (hard delete) as long as the role is not `owner`.
