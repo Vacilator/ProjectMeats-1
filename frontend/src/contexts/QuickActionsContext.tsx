@@ -112,16 +112,18 @@ export const QuickActionsProvider: React.FC<QuickActionsProviderProps> = ({ chil
     }
   }, []);
 
-  const addQuickAction = useCallback(async (form: AvailableForm) => {
+  const addQuickAction = useCallback(async (item: AvailableForm) => {
+    const itemType = item.type === 'workflow' ? 'workflow' : 'form';
+
     const newAction: QuickActionItem = {
       id: `qa_${Date.now()}`,
-      type: 'form',
-      form_id: form.id,
-      label: form.name,
-      icon: form.icon || 'file-text',  // Keep original icon or default to file-text
+      type: itemType,
+      ...(itemType === 'workflow' ? { workflow_id: item.id } : { form_id: item.id }),
+      label: item.name,
+      icon: item.icon || (itemType === 'workflow' ? 'layers' : 'file-text'),
       order: quickActions.length,
     };
-    
+
     const updatedActions = [...quickActions, newAction];
     await updateQuickActions(updatedActions);
   }, [quickActions, updateQuickActions]);

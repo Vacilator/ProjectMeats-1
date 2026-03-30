@@ -115,6 +115,12 @@ const Header: React.FC<HeaderProps> = () => {
     if (action.type === 'form' && action.form_id) {
       openFormModal(action.form_id);
       setShowQuickMenu(false);
+      return;
+    }
+
+    if (action.type === 'workflow' && action.workflow_id) {
+      navigate(`/workforms/editor/${action.workflow_id}`);
+      setShowQuickMenu(false);
     }
   };
 
@@ -275,27 +281,30 @@ const Header: React.FC<HeaderProps> = () => {
                     <span>View All Workflows</span>
                   </SubmenuItem>
                   
-                  {availableForms.length > 0 && (
+                  {availableForms.filter((f) => (f.type ?? 'form') === 'form').length > 0 && (
                     <>
                       <SubmenuDivider />
                       <SubmenuHeader>Published Forms</SubmenuHeader>
-                      {availableForms.slice(0, 5).map((form) => (
+                      {availableForms
+                        .filter((f) => (f.type ?? 'form') === 'form')
+                        .slice(0, 5)
+                        .map((form) => (
+                          <SubmenuItem
+                            key={form.id}
+                            $theme={theme}
+                            onClick={() => {
+                              openFormModal(form.id);
+                              setShowQuickMenu(false);
+                              setShowFormsSubmenu(false);
+                            }}
+                            title={`Run ${form.name}`}
+                          >
+                            <span>▶️</span>
+                            <span>{form.name}</span>
+                          </SubmenuItem>
+                        ))}
+                      {availableForms.filter((f) => (f.type ?? 'form') === 'form').length > 5 && (
                         <SubmenuItem
-                          key={form.id}
-                          $theme={theme}
-                          onClick={() => {
-                            openFormModal(form.id);
-                            setShowQuickMenu(false);
-                            setShowFormsSubmenu(false);
-                          }}
-                          title={`Run ${form.name}`}
-                        >
-                          <span>▶️</span>
-                          <span>{form.name}</span>
-                        </SubmenuItem>
-                      ))}
-                      {availableForms.length > 5 && (
-                        <SubmenuItem 
                           $theme={theme}
                           style={{ fontSize: '11px', fontStyle: 'italic' }}
                           onClick={() => {
@@ -304,14 +313,19 @@ const Header: React.FC<HeaderProps> = () => {
                             setShowFormsSubmenu(false);
                           }}
                         >
-                          <span>+{availableForms.length - 5} more forms...</span>
+                          <span>
+                            +{availableForms.filter((f) => (f.type ?? 'form') === 'form').length - 5} more forms...
+                          </span>
                         </SubmenuItem>
                       )}
                     </>
                   )}
                   
-                  {availableForms.length === 0 && (
-                    <SubmenuItem $theme={theme} style={{ fontSize: '12px', fontStyle: 'italic', cursor: 'default', opacity: 0.6 }}>
+                  {availableForms.filter((f) => (f.type ?? 'form') === 'form').length === 0 && (
+                    <SubmenuItem
+                      $theme={theme}
+                      style={{ fontSize: '12px', fontStyle: 'italic', cursor: 'default', opacity: 0.6 }}
+                    >
                       <span>No published forms yet</span>
                     </SubmenuItem>
                   )}

@@ -199,7 +199,7 @@ export const PinnedToolsBar: React.FC = () => {
         (a) => a.type === 'form' && a.form_id && a.label?.toLowerCase() === desiredLabel.toLowerCase()
       );
       const fallbackForm = availableForms.find(
-        (f) => f.id && f.name?.toLowerCase() === desiredLabel.toLowerCase()
+        (f) => (f.type ?? 'form') === 'form' && f.id && f.name?.toLowerCase() === desiredLabel.toLowerCase()
       );
 
       const formId = quickAction?.form_id ?? fallbackForm?.id ?? null;
