@@ -40,6 +40,17 @@
 }
 
 /* ============================================================================
+   Phase 9.7: Selected node visibility
+   ============================================================================ */
+
+.pm-node.is-selected {
+  border: 2px solid rgb(var(--color-primary)) !important;
+  box-shadow: 0 0 0 3px rgba(var(--color-primary), 0.4) !important;
+  transform: scale(1.02);
+  transition: all 0.2s ease-in-out;
+}
+
+/* ============================================================================
    Mobile Styles (< 600px)
    ============================================================================ */
 

@@ -2188,7 +2188,12 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   }, [setNodes, onNodesChangeBase]);
   
   // React Flow instance for viewport controls
-  const { setCenter: reactFlowSetCenter, ...reactFlowInstance } = useReactFlow();
+  const {
+    setCenter: reactFlowSetCenter,
+    getNodes: reactFlowGetNodes,
+    getEdges: reactFlowGetEdges,
+    ...reactFlowInstance
+  } = useReactFlow();
   
   // ============================================================================
   // CONFIG PANEL PORTAL - Enhanced with full styling (2026-02-24)
@@ -3629,6 +3634,25 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     [setNodes, setEdges]
   );
 
+  const applyAutoLayoutAfterNextPaint = useCallback(() => {
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => {
+        const currentNodes = reactFlowGetNodes();
+        const currentEdges = reactFlowGetEdges();
+
+        const { nodes: layoutedNodes, edges: layoutedEdges } = getLayoutedElements(currentNodes, currentEdges, {
+          direction: 'TB',
+          nodeSpacing: 60,
+          rankSpacing: 120,
+        });
+
+        setNodes(layoutedNodes);
+        setEdges(layoutedEdges);
+        setHasUnsavedChanges(true);
+      });
+    });
+  }, [reactFlowGetNodes, reactFlowGetEdges, setNodes, setEdges]);
+
   const handleClickToAddNode = useCallback(
     (nodeTypeId: string) => {
       if (readOnly) return;
@@ -3771,7 +3795,10 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
           setEdges(connectionResult.edges);
           setHasUnsavedChanges(true);
         } else {
-          applyAutoLayoutImmediate(nextNodes, nextEdges);
+          setNodes(nextNodes);
+          setEdges(nextEdges);
+          setHasUnsavedChanges(true);
+          applyAutoLayoutAfterNextPaint();
         }
         return;
       }
@@ -3842,7 +3869,10 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
           setEdges(connectionResult.edges);
           setHasUnsavedChanges(true);
         } else {
-          applyAutoLayoutImmediate(nextNodes, nextEdges);
+          setNodes(nextNodes);
+          setEdges(nextEdges);
+          setHasUnsavedChanges(true);
+          applyAutoLayoutAfterNextPaint();
         }
       } else {
         const nextEdges: Edge[] = [...edges];
@@ -3882,7 +3912,10 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
           setEdges(connectionResult.edges);
           setHasUnsavedChanges(true);
         } else {
-          applyAutoLayoutImmediate(nextNodes, nextEdges);
+          setNodes(nextNodes);
+          setEdges(nextEdges);
+          setHasUnsavedChanges(true);
+          applyAutoLayoutAfterNextPaint();
         }
       }
     },
@@ -3896,7 +3929,9 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       generateNodeId,
       selectedNode,
       selectedNodeId,
-      applyAutoLayoutImmediate,
+      setNodes,
+      setEdges,
+      applyAutoLayoutAfterNextPaint,
     ]
   );
 

@@ -622,7 +622,7 @@ export const FormProcessNode = React.memo<FormProcessNodeProps>(({
       {/* Container custom UI */}
       <ContainerWrapper 
           isExpanded={isExpanded}
-          className={`${selected ? 'selected' : ''} ${data.isDropTarget ? 'drag-over' : ''}`}
+          className={`pm-node ${selected ? 'selected is-selected' : ''} ${data.isDropTarget ? 'drag-over' : ''}`}
         >
           <ContainerHeader
             onClick={(e) => {
