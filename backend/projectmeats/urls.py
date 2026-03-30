@@ -15,6 +15,7 @@ from drf_spectacular.views import (
 )
 from .health import health_check, health_detailed, ready_check, health_workforms
 from apps.core.admin_site import admin_site
+from tenant_apps.workflows.views import SuggestNodesView
 
 # Keep default admin for backwards compatibility, but use custom site as primary
 admin.site.site_header = '🥩 Meats Central Admin'
@@ -59,6 +60,8 @@ urlpatterns = [
     path("api/v1/workspace/", include("tenant_apps.cockpit.urls")),         # NEW canonical path
     path("api/v1/", include("tenant_apps.inquiries.urls")),  # Inquiry management
     path("api/v1/", include("tenant_apps.fulfillments.urls")),  # Fulfillment tracking
+    # Legacy alias (older clients) — canonical path is /api/v1/workflows/suggest-nodes/
+    path("api/v1/suggest-nodes/", SuggestNodesView.as_view(), name="suggest-nodes-legacy"),
     path("api/v1/workflows/", include("tenant_apps.workflows.urls")),  # Bundle Two: Tenant Workflows
     # NOTE: schema-builder API DELETED in v2.0 Wave 1 (superseded by workflows)
     # API Documentation
