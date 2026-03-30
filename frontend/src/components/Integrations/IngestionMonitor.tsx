@@ -1,7 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { List, Tag, Button, Space, Typography, Empty, message, Spin } from 'antd';
 import { SyncOutlined, MailOutlined, CheckCircleOutlined, ExclamationCircleOutlined, ClockCircleOutlined } from '@ant-design/icons';
+import { useNavigate } from 'react-router-dom';
+
 import { businessApi } from '@/services/businessApi';
+import {
+  buildEmailSyncCtaMessage,
+  emailSyncNeedsReconnect,
+  getEmailSyncErrorCode,
+} from '@/utils/emailSyncDiagnostics';
 
 const { Title, Text } = Typography;
 
@@ -52,6 +59,7 @@ const getStatusTag = (status: EmailLog['status']) => {
  * Shows processing status and allows manual sync trigger.
  */
 export const IngestionMonitor: React.FC = () => {
+  const navigate = useNavigate();
   const [emails, setEmails] = useState<EmailLog[]>([]);
   const [loading, setLoading] = useState(false);
   const [syncing, setSyncing] = useState(false);
@@ -94,15 +102,23 @@ export const IngestionMonitor: React.FC = () => {
 
       // Soft-fail path: backend can return 200 with ok:false when Outlook/Graph is unhealthy.
       if (ok === false) {
-        const code = String(response.data?.code || '');
-        if (code === 'decryption_failed') {
-          message.error('Outlook needs to be reconnected. Go to Settings → Email Integrations (/settings/email-integrations) and reconnect, then retry Sync Now.');
+        const code = getEmailSyncErrorCode(response.data);
+        const err = response.data?.error || 'Email sync failed.';
+
+        if (emailSyncNeedsReconnect(code)) {
+          message.error({
+            content: buildEmailSyncCtaMessage(
+              'Outlook needs to be reconnected.',
+              () => navigate('/settings/email-integrations'),
+              typeof hint === 'string' ? hint : undefined
+            ),
+            duration: 6,
+          });
           await fetchEmailLogs();
           return;
         }
 
-        const err = response.data?.error || 'Email sync failed.';
-        message.error(hint ? `${err} ${hint}` : err);
+        message.error(typeof hint === 'string' ? `${err} ${hint}` : err);
         await fetchEmailLogs();
         return;
       }
@@ -134,16 +150,16 @@ export const IngestionMonitor: React.FC = () => {
     } catch (error: any) {
       console.error('Failed to trigger sync:', error);
 
-      const code = String(error?.response?.data?.code || '').toLowerCase();
-      const detail = String(error?.response?.data?.error || error?.message || '').toLowerCase();
+      const parsedCode = getEmailSyncErrorCode(error?.response?.data);
 
-      if (
-        code === 'decryption_failed' ||
-        detail.includes('decrypt') ||
-        detail.includes('invalidtoken') ||
-        detail.includes('oauth_encryption_key')
-      ) {
-        message.error('Outlook needs to be reconnected. Go to Settings → Email Integrations (/settings/email-integrations) and reconnect, then retry Sync Now.');
+      if (emailSyncNeedsReconnect(parsedCode)) {
+        message.error({
+          content: buildEmailSyncCtaMessage(
+            'Outlook needs to be reconnected.',
+            () => navigate('/settings/email-integrations')
+          ),
+          duration: 6,
+        });
         await fetchEmailLogs();
         return;
       }

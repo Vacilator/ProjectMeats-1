@@ -8,6 +8,7 @@ import secrets
 from datetime import timedelta
 from urllib.parse import quote
 
+from django.conf import settings
 from django.core import signing
 from django.shortcuts import redirect
 from django.utils import timezone
@@ -327,6 +328,12 @@ def sync_emails(request):
             {
                 "error": "No active Microsoft account connected.",
                 "code": "not_connected",
+                "error_code": "not_connected",
+                "hint": "Connect Outlook in Settings → Email Integrations, then retry Sync Now.",
+                "cta": {
+                    "label": "Open Email Integrations",
+                    "url": "/settings/email-integrations",
+                },
                 "tenant_id": tenant_id,
             },
             status=status.HTTP_400_BAD_REQUEST,
@@ -345,6 +352,7 @@ def sync_emails(request):
                 {
                     "error": stats.get('error'),
                     "code": "sync_failed",
+                    "error_code": "sync_failed",
                     "tenant_id": tenant_id,
                     "provider_email": provider.connected_email,
                     "stats": stats,
@@ -365,8 +373,15 @@ def sync_emails(request):
             # Normalize error codes so the frontend can provide a deterministic CTA.
             error_code = str((stats or {}).get('error_code') or '').strip().lower()
             if not error_code and isinstance(detail, str):
-                if detail.startswith('DECRYPTION_FAILED') or 'Failed to decrypt Microsoft access token' in detail:
+                detail_lower = detail.lower()
+                if detail.startswith('DECRYPTION_FAILED') or 'decrypt' in detail_lower or 'invalidtoken' in detail_lower:
                     error_code = 'decryption_failed'
+                elif 'token refresh failed' in detail_lower:
+                    error_code = 'token_refresh_failed'
+                elif 'token is invalid' in detail_lower or 'invalid/expired' in detail_lower:
+                    error_code = 'token_invalid'
+                elif 'no microsoft access token' in detail_lower or 'no access token' in detail_lower:
+                    error_code = 'token_missing'
 
             if error_code == 'decryption_failed':
                 return Response(
@@ -375,7 +390,33 @@ def sync_emails(request):
                         "message": "Email sync requires reconnect",
                         "error": "Your Outlook connection needs to be refreshed for security reasons.",
                         "code": "decryption_failed",
+                        "error_code": "decryption_failed",
                         "hint": "Reconnect Outlook in Settings → Email Integrations, then retry Sync Now.",
+                        "cta": {
+                            "label": "Open Email Integrations",
+                            "url": "/settings/email-integrations",
+                        },
+                        "tenant_id": tenant_id,
+                        "provider_email": provider.connected_email,
+                        "stats": stats,
+                    },
+                    status=status.HTTP_200_OK,
+                )
+
+            # Other failure modes that generally require a reconnect.
+            if error_code in {'token_invalid', 'token_refresh_failed', 'token_missing'}:
+                return Response(
+                    {
+                        "ok": False,
+                        "message": "Email sync requires reconnect",
+                        "error": detail or "Outlook connection is invalid or expired.",
+                        "code": "sync_failed",
+                        "error_code": error_code,
+                        "hint": "Reconnect Outlook in Settings → Email Integrations, then retry Sync Now.",
+                        "cta": {
+                            "label": "Open Email Integrations",
+                            "url": "/settings/email-integrations",
+                        },
                         "tenant_id": tenant_id,
                         "provider_email": provider.connected_email,
                         "stats": stats,
@@ -389,7 +430,8 @@ def sync_emails(request):
                     "message": "Email sync completed with errors",
                     "error": detail or "Email sync failed. Outlook connection may be expired or misconfigured.",
                     "code": "sync_failed",
-                    "hint": "Try reconnecting Outlook in Settings → Integrations, then retry Sync Now.",
+                    "error_code": error_code or "sync_failed",
+                    "hint": "Try reconnecting Outlook in Settings → Email Integrations, then retry Sync Now.",
                     "tenant_id": tenant_id,
                     "provider_email": provider.connected_email,
                     "stats": stats,
@@ -434,7 +476,12 @@ def sync_emails(request):
                     "message": "Email sync requires reconnect",
                     "error": "Your Outlook connection needs to be refreshed for security reasons.",
                     "code": "decryption_failed",
+                    "error_code": "decryption_failed",
                     "hint": "Reconnect Outlook in Settings → Email Integrations, then retry Sync Now.",
+                    "cta": {
+                        "label": "Open Email Integrations",
+                        "url": "/settings/email-integrations",
+                    },
                     "tenant_id": tenant_id,
                     "provider_email": provider.connected_email,
                 },
@@ -443,13 +490,19 @@ def sync_emails(request):
 
         # This is a user-triggered action. Prefer a 200 + structured failure payload so the UI
         # can display actionable guidance instead of treating it as a hard outage.
+        error_detail = str(e) if getattr(settings, 'DEBUG', False) else "Email sync failed. Outlook connection may be expired or misconfigured."
         return Response(
             {
                 "ok": False,
                 "message": "Email sync failed",
-                "error": "Email sync failed. Outlook connection may be expired or misconfigured.",
+                "error": error_detail,
                 "code": "sync_exception",
-                "hint": "If this persists, reconnect Outlook in Settings → Integrations and retry.",
+                "error_code": "sync_exception",
+                "hint": "If this persists, reconnect Outlook in Settings → Email Integrations and retry.",
+                "cta": {
+                    "label": "Open Email Integrations",
+                    "url": "/settings/email-integrations",
+                },
                 "tenant_id": tenant_id,
                 "provider_email": provider.connected_email,
             },

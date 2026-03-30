@@ -11,7 +11,14 @@ import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { message } from 'antd';
 import { Mail, RefreshCw, CheckCircle, AlertCircle, Clock, Zap } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+
 import { businessApi } from '../../services/businessApi';
+import {
+  buildEmailSyncCtaMessage,
+  emailSyncNeedsReconnect,
+  getEmailSyncErrorCode,
+} from '../../utils/emailSyncDiagnostics';
 
 // ============================================================================
 // TypeScript Interfaces
@@ -233,6 +240,7 @@ const LoadingState = styled(EmptyState)`
 export const EmailIngestionMonitorWidget: React.FC<EmailIngestionMonitorWidgetProps> = ({
   onRefresh
 }) => {
+  const navigate = useNavigate();
   const [emails, setEmails] = useState<EmailLog[]>([]);
   const [loading, setLoading] = useState(false);
   const [syncing, setSyncing] = useState(false);
@@ -273,15 +281,23 @@ export const EmailIngestionMonitorWidget: React.FC<EmailIngestionMonitorWidgetPr
       const stats = response.data?.stats;
 
       if (ok === false) {
-        const code = String(response.data?.code || '');
-        if (code === 'decryption_failed') {
-          message.error('Outlook needs to be reconnected. Open /settings/email-integrations and reconnect, then retry Sync.');
+        const code = getEmailSyncErrorCode(response.data);
+        const err = response.data?.error || 'Email sync failed.';
+
+        if (emailSyncNeedsReconnect(code)) {
+          message.error({
+            content: buildEmailSyncCtaMessage(
+              'Outlook needs to be reconnected.',
+              () => navigate('/settings/email-integrations'),
+              typeof hint === 'string' ? hint : undefined
+            ),
+            duration: 6,
+          });
           await fetchEmailLogs();
           return;
         }
 
-        const err = response.data?.error || 'Email sync failed.';
-        message.error(hint ? `${err} ${hint}` : err);
+        message.error(typeof hint === 'string' ? `${err} ${hint}` : err);
         await fetchEmailLogs();
         return;
       }
@@ -313,16 +329,13 @@ export const EmailIngestionMonitorWidget: React.FC<EmailIngestionMonitorWidgetPr
     } catch (error: any) {
       console.error('Failed to trigger sync:', error);
 
-      const code = String(error?.response?.data?.code || '').toLowerCase();
-      const detail = String(error?.response?.data?.error || error?.message || '').toLowerCase();
+      const code = getEmailSyncErrorCode(error?.response?.data);
 
-      if (
-        code === 'decryption_failed' ||
-        detail.includes('decrypt') ||
-        detail.includes('invalidtoken') ||
-        detail.includes('oauth_encryption_key')
-      ) {
-        message.error('Outlook needs to be reconnected. Open /settings/email-integrations and reconnect, then retry Sync.');
+      if (emailSyncNeedsReconnect(code)) {
+        message.error({
+          content: buildEmailSyncCtaMessage('Outlook needs to be reconnected.', () => navigate('/settings/email-integrations')),
+          duration: 6,
+        });
         await fetchEmailLogs();
         return;
       }
