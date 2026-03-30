@@ -279,19 +279,19 @@ class UniversalSearchService:
         return combined
     
     def _search_entity(
-        self, 
-        entity_type: str, 
-        search_text: str, 
-        limit: int = 10
-    ) -> List[Dict[str, Any]]:
+        self,
+        entity_type: str,
+        search_text: str,
+        limit: int = 10,
+    ) -> Dict[str, Any]:
         """Search a single entity type."""
         config = SEARCHABLE_ENTITIES.get(entity_type)
         if not config:
-            return []
-        
+            return {'items': [], 'total_count': 0}
+
         Model = self._get_model(entity_type)
         if not Model:
-            return []
+            return {'items': [], 'total_count': 0}
         
         try:
             # Build query
@@ -314,11 +314,16 @@ class UniversalSearchService:
             else:
                 # If the user is effectively filtering by entity type (e.g. query="purchase"),
                 # show the most recent records for that type.
-                ordering = '-created_at'
-                if not any(f.name == 'created_at' for f in Model._meta.fields):
+                field_names = {f.name for f in Model._meta.fields}
+                if 'created_at' in field_names:
+                    ordering = '-created_at'
+                elif 'created_on' in field_names:
+                    ordering = '-created_on'
+                else:
                     ordering = '-id'
                 queryset = base_qs.order_by(ordering)
 
+            total_count = queryset.count()
             queryset = queryset[:limit]
             
             # Format results
@@ -338,11 +343,14 @@ class UniversalSearchService:
                     'score': 1.0,  # Basic relevance (can be enhanced)
                 })
             
-            return results
+            return {
+                'items': results,
+                'total_count': total_count,
+            }
             
         except Exception as e:
             logger.error(f"Search error for {entity_type}: {e}")
-            return []
+            return {'items': [], 'total_count': 0}
 
     def get_record_detail(self, entity_type: str, entity_id: str | int) -> Optional[Dict[str, Any]]:
         """Fetch a single record detail payload for a given entity type.
@@ -493,9 +501,12 @@ class UniversalSearchService:
             counts: dict[str, int] = {}
 
             for entity_type in types_to_search:
-                results = self._search_entity(entity_type, normalized_query, limit_per_type)
-                all_results.extend(results)
-                counts[entity_type] = len(results)
+                result = self._search_entity(entity_type, normalized_query, limit_per_type)
+                items = result.get('items') if isinstance(result.get('items'), list) else []
+                total_count = int(result.get('total_count') or 0)
+
+                all_results.extend(items)
+                counts[entity_type] = total_count
 
             # Sort by score (can enhance with relevance ranking)
             all_results.sort(key=lambda x: x.get("score", 0), reverse=True)
@@ -506,7 +517,8 @@ class UniversalSearchService:
                 "operator": operator_type,
                 "results": all_results,
                 "counts": counts,
-                "total": len(all_results),
+                "total": sum(counts.values()),
+                "returned": len(all_results),
             }
 
         # Short TTL keeps search results fresh while protecting the database.
