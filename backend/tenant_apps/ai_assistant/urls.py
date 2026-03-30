@@ -46,6 +46,8 @@ urlpatterns = [
     path('review/pending/', PendingReviewView.as_view(), name='pending-review'),
     path('tools/openapi/', ToolsOpenAPIView.as_view(), name='tools-openapi'),
     path('errors/recent/', RecentErrorsAPIView.as_view(), name='ai-recent-errors'),
+    # Backward/ops-friendly alias (admin-only): matches runbooks that refer to /diagnostics/recent-errors/
+    path('diagnostics/recent-errors/', RecentErrorsAPIView.as_view(), name='ai-diagnostics-recent-errors'),
 
     # Supporting endpoints
     path('review/<uuid:feedback_id>/resolve/', PendingReviewResolveAPIView.as_view(), name='ai-review-resolve'),
