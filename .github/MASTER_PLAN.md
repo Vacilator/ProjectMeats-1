@@ -169,6 +169,11 @@ This file is the **append-only PR-referenceable execution log**.
 - Regression test added in `apps.system.tests.test_product_visibility`.
 - PR: #4160.
 
+### 2026-03-30T18:07:00Z — Phase 9.5: Choice Lists cache invalidation (System Active)
+- ConfigService cache now supports cross-tab invalidation via a cache-bust localStorage key.
+- After saving a choice list, cached `is_active` values won’t linger in other open tabs.
+- PR: #4161.
+
 ### 2026-03-30 — Phase 9.5: Billing Interface Dynamic Wiring — COMPLETE
 - Admin Billing invoice history now loads subscription invoices dynamically (no hardcoded rows).
 
