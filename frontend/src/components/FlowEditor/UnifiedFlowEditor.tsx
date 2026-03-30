@@ -6194,22 +6194,29 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   // Batch 4: Handler to update node title
   const handleNodeTitleChange = useCallback((nodeId: string, newTitle: string) => {
     logger.debug('[UnifiedFlowEditor] Updating node title', { nodeId, newTitle });
-    
-    setNodes(nds => 
-      nds.map(node => {
-        if (node.id === nodeId) {
-          return {
-            ...node,
-            data: {
-              ...node.data,
-              label: newTitle,
-            },
-          };
-        }
-        return node;
+
+    setNodes((nds) =>
+      nds.map((node) => {
+        if (node.id !== nodeId) return node;
+
+        const current: any = node.data || {};
+        const next: any = {
+          ...current,
+          title: newTitle,
+          label: newTitle,
+        };
+
+        // Backward compatibility: keep legacy title keys in sync when present.
+        if (typeof current.containerName === 'string') next.containerName = newTitle;
+        if (typeof current.name === 'string') next.name = newTitle;
+
+        return {
+          ...node,
+          data: next,
+        };
       })
     );
-    
+
     setHasUnsavedChanges(true);
   }, [setNodes]);
 
@@ -6577,7 +6584,8 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         data: {
           ...defaultData,      // Default node data (fields, actions, etc.)
           ...node.data,        // Template-specific data
-          label: node.data.label || nodeDef?.name || node.type, // Ensure label exists
+          title: node.data.title || node.data.label || nodeDef?.name || node.type,
+          label: node.data.label || node.data.title || nodeDef?.name || node.type, // Ensure label exists
           // Add registry metadata for proper styling
           color: nodeDef?.color,
           icon: nodeDef?.icon,

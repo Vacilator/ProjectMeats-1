@@ -425,6 +425,30 @@ export const DynamicConfigPanel: React.FC<DynamicConfigPanelProps> = ({
         return draft;
       }
 
+      // Canonical node title: keep legacy keys in sync for backwards compatibility.
+      if (fieldId === 'title') {
+        const next: any = {
+          ...prev,
+          title: value,
+          label: value,
+        };
+
+        if (typeof (prev as any).containerName === 'string') next.containerName = value;
+        if (typeof (prev as any).name === 'string') next.name = value;
+
+        onUpdateNode(node.id, next);
+
+        if (field) {
+          const error = validateField(field, value, next);
+          setErrors((errs) => ({
+            ...errs,
+            [fieldId]: error || '',
+          }));
+        }
+
+        return next;
+      }
+
       const next = { ...prev, [fieldId]: value };
       onUpdateNode(node.id, next);
 

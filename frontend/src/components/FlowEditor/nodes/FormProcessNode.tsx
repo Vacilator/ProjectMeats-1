@@ -498,6 +498,8 @@ export const FormProcessNode = React.memo<FormProcessNodeProps>(({
   selected,
 }) => {
   const [isExpanded, setIsExpanded] = useState(data.isExpanded ?? true);
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const [draftTitle, setDraftTitle] = useState('');
   
   // Use hooks to access all nodes/edges
   const allNodes = useNodes();
@@ -622,7 +624,15 @@ export const FormProcessNode = React.memo<FormProcessNodeProps>(({
           isExpanded={isExpanded}
           className={`${selected ? 'selected' : ''} ${data.isDropTarget ? 'drag-over' : ''}`}
         >
-          <ContainerHeader onClick={handleHeaderClick}>
+          <ContainerHeader
+            onClick={(e) => {
+              if (isEditingTitle) {
+                e.stopPropagation();
+                return;
+              }
+              handleHeaderClick(e);
+            }}
+          >
             <ExpandIcon>
               {isExpanded ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
             </ExpandIcon>
@@ -632,7 +642,52 @@ export const FormProcessNode = React.memo<FormProcessNodeProps>(({
             </ContainerIcon>
             
             <ContainerTitle>
-              <h3>{data.containerName || data.label || 'Unnamed Container'}</h3>
+              {isEditingTitle ? (
+                <input
+                  className="nodrag"
+                  value={draftTitle}
+                  onChange={(e) => setDraftTitle(e.target.value)}
+                  onBlur={() => {
+                    const onTitleChange = (data as any).onTitleChange as ((newTitle: string) => void) | undefined;
+                    const currentTitle = String((data as any).title || data.containerName || data.label || '').trim();
+                    const next = draftTitle.trim();
+                    if (onTitleChange && next && next !== currentTitle) onTitleChange(next);
+                    setIsEditingTitle(false);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      (e.target as HTMLInputElement).blur();
+                    } else if (e.key === 'Escape') {
+                      setIsEditingTitle(false);
+                    }
+                  }}
+                  autoFocus
+                  style={{
+                    width: '100%',
+                    fontWeight: 700,
+                    fontSize: '16px',
+                    borderRadius: 8,
+                    border: '1px solid rgba(255,255,255,0.45)',
+                    padding: '6px 8px',
+                    background: 'rgba(255,255,255,0.16)',
+                    color: 'white',
+                  }}
+                  onClick={(e) => e.stopPropagation()}
+                />
+              ) : (
+                <h3
+                  onDoubleClick={(e) => {
+                    const onTitleChange = (data as any).onTitleChange as ((newTitle: string) => void) | undefined;
+                    if (!onTitleChange) return;
+                    e.stopPropagation();
+                    setDraftTitle(String((data as any).title || data.containerName || data.label || ''));
+                    setIsEditingTitle(true);
+                  }}
+                  style={{ cursor: (data as any).onTitleChange ? 'text' : 'default' }}
+                >
+                  {(data as any).title || data.containerName || data.label || 'Unnamed Container'}
+                </h3>
+              )}
               {data.containerDescription && (
                 <p>{data.containerDescription}</p>
               )}

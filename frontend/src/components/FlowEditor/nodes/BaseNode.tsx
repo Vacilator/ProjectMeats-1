@@ -14,6 +14,7 @@ import styled from 'styled-components';
 import { Handle, Position, NodeToolbar, useStore } from '@xyflow/react';
 import { Edit2, Trash2, ChevronDown, ChevronUp, Lock, Unlock, ArrowUp, ArrowDown } from 'lucide-react';
 import { NodeTypeDefinition } from '../nodeTypes';
+import { formatEntityTypeLabel } from '../utils/formatEntityTypeLabel';
 import type { NodeBadgeStatus } from '../components/NodeBadge';
 import { NodeIcon, NodeIconType } from '../components/NodeIcons';
 
@@ -376,7 +377,7 @@ export const BaseNode: React.FC<BaseNodeProps & { children?: React.ReactNode }> 
 }) => {
   const nodeType = nodeTypeProp ?? FALLBACK_NODE_TYPE;
   const {
-    label = nodeType.name,
+    label,
     status = 'draft',
     stepNumber,
     errorMessage,
@@ -401,9 +402,12 @@ export const BaseNode: React.FC<BaseNodeProps & { children?: React.ReactNode }> 
 
   const connectionInProcess = useStore((s: any) => Boolean(s.connectionInProcess));
 
+  const entityFallbackTitle = formatEntityTypeLabel((data as any)?.entityType ?? (data as any)?.entity_type);
+  const resolvedTitle = String(((data as any)?.title ?? label ?? entityFallbackTitle ?? nodeType.name) || nodeType.name);
+
   // Batch 4: Title editing state
   const [isEditingTitle, setIsEditingTitle] = useState(false);
-  const [editedTitle, setEditedTitle] = useState(label);
+  const [editedTitle, setEditedTitle] = useState(resolvedTitle);
   
   // Sprint 1: Drag state
   const [isDragging, setIsDragging] = useState(false);
@@ -431,7 +435,7 @@ export const BaseNode: React.FC<BaseNodeProps & { children?: React.ReactNode }> 
     if (!onTitleChange) return;
     e.stopPropagation();
     setIsEditingTitle(true);
-    setEditedTitle(label);
+    setEditedTitle(resolvedTitle);
   };
   
   const handleTitleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -439,7 +443,7 @@ export const BaseNode: React.FC<BaseNodeProps & { children?: React.ReactNode }> 
   };
   
   const handleTitleBlur = () => {
-    if (onTitleChange && editedTitle !== label) {
+    if (onTitleChange && editedTitle !== resolvedTitle) {
       onTitleChange(editedTitle);
     }
     setIsEditingTitle(false);
@@ -449,7 +453,7 @@ export const BaseNode: React.FC<BaseNodeProps & { children?: React.ReactNode }> 
     if (e.key === 'Enter') {
       handleTitleBlur();
     } else if (e.key === 'Escape') {
-      setEditedTitle(label);
+      setEditedTitle(resolvedTitle);
       setIsEditingTitle(false);
     }
   };
@@ -467,7 +471,7 @@ export const BaseNode: React.FC<BaseNodeProps & { children?: React.ReactNode }> 
       onDragEnd={() => setIsDragging(false)}
 
       role="article"
-      aria-label={`${nodeType.name} node: ${data.label || 'Untitled'}`}
+      aria-label={`${nodeType.name} node: ${resolvedTitle || 'Untitled'}`}
       aria-selected={selected}
       tabIndex={0}
     >
@@ -585,7 +589,7 @@ export const BaseNode: React.FC<BaseNodeProps & { children?: React.ReactNode }> 
             onDoubleClick={handleTitleDoubleClick}
             title={onTitleChange ? "Double-click to edit" : undefined}
           >
-            {label}
+            {resolvedTitle}
             {isDirty && <span style={{ marginLeft: '4px', fontSize: '16px' }} title="Unsaved changes">*</span>}
           </NodeTitle>
         )}

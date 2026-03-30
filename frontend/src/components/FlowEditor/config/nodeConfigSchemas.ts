@@ -72,26 +72,26 @@ export const formSchema: NodeConfigSchema = {
       description: 'Core configuration for this form step',
       fields: [
         {
-          id: 'name',
+          id: 'title',
           type: 'text',
-          label: 'Step Name',
+          label: 'Title',
           placeholder: 'e.g., Customer Contact Info',
-          helpText: 'Internal name for this step (shown in workflow editor)',
+          helpText: 'Internal title for this step (shown in workflow editor)',
           required: true,
           validation: [
             {
               type: 'required',
-              message: 'Step name is required'
+              message: 'Title is required'
             },
             {
               type: 'minLength',
               value: 3,
-              message: 'Name must be at least 3 characters'
+              message: 'Title must be at least 3 characters'
             },
             {
               type: 'maxLength',
               value: 100,
-              message: 'Name must be less than 100 characters'
+              message: 'Title must be less than 100 characters'
             }
           ]
         },
@@ -468,17 +468,17 @@ export const formProcessSchema: NodeConfigSchema = {
       description: 'Basic information about this form process',
       fields: [
         {
-          id: 'containerName',
+          id: 'title',
           type: 'text',
-          label: 'Container Name',
+          label: 'Title',
           placeholder: 'e.g., Customer Onboarding Form',
-          helpText: 'Display name for this form process',
+          helpText: 'Display title for this form process',
           defaultValue: 'New Form Process',
           required: true,
           validation: [
-            { type: 'required', message: 'Container name is required' },
-            { type: 'minLength', value: 3, message: 'Container name must be at least 3 characters' },
-            { type: 'maxLength', value: 100, message: 'Container name must be at most 100 characters' }
+            { type: 'required', message: 'Title is required' },
+            { type: 'minLength', value: 3, message: 'Title must be at least 3 characters' },
+            { type: 'maxLength', value: 100, message: 'Title must be at most 100 characters' }
           ]
         },
         {
@@ -615,17 +615,17 @@ export const formProcessGroupSchema: NodeConfigSchema = {
       description: 'Basic information about this form group',
       fields: [
         {
-          id: 'containerName',
+          id: 'title',
           type: 'text',
-          label: 'Group Name',
+          label: 'Title',
           placeholder: 'e.g., Customer Information Section',
-          helpText: 'Display name for this form group',
+          helpText: 'Display title for this form group',
           defaultValue: 'New Form Group',
           required: true,
           validation: [
-            { type: 'required', message: 'Group name is required' },
-            { type: 'minLength', value: 3, message: 'Group name must be at least 3 characters' },
-            { type: 'maxLength', value: 100, message: 'Group name must be at most 100 characters' }
+            { type: 'required', message: 'Title is required' },
+            { type: 'minLength', value: 3, message: 'Title must be at least 3 characters' },
+            { type: 'maxLength', value: 100, message: 'Title must be at most 100 characters' }
           ]
         },
         {
