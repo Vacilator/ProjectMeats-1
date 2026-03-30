@@ -14,17 +14,93 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.AddField(
-            model_name="usernotificationpreferences",
-            name="tenant",
-            field=models.ForeignKey(
-                blank=True,
-                help_text="Tenant context for these preferences",
-                null=True,
-                on_delete=django.db.models.deletion.CASCADE,
-                related_name="user_notification_preferences",
-                to="tenants.tenant",
-            ),
+        migrations.SeparateDatabaseAndState(
+            database_operations=[
+                migrations.RunSQL(
+                    sql="""
+                    DO $$
+                    BEGIN
+                      IF NOT EXISTS (
+                        SELECT 1
+                        FROM information_schema.columns
+                        WHERE table_schema = 'public'
+                          AND table_name = 'workflows_usernotificationpreferences'
+                          AND column_name = 'tenant_id'
+                      ) THEN
+                        ALTER TABLE workflows_usernotificationpreferences
+                          ADD COLUMN tenant_id uuid NULL;
+                      END IF;
+                    END $$;
+                    """,
+                    reverse_sql="""
+                    -- Best-effort rollback: drop only the FK we create (if any). We intentionally
+                    -- do not drop the column because environments may have created it earlier.
+                    DO $$
+                    BEGIN
+                      IF EXISTS (
+                        SELECT 1 FROM pg_constraint WHERE conname = 'workflows_usernotificationpreferences_tenant_id_fk'
+                      ) THEN
+                        ALTER TABLE workflows_usernotificationpreferences
+                          DROP CONSTRAINT workflows_usernotificationpreferences_tenant_id_fk;
+                      END IF;
+                    END $$;
+                    """,
+                ),
+                migrations.RunSQL(
+                    sql="""
+                    DO $$
+                    BEGIN
+                      IF EXISTS (
+                        SELECT 1
+                        FROM information_schema.columns
+                        WHERE table_schema = 'public'
+                          AND table_name = 'workflows_usernotificationpreferences'
+                          AND column_name = 'tenant_id'
+                      )
+                      AND NOT EXISTS (
+                        SELECT 1
+                        FROM pg_constraint c
+                        JOIN pg_class t ON t.oid = c.conrelid
+                        JOIN pg_namespace n ON n.oid = t.relnamespace
+                        WHERE c.contype = 'f'
+                          AND n.nspname = 'public'
+                          AND t.relname = 'workflows_usernotificationpreferences'
+                          AND pg_get_constraintdef(c.oid) LIKE '%FOREIGN KEY (tenant_id) REFERENCES tenants_tenant%'
+                      ) THEN
+                        ALTER TABLE workflows_usernotificationpreferences
+                          ADD CONSTRAINT workflows_usernotificationpreferences_tenant_id_fk
+                          FOREIGN KEY (tenant_id) REFERENCES tenants_tenant(id)
+                          DEFERRABLE INITIALLY DEFERRED;
+                      END IF;
+                    END $$;
+                    """,
+                    reverse_sql="""
+                    DO $$
+                    BEGIN
+                      IF EXISTS (
+                        SELECT 1 FROM pg_constraint WHERE conname = 'workflows_usernotificationpreferences_tenant_id_fk'
+                      ) THEN
+                        ALTER TABLE workflows_usernotificationpreferences
+                          DROP CONSTRAINT workflows_usernotificationpreferences_tenant_id_fk;
+                      END IF;
+                    END $$;
+                    """,
+                ),
+            ],
+            state_operations=[
+                migrations.AddField(
+                    model_name="usernotificationpreferences",
+                    name="tenant",
+                    field=models.ForeignKey(
+                        blank=True,
+                        help_text="Tenant context for these preferences",
+                        null=True,
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="user_notification_preferences",
+                        to="tenants.tenant",
+                    ),
+                ),
+            ],
         ),
         migrations.AlterField(
             model_name="usernotificationpreferences",
@@ -36,8 +112,42 @@ class Migration(migrations.Migration):
                 to=settings.AUTH_USER_MODEL,
             ),
         ),
-        migrations.AddConstraint(
-            model_name="usernotificationpreferences",
-            constraint=models.UniqueConstraint(fields=("user", "tenant"), name="uniq_user_tenant_notification_prefs"),
+        migrations.SeparateDatabaseAndState(
+            database_operations=[
+                migrations.RunSQL(
+                    sql="""
+                    DO $$
+                    BEGIN
+                      IF NOT EXISTS (
+                        SELECT 1 FROM pg_constraint WHERE conname = 'uniq_user_tenant_notification_prefs'
+                      ) THEN
+                        ALTER TABLE workflows_usernotificationpreferences
+                          ADD CONSTRAINT uniq_user_tenant_notification_prefs
+                          UNIQUE (user_id, tenant_id);
+                      END IF;
+                    END $$;
+                    """,
+                    reverse_sql="""
+                    DO $$
+                    BEGIN
+                      IF EXISTS (
+                        SELECT 1 FROM pg_constraint WHERE conname = 'uniq_user_tenant_notification_prefs'
+                      ) THEN
+                        ALTER TABLE workflows_usernotificationpreferences
+                          DROP CONSTRAINT uniq_user_tenant_notification_prefs;
+                      END IF;
+                    END $$;
+                    """,
+                ),
+            ],
+            state_operations=[
+                migrations.AddConstraint(
+                    model_name="usernotificationpreferences",
+                    constraint=models.UniqueConstraint(
+                        fields=("user", "tenant"),
+                        name="uniq_user_tenant_notification_prefs",
+                    ),
+                ),
+            ],
         ),
     ]
