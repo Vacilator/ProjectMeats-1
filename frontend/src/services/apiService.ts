@@ -51,6 +51,24 @@ const processQueue = (error: unknown | null) => {
   failedQueue = [];
 };
 
+const stripJsonContentTypeForFormData = (config: InternalAxiosRequestConfig) => {
+  if (typeof FormData === 'undefined') return;
+  if (!(config.data instanceof FormData)) return;
+
+  // Axios may represent headers as an AxiosHeaders instance (with .delete())
+  // or a plain object. We need to handle both.
+  const headersAny = config.headers as any;
+  if (!headersAny) return;
+
+  if (typeof headersAny.delete === 'function') {
+    headersAny.delete('Content-Type');
+    headersAny.delete('content-type');
+  } else {
+    delete headersAny['Content-Type'];
+    delete headersAny['content-type'];
+  }
+};
+
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
   timeout: 30000,
@@ -80,15 +98,7 @@ apiClient.interceptors.request.use(
     try {
       // IMPORTANT: When uploading files, ensure we do NOT force application/json.
       // Axios will set the correct multipart boundary automatically.
-      if (typeof FormData !== 'undefined' && config.data instanceof FormData) {
-        // Support both AxiosHeaders and plain object.
-        try {
-          delete (config.headers as any)['Content-Type'];
-          delete (config.headers as any)['content-type'];
-        } catch {
-          // ignore
-        }
-      }
+      stripJsonContentTypeForFormData(config);
 
       // Check if token needs refresh before making request
       if (isUsingJwt() && needsRefresh() && !isRefreshing) {
@@ -132,14 +142,7 @@ adminClient.interceptors.request.use(
     try {
       // IMPORTANT: When uploading files, ensure we do NOT force application/json.
       // Axios will set the correct multipart boundary automatically.
-      if (typeof FormData !== 'undefined' && config.data instanceof FormData) {
-        try {
-          delete (config.headers as any)['Content-Type'];
-          delete (config.headers as any)['content-type'];
-        } catch {
-          // ignore
-        }
-      }
+      stripJsonContentTypeForFormData(config);
 
       // Check if token needs refresh before making request
       if (isUsingJwt() && needsRefresh() && !isRefreshing) {
