@@ -1,22 +1,19 @@
-# Planning Documents
+# Planning Documents (Reference)
 
-This directory contains **active planning documents** for ProjectMeats development.
+**Canonical plan (current truth):** [`MASTER_PLAN.md`](../../MASTER_PLAN.md) (repo root)
+
+This directory contains supporting long-form plans and historical context. If anything here conflicts with the repo-root Master Plan, treat it as outdated.
 
 ---
 
-## 🎯 CURRENT ACTIVE PLAN (2026-02-21)
+## 📌 Key Supporting Plans
 
 ### **[Intelligent Workform Editor - Master Implementation Plan](./INTELLIGENT_WORKFORM_EDITOR_MASTER_PLAN.md)**
-**Status:** 📋 Ready for Implementation  
-**Timeline:** 2-3 weeks (8 phases)  
-**Priority:** ⭐ HIGHEST  
-**Risk:** 🟢 LOW (builds on existing infrastructure)
-
-**Summary:** Production-ready workflow editor combining specialized nodes, true container architecture, FormBuilder modal, trigger system, document handling, and smart UX features. **Zero breaking changes.**
+**Status:** Reference deep dive (not the canonical status tracker)
 
 **Supporting Documents:**
-- [Architecture Decision Analysis](./ARCHITECTURE_DECISION_ANALYSIS.md) - Detailed comparison of 3 approaches (consolidation vs. enhancement vs. hybrid)
-- [Phase F Schema Completion Guide](./PHASE_F_SCHEMA_COMPLETION_GUIDE.md) - Alternative approach focusing only on schema completion
+- [Architecture Decision Analysis](./ARCHITECTURE_DECISION_ANALYSIS.md)
+- [Phase F Schema Completion Guide](./PHASE_F_SCHEMA_COMPLETION_GUIDE.md)
 
 ---
 
@@ -46,81 +43,21 @@ This directory contains **active planning documents** for ProjectMeats developme
 
 ## 🚀 How to Use This Directory
 
-### For Developers
-1. **Read the Master Plan First** - Understand the 8-phase implementation approach
-2. **Check Phase Dependencies** - Each phase builds on the previous one
-3. **Reference Supporting Docs** - Use Architecture Analysis for decision rationale
-4. **Update Status as You Work** - Mark phases as in-progress/complete
-
-### For Product/PM
-1. **Master Plan = Single Source of Truth** - All current work aligns with this plan
-2. **Timeline is Realistic** - 2-3 weeks based on existing infrastructure
-3. **Risk is Low** - No breaking changes, incremental rollout
-4. **Success Metrics Defined** - Clear quantitative and qualitative measures
-
-### For Stakeholders
-1. **Current Focus:** Intelligent Workform Editor (8 phases)
-2. **Deliverables:** Production-ready editor with rich features
-3. **Timeline:** 2-3 weeks from start date
-4. **Business Value:** Faster workflow creation, better UX, reduced support tickets
+- Start with the canonical [`MASTER_PLAN.md`](../../MASTER_PLAN.md).
+- Use the documents here for **deep dives / design rationale** and historical context.
+- If you need to update “status”, “done”, or priorities, update `MASTER_PLAN.md` (not these supporting docs).
 
 ---
 
 ## 📝 Plan Creation Guidelines
 
-When creating a **new** plan (rare - coordinate with team first):
-
-```markdown
-# [Feature Name] Implementation Plan
-
-**Status**: 📋 Planning | 🚧 In Progress | ✅ Complete  
-**Priority**: ⭐ High | Medium | Low  
-**Timeline**: X weeks  
-**Risk**: 🟢 Low | 🟡 Medium | 🔴 High  
-**Owner**: Team/Person  
-**Related To**: [Link to master plan if applicable]
-
-## Objective
-Clear problem statement (1-2 sentences)
-
-## Current State
-What exists today? What's the gap?
-
-## Proposed Solution
-High-level approach (not implementation details)
-
-## Implementation Phases
-Numbered phases with deliverables
-
-## Success Metrics
-How do we measure success? (quantitative + qualitative)
-
-## Risks & Mitigation
-What could go wrong? Mitigation strategies?
-
-## Dependencies
-What must complete before this? What blocks on this?
-```
+When creating a **new** plan (rare - coordinate with team first), keep it scoped as a supporting deep-dive and link back to `MASTER_PLAN.md`.
 
 ---
 
 ## 🔍 Quick Reference
 
-**Need to find something?**
-- **Current work:** See INTELLIGENT_WORKFORM_EDITOR_MASTER_PLAN.md
-- **Historical context:** Check archive/ directory
-- **Decision rationale:** See ARCHITECTURE_DECISION_ANALYSIS.md
-- **Alternative approaches:** See PHASE_F_SCHEMA_COMPLETION_GUIDE.md
-
-**Questions?**
-- Consult the master plan first
-- Check supporting documents
-- Review archived plans for context
-- Ask in team chat if still unclear
-
----
-
-**Last Updated:** 2026-02-21  
-**Active Plans:** 1 (Master Plan + 2 supporting docs)  
-**Archived Plans:** 16  
-**Next Review:** After Phase 8 completion
+- **Workform editor deep dive:** INTELLIGENT_WORKFORM_EDITOR_MASTER_PLAN.md
+- **Decision rationale:** ARCHITECTURE_DECISION_ANALYSIS.md
+- **Alternative approach notes:** PHASE_F_SCHEMA_COMPLETION_GUIDE.md
+- **Historical context:** archive/

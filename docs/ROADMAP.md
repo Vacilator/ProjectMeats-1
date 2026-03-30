@@ -1,6 +1,6 @@
 # ProjectMeats Development Roadmap (Reference)
 
-**Authority:** This is **not** the canonical status tracker. For current truth and backlog, see `MASTER_PLAN.md`.
+**Authority:** This is **REFERENCE ONLY**. For current truth and backlog, see **`MASTER_PLAN.md` (canonical)**.
 
 **Status**: Reference / historical context  
 **Category**: Reference  
