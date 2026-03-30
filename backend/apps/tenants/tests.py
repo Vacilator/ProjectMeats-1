@@ -285,8 +285,15 @@ class InvitationEmailFailureDoesNot500(APITestCase):
         )
         TenantUser.objects.create(tenant=self.tenant, user=self.user, role="owner")
 
-    @patch('apps.tenants.signals.send_mail', side_effect=Exception('SMTP down'))
-    def test_invitation_create_succeeds_when_email_send_fails(self, _send_mail):
+    @patch('apps.tenants.invitation_email.send_mail', side_effect=Exception('SMTP down'))
+    @patch('apps.tenants.tasks.send_invitation_email_task.delay', side_effect=Exception('broker unavailable'))
+    def test_invitation_create_succeeds_when_email_send_fails(self, _task_delay, _send_mail):
+        """Invitation creation must succeed even when email sending fails.
+
+        Simulates both Celery broker unavailability (task.delay raises) and a
+        subsequent direct send_mail failure so that the full fallback path is
+        exercised.  The API must still return 201.
+        """
         url = reverse('tenants:tenant-invitation-list')
         payload = {
             'email': 'newuser@example.com',
@@ -300,6 +307,8 @@ class InvitationEmailFailureDoesNot500(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertIn('token', response.data)
         self.assertTrue(response.data['token'])
+        # Both the Celery dispatch and the direct send were attempted.
+        self.assertTrue(_task_delay.called)
         self.assertTrue(_send_mail.called)
 
 
@@ -438,3 +447,36 @@ class TenantSchemaNameTests(TestCase):
                 contact_email=f"admin2_{unique_id}@testcompany.com",
                 created_by=self.user,
             )
+
+
+class SendGridQuotaDetectionTests(TestCase):
+    """Unit tests for is_sendgrid_quota_exceeded() helper (no DB required)."""
+
+    def test_detects_maximum_credits_exceeded(self):
+        from apps.tenants.email_utils import is_sendgrid_quota_exceeded
+
+        exc = Exception(
+            "HTTP Error 401: Unauthorized, response body: "
+            "b'{\"errors\":[{\"message\":\"Maximum credits exceeded\","
+            "\"field\":null,\"help\":null}]}'"
+        )
+        self.assertTrue(is_sendgrid_quota_exceeded(exc))
+
+    def test_detects_quota_exceeded_phrase(self):
+        from apps.tenants.email_utils import is_sendgrid_quota_exceeded
+
+        self.assertTrue(is_sendgrid_quota_exceeded(Exception("quota exceeded for account")))
+
+    def test_returns_false_for_unrelated_errors(self):
+        from apps.tenants.email_utils import is_sendgrid_quota_exceeded
+
+        self.assertFalse(is_sendgrid_quota_exceeded(Exception("SMTP down")))
+        self.assertFalse(is_sendgrid_quota_exceeded(Exception("Connection refused")))
+        self.assertFalse(is_sendgrid_quota_exceeded(Exception("Invalid API key")))
+        self.assertFalse(is_sendgrid_quota_exceeded(Exception("")))
+
+    def test_case_insensitive(self):
+        from apps.tenants.email_utils import is_sendgrid_quota_exceeded
+
+        self.assertTrue(is_sendgrid_quota_exceeded(Exception("MAXIMUM CREDITS EXCEEDED")))
+        self.assertTrue(is_sendgrid_quota_exceeded(Exception("Maximum Credits Exceeded")))

@@ -20,6 +20,8 @@ from django.core.mail import send_mail
 from django.conf import settings
 from django.apps import apps
 
+from apps.tenants.email_utils import is_sendgrid_quota_exceeded
+
 logger = logging.getLogger(__name__)
 
 
@@ -109,7 +111,16 @@ class ActionExecutor:
             }
             
         except Exception as e:
-            logger.exception(f"Error sending email: {str(e)}")
+            if is_sendgrid_quota_exceeded(e):
+                logger.critical(
+                    "🚨 SendGrid quota exceeded — workflow action email to %s NOT sent. "
+                    "Please upgrade the SendGrid plan or wait for the quota to reset. "
+                    "Error: %s",
+                    to_email,
+                    e,
+                )
+            else:
+                logger.exception(f"Error sending email: {str(e)}")
             return {'success': False, 'error': str(e)}
     
     def create_record(self, config: Dict[str, Any]) -> Dict[str, Any]:
