@@ -200,6 +200,13 @@ This file is the **append-only PR-referenceable execution log**.
 - Preserves strict tenant isolation (`tenant=...` and `submission__tenant=...`).
 - PR: #4170.
 
+### 2026-03-30T18:57:28Z — Phase 9.5: AI Swarm + Universal Search execution fixes
+- Fixes purchase_order_trends bucket serialization (TruncMonth bucket already date-like).
+- Fixes AI Swarm universal search counting for flat `results` arrays.
+- Parameterizes `SET app.current_tenant` to prevent SQL injection.
+- UniversalSearch now computes total counts before slicing and falls back on `created_at`/`created_on` when ordering.
+- PR: #4172.
+
 ### 2026-03-30 — Phase 9.5: Billing Interface Dynamic Wiring — COMPLETE
 - Admin Billing invoice history now loads subscription invoices dynamically (no hardcoded rows).
 
