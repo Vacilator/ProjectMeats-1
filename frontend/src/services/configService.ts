@@ -162,7 +162,7 @@ let cacheMisses = 0;
  */
 function isCacheValid<T>(entry: CacheEntry<T> | undefined): entry is CacheEntry<T> {
   if (!entry) return false;
-  if (entry.timestamp <= cacheBustTs) return false;
+  if (entry.timestamp < cacheBustTs) return false;
   return Date.now() - entry.timestamp < CONFIG_CACHE_TTL;
 }
 

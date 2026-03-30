@@ -564,6 +564,7 @@ export const OptionListModal: React.FC<OptionListModalProps> = ({
 
         {loading ? (
           <LoadingState>
+            <div style={{ marginBottom: 12 }}>Loading items...</div>
             <Skeleton active paragraph={{ rows: 8 }} />
           </LoadingState>
         ) : (
