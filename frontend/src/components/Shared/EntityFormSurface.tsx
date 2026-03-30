@@ -14,7 +14,7 @@
 import React, { useMemo } from 'react';
 
 import UniversalEntityForm from './UniversalEntityForm';
-import { InquiryCreateModal } from '../Inquiry';
+import { InquiryCreateModal } from '../Inquiry/InquiryCreateModal';
 
 export type EntityFormMode = 'create' | 'edit';
 

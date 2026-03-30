@@ -31,8 +31,10 @@ import { businessApi } from '../../services/businessApi';
 import { useCockpitNavigation } from '../../contexts/CockpitNavigationContext';
 // UniversalEntityForm usage consolidated via EntityFormSurface
 
-import { EntityFormSurface, ScheduleCallModal } from '../Shared';
-import { InquiryCreateModal, InquiryEmbeddedView } from '../Inquiry';
+import { EntityFormSurface } from '../Shared/EntityFormSurface';
+import { ScheduleCallModal } from '../Shared/ScheduleCallModal';
+import { InquiryCreateModal } from '../Inquiry/InquiryCreateModal';
+import { InquiryEmbeddedView } from '../Inquiry/InquiryEmbeddedView';
 import { EntityProfileHeader } from './EntityProfileHeader';
 import { type Inquiry } from '@/types';
 import { AIOverviewCard } from './AIOverviewCard';
