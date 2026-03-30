@@ -11,6 +11,12 @@ This file is the **append-only PR-referenceable execution log**.
 
 ## Active Initiative: V3.0 Final Push (Consolidation + Scale + Polish)
 
+### 2026-03-30 — Docs: master plan gap analysis + roadmap hygiene
+- Updated `MASTER_PLAN.md` (canonical) with an industry-leader benchmark gap analysis (P0/P1/P2) and refreshed execution-ordered backlog.
+- Converted non-canonical roadmaps/plans into clearer **REFERENCE ONLY** docs (removed/neutralized misleading progress emphasis).
+- Clarified `docs/plans/README.md` to point to canonical Master Plan.
+- PR: #4109
+
 ### 2026-03-27T17:03Z — Recovery Execution Plan (Last ~25 prompts)
 - Merged recovery plan into `MASTER_PLAN.md` (canonical snapshot). PR: #4036.
 - Execution policy: all remaining work ships **only via**: branch → PR → merge to `development`.

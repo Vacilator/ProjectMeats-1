@@ -88,16 +88,19 @@ We are re-validating and completing the last ~25 prompts with **evidence-based a
 ## Backlog (High-signal, execution-ordered)
 
 ### P0 — Stability / correctness
-- Finish TypeScript type-check hardening (`npm run type-check` clean).
-- Workforms Editor: maintain hook safety, node config save UX, and layout predictability.
+- **Type safety gate:** `npm run type-check` clean; reduce `any` / runtime prop-shape errors.
+- **Graceful degradation / feature flags:** missing secrets/infra (AI, email, Outlook, pgvector) must not crash UX; expose availability in health.
+- **Workforms Editor:** maintain hook safety, node config save UX, and layout predictability.
 
 ### P0 — Business usability
-- Admin Workspace: option lists/system lists visibility + custom list create/edit flows.
-- Email ingestion monitor: correctness, diagnostics, and attachment-aware detection.
+- **Cockpit Search relevance:** ranking + fuzzy match + recency; persistent favorites that are tenant-safe (RLS-backed).
+- **Mobile responsiveness:** Cockpit + core CRUD forms usable <768px; touch targets; FlowEditor mobile/tablet fallback.
+- **Email ingestion monitor:** correctness, diagnostics, reconnect CTA, progress reporting, attachment-aware detection.
+- **Admin workspace usability:** option lists/system lists visibility + custom list create/edit flows.
 
 ### P1 — Operational excellence
-- CI automation: promotion PRs dev→uat and uat→prod/main remain green and observable.
-- Documentation hygiene: demote/label duplicated roadmaps, remove contradictory “100% complete” claims.
+- **Documentation hygiene:** demote/label duplicated roadmaps, remove contradictory “100% complete” claims.
+- **CI automation:** promotion PRs dev→uat and uat→prod/main remain green and observable.
 
 ---
 
@@ -112,11 +115,47 @@ We are re-validating and completing the last ~25 prompts with **evidence-based a
 
 This section captures the highest-signal gaps found during repo review, with concrete acceptance criteria.
 
+### 0) Competitive gap analysis (industry leader benchmark, 2026-03-30)
+Benchmark context: Salesforce/HubSpot (CRM + search), Airtable/Retool (data UX), Monday/Asana (work mgmt), Make/Zapier (automation), modern multi-tenant SaaS baselines.
+
+#### P0 — Business-critical gaps
+1) **Search relevance + entity ranking** (Cockpit/SmartSearch)
+- Acceptance: ranked results (not just lists), fuzzy match, recency weighting, consistent result cards.
+- Acceptance: favorites persist across reload and are **tenant-safe** (RLS-backed); localStorage can be a fallback but not the source of truth.
+
+2) **Mobile/touch usability**
+- Acceptance: Cockpit + core CRUD forms usable <768px; touch targets ≥44px; no clipped modals/menus.
+- Acceptance: FlowEditor has a defined mobile/tablet behavior (read-only, simplified view, or explicit “desktop required” messaging).
+
+3) **Graceful degradation for missing secrets/infra (zero tolerance for crashes)**
+- Acceptance: backend exposes feature availability (e.g., AI/email/Outlook/RAG) via health/config.
+- Acceptance: frontend gates feature UI and shows deterministic “Enable in Settings” CTAs instead of opaque 400/500s.
+
+4) **Email ingestion reliability + diagnostics (Outlook/SendGrid UX parity)**
+- Acceptance: stable error codes (auth vs decrypt vs network vs quota vs processing), reconnect CTA on auth/decrypt failures.
+- Acceptance: progress/summary reporting for long syncs (partial results OK, no silent timeouts).
+
+5) **Type safety hardening**
+- Acceptance: `npm run type-check` is clean; new `any` usage is exceptional and deliberate.
+
+#### P1 — High-value gaps
+- Reporting dashboards (drilldown + export).
+- Workflow execution monitoring UI (traces, node I/O, retries).
+- Admin list builder + bulk ops.
+- Form intelligence (auto-populate, conditional fields, cascading selects).
+- Webhooks/connectors foundation (start outbound; expand inbound later).
+
+#### P2 — “Polish / expansion” gaps
+- Multi-user collaboration for FlowEditor.
+- White-label branding depth (tenant email branding + domains).
+- Knowledge base + help AI (RAG) with clear off-switch when pgvector not available.
+- Predictive analytics (only after data quality + reporting foundations).
+
 ### 1) Documentation consistency (avoid contradictory “100% complete” claims)
-**Gap:** Multiple docs (e.g. `ROADMAP.md`, some verification reports) contain “100% complete / all phases complete” statements that can conflict with the real operational backlog.
+**Gap:** Multiple docs (e.g. `ROADMAP.md`, `docs/plans/*`) contain “100% complete / all phases complete” statements that conflict with the real operational backlog.
 
 **Plan:**
-- Add explicit “reference/historical” banners to non-canonical docs.
+- Add explicit “REFERENCE ONLY” banners to non-canonical docs.
 - Ensure only `MASTER_PLAN.md` claims current-state status.
 
 **Acceptance criteria:**
