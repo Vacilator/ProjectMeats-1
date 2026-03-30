@@ -391,6 +391,9 @@ class ScheduledCallViewSet(viewsets.ModelViewSet):
         except ValidationError:
             raise
         except Exception as e:
+            from apps.core.utils.logging import capture_exception
+
+            capture_exception(e, request=self.request, extra={"endpoint": "cockpit/scheduled-calls", "action": "create"})
             logger.error(f'Error creating call: {str(e)}', exc_info=True)
             raise ValidationError({
                 'error': 'Failed to schedule call',
@@ -433,6 +436,9 @@ class ScheduledCallViewSet(viewsets.ModelViewSet):
         except ValidationError:
             raise
         except Exception as e:
+            from apps.core.utils.logging import capture_exception
+
+            capture_exception(e, request=self.request, extra={"endpoint": "cockpit/scheduled-calls", "action": "update"})
             logger.error(f'Error updating call: {str(e)}', exc_info=True)
             raise ValidationError({
                 'error': 'Failed to update call',
@@ -546,6 +552,9 @@ class WorkspaceLayoutView(APIView):
             return Response(serializer.data, status=status.HTTP_201_CREATED)
             
         except Exception as e:
+            from apps.core.utils.logging import capture_exception
+
+            capture_exception(e, request=request, extra={"endpoint": "cockpit/workspace-layout", "action": "put"})
             logger.error(f"Error saving workspace layout: {str(e)}", exc_info=True)
             return Response(
                 {"error": "Failed to save layout", "detail": str(e)},
@@ -688,6 +697,9 @@ class WorkspaceStatsView(APIView):
             return Response(stats)
             
         except Exception as e:
+            from apps.core.utils.logging import capture_exception
+
+            capture_exception(e, request=request, extra={"endpoint": "cockpit/workspace-stats"})
             logger.error(f"Error fetching workspace stats: {str(e)}", exc_info=True)
             return Response(
                 {"error": "Failed to fetch stats", "detail": str(e)},

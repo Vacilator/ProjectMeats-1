@@ -2636,6 +2636,9 @@ class QuickActionsAPIView(APIView):
 
             return Response({"success": True, "items": serializable_items})
         except Exception as e:
+            from apps.core.utils.logging import capture_exception
+
+            capture_exception(e, request=request, extra={"endpoint": "workflows/quick-actions"})
             logger.exception(f"Error updating quick actions: {e}")
             return Response(
                 {"error": f"Failed to update quick actions: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -3060,6 +3063,9 @@ class QuickCreateEntityAPIView(APIView):
             )
 
         except Exception as e:
+            from apps.core.utils.logging import capture_exception
+
+            capture_exception(e, request=request, extra={"endpoint": "workflows/quick-create", "entity_type": entity_type})
             logger.exception(f"Error quick-creating entity: {e}")
             return Response({"error": f"Failed to create {entity_type}: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
 
