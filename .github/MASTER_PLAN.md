@@ -1314,3 +1314,4 @@ Deliverables:
 - 2026-03-23 — Fixed MultiSelect internal search filtering (Explicit AntD filterOption injection) — PR: #3891.
 - 2026-03-22T19:05:59Z — UI Hardening: Restored standard default container for 'formProcess' nodes, disabling 'formProcessGroup' purple canonicalization/styling overrides.
 - 2026-03-24 — Frontend: react-joyride v3 upgrade (tour API migration) — PR: #3911.
+- 2026-03-30 — FlowEditor: defer auto-layout after insert (measured sizing) + selected ring visibility — PR: #4213.
