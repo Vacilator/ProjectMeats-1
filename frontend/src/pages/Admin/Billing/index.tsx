@@ -128,9 +128,51 @@ const BillingPage: React.FC = () => {
     return Array.from(unique).map((value) => ({ value, label: value }));
   }, [planName]);
 
-  // Mock subscription/invoice data for initial dashboard render.
   const nextBillingDate = '2026-04-01';
   const activeUsers = tenant?.user_count ?? 0;
+
+  const subscriptionInvoicesQuery = useQuery<any[]>({
+    queryKey: ['invoices', 'subscription', tenant?.id],
+    enabled: Boolean(tenant?.id),
+    queryFn: async () => {
+      const res = await apiClient.get('/invoices/', { params: { is_subscription: true } });
+      const raw = res.data as unknown;
+      const data = Array.isArray(raw)
+        ? raw
+        : typeof raw === 'object' && raw !== null && Array.isArray((raw as any).results)
+          ? (raw as any).results
+          : [];
+      return data as any[];
+    },
+    staleTime: 60 * 1000,
+  });
+
+  const invoices: InvoiceRow[] = useMemo(() => {
+    const fmt = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' });
+
+    const normalizeStatus = (row: any): InvoiceStatus => {
+      const payment = String(row?.payment_status || '').toLowerCase();
+      const status = String(row?.status || '').toLowerCase();
+
+      if (payment === 'paid' || status === 'paid') return 'Paid';
+      if (status === 'cancelled') return 'Failed';
+      return 'Due';
+    };
+
+    return (subscriptionInvoicesQuery.data || []).map((row: any) => {
+      const total = Number(row?.total_amount ?? 0);
+      const amount = Number.isFinite(total) ? fmt.format(total) : String(row?.total_amount ?? '');
+      const date = String(row?.date_time_stamp || row?.created_on || '');
+
+      return {
+        key: String(row?.id || row?.invoice_number || Math.random()),
+        date,
+        invoiceNumber: String(row?.invoice_number || ''),
+        amount,
+        status: normalizeStatus(row),
+      };
+    });
+  }, [subscriptionInvoicesQuery.data]);
 
   const [isManagePlanOpen, setIsManagePlanOpen] = useState(false);
   const [isSavingPlan, setIsSavingPlan] = useState(false);
@@ -273,29 +315,6 @@ const BillingPage: React.FC = () => {
     }
   };
 
-  const invoices: InvoiceRow[] = [
-    {
-      key: 'inv_2026_03',
-      date: '2026-03-01',
-      invoiceNumber: 'PM-INV-2026-0003',
-      amount: '$1,250.00',
-      status: 'Paid',
-    },
-    {
-      key: 'inv_2026_02',
-      date: '2026-02-01',
-      invoiceNumber: 'PM-INV-2026-0002',
-      amount: '$1,250.00',
-      status: 'Paid',
-    },
-    {
-      key: 'inv_2026_01',
-      date: '2026-01-01',
-      invoiceNumber: 'PM-INV-2026-0001',
-      amount: '$1,250.00',
-      status: 'Paid',
-    },
-  ];
 
   const invoiceColumns: ColumnsType<InvoiceRow> = [
     {
@@ -496,14 +515,7 @@ const BillingPage: React.FC = () => {
                     {billingPortalUrl ? (
                       <>
                         <Text strong>Managed in billing portal</Text>
-                        {paymentBrand && paymentLast4 ? (
-                          <Text type="secondary">
-                            {paymentBrand} ending in {paymentLast4}
-                            {paymentExp ? ` • Expires ${paymentExp}` : ''}
-                          </Text>
-                        ) : (
-                          <Text type="secondary">Payment details will appear once connected.</Text>
-                        )}
+                        <Text type="secondary">Open your billing portal to update payment methods.</Text>
                       </>
                     ) : (
                       <>
@@ -512,6 +524,15 @@ const BillingPage: React.FC = () => {
                           Add a secure billing portal URL to manage payment methods (no card data stored in ProjectMeats).
                         </Text>
                       </>
+                    )}
+
+                    {paymentBrand && paymentLast4 ? (
+                      <Text type="secondary">
+                        {paymentBrand} ending in {paymentLast4}
+                        {paymentExp ? ` • Expires ${paymentExp}` : ''}
+                      </Text>
+                    ) : (
+                      <Text type="secondary">Payment details will appear once connected.</Text>
                     )}
                     <Text type="secondary">Tenant: {tenant.name}</Text>
                   </Space>
@@ -523,6 +544,7 @@ const BillingPage: React.FC = () => {
               <Table
                 columns={invoiceColumns}
                 dataSource={invoices}
+                loading={subscriptionInvoicesQuery.isLoading}
                 pagination={false}
                 size="middle"
               />

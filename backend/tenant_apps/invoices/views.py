@@ -27,6 +27,15 @@ class InvoiceViewSet(viewsets.ModelViewSet):
         status = self.request.query_params.get('status')
         if status:
             queryset = queryset.filter(status=status)
+
+        # Filter by subscription invoices if provided
+        is_subscription = self.request.query_params.get('is_subscription')
+        if is_subscription is not None:
+            raw = str(is_subscription).strip().lower()
+            if raw in {'1', 'true', 't', 'yes', 'y'}:
+                queryset = queryset.filter(is_subscription=True)
+            elif raw in {'0', 'false', 'f', 'no', 'n'}:
+                queryset = queryset.filter(is_subscription=False)
         
         return queryset.select_related('customer', 'sales_order', 'product')
     

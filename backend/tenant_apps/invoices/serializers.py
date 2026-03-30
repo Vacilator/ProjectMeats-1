@@ -18,6 +18,7 @@ class InvoiceSerializer(serializers.ModelSerializer):
             "id",
             "tenant",
             "invoice_number",
+            "is_subscription",
             "date_time_stamp",
             "customer",
             "customer_name",

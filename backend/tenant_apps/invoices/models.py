@@ -42,6 +42,12 @@ class Invoice(TenantAwareModel):
         max_length=100,
         help_text="Invoice number (unique per tenant)",
     )
+
+    # Platform billing vs business invoices
+    is_subscription = models.BooleanField(
+        default=False,
+        help_text="True for platform subscription billing invoices; false for business/customer invoices.",
+    )
     date_time_stamp = models.DateTimeField(
         auto_now_add=True,
         help_text="Date and time when invoice was created",
