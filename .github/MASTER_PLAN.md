@@ -135,6 +135,11 @@ This file is the **append-only PR-referenceable execution log**.
 - Adds stable per-field `order` to avoid random UI rendering.
 - PR: #4153.
 
+### 2026-03-30T17:25:33Z — Phase 9.5: Great Deletion — Invoice create migrated to UniversalEntityForm
+- Invoices create flow now uses `EntityFormSurface` (schema-driven `UniversalEntityForm`) instead of the hardcoded `CreateInvoiceModal`.
+- UniversalEntityForm now targets canonical `/accounting/*` endpoints for invoice/claim CRUD.
+- PR: #4154.
+
 ### 2026-03-30 — Phase 9.5: Billing Interface Dynamic Wiring — COMPLETE
 - Admin Billing invoice history now loads subscription invoices dynamically (no hardcoded rows).
 

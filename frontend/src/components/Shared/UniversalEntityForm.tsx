@@ -111,13 +111,15 @@ const normalizeEntityEndpoint = (entityType: string): string => {
   if (lower === 'purchase-orders' || lower === 'purchase_orders' || lower === 'purchase_order')
     return 'purchase-orders/';
   if (lower === 'inquiries' || lower === 'inquiry') return 'inquiries/';
-  if (lower === 'claims' || lower === 'claim') return 'claims/';
+
+  // Accounting canonical paths (legacy aliases still exist server-side).
+  if (lower === 'claims' || lower === 'claim') return 'accounting/claims/';
+  if (lower === 'invoices' || lower === 'invoice') return 'accounting/invoices/';
 
   // Common singular → plural API resources
   if (lower === 'customer') return 'customers/';
   if (lower === 'supplier') return 'suppliers/';
   if (lower === 'contact') return 'contacts/';
-  if (lower === 'invoice') return 'invoices/';
   if (lower === 'product') return 'products/';
 
   return `${lower.replace(/^\/+/, '').replace(/\/+$/, '')}/`;

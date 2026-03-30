@@ -14,7 +14,7 @@
  */
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
-import { ActivityFeed, RecordPaymentModal, PaymentHistoryList, CreateInvoiceModal } from '../../components/Shared';
+import { ActivityFeed, RecordPaymentModal, PaymentHistoryList, EntityFormSurface } from '../../components/Shared';
 import { apiClient } from '../../services/apiService';
 import { formatCurrency } from '../../shared/utils';
 import { formatDateLocal, formatToLocal } from '../../utils/formatters';
@@ -651,10 +651,13 @@ const Invoices: React.FC = () => {
         )}
       </ContentContainer>
 
-      <CreateInvoiceModal
+      <EntityFormSurface
+        entityType="invoice"
+        mode="create"
+        variant="modal"
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        onSuccess={fetchInvoices}
+        onSuccess={() => fetchInvoices()}
       />
     </PageContainer>
   );
