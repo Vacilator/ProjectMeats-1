@@ -265,7 +265,7 @@ export const WorkflowAnalyticsDashboard: React.FC<WorkflowAnalyticsDashboardProp
 
     return (
       <Card title="Execution Trends" style={{ marginTop: 16 }}>
-        <ResponsiveContainer width="100%" height={300} minWidth={1} minHeight={1}>
+        <ResponsiveContainer width="100%" height={300} minWidth={0} minHeight={0} debounce={150}>
           <LineChart data={metrics.executions_by_day}>
             <CartesianGrid strokeDasharray="3 3" />
             <XAxis 
@@ -300,7 +300,7 @@ export const WorkflowAnalyticsDashboard: React.FC<WorkflowAnalyticsDashboardProp
 
     return (
       <Card title="Execution Distribution (24h)" style={{ marginTop: 16 }}>
-        <ResponsiveContainer width="100%" height={250} minWidth={1} minHeight={1}>
+        <ResponsiveContainer width="100%" height={250} minWidth={0} minHeight={0} debounce={150}>
           <BarChart data={metrics.executions_by_hour}>
             <CartesianGrid strokeDasharray="3 3" />
             <XAxis 
@@ -387,7 +387,7 @@ export const WorkflowAnalyticsDashboard: React.FC<WorkflowAnalyticsDashboardProp
       <Card title="Error Breakdown" style={{ marginTop: 16 }}>
         <Row gutter={[16, 16]}>
           <Col xs={24} md={12}>
-            <ResponsiveContainer width="100%" height={250} minWidth={1} minHeight={1}>
+            <ResponsiveContainer width="100%" height={250} minWidth={0} minHeight={0} debounce={150}>
               <PieChart>
                 <Pie
                   data={pieData}

@@ -159,7 +159,6 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
   // Listen for branding updates from Settings/Admin Profile pages
   useEffect(() => {
     const handleBrandingUpdate = () => {
-      console.log('🔄 Tenant branding update event received, reloading...');
       void loadTenantBranding({ bustLogoCache: true });
     };
 
@@ -173,13 +172,6 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
   // NEW: Inject tenant colors into CSS variables when branding or theme changes
   useEffect(() => {
     if (tenantBranding) {
-      console.log('🎨 Injecting tenant branding into CSS variables:', {
-        tenant: tenantBranding.tenantName,
-        theme: themeName,
-        primaryLight: tenantBranding.primaryColorLight,
-        primaryDark: tenantBranding.primaryColorDark,
-      });
-
       // Inject colors into CSS variables (defined in config/theme.ts)
       injectTenantColors(
         tenantBranding.primaryColorLight,

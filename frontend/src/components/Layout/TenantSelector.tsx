@@ -142,7 +142,6 @@ const TenantSelector: React.FC<TenantSelectorProps> = ({ theme, isSuperuser }) =
       setIsLoading(true);
       try {
         const myTenants = await tenantService.getMyTenants();
-        console.log('[TenantSelector] Loaded tenants:', myTenants);
         setTenants(myTenants);
       } catch (error) {
         console.error('[TenantSelector] Failed to load tenants:', error);
@@ -158,7 +157,6 @@ const TenantSelector: React.FC<TenantSelectorProps> = ({ theme, isSuperuser }) =
   useEffect(() => {
     const tenantId = localStorage.getItem('tenantId');
     const tenantName = localStorage.getItem('tenantName');
-    console.log('[TenantSelector] Current tenant from localStorage:', { tenantId, tenantName });
     setCurrentTenantId(tenantId);
     setCurrentTenantName(tenantName || 'Select Tenant');
   }, []);
@@ -180,7 +178,6 @@ const TenantSelector: React.FC<TenantSelectorProps> = ({ theme, isSuperuser }) =
   }, [isOpen]);
 
   const handleTenantSelect = (tenant: Tenant) => {
-    console.log('[TenantSelector] Switching to tenant:', tenant);
     // Update localStorage
     localStorage.setItem('tenantId', tenant.id);
     localStorage.setItem('tenantName', tenant.name);
@@ -214,7 +211,6 @@ const TenantSelector: React.FC<TenantSelectorProps> = ({ theme, isSuperuser }) =
   
   // Don't render if only one tenant available
   if (tenants.length <= 1) {
-    console.log('[TenantSelector] Only one tenant, hiding selector. Tenants:', tenants);
     return null;
   }
 

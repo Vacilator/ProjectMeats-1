@@ -21,6 +21,9 @@ export const languageNames: Record<SupportedLanguage, string> = {
   fr: 'Français',
 };
 
+// Defensive: ensure support notice stays disabled even if i18next defaults drift.
+(i18n as any).options = { ...(i18n as any).options, showSupportNotice: false };
+
 i18n
   .use(LanguageDetector)
   .use(initReactI18next)
