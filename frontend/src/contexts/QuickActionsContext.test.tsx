@@ -14,6 +14,7 @@ import { render, screen, waitFor, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QuickActionsProvider, useQuickActions } from './QuickActionsContext';
 import { quickActionsService, formSubmissionService } from '../services/quickActionsService';
+import { showAlert } from '@/utils/uiDialogs';
 
 // Mock services
 vi.mock('../services/quickActionsService', () => ({
@@ -25,6 +26,12 @@ vi.mock('../services/quickActionsService', () => ({
   formSubmissionService: {
     create: vi.fn(),
   },
+}));
+
+vi.mock('@/utils/uiDialogs', () => ({
+  showAlert: vi.fn(),
+  confirmDialog: vi.fn(),
+  promptDialog: vi.fn(),
 }));
 
 // Test component to access context
@@ -507,7 +514,6 @@ describe('QuickActionsContext', () => {
       vi.mocked(formSubmissionService.create).mockRejectedValue(new Error('Form not found'));
       
       const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-      const alertSpy = vi.spyOn(window, 'alert').mockImplementation(() => {});
       
       render(
         <QuickActionsProvider>
@@ -525,10 +531,13 @@ describe('QuickActionsContext', () => {
         expect(screen.getByTestId('error')).toHaveTextContent('Form not found');
       });
       
-      expect(alertSpy).toHaveBeenCalledWith('Error: Form not found');
+      expect(vi.mocked(showAlert)).toHaveBeenCalledWith({
+        type: 'error',
+        title: 'Error',
+        content: 'Form not found',
+      });
       
       consoleSpy.mockRestore();
-      alertSpy.mockRestore();
     });
 
     it('should close form modal and clear submission', async () => {

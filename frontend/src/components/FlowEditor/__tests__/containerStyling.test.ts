@@ -29,7 +29,7 @@ describe('Container Styling Utilities', () => {
     it('should return lighter theme for collapsed container', () => {
       const theme = getContainerTheme(false, false, false);
       
-      expect(theme.background).toBe('rgba(var(--color-surface), 0.95)');
+      expect(theme.background).toBe('rgb(var(--color-surface) / 0.95)');
       expect(theme.shadow).toBe('0 1px 4px rgba(0, 0, 0, 0.08)');
     });
 

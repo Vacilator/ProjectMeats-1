@@ -22,9 +22,28 @@ import DynamicFormEngine from '../../features/system/DynamicFormEngine';
 import EntityOptionsSelect from '../FormSubmission/SearchableSelect';
 import { isValidEmail } from '../../shared/utils';
 
+export type UniversalEntityFormMode = 'create' | 'edit' | 'view';
+export type UniversalEntityFormVariant = 'modal' | 'inline';
+
 export interface UniversalEntityFormProps {
   entityType: string;
   entityId?: string | number;
+
+  /**
+   * Form mode:
+   * - create: create new record
+   * - edit: edit existing record
+   * - view: read-only view with optional switch to edit
+   */
+  mode?: UniversalEntityFormMode;
+
+  /**
+   * Render surface.
+   * - modal: wraps form in a modal (default)
+   * - inline: renders directly (embeddable into pages/panels)
+   */
+  variant?: UniversalEntityFormVariant;
+
   isOpen: boolean;
   onClose: () => void;
   onSuccess?: (result: unknown) => void;
@@ -32,6 +51,9 @@ export interface UniversalEntityFormProps {
 
   /** Optional override for prioritizing key fields first. */
   keyFields?: string[];
+
+  /** When true, allows switching view → edit within the same surface. */
+  allowModeSwitch?: boolean;
 }
 
 type SchemaChoice = { value: unknown; label: string };
@@ -157,15 +179,28 @@ const mapDrfOptionsType = (t: string | undefined): string => {
 export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
   entityType,
   entityId,
+  mode,
+  variant = 'modal',
   isOpen,
   onClose,
   onSuccess,
   initialValues,
   keyFields,
+  allowModeSwitch,
 }) => {
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [schema, setSchema] = useState<BackendSchema | null>(null);
+  const [recordValues, setRecordValues] = useState<Record<string, unknown> | null>(null);
+
+  const inferredMode: UniversalEntityFormMode = useMemo(() => {
+    if (mode) return mode;
+    return entityId != null && String(entityId).trim() ? 'edit' : 'create';
+  }, [entityId, mode]);
+
+  const canSwitchModes = allowModeSwitch ?? inferredMode === 'view';
+  const [activeMode, setActiveMode] = useState<UniversalEntityFormMode>(inferredMode);
+
   const [fkValues, setFkValues] = useState<Record<string, unknown>>({});
   const [fkOptions, setFkOptions] = useState<
     Record<string, Array<{ id: string | number; name: string }>>
@@ -243,6 +278,8 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
     if (!isOpen) return;
 
     setShowAllFields(false);
+    setActiveMode(inferredMode);
+    setRecordValues(null);
 
     let mounted = true;
 
@@ -253,16 +290,30 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
         if (!mounted) return;
         setSchema(nextSchema);
 
-        // Prefill FK values from initialValues if present.
-        setFkValues((prev) => ({ ...prev, ...(initialValues || {}) }));
+        const shouldLoadRecord =
+          inferredMode !== 'create' && entityId != null && String(entityId).trim().length > 0;
+
+        let nextRecord: Record<string, unknown> | null = null;
+        if (shouldLoadRecord) {
+          const resp = await apiClient.get(`${endpoint}${entityId}/`);
+          const data = resp.data as unknown;
+          nextRecord = data && typeof data === 'object' ? (data as Record<string, unknown>) : null;
+        }
+
+        if (!mounted) return;
+        setRecordValues(nextRecord);
+
+        const merged: Record<string, unknown> = { ...(nextRecord || {}), ...(initialValues || {}) };
+        setFkValues(merged);
       } catch (err: unknown) {
         if (!mounted) return;
         setSchema(null);
+        setRecordValues(null);
         const errorMessage =
           typeof (err as { response?: { data?: { error?: string } } })?.response?.data?.error ===
           'string'
             ? (err as { response?: { data?: { error?: string } } }).response?.data?.error
-            : 'Failed to load form schema';
+            : 'Failed to load form';
         message.error(errorMessage);
       } finally {
         if (mounted) setLoading(false);
@@ -274,7 +325,7 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
     return () => {
       mounted = false;
     };
-  }, [isOpen, loadSchema, initialValues]);
+  }, [endpoint, entityId, inferredMode, initialValues, isOpen, loadSchema]);
 
   // Load basic FK option lists (best-effort) for non-product references.
   useEffect(() => {
@@ -464,6 +515,10 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
     };
   }, [entityType, scalarFields, schema?.description, schema?.name]);
 
+  const formInitialValues = useMemo(() => {
+    return { ...(recordValues || {}), ...(initialValues || {}) };
+  }, [initialValues, recordValues]);
+
   const submit = useCallback(
     async (data: Record<string, unknown>) => {
       const payload: Record<string, unknown> = { ...data };
@@ -472,7 +527,7 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
       const missingFk = fkFields
         .filter((f) => Boolean(f.required))
         .filter((f) => {
-          const v = fkValues[f.key] ?? initialValues?.[f.key];
+          const v = fkValues[f.key] ?? formInitialValues?.[f.key];
           return v === undefined || v === null || v === '';
         });
       if (missingFk.length) {
@@ -612,7 +667,7 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
         setSubmitting(false);
       }
     },
-    [endpoint, entityId, fkFields, fkValues, initialValues, onClose, onSuccess]
+    [endpoint, entityId, fkFields, fkValues, formInitialValues, initialValues, onClose, onSuccess, scalarFields]
   );
 
   const fetchProducts = useCallback(
@@ -682,102 +737,106 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
     [fkValues]
   );
 
-  return (
-    <Modal
-      open={isOpen}
-      onCancel={() => {
-        if (submitting) return;
-        onClose();
-      }}
-      maskClosable={!submitting}
-      keyboard={!submitting}
-      footer={null}
-      width={720}
-      destroyOnClose
-      title={schema?.name || `New ${entityType}`}
-    >
-      <Container>
-        {loading ? (
-          <div style={{ padding: 16 }}>
-            <Skeleton active paragraph={{ rows: 6 }} />
-          </div>
-        ) : !schema ? (
-          <div style={{ padding: 12, color: 'rgb(var(--color-text-secondary))', fontSize: 13 }}>
-            Unable to load form schema.
-          </div>
-        ) : (
-          <>
-            {(keyFkFields.length > 0 || otherFkFields.length > 0) && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 10 }}>
-                {[...keyFkFields, ...(showAllFields ? otherFkFields : [])].map((f) => {
-                  const related = String(f.related_entity || '').toLowerCase();
-                  const isProduct =
-                    related.includes('system.product') ||
-                    String(f.key).toLowerCase().includes('product');
+  if (variant === 'inline' && !isOpen) return null;
 
-                  if (isProduct) {
-                    const value = String((fkValues[f.key] as string | number | undefined) ?? '');
-                    return (
-                      <div key={f.key}>
-                        <div
-                          style={{
-                            fontSize: 12,
-                            fontWeight: 600,
-                            color: 'rgb(var(--color-text-secondary))',
-                            marginBottom: 6,
-                          }}
-                        >
-                          {f.label || f.key}
-                        </div>
-                        <Select
-                          showSearch
-                          filterOption={false}
-                          onDropdownVisibleChange={(open) => {
-                            if (open && (productOptions[f.key] || []).length === 0) {
-                              void fetchProducts(f.key, '');
-                            }
-                          }}
-                          onSearch={(q) => void fetchProducts(f.key, q)}
-                          options={productOptions[f.key] || []}
-                          value={value || undefined}
-                          onChange={(next) => setFkValues((prev) => ({ ...prev, [f.key]: String(next) }))}
-                          notFoundContent={loadingProducts[f.key] ? <Spin size="small" /> : null}
-                          style={{ width: '100%' }}
-                          placeholder="Search products…"
-                        />
+  const formatValue = (v: unknown): string => {
+    if (v === undefined || v === null) return '';
+    if (typeof v === 'boolean') return v ? 'Yes' : 'No';
+    if (typeof v === 'number') return String(v);
+    if (typeof v === 'string') return v;
+    if (Array.isArray(v)) return v.map(formatValue).filter(Boolean).join(', ');
+    if (typeof v === 'object') {
+      const obj = v as Record<string, unknown>;
+      const name = typeof obj.name === 'string' ? obj.name : null;
+      if (name) return name;
+      const id = obj.id;
+      if (id != null) return String(id);
+      try {
+        return JSON.stringify(obj);
+      } catch {
+        return '[object]';
+      }
+    }
+    return String(v);
+  };
+
+  const keyScalarFields = scalarFields.filter((f) => preferredKeySet.has(String(f.key).toLowerCase()));
+  const otherScalarFields = scalarFields.filter((f) => !preferredKeySet.has(String(f.key).toLowerCase()));
+  const visibleScalarFields = [...keyScalarFields, ...(showAllFields ? otherScalarFields : [])];
+
+  const showVisibilityToggle =
+    otherFkFields.length > 0 || otherScalarFields.length > 0;
+
+  const modeSwitchControls =
+    entityId != null &&
+    canSwitchModes && (
+      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginBottom: 10 }}>
+        {activeMode === 'view' ? (
+          <Button type="primary" onClick={() => setActiveMode('edit')}>
+            Edit
+          </Button>
+        ) : inferredMode === 'view' ? (
+          <Button onClick={() => setActiveMode('view')} disabled={submitting}>
+            View
+          </Button>
+        ) : null}
+      </div>
+    );
+
+  const content = (
+    <Container>
+      {loading ? (
+        <div style={{ padding: 16 }}>
+          <Skeleton active paragraph={{ rows: 6 }} />
+        </div>
+      ) : !schema ? (
+        <div style={{ padding: 12, color: 'rgb(var(--color-text-secondary))', fontSize: 13 }}>
+          Unable to load form.
+        </div>
+      ) : (
+        <>
+          {modeSwitchControls}
+
+          {(keyFkFields.length > 0 || otherFkFields.length > 0) && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 10 }}>
+              {[...keyFkFields, ...(showAllFields ? otherFkFields : [])].map((f) => {
+                const related = String(f.related_entity || '').toLowerCase();
+                const isProduct =
+                  related.includes('system.product') ||
+                  String(f.key).toLowerCase().includes('product');
+
+                const value = String((fkValues[f.key] as string | number | undefined) ?? '');
+
+                if (activeMode === 'view') {
+                  return (
+                    <div key={f.key}>
+                      <div
+                        style={{
+                          fontSize: 12,
+                          fontWeight: 600,
+                          color: 'rgb(var(--color-text-secondary))',
+                          marginBottom: 6,
+                        }}
+                      >
+                        {f.label || f.key}
                       </div>
-                    );
-                  }
-
-                  const mapped = relatedEntityToEntityOptionsType(f.related_entity, f.key);
-                  const value = String((fkValues[f.key] as string | number | undefined) ?? '');
-
-                  if (mapped && mapped !== 'product') {
-                    return (
-                      <div key={f.key}>
-                        <div
-                          style={{
-                            fontSize: 12,
-                            fontWeight: 600,
-                            color: 'rgb(var(--color-text-secondary))',
-                            marginBottom: 6,
-                          }}
-                        >
-                          {f.label || f.key}
-                        </div>
-                        <EntityOptionsSelect
-                          entityType={mapped}
-                          value={value}
-                          onChange={(next) => setFkValues((prev) => ({ ...prev, [f.key]: next }))}
-                          placeholder={`Search ${f.label || f.key}…`}
-                          forceSearch
-                          debounceMs={0}
-                        />
+                      <div
+                        style={{
+                          padding: '10px 12px',
+                          border: '1px solid rgb(var(--color-border))',
+                          borderRadius: 8,
+                          background: 'rgb(var(--color-input-readonly))',
+                          color: 'rgb(var(--color-text-primary))',
+                          fontSize: 13,
+                        }}
+                      >
+                        {formatValue(formInitialValues[f.key]) || '—'}
                       </div>
-                    );
-                  }
+                    </div>
+                  );
+                }
 
-                  const options = fkOptions[f.key] || [];
+                if (isProduct) {
                   return (
                     <div key={f.key}>
                       <div
@@ -792,36 +851,137 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
                       </div>
                       <Select
                         showSearch
-                        options={options.map((o) => ({ value: String(o.id), label: o.name }))}
+                        filterOption={false}
+                        onDropdownVisibleChange={(open) => {
+                          if (open && (productOptions[f.key] || []).length === 0) {
+                            void fetchProducts(f.key, '');
+                          }
+                        }}
+                        onSearch={(q) => void fetchProducts(f.key, q)}
+                        options={productOptions[f.key] || []}
                         value={value || undefined}
                         onChange={(next) => setFkValues((prev) => ({ ...prev, [f.key]: String(next) }))}
+                        notFoundContent={loadingProducts[f.key] ? <Spin size="small" /> : null}
                         style={{ width: '100%' }}
-                        placeholder={`Select ${f.label || f.key}`}
-                        filterOption={(input, option) =>
-                          String(option?.label || '').toLowerCase().includes(String(input || '').toLowerCase())
-                        }
+                        placeholder="Search products…"
                       />
                     </div>
                   );
-                })}
-              </div>
-            )}
+                }
 
-            {(otherFkFields.length > 0 || scalarFields.some((f) => !preferredKeySet.has(String(f.key).toLowerCase()))) && (
-              <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 14 }}>
-                <Button
-                  type="link"
-                  onClick={() => setShowAllFields((v) => !v)}
-                  style={{ padding: 0, height: 'auto' }}
-                >
-                  {showAllFields ? 'Show fewer fields' : 'Show all fields'}
+                const mapped = relatedEntityToEntityOptionsType(f.related_entity, f.key);
+
+                if (mapped && mapped !== 'product') {
+                  return (
+                    <div key={f.key}>
+                      <div
+                        style={{
+                          fontSize: 12,
+                          fontWeight: 600,
+                          color: 'rgb(var(--color-text-secondary))',
+                          marginBottom: 6,
+                        }}
+                      >
+                        {f.label || f.key}
+                      </div>
+                      <EntityOptionsSelect
+                        entityType={mapped}
+                        value={value}
+                        onChange={(next) => setFkValues((prev) => ({ ...prev, [f.key]: next }))}
+                        placeholder={`Search ${f.label || f.key}…`}
+                        forceSearch
+                        debounceMs={0}
+                      />
+                    </div>
+                  );
+                }
+
+                const options = fkOptions[f.key] || [];
+                return (
+                  <div key={f.key}>
+                    <div
+                      style={{
+                        fontSize: 12,
+                        fontWeight: 600,
+                        color: 'rgb(var(--color-text-secondary))',
+                        marginBottom: 6,
+                      }}
+                    >
+                      {f.label || f.key}
+                    </div>
+                    <Select
+                      showSearch
+                      options={options.map((o) => ({ value: String(o.id), label: o.name }))}
+                      value={value || undefined}
+                      onChange={(next) => setFkValues((prev) => ({ ...prev, [f.key]: String(next) }))}
+                      style={{ width: '100%' }}
+                      placeholder={`Select ${f.label || f.key}`}
+                      filterOption={(input, option) =>
+                        String(option?.label || '').toLowerCase().includes(String(input || '').toLowerCase())
+                      }
+                    />
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {showVisibilityToggle && (
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 14 }}>
+              <Button
+                type="link"
+                onClick={() => setShowAllFields((v) => !v)}
+                style={{ padding: 0, height: 'auto' }}
+              >
+                {showAllFields ? 'Show fewer fields' : 'Show all fields'}
+              </Button>
+            </div>
+          )}
+
+          {activeMode === 'view' ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              {visibleScalarFields.map((f) => (
+                <div key={f.key}>
+                  <div
+                    style={{
+                      fontSize: 12,
+                      fontWeight: 600,
+                      color: 'rgb(var(--color-text-secondary))',
+                      marginBottom: 6,
+                    }}
+                  >
+                    {f.label || f.key}
+                  </div>
+                  <div
+                    style={{
+                      padding: '10px 12px',
+                      border: '1px solid rgb(var(--color-border))',
+                      borderRadius: 8,
+                      background: 'rgb(var(--color-input-readonly))',
+                      color: 'rgb(var(--color-text-primary))',
+                      fontSize: 13,
+                    }}
+                  >
+                    {formatValue(formInitialValues[f.key]) || '—'}
+                  </div>
+                </div>
+              ))}
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 8 }}>
+                <Button onClick={onClose} disabled={submitting}>
+                  Close
                 </Button>
+                {entityId != null && canSwitchModes && (
+                  <Button type="primary" onClick={() => setActiveMode('edit')}>
+                    Edit
+                  </Button>
+                )}
               </div>
-            )}
-
+            </div>
+          ) : (
             <DynamicFormEngine
               schema={dynamicSchema as any}
-              initialValues={initialValues || {}}
+              initialValues={formInitialValues}
               isSubmitting={submitting}
               submitLabel={entityId ? 'Save' : 'Create'}
               keyFieldKeys={preferredKeys}
@@ -833,12 +993,36 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
               }}
               onCancel={() => {
                 if (submitting) return;
+                if (inferredMode === 'view' && canSwitchModes) {
+                  setActiveMode('view');
+                  return;
+                }
                 onClose();
               }}
             />
-          </>
-        )}
-      </Container>
+          )}
+        </>
+      )}
+    </Container>
+  );
+
+  if (variant === 'inline') return content;
+
+  return (
+    <Modal
+      open={isOpen}
+      onCancel={() => {
+        if (submitting) return;
+        onClose();
+      }}
+      maskClosable={!submitting}
+      keyboard={!submitting}
+      footer={null}
+      width={720}
+      destroyOnClose
+      title={schema?.name || (entityId ? `${entityType} ${entityId}` : `New ${entityType}`)}
+    >
+      {content}
     </Modal>
   );
 };

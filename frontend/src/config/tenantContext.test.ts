@@ -128,7 +128,7 @@ describe('Tenant Context', () => {
       window.location.hostname = 'localhost';
       
       const branding = getTenantBranding();
-      expect(branding.primaryColor).toBe('#1890ff');
+      expect(branding.primaryColor).toBe('rgb(var(--color-primary))');
       expect(branding.logoUrl).toBeNull();
     });
     
@@ -136,7 +136,7 @@ describe('Tenant Context', () => {
       window.location.hostname = 'acme.meatscentral.com';
       
       const branding = getTenantBranding();
-      expect(branding.primaryColor).toBe('#1890ff');
+      expect(branding.primaryColor).toBe('rgb(var(--color-primary))');
       expect(branding.logoUrl).toBeNull();
     });
   });
