@@ -227,6 +227,11 @@ This file is the **append-only PR-referenceable execution log**.
 - Inquiry relationship product preview `more_count` now uses `total - 4` (preview slice) math.
 - PR: #4178.
 
+### 2026-03-30T19:17:38Z — Phase 9.5: Environment manifest secret schema update
+- Updated canonical secret manifest `manifests/env.manifest.json` (v5.1) to document additional repository secrets (xAI + Sentry) and to register Unstructured API keys.
+- Updated manifest validation lists to include the new secret names (no secret values committed).
+- PR: #4180.
+
 ### 2026-03-30 — Phase 9.5: Billing Interface Dynamic Wiring — COMPLETE
 - Admin Billing invoice history now loads subscription invoices dynamically (no hardcoded rows).
 
