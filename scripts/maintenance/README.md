@@ -24,7 +24,6 @@ These scripts are used for:
 - `setup-db-secrets.sh` - Database secret configuration
 
 ### Deployment & Infrastructure
-- `apply_deployment_fixes.sh` - Apply deployment fixes
 - `query_remote_accounts.sh` - Query remote account information
 - `get-github-actions-ips.sh` - Get GitHub Actions IP ranges
 

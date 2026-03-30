@@ -260,7 +260,7 @@ npm audit
 ## Documentation Updates
 
 ### New Documentation
-1. ✅ `/docs/plans/INTELLIGENT_WORKFORM_EDITOR_MASTER_PLAN.md` - Master plan
+1. ✅ `/docs/plans/archive/INTELLIGENT_WORKFORM_EDITOR_MASTER_PLAN.md` - Master plan
 2. ✅ `/frontend/src/components/form-builder/README.md` - FormBuilder guide
 3. ✅ `/docs/WORKFLOW_EDITOR_VERIFICATION_REPORT.md` - This report
 

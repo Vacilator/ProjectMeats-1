@@ -68,7 +68,7 @@ Documentation (4 files):
 ├── PHASE6_EMAIL_INTEGRATION_COMPLETE.md  # 21KB comprehensive guide
 ├── PHASE6_QUICK_START.md                 # 12KB setup guide
 ├── PHASE6_SUMMARY.md                     # 11KB executive summary
-└── deploy_phase6.sh                      # Automated deployment
+└── (deployment handled via GitHub Actions Golden Pipeline)
 
 Testing (1 file):
 └── verify_phase6.py                      # Automated verification
@@ -318,7 +318,7 @@ PHASE6_SUMMARY.md
    - Success criteria
    - Deployment checklist
 
-deploy_phase6.sh
+(deploy scripts removed; use GitHub Actions)
    - Automated deployment script
    - Generates encryption key
    - Runs migrations

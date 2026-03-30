@@ -684,9 +684,9 @@ export function getNodeDepth(nodes: Node[], nodeId: string): number
 ---
 
 ## 📚 Related Documentation
-- `/docs/plans/MULTI_STEP_CONTAINER_IMPLEMENTATION_PLAN.md`
-- `/docs/FORMS_FLOWS_ENHANCEMENT_PLAN.md`
-- `/docs/COCKPIT_WORKFORMS_OVERHAUL_PLAN.md`
+- `/docs/plans/archive/MULTI_STEP_CONTAINER_IMPLEMENTATION_PLAN.md`
+- `/docs/plans/archive/FORMS_FLOWS_ENHANCEMENT_PLAN.md`
+- `/docs/plans/archive/COCKPIT_WORKFORMS_OVERHAUL_PLAN.md`
 
 ---
 
