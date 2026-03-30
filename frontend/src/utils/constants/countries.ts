@@ -5,7 +5,7 @@
  * (many models default to "USA"). For other countries, we store the country name.
  */
 
-import { getData } from 'country-list';
+import { getData, type CountryListItem } from 'country-list';
 
 export interface CountryOption {
   value: string;
@@ -15,7 +15,7 @@ export interface CountryOption {
 
 export const DEFAULT_COUNTRY = 'USA';
 
-const raw = getData(); // [{ code: 'US', name: 'United States' }, ...]
+const raw: CountryListItem[] = getData(); // [{ code: 'US', name: 'United States' }, ...]
 
 const others: CountryOption[] = raw
   .filter((c) => c?.name && c.name !== 'United States')

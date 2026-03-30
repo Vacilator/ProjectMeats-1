@@ -11,6 +11,7 @@ import type { ColumnsType } from 'antd/es/table';
 
 import { apiClient } from '../../services/apiService';
 import { useToast } from '../../hooks/useToast';
+import { confirmDialog } from '@/utils/uiDialogs';
 
 const { Text } = Typography;
 

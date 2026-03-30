@@ -24,6 +24,7 @@ import { Eye, EyeOff, ChevronDown, ChevronUp, Zap } from 'lucide-react';
 import { ValidationRuleBuilder, ValidationRule } from './ValidationRuleBuilder';
 import { ConditionBuilder, ConditionRule, ConditionLogic } from './ConditionBuilder';
 import { useFlowEditor } from '../context';
+import { showAlert } from '@/utils/uiDialogs';
 import { getUpstreamOutputs, formatInheritanceSyntax, isInheritanceSyntax } from '../../../utils/flowUtils';
 import {
   PanelHeader,

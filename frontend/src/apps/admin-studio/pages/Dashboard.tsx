@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { adminClient } from '@/services/apiService';
+import { showAlert } from '@/utils/uiDialogs';
 
 interface Blueprint {
   id: string;

@@ -18,6 +18,7 @@ import { US_STATES } from '../../utils/constants/states';
 import type { ColumnsType } from 'antd/es/table';
 import { SearchOutlined, PlusOutlined, EditOutlined, DeleteOutlined, AppstoreOutlined } from '@ant-design/icons';
 import { apiClient } from '../../services/apiService';
+import { confirmDialog } from '@/utils/uiDialogs';
 
 // ============================================================================
 // TypeScript Interfaces

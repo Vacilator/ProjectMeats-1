@@ -12,8 +12,14 @@ import { Select as AntSelect } from 'antd';
 import { COUNTRY_OPTIONS, DEFAULT_COUNTRY } from '../../utils/constants/countries';
 
 export interface CountrySelectProps {
-  value: string;
-  onChange: (value: string) => void;
+  /**
+   * Optional to support AntD Form.Item injecting value/onChange at runtime.
+   */
+  value?: string;
+  /**
+   * Optional to support AntD Form.Item injecting value/onChange at runtime.
+   */
+  onChange?: (value: string) => void;
   placeholder?: string;
   disabled?: boolean;
   allowClear?: boolean;
@@ -33,7 +39,7 @@ export const CountrySelect: React.FC<CountrySelectProps> = ({
   return (
     <AntSelect
       value={effectiveValue || undefined}
-      onChange={(next) => onChange(String(next || DEFAULT_COUNTRY))}
+      onChange={(next) => onChange?.(String(next || DEFAULT_COUNTRY))}
       placeholder={placeholder}
       disabled={disabled}
       allowClear={allowClear}
