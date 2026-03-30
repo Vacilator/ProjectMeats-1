@@ -991,12 +991,18 @@ jobs:
           echo "✓ In directory: $(pwd)"
           echo "✓ backend/.env file already transferred"
           
-          # Preemptively create and fix permissions for staticfiles directory on host
+          # Preemptively create and fix permissions for staticfiles and media directories on host
           echo "Creating and fixing permissions for staticfiles directory..."
           mkdir -p /root/projectmeats/staticfiles
           chown -R 1000:1000 /root/projectmeats/staticfiles
           chmod -R 775 /root/projectmeats/staticfiles
-          echo "✓ Host-level permissions fixed"
+          echo "✓ staticfiles permissions fixed"
+
+          echo "Creating and fixing permissions for media directory..."
+          mkdir -p /root/projectmeats/media
+          chown -R 1000:1000 /root/projectmeats/media
+          chmod -R 775 /root/projectmeats/media
+          echo "✓ media permissions fixed"
           
           # Login to registry
           echo "${{ secrets.DO_ACCESS_TOKEN }}" | docker login registry.digitalocean.com -u "${{ secrets.DO_ACCESS_TOKEN }}" --password-stdin
