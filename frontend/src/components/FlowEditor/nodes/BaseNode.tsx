@@ -461,6 +461,7 @@ export const BaseNode: React.FC<BaseNodeProps & { children?: React.ReactNode }> 
 
   return (
     <NodeContainer 
+      className={`pm-node${selected ? ' is-selected' : ''}`}
       $color={nodeType.color} 
       $selected={selected}
       $status={status}

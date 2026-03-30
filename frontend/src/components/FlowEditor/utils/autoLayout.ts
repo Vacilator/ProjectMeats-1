@@ -65,8 +65,12 @@ export const getLayoutedElements = (
   dagreGraph.setDefaultEdgeLabel(() => ({}));
 
   topLevelNodes.forEach((node) => {
-    const width = node.width || 280;
-    const height = node.height || 100;
+    const styleWidth = typeof (node.style as any)?.width === 'number' ? (node.style as any).width : undefined;
+    const styleHeight = typeof (node.style as any)?.height === 'number' ? (node.style as any).height : undefined;
+
+    const width = node.measured?.width ?? node.width ?? styleWidth ?? 280;
+    const height = node.measured?.height ?? node.height ?? styleHeight ?? 100;
+
     dagreGraph.setNode(node.id, { width, height });
   });
 
@@ -83,8 +87,14 @@ export const getLayoutedElements = (
     const nodeWithPosition = dagreGraph.node(node.id);
     if (!nodeWithPosition) return node;
 
-    const x = nodeWithPosition.x - (node.width || 280) / 2;
-    const y = nodeWithPosition.y - (node.height || 100) / 2;
+    const styleWidth = typeof (node.style as any)?.width === 'number' ? (node.style as any).width : undefined;
+    const styleHeight = typeof (node.style as any)?.height === 'number' ? (node.style as any).height : undefined;
+
+    const width = node.measured?.width ?? node.width ?? styleWidth ?? 280;
+    const height = node.measured?.height ?? node.height ?? styleHeight ?? 100;
+
+    const x = nodeWithPosition.x - width / 2;
+    const y = nodeWithPosition.y - height / 2;
 
     return {
       ...node,
