@@ -2541,13 +2541,22 @@ class AvailableFormsViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = AvailableFormSerializer
 
     def get_queryset(self):
-        # TenantForms: active or draft
-        queryset = TenantForm.objects.filter(status__in=[FormStatus.ACTIVE, FormStatus.DRAFT])
+        """Return ONLY TenantForms for Quick Actions.
 
+        This endpoint must never attempt to merge models (no `.union()`), since that has repeatedly
+        caused production issues and is not required for the Quick Actions UX.
+        """
+        tenant = getattr(self.request, 'tenant', None)
+
+        queryset = TenantForm.objects.filter(status__in=['active', 'draft'])
+
+        # Superusers may inspect forms across tenants.
         if not self.request.user.is_superuser:
-            queryset = queryset.filter(tenant=self.request.tenant)
+            if not tenant:
+                return TenantForm.objects.none()
+            queryset = queryset.filter(tenant=tenant)
 
-        return queryset.prefetch_related('entities').order_by('name')
+        return queryset.order_by('-created_at')
 
     @extend_schema(responses={200: AvailableQuickActionTargetSerializer(many=True)})
     def list(self, request, *args, **kwargs):
