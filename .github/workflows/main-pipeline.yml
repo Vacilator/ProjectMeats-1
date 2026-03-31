@@ -3,8 +3,9 @@ name: Master Pipeline
 run-name: >-
   ${{
     github.event_name == 'pull_request' && format('🔍 PR Check: {0} → {1} - #{2} {3}', github.head_ref, github.base_ref, github.event.pull_request.number, github.event.pull_request.title) ||
-    github.event_name == 'workflow_dispatch' && format('🚀 Deploy: {0} (manual) - {1}', inputs.environment, github.sha) ||
-    format('🚀 Deploy: {0} - {1}', github.ref_name, github.event.head_commit.message)
+    github.event_name == 'workflow_dispatch' && format('🚀 Deploy: {0} (manual) - {1}', github.event.inputs.environment, github.sha) ||
+    github.event_name == 'push' && format('🚀 Deploy: {0} - {1}', github.ref_name, github.event.head_commit.message) ||
+    format('🕒 Scheduled: {0} - {1}', github.ref_name, github.sha)
   }}
 
 on:
@@ -122,7 +123,7 @@ jobs:
     if: |
       needs.check-latest.outputs.should_deploy == 'true' &&
       ((github.event_name == 'push' && github.ref == 'refs/heads/development') ||
-      (github.event_name == 'workflow_dispatch' && inputs.environment == 'development'))
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'development'))
     needs: [check-latest]
     uses: ./.github/workflows/reusable-deploy.yml
     secrets: inherit  # Environment context set in reusable workflow jobs
@@ -141,7 +142,7 @@ jobs:
     if: |
       needs.check-latest.outputs.should_deploy == 'true' &&
       ((github.event_name == 'push' && github.ref == 'refs/heads/uat') ||
-      (github.event_name == 'workflow_dispatch' && inputs.environment == 'uat'))
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'uat'))
     needs: [check-latest]
     uses: ./.github/workflows/reusable-deploy.yml
     secrets: inherit  # Environment context set in reusable workflow jobs
@@ -160,7 +161,7 @@ jobs:
     if: |
       needs.check-latest.outputs.should_deploy == 'true' &&
       ((github.event_name == 'push' && github.ref == 'refs/heads/main') ||
-      (github.event_name == 'workflow_dispatch' && inputs.environment == 'production'))
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'production'))
     needs: [check-latest]
     uses: ./.github/workflows/reusable-deploy.yml
     secrets: inherit  # Environment context set in reusable workflow jobs
