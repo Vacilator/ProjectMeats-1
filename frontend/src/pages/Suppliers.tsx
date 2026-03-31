@@ -806,7 +806,7 @@ const Suppliers: React.FC = () => {
                               </SmallButton>
                               <SmallButton
                                 type="button"
-                                onClick={() => navigate('/suppliers/plants', { state: { supplierId: supplier.id } })}
+                                onClick={() => navigate(`/suppliers/${supplier.id}/plants`)}
                               >
                                 Manage
                               </SmallButton>

@@ -738,8 +738,11 @@ export class ApiService {
   }
 
   // Contacts
-  async getContacts(): Promise<Contact[]> {
-    const response = await apiClient.get('/contacts/');
+  async getContacts(params?: { supplier?: number | string; customer?: number | string; plant?: number | string; location?: number | string }): Promise<Contact[]> {
+    const filteredParams = params
+      ? Object.fromEntries(Object.entries(params).filter(([, v]) => v !== undefined && v !== null && v !== ''))
+      : undefined;
+    const response = await apiClient.get('/contacts/', { params: filteredParams });
     return response.data.results || response.data;
   }
 

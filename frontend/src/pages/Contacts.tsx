@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import styled from 'styled-components';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useParams, useSearchParams } from 'react-router-dom';
 import { logger } from '@/utils/logger';
 import { apiService, Contact } from '../services/apiService';
 import { apiClient } from '../services/apiService';
@@ -322,10 +322,19 @@ const SubmitButton = styled.button`
 
 const Contacts: React.FC = () => {
   const location = useLocation();
+  const { supplierId, customerId } = useParams<{ supplierId?: string; customerId?: string }>();
+  const [searchParams] = useSearchParams();
+
+  const contactFilters = {
+    supplier: supplierId ?? searchParams.get('supplier') ?? undefined,
+    customer: customerId ?? searchParams.get('customer') ?? undefined,
+    plant: searchParams.get('plant') ?? undefined,
+    location: searchParams.get('location') ?? undefined,
+  };
 
   const contactsQuery = useQuery({
-    queryKey: ['contacts'],
-    queryFn: apiService.getContacts,
+    queryKey: ['contacts', contactFilters.supplier, contactFilters.customer, contactFilters.plant, contactFilters.location],
+    queryFn: () => apiService.getContacts(contactFilters),
   });
 
   const contacts = contactsQuery.data ?? [];
@@ -359,10 +368,12 @@ const Contacts: React.FC = () => {
 
   // Detect context from URL path
   useEffect(() => {
-    if (location.pathname.includes('/suppliers/contacts')) {
+    if (location.pathname.startsWith('/suppliers')) {
       setEntityType('supplier');
-    } else if (location.pathname.includes('/customers/contacts')) {
+    } else if (location.pathname.startsWith('/customers')) {
       setEntityType('customer');
+    } else {
+      setEntityType('');
     }
   }, [location.pathname]);
 

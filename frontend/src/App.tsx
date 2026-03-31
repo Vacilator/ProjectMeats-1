@@ -253,7 +253,9 @@ const App: React.FC = () => {
                   element={<UniversalEntityRecordPage entityType="supplier" basePath="/suppliers" mode="view" />}
                 />
                 <Route path="suppliers/contacts" element={<Contacts />} />
+                <Route path="suppliers/:supplierId/contacts" element={<Contacts />} />
                 <Route path="suppliers/plants" element={<Plants />} />
+                <Route path="suppliers/:supplierId/plants" element={<Plants />} />
                 <Route path="suppliers/:id/products" element={<SupplierProducts />} />
                 <Route path="plants/:id" element={<PlantDetailView />} />
                 <Route path="plants/:id/products" element={<PlantProducts />} />
@@ -274,7 +276,9 @@ const App: React.FC = () => {
                   element={<UniversalEntityRecordPage entityType="customer" basePath="/customers" mode="view" />}
                 />
                 <Route path="customers/contacts" element={<Contacts />} />
+                <Route path="customers/:customerId/contacts" element={<Contacts />} />
                 <Route path="customers/locations" element={<CustomerLocations />} />
+                <Route path="customers/:customerId/locations" element={<CustomerLocations />} />
                 <Route path="customers/:id/products" element={<CustomerProducts />} />
                 
                 {/* Orders */}

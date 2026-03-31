@@ -793,7 +793,7 @@ const Customers: React.FC = () => {
                               </SmallButton>
                               <SmallButton
                                 type="button"
-                                onClick={() => navigate('/customers/locations', { state: { customerId: customer.id } })}
+                                onClick={() => navigate(`/customers/${customer.id}/locations`)}
                               >
                                 Manage
                               </SmallButton>
