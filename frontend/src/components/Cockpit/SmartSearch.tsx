@@ -31,7 +31,6 @@ import { useCockpitNavigation } from '../../contexts/CockpitNavigationContext';
 // UniversalEntityForm usage consolidated via EntityFormSurface
 
 import { EntityFormSurface } from '../Shared';
-import { InquiryCreateModal } from '../Inquiry';
 import { EntityProfileHeader } from './EntityProfileHeader';
 import { AIOverviewCard } from './AIOverviewCard';
 import { useFavorites } from '../../hooks/useFavorites';
@@ -59,7 +58,7 @@ export interface RelationalChunk {
 // SmartSearch reacts to navigation path changes to implement continuous browsing.
 
 export interface InlineActionPayload {
-  action: 'create' | 'edit';
+  action: 'create' | 'edit' | 'view';
   entityType: string;
   contextData: any;
 }
@@ -83,7 +82,7 @@ export interface SmartSearchProps {
   /** Cancel inline create/edit */
   onInlineCancel?: () => void;
   /** Inline create/edit success */
-  onInlineSuccess?: () => void;
+  onInlineSuccess?: (created?: unknown) => void;
   /** Request an inline create action */
   onOpenInlineCreate?: (targetType: string, currentRecord: SearchEntity) => void;
 }
@@ -1428,159 +1427,121 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
 
         {quickCreateConfig.isOpen && (
           <div style={{ marginTop: 12 }}>
-            {String(quickCreateConfig.type).toLowerCase() === 'inquiry' ? (
-              <InquiryCreateModal
-                isOpen={true}
-                onClose={closeQuickCreate}
-                onSuccess={() => {
-                  if (activeEntity) {
-                    if (activeRelationTab !== 'more') {
-                      void loadRelationshipTab(activeRelationTab, activeEntity);
-                    }
-                    void loadRelationalChunks(activeEntity);
-                  }
-                  closeQuickCreate();
-                }}
-                enableSupplierPlantSelection={Boolean(
-                  quickCreateConfig.context?.customer || quickCreateConfig.context?.customer_id
-                )}
-                initialEntityType={
-                  quickCreateConfig.context?.customer || quickCreateConfig.context?.customer_id
+            <EntityFormSurface
+              entityType={quickCreateConfig.type}
+              mode="create"
+              variant="inline"
+              forceUniversal
+              isOpen={true}
+              onClose={closeQuickCreate}
+              context={{
+                customerId: quickCreateConfig.context?.customer || quickCreateConfig.context?.customer_id,
+                supplierId: quickCreateConfig.context?.supplier || quickCreateConfig.context?.supplier_id,
+                contactId: quickCreateConfig.context?.contact || quickCreateConfig.context?.contact_id,
+              }}
+              onSuccess={(created) => {
+                const row = (created && typeof created === 'object' ? (created as any) : {}) as any;
+                const createdId = String(row?.id ?? row?.uuid ?? row?.pk ?? '').trim();
+                const rawType = String(quickCreateConfig.type ?? '').toLowerCase();
+                const createdType =
+                  rawType === 'customers'
                     ? 'customer'
-                    : quickCreateConfig.context?.supplier || quickCreateConfig.context?.supplier_id
+                    : rawType === 'suppliers'
                       ? 'supplier'
-                      : undefined
-                }
-                initialEntityId={
-                  quickCreateConfig.context?.customer ||
-                  quickCreateConfig.context?.customer_id ||
-                  quickCreateConfig.context?.supplier ||
-                  quickCreateConfig.context?.supplier_id
-                }
-              />
-            ) : (
-              <EntityFormSurface
-                entityType={quickCreateConfig.type}
-                mode="create"
-                isOpen={true}
-                onClose={closeQuickCreate}
-                context={{
-                  customerId: quickCreateConfig.context?.customer || quickCreateConfig.context?.customer_id,
-                  supplierId: quickCreateConfig.context?.supplier || quickCreateConfig.context?.supplier_id,
-                  contactId: quickCreateConfig.context?.contact || quickCreateConfig.context?.contact_id,
-                }}
-                onSuccess={(created) => {
-                  const row = (created && typeof created === 'object' ? (created as any) : {}) as any;
-                  const createdId = String(row?.id ?? row?.uuid ?? row?.pk ?? '').trim();
-                  const rawType = String(quickCreateConfig.type ?? '').toLowerCase();
-                  const createdType =
-                    rawType === 'customers'
-                      ? 'customer'
-                      : rawType === 'suppliers'
-                        ? 'supplier'
-                        : rawType === 'contacts'
-                          ? 'contact'
-                          : rawType === 'products'
-                            ? 'product'
-                            : rawType === 'invoices'
-                              ? 'invoice'
-                              : rawType;
+                      : rawType === 'contacts'
+                        ? 'contact'
+                        : rawType === 'products'
+                          ? 'product'
+                          : rawType === 'invoices'
+                            ? 'invoice'
+                            : rawType;
 
-                  const createdName = String(row?.name ?? row?.title ?? row?.code ?? '').trim();
+                const createdName = String(row?.name ?? row?.title ?? row?.code ?? '').trim();
 
-                  if (createdId) {
-                    message.success(`Created ${formatEntityLabel(createdType)}${createdName ? `: ${createdName}` : ''}`);
-                  }
-
-                  // Master data creates are not always a "relation" of the currently focused entity.
-                  // Navigate to the created record so the user can immediately see/confirm it exists.
-                  const shouldNavigateToCreated = Boolean(
-                    createdId && ['customer', 'supplier', 'contact', 'product', 'invoice'].includes(createdType)
+                if (createdId) {
+                  message.success(
+                    `Created ${formatEntityLabel(createdType)}${createdName ? `: ${createdName}` : ''}`
                   );
+                }
 
-                  if (shouldNavigateToCreated) {
-                    handleSelectEntity({
-                      id: createdId,
-                      type: createdType,
-                      name: createdName || `New ${formatEntityLabel(createdType)}`,
-                    });
+                const shouldNavigateToCreated = Boolean(
+                  createdId && ['customer', 'supplier', 'contact', 'product', 'invoice'].includes(createdType)
+                );
 
-                    if (query?.trim()) {
-                      void searchEntities(query);
-                    }
+                if (shouldNavigateToCreated) {
+                  handleSelectEntity({
+                    id: createdId,
+                    type: createdType,
+                    name: createdName || `New ${formatEntityLabel(createdType)}`,
+                  });
 
-                    closeQuickCreate();
-                    return;
-                  }
-
-                  if (activeEntity) {
-                    if (activeRelationTab !== 'more') {
-                      void loadRelationshipTab(activeRelationTab, activeEntity);
-                    }
-                    void loadRelationalChunks(activeEntity);
+                  if (query?.trim()) {
+                    void searchEntities(query);
                   }
 
                   closeQuickCreate();
-                }}
-              />
-            )}
+                  return;
+                }
+
+                if (activeEntity) {
+                  if (activeRelationTab !== 'more') {
+                    void loadRelationshipTab(activeRelationTab, activeEntity);
+                  }
+                  void loadRelationalChunks(activeEntity);
+                }
+
+                closeQuickCreate();
+              }}
+            />
           </div>
         )}
 
         {inlineAction && activeEntity && (
           <div style={{ marginTop: 12 }}>
-            {String(inlineAction.entityType).toLowerCase() === 'inquiry' ? (
-              <InquiryCreateModal
-                isOpen={true}
-                onClose={() => onInlineCancel?.()}
-                onSuccess={() => {
-                  if (activeEntity) {
-                    if (activeRelationTab !== 'more') {
-                      void loadRelationshipTab(activeRelationTab, activeEntity);
-                    }
-                    void loadRelationalChunks(activeEntity);
+            <EntityFormSurface
+              entityType={inlineAction.entityType}
+              mode={inlineAction.action === 'view' ? 'view' : inlineAction.action === 'edit' ? 'edit' : 'create'}
+              entityId={
+                inlineAction.action === 'view' || inlineAction.action === 'edit'
+                  ? (inlineAction.contextData?.entityId ?? inlineAction.contextData?.id ?? activeEntity.id)
+                  : undefined
+              }
+              variant="inline"
+              forceUniversal
+              isOpen={true}
+              onClose={() => onInlineCancel?.()}
+              context={{
+                customerId: inlineAction.contextData?.customer || inlineAction.contextData?.customer_id,
+                supplierId: inlineAction.contextData?.supplier || inlineAction.contextData?.supplier_id,
+                contactId: inlineAction.contextData?.contact || inlineAction.contextData?.contact_id,
+              }}
+              onSuccess={(created) => {
+                const row = (created && typeof created === 'object' ? (created as any) : {}) as any;
+                const createdId = String(row?.id ?? row?.uuid ?? row?.pk ?? '').trim();
+                const createdName = String(row?.name ?? row?.title ?? row?.code ?? '').trim();
+
+                if (inlineAction.action === 'create' && createdId) {
+                  handleSelectEntity({
+                    id: createdId,
+                    type: String(inlineAction.entityType || ''),
+                    name: createdName || `New ${formatEntityLabel(String(inlineAction.entityType || 'record'))}`,
+                  });
+
+                  if (query?.trim()) {
+                    void searchEntities(query);
                   }
-                  onInlineSuccess?.();
-                }}
-                enableSupplierPlantSelection={Boolean(
-                  inlineAction.contextData?.customer || inlineAction.contextData?.customer_id
-                )}
-                initialEntityType={
-                  inlineAction.contextData?.customer || inlineAction.contextData?.customer_id
-                    ? 'customer'
-                    : inlineAction.contextData?.supplier || inlineAction.contextData?.supplier_id
-                      ? 'supplier'
-                      : undefined
                 }
-                initialEntityId={
-                  inlineAction.contextData?.customer ||
-                  inlineAction.contextData?.customer_id ||
-                  inlineAction.contextData?.supplier ||
-                  inlineAction.contextData?.supplier_id
-                }
-              />
-            ) : (
-              <EntityFormSurface
-                entityType={inlineAction.entityType}
-                mode="create"
-                isOpen={true}
-                onClose={() => onInlineCancel?.()}
-                context={{
-                  customerId: inlineAction.contextData?.customer || inlineAction.contextData?.customer_id,
-                  supplierId: inlineAction.contextData?.supplier || inlineAction.contextData?.supplier_id,
-                  contactId: inlineAction.contextData?.contact || inlineAction.contextData?.contact_id,
-                }}
-                onSuccess={() => {
-                  if (activeEntity) {
-                    if (activeRelationTab !== 'more') {
-                      void loadRelationshipTab(activeRelationTab, activeEntity);
-                    }
-                    void loadRelationalChunks(activeEntity);
+
+                if (activeEntity) {
+                  if (activeRelationTab !== 'more') {
+                    void loadRelationshipTab(activeRelationTab, activeEntity);
                   }
-                  onInlineSuccess?.();
-                }}
-              />
-            )}
+                  void loadRelationalChunks(activeEntity);
+                }
+
+                onInlineSuccess?.(created);
+              }}
+            />
           </div>
         )}
 
@@ -1588,6 +1549,7 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
           <EntityFormSurface
             entityType="sales-orders"
             mode="create"
+            variant="inline"
             isOpen={true}
             onClose={closeInlineSubview}
             onSuccess={() => closeInlineSubview()}
