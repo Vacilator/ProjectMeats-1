@@ -61,6 +61,7 @@ class TenantAwareTokenObtainPairSerializer(TokenObtainPairSerializer):
             'last_name': self.user.last_name,
             'is_staff': self.user.is_staff,
             'is_superuser': self.user.is_superuser,
+            'is_active': self.user.is_active,
         }
         
         # Add tenant list to response
