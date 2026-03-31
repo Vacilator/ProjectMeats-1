@@ -16,6 +16,11 @@ This file is the **append-only PR-referenceable execution log**.
 - Added PlantDetailView + LocationDetailView with Contacts grouped by department (Sales/QA/Booking/Accounting).
 - PR: #4228
 
+### 2026-03-31 — Hierarchy: Plant/Location inline contact arrays
+- Backend: Plant/Location form schema now includes department contact sections (Sales/QA/Booking/Accounting) as inline arrays.
+- Frontend: DynamicFormEngine supports `inline_form_array` (react-hook-form field arrays) incl. tag inputs for responsibility lists; UniversalEntityForm honors schema `ui` metadata.
+- PR: #4227
+
 ### 2026-03-30 — Docs: master plan gap analysis + roadmap hygiene
 - Updated `MASTER_PLAN.md` (canonical) with an industry-leader benchmark gap analysis (P0/P1/P2) and refreshed execution-ordered backlog.
 - Converted non-canonical roadmaps/plans into clearer **REFERENCE ONLY** docs (removed/neutralized misleading progress emphasis).
