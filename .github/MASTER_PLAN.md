@@ -108,6 +108,11 @@ This file is the **append-only PR-referenceable execution log**.
   - Aggregated Preferences uses `aggregated_preferred_products` from Customer detail and resolves titles via `/api/v1/master-products/`.
 - PR: #4234
 
+### 2026-03-31 — Fix: custom list creation 500
+- Fixed 500 on `POST /api/v1/workflows/lists/` by explicitly setting tenant + created_by during create and re-asserting RLS session vars.
+- Added workflows migration to ensure TenantList has an explicit RLS INSERT policy (`WITH CHECK`).
+- PR: #4236
+
 ### 2026-03-30 — Docs: master plan gap analysis + roadmap hygiene
 - Updated `MASTER_PLAN.md` (canonical) with an industry-leader benchmark gap analysis (P0/P1/P2) and refreshed execution-ordered backlog.
 - Converted non-canonical roadmaps/plans into clearer **REFERENCE ONLY** docs (removed/neutralized misleading progress emphasis).
