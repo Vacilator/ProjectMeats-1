@@ -939,7 +939,7 @@ export const CreateFulfillmentModal: React.FC<CreateFulfillmentModalProps> = ({
 
               <ProductsTable>
                 <ProductsHeader>
-                  <span></span>
+                  <span />
                   <span>Product</span>
                   <span>Ordered</span>
                   <span>To Fulfill</span>

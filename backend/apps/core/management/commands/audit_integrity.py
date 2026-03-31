@@ -22,7 +22,7 @@ from django.conf import settings
 import json
 import os
 from pathlib import Path
-from typing import Dict, List, Any
+from typing import Dict, Any
 
 
 class Command(BaseCommand):
@@ -169,7 +169,6 @@ class Command(BaseCommand):
         """
         self.stdout.write('\n[2/4] Checking ViewSet Tenant Filtering...')
         
-        issues = []
         tenant_apps_path = Path(settings.BASE_DIR) / 'tenant_apps'
         
         if not tenant_apps_path.exists():
@@ -231,7 +230,6 @@ class Command(BaseCommand):
         self.stdout.write('\n[3/4] Checking TenantAwareModel Inheritance...')
         
         from apps.core.models import TenantAwareModel
-        from django.db import models
         
         issues = []
         

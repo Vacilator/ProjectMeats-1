@@ -121,7 +121,7 @@ export const VersionHistory: React.FC<VersionHistoryProps> = ({
   if (loading) {
     return (
       <div className="p-6 text-center text-gray-500">
-        <div className="animate-spin inline-block w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full"></div>
+        <div className="animate-spin inline-block w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full" />
         <p className="mt-2">Loading version history...</p>
       </div>
     );

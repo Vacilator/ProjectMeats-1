@@ -1101,7 +1101,7 @@ class EntityViewSet(viewsets.ViewSet):
                 metadata['last_activity'] = entity.updated_at
             
             return metadata
-        except Exception as e:
+        except Exception:
             # Graceful fallback if labeling fails
             return {"labels": []}
     

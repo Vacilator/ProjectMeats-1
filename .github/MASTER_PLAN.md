@@ -68,6 +68,26 @@ This file is the **append-only PR-referenceable execution log**.
 - `SESSION_COOKIE_SECURE` — **ZOMBIE** (env:dev-backend)
 - `STAGING_DB_URL` — **ZOMBIE** (repo)
 
+### 2026-03-31 — Hard purge: legacy docs + archives (context bleed cleanup)
+- Destructive cleanup of superseded documentation and archived infra/scripts to reduce AI context bleed.
+- Deleted:
+  - `docs/archive/`
+  - `docs/plans/archive/`
+  - `docs/implementation-history/*.md` (all)
+  - `docs/plans/*.md` except `docs/plans/V3_FINAL_PUSH_PERFECTION.md`
+  - root `archived/`
+  - `.github/archived-workflows/`
+  - `backend/archived/`
+  - `backend/scripts/` (orphan utilities)
+- Pruned stale maintenance scripts:
+  - removed `scripts/maintenance/*.sh` last modified before 2026-01-30 (kept `scripts/maintenance/verify_golden_state.sh`)
+- Frontend cleanup:
+  - removed `frontend/src/pages/WorkForms/Catalog.original.tsx` and unused ui tests
+  - adjusted `PhoneInput` props for AntD Form compatibility (typecheck)
+- Backend cleanup:
+  - auto-fixed unused imports/vars (F401/F841) across `backend/apps` + `backend/tenant_apps` (excluding migrations)
+- PR: #4231
+
 
 ## Active Initiative: V3.0 Final Push (Consolidation + Scale + Polish)
 

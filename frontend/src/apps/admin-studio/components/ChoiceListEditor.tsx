@@ -370,7 +370,7 @@ export const ChoiceListEditor: React.FC<ChoiceListEditorProps> = ({
   if (loading && !selectedList) {
     return (
       <div className="flex items-center justify-center h-96">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
       </div>
     );
   }
@@ -477,12 +477,12 @@ export const ChoiceListEditor: React.FC<ChoiceListEditorProps> = ({
               <table className="w-full bg-white rounded-lg shadow-sm border">
                 <thead>
                   <tr className="bg-gray-50 text-left text-sm font-medium text-gray-600">
-                    <th className="px-4 py-3 w-10"></th>
+                    <th className="px-4 py-3 w-10" />
                     <th className="px-4 py-3">Value</th>
                     <th className="px-4 py-3">Label</th>
                     <th className="px-4 py-3 w-24 text-center">Active</th>
                     <th className="px-4 py-3 w-20 text-center">Order</th>
-                    <th className="px-4 py-3 w-20"></th>
+                    <th className="px-4 py-3 w-20" />
                   </tr>
                 </thead>
                 <tbody>

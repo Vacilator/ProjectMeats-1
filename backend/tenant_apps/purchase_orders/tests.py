@@ -12,14 +12,12 @@ from tenant_apps.purchase_orders.models import (
     PurchaseOrder,
     CarrierPurchaseOrder,
     ColdStorageEntry,
-    PurchaseOrderStatus,
 )
 from tenant_apps.suppliers.models import Supplier
 from tenant_apps.carriers.models import Carrier
 from tenant_apps.customers.models import Customer
 from apps.system.models import Product
 from tenant_apps.locations.models import Location
-from tenant_apps.sales_orders.models import SalesOrder
 from apps.tenants.models import Tenant, TenantUser
 from apps.core.models import (
     AccountingPaymentTermsChoices,
@@ -263,7 +261,6 @@ class PurchaseOrderHistoryTests(TestCase):
 
     def setUp(self):
         """Set up test data with tenant context."""
-        from datetime import date
         unique_id = uuid.uuid4().hex[:8]
         self.user = User.objects.create_user(
             username=f"testuser-{unique_id}", 
@@ -370,7 +367,6 @@ class PurchaseOrderTenantIsolationTests(TestCase):
 
     def setUp(self):
         """Set up test data with multiple tenants."""
-        from datetime import date
         unique_id = uuid.uuid4().hex[:8]
         
         # First tenant
@@ -415,7 +411,7 @@ class PurchaseOrderTenantIsolationTests(TestCase):
         unique_id = uuid.uuid4().hex[:8]
         
         # Create PO for tenant 1
-        po1 = PurchaseOrder.objects.create(
+        PurchaseOrder.objects.create(
             order_number=f"PO1-{unique_id}",
             supplier=self.supplier1,
             total_amount=Decimal("1000.00"),
@@ -424,7 +420,7 @@ class PurchaseOrderTenantIsolationTests(TestCase):
         )
         
         # Create PO for tenant 2
-        po2 = PurchaseOrder.objects.create(
+        PurchaseOrder.objects.create(
             order_number=f"PO2-{unique_id}",
             supplier=self.supplier2,
             total_amount=Decimal("2000.00"),

@@ -8,14 +8,10 @@ Created: 2026-02-23 - Cockpit Phase 2A Smart Rankings
 Updated: 2026-03-03 - Production-grade ranking with all entity types
 """
 
-from rest_framework import viewsets, status
-from rest_framework.decorators import action
+from rest_framework import viewsets
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
-from django.contrib.contenttypes.models import ContentType
 from django.db.models import Q
-from datetime import datetime, timedelta
-from django.utils import timezone
 import logging
 
 from apps.system.services.ranking_service import EntityRanking, EntityLabels

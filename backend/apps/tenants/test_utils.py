@@ -6,7 +6,6 @@ ProjectMeats uses shared-schema multi-tenancy where:
 - Tenant isolation is via tenant_id ForeignKey
 - No django-tenants schema_context needed
 """
-import os
 from django.test import TestCase
 from django.db import connection
 

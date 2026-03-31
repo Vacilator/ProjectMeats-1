@@ -1,5 +1,4 @@
 from django.test import TestCase
-from unittest import skip
 from django.contrib.auth.models import User
 from django.urls import reverse
 from django.core.files.uploadedfile import SimpleUploadedFile

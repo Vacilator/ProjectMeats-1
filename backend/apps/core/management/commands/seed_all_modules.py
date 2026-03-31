@@ -361,7 +361,7 @@ class Command(BaseCommand):
             entity_type, entity_id, entity_name = random.choice(entities)
             
             # Don't set content_type/object_id - use entity_type/entity_id instead
-            log = ActivityLog.objects.create(
+            ActivityLog.objects.create(
                 tenant=tenant,
                 entity_type=entity_type,
                 entity_id=entity_id,

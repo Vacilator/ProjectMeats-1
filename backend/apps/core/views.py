@@ -8,7 +8,7 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.authtoken.models import Token
 from rest_framework.serializers import ValidationError
-from apps.tenants.models import Tenant, TenantUser
+from apps.tenants.models import TenantUser
 from apps.core.throttling import AuthRateThrottle
 from apps.core.models import UserFavorite
 from apps.core.serializers import UserFavoriteSerializer
@@ -359,7 +359,6 @@ class RankedSearchView(APIView):
     
     def get(self, request):
         from apps.core.services import UniversalSearchService
-        from apps.system.services.ranking_service import EntityRanking, EntityLabels
         
         if not hasattr(request, 'tenant') or not request.tenant:
             return Response(
@@ -844,13 +843,12 @@ class WorkspaceStatsView(APIView):
         from apps.tenant_apps.sales_orders.models import SalesOrder
         from apps.tenant_apps.suppliers.models import Supplier
         from apps.tenant_apps.customers.models import Customer
-        from django.db.models import Sum, Count
         from django.utils import timezone
         from datetime import timedelta
         
         tenant = request.tenant
         today = timezone.now().date()
-        week_ago = today - timedelta(days=7)
+        today - timedelta(days=7)
         
         # Calculate stats
         try:
@@ -936,7 +934,7 @@ class WorkspaceActivityView(APIView):
                 status=status.HTTP_403_FORBIDDEN
             )
         
-        limit = min(int(request.query_params.get('limit', 10)), 50)
+        min(int(request.query_params.get('limit', 10)), 50)
         
         # For now, return empty - this would integrate with an activity log
         # or audit trail system in a full implementation
@@ -962,7 +960,7 @@ class WorkspaceCallsView(APIView):
                 status=status.HTTP_403_FORBIDDEN
             )
         
-        limit = min(int(request.query_params.get('limit', 10)), 50)
+        min(int(request.query_params.get('limit', 10)), 50)
         
         # This would integrate with a CRM/call scheduling system
         return Response({

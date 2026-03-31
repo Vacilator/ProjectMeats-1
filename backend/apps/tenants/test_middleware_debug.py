@@ -8,9 +8,8 @@ and uat.meatscentral.com doesn't interfere with normal middleware operation.
 from django.test import TestCase, RequestFactory, override_settings
 from django.contrib.auth.models import User
 from apps.tenants.middleware import TenantMiddleware
-from apps.tenants.models import Tenant, TenantUser, TenantDomain
+from apps.tenants.models import Tenant, TenantDomain
 from unittest.mock import Mock
-import logging
 
 
 class TenantMiddlewareDebugLoggingTests(TestCase):
@@ -94,7 +93,7 @@ class TenantMiddlewareDebugLoggingTests(TestCase):
         request.user = self.user
         
         with self.assertLogs('apps.tenants.middleware', level='INFO') as logs:
-            response = self.middleware(request)
+            self.middleware(request)
         
         log_output = '\n'.join(logs.output)
         self.assertIn('Final tenant resolution SUCCESS', log_output)
@@ -110,7 +109,7 @@ class TenantMiddlewareDebugLoggingTests(TestCase):
         )
         
         with self.assertLogs('apps.tenants.middleware', level='INFO') as logs:
-            response = self.middleware(request)
+            self.middleware(request)
         
         log_output = '\n'.join(logs.output)
         self.assertIn('Final tenant resolution FAILED', log_output)
@@ -192,7 +191,7 @@ class TenantMiddlewareDebugLoggingTests(TestCase):
         request.user = self.user
         
         with self.assertLogs('apps.tenants.middleware', level='INFO') as logs:
-            response = self.middleware(request)
+            self.middleware(request)
         
         log_output = '\n'.join(logs.output)
         self.assertIn('[UAT DEBUG]', log_output)

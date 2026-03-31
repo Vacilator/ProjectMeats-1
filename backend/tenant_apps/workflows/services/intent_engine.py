@@ -325,7 +325,7 @@ Respond in JSON format:
         """
 
         def _extract_attachment_text(att: Dict[str, Any]) -> str:
-            name = att.get('name')
+            att.get('name')
             ct = (att.get('content_type') or '').lower()
             raw = att.get('content_bytes')
             if not raw:

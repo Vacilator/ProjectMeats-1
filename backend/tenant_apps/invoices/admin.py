@@ -1,7 +1,6 @@
 """
 Django admin configuration for Invoices app.
 """
-from django.contrib import admin
 from apps.core.admin_site import admin_site
 from apps.core.admin import TenantFilteredAdmin
 from .models import Invoice, Claim, PaymentTransaction

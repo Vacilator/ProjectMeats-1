@@ -10,7 +10,7 @@ Features:
 - Type coercion with safety checks
 - Detailed validation error reporting
 """
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List
 from datetime import datetime, date
 from decimal import Decimal, InvalidOperation
 import re

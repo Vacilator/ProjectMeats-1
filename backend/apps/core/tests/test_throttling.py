@@ -5,7 +5,6 @@ Wave S2: Security Hardening - Rate Limiting
 """
 
 from django.test import TestCase, override_settings
-from django.contrib.auth.models import User
 from django.core.cache import cache
 from rest_framework.test import APIClient
 from rest_framework import status

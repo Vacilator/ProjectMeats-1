@@ -15,7 +15,6 @@ from .base import (
     AuthUrlResponse,
     TokenResponse,
 )
-from ..microsoft.utils import get_microsoft_redirect_uri
 
 
 class MicrosoftGraphProvider(EmailProvider):

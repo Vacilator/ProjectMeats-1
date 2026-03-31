@@ -3,7 +3,7 @@ Form Field Inheritance & Type Checking Service (Phase 2.5)
 
 Provides validation rule inheritance from entity models and strict type checking.
 """
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any
 from django.db import models
 from tenant_apps.workflows.models import TenantFormField
 

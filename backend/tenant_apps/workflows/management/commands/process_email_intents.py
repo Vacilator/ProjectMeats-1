@@ -11,7 +11,6 @@ Usage:
 Created: 2026-03-04 - Phase 10.3: AI Intent Recognition
 """
 from django.core.management.base import BaseCommand
-from django.apps import apps
 
 
 class Command(BaseCommand):

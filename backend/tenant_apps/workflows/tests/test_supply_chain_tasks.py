@@ -10,7 +10,6 @@ Note: The OpenAI live-call path is not exercised here to avoid requiring
 a real API key in CI.  It is covered by integration tests in staging.
 """
 
-import json
 from unittest.mock import MagicMock, patch
 
 from django.test import TestCase, override_settings
@@ -122,7 +121,6 @@ class GenerateAITemplateSuggestionsTaskTestCase(TestCase):
     @patch("tenant_apps.workflows.tasks.Tenant")
     def test_cache_hit_skips_db_and_openai(self, MockTenant, MockAIConfig):
         """Second call for the same tenant/domain uses the Redis cache."""
-        from django.core.cache import cache
         from tenant_apps.workflows.tasks import generate_ai_template_suggestions
 
         tenant = self._make_tenant()

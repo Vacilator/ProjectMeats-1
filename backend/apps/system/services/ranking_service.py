@@ -17,7 +17,7 @@ Created: 2026-02-23 - Cockpit Phase 2A Smart Rankings
 from datetime import timedelta
 from typing import Any, Dict, List, Optional
 from django.utils import timezone
-from django.db.models import Sum, Count, Q
+from django.db.models import Sum
 
 
 class EntityRanking:
@@ -298,7 +298,7 @@ class EntityLabels:
                 labels.extend(EntityLabels._supplier_labels(entity))
             elif entity_type == 'product':
                 labels.extend(EntityLabels._product_labels(entity))
-        except Exception as e:
+        except Exception:
             # Fail gracefully - don't break rendering if labels fail
             pass
         

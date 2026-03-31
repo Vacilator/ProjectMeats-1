@@ -214,7 +214,7 @@ export const FormProcessConfigPanel: React.FC<FormProcessConfigPanelProps> = ({
               checked={data.showProgressIndicator !== false}
               onChange={(e) => handleChange('showProgressIndicator', e.target.checked)}
             />
-            <span className="slider"></span>
+            <span className="slider" />
           </Toggle>
         </SettingRow>
 
@@ -229,7 +229,7 @@ export const FormProcessConfigPanel: React.FC<FormProcessConfigPanelProps> = ({
               checked={data.allowBackNavigation !== false}
               onChange={(e) => handleChange('allowBackNavigation', e.target.checked)}
             />
-            <span className="slider"></span>
+            <span className="slider" />
           </Toggle>
         </SettingRow>
 
@@ -244,7 +244,7 @@ export const FormProcessConfigPanel: React.FC<FormProcessConfigPanelProps> = ({
               checked={data.allowSkipSteps === true}
               onChange={(e) => handleChange('allowSkipSteps', e.target.checked)}
             />
-            <span className="slider"></span>
+            <span className="slider" />
           </Toggle>
         </SettingRow>
 
@@ -259,7 +259,7 @@ export const FormProcessConfigPanel: React.FC<FormProcessConfigPanelProps> = ({
               checked={data.autoAdvance === true}
               onChange={(e) => handleChange('autoAdvance', e.target.checked)}
             />
-            <span className="slider"></span>
+            <span className="slider" />
           </Toggle>
         </SettingRow>
 
@@ -274,7 +274,7 @@ export const FormProcessConfigPanel: React.FC<FormProcessConfigPanelProps> = ({
               checked={data.confirmOnExit !== false}
               onChange={(e) => handleChange('confirmOnExit', e.target.checked)}
             />
-            <span className="slider"></span>
+            <span className="slider" />
           </Toggle>
         </SettingRow>
       </Section>

@@ -144,7 +144,7 @@ export const WorkflowExecutionDetails: React.FC = () => {
                     <div
                       className="bg-blue-500 h-2 rounded-full transition-all"
                       style={{ width: `${runData.progress_percentage}%` }}
-                    ></div>
+                     />
                   </div>
                 </div>
               )}

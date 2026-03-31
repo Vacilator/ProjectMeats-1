@@ -406,8 +406,7 @@ export const TenantChoiceOverride: React.FC<TenantChoiceOverrideProps> = ({ tena
           {!selectedList ? (
             <Text type="secondary">Select a choice list to customize.</Text>
           ) : (
-            <>
-              <Card
+            <Card
                 size="small"
                 title={selectedList.name}
                 extra={
@@ -439,7 +438,6 @@ export const TenantChoiceOverride: React.FC<TenantChoiceOverrideProps> = ({ tena
                   />
                 </Space>
               </Card>
-            </>
           )}
         </Space>
       </Card>

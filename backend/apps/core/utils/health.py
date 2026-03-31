@@ -93,7 +93,6 @@ def check_sentry() -> dict:
     """
     try:
         import sentry_sdk
-        from sentry_sdk.integrations import Integration
         
         # Check if Sentry is initialized
         client = sentry_sdk.Hub.current.client

@@ -15,7 +15,6 @@ from apps.core.models import Protein
 from tenant_apps.locations.models import Location
 from tenant_apps.suppliers.models import Supplier
 from tenant_apps.customers.models import Customer
-from tenant_apps.products.models import MasterProduct
 from tenant_apps.carriers.models import Carrier
 from tenant_apps.purchase_orders.models import PurchaseOrder, CarrierPurchaseOrder
 from tenant_apps.sales_orders.models import SalesOrder

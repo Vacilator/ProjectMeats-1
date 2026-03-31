@@ -4,10 +4,8 @@ Tests for Inquiries app models.
 Uses shared-schema multi-tenancy with tenant ForeignKey isolation.
 """
 import uuid
-from decimal import Decimal
 from django.test import TestCase
 from django.contrib.auth.models import User
-from django.utils import timezone
 from datetime import date, timedelta
 from tenant_apps.inquiries.models import (
     Inquiry,
@@ -204,7 +202,7 @@ class InquiryModelTest(TestCase):
         
         # Verify isolation
         tenant1_inquiries = Inquiry.objects.for_tenant(self.tenant)
-        tenant2_inquiries = Inquiry.objects.for_tenant(other_tenant)
+        Inquiry.objects.for_tenant(other_tenant)
         
         self.assertIn(i1, tenant1_inquiries)
         self.assertNotIn(i2, tenant1_inquiries)

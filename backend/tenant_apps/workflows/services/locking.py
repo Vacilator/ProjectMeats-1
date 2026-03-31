@@ -3,7 +3,6 @@ Workflow Node Locking Service (Phase 7.3: Real-Time Collaboration)
 
 Distributed locking using Redis to prevent concurrent edits.
 """
-from typing import Optional
 from django.core.cache import cache
 import time
 

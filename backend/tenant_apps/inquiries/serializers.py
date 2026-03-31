@@ -1,8 +1,7 @@
 """Serializers for Inquiries app."""
 from rest_framework import serializers
 from .models import (
-    Inquiry, InquiryProduct, InquiryStatusChoices,
-    InquiryTemplate, InquiryTemplateProduct
+    Inquiry, InquiryProduct, InquiryTemplate, InquiryTemplateProduct
 )
 
 

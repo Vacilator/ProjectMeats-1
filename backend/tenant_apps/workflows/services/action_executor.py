@@ -15,7 +15,7 @@ Handlers:
 """
 import logging
 import re
-from typing import Dict, Any, Optional
+from typing import Dict, Any
 from django.core.mail import send_mail
 from django.conf import settings
 from django.apps import apps

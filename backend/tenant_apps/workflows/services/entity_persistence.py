@@ -18,7 +18,6 @@ from django.db import transaction
 from django.apps import apps
 from django.contrib.auth.models import User
 
-from apps.tenants.models import Tenant
 
 logger = logging.getLogger(__name__)
 

@@ -12,11 +12,10 @@ This module provides:
 """
 import logging
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 from django.conf import settings
 from django.core.mail import send_mail
-from django.db import transaction
 from django.utils import timezone
 
 from apps.tenants.email_utils import is_sendgrid_quota_exceeded
@@ -535,7 +534,7 @@ def trigger_scheduled_workflows():
         trigger_type=TriggerType.SCHEDULED
     )
     
-    engine = WorkflowEngine()
+    WorkflowEngine()
     
     for workflow in workflows:
         # Check if it's time to run based on trigger_config

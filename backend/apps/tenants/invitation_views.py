@@ -6,15 +6,14 @@ from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
 from django.conf import settings
-from django.contrib.auth.models import User
 from django.db import transaction, IntegrityError
 from typing import Any, Type
 from rest_framework.serializers import Serializer
 from django.db.models import QuerySet
 import logging
 
-from apps.tenants.models import Tenant, TenantUser, TenantInvitation
-from apps.tenants.invitation_email import schedule_invitation_email, send_invitation_email_now
+from apps.tenants.models import TenantUser, TenantInvitation
+from apps.tenants.invitation_email import send_invitation_email_now
 from apps.tenants.email_utils import classify_email_send_exception
 from apps.tenants.invitation_serializers import (
     TenantInvitationCreateSerializer,
@@ -128,7 +127,7 @@ class TenantInvitationViewSet(viewsets.ModelViewSet):
                 {'error': 'Unable to create invitation. A pending invitation may already exist for this email.'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        except Exception as e:
+        except Exception:
             logger.error(
                 "Unexpected error creating invitation",
                 extra={"tenant_id": str(tenant.id), "payload": request.data},

@@ -10,13 +10,9 @@ Row-level security (RLS) enabled for additional isolation at PostgreSQL level.
 from django.db import models
 from django.contrib.auth.models import User
 
-from apps.tenants.models import Tenant
 from apps.core.models import (
-    AppointmentMethodChoices,
     PhoneTypeChoices,
     TenantAwareModel,
-    TenantManager,
-    TimestampModel,
 )
 
 

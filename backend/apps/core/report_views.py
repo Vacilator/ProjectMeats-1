@@ -16,7 +16,7 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
-from typing import Any, Dict, Optional, Tuple
+from typing import Optional
 
 from django.core.exceptions import FieldError
 from django.db.models import Avg, Count, Sum

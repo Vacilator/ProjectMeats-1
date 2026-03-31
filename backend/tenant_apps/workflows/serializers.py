@@ -618,7 +618,7 @@ class AvailableQuickActionTargetSerializer(serializers.Serializer):
 
 from .models import (
     FormStatusHistory, StepAssignment, UserNotification, 
-    UserNotificationPreferences, AssignmentType, NotificationType
+    UserNotificationPreferences
 )
 
 

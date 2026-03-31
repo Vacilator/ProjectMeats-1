@@ -35,7 +35,7 @@ def cache_workflow_data(tenant_id: str, workflow_id: str) -> Dict[str, Any]:
             'fields_count': workflow.fields.count()
         }
     
-    result = CacheService.cache_query_result(cache_key, fetch_workflow)
+    CacheService.cache_query_result(cache_key, fetch_workflow)
     
     return {'cache_key': cache_key, 'cached': True}
 
@@ -152,7 +152,6 @@ def aggregate_tenant_metrics(tenant_id: str) -> Dict[str, Any]:
     
     Uses chord pattern for map-reduce style aggregation.
     """
-    from tenant_apps.workflows.models import TenantForm
     
     # Map phase: Count workflows by status
     count_tasks = [

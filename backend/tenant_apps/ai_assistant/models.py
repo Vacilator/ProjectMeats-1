@@ -9,15 +9,13 @@ import os
 import uuid
 
 from django.conf import settings
-from django.contrib.auth.models import User
 from django.core.validators import FileExtensionValidator
 from django.db import models
 from django.utils import timezone
-from apps.tenants.models import Tenant
 
 from pgvector.django import VectorField
 
-from apps.core.models import OwnedModel, StatusModel, TenantAwareModel, TenantManager
+from apps.core.models import OwnedModel, StatusModel, TenantAwareModel
 
 
 class ChatSessionStatusChoices(models.TextChoices):
@@ -302,7 +300,7 @@ def aidocument_upload_to(instance: "AIDocument", filename: str) -> str:
     tenant_id = getattr(instance, "tenant_id", None) or getattr(getattr(instance, "tenant", None), "id", None)
     tenant_part = str(tenant_id) if tenant_id else "unknown-tenant"
 
-    now = timezone.now()
+    timezone.now()
     unique = uuid.uuid4().hex
 
     # Keep a flat-ish structure to avoid permission issues on hosts where the

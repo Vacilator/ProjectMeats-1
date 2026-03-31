@@ -13,8 +13,7 @@ from django.db import connection
 from django.db.models import Avg
 from django.db.models.functions import TruncDate
 from django.utils import timezone
-from openai import OpenAI
-from rest_framework import filters, mixins, permissions, status, viewsets
+from rest_framework import filters, mixins, status, viewsets
 from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAdminUser, IsAuthenticated
@@ -22,13 +21,12 @@ from rest_framework.throttling import AnonRateThrottle, ScopedRateThrottle, User
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .models import AIDocument, AIFeedbackLog, AIConfiguration, ChatMessage, ChatSession, MessageTypeChoices
+from .models import AIDocument, AIFeedbackLog, ChatMessage, ChatSession, MessageTypeChoices
 from .serializers import (
     AIDocumentSerializer,
     AIFeedbackLogSerializer,
     AIFeedbackSubmitSerializer,
     AILearningMetricsSerializer,
-    AIConfigurationSerializer,
     ChatBotRequestSerializer,
     ChatBotResponseSerializer,
     ChatMessageCreateSerializer,
