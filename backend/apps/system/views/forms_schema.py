@@ -372,6 +372,14 @@ class SystemFormSchemaView(APIView):
                 'accounting_contacts',
             ]
 
+            # Progressive disclosure support: non-key, non-required fields are considered "advanced".
+            # Clients can safely ignore this field (additive-only).
+            key_set = set(key_fields)
+            for mf in mapped_fields:
+                mf_key = str(mf.get('key') or '')
+                mf_required = bool(mf.get('required'))
+                mf['is_advanced'] = bool(mf_key and (mf_key not in key_set) and (not mf_required))
+
             return Response(
                 {
                     'name': 'Plant' if canonical == 'plants.plant' else 'Location',
@@ -388,29 +396,69 @@ class SystemFormSchemaView(APIView):
             'suppliers.supplier',
             'tenant_apps.suppliers.supplier',
         }:
-            return Response(
-                {
-                    'name': 'Supplier (Simplified)',
-                    'description': 'Simplified create/edit schema (HQ details only).',
-                    'fields': [
-                        {'key': 'name', 'label': 'Supplier Name', 'type': 'text', 'required': True, 'order': 0, 'ui': {}},
-                        {
-                            'key': 'address',
-                            'label': 'Headquarters Address',
-                            'type': 'textarea',
-                            'required': False,
-                            'order': 1,
-                            'ui': {'widget': 'textarea'},
-                        },
-                        {'key': 'city', 'label': 'Headquarters City', 'type': 'text', 'required': False, 'order': 2, 'ui': {}},
-                        {'key': 'state', 'label': 'Headquarters State', 'type': 'text', 'required': False, 'order': 3, 'ui': {}},
-                        {'key': 'zip_code', 'label': 'Headquarters ZIP Code', 'type': 'text', 'required': False, 'order': 4, 'ui': {}},
-                        {'key': 'country', 'label': 'Country', 'type': 'text', 'required': False, 'order': 5, 'ui': {}},
-                    ],
-                    'key_fields': ['name', 'address', 'city', 'state', 'zip_code', 'country'],
-                },
-                status=status.HTTP_200_OK,
-            )
+            schema = {
+                'name': 'Supplier (Simplified)',
+                'description': 'Simplified create/edit schema (HQ details only).',
+                'fields': [
+                    {
+                        'key': 'name',
+                        'label': 'Supplier Name',
+                        'type': 'text',
+                        'required': True,
+                        'order': 0,
+                        'ui': {},
+                    },
+                    {
+                        'key': 'address',
+                        'label': 'Headquarters Address',
+                        'type': 'textarea',
+                        'required': False,
+                        'order': 1,
+                        'ui': {'widget': 'textarea'},
+                    },
+                    {
+                        'key': 'city',
+                        'label': 'Headquarters City',
+                        'type': 'text',
+                        'required': False,
+                        'order': 2,
+                        'ui': {},
+                    },
+                    {
+                        'key': 'state',
+                        'label': 'Headquarters State',
+                        'type': 'text',
+                        'required': False,
+                        'order': 3,
+                        'ui': {},
+                    },
+                    {
+                        'key': 'zip_code',
+                        'label': 'Headquarters ZIP Code',
+                        'type': 'text',
+                        'required': False,
+                        'order': 4,
+                        'ui': {},
+                    },
+                    {
+                        'key': 'country',
+                        'label': 'Country',
+                        'type': 'text',
+                        'required': False,
+                        'order': 5,
+                        'ui': {},
+                    },
+                ],
+                'key_fields': ['name', 'address', 'city', 'state', 'zip_code', 'country'],
+            }
+
+            key_set = set(schema.get('key_fields') or [])
+            for mf in schema.get('fields') or []:
+                mf_key = str(mf.get('key') or '')
+                mf_required = bool(mf.get('required'))
+                mf['is_advanced'] = bool(mf_key and (mf_key not in key_set) and (not mf_required))
+
+            return Response(schema, status=status.HTTP_200_OK)
 
         if canonical in {
             'customer',
@@ -418,29 +466,69 @@ class SystemFormSchemaView(APIView):
             'customers.customer',
             'tenant_apps.customers.customer',
         }:
-            return Response(
-                {
-                    'name': 'Customer (Simplified)',
-                    'description': 'Simplified create/edit schema (HQ details only).',
-                    'fields': [
-                        {'key': 'name', 'label': 'Customer Name', 'type': 'text', 'required': True, 'order': 0, 'ui': {}},
-                        {
-                            'key': 'address',
-                            'label': 'Headquarters Address',
-                            'type': 'textarea',
-                            'required': False,
-                            'order': 1,
-                            'ui': {'widget': 'textarea'},
-                        },
-                        {'key': 'city', 'label': 'Headquarters City', 'type': 'text', 'required': False, 'order': 2, 'ui': {}},
-                        {'key': 'state', 'label': 'Headquarters State', 'type': 'text', 'required': False, 'order': 3, 'ui': {}},
-                        {'key': 'zip_code', 'label': 'Headquarters ZIP Code', 'type': 'text', 'required': False, 'order': 4, 'ui': {}},
-                        {'key': 'country', 'label': 'Country', 'type': 'text', 'required': False, 'order': 5, 'ui': {}},
-                    ],
-                    'key_fields': ['name', 'address', 'city', 'state', 'zip_code', 'country'],
-                },
-                status=status.HTTP_200_OK,
-            )
+            schema = {
+                'name': 'Customer (Simplified)',
+                'description': 'Simplified create/edit schema (HQ details only).',
+                'fields': [
+                    {
+                        'key': 'name',
+                        'label': 'Customer Name',
+                        'type': 'text',
+                        'required': True,
+                        'order': 0,
+                        'ui': {},
+                    },
+                    {
+                        'key': 'address',
+                        'label': 'Headquarters Address',
+                        'type': 'textarea',
+                        'required': False,
+                        'order': 1,
+                        'ui': {'widget': 'textarea'},
+                    },
+                    {
+                        'key': 'city',
+                        'label': 'Headquarters City',
+                        'type': 'text',
+                        'required': False,
+                        'order': 2,
+                        'ui': {},
+                    },
+                    {
+                        'key': 'state',
+                        'label': 'Headquarters State',
+                        'type': 'text',
+                        'required': False,
+                        'order': 3,
+                        'ui': {},
+                    },
+                    {
+                        'key': 'zip_code',
+                        'label': 'Headquarters ZIP Code',
+                        'type': 'text',
+                        'required': False,
+                        'order': 4,
+                        'ui': {},
+                    },
+                    {
+                        'key': 'country',
+                        'label': 'Country',
+                        'type': 'text',
+                        'required': False,
+                        'order': 5,
+                        'ui': {},
+                    },
+                ],
+                'key_fields': ['name', 'address', 'city', 'state', 'zip_code', 'country'],
+            }
+
+            key_set = set(schema.get('key_fields') or [])
+            for mf in schema.get('fields') or []:
+                mf_key = str(mf.get('key') or '')
+                mf_required = bool(mf.get('required'))
+                mf['is_advanced'] = bool(mf_key and (mf_key not in key_set) and (not mf_required))
+
+            return Response(schema, status=status.HTTP_200_OK)
 
         # get_entity_fields already supports aliases like 'customer', 'supplier', etc.
         fields = get_entity_fields(entity_type)
@@ -535,6 +623,14 @@ class SystemFormSchemaView(APIView):
         for k in required_keys + key_field_candidates:
             if k in present and k not in key_fields:
                 key_fields.append(k)
+
+        # Progressive disclosure support: non-key, non-required fields are considered "advanced".
+        # Clients can safely ignore this field (additive-only).
+        key_set = set(key_fields)
+        for mf in mapped_fields:
+            mf_key = str(mf.get('key') or '')
+            mf_required = bool(mf.get('required'))
+            mf['is_advanced'] = bool(mf_key and (mf_key not in key_set) and (not mf_required))
 
         schema = {
             'name': f'Universal Form: {entity_type}',

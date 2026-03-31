@@ -65,6 +65,10 @@ type BackendField = {
   required?: boolean;
   placeholder?: string | null;
   help_text?: string;
+
+  /** Progressive disclosure flag from the backend schema generator (additive-only). */
+  is_advanced?: boolean;
+
   // Relationship metadata (schema endpoint)
   related_entity?: string | null;
   choices?: SchemaChoice[] | null;
@@ -216,7 +220,7 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
     Record<string, Array<{ value: string; label: string }>>
   >({});
   const [loadingProducts, setLoadingProducts] = useState<Record<string, boolean>>({});
-  const [showAllFields, setShowAllFields] = useState(false);
+  const [showAdvanced, setShowAdvanced] = useState(false);
 
   const productSearchSeqRef = useRef<Record<string, number>>({});
 
@@ -284,7 +288,7 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
   useEffect(() => {
     if (!isOpen) return;
 
-    setShowAllFields(false);
+    setShowAdvanced(false);
     setActiveMode(inferredMode);
     setRecordValues(null);
 
@@ -568,6 +572,7 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
           label: f.label || f.key,
           type: isInlineArray ? 'inline_form_array' : f.choices?.length ? 'select' : String(f.type ?? 'text'),
           required: Boolean(f.required),
+          is_advanced: Boolean(f.is_advanced),
           options,
           placeholder: f.placeholder || undefined,
           help_text: f.help_text,
@@ -621,9 +626,9 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
           return v === undefined || v === null || v === '';
         });
       if (missingFk.length) {
-        const missingHiddenFk = missingFk.filter((f) => !preferredKeySet.has(String(f.key).toLowerCase()));
-        if (missingHiddenFk.length && !showAllFields) {
-          setShowAllFields(true);
+        const missingHiddenFk = missingFk.filter((f) => Boolean(f.is_advanced));
+        if (missingHiddenFk.length && !showAdvanced) {
+          setShowAdvanced(true);
         }
 
         message.error(`Please select ${missingFk[0].label || missingFk[0].key}`);
@@ -773,7 +778,7 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
       onSuccess,
       preferredKeySet,
       scalarFields,
-      showAllFields,
+      showAdvanced,
     ]
   );
 
@@ -846,6 +851,16 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
 
   if (variant === 'inline' && !isOpen) return null;
 
+  const hasDisplayValue = (v: unknown): boolean => {
+    if (v === undefined || v === null) return false;
+    if (typeof v === 'string') return v.trim().length > 0;
+    if (typeof v === 'number') return true;
+    if (typeof v === 'boolean') return true;
+    if (Array.isArray(v)) return v.some((item) => hasDisplayValue(item));
+    if (typeof v === 'object') return Object.keys(v as Record<string, unknown>).length > 0;
+    return Boolean(v);
+  };
+
   const formatValue = (v: unknown): string => {
     if (v === undefined || v === null) return '';
     if (typeof v === 'boolean') return v ? 'Yes' : 'No';
@@ -869,10 +884,16 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
 
   const keyScalarFields = scalarFields.filter((f) => preferredKeySet.has(String(f.key).toLowerCase()));
   const otherScalarFields = scalarFields.filter((f) => !preferredKeySet.has(String(f.key).toLowerCase()));
-  const visibleScalarFields = [...keyScalarFields, ...(showAllFields ? otherScalarFields : [])];
+
+  const standardScalarFields = [...keyScalarFields, ...otherScalarFields.filter((f) => !f.is_advanced)];
+  const advancedScalarFields = otherScalarFields.filter((f) => Boolean(f.is_advanced));
+
+  const visibleScalarFields = [...standardScalarFields, ...(showAdvanced ? advancedScalarFields : [])];
+
+  const advancedFkFields = otherFkFields.filter((f) => Boolean(f.is_advanced));
 
   const showVisibilityToggle =
-    otherFkFields.length > 0 || otherScalarFields.length > 0;
+    advancedFkFields.length > 0 || advancedScalarFields.length > 0;
 
   const modeSwitchControls =
     entityId != null &&
@@ -906,7 +927,7 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
 
           {(keyFkFields.length > 0 || otherFkFields.length > 0) && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 10 }}>
-              {[...keyFkFields, ...(showAllFields ? otherFkFields : [])].map((f) => {
+              {[...keyFkFields, ...otherFkFields.filter((f) => !f.is_advanced), ...(showAdvanced ? otherFkFields.filter((f) => Boolean(f.is_advanced)) : [])].map((f) => {
                 const related = String(f.related_entity || '').toLowerCase();
                 const isProduct =
                   related.includes('system.product') ||
@@ -915,6 +936,10 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
                 const value = String((fkValues[f.key] as string | number | undefined) ?? '');
 
                 if (activeMode === 'view') {
+                  if (Boolean(f.is_advanced) && !hasDisplayValue(formInitialValues[f.key])) {
+                    return null;
+                  }
+
                   return (
                     <div key={f.key}>
                       <div
@@ -1036,19 +1061,23 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
           {showVisibilityToggle && (
             <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 14 }}>
               <Button
-                type="link"
-                onClick={() => setShowAllFields((v) => !v)}
-                style={{ padding: 0, height: 'auto' }}
+                type="dashed"
+                onClick={() => setShowAdvanced((v) => !v)}
               >
-                {showAllFields ? 'Show fewer fields' : 'Show all fields'}
+                {showAdvanced ? 'Hide details' : 'Expand details'}
               </Button>
             </div>
           )}
 
           {activeMode === 'view' ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              {visibleScalarFields.map((f) => (
-                <div key={f.key}>
+              {visibleScalarFields.map((f) => {
+                if (Boolean(f.is_advanced) && !hasDisplayValue(formInitialValues[f.key])) {
+                  return null;
+                }
+
+                return (
+                  <div key={f.key}>
                   <div
                     style={{
                       fontSize: 12,
@@ -1071,8 +1100,9 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
                   >
                     {formatValue(formInitialValues[f.key]) || '—'}
                   </div>
-                </div>
-              ))}
+                  </div>
+                );
+              })}
 
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 8 }}>
                 <Button onClick={onClose} disabled={submitting}>
@@ -1092,8 +1122,8 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
               isSubmitting={submitting}
               submitLabel={entityId ? 'Save' : 'Create'}
               keyFieldKeys={preferredKeys}
-              showAllFields={showAllFields}
-              onShowAllFieldsChange={setShowAllFields}
+              showAllFields={showAdvanced}
+              onShowAllFieldsChange={setShowAdvanced}
               showAllFieldsToggle={false}
               onSubmit={(data) => {
                 void submit(data);
