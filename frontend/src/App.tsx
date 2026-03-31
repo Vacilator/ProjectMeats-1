@@ -53,6 +53,8 @@ import SupplierProducts from './pages/Suppliers/Products';
 import CustomerLocations from './pages/Customers/Locations';
 import CustomerProducts from './pages/Customers/Products';
 import PlantProducts from './pages/Plants/Products';
+import PlantDetailView from './pages/Plants/PlantDetailView';
+import LocationDetailView from './pages/Locations/LocationDetailView';
 import Carriers from './pages/Carriers';
 import AIAssistant from './pages/AIAssistant';
 import CallLog from './pages/Cockpit/CallLog';
@@ -252,7 +254,9 @@ const App: React.FC = () => {
                 <Route path="suppliers/contacts" element={<Contacts />} />
                 <Route path="suppliers/plants" element={<Plants />} />
                 <Route path="suppliers/:id/products" element={<SupplierProducts />} />
+                <Route path="plants/:id" element={<PlantDetailView />} />
                 <Route path="plants/:id/products" element={<PlantProducts />} />
+                <Route path="locations/:id" element={<LocationDetailView />} />
                 
                 {/* Customers & Related */}
                 <Route path="customers" element={<Customers />} />
