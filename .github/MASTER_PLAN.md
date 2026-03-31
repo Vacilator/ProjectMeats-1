@@ -26,7 +26,7 @@ This file is the **append-only PR-referenceable execution log**.
 
 - **2026-03-31** — Workforms editor: Form Submitted trigger config now lists saved FormProcess nodes via a dynamic dropdown (label: title/display-name + created date). (PR: #4318)
 
-- **2026-03-31** — **HOTFIX**: Stabilized `AvailableFormsViewSet` (Quick Actions) to avoid ORM/enum edge cases and added explicit “document parsing service unreachable” error return for the AI `parse_document` tool. (PR: TBD)
+- **2026-03-31** — **HOTFIX**: Stabilized `AvailableFormsViewSet` (Quick Actions) to avoid ORM/enum edge cases and added explicit “document parsing service unreachable” error return for the AI `parse_document` tool. (PR: #4327)
 
 ### 2026-03-31 — Secret audit drift (manifest v5.1)
 - Command: `python config/manage_env.py audit --repo Meats-Central/ProjectMeats`
