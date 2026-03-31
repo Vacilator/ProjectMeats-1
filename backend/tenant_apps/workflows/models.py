@@ -17,7 +17,6 @@ from django.contrib.auth.models import User
 from django.db import models
 from django.utils import timezone
 
-from apps.tenants.models import Tenant
 from apps.core.models import TenantAwareModel
 
 

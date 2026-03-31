@@ -10,7 +10,6 @@ Authority: .github/copilot-instructions.md (Phase 7 - Intelligent Workform Edito
 import re
 from typing import Any, Dict, Optional
 from datetime import datetime, date
-from django.utils import timezone
 
 
 class VariableResolver:

@@ -5,8 +5,7 @@ Provides internal bug tracking and user feedback.
 """
 from django.contrib.auth.models import User
 from django.db import models
-from apps.core.models import TenantManager, TenantAwareModel
-from apps.tenants.models import Tenant
+from apps.core.models import TenantAwareModel
 
 
 class BugReport(TenantAwareModel):

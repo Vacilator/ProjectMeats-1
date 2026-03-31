@@ -6,7 +6,6 @@ Generates Software Bill of Materials (SBOM) for compliance and security audits.
 from django.core.management.base import BaseCommand
 import subprocess
 import json
-import os
 from pathlib import Path
 
 

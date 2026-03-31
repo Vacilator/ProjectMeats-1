@@ -4,7 +4,6 @@ Tests for Entity API Views (Phase 1.1-1.3)
 Tests the entity registry, schema extraction, and lookup endpoints.
 Ensures robust behavior for WorkForms field picker integration.
 """
-import json
 from django.test import TestCase
 from django.contrib.auth import get_user_model
 from rest_framework.test import APIClient

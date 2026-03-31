@@ -329,7 +329,7 @@ class TenantAdmin(admin.ModelAdmin):
                     last_name = form.cleaned_data['owner_last_name']
                     owner_email = form.cleaned_data['owner_email']
                     
-                    invitation = TenantInvitation.objects.create(
+                    TenantInvitation.objects.create(
                         tenant=tenant,
                         email=owner_email,
                         role='owner',

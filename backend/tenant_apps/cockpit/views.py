@@ -4,7 +4,6 @@ Cockpit views for aggregated search across tenant models.
 Provides polymorphic search API respecting tenant schema isolation.
 """
 from rest_framework import viewsets, status
-from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.exceptions import ValidationError
@@ -635,7 +634,7 @@ class WorkspaceStatsView(APIView):
             from tenant_apps.sales_orders.models import SalesOrder
             from tenant_apps.customers.models import Customer
             from tenant_apps.suppliers.models import Supplier
-            from django.db.models import Count, Sum, Q
+            from django.db.models import Sum
             from decimal import Decimal
             
             # Quick Stats

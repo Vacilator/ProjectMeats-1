@@ -12,7 +12,7 @@ PostgreSQL RLS policies via request.tenant context.
 Phase 3: Data Architecture - Virtual Schema & Tiered Choice Engine
 """
 from typing import List, Dict, Any, Optional
-from django.db.models import Q, QuerySet
+from django.db.models import Q
 from apps.system.models import SystemChoiceList, SystemChoiceItem, TenantChoiceOverride
 
 

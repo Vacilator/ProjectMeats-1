@@ -9,7 +9,6 @@ from django.db.models.signals import post_save
 from django.dispatch import receiver
 from django.core.cache import cache
 from django.conf import settings
-from django.db import transaction
 
 from .invitation_email import schedule_invitation_email
 from .models import TenantInvitation, TenantUser, Tenant

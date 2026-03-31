@@ -11,9 +11,7 @@ Part of Wave 2: Cockpit Command Center implementation.
 """
 import logging
 from typing import List, Dict, Any, Optional, Set, Tuple
-from django.db.models import Q, Count
 from django.apps import apps
-from django.contrib.contenttypes.models import ContentType
 
 from apps.tenants.models import Tenant
 
@@ -780,7 +778,6 @@ class EntityGraphService:
                     
                     target_type = rel['entity_type']
                     target_id = sample['id']
-                    target_node_id = f"{target_type}:{target_id}"
                     
                     # Add target node
                     actual_target_id = add_node(target_type, target_id, current_depth + 1)

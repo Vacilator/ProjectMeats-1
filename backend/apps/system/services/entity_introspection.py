@@ -8,7 +8,6 @@ Created: 2026-02-12
 """
 from django.apps import apps
 from django.db import models
-from django.contrib.contenttypes.models import ContentType
 
 
 ENTITY_ID_ALIASES = {

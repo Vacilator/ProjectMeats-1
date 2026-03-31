@@ -5,9 +5,7 @@ Discovers relationships between business entities even when foreign keys are NUL
 Uses fuzzy matching on email domains, tax IDs, short names, and other metadata.
 """
 import logging
-from typing import List, Dict, Any, Optional
-from django.db import models
-from django.contrib.contenttypes.models import ContentType
+from typing import List, Dict, Any
 from django.apps import apps
 
 logger = logging.getLogger(__name__)

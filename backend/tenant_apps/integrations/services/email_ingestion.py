@@ -221,7 +221,6 @@ class EmailIngestionService:
             List of email message dicts
         """
         import requests
-        from datetime import datetime
         
         # Format date for OData filter
         since_str = since.strftime('%Y-%m-%dT%H:%M:%SZ')

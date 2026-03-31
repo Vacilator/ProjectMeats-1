@@ -8,7 +8,6 @@ Implements tenant ForeignKey field for shared-schema multi-tenancy.
 from django.contrib.postgres.fields import ArrayField
 from django.db import models
 
-from apps.tenants.models import Tenant
 from tenant_apps.contacts.models import Contact
 from apps.core.models import (
     AccountingPaymentTermsChoices,

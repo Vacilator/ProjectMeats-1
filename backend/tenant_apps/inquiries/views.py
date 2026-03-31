@@ -6,7 +6,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.exceptions import ValidationError
 from django.utils import timezone
 from django.db.models import F, Count, Sum, Q, Avg
-from django.db.models.functions import TruncMonth, TruncWeek
+from django.db.models.functions import TruncWeek
 from datetime import timedelta
 
 from .models import Inquiry, InquiryProduct, InquiryTemplate, InquiryTemplateProduct

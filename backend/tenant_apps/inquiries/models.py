@@ -7,11 +7,10 @@ desired vs actual pricing/dates for margin calculation.
 Implements tenant ForeignKey field for shared-schema multi-tenancy.
 """
 from decimal import Decimal
-from django.contrib.postgres.fields import ArrayField
 from django.db import models
 from django.utils import timezone
 
-from apps.core.models import PhoneTypeChoices, TenantAwareModel, TenantManager
+from apps.core.models import PhoneTypeChoices, TenantAwareModel
 
 
 class InquiryStatusChoices(models.TextChoices):

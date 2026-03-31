@@ -4,7 +4,6 @@ Tests for Fulfillments app models.
 Uses shared-schema multi-tenancy with tenant ForeignKey isolation.
 """
 import uuid
-from decimal import Decimal
 from django.test import TestCase
 from django.contrib.auth.models import User
 from datetime import date

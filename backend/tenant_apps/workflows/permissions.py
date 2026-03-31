@@ -10,7 +10,6 @@ Role-based access control:
 - readonly: View only
 """
 from rest_framework import permissions
-from .models import TenantForm, TenantWorkflow
 
 
 class IsTenantAdminOrOwner(permissions.BasePermission):

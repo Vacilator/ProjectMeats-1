@@ -793,7 +793,7 @@ const FormsFlowsHistory: React.FC = () => {
             <Table aria-label="Workflow execution history">
               <TableHead>
                 <tr>
-                  <TableHeader scope="col" style={{ width: '40px' }}></TableHeader>
+                  <TableHeader scope="col" style={{ width: '40px' }} />
                   <TableHeader scope="col">Workflow Name</TableHeader>
                   <TableHeader scope="col">Status</TableHeader>
                   <TableHeader scope="col">Started By</TableHeader>

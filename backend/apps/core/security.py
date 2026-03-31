@@ -11,7 +11,7 @@ Provides OWASP Top 10 compliance utilities including:
 import hashlib
 import hmac
 import secrets
-from typing import Any, Dict, Optional
+from typing import Dict, Optional
 from django.conf import settings
 from django.core.exceptions import ValidationError
 import bleach

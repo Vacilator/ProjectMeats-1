@@ -5,7 +5,6 @@ Serves static assets via CDN with fallback to local.
 """
 from django.conf import settings
 from django.utils.deprecation import MiddlewareMixin
-import os
 
 
 class CDNMiddleware(MiddlewareMixin):

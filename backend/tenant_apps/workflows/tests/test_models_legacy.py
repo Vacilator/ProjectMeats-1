@@ -91,7 +91,7 @@ class TenantFormModelTest(TestCase):
         )
 
         # Add single entity
-        entity = TenantFormEntity.objects.create(form=form, entity_type="customer", order=0)
+        TenantFormEntity.objects.create(form=form, entity_type="customer", order=0)
 
         self.assertEqual(form.name, "Quick Customer Form")
         self.assertEqual(form.status, FormStatus.DRAFT)
@@ -122,7 +122,7 @@ class TenantFormModelTest(TestCase):
         entity = TenantFormEntity.objects.create(form=form, entity_type="supplier", order=0)
 
         # Configure fields
-        field1 = TenantFormField.objects.create(
+        TenantFormField.objects.create(
             form_entity=entity,
             field_key="name",
             is_visible=True,
@@ -131,11 +131,11 @@ class TenantFormModelTest(TestCase):
             custom_label="Supplier Name",
         )
 
-        field2 = TenantFormField.objects.create(
+        TenantFormField.objects.create(
             form_entity=entity, field_key="phone", is_visible=True, is_required=False, order=1
         )
 
-        field3 = TenantFormField.objects.create(
+        TenantFormField.objects.create(
             form_entity=entity, field_key="internal_notes", is_visible=False, order=2  # Hidden field
         )
 
@@ -198,7 +198,7 @@ class TenantWorkflowModelTest(TestCase):
         )
 
         # Add condition: total > 10000
-        condition = TenantWorkflowCondition.objects.create(
+        TenantWorkflowCondition.objects.create(
             workflow=workflow,
             field_path="total_amount",
             operator=OperatorType.GREATER_THAN,
@@ -207,7 +207,7 @@ class TenantWorkflowModelTest(TestCase):
         )
 
         # Add actions
-        action1 = TenantWorkflowAction.objects.create(
+        TenantWorkflowAction.objects.create(
             workflow=workflow,
             action_type=ActionType.SEND_EMAIL,
             config={
@@ -218,7 +218,7 @@ class TenantWorkflowModelTest(TestCase):
             order=0,
         )
 
-        action2 = TenantWorkflowAction.objects.create(
+        TenantWorkflowAction.objects.create(
             workflow=workflow,
             action_type=ActionType.SEND_NOTIFICATION,
             config={"title": "High Value Order", "message": "Review the new high-value order", "users": ["manager"]},

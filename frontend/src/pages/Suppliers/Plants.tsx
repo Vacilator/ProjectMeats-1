@@ -537,7 +537,7 @@ const Plants: React.FC = () => {
         <Form form={form} layout="vertical">
           <Form.Item
             name="name"
-            label={<><Label>Name<RequiredMark>*</RequiredMark></Label></>}
+            label={<Label>Name<RequiredMark>*</RequiredMark></Label>}
             rules={[{ required: true, message: 'Plant name is required' }]}
             validateStatus={formErrors.name ? 'error' : ''}
             help={formErrors.name && <ErrorMessage>⚠ {formErrors.name[0]}</ErrorMessage>}
@@ -547,7 +547,7 @@ const Plants: React.FC = () => {
 
           <Form.Item
             name="code"
-            label={<><Label>Code</Label></>}
+            label={<Label>Code</Label>}
             validateStatus={formErrors.code ? 'error' : ''}
             help={formErrors.code && <ErrorMessage>⚠ {formErrors.code[0]}</ErrorMessage>}
           >

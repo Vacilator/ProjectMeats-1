@@ -5,9 +5,8 @@ Implements tenant ForeignKey field for shared-schema multi-tenancy.
 """
 
 from django.db import models
-from apps.core.models import PhoneTypeChoices, TenantManager, TenantAwareModel
+from apps.core.models import PhoneTypeChoices, TenantAwareModel
 from django.contrib.auth.models import User
-from apps.tenants.models import Tenant
 
 
 class Plant(TenantAwareModel):

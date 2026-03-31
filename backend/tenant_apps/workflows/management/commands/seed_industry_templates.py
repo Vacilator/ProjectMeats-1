@@ -7,7 +7,7 @@ instead of starting from a blank canvas.
 from django.core.management.base import BaseCommand
 from django.db import transaction
 from apps.tenants.models import Tenant
-from tenant_apps.workflows.models import TenantForm, TenantFormEntity, TenantFormField, WorkflowStatus
+from tenant_apps.workflows.models import TenantForm, WorkflowStatus
 
 
 class Command(BaseCommand):

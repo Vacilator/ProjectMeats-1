@@ -9,12 +9,10 @@ Created: 2026-02-26 - Email Webhooks Implementation
 
 import logging
 import json
-import hmac
-import hashlib
 import base64
 from datetime import timedelta
 from django.conf import settings
-from django.http import JsonResponse, HttpResponse
+from django.http import HttpResponse
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 from rest_framework import status
@@ -292,7 +290,7 @@ def outlook_webhook_notifications(request):
         
         for notification in notifications:
             client_state = notification.get('clientState', '')
-            subscription_id = notification.get('subscriptionId')
+            notification.get('subscriptionId')
             resource = notification.get('resource')
             change_type = notification.get('changeType')
             
@@ -340,7 +338,7 @@ def process_outlook_notification(account_id, user_id, resource, change_type, not
     import requests
     from django.contrib.auth import get_user_model
     
-    User = get_user_model()
+    get_user_model()
     
     try:
         email_account = EmailAccount.objects.get(id=account_id, user_id=user_id)
@@ -408,7 +406,6 @@ def gmail_webhook_subscribe(request, account_id):
     Gmail uses Google Cloud Pub/Sub for webhooks.
     Requires: GCP project with Gmail API + Pub/Sub enabled.
     """
-    from google.auth.transport.requests import Request
     from google.oauth2.credentials import Credentials
     from googleapiclient.discovery import build
     

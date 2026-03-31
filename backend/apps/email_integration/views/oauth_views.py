@@ -18,7 +18,7 @@ from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from apps.email_integration.models import EmailAccount, EmailTrigger, EmailAction, EmailLog
+from apps.email_integration.models import EmailAccount, EmailLog
 
 logger = logging.getLogger(__name__)
 

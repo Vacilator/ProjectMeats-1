@@ -712,8 +712,7 @@ export const FormProcessNode = React.memo<FormProcessNodeProps>(({
           <ContainerBody isExpanded={isExpanded}>
             {isExpanded ? (
               // EXPANDED: Show stats and hint that children are visible on canvas
-              <>
-                <div style={{ padding: '16px' }}>
+              <div style={{ padding: '16px' }}>
                   <SummaryRow>
                     <span className="label">Total Nodes:</span>
                     <span className="value">{stats.nodeCount}</span>
@@ -816,7 +815,6 @@ export const FormProcessNode = React.memo<FormProcessNodeProps>(({
                     Configure Container
                   </ConfigButton>
                 </div>
-              </>
             ) : (
               // COLLAPSED: Show compact summary
               <ContainerSummary>

@@ -12,7 +12,7 @@ from django.db.models import Q
 
 from apps.core.utils.naming import normalize_field_name
 
-from .field_registry import FieldRegistry, FIELD_TYPE_MAP
+from .field_registry import FieldRegistry
 
 
 # Field types that are compatible for mapping
@@ -298,7 +298,7 @@ class FieldMappingService:
         Returns:
             List of source fields with step info
         """
-        from ..models import TenantFormEntity, TenantFormField
+        from ..models import TenantFormField
         
         source_fields = []
         
@@ -348,7 +348,7 @@ class FieldMappingService:
         Returns:
             List of suggested mappings
         """
-        from ..models import TenantFormEntity, TenantFormField
+        from ..models import TenantFormField
         
         mappings = []
         

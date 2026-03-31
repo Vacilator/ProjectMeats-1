@@ -15,7 +15,6 @@ Validation Layer (Phase 3):
 """
 import uuid
 from django.db import models
-from django.core.exceptions import ValidationError
 
 
 class ProductCategoryChoices(models.TextChoices):

@@ -568,7 +568,7 @@ export const InquiryTemplateModal: React.FC<InquiryTemplateModalProps> = ({
                     <TableHeader>UOM</TableHeader>
                     <TableHeader>Price/Unit</TableHeader>
                     <TableHeader>Notes</TableHeader>
-                    <TableHeader></TableHeader>
+                    <TableHeader />
                   </tr>
                 </thead>
                 <tbody>

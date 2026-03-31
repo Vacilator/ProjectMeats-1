@@ -121,7 +121,7 @@ def has_container_changed(container_node: dict, existing_form: TenantForm) -> tu
         'fields_changed': False
     }
     
-    current_steps = current_def.get('steps', [])
+    current_def.get('steps', [])
     
     # Step count comparison will be done by caller (needs child nodes)
     

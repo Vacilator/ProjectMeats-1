@@ -507,7 +507,7 @@ const CustomerLocations: React.FC = () => {
         <Form form={form} layout="vertical">
           <Form.Item
             name="name"
-            label={<><Label>Name<RequiredMark>*</RequiredMark></Label></>}
+            label={<Label>Name<RequiredMark>*</RequiredMark></Label>}
             rules={[{ required: true, message: 'Location name is required' }]}
             validateStatus={formErrors.name ? 'error' : ''}
             help={formErrors.name && <ErrorMessage>⚠ {formErrors.name[0]}</ErrorMessage>}

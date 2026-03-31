@@ -16,8 +16,8 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { formatUsPhone } from '@/utils/phone';
 
 export interface PhoneInputProps {
-  value: string;
-  onChange: (value: string) => void;
+  value?: string;
+  onChange?: (value: string) => void;
   placeholder?: string;
   error?: string;
   disabled?: boolean;
@@ -27,7 +27,7 @@ export interface PhoneInputProps {
 }
 
 export const PhoneInput: React.FC<PhoneInputProps> = ({
-  value,
+  value = '',
   onChange,
   placeholder = '(XXX)XXX-XXXX',
   error,
@@ -39,7 +39,7 @@ export const PhoneInput: React.FC<PhoneInputProps> = ({
   const { theme } = useTheme();
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    onChange(formatUsPhone(e.target.value));
+    onChange?.(formatUsPhone(e.target.value));
   };
 
   return (
