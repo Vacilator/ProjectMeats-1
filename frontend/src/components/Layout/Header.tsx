@@ -119,7 +119,7 @@ const Header: React.FC<HeaderProps> = () => {
     }
 
     if (action.type === 'workflow' && action.workflow_id) {
-      navigate(`/workforms/editor/${action.workflow_id}`);
+      navigate(`/workforms/execute/${action.workflow_id}`);
       setShowQuickMenu(false);
     }
   };

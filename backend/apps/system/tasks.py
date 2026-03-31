@@ -197,6 +197,65 @@ def pin_workflow_versions(workflow_id):
     }
 
 
+@shared_task(name='system.execute_workform_execution')
+def execute_workform_execution(execution_id: str, tenant_id: str) -> dict:
+    """Execute a TenantWorkFormExecution asynchronously.
+
+    This is used by the UI runtime route (/tenant-workforms/{id}/execute/) so
+    Quick Actions can *run* workflows without blocking the request thread.
+    """
+
+    from apps.tenants.rls import set_current_tenant
+
+    rls = set_current_tenant(str(tenant_id))
+    if not rls.ok:
+        logger.warning('[WorkFormExecution] Skipping execution=%s (RLS set failed: %s)', execution_id, rls.error)
+        return {'success': False, 'error': rls.error}
+
+    from tenant_apps.workflows.models import TenantWorkFormExecution, TenantWorkFormExecutionStatus
+    from apps.system.services.workform_engine import WorkFormEngine
+
+    execution = (
+        TenantWorkFormExecution.objects.select_related('workform', 'tenant')
+        .filter(id=execution_id, tenant_id=tenant_id)
+        .first()
+    )
+    if not execution:
+        return {'success': False, 'error': 'Execution not found'}
+
+    workform = execution.workform
+    initial_data = execution.initial_data or {}
+
+    try:
+        engine = WorkFormEngine(
+            workform,
+            initial_context={
+                'trigger': initial_data,
+                'variables': {},
+                'errors': [],
+                'execution_id': str(execution.id),
+            },
+        )
+        result = engine.execute(trigger_payload=initial_data)
+
+        execution.context_data = result.context
+        if result.success:
+            execution.status = TenantWorkFormExecutionStatus.COMPLETED
+        else:
+            execution.status = TenantWorkFormExecutionStatus.FAILED
+            execution.error_message = str(result.error or '')
+        execution.completed_at = timezone.now()
+        execution.save(update_fields=['status', 'context_data', 'error_message', 'completed_at'])
+
+        return {'success': result.success, 'execution_id': str(execution.id), 'error': result.error}
+    except Exception as exc:  # noqa: BLE001
+        execution.status = TenantWorkFormExecutionStatus.FAILED
+        execution.error_message = str(exc)
+        execution.completed_at = timezone.now()
+        execution.save(update_fields=['status', 'error_message', 'completed_at'])
+        return {'success': False, 'execution_id': str(execution.id), 'error': str(exc)}
+
+
 @shared_task(name='system.execute_workform_loop_item')
 def execute_workform_loop_item(
     workform_id: str,

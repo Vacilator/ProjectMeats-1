@@ -12,6 +12,7 @@ from django.contrib.auth.models import User
 from django.db import IntegrityError, transaction
 from django.db.models import Count, F, Max, Prefetch
 from django.utils import timezone
+from django.utils.dateparse import parse_date
 from rest_framework import mixins, serializers, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
@@ -1942,7 +1943,49 @@ from .serializers import (
     QuickActionsGetResponseSerializer,
     QuickActionsPutResponseSerializer,
     QuickActionsSerializer,
+    TenantWorkFormExecutionSerializer,
 )
+
+
+class TenantWorkFormExecutionViewSet(viewsets.ReadOnlyModelViewSet):
+    """Read-only list of TenantWorkForm executions.
+
+    Backing model: tenant_apps.workflows.models.TenantWorkFormExecution
+    WorkForm definitions live in apps.system.models.TenantWorkForm.
+    """
+
+    permission_classes = [IsAuthenticated]
+    serializer_class = TenantWorkFormExecutionSerializer
+
+    def get_queryset(self):
+        from .models import TenantWorkFormExecution
+
+        qs = TenantWorkFormExecution.objects.select_related('workform', 'started_by', 'tenant')
+
+        if not self.request.user.is_superuser:
+            qs = qs.filter(tenant=self.request.tenant)
+
+        status_param = self.request.query_params.get('status')
+        if status_param:
+            statuses = [s.strip() for s in status_param.split(',') if s.strip()]
+            if statuses:
+                qs = qs.filter(status__in=statuses)
+
+        search = (self.request.query_params.get('search') or '').strip()
+        if search:
+            qs = qs.filter(workform__name__icontains=search)
+
+        start_date = self.request.query_params.get('start_date')
+        end_date = self.request.query_params.get('end_date')
+
+        sd = parse_date(start_date) if start_date else None
+        ed = parse_date(end_date) if end_date else None
+        if sd:
+            qs = qs.filter(created_on__date__gte=sd)
+        if ed:
+            qs = qs.filter(created_on__date__lte=ed)
+
+        return qs.order_by('-created_on')
 
 
 class FormSubmissionViewSet(viewsets.ModelViewSet):
