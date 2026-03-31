@@ -1468,3 +1468,4 @@ Deliverables:
 - 2026-03-31 — Frontend: consolidate modals on AntD (remove custom Modal wrapper) — PR: #4263.
 - 2026-03-31 — Frontend: hierarchy drilldown routing (deep-link plants/locations + contacts filters) — PR: #4265.
 - 2026-03-31 — Settings: remove tenant branding + rename admin link label — PR: #4270.
+- 2026-03-31 — Auth: include user.is_active in JWT token obtain payload — PR: #4271.
