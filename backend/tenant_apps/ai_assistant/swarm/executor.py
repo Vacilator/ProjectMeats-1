@@ -155,6 +155,41 @@ DEFAULT_OPENAI_TOOLS = [
     {
         'type': 'function',
         'function': {
+            'name': 'save_memory',
+            'description': 'Upsert a durable tenant memory rule/preference (tenant-scoped).',
+            'parameters': {
+                'type': 'object',
+                'properties': {
+                    'key': {'type': 'string', 'description': 'Stable upsert key (e.g. vendor:acme:routing_rule).'},
+                    'memory_text': {'type': 'string', 'description': 'Human-readable memory text.'},
+                    'memory_json': {'type': 'object', 'description': 'Optional structured memory payload.'},
+                    'tags': {'type': 'object', 'description': 'Optional tags/metadata.'},
+                    'is_active': {'type': 'boolean', 'description': 'Optional active flag (default true).'},
+                },
+                'required': ['key', 'memory_text'],
+                'additionalProperties': False,
+            },
+        },
+    },
+    {
+        'type': 'function',
+        'function': {
+            'name': 'retrieve_memory',
+            'description': 'Retrieve relevant durable tenant memory entries for a query.',
+            'parameters': {
+                'type': 'object',
+                'properties': {
+                    'query': {'type': 'string', 'description': 'Search query.'},
+                    'limit': {'type': 'integer', 'description': 'Max results (default 8).'},
+                },
+                'required': ['query'],
+                'additionalProperties': False,
+            },
+        },
+    },
+    {
+        'type': 'function',
+        'function': {
             'name': 'get_entity_schema',
             'description': 'Get a UI-friendly schema for an entity type (same engine as UniversalEntityForm).',
             'parameters': {
@@ -320,6 +355,8 @@ class ToolExecutor:
             'draft_vendor_email': self._draft_vendor_email,
             'ingest_feedback': self._ingest_feedback,
             'get_recent_errors': self._get_recent_errors,
+            'save_memory': self._save_memory,
+            'retrieve_memory': self._retrieve_memory,
             'create_record': self._create_record,
             'search_entities': self._search_entities,
             'get_entity_analytics': self._get_entity_analytics,
@@ -1256,6 +1293,69 @@ class ToolExecutor:
             limit=5,
             timeout_seconds=10,
         )
+
+    def _save_memory(self, arguments: Dict[str, Any], tenant: Any, user: Any = None) -> Any:
+        """Upsert a durable tenant memory rule/preference."""
+
+        key = (arguments.get('key') or '').strip()
+        memory_text = (arguments.get('memory_text') or '').strip()
+        if not key or not memory_text:
+            raise ValueError('Missing required parameters: key, memory_text')
+
+        memory_json = arguments.get('memory_json') if isinstance(arguments.get('memory_json'), dict) else {}
+        tags = arguments.get('tags') if isinstance(arguments.get('tags'), dict) else {}
+        is_active = arguments.get('is_active')
+        if is_active is None:
+            is_active = True
+
+        from tenant_apps.ai_assistant.models import TenantAIMemory
+
+        row, created = TenantAIMemory.objects.update_or_create(
+            tenant=tenant,
+            key=key,
+            defaults={
+                'memory_text': memory_text,
+                'memory_json': memory_json,
+                'tags': tags,
+                'is_active': bool(is_active),
+            },
+        )
+
+        return {
+            'id': str(row.id),
+            'key': row.key,
+            'created': created,
+            'is_active': row.is_active,
+        }
+
+    def _retrieve_memory(self, arguments: Dict[str, Any], tenant: Any, user: Any = None) -> Any:
+        """Retrieve relevant durable tenant memory entries."""
+
+        query = (arguments.get('query') or '').strip()
+        if not query:
+            raise ValueError('Missing required parameters: query')
+
+        limit = arguments.get('limit')
+        try:
+            limit_int = int(limit) if limit is not None else 8
+        except Exception:
+            limit_int = 8
+        limit_int = max(1, min(20, limit_int))
+
+        from tenant_apps.ai_assistant.services.tenant_memory_service import get_relevant_memories
+
+        memories = get_relevant_memories(tenant=tenant, query=query, limit=limit_int)
+        results = [
+            {
+                'key': m.key,
+                'memory_text': m.memory_text,
+                'memory_json': m.memory_json,
+                'tags': m.tags,
+            }
+            for m in memories
+        ]
+
+        return {'query': query, 'count': len(results), 'results': results}
 
     def _search_entities(self, arguments: Dict[str, Any], tenant: Any, user: Any = None) -> Any:
         """Search tenant entities via UniversalSearchService (unified search standard)."""

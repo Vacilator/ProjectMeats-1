@@ -215,6 +215,20 @@ def get_entity_schema(entity_type: str) -> Dict[str, Any]:
 
 
 @registry.register
+def save_memory(key: str, memory_text: str, memory_json: Dict[str, Any] | None = None, tags: Dict[str, Any] | None = None) -> Dict[str, Any]:
+    """Upsert a durable tenant memory rule/preference (tenant-scoped)."""
+
+    return {"status": "available_via_chat", "key": key}
+
+
+@registry.register
+def retrieve_memory(query: str, limit: int | None = None) -> Dict[str, Any]:
+    """Retrieve relevant durable tenant memory entries for a query."""
+
+    return {"status": "available_via_chat", "query": query, "limit": limit}
+
+
+@registry.register
 def create_entity(entity_type: str, payload: Dict[str, Any]) -> Dict[str, Any]:
     """Create a tenant-scoped entity via internal DRF viewsets (allowlisted).
 

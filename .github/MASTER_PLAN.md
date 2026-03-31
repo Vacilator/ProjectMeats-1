@@ -149,6 +149,10 @@ This file is the **append-only PR-referenceable execution log**.
   - moved PR validation + security scan jobs into `main-pipeline.yml`
   - removed standalone workflows: `pr-validation.yml`, `21-security-scan.yml`, `41-auto-promote.yml`
   - NOTE: update Branch Protection Required Status Checks to point to the new job names under "Master Pipeline"
+- Enterprise AI Roadmap — Pillar 1 memory:
+  - added `TenantAIMemory` (tenant-scoped, RLS-enforced) for durable rules/preferences
+  - added Swarm tools: `save_memory` + `retrieve_memory`
+  - injected relevant Tenant Memory block into Swarm system prompt (server-side)
 - PR: #4276
 
 ### 2026-03-30 — Docs: master plan gap analysis + roadmap hygiene

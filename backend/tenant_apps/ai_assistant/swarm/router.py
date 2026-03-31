@@ -34,6 +34,7 @@ def build_swarm_system_prompt(
     outlook_email: str | None,
     outlook_expired: bool,
     lessons_block: str = '',
+    memory_block: str = '',
 ) -> str:
     base = (
         "You are the ProjectMeats Intelligent Architect. "
@@ -49,6 +50,8 @@ def build_swarm_system_prompt(
         "- get_entity_details(type, id) to load a full record profile payload for a specific entity. "
         "- get_entity_analytics(entity_type, metric[, days, limit]) for annotated aggregations (e.g., most purchased, highest revenue). "
         "- ingest_feedback(user_correction, lesson_text[, ...]) to save a lesson learned from user feedback. "
+        "- save_memory(key, memory_text[, memory_json, tags]) to store a durable tenant rule/preference (upsert by key). "
+        "- retrieve_memory(query[, limit]) to fetch relevant durable tenant memory to apply. "
         "- get_entity_schema(entity_type) to discover required fields for record creation (same engine as the UI). "
         "- create_entity(entity_type, payload) to create tenant-scoped records. NEVER ask the user for tenant_id. "
         "- parse_document(file_id_or_url) to extract text from an uploaded AIDocument UUID (URL fetch disabled). "
@@ -57,6 +60,9 @@ def build_swarm_system_prompt(
         "- create_task(title, message[, entity_type, entity_id]) to create an in-app task notification for the current user. "
         "- create_in_app_notification(title, message[, ...]) to notify other users (owners/admins only). "
         "- get_recent_errors() to fetch the most recent Sentry issues for the active tenant. "
+        "\n\nTENANT MEMORY PROTOCOL (MANDATORY): "
+        "If the user provides a standing rule or preference (e.g., 'Always route Acme through Chicago'), call save_memory(key, memory_text[, memory_json, tags]). "
+        "When answering, apply the injected Tenant Memory block when relevant. "
         "\n\nRECORD CREATION PROTOCOL (MANDATORY): "
         "If the user asks you to create a record (Purchase Order, Supplier, Customer, Plant, Location, Contact, Invoice, etc): "
         "(1) Call get_entity_schema(entity_type) first. "
@@ -79,6 +85,9 @@ def build_swarm_system_prompt(
 
     if lessons_block:
         base = base + str(lessons_block)
+
+    if memory_block:
+        base = base + str(memory_block)
 
     
 
@@ -238,6 +247,15 @@ class SwarmOrchestrator:
         except Exception as e:
             logger.warning('[SwarmOrchestrator] Lessons lookup failed; continuing without lessons: %s', str(e))
 
+        memory_block = ''
+        try:
+            from tenant_apps.ai_assistant.services.tenant_memory_service import format_memory_block, get_relevant_memories
+
+            memories = get_relevant_memories(tenant=tenant, query=user_message, limit=8)
+            memory_block = format_memory_block(memories)
+        except Exception as e:
+            logger.warning('[SwarmOrchestrator] Tenant memory lookup failed; continuing without memory: %s', str(e))
+
         # Phase 8.2: intent classification → delegate deep meat/logistics questions to MeatSME RAG.
         # IMPORTANT: never route record creation or document-driven flows to RAG; those must use the tool loop.
         # Reliability mandate: if RAG fails for any reason, fall back to the standard tool loop.
@@ -302,6 +320,7 @@ class SwarmOrchestrator:
                     outlook_email=outlook_email,
                     outlook_expired=outlook_expired,
                     lessons_block=lessons_block,
+                    memory_block=memory_block,
                 ),
             }
         ]

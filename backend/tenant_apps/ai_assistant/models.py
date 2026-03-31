@@ -293,6 +293,38 @@ class TenantKnowledgeFact(TenantAwareModel):
         ]
 
 
+class TenantAIMemory(TenantAwareModel):
+    """Tenant-scoped long-term memory for durable rules/preferences.
+
+    This is distinct from AIFeedback (which is conversational corrections).
+    """
+
+    key = models.CharField(
+        max_length=128,
+        help_text='Stable key for upserts (e.g. vendor:acme:routing_rule)',
+    )
+    memory_text = models.TextField(blank=True, default='', help_text='Human-readable memory text')
+    memory_json = models.JSONField(default=dict, blank=True, help_text='Optional structured memory payload')
+    tags = models.JSONField(default=dict, blank=True)
+    embedding = models.JSONField(
+        default=list,
+        blank=True,
+        help_text='Embedding vector as JSON array (pgvector optional).',
+    )
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        db_table = 'ai_assistant_tenant_memory'
+        verbose_name = 'Tenant AI Memory'
+        verbose_name_plural = 'Tenant AI Memories'
+        constraints = [
+            models.UniqueConstraint(fields=['tenant', 'key'], name='unique_ai_memory_key_per_tenant'),
+        ]
+        indexes = [
+            models.Index(fields=['tenant', 'key'], name='ai_mem_tenant_key_idx'),
+        ]
+
+
 def aidocument_upload_to(instance: "AIDocument", filename: str) -> str:
     """Return a tenant-scoped upload path for AI document uploads.
 
