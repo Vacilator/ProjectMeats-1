@@ -1502,3 +1502,5 @@ Deliverables:
 - 2026-03-31 — Auth: guest login UI (Try Demo as Guest) wired to /api/v1/auth/guest-login/ — PR: #4313.
 - 2026-03-31 — Docs: clarify historical pending items (handoff + Phase 5 execution summary) — PR: #4314.
 - 2026-03-31 — Docs: remove stale pending labels (handoff + Phase 5 docs headings) — PR: #4315.
+- 2026-03-31 — Ops: promote development → uat (pipeline hotfix) — PR: #4311. Verified UAT deploy run: 23820147951 ✅
+- 2026-03-31 — Ops: promote uat → main (pipeline hotfix) — PR: #4312. Verified main deploy run: 23820173539 ✅
