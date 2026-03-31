@@ -22,8 +22,19 @@ class ContactSerializer(serializers.ModelSerializer):
             "first_name",
             "last_name",
             "email",
+
+            # Legacy phone fields (backward compatibility)
             "phone",
             "phone_type",
+
+            # New department + phone slots
+            "department",
+            "mobile_phone",
+            "office_phone",
+            "office_phone_ext",
+            "protein_types_responsible",
+            "items_responsible",
+
             "company",
             "position",
             "status",
