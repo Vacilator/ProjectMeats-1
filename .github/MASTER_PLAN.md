@@ -1482,3 +1482,4 @@ Deliverables:
 - 2026-03-31 — Workflows: hotfix missing created_on/modified_on + restore infra diagnostics script module — PR: #4293.
 - 2026-03-31 — Compliance: tenant audit trails v1 (append-only audit events + RLS + API) — PR: #4295.
 - 2026-03-31 — Ops: fix deploy migrations failure (workflows 0031 pending trigger events) — PR: #4297.
+- 2026-03-31 — Feature: streaming CSV exports for Purchase Orders + Sales Orders (?format=csv) — PR: #4299.
