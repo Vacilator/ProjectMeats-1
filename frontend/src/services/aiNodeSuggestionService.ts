@@ -30,6 +30,14 @@ export function canonicalizeNodeTypeId(rawType: string): string {
     triggerScheduled: 'triggerSchedule',
     triggerSchedule: 'triggerSchedule',
 
+    // Generic legacy categories (from older prompt/fallback versions)
+    trigger: 'triggerManual',
+    input: 'form',
+    condition: 'conditionIf',
+    approval: 'pendingApproval',
+    action: 'actionCreateRecord',
+    end: 'endSuccess',
+
     // Forms (legacy variants)
     FormStepSingle: 'form',
     formStepSingle: 'form',

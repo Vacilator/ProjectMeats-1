@@ -427,60 +427,74 @@ class AIPrompter:
         if industry_type == 'processor':
             suggestions = [
                 {
-                    "type": "input",
+                    "type": "form",
                     "label": "Log Temperature",
-                    "description": "Record batch temperature",
-                    "reasoning": "USDA compliance requirement",
-                    "priority": 1
+                    "description": "Capture batch/lot temperature and time",
+                    "reasoning": "USDA/HACCP data collection step",
+                    "priority": 1,
                 },
                 {
-                    "type": "condition",
-                    "label": "Temperature Check",
-                    "description": "If > 40°F trigger alert",
-                    "reasoning": "Critical control point",
-                    "priority": 2
-                }
+                    "type": "conditionIf",
+                    "label": "Temperature Breach?",
+                    "description": "Branch if > 40°F (or tenant threshold)",
+                    "reasoning": "Critical Control Point validation",
+                    "priority": 2,
+                },
+                {
+                    "type": "actionEmail",
+                    "label": "Notify QA Manager",
+                    "description": "Alert QA on breach",
+                    "reasoning": "Immediate escalation required for compliance",
+                    "priority": 3,
+                },
             ]
         elif industry_type == 'distributor':
             suggestions = [
                 {
-                    "type": "action",
+                    "type": "actionUpdateRecord",
                     "label": "Update Inventory",
-                    "description": "Sync stock levels",
+                    "description": "Sync stock levels for the shipment",
                     "reasoning": "Maintain accurate counts",
-                    "priority": 1
+                    "priority": 1,
                 },
                 {
-                    "type": "action",
+                    "type": "actionEmail",
                     "label": "Notify Warehouse",
-                    "description": "Send dispatch email",
+                    "description": "Send dispatch/ready-to-pick notification",
                     "reasoning": "Coordinate logistics",
-                    "priority": 2
-                }
+                    "priority": 2,
+                },
+                {
+                    "type": "endSuccess",
+                    "label": "Complete",
+                    "description": "Mark workflow complete",
+                    "reasoning": "Close out the flow cleanly",
+                    "priority": 3,
+                },
             ]
         else:  # wholesale (default)
             suggestions = [
                 {
-                    "type": "input",
+                    "type": "form",
                     "label": "Enter Invoice Details",
-                    "description": "Line items and totals",
-                    "reasoning": "Required for payment",
-                    "priority": 1
+                    "description": "Capture line items and totals",
+                    "reasoning": "Required for payment / reconciliation",
+                    "priority": 1,
                 },
                 {
-                    "type": "action",
+                    "type": "dataTransform",
                     "label": "Calculate Total",
-                    "description": "Sum with tax",
-                    "reasoning": "Generate final amount",
-                    "priority": 2
+                    "description": "Compute totals (tax/fees) from line items",
+                    "reasoning": "Normalize and validate amount fields",
+                    "priority": 2,
                 },
                 {
-                    "type": "approval",
+                    "type": "pendingApproval",
                     "label": "Finance Review",
-                    "description": "Approve payment",
-                    "reasoning": "Policy requirement",
-                    "priority": 3
-                }
+                    "description": "Wait for finance approval",
+                    "reasoning": "Policy/compliance checkpoint",
+                    "priority": 3,
+                },
             ]
         
         return {

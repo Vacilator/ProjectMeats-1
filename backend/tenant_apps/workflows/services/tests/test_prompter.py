@@ -19,21 +19,29 @@ class AIPrompterTestCase(TestCase):
         self.tenant.custom_data = {"industry_type": "processor"}
         self.current_flow = {
             "nodes": [
-                {"id": "node1", "type": "trigger", "data": {"label": "Start"}},
-                {"id": "node2", "type": "input", "data": {"label": "Enter Data"}}
+                {"id": "node1", "type": "triggerManual", "data": {"label": "Start"}},
+                {"id": "node2", "type": "form", "data": {"label": "Enter Data"}},
             ]
         }
     
     def test_load_template_success(self):
         template = self.prompter.load_template()
         self.assertIn("Meat Industry Workflow Architect", template)
+        self.assertIn("triggerManual", template)
+        self.assertIn("conditionIf", template)
     
     def test_parse_ai_response_valid(self):
         valid_response = json.dumps({
             "suggestions": [
-                {"type": "condition", "label": "Check Temp", "description": "If > 40°F", "reasoning": "Safety", "priority": 1}
+                {
+                    "type": "conditionIf",
+                    "label": "Temperature Breach?",
+                    "description": "Branch if > 40°F",
+                    "reasoning": "Safety",
+                    "priority": 1,
+                }
             ],
-            "confidence": 0.95
+            "confidence": 0.95,
         })
         parsed = self.prompter.parse_ai_response(valid_response)
         self.assertEqual(len(parsed["suggestions"]), 1)

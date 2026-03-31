@@ -54,12 +54,18 @@ import {
   renderValidationBuilder,
 } from '../config/fieldRenderers/complexRenderers';
 import { NestedChildrenRenderer } from './NestedChildrenRenderer';
+import { listTenantForms } from '../../../services/workformsApi';
 
 // Import shared styled components
 import {
   Section,
   SectionHeader,
   SectionTitle,
+  FormField,
+  Label,
+  Input,
+  Select,
+  HelpText,
 } from './shared/StyledComponents';
 
 const MemoNestedChildrenRenderer = React.memo(NestedChildrenRenderer);
@@ -166,6 +172,11 @@ export const DynamicConfigPanel: React.FC<DynamicConfigPanelProps> = ({
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
 
+  // Tenant forms cache for schema fields like `formReference`
+  const [tenantForms, setTenantForms] = useState<any[]>([]);
+  const [tenantFormsLoading, setTenantFormsLoading] = useState(false);
+  const [tenantFormsError, setTenantFormsError] = useState<string | null>(null);
+
   // Phase E.3: Compute upstream variables for data inheritance
   const { variables: upstreamVariables } = useUpstreamVariables({
     currentNodeId: node?.id || '',
@@ -200,6 +211,34 @@ export const DynamicConfigPanel: React.FC<DynamicConfigPanelProps> = ({
     
     return resolvedSchema;
   }, [node?.type, node?.id, node?.data]);
+
+  const schemaNeedsTenantForms = useMemo(() => {
+    if (!schema) return false;
+    return (schema.sections || []).some((s) => (s.fields || []).some((f) => f.type === 'formReference'));
+  }, [schema]);
+
+  useEffect(() => {
+    if (!schemaNeedsTenantForms) return;
+    if (tenantFormsLoading) return;
+
+    // Fetch once per panel lifetime; if the current selection references a form
+    // that isn't in the list (legacy/archived), we still display it.
+    setTenantFormsLoading(true);
+    setTenantFormsError(null);
+
+    listTenantForms()
+      .then((forms) => {
+        setTenantForms(Array.isArray(forms) ? forms : []);
+      })
+      .catch((err: any) => {
+        console.error('[DynamicConfigPanel] Failed to load tenant forms:', err);
+        setTenantForms([]);
+        setTenantFormsError('Failed to load forms');
+      })
+      .finally(() => {
+        setTenantFormsLoading(false);
+      });
+  }, [schemaNeedsTenantForms]);
 
   // Reset form data when node changes
   useEffect(() => {
@@ -635,6 +674,7 @@ export const DynamicConfigPanel: React.FC<DynamicConfigPanelProps> = ({
         });
         break;
       
+      case 'fieldMapping':
       case 'field-mapping':
         renderedField = renderFieldMapping({
           ...commonProps,
@@ -645,6 +685,7 @@ export const DynamicConfigPanel: React.FC<DynamicConfigPanelProps> = ({
         });
         break;
       
+      case 'variablePicker':
       case 'variable-picker':
         renderedField = renderVariablePicker({
           ...commonProps,
@@ -658,6 +699,130 @@ export const DynamicConfigPanel: React.FC<DynamicConfigPanelProps> = ({
       case 'validation-builder':
         renderedField = renderValidationBuilder(commonProps);
         break;
+
+      case 'formReference': {
+        const selected = (value as string) || '';
+        const title = typeof field.placeholder === 'string' ? field.placeholder : 'Select a form...';
+
+        const forms = (tenantForms || []).slice().sort((a: any, b: any) => {
+          const aT = new Date(a?.created_at || 0).getTime();
+          const bT = new Date(b?.created_at || 0).getTime();
+          return bT - aT;
+        });
+
+        renderedField = (
+          <FormField key={field.id}>
+            <Label>{field.label}</Label>
+            <Select
+              value={selected}
+              onChange={(e) => commonProps.onChange(e.target.value)}
+              disabled={field.disabled || commonProps.disabled || tenantFormsLoading}
+              $hasError={Boolean(error)}
+            >
+              <option value="">
+                {tenantFormsLoading ? 'Loading forms...' : title}
+              </option>
+              {selected && !forms.some((f: any) => String(f?.id) === String(selected)) && (
+                <option value={selected}>{selected} (legacy)</option>
+              )}
+              {forms.map((f: any) => {
+                const name = f?.title || f?.display_name || f?.displayName || f?.name || `Form ${f?.id}`;
+                const createdLabel = f?.created_at
+                  ? new Date(f.created_at).toLocaleDateString(undefined, {
+                      year: 'numeric',
+                      month: 'short',
+                      day: '2-digit',
+                    })
+                  : null;
+
+                return (
+                  <option key={f.id} value={f.id}>
+                    {createdLabel ? `${name} — ${createdLabel}` : name}
+                  </option>
+                );
+              })}
+            </Select>
+            {field.helpText && !error && <HelpText>{field.helpText}</HelpText>}
+            {tenantFormsError && <ErrorMessage>{tenantFormsError}</ErrorMessage>}
+            {error && <ErrorMessage>{error}</ErrorMessage>}
+          </FormField>
+        );
+        break;
+      }
+
+      case 'keyValue': {
+        const pairs: Array<{ key: string; value: string }> = Array.isArray(value)
+          ? value
+          : Array.isArray(field.defaultValue)
+            ? (field.defaultValue as any)
+            : [];
+
+        const placeholderKey = (field.placeholder as any)?.key || 'Key';
+        const placeholderValue = (field.placeholder as any)?.value || 'Value';
+        const addText = (field as any).addButtonText || '+ Add';
+
+        const updatePair = (idx: number, patch: Partial<{ key: string; value: string }>) => {
+          const next = pairs.map((p, i) => (i === idx ? { ...p, ...patch } : p));
+          commonProps.onChange(next);
+        };
+
+        const removePair = (idx: number) => {
+          const next = pairs.filter((_, i) => i != idx);
+          commonProps.onChange(next);
+        };
+
+        const addPair = () => {
+          commonProps.onChange([...(pairs || []), { key: '', value: '' }]);
+        };
+
+        renderedField = (
+          <FormField key={field.id}>
+            <Label>{field.label}</Label>
+            <KeyValueList>
+              {pairs.length === 0 && (
+                <KeyValueEmpty>None configured yet.</KeyValueEmpty>
+              )}
+              {pairs.map((p, idx) => (
+                <KeyValueRow key={`${field.id}-${idx}`}>
+                  <Input
+                    value={p?.key ?? ''}
+                    placeholder={placeholderKey}
+                    onChange={(e) => updatePair(idx, { key: e.target.value })}
+                    disabled={field.disabled || commonProps.disabled}
+                  />
+                  <Input
+                    value={p?.value ?? ''}
+                    placeholder={placeholderValue}
+                    onChange={(e) => updatePair(idx, { value: e.target.value })}
+                    disabled={field.disabled || commonProps.disabled}
+                  />
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    onClick={() => removePair(idx)}
+                    disabled={field.disabled || commonProps.disabled}
+                    style={{ padding: '6px 10px' }}
+                  >
+                    Remove
+                  </Button>
+                </KeyValueRow>
+              ))}
+              <Button
+                type="button"
+                variant="primary"
+                onClick={addPair}
+                disabled={field.disabled || commonProps.disabled}
+                style={{ alignSelf: 'flex-start' }}
+              >
+                {addText}
+              </Button>
+            </KeyValueList>
+            {field.helpText && !error && <HelpText>{field.helpText}</HelpText>}
+            {error && <ErrorMessage>{error}</ErrorMessage>}
+          </FormField>
+        );
+        break;
+      }
 
       case 'info':
         renderedField = (
@@ -777,7 +942,7 @@ export const DynamicConfigPanel: React.FC<DynamicConfigPanelProps> = ({
         renderedField = (
           <PlaceholderField key={field.id}>
             <PlaceholderLabel>{field.label}</PlaceholderLabel>
-            <PlaceholderHint>Unknown field type: {field.type}</PlaceholderHint>
+            <PlaceholderHint>Configuration field type not supported yet.</PlaceholderHint>
           </PlaceholderField>
         );
     }
@@ -1102,6 +1267,24 @@ const PlaceholderHint = styled.div`
   font-size: 12px;
   color: rgb(var(--color-text-tertiary));
   font-style: italic;
+`;
+
+const KeyValueList = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+`;
+
+const KeyValueRow = styled.div`
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  gap: 8px;
+  align-items: center;
+`;
+
+const KeyValueEmpty = styled.div`
+  font-size: 12px;
+  color: rgb(var(--color-text-secondary));
 `;
 
 const ErrorPanel = styled.div`

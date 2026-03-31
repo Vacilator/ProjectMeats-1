@@ -46,20 +46,39 @@ Given a partial workflow and business context, suggest the **next 1-3 logical st
 
 ---
 
-## Available Node Types (JSON Schema)
+## Available Node Types (STRICT IDs)
+
+Only output `type` values from the list below. These are the canonical node type IDs used by the Workforms editor.
 
 ```json
 {
-  "trigger": {"description": "Starts a workflow", "examples": ["New Supplier", "Temperature Check"]},
-  "input": {"description": "Collects data", "examples": ["Enter Lot Number", "Scan Barcode"]},
-  "condition": {"description": "If/else logic", "examples": ["If Temp > 40°F", "If Overdue"]},
-  "action": {"description": "Performs operation", "examples": ["Send Email", "Update Inventory"]},
-  "approval": {"description": "Human review", "examples": ["Manager Approval", "QA Inspection"]},
-  "loop": {"description": "Repeats steps", "examples": ["For Each Pallet", "While Available"]},
-  "parallel": {"description": "Simultaneous paths", "examples": ["Check Stock AND Notify"]},
-  "end": {"description": "Terminates workflow", "examples": ["Complete", "Cancelled"]}
+  "triggerManual": {"description": "User starts workflow manually"},
+  "triggerSchedule": {"description": "Runs on a schedule"},
+  "triggerWebhook": {"description": "Triggered by inbound webhook"},
+  "triggerEvent": {"description": "Triggered by record create/update/delete"},
+  "triggerForm": {"description": "Triggered when a form is submitted"},
+
+  "form": {"description": "Collect data via a single form step"},
+  "formProcess": {"description": "Multi-step form container"},
+
+  "conditionIf": {"description": "If/Else branching"},
+
+  "actionCreateRecord": {"description": "Create a new record"},
+  "actionUpdateRecord": {"description": "Update an existing record"},
+  "actionEmail": {"description": "Send an email notification"},
+  "actionHTTP": {"description": "Call an external HTTP API"},
+
+  "pendingApproval": {"description": "Wait for a human approval"},
+  "timerDelay": {"description": "Wait for a fixed delay"},
+  "dataTransform": {"description": "Transform/shape data for downstream steps"},
+
+  "endSuccess": {"description": "Successful terminal"},
+  "endError": {"description": "Error terminal"},
+  "endCancel": {"description": "Cancelled terminal"}
 }
 ```
+
+If you would have suggested a generic type like "input", "action", "approval", or "condition", map it to the closest valid node above (e.g., input→form, condition→conditionIf, approval→pendingApproval).
 
 ---
 
