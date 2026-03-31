@@ -269,7 +269,16 @@ class ChatBotAPIViewSet(viewsets.ViewSet):
                             continue
 
                         if row.message_type == MessageTypeChoices.DOCUMENT:
-                            content = f"[Document] {content[:500]}"
+                            meta = row.metadata or {}
+                            document_id = meta.get('document_id')
+                            file_url = meta.get('file_url')
+                            original_filename = meta.get('original_filename') or content
+
+                            content = f"[Document] {str(original_filename)[:500]}"
+                            if document_id:
+                                content += f"\n- document_id: {document_id}"
+                            if file_url:
+                                content += f"\n- file_url: {file_url}"
 
                         history.append({'role': role, 'content': content})
                 except Exception:
