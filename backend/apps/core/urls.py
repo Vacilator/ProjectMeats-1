@@ -7,11 +7,13 @@ from . import entity_views  # Phase 1: WorkForms Enhancement
 from . import calendar_views
 from . import report_views
 from apps.system import workform_views  # Phase 1: WorkForms Enhancement
+from .audit_views import TenantAuditEventViewSet
 
 # Create a router for ViewSets
 router = DefaultRouter()
 router.register(r'preferences', views.UserPreferencesViewSet, basename='user-preferences')
 router.register(r'favorites', views.FavoritesViewSet, basename='favorites')
+router.register(r'audit-events', TenantAuditEventViewSet, basename='audit-events')
 
 # WorkForms router (Phase 1.4-1.6)
 workforms_router = DefaultRouter()

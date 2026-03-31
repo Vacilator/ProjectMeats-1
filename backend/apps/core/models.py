@@ -4,6 +4,8 @@ Core models for ProjectMeats.
 Provides base models and common functionality used across all apps.
 """
 from django.contrib.auth.models import User
+from django.contrib.contenttypes.fields import GenericForeignKey
+from django.contrib.contenttypes.models import ContentType
 from django.core.validators import RegexValidator
 from django.db import models
 from django.utils import timezone
@@ -602,3 +604,62 @@ class UserFavorite(models.Model):
 
     def __str__(self):
         return f"{self.user.username}'s favorite: {self.entity_type} #{self.entity_id}"
+
+
+class TenantAuditEvent(models.Model):
+    """Append-only audit events for compliance/traceability.
+
+    Tracks changes across tenant-aware entities via a GenericForeignKey.
+
+    IMPORTANT: Treat as immutable. API surfaces MUST be read-only.
+    """
+
+    class Action(models.TextChoices):
+        CREATE = 'CREATE', 'Created'
+        UPDATE = 'UPDATE', 'Updated'
+        DELETE = 'DELETE', 'Deleted'
+
+    tenant = models.ForeignKey(
+        'tenants.Tenant',
+        on_delete=models.CASCADE,
+        related_name='audit_events',
+        db_index=True,
+    )
+
+    content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE)
+    object_id = models.CharField(max_length=255, db_index=True)
+    content_object = GenericForeignKey('content_type', 'object_id')
+
+    entity_type = models.CharField(max_length=100, db_index=True)
+    entity_name = models.CharField(max_length=255, blank=True, default='')
+
+    action = models.CharField(max_length=10, choices=Action.choices)
+
+    changed_fields = models.JSONField(null=True, blank=True)
+    snapshot_before = models.JSONField(null=True, blank=True)
+    snapshot_after = models.JSONField(null=True, blank=True)
+
+    actor = models.ForeignKey(
+        User,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name='tenant_audit_events',
+    )
+    actor_email = models.EmailField(blank=True, default='')
+
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    user_agent = models.CharField(max_length=500, blank=True, default='')
+
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['tenant', '-created_at'], name='core_audit_tenant_created_idx'),
+            models.Index(fields=['entity_type', 'object_id'], name='core_audit_entity_obj_idx'),
+            models.Index(fields=['action', '-created_at'], name='core_audit_action_created_idx'),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.tenant_id} {self.action} {self.entity_type}:{self.object_id}"

@@ -187,6 +187,14 @@ END $$;
 
 ---
 
+## Core Module (1 table) - ✅ 100% COMPLIANT
+
+| Table Name | RLS Enabled | Migration | Deployment Date |
+|------------|-------------|-----------|-----------------|
+| `core_tenantauditevent` | ✅ | `core/0004_tenantauditevent` | Mar 31, 2026 |
+
+---
+
 ## Next Audit Date
 
 **Scheduled**: May 27, 2026 (quarterly review)  
