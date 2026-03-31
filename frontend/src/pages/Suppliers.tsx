@@ -5,9 +5,9 @@ import { logger } from '@/utils/logger';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { PhoneInput, Select } from '../components/ui';
 import { MultiSelect } from '../components/Shared';
-import QuickCreateModal from '../components/FormSubmission/QuickCreateModal';
+import EntityFormSurface from '../components/Shared/EntityFormSurface';
 import { US_STATES } from '../utils/constants/states';
-import { CONTACT_DEPARTMENT_CHOICES, DEPARTMENT_CHOICES, PROTEIN_TYPE_CHOICES } from '../utils/constants/choices';
+import { CONTACT_DEPARTMENT_CHOICES, PROTEIN_TYPE_CHOICES } from '../utils/constants/choices';
 import styled from 'styled-components';
 import { apiService, apiClient, Supplier } from '../services/apiService';
 
@@ -103,22 +103,6 @@ const Suppliers: React.FC = () => {
   });
   const [plantProductIds, setPlantProductIds] = useState<string[]>([]);
 
-  const [formData, setFormData] = useState({
-    name: '',
-    contact_person: '',
-    email: '',
-    phone: '',
-    address: '',
-    city: '',
-    state: '',
-    zip_code: '',
-    country: '',
-    departments_array: [] as string[], // Phase 4: ArrayField integration
-    preferred_protein_types: [] as string[], // NEW: Protein filtering
-  });
-
-  const [availableProductIds, setAvailableProductIds] = useState<string[]>([]);
-  const [initialAvailableProductIds, setInitialAvailableProductIds] = useState<string[]>([]);
 
   const [supplierRollupProducts, setSupplierRollupProducts] = useState<Array<{ id: string; product_code: string; name?: string }>>([]);
   const [supplierRollupLoading, setSupplierRollupLoading] = useState(false);
@@ -158,18 +142,6 @@ const Suppliers: React.FC = () => {
     });
   }, [products]);
 
-  // Auto-fetch products when preferred_protein_types changes
-  useEffect(() => {
-    logger.debug('[Suppliers] Protein types changed:', formData.preferred_protein_types);
-    if (formData.preferred_protein_types && formData.preferred_protein_types.length > 0) {
-      fetchFilteredProducts(formData.preferred_protein_types);
-    } else {
-      // Reset to all products if no protein types selected
-      logger.debug('[Suppliers] No protein types selected, fetching all products');
-      fetchProducts();
-    }
-  }, [formData.preferred_protein_types]);
-
   const fetchProducts = async () => {
     try {
       logger.debug('[Suppliers] Fetching products from system catalog...');
@@ -178,24 +150,6 @@ const Suppliers: React.FC = () => {
       setProducts(productsData);
     } catch (error) {
       logger.error('[Suppliers] Error fetching products:', error);
-      setProducts([]);
-    }
-  };
-
-  const fetchFilteredProducts = async (proteinTypes: string[]) => {
-    try {
-      logger.debug('[Suppliers] Fetching filtered products for protein types:', proteinTypes);
-
-      const response = await apiClient.get('/system/products/', {
-        params: { protein: proteinTypes.join(','), limit: 500 },
-      });
-      const data = Array.isArray(response.data) ? response.data : (response.data.results || []);
-      setProducts(data);
-
-      // Note: Auto-select logic intentionally removed to improve UX
-      logger.debug(`[Suppliers] Loaded ${data.length} product(s) for protein types:`, proteinTypes);
-    } catch (error) {
-      logger.error('[Suppliers] Error fetching filtered products:', error);
       setProducts([]);
     }
   };
@@ -422,98 +376,9 @@ const Suppliers: React.FC = () => {
     void loadPlantContacts(selectedPlantId);
   }, [selectedPlantId]);
 
-  const loadSupplierAvailableProductIds = async (supplierId: number) => {
-    try {
-      const response = await apiClient.get(`/suppliers/${supplierId}/products/`);
-      const items = Array.isArray(response.data) ? response.data : [];
-      const activeIds = items
-        .filter((it) => it && it.is_active !== false)
-        .map((it) => String(it.product))
-        .filter(Boolean);
-      setAvailableProductIds(activeIds);
-      setInitialAvailableProductIds(activeIds);
-    } catch (error) {
-      logger.error('[Suppliers] Failed to load supplier available products:', error);
-      setAvailableProductIds([]);
-      setInitialAvailableProductIds([]);
-    }
-  };
-
-  const syncSupplierAvailableProducts = async (supplierId: number, desiredProductIds: string[]) => {
-    const desired = new Set(desiredProductIds.map(String));
-    const initial = new Set(initialAvailableProductIds.map(String));
-
-    const toAdd = [...desired].filter((id) => !initial.has(id));
-    const toRemove = [...initial].filter((id) => !desired.has(id));
-
-    if (!toAdd.length && !toRemove.length) return;
-
-    await Promise.all([
-      ...toAdd.map((productId) => apiClient.post(`/suppliers/${supplierId}/available-products/`, { product: productId })),
-      ...toRemove.map((productId) => apiClient.delete(`/suppliers/${supplierId}/available-products/${productId}/`)),
-    ]);
-
-    setInitialAvailableProductIds(desiredProductIds);
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      let supplierId: number;
-
-      if (editingSupplier) {
-        const updated = await apiService.updateSupplier(editingSupplier.id, formData);
-        supplierId = updated.id;
-      } else {
-        const created = await apiService.createSupplier(formData);
-        supplierId = created.id;
-      }
-
-      try {
-        await syncSupplierAvailableProducts(supplierId, availableProductIds);
-      } catch (error) {
-        logger.error('[Suppliers] Supplier saved but product sync failed:', error);
-        alert('Supplier saved, but products could not be updated. Please try again from the supplier Products page.');
-      }
-
-      setShowEditForm(false);
-      setEditingSupplier(null);
-      resetForm();
-      await suppliersQuery.refetch();
-    } catch (error: unknown) {
-      const err = error as Error;
-      const errorMessage = err.message || 'An unexpected error occurred. Please try again.';
-
-      logger.error('[Suppliers] Error saving supplier:', {
-        message: errorMessage,
-        error: err,
-        action: editingSupplier ? 'update' : 'create',
-      });
-
-      alert(errorMessage);
-    }
-  };
-
   const handleEdit = (supplier: Supplier) => {
     setEditingSupplier(supplier);
-    setFormData({
-      name: supplier.name,
-      contact_person: supplier.contact_person || '',
-      email: supplier.email || '',
-      phone: supplier.phone || '',
-      address: supplier.address || '',
-      city: supplier.city || '',
-      state: supplier.state || '',
-      zip_code: supplier.zip_code || '',
-      country: supplier.country || '',
-      departments_array: supplier.departments_array || [], // Phase 4: Populate array
-      preferred_protein_types: supplier.preferred_protein_types || [], // NEW: Populate protein types
-    });
-
-    setAvailableProductIds([]);
-    setInitialAvailableProductIds([]);
     setShowEditForm(true);
-    void loadSupplierAvailableProductIds(supplier.id);
   };
 
   const handleDelete = async (id: number) => {
@@ -536,30 +401,6 @@ const Suppliers: React.FC = () => {
     }
   };
 
-  const resetForm = () => {
-    setFormData({
-      name: '',
-      contact_person: '',
-      email: '',
-      phone: '',
-      address: '',
-      city: '',
-      state: '',
-      zip_code: '',
-      country: '',
-      departments_array: [], // Phase 4: Reset array
-      preferred_protein_types: [], // NEW: Reset protein types
-    });
-    setAvailableProductIds([]);
-    setInitialAvailableProductIds([]);
-  };
-
-  const handleCancel = () => {
-    setShowForm(false);
-    setShowEditForm(false);
-    setEditingSupplier(null);
-    resetForm();
-  };
 
   if (loading) {
     return <LoadingContainer $theme={theme}>Loading suppliers...</LoadingContainer>;
@@ -605,172 +446,34 @@ const Suppliers: React.FC = () => {
       </TableControls>
 
       {showForm && (
-        <QuickCreateModal
+        <EntityFormSurface
           entityType="supplier"
+          mode="create"
           isOpen={showForm}
           onClose={() => setShowForm(false)}
-          onCreated={() => { void suppliersQuery.refetch(); }}
+          onSuccess={() => {
+            setShowForm(false);
+            void suppliersQuery.refetch();
+          }}
         />
       )}
 
-      {showEditForm && (
-        <FormOverlay>
-          <FormContainer $theme={theme}>
-            <FormHeader $theme={theme}>
-              <FormTitle $theme={theme}>Edit Supplier</FormTitle>
-              <CloseButton $theme={theme} onClick={handleCancel}>×</CloseButton>
-            </FormHeader>
-
-            <Form onSubmit={handleSubmit}>
-              <FormGrid>
-                <FormGroup>
-                  <Label $theme={theme}>Company Name *</Label>
-                  <Input
-                    $theme={theme}
-                    type="text"
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    required
-                  />
-                </FormGroup>
-
-                <FormGroup>
-                  <Label $theme={theme}>Contact Person</Label>
-                  <Input
-                    $theme={theme}
-                    type="text"
-                    value={formData.contact_person}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        contact_person: e.target.value,
-                      })
-                    }
-                  />
-                </FormGroup>
-
-                <FormGroup>
-                  <Label $theme={theme}>Email</Label>
-                  <Input
-                    $theme={theme}
-                    type="email"
-                    value={formData.email}
-                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  />
-                </FormGroup>
-
-                <FormGroup>
-                  <Label $theme={theme}>Phone</Label>
-                  <PhoneInput
-                    value={formData.phone}
-                    onChange={(value) => setFormData({ ...formData, phone: value })}
-                    placeholder="(XXX)XXX-XXXX"
-                    aria-label="Phone number"
-                  />
-                </FormGroup>
-
-                <FormGroup $fullWidth>
-                  <Label $theme={theme}>Address</Label>
-                  <Input
-                    $theme={theme}
-                    type="text"
-                    value={formData.address}
-                    onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                  />
-                </FormGroup>
-
-                <FormGroup>
-                  <Label $theme={theme}>City</Label>
-                  <Input
-                    $theme={theme}
-                    type="text"
-                    value={formData.city}
-                    onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-                  />
-                </FormGroup>
-
-                <FormGroup>
-                  <Label $theme={theme}>State</Label>
-                  <Select
-                    value={formData.state}
-                    onChange={(value) => setFormData({ ...formData, state: value })}
-                    options={US_STATES}
-                    placeholder="Select state"
-                    aria-label="State"
-                  />
-                </FormGroup>
-
-                <FormGroup>
-                  <Label $theme={theme}>ZIP Code</Label>
-                  <Input
-                    $theme={theme}
-                    type="text"
-                    value={formData.zip_code}
-                    onChange={(e) => {
-                      const value = e.target.value.replace(/\D/g, '').slice(0, 5);
-                      setFormData({ ...formData, zip_code: value });
-                    }}
-                    maxLength={5}
-                    pattern="^\d{5}$"
-                    placeholder="12345"
-                  />
-                </FormGroup>
-
-                <FormGroup>
-                  <Label $theme={theme}>Country</Label>
-                  <Input
-                    $theme={theme}
-                    type="text"
-                    value={formData.country}
-                    onChange={(e) => setFormData({ ...formData, country: e.target.value })}
-                  />
-                </FormGroup>
-
-                <FormGroup $fullWidth>
-                  <MultiSelect
-                    value={formData.departments_array}
-                    onChange={(values) => setFormData({ ...formData, departments_array: values })}
-                    options={DEPARTMENT_CHOICES}
-                    label="Departments"
-                    placeholder="Select departments (hold Ctrl/Cmd for multiple)"
-                  />
-                </FormGroup>
-
-                <FormGroup $fullWidth>
-                  <MultiSelect
-                    value={formData.preferred_protein_types}
-                    onChange={(values) => setFormData({ ...formData, preferred_protein_types: values })}
-                    options={PROTEIN_TYPE_CHOICES}
-                    label="Preferred Protein Types"
-                    placeholder="Select protein types (hold Ctrl/Cmd for multiple)"
-                  />
-                </FormGroup>
-
-                <FormGroup $fullWidth>
-                  <MultiSelect
-                    value={availableProductIds}
-                    onChange={(values) => setAvailableProductIds(values.map(String))}
-                    options={Array.isArray(products) ? products.map(p => ({
-                      value: String(p.id),
-                      label: `${p.product_code} - ${p.effective_name || p.product_name || p.name || 'Unknown'}`
-                    })) : []}
-                    label="Available Products"
-                    placeholder="Select products this supplier can provide"
-                  />
-                </FormGroup>
-              </FormGrid>
-
-              <FormActions>
-                <CancelButton type="button" onClick={handleCancel}>
-                  Cancel
-                </CancelButton>
-                <SubmitButton type="submit">
-                  {editingSupplier ? 'Update' : 'Create'} Supplier
-                </SubmitButton>
-              </FormActions>
-            </Form>
-          </FormContainer>
-        </FormOverlay>
+      {showEditForm && editingSupplier && (
+        <EntityFormSurface
+          entityType="supplier"
+          mode="edit"
+          entityId={editingSupplier.id}
+          isOpen={showEditForm}
+          onClose={() => {
+            setShowEditForm(false);
+            setEditingSupplier(null);
+          }}
+          onSuccess={() => {
+            setShowEditForm(false);
+            setEditingSupplier(null);
+            void suppliersQuery.refetch();
+          }}
+        />
       )}
 
       {showPlantModal && (
