@@ -23,8 +23,8 @@ import {
   Plus, Edit2, Trash2, Save, X, Type, Calendar, Hash, CheckSquare,
   List, Link as LinkIcon, Mail, Globe
 } from 'lucide-react';
+import { Modal as AntModal } from 'antd';
 import { apiClient } from '../../services/apiService';
-import Modal from '../Modal/Modal';
 import { confirmDialog, showAlert } from '@/utils/uiDialogs';
 
 // ============================================================================
@@ -308,14 +308,14 @@ export const VirtualFieldManager: React.FC<VirtualFieldManagerProps> = ({
       </Content>
 
       {/* Edit Field Modal */}
-      <Modal
-        isOpen={isEditModalOpen}
-        onClose={() => {
+      <AntModal
+        open={isEditModalOpen}
+        onCancel={() => {
           setIsEditModalOpen(false);
           setEditingField(null);
         }}
         title={editingField?.id ? 'Edit Custom Field' : 'New Custom Field'}
-        maxWidth="600px"
+        width={600}
         footer={
           <ModalFooter>
             <Button
@@ -333,6 +333,7 @@ export const VirtualFieldManager: React.FC<VirtualFieldManagerProps> = ({
             </Button>
           </ModalFooter>
         }
+        destroyOnClose
       >
         {editingField && (
           <Form>
@@ -505,7 +506,7 @@ export const VirtualFieldManager: React.FC<VirtualFieldManagerProps> = ({
             </FormRow>
           </Form>
         )}
-      </Modal>
+      </AntModal>
     </Container>
   );
 };

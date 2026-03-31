@@ -1,7 +1,7 @@
 import React, { useMemo, useState, useRef, useEffect } from 'react';
 import styled from 'styled-components';
+import { Modal as AntModal } from 'antd';
 import { useLocation } from 'react-router-dom';
-import Modal from '../Modal/Modal';
 import { useCockpitNavigation } from '@/contexts/CockpitNavigationContext';
 import { buildAIPageContext } from '@/services/aiContext';
 
@@ -105,7 +105,15 @@ const Omnibox: React.FC<OmniboxProps> = ({ isOpen, onClose, onSubmit }) => {
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="AI Command Center" maxWidth="700px">
+    <AntModal
+      open={isOpen}
+      onCancel={onClose}
+      title="AI Command Center"
+      footer={null}
+      width={700}
+      destroyOnClose
+      styles={{ body: { padding: 0 } }}
+    >
       <OmniboxContainer>
         <CommandInput
           ref={inputRef}
@@ -145,7 +153,7 @@ const Omnibox: React.FC<OmniboxProps> = ({ isOpen, onClose, onSubmit }) => {
           <TipText>💡 Tip: Use natural language - the AI will interpret your intent</TipText>
         </HelpText>
       </OmniboxContainer>
-    </Modal>
+    </AntModal>
   );
 };
 

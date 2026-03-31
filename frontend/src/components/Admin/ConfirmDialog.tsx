@@ -20,7 +20,7 @@
 
 import React from 'react';
 import styled from 'styled-components';
-import Modal from '../Modal/Modal';
+import { Modal as AntModal } from 'antd';
 
 interface ConfirmDialogProps {
   isOpen: boolean;
@@ -65,9 +65,16 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
   );
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title={title} maxWidth="500px" footer={footer}>
+    <AntModal
+      open={isOpen}
+      onCancel={onClose}
+      title={title}
+      footer={footer}
+      width={500}
+      destroyOnClose
+    >
       <Message>{message}</Message>
-    </Modal>
+    </AntModal>
   );
 };
 

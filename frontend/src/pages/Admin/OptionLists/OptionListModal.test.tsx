@@ -36,10 +36,14 @@ vi.mock('../../../services/apiService', () => ({
   },
 }));
 
-// Mock Modal component to simplify testing
-vi.mock('../../../components/Modal/Modal', () => ({
-  default: ({ children, isOpen }: any) => isOpen ? <div data-testid="modal">{children}</div> : null,
-}));
+// Mock AntD Modal component to simplify testing (portal-less)
+vi.mock('antd', async (importOriginal) => {
+  const actual = await importOriginal();
+  return {
+    ...actual,
+    Modal: ({ open, children }: any) => (open ? <div data-testid="modal">{children}</div> : null),
+  };
+});
 
 const renderWithProviders = (ui: JSX.Element) => render(<ToastProvider>{ui}</ToastProvider>);
 
