@@ -1,12 +1,6 @@
 name: Master Pipeline
 
-run-name: >-
-  ${{
-    github.event_name == 'pull_request' && format('🔍 PR Check: {0} → {1} - #{2} {3}', github.head_ref, github.base_ref, github.event.pull_request.number, github.event.pull_request.title) ||
-    github.event_name == 'workflow_dispatch' && format('🚀 Deploy: {0} (manual) - {1}', github.event.inputs.environment, github.sha) ||
-    github.event_name == 'push' && format('🚀 Deploy: {0} - {1}', github.ref_name, github.event.head_commit.message) ||
-    format('🕒 Scheduled: {0} - {1}', github.ref_name, github.sha)
-  }}
+run-name: Master Pipeline
 
 on:
   pull_request:
