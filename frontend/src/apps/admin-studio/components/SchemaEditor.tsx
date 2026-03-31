@@ -87,7 +87,7 @@ interface FieldTemplate {
 const FIELD_TEMPLATES: FieldTemplate[] = [
   { name: 'Full Name', icon: '👤', description: 'Person\'s full name', field: { type: 'text', label: 'Full Name', required: true, minLength: 2, maxLength: 100 } },
   { name: 'Email Address', icon: '📧', description: 'Valid email', field: { type: 'email', label: 'Email', required: true, pattern: '^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$' } },
-  { name: 'Phone Number', icon: '📱', description: 'Phone with format', field: { type: 'phone', label: 'Phone', placeholder: '+1 (555) 123-4567' } },
+  { name: 'Phone Number', icon: '📱', description: 'Phone with format', field: { type: 'phone', label: 'Phone', placeholder: '(XXX)XXX-XXXX' } },
   { name: 'Date of Birth', icon: '🎂', description: 'Birth date picker', field: { type: 'date', label: 'Date of Birth' } },
   { name: 'Currency Amount', icon: '💰', description: 'Money field', field: { type: 'currency', label: 'Amount', minValue: 0 } },
   { name: 'Percentage', icon: '📊', description: '0-100%', field: { type: 'percent', label: 'Percentage', minValue: 0, maxValue: 100 } },

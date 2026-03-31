@@ -5,6 +5,7 @@
  */
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import styled from 'styled-components';
+import { formatUsPhone } from '@/utils/phone';
 
 export interface FieldConfig {
   key: string;
@@ -341,14 +342,28 @@ const FormField: React.FC<FormFieldProps> = ({
       case 'text':
       case 'email':
       case 'url':
+        return (
+          <Input
+            {...commonProps}
+            type={field.type}
+            value={localValue || ''}
+            placeholder={field.placeholder}
+            onChange={(e) => handleChange(e.target.value)}
+            onBlur={handleBlur}
+          />
+        );
+
       case 'phone':
         return (
           <Input
             {...commonProps}
-            type={field.type === 'phone' ? 'tel' : field.type}
-            value={localValue || ''}
-            placeholder={field.placeholder}
-            onChange={(e) => handleChange(e.target.value)}
+            type="tel"
+            inputMode="numeric"
+            maxLength={13}
+            autoComplete="tel"
+            value={formatUsPhone(String(localValue || ''))}
+            placeholder={field.placeholder || '(XXX)XXX-XXXX'}
+            onChange={(e) => handleChange(formatUsPhone(e.target.value))}
             onBlur={handleBlur}
           />
         );
