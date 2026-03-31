@@ -1,7 +1,7 @@
 # MASTER_PLAN.md (Canonical)
 
 **Status**: 🔄 Living document (canonical source of truth)  
-**Last Updated**: 2026-03-27  
+**Last Updated**: 2026-03-31  
 **Primary Focus**: Phase 7 (Intelligent Workform Editor) stability + business-usable Admin/Cockpit workflows  
 
 This file is the **canonical plan + current truth snapshot**.
@@ -17,12 +17,12 @@ We are re-validating and completing the last ~25 prompts with **evidence-based a
 ## State Audit & Remaining P0s (as of 2026-03-27T18:47Z)
 
 ### Observed runtime issues
-- Workforms AI Suggestions: frontend calling `POST /api/v1/suggest-nodes/` gets 404; backend `SuggestNodesView` exists but is not routed. Align to `POST /api/v1/workflows/suggest-nodes/`.
+- ✅ Workforms AI Suggestions route drift — **RESOLVED** (PR #3998): frontend calls `POST /api/v1/workflows/suggest-nodes/` and backend also exposes legacy alias `POST /api/v1/suggest-nodes/`.
 - AI Chat: lessons memory NameError fixed (PR #4045); remaining 400s should be treated as environment config issues (missing OPENAI_API_KEY) with graceful messaging.
-- Charts: Recharts `ResponsiveContainer` warnings (width/height -1) indicate parent container sizing gaps; fix to reduce noise.
+- ✅ Charts: Recharts `ResponsiveContainer` warnings (width/height -1) — **RESOLVED** (PR #4240): set non-zero `minWidth/minHeight` on chart containers to avoid zero-size renders.
 
 ### Priority execution strategy
-1) Quick wins: fix suggest-nodes route drift; reduce chart sizing warnings.
+1) Quick wins: ✅ suggest-nodes route drift (PR #3998); ✅ chart sizing warnings (PR #4240).
 2) Universal Forms + Cockpit Search: make forms truly usable (save/create CTA, key-fields-first + expand-all, single edit toggle, searchable FK by name, per-keystroke refresh where required).
 3) Workform Editor UX: connectors top/bottom, remove conflicting collapse buttons, drag body, inline title edit, reorder arrows swap edges, show key config summary in-node.
 
