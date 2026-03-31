@@ -1,6 +1,6 @@
 # Security Compliance & RLS Audit Log
 
-**Last Updated**: March 22, 2026  
+**Last Updated**: March 31, 2026  
 **Status**: ✅ ALL SYSTEMS COMPLIANT
 
 ---
@@ -78,6 +78,15 @@ All workflow-related tables have Row-Level Security **ENABLED** and **FORCED**:
 
 ---
 
+## Tenant Integrations Module (2 tables) - ✅ 100% COMPLIANT
+
+| Table Name | RLS Enabled | Policy Name | Session Variable |
+|------------|-------------|-------------|------------------|
+| `tenant_integrations_tenantapikey` | ✅ | `tenantapikey_tenant_isolation` | `app.current_tenant` |
+| `tenant_integrations_tenantwebhook` | ✅ | `tenantwebhook_tenant_isolation` | `app.current_tenant` |
+
+---
+
 ## Core Business Module (4 tables) - ✅ 100% COMPLIANT
 
 | Table Name | RLS Enabled | Migration | Deployment Date |
@@ -111,8 +120,8 @@ All workflow-related tables have Row-Level Security **ENABLED** and **FORCED**:
 - `python manage.py audit_rls_compliance` → **38/38 tenant-aware models compliant** ✅
 
 **Tenant Isolation Policies** (from `pg_policies`):
-- Tables with at least one `*_tenant_isolation` policy: **45**
-- `*_tenant_isolation` policies total: **48**
+- Tables with at least one `*_tenant_isolation` policy: **47**
+- `*_tenant_isolation` policies total: **50**
 
 > Note: Some tables currently have both legacy and standardized `*_tenant_isolation` policy names during transition.
 
