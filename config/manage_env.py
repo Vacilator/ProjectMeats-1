@@ -18,6 +18,8 @@ Notes:
 
 import argparse
 import json
+import os
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -52,11 +54,56 @@ def _parse_major_version(version_value: Any) -> int:
         return 0
 
 
+LEGACY_SECRET_PREFIXES = ("DEV_", "UAT_", "PROD_")
+
+
+def _is_legacy_prefixed_secret(name: str) -> bool:
+    return any(name.startswith(prefix) for prefix in LEGACY_SECRET_PREFIXES)
+
+
 class EnvironmentManager:
-    def __init__(self, manifest_path: Optional[Path] = None):
+    def __init__(self, manifest_path: Optional[Path] = None, repo: Optional[str] = None):
         self.manifest_path, self.manifest = self._load_manifest(manifest_path)
         self.manifest_version = self.manifest.get('version')
         self.manifest_major = _parse_major_version(self.manifest_version)
+        self.repo = repo or self._detect_repo_name_with_owner()
+
+    def _detect_repo_name_with_owner(self) -> Optional[str]:
+        """Best-effort detection of OWNER/REPO for gh calls.
+
+        Priority:
+        1) GITHUB_REPOSITORY env (CI)
+        2) git remote 'upstream'
+        3) gh repo view
+        """
+        ci_repo = os.environ.get('GITHUB_REPOSITORY')
+        if ci_repo:
+            return ci_repo
+
+        try:
+            url = subprocess.run(
+                ['git', 'remote', 'get-url', 'upstream'],
+                cwd=str(REPO_ROOT),
+                capture_output=True,
+                text=True,
+                check=True,
+            ).stdout.strip()
+            # Supports https://github.com/OWNER/REPO(.git) and git@github.com:OWNER/REPO(.git)
+            m = re.search(r'github\.com[/:]([^/]+)/([^/]+?)(?:\.git)?$', url)
+            if m:
+                return f"{m.group(1)}/{m.group(2)}"
+        except Exception:
+            pass
+
+        try:
+            return subprocess.run(
+                ['gh', 'repo', 'view', '--json', 'nameWithOwner', '-q', '.nameWithOwner'],
+                capture_output=True,
+                text=True,
+                check=True,
+            ).stdout.strip() or None
+        except Exception:
+            return None
 
     def _load_manifest(self, manifest_path: Optional[Path]) -> Tuple[Path, Dict[str, Any]]:
         candidates = [manifest_path] if manifest_path else []
@@ -81,6 +128,8 @@ class EnvironmentManager:
         - env_name=str  => environment secrets for that environment
         """
         cmd = ['gh', 'secret', 'list', '--json', 'name', '-q', '.[].name']
+        if self.repo:
+            cmd.extend(['-R', self.repo])
         if env_name:
             cmd.extend(['--env', env_name])
 
@@ -170,7 +219,12 @@ class EnvironmentManager:
         missing_any = False
 
         missing_repo = sorted(required_repo - repo_present)
-        zombie_repo = sorted(repo_present - all_manifest_names)
+
+        zombie_repo_set = repo_present - all_manifest_names
+        stale_prefixed_repo_set = {s for s in repo_present if _is_legacy_prefixed_secret(s)}
+
+        stale_prefixed_repo = sorted(stale_prefixed_repo_set)
+        zombie_repo = sorted(zombie_repo_set - stale_prefixed_repo_set)
 
         if missing_repo:
             missing_any = True
@@ -180,12 +234,32 @@ class EnvironmentManager:
         else:
             print(f"{Colors.GREEN}✓ Required repository secrets present ({len(required_repo)}){Colors.END}")
 
+        if stale_prefixed_repo:
+            print(
+                f"\n{Colors.YELLOW}⚠️  STALE/ZOMBIE legacy-prefixed repository secrets ({len(stale_prefixed_repo)}):{Colors.END}"
+            )
+            print(f"  (Legacy prefixes are not allowed in v5.1: {', '.join(LEGACY_SECRET_PREFIXES)})")
+            for s in stale_prefixed_repo:
+                print(f"  • {Colors.BOLD}{s}{Colors.END}")
+
         if zombie_repo:
             print(f"\n{Colors.YELLOW}🧟 Zombie repository secrets (not in manifest) ({len(zombie_repo)}):{Colors.END}")
             for s in zombie_repo:
                 print(f"  • {Colors.BOLD}{s}{Colors.END}")
 
         env_results = {}
+
+        # Consolidated stale/zombie index across repo+env scopes.
+        stale_index: Dict[str, Set[str]] = {}
+
+        def _index(name: str, location: str):
+            stale_index.setdefault(name, set()).add(location)
+
+        for s in stale_prefixed_repo:
+            _index(s, 'repo')
+        for s in zombie_repo:
+            _index(s, 'repo')
+
         for env_key, env_cfg in environments.items():
             gh_env = env_cfg.get('github_environment') or env_key
             env_present = self._get_secrets(gh_env)
@@ -194,7 +268,12 @@ class EnvironmentManager:
             available = env_present | repo_present
 
             missing_env = sorted(required_env - available)
-            zombie_env = sorted(env_present - all_env_names)
+
+            zombie_env_set = env_present - all_env_names
+            stale_prefixed_env_set = {s for s in env_present if _is_legacy_prefixed_secret(s)}
+
+            stale_prefixed_env = sorted(stale_prefixed_env_set)
+            zombie_env = sorted(zombie_env_set - stale_prefixed_env_set)
 
             env_results[env_key] = {
                 'github_environment': gh_env,
@@ -202,6 +281,7 @@ class EnvironmentManager:
                 'required_env': sorted(required_env),
                 'missing': missing_env,
                 'zombie': zombie_env,
+                'stale_prefixed': stale_prefixed_env,
             }
 
             print(f"\n{Colors.BOLD}Environment: {env_key}{Colors.END} (gh env: {gh_env})")
@@ -216,14 +296,32 @@ class EnvironmentManager:
             else:
                 print(f"  {Colors.GREEN}✅ All required secrets present{Colors.END}")
 
+            if stale_prefixed_env:
+                print(f"  {Colors.YELLOW}⚠️  STALE/ZOMBIE legacy-prefixed env secrets ({len(stale_prefixed_env)}):{Colors.END}")
+                for s in stale_prefixed_env:
+                    print(f"    • {Colors.BOLD}{s}{Colors.END}")
+
             if zombie_env:
-                print(f"  {Colors.YELLOW}🧟 Zombie env secrets ({len(zombie_env)}):{Colors.END}")
+                print(f"  {Colors.YELLOW}🧟 Zombie env secrets (not in manifest) ({len(zombie_env)}):{Colors.END}")
                 for s in zombie_env:
                     print(f"    • {Colors.BOLD}{s}{Colors.END}")
+
+            for s in stale_prefixed_env:
+                _index(s, f"env:{env_key}")
+            for s in zombie_env:
+                _index(s, f"env:{env_key}")
 
             if verbose:
                 # Only in verbose mode do we print inventory-ish info.
                 print(f"  Available secrets (repo + env): {len(available)}")
+
+        if stale_index:
+            print(f"\n{Colors.BOLD}STALE/ZOMBIE inventory (GitHub present but not in manifest){Colors.END}")
+            print(f"Timestamped lists should be copied to .github/MASTER_PLAN.md Operational Notes.")
+            for name in sorted(stale_index.keys()):
+                kind = 'STALE-PREFIXED' if _is_legacy_prefixed_secret(name) else 'ZOMBIE'
+                locs = ', '.join(sorted(stale_index[name]))
+                print(f"  • {Colors.BOLD}{name}{Colors.END} ({kind}) @ {locs}")
 
         print(f"\n{Colors.BOLD}{'=' * 70}{Colors.END}")
         if missing_any:
@@ -239,6 +337,8 @@ class EnvironmentManager:
             'manifest_version': self.manifest_version,
             'missing_repo': missing_repo,
             'zombie_repo': zombie_repo,
+            'stale_prefixed_repo': stale_prefixed_repo,
+            'stale_index': {k: sorted(v) for k, v in stale_index.items()},
             'environments': env_results,
         }
 
@@ -246,6 +346,10 @@ class EnvironmentManager:
 def main():
     parser = argparse.ArgumentParser(description='Environment & Secret Manager')
     parser.add_argument('command', choices=['audit'], help='Command to run')
+    parser.add_argument(
+        '--repo',
+        help='GitHub repo to audit in OWNER/REPO form (defaults to autodetect; prefers git remote "upstream").',
+    )
     parser.add_argument(
         '--no-exit',
         action='store_true',
@@ -266,7 +370,7 @@ def main():
     args = parser.parse_args()
 
     manifest_path = Path(args.manifest).resolve() if args.manifest else None
-    manager = EnvironmentManager(manifest_path=manifest_path)
+    manager = EnvironmentManager(manifest_path=manifest_path, repo=args.repo)
 
     if args.command == 'audit':
         manager.audit_secrets(exit_on_error=not args.no_exit, verbose=args.verbose)
