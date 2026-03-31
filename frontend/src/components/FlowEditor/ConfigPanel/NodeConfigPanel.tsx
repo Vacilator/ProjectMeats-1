@@ -497,17 +497,39 @@ export const NodeConfigPanel: React.FC<NodeConfigPanelProps> = ({
     }
   }, [node?.id]); // Only reset when node ID changes
   
+  const isFormProcessTrigger = formData.triggerType === 'formSubmitted';
+
   // Fetch available forms when trigger type is form-related (Task 2.1)
   useEffect(() => {
     const triggerType = formData.triggerType;
-    if (triggerType === 'form' || triggerType === 'formSubmitted' || triggerType === 'recordCreated' || triggerType === 'recordUpdated') {
+    if (
+      triggerType === 'form' ||
+      triggerType === 'formSubmitted' ||
+      triggerType === 'recordCreated' ||
+      triggerType === 'recordUpdated'
+    ) {
       setLoadingForms(true);
-      // Use the proper API method
+
       listTenantForms()
-        .then(forms => {
-          setAvailableForms(forms);
+        .then((forms) => {
+          const list = Array.isArray(forms) ? forms : [];
+
+          // For Form Submitted triggers, we want *saved FormProcess nodes*, which are multi-entity forms
+          // persisted from FormProcess containers.
+          const filtered = isFormProcessTrigger
+            ? list.filter((f: any) => Boolean(f?.is_multi_entity) || Number(f?.entity_count ?? 0) > 1)
+            : list;
+
+          // Sort newest first for quicker selection.
+          filtered.sort((a: any, b: any) => {
+            const aT = new Date(a?.created_at || 0).getTime();
+            const bT = new Date(b?.created_at || 0).getTime();
+            return bT - aT;
+          });
+
+          setAvailableForms(filtered);
         })
-        .catch(error => {
+        .catch((error) => {
           console.error('Failed to fetch forms:', error);
           toast.error('Failed to load forms. Please refresh and try again.', {
             duration: 4000,
@@ -525,7 +547,7 @@ export const NodeConfigPanel: React.FC<NodeConfigPanelProps> = ({
       setAvailableForms([]);
       setAvailableFormFields([]);
     }
-  }, [formData.triggerType]);
+  }, [formData.triggerType, isFormProcessTrigger]);
   
   // Fetch form fields when a form is selected (Task 2.1)
   useEffect(() => {
@@ -1208,7 +1230,8 @@ export const NodeConfigPanel: React.FC<NodeConfigPanelProps> = ({
           <>
             <FormField>
               <Label>
-                Select Form <RequiredIndicator>*</RequiredIndicator>
+                {formData.triggerType === 'formSubmitted' ? 'Select Form Process' : 'Select Form'}{' '}
+                <RequiredIndicator>*</RequiredIndicator>
               </Label>
               <Select
                 value={formData.selectedFormId || formData.formId || ''}
@@ -1219,16 +1242,39 @@ export const NodeConfigPanel: React.FC<NodeConfigPanelProps> = ({
                 disabled={loadingForms}
               >
                 <option value="">
-                  {loadingForms ? 'Loading forms...' : 'Select a form'}
+                  {loadingForms
+                    ? 'Loading form processes...'
+                    : formData.triggerType === 'formSubmitted'
+                      ? 'Select a form process'
+                      : 'Select a form'}
                 </option>
-                {availableForms.map((form: any) => (
-                  <option key={form.id} value={form.id}>
-                    {form.title || form.name || `Form ${form.id}`}
-                  </option>
-                ))}
+                {availableForms.map((form: any) => {
+                  const title =
+                    form?.title ||
+                    form?.display_name ||
+                    form?.displayName ||
+                    form?.name ||
+                    `Form ${form?.id}`;
+
+                  const createdLabel = form?.created_at
+                    ? new Date(form.created_at).toLocaleDateString(undefined, {
+                        year: 'numeric',
+                        month: 'short',
+                        day: '2-digit',
+                      })
+                    : null;
+
+                  return (
+                    <option key={form.id} value={form.id}>
+                      {createdLabel ? `${title} — ${createdLabel}` : title}
+                    </option>
+                  );
+                })}
               </Select>
               <HelpText>
-                Choose which form submission will trigger this workflow
+                {formData.triggerType === 'formSubmitted'
+                  ? 'Choose which saved FormProcess submission should trigger this workflow'
+                  : 'Choose which form submission will trigger this workflow'}
               </HelpText>
             </FormField>
             
