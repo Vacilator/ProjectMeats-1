@@ -6,40 +6,11 @@
  * - Tenant-level custom lists (TenantList)
  * - Entity field choice overrides (TenantFieldChoiceOverride)
  */
-import axios from 'axios';
-import { config } from '../config/runtime';
+import { apiClient } from './apiService';
 
-// Use runtime config for proper API base URL
-const API_BASE_URL = config.API_BASE_URL;
-
-// API paths (appended to API_BASE_URL which already includes /api/v1)
+// API paths (apiClient baseURL already includes /api/v1)
 const SCHEMA_BUILDER_PATH = '/schema-builder';
 const WORKFLOWS_PATH = '/workflows';
-
-// Create axios client with proper base URL and auth
-const apiClient = axios.create({
-  baseURL: API_BASE_URL,
-  timeout: 15000,
-  headers: {
-    'Content-Type': 'application/json',
-  },
-  withCredentials: true,
-  xsrfCookieName: 'csrftoken',
-  xsrfHeaderName: 'X-CSRFToken',
-});
-
-// Request interceptor for authentication
-apiClient.interceptors.request.use((config) => {
-  const token = localStorage.getItem('authToken');
-  if (token) {
-    config.headers.Authorization = `Token ${token}`;
-  }
-  const tenantId = localStorage.getItem('tenantId');
-  if (tenantId) {
-    config.headers['X-Tenant-ID'] = tenantId;
-  }
-  return config;
-});
 
 // Types
 export interface OptionItem {
