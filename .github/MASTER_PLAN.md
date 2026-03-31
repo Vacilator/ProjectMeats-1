@@ -139,6 +139,12 @@ This file is the **append-only PR-referenceable execution log**.
   - Read → Map → Confirm → Create (document-driven)
 - Unblocked fresh DBs/tests without pgvector by storing embeddings as JSON arrays (pgvector optional).
 - Added daily watchdog task (`ai_assistant.run_daily_watchdog`) to notify tenant admins about overdue POs.
+- Added granular RBAC scaffolding:
+  - `plant_manager` role + `restricted_plants` / `restricted_locations` on TenantUser
+  - `IsRoleAuthorized` permission to scope PATCH/DELETE on Plant + Contact
+- Added tenant-safe caching for heavy Supplier/Customer rollups:
+  - cached list/retrieve per-tenant (15m TTL)
+  - invalidation via tenant cache version bump signals (plant/location/contact product changes)
 - PR: #4276
 
 ### 2026-03-30 — Docs: master plan gap analysis + roadmap hygiene
