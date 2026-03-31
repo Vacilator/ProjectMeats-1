@@ -13,7 +13,6 @@ from django.core.validators import FileExtensionValidator
 from django.db import models
 from django.utils import timezone
 
-from pgvector.django import VectorField
 
 from apps.core.models import OwnedModel, StatusModel, TenantAwareModel
 
@@ -248,7 +247,11 @@ class VectorMemory(TenantAwareModel):
     content = models.TextField(blank=True, default='')
     metadata = models.JSONField(default=dict, blank=True)
 
-    embedding = VectorField(dimensions=1536)
+    embedding = models.JSONField(
+        default=list,
+        blank=True,
+        help_text='Embedding vector as JSON array (pgvector optional).',
+    )
 
     class Meta:
         db_table = 'ai_assistant_vector_memory'
@@ -273,11 +276,11 @@ class TenantKnowledgeFact(TenantAwareModel):
         help_text='Optional domain label (e.g. ordering, invoicing, cold_storage)',
     )
     fact_text = models.TextField(help_text='Canonical tenant fact text')
-    embedding = VectorField(
-        dimensions=1536,
+    embedding = models.JSONField(
+        default=list,
         null=True,
         blank=True,
-        help_text='OpenAI text-embedding-3-small vector',
+        help_text='Embedding vector as JSON array (pgvector optional).',
     )
     is_active = models.BooleanField(default=True)
 

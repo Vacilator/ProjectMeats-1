@@ -128,8 +128,39 @@ DEFAULT_OPENAI_TOOLS = [
     {
         'type': 'function',
         'function': {
+            'name': 'get_entity_schema',
+            'description': 'Get a UI-friendly schema for an entity type (same engine as UniversalEntityForm).',
+            'parameters': {
+                'type': 'object',
+                'properties': {
+                    'entity_type': {'type': 'string', 'description': 'Entity type or alias (e.g., supplier, customers.customer, purchase_order, plant).'},
+                },
+                'required': ['entity_type'],
+                'additionalProperties': False,
+            },
+        },
+    },
+    {
+        'type': 'function',
+        'function': {
+            'name': 'create_entity',
+            'description': 'Create a tenant-scoped entity via internal DRF ViewSets (allowlisted types only).',
+            'parameters': {
+                'type': 'object',
+                'properties': {
+                    'entity_type': {'type': 'string', 'description': 'Entity type or alias (e.g., supplier, customer, plant, location, contact).'},
+                    'payload': {'type': 'object', 'description': 'Field payload for creation.'},
+                },
+                'required': ['entity_type', 'payload'],
+                'additionalProperties': False,
+            },
+        },
+    },
+    {
+        'type': 'function',
+        'function': {
             'name': 'create_record',
-            'description': 'Create a tenant-scoped record (limited to safe entity types).',
+            'description': 'Create a tenant-scoped record (limited to safe entity types). (Legacy tool; prefer create_entity.)',
             'parameters': {
                 'type': 'object',
                 'properties': {
@@ -205,6 +236,8 @@ class ToolExecutor:
             'draft_outlook_email': self._draft_outlook_email,
             'get_record_detail': self._get_record_detail,
             'get_entity_details': self._get_entity_details,
+            'get_entity_schema': self._get_entity_schema,
+            'create_entity': self._create_entity,
             'create_task': self._create_task,
             'ingest_feedback': self._ingest_feedback,
             'get_recent_errors': self._get_recent_errors,
@@ -536,6 +569,111 @@ class ToolExecutor:
         entity, resolved_type, _Model = view._get_entity_or_404(req, type=entity_type, pk=entity_id)
         can_edit = bool(getattr(user, 'is_staff', False) or getattr(user, 'is_superuser', False))
         return view._serialize_entity_detail(entity, resolved_type, can_edit=can_edit)
+
+    def _get_entity_schema(self, arguments: Dict[str, Any], tenant: Any, user: Any = None) -> Any:
+        """Return the same payload as GET /api/v1/system/forms/schema/?entity_type=..."""
+        if not user or not getattr(user, 'is_authenticated', False):
+            raise ValueError('Authenticated user is required to fetch schema')
+
+        entity_type = (arguments.get('entity_type') or '').strip()
+        if not entity_type:
+            raise ValueError('Missing required parameter: entity_type')
+
+        from rest_framework.test import APIRequestFactory, force_authenticate
+        from apps.system.views.forms_schema import SystemFormSchemaView
+
+        factory = APIRequestFactory()
+        req = factory.get('/api/v1/system/forms/schema/', {'entity_type': entity_type})
+        force_authenticate(req, user=user)
+        req.tenant = tenant
+
+        resp = SystemFormSchemaView.as_view()(req)
+        if getattr(resp, 'status_code', 200) >= 400:
+            data = getattr(resp, 'data', None) or {}
+            msg = None
+            if isinstance(data, dict):
+                msg = data.get('error') or data.get('detail')
+            raise ValueError(msg or f'Failed to get schema for entity_type={entity_type}')
+
+        return getattr(resp, 'data', {})
+
+    def _create_entity(self, arguments: Dict[str, Any], tenant: Any, user: Any = None) -> Any:
+        """Create an entity via internal DRF ViewSets.
+
+        This is allowlisted to prevent unsafe arbitrary writes.
+        """
+        if not user or not getattr(user, 'is_authenticated', False):
+            raise ValueError('Authenticated user is required to create entities')
+
+        raw_entity_type = (arguments.get('entity_type') or '').strip().lower()
+        payload = arguments.get('payload')
+        if not raw_entity_type or not isinstance(payload, dict):
+            raise ValueError('Missing required parameters: entity_type, payload')
+
+        forbidden_keys = {'tenant', 'tenant_id', 'owner', 'created_by', 'modified_by'}
+        forbidden_present = sorted([k for k in payload.keys() if k in forbidden_keys])
+        if forbidden_present:
+            raise ValueError(f"Forbidden keys in payload: {', '.join(forbidden_present)}")
+
+        from apps.system.services.entity_introspection import ENTITY_ID_ALIASES
+        resolved = ENTITY_ID_ALIASES.get(raw_entity_type, raw_entity_type)
+
+        canonical_map = {
+            'suppliers.supplier': 'supplier',
+            'customers.customer': 'customer',
+            'contacts.contact': 'contact',
+            'plants.plant': 'plant',
+            'locations.location': 'location',
+            'purchase_orders.purchaseorder': 'purchase_order',
+            'sales_orders.salesorder': 'sales_order',
+            'invoices.invoice': 'invoice',
+        }
+
+        entity_key = canonical_map.get(resolved)
+        if not entity_key:
+            # If it's already a simple key (supplier/customer/plant/location/contact), accept it.
+            entity_key = raw_entity_type if raw_entity_type in {
+                'supplier', 'customer', 'contact', 'plant', 'location', 'purchase_order', 'sales_order', 'invoice'
+            } else None
+
+        if not entity_key:
+            raise ValueError(f'Unsupported entity_type: {raw_entity_type}')
+
+        # Allowlist of viewsets (expand deliberately)
+        from tenant_apps.suppliers.views import SupplierViewSet
+        from tenant_apps.customers.views import CustomerViewSet
+        from tenant_apps.contacts.views import ContactViewSet
+        from tenant_apps.plants.views import PlantViewSet
+        from tenant_apps.locations.views import LocationViewSet
+
+        viewset_map = {
+            'supplier': (SupplierViewSet, '/api/v1/suppliers/'),
+            'customer': (CustomerViewSet, '/api/v1/customers/'),
+            'contact': (ContactViewSet, '/api/v1/contacts/'),
+            'plant': (PlantViewSet, '/api/v1/plants/'),
+            'location': (LocationViewSet, '/api/v1/locations/'),
+        }
+
+        entry = viewset_map.get(entity_key)
+        if not entry:
+            raise ValueError(f'Unsupported entity_type for create_entity: {entity_key}')
+
+        viewset_cls, url = entry
+
+        from rest_framework.test import APIRequestFactory, force_authenticate
+
+        factory = APIRequestFactory()
+        req = factory.post(url, payload, format='json')
+        force_authenticate(req, user=user)
+        req.tenant = tenant
+
+        view = viewset_cls.as_view({'post': 'create'})
+        resp = view(req)
+        if getattr(resp, 'status_code', 200) >= 400:
+            data = getattr(resp, 'data', None)
+            raise ValueError(f'Create failed for {entity_key}: {data}')
+
+        return getattr(resp, 'data', {})
 
     def _create_task(self, arguments: Dict[str, Any], tenant: Any, user: Any = None) -> Any:
         """Create a task for the current user (implemented as an in-app notification)."""

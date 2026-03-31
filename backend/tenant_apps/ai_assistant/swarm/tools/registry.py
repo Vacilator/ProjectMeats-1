@@ -181,6 +181,26 @@ def get_recent_errors() -> Dict[str, Any]:
 
 
 @registry.register
+def get_entity_schema(entity_type: str) -> Dict[str, Any]:
+    """Get the UI-friendly schema for an entity type.
+
+    Executed via the Swarm tool loop in /api/v1/ai-assistant/chat/.
+    """
+
+    return {"status": "available_via_chat", "entity_type": entity_type}
+
+
+@registry.register
+def create_entity(entity_type: str, payload: Dict[str, Any]) -> Dict[str, Any]:
+    """Create a tenant-scoped entity via internal DRF viewsets (allowlisted).
+
+    Executed via the Swarm tool loop in /api/v1/ai-assistant/chat/.
+    """
+
+    return {"status": "available_via_chat", "entity_type": entity_type}
+
+
+@registry.register
 def create_record(entity: str, data: Dict[str, Any]) -> Dict[str, Any]:
     """Create a tenant-scoped record.
 
