@@ -1478,3 +1478,4 @@ Deliverables:
 - 2026-03-31 — Settings: remove tenant branding + rename admin link label — PR: #4270.
 - 2026-03-31 — Auth: include user.is_active in JWT token obtain payload — PR: #4271.
 - 2026-03-31 — Frontend: fix Profile inactive status false-negative (normalize is_active) — PR: #4272.
+- 2026-03-31 — Frontend: Suppliers/Customers create/edit use EntityFormSurface (retire QuickCreateModal + legacy edit overlays) — PR: #4291.
