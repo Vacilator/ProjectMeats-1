@@ -130,6 +130,7 @@ This file is the **append-only PR-referenceable execution log**.
 - Added Swarm tools:
   - `get_entity_schema(entity_type)` (uses the same schema engine as `/api/v1/system/forms/schema/`)
   - `create_entity(entity_type, payload)` allowlisted DRF create for supplier/customer/contact/plant/location
+  - `parse_document(file_id_or_url)` (document_id-only for SSRF safety; uses Unstructured API when configured)
 - Unblocked fresh DBs/tests without pgvector by storing embeddings as JSON arrays (pgvector optional).
 - PR: #4276
 
