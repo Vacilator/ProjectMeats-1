@@ -1446,3 +1446,12 @@ Deliverables:
 - 2026-03-31 — Email Ingestion Monitor: show reconnect CTA when Outlook not connected (error_code=not_connected) — PR: #4243.
 - 2026-03-31 — Ops: align test_document_upload diagnostic command to /api/v1/ai-assistant/ai-documents/ — PR: #4244.
 - 2026-03-31 — Workflows: DocumentUploadCard uses real ai-documents upload (fallback to simulated if endpoint missing) — PR: #4245.
+
+### 2026-03-31T14:27:41Z — V3.5 refactor transition (feature freeze)
+- Feature development is **halted** pending completion of the V3.5 Enterprise Refactor Roadmap.
+- New audits:
+  - `docs/audits/SYSTEM_ERRORS_2026.md`
+  - `docs/audits/UI_UX_DEBT_2026.md`
+  - `docs/audits/API_SCHEMA_DRIFT.md`
+- New remediation blueprint:
+  - `docs/plans/V3_5_ENTERPRISE_REFACTOR_ROADMAP.md`
