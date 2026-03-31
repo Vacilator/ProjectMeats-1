@@ -1809,7 +1809,7 @@ const staticEdgeTypes = {
 } as unknown as EdgeTypes;
 
 // Phase 9.4: Render-time execution tracing (no mutations to saved workflow graph)
-const DebugAwareReactFlow: React.FC<React.ComponentProps<typeof ReactFlow>> = (props) => {
+const DebugAwareReactFlow = React.memo((props: React.ComponentProps<typeof ReactFlow>) => {
   const { debug } = useFlowEditor();
 
   const decoratedNodes = useMemo(() => {
@@ -1885,7 +1885,8 @@ const DebugAwareReactFlow: React.FC<React.ComponentProps<typeof ReactFlow>> = (p
       edges={decoratedEdges}
     />
   );
-};
+});
+DebugAwareReactFlow.displayName = 'DebugAwareReactFlow';
 
 // ============================================================================
 // Error Boundary for Config Panel
