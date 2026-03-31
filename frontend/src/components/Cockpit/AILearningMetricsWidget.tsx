@@ -87,7 +87,7 @@ export const AILearningMetricsWidget: React.FC<AILearningMetricsWidgetProps> = (
           Confidence trend (last 30 days)
         </Text>
         <div style={{ width: '100%', minHeight: 120, minWidth: 0, marginTop: 8 }}>
-          <ResponsiveContainer width="100%" height={120} minWidth={0} minHeight={0} debounce={150}>
+          <ResponsiveContainer width="100%" height={120} minWidth={1} minHeight={1} debounce={150}>
             <LineChart data={m.confidenceTrend || defaultTrend}>
               <XAxis dataKey="day" hide />
               <YAxis domain={[0, 1]} hide />
