@@ -1,11 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import styled from 'styled-components';
-import { useLocation, useParams, useSearchParams } from 'react-router-dom';
+import { useParams, useSearchParams } from 'react-router-dom';
 import { logger } from '@/utils/logger';
 import { apiService, Contact } from '../services/apiService';
-import { apiClient } from '../services/apiService';
-import { formatUsPhone } from '@/utils/phone';
+import EntityFormSurface from '../components/Shared/EntityFormSurface';
 
 // Styled Components
 const Container = styled.div`
@@ -175,153 +174,8 @@ const DeleteButton = styled.button`
   }
 `;
 
-const FormOverlay = styled.div`
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-`;
-
-const FormContainer = styled.div`
-  background: rgb(var(--color-surface));
-  color: rgb(var(--color-surface-foreground));
-  border-radius: 12px;
-  padding: 0;
-  width: 90%;
-  max-width: 600px;
-  max-height: 90vh;
-  overflow-y: auto;
-`;
-
-const FormHeader = styled.div`
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 24px;
-  border-bottom: 1px solid rgb(var(--color-border));
-`;
-
-const FormTitle = styled.h2`
-  margin: 0;
-  font-size: 20px;
-  font-weight: 600;
-  color: rgb(var(--color-text-primary));
-`;
-
-const CloseButton = styled.button`
-  background: none;
-  border: none;
-  font-size: 24px;
-  cursor: pointer;
-  color: rgb(var(--color-text-secondary));
-  padding: 0;
-  width: 30px;
-  height: 30px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-
-  &:hover {
-    color: rgb(var(--color-text-primary));
-  }
-`;
-
-const Form = styled.form`
-  padding: 24px;
-`;
-
-const FormGroup = styled.div`
-  margin-bottom: 20px;
-`;
-
-const Label = styled.label`
-  display: block;
-  margin-bottom: 6px;
-  font-weight: 600;
-  color: rgb(var(--color-text-primary));
-  font-size: 14px;
-`;
-
-const Input = styled.input`
-  width: 100%;
-  padding: 10px 12px;
-  border: 2px solid rgb(var(--color-border));
-  border-radius: 6px;
-  font-size: 14px;
-  transition: border-color 0.2s;
-
-  &:focus {
-    outline: none;
-    border-color: rgb(var(--color-primary));
-  }
-`;
-
-const FormSelect = styled.select`
-  width: 100%;
-  padding: 10px 12px;
-  border: 2px solid rgb(var(--color-border));
-  border-radius: 6px;
-  font-size: 14px;
-  transition: border-color 0.2s;
-  background: rgb(var(--color-surface));
-  color: rgb(var(--color-text-primary));
-
-  &:focus {
-    outline: none;
-    border-color: rgb(var(--color-primary));
-  }
-
-  &:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-  }
-`;
-
-const FormActions = styled.div`
-  display: flex;
-  gap: 12px;
-  justify-content: flex-end;
-  margin-top: 24px;
-`;
-
-const CancelButton = styled.button`
-  background: rgb(var(--color-text-secondary));
-  color: white;
-  border: none;
-  padding: 10px 20px;
-  border-radius: 6px;
-  font-size: 14px;
-  cursor: pointer;
-  transition: background 0.2s;
-
-  &:hover {
-    background: rgb(var(--color-text-secondary));
-  }
-`;
-
-const SubmitButton = styled.button`
-  background: rgb(var(--color-primary));
-  color: white;
-  border: none;
-  padding: 10px 20px;
-  border-radius: 6px;
-  font-size: 14px;
-  cursor: pointer;
-  transition: background 0.2s;
-
-  &:hover {
-    background: rgb(var(--color-primary-hover));
-  }
-`;
 
 const Contacts: React.FC = () => {
-  const location = useLocation();
   const { supplierId, customerId } = useParams<{ supplierId?: string; customerId?: string }>();
   const [searchParams] = useSearchParams();
 
@@ -348,123 +202,10 @@ const Contacts: React.FC = () => {
 
   const [showForm, setShowForm] = useState(false);
   const [editingContact, setEditingContact] = useState<Contact | null>(null);
-  
-  // Contextual entity type detection
-  const [entityType, setEntityType] = useState<'supplier' | 'customer' | ''>('');
-  const [entityId, setEntityId] = useState<string>('');
-  const [entityOptions, setEntityOptions] = useState<Array<{id: number, name: string}>>([]);
-  const [loadingEntities, setLoadingEntities] = useState(false);
-  
-  const [formData, setFormData] = useState({
-    first_name: '',
-    last_name: '',
-    email: '',
-    phone: '',
-    company: '',
-    position: '',
-    supplier: '',
-    customer: '',
-  });
 
-  // Detect context from URL path
-  useEffect(() => {
-    if (location.pathname.startsWith('/suppliers')) {
-      setEntityType('supplier');
-    } else if (location.pathname.startsWith('/customers')) {
-      setEntityType('customer');
-    } else {
-      setEntityType('');
-    }
-  }, [location.pathname]);
-
-  // Fetch entity options when entityType changes
-  useEffect(() => {
-    if (entityType && showForm) {
-      fetchEntityOptions();
-    }
-  }, [entityType, showForm]);
-
-  const fetchEntityOptions = async () => {
-    setLoadingEntities(true);
-    try {
-      const endpoint = entityType === 'supplier' ? 'suppliers/' : 'customers/';
-      const response = await apiClient.get(endpoint);
-      const data = response.data.results || response.data;
-      
-      const options = data.map((item: any) => ({
-        id: item.id,
-        name: item.name || item.company_name || `${entityType} #${item.id}`,
-      }));
-      
-      setEntityOptions(options);
-    } catch (err) {
-      logger.error(`[Contacts] Failed to fetch ${entityType} options:`, err);
-      setEntityOptions([]);
-    } finally {
-      setLoadingEntities(false);
-    }
-  };
-
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      if (editingContact) {
-        await apiService.updateContact(editingContact.id, formData);
-      } else {
-        await apiService.createContact(formData);
-      }
-
-      await contactsQuery.refetch();
-      setShowForm(false);
-      setEditingContact(null);
-      setEntityId('');
-      setFormData({
-        first_name: '',
-        last_name: '',
-        email: '',
-        phone: '',
-        company: '',
-        position: '',
-        supplier: '',
-        customer: '',
-      });
-    } catch (error: unknown) {
-      // Log detailed error information
-      const err = error as Error & { response?: { status: number; data: unknown }; stack?: string };
-      logger.error('[Contacts] Error saving contact:', {
-        message: err.message || 'Unknown error',
-        stack: err.stack || 'No stack trace available',
-        response: err.response
-          ? {
-              status: err.response.status,
-              data: err.response.data,
-            }
-          : 'No response data',
-      });
-      // Display user-friendly error to the UI
-      alert(`Failed to save contact: ${err.message || 'Please try again later'}`);
-    }
-  };
 
   const handleEdit = (contact: Contact) => {
     setEditingContact(contact);
-    setFormData({
-      first_name: contact.first_name,
-      last_name: contact.last_name,
-      email: contact.email || '',
-      phone: contact.phone || '',
-      company: contact.company || '',
-      position: contact.position || '',
-      supplier: String((contact as any).supplier || ''),
-      customer: String((contact as any).customer || ''),
-    });
-    // Pre-select entity if exists
-    if ((contact as any).supplier) {
-      setEntityId(String((contact as any).supplier));
-    } else if ((contact as any).customer) {
-      setEntityId(String((contact as any).customer));
-    }
     setShowForm(true);
   };
 
@@ -487,13 +228,7 @@ const Contacts: React.FC = () => {
     }
   };
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: name === 'phone' ? formatUsPhone(value) : value,
-    }));
-  };
+
 
   if (loading) {
     return (
@@ -507,7 +242,7 @@ const Contacts: React.FC = () => {
     <Container>
       <Header>
         <Title>Contacts</Title>
-        <AddButton onClick={() => setShowForm(true)}>+ Add Contact</AddButton>
+        <AddButton onClick={() => { setEditingContact(null); setShowForm(true); }}>+ Add Contact</AddButton>
       </Header>
 
       <StatsCards>
@@ -568,124 +303,27 @@ const Contacts: React.FC = () => {
       )}
 
       {showForm && (
-        <FormOverlay>
-          <FormContainer>
-            <FormHeader>
-              <FormTitle>{editingContact ? 'Edit Contact' : 'Add New Contact'}</FormTitle>
-              <CloseButton onClick={() => setShowForm(false)}>×</CloseButton>
-            </FormHeader>
-            <Form onSubmit={handleSubmit}>
-              <FormGroup>
-                <Label>First Name</Label>
-                <Input
-                  type="text"
-                  name="first_name"
-                  value={formData.first_name}
-                  onChange={handleInputChange}
-                  required
-                />
-              </FormGroup>
-              <FormGroup>
-                <Label>Last Name</Label>
-                <Input
-                  type="text"
-                  name="last_name"
-                  value={formData.last_name}
-                  onChange={handleInputChange}
-                  required
-                />
-              </FormGroup>
-              <FormGroup>
-                <Label>Email</Label>
-                <Input
-                  type="email"
-                  name="email"
-                  value={formData.email}
-                  onChange={handleInputChange}
-                />
-              </FormGroup>
-              <FormGroup>
-                <Label>Phone</Label>
-                <Input
-                  type="tel"
-                  inputMode="numeric"
-                  maxLength={13}
-                  autoComplete="tel"
-                  placeholder="(XXX)XXX-XXXX"
-                  name="phone"
-                  value={formData.phone}
-                  onChange={handleInputChange}
-                />
-              </FormGroup>
-              <FormGroup>
-                <Label>Company</Label>
-                <Input
-                  type="text"
-                  name="company"
-                  value={formData.company}
-                  onChange={handleInputChange}
-                />
-              </FormGroup>
-              <FormGroup>
-                <Label>Position</Label>
-                <Input
-                  type="text"
-                  name="position"
-                  value={formData.position}
-                  onChange={handleInputChange}
-                />
-              </FormGroup>
-              
-              {/* Contextual Entity Selection */}
-              {entityType && (
-                <FormGroup>
-                  <Label>
-                    {entityType === 'supplier' ? 'Supplier' : 'Customer'} {!editingContact && '*'}
-                  </Label>
-                  <FormSelect
-                    value={entityId}
-                    onChange={(e) => {
-                      setEntityId(e.target.value);
-                      setFormData(prev => ({
-                        ...prev,
-                        supplier: entityType === 'supplier' ? e.target.value : '',
-                        customer: entityType === 'customer' ? e.target.value : '',
-                      }));
-                    }}
-                    disabled={loadingEntities}
-                    required={!editingContact}
-                  >
-                    <option value="">
-                      {loadingEntities 
-                        ? 'Loading...' 
-                        : `Select ${entityType === 'supplier' ? 'Supplier' : 'Customer'}`
-                      }
-                    </option>
-                    {entityOptions.map(option => (
-                      <option key={option.id} value={option.id}>
-                        {option.name}
-                      </option>
-                    ))}
-                  </FormSelect>
-                  {entityOptions.length === 0 && !loadingEntities && (
-                    <div style={{ fontSize: '0.75rem', color: 'rgb(239, 68, 68)', marginTop: '0.25rem' }}>
-                      No {entityType}s found. Please create one first.
-                    </div>
-                  )}
-                </FormGroup>
-              )}
-              
-              <FormActions>
-                <CancelButton type="button" onClick={() => setShowForm(false)}>
-                  Cancel
-                </CancelButton>
-                <SubmitButton type="submit">
-                  {editingContact ? 'Update' : 'Create'} Contact
-                </SubmitButton>
-              </FormActions>
-            </Form>
-          </FormContainer>
-        </FormOverlay>
+        <EntityFormSurface
+          entityType="contact"
+          mode={editingContact ? 'edit' : 'create'}
+          entityId={editingContact?.id}
+          isOpen={showForm}
+          onClose={() => {
+            setShowForm(false);
+            setEditingContact(null);
+          }}
+          initialValues={{
+            ...(contactFilters.supplier ? { supplier: String(contactFilters.supplier) } : {}),
+            ...(contactFilters.customer ? { customer: String(contactFilters.customer) } : {}),
+            ...(contactFilters.plant ? { plant: String(contactFilters.plant) } : {}),
+            ...(contactFilters.location ? { location: String(contactFilters.location) } : {}),
+          }}
+          onSuccess={() => {
+            setShowForm(false);
+            setEditingContact(null);
+            void contactsQuery.refetch();
+          }}
+        />
       )}
     </Container>
   );
