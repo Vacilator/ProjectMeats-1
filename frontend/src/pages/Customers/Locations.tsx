@@ -11,7 +11,7 @@
  */
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Table, Input, Button, Modal, Form, Select, message, Tag, Space } from 'antd';
 import { confirmDialog } from '@/utils/uiDialogs';
 import { CountrySelect } from '../../components/ui';
@@ -183,6 +183,8 @@ const ErrorMessage = styled.div`
 const CustomerLocations: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
+  const { customerId } = useParams<{ customerId?: string }>();
+  const [searchParams] = useSearchParams();
   const [form] = Form.useForm();
   
   // State
@@ -196,34 +198,48 @@ const CustomerLocations: React.FC = () => {
   const [searchText, setSearchText] = useState('');
   const [formErrors, setFormErrors] = useState<FormErrors>({});
 
-  // Detect context from navigation state (Phase 4 pattern)
+  // Detect context from URL (preferred) or navigation state (fallback)
   useEffect(() => {
     const state = location.state as any;
-    if (state?.customerId) {
-      setContextCustomerId(state.customerId);
-    }
-  }, [location]);
+
+    const paramId = customerId ? Number(customerId) : NaN;
+    const queryCustomer = searchParams.get('customer');
+    const queryId = queryCustomer ? Number(queryCustomer) : NaN;
+    const stateId = state?.customerId ? Number(state.customerId) : NaN;
+
+    const nextContext =
+      (Number.isFinite(paramId) && paramId > 0 ? paramId : null) ??
+      (Number.isFinite(queryId) && queryId > 0 ? queryId : null) ??
+      (Number.isFinite(stateId) && stateId > 0 ? stateId : null);
+
+    setContextCustomerId(nextContext);
+  }, [location.state, customerId, searchParams]);
 
   useEffect(() => {
-    loadLocations();
     loadCustomers();
   }, []);
+
+  useEffect(() => {
+    loadLocations(contextCustomerId);
+  }, [contextCustomerId]);
 
   useEffect(() => {
     filterLocations();
   }, [locations, searchText, contextCustomerId]);
 
-  const loadLocations = async () => {
+  const loadLocations = async (customerFilterId: number | null) => {
     try {
       setLoading(true);
+      const params = customerFilterId ? { customer: customerFilterId } : undefined;
+
       // Try multiple possible endpoints
       let response;
       try {
-        response = await apiClient.get('locations/');
+        response = await apiClient.get('locations/', { params });
       } catch (err: any) {
         if (err.response?.status === 404) {
           // Try alternative endpoint
-          response = await apiClient.get('api/v1/locations/');
+          response = await apiClient.get('api/v1/locations/', { params });
         } else {
           throw err;
         }
@@ -320,7 +336,7 @@ const CustomerLocations: React.FC = () => {
     try {
       await apiClient.delete(`locations/${loc.id}/`);
       message.success('Location deleted successfully');
-      loadLocations();
+      loadLocations(contextCustomerId);
     } catch (error: any) {
       console.error('Error deleting location:', error);
       message.error('Failed to delete location');
@@ -341,7 +357,7 @@ const CustomerLocations: React.FC = () => {
       }
       
       setShowModal(false);
-      loadLocations();
+      loadLocations(contextCustomerId);
     } catch (error: any) {
       if (error.response?.status === 400) {
         setFormErrors(error.response.data);
@@ -431,7 +447,10 @@ const CustomerLocations: React.FC = () => {
           <Button
             type="link"
             icon={<EditOutlined />}
-            onClick={() => handleEdit(record)}
+            onClick={(e) => {
+              e.stopPropagation();
+              handleEdit(record);
+            }}
           >
             Edit
           </Button>
@@ -439,7 +458,10 @@ const CustomerLocations: React.FC = () => {
             type="link"
             danger
             icon={<DeleteOutlined />}
-            onClick={() => handleDelete(record)}
+            onClick={(e) => {
+              e.stopPropagation();
+              handleDelete(record);
+            }}
           >
             Delete
           </Button>
@@ -487,6 +509,17 @@ const CustomerLocations: React.FC = () => {
         dataSource={filteredLocations as any}
         rowKey="id"
         loading={loading}
+        onRow={(record) => {
+          const rec = record as Location;
+          return {
+            onClick: () => {
+              const cid = contextCustomerId ?? rec.customer ?? undefined;
+              const base = cid ? `/customers/${cid}/contacts` : '/customers/contacts';
+              navigate(`${base}?location=${rec.id}`);
+            },
+            style: { cursor: 'pointer' },
+          };
+        }}
         pagination={{
           pageSize: 20,
           showSizeChanger: true,
