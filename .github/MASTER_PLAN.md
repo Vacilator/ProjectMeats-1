@@ -13,6 +13,8 @@ This file is the **append-only PR-referenceable execution log**.
 
 - **2026-03-31** — WorkForms runtime: Quick Actions workflow items now execute via `/workforms/execute/:id` (not editor). Backend adds `POST /api/v1/tenant-workforms/:id/execute/` to create `TenantWorkFormExecution` and run async via Celery; adds `/api/v1/workflows/workform-executions/` and surfaces active executions in WorkForms Monitoring; Catalog supports deleting draft/archived WorkForms with confirmation. (PR: #4320)
 
+- **2026-03-31** — UniversalEntityForm: purged legacy Plant create/edit forms. Suppliers “+ New Plant” and Plants table “Add/Edit” now route through `EntityFormSurface` → `UniversalEntityForm` (supplier prefill via context). Suppliers can still optionally assign plant products post-create. (PR: #4321)
+
 - **2026-03-31** — Workforms editor: DynamicConfigPanel now supports `formReference` and `keyValue` schema field types (removes the "Unknown field type" placeholder for real node configs). (PR: #4319)
 - **2026-03-31** — Workforms AI Suggestions: aligned prompt + backend fallback suggestions to canonical node type IDs; added frontend canonicalization + guard to prevent adding unknown suggested nodes. (PR: #4319)
 
