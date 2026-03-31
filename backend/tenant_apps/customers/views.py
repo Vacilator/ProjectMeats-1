@@ -22,7 +22,9 @@ from django.contrib.postgres.fields import ArrayField
 from django.db import models
 from django.db.models import Q, Value
 from django.db.models.functions import Coalesce
+from django.core.cache import cache
 
+from apps.core.cache_utils import get_tenant_cache_version, stable_query_hash
 from apps.system.serializers import SystemProductSerializer
 
 from tenant_apps.customers.models import Customer
@@ -37,12 +39,55 @@ logger = logging.getLogger(__name__)
 class CustomerViewSet(viewsets.ModelViewSet):
     """
     ViewSet for managing customers with strict tenant isolation.
-    
+
     Security Model:
     - Authentication is REQUIRED for all environments
     - Tenant context is MANDATORY - users only see their tenant's data
     - No DEBUG-based bypasses - consistent security across all environments
     """
+
+    CACHE_TTL_SECONDS = 60 * 15
+
+    def _cache_key(self, *, scope: str, tenant_id: str, query_hash: str = 'none') -> str:
+        version = get_tenant_cache_version('customers', str(tenant_id))
+        return f'pm:v1:customers:v{version}:{scope}:tenant:{tenant_id}:q:{query_hash}'
+
+    def list(self, request, *args, **kwargs):
+        tenant = getattr(request, 'tenant', None)
+        if not tenant:
+            return Response({'error': 'Tenant not found'}, status=status.HTTP_400_BAD_REQUEST)
+
+        query_items: list[tuple[str, str]] = []
+        for key in sorted(request.query_params.keys()):
+            for value in sorted(request.query_params.getlist(key)):
+                query_items.append((key, value))
+        qh = stable_query_hash(query_items)
+
+        cache_key = self._cache_key(scope='list', tenant_id=str(tenant.id), query_hash=qh)
+        cached = cache.get(cache_key)
+        if cached is not None:
+            return Response(cached)
+
+        response = super().list(request, *args, **kwargs)
+        if response.status_code == status.HTTP_200_OK:
+            cache.set(cache_key, response.data, self.CACHE_TTL_SECONDS)
+        return response
+
+    def retrieve(self, request, *args, **kwargs):
+        tenant = getattr(request, 'tenant', None)
+        if not tenant:
+            return Response({'error': 'Tenant not found'}, status=status.HTTP_400_BAD_REQUEST)
+
+        pk = kwargs.get('pk')
+        cache_key = self._cache_key(scope=f'retrieve:{pk}', tenant_id=str(tenant.id))
+        cached = cache.get(cache_key)
+        if cached is not None:
+            return Response(cached)
+
+        response = super().retrieve(request, *args, **kwargs)
+        if response.status_code == status.HTTP_200_OK:
+            cache.set(cache_key, response.data, self.CACHE_TTL_SECONDS)
+        return response
 
     queryset = Customer.objects.all()
     serializer_class = CustomerSerializer

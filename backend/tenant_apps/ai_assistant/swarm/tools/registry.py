@@ -171,6 +171,30 @@ def create_task(title: str, message: str, entity_type: str | None = None, entity
 
 
 @registry.register
+def create_in_app_notification(
+    title: str,
+    message: str,
+    notification_type: str | None = None,
+    priority: str | None = None,
+    entity_type: str | None = None,
+    entity_id: str | None = None,
+    action_url: str | None = None,
+    metadata: Dict[str, Any] | None = None,
+    to_tenant_admins: bool | None = None,
+    user_id: str | None = None,
+    user_ids: List[str] | None = None,
+    username: str | None = None,
+    usernames: List[str] | None = None,
+) -> Dict[str, Any]:
+    """Create an in-app notification for one or more users in the current tenant.
+
+    Executed via the Swarm tool loop in /api/v1/ai-assistant/chat/.
+    """
+
+    return {"status": "available_via_chat", "title": title}
+
+
+@registry.register
 def get_recent_errors() -> Dict[str, Any]:
     """Fetch recent Sentry issues for the active tenant (last 5).
 
@@ -178,6 +202,67 @@ def get_recent_errors() -> Dict[str, Any]:
     """
 
     return {"status": "available_via_chat"}
+
+
+@registry.register
+def get_entity_schema(entity_type: str) -> Dict[str, Any]:
+    """Get the UI-friendly schema for an entity type.
+
+    Executed via the Swarm tool loop in /api/v1/ai-assistant/chat/.
+    """
+
+    return {"status": "available_via_chat", "entity_type": entity_type}
+
+
+@registry.register
+def save_memory(key: str, memory_text: str, memory_json: Dict[str, Any] | None = None, tags: Dict[str, Any] | None = None) -> Dict[str, Any]:
+    """Upsert a durable tenant memory rule/preference (tenant-scoped)."""
+
+    return {"status": "available_via_chat", "key": key}
+
+
+@registry.register
+def retrieve_memory(query: str, limit: int | None = None) -> Dict[str, Any]:
+    """Retrieve relevant durable tenant memory entries for a query."""
+
+    return {"status": "available_via_chat", "query": query, "limit": limit}
+
+
+@registry.register
+def create_entity(entity_type: str, payload: Dict[str, Any]) -> Dict[str, Any]:
+    """Create a tenant-scoped entity via internal DRF viewsets (allowlisted).
+
+    Executed via the Swarm tool loop in /api/v1/ai-assistant/chat/.
+    """
+
+    return {"status": "available_via_chat", "entity_type": entity_type}
+
+
+@registry.register
+def parse_document(file_id_or_url: str) -> Dict[str, Any]:
+    """Parse an uploaded document into text + structured elements.
+
+    Executed via the Swarm tool loop in /api/v1/ai-assistant/chat/.
+    """
+
+    return {"status": "available_via_chat", "file_id_or_url": file_id_or_url}
+
+
+@registry.register
+def trigger_workform(workflow_id: str, initial_data: Dict[str, Any] | None = None) -> Dict[str, Any]:
+    """Trigger a TenantWorkForm execution.
+
+    Executed via the Swarm tool loop in /api/v1/ai-assistant/chat/.
+    """
+
+    return {"status": "available_via_chat", "workflow_id": workflow_id}
+
+
+@registry.register
+def draft_vendor_email(vendor_id: str, context: str, vendor_type: str | None = None) -> Dict[str, Any]:
+    """Draft and store an outbound vendor email as a Draft (human-in-the-loop send)."""
+
+    return {"status": "available_via_chat", "vendor_id": vendor_id}
 
 
 @registry.register

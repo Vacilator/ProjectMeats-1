@@ -5,6 +5,7 @@ Provides REST API endpoints for contact management.
 """
 from rest_framework import viewsets, status
 from rest_framework.permissions import IsAuthenticated
+from apps.core.permissions import IsRoleAuthorized
 from rest_framework.response import Response
 from rest_framework.exceptions import ValidationError as DRFValidationError
 from rest_framework.filters import SearchFilter, OrderingFilter
@@ -23,7 +24,7 @@ class ContactViewSet(viewsets.ModelViewSet):
 
     queryset = Contact.objects.all()
     serializer_class = ContactSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, IsRoleAuthorized]
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     filterset_fields = ["supplier", "customer", "plant", "location", "status"]
     search_fields = ["first_name", "last_name", "email", "company", "position"]

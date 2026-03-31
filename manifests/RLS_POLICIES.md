@@ -41,6 +41,7 @@ All workflow-related tables have Row-Level Security **ENABLED** and **FORCED**:
 | `workflows_usernotification` | ✅ | `usernotification_tenant_isolation` | `app.current_tenant` |
 | `workflows_usernotificationpreferences` | ✅ | `usernotificationpreferences_tenant_isolation` | `app.current_tenant` |
 | `workflows_workflowexecutionlog` | ✅ | `workflowexecutionlog_tenant_isolation` | `app.current_tenant` |
+| `workflows_tenantworkformexecution` | ✅ | `tenantworkformexecution_tenant_isolation` | `app.current_tenant` |
 
 **Total Policies**: 17 tables × 1 policy each = **17 RLS policies**
 
@@ -99,6 +100,8 @@ All workflow-related tables have Row-Level Security **ENABLED** and **FORCED**:
 | `ai_assistant_feedback_logs` | ✅ | `ai_assistant/0006_aifeedbacklog` | Mar 20, 2026 |
 | `ai_assistant_vector_memory` | ✅ | `ai_assistant/0007_vectormemory` | Mar 20, 2026 |
 | `ai_assistant_documents` | ✅ | `ai_assistant/0009_aidocument` | Mar 23, 2026 |
+| `ai_assistant_communication_logs` | ✅ | `ai_assistant/0014_communicationlog` | Mar 31, 2026 |
+| `ai_assistant_tenant_memory` | ✅ | `ai_assistant/0015_tenantaimemory` | Mar 31, 2026 |
 
 ---
 

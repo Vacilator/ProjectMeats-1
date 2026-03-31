@@ -126,6 +126,35 @@ This file is the **append-only PR-referenceable execution log**.
 - Safety: wrapped WorkForms InProgress/History/Monitoring in ErrorBoundary.
 - PR: #4239
 
+### 2026-03-31 — AI tools: schema discovery + entity creation + orchestration
+- Added/expanded Swarm tools:
+  - `get_entity_schema(entity_type)` (same engine as `/api/v1/system/forms/schema/`)
+  - `create_entity(entity_type, payload)` allowlisted DRF create for supplier/customer/contact/plant/location
+  - `parse_document(file_id_or_url)` (document_id-only for SSRF safety; uses Unstructured API when configured)
+  - `create_in_app_notification(...)` (notify admins/other users; permission-gated)
+  - `trigger_workform(workflow_id, initial_data)` (creates a persisted execution record + runs WorkFormEngine scaffold)
+  - `draft_vendor_email(vendor_id, context[, vendor_type])` (stages outbound email as Draft in CommunicationLog)
+- Hardened Swarm system prompt + routing to enforce:
+  - Schema → Ask → Create
+  - Read → Map → Confirm → Create (document-driven)
+- Unblocked fresh DBs/tests without pgvector by storing embeddings as JSON arrays (pgvector optional).
+- Added daily watchdog task (`ai_assistant.run_daily_watchdog`) to notify tenant admins about overdue POs.
+- Added granular RBAC scaffolding:
+  - `plant_manager` role + `restricted_plants` / `restricted_locations` on TenantUser
+  - `IsRoleAuthorized` permission to scope PATCH/DELETE on Plant + Contact
+- Added tenant-safe caching for heavy Supplier/Customer rollups:
+  - cached list/retrieve per-tenant (15m TTL)
+  - invalidation via tenant cache version bump signals (plant/location/contact product changes)
+- CI/CD consolidation (reduce Actions feed clutter):
+  - moved PR validation + security scan jobs into `main-pipeline.yml`
+  - removed standalone workflows: `pr-validation.yml`, `21-security-scan.yml`, `41-auto-promote.yml`
+  - NOTE: update Branch Protection Required Status Checks to point to the new job names under "Master Pipeline"
+- Enterprise AI Roadmap — Pillar 1 memory:
+  - added `TenantAIMemory` (tenant-scoped, RLS-enforced) for durable rules/preferences
+  - added Swarm tools: `save_memory` + `retrieve_memory`
+  - injected relevant Tenant Memory block into Swarm system prompt (server-side)
+- PR: #4276
+
 ### 2026-03-30 — Docs: master plan gap analysis + roadmap hygiene
 - Updated `MASTER_PLAN.md` (canonical) with an industry-leader benchmark gap analysis (P0/P1/P2) and refreshed execution-ordered backlog.
 - Converted non-canonical roadmaps/plans into clearer **REFERENCE ONLY** docs (removed/neutralized misleading progress emphasis).

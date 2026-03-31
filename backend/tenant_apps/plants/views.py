@@ -1,6 +1,7 @@
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
+from apps.core.permissions import IsRoleAuthorized
 from rest_framework.response import Response
 from rest_framework.exceptions import ValidationError as DRFValidationError
 from rest_framework.filters import SearchFilter, OrderingFilter
@@ -18,7 +19,7 @@ logger = logging.getLogger(__name__)
 class PlantViewSet(viewsets.ModelViewSet):
     queryset = Plant.objects.all()
     serializer_class = PlantSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, IsRoleAuthorized]
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     filterset_fields = ["supplier", "plant_type", "is_active", "city", "state"]
     search_fields = ["name", "code", "address", "city", "state", "manager"]
