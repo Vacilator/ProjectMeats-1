@@ -1467,3 +1467,4 @@ Deliverables:
 - 2026-03-31 — Frontend: AdminTable now renders via AntD Table (reduces duplicate table primitives) — PR: #4261.
 - 2026-03-31 — Frontend: consolidate modals on AntD (remove custom Modal wrapper) — PR: #4263.
 - 2026-03-31 — Frontend: hierarchy drilldown routing (deep-link plants/locations + contacts filters) — PR: #4265.
+- 2026-03-31 — Settings: remove tenant branding + rename admin link label — PR: #4270.
