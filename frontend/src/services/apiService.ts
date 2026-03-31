@@ -184,9 +184,27 @@ apiClient.interceptors.response.use(
   (response) => response,
   async (error: AxiosErrorType) => {
     const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean; _retryCount?: number };
+
+    const status = error.response?.status;
+
+    // Circuit breaker: do NOT trigger auth refresh flows for transient upstream/server errors.
+    if (status && [500, 502, 503, 504].includes(status)) {
+      const friendlyMessage =
+        status === 502
+          ? 'Server temporarily unreachable. Please try again shortly.'
+          : 'Server error. Please try again shortly.';
+
+      logger.error('[API] Server error (circuit breaker)', {
+        status,
+        url: originalRequest?.url,
+        method: originalRequest?.method,
+      });
+
+      return Promise.reject(new Error(friendlyMessage));
+    }
     
     // Log the error for debugging
-    if (error.response?.status === 401) {
+    if (status === 401) {
       console.warn('[API] 401 Unauthorized:', {
         url: originalRequest?.url,
         method: originalRequest?.method,
@@ -198,7 +216,7 @@ apiClient.interceptors.response.use(
     }
     
     // Handle 401 Unauthorized
-    if (error.response?.status === 401 && originalRequest && !originalRequest._retry) {
+    if (status === 401 && originalRequest && !originalRequest._retry) {
       // Prevent infinite retry loops
       const retryCount = (originalRequest._retryCount || 0) + 1;
       if (retryCount > 2) {
@@ -278,9 +296,27 @@ adminClient.interceptors.response.use(
   (response) => response,
   async (error: AxiosErrorType) => {
     const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean; _retryCount?: number };
+
+    const status = error.response?.status;
+
+    // Circuit breaker: do NOT trigger auth refresh flows for transient upstream/server errors.
+    if (status && [500, 502, 503, 504].includes(status)) {
+      const friendlyMessage =
+        status === 502
+          ? 'Server temporarily unreachable. Please try again shortly.'
+          : 'Server error. Please try again shortly.';
+
+      logger.error('[Admin API] Server error (circuit breaker)', {
+        status,
+        url: originalRequest?.url,
+        method: originalRequest?.method,
+      });
+
+      return Promise.reject(new Error(friendlyMessage));
+    }
     
     // Log the error for debugging
-    if (error.response?.status === 401) {
+    if (status === 401) {
       console.warn('[Admin API] 401 Unauthorized:', {
         url: originalRequest?.url,
         method: originalRequest?.method,
