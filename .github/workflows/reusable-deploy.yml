@@ -258,12 +258,29 @@ jobs:
       contents: read
       security-events: write
     steps:
+      # SARIF generation should not gate deployments.
+      # Trivy's SARIF mode may include all severities, which can incorrectly fail the job
+      # even when CRITICAL/HIGH are 0. We enforce severity thresholds in a separate step.
       - name: Run Trivy vulnerability scanner (SARIF)
         uses: aquasecurity/trivy-action@master
         with:
           image-ref: ${{ env.REGISTRY }}/${{ env.BACKEND_IMAGE }}:${{ inputs.environment }}-${{ github.sha }}
           format: 'sarif'
           output: 'trivy-results-backend.sarif'
+          severity: 'CRITICAL,HIGH'
+          ignore-unfixed: true
+          scanners: 'vuln'
+          vuln-type: 'os,library'
+          exit-code: '0'
+        env:
+          TRIVY_USERNAME: ${{ secrets.DO_ACCESS_TOKEN }}
+          TRIVY_PASSWORD: ${{ secrets.DO_ACCESS_TOKEN }}
+
+      - name: Enforce Trivy severity gate (CRITICAL,HIGH)
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ env.REGISTRY }}/${{ env.BACKEND_IMAGE }}:${{ inputs.environment }}-${{ github.sha }}
+          format: 'table'
           severity: 'CRITICAL,HIGH'
           ignore-unfixed: true
           scanners: 'vuln'
@@ -448,12 +465,27 @@ jobs:
       contents: read
       security-events: write
     steps:
+      # SARIF generation should not gate deployments (see backend scan notes).
       - name: Run Trivy vulnerability scanner (SARIF)
         uses: aquasecurity/trivy-action@master
         with:
           image-ref: ${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE }}:${{ inputs.environment }}-${{ github.sha }}
           format: 'sarif'
           output: 'trivy-results-frontend.sarif'
+          severity: 'CRITICAL,HIGH'
+          ignore-unfixed: true
+          scanners: 'vuln'
+          vuln-type: 'os,library'
+          exit-code: '0'
+        env:
+          TRIVY_USERNAME: ${{ secrets.DO_ACCESS_TOKEN }}
+          TRIVY_PASSWORD: ${{ secrets.DO_ACCESS_TOKEN }}
+
+      - name: Enforce Trivy severity gate (CRITICAL,HIGH)
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE }}:${{ inputs.environment }}-${{ github.sha }}
+          format: 'table'
           severity: 'CRITICAL,HIGH'
           ignore-unfixed: true
           scanners: 'vuln'

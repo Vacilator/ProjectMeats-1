@@ -46,8 +46,12 @@ RUN npm run build \
 
 # Runtime with nginx and npm installed
 FROM nginx:alpine
-RUN apk add --no-cache nodejs npm bash gettext \
-    && rm -rf /var/cache/apk/* /tmp/*  # Clean up apk cache
+
+# Pull in Alpine security fixes for base packages (e.g., libpng/zlib) before installing runtime deps.
+RUN apk update \
+    && apk upgrade --no-cache \
+    && apk add --no-cache nodejs npm bash gettext \
+    && rm -rf /var/cache/apk/* /tmp/*
 
 # Copy configs to 'templates' directory (NOT conf.d) to prevent auto-loading
 # This prevents Nginx from automatically including them
