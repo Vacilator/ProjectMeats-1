@@ -4025,6 +4025,11 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     (nodeTypeId: string, position?: { x: number; y: number }) => {
       if (readOnly) return;
 
+      if (!NODE_TYPE_REGISTRY[nodeTypeId]) {
+        toast.error(`Unknown node type suggestion: ${nodeTypeId}`, { duration: 4000 });
+        return;
+      }
+
       // Container creation is complex (pages, layout, etc.) — route through the existing click-to-add flow.
       if (!position || isFormProcessContainerType(nodeTypeId)) {
         handleClickToAddNode(nodeTypeId);
