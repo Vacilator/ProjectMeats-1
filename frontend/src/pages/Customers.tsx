@@ -6,10 +6,8 @@ import styled from 'styled-components';
 import { useTheme } from '../contexts/ThemeContext';
 import { Theme } from '../config/theme';
 import { apiService, Customer, apiClient } from '../services/apiService';
-import { PhoneInput, Select } from '../components/ui';
 import { MultiSelect } from '../components/Shared';
 import EntityFormSurface from '../components/Shared/EntityFormSurface';
-import { CONTACT_DEPARTMENT_CHOICES, PROTEIN_TYPE_CHOICES } from '../utils/constants/choices';
 
 interface CustomerLocation {
   id: number;
@@ -75,17 +73,6 @@ const Customers: React.FC = () => {
   const [locationProductsLoading, setLocationProductsLoading] = useState(false);
 
   const [showContactModal, setShowContactModal] = useState(false);
-  const [contactForm, setContactForm] = useState({
-    department: 'sales',
-    first_name: '',
-    last_name: '',
-    mobile_phone: '',
-    office_phone: '',
-    office_phone_ext: '',
-    email: '',
-    protein_types_responsible: [] as string[],
-    items_responsible: [] as string[],
-  });
 
   const [showLocationModal, setShowLocationModal] = useState(false);
   const [locationProductIds, setLocationProductIds] = useState<string[]>([]);
@@ -257,53 +244,7 @@ const Customers: React.FC = () => {
 
   const openCreateLocationContact = () => {
     if (!selectedCustomerId || !selectedLocationId) return;
-    setContactForm({
-      department: 'sales',
-      first_name: '',
-      last_name: '',
-      mobile_phone: '',
-      office_phone: '',
-      office_phone_ext: '',
-      email: '',
-      protein_types_responsible: [],
-      items_responsible: [],
-    });
     setShowContactModal(true);
-  };
-
-  const submitLocationContact = async () => {
-    if (!selectedCustomerId || !selectedLocationId) return;
-    if (!contactForm.first_name.trim() || !contactForm.last_name.trim()) {
-      alert('First name and last name are required');
-      return;
-    }
-
-    try {
-      const officePhone = (contactForm.office_phone || '').trim();
-      const mobilePhone = (contactForm.mobile_phone || '').trim();
-
-      await apiClient.post('contacts/', {
-        customer: selectedCustomerId,
-        location: selectedLocationId,
-        department: contactForm.department,
-        first_name: contactForm.first_name.trim(),
-        last_name: contactForm.last_name.trim(),
-        email: contactForm.email || null,
-        mobile_phone: contactForm.mobile_phone,
-        office_phone: contactForm.office_phone,
-        office_phone_ext: contactForm.office_phone_ext,
-        protein_types_responsible: contactForm.protein_types_responsible,
-        items_responsible: contactForm.items_responsible,
-        phone: officePhone || mobilePhone || '',
-        phone_type: officePhone ? 'office' : mobilePhone ? 'mobile' : 'office',
-      });
-
-      setShowContactModal(false);
-      await loadLocationContacts(selectedLocationId);
-    } catch (error) {
-      console.error('[Customers] Failed to create contact:', error);
-      alert('Failed to create contact');
-    }
   };
 
   const selectedLocation = selectedLocationId
@@ -488,123 +429,22 @@ const Customers: React.FC = () => {
         </FormOverlay>
       )}
 
-      {showContactModal && (
-        <FormOverlay>
-          <FormContainer $theme={theme}>
-            <FormHeader $theme={theme}>
-              <FormTitle $theme={theme}>Add Location Contact</FormTitle>
-              <CloseButton $theme={theme} onClick={() => setShowContactModal(false)}>×</CloseButton>
-            </FormHeader>
-
-            <Form onSubmit={(e) => { e.preventDefault(); void submitLocationContact(); }}>
-              <FormGrid>
-                <FormGroup>
-                  <Label $theme={theme}>Department</Label>
-                  <Select
-                    value={contactForm.department}
-                    onChange={(value) => setContactForm((p) => ({ ...p, department: value }))}
-                    options={CONTACT_DEPARTMENT_CHOICES}
-                    placeholder="Select department"
-                    aria-label="Department"
-                  />
-                </FormGroup>
-
-                <FormGroup>
-                  <Label $theme={theme}>First Name *</Label>
-                  <Input
-                    $theme={theme}
-                    type="text"
-                    value={contactForm.first_name}
-                    onChange={(e) => setContactForm((p) => ({ ...p, first_name: e.target.value }))}
-                    required
-                  />
-                </FormGroup>
-
-                <FormGroup>
-                  <Label $theme={theme}>Last Name *</Label>
-                  <Input
-                    $theme={theme}
-                    type="text"
-                    value={contactForm.last_name}
-                    onChange={(e) => setContactForm((p) => ({ ...p, last_name: e.target.value }))}
-                    required
-                  />
-                </FormGroup>
-
-                <FormGroup>
-                  <Label $theme={theme}>Email</Label>
-                  <Input
-                    $theme={theme}
-                    type="email"
-                    value={contactForm.email}
-                    onChange={(e) => setContactForm((p) => ({ ...p, email: e.target.value }))}
-                  />
-                </FormGroup>
-
-                <FormGroup>
-                  <Label $theme={theme}>Mobile Phone</Label>
-                  <PhoneInput
-                    value={contactForm.mobile_phone}
-                    onChange={(value) => setContactForm((p) => ({ ...p, mobile_phone: value }))}
-                    placeholder="(XXX)XXX-XXXX"
-                    aria-label="Mobile phone"
-                  />
-                </FormGroup>
-
-                <FormGroup>
-                  <Label $theme={theme}>Office Phone</Label>
-                  <PhoneInput
-                    value={contactForm.office_phone}
-                    onChange={(value) => setContactForm((p) => ({ ...p, office_phone: value }))}
-                    placeholder="(XXX)XXX-XXXX"
-                    aria-label="Office phone"
-                  />
-                </FormGroup>
-
-                <FormGroup>
-                  <Label $theme={theme}>Office EXT</Label>
-                  <Input
-                    $theme={theme}
-                    type="text"
-                    value={contactForm.office_phone_ext}
-                    onChange={(e) => setContactForm((p) => ({ ...p, office_phone_ext: e.target.value }))}
-                    placeholder="e.g., 123"
-                  />
-                </FormGroup>
-
-                <FormGroup $fullWidth>
-                  <MultiSelect
-                    value={contactForm.protein_types_responsible}
-                    onChange={(values) => setContactForm((p) => ({ ...p, protein_types_responsible: values }))}
-                    options={PROTEIN_TYPE_CHOICES}
-                    label="Preferred Protein Types"
-                    placeholder="Select protein types"
-                  />
-                </FormGroup>
-
-                <FormGroup $fullWidth>
-                  <MultiSelect
-                    value={contactForm.items_responsible}
-                    onChange={(values) => setContactForm((p) => ({ ...p, items_responsible: values.map(String) }))}
-                    options={products.map((p) => ({
-                      value: String(p.id),
-                      label: `${p.product_code}${p.name ? ' - ' + p.name : ''}`
-                    }))}
-                    label="Preferred Products"
-                    placeholder="Select products"
-                  />
-                </FormGroup>
-              </FormGrid>
-
-              <FormActions>
-                <CancelButton type="button" onClick={() => setShowContactModal(false)}>
-                  Cancel
-                </CancelButton>
-                <SubmitButton type="submit">Create Contact</SubmitButton>
-              </FormActions>
-            </Form>
-          </FormContainer>
-        </FormOverlay>
+      {showContactModal && selectedCustomerId && selectedLocationId && (
+        <EntityFormSurface
+          entityType="contact"
+          mode="create"
+          isOpen={showContactModal}
+          onClose={() => setShowContactModal(false)}
+          context={{ customerId: selectedCustomerId }}
+          initialValues={{
+            location: String(selectedLocationId),
+            department: 'sales',
+          }}
+          onSuccess={() => {
+            setShowContactModal(false);
+            void loadLocationContacts(selectedLocationId);
+          }}
+        />
       )}
 
       <TableContainer $theme={theme}>
