@@ -1,5 +1,5 @@
 /**
- * PhoneInput Component - Masked phone input with (XXX) XXX-XXXX format
+ * PhoneInput Component - Masked phone input with (XXX)XXX-XXXX format
  * 
  * Features:
  * - Auto-formatting as user types
@@ -13,16 +13,11 @@ import InputMask from '@mona-health/react-input-mask';
 import styled from 'styled-components';
 import { Theme } from '../../config/theme';
 import { useTheme } from '../../contexts/ThemeContext';
+import { formatUsPhone } from '@/utils/phone';
 
 export interface PhoneInputProps {
-  /**
-   * Optional to support AntD Form.Item injecting value/onChange at runtime.
-   */
-  value?: string;
-  /**
-   * Optional to support AntD Form.Item injecting value/onChange at runtime.
-   */
-  onChange?: (value: string) => void;
+  value: string;
+  onChange: (value: string) => void;
   placeholder?: string;
   error?: string;
   disabled?: boolean;
@@ -34,7 +29,7 @@ export interface PhoneInputProps {
 export const PhoneInput: React.FC<PhoneInputProps> = ({
   value,
   onChange,
-  placeholder = '(XXX) XXX-XXXX',
+  placeholder = '(XXX)XXX-XXXX',
   error,
   disabled = false,
   required = false,
@@ -44,20 +39,20 @@ export const PhoneInput: React.FC<PhoneInputProps> = ({
   const { theme } = useTheme();
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    // Strip formatting and pass raw digits
-    const rawValue = e.target.value.replace(/\D/g, '');
-    onChange?.(rawValue);
+    onChange(formatUsPhone(e.target.value));
   };
 
   return (
     <PhoneInputContainer>
       <StyledInputMask
-        mask="(999) 999-9999"
-        value={value ?? ''}
+        mask="(999)999-9999"
+        value={formatUsPhone(value)}
         onChange={handleChange}
         disabled={disabled}
         placeholder={placeholder}
         aria-label={ariaLabel}
+        inputMode="numeric"
+        maxLength={13}
         required={required}
         id={id}
         $theme={theme}

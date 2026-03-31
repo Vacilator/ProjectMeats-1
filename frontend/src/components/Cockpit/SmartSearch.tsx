@@ -23,7 +23,6 @@ import {
   Users, Building2, Package, TrendingUp, X
 } from 'lucide-react';
 import debounce from 'lodash/debounce';
-import Fuse from 'fuse.js';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Tabs, Spin, Button, Dropdown, message, type MenuProps } from 'antd';
 import { NotesAndCallsDrawer } from './NotesAndCallsDrawer';
@@ -31,11 +30,9 @@ import { businessApi } from '../../services/businessApi';
 import { useCockpitNavigation } from '../../contexts/CockpitNavigationContext';
 // UniversalEntityForm usage consolidated via EntityFormSurface
 
-import { EntityFormSurface } from '../Shared/EntityFormSurface';
-import { ScheduleCallModal } from '../Shared/ScheduleCallModal';
-import { InquiryEmbeddedView } from '../Inquiry/InquiryEmbeddedView';
+import { EntityFormSurface } from '../Shared';
+import { InquiryCreateModal } from '../Inquiry';
 import { EntityProfileHeader } from './EntityProfileHeader';
-import { type Inquiry } from '@/types';
 import { AIOverviewCard } from './AIOverviewCard';
 import { useFavorites } from '../../hooks/useFavorites';
 
@@ -57,124 +54,6 @@ export interface RelationalChunk {
   items: SearchEntity[];
   icon: React.ReactNode;
 }
-
-const MS_PER_DAY = 24 * 60 * 60 * 1000;
-
-const normalizeQuery = (q: string): string => String(q || '').toLowerCase().trim();
-
-const getEntityTimestampMs = (entity: SearchEntity): number | null => {
-  const meta = entity.metadata ?? {};
-
-  const candidates = [
-    'modified_on',
-    'modified_at',
-    'updated_on',
-    'updated_at',
-    'created_on',
-    'created_at',
-    'last_activity',
-    'last_activity_at',
-    'timestamp',
-    'date',
-  ];
-
-  for (const key of candidates) {
-    const raw = (meta as Record<string, unknown>)[key];
-    if (!raw) continue;
-
-    if (typeof raw === 'number' && Number.isFinite(raw)) {
-      // Heuristic: seconds vs ms
-      return raw > 1_000_000_000_000 ? raw : raw * 1000;
-    }
-
-    if (typeof raw === 'string') {
-      const parsed = Date.parse(raw);
-      if (Number.isFinite(parsed)) return parsed;
-    }
-  }
-
-  return null;
-};
-
-const formatRecencyLabel = (entity: SearchEntity): string => {
-  const ts = getEntityTimestampMs(entity);
-  if (!ts) return '—';
-
-  const ageDays = Math.floor((Date.now() - ts) / MS_PER_DAY);
-  if (ageDays <= 0) return 'Today';
-  if (ageDays === 1) return '1 day ago';
-  if (ageDays < 30) return `${ageDays} days ago`;
-
-  const months = Math.floor(ageDays / 30);
-  return months === 1 ? '1 month ago' : `${months} months ago`;
-};
-
-const rankSearchEntities = (
-  items: SearchEntity[],
-  query: string,
-  entityType: string,
-  isFavoritedFn: (entityType: string, entityId: number) => boolean
-): SearchEntity[] => {
-  const q = normalizeQuery(query);
-  if (!q) return items;
-
-  const typeFallback = String(entityType || '').toLowerCase();
-
-  // Use Fuse for fuzzy ordering (we do not expand results beyond what the server returned).
-  const fuse = new Fuse(items, {
-    includeScore: true,
-    threshold: 0.4,
-    ignoreLocation: true,
-    minMatchCharLength: 2,
-    keys: ['name', 'subtitle'],
-  });
-
-  const scoreById = new Map<string, number>();
-  for (const r of fuse.search(q)) {
-    scoreById.set(String(r.item.id), typeof r.score === 'number' ? r.score : 1);
-  }
-
-  return [...items].sort((a, b) => {
-    const aId = String(a.id);
-    const bId = String(b.id);
-
-    const aBase = scoreById.get(aId) ?? 1.2;
-    const bBase = scoreById.get(bId) ?? 1.2;
-
-    const aName = normalizeQuery(a.name);
-    const bName = normalizeQuery(b.name);
-
-    const aType = String(a.type || typeFallback).toLowerCase();
-    const bType = String(b.type || typeFallback).toLowerCase();
-
-    const aFav = isFavoritedFn(aType, Number(a.id));
-    const bFav = isFavoritedFn(bType, Number(b.id));
-
-    const aTs = getEntityTimestampMs(a);
-    const bTs = getEntityTimestampMs(b);
-
-    const aAgeDays = aTs ? (Date.now() - aTs) / MS_PER_DAY : null;
-    const bAgeDays = bTs ? (Date.now() - bTs) / MS_PER_DAY : null;
-
-    const aRecencyPenalty = aAgeDays !== null ? Math.min(aAgeDays / 365, 1) * 0.05 : 0;
-    const bRecencyPenalty = bAgeDays !== null ? Math.min(bAgeDays / 365, 1) * 0.05 : 0;
-
-    const aPrefixBoost = aName.startsWith(q) ? -0.12 : aName.includes(q) ? -0.06 : 0;
-    const bPrefixBoost = bName.startsWith(q) ? -0.12 : bName.includes(q) ? -0.06 : 0;
-
-    const aFavBoost = aFav ? -0.18 : 0;
-    const bFavBoost = bFav ? -0.18 : 0;
-
-    const aScore = aBase + aRecencyPenalty + aPrefixBoost + aFavBoost;
-    const bScore = bBase + bRecencyPenalty + bPrefixBoost + bFavBoost;
-
-    if (aScore !== bScore) return aScore - bScore;
-
-    // Stable tie-breakers
-    if (aName !== bName) return aName.localeCompare(bName);
-    return aId.localeCompare(bId);
-  });
-};
 
 // NOTE: Breadcrumb UI is owned by CockpitDashboard via <BreadcrumbBar />.
 // SmartSearch reacts to navigation path changes to implement continuous browsing.
@@ -632,38 +511,15 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
   const [results, setResults] = useState<Record<string, SearchEntity[]>>({});
   const [resultCounts, setResultCounts] = useState<Record<string, number>>({});
   const [relationalChunks, setRelationalChunks] = useState<RelationalChunk[]>([]);
-  const {
-    favorites,
-    toggleFavorite: toggleFavoriteMutation,
-    isFavorited,
-    isLoading: isFavoritesLoading,
-  } = useFavorites();
-
-  const rankedResults = useMemo(() => {
-    const q = normalizeQuery(query);
-    if (!q) return results;
-
-    const next: Record<string, SearchEntity[]> = {};
-    for (const [type, items] of Object.entries(results)) {
-      next[type] = rankSearchEntities(items, q, type, isFavorited);
-    }
-    return next;
-  }, [isFavorited, query, results]);
+  const { toggleFavorite: toggleFavoriteMutation, isFavorited, isLoading: isFavoritesLoading } = useFavorites();
   const [hasMigratedLegacyFavorites, setHasMigratedLegacyFavorites] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
   const [isRelationsLoading, setIsRelationsLoading] = useState(false);
 
   const [activeRelationTab, setActiveRelationTab] = useState<'orders' | 'invoices' | 'contacts' | 'inquiries' | 'more'>('orders');
   const [isNotesDrawerOpen, setIsNotesDrawerOpen] = useState(false);
-  const [showScheduleCallModal, setShowScheduleCallModal] = useState(false);
-  const [defaultCallPurpose, setDefaultCallPurpose] = useState<string | undefined>(undefined);
   const [relationTabData, setRelationTabData] = useState<Record<string, { items: SearchEntity[]; count: number }>>({});
   const [loadingRelationTab, setLoadingRelationTab] = useState<string | null>(null);
-
-  // Embedded Inquiry view (for customer → Inquiries tab). Keeps the user in Cockpit without opening a modal.
-  const [embeddedInquiry, setEmbeddedInquiry] = useState<Inquiry | null>(null);
-  const [isEmbeddedInquiryLoading, setIsEmbeddedInquiryLoading] = useState(false);
-  const [embeddedInquiryError, setEmbeddedInquiryError] = useState<string | null>(null);
 
   const [quickCreateConfig, setQuickCreateConfig] = useState<{ isOpen: boolean; type: string; context: any }>(
     { isOpen: false, type: '', context: {} }
@@ -919,7 +775,7 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
   /**
    * Handle quick action click
    */
-  const handleQuickAction = (action: SearchEntity) => {
+  const handleQuickAction = useCallback((action: SearchEntity) => {
     const actionType = action.metadata?.action as string | undefined;
     const entityId = (action.metadata?.entityId as string | number | undefined) ?? action.id;
 
@@ -965,36 +821,10 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
         });
         break;
       }
-      case 'create_invoice': {
-        // Prefer embedded quick-create with customer context.
-        if (onOpenInlineCreate && activeEntity) {
-          onOpenInlineCreate('invoice', activeEntity);
-          return;
-        }
-
-        if (activeEntity) {
-          setActiveRelationTab('invoices');
-        }
-        openQuickCreate('invoice');
-        break;
-      }
-      case 'schedule_call': {
-        setDefaultCallPurpose('follow_up');
-        setShowScheduleCallModal(true);
-        break;
-      }
       case 'view_purchase_history':
+      case 'view_history':
         navigate(`/purchase-orders?supplier_id=${entityId}`);
         break;
-      case 'view_history': {
-        const t = String(activeEntity?.type ?? '').toLowerCase();
-        if (t === 'customer') {
-          navigate(`/sales-orders?customer_id=${entityId}`);
-        } else {
-          navigate(`/purchase-orders?supplier_id=${entityId}`);
-        }
-        break;
-      }
       case 'send_email':
         window.dispatchEvent(new CustomEvent('pm:open-tool', { detail: { toolId: 'tool:email' } }));
         break;
@@ -1032,16 +862,10 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
       case 'view_sales_history':
         navigate(`/sales-orders?customer_id=${entityId}`);
         break;
-      case 'adjust_inventory':
-      case 'update_pricing':
-      case 'view_movement':
-      case 'schedule_meeting':
-        message.info('Coming soon');
-        break;
       default:
         console.warn('Unhandled quick action:', actionType, 'for entity', entityId);
     }
-  };
+  }, [navigate, navigation.path, onOpenInlineCreate, query, searchParams, setSearchParams]);
 
   /**
    * Toggle favorite
@@ -1125,36 +949,6 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
     const raw = String(activeEntity?.type ?? '').toLowerCase();
     return raw === 'customer' || raw === 'supplier';
   }, [activeEntity?.type]);
-
-  useEffect(() => {
-    // Only customer records should embed inquiry details. Clear selection when changing the active record.
-    setEmbeddedInquiry(null);
-    setEmbeddedInquiryError(null);
-    setIsEmbeddedInquiryLoading(false);
-  }, [activeEntity?.id, activeEntity?.type]);
-
-  const handleSelectEmbeddedInquiry = useCallback(async (inquiryId: string) => {
-    const id = String(inquiryId || '').trim();
-    if (!id) return;
-
-    setIsEmbeddedInquiryLoading(true);
-    setEmbeddedInquiryError(null);
-
-    try {
-      const response = await businessApi.get(`/inquiries/${id}/`);
-      setEmbeddedInquiry(response.data as Inquiry);
-    } catch (err: any) {
-      const msg =
-        err?.response?.data?.detail ||
-        err?.response?.data?.error ||
-        err?.message ||
-        'Failed to load inquiry details.';
-      setEmbeddedInquiry(null);
-      setEmbeddedInquiryError(String(msg));
-    } finally {
-      setIsEmbeddedInquiryLoading(false);
-    }
-  }, []);
 
   const buildCascadeContext = useCallback((source: SearchEntity | null, targetType: string) => {
     if (!source) return {};
@@ -1299,7 +1093,7 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
    * Render search results (top-5 per type)
    */
   const renderSearchResults = () => {
-    const types = Object.keys(resultCounts).length ? Object.keys(resultCounts) : Object.keys(rankedResults);
+    const types = Object.keys(resultCounts).length ? Object.keys(resultCounts) : Object.keys(results);
 
     if (types.length === 0) {
       return (
@@ -1315,143 +1109,69 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
       );
     }
 
-    const isEntityFavorited = (entity: SearchEntity) => {
-      return isFavorited(String(entity.type).toLowerCase(), Number(entity.id));
-    };
+    return types.map(type => {
+      const entities = results[type] ?? [];
+      const count = resultCounts[type] ?? entities.length;
+      const typeLabel = formatEntityTypePluralLabel(type);
 
-    const q = String(query || '').toLowerCase().trim();
+      return (
+        <Section key={type}>
+          <SectionHeader>
+            <SectionTitle>
+              {getEntityIcon(type as SearchEntity['type'], 16)}
+              {typeLabel}
+              <SectionCount>({count})</SectionCount>
+            </SectionTitle>
+            <Button size="small" type="primary" onClick={() => openQuickCreate(type)}>
+              + New {formatEntityLabel(type)}
+            </Button>
+          </SectionHeader>
 
-    // Favorites section should be driven by the user's saved favorites (not only what's returned
-    // in the top-N results per entity type). Filter by the current query so it stays relevant.
-    const favoritesInResults: SearchEntity[] = (q
-      ? favorites
-          .filter((f) => String(f.entity_title || '').toLowerCase().includes(q))
-          .slice(0, 12)
-          .map((f) => ({
-            id: String(f.entity_id),
-            type: String(f.entity_type),
-            name: String(f.entity_title || '').trim() || `${String(f.entity_type)} #${String(f.entity_id)}`,
-            subtitle: 'Favorite',
-            metadata: { favorite_created_at: f.created_at },
-          }))
-      : []);
+          <ResultGrid>
+            {entities.map(entity => (
+              <ResultCard
+                key={entity.id}
+                onClick={() => handleSelectEntity(entity)}
+                onKeyDown={(e) => handleCardKeyDown(e, () => handleSelectEntity(entity))}
+              >
+                <ResultIcon $tone={getEntityTone(entity.type)}>
+                  {getEntityIcon(entity.type)}
+                </ResultIcon>
 
-    return (
-      <>
-        {favoritesInResults.length > 0 && (
-          <Section key="favorites">
-            <SectionHeader>
-              <SectionTitle>
-                <Star size={16} />
-                Favorites
-                <SectionCount>({favoritesInResults.length})</SectionCount>
-              </SectionTitle>
-            </SectionHeader>
+                <ResultContent>
+                  <ResultTitle>{entity.name}</ResultTitle>
+                  {entity.subtitle && (
+                    <ResultSubtitle>{entity.subtitle}</ResultSubtitle>
+                  )}
+                  <ResultMeta>
+                    <Clock size={10} />
+                    Last modified: Today
+                  </ResultMeta>
+                </ResultContent>
 
-            <ResultGrid>
-              {favoritesInResults.map((entity) => {
-                const favoritedOn = String((entity.metadata as any)?.favorite_created_at || '').slice(0, 10);
-
-                return (
-                  <ResultCard
-                    key={`${String(entity.type)}:${String(entity.id)}`}
-                    onClick={() => handleSelectEntity(entity)}
-                    onKeyDown={(e) => handleCardKeyDown(e, () => handleSelectEntity(entity))}
-                  >
-                    <ResultIcon $tone={getEntityTone(entity.type)}>
-                      {getEntityIcon(entity.type)}
-                    </ResultIcon>
-
-                    <ResultContent>
-                      <ResultTitle>{entity.name}</ResultTitle>
-                      {entity.subtitle && <ResultSubtitle>{entity.subtitle}</ResultSubtitle>}
-                      <ResultMeta>
-                        <Clock size={10} />
-                        Favorited: {favoritedOn || '—'}
-                      </ResultMeta>
-                    </ResultContent>
-
-                    <FavoriteButton
-                      type="button"
-                      $isFavorite={true}
-                      onClick={(e) => toggleFavorite(entity.type, entity.id, entity.name, e)}
-                      title="Remove from favorites"
-                      aria-label="Remove from favorites"
-                    >
-                      <Star size={16} />
-                    </FavoriteButton>
-                  </ResultCard>
-                );
-              })}
-            </ResultGrid>
-          </Section>
-        )}
-
-        {types.map((type) => {
-          const entities = (rankedResults[type] ?? []).filter((entity) => !isEntityFavorited(entity));
-          if (entities.length === 0) return null;
-
-          const count = resultCounts[type] ?? entities.length;
-          const typeLabel = formatEntityTypePluralLabel(type);
-
-          return (
-            <Section key={type}>
-              <SectionHeader>
-                <SectionTitle>
-                  {getEntityIcon(type as SearchEntity['type'], 16)}
-                  {typeLabel}
-                  <SectionCount>({count})</SectionCount>
-                </SectionTitle>
-                <Button size="small" type="primary" onClick={() => openQuickCreate(type)}>
-                  + New {formatEntityLabel(type)}
-                </Button>
-              </SectionHeader>
-
-              <ResultGrid>
-                {entities.map((entity) => (
-                  <ResultCard
-                    key={entity.id}
-                    onClick={() => handleSelectEntity(entity)}
-                    onKeyDown={(e) => handleCardKeyDown(e, () => handleSelectEntity(entity))}
-                  >
-                    <ResultIcon $tone={getEntityTone(entity.type)}>
-                      {getEntityIcon(entity.type)}
-                    </ResultIcon>
-
-                    <ResultContent>
-                      <ResultTitle>{entity.name}</ResultTitle>
-                      {entity.subtitle && <ResultSubtitle>{entity.subtitle}</ResultSubtitle>}
-                      <ResultMeta>
-                        <Clock size={10} />
-                        Last modified: {formatRecencyLabel(entity)}
-                      </ResultMeta>
-                    </ResultContent>
-
-                    <FavoriteButton
-                      type="button"
-                      $isFavorite={isFavorited(String(entity.type).toLowerCase(), Number(entity.id))}
-                      onClick={(e) => toggleFavorite(entity.type, entity.id, entity.name, e)}
-                      title={
-                        isFavorited(String(entity.type).toLowerCase(), Number(entity.id))
-                          ? 'Remove from favorites'
-                          : 'Add to favorites'
-                      }
-                      aria-label={
-                        isFavorited(String(entity.type).toLowerCase(), Number(entity.id))
-                          ? 'Remove from favorites'
-                          : 'Add to favorites'
-                      }
-                    >
-                      <Star size={16} />
-                    </FavoriteButton>
-                  </ResultCard>
-                ))}
-              </ResultGrid>
-            </Section>
-          );
-        })}
-      </>
-    );
+                <FavoriteButton
+                  type="button"
+                  $isFavorite={isFavorited(String(entity.type).toLowerCase(), Number(entity.id))}
+                  onClick={(e) => toggleFavorite(entity.type, entity.id, entity.name, e)}
+                  title={
+                    isFavorited(String(entity.type).toLowerCase(), Number(entity.id))
+                      ? 'Remove from favorites'
+                      : 'Add to favorites'
+                  }
+                  aria-label={
+                    isFavorited(String(entity.type).toLowerCase(), Number(entity.id))
+                      ? 'Remove from favorites'
+                      : 'Add to favorites'
+                  }
+                >
+                  <Star size={16} />
+                </FavoriteButton>
+              </ResultCard>
+            ))}
+          </ResultGrid>
+        </Section>
+      );
+    });
   };
 
   /**
@@ -1706,43 +1426,12 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
           entityLabel={activeEntity?.name}
         />
 
-        <ScheduleCallModal
-          isOpen={showScheduleCallModal}
-          onClose={() => {
-            setShowScheduleCallModal(false);
-            setDefaultCallPurpose(undefined);
-          }}
-          onSuccess={() => {
-            setShowScheduleCallModal(false);
-            setDefaultCallPurpose(undefined);
-            if (activeEntity) {
-              if (activeRelationTab !== 'more') {
-                void loadRelationshipTab(activeRelationTab, activeEntity);
-              }
-              void loadRelationalChunks(activeEntity);
-            }
-          }}
-          defaultCallPurpose={defaultCallPurpose}
-          defaultEntityType={
-            activeEntity && ['customer', 'supplier'].includes(String(activeEntity.type).toLowerCase())
-              ? (String(activeEntity.type).toLowerCase() as 'customer' | 'supplier')
-              : undefined
-          }
-          defaultEntityId={Number.isFinite(Number(activeEntity?.id)) ? Number(activeEntity?.id) : undefined}
-        />
-
         {quickCreateConfig.isOpen && (
           <div style={{ marginTop: 12 }}>
             {String(quickCreateConfig.type).toLowerCase() === 'inquiry' ? (
-              <EntityFormSurface
-                entityType="inquiry"
-                mode="create"
+              <InquiryCreateModal
                 isOpen={true}
                 onClose={closeQuickCreate}
-                context={{
-                  customerId: quickCreateConfig.context?.customer || quickCreateConfig.context?.customer_id,
-                  supplierId: quickCreateConfig.context?.supplier || quickCreateConfig.context?.supplier_id,
-                }}
                 onSuccess={() => {
                   if (activeEntity) {
                     if (activeRelationTab !== 'more') {
@@ -1752,6 +1441,22 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
                   }
                   closeQuickCreate();
                 }}
+                enableSupplierPlantSelection={Boolean(
+                  quickCreateConfig.context?.customer || quickCreateConfig.context?.customer_id
+                )}
+                initialEntityType={
+                  quickCreateConfig.context?.customer || quickCreateConfig.context?.customer_id
+                    ? 'customer'
+                    : quickCreateConfig.context?.supplier || quickCreateConfig.context?.supplier_id
+                      ? 'supplier'
+                      : undefined
+                }
+                initialEntityId={
+                  quickCreateConfig.context?.customer ||
+                  quickCreateConfig.context?.customer_id ||
+                  quickCreateConfig.context?.supplier ||
+                  quickCreateConfig.context?.supplier_id
+                }
               />
             ) : (
               <EntityFormSurface
@@ -1825,15 +1530,9 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
         {inlineAction && activeEntity && (
           <div style={{ marginTop: 12 }}>
             {String(inlineAction.entityType).toLowerCase() === 'inquiry' ? (
-              <EntityFormSurface
-                entityType="inquiry"
-                mode="create"
+              <InquiryCreateModal
                 isOpen={true}
                 onClose={() => onInlineCancel?.()}
-                context={{
-                  customerId: inlineAction.contextData?.customer || inlineAction.contextData?.customer_id,
-                  supplierId: inlineAction.contextData?.supplier || inlineAction.contextData?.supplier_id,
-                }}
                 onSuccess={() => {
                   if (activeEntity) {
                     if (activeRelationTab !== 'more') {
@@ -1843,6 +1542,22 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
                   }
                   onInlineSuccess?.();
                 }}
+                enableSupplierPlantSelection={Boolean(
+                  inlineAction.contextData?.customer || inlineAction.contextData?.customer_id
+                )}
+                initialEntityType={
+                  inlineAction.contextData?.customer || inlineAction.contextData?.customer_id
+                    ? 'customer'
+                    : inlineAction.contextData?.supplier || inlineAction.contextData?.supplier_id
+                      ? 'supplier'
+                      : undefined
+                }
+                initialEntityId={
+                  inlineAction.contextData?.customer ||
+                  inlineAction.contextData?.customer_id ||
+                  inlineAction.contextData?.supplier ||
+                  inlineAction.contextData?.supplier_id
+                }
               />
             ) : (
               <EntityFormSurface
@@ -1998,71 +1713,19 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
                   children: loadingRelationTab === 'inquiries' ? (
                     <div style={{ padding: 12 }}><Spin /></div>
                   ) : relationTabData.inquiries?.items?.length ? (
-                    <div>
-                      <ResultGrid>
-                        {relationTabData.inquiries.items.map(item => {
-                          const meta = (item.metadata ?? {}) as Record<string, any>;
-                          const inquiryNumber = String(meta.inquiry_number ?? item.name ?? '').trim() || 'Inquiry';
-                          const productSummary = Array.isArray(meta.product_summary) ? (meta.product_summary as unknown[]) : [];
-                          const productsText = productSummary
-                            .slice(0, 4)
-                            .map((v) => String(v))
-                            .filter(Boolean)
-                            .join(' • ');
-                          const moreCount = Number(meta.product_more_count ?? 0);
-                          const createdOn = String(meta.created_on ?? '').slice(0, 10);
-                          const modifiedOn = String(meta.modified_on ?? '').slice(0, 10);
-
-                          return (
-                            <ResultCard key={item.id} onClick={() => void handleSelectEmbeddedInquiry(item.id)}>
-                              <ResultIcon $tone={getEntityTone(item.type)}>
-                                {getEntityIcon(item.type)}
-                              </ResultIcon>
-                              <ResultContent style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
-                                <div style={{ minWidth: 0 }}>
-                                  <ResultTitle>{inquiryNumber}</ResultTitle>
-                                  <ResultSubtitle>
-                                    {productsText ? (
-                                      <span>
-                                        {productsText}
-                                        {moreCount > 0 ? ` +${moreCount} more` : ''}
-                                      </span>
-                                    ) : item.subtitle ? (
-                                      item.subtitle
-                                    ) : (
-                                      '—'
-                                    )}
-                                  </ResultSubtitle>
-                                </div>
-
-                                <div style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
-                                  <div style={{ fontSize: 12, color: 'rgb(var(--color-text-secondary))' }}>
-                                    Modified: {modifiedOn || '—'}
-                                  </div>
-                                  <div style={{ fontSize: 12, color: 'rgb(var(--color-text-secondary))' }}>
-                                    Created: {createdOn || '—'}
-                                  </div>
-                                </div>
-                              </ResultContent>
-                            </ResultCard>
-                          );
-                        })}
-                      </ResultGrid>
-
-                      <div style={{ marginTop: 12 }}>
-                        {embeddedInquiryError ? (
-                          <div style={{ padding: 10, border: '1px solid rgb(var(--color-border))', borderRadius: 'var(--radius-md)', color: 'rgb(var(--color-error))' }}>
-                            {embeddedInquiryError}
-                          </div>
-                        ) : null}
-
-                        {isEmbeddedInquiryLoading ? (
-                          <div style={{ padding: 12 }}><Spin /></div>
-                        ) : embeddedInquiry ? (
-                          <InquiryEmbeddedView inquiry={embeddedInquiry} onClose={() => setEmbeddedInquiry(null)} />
-                        ) : null}
-                      </div>
-                    </div>
+                    <ResultGrid>
+                      {relationTabData.inquiries.items.map(item => (
+                        <ResultCard key={item.id} onClick={() => handleSelectEntity(item)}>
+                          <ResultIcon $tone={getEntityTone(item.type)}>
+                            {getEntityIcon(item.type)}
+                          </ResultIcon>
+                          <ResultContent>
+                            <ResultTitle>{item.name}</ResultTitle>
+                            {item.subtitle && <ResultSubtitle>{item.subtitle}</ResultSubtitle>}
+                          </ResultContent>
+                        </ResultCard>
+                      ))}
+                    </ResultGrid>
                   ) : (
                     <EmptyState>
                       <EmptyIcon><FileText size={48} /></EmptyIcon>

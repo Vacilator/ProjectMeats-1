@@ -14,6 +14,7 @@
  */
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { logger } from '@/utils/logger';
+import { formatUsPhone } from '@/utils/phone';
 
 import { createPortal } from 'react-dom';
 import styled, { css } from 'styled-components';
@@ -1841,10 +1842,12 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
             {...ariaProps}
             $hasError={hasError}
             type="tel"
-            value={value}
-            onChange={e => handleChange(stepId, field.key, e.target.value)}
+            inputMode="numeric"
+            maxLength={13}
+            value={formatUsPhone(String(value || ''))}
+            onChange={e => handleChange(stepId, field.key, formatUsPhone(e.target.value))}
             onBlur={() => handleBlur(stepId, field.key)}
-            placeholder={field.placeholder || '(555) 123-4567'}
+            placeholder={field.placeholder || '(XXX)XXX-XXXX'}
             autoComplete="tel"
           />
         );

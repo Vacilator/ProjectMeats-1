@@ -17,6 +17,8 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.exceptions import ValidationError as DRFValidationError
 from django.core.exceptions import ValidationError
+from django.db import models
+from django.db.models import Exists, OuterRef
 from tenant_apps.suppliers.models import Supplier
 from tenant_apps.suppliers.serializers import SupplierSerializer
 from apps.tenants.models import TenantUser
@@ -158,6 +160,45 @@ class SupplierViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
     
+    @action(detail=False, methods=['get'], url_path='for-product')
+    def for_product(self, request):
+        """Return all suppliers, sorted by whether they have the given product available.
+
+        GET /api/v1/suppliers/for-product/?product=<system-product-uuid>
+
+        Does NOT filter out suppliers without the product; it only sorts them last.
+        """
+        tenant = getattr(request, 'tenant', None)
+        product_id = request.query_params.get('product')
+
+        if not tenant:
+            return Response({'error': 'Tenant not found'}, status=status.HTTP_400_BAD_REQUEST)
+
+        qs = Supplier.objects.for_tenant(tenant).only('id', 'name')
+
+        if product_id:
+            from tenant_apps.suppliers.models import SupplierAvailableItem
+
+            available = SupplierAvailableItem.objects.filter(
+                tenant=tenant,
+                supplier_id=OuterRef('pk'),
+                product_id=product_id,
+                is_active=True,
+            )
+            qs = qs.annotate(has_product=Exists(available)).order_by('-has_product', 'name')
+        else:
+            qs = qs.annotate(has_product=models.Value(False, output_field=models.BooleanField())).order_by('name')
+
+        data = [
+            {
+                'id': s.id,
+                'name': s.name,
+                'has_product': bool(getattr(s, 'has_product', False)),
+            }
+            for s in qs
+        ]
+        return Response(data)
+
     @action(detail=True, methods=['get'], url_path='products')
     def products(self, request, pk=None):
         """

@@ -208,7 +208,7 @@ describe('formValidation', () => {
       });
 
       it('passes for phone with parentheses', () => {
-        expect(validateField('(555) 123-4567', rules).isValid).toBe(true);
+        expect(validateField('(555)123-4567', rules).isValid).toBe(true);
       });
     });
 

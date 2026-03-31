@@ -1,12 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Skeleton } from 'antd';
 import styled from 'styled-components';
 import { useLocation } from 'react-router-dom';
-import { confirmDialog, showAlert } from '@/utils/uiDialogs';
 import { apiService, Contact } from '../services/apiService';
 import { apiClient } from '../services/apiService';
-import { PhoneInput } from '../components/ui/PhoneInput';
-import { isValidEmail } from '../shared/utils';
+import { formatUsPhone } from '@/utils/phone';
 
 // Styled Components
 const Container = styled.div`
@@ -321,13 +318,6 @@ const SubmitButton = styled.button`
   }
 `;
 
-const PHONE_TYPE_OPTIONS = [
-  { value: 'office', label: 'Office' },
-  { value: 'mobile', label: 'Mobile' },
-];
-
-type PhoneType = 'office' | 'mobile';
-
 const Contacts: React.FC = () => {
   const location = useLocation();
   const [contacts, setContacts] = useState<Contact[]>([]);
@@ -346,7 +336,6 @@ const Contacts: React.FC = () => {
     last_name: '',
     email: '',
     phone: '',
-    phone_type: 'office' as PhoneType,
     company: '',
     position: '',
     supplier: '',
@@ -408,12 +397,6 @@ const Contacts: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
-    if (formData.email?.trim() && !isValidEmail(formData.email.trim())) {
-      showAlert({ type: 'warning', title: 'Validation', content: 'Please enter a valid email address' });
-      return;
-    }
-
     try {
       if (editingContact) {
         await apiService.updateContact(editingContact.id, formData);
@@ -430,7 +413,6 @@ const Contacts: React.FC = () => {
         last_name: '',
         email: '',
         phone: '',
-        phone_type: 'office',
         company: '',
         position: '',
         supplier: '',
@@ -448,11 +430,7 @@ const Contacts: React.FC = () => {
         } : 'No response data'
       });
       // Display user-friendly error to the UI
-      showAlert({
-        type: 'error',
-        title: 'Error',
-        content: `Failed to save contact: ${err.message || 'Please try again later'}`,
-      });
+      alert(`Failed to save contact: ${err.message || 'Please try again later'}`);
     }
   };
 
@@ -463,7 +441,6 @@ const Contacts: React.FC = () => {
       last_name: contact.last_name,
       email: contact.email || '',
       phone: contact.phone || '',
-      phone_type: (contact as any).phone_type || 'office',
       company: contact.company || '',
       position: contact.position || '',
       supplier: String((contact as any).supplier || ''),
@@ -479,37 +456,21 @@ const Contacts: React.FC = () => {
   };
 
   const handleDelete = async (id: number) => {
-    const confirmed = await confirmDialog({
-      title: 'Delete contact?',
-      content: 'Are you sure you want to delete this contact?',
-      okText: 'Delete',
-      cancelText: 'Cancel',
-      danger: true,
-    });
-
-    if (!confirmed) return;
-
-    try {
-      await apiService.deleteContact(id);
-      showAlert({
-        type: 'success',
-        title: 'Deleted',
-        content: 'Contact deleted successfully.',
-      });
-      await loadContacts(); // Re-fetch to update the list
-    } catch (error: unknown) {
-      // Type-safe error handling: Use 'unknown' instead of 'any' and assert expected structure
-      console.error('Error deleting contact:', error);
-      const err = error as { response?: { data?: { detail?: string; message?: string } }; message?: string };
-      const errorMessage = err?.response?.data?.detail
-        || err?.response?.data?.message
-        || err?.message
-        || 'Failed to delete contact';
-      showAlert({
-        type: 'error',
-        title: 'Error',
-        content: `Error: ${errorMessage}`,
-      });
+    if (window.confirm('Are you sure you want to delete this contact?')) {
+      try {
+        await apiService.deleteContact(id);
+        alert('Contact deleted successfully!');
+        await loadContacts(); // Re-fetch to update the list
+      } catch (error: unknown) {
+        // Type-safe error handling: Use 'unknown' instead of 'any' and assert expected structure
+        console.error('Error deleting contact:', error);
+        const err = error as { response?: { data?: { detail?: string; message?: string } }; message?: string };
+        const errorMessage = err?.response?.data?.detail 
+          || err?.response?.data?.message 
+          || err?.message 
+          || 'Failed to delete contact';
+        alert(`Error: ${errorMessage}`);
+      }
     }
   };
 
@@ -517,16 +478,14 @@ const Contacts: React.FC = () => {
     const { name, value } = e.target;
     setFormData((prev) => ({
       ...prev,
-      [name]: value,
+      [name]: name === 'phone' ? formatUsPhone(value) : value,
     }));
   };
 
   if (loading) {
     return (
       <Container>
-        <div style={{ padding: 16 }}>
-          <Skeleton active paragraph={{ rows: 8 }} />
-        </div>
+        <LoadingMessage>Loading contacts...</LoadingMessage>
       </Container>
     );
   }
@@ -634,23 +593,15 @@ const Contacts: React.FC = () => {
               </FormGroup>
               <FormGroup>
                 <Label>Phone</Label>
-                <FormSelect
-                  value={formData.phone_type}
-                  onChange={(e) => setFormData((p) => ({ ...p, phone_type: e.target.value as PhoneType }))}
-                  aria-label="Phone type"
-                >
-                  {PHONE_TYPE_OPTIONS.map((opt) => (
-                    <option key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </option>
-                  ))}
-                </FormSelect>
-                <div style={{ height: 8 }} />
-                <PhoneInput
+                <Input
+                  type="tel"
+                  inputMode="numeric"
+                  maxLength={13}
+                  autoComplete="tel"
+                  placeholder="(XXX)XXX-XXXX"
+                  name="phone"
                   value={formData.phone}
-                  onChange={(value) => setFormData((p) => ({ ...p, phone: value }))}
-                  placeholder="(XXX) XXX-XXXX"
-                  aria-label="Phone number"
+                  onChange={handleInputChange}
                 />
               </FormGroup>
               <FormGroup>
