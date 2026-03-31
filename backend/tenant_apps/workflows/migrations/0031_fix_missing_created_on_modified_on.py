@@ -14,56 +14,79 @@ from django.db import migrations
 
 
 _ADD_COLUMNS_SQL = """
+-- Step 1: Add columns as nullable (idempotent)
+ALTER TABLE workflows_tenantform ADD COLUMN IF NOT EXISTS created_on timestamp with time zone;
+ALTER TABLE workflows_tenantform ADD COLUMN IF NOT EXISTS modified_on timestamp with time zone;
+
+ALTER TABLE workflows_tenantlist ADD COLUMN IF NOT EXISTS created_on timestamp with time zone;
+ALTER TABLE workflows_tenantlist ADD COLUMN IF NOT EXISTS modified_on timestamp with time zone;
+
+ALTER TABLE workflows_tenantworkflow ADD COLUMN IF NOT EXISTS created_on timestamp with time zone;
+ALTER TABLE workflows_tenantworkflow ADD COLUMN IF NOT EXISTS modified_on timestamp with time zone;
+"""
+
+_BACKFILL_SQL = """
+-- Step 2: Backfill values (idempotent)
+UPDATE workflows_tenantform
+SET created_on = COALESCE(created_on, created_at, NOW()),
+    modified_on = COALESCE(modified_on, updated_at, NOW())
+WHERE created_on IS NULL OR modified_on IS NULL;
+
+UPDATE workflows_tenantlist
+SET created_on = COALESCE(created_on, created_at, NOW()),
+    modified_on = COALESCE(modified_on, updated_at, NOW())
+WHERE created_on IS NULL OR modified_on IS NULL;
+
+UPDATE workflows_tenantworkflow
+SET created_on = COALESCE(created_on, created_at, NOW()),
+    modified_on = COALESCE(modified_on, updated_at, NOW())
+WHERE created_on IS NULL OR modified_on IS NULL;
+"""
+
+_SET_NOT_NULL_SQL = """
+-- Step 3: Set NOT NULL constraints (DDL only)
 DO $$
-DECLARE
-    t TEXT;
-    src_col TEXT;
-    dst_col TEXT;
 BEGIN
-    FOR t, src_col, dst_col IN VALUES
-        ('workflows_tenantform',     'created_at', 'created_on'),
-        ('workflows_tenantform',     'updated_at', 'modified_on'),
-        ('workflows_tenantlist',     'created_at', 'created_on'),
-        ('workflows_tenantlist',     'updated_at', 'modified_on'),
-        ('workflows_tenantworkflow', 'created_at', 'created_on'),
-        ('workflows_tenantworkflow', 'updated_at', 'modified_on')
-    LOOP
-        IF NOT EXISTS (
-            SELECT 1
-            FROM information_schema.columns
-            WHERE table_schema = 'public'
-              AND table_name  = t
-              AND column_name = dst_col
-        ) THEN
-            -- Step 1: Add the column as nullable so no DEFAULT is needed.
-            EXECUTE format(
-                'ALTER TABLE %I ADD COLUMN %I timestamp with time zone',
-                t, dst_col
-            );
-            -- Step 2: Back-fill every row from the corresponding source column.
-            EXECUTE format(
-                'UPDATE %I SET %I = %I WHERE %I IS NULL',
-                t, dst_col, src_col, dst_col
-            );
-            -- Step 3: Add the NOT NULL constraint now that every row has a value.
-            EXECUTE format(
-                'ALTER TABLE %I ALTER COLUMN %I SET NOT NULL',
-                t, dst_col
-            );
-        END IF;
-    END LOOP;
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'workflows_tenantform' AND column_name = 'created_on'
+  ) THEN
+    EXECUTE 'ALTER TABLE workflows_tenantform ALTER COLUMN created_on SET NOT NULL';
+    EXECUTE 'ALTER TABLE workflows_tenantform ALTER COLUMN modified_on SET NOT NULL';
+  END IF;
+
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'workflows_tenantlist' AND column_name = 'created_on'
+  ) THEN
+    EXECUTE 'ALTER TABLE workflows_tenantlist ALTER COLUMN created_on SET NOT NULL';
+    EXECUTE 'ALTER TABLE workflows_tenantlist ALTER COLUMN modified_on SET NOT NULL';
+  END IF;
+
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'workflows_tenantworkflow' AND column_name = 'created_on'
+  ) THEN
+    EXECUTE 'ALTER TABLE workflows_tenantworkflow ALTER COLUMN created_on SET NOT NULL';
+    EXECUTE 'ALTER TABLE workflows_tenantworkflow ALTER COLUMN modified_on SET NOT NULL';
+  END IF;
 END $$;
 """
 
 
 class Migration(migrations.Migration):
+    # This migration performs DML (backfills) and then DDL (SET NOT NULL). On production
+    # Postgres, doing both in a single transaction can fail with:
+    #   cannot ALTER TABLE ... because it has pending trigger events
+    # So we intentionally run it non-atomically to allow commits between steps.
+    atomic = False
+
     dependencies = [
         ("workflows", "0030_tenantworkformexecution"),
     ]
 
     operations = [
-        migrations.RunSQL(
-            sql=_ADD_COLUMNS_SQL,
-            reverse_sql=migrations.RunSQL.noop,
-        ),
+        migrations.RunSQL(sql=_ADD_COLUMNS_SQL, reverse_sql=migrations.RunSQL.noop),
+        migrations.RunSQL(sql=_BACKFILL_SQL, reverse_sql=migrations.RunSQL.noop),
+        migrations.RunSQL(sql=_SET_NOT_NULL_SQL, reverse_sql=migrations.RunSQL.noop),
     ]
