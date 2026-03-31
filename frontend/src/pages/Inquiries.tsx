@@ -11,10 +11,12 @@
  * - Clone existing inquiries
  * - Create from templates
  */
-import React, { useRef, useState, useEffect, useCallback } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Skeleton } from 'antd';
 import styled from 'styled-components';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { logger } from '@/utils/logger';
 import { showAlert } from '@/utils/uiDialogs';
 import { apiClient } from '../services/apiService';
 import { InquiryListItem, InquiryStatus, InquiryTemplateListItem } from '../types';
@@ -367,9 +369,6 @@ const Inquiries: React.FC = () => {
 
   const [prefillEntityType, setPrefillEntityType] = useState<'customer' | 'supplier' | undefined>(undefined);
   const [prefillEntityId, setPrefillEntityId] = useState<string | undefined>(undefined);
-  const [inquiries, setInquiries] = useState<InquiryListItem[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   
   // Filters
   const [search, setSearch] = useState('');
@@ -378,8 +377,38 @@ const Inquiries: React.FC = () => {
   
   // Pagination
   const [page, setPage] = useState(1);
-  const [totalCount, setTotalCount] = useState(0);
   const pageSize = 20;
+
+  const inquiriesQuery = useQuery({
+    queryKey: ['inquiries', { page, pageSize, search, statusFilter, entityTypeFilter }],
+    queryFn: async () => {
+      const params: Record<string, any> = {
+        page,
+        page_size: pageSize,
+      };
+
+      if (search) params.search = search;
+      if (statusFilter) params.status = statusFilter;
+      if (entityTypeFilter) params.entity_type = entityTypeFilter;
+
+      const response = await apiClient.get('inquiries/', { params });
+      const data = response.data;
+      const items: InquiryListItem[] = data.results || data;
+      const count: number = data.count || (Array.isArray(items) ? items.length : 0);
+      return { items, count };
+    },
+  });
+
+  const inquiries = inquiriesQuery.data?.items ?? [];
+  const totalCount = inquiriesQuery.data?.count ?? 0;
+  const loading = inquiriesQuery.isLoading;
+  const error = inquiriesQuery.isError ? 'Failed to load inquiries. Please try again.' : null;
+
+  useEffect(() => {
+    if (inquiriesQuery.error) {
+      logger.error('[Inquiries] Failed to fetch inquiries:', inquiriesQuery.error);
+    }
+  }, [inquiriesQuery.error]);
   
   // Modals
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -391,32 +420,6 @@ const Inquiries: React.FC = () => {
   const [templates, setTemplates] = useState<InquiryTemplateListItem[]>([]);
   const [showTemplateMenu, setShowTemplateMenu] = useState(false);
 
-  const fetchInquiries = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    
-    try {
-      const params: Record<string, any> = {
-        page,
-        page_size: pageSize,
-      };
-      
-      if (search) params.search = search;
-      if (statusFilter) params.status = statusFilter;
-      if (entityTypeFilter) params.entity_type = entityTypeFilter;
-      
-      const response = await apiClient.get('inquiries/', { params });
-      const data = response.data;
-      
-      setInquiries(data.results || data);
-      setTotalCount(data.count || data.length);
-    } catch (err) {
-      console.error('Failed to fetch inquiries:', err);
-      setError('Failed to load inquiries. Please try again.');
-    } finally {
-      setLoading(false);
-    }
-  }, [page, search, statusFilter, entityTypeFilter]);
   
   // Fetch templates on mount
   useEffect(() => {
@@ -425,9 +428,6 @@ const Inquiries: React.FC = () => {
       .catch(console.error);
   }, []);
 
-  useEffect(() => {
-    fetchInquiries();
-  }, [fetchInquiries]);
 
   // Allow deep-linking from Cockpit to open the create modal with context.
   useEffect(() => {
@@ -458,12 +458,12 @@ const Inquiries: React.FC = () => {
 
   const handleCreateSuccess = () => {
     setShowCreateModal(false);
-    fetchInquiries();
+    void inquiriesQuery.refetch();
   };
 
   const handleUpdateInquiry = (updatedInquiry: any) => {
     setSelectedInquiry(updatedInquiry);
-    fetchInquiries();
+    void inquiriesQuery.refetch();
   };
   
   const handleClone = (inquiry: any) => {
@@ -474,7 +474,7 @@ const Inquiries: React.FC = () => {
   
   const handleCloned = (newInquiry: any) => {
     setShowCloneModal(false);
-    fetchInquiries();
+    void inquiriesQuery.refetch();
     // Open the newly cloned inquiry
     setSelectedInquiry(newInquiry);
     setShowDetailModal(true);
@@ -486,7 +486,7 @@ const Inquiries: React.FC = () => {
       const response = await apiClient.post(`inquiries/from-template/${templateId}/`, {});
       setSelectedInquiry(response.data);
       setShowDetailModal(true);
-      fetchInquiries();
+      void inquiriesQuery.refetch();
     } catch (err) {
       console.error('Failed to create inquiry from template:', err);
       showAlert({
