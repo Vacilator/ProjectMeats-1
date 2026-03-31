@@ -119,6 +119,13 @@ This file is the **append-only PR-referenceable execution log**.
 - Save payload continues to persist Workforms as `type="workflow"` + `workflow_id`.
 - PR: #4238
 
+### 2026-03-31 — Fix: URL-synced tabs (WorkForms + Cockpit)
+- WorkForms: Tabs are now URL-driven (AntD Tabs activeKey derived from location.pathname; onChange navigates to `/workforms/{key}`); deep links like `/workforms/in-progress/:id` are routed.
+- In Progress: `/workforms/in-progress/:id` now mounts correctly and resumes the submission modal via QuickActionsContext.
+- Cockpit: `/cockpit` is now a layout with URL-driven Tabs and nested routes (`/cockpit/dashboard`, `/cockpit/process-monitor`, `/cockpit/calls`); `/calls` redirects to `/cockpit/calls`.
+- Safety: wrapped WorkForms InProgress/History/Monitoring in ErrorBoundary.
+- PR: #4239
+
 ### 2026-03-30 — Docs: master plan gap analysis + roadmap hygiene
 - Updated `MASTER_PLAN.md` (canonical) with an industry-leader benchmark gap analysis (P0/P1/P2) and refreshed execution-ordered backlog.
 - Converted non-canonical roadmaps/plans into clearer **REFERENCE ONLY** docs (removed/neutralized misleading progress emphasis).
