@@ -8,7 +8,7 @@
  */
 import React, { useMemo, useState, useEffect } from 'react';
 import { Select as AntSelect } from 'antd';
-import { useForm, Controller } from 'react-hook-form';
+import { useForm, Controller, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import styled from 'styled-components';
@@ -21,14 +21,39 @@ import { formatUsPhone } from '../../utils/phone';
 import { getChoicesForField, isStaticChoiceField } from '../../services/choicesService';
 
 // Field definition types
+type SelectOption = string | { value: string; label: string };
+
+type FieldUi = {
+  widget?: string;
+};
+
 interface FieldDefinition {
   key: string;
   label: string;
-  type: 'text' | 'number' | 'date' | 'select' | 'email' | 'phone' | 'url' | 'textarea' | 'checkbox' | 'radio' | 'file' | 'datetime';
+  type:
+    | 'text'
+    | 'number'
+    | 'date'
+    | 'select'
+    | 'email'
+    | 'phone'
+    | 'url'
+    | 'textarea'
+    | 'checkbox'
+    | 'radio'
+    | 'file'
+    | 'datetime'
+    | 'inline_form_array';
   required?: boolean;
-  options?: string[];
+  options?: SelectOption[];
   placeholder?: string;
   help_text?: string;
+  ui?: FieldUi;
+
+  // For inline arrays
+  item_fields?: FieldDefinition[];
+  add_button_label?: string;
+  item_label?: string;
 }
 
 interface SchemaDefinition {
@@ -203,26 +228,69 @@ const FormActions = styled.div`
 const buildValidationSchema = (fields: FieldDefinition[]) => {
   const schemaShape: Record<string, any> = {};
 
+  const buildScalar = (field: FieldDefinition) => {
+    switch (field.type) {
+      case 'email':
+        return z.string().email('Invalid email address');
+      case 'url':
+        return z.string().url('Invalid URL');
+      case 'number':
+        return z.coerce.number();
+      case 'checkbox':
+        return z.boolean();
+      default:
+        return z.string();
+    }
+  };
+
+  const buildItemFieldSchema = (field: FieldDefinition) => {
+    if (field.ui?.widget === 'tags') {
+      return field.required ? z.array(z.string()) : z.array(z.string()).optional();
+    }
+
+    let s: any = buildScalar(field);
+
+    // Inline arrays are primarily for nested child entities (e.g. contacts). For required string fields,
+    // enforce a non-empty value client-side so we don't create blank child rows.
+    const isStringField =
+      field.type === 'text' ||
+      field.type === 'phone' ||
+      field.type === 'select' ||
+      field.type === 'date' ||
+      field.type === 'datetime' ||
+      field.type === 'textarea';
+    if (field.required && isStringField) {
+      s = s.min(1, 'Required');
+    }
+
+    if (!field.required) {
+      s = s.optional().or(z.literal(''));
+    }
+    return s;
+  };
+
   fields.forEach((field) => {
     let fieldSchema: any;
 
-    switch (field.type) {
-      case 'email':
-        fieldSchema = z.string().email('Invalid email address');
-        break;
-      case 'url':
-        fieldSchema = z.string().url('Invalid URL');
-        break;
-      case 'number':
-        fieldSchema = z.coerce.number();
-        break;
-      case 'checkbox':
-        fieldSchema = z.boolean();
-        break;
-      default:
-        fieldSchema = z.string();
+    if (field.type === 'inline_form_array') {
+      const itemFields = field.item_fields || [];
+      const itemShape: Record<string, any> = {};
+      itemFields.forEach((f) => {
+        itemShape[f.key] = buildItemFieldSchema(f);
+      });
+
+      fieldSchema = z.array(z.object(itemShape));
+      if (!field.required) {
+        fieldSchema = fieldSchema.optional();
+      } else {
+        fieldSchema = fieldSchema.min(1, 'Please add at least one item');
+      }
+
+      schemaShape[field.key] = fieldSchema;
+      return;
     }
 
+    fieldSchema = buildScalar(field);
     if (!field.required) {
       fieldSchema = fieldSchema.optional().or(z.literal(''));
     }
@@ -312,6 +380,9 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
       if (String(f.key).toLowerCase() === 'country' && !next[f.key]) {
         next[f.key] = DEFAULT_COUNTRY;
       }
+      if (f.type === 'inline_form_array' && !Array.isArray(next[f.key])) {
+        next[f.key] = [];
+      }
     }
     return next;
   }, [initialValues, schema.fields]);
@@ -354,11 +425,163 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
     return dynamicOptions[field.key] || [];
   };
 
+  const InlineFormArrayField: React.FC<{ field: FieldDefinition; showRequired: boolean }> = ({
+    field,
+    showRequired,
+  }) => {
+    const itemFields = field.item_fields || [];
+    const { fields: items, append, remove } = useFieldArray({
+      control,
+      name: field.key as never,
+    });
+
+    const arrayError = errors[field.key] as unknown;
+
+    const renderItemField = (itemField: FieldDefinition, namePath: string, idx: number) => {
+      const itemErr = (errors as any)?.[field.key]?.[idx]?.[itemField.key];
+      const hasItemError = Boolean(itemErr);
+
+      if (itemField.ui?.widget === 'tags') {
+        return (
+          <FieldGroup key={namePath} style={{ marginBottom: 12 }}>
+            <Label required={formConfig.showRequiredIndicator && itemField.required}>{itemField.label}</Label>
+            <Controller
+              name={namePath as never}
+              control={control}
+              render={({ field: controllerField }) => (
+                <AntSelect
+                  mode="tags"
+                  value={Array.isArray(controllerField.value) ? controllerField.value : []}
+                  onChange={controllerField.onChange}
+                  placeholder={itemField.placeholder || 'Add values'}
+                  disabled={isSubmitting}
+                  style={{ width: '100%' }}
+                />
+              )}
+            />
+            {hasItemError && <ErrorText>{String(itemErr?.message || 'Invalid value')}</ErrorText>}
+          </FieldGroup>
+        );
+      }
+
+      if (itemField.type === 'select') {
+        return (
+          <FieldGroup key={namePath} style={{ marginBottom: 12 }}>
+            <Label required={formConfig.showRequiredIndicator && itemField.required}>{itemField.label}</Label>
+            <Controller
+              name={namePath as never}
+              control={control}
+              render={({ field: controllerField }) => (
+                <Select
+                  value={controllerField.value || ''}
+                  onChange={controllerField.onChange}
+                  options={getFieldOptions(itemField)}
+                  placeholder={itemField.placeholder || 'Select an option'}
+                  disabled={isSubmitting}
+                />
+              )}
+            />
+            {hasItemError && <ErrorText>{String(itemErr?.message || 'Invalid value')}</ErrorText>}
+          </FieldGroup>
+        );
+      }
+
+      const inputType =
+        itemField.type === 'datetime'
+          ? 'datetime-local'
+          : itemField.type === 'phone'
+            ? 'text'
+            : itemField.type;
+
+      return (
+        <FieldGroup key={namePath} style={{ marginBottom: 12 }}>
+          <Label htmlFor={namePath} required={formConfig.showRequiredIndicator && itemField.required}>
+            {itemField.label}
+          </Label>
+          <Input
+            type={inputType}
+            id={namePath}
+            {...register(namePath)}
+            placeholder={itemField.placeholder}
+            hasError={hasItemError}
+            disabled={isSubmitting}
+          />
+          {hasItemError && <ErrorText>{String(itemErr?.message || 'Invalid value')}</ErrorText>}
+        </FieldGroup>
+      );
+    };
+
+    return (
+      <FieldGroup key={field.key}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+          <Label required={showRequired}>{field.label}</Label>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => append({} as any)}
+            disabled={isSubmitting}
+          >
+            + {field.add_button_label || 'Add'}
+          </Button>
+        </div>
+
+        {items.length === 0 ? (
+          <div style={{ marginTop: 8, fontSize: 12, color: 'rgb(var(--color-text-secondary))' }}>
+            No entries added yet.
+          </div>
+        ) : (
+          <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {items.map((item, idx) => (
+              <div
+                key={item.id}
+                style={{
+                  border: '1px solid rgb(var(--color-border))',
+                  borderRadius: 10,
+                  padding: 12,
+                  background: 'rgb(var(--color-surface))',
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: 'rgb(var(--color-text-primary))' }}>
+                    {field.item_label || 'Item'} #{idx + 1}
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => remove(idx)}
+                    disabled={isSubmitting}
+                  >
+                    Remove
+                  </Button>
+                </div>
+
+                <div style={{ marginTop: 12 }}>
+                  {itemFields.map((itemField) =>
+                    renderItemField(itemField, `${field.key}.${idx}.${itemField.key}`, idx)
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {formConfig.showHelpText && field.help_text && <HelpText>{field.help_text}</HelpText>}
+        {Boolean(arrayError) && typeof (arrayError as any)?.message === 'string' && (
+          <ErrorText>{String((arrayError as any).message)}</ErrorText>
+        )}
+      </FieldGroup>
+    );
+  };
+
   const renderField = (field: FieldDefinition) => {
     const error = errors[field.key];
     const hasError = !!error;
     // Use config for required indicator (Wave 4 - Task 4.12)
-    const showRequired = formConfig.showRequiredIndicator && field.required;
+    const showRequired = formConfig.showRequiredIndicator && Boolean(field.required);
+
+    if (field.type === 'inline_form_array') {
+      return <InlineFormArrayField field={field} showRequired={showRequired} />;
+    }
 
     if (String(field.key).toLowerCase() === 'country') {
       return (
