@@ -145,6 +145,10 @@ This file is the **append-only PR-referenceable execution log**.
 - Added tenant-safe caching for heavy Supplier/Customer rollups:
   - cached list/retrieve per-tenant (15m TTL)
   - invalidation via tenant cache version bump signals (plant/location/contact product changes)
+- CI/CD consolidation (reduce Actions feed clutter):
+  - moved PR validation + security scan jobs into `main-pipeline.yml`
+  - removed standalone workflows: `pr-validation.yml`, `21-security-scan.yml`, `41-auto-promote.yml`
+  - NOTE: update Branch Protection Required Status Checks to point to the new job names under "Master Pipeline"
 - PR: #4276
 
 ### 2026-03-30 — Docs: master plan gap analysis + roadmap hygiene
