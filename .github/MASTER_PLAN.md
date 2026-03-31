@@ -11,6 +11,11 @@ This file is the **append-only PR-referenceable execution log**.
 
 ## Active Initiative: V3.0 Final Push (Consolidation + Scale + Polish)
 
+### 2026-03-31 — Hierarchy: drill-down views
+- Supplier/Customer record pages show Plants/Locations with a dedicated drill-down (no flat contacts at the grandparent).
+- Added PlantDetailView + LocationDetailView with Contacts grouped by department (Sales/QA/Booking/Accounting).
+- PR: #4228
+
 ### 2026-03-30 — Docs: master plan gap analysis + roadmap hygiene
 - Updated `MASTER_PLAN.md` (canonical) with an industry-leader benchmark gap analysis (P0/P1/P2) and refreshed execution-ordered backlog.
 - Converted non-canonical roadmaps/plans into clearer **REFERENCE ONLY** docs (removed/neutralized misleading progress emphasis).
@@ -1319,5 +1324,6 @@ Deliverables:
 - 2026-03-30 — Suppliers: fix QuickCreateModal footer button click handling (New Supplier “Save” works) — PR: #4216.
 - 2026-03-30 — FlowEditor: FormProcess containers restored NodeToolbar actions + Add Step button — PR: #4218.
 - 2026-03-30 — Backend: expanded drf-spectacular schemas for Workflows + Cockpit slots (polymorphic search) — PR: #4220.
+- 2026-03-31 — Backend: simplified Supplier/Customer HQ create schema for UniversalEntityForm (schema override + nullable non-core fields) — PR: #4224.
 - 2026-03-31 — Backend: Contacts department fields (mobile/office phones + Sales responsibility arrays) — PR: #4225.
 - 2026-03-31 — Backend: Plants/Locations nested department contacts + Vertical (K2C) type option — PR: #4226.
