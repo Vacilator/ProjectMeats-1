@@ -1483,3 +1483,4 @@ Deliverables:
 - 2026-03-31 — Compliance: tenant audit trails v1 (append-only audit events + RLS + API) — PR: #4295.
 - 2026-03-31 — Ops: fix deploy migrations failure (workflows 0031 pending trigger events) — PR: #4297.
 - 2026-03-31 — Feature: streaming CSV exports for Purchase Orders + Sales Orders (?format=csv) — PR: #4299.
+- 2026-03-31 — Observability: Sentry hardening (capture 5xx + CeleryIntegration + frontend ErrorBoundary + axios 5xx capture + user context binding) — PR: #4301.
