@@ -10,7 +10,7 @@ import { PhoneInput, Select } from '../components/ui';
 import { MultiSelect } from '../components/Shared';
 import QuickCreateModal from '../components/FormSubmission/QuickCreateModal';
 import { US_STATES } from '../utils/constants/states';
-import { INDUSTRY_CHOICES, PROTEIN_TYPE_CHOICES } from '../utils/constants/choices';
+import { CONTACT_DEPARTMENT_CHOICES, INDUSTRY_CHOICES, PROTEIN_TYPE_CHOICES } from '../utils/constants/choices';
 
 interface CustomerLocation {
   id: number;
@@ -72,6 +72,22 @@ const Customers: React.FC = () => {
   const [locationContacts, setLocationContacts] = useState<CustomerContact[]>([]);
   const [locationContactsLoading, setLocationContactsLoading] = useState(false);
 
+  const [locationProducts, setLocationProducts] = useState<Array<{ id: string; product_code: string; name?: string; protein_type?: string }>>([]);
+  const [locationProductsLoading, setLocationProductsLoading] = useState(false);
+
+  const [showContactModal, setShowContactModal] = useState(false);
+  const [contactForm, setContactForm] = useState({
+    department: 'sales',
+    first_name: '',
+    last_name: '',
+    mobile_phone: '',
+    office_phone: '',
+    office_phone_ext: '',
+    email: '',
+    protein_types_responsible: [] as string[],
+    items_responsible: [] as string[],
+  });
+
   const [showLocationModal, setShowLocationModal] = useState(false);
   const [locationForm, setLocationForm] = useState({
     name: '',
@@ -85,6 +101,13 @@ const Customers: React.FC = () => {
     email: '',
     phone: '',
   });
+  const [locationProductIds, setLocationProductIds] = useState<string[]>([]);
+
+  const [productPanel, setProductPanel] = useState<'history' | 'preferences'>('history');
+  const [historyProducts, setHistoryProducts] = useState<Array<{ id: string; product_code: string; name: string; protein_type?: string }>>([]);
+  const [preferenceProducts, setPreferenceProducts] = useState<Array<{ id: string; product_code: string; name: string; protein_type?: string }>>([]);
+  const [customerProductsLoading, setCustomerProductsLoading] = useState(false);
+
   const [formData, setFormData] = useState({
     name: '',
     contact_person: '',
@@ -199,6 +222,58 @@ const Customers: React.FC = () => {
     }
   };
 
+  const loadLocationProducts = async (locationId: number) => {
+    try {
+      setLocationProductsLoading(true);
+      const resp = await apiClient.get(`/locations/${locationId}/available-products/`);
+      const raw = resp.data as any;
+      const data = Array.isArray(raw) ? raw : Array.isArray(raw?.results) ? raw.results : [];
+      setLocationProducts(data);
+    } catch (error) {
+      console.error('[Customers] Failed to load location products:', error);
+      setLocationProducts([]);
+    } finally {
+      setLocationProductsLoading(false);
+    }
+  };
+
+  const loadCustomerProductPanels = async (customerId: number) => {
+    try {
+      setCustomerProductsLoading(true);
+
+      const historyResp = await apiClient.get(`/customers/${customerId}/product-history/`);
+      const history = Array.isArray(historyResp.data) ? historyResp.data : (historyResp.data?.results || []);
+      setHistoryProducts(history);
+
+      const prefResp = await apiClient.get(`/customers/${customerId}/products/`);
+      const basePrefs = Array.isArray(prefResp.data) ? prefResp.data : (prefResp.data?.results || []);
+
+      const locResp = await apiClient.get('locations/', { params: { customer: customerId } });
+      const locsRaw = locResp.data as any;
+      const locs = Array.isArray(locsRaw) ? locsRaw : Array.isArray(locsRaw?.results) ? locsRaw.results : [];
+
+      const locProductsLists = await Promise.allSettled(
+        (locs || []).map((loc: any) => apiClient.get(`/locations/${loc.id}/available-products/`))
+      );
+      const locProducts = locProductsLists
+        .filter((r): r is PromiseFulfilledResult<any> => r.status === 'fulfilled')
+        .flatMap((r) => (Array.isArray(r.value.data) ? r.value.data : []));
+
+      const merged = [...basePrefs, ...locProducts];
+      const byId = new Map<string, any>();
+      merged.forEach((p: any) => {
+        if (p?.id && !byId.has(String(p.id))) byId.set(String(p.id), p);
+      });
+      setPreferenceProducts(Array.from(byId.values()));
+    } catch (error) {
+      console.error('[Customers] Failed to load product panels:', error);
+      setHistoryProducts([]);
+      setPreferenceProducts([]);
+    } finally {
+      setCustomerProductsLoading(false);
+    }
+  };
+
   const toggleCustomerDrilldown = async (customer: Customer) => {
     if (selectedCustomerId === customer.id) {
       setSelectedCustomerId(null);
@@ -230,6 +305,7 @@ const Customers: React.FC = () => {
       email: '',
       phone: '',
     });
+    setLocationProductIds([]);
     setShowLocationModal(true);
   };
 
@@ -242,7 +318,7 @@ const Customers: React.FC = () => {
     }
 
     try {
-      await apiClient.post('locations/', {
+      const resp = await apiClient.post('locations/', {
         customer: selectedCustomerId,
         name: locationForm.name.trim(),
         location_type: locationForm.location_type,
@@ -255,11 +331,73 @@ const Customers: React.FC = () => {
         email: locationForm.email,
         phone: locationForm.phone,
       });
+
+      const createdLocationId = resp?.data?.id as number | undefined;
+      if (createdLocationId && locationProductIds.length) {
+        await Promise.allSettled(
+          locationProductIds.map((productId) =>
+            apiClient.post(`/locations/${createdLocationId}/available-products/`, { product: productId })
+          )
+        );
+      }
+
       setShowLocationModal(false);
+      setLocationProductIds([]);
       await loadCustomerLocations(selectedCustomerId);
     } catch (error) {
       console.error('[Customers] Failed to create location:', error);
       alert('Failed to create location');
+    }
+  };
+
+  const openCreateLocationContact = () => {
+    if (!selectedCustomerId || !selectedLocationId) return;
+    setContactForm({
+      department: 'sales',
+      first_name: '',
+      last_name: '',
+      mobile_phone: '',
+      office_phone: '',
+      office_phone_ext: '',
+      email: '',
+      protein_types_responsible: [],
+      items_responsible: [],
+    });
+    setShowContactModal(true);
+  };
+
+  const submitLocationContact = async () => {
+    if (!selectedCustomerId || !selectedLocationId) return;
+    if (!contactForm.first_name.trim() || !contactForm.last_name.trim()) {
+      alert('First name and last name are required');
+      return;
+    }
+
+    try {
+      const officePhone = (contactForm.office_phone || '').trim();
+      const mobilePhone = (contactForm.mobile_phone || '').trim();
+
+      await apiClient.post('contacts/', {
+        customer: selectedCustomerId,
+        location: selectedLocationId,
+        department: contactForm.department,
+        first_name: contactForm.first_name.trim(),
+        last_name: contactForm.last_name.trim(),
+        email: contactForm.email || null,
+        mobile_phone: contactForm.mobile_phone,
+        office_phone: contactForm.office_phone,
+        office_phone_ext: contactForm.office_phone_ext,
+        protein_types_responsible: contactForm.protein_types_responsible,
+        items_responsible: contactForm.items_responsible,
+        phone: officePhone || mobilePhone || '',
+        phone_type: officePhone ? 'office' : mobilePhone ? 'mobile' : 'office',
+      });
+
+      setShowContactModal(false);
+      await loadLocationContacts(selectedLocationId);
+    } catch (error) {
+      console.error('[Customers] Failed to create contact:', error);
+      alert('Failed to create contact');
     }
   };
 
@@ -270,11 +408,23 @@ const Customers: React.FC = () => {
   useEffect(() => {
     if (!selectedLocationId) {
       setLocationContacts([]);
+      setLocationProducts([]);
       return;
     }
 
     void loadLocationContacts(selectedLocationId);
+    void loadLocationProducts(selectedLocationId);
   }, [selectedLocationId]);
+
+  useEffect(() => {
+    if (!selectedCustomerId) {
+      setHistoryProducts([]);
+      setPreferenceProducts([]);
+      return;
+    }
+
+    void loadCustomerProductPanels(selectedCustomerId);
+  }, [selectedCustomerId]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -698,6 +848,19 @@ const Customers: React.FC = () => {
                     aria-label="Location phone"
                   />
                 </FormGroup>
+
+                <FormGroup $fullWidth>
+                  <MultiSelect
+                    value={locationProductIds}
+                    onChange={(values) => setLocationProductIds(values.map(String))}
+                    options={products.map((p) => ({
+                      value: String(p.id),
+                      label: `${p.product_code}${p.name ? ' - ' + p.name : ''}`
+                    }))}
+                    label="Location Products List"
+                    placeholder="Select products this location handles"
+                  />
+                </FormGroup>
               </FormGrid>
 
               <FormActions>
@@ -705,6 +868,125 @@ const Customers: React.FC = () => {
                   Cancel
                 </CancelButton>
                 <SubmitButton type="submit">Create Location</SubmitButton>
+              </FormActions>
+            </Form>
+          </FormContainer>
+        </FormOverlay>
+      )}
+
+      {showContactModal && (
+        <FormOverlay>
+          <FormContainer $theme={theme}>
+            <FormHeader $theme={theme}>
+              <FormTitle $theme={theme}>Add Location Contact</FormTitle>
+              <CloseButton $theme={theme} onClick={() => setShowContactModal(false)}>×</CloseButton>
+            </FormHeader>
+
+            <Form onSubmit={(e) => { e.preventDefault(); void submitLocationContact(); }}>
+              <FormGrid>
+                <FormGroup>
+                  <Label $theme={theme}>Department</Label>
+                  <Select
+                    value={contactForm.department}
+                    onChange={(value) => setContactForm((p) => ({ ...p, department: value }))}
+                    options={CONTACT_DEPARTMENT_CHOICES}
+                    placeholder="Select department"
+                    aria-label="Department"
+                  />
+                </FormGroup>
+
+                <FormGroup>
+                  <Label $theme={theme}>First Name *</Label>
+                  <Input
+                    $theme={theme}
+                    type="text"
+                    value={contactForm.first_name}
+                    onChange={(e) => setContactForm((p) => ({ ...p, first_name: e.target.value }))}
+                    required
+                  />
+                </FormGroup>
+
+                <FormGroup>
+                  <Label $theme={theme}>Last Name *</Label>
+                  <Input
+                    $theme={theme}
+                    type="text"
+                    value={contactForm.last_name}
+                    onChange={(e) => setContactForm((p) => ({ ...p, last_name: e.target.value }))}
+                    required
+                  />
+                </FormGroup>
+
+                <FormGroup>
+                  <Label $theme={theme}>Email</Label>
+                  <Input
+                    $theme={theme}
+                    type="email"
+                    value={contactForm.email}
+                    onChange={(e) => setContactForm((p) => ({ ...p, email: e.target.value }))}
+                  />
+                </FormGroup>
+
+                <FormGroup>
+                  <Label $theme={theme}>Mobile Phone</Label>
+                  <PhoneInput
+                    value={contactForm.mobile_phone}
+                    onChange={(value) => setContactForm((p) => ({ ...p, mobile_phone: value }))}
+                    placeholder="(XXX)XXX-XXXX"
+                    aria-label="Mobile phone"
+                  />
+                </FormGroup>
+
+                <FormGroup>
+                  <Label $theme={theme}>Office Phone</Label>
+                  <PhoneInput
+                    value={contactForm.office_phone}
+                    onChange={(value) => setContactForm((p) => ({ ...p, office_phone: value }))}
+                    placeholder="(XXX)XXX-XXXX"
+                    aria-label="Office phone"
+                  />
+                </FormGroup>
+
+                <FormGroup>
+                  <Label $theme={theme}>Office EXT</Label>
+                  <Input
+                    $theme={theme}
+                    type="text"
+                    value={contactForm.office_phone_ext}
+                    onChange={(e) => setContactForm((p) => ({ ...p, office_phone_ext: e.target.value }))}
+                    placeholder="e.g., 123"
+                  />
+                </FormGroup>
+
+                <FormGroup $fullWidth>
+                  <MultiSelect
+                    value={contactForm.protein_types_responsible}
+                    onChange={(values) => setContactForm((p) => ({ ...p, protein_types_responsible: values }))}
+                    options={PROTEIN_TYPE_CHOICES}
+                    label="Preferred Protein Types"
+                    placeholder="Select protein types"
+                  />
+                </FormGroup>
+
+                <FormGroup $fullWidth>
+                  <MultiSelect
+                    value={contactForm.items_responsible}
+                    onChange={(values) => setContactForm((p) => ({ ...p, items_responsible: values.map(String) }))}
+                    options={products.map((p) => ({
+                      value: String(p.id),
+                      label: `${p.product_code}${p.name ? ' - ' + p.name : ''}`
+                    }))}
+                    label="Preferred Products"
+                    placeholder="Select products"
+                  />
+                </FormGroup>
+              </FormGrid>
+
+              <FormActions>
+                <CancelButton type="button" onClick={() => setShowContactModal(false)}>
+                  Cancel
+                </CancelButton>
+                <SubmitButton type="submit">Create Contact</SubmitButton>
               </FormActions>
             </Form>
           </FormContainer>
@@ -748,7 +1030,7 @@ const Customers: React.FC = () => {
                   }}
                 >
                   <TableCell $theme={theme}>
-                    <CompanyButton $theme={theme}>
+                    <CompanyButton $theme={theme} $selected={selectedCustomerId === customer.id}>
                       <CompanyName $theme={theme}>{customer.name}</CompanyName>
                       <CompanyChevron aria-hidden="true">{selectedCustomerId === customer.id ? '▾' : '▸'}</CompanyChevron>
                     </CompanyButton>
@@ -827,21 +1109,46 @@ const Customers: React.FC = () => {
                         <ExpandedColumn>
                           <ExpandedHeader>
                             <ExpandedTitle>Location Details & Contacts</ExpandedTitle>
+                            <ExpandedActions>
+                              <SmallButton type="button" onClick={openCreateLocationContact} disabled={!selectedLocationId}>
+                                + New Contact
+                              </SmallButton>
+                            </ExpandedActions>
                           </ExpandedHeader>
 
                           {selectedLocation ? (
                             <MetaCard>
                               <MetaRow>
-                                <MetaKey>Contact</MetaKey>
-                                <MetaValue>{selectedLocation.contact_name || '—'}</MetaValue>
+                                <MetaKey>Location Type</MetaKey>
+                                <MetaValue>{selectedLocation.location_type || '—'}</MetaValue>
                               </MetaRow>
                               <MetaRow>
-                                <MetaKey>Email</MetaKey>
-                                <MetaValue>{selectedLocation.email || '—'}</MetaValue>
+                                <MetaKey>Address</MetaKey>
+                                <MetaValue>{selectedLocation.address || '—'}</MetaValue>
                               </MetaRow>
                               <MetaRow>
-                                <MetaKey>Phone</MetaKey>
-                                <MetaValue>{selectedLocation.phone || '—'}</MetaValue>
+                                <MetaKey>City/State/ZIP</MetaKey>
+                                <MetaValue>
+                                  {selectedLocation.city || selectedLocation.state || selectedLocation.zip_code
+                                    ? `${selectedLocation.city || ''}${selectedLocation.city && selectedLocation.state ? ', ' : ''}${selectedLocation.state || ''}${(selectedLocation.city || selectedLocation.state) && selectedLocation.zip_code ? ' ' : ''}${selectedLocation.zip_code || ''}`.trim()
+                                    : '—'}
+                                </MetaValue>
+                              </MetaRow>
+                              <MetaRow>
+                                <MetaKey>Products List</MetaKey>
+                                <MetaValue>
+                                  {locationProductsLoading ? (
+                                    'Loading…'
+                                  ) : locationProducts.length ? (
+                                    <ChildListMeta>
+                                      {locationProducts.slice(0, 20).map((p) => (
+                                        <span key={String(p.id)}>{p.product_code}</span>
+                                      ))}
+                                    </ChildListMeta>
+                                  ) : (
+                                    '—'
+                                  )}
+                                </MetaValue>
                               </MetaRow>
                             </MetaCard>
                           ) : (
@@ -869,26 +1176,45 @@ const Customers: React.FC = () => {
                                 ))}
                               </ContactsList>
                             )
-                          ) : contactsLoading ? (
-                            <ExpandedHint>Loading contacts…</ExpandedHint>
-                          ) : customerContacts.length === 0 ? (
-                            <ExpandedHint>No contacts found for this customer.</ExpandedHint>
                           ) : (
-                            <ContactsList>
-                              {customerContacts.map((c) => (
-                                <ContactRow key={c.id}>
-                                  <ContactName>
-                                    {c.first_name} {c.last_name}
-                                  </ContactName>
-                                  <ContactMeta>
-                                    {c.position ? <span>{c.position}</span> : null}
-                                    {c.email ? <span>{c.email}</span> : null}
-                                    {c.phone ? <span>{c.phone}</span> : null}
-                                  </ContactMeta>
-                                </ContactRow>
-                              ))}
-                            </ContactsList>
+                            <ExpandedHint>Select a location to view its contacts.</ExpandedHint>
                           )}
+
+                          <MetaCard>
+                            <MetaRow>
+                              <MetaKey>Product History / Preference</MetaKey>
+                              <MetaValue>
+                                <SmallButton type="button" onClick={() => setProductPanel('history')} disabled={productPanel === 'history'}>
+                                  History
+                                </SmallButton>
+                                <SmallButton type="button" onClick={() => setProductPanel('preferences')} disabled={productPanel === 'preferences'}>
+                                  Preferences
+                                </SmallButton>
+                              </MetaValue>
+                            </MetaRow>
+
+                            {customerProductsLoading ? (
+                              <ExpandedHint>Loading products…</ExpandedHint>
+                            ) : productPanel === 'history' ? (
+                              historyProducts.length ? (
+                                <ChildListMeta>
+                                  {historyProducts.slice(0, 40).map((p) => (
+                                    <span key={String(p.id)}>{p.product_code}</span>
+                                  ))}
+                                </ChildListMeta>
+                              ) : (
+                                <ExpandedHint>No product history found.</ExpandedHint>
+                              )
+                            ) : preferenceProducts.length ? (
+                              <ChildListMeta>
+                                {preferenceProducts.slice(0, 40).map((p) => (
+                                  <span key={String(p.id)}>{p.product_code}</span>
+                                ))}
+                              </ChildListMeta>
+                            ) : (
+                              <ExpandedHint>No preferences found.</ExpandedHint>
+                            )}
+                          </MetaCard>
                         </ExpandedColumn>
                       </ExpandedPanel>
                     </ExpandedTableCell>
@@ -1197,14 +1523,14 @@ const TableCell = styled.td<{ $theme: Theme }>`
   padding: 15px 20px;
 `;
 
-const CompanyButton = styled.div<{ $theme: Theme }>`
+const CompanyButton = styled.div<{ $theme: Theme; $selected: boolean }>`
   display: inline-flex;
   align-items: center;
   gap: 10px;
   padding: 6px 8px;
-  border: 1px solid transparent;
+  border: 1px solid ${(p) => (p.$selected ? 'rgba(var(--color-primary), 0.6)' : 'transparent')};
   border-radius: 8px;
-  background: transparent;
+  background: ${(p) => (p.$selected ? 'rgba(var(--color-primary), 0.08)' : 'transparent')};
   pointer-events: none;
 `;
 
@@ -1296,13 +1622,14 @@ const ChildList = styled.div`
 const ChildListItem = styled.button<{ $active: boolean }>`
   text-align: left;
   border-radius: 10px;
-  border: 1px solid ${(p) => (p.$active ? 'rgba(var(--color-primary), 0.7)' : 'rgb(var(--color-border))')};
-  background: ${(p) => (p.$active ? 'rgba(var(--color-primary), 0.08)' : 'rgb(var(--color-surface))')};
+  border: 1px solid ${(p) => (p.$active ? 'rgba(var(--color-primary), 0.7)' : 'transparent')};
+  background: ${(p) => (p.$active ? 'rgba(var(--color-primary), 0.08)' : 'transparent')};
   padding: 10px 12px;
   cursor: pointer;
 
   &:hover {
-    border-color: rgba(var(--color-primary), 0.55);
+    border-color: ${(p) => (p.$active ? 'rgba(var(--color-primary), 0.55)' : 'rgb(var(--color-border))')};
+    background: rgb(var(--color-surface-hover));
   }
 `;
 

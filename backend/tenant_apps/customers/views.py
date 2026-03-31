@@ -23,6 +23,8 @@ from django.db import models
 from django.db.models import Q, Value
 from django.db.models.functions import Coalesce
 
+from apps.system.serializers import SystemProductSerializer
+
 from tenant_apps.customers.models import Customer
 from tenant_apps.customers.serializers import CustomerSerializer
 from apps.tenants.models import TenantUser
@@ -184,20 +186,45 @@ class CustomerViewSet(viewsets.ModelViewSet):
     
     @action(detail=True, methods=['get'], url_path='products')
     def products(self, request, pk=None):
-        """
-        List all products associated with this customer.
-        
+        """List all products associated with this customer.
+
         GET /api/v1/customers/{id}/products/
-        
+
         Returns products that have this customer in their M2M relationship.
         Respects tenant isolation.
         """
-        # Customer.products still points to system.Product (Phase 8 three-tier catalog).
-        # Until Step 4 updates customer product selection to MasterProduct/SupplierAvailableItem,
-        # keep this endpoint working by returning system products.
-        from apps.system.serializers import SystemProductSerializer
 
         customer = self.get_object()
         products = customer.products.all()
         serializer = SystemProductSerializer(products, many=True)
         return Response(serializer.data)
+
+    @action(detail=True, methods=['get'], url_path='product-history')
+    def product_history(self, request, pk=None):
+        """Aggregated distinct product history for a customer.
+
+        This powers the Customer UI's "Product History" tab.
+
+        We treat Sales Orders as the customer's purchase history for reporting.
+        """
+
+        tenant = getattr(request, 'tenant', None)
+        if not tenant:
+            return Response({'error': 'Tenant not found'}, status=status.HTTP_400_BAD_REQUEST)
+
+        customer = self.get_object()
+
+        from tenant_apps.sales_orders.models import SalesOrder
+
+        product_ids = (
+            SalesOrder.objects.for_tenant(tenant)
+            .filter(customer=customer)
+            .exclude(product__isnull=True)
+            .values_list('product_id', flat=True)
+            .distinct()
+        )
+
+        from apps.system.models import Product
+
+        products = Product.objects.filter(id__in=list(product_ids), is_active=True).order_by('product_code')
+        return Response(SystemProductSerializer(products, many=True).data)

@@ -19,6 +19,15 @@ export const DEPARTMENT_CHOICES: MultiSelectOption[] = [
   { value: "Doc's COA", label: "Doc's COA" },
 ];
 
+// Contact Department Choices
+// Backend: tenant_apps.contacts.models.ContactDepartmentChoices
+export const CONTACT_DEPARTMENT_CHOICES: MultiSelectOption[] = [
+  { value: 'sales', label: 'Sales' },
+  { value: 'qa', label: 'Quality Assurance' },
+  { value: 'booking', label: 'Booking' },
+  { value: 'accounting', label: 'Accounting' },
+];
+
 // Customer Industry Choices
 // Backend: IndustryChoices
 export const INDUSTRY_CHOICES: MultiSelectOption[] = [

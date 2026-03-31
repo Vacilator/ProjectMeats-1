@@ -80,60 +80,48 @@ export const navigation: NavigationItem[] = [
     ],
   },
   {
-    label: 'Supply Chain',
-    icon: '⛓️',
+    label: 'Suppliers',
+    icon: '🏭',
+    path: '/suppliers',
     children: [
       {
-        label: 'Suppliers',
-        icon: '🏭',
-        path: '/suppliers',
+        label: 'New Supplier',
+        icon: '➕',
+        path: '/suppliers/new',
+      },
+      {
+        label: 'Plants',
+        icon: '🏢',
+        path: '/suppliers/plants',
         children: [
           {
-            label: 'New Supplier',
-            icon: '➕',
-            path: '/suppliers/new',
-          },
-          {
-            label: 'Plants',
-            icon: '🏢',
-            path: '/suppliers/plants',
-            children: [
-              {
-                label: 'Contacts',
-                icon: '📞',
-                path: '/suppliers/contacts',
-              },
-            ],
+            label: 'Contacts',
+            icon: '📞',
+            path: '/suppliers/contacts',
           },
         ],
       },
     ],
   },
   {
-    label: 'Demand Chain',
-    icon: '⛓️',
+    label: 'Customers',
+    icon: '👥',
+    path: '/customers',
     children: [
       {
-        label: 'Customers',
-        icon: '👥',
-        path: '/customers',
+        label: 'New Customer',
+        icon: '➕',
+        path: '/customers/new',
+      },
+      {
+        label: 'Locations',
+        icon: '📍',
+        path: '/customers/locations',
         children: [
           {
-            label: 'New Customer',
-            icon: '➕',
-            path: '/customers/new',
-          },
-          {
-            label: 'Locations',
-            icon: '📍',
-            path: '/customers/locations',
-            children: [
-              {
-                label: 'Contacts',
-                icon: '📞',
-                path: '/customers/contacts',
-              },
-            ],
+            label: 'Contacts',
+            icon: '📞',
+            path: '/customers/contacts',
           },
         ],
       },
