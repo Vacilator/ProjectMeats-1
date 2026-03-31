@@ -2541,11 +2541,14 @@ class AvailableFormsViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = AvailableFormSerializer
 
     def get_queryset(self):
-        # TenantForms: active or draft
-        queryset = TenantForm.objects.filter(status__in=[FormStatus.ACTIVE, FormStatus.DRAFT])
+        # Keep this endpoint extremely stable: Quick Actions depends on it.
+        queryset = TenantForm.objects.filter(status__in=['active', 'draft'])
 
         if not self.request.user.is_superuser:
-            queryset = queryset.filter(tenant=self.request.tenant)
+            tenant = getattr(self.request, 'tenant', None)
+            if not tenant:
+                return TenantForm.objects.none()
+            queryset = queryset.filter(tenant=tenant)
 
         return queryset.prefetch_related('entities').order_by('name')
 
