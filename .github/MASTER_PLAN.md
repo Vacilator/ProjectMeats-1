@@ -1455,3 +1455,5 @@ Deliverables:
   - `docs/audits/API_SCHEMA_DRIFT.md`
 - New remediation blueprint:
   - `docs/plans/V3_5_ENTERPRISE_REFACTOR_ROADMAP.md`
+
+- 2026-03-31 — Frontend: add global runtime `unhandledrejection` + `error` handlers via centralized logger/Sentry — PR: #4248.
