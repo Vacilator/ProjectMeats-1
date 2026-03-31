@@ -38,12 +38,12 @@
 
 ---
 
-## 🚧 Pending PRs (Requires Manual Creation)
+## 📦 Historical PR Links (Merged)
 
 > ⚠️ This section is **historical**. The referenced PRs/branches were merged long ago.
 > Use `gh pr list` and `.github/MASTER_PLAN.md` for current shipped state.
 
-### 4 PRs Awaiting Merge
+### 4 PR links (historical)
 
 1. **Phase 6.2: Security Hardening**  
    https://github.com/Meats-Central/ProjectMeats/compare/development...Vacilator:ProjectMeats-1:feat/gap-analysis-phase6-2-security-hardening?expand=1
