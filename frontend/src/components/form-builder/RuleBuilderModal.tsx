@@ -10,6 +10,7 @@
 
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
+import { showAlert } from '@/utils/uiDialogs';
 import { X, Save, Plus, Trash2 } from 'lucide-react';
 import { FormRule, RuleCondition, RuleAction, RuleOperator, RuleActionType } from './types';
 import { useFormBuilderStore } from './store';
@@ -238,7 +239,7 @@ export const RuleBuilderModal: React.FC = () => {
   
   const handleSave = () => {
     if (!activeStepId || !ruleData.name.trim()) {
-      alert('Rule name is required');
+      showAlert({ type: 'warning', title: 'Validation', content: 'Rule name is required' });
       return;
     }
     saveRule(activeStepId, ruleData);

@@ -43,7 +43,7 @@ def orchestrate_rlhf_finetuning(
     try:
         from openai import OpenAI
 
-        client = OpenAI(
+        OpenAI(
             api_key=openai_api_key,
             organization=getattr(settings, 'OPENAI_ORG_ID', None) or None,
         )

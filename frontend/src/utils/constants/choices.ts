@@ -23,6 +23,7 @@ export const DEPARTMENT_CHOICES: MultiSelectOption[] = [
 // Backend: IndustryChoices
 export const INDUSTRY_CHOICES: MultiSelectOption[] = [
   { value: 'Restaurant', label: 'Restaurant' },
+  { value: 'Pet Foods', label: 'Pet Foods' },
   { value: 'Food Service', label: 'Food Service' },
   { value: 'Retail', label: 'Retail' },
   { value: 'Wholesale', label: 'Wholesale' },
@@ -37,6 +38,7 @@ export const PROTEIN_TYPE_CHOICES: MultiSelectOption[] = [
   { value: 'Beef', label: 'Beef' },
   { value: 'Pork', label: 'Pork' },
   { value: 'Chicken', label: 'Chicken' },
+  { value: 'Duck', label: 'Duck' },
   { value: 'Turkey', label: 'Turkey' },
   { value: 'Lamb', label: 'Lamb' },
   { value: 'Fish', label: 'Fish' },

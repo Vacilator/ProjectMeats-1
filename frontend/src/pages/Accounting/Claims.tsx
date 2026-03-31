@@ -18,6 +18,9 @@
  */
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
+import { Skeleton } from 'antd';
+
+import { showAlert } from '@/utils/uiDialogs';
 import { ActivityFeed, EntityFormSurface } from '../../components/Shared';
 import { apiClient } from '../../services/apiService';
 import { formatCurrency } from '../../shared/utils';
@@ -510,7 +513,11 @@ export const Claims: React.FC = () => {
       setSelectedClaim(response.data);
     } catch (err: any) {
       console.error('Failed to update claim status:', err);
-      alert('Failed to update claim status');
+      showAlert({
+        type: 'error',
+        title: 'Error',
+        content: 'Failed to update claim status',
+      });
     }
   };
 
@@ -594,7 +601,9 @@ export const Claims: React.FC = () => {
           {/* Table */}
           <TableContainer>
             {loading ? (
-              <LoadingState>Loading claims...</LoadingState>
+              <div style={{ padding: 16 }}>
+                <Skeleton active paragraph={{ rows: 8 }} />
+              </div>
             ) : filteredClaims.length === 0 ? (
               <EmptyState>
                 <p>No {statusFilter !== 'all' ? statusFilter : ''} claims found.</p>

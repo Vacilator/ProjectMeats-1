@@ -8,7 +8,6 @@ Implements tenant ForeignKey field for shared-schema multi-tenancy.
 from django.contrib.postgres.fields import ArrayField
 from django.db import models
 
-from apps.tenants.models import Tenant
 from tenant_apps.contacts.models import Contact
 from apps.core.models import (
     AccountingPaymentTermsChoices,
@@ -18,6 +17,7 @@ from apps.core.models import (
     EdibleInedibleChoices,
     IndustryChoices,
     OriginChoices,
+    PhoneTypeChoices,
     Protein,
     ProteinTypeChoices,
     TenantAwareModel,
@@ -34,8 +34,40 @@ class Customer(TenantAwareModel):
         max_length=255, blank=True, null=True, help_text="Primary contact person name"
     )
     email = models.EmailField(blank=True, null=True, help_text="Primary contact email")
+
+    # Legacy primary phone (kept for backward compatibility)
     phone = models.CharField(
         max_length=20, blank=True, null=True, help_text="Primary contact phone number"
+    )
+    phone_type = models.CharField(
+        max_length=10,
+        choices=PhoneTypeChoices.choices,
+        blank=True,
+        default=PhoneTypeChoices.OFFICE,
+        help_text="Primary contact phone type (mobile or office)",
+    )
+
+    # New: explicit phone slots for creation/edit UX
+    phone_mobile = models.CharField(
+        max_length=20,
+        blank=True,
+        null=True,
+        default='',
+        help_text="Mobile phone number",
+    )
+    phone_office = models.CharField(
+        max_length=20,
+        blank=True,
+        null=True,
+        default='',
+        help_text="Office phone number",
+    )
+    phone_office_extension = models.CharField(
+        max_length=10,
+        blank=True,
+        null=True,
+        default='',
+        help_text="Office phone extension",
     )
 
     # Address fields - keeping existing structure but adding street_address for clarity
@@ -43,6 +75,7 @@ class Customer(TenantAwareModel):
     street_address = models.CharField(
         max_length=255,
         blank=True,
+        null=True,
         default='',
         help_text="Street address (alternative to address field)",
     )
@@ -73,12 +106,14 @@ class Customer(TenantAwareModel):
         max_length=50,
         choices=EdibleInedibleChoices.choices,
         blank=True,
+        null=True,
         default='',
         help_text="Type of products handled",
     )
     type_of_plant = models.CharField(
         max_length=100,
         blank=True,
+        null=True,
         default='',
         help_text="Customer type of plant (e.g., Vertical, Processor)",
     )
@@ -86,6 +121,7 @@ class Customer(TenantAwareModel):
         max_length=100,
         choices=OriginChoices.choices,
         blank=True,
+        null=True,
         default='',
         help_text="Purchasing preference origin (e.g., Domestic, Imported)",
     )
@@ -93,6 +129,7 @@ class Customer(TenantAwareModel):
         max_length=100,
         choices=IndustryChoices.choices,
         blank=True,
+        null=True,
         default='',
         verbose_name="Industry Sector",
         help_text="Industry sector (e.g., Pet Sector, Retail)",
@@ -131,6 +168,7 @@ class Customer(TenantAwareModel):
         max_length=50,
         choices=AccountingPaymentTermsChoices.choices,
         blank=True,
+        null=True,
         default='',
         help_text="Payment terms (e.g., Wire, ACH, Check)",
     )
@@ -138,6 +176,7 @@ class Customer(TenantAwareModel):
         max_length=50,
         choices=CreditLimitChoices.choices,
         blank=True,
+        null=True,
         default='',
         help_text="Credit limits/terms (e.g., Net 30, Wire 1 day prior)",
     )
@@ -145,6 +184,7 @@ class Customer(TenantAwareModel):
         max_length=50,
         choices=AccountLineOfCreditChoices.choices,
         blank=True,
+        null=True,
         default='',
         help_text="Line of credit amount range",
     )
@@ -153,12 +193,14 @@ class Customer(TenantAwareModel):
     buyer_contact_name = models.CharField(
         max_length=255,
         blank=True,
+        null=True,
         default='',
         help_text="Buyer contact name",
     )
     contact_title = models.CharField(
         max_length=100,
         blank=True,
+        null=True,
         default='',
         verbose_name="Contact Title",
         help_text="e.g., Vice President, Buyer",
@@ -166,11 +208,13 @@ class Customer(TenantAwareModel):
     buyer_contact_phone = models.CharField(
         max_length=20,
         blank=True,
+        null=True,
         default='',
         help_text="Buyer contact phone",
     )
     buyer_contact_email = models.EmailField(
         blank=True,
+        null=True,
         default='',
         help_text="Buyer contact email",
     )
@@ -179,6 +223,7 @@ class Customer(TenantAwareModel):
         max_length=100,
         choices=CertificateTypeChoices.choices,
         blank=True,
+        null=True,
         default='',
         help_text="Certificate type required (e.g., 3rd Party, BRC)",
     )
@@ -189,11 +234,16 @@ class Customer(TenantAwareModel):
     
     # Deprecated fields - keeping for backward compatibility
     accounting_terms = models.CharField(
-        max_length=100, blank=True, default='', help_text="Accounting terms (deprecated, use accounting_payment_terms)"
+        max_length=100,
+        blank=True,
+        null=True,
+        default='',
+        help_text="Accounting terms (deprecated, use accounting_payment_terms)",
     )
     accounting_line_of_credit = models.CharField(
         max_length=100,
         blank=True,
+        null=True,
         default='',
         help_text="Line of credit amount (deprecated, use account_line_of_credit)",
     )

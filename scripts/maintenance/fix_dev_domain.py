@@ -1,146 +1,155 @@
-#!/usr/bin/env python
-"""
+#!/usr/bin/env python3
+"""fix_dev_domain.py
+
 Fix Dev Domain Mapping
-======================
-Maps dev-backend.meatscentral.com to the root tenant to resolve 403 Forbidden errors.
+
+Maps a domain (default: dev-backend.meatscentral.com) to a tenant slug (default: root)
+by creating/updating a TenantDomain record.
 
 Usage:
-    # Inside container:
-    python /app/scripts/fix_dev_domain.py
+  python scripts/maintenance/fix_dev_domain.py --help
+  python scripts/maintenance/fix_dev_domain.py --domain dev-backend.meatscentral.com --tenant-slug root
 
-    # Or via docker exec:
-    docker exec pm-backend python /app/scripts/fix_dev_domain.py
+Notes:
+- Intended to be run either inside the backend container or from the repo root.
+- Requires a reachable database.
 """
 
+from __future__ import annotations
+
+import argparse
 import os
 import sys
-import django
-
-# Setup Django environment
-sys.path.insert(0, '/app/backend')
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'projectmeats.settings.development')
-
-try:
-    django.setup()
-except Exception as e:
-    print(f"❌ Failed to setup Django: {e}")
-    sys.exit(1)
-
-from apps.tenants.models import Tenant, TenantDomain
+from pathlib import Path
 
 
-def fix_domain():
-    """
-    Map dev-backend.meatscentral.com to root tenant.
-    
-    This fixes 403 Forbidden errors caused by TenantMiddleware
-    not being able to resolve a tenant from the subdomain.
-    """
-    print("=" * 60)
-    print("Fixing Dev Domain Mapping")
-    print("=" * 60)
-    print()
-    
+def _detect_backend_path() -> Path:
+    # Container layout
+    container_backend = Path('/app/backend')
+    if container_backend.exists():
+        return container_backend
+
+    # Repo layout: scripts/maintenance/*.py -> repo root is parents[2]
+    repo_root = Path(__file__).resolve().parents[2]
+    backend_dir = repo_root / 'backend'
+    return backend_dir
+
+
+def _setup_django(settings_module: str) -> int:
+    backend_dir = _detect_backend_path()
+    sys.path.insert(0, str(backend_dir))
+
+    os.environ.setdefault('DJANGO_SETTINGS_MODULE', settings_module)
+
     try:
-        # 1. Get the Root Tenant
-        print("Step 1: Looking for root tenant...")
-        root_tenant = Tenant.objects.get(slug='root')
-        print(f"✅ Found Root Tenant:")
-        print(f"   ID: {root_tenant.id}")
-        print(f"   Name: {root_tenant.name}")
-        print(f"   Slug: {root_tenant.slug}")
-        print()
+        import django
 
-        # 2. Create/Update Domain Mapping
-        print("Step 2: Creating domain mapping...")
-        domain = "dev-backend.meatscentral.com"
-        
+        django.setup()
+    except Exception as e:
+        print(f"❌ Failed to setup Django ({settings_module}): {e}")
+        return 1
+
+    return 0
+
+
+def show_current_mappings() -> None:
+    from apps.tenants.models import TenantDomain
+
+    print('\n' + '=' * 60)
+    print('Current Domain Mappings')
+    print('=' * 60)
+
+    try:
+        mappings = TenantDomain.objects.select_related('tenant').all()
+        if not mappings:
+            print('No domain mappings found.')
+        else:
+            for mapping in mappings:
+                print(
+                    f"  {mapping.domain} → {mapping.tenant.name} "
+                    f"(slug: {mapping.tenant.slug}, primary: {mapping.is_primary})"
+                )
+    except Exception as e:
+        print(f'Could not fetch mappings: {e}')
+
+
+def fix_domain(domain: str, tenant_slug: str) -> int:
+    from apps.tenants.models import Tenant, TenantDomain
+
+    print('=' * 60)
+    print('Fixing Dev Domain Mapping')
+    print('=' * 60)
+
+    try:
+        print('Step 1: Looking for tenant...')
+        tenant = Tenant.objects.get(slug=tenant_slug)
+        print(f'✅ Found tenant: {tenant.name} (slug: {tenant.slug}, id: {tenant.id})')
+
+        print('Step 2: Creating/updating domain mapping...')
         obj, created = TenantDomain.objects.update_or_create(
             domain=domain,
-            defaults={
-                'tenant': root_tenant,
-                'is_primary': True
-            }
+            defaults={'tenant': tenant, 'is_primary': True},
         )
-        
-        if created:
-            print(f"✅ Created new domain mapping:")
-        else:
-            print(f"✅ Updated existing domain mapping:")
-        
-        print(f"   Domain: {obj.domain}")
-        print(f"   Tenant: {obj.tenant.name} (slug: {obj.tenant.slug})")
-        print(f"   Primary: {obj.is_primary}")
-        print()
 
-        # 3. Verify mapping
-        print("Step 3: Verifying mapping...")
-        verification = TenantDomain.objects.get(domain=domain)
-        if verification.tenant == root_tenant:
-            print("✅ Mapping verified successfully!")
-            print()
-            print("=" * 60)
-            print("Domain mapping complete!")
-            print("=" * 60)
-            print()
-            print("Next steps:")
-            print("1. Restart the backend container")
-            print("2. Try accessing dev-backend.meatscentral.com")
-            print("3. 403 errors should be resolved")
-            return 0
-        else:
-            print("❌ Verification failed: Mapping doesn't match")
+        print('✅ Created new mapping' if created else '✅ Updated existing mapping')
+        print(f'  Domain: {obj.domain}')
+        print(f'  Tenant: {obj.tenant.name} (slug: {obj.tenant.slug})')
+        print(f'  Primary: {obj.is_primary}')
+
+        print('Step 3: Verifying mapping...')
+        verification = TenantDomain.objects.select_related('tenant').get(domain=domain)
+        if verification.tenant_id != tenant.id:
+            print('❌ Verification failed: mapping does not match tenant')
             return 1
 
+        print('✅ Mapping verified successfully')
+        print('\nNext steps:')
+        print('1. Restart the backend container (if applicable)')
+        print(f'2. Try accessing {domain}')
+        return 0
+
     except Tenant.DoesNotExist:
-        print("❌ Error: Root tenant not found!")
-        print()
-        print("The 'root' tenant must exist before domain mapping.")
-        print()
-        print("To create the root tenant, run:")
-        print("  python manage.py create_super_tenant")
-        print()
+        print(f"❌ Error: tenant slug '{tenant_slug}' not found")
         return 1
-    
     except Exception as e:
-        print(f"❌ Unexpected error: {e}")
+        print(f'❌ Unexpected error: {e}')
         import traceback
+
         traceback.print_exc()
         return 1
 
 
-def show_current_mappings():
-    """Display all current domain mappings for debugging."""
-    print()
-    print("=" * 60)
-    print("Current Domain Mappings")
-    print("=" * 60)
-    
-    try:
-        mappings = TenantDomain.objects.select_related('tenant').all()
-        
-        if not mappings:
-            print("No domain mappings found.")
-        else:
-            for mapping in mappings:
-                print(f"  {mapping.domain} → {mapping.tenant.name} "
-                      f"(slug: {mapping.tenant.slug}, primary: {mapping.is_primary})")
-        
-        print("=" * 60)
-        print()
-    except Exception as e:
-        print(f"Could not fetch mappings: {e}")
+def main() -> int:
+    parser = argparse.ArgumentParser(description='Create/update TenantDomain mapping for a domain.')
+    parser.add_argument('--domain', default='dev-backend.meatscentral.com', help='Domain to map')
+    parser.add_argument('--tenant-slug', default='root', help='Tenant slug to map the domain to')
+    parser.add_argument(
+        '--settings',
+        default='projectmeats.settings.development',
+        help='DJANGO_SETTINGS_MODULE to use (default: projectmeats.settings.development)',
+    )
+    parser.add_argument(
+        '--show',
+        action='store_true',
+        help='Print current domain mappings before/after the change',
+    )
 
+    args = parser.parse_args()
 
-if __name__ == "__main__":
-    # Show current state
-    show_current_mappings()
-    
-    # Apply fix
-    exit_code = fix_domain()
-    
-    # Show new state
-    if exit_code == 0:
+    setup_rc = _setup_django(args.settings)
+    if setup_rc != 0:
+        return setup_rc
+
+    if args.show:
         show_current_mappings()
-    
-    sys.exit(exit_code)
+
+    rc = fix_domain(args.domain, args.tenant_slug)
+
+    if rc == 0 and args.show:
+        show_current_mappings()
+
+    return rc
+
+
+if __name__ == '__main__':
+    sys.exit(main())

@@ -535,24 +535,61 @@ class TenantUserViewSet(viewsets.ModelViewSet):
         except Exception:
             logger.exception('Failed to write ActivityLog for user update')
 
-    def perform_destroy(self, instance):
-        """Soft delete by setting is_active to False."""
-        instance.is_active = False
-        instance.save()
+    def destroy(self, request, *args, **kwargs):
+        """Delete a tenant-user association.
+
+        Admins/owners can remove users from a tenant, but owners cannot be removed.
+        """
+
+        instance = self.get_object()
+
+        # Only admins/owners (or superuser) can manage tenant users.
+        has_permission = (
+            TenantUser.objects.filter(
+                tenant=instance.tenant,
+                user=request.user,
+                role__in=["owner", "admin"],
+                is_active=True,
+            ).exists()
+            or request.user.is_superuser
+        )
+
+        if not has_permission:
+            return Response({"error": "Permission denied"}, status=status.HTTP_403_FORBIDDEN)
+
+        if instance.role == "owner":
+            return Response(
+                {"error": "Owners cannot be removed. Transfer ownership first."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        removed_user_id = getattr(instance.user, 'id', None)
+        removed_user_email = getattr(instance.user, 'email', None)
+        tenant = instance.tenant
+        tenant_user_id = instance.id
+
+        instance.delete()
 
         try:
             ActivityLog.log_activity(
-                tenant=instance.tenant,
-                user=self.request.user,
-                action='user.deactivate',
-                description='Deactivated user.',
+                tenant=tenant,
+                user=request.user,
+                action='user.remove',
+                description=f"Removed user from tenant ({removed_user_email or removed_user_id or 'unknown'}).",
                 entity_type='TenantUser',
-                entity_id=instance.id,
-                metadata={'user_id': getattr(instance.user, 'id', None)},
-                ip_address=_get_client_ip(self.request),
+                entity_id=tenant_user_id,
+                metadata={'user_id': removed_user_id, 'tenant_user_id': tenant_user_id},
+                ip_address=_get_client_ip(request),
             )
         except Exception:
-            logger.exception('Failed to write ActivityLog for user deactivation')
+            logger.exception('Failed to write ActivityLog for user removal')
+
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    def perform_destroy(self, instance):
+        """Deprecated: use destroy() (hard removal) instead."""
+        instance.is_active = False
+        instance.save(update_fields=['is_active'])
     
     @action(detail=False, methods=["post"])
     def bulk_update_roles(self, request):

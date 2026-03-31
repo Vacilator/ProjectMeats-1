@@ -3,8 +3,11 @@ Invoices and Claims views for ProjectMeats.
 
 Provides REST API endpoints for invoice and claim management with strict multi-tenant isolation.
 """
-from rest_framework import viewsets
+from rest_framework import viewsets, status
+from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+
 from tenant_apps.invoices.models import Invoice, Claim, PaymentTransaction
 from tenant_apps.invoices.serializers import InvoiceSerializer, ClaimSerializer, PaymentTransactionSerializer
 
@@ -17,22 +20,60 @@ class InvoiceViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
     
     def get_queryset(self):
-        """Filter invoices by tenant."""
+        """Filter invoices by tenant.
+
+        Soft deletes:
+        - default: hide deleted
+        - admin: allow include_deleted=1
+        """
         if not hasattr(self.request, 'tenant') or not self.request.tenant:
             return Invoice.objects.none()
-        
-        queryset = Invoice.objects.filter(tenant=self.request.tenant)
+
+        include_deleted = str(self.request.query_params.get('include_deleted') or '').strip().lower() in {
+            '1',
+            'true',
+            't',
+            'yes',
+            'y',
+        }
+        is_admin = bool(getattr(self.request.user, 'is_superuser', False) or getattr(self.request.user, 'is_staff', False))
+
+        queryset = Invoice.all_objects.filter(tenant=self.request.tenant) if (include_deleted and is_admin) else Invoice.objects.filter(tenant=self.request.tenant)
         
         # Filter by status if provided
         status = self.request.query_params.get('status')
         if status:
             queryset = queryset.filter(status=status)
+
+        # Filter by subscription invoices if provided
+        is_subscription = self.request.query_params.get('is_subscription')
+        if is_subscription is not None:
+            raw = str(is_subscription).strip().lower()
+            if raw in {'1', 'true', 't', 'yes', 'y'}:
+                queryset = queryset.filter(is_subscription=True)
+            elif raw in {'0', 'false', 'f', 'no', 'n'}:
+                queryset = queryset.filter(is_subscription=False)
         
         return queryset.select_related('customer', 'sales_order', 'product')
     
     def perform_create(self, serializer):
         """Auto-assign tenant on invoice creation."""
         serializer.save(tenant=self.request.tenant)
+
+    def perform_destroy(self, instance):
+        instance.soft_delete()
+
+    @action(detail=True, methods=['post'], url_path='restore')
+    def restore(self, request, pk=None):
+        if not (getattr(request.user, 'is_superuser', False) or getattr(request.user, 'is_staff', False)):
+            return Response({'error': 'Permission denied'}, status=status.HTTP_403_FORBIDDEN)
+
+        inv = Invoice.all_objects.filter(tenant=request.tenant, pk=pk).first()
+        if not inv:
+            return Response({'error': 'Not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        inv.restore()
+        return Response(InvoiceSerializer(inv).data)
 
 
 class ClaimViewSet(viewsets.ModelViewSet):

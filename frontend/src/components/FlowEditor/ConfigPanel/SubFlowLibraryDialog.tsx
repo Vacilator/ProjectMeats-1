@@ -10,6 +10,7 @@
 
 import React, { useState, useCallback, useMemo } from 'react';
 import styled from 'styled-components';
+import { confirmDialog, promptDialog, showAlert } from '@/utils/uiDialogs';
 import { Search, X, Download, Upload, Trash2, Copy, FileText, Tag } from 'lucide-react';
 import { PanelFooter, PrimaryButton, SecondaryButton } from './shared/StyledComponents';
 import {
@@ -299,21 +300,37 @@ export const SubFlowLibraryDialog: React.FC<SubFlowLibraryDialogProps> = ({
     onClose();
   }, [onSelectTemplate, onClose]);
 
-  const handleDelete = useCallback((templateId: string, event: React.MouseEvent) => {
+  const handleDelete = useCallback(async (templateId: string, event: React.MouseEvent) => {
     event.stopPropagation();
-    if (confirm('Are you sure you want to delete this template?')) {
-      deleteTemplate(templateId);
-      setTemplates(getAllTemplates());
-    }
+
+    const confirmed = await confirmDialog({
+      title: 'Delete template?',
+      content: 'Are you sure you want to delete this template?',
+      okText: 'Delete',
+      cancelText: 'Cancel',
+      danger: true,
+    });
+
+    if (!confirmed) return;
+
+    deleteTemplate(templateId);
+    setTemplates(getAllTemplates());
   }, []);
 
-  const handleDuplicate = useCallback((templateId: string, templateName: string, event: React.MouseEvent) => {
+  const handleDuplicate = useCallback(async (templateId: string, templateName: string, event: React.MouseEvent) => {
     event.stopPropagation();
-    const newName = prompt('Enter name for duplicate:', `${templateName} (Copy)`);
-    if (newName) {
-      duplicateTemplate(templateId, newName);
-      setTemplates(getAllTemplates());
-    }
+
+    const newName = await promptDialog({
+      title: 'Duplicate template',
+      defaultValue: `${templateName} (Copy)`,
+      placeholder: 'New template name',
+      okText: 'Duplicate',
+    });
+
+    if (!newName?.trim()) return;
+
+    duplicateTemplate(templateId, newName.trim());
+    setTemplates(getAllTemplates());
   }, []);
 
   const handleExport = useCallback((template: SubFlowTemplate, event: React.MouseEvent) => {
@@ -342,7 +359,11 @@ export const SubFlowLibraryDialog: React.FC<SubFlowLibraryDialogProps> = ({
         saveTemplate(template);
         setTemplates(getAllTemplates());
       } catch (error) {
-        alert('Failed to import template: ' + (error as Error).message);
+        showAlert({
+          type: 'error',
+          title: 'Import failed',
+          content: 'Failed to import template: ' + (error as Error).message,
+        });
       }
     };
     input.click();

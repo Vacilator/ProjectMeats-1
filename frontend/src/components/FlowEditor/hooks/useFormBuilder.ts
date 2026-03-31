@@ -71,34 +71,60 @@ export function useFormBuilder(): UseFormBuilderReturn {
    */
   const saveFormBuilder = useCallback((formData: any) => {
     if (!editingNodeId) return;
-    
+
     const node = getNode(editingNodeId);
     if (!node) return;
-    
-    // Update node with form data
+
+    const steps = Array.isArray(formData?.steps) ? formData.steps : [];
+    const stepCount = steps.length;
+    const fieldCount = steps.reduce((sum: number, step: any) => {
+      return sum + (Array.isArray(step?.fields) ? step.fields.length : 0);
+    }, 0);
+
+    const prevData = (node.data || {}) as any;
+    const prevFormData = prevData.formData;
+    const prevLabel = prevData.label;
+    const prevFieldCount = prevData.fieldCount;
+    const prevStepCount = prevData.stepCount;
+
+    const nextLabel = formData?.name || prevLabel;
+
+    let formDataIsSame = prevFormData === formData;
+    if (!formDataIsSame) {
+      try {
+        formDataIsSame = JSON.stringify(prevFormData) === JSON.stringify(formData);
+      } catch {
+        formDataIsSame = false;
+      }
+    }
+
+    if (
+      formDataIsSame &&
+      nextLabel === prevLabel &&
+      fieldCount === prevFieldCount &&
+      stepCount === prevStepCount
+    ) {
+      closeFormBuilder();
+      return;
+    }
+
     setNodes((nodes) =>
       nodes.map((n) => {
-        if (n.id === editingNodeId) {
-          return {
-            ...n,
-            data: {
-              ...n.data,
-              formData,
-              // Update label from form name
-              label: formData.name || n.data.label,
-              // Store summary for quick reference
-              fieldCount: formData.steps?.reduce(
-                (sum: number, step: any) => sum + (step.fields?.length || 0),
-                0
-              ) || 0,
-              stepCount: formData.steps?.length || 0
-            }
-          };
-        }
-        return n;
+        if (n.id !== editingNodeId) return n;
+
+        return {
+          ...n,
+          data: {
+            ...n.data,
+            formData,
+            label: nextLabel,
+            fieldCount,
+            stepCount,
+          },
+        };
       })
     );
-    
+
     closeFormBuilder();
   }, [editingNodeId, getNode, setNodes, closeFormBuilder]);
   

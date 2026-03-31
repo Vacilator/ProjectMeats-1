@@ -4,6 +4,7 @@ import {
   SystemChoiceList,
 } from '../../../services/configService';
 import { apiClient } from '../../../services/apiService';
+import { confirmDialog } from '@/utils/uiDialogs';
 
 interface ChoiceListEditorProps {
   listSlug?: string;
@@ -129,9 +130,20 @@ export const ChoiceListEditor: React.FC<ChoiceListEditorProps> = ({
       // Escape: Close editor or deselect
       else if (e.key === 'Escape') {
         if (onClose) {
-          if (!hasChanges || window.confirm('You have unsaved changes. Discard them?')) {
-            onClose();
-          }
+          void (async () => {
+            const ok =
+              !hasChanges ||
+              (await confirmDialog({
+                title: 'Discard unsaved changes?',
+                content: 'You have unsaved changes. Discard them?',
+                okText: 'Discard',
+                cancelText: 'Keep editing',
+                danger: true,
+              }));
+            if (ok) {
+              onClose();
+            }
+          })();
         }
       }
     };
@@ -140,11 +152,16 @@ export const ChoiceListEditor: React.FC<ChoiceListEditorProps> = ({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [selectedList, hasChanges, saving, onClose]);
 
-  const handleSelectList = (list: SystemChoiceList) => {
+  const handleSelectList = async (list: SystemChoiceList) => {
     if (hasChanges) {
-      if (!window.confirm('You have unsaved changes. Discard them?')) {
-        return;
-      }
+      const ok = await confirmDialog({
+        title: 'Discard unsaved changes?',
+        content: 'You have unsaved changes. Discard them?',
+        okText: 'Discard',
+        cancelText: 'Keep editing',
+        danger: true,
+      });
+      if (!ok) return;
     }
     loadItems(list.slug);
   };
@@ -174,18 +191,25 @@ export const ChoiceListEditor: React.FC<ChoiceListEditorProps> = ({
     setHasChanges(true);
   };
 
-  const handleDeleteItem = (index: number) => {
+  const handleDeleteItem = async (index: number) => {
     const item = items[index];
-    if (item.id && !window.confirm(`Delete "${item.label}"? This cannot be undone.`)) {
-      return;
+    if (item.id) {
+      const ok = await confirmDialog({
+        title: 'Delete choice?',
+        content: `Delete "${item.label}"? This cannot be undone.`,
+        okText: 'Delete',
+        cancelText: 'Cancel',
+        danger: true,
+      });
+      if (!ok) return;
     }
-    
+
     const newItems = items.filter((_, i) => i !== index);
     // Recalculate sort orders
     newItems.forEach((item, i) => {
       item.sort_order = i;
     });
-    
+
     setItems(newItems);
     setHasChanges(true);
   };
@@ -346,7 +370,7 @@ export const ChoiceListEditor: React.FC<ChoiceListEditorProps> = ({
   if (loading && !selectedList) {
     return (
       <div className="flex items-center justify-center h-96">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
       </div>
     );
   }
@@ -369,7 +393,7 @@ export const ChoiceListEditor: React.FC<ChoiceListEditorProps> = ({
           {filteredLists.map((list) => (
             <button
               key={list.id}
-              onClick={() => handleSelectList(list)}
+              onClick={() => void handleSelectList(list)}
               className={`w-full text-left p-3 border-b hover:bg-gray-50 transition-colors ${
                 selectedList?.id === list.id ? 'bg-blue-50 border-l-4 border-l-blue-600' : ''
               }`}
@@ -453,12 +477,12 @@ export const ChoiceListEditor: React.FC<ChoiceListEditorProps> = ({
               <table className="w-full bg-white rounded-lg shadow-sm border">
                 <thead>
                   <tr className="bg-gray-50 text-left text-sm font-medium text-gray-600">
-                    <th className="px-4 py-3 w-10"></th>
+                    <th className="px-4 py-3 w-10" />
                     <th className="px-4 py-3">Value</th>
                     <th className="px-4 py-3">Label</th>
                     <th className="px-4 py-3 w-24 text-center">Active</th>
                     <th className="px-4 py-3 w-20 text-center">Order</th>
-                    <th className="px-4 py-3 w-20"></th>
+                    <th className="px-4 py-3 w-20" />
                   </tr>
                 </thead>
                 <tbody>
@@ -507,7 +531,7 @@ export const ChoiceListEditor: React.FC<ChoiceListEditorProps> = ({
                       </td>
                       <td className="px-4 py-2 text-center">
                         <button
-                          onClick={() => handleDeleteItem(index)}
+                          onClick={() => void handleDeleteItem(index)}
                           className="text-red-600 hover:text-red-800 text-sm"
                           title="Delete item"
                         >

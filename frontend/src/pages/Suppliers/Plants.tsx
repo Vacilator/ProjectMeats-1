@@ -12,10 +12,13 @@
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Table, Input, Button, Modal, Form, Select, message, Tag, Space } from 'antd';
+import { Table, Input, Button, Modal, Form, Select, Checkbox, message, Tag, Space } from 'antd';
+import { CountrySelect, PhoneInput } from '../../components/ui';
+import { US_STATES } from '../../utils/constants/states';
 import type { ColumnsType } from 'antd/es/table';
 import { SearchOutlined, PlusOutlined, EditOutlined, DeleteOutlined, AppstoreOutlined } from '@ant-design/icons';
 import { apiClient } from '../../services/apiService';
+import { confirmDialog } from '@/utils/uiDialogs';
 
 // ============================================================================
 // TypeScript Interfaces
@@ -34,7 +37,12 @@ interface Plant {
   zip_code?: string;
   country?: string;
   phone?: string;
+  phone_type?: 'office' | 'mobile';
   email?: string;
+  booking_contact_email?: string;
+  booking_contact_phone?: string;
+  booking_contact_phone_type?: 'office' | 'mobile';
+  fcfs?: boolean;
   manager?: string;
   capacity?: number;
   is_active?: boolean;
@@ -263,6 +271,8 @@ const Plants: React.FC = () => {
     setEditingPlant(null);
     setFormErrors({});
     form.resetFields();
+
+    form.setFieldsValue({ phone_type: 'office', booking_contact_phone_type: 'office', fcfs: false, country: 'USA' });
     
     // Pre-fill supplier if context exists
     if (contextSupplierId) {
@@ -285,43 +295,52 @@ const Plants: React.FC = () => {
       state: plant.state || '',
       zip_code: plant.zip_code || '',
       country: plant.country || 'USA',
+      phone_type: plant.phone_type || 'office',
       phone: plant.phone || '',
       email: plant.email || '',
+      booking_contact_email: plant.booking_contact_email || '',
+      fcfs: !!plant.fcfs,
+      booking_contact_phone_type: plant.booking_contact_phone_type || 'office',
+      booking_contact_phone: plant.booking_contact_phone || '',
       manager: plant.manager || '',
       capacity: plant.capacity || '',
     });
     setShowModal(true);
   };
 
-  const handleDelete = (plant: Plant) => {
-    Modal.confirm({
+  const handleDelete = async (plant: Plant) => {
+    const confirmed = await confirmDialog({
       title: 'Delete Plant',
       content: `Are you sure you want to delete ${plant.name}?`,
       okText: 'Delete',
-      okType: 'danger',
       cancelText: 'Cancel',
-      onOk: async () => {
-        try {
-          await apiClient.delete(`plants/${plant.id}/`);
-          message.success('Plant deleted successfully');
-          loadPlants();
-        } catch (error: any) {
-          console.error('Error deleting plant:', error);
-          message.error('Failed to delete plant');
-        }
-      },
+      danger: true,
     });
+
+    if (!confirmed) return;
+
+    try {
+      await apiClient.delete(`plants/${plant.id}/`);
+      message.success('Plant deleted successfully');
+      loadPlants();
+    } catch (error: any) {
+      console.error('Error deleting plant:', error);
+      message.error('Failed to delete plant');
+    }
   };
 
   const handleSubmit = async () => {
     try {
       const values = await form.validateFields();
       setFormErrors({});
-      
-      const payload = {
+
+      const payload: Record<string, unknown> = {
         ...values,
-        capacity: values.capacity ? parseInt(values.capacity) : null,
       };
+
+      if (typeof values.code === 'string' && values.code.trim() === '') {
+        delete payload.code;
+      }
       
       if (editingPlant) {
         await apiClient.patch(`plants/${editingPlant.id}/`, payload);
@@ -518,7 +537,7 @@ const Plants: React.FC = () => {
         <Form form={form} layout="vertical">
           <Form.Item
             name="name"
-            label={<><Label>Name<RequiredMark>*</RequiredMark></Label></>}
+            label={<Label>Name<RequiredMark>*</RequiredMark></Label>}
             rules={[{ required: true, message: 'Plant name is required' }]}
             validateStatus={formErrors.name ? 'error' : ''}
             help={formErrors.name && <ErrorMessage>⚠ {formErrors.name[0]}</ErrorMessage>}
@@ -528,12 +547,11 @@ const Plants: React.FC = () => {
 
           <Form.Item
             name="code"
-            label={<><Label>Code<RequiredMark>*</RequiredMark></Label></>}
-            rules={[{ required: true, message: 'Plant code is required' }]}
+            label={<Label>Code</Label>}
             validateStatus={formErrors.code ? 'error' : ''}
             help={formErrors.code && <ErrorMessage>⚠ {formErrors.code[0]}</ErrorMessage>}
           >
-            <Input placeholder="Plant Code (e.g., PLT001)" />
+            <Input placeholder="Plant Code (optional; auto-generated if blank)" />
           </Form.Item>
 
           <Form.Item
@@ -575,32 +593,81 @@ const Plants: React.FC = () => {
           </Form.Item>
 
           <Form.Item name="state" label={<Label>State</Label>}>
-            <Input placeholder="State" />
+            <Select
+              placeholder="Search state"
+              allowClear
+              showSearch
+              optionFilterProp="label"
+              options={US_STATES}
+              filterOption={(input, option) =>
+                String(option?.label || '').toLowerCase().includes(input.toLowerCase())
+                || String(option?.value || '').toLowerCase().includes(input.toLowerCase())
+              }
+            />
           </Form.Item>
 
-          <Form.Item name="zip_code" label={<Label>ZIP Code</Label>}>
-            <Input placeholder="ZIP Code" />
+          <Form.Item
+            name="zip_code"
+            label={<Label>ZIP Code</Label>}
+            rules={[{ pattern: /^\d{5}$/, message: 'ZIP Code must be exactly 5 digits' }]}
+            getValueFromEvent={(e) => String(e?.target?.value ?? '').replace(/\D/g, '').slice(0, 5)}
+          >
+            <Input placeholder="12345" maxLength={5} inputMode="numeric" />
           </Form.Item>
 
           <Form.Item name="country" label={<Label>Country</Label>}>
-            <Input placeholder="Country" />
+            <CountrySelect placeholder="Search country" aria-label="Country" />
+          </Form.Item>
+
+          <Form.Item name="phone_type" label={<Label>Phone Type</Label>}>
+            <Select placeholder="Select type">
+              <Select.Option value="office">Office</Select.Option>
+              <Select.Option value="mobile">Mobile</Select.Option>
+            </Select>
           </Form.Item>
 
           <Form.Item name="phone" label={<Label>Phone</Label>}>
             <Input placeholder="Phone Number" />
           </Form.Item>
 
-          <Form.Item name="email" label={<Label>Email</Label>}>
+          <Form.Item
+            name="email"
+            label={<Label>Email</Label>}
+            rules={[{ type: 'email', message: 'Please enter a valid email address' }]}
+          >
             <Input type="email" placeholder="Email Address" />
+          </Form.Item>
+
+          <div style={{ fontWeight: 700, fontSize: 16, marginTop: 8 }}>Booking Contact</div>
+
+          <Form.Item
+            name="booking_contact_email"
+            label={<Label>Booking Email</Label>}
+            rules={[{ type: 'email', message: 'Please enter a valid booking email address' }]}
+          >
+            <Input type="email" placeholder="booking@example.com" />
+          </Form.Item>
+
+          <Form.Item name="fcfs" valuePropName="checked">
+            <Checkbox>FCFS (First Come First Serve)</Checkbox>
+          </Form.Item>
+
+          <Form.Item name="booking_contact_phone_type" label={<Label>Booking Phone Type</Label>}>
+            <Select placeholder="Select type">
+              <Select.Option value="office">Office</Select.Option>
+              <Select.Option value="mobile">Mobile</Select.Option>
+            </Select>
+          </Form.Item>
+
+          <Form.Item name="booking_contact_phone" label={<Label>Booking Phone</Label>}>
+            <PhoneInput aria-label="Booking phone" />
           </Form.Item>
 
           <Form.Item name="manager" label={<Label>Manager</Label>}>
             <Input placeholder="Facility Manager Name" />
           </Form.Item>
 
-          <Form.Item name="capacity" label={<Label>Capacity</Label>}>
-            <Input type="number" placeholder="Annual Capacity (tons)" />
-          </Form.Item>
+
         </Form>
       </Modal>
     </PageContainer>

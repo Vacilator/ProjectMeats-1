@@ -7,11 +7,12 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import styled from 'styled-components';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
-import { Table, Input, Button, Modal, message, Tag, Space, Spin, Select } from 'antd';
+import { Table, Input, Button, Modal, message, Tag, Space, Skeleton, Select } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { SearchOutlined, PlusOutlined, DeleteOutlined, ArrowLeftOutlined } from '@ant-design/icons';
 import { apiClient } from '../../services/apiService';
 import { PROTEIN_TYPE_CHOICES } from '../../utils/constants/choices';
+import { confirmDialog } from '@/utils/uiDialogs';
 
 interface AvailableItem {
   id: number;
@@ -235,22 +236,24 @@ const SupplierProducts: React.FC = () => {
   };
 
   const handleRemoveItem = async (item: AvailableItem) => {
-    Modal.confirm({
+    const confirmed = await confirmDialog({
       title: 'Remove Available Product',
       content: `Remove "${item.product_name || item.product_code}" from this supplier's available products?`,
       okText: 'Remove',
-      okType: 'danger',
-      onOk: async () => {
-        try {
-          await apiClient.delete(`/suppliers/${id}/available-products/${item.product}/`);
-          message.success('Product removed successfully');
-          fetchItems();
-        } catch (error) {
-          console.error('Error removing product:', error);
-          message.error('Failed to remove product');
-        }
-      },
+      cancelText: 'Cancel',
+      danger: true,
     });
+
+    if (!confirmed) return;
+
+    try {
+      await apiClient.delete(`/suppliers/${id}/available-products/${item.product}/`);
+      message.success('Product removed successfully');
+      fetchItems();
+    } catch (error) {
+      console.error('Error removing product:', error);
+      message.error('Failed to remove product');
+    }
   };
 
   const filteredItems = items.filter(item => {
@@ -353,7 +356,9 @@ const SupplierProducts: React.FC = () => {
 
       <ContentCard>
         {loading ? (
-          <LoadingContainer><Spin size="large" /></LoadingContainer>
+          <LoadingContainer>
+            <Skeleton active paragraph={{ rows: 8 }} />
+          </LoadingContainer>
         ) : filteredItems.length === 0 ? (
           <EmptyState>
             <h3>No Available Products</h3>
@@ -400,8 +405,15 @@ const SupplierProducts: React.FC = () => {
               value={proteinFilter}
               onChange={(vals) => setProteinFilter(vals)}
               options={PROTEIN_TYPE_CHOICES.map((o) => ({ value: o.value, label: o.label }))}
-              placeholder="All proteins"
+              placeholder="Search protein types"
               style={{ width: '100%' }}
+              showSearch
+              optionFilterProp="label"
+              filterOption={(input, option) =>
+                String(option?.label || '')
+                  .toLowerCase()
+                  .includes(String(input || '').toLowerCase())
+              }
             />
           </div>
         </div>

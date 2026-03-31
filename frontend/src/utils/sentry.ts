@@ -54,7 +54,6 @@ export const initSentry = (config?: SentryConfig): void => {
   
   // Don't initialize in development unless explicitly enabled
   if (environment === 'development' && !enabled) {
-    console.log('[Sentry] Skipped initialization in development');
     return;
   }
   

@@ -8,10 +8,9 @@ Phase 6.5 - Performance Hardening
 Authority: .github/copilot-instructions.md (Phase 6 & 7)
 """
 from django.core.cache import cache
-from django.db.models import Prefetch, Q, Count
+from django.db.models import Prefetch, Count
 from rest_framework.response import Response
 import hashlib
-import json
 
 
 class QueryOptimizationMixin:

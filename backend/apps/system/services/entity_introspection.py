@@ -8,7 +8,6 @@ Created: 2026-02-12
 """
 from django.apps import apps
 from django.db import models
-from django.contrib.contenttypes.models import ContentType
 
 
 ENTITY_ID_ALIASES = {
@@ -27,6 +26,12 @@ ENTITY_ID_ALIASES = {
     'invoices': 'invoices.invoice',
     'claim': 'invoices.claim',
     'claims': 'invoices.claim',
+
+    # Hierarchy v1: Parents
+    'plant': 'plants.plant',
+    'plants': 'plants.plant',
+    'location': 'locations.location',
+    'locations': 'locations.location',
 }
 
 

@@ -6,6 +6,7 @@ Provides base models and common functionality used across all apps.
 from django.contrib.auth.models import User
 from django.core.validators import RegexValidator
 from django.db import models
+from django.utils import timezone
 
 
 class TenantManager(models.Manager):
@@ -89,6 +90,7 @@ class ProteinTypeChoices(models.TextChoices):
 
     BEEF = "Beef", "Beef"
     CHICKEN = "Chicken", "Chicken"
+    DUCK = "Duck", "Duck"
     PORK = "Pork", "Pork"
     LAMB = "Lamb", "Lamb"
     TURKEY = "Turkey", "Turkey"
@@ -180,6 +182,7 @@ class IndustryChoices(models.TextChoices):
     """Common choices for customer industry."""
 
     PET_SECTOR = "Pet Sector", "Pet Sector"
+    PET_FOODS = "Pet Foods", "Pet Foods"
     PROCESSOR = "Processor", "Processor"
     RETAIL = "Retail", "Retail"
     WHOLESALER = "Wholesaler", "Wholesaler"
@@ -202,6 +205,13 @@ class AppointmentMethodChoices(models.TextChoices):
     WEBSITE = "Website", "Website"
     FAX = "Fax", "Fax"
     FCFS = "First Come First Serve", "First Come First Serve"
+
+
+class PhoneTypeChoices(models.TextChoices):
+    """Common choices for phone number type."""
+
+    MOBILE = "mobile", "Mobile"
+    OFFICE = "office", "Office"
 
 
 class ContactTypeChoices(models.TextChoices):
@@ -373,27 +383,74 @@ class AbstractContact(models.Model):
 class TenantAwareModel(TimestampModel):
     """
     Abstract base model for tenant-aware entities.
-    
+
     Provides tenant isolation via ForeignKey and dynamic schema extension
     through custom_data JSONB field for System Blueprint features.
     """
-    
+
     tenant = models.ForeignKey(
         'tenants.Tenant',
         on_delete=models.CASCADE,
         help_text="Tenant this entity belongs to"
     )
-    
+
     custom_data = models.JSONField(
         default=dict,
         blank=True,
         help_text='Extensible schema data for dynamic fields defined in Blueprints.'
     )
-    
+
     objects = TenantManager()
-    
+
     class Meta:
         abstract = True
+
+
+class SoftDeleteManager(TenantManager):
+    """Default manager that hides soft-deleted records."""
+
+    def get_queryset(self):
+        return super().get_queryset().filter(is_deleted=False)
+
+
+class SoftDeleteModel(models.Model):
+    """Abstract base model for enterprise-grade soft deletes.
+
+    By default, soft-deleted records are hidden from normal queries via `objects`.
+    Use `all_objects` when you need to access deleted rows for admin/restore.
+    """
+
+    is_deleted = models.BooleanField(default=False, db_index=True)
+    deleted_at = models.DateTimeField(null=True, blank=True)
+
+    objects = SoftDeleteManager()
+    all_objects = TenantManager()
+
+    class Meta:
+        abstract = True
+
+    def soft_delete(self, *, using=None, deleted_at=None):
+        if self.is_deleted:
+            return
+
+        self.is_deleted = True
+        self.deleted_at = deleted_at or timezone.now()
+        self.save(update_fields=["is_deleted", "deleted_at"])
+
+    def restore(self, *, using=None):
+        if not self.is_deleted:
+            return
+
+        self.is_deleted = False
+        self.deleted_at = None
+        self.save(update_fields=["is_deleted", "deleted_at"])
+
+    def hard_delete(self, using=None, keep_parents=False):
+        return super().delete(using=using, keep_parents=keep_parents)
+
+    def delete(self, using=None, keep_parents=False):  # pragma: no cover
+        """Override default delete to avoid accidental hard deletes."""
+        self.soft_delete(using=using)
 
 
 class OwnedModel(TimestampModel):
@@ -489,15 +546,25 @@ class UserPreferences(models.Model):
 class UserFavorite(models.Model):
     """
     User-specific favorites for quick access to entities.
-    
+
     Allows users to bookmark entities (customers, suppliers, products, etc.)
-    for quick access in the Cockpit interface. User-scoped (not tenant-scoped).
+    for quick access in the Cockpit interface.
+
+    IMPORTANT: Favorites are tenant-scoped to prevent ID collisions across tenants.
     """
     user = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
         related_name='favorites',
         help_text="User who favorited this entity"
+    )
+    tenant = models.ForeignKey(
+        'tenants.Tenant',
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='user_favorites',
+        help_text="Tenant context for this favorite"
     )
     entity_type = models.CharField(
         max_length=50,
@@ -522,13 +589,13 @@ class UserFavorite(models.Model):
         ordering = ['-created_at']
         constraints = [
             models.UniqueConstraint(
-                fields=['user', 'entity_type', 'entity_id'],
-                name='unique_user_favorite'
+                fields=['user', 'tenant', 'entity_type', 'entity_id'],
+                name='unique_user_tenant_favorite'
             )
         ]
         indexes = [
             models.Index(fields=['user', '-created_at'], name='core_userfa_user_created_idx'),
-            models.Index(fields=['user', 'entity_type'], name='core_userfa_user_entity_idx'),
+            models.Index(fields=['user', 'tenant', 'entity_type'], name='core_userfa_user_entity_idx'),
         ]
         verbose_name = 'User Favorite'
         verbose_name_plural = 'User Favorites'

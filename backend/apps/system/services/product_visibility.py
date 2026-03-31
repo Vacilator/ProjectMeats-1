@@ -40,8 +40,9 @@ def visible_products_qs(
 
     base = qs if qs is not None else Product.objects.all()
 
-    if not include_inactive:
-        base = base.filter(is_active=True)
+    # Global product deactivation must always be respected for tenant-visible catalogs.
+    # TenantProductPreference can hide/override, but should never resurrect globally inactive products.
+    base = base.filter(is_active=True)
 
     if not tenant:
         return base.filter(is_system=True)

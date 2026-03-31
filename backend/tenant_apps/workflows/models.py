@@ -17,7 +17,6 @@ from django.contrib.auth.models import User
 from django.db import models
 from django.utils import timezone
 
-from apps.tenants.models import Tenant
 from apps.core.models import TenantAwareModel
 
 
@@ -1654,11 +1653,19 @@ class UserNotificationPreferences(models.Model):
     """
     
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    user = models.OneToOneField(
+    user = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
         related_name='notification_preferences',
-        help_text="User for these preferences"
+        help_text='User for these preferences',
+    )
+    tenant = models.ForeignKey(
+        'tenants.Tenant',
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='user_notification_preferences',
+        help_text='Tenant context for these preferences',
     )
     
     # Global settings
@@ -1720,6 +1727,9 @@ class UserNotificationPreferences(models.Model):
     class Meta:
         verbose_name = "User Notification Preferences"
         verbose_name_plural = "User Notification Preferences"
+        constraints = [
+            models.UniqueConstraint(fields=['user', 'tenant'], name='uniq_user_tenant_notification_prefs'),
+        ]
     
     def __str__(self):
         return f"Notification Preferences for {self.user.username}"
@@ -1746,19 +1756,25 @@ class UserNotificationPreferences(models.Model):
         return channel == DeliveryChannel.IN_APP
     
     @classmethod
-    def get_defaults(cls):
-        """Return default notification preferences."""
+    def get_defaults(cls) -> dict[str, list[str]]:
+        """Return default notification preferences.
+
+        Ensures keys/values are primitive JSON types (str/list[str]) so JSONField
+        defaults are always serializable.
+        """
+
+        email_enabled_types = {
+            NotificationType.TASK_ASSIGNED,
+            NotificationType.TASK_DUE_SOON,
+            NotificationType.TASK_OVERDUE,
+            NotificationType.FORM_APPROVED,
+            NotificationType.FORM_REJECTED,
+        }
+
+        in_app = str(DeliveryChannel.IN_APP.value)
+        email = str(DeliveryChannel.EMAIL.value)
+
         return {
-            NotificationType.TASK_ASSIGNED: [DeliveryChannel.IN_APP, DeliveryChannel.EMAIL],
-            NotificationType.TASK_DUE_SOON: [DeliveryChannel.IN_APP, DeliveryChannel.EMAIL],
-            NotificationType.TASK_OVERDUE: [DeliveryChannel.IN_APP, DeliveryChannel.EMAIL],
-            NotificationType.TASK_COMPLETED: [DeliveryChannel.IN_APP],
-            NotificationType.FORM_SUBMITTED: [DeliveryChannel.IN_APP],
-            NotificationType.FORM_APPROVED: [DeliveryChannel.IN_APP, DeliveryChannel.EMAIL],
-            NotificationType.FORM_REJECTED: [DeliveryChannel.IN_APP, DeliveryChannel.EMAIL],
-            NotificationType.MENTION: [DeliveryChannel.IN_APP],
-            NotificationType.COMMENT: [DeliveryChannel.IN_APP],
-            NotificationType.STATUS_CHANGE: [DeliveryChannel.IN_APP],
-            NotificationType.WORKFLOW_TRIGGER: [DeliveryChannel.IN_APP],
-            NotificationType.SYSTEM: [DeliveryChannel.IN_APP],
+            str(nt.value): ([in_app, email] if nt in email_enabled_types else [in_app])
+            for nt in NotificationType
         }

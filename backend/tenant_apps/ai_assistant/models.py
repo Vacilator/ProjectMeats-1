@@ -5,17 +5,17 @@ This module provides AI-powered chatbot functionality for meat market operations
 including document processing, entity extraction, and intelligent assistance
 for purchase orders, suppliers, customers, and other business entities.
 """
+import os
 import uuid
 
 from django.conf import settings
-from django.contrib.auth.models import User
 from django.core.validators import FileExtensionValidator
 from django.db import models
-from apps.tenants.models import Tenant
+from django.utils import timezone
 
 from pgvector.django import VectorField
 
-from apps.core.models import OwnedModel, StatusModel, TenantAwareModel, TenantManager
+from apps.core.models import OwnedModel, StatusModel, TenantAwareModel
 
 
 class ChatSessionStatusChoices(models.TextChoices):
@@ -200,6 +200,43 @@ class AIFeedbackLog(TenantAwareModel):
         super().save(*args, **kwargs)
 
 
+class AIFeedback(TenantAwareModel):
+    """Tenant-scoped conversational feedback.
+
+    Stores user-provided corrections as durable "lessons learned" that can be injected
+    into the assistant's system prompt on future conversations.
+    """
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='ai_feedback_items',
+    )
+
+    user_message = models.TextField(blank=True, default='')
+    assistant_message = models.TextField(blank=True, default='')
+
+    user_correction = models.TextField(help_text='User-provided correction')
+    lesson_text = models.TextField(help_text='Normalized lesson learned to apply in future responses')
+
+    entity_type = models.CharField(max_length=64, blank=True, default='')
+    entity_id = models.CharField(max_length=64, blank=True, default='')
+
+    tags = models.JSONField(default=dict, blank=True)
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        db_table = 'ai_assistant_feedback'
+        verbose_name = 'AI Feedback'
+        verbose_name_plural = 'AI Feedback'
+        indexes = [
+            models.Index(fields=['tenant', 'is_active', 'created_on'], name='ai_fb_item_queue_idx'),
+            models.Index(fields=['tenant', 'entity_type', 'created_on'], name='ai_fb_item_entity_idx'),
+        ]
+
+
 class VectorMemory(TenantAwareModel):
     """Tenant-scoped vector memory for PM-AS.
 
@@ -253,6 +290,25 @@ class TenantKnowledgeFact(TenantAwareModel):
         ]
 
 
+def aidocument_upload_to(instance: "AIDocument", filename: str) -> str:
+    """Return a tenant-scoped upload path for AI document uploads.
+
+    Includes tenant UUID + date buckets + unique prefix to prevent naming collisions.
+    """
+
+    safe_name = os.path.basename(filename or "upload")
+    tenant_id = getattr(instance, "tenant_id", None) or getattr(getattr(instance, "tenant", None), "id", None)
+    tenant_part = str(tenant_id) if tenant_id else "unknown-tenant"
+
+    timezone.now()
+    unique = uuid.uuid4().hex
+
+    # Keep a flat-ish structure to avoid permission issues on hosts where the
+    # mounted media volume is writable but does not allow creating deep directory trees.
+    # Still includes tenant + UUID to prevent naming collisions.
+    return f"ai_assistant/documents/{tenant_part}_{unique}_{safe_name}"
+
+
 class AIDocument(TenantAwareModel):
     """Tenant + user-scoped document uploads for the AI assistant."""
 
@@ -273,7 +329,7 @@ class AIDocument(TenantAwareModel):
     )
 
     file = models.FileField(
-        upload_to='ai_assistant/documents/%Y/%m/%d',
+        upload_to=aidocument_upload_to,
         validators=[
             FileExtensionValidator(
                 allowed_extensions=['pdf', 'txt', 'csv', 'jpg', 'jpeg', 'png', 'doc', 'docx', 'xls', 'xlsx']

@@ -28,15 +28,46 @@ class PurchaseOrderViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        """Filter purchase orders by current tenant."""
-        if hasattr(self.request, "tenant") and self.request.tenant:
-            return PurchaseOrder.objects.for_tenant(self.request.tenant)
-        return PurchaseOrder.objects.none()
+        """Filter purchase orders by current tenant.
+
+        Soft deletes:
+        - default: hide deleted
+        - admin: allow include_deleted=1
+        """
+        if not (hasattr(self.request, "tenant") and self.request.tenant):
+            return PurchaseOrder.objects.none()
+
+        include_deleted = str(self.request.query_params.get("include_deleted") or "").strip().lower() in {
+            "1",
+            "true",
+            "t",
+            "yes",
+            "y",
+        }
+        is_admin = bool(getattr(self.request.user, "is_superuser", False) or getattr(self.request.user, "is_staff", False))
+
+        if include_deleted and is_admin:
+            return PurchaseOrder.all_objects.for_tenant(self.request.tenant)
+
+        return PurchaseOrder.objects.for_tenant(self.request.tenant)
+
+    def perform_destroy(self, instance):
+        instance.soft_delete()
+
+    @action(detail=True, methods=["post"], url_path="restore")
+    def restore(self, request, pk=None):
+        if not (getattr(request.user, "is_superuser", False) or getattr(request.user, "is_staff", False)):
+            return Response({"error": "Permission denied"}, status=status.HTTP_403_FORBIDDEN)
+
+        po = PurchaseOrder.all_objects.for_tenant(request.tenant).filter(pk=pk).first()
+        if not po:
+            return Response({"error": "Not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        po.restore()
+        return Response(PurchaseOrderSerializer(po).data)
 
     def perform_create(self, serializer):
         """Set the tenant and auto-generate order_number when creating a new purchase order."""
-        from django.db import transaction
-        
         tenant = None
 
         # First, try to get tenant from middleware (request.tenant)
@@ -72,38 +103,9 @@ class PurchaseOrderViewSet(viewsets.ModelViewSet):
                 "Tenant context is required to create a purchase order."
             )
         
-        # Auto-generate order_number if not provided (atomic to prevent duplicates)
-        with transaction.atomic():
-            if not serializer.validated_data.get('order_number'):
-                # Get all existing purchase orders for this tenant with a lock
-                existing_pos = PurchaseOrder.objects.filter(tenant=tenant).select_for_update()
-                
-                # Find the highest numeric order number
-                max_order_num = 0
-                for po in existing_pos:
-                    try:
-                        # Try to extract numeric value from order_number
-                        num = int(po.order_number)
-                        if num > max_order_num:
-                            max_order_num = num
-                    except (ValueError, TypeError):
-                        # Skip non-numeric order numbers
-                        continue
-                
-                # Increment and assign
-                next_order_num = str(max_order_num + 1)
-                serializer.validated_data['order_number'] = next_order_num
-                
-                logger.info(
-                    f"Auto-generated order_number: {next_order_num} for tenant {tenant.name}",
-                    extra={
-                        "tenant_id": tenant.id,
-                        "order_number": next_order_num,
-                        "timestamp": timezone.now().isoformat(),
-                    }
-                )
-
-            serializer.save(tenant=tenant)
+        # Delegate order_number generation to the model layer (2YYNNN format).
+        # This keeps admin/scripts consistent with API creation behavior.
+        serializer.save(tenant=tenant)
 
     def create(self, request, *args, **kwargs):
         """Create a new purchase order with enhanced error handling."""

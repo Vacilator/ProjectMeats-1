@@ -18,6 +18,7 @@
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import toast from 'react-hot-toast';
+import { confirmDialog } from '@/utils/uiDialogs';
 import * as Sentry from '@sentry/react';
 import { X, HelpCircle, Play, Save, AlertCircle, Plus, Trash2, Edit2, Check, GripVertical, Download } from 'lucide-react';
 import { Node, Edge } from '@xyflow/react';
@@ -672,14 +673,23 @@ export const NodeConfigPanel: React.FC<NodeConfigPanelProps> = ({
   };
 
   const handleClose = () => {
-    if (hasUnsavedChanges) {
-      if (window.confirm('You have unsaved changes. Close anyway?')) {
-        setHasUnsavedChanges(false);
+    void (async () => {
+      if (hasUnsavedChanges) {
+        const confirmed = await confirmDialog({
+          title: 'Discard changes?',
+          content: 'You have unsaved changes. Close anyway?',
+          okText: 'Discard',
+          cancelText: 'Keep editing',
+          danger: true,
+        });
+        if (confirmed) {
+          setHasUnsavedChanges(false);
+          onClose();
+        }
+      } else {
         onClose();
       }
-    } else {
-      onClose();
-    }
+    })();
   };
 
   // ============================================================================
@@ -688,7 +698,7 @@ export const NodeConfigPanel: React.FC<NodeConfigPanelProps> = ({
   
   const fieldTemplates = [
     { label: 'Email Address', type: 'email', required: true, placeholder: 'user@example.com' },
-    { label: 'Phone Number', type: 'tel', required: false, placeholder: '(555) 123-4567' },
+    { label: 'Phone Number', type: 'tel', required: false, placeholder: '(XXX)XXX-XXXX' },
     { label: 'Full Name', type: 'text', required: true, placeholder: 'John Doe' },
     { label: 'Company Name', type: 'text', required: false, placeholder: 'Acme Corp' },
     { label: 'Address', type: 'text', required: false, placeholder: '123 Main St' },

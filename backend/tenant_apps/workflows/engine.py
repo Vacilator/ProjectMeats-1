@@ -12,12 +12,13 @@ This module provides:
 """
 import logging
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 from django.conf import settings
 from django.core.mail import send_mail
-from django.db import transaction
 from django.utils import timezone
+
+from apps.tenants.email_utils import is_sendgrid_quota_exceeded
 
 from .models import (
     TenantWorkflow, TenantWorkflowCondition, TenantWorkflowAction,
@@ -161,7 +162,16 @@ class SendEmailExecutor(ActionExecutor):
                 'data': {'to': to_email, 'subject': subject}
             }
         except Exception as e:
-            logger.error(f"Failed to send email: {e}")
+            if is_sendgrid_quota_exceeded(e):
+                logger.critical(
+                    "🚨 SendGrid quota exceeded — workflow email to %s NOT sent. "
+                    "Please upgrade the SendGrid plan or wait for the quota to reset. "
+                    "Error: %s",
+                    to_email,
+                    e,
+                )
+            else:
+                logger.error(f"Failed to send email: {e}")
             return {'success': False, 'message': str(e)}
     
     def _interpolate(self, template: str, context: Dict) -> str:
@@ -524,7 +534,7 @@ def trigger_scheduled_workflows():
         trigger_type=TriggerType.SCHEDULED
     )
     
-    engine = WorkflowEngine()
+    WorkflowEngine()
     
     for workflow in workflows:
         # Check if it's time to run based on trigger_config

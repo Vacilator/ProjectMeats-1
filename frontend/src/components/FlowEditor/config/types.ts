@@ -24,6 +24,7 @@ export type FieldType =
   | 'multiselect'       // Dropdown selection (multiple)
   | 'toggle'            // Boolean toggle switch
   | 'number'            // Number input
+  | 'time'              // Time picker (HH:MM)
   | 'date'              // Date picker
   | 'datetime'          // Date + time picker
   | 'color'             // Color picker

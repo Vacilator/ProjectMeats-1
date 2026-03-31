@@ -354,7 +354,7 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({
       
       case 'tel':
       case 'phone':
-        return '+1 (555) 123-4567';
+        return '(555)555-5555';
       
       case 'url':
         return 'https://example.com';

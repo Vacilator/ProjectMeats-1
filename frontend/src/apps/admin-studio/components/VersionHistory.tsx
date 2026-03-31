@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Clock, GitBranch, Check, X, History, RotateCcw } from 'lucide-react';
 import { adminClient } from '@/services/apiService';
+import { confirmDialog, showAlert } from '@/utils/uiDialogs';
 
 interface Version {
   id: string;
@@ -53,9 +54,14 @@ export const VersionHistory: React.FC<VersionHistoryProps> = ({
   };
 
   const handleRollback = async (versionId: string, versionNumber: number) => {
-    if (!confirm(`Rollback to version ${versionNumber}? This will create a new draft version.`)) {
-      return;
-    }
+    const ok = await confirmDialog({
+      title: `Rollback to version ${versionNumber}?`,
+      content: 'This will create a new draft version.',
+      okText: 'Rollback',
+      cancelText: 'Cancel',
+      danger: true,
+    });
+    if (!ok) return;
 
     try {
       const response = await adminClient.post(
@@ -63,12 +69,20 @@ export const VersionHistory: React.FC<VersionHistoryProps> = ({
         {}
       );
 
-      alert(response.data.message);
+      showAlert({
+        title: 'Rollback complete',
+        content: response.data?.message ?? 'Rollback complete.',
+        type: 'success',
+      });
       onRollback(response.data.new_version_id);
       fetchVersionHistory();
     } catch (error) {
       console.error('Rollback failed:', error);
-      alert('Failed to rollback. See console for details.');
+      showAlert({
+        title: 'Rollback failed',
+        content: 'Failed to rollback. See console for details.',
+        type: 'error',
+      });
     }
   };
 
@@ -85,7 +99,11 @@ export const VersionHistory: React.FC<VersionHistoryProps> = ({
       setComparisonData(response.data);
     } catch (error) {
       console.error('Comparison failed:', error);
-      alert('Failed to compare versions. See console for details.');
+      showAlert({
+        title: 'Comparison failed',
+        content: 'Failed to compare versions. See console for details.',
+        type: 'error',
+      });
     }
   };
 
@@ -103,7 +121,7 @@ export const VersionHistory: React.FC<VersionHistoryProps> = ({
   if (loading) {
     return (
       <div className="p-6 text-center text-gray-500">
-        <div className="animate-spin inline-block w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full"></div>
+        <div className="animate-spin inline-block w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full" />
         <p className="mt-2">Loading version history...</p>
       </div>
     );

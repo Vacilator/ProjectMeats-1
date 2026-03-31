@@ -123,9 +123,45 @@ const BackButton = styled.button`
 
 const PageTitle = styled.h1`
   font-size: 20px;
-  font-weight: 700;
+  font-weight: 800;
   color: rgb(var(--color-text-primary));
   margin: 0;
+  line-height: 1.2;
+`;
+
+const TitleButton = styled.button<{ $readonly?: boolean }>`
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 0;
+  margin: 0;
+  border: none;
+  background: transparent;
+  text-align: left;
+  cursor: ${(p) => (p.$readonly ? 'default' : 'text')};
+
+  &:hover ${PageTitle} {
+    ${(p) => (!p.$readonly ? 'text-decoration: underline; text-decoration-style: dotted;' : '')}
+  }
+`;
+
+const TitleInput = styled.input`
+  font-size: 20px;
+  font-weight: 800;
+  line-height: 1.2;
+  color: rgb(var(--color-text-primary));
+
+  width: min(520px, 72vw);
+  padding: 4px 8px;
+  border-radius: var(--radius-md);
+  border: 1px solid rgb(var(--color-border));
+  background: rgb(var(--color-surface));
+
+  &:focus {
+    outline: none;
+    border-color: rgb(var(--color-primary));
+    box-shadow: 0 0 0 2px rgb(var(--color-primary) / 0.16);
+  }
 `;
 
 const HeaderRight = styled.div`
@@ -217,6 +253,8 @@ export const WorkFormsEditor: React.FC = () => {
 
   const [editorMode, setEditorMode] = useState<EditorMode>('visual');
   const [flowName, setFlowName] = useState('New WorkForm');
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const [draftTitle, setDraftTitle] = useState(flowName);
   const [status, setStatus] = useState<WorkFormStatus>('draft');
   const [initialNodes, setInitialNodes] = useState<Node[]>([]);
   const [initialEdges, setInitialEdges] = useState<Edge[]>([]);
@@ -324,6 +362,25 @@ export const WorkFormsEditor: React.FC = () => {
 
   const readOnly = useMemo(() => previewMode || !permissions.can_edit, [previewMode, permissions.can_edit]);
 
+  // Keep draft title synced when flowName updates (load/clone/save).
+  useEffect(() => {
+    if (!isEditingTitle) {
+      setDraftTitle(flowName);
+    }
+  }, [flowName, isEditingTitle]);
+
+  const commitTitle = useCallback(() => {
+    if (readOnly) return;
+
+    const next = draftTitle.trim() || 'Untitled WorkForm';
+    setIsEditingTitle(false);
+
+    if (next !== flowName) {
+      setFlowName(next);
+      setHasUnsavedChanges(true);
+    }
+  }, [draftTitle, flowName, readOnly]);
+
   const handleWorkflowSaved = useCallback(
     (workflow: { id: string; name: string; status?: WorkFormStatus }) => {
       setHasUnsavedChanges(false);
@@ -365,7 +422,39 @@ export const WorkFormsEditor: React.FC = () => {
         <HeaderLeft>
           <BackButton onClick={handleBack}>← Back</BackButton>
           <div>
-            <PageTitle>{flowName}</PageTitle>
+            {isEditingTitle && !readOnly ? (
+              <TitleInput
+                aria-label="Workform title"
+                value={draftTitle}
+                onChange={(e) => setDraftTitle(e.target.value)}
+                onBlur={commitTitle}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    commitTitle();
+                  }
+                  if (e.key === 'Escape') {
+                    setDraftTitle(flowName);
+                    setIsEditingTitle(false);
+                  }
+                }}
+                autoFocus
+              />
+            ) : (
+              <TitleButton
+                type="button"
+                $readonly={readOnly}
+                onClick={() => {
+                  if (readOnly) return;
+                  setIsEditingTitle(true);
+                  setDraftTitle(flowName);
+                }}
+                title={readOnly ? undefined : 'Click to rename'}
+                aria-label={readOnly ? 'Workform title' : 'Workform title (click to rename)'}
+              >
+                <PageTitle>{flowName}</PageTitle>
+              </TitleButton>
+            )}
+
             <div style={{ fontSize: 12, color: 'rgb(var(--color-text-secondary))' }}>
               {hasUnsavedChanges ? 'Unsaved changes' : 'All changes saved via TenantWorkForms'}
             </div>

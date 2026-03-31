@@ -11,110 +11,61 @@
  *   </Card>
  */
 import React from 'react';
-import styled from 'styled-components';
+import { Card as AntCard, Flex, Typography } from 'antd';
 
-interface CardProps {
+export interface CardProps {
   children: React.ReactNode;
   className?: string;
   padding?: 'none' | 'sm' | 'md' | 'lg';
 }
 
-const StyledCard = styled.div<{ padding?: string }>`
-  background-color: rgb(var(--color-surface));
-  color: rgb(var(--color-surface-foreground));
-  border: 1px solid rgb(var(--color-border));
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-sm);
-  transition: box-shadow 0.2s ease;
+const paddingMap: Record<NonNullable<CardProps['padding']>, number> = {
+  none: 0,
+  sm: 16,
+  md: 24,
+  lg: 32,
+};
 
-  ${({ padding }) => {
-    switch (padding) {
-      case 'none':
-        return 'padding: 0;';
-      case 'sm':
-        return 'padding: 1rem;';
-      case 'lg':
-        return 'padding: 2rem;';
-      default: // 'md'
-        return 'padding: 1.5rem;';
-    }
-  }}
-
-  &:hover {
-    box-shadow: var(--shadow-md);
-  }
-`;
-
-const CardHeaderContainer = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 0.375rem;
-  margin-bottom: 1rem;
-`;
-
-const CardTitle = styled.h3`
-  font-size: 1.25rem;
-  font-weight: 600;
-  line-height: 1.2;
-  letter-spacing: -0.025em;
-  color: rgb(var(--color-text-primary));
-  margin: 0;
-`;
-
-const CardDescription = styled.p`
-  font-size: 0.875rem;
-  color: rgb(var(--color-text-secondary));
-  margin: 0;
-`;
-
-const CardContentContainer = styled.div`
-  width: 100%;
-  display: block;
-  min-height: 1px; /* Prevent collapse */
-`;
-
-const CardFooterContainer = styled.div`
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-top: 1rem;
-  padding-top: 1rem;
-  border-top: 1px solid rgb(var(--color-border));
-`;
-
-export const Card: React.FC<CardProps> = ({ 
-  children, 
-  className = '', 
-  padding = 'md' 
-}) => {
+export const Card: React.FC<CardProps> = ({ children, className = '', padding = 'md' }) => {
   return (
-    <StyledCard className={className} padding={padding}>
+    <AntCard
+      className={className}
+      styles={{
+        body: {
+          padding: paddingMap[padding],
+          background: 'rgb(var(--color-surface))',
+          color: 'rgb(var(--color-text-primary))',
+        },
+        header: {
+          background: 'rgb(var(--color-surface))',
+          borderBottom: '1px solid rgb(var(--color-border))',
+        },
+      }}
+    >
       {children}
-    </StyledCard>
+    </AntCard>
   );
 };
 
-interface CardHeaderProps {
+export interface CardHeaderProps {
   title: string;
   description?: string;
   actions?: React.ReactNode;
 }
 
-export const CardHeader: React.FC<CardHeaderProps> = ({ 
-  title, 
-  description, 
-  actions 
-}) => (
-  <CardHeaderContainer>
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-      <CardTitle>{title}</CardTitle>
+export const CardHeader: React.FC<CardHeaderProps> = ({ title, description, actions }) => (
+  <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 16 }}>
+    <Flex align="center" justify="space-between" gap={12}>
+      <Typography.Title level={3} style={{ margin: 0 }}>
+        {title}
+      </Typography.Title>
       {actions}
-    </div>
-    {description && <CardDescription>{description}</CardDescription>}
-  </CardHeaderContainer>
+    </Flex>
+    {description ? <Typography.Text type="secondary">{description}</Typography.Text> : null}
+  </div>
 );
 
-export const CardContent: React.FC<{ 
+export const CardContent: React.FC<{
   children: React.ReactNode;
   className?: string;
   style?: React.CSSProperties;
@@ -123,8 +74,8 @@ export const CardContent: React.FC<{
   onMouseEnter?: (e: React.MouseEvent) => void;
   onMouseMove?: (e: React.MouseEvent) => void;
 }> = ({ children, className, style, onClick, onMouseDown, onMouseEnter, onMouseMove }) => (
-  <CardContentContainer 
-    className={className} 
+  <div
+    className={className}
     style={style}
     onClick={onClick}
     onMouseDown={onMouseDown}
@@ -132,9 +83,11 @@ export const CardContent: React.FC<{
     onMouseMove={onMouseMove}
   >
     {children}
-  </CardContentContainer>
+  </div>
 );
 
 export const CardFooter: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <CardFooterContainer>{children}</CardFooterContainer>
+  <Flex align="center" justify="space-between" style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid rgb(var(--color-border))' }}>
+    {children}
+  </Flex>
 );

@@ -39,6 +39,11 @@ class EntityViewSet(viewsets.ViewSet):
         'purchase_order': ('purchase_orders', 'PurchaseOrder'),
         'sales_order': ('sales_orders', 'SalesOrder'),
         'invoice': ('invoices', 'Invoice'),
+        # Additional Cockpit-searchable entities
+        'inquiry': ('inquiries', 'Inquiry'),
+        'claim': ('invoices', 'Claim'),
+        'call': ('cockpit', 'ScheduledCall'),
+        'tenant_user': ('tenants', 'TenantUser'),
     }
     
     @action(detail=True, methods=['get'], url_path='relationships')
@@ -336,10 +341,37 @@ class EntityViewSet(viewsets.ViewSet):
     def _get_entity_or_404(self, request, *, type, pk):
         tenant = request.tenant
 
-        if type not in self.MODEL_MAP:
-            raise ValueError(f'Unknown entity type: {type}')
+        raw_type = str(type or '').strip()
+        if not raw_type:
+            raise ValueError('Unknown entity type:')
 
-        app_label, model_name = self.MODEL_MAP[type]
+        # Allow case-insensitive and short-name inputs (e.g., "Inquiry" instead of "inquiry").
+        candidate = raw_type.replace('-', '_').strip()
+        candidate_lc = candidate.lower()
+
+        resolved_type = None
+        if candidate_lc in self.MODEL_MAP:
+            resolved_type = candidate_lc
+        else:
+            from apps.core.utils.naming import to_snake_case
+
+            # CamelCase/PascalCase -> snake_case
+            snake = to_snake_case(candidate)
+            if snake in self.MODEL_MAP:
+                resolved_type = snake
+            elif snake.endswith('s') and snake[:-1] in self.MODEL_MAP:
+                resolved_type = snake[:-1]
+            else:
+                # Map model/app short names (e.g., Inquiry, inquiries) to canonical keys.
+                for key, (app_label, model_name) in self.MODEL_MAP.items():
+                    if candidate_lc == model_name.lower() or candidate_lc == app_label.lower():
+                        resolved_type = key
+                        break
+
+        if not resolved_type:
+            raise ValueError(f'Unknown entity type: {raw_type}')
+
+        app_label, model_name = self.MODEL_MAP[resolved_type]
         try:
             Model = apps.get_model(app_label, model_name)
         except LookupError as exc:
@@ -350,7 +382,7 @@ class EntityViewSet(viewsets.ViewSet):
         else:
             entity = Model.objects.get(pk=pk)
 
-        return entity, type, Model
+        return entity, resolved_type, Model
 
     def _entity_type_for_model(self, model):
         """Best-effort mapping from Django model to Cockpit entity type string."""
@@ -409,8 +441,8 @@ class EntityViewSet(viewsets.ViewSet):
         """Return default relationship types for each entity."""
         defaults = {
             # Cockpit UX defaults (continuous browsing): emphasize the primary panels.
-            'customer': ['contacts', 'recent_orders', 'invoices', 'related_products'],
-            'supplier': ['contacts', 'recent_orders', 'related_products'],
+            'customer': ['contacts', 'recent_orders', 'invoices', 'inquiries', 'related_products'],
+            'supplier': ['contacts', 'recent_orders', 'inquiries', 'related_products'],
             'product': ['purchase_orders', 'sales_orders'],
             # Keep lightweight, reliable relationships for order-like entities.
             'purchase_order': ['supplier', 'product', 'sales_order'],
@@ -434,6 +466,8 @@ class EntityViewSet(viewsets.ViewSet):
                 return self._get_invoices_for_customer(entity, tenant)
             if rel_type in ('related_products', 'products'):
                 return self._get_related_products_for_customer(entity, tenant)
+            if rel_type == 'inquiries':
+                return self._get_inquiries_for_customer(entity, tenant)
             # Legacy key (PurchaseOrder has no customer FK in current schema)
             if rel_type == 'purchase_orders':
                 return {"count": 0, "items": []}
@@ -448,6 +482,8 @@ class EntityViewSet(viewsets.ViewSet):
                 return self._get_sales_orders_for_supplier(entity, tenant)
             if rel_type == 'recent_orders':
                 return self._get_recent_orders_for_supplier(entity, tenant)
+            if rel_type == 'inquiries':
+                return self._get_inquiries_for_supplier(entity, tenant)
             if rel_type in ('related_products', 'products'):
                 return self._get_related_products_for_supplier(entity, tenant)
 
@@ -496,8 +532,15 @@ class EntityViewSet(viewsets.ViewSet):
             return qs
 
         candidates = [
-            'created_at',
+            # Tenant-app models typically use created_on/modified_on
+            'modified_on',
+            'created_on',
+            # Inquiries use inquiry_date as their primary business timestamp
+            'inquiry_date',
+            # System models typically use created_at/updated_at
             'updated_at',
+            'created_at',
+            # Legacy timestamp field names
             'date_time_stamp',
             'date_time_stamp_created',
         ]
@@ -537,6 +580,19 @@ class EntityViewSet(viewsets.ViewSet):
         except LookupError:
             return None
 
+    def _get_inquiries_for_customer(self, customer, tenant):
+        """Get inquiries for a customer."""
+        try:
+            Inquiry = apps.get_model('inquiries', 'Inquiry')
+            qs = Inquiry.objects.filter(tenant=tenant, customer=customer)
+            qs = self._order_queryset_recent_first(qs).prefetch_related('products__product')
+            return {
+                "count": qs.count(),
+                "items": [self._serialize_inquiry_relationship_item(inq) for inq in qs[:10]],
+            }
+        except LookupError:
+            return None
+
     def _get_sales_orders_for_supplier(self, supplier, tenant):
         """Get sales orders for a supplier."""
         try:
@@ -551,11 +607,32 @@ class EntityViewSet(viewsets.ViewSet):
             return None
 
     def _get_contacts_for_customer(self, customer, tenant):
-        """Get contacts for a customer."""
+        """Get contacts for a customer.
+
+        Contacts may be linked either via:
+        - Modern M2M: Customer.contacts
+        - Legacy FK: Contact.customer
+        """
         try:
             Contact = apps.get_model('contacts', 'Contact')
-            qs = Contact.objects.filter(tenant=tenant, customer=customer)
-            qs = qs.order_by('last_name', 'first_name')
+
+            legacy_ids = set(
+                Contact.objects.filter(tenant=tenant, customer=customer).values_list('id', flat=True)
+            )
+
+            m2m_ids: set[int] = set()
+            try:
+                rel = getattr(customer, 'contacts', None)
+                if rel is not None:
+                    m2m_ids = set(rel.filter(tenant=tenant).values_list('id', flat=True))
+            except Exception:
+                m2m_ids = set()
+
+            contact_ids = legacy_ids | m2m_ids
+            if not contact_ids:
+                return {"count": 0, "items": []}
+
+            qs = Contact.objects.filter(tenant=tenant, id__in=list(contact_ids)).order_by('last_name', 'first_name')
             return {
                 "count": qs.count(),
                 "items": [self._serialize_entity(contact, 'contact') for contact in qs[:10]],
@@ -572,6 +649,19 @@ class EntityViewSet(viewsets.ViewSet):
             return {
                 "count": qs.count(),
                 "items": [self._serialize_entity(po, 'purchase_order') for po in qs[:10]],
+            }
+        except LookupError:
+            return None
+
+    def _get_inquiries_for_supplier(self, supplier, tenant):
+        """Get inquiries for a supplier."""
+        try:
+            Inquiry = apps.get_model('inquiries', 'Inquiry')
+            qs = Inquiry.objects.filter(tenant=tenant, supplier=supplier)
+            qs = self._order_queryset_recent_first(qs).prefetch_related('products__product')
+            return {
+                "count": qs.count(),
+                "items": [self._serialize_inquiry_relationship_item(inq) for inq in qs[:10]],
             }
         except LookupError:
             return None
@@ -601,11 +691,32 @@ class EntityViewSet(viewsets.ViewSet):
         }
 
     def _get_contacts_for_supplier(self, supplier, tenant):
-        """Get contacts for a supplier."""
+        """Get contacts for a supplier.
+
+        Contacts may be linked either via:
+        - Modern M2M: Supplier.contacts
+        - Legacy FK: Contact.supplier
+        """
         try:
             Contact = apps.get_model('contacts', 'Contact')
-            qs = Contact.objects.filter(tenant=tenant, supplier=supplier)
-            qs = qs.order_by('last_name', 'first_name')
+
+            legacy_ids = set(
+                Contact.objects.filter(tenant=tenant, supplier=supplier).values_list('id', flat=True)
+            )
+
+            m2m_ids: set[int] = set()
+            try:
+                rel = getattr(supplier, 'contacts', None)
+                if rel is not None:
+                    m2m_ids = set(rel.filter(tenant=tenant).values_list('id', flat=True))
+            except Exception:
+                m2m_ids = set()
+
+            contact_ids = legacy_ids | m2m_ids
+            if not contact_ids:
+                return {"count": 0, "items": []}
+
+            qs = Contact.objects.filter(tenant=tenant, id__in=list(contact_ids)).order_by('last_name', 'first_name')
             return {
                 "count": qs.count(),
                 "items": [self._serialize_entity(contact, 'contact') for contact in qs[:10]],
@@ -781,6 +892,55 @@ class EntityViewSet(viewsets.ViewSet):
             }
         return None
     
+    def _serialize_inquiry_relationship_item(self, inquiry):
+        """Serialize Inquiry items for Cockpit relationship panels.
+
+        The Cockpit Customer → Inquiries panel needs:
+        - inquiry number
+        - created/modified timestamps
+        - a small product summary list (up to 4)
+        """
+        base = self._serialize_entity(inquiry, 'inquiry')
+
+        # Preserve the existing metadata shape but add inquiry-specific fields.
+        meta = dict(base.get('metadata') or {})
+        meta['inquiry_number'] = getattr(inquiry, 'inquiry_number', None)
+        meta['created_on'] = getattr(inquiry, 'created_on', None)
+        meta['modified_on'] = getattr(inquiry, 'modified_on', None)
+
+        # Product summary (up to 4 items)
+        preview_limit = 4
+        product_summary = []
+        more_count = 0
+        try:
+            rel = getattr(inquiry, 'products', None)
+            if rel is not None:
+                qs = rel.select_related('product').order_by('created_on')
+                total = qs.count()
+                for row in qs[:preview_limit]:
+                    product = getattr(row, 'product', None)
+                    label = (
+                        getattr(product, 'product_code', None)
+                        or getattr(product, 'name', None)
+                        or getattr(product, 'description', None)
+                    )
+                    if label:
+                        product_summary.append(str(label))
+                more_count = max(0, total - preview_limit)
+        except Exception:
+            product_summary = []
+            more_count = 0
+
+        meta['product_summary'] = product_summary
+        meta['product_more_count'] = more_count
+        base['metadata'] = meta
+
+        # Convenience timestamps at the top-level too.
+        if meta.get('modified_on') is not None:
+            base['updated_at'] = meta.get('modified_on')
+
+        return base
+
     def _serialize_entity(self, entity, entity_type):
         """Minimal serialization for entity references."""
         base = {
@@ -810,6 +970,11 @@ class EntityViewSet(viewsets.ViewSet):
             base['title'] = (
                 getattr(entity, 'invoice_number', None)
                 or f"Invoice {entity.pk}"
+            )
+        elif entity_type == 'inquiry':
+            base['title'] = (
+                getattr(entity, 'inquiry_number', None)
+                or f"Inquiry {entity.pk}"
             )
         elif entity_type == 'product':
             base['title'] = (
@@ -936,7 +1101,7 @@ class EntityViewSet(viewsets.ViewSet):
                 metadata['last_activity'] = entity.updated_at
             
             return metadata
-        except Exception as e:
+        except Exception:
             # Graceful fallback if labeling fails
             return {"labels": []}
     

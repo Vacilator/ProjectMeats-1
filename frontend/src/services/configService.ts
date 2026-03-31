@@ -109,6 +109,7 @@ export interface ConfigByCategory {
 // =============================================================================
 
 const CONFIG_CACHE_KEY = 'configService_cache';
+const CONFIG_CACHE_BUST_KEY = 'configService_cache_bust';
 const CONFIG_CACHE_TTL = 5 * 60 * 1000; // 5 minutes for memory cache
 const PERSIST_CACHE_TTL = 30 * 60 * 1000; // 30 minutes for localStorage
 
@@ -127,6 +128,28 @@ interface ConfigCache {
 
 let memoryCache: ConfigCache = {};
 
+let cacheBustTs = 0;
+
+function getCacheBustTs(): number {
+  try {
+    const raw = localStorage.getItem(CONFIG_CACHE_BUST_KEY);
+    const parsed = raw ? Number(raw) : 0;
+    return Number.isFinite(parsed) ? parsed : 0;
+  } catch {
+    return 0;
+  }
+}
+
+function bumpCacheBustTs(): void {
+  try {
+    const ts = Date.now();
+    localStorage.setItem(CONFIG_CACHE_BUST_KEY, String(ts));
+    cacheBustTs = ts;
+  } catch {
+    // ignore
+  }
+}
+
 // Pending requests deduplication (prevent duplicate API calls)
 const pendingRequests: Record<string, Promise<unknown> | undefined> = {};
 
@@ -139,6 +162,7 @@ let cacheMisses = 0;
  */
 function isCacheValid<T>(entry: CacheEntry<T> | undefined): entry is CacheEntry<T> {
   if (!entry) return false;
+  if (entry.timestamp < cacheBustTs) return false;
   return Date.now() - entry.timestamp < CONFIG_CACHE_TTL;
 }
 
@@ -147,11 +171,13 @@ function isCacheValid<T>(entry: CacheEntry<T> | undefined): entry is CacheEntry<
  */
 function restoreCacheFromStorage(): void {
   try {
+    cacheBustTs = getCacheBustTs();
+
     const stored = localStorage.getItem(CONFIG_CACHE_KEY);
     if (stored) {
       const parsed = JSON.parse(stored);
-      // Only restore if within persistent TTL
-      if (parsed.timestamp && Date.now() - parsed.timestamp < PERSIST_CACHE_TTL) {
+      // Only restore if within persistent TTL AND not invalidated.
+      if (parsed.timestamp && Date.now() - parsed.timestamp < PERSIST_CACHE_TTL && parsed.timestamp > cacheBustTs) {
         memoryCache = parsed.cache || {};
         console.debug('[configService] Cache restored from localStorage');
       }
@@ -166,14 +192,16 @@ function restoreCacheFromStorage(): void {
  */
 function persistCacheToStorage(): void {
   try {
+    const ts = Date.now();
     const toStore = {
-      timestamp: Date.now(),
+      timestamp: ts,
       cache: {
         // Only persist choice lists (most frequently used, rarely changed)
         allChoiceLists: memoryCache.allChoiceLists,
         choiceLists: memoryCache.choiceLists,
       },
     };
+    if (ts <= cacheBustTs) return;
     localStorage.setItem(CONFIG_CACHE_KEY, JSON.stringify(toStore));
   } catch {
     // localStorage might be full or unavailable
@@ -183,6 +211,19 @@ function persistCacheToStorage(): void {
 // Restore cache on module load
 restoreCacheFromStorage();
 
+// Cross-tab invalidation: if another tab clears the cache, this tab should stop using stale memory cache.
+if (typeof window !== 'undefined') {
+  window.addEventListener('storage', (e) => {
+    if (e.key !== CONFIG_CACHE_BUST_KEY) return;
+    const next = e.newValue ? Number(e.newValue) : 0;
+    if (!Number.isFinite(next)) return;
+    if (next > cacheBustTs) {
+      cacheBustTs = next;
+      memoryCache = {};
+    }
+  });
+}
+
 /**
  * Clear all config caches
  */
@@ -190,6 +231,7 @@ export function clearConfigCache(): void {
   memoryCache = {};
   cacheHits = 0;
   cacheMisses = 0;
+  bumpCacheBustTs();
   try {
     localStorage.removeItem(CONFIG_CACHE_KEY);
   } catch {

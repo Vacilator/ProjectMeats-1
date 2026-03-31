@@ -24,6 +24,7 @@ import { Eye, EyeOff, ChevronDown, ChevronUp, Zap } from 'lucide-react';
 import { ValidationRuleBuilder, ValidationRule } from './ValidationRuleBuilder';
 import { ConditionBuilder, ConditionRule, ConditionLogic } from './ConditionBuilder';
 import { useFlowEditor } from '../context';
+import { showAlert } from '@/utils/uiDialogs';
 import { getUpstreamOutputs, formatInheritanceSyntax, isInheritanceSyntax } from '../../../utils/flowUtils';
 import {
   PanelHeader,
@@ -419,7 +420,7 @@ export const FormFieldConfigPanel: React.FC<FormFieldConfigPanelProps> = ({
   };
 
   const openCreateCustomTenantList = () => {
-    Modal.info({
+    showAlert({
       title: 'Create Custom Tenant List (Coming Soon)',
       content: (
         <div>
@@ -429,6 +430,7 @@ export const FormFieldConfigPanel: React.FC<FormFieldConfigPanelProps> = ({
           <p>For now, this is a placeholder. If/when a TenantListModal exists, we can wire it here.</p>
         </div>
       ),
+      type: 'info',
     });
   };
 

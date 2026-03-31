@@ -10,6 +10,7 @@
 
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
+import { showAlert } from '@/utils/uiDialogs';
 import { X, Save, Sparkles, TrendingUp } from 'lucide-react';
 import { FormField, FieldType, ValidationType, AutoPopulateSuggestion } from './types';
 import { useFormBuilderStore } from './store';
@@ -407,7 +408,7 @@ export const FieldConfigModal: React.FC = () => {
   const handleSave = () => {
     if (!activeStepId) return;
     if (!fieldData.label.trim()) {
-      alert('Field label is required');
+      showAlert({ type: 'warning', title: 'Validation', content: 'Field label is required' });
       return;
     }
     

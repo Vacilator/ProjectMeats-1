@@ -5,12 +5,14 @@ Provides fuzzy matching and auto-mapping functionality for form field mappings.
 Used to automatically suggest and configure field mappings between steps.
 """
 
-import re
 from difflib import SequenceMatcher
 from typing import Dict, List, Any, Optional, Tuple
+
 from django.db.models import Q
 
-from .field_registry import FieldRegistry, FIELD_TYPE_MAP
+from apps.core.utils.naming import normalize_field_name
+
+from .field_registry import FieldRegistry
 
 
 # Field types that are compatible for mapping
@@ -40,22 +42,6 @@ COMPATIBLE_TYPES = {
 }
 
 
-def normalize_field_name(name: str) -> str:
-    """
-    Normalize a field name for comparison.
-    
-    Examples:
-        'customer_name' -> 'customer name'
-        'CustomerName' -> 'customer name'
-        'first_name' -> 'first name'
-    """
-    # Convert camelCase to snake_case
-    name = re.sub(r'([a-z])([A-Z])', r'\1_\2', name)
-    # Replace underscores and hyphens with spaces
-    name = re.sub(r'[_\-]', ' ', name)
-    # Lowercase
-    name = name.lower().strip()
-    return name
 
 
 def get_name_tokens(name: str) -> set:
@@ -312,7 +298,7 @@ class FieldMappingService:
         Returns:
             List of source fields with step info
         """
-        from ..models import TenantFormEntity, TenantFormField
+        from ..models import TenantFormField
         
         source_fields = []
         
@@ -362,7 +348,7 @@ class FieldMappingService:
         Returns:
             List of suggested mappings
         """
-        from ..models import TenantFormEntity, TenantFormField
+        from ..models import TenantFormField
         
         mappings = []
         

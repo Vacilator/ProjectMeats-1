@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { Skeleton } from 'antd';
 import { useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
 import { apiService, Supplier, PurchaseOrder } from '../services/apiService';
@@ -291,7 +292,11 @@ const Dashboard: React.FC = () => {
   };
 
   if (loading) {
-    return <LoadingContainer $theme={theme}>Loading dashboard...</LoadingContainer>;
+    return (
+      <LoadingContainer $theme={theme}>
+        <Skeleton active paragraph={{ rows: 10 }} />
+      </LoadingContainer>
+    );
   }
 
   if (error) {

@@ -8,7 +8,7 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.authtoken.models import Token
 from rest_framework.serializers import ValidationError
-from apps.tenants.models import Tenant, TenantUser
+from apps.tenants.models import TenantUser
 from apps.core.throttling import AuthRateThrottle
 from apps.core.models import UserFavorite
 from apps.core.serializers import UserFavoriteSerializer
@@ -359,7 +359,6 @@ class RankedSearchView(APIView):
     
     def get(self, request):
         from apps.core.services import UniversalSearchService
-        from apps.system.services.ranking_service import EntityRanking, EntityLabels
         
         if not hasattr(request, 'tenant') or not request.tenant:
             return Response(
@@ -844,13 +843,12 @@ class WorkspaceStatsView(APIView):
         from apps.tenant_apps.sales_orders.models import SalesOrder
         from apps.tenant_apps.suppliers.models import Supplier
         from apps.tenant_apps.customers.models import Customer
-        from django.db.models import Sum, Count
         from django.utils import timezone
         from datetime import timedelta
         
         tenant = request.tenant
         today = timezone.now().date()
-        week_ago = today - timedelta(days=7)
+        today - timedelta(days=7)
         
         # Calculate stats
         try:
@@ -936,7 +934,7 @@ class WorkspaceActivityView(APIView):
                 status=status.HTTP_403_FORBIDDEN
             )
         
-        limit = min(int(request.query_params.get('limit', 10)), 50)
+        min(int(request.query_params.get('limit', 10)), 50)
         
         # For now, return empty - this would integrate with an activity log
         # or audit trail system in a full implementation
@@ -962,7 +960,7 @@ class WorkspaceCallsView(APIView):
                 status=status.HTTP_403_FORBIDDEN
             )
         
-        limit = min(int(request.query_params.get('limit', 10)), 50)
+        min(int(request.query_params.get('limit', 10)), 50)
         
         # This would integrate with a CRM/call scheduling system
         return Response({
@@ -1019,24 +1017,43 @@ class FavoritesViewSet(viewsets.ModelViewSet):
     """ViewSet for managing user favorites."""
     serializer_class = UserFavoriteSerializer
     permission_classes = [IsAuthenticated]
-    
+
+    def _get_tenant(self):
+        tenant = getattr(self.request, 'tenant', None)
+        return tenant
+
     def get_queryset(self):
-        return UserFavorite.objects.filter(user=self.request.user)
-    
+        tenant = self._get_tenant()
+        if not tenant:
+            return UserFavorite.objects.none()
+        return UserFavorite.objects.filter(user=self.request.user, tenant=tenant)
+
     def perform_create(self, serializer):
-        serializer.save(user=self.request.user)
+        tenant = self._get_tenant()
+        if not tenant:
+            raise ValidationError({'error': 'Tenant context required'})
+        serializer.save(user=self.request.user, tenant=tenant)
     
     @action(detail=False, methods=['post'])
     def toggle(self, request):
+        tenant = getattr(request, 'tenant', None)
         entity_type = request.data.get('entity_type')
         entity_id = request.data.get('entity_id')
         entity_title = request.data.get('entity_title', '')
-        
-        if not entity_type or not entity_id:
+
+        if not tenant:
+            return Response({'error': 'tenant required'}, status=400)
+
+        if not entity_type or entity_id is None:
             return Response({'error': 'entity_type and entity_id required'}, status=400)
-        
+
+        try:
+            entity_id = int(entity_id)
+        except (TypeError, ValueError):
+            return Response({'error': 'entity_id must be an integer'}, status=400)
+
         favorite = UserFavorite.objects.filter(
-            user=request.user, entity_type=entity_type, entity_id=entity_id
+            user=request.user, tenant=tenant, entity_type=entity_type, entity_id=entity_id
         ).first()
         
         if favorite:
@@ -1044,21 +1061,33 @@ class FavoritesViewSet(viewsets.ModelViewSet):
             return Response({'action': 'removed', 'favorite': None})
         else:
             favorite = UserFavorite.objects.create(
-                user=request.user, entity_type=entity_type,
-                entity_id=entity_id, entity_title=entity_title
+                user=request.user,
+                tenant=tenant,
+                entity_type=entity_type,
+                entity_id=entity_id,
+                entity_title=entity_title,
             )
             return Response({'action': 'added', 'favorite': UserFavoriteSerializer(favorite).data}, status=201)
     
     @action(detail=False, methods=['get'])
     def check(self, request):
+        tenant = getattr(request, 'tenant', None)
         entity_type = request.query_params.get('entity_type')
         entity_id = request.query_params.get('entity_id')
-        
-        if not entity_type or not entity_id:
+
+        if not tenant:
+            return Response({'error': 'tenant required'}, status=400)
+
+        if not entity_type or entity_id is None:
             return Response({'error': 'entity_type and entity_id required'}, status=400)
-        
+
+        try:
+            entity_id = int(entity_id)
+        except (TypeError, ValueError):
+            return Response({'error': 'entity_id must be an integer'}, status=400)
+
         is_favorited = UserFavorite.objects.filter(
-            user=request.user, entity_type=entity_type, entity_id=entity_id
+            user=request.user, tenant=tenant, entity_type=entity_type, entity_id=entity_id
         ).exists()
         
         return Response({'is_favorited': is_favorited})

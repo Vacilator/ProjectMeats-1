@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { adminClient } from '@/services/apiService';
+import { showAlert } from '@/utils/uiDialogs';
 
 interface Blueprint {
   id: string;
@@ -52,7 +53,7 @@ export const Dashboard: React.FC = () => {
             </Link>
             <button 
               className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 font-medium transition-colors"
-              onClick={() => alert('Create new blueprint functionality to be implemented')}
+              onClick={() => showAlert({ type: 'info', title: 'Coming soon', content: 'Create new blueprint functionality to be implemented' })}
             >
               + Create New Blueprint
             </button>
@@ -61,7 +62,7 @@ export const Dashboard: React.FC = () => {
 
         {loading ? (
           <div className="flex justify-center py-12">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600" />
           </div>
         ) : error ? (
           <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">

@@ -93,7 +93,9 @@ def log_inquiry_product_activity(sender, instance, created, **kwargs):
         entity_id = inquiry.supplier_id if inquiry.supplier else inquiry.customer_id
         
         if entity_id:
-            product_name = instance.product.description_of_product_item[:50]
+            product_name = (
+                (getattr(instance.product, 'name', '') or getattr(instance.product, 'product_code', '') or 'Product')
+            )[:50]
             ActivityLog.objects.create(
                 tenant=inquiry.tenant,
                 entity_type=entity_type,

@@ -18,6 +18,11 @@ class ConfigSchemaRegistry {
   private schemas: Map<string, NodeConfigSchema> = new Map();
   private initialized: boolean = false;
 
+  private shouldDebugLog(): boolean {
+    if (typeof window === 'undefined') return false;
+    return Boolean(import.meta.env.DEV && window.localStorage.getItem('pm:debug-schemas') === '1');
+  }
+
   /**
    * Phase 9.7: Preemptive hardening
    *
@@ -101,7 +106,9 @@ class ConfigSchemaRegistry {
     }
 
     this.initialized = true;
-    console.log(`ConfigSchemaRegistry initialized with ${this.schemas.size} schemas`);
+    if (this.shouldDebugLog()) {
+      console.debug(`ConfigSchemaRegistry initialized with ${this.schemas.size} schemas`);
+    }
   }
 
   /**
@@ -131,7 +138,9 @@ class ConfigSchemaRegistry {
     }
 
     this.schemas.set(normalizedSchema.nodeType, normalizedSchema);
-    console.log(`Registered schema for node type: ${normalizedSchema.nodeType}`);
+    if (this.shouldDebugLog()) {
+      console.debug(`Registered schema for node type: ${normalizedSchema.nodeType}`);
+    }
   }
 
   /**

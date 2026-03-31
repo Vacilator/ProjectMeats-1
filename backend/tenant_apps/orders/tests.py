@@ -10,7 +10,6 @@ from tenant_apps.orders.models import (
     BaseOrderStatus,
     PaymentStatus,
     OrderTypeChoices,
-    OrderMethodsMixin,
     get_order_type_label,
     get_all_order_statuses,
 )

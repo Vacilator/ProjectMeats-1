@@ -7,6 +7,7 @@ without triggering actual API calls or consuming quota.
 
 from django.conf import settings
 from django.core.cache import cache
+from django.db import connection
 import logging
 
 logger = logging.getLogger(__name__)
@@ -92,7 +93,6 @@ def check_sentry() -> dict:
     """
     try:
         import sentry_sdk
-        from sentry_sdk.integrations import Integration
         
         # Check if Sentry is initialized
         client = sentry_sdk.Hub.current.client
@@ -117,6 +117,35 @@ def check_sentry() -> dict:
             'environment': 'unknown',
             'sdk_installed': False,
             'note': 'sentry-sdk not installed'
+        }
+
+
+def check_sendgrid() -> dict:
+    """Check SendGrid configuration (without sending email)."""
+
+    api_key = getattr(settings, 'SENDGRID_API_KEY', '')
+    return {
+        'configured': bool(api_key),
+        'api_key_set': bool(api_key),
+    }
+
+
+def check_pgvector() -> dict:
+    """Check whether pgvector extension is available in the connected database."""
+
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT 1 FROM pg_extension WHERE extname = 'vector' LIMIT 1")
+            has_vector = cursor.fetchone() is not None
+
+        return {
+            'available': bool(has_vector),
+        }
+    except Exception as e:
+        logger.warning(f"pgvector health check failed: {e}")
+        return {
+            'available': False,
+            'error': str(e),
         }
 
 
@@ -166,24 +195,28 @@ def check_all_services() -> dict:
     openai_status = check_openai()
     sentry_status = check_sentry()
     ms_oauth_status = check_microsoft_oauth()
-    
+    sendgrid_status = check_sendgrid()
+    pgvector_status = check_pgvector()
+
     # Calculate summary
-    services = [redis_status, openai_status, sentry_status, ms_oauth_status]
+    services = [redis_status, openai_status, sentry_status, ms_oauth_status, sendgrid_status, pgvector_status]
     available_count = sum(1 for s in services if s.get('available', False))
     configured_count = sum(1 for s in services if s.get('configured', False))
-    
+
     return {
         'redis': redis_status,
         'openai': openai_status,
         'sentry': sentry_status,
         'microsoft_oauth': ms_oauth_status,
+        'sendgrid': sendgrid_status,
+        'pgvector': pgvector_status,
         'summary': {
             'total_services': len(services),
             'available': available_count,
             'configured': configured_count,
-            'ready_for_phase_2': openai_status['configured'],  # AI features
-            'ready_for_phase_3': redis_status['available'],     # Real-time search
-            'ready_for_phase_5': ms_oauth_status['configured'], # Microsoft integration
-            'ready_for_phase_6_4': sentry_status['configured']  # APM monitoring
-        }
+            'ready_for_phase_2': openai_status.get('configured', False),  # AI features
+            'ready_for_phase_3': redis_status.get('available', False),  # Real-time search
+            'ready_for_phase_5': ms_oauth_status.get('configured', False),  # Microsoft integration
+            'ready_for_phase_6_4': sentry_status.get('configured', False),  # APM monitoring
+        },
     }

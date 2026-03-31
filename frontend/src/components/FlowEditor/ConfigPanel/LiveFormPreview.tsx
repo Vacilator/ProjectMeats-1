@@ -80,7 +80,7 @@ const FormTitle = styled.h2`
 
 const FormDescription = styled.p`
   font-size: 14px;
-  color: #666;
+  color: rgb(var(--color-text-secondary));
   margin: 0 0 24px 0;
   line-height: 1.6;
 `;
@@ -117,7 +117,7 @@ const RequiredStar = styled.span`
 
 const HelpText = styled.span`
   font-size: 12px;
-  color: #666;
+  color: rgb(var(--color-text-secondary));
   font-weight: 400;
   display: flex;
   align-items: center;
@@ -275,7 +275,6 @@ const renderFieldInput = (field: FormField): React.ReactNode => {
   switch (field.type) {
     case 'text':
     case 'email':
-    case 'phone':
     case 'number':
     case 'date':
     case 'datetime':
@@ -283,6 +282,18 @@ const renderFieldInput = (field: FormField): React.ReactNode => {
         <Input
           type={field.type === 'datetime' ? 'datetime-local' : field.type}
           placeholder={field.placeholder || `Enter ${field.label.toLowerCase()}`}
+          disabled
+        />
+      );
+
+    case 'phone':
+      return (
+        <Input
+          type="tel"
+          inputMode="numeric"
+          maxLength={13}
+          autoComplete="tel"
+          placeholder={field.placeholder || '(XXX)XXX-XXXX'}
           disabled
         />
       );

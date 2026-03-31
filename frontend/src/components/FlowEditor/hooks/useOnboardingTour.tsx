@@ -70,7 +70,9 @@ export const useOnboardingTour = (tourConfig: TourConfig) => {
 
         setRun(false);
         setStepIndex(0);
-      } else if (type === EVENTS.STEP_AFTER) {
+      } else if (type === EVENTS.STEP_AFTER || type === EVENTS.TARGET_NOT_FOUND) {
+        // If a step target isn't in the DOM (or isn't visible), Joyride emits TARGET_NOT_FOUND.
+        // Advance so the tour never gets stuck behind the overlay.
         setStepIndex(index + (action === 'prev' ? -1 : 1));
       }
     },
@@ -163,7 +165,7 @@ export const workflowEditorTourSteps: Step[] = [
     placement: 'bottom',
   },
   {
-    target: '.node-config-panel',
+    target: '[data-tour="config-panel"]',
     content: (
       <div>
         <h3 style={{ margin: '0 0 8px 0' }}>⚙️ Configuration Panel</h3>

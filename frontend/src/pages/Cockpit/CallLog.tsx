@@ -17,8 +17,10 @@
  * Updated: 2026-02-03 - Renamed from "Call Log" to "Calls"
  */
 import React, { useEffect, useRef, useState } from 'react';
+import { Skeleton } from 'antd';
 import styled from 'styled-components';
 import { Calendar, Badge, Segmented } from 'antd';
+import { confirmDialog, showAlert } from '@/utils/uiDialogs';
 import { LeftOutlined, RightOutlined } from '@ant-design/icons';
 import dayjs, { Dayjs } from 'dayjs';
 import { ActivityFeed } from '../../components/Shared/ActivityFeed';
@@ -743,7 +745,11 @@ export const CallLog: React.FC = () => {
       ));
     } catch (err: any) {
       console.error('Failed to complete call:', err);
-      alert('Failed to mark call as completed');
+      showAlert({
+        type: 'error',
+        title: 'Error',
+        content: 'Failed to mark call as completed',
+      });
     }
   };
 
@@ -773,17 +779,27 @@ export const CallLog: React.FC = () => {
 
   const handleDeleteCall = async (callId: number, e: React.MouseEvent) => {
     e.stopPropagation();
-    
-    if (!window.confirm('Are you sure you want to delete this scheduled call?')) {
-      return;
-    }
-    
+
+    const confirmed = await confirmDialog({
+      title: 'Delete scheduled call?',
+      content: 'Are you sure you want to delete this scheduled call?',
+      okText: 'Delete',
+      cancelText: 'Cancel',
+      danger: true,
+    });
+
+    if (!confirmed) return;
+
     try {
       await businessApi.delete(`/workspace/scheduled-calls/${callId}/`);
       await fetchScheduledCalls();
     } catch (err: any) {
       console.error('Failed to delete call:', err);
-      alert('Failed to delete call. Please try again.');
+      showAlert({
+        type: 'error',
+        title: 'Error',
+        content: 'Failed to delete call. Please try again.',
+      });
     }
   };
 
@@ -905,7 +921,11 @@ export const CallLog: React.FC = () => {
       setDraggedCall(null);
     } catch (err: any) {
       console.error('Failed to reschedule call:', err);
-      alert('Failed to reschedule call. Please try again.');
+      showAlert({
+        type: 'error',
+        title: 'Error',
+        content: 'Failed to reschedule call. Please try again.',
+      });
       setDraggedCall(null);
     }
   };
@@ -1217,7 +1237,9 @@ export const CallLog: React.FC = () => {
           {error && <ErrorState>{error}</ErrorState>}
 
           {loading ? (
-            <LoadingState>Loading scheduled calls...</LoadingState>
+            <LoadingState>
+              <Skeleton active paragraph={{ rows: 8 }} />
+            </LoadingState>
           ) : (
             <CalendarContainer>
               {viewMode === 'month' && (

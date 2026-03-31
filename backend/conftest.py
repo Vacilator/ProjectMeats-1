@@ -46,8 +46,14 @@ def test_tenant(db):
     return Tenant.objects.create(
         name='Test Tenant',
         slug='test-tenant',
-        is_active=True
+        is_active=True,
     )
+
+
+@pytest.fixture
+def tenant(test_tenant):
+    """Alias fixture for consistency with common test naming."""
+    return test_tenant
 
 
 @pytest.fixture
@@ -83,7 +89,7 @@ def authenticated_tenant_client(api_client, tenant_user, test_tenant):
 @pytest.fixture
 def supplier_factory(test_tenant):
     """Factory for creating test suppliers."""
-    from apps.tenant_apps.suppliers.models import Supplier
+    from tenant_apps.suppliers.models import Supplier
     
     def create_supplier(**kwargs):
         defaults = {
@@ -100,7 +106,7 @@ def supplier_factory(test_tenant):
 @pytest.fixture
 def customer_factory(test_tenant):
     """Factory for creating test customers."""
-    from apps.tenant_apps.customers.models import Customer
+    from tenant_apps.customers.models import Customer
     
     def create_customer(**kwargs):
         defaults = {
@@ -117,7 +123,7 @@ def customer_factory(test_tenant):
 @pytest.fixture
 def purchase_order_factory(test_tenant, supplier_factory):
     """Factory for creating test purchase orders."""
-    from apps.tenant_apps.purchase_orders.models import PurchaseOrder
+    from tenant_apps.purchase_orders.models import PurchaseOrder
     
     def create_po(**kwargs):
         if 'supplier' not in kwargs:

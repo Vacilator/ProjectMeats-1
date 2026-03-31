@@ -13,6 +13,9 @@ import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Table, Input, Button, Modal, Form, Select, message, Tag, Space } from 'antd';
+import { confirmDialog } from '@/utils/uiDialogs';
+import { CountrySelect } from '../../components/ui';
+import { US_STATES } from '../../utils/constants/states';
 import type { ColumnsType } from 'antd/es/table';
 import { SearchOutlined, PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import { apiClient } from '../../services/apiService';
@@ -34,6 +37,7 @@ interface Location {
   zip_code?: string;
   country?: string;
   phone?: string;
+  phone_type?: 'office' | 'mobile';
   email?: string;
   contact_name?: string;
   is_active?: boolean;
@@ -270,6 +274,8 @@ const CustomerLocations: React.FC = () => {
     setEditingLocation(null);
     setFormErrors({});
     form.resetFields();
+
+    form.setFieldsValue({ phone_type: 'office', country: 'USA' });
     
     // Pre-fill customer if context exists
     if (contextCustomerId) {
@@ -292,6 +298,7 @@ const CustomerLocations: React.FC = () => {
       state: loc.state || '',
       zip_code: loc.zip_code || '',
       country: loc.country || 'USA',
+      phone_type: loc.phone_type || 'office',
       phone: loc.phone || '',
       email: loc.email || '',
       contact_name: loc.contact_name || '',
@@ -299,24 +306,25 @@ const CustomerLocations: React.FC = () => {
     setShowModal(true);
   };
 
-  const handleDelete = (loc: Location) => {
-    Modal.confirm({
+  const handleDelete = async (loc: Location) => {
+    const confirmed = await confirmDialog({
       title: 'Delete Location',
       content: `Are you sure you want to delete ${loc.name}?`,
       okText: 'Delete',
-      okType: 'danger',
       cancelText: 'Cancel',
-      onOk: async () => {
-        try {
-          await apiClient.delete(`locations/${loc.id}/`);
-          message.success('Location deleted successfully');
-          loadLocations();
-        } catch (error: any) {
-          console.error('Error deleting location:', error);
-          message.error('Failed to delete location');
-        }
-      },
+      danger: true,
     });
+
+    if (!confirmed) return;
+
+    try {
+      await apiClient.delete(`locations/${loc.id}/`);
+      message.success('Location deleted successfully');
+      loadLocations();
+    } catch (error: any) {
+      console.error('Error deleting location:', error);
+      message.error('Failed to delete location');
+    }
   };
 
   const handleSubmit = async () => {
@@ -499,7 +507,7 @@ const CustomerLocations: React.FC = () => {
         <Form form={form} layout="vertical">
           <Form.Item
             name="name"
-            label={<><Label>Name<RequiredMark>*</RequiredMark></Label></>}
+            label={<Label>Name<RequiredMark>*</RequiredMark></Label>}
             rules={[{ required: true, message: 'Location name is required' }]}
             validateStatus={formErrors.name ? 'error' : ''}
             help={formErrors.name && <ErrorMessage>⚠ {formErrors.name[0]}</ErrorMessage>}
@@ -555,22 +563,48 @@ const CustomerLocations: React.FC = () => {
           </Form.Item>
 
           <Form.Item name="state" label={<Label>State</Label>}>
-            <Input placeholder="State" />
+            <Select
+              placeholder="Search state"
+              allowClear
+              showSearch
+              optionFilterProp="label"
+              options={US_STATES}
+              filterOption={(input, option) =>
+                String(option?.label || '').toLowerCase().includes(input.toLowerCase())
+                || String(option?.value || '').toLowerCase().includes(input.toLowerCase())
+              }
+            />
           </Form.Item>
 
-          <Form.Item name="zip_code" label={<Label>ZIP Code</Label>}>
-            <Input placeholder="ZIP Code" />
+          <Form.Item
+            name="zip_code"
+            label={<Label>ZIP Code</Label>}
+            rules={[{ pattern: /^\d{5}$/, message: 'ZIP Code must be exactly 5 digits' }]}
+            getValueFromEvent={(e) => String(e?.target?.value ?? '').replace(/\D/g, '').slice(0, 5)}
+          >
+            <Input placeholder="12345" maxLength={5} inputMode="numeric" />
           </Form.Item>
 
           <Form.Item name="country" label={<Label>Country</Label>}>
-            <Input placeholder="Country" />
+            <CountrySelect placeholder="Search country" aria-label="Country" />
+          </Form.Item>
+
+          <Form.Item name="phone_type" label={<Label>Phone Type</Label>}>
+            <Select placeholder="Select type">
+              <Select.Option value="office">Office</Select.Option>
+              <Select.Option value="mobile">Mobile</Select.Option>
+            </Select>
           </Form.Item>
 
           <Form.Item name="phone" label={<Label>Phone</Label>}>
             <Input placeholder="Phone Number" />
           </Form.Item>
 
-          <Form.Item name="email" label={<Label>Email</Label>}>
+          <Form.Item
+            name="email"
+            label={<Label>Email</Label>}
+            rules={[{ type: 'email', message: 'Please enter a valid email address' }]}
+          >
             <Input type="email" placeholder="Email Address" />
           </Form.Item>
 

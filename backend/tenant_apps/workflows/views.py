@@ -10,7 +10,7 @@ from datetime import timedelta
 
 from django.contrib.auth.models import User
 from django.db import IntegrityError, transaction
-from django.db.models import Avg, Count, F, Max, Prefetch, Q
+from django.db.models import Count, F, Max, Prefetch
 from django.utils import timezone
 from rest_framework import mixins, serializers, status, viewsets
 from rest_framework.decorators import action
@@ -19,11 +19,16 @@ from rest_framework.permissions import IsAdminUser, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from drf_spectacular.utils import OpenApiTypes, extend_schema
+
 logger = logging.getLogger(__name__)
 
 from .models import (
     FormStatus,
+    FormStatusHistory,
     FormStepSubmission,
+    FormSubmission,
+    FormSubmissionStatus,
     StepAssignment,
     StepSubmissionStatus,
     TenantForm,
@@ -34,17 +39,23 @@ from .models import (
     TenantWorkflow,
     TenantWorkflowAction,
     TenantWorkflowCondition,
+    UserNotification,
+    UserNotificationPreferences,
     WorkflowExecutionLog,
     WorkflowStatus,
 )
 from .permissions import (
     CanEditWorkForm,
     CanPublishWorkForm,
-    IsTenantAdminOrOwner,
     IsTenantAdminOrOwnerOrReadOnly,
     WorkFormPermissionHelper,
 )
 from .serializers import (
+    EntityOptionsResponseSerializer,
+    QuickCreateCreateResponseSerializer,
+    QuickCreateFieldsResponseSerializer,
+    SmartFieldMatchRequestSerializer,
+    SmartFieldMatchResponseSerializer,
     TenantFormCreateSerializer,
     TenantFormEntitySerializer,
     TenantFormFieldSerializer,
@@ -376,6 +387,7 @@ class FormStepDetailAPIView(APIView):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
+@extend_schema(tags=["Workflows", "Admin"])
 class SmartFieldMatchAPIView(APIView):
     """
     API endpoint for smart field matching suggestions.
@@ -384,6 +396,10 @@ class SmartFieldMatchAPIView(APIView):
 
     permission_classes = [IsAdminUser]
 
+    @extend_schema(
+        request=SmartFieldMatchRequestSerializer,
+        responses={200: SmartFieldMatchResponseSerializer},
+    )
     def post(self, request):
         """
         Find matching fields for auto-population.
@@ -921,8 +937,7 @@ class TenantFilteredModelViewSet(viewsets.ModelViewSet):
 
 
 class TenantListViewSet(TenantFilteredModelViewSet):
-    """
-    API endpoint for Tenant Lists.
+    """API endpoint for Tenant Lists.
 
     Tenant-specific option lists for dropdown/multi-select fields.
     """
@@ -931,8 +946,31 @@ class TenantListViewSet(TenantFilteredModelViewSet):
     serializer_class = TenantListSerializer
     permission_classes = [IsTenantAdminOrOwnerOrReadOnly]
 
+    def perform_create(self, serializer):
+        """Ensure tenant + created_by are always set on create.
+
+        This prevents NOT NULL/unique/RLS failures surfacing as 500s.
+        """
+        tenant = getattr(self.request, 'tenant', None)
+        if not tenant:
+            raise ValidationError({"tenant": "Tenant context is required (X-Tenant-ID header)."})
+
+        self._ensure_rls_session_vars(str(tenant.id))
+
+        user = getattr(self.request, 'user', None)
+        if user and getattr(user, 'is_authenticated', False):
+            serializer.save(tenant=tenant, created_by=user)
+        else:
+            serializer.save(tenant=tenant)
+
     def create(self, request, *args, **kwargs):
         """Create list with a friendly error instead of 500 on IntegrityError."""
+
+        tenant = getattr(request, 'tenant', None)
+        if tenant:
+            # Assert RLS vars before DRF validation/save (defense-in-depth).
+            self._ensure_rls_session_vars(str(tenant.id))
+
         try:
             return super().create(request, *args, **kwargs)
         except IntegrityError:
@@ -1053,7 +1091,8 @@ class TenantFormViewSet(TenantFilteredModelViewSet):
         """Activate a form."""
         form = self.get_object()
         form.status = FormStatus.ACTIVE
-        form.save(update_fields=["status", "updated_at"])
+        form.is_quick_action_enabled = True
+        form.save(update_fields=["status", "is_quick_action_enabled", "updated_at"])
         return Response({"status": "activated"})
 
     @action(detail=True, methods=["post"])
@@ -1702,7 +1741,6 @@ class TenantWorkflowViewSet(TenantFilteredModelViewSet):
         
         Returns JSON template that can be imported by other tenants.
         """
-        import json
         
         workflow = self.get_object()
         
@@ -1760,7 +1798,6 @@ class TenantWorkflowViewSet(TenantFilteredModelViewSet):
             "activate": false  # Whether to activate immediately
         }
         """
-        import json
         
         template = request.data.get('template')
         name_override = request.data.get('name')
@@ -1895,14 +1932,15 @@ class WorkflowExecutionLogViewSet(viewsets.ReadOnlyModelViewSet):
 # FORM SUBMISSION API VIEWS
 # =============================================================================
 
-from .models import FormStepSubmission, FormSubmission, FormSubmissionStatus, StepSubmissionStatus
 from .serializers import (
     AvailableFormSerializer,
-    FormStepSubmissionSerializer,
+    AvailableQuickActionTargetSerializer,
     FormSubmissionAutoSaveSerializer,
     FormSubmissionCreateSerializer,
     FormSubmissionDetailSerializer,
     FormSubmissionListSerializer,
+    QuickActionsGetResponseSerializer,
+    QuickActionsPutResponseSerializer,
     QuickActionsSerializer,
 )
 
@@ -2445,31 +2483,68 @@ class FormSubmissionViewSet(viewsets.ModelViewSet):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
+@extend_schema(tags=["Workflows", "Quick Actions"])
 class AvailableFormsViewSet(viewsets.ReadOnlyModelViewSet):
-    """
-    ViewSet for listing forms available for Quick Actions.
+    """List Quick Actions targets.
 
-    Only returns forms that are:
-    - Active (status=active)
-    - Quick action enabled
-    - Belonging to the user's tenant (or all tenants for superusers)
+    Returns a unified list including:
+    - TenantForm (data capture forms)
+    - TenantWorkForm (workflow graphs from the WorkForms editor)
+
+    Both are filtered to status in (active, draft).
     """
 
     permission_classes = [IsAuthenticated]
     serializer_class = AvailableFormSerializer
 
     def get_queryset(self):
-        # Base query - active and quick-action enabled forms
-        queryset = TenantForm.objects.filter(status=FormStatus.ACTIVE, is_quick_action_enabled=True)
+        # TenantForms: active or draft
+        queryset = TenantForm.objects.filter(status__in=[FormStatus.ACTIVE, FormStatus.DRAFT])
 
-        # For superusers, show all available forms
-        # For regular users, filter by their tenant
         if not self.request.user.is_superuser:
             queryset = queryset.filter(tenant=self.request.tenant)
 
-        return queryset.prefetch_related("entities").order_by("name")
+        return queryset.prefetch_related('entities').order_by('name')
+
+    @extend_schema(responses={200: AvailableQuickActionTargetSerializer(many=True)})
+    def list(self, request, *args, **kwargs):
+        from apps.system.models.tenant_workform import TenantWorkForm, WorkFormStatusChoices
+
+        forms_qs = self.filter_queryset(self.get_queryset())
+        forms_data = AvailableFormSerializer(forms_qs, many=True).data
+        for row in forms_data:
+            row['type'] = 'form'
+            row['node_count'] = None
+
+        workforms_qs = TenantWorkForm.objects.filter(
+            status__in=[WorkFormStatusChoices.ACTIVE, WorkFormStatusChoices.DRAFT]
+        ).order_by('name')
+        if not request.user.is_superuser:
+            workforms_qs = workforms_qs.filter(tenant=request.tenant)
+
+        workforms_data = []
+        for wf in workforms_qs:
+            workforms_data.append(
+                {
+                    'id': str(wf.id),
+                    'type': 'workflow',
+                    'name': wf.name,
+                    'description': wf.description or '',
+                    'icon': 'layers',
+                    'status': wf.status,
+                    'is_default': False,
+                    'is_quick_action_enabled': True,
+                    'step_count': 0,
+                    'node_count': wf.get_node_count(),
+                }
+            )
+
+        combined = list(forms_data) + workforms_data
+        combined.sort(key=lambda r: str(r.get('name') or '').lower())
+        return Response(combined)
 
 
+@extend_schema(tags=["Workflows", "Quick Actions"])
 class QuickActionsAPIView(APIView):
     """
     API endpoint for managing user's quick actions.
@@ -2480,6 +2555,7 @@ class QuickActionsAPIView(APIView):
 
     permission_classes = [IsAuthenticated]
 
+    @extend_schema(responses={200: QuickActionsGetResponseSerializer})
     def get(self, request):
         """Get user's quick actions from preferences."""
         try:
@@ -2490,6 +2566,10 @@ class QuickActionsAPIView(APIView):
 
         return Response({"items": quick_actions})
 
+    @extend_schema(
+        request=QuickActionsSerializer,
+        responses={200: QuickActionsPutResponseSerializer},
+    )
     def put(self, request):
         """Update user's quick actions."""
         try:
@@ -2507,25 +2587,22 @@ class QuickActionsAPIView(APIView):
 
             items = serializer.validated_data["items"]
 
-            # Validate that referenced forms exist and are available
+            # Validate that referenced targets exist and are available
+            from apps.system.models.tenant_workform import TenantWorkForm
+
             for item in items:
                 if item["type"] == "form" and item.get("form_id"):
-                    # First try to find form for current tenant
                     form = TenantForm.objects.filter(
                         id=item["form_id"],
                         tenant=request.tenant,
                     ).first()
 
-                    # If not found and user is superuser, try to find form in any tenant
                     if not form and request.user.is_superuser:
-                        form = TenantForm.objects.filter(
-                            id=item["form_id"],
-                        ).first()
+                        form = TenantForm.objects.filter(id=item["form_id"]).first()
                         if form:
                             logger.info(f"Superuser accessing form {item['form_id']} from tenant {form.tenant}")
 
                     if not form:
-                        # Check if form exists at all (to give better error message)
                         any_form = TenantForm.objects.filter(id=item["form_id"]).first()
                         if any_form:
                             logger.warning(
@@ -2536,18 +2613,43 @@ class QuickActionsAPIView(APIView):
                                 {"error": f'Form "{any_form.name}" belongs to a different tenant'},
                                 status=status.HTTP_400_BAD_REQUEST,
                             )
-                        else:
-                            logger.warning(f"Form {item['form_id']} does not exist in any tenant")
-                            return Response(
-                                {"error": f'Form {item["form_id"]} not found'}, status=status.HTTP_400_BAD_REQUEST
+
+                        logger.warning(f"Form {item['form_id']} does not exist in any tenant")
+                        return Response(
+                            {"error": f'Form {item["form_id"]} not found'}, status=status.HTTP_400_BAD_REQUEST
+                        )
+
+                if item["type"] == "workflow" and item.get("workflow_id"):
+                    wf = TenantWorkForm.objects.filter(
+                        id=item["workflow_id"],
+                        tenant=request.tenant,
+                    ).first()
+
+                    if not wf and request.user.is_superuser:
+                        wf = TenantWorkForm.objects.filter(id=item["workflow_id"]).first()
+                        if wf:
+                            logger.info(
+                                f"Superuser accessing workform {item['workflow_id']} from tenant {wf.tenant_id}"
                             )
 
-                    if not form.is_quick_action_enabled:
-                        logger.warning(f"Form {item['form_id']} is not enabled for quick actions")
+                    if not wf:
+                        any_wf = TenantWorkForm.objects.filter(id=item["workflow_id"]).first()
+                        if any_wf:
+                            logger.warning(
+                                f"WorkForm {item['workflow_id']} exists in tenant {any_wf.tenant_id} "
+                                f"but user's tenant is {request.tenant}"
+                            )
+                            return Response(
+                                {"error": 'WorkForm belongs to a different tenant'},
+                                status=status.HTTP_400_BAD_REQUEST,
+                            )
+
+                        logger.warning(f"WorkForm {item['workflow_id']} does not exist in any tenant")
                         return Response(
-                            {"error": f'Form "{form.name}" is not enabled for quick actions'},
+                            {"error": f'WorkForm {item["workflow_id"]} not found'},
                             status=status.HTTP_400_BAD_REQUEST,
                         )
+
 
             # Update preferences
             from apps.core.models import UserPreferences
@@ -2569,12 +2671,16 @@ class QuickActionsAPIView(APIView):
 
             return Response({"success": True, "items": serializable_items})
         except Exception as e:
+            from apps.core.utils.logging import capture_exception
+
+            capture_exception(e, request=request, extra={"endpoint": "workflows/quick-actions"})
             logger.exception(f"Error updating quick actions: {e}")
             return Response(
                 {"error": f"Failed to update quick actions: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
 
+@extend_schema(tags=["Workflows", "Entities"])
 class EntityOptionsAPIView(APIView):
     """
     API endpoint for getting entity options for select fields.
@@ -2587,6 +2693,7 @@ class EntityOptionsAPIView(APIView):
 
     permission_classes = [IsAuthenticated]
 
+    @extend_schema(responses={200: EntityOptionsResponseSerializer})
     def get(self, request, entity_type):
         """Get options for an entity type."""
         from django.db.models import Q
@@ -2646,8 +2753,31 @@ class EntityOptionsAPIView(APIView):
 
                 options.append({"value": str(obj.pk), "label": label})
 
-            # Determine if user can create new records
-            can_create = request.user.has_perm(f"{model._meta.app_label}.add_{model._meta.model_name}")
+            # Determine if user can create new records.
+            # Many ProjectMeats APIs use tenant membership / app-level RBAC rather than Django model permissions.
+            QUICK_CREATE_MEMBER_ENTITY_TYPES = {
+                "supplier",
+                "customer",
+                "contact",
+                "carrier",
+                "plant",
+                "location",
+            }
+
+            def _is_active_tenant_member() -> bool:
+                try:
+                    from apps.tenants.models import TenantUser
+
+                    return TenantUser.objects.filter(user=request.user, tenant=tenant, is_active=True).exists()
+                except Exception:
+                    return False
+
+            is_global_admin = request.user.groups.filter(name='Global System Admins').exists()
+
+            if entity_type in QUICK_CREATE_MEMBER_ENTITY_TYPES:
+                can_create = bool(getattr(request.user, "is_superuser", False)) or is_global_admin or _is_active_tenant_member()
+            else:
+                can_create = request.user.has_perm(f"{model._meta.app_label}.add_{model._meta.model_name}")
 
             return Response(
                 {
@@ -2667,6 +2797,7 @@ class EntityOptionsAPIView(APIView):
             )
 
 
+@extend_schema(tags=["Workflows", "Entities"])
 class QuickCreateEntityAPIView(APIView):
     """
     API endpoint for quick-creating entity records from within forms.
@@ -2677,6 +2808,7 @@ class QuickCreateEntityAPIView(APIView):
 
     permission_classes = [IsAuthenticated]
 
+    @extend_schema(responses={200: QuickCreateFieldsResponseSerializer})
     def get(self, request, entity_type):
         """Get the required fields for quick-creating an entity."""
         from .services.field_registry import FieldRegistry
@@ -2711,8 +2843,22 @@ class QuickCreateEntityAPIView(APIView):
         # Entity-specific extras appended after the common set.
         # These are especially important for Master Product compliance.
         extra_fields_by_entity = {
-            "customer": ["industry_array", "preferred_protein_types", "products"],
-            "supplier": ["departments_array", "preferred_protein_types", "products"],
+            "customer": [
+                "phone_mobile",
+                "phone_office",
+                "phone_office_extension",
+                "industry_array",
+                "preferred_protein_types",
+                "products",
+            ],
+            "supplier": [
+                "phone_mobile",
+                "phone_office",
+                "phone_office_extension",
+                "departments_array",
+                "preferred_protein_types",
+                "products",
+            ],
             "contact": ["position", "department"],
         }
         excluded = {
@@ -2782,6 +2928,11 @@ class QuickCreateEntityAPIView(APIView):
         # Build an ordered allowlist: common keys first, then entity-specific keys.
         allow_order = list(common_extra_keys) + list(extra_fields_by_entity.get(entity_type, []))
 
+        # Customer/Supplier UX: we collect mobile + office + extension explicitly.
+        # Hide the legacy single phone field from quick-create to avoid confusion.
+        if entity_type in {'customer', 'supplier'}:
+            allow_order = [k for k in allow_order if k != 'phone']
+
         for key in allow_order:
             if key in excluded or key in already:
                 continue
@@ -2826,6 +2977,10 @@ class QuickCreateEntityAPIView(APIView):
             }
         )
 
+    @extend_schema(
+        request=OpenApiTypes.OBJECT,
+        responses={201: QuickCreateCreateResponseSerializer},
+    )
     def post(self, request, entity_type):
         """Quick-create an entity record."""
         from .services.field_registry import FieldRegistry
@@ -2838,9 +2993,35 @@ class QuickCreateEntityAPIView(APIView):
         if not tenant:
             return Response({"error": "Tenant context required"}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Check permission
-        if not request.user.has_perm(f"{model._meta.app_label}.add_{model._meta.model_name}"):
-            return Response({"error": "Permission denied"}, status=status.HTTP_403_FORBIDDEN)
+        # Check permission.
+        # Quick-create is primarily for reference data (supplier/customer/contact/etc.).
+        # For those, we rely on tenant membership (plus Global System Admin / superuser),
+        # which matches the permission model of many tenant ViewSets.
+        QUICK_CREATE_MEMBER_ENTITY_TYPES = {
+            "supplier",
+            "customer",
+            "contact",
+            "carrier",
+            "plant",
+            "location",
+        }
+
+        def _is_active_tenant_member() -> bool:
+            try:
+                from apps.tenants.models import TenantUser
+
+                return TenantUser.objects.filter(user=request.user, tenant=tenant, is_active=True).exists()
+            except Exception:
+                return False
+
+        is_global_admin = request.user.groups.filter(name='Global System Admins').exists()
+
+        if entity_type in QUICK_CREATE_MEMBER_ENTITY_TYPES:
+            if not (getattr(request.user, "is_superuser", False) or is_global_admin or _is_active_tenant_member()):
+                return Response({"error": "Permission denied"}, status=status.HTTP_403_FORBIDDEN)
+        else:
+            if not request.user.has_perm(f"{model._meta.app_label}.add_{model._meta.model_name}"):
+                return Response({"error": "Permission denied"}, status=status.HTTP_403_FORBIDDEN)
 
         try:
             # Build kwargs from request data
@@ -2871,6 +3052,28 @@ class QuickCreateEntityAPIView(APIView):
             # Add tenant if model has it
             if hasattr(model, "tenant"):
                 create_kwargs["tenant"] = tenant
+
+            # Customer/Supplier quick-create: sync legacy phone fields for backward compatibility.
+            if entity_type in {'customer', 'supplier'}:
+                mobile = str(create_kwargs.get('phone_mobile') or '').strip()
+                office = str(create_kwargs.get('phone_office') or '').strip()
+                legacy_phone = str(create_kwargs.get('phone') or '').strip()
+
+                # If new fields provided but legacy isn't, derive legacy.
+                if (mobile or office) and not legacy_phone:
+                    if office:
+                        create_kwargs['phone'] = office
+                        create_kwargs['phone_type'] = 'office'
+                    else:
+                        create_kwargs['phone'] = mobile
+                        create_kwargs['phone_type'] = 'mobile'
+
+                # If an older client sends legacy only, populate new slots.
+                if legacy_phone and not (mobile or office):
+                    if str(create_kwargs.get('phone_type') or '').strip() == 'mobile':
+                        create_kwargs['phone_mobile'] = legacy_phone
+                    else:
+                        create_kwargs['phone_office'] = legacy_phone
 
             # Add created_by if model has it
             if hasattr(model, "created_by"):
@@ -2903,6 +3106,9 @@ class QuickCreateEntityAPIView(APIView):
             )
 
         except Exception as e:
+            from apps.core.utils.logging import capture_exception
+
+            capture_exception(e, request=request, extra={"endpoint": "workflows/quick-create", "entity_type": entity_type})
             logger.exception(f"Error quick-creating entity: {e}")
             return Response({"error": f"Failed to create {entity_type}: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -3217,13 +3423,6 @@ class FormTestDataAPIView(APIView):
 # WAVE 3: FORMS & FLOWS ENHANCEMENT VIEWS
 # =============================================================================
 
-from .models import (
-    FormStatusHistory,
-    StepAssignment,
-    StepSubmissionStatus,
-    UserNotification,
-    UserNotificationPreferences,
-)
 from .serializers import (
     ActionItemCountsSerializer,
     ActionItemSerializer,
@@ -3389,17 +3588,54 @@ class UserNotificationPreferencesView(APIView):
 
     def get(self, request):
         """Get or create notification preferences for current user."""
-        prefs, created = UserNotificationPreferences.objects.get_or_create(
-            user=request.user, defaults={"type_preferences": UserNotificationPreferences.get_defaults()}
-        )
+        tenant = getattr(request, 'tenant', None)
+        if not tenant:
+            return Response({"error": "Tenant context required"}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            # Ensure RLS session vars are set before touching tenant-aware tables.
+            from apps.tenants.rls import set_current_tenant
+
+            set_current_tenant(str(tenant.id))
+
+            defaults = {"type_preferences": UserNotificationPreferences.get_defaults()}
+
+            prefs, _created = UserNotificationPreferences.objects.get_or_create(
+                user=request.user,
+                tenant=tenant,
+                defaults=defaults,
+            )
+
+        except Exception as e:
+            logger.error(f"[NotificationPreferences] get_or_create failed: {e}", exc_info=True)
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
         serializer = UserNotificationPreferencesSerializer(prefs)
         return Response(serializer.data)
 
     def put(self, request):
         """Update notification preferences."""
-        prefs, created = UserNotificationPreferences.objects.get_or_create(
-            user=request.user, defaults={"type_preferences": UserNotificationPreferences.get_defaults()}
-        )
+        tenant = getattr(request, 'tenant', None)
+        if not tenant:
+            return Response({"error": "Tenant context required"}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            from apps.tenants.rls import set_current_tenant
+
+            set_current_tenant(str(tenant.id))
+
+            defaults = {"type_preferences": UserNotificationPreferences.get_defaults()}
+
+            prefs, _created = UserNotificationPreferences.objects.get_or_create(
+                user=request.user,
+                tenant=tenant,
+                defaults=defaults,
+            )
+
+        except Exception as e:
+            logger.error(f"[NotificationPreferences] get_or_create failed: {e}", exc_info=True)
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
         serializer = UserNotificationPreferencesSerializer(prefs, data=request.data, partial=True)
         if serializer.is_valid():
             serializer.save()
@@ -3407,6 +3643,7 @@ class UserNotificationPreferencesView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
+@extend_schema(tags=["Workflows", "Action Items"], responses={200: ActionItemSerializer(many=True)})
 class ActionItemsAPIView(APIView):
     """
     API endpoint for action items (tasks assigned to user).
@@ -3440,58 +3677,71 @@ class ActionItemsAPIView(APIView):
             action_items = []
 
             # Get step assignments for user (explicit tenant filter)
-            assignments = StepAssignment.objects.filter(
-                assigned_user=user,
-                tenant=tenant,
-            ).select_related("form", "step")
+            assignments = list(
+                StepAssignment.objects.filter(
+                    assigned_user=user,
+                    tenant=tenant,
+                ).select_related("form", "step")
+            )
 
-            # Find submissions that have this user's assigned steps in action_needed status
-            for assignment in assignments:
-                # Find step submissions in action_needed status.
-                # Both tenant= and submission__tenant= are set intentionally:
-                # - tenant= enforces RLS at the FormStepSubmission level (defense in depth)
-                # - submission__tenant= guards the parent FormSubmission
-                # See manifests/RLS_POLICIES.md for the PostgreSQL policy pattern.
-                step_submissions = FormStepSubmission.objects.filter(
-                    step=assignment.step,
+            if not assignments:
+                return Response([])
+
+            assignment_by_step_id = {a.step_id: a for a in assignments}
+            step_ids = list(assignment_by_step_id.keys())
+
+            # Bulk fetch step submissions in action_needed status.
+            # Both tenant= and submission__tenant= are set intentionally for defense-in-depth RLS.
+            step_submissions = (
+                FormStepSubmission.objects.filter(
+                    step_id__in=step_ids,
                     tenant=tenant,
                     status=StepSubmissionStatus.ACTION_NEEDED,
                     submission__status="in_progress",
                     submission__tenant=tenant,
-                ).select_related("submission", "submission__form")
+                )
+                .select_related("submission", "submission__form", "step")
+                .order_by("-created_at")
+            )
 
-                for step_sub in step_submissions:
-                    # Calculate due date
-                    due_date = None
-                    is_overdue = False
-                    if assignment.due_days:
-                        due_date = step_sub.created_at + timedelta(days=assignment.due_days)
-                        is_overdue = due_date < now
+            for step_sub in step_submissions:
+                assignment = assignment_by_step_id.get(step_sub.step_id)
+                if not assignment:
+                    continue
 
-                    action_items.append(
-                        {
-                            "id": step_sub.id,
-                            "type": "form_step",
-                            "title": f"{assignment.form.name}: {assignment.step.step_name or assignment.step.entity_type}",
-                            "description": assignment.form.description or "",
-                            "form_name": assignment.form.name,
-                            "step_name": assignment.step.step_name or assignment.step.entity_type,
-                            "submission_id": step_sub.submission_id,
-                            "priority": "urgent" if is_overdue else ("high" if assignment.is_required else "normal"),
-                            "status": step_sub.status,
-                            "due_date": due_date,
-                            "is_overdue": is_overdue,
-                            "assigned_at": step_sub.created_at,
-                            "entity_type": assignment.step.entity_type,
-                            "entity_id": step_sub.id,
-                            # PO value fields: null by default; populated in a future iteration
-                            # once FormSubmission gains a FK to a PurchaseOrder entity.
-                            # The frontend ActionItem interface already accepts these as optional.
-                            # TODO: Populate from submission.data or a linked PO entity when available.
-                            "related_po_value": None,
-                            "related_po_currency": None,
-                        }
-                    )
+                form = assignment.form or getattr(step_sub.submission, "form", None)
+                form_name = form.name if form else ""
+                form_description = getattr(form, "description", "") or ""
+
+                step = assignment.step or step_sub.step
+                step_name = (step.step_name if step else None) or (step.entity_type if step else "")
+
+                due_date = None
+                is_overdue = False
+                if assignment.due_days:
+                    due_date = step_sub.created_at + timedelta(days=assignment.due_days)
+                    is_overdue = due_date < now
+
+                action_items.append(
+                    {
+                        "id": step_sub.id,
+                        "type": "form_step",
+                        "title": f"{form_name}: {step_name}",
+                        "description": form_description,
+                        "form_name": form_name,
+                        "step_name": step_name,
+                        "submission_id": step_sub.submission_id,
+                        "priority": "urgent" if is_overdue else ("high" if assignment.is_required else "normal"),
+                        "status": step_sub.status,
+                        "due_date": due_date,
+                        "is_overdue": is_overdue,
+                        "assigned_at": step_sub.created_at,
+                        "entity_type": step.entity_type if step else "",
+                        "entity_id": step_sub.id,
+                        "related_po_value": None,
+                        "related_po_currency": None,
+                    }
+                )
 
             # Sort by priority and due date
             action_items.sort(
@@ -3518,6 +3768,7 @@ class ActionItemsAPIView(APIView):
             return Response([], status=status.HTTP_200_OK)
 
 
+@extend_schema(tags=["Workflows", "Action Items"])
 class ActionItemCountsAPIView(APIView):
     """
     API endpoint for action item counts.
@@ -3527,6 +3778,7 @@ class ActionItemCountsAPIView(APIView):
 
     permission_classes = [IsAuthenticated]
 
+    @extend_schema(responses={200: ActionItemCountsSerializer})
     def get(self, request):
         """Get counts of action items for current user."""
         from collections import defaultdict
@@ -3564,41 +3816,63 @@ class ActionItemCountsAPIView(APIView):
             form_counts = defaultdict(int)
 
             # Get step assignments for user with explicit tenant filter
-            assignments = StepAssignment.objects.filter(
-                assigned_user=user,
-                tenant=tenant  # EXPLICIT tenant filter
-            ).select_related("form", "step")
+            assignments = list(
+                StepAssignment.objects.filter(
+                    assigned_user=user,
+                    tenant=tenant,
+                ).select_related("form", "step")
+            )
 
-            for assignment in assignments:
-                # Both tenant= and submission__tenant= are set intentionally for defense-in-depth RLS.
-                step_submissions = FormStepSubmission.objects.filter(
-                    step=assignment.step,
+            if not assignments:
+                serializer = ActionItemCountsSerializer({
+                    **counts,
+                    "by_priority": {},
+                    "by_form": [],
+                })
+                return Response(serializer.data)
+
+            assignment_by_step_id = {a.step_id: a for a in assignments}
+            step_ids = list(assignment_by_step_id.keys())
+
+            # Bulk fetch step submissions in action_needed status.
+            step_submissions = (
+                FormStepSubmission.objects.filter(
+                    step_id__in=step_ids,
                     tenant=tenant,
                     status=StepSubmissionStatus.ACTION_NEEDED,
                     submission__status="in_progress",
-                    submission__tenant=tenant,  # EXPLICIT tenant filter
+                    submission__tenant=tenant,
                 )
+                .select_related("submission", "submission__form", "step")
+                .order_by("-created_at")
+            )
 
-                for step_sub in step_submissions:
-                    counts["total"] += 1
-                    form_counts[assignment.form.name] += 1
+            for step_sub in step_submissions:
+                assignment = assignment_by_step_id.get(step_sub.step_id)
+                if not assignment:
+                    continue
 
-                    # Calculate due date and priority
-                    due_date = None
-                    is_overdue = False
-                    if assignment.due_days:
-                        due_date = step_sub.created_at + timedelta(days=assignment.due_days)
-                        is_overdue = due_date < now
+                counts["total"] += 1
 
-                        if is_overdue:
-                            counts["overdue"] += 1
-                        elif due_date.date() == today:
-                            counts["due_today"] += 1
-                        elif due_date.date() <= week_from_now:
-                            counts["due_this_week"] += 1
+                form = assignment.form or getattr(step_sub.submission, "form", None)
+                if form:
+                    form_counts[form.name] += 1
 
-                    priority = "urgent" if is_overdue else ("high" if assignment.is_required else "normal")
-                    counts["by_priority"][priority] += 1
+                due_date = None
+                is_overdue = False
+                if assignment.due_days:
+                    due_date = step_sub.created_at + timedelta(days=assignment.due_days)
+                    is_overdue = due_date < now
+
+                    if is_overdue:
+                        counts["overdue"] += 1
+                    elif due_date.date() == today:
+                        counts["due_today"] += 1
+                    elif due_date.date() <= week_from_now:
+                        counts["due_this_week"] += 1
+
+                priority = "urgent" if is_overdue else ("high" if assignment.is_required else "normal")
+                counts["by_priority"][priority] += 1
 
             counts["by_form"] = [
                 {"form_name": name, "count": count} for name, count in sorted(form_counts.items(), key=lambda x: -x[1])

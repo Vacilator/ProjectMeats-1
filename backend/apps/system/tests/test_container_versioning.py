@@ -9,7 +9,6 @@ from apps.tenants.models import Tenant
 from apps.system.models import TenantForm, FormTypeChoices
 from apps.system.services.container_versioning import (
     hash_definition,
-    serialize_step,
     extract_container_definitions,
     snapshot_container,
 )

@@ -7,6 +7,7 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import styled from 'styled-components';
 import { Select, Spin } from 'antd';
+import { CountrySelect } from '../ui';
 import debounce from 'lodash/debounce';
 import {
   entityOptionsService,
@@ -311,6 +312,10 @@ const QuickCreateModal: React.FC<QuickCreateModalProps> = ({
       const initialData: Record<string, any> = { ...(mergedContext || {}) };
       response.fields.forEach((f) => {
         if (initialData[f.key] !== undefined) return;
+        if (f.key === 'country') {
+          initialData[f.key] = 'USA';
+          return;
+        }
         if (f.type === 'checkbox') {
           initialData[f.key] = false;
         } else if (f.type === 'multiselect') {
@@ -397,10 +402,20 @@ const QuickCreateModal: React.FC<QuickCreateModalProps> = ({
 
   const validate = (): boolean => {
     const newErrors: Record<string, string> = {};
-    
-    fields.forEach(field => {
-      if (field.required && !formData[field.key]) {
+
+    fields.forEach((field) => {
+      const raw = formData[field.key];
+
+      if (field.required && !raw) {
         newErrors[field.key] = `${field.label} is required`;
+        return;
+      }
+
+      if (field.key === 'zip_code' && raw) {
+        const zip = String(raw).trim();
+        if (!/^\d{5}$/.test(zip)) {
+          newErrors[field.key] = 'ZIP code must be 5 digits';
+        }
       }
     });
 
@@ -519,14 +534,59 @@ const QuickCreateModal: React.FC<QuickCreateModalProps> = ({
                     <Label required={field.required} htmlFor={`quick-create-${field.key}`}>
                       {field.label}
                     </Label>
-                    {field.key === 'preferred_protein_types' ? (
+                    {field.key === 'phone_mobile' ? (
+                      <Input
+                        id={`quick-create-${field.key}`}
+                        type="tel"
+                        value={formData[field.key] || ''}
+                        onChange={(e) => handleInputChange(field.key, e.target.value.replace(/\D/g, '').slice(0, 20))}
+                        className={errors[field.key] ? 'error' : ''}
+                        disabled={isSubmitting}
+                        autoFocus={fields.indexOf(field) === 0}
+                        placeholder="(XXX) XXX-XXXX"
+                        inputMode="tel"
+                      />
+                    ) : field.key === 'phone_office' ? (
+                      <Input
+                        id={`quick-create-${field.key}`}
+                        type="tel"
+                        value={formData[field.key] || ''}
+                        onChange={(e) => handleInputChange(field.key, e.target.value.replace(/\D/g, '').slice(0, 20))}
+                        className={errors[field.key] ? 'error' : ''}
+                        disabled={isSubmitting}
+                        autoFocus={fields.indexOf(field) === 0}
+                        placeholder="(XXX) XXX-XXXX"
+                        inputMode="tel"
+                      />
+                    ) : field.key === 'phone_office_extension' ? (
+                      <Input
+                        id={`quick-create-${field.key}`}
+                        type="text"
+                        value={formData[field.key] || ''}
+                        onChange={(e) => handleInputChange(field.key, e.target.value.replace(/\D/g, '').slice(0, 6))}
+                        maxLength={6}
+                        inputMode="numeric"
+                        className={errors[field.key] ? 'error' : ''}
+                        disabled={isSubmitting}
+                        autoFocus={fields.indexOf(field) === 0}
+                        placeholder="e.g., 123"
+                      />
+                    ) : field.key === 'preferred_protein_types' ? (
                       <Select
                         mode="multiple"
                         value={proteinTypeValue}
                         onChange={(vals) => handleInputChange(field.key, vals)}
                         options={PROTEIN_TYPE_CHOICES.map((o) => ({ value: o.value, label: o.label }))}
-                        placeholder="Select protein types"
+                        placeholder="Search protein types"
                         disabled={isSubmitting}
+                        showSearch
+                        optionFilterProp="label"
+                        filterOption={(input, option) => {
+                          const q = String(input || '').toLowerCase();
+                          const label = String((option as any)?.label || '').toLowerCase();
+                          const value = String((option as any)?.value || '').toLowerCase();
+                          return label.includes(q) || value.includes(q);
+                        }}
                         style={{ width: '100%' }}
                       />
                     ) : field.key === 'products' && (entityType === 'customer' || entityType === 'supplier') ? (
@@ -543,6 +603,14 @@ const QuickCreateModal: React.FC<QuickCreateModalProps> = ({
                         disabled={isSubmitting}
                         style={{ width: '100%' }}
                       />
+                    ) : field.key === 'country' ? (
+                      <CountrySelect
+                        value={String(formData[field.key] || '')}
+                        onChange={(val) => handleInputChange(field.key, val)}
+                        placeholder="Search country"
+                        disabled={isSubmitting}
+                        aria-label="Country"
+                      />
                     ) : field.type === 'checkbox' ? (
                       <input
                         id={`quick-create-${field.key}`}
@@ -556,7 +624,17 @@ const QuickCreateModal: React.FC<QuickCreateModalProps> = ({
                         id={`quick-create-${field.key}`}
                         type={field.type === 'email' ? 'email' : field.type === 'number' ? 'number' : field.type === 'date' ? 'date' : 'text'}
                         value={formData[field.key] || ''}
-                        onChange={(e) => handleInputChange(field.key, e.target.value)}
+                        onChange={(e) => {
+                          const raw = e.target.value;
+                          if (field.key === 'zip_code') {
+                            handleInputChange(field.key, raw.replace(/\D/g, '').slice(0, 5));
+                            return;
+                          }
+                          handleInputChange(field.key, raw);
+                        }}
+                        maxLength={field.key === 'zip_code' ? 5 : undefined}
+                        inputMode={field.key === 'zip_code' ? 'numeric' : undefined}
+                        pattern={field.key === 'zip_code' ? '^\\d{5}$' : undefined}
                         className={errors[field.key] ? 'error' : ''}
                         disabled={isSubmitting}
                         autoFocus={fields.indexOf(field) === 0}
@@ -571,12 +649,25 @@ const QuickCreateModal: React.FC<QuickCreateModalProps> = ({
         </ModalBody>
 
         <ModalFooter>
-          <Button variant="secondary" onClick={onClose} disabled={isSubmitting}>
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={(e) => {
+              e.stopPropagation();
+              onClose();
+            }}
+            disabled={isSubmitting}
+          >
             Cancel
           </Button>
-          <Button 
-            variant="primary" 
-            onClick={handleSubmit} 
+          <Button
+            type="button"
+            variant="primary"
+            onClick={(e) => {
+              e.stopPropagation();
+              if (isSubmitting) return;
+              void handleSubmit();
+            }}
             disabled={isLoading || isSubmitting || fields.length === 0}
           >
             {isSubmitting ? (
@@ -634,14 +725,59 @@ const QuickCreateModal: React.FC<QuickCreateModalProps> = ({
                     <Label required={field.required} htmlFor={`quick-create-${field.key}`}>
                       {field.label}
                     </Label>
-                    {field.key === 'preferred_protein_types' ? (
+                    {field.key === 'phone_mobile' ? (
+                      <Input
+                        id={`quick-create-${field.key}`}
+                        type="tel"
+                        value={formData[field.key] || ''}
+                        onChange={(e) => handleInputChange(field.key, e.target.value.replace(/\D/g, '').slice(0, 20))}
+                        className={errors[field.key] ? 'error' : ''}
+                        disabled={isSubmitting}
+                        autoFocus={fields.indexOf(field) === 0}
+                        placeholder="(XXX) XXX-XXXX"
+                        inputMode="tel"
+                      />
+                    ) : field.key === 'phone_office' ? (
+                      <Input
+                        id={`quick-create-${field.key}`}
+                        type="tel"
+                        value={formData[field.key] || ''}
+                        onChange={(e) => handleInputChange(field.key, e.target.value.replace(/\D/g, '').slice(0, 20))}
+                        className={errors[field.key] ? 'error' : ''}
+                        disabled={isSubmitting}
+                        autoFocus={fields.indexOf(field) === 0}
+                        placeholder="(XXX) XXX-XXXX"
+                        inputMode="tel"
+                      />
+                    ) : field.key === 'phone_office_extension' ? (
+                      <Input
+                        id={`quick-create-${field.key}`}
+                        type="text"
+                        value={formData[field.key] || ''}
+                        onChange={(e) => handleInputChange(field.key, e.target.value.replace(/\D/g, '').slice(0, 6))}
+                        maxLength={6}
+                        inputMode="numeric"
+                        className={errors[field.key] ? 'error' : ''}
+                        disabled={isSubmitting}
+                        autoFocus={fields.indexOf(field) === 0}
+                        placeholder="e.g., 123"
+                      />
+                    ) : field.key === 'preferred_protein_types' ? (
                       <Select
                         mode="multiple"
                         value={proteinTypeValue}
                         onChange={(vals) => handleInputChange(field.key, vals)}
                         options={PROTEIN_TYPE_CHOICES.map((o) => ({ value: o.value, label: o.label }))}
-                        placeholder="Select protein types"
+                        placeholder="Search protein types"
                         disabled={isSubmitting}
+                        showSearch
+                        optionFilterProp="label"
+                        filterOption={(input, option) => {
+                          const q = String(input || '').toLowerCase();
+                          const label = String((option as any)?.label || '').toLowerCase();
+                          const value = String((option as any)?.value || '').toLowerCase();
+                          return label.includes(q) || value.includes(q);
+                        }}
                         style={{ width: '100%' }}
                       />
                     ) : field.key === 'products' && (entityType === 'customer' || entityType === 'supplier') ? (
@@ -658,6 +794,14 @@ const QuickCreateModal: React.FC<QuickCreateModalProps> = ({
                         disabled={isSubmitting}
                         style={{ width: '100%' }}
                       />
+                    ) : field.key === 'country' ? (
+                      <CountrySelect
+                        value={String(formData[field.key] || '')}
+                        onChange={(val) => handleInputChange(field.key, val)}
+                        placeholder="Search country"
+                        disabled={isSubmitting}
+                        aria-label="Country"
+                      />
                     ) : field.type === 'checkbox' ? (
                       <input
                         id={`quick-create-${field.key}`}
@@ -671,7 +815,17 @@ const QuickCreateModal: React.FC<QuickCreateModalProps> = ({
                         id={`quick-create-${field.key}`}
                         type={field.type === 'email' ? 'email' : field.type === 'number' ? 'number' : field.type === 'date' ? 'date' : 'text'}
                         value={formData[field.key] || ''}
-                        onChange={(e) => handleInputChange(field.key, e.target.value)}
+                        onChange={(e) => {
+                          const raw = e.target.value;
+                          if (field.key === 'zip_code') {
+                            handleInputChange(field.key, raw.replace(/\D/g, '').slice(0, 5));
+                            return;
+                          }
+                          handleInputChange(field.key, raw);
+                        }}
+                        maxLength={field.key === 'zip_code' ? 5 : undefined}
+                        inputMode={field.key === 'zip_code' ? 'numeric' : undefined}
+                        pattern={field.key === 'zip_code' ? '^\\d{5}$' : undefined}
                         className={errors[field.key] ? 'error' : ''}
                         disabled={isSubmitting}
                         autoFocus={fields.indexOf(field) === 0}
@@ -686,12 +840,25 @@ const QuickCreateModal: React.FC<QuickCreateModalProps> = ({
         </ModalBody>
 
         <ModalFooter>
-          <Button variant="secondary" onClick={onClose} disabled={isSubmitting}>
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={(e) => {
+              e.stopPropagation();
+              onClose();
+            }}
+            disabled={isSubmitting}
+          >
             Cancel
           </Button>
           <Button
+            type="button"
             variant="primary"
-            onClick={handleSubmit}
+            onClick={(e) => {
+              e.stopPropagation();
+              if (isSubmitting) return;
+              void handleSubmit();
+            }}
             disabled={isLoading || isSubmitting || fields.length === 0}
           >
             {isSubmitting ? (

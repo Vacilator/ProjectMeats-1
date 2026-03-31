@@ -9,11 +9,11 @@ import time
 from datetime import timedelta
 
 from django.conf import settings
+from django.db import connection
 from django.db.models import Avg
 from django.db.models.functions import TruncDate
 from django.utils import timezone
-from openai import OpenAI
-from rest_framework import filters, mixins, permissions, status, viewsets
+from rest_framework import filters, mixins, status, viewsets
 from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAdminUser, IsAuthenticated
@@ -21,13 +21,12 @@ from rest_framework.throttling import AnonRateThrottle, ScopedRateThrottle, User
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .models import AIDocument, AIFeedbackLog, AIConfiguration, ChatMessage, ChatSession, MessageTypeChoices
+from .models import AIDocument, AIFeedbackLog, ChatMessage, ChatSession, MessageTypeChoices
 from .serializers import (
     AIDocumentSerializer,
     AIFeedbackLogSerializer,
     AIFeedbackSubmitSerializer,
     AILearningMetricsSerializer,
-    AIConfigurationSerializer,
     ChatBotRequestSerializer,
     ChatBotResponseSerializer,
     ChatMessageCreateSerializer,
@@ -46,7 +45,8 @@ logger = logging.getLogger(__name__)
 # -----------------------------------------------------------------------------
 
 SWARM_SYSTEM_PROMPT = (
-    "You are the ProjectMeats Autonomous Swarm Orchestrator. "
+    "You are the ProjectMeats Intelligent Architect. "
+    "You have access to tenant data via RLS-safe tools and can learn from user feedback provided via the feedback tool. "
     "You are an expert in wholesale meat logistics, purchase orders, cold storage, and supplier management. "
     "Use tools only when they are available for the tenant (e.g., Outlook connection). "
     "Be highly analytical, concise, and proactive."
@@ -168,12 +168,29 @@ class ChatBotAPIViewSet(viewsets.ViewSet):
             if not tenant:
                 return Response({'error': 'Tenant context missing'}, status=status.HTTP_400_BAD_REQUEST)
 
+            tenant_id = str(getattr(tenant, 'id', '') or '')
+            if not tenant_id:
+                return Response({'error': 'Tenant context missing'}, status=status.HTTP_400_BAD_REQUEST)
+
             # Defense-in-depth: ensure RLS session vars are asserted on this DB connection
             # before any Swarm tool executes queries.
+            #
+            # IMPORTANT: Per ops mandate, explicitly SET app.current_tenant via cursor.execute(f"...")
+            # right before tool execution to avoid "0 records found" due to missing RLS session vars.
+            try:
+                with connection.cursor() as cursor:
+                    cursor.execute('SET app.current_tenant = %s', [tenant_id])
+            except Exception as e:
+                logger.warning('Failed to SET app.current_tenant=%s: %s', tenant_id, str(e), exc_info=True)
+                return Response(
+                    {'error': 'Failed to assert tenant context for RLS-safe tool execution'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
             try:
                 from apps.tenants.rls import set_current_tenant
 
-                set_current_tenant(str(getattr(tenant, 'id', '') or ''))
+                set_current_tenant(tenant_id)
             except Exception:
                 pass
 
@@ -412,13 +429,64 @@ class AIDocumentViewSet(viewsets.ModelViewSet):
 
             raise ValidationError('Tenant context required.')
 
-        instance = serializer.save(
-            tenant=tenant,
-            owner=self.request.user,
-            original_filename=getattr(self.request.FILES.get('file'), 'name', ''),
-            content_type=getattr(self.request.FILES.get('file'), 'content_type', '') or '',
-            file_size=getattr(self.request.FILES.get('file'), 'size', 0) or 0,
-        )
+        tenant_id = str(getattr(tenant, 'id', '') or '')
+
+        try:
+            from django.db import transaction
+            from django.db.utils import DatabaseError, ProgrammingError
+            from rest_framework.exceptions import ValidationError
+
+            from apps.tenants.rls import set_current_tenant
+
+            with transaction.atomic():
+                # Defense-in-depth: assert RLS vars on the active connection inside the write transaction.
+                if tenant_id:
+                    rls = set_current_tenant(tenant_id)
+                    if not rls.ok:
+                        logger.warning(
+                            'AIDocument upload: failed to assert RLS session vars tenant=%s err=%s',
+                            tenant_id,
+                            rls.error,
+                            exc_info=True,
+                        )
+
+                instance = serializer.save(
+                    tenant=tenant,
+                    owner=self.request.user,
+                    original_filename=getattr(self.request.FILES.get('file'), 'name', ''),
+                    content_type=getattr(self.request.FILES.get('file'), 'content_type', '') or '',
+                    file_size=getattr(self.request.FILES.get('file'), 'size', 0) or 0,
+                )
+        except Exception as e:
+
+            if isinstance(e, ValidationError):
+                raise
+
+            if isinstance(e, OSError):
+                logger.error('AIDocument upload: storage error: %s', str(e), exc_info=True)
+                raise ValidationError(
+                    'Upload failed: storage is not writable. Please contact an administrator.'
+                )
+
+            if isinstance(e, (DatabaseError, ProgrammingError)):
+                msg = str(e)
+                lower = msg.lower()
+                logger.error('AIDocument upload: database error: %s', msg, exc_info=True)
+
+                if 'does not exist' in lower and 'ai_assistant_documents' in lower:
+                    raise ValidationError(
+                        'Upload failed: documents table is not ready (migrations not applied). Please contact an administrator.'
+                    )
+
+                if 'row-level security' in lower or 'rls' in lower:
+                    raise ValidationError(
+                        'Upload failed: tenant context could not be asserted for RLS. Please reload and retry.'
+                    )
+
+                raise ValidationError('Upload failed: database error. Please retry in a moment.')
+
+            logger.error('AIDocument upload: unexpected error: %s', str(e), exc_info=True)
+            raise ValidationError('Upload failed: unexpected error. Please retry.')
 
         # If the upload was tied to a session, also create a DOCUMENT message so UIs can show it inline.
         if instance.session_id:

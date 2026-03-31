@@ -27,7 +27,7 @@
  * 
  * Created: 2026-02-17 - Phase E.1 FlowEditor Refactoring
  */
-import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useCallback, useMemo, ReactNode } from 'react';
 import { Node, Edge } from '@xyflow/react';
 
 // ============================================================================
@@ -371,26 +371,71 @@ export const FlowEditorProvider: React.FC<FlowEditorProviderProps> = ({
   // CONTEXT VALUE
   // ---------------------------------------------------------------------------
   
-  const value: FlowEditorContextValue = {
-    // Selection
+  const value = useMemo<FlowEditorContextValue>(() => {
+    return {
+      // Selection
+      selectedNode,
+      selectedEdge,
+      selectNode,
+      selectEdge,
+      clearSelection,
+
+      // Mode
+      mode,
+      setMode,
+
+      // Modals
+      modals,
+      openModal,
+      closeModal,
+      closeAllModals,
+      isModalOpen,
+
+      // UI
+      ui,
+      togglePalette,
+      togglePreview,
+      toggleMinimap,
+      toggleFullscreen,
+      setSnapToGrid,
+      setGridSize,
+
+      // Phase 9.4 Debug
+      debug,
+      startDebugSession,
+      stopDebugSession,
+      resetDebugSession,
+      setDebugActiveNodeId,
+      markNodeExecuted,
+      markNodesExecuted,
+
+      // History
+      canUndo,
+      canRedo,
+
+      // Unsaved changes
+      hasUnsavedChanges,
+      setHasUnsavedChanges,
+
+      // Config panel context
+      tenantLists,
+      systemChoiceLists,
+      availableFields,
+      currentNodeId,
+    };
+  }, [
     selectedNode,
     selectedEdge,
     selectNode,
     selectEdge,
     clearSelection,
-
-    // Mode
     mode,
     setMode,
-
-    // Modals
     modals,
     openModal,
     closeModal,
     closeAllModals,
     isModalOpen,
-
-    // UI
     ui,
     togglePalette,
     togglePreview,
@@ -398,8 +443,6 @@ export const FlowEditorProvider: React.FC<FlowEditorProviderProps> = ({
     toggleFullscreen,
     setSnapToGrid,
     setGridSize,
-
-    // Phase 9.4 Debug
     debug,
     startDebugSession,
     stopDebugSession,
@@ -407,21 +450,15 @@ export const FlowEditorProvider: React.FC<FlowEditorProviderProps> = ({
     setDebugActiveNodeId,
     markNodeExecuted,
     markNodesExecuted,
-
-    // History
     canUndo,
     canRedo,
-
-    // Unsaved changes
     hasUnsavedChanges,
     setHasUnsavedChanges,
-
-    // Config panel context
     tenantLists,
     systemChoiceLists,
     availableFields,
     currentNodeId,
-  };
+  ]);
   
   return (
     <FlowEditorContext.Provider value={value}>

@@ -16,6 +16,7 @@
 
 import React, { useState, useCallback, useEffect } from 'react';
 import styled from 'styled-components';
+import { confirmDialog } from '@/utils/uiDialogs';
 import { 
   Plus, 
   Trash2, 
@@ -606,9 +607,19 @@ export const VisualFormBuilderPanel: React.FC<VisualFormBuilderPanelProps> = ({
   }, [fields, onChange]);
   
   const handleDeleteField = useCallback((fieldId: string) => {
-    if (confirm('Delete this field?')) {
-      onChange(fields.filter(f => f.id !== fieldId));
-    }
+    void (async () => {
+      const confirmed = await confirmDialog({
+        title: 'Delete field?',
+        content: 'Delete this field?',
+        okText: 'Delete',
+        cancelText: 'Cancel',
+        danger: true,
+      });
+
+      if (confirmed) {
+        onChange(fields.filter(f => f.id !== fieldId));
+      }
+    })();
   }, [fields, onChange]);
   
   return (

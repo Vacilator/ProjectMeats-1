@@ -29,6 +29,10 @@ const Bar = styled.div`
   background: rgb(var(--color-surface));
   border-bottom: 1px solid rgb(var(--color-border));
   padding: 8px 12px;
+
+  @media (max-width: 768px) {
+    padding: 6px 8px;
+  }
 `;
 
 const Row = styled.div`
@@ -36,6 +40,12 @@ const Row = styled.div`
   align-items: center;
   gap: 8px;
   overflow-x: auto;
+
+  @media (max-width: 640px) {
+    flex-wrap: wrap;
+    overflow-x: visible;
+    gap: 6px;
+  }
 `;
 
 const ToolButton = styled.button<{ $active?: boolean }>`
@@ -114,6 +124,19 @@ export const PinnedToolsBar: React.FC = () => {
   const [openPinnedId, setOpenPinnedId] = useState<string | null>(null);
   const [recordDetail, setRecordDetail] = useState<any>(null);
   const [recordLoading, setRecordLoading] = useState(false);
+  const [drawerWidth, setDrawerWidth] = useState(520);
+
+  useEffect(() => {
+    const recompute = () => {
+      if (typeof window === 'undefined') return;
+      const w = window.innerWidth;
+      setDrawerWidth(w < 768 ? Math.min(Math.floor(w * 0.92), 520) : 520);
+    };
+
+    recompute();
+    window.addEventListener('resize', recompute);
+    return () => window.removeEventListener('resize', recompute);
+  }, []);
 
   const openPinned = useMemo(
     () => pinned.find((p) => p.id === openPinnedId) ?? null,
@@ -176,7 +199,7 @@ export const PinnedToolsBar: React.FC = () => {
         (a) => a.type === 'form' && a.form_id && a.label?.toLowerCase() === desiredLabel.toLowerCase()
       );
       const fallbackForm = availableForms.find(
-        (f) => f.id && f.name?.toLowerCase() === desiredLabel.toLowerCase()
+        (f) => (f.type ?? 'form') === 'form' && f.id && f.name?.toLowerCase() === desiredLabel.toLowerCase()
       );
 
       const formId = quickAction?.form_id ?? fallbackForm?.id ?? null;
@@ -286,7 +309,7 @@ export const PinnedToolsBar: React.FC = () => {
       <Drawer
         open={isDrawerOpen}
         onClose={() => setOpenPinnedId(null)}
-        width={520}
+        width={drawerWidth}
         title={drawerTitle}
         extra={
           openPinned ? (

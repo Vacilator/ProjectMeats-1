@@ -26,7 +26,189 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework import status
 
-from apps.system.services.entity_introspection import get_entity_fields
+from apps.system.services.entity_introspection import get_entity_display_fields, get_entity_fields
+
+
+def _inline_contact_item_fields(include_responsibilities: bool) -> list[dict[str, Any]]:
+    fields: list[dict[str, Any]] = [
+        {
+            'key': 'first_name',
+            'label': 'First Name',
+            'type': 'text',
+            'required': True,
+            'help_text': '',
+            'placeholder': 'First name',
+            'relationship': None,
+            'ui': {'widget': 'text'},
+            'related_entity': None,
+            'choices': None,
+        },
+        {
+            'key': 'last_name',
+            'label': 'Last Name',
+            'type': 'text',
+            'required': True,
+            'help_text': '',
+            'placeholder': 'Last name',
+            'relationship': None,
+            'ui': {'widget': 'text'},
+            'related_entity': None,
+            'choices': None,
+        },
+        {
+            'key': 'mobile_phone',
+            'label': 'Mobile Phone',
+            'type': 'text',
+            'required': False,
+            'help_text': '',
+            'placeholder': 'Mobile phone',
+            'relationship': None,
+            'ui': {'widget': 'phone'},
+            'related_entity': None,
+            'choices': None,
+        },
+        {
+            'key': 'office_phone',
+            'label': 'Office Phone',
+            'type': 'text',
+            'required': False,
+            'help_text': '',
+            'placeholder': 'Office phone',
+            'relationship': None,
+            'ui': {'widget': 'phone'},
+            'related_entity': None,
+            'choices': None,
+        },
+        {
+            'key': 'office_phone_ext',
+            'label': 'Office Ext',
+            'type': 'text',
+            'required': False,
+            'help_text': '',
+            'placeholder': 'Ext',
+            'relationship': None,
+            'ui': {'widget': 'text'},
+            'related_entity': None,
+            'choices': None,
+        },
+        {
+            'key': 'email',
+            'label': 'Email',
+            'type': 'email',
+            'required': False,
+            'help_text': '',
+            'placeholder': 'Email',
+            'relationship': None,
+            'ui': {'widget': 'email'},
+            'related_entity': None,
+            'choices': None,
+        },
+    ]
+
+    if include_responsibilities:
+        fields.extend(
+            [
+                {
+                    'key': 'protein_types_responsible',
+                    'label': 'Protein Types Responsible For',
+                    'type': 'text',
+                    'required': False,
+                    'help_text': '',
+                    'placeholder': 'e.g. Beef, Pork',
+                    'relationship': None,
+                    'ui': {'widget': 'tags'},
+                    'related_entity': None,
+                    'choices': None,
+                },
+                {
+                    'key': 'items_responsible',
+                    'label': 'Items Responsible For',
+                    'type': 'text',
+                    'required': False,
+                    'help_text': '',
+                    'placeholder': 'e.g. Ribs, Tenderloin',
+                    'relationship': None,
+                    'ui': {'widget': 'tags'},
+                    'related_entity': None,
+                    'choices': None,
+                },
+            ]
+        )
+
+    return fields
+
+
+def _inline_department_fields() -> list[dict[str, Any]]:
+    return [
+        {
+            'key': 'sales_contacts',
+            'label': 'Sales Department',
+            'type': 'inline_form_array',
+            'required': False,
+            'help_text': '',
+            'placeholder': None,
+            'relationship': None,
+            'ui': {
+                'widget': 'inline_form_array',
+                'add_button_label': 'Add Sales Contact',
+                'item_label': 'Sales Contact',
+                'item_fields': _inline_contact_item_fields(include_responsibilities=True),
+            },
+            'related_entity': None,
+            'choices': None,
+        },
+        {
+            'key': 'qa_contacts',
+            'label': 'Quality Assurance',
+            'type': 'inline_form_array',
+            'required': False,
+            'help_text': '',
+            'placeholder': None,
+            'relationship': None,
+            'ui': {
+                'widget': 'inline_form_array',
+                'add_button_label': 'Add QA Contact',
+                'item_label': 'QA Contact',
+                'item_fields': _inline_contact_item_fields(include_responsibilities=False),
+            },
+            'related_entity': None,
+            'choices': None,
+        },
+        {
+            'key': 'booking_contacts',
+            'label': 'Booking',
+            'type': 'inline_form_array',
+            'required': False,
+            'help_text': '',
+            'placeholder': None,
+            'relationship': None,
+            'ui': {
+                'widget': 'inline_form_array',
+                'add_button_label': 'Add Booking Contact',
+                'item_label': 'Booking Contact',
+                'item_fields': _inline_contact_item_fields(include_responsibilities=False),
+            },
+            'related_entity': None,
+            'choices': None,
+        },
+        {
+            'key': 'accounting_contacts',
+            'label': 'Accounting',
+            'type': 'inline_form_array',
+            'required': False,
+            'help_text': '',
+            'placeholder': None,
+            'relationship': None,
+            'ui': {
+                'widget': 'inline_form_array',
+                'add_button_label': 'Add Accounting Contact',
+                'item_label': 'Accounting Contact',
+                'item_fields': _inline_contact_item_fields(include_responsibilities=False),
+            },
+            'related_entity': None,
+            'choices': None,
+        },
+    ]
 
 
 _SKIP_FIELDS = {
@@ -74,28 +256,254 @@ class SystemFormSchemaView(APIView):
         if not entity_type:
             return Response({'error': 'entity_type is required'}, status=status.HTTP_400_BAD_REQUEST)
 
+        entity_type_lower = entity_type.lower()
+
+        # Hierarchy v1: add inline contact arrays for Plant/Location.
+        if entity_type_lower in {'plant', 'plants', 'plants.plant', 'location', 'locations', 'locations.location'}:
+            canonical = 'plants.plant' if entity_type_lower.startswith('plant') else 'locations.location'
+
+            fields = get_entity_fields(canonical)
+            if not fields:
+                return Response({'error': f'Entity not found: {entity_type}'}, status=status.HTTP_404_NOT_FOUND)
+
+            core_field_keys = (
+                {
+                    'name',
+                    'code',
+                    'plant_est_num',
+                    'plant_type',
+                    'location_type',
+                    'address',
+                    'street_address',
+                    'city',
+                    'state',
+                    'zip_code',
+                    'country',
+                    'supplier',
+                    'customer',
+                }
+            )
+
+            label_overrides = {
+                'plant_est_num': 'Establishment #',
+                'plant_type': 'Type',
+                'location_type': 'Type',
+            }
+
+            mapped_fields: list[dict[str, Any]] = []
+            for idx, f in enumerate(fields):
+                name = str(f.get('name') or '').strip()
+                if not name or name in _SKIP_FIELDS:
+                    continue
+                if name not in core_field_keys:
+                    continue
+
+                introspected_type = str(f.get('field_type') or 'text')
+                mapped_type = _map_field_type(introspected_type)
+
+                relationship = None
+                ui: dict[str, Any] = {'read_only': bool(f.get('read_only', False))}
+
+                field_type_raw = introspected_type.lower()
+                related_entity = f.get('related_entity')
+
+                if field_type_raw in {'foreign_key', 'many_to_many'}:
+                    kind = 'fk' if field_type_raw == 'foreign_key' else 'm2m'
+                    display_field = None
+                    if related_entity:
+                        try:
+                            display_fields = get_entity_display_fields(str(related_entity))
+                            display_field = display_fields[0] if display_fields else None
+                        except Exception:
+                            display_field = None
+
+                    relationship = {
+                        'kind': kind,
+                        'entity_type': str(related_entity or ''),
+                        'display_field': display_field,
+                    }
+                    ui['widget'] = 'searchable_select'
+
+                elif f.get('choices'):
+                    relationship = {
+                        'kind': 'choice',
+                        'entity_type': 'choice',
+                        'display_field': None,
+                    }
+                    ui['widget'] = 'select'
+
+                if mapped_type in {'textarea', 'date', 'datetime', 'email'}:
+                    ui.setdefault('widget', mapped_type)
+
+                mapped_fields.append(
+                    {
+                        'key': name,
+                        'label': label_overrides.get(name) or f.get('label') or name.replace('_', ' ').title(),
+                        'type': mapped_type,
+                        'required': bool(f.get('is_required')),
+                        'placeholder': f.get('placeholder'),
+                        'help_text': f.get('help_text') or '',
+                        'relationship': relationship,
+                        'ui': ui,
+                        # Backward-compat for existing clients
+                        'related_entity': related_entity,
+                        'choices': f.get('choices') or None,
+                        'order': idx,
+                    }
+                )
+
+            for extra_idx, extra in enumerate(_inline_department_fields()):
+                mapped_fields.append({**extra, 'order': 1000 + extra_idx})
+
+            key_fields = [
+                'supplier' if canonical == 'plants.plant' else 'customer',
+                'name',
+                'code',
+                'plant_est_num',
+                'plant_type' if canonical == 'plants.plant' else 'location_type',
+                'address',
+                'city',
+                'state',
+                'zip_code',
+                'country',
+                'sales_contacts',
+                'qa_contacts',
+                'booking_contacts',
+                'accounting_contacts',
+            ]
+
+            return Response(
+                {
+                    'name': 'Plant' if canonical == 'plants.plant' else 'Location',
+                    'description': 'Create or edit with department contacts.',
+                    'key_fields': key_fields,
+                    'fields': mapped_fields,
+                }
+            )
+
+        canonical = entity_type_lower
+        if canonical in {
+            'supplier',
+            'suppliers',
+            'suppliers.supplier',
+            'tenant_apps.suppliers.supplier',
+        }:
+            return Response(
+                {
+                    'name': 'Supplier (Simplified)',
+                    'description': 'Simplified create/edit schema (HQ details only).',
+                    'fields': [
+                        {'key': 'name', 'label': 'Supplier Name', 'type': 'text', 'required': True, 'order': 0, 'ui': {}},
+                        {
+                            'key': 'address',
+                            'label': 'Headquarters Address',
+                            'type': 'textarea',
+                            'required': False,
+                            'order': 1,
+                            'ui': {'widget': 'textarea'},
+                        },
+                        {'key': 'city', 'label': 'Headquarters City', 'type': 'text', 'required': False, 'order': 2, 'ui': {}},
+                        {'key': 'state', 'label': 'Headquarters State', 'type': 'text', 'required': False, 'order': 3, 'ui': {}},
+                        {'key': 'zip_code', 'label': 'Headquarters ZIP Code', 'type': 'text', 'required': False, 'order': 4, 'ui': {}},
+                        {'key': 'country', 'label': 'Country', 'type': 'text', 'required': False, 'order': 5, 'ui': {}},
+                    ],
+                    'key_fields': ['name', 'address', 'city', 'state', 'zip_code', 'country'],
+                },
+                status=status.HTTP_200_OK,
+            )
+
+        if canonical in {
+            'customer',
+            'customers',
+            'customers.customer',
+            'tenant_apps.customers.customer',
+        }:
+            return Response(
+                {
+                    'name': 'Customer (Simplified)',
+                    'description': 'Simplified create/edit schema (HQ details only).',
+                    'fields': [
+                        {'key': 'name', 'label': 'Customer Name', 'type': 'text', 'required': True, 'order': 0, 'ui': {}},
+                        {
+                            'key': 'address',
+                            'label': 'Headquarters Address',
+                            'type': 'textarea',
+                            'required': False,
+                            'order': 1,
+                            'ui': {'widget': 'textarea'},
+                        },
+                        {'key': 'city', 'label': 'Headquarters City', 'type': 'text', 'required': False, 'order': 2, 'ui': {}},
+                        {'key': 'state', 'label': 'Headquarters State', 'type': 'text', 'required': False, 'order': 3, 'ui': {}},
+                        {'key': 'zip_code', 'label': 'Headquarters ZIP Code', 'type': 'text', 'required': False, 'order': 4, 'ui': {}},
+                        {'key': 'country', 'label': 'Country', 'type': 'text', 'required': False, 'order': 5, 'ui': {}},
+                    ],
+                    'key_fields': ['name', 'address', 'city', 'state', 'zip_code', 'country'],
+                },
+                status=status.HTTP_200_OK,
+            )
+
         # get_entity_fields already supports aliases like 'customer', 'supplier', etc.
         fields = get_entity_fields(entity_type)
         if not fields:
             return Response({'error': f'Entity not found: {entity_type}'}, status=status.HTTP_404_NOT_FOUND)
 
         mapped_fields = []
-        for f in fields:
+        for idx, f in enumerate(fields):
             name = str(f.get('name') or '').strip()
             if not name or name in _SKIP_FIELDS:
                 continue
+
+            introspected_type = str(f.get('field_type') or 'text')
+            mapped_type = _map_field_type(introspected_type)
+
+            relationship = None
+            ui: dict[str, Any] = {'read_only': bool(f.get('read_only', False))}
+
+            field_type_raw = introspected_type.lower()
+            related_entity = f.get('related_entity')
+
+            if field_type_raw in {'foreign_key', 'many_to_many'}:
+                kind = 'fk' if field_type_raw == 'foreign_key' else 'm2m'
+                display_field = None
+                if related_entity:
+                    try:
+                        display_fields = get_entity_display_fields(str(related_entity))
+                        display_field = display_fields[0] if display_fields else None
+                    except Exception:
+                        display_field = None
+
+                relationship = {
+                    'kind': kind,
+                    'entity_type': str(related_entity or ''),
+                    'display_field': display_field,
+                }
+                ui['widget'] = 'searchable_select'
+
+            elif f.get('choices'):
+                relationship = {
+                    'kind': 'choice',
+                    'entity_type': 'choice',
+                    'display_field': None,
+                }
+                ui['widget'] = 'select'
+
+            if mapped_type in {'textarea', 'date', 'datetime', 'email'}:
+                ui.setdefault('widget', mapped_type)
 
             mapped_fields.append(
                 {
                     'key': name,
                     'label': f.get('label') or name.replace('_', ' ').title(),
-                    'type': _map_field_type(str(f.get('field_type') or 'text')),
+                    'type': mapped_type,
                     'required': bool(f.get('is_required')),
-                    'placeholder': None,
+                    'placeholder': f.get('placeholder'),
                     'help_text': f.get('help_text') or '',
-                    # Future: relationship metadata / options injection
-                    'related_entity': f.get('related_entity'),
+                    'relationship': relationship,
+                    'ui': ui,
+                    # Backward-compat for existing clients
+                    'related_entity': related_entity,
                     'choices': f.get('choices') or None,
+                    'order': idx,
                 }
             )
 

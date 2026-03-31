@@ -13,10 +13,14 @@
 
 import React, { useMemo } from 'react';
 
-import UniversalEntityForm from './UniversalEntityForm';
-import { InquiryCreateModal } from '../Inquiry';
+import { getRuntimeConfigBoolean } from '@/config/runtime';
 
-export type EntityFormMode = 'create' | 'edit';
+import UniversalEntityForm from './UniversalEntityForm';
+import { InquiryCreateModal } from '../Inquiry/InquiryCreateModal';
+
+export type EntityFormMode = 'create' | 'edit' | 'view';
+
+export type EntityFormSurfaceVariant = 'modal' | 'inline';
 
 export type EntityFormContext = {
   customerId?: string | number;
@@ -28,6 +32,14 @@ export type EntityFormContext = {
 export interface EntityFormSurfaceProps {
   entityType: string;
   mode: EntityFormMode;
+
+  /**
+   * Render surface.
+   * - modal: wraps form in a modal (default)
+   * - inline: renders directly (embeddable into pages/panels)
+   */
+  variant?: EntityFormSurfaceVariant;
+
   isOpen: boolean;
   onClose: () => void;
   onSuccess?: (result: unknown) => void;
@@ -57,6 +69,7 @@ const normalizeEntityType = (raw: string): string => {
 export const EntityFormSurface: React.FC<EntityFormSurfaceProps> = ({
   entityType,
   mode,
+  variant = 'modal',
   isOpen,
   onClose,
   onSuccess,
@@ -66,8 +79,10 @@ export const EntityFormSurface: React.FC<EntityFormSurfaceProps> = ({
 }) => {
   const normalized = useMemo(() => normalizeEntityType(entityType), [entityType]);
 
-  // Enhanced form: Inquiry (create).
-  if (normalized === 'inquiry' && mode === 'create') {
+  const useUniversalInquiryCreate = getRuntimeConfigBoolean('USE_UNIVERSAL_INQUIRY_CREATE', false);
+
+  // Enhanced form: Inquiry (create) — can be swapped to UniversalEntityForm via runtime flag.
+  if (normalized === 'inquiry' && mode === 'create' && !useUniversalInquiryCreate) {
     const initialEntityType = context?.customerId
       ? 'customer'
       : context?.supplierId
@@ -98,7 +113,9 @@ export const EntityFormSurface: React.FC<EntityFormSurfaceProps> = ({
   return (
     <UniversalEntityForm
       entityType={entityType}
-      entityId={mode === 'edit' ? entityId : undefined}
+      mode={mode}
+      variant={variant}
+      entityId={mode === 'edit' || mode === 'view' ? entityId : undefined}
       isOpen={isOpen}
       onClose={onClose}
       onSuccess={(result) => onSuccess?.(result)}

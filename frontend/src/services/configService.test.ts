@@ -587,8 +587,8 @@ describe('configService', () => {
 
       const result = await getThemeConfig();
 
-      expect(result.primaryColor).toBe('#667eea');
-      expect(result.secondaryColor).toBe('#764ba2');
+      expect(result.primaryColor).toBe('rgb(var(--color-primary))');
+      expect(result.secondaryColor).toBe('rgb(var(--color-info))');
       expect(result.logoUrl).toBeUndefined();
     });
   });

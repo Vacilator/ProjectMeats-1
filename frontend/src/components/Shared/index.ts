@@ -12,7 +12,6 @@ export { PaymentHistoryList } from './PaymentHistoryList';
 export { ScheduleCallModal } from './ScheduleCallModal';
 export { UniversalEntityForm } from './UniversalEntityForm';
 export { EntityFormSurface } from './EntityFormSurface';
-export { CreateInvoiceModal } from './CreateInvoiceModal';
 export { SearchableSelect } from './SearchableSelect';
 export type { LocationSelectorProps } from './LocationSelector';
 export type { MultiSelectProps, MultiSelectOption } from './MultiSelect';

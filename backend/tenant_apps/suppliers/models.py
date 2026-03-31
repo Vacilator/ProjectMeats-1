@@ -8,7 +8,6 @@ Implements tenant ForeignKey field for shared-schema multi-tenancy.
 from django.contrib.postgres.fields import ArrayField
 from django.db import models
 
-from apps.tenants.models import Tenant
 from tenant_apps.contacts.models import Contact
 from apps.core.models import (
     AccountingPaymentTermsChoices,
@@ -22,6 +21,7 @@ from apps.core.models import (
     NetOrCatchChoices,
     OriginChoices,
     PackageTypeChoices,
+    PhoneTypeChoices,
     PlantTypeChoices,
     Protein,
     ProteinTypeChoices,
@@ -40,8 +40,40 @@ class Supplier(TenantAwareModel):
         max_length=255, blank=True, null=True, help_text="Primary contact person name"
     )
     email = models.EmailField(blank=True, null=True, help_text="Primary contact email")
+
+    # Legacy primary phone (kept for backward compatibility)
     phone = models.CharField(
         max_length=20, blank=True, null=True, help_text="Primary contact phone number"
+    )
+    phone_type = models.CharField(
+        max_length=10,
+        choices=PhoneTypeChoices.choices,
+        blank=True,
+        default=PhoneTypeChoices.OFFICE,
+        help_text="Primary contact phone type (mobile or office)",
+    )
+
+    # New: explicit phone slots for creation/edit UX
+    phone_mobile = models.CharField(
+        max_length=20,
+        blank=True,
+        null=True,
+        default='',
+        help_text="Mobile phone number",
+    )
+    phone_office = models.CharField(
+        max_length=20,
+        blank=True,
+        null=True,
+        default='',
+        help_text="Office phone number",
+    )
+    phone_office_extension = models.CharField(
+        max_length=10,
+        blank=True,
+        null=True,
+        default='',
+        help_text="Office phone extension",
     )
 
     # Address fields - keeping existing structure but adding street_address for clarity
@@ -49,6 +81,7 @@ class Supplier(TenantAwareModel):
     street_address = models.CharField(
         max_length=255,
         blank=True,
+        null=True,
         default='',
         help_text="Street address (alternative to address field)",
     )
@@ -79,6 +112,7 @@ class Supplier(TenantAwareModel):
         max_length=50,
         choices=EdibleInedibleChoices.choices,
         blank=True,
+        null=True,
         default='',
         help_text="Type of products supplied",
     )
@@ -86,6 +120,7 @@ class Supplier(TenantAwareModel):
         max_length=100,
         choices=PlantTypeChoices.choices,
         blank=True,
+        null=True,
         default='',
         help_text="Type of plant (e.g., Vertical, Processor)",
     )
@@ -93,6 +128,7 @@ class Supplier(TenantAwareModel):
         max_length=100,
         choices=CertificateTypeChoices.choices,
         blank=True,
+        null=True,
         default='',
         help_text="Certificate type (e.g., 3rd Party, BRC)",
     )
@@ -103,6 +139,7 @@ class Supplier(TenantAwareModel):
         max_length=100,
         choices=OriginChoices.choices,
         blank=True,
+        null=True,
         default='',
         help_text="Product origin (e.g., Domestic, Imported)",
     )
@@ -110,6 +147,7 @@ class Supplier(TenantAwareModel):
         max_length=100,
         choices=CountryOriginChoices.choices,
         blank=True,
+        null=True,
         default='',
         help_text="Country of origin (e.g., USA, CAN)",
     )
@@ -131,11 +169,16 @@ class Supplier(TenantAwareModel):
         max_length=100,
         choices=ShippingOfferedChoices.choices,
         blank=True,
+        null=True,
         default='',
         help_text="Shipping services offered (e.g., Yes - Domestic)",
     )
     how_to_book_pickup = models.CharField(
-        max_length=100, blank=True, default='', help_text="How to book pickup (e.g., Website, Call)"
+        max_length=100,
+        blank=True,
+        null=True,
+        default='',
+        help_text="How to book pickup (e.g., Website, Call)",
     )
     offer_contracts = models.BooleanField(
         default=False, help_text="Does supplier offer contracts?"
@@ -149,6 +192,7 @@ class Supplier(TenantAwareModel):
         max_length=50,
         choices=AccountingPaymentTermsChoices.choices,
         blank=True,
+        null=True,
         default='',
         help_text="Payment terms (e.g., Wire, ACH, Check)",
     )
@@ -156,6 +200,7 @@ class Supplier(TenantAwareModel):
         max_length=50,
         choices=CreditLimitChoices.choices,
         blank=True,
+        null=True,
         default='',
         help_text="Credit limits/terms (e.g., Net 30, Wire 1 day prior)",
     )
@@ -163,6 +208,7 @@ class Supplier(TenantAwareModel):
         max_length=50,
         choices=AccountLineOfCreditChoices.choices,
         blank=True,
+        null=True,
         default='',
         help_text="Line of credit amount range",
     )
@@ -170,6 +216,7 @@ class Supplier(TenantAwareModel):
         max_length=20,
         choices=FreshOrFrozenChoices.choices,
         blank=True,
+        null=True,
         default='',
         help_text="Product state (Fresh or Frozen)",
     )
@@ -177,6 +224,7 @@ class Supplier(TenantAwareModel):
         max_length=50,
         choices=PackageTypeChoices.choices,
         blank=True,
+        null=True,
         default='',
         help_text="Package type (e.g., Boxed wax lined, Combo bins)",
     )
@@ -184,12 +232,14 @@ class Supplier(TenantAwareModel):
         max_length=20,
         choices=NetOrCatchChoices.choices,
         blank=True,
+        null=True,
         default='',
         help_text="Weight type (Net or Catch)",
     )
     departments = models.CharField(
         max_length=255,
         blank=True,
+        null=True,
         default='',
         help_text="Departments (comma-separated: Sales, BOL, COA, etc.)",
     )
@@ -208,10 +258,18 @@ class Supplier(TenantAwareModel):
     
     # Deprecated fields - keeping for backward compatibility
     accounting_terms = models.CharField(
-        max_length=100, blank=True, default='', help_text="Accounting terms (deprecated, use accounting_payment_terms)"
+        max_length=100,
+        blank=True,
+        null=True,
+        default='',
+        help_text="Accounting terms (deprecated, use accounting_payment_terms)",
     )
     accounting_line_of_credit = models.CharField(
-        max_length=100, blank=True, default='', help_text="Line of credit amount (deprecated, use account_line_of_credit)"
+        max_length=100,
+        blank=True,
+        null=True,
+        default='',
+        help_text="Line of credit amount (deprecated, use account_line_of_credit)",
     )
     credit_app_sent = models.BooleanField(
         default=False, help_text="Has credit application been sent?"

@@ -17,6 +17,8 @@
  */
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
+import { ErrorBoundary } from '@/components/common/ErrorBoundary';
+import { showAlert } from '@/utils/uiDialogs';
 import { 
   CheckCircle, XCircle, Calendar, Search, Download, 
   Eye, Filter, RefreshCw, FileText, ChevronRight, ChevronDown,
@@ -640,7 +642,11 @@ const FormsFlowsHistory: React.FC = () => {
   // Export to CSV - Planned for Wave F (Features) - see REMAINING_WORK_OUTLINE.md
   const handleExport = () => {
     // Feature F3.5: Export to Excel/PDF - scheduled for implementation
-    alert('Export functionality coming soon!');
+    showAlert({
+      type: 'info',
+      title: 'Coming soon',
+      content: 'Export functionality coming soon!',
+    });
   };
   
   const totalPages = Math.ceil(totalCount / pageSize);
@@ -648,7 +654,8 @@ const FormsFlowsHistory: React.FC = () => {
   const currentData = activeTab === 'submissions' ? submissions : workflowExecutions;
   
   return (
-    <Container role="region" aria-label="Form History">
+    <ErrorBoundary>
+      <Container role="region" aria-label="Form History">
       {/* Tabs */}
       <TabsContainer>
         <Tab
@@ -788,7 +795,7 @@ const FormsFlowsHistory: React.FC = () => {
             <Table aria-label="Workflow execution history">
               <TableHead>
                 <tr>
-                  <TableHeader scope="col" style={{ width: '40px' }}></TableHeader>
+                  <TableHeader scope="col" style={{ width: '40px' }} />
                   <TableHeader scope="col">Workflow Name</TableHeader>
                   <TableHeader scope="col">Status</TableHeader>
                   <TableHeader scope="col">Started By</TableHeader>
@@ -922,7 +929,8 @@ const FormsFlowsHistory: React.FC = () => {
           )}
         </>
       )}
-    </Container>
+      </Container>
+    </ErrorBoundary>
   );
 };
 

@@ -72,26 +72,26 @@ export const formSchema: NodeConfigSchema = {
       description: 'Core configuration for this form step',
       fields: [
         {
-          id: 'name',
+          id: 'title',
           type: 'text',
-          label: 'Step Name',
-          placeholder: 'e.g., Customer Information',
-          helpText: 'Internal name for this step (shown in workflow editor)',
+          label: 'Title',
+          placeholder: 'e.g., Customer Contact Info',
+          helpText: 'Internal title for this step (shown in workflow editor)',
           required: true,
           validation: [
             {
               type: 'required',
-              message: 'Step name is required'
+              message: 'Title is required'
             },
             {
               type: 'minLength',
               value: 3,
-              message: 'Name must be at least 3 characters'
+              message: 'Title must be at least 3 characters'
             },
             {
               type: 'maxLength',
               value: 100,
-              message: 'Name must be less than 100 characters'
+              message: 'Title must be less than 100 characters'
             }
           ]
         },
@@ -99,7 +99,7 @@ export const formSchema: NodeConfigSchema = {
           id: 'description',
           type: 'textarea',
           label: 'Description',
-          placeholder: 'Describe what this form collects...',
+          placeholder: 'e.g., Collect customer name, email, phone_mobile, phone_office + extension',
           helpText: 'Optional description for documentation and user guidance',
           validation: [
             {
@@ -113,7 +113,7 @@ export const formSchema: NodeConfigSchema = {
           id: 'displayTitle',
           type: 'text',
           label: 'Display Title',
-          placeholder: 'e.g., Tell us about yourself',
+          placeholder: 'e.g., Customer Contact Information',
           helpText: 'Title shown to end users when filling out the form',
           validation: [
             {
@@ -182,7 +182,7 @@ export const formSchema: NodeConfigSchema = {
           id: 'entityId',
           type: 'variable-picker',
           label: 'Record ID',
-          placeholder: 'Select variable containing record ID',
+          placeholder: 'e.g., {{customer.id}}',
           helpText: 'Variable from previous steps containing the ID of the record to update',
           required: true,
           conditional: {
@@ -326,7 +326,7 @@ export const formSchema: NodeConfigSchema = {
           id: 'redirectOnSubmit',
           type: 'text',
           label: 'Redirect URL',
-          placeholder: '/thank-you',
+          placeholder: '/cockpit',
           helpText: 'URL to redirect to after successful submission (leave empty to stay on page)',
           conditional: {
             field: 'allowMultipleSubmissions',
@@ -338,7 +338,7 @@ export const formSchema: NodeConfigSchema = {
           id: 'submitButtonText',
           type: 'text',
           label: 'Submit Button Text',
-          placeholder: 'Submit',
+          placeholder: 'Continue',
           helpText: 'Custom text for the submit button',
           defaultValue: 'Submit'
         },
@@ -353,7 +353,7 @@ export const formSchema: NodeConfigSchema = {
           id: 'cancelButtonText',
           type: 'text',
           label: 'Cancel Button Text',
-          placeholder: 'Cancel',
+          placeholder: 'Back',
           helpText: 'Custom text for the cancel button (if enabled)',
           conditional: {
             field: 'showCancelButton',
@@ -448,7 +448,7 @@ export const formSchema: NodeConfigSchema = {
  * into a cohesive workflow with navigation and behavior settings.
  */
 export const formProcessSchema: NodeConfigSchema = {
-  nodeType: 'formMultiStepContainer',
+  nodeType: 'formProcess',
   displayName: 'Form Process',
   description: 'Container for multi-step forms with navigation controls',
   icon: Package,
@@ -468,17 +468,17 @@ export const formProcessSchema: NodeConfigSchema = {
       description: 'Basic information about this form process',
       fields: [
         {
-          id: 'containerName',
+          id: 'title',
           type: 'text',
-          label: 'Container Name',
+          label: 'Title',
           placeholder: 'e.g., Customer Onboarding Form',
-          helpText: 'Display name for this form process',
+          helpText: 'Display title for this form process',
           defaultValue: 'New Form Process',
           required: true,
           validation: [
-            { type: 'required', message: 'Container name is required' },
-            { type: 'minLength', value: 3, message: 'Container name must be at least 3 characters' },
-            { type: 'maxLength', value: 100, message: 'Container name must be at most 100 characters' }
+            { type: 'required', message: 'Title is required' },
+            { type: 'minLength', value: 3, message: 'Title must be at least 3 characters' },
+            { type: 'maxLength', value: 100, message: 'Title must be at most 100 characters' }
           ]
         },
         {
@@ -615,17 +615,17 @@ export const formProcessGroupSchema: NodeConfigSchema = {
       description: 'Basic information about this form group',
       fields: [
         {
-          id: 'containerName',
+          id: 'title',
           type: 'text',
-          label: 'Group Name',
+          label: 'Title',
           placeholder: 'e.g., Customer Information Section',
-          helpText: 'Display name for this form group',
+          helpText: 'Display title for this form group',
           defaultValue: 'New Form Group',
           required: true,
           validation: [
-            { type: 'required', message: 'Group name is required' },
-            { type: 'minLength', value: 3, message: 'Group name must be at least 3 characters' },
-            { type: 'maxLength', value: 100, message: 'Group name must be at most 100 characters' }
+            { type: 'required', message: 'Title is required' },
+            { type: 'minLength', value: 3, message: 'Title must be at least 3 characters' },
+            { type: 'maxLength', value: 100, message: 'Title must be at most 100 characters' }
           ]
         },
         {
@@ -944,6 +944,8 @@ const buildAllSchemas = (): NodeConfigSchema[] => [
   // === CORE SCHEMAS (Phase 1-3) ===
   formSchema,  // NEW: Primary form step schema (Phase E - 2026-02-19)
   formProcessSchema,
+  // Backward compatibility: legacy node type for the same concept.
+  { ...formProcessSchema, nodeType: 'formMultiStepContainer' },
   formBookSchema,
   formProcessGroupSchema,
   createRecordSchema,
@@ -2128,7 +2130,7 @@ const formStepSchema: NodeConfigSchema = {
   displayName: 'Form Step',
   description: 'Single step within a multi-step form. Fully supported for new and existing workflows.',
   icon: FileText,
-  version: '1.1.1',
+  version: '1.1.2',
   tags: ['form', 'step'],
   contextAware: true,
   sections: [
@@ -2142,7 +2144,7 @@ const formStepSchema: NodeConfigSchema = {
           id: 'name',
           type: 'text',
           label: 'Step Name',
-          placeholder: 'e.g., Customer Information',
+          placeholder: 'e.g., Supplier Booking Contact',
           required: true,
           validation: [
             { type: 'required', message: 'Step name is required' },
@@ -2153,7 +2155,7 @@ const formStepSchema: NodeConfigSchema = {
           id: 'description',
           type: 'textarea',
           label: 'Description',
-          placeholder: 'Describe this form step...',
+          placeholder: 'e.g., Capture booking contact email/phone + FCFS option',
           helpText: 'Optional description for documentation'
         },
       ]
@@ -2232,7 +2234,7 @@ const formFieldSchema: NodeConfigSchema = {
           id: 'label',
           type: 'text',
           label: 'Field Label',
-          placeholder: 'e.g., Email Address',
+          placeholder: 'e.g., Phone (Office)',
           required: true,
           validation: [
             { type: 'required', message: 'Field label is required' },
@@ -2243,7 +2245,7 @@ const formFieldSchema: NodeConfigSchema = {
           id: 'fieldName',
           type: 'text',
           label: 'Field Name (Key)',
-          placeholder: 'e.g., email',
+          placeholder: 'e.g., phone_office_extension',
           helpText: 'Internal field name used for data storage (no spaces, lowercase)',
           required: true,
           validation: [
@@ -2280,21 +2282,21 @@ const formFieldSchema: NodeConfigSchema = {
           id: 'placeholder',
           type: 'text',
           label: 'Placeholder',
-          placeholder: 'e.g., Enter your email...',
+          placeholder: 'e.g., (555) 123-4567',
           helpText: 'Hint text shown when field is empty'
         },
         {
           id: 'helpText',
           type: 'textarea',
           label: 'Help Text',
-          placeholder: 'Additional guidance for users...',
+          placeholder: 'e.g., Include extension if applicable',
           helpText: 'Helpful instructions displayed below the field'
         },
         {
           id: 'defaultValue',
           type: 'text',
           label: 'Default Value',
-          placeholder: 'Default value',
+          placeholder: 'e.g., USA',
           helpText: 'Pre-filled value when form loads'
         }
       ]
@@ -2663,9 +2665,9 @@ const triggerManualSchema: NodeConfigSchema = {
 const triggerScheduleSchema: NodeConfigSchema = {
   nodeType: 'triggerSchedule',
   displayName: 'Schedule Trigger',
-  description: 'Run workflow on schedule',
+  description: 'Run workflow on a schedule',
   icon: Clock,
-  version: '1.0.0',
+  version: '2.0.0',
   tags: ['trigger', 'schedule'],
   contextAware: false,
   sections: [
@@ -2676,23 +2678,131 @@ const triggerScheduleSchema: NodeConfigSchema = {
       defaultExpanded: true,
       fields: [
         {
-          id: 'cronExpression',
-          type: 'text',
-          label: 'Cron Expression',
-          placeholder: '0 9 * * MON-FRI',
-          helpText: 'Standard cron syntax',
+          id: 'scheduleMode',
+          type: 'select',
+          label: 'Mode',
+          options: [
+            { value: 'friendly', label: 'Simple (Recommended)' },
+            { value: 'cron', label: 'Cron (Advanced)' },
+          ],
+          defaultValue: 'friendly',
+          helpText: 'Use the simple scheduler unless you need a custom cron expression.',
+          validation: [{ type: 'required', message: 'Select a mode' }],
+        },
+        {
+          id: 'frequency',
+          type: 'select',
+          label: 'Frequency',
+          options: [
+            { value: 'hourly', label: 'Hourly' },
+            { value: 'daily', label: 'Daily' },
+            { value: 'weekly', label: 'Weekly' },
+            { value: 'monthly', label: 'Monthly' },
+          ],
+          defaultValue: 'daily',
           required: true,
+          conditional: { field: 'scheduleMode', operator: 'equals', value: 'friendly' },
+          validation: [{ type: 'required', message: 'Select a frequency' }],
+        },
+        {
+          id: 'atTime',
+          type: 'time',
+          label: 'Time',
+          placeholder: '09:00',
+          defaultValue: '09:00',
+          required: true,
+          conditional: { field: 'scheduleMode', operator: 'equals', value: 'friendly' },
+          helpText: 'For hourly schedules, only the minutes are used.',
+          validation: [{ type: 'required', message: 'Time is required' }],
+        },
+        {
+          id: 'daysOfWeek',
+          type: 'multiselect',
+          label: 'Days of Week',
+          options: [
+            { value: 'MON', label: 'Monday' },
+            { value: 'TUE', label: 'Tuesday' },
+            { value: 'WED', label: 'Wednesday' },
+            { value: 'THU', label: 'Thursday' },
+            { value: 'FRI', label: 'Friday' },
+            { value: 'SAT', label: 'Saturday' },
+            { value: 'SUN', label: 'Sunday' },
+          ],
+          defaultValue: ['MON'],
+          required: true,
+          conditional: {
+            logic: 'AND',
+            conditions: [
+              { field: 'scheduleMode', operator: 'equals', value: 'friendly' },
+              { field: 'frequency', operator: 'equals', value: 'weekly' },
+            ],
+          },
+          validation: [{ type: 'required', message: 'Select at least one day' }],
+        },
+        {
+          id: 'dayOfMonth',
+          type: 'number',
+          label: 'Day of Month',
+          placeholder: '1',
+          defaultValue: 1,
+          required: true,
+          conditional: {
+            logic: 'AND',
+            conditions: [
+              { field: 'scheduleMode', operator: 'equals', value: 'friendly' },
+              { field: 'frequency', operator: 'equals', value: 'monthly' },
+            ],
+          },
+          validation: [
+            { type: 'required', message: 'Day of month is required' },
+            { type: 'min', value: 1, message: 'Minimum is 1' },
+            { type: 'max', value: 31, message: 'Maximum is 31' },
+          ],
         },
         {
           id: 'timezone',
-          type: 'text',
+          type: 'select',
           label: 'Timezone',
-          placeholder: 'America/New_York',
+          options: [
+            { value: 'UTC', label: 'UTC' },
+            { value: 'America/New_York', label: 'Eastern Time (US)' },
+            { value: 'America/Chicago', label: 'Central Time (US)' },
+            { value: 'America/Denver', label: 'Mountain Time (US)' },
+            { value: 'America/Los_Angeles', label: 'Pacific Time (US)' },
+            { value: 'Europe/London', label: 'London (GMT/BST)' },
+            { value: 'Australia/Sydney', label: 'Sydney (AEST/AEDT)' },
+          ],
           defaultValue: 'UTC',
+          helpText: 'Used for display; actual execution timezone depends on scheduler support.',
         },
-      ]
-    }
-  ]
+        {
+          id: 'cronExpression',
+          type: 'text',
+          label: 'Cron Expression',
+          placeholder: '0 9 * * 1-5',
+          helpText: 'Generated automatically in Simple mode. In Cron mode, you can edit directly.',
+          conditional: {
+            logic: 'OR',
+            conditions: [
+              { field: 'scheduleMode', operator: 'equals', value: 'cron' },
+              { field: 'showAdvancedCron', operator: 'equals', value: true },
+            ],
+          },
+          validation: [
+            { type: 'required', message: 'Cron expression is required' },
+            { type: 'pattern', value: '^[^\n\r]+$', message: 'Invalid cron expression' },
+          ],
+        },
+        {
+          id: 'showAdvancedCron',
+          type: 'toggle',
+          label: 'Show Cron Preview',
+          defaultValue: false,
+          conditional: { field: 'scheduleMode', operator: 'equals', value: 'friendly' },
+        },
+      ],
+    },
+  ],
 };
 
 const triggerWebhookSchema: NodeConfigSchema = {
@@ -2738,7 +2848,7 @@ const triggerEventSchema: NodeConfigSchema = {
   displayName: 'Event Trigger',
   description: 'Trigger on database events',
   icon: Zap,
-  version: '1.0.0',
+  version: '1.1.0',
   tags: ['trigger', 'event'],
   contextAware: false,
   sections: [
@@ -2750,21 +2860,28 @@ const triggerEventSchema: NodeConfigSchema = {
       fields: [
         {
           id: 'entityType',
-          type: 'text',
-          label: 'Entity Type',
-          placeholder: 'e.g., PurchaseOrder',
+          type: 'entityType',
+          label: 'Entity',
+          placeholder: 'Select entity...',
+          helpText: 'Select which business entity should trigger this workflow',
           required: true,
+          validation: [{ type: 'required', message: 'Entity is required' }],
         },
         {
           id: 'eventType',
           type: 'select',
           label: 'Event Type',
           options: [
-            { value: 'created', label: 'Created' },
-            { value: 'updated', label: 'Updated' },
-            { value: 'deleted', label: 'Deleted' },
+            { value: 'create', label: 'Created' },
+            { value: 'update', label: 'Updated' },
+            { value: 'delete', label: 'Deleted' },
+            // Backward compatibility for older saved workflows
+            { value: 'created', label: 'Created (legacy)' },
+            { value: 'updated', label: 'Updated (legacy)' },
+            { value: 'deleted', label: 'Deleted (legacy)' },
           ],
           required: true,
+          validation: [{ type: 'required', message: 'Event type is required' }],
         },
       ]
     }

@@ -183,6 +183,12 @@ const SidebarContainer = styled.div<{ $isOpen: boolean; $theme: Theme; $isDarkMo
     : '2px 0 12px rgba(0, 0, 0, 0.08)'};
   will-change: width;
   overflow: hidden;
+
+  @media (max-width: 768px) {
+    width: ${(props) => (props.$isOpen ? '100%' : '0')};
+    transform: translateX(${(props) => (props.$isOpen ? '0' : '-100%')});
+    transition: width 0.3s, transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
 `;
 
 const SidebarHeader = styled.div<{ $theme: Theme; $isExpanded: boolean; $isDarkMode: boolean }>`
@@ -201,6 +207,8 @@ const Logo = styled.div`
   display: flex;
   align-items: center;
   gap: 12px;
+  flex: 1;
+  min-width: 0; /* allow text to shrink so lock button stays visible */
 `;
 
 const LogoIconWrapper = styled.div<{ $isDarkMode: boolean }>`
@@ -228,6 +236,9 @@ const LogoText = styled.h2<{ $isDarkMode: boolean }>`
   font-weight: 600;
   margin: 0;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
   color: rgb(var(--color-text-primary));
   letter-spacing: 0.01em;
 `;
@@ -238,6 +249,7 @@ const PinButton = styled.button<{ $theme: Theme; $active: boolean; $isDarkMode: 
   justify-content: center;
   width: 32px;
   height: 32px;
+  flex: 0 0 auto;
   background: ${(props) => props.$active 
     ? 'rgba(var(--color-primary), 0.2)' 
     : 'transparent'};

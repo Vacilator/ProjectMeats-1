@@ -9,6 +9,9 @@ class Migration(migrations.Migration):
     dependencies = [
         ("products", "0007_add_rls_policies_batch"),
         ("tenants", "0010_add_tenant_configuration"),
+        ("system", "0004_migrate_product_data"),
+        ("customers", "0008_alter_customer_products_to_system"),
+        ("suppliers", "0010_alter_supplier_products_to_system"),
     ]
 
     operations = [

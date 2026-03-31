@@ -5,13 +5,13 @@ Implements tenant ForeignKey field for shared-schema multi-tenancy.
 """
 
 from django.db import models
-from apps.core.models import TenantManager, TenantAwareModel
+from apps.core.models import PhoneTypeChoices, TenantAwareModel
 from django.contrib.auth.models import User
-from apps.tenants.models import Tenant
 
 
 class Plant(TenantAwareModel):
     PLANT_TYPE_CHOICES = [
+        ("vertical", "Vertical (Kill to Capture)"),
         ("processing", "Processing Plant"),
         ("distribution", "Distribution Center"),
         ("warehouse", "Warehouse"),
@@ -66,12 +66,43 @@ class Plant(TenantAwareModel):
     zip_code = models.CharField(max_length=20, default='', blank=True)
     country = models.CharField(max_length=100, default="USA")
     phone = models.CharField(max_length=20, blank=True, default='')
+    phone_type = models.CharField(
+        max_length=10,
+        choices=PhoneTypeChoices.choices,
+        blank=True,
+        default=PhoneTypeChoices.OFFICE,
+        help_text="Plant phone type (mobile or office)",
+    )
     email = models.EmailField(blank=True, default='')
+
+    booking_contact_email = models.EmailField(
+        blank=True,
+        default='',
+        help_text='Booking contact email (optional)',
+    )
+    booking_contact_phone = models.CharField(
+        max_length=20,
+        blank=True,
+        default='',
+        help_text='Booking contact phone (optional)',
+    )
+    booking_contact_phone_type = models.CharField(
+        max_length=10,
+        choices=PhoneTypeChoices.choices,
+        blank=True,
+        default=PhoneTypeChoices.OFFICE,
+        help_text='Booking contact phone type (mobile or office)',
+    )
+
     manager = models.CharField(max_length=100, blank=True, default='')
     capacity = models.PositiveIntegerField(
         help_text="Capacity in units", null=True, blank=True
     )
     is_active = models.BooleanField(default=True)
+    fcfs = models.BooleanField(
+        default=False,
+        help_text='FCFS (First Come First Serve) plant scheduling/availability flag',
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     created_by = models.ForeignKey(

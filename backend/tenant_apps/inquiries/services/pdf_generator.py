@@ -15,7 +15,7 @@ from reportlab.platypus import (
     SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle,
     HRFlowable
 )
-from reportlab.lib.enums import TA_LEFT, TA_RIGHT, TA_CENTER
+from reportlab.lib.enums import TA_RIGHT, TA_CENTER
 
 
 class InquiryPDFGenerator:
@@ -228,7 +228,12 @@ class InquiryPDFGenerator:
         products = self.inquiry.products.all().select_related('product')
         
         for ip in products:
-            product_name = getattr(ip.product, 'description_of_product_item', 'Unknown Product')
+            product_name = (
+                getattr(ip.product, 'name', None)
+                or getattr(ip.product, 'product_code', None)
+                or getattr(ip.product, 'description', None)
+                or 'Unknown Product'
+            )
             if len(product_name) > 40:
                 product_name = product_name[:40] + '...'
             

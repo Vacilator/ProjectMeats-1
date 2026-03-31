@@ -32,6 +32,10 @@ import { useFormBuilderContext } from '../../../contexts/FormBuilderContext';
 // Configuration engine imports
 import { schemaRegistry } from '../config';
 import { NodeConfigSchema, ConfigSection, ConfigField } from '../config/types';
+import {
+  buildCronExpressionFromFriendlySchedule,
+  buildScheduleSummary,
+} from '../utils/scheduleCron';
 import { evaluateCondition } from '../config/conditionalLogic';
 import { validateField } from '../config/validationEngine';
 
@@ -57,6 +61,12 @@ import {
   SectionHeader,
   SectionTitle,
 } from './shared/StyledComponents';
+
+const MemoNestedChildrenRenderer = React.memo(NestedChildrenRenderer);
+MemoNestedChildrenRenderer.displayName = 'MemoNestedChildrenRenderer';
+
+const MemoAutoMappingSuggestionsPanel = React.memo(AutoMappingSuggestionsPanel);
+MemoAutoMappingSuggestionsPanel.displayName = 'MemoAutoMappingSuggestionsPanel';
 
 // ============================================================================
 // Component Props
@@ -332,6 +342,8 @@ export const DynamicConfigPanel: React.FC<DynamicConfigPanelProps> = ({
     const field = findFieldById(schema, fieldId);
 
     setFormData((prev) => {
+      const semanticNodeType = (((node?.data as any)?.nodeType as string | undefined) || node.type) as string;
+
       // If entity type changes on form-like nodes, reset fields and trigger smart defaults.
       if (
         fieldId === 'entityType' &&
@@ -340,6 +352,106 @@ export const DynamicConfigPanel: React.FC<DynamicConfigPanelProps> = ({
         pendingAutoDefaultsRef.current = value as string;
         const next = { ...prev, entityType: value, fields: [] };
         onUpdateNode(node.id, next);
+        return next;
+      }
+
+      // Legacy triggerEvent schema uses entityType; TriggerNode expects eventEntity for display.
+      if (fieldId === 'entityType' && semanticNodeType === 'triggerEvent') {
+        const next = { ...prev, entityType: value, eventEntity: value };
+        onUpdateNode(node.id, next);
+        return next;
+      }
+
+      // Schedule trigger: keep UI business-friendly but always persist an underlying cron string.
+      if (semanticNodeType === 'triggerSchedule') {
+        const draft = { ...prev, [fieldId]: value } as any;
+        const mode = (draft.scheduleMode as string) || 'friendly';
+
+        // If user edits cron directly, force cron mode.
+        if (fieldId === 'cronExpression') {
+          const cron = String(value || '').trim();
+          const next = {
+            ...draft,
+            scheduleMode: 'cron',
+            cronExpression: cron,
+            schedule: cron,
+            scheduleSummary: cron ? `Cron: ${cron}` : undefined,
+          };
+          onUpdateNode(node.id, next);
+          return next;
+        }
+
+        // Switching modes: keep data consistent.
+        if (fieldId === 'scheduleMode') {
+          const nextMode = String(value || 'friendly');
+
+          if (nextMode === 'cron') {
+            const cron = String(draft.cronExpression || draft.schedule || '').trim();
+            const next = {
+              ...draft,
+              scheduleMode: 'cron',
+              cronExpression: cron,
+              schedule: cron,
+              scheduleSummary: cron ? `Cron: ${cron}` : draft.scheduleSummary,
+            };
+            onUpdateNode(node.id, next);
+            return next;
+          }
+
+          // Switch to friendly: regenerate cron from selections.
+          const cron = buildCronExpressionFromFriendlySchedule(draft);
+          const summary = buildScheduleSummary(draft);
+          const next = {
+            ...draft,
+            scheduleMode: 'friendly',
+            cronExpression: cron,
+            schedule: cron,
+            scheduleSummary: summary,
+          };
+          onUpdateNode(node.id, next);
+          return next;
+        }
+
+        // Friendly mode: regenerate cron + summary whenever the user changes schedule inputs.
+        if (mode !== 'cron') {
+          const cron = buildCronExpressionFromFriendlySchedule(draft);
+          const summary = buildScheduleSummary(draft);
+          const next = {
+            ...draft,
+            cronExpression: cron,
+            schedule: cron,
+            scheduleSummary: summary,
+          };
+          onUpdateNode(node.id, next);
+          return next;
+        }
+
+        // Cron mode: just update the field.
+        onUpdateNode(node.id, draft);
+        return draft;
+      }
+
+      // Canonical node title: keep legacy keys in sync for backwards compatibility.
+      if (fieldId === 'title') {
+        const next: any = {
+          ...prev,
+          title: value,
+          label: value,
+        };
+
+        if (typeof (prev as any).containerName === 'string') next.containerName = value;
+        if (typeof (prev as any).name === 'string') next.name = value;
+
+        onUpdateNode(node.id, next);
+
+        if (field) {
+          const error = validateField(field, value, next);
+          setErrors((errs) => ({
+            ...errs,
+            [fieldId]: error || '',
+          }));
+        }
+
         return next;
       }
 
@@ -407,9 +519,10 @@ export const DynamicConfigPanel: React.FC<DynamicConfigPanelProps> = ({
     const nextData = (updatedNode.data || {}) as Record<string, unknown>;
     setFormData(nextData);
 
-    // Stage the full updated node data into shadow state so dirty tracking is reliable
-    // and the outer Apply/Discard bar appears after applying suggestions.
-    onUpdateNode(node.id, nextData as Record<string, any>);
+    // Stage only the relevant mapping patch into shadow state.
+    // The shadow-state hook expects partial updates; passing the entire formData can
+    // accidentally merge unrelated keys and make dirty detection flaky.
+    onUpdateNode(node.id, { fieldMappings: (nextData as any).fieldMappings } as Record<string, any>);
 
     // UX: hide applied suggestions so the user gets immediate feedback.
     setRejectedSuggestionIds((prev) => {
@@ -438,9 +551,10 @@ export const DynamicConfigPanel: React.FC<DynamicConfigPanelProps> = ({
     const nextData = (updatedNode.data || {}) as Record<string, unknown>;
     setFormData(nextData);
 
-    // Stage the full updated node data into shadow state so dirty tracking is reliable
-    // and the outer Apply/Discard bar appears after applying suggestions.
-    onUpdateNode(node.id, nextData as Record<string, any>);
+    // Stage only the relevant mapping patch into shadow state.
+    // The shadow-state hook expects partial updates; passing the entire formData can
+    // accidentally merge unrelated keys and make dirty detection flaky.
+    onUpdateNode(node.id, { fieldMappings: (nextData as any).fieldMappings } as Record<string, any>);
 
     // UX: hide the auto-applied suggestions from the list.
     const autoAppliedIds = (autoMap.suggestions || []).filter((s) => s.autoApply).map((s) => s.id);
@@ -484,6 +598,7 @@ export const DynamicConfigPanel: React.FC<DynamicConfigPanelProps> = ({
       case 'text':
       case 'textarea':
       case 'number':
+      case 'time':
       case 'email':
       case 'password':
       case 'codeEditor':
@@ -648,7 +763,7 @@ export const DynamicConfigPanel: React.FC<DynamicConfigPanelProps> = ({
       // Phase E.3: Nested children
       case 'nested-children':
         renderedField = (
-          <NestedChildrenRenderer
+          <MemoNestedChildrenRenderer
             key={field.id}
             field={field}
             value={value || []}
@@ -750,7 +865,7 @@ export const DynamicConfigPanel: React.FC<DynamicConfigPanelProps> = ({
         )}
 
         {visibleAutoMapSuggestions.length > 0 && (
-          <AutoMappingSuggestionsPanel
+          <MemoAutoMappingSuggestionsPanel
             suggestions={visibleAutoMapSuggestions}
             onAccept={handleAcceptAutoMap}
             onReject={handleRejectAutoMap}

@@ -4,6 +4,7 @@ Sales Orders views for ProjectMeats.
 Provides REST API endpoints for sales order management.
 """
 from rest_framework import viewsets, status
+from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.exceptions import ValidationError as DRFValidationError
@@ -25,10 +26,43 @@ class SalesOrderViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        """Filter sales orders by current tenant."""
-        if hasattr(self.request, "tenant") and self.request.tenant:
-            return SalesOrder.objects.for_tenant(self.request.tenant)
-        return SalesOrder.objects.none()
+        """Filter sales orders by current tenant.
+
+        Soft deletes:
+        - default: hide deleted
+        - admin: allow include_deleted=1
+        """
+        if not (hasattr(self.request, "tenant") and self.request.tenant):
+            return SalesOrder.objects.none()
+
+        include_deleted = str(self.request.query_params.get("include_deleted") or "").strip().lower() in {
+            "1",
+            "true",
+            "t",
+            "yes",
+            "y",
+        }
+        is_admin = bool(getattr(self.request.user, "is_superuser", False) or getattr(self.request.user, "is_staff", False))
+
+        if include_deleted and is_admin:
+            return SalesOrder.all_objects.for_tenant(self.request.tenant)
+
+        return SalesOrder.objects.for_tenant(self.request.tenant)
+
+    def perform_destroy(self, instance):
+        instance.soft_delete()
+
+    @action(detail=True, methods=["post"], url_path="restore")
+    def restore(self, request, pk=None):
+        if not (getattr(request.user, "is_superuser", False) or getattr(request.user, "is_staff", False)):
+            return Response({"error": "Permission denied"}, status=status.HTTP_403_FORBIDDEN)
+
+        so = SalesOrder.all_objects.for_tenant(request.tenant).filter(pk=pk).first()
+        if not so:
+            return Response({"error": "Not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        so.restore()
+        return Response(SalesOrderSerializer(so).data)
 
     def perform_create(self, serializer):
         """Set the tenant and auto-generate our_sales_order_num when creating a new sales order."""

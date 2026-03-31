@@ -4,11 +4,9 @@ Search Intelligence Service (Phase 3)
 Combines NLP query processing, continuous search, and real-time updates.
 """
 import json
-import re
-from typing import Dict, List, Any
+from typing import Dict, List
 from django.core.cache import cache
 from django.db.models import Q
-import os
 
 
 class SearchIntelligenceService:

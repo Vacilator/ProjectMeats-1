@@ -14,7 +14,7 @@
  * 
  * Created: 2026-02-04 - Phase 1.3 Widget Real Data
  */
-import { useState, useEffect, useCallback } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { apiClient } from '../services/apiService';
 
 // ============================================================================
@@ -83,44 +83,22 @@ const REFETCH_INTERVAL = 5 * 60 * 1000; // 5 minutes
 // ============================================================================
 
 export const useCockpitStats = (): UseCockpitStatsReturn => {
-  const [stats, setStats] = useState<CockpitStats | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
-
-  const fetchStats = useCallback(async () => {
-    try {
-      setIsLoading(true);
-      setError(null);
-      
+  const query = useQuery({
+    queryKey: ['cockpit', 'stats'],
+    queryFn: async () => {
       const response = await apiClient.get<CockpitStats>('cockpit/stats/');
-      setStats(response.data);
-    } catch (err: any) {
-      console.error('Failed to fetch cockpit stats:', err);
-      setError(err.response?.data?.error || 'Failed to fetch dashboard statistics');
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
-
-  // Initial fetch
-  useEffect(() => {
-    fetchStats();
-  }, [fetchStats]);
-
-  // Auto-refresh every 5 minutes
-  useEffect(() => {
-    const interval = setInterval(() => {
-      fetchStats();
-    }, REFETCH_INTERVAL);
-
-    return () => clearInterval(interval);
-  }, [fetchStats]);
+      return response.data;
+    },
+    refetchInterval: REFETCH_INTERVAL,
+  });
 
   return {
-    stats,
-    isLoading,
-    error,
-    refetch: fetchStats,
+    stats: query.data ?? null,
+    isLoading: query.isLoading,
+    error: query.error instanceof Error ? query.error.message : query.error ? String(query.error) : null,
+    refetch: async () => {
+      await query.refetch();
+    },
   };
 };
 

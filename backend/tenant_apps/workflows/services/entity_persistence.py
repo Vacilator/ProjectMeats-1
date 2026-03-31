@@ -18,7 +18,6 @@ from django.db import transaction
 from django.apps import apps
 from django.contrib.auth.models import User
 
-from apps.tenants.models import Tenant
 
 logger = logging.getLogger(__name__)
 
@@ -38,7 +37,7 @@ ENTITY_MODEL_REGISTRY: Dict[str, Tuple[str, str]] = {
     'location': ('locations', 'Location'),
     'contact': ('contacts', 'Contact'),
     'carrier': ('carriers', 'Carrier'),
-    'product': ('products', 'Product'),
+    'product': ('system', 'Product'),
     'inquiry': ('inquiries', 'Inquiry'),
     'fulfillment': ('fulfillments', 'Fulfillment'),
 }

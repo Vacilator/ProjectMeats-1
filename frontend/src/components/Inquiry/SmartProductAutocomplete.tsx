@@ -125,7 +125,8 @@ const Dropdown = styled.div<{ $isOpen: boolean }>`
   border: 1px solid rgb(var(--color-border));
   border-radius: 8px;
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
-  z-index: 1000;
+  /* Sit above modal/table stacking contexts */
+  z-index: 2000;
   
   /* Custom scrollbar */
   &::-webkit-scrollbar {

@@ -220,14 +220,27 @@ const EvaluationResult = styled.div<{ result: boolean }>`
 `;
 
 const StyledHandle = styled(Handle)<{ handleType: 'true' | 'false' }>`
-  width: 12px;
-  height: 12px;
+  width: 14px;
+  height: 14px;
   border: 2px solid ${props => 
     props.handleType === 'true' 
       ? 'rgb(34, 197, 94)' 
       : 'rgb(239, 68, 68)'
   };
   background: rgb(var(--color-surface));
+  border-radius: 6px;
+  cursor: crosshair;
+  z-index: 20;
+
+  &.react-flow__handle-top,
+  &[data-handlepos='top'] {
+    top: -12px;
+  }
+
+  &.react-flow__handle-bottom,
+  &[data-handlepos='bottom'] {
+    bottom: -12px;
+  }
   
   &:hover {
     background: ${props => 
@@ -235,6 +248,7 @@ const StyledHandle = styled(Handle)<{ handleType: 'true' | 'false' }>`
         ? 'rgba(34, 197, 94, 0.2)' 
         : 'rgba(239, 68, 68, 0.2)'
     };
+    transform: scale(1.08);
   }
 `;
 
@@ -323,9 +337,18 @@ export const ConditionalBranchNode: React.FC<ConditionalBranchNodeProps> = ({
       {/* Input handle */}
       <Handle
         type="target"
-        position={Position.Left}
+        position={Position.Top}
         id="input"
-        style={{ top: '50%' }}
+        style={{
+          left: '50%',
+          width: 14,
+          height: 14,
+          background: 'rgb(var(--color-primary))',
+          border: '2px solid rgb(var(--color-surface))',
+          borderRadius: 6,
+          transform: 'translateX(-50%)',
+        }}
+        aria-label="Conditional Branch input"
       />
       
       {/* Header */}
@@ -372,17 +395,19 @@ export const ConditionalBranchNode: React.FC<ConditionalBranchNodeProps> = ({
       {/* Output handles */}
       <StyledHandle
         type="source"
-        position={Position.Right}
+        position={Position.Bottom}
         id="true"
         handleType="true"
-        style={{ top: '35%' }}
+        style={{ left: '35%', transform: 'translateX(-50%)' }}
+        aria-label="Conditional Branch true path"
       />
       <StyledHandle
         type="source"
-        position={Position.Right}
+        position={Position.Bottom}
         id="false"
         handleType="false"
-        style={{ top: '65%' }}
+        style={{ left: '65%', transform: 'translateX(-50%)' }}
+        aria-label="Conditional Branch false path"
       />
     </NodeContainer>
   );

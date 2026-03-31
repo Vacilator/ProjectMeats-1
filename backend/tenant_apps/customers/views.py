@@ -17,6 +17,12 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.exceptions import ValidationError as DRFValidationError
 from django.core.exceptions import ValidationError
+from django.contrib.postgres.aggregates import ArrayAgg
+from django.contrib.postgres.fields import ArrayField
+from django.db import models
+from django.db.models import Q, Value
+from django.db.models.functions import Coalesce
+
 from tenant_apps.customers.models import Customer
 from tenant_apps.customers.serializers import CustomerSerializer
 from apps.tenants.models import TenantUser
@@ -53,7 +59,25 @@ class CustomerViewSet(viewsets.ModelViewSet):
         """
         # Use tenant from middleware
         if hasattr(self.request, 'tenant') and self.request.tenant:
-            return Customer.objects.for_tenant(self.request.tenant)
+            tenant = self.request.tenant
+
+            empty_id_array = Value([], output_field=ArrayField(models.BigIntegerField()))
+
+            preferred_from_locations = ArrayAgg(
+                'customer_locations__associated_master_product_links__master_product_id',
+                distinct=True,
+                filter=Q(customer_locations__associated_master_product_links__tenant=tenant),
+            )
+            preferred_from_contacts = ArrayAgg(
+                'customer_locations__contacts__preferred_master_product_links__master_product_id',
+                distinct=True,
+                filter=Q(customer_locations__contacts__preferred_master_product_links__tenant=tenant),
+            )
+
+            return Customer.objects.for_tenant(tenant).annotate(
+                preferred_products_from_locations=Coalesce(preferred_from_locations, empty_id_array),
+                preferred_products_from_contacts=Coalesce(preferred_from_contacts, empty_id_array),
+            )
         
         # No tenant = no data (security)
         logger.warning(

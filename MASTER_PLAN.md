@@ -1,12 +1,44 @@
 # MASTER_PLAN.md (Canonical)
 
 **Status**: 🔄 Living document (canonical source of truth)  
-**Last Updated**: 2026-03-26  
+**Last Updated**: 2026-03-27  
 **Primary Focus**: Phase 7 (Intelligent Workform Editor) stability + business-usable Admin/Cockpit workflows  
 
 This file is the **canonical plan + current truth snapshot**.
 - **PR execution log (append-only):** `.github/MASTER_PLAN.md`
 - **Reference roadmaps:** `ROADMAP.md`, `UI_ROADMAP.md` (may contain outdated “100% complete” claims; do not treat as authoritative)
+
+---
+
+## Recovery Execution Plan (as of 2026-03-27T17:03Z)
+
+We are re-validating and completing the last ~25 prompts with **evidence-based acceptance criteria** and strict shipping discipline.
+
+## State Audit & Remaining P0s (as of 2026-03-27T18:47Z)
+
+### Observed runtime issues
+- Workforms AI Suggestions: frontend calling `POST /api/v1/suggest-nodes/` gets 404; backend `SuggestNodesView` exists but is not routed. Align to `POST /api/v1/workflows/suggest-nodes/`.
+- AI Chat: lessons memory NameError fixed (PR #4045); remaining 400s should be treated as environment config issues (missing OPENAI_API_KEY) with graceful messaging.
+- Charts: Recharts `ResponsiveContainer` warnings (width/height -1) indicate parent container sizing gaps; fix to reduce noise.
+
+### Priority execution strategy
+1) Quick wins: fix suggest-nodes route drift; reduce chart sizing warnings.
+2) Universal Forms + Cockpit Search: make forms truly usable (save/create CTA, key-fields-first + expand-all, single edit toggle, searchable FK by name, per-keystroke refresh where required).
+3) Workform Editor UX: connectors top/bottom, remove conflicting collapse buttons, drag body, inline title edit, reorder arrows swap edges, show key config summary in-node.
+
+**Shipping discipline (MANDATORY):** every batch is shipped via **new branch → PR → merge to `development`**.
+
+### Execution order (P0→P1)
+1. **Docs plan** (this section + PR log entry) — merge first.
+2. ✅ **Cockpit Favorites (industry-grade)** — shipped (backend favorites API + optimistic UX, tenant-safe, RLS-backed). PR: **#4037**.
+3. **Email Ingestion Monitor “Sync Now”:** ensure decrypt errors surface as stable structured codes and the UI shows a reconnect CTA (no raw string).
+4. **AI Document Upload:** reproduce via `test_document_upload` command and eliminate remaining 500s.
+5. **Verify prior batches:** Universal Forms, Cockpit Search relevance/entity coverage, Workform Editor UX.
+
+### Acceptance criteria (high signal)
+- Favorites persist across reload and do not collide across tenants.
+- Sync Now never emits raw decrypt error strings; always shows reconnect guidance.
+- PDF upload returns 201/400 only (no 500) with actionable error payloads.
 
 ---
 
@@ -16,6 +48,7 @@ This file is the **canonical plan + current truth snapshot**.
 - **Type-check hardening:** `pr-golden-sweep-typecheck` (tracked in SQL session todos)
 
 ### Recently shipped fixes (evidence)
+- Cockpit Favorites: backend persistence + optimistic UX + RLS policy — PR #4037
 - Reports Summary 500 fixed — PR #3949
 - Tenant Lists create 500 fixed/hardened — PR #3950
 - Email Ingestion “Sync Now” correctness + pagination + error surfacing — PR #3951
@@ -56,16 +89,19 @@ This file is the **canonical plan + current truth snapshot**.
 ## Backlog (High-signal, execution-ordered)
 
 ### P0 — Stability / correctness
-- Finish TypeScript type-check hardening (`npm run type-check` clean).
-- Workforms Editor: maintain hook safety, node config save UX, and layout predictability.
+- **Type safety gate:** `npm run type-check` clean; reduce `any` / runtime prop-shape errors.
+- **Graceful degradation / feature flags:** missing secrets/infra (AI, email, Outlook, pgvector) must not crash UX; expose availability in health.
+- **Workforms Editor:** maintain hook safety, node config save UX, and layout predictability.
 
 ### P0 — Business usability
-- Admin Workspace: option lists/system lists visibility + custom list create/edit flows.
-- Email ingestion monitor: correctness, diagnostics, and attachment-aware detection.
+- **Cockpit Search relevance:** ranking + fuzzy match + recency; persistent favorites that are tenant-safe (RLS-backed).
+- **Mobile responsiveness:** Cockpit + core CRUD forms usable <768px; touch targets; FlowEditor mobile/tablet fallback.
+- **Email ingestion monitor:** correctness, diagnostics, reconnect CTA, progress reporting, attachment-aware detection.
+- **Admin workspace usability:** option lists/system lists visibility + custom list create/edit flows.
 
 ### P1 — Operational excellence
-- CI automation: promotion PRs dev→uat and uat→prod/main remain green and observable.
-- Documentation hygiene: demote/label duplicated roadmaps, remove contradictory “100% complete” claims.
+- **Documentation hygiene:** demote/label duplicated roadmaps, remove contradictory “100% complete” claims.
+- **CI automation:** promotion PRs dev→uat and uat→prod/main remain green and observable.
 
 ---
 
@@ -80,11 +116,47 @@ This file is the **canonical plan + current truth snapshot**.
 
 This section captures the highest-signal gaps found during repo review, with concrete acceptance criteria.
 
+### 0) Competitive gap analysis (industry leader benchmark, 2026-03-30)
+Benchmark context: Salesforce/HubSpot (CRM + search), Airtable/Retool (data UX), Monday/Asana (work mgmt), Make/Zapier (automation), modern multi-tenant SaaS baselines.
+
+#### P0 — Business-critical gaps
+1) **Search relevance + entity ranking** (Cockpit/SmartSearch)
+- Acceptance: ranked results (not just lists), fuzzy match, recency weighting, consistent result cards.
+- Acceptance: favorites persist across reload and are **tenant-safe** (RLS-backed); localStorage can be a fallback but not the source of truth.
+
+2) **Mobile/touch usability**
+- Acceptance: Cockpit + core CRUD forms usable <768px; touch targets ≥44px; no clipped modals/menus.
+- Acceptance: FlowEditor has a defined mobile/tablet behavior (read-only, simplified view, or explicit “desktop required” messaging).
+
+3) **Graceful degradation for missing secrets/infra (zero tolerance for crashes)**
+- Acceptance: backend exposes feature availability (e.g., AI/email/Outlook/RAG) via health/config.
+- Acceptance: frontend gates feature UI and shows deterministic “Enable in Settings” CTAs instead of opaque 400/500s.
+
+4) **Email ingestion reliability + diagnostics (Outlook/SendGrid UX parity)**
+- Acceptance: stable error codes (auth vs decrypt vs network vs quota vs processing), reconnect CTA on auth/decrypt failures.
+- Acceptance: progress/summary reporting for long syncs (partial results OK, no silent timeouts).
+
+5) **Type safety hardening**
+- Acceptance: `npm run type-check` is clean; new `any` usage is exceptional and deliberate.
+
+#### P1 — High-value gaps
+- Reporting dashboards (drilldown + export).
+- Workflow execution monitoring UI (traces, node I/O, retries).
+- Admin list builder + bulk ops.
+- Form intelligence (auto-populate, conditional fields, cascading selects).
+- Webhooks/connectors foundation (start outbound; expand inbound later).
+
+#### P2 — “Polish / expansion” gaps
+- Multi-user collaboration for FlowEditor.
+- White-label branding depth (tenant email branding + domains).
+- Knowledge base + help AI (RAG) with clear off-switch when pgvector not available.
+- Predictive analytics (only after data quality + reporting foundations).
+
 ### 1) Documentation consistency (avoid contradictory “100% complete” claims)
-**Gap:** Multiple docs (e.g. `ROADMAP.md`, some verification reports) contain “100% complete / all phases complete” statements that can conflict with the real operational backlog.
+**Gap:** Multiple docs (e.g. `ROADMAP.md`, `docs/plans/*`) contain “100% complete / all phases complete” statements that conflict with the real operational backlog.
 
 **Plan:**
-- Add explicit “reference/historical” banners to non-canonical docs.
+- Add explicit “REFERENCE ONLY” banners to non-canonical docs.
 - Ensure only `MASTER_PLAN.md` claims current-state status.
 
 **Acceptance criteria:**
@@ -1063,12 +1135,12 @@ Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
 - **Handoff Document**: `docs/HANDOFF.md`
 
 ### Phase-Specific Docs
-- Phase 1: `docs/plans/PHASE1_INTEGRATION_COMPLETE.md`
-- Phase 2: `docs/plans/PHASE2_EXECUTION_COMPLETE.md`
-- Phase 3: `docs/plans/PHASE3_DEPLOYMENT_CHECKLIST.md`
-- Phase 4: `docs/plans/PHASE4_COMPLETE_IMPLEMENTATION.md`
-- Phase 5: `docs/plans/PHASE5_IMPLEMENTATION_SUMMARY.md`
-- Phase 6: `docs/plans/PHASE6_SUMMARY.md`, `docs/plans/PHASE_6_*_COMPLETE.md`
+- Phase 1: `docs/plans/archive/PHASE1_INTEGRATION_COMPLETE.md`
+- Phase 2: `docs/plans/archive/PHASE2_EXECUTION_COMPLETE.md`
+- Phase 3: `docs/plans/archive/PHASE3_DEPLOYMENT_CHECKLIST.md`
+- Phase 4: `docs/plans/archive/PHASE4_EXECUTION_SUMMARY.md`
+- Phase 5: `docs/plans/archive/PHASE5_IMPLEMENTATION_SUMMARY.md`
+- Phase 6: `docs/plans/archive/PHASE6_SUMMARY.md`, `docs/plans/archive/PHASE_6_*_COMPLETE.md`
 
 ---
 

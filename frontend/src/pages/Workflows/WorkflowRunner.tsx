@@ -5,6 +5,7 @@
  * Manages workflow state and renders the DynamicFormEngine.
  */
 import React, { useState, useEffect } from 'react';
+import { Skeleton } from 'antd';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { adminClient } from '../../services/apiService';
@@ -192,7 +193,7 @@ export const WorkflowRunner: React.FC = () => {
     return (
       <PageContainer title="Loading Workflow...">
         <Container>
-          <LoadingSpinner>Loading workflow...</LoadingSpinner>
+          <Skeleton active paragraph={{ rows: 8 }} />
         </Container>
       </PageContainer>
     );
@@ -268,7 +269,7 @@ export const WorkflowRunner: React.FC = () => {
 
         {!currentSchema && !isLoading && (
           <Card padding="lg">
-            <LoadingSpinner>Loading form schema...</LoadingSpinner>
+            <Skeleton active paragraph={{ rows: 6 }} />
           </Card>
         )}
       </Container>

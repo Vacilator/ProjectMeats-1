@@ -15,10 +15,12 @@ Handlers:
 """
 import logging
 import re
-from typing import Dict, Any, Optional
+from typing import Dict, Any
 from django.core.mail import send_mail
 from django.conf import settings
 from django.apps import apps
+
+from apps.tenants.email_utils import is_sendgrid_quota_exceeded
 
 logger = logging.getLogger(__name__)
 
@@ -109,7 +111,16 @@ class ActionExecutor:
             }
             
         except Exception as e:
-            logger.exception(f"Error sending email: {str(e)}")
+            if is_sendgrid_quota_exceeded(e):
+                logger.critical(
+                    "🚨 SendGrid quota exceeded — workflow action email to %s NOT sent. "
+                    "Please upgrade the SendGrid plan or wait for the quota to reset. "
+                    "Error: %s",
+                    to_email,
+                    e,
+                )
+            else:
+                logger.exception(f"Error sending email: {str(e)}")
             return {'success': False, 'error': str(e)}
     
     def create_record(self, config: Dict[str, Any]) -> Dict[str, Any]:
@@ -380,7 +391,7 @@ class ActionExecutor:
             'purchase_order': ('purchase_orders', 'PurchaseOrder'),
             'sales_order': ('sales_orders', 'SalesOrder'),
             'invoice': ('invoices', 'Invoice'),
-            'product': ('products', 'Product'),
+            'product': ('system', 'Product'),
         }
         
         if entity_type not in model_map:
@@ -389,7 +400,10 @@ class ActionExecutor:
         app_label, model_name = model_map[entity_type]
         
         try:
+            if app_label == 'system':
+                return apps.get_model('system', model_name)
+
             return apps.get_model(f'tenant_apps.{app_label}', model_name)
         except LookupError:
-            logger.error(f"Model not found: tenant_apps.{app_label}.{model_name}")
+            logger.error(f"Model not found: {app_label}.{model_name}")
             return None

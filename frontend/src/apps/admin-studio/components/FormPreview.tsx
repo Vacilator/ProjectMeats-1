@@ -5,6 +5,7 @@
  * Helps users visualize their field configurations before saving.
  */
 import React, { useState } from 'react';
+import { formatUsPhone } from '@/utils/phone';
 
 interface Field {
   id: string;
@@ -40,7 +41,6 @@ const FormPreview: React.FC<FormPreviewProps> = ({ fields, onClose }) => {
     switch (field.type) {
       case 'text':
       case 'email':
-      case 'phone':
       case 'url':
         return (
           <input
@@ -50,6 +50,21 @@ const FormPreview: React.FC<FormPreviewProps> = ({ fields, onClose }) => {
             required={field.required}
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             placeholder={`Enter ${field.label.toLowerCase()}`}
+          />
+        );
+
+      case 'phone':
+        return (
+          <input
+            type="tel"
+            value={formatUsPhone(String(formData[field.key] || ''))}
+            onChange={(e) => handleChange(field.key, formatUsPhone(e.target.value))}
+            required={field.required}
+            maxLength={13}
+            inputMode="numeric"
+            autoComplete="tel"
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            placeholder={field.label ? `(XXX)XXX-XXXX` : '(XXX)XXX-XXXX'}
           />
         );
 

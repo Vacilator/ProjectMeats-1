@@ -51,6 +51,24 @@ const processQueue = (error: unknown | null) => {
   failedQueue = [];
 };
 
+const stripJsonContentTypeForFormData = (config: InternalAxiosRequestConfig) => {
+  if (typeof FormData === 'undefined') return;
+  if (!(config.data instanceof FormData)) return;
+
+  // Axios may represent headers as an AxiosHeaders instance (with .delete())
+  // or a plain object. We need to handle both.
+  const headersAny = config.headers as any;
+  if (!headersAny) return;
+
+  if (typeof headersAny.delete === 'function') {
+    headersAny.delete('Content-Type');
+    headersAny.delete('content-type');
+  } else {
+    delete headersAny['Content-Type'];
+    delete headersAny['content-type'];
+  }
+};
+
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
   timeout: 30000,
@@ -80,15 +98,7 @@ apiClient.interceptors.request.use(
     try {
       // IMPORTANT: When uploading files, ensure we do NOT force application/json.
       // Axios will set the correct multipart boundary automatically.
-      if (typeof FormData !== 'undefined' && config.data instanceof FormData) {
-        // Support both AxiosHeaders and plain object.
-        try {
-          delete (config.headers as any)['Content-Type'];
-          delete (config.headers as any)['content-type'];
-        } catch {
-          // ignore
-        }
-      }
+      stripJsonContentTypeForFormData(config);
 
       // Check if token needs refresh before making request
       if (isUsingJwt() && needsRefresh() && !isRefreshing) {
@@ -132,14 +142,7 @@ adminClient.interceptors.request.use(
     try {
       // IMPORTANT: When uploading files, ensure we do NOT force application/json.
       // Axios will set the correct multipart boundary automatically.
-      if (typeof FormData !== 'undefined' && config.data instanceof FormData) {
-        try {
-          delete (config.headers as any)['Content-Type'];
-          delete (config.headers as any)['content-type'];
-        } catch {
-          // ignore
-        }
-      }
+      stripJsonContentTypeForFormData(config);
 
       // Check if token needs refresh before making request
       if (isUsingJwt() && needsRefresh() && !isRefreshing) {
@@ -423,7 +426,15 @@ export interface Supplier {
   name: string;
   contact_person?: string;
   email?: string;
+
+  // New explicit phone slots
+  phone_mobile?: string;
+  phone_office?: string;
+  phone_office_extension?: string;
+
+  // Legacy primary phone (kept for backward compatibility)
   phone?: string;
+  phone_type?: 'mobile' | 'office';
   address?: string;
   city?: string;
   state?: string;
@@ -440,7 +451,16 @@ export interface Customer {
   name: string;
   contact_person?: string;
   email?: string;
+
+  // New explicit phone slots
+  phone_mobile?: string;
+  phone_office?: string;
+  phone_office_extension?: string;
+
+  // Legacy primary phone (kept for backward compatibility)
   phone?: string;
+  phone_type?: 'mobile' | 'office';
+
   address?: string;
   city?: string;
   state?: string;
@@ -457,6 +477,16 @@ export interface PurchaseOrder {
   id: number;
   order_number: string;
   supplier: number;
+
+  product?: string | null; // system.Product UUID
+  item_description?: string;
+  fresh_or_frozen?: string;
+  package_type?: string;
+  quantity?: number | null;
+  total_weight?: number | null;
+  weight_unit?: string;
+  price_per_unit?: number | null; // cost per lb
+
   total_amount: number;
   status: string;
   order_date: string;
@@ -465,8 +495,6 @@ export interface PurchaseOrder {
   created_at: string;
   updated_at: string;
   logistics_scenario?: string;
-  total_weight?: number;
-  weight_unit?: string;
   pick_up_location?: string | null; // Phase 4: Location UUID
   delivery_location?: string | null; // Phase 4: Location UUID
 }
@@ -477,6 +505,7 @@ export interface Contact {
   last_name: string;
   email?: string;
   phone?: string;
+  phone_type?: 'mobile' | 'office';
   company?: string;
   position?: string;
   created_at: string;
@@ -492,6 +521,7 @@ export interface Plant {
   zip_code?: string;
   country?: string;
   phone?: string;
+  phone_type?: 'mobile' | 'office';
   manager?: string;
   created_at: string;
   updated_at: string;
@@ -503,6 +533,7 @@ export interface Carrier {
   contact_person?: string;
   email?: string;
   phone?: string;
+  phone_type?: 'mobile' | 'office';
   address?: string;
   service_areas?: string;
   created_at: string;

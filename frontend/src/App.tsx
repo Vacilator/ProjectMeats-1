@@ -41,6 +41,7 @@ const queryClient = new QueryClient({
 // Page imports - Note: Dashboard replaced by Workspace, WorkflowList replaced by FormsFlows/Catalog
 import Suppliers from './pages/Suppliers';
 import Customers from './pages/Customers';
+import UniversalEntityRecordPage from './pages/Entities/UniversalEntityRecordPage';
 import PurchaseOrders from './pages/PurchaseOrders';
 import SalesOrders from './pages/SalesOrders';
 import AccountsReceivables from './pages/AccountsReceivables';
@@ -52,6 +53,8 @@ import SupplierProducts from './pages/Suppliers/Products';
 import CustomerLocations from './pages/Customers/Locations';
 import CustomerProducts from './pages/Customers/Products';
 import PlantProducts from './pages/Plants/Products';
+import PlantDetailView from './pages/Plants/PlantDetailView';
+import LocationDetailView from './pages/Locations/LocationDetailView';
 import Carriers from './pages/Carriers';
 import AIAssistant from './pages/AIAssistant';
 import CallLog from './pages/Cockpit/CallLog';
@@ -66,7 +69,7 @@ import Profile from './pages/Profile';
 import Settings from './pages/Settings';
 import { ComingSoon } from './pages/ComingSoon';
 import ApiTestComponent from './components/ApiTestComponent';
-import { WorkflowRunner } from './pages/Workflows';
+import { WorkflowRunner, PerfHarness } from './pages/Workflows';
 import { WorkflowMonitor } from './pages/Workflows/WorkflowMonitor';
 import { WorkflowExecutionDetails } from './pages/Workflows/WorkflowExecutionDetails';
 import { FormSubmissionModal } from './components/FormSubmission';
@@ -88,6 +91,7 @@ import AdminErrorBoundary from './components/Admin/AdminErrorBoundary';
 import { ErrorBoundary as ProductionErrorBoundary } from './components/common/ErrorBoundary';
 import { logger } from './utils/logger';
 const CockpitPage = lazy(() => import('./pages/Cockpit'));
+import CockpitDashboard from './pages/Cockpit/CockpitDashboard';
 import ProcessMonitor from './pages/Cockpit/ProcessMonitor';
 import CockpitEntityRedirect from './pages/Cockpit/CockpitEntityRedirect';
 import { NotificationPreferences } from './pages/Settings/index';
@@ -236,13 +240,39 @@ const App: React.FC = () => {
                 
                 {/* Suppliers & Related */}
                 <Route path="suppliers" element={<Suppliers />} />
+                <Route
+                  path="suppliers/new"
+                  element={<UniversalEntityRecordPage entityType="supplier" basePath="/suppliers" mode="create" />}
+                />
+                <Route
+                  path="suppliers/:id/edit"
+                  element={<UniversalEntityRecordPage entityType="supplier" basePath="/suppliers" mode="edit" />}
+                />
+                <Route
+                  path="suppliers/:id"
+                  element={<UniversalEntityRecordPage entityType="supplier" basePath="/suppliers" mode="view" />}
+                />
                 <Route path="suppliers/contacts" element={<Contacts />} />
                 <Route path="suppliers/plants" element={<Plants />} />
                 <Route path="suppliers/:id/products" element={<SupplierProducts />} />
+                <Route path="plants/:id" element={<PlantDetailView />} />
                 <Route path="plants/:id/products" element={<PlantProducts />} />
+                <Route path="locations/:id" element={<LocationDetailView />} />
                 
                 {/* Customers & Related */}
                 <Route path="customers" element={<Customers />} />
+                <Route
+                  path="customers/new"
+                  element={<UniversalEntityRecordPage entityType="customer" basePath="/customers" mode="create" />}
+                />
+                <Route
+                  path="customers/:id/edit"
+                  element={<UniversalEntityRecordPage entityType="customer" basePath="/customers" mode="edit" />}
+                />
+                <Route
+                  path="customers/:id"
+                  element={<UniversalEntityRecordPage entityType="customer" basePath="/customers" mode="view" />}
+                />
                 <Route path="customers/contacts" element={<Contacts />} />
                 <Route path="customers/locations" element={<CustomerLocations />} />
                 <Route path="customers/:id/products" element={<CustomerProducts />} />
@@ -268,7 +298,7 @@ const App: React.FC = () => {
                 <Route path="carriers" element={<Carriers />} />
                 <Route path="contacts" element={<Contacts />} />
                 <Route path="ai-assistant" element={<AIAssistant />} />
-                <Route path="calls" element={<CallLog />} />
+                <Route path="calls" element={<Navigate to="/cockpit/calls" replace />} />
                 <Route path="call-log" element={<Navigate to="/calls" replace />} />
                 <Route path="processes" element={<Navigate to="/forms-flows/catalog" replace />} />
                 <Route path="reports" element={<Reports />} />
@@ -289,6 +319,7 @@ const App: React.FC = () => {
                   <Route index element={<Navigate to="/workforms/tasks" replace />} />
                   <Route path="tasks" element={<MyTasks />} />
                   <Route path="in-progress" element={<WorkFormsInProgress />} />
+                  <Route path="in-progress/:id" element={<WorkFormsInProgress />} />
                   <Route path="monitoring" element={<WorkFormsMonitoring />} />
                   <Route path="catalog" element={<WorkFormsCatalog />} />
                   <Route path="history" element={<WorkFormsHistory />} />
@@ -316,6 +347,14 @@ const App: React.FC = () => {
                 <Route path="workflows/monitor" element={<WorkflowMonitor />} />
                 <Route path="workflows/run/:runId" element={<WorkflowRunner />} />
                 <Route path="workflows/details/:runId" element={<WorkflowExecutionDetails />} />
+                <Route
+                  path="workflows/perf-harness"
+                  element={
+                    (import.meta.env.DEV || process.env.NODE_ENV === 'development')
+                      ? <PerfHarness />
+                      : <Navigate to="/workforms/catalog" replace />
+                  }
+                />
                 
                 {/* Form Submissions */}
                 <Route path="my-submissions" element={<MySubmissions />} />
@@ -373,10 +412,13 @@ const App: React.FC = () => {
                       <CockpitPage />
                     </Suspense>
                   }
-                />
-                <Route path="cockpit/process-monitor" element={<ProcessMonitor />} />
-                {/* Legacy deep-link route (redirects into /cockpit breadcrumb UX) */}
-                <Route path="cockpit/entity/:entityType/:entityId" element={<CockpitEntityRedirect />} />
+                >
+                  <Route index element={<Navigate to="/cockpit/dashboard" replace />} />
+                  <Route path="dashboard" element={<CockpitDashboard />} />
+                  <Route path="process-monitor" element={<ProcessMonitor />} />
+                  <Route path="calls" element={<CallLog />} />
+                  <Route path="entity/:entityType/:entityId" element={<CockpitEntityRedirect />} />
+                </Route>
                 {/* Note: /workspace now points to Admin Workspace, not Cockpit */}
               </Route>
             </Routes>

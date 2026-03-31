@@ -39,18 +39,21 @@ const QuickActionsEditor: React.FC<QuickActionsEditorProps> = ({ isOpen, onClose
 
   if (!isOpen) return null;
 
-  const handleAddForm = (form: AvailableForm) => {
-    // Check if already added
-    if (localActions.some(a => a.form_id === form.id)) {
-      return;
-    }
+  const handleAddForm = (item: AvailableForm) => {
+    const itemType = item.type === 'workflow' ? 'workflow' : 'form';
+
+    const alreadyAdded = itemType === 'workflow'
+      ? localActions.some(a => a.type === 'workflow' && a.workflow_id === item.id)
+      : localActions.some(a => a.type === 'form' && a.form_id === item.id);
+
+    if (alreadyAdded) return;
 
     const newAction: QuickActionItem = {
       id: `qa_${Date.now()}`,
-      type: 'form',
-      form_id: form.id,
-      label: form.name,
-      icon: form.icon || 'file-text',  // Keep original icon or default
+      type: itemType,
+      ...(itemType === 'workflow' ? { workflow_id: item.id } : { form_id: item.id }),
+      label: item.name,
+      icon: item.icon || (itemType === 'workflow' ? 'layers' : 'file-text'),
       order: localActions.length,
     };
 
@@ -97,9 +100,12 @@ const QuickActionsEditor: React.FC<QuickActionsEditorProps> = ({ isOpen, onClose
     }
   };
 
-  const availableToAdd = availableForms.filter(
-    form => !localActions.some(a => a.form_id === form.id)
-  );
+  const availableToAdd = availableForms.filter((item) => {
+    const itemType = item.type === 'workflow' ? 'workflow' : 'form';
+    return itemType === 'workflow'
+      ? !localActions.some(a => a.type === 'workflow' && a.workflow_id === item.id)
+      : !localActions.some(a => a.type === 'form' && a.form_id === item.id);
+  });
 
   return (
     <Overlay onClick={onClose}>
@@ -158,25 +164,46 @@ const QuickActionsEditor: React.FC<QuickActionsEditorProps> = ({ isOpen, onClose
           </Section>
 
           <Section>
-            <SectionTitle $theme={theme}>Available Forms</SectionTitle>
+            <SectionTitle $theme={theme}>Available Workforms & Forms</SectionTitle>
             <AvailableList $theme={theme}>
-              {availableToAdd.length === 0 ? (
+              {availableForms.length === 0 ? (
                 <EmptyMessage $theme={theme}>
-                  All available forms have been added.
+                  No active forms or workforms available for Quick Actions. Publish a form or workform first.
+                </EmptyMessage>
+              ) : availableToAdd.length === 0 ? (
+                <EmptyMessage $theme={theme}>
+                  All available items have been added.
                 </EmptyMessage>
               ) : (
-                availableToAdd.map((form) => (
-                  <AvailableItem key={form.id} $theme={theme} onClick={() => handleAddForm(form)}>
-                    <ActionIconWrapper>
-                      <Icon name={form.icon || 'file-text'} size={20} />
-                    </ActionIconWrapper>
-                    <FormInfo>
-                      <FormName>{form.name}</FormName>
-                      <FormMeta>{form.step_count} step{form.step_count !== 1 ? 's' : ''}</FormMeta>
-                    </FormInfo>
-                    <AddButton $theme={theme}>+ Add</AddButton>
-                  </AvailableItem>
-                ))
+                availableToAdd.map((item) => {
+                  const itemType = item.type === 'workflow' ? 'workflow' : 'form';
+                  const count = itemType === 'workflow'
+                    ? (item.node_count ?? item.step_count ?? 0)
+                    : (item.step_count ?? 0);
+                  const noun = itemType === 'workflow' ? 'node' : 'step';
+
+                  return (
+                    <AvailableItem
+                      key={`${itemType}:${item.id}`}
+                      $theme={theme}
+                      onClick={() => handleAddForm(item)}
+                    >
+                      <ActionIconWrapper>
+                        <Icon
+                          name={item.icon || (itemType === 'workflow' ? 'layers' : 'file-text')}
+                          size={20}
+                        />
+                      </ActionIconWrapper>
+                      <FormInfo>
+                        <FormName>{item.name}</FormName>
+                        <FormMeta>
+                          {count} {noun}{count !== 1 ? 's' : ''}
+                        </FormMeta>
+                      </FormInfo>
+                      <AddButton $theme={theme}>+ Add</AddButton>
+                    </AvailableItem>
+                  );
+                })
               )}
             </AvailableList>
           </Section>
@@ -373,7 +400,7 @@ const FormName = styled.div`
 
 const FormMeta = styled.div`
   font-size: 12px;
-  color: #666;
+  color: rgb(var(--color-text-secondary));
 `;
 
 const AddButton = styled.button<{ $theme: Theme }>`

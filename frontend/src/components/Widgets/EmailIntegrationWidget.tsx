@@ -11,6 +11,7 @@ import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { Mail, CheckCircle, AlertTriangle, XCircle, Plus, Trash2, RefreshCw } from 'lucide-react';
 import { apiClient } from '../../services/apiService';
+import { confirmDialog, showAlert } from '@/utils/uiDialogs';
 
 // ============================================================================
 // TypeScript Interfaces
@@ -351,21 +352,35 @@ export const EmailIntegrationWidget: React.FC<EmailIntegrationWidgetProps> = ({ 
       }
     } catch (err: any) {
       console.error('Failed to initiate OAuth connection:', err);
-      alert(err.response?.data?.error || 'Failed to initiate connection. Please try again.');
+      showAlert({
+        type: 'error',
+        title: 'Error',
+        content: err.response?.data?.error || 'Failed to initiate connection. Please try again.',
+      });
     }
   };
 
   const handleDisconnect = async (accountId: number) => {
-    if (!confirm('Are you sure you want to disconnect this email account?')) {
-      return;
-    }
+    const confirmed = await confirmDialog({
+      title: 'Disconnect email account?',
+      content: 'Are you sure you want to disconnect this email account?',
+      okText: 'Disconnect',
+      cancelText: 'Cancel',
+      danger: true,
+    });
+
+    if (!confirmed) return;
 
     try {
       await apiClient.delete(`/workflows/email-accounts/${accountId}/`);
       setAccounts(accounts.filter(acc => acc.id !== accountId));
     } catch (err: any) {
       console.error('Failed to disconnect account:', err);
-      alert(err.response?.data?.message || 'Failed to disconnect account');
+      showAlert({
+        type: 'error',
+        title: 'Error',
+        content: err.response?.data?.message || 'Failed to disconnect account',
+      });
     }
   };
 

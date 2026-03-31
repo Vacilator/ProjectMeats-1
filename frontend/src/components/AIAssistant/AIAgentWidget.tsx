@@ -31,6 +31,7 @@ import {
 
 import { useToast } from '../../hooks/useToast';
 import { businessApi } from '../../services/businessApi';
+import { useHealth } from '@/hooks/useHealth';
 import { HITLReviewCard } from './HITLReviewCard';
 
 type AgentState = 'idle' | 'thinking' | 'action_required';
@@ -530,6 +531,8 @@ export const AIAgentWidget: React.FC = () => {
 
   const [state, setState] = useState<AgentState>('idle');
   const [expanded, setExpanded] = useState(false);
+  const { data: health } = useHealth();
+  const aiEnabled = health?.features?.ai ?? true;
   const [detail, setDetail] = useState<ReviewRequiredDetail>({});
   const [draft, setDraft] = useState('');
 
@@ -730,6 +733,10 @@ export const AIAgentWidget: React.FC = () => {
   };
 
   const addAttachments = async (files: File[]) => {
+    if (!aiEnabled) {
+      toast.error('AI is not enabled for this environment. Configure OpenAI in Settings, then retry.');
+      return;
+    }
     const accepted: File[] = [];
     for (const f of files) {
       const err = validateFile(f);
@@ -751,9 +758,8 @@ export const AIAgentWidget: React.FC = () => {
         form.append('file', file);
         form.append('session', sid);
 
-        const res = await businessApi.post('/ai-assistant/ai-documents/', form, {
-          headers: { 'Content-Type': 'multipart/form-data' },
-        });
+        const res = await businessApi.post('/ai-assistant/ai-documents/', form);
+
 
         const doc = (res.data && typeof res.data === 'object' ? (res.data as Record<string, unknown>) : {}) || {};
         const next: UploadedAttachment = {
@@ -773,8 +779,33 @@ export const AIAgentWidget: React.FC = () => {
     } catch (e: unknown) {
       const errObj = e && typeof e === 'object' ? (e as Record<string, unknown>) : null;
       const response = errObj?.response && typeof errObj.response === 'object' ? (errObj.response as Record<string, unknown>) : null;
-      const data = response?.data && typeof response.data === 'object' ? (response.data as Record<string, unknown>) : null;
-      const serverError = typeof data?.error === 'string' ? data.error : null;
+      const data = response?.data as unknown;
+
+      const formatSerializerErrors = (obj: Record<string, unknown>): string | null => {
+        const parts: string[] = [];
+        for (const [key, value] of Object.entries(obj)) {
+          if (typeof value === 'string') {
+            parts.push(`${key}: ${value}`);
+            continue;
+          }
+          if (Array.isArray(value) && value.length > 0) {
+            const first = value[0];
+            if (typeof first === 'string') parts.push(`${key}: ${first}`);
+          }
+        }
+        return parts.length ? parts.join(' • ') : null;
+      };
+
+      let serverError: string | null = null;
+      if (typeof data === 'string') {
+        serverError = data;
+      } else if (data && typeof data === 'object') {
+        const obj = data as Record<string, unknown>;
+        if (typeof obj.error === 'string') serverError = obj.error;
+        else if (typeof obj.detail === 'string') serverError = obj.detail;
+        else serverError = formatSerializerErrors(obj);
+      }
+
       toast.error(serverError || 'Failed to upload attachment(s)');
     } finally {
       setUploadingAttachments((n) => Math.max(0, n - accepted.length));
@@ -1013,6 +1044,21 @@ export const AIAgentWidget: React.FC = () => {
     async (text: string, contextOverride?: Record<string, unknown>) => {
       if (!text) return;
 
+      if (!aiEnabled) {
+        setMessages((m) => [
+          ...m,
+          {
+            id: newId(),
+            role: 'assistant',
+            content:
+              'AI is disabled for this environment (missing configuration). Set OPENAI_API_KEY (and related settings), then retry.',
+            createdAt: Date.now(),
+          },
+        ]);
+        setState('action_required');
+        return;
+      }
+
       setState('thinking');
       try {
         const sid = await ensureSession();
@@ -1051,7 +1097,7 @@ export const AIAgentWidget: React.FC = () => {
         setState('action_required');
       }
     },
-    [ensureSession, loadSessionMessages, pageContext, reloadSessions, setAttachments, setMessages, setState]
+    [aiEnabled, ensureSession, loadSessionMessages, pageContext, reloadSessions, setAttachments, setMessages, setState]
   );
 
   sendTextRef.current = sendText;
@@ -1059,6 +1105,25 @@ export const AIAgentWidget: React.FC = () => {
   const handleSend = async () => {
     const text = draft.trim();
     if (!text && attachments.length === 0) return;
+
+    // Allow local-only help even when AI is disabled.
+    const isLocalCommand = text === '/help';
+    if (!isLocalCommand && !aiEnabled) {
+      setExpanded(true);
+      setDraft('');
+      setMessages((m) => [
+        ...m,
+        {
+          id: newId(),
+          role: 'assistant',
+          content:
+            'AI is disabled for this environment (missing configuration). Set OPENAI_API_KEY (and related settings), then retry.',
+          createdAt: Date.now(),
+        },
+      ]);
+      setState('action_required');
+      return;
+    }
 
     setExpanded(true);
     setDraft('');

@@ -9,6 +9,7 @@
  */
 import React, { createContext, useContext, useEffect, useState, useCallback, ReactNode } from 'react';
 import { useAuth } from './AuthContext';
+import { getAuthHeader } from '../services/jwtService';
 
 // ============================================================================
 // TYPES
@@ -134,16 +135,31 @@ const NotificationsContext = createContext<NotificationsContextType | undefined>
 
 const API_BASE = '/api/v1/workflows';
 
+const buildApiHeaders = (): Record<string, string> => {
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
+
+  const authHeader = getAuthHeader();
+  if (authHeader) {
+    headers.Authorization = authHeader;
+  }
+
+  const tenantId = localStorage.getItem('tenantId');
+  if (tenantId) {
+    headers['X-Tenant-ID'] = tenantId;
+  }
+
+  return headers;
+};
+
 async function fetchNotificationsAPI(): Promise<Notification[]> {
   try {
-    const authToken = localStorage.getItem('authToken');
-    if (!authToken) return []; // Silently return empty if not authenticated
-    
+    const authHeader = getAuthHeader();
+    if (!authHeader) return []; // Silently return empty if not authenticated
+
     const response = await fetch(`${API_BASE}/notifications/`, {
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Token ${authToken}`,
-      },
+      headers: buildApiHeaders(),
     });
     
     // Silently return empty array for 401/404 (feature not available)
@@ -161,14 +177,11 @@ async function fetchNotificationsAPI(): Promise<Notification[]> {
 
 async function fetchUnreadCountAPI(): Promise<number> {
   try {
-    const authToken = localStorage.getItem('authToken');
-    if (!authToken) return 0; // Silently return 0 if not authenticated
-    
+    const authHeader = getAuthHeader();
+    if (!authHeader) return 0; // Silently return 0 if not authenticated
+
     const response = await fetch(`${API_BASE}/notifications/unread-count/`, {
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Token ${authToken}`,
-      },
+      headers: buildApiHeaders(),
     });
     
     // Silently return 0 for 401/404 (feature not available)
@@ -186,10 +199,7 @@ async function fetchUnreadCountAPI(): Promise<number> {
 async function markAsReadAPI(id: string): Promise<void> {
   const response = await fetch(`${API_BASE}/notifications/${id}/read/`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Token ${localStorage.getItem('authToken')}`,
-    },
+    headers: buildApiHeaders(),
   });
   if (!response.ok) throw new Error('Failed to mark notification as read');
 }
@@ -197,10 +207,7 @@ async function markAsReadAPI(id: string): Promise<void> {
 async function markAllAsReadAPI(): Promise<number> {
   const response = await fetch(`${API_BASE}/notifications/mark-all-read/`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Token ${localStorage.getItem('authToken')}`,
-    },
+    headers: buildApiHeaders(),
   });
   if (!response.ok) throw new Error('Failed to mark all as read');
   const data = await response.json();
@@ -210,24 +217,18 @@ async function markAllAsReadAPI(): Promise<number> {
 async function dismissNotificationAPI(id: string): Promise<void> {
   const response = await fetch(`${API_BASE}/notifications/${id}/`, {
     method: 'DELETE',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Token ${localStorage.getItem('authToken')}`,
-    },
+    headers: buildApiHeaders(),
   });
   if (!response.ok) throw new Error('Failed to dismiss notification');
 }
 
 async function fetchActionItemsAPI(): Promise<ActionItem[]> {
   try {
-    const authToken = localStorage.getItem('authToken');
-    if (!authToken) return [];
-    
+    const authHeader = getAuthHeader();
+    if (!authHeader) return [];
+
     const response = await fetch(`${API_BASE}/action-items/`, {
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Token ${authToken}`,
-      },
+      headers: buildApiHeaders(),
     });
     
     if (response.status === 401 || response.status === 404) return [];
@@ -241,8 +242,8 @@ async function fetchActionItemsAPI(): Promise<ActionItem[]> {
 
 async function fetchActionItemCountsAPI(): Promise<ActionItemCounts> {
   try {
-    const authToken = localStorage.getItem('authToken');
-    if (!authToken) {
+    const authHeader = getAuthHeader();
+    if (!authHeader) {
       return {
         total: 0,
         overdue: 0,
@@ -252,12 +253,9 @@ async function fetchActionItemCountsAPI(): Promise<ActionItemCounts> {
         by_form: [],
       };
     }
-    
+
     const response = await fetch(`${API_BASE}/action-items/counts/`, {
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Token ${authToken}`,
-      },
+      headers: buildApiHeaders(),
     });
     
     if (response.status === 401 || response.status === 404) {
@@ -287,8 +285,8 @@ async function fetchActionItemCountsAPI(): Promise<ActionItemCounts> {
 
 async function fetchPreferencesAPI(): Promise<NotificationPreferences> {
   try {
-    const authToken = localStorage.getItem('authToken');
-    if (!authToken) {
+    const authHeader = getAuthHeader();
+    if (!authHeader) {
       return {
         id: '',
         user: 0,
@@ -304,12 +302,9 @@ async function fetchPreferencesAPI(): Promise<NotificationPreferences> {
         weekly_digest_enabled: false,
       };
     }
-    
+
     const response = await fetch(`${API_BASE}/notification-preferences/`, {
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Token ${authToken}`,
-      },
+      headers: buildApiHeaders(),
     });
     
     if (response.status === 401 || response.status === 404) {
@@ -352,10 +347,7 @@ async function fetchPreferencesAPI(): Promise<NotificationPreferences> {
 async function updatePreferencesAPI(prefs: Partial<NotificationPreferences>): Promise<NotificationPreferences> {
   const response = await fetch(`${API_BASE}/notification-preferences/`, {
     method: 'PUT',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Token ${localStorage.getItem('authToken')}`,
-    },
+    headers: buildApiHeaders(),
     body: JSON.stringify(prefs),
   });
   if (!response.ok) throw new Error('Failed to update preferences');

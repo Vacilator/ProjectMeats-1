@@ -10,12 +10,9 @@ Row-level security (RLS) enabled for additional isolation at PostgreSQL level.
 from django.db import models
 from django.contrib.auth.models import User
 
-from apps.tenants.models import Tenant
 from apps.core.models import (
-    AppointmentMethodChoices,
+    PhoneTypeChoices,
     TenantAwareModel,
-    TenantManager,
-    TimestampModel,
 )
 
 
@@ -31,6 +28,7 @@ class LocationTypeChoices(models.TextChoices):
     PLANT_DISTRIBUTION = 'plant_distribution', 'Plant Distribution Center'
     PLANT_WAREHOUSE = 'plant_warehouse', 'Plant Warehouse'
     PLANT_RETAIL = 'plant_retail', 'Retail Location'
+    PLANT_VERTICAL = 'plant_vertical', 'Vertical (Kill to Capture)'
     PLANT_OTHER = 'plant_other', 'Other Plant'
     # Legacy/generic
     OTHER = 'other', 'Other'
@@ -101,6 +99,13 @@ class Location(TenantAwareModel):
         default='',
         help_text="Location phone number"
     )
+    phone_type = models.CharField(
+        max_length=10,
+        choices=PhoneTypeChoices.choices,
+        blank=True,
+        default=PhoneTypeChoices.OFFICE,
+        help_text="Location phone type (mobile or office)",
+    )
     email = models.EmailField(
         blank=True,
         default='',
@@ -144,6 +149,16 @@ class Location(TenantAwareModel):
         blank=True,
         verbose_name='Known Products Purchased',
         help_text='Products commonly purchased/handled at this location',
+    )
+
+    # Known products (new: tenant-scoped MasterProduct)
+    associated_master_products = models.ManyToManyField(
+        'products.MasterProduct',
+        through='LocationAssociatedMasterProduct',
+        related_name='known_by_locations',
+        blank=True,
+        verbose_name='Known Master Products',
+        help_text='Master products commonly purchased/handled at this location',
     )
 
     # =========================================================================
@@ -250,4 +265,33 @@ class LocationAssociatedProduct(TenantAwareModel):
         indexes = [
             models.Index(fields=['tenant', 'location']),
             models.Index(fields=['tenant', 'product']),
+        ]
+
+
+class LocationAssociatedMasterProduct(TenantAwareModel):
+    """Tenant-safe link table for Location ↔ products.MasterProduct affinity."""
+
+    location = models.ForeignKey(
+        Location,
+        on_delete=models.CASCADE,
+        related_name='associated_master_product_links',
+    )
+    master_product = models.ForeignKey(
+        'products.MasterProduct',
+        on_delete=models.CASCADE,
+        related_name='location_affinity_links',
+    )
+
+    class Meta:
+        verbose_name = 'Location Known Master Product'
+        verbose_name_plural = 'Location Known Master Products'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['tenant', 'location', 'master_product'],
+                name='unique_location_master_product_affinity_per_tenant',
+            )
+        ]
+        indexes = [
+            models.Index(fields=['tenant', 'location']),
+            models.Index(fields=['tenant', 'master_product']),
         ]

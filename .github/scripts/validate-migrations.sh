@@ -67,18 +67,68 @@ else
     exit 1
 fi
 
-# 5. Check for proper migration dependencies
+# 5. Enforce RLS policy on new tenant-aware tables
 echo ""
-echo "Step 5: Checking migration dependencies..."
+echo "Step 5: Enforcing RLS policy for new tenant-aware tables..."
+
+# Only enforce on migrations changed in this branch to avoid failing legacy history.
+BASE_REF=${GITHUB_BASE_REF:-development}
+BASE_REV=""
+
+if git -C "$REPO_ROOT" rev-parse --verify "origin/$BASE_REF" >/dev/null 2>&1; then
+    BASE_REV="origin/$BASE_REF"
+elif git -C "$REPO_ROOT" rev-parse --verify "upstream/$BASE_REF" >/dev/null 2>&1; then
+    BASE_REV="upstream/$BASE_REF"
+fi
+
+if [ -z "$BASE_REV" ]; then
+    echo "⚠️  Skipping RLS enforcement (could not resolve base ref origin/$BASE_REF or upstream/$BASE_REF)"
+else
+    CHANGED_MIGRATIONS=$(git -C "$REPO_ROOT" diff --name-only "$BASE_REV"...HEAD | \
+        grep -E '^backend/(apps|tenant_apps)/.+/migrations/.+\.py$' | \
+        grep -v '/__init__\.py$' || true)
+
+    if [ -z "$CHANGED_MIGRATIONS" ]; then
+        echo "✅ No changed migration files detected"
+    else
+        RLS_ERRORS=0
+        while IFS= read -r file; do
+            if [ -z "$file" ]; then
+                continue
+            fi
+
+            # Only require RLS when a tenant-aware table is created.
+            # Heuristic: CreateModel + a tenant FK field tuple exists in the migration file.
+            if grep -q "CreateModel(" "$REPO_ROOT/$file" && grep -q "('tenant'," "$REPO_ROOT/$file"; then
+                if ! grep -q "ENABLE ROW LEVEL SECURITY" "$REPO_ROOT/$file" || ! grep -q "CREATE POLICY" "$REPO_ROOT/$file"; then
+                    echo "❌ Missing RLS policy SQL in: $file"
+                    echo "   Expected to find both: 'ENABLE ROW LEVEL SECURITY' and 'CREATE POLICY'"
+                    RLS_ERRORS=$((RLS_ERRORS + 1))
+                fi
+            fi
+        done <<< "$CHANGED_MIGRATIONS"
+
+        if [ $RLS_ERRORS -eq 0 ]; then
+            echo "✅ RLS enforcement check passed for changed tenant-aware migrations"
+        else
+            echo "❌ ERROR: $RLS_ERRORS migration file(s) missing required RLS SQL"
+            exit 1
+        fi
+    fi
+fi
+
+# 6. Check for proper migration dependencies
+echo ""
+echo "Step 6: Checking migration dependencies..."
 # This checks that migrations reference existing dependencies
 python manage.py migrate --plan 2>&1 | grep -i "inconsistent\|missing" && {
     echo "❌ ERROR: Inconsistent or missing migration dependencies detected"
     exit 1
 } || echo "✅ Migration dependencies are consistent"
 
-# 6. Test migrations on fresh database (CI only)
+# 7. Test migrations on fresh database (CI only)
 echo ""
-echo "Step 6: Testing migrations on fresh database..."
+echo "Step 7: Testing migrations on fresh database..."
 echo "Setting up temporary test database..."
 
 # Export current DATABASE_URL and create a test database

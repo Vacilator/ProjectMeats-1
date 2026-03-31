@@ -1,5 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
+import { Skeleton } from 'antd';
+
+import { confirmDialog, showAlert } from '@/utils/uiDialogs';
 import { apiService, Invoice } from '../services/apiService';
 
 // Styled Components
@@ -377,7 +380,11 @@ const AccountsReceivables: React.FC = () => {
         } : 'No response data'
       });
       // Display user-friendly error to the UI
-      alert(`Failed to save invoice: ${err.message || 'Please try again later'}`);
+      showAlert({
+        type: 'error',
+        title: 'Error',
+        content: `Failed to save invoice: ${err.message || 'Please try again later'}`,
+      });
     }
   };
 
@@ -394,21 +401,37 @@ const AccountsReceivables: React.FC = () => {
   };
 
   const handleDelete = async (id: number) => {
-    if (window.confirm('Are you sure you want to delete this invoice?')) {
-      try {
-        await apiService.deleteInvoice(id);
-        alert('Invoice deleted successfully!');
-        await loadReceivables(); // Re-fetch to update the list
-      } catch (error: unknown) {
-        // Type-safe error handling: Use 'unknown' instead of 'any' and assert expected structure
-        console.error('Error deleting accounts receivable:', error);
-        const err = error as { response?: { data?: { detail?: string; message?: string } }; message?: string };
-        const errorMessage = err?.response?.data?.detail 
-          || err?.response?.data?.message 
-          || err?.message 
-          || 'Failed to delete accounts receivable';
-        alert(`Error: ${errorMessage}`);
-      }
+    const confirmed = await confirmDialog({
+      title: 'Delete invoice?',
+      content: 'Are you sure you want to delete this invoice?',
+      okText: 'Delete',
+      cancelText: 'Cancel',
+      danger: true,
+    });
+
+    if (!confirmed) return;
+
+    try {
+      await apiService.deleteInvoice(id);
+      showAlert({
+        type: 'success',
+        title: 'Deleted',
+        content: 'Invoice deleted successfully.',
+      });
+      await loadReceivables(); // Re-fetch to update the list
+    } catch (error: unknown) {
+      // Type-safe error handling: Use 'unknown' instead of 'any' and assert expected structure
+      console.error('Error deleting accounts receivable:', error);
+      const err = error as { response?: { data?: { detail?: string; message?: string } }; message?: string };
+      const errorMessage = err?.response?.data?.detail
+        || err?.response?.data?.message
+        || err?.message
+        || 'Failed to delete accounts receivable';
+      showAlert({
+        type: 'error',
+        title: 'Error',
+        content: `Error: ${errorMessage}`,
+      });
     }
   };
 
@@ -457,7 +480,11 @@ const AccountsReceivables: React.FC = () => {
       : 0;
 
   if (loading) {
-    return <LoadingMessage>Loading accounts receivables...</LoadingMessage>;
+    return (
+      <div style={{ padding: 16 }}>
+        <Skeleton active paragraph={{ rows: 8 }} />
+      </div>
+    );
   }
 
   return (
@@ -506,7 +533,18 @@ const AccountsReceivables: React.FC = () => {
           </TableHeader>
           <TableBody>
             {receivables.map((receivable) => (
-              <TableRow key={receivable.id}>
+              <TableRow
+                key={receivable.id}
+                onClick={() => handleEdit(receivable)}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    handleEdit(receivable);
+                  }
+                }}
+              >
                 <TableCell>{receivable.invoice_number}</TableCell>
                 <TableCell>{receivable.customer_name || receivable.customer}</TableCell>
                 <TableCell>${(Number(receivable.total) || 0).toFixed(2)}</TableCell>
@@ -517,8 +555,22 @@ const AccountsReceivables: React.FC = () => {
                   </StatusBadge>
                 </TableCell>
                 <TableCell>
-                  <ActionButton onClick={() => handleEdit(receivable)}>Edit</ActionButton>
-                  <DeleteButton onClick={() => handleDelete(receivable.id)}>Delete</DeleteButton>
+                  <ActionButton
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleEdit(receivable);
+                    }}
+                  >
+                    Edit
+                  </ActionButton>
+                  <DeleteButton
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDelete(receivable.id);
+                    }}
+                  >
+                    Delete
+                  </DeleteButton>
                 </TableCell>
               </TableRow>
             ))}

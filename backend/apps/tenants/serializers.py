@@ -26,6 +26,7 @@ class TenantSerializer(serializers.ModelSerializer):
             "domain",
             "contact_email",
             "contact_phone",
+            "contact_phone_type",
             "address",
             "website",
             "is_active",
@@ -436,7 +437,7 @@ class TenantConfigurationSerializer(serializers.ModelSerializer):
         """Return the value converted to its proper data type."""
         try:
             return obj.get_typed_value()
-        except (ValueError, TypeError, KeyError) as e:
+        except (ValueError, TypeError, KeyError):
             # Return string value if conversion fails
             return obj.value
     

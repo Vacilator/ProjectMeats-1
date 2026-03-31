@@ -25,6 +25,7 @@ class ActivityLog(models.Model):
         ('user.role_change', 'User Role Changed'),
         ('user.deactivate', 'User Deactivated'),
         ('user.activate', 'User Activated'),
+        ('user.remove', 'User Removed'),
         ('profile.update', 'Profile Updated'),
         ('config.update', 'Configuration Updated'),
         ('theme.update', 'Theme Updated'),

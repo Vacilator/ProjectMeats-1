@@ -15,10 +15,10 @@
  */
 import React, { useState, useMemo, useCallback } from 'react';
 import styled from 'styled-components';
-import { NodeProps, Node, Edge, useReactFlow, useNodes, useEdges } from '@xyflow/react';
+import { NodeProps, Node, Edge, NodeToolbar, Position, useReactFlow, useNodes, useEdges } from '@xyflow/react';
 import { BaseNode, BaseNodeData } from './BaseNode';
 import { getNodeTypeDefinition } from '../nodeTypes';
-import { ChevronDown, ChevronRight, LogIn, Edit2, Trash2 } from 'lucide-react';
+import { ChevronDown, ChevronRight, LogIn, Edit2, Trash2, Plus, Copy } from 'lucide-react';
 import { calculateStepOrder, getStepLabel } from '../utils/stepOrderingUtils'; // Phase B.1
 // REMOVED: import { MiniReactFlow } from '../NestedContainer/MiniReactFlow';
 
@@ -58,6 +58,7 @@ export interface FormProcessNodeProps extends NodeProps<Node<ContainerNodeData>>
 // ============================================================================
 
 const ContainerWrapper = styled.div<{ isExpanded: boolean }>`
+  position: relative;
   min-width: ${props => props.isExpanded ? '800px' : '320px'};
   min-height: ${props => props.isExpanded ? '500px' : 'auto'};
   max-width: ${props => props.isExpanded ? 'none' : '400px'};
@@ -342,49 +343,30 @@ const ConfigButton = styled.button`
   }
 `;
 
-// Control Buttons (copied from BaseNode)
-const NodeControls = styled.div`
-  position: absolute;
-  top: 8px;
-  right: 8px;
+const ToolbarCard = styled.div`
   display: flex;
   gap: 4px;
-  opacity: 1; /* Always visible */
-  transition: opacity 0.2s ease;
-  z-index: 10; /* Ensure buttons appear above other elements */
+  background: rgb(var(--color-surface));
+  padding: 6px;
+  border-radius: 8px;
+  border: 1px solid rgb(var(--color-border));
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 50;
 `;
 
-const ControlButton = styled.button<{ $variant?: 'edit' | 'delete' }>`
-  width: 24px;
-  height: 24px;
-  border-radius: var(--radius-sm);
+const ToolbarBtn = styled.button<{ $danger?: boolean }>`
+  padding: 6px;
+  border-radius: 6px;
   border: none;
+  background: transparent;
   cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s ease;
-  background: ${props => props.$variant === 'delete' 
-    ? 'rgba(239, 68, 68, 0.1)' 
-    : 'rgba(var(--color-primary), 0.1)'};
-  color: ${props => props.$variant === 'delete'
-    ? 'rgb(239, 68, 68)'
-    : 'rgb(var(--color-primary))'};
+  color: ${(props) => (props.$danger ? 'rgb(239, 68, 68)' : 'rgb(var(--color-text-secondary))')};
+  transition: all 0.15s ease;
 
   &:hover {
-    background: ${props => props.$variant === 'delete'
-      ? 'rgba(239, 68, 68, 0.2)'
-      : 'rgba(var(--color-primary), 0.2)'};
-    transform: scale(1.1);
-  }
-
-  &:active {
-    transform: scale(0.95);
-  }
-
-  svg {
-    width: 14px;
-    height: 14px;
+    background: ${(props) =>
+      props.$danger ? 'rgba(239, 68, 68, 0.1)' : 'rgba(var(--color-primary), 0.1)'};
+    color: ${(props) => (props.$danger ? 'rgb(239, 68, 68)' : 'rgb(var(--color-primary))')};
   }
 `;
 
@@ -498,6 +480,8 @@ export const FormProcessNode = React.memo<FormProcessNodeProps>(({
   selected,
 }) => {
   const [isExpanded, setIsExpanded] = useState(data.isExpanded ?? true);
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const [draftTitle, setDraftTitle] = useState('');
   
   // Use hooks to access all nodes/edges
   const allNodes = useNodes();
@@ -593,36 +577,72 @@ export const FormProcessNode = React.memo<FormProcessNodeProps>(({
   
   return (
     <>
-      {/* Edit/Delete Controls */}
-      <NodeControls>
-        <ControlButton 
-          $variant="edit" 
-          onClick={(e) => {
-            e.stopPropagation();
-            if (data.onEdit) data.onEdit();
-          }}
-          title="Edit container configuration"
-        >
-          <Edit2 size={14} />
-        </ControlButton>
-        <ControlButton 
-          $variant="delete" 
-          onClick={(e) => {
-            e.stopPropagation();
-            if (data.onDelete) data.onDelete();
-          }}
-          title="Delete container"
-        >
-          <Trash2 size={14} />
-        </ControlButton>
-      </NodeControls>
+      <NodeToolbar isVisible={!!selected} position={Position.Top}>
+        <ToolbarCard className="nodrag">
+          <ToolbarBtn
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              if (!isExpanded) {
+                setIsExpanded(true);
+                setNodes((current) =>
+                  current.map((n) => (n.parentId === id ? { ...n, hidden: false } : n))
+                );
+              }
+              (data as any)?.onAddStepInsideForm?.();
+            }}
+            title="Add step"
+          >
+            <Plus size={16} />
+          </ToolbarBtn>
+          <ToolbarBtn
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              (data as any)?.onDuplicate?.();
+            }}
+            title="Duplicate"
+          >
+            <Copy size={16} />
+          </ToolbarBtn>
+          <ToolbarBtn
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              if (data.onEdit) data.onEdit();
+            }}
+            title="Edit"
+          >
+            <Edit2 size={16} />
+          </ToolbarBtn>
+          <ToolbarBtn
+            type="button"
+            $danger
+            onClick={(e) => {
+              e.stopPropagation();
+              if (data.onDelete) data.onDelete();
+            }}
+            title="Delete"
+          >
+            <Trash2 size={16} />
+          </ToolbarBtn>
+        </ToolbarCard>
+      </NodeToolbar>
 
       {/* Container custom UI */}
       <ContainerWrapper 
           isExpanded={isExpanded}
-          className={`${selected ? 'selected' : ''} ${data.isDropTarget ? 'drag-over' : ''}`}
+          className={`pm-node ${selected ? 'selected is-selected' : ''} ${data.isDropTarget ? 'drag-over' : ''}`}
         >
-          <ContainerHeader onClick={handleHeaderClick}>
+          <ContainerHeader
+            onClick={(e) => {
+              if (isEditingTitle) {
+                e.stopPropagation();
+                return;
+              }
+              handleHeaderClick(e);
+            }}
+          >
             <ExpandIcon>
               {isExpanded ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
             </ExpandIcon>
@@ -632,7 +652,52 @@ export const FormProcessNode = React.memo<FormProcessNodeProps>(({
             </ContainerIcon>
             
             <ContainerTitle>
-              <h3>{data.containerName || data.label || 'Unnamed Container'}</h3>
+              {isEditingTitle ? (
+                <input
+                  className="nodrag"
+                  value={draftTitle}
+                  onChange={(e) => setDraftTitle(e.target.value)}
+                  onBlur={() => {
+                    const onTitleChange = (data as any).onTitleChange as ((newTitle: string) => void) | undefined;
+                    const currentTitle = String((data as any).title || data.containerName || data.label || '').trim();
+                    const next = draftTitle.trim();
+                    if (onTitleChange && next && next !== currentTitle) onTitleChange(next);
+                    setIsEditingTitle(false);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      (e.target as HTMLInputElement).blur();
+                    } else if (e.key === 'Escape') {
+                      setIsEditingTitle(false);
+                    }
+                  }}
+                  autoFocus
+                  style={{
+                    width: '100%',
+                    fontWeight: 700,
+                    fontSize: '16px',
+                    borderRadius: 8,
+                    border: '1px solid rgba(255,255,255,0.45)',
+                    padding: '6px 8px',
+                    background: 'rgba(255,255,255,0.16)',
+                    color: 'white',
+                  }}
+                  onClick={(e) => e.stopPropagation()}
+                />
+              ) : (
+                <h3
+                  onDoubleClick={(e) => {
+                    const onTitleChange = (data as any).onTitleChange as ((newTitle: string) => void) | undefined;
+                    if (!onTitleChange) return;
+                    e.stopPropagation();
+                    setDraftTitle(String((data as any).title || data.containerName || data.label || ''));
+                    setIsEditingTitle(true);
+                  }}
+                  style={{ cursor: (data as any).onTitleChange ? 'text' : 'default' }}
+                >
+                  {(data as any).title || data.containerName || data.label || 'Unnamed Container'}
+                </h3>
+              )}
               {data.containerDescription && (
                 <p>{data.containerDescription}</p>
               )}
@@ -647,8 +712,7 @@ export const FormProcessNode = React.memo<FormProcessNodeProps>(({
           <ContainerBody isExpanded={isExpanded}>
             {isExpanded ? (
               // EXPANDED: Show stats and hint that children are visible on canvas
-              <>
-                <div style={{ padding: '16px' }}>
+              <div style={{ padding: '16px' }}>
                   <SummaryRow>
                     <span className="label">Total Nodes:</span>
                     <span className="value">{stats.nodeCount}</span>
@@ -751,7 +815,6 @@ export const FormProcessNode = React.memo<FormProcessNodeProps>(({
                     Configure Container
                   </ConfigButton>
                 </div>
-              </>
             ) : (
               // COLLAPSED: Show compact summary
               <ContainerSummary>

@@ -14,6 +14,7 @@ from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 from rest_framework import status
+from apps.core.utils.health import check_all_services
 
 
 @require_http_methods(["GET"])
@@ -32,6 +33,16 @@ def health_check(request):
     except Exception as e:
         db_status = f"unhealthy: {str(e)}"
 
+    services = check_all_services()
+    features = {
+        'ai': bool(services.get('openai', {}).get('api_key_set')),
+        'outlook_oauth': bool(services.get('microsoft_oauth', {}).get('configured')),
+        'email_send': bool(services.get('sendgrid', {}).get('configured')),
+        'redis': bool(services.get('redis', {}).get('available')),
+        'rag': bool(services.get('pgvector', {}).get('available')),
+        'sentry': bool(services.get('sentry', {}).get('dsn_set')),
+    }
+
     return JsonResponse(
         {
             "status": "healthy" if db_status == "healthy" else "degraded",
@@ -39,6 +50,8 @@ def health_check(request):
             "version": "1.0.0",
             "database": db_status,
             "debug": settings.DEBUG,
+            "features": features,
+            "services": services,
         }
     )
 

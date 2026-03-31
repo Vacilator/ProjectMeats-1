@@ -567,7 +567,7 @@ export const InquiryDetailModal: React.FC<InquiryDetailModalProps> = ({
                   
                   <TotalsRow>
                     <div>Total</div>
-                    <div></div>
+                    <div />
                     <PriceCell variant="desired">{formatCurrency(inquiry.total_desired)}</PriceCell>
                     <PriceCell variant="actual">{formatCurrency(inquiry.total_actual)}</PriceCell>
                     <div>{formatCurrency(inquiry.total_actual || inquiry.total_desired)}</div>

@@ -3,8 +3,7 @@ Serializers for tenant invitation system.
 """
 from rest_framework import serializers
 from django.contrib.auth.models import User
-from django.utils import timezone
-from apps.tenants.models import Tenant, TenantUser, TenantInvitation
+from apps.tenants.models import TenantUser, TenantInvitation
 
 
 class TenantInvitationCreateSerializer(serializers.ModelSerializer):
@@ -234,7 +233,7 @@ class InvitationSignupSerializer(serializers.Serializer):
         """
         from rest_framework.authtoken.models import Token
         
-        invitation_token = validated_data.pop('invitation_token')
+        validated_data.pop('invitation_token')
         invitation = self.invitation
         # Use input email if reusable, otherwise enforce invite email
         email = validated_data['email'] if invitation.is_reusable else invitation.email

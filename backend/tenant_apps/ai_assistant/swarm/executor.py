@@ -49,44 +49,6 @@ DEFAULT_OPENAI_TOOLS = [
     {
         'type': 'function',
         'function': {
-            'name': 'search_cockpit_records',
-            'description': 'Searches the ERP database for Suppliers, Customers, or Purchase Orders based on a query.',
-            'parameters': {
-                'type': 'object',
-                'properties': {
-                    'entity_type': {
-                        'type': 'string',
-                        'description': 'Entity type to search (e.g., supplier, customer, purchase_order)',
-                    },
-                    'search_term': {'type': 'string', 'description': 'Free-text search term'},
-                },
-                'required': ['entity_type', 'search_term'],
-            },
-        },
-    },
-    {
-        'type': 'function',
-        'function': {
-            'name': 'search_records',
-            'description': 'Search tenant records using Universal Search (unified search standard).',
-            'parameters': {
-                'type': 'object',
-                'properties': {
-                    'query': {'type': 'string', 'description': 'Free-text search query (operators supported, e.g. supplier:ABC)'},
-                    'entity_types': {
-                        'type': 'array',
-                        'items': {'type': 'string'},
-                        'description': 'Optional entity types to include (supplier, customer, purchase_order, product, ...)',
-                    },
-                    'limit': {'type': 'integer', 'description': 'Limit per entity type (default 5)'},
-                },
-                'required': ['query'],
-            },
-        },
-    },
-    {
-        'type': 'function',
-        'function': {
             'name': 'get_record_detail',
             'description': 'Fetch a lightweight record detail payload (tenant-scoped).',
             'parameters': {
@@ -134,14 +96,32 @@ DEFAULT_OPENAI_TOOLS = [
     {
         'type': 'function',
         'function': {
-            'name': 'get_recent_errors',
-            'description': 'Fetch the most recent Sentry issues for the active tenant_id (last 5).',
+            'name': 'ingest_feedback',
+            'description': 'Save a user correction as a tenant-scoped lesson learned for future responses.',
             'parameters': {
                 'type': 'object',
                 'properties': {
-                    'tenant_id': {'type': 'string', 'description': 'Tenant UUID (must match active tenant)'}
+                    'user_message': {'type': 'string', 'description': 'The user message being corrected (optional but recommended).'},
+                    'assistant_message': {'type': 'string', 'description': 'The assistant message being corrected (optional but recommended).'},
+                    'user_correction': {'type': 'string', 'description': 'What the user says is the correct information.'},
+                    'lesson_text': {'type': 'string', 'description': 'Canonical lesson to remember and apply in future answers.'},
+                    'entity_type': {'type': 'string', 'description': 'Optional entity type the lesson applies to (purchase_order, supplier, customer, product, ...).'},
+                    'entity_id': {'type': 'string', 'description': 'Optional entity id the lesson applies to.'},
+                    'tags': {'type': 'object', 'description': 'Optional structured tags/metadata for the lesson.'},
                 },
-                'required': ['tenant_id'],
+                'required': ['user_correction', 'lesson_text'],
+            },
+        },
+    },
+    {
+        'type': 'function',
+        'function': {
+            'name': 'get_recent_errors',
+            'description': 'Fetch the most recent Sentry issues for the active tenant (last 5).',
+            'parameters': {
+                'type': 'object',
+                'properties': {},
+                'additionalProperties': False,
             },
         },
     },
@@ -183,6 +163,23 @@ DEFAULT_OPENAI_TOOLS = [
     {
         'type': 'function',
         'function': {
+            'name': 'get_entity_analytics',
+            'description': 'Run a tenant-scoped analytics aggregation (e.g., top purchased products, revenue by customer).',
+            'parameters': {
+                'type': 'object',
+                'properties': {
+                    'entity_type': {'type': 'string', 'description': 'Entity type to analyze (product, customer, supplier, purchase_order, sales_order).'},
+                    'metric': {'type': 'string', 'description': 'Metric key (top_purchased_products, revenue_by_customer, top_suppliers_by_po_value, purchase_order_trends).'},
+                    'days': {'type': 'integer', 'description': 'Optional lookback window in days (default 30).'},
+                    'limit': {'type': 'integer', 'description': 'Optional limit for ranked results (default 10).'},
+                },
+                'required': ['entity_type', 'metric'],
+            },
+        },
+    },
+    {
+        'type': 'function',
+        'function': {
             'name': 'get_recent_activity',
             'description': 'Get recent ActivityLog entries for an entity (requires entity_type + entity_id).',
             'parameters': {
@@ -206,14 +203,14 @@ class ToolExecutor:
         self._tools: Dict[str, Callable[[Dict[str, Any], Any, Any], Any]] = {
             'check_unread_emails': self._check_unread_emails,
             'draft_outlook_email': self._draft_outlook_email,
-            'search_cockpit_records': self._search_cockpit_records,
-            'search_records': self._search_records,
             'get_record_detail': self._get_record_detail,
             'get_entity_details': self._get_entity_details,
             'create_task': self._create_task,
+            'ingest_feedback': self._ingest_feedback,
             'get_recent_errors': self._get_recent_errors,
             'create_record': self._create_record,
-            'search_entities': self._search_entities,  # Backward-compatible alias
+            'search_entities': self._search_entities,
+            'get_entity_analytics': self._get_entity_analytics,
             'get_recent_activity': self._get_recent_activity,
         }
 
@@ -231,22 +228,64 @@ class ToolExecutor:
         try:
             fn = self._tools.get(tool_name)
             if not fn:
-                return json.dumps({'error': f"Unknown tool: {tool_name}"})
+                return json.dumps({'ok': False, 'tool': tool_name, 'error': f"Unknown tool: {tool_name}"})
 
             tenant_id = str(getattr(tenant, 'id', '') or '')
-            if tenant_id:
-                rls = set_current_tenant(tenant_id)
-                if not rls.ok:
-                    logger.warning('Failed to assert RLS tenant session var: %s', rls.error)
+            if not tenant_id:
+                return json.dumps(
+                    {
+                        'ok': False,
+                        'tool': tool_name,
+                        'error': 'Tenant context missing; refusing to execute tool under RLS.',
+                    },
+                    default=str,
+                )
 
-            result = fn(arguments or {}, tenant, user)
-            return json.dumps({'ok': True, 'tool': tool_name, 'data': result}, default=str)
+            # Defense-in-depth: always assert the RLS session var before every tool call.
+            rls = set_current_tenant(tenant_id)
+            if not rls.ok:
+                return json.dumps(
+                    {
+                        'ok': False,
+                        'tool': tool_name,
+                        'tenant_id': tenant_id,
+                        'error': (
+                            'Failed to set PostgreSQL RLS session variables for this request. '
+                            'This prevents safe tenant-scoped queries and may indicate a DB connection/session issue. '
+                            f"Details: {rls.error}"
+                        ),
+                    },
+                    default=str,
+                )
+
+            # Implicit tenant scoping: never require the LLM to provide tenant_id.
+            # If a tool previously took tenant_id, inject it from the authenticated session.
+            safe_args = dict(arguments or {})
+            if tool_name == 'get_recent_errors' and not safe_args.get('tenant_id'):
+                safe_args['tenant_id'] = tenant_id
+
+            result = fn(safe_args, tenant, user)
+            return json.dumps({'ok': True, 'tool': tool_name, 'tenant_id': tenant_id, 'data': result}, default=str)
         except Exception as e:
-            logger.warning('Tool execution failed tool=%s: %s', tool_name, str(e), exc_info=True)
-            return json.dumps({'ok': False, 'tool': tool_name, 'error': str(e)}, default=str)
+            tenant_id = str(getattr(tenant, 'id', '') or '')
+            logger.warning('Tool execution failed tool=%s tenant=%s: %s', tool_name, tenant_id, str(e), exc_info=True)
+            return json.dumps(
+                {
+                    'ok': False,
+                    'tool': tool_name,
+                    'tenant_id': tenant_id or None,
+                    'error': (
+                        f"Tool '{tool_name}' failed for tenant {tenant_id or 'UNKNOWN'}. "
+                        'This may be due to missing data, invalid arguments, or RLS constraints. '
+                        f"Details: {type(e).__name__}: {e}"
+                    ),
+                },
+                default=str,
+            )
 
     def _check_unread_emails(self, arguments: Dict[str, Any], tenant: Any, user: Any = None) -> Any:
         from apps.integrations.models import ExternalAuthProvider
+        from tenant_apps.ai_assistant.swarm.tools.microsoft_graph import decryption_failed_payload
         from tenant_apps.integrations.services.email_ingestion import EmailIngestionService
 
         tenant_id = getattr(tenant, 'id', None)
@@ -267,7 +306,18 @@ class ToolExecutor:
         if provider.is_token_expired():
             raise ValueError('Outlook connection expired. Reconnect in Settings → Email Integrations.')
 
-        return EmailIngestionService(tenant).fetch_unread_actionable_emails()
+        # Decryption errors can occur when OAUTH_ENCRYPTION_KEY has changed.
+        # In that case, return a stable payload so the AI can instruct the user to reconnect.
+        try:
+            return EmailIngestionService(tenant).fetch_unread_actionable_emails()
+        except Exception as e:
+            # EmailIngestionService uses ExternalAuthProvider.get_decrypted_token under the hood.
+            # When the underlying Fernet decrypt fails, the model raises InvalidToken.
+            from cryptography.fernet import InvalidToken
+
+            if isinstance(e, InvalidToken):
+                return decryption_failed_payload()
+            raise
 
     def _draft_outlook_email(self, arguments: Dict[str, Any], tenant: Any, user: Any = None) -> Any:
         """Send an email using the tenant's Microsoft Graph connection."""
@@ -306,7 +356,12 @@ class ToolExecutor:
         if provider_row.is_token_expired():
             raise ValueError('Outlook connection expired. Reconnect in Settings → Email Integrations.')
 
-        access_token = provider_row.get_decrypted_token('access')
+        from tenant_apps.ai_assistant.swarm.tools.microsoft_graph import decrypt_token_or_error
+
+        access_token, err = decrypt_token_or_error(provider_row=provider_row, token_type='access')
+        if err:
+            return err
+
         graph = MicrosoftGraphProvider(tenant.id)
 
         result = graph.send_email(
@@ -325,18 +380,6 @@ class ToolExecutor:
             'provider': result.get('provider') or 'microsoft',
         }
 
-    def _search_cockpit_records(self, arguments: Dict[str, Any], tenant: Any, user: Any = None) -> Any:
-        """Tenant-scoped search used by legacy widget prompts."""
-        entity_type = (arguments.get('entity_type') or '').strip().lower()
-        search_term = (arguments.get('search_term') or '').strip()
-        if not entity_type or not search_term:
-            raise ValueError('Missing required parameters: entity_type, search_term')
-
-        return self._search_records(
-            {'query': search_term, 'entity_types': [entity_type], 'limit': 10},
-            tenant,
-            user,
-        )
 
     def _create_record(self, arguments: Dict[str, Any], tenant: Any, user: Any = None) -> Any:
         """Create a safe subset of tenant-scoped records.
@@ -456,27 +499,6 @@ class ToolExecutor:
 
         raise ValueError(f"Unsupported entity for create_record: {entity}")
 
-    def _search_records(self, arguments: Dict[str, Any], tenant: Any, user: Any = None) -> Any:
-        """Search tenant records using UniversalSearchService."""
-        query = (arguments.get('query') or '').strip()
-        if not query:
-            raise ValueError('Missing required parameters: query')
-
-        entity_types = arguments.get('entity_types')
-        if not isinstance(entity_types, list) or not entity_types:
-            entity_types = None
-
-        limit = arguments.get('limit')
-        try:
-            limit_int = int(limit) if limit is not None else 5
-        except Exception:
-            limit_int = 5
-        limit_int = max(1, min(25, limit_int))
-
-        from apps.core.services.universal_search import UniversalSearchService
-
-        service = UniversalSearchService(tenant=tenant)
-        return service.search(query, limit_per_type=limit_int, entity_types=entity_types)
 
     def _get_record_detail(self, arguments: Dict[str, Any], tenant: Any, user: Any = None) -> Any:
         entity_type = (arguments.get('entity_type') or '').strip().lower()
@@ -573,6 +595,34 @@ class ToolExecutor:
             'action_url': row.action_url,
         }
 
+    def _ingest_feedback(self, arguments: Dict[str, Any], tenant: Any, user: Any = None) -> Any:
+        """Persist a tenant-scoped lesson learned from user feedback."""
+
+        user_correction = (arguments.get('user_correction') or '').strip()
+        lesson_text = (arguments.get('lesson_text') or '').strip()
+        if not user_correction or not lesson_text:
+            raise ValueError('Missing required parameters: user_correction, lesson_text')
+
+        from tenant_apps.ai_assistant.services.memory_service import ingest_feedback
+
+        row = ingest_feedback(
+            tenant=tenant,
+            user=user,
+            user_message=str(arguments.get('user_message') or ''),
+            assistant_message=str(arguments.get('assistant_message') or ''),
+            user_correction=user_correction,
+            lesson_text=lesson_text,
+            entity_type=str(arguments.get('entity_type') or ''),
+            entity_id=str(arguments.get('entity_id') or ''),
+            tags=arguments.get('tags') if isinstance(arguments.get('tags'), dict) else {},
+        )
+
+        return {
+            'id': str(row.id),
+            'created_on': getattr(row, 'created_on', None),
+            'lesson_text': row.lesson_text,
+        }
+
     def _get_recent_errors(self, arguments: Dict[str, Any], tenant: Any, user: Any = None) -> Any:
         """Fetch recent Sentry issues tagged with the active tenant_id."""
         import os
@@ -582,9 +632,10 @@ class ToolExecutor:
 
         if not active_tenant_id:
             raise ValueError('Tenant context missing')
-        if not tenant_id_arg:
-            raise ValueError('Missing required parameter: tenant_id')
-        if tenant_id_arg != active_tenant_id:
+
+        # Implicit tenant scoping: tenant_id is injected server-side from the authenticated session.
+        # If a caller provides tenant_id anyway, treat mismatches as an explicit cross-tenant attempt.
+        if tenant_id_arg and tenant_id_arg != active_tenant_id:
             raise ValueError('tenant_id must match the active tenant')
 
         from tenant_apps.ai_assistant.services.sentry_issues import fetch_recent_sentry_issues_for_tenant
@@ -603,8 +654,224 @@ class ToolExecutor:
         )
 
     def _search_entities(self, arguments: Dict[str, Any], tenant: Any, user: Any = None) -> Any:
-        """Backward-compatible alias for older tool name."""
-        return self._search_records(arguments, tenant, user)
+        """Search tenant entities via UniversalSearchService (unified search standard)."""
+        query = (arguments.get('query') or '').strip()
+        if not query:
+            raise ValueError('Missing required parameters: query')
+
+        entity_types = arguments.get('entity_types')
+        if not isinstance(entity_types, list) or not entity_types:
+            entity_types = None
+
+        limit = arguments.get('limit')
+        try:
+            limit_int = int(limit) if limit is not None else 5
+        except Exception:
+            limit_int = 5
+        limit_int = max(1, min(25, limit_int))
+
+        from apps.core.services.universal_search import UniversalSearchService
+
+        tenant_id = str(getattr(tenant, 'id', '') or '')
+        service = UniversalSearchService(tenant=tenant)
+        results = service.search(query, limit_per_type=limit_int, entity_types=entity_types)
+
+        # UniversalSearchService returns a stable dict with a flat `results` list.
+        results_obj = results if isinstance(results, dict) else {'results': results}
+        groups = results_obj.get('results') if isinstance(results_obj.get('results'), list) else []
+        total = len(groups)
+
+        message = None
+        if total == 0:
+            message = (
+                f"The search for '{query}' returned 0 records for tenant {tenant_id}. "
+                'This may be due to lack of data or RLS constraints.'
+            )
+
+        return {
+            'query': query,
+            'entity_types': entity_types,
+            'count': total,
+            'results': groups,
+            'message': message,
+        }
+
+    def _get_entity_analytics(self, arguments: Dict[str, Any], tenant: Any, user: Any = None) -> Any:
+        """Run tenant-scoped aggregations using the same sources as the Reports API."""
+        from datetime import timedelta
+
+        from django.db.models import Avg, Count, Sum
+        from django.db.models.functions import TruncMonth
+        from django.utils import timezone
+
+        entity_type = (arguments.get('entity_type') or '').strip().lower()
+        metric = (arguments.get('metric') or '').strip().lower()
+
+        # Friendly metric/entity aliases so the LLM can answer natural questions like
+        # "most purchased" or "highest revenue" without knowing internal keys.
+        metric_aliases = {
+            'most_purchased': 'top_purchased_products',
+            'most_purchased_products': 'top_purchased_products',
+            'top_purchased': 'top_purchased_products',
+            'highest_revenue': 'revenue_by_customer',
+            'top_revenue': 'revenue_by_customer',
+            'highest_revenue_customers': 'revenue_by_customer',
+            'top_suppliers': 'top_suppliers_by_po_value',
+        }
+        metric = metric_aliases.get(metric, metric)
+
+        entity_aliases = {
+            'products': 'product',
+            'customers': 'customer',
+            'suppliers': 'supplier',
+            'purchase_orders': 'purchase_order',
+        }
+        entity_type = entity_aliases.get(entity_type, entity_type)
+
+        if not entity_type or not metric:
+            raise ValueError('Missing required parameters: entity_type, metric')
+
+        try:
+            days = int(arguments.get('days') or 30)
+        except Exception:
+            days = 30
+        days = max(1, min(365, days))
+
+        try:
+            limit = int(arguments.get('limit') or 10)
+        except Exception:
+            limit = 10
+        limit = max(1, min(25, limit))
+
+        end = timezone.localdate()
+        start = end - timedelta(days=days)
+
+        data: list[dict[str, Any]] = []
+
+        if metric == 'top_purchased_products' and entity_type == 'product':
+            from tenant_apps.purchase_orders.models import PurchaseOrder
+
+            rows = (
+                PurchaseOrder.objects.for_tenant(tenant)
+                .filter(order_date__gte=start, order_date__lte=end, product__isnull=False)
+                .values('product_id', 'product__name', 'product__product_code')
+                .annotate(
+                    orders=Count('id'),
+                    total_amount=Sum('total_amount'),
+                    total_weight=Sum('total_weight'),
+                )
+                .order_by('-orders', '-total_amount')[:limit]
+            )
+            data = [
+                {
+                    'product_id': str(r['product_id']),
+                    'product_code': r.get('product__product_code') or '',
+                    'name': r.get('product__name') or 'Unknown',
+                    'orders': int(r.get('orders') or 0),
+                    'total_amount': float(r.get('total_amount') or 0),
+                    'total_weight': float(r.get('total_weight') or 0),
+                }
+                for r in rows
+            ]
+
+        elif metric == 'revenue_by_customer' and entity_type == 'customer':
+            from tenant_apps.sales_orders.models import SalesOrder
+
+            rows = (
+                SalesOrder.objects.for_tenant(tenant)
+                .filter(date_time_stamp__date__gte=start, date_time_stamp__date__lte=end)
+                .values('customer_id', 'customer__name')
+                .annotate(
+                    orders=Count('id'),
+                    revenue=Sum('total_amount'),
+                    total_weight=Sum('total_weight'),
+                    avg_order_value=Avg('total_amount'),
+                )
+                .order_by('-revenue')[:limit]
+            )
+            data = [
+                {
+                    'customer_id': str(r['customer_id']),
+                    'name': r.get('customer__name') or 'Unknown',
+                    'orders': int(r.get('orders') or 0),
+                    'revenue': float(r.get('revenue') or 0),
+                    'total_weight': float(r.get('total_weight') or 0),
+                    'avg_order_value': float(r.get('avg_order_value') or 0),
+                }
+                for r in rows
+            ]
+
+        elif metric == 'top_suppliers_by_po_value' and entity_type == 'supplier':
+            from tenant_apps.purchase_orders.models import PurchaseOrder
+
+            rows = (
+                PurchaseOrder.objects.for_tenant(tenant)
+                .filter(order_date__gte=start, order_date__lte=end)
+                .values('supplier_id', 'supplier__name')
+                .annotate(
+                    orders=Count('id'),
+                    revenue=Sum('total_amount'),
+                )
+                .order_by('-revenue')[:limit]
+            )
+            data = [
+                {
+                    'supplier_id': str(r['supplier_id']),
+                    'name': r.get('supplier__name') or 'Unknown',
+                    'orders': int(r.get('orders') or 0),
+                    'revenue': float(r.get('revenue') or 0),
+                }
+                for r in rows
+            ]
+
+        elif metric == 'purchase_order_trends' and entity_type == 'purchase_order':
+            from tenant_apps.purchase_orders.models import PurchaseOrder
+
+            rows = (
+                PurchaseOrder.objects.for_tenant(tenant)
+                .filter(order_date__gte=start, order_date__lte=end)
+                .annotate(bucket=TruncMonth('order_date'))
+                .values('bucket')
+                .annotate(
+                    orders=Count('id'),
+                    value=Sum('total_amount'),
+                    averageValue=Avg('total_amount'),
+                )
+                .order_by('bucket')
+            )
+            data = [
+                {
+                    'bucket': (r['bucket'].isoformat() if r.get('bucket') else None),
+                    'orders': int(r.get('orders') or 0),
+                    'value': float(r.get('value') or 0),
+                    'averageValue': float(r.get('averageValue') or 0),
+                }
+                for r in rows
+            ]
+
+        else:
+            raise ValueError(
+                f"Unsupported analytics request: entity_type='{entity_type}' metric='{metric}'. "
+                'Supported metrics: top_purchased_products (product), revenue_by_customer (customer), '
+                'top_suppliers_by_po_value (supplier), purchase_order_trends (purchase_order).'
+            )
+
+        tenant_id = str(getattr(tenant, 'id', '') or '')
+        message = None
+        if not data:
+            message = (
+                f"The analytics query '{metric}' returned 0 rows for tenant {tenant_id}. "
+                'This may be due to lack of data or RLS constraints.'
+            )
+
+        return {
+            'entity_type': entity_type,
+            'metric': metric,
+            'date_range': {'start': start.isoformat(), 'end': end.isoformat()},
+            'count': len(data),
+            'data': data,
+            'message': message,
+        }
 
     def _get_recent_activity(self, arguments: Dict[str, Any], tenant: Any, user: Any = None) -> Any:
         from tenant_apps.cockpit.models import ActivityLog

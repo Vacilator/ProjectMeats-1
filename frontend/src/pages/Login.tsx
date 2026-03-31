@@ -85,6 +85,7 @@ const Login: React.FC = () => {
               value={credentials.username}
               onChange={handleInputChange}
               placeholder="Enter your username"
+              autoComplete="username"
               disabled={loading}
               required
             />
@@ -99,6 +100,7 @@ const Login: React.FC = () => {
               value={credentials.password}
               onChange={handleInputChange}
               placeholder="Enter your password"
+              autoComplete="current-password"
               disabled={loading}
               required
             />

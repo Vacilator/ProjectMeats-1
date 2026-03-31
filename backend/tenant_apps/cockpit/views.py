@@ -4,11 +4,13 @@ Cockpit views for aggregated search across tenant models.
 Provides polymorphic search API respecting tenant schema isolation.
 """
 from rest_framework import viewsets, status
-from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.exceptions import ValidationError
 from rest_framework.views import APIView
+from rest_framework.exceptions import PermissionDenied
+
+from drf_spectacular.utils import OpenApiTypes, PolymorphicProxySerializer, extend_schema
 
 from django.conf import settings
 from django.db.models import Q
@@ -21,8 +23,12 @@ from .serializers import (
     SupplierSlotSerializer,
     OrderSlotSerializer,
     ActivityLogSerializer,
+    ActivityLogCreateSerializer,
+    ActivityLogUpdateSerializer,
     ScheduledCallSerializer,
     UserWorkspaceLayoutSerializer,
+    WorkspaceLayoutPayloadSerializer,
+    EntityAIOverviewResponseSerializer,
 )
 from .models import ActivityLog, ScheduledCall, UserWorkspaceLayout
 from tenant_apps.customers.models import Customer
@@ -32,6 +38,7 @@ from tenant_apps.suppliers.models import Supplier
 from tenant_apps.purchase_orders.models import PurchaseOrder
 
 
+@extend_schema(tags=["Cockpit", "AI"])
 class EntityAIOverviewView(APIView):
     """AI overview for a Cockpit entity.
 
@@ -41,6 +48,7 @@ class EntityAIOverviewView(APIView):
 
     permission_classes = [IsAuthenticated]
 
+    @extend_schema(responses={200: EntityAIOverviewResponseSerializer})
     def get(self, request, entity_type: str, entity_id: str):
         tenant = getattr(request, 'tenant', None) or getattr(request.user, 'current_tenant', None)
         if not tenant:
@@ -187,6 +195,17 @@ class EntityAIOverviewView(APIView):
         return Response({'summary': ai_response_text, 'status': 'success'})
 
 
+@extend_schema(
+    tags=["Cockpit", "Search"],
+    responses={
+        200: PolymorphicProxySerializer(
+            component_name="CockpitSlot",
+            serializers=[CustomerSlotSerializer, SupplierSlotSerializer, OrderSlotSerializer],
+            resource_type_field_name="type",
+            many=True,
+        )
+    },
+)
 class CockpitSlotViewSet(viewsets.ReadOnlyModelViewSet):
     """
     Aggregated search across tenant models (Customer, Supplier, PurchaseOrder).
@@ -233,49 +252,81 @@ class CockpitSlotViewSet(viewsets.ReadOnlyModelViewSet):
         return Response(results)
 
 
+@extend_schema(tags=["Cockpit", "Activity"])
 class ActivityLogViewSet(viewsets.ModelViewSet):
     """
     ViewSet for Activity Logs with strict tenant isolation.
     
     Supports filtering by entity_type and entity_id for entity-specific note feeds.
     """
-    serializer_class = ActivityLogSerializer
     permission_classes = [IsAuthenticated]
-    
+
+    def get_serializer_class(self):
+        if self.action == 'create':
+            return ActivityLogCreateSerializer
+        if self.action in ('update', 'partial_update'):
+            return ActivityLogUpdateSerializer
+        return ActivityLogSerializer
+
     def get_queryset(self):
         """Filter activity logs by tenant and optional entity filters."""
         if not hasattr(self.request, 'tenant') or not self.request.tenant:
             return ActivityLog.objects.none()
-        
+
         queryset = ActivityLog.objects.filter(tenant=self.request.tenant)
-        
+
         # Filter by entity if provided
         entity_type = self.request.query_params.get('entity_type')
         entity_id = self.request.query_params.get('entity_id')
-        
+
         if entity_type and entity_id:
             queryset = queryset.filter(entity_type=entity_type, entity_id=entity_id)
 
         queryset = queryset.order_by('-is_pinned', '-created_on')
 
-        limit_raw = self.request.query_params.get('limit')
-        if limit_raw:
-            try:
-                limit = max(1, min(50, int(limit_raw)))
-                queryset = queryset[:limit]
-            except (TypeError, ValueError):
-                pass
+        if self.action == 'list':
+            limit_raw = self.request.query_params.get('limit')
+            if limit_raw:
+                try:
+                    limit = max(1, min(50, int(limit_raw)))
+                    queryset = queryset[:limit]
+                except (TypeError, ValueError):
+                    pass
 
         return queryset
-    
+
+    def _can_edit_log(self, log: ActivityLog) -> bool:
+        user = getattr(self.request, 'user', None)
+        if not user or not user.is_authenticated:
+            return False
+
+        if getattr(user, 'is_staff', False) or getattr(user, 'is_superuser', False):
+            return True
+
+        # For user-created notes, allow the author to edit.
+        if log.created_by_id and log.created_by_id == user.id:
+            return True
+
+        # System-generated notes (created_by is NULL) are not editable by normal users.
+        return False
+
     def perform_create(self, serializer):
         """Auto-assign tenant and created_by on create."""
-        serializer.save(
-            tenant=self.request.tenant,
-            created_by=self.request.user
-        )
+        serializer.save(tenant=self.request.tenant, created_by=self.request.user)
+
+    def perform_update(self, serializer):
+        log = serializer.instance
+        if not self._can_edit_log(log):
+            raise PermissionDenied('You do not have permission to edit this note')
+        serializer.save()
+
+    def perform_destroy(self, instance):
+        if not self._can_edit_log(instance):
+            raise PermissionDenied('You do not have permission to delete this note')
+        instance.delete()
 
 
+@extend_schema(tags=["Cockpit", "Calls"])
 class ScheduledCallViewSet(viewsets.ModelViewSet):
     """
     ViewSet for Scheduled Calls with strict tenant isolation.
@@ -306,13 +357,14 @@ class ScheduledCallViewSet(viewsets.ModelViewSet):
 
         queryset = queryset.order_by('-scheduled_for')
 
-        limit_raw = self.request.query_params.get('limit')
-        if limit_raw:
-            try:
-                limit = max(1, min(50, int(limit_raw)))
-                queryset = queryset[:limit]
-            except (TypeError, ValueError):
-                pass
+        if self.action == 'list':
+            limit_raw = self.request.query_params.get('limit')
+            if limit_raw:
+                try:
+                    limit = max(1, min(50, int(limit_raw)))
+                    queryset = queryset[:limit]
+                except (TypeError, ValueError):
+                    pass
 
         return queryset
     
@@ -357,6 +409,9 @@ class ScheduledCallViewSet(viewsets.ModelViewSet):
         except ValidationError:
             raise
         except Exception as e:
+            from apps.core.utils.logging import capture_exception
+
+            capture_exception(e, request=self.request, extra={"endpoint": "cockpit/scheduled-calls", "action": "create"})
             logger.error(f'Error creating call: {str(e)}', exc_info=True)
             raise ValidationError({
                 'error': 'Failed to schedule call',
@@ -399,6 +454,9 @@ class ScheduledCallViewSet(viewsets.ModelViewSet):
         except ValidationError:
             raise
         except Exception as e:
+            from apps.core.utils.logging import capture_exception
+
+            capture_exception(e, request=self.request, extra={"endpoint": "cockpit/scheduled-calls", "action": "update"})
             logger.error(f'Error updating call: {str(e)}', exc_info=True)
             raise ValidationError({
                 'error': 'Failed to update call',
@@ -441,6 +499,7 @@ class ScheduledCallViewSet(viewsets.ModelViewSet):
         )
 
 
+@extend_schema(tags=["Cockpit"])
 class WorkspaceLayoutView(APIView):
     """
     API view for managing user workspace layouts.
@@ -450,7 +509,8 @@ class WorkspaceLayoutView(APIView):
     DELETE: Reset to default layout (deletes saved layout)
     """
     permission_classes = [IsAuthenticated]
-    
+
+    @extend_schema(responses={200: WorkspaceLayoutPayloadSerializer})
     def get(self, request):
         """
         Get the current user's workspace layout.
@@ -485,6 +545,10 @@ class WorkspaceLayoutView(APIView):
             }
             return Response(default_response, status=status.HTTP_200_OK)
     
+    @extend_schema(
+        request=WorkspaceLayoutPayloadSerializer,
+        responses={200: WorkspaceLayoutPayloadSerializer},
+    )
     def put(self, request):
         """Save or update the user's workspace layout."""
         try:
@@ -512,6 +576,9 @@ class WorkspaceLayoutView(APIView):
             return Response(serializer.data, status=status.HTTP_201_CREATED)
             
         except Exception as e:
+            from apps.core.utils.logging import capture_exception
+
+            capture_exception(e, request=request, extra={"endpoint": "cockpit/workspace-layout", "action": "put"})
             logger.error(f"Error saving workspace layout: {str(e)}", exc_info=True)
             return Response(
                 {"error": "Failed to save layout", "detail": str(e)},
@@ -534,6 +601,7 @@ class WorkspaceLayoutView(APIView):
             )
 
 
+@extend_schema(tags=["Cockpit"])
 class WorkspaceStatsView(APIView):
     """
     API view for Cockpit dashboard statistics.
@@ -548,6 +616,7 @@ class WorkspaceStatsView(APIView):
     """
     permission_classes = [IsAuthenticated]
     
+    @extend_schema(responses={200: OpenApiTypes.OBJECT})
     def get(self, request):
         """Get workspace statistics for the current user's tenant."""
         if not hasattr(request, 'tenant') or not request.tenant:
@@ -565,7 +634,7 @@ class WorkspaceStatsView(APIView):
             from tenant_apps.sales_orders.models import SalesOrder
             from tenant_apps.customers.models import Customer
             from tenant_apps.suppliers.models import Supplier
-            from django.db.models import Count, Sum, Q
+            from django.db.models import Sum
             from decimal import Decimal
             
             # Quick Stats
@@ -654,6 +723,9 @@ class WorkspaceStatsView(APIView):
             return Response(stats)
             
         except Exception as e:
+            from apps.core.utils.logging import capture_exception
+
+            capture_exception(e, request=request, extra={"endpoint": "cockpit/workspace-stats"})
             logger.error(f"Error fetching workspace stats: {str(e)}", exc_info=True)
             return Response(
                 {"error": "Failed to fetch stats", "detail": str(e)},

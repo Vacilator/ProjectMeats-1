@@ -300,6 +300,10 @@ export const ActivityFeed: React.FC<ActivityFeedProps> = ({
   const [formData, setFormData] = useState({ title: '', content: '' });
   const [submitting, setSubmitting] = useState(false);
 
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editData, setEditData] = useState({ title: '', content: '' });
+  const [savingEdit, setSavingEdit] = useState(false);
+
   // Fetch activity logs on mount and when entity changes
   useEffect(() => {
     fetchActivities();
@@ -360,6 +364,40 @@ export const ActivityFeed: React.FC<ActivityFeedProps> = ({
   const handleCancel = () => {
     setFormData({ title: '', content: '' });
     setShowForm(false);
+  };
+
+  const startEdit = (activity: ActivityLog) => {
+    setEditingId(activity.id);
+    setEditData({
+      title: activity.title || 'Note',
+      content: activity.content || '',
+    });
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+    setEditData({ title: '', content: '' });
+  };
+
+  const saveEdit = async () => {
+    if (!editingId) return;
+    if (!editData.content.trim()) return;
+
+    try {
+      setSavingEdit(true);
+      const response = await apiClient.patch(`workspace/activity-logs/${editingId}/`, {
+        title: editData.title.trim() || 'Note',
+        content: editData.content.trim(),
+      });
+
+      setActivities(activities.map((a) => (a.id === editingId ? { ...a, ...response.data } : a)));
+      cancelEdit();
+    } catch (err: any) {
+      console.error('Failed to update activity log:', err);
+      setError(err.response?.data?.detail || 'Failed to update note');
+    } finally {
+      setSavingEdit(false);
+    }
   };
 
   return (
@@ -423,19 +461,46 @@ export const ActivityFeed: React.FC<ActivityFeedProps> = ({
             activities.map((activity) => (
               <ActivityCard key={activity.id}>
                 <ActivityHeader>
-                  <ActivityTitle>
-                    {activity.title || 'Note'}
-                  </ActivityTitle>
+                  <ActivityTitle>{activity.title || 'Note'}</ActivityTitle>
                   <ActivityMeta>
-                    <MetaText>
-                      {activity.created_by_name || 'Unknown User'}
-                    </MetaText>
-                    <MetaText>
-                      {formatToLocal(activity.created_on)}
-                    </MetaText>
+                    <MetaText>{activity.created_by_name || 'Unknown User'}</MetaText>
+                    <MetaText>{formatToLocal(activity.created_on)}</MetaText>
+                    {editingId !== activity.id && (
+                      <CancelButton type="button" onClick={() => startEdit(activity)}>
+                        Edit
+                      </CancelButton>
+                    )}
                   </ActivityMeta>
                 </ActivityHeader>
-                <ActivityContent>{activity.content}</ActivityContent>
+
+                {editingId === activity.id ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    <FormInput
+                      type="text"
+                      placeholder="Title (optional)"
+                      value={editData.title}
+                      onChange={(e) => setEditData({ ...editData, title: e.target.value })}
+                      disabled={savingEdit}
+                    />
+                    <FormTextarea
+                      placeholder="Enter your note..."
+                      value={editData.content}
+                      onChange={(e) => setEditData({ ...editData, content: e.target.value })}
+                      disabled={savingEdit}
+                      required
+                    />
+                    <FormActions>
+                      <CancelButton type="button" onClick={cancelEdit} disabled={savingEdit}>
+                        Cancel
+                      </CancelButton>
+                      <SubmitButton type="button" onClick={() => void saveEdit()} disabled={savingEdit || !editData.content.trim()}>
+                        {savingEdit ? 'Saving...' : 'Save Changes'}
+                      </SubmitButton>
+                    </FormActions>
+                  </div>
+                ) : (
+                  <ActivityContent>{activity.content}</ActivityContent>
+                )}
               </ActivityCard>
             ))
           )}

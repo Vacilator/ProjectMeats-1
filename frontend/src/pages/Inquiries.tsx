@@ -12,11 +12,14 @@
  * - Create from templates
  */
 import React, { useRef, useState, useEffect, useCallback } from 'react';
+import { Skeleton } from 'antd';
 import styled from 'styled-components';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { showAlert } from '@/utils/uiDialogs';
 import { apiClient } from '../services/apiService';
 import { InquiryListItem, InquiryStatus, InquiryTemplateListItem } from '../types';
-import { InquiryDetailModal, CloneInquiryModal, InquiryCreateModal } from '../components/Inquiry';
+import { InquiryDetailModal, CloneInquiryModal } from '../components/Inquiry';
+import { EntityFormSurface } from '../components/Shared';
 
 // ============================================================================
 // Styled Components
@@ -486,7 +489,11 @@ const Inquiries: React.FC = () => {
       fetchInquiries();
     } catch (err) {
       console.error('Failed to create inquiry from template:', err);
-      alert('Failed to create inquiry from template');
+      showAlert({
+        type: 'error',
+        title: 'Error',
+        content: 'Failed to create inquiry from template',
+      });
     }
   };
 
@@ -589,7 +596,9 @@ const Inquiries: React.FC = () => {
         </TableHeader>
 
         {loading ? (
-          <LoadingState>Loading inquiries...</LoadingState>
+          <LoadingState>
+            <Skeleton active paragraph={{ rows: 6 }} />
+          </LoadingState>
         ) : error ? (
           <EmptyState>
             <div className="icon">⚠️</div>
@@ -662,13 +671,17 @@ const Inquiries: React.FC = () => {
         )}
       </Table>
 
-      {/* Create Inquiry Modal */}
-      <InquiryCreateModal
+      {/* Create Inquiry (EntityFormSurface → enhanced inquiry form by default) */}
+      <EntityFormSurface
+        entityType="inquiry"
+        mode="create"
         isOpen={showCreateModal}
         onClose={() => setShowCreateModal(false)}
+        context={{
+          customerId: prefillEntityType === 'customer' ? prefillEntityId : undefined,
+          supplierId: prefillEntityType === 'supplier' ? prefillEntityId : undefined,
+        }}
         onSuccess={() => handleCreateSuccess()}
-        initialEntityType={prefillEntityType}
-        initialEntityId={prefillEntityId}
       />
 
       {/* Inquiry Detail Modal */}

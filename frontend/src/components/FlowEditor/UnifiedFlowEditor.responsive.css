@@ -40,6 +40,17 @@
 }
 
 /* ============================================================================
+   Phase 9.7: Selected node visibility
+   ============================================================================ */
+
+.pm-node.is-selected {
+  border: 2px solid rgb(var(--color-primary)) !important;
+  box-shadow: 0 0 0 3px rgba(var(--color-primary), 0.4) !important;
+  transform: scale(1.02);
+  transition: all 0.2s ease-in-out;
+}
+
+/* ============================================================================
    Mobile Styles (< 600px)
    ============================================================================ */
 
@@ -289,13 +300,13 @@
 
   /* High contrast for printing */
   .react-flow__node {
-    border: 2px solid #000 !important;
-    background: #fff !important;
-    color: #000 !important;
+    border: 2px solid rgb(var(--color-text-primary)) !important;
+    background: rgb(var(--color-surface)) !important;
+    color: rgb(var(--color-text-primary)) !important;
   }
 
   .react-flow__edge-path {
-    stroke: #000 !important;
+    stroke: rgb(var(--color-text-primary)) !important;
     stroke-width: 2px !important;
   }
 }

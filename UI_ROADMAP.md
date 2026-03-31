@@ -1,8 +1,10 @@
 # UI Roadmap (Reference)
 
-**Authority:** This is **not** the canonical status tracker. For current truth and backlog, see `MASTER_PLAN.md`.
+**Authority:** This is **REFERENCE ONLY**. For current truth, backlog, and shipped evidence, see **`MASTER_PLAN.md` (canonical)**.
 
-**Status**: Reference / historical notes (update only when it adds value beyond the Master Plan)
+If anything here conflicts with the Master Plan, treat this file as outdated/historical context.
+
+---
 
 ## Vanguard UI Templates (Shipped)
 

@@ -4,6 +4,7 @@ import {
   ConfigCategory,
   ConfigByCategory,
 } from '../../../services/configService';
+import { confirmDialog } from '@/utils/uiDialogs';
 
 interface TenantConfigEditorProps {
   onClose?: () => void;
@@ -113,9 +114,20 @@ export const TenantConfigEditor: React.FC<TenantConfigEditorProps> = ({ onClose 
       // Escape: Close editor
       else if (e.key === 'Escape') {
         if (onClose) {
-          if (!hasChanges || window.confirm('You have unsaved changes. Discard them?')) {
-            onClose();
-          }
+          void (async () => {
+            const ok =
+              !hasChanges ||
+              (await confirmDialog({
+                title: 'Discard unsaved changes?',
+                content: 'You have unsaved changes. Discard them?',
+                okText: 'Discard',
+                cancelText: 'Keep editing',
+                danger: true,
+              }));
+            if (ok) {
+              onClose();
+            }
+          })();
         }
       }
     };
@@ -124,11 +136,16 @@ export const TenantConfigEditor: React.FC<TenantConfigEditorProps> = ({ onClose 
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [hasChanges, saving, onClose]);
 
-  const handleCategoryChange = (category: ConfigCategory) => {
+  const handleCategoryChange = async (category: ConfigCategory) => {
     if (hasChanges) {
-      if (!window.confirm('You have unsaved changes. Discard them?')) {
-        return;
-      }
+      const ok = await confirmDialog({
+        title: 'Discard unsaved changes?',
+        content: 'You have unsaved changes. Discard them?',
+        okText: 'Discard',
+        cancelText: 'Keep editing',
+        danger: true,
+      });
+      if (!ok) return;
     }
     setSelectedCategory(category);
     setSearchQuery('');
@@ -171,9 +188,15 @@ export const TenantConfigEditor: React.FC<TenantConfigEditorProps> = ({ onClose 
   const handleDeleteConfig = async (index: number) => {
     const config = configs[index];
     if (config.id) {
-      if (!window.confirm(`Delete "${config.key}"? This cannot be undone.`)) {
-        return;
-      }
+      const ok = await confirmDialog({
+        title: 'Delete configuration?',
+        content: `Delete "${config.key}"? This cannot be undone.`,
+        okText: 'Delete',
+        cancelText: 'Cancel',
+        danger: true,
+      });
+      if (!ok) return;
+
       try {
         await configService.deleteTenantConfig(config.id);
         setSuccessMessage('Config deleted successfully');
@@ -329,7 +352,7 @@ export const TenantConfigEditor: React.FC<TenantConfigEditorProps> = ({ onClose 
   if (loading && !configsByCategory) {
     return (
       <div className="flex items-center justify-center h-96">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
       </div>
     );
   }
@@ -347,7 +370,7 @@ export const TenantConfigEditor: React.FC<TenantConfigEditorProps> = ({ onClose 
             return (
               <button
                 key={category}
-                onClick={() => handleCategoryChange(category)}
+                onClick={() => void handleCategoryChange(category)}
                 className={`w-full text-left p-4 border-b hover:bg-gray-50 transition-colors ${
                   selectedCategory === category ? 'bg-blue-50 border-l-4 border-l-blue-600' : ''
                 }`}
@@ -461,7 +484,7 @@ export const TenantConfigEditor: React.FC<TenantConfigEditorProps> = ({ onClose 
                       </span>
                     </div>
                     <button
-                      onClick={() => handleDeleteConfig(index)}
+                      onClick={() => void handleDeleteConfig(index)}
                       className="mt-5 text-red-600 hover:text-red-800 p-2"
                       title="Delete config"
                     >

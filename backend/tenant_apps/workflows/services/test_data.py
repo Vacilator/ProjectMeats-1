@@ -8,7 +8,7 @@ Uses pattern-based generation to create field-appropriate fake data.
 import random
 import string
 from datetime import datetime, timedelta
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, Optional
 
 
 # Sample data pools for realistic generation

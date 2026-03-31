@@ -6,7 +6,7 @@ across different database backends (PostgreSQL, SQLite).
 """
 
 from unittest import skip
-from django.test import TestCase, override_settings
+from django.test import TestCase
 from django.db import connection, transaction
 from django.contrib.auth import get_user_model
 from apps.core.models import Protein

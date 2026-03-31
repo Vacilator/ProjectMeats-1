@@ -11,6 +11,7 @@
  */
 import { Node } from '@xyflow/react';
 import { NODE_TYPE_REGISTRY } from '../nodeTypes';
+import { formatEntityTypeLabel } from './formatEntityTypeLabel';
 
 const LEGACY_FORM_STEP_TYPE_MAP: Record<string, 'form'> = {
   formStep: 'form',
@@ -43,6 +44,40 @@ export function normalizeNodeData(node: Node): Node {
       ...(node.data || {}),
     },
   } as Node;
+
+  // --------------------------------------------------------------------------
+  // Canonical title normalization: prefer data.title
+  // --------------------------------------------------------------------------
+  {
+    const data: any = next.data || {};
+
+    const existingTitle = data.title;
+    const legacyTitle =
+      data.name ??
+      data.label ??
+      data.containerName ??
+      data.groupName ??
+      data.stepTitle ??
+      data.displayTitle;
+
+    const entityFallback = formatEntityTypeLabel(data.entityType ?? data.entity_type);
+
+    const resolvedTitle =
+      (typeof existingTitle === 'string' && existingTitle.trim() ? existingTitle : undefined) ??
+      (typeof legacyTitle === 'string' && legacyTitle.trim() ? legacyTitle : undefined) ??
+      (entityFallback ? entityFallback : undefined);
+
+    if (resolvedTitle) {
+      next = {
+        ...next,
+        data: {
+          ...(next.data || {}),
+          title: resolvedTitle,
+          label: (next.data as any)?.label ?? resolvedTitle,
+        },
+      } as Node;
+    }
+  }
 
   // --------------------------------------------------------------------------
   // ParentId consistency: sync ReactFlow parentId ↔ node.data.parentId
@@ -91,6 +126,9 @@ export function normalizeNodeData(node: Node): Node {
 
     const existingLabel = (next.data as any)?.label;
     const existingContainerName = (next.data as any)?.containerName;
+    const existingTitle = (next.data as any)?.title;
+
+    const resolvedTitle = existingTitle ?? existingLabel ?? existingContainerName ?? 'Form Process';
 
     return {
       ...next,
@@ -98,7 +136,9 @@ export function normalizeNodeData(node: Node): Node {
       data: {
         ...(next.data || {}),
         nodeType: canonicalNodeType,
-        label: existingLabel ?? existingContainerName ?? 'Form Process',
+        title: resolvedTitle,
+        label: existingLabel ?? resolvedTitle,
+        containerName: existingContainerName ?? resolvedTitle,
         // Ensure group semantics are enabled
         isGroup: true,
         // Ensure required sizing metadata exists for downstream logic

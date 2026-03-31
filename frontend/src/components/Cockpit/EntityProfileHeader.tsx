@@ -330,6 +330,8 @@ export const EntityProfileHeader: React.FC<EntityProfileHeaderProps> = ({
 }) => {
   const [data, setData] = useState<EntityDetailResponse | null>(null);
   const [loading, setLoading] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [showAllFields, setShowAllFields] = useState(false);
   const [editingArrayField, setEditingArrayField] = useState<string | null>(null);
   const [arrayDraft, setArrayDraft] = useState<string[]>([]);
 
@@ -354,6 +356,8 @@ export const EntityProfileHeader: React.FC<EntityProfileHeaderProps> = ({
   const canEdit = Boolean(data?.can_edit);
 
   useEffect(() => {
+    setIsEditMode(false);
+    setShowAllFields(false);
     setEditingArrayField(null);
     setArrayDraft([]);
   }, [entityType, entityId]);
@@ -494,8 +498,8 @@ export const EntityProfileHeader: React.FC<EntityProfileHeaderProps> = ({
       return a.localeCompare(b);
     });
 
-    return sorted.slice(0, 6);
-  }, [data, entityType, variant]);
+    return showAllFields ? sorted : sorted.slice(0, 6);
+  }, [data, entityType, showAllFields, variant]);
 
   return (
     <Container>
@@ -507,6 +511,31 @@ export const EntityProfileHeader: React.FC<EntityProfileHeaderProps> = ({
             <span style={{ marginLeft: 8 }}>ID: {entityId}</span>
           </Subtitle>
         </TitleBlock>
+
+        <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+          {variant === 'compact' && (
+            <LinkButton type="button" onClick={() => setShowAllFields((v) => !v)}>
+              {showAllFields ? 'Show fewer fields' : 'Show all fields'}
+            </LinkButton>
+          )}
+          {canEdit && (
+            <LinkButton
+              type="button"
+              onClick={() =>
+                setIsEditMode((v) => {
+                  const next = !v;
+                  if (!next) {
+                    setEditingArrayField(null);
+                    setArrayDraft([]);
+                  }
+                  return next;
+                })
+              }
+            >
+              {isEditMode ? 'Done' : 'Edit'}
+            </LinkButton>
+          )}
+        </div>
       </TitleRow>
 
       {loading ? (
@@ -536,7 +565,7 @@ export const EntityProfileHeader: React.FC<EntityProfileHeaderProps> = ({
               const lowerKey = String(key).toLowerCase();
               const isMultiValue = Array.isArray(value) || lowerKey.includes('products');
               const isEditingMulti = editingArrayField === key;
-              const isEditableText = canEdit && !isMultiValue && typeof value === 'string' && scalar.length <= 200;
+              const isEditableText = canEdit && isEditMode && !isMultiValue && typeof value === 'string' && scalar.length <= 200;
 
               const renderMultiValue = () => {
                 const values = Array.isArray(value) ? normalizeArrayStrings(value) : [];
@@ -592,7 +621,7 @@ export const EntityProfileHeader: React.FC<EntityProfileHeaderProps> = ({
                       <span style={{ color: 'rgb(var(--color-text-tertiary))' }}>—</span>
                     )}
 
-                    {canEdit && (
+                    {canEdit && isEditMode && (
                       <LinkButton
                         type="button"
                         onClick={() => {
@@ -617,11 +646,15 @@ export const EntityProfileHeader: React.FC<EntityProfileHeaderProps> = ({
                       renderMultiValue()
                     ) : isEditableText ? (
                       <Text
-                        editable={{
-                          onChange: (next) => debouncedPatch(key, next),
-                          tooltip: 'Click to edit',
-                          triggerType: ['icon', 'text'],
-                        }}
+                        editable={
+                          isEditMode
+                            ? {
+                                onChange: (next) => debouncedPatch(key, next),
+                                tooltip: 'Click to edit',
+                                triggerType: ['icon', 'text'],
+                              }
+                            : false
+                        }
                       >
                         {scalar || <span style={{ color: 'rgb(var(--color-text-tertiary))' }}>—</span>}
                       </Text>
@@ -648,7 +681,7 @@ export const EntityProfileHeader: React.FC<EntityProfileHeaderProps> = ({
             const activeIds = new Set(activeProducts.map((p) => p.id));
             const activeIsSameAsPreferred = preferredIds.size === activeIds.size && Array.from(preferredIds).every((id) => activeIds.has(id));
 
-            const canEditProducts = canEdit && (isCustomer || isSupplier);
+            const canEditProducts = canEdit && isEditMode && (isCustomer || isSupplier);
 
             const showPreferred = canEditProducts || preferredProducts.length > 0;
             const showActive = isSupplier

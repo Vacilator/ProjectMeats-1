@@ -19,39 +19,33 @@ class ProductValidationTest(TestCase):
     @classmethod
     def setUpTestData(cls):
         """Set up test data once for all tests."""
-        # Create protein_type choice list
-        cls.protein_choice_list = SystemChoiceList.objects.create(
+        # Create protein_type choice list (may already be seeded by migrations)
+        cls.protein_choice_list, _created = SystemChoiceList.objects.get_or_create(
             slug='protein_type',
-            name='Protein Type',
-            description='Types of protein for products',
-            model_field_path='system.Product.protein_type',
-            is_extensible=False,
+            defaults={
+                'name': 'Protein Type',
+                'description': 'Types of protein for products',
+                'model_field_path': 'system.Product.protein_type',
+                'is_extensible': False,
+            },
         )
-        
-        # Create valid protein types
-        SystemChoiceItem.objects.bulk_create([
-            SystemChoiceItem(
-                choice_list=cls.protein_choice_list,
-                value='beef',
-                label='Beef',
-                order=1,
-                is_active=True,
-            ),
-            SystemChoiceItem(
-                choice_list=cls.protein_choice_list,
-                value='pork',
-                label='Pork',
-                order=2,
-                is_active=True,
-            ),
-            SystemChoiceItem(
-                choice_list=cls.protein_choice_list,
-                value='poultry',
-                label='Poultry',
-                order=3,
-                is_active=True,
-            ),
-        ])
+
+        # Ensure valid protein types exist
+        SystemChoiceItem.objects.update_or_create(
+            choice_list=cls.protein_choice_list,
+            value='beef',
+            defaults={'label': 'Beef', 'order': 1, 'is_active': True},
+        )
+        SystemChoiceItem.objects.update_or_create(
+            choice_list=cls.protein_choice_list,
+            value='pork',
+            defaults={'label': 'Pork', 'order': 2, 'is_active': True},
+        )
+        SystemChoiceItem.objects.update_or_create(
+            choice_list=cls.protein_choice_list,
+            value='poultry',
+            defaults={'label': 'Poultry', 'order': 3, 'is_active': True},
+        )
     
     def test_valid_protein_type_passes(self):
         """Test that valid protein_type values are accepted."""
@@ -148,13 +142,11 @@ class ProductValidationTest(TestCase):
     
     def test_inactive_protein_type_fails(self):
         """Test that inactive protein_type values are rejected."""
-        # Create inactive choice
-        SystemChoiceItem.objects.create(
+        # Create inactive choice (may already exist if seeded)
+        SystemChoiceItem.objects.update_or_create(
             choice_list=self.protein_choice_list,
             value='lamb',
-            label='Lamb',
-            order=4,
-            is_active=False,  # Inactive
+            defaults={'label': 'Lamb', 'order': 4, 'is_active': False},
         )
         
         product = Product(

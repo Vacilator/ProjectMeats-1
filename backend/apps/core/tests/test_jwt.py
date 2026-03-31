@@ -4,7 +4,7 @@ Tests for JWT authentication functionality.
 Wave S1: Security Hardening - JWT Authentication
 """
 
-from django.test import TestCase, override_settings
+from django.test import TestCase
 from django.contrib.auth.models import User
 from rest_framework.test import APIClient
 from rest_framework import status

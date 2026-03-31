@@ -35,6 +35,7 @@
 
 import React, { useState, useMemo, useCallback } from 'react';
 import styled from 'styled-components';
+import { buildCsv, downloadCsv } from '@/utils/csv';
 import { LoadingSkeleton } from './LoadingSkeleton';
 import { EmptyState } from './EmptyState';
 
@@ -44,6 +45,11 @@ interface Column<T> {
   sortable?: boolean;
   render?: (value: any, row: T) => React.ReactNode;
   width?: string;
+
+  /** CSV export: by default we export the resolved raw value for the column key. */
+  exportable?: boolean;
+  exportLabel?: string;
+  exportValue?: (value: any, row: T) => unknown;
 }
 
 interface Action<T> {
@@ -75,6 +81,11 @@ interface AdminTableProps<T> {
   idKey?: keyof T;
   selectable?: boolean;
   onSelectionChange?: (selectedIds: (string | number)[]) => void;
+
+  /** Optional: add an Export CSV button for the current (sorted/filtered) rows. */
+  csvExport?: {
+    fileName?: string;
+  };
 }
 
 type SortDirection = 'asc' | 'desc' | null;
@@ -90,6 +101,7 @@ export function AdminTable<T extends Record<string, any>>({
   idKey = 'id' as keyof T,
   selectable = false,
   onSelectionChange,
+  csvExport,
 }: AdminTableProps<T>) {
   const [sortColumn, setSortColumn] = useState<string | null>(null);
   const [sortDirection, setSortDirection] = useState<SortDirection>(null);
@@ -197,9 +209,38 @@ export function AdminTable<T extends Record<string, any>>({
     );
   }
 
+  const handleExportCsv = () => {
+    const exportColumns = columns.filter((c) => c.exportable !== false);
+    const headers = exportColumns.map((c) => String(c.exportLabel ?? c.label ?? c.key));
+
+    const rows = sortedData.map((row) =>
+      exportColumns.map((c) => {
+        const raw = resolveValue(row, c.key);
+        return c.exportValue ? c.exportValue(raw, row) : raw;
+      })
+    );
+
+    const csv = buildCsv({ headers, rows });
+    downloadCsv(csvExport?.fileName ?? 'export.csv', csv);
+  };
+
   // Render table
   return (
     <TableContainer>
+      {csvExport && (
+        <Toolbar>
+          <ToolbarLeft>
+            {selectable && selectedIds.size > 0 && (
+              <SelectionPill>{selectedIds.size} selected</SelectionPill>
+            )}
+          </ToolbarLeft>
+          <ToolbarRight>
+            <ToolbarButton type="button" onClick={handleExportCsv}>
+              Export CSV
+            </ToolbarButton>
+          </ToolbarRight>
+        </Toolbar>
+      )}
       <Table>
         <TableHead>
           <TableRow>
@@ -304,6 +345,60 @@ const TableContainer = styled.div`
   border: 1px solid rgb(var(--color-border));
   border-radius: var(--radius-lg);
   background: rgb(var(--color-surface));
+`;
+
+const Toolbar = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border-bottom: 1px solid rgb(var(--color-border));
+`;
+
+const ToolbarLeft = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+`;
+
+const ToolbarRight = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+`;
+
+const SelectionPill = styled.div`
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(var(--color-primary), 0.08);
+  color: rgb(var(--color-text-primary));
+  font-size: 12px;
+  font-weight: 600;
+`;
+
+const ToolbarButton = styled.button`
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  font-size: 13px;
+  font-weight: 600;
+  border: 1px solid rgb(var(--color-border));
+  border-radius: var(--radius-sm);
+  background: rgb(var(--color-surface));
+  color: rgb(var(--color-text-primary));
+  cursor: pointer;
+
+  &:hover {
+    background: rgb(var(--color-surface-hover));
+  }
+
+  &:focus-visible {
+    outline: 2px solid rgb(var(--color-primary));
+    outline-offset: 2px;
+  }
 `;
 
 const Table = styled.table`

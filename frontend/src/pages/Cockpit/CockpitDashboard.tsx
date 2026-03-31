@@ -169,12 +169,14 @@ const ToolbarWrapper = styled.div`
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 16px 24px;
+  padding: 12px 16px;
+  margin: 16px 24px 0;
   background: rgb(var(--color-surface));
-  border-bottom: 1px solid rgb(var(--color-border));
-  
+  border: 1px solid rgb(var(--color-border));
+  border-radius: var(--radius-lg);
+
   @media (max-width: 640px) {
-    padding: 12px 16px;
+    margin: 12px 16px 0;
     flex-wrap: wrap;
     gap: 12px;
   }
@@ -448,13 +450,21 @@ export const CockpitDashboard: React.FC = () => {
   const cockpitQuery = searchParams.get('q') ?? '';
   
   // Handle search query changes from SmartSearch component
+  // NOTE: use replace=true so typing doesn't spam browser history.
   const handleQueryChange = useCallback((newQuery: string) => {
-    if (newQuery) {
-      setSearchParams({ q: newQuery });
+    const next = new URLSearchParams(searchParams);
+
+    if (newQuery && newQuery.trim().length > 0) {
+      next.set('q', newQuery);
     } else {
-      setSearchParams({});
+      next.delete('q');
     }
-  }, [setSearchParams]);
+
+    // This subview is only meaningful when a record context is active.
+    next.delete('cockpit_subview');
+
+    setSearchParams(next, { replace: true });
+  }, [searchParams, setSearchParams]);
   
   // Cockpit navigation context
   const navigation = useCockpitNavigation();
@@ -463,6 +473,22 @@ export const CockpitDashboard: React.FC = () => {
   const isSearchActive = cockpitQuery.trim().length > 0;
   const isRecordActive = navigation.path.length > 0;
   const showDashboardWidgets = !isSearchActive && !isRecordActive;
+
+  // If the user edits the search input, we should exit any selected record context
+  // so results refresh immediately on every keystroke.
+  const lastQueryRef = useRef<string>(cockpitQuery);
+  useEffect(() => {
+    if (lastQueryRef.current === cockpitQuery) return;
+    lastQueryRef.current = cockpitQuery;
+
+    if (navigation.path.length > 0) {
+      navigation.clearPath();
+    }
+
+    if (inlineAction) {
+      setInlineAction(null);
+    }
+  }, [cockpitQuery, inlineAction, navigation]);
 
   const generateSmartContext = useCallback((sourceEntity: any, targetType: string) => {
     if (!sourceEntity) return {};
@@ -684,39 +710,6 @@ export const CockpitDashboard: React.FC = () => {
 
   return (
     <Container>
-      {/* Layout toolbar (only shown when dashboard widgets are visible) */}
-      {showDashboardWidgets && (
-        <ToolbarWrapper>
-          <ToolbarLeft>
-            {isEditing && <EditBadge>Editing Layout</EditBadge>}
-          </ToolbarLeft>
-
-          <ToolbarActions>
-            {isEditing ? (
-              <>
-                <ActionButton onClick={() => setIsCatalogOpen(true)}>
-                  <Plus size={16} />
-                  Add Widget
-                </ActionButton>
-                <ActionButton onClick={handleResetLayout}>
-                  <RotateCcw size={16} />
-                  Reset
-                </ActionButton>
-                <ActionButton $variant="primary" onClick={handleSaveLayout} disabled={isSaving}>
-                  <Lock size={16} />
-                  {isSaving ? 'Saving...' : 'Save & Lock'}
-                </ActionButton>
-              </>
-            ) : (
-              <ActionButton onClick={() => setIsEditing(true)}>
-                <Unlock size={16} />
-                Customize
-              </ActionButton>
-            )}
-          </ToolbarActions>
-        </ToolbarWrapper>
-      )}
-      
       {/* Guided Tour */}
       <CockpitTour enabled={true} />
 
@@ -752,6 +745,39 @@ export const CockpitDashboard: React.FC = () => {
         <div style={{ padding: '16px 24px 0' }}>
           <AILearningMetricsWidget />
         </div>
+      )}
+
+      {/* Widget layout toolbar (applies to widgets only) */}
+      {showDashboardWidgets && (
+        <ToolbarWrapper>
+          <ToolbarLeft>
+            {isEditing && <EditBadge>Editing Layout</EditBadge>}
+          </ToolbarLeft>
+
+          <ToolbarActions>
+            {isEditing ? (
+              <>
+                <ActionButton onClick={() => setIsCatalogOpen(true)}>
+                  <Plus size={16} />
+                  Add Widget
+                </ActionButton>
+                <ActionButton onClick={handleResetLayout}>
+                  <RotateCcw size={16} />
+                  Reset
+                </ActionButton>
+                <ActionButton $variant="primary" onClick={handleSaveLayout} disabled={isSaving}>
+                  <Lock size={16} />
+                  {isSaving ? 'Saving...' : 'Save & Lock'}
+                </ActionButton>
+              </>
+            ) : (
+              <ActionButton onClick={() => setIsEditing(true)}>
+                <Unlock size={16} />
+                Customize
+              </ActionButton>
+            )}
+          </ToolbarActions>
+        </ToolbarWrapper>
       )}
 
       {/* Widget Grid (hidden when searching or a record is active) */}

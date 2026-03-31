@@ -10,8 +10,7 @@ from django.contrib.auth.models import User
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
 
-from apps.tenants.models import Tenant
-from apps.core.models import TimestampModel, TenantManager, TenantAwareModel
+from apps.core.models import TenantAwareModel
 
 
 class EntityTypeChoices(models.TextChoices):

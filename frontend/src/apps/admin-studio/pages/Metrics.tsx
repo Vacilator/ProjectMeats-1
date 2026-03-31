@@ -358,7 +358,7 @@ export const Metrics: React.FC = () => {
         {/* Daily Usage Trend */}
         <ChartCard>
           <ChartTitle>Daily Usage Trends (Last 30 Days)</ChartTitle>
-          <ResponsiveContainer width="100%" height={300}>
+          <ResponsiveContainer width="100%" height={300} minWidth={0} minHeight={0} debounce={150}>
             <LineChart data={workflowMetrics.daily_usage}>
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.1)" />
               <XAxis 
@@ -398,7 +398,7 @@ export const Metrics: React.FC = () => {
         {/* Execution Status Bar Chart */}
         <ChartCard>
           <ChartTitle>Execution Status Distribution</ChartTitle>
-          <ResponsiveContainer width="100%" height={300}>
+          <ResponsiveContainer width="100%" height={300} minWidth={0} minHeight={0} debounce={150}>
             <BarChart data={[
               { name: 'Completed', value: workflowMetrics.completed_executions },
               { name: 'In Progress', value: workflowMetrics.in_progress_executions },

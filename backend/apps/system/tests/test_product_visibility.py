@@ -88,6 +88,21 @@ class ProductVisibilityTestCase(TestCase):
         ids = set(visible_products_qs(tenant=self.tenant_a).values_list("id", flat=True))
         self.assertNotIn(self.system_product.id, ids)
 
+    def test_globally_inactive_system_product_excluded_even_if_preference_exists(self):
+        self.system_product.is_active = False
+        self.system_product.save(update_fields=['is_active'])
+
+        # Even an explicit tenant preference should not resurrect globally inactive products.
+        TenantProductPreference.objects.create(
+            tenant=self.tenant_a,
+            product=self.system_product,
+            is_active=True,
+            is_custom=False,
+        )
+
+        ids = set(visible_products_qs(tenant=self.tenant_a).values_list('id', flat=True))
+        self.assertNotIn(self.system_product.id, ids)
+
     def test_custom_product_visible_only_to_owner_tenant(self):
         ids_a = set(visible_products_qs(tenant=self.tenant_a).values_list("id", flat=True))
         ids_b = set(visible_products_qs(tenant=self.tenant_b).values_list("id", flat=True))

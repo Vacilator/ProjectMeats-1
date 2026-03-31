@@ -119,7 +119,7 @@ class Command(BaseCommand):
         # Summary
         self.stdout.write('\n' + '='*50)
         total_required = len(required_vars)
-        total_set = len(results['set'])
+        len(results['set'])
         total_missing = len(results['missing'])
         
         if total_missing == 0:

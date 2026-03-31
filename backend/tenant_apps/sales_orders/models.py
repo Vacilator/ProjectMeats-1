@@ -7,13 +7,13 @@ Implements tenant ForeignKey field for shared-schema multi-tenancy.
 Uses OrderMethodsMixin for shared order behavior (payment calculations, status checks).
 """
 from django.db import models
-from apps.tenants.models import Tenant
 from apps.core.models import (
     CarrierReleaseFormatChoices,
+    SoftDeleteModel,
     TenantAwareModel,
     WeightUnitChoices,
 )
-from tenant_apps.orders.models import OrderMethodsMixin, PaymentStatus, BaseOrderStatus
+from tenant_apps.orders.models import OrderMethodsMixin, PaymentStatus
 
 
 class SalesOrderStatus(models.TextChoices):
@@ -34,7 +34,7 @@ class SalesOrderStatus(models.TextChoices):
 #     PAID = "paid", "Paid"
 
 
-class SalesOrder(OrderMethodsMixin, TenantAwareModel):
+class SalesOrder(OrderMethodsMixin, SoftDeleteModel, TenantAwareModel):
     """
     Sales Order model for managing customer sales orders.
     

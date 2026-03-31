@@ -7,8 +7,8 @@ Calculates completion rates, timing metrics, and identifies problem areas.
 
 from datetime import timedelta
 from typing import Dict, Any, List, Optional
-from django.db.models import Count, Avg, F, Q, Sum
-from django.db.models.functions import TruncDate, TruncHour
+from django.db.models import Count, Avg, F, Q
+from django.db.models.functions import TruncDate
 from django.utils import timezone
 
 from ..models import (

@@ -8,6 +8,7 @@ import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import FormPreview from './FormPreview';
 import { adminClient } from '@/services/apiService';
+import { confirmDialog } from '@/utils/uiDialogs';
 
 interface FieldDefinition {
   id: string;
@@ -447,10 +448,17 @@ const SchemaEditor: React.FC<Props> = ({ blueprintId, csrfToken }) => {
     }
   };
 
-  const handleDeleteField = (index: number) => {
-    if (confirm('Delete this field? This action cannot be undone.')) {
-      setFields(fields.filter((_, i) => i !== index));
-    }
+  const handleDeleteField = async (index: number) => {
+    const ok = await confirmDialog({
+      title: 'Delete field?',
+      content: 'This action cannot be undone.',
+      okText: 'Delete',
+      cancelText: 'Cancel',
+      danger: true,
+    });
+    if (!ok) return;
+
+    setFields(fields.filter((_, i) => i !== index));
   };
 
   const handleSaveWithValidation = async () => {
@@ -612,7 +620,7 @@ const SchemaEditor: React.FC<Props> = ({ blueprintId, csrfToken }) => {
                 />
               </Td>
               <Td>
-                <Button variant="danger" onClick={() => handleDeleteField(index)}>
+                <Button variant="danger" onClick={() => void handleDeleteField(index)}>
                   🗑️
                 </Button>
               </Td>

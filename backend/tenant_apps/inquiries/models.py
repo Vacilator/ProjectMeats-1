@@ -7,11 +7,10 @@ desired vs actual pricing/dates for margin calculation.
 Implements tenant ForeignKey field for shared-schema multi-tenancy.
 """
 from decimal import Decimal
-from django.contrib.postgres.fields import ArrayField
 from django.db import models
 from django.utils import timezone
 
-from apps.core.models import TenantAwareModel, TenantManager
+from apps.core.models import PhoneTypeChoices, TenantAwareModel
 
 
 class InquiryStatusChoices(models.TextChoices):
@@ -40,6 +39,13 @@ class InquiryEntityTypeChoices(models.TextChoices):
     """Entity type for the inquiry (supplier or customer)."""
     SUPPLIER = "supplier", "Supplier"
     CUSTOMER = "customer", "Customer"
+
+
+class InquiryShippingTypeChoices(models.TextChoices):
+    """Shipping type for the inquiry (used for fulfillment/logistics defaults)."""
+    TENANT = "tenant", "Tenant"
+    CUSTOMER_PICKUP = "customer_pickup", "Customer Pick-Up"
+    SUPPLIER_DELIVERING = "supplier_delivering", "Supplier Delivering"
 
 
 class UOMChoices(models.TextChoices):
@@ -120,6 +126,14 @@ class Inquiry(TenantAwareModel):
         related_name='inquiries',
         help_text="Primary contact person"
     )
+
+    shipping_type = models.CharField(
+        max_length=32,
+        choices=InquiryShippingTypeChoices.choices,
+        default=InquiryShippingTypeChoices.TENANT,
+        db_index=True,
+        help_text="Shipping type (cascades into fulfillment/logistics)",
+    )
     
     # Contact info snapshot (preserved at time of inquiry)
     contact_name = models.CharField(
@@ -138,6 +152,13 @@ class Inquiry(TenantAwareModel):
         blank=True,
         default='',
         help_text="Contact phone at time of inquiry"
+    )
+    contact_phone_type = models.CharField(
+        max_length=10,
+        choices=PhoneTypeChoices.choices,
+        blank=True,
+        default=PhoneTypeChoices.OFFICE,
+        help_text="Contact phone type at time of inquiry (mobile or office)",
     )
     contact_company = models.CharField(
         max_length=255,
@@ -292,16 +313,22 @@ class Inquiry(TenantAwareModel):
         return self.supplier if self.entity_type == InquiryEntityTypeChoices.SUPPLIER else self.customer
 
 
-class InquiryProduct(models.Model):
+class InquiryProduct(TenantAwareModel):
     """
     Through table for Inquiry products with desired vs actual tracking.
-    
-    Each line tracks expected (desired) values from the inquiry and
-    confirmed (actual) values from the quote/negotiation.
+
+    This is tenant-aware (shared schema): we persist tenant_id directly for
+    consistent RLS enforcement, even though the parent Inquiry is already tenant-aware.
     """
-    
-    objects = TenantManager()
-    
+
+    # NOTE: temporarily nullable for data backfill migration.
+    tenant = models.ForeignKey(
+        'tenants.Tenant',
+        on_delete=models.CASCADE,
+        db_index=True,
+        related_name='inquiry_products',
+    )
+
     inquiry = models.ForeignKey(
         Inquiry,
         on_delete=models.CASCADE,
@@ -313,6 +340,22 @@ class InquiryProduct(models.Model):
         null=True,
         blank=True,
         related_name='inquiry_lines'
+    )
+    supplier = models.ForeignKey(
+        'suppliers.Supplier',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='inquiry_products',
+        help_text='Optional: supplier selected for this line (customer inquiries)',
+    )
+    plant = models.ForeignKey(
+        'plants.Plant',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='inquiry_products',
+        help_text='Optional: plant selected for this line (customer inquiries)',
     )
     quantity = models.DecimalField(
         max_digits=12,
@@ -445,11 +488,20 @@ class InquiryProduct(models.Model):
         ordering = ['id']
 
     def __str__(self):
-        return f"{self.inquiry.inquiry_number} - {self.product.description_of_product_item[:50]}"
+        if not self.product:
+            return f"{self.inquiry.inquiry_number} - (No product)"
+        label = getattr(self.product, 'name', None) or getattr(self.product, 'product_code', None) or 'Product'
+        return f"{self.inquiry.inquiry_number} - {str(label)[:50]}"
+
+    def save(self, *args, **kwargs):
+        # Ensure tenant is persisted for RLS isolation.
+        if getattr(self, 'tenant_id', None) is None and self.inquiry_id is not None:
+            self.tenant = self.inquiry.tenant
+        super().save(*args, **kwargs)
 
     @property
-    def tenant(self):
-        """Inherit tenant from parent inquiry."""
+    def parent_tenant(self):
+        """Tenant derived from the parent Inquiry (for legacy call sites)."""
         return self.inquiry.tenant
 
     @property
@@ -533,10 +585,16 @@ class InquiryTemplate(TenantAwareModel):
         return f"{self.name} ({self.entity_type})"
 
 
-class InquiryTemplateProduct(models.Model):
+class InquiryTemplateProduct(TenantAwareModel):
     """Products included in an inquiry template with default values."""
-    
-    objects = TenantManager()
+
+    # Persist tenant_id for RLS isolation (backfilled from parent template).
+    tenant = models.ForeignKey(
+        'tenants.Tenant',
+        on_delete=models.CASCADE,
+        help_text="Tenant this entity belongs to",
+        related_name='inquiry_template_products',
+    )
     
     template = models.ForeignKey(
         InquiryTemplate,
@@ -588,9 +646,17 @@ class InquiryTemplateProduct(models.Model):
         unique_together = [['template', 'product']]
     
     def __str__(self):
-        return f"{self.template.name} - {self.product.description_of_product_item[:30]}"
+        if not self.product:
+            return f"{self.template.name} - (No product)"
+        label = getattr(self.product, 'name', None) or getattr(self.product, 'product_code', None) or 'Product'
+        return f"{self.template.name} - {str(label)[:30]}"
     
+    def save(self, *args, **kwargs):
+        if getattr(self, 'tenant_id', None) is None and self.template_id is not None:
+            self.tenant = self.template.tenant
+        super().save(*args, **kwargs)
+
     @property
-    def tenant(self):
-        """Inherit tenant from parent template."""
+    def parent_tenant(self):
+        """Tenant derived from the parent template (legacy call sites)."""
         return self.template.tenant

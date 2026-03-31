@@ -34,7 +34,9 @@ from .views import (
     UserNotificationViewSet, UserNotificationPreferencesView,
     ActionItemsAPIView, ActionItemCountsAPIView,
     # Phase 4.2: Permission System
-    WorkFormPermissionsAPIView
+    WorkFormPermissionsAPIView,
+    # AI suggestions
+    SuggestNodesView,
 )
 
 # Debug helper (temporary)
@@ -136,6 +138,9 @@ urlpatterns = [
     # Debug endpoint (temporary - for diagnosing superuser permissions issue)
     path('debug-permissions/', DebugPermissionsView.as_view(), name='debug-permissions'),
     
+    # AI workflow suggestions
+    path('suggest-nodes/', SuggestNodesView.as_view(), name='suggest-nodes'),
+
     # Phase 5: Workflow Trigger API endpoints
     path('workflows/<uuid:workflow_id>/webhooks/', WorkflowWebhookAPIView.as_view(), name='workflow-webhooks'),
     path('workflows/<uuid:workflow_id>/trigger/', ManualTriggerAPIView.as_view(), name='workflow-manual-trigger'),

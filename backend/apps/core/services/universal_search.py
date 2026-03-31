@@ -13,8 +13,7 @@ Part of Wave 2: Cockpit Command Center implementation.
 import re
 import logging
 from typing import List, Dict, Any, Optional, Tuple
-from django.db.models import Q, Value, CharField, F
-from django.db.models.functions import Concat
+from django.db.models import Q
 from django.core.cache import cache
 from django.contrib.auth.models import User
 
@@ -120,6 +119,50 @@ SEARCHABLE_ENTITIES = {
         'route': '/carriers/{id}',
         'operators': ['carrier:'],
     },
+    'inquiry': {
+        'app': 'inquiries',
+        'model': 'Inquiry',
+        'search_fields': ['inquiry_number', 'notes', 'contact_name', 'contact_company', 'contact_email', 'contact_phone'],
+        'display_field': 'inquiry_number',
+        'icon': 'FileText',
+        'color': '#ef4444',  # red
+        'route': '/inquiries/{id}',
+        'operators': ['inquiry:', 'inq:'],
+        'related_display': ['customer__name', 'supplier__name'],
+    },
+    'claim': {
+        'app': 'invoices',
+        'model': 'Claim',
+        'search_fields': ['claim_number', 'reason', 'description'],
+        'display_field': 'claim_number',
+        'icon': 'AlertTriangle',
+        'color': '#f97316',  # orange
+        'route': '/accounting/claims/{id}',
+        'operators': ['claim:', 'clm:'],
+        'related_display': ['invoice__invoice_number', 'supplier__name', 'customer__name'],
+    },
+    'call': {
+        'app': 'cockpit',
+        'model': 'ScheduledCall',
+        'search_fields': ['title', 'description'],
+        'display_field': 'title',
+        'icon': 'PhoneCall',
+        'color': '#06b6d4',  # cyan
+        'route': '/cockpit',
+        'operators': ['call:'],
+        'related_display': 'scheduled_for',
+    },
+    'tenant_user': {
+        'app': 'tenants',
+        'model': 'TenantUser',
+        'search_fields': ['user__username', 'user__email', 'user__first_name', 'user__last_name', 'role'],
+        'display_field': 'user__username',
+        'icon': 'User',
+        'color': '#64748b',  # slate
+        'route': '/admin/users',
+        'operators': ['user:', 'u:', 'tenant-user:'],
+        'related_display': 'role',
+    },
 }
 
 
@@ -167,31 +210,55 @@ class UniversalSearchService:
         return self._model_cache[entity_type]
     
     def _parse_query(self, query: str) -> Tuple[str, Optional[str]]:
-        """
-        Parse query for operators and return (search_text, entity_type).
-        
+        """Parse query for operators and return (search_text, entity_type).
+
         Examples:
             "beef supplier:ABC" -> ("beef ABC", "supplier")
             "po:1234" -> ("1234", "purchase_order")
             "@john" -> ("john", "contact")
-            "beef products" -> ("beef products", None)
+            "purchase" -> ("", "purchase_order")
         """
         query = query.strip()
-        
-        # Check for operators
+        lower = query.lower()
+
+        # If the query is basically an entity name, treat it like a type filter.
+        type_aliases = {
+            'purchase': 'purchase_order',
+            'purchase order': 'purchase_order',
+            'purchase orders': 'purchase_order',
+            'po': 'purchase_order',
+            'sales': 'sales_order',
+            'sales order': 'sales_order',
+            'sales orders': 'sales_order',
+            'so': 'sales_order',
+            'invoice': 'invoice',
+            'invoices': 'invoice',
+            'inquiry': 'inquiry',
+            'inquiries': 'inquiry',
+            'claim': 'claim',
+            'claims': 'claim',
+            'call': 'call',
+            'calls': 'call',
+            'user': 'tenant_user',
+            'users': 'tenant_user',
+            'tenant user': 'tenant_user',
+            'tenant users': 'tenant_user',
+        }
+
+        if lower in type_aliases:
+            return '', type_aliases[lower]
+
+        # Check for explicit operators
         for entity_type, config in SEARCHABLE_ENTITIES.items():
             for operator in config.get('operators', []):
-                # Check if query contains operator
                 pattern = rf'{re.escape(operator)}(\S+)'
                 match = re.search(pattern, query, re.IGNORECASE)
                 if match:
-                    # Extract the value after operator
                     operator_value = match.group(1)
-                    # Remove operator from query and add value
                     remaining = re.sub(pattern, '', query, flags=re.IGNORECASE).strip()
                     search_text = f"{remaining} {operator_value}".strip()
                     return search_text, entity_type
-        
+
         return query, None
     
     def _build_query_filter(self, search_text: str, search_fields: List[str]) -> Q:
@@ -211,19 +278,19 @@ class UniversalSearchService:
         return combined
     
     def _search_entity(
-        self, 
-        entity_type: str, 
-        search_text: str, 
-        limit: int = 10
-    ) -> List[Dict[str, Any]]:
+        self,
+        entity_type: str,
+        search_text: str,
+        limit: int = 10,
+    ) -> Dict[str, Any]:
         """Search a single entity type."""
         config = SEARCHABLE_ENTITIES.get(entity_type)
         if not config:
-            return []
-        
+            return {'items': [], 'total_count': 0}
+
         Model = self._get_model(entity_type)
         if not Model:
-            return []
+            return {'items': [], 'total_count': 0}
         
         try:
             # Build query
@@ -241,7 +308,22 @@ class UniversalSearchService:
 
                 base_qs = visible_products_qs(tenant=self.tenant, qs=base_qs)
 
-            queryset = base_qs.filter(query_filter)[:limit]
+            if search_text:
+                queryset = base_qs.filter(query_filter)
+            else:
+                # If the user is effectively filtering by entity type (e.g. query="purchase"),
+                # show the most recent records for that type.
+                field_names = {f.name for f in Model._meta.fields}
+                if 'created_at' in field_names:
+                    ordering = '-created_at'
+                elif 'created_on' in field_names:
+                    ordering = '-created_on'
+                else:
+                    ordering = '-id'
+                queryset = base_qs.order_by(ordering)
+
+            total_count = queryset.count()
+            queryset = queryset[:limit]
             
             # Format results
             results = []
@@ -260,11 +342,14 @@ class UniversalSearchService:
                     'score': 1.0,  # Basic relevance (can be enhanced)
                 })
             
-            return results
+            return {
+                'items': results,
+                'total_count': total_count,
+            }
             
         except Exception as e:
             logger.error(f"Search error for {entity_type}: {e}")
-            return []
+            return {'items': [], 'total_count': 0}
 
     def get_record_detail(self, entity_type: str, entity_id: str | int) -> Optional[Dict[str, Any]]:
         """Fetch a single record detail payload for a given entity type.
@@ -312,13 +397,22 @@ class UniversalSearchService:
     def _get_display_value(self, obj, config: Dict) -> str:
         """Get the display value for an object."""
         display_field = config['display_field']
-        
+
         # Handle computed fields
         if display_field == 'full_name':
             first = getattr(obj, 'first_name', '')
             last = getattr(obj, 'last_name', '')
             return f"{first} {last}".strip() or str(obj)
-        
+
+        # Support nested fields like 'user__username'
+        if '__' in display_field:
+            value = obj
+            for part in display_field.split('__'):
+                value = getattr(value, part, None)
+                if value is None:
+                    break
+            return str(value) if value is not None else str(obj)
+
         return getattr(obj, display_field, str(obj))
     
     def _get_subtitle(self, obj, config: Dict) -> Optional[str]:
@@ -326,16 +420,26 @@ class UniversalSearchService:
         related_field = config.get('related_display')
         if not related_field:
             return None
-        
-        # Handle nested fields like 'supplier__name'
-        parts = related_field.split('__')
-        value = obj
-        for part in parts:
-            value = getattr(value, part, None)
-            if value is None:
-                break
-        
-        return str(value) if value else None
+
+        # Allow a list of candidate subtitles and use the first non-empty.
+        candidates = related_field if isinstance(related_field, list) else [related_field]
+
+        for field_path in candidates:
+            if not field_path:
+                continue
+
+            # Handle nested fields like 'supplier__name'
+            parts = str(field_path).split('__')
+            value = obj
+            for part in parts:
+                value = getattr(value, part, None)
+                if value is None:
+                    break
+
+            if value:
+                return str(value)
+
+        return None
     
     def search(
         self,
@@ -396,9 +500,12 @@ class UniversalSearchService:
             counts: dict[str, int] = {}
 
             for entity_type in types_to_search:
-                results = self._search_entity(entity_type, normalized_query, limit_per_type)
-                all_results.extend(results)
-                counts[entity_type] = len(results)
+                result = self._search_entity(entity_type, normalized_query, limit_per_type)
+                items = result.get('items') if isinstance(result.get('items'), list) else []
+                total_count = int(result.get('total_count') or 0)
+
+                all_results.extend(items)
+                counts[entity_type] = total_count
 
             # Sort by score (can enhance with relevance ranking)
             all_results.sort(key=lambda x: x.get("score", 0), reverse=True)
@@ -409,7 +516,8 @@ class UniversalSearchService:
                 "operator": operator_type,
                 "results": all_results,
                 "counts": counts,
-                "total": len(all_results),
+                "total": sum(counts.values()),
+                "returned": len(all_results),
             }
 
         # Short TTL keeps search results fresh while protecting the database.

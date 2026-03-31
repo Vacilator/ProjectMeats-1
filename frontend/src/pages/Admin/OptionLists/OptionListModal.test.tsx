@@ -11,15 +11,6 @@ import { OptionListModal } from './OptionListModal';
 import * as apiService from '../../../services/apiService';
 import { ToastProvider } from '../../../hooks/useToast';
 
-vi.mock('../../../hooks/useToast', () => ({
-  useToast: () => ({
-    success: vi.fn(),
-    error: vi.fn(),
-    info: vi.fn(),
-    warning: vi.fn(),
-  }),
-}));
-
 vi.mock(import('../../../hooks/useToast'), async (importOriginal) => {
   const actual = await importOriginal();
 
@@ -30,6 +21,7 @@ vi.mock(import('../../../hooks/useToast'), async (importOriginal) => {
       error: vi.fn(),
       info: vi.fn(),
       warning: vi.fn(),
+      dismiss: vi.fn(),
     }),
   };
 });

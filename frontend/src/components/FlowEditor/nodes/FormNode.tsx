@@ -591,7 +591,11 @@ export const FormNode = React.memo<NodeProps<Node<FormNodeData>>>(({ id, data, s
     [draggingStepId, sortedSteps, repositionSteps]
   );
 
-  const title = data.containerName || data.label || 'Form';
+  const onTitleChange = (data as any).onTitleChange as ((newTitle: string) => void) | undefined;
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const [draftTitle, setDraftTitle] = useState('');
+
+  const title = (data as any).title || data.containerName || data.label || 'Form';
   const description = data.containerDescription || 'Multi-step form';
 
   // Field library grouped by entity across steps
@@ -700,7 +704,48 @@ export const FormNode = React.memo<NodeProps<Node<FormNodeData>>>(({ id, data, s
 
       <Header className="custom-drag-handle">
         <TitleBlock>
-          <Title title={title}>{title}</Title>
+          {isEditingTitle ? (
+            <input
+              className="nodrag"
+              value={draftTitle}
+              onChange={(e) => setDraftTitle(e.target.value)}
+              onBlur={() => {
+                const next = draftTitle.trim();
+                if (onTitleChange && next && next !== title) onTitleChange(next);
+                setIsEditingTitle(false);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  (e.target as HTMLInputElement).blur();
+                } else if (e.key === 'Escape') {
+                  setIsEditingTitle(false);
+                }
+              }}
+              autoFocus
+              style={{
+                width: '100%',
+                fontWeight: 900,
+                fontSize: '13px',
+                borderRadius: 8,
+                border: '1px solid rgb(var(--color-border))',
+                padding: '6px 8px',
+              }}
+              onClick={(e) => e.stopPropagation()}
+            />
+          ) : (
+            <Title
+              title={title}
+              onDoubleClick={(e) => {
+                if (!onTitleChange) return;
+                e.stopPropagation();
+                setDraftTitle(String(title));
+                setIsEditingTitle(true);
+              }}
+              style={{ cursor: onTitleChange ? 'text' : 'default' }}
+            >
+              {title}
+            </Title>
+          )}
           <SubTitle title={description}>{description}</SubTitle>
         </TitleBlock>
         <Badge>
@@ -712,7 +757,7 @@ export const FormNode = React.memo<NodeProps<Node<FormNodeData>>>(({ id, data, s
       <TabsRow className="nodrag">
         {sortedSteps.map((s, idx) => {
           const sd: any = s.data || {};
-          const label = sd.stepTitle || sd.label || `Step ${idx + 1}`;
+          const label = sd.title || sd.stepTitle || sd.label || `Step ${idx + 1}`;
           const active = s.id === activeStepId;
           return (
             <StepTab
@@ -734,8 +779,34 @@ export const FormNode = React.memo<NodeProps<Node<FormNodeData>>>(({ id, data, s
 
 
       {/* External connections in/out */}
-      <Handle type="target" position={Position.Left} />
-      <Handle type="source" position={Position.Right} />
+      <Handle
+        type="target"
+        position={Position.Top}
+        style={{
+          left: '50%',
+          width: 14,
+          height: 14,
+          background: 'rgb(var(--color-primary))',
+          border: '2px solid rgb(var(--color-surface))',
+          borderRadius: 6,
+          transform: 'translateX(-50%)',
+        }}
+        aria-label="Form input"
+      />
+      <Handle
+        type="source"
+        position={Position.Bottom}
+        style={{
+          left: '50%',
+          width: 14,
+          height: 14,
+          background: 'rgb(var(--color-primary))',
+          border: '2px solid rgb(var(--color-surface))',
+          borderRadius: 6,
+          transform: 'translateX(-50%)',
+        }}
+        aria-label="Form output"
+      />
     </Container>
   );
 });

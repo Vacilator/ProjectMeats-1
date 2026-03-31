@@ -22,12 +22,43 @@ class FulfillmentViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
     
     def get_queryset(self):
-        """Filter by tenant."""
-        return Fulfillment.objects.filter(
+        """Filter by tenant.
+
+        Soft deletes:
+        - default: hide deleted
+        - admin: allow include_deleted=1
+        """
+        include_deleted = str(self.request.query_params.get('include_deleted') or '').strip().lower() in {
+            '1',
+            'true',
+            't',
+            'yes',
+            'y',
+        }
+        is_admin = bool(getattr(self.request.user, 'is_superuser', False) or getattr(self.request.user, 'is_staff', False))
+
+        qs = Fulfillment.all_objects if (include_deleted and is_admin) else Fulfillment.objects
+
+        return qs.filter(
             tenant=self.request.tenant
         ).select_related(
             'inquiry', 'supplier', 'customer', 'carrier', 'created_by', 'shipped_by'
         ).prefetch_related('products')
+
+    def perform_destroy(self, instance):
+        instance.soft_delete()
+
+    @action(detail=True, methods=['post'], url_path='restore')
+    def restore(self, request, pk=None):
+        if not (getattr(request.user, 'is_superuser', False) or getattr(request.user, 'is_staff', False)):
+            return Response({'error': 'Permission denied'}, status=status.HTTP_403_FORBIDDEN)
+
+        fulfillment = Fulfillment.all_objects.filter(tenant=request.tenant, pk=pk).first()
+        if not fulfillment:
+            return Response({'error': 'Not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        fulfillment.restore()
+        return Response(FulfillmentDetailSerializer(fulfillment).data)
     
     def get_serializer_class(self):
         """Return appropriate serializer based on action."""

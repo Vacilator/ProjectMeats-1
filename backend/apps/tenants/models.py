@@ -24,6 +24,8 @@ from django.contrib.auth.models import User
 from django.db import models
 from django.utils import timezone
 
+from apps.core.models import PhoneTypeChoices
+
 
 class Tenant(models.Model):
     """
@@ -65,6 +67,13 @@ class Tenant(models.Model):
     )
     contact_email = models.EmailField(help_text="Primary contact email")
     contact_phone = models.CharField(max_length=20, blank=True, default="")
+    contact_phone_type = models.CharField(
+        max_length=10,
+        choices=PhoneTypeChoices.choices,
+        blank=True,
+        default=PhoneTypeChoices.OFFICE,
+        help_text="Primary contact phone type (mobile or office)",
+    )
     address = models.TextField(blank=True, default="", help_text="Physical address")
     website = models.URLField(blank=True, default="", help_text="Company website")
 

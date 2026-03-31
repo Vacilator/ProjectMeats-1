@@ -9,7 +9,149 @@ This file is the **append-only PR-referenceable execution log**.
 - **Canonical plan + status snapshot:** repo-root `MASTER_PLAN.md`
 - This file should not claim global completion percentages; it should only record shipped PRs and notable operational notes.
 
+## Operational Notes
+
+### 2026-03-31 — Secret audit drift (manifest v5.1)
+- Command: `python config/manage_env.py audit --repo Meats-Central/ProjectMeats`
+- Stale/Zombie secrets found in GitHub but NOT in `manifests/env.manifest.json` (or legacy `DEV_`/`UAT_`/`PROD_` prefixed):
+- `CORS_ALLOW_ALL_ORIGINS` — **ZOMBIE** (env:dev-backend)
+- `CSRF_COOKIE_SECURE` — **ZOMBIE** (env:dev-backend)
+- `CSRF_TRUSTED_ORIGINS` — **ZOMBIE** (env:dev-backend)
+- `DEBUG` — **ZOMBIE** (env:dev-backend)
+- `DEVELOPMENT_SUPERUSER_EMAIL` — **ZOMBIE** (env:dev-backend)
+- `DEVELOPMENT_SUPERUSER_PASSWORD` — **ZOMBIE** (env:dev-backend)
+- `DEVELOPMENT_SUPERUSER_USERNAME` — **ZOMBIE** (env:dev-backend)
+- `DEV_ALLOWED_HOSTS` — **STALE-PREFIXED** (env:dev-backend)
+- `DEV_API_URL` — **STALE-PREFIXED** (env:dev-backend)
+- `DEV_BACKEND_HEALTH_URL` — **STALE-PREFIXED** (env:dev-backend)
+- `DEV_BACKEND_IP` — **STALE-PREFIXED** (env:dev-backend, env:dev-frontend)
+- `DEV_CORS_ALLOWED_ORIGINS` — **STALE-PREFIXED** (env:dev-backend)
+- `DEV_DATABASE_URL` — **STALE-PREFIXED** (env:dev-backend)
+- `DEV_DB_ENGINE` — **STALE-PREFIXED** (env:dev-backend)
+- `DEV_DB_HOST` — **STALE-PREFIXED** (env:dev-backend)
+- `DEV_DB_NAME` — **STALE-PREFIXED** (env:dev-backend)
+- `DEV_DB_PASSWORD` — **STALE-PREFIXED** (env:dev-backend)
+- `DEV_DB_PORT` — **STALE-PREFIXED** (env:dev-backend)
+- `DEV_DB_USER` — **STALE-PREFIXED** (env:dev-backend)
+- `DEV_DJANGO_SETTINGS_MODULE` — **STALE-PREFIXED** (env:dev-backend)
+- `DEV_EMAIL_BACKEND` — **STALE-PREFIXED** (env:dev-backend)
+- `DEV_EMAIL_HOST` — **STALE-PREFIXED** (env:dev-backend)
+- `DEV_EMAIL_HOST_PASSWORD` — **STALE-PREFIXED** (env:dev-backend)
+- `DEV_EMAIL_HOST_USER` — **STALE-PREFIXED** (env:dev-backend)
+- `DEV_EMAIL_PORT` — **STALE-PREFIXED** (env:dev-backend)
+- `DEV_EMAIL_USE_TLS` — **STALE-PREFIXED** (env:dev-backend)
+- `DEV_FRONTEND_HOST` — **STALE-PREFIXED** (env:dev-frontend)
+- `DEV_FRONTEND_SSH_KEY` — **STALE-PREFIXED** (env:dev-frontend)
+- `DEV_FRONTEND_USER` — **STALE-PREFIXED** (env:dev-frontend)
+- `DEV_HOST` — **STALE-PREFIXED** (env:dev-backend, env:dev-frontend)
+- `DEV_MEDIA_ROOT` — **STALE-PREFIXED** (env:dev-backend)
+- `DEV_OPENAI_API_KEY` — **STALE-PREFIXED** (env:dev-backend)
+- `DEV_SECRET_KEY` — **STALE-PREFIXED** (env:dev-backend)
+- `DEV_SSH_PASSWORD` — **STALE-PREFIXED** (env:dev-backend, env:dev-frontend)
+- `DEV_STATIC_ROOT` — **STALE-PREFIXED** (env:dev-backend)
+- `DEV_URL` — **STALE-PREFIXED** (env:dev-frontend)
+- `DEV_USER` — **STALE-PREFIXED** (env:dev-backend, env:dev-frontend)
+- `DOMAIN_NAME` — **ZOMBIE** (env:dev-frontend, env:production-frontend, env:uat-frontend)
+- `DO_ACCESS_TOKEN` — **ZOMBIE** (env:dev-backend, env:dev-frontend)
+- `DO_API_TOKEN` — **ZOMBIE** (repo)
+- `GIT_TOKEN` — **ZOMBIE** (env:dev-backend)
+- `LOG_LEVEL` — **ZOMBIE** (env:dev-backend)
+- `PRODUCTION_DB_URL` — **ZOMBIE** (repo)
+- `PROD_DB_CLUSTER_ID` — **STALE-PREFIXED** (repo)
+- `REACT_APP_ENABLE_CHAT_EXPORT` — **ZOMBIE** (env:dev-frontend)
+- `REACT_APP_ENABLE_DEBUG` — **ZOMBIE** (env:dev-frontend)
+- `REACT_APP_ENABLE_DEVTOOLS` — **ZOMBIE** (env:dev-frontend)
+- `REACT_APP_ENABLE_DOCUMENT_UPLOAD` — **ZOMBIE** (env:dev-frontend)
+- `REACT_APP_MAX_FILE_SIZE` — **ZOMBIE** (env:dev-frontend)
+- `REACT_APP_SUPPORTED_FILE_TYPES` — **ZOMBIE** (env:dev-frontend)
+- `SENTRY_CLIENT_SECRET` — **ZOMBIE** (repo)
+- `SESSION_COOKIE_SECURE` — **ZOMBIE** (env:dev-backend)
+- `STAGING_DB_URL` — **ZOMBIE** (repo)
+
+### 2026-03-31 — Hard purge: legacy docs + archives (context bleed cleanup)
+- Destructive cleanup of superseded documentation and archived infra/scripts to reduce AI context bleed.
+- Deleted:
+  - `docs/archive/`
+  - `docs/plans/archive/`
+  - `docs/implementation-history/*.md` (all)
+  - `docs/plans/*.md` except `docs/plans/V3_FINAL_PUSH_PERFECTION.md`
+  - root `archived/`
+  - `.github/archived-workflows/`
+  - `backend/archived/`
+  - `backend/scripts/` (orphan utilities)
+- Pruned stale maintenance scripts:
+  - removed `scripts/maintenance/*.sh` last modified before 2026-01-30 (kept `scripts/maintenance/verify_golden_state.sh`)
+- Frontend cleanup:
+  - removed `frontend/src/pages/WorkForms/Catalog.original.tsx` and unused ui tests
+  - adjusted `PhoneInput` props for AntD Form compatibility (typecheck)
+- Backend cleanup:
+  - auto-fixed unused imports/vars (F401/F841) across `backend/apps` + `backend/tenant_apps` (excluding migrations)
+- PR: #4231
+
+
 ## Active Initiative: V3.0 Final Push (Consolidation + Scale + Polish)
+
+### 2026-03-31 — Hierarchy: drill-down views
+- Supplier/Customer record pages show Plants/Locations with a dedicated drill-down (no flat contacts at the grandparent).
+- Added PlantDetailView + LocationDetailView with Contacts grouped by department (Sales/QA/Booking/Accounting).
+- PR: #4228
+
+### 2026-03-31 — Hierarchy: Plant/Location inline contact arrays
+- Backend: Plant/Location form schema now includes department contact sections (Sales/QA/Booking/Accounting) as inline arrays.
+- Frontend: DynamicFormEngine supports `inline_form_array` (react-hook-form field arrays) incl. tag inputs for responsibility lists; UniversalEntityForm honors schema `ui` metadata.
+- PR: #4227
+
+### 2026-03-31 — Frontend: hierarchy navigation + row drilldowns + product insights
+- Navigation: grouped into Supply Chain (Suppliers → Plants → Contacts) and Demand Chain (Customers → Locations → Contacts).
+- Suppliers/Customers list: row-click drilldown (expanded panel); action buttons stop propagation.
+- Cockpit Customer detail: Product Insights toggle (Purchase History vs Aggregated Preferences).
+  - Aggregated Preferences uses `aggregated_preferred_products` from Customer detail and resolves titles via `/api/v1/master-products/`.
+- PR: #4234
+
+### 2026-03-31 — Fix: custom list creation 500
+- Fixed 500 on `POST /api/v1/workflows/lists/` by explicitly setting tenant + created_by during create and re-asserting RLS session vars.
+- Added workflows migration to ensure TenantList has an explicit RLS INSERT policy (`WITH CHECK`).
+- PR: #4236
+
+### 2026-03-31 — Quick Actions: show Workforms
+- Quick Actions modal now shows active/draft Workforms by fetching from `/api/v1/tenant-workforms/` (same source as the Catalog page).
+- Legacy forms are still fetched from `/api/v1/workflows/available-forms/` (forms only), then merged + de-duped with Workforms into a single list.
+- Save payload continues to persist Workforms as `type="workflow"` + `workflow_id`.
+- PR: #4238
+
+### 2026-03-31 — Fix: URL-synced tabs (WorkForms + Cockpit)
+- WorkForms: Tabs are now URL-driven (AntD Tabs activeKey derived from location.pathname; onChange navigates to `/workforms/{key}`); deep links like `/workforms/in-progress/:id` are routed.
+- In Progress: `/workforms/in-progress/:id` now mounts correctly and resumes the submission modal via QuickActionsContext.
+- Cockpit: `/cockpit` is now a layout with URL-driven Tabs and nested routes (`/cockpit/dashboard`, `/cockpit/process-monitor`, `/cockpit/calls`); `/calls` redirects to `/cockpit/calls`.
+- Safety: wrapped WorkForms InProgress/History/Monitoring in ErrorBoundary.
+- PR: #4239
+
+### 2026-03-30 — Docs: master plan gap analysis + roadmap hygiene
+- Updated `MASTER_PLAN.md` (canonical) with an industry-leader benchmark gap analysis (P0/P1/P2) and refreshed execution-ordered backlog.
+- Converted non-canonical roadmaps/plans into clearer **REFERENCE ONLY** docs (removed/neutralized misleading progress emphasis).
+- Clarified `docs/plans/README.md` to point to canonical Master Plan.
+- PR: #4109
+
+### 2026-03-27T17:03Z — Recovery Execution Plan (Last ~25 prompts)
+- Merged recovery plan into `MASTER_PLAN.md` (canonical snapshot). PR: #4036.
+- Execution policy: all remaining work ships **only via**: branch → PR → merge to `development`.
+- P0 execution order:
+  1) Cockpit Favorites (backend persistence + optimistic UX, tenant-safe, RLS-backed)
+  2) Email Ingestion Monitor “Sync Now” decrypt error surfacing (stable codes + reconnect CTA)
+  3) AI Document Upload stability (no 500s; verify via `test_document_upload`)
+
+## Active Initiative: V3.0 Final Push (Consolidation + Scale + Polish)
+
+### 2026-03-27 — Workform Editor: Node Opacity Fix
+- Fixed "all nodes semi-transparent" regression caused by debug session decorations being left active when the Dry Run Debugger panel was hidden.
+- Debugger panel now stops/resets debug session when closed and unmounts the debugger UI when not visible.
+
+### 2026-03-27 — Emergency Fix - OAuth Decryption
+- Verified Microsoft OAuth encryption salt remains `projectmeats_oauth_encryption_v1` (no drift).
+- Added management command: `python manage.py diagnose_oauth_encryption --tenant-id <uuid>` to distinguish `InvalidToken` (key mismatch) vs missing data.
+- Email Sync Now: backend now detects decrypt failures and returns `code=decryption_failed` with a stable reconnect hint (UI can show a deterministic CTA).
+- AI Swarm: Microsoft Graph tools now catch token decryption failures and return structured payload:
+  `{ "status": "error", "error_code": "DECRYPTION_FAILED", "message": "Your Outlook connection needs to be refreshed for security reasons." }`
 
 ### 2026-03-27 — Sentry-GitHub-Copilot Loop
 - Sentry Passthrough to GitHub — **ACTIVE** (webhook receiver + ownership routing groundwork).
@@ -20,7 +162,7 @@ This file is the **append-only PR-referenceable execution log**.
   - SDK hardening: sendDefaultPii enabled (frontend+backend); backend in_app_include set for CODEOWNERS mapping — PR: #4009.
   - Runtime wiring + secret mapping: `SENTRY_DSN` (runtime env) → `/usr/share/nginx/html/env-config.js` → `window.ENV.SENTRY_DSN` (fallback: build-time `REACT_APP_SENTRY_DSN`), and deploy sets `REACT_APP_SENTRY_DSN` on `docker run`.
   - Verification: Admin→Configurations "Sentry Test" emits `Error(\"Sentry Orchestration Handshake Verified\")`.
-  - AI SRE prompt: explicitly calls get_recent_errors(tenant_id) before asking for clarification.
+  - AI SRE prompt: calls get_recent_errors() (tenant is implicitly scoped from the authenticated session).
   - PR: #4010
 
 **Phase 6.5: AI Document Understanding & Agentic Workflows**
@@ -42,9 +184,25 @@ This file is the **append-only PR-referenceable execution log**.
 - UX: wired `AIAgentWidget` to backend chat endpoint (`/api/v1/ai-assistant/ai-chat/chat/`) via `businessApi` (PR #3687).
 - UX: added a Tools button in `AIAgentWidget` to list tool operationIds via `GET /api/v1/ai-assistant/tools/openapi/` (PR #3691).
 
+### 2026-03-27 — Phase 9.5: AI Document Stability
+- AI Assistant documents: updated `AIDocument.file.upload_to` to include tenant UUID + unique prefix to prevent naming collisions.
+- Upload hardening follow-up: switched to a flat tenant+UUID filename (avoids deep mkdir permission issues on mounted media volumes) and assert RLS session vars right before saving.
+- Error hardening follow-up: database exceptions now map to actionable 400s (e.g., missing migrations/table) instead of misleading RLS messages or 500s. PR: #4039.
+- Added diagnostic command to reproduce uploads and capture tracebacks without needing the frontend:
+  - `python manage.py test_document_upload --tenant-id 0f024884-b9ef-4e50-8fc0-89b2eb7c8c69`
+  - Safe default: temp `MEDIA_ROOT` (no persistent artifacts)
+  - If the tenant doesn’t exist in the environment: add `--create-tenant-if-missing`.
+
 ### 2026-03-27 — AI Assistant Restoration
-- Context awareness: Omnibox + AIAgentWidget + ChatWindow include `currentPath`, `activeEntityId`, `activeEntityType` in every chat message; Omnibox routes into the widget via `pm:ai-send` — PR #4000.
-- Action capability: backend function-calling tools (`create_record`, `search_entities`, `get_recent_activity`) + RLS session var assertion (`app.current_tenant`) for defense-in-depth — PR #4001.
+- **AI Assistant V2 — ACTIVE** (memory + analytics + RLS-hardened tools).
+- **RLS Tool Hardening — COMPLETE** (explicit `SET app.current_tenant` asserted at tool boundaries; defense-in-depth with TenantMiddleware + ToolExecutor).
+- Context awareness: Omnibox + AIAgentWidget + ChatWindow include `currentPath`, `activeEntityId`, `activeEntityType` (and explicit `activeEntity`) in every chat message; Omnibox routes into the widget via `pm:ai-send` — PR #4000.
+- Orchestrated AI Action Tools (tenant-safe):
+  - RLS: Tool executor asserts `SET app.current_tenant` **before every tool execution** (defense-in-depth with TenantMiddleware).
+  - Tool consolidation: removed redundant `search_records` / `search_cockpit_records`; `search_entities` is the single search entrypoint and is backed exclusively by `apps.core.services.universal_search.UniversalSearchService`.
+  - Analytics: added `get_entity_analytics(entity_type, metric[, days, limit])` for safe aggregations (top purchased products, revenue by customer, etc.).
+  - Tool feedback loop: empty results now return descriptive messages including tenant id (helps explain “0 results” vs RLS constraints).
+- PR: #4020
 
 ### 2026-03-27 — Emergency Stabilization - Node & API Harmony
 - FlowEditor: unify “Form Step” architecture — canonical node type `form` with display name “Form Step”; normalize legacy form step node types (`formStep`, `formStepSingle`, `formStepSingleNode`) to canonical `form`; sync parentId (`node.parentId` ↔ `node.data.parentId`); un-parent nodes with missing containers; clear `hidden` when parent is expanded.
@@ -53,10 +211,11 @@ This file is the **append-only PR-referenceable execution log**.
 - Theme hardening: define `--color-surface`/`--color-background` tokens for `[data-theme="high-contrast"]`; add BaseNode background fallback.
 - PR: #4003.
 
-### 2026-03-27 — Decommission VectorMemory (UniversalSearchService Standard) — COMPLETE
-- Removed VectorMemory API endpoints (`/ai-assistant/memory/search/`, `/ai-assistant/memory/upsert/`) and pgvector-based retrieval from the AI assistant surface.
-- Promoted `apps.core.services.universal_search.UniversalSearchService` as the unified search standard for AI tools + SME grounding context.
-- Added tool schemas + executor implementations: `search_records`, `get_record_detail`, `create_task` (in-app task notification) — PR: #4004.
+### 2026-03-27 — VectorMemory Deprecated (UniversalSearchService Standard)
+- VectorMemory is deprecated/removed: endpoints (`/ai-assistant/memory/search/`, `/ai-assistant/memory/upsert/`) and pgvector retrieval are no longer used.
+- `apps.core.services.universal_search.UniversalSearchService` is the unified search standard for AI tools + SME grounding.
+- Note: legacy `search_records` tooling has been removed in favor of `search_entities` (single entrypoint).
+- PR: #4004.
 
 ### 2026-03-27 — Omnibox Context Bridge — COMPLETE
 - Verified Omnibox + AIAgentWidget + ChatWindow include `currentPath` and active entity context on every send.
@@ -80,6 +239,264 @@ This file is the **append-only PR-referenceable execution log**.
 - Cockpit key-field renderer now supports array fields with a dedicated multi-select edit mode (no AntD `<Text editable>` for arrays/products).
 
 ## Phase 9.5: Preemptive Hardening & Advanced UX (Workforms Editor)
+
+### 2026-03-30 — Phase 9.5: AI Assistant + Workforms API Stabilization (V3.0)
+- AI Assistant uploads: assert RLS session vars via `set_current_tenant()` inside the upload save transaction (reduces intermittent RLS write failures).
+- FlowEditor node schemas: `formProcessSchema` now uses `nodeType: 'formProcess'` and registers a legacy alias for `formMultiStepContainer`.
+- Entity API: `_get_entity_or_404` now resolves entity types case-insensitively and maps short-names (e.g., `Inquiry`) to canonical keys.
+
+### 2026-03-30T17:10:57Z — Phase 9.5: Universal Forms schema contract expansion (V3.0)
+- System form schema endpoint now returns per-field `relationship` metadata (`fk`/`m2m`/`choice`) and `ui` hints (`widget`, `read_only`) while preserving backward-compatible keys (`related_entity`, `choices`, `key_fields`).
+- Adds stable per-field `order` to avoid random UI rendering.
+- PR: #4153.
+
+### 2026-03-30T17:25:33Z — Phase 9.5: Great Deletion — Invoice create migrated to UniversalEntityForm
+- Invoices create flow now uses `EntityFormSurface` (schema-driven `UniversalEntityForm`) instead of the hardcoded `CreateInvoiceModal`.
+- UniversalEntityForm now targets canonical `/accounting/*` endpoints for invoice/claim CRUD.
+- PR: #4154.
+
+### 2026-03-30T17:28:48Z — Phase 9.5: Global toast error mapping normalization
+- `useToast().error()` now accepts unknown error objects and normalizes message extraction across `err.response.data.detail`, `error`, `message`, and `err.message`.
+- PR: #4155.
+
+### 2026-03-30T17:34:05Z — Phase 9.5: Dev-only FlowEditor performance harness
+- Added `/workflows/perf-harness` (dev-only) to render a synthetic 150/500/1000-node graph in `UnifiedFlowEditor` for profiling.
+- PR: #4156.
+
+### 2026-03-30T17:44:16Z — Phase 9.5: Skeleton loaders sweep (pages)
+- Replaced ad-hoc page loading spinners/placeholder messages with consistent Ant Design `Skeleton` loaders across `frontend/src/pages/**`.
+- PR: #4157.
+
+### 2026-03-30T17:52:00Z — Phase 9.5: RLHF JSONL compilation (redaction + weekly schedule)
+- Added management command `compile_rlhf_data` to compile `AIFeedbackLog` rows into OpenAI chat JSONL.
+- Redaction: strips obvious PII/secrets (emails/phones/tokens) and removes tenant/document IDs from the training payload.
+- Added Celery task `ai_assistant.compile_rlhf_data` + weekly beat schedule (Sun 03:00 UTC) writing artifacts to `/tmp` (or `--out`).
+- PR: #4158.
+
+### 2026-03-30T17:58:00Z — Phase 9.5: Great Deletion — Inquiry create consolidation
+- Inquiries page + Cockpit SmartSearch + Customer Detail now route Inquiry create through `EntityFormSurface` (single consolidation point).
+- Adds runtime flag `USE_UNIVERSAL_INQUIRY_CREATE=true` to switch Inquiry create to schema-driven `UniversalEntityForm` when ready.
+- PR: #4159.
+
+### 2026-03-30T18:05:43Z — Phase 9.5: Master Products global active enforcement
+- Tenant-visible product catalogs now always respect global `system.Product.is_active`.
+- Non-staff users cannot opt into inactive products via query params; tenant preferences cannot resurrect globally inactive products.
+- Regression test added in `apps.system.tests.test_product_visibility`.
+- PR: #4160.
+
+### 2026-03-30T18:07:00Z — Phase 9.5: Choice Lists cache invalidation (System Active)
+- ConfigService cache now supports cross-tab invalidation via a cache-bust localStorage key.
+- After saving a choice list, cached `is_active` values won’t linger in other open tabs.
+- PR: #4161.
+
+### 2026-03-30T18:16:30Z — Phase 9.5: Quick Actions unified available targets (WorkForms)
+- Quick Actions “Available Forms” now returns both `TenantForm` and `TenantWorkForm` records (status in `active`/`draft`).
+- Unified payload includes `type` discriminator (`form`/`workflow`) and `node_count` for workforms.
+- Quick Actions save now validates `workflow_id` targets against `TenantWorkForm` (tenant-scoped; superuser override).
+- PR: #4162.
+
+### 2026-03-30T18:20:30Z — Phase 9.5: Quick Actions UI supports WorkForms
+- Quick Actions editor now renders unified available targets and saves workflow quick actions with `type='workflow'` + `workflow_id`.
+- Header quick actions now navigate workflow targets to `/workforms/editor/:id`.
+- Forms submenu continues to only show runnable forms (filters out workflows).
+- PR: #4164.
+
+### 2026-03-30T18:24:30Z — Phase 9.5: Inquiry product dropdown options visible
+- `SmartProductAutocomplete` now renders its results dropdown via a portal (fixed positioning) to avoid being clipped by the Inquiry modal’s scroll container.
+- Fixes product options appearing “missing” in the Inquiry create products list.
+- PR: #4166.
+
+### 2026-03-30T18:47:49Z — Phase 9.5: Login autocomplete warning
+- Login username input now sets `autoComplete="username"` to satisfy browser autocomplete best practices.
+- PR: #4168.
+
+### 2026-03-30T18:52:38Z — Phase 9.5: Action Items API optimization
+- Eliminates N+1 DB queries in Action Items list + counts by bulk-fetching step submissions for assigned steps.
+- Preserves strict tenant isolation (`tenant=...` and `submission__tenant=...`).
+- PR: #4170.
+
+### 2026-03-30T18:57:28Z — Phase 9.5: AI Swarm + Universal Search execution fixes
+- Fixes purchase_order_trends bucket serialization (TruncMonth bucket already date-like).
+- Fixes AI Swarm universal search counting for flat `results` arrays.
+- Parameterizes `SET app.current_tenant` to prevent SQL injection.
+- UniversalSearch now computes total counts before slicing and falls back on `created_at`/`created_on` when ordering.
+- PR: #4172.
+
+### 2026-03-30T18:59:45Z — Phase 9.5: Core ORM + audit integrity fixes
+- ActivityLog now includes `user.remove` action choice.
+- Tenant user removal logging now captures tenant_user_id before delete.
+- Favorites creation now errors if tenant context is missing (prevents orphan favorites).
+- Cockpit viewsets only apply `?limit=` slicing on list actions.
+- PurchaseOrder order number generation + save now run in a single DB transaction.
+- Integrations token decryption errors now preserve context via exception chaining.
+- PR: #4174.
+
+### 2026-03-30T19:04:16Z — Phase 9.5: Frontend UX blockers
+- Admin Profile: contact_email validation only runs when the field is non-empty.
+- Purchase Orders: weight_per_unit is no longer required so edits aren’t blocked.
+- PR: #4176.
+
+### 2026-03-30T19:07:23Z — Phase 9.5: Final Sentry sweep
+- Email sync now uses a stable exception variable in `sync_emails` error handling.
+- Cockpit ActivityLog update avoids an extra DB fetch by using `serializer.instance`.
+- Inquiry relationship product preview `more_count` now uses `total - 4` (preview slice) math.
+- PR: #4178.
+
+### 2026-03-30T19:17:38Z — Phase 9.5: Environment manifest secret schema update
+- Updated canonical secret manifest `manifests/env.manifest.json` (v5.1) to document additional repository secrets (xAI + Sentry) and to register Unstructured API keys.
+- Updated manifest validation lists to include the new secret names (no secret values committed).
+- PR: #4180.
+
+### 2026-03-30T19:25:57Z — Phase 9.5: FlowEditor Smart Auto-Map apply marks dirty
+- Smart Auto-Map suggestion application now stages a partial `{fieldMappings}` patch into shadow config so `isDirty` flips true and the “Apply Changes” CTA appears.
+- PR: #4182.
+
+### 2026-03-30T19:40:05Z — Phase 9.5: FlowEditor canonical node titles + inline edit
+- Consolidated node title editing to canonical `data.title` for core Workforms node schemas (with legacy keys mapped in node normalization).
+- BaseNode/FormNode/FormProcessNode now display title fallback (including entityType formatting) and support double-click inline editing.
+- Title updates now keep `label` and key legacy fields in sync for backward compatibility.
+- PR: #4184.
+
+### 2026-03-30T19:41:04Z — Local dev parity audit (compose/devcontainer/docker)
+- Verified `docker-compose.yml` and `.devcontainer/docker-compose.yml` both use `postgres:15`.
+- Verified backend base image targets Python 3.12 slim (`backend/Dockerfile`).
+- Verified frontend uses multi-stage build (Node 20 Alpine → Nginx Alpine).
+- No code changes required; parity is already aligned.
+
+### 2026-03-30T19:44:19Z — CI: auto-promotion workflow consolidation
+- Consolidated duplicate auto-promotion workflows (dev→uat and uat→main) into a single workflow with branch-based routing.
+- Preserves: PAT-based PR creation, “skip if no commits”, and “skip if PR already open” behavior.
+- PR: #4187.
+
+### 2026-03-30T19:46:39Z — CI: gate deployments on Trivy (HIGH/CRITICAL)
+- Trivy image scans for backend/frontend are now *blocking* (fail the pipeline if HIGH/CRITICAL vulnerabilities are detected; `ignore-unfixed` remains enabled).
+- Backend deploy is now gated on `security-scan-backend`.
+- PR: #4189.
+
+### 2026-03-30T19:50:25Z — Frontend hygiene: remove direct axios usage (CloneInquiryModal)
+- `frontend/src/components/Inquiry/CloneInquiryModal.tsx` now uses `businessApi` for entity/contact fetches and cloning, avoiding direct axios calls in components.
+- PR: #4191.
+
+### 2026-03-30T19:54:09Z — Frontend hygiene: replace hardcoded hex colors
+- Replaced a small set of runtime hardcoded hex colors with theme/CSS-variable tokens (QuickActions meta text, FlowEditor preview/help text, onboarding tour, and FlowEditor print styles).
+- PR: #4193.
+
+### 2026-03-30T19:59:51Z — Testing: fixtures + archived test ignore
+- Backend pytest fixtures now use correct `tenant_apps.*` imports for tenant model factories; added `tenant` alias fixture for consistent naming.
+- Pytest no longer attempts to collect `archived/` test suites that reference removed modules.
+- PR: #4195.
+
+### 2026-03-30T20:04:04Z — Migrations: missing migration + RLS enforcement
+- Added missing migration for ActivityLog action choices so `makemigrations --check` passes again.
+- Extended `validate-migrations.sh` to enforce RLS SQL (`ENABLE ROW LEVEL SECURITY` + `CREATE POLICY`) on newly-changed tenant-aware `CreateModel` migrations.
+- PRs: #4197, #4198.
+
+### 2026-03-30T20:20:30Z — RLS: tenant isolation for InquiryProduct/FulfillmentProduct
+- Resolved `tenant` @property collisions so the real tenant FK can be persisted on through tables.
+- Added `tenant_id` + `custom_data` to `InquiryProduct` and `FulfillmentProduct`, backfilled from parent records, and enforced NOT NULL.
+- Enabled RLS on `inquiries_inquiryproduct` and `fulfillments_fulfillmentproduct` with tenant isolation + insert policies.
+- PR: #4200.
+
+### 2026-03-30T20:28:25Z — CI: caching/speed improvements (pip + workflow hygiene)
+- Added pip cache to the Golden Drift Gate infra check to speed up PyYAML install.
+- Removed redundant pip/node_modules cache steps from docker-only build jobs (Docker layer caching remains the primary accelerator).
+- Enabled pip caching for the `check-migrations` job dependency install.
+- PR: #4204.
+
+### 2026-03-30T20:30:00Z — Repo hygiene: archive plans + purge superseded scripts
+- Moved `docs/plans/*.md` (except `README.md` and `V3_FINAL_PUSH_PERFECTION.md`) into `docs/plans/archive/`.
+- Deleted `*.bak` files from `.github/archived-workflows/`.
+- Removed deployment bash scripts superseded by the GitHub Actions Golden Pipeline (and updated key in-repo references).
+- PR: #4202.
+
+### 2026-03-30T20:36:00Z — RLS: InquiryTemplateProduct tenant isolation
+- Made `InquiryTemplateProduct` tenant-aware by persisting `tenant_id` (backfilled from parent `InquiryTemplate`).
+- Added timestamps + `custom_data` for TenantAwareModel compliance.
+- Enabled RLS on `inquiries_inquirytemplateproduct` with tenant isolation + insert policies.
+- PR: #4206.
+
+### 2026-03-30T20:59:00Z — Migrations: resolve inquiries 0007 leaf conflict
+- Added a Django merge migration (`0008_merge_...`) to resolve multiple leaf nodes in `tenant_apps.inquiries`.
+- Unblocks the CI migration sanity gate (`python manage.py makemigrations --check --dry-run`).
+- PR: #4209.
+
+### 2026-03-30 — Phase 9.5: Billing Interface Dynamic Wiring — COMPLETE
+- Admin Billing invoice history now loads subscription invoices dynamically (no hardcoded rows).
+
+### 2026-03-30 — Phase 9.5: Resolved Master Data Pagination & Export Scaling (Products/Choice Lists)
+- System Products: increased max page size to 1000 and added an unpaginated export route to avoid 20-item exports.
+- System Choice Items: supports `?limit=1000` and `?paginate=false` to fetch full lists; frontend loaders now request `limit=1000` and accept `{results: []}` responses.
+
+### 2026-03-30 — Phase 9.5: Quick Actions + Task Assignment Notifications
+- Quick Actions: activating a form now also enables it for Quick Actions (`is_quick_action_enabled=True`).
+- Notifications: when a `FormStepSubmission` transitions to `ACTION_NEEDED`, the assigned user (via `StepAssignment`) receives an in-app `UserNotification`.
+- Notifications: UserNotificationPreferences defaults explicitly cast TextChoices keys/values to `str` to avoid JSON serialization errors during get_or_create.
+- Action Items APIs: verified imports (e.g., StepSubmissionStatus) and compiled clean to prevent worker crashes / 502s.
+- UI: Quick Actions empty state now reads: "No active forms available for Quick Actions. Publish a form in the Workforms Editor first.".
+- UI: Login password input now sets `autoComplete="current-password"`.
+
+### 2026-03-30 — Phase 9.5: Notification Preferences 500 Fix (Tenant Injection + JSON Defaults)
+- Notification Preferences endpoint now tenant-scopes the get_or_create call and sets RLS session vars before DB access.
+- Defaults are generated via primitive-only comprehensions to prevent JSON serialization errors.
+- Errors are surfaced as `{error: "..."}` with HTTP 500 to aid debugging if failures persist.
+
+### 2026-03-30 — Phase 9.5: Relaxed Quick Actions filtering to natively support Draft/Saved Workform processes
+- Quick Actions “Available Forms” now includes both `ACTIVE` and `DRAFT` TenantForms.
+- Quick Actions save no longer blocks on `is_quick_action_enabled`; user pinning explicitly overrides the flag.
+
+### 2026-03-27 — Phase 9.5: Admin Workspace Hardening
+- Invitations: resend action now uses the shared invitation email helper (extracted from `signals.py`), and create prefers the current request tenant.
+- Tenant Users: admins can remove a user (hard delete) as long as the role is not `owner`.
+- Option Lists: "Master Products" entry now appears under the System Choice Lists tab; Tenant Overrides now use the same Card/Table layout as other admin screens.
+- Workflow Lists: tenant list create asserts RLS session vars before validation/save to prevent RLS-related write failures.
+
+### 2026-03-27 — Workform Editor: Initial Canvas Buttons Clickable
+- Fixed empty-canvas CTA buttons (Add Manual Trigger / Use Template / Browse Triggers) not being clickable due to ReactFlow pane overlay capturing pointer events.
+
+### 2026-03-27 — Purchase Orders: Location Fields Auth Fix
+- LocationSelector now uses the standard JWT-aware apiClient (instead of raw axios + legacy Token auth), preventing spurious “Authentication required” errors on the New PO form.
+- Pick-up / Delivery locations are treated as optional (omitted from payload when unset).
+
+### 2026-03-27 — Cockpit Favorites: Backend Persistence (Tenant-Safe)
+- SmartSearch + FavoritesWidget now use the backend favorites API (optimistic toggles; no localStorage dependence).
+- Favorites are tenant-scoped to prevent cross-tenant entity_id collisions; includes RLS policy on `core_userfavorite`.
+- PR: #4037.
+
+### 2026-03-27 — Cockpit Reports: Metrics Available
+- Fixed Reports Summary API incorrectly marking purchase_orders/sales_orders/workforms as “metrics unavailable” due to Django `aggregate()` alias collisions (e.g. `total_amount=Sum('total_amount')` shadowing the field name used by `Avg('total_amount')`, raising FieldError).
+- PR: #4043.
+
+### 2026-03-27 — Cockpit Search: Favorites Icon Clickable
+- Fixed the SmartSearch results “favorite” (star) icon doing nothing. Root cause: nested <button> inside <button> (invalid HTML) prevented click events.
+- Result cards now render as accessible div-buttons with keyboard activation; favorite toggle surfaces errors.
+- PR: #4044.
+
+### 2026-03-27 — AI Chat: Lessons Block NameError
+- Fixed AI chat failing with `NameError: lessons_block is not defined` by defining lessons_block in SwarmOrchestrator.run_tool_loop via memory_service (safe fallback when memory fails).
+- PR: #4045.
+
+### 2026-03-30 — AI Assistant: Implicit Tenant Scoping
+- Tool schemas removed explicit tenant_id arguments (e.g., `get_recent_errors()` now takes no parameters).
+- Tool execution injects tenant scope server-side via the authenticated session (request.tenant); mismatched tenant_id (if provided) is rejected (defense-in-depth).
+
+### 2026-03-27T18:47Z — State Audit (Remaining P0s)
+- Identified remaining gaps from runtime logs and repeated UX reports.
+- Next execution order:
+  1) Fix Workforms AI suggestions route drift (frontend currently calls /api/v1/suggest-nodes/ but backend suggests /api/v1/workflows/suggest-nodes/).
+  2) Universal Forms + Cockpit Search usability hardening (save/create CTA, key-fields-first + expand, searchable FK by name, per-keystroke refresh).
+  3) Workform Editor UX hardening (connectors top+bottom, remove conflicting collapse buttons, drag body, inline title, reorder swaps edges).
+
+### 2026-03-27 — Workforms: AI Suggestions Endpoint Routed
+- Fixed 404s for Workforms AI Suggestions by routing `SuggestNodesView` under `/api/v1/workflows/suggest-nodes/` and updating the frontend to call `/workflows/suggest-nodes/`.
+- PR: #4047.
+
+### 2026-03-27 — Charts: ResponsiveContainer Sizing Warning Reduced
+- Added explicit width/height and min dimensions for `ResponsiveContainer` in AI Learning Metrics widget to reduce `width(-1)/height(-1)` console warnings.
+- PR: #4048.
+
+### 2026-03-27 — Cockpit Search: Better Type Discoverability
+- SmartSearch now uses backend counts to render entity sections even when a type has 0 results and shows correct plural labels (Purchase Orders, Inquiries, Tenant Users, etc.).
+- PR: #4049.
 
 ### PR Log (append-only)
 
@@ -114,6 +531,7 @@ This file is the **append-only PR-referenceable execution log**.
 - 2026-03-27 — Fix: cockpit favorites + inquiry create — PR: #3993.
 - 2026-03-27 — Fix: product associations persist — PR: #3994.
 - 2026-03-27 — Fix: Email Sync Now avoids timeouts — PR: #3995.
+- 2026-03-27 — Fix: Email Sync Now decryption failures always return stable `code=decryption_failed` (UI shows reconnect CTA) — PR: #4038.
 - 2026-03-27 — Hotfix: restore development deployments (main-pipeline workflow file issue) — PR: #4011.
 - 2026-03-27 — Fix: plant available products save — PR: #3996.
 - 2026-03-27 — UI: facelift customer + supplier pages — PR: #3997.
@@ -1011,3 +1429,15 @@ Deliverables:
 - 2026-03-23 — Fixed MultiSelect internal search filtering (Explicit AntD filterOption injection) — PR: #3891.
 - 2026-03-22T19:05:59Z — UI Hardening: Restored standard default container for 'formProcess' nodes, disabling 'formProcessGroup' purple canonicalization/styling overrides.
 - 2026-03-24 — Frontend: react-joyride v3 upgrade (tour API migration) — PR: #3911.
+- 2026-03-30 — FlowEditor: defer auto-layout after insert (measured sizing) + selected ring visibility — PR: #4213.
+- 2026-03-30 — Frontend: TypeScript strictness follow-up (explicit strict flags + unknown error typing) — PR: #4212.
+- 2026-03-30 — Suppliers: fix QuickCreateModal footer button click handling (New Supplier “Save” works) — PR: #4216.
+- 2026-03-30 — FlowEditor: FormProcess containers restored NodeToolbar actions + Add Step button — PR: #4218.
+- 2026-03-30 — Backend: expanded drf-spectacular schemas for Workflows + Cockpit slots (polymorphic search) — PR: #4220.
+- 2026-03-31 — Backend: soft deletes for logistics models (PO/SO/Invoice/Fulfillment) — PR: #4221.
+- 2026-03-31 — Workforms: collaboration heartbeat + reconnect hardening (WS ping/pong, jittered backoff, overlay error boundary) — PR: #4222.
+- 2026-03-31 — FlowEditor: render perf memoization (context value useMemo/useCallback + autosave/formbuilder guards) — PR: #4223.
+- 2026-03-31 — Backend: simplified Supplier/Customer HQ create schema for UniversalEntityForm (schema override + nullable non-core fields) — PR: #4224.
+- 2026-03-31 — Backend: Contacts department fields (mobile/office phones + Sales responsibility arrays) — PR: #4225.
+- 2026-03-31 — Backend: Plants/Locations nested department contacts + Vertical (K2C) type option — PR: #4226.
+- 2026-03-31 — System Products: ranked search respects visibility (global inactive + tenant hides), tenant preference upsert + RLS, Option Lists superadmin delete — PR: #4232.

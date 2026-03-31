@@ -28,21 +28,35 @@ logger = logging.getLogger(__name__)
 
 EventType = Literal["email", "user_chat", "webhook"]
 
-def build_swarm_system_prompt(*, outlook_connected: bool, outlook_email: str | None, outlook_expired: bool) -> str:
+def build_swarm_system_prompt(
+    *,
+    outlook_connected: bool,
+    outlook_email: str | None,
+    outlook_expired: bool,
+    lessons_block: str = '',
+) -> str:
     base = (
-        "You are the ProjectMeats Autonomous Swarm Orchestrator. "
+        "You are the ProjectMeats Intelligent Architect. "
+        "You have access to tenant data via RLS-safe tools and can learn from user feedback provided via the feedback tool. "
         "You are an expert in wholesale meat logistics, purchase orders, cold storage, and supplier management. "
         "Be highly analytical, concise, and proactive. "
         "\n\nDatabase schema (high level): "
         "Entities include Supplier, Customer, Product (system-wide catalog), Contact, PurchaseOrder, SalesOrder, Invoice, Plant, Carrier. "
         "Most business entities are tenant-scoped via a tenant_id (shared-schema multi-tenancy); Products are system-wide with tenant visibility rules. "
-        "\n\nYou are an AI SRE. If a user reports a failure, call get_recent_errors(tenant_id) to diagnose the root cause using Sentry telemetry before asking for clarification. "
+        "\n\nYou are an AI SRE. If a user reports a failure, call get_recent_errors() to diagnose the root cause using Sentry telemetry before asking for clarification. "
         "\n\nAvailable tools (use when it reduces user effort): "
         "- search_entities(query[, entity_types, limit]) to find records via Universal Search. "
         "- get_entity_details(type, id) to load a full record profile payload for a specific entity. "
+        "- get_entity_analytics(entity_type, metric[, days, limit]) for annotated aggregations (e.g., most purchased, highest revenue). "
+        "- ingest_feedback(user_correction, lesson_text[, ...]) to save a lesson learned from user feedback. "
         "- create_task(title, message[, entity_type, entity_id]) to create an in-app task notification for the current user. "
-        "- get_recent_errors(tenant_id) to fetch the most recent Sentry issues tagged with the active tenant_id. "
+        "- get_recent_errors() to fetch the most recent Sentry issues for the active tenant. "
     )
+
+    if lessons_block:
+        base = base + str(lessons_block)
+
+    
 
     if outlook_connected:
         return base + f"Outlook: CONNECTED ({outlook_email or 'unknown'}). You may use email tools when relevant."
@@ -195,6 +209,15 @@ class SwarmOrchestrator:
         if not openai_api_key:
             raise ValueError('OpenAI not configured (missing OPENAI_API_KEY)')
 
+        lessons_block = ''
+        try:
+            from tenant_apps.ai_assistant.services.memory_service import format_lessons_block, get_relevant_lessons
+
+            lessons = get_relevant_lessons(tenant=tenant, query=user_message, limit=8)
+            lessons_block = format_lessons_block(lessons)
+        except Exception as e:
+            logger.warning('[SwarmOrchestrator] Lessons lookup failed; continuing without lessons: %s', str(e))
+
         # Phase 8.2: intent classification → delegate deep meat/logistics questions to MeatSME RAG.
         # Reliability mandate: if RAG fails for any reason, fall back to the standard tool loop.
         if self._requires_meat_sme(user_message):
@@ -238,13 +261,15 @@ class SwarmOrchestrator:
         outlook_expired = bool(provider.is_token_expired()) if provider else False
         outlook_connected = bool(provider and not outlook_expired)
 
-        # Always allow safe internal search tools; only advertise Outlook tools when connected.
+        # Always allow safe internal tools; only advertise Outlook tools when connected.
+        email_tools = {'check_unread_emails', 'draft_outlook_email'}
         if outlook_connected:
             tools = DEFAULT_OPENAI_TOOLS
         else:
             tools = [
-                t for t in DEFAULT_OPENAI_TOOLS
-                if t.get('function', {}).get('name') == 'search_cockpit_records'
+                t
+                for t in DEFAULT_OPENAI_TOOLS
+                if t.get('function', {}).get('name') not in email_tools
             ]
 
         messages: List[Dict[str, Any]] = [
@@ -254,6 +279,7 @@ class SwarmOrchestrator:
                     outlook_connected=outlook_connected,
                     outlook_email=outlook_email,
                     outlook_expired=outlook_expired,
+                    lessons_block=lessons_block,
                 ),
             }
         ]

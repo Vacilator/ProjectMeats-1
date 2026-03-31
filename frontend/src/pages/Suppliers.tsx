@@ -523,7 +523,7 @@ const Suppliers: React.FC = () => {
                   <PhoneInput
                     value={formData.phone}
                     onChange={(value) => setFormData({ ...formData, phone: value })}
-                    placeholder="(XXX) XXX-XXXX"
+                    placeholder="(XXX)XXX-XXXX"
                     aria-label="Phone number"
                   />
                 </FormGroup>
@@ -706,7 +706,7 @@ const Suppliers: React.FC = () => {
                   <PhoneInput
                     value={plantForm.phone}
                     onChange={(value) => setPlantForm((p) => ({ ...p, phone: value }))}
-                    placeholder="(XXX) XXX-XXXX"
+                    placeholder="(XXX)XXX-XXXX"
                     aria-label="Plant phone"
                   />
                 </FormGroup>
@@ -745,14 +745,22 @@ const Suppliers: React.FC = () => {
             <TableBody>
               {visibleSuppliers.map((supplier) => (
                 <React.Fragment key={supplier.id}>
-                <TableRow key={supplier.id} $theme={theme}>
+                <TableRow
+                  key={supplier.id}
+                  $theme={theme}
+                  onClick={() => void toggleSupplierDrilldown(supplier)}
+                  role="button"
+                  tabIndex={0}
+                  aria-expanded={selectedSupplierId === supplier.id}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      void toggleSupplierDrilldown(supplier);
+                    }
+                  }}
+                >
                   <TableCell $theme={theme}>
-                    <CompanyButton
-                      $theme={theme}
-                      type="button"
-                      onClick={() => toggleSupplierDrilldown(supplier)}
-                      aria-pressed={selectedSupplierId === supplier.id}
-                    >
+                    <CompanyButton $theme={theme}>
                       <CompanyName $theme={theme}>{supplier.name}</CompanyName>
                       <CompanyChevron aria-hidden="true">{selectedSupplierId === supplier.id ? '▾' : '▸'}</CompanyChevron>
                     </CompanyButton>
@@ -766,8 +774,22 @@ const Suppliers: React.FC = () => {
                       : supplier.city || supplier.state || '-'}
                   </TableCell>
                   <TableCell $theme={theme}>
-                    <ActionButton onClick={() => handleEdit(supplier)}>Edit</ActionButton>
-                    <DeleteButton onClick={() => handleDelete(supplier.id)}>Delete</DeleteButton>
+                    <ActionButton
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleEdit(supplier);
+                      }}
+                    >
+                      Edit
+                    </ActionButton>
+                    <DeleteButton
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        void handleDelete(supplier.id);
+                      }}
+                    >
+                      Delete
+                    </DeleteButton>
                   </TableCell>
                 </TableRow>
                 {selectedSupplierId === supplier.id && (
@@ -1167,9 +1189,15 @@ const TableBody = styled.tbody``;
 
 const TableRow = styled.tr<{ $theme: Theme }>`
   border-bottom: 1px solid ${(props) => props.$theme.colors.border};
+  cursor: pointer;
 
   &:hover {
     background: ${(props) => props.$theme.colors.surfaceHover};
+  }
+
+  &:focus-visible {
+    outline: 2px solid rgba(var(--color-primary), 0.5);
+    outline-offset: -2px;
   }
 `;
 
@@ -1185,7 +1213,7 @@ const TableCell = styled.td<{ $theme: Theme }>`
   color: ${(props) => props.$theme.colors.textPrimary};
 `;
 
-const CompanyButton = styled.button<{ $theme: Theme }>`
+const CompanyButton = styled.div<{ $theme: Theme }>`
   display: inline-flex;
   align-items: center;
   gap: 10px;
@@ -1193,17 +1221,7 @@ const CompanyButton = styled.button<{ $theme: Theme }>`
   border: 1px solid transparent;
   border-radius: 8px;
   background: transparent;
-  cursor: pointer;
-
-  &:hover {
-    border-color: ${(props) => props.$theme.colors.border};
-    background: ${(props) => props.$theme.colors.surfaceHover};
-  }
-
-  &:focus-visible {
-    outline: 2px solid rgb(var(--color-primary));
-    outline-offset: 2px;
-  }
+  pointer-events: none;
 `;
 
 const CompanyName = styled.div<{ $theme: Theme }>`

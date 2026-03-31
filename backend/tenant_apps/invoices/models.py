@@ -11,6 +11,7 @@ from apps.core.models import (
     AccountingPaymentTermsChoices,
     EdibleInedibleChoices,
     ProteinTypeChoices,
+    SoftDeleteModel,
     TenantAwareModel,
     WeightUnitChoices,
 )
@@ -34,13 +35,19 @@ class PaymentStatus(models.TextChoices):
     PAID = "paid", "Paid"
 
 
-class Invoice(TenantAwareModel):
+class Invoice(SoftDeleteModel, TenantAwareModel):
     """Invoice model for customer invoices."""
 
     # Invoice identification
     invoice_number = models.CharField(
         max_length=100,
         help_text="Invoice number (unique per tenant)",
+    )
+
+    # Platform billing vs business invoices
+    is_subscription = models.BooleanField(
+        default=False,
+        help_text="True for platform subscription billing invoices; false for business/customer invoices.",
     )
     date_time_stamp = models.DateTimeField(
         auto_now_add=True,

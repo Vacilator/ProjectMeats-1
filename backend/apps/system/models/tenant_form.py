@@ -10,7 +10,6 @@ Created: 2026-02-06
 import uuid
 from django.db import models
 from django.conf import settings
-from django.contrib.postgres.fields import ArrayField
 
 
 class FormTypeChoices(models.TextChoices):

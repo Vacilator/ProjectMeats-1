@@ -29,6 +29,14 @@ vi.mock('./AuthContext', () => ({
   }),
 }));
 
+vi.mock('../services/jwtService', async () => {
+  const actual = await vi.importActual<typeof import('../services/jwtService')>('../services/jwtService');
+  return {
+    ...actual,
+    getAuthHeader: () => 'Bearer test-token',
+  };
+});
+
 // Sample notifications
 const mockNotifications: Notification[] = [
   {

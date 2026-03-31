@@ -11,36 +11,55 @@ import logging
 from django.db.models import Prefetch
 from rest_framework import viewsets, permissions, status
 from rest_framework.decorators import action
+from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
 from rest_framework.filters import SearchFilter, OrderingFilter
 from django_filters.rest_framework import DjangoFilterBackend
 
 from apps.system.models import Product, TenantProductPreference
+from apps.system.permissions import IsTenantAdminOrOwnerForTenantContext
 from apps.system.services.product_visibility import visible_products_qs
 
 logger = logging.getLogger(__name__)
 
 
-class SystemProductViewSet(viewsets.ReadOnlyModelViewSet):
+class SystemProductPagination(PageNumberPagination):
+    """Product pagination tuned for admin master-data workflows.
+
+    Global defaults are intentionally conservative; for Master Products screens we
+    need to safely fetch larger batches.
     """
-    Read-only ViewSet for system products.
-    
-    All tenants share the same product catalog (system.Product).
-    Products are created via management command: python manage.py seed_system_products
-    
-    Permissions:
-    - Authenticated users can view all system products
-    - System products are READ-ONLY (managed by admins only)
-    
-    Filters:
-    - Search: product_code, name, description
-    - Filter: category, protein_type, fresh_or_frozen, is_active
-    - Ordering: product_code, name, category, unit_weight
+
+    page_size = 20
+    page_size_query_param = "limit"
+    max_page_size = 1000
+
+    def get_page_size(self, request):
+        raw = request.query_params.get("limit") or request.query_params.get("page_size")
+        if raw is None:
+            return self.page_size
+
+        try:
+            parsed = int(raw)
+        except (TypeError, ValueError):
+            return self.page_size
+
+        if parsed <= 0:
+            return self.page_size
+
+        return min(parsed, self.max_page_size)
+
+
+class SystemProductViewSet(viewsets.ModelViewSet):
+    """ViewSet for system-wide products.
+
+    - GET is available to authenticated users (tenant visibility rules apply).
+    - Writes are restricted to staff users (Admin Workspace power feature).
     """
-    
-    queryset = Product.objects.filter(is_active=True)
-    permission_classes = [permissions.IsAuthenticated]
+
+    queryset = Product.objects.all()
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
+    pagination_class = SystemProductPagination
     
     # Search fields
     search_fields = ['product_code', 'name', 'description', 'namp_code', 'usda_code']
@@ -59,33 +78,42 @@ class SystemProductViewSet(viewsets.ReadOnlyModelViewSet):
     ordering_fields = ['product_code', 'name', 'category', 'unit_weight', 'created_at']
     ordering = ['product_code']
     
+    def get_permissions(self):
+        if self.request.method in permissions.SAFE_METHODS:
+            return [permissions.IsAuthenticated()]
+        return [permissions.IsAdminUser()]
+
     def get_serializer_class(self):
-        """Return appropriate serializer based on action."""
-        from apps.system.serializers import SystemProductSerializer
-        return SystemProductSerializer
+        from apps.system.serializers import SystemProductSerializer, SystemProductWriteSerializer
+
+        if self.request.method in permissions.SAFE_METHODS:
+            return SystemProductSerializer
+        return SystemProductWriteSerializer
     
     def get_queryset(self):
         """Return products visible to the current tenant.
 
-        Three-tier strategy:
-        - System products (golden list) are visible by default.
-        - Tenants can hide/override via TenantProductPreference.
-        - Tenant custom products are represented as system.Product rows with
-          is_system=False and are visible only to the owning tenant.
-
-        Cascade filtering (protein → product):
-        - ?protein=beef&protein=pork - Multiple protein types (lowercase slugs)
-        - ?protein_type=beef - Single protein type
-        - Case-insensitive matching for backward compatibility
+        Staff users get the full catalog (optionally including inactive).
+        Regular users get tenant-visible products only.
         """
 
-        # Base queryset is active products; visibility rules are applied next.
+        include_inactive_raw = str(self.request.query_params.get('include_inactive') or '').lower()
+        include_inactive = include_inactive_raw in ('1', 'true', 'yes')
+
+        # Non-staff users must never be able to include globally inactive products.
+        if not (self.request.user.is_staff or self.request.user.is_superuser):
+            include_inactive = False
+
         queryset = Product.objects.all()
 
-        tenant = getattr(self.request, "tenant", None)
-        queryset = visible_products_qs(tenant=tenant, qs=queryset)
+        if self.request.user.is_staff or self.request.user.is_superuser:
+            if not include_inactive:
+                queryset = queryset.filter(is_active=True)
+            return queryset
 
-        # Prefetch tenant preference rows for serializer/UI overlays.
+        tenant = getattr(self.request, "tenant", None)
+        queryset = visible_products_qs(tenant=tenant, qs=queryset, include_inactive=include_inactive)
+
         if tenant:
             queryset = queryset.prefetch_related(
                 Prefetch(
@@ -94,9 +122,7 @@ class SystemProductViewSet(viewsets.ReadOnlyModelViewSet):
                 )
             )
 
-        # Protein type filtering (comma-separated, case-insensitive)
         protein_param = self.request.query_params.get("protein") or self.request.query_params.get("protein_type")
-
         if protein_param:
             from django.db.models import Q
 
@@ -105,10 +131,20 @@ class SystemProductViewSet(viewsets.ReadOnlyModelViewSet):
             for p in proteins:
                 q_objects |= Q(protein_type__iexact=p)
             queryset = queryset.filter(q_objects)
-            logger.debug(f"Filtered products by protein types: {proteins}")
 
         return queryset
-    
+
+    @action(detail=False, methods=["get"], url_path="export", pagination_class=None)
+    def export(self, request):
+        """Export all visible products (unpaginated).
+
+        Respects the same filters as the list endpoint.
+        """
+
+        queryset = self.filter_queryset(self.get_queryset())
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data)
+
     @action(detail=False, methods=['get'], url_path='my-products')
     def my_products(self, request):
         """
@@ -128,7 +164,8 @@ class SystemProductViewSet(viewsets.ReadOnlyModelViewSet):
         # Get tenant preferences
         preferences = TenantProductPreference.objects.filter(
             tenant=request.tenant,
-            is_active=True
+            is_active=True,
+            product__is_active=True,
         ).select_related('product').order_by('sort_order', 'product__name')
         
         # Build response with tenant customizations
@@ -139,22 +176,19 @@ class SystemProductViewSet(viewsets.ReadOnlyModelViewSet):
 
 
 class TenantProductPreferenceViewSet(viewsets.ModelViewSet):
-    """
-    ViewSet for managing tenant product preferences.
-    
+    """ViewSet for managing tenant product preferences.
+
     Tenants can:
-    - Add system products to their catalog
-    - Customize display names
-    - Set pricing
+    - Override display names, pricing, notes
     - Mark favorites
-    - Set preferred suppliers
-    - Activate/deactivate products
-    
+    - Activate/deactivate products (per-tenant)
+
     Permissions:
-    - Authenticated users can manage their tenant's preferences
+    - SAFE methods: any authenticated tenant member.
+    - Writes: tenant owners/admins (superuser/staff always allowed).
     """
-    
-    permission_classes = [permissions.IsAuthenticated]
+
+    permission_classes = [permissions.IsAuthenticated, IsTenantAdminOrOwnerForTenantContext]
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     
     # Filterset fields
@@ -179,10 +213,37 @@ class TenantProductPreferenceViewSet(viewsets.ModelViewSet):
             tenant=self.request.tenant
         ).select_related('product', 'preferred_supplier')
     
+    def create(self, request, *args, **kwargs):
+        """Upsert by (tenant, product).
+
+        Frontend toggle flows can race or have stale state; allowing an idempotent
+        create avoids unique-constraint 400s.
+        """
+        if not hasattr(request, 'tenant') or not request.tenant:
+            return Response({"error": "Tenant context required"}, status=status.HTTP_400_BAD_REQUEST)
+
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        product = serializer.validated_data.get('product')
+        existing = None
+        if product is not None:
+            existing = TenantProductPreference.objects.filter(tenant=request.tenant, product=product).first()
+
+        if existing:
+            update_serializer = self.get_serializer(existing, data=request.data, partial=True)
+            update_serializer.is_valid(raise_exception=True)
+            update_serializer.save()
+            return Response(update_serializer.data, status=status.HTTP_200_OK)
+
+        self.perform_create(serializer)
+        headers = self.get_success_headers(serializer.data)
+        return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+
     def perform_create(self, serializer):
         """Auto-assign tenant on creation."""
         if not hasattr(self.request, 'tenant') or not self.request.tenant:
             raise ValueError("Tenant context is required")
-        
+
         serializer.save(tenant=self.request.tenant)
         logger.info(f"Created product preference for tenant: {self.request.tenant.slug}")

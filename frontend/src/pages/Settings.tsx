@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { Skeleton } from 'antd';
+
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { tenantService, Tenant } from '../services/tenantService';
@@ -418,7 +420,9 @@ const Settings: React.FC = () => {
   if (!user) {
     return (
       <Container>
-        <LoadingMessage>Loading settings...</LoadingMessage>
+        <div style={{ padding: 16 }}>
+          <Skeleton active paragraph={{ rows: 6 }} />
+        </div>
       </Container>
     );
   }

@@ -5,6 +5,8 @@
  * Handles loading, caching, and updating user's quick actions.
  */
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
+import { getAvailableWorkForms } from '@/services/workformsApi';
+import { showAlert } from '@/utils/uiDialogs';
 import {
   quickActionsService,
   formSubmissionService,
@@ -73,14 +75,44 @@ export const QuickActionsProvider: React.FC<QuickActionsProviderProps> = ({ chil
       setIsLoading(true);
       setError(null);
       
-      const [actionsResponse, formsResponse] = await Promise.all([
+      const [actionsResponse, formsResponse, workformsResponse] = await Promise.all([
         quickActionsService.getQuickActions(),
         quickActionsService.getAvailableForms(),
+        getAvailableWorkForms(),
       ]);
-      
+
       setQuickActions(actionsResponse.items || []);
-      // Ensure formsResponse is always an array
-      setAvailableForms(Array.isArray(formsResponse) ? formsResponse : []);
+
+      const legacyForms = (Array.isArray(formsResponse) ? formsResponse : [])
+        .filter((item) => (item.type ?? 'form') === 'form')
+        .map((item) => ({
+          ...item,
+          type: 'form' as const,
+        }));
+
+      const workforms = (Array.isArray(workformsResponse) ? workformsResponse : [])
+        .filter((wf) => wf.status === 'active' || wf.status === 'draft')
+        .map((wf) => ({
+          id: wf.id,
+          type: 'workflow' as const,
+          name: wf.name,
+          description: wf.description ?? '',
+          icon: 'layers',
+          status: wf.status,
+          is_default: false,
+          is_quick_action_enabled: true,
+          step_count: 0,
+          node_count: typeof wf.node_count === 'number' ? wf.node_count : 0,
+        }));
+
+      const byKey = new Map<string, AvailableForm>();
+      for (const item of [...legacyForms, ...workforms]) {
+        const key = `${item.type ?? 'form'}:${item.id}`;
+        byKey.set(key, item);
+      }
+
+      const combined = Array.from(byKey.values()).sort((a, b) => (a.name ?? '').localeCompare(b.name ?? ''));
+      setAvailableForms(combined);
     } catch (err: any) {
       console.error('Failed to load quick actions:', err);
       setError(err.message || 'Failed to load quick actions');
@@ -111,16 +143,18 @@ export const QuickActionsProvider: React.FC<QuickActionsProviderProps> = ({ chil
     }
   }, []);
 
-  const addQuickAction = useCallback(async (form: AvailableForm) => {
+  const addQuickAction = useCallback(async (item: AvailableForm) => {
+    const itemType = item.type === 'workflow' ? 'workflow' : 'form';
+
     const newAction: QuickActionItem = {
       id: `qa_${Date.now()}`,
-      type: 'form',
-      form_id: form.id,
-      label: form.name,
-      icon: form.icon || 'file-text',  // Keep original icon or default to file-text
+      type: itemType,
+      ...(itemType === 'workflow' ? { workflow_id: item.id } : { form_id: item.id }),
+      label: item.name,
+      icon: item.icon || (itemType === 'workflow' ? 'layers' : 'file-text'),
       order: quickActions.length,
     };
-    
+
     const updatedActions = [...quickActions, newAction];
     await updateQuickActions(updatedActions);
   }, [quickActions, updateQuickActions]);
@@ -173,7 +207,11 @@ export const QuickActionsProvider: React.FC<QuickActionsProviderProps> = ({ chil
       const errorMsg = err?.response?.data?.error || err?.message || 'Failed to start form';
       setError(errorMsg);
       // Alert the user since the modal won't open
-      alert(`Error: ${errorMsg}`);
+      showAlert({
+        type: 'error',
+        title: 'Error',
+        content: errorMsg,
+      });
     }
   }, [startFormSubmission]);
 

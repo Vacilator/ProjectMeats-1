@@ -1,8 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import styled from 'styled-components';
 
-import { InquiryCreateModal } from '@/components/Inquiry';
-import { ScheduleCallModal } from '@/components/Shared';
+import { EntityFormSurface, ScheduleCallModal } from '@/components/Shared';
 import { InquiryCallModal } from '@/components/Calls/InquiryCallModal';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
@@ -15,12 +14,19 @@ type CanonicalEntityType = 'customer' | 'supplier';
 
 type DetailTab = 'products' | 'orders' | 'callLogs' | 'inquiries';
 
+type ProductInsightsTab = 'purchaseHistory' | 'aggregatedPreferences';
+
 type EntityRecord = {
   id: string | number;
   name?: string;
   contact_person?: string;
   email?: string;
   phone?: string;
+
+  phone_mobile?: string;
+  phone_office?: string;
+  phone_office_extension?: string;
+
   notes?: string;
   [key: string]: unknown;
 };
@@ -306,6 +312,35 @@ const TabButton = styled.button<{ $active: boolean }>`
   }
 `;
 
+const InsightToggle = styled.div`
+  display: inline-flex;
+  gap: 6px;
+  padding: 4px;
+  border: 1px solid rgb(var(--color-border));
+  border-radius: 999px;
+  background: rgb(var(--color-surface));
+`;
+
+const InsightButton = styled.button<{ $active: boolean }>`
+  border: none;
+  border-radius: 999px;
+  padding: 6px 10px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 800;
+  background: ${(p) => (p.$active ? 'rgba(var(--color-primary), 0.14)' : 'transparent')};
+  color: ${(p) => (p.$active ? 'rgb(var(--color-primary))' : 'rgb(var(--color-text-secondary))')};
+
+  &:hover {
+    color: rgb(var(--color-primary));
+  }
+
+  &:focus-visible {
+    outline: 2px solid rgba(var(--color-primary), 0.35);
+    outline-offset: 2px;
+  }
+`;
+
 const CenterStack = styled.div`
   position: relative;
   min-height: 520px;
@@ -456,8 +491,10 @@ export const CustomerDetailView: React.FC<CustomerDetailViewProps> = ({
   const canonicalType = useMemo(() => normalizeEntityType(entityType), [entityType]);
   const [leftFilter, setLeftFilter] = useState('');
   const [activeTab, setActiveTab] = useState<DetailTab>('products');
+  const [productInsightsTab, setProductInsightsTab] = useState<ProductInsightsTab>('purchaseHistory');
   const [isNewMenuOpen, setIsNewMenuOpen] = useState(false);
   const [isInquiryCreateOpen, setIsInquiryCreateOpen] = useState(false);
+  const [isSalesOrderCreateOpen, setIsSalesOrderCreateOpen] = useState(false);
   const [showScheduleCallModal, setShowScheduleCallModal] = useState(false);
   const [defaultCallPurpose, setDefaultCallPurpose] = useState<string | undefined>(undefined);
   const [showInquiryCallModal, setShowInquiryCallModal] = useState(false);
@@ -505,6 +542,17 @@ export const CustomerDetailView: React.FC<CustomerDetailViewProps> = ({
     },
   });
 
+  const masterProductsQuery = useQuery({
+    queryKey: ['cockpit-master-products'],
+    enabled: Boolean(canonicalType === 'customer' && activeTab === 'products' && productInsightsTab === 'aggregatedPreferences'),
+    queryFn: async () => {
+      const res = await businessApi.get('/master-products/', { params: { page_size: 5000 } });
+      const raw = res.data as any;
+      const items = Array.isArray(raw) ? raw : Array.isArray(raw?.results) ? raw.results : [];
+      return items as Array<{ id: number | string; display_name?: string; item_name?: string; type?: string }>;
+    },
+  });
+
   const tabItemsQuery = useQuery({
     queryKey: ['cockpit-entity-tab', canonicalType, entityId, activeTab],
     enabled: Boolean(canonicalType && entityId),
@@ -520,6 +568,28 @@ export const CustomerDetailView: React.FC<CustomerDetailViewProps> = ({
   const entity = entityQuery.data;
   const title = getBreadcrumbTitle(entity, initialLabel);
   const counts = countsQuery.data;
+
+  const aggregatedPreferenceIds = useMemo(() => {
+    if (canonicalType !== 'customer') return [] as number[];
+    const raw = (entity as any)?.aggregated_preferred_products;
+    if (!Array.isArray(raw)) return [] as number[];
+    return raw.map((v: unknown) => Number(v)).filter((v: number) => Number.isFinite(v));
+  }, [canonicalType, entity]);
+
+  const aggregatedPreferenceProducts = useMemo(() => {
+    const masterProducts = masterProductsQuery.data ?? [];
+    if (!aggregatedPreferenceIds.length || !masterProducts.length) return [] as Array<{ id: number | string; title: string }>;
+
+    const byId = new Map<string, { id: number | string; title: string }>();
+    for (const mp of masterProducts) {
+      const title = safeText(mp.display_name) || safeText(mp.item_name) || safeText(mp.type) || `Master Product ${String(mp.id)}`;
+      byId.set(String(mp.id), { id: mp.id, title });
+    }
+
+    return aggregatedPreferenceIds
+      .map((id) => byId.get(String(id)))
+      .filter((v): v is { id: number | string; title: string } => Boolean(v));
+  }, [aggregatedPreferenceIds, masterProductsQuery.data]);
 
   const locations = locationsQuery.data ?? [];
   const products = productsQuery.data ?? [];
@@ -580,6 +650,17 @@ export const CustomerDetailView: React.FC<CustomerDetailViewProps> = ({
       return;
     }
 
+    if (action === 'order') {
+      if (canonicalType === 'customer') {
+        setIsSalesOrderCreateOpen(true);
+        setActiveTab('orders');
+        return;
+      }
+
+      toast.info('Coming soon: New purchase order');
+      return;
+    }
+
     if (action === 'call') {
       // Default to follow-up if user used keyboard/quick action.
       startNewCall('follow_up');
@@ -613,17 +694,36 @@ export const CustomerDetailView: React.FC<CustomerDetailViewProps> = ({
 
   return (
     <Page>
-      <InquiryCreateModal
+      <EntityFormSurface
+        entityType="inquiry"
+        mode="create"
         isOpen={isInquiryCreateOpen}
         onClose={() => setIsInquiryCreateOpen(false)}
+        context={{
+          customerId: canonicalType === 'customer' ? entityId : undefined,
+          supplierId: canonicalType === 'supplier' ? entityId : undefined,
+        }}
         onSuccess={() => {
           void countsQuery.refetch();
           void tabItemsQuery.refetch();
           setIsInquiryCreateOpen(false);
         }}
-        initialEntityType={canonicalType ?? undefined}
-        initialEntityId={entityId}
       />
+
+      {canonicalType === 'customer' && (
+        <EntityFormSurface
+          entityType="sales-orders"
+          mode="create"
+          isOpen={isSalesOrderCreateOpen}
+          onClose={() => setIsSalesOrderCreateOpen(false)}
+          context={{ customerId: entityId }}
+          onSuccess={() => {
+            void countsQuery.refetch();
+            void tabItemsQuery.refetch();
+            setIsSalesOrderCreateOpen(false);
+          }}
+        />
+      )}
 
       <ScheduleCallModal
         isOpen={showScheduleCallModal}
@@ -684,7 +784,17 @@ export const CustomerDetailView: React.FC<CustomerDetailViewProps> = ({
                 <InfoKey>Phone</InfoKey>
                 <InfoValue>
                   <Phone size={14} />
-                  {safeText(entity?.phone) ? safeText(entity?.phone) : <Muted>—</Muted>}
+                  {(() => {
+                    const office = safeText(entity?.phone_office);
+                    const ext = safeText(entity?.phone_office_extension);
+                    const mobile = safeText(entity?.phone_mobile);
+                    const legacy = safeText(entity?.phone);
+
+                    if (office) return ext ? `${office} x${ext}` : office;
+                    if (mobile) return mobile;
+                    if (legacy) return legacy;
+                    return <Muted>—</Muted>;
+                  })()}
                 </InfoValue>
               </InfoRow>
               <InfoRow>
@@ -793,7 +903,7 @@ export const CustomerDetailView: React.FC<CustomerDetailViewProps> = ({
                       New Product <span>↵</span>
                     </MenuItem>
                     <MenuItem type="button" onClick={() => handleNewAction('order')} role="menuitem">
-                      New Order <span>↵</span>
+                      {canonicalType === 'customer' ? 'New Sales Order' : 'New Purchase Order'} <span>↵</span>
                     </MenuItem>
                     <MenuItem type="button" onClick={() => startNewCall('follow_up')} role="menuitem">
                       New Call (Follow-up) <span>↵</span>
@@ -825,24 +935,97 @@ export const CustomerDetailView: React.FC<CustomerDetailViewProps> = ({
               <FeedHeader>
                 <CardTitle>
                   <StickyNote size={14} />
-                  {activeTab === 'products'
-                    ? 'Products'
-                    : activeTab === 'orders'
-                      ? 'Orders'
-                      : activeTab === 'callLogs'
-                        ? 'Call Logs'
-                        : 'Inquiries'}
+                  {activeTab === 'products' && canonicalType === 'customer'
+                    ? 'Product Insights'
+                    : activeTab === 'products'
+                      ? 'Products'
+                      : activeTab === 'orders'
+                        ? 'Orders'
+                        : activeTab === 'callLogs'
+                          ? 'Call Logs'
+                          : 'Inquiries'}
                 </CardTitle>
-                <Muted>
-                  {tabItemsQuery.isLoading
-                    ? 'Loading…'
-                    : tabItemsQuery.isError
-                      ? 'Unavailable'
-                      : `${(tabItemsQuery.data ?? []).length} items`}
-                </Muted>
+
+                {activeTab === 'products' && canonicalType === 'customer' ? (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <InsightToggle role="tablist" aria-label="Product insights">
+                      <InsightButton
+                        type="button"
+                        $active={productInsightsTab === 'purchaseHistory'}
+                        onClick={() => setProductInsightsTab('purchaseHistory')}
+                        role="tab"
+                        aria-selected={productInsightsTab === 'purchaseHistory'}
+                      >
+                        Purchase History
+                      </InsightButton>
+                      <InsightButton
+                        type="button"
+                        $active={productInsightsTab === 'aggregatedPreferences'}
+                        onClick={() => setProductInsightsTab('aggregatedPreferences')}
+                        role="tab"
+                        aria-selected={productInsightsTab === 'aggregatedPreferences'}
+                      >
+                        Aggregated Preferences
+                      </InsightButton>
+                    </InsightToggle>
+                    <Muted>
+                      {productInsightsTab === 'purchaseHistory'
+                        ? tabItemsQuery.isLoading
+                          ? 'Loading…'
+                          : tabItemsQuery.isError
+                            ? 'Unavailable'
+                            : `${(tabItemsQuery.data ?? []).length} items`
+                        : masterProductsQuery.isLoading
+                          ? 'Loading…'
+                          : `${aggregatedPreferenceProducts.length} items`}
+                    </Muted>
+                  </div>
+                ) : (
+                  <Muted>
+                    {tabItemsQuery.isLoading
+                      ? 'Loading…'
+                      : tabItemsQuery.isError
+                        ? 'Unavailable'
+                        : `${(tabItemsQuery.data ?? []).length} items`}
+                  </Muted>
+                )}
               </FeedHeader>
               <FeedList>
-                {tabItemsQuery.isLoading ? (
+                {activeTab === 'products' && canonicalType === 'customer' ? (
+                  productInsightsTab === 'purchaseHistory' ? (
+                    tabItemsQuery.isLoading ? (
+                      <EmptyHint>Loading purchase history…</EmptyHint>
+                    ) : tabItemsQuery.isError ? (
+                      <EmptyHint>Purchase history is unavailable for this customer.</EmptyHint>
+                    ) : (tabItemsQuery.data ?? []).length === 0 ? (
+                      <EmptyHint>No products found in purchase history.</EmptyHint>
+                    ) : (
+                      (tabItemsQuery.data ?? []).slice(0, 25).map((item) => (
+                        <Card key={String(item.id)}>
+                          <CardBody>
+                            <div style={{ fontWeight: 700, color: 'rgb(var(--color-text-primary))' }}>
+                              {safeText(item.title) || safeText(item.name) || safeText(item.label) || 'Product'}
+                            </div>
+                          </CardBody>
+                        </Card>
+                      ))
+                    )
+                  ) : masterProductsQuery.isLoading ? (
+                    <EmptyHint>Loading aggregated preferences…</EmptyHint>
+                  ) : aggregatedPreferenceIds.length === 0 ? (
+                    <EmptyHint>No aggregated preferred products found (from Locations + Contacts).</EmptyHint>
+                  ) : aggregatedPreferenceProducts.length === 0 ? (
+                    <EmptyHint>Aggregated preferences exist, but product definitions could not be resolved.</EmptyHint>
+                  ) : (
+                    aggregatedPreferenceProducts.slice(0, 50).map((mp) => (
+                      <Card key={String(mp.id)}>
+                        <CardBody>
+                          <div style={{ fontWeight: 700, color: 'rgb(var(--color-text-primary))' }}>{mp.title}</div>
+                        </CardBody>
+                      </Card>
+                    ))
+                  )
+                ) : tabItemsQuery.isLoading ? (
                   <EmptyHint>Loading records…</EmptyHint>
                 ) : tabItemsQuery.isError ? (
                   <EmptyHint>

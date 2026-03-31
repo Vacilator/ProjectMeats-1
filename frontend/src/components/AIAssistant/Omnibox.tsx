@@ -84,6 +84,8 @@ const Omnibox: React.FC<OmniboxProps> = ({ isOpen, onClose, onSubmit }) => {
           context: {
             ui_source: 'Omnibox',
             ...pageContext,
+            // Explicit active entity included for backend tool context (defense-in-depth)
+            activeEntity: pageContext.activeEntity ?? null,
           },
         },
       })

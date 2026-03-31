@@ -5,8 +5,16 @@ Defines contact entities and related business logic.
 
 Implements tenant ForeignKey field for shared-schema multi-tenancy.
 """
+from django.contrib.postgres.fields import ArrayField
 from django.db import models
-from apps.core.models import ContactTypeChoices, StatusChoices, TenantAwareModel
+from apps.core.models import ContactTypeChoices, PhoneTypeChoices, StatusChoices, TenantAwareModel
+
+
+class ContactDepartmentChoices(models.TextChoices):
+    SALES = 'sales', 'Sales'
+    QA = 'qa', 'Quality Assurance'
+    BOOKING = 'booking', 'Booking'
+    ACCOUNTING = 'accounting', 'Accounting'
 
 
 class Contact(TenantAwareModel):
@@ -63,6 +71,13 @@ class Contact(TenantAwareModel):
     phone = models.CharField(
         max_length=20, blank=True, null=True, help_text="Contact phone number"
     )
+    phone_type = models.CharField(
+        max_length=10,
+        choices=PhoneTypeChoices.choices,
+        blank=True,
+        default=PhoneTypeChoices.OFFICE,
+        help_text="Contact phone type (mobile or office)",
+    )
     company = models.CharField(
         max_length=255, blank=True, null=True, help_text="Company or organization"
     )
@@ -70,7 +85,86 @@ class Contact(TenantAwareModel):
         max_length=100, blank=True, null=True, help_text="Job position or title"
     )
     
-    # Enhanced fields from Excel requirements
+    # Department-scoped contact fields (Grandparent→Parent→Child hierarchy)
+    department = models.CharField(
+        max_length=32,
+        choices=ContactDepartmentChoices.choices,
+        blank=True,
+        null=True,
+        default='',
+        help_text='Department this contact belongs to (Sales, QA, Booking, Accounting)',
+    )
+
+    mobile_phone = models.CharField(
+        max_length=20,
+        blank=True,
+        null=True,
+        default='',
+        help_text='Mobile phone number (optional)',
+    )
+    office_phone = models.CharField(
+        max_length=20,
+        blank=True,
+        null=True,
+        default='',
+        help_text='Office phone number (optional)',
+    )
+    office_phone_ext = models.CharField(
+        max_length=10,
+        blank=True,
+        null=True,
+        default='',
+        help_text='Office phone extension (optional)',
+    )
+
+    protein_types_responsible = ArrayField(
+        models.CharField(max_length=50),
+        blank=True,
+        null=True,
+        default=list,
+        help_text='Protein types this contact is responsible for (Sales only)',
+    )
+    items_responsible = ArrayField(
+        models.CharField(max_length=100),
+        blank=True,
+        null=True,
+        default=list,
+        help_text='Items this contact is responsible for (Sales only)',
+    )
+
+    # =====================================================================
+    # Additive M2M responsibilities/preferences (requested for rollups)
+    # =====================================================================
+    proteins_responsible = models.ManyToManyField(
+        'core.Protein',
+        through='ContactProteinResponsibility',
+        related_name='contacts_responsible',
+        blank=True,
+        help_text='Proteins this contact is responsible for (department-dependent)',
+    )
+    products_responsible = models.ManyToManyField(
+        'products.MasterProduct',
+        through='ContactMasterProductResponsibility',
+        related_name='contacts_responsible',
+        blank=True,
+        help_text='Master products this contact is responsible for (department-dependent)',
+    )
+    preferred_protein_types = models.ManyToManyField(
+        'core.Protein',
+        through='ContactPreferredProtein',
+        related_name='preferred_by_contacts',
+        blank=True,
+        help_text='Preferred proteins (used for aggregated customer preferences)',
+    )
+    preferred_products = models.ManyToManyField(
+        'products.MasterProduct',
+        through='ContactPreferredMasterProduct',
+        related_name='preferred_by_contacts',
+        blank=True,
+        help_text='Preferred master products (used for aggregated customer preferences)',
+    )
+
+    # Enhanced fields from Excel requirements (legacy; kept for backward compatibility)
     contact_type = models.CharField(
         max_length=50,
         choices=ContactTypeChoices.choices,
@@ -121,3 +215,87 @@ class Contact(TenantAwareModel):
 
     def __str__(self):
         return f"{self.first_name} {self.last_name}"
+
+
+class ContactProteinResponsibility(TenantAwareModel):
+    """Tenant-safe link for Contact ↔ core.Protein responsibilities."""
+
+    contact = models.ForeignKey(Contact, on_delete=models.CASCADE, related_name='protein_responsibility_links')
+    protein = models.ForeignKey('core.Protein', on_delete=models.CASCADE, related_name='contact_responsibility_links')
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=['tenant', 'contact', 'protein'],
+                name='unique_contact_protein_responsibility_per_tenant',
+            )
+        ]
+        indexes = [
+            models.Index(fields=['tenant', 'contact']),
+            models.Index(fields=['tenant', 'protein']),
+        ]
+
+
+class ContactMasterProductResponsibility(TenantAwareModel):
+    """Tenant-safe link for Contact ↔ products.MasterProduct responsibilities."""
+
+    contact = models.ForeignKey(Contact, on_delete=models.CASCADE, related_name='master_product_responsibility_links')
+    master_product = models.ForeignKey(
+        'products.MasterProduct',
+        on_delete=models.CASCADE,
+        related_name='contact_responsibility_links',
+    )
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=['tenant', 'contact', 'master_product'],
+                name='unique_contact_master_product_responsibility_per_tenant',
+            )
+        ]
+        indexes = [
+            models.Index(fields=['tenant', 'contact']),
+            models.Index(fields=['tenant', 'master_product']),
+        ]
+
+
+class ContactPreferredProtein(TenantAwareModel):
+    """Tenant-safe link for Contact ↔ core.Protein preferences."""
+
+    contact = models.ForeignKey(Contact, on_delete=models.CASCADE, related_name='preferred_protein_links')
+    protein = models.ForeignKey('core.Protein', on_delete=models.CASCADE, related_name='preferred_by_contact_links')
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=['tenant', 'contact', 'protein'],
+                name='unique_contact_preferred_protein_per_tenant',
+            )
+        ]
+        indexes = [
+            models.Index(fields=['tenant', 'contact']),
+            models.Index(fields=['tenant', 'protein']),
+        ]
+
+
+class ContactPreferredMasterProduct(TenantAwareModel):
+    """Tenant-safe link for Contact ↔ products.MasterProduct preferences."""
+
+    contact = models.ForeignKey(Contact, on_delete=models.CASCADE, related_name='preferred_master_product_links')
+    master_product = models.ForeignKey(
+        'products.MasterProduct',
+        on_delete=models.CASCADE,
+        related_name='preferred_by_contact_links',
+    )
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=['tenant', 'contact', 'master_product'],
+                name='unique_contact_preferred_master_product_per_tenant',
+            )
+        ]
+        indexes = [
+            models.Index(fields=['tenant', 'contact']),
+            models.Index(fields=['tenant', 'master_product']),
+        ]

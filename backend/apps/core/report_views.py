@@ -16,7 +16,7 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
-from typing import Any, Dict, Optional, Tuple
+from typing import Optional
 
 from django.core.exceptions import FieldError
 from django.db.models import Avg, Count, Sum
@@ -110,15 +110,16 @@ class ReportsSummaryAPIView(APIView):
             from tenant_apps.purchase_orders.models import PurchaseOrder
 
             po_qs = PurchaseOrder.objects.for_tenant(tenant).filter(order_date__gte=dr.start, order_date__lte=dr.end)
+            # Avoid alias collisions with real field names (e.g. total_amount).
             po_agg = po_qs.aggregate(
                 count=Count("id"),
-                total_amount=Sum("total_amount"),
-                avg_amount=Avg("total_amount"),
+                total_amount_sum=Sum("total_amount"),
+                total_amount_avg=Avg("total_amount"),
             )
             summary["purchase_orders"] = {
                 "count": int(po_agg.get("count") or 0),
-                "total_amount": float(po_agg.get("total_amount") or 0),
-                "avg_amount": float(po_agg.get("avg_amount") or 0),
+                "total_amount": float(po_agg.get("total_amount_sum") or 0),
+                "avg_amount": float(po_agg.get("total_amount_avg") or 0),
             }
         except (OperationalError, ProgrammingError, FieldError, AttributeError, Exception) as e:
             _warn("purchase_orders", e)
@@ -131,17 +132,18 @@ class ReportsSummaryAPIView(APIView):
                 date_time_stamp__date__gte=dr.start,
                 date_time_stamp__date__lte=dr.end,
             )
+            # Avoid alias collisions with real field names (e.g. total_amount / total_weight).
             so_agg = so_qs.aggregate(
                 count=Count("id"),
-                total_amount=Sum("total_amount"),
-                total_weight=Sum("total_weight"),
-                avg_amount=Avg("total_amount"),
+                total_amount_sum=Sum("total_amount"),
+                total_weight_sum=Sum("total_weight"),
+                total_amount_avg=Avg("total_amount"),
             )
             summary["sales_orders"] = {
                 "count": int(so_agg.get("count") or 0),
-                "total_amount": float(so_agg.get("total_amount") or 0),
-                "total_weight": float(so_agg.get("total_weight") or 0),
-                "avg_amount": float(so_agg.get("avg_amount") or 0),
+                "total_amount": float(so_agg.get("total_amount_sum") or 0),
+                "total_weight": float(so_agg.get("total_weight_sum") or 0),
+                "avg_amount": float(so_agg.get("total_amount_avg") or 0),
             }
         except (OperationalError, ProgrammingError, FieldError, AttributeError, Exception) as e:
             _warn("sales_orders", e)

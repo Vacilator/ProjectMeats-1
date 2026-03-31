@@ -1,0 +1,175 @@
+name: "Auto Promote: Branch → Branch"
+
+run-name: >-
+  ${{
+    github.event_name == 'workflow_dispatch' && format('Manual Promote: {0} → {1}', inputs.head, inputs.base) ||
+    (github.event.workflow_run.head_branch == 'development' && format('Auto Promote: {0} → {1}', github.event.workflow_run.head_branch, 'uat')) ||
+    (github.event.workflow_run.head_branch == 'uat' && format('Auto Promote: {0} → {1}', github.event.workflow_run.head_branch, 'main')) ||
+    'Auto Promote: skipped'
+  }}
+
+on:
+  workflow_run:
+    workflows: ["Master Pipeline"]
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      head:
+        description: 'Head branch to promote'
+        required: true
+        default: 'development'
+        type: string
+      base:
+        description: 'Base branch to open PR into'
+        required: true
+        default: 'uat'
+        type: string
+
+permissions:
+  contents: read
+  pull-requests: write
+  actions: read
+
+concurrency:
+  group: >-
+    auto-promote-${{
+      github.event_name == 'workflow_dispatch' && format('{0}-{1}', inputs.head, inputs.base) ||
+      (github.event.workflow_run.head_branch == 'development' && 'development-uat') ||
+      (github.event.workflow_run.head_branch == 'uat' && 'uat-main') ||
+      'skip'
+    }}
+  cancel-in-progress: false
+
+jobs:
+  create-promotion-pr:
+    name: Create promotion PR
+    runs-on: ubuntu-latest
+    if: >-
+      ${{
+        github.event_name == 'workflow_dispatch' ||
+        (
+          github.event_name == 'workflow_run' &&
+          github.event.workflow_run.conclusion == 'success' &&
+          (github.event.workflow_run.head_branch == 'development' || github.event.workflow_run.head_branch == 'uat')
+        )
+      }}
+
+    steps:
+      - name: Resolve branches
+        id: branches
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          WF_BRANCH: ${{ github.event.workflow_run.head_branch }}
+          INPUT_HEAD: ${{ inputs.head }}
+          INPUT_BASE: ${{ inputs.base }}
+        run: |
+          set -euo pipefail
+
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            echo "head=$INPUT_HEAD" >> "$GITHUB_OUTPUT"
+            echo "base=$INPUT_BASE" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if [ "$WF_BRANCH" = "development" ]; then
+            echo "head=$WF_BRANCH" >> "$GITHUB_OUTPUT"
+            echo "base=uat" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if [ "$WF_BRANCH" = "uat" ]; then
+            echo "head=$WF_BRANCH" >> "$GITHUB_OUTPUT"
+            echo "base=main" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "Unsupported workflow_run head branch: $WF_BRANCH"
+          exit 1
+
+      - name: Check for commits to promote
+        id: compare
+        env:
+          GH_TOKEN: ${{ secrets.PAT }}
+          REPO: ${{ github.repository }}
+          BASE: ${{ steps.branches.outputs.base }}
+          HEAD: ${{ steps.branches.outputs.head }}
+        run: |
+          set -euo pipefail
+
+          ahead=$(gh api "repos/$REPO/compare/$BASE...$HEAD" --jq '.ahead_by')
+          echo "ahead_by=$ahead" >> "$GITHUB_OUTPUT"
+
+          if [ "$ahead" -eq 0 ]; then
+            echo "No commits to promote ($HEAD is not ahead of $BASE)."
+            echo "should_promote=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "should_promote=true" >> "$GITHUB_OUTPUT"
+
+      - name: Skip if PR already exists
+        id: pr_check
+        if: ${{ steps.compare.outputs.should_promote == 'true' }}
+        env:
+          GH_TOKEN: ${{ secrets.PAT }}
+          REPO: ${{ github.repository }}
+          BASE: ${{ steps.branches.outputs.base }}
+          HEAD: ${{ steps.branches.outputs.head }}
+        run: |
+          set -euo pipefail
+
+          existing=$(gh pr list --repo "$REPO" --base "$BASE" --head "$HEAD" --state open --json number --jq 'length')
+          if [ "$existing" -ne 0 ]; then
+            echo "Promotion PR already open ($HEAD -> $BASE); skipping."
+            echo "pr_exists=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "pr_exists=false" >> "$GITHUB_OUTPUT"
+
+      - name: Create promotion PR
+        if: ${{ steps.compare.outputs.should_promote == 'true' && steps.pr_check.outputs.pr_exists != 'true' }}
+        env:
+          GH_TOKEN: ${{ secrets.PAT }}
+          REPO: ${{ github.repository }}
+          BASE: ${{ steps.branches.outputs.base }}
+          HEAD: ${{ steps.branches.outputs.head }}
+          RUN_URL: ${{ github.event.workflow_run.html_url }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
+          SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          set -euo pipefail
+
+          title="Promote $HEAD → $BASE"
+
+          if [ "$BASE" = "uat" ]; then
+            gate_note="UAT validation + deployment checks must pass."
+          else
+            gate_note="Production validation + deployment checks must pass."
+          fi
+
+          body=$(cat <<- 'EOF'
+          Auto-created promotion PR.
+
+          Trigger:
+          - Workflow run: RUN_URL
+          - Run ID: RUN_ID
+          - SHA: SHA
+
+          Notes:
+          - This PR does NOT bypass any gates. GATE_NOTE
+          - Manual review + required approvals remain enforced.
+          EOF
+          )
+
+          body=${body//RUN_URL/$RUN_URL}
+          body=${body//RUN_ID/$RUN_ID}
+          body=${body//SHA/$SHA}
+          body=${body//GATE_NOTE/$gate_note}
+
+          gh pr create \
+            --repo "$REPO" \
+            --base "$BASE" \
+            --head "$HEAD" \
+            --title "$title" \
+            --body "$body"

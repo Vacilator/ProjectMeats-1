@@ -11,36 +11,8 @@
  *   const options = await choicesService.getChoices('protein_type');
  *   const allChoices = await choicesService.getAllChoices();
  */
-import axios from 'axios';
-import { config } from '../config/runtime';
 import { configService } from './configService';
-
-const API_BASE_URL = config.API_BASE_URL;
-
-// Create axios instance for choices API
-const apiClient = axios.create({
-  baseURL: API_BASE_URL,
-  timeout: 15000,
-  headers: {
-    'Content-Type': 'application/json',
-  },
-  withCredentials: true,
-  xsrfCookieName: 'csrftoken',
-  xsrfHeaderName: 'X-CSRFToken',
-});
-
-// Request interceptor for authentication
-apiClient.interceptors.request.use((config) => {
-  const token = localStorage.getItem('authToken');
-  if (token) {
-    config.headers.Authorization = `Token ${token}`;
-  }
-  const tenantId = localStorage.getItem('tenantId');
-  if (tenantId) {
-    config.headers['X-Tenant-ID'] = tenantId;
-  }
-  return config;
-});
+import { apiClient as pmApiClient } from './apiService';
 
 // Types
 export interface ChoiceOption {
@@ -180,8 +152,8 @@ export async function getChoices(choiceType: ChoiceType): Promise<ChoiceOption[]
   
   // Fetch specific choice type
   try {
-    const response = await apiClient.get<ChoicesResponse>(`/choices/`, {
-      params: { choice_type: choiceType }
+    const response = await pmApiClient.get<ChoicesResponse>('/choices/', {
+      params: { choice_type: choiceType },
     });
     return response.data.options;
   } catch (error) {
@@ -206,7 +178,7 @@ export async function getAllChoices(): Promise<Record<string, ChoiceOption[]>> {
   }
   
   // Fetch all choices
-  cachePromise = apiClient.get<AllChoicesResponse>(`/choices/`)
+  cachePromise = pmApiClient.get<AllChoicesResponse>('/choices/')
     .then(response => {
       choicesCache = response.data.choices;
       return response.data;

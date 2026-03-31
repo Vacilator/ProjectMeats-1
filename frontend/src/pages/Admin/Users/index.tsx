@@ -3,7 +3,7 @@
  *
  * Tenant admin management for users, invitations, and roles.
  */
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import styled from 'styled-components';
 import { Search } from 'lucide-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -21,6 +21,7 @@ import {
 import { Button } from '@/components/ui/Button';
 import { useToast } from '@/hooks/useToast';
 import { useAdminPermissions } from '@/hooks/useAdminPermissions';
+import { useHealth } from '@/hooks/useHealth';
 import { useAuth } from '@/contexts/AuthContext';
 import Modal from '@/components/Modal/Modal';
 
@@ -59,6 +60,9 @@ const UsersPage: React.FC = () => {
   const queryClient = useQueryClient();
   const { user: currentUser } = useAuth();
   const { permissions } = useAdminPermissions();
+  const { data: health } = useHealth();
+
+  const emailEnabled = Boolean(health?.features?.email_send);
   const canAccess =
     permissions.can_manage_users || permissions.can_invite_users || permissions.can_change_roles;
 
@@ -66,6 +70,10 @@ const UsersPage: React.FC = () => {
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeactivateConfirm, setShowDeactivateConfirm] = useState(false);
+  const [showRemoveConfirm, setShowRemoveConfirm] = useState(false);
+  const [showBulkRevokeConfirm, setShowBulkRevokeConfirm] = useState(false);
+  const [selectedInvitationIds, setSelectedInvitationIds] = useState<number[]>([]);
+  const [invitationTableKey, setInvitationTableKey] = useState(0);
   const [selectedUser, setSelectedUser] = useState<TenantUser | null>(null);
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState<string>('user');
@@ -146,16 +154,36 @@ const UsersPage: React.FC = () => {
     [invitations, normalizedQuery]
   );
 
+  useEffect(() => {
+    // Reset selection when filtering changes to avoid stale selections.
+    setSelectedInvitationIds([]);
+    setInvitationTableKey((k) => k + 1);
+  }, [normalizedQuery]);
+
+  const getApiErrorMessage = (error: any): string => {
+    const data = error?.response?.data;
+
+    const message =
+      data?.message ||
+      data?.error ||
+      data?.detail ||
+      error?.message ||
+      'Request failed';
+
+    const code = data?.error_code ? ` (${String(data.error_code)})` : '';
+    return `${String(message)}${code}`;
+  };
+
   const inviteMutation = useMutation({
     mutationFn: async (data: { email: string; role: string }) => apiClient.post('/invitations/', data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tenant-invitations'] });
-      toast.success('Invitation sent successfully');
+      toast.success(emailEnabled ? 'Invitation sent successfully' : 'Invitation created (email sending is disabled)');
       setShowInviteModal(false);
       setInviteEmail('');
     },
     onError: (error: any) => {
-      toast.error(error.response?.data?.detail || 'Failed to send invitation');
+      toast.error(getApiErrorMessage(error) || 'Failed to send invitation');
     },
   });
 
@@ -195,6 +223,19 @@ const UsersPage: React.FC = () => {
     },
   });
 
+  const deleteMutation = useMutation({
+    mutationFn: async (id: number) => apiClient.delete(`/tenant-users/${id}/`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tenant-users'] });
+      toast.success('User removed');
+      setShowRemoveConfirm(false);
+      setSelectedUser(null);
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.error || error.response?.data?.detail || 'Failed to remove user');
+    },
+  });
+
   const revokeMutation = useMutation({
     mutationFn: async (id: number) => apiClient.post(`/invitations/${id}/revoke/`),
     onSuccess: () => {
@@ -213,7 +254,92 @@ const UsersPage: React.FC = () => {
       toast.success('Invitation resent');
     },
     onError: (error: any) => {
-      toast.error(error.response?.data?.detail || 'Failed to resend invitation');
+      toast.error(getApiErrorMessage(error) || 'Failed to resend invitation');
+    },
+  });
+
+  const bulkResendMutation = useMutation({
+    mutationFn: async (ids: number[]) => {
+      const succeeded: number[] = [];
+      const failed: Array<{ id: number; message: string }> = [];
+
+      for (const id of ids) {
+        try {
+          await apiClient.post(`/invitations/${id}/resend/`);
+          succeeded.push(id);
+        } catch (error: any) {
+          failed.push({ id, message: getApiErrorMessage(error) });
+        }
+      }
+
+      return { succeeded, failed };
+    },
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: ['tenant-invitations'] });
+      setSelectedInvitationIds([]);
+      setInvitationTableKey((k) => k + 1);
+
+      const failures = result.failed.length;
+      const successes = result.succeeded.length;
+
+      if (successes > 0 && failures === 0) {
+        toast.success(`Resent ${successes} invitation${successes === 1 ? '' : 's'}.`);
+        return;
+      }
+
+      if (successes > 0 && failures > 0) {
+        toast.warning(`Resent ${successes}. ${failures} failed — check logs/toasts for details.`);
+        if (result.failed[0]?.message) toast.error(result.failed[0].message);
+        return;
+      }
+
+      toast.error(result.failed[0]?.message || 'Failed to resend invitations');
+    },
+    onError: (error: any) => {
+      toast.error(getApiErrorMessage(error) || 'Failed to resend invitations');
+    },
+  });
+
+  const bulkRevokeMutation = useMutation({
+    mutationFn: async (ids: number[]) => {
+      const succeeded: number[] = [];
+      const failed: Array<{ id: number; message: string }> = [];
+
+      for (const id of ids) {
+        try {
+          await apiClient.post(`/invitations/${id}/revoke/`);
+          succeeded.push(id);
+        } catch (error: any) {
+          failed.push({ id, message: getApiErrorMessage(error) });
+        }
+      }
+
+      return { succeeded, failed };
+    },
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: ['tenant-invitations'] });
+      setSelectedInvitationIds([]);
+      setInvitationTableKey((k) => k + 1);
+      setShowBulkRevokeConfirm(false);
+
+      const failures = result.failed.length;
+      const successes = result.succeeded.length;
+
+      if (successes > 0 && failures === 0) {
+        toast.success(`Revoked ${successes} invitation${successes === 1 ? '' : 's'}.`);
+        return;
+      }
+
+      if (successes > 0 && failures > 0) {
+        toast.warning(`Revoked ${successes}. ${failures} failed — check logs/toasts for details.`);
+        if (result.failed[0]?.message) toast.error(result.failed[0].message);
+        return;
+      }
+
+      toast.error(result.failed[0]?.message || 'Failed to revoke invitations');
+    },
+    onError: (error: any) => {
+      toast.error(getApiErrorMessage(error) || 'Failed to revoke invitations');
     },
   });
 
@@ -223,6 +349,11 @@ const UsersPage: React.FC = () => {
         key: 'username',
         label: 'User',
         sortable: true,
+        exportValue: (_: unknown, row: TenantUser) => {
+          const name = getDisplayName(row);
+          const email = getEmail(row);
+          return email ? `${name} <${email}>` : name;
+        },
         render: (_: any, row: TenantUser) => (
           <div>
             <div style={{ fontWeight: 600 }}>{getDisplayName(row)}</div>
@@ -250,6 +381,61 @@ const UsersPage: React.FC = () => {
       },
     ],
     []
+  );
+
+  const invitationColumns = useMemo(
+    () => [
+      {
+        key: 'email',
+        label: 'Email',
+        sortable: true,
+        render: (value: string) => <div style={{ fontWeight: 600 }}>{String(value || '')}</div>,
+      },
+      {
+        key: 'role',
+        label: 'Role',
+        sortable: true,
+        render: (value: string) => <RoleBadge role={value as any} />,
+      },
+      {
+        key: 'expires_at',
+        label: 'Expires',
+        sortable: true,
+        render: (value: string) => new Date(value).toLocaleDateString(),
+      },
+      {
+        key: 'created_at',
+        label: 'Sent',
+        sortable: true,
+        render: (value: string) => new Date(value).toLocaleDateString(),
+      },
+    ],
+    []
+  );
+
+  const invitationActions = useMemo(
+    () => [
+      {
+        label: 'Resend',
+        icon: '↩️',
+        onClick: (inv: Invitation) => {
+          if (!emailEnabled) {
+            toast.error('Email sending is disabled for this environment.');
+            return;
+          }
+          resendMutation.mutate(inv.id);
+        },
+        hidden: () => !permissions.can_invite_users,
+      },
+      {
+        label: 'Revoke',
+        icon: '🗑️',
+        variant: 'danger' as const,
+        onClick: (inv: Invitation) => revokeMutation.mutate(inv.id),
+        hidden: () => !permissions.can_invite_users,
+      },
+    ],
+    [emailEnabled, permissions.can_invite_users, resendMutation, revokeMutation, toast]
   );
 
   const actions = useMemo(
@@ -292,19 +478,42 @@ const UsersPage: React.FC = () => {
         onClick: (user: TenantUser) => reactivateMutation.mutate(user.id),
         hidden: (row: TenantUser) => !permissions.can_manage_users || row.is_active,
       },
+      {
+        label: 'Remove',
+        icon: '🗑️',
+        variant: 'danger' as const,
+        onClick: (user: TenantUser) => {
+          const targetUserId = getUserId(user);
+          if (currentUser?.id && targetUserId && targetUserId === currentUser.id) {
+            toast.error('You cannot remove yourself');
+            return;
+          }
+          setSelectedUser(user);
+          setShowRemoveConfirm(true);
+        },
+        hidden: (row: TenantUser) => {
+          const targetUserId = getUserId(row);
+          return (
+            !permissions.can_manage_users ||
+            row.role === 'owner' ||
+            (currentUser?.id && targetUserId ? targetUserId === currentUser.id : false)
+          );
+        },
+      },
     ],
     [
       permissions.can_change_roles,
       permissions.can_manage_users,
       currentUser?.id,
       reactivateMutation,
+      deleteMutation,
       toast,
     ]
   );
 
   return (
     <AdminPage
-      title="Users & Invitations"
+      title="User Management"
       description="Invite users, manage roles, and control access for your tenant."
       icon="👥"
       actions={
@@ -351,6 +560,7 @@ const UsersPage: React.FC = () => {
               data={activeUsers}
               actions={actions as any}
               loading={usersLoading}
+              csvExport={{ fileName: 'active-users.csv' }}
               emptyState={{
                 icon: '👥',
                 title: 'No users',
@@ -376,6 +586,7 @@ const UsersPage: React.FC = () => {
                 data={inactiveUsers}
                 actions={actions as any}
                 loading={usersLoading}
+                csvExport={{ fileName: 'inactive-users.csv' }}
                 emptyState={{
                   icon: '👥',
                   title: 'No inactive users',
@@ -385,7 +596,49 @@ const UsersPage: React.FC = () => {
             </AdminSection>
           )}
 
-          <AdminSection title={`Pending Invitations (${pendingInvitations.length})`}>
+          <AdminSection
+            title={`Pending Invitations (${pendingInvitations.length})`}
+            actions={
+              pendingInvitations.length > 0 ? (
+                <BulkActions>
+                  {selectedInvitationIds.length > 0 && (
+                    <BulkSelectionLabel>{selectedInvitationIds.length} selected</BulkSelectionLabel>
+                  )}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => bulkResendMutation.mutate(selectedInvitationIds)}
+                    disabled={
+                      !emailEnabled ||
+                      selectedInvitationIds.length === 0 ||
+                      bulkResendMutation.isPending ||
+                      invitationsLoading
+                    }
+                  >
+                    Resend Selected
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowBulkRevokeConfirm(true)}
+                    disabled={
+                      selectedInvitationIds.length === 0 ||
+                      bulkRevokeMutation.isPending ||
+                      invitationsLoading
+                    }
+                  >
+                    Revoke Selected
+                  </Button>
+                </BulkActions>
+              ) : null
+            }
+          >
+            {!emailEnabled && (
+              <InlineWarning role="status">
+                Email sending is currently disabled for this environment. You can still create invitations, but no email
+                will be delivered until email is configured.
+              </InlineWarning>
+            )}
             {invitationsLoading ? (
               <LoadingSkeleton type="list" rows={3} />
             ) : pendingInvitations.length === 0 ? (
@@ -407,43 +660,42 @@ const UsersPage: React.FC = () => {
                 )}
               </EmptyInvites>
             ) : (
-              <InvitationList role="list">
-                {pendingInvitations.map((inv) => (
-                  <InvitationRow key={inv.id} role="listitem">
-                    <div>
-                      <div style={{ fontWeight: 600 }}>{inv.email}</div>
-                      <MetaRow>
-                        <RoleBadge role={inv.role as any} />
-                        <MetaText>Expires {new Date(inv.expires_at).toLocaleDateString()}</MetaText>
-                      </MetaRow>
-                    </div>
-                    <div style={{ display: 'flex', gap: 8 }}>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => resendMutation.mutate(inv.id)}
-                        disabled={resendMutation.isPending}
-                      >
-                        Resend
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => revokeMutation.mutate(inv.id)}
-                        disabled={revokeMutation.isPending}
-                      >
-                        Revoke
-                      </Button>
-                    </div>
-                  </InvitationRow>
-                ))}
-              </InvitationList>
+              <AdminTable
+                key={invitationTableKey}
+                columns={invitationColumns as any}
+                data={pendingInvitations}
+                actions={invitationActions as any}
+                loading={invitationsLoading}
+                selectable
+                csvExport={{ fileName: 'pending-invitations.csv' }}
+                onSelectionChange={(ids) => {
+                  const next = ids.map((v) => Number(v)).filter((v) => Number.isFinite(v));
+                  setSelectedInvitationIds(next);
+                }}
+              />
             )}
           </AdminSection>
         </>
       </AdminGuard>
 
+      <ConfirmDialog
+        isOpen={showBulkRevokeConfirm}
+        onClose={() => setShowBulkRevokeConfirm(false)}
+        onConfirm={() => bulkRevokeMutation.mutate(selectedInvitationIds)}
+        title="Revoke invitations"
+        message={`Revoke ${selectedInvitationIds.length} pending invitation${selectedInvitationIds.length === 1 ? '' : 's'}? This cannot be undone.`}
+        confirmText="Revoke"
+        confirmVariant="danger"
+        loading={bulkRevokeMutation.isPending}
+      />
+
       <Modal isOpen={showInviteModal} onClose={() => setShowInviteModal(false)} title="Invite User">
+        {!emailEnabled && (
+          <InlineWarning role="status">
+            Email sending is disabled, so this invite will be created but no email will be delivered. Configure SendGrid
+            (SENDGRID_API_KEY / DEFAULT_FROM_EMAIL) then use Resend.
+          </InlineWarning>
+        )}
         <Form
           onSubmit={(e) => {
             e.preventDefault();
@@ -538,6 +790,25 @@ const UsersPage: React.FC = () => {
         confirmText="Deactivate"
         confirmVariant="danger"
       />
+
+      <ConfirmDialog
+        isOpen={showRemoveConfirm}
+        onClose={() => setShowRemoveConfirm(false)}
+        onConfirm={() => {
+          if (!selectedUser) return;
+          const targetUserId = getUserId(selectedUser);
+          if (currentUser?.id && targetUserId && targetUserId === currentUser.id) {
+            toast.error('You cannot remove yourself');
+            setShowRemoveConfirm(false);
+            return;
+          }
+          deleteMutation.mutate(selectedUser.id);
+        }}
+        title="Remove User"
+        message={`Remove ${selectedUser ? getDisplayName(selectedUser) : 'this user'} from this tenant?`}
+        confirmText={deleteMutation.isPending ? 'Removing…' : 'Remove'}
+        confirmVariant="danger"
+      />
     </AdminPage>
   );
 };
@@ -551,6 +822,15 @@ const InlineError = styled.div`
   font-size: 14px;
 `;
 
+const InlineWarning = styled.div`
+  padding: 12px 14px;
+  border-radius: var(--radius-lg);
+  background: rgb(var(--color-warning) / 0.1);
+  border: 1px solid rgb(var(--color-warning) / 0.35);
+  color: rgb(var(--color-text-primary));
+  font-size: 14px;
+`;
+
 const EmptyInvites = styled.div`
   display: flex;
   flex-direction: column;
@@ -561,34 +841,19 @@ const EmptyInvites = styled.div`
   border-radius: var(--radius-lg);
 `;
 
-const InvitationList = styled.div`
+const BulkActions = styled.div`
   display: flex;
-  flex-direction: column;
-  gap: 12px;
-`;
-
-const InvitationRow = styled.div`
-  display: flex;
-  justify-content: space-between;
   align-items: center;
-  gap: 16px;
-  padding: 14px 16px;
-  background: rgb(var(--color-surface));
-  border: 1px solid rgb(var(--color-border));
-  border-radius: var(--radius-lg);
+  gap: 8px;
+  flex-wrap: wrap;
 `;
 
-const MetaRow = styled.div`
-  display: flex;
-  gap: 10px;
-  align-items: center;
-  margin-top: 8px;
-`;
-
-const MetaText = styled.span`
-  font-size: 12px;
+const BulkSelectionLabel = styled.span`
+  font-size: 13px;
+  font-weight: 600;
   color: rgb(var(--color-text-secondary));
 `;
+
 
 const SearchRow = styled.div`
   display: flex;
@@ -598,7 +863,13 @@ const SearchRow = styled.div`
   border: 1px solid rgb(var(--color-border));
   border-radius: var(--radius-lg);
   background: rgb(var(--color-surface));
-  min-width: 320px;
+  min-width: 0;
+  width: 100%;
+
+  @media (min-width: 768px) {
+    min-width: 320px;
+    width: auto;
+  }
 `;
 
 const SearchIcon = styled(Search)`

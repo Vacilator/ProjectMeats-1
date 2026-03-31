@@ -129,14 +129,14 @@ https://github.com/Meats-Central/ProjectMeats/compare/development...Vacilator:Pr
 ## 📂 Key Documentation Locations
 
 ### Master Plans
-- `/docs/plans/GAP_ANALYSIS_MASTER_PLAN.md` - Overall roadmap
-- `/docs/plans/CURRENT_SESSION_STATUS.md` - Last session state
-- `/docs/plans/SESSION_2026_02_26_EVENING_SUMMARY.md` - This session's work
+- `/MASTER_PLAN.md` - Canonical roadmap (repo root)
+- `/docs/plans/archive/CURRENT_SESSION_STATUS.md` - Last session state
+- `/docs/plans/archive/SESSION_2026_02_26_EVENING_SUMMARY.md` - Historical session summary
 
 ### Phase Documentation
-- `/docs/plans/PHASE_1_*.md` - UI/UX work
-- `/docs/plans/PHASE_4_*.md` - Admin features
-- `/docs/plans/PHASE_6_*_COMPLETE.md` - Security, testing, optimization, load testing
+- `/docs/plans/archive/PHASE_1_*.md` - UI/UX work
+- `/docs/plans/archive/PHASE_4_*.md` - Admin features
+- `/docs/plans/archive/PHASE_6_*_COMPLETE.md` - Security, testing, optimization, load testing
 
 ### Technical Guides
 - `/docs/LOAD_TESTING.md` - Locust usage guide
@@ -240,7 +240,7 @@ locust -f locustfile.py --host=http://localhost:8000
 ### Check Current Status
 ```bash
 # View gap analysis progress
-cat docs/plans/CURRENT_SESSION_STATUS.md
+cat docs/plans/archive/CURRENT_SESSION_STATUS.md
 
 # Check pending todos
 sqlite3 ~/.copilot/session-state/*/session.db "SELECT * FROM todos WHERE status='pending'"
@@ -286,7 +286,7 @@ cd backend && locust -f locustfile.py --headless --users 50 --run-time 2m --host
 
 Before starting next session:
 
-- [ ] Read `/docs/plans/CURRENT_SESSION_STATUS.md`
+- [ ] Read `/docs/plans/archive/CURRENT_SESSION_STATUS.md`
 - [ ] Review pending PRs (4 awaiting merge)
 - [ ] Check infrastructure blockers (Sentry, OpenAI, Redis, OAuth)
 - [ ] Understand multi-tenancy architecture (shared-schema ONLY)
@@ -318,8 +318,8 @@ Before starting next session:
 - **Upstream**: https://github.com/Meats-Central/ProjectMeats
 
 ### Documentation
-- **Master Plan**: `/docs/plans/GAP_ANALYSIS_MASTER_PLAN.md`
-- **Current Status**: `/docs/plans/CURRENT_SESSION_STATUS.md`
+- **Master Plan**: `/MASTER_PLAN.md`
+- **Current Status**: `/docs/plans/archive/CURRENT_SESSION_STATUS.md`
 - **Architecture**: `/docs/ARCHITECTURE.md`
 
 ### Tools

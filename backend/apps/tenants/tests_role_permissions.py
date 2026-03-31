@@ -3,7 +3,7 @@ Tests for tenant-based access control and role permissions.
 """
 from unittest import skip
 from django.test import TestCase
-from django.contrib.auth.models import User, Group
+from django.contrib.auth.models import User
 from apps.tenants.models import Tenant, TenantUser
 
 

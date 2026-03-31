@@ -8,9 +8,10 @@
  * - Loading states and "no results" handling
  * - Keyboard navigation support
  */
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useId, useState, useEffect, useRef, useCallback } from 'react';
 import styled, { css, keyframes } from 'styled-components';
 import { entityOptionsService } from '../../services/quickActionsService';
+import QuickCreateModal from './QuickCreateModal';
 
 interface Option {
   value: string;
@@ -28,6 +29,18 @@ interface SearchableSelectProps {
   initialOptions?: Option[];
   threshold?: number; // Number of options before switching to search mode
   filterParams?: Record<string, any>;
+
+  /** Enable “+ Add new …” option that opens QuickCreateModal. */
+  allowCreate?: boolean;
+
+  /** Optional override for the create option label. */
+  createOptionLabel?: string;
+
+  /** Force API-backed search mode even for small option sets. */
+  forceSearch?: boolean;
+
+  /** Debounce delay for server-side search, in ms. Set to 0 for per-keystroke. */
+  debounceMs?: number;
 }
 
 const spin = keyframes`
@@ -195,6 +208,8 @@ const PlaceholderText = styled.span`
   color: rgb(var(--color-text-muted));
 `;
 
+const CREATE_SENTINEL_VALUE = '__create__';
+
 const SearchableSelect: React.FC<SearchableSelectProps> = ({
   entityType,
   value,
@@ -206,14 +221,21 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({
   initialOptions = [],
   threshold = 50,
   filterParams,
+  allowCreate = true,
+  createOptionLabel,
+  forceSearch = false,
+  debounceMs = 150,
 }) => {
+  const instanceId = useId();
+
   const [isOpen, setIsOpen] = useState(false);
   const [options, setOptions] = useState<Option[]>(initialOptions);
   const [searchQuery, setSearchQuery] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [totalCount, setTotalCount] = useState(0);
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
-  const [isSearchMode, setIsSearchMode] = useState(false);
+  const [isSearchMode, setIsSearchMode] = useState(forceSearch);
+  const [isQuickCreateOpen, setIsQuickCreateOpen] = useState(false);
   
   const containerRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -221,10 +243,15 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({
 
   // Determine if we should use search mode
   useEffect(() => {
+    if (forceSearch) {
+      setIsSearchMode(true);
+      return;
+    }
+
     if (initialOptions.length >= threshold || totalCount >= threshold) {
       setIsSearchMode(true);
     }
-  }, [initialOptions.length, totalCount, threshold]);
+  }, [forceSearch, initialOptions.length, totalCount, threshold]);
 
   // Load initial options if not provided
   useEffect(() => {
@@ -258,12 +285,13 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({
   const loadOptions = async (query: string = '') => {
     setIsLoading(true);
     try {
-      const cancelKey = `search-${entityType}-${Date.now()}`;
+      // Stable cancel key so in-flight requests are cancelled when the user types.
+      const cancelKey = `entity-options:${instanceId}:${entityType}`;
       const response = await entityOptionsService.searchOptions(entityType, query, cancelKey, filterParams);
       setOptions(response.options);
       setTotalCount(response.total_count);
-      
-      if (response.total_count >= threshold) {
+
+      if (forceSearch || response.total_count >= threshold) {
         setIsSearchMode(true);
       }
     } catch (err) {
@@ -277,16 +305,16 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({
     const query = e.target.value;
     setSearchQuery(query);
     setHighlightedIndex(-1);
-    
+
     // Debounce search
     if (searchTimeoutRef.current) {
       clearTimeout(searchTimeoutRef.current);
     }
-    
+
     searchTimeoutRef.current = setTimeout(() => {
-      loadOptions(query);
-    }, 300);
-  }, [entityType, filterParams]);
+      void loadOptions(query);
+    }, Math.max(0, debounceMs));
+  }, [debounceMs, loadOptions]);
 
   const handleToggle = () => {
     if (disabled) return;
@@ -302,7 +330,23 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({
     }
   };
 
+  const createLabel =
+    createOptionLabel || `+ Add new ${String(entityType).replace(/_/g, ' ')}`;
+
+  const renderedOptions: Option[] =
+    allowCreate && !disabled
+      ? [...options, { value: CREATE_SENTINEL_VALUE, label: createLabel }]
+      : options;
+
   const handleSelect = (option: Option) => {
+    if (option.value === CREATE_SENTINEL_VALUE) {
+      setIsOpen(false);
+      setSearchQuery('');
+      setHighlightedIndex(-1);
+      setIsQuickCreateOpen(true);
+      return;
+    }
+
     onChange(option.value);
     setIsOpen(false);
     setSearchQuery('');
@@ -320,20 +364,16 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({
     switch (e.key) {
       case 'ArrowDown':
         e.preventDefault();
-        setHighlightedIndex(prev => 
-          prev < options.length - 1 ? prev + 1 : 0
-        );
+        setHighlightedIndex((prev) => (prev < renderedOptions.length - 1 ? prev + 1 : 0));
         break;
       case 'ArrowUp':
         e.preventDefault();
-        setHighlightedIndex(prev => 
-          prev > 0 ? prev - 1 : options.length - 1
-        );
+        setHighlightedIndex((prev) => (prev > 0 ? prev - 1 : renderedOptions.length - 1));
         break;
       case 'Enter':
         e.preventDefault();
-        if (highlightedIndex >= 0 && options[highlightedIndex]) {
-          handleSelect(options[highlightedIndex]);
+        if (highlightedIndex >= 0 && renderedOptions[highlightedIndex]) {
+          handleSelect(renderedOptions[highlightedIndex]);
         }
         break;
       case 'Escape':
@@ -385,12 +425,12 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({
               <Spinner />
               Searching...
             </LoadingState>
-          ) : options.length === 0 ? (
+          ) : renderedOptions.length === 0 ? (
             <NoResults>
               {searchQuery ? 'No matches found' : 'No options available'}
             </NoResults>
           ) : (
-            options.map((option, index) => (
+            renderedOptions.map((option, index) => (
               <OptionItem
                 key={option.value}
                 type="button"
@@ -413,6 +453,23 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({
           </InfoBar>
         )}
       </Dropdown>
+
+      {allowCreate && (
+        <QuickCreateModal
+          entityType={entityType}
+          isOpen={isQuickCreateOpen}
+          onClose={() => setIsQuickCreateOpen(false)}
+          onCreated={(entity) => {
+            setIsQuickCreateOpen(false);
+            setOptions((prev) => {
+              if (prev.some((o) => o.value === entity.value)) return prev;
+              return [{ value: entity.value, label: entity.label }, ...prev];
+            });
+            onChange(entity.value);
+            void loadOptions('');
+          }}
+        />
+      )}
     </Container>
   );
 };

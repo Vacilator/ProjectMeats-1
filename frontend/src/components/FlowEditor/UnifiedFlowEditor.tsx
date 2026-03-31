@@ -33,6 +33,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { createPortal } from 'react-dom';
 import styled from 'styled-components';
 import { debounce } from 'lodash';
+import { showAlert } from '@/utils/uiDialogs';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { adminClient } from '../../services/apiService';
 import toast, { Toaster } from 'react-hot-toast'; // Phase 8.1
@@ -1046,6 +1047,9 @@ const NodeDesc = styled.div`
 `;
 
 const EmptyState = styled.div`
+  position: absolute;
+  inset: 0;
+  z-index: 50;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1054,6 +1058,14 @@ const EmptyState = styled.div`
   color: rgb(var(--color-text-tertiary));
   padding: 40px;
   text-align: center;
+
+  /* ReactFlow's pane can sit above generic children; keep the overlay visible,
+     but only make the content clickable (so canvas can still be panned). */
+  pointer-events: none;
+
+  & > * {
+    pointer-events: auto;
+  }
 `;
 
 const EmptyIcon = styled.div`
@@ -1797,7 +1809,7 @@ const staticEdgeTypes = {
 } as unknown as EdgeTypes;
 
 // Phase 9.4: Render-time execution tracing (no mutations to saved workflow graph)
-const DebugAwareReactFlow: React.FC<React.ComponentProps<typeof ReactFlow>> = (props) => {
+const DebugAwareReactFlow = React.memo((props: React.ComponentProps<typeof ReactFlow>) => {
   const { debug } = useFlowEditor();
 
   const decoratedNodes = useMemo(() => {
@@ -1873,7 +1885,8 @@ const DebugAwareReactFlow: React.FC<React.ComponentProps<typeof ReactFlow>> = (p
       edges={decoratedEdges}
     />
   );
-};
+});
+DebugAwareReactFlow.displayName = 'DebugAwareReactFlow';
 
 // ============================================================================
 // Error Boundary for Config Panel
@@ -2176,7 +2189,12 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   }, [setNodes, onNodesChangeBase]);
   
   // React Flow instance for viewport controls
-  const { setCenter: reactFlowSetCenter, ...reactFlowInstance } = useReactFlow();
+  const {
+    setCenter: reactFlowSetCenter,
+    getNodes: reactFlowGetNodes,
+    getEdges: reactFlowGetEdges,
+    ...reactFlowInstance
+  } = useReactFlow();
   
   // ============================================================================
   // CONFIG PANEL PORTAL - Enhanced with full styling (2026-02-24)
@@ -2194,6 +2212,9 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       document.body.appendChild(portal);
       created = true;
     }
+
+    // Used by the onboarding tour (react-joyride)
+    portal.setAttribute('data-tour', 'config-panel');
 
     portal.style.cssText = `
       position: fixed;
@@ -2235,6 +2256,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         logger.warn('[Portal] Portal missing when panel opened - recreating');
         const newPortal = document.createElement('div');
         newPortal.id = 'config-portal';
+        newPortal.setAttribute('data-tour', 'config-panel');
         newPortal.style.cssText = `
           position: fixed;
           right: 0;
@@ -2254,6 +2276,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         logger.debug('[Portal] Portal mounted and visible');
       } else {
         // Show portal when node is selected
+        portal.setAttribute('data-tour', 'config-panel');
         portal.style.display = 'flex';
         portal.style.pointerEvents = 'auto';
         logger.debug('[Portal] Portal shown');
@@ -3617,6 +3640,25 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     [setNodes, setEdges]
   );
 
+  const applyAutoLayoutAfterNextPaint = useCallback(() => {
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => {
+        const currentNodes = reactFlowGetNodes();
+        const currentEdges = reactFlowGetEdges();
+
+        const { nodes: layoutedNodes, edges: layoutedEdges } = getLayoutedElements(currentNodes, currentEdges, {
+          direction: 'TB',
+          nodeSpacing: 60,
+          rankSpacing: 120,
+        });
+
+        setNodes(layoutedNodes);
+        setEdges(layoutedEdges);
+        setHasUnsavedChanges(true);
+      });
+    });
+  }, [reactFlowGetNodes, reactFlowGetEdges, setNodes, setEdges]);
+
   const handleClickToAddNode = useCallback(
     (nodeTypeId: string) => {
       if (readOnly) return;
@@ -3759,7 +3801,10 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
           setEdges(connectionResult.edges);
           setHasUnsavedChanges(true);
         } else {
-          applyAutoLayoutImmediate(nextNodes, nextEdges);
+          setNodes(nextNodes);
+          setEdges(nextEdges);
+          setHasUnsavedChanges(true);
+          applyAutoLayoutAfterNextPaint();
         }
         return;
       }
@@ -3830,7 +3875,10 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
           setEdges(connectionResult.edges);
           setHasUnsavedChanges(true);
         } else {
-          applyAutoLayoutImmediate(nextNodes, nextEdges);
+          setNodes(nextNodes);
+          setEdges(nextEdges);
+          setHasUnsavedChanges(true);
+          applyAutoLayoutAfterNextPaint();
         }
       } else {
         const nextEdges: Edge[] = [...edges];
@@ -3870,7 +3918,10 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
           setEdges(connectionResult.edges);
           setHasUnsavedChanges(true);
         } else {
-          applyAutoLayoutImmediate(nextNodes, nextEdges);
+          setNodes(nextNodes);
+          setEdges(nextEdges);
+          setHasUnsavedChanges(true);
+          applyAutoLayoutAfterNextPaint();
         }
       }
     },
@@ -3884,7 +3935,9 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       generateNodeId,
       selectedNode,
       selectedNodeId,
-      applyAutoLayoutImmediate,
+      setNodes,
+      setEdges,
+      applyAutoLayoutAfterNextPaint,
     ]
   );
 
@@ -5969,7 +6022,11 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     logger.debug(`[Phase 6] Migration complete: ${nodesToMigrate.length} nodes migrated`);
     
     // Show success message
-    alert(`Successfully migrated ${nodesToMigrate.length} deprecated node(s) to modern format!\n\nPlease review the migrated nodes and save your workflow.`);
+    showAlert({
+      type: 'success',
+      title: 'Migration complete',
+      content: `Successfully migrated ${nodesToMigrate.length} deprecated node(s) to modern format!\n\nPlease review the migrated nodes and save your workflow.`,
+    });
   }, [nodes, setNodes]);
 
   // ============================================================================
@@ -6178,22 +6235,29 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   // Batch 4: Handler to update node title
   const handleNodeTitleChange = useCallback((nodeId: string, newTitle: string) => {
     logger.debug('[UnifiedFlowEditor] Updating node title', { nodeId, newTitle });
-    
-    setNodes(nds => 
-      nds.map(node => {
-        if (node.id === nodeId) {
-          return {
-            ...node,
-            data: {
-              ...node.data,
-              label: newTitle,
-            },
-          };
-        }
-        return node;
+
+    setNodes((nds) =>
+      nds.map((node) => {
+        if (node.id !== nodeId) return node;
+
+        const current: any = node.data || {};
+        const next: any = {
+          ...current,
+          title: newTitle,
+          label: newTitle,
+        };
+
+        // Backward compatibility: keep legacy title keys in sync when present.
+        if (typeof current.containerName === 'string') next.containerName = newTitle;
+        if (typeof current.name === 'string') next.name = newTitle;
+
+        return {
+          ...node,
+          data: next,
+        };
       })
     );
-    
+
     setHasUnsavedChanges(true);
   }, [setNodes]);
 
@@ -6253,7 +6317,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       }
     };
 
-    const isContainer = original.type === 'formProcessGroup';
+    const isContainer = isFormProcessContainerType(((original.data as any)?.nodeType as string | undefined) || original.type);
 
     const toCloneIds: string[] = [original.id];
     if (isContainer) {
@@ -6561,7 +6625,8 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         data: {
           ...defaultData,      // Default node data (fields, actions, etc.)
           ...node.data,        // Template-specific data
-          label: node.data.label || nodeDef?.name || node.type, // Ensure label exists
+          title: node.data.title || node.data.label || nodeDef?.name || node.type,
+          label: node.data.label || node.data.title || nodeDef?.name || node.type, // Ensure label exists
           // Add registry metadata for proper styling
           color: nodeDef?.color,
           icon: nodeDef?.icon,
@@ -6816,36 +6881,72 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     (nodeId: string, direction: -1 | 1) => {
       if (readOnly) return;
 
+      const current = nodes.find((n) => n.id === nodeId);
+      if (!current) return;
+
+      const currentY = current.position?.y ?? 0;
+      const parentKey = current.parentId ?? null;
+
+      const siblings = nodes.filter((n) => {
+        if (n.id === nodeId) return false;
+        if (String(n.id).startsWith('__virtual:')) return false;
+        return (n.parentId ?? null) === parentKey;
+      });
+
+      const candidates = siblings.filter((n) => {
+        const dy = n.position?.y ?? 0;
+        return direction === -1 ? dy < currentY : dy > currentY;
+      });
+
+      if (candidates.length === 0) return;
+
+      const target =
+        direction === -1
+          ? candidates.reduce((best, n) => ((n.position?.y ?? 0) > (best.position?.y ?? 0) ? n : best))
+          : candidates.reduce((best, n) => ((n.position?.y ?? 0) < (best.position?.y ?? 0) ? n : best));
+
+      const targetY = target.position?.y ?? 0;
+
+      const isPrimaryFlowEdge = (e: Edge): boolean => {
+        if (e.sourceHandle && e.sourceHandle !== 'output') return false;
+        if (e.targetHandle && e.targetHandle !== 'input') return false;
+        if (e.sourceHandle === 'error') return false;
+        if (e.type === 'errorEdge' || e.type === 'error') return false;
+        return true;
+      };
+
+      const rewireAdjacentSwap = (prevEdges: Edge[], aboveId: string, belowId: string): Edge[] => {
+        const link = prevEdges.find(
+          (e) => isPrimaryFlowEdge(e) && e.source === aboveId && e.target === belowId
+        );
+        if (!link) return prevEdges;
+
+        const incomingToAbove = prevEdges.find(
+          (e) => isPrimaryFlowEdge(e) && e.target === aboveId && e.source !== belowId
+        );
+
+        const outgoingFromBelow = prevEdges.find(
+          (e) => isPrimaryFlowEdge(e) && e.source === belowId && e.target !== aboveId
+        );
+
+        return prevEdges.map((e) => {
+          if (incomingToAbove && e.id === incomingToAbove.id) {
+            return { ...e, target: belowId };
+          }
+          if (e.id === link.id) {
+            return { ...e, source: belowId, target: aboveId };
+          }
+          if (outgoingFromBelow && e.id === outgoingFromBelow.id) {
+            return { ...e, source: aboveId };
+          }
+          return e;
+        });
+      };
+
       setHasUnsavedChanges(true);
 
-      setNodes((prev) => {
-        const current = prev.find((n) => n.id === nodeId);
-        if (!current) return prev;
-
-        const currentY = current.position?.y ?? 0;
-        const parentKey = current.parentId ?? null;
-
-        const siblings = prev.filter((n) => {
-          if (n.id === nodeId) return false;
-          if (String(n.id).startsWith('__virtual:')) return false;
-          return (n.parentId ?? null) === parentKey;
-        });
-
-        const candidates = siblings.filter((n) => {
-          const dy = n.position?.y ?? 0;
-          return direction === -1 ? dy < currentY : dy > currentY;
-        });
-
-        if (candidates.length === 0) return prev;
-
-        const target =
-          direction === -1
-            ? candidates.reduce((best, n) => ((n.position?.y ?? 0) > (best.position?.y ?? 0) ? n : best))
-            : candidates.reduce((best, n) => ((n.position?.y ?? 0) < (best.position?.y ?? 0) ? n : best));
-
-        const targetY = target.position?.y ?? 0;
-
-        return prev.map((n) => {
+      setNodes((prev) =>
+        prev.map((n) => {
           if (n.id === current.id) {
             return {
               ...n,
@@ -6865,10 +6966,15 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
             } as Node;
           }
           return n;
-        });
-      });
+        })
+      );
+
+      const above = currentY < targetY ? current : target;
+      const below = currentY < targetY ? target : current;
+
+      setEdges((prevEdges) => rewireAdjacentSwap(prevEdges, String(above.id), String(below.id)));
     },
-    [readOnly, setHasUnsavedChanges, setNodes]
+    [readOnly, nodes, setHasUnsavedChanges, setNodes, setEdges]
   );
 
   // Batch 3: Inject edit/delete handlers into node data
@@ -6891,6 +6997,11 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         typeof (data as any).onDelete === 'function'
           ? (data as any).onDelete
           : () => handleNodeDelete(node.id);
+
+      const onDuplicate =
+        typeof (data as any).onDuplicate === 'function'
+          ? (data as any).onDuplicate
+          : () => duplicateNode(node.id);
 
       const onSave =
         typeof (data as any).onSave === 'function'
@@ -6938,6 +7049,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
           ...data,
           onEdit,
           onDelete,
+          onDuplicate,
           onSave,
           onTitleChange,
           onInsertAfter,
@@ -6948,7 +7060,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         },
       };
     });
-  }, [addFormStepInsideContainer, handleNodeDelete, handleNodeEdit, handleNodeTitleChange, handleSaveWorkflow, lastNodeIdSet, nodes]);
+  }, [addFormStepInsideContainer, duplicateNode, handleNodeDelete, handleNodeEdit, handleNodeTitleChange, handleSaveWorkflow, lastNodeIdSet, nodes]);
 
   // Render-time edge virtualization: when a form process group is collapsed, edges to hidden child nodes
   // are re-targeted to virtual handles on the container boundary so connectivity remains visible.
@@ -7599,61 +7711,63 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       >
         <Background variant={backgroundVariant} gap={20} size={1} />
 
-        {/* Phase 9.2: Live cursors overlay */}
-        {collabPresence.length > 0 && (
-          <div
-            style={{
-              position: 'absolute',
-              inset: 0,
-              pointerEvents: 'none',
-              zIndex: 50,
-            }}
-            aria-hidden="true"
-          >
-            {collabPresence.map((u) => {
-              if (!u.cursor) return null;
+        {/* Phase 9.2: Live cursors overlay (graceful degradation) */}
+        <ErrorBoundary componentName="CollaborationOverlay" fallback={null}>
+          {collabPresence.length > 0 && (
+            <div
+              style={{
+                position: 'absolute',
+                inset: 0,
+                pointerEvents: 'none',
+                zIndex: 50,
+              }}
+              aria-hidden="true"
+            >
+              {collabPresence.map((u) => {
+                if (!u.cursor) return null;
 
-              const viewport = reactFlowInstance?.getViewport?.() || { x: 0, y: 0, zoom: 1 };
-              const left = u.cursor.x * viewport.zoom + viewport.x;
-              const top = u.cursor.y * viewport.zoom + viewport.y;
-              const color = u.color || 'rgb(var(--color-primary))';
+                const viewport = reactFlowInstance?.getViewport?.() || { x: 0, y: 0, zoom: 1 };
+                const left = u.cursor.x * viewport.zoom + viewport.x;
+                const top = u.cursor.y * viewport.zoom + viewport.y;
+                const color = u.color || 'rgb(var(--color-primary))';
 
-              return (
-                <div
-                  key={u.userId}
-                  style={{
-                    position: 'absolute',
-                    transform: `translate(${left}px, ${top}px)`,
-                  }}
-                >
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-                    <path
-                      d="M4 3l7.5 18 2-7 7-2L4 3z"
-                      fill={color}
-                      opacity={0.9}
-                    />
-                  </svg>
+                return (
                   <div
+                    key={u.userId}
                     style={{
-                      marginTop: -2,
-                      padding: '2px 6px',
-                      borderRadius: 999,
-                      background: 'rgb(var(--color-surface))',
-                      border: `1px solid ${color}`,
-                      color: 'rgb(var(--color-text-primary))',
-                      fontSize: 11,
-                      fontWeight: 600,
-                      display: 'inline-block',
-                      whiteSpace: 'nowrap',
+                      position: 'absolute',
+                      transform: `translate(${left}px, ${top}px)`,
                     }}
                   >
-                    {u.name || 'User'}
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                      <path
+                        d="M4 3l7.5 18 2-7 7-2L4 3z"
+                        fill={color}
+                        opacity={0.9}
+                      />
+                    </svg>
+                    <div
+                      style={{
+                        marginTop: -2,
+                        padding: '2px 6px',
+                        borderRadius: 999,
+                        background: 'rgb(var(--color-surface))',
+                        border: `1px solid ${color}`,
+                        color: 'rgb(var(--color-text-primary))',
+                        fontSize: 11,
+                        fontWeight: 600,
+                        display: 'inline-block',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      {u.name || 'User'}
+                    </div>
                   </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
+                );
+              })}
+            </div>
+          )}
+        </ErrorBoundary>
         {isMinimapVisible && (
           <MiniMap 
             nodeColor={(node) => {
@@ -8541,10 +8655,15 @@ function getDefaultNodeData(nodeTypeId: string): Record<string, any> {
     defaults.maxOutputs = 0;
   }
 
-  // Auto-extract defaults from schema to fix DynamicConfigPanel visibility conditions
+  // Auto-extract defaults from schema to fix DynamicConfigPanel visibility conditions.
+  // Prefer the specific nodeTypeId schema (e.g., triggerSchedule) over the rendered ReactFlow type
+  // (e.g., trigger) so newly-created nodes pick up the correct defaults.
   try {
-    if (schemaRegistry.hasSchema(resolvedType)) {
-      const schema = schemaRegistry.getSchema(resolvedType);
+    const schemaIdsToTry = Array.from(new Set([nodeTypeId, resolvedType]));
+
+    schemaIdsToTry.forEach((schemaId) => {
+      if (!schemaRegistry.hasSchema(schemaId)) return;
+      const schema = schemaRegistry.getSchema(schemaId);
       schema.sections.forEach((section) => {
         section.fields.forEach((field) => {
           if (field.defaultValue !== undefined && defaults[field.id] === undefined) {
@@ -8552,9 +8671,9 @@ function getDefaultNodeData(nodeTypeId: string): Record<string, any> {
           }
         });
       });
-    }
+    });
   } catch {
-    logger.warn(`Could not extract schema defaults for ${resolvedType}`);
+    logger.warn(`Could not extract schema defaults for ${nodeTypeId}`);
   }
 
   return defaults;

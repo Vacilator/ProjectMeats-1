@@ -4,10 +4,12 @@
  * Modal for editing system choice list items with inline CRUD operations
  */
 import React, { useState, useEffect } from 'react';
+import { Skeleton } from 'antd';
 import styled from 'styled-components';
 import { X, Plus, Save, Trash2, ChevronUp, ChevronDown, Lock, Globe, Building } from 'lucide-react';
 import Modal from '@/components/Modal/Modal';
 import { apiClient } from '@/services/apiService';
+import { confirmDialog } from '@/utils/uiDialogs';
 import { useToast } from '@/hooks/useToast';
 
 // ============================================================================
@@ -360,9 +362,9 @@ export const OptionListModal: React.FC<OptionListModalProps> = ({
   const loadItems = async () => {
     setLoading(true);
     try {
-      const response = await apiClient.get(`/system/choice-lists/${listSlug}/items/`);
-      // Ensure response.data is always an array
-      const itemsData = Array.isArray(response.data) ? response.data : [];
+      const response = await apiClient.get(`/system/choice-lists/${listSlug}/items/?limit=1000`);
+      const raw = response.data as any;
+      const itemsData = Array.isArray(raw) ? raw : Array.isArray(raw?.results) ? raw.results : [];
       setItems(itemsData);
       setHasChanges(false);
     } catch (error) {
@@ -426,9 +428,15 @@ export const OptionListModal: React.FC<OptionListModalProps> = ({
   const handleDeleteItem = async (id: string) => {
     if (!isExtensible) return;
 
-    if (!window.confirm('Are you sure you want to delete this item?')) {
-      return;
-    }
+    const confirmed = await confirmDialog({
+      title: 'Delete item?',
+      content: 'Are you sure you want to delete this item?',
+      okText: 'Delete',
+      cancelText: 'Cancel',
+      danger: true,
+    });
+
+    if (!confirmed) return;
 
     // If it's a new item (not saved yet), just remove from local state
     if (id.startsWith('temp-')) {
@@ -526,13 +534,22 @@ export const OptionListModal: React.FC<OptionListModalProps> = ({
   };
 
   const handleClose = () => {
-    if (hasChanges) {
-      if (window.confirm('You have unsaved changes. Discard them?')) {
+    void (async () => {
+      if (hasChanges) {
+        const confirmed = await confirmDialog({
+          title: 'Discard changes?',
+          content: 'You have unsaved changes. Discard them?',
+          okText: 'Discard',
+          cancelText: 'Keep editing',
+          danger: true,
+        });
+        if (confirmed) {
+          onClose();
+        }
+      } else {
         onClose();
       }
-    } else {
-      onClose();
-    }
+    })();
   };
 
   return (
@@ -546,7 +563,10 @@ export const OptionListModal: React.FC<OptionListModalProps> = ({
         </Header>
 
         {loading ? (
-          <LoadingState>Loading items...</LoadingState>
+          <LoadingState>
+            <div style={{ marginBottom: 12 }}>Loading items...</div>
+            <Skeleton active paragraph={{ rows: 8 }} />
+          </LoadingState>
         ) : (
           <>
             <SectionTitle>System items</SectionTitle>

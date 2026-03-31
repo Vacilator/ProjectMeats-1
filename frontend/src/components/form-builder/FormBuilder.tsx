@@ -10,6 +10,7 @@
 
 import React, { useEffect } from 'react';
 import styled from 'styled-components';
+import { confirmDialog } from '@/utils/uiDialogs';
 import { X, Save, Eye, Settings as SettingsIcon, Layers } from 'lucide-react';
 import { useFormBuilderStore } from './store';
 import { StepCard } from './StepCard';
@@ -318,11 +319,19 @@ export const FormBuilder: React.FC<FormBuilderProps> = ({
   
   // Handle close with unsaved changes
   const handleClose = () => {
-    if (isDirty) {
-      const confirmed = window.confirm('You have unsaved changes. Are you sure you want to close?');
-      if (!confirmed) return;
-    }
-    onClose();
+    void (async () => {
+      if (isDirty) {
+        const confirmed = await confirmDialog({
+          title: 'Discard changes?',
+          content: 'You have unsaved changes. Are you sure you want to close?',
+          okText: 'Discard',
+          cancelText: 'Keep editing',
+          danger: true,
+        });
+        if (!confirmed) return;
+      }
+      onClose();
+    })();
   };
   
   // Render tab content

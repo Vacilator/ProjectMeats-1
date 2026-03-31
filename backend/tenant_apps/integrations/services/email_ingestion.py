@@ -142,6 +142,9 @@ class EmailIngestionService:
         try:
             access_token = provider.get_decrypted_token('access')
         except Exception as e:
+            # Treat ANY decrypt failure as requiring a reconnect.
+            # In practice we see InvalidToken (key mismatch) but other exceptions can occur
+            # depending on config/state; the user action is the same.
             logger.error(
                 'Failed to decrypt access token tenant=%s provider_id=%s: %s',
                 tenant.id,
@@ -150,7 +153,10 @@ class EmailIngestionService:
                 exc_info=True,
             )
             self.stats['errors'] += 1
-            self.stats.setdefault('errors_detail', []).append('Failed to decrypt Microsoft access token. Check OAUTH_ENCRYPTION_KEY / reconnect Outlook.')
+            self.stats['error_code'] = 'decryption_failed'
+            self.stats.setdefault('errors_detail', []).append(
+                'DECRYPTION_FAILED: Your Outlook connection needs to be refreshed for security reasons.'
+            )
             return
 
         if not access_token:
@@ -215,7 +221,6 @@ class EmailIngestionService:
             List of email message dicts
         """
         import requests
-        from datetime import datetime
         
         # Format date for OData filter
         since_str = since.strftime('%Y-%m-%dT%H:%M:%SZ')

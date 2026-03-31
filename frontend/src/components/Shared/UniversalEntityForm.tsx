@@ -13,17 +13,37 @@
  * - Foreign keys should use SearchableSelect to avoid massive dropdowns
  */
 
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Modal, Spin, message, Select, Skeleton } from 'antd';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Button, Modal, Spin, message, Select, Skeleton } from 'antd';
 import styled from 'styled-components';
 import { businessApi } from '../../services/businessApi';
 import { apiClient } from '../../services/apiService';
 import DynamicFormEngine from '../../features/system/DynamicFormEngine';
-import { SearchableSelect } from './SearchableSelect';
+import EntityOptionsSelect from '../FormSubmission/SearchableSelect';
+import { isValidEmail } from '../../shared/utils';
+
+export type UniversalEntityFormMode = 'create' | 'edit' | 'view';
+export type UniversalEntityFormVariant = 'modal' | 'inline';
 
 export interface UniversalEntityFormProps {
   entityType: string;
   entityId?: string | number;
+
+  /**
+   * Form mode:
+   * - create: create new record
+   * - edit: edit existing record
+   * - view: read-only view with optional switch to edit
+   */
+  mode?: UniversalEntityFormMode;
+
+  /**
+   * Render surface.
+   * - modal: wraps form in a modal (default)
+   * - inline: renders directly (embeddable into pages/panels)
+   */
+  variant?: UniversalEntityFormVariant;
+
   isOpen: boolean;
   onClose: () => void;
   onSuccess?: (result: unknown) => void;
@@ -31,6 +51,9 @@ export interface UniversalEntityFormProps {
 
   /** Optional override for prioritizing key fields first. */
   keyFields?: string[];
+
+  /** When true, allows switching view → edit within the same surface. */
+  allowModeSwitch?: boolean;
 }
 
 type SchemaChoice = { value: unknown; label: string };
@@ -45,6 +68,7 @@ type BackendField = {
   // Relationship metadata (schema endpoint)
   related_entity?: string | null;
   choices?: SchemaChoice[] | null;
+  ui?: Record<string, unknown> | null;
 };
 
 type BackendSchema = {
@@ -70,6 +94,8 @@ const normalizeEntityKey = (entityType: string): string => {
   // Plural resources commonly used in UI routes.
   if (lower === 'customers' || lower === 'customer') return 'customer';
   if (lower === 'suppliers' || lower === 'supplier') return 'supplier';
+  if (lower === 'plants' || lower === 'plant') return 'plant';
+  if (lower === 'locations' || lower === 'location') return 'location';
   if (lower === 'contacts' || lower === 'contact') return 'contact';
   if (lower === 'products' || lower === 'product') return 'product';
   if (lower === 'invoices' || lower === 'invoice') return 'invoice';
@@ -88,21 +114,45 @@ const normalizeEntityEndpoint = (entityType: string): string => {
   if (lower === 'purchase-orders' || lower === 'purchase_orders' || lower === 'purchase_order')
     return 'purchase-orders/';
   if (lower === 'inquiries' || lower === 'inquiry') return 'inquiries/';
-  if (lower === 'claims' || lower === 'claim') return 'claims/';
+
+  // Accounting canonical paths (legacy aliases still exist server-side).
+  if (lower === 'claims' || lower === 'claim') return 'accounting/claims/';
+  if (lower === 'invoices' || lower === 'invoice') return 'accounting/invoices/';
 
   // Common singular → plural API resources
   if (lower === 'customer') return 'customers/';
   if (lower === 'supplier') return 'suppliers/';
+  if (lower === 'plant') return 'plants/';
+  if (lower === 'location') return 'locations/';
   if (lower === 'contact') return 'contacts/';
-  if (lower === 'invoice') return 'invoices/';
   if (lower === 'product') return 'products/';
 
   return `${lower.replace(/^\/+/, '').replace(/\/+$/, '')}/`;
 };
 
+const relatedEntityToEntityOptionsType = (relatedEntity: string | null | undefined, fieldKey: string): string | null => {
+  const related = String(relatedEntity || '').toLowerCase();
+  const key = String(fieldKey || '').toLowerCase();
+
+  if (!related && !key) return null;
+
+  if (related.includes('customers.') || key === 'customer') return 'customer';
+  if (related.includes('suppliers.') || key === 'supplier') return 'supplier';
+  if (related.includes('contacts.') || key === 'contact') return 'contact';
+  if (related.includes('purchase_orders.') || key === 'purchase_order') return 'purchase_order';
+  if (related.includes('sales_orders.') || key === 'sales_order') return 'sales_order';
+  if (related.includes('inquiries.') || key === 'inquiry') return 'inquiry';
+  if (related.includes('invoices.') || key === 'invoice') return 'invoice';
+  if (key.includes('product') || related.includes('system.product')) return 'product';
+
+  return null;
+};
+
 const shouldSkipField = (key: string): boolean => {
   const k = String(key || '').toLowerCase();
   return [
+    'id',
+    'uuid',
     'tenant',
     'custom_data',
     'created_at',
@@ -136,15 +186,28 @@ const mapDrfOptionsType = (t: string | undefined): string => {
 export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
   entityType,
   entityId,
+  mode,
+  variant = 'modal',
   isOpen,
   onClose,
   onSuccess,
   initialValues,
   keyFields,
+  allowModeSwitch,
 }) => {
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [schema, setSchema] = useState<BackendSchema | null>(null);
+  const [recordValues, setRecordValues] = useState<Record<string, unknown> | null>(null);
+
+  const inferredMode: UniversalEntityFormMode = useMemo(() => {
+    if (mode) return mode;
+    return entityId != null && String(entityId).trim() ? 'edit' : 'create';
+  }, [entityId, mode]);
+
+  const canSwitchModes = allowModeSwitch ?? inferredMode === 'view';
+  const [activeMode, setActiveMode] = useState<UniversalEntityFormMode>(inferredMode);
+
   const [fkValues, setFkValues] = useState<Record<string, unknown>>({});
   const [fkOptions, setFkOptions] = useState<
     Record<string, Array<{ id: string | number; name: string }>>
@@ -153,6 +216,9 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
     Record<string, Array<{ value: string; label: string }>>
   >({});
   const [loadingProducts, setLoadingProducts] = useState<Record<string, boolean>>({});
+  const [showAllFields, setShowAllFields] = useState(false);
+
+  const productSearchSeqRef = useRef<Record<string, number>>({});
 
   const schemaEntityKey = useMemo(() => normalizeEntityKey(entityType), [entityType]);
   const endpoint = useMemo(() => normalizeEntityEndpoint(entityType), [entityType]);
@@ -218,6 +284,10 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
   useEffect(() => {
     if (!isOpen) return;
 
+    setShowAllFields(false);
+    setActiveMode(inferredMode);
+    setRecordValues(null);
+
     let mounted = true;
 
     const load = async () => {
@@ -227,16 +297,30 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
         if (!mounted) return;
         setSchema(nextSchema);
 
-        // Prefill FK values from initialValues if present.
-        setFkValues((prev) => ({ ...prev, ...(initialValues || {}) }));
+        const shouldLoadRecord =
+          inferredMode !== 'create' && entityId != null && String(entityId).trim().length > 0;
+
+        let nextRecord: Record<string, unknown> | null = null;
+        if (shouldLoadRecord) {
+          const resp = await apiClient.get(`${endpoint}${entityId}/`);
+          const data = resp.data as unknown;
+          nextRecord = data && typeof data === 'object' ? (data as Record<string, unknown>) : null;
+        }
+
+        if (!mounted) return;
+        setRecordValues(nextRecord);
+
+        const merged: Record<string, unknown> = { ...(nextRecord || {}), ...(initialValues || {}) };
+        setFkValues(merged);
       } catch (err: unknown) {
         if (!mounted) return;
         setSchema(null);
+        setRecordValues(null);
         const errorMessage =
           typeof (err as { response?: { data?: { error?: string } } })?.response?.data?.error ===
           'string'
             ? (err as { response?: { data?: { error?: string } } }).response?.data?.error
-            : 'Failed to load form schema';
+            : 'Failed to load form';
         message.error(errorMessage);
       } finally {
         if (mounted) setLoading(false);
@@ -248,7 +332,7 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
     return () => {
       mounted = false;
     };
-  }, [isOpen, loadSchema, initialValues]);
+  }, [endpoint, entityId, inferredMode, initialValues, isOpen, loadSchema]);
 
   // Load basic FK option lists (best-effort) for non-product references.
   useEffect(() => {
@@ -319,32 +403,14 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
     };
   }, [isOpen, schema?.fields]);
 
-  const fkFields = useMemo(() => {
-    return (schema?.fields ?? []).filter(
-      (f) => !shouldSkipField(f.key) && Boolean(f.related_entity)
-    );
-  }, [schema?.fields]);
-
-  const scalarFields = useMemo(() => {
-    const raw = (schema?.fields ?? [])
-      .filter((f) => !shouldSkipField(f.key))
-      .filter((f) => !f.related_entity)
-      .map((f) => ({
-        key: f.key,
-        label: f.label || f.key,
-        type: f.choices?.length ? 'select' : String(f.type ?? 'text'),
-        required: Boolean(f.required),
-        options: f.choices?.map((c) => String(c.value)) || undefined,
-        placeholder: f.placeholder || undefined,
-        help_text: f.help_text,
-      }));
-
+  const preferredKeys = useMemo(() => {
     const normalized = schemaEntityKey.toLowerCase();
     const defaultKeyFields: Record<string, string[]> = {
       customer: [
         'name',
         'contact_person',
         'email',
+        'phone_type',
         'phone',
         'street_address',
         'city',
@@ -355,19 +421,21 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
         'name',
         'contact_person',
         'email',
+        'phone_type',
         'phone',
         'street_address',
         'city',
         'state',
         'zip_code',
       ],
-      contact: ['full_name', 'email', 'phone', 'contact_type'],
+      contact: ['full_name', 'email', 'phone_type', 'phone', 'contact_type'],
       'inquiries.inquiry': [
         'entity_type',
         'customer',
         'supplier',
         'contact_name',
         'contact_email',
+        'contact_phone_type',
         'contact_phone',
         'valid_until',
       ],
@@ -377,31 +445,149 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
         'supplier',
         'contact_name',
         'contact_email',
+        'contact_phone_type',
         'contact_phone',
         'valid_until',
       ],
       sales_order: ['customer', 'order_date', 'delivery_date', 'status', 'notes'],
-      purchase_order: ['supplier', 'order_date', 'delivery_date', 'status', 'notes'],
+      purchase_order: ['supplier', 'product', 'order_date', 'delivery_date', 'status', 'notes'],
       invoice: ['customer', 'invoice_date', 'status', 'notes'],
       product: ['name', 'product_code', 'protein_type', 'packaging_type', 'weight_unit'],
     };
 
-    const preferred =
+    return (
       (keyFields && keyFields.length
         ? keyFields
         : schema?.key_fields && schema.key_fields.length
           ? schema.key_fields
-          : defaultKeyFields[normalized]) || [];
-    if (!preferred.length) return raw;
+          : defaultKeyFields[normalized]) ||
+      []
+    );
+  }, [keyFields, schema?.key_fields, schemaEntityKey]);
 
-    const rank = new Map(preferred.map((k, idx) => [k.toLowerCase(), idx] as const));
+  const preferredKeySet = useMemo(() => {
+    return new Set(preferredKeys.map((k) => String(k).toLowerCase()));
+  }, [preferredKeys]);
+
+  const preferredKeyRank = useMemo(() => {
+    return new Map(preferredKeys.map((k, idx) => [String(k).toLowerCase(), idx] as const));
+  }, [preferredKeys]);
+
+  const fkFields = useMemo(() => {
+    return (schema?.fields ?? []).filter((f) => !shouldSkipField(f.key) && Boolean(f.related_entity));
+  }, [schema?.fields]);
+
+  const keyFkFields = useMemo(() => {
+    const keyOnes = fkFields.filter((f) => preferredKeySet.has(String(f.key).toLowerCase()));
+
+    return [...keyOnes].sort((a, b) => {
+      const ka = String(a.key).toLowerCase();
+      const kb = String(b.key).toLowerCase();
+      const ra = preferredKeyRank.has(ka) ? (preferredKeyRank.get(ka) as number) : 9999;
+      const rb = preferredKeyRank.has(kb) ? (preferredKeyRank.get(kb) as number) : 9999;
+      if (ra !== rb) return ra - rb;
+      return String(a.label || a.key).localeCompare(String(b.label || b.key));
+    });
+  }, [fkFields, preferredKeyRank, preferredKeySet]);
+
+  const otherFkFields = useMemo(() => {
+    const others = fkFields.filter((f) => !preferredKeySet.has(String(f.key).toLowerCase()));
+    return [...others].sort((a, b) => String(a.label || a.key).localeCompare(String(b.label || b.key)));
+  }, [fkFields, preferredKeySet]);
+
+  const scalarFields = useMemo(() => {
+    const raw = (schema?.fields ?? [])
+      .filter((f) => !shouldSkipField(f.key))
+      .filter((f) => !f.related_entity)
+      .map((f) => {
+        const ui = f.ui && typeof f.ui === 'object' ? (f.ui as Record<string, unknown>) : null;
+        const widget = ui && typeof ui['widget'] === 'string' ? String(ui['widget']) : null;
+
+        const explicitType = String(f.type ?? '').toLowerCase();
+        const isInlineArray = explicitType === 'inline_form_array' || widget === 'inline_form_array';
+
+        const options = f.choices?.length
+          ? f.choices
+              .map((c) => ({
+                value: c.value != null ? String(c.value) : '',
+                label: typeof c.label === 'string' && c.label ? c.label : c.value != null ? String(c.value) : '',
+              }))
+              .filter((o) => Boolean(o.value))
+          : undefined;
+
+        const itemFieldsRaw =
+          isInlineArray && ui && Array.isArray((ui as Record<string, unknown>).item_fields)
+            ? ((ui as Record<string, unknown>).item_fields as unknown[])
+            : null;
+
+        const item_fields = itemFieldsRaw
+          ? itemFieldsRaw
+              .map((sf) => {
+                const sub = sf && typeof sf === 'object' ? (sf as Record<string, unknown>) : {};
+                const subUi =
+                  sub.ui && typeof sub.ui === 'object' ? (sub.ui as Record<string, unknown>) : null;
+                const subWidget =
+                  subUi && typeof subUi['widget'] === 'string' ? String(subUi['widget']) : undefined;
+                const subChoices = Array.isArray(sub.choices)
+                  ? (sub.choices as unknown[])
+                      .map((c) => {
+                        const ch = c && typeof c === 'object' ? (c as Record<string, unknown>) : {};
+                        const value = ch.value != null ? String(ch.value) : '';
+                        const label = typeof ch.label === 'string' && ch.label ? ch.label : value;
+                        return value ? { value, label } : null;
+                      })
+                      .filter(Boolean)
+                  : undefined;
+
+                return {
+                  key: String(sub.key || ''),
+                  label: typeof sub.label === 'string' ? sub.label : String(sub.key || ''),
+                  type: subChoices?.length ? 'select' : String(sub.type ?? 'text'),
+                  required: Boolean(sub.required),
+                  options: subChoices as Array<{ value: string; label: string }> | undefined,
+                  placeholder: typeof sub.placeholder === 'string' ? sub.placeholder : undefined,
+                  help_text: typeof sub.help_text === 'string' ? sub.help_text : undefined,
+                  ui: subWidget ? { widget: subWidget } : undefined,
+                };
+              })
+              .filter((sf) => Boolean(sf.key))
+          : undefined;
+
+        const add_button_label =
+          isInlineArray && ui && typeof (ui as Record<string, unknown>).add_button_label === 'string'
+            ? String((ui as Record<string, unknown>).add_button_label)
+            : undefined;
+
+        const item_label =
+          isInlineArray && ui && typeof (ui as Record<string, unknown>).item_label === 'string'
+            ? String((ui as Record<string, unknown>).item_label)
+            : undefined;
+
+        return {
+          key: f.key,
+          label: f.label || f.key,
+          type: isInlineArray ? 'inline_form_array' : f.choices?.length ? 'select' : String(f.type ?? 'text'),
+          required: Boolean(f.required),
+          options,
+          placeholder: f.placeholder || undefined,
+          help_text: f.help_text,
+          ui: widget ? { widget } : undefined,
+          item_fields,
+          add_button_label,
+          item_label,
+        };
+      });
+
+    if (!preferredKeys.length) return raw;
+
+    const rank = new Map(preferredKeys.map((k, idx) => [String(k).toLowerCase(), idx] as const));
     return [...raw].sort((a, b) => {
       const ra = rank.has(a.key.toLowerCase()) ? (rank.get(a.key.toLowerCase()) as number) : 9999;
       const rb = rank.has(b.key.toLowerCase()) ? (rank.get(b.key.toLowerCase()) as number) : 9999;
       if (ra !== rb) return ra - rb;
       return a.label.localeCompare(b.label);
     });
-  }, [keyFields, schema?.fields, schemaEntityKey]);
+  }, [preferredKeys, schema?.fields]);
 
   type DynamicSchema = {
     step_index: number;
@@ -419,6 +605,10 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
     };
   }, [entityType, scalarFields, schema?.description, schema?.name]);
 
+  const formInitialValues = useMemo(() => {
+    return { ...(recordValues || {}), ...(initialValues || {}) };
+  }, [initialValues, recordValues]);
+
   const submit = useCallback(
     async (data: Record<string, unknown>) => {
       const payload: Record<string, unknown> = { ...data };
@@ -427,10 +617,15 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
       const missingFk = fkFields
         .filter((f) => Boolean(f.required))
         .filter((f) => {
-          const v = fkValues[f.key] ?? initialValues?.[f.key];
+          const v = fkValues[f.key] ?? formInitialValues?.[f.key];
           return v === undefined || v === null || v === '';
         });
       if (missingFk.length) {
+        const missingHiddenFk = missingFk.filter((f) => !preferredKeySet.has(String(f.key).toLowerCase()));
+        if (missingHiddenFk.length && !showAllFields) {
+          setShowAllFields(true);
+        }
+
         message.error(`Please select ${missingFk[0].label || missingFk[0].key}`);
         return;
       }
@@ -453,6 +648,31 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
       const numberKeys = new Set(
         (scalarFields || []).filter((f) => String(f.type).toLowerCase() === 'number').map((f) => f.key)
       );
+      const emailKeySet = new Set(
+        (scalarFields || [])
+          .filter((f) => {
+            const key = String(f.key || '').toLowerCase();
+            const type = String(f.type || '').toLowerCase();
+            return key.includes('email') || type.includes('email');
+          })
+          .map((f) => f.key)
+      );
+      const emailLabelByKey = new Map(
+        (scalarFields || [])
+          .filter((f) => emailKeySet.has(f.key))
+          .map((f) => [f.key, f.label || f.key] as const)
+      );
+      const zipKeySet = new Set(
+        (scalarFields || [])
+          .filter((f) => String(f.key || '').toLowerCase().includes('zip_code'))
+          .map((f) => f.key)
+      );
+      const zipLabelByKey = new Map(
+        (scalarFields || [])
+          .filter((f) => zipKeySet.has(f.key))
+          .map((f) => [f.key, f.label || f.key] as const)
+      );
+
       Object.entries(payload).forEach(([k, v]) => {
         if (v === '') {
           delete payload[k];
@@ -464,6 +684,10 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
             delete payload[k];
             return;
           }
+          if (zipKeySet.has(k)) {
+            payload[k] = trimmed.replace(/\D/g, '').slice(0, 5);
+            return;
+          }
           if (numberKeys.has(k)) {
             const n = Number(trimmed);
             if (Number.isFinite(n)) payload[k] = n;
@@ -472,6 +696,26 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
           }
         }
       });
+
+      // Validate email(s) before submit.
+      for (const k of emailKeySet) {
+        const v = payload[k];
+        if (typeof v === 'string' && v.trim() && !isValidEmail(v.trim())) {
+          const label = emailLabelByKey.get(k) || k;
+          message.error(`Please enter a valid email for ${label}`);
+          return;
+        }
+      }
+
+      // Validate ZIP code(s) before submit.
+      for (const k of zipKeySet) {
+        const v = payload[k];
+        if (typeof v === 'string' && v.trim() && !/^\d{5}$/.test(v.trim())) {
+          const label = zipLabelByKey.get(k) || k;
+          message.error(`${label} must be exactly 5 digits`);
+          return;
+        }
+      }
 
       try {
         setSubmitting(true);
@@ -518,16 +762,35 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
         setSubmitting(false);
       }
     },
-    [endpoint, entityId, fkFields, fkValues, initialValues, onClose, onSuccess]
+    [
+      endpoint,
+      entityId,
+      fkFields,
+      fkValues,
+      formInitialValues,
+      initialValues,
+      onClose,
+      onSuccess,
+      preferredKeySet,
+      scalarFields,
+      showAllFields,
+    ]
   );
 
-  const fetchProducts = useMemo(
-    () => async (fieldKey: string, q: string) => {
+  const fetchProducts = useCallback(
+    async (fieldKey: string, q: string) => {
+      const nextSeq = (productSearchSeqRef.current[fieldKey] ?? 0) + 1;
+      productSearchSeqRef.current[fieldKey] = nextSeq;
+
       setLoadingProducts((prev) => ({ ...prev, [fieldKey]: true }));
       try {
         const resp = await businessApi.get('/system/products/', {
-          params: { search: q || undefined, page_size: 50, is_active: true },
+          params: { search: q || undefined, page_size: 50, limit: 50, is_active: true },
         });
+
+        // Ignore out-of-order responses.
+        if (productSearchSeqRef.current[fieldKey] !== nextSeq) return;
+
         const payload = resp.data as unknown;
         const payloadObj =
           typeof payload === 'object' && payload ? (payload as Record<string, unknown>) : null;
@@ -550,22 +813,307 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
           const label = `${code ? `${code} - ` : ''}${name}`.trim() || String(id ?? '');
           return { value: String(id ?? ''), label };
         });
-        setProductOptions((prev) => ({
-          ...prev,
-          [fieldKey]: (() => {
-            const map = new Map((prev[fieldKey] || []).map((o) => [o.value, o] as const));
-            opts.forEach((o) => map.set(o.value, o));
-            return Array.from(map.values());
-          })(),
-        }));
+
+        // Replace options for the current search (so results actually refresh on every keystroke),
+        // but keep the currently-selected value so it doesn't disappear.
+        const selectedValue = String((fkValues[fieldKey] as string | number | undefined) ?? '');
+
+        setProductOptions((prev) => {
+          const selected = selectedValue
+            ? (prev[fieldKey] || []).find((o) => String(o.value) === selectedValue)
+            : undefined;
+
+          const merged = [...opts];
+          if (selected && !merged.some((o) => String(o.value) === String(selected.value))) {
+            merged.unshift(selected);
+          }
+
+          return {
+            ...prev,
+            [fieldKey]: merged,
+          };
+        });
       } catch (err) {
         console.error('[UniversalEntityForm] Failed to search products:', err);
       } finally {
-        setLoadingProducts((prev) => ({ ...prev, [fieldKey]: false }));
+        if (productSearchSeqRef.current[fieldKey] === nextSeq) {
+          setLoadingProducts((prev) => ({ ...prev, [fieldKey]: false }));
+        }
       }
     },
-    []
+    [fkValues]
   );
+
+  if (variant === 'inline' && !isOpen) return null;
+
+  const formatValue = (v: unknown): string => {
+    if (v === undefined || v === null) return '';
+    if (typeof v === 'boolean') return v ? 'Yes' : 'No';
+    if (typeof v === 'number') return String(v);
+    if (typeof v === 'string') return v;
+    if (Array.isArray(v)) return v.map(formatValue).filter(Boolean).join(', ');
+    if (typeof v === 'object') {
+      const obj = v as Record<string, unknown>;
+      const name = typeof obj.name === 'string' ? obj.name : null;
+      if (name) return name;
+      const id = obj.id;
+      if (id != null) return String(id);
+      try {
+        return JSON.stringify(obj);
+      } catch {
+        return '[object]';
+      }
+    }
+    return String(v);
+  };
+
+  const keyScalarFields = scalarFields.filter((f) => preferredKeySet.has(String(f.key).toLowerCase()));
+  const otherScalarFields = scalarFields.filter((f) => !preferredKeySet.has(String(f.key).toLowerCase()));
+  const visibleScalarFields = [...keyScalarFields, ...(showAllFields ? otherScalarFields : [])];
+
+  const showVisibilityToggle =
+    otherFkFields.length > 0 || otherScalarFields.length > 0;
+
+  const modeSwitchControls =
+    entityId != null &&
+    canSwitchModes && (
+      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginBottom: 10 }}>
+        {activeMode === 'view' ? (
+          <Button type="primary" onClick={() => setActiveMode('edit')}>
+            Edit
+          </Button>
+        ) : inferredMode === 'view' ? (
+          <Button onClick={() => setActiveMode('view')} disabled={submitting}>
+            View
+          </Button>
+        ) : null}
+      </div>
+    );
+
+  const content = (
+    <Container>
+      {loading ? (
+        <div style={{ padding: 16 }}>
+          <Skeleton active paragraph={{ rows: 6 }} />
+        </div>
+      ) : !schema ? (
+        <div style={{ padding: 12, color: 'rgb(var(--color-text-secondary))', fontSize: 13 }}>
+          Unable to load form.
+        </div>
+      ) : (
+        <>
+          {modeSwitchControls}
+
+          {(keyFkFields.length > 0 || otherFkFields.length > 0) && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 10 }}>
+              {[...keyFkFields, ...(showAllFields ? otherFkFields : [])].map((f) => {
+                const related = String(f.related_entity || '').toLowerCase();
+                const isProduct =
+                  related.includes('system.product') ||
+                  String(f.key).toLowerCase().includes('product');
+
+                const value = String((fkValues[f.key] as string | number | undefined) ?? '');
+
+                if (activeMode === 'view') {
+                  return (
+                    <div key={f.key}>
+                      <div
+                        style={{
+                          fontSize: 12,
+                          fontWeight: 600,
+                          color: 'rgb(var(--color-text-secondary))',
+                          marginBottom: 6,
+                        }}
+                      >
+                        {f.label || f.key}
+                      </div>
+                      <div
+                        style={{
+                          padding: '10px 12px',
+                          border: '1px solid rgb(var(--color-border))',
+                          borderRadius: 8,
+                          background: 'rgb(var(--color-input-readonly))',
+                          color: 'rgb(var(--color-text-primary))',
+                          fontSize: 13,
+                        }}
+                      >
+                        {formatValue(formInitialValues[f.key]) || '—'}
+                      </div>
+                    </div>
+                  );
+                }
+
+                if (isProduct) {
+                  return (
+                    <div key={f.key}>
+                      <div
+                        style={{
+                          fontSize: 12,
+                          fontWeight: 600,
+                          color: 'rgb(var(--color-text-secondary))',
+                          marginBottom: 6,
+                        }}
+                      >
+                        {f.label || f.key}
+                      </div>
+                      <Select
+                        showSearch
+                        filterOption={false}
+                        onDropdownVisibleChange={(open) => {
+                          if (open && (productOptions[f.key] || []).length === 0) {
+                            void fetchProducts(f.key, '');
+                          }
+                        }}
+                        onSearch={(q) => void fetchProducts(f.key, q)}
+                        options={productOptions[f.key] || []}
+                        value={value || undefined}
+                        onChange={(next) => setFkValues((prev) => ({ ...prev, [f.key]: String(next) }))}
+                        notFoundContent={loadingProducts[f.key] ? <Spin size="small" /> : null}
+                        style={{ width: '100%' }}
+                        placeholder="Search products…"
+                      />
+                    </div>
+                  );
+                }
+
+                const mapped = relatedEntityToEntityOptionsType(f.related_entity, f.key);
+
+                if (mapped && mapped !== 'product') {
+                  return (
+                    <div key={f.key}>
+                      <div
+                        style={{
+                          fontSize: 12,
+                          fontWeight: 600,
+                          color: 'rgb(var(--color-text-secondary))',
+                          marginBottom: 6,
+                        }}
+                      >
+                        {f.label || f.key}
+                      </div>
+                      <EntityOptionsSelect
+                        entityType={mapped}
+                        value={value}
+                        onChange={(next) => setFkValues((prev) => ({ ...prev, [f.key]: next }))}
+                        placeholder={`Search ${f.label || f.key}…`}
+                        forceSearch
+                        debounceMs={0}
+                      />
+                    </div>
+                  );
+                }
+
+                const options = fkOptions[f.key] || [];
+                return (
+                  <div key={f.key}>
+                    <div
+                      style={{
+                        fontSize: 12,
+                        fontWeight: 600,
+                        color: 'rgb(var(--color-text-secondary))',
+                        marginBottom: 6,
+                      }}
+                    >
+                      {f.label || f.key}
+                    </div>
+                    <Select
+                      showSearch
+                      options={options.map((o) => ({ value: String(o.id), label: o.name }))}
+                      value={value || undefined}
+                      onChange={(next) => setFkValues((prev) => ({ ...prev, [f.key]: String(next) }))}
+                      style={{ width: '100%' }}
+                      placeholder={`Select ${f.label || f.key}`}
+                      filterOption={(input, option) =>
+                        String(option?.label || '').toLowerCase().includes(String(input || '').toLowerCase())
+                      }
+                    />
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {showVisibilityToggle && (
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 14 }}>
+              <Button
+                type="link"
+                onClick={() => setShowAllFields((v) => !v)}
+                style={{ padding: 0, height: 'auto' }}
+              >
+                {showAllFields ? 'Show fewer fields' : 'Show all fields'}
+              </Button>
+            </div>
+          )}
+
+          {activeMode === 'view' ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              {visibleScalarFields.map((f) => (
+                <div key={f.key}>
+                  <div
+                    style={{
+                      fontSize: 12,
+                      fontWeight: 600,
+                      color: 'rgb(var(--color-text-secondary))',
+                      marginBottom: 6,
+                    }}
+                  >
+                    {f.label || f.key}
+                  </div>
+                  <div
+                    style={{
+                      padding: '10px 12px',
+                      border: '1px solid rgb(var(--color-border))',
+                      borderRadius: 8,
+                      background: 'rgb(var(--color-input-readonly))',
+                      color: 'rgb(var(--color-text-primary))',
+                      fontSize: 13,
+                    }}
+                  >
+                    {formatValue(formInitialValues[f.key]) || '—'}
+                  </div>
+                </div>
+              ))}
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 8 }}>
+                <Button onClick={onClose} disabled={submitting}>
+                  Close
+                </Button>
+                {entityId != null && canSwitchModes && (
+                  <Button type="primary" onClick={() => setActiveMode('edit')}>
+                    Edit
+                  </Button>
+                )}
+              </div>
+            </div>
+          ) : (
+            <DynamicFormEngine
+              schema={dynamicSchema as any}
+              initialValues={formInitialValues}
+              isSubmitting={submitting}
+              submitLabel={entityId ? 'Save' : 'Create'}
+              keyFieldKeys={preferredKeys}
+              showAllFields={showAllFields}
+              onShowAllFieldsChange={setShowAllFields}
+              showAllFieldsToggle={false}
+              onSubmit={(data) => {
+                void submit(data);
+              }}
+              onCancel={() => {
+                if (submitting) return;
+                if (inferredMode === 'view' && canSwitchModes) {
+                  setActiveMode('view');
+                  return;
+                }
+                onClose();
+              }}
+            />
+          )}
+        </>
+      )}
+    </Container>
+  );
+
+  if (variant === 'inline') return content;
 
   return (
     <Modal
@@ -579,96 +1127,9 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
       footer={null}
       width={720}
       destroyOnClose
-      title={schema?.name || `New ${entityType}`}
+      title={schema?.name || (entityId ? `${entityType} ${entityId}` : `New ${entityType}`)}
     >
-      <Container>
-        {loading ? (
-          <div style={{ padding: 16 }}>
-            <Skeleton active paragraph={{ rows: 6 }} />
-          </div>
-        ) : !schema ? (
-          <div style={{ padding: 12, color: 'rgb(var(--color-text-secondary))', fontSize: 13 }}>
-            Unable to load form schema.
-          </div>
-        ) : (
-          <>
-            {fkFields.length > 0 && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 16 }}>
-                {fkFields.map((f) => {
-                  const related = String(f.related_entity || '').toLowerCase();
-                  const isProduct =
-                    related.includes('system.product') ||
-                    String(f.key).toLowerCase().includes('product');
-
-                  if (isProduct) {
-                    const value = fkValues[f.key] as string | number | undefined;
-                    return (
-                      <div key={f.key}>
-                        <div
-                          style={{
-                            fontSize: 12,
-                            fontWeight: 600,
-                            color: 'rgb(var(--color-text-secondary))',
-                            marginBottom: 6,
-                          }}
-                        >
-                          {f.label || f.key}
-                        </div>
-                        <Select
-                          showSearch
-                          filterOption={false}
-                          onSearch={(q) => void fetchProducts(f.key, q)}
-                          options={productOptions[f.key] || []}
-                          value={value}
-                          onChange={(next) => setFkValues((prev) => ({ ...prev, [f.key]: next }))}
-                          notFoundContent={loadingProducts[f.key] ? <Spin size="small" /> : null}
-                          style={{ width: '100%' }}
-                          placeholder="Search products…"
-                        />
-                      </div>
-                    );
-                  }
-
-                  const options = fkOptions[f.key] || [];
-                  return (
-                    <div key={f.key}>
-                      <div
-                        style={{
-                          fontSize: 12,
-                          fontWeight: 600,
-                          color: 'rgb(var(--color-text-secondary))',
-                          marginBottom: 6,
-                        }}
-                      >
-                        {f.label || f.key}
-                      </div>
-                      <SearchableSelect
-                        value={(fkValues[f.key] as string | number | undefined) ?? ''}
-                        options={options}
-                        onChange={(next) => setFkValues((prev) => ({ ...prev, [f.key]: next }))}
-                        placeholder={`Select ${f.label || f.key}`}
-                      />
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-
-            <DynamicFormEngine
-              schema={dynamicSchema as any}
-              initialValues={initialValues || {}}
-              isSubmitting={submitting}
-              onSubmit={(data) => {
-                void submit(data);
-              }}
-              onCancel={() => {
-                if (submitting) return;
-                onClose();
-              }}
-            />
-          </>
-        )}
-      </Container>
+      {content}
     </Modal>
   );
 };

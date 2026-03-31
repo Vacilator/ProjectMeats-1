@@ -92,18 +92,18 @@ describe('Theme Configuration', () => {
     });
 
     it('light theme has light colors', () => {
-      expect(canvasThemeVars.light['--canvas-bg']).toBe('#f9fafb');
-      expect(canvasThemeVars.light['--canvas-node-bg']).toBe('#ffffff');
+      expect(canvasThemeVars.light['--canvas-bg']).toBe('rgb(var(--color-surface))');
+      expect(canvasThemeVars.light['--canvas-node-bg']).toBe('rgb(var(--color-surface))');
     });
 
     it('dark theme has dark colors', () => {
-      expect(canvasThemeVars.dark['--canvas-bg']).toBe('#0a0a0a');
-      expect(canvasThemeVars.dark['--canvas-node-bg']).toBe('#1a1a1a');
+      expect(canvasThemeVars.dark['--canvas-bg']).toBe('rgb(var(--color-background))');
+      expect(canvasThemeVars.dark['--canvas-node-bg']).toBe('rgb(var(--color-surface))');
     });
 
     it('high contrast theme has maximum contrast', () => {
-      expect(canvasThemeVars['high-contrast']['--canvas-bg']).toBe('#ffffff');
-      expect(canvasThemeVars['high-contrast']['--canvas-node-border']).toBe('#000000');
+      expect(canvasThemeVars['high-contrast']['--canvas-bg']).toBe('rgb(var(--color-surface))');
+      expect(canvasThemeVars['high-contrast']['--canvas-node-border']).toBe('rgb(var(--color-text-primary))');
       expect(canvasThemeVars['high-contrast']['--canvas-node-shadow']).toBe('none');
     });
   });
@@ -124,24 +124,24 @@ describe('Theme Configuration', () => {
     it('applies light theme CSS variables to document', () => {
       applyCanvasTheme('light');
       
-      expect(mockRoot.style.getPropertyValue('--canvas-bg')).toBe('#f9fafb');
-      expect(mockRoot.style.getPropertyValue('--canvas-grid')).toBe('#e5e7eb');
-      expect(mockRoot.style.getPropertyValue('--canvas-connection')).toBe('#667eea');
+      expect(mockRoot.style.getPropertyValue('--canvas-bg')).toBe('rgb(var(--color-surface))');
+      expect(mockRoot.style.getPropertyValue('--canvas-grid')).toBe('rgb(var(--color-border))');
+      expect(mockRoot.style.getPropertyValue('--canvas-connection')).toBe('rgb(var(--color-primary))');
     });
 
     it('applies dark theme CSS variables to document', () => {
       applyCanvasTheme('dark');
       
-      expect(mockRoot.style.getPropertyValue('--canvas-bg')).toBe('#0a0a0a');
-      expect(mockRoot.style.getPropertyValue('--canvas-grid')).toBe('#333333');
-      expect(mockRoot.style.getPropertyValue('--canvas-connection')).toBe('#818cf8');
+      expect(mockRoot.style.getPropertyValue('--canvas-bg')).toBe('rgb(var(--color-background))');
+      expect(mockRoot.style.getPropertyValue('--canvas-grid')).toBe('rgb(var(--color-border))');
+      expect(mockRoot.style.getPropertyValue('--canvas-connection')).toBe('rgb(var(--color-primary))');
     });
 
     it('applies high contrast theme CSS variables to document', () => {
       applyCanvasTheme('high-contrast');
       
-      expect(mockRoot.style.getPropertyValue('--canvas-bg')).toBe('#ffffff');
-      expect(mockRoot.style.getPropertyValue('--canvas-node-border')).toBe('#000000');
+      expect(mockRoot.style.getPropertyValue('--canvas-bg')).toBe('rgb(var(--color-surface))');
+      expect(mockRoot.style.getPropertyValue('--canvas-node-border')).toBe('rgb(var(--color-text-primary))');
       expect(mockRoot.style.getPropertyValue('--canvas-node-shadow')).toBe('none');
     });
 

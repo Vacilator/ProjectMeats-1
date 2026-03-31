@@ -1,7 +1,6 @@
 """
 Django admin configuration for Contacts app.
 """
-from django.contrib import admin
 from apps.core.admin_site import admin_site
 from apps.core.admin import TenantFilteredAdmin
 from .models import Contact

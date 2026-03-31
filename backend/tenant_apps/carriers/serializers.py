@@ -23,6 +23,7 @@ class CarrierSerializer(serializers.ModelSerializer):
             "carrier_type",
             "contact_person",
             "phone",
+            "phone_type",
             "email",
             "address",
             "city",

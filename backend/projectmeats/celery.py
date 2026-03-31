@@ -31,6 +31,14 @@ app.conf.beat_schedule = {
             'expires': 240.0,  # Task expires if not run within 4 minutes
         },
     },
+    'compile-rlhf-data-weekly': {
+        'task': 'ai_assistant.compile_rlhf_data',
+        'schedule': crontab(minute=0, hour=3, day_of_week='sun'),
+        'args': (7, 5000),
+        'options': {
+            'expires': 3600.0,
+        },
+    },
 }
 
 # Set timezone for scheduled tasks

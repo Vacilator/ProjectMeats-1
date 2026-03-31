@@ -80,3 +80,25 @@ def process_rlhf_flywheel(days: int = 7) -> Dict[str, Any]:
     except Exception as e:
         logger.warning('[RLHF] Flywheel task failed: %s', str(e), exc_info=True)
         return {'status': 'error', 'error': str(e)}
+
+
+@shared_task(name='ai_assistant.compile_rlhf_data')
+def compile_rlhf_data(days: int = 7, limit: int = 5000, out: str | None = None, tenant_id: str | None = None) -> Dict[str, Any]:
+    """Compile a redacted OpenAI JSONL dataset from AIFeedbackLog.
+
+    This task writes to local disk (defaults to /tmp) and returns a summary.
+    """
+
+    try:
+        from tenant_apps.ai_assistant.services.rlhf_compiler import CompileOptions, write_compiled_jsonl
+
+        summary = write_compiled_jsonl(
+            options=CompileOptions(days=int(days), limit=int(limit), tenant_id=tenant_id, out_path=out)
+        )
+
+        logger.info('[RLHF] Compiled dataset written=%s path=%s', summary.get('written'), summary.get('out_path'))
+        return summary
+
+    except Exception as e:
+        logger.warning('[RLHF] Compile task failed: %s', str(e), exc_info=True)
+        return {'status': 'error', 'error': str(e)}
