@@ -126,34 +126,9 @@ This file is the **append-only PR-referenceable execution log**.
 - Safety: wrapped WorkForms InProgress/History/Monitoring in ErrorBoundary.
 - PR: #4239
 
-### 2026-03-31 — AI tools: schema discovery + entity creation + orchestration
-- Added/expanded Swarm tools:
-  - `get_entity_schema(entity_type)` (same engine as `/api/v1/system/forms/schema/`)
-  - `create_entity(entity_type, payload)` allowlisted DRF create for supplier/customer/contact/plant/location
-  - `parse_document(file_id_or_url)` (document_id-only for SSRF safety; uses Unstructured API when configured)
-  - `create_in_app_notification(...)` (notify admins/other users; permission-gated)
-  - `trigger_workform(workflow_id, initial_data)` (creates a persisted execution record + runs WorkFormEngine scaffold)
-  - `draft_vendor_email(vendor_id, context[, vendor_type])` (stages outbound email as Draft in CommunicationLog)
-- Hardened Swarm system prompt + routing to enforce:
-  - Schema → Ask → Create
-  - Read → Map → Confirm → Create (document-driven)
-- Unblocked fresh DBs/tests without pgvector by storing embeddings as JSON arrays (pgvector optional).
-- Added daily watchdog task (`ai_assistant.run_daily_watchdog`) to notify tenant admins about overdue POs.
-- Added granular RBAC scaffolding:
-  - `plant_manager` role + `restricted_plants` / `restricted_locations` on TenantUser
-  - `IsRoleAuthorized` permission to scope PATCH/DELETE on Plant + Contact
-- Added tenant-safe caching for heavy Supplier/Customer rollups:
-  - cached list/retrieve per-tenant (15m TTL)
-  - invalidation via tenant cache version bump signals (plant/location/contact product changes)
-- CI/CD consolidation (reduce Actions feed clutter):
-  - moved PR validation + security scan jobs into `main-pipeline.yml`
-  - removed standalone workflows: `pr-validation.yml`, `21-security-scan.yml`, `41-auto-promote.yml`
-  - NOTE: update Branch Protection Required Status Checks to point to the new job names under "Master Pipeline"
-- Enterprise AI Roadmap — Pillar 1 memory:
-  - added `TenantAIMemory` (tenant-scoped, RLS-enforced) for durable rules/preferences
-  - added Swarm tools: `save_memory` + `retrieve_memory`
-  - injected relevant Tenant Memory block into Swarm system prompt (server-side)
-- PR: #4276
+### 2026-03-31 — AI chat: expose document metadata to Swarm
+- When a chat session includes a DOCUMENT message, Swarm history now includes `document_id` (and `file_url` when present) so tools like `parse_document(document_id)` can operate reliably.
+- PR: #4275
 
 ### 2026-03-30 — Docs: master plan gap analysis + roadmap hygiene
 - Updated `MASTER_PLAN.md` (canonical) with an industry-leader benchmark gap analysis (P0/P1/P2) and refreshed execution-ordered backlog.
@@ -1485,14 +1460,6 @@ Deliverables:
 - New remediation blueprint:
   - `docs/plans/V3_5_ENTERPRISE_REFACTOR_ROADMAP.md`
 
-### 2026-03-31T19:15:05Z — V3.5 reconnaissance refresh (audits + roadmap)
-- Appended new, timestamped findings to the existing audit docs and refreshed the roadmap with P0 stability adds.
-- Updates:
-  - `docs/audits/SYSTEM_ERRORS_2026.md` (tenant enforcement suspects list refreshed; confirms global runtime error handlers exist)
-  - `docs/audits/UI_UX_DEBT_2026.md` (adds fail-open fetch + “forms vs workforms” semantics notes)
-  - `docs/audits/API_SCHEMA_DRIFT.md` (adds quick drift scan for `lbs` + drf-spectacular evidence)
-  - `docs/plans/V3_5_ENTERPRISE_REFACTOR_ROADMAP.md` (adds P0 items: fail-open fetch + route semantics + stabilize available-forms)
-
 - 2026-03-31 — Frontend: add global runtime `unhandledrejection` + `error` handlers via centralized logger/Sentry — PR: #4248.
 - 2026-03-31 — Frontend: Suppliers list fetch uses React Query (useQuery) + refetch on create/update/delete — PR: #4251.
 - 2026-03-31 — Frontend: Customers list fetch uses React Query (useQuery) + refetch on create/update/delete — PR: #4252.
@@ -1507,4 +1474,3 @@ Deliverables:
 - 2026-03-31 — Settings: remove tenant branding + rename admin link label — PR: #4270.
 - 2026-03-31 — Auth: include user.is_active in JWT token obtain payload — PR: #4271.
 - 2026-03-31 — Frontend: fix Profile inactive status false-negative (normalize is_active) — PR: #4272.
-- 2026-03-31 — UniversalEntityForm: progressive disclosure + Cockpit inline create/view (is_advanced + Expand details toggle) — PR: #4277.
