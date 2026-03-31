@@ -5,5 +5,8 @@
   "devDependencies": {
     "@playwright/test": "^1.58.2",
     "playwright": "^1.58.2"
+  },
+  "scripts": {
+    "test:e2e": "npm --prefix frontend run test:e2e --"
   }
 }
