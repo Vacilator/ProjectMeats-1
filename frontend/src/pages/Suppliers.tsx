@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { logger } from '@/utils/logger';
 
 import { useSearchParams, useNavigate } from 'react-router-dom';
@@ -36,8 +37,21 @@ const Suppliers: React.FC = () => {
   const { theme } = useTheme();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
-  const [loading, setLoading] = useState(true);
+
+  const suppliersQuery = useQuery({
+    queryKey: ['suppliers'],
+    queryFn: apiService.getSuppliers,
+  });
+
+  const suppliers = suppliersQuery.data ?? [];
+  const loading = suppliersQuery.isLoading;
+
+  useEffect(() => {
+    if (suppliersQuery.error) {
+      logger.error('[Suppliers] Error fetching suppliers:', suppliersQuery.error);
+    }
+  }, [suppliersQuery.error]);
+
   const [showForm, setShowForm] = useState(false);
   const [showEditForm, setShowEditForm] = useState(false);
   const [editingSupplier, setEditingSupplier] = useState<Supplier | null>(null);
@@ -91,7 +105,6 @@ const Suppliers: React.FC = () => {
   }, [searchParams, setSearchParams]);
 
   useEffect(() => {
-    fetchSuppliers();
     fetchProducts();
   }, []);
 
@@ -118,18 +131,6 @@ const Suppliers: React.FC = () => {
       fetchProducts();
     }
   }, [formData.preferred_protein_types]);
-
-  const fetchSuppliers = async () => {
-    try {
-      setLoading(true);
-      const data = await apiService.getSuppliers();
-      setSuppliers(data);
-    } catch (error) {
-      logger.error('Error fetching suppliers:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const fetchProducts = async () => {
     try {
@@ -338,7 +339,7 @@ const Suppliers: React.FC = () => {
       setShowEditForm(false);
       setEditingSupplier(null);
       resetForm();
-      fetchSuppliers();
+      await suppliersQuery.refetch();
     } catch (error: unknown) {
       const err = error as Error;
       const errorMessage = err.message || 'An unexpected error occurred. Please try again.';
@@ -380,7 +381,7 @@ const Suppliers: React.FC = () => {
       try {
         await apiService.deleteSupplier(id);
         alert('Supplier deleted successfully!');
-        await fetchSuppliers(); // Re-fetch to update the list
+        await suppliersQuery.refetch(); // Re-fetch to update the list
       } catch (error: unknown) {
         // Type-safe error handling: Use 'unknown' instead of 'any' and assert expected structure
         // This ensures we handle errors safely while maintaining type checking
@@ -468,7 +469,7 @@ const Suppliers: React.FC = () => {
           entityType="supplier"
           isOpen={showForm}
           onClose={() => setShowForm(false)}
-          onCreated={() => fetchSuppliers()}
+          onCreated={() => { void suppliersQuery.refetch(); }}
         />
       )}
 
