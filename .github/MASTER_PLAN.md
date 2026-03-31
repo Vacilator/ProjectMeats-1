@@ -1518,3 +1518,4 @@ Deliverables:
 - 2026-03-31 — Ops: promote development → uat (pipeline hotfix) — PR: #4311. Verified UAT deploy run: 23820147951 ✅
 - 2026-03-31 — Ops: promote uat → main (pipeline hotfix) — PR: #4312. Verified main deploy run: 23820173539 ✅
 - 2026-03-31 — Docs: V4.0 enterprise moat sprint (traceability, yield mgmt, enterprise gateway, risk/compliance) — PR: #4317.
+- 2026-03-31 — Frontend: Suppliers/Customers nested contact create uses EntityFormSurface (retire bespoke contact modals) — PR: #4325.
