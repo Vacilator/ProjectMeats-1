@@ -6,6 +6,7 @@ from rest_framework.exceptions import ValidationError as DRFValidationError
 from rest_framework.filters import SearchFilter, OrderingFilter
 from django_filters.rest_framework import DjangoFilterBackend
 from django.core.exceptions import ValidationError
+from django.db.models import Exists, OuterRef, Q
 from tenant_apps.plants.models import Plant
 from tenant_apps.plants.serializers import PlantSerializer
 import logging
@@ -121,6 +122,59 @@ class PlantViewSet(viewsets.ModelViewSet):
                 {'error': 'Failed to create plant', 'details': str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+
+    @action(detail=False, methods=['get'], url_path='for-supplier-product')
+    def for_supplier_product(self, request):
+        """Return plants for a supplier, sorted by whether they have the given product.
+
+        GET /api/v1/plants/for-supplier-product/?supplier=<supplier-id>&product=<system-product-uuid>
+
+        - Filters to the supplier's plants (via Plant.supplier or SupplierPlant link)
+        - Does NOT filter out plants without the product; it only sorts them last
+        """
+        tenant = getattr(request, 'tenant', None)
+        supplier_id = request.query_params.get('supplier')
+        product_id = request.query_params.get('product')
+
+        if not tenant:
+            return Response({'error': 'Tenant not found'}, status=status.HTTP_400_BAD_REQUEST)
+        if not supplier_id:
+            return Response({'error': 'supplier is required'}, status=status.HTTP_400_BAD_REQUEST)
+
+        qs = Plant.objects.for_tenant(tenant)
+
+        is_active = request.query_params.get('is_active')
+        if is_active is None:
+            qs = qs.filter(is_active=True)
+
+        qs = qs.filter(
+            Q(supplier_id=supplier_id)
+            | Q(supplier_links__tenant=tenant, supplier_links__supplier_id=supplier_id)
+        ).distinct()
+
+        if product_id:
+            from tenant_apps.plants.models import PlantAssociatedProduct
+
+            available = PlantAssociatedProduct.objects.filter(
+                tenant=tenant,
+                plant_id=OuterRef('pk'),
+                product_id=product_id,
+            )
+            qs = qs.annotate(has_product=Exists(available)).order_by('-has_product', 'name')
+        else:
+            qs = qs.order_by('name')
+
+        data = [
+            {
+                'id': p.id,
+                'name': p.name,
+                'code': p.code,
+                'has_product': bool(getattr(p, 'has_product', False)),
+            }
+            for p in qs.only('id', 'name', 'code')
+        ]
+
+        return Response(data)
 
     @action(detail=True, methods=['get'], url_path='available-products')
     def available_products(self, request, pk=None):

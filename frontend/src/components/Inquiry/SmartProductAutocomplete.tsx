@@ -11,8 +11,7 @@
  * Created: 2026-02-26 - Auto-Suggest Integration
  */
 
-import React, { useState, useRef, useEffect, useCallback, useLayoutEffect } from 'react';
-import { createPortal } from 'react-dom';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import styled from 'styled-components';
 import { debounce } from 'lodash';
 import { businessApi } from '../../services/businessApi';
@@ -114,14 +113,19 @@ const ClearButton = styled.button`
   }
 `;
 
-const Dropdown = styled.div`
-  position: fixed;
+const Dropdown = styled.div<{ $isOpen: boolean }>`
+  display: ${props => props.$isOpen ? 'block' : 'none'};
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
   max-height: 400px;
   overflow-y: auto;
   background: white;
   border: 1px solid rgb(var(--color-border));
   border-radius: 8px;
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+  /* Sit above modal/table stacking contexts */
   z-index: 2000;
   
   /* Custom scrollbar */
@@ -295,20 +299,7 @@ export const SmartProductAutocomplete: React.FC<SmartProductAutocompleteProps> =
   
   const inputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
-  const [dropdownStyle, setDropdownStyle] = useState<React.CSSProperties>({});
   
-  const updateDropdownPosition = useCallback(() => {
-    const anchor = inputRef.current;
-    if (!anchor) return;
-
-    const rect = anchor.getBoundingClientRect();
-    setDropdownStyle({
-      top: rect.bottom + 4,
-      left: rect.left,
-      width: rect.width,
-    });
-  }, []);
-
   // Close dropdown on outside click
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -321,26 +312,10 @@ export const SmartProductAutocomplete: React.FC<SmartProductAutocompleteProps> =
         setIsOpen(false);
       }
     };
-
+    
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
-
-  // Keep portal dropdown aligned (prevents it being clipped by modal overflow)
-  useLayoutEffect(() => {
-    if (!isOpen) return;
-
-    updateDropdownPosition();
-
-    const handler = () => updateDropdownPosition();
-    window.addEventListener('resize', handler);
-    window.addEventListener('scroll', handler, true);
-
-    return () => {
-      window.removeEventListener('resize', handler);
-      window.removeEventListener('scroll', handler, true);
-    };
-  }, [isOpen, updateDropdownPosition, searchTerm, loading, results.length]);
   
   // Load selected product details if value changes externally
   useEffect(() => {
@@ -386,7 +361,7 @@ export const SmartProductAutocomplete: React.FC<SmartProductAutocompleteProps> =
             search: query,
             is_active: true,
             page_size: 20,
-            ...(normalizedProteinFilter ? { protein: normalizedProteinFilter.join(',') } : {}),
+            ...(normalizedProteinFilter ? { protein: normalizedProteinFilter } : {}),
           },
         });
 
@@ -495,8 +470,7 @@ export const SmartProductAutocomplete: React.FC<SmartProductAutocompleteProps> =
         </ClearButton>
       )}
       
-      {isOpen && typeof document !== 'undefined' && createPortal(
-        <Dropdown ref={dropdownRef} style={dropdownStyle}>
+      <Dropdown ref={dropdownRef} $isOpen={isOpen}>
         {loading && (
           <LoadingState>
             <div className="spinner" />
@@ -593,9 +567,7 @@ export const SmartProductAutocomplete: React.FC<SmartProductAutocompleteProps> =
             })}
           </>
         )}
-        </Dropdown>,
-        document.body
-      )}
+      </Dropdown>
     </Container>
   );
 };

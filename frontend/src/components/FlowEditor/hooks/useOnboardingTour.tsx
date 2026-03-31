@@ -56,41 +56,27 @@ export const useOnboardingTour = (tourConfig: TourConfig) => {
 
       if (status === STATUS.FINISHED || status === STATUS.SKIPPED) {
         // Mark tour as completed
-        const completedTours = JSON.parse(localStorage.getItem(TOUR_STORAGE_KEY) || '[]');
+        const completedTours = JSON.parse(
+          localStorage.getItem(TOUR_STORAGE_KEY) || '[]'
+        );
 
         if (!completedTours.includes(tourConfig.name)) {
           completedTours.push(tourConfig.name);
-          localStorage.setItem(TOUR_STORAGE_KEY, JSON.stringify(completedTours));
+          localStorage.setItem(
+            TOUR_STORAGE_KEY,
+            JSON.stringify(completedTours)
+          );
         }
 
         setRun(false);
         setStepIndex(0);
-        return;
-      }
-
-      // If a step target doesn't exist, Joyride can leave a grey overlay and block UI.
-      // Advance past missing targets to keep the tour usable.
-      if (type === EVENTS.TARGET_NOT_FOUND) {
-        const target = (tourConfig.steps?.[index] as any)?.target;
-        // eslint-disable-next-line no-console
-        console.warn(`[Tour:${tourConfig.name}] Target not found for step ${index}: ${String(target)}`);
-
-        const nextIndex = index + 1;
-        if (nextIndex >= (tourConfig.steps?.length || 0)) {
-          setRun(false);
-          setStepIndex(0);
-          return;
-        }
-
-        setStepIndex(nextIndex);
-        return;
-      }
-
-      if (type === EVENTS.STEP_AFTER) {
+      } else if (type === EVENTS.STEP_AFTER || type === EVENTS.TARGET_NOT_FOUND) {
+        // If a step target isn't in the DOM (or isn't visible), Joyride emits TARGET_NOT_FOUND.
+        // Advance so the tour never gets stuck behind the overlay.
         setStepIndex(index + (action === 'prev' ? -1 : 1));
       }
     },
-    [tourConfig.name, tourConfig.steps]
+    [tourConfig.name]
   );
 
   const startTour = useCallback(() => {
@@ -179,19 +165,17 @@ export const workflowEditorTourSteps: Step[] = [
     placement: 'bottom',
   },
   {
-    // Target the canvas (always present) so the user can click nodes.
-    // The config panel may be hidden until a node is selected.
-    target: '.react-flow__pane',
+    target: '[data-tour="config-panel"]',
     content: (
       <div>
-        <h3 style={{ margin: '0 0 8px 0' }}>⚙️ Configure Nodes</h3>
+        <h3 style={{ margin: '0 0 8px 0' }}>⚙️ Configuration Panel</h3>
         <p style={{ margin: 0 }}>
-          Click any node on the canvas to open its <strong>Configuration Panel</strong>.
-          That&apos;s where you edit fields, rules, and settings for the selected node.
+          When you click a node, configure its properties here.
+          Changes are saved automatically as you type.
         </p>
       </div>
     ),
-    placement: 'top',
+    placement: 'left',
     skipBeacon: true,
   },
   {
@@ -208,13 +192,7 @@ export const workflowEditorTourSteps: Step[] = [
           <li>Add more nodes and connect them</li>
           <li>Click <strong>Save</strong> when done</li>
         </ol>
-        <p
-          style={{
-            margin: '8px 0 0 0',
-            fontSize: '14px',
-            color: 'rgb(var(--color-text-secondary))',
-          }}
-        >
+        <p style={{ margin: '8px 0 0 0', fontSize: '14px', color: '#666' }}>
           💡 Press <code>Shift+?</code> anytime to see all keyboard shortcuts
         </p>
       </div>
@@ -303,12 +281,9 @@ export const tourOptions: Partial<Options> = {
   backgroundColor: 'rgb(var(--color-background))',
   arrowColor: 'rgb(var(--color-background))',
   overlayColor: 'rgba(0, 0, 0, 0.5)',
-  zIndex: 10050,
+  zIndex: 10000,
   showProgress: true,
   buttons: ['back', 'close', 'primary', 'skip'],
-  // Allow clicking the highlighted target and avoid overlay clicks ending the tour.
-  blockTargetInteraction: false,
-  overlayClickAction: false,
 };
 
 export const tourStyles: PartialDeep<Styles> = {

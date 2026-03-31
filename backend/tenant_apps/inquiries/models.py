@@ -342,6 +342,22 @@ class InquiryProduct(TenantAwareModel):
         blank=True,
         related_name='inquiry_lines'
     )
+    supplier = models.ForeignKey(
+        'suppliers.Supplier',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='inquiry_products',
+        help_text='Optional: supplier selected for this line (customer inquiries)',
+    )
+    plant = models.ForeignKey(
+        'plants.Plant',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='inquiry_products',
+        help_text='Optional: plant selected for this line (customer inquiries)',
+    )
     quantity = models.DecimalField(
         max_digits=12,
         decimal_places=2,
