@@ -9,6 +9,28 @@
 import { apiClient } from './apiService';
 import { config } from '../config/runtime';
 import { UserProfile } from '../types';
+
+const normalizeUserProfile = (raw: any): UserProfile => {
+  const isActive =
+    typeof raw?.is_active === 'boolean'
+      ? raw.is_active
+      : typeof raw?.isActive === 'boolean'
+        ? raw.isActive
+        : true;
+
+  return {
+    id: Number(raw?.id ?? 0),
+    username: String(raw?.username ?? ''),
+    email: String(raw?.email ?? ''),
+    first_name: String(raw?.first_name ?? ''),
+    last_name: String(raw?.last_name ?? ''),
+    is_active: isActive,
+    is_staff: typeof raw?.is_staff === 'boolean' ? raw.is_staff : undefined,
+    is_superuser: typeof raw?.is_superuser === 'boolean' ? raw.is_superuser : undefined,
+    role: raw?.role,
+    tenants: raw?.tenants,
+  };
+};
 import {
   storeTokens,
   clearTokens,
@@ -58,7 +80,7 @@ export class AuthService {
     const storedUser = localStorage.getItem('user');
     if (storedUser) {
       try {
-        this.user = JSON.parse(storedUser);
+        this.user = normalizeUserProfile(JSON.parse(storedUser));
       } catch (error) {
         console.error('Error parsing stored user data:', error);
         localStorage.removeItem('user');
@@ -79,8 +101,9 @@ export class AuthService {
       if (access && refresh) {
         // JWT login successful
         storeTokens(access, refresh);
-        this.user = user;
-        localStorage.setItem('user', JSON.stringify(user));
+        const normalizedUser = normalizeUserProfile(user);
+        this.user = normalizedUser;
+        localStorage.setItem('user', JSON.stringify(normalizedUser));
         
         // Store tenant information
         if (tenants && tenants.length > 0) {
@@ -91,7 +114,7 @@ export class AuthService {
         }
 
         console.debug('[Auth] JWT login successful');
-        return user;
+        return normalizedUser;
       }
       
       throw new Error('Invalid JWT response');
@@ -116,8 +139,9 @@ export class AuthService {
 
     // Store legacy token
     localStorage.setItem('authToken', token);
-    this.user = user;
-    localStorage.setItem('user', JSON.stringify(user));
+    const normalizedUser = normalizeUserProfile(user);
+    this.user = normalizedUser;
+    localStorage.setItem('user', JSON.stringify(normalizedUser));
     
     // Store tenant information
     if (tenants && tenants.length > 0) {
@@ -127,7 +151,7 @@ export class AuthService {
       localStorage.setItem('tenantSlug', primaryTenant.tenant__slug);
     }
 
-    return user;
+    return normalizedUser;
   }
 
   async signUp(credentials: SignUpCredentials): Promise<UserProfile> {
@@ -161,8 +185,9 @@ export class AuthService {
         localStorage.setItem('authToken', token);
       }
       
-      this.user = user;
-      localStorage.setItem('user', JSON.stringify(user));
+      const normalizedUser = normalizeUserProfile(user);
+      this.user = normalizedUser;
+      localStorage.setItem('user', JSON.stringify(normalizedUser));
 
       // CRITICAL FIX: Store the new tenant context immediately
       if (tenant) {
@@ -171,7 +196,7 @@ export class AuthService {
         localStorage.setItem('tenantSlug', tenant.slug);
       }
 
-      return user;
+      return normalizedUser;
     } catch (error: any) {
       // Enhanced error handling to capture validation errors
       const serverData = error.response?.data;
@@ -227,7 +252,7 @@ export class AuthService {
     const storedUser = localStorage.getItem('user');
     if (storedUser) {
       try {
-        this.user = JSON.parse(storedUser);
+        this.user = normalizeUserProfile(JSON.parse(storedUser));
         return this.user;
       } catch (error) {
         console.error('Error parsing stored user data:', error);

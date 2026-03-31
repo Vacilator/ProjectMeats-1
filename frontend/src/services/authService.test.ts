@@ -48,7 +48,7 @@ describe('AuthService', () => {
       
       const newService = new AuthService();
       expect(newService.getToken()).toBe('test-token');
-      expect(newService.getUser()).toEqual({ id: 1, username: 'test' });
+      expect(newService.getUser()).toEqual(expect.objectContaining({ id: 1, username: 'test' }));
     });
 
     it('handles invalid JSON in stored user gracefully', () => {
@@ -166,7 +166,7 @@ describe('AuthService', () => {
       
       const newService = new AuthService();
       const result = await newService.getCurrentUser();
-      expect(result).toEqual(user);
+      expect(result).toEqual(expect.objectContaining(user));
     });
   });
 });
