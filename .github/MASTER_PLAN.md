@@ -1445,3 +1445,4 @@ Deliverables:
 - 2026-03-31 — Docs: refresh canonical MASTER_PLAN runtime issues snapshot (mark suggest-nodes + chart warnings resolved) — PR: #4241.
 - 2026-03-31 — Email Ingestion Monitor: show reconnect CTA when Outlook not connected (error_code=not_connected) — PR: #4243.
 - 2026-03-31 — Ops: align test_document_upload diagnostic command to /api/v1/ai-assistant/ai-documents/ — PR: #4244.
+- 2026-03-31 — Workflows: DocumentUploadCard uses real ai-documents upload (fallback to simulated if endpoint missing) — PR: #4245.
