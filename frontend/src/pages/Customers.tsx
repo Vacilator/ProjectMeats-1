@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { logger } from '@/utils/logger';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
 import { useTheme } from '../contexts/ThemeContext';
@@ -38,8 +40,21 @@ interface CustomerContact {
 const Customers: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
-  const [customers, setCustomers] = useState<Customer[]>([]);
-  const [loading, setLoading] = useState(true);
+
+  const customersQuery = useQuery({
+    queryKey: ['customers'],
+    queryFn: apiService.getCustomers,
+  });
+
+  const customers = customersQuery.data ?? [];
+  const loading = customersQuery.isLoading;
+
+  useEffect(() => {
+    if (customersQuery.error) {
+      logger.error('[Customers] Error fetching customers:', customersQuery.error);
+    }
+  }, [customersQuery.error]);
+
   const [showForm, setShowForm] = useState(false);
   const [showEditForm, setShowEditForm] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
@@ -95,7 +110,6 @@ const Customers: React.FC = () => {
   }, [searchParams, setSearchParams]);
 
   useEffect(() => {
-    fetchCustomers();
     fetchProducts();
   }, []);
 
@@ -109,18 +123,6 @@ const Customers: React.FC = () => {
     }
   }, [formData.preferred_protein_types]);
 
-  const fetchCustomers = async () => {
-    try {
-      setLoading(true);
-      const data = await apiService.getCustomers();
-      setCustomers(data);
-    } catch (error) {
-      console.error('Error fetching customers:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const fetchProducts = async () => {
     try {
       const response = await apiClient.get('/system/products/', { params: { limit: 500 } });
@@ -129,7 +131,7 @@ const Customers: React.FC = () => {
         : (response.data.results || []);
       setProducts(productsData);
     } catch (error) {
-      console.error('Error fetching products:', error);
+      logger.error('[Customers] Error fetching products:', error);
     }
   };
 
@@ -142,7 +144,7 @@ const Customers: React.FC = () => {
       setProducts(data);
       // Note: Auto-select logic intentionally removed to improve UX
     } catch (error) {
-      console.error('Error fetching filtered products:', error);
+      logger.error('[Customers] Error fetching filtered products:', error);
     }
   };
 
@@ -291,7 +293,7 @@ const Customers: React.FC = () => {
       setShowEditForm(false);
       setEditingCustomer(null);
       resetForm();
-      fetchCustomers();
+      await customersQuery.refetch();
     } catch (error: unknown) {
       // Log detailed error information
       const err = error as Error & { response?: { status: number; data: unknown }; stack?: string };
@@ -332,7 +334,7 @@ const Customers: React.FC = () => {
       try {
         await apiService.deleteCustomer(id);
         alert('Customer deleted successfully!');
-        await fetchCustomers(); // Re-fetch to update the list
+        await customersQuery.refetch(); // Re-fetch to update the list
       } catch (error: unknown) {
         // Type-safe error handling: Use 'unknown' instead of 'any' and assert expected structure
         console.error('Error deleting customer:', error);
@@ -418,7 +420,7 @@ const Customers: React.FC = () => {
           entityType="customer"
           isOpen={showForm}
           onClose={() => setShowForm(false)}
-          onCreated={() => fetchCustomers()}
+          onCreated={() => { void customersQuery.refetch(); }}
         />
       )}
 
