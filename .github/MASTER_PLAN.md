@@ -1500,3 +1500,4 @@ Deliverables:
 - 2026-03-31 — CI/CD: hotfix Master Pipeline run-name startup failure (remove replace() expression; uat/main runs had 0 jobs) — PR: #4310.
 - 2026-03-31 — Note: the earlier "Pending work items (not shipped)" section is obsolete; see PRs #4306 and #4308.
 - 2026-03-31 — Auth: guest login UI (Try Demo as Guest) wired to /api/v1/auth/guest-login/ — PR: #4313.
+- 2026-03-31 — Docs: clarify historical pending items (handoff + Phase 5 execution summary) — PR: #4314.
