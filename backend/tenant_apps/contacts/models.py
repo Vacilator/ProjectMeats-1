@@ -5,8 +5,16 @@ Defines contact entities and related business logic.
 
 Implements tenant ForeignKey field for shared-schema multi-tenancy.
 """
+from django.contrib.postgres.fields import ArrayField
 from django.db import models
 from apps.core.models import ContactTypeChoices, PhoneTypeChoices, StatusChoices, TenantAwareModel
+
+
+class ContactDepartmentChoices(models.TextChoices):
+    SALES = 'sales', 'Sales'
+    QA = 'qa', 'Quality Assurance'
+    BOOKING = 'booking', 'Booking'
+    ACCOUNTING = 'accounting', 'Accounting'
 
 
 class Contact(TenantAwareModel):
@@ -77,7 +85,54 @@ class Contact(TenantAwareModel):
         max_length=100, blank=True, null=True, help_text="Job position or title"
     )
     
-    # Enhanced fields from Excel requirements
+    # Department-scoped contact fields (Grandparent→Parent→Child hierarchy)
+    department = models.CharField(
+        max_length=32,
+        choices=ContactDepartmentChoices.choices,
+        blank=True,
+        null=True,
+        default='',
+        help_text='Department this contact belongs to (Sales, QA, Booking, Accounting)',
+    )
+
+    mobile_phone = models.CharField(
+        max_length=20,
+        blank=True,
+        null=True,
+        default='',
+        help_text='Mobile phone number (optional)',
+    )
+    office_phone = models.CharField(
+        max_length=20,
+        blank=True,
+        null=True,
+        default='',
+        help_text='Office phone number (optional)',
+    )
+    office_phone_ext = models.CharField(
+        max_length=10,
+        blank=True,
+        null=True,
+        default='',
+        help_text='Office phone extension (optional)',
+    )
+
+    protein_types_responsible = ArrayField(
+        models.CharField(max_length=50),
+        blank=True,
+        null=True,
+        default=list,
+        help_text='Protein types this contact is responsible for (Sales only)',
+    )
+    items_responsible = ArrayField(
+        models.CharField(max_length=100),
+        blank=True,
+        null=True,
+        default=list,
+        help_text='Items this contact is responsible for (Sales only)',
+    )
+
+    # Enhanced fields from Excel requirements (legacy; kept for backward compatibility)
     contact_type = models.CharField(
         max_length=50,
         choices=ContactTypeChoices.choices,

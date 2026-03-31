@@ -381,6 +381,67 @@ class SystemFormSchemaView(APIView):
                 }
             )
 
+        canonical = entity_type_lower
+        if canonical in {
+            'supplier',
+            'suppliers',
+            'suppliers.supplier',
+            'tenant_apps.suppliers.supplier',
+        }:
+            return Response(
+                {
+                    'name': 'Supplier (Simplified)',
+                    'description': 'Simplified create/edit schema (HQ details only).',
+                    'fields': [
+                        {'key': 'name', 'label': 'Supplier Name', 'type': 'text', 'required': True, 'order': 0, 'ui': {}},
+                        {
+                            'key': 'address',
+                            'label': 'Headquarters Address',
+                            'type': 'textarea',
+                            'required': False,
+                            'order': 1,
+                            'ui': {'widget': 'textarea'},
+                        },
+                        {'key': 'city', 'label': 'Headquarters City', 'type': 'text', 'required': False, 'order': 2, 'ui': {}},
+                        {'key': 'state', 'label': 'Headquarters State', 'type': 'text', 'required': False, 'order': 3, 'ui': {}},
+                        {'key': 'zip_code', 'label': 'Headquarters ZIP Code', 'type': 'text', 'required': False, 'order': 4, 'ui': {}},
+                        {'key': 'country', 'label': 'Country', 'type': 'text', 'required': False, 'order': 5, 'ui': {}},
+                    ],
+                    'key_fields': ['name', 'address', 'city', 'state', 'zip_code', 'country'],
+                },
+                status=status.HTTP_200_OK,
+            )
+
+        if canonical in {
+            'customer',
+            'customers',
+            'customers.customer',
+            'tenant_apps.customers.customer',
+        }:
+            return Response(
+                {
+                    'name': 'Customer (Simplified)',
+                    'description': 'Simplified create/edit schema (HQ details only).',
+                    'fields': [
+                        {'key': 'name', 'label': 'Customer Name', 'type': 'text', 'required': True, 'order': 0, 'ui': {}},
+                        {
+                            'key': 'address',
+                            'label': 'Headquarters Address',
+                            'type': 'textarea',
+                            'required': False,
+                            'order': 1,
+                            'ui': {'widget': 'textarea'},
+                        },
+                        {'key': 'city', 'label': 'Headquarters City', 'type': 'text', 'required': False, 'order': 2, 'ui': {}},
+                        {'key': 'state', 'label': 'Headquarters State', 'type': 'text', 'required': False, 'order': 3, 'ui': {}},
+                        {'key': 'zip_code', 'label': 'Headquarters ZIP Code', 'type': 'text', 'required': False, 'order': 4, 'ui': {}},
+                        {'key': 'country', 'label': 'Country', 'type': 'text', 'required': False, 'order': 5, 'ui': {}},
+                    ],
+                    'key_fields': ['name', 'address', 'city', 'state', 'zip_code', 'country'],
+                },
+                status=status.HTTP_200_OK,
+            )
+
         # get_entity_fields already supports aliases like 'customer', 'supplier', etc.
         fields = get_entity_fields(entity_type)
         if not fields:
