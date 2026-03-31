@@ -775,7 +775,7 @@ const Suppliers: React.FC = () => {
 
       {showPlantModal && (
         <FormOverlay>
-          <FormContainer $theme={theme}>
+          <FormContainer $theme={theme} data-testid="plant-create-modal">
             <FormHeader $theme={theme}>
               <FormTitle $theme={theme}>Add New Plant</FormTitle>
               <CloseButton $theme={theme} onClick={() => setShowPlantModal(false)}>×</CloseButton>
@@ -941,7 +941,7 @@ const Suppliers: React.FC = () => {
 
       {showContactModal && (
         <FormOverlay>
-          <FormContainer $theme={theme}>
+          <FormContainer $theme={theme} data-testid="plant-contact-modal">
             <FormHeader $theme={theme}>
               <FormTitle $theme={theme}>Add Plant Contact</FormTitle>
               <CloseButton $theme={theme} onClick={() => setShowContactModal(false)}>×</CloseButton>
@@ -1082,6 +1082,7 @@ const Suppliers: React.FC = () => {
                 <React.Fragment key={supplier.id}>
                 <TableRow
                   key={supplier.id}
+                  data-testid={`supplier-row-${supplier.id}`}
                   $theme={theme}
                   onClick={() => void toggleSupplierDrilldown(supplier)}
                   role="button"
@@ -1135,7 +1136,12 @@ const Suppliers: React.FC = () => {
                           <ExpandedHeader>
                             <ExpandedTitle>Plants</ExpandedTitle>
                             <ExpandedActions>
-                              <SmallButton type="button" onClick={openCreatePlant} disabled={!selectedSupplierId}>
+                              <SmallButton
+                                data-testid="supplier-create-plant"
+                                type="button"
+                                onClick={openCreatePlant}
+                                disabled={!selectedSupplierId}
+                              >
                                 + New Plant
                               </SmallButton>
                               <SmallButton
@@ -1156,6 +1162,7 @@ const Suppliers: React.FC = () => {
                               {supplierPlants.map((plant) => (
                                 <ChildListItem
                                   key={plant.id}
+                                  data-testid={`plant-row-${plant.id}`}
                                   type="button"
                                   $active={selectedPlantId === plant.id}
                                   onClick={() => setSelectedPlantId(plant.id)}
@@ -1191,7 +1198,12 @@ const Suppliers: React.FC = () => {
                           <ExpandedHeader>
                             <ExpandedTitle>Plant Details & Contacts</ExpandedTitle>
                             <ExpandedActions>
-                              <SmallButton type="button" onClick={openCreatePlantContact} disabled={!selectedPlantId}>
+                              <SmallButton
+                                data-testid="plant-create-contact"
+                                type="button"
+                                onClick={openCreatePlantContact}
+                                disabled={!selectedPlantId}
+                              >
                                 + New Contact
                               </SmallButton>
                             </ExpandedActions>
