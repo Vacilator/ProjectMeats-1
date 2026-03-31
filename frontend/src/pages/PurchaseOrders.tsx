@@ -3,7 +3,7 @@ import { Skeleton } from 'antd';
 import { useLocation, useSearchParams } from 'react-router-dom';
 import styled from 'styled-components';
 import { confirmDialog, showAlert } from '@/utils/uiDialogs';
-import { apiService, PurchaseOrder, Supplier } from '../services/apiService';
+import { apiClient, apiService, PurchaseOrder, Supplier } from '../services/apiService';
 import { LocationSelector } from '../components/Shared';
 import PurchaseOrderWorkflow from '../components/Workflow/PurchaseOrderWorkflow';
 import { SmartProductAutocomplete } from '../components/Inquiry/SmartProductAutocomplete';
@@ -24,6 +24,12 @@ const Title = styled.h1`
   margin: 0;
 `;
 
+const HeaderActions = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 12px;
+`;
+
 const AddButton = styled.button`
   background: rgb(var(--color-primary));
   color: white;
@@ -38,6 +44,27 @@ const AddButton = styled.button`
   &:hover {
     background: rgb(var(--color-primary-hover));
     transform: translateY(-1px);
+  }
+`;
+
+const SecondaryButton = styled.button`
+  background: transparent;
+  color: rgb(var(--color-text-primary));
+  border: 1px solid rgb(var(--color-border));
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+
+  &:hover {
+    background: rgb(var(--color-surface-hover));
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
   }
 `;
 
@@ -535,6 +562,40 @@ const PurchaseOrders: React.FC = () => {
         { value: 'KG', label: 'KG' },
       ];
 
+  const [exporting, setExporting] = useState(false);
+
+  const exportToCsv = async () => {
+    try {
+      setExporting(true);
+
+      // Use backend streaming export (tenant-safe via get_queryset + filter_queryset)
+      const response = await apiClient.get('/purchase-orders/', {
+        params: { format: 'csv' },
+        responseType: 'blob',
+      });
+
+      const data = response.data as any;
+      const blob = data instanceof Blob ? data : new Blob([data]);
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `purchase_orders_${new Date().toISOString().split('T')[0]}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Error exporting purchase orders:', error);
+      showAlert({
+        title: 'Export Failed',
+        content: 'Could not export purchase orders. Please try again.',
+        type: 'error',
+      });
+    } finally {
+      setExporting(false);
+    }
+  };
+
   const loadData = async () => {
     try {
       setLoading(true);
@@ -773,7 +834,11 @@ const PurchaseOrders: React.FC = () => {
     <>
       <Header>
         <Title>Purchase Orders</Title>
-        <AddButton
+        <HeaderActions>
+          <SecondaryButton onClick={exportToCsv} disabled={exporting}>
+            {exporting ? 'Exporting...' : 'Export CSV'}
+          </SecondaryButton>
+          <AddButton
           onClick={() => {
             setFormData({
               order_number: getNextOrderNumber(),
@@ -803,7 +868,8 @@ const PurchaseOrders: React.FC = () => {
           }}
         >
           + Add Purchase Order
-        </AddButton>
+          </AddButton>
+        </HeaderActions>
       </Header>
 
       <StatsCards>

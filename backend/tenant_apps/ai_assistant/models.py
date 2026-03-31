@@ -13,7 +13,6 @@ from django.core.validators import FileExtensionValidator
 from django.db import models
 from django.utils import timezone
 
-from pgvector.django import VectorField
 
 from apps.core.models import OwnedModel, StatusModel, TenantAwareModel
 
@@ -248,7 +247,11 @@ class VectorMemory(TenantAwareModel):
     content = models.TextField(blank=True, default='')
     metadata = models.JSONField(default=dict, blank=True)
 
-    embedding = VectorField(dimensions=1536)
+    embedding = models.JSONField(
+        default=list,
+        blank=True,
+        help_text='Embedding vector as JSON array (pgvector optional).',
+    )
 
     class Meta:
         db_table = 'ai_assistant_vector_memory'
@@ -273,11 +276,11 @@ class TenantKnowledgeFact(TenantAwareModel):
         help_text='Optional domain label (e.g. ordering, invoicing, cold_storage)',
     )
     fact_text = models.TextField(help_text='Canonical tenant fact text')
-    embedding = VectorField(
-        dimensions=1536,
+    embedding = models.JSONField(
+        default=list,
         null=True,
         blank=True,
-        help_text='OpenAI text-embedding-3-small vector',
+        help_text='Embedding vector as JSON array (pgvector optional).',
     )
     is_active = models.BooleanField(default=True)
 
@@ -287,6 +290,38 @@ class TenantKnowledgeFact(TenantAwareModel):
         verbose_name_plural = 'Tenant Knowledge Facts'
         indexes = [
             models.Index(fields=['tenant', 'domain_category'], name='ai_kf_tenant_domain_idx'),
+        ]
+
+
+class TenantAIMemory(TenantAwareModel):
+    """Tenant-scoped long-term memory for durable rules/preferences.
+
+    This is distinct from AIFeedback (which is conversational corrections).
+    """
+
+    key = models.CharField(
+        max_length=128,
+        help_text='Stable key for upserts (e.g. vendor:acme:routing_rule)',
+    )
+    memory_text = models.TextField(blank=True, default='', help_text='Human-readable memory text')
+    memory_json = models.JSONField(default=dict, blank=True, help_text='Optional structured memory payload')
+    tags = models.JSONField(default=dict, blank=True)
+    embedding = models.JSONField(
+        default=list,
+        blank=True,
+        help_text='Embedding vector as JSON array (pgvector optional).',
+    )
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        db_table = 'ai_assistant_tenant_memory'
+        verbose_name = 'Tenant AI Memory'
+        verbose_name_plural = 'Tenant AI Memories'
+        constraints = [
+            models.UniqueConstraint(fields=['tenant', 'key'], name='unique_ai_memory_key_per_tenant'),
+        ]
+        indexes = [
+            models.Index(fields=['tenant', 'key'], name='ai_mem_tenant_key_idx'),
         ]
 
 
@@ -358,4 +393,54 @@ class AIDocument(TenantAwareModel):
         verbose_name_plural = 'AI Documents'
         indexes = [
             models.Index(fields=['tenant', 'owner', 'created_on'], name='aidoc_tnt_owner_created_idx'),
+        ]
+
+
+class CommunicationStatus(models.TextChoices):
+    DRAFT = 'draft', 'Draft'
+    SENT = 'sent', 'Sent'
+    CANCELLED = 'cancelled', 'Cancelled'
+    FAILED = 'failed', 'Failed'
+
+
+class CommunicationLog(TenantAwareModel):
+    """Tenant-scoped outbound communications staged by the AI assistant."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='communication_logs_created',
+    )
+
+    # Generic link to a vendor/customer/etc (supports UUID or int PKs; stored as string)
+    entity_type = models.CharField(max_length=32, default='supplier')
+    entity_id = models.CharField(max_length=64, blank=True, default='')
+
+    to_email = models.EmailField()
+    subject = models.CharField(max_length=300, default='')
+    body = models.TextField(default='')
+
+    provider = models.CharField(
+        max_length=32,
+        default='manual',
+        help_text='manual|outlook (send is always human-approved)',
+    )
+
+    status = models.CharField(max_length=16, choices=CommunicationStatus.choices, default=CommunicationStatus.DRAFT, db_index=True)
+
+    sent_at = models.DateTimeField(null=True, blank=True)
+    error_message = models.TextField(blank=True, default='')
+    metadata = models.JSONField(default=dict, blank=True)
+
+    class Meta:
+        db_table = 'ai_assistant_communication_logs'
+        verbose_name = 'Communication Log'
+        verbose_name_plural = 'Communication Logs'
+        indexes = [
+            models.Index(fields=['tenant', 'status', 'created_on'], name='ai_comms_tenant_status_idx'),
+            models.Index(fields=['tenant', 'entity_type', 'created_on'], name='ai_comms_tenant_entity_idx'),
         ]

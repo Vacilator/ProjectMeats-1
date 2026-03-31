@@ -6,6 +6,7 @@
  */
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { getAvailableWorkForms } from '@/services/workformsApi';
+import { getAccessToken } from '@/services/jwtService';
 import { showAlert } from '@/utils/uiDialogs';
 import {
   quickActionsService,
@@ -75,14 +76,16 @@ export const QuickActionsProvider: React.FC<QuickActionsProviderProps> = ({ chil
       setIsLoading(true);
       setError(null);
       
-      const [actionsResponse, formsResponse, workformsResponse] = await Promise.all([
+      const [actionsResult, formsResult, workformsResult] = await Promise.allSettled([
         quickActionsService.getQuickActions(),
         quickActionsService.getAvailableForms(),
         getAvailableWorkForms(),
       ]);
 
+      const actionsResponse = actionsResult.status === 'fulfilled' ? actionsResult.value : { items: [] };
       setQuickActions(actionsResponse.items || []);
 
+      const formsResponse = formsResult.status === 'fulfilled' ? formsResult.value : [];
       const legacyForms = (Array.isArray(formsResponse) ? formsResponse : [])
         .filter((item) => (item.type ?? 'form') === 'form')
         .map((item) => ({
@@ -90,20 +93,39 @@ export const QuickActionsProvider: React.FC<QuickActionsProviderProps> = ({ chil
           type: 'form' as const,
         }));
 
+      if (formsResult.status === 'rejected') {
+        console.warn('[QuickActions] Legacy available-forms failed; continuing with WorkForms only', formsResult.reason);
+      }
+
+      const workformsResponse = workformsResult.status === 'fulfilled' ? workformsResult.value : [];
       const workforms = (Array.isArray(workformsResponse) ? workformsResponse : [])
         .filter((wf) => wf.status === 'active' || wf.status === 'draft')
-        .map((wf) => ({
-          id: wf.id,
-          type: 'workflow' as const,
-          name: wf.name,
-          description: wf.description ?? '',
-          icon: 'layers',
-          status: wf.status,
-          is_default: false,
-          is_quick_action_enabled: true,
-          step_count: 0,
-          node_count: typeof wf.node_count === 'number' ? wf.node_count : 0,
-        }));
+        .map((wf) => {
+          const anyWf = wf as any;
+          const nodeCount =
+            typeof anyWf.node_count === 'number'
+              ? anyWf.node_count
+              : typeof anyWf.step_count === 'number'
+                ? anyWf.step_count
+                : 0;
+
+          return {
+            id: wf.id,
+            type: 'workflow' as const,
+            name: wf.name,
+            description: wf.description ?? '',
+            icon: 'layers',
+            status: wf.status,
+            is_default: false,
+            is_quick_action_enabled: true,
+            step_count: typeof anyWf.step_count === 'number' ? anyWf.step_count : 0,
+            node_count: nodeCount,
+          };
+        });
+
+      if (workformsResult.status === 'rejected') {
+        console.warn('[QuickActions] WorkForms list failed; continuing with legacy forms only', workformsResult.reason);
+      }
 
       const byKey = new Map<string, AvailableForm>();
       for (const item of [...legacyForms, ...workforms]) {
@@ -115,15 +137,15 @@ export const QuickActionsProvider: React.FC<QuickActionsProviderProps> = ({ chil
       setAvailableForms(combined);
     } catch (err: any) {
       console.error('Failed to load quick actions:', err);
-      setError(err.message || 'Failed to load quick actions');
+      setError(err?.message || 'Failed to load quick actions');
     } finally {
       setIsLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    // Only load if user is authenticated
-    const token = localStorage.getItem('authToken');
+    // Only load if user is authenticated (JWT or legacy token)
+    const token = getAccessToken();
     if (token) {
       refreshQuickActions();
     } else {

@@ -148,17 +148,24 @@ export const PaymentHistoryList: React.FC<PaymentHistoryListProps> = ({
       setError(null);
       
       const response = await apiClient.get('payments/', {
-        params: { [entityType]: entityId }
+        params: { [entityType]: entityId },
       });
-      
+
+      const raw: unknown = response.data;
+      const responseData: PaymentTransaction[] =
+        Array.isArray(raw) ? (raw as PaymentTransaction[]) : Array.isArray((raw as any)?.results) ? ((raw as any).results as PaymentTransaction[]) : [];
+
       // Sort by payment date (newest first)
-      const sortedPayments = response.data.sort((a: PaymentTransaction, b: PaymentTransaction) => {
-        return new Date(b.payment_date).getTime() - new Date(a.payment_date).getTime();
-      });
-      
+      const sortedPayments = responseData
+        .slice()
+        .sort((a: PaymentTransaction, b: PaymentTransaction) => {
+          return new Date(b.payment_date).getTime() - new Date(a.payment_date).getTime();
+        });
+
       setPayments(sortedPayments);
     } catch (err: unknown) {
       console.error('Error fetching payment history:', err);
+      setPayments([]);
       setError(getErrorMessage(err, 'Failed to load payment history'));
     } finally {
       setLoading(false);

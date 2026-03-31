@@ -153,7 +153,7 @@ const ProfileDropdown: React.FC<ProfileDropdownProps> = () => {
           {isAdmin && (
             <DropdownItem onClick={handleAdminClick} $theme={theme}>
               <ItemIcon>🔧</ItemIcon>
-              View as Admin
+              View Admin Database
             </DropdownItem>
           )}
 

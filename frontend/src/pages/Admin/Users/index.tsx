@@ -23,7 +23,7 @@ import { useToast } from '@/hooks/useToast';
 import { useAdminPermissions } from '@/hooks/useAdminPermissions';
 import { useHealth } from '@/hooks/useHealth';
 import { useAuth } from '@/contexts/AuthContext';
-import Modal from '@/components/Modal/Modal';
+import { Modal as AntModal } from 'antd';
 
 interface TenantUser {
   id: number;
@@ -689,7 +689,13 @@ const UsersPage: React.FC = () => {
         loading={bulkRevokeMutation.isPending}
       />
 
-      <Modal isOpen={showInviteModal} onClose={() => setShowInviteModal(false)} title="Invite User">
+      <AntModal
+        open={showInviteModal}
+        onCancel={() => setShowInviteModal(false)}
+        title="Invite User"
+        footer={null}
+        destroyOnClose
+      >
         {!emailEnabled && (
           <InlineWarning role="status">
             Email sending is disabled, so this invite will be created but no email will be delivered. Configure SendGrid
@@ -736,9 +742,15 @@ const UsersPage: React.FC = () => {
             </Button>
           </ButtonGroup>
         </Form>
-      </Modal>
+      </AntModal>
 
-      <Modal isOpen={showEditModal} onClose={() => setShowEditModal(false)} title="Edit Role">
+      <AntModal
+        open={showEditModal}
+        onCancel={() => setShowEditModal(false)}
+        title="Edit Role"
+        footer={null}
+        destroyOnClose
+      >
         <Form
           onSubmit={(e) => {
             e.preventDefault();
@@ -770,7 +782,7 @@ const UsersPage: React.FC = () => {
             </Button>
           </ButtonGroup>
         </Form>
-      </Modal>
+      </AntModal>
 
       <ConfirmDialog
         isOpen={showDeactivateConfirm}

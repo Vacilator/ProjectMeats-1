@@ -1,17 +1,61 @@
-"""
-Custom exception handler for ProjectMeats API.
+"""Custom exception handler for ProjectMeats API.
 
 Provides centralized error handling and logging for Django REST Framework.
+
+Sentry hardening: ensure 5xx errors are captured even when we return a
+friendly Response body.
 """
+
 import logging
-from rest_framework.views import exception_handler as drf_exception_handler
-from rest_framework.response import Response
-from rest_framework import status
+
 from django.core.exceptions import ValidationError as DjangoValidationError
-from django.http import Http404
 from django.db import DatabaseError
+from django.http import Http404
+from rest_framework import status
+from rest_framework.response import Response
+from rest_framework.views import exception_handler as drf_exception_handler
 
 logger = logging.getLogger(__name__)
+
+try:
+    import sentry_sdk
+except Exception:  # pragma: no cover
+    sentry_sdk = None
+
+
+def _capture_exception(exc, context, response_status: int | None = None) -> None:
+    if not sentry_sdk:
+        return
+
+    request = context.get("request")
+    view = context.get("view")
+
+    with sentry_sdk.push_scope() as scope:
+        if response_status is not None:
+            scope.set_tag("http.status_code", response_status)
+
+        if request is not None:
+            scope.set_tag("http.method", getattr(request, "method", "unknown"))
+            scope.set_tag("http.path", getattr(request, "path", "unknown"))
+
+            try:
+                if hasattr(request, "tenant") and request.tenant:
+                    scope.set_tag("tenant.id", str(request.tenant.id))
+                    scope.set_tag("tenant.slug", getattr(request.tenant, "slug", "unknown"))
+            except Exception:
+                pass
+
+            try:
+                user = getattr(request, "user", None)
+                if user and getattr(user, "is_authenticated", False):
+                    scope.set_user({"id": str(user.id), "username": getattr(user, "username", None)})
+            except Exception:
+                pass
+
+        if view is not None:
+            scope.set_tag("drf.view", view.__class__.__name__)
+
+        sentry_sdk.capture_exception(exc)
 
 
 def exception_handler(exc, context):
@@ -33,7 +77,7 @@ def exception_handler(exc, context):
         # Log the error with context
         view = context.get('view', None)
         request = context.get('request', None)
-        
+
         logger.error(
             f'API Error: {exc.__class__.__name__} - {str(exc)}',
             extra={
@@ -45,6 +89,10 @@ def exception_handler(exc, context):
             },
             exc_info=True
         )
+
+        if response.status_code >= 500:
+            _capture_exception(exc, context, response_status=response.status_code)
+
         return response
 
     # Handle Django validation errors
@@ -86,6 +134,9 @@ def exception_handler(exc, context):
             },
             exc_info=True
         )
+
+        _capture_exception(exc, context, response_status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
         return Response(
             {
                 'error': 'Database Error',
@@ -104,7 +155,9 @@ def exception_handler(exc, context):
         },
         exc_info=True
     )
-    
+
+    _capture_exception(exc, context, response_status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
     return Response(
         {
             'error': 'Internal Server Error',

@@ -901,6 +901,70 @@ class WorkflowExecutionLog(TenantAwareModel):
 
 
 # =============================================================================
+# WORKFORM EXECUTION (TenantWorkForm)
+# =============================================================================
+
+
+class TenantWorkFormExecutionStatus(models.TextChoices):
+    PENDING = 'pending', 'Pending'
+    IN_PROGRESS = 'in_progress', 'In Progress'
+    COMPLETED = 'completed', 'Completed'
+    FAILED = 'failed', 'Failed'
+    CANCELLED = 'cancelled', 'Cancelled'
+
+
+class TenantWorkFormExecution(TenantAwareModel):
+    """Execution record for apps.system.models.TenantWorkForm.
+
+    This is the persistence layer for AI-triggered or user-triggered WorkForm runs.
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
+    workform = models.ForeignKey(
+        'system.TenantWorkForm',
+        on_delete=models.CASCADE,
+        related_name='executions',
+        help_text='TenantWorkForm that was executed',
+    )
+
+    status = models.CharField(
+        max_length=20,
+        choices=TenantWorkFormExecutionStatus.choices,
+        default=TenantWorkFormExecutionStatus.PENDING,
+        db_index=True,
+        help_text='Current execution status',
+    )
+
+    initial_data = models.JSONField(default=dict, blank=True, help_text='Trigger/initial payload used to start execution')
+    context_data = models.JSONField(default=dict, blank=True, help_text='Execution context snapshot (variables, errors, outputs)')
+    audit_trail = models.JSONField(default=list, blank=True, help_text='Chronological log of node transitions and actions')
+
+    started_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='started_workform_executions',
+        help_text='User who started this execution (if applicable)',
+    )
+
+    started_at = models.DateTimeField(null=True, blank=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
+
+    error_message = models.TextField(blank=True, default='')
+
+    class Meta:
+        verbose_name = 'WorkForm Execution'
+        verbose_name_plural = 'WorkForm Executions'
+        ordering = ['-created_on']
+        indexes = [
+            models.Index(fields=['tenant', 'status']),
+            models.Index(fields=['tenant', 'workform']),
+        ]
+
+
+# =============================================================================
 # FORM SUBMISSION MODELS
 # =============================================================================
 

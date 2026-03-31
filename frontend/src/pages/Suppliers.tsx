@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { logger } from '@/utils/logger';
 
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { PhoneInput, Select } from '../components/ui';
 import { MultiSelect } from '../components/Shared';
-import QuickCreateModal from '../components/FormSubmission/QuickCreateModal';
+import EntityFormSurface from '../components/Shared/EntityFormSurface';
 import { US_STATES } from '../utils/constants/states';
-import { DEPARTMENT_CHOICES, PROTEIN_TYPE_CHOICES } from '../utils/constants/choices';
+import { CONTACT_DEPARTMENT_CHOICES, PROTEIN_TYPE_CHOICES } from '../utils/constants/choices';
 import styled from 'styled-components';
 import { apiService, apiClient, Supplier } from '../services/apiService';
 
@@ -15,6 +16,12 @@ interface SupplierPlant {
   name: string;
   code: string;
   plant_type?: string;
+  plant_est_num?: string;
+  address?: string;
+  city?: string;
+  state?: string;
+  zip_code?: string;
+  country?: string;
   manager?: string;
   email?: string;
   phone?: string;
@@ -36,8 +43,21 @@ const Suppliers: React.FC = () => {
   const { theme } = useTheme();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
-  const [loading, setLoading] = useState(true);
+
+  const suppliersQuery = useQuery({
+    queryKey: ['suppliers'],
+    queryFn: apiService.getSuppliers,
+  });
+
+  const suppliers = suppliersQuery.data ?? [];
+  const loading = suppliersQuery.isLoading;
+
+  useEffect(() => {
+    if (suppliersQuery.error) {
+      logger.error('[Suppliers] Error fetching suppliers:', suppliersQuery.error);
+    }
+  }, [suppliersQuery.error]);
+
   const [showForm, setShowForm] = useState(false);
   const [showEditForm, setShowEditForm] = useState(false);
   const [editingSupplier, setEditingSupplier] = useState<Supplier | null>(null);
@@ -53,32 +73,39 @@ const Suppliers: React.FC = () => {
   const [plantContacts, setPlantContacts] = useState<SupplierContact[]>([]);
   const [plantContactsLoading, setPlantContactsLoading] = useState(false);
 
+  const [showContactModal, setShowContactModal] = useState(false);
+  const [contactForm, setContactForm] = useState({
+    department: 'sales',
+    first_name: '',
+    last_name: '',
+    mobile_phone: '',
+    office_phone: '',
+    office_phone_ext: '',
+    email: '',
+    protein_types_responsible: [] as string[],
+    items_responsible: [] as string[],
+  });
+
   const [showPlantModal, setShowPlantModal] = useState(false);
   const [plantForm, setPlantForm] = useState({
     name: '',
     code: '',
+    plant_est_num: '',
     plant_type: 'processing',
-    manager: '',
-    email: '',
-    phone: '',
-  });
-
-  const [formData, setFormData] = useState({
-    name: '',
-    contact_person: '',
-    email: '',
-    phone: '',
     address: '',
     city: '',
     state: '',
     zip_code: '',
-    country: '',
-    departments_array: [] as string[], // Phase 4: ArrayField integration
-    preferred_protein_types: [] as string[], // NEW: Protein filtering
+    country: 'USA',
+    manager: '',
+    email: '',
+    phone: '',
   });
+  const [plantProductIds, setPlantProductIds] = useState<string[]>([]);
 
-  const [availableProductIds, setAvailableProductIds] = useState<string[]>([]);
-  const [initialAvailableProductIds, setInitialAvailableProductIds] = useState<string[]>([]);
+
+  const [supplierRollupProducts, setSupplierRollupProducts] = useState<Array<{ id: string; product_code: string; name?: string }>>([]);
+  const [supplierRollupLoading, setSupplierRollupLoading] = useState(false);
 
   // Auto-open form if ?action=create in URL
   useEffect(() => {
@@ -91,9 +118,17 @@ const Suppliers: React.FC = () => {
   }, [searchParams, setSearchParams]);
 
   useEffect(() => {
-    fetchSuppliers();
     fetchProducts();
   }, []);
+
+  useEffect(() => {
+    if (!selectedSupplierId) {
+      setSupplierRollupProducts([]);
+      return;
+    }
+
+    void loadSupplierProductsAvailableRollup(selectedSupplierId);
+  }, [selectedSupplierId]);
 
   // Debug: Log products state changes
   useEffect(() => {
@@ -107,30 +142,6 @@ const Suppliers: React.FC = () => {
     });
   }, [products]);
 
-  // Auto-fetch products when preferred_protein_types changes
-  useEffect(() => {
-    logger.debug('[Suppliers] Protein types changed:', formData.preferred_protein_types);
-    if (formData.preferred_protein_types && formData.preferred_protein_types.length > 0) {
-      fetchFilteredProducts(formData.preferred_protein_types);
-    } else {
-      // Reset to all products if no protein types selected
-      logger.debug('[Suppliers] No protein types selected, fetching all products');
-      fetchProducts();
-    }
-  }, [formData.preferred_protein_types]);
-
-  const fetchSuppliers = async () => {
-    try {
-      setLoading(true);
-      const data = await apiService.getSuppliers();
-      setSuppliers(data);
-    } catch (error) {
-      logger.error('Error fetching suppliers:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const fetchProducts = async () => {
     try {
       logger.debug('[Suppliers] Fetching products from system catalog...');
@@ -139,24 +150,6 @@ const Suppliers: React.FC = () => {
       setProducts(productsData);
     } catch (error) {
       logger.error('[Suppliers] Error fetching products:', error);
-      setProducts([]);
-    }
-  };
-
-  const fetchFilteredProducts = async (proteinTypes: string[]) => {
-    try {
-      logger.debug('[Suppliers] Fetching filtered products for protein types:', proteinTypes);
-
-      const response = await apiClient.get('/system/products/', {
-        params: { protein: proteinTypes.join(','), limit: 500 },
-      });
-      const data = Array.isArray(response.data) ? response.data : (response.data.results || []);
-      setProducts(data);
-
-      // Note: Auto-select logic intentionally removed to improve UX
-      logger.debug(`[Suppliers] Loaded ${data.length} product(s) for protein types:`, proteinTypes);
-    } catch (error) {
-      logger.error('[Suppliers] Error fetching filtered products:', error);
       setProducts([]);
     }
   };
@@ -212,6 +205,33 @@ const Suppliers: React.FC = () => {
     }
   };
 
+  const loadSupplierProductsAvailableRollup = async (supplierId: number) => {
+    try {
+      setSupplierRollupLoading(true);
+      const plantsResp = await apiClient.get('plants/', { params: { supplier: supplierId, is_active: true } });
+      const rawPlants = plantsResp.data as any;
+      const plants = Array.isArray(rawPlants) ? rawPlants : Array.isArray(rawPlants?.results) ? rawPlants.results : [];
+
+      const lists = await Promise.allSettled(
+        (plants || []).map((p: any) => apiClient.get(`/plants/${p.id}/available-products/`))
+      );
+      const merged = lists
+        .filter((r): r is PromiseFulfilledResult<any> => r.status === 'fulfilled')
+        .flatMap((r) => (Array.isArray(r.value.data) ? r.value.data : []));
+
+      const byId = new Map<string, any>();
+      merged.forEach((p: any) => {
+        if (p?.id && !byId.has(String(p.id))) byId.set(String(p.id), p);
+      });
+      setSupplierRollupProducts(Array.from(byId.values()));
+    } catch (error) {
+      logger.error('[Suppliers] Failed to load supplier products rollup:', error);
+      setSupplierRollupProducts([]);
+    } finally {
+      setSupplierRollupLoading(false);
+    }
+  };
+
   const toggleSupplierDrilldown = async (supplier: Supplier) => {
     if (selectedSupplierId === supplier.id) {
       setSelectedSupplierId(null);
@@ -234,37 +254,112 @@ const Suppliers: React.FC = () => {
     setPlantForm({
       name: '',
       code: '',
+      plant_est_num: '',
       plant_type: 'processing',
+      address: '',
+      city: '',
+      state: '',
+      zip_code: '',
+      country: 'USA',
       manager: '',
       email: '',
       phone: '',
     });
+    setPlantProductIds([]);
     setShowPlantModal(true);
   };
 
   const submitPlant = async () => {
     if (!selectedSupplierId) return;
 
-    if (!plantForm.name.trim() || !plantForm.code.trim()) {
-      alert('Plant name and code are required');
+    if (!plantForm.name.trim()) {
+      alert('Plant name is required');
       return;
     }
 
     try {
-      await apiClient.post('plants/', {
+      const resp = await apiClient.post('plants/', {
         supplier: selectedSupplierId,
         name: plantForm.name.trim(),
-        code: plantForm.code.trim(),
+        code: plantForm.code?.trim() || '',
+        plant_est_num: plantForm.plant_est_num?.trim() || '',
         plant_type: plantForm.plant_type,
+        address: plantForm.address,
+        city: plantForm.city,
+        state: plantForm.state,
+        zip_code: plantForm.zip_code,
+        country: plantForm.country,
         manager: plantForm.manager,
         email: plantForm.email,
         phone: plantForm.phone,
       });
+
+      const createdPlantId = resp?.data?.id as number | undefined;
+      if (createdPlantId && plantProductIds.length) {
+        await Promise.allSettled(
+          plantProductIds.map((productId) =>
+            apiClient.post(`/plants/${createdPlantId}/available-products/`, { product: productId })
+          )
+        );
+      }
+
       setShowPlantModal(false);
+      setPlantProductIds([]);
       await loadSupplierPlants(selectedSupplierId);
     } catch (error: unknown) {
       logger.error('[Suppliers] Failed to create plant:', error);
       alert('Failed to create plant');
+    }
+  };
+
+  const openCreatePlantContact = () => {
+    if (!selectedSupplierId || !selectedPlantId) return;
+    setContactForm({
+      department: 'sales',
+      first_name: '',
+      last_name: '',
+      mobile_phone: '',
+      office_phone: '',
+      office_phone_ext: '',
+      email: '',
+      protein_types_responsible: [],
+      items_responsible: [],
+    });
+    setShowContactModal(true);
+  };
+
+  const submitPlantContact = async () => {
+    if (!selectedSupplierId || !selectedPlantId) return;
+    if (!contactForm.first_name.trim() || !contactForm.last_name.trim()) {
+      alert('First name and last name are required');
+      return;
+    }
+
+    try {
+      const officePhone = (contactForm.office_phone || '').trim();
+      const mobilePhone = (contactForm.mobile_phone || '').trim();
+
+      await apiClient.post('contacts/', {
+        supplier: selectedSupplierId,
+        plant: selectedPlantId,
+        department: contactForm.department,
+        first_name: contactForm.first_name.trim(),
+        last_name: contactForm.last_name.trim(),
+        email: contactForm.email || null,
+        mobile_phone: contactForm.mobile_phone,
+        office_phone: contactForm.office_phone,
+        office_phone_ext: contactForm.office_phone_ext,
+        protein_types_responsible: contactForm.protein_types_responsible,
+        items_responsible: contactForm.items_responsible,
+        phone: officePhone || mobilePhone || '',
+        phone_type: officePhone ? 'office' : mobilePhone ? 'mobile' : 'office',
+      });
+
+      setShowContactModal(false);
+      await loadPlantContacts(selectedPlantId);
+    } catch (error) {
+      logger.error('[Suppliers] Failed to create contact:', error);
+      alert('Failed to create contact');
     }
   };
 
@@ -281,98 +376,9 @@ const Suppliers: React.FC = () => {
     void loadPlantContacts(selectedPlantId);
   }, [selectedPlantId]);
 
-  const loadSupplierAvailableProductIds = async (supplierId: number) => {
-    try {
-      const response = await apiClient.get(`/suppliers/${supplierId}/products/`);
-      const items = Array.isArray(response.data) ? response.data : [];
-      const activeIds = items
-        .filter((it) => it && it.is_active !== false)
-        .map((it) => String(it.product))
-        .filter(Boolean);
-      setAvailableProductIds(activeIds);
-      setInitialAvailableProductIds(activeIds);
-    } catch (error) {
-      logger.error('[Suppliers] Failed to load supplier available products:', error);
-      setAvailableProductIds([]);
-      setInitialAvailableProductIds([]);
-    }
-  };
-
-  const syncSupplierAvailableProducts = async (supplierId: number, desiredProductIds: string[]) => {
-    const desired = new Set(desiredProductIds.map(String));
-    const initial = new Set(initialAvailableProductIds.map(String));
-
-    const toAdd = [...desired].filter((id) => !initial.has(id));
-    const toRemove = [...initial].filter((id) => !desired.has(id));
-
-    if (!toAdd.length && !toRemove.length) return;
-
-    await Promise.all([
-      ...toAdd.map((productId) => apiClient.post(`/suppliers/${supplierId}/available-products/`, { product: productId })),
-      ...toRemove.map((productId) => apiClient.delete(`/suppliers/${supplierId}/available-products/${productId}/`)),
-    ]);
-
-    setInitialAvailableProductIds(desiredProductIds);
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      let supplierId: number;
-
-      if (editingSupplier) {
-        const updated = await apiService.updateSupplier(editingSupplier.id, formData);
-        supplierId = updated.id;
-      } else {
-        const created = await apiService.createSupplier(formData);
-        supplierId = created.id;
-      }
-
-      try {
-        await syncSupplierAvailableProducts(supplierId, availableProductIds);
-      } catch (error) {
-        logger.error('[Suppliers] Supplier saved but product sync failed:', error);
-        alert('Supplier saved, but products could not be updated. Please try again from the supplier Products page.');
-      }
-
-      setShowEditForm(false);
-      setEditingSupplier(null);
-      resetForm();
-      fetchSuppliers();
-    } catch (error: unknown) {
-      const err = error as Error;
-      const errorMessage = err.message || 'An unexpected error occurred. Please try again.';
-
-      logger.error('[Suppliers] Error saving supplier:', {
-        message: errorMessage,
-        error: err,
-        action: editingSupplier ? 'update' : 'create',
-      });
-
-      alert(errorMessage);
-    }
-  };
-
   const handleEdit = (supplier: Supplier) => {
     setEditingSupplier(supplier);
-    setFormData({
-      name: supplier.name,
-      contact_person: supplier.contact_person || '',
-      email: supplier.email || '',
-      phone: supplier.phone || '',
-      address: supplier.address || '',
-      city: supplier.city || '',
-      state: supplier.state || '',
-      zip_code: supplier.zip_code || '',
-      country: supplier.country || '',
-      departments_array: supplier.departments_array || [], // Phase 4: Populate array
-      preferred_protein_types: supplier.preferred_protein_types || [], // NEW: Populate protein types
-    });
-
-    setAvailableProductIds([]);
-    setInitialAvailableProductIds([]);
     setShowEditForm(true);
-    void loadSupplierAvailableProductIds(supplier.id);
   };
 
   const handleDelete = async (id: number) => {
@@ -380,7 +386,7 @@ const Suppliers: React.FC = () => {
       try {
         await apiService.deleteSupplier(id);
         alert('Supplier deleted successfully!');
-        await fetchSuppliers(); // Re-fetch to update the list
+        await suppliersQuery.refetch(); // Re-fetch to update the list
       } catch (error: unknown) {
         // Type-safe error handling: Use 'unknown' instead of 'any' and assert expected structure
         // This ensures we handle errors safely while maintaining type checking
@@ -395,30 +401,6 @@ const Suppliers: React.FC = () => {
     }
   };
 
-  const resetForm = () => {
-    setFormData({
-      name: '',
-      contact_person: '',
-      email: '',
-      phone: '',
-      address: '',
-      city: '',
-      state: '',
-      zip_code: '',
-      country: '',
-      departments_array: [], // Phase 4: Reset array
-      preferred_protein_types: [], // NEW: Reset protein types
-    });
-    setAvailableProductIds([]);
-    setInitialAvailableProductIds([]);
-  };
-
-  const handleCancel = () => {
-    setShowForm(false);
-    setShowEditForm(false);
-    setEditingSupplier(null);
-    resetForm();
-  };
 
   if (loading) {
     return <LoadingContainer $theme={theme}>Loading suppliers...</LoadingContainer>;
@@ -464,177 +446,39 @@ const Suppliers: React.FC = () => {
       </TableControls>
 
       {showForm && (
-        <QuickCreateModal
+        <EntityFormSurface
           entityType="supplier"
+          mode="create"
           isOpen={showForm}
           onClose={() => setShowForm(false)}
-          onCreated={() => fetchSuppliers()}
+          onSuccess={() => {
+            setShowForm(false);
+            void suppliersQuery.refetch();
+          }}
         />
       )}
 
-      {showEditForm && (
-        <FormOverlay>
-          <FormContainer $theme={theme}>
-            <FormHeader $theme={theme}>
-              <FormTitle $theme={theme}>Edit Supplier</FormTitle>
-              <CloseButton $theme={theme} onClick={handleCancel}>×</CloseButton>
-            </FormHeader>
-
-            <Form onSubmit={handleSubmit}>
-              <FormGrid>
-                <FormGroup>
-                  <Label $theme={theme}>Company Name *</Label>
-                  <Input
-                    $theme={theme}
-                    type="text"
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    required
-                  />
-                </FormGroup>
-
-                <FormGroup>
-                  <Label $theme={theme}>Contact Person</Label>
-                  <Input
-                    $theme={theme}
-                    type="text"
-                    value={formData.contact_person}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        contact_person: e.target.value,
-                      })
-                    }
-                  />
-                </FormGroup>
-
-                <FormGroup>
-                  <Label $theme={theme}>Email</Label>
-                  <Input
-                    $theme={theme}
-                    type="email"
-                    value={formData.email}
-                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  />
-                </FormGroup>
-
-                <FormGroup>
-                  <Label $theme={theme}>Phone</Label>
-                  <PhoneInput
-                    value={formData.phone}
-                    onChange={(value) => setFormData({ ...formData, phone: value })}
-                    placeholder="(XXX)XXX-XXXX"
-                    aria-label="Phone number"
-                  />
-                </FormGroup>
-
-                <FormGroup $fullWidth>
-                  <Label $theme={theme}>Address</Label>
-                  <Input
-                    $theme={theme}
-                    type="text"
-                    value={formData.address}
-                    onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                  />
-                </FormGroup>
-
-                <FormGroup>
-                  <Label $theme={theme}>City</Label>
-                  <Input
-                    $theme={theme}
-                    type="text"
-                    value={formData.city}
-                    onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-                  />
-                </FormGroup>
-
-                <FormGroup>
-                  <Label $theme={theme}>State</Label>
-                  <Select
-                    value={formData.state}
-                    onChange={(value) => setFormData({ ...formData, state: value })}
-                    options={US_STATES}
-                    placeholder="Select state"
-                    aria-label="State"
-                  />
-                </FormGroup>
-
-                <FormGroup>
-                  <Label $theme={theme}>ZIP Code</Label>
-                  <Input
-                    $theme={theme}
-                    type="text"
-                    value={formData.zip_code}
-                    onChange={(e) => {
-                      const value = e.target.value.replace(/\D/g, '').slice(0, 5);
-                      setFormData({ ...formData, zip_code: value });
-                    }}
-                    maxLength={5}
-                    pattern="^\d{5}$"
-                    placeholder="12345"
-                  />
-                </FormGroup>
-
-                <FormGroup>
-                  <Label $theme={theme}>Country</Label>
-                  <Input
-                    $theme={theme}
-                    type="text"
-                    value={formData.country}
-                    onChange={(e) => setFormData({ ...formData, country: e.target.value })}
-                  />
-                </FormGroup>
-
-                <FormGroup $fullWidth>
-                  <MultiSelect
-                    value={formData.departments_array}
-                    onChange={(values) => setFormData({ ...formData, departments_array: values })}
-                    options={DEPARTMENT_CHOICES}
-                    label="Departments"
-                    placeholder="Select departments (hold Ctrl/Cmd for multiple)"
-                  />
-                </FormGroup>
-
-                <FormGroup $fullWidth>
-                  <MultiSelect
-                    value={formData.preferred_protein_types}
-                    onChange={(values) => setFormData({ ...formData, preferred_protein_types: values })}
-                    options={PROTEIN_TYPE_CHOICES}
-                    label="Preferred Protein Types"
-                    placeholder="Select protein types (hold Ctrl/Cmd for multiple)"
-                  />
-                </FormGroup>
-
-                <FormGroup $fullWidth>
-                  <MultiSelect
-                    value={availableProductIds}
-                    onChange={(values) => setAvailableProductIds(values.map(String))}
-                    options={Array.isArray(products) ? products.map(p => ({
-                      value: String(p.id),
-                      label: `${p.product_code} - ${p.effective_name || p.product_name || p.name || 'Unknown'}`
-                    })) : []}
-                    label="Available Products"
-                    placeholder="Select products this supplier can provide"
-                  />
-                </FormGroup>
-              </FormGrid>
-
-              <FormActions>
-                <CancelButton type="button" onClick={handleCancel}>
-                  Cancel
-                </CancelButton>
-                <SubmitButton type="submit">
-                  {editingSupplier ? 'Update' : 'Create'} Supplier
-                </SubmitButton>
-              </FormActions>
-            </Form>
-          </FormContainer>
-        </FormOverlay>
+      {showEditForm && editingSupplier && (
+        <EntityFormSurface
+          entityType="supplier"
+          mode="edit"
+          entityId={editingSupplier.id}
+          isOpen={showEditForm}
+          onClose={() => {
+            setShowEditForm(false);
+            setEditingSupplier(null);
+          }}
+          onSuccess={() => {
+            setShowEditForm(false);
+            setEditingSupplier(null);
+            void suppliersQuery.refetch();
+          }}
+        />
       )}
 
       {showPlantModal && (
         <FormOverlay>
-          <FormContainer $theme={theme}>
+          <FormContainer $theme={theme} data-testid="plant-create-modal">
             <FormHeader $theme={theme}>
               <FormTitle $theme={theme}>Add New Plant</FormTitle>
               <CloseButton $theme={theme} onClick={() => setShowPlantModal(false)}>×</CloseButton>
@@ -654,30 +498,92 @@ const Suppliers: React.FC = () => {
                 </FormGroup>
 
                 <FormGroup>
-                  <Label $theme={theme}>Code *</Label>
+                  <Label $theme={theme}>Plant Est. #</Label>
+                  <Input
+                    $theme={theme}
+                    type="text"
+                    value={plantForm.plant_est_num}
+                    onChange={(e) => setPlantForm((p) => ({ ...p, plant_est_num: e.target.value }))}
+                  />
+                </FormGroup>
+
+                <FormGroup>
+                  <Label $theme={theme}>Plant Type</Label>
+                  <Select
+                    value={plantForm.plant_type}
+                    onChange={(value) => setPlantForm((p) => ({ ...p, plant_type: value }))}
+                    options={[
+                      { value: 'vertical', label: 'Vertical (Kill to Capture)' },
+                      { value: 'processing', label: 'Processing Plant' },
+                      { value: 'distribution', label: 'Distribution Center' },
+                      { value: 'warehouse', label: 'Warehouse' },
+                      { value: 'retail', label: 'Retail Location' },
+                      { value: 'other', label: 'Other' },
+                    ]}
+                    placeholder="Select plant type"
+                    aria-label="Plant type"
+                  />
+                </FormGroup>
+
+                <FormGroup>
+                  <Label $theme={theme}>Code</Label>
                   <Input
                     $theme={theme}
                     type="text"
                     value={plantForm.code}
                     onChange={(e) => setPlantForm((p) => ({ ...p, code: e.target.value }))}
-                    required
+                    placeholder="Optional (auto-generated if blank)"
+                  />
+                </FormGroup>
+
+                <FormGroup $fullWidth>
+                  <Label $theme={theme}>Plant Address</Label>
+                  <Input
+                    $theme={theme}
+                    type="text"
+                    value={plantForm.address}
+                    onChange={(e) => setPlantForm((p) => ({ ...p, address: e.target.value }))}
                   />
                 </FormGroup>
 
                 <FormGroup>
-                  <Label $theme={theme}>Type</Label>
+                  <Label $theme={theme}>Plant City</Label>
+                  <Input
+                    $theme={theme}
+                    type="text"
+                    value={plantForm.city}
+                    onChange={(e) => setPlantForm((p) => ({ ...p, city: e.target.value }))}
+                  />
+                </FormGroup>
+
+                <FormGroup>
+                  <Label $theme={theme}>Plant State</Label>
                   <Select
-                    value={plantForm.plant_type}
-                    onChange={(value) => setPlantForm((p) => ({ ...p, plant_type: value }))}
-                    options={[
-                      { value: 'processing', label: 'Processing' },
-                      { value: 'distribution', label: 'Distribution' },
-                      { value: 'warehouse', label: 'Warehouse' },
-                      { value: 'retail', label: 'Retail' },
-                      { value: 'other', label: 'Other' },
-                    ]}
-                    placeholder="Select type"
-                    aria-label="Plant type"
+                    value={plantForm.state}
+                    onChange={(value) => setPlantForm((p) => ({ ...p, state: value }))}
+                    options={US_STATES}
+                    placeholder="Select state"
+                    aria-label="Plant state"
+                  />
+                </FormGroup>
+
+                <FormGroup>
+                  <Label $theme={theme}>Plant ZIP Code</Label>
+                  <Input
+                    $theme={theme}
+                    type="text"
+                    value={plantForm.zip_code}
+                    onChange={(e) => setPlantForm((p) => ({ ...p, zip_code: e.target.value }))}
+                  />
+                </FormGroup>
+
+                <FormGroup>
+                  <Label $theme={theme}>Country</Label>
+                  <Input
+                    $theme={theme}
+                    type="text"
+                    value={plantForm.country}
+                    onChange={(e) => setPlantForm((p) => ({ ...p, country: e.target.value }))}
                   />
                 </FormGroup>
 
@@ -710,6 +616,19 @@ const Suppliers: React.FC = () => {
                     aria-label="Plant phone"
                   />
                 </FormGroup>
+
+                <FormGroup $fullWidth>
+                  <MultiSelect
+                    value={plantProductIds}
+                    onChange={(values) => setPlantProductIds(values.map(String))}
+                    options={Array.isArray(products) ? products.map(p => ({
+                      value: String(p.id),
+                      label: `${p.product_code} - ${p.effective_name || p.product_name || p.name || 'Unknown'}`
+                    })) : []}
+                    label="Plant Products List"
+                    placeholder="Select products this plant handles"
+                  />
+                </FormGroup>
               </FormGrid>
 
               <FormActions>
@@ -717,6 +636,125 @@ const Suppliers: React.FC = () => {
                   Cancel
                 </CancelButton>
                 <SubmitButton type="submit">Create Plant</SubmitButton>
+              </FormActions>
+            </Form>
+          </FormContainer>
+        </FormOverlay>
+      )}
+
+      {showContactModal && (
+        <FormOverlay>
+          <FormContainer $theme={theme} data-testid="plant-contact-modal">
+            <FormHeader $theme={theme}>
+              <FormTitle $theme={theme}>Add Plant Contact</FormTitle>
+              <CloseButton $theme={theme} onClick={() => setShowContactModal(false)}>×</CloseButton>
+            </FormHeader>
+
+            <Form onSubmit={(e) => { e.preventDefault(); void submitPlantContact(); }}>
+              <FormGrid>
+                <FormGroup>
+                  <Label $theme={theme}>Department</Label>
+                  <Select
+                    value={contactForm.department}
+                    onChange={(value) => setContactForm((p) => ({ ...p, department: value }))}
+                    options={CONTACT_DEPARTMENT_CHOICES}
+                    placeholder="Select department"
+                    aria-label="Department"
+                  />
+                </FormGroup>
+
+                <FormGroup>
+                  <Label $theme={theme}>First Name *</Label>
+                  <Input
+                    $theme={theme}
+                    type="text"
+                    value={contactForm.first_name}
+                    onChange={(e) => setContactForm((p) => ({ ...p, first_name: e.target.value }))}
+                    required
+                  />
+                </FormGroup>
+
+                <FormGroup>
+                  <Label $theme={theme}>Last Name *</Label>
+                  <Input
+                    $theme={theme}
+                    type="text"
+                    value={contactForm.last_name}
+                    onChange={(e) => setContactForm((p) => ({ ...p, last_name: e.target.value }))}
+                    required
+                  />
+                </FormGroup>
+
+                <FormGroup>
+                  <Label $theme={theme}>Email</Label>
+                  <Input
+                    $theme={theme}
+                    type="email"
+                    value={contactForm.email}
+                    onChange={(e) => setContactForm((p) => ({ ...p, email: e.target.value }))}
+                  />
+                </FormGroup>
+
+                <FormGroup>
+                  <Label $theme={theme}>Mobile Phone</Label>
+                  <PhoneInput
+                    value={contactForm.mobile_phone}
+                    onChange={(value) => setContactForm((p) => ({ ...p, mobile_phone: value }))}
+                    placeholder="(XXX)XXX-XXXX"
+                    aria-label="Mobile phone"
+                  />
+                </FormGroup>
+
+                <FormGroup>
+                  <Label $theme={theme}>Office Phone</Label>
+                  <PhoneInput
+                    value={contactForm.office_phone}
+                    onChange={(value) => setContactForm((p) => ({ ...p, office_phone: value }))}
+                    placeholder="(XXX)XXX-XXXX"
+                    aria-label="Office phone"
+                  />
+                </FormGroup>
+
+                <FormGroup>
+                  <Label $theme={theme}>Office EXT</Label>
+                  <Input
+                    $theme={theme}
+                    type="text"
+                    value={contactForm.office_phone_ext}
+                    onChange={(e) => setContactForm((p) => ({ ...p, office_phone_ext: e.target.value }))}
+                    placeholder="e.g., 123"
+                  />
+                </FormGroup>
+
+                <FormGroup $fullWidth>
+                  <MultiSelect
+                    value={contactForm.protein_types_responsible}
+                    onChange={(values) => setContactForm((p) => ({ ...p, protein_types_responsible: values }))}
+                    options={PROTEIN_TYPE_CHOICES}
+                    label="Protein Type Responsible For"
+                    placeholder="Select protein types"
+                  />
+                </FormGroup>
+
+                <FormGroup $fullWidth>
+                  <MultiSelect
+                    value={contactForm.items_responsible}
+                    onChange={(values) => setContactForm((p) => ({ ...p, items_responsible: values.map(String) }))}
+                    options={Array.isArray(products) ? products.map(p => ({
+                      value: String(p.id),
+                      label: `${p.product_code} - ${p.effective_name || p.product_name || p.name || 'Unknown'}`
+                    })) : []}
+                    label="Products Responsible For"
+                    placeholder="Select products"
+                  />
+                </FormGroup>
+              </FormGrid>
+
+              <FormActions>
+                <CancelButton type="button" onClick={() => setShowContactModal(false)}>
+                  Cancel
+                </CancelButton>
+                <SubmitButton type="submit">Create Contact</SubmitButton>
               </FormActions>
             </Form>
           </FormContainer>
@@ -747,6 +785,7 @@ const Suppliers: React.FC = () => {
                 <React.Fragment key={supplier.id}>
                 <TableRow
                   key={supplier.id}
+                  data-testid={`supplier-row-${supplier.id}`}
                   $theme={theme}
                   onClick={() => void toggleSupplierDrilldown(supplier)}
                   role="button"
@@ -760,7 +799,7 @@ const Suppliers: React.FC = () => {
                   }}
                 >
                   <TableCell $theme={theme}>
-                    <CompanyButton $theme={theme}>
+                    <CompanyButton $theme={theme} $selected={selectedSupplierId === supplier.id}>
                       <CompanyName $theme={theme}>{supplier.name}</CompanyName>
                       <CompanyChevron aria-hidden="true">{selectedSupplierId === supplier.id ? '▾' : '▸'}</CompanyChevron>
                     </CompanyButton>
@@ -800,12 +839,17 @@ const Suppliers: React.FC = () => {
                           <ExpandedHeader>
                             <ExpandedTitle>Plants</ExpandedTitle>
                             <ExpandedActions>
-                              <SmallButton type="button" onClick={openCreatePlant} disabled={!selectedSupplierId}>
+                              <SmallButton
+                                data-testid="supplier-create-plant"
+                                type="button"
+                                onClick={openCreatePlant}
+                                disabled={!selectedSupplierId}
+                              >
                                 + New Plant
                               </SmallButton>
                               <SmallButton
                                 type="button"
-                                onClick={() => navigate('/suppliers/plants', { state: { supplierId: supplier.id } })}
+                                onClick={() => navigate(`/suppliers/${supplier.id}/plants`)}
                               >
                                 Manage
                               </SmallButton>
@@ -821,6 +865,7 @@ const Suppliers: React.FC = () => {
                               {supplierPlants.map((plant) => (
                                 <ChildListItem
                                   key={plant.id}
+                                  data-testid={`plant-row-${plant.id}`}
                                   type="button"
                                   $active={selectedPlantId === plant.id}
                                   onClick={() => setSelectedPlantId(plant.id)}
@@ -834,15 +879,61 @@ const Suppliers: React.FC = () => {
                               ))}
                             </ChildList>
                           )}
+
+                          <MetaCard>
+                            <MetaRow>
+                              <MetaKey>Products Available</MetaKey>
+                              <MetaValue>{supplierRollupLoading ? 'Loading…' : `${supplierRollupProducts.length}`}</MetaValue>
+                            </MetaRow>
+                            {!supplierRollupLoading && supplierRollupProducts.length ? (
+                              <ChildListMeta>
+                                {supplierRollupProducts.slice(0, 40).map((p) => (
+                                  <span key={String(p.id)}>{p.product_code}</span>
+                                ))}
+                              </ChildListMeta>
+                            ) : !supplierRollupLoading ? (
+                              <ExpandedHint>No plant products found.</ExpandedHint>
+                            ) : null}
+                          </MetaCard>
                         </ExpandedColumn>
 
                         <ExpandedColumn>
                           <ExpandedHeader>
                             <ExpandedTitle>Plant Details & Contacts</ExpandedTitle>
+                            <ExpandedActions>
+                              <SmallButton
+                                data-testid="plant-create-contact"
+                                type="button"
+                                onClick={openCreatePlantContact}
+                                disabled={!selectedPlantId}
+                              >
+                                + New Contact
+                              </SmallButton>
+                            </ExpandedActions>
                           </ExpandedHeader>
 
                           {selectedPlant ? (
                             <MetaCard>
+                              <MetaRow>
+                                <MetaKey>Plant Est. #</MetaKey>
+                                <MetaValue>{selectedPlant.plant_est_num || '—'}</MetaValue>
+                              </MetaRow>
+                              <MetaRow>
+                                <MetaKey>Plant Type</MetaKey>
+                                <MetaValue>{selectedPlant.plant_type || '—'}</MetaValue>
+                              </MetaRow>
+                              <MetaRow>
+                                <MetaKey>Address</MetaKey>
+                                <MetaValue>{selectedPlant.address || '—'}</MetaValue>
+                              </MetaRow>
+                              <MetaRow>
+                                <MetaKey>City/State/ZIP</MetaKey>
+                                <MetaValue>
+                                  {selectedPlant.city || selectedPlant.state || selectedPlant.zip_code
+                                    ? `${selectedPlant.city || ''}${selectedPlant.city && selectedPlant.state ? ', ' : ''}${selectedPlant.state || ''}${(selectedPlant.city || selectedPlant.state) && selectedPlant.zip_code ? ' ' : ''}${selectedPlant.zip_code || ''}`.trim()
+                                    : '—'}
+                                </MetaValue>
+                              </MetaRow>
                               <MetaRow>
                                 <MetaKey>Manager</MetaKey>
                                 <MetaValue>{selectedPlant.manager || '—'}</MetaValue>
@@ -881,25 +972,8 @@ const Suppliers: React.FC = () => {
                                 ))}
                               </ContactsList>
                             )
-                          ) : contactsLoading ? (
-                            <ExpandedHint>Loading contacts…</ExpandedHint>
-                          ) : supplierContacts.length === 0 ? (
-                            <ExpandedHint>No contacts found for this supplier.</ExpandedHint>
                           ) : (
-                            <ContactsList>
-                              {supplierContacts.map((c) => (
-                                <ContactRow key={c.id}>
-                                  <ContactName>
-                                    {c.first_name} {c.last_name}
-                                  </ContactName>
-                                  <ContactMeta>
-                                    {c.position ? <span>{c.position}</span> : null}
-                                    {c.email ? <span>{c.email}</span> : null}
-                                    {c.phone ? <span>{c.phone}</span> : null}
-                                  </ContactMeta>
-                                </ContactRow>
-                              ))}
-                            </ContactsList>
+                            <ExpandedHint>Select a plant to view its contacts.</ExpandedHint>
                           )}
                         </ExpandedColumn>
                       </ExpandedPanel>
@@ -1213,14 +1287,14 @@ const TableCell = styled.td<{ $theme: Theme }>`
   color: ${(props) => props.$theme.colors.textPrimary};
 `;
 
-const CompanyButton = styled.div<{ $theme: Theme }>`
+const CompanyButton = styled.div<{ $theme: Theme; $selected: boolean }>`
   display: inline-flex;
   align-items: center;
   gap: 10px;
   padding: 6px 8px;
-  border: 1px solid transparent;
+  border: 1px solid ${(p) => (p.$selected ? 'rgba(var(--color-primary), 0.6)' : 'transparent')};
   border-radius: 8px;
-  background: transparent;
+  background: ${(p) => (p.$selected ? 'rgba(var(--color-primary), 0.08)' : 'transparent')};
   pointer-events: none;
 `;
 
@@ -1312,13 +1386,14 @@ const ChildList = styled.div`
 const ChildListItem = styled.button<{ $active: boolean }>`
   text-align: left;
   border-radius: 10px;
-  border: 1px solid ${(p) => (p.$active ? 'rgba(var(--color-primary), 0.7)' : 'rgb(var(--color-border))')};
-  background: ${(p) => (p.$active ? 'rgba(var(--color-primary), 0.08)' : 'rgb(var(--color-surface))')};
+  border: 1px solid ${(p) => (p.$active ? 'rgba(var(--color-primary), 0.7)' : 'transparent')};
+  background: ${(p) => (p.$active ? 'rgba(var(--color-primary), 0.08)' : 'transparent')};
   padding: 10px 12px;
   cursor: pointer;
 
   &:hover {
-    border-color: rgba(var(--color-primary), 0.55);
+    border-color: ${(p) => (p.$active ? 'rgba(var(--color-primary), 0.55)' : 'rgb(var(--color-border))')};
+    background: rgb(var(--color-surface-hover));
   }
 `;
 

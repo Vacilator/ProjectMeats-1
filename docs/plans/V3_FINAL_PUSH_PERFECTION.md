@@ -1,5 +1,9 @@
 # V3.0 Final Push — Enterprise-Grade Perfection
 
+**Authority:** This document is **REFERENCE ONLY**.
+- Canonical priorities/status/evidence: `MASTER_PLAN.md`
+- Append-only PR execution log: `.github/MASTER_PLAN.md`
+
 ## ✅ V3.0 FINAL PUSH: PHASE 4 POLISH COMPLETE (Development)
 
 **Objective:** Execute a consolidation + polish push that converts ProjectMeats from “feature-rich” to **enterprise-grade, maintainable, scalable, and fast** — without breaking the currently-working WorkForms Editor (additive-only rule).

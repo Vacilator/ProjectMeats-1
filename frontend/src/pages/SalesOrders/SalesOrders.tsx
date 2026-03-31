@@ -76,6 +76,27 @@ const HeaderActions = styled.div`
   gap: 0.75rem;
 `;
 
+const SecondaryButton = styled.button`
+  padding: 0.75rem 1.25rem;
+  background: transparent;
+  color: rgb(var(--color-text-primary));
+  border: 1px solid rgb(var(--color-border));
+  border-radius: var(--radius-md);
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s ease;
+
+  &:hover {
+    background: rgb(var(--color-surface-hover));
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+`;
+
 const PrimaryButton = styled.button`
   padding: 0.75rem 1.5rem;
   background: rgb(var(--color-primary));
@@ -435,6 +456,7 @@ export const SalesOrdersPage: React.FC = () => {
   const [orders, setOrders] = useState<SalesOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [exporting, setExporting] = useState(false);
   const [statusFilter, setStatusFilter] = useState<OrderStatus | 'all'>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedOrder, setSelectedOrder] = useState<SalesOrder | null>(null);
@@ -483,6 +505,32 @@ export const SalesOrdersPage: React.FC = () => {
   useEffect(() => {
     fetchOrders();
   }, []);
+
+  const exportToCsv = async () => {
+    try {
+      setExporting(true);
+      const response = await apiClient.get('sales-orders/', {
+        params: { format: 'csv' },
+        responseType: 'blob',
+      });
+
+      const data = response.data as any;
+      const blob = data instanceof Blob ? data : new Blob([data]);
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `sales_orders_${new Date().toISOString().split('T')[0]}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err: any) {
+      console.error('Error exporting sales orders:', err);
+      setError('Failed to export sales orders');
+    } finally {
+      setExporting(false);
+    }
+  };
 
   const fetchOrders = async () => {
     try {
@@ -542,6 +590,9 @@ export const SalesOrdersPage: React.FC = () => {
       <PageHeader>
         <PageTitle>Sales Orders</PageTitle>
         <HeaderActions>
+          <SecondaryButton onClick={exportToCsv} disabled={exporting}>
+            {exporting ? 'Exporting...' : 'Export CSV'}
+          </SecondaryButton>
           <PrimaryButton onClick={() => { setCreatePrefill(null); setIsModalOpen(true); }}>
             + New Sales Order
           </PrimaryButton>

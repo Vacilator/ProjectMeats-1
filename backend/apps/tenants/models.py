@@ -247,6 +247,9 @@ class TenantUser(models.Model):
         ("owner", "Owner"),
         ("admin", "Administrator"),
         ("manager", "Manager"),
+        ("plant_manager", "Plant Manager"),
+        ("sales_rep", "Sales Rep"),
+        ("auditor", "Auditor"),
         ("user", "User"),
         ("readonly", "Read Only"),
     ]
@@ -254,6 +257,19 @@ class TenantUser(models.Model):
     tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE, related_name="users")
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="tenants")
     role = models.CharField(max_length=20, choices=ROLE_CHOICES, default="user")
+
+    restricted_plants = models.ManyToManyField(
+        'plants.Plant',
+        blank=True,
+        related_name='restricted_to_memberships',
+        help_text='Optional plant-level access restriction for this membership',
+    )
+    restricted_locations = models.ManyToManyField(
+        'locations.Location',
+        blank=True,
+        related_name='restricted_to_memberships',
+        help_text='Optional location-level access restriction for this membership',
+    )
 
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -290,6 +306,9 @@ class TenantInvitation(models.Model):
         ("owner", "Owner"),
         ("admin", "Administrator"),
         ("manager", "Manager"),
+        ("plant_manager", "Plant Manager"),
+        ("sales_rep", "Sales Rep"),
+        ("auditor", "Auditor"),
         ("user", "User"),
         ("readonly", "Read Only"),
     ]

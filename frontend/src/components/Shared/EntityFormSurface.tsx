@@ -40,11 +40,17 @@ export interface EntityFormSurfaceProps {
    */
   variant?: EntityFormSurfaceVariant;
 
+  /**
+   * When true, forces the UniversalEntityForm even if an enhanced renderer exists.
+   * Useful for embedded Cockpit panes where modals would break the UX.
+   */
+  forceUniversal?: boolean;
+
   isOpen: boolean;
   onClose: () => void;
   onSuccess?: (result: unknown) => void;
 
-  /** For edit mode */
+  /** For edit/view mode */
   entityId?: string | number;
 
   /** Seed values for universal schema-driven form */
@@ -70,6 +76,7 @@ export const EntityFormSurface: React.FC<EntityFormSurfaceProps> = ({
   entityType,
   mode,
   variant = 'modal',
+  forceUniversal = false,
   isOpen,
   onClose,
   onSuccess,
@@ -82,7 +89,7 @@ export const EntityFormSurface: React.FC<EntityFormSurfaceProps> = ({
   const useUniversalInquiryCreate = getRuntimeConfigBoolean('USE_UNIVERSAL_INQUIRY_CREATE', false);
 
   // Enhanced form: Inquiry (create) — can be swapped to UniversalEntityForm via runtime flag.
-  if (normalized === 'inquiry' && mode === 'create' && !useUniversalInquiryCreate) {
+  if (normalized === 'inquiry' && mode === 'create' && !useUniversalInquiryCreate && !forceUniversal) {
     const initialEntityType = context?.customerId
       ? 'customer'
       : context?.supplierId

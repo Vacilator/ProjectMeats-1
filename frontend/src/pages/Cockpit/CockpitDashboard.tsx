@@ -430,7 +430,7 @@ const WidgetIcon = styled.span`
 // ============================================================================
 
 type InlineActionState = {
-  action: 'create' | 'edit';
+  action: 'create' | 'edit' | 'view';
   entityType: string;
   contextData: any;
 } | null;
@@ -718,9 +718,19 @@ export const CockpitDashboard: React.FC = () => {
         <div style={{ padding: '16px 24px 0 24px' }}>
           <BreadcrumbBar
             extraCrumbs={
-              inlineAction
-                ? [{ label: `New ${inlineAction.entityType.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())}` }]
-                : []
+              inlineAction?.action === 'create'
+                ? [{
+                    label: `New ${inlineAction.entityType
+                      .replace(/_/g, ' ')
+                      .replace(/\b\w/g, (c) => c.toUpperCase())}`,
+                  }]
+                : inlineAction?.action === 'edit'
+                  ? [{
+                      label: `Edit ${inlineAction.entityType
+                        .replace(/_/g, ' ')
+                        .replace(/\b\w/g, (c) => c.toUpperCase())}`,
+                    }]
+                  : []
             }
           />
         </div>
@@ -734,7 +744,27 @@ export const CockpitDashboard: React.FC = () => {
             onQueryChange={handleQueryChange}
             inlineAction={inlineAction}
             onInlineCancel={() => setInlineAction(null)}
-            onInlineSuccess={() => setInlineAction(null)}
+            onInlineSuccess={(created) => {
+              const row = (created && typeof created === 'object' ? (created as any) : {}) as any;
+              const createdId = String(row?.id ?? row?.uuid ?? row?.pk ?? '').trim();
+              const createdType = String(inlineAction?.entityType ?? '').trim();
+
+              if (createdId && createdType) {
+                setInlineAction({
+                  action: 'view',
+                  entityType: createdType,
+                  contextData: { ...(inlineAction?.contextData || {}), entityId: createdId },
+                });
+
+                const next = new URLSearchParams(searchParams);
+                next.set('cockpit_entity_type', createdType);
+                next.set('cockpit_entity_id', createdId);
+                setSearchParams(next, { replace: true });
+                return;
+              }
+
+              setInlineAction(null);
+            }}
             onOpenInlineCreate={openInlineCreate}
           />
         </HeroSearchInner>

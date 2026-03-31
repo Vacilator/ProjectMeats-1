@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import styled from 'styled-components';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useParams, useSearchParams } from 'react-router-dom';
+import { logger } from '@/utils/logger';
 import { apiService, Contact } from '../services/apiService';
 import { apiClient } from '../services/apiService';
 import { formatUsPhone } from '@/utils/phone';
@@ -320,8 +322,30 @@ const SubmitButton = styled.button`
 
 const Contacts: React.FC = () => {
   const location = useLocation();
-  const [contacts, setContacts] = useState<Contact[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { supplierId, customerId } = useParams<{ supplierId?: string; customerId?: string }>();
+  const [searchParams] = useSearchParams();
+
+  const contactFilters = {
+    supplier: supplierId ?? searchParams.get('supplier') ?? undefined,
+    customer: customerId ?? searchParams.get('customer') ?? undefined,
+    plant: searchParams.get('plant') ?? undefined,
+    location: searchParams.get('location') ?? undefined,
+  };
+
+  const contactsQuery = useQuery({
+    queryKey: ['contacts', contactFilters.supplier, contactFilters.customer, contactFilters.plant, contactFilters.location],
+    queryFn: () => apiService.getContacts(contactFilters),
+  });
+
+  const contacts = contactsQuery.data ?? [];
+  const loading = contactsQuery.isLoading;
+
+  useEffect(() => {
+    if (contactsQuery.error) {
+      logger.error('[Contacts] Error loading contacts:', contactsQuery.error);
+    }
+  }, [contactsQuery.error]);
+
   const [showForm, setShowForm] = useState(false);
   const [editingContact, setEditingContact] = useState<Contact | null>(null);
   
@@ -344,10 +368,12 @@ const Contacts: React.FC = () => {
 
   // Detect context from URL path
   useEffect(() => {
-    if (location.pathname.includes('/suppliers/contacts')) {
+    if (location.pathname.startsWith('/suppliers')) {
       setEntityType('supplier');
-    } else if (location.pathname.includes('/customers/contacts')) {
+    } else if (location.pathname.startsWith('/customers')) {
       setEntityType('customer');
+    } else {
+      setEntityType('');
     }
   }, [location.pathname]);
 
@@ -372,28 +398,13 @@ const Contacts: React.FC = () => {
       
       setEntityOptions(options);
     } catch (err) {
-      console.error(`Failed to fetch ${entityType} options:`, err);
+      logger.error(`[Contacts] Failed to fetch ${entityType} options:`, err);
       setEntityOptions([]);
     } finally {
       setLoadingEntities(false);
     }
   };
 
-  useEffect(() => {
-    loadContacts();
-  }, []);
-
-  const loadContacts = async () => {
-    try {
-      setLoading(true);
-      const data = await apiService.getContacts();
-      setContacts(data);
-    } catch (error) {
-      console.error('Error loading contacts:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -404,7 +415,7 @@ const Contacts: React.FC = () => {
         await apiService.createContact(formData);
       }
 
-      await loadContacts();
+      await contactsQuery.refetch();
       setShowForm(false);
       setEditingContact(null);
       setEntityId('');
@@ -421,13 +432,15 @@ const Contacts: React.FC = () => {
     } catch (error: unknown) {
       // Log detailed error information
       const err = error as Error & { response?: { status: number; data: unknown }; stack?: string };
-      console.error('Error saving contact:', {
+      logger.error('[Contacts] Error saving contact:', {
         message: err.message || 'Unknown error',
         stack: err.stack || 'No stack trace available',
-        response: err.response ? {
-          status: err.response.status,
-          data: err.response.data
-        } : 'No response data'
+        response: err.response
+          ? {
+              status: err.response.status,
+              data: err.response.data,
+            }
+          : 'No response data',
       });
       // Display user-friendly error to the UI
       alert(`Failed to save contact: ${err.message || 'Please try again later'}`);
@@ -460,10 +473,10 @@ const Contacts: React.FC = () => {
       try {
         await apiService.deleteContact(id);
         alert('Contact deleted successfully!');
-        await loadContacts(); // Re-fetch to update the list
+        await contactsQuery.refetch(); // Re-fetch to update the list
       } catch (error: unknown) {
         // Type-safe error handling: Use 'unknown' instead of 'any' and assert expected structure
-        console.error('Error deleting contact:', error);
+        logger.error('[Contacts] Error deleting contact:', error);
         const err = error as { response?: { data?: { detail?: string; message?: string } }; message?: string };
         const errorMessage = err?.response?.data?.detail 
           || err?.response?.data?.message 

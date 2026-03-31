@@ -1,6 +1,6 @@
 # Security Compliance & RLS Audit Log
 
-**Last Updated**: March 22, 2026  
+**Last Updated**: March 31, 2026  
 **Status**: ✅ ALL SYSTEMS COMPLIANT
 
 ---
@@ -41,6 +41,7 @@ All workflow-related tables have Row-Level Security **ENABLED** and **FORCED**:
 | `workflows_usernotification` | ✅ | `usernotification_tenant_isolation` | `app.current_tenant` |
 | `workflows_usernotificationpreferences` | ✅ | `usernotificationpreferences_tenant_isolation` | `app.current_tenant` |
 | `workflows_workflowexecutionlog` | ✅ | `workflowexecutionlog_tenant_isolation` | `app.current_tenant` |
+| `workflows_tenantworkformexecution` | ✅ | `tenantworkformexecution_tenant_isolation` | `app.current_tenant` |
 
 **Total Policies**: 17 tables × 1 policy each = **17 RLS policies**
 
@@ -77,6 +78,15 @@ All workflow-related tables have Row-Level Security **ENABLED** and **FORCED**:
 
 ---
 
+## Tenant Integrations Module (2 tables) - ✅ 100% COMPLIANT
+
+| Table Name | RLS Enabled | Policy Name | Session Variable |
+|------------|-------------|-------------|------------------|
+| `tenant_integrations_tenantapikey` | ✅ | `tenantapikey_tenant_isolation` | `app.current_tenant` |
+| `tenant_integrations_tenantwebhook` | ✅ | `tenantwebhook_tenant_isolation` | `app.current_tenant` |
+
+---
+
 ## Core Business Module (4 tables) - ✅ 100% COMPLIANT
 
 | Table Name | RLS Enabled | Migration | Deployment Date |
@@ -99,6 +109,8 @@ All workflow-related tables have Row-Level Security **ENABLED** and **FORCED**:
 | `ai_assistant_feedback_logs` | ✅ | `ai_assistant/0006_aifeedbacklog` | Mar 20, 2026 |
 | `ai_assistant_vector_memory` | ✅ | `ai_assistant/0007_vectormemory` | Mar 20, 2026 |
 | `ai_assistant_documents` | ✅ | `ai_assistant/0009_aidocument` | Mar 23, 2026 |
+| `ai_assistant_communication_logs` | ✅ | `ai_assistant/0014_communicationlog` | Mar 31, 2026 |
+| `ai_assistant_tenant_memory` | ✅ | `ai_assistant/0015_tenantaimemory` | Mar 31, 2026 |
 
 ---
 
@@ -108,8 +120,8 @@ All workflow-related tables have Row-Level Security **ENABLED** and **FORCED**:
 - `python manage.py audit_rls_compliance` → **38/38 tenant-aware models compliant** ✅
 
 **Tenant Isolation Policies** (from `pg_policies`):
-- Tables with at least one `*_tenant_isolation` policy: **45**
-- `*_tenant_isolation` policies total: **48**
+- Tables with at least one `*_tenant_isolation` policy: **47**
+- `*_tenant_isolation` policies total: **50**
 
 > Note: Some tables currently have both legacy and standardized `*_tenant_isolation` policy names during transition.
 
@@ -181,6 +193,14 @@ END $$;
 - Uses `current_setting('app.current_tenant', true)::uuid` for tenant matching
 - `FORCE ROW LEVEL SECURITY` applies to superuser queries
 - Policy name format: `{tablename}_tenant_isolation`
+
+---
+
+## Core Module (1 table) - ✅ 100% COMPLIANT
+
+| Table Name | RLS Enabled | Migration | Deployment Date |
+|------------|-------------|-----------|-----------------|
+| `core_tenantauditevent` | ✅ | `core/0004_tenantauditevent` | Mar 31, 2026 |
 
 ---
 

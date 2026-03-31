@@ -130,7 +130,15 @@ class ChatBotResponseSerializer(serializers.Serializer):
 
 
 class AIDocumentSerializer(serializers.ModelSerializer):
-    """Serializer for AI assistant document uploads."""
+    """Serializer for AI assistant document uploads.
+
+    Additive compatibility: some frontend surfaces expect `file_type` and
+    `document_type` fields. The canonical stored field is `content_type`, and
+    document classification may not be available at upload time.
+    """
+
+    file_type = serializers.CharField(source='content_type', read_only=True)
+    document_type = serializers.SerializerMethodField(read_only=True)
 
     def validate_session(self, value):
         request = self.context.get('request')
@@ -142,6 +150,10 @@ class AIDocumentSerializer(serializers.ModelSerializer):
 
         return value
 
+    def get_document_type(self, obj) -> str:
+        # Classification may happen asynchronously; keep this additive and deterministic.
+        return 'unknown'
+
     class Meta:
         model = AIDocument
         fields = [
@@ -152,11 +164,13 @@ class AIDocumentSerializer(serializers.ModelSerializer):
             'file',
             'original_filename',
             'content_type',
+            'file_type',
             'file_size',
             'processing_status',
+            'document_type',
             'created_on',
         ]
-        read_only_fields = ['id', 'tenant', 'owner', 'content_type', 'file_size', 'created_on']
+        read_only_fields = ['id', 'tenant', 'owner', 'content_type', 'file_type', 'file_size', 'document_type', 'created_on']
 
 
 class AIConfigurationSerializer(serializers.ModelSerializer):

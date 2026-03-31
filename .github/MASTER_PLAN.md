@@ -68,6 +68,16 @@ This file is the **append-only PR-referenceable execution log**.
 - `SESSION_COOKIE_SECURE` — **ZOMBIE** (env:dev-backend)
 - `STAGING_DB_URL` — **ZOMBIE** (repo)
 
+### 2026-03-31 — Pending work items (not shipped)
+These items were requested/planned in-session but are **not completed yet**:
+- **Enterprise Polish**: Tenant Webhooks + API Keys (`enterprise-webhooks-api-keys`)
+  - Models + RLS + Celery dispatch task + retries/backoff + signing + event hooks
+- **V4.0 Vision Sprint docs** (planning complete; documents not created yet)
+  - `docs/plans/V4_0_IDEAL_STATE_GAP_ANALYSIS.md`
+  - `docs/plans/V4_0_UX_EXCELLENCE.md`
+  - `docs/plans/V4_0_FIELD_OPS_ARCHITECTURE.md`
+  - `docs/plans/V4_0_AUTONOMOUS_AI.md` (depends on Tenant Webhooks/API Keys)
+
 ### 2026-03-31 — Hard purge: legacy docs + archives (context bleed cleanup)
 - Destructive cleanup of superseded documentation and archived infra/scripts to reduce AI context bleed.
 - Deleted:
@@ -125,6 +135,14 @@ This file is the **append-only PR-referenceable execution log**.
 - Cockpit: `/cockpit` is now a layout with URL-driven Tabs and nested routes (`/cockpit/dashboard`, `/cockpit/process-monitor`, `/cockpit/calls`); `/calls` redirects to `/cockpit/calls`.
 - Safety: wrapped WorkForms InProgress/History/Monitoring in ErrorBoundary.
 - PR: #4239
+
+### 2026-03-31 — Test: Playwright E2E foundation
+- Added Playwright E2E coverage for:
+  - Suppliers drilldown (Suppliers → Plants → create contact → verify Department choices)
+  - Workforms editor (add Manual Trigger + Form Process → Layout → verify no overlap between top-level nodes)
+- Added root `npm run test:e2e` script delegating to frontend.
+- Added stable `data-testid` hooks for Suppliers drilldown flows.
+- PR: #4274
 
 ### 2026-03-30 — Docs: master plan gap analysis + roadmap hygiene
 - Updated `MASTER_PLAN.md` (canonical) with an industry-leader benchmark gap analysis (P0/P1/P2) and refreshed execution-ordered backlog.
@@ -1445,3 +1463,37 @@ Deliverables:
 - 2026-03-31 — Docs: refresh canonical MASTER_PLAN runtime issues snapshot (mark suggest-nodes + chart warnings resolved) — PR: #4241.
 - 2026-03-31 — Email Ingestion Monitor: show reconnect CTA when Outlook not connected (error_code=not_connected) — PR: #4243.
 - 2026-03-31 — Ops: align test_document_upload diagnostic command to /api/v1/ai-assistant/ai-documents/ — PR: #4244.
+- 2026-03-31 — Workflows: DocumentUploadCard uses real ai-documents upload (fallback to simulated if endpoint missing) — PR: #4245.
+
+### 2026-03-31T14:27:41Z — V3.5 refactor transition (feature freeze)
+- Feature development is **halted** pending completion of the V3.5 Enterprise Refactor Roadmap.
+- New audits:
+  - `docs/audits/SYSTEM_ERRORS_2026.md`
+  - `docs/audits/UI_UX_DEBT_2026.md`
+  - `docs/audits/API_SCHEMA_DRIFT.md`
+- New remediation blueprint:
+  - `docs/plans/V3_5_ENTERPRISE_REFACTOR_ROADMAP.md`
+
+- 2026-03-31 — Frontend: add global runtime `unhandledrejection` + `error` handlers via centralized logger/Sentry — PR: #4248.
+- 2026-03-31 — Frontend: Suppliers list fetch uses React Query (useQuery) + refetch on create/update/delete — PR: #4251.
+- 2026-03-31 — Frontend: Customers list fetch uses React Query (useQuery) + refetch on create/update/delete — PR: #4252.
+- 2026-03-31 — Frontend: Contacts list fetch uses React Query (useQuery) + refetch on create/update/delete — PR: #4253.
+- 2026-03-31 — Frontend: Inquiries list fetch uses React Query (useQuery) keyed by pagination+filters — PR: #4254.
+- 2026-03-31 — Frontend: Option Lists page uses React Query for lists/products/preferences — PR: #4255.
+- 2026-03-31 — Frontend: optionListsService now uses shared JWT-aware apiClient (fixes schema-builder choice fetch under JWT) — PR: #4257.
+- 2026-03-31 — Frontend: removed unused ResponsiveTable component (part of table primitive consolidation) — PR: #4259.
+- 2026-03-31 — Frontend: AdminTable now renders via AntD Table (reduces duplicate table primitives) — PR: #4261.
+- 2026-03-31 — Frontend: consolidate modals on AntD (remove custom Modal wrapper) — PR: #4263.
+- 2026-03-31 — Frontend: hierarchy drilldown routing (deep-link plants/locations + contacts filters) — PR: #4265.
+- 2026-03-31 — Settings: remove tenant branding + rename admin link label — PR: #4270.
+- 2026-03-31 — Auth: include user.is_active in JWT token obtain payload — PR: #4271.
+- 2026-03-31 — Frontend: fix Profile inactive status false-negative (normalize is_active) — PR: #4272.
+- 2026-03-31 — Frontend: Suppliers/Customers create/edit use EntityFormSurface (retire QuickCreateModal + legacy edit overlays) — PR: #4291.
+- 2026-03-31 — Workflows: hotfix missing created_on/modified_on + restore infra diagnostics script module — PR: #4293.
+- 2026-03-31 — Compliance: tenant audit trails v1 (append-only audit events + RLS + API) — PR: #4295.
+- 2026-03-31 — Ops: fix deploy migrations failure (workflows 0031 pending trigger events) — PR: #4297.
+- 2026-03-31 — Feature: streaming CSV exports for Purchase Orders + Sales Orders (?format=csv) — PR: #4299.
+- 2026-03-31 — Observability: Sentry hardening (capture 5xx + CeleryIntegration + frontend ErrorBoundary + axios 5xx capture + user context binding) — PR: #4301.
+- 2026-03-31 — CI/CD: format deploy run name (🚀 Deploy: <env> - <PR title (PR#)>) — PR: #4304.
+- 2026-03-31 — Integrations: tenant webhooks + API keys (Celery dispatch + signing) — PR: #4306.
+- 2026-03-31 — Docs: V4.0 vision sprint (gap analysis, UX excellence, field ops, autonomous AI) — PR: #4308.

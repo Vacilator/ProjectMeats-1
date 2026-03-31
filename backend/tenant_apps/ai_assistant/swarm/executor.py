@@ -96,6 +96,33 @@ DEFAULT_OPENAI_TOOLS = [
     {
         'type': 'function',
         'function': {
+            'name': 'create_in_app_notification',
+            'description': 'Create an in-app notification for one or more users in the current tenant.',
+            'parameters': {
+                'type': 'object',
+                'properties': {
+                    'title': {'type': 'string', 'description': 'Short notification title'},
+                    'message': {'type': 'string', 'description': 'Notification message body'},
+                    'notification_type': {'type': 'string', 'description': "NotificationType value (task_assigned, mention, system, ...)"},
+                    'priority': {'type': 'string', 'description': "NotificationPriority value (low, normal, high, urgent)"},
+                    'entity_type': {'type': 'string', 'description': 'Optional related entity type'},
+                    'entity_id': {'type': 'string', 'description': 'Optional related entity id'},
+                    'action_url': {'type': 'string', 'description': 'Optional URL to navigate to when clicked'},
+                    'metadata': {'type': 'object', 'description': 'Optional structured metadata for the notification'},
+                    'to_tenant_admins': {'type': 'boolean', 'description': 'If true, notify all active tenant owners/admins'},
+                    'user_id': {'type': 'string', 'description': 'Optional recipient user id'},
+                    'user_ids': {'type': 'array', 'items': {'type': 'string'}, 'description': 'Optional recipient user ids'},
+                    'username': {'type': 'string', 'description': 'Optional recipient username'},
+                    'usernames': {'type': 'array', 'items': {'type': 'string'}, 'description': 'Optional recipient usernames'},
+                },
+                'required': ['title', 'message'],
+                'additionalProperties': False,
+            },
+        },
+    },
+    {
+        'type': 'function',
+        'function': {
             'name': 'ingest_feedback',
             'description': 'Save a user correction as a tenant-scoped lesson learned for future responses.',
             'parameters': {
@@ -128,8 +155,122 @@ DEFAULT_OPENAI_TOOLS = [
     {
         'type': 'function',
         'function': {
+            'name': 'save_memory',
+            'description': 'Upsert a durable tenant memory rule/preference (tenant-scoped).',
+            'parameters': {
+                'type': 'object',
+                'properties': {
+                    'key': {'type': 'string', 'description': 'Stable upsert key (e.g. vendor:acme:routing_rule).'},
+                    'memory_text': {'type': 'string', 'description': 'Human-readable memory text.'},
+                    'memory_json': {'type': 'object', 'description': 'Optional structured memory payload.'},
+                    'tags': {'type': 'object', 'description': 'Optional tags/metadata.'},
+                    'is_active': {'type': 'boolean', 'description': 'Optional active flag (default true).'},
+                },
+                'required': ['key', 'memory_text'],
+                'additionalProperties': False,
+            },
+        },
+    },
+    {
+        'type': 'function',
+        'function': {
+            'name': 'retrieve_memory',
+            'description': 'Retrieve relevant durable tenant memory entries for a query.',
+            'parameters': {
+                'type': 'object',
+                'properties': {
+                    'query': {'type': 'string', 'description': 'Search query.'},
+                    'limit': {'type': 'integer', 'description': 'Max results (default 8).'},
+                },
+                'required': ['query'],
+                'additionalProperties': False,
+            },
+        },
+    },
+    {
+        'type': 'function',
+        'function': {
+            'name': 'get_entity_schema',
+            'description': 'Get a UI-friendly schema for an entity type (same engine as UniversalEntityForm).',
+            'parameters': {
+                'type': 'object',
+                'properties': {
+                    'entity_type': {'type': 'string', 'description': 'Entity type or alias (e.g., supplier, customers.customer, purchase_order, plant).'},
+                },
+                'required': ['entity_type'],
+                'additionalProperties': False,
+            },
+        },
+    },
+    {
+        'type': 'function',
+        'function': {
+            'name': 'create_entity',
+            'description': 'Create a tenant-scoped entity via internal DRF ViewSets (allowlisted types only).',
+            'parameters': {
+                'type': 'object',
+                'properties': {
+                    'entity_type': {'type': 'string', 'description': 'Entity type or alias (e.g., supplier, customer, plant, location, contact).'},
+                    'payload': {'type': 'object', 'description': 'Field payload for creation.'},
+                },
+                'required': ['entity_type', 'payload'],
+                'additionalProperties': False,
+            },
+        },
+    },
+    {
+        'type': 'function',
+        'function': {
+            'name': 'parse_document',
+            'description': 'Parse an uploaded AI document (by document_id) via Unstructured API and return extracted text.',
+            'parameters': {
+                'type': 'object',
+                'properties': {
+                    'file_id_or_url': {'type': 'string', 'description': 'AIDocument UUID (preferred). URL is not supported for SSRF safety.'},
+                },
+                'required': ['file_id_or_url'],
+                'additionalProperties': False,
+            },
+        },
+    },
+    {
+        'type': 'function',
+        'function': {
+            'name': 'trigger_workform',
+            'description': 'Trigger a TenantWorkForm execution and persist an execution record.',
+            'parameters': {
+                'type': 'object',
+                'properties': {
+                    'workflow_id': {'type': 'string', 'description': 'TenantWorkForm UUID'},
+                    'initial_data': {'type': 'object', 'description': 'Initial trigger/context payload'}
+                },
+                'required': ['workflow_id'],
+                'additionalProperties': False,
+            },
+        },
+    },
+    {
+        'type': 'function',
+        'function': {
+            'name': 'draft_vendor_email',
+            'description': 'Draft and store an outbound vendor email as a Draft (human-in-the-loop send).',
+            'parameters': {
+                'type': 'object',
+                'properties': {
+                    'vendor_id': {'type': 'string', 'description': 'Supplier/Customer UUID'},
+                    'context': {'type': 'string', 'description': 'Context for the email (issue, discrepancy, request, etc.)'},
+                    'vendor_type': {'type': 'string', 'description': 'supplier|customer (default supplier)'}
+                },
+                'required': ['vendor_id', 'context'],
+                'additionalProperties': False,
+            },
+        },
+    },
+    {
+        'type': 'function',
+        'function': {
             'name': 'create_record',
-            'description': 'Create a tenant-scoped record (limited to safe entity types).',
+            'description': 'Create a tenant-scoped record (limited to safe entity types). (Legacy tool; prefer create_entity.)',
             'parameters': {
                 'type': 'object',
                 'properties': {
@@ -205,9 +346,17 @@ class ToolExecutor:
             'draft_outlook_email': self._draft_outlook_email,
             'get_record_detail': self._get_record_detail,
             'get_entity_details': self._get_entity_details,
+            'get_entity_schema': self._get_entity_schema,
+            'create_entity': self._create_entity,
+            'parse_document': self._parse_document,
             'create_task': self._create_task,
+            'create_in_app_notification': self._create_in_app_notification,
+            'trigger_workform': self._trigger_workform,
+            'draft_vendor_email': self._draft_vendor_email,
             'ingest_feedback': self._ingest_feedback,
             'get_recent_errors': self._get_recent_errors,
+            'save_memory': self._save_memory,
+            'retrieve_memory': self._retrieve_memory,
             'create_record': self._create_record,
             'search_entities': self._search_entities,
             'get_entity_analytics': self._get_entity_analytics,
@@ -537,6 +686,200 @@ class ToolExecutor:
         can_edit = bool(getattr(user, 'is_staff', False) or getattr(user, 'is_superuser', False))
         return view._serialize_entity_detail(entity, resolved_type, can_edit=can_edit)
 
+    def _get_entity_schema(self, arguments: Dict[str, Any], tenant: Any, user: Any = None) -> Any:
+        """Return the same payload as GET /api/v1/system/forms/schema/?entity_type=..."""
+        if not user or not getattr(user, 'is_authenticated', False):
+            raise ValueError('Authenticated user is required to fetch schema')
+
+        entity_type = (arguments.get('entity_type') or '').strip()
+        if not entity_type:
+            raise ValueError('Missing required parameter: entity_type')
+
+        from rest_framework.test import APIRequestFactory, force_authenticate
+        from apps.system.views.forms_schema import SystemFormSchemaView
+
+        factory = APIRequestFactory()
+        req = factory.get('/api/v1/system/forms/schema/', {'entity_type': entity_type})
+        force_authenticate(req, user=user)
+        req.tenant = tenant
+
+        resp = SystemFormSchemaView.as_view()(req)
+        if getattr(resp, 'status_code', 200) >= 400:
+            data = getattr(resp, 'data', None) or {}
+            msg = None
+            if isinstance(data, dict):
+                msg = data.get('error') or data.get('detail')
+            raise ValueError(msg or f'Failed to get schema for entity_type={entity_type}')
+
+        return getattr(resp, 'data', {})
+
+    def _create_entity(self, arguments: Dict[str, Any], tenant: Any, user: Any = None) -> Any:
+        """Create an entity via internal DRF ViewSets.
+
+        This is allowlisted to prevent unsafe arbitrary writes.
+        """
+        if not user or not getattr(user, 'is_authenticated', False):
+            raise ValueError('Authenticated user is required to create entities')
+
+        raw_entity_type = (arguments.get('entity_type') or '').strip().lower()
+        payload = arguments.get('payload')
+        if not raw_entity_type or not isinstance(payload, dict):
+            raise ValueError('Missing required parameters: entity_type, payload')
+
+        forbidden_keys = {'tenant', 'tenant_id', 'owner', 'created_by', 'modified_by'}
+        forbidden_present = sorted([k for k in payload.keys() if k in forbidden_keys])
+        if forbidden_present:
+            raise ValueError(f"Forbidden keys in payload: {', '.join(forbidden_present)}")
+
+        from apps.system.services.entity_introspection import ENTITY_ID_ALIASES
+        resolved = ENTITY_ID_ALIASES.get(raw_entity_type, raw_entity_type)
+
+        canonical_map = {
+            'suppliers.supplier': 'supplier',
+            'customers.customer': 'customer',
+            'contacts.contact': 'contact',
+            'plants.plant': 'plant',
+            'locations.location': 'location',
+            'purchase_orders.purchaseorder': 'purchase_order',
+            'sales_orders.salesorder': 'sales_order',
+            'invoices.invoice': 'invoice',
+        }
+
+        entity_key = canonical_map.get(resolved)
+        if not entity_key:
+            # If it's already a simple key (supplier/customer/plant/location/contact), accept it.
+            entity_key = raw_entity_type if raw_entity_type in {
+                'supplier', 'customer', 'contact', 'plant', 'location', 'purchase_order', 'sales_order', 'invoice'
+            } else None
+
+        if not entity_key:
+            raise ValueError(f'Unsupported entity_type: {raw_entity_type}')
+
+        # Allowlist of viewsets (expand deliberately)
+        from tenant_apps.suppliers.views import SupplierViewSet
+        from tenant_apps.customers.views import CustomerViewSet
+        from tenant_apps.contacts.views import ContactViewSet
+        from tenant_apps.plants.views import PlantViewSet
+        from tenant_apps.locations.views import LocationViewSet
+
+        viewset_map = {
+            'supplier': (SupplierViewSet, '/api/v1/suppliers/'),
+            'customer': (CustomerViewSet, '/api/v1/customers/'),
+            'contact': (ContactViewSet, '/api/v1/contacts/'),
+            'plant': (PlantViewSet, '/api/v1/plants/'),
+            'location': (LocationViewSet, '/api/v1/locations/'),
+        }
+
+        entry = viewset_map.get(entity_key)
+        if not entry:
+            raise ValueError(f'Unsupported entity_type for create_entity: {entity_key}')
+
+        viewset_cls, url = entry
+
+        from rest_framework.test import APIRequestFactory, force_authenticate
+
+        factory = APIRequestFactory()
+        req = factory.post(url, payload, format='json')
+        force_authenticate(req, user=user)
+        req.tenant = tenant
+
+        view = viewset_cls.as_view({'post': 'create'})
+        resp = view(req)
+        if getattr(resp, 'status_code', 200) >= 400:
+            data = getattr(resp, 'data', None)
+            raise ValueError(f'Create failed for {entity_key}: {data}')
+
+        return getattr(resp, 'data', {})
+
+    def _parse_document(self, arguments: Dict[str, Any], tenant: Any, user: Any = None) -> Any:
+        """Parse an uploaded AIDocument via Unstructured API.
+
+        For safety (SSRF), this tool only accepts an AIDocument UUID.
+        """
+        if not user or not getattr(user, 'is_authenticated', False):
+            raise ValueError('Authenticated user is required to parse documents')
+
+        file_id_or_url = (arguments.get('file_id_or_url') or '').strip()
+        if not file_id_or_url:
+            raise ValueError('Missing required parameter: file_id_or_url')
+
+        from uuid import UUID
+
+        try:
+            document_id = UUID(file_id_or_url)
+        except Exception as e:
+            raise ValueError('parse_document currently requires an uploaded document_id (UUID); URL fetch is disabled') from e
+
+        from django.conf import settings
+
+        base_url = (getattr(settings, 'UNSTRUCTURED_API_URL', '') or '').strip()
+        api_key = (getattr(settings, 'UNSTRUCTURED_API_KEY', '') or '').strip()
+
+        if not base_url or not api_key:
+            raise ValueError('Unstructured API is not configured (missing UNSTRUCTURED_API_URL/UNSTRUCTURED_API_KEY)')
+
+        # Default to the common hosted API path if a base host was provided.
+        endpoint = base_url.rstrip('/')
+        if '/general/' not in endpoint and not endpoint.endswith('/general/v0/general'):
+            endpoint = f"{endpoint}/general/v0/general"
+
+        from tenant_apps.ai_assistant.models import AIDocument
+
+        doc = AIDocument.objects.filter(id=document_id, tenant=tenant, owner=user).first()
+        if not doc:
+            raise ValueError('Document not found for this tenant/user')
+
+        if not doc.file:
+            raise ValueError('Document record has no file attached')
+
+        filename = doc.original_filename or 'document'
+        content_type = doc.content_type or 'application/octet-stream'
+
+        import requests
+
+        with doc.file.open('rb') as f:
+            files = {
+                'files': (filename, f.read(), content_type),
+            }
+            headers = {
+                'Authorization': f'Bearer {api_key}',
+            }
+            resp = requests.post(
+                endpoint,
+                files=files,
+                headers=headers,
+                timeout=60,
+            )
+
+        if resp.status_code >= 400:
+            raise ValueError(f'Unstructured API error {resp.status_code}: {resp.text[:500]}')
+
+        try:
+            elements = resp.json()
+        except Exception as e:
+            raise ValueError('Unstructured API returned non-JSON response') from e
+
+        if not isinstance(elements, list):
+            raise ValueError('Unexpected Unstructured API response shape')
+
+        texts: list[str] = []
+        for el in elements[:500]:
+            if not isinstance(el, dict):
+                continue
+            t = el.get('text')
+            if isinstance(t, str) and t.strip():
+                texts.append(t.strip())
+
+        combined_text = "\n".join(texts)
+
+        return {
+            'document_id': str(doc.id),
+            'filename': filename,
+            'content_type': content_type,
+            'text': combined_text[:20000],
+            'elements_preview': elements[:50],
+        }
+
     def _create_task(self, arguments: Dict[str, Any], tenant: Any, user: Any = None) -> Any:
         """Create a task for the current user (implemented as an in-app notification)."""
         if not user or not getattr(user, 'is_authenticated', False):
@@ -593,6 +936,304 @@ class ToolExecutor:
             'title': row.title,
             'message': row.message,
             'action_url': row.action_url,
+        }
+
+    def _create_in_app_notification(self, arguments: Dict[str, Any], tenant: Any, user: Any = None) -> Any:
+        """Create an in-app notification for one or more users in the current tenant."""
+        if not user or not getattr(user, 'is_authenticated', False):
+            raise ValueError('Authenticated user is required to create notifications')
+
+        title = (arguments.get('title') or '').strip()
+        message = (arguments.get('message') or '').strip()
+        if not title or not message:
+            raise ValueError('Missing required parameters: title, message')
+
+        from apps.tenants.models import TenantUser
+        from django.contrib.auth.models import User
+        from tenant_apps.workflows.models import NotificationPriority, NotificationType, UserNotification
+
+        membership = TenantUser.objects.filter(tenant=tenant, user=user, is_active=True).first()
+        if not membership:
+            raise ValueError('User is not an active member of this tenant')
+
+        is_admin_sender = membership.role in {'owner', 'admin'}
+
+        notify_admins = bool(arguments.get('to_tenant_admins'))
+        user_id = (arguments.get('user_id') or '').strip() or None
+        username = (arguments.get('username') or '').strip() or None
+        user_ids = arguments.get('user_ids') if isinstance(arguments.get('user_ids'), list) else []
+        usernames = arguments.get('usernames') if isinstance(arguments.get('usernames'), list) else []
+
+        # Determine recipients.
+        recipients: list[User] = []
+
+        if notify_admins:
+            admin_ids = list(
+                TenantUser.objects.filter(
+                    tenant=tenant,
+                    is_active=True,
+                    role__in=['owner', 'admin'],
+                ).values_list('user_id', flat=True)
+            )
+            if admin_ids:
+                recipients.extend(list(User.objects.filter(id__in=admin_ids)))
+
+        if user_id:
+            ids = list(TenantUser.objects.filter(tenant=tenant, is_active=True, user_id=user_id).values_list('user_id', flat=True))
+            recipients.extend(list(User.objects.filter(id__in=ids)))
+
+        if username:
+            ids = list(
+                TenantUser.objects.filter(tenant=tenant, is_active=True, user__username=username).values_list('user_id', flat=True)
+            )
+            recipients.extend(list(User.objects.filter(id__in=ids)))
+
+        if user_ids:
+            ids = list(
+                TenantUser.objects.filter(tenant=tenant, is_active=True, user_id__in=user_ids).values_list('user_id', flat=True)
+            )
+            recipients.extend(list(User.objects.filter(id__in=ids)))
+
+        if usernames:
+            ids = list(
+                TenantUser.objects.filter(tenant=tenant, is_active=True, user__username__in=usernames).values_list('user_id', flat=True)
+            )
+            recipients.extend(list(User.objects.filter(id__in=ids)))
+
+        # Default to current user.
+        if not recipients:
+            recipients = [user]
+
+        # Non-admins can only notify themselves.
+        if not is_admin_sender:
+            if any(r.id != user.id for r in recipients):
+                raise ValueError('Only tenant owners/admins can notify other users')
+
+        # De-dupe recipients.
+        recipients = list({r.id: r for r in recipients}.values())
+
+        notification_type_raw = str(arguments.get('notification_type') or '').strip() or NotificationType.SYSTEM
+        if notification_type_raw not in NotificationType.values:
+            raise ValueError(f"Invalid notification_type: {notification_type_raw}")
+
+        priority_raw = str(arguments.get('priority') or '').strip() or NotificationPriority.NORMAL
+        if priority_raw not in NotificationPriority.values:
+            raise ValueError(f"Invalid priority: {priority_raw}")
+
+        entity_type = (arguments.get('entity_type') or '').strip().lower() or ''
+        entity_id = (arguments.get('entity_id') or '').strip() or None
+
+        action_url = (arguments.get('action_url') or '').strip()
+        metadata = arguments.get('metadata') if isinstance(arguments.get('metadata'), dict) else {}
+
+        if not action_url and entity_type and entity_id:
+            try:
+                from apps.core.services.universal_search import UniversalSearchService
+
+                svc = UniversalSearchService(tenant=tenant)
+                detail = svc.get_record_detail(entity_type, entity_id)
+                if detail and detail.get('route'):
+                    action_url = str(detail.get('route') or '')
+            except Exception:
+                pass
+
+        entity_uuid = None
+        if entity_id:
+            try:
+                from uuid import UUID
+
+                entity_uuid = UUID(str(entity_id))
+            except Exception:
+                metadata = dict(metadata)
+                metadata['entity_id'] = str(entity_id)
+
+        created: list[UserNotification] = []
+        for recipient in recipients:
+            created.append(
+                UserNotification.objects.create(
+                    user=recipient,
+                    tenant=tenant,
+                    notification_type=notification_type_raw,
+                    title=title,
+                    message=message,
+                    priority=priority_raw,
+                    entity_type=entity_type,
+                    entity_id=entity_uuid,
+                    action_url=action_url,
+                    metadata=metadata,
+                )
+            )
+
+        return {
+            'count': len(created),
+            'notification_ids': [str(r.id) for r in created],
+            'notified_usernames': [r.user.username for r in created],
+        }
+
+    def _trigger_workform(self, arguments: Dict[str, Any], tenant: Any, user: Any = None) -> Any:
+        """Trigger a TenantWorkForm execution and persist an execution record."""
+        if not user or not getattr(user, 'is_authenticated', False):
+            raise ValueError('Authenticated user is required to trigger workforms')
+
+        workflow_id = (arguments.get('workflow_id') or '').strip()
+        if not workflow_id:
+            raise ValueError('Missing required parameter: workflow_id')
+
+        initial_data = arguments.get('initial_data') if isinstance(arguments.get('initial_data'), dict) else {}
+
+        from uuid import UUID
+        from django.utils import timezone
+
+        try:
+            workflow_uuid = UUID(str(workflow_id))
+        except Exception as e:
+            raise ValueError('Invalid workflow_id (expected UUID)') from e
+
+        from apps.system.models import TenantWorkForm
+        from apps.system.services.workform_engine import WorkFormEngine
+        from tenant_apps.workflows.models import TenantWorkFormExecution, TenantWorkFormExecutionStatus
+
+        workform = TenantWorkForm.objects.filter(id=workflow_uuid, tenant=tenant).first()
+        if not workform:
+            raise ValueError('WorkForm not found for this tenant')
+
+        execution = TenantWorkFormExecution.objects.create(
+            tenant=tenant,
+            workform=workform,
+            status=TenantWorkFormExecutionStatus.IN_PROGRESS,
+            initial_data=initial_data,
+            started_by=user,
+            started_at=timezone.now(),
+        )
+
+        # Execute immediately (scaffold). Future: enqueue async task.
+        engine = WorkFormEngine(
+            workform,
+            initial_context={
+                'trigger': initial_data,
+                'variables': {},
+                'errors': [],
+                'execution_id': str(execution.id),
+            },
+        )
+
+        result = engine.execute(trigger_payload=initial_data)
+
+        execution.context_data = result.context
+        if result.success:
+            execution.status = TenantWorkFormExecutionStatus.COMPLETED
+            execution.completed_at = timezone.now()
+        else:
+            execution.status = TenantWorkFormExecutionStatus.FAILED
+            execution.error_message = str(result.error or '')
+            execution.completed_at = timezone.now()
+        execution.save(update_fields=['status', 'context_data', 'error_message', 'completed_at'])
+
+        return {
+            'execution_id': str(execution.id),
+            'workflow_id': str(workform.id),
+            'status': execution.status,
+            'error': execution.error_message,
+            'context_preview': (execution.context_data or {}),
+        }
+
+    def _draft_vendor_email(self, arguments: Dict[str, Any], tenant: Any, user: Any = None) -> Any:
+        """Draft and store an outbound vendor email as a Draft (human-in-the-loop send)."""
+        if not user or not getattr(user, 'is_authenticated', False):
+            raise ValueError('Authenticated user is required to draft vendor emails')
+
+        vendor_id = (arguments.get('vendor_id') or '').strip()
+        context = (arguments.get('context') or '').strip()
+        vendor_type = (arguments.get('vendor_type') or '').strip().lower() or 'supplier'
+
+        if not vendor_id or not context:
+            raise ValueError('Missing required parameters: vendor_id, context')
+
+        vendor_uuid = None
+        vendor_pk = None
+        try:
+            from uuid import UUID
+
+            vendor_uuid = UUID(str(vendor_id))
+        except Exception:
+            try:
+                vendor_pk = int(str(vendor_id))
+            except Exception as e:
+                raise ValueError('Invalid vendor_id (expected UUID or integer id)') from e
+
+        entity = None
+        entity_email = ''
+        entity_name = ''
+
+        if vendor_type == 'supplier':
+            from tenant_apps.suppliers.models import Supplier
+
+            lookup_id = vendor_uuid if vendor_uuid is not None else vendor_pk
+            entity = Supplier.objects.filter(id=lookup_id, tenant=tenant).prefetch_related('contacts').first()
+            if entity:
+                entity_name = entity.name
+                entity_email = (entity.email or '').strip()
+        elif vendor_type == 'customer':
+            from tenant_apps.customers.models import Customer
+
+            lookup_id = vendor_uuid if vendor_uuid is not None else vendor_pk
+            entity = Customer.objects.filter(id=lookup_id, tenant=tenant).prefetch_related('contacts').first()
+            if entity:
+                entity_name = entity.name
+                entity_email = (getattr(entity, 'email', '') or '').strip()
+        else:
+            raise ValueError('Invalid vendor_type (expected supplier|customer)')
+
+        if not entity:
+            raise ValueError('Vendor not found for this tenant')
+
+        # Fallback: first contact email
+        if not entity_email:
+            try:
+                contact_mgr = getattr(entity, 'contacts', None)
+                contact = contact_mgr.first() if contact_mgr is not None else None
+                entity_email = (getattr(contact, 'email', '') or '').strip()
+            except Exception:
+                entity_email = ''
+
+        if not entity_email:
+            raise ValueError('Vendor has no email address on record')
+
+        subject = f"{entity_name}: Follow-up"
+        if len(context) <= 80:
+            subject = f"{entity_name}: {context}"
+
+        sender_name = (getattr(user, 'get_full_name', None)() or '').strip() if hasattr(user, 'get_full_name') else ''
+        if not sender_name:
+            sender_name = getattr(user, 'username', 'ProjectMeats')
+
+        body = (
+            f"Hi {entity_name},\n\n"
+            f"{context}\n\n"
+            f"Thanks,\n{sender_name}\n"
+        )
+
+        from tenant_apps.ai_assistant.models import CommunicationLog, CommunicationStatus
+
+        row = CommunicationLog.objects.create(
+            tenant=tenant,
+            created_by=user,
+            entity_type=vendor_type,
+            entity_id=str(vendor_id),
+            to_email=entity_email,
+            subject=subject[:300],
+            body=body,
+            status=CommunicationStatus.DRAFT,
+            provider='manual',
+            metadata={'source': 'draft_vendor_email'},
+        )
+
+        return {
+            'id': str(row.id),
+            'to_email': row.to_email,
+            'subject': row.subject,
+            'body': row.body,
+            'status': row.status,
         }
 
     def _ingest_feedback(self, arguments: Dict[str, Any], tenant: Any, user: Any = None) -> Any:
@@ -652,6 +1293,69 @@ class ToolExecutor:
             limit=5,
             timeout_seconds=10,
         )
+
+    def _save_memory(self, arguments: Dict[str, Any], tenant: Any, user: Any = None) -> Any:
+        """Upsert a durable tenant memory rule/preference."""
+
+        key = (arguments.get('key') or '').strip()
+        memory_text = (arguments.get('memory_text') or '').strip()
+        if not key or not memory_text:
+            raise ValueError('Missing required parameters: key, memory_text')
+
+        memory_json = arguments.get('memory_json') if isinstance(arguments.get('memory_json'), dict) else {}
+        tags = arguments.get('tags') if isinstance(arguments.get('tags'), dict) else {}
+        is_active = arguments.get('is_active')
+        if is_active is None:
+            is_active = True
+
+        from tenant_apps.ai_assistant.models import TenantAIMemory
+
+        row, created = TenantAIMemory.objects.update_or_create(
+            tenant=tenant,
+            key=key,
+            defaults={
+                'memory_text': memory_text,
+                'memory_json': memory_json,
+                'tags': tags,
+                'is_active': bool(is_active),
+            },
+        )
+
+        return {
+            'id': str(row.id),
+            'key': row.key,
+            'created': created,
+            'is_active': row.is_active,
+        }
+
+    def _retrieve_memory(self, arguments: Dict[str, Any], tenant: Any, user: Any = None) -> Any:
+        """Retrieve relevant durable tenant memory entries."""
+
+        query = (arguments.get('query') or '').strip()
+        if not query:
+            raise ValueError('Missing required parameters: query')
+
+        limit = arguments.get('limit')
+        try:
+            limit_int = int(limit) if limit is not None else 8
+        except Exception:
+            limit_int = 8
+        limit_int = max(1, min(20, limit_int))
+
+        from tenant_apps.ai_assistant.services.tenant_memory_service import get_relevant_memories
+
+        memories = get_relevant_memories(tenant=tenant, query=query, limit=limit_int)
+        results = [
+            {
+                'key': m.key,
+                'memory_text': m.memory_text,
+                'memory_json': m.memory_json,
+                'tags': m.tags,
+            }
+            for m in memories
+        ]
+
+        return {'query': query, 'count': len(results), 'results': results}
 
     def _search_entities(self, arguments: Dict[str, Any], tenant: Any, user: Any = None) -> Any:
         """Search tenant entities via UniversalSearchService (unified search standard)."""

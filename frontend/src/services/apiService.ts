@@ -10,6 +10,7 @@
  * - Session expired modal instead of hard redirects
  */
 import axios, { AxiosError as AxiosErrorType, InternalAxiosRequestConfig } from 'axios';
+import * as Sentry from '@sentry/react';
 import { config } from '../config/runtime';
 import { logger } from '../utils/logger';
 import {
@@ -184,9 +185,57 @@ apiClient.interceptors.response.use(
   (response) => response,
   async (error: AxiosErrorType) => {
     const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean; _retryCount?: number };
+
+    const status = error.response?.status;
+
+    // Circuit breaker: do NOT trigger auth refresh flows for transient upstream/server errors.
+    if (status && [500, 502, 503, 504].includes(status)) {
+      const friendlyMessage =
+        status === 502
+          ? 'Server temporarily unreachable. Please try again shortly.'
+          : 'Server error. Please try again shortly.';
+
+      logger.error('[API] Server error (circuit breaker)', {
+        status,
+        url: originalRequest?.url,
+        method: originalRequest?.method,
+      });
+
+      // Sentry hardening: capture the original axios error with context before we
+      // replace it with a friendly message.
+      try {
+        Sentry.withScope((scope) => {
+          scope.setTag('http.status_code', status);
+          scope.setTag('http.method', originalRequest?.method || 'unknown');
+          scope.setTag('http.url', originalRequest?.url || 'unknown');
+          scope.setTag('tenant.id', localStorage.getItem('tenantId') || 'unknown');
+          scope.setContext('http', {
+            status,
+            method: originalRequest?.method,
+            url: originalRequest?.url,
+            baseURL: (originalRequest as any)?.baseURL,
+          });
+          scope.setContext('auth', {
+            isUsingJwt: isUsingJwt(),
+            hasAuthHeader: Boolean(originalRequest?.headers?.Authorization),
+          });
+
+          const data = (error.response as any)?.data;
+          if (data !== undefined) {
+            scope.setExtra('response.data', typeof data === 'string' ? data.slice(0, 2000) : data);
+          }
+
+          Sentry.captureException(error);
+        });
+      } catch {
+        // best-effort
+      }
+
+      return Promise.reject(new Error(friendlyMessage));
+    }
     
     // Log the error for debugging
-    if (error.response?.status === 401) {
+    if (status === 401) {
       console.warn('[API] 401 Unauthorized:', {
         url: originalRequest?.url,
         method: originalRequest?.method,
@@ -198,7 +247,7 @@ apiClient.interceptors.response.use(
     }
     
     // Handle 401 Unauthorized
-    if (error.response?.status === 401 && originalRequest && !originalRequest._retry) {
+    if (status === 401 && originalRequest && !originalRequest._retry) {
       // Prevent infinite retry loops
       const retryCount = (originalRequest._retryCount || 0) + 1;
       if (retryCount > 2) {
@@ -278,9 +327,27 @@ adminClient.interceptors.response.use(
   (response) => response,
   async (error: AxiosErrorType) => {
     const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean; _retryCount?: number };
+
+    const status = error.response?.status;
+
+    // Circuit breaker: do NOT trigger auth refresh flows for transient upstream/server errors.
+    if (status && [500, 502, 503, 504].includes(status)) {
+      const friendlyMessage =
+        status === 502
+          ? 'Server temporarily unreachable. Please try again shortly.'
+          : 'Server error. Please try again shortly.';
+
+      logger.error('[Admin API] Server error (circuit breaker)', {
+        status,
+        url: originalRequest?.url,
+        method: originalRequest?.method,
+      });
+
+      return Promise.reject(new Error(friendlyMessage));
+    }
     
     // Log the error for debugging
-    if (error.response?.status === 401) {
+    if (status === 401) {
       console.warn('[Admin API] 401 Unauthorized:', {
         url: originalRequest?.url,
         method: originalRequest?.method,
@@ -738,8 +805,11 @@ export class ApiService {
   }
 
   // Contacts
-  async getContacts(): Promise<Contact[]> {
-    const response = await apiClient.get('/contacts/');
+  async getContacts(params?: { supplier?: number | string; customer?: number | string; plant?: number | string; location?: number | string }): Promise<Contact[]> {
+    const filteredParams = params
+      ? Object.fromEntries(Object.entries(params).filter(([, v]) => v !== undefined && v !== null && v !== ''))
+      : undefined;
+    const response = await apiClient.get('/contacts/', { params: filteredParams });
     return response.data.results || response.data;
   }
 

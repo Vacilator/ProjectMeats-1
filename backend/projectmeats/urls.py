@@ -44,6 +44,7 @@ urlpatterns = [
     path("api/v1/", include("tenant_apps.contacts.urls")),
     path("api/v1/", include("tenant_apps.purchase_orders.urls")),
     path("api/v1/", include("tenant_apps.sales_orders.urls")),
+    path("api/v1/", include("tenant_apps.integrations.urls")),  # tenant webhooks + API keys
     path("api/v1/", include("tenant_apps.plants.urls")),
     path("api/v1/", include("tenant_apps.carriers.urls")),
     path("api/v1/", include("tenant_apps.products.urls")),

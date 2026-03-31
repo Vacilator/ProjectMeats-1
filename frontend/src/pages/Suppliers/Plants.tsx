@@ -11,7 +11,7 @@
  */
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Table, Input, Button, Modal, Form, Select, Checkbox, message, Tag, Space } from 'antd';
 import { CountrySelect, PhoneInput } from '../../components/ui';
 import { US_STATES } from '../../utils/constants/states';
@@ -192,6 +192,8 @@ const ErrorMessage = styled.div`
 const Plants: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
+  const { supplierId } = useParams<{ supplierId?: string }>();
+  const [searchParams] = useSearchParams();
   const [form] = Form.useForm();
   
   // State
@@ -205,27 +207,41 @@ const Plants: React.FC = () => {
   const [searchText, setSearchText] = useState('');
   const [formErrors, setFormErrors] = useState<FormErrors>({});
 
-  // Detect context from navigation state (Phase 4 pattern)
+  // Detect context from URL (preferred) or navigation state (fallback)
   useEffect(() => {
     const state = location.state as any;
-    if (state?.supplierId) {
-      setContextSupplierId(state.supplierId);
-    }
-  }, [location]);
+
+    const paramId = supplierId ? Number(supplierId) : NaN;
+    const querySupplier = searchParams.get('supplier');
+    const queryId = querySupplier ? Number(querySupplier) : NaN;
+    const stateId = state?.supplierId ? Number(state.supplierId) : NaN;
+
+    const nextContext =
+      (Number.isFinite(paramId) && paramId > 0 ? paramId : null) ??
+      (Number.isFinite(queryId) && queryId > 0 ? queryId : null) ??
+      (Number.isFinite(stateId) && stateId > 0 ? stateId : null);
+
+    setContextSupplierId(nextContext);
+  }, [location.state, supplierId, searchParams]);
 
   useEffect(() => {
-    loadPlants();
     loadSuppliers();
   }, []);
+
+  useEffect(() => {
+    loadPlants(contextSupplierId);
+  }, [contextSupplierId]);
 
   useEffect(() => {
     filterPlants();
   }, [plants, searchText, contextSupplierId]);
 
-  const loadPlants = async () => {
+  const loadPlants = async (supplierFilterId: number | null) => {
     try {
       setLoading(true);
-      const response = await apiClient.get('plants/');
+      const response = await apiClient.get('plants/', {
+        params: supplierFilterId ? { supplier: supplierFilterId } : undefined,
+      });
       setPlants(response.data.results || response.data);
     } catch (error) {
       console.error('Error loading plants:', error);
@@ -322,7 +338,7 @@ const Plants: React.FC = () => {
     try {
       await apiClient.delete(`plants/${plant.id}/`);
       message.success('Plant deleted successfully');
-      loadPlants();
+      loadPlants(contextSupplierId);
     } catch (error: any) {
       console.error('Error deleting plant:', error);
       message.error('Failed to delete plant');
@@ -351,7 +367,7 @@ const Plants: React.FC = () => {
       }
       
       setShowModal(false);
-      loadPlants();
+      loadPlants(contextSupplierId);
     } catch (error: any) {
       if (error.response?.status === 400) {
         setFormErrors(error.response.data);
@@ -391,7 +407,12 @@ const Plants: React.FC = () => {
       sorter: (a, b) => (a.supplier_name || '').localeCompare(b.supplier_name || ''),
       render: (text, record) => (
         record.supplier ? (
-          <SupplierLink onClick={() => handleSupplierClick(record.supplier!)}>
+          <SupplierLink
+            onClick={(e) => {
+              e.stopPropagation();
+              handleSupplierClick(record.supplier!);
+            }}
+          >
             {text || 'Unknown'}
           </SupplierLink>
         ) : '-'
@@ -453,7 +474,10 @@ const Plants: React.FC = () => {
           <Button
             type="link"
             icon={<AppstoreOutlined />}
-            onClick={() => navigate(`/plants/${record.id}/products`, { state: { plant: record } })}
+            onClick={(e) => {
+              e.stopPropagation();
+              navigate(`/plants/${record.id}/products`, { state: { plant: record } });
+            }}
             size="small"
           >
             Products
@@ -461,7 +485,10 @@ const Plants: React.FC = () => {
           <Button
             type="link"
             icon={<EditOutlined />}
-            onClick={() => handleEdit(record)}
+            onClick={(e) => {
+              e.stopPropagation();
+              handleEdit(record);
+            }}
           >
             Edit
           </Button>
@@ -469,7 +496,10 @@ const Plants: React.FC = () => {
             type="link"
             danger
             icon={<DeleteOutlined />}
-            onClick={() => handleDelete(record)}
+            onClick={(e) => {
+              e.stopPropagation();
+              handleDelete(record);
+            }}
           >
             Delete
           </Button>
@@ -517,6 +547,17 @@ const Plants: React.FC = () => {
         dataSource={filteredPlants as any}
         rowKey="id"
         loading={loading}
+        onRow={(record) => {
+          const rec = record as Plant;
+          return {
+            onClick: () => {
+              const sid = contextSupplierId ?? rec.supplier ?? undefined;
+              const base = sid ? `/suppliers/${sid}/contacts` : '/suppliers/contacts';
+              navigate(`${base}?plant=${rec.id}`);
+            },
+            style: { cursor: 'pointer' },
+          };
+        }}
         pagination={{
           pageSize: 20,
           showSizeChanger: true,

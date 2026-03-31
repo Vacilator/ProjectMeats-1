@@ -134,6 +134,7 @@ _PROJECT_APPS = [
     "apps.system",   # NEW: Centralized configuration system (v2.0 Wave 1)
     "apps.email_integration",  # Email OAuth & webhooks (system-level)
     "apps.integrations",  # Workflow email providers + tenant OAuth token store (ExternalAuthProvider)
+    "tenant_apps.integrations.apps.TenantIntegrationsConfig",  # Tenant webhooks + API keys (unique label: tenant_integrations)
     # NOTE: apps.schema_builder DELETED in v2.0 Wave 1 (0 records, superseded by workflows)
     # NOTE: shared_apps.system_config ARCHIVED 2026-02-14 (Phase 2 cleanup, superseded by apps.system)
     # Business apps (all use tenant_id for data isolation)
@@ -174,6 +175,7 @@ MIDDLEWARE = [
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "apps.tenants.middleware.TenantMiddleware",  # Must be after AuthenticationMiddleware to access request.user
+    "apps.core.middleware.audit_context.AuditContextMiddleware",  # Capture request metadata for audit trails
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     # Phase 9: Security Hardening
@@ -566,7 +568,15 @@ OPENAI_TEMPERATURE = float(os.environ.get("OPENAI_TEMPERATURE", "0.7"))
 
 SENTRY_ENABLED = os.environ.get("SENTRY_ENABLED", "").lower() in ("true", "1", "yes")
 SENTRY_DSN = os.environ.get("SENTRY_DSN")
-SENTRY_ENVIRONMENT = os.environ.get("SENTRY_ENVIRONMENT", "development")
+
+# Prefer explicit SENTRY_ENVIRONMENT, otherwise mirror the deployment environment.
+# (Supports the requested DJANGO_ENV input without requiring it.)
+SENTRY_ENVIRONMENT = (
+    os.environ.get("SENTRY_ENVIRONMENT")
+    or os.environ.get("DJANGO_ENV")
+    or os.environ.get("ENVIRONMENT")
+    or "development"
+)
 
 # Used by the AI assistant "get_recent_errors" tool (Phase 7: Sentry-GitHub-Copilot loop)
 SENTRY_AUTH_TOKEN = os.environ.get("SENTRY_AUTH_TOKEN")
@@ -575,13 +585,16 @@ SENTRY_BASE_URL = os.environ.get("SENTRY_BASE_URL", "https://sentry.io")
 
 if SENTRY_ENABLED and SENTRY_DSN:
     import sentry_sdk
+    from sentry_sdk.integrations.celery import CeleryIntegration
     from sentry_sdk.integrations.django import DjangoIntegration
-    
+
+    env_norm = (SENTRY_ENVIRONMENT or "development").strip().lower()
+
     # Determine sample rate based on environment
     traces_sample_rate = 1.0  # Default for dev/uat
-    if SENTRY_ENVIRONMENT == "production":
+    if env_norm in {"prod", "production"}:
         traces_sample_rate = 0.1  # 10% sampling in production to reduce costs
-    
+
     sentry_sdk.init(
         dsn=SENTRY_DSN,
         integrations=[
@@ -590,24 +603,23 @@ if SENTRY_ENABLED and SENTRY_DSN:
                 middleware_spans=True,    # Track middleware performance
                 signals_spans=True,       # Track Django signals
             ),
+            CeleryIntegration(),
         ],
         environment=SENTRY_ENVIRONMENT,
-        
+
         # Performance Monitoring
         traces_sample_rate=traces_sample_rate,
         profiles_sample_rate=0.0,  # Disabled until needed (can enable later)
-        
+
         # Error Filtering
         before_send=lambda event, hint: (
             # Filter out 404 errors to keep signal-to-noise ratio high
-            None if event.get("exception", {}).get("values", [{}])[0]
-                        .get("type") == "Http404" 
-            else event
+            None if event.get("exception", {}).get("values", [{}])[0].get("type") == "Http404" else event
         ),
-        
+
         # Release Tracking
         release=os.environ.get("GIT_COMMIT_SHA", "unknown"),  # Set by CI/CD
-        
+
         # Additional Options
         # Required for Seer (user-impact analysis) + richer debugging context.
         send_default_pii=True,

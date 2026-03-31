@@ -4,6 +4,7 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode, useCallback, useMemo } from 'react';
 import { UserProfile } from '../types';
 import { authService, LoginCredentials, SignUpCredentials } from '../services/authService';
+import { clearSentryUser, setSentryTenant, setSentryUser } from '../utils/sentry';
 
 interface AuthContextType {
   user: UserProfile | null;
@@ -31,9 +32,18 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       try {
         const currentUser = await authService.getCurrentUser();
         setUser(currentUser);
+
+        if (currentUser) {
+          const tenantId = localStorage.getItem('tenantId') || undefined;
+          setSentryUser(String(currentUser.id), currentUser.email, tenantId, currentUser.username);
+          if (tenantId) setSentryTenant(tenantId);
+        } else {
+          clearSentryUser();
+        }
       } catch (error) {
         console.error('Failed to initialize auth:', error);
         setUser(null);
+        clearSentryUser();
       } finally {
         setLoading(false);
       }
@@ -47,6 +57,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     try {
       const loggedInUser = await authService.login(credentials);
       setUser(loggedInUser);
+
+      if (loggedInUser) {
+        const tenantId = localStorage.getItem('tenantId') || undefined;
+        setSentryUser(String(loggedInUser.id), loggedInUser.email, tenantId, loggedInUser.username);
+        if (tenantId) setSentryTenant(tenantId);
+      } else {
+        clearSentryUser();
+      }
     } catch (error) {
       setUser(null);
       throw error;
@@ -60,6 +78,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     try {
       const newUser = await authService.signUp(credentials);
       setUser(newUser);
+
+      if (newUser) {
+        const tenantId = localStorage.getItem('tenantId') || undefined;
+        setSentryUser(String(newUser.id), newUser.email, tenantId, newUser.username);
+        if (tenantId) setSentryTenant(tenantId);
+      } else {
+        clearSentryUser();
+      }
     } catch (error) {
       setUser(null);
       throw error;
@@ -73,9 +99,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     try {
       await authService.logout();
       setUser(null);
+      clearSentryUser();
     } catch (error) {
       console.error('Logout error:', error);
       setUser(null);
+      clearSentryUser();
     } finally {
       setLoading(false);
     }
@@ -85,9 +113,18 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     try {
       const currentUser = await authService.getCurrentUser();
       setUser(currentUser);
+
+      if (currentUser) {
+        const tenantId = localStorage.getItem('tenantId') || undefined;
+        setSentryUser(String(currentUser.id), currentUser.email, tenantId, currentUser.username);
+        if (tenantId) setSentryTenant(tenantId);
+      } else {
+        clearSentryUser();
+      }
     } catch (error) {
       console.error('Failed to refresh user:', error);
       setUser(null);
+      clearSentryUser();
     }
   }, []);
 

@@ -22,6 +22,10 @@ from django.contrib.postgres.fields import ArrayField
 from django.db import models
 from django.db.models import Q, Value
 from django.db.models.functions import Coalesce
+from django.core.cache import cache
+
+from apps.core.cache_utils import get_tenant_cache_version, stable_query_hash
+from apps.system.serializers import SystemProductSerializer
 
 from tenant_apps.customers.models import Customer
 from tenant_apps.customers.serializers import CustomerSerializer
@@ -35,12 +39,55 @@ logger = logging.getLogger(__name__)
 class CustomerViewSet(viewsets.ModelViewSet):
     """
     ViewSet for managing customers with strict tenant isolation.
-    
+
     Security Model:
     - Authentication is REQUIRED for all environments
     - Tenant context is MANDATORY - users only see their tenant's data
     - No DEBUG-based bypasses - consistent security across all environments
     """
+
+    CACHE_TTL_SECONDS = 60 * 15
+
+    def _cache_key(self, *, scope: str, tenant_id: str, query_hash: str = 'none') -> str:
+        version = get_tenant_cache_version('customers', str(tenant_id))
+        return f'pm:v1:customers:v{version}:{scope}:tenant:{tenant_id}:q:{query_hash}'
+
+    def list(self, request, *args, **kwargs):
+        tenant = getattr(request, 'tenant', None)
+        if not tenant:
+            return Response({'error': 'Tenant not found'}, status=status.HTTP_400_BAD_REQUEST)
+
+        query_items: list[tuple[str, str]] = []
+        for key in sorted(request.query_params.keys()):
+            for value in sorted(request.query_params.getlist(key)):
+                query_items.append((key, value))
+        qh = stable_query_hash(query_items)
+
+        cache_key = self._cache_key(scope='list', tenant_id=str(tenant.id), query_hash=qh)
+        cached = cache.get(cache_key)
+        if cached is not None:
+            return Response(cached)
+
+        response = super().list(request, *args, **kwargs)
+        if response.status_code == status.HTTP_200_OK:
+            cache.set(cache_key, response.data, self.CACHE_TTL_SECONDS)
+        return response
+
+    def retrieve(self, request, *args, **kwargs):
+        tenant = getattr(request, 'tenant', None)
+        if not tenant:
+            return Response({'error': 'Tenant not found'}, status=status.HTTP_400_BAD_REQUEST)
+
+        pk = kwargs.get('pk')
+        cache_key = self._cache_key(scope=f'retrieve:{pk}', tenant_id=str(tenant.id))
+        cached = cache.get(cache_key)
+        if cached is not None:
+            return Response(cached)
+
+        response = super().retrieve(request, *args, **kwargs)
+        if response.status_code == status.HTTP_200_OK:
+            cache.set(cache_key, response.data, self.CACHE_TTL_SECONDS)
+        return response
 
     queryset = Customer.objects.all()
     serializer_class = CustomerSerializer
@@ -184,20 +231,45 @@ class CustomerViewSet(viewsets.ModelViewSet):
     
     @action(detail=True, methods=['get'], url_path='products')
     def products(self, request, pk=None):
-        """
-        List all products associated with this customer.
-        
+        """List all products associated with this customer.
+
         GET /api/v1/customers/{id}/products/
-        
+
         Returns products that have this customer in their M2M relationship.
         Respects tenant isolation.
         """
-        # Customer.products still points to system.Product (Phase 8 three-tier catalog).
-        # Until Step 4 updates customer product selection to MasterProduct/SupplierAvailableItem,
-        # keep this endpoint working by returning system products.
-        from apps.system.serializers import SystemProductSerializer
 
         customer = self.get_object()
         products = customer.products.all()
         serializer = SystemProductSerializer(products, many=True)
         return Response(serializer.data)
+
+    @action(detail=True, methods=['get'], url_path='product-history')
+    def product_history(self, request, pk=None):
+        """Aggregated distinct product history for a customer.
+
+        This powers the Customer UI's "Product History" tab.
+
+        We treat Sales Orders as the customer's purchase history for reporting.
+        """
+
+        tenant = getattr(request, 'tenant', None)
+        if not tenant:
+            return Response({'error': 'Tenant not found'}, status=status.HTTP_400_BAD_REQUEST)
+
+        customer = self.get_object()
+
+        from tenant_apps.sales_orders.models import SalesOrder
+
+        product_ids = (
+            SalesOrder.objects.for_tenant(tenant)
+            .filter(customer=customer)
+            .exclude(product__isnull=True)
+            .values_list('product_id', flat=True)
+            .distinct()
+        )
+
+        from apps.system.models import Product
+
+        products = Product.objects.filter(id__in=list(product_ids), is_active=True).order_by('product_code')
+        return Response(SystemProductSerializer(products, many=True).data)
