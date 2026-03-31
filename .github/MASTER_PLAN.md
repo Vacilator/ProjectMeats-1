@@ -26,6 +26,8 @@ This file is the **append-only PR-referenceable execution log**.
 
 - **2026-03-31** — Workforms editor: Form Submitted trigger config now lists saved FormProcess nodes via a dynamic dropdown (label: title/display-name + created date). (PR: #4318)
 
+- **2026-03-31** — **HOTFIX**: Stabilized `AvailableFormsViewSet` (Quick Actions) to avoid ORM/enum edge cases and added explicit “document parsing service unreachable” error return for the AI `parse_document` tool. (PR: #4327)
+
 - **2026-03-31** — Workforms editor onboarding: prevented Step 5 tour overlay lockout by targeting stable canvas element, enabling overlay/Esc dismissal, and aborting cleanly on close/overlay/error events. (PR: #4329)
 
 ### 2026-03-31 — Secret audit drift (manifest v5.1)
@@ -87,6 +89,11 @@ This file is the **append-only PR-referenceable execution log**.
 
 ### 2026-03-31 — Pending work items (not shipped)
 These items were requested/planned in-session but are **not completed yet**:
+
+- **Session handoff (from `plan.md`)**
+  - Source of truth for remaining work: this section.
+  - Current SQL todos: `plant-schema-cruft-purge` (in_progress), `universal-form-input-fixes` (pending), `hierarchical-drilldown-routing` (pending).
+  - Repo rule reminder: changes must land via PRs (direct pushes to `development` are blocked).
 
 - **Plant schema cruft purge** (`plant-schema-cruft-purge`)
   - Backend: remove `Plant.code`, `Plant.manager`, `Plant.phone`, `Plant.email`, `Plant.phone_type`.
