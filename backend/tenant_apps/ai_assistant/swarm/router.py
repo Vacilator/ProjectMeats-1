@@ -49,8 +49,25 @@ def build_swarm_system_prompt(
         "- get_entity_details(type, id) to load a full record profile payload for a specific entity. "
         "- get_entity_analytics(entity_type, metric[, days, limit]) for annotated aggregations (e.g., most purchased, highest revenue). "
         "- ingest_feedback(user_correction, lesson_text[, ...]) to save a lesson learned from user feedback. "
+        "- get_entity_schema(entity_type) to discover required fields for record creation (same engine as the UI). "
+        "- create_entity(entity_type, payload) to create tenant-scoped records. NEVER ask the user for tenant_id. "
+        "- parse_document(file_id_or_url) to extract text from an uploaded AIDocument UUID (URL fetch disabled). "
         "- create_task(title, message[, entity_type, entity_id]) to create an in-app task notification for the current user. "
+        "- create_in_app_notification(title, message[, ...]) to notify other users (owners/admins only). "
         "- get_recent_errors() to fetch the most recent Sentry issues for the active tenant. "
+        "\n\nRECORD CREATION PROTOCOL (MANDATORY): "
+        "If the user asks you to create a record (Purchase Order, Supplier, Customer, Plant, Location, Contact, Invoice, etc): "
+        "(1) Call get_entity_schema(entity_type) first. "
+        "(2) If any REQUIRED fields are missing, ask the user for ONLY those missing fields. "
+        "(3) Once all required fields are known, call create_entity(entity_type, payload). "
+        "Do NOT say you lack context as the first response for create requests. "
+        "\n\nDOCUMENT-DRIVEN CREATION (Read → Map → Confirm → Create): "
+        "If a document was uploaded (document_id provided) and the user asks to create a record from it: "
+        "(1) Call parse_document(document_id). "
+        "(2) Call get_entity_schema(entity_type). "
+        "(3) Map extracted values to the schema. "
+        "(4) Present a concise summary and ask the user to confirm. "
+        "(5) Only after confirmation, call create_entity. "
     )
 
     if lessons_block:
@@ -127,15 +144,9 @@ class SwarmOrchestrator:
             'edible',
             'inedible',
             'combo',
-            'load',
             'reefer',
             'temp',
             'pallet',
-            'po#',
-            'po #',
-            'purchase order',
-            'historical po',
-            'previous po',
         ]
         return any(k in t for k in keywords)
 
@@ -174,7 +185,9 @@ class SwarmOrchestrator:
         urgency = self._estimate_urgency(text)
         intent = self._estimate_intent(event_type, payload)
 
-        requires_sme = self._requires_meat_sme(text) if event_type == 'user_chat' else False
+        requires_sme = False
+        if event_type == 'user_chat' and intent not in {'action_create', 'document_invoice', 'document_purchase_order', 'document_bill_of_lading'}:
+            requires_sme = self._requires_meat_sme(text)
 
         chain: List[str] = ["Extractor", "Enricher"]
         if requires_sme:
@@ -219,8 +232,10 @@ class SwarmOrchestrator:
             logger.warning('[SwarmOrchestrator] Lessons lookup failed; continuing without lessons: %s', str(e))
 
         # Phase 8.2: intent classification → delegate deep meat/logistics questions to MeatSME RAG.
+        # IMPORTANT: never route record creation or document-driven flows to RAG; those must use the tool loop.
         # Reliability mandate: if RAG fails for any reason, fall back to the standard tool loop.
-        if self._requires_meat_sme(user_message):
+        intent = self._estimate_intent('user_chat', {'message': user_message})
+        if intent == 'unknown' and self._requires_meat_sme(user_message):
             try:
                 from tenant_apps.ai_assistant.swarm.agents.meat_sme import MeatSMEAgent
 
