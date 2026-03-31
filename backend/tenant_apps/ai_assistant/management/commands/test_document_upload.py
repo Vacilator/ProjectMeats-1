@@ -154,7 +154,7 @@ class Command(BaseCommand):
             data['session'] = session_id
 
         factory = APIRequestFactory()
-        req = factory.post('/api/v1/ai-assistant/documents/', data=data, format='multipart')
+        req = factory.post('/api/v1/ai-assistant/ai-documents/', data=data, format='multipart')
         # Ensure tenant context exists even without middleware.
         req.tenant = tenant
         # For parity with middleware resolution.

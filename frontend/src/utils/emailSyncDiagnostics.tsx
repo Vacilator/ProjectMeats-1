@@ -35,7 +35,13 @@ export const getEmailSyncErrorCode = (data: unknown): EmailSyncErrorCode => {
 };
 
 export const emailSyncNeedsReconnect = (code: EmailSyncErrorCode): boolean => {
-  return code === 'decryption_failed' || code === 'token_invalid' || code === 'token_refresh_failed' || code === 'token_missing';
+  return (
+    code === 'not_connected' ||
+    code === 'decryption_failed' ||
+    code === 'token_invalid' ||
+    code === 'token_refresh_failed' ||
+    code === 'token_missing'
+  );
 };
 
 export const buildEmailSyncCtaMessage = (
