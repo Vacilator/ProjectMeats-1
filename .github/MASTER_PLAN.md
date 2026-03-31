@@ -1495,3 +1495,4 @@ Deliverables:
 - 2026-03-31 — Feature: streaming CSV exports for Purchase Orders + Sales Orders (?format=csv) — PR: #4299.
 - 2026-03-31 — Observability: Sentry hardening (capture 5xx + CeleryIntegration + frontend ErrorBoundary + axios 5xx capture + user context binding) — PR: #4301.
 - 2026-03-31 — CI/CD: format deploy run name (🚀 Deploy: <env> - <PR title (PR#)>) — PR: #4304.
+- 2026-03-31 — Integrations: tenant webhooks + API keys (Celery dispatch + signing) — PR: #4306.
