@@ -62,6 +62,12 @@ import {
   SectionTitle,
 } from './shared/StyledComponents';
 
+const MemoNestedChildrenRenderer = React.memo(NestedChildrenRenderer);
+MemoNestedChildrenRenderer.displayName = 'MemoNestedChildrenRenderer';
+
+const MemoAutoMappingSuggestionsPanel = React.memo(AutoMappingSuggestionsPanel);
+MemoAutoMappingSuggestionsPanel.displayName = 'MemoAutoMappingSuggestionsPanel';
+
 // ============================================================================
 // Component Props
 // ============================================================================
@@ -757,7 +763,7 @@ export const DynamicConfigPanel: React.FC<DynamicConfigPanelProps> = ({
       // Phase E.3: Nested children
       case 'nested-children':
         renderedField = (
-          <NestedChildrenRenderer
+          <MemoNestedChildrenRenderer
             key={field.id}
             field={field}
             value={value || []}
@@ -859,7 +865,7 @@ export const DynamicConfigPanel: React.FC<DynamicConfigPanelProps> = ({
         )}
 
         {visibleAutoMapSuggestions.length > 0 && (
-          <AutoMappingSuggestionsPanel
+          <MemoAutoMappingSuggestionsPanel
             suggestions={visibleAutoMapSuggestions}
             onAccept={handleAcceptAutoMap}
             onReject={handleRejectAutoMap}

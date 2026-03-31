@@ -1,7 +1,7 @@
 /**
  * Authentication context for managing user authentication state across the app.
  */
-import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useEffect, useState, ReactNode, useCallback, useMemo } from 'react';
 import { UserProfile } from '../types';
 import { authService, LoginCredentials, SignUpCredentials } from '../services/authService';
 
@@ -42,7 +42,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     initializeAuth();
   }, []);
 
-  const login = async (credentials: LoginCredentials) => {
+  const login = useCallback(async (credentials: LoginCredentials) => {
     setLoading(true);
     try {
       const loggedInUser = await authService.login(credentials);
@@ -53,9 +53,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const signUp = async (credentials: SignUpCredentials) => {
+  const signUp = useCallback(async (credentials: SignUpCredentials) => {
     setLoading(true);
     try {
       const newUser = await authService.signUp(credentials);
@@ -66,9 +66,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const logout = async () => {
+  const logout = useCallback(async () => {
     setLoading(true);
     try {
       await authService.logout();
@@ -79,9 +79,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const refreshUser = async () => {
+  const refreshUser = useCallback(async () => {
     try {
       const currentUser = await authService.getCurrentUser();
       setUser(currentUser);
@@ -89,18 +89,22 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       console.error('Failed to refresh user:', error);
       setUser(null);
     }
-  };
+  }, []);
 
-  const value: AuthContextType = {
-    user,
-    loading,
-    login,
-    signUp,
-    logout,
-    isAuthenticated: !!user,
-    isAdmin: authService.isAdmin(),
-    refreshUser,
-  };
+  const isAdmin = useMemo(() => authService.isAdmin(), [user]);
+
+  const value = useMemo<AuthContextType>(() => {
+    return {
+      user,
+      loading,
+      login,
+      signUp,
+      logout,
+      isAuthenticated: Boolean(user),
+      isAdmin,
+      refreshUser,
+    };
+  }, [user, loading, login, signUp, logout, isAdmin, refreshUser]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
