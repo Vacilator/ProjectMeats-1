@@ -153,7 +153,7 @@ class FormVersionService:
             history.append({
                 'version_number': version.version_number,
                 'change_summary': version.change_summary,
-                'created_at': version.created_at.isoformat(),
+                'created_at': version.created_on.isoformat(),
                 'created_by': version.created_by.email if version.created_by else 'System',
                 'is_current': version.is_current
             })
