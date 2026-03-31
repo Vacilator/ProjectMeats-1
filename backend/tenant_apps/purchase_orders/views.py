@@ -28,10 +28,43 @@ class PurchaseOrderViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        """Filter purchase orders by current tenant."""
-        if hasattr(self.request, "tenant") and self.request.tenant:
-            return PurchaseOrder.objects.for_tenant(self.request.tenant)
-        return PurchaseOrder.objects.none()
+        """Filter purchase orders by current tenant.
+
+        Soft deletes:
+        - default: hide deleted
+        - admin: allow include_deleted=1
+        """
+        if not (hasattr(self.request, "tenant") and self.request.tenant):
+            return PurchaseOrder.objects.none()
+
+        include_deleted = str(self.request.query_params.get("include_deleted") or "").strip().lower() in {
+            "1",
+            "true",
+            "t",
+            "yes",
+            "y",
+        }
+        is_admin = bool(getattr(self.request.user, "is_superuser", False) or getattr(self.request.user, "is_staff", False))
+
+        if include_deleted and is_admin:
+            return PurchaseOrder.all_objects.for_tenant(self.request.tenant)
+
+        return PurchaseOrder.objects.for_tenant(self.request.tenant)
+
+    def perform_destroy(self, instance):
+        instance.soft_delete()
+
+    @action(detail=True, methods=["post"], url_path="restore")
+    def restore(self, request, pk=None):
+        if not (getattr(request.user, "is_superuser", False) or getattr(request.user, "is_staff", False)):
+            return Response({"error": "Permission denied"}, status=status.HTTP_403_FORBIDDEN)
+
+        po = PurchaseOrder.all_objects.for_tenant(request.tenant).filter(pk=pk).first()
+        if not po:
+            return Response({"error": "Not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        po.restore()
+        return Response(PurchaseOrderSerializer(po).data)
 
     def perform_create(self, serializer):
         """Set the tenant and auto-generate order_number when creating a new purchase order."""

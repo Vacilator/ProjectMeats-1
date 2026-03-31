@@ -11,6 +11,7 @@ from apps.core.models import (
     AccountingPaymentTermsChoices,
     EdibleInedibleChoices,
     ProteinTypeChoices,
+    SoftDeleteModel,
     TenantAwareModel,
     WeightUnitChoices,
 )
@@ -34,7 +35,7 @@ class PaymentStatus(models.TextChoices):
     PAID = "paid", "Paid"
 
 
-class Invoice(TenantAwareModel):
+class Invoice(SoftDeleteModel, TenantAwareModel):
     """Invoice model for customer invoices."""
 
     # Invoice identification

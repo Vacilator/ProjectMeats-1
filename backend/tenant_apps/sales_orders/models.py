@@ -10,6 +10,7 @@ from django.db import models
 from apps.tenants.models import Tenant
 from apps.core.models import (
     CarrierReleaseFormatChoices,
+    SoftDeleteModel,
     TenantAwareModel,
     WeightUnitChoices,
 )
@@ -34,7 +35,7 @@ class SalesOrderStatus(models.TextChoices):
 #     PAID = "paid", "Paid"
 
 
-class SalesOrder(OrderMethodsMixin, TenantAwareModel):
+class SalesOrder(OrderMethodsMixin, SoftDeleteModel, TenantAwareModel):
     """
     Sales Order model for managing customer sales orders.
     
