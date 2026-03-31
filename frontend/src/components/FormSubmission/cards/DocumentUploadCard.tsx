@@ -18,6 +18,9 @@
 import React, { useState, useCallback, useRef } from 'react';
 import styled from 'styled-components';
 import { FileUp, Check, X, File, Image, FileText, AlertCircle } from 'lucide-react';
+
+import { documentsApi } from '@/services/aiService';
+
 import { InteractionCardProps } from '../InteractionCardRegistry';
 
 // ============================================================================
@@ -275,6 +278,7 @@ export const DocumentUploadCard: React.FC<InteractionCardProps> = ({
   node,
   context,
   onComplete,
+  onWait,
   readOnly = false,
 }) => {
   const [uploadedFile, setUploadedFile] = useState<UploadedFile | null>(null);
@@ -293,68 +297,132 @@ export const DocumentUploadCard: React.FC<InteractionCardProps> = ({
 
   // Handle file selection
   const handleFileSelect = useCallback((file: File) => {
-    setError(null);
-    
-    // Validate file size
-    if (file.size > maxSizeBytes) {
-      setError(`File size exceeds maximum of ${formatFileSize(maxSizeBytes)}`);
-      return;
-    }
-    
-    // Validate file type (simplified - in production use more robust validation)
-    if (allowedTypes[0] !== '*/*') {
-      const isAllowed = allowedTypes.some((type: string) => {
-        if (type === '*/*') return true;
-        if (type.endsWith('/*')) {
-          return file.type.startsWith(type.replace('/*', ''));
-        }
-        return file.type === type;
-      });
-      
-      if (!isAllowed) {
-        setError(`File type not allowed. Accepted types: ${allowedTypes.join(', ')}`);
+    if (readOnly) return;
+
+    void (async () => {
+      setError(null);
+
+      // Validate file size
+      if (file.size > maxSizeBytes) {
+        setError(`File size exceeds maximum of ${formatFileSize(maxSizeBytes)}`);
         return;
       }
-    }
-    
-    // Simulate upload (in production, use actual API)
-    setIsUploading(true);
-    setUploadProgress(0);
-    
-    // Simulate progress
-    const interval = setInterval(() => {
-      setUploadProgress(prev => {
-        if (prev >= 100) {
-          clearInterval(interval);
-          return 100;
+
+      // Validate file type (simplified - in production use more robust validation)
+      if (allowedTypes[0] !== '*/*') {
+        const isAllowed = allowedTypes.some((type: string) => {
+          if (type === '*/*') return true;
+          if (type.endsWith('/*')) {
+            return file.type.startsWith(type.replace('/*', ''));
+          }
+          return file.type === type;
+        });
+
+        if (!isAllowed) {
+          setError(`File type not allowed. Accepted types: ${allowedTypes.join(', ')}`);
+          return;
         }
-        return prev + 10;
-      });
-    }, 200);
-    
-    // Simulate upload completion
-    setTimeout(() => {
-      const fileUuid = `file-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-      const uploadedFile: UploadedFile = {
-        uuid: fileUuid,
-        name: file.name,
-        size: file.size,
-        type: file.type,
+      }
+
+      setIsUploading(true);
+      setUploadProgress(0);
+      onWait?.();
+
+      const progressTimer = window.setInterval(() => {
+        setUploadProgress((prev) => {
+          if (prev >= 90) return prev;
+          return Math.min(90, prev + 7);
+        });
+      }, 200);
+
+      const formatServerError = (data: unknown): string | null => {
+        if (typeof data === 'string') return data;
+        if (!data || typeof data !== 'object') return null;
+
+        const obj = data as Record<string, unknown>;
+        if (typeof obj.error === 'string') return obj.error;
+        if (typeof obj.detail === 'string') return obj.detail;
+
+        const parts: string[] = [];
+        for (const [key, value] of Object.entries(obj)) {
+          if (typeof value === 'string') {
+            parts.push(`${key}: ${value}`);
+          } else if (Array.isArray(value) && typeof value[0] === 'string') {
+            parts.push(`${key}: ${value[0]}`);
+          }
+        }
+        return parts.length ? parts.join(' • ') : null;
       };
-      
-      setUploadedFile(uploadedFile);
-      setIsUploading(false);
-      
-      // Complete card with file data
-      onComplete({
-        file_uuid: fileUuid,
-        file_name: file.name,
-        file_size: file.size,
-        file_type: file.type,
-        uploaded_at: new Date().toISOString(),
-      });
-    }, 2500);
-  }, [maxSizeBytes, allowedTypes, onComplete]);
+
+      try {
+        const res = await documentsApi.upload(file);
+        window.clearInterval(progressTimer);
+        setUploadProgress(100);
+
+        // ai-documents API returns an AIDocument shape; keep this card output stable.
+        const doc = (res && typeof res === 'object' ? (res as unknown as Record<string, unknown>) : {}) || {};
+        const documentId = String(doc.id || `file-${Date.now()}`);
+        const originalFilename = String(doc.original_filename || file.name);
+        const contentType = String(doc.content_type || file.type || '');
+        const fileSize = Number(doc.file_size ?? file.size ?? 0);
+        const fileUrl = String(doc.file_url || doc.file || '');
+        const createdOn = String(doc.created_on || new Date().toISOString());
+
+        const next: UploadedFile = {
+          uuid: documentId,
+          name: originalFilename,
+          size: fileSize,
+          type: contentType,
+          url: fileUrl || undefined,
+        };
+
+        setUploadedFile(next);
+        setIsUploading(false);
+
+        onComplete({
+          file_uuid: documentId,
+          file_name: originalFilename,
+          file_size: fileSize,
+          file_type: contentType,
+          file_url: fileUrl,
+          uploaded_at: createdOn,
+        });
+      } catch (e: unknown) {
+        window.clearInterval(progressTimer);
+        setUploadProgress(0);
+        setIsUploading(false);
+
+        const errObj = e && typeof e === 'object' ? (e as Record<string, unknown>) : null;
+        const response = errObj?.response && typeof errObj.response === 'object' ? (errObj.response as Record<string, unknown>) : null;
+        const status = typeof response?.status === 'number' ? (response.status as number) : null;
+        const data = response?.data as unknown;
+
+        // Non-breaking fallback: if the API isn't available in this environment, keep the old simulated behavior.
+        if (status === 404 || status === 405) {
+          const fileUuid = `file-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
+          const uploaded: UploadedFile = {
+            uuid: fileUuid,
+            name: file.name,
+            size: file.size,
+            type: file.type,
+          };
+
+          setUploadedFile(uploaded);
+          onComplete({
+            file_uuid: fileUuid,
+            file_name: file.name,
+            file_size: file.size,
+            file_type: file.type,
+            uploaded_at: new Date().toISOString(),
+            simulated: true,
+          });
+          return;
+        }
+
+        setError(formatServerError(data) || 'Upload failed. Please retry.');
+      }
+    })();
+  }, [allowedTypes, maxSizeBytes, onComplete, onWait, readOnly]);
 
   // Drag and drop handlers
   const handleDragEnter = (e: React.DragEvent) => {
@@ -378,7 +446,9 @@ export const DocumentUploadCard: React.FC<InteractionCardProps> = ({
     e.preventDefault();
     e.stopPropagation();
     setIsDragging(false);
-    
+
+    if (readOnly) return;
+
     const files = Array.from(e.dataTransfer.files);
     if (files.length > 0) {
       handleFileSelect(files[0]);
@@ -387,6 +457,8 @@ export const DocumentUploadCard: React.FC<InteractionCardProps> = ({
 
   // File input change handler
   const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (readOnly) return;
+
     const files = e.target.files;
     if (files && files.length > 0) {
       handleFileSelect(files[0]);
@@ -423,7 +495,10 @@ export const DocumentUploadCard: React.FC<InteractionCardProps> = ({
             onDragLeave={handleDragLeave}
             onDragOver={handleDragOver}
             onDrop={handleDrop}
-            onClick={() => fileInputRef.current?.click()}
+            onClick={() => {
+              if (readOnly) return;
+              fileInputRef.current?.click();
+            }}
           >
             <DropZoneIcon $hasFile={false}>
               <FileUp />
