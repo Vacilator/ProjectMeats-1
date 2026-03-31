@@ -10,6 +10,7 @@
  * - Session expired modal instead of hard redirects
  */
 import axios, { AxiosError as AxiosErrorType, InternalAxiosRequestConfig } from 'axios';
+import * as Sentry from '@sentry/react';
 import { config } from '../config/runtime';
 import { logger } from '../utils/logger';
 import {
@@ -199,6 +200,36 @@ apiClient.interceptors.response.use(
         url: originalRequest?.url,
         method: originalRequest?.method,
       });
+
+      // Sentry hardening: capture the original axios error with context before we
+      // replace it with a friendly message.
+      try {
+        Sentry.withScope((scope) => {
+          scope.setTag('http.status_code', status);
+          scope.setTag('http.method', originalRequest?.method || 'unknown');
+          scope.setTag('http.url', originalRequest?.url || 'unknown');
+          scope.setTag('tenant.id', localStorage.getItem('tenantId') || 'unknown');
+          scope.setContext('http', {
+            status,
+            method: originalRequest?.method,
+            url: originalRequest?.url,
+            baseURL: (originalRequest as any)?.baseURL,
+          });
+          scope.setContext('auth', {
+            isUsingJwt: isUsingJwt(),
+            hasAuthHeader: Boolean(originalRequest?.headers?.Authorization),
+          });
+
+          const data = (error.response as any)?.data;
+          if (data !== undefined) {
+            scope.setExtra('response.data', typeof data === 'string' ? data.slice(0, 2000) : data);
+          }
+
+          Sentry.captureException(error);
+        });
+      } catch {
+        // best-effort
+      }
 
       return Promise.reject(new Error(friendlyMessage));
     }
