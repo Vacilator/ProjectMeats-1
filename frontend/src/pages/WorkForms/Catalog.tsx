@@ -21,7 +21,7 @@ import { logger } from '@/utils/logger';
 import { showAlert } from '@/utils/uiDialogs';
 
 import { useNavigate } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import styled from 'styled-components';
 import {
   Plus,
@@ -39,6 +39,7 @@ import {
   Database,
   Play,
   Loader,
+  Trash2,
 } from 'lucide-react';
 import { PageContainer } from '../../components/ui/PageContainer';
 import { Card, CardHeader, CardContent, CardFooter } from '../../components/ui/Card';
@@ -46,6 +47,9 @@ import { Button } from '../../components/ui/Button';
 import { TemplateSelector } from '../../components/FlowEditor/templates/TemplateSelector';
 import { FLOW_TEMPLATES, FlowTemplate } from '../../components/FlowEditor/templates/flowTemplates';
 import { createFormSubmission, getAvailableWorkForms } from '../../services/workformsApi';
+import { deleteWorkflow } from '../../components/FlowEditor/utils/workflowPersistence';
+import { useQuickActions } from '../../contexts/QuickActionsContext';
+import { Popconfirm } from 'antd';
 import { listTenantForms as listLegacyTenantForms } from '../../services/tenantFormService';
 import { useWorkFormPermissions, getUpgradeMessage } from '../../hooks/useWorkFormPermissions';
 
@@ -94,6 +98,35 @@ type Department = 'all' | 'receiving' | 'processing' | 'packaging' | 'quality_co
 
 const Container = styled(PageContainer)`
   /* Additional catalog-specific styling */
+`;
+
+const ActionRow = styled.div`
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 12px;
+`;
+
+const IconActionButton = styled.button`
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid rgb(var(--color-border));
+  background: rgb(var(--color-surface));
+  color: rgb(var(--color-text-primary));
+  font-size: 13px;
+  cursor: pointer;
+
+  &:hover {
+    border-color: rgb(var(--color-primary));
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
 `;
 
 const Header = styled.div`
@@ -523,6 +556,23 @@ const FormsFlowsCatalog: React.FC = () => {
 
   // Phase 4.2: Get user permissions
   const { permissions, isLoading: permissionsLoading } = useWorkFormPermissions();
+  const queryClient = useQueryClient();
+  const { refreshQuickActions } = useQuickActions();
+
+  const deleteWorkFormMutation = useMutation({
+    mutationFn: async (workformId: string) => {
+      await deleteWorkflow(workformId);
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['workforms-catalog-items'] });
+      await refreshQuickActions();
+      showAlert({ type: 'success', title: 'Deleted', content: 'WorkForm deleted successfully.' });
+    },
+    onError: (error: any) => {
+      const msg = error?.message || 'Failed to delete WorkForm.';
+      showAlert({ type: 'error', title: 'Error', content: msg });
+    },
+  });
 
   // Fetch existing items:
   // - WorkForms: TenantWorkForm (new editor)
@@ -1027,6 +1077,30 @@ const FormsFlowsCatalog: React.FC = () => {
                     </QuickRunButton>
                   </div>
                 )}
+
+                {/* Delete (WorkForms only) */}
+                {typeof form.node_count === 'number' && permissions.can_delete && form.status !== 'active' && (
+                  <ActionRow>
+                    <Popconfirm
+                      title="Delete this WorkForm?"
+                      description="This will permanently delete the WorkForm and any extracted forms."
+                      okText="Delete"
+                      cancelText="Cancel"
+                      okButtonProps={{ danger: true }}
+                      onConfirm={() => deleteWorkFormMutation.mutate(form.id)}
+                    >
+                      <IconActionButton
+                        type="button"
+                        onClick={(e) => e.stopPropagation()}
+                        disabled={deleteWorkFormMutation.isPending}
+                        aria-label={`Delete ${form.name}`}
+                      >
+                        <Trash2 size={14} aria-hidden="true" />
+                        Delete
+                      </IconActionButton>
+                    </Popconfirm>
+                  </ActionRow>
+                )}
               </CardContent>
             </FormCard>
           ))}
@@ -1091,6 +1165,30 @@ const FormsFlowsCatalog: React.FC = () => {
                       )}
                     </QuickRunButton>
                   </div>
+                )}
+
+                {/* Delete (WorkForms only) */}
+                {typeof form.node_count === 'number' && permissions.can_delete && form.status !== 'active' && (
+                  <ActionRow style={{ marginLeft: '4rem' }}>
+                    <Popconfirm
+                      title="Delete this WorkForm?"
+                      description="This will permanently delete the WorkForm and any extracted forms."
+                      okText="Delete"
+                      cancelText="Cancel"
+                      okButtonProps={{ danger: true }}
+                      onConfirm={() => deleteWorkFormMutation.mutate(form.id)}
+                    >
+                      <IconActionButton
+                        type="button"
+                        onClick={(e) => e.stopPropagation()}
+                        disabled={deleteWorkFormMutation.isPending}
+                        aria-label={`Delete ${form.name}`}
+                      >
+                        <Trash2 size={14} aria-hidden="true" />
+                        Delete
+                      </IconActionButton>
+                    </Popconfirm>
+                  </ActionRow>
                 )}
               </CardContent>
             </FormCard>

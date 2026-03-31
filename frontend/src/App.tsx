@@ -96,6 +96,8 @@ import WorkFormsLayout from './pages/WorkForms';
 import WorkFormsCatalog from './pages/WorkForms/Catalog';
 import WorkFormsInProgress from './pages/WorkForms/InProgress';
 import WorkFormsHistory from './pages/WorkForms/History';
+import ExecuteWorkForm from './pages/WorkForms/Execute';
+import WorkFormExecutionDetails from './pages/WorkForms/ExecutionDetails';
 const WorkFormsEditor = lazy(() => import('./pages/WorkForms/Editor'));
 import WorkFormsMonitoring from './pages/WorkForms/Monitoring';
 
@@ -323,6 +325,8 @@ const App: React.FC = () => {
                   <Route path="monitoring" element={<WorkFormsMonitoring />} />
                   <Route path="catalog" element={<WorkFormsCatalog />} />
                   <Route path="history" element={<WorkFormsHistory />} />
+                  <Route path="execute/:id" element={<ExecuteWorkForm />} />
+                  <Route path="executions/:id" element={<WorkFormExecutionDetails />} />
                   <Route
                     path="editor"
                     element={

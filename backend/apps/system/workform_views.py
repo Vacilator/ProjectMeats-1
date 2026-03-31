@@ -8,6 +8,7 @@ Phase 1.4-1.7 of WF-ENH-2026-Q1
 Created: 2026-02-06
 """
 from django.db import transaction, models
+from django.utils import timezone
 from rest_framework import viewsets, status
 from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
@@ -223,7 +224,76 @@ class TenantWorkFormViewSet(viewsets.ModelViewSet):
             version=instance.version + 1,
             updated_by=self.request.user
         )
-    
+
+    def _can_manage_workform(self, workform: TenantWorkForm) -> bool:
+        """Only allow delete/execute for superusers, tenant admins, or the creator."""
+        request = self.request
+        user = getattr(request, 'user', None)
+        if not user or not getattr(user, 'is_authenticated', False):
+            return False
+
+        if getattr(user, 'is_superuser', False):
+            return True
+
+        if workform.created_by_id == user.id:
+            return True
+
+        tenant = getattr(request, 'tenant', None)
+        if not tenant:
+            return False
+
+        try:
+            from apps.tenants.models import TenantUser
+
+            tenant_user = TenantUser.objects.get(user=user, tenant=tenant, is_active=True)
+            return tenant_user.role in ['owner', 'admin']
+        except Exception:
+            return False
+
+    def destroy(self, request, *args, **kwargs):
+        workform = self.get_object()
+        if not self._can_manage_workform(workform):
+            return Response({"error": "Permission denied"}, status=status.HTTP_403_FORBIDDEN)
+        return super().destroy(request, *args, **kwargs)
+
+    @action(detail=True, methods=['post'])
+    def execute(self, request, pk=None):
+        """Execute a TenantWorkForm and create a persisted execution record."""
+        workform = self.get_object()
+        if not self._can_manage_workform(workform):
+            return Response({"error": "Permission denied"}, status=status.HTTP_403_FORBIDDEN)
+
+        initial_data = request.data.get('initial_data') if isinstance(request.data, dict) else None
+        initial_data = initial_data if isinstance(initial_data, dict) else {}
+
+        from tenant_apps.workflows.models import TenantWorkFormExecution, TenantWorkFormExecutionStatus
+
+        execution = TenantWorkFormExecution.objects.create(
+            tenant=request.tenant,
+            workform=workform,
+            status=TenantWorkFormExecutionStatus.IN_PROGRESS,
+            initial_data=initial_data,
+            started_by=request.user,
+            started_at=timezone.now(),
+        )
+
+        from apps.system.tasks import execute_workform_execution
+
+        execute_workform_execution.delay(execution_id=str(execution.id), tenant_id=str(request.tenant.id))
+
+        return Response(
+            {
+                'id': str(execution.id),
+                'workform_id': str(workform.id),
+                'workform_name': workform.name,
+                'status': execution.status,
+                'started_at': execution.started_at,
+                'completed_at': None,
+                'error_message': '',
+            },
+            status=status.HTTP_202_ACCEPTED,
+        )
+
     @action(detail=True, methods=['post'])
     def clone(self, request, pk=None):
         """
