@@ -12,6 +12,7 @@ from apps.tenants.models import Tenant
 
 class Plant(TenantAwareModel):
     PLANT_TYPE_CHOICES = [
+        ("vertical", "Vertical (Kill to Capture)"),
         ("processing", "Processing Plant"),
         ("distribution", "Distribution Center"),
         ("warehouse", "Warehouse"),

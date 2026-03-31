@@ -32,6 +32,7 @@ class LocationTypeChoices(models.TextChoices):
     PLANT_DISTRIBUTION = 'plant_distribution', 'Plant Distribution Center'
     PLANT_WAREHOUSE = 'plant_warehouse', 'Plant Warehouse'
     PLANT_RETAIL = 'plant_retail', 'Retail Location'
+    PLANT_VERTICAL = 'plant_vertical', 'Vertical (Kill to Capture)'
     PLANT_OTHER = 'plant_other', 'Other Plant'
     # Legacy/generic
     OTHER = 'other', 'Other'
