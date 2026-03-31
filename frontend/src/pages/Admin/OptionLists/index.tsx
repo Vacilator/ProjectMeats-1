@@ -8,6 +8,7 @@
  * - System Choice Lists vs Custom Tenant Lists
  */
 import React, { useEffect, useMemo, useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router-dom';
 import {
   Button,
@@ -107,21 +108,134 @@ const OptionListsPage: React.FC = () => {
 
   const [searchParams, setSearchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState<ActiveTabKey>('system');
-  const [lists, setLists] = useState<SystemChoiceList[]>([]);
-  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [editingList, setEditingList] = useState<SystemChoiceList | null>(null);
 
-  const [products, setProducts] = useState<MasterProduct[]>([]);
-  const [productsLoading, setProductsLoading] = useState(false);
+  const queryClient = useQueryClient();
+
+  const canEditProducts = permissions.role === 'superuser';
+
+  const systemChoiceListsQueryKey = ['admin-option-lists', 'system-choice-lists'] as const;
+  const customListsQueryKey = ['admin-option-lists', 'custom-tenant-lists'] as const;
+  const masterProductsQueryKey = ['admin-option-lists', 'master-products'] as const;
+  const productPrefsQueryKey = [
+    'admin-option-lists',
+    'product-preferences',
+    String(permissions.tenant_id || ''),
+  ] as const;
+
+  const systemChoiceListsQuery = useQuery<SystemChoiceList[]>({
+    queryKey: systemChoiceListsQueryKey,
+    enabled: canView,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    retry: false,
+    queryFn: async () => {
+      try {
+        const response = await apiClient.get('/system/choice-lists/');
+        const raw = response.data as any;
+        return Array.isArray(raw) ? raw : Array.isArray(raw?.results) ? raw.results : [];
+      } catch (error) {
+        console.error('Failed to load choice lists:', error);
+        message.error('Failed to load system option lists');
+        return [];
+      }
+    },
+  });
+
+  const customListsQuery = useQuery<CustomTenantList[]>({
+    queryKey: customListsQueryKey,
+    enabled: canView,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    retry: false,
+    queryFn: async () => {
+      try {
+        const response = await apiClient.get('/workflows/lists/');
+        const raw = response.data as any;
+        return Array.isArray(raw) ? raw : Array.isArray(raw?.results) ? raw.results : [];
+      } catch (error) {
+        console.error('Failed to load custom tenant lists:', error);
+        message.error('Failed to load custom tenant lists');
+        return [];
+      }
+    },
+  });
+
+  const masterProductsQuery = useQuery<MasterProduct[]>({
+    queryKey: masterProductsQueryKey,
+    enabled: canView,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    retry: false,
+    queryFn: async () => {
+      try {
+        const response = await apiClient.get('/system/products/', {
+          params: {
+            include_inactive: true,
+            page_size: 500,
+          },
+        });
+        const raw = response.data as any;
+        return Array.isArray(raw) ? raw : Array.isArray(raw?.results) ? raw.results : [];
+      } catch (error) {
+        console.error('Failed to load master products:', error);
+        message.error('Failed to load master products');
+        return [];
+      }
+    },
+  });
+
+  const productPreferencesQuery = useQuery<Record<string, TenantProductPreference>>({
+    queryKey: productPrefsQueryKey,
+    enabled: canView && Boolean(permissions.tenant_id),
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    retry: false,
+    queryFn: async () => {
+      if (!permissions.tenant_id) return {};
+
+      try {
+        const response = await apiClient.get('/system/product-preferences/', {
+          params: { page_size: 2000 },
+        });
+        const raw = response.data as any;
+        const data: TenantProductPreference[] = Array.isArray(raw)
+          ? raw
+          : Array.isArray(raw?.results)
+            ? raw.results
+            : [];
+
+        const next: Record<string, TenantProductPreference> = {};
+        for (const row of data) {
+          if (!row?.product) continue;
+          next[String(row.product)] = row;
+        }
+        return next;
+      } catch (error) {
+        console.error('Failed to load tenant product preferences:', error);
+        message.error('Failed to load tenant product overrides');
+        return {};
+      }
+    },
+  });
+
+  const lists = systemChoiceListsQuery.data ?? [];
+  const customLists = customListsQuery.data ?? [];
+  const products = masterProductsQuery.data ?? [];
+  const productPreferences = productPreferencesQuery.data ?? {};
+
+  const loading = systemChoiceListsQuery.isLoading || systemChoiceListsQuery.isFetching;
+  const customLoading = customListsQuery.isLoading || customListsQuery.isFetching;
+  const productsLoading = masterProductsQuery.isLoading || masterProductsQuery.isFetching;
+  const productPrefsLoading = productPreferencesQuery.isLoading || productPreferencesQuery.isFetching;
+
   const [productModalOpen, setProductModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<MasterProduct | null>(null);
   const [savingProduct, setSavingProduct] = useState(false);
   const [proteinChoices, setProteinChoices] = useState<ChoiceOption[]>([]);
 
   // Tenant overrides for master products (TenantProductPreference)
-  const [productPreferences, setProductPreferences] = useState<Record<string, TenantProductPreference>>({});
-  const [productPrefsLoading, setProductPrefsLoading] = useState(false);
   const [productPrefModalOpen, setProductPrefModalOpen] = useState(false);
   const [editingProductPref, setEditingProductPref] = useState<{
     product: MasterProduct;
@@ -129,8 +243,6 @@ const OptionListsPage: React.FC = () => {
   } | null>(null);
   const [savingProductPref, setSavingProductPref] = useState(false);
 
-  const [customLists, setCustomLists] = useState<CustomTenantList[]>([]);
-  const [customLoading, setCustomLoading] = useState(false);
   const [editingCustomList, setEditingCustomList] = useState<CustomTenantList | null>(null);
   const [customModalOpen, setCustomModalOpen] = useState(false);
 
@@ -142,101 +254,6 @@ const OptionListsPage: React.FC = () => {
     // Only run on mount / tab param change
   }, [searchParams]);
 
-  const canEditProducts = permissions.role === 'superuser';
-
-  useEffect(() => {
-    if (!canView) return;
-    void loadChoiceLists();
-    void loadCustomLists();
-    void loadMasterProducts();
-    void loadProductPreferences();
-  }, [canView]);
-
-  const loadChoiceLists = async () => {
-    setLoading(true);
-    try {
-      const response = await apiClient.get('/system/choice-lists/');
-      const raw = response.data as any;
-      const data = Array.isArray(raw) ? raw : Array.isArray(raw?.results) ? raw.results : [];
-      setLists(data);
-    } catch (error) {
-      console.error('Failed to load choice lists:', error);
-      message.error('Failed to load system option lists');
-      setLists([]);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const loadCustomLists = async () => {
-    setCustomLoading(true);
-    try {
-      const response = await apiClient.get('/workflows/lists/');
-      const raw = response.data as any;
-      const data = Array.isArray(raw) ? raw : Array.isArray(raw?.results) ? raw.results : [];
-      setCustomLists(data);
-    } catch (error) {
-      console.error('Failed to load custom tenant lists:', error);
-      message.error('Failed to load custom tenant lists');
-      setCustomLists([]);
-    } finally {
-      setCustomLoading(false);
-    }
-  };
-
-  const loadMasterProducts = async () => {
-    setProductsLoading(true);
-    try {
-      const response = await apiClient.get('/system/products/', {
-        params: {
-          include_inactive: true,
-          page_size: 500,
-        },
-      });
-      const raw = response.data as any;
-      const data = Array.isArray(raw) ? raw : Array.isArray(raw?.results) ? raw.results : [];
-      setProducts(data);
-    } catch (error) {
-      console.error('Failed to load master products:', error);
-      message.error('Failed to load master products');
-      setProducts([]);
-    } finally {
-      setProductsLoading(false);
-    }
-  };
-
-  const loadProductPreferences = async () => {
-    if (!permissions.tenant_id) {
-      setProductPreferences({});
-      return;
-    }
-
-    setProductPrefsLoading(true);
-    try {
-      const response = await apiClient.get('/system/product-preferences/', {
-        params: { page_size: 2000 },
-      });
-      const raw = response.data as any;
-      const data: TenantProductPreference[] = Array.isArray(raw)
-        ? raw
-        : Array.isArray(raw?.results)
-          ? raw.results
-          : [];
-
-      const next: Record<string, TenantProductPreference> = {};
-      for (const row of data) {
-        if (!row?.product) continue;
-        next[String(row.product)] = row;
-      }
-      setProductPreferences(next);
-    } catch (error) {
-      console.error('Failed to load tenant product preferences:', error);
-      message.error('Failed to load tenant product overrides');
-      setProductPreferences({});
-    } finally {
-      setProductPrefsLoading(false);
-    }
-  };
 
   const canEditProductOverrides = Boolean(permissions.can_manage_customizations);
 
@@ -246,6 +263,11 @@ const OptionListsPage: React.FC = () => {
   ): Promise<boolean> => {
     if (!canEditProductOverrides) {
       message.info('Only tenant administrators can edit product overrides.');
+      return false;
+    }
+
+    if (!permissions.tenant_id) {
+      message.error('Tenant unavailable for product overrides.');
       return false;
     }
 
@@ -268,7 +290,10 @@ const OptionListsPage: React.FC = () => {
 
         const resp = await apiClient.patch(`/system/product-preferences/${existing.id}/`, payload);
         const updated = resp.data as TenantProductPreference;
-        setProductPreferences((prev) => ({ ...prev, [pid]: updated }));
+        queryClient.setQueryData<Record<string, TenantProductPreference>>(
+          productPrefsQueryKey,
+          (prev) => ({ ...(prev ?? {}), [pid]: updated })
+        );
         return true;
       }
 
@@ -286,7 +311,10 @@ const OptionListsPage: React.FC = () => {
 
       const resp = await apiClient.post('/system/product-preferences/', payload);
       const created = resp.data as TenantProductPreference;
-      setProductPreferences((prev) => ({ ...prev, [pid]: created }));
+      queryClient.setQueryData<Record<string, TenantProductPreference>>(
+        productPrefsQueryKey,
+        (prev) => ({ ...(prev ?? {}), [pid]: created })
+      );
       return true;
     } catch (err: any) {
       message.error(err?.response?.data?.detail || err?.response?.data?.error || 'Failed to save product override');
@@ -300,13 +328,18 @@ const OptionListsPage: React.FC = () => {
       return false;
     }
 
+    if (!permissions.tenant_id) {
+      message.error('Tenant unavailable for product overrides.');
+      return false;
+    }
+
     const pid = String(productId || '').trim();
     if (!pid) return false;
 
     const existing = productPreferences[pid];
     if (!existing?.id) {
-      setProductPreferences((prev) => {
-        const next = { ...prev };
+      queryClient.setQueryData<Record<string, TenantProductPreference>>(productPrefsQueryKey, (prev) => {
+        const next = { ...(prev ?? {}) };
         delete next[pid];
         return next;
       });
@@ -315,8 +348,8 @@ const OptionListsPage: React.FC = () => {
 
     try {
       await apiClient.delete(`/system/product-preferences/${existing.id}/`);
-      setProductPreferences((prev) => {
-        const next = { ...prev };
+      queryClient.setQueryData<Record<string, TenantProductPreference>>(productPrefsQueryKey, (prev) => {
+        const next = { ...(prev ?? {}) };
         delete next[pid];
         return next;
       });
@@ -484,7 +517,7 @@ const OptionListsPage: React.FC = () => {
       try {
         await apiClient.delete(`/workflows/lists/${record.id}/`);
         message.success('Custom list deleted');
-        await loadCustomLists();
+        await customListsQuery.refetch();
       } catch (err: any) {
         message.error(err?.response?.data?.error || 'Failed to delete custom list');
       }
@@ -512,14 +545,20 @@ const OptionListsPage: React.FC = () => {
       try {
         await apiClient.delete(`/system/products/${record.id}/`);
         message.success('Master product deleted');
-        setProducts((prev) => prev.filter((p) => String(p.id) !== String(record.id)));
-        setProductPreferences((prev) => {
-          const next = { ...prev };
+
+        queryClient.setQueryData<MasterProduct[]>(masterProductsQueryKey, (prev) =>
+          (prev ?? []).filter((p) => String(p.id) !== String(record.id))
+        );
+        queryClient.setQueryData<Record<string, TenantProductPreference>>(productPrefsQueryKey, (prev) => {
+          const next = { ...(prev ?? {}) };
           delete next[String(record.id)];
           return next;
         });
-        await loadMasterProducts();
-        await loadProductPreferences();
+
+        await masterProductsQuery.refetch();
+        if (permissions.tenant_id) {
+          await productPreferencesQuery.refetch();
+        }
       } catch (err: any) {
         message.error(err?.response?.data?.detail || err?.response?.data?.error || 'Failed to delete master product');
       }
@@ -751,7 +790,7 @@ const OptionListsPage: React.FC = () => {
 
       setProductModalOpen(false);
       setEditingProduct(null);
-      await loadMasterProducts();
+      await masterProductsQuery.refetch();
     } catch (err: any) {
       message.error(err?.response?.data?.detail || err?.response?.data?.error || 'Failed to save product');
     } finally {
@@ -924,10 +963,12 @@ const OptionListsPage: React.FC = () => {
           <Button
             icon={<ReloadOutlined />}
             onClick={() => {
-              void loadChoiceLists();
-              void loadCustomLists();
-              void loadMasterProducts();
-              void loadProductPreferences();
+              void systemChoiceListsQuery.refetch();
+              void customListsQuery.refetch();
+              void masterProductsQuery.refetch();
+              if (permissions.tenant_id) {
+                void productPreferencesQuery.refetch();
+              }
             }}
             loading={loading || customLoading || productsLoading || productPrefsLoading}
           />
@@ -1087,7 +1128,7 @@ const OptionListsPage: React.FC = () => {
             isOpen={!!editingList}
             onClose={() => setEditingList(null)}
             onSave={() => {
-              void loadChoiceLists();
+              void systemChoiceListsQuery.refetch();
               setEditingList(null);
             }}
           />
@@ -1101,7 +1142,7 @@ const OptionListsPage: React.FC = () => {
             setCustomModalOpen(false);
             setEditingCustomList(null);
           }}
-          onSaved={() => void loadCustomLists()}
+          onSaved={() => void customListsQuery.refetch()}
         />
 
         <Modal
