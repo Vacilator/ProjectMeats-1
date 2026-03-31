@@ -1463,3 +1463,4 @@ Deliverables:
 - 2026-03-31 — Frontend: Inquiries list fetch uses React Query (useQuery) keyed by pagination+filters — PR: #4254.
 - 2026-03-31 — Frontend: Option Lists page uses React Query for lists/products/preferences — PR: #4255.
 - 2026-03-31 — Frontend: optionListsService now uses shared JWT-aware apiClient (fixes schema-builder choice fetch under JWT) — PR: #4257.
+- 2026-03-31 — Frontend: removed unused ResponsiveTable component (part of table primitive consolidation) — PR: #4259.
