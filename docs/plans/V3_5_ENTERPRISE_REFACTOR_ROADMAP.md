@@ -93,3 +93,15 @@ This roadmap is synthesized from:
 - Largest lists render without N+1.
 - Network calls deduped and cached appropriately.
 
+
+
+---
+
+## Reconnaissance Update — 2026-03-31T19:15:05Z
+
+### Immediate P0 adds (from field failures)
+- **Fail-open fetch** pattern for mixed legacy/new sources (Quick Actions, selectors, Catalog).
+- Separate navigation semantics:
+  - WorkForms -> editor (`/workforms/editor/:id`)
+  - Legacy forms -> submission runner (`/workforms/in-progress/:submissionId`)
+- Stabilize `/api/v1/workflows/available-forms/` to be legacy-only to prevent cross-model coupling.

@@ -141,3 +141,73 @@ The following files were detected using `useEffect` with direct `businessApi`/`a
   - [ ] Migrate top list/detail pages to React Query.
   - [ ] Reduce `any` at API boundary (introduce parsers/validators).
 
+
+
+---
+
+## Reconnaissance Update — 2026-03-31T19:15:05Z
+
+### Backend tenant enforcement (heuristic)
+- `get_queryset` suspects (no inline tenant filter detected): **11** (showing up to 20)
+- `backend/apps/core/models.py:411`
+- `backend/apps/core/views.py:292`
+- `backend/apps/email_integration/views/oauth_views.py:329`
+- `backend/apps/tenants/views.py:57`
+- `backend/apps/tenants/views.py:760`
+- `backend/tenant_apps/ai_assistant/views.py:80`
+- `backend/tenant_apps/ai_assistant/views.py:110`
+- `backend/tenant_apps/ai_assistant/views.py:694`
+- `backend/tenant_apps/fulfillments/admin.py:50`
+- `backend/tenant_apps/inquiries/admin.py:67`
+- `backend/tenant_apps/inquiries/admin.py:114`
+
+- `perform_create` suspects (no inline tenant assignment detected): **6** (showing up to 20)
+- `backend/apps/core/views.py:296`
+- `backend/tenant_apps/ai_assistant/views.py:86`
+- `backend/tenant_apps/ai_assistant/views.py:424`
+- `backend/tenant_apps/workflows/mixins.py:194`
+- `backend/tenant_apps/workflows/views.py:901`
+- `backend/tenant_apps/workflows/views.py:3430`
+
+
+### Frontend reliability sweep (signal)
+- Global `unhandledrejection` handler occurrences: **1**
+- `frontend/src/utils/globalErrorHandlers.ts`
+
+- Files with direct API calls outside services and without React Query (heuristic): **79** (showing up to 20)
+- `frontend/src/apps/admin-studio/components/ChoiceListEditor.tsx`
+- `frontend/src/components/AIAssistant/AIAgentWidget.tsx`
+- `frontend/src/components/AIAssistant/HITLReviewCard.tsx`
+- `frontend/src/components/Admin/ChoiceListEditor.tsx`
+- `frontend/src/components/Admin/SystemChoiceManager.tsx`
+- `frontend/src/components/Admin/TenantChoiceOverride.tsx`
+- `frontend/src/components/Admin/VirtualFieldManager.tsx`
+- `frontend/src/components/Calls/InquiryCallModal.tsx`
+- `frontend/src/components/Cockpit/AIOverviewCard.tsx`
+- `frontend/src/components/Cockpit/EntityProfileHeader.tsx`
+- `frontend/src/components/Cockpit/NotesAndCallsDrawer.tsx`
+- `frontend/src/components/Cockpit/PinnedToolsBar.tsx`
+- `frontend/src/components/Cockpit/RelationMindMap.tsx`
+- `frontend/src/components/Cockpit/SmartSearch.tsx`
+- `frontend/src/components/FlowEditor/HistoryDrawer.tsx`
+- `frontend/src/components/FlowEditor/Modals/EntityMapperModal.tsx`
+- `frontend/src/components/FlowEditor/NodeContextMenu.tsx`
+- `frontend/src/components/FlowEditor/WorkflowSharing.tsx`
+- `frontend/src/components/FlowEditor/analytics/WorkflowAnalyticsDashboard.tsx`
+- `frontend/src/components/FlowEditor/utils/workflowPersistence.ts`
+- … +59 more
+
+- Files with explicit `any` in services/types (signal-only): **12** (showing up to 20)
+- `frontend/src/services/apiService.ts`
+- `frontend/src/services/authService.ts`
+- `frontend/src/services/nodeValidationService.ts`
+- `frontend/src/services/optionListsService.ts`
+- `frontend/src/services/quickActionsService.test.ts`
+- `frontend/src/services/quickActionsService.ts`
+- `frontend/src/services/schemaService.ts`
+- `frontend/src/services/tenantFormService.ts`
+- `frontend/src/services/tenantService.ts`
+- `frontend/src/services/workflowExecutionService.ts`
+- `frontend/src/services/workformsApi.ts`
+- `frontend/src/types/lodash-debounce.d.ts`
+
