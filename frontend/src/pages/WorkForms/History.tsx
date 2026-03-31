@@ -17,6 +17,7 @@
  */
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
+import { ErrorBoundary } from '@/components/common/ErrorBoundary';
 import { showAlert } from '@/utils/uiDialogs';
 import { 
   CheckCircle, XCircle, Calendar, Search, Download, 
@@ -653,7 +654,8 @@ const FormsFlowsHistory: React.FC = () => {
   const currentData = activeTab === 'submissions' ? submissions : workflowExecutions;
   
   return (
-    <Container role="region" aria-label="Form History">
+    <ErrorBoundary>
+      <Container role="region" aria-label="Form History">
       {/* Tabs */}
       <TabsContainer>
         <Tab
@@ -927,7 +929,8 @@ const FormsFlowsHistory: React.FC = () => {
           )}
         </>
       )}
-    </Container>
+      </Container>
+    </ErrorBoundary>
   );
 };
 

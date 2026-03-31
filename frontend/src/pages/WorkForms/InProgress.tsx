@@ -17,6 +17,8 @@
  */
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
+import { useParams } from 'react-router-dom';
+import { ErrorBoundary } from '@/components/common/ErrorBoundary';
 import { confirmDialog, showAlert } from '@/utils/uiDialogs';
 import { Play, Clock, Filter, RefreshCw, FileText, X } from 'lucide-react';
 import { businessApi } from '../../services/businessApi';
@@ -443,7 +445,21 @@ const FormsFlowsInProgress: React.FC = () => {
   const [cancelingId, setCancelingId] = useState<string | null>(null);
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [selectedSubmission, setSelectedSubmission] = useState<FormSubmission | null>(null);
+
+  const { id: submissionId } = useParams<{ id?: string }>();
   const { resumeSubmission } = useQuickActions();
+
+  useEffect(() => {
+    if (!submissionId) return;
+
+    resumeSubmission(submissionId).catch(() => {
+      showAlert({
+        type: 'error',
+        title: 'Error',
+        content: 'Failed to load the selected in-progress workflow. Please try again.',
+      });
+    });
+  }, [resumeSubmission, submissionId]);
   
   // Fetch in-progress submissions
   const fetchSubmissions = async () => {
@@ -540,7 +556,8 @@ const FormsFlowsInProgress: React.FC = () => {
   };
   
   return (
-    <Container role="region" aria-label="In Progress Forms">
+    <ErrorBoundary resetKeys={[submissionId, filterMode, searchQuery]}>
+      <Container role="region" aria-label="In Progress Forms">
       <Toolbar>
         <ToolbarLeft>
           <SearchInput
@@ -664,7 +681,8 @@ const FormsFlowsInProgress: React.FC = () => {
           </ModalActions>
         </ModalContent>
       </Modal>
-    </Container>
+      </Container>
+    </ErrorBoundary>
   );
 };
 
