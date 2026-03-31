@@ -85,8 +85,33 @@ This file is the **append-only PR-referenceable execution log**.
 
 ### 2026-03-31 — Pending work items (not shipped)
 These items were requested/planned in-session but are **not completed yet**:
+
+- **Plant schema cruft purge** (`plant-schema-cruft-purge`)
+  - Backend: remove `Plant.code`, `Plant.manager`, `Plant.phone`, `Plant.email`, `Plant.phone_type`.
+  - Update plant type label: `Vertical (Kill to Capture)` → `Vertical (Kill to Fabrication)`.
+  - Add migration (expected next number): `backend/tenant_apps/plants/migrations/0016_plant_schema_cleanup.py`.
+  - Update `PlantSerializer`, `PlantViewSet` search/order fields, Django admin, and `tenant_apps.plants` tests.
+  - Verify:
+    - `python backend/manage.py makemigrations --check`
+    - `python backend/manage.py test tenant_apps.plants`
+
+- **UniversalEntityForm input fixes** (`universal-form-input-fixes`)
+  - Fix grayed/unclickable dropdowns (AntD `<Select>` in overlays/modals): ensure `getPopupContainer` is consistently applied for our wrapper selects.
+  - Fix Contact phone fields so they accept standard typing (e.g. `(555) 123-4567`) without blocking; apply formatting on blur, not on each keystroke.
+  - Ensure **Department** is visible in all Contacts list UIs where contacts are presented (tables + previews).
+
+- **Hierarchical drill-down routing** (`hierarchical-drilldown-routing`)
+  - Suppliers → Plants → Contacts:
+    - Row-click navigation: `/suppliers/:supplierId/plants/:plantId` and `/suppliers/:supplierId/plants/:plantId/contacts/:contactId`
+    - Breadcrumb format: `Supplier: <name> > Plants: <plant name>`
+  - Customers → Locations → Contacts:
+    - Row-click navigation: `/customers/:customerId/locations/:locationId` and `/customers/:customerId/locations/:locationId/contacts/:contactId`
+    - Breadcrumb format: `Customer: <name> > Locations: <location name>`
+  - Mirror behavior between Supplier and Customer sides.
+
 - **Enterprise Polish**: Tenant Webhooks + API Keys (`enterprise-webhooks-api-keys`)
   - Models + RLS + Celery dispatch task + retries/backoff + signing + event hooks
+
 - **V4.0 Vision Sprint docs** (planning complete; documents not created yet)
   - `docs/plans/V4_0_IDEAL_STATE_GAP_ANALYSIS.md`
   - `docs/plans/V4_0_UX_EXCELLENCE.md`
