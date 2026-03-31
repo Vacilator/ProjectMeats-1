@@ -171,6 +171,30 @@ def create_task(title: str, message: str, entity_type: str | None = None, entity
 
 
 @registry.register
+def create_in_app_notification(
+    title: str,
+    message: str,
+    notification_type: str | None = None,
+    priority: str | None = None,
+    entity_type: str | None = None,
+    entity_id: str | None = None,
+    action_url: str | None = None,
+    metadata: Dict[str, Any] | None = None,
+    to_tenant_admins: bool | None = None,
+    user_id: str | None = None,
+    user_ids: List[str] | None = None,
+    username: str | None = None,
+    usernames: List[str] | None = None,
+) -> Dict[str, Any]:
+    """Create an in-app notification for one or more users in the current tenant.
+
+    Executed via the Swarm tool loop in /api/v1/ai-assistant/chat/.
+    """
+
+    return {"status": "available_via_chat", "title": title}
+
+
+@registry.register
 def get_recent_errors() -> Dict[str, Any]:
     """Fetch recent Sentry issues for the active tenant (last 5).
 

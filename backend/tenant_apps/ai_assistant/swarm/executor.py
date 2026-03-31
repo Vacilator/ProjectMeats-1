@@ -96,6 +96,33 @@ DEFAULT_OPENAI_TOOLS = [
     {
         'type': 'function',
         'function': {
+            'name': 'create_in_app_notification',
+            'description': 'Create an in-app notification for one or more users in the current tenant.',
+            'parameters': {
+                'type': 'object',
+                'properties': {
+                    'title': {'type': 'string', 'description': 'Short notification title'},
+                    'message': {'type': 'string', 'description': 'Notification message body'},
+                    'notification_type': {'type': 'string', 'description': "NotificationType value (task_assigned, mention, system, ...)"},
+                    'priority': {'type': 'string', 'description': "NotificationPriority value (low, normal, high, urgent)"},
+                    'entity_type': {'type': 'string', 'description': 'Optional related entity type'},
+                    'entity_id': {'type': 'string', 'description': 'Optional related entity id'},
+                    'action_url': {'type': 'string', 'description': 'Optional URL to navigate to when clicked'},
+                    'metadata': {'type': 'object', 'description': 'Optional structured metadata for the notification'},
+                    'to_tenant_admins': {'type': 'boolean', 'description': 'If true, notify all active tenant owners/admins'},
+                    'user_id': {'type': 'string', 'description': 'Optional recipient user id'},
+                    'user_ids': {'type': 'array', 'items': {'type': 'string'}, 'description': 'Optional recipient user ids'},
+                    'username': {'type': 'string', 'description': 'Optional recipient username'},
+                    'usernames': {'type': 'array', 'items': {'type': 'string'}, 'description': 'Optional recipient usernames'},
+                },
+                'required': ['title', 'message'],
+                'additionalProperties': False,
+            },
+        },
+    },
+    {
+        'type': 'function',
+        'function': {
             'name': 'ingest_feedback',
             'description': 'Save a user correction as a tenant-scoped lesson learned for future responses.',
             'parameters': {
@@ -255,6 +282,7 @@ class ToolExecutor:
             'create_entity': self._create_entity,
             'parse_document': self._parse_document,
             'create_task': self._create_task,
+            'create_in_app_notification': self._create_in_app_notification,
             'ingest_feedback': self._ingest_feedback,
             'get_recent_errors': self._get_recent_errors,
             'create_record': self._create_record,
@@ -836,6 +864,138 @@ class ToolExecutor:
             'title': row.title,
             'message': row.message,
             'action_url': row.action_url,
+        }
+
+    def _create_in_app_notification(self, arguments: Dict[str, Any], tenant: Any, user: Any = None) -> Any:
+        """Create an in-app notification for one or more users in the current tenant."""
+        if not user or not getattr(user, 'is_authenticated', False):
+            raise ValueError('Authenticated user is required to create notifications')
+
+        title = (arguments.get('title') or '').strip()
+        message = (arguments.get('message') or '').strip()
+        if not title or not message:
+            raise ValueError('Missing required parameters: title, message')
+
+        from apps.tenants.models import TenantUser
+        from django.contrib.auth.models import User
+        from tenant_apps.workflows.models import NotificationPriority, NotificationType, UserNotification
+
+        membership = TenantUser.objects.filter(tenant=tenant, user=user, is_active=True).first()
+        if not membership:
+            raise ValueError('User is not an active member of this tenant')
+
+        is_admin_sender = membership.role in {'owner', 'admin'}
+
+        notify_admins = bool(arguments.get('to_tenant_admins'))
+        user_id = (arguments.get('user_id') or '').strip() or None
+        username = (arguments.get('username') or '').strip() or None
+        user_ids = arguments.get('user_ids') if isinstance(arguments.get('user_ids'), list) else []
+        usernames = arguments.get('usernames') if isinstance(arguments.get('usernames'), list) else []
+
+        # Determine recipients.
+        recipients: list[User] = []
+
+        if notify_admins:
+            admin_ids = list(
+                TenantUser.objects.filter(
+                    tenant=tenant,
+                    is_active=True,
+                    role__in=['owner', 'admin'],
+                ).values_list('user_id', flat=True)
+            )
+            if admin_ids:
+                recipients.extend(list(User.objects.filter(id__in=admin_ids)))
+
+        if user_id:
+            ids = list(TenantUser.objects.filter(tenant=tenant, is_active=True, user_id=user_id).values_list('user_id', flat=True))
+            recipients.extend(list(User.objects.filter(id__in=ids)))
+
+        if username:
+            ids = list(
+                TenantUser.objects.filter(tenant=tenant, is_active=True, user__username=username).values_list('user_id', flat=True)
+            )
+            recipients.extend(list(User.objects.filter(id__in=ids)))
+
+        if user_ids:
+            ids = list(
+                TenantUser.objects.filter(tenant=tenant, is_active=True, user_id__in=user_ids).values_list('user_id', flat=True)
+            )
+            recipients.extend(list(User.objects.filter(id__in=ids)))
+
+        if usernames:
+            ids = list(
+                TenantUser.objects.filter(tenant=tenant, is_active=True, user__username__in=usernames).values_list('user_id', flat=True)
+            )
+            recipients.extend(list(User.objects.filter(id__in=ids)))
+
+        # Default to current user.
+        if not recipients:
+            recipients = [user]
+
+        # Non-admins can only notify themselves.
+        if not is_admin_sender:
+            if any(r.id != user.id for r in recipients):
+                raise ValueError('Only tenant owners/admins can notify other users')
+
+        # De-dupe recipients.
+        recipients = list({r.id: r for r in recipients}.values())
+
+        notification_type_raw = str(arguments.get('notification_type') or '').strip() or NotificationType.SYSTEM
+        if notification_type_raw not in NotificationType.values:
+            raise ValueError(f"Invalid notification_type: {notification_type_raw}")
+
+        priority_raw = str(arguments.get('priority') or '').strip() or NotificationPriority.NORMAL
+        if priority_raw not in NotificationPriority.values:
+            raise ValueError(f"Invalid priority: {priority_raw}")
+
+        entity_type = (arguments.get('entity_type') or '').strip().lower() or ''
+        entity_id = (arguments.get('entity_id') or '').strip() or None
+
+        action_url = (arguments.get('action_url') or '').strip()
+        metadata = arguments.get('metadata') if isinstance(arguments.get('metadata'), dict) else {}
+
+        if not action_url and entity_type and entity_id:
+            try:
+                from apps.core.services.universal_search import UniversalSearchService
+
+                svc = UniversalSearchService(tenant=tenant)
+                detail = svc.get_record_detail(entity_type, entity_id)
+                if detail and detail.get('route'):
+                    action_url = str(detail.get('route') or '')
+            except Exception:
+                pass
+
+        entity_uuid = None
+        if entity_id:
+            try:
+                from uuid import UUID
+
+                entity_uuid = UUID(str(entity_id))
+            except Exception:
+                metadata = dict(metadata)
+                metadata['entity_id'] = str(entity_id)
+
+        created: list[UserNotification] = []
+        for recipient in recipients:
+            created.append(
+                UserNotification.objects.create(
+                    user=recipient,
+                    tenant=tenant,
+                    notification_type=notification_type_raw,
+                    title=title,
+                    message=message,
+                    priority=priority_raw,
+                    entity_type=entity_type,
+                    entity_id=entity_uuid,
+                    action_url=action_url,
+                    metadata=metadata,
+                )
+            )
+
+        return {
+            'count': len(created),
+            'notification_ids': [str(r.id) for r in created],
+            'notified_usernames': [r.user.username for r in created],
         }
 
     def _ingest_feedback(self, arguments: Dict[str, Any], tenant: Any, user: Any = None) -> Any:
