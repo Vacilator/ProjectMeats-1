@@ -731,14 +731,22 @@ const Customers: React.FC = () => {
             <TableBody>
               {visibleCustomers.map((customer) => (
                 <React.Fragment key={customer.id}>
-                <TableRow $theme={theme} key={customer.id}>
+                <TableRow
+                  $theme={theme}
+                  key={customer.id}
+                  onClick={() => void toggleCustomerDrilldown(customer)}
+                  role="button"
+                  tabIndex={0}
+                  aria-expanded={selectedCustomerId === customer.id}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      void toggleCustomerDrilldown(customer);
+                    }
+                  }}
+                >
                   <TableCell $theme={theme}>
-                    <CompanyButton
-                      $theme={theme}
-                      type="button"
-                      onClick={() => toggleCustomerDrilldown(customer)}
-                      aria-pressed={selectedCustomerId === customer.id}
-                    >
+                    <CompanyButton $theme={theme}>
                       <CompanyName $theme={theme}>{customer.name}</CompanyName>
                       <CompanyChevron aria-hidden="true">{selectedCustomerId === customer.id ? '▾' : '▸'}</CompanyChevron>
                     </CompanyButton>
@@ -752,8 +760,22 @@ const Customers: React.FC = () => {
                       : customer.city || customer.state || '-'}
                   </TableCell>
                   <TableCell $theme={theme}>
-                    <ActionButton onClick={() => handleEdit(customer)}>Edit</ActionButton>
-                    <DeleteButton onClick={() => handleDelete(customer.id)}>Delete</DeleteButton>
+                    <ActionButton
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleEdit(customer);
+                      }}
+                    >
+                      Edit
+                    </ActionButton>
+                    <DeleteButton
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        void handleDelete(customer.id);
+                      }}
+                    >
+                      Delete
+                    </DeleteButton>
                   </TableCell>
                 </TableRow>
                 {selectedCustomerId === customer.id && (
@@ -1150,9 +1172,15 @@ const TableBody = styled.tbody``;
 
 const TableRow = styled.tr<{ $theme: Theme }>`
   border-bottom: 1px solid ${(props) => props.$theme.colors.border};
+  cursor: pointer;
 
   &:hover {
     background: ${(props) => props.$theme.colors.background};
+  }
+
+  &:focus-visible {
+    outline: 2px solid rgba(var(--color-primary), 0.5);
+    outline-offset: -2px;
   }
 `;
 
@@ -1167,7 +1195,7 @@ const TableCell = styled.td<{ $theme: Theme }>`
   padding: 15px 20px;
 `;
 
-const CompanyButton = styled.button<{ $theme: Theme }>`
+const CompanyButton = styled.div<{ $theme: Theme }>`
   display: inline-flex;
   align-items: center;
   gap: 10px;
@@ -1175,17 +1203,7 @@ const CompanyButton = styled.button<{ $theme: Theme }>`
   border: 1px solid transparent;
   border-radius: 8px;
   background: transparent;
-  cursor: pointer;
-
-  &:hover {
-    border-color: ${(props) => props.$theme.colors.border};
-    background: ${(props) => props.$theme.colors.background};
-  }
-
-  &:focus-visible {
-    outline: 2px solid rgb(var(--color-primary));
-    outline-offset: 2px;
-  }
+  pointer-events: none;
 `;
 
 const CompanyName = styled.div<{ $theme: Theme }>`
