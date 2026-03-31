@@ -22,8 +22,8 @@ import {
   Plus, Edit2, Trash2, Save, X, GripVertical, Eye, EyeOff,
   Settings, Search, Filter, ChevronDown, ChevronRight
 } from 'lucide-react';
+import { Modal as AntModal } from 'antd';
 import { apiClient } from '../../services/apiService';
-import Modal from '../Modal/Modal';
 import { confirmDialog } from '@/utils/uiDialogs';
 
 // ============================================================================
@@ -471,9 +471,9 @@ export const SystemChoiceManager: React.FC<SystemChoiceManagerProps> = ({
       </Content>
 
       {/* Edit List Modal */}
-      <Modal
-        isOpen={isEditModalOpen}
-        onClose={() => {
+      <AntModal
+        open={isEditModalOpen}
+        onCancel={() => {
           setIsEditModalOpen(false);
           setEditingList(null);
         }}
@@ -495,6 +495,8 @@ export const SystemChoiceManager: React.FC<SystemChoiceManagerProps> = ({
             </Button>
           </ModalFooter>
         }
+        width={720}
+        destroyOnClose
       >
         {editingList && (
           <Form>
@@ -569,12 +571,12 @@ export const SystemChoiceManager: React.FC<SystemChoiceManagerProps> = ({
             </FormGroup>
           </Form>
         )}
-      </Modal>
+      </AntModal>
 
       {/* Edit Item Modal */}
-      <Modal
-        isOpen={isItemModalOpen}
-        onClose={() => {
+      <AntModal
+        open={isItemModalOpen}
+        onCancel={() => {
           setIsItemModalOpen(false);
           setEditingItem(null);
         }}
@@ -596,6 +598,8 @@ export const SystemChoiceManager: React.FC<SystemChoiceManagerProps> = ({
             </Button>
           </ModalFooter>
         }
+        width={640}
+        destroyOnClose
       >
         {editingItem && (
           <Form>
@@ -638,7 +642,7 @@ export const SystemChoiceManager: React.FC<SystemChoiceManagerProps> = ({
             </FormGroup>
           </Form>
         )}
-      </Modal>
+      </AntModal>
     </Container>
   );
 };

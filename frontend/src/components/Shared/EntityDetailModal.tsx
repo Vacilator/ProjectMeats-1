@@ -23,10 +23,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { logger } from '@/utils/logger';
 
-import ReactDOM from 'react-dom';
 import styled from 'styled-components';
+import { Modal as AntModal } from 'antd';
 import { useNavigate } from 'react-router-dom';
-import Modal from '../Modal/Modal';
 import { apiClient } from '../../services/apiService';
 import { 
   Building2, Users, ShoppingCart, Receipt, Package, 
@@ -410,12 +409,14 @@ export const EntityDetailModal: React.FC<EntityDetailModalProps> = ({
   );
 
   return (
-    <Modal
-      isOpen={isOpen}
-      onClose={onClose}
+    <AntModal
+      open={isOpen}
+      onCancel={onClose}
       title={config.displayName}
-      maxWidth="700px"
       footer={modalFooter}
+      width={700}
+      destroyOnClose
+      styles={{ body: { padding: 24 } }}
     >
       {isLoading ? (
         <LoadingContainer>
@@ -554,7 +555,7 @@ export const EntityDetailModal: React.FC<EntityDetailModalProps> = ({
           <ErrorText>Entity not found</ErrorText>
         </ErrorContainer>
       )}
-    </Modal>
+    </AntModal>
   );
 };
 

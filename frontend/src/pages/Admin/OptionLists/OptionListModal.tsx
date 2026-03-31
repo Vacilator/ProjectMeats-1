@@ -4,10 +4,9 @@
  * Modal for editing system choice list items with inline CRUD operations
  */
 import React, { useState, useEffect } from 'react';
-import { Skeleton } from 'antd';
+import { Modal as AntModal, Skeleton } from 'antd';
 import styled from 'styled-components';
 import { X, Plus, Save, Trash2, ChevronUp, ChevronDown, Lock, Globe, Building } from 'lucide-react';
-import Modal from '@/components/Modal/Modal';
 import { apiClient } from '@/services/apiService';
 import { confirmDialog } from '@/utils/uiDialogs';
 import { useToast } from '@/hooks/useToast';
@@ -553,7 +552,15 @@ export const OptionListModal: React.FC<OptionListModalProps> = ({
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={handleClose} title="Option List" maxWidth="800px">
+    <AntModal
+      open={isOpen}
+      onCancel={handleClose}
+      footer={null}
+      title={null}
+      width={800}
+      destroyOnClose
+      styles={{ body: { padding: 0 } }}
+    >
       <ModalContent>
         <Header>
           <Title>Edit {listName}</Title>
@@ -702,6 +709,6 @@ export const OptionListModal: React.FC<OptionListModalProps> = ({
           </FooterActions>
         </Footer>
       </ModalContent>
-    </Modal>
+    </AntModal>
   );
 };

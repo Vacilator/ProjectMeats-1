@@ -7,7 +7,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import styled from 'styled-components';
 import { useQuery } from '@tanstack/react-query';
 
-import Modal from '@/components/Modal/Modal';
+import { Modal as AntModal } from 'antd';
 import { apiClient } from '@/services/apiService';
 import { AdminGuard, AdminPage, AdminSection, ConfirmDialog, EmptyState, LoadingSkeleton } from '@/components/Admin';
 import { Button } from '@/components/ui/Button';
@@ -598,11 +598,14 @@ const ConfigurationsPage: React.FC = () => {
             confirmVariant="danger"
           />
 
-          <Modal
-            isOpen={showCreateModal}
-            onClose={() => setShowCreateModal(false)}
-            title="Add Configuration"
-            maxWidth="720px"
+          <AntModal
+            open={showCreateModal}
+            onCancel={() => setShowCreateModal(false)}
+            title={null}
+            footer={null}
+            width={720}
+            destroyOnClose
+            styles={{ body: { padding: 0 } }}
           >
             <CreateModalContent>
               <CreateHeader>
@@ -724,7 +727,7 @@ const ConfigurationsPage: React.FC = () => {
                 </Button>
               </CreateActions>
             </CreateModalContent>
-          </Modal>
+          </AntModal>
         </>
       </AdminGuard>
     </AdminPage>
