@@ -1465,3 +1465,4 @@ Deliverables:
 - 2026-03-31 — Frontend: optionListsService now uses shared JWT-aware apiClient (fixes schema-builder choice fetch under JWT) — PR: #4257.
 - 2026-03-31 — Frontend: removed unused ResponsiveTable component (part of table primitive consolidation) — PR: #4259.
 - 2026-03-31 — Frontend: AdminTable now renders via AntD Table (reduces duplicate table primitives) — PR: #4261.
+- 2026-03-31 — Frontend: consolidate modals on AntD (remove custom Modal wrapper) — PR: #4263.
