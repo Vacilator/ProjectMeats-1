@@ -126,10 +126,13 @@ This file is the **append-only PR-referenceable execution log**.
 - Safety: wrapped WorkForms InProgress/History/Monitoring in ErrorBoundary.
 - PR: #4239
 
-### 2026-03-31 — Fix: payment history pagination + 5xx circuit breaker
-- PaymentHistoryList: handle DRF paginated responses (`results`) safely before sorting (prevents `.sort is not a function` crash).
-- API service: intercept 500/502/503/504 in axios response interceptors (apiClient + adminClient) to avoid auth refresh/logout loops during upstream outages.
-- PR: #4273
+### 2026-03-31 — Test: Playwright E2E foundation
+- Added Playwright E2E coverage for:
+  - Suppliers drilldown (Suppliers → Plants → create contact → verify Department choices)
+  - Workforms editor (add Manual Trigger + Form Process → Layout → verify no overlap between top-level nodes)
+- Added root `npm run test:e2e` script delegating to frontend.
+- Added stable `data-testid` hooks for Suppliers drilldown flows.
+- PR: #4274
 
 ### 2026-03-30 — Docs: master plan gap analysis + roadmap hygiene
 - Updated `MASTER_PLAN.md` (canonical) with an industry-leader benchmark gap analysis (P0/P1/P2) and refreshed execution-ordered backlog.
