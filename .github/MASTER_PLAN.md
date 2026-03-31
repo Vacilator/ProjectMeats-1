@@ -26,6 +26,8 @@ This file is the **append-only PR-referenceable execution log**.
 
 - **2026-03-31** — Workforms editor: Form Submitted trigger config now lists saved FormProcess nodes via a dynamic dropdown (label: title/display-name + created date). (PR: #4318)
 
+- **2026-03-31** — Workforms editor onboarding: prevented Step 5 tour overlay lockout by targeting stable canvas element, enabling overlay/Esc dismissal, and aborting cleanly on close/overlay/error events. (PR: #4329)
+
 ### 2026-03-31 — Secret audit drift (manifest v5.1)
 - Command: `python config/manage_env.py audit --repo Meats-Central/ProjectMeats`
 - Stale/Zombie secrets found in GitHub but NOT in `manifests/env.manifest.json` (or legacy `DEV_`/`UAT_`/`PROD_` prefixed):
