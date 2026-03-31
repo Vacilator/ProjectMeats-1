@@ -11,7 +11,7 @@ const Login: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const { login } = useAuth();
+  const { login, guestLogin } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -34,6 +34,22 @@ const Login: React.FC = () => {
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : 'Login failed. Please check your credentials.';
+      setError(errorMessage);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGuestLogin = async () => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      await guestLogin();
+      navigate('/');
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Guest login failed. Please try again later.';
       setError(errorMessage);
     } finally {
       setLoading(false);
@@ -116,6 +132,10 @@ const Login: React.FC = () => {
               'Sign In'
             )}
           </LoginButton>
+
+          <GuestButton type="button" onClick={handleGuestLogin} disabled={loading}>
+            Try Demo as Guest
+          </GuestButton>
         </LoginForm>
 
         <Footer>
@@ -265,6 +285,29 @@ const LoginButton = styled.button`
     opacity: 0.7;
     cursor: not-allowed;
     transform: none;
+  }
+`;
+
+const GuestButton = styled.button`
+  width: 100%;
+  margin-top: 12px;
+  background: transparent;
+  color: rgb(var(--color-text-primary));
+  border: 2px solid rgb(var(--color-border));
+  padding: 14px 24px;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 0.2s ease;
+
+  &:hover:not(:disabled) {
+    border-color: rgb(var(--color-primary));
+  }
+
+  &:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
   }
 `;
 

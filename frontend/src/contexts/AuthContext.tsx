@@ -10,6 +10,7 @@ interface AuthContextType {
   user: UserProfile | null;
   loading: boolean;
   login: (credentials: LoginCredentials) => Promise<void>;
+  guestLogin: () => Promise<void>;
   signUp: (credentials: SignUpCredentials) => Promise<void>;
   logout: () => Promise<void>;
   isAuthenticated: boolean;
@@ -56,6 +57,27 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     setLoading(true);
     try {
       const loggedInUser = await authService.login(credentials);
+      setUser(loggedInUser);
+
+      if (loggedInUser) {
+        const tenantId = localStorage.getItem('tenantId') || undefined;
+        setSentryUser(String(loggedInUser.id), loggedInUser.email, tenantId, loggedInUser.username);
+        if (tenantId) setSentryTenant(tenantId);
+      } else {
+        clearSentryUser();
+      }
+    } catch (error) {
+      setUser(null);
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const guestLogin = useCallback(async () => {
+    setLoading(true);
+    try {
+      const loggedInUser = await authService.guestLogin();
       setUser(loggedInUser);
 
       if (loggedInUser) {
@@ -135,13 +157,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       user,
       loading,
       login,
+      guestLogin,
       signUp,
       logout,
       isAuthenticated: Boolean(user),
       isAdmin,
       refreshUser,
     };
-  }, [user, loading, login, signUp, logout, isAdmin, refreshUser]);
+  }, [user, loading, login, guestLogin, signUp, logout, isAdmin, refreshUser]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
