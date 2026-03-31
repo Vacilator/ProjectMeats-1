@@ -174,6 +174,7 @@ MIDDLEWARE = [
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "apps.tenants.middleware.TenantMiddleware",  # Must be after AuthenticationMiddleware to access request.user
+    "apps.core.middleware.audit_context.AuditContextMiddleware",  # Capture request metadata for audit trails
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     # Phase 9: Security Hardening
