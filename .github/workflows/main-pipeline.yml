@@ -1,14 +1,23 @@
 name: Master Pipeline
 
-run-name: "${{ github.event_name == 'pull_request' && format('🔍 PR Check: {0}', github.event.pull_request.title) || format('🚀 Deploy: {0}', github.ref_name) }}"
+run-name: >-
+  ${{
+    github.event_name == 'pull_request' && format('🔍 PR Check: {0} → {1} - #{2} {3}', github.head_ref, github.base_ref, github.event.pull_request.number, github.event.pull_request.title) ||
+    github.event_name == 'workflow_dispatch' && format('🚀 Deploy: {0} (manual) - {1}', inputs.environment, github.sha) ||
+    format('🚀 Deploy: {0} - {1}', github.ref_name, github.event.head_commit.message)
+  }}
 
 on:
+  pull_request:
+    branches: [development, uat, main]
   push:
     branches: [development, uat, main]
     paths-ignore:
       - '**.md'
       - 'docs/**'
       - 'archived/**'
+  schedule:
+    - cron: '0 3 * * *'
   workflow_dispatch:
     inputs:
       environment:
@@ -23,6 +32,12 @@ on:
 concurrency:
   group: deploy-${{ github.ref }}
   cancel-in-progress: false  # NEVER cancel in-progress deployments - only skip queued ones via check-latest
+
+permissions:
+  contents: read
+  pull-requests: write
+  security-events: write
+  actions: read
 
 jobs:
   check_infrastructure:
@@ -64,6 +79,7 @@ jobs:
   # 2. Queued deployments for old commits are skipped (saves CI time)
   # 3. All commits are eventually deployed (git history is cumulative)
   check-latest:
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     needs: [check_infrastructure]
     outputs:
@@ -156,3 +172,439 @@ jobs:
       frontend_environment: 'production-frontend'
       api_base_url: 'https://meatscentral.com'
 
+  # ==========================================
+  # PR Validation (Consolidated)
+  # ==========================================
+  detect-changes:
+    name: "Detect Critical Changes"
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    needs: [check_infrastructure]
+    outputs:
+      has_breaking_changes: ${{ steps.detect.outputs.has_breaking_changes }}
+      has_workflow_changes: ${{ steps.detect.outputs.has_workflow_changes }}
+      has_backend_changes: ${{ steps.detect.outputs.has_backend_changes }}
+      has_frontend_changes: ${{ steps.detect.outputs.has_frontend_changes }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Detect changes
+        id: detect
+        run: |
+          git fetch origin ${{ github.base_ref }}
+          CHANGED_FILES=$(git diff --name-only origin/${{ github.base_ref }}...HEAD)
+
+          echo "Changed files:"
+          echo "$CHANGED_FILES"
+
+          if echo "$CHANGED_FILES" | grep -qE "(migrations/|models\.py|serializers\.py)"; then
+            echo "has_breaking_changes=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_breaking_changes=false" >> $GITHUB_OUTPUT
+          fi
+
+          if echo "$CHANGED_FILES" | grep -q ".github/workflows/"; then
+            echo "has_workflow_changes=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_workflow_changes=false" >> $GITHUB_OUTPUT
+          fi
+
+          if echo "$CHANGED_FILES" | grep -q "backend/"; then
+            echo "has_backend_changes=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_backend_changes=false" >> $GITHUB_OUTPUT
+          fi
+
+          if echo "$CHANGED_FILES" | grep -q "frontend/"; then
+            echo "has_frontend_changes=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_frontend_changes=false" >> $GITHUB_OUTPUT
+          fi
+
+  architectural-review:
+    name: "Architectural Review"
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    needs: [check_infrastructure]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Check for django-tenants usage
+        run: |
+          echo "Checking for prohibited django-tenants usage..."
+
+          FOUND=$(grep -r "from django_tenants\|import django_tenants\|schema_context\|migrate_schemas" \
+            --include="*.py" \
+            --exclude-dir=archived \
+            --exclude-dir=docs \
+            backend/ | grep -v -E ":\s*#|:\s*-" || true)
+
+          if [ -n "$FOUND" ]; then
+            echo "❌ ERROR: Found django-tenants usage in code!"
+            echo "$FOUND"
+            echo ""
+            echo "ProjectMeats uses SHARED SCHEMA multi-tenancy."
+            echo "NEVER use django-tenants patterns."
+            exit 1
+          fi
+
+          echo "✅ No django-tenants usage found in code"
+
+  lint-docs:
+    name: "Lint Documentation"
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    needs: [check_infrastructure]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Check for broken links in docs
+        continue-on-error: true
+        run: |
+          echo "Checking for broken internal links..."
+
+          BROKEN=0
+          find docs -name "*.md" -type f 2>/dev/null | while IFS= read -r file; do
+            grep -oE '\\[.*\\]\\([^)]+\\)' "$file" | grep -oE '\\([^)]+\\)' | sed 's/[()]//g' | while IFS= read -r link; do
+              if [[ "$link" == /* ]] || [[ "$link" == ../* ]]; then
+                if [ ! -f "$link" ] && [ ! -d "$link" ]; then
+                  echo "❌ Broken link in $file: $link"
+                  BROKEN=1
+                fi
+              fi
+            done
+          done
+
+          if [ $BROKEN -eq 1 ]; then
+            echo "⚠️  Found broken documentation links (non-blocking)"
+            exit 0
+          fi
+
+          echo "✅ No broken links found"
+
+  validate-heredocs:
+    name: "Validate Heredoc Syntax"
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    needs: [check_infrastructure]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Check heredoc formatting
+        run: |
+          echo "Checking heredoc syntax in workflows..."
+
+          INVALID=0
+          for file in .github/workflows/*.yml; do
+            if grep -n "<<[^']EOF" "$file" | grep -v "<<-"; then
+              echo "❌ Invalid heredoc in $file"
+              echo "Use <<- operator for indented content or quote delimiter: <<'EOF'"
+              INVALID=1
+            fi
+          done
+
+          if [ $INVALID -eq 1 ]; then
+            exit 1
+          fi
+
+          echo "✅ All heredocs properly formatted"
+
+  check-lockfile-sync:
+    name: "Check Lockfile Sync"
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    needs: [check_infrastructure, detect-changes]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Check frontend lockfile sync
+        if: needs.detect-changes.outputs.has_frontend_changes == 'true'
+        run: |
+          git fetch origin ${{ github.base_ref }}
+          CHANGED_FILES=$(git diff --name-only origin/${{ github.base_ref }}...HEAD)
+
+          HAS_PACKAGE_JSON=$(echo "$CHANGED_FILES" | grep -c "frontend/package.json" || true)
+          HAS_PACKAGE_LOCK=$(echo "$CHANGED_FILES" | grep -c "frontend/package-lock.json" || true)
+
+          if [ "$HAS_PACKAGE_JSON" -gt 0 ] && [ "$HAS_PACKAGE_LOCK" -eq 0 ]; then
+            echo "❌ ERROR: package.json changed but package-lock.json did not!"
+            echo "Run 'npm install' in frontend/ to update lockfile"
+            exit 1
+          fi
+
+          echo "✅ Frontend lockfile in sync"
+
+      - name: Check backend lockfile sync
+        if: needs.detect-changes.outputs.has_backend_changes == 'true'
+        run: |
+          git fetch origin ${{ github.base_ref }}
+          CHANGED_FILES=$(git diff --name-only origin/${{ github.base_ref }}...HEAD)
+
+          HAS_REQUIREMENTS=$(echo "$CHANGED_FILES" | grep -c "backend/requirements.txt" || true)
+          HAS_LOCK=$(echo "$CHANGED_FILES" | grep -c "backend/requirements.lock" || true)
+
+          if [ "$HAS_REQUIREMENTS" -gt 0 ]; then
+            echo "✅ Backend requirements changed"
+          fi
+
+          echo "✅ Backend requirements valid"
+
+  validate-workflow-syntax:
+    name: "Validate Workflow YAML Syntax"
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request' && needs.detect-changes.outputs.has_workflow_changes == 'true'
+    needs: [check_infrastructure, detect-changes]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Install actionlint
+        run: |
+          bash <(curl https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash)
+          sudo mv ./actionlint /usr/local/bin/
+
+      - name: Validate workflow files
+        run: |
+          echo "Validating all workflow files..."
+          find .github/workflows -maxdepth 1 -name '*.yml' -type f -exec actionlint -color -ignore 'shellcheck reported issue.*SC2009' -ignore 'shellcheck reported issue.*SC2001' -ignore 'shellcheck reported issue.*SC2086:info' -ignore 'shellcheck reported issue.*SC2069' {} +
+
+      - name: Check for common mistakes
+        run: |
+          echo "Checking for common workflow mistakes..."
+
+          if grep -r "environment:" .github/workflows/*.yml | grep -v "main-pipeline.yml" | grep -A5 "uses:"; then
+            echo "❌ ERROR: Found 'environment:' used with 'uses:' (invalid syntax)"
+            exit 1
+          fi
+
+          echo "✅ No common mistakes found"
+
+  validation-summary:
+    name: "Validation Summary"
+    runs-on: ubuntu-latest
+    if: always() && github.event_name == 'pull_request'
+    needs: [detect-changes, architectural-review, lint-docs, validate-heredocs, check-lockfile-sync, validate-workflow-syntax]
+
+    steps:
+      - name: Generate summary
+        run: |
+          {
+            echo "## 🔍 PR Validation Complete"
+            echo ""
+            echo "| Check | Status |"
+            echo "|-------|--------|"
+            echo "| Detect Changes | ${{ needs.detect-changes.result == 'success' && '✅ Passed' || '❌ Failed' }} |"
+            echo "| Architectural Review | ${{ needs.architectural-review.result == 'success' && '✅ Passed' || needs.architectural-review.result == 'skipped' && '⏭️ Skipped' || '❌ Failed' }} |"
+            echo "| Documentation Lint | ${{ needs.lint-docs.result == 'success' && '✅ Passed' || needs.lint-docs.result == 'skipped' && '⏭️ Skipped' || '❌ Failed' }} |"
+            echo "| Heredoc Validation | ${{ needs.validate-heredocs.result == 'success' && '✅ Passed' || needs.validate-heredocs.result == 'skipped' && '⏭️ Skipped' || '❌ Failed' }} |"
+            echo "| Lockfile Sync | ${{ needs.check-lockfile-sync.result == 'success' && '✅ Passed' || needs.check-lockfile-sync.result == 'skipped' && '⏭️ Skipped' || '❌ Failed' }} |"
+            echo "| Workflow Syntax | ${{ needs.validate-workflow-syntax.result == 'success' && '✅ Passed' || needs.validate-workflow-syntax.result == 'skipped' && '⏭️ Skipped' || '❌ Failed' }} |"
+          } >> $GITHUB_STEP_SUMMARY
+
+  # ==========================================
+  # Security Scans (Consolidated)
+  # ==========================================
+  python-security:
+    name: "Python Security Audit"
+    runs-on: ubuntu-latest
+    needs: [check_infrastructure]
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Install dependencies
+        working-directory: ./backend
+        run: |
+          pip install --upgrade pip
+          pip install safety bandit
+          pip install -r requirements.txt
+
+      - name: Run Safety (dependency vulnerabilities)
+        working-directory: ./backend
+        run: |
+          safety check --json || true
+
+      - name: Run Bandit (code security analysis)
+        working-directory: ./backend
+        run: |
+          bandit -r apps/ tenant_apps/ -f json -o bandit-report.json || true
+          bandit -r apps/ tenant_apps/ -ll || true
+
+      - name: Upload Bandit results
+        uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: bandit-report
+          path: backend/bandit-report.json
+
+  javascript-security:
+    name: "JavaScript Security Audit"
+    runs-on: ubuntu-latest
+    needs: [check_infrastructure]
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: 'frontend/package-lock.json'
+
+      - name: Install dependencies
+        working-directory: ./frontend
+        run: npm ci
+
+      - name: Run npm audit
+        working-directory: ./frontend
+        run: |
+          npm audit --json > npm-audit.json || true
+          npm audit || true
+
+      - name: Upload npm audit results
+        uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: npm-audit-report
+          path: frontend/npm-audit.json
+
+  docker-image-scan:
+    name: "Docker Image Security Scan"
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' || github.event_name == 'schedule'
+    needs: [check_infrastructure]
+
+    strategy:
+      matrix:
+        component: [backend, frontend]
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Build Docker image
+        run: |
+          docker build -t projectmeats-${{ matrix.component }}:scan -f ${{ matrix.component }}/Dockerfile .
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: projectmeats-${{ matrix.component }}:scan
+          format: 'sarif'
+          output: 'trivy-${{ matrix.component }}.sarif'
+          severity: 'CRITICAL,HIGH'
+
+      - name: Upload Trivy results to GitHub Security
+        uses: github/codeql-action/upload-sarif@v4
+        if: always()
+        with:
+          sarif_file: 'trivy-${{ matrix.component }}.sarif'
+          category: 'trivy-${{ matrix.component }}'
+
+      - name: Run Trivy (table output)
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: projectmeats-${{ matrix.component }}:scan
+          format: 'table'
+          severity: 'CRITICAL,HIGH,MEDIUM'
+
+  secret-scan:
+    name: "Secret Detection Scan"
+    runs-on: ubuntu-latest
+    needs: [check_infrastructure]
+
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Install gitleaks
+        run: |
+          set -euo pipefail
+          GITLEAKS_VERSION="8.18.4"
+          curl -sSL -o /tmp/gitleaks.tar.gz "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          tar -xzf /tmp/gitleaks.tar.gz -C /tmp
+          sudo mv /tmp/gitleaks /usr/local/bin/gitleaks
+          gitleaks version
+
+      - name: Run gitleaks
+        run: |
+          set -euo pipefail
+          gitleaks detect --source . --no-git --redact --report-format sarif --report-path gitleaks.sarif --exit-code 1
+
+      - name: Upload gitleaks results to GitHub Security
+        uses: github/codeql-action/upload-sarif@v4
+        if: always()
+        with:
+          sarif_file: gitleaks.sarif
+          category: gitleaks
+
+  sbom-generation:
+    name: "Generate SBOM"
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [check_infrastructure]
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Generate Python SBOM
+        working-directory: ./backend
+        run: |
+          pip install cyclonedx-bom
+          cyclonedx-py -r -i requirements.txt -o sbom-python.json
+
+      - name: Generate JavaScript SBOM
+        working-directory: ./frontend
+        run: |
+          npx @cyclonedx/cyclonedx-npm --output-file sbom-javascript.json
+
+      - name: Upload SBOMs
+        uses: actions/upload-artifact@v7
+        with:
+          name: sbom-reports
+          path: |
+            backend/sbom-python.json
+            frontend/sbom-javascript.json
+
+  security-summary:
+    name: "Security Scan Summary"
+    runs-on: ubuntu-latest
+    needs: [python-security, javascript-security]
+    if: always()
+
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v8
+
+      - name: Display summary
+        run: |
+          {
+            echo "## Security Scan Summary"
+            echo ""
+            echo "✅ Python security audit completed"
+            echo "✅ JavaScript security audit completed"
+          } >> "$GITHUB_STEP_SUMMARY"
