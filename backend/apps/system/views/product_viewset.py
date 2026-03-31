@@ -17,6 +17,7 @@ from rest_framework.filters import SearchFilter, OrderingFilter
 from django_filters.rest_framework import DjangoFilterBackend
 
 from apps.system.models import Product, TenantProductPreference
+from apps.system.permissions import IsTenantAdminOrOwnerForTenantContext
 from apps.system.services.product_visibility import visible_products_qs
 
 logger = logging.getLogger(__name__)
@@ -175,22 +176,19 @@ class SystemProductViewSet(viewsets.ModelViewSet):
 
 
 class TenantProductPreferenceViewSet(viewsets.ModelViewSet):
-    """
-    ViewSet for managing tenant product preferences.
-    
+    """ViewSet for managing tenant product preferences.
+
     Tenants can:
-    - Add system products to their catalog
-    - Customize display names
-    - Set pricing
+    - Override display names, pricing, notes
     - Mark favorites
-    - Set preferred suppliers
-    - Activate/deactivate products
-    
+    - Activate/deactivate products (per-tenant)
+
     Permissions:
-    - Authenticated users can manage their tenant's preferences
+    - SAFE methods: any authenticated tenant member.
+    - Writes: tenant owners/admins (superuser/staff always allowed).
     """
-    
-    permission_classes = [permissions.IsAuthenticated]
+
+    permission_classes = [permissions.IsAuthenticated, IsTenantAdminOrOwnerForTenantContext]
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     
     # Filterset fields
@@ -215,10 +213,37 @@ class TenantProductPreferenceViewSet(viewsets.ModelViewSet):
             tenant=self.request.tenant
         ).select_related('product', 'preferred_supplier')
     
+    def create(self, request, *args, **kwargs):
+        """Upsert by (tenant, product).
+
+        Frontend toggle flows can race or have stale state; allowing an idempotent
+        create avoids unique-constraint 400s.
+        """
+        if not hasattr(request, 'tenant') or not request.tenant:
+            return Response({"error": "Tenant context required"}, status=status.HTTP_400_BAD_REQUEST)
+
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        product = serializer.validated_data.get('product')
+        existing = None
+        if product is not None:
+            existing = TenantProductPreference.objects.filter(tenant=request.tenant, product=product).first()
+
+        if existing:
+            update_serializer = self.get_serializer(existing, data=request.data, partial=True)
+            update_serializer.is_valid(raise_exception=True)
+            update_serializer.save()
+            return Response(update_serializer.data, status=status.HTTP_200_OK)
+
+        self.perform_create(serializer)
+        headers = self.get_success_headers(serializer.data)
+        return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+
     def perform_create(self, serializer):
         """Auto-assign tenant on creation."""
         if not hasattr(self.request, 'tenant') or not self.request.tenant:
             raise ValueError("Tenant context is required")
-        
+
         serializer.save(tenant=self.request.tenant)
         logger.info(f"Created product preference for tenant: {self.request.tenant.slug}")

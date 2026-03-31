@@ -249,41 +249,49 @@ class RankedSearchViewSet(viewsets.ViewSet):
             logger.error(f"[RankedSearch] Supplier search failed: {e}")
     
     def _search_products(self, query: str, tenant, limit: int, results: list, counts: dict):
-        """Search products"""
+        """Search products.
+
+        IMPORTANT:
+        - Must respect global Product.is_active (inactive = hidden from tenants).
+        - Must respect tenant-level hides via TenantProductPreference(is_active=False).
+        """
         try:
             from apps.system.models import Product
-            
-            products_qs = Product.objects.filter(
-                Q(name__icontains=query) |
-                Q(code__icontains=query) |
-                Q(description__icontains=query)
+            from apps.system.services.product_visibility import visible_products_qs
+
+            products_qs = visible_products_qs(tenant=tenant, qs=Product.objects.all()).filter(
+                Q(name__icontains=query)
+                | Q(product_code__icontains=query)
+                | Q(description__icontains=query)
+                | Q(namp_code__icontains=query)
+                | Q(usda_code__icontains=query)
             )
-            # Products are shared across tenants, no tenant filter needed
-            
+
             counts['product'] = products_qs.count()
             products = list(products_qs[:limit])
-            
+
+            q_lower = query.lower()
             for product in products:
-                # Simple relevance score for products
-                name_match = query.lower() in product.name.lower() if product.name else False
-                code_match = query.lower() in (product.code or '').lower()
+                name_match = q_lower in (product.name or '').lower()
+                code_match = q_lower in (product.product_code or '').lower()
                 score = 85 if name_match or code_match else 65
-                
+
                 results.append({
                     'id': product.id,
                     'type': 'product',
                     'title': product.name or 'Unnamed Product',
-                    'subtitle': product.code or '',
+                    'subtitle': product.product_code or '',
                     'icon': '📦',
                     'color': 'rgb(234, 179, 8)',
                     'route': f'/products/{product.id}',
                     'score': score,
                     'labels': [],
                     'metadata': {
-                        'code': product.code,
+                        'product_code': product.product_code,
                         'description': product.description,
-                    }
+                    },
                 })
+
             logger.info(f"[RankedSearch] Found {counts['product']} products")
         except Exception as e:
             logger.error(f"[RankedSearch] Product search failed: {e}")

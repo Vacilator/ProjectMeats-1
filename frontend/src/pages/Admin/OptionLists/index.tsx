@@ -27,7 +27,7 @@ import {
   message,
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
-import { DownloadOutlined, PlusOutlined, ReloadOutlined } from '@ant-design/icons';
+import { DeleteOutlined, DownloadOutlined, PlusOutlined, ReloadOutlined } from '@ant-design/icons';
 
 import { apiClient } from '@/services/apiService';
 import { AdminGuard, AdminPage, EmptyState, LoadingSkeleton } from '@/components/Admin';
@@ -491,6 +491,41 @@ const OptionListsPage: React.FC = () => {
     })();
   };
 
+  const confirmDeleteMasterProduct = (record: MasterProduct) => {
+    if (!canEditProducts) {
+      message.info('Only superusers can delete master products.');
+      return;
+    }
+
+    void (async () => {
+      const confirmed = await confirmDialog({
+        title: `Delete master product "${record.name}"?`,
+        content:
+          'This will permanently delete the product globally and remove all tenant overrides for it. This cannot be undone.',
+        okText: 'Delete',
+        cancelText: 'Cancel',
+        danger: true,
+      });
+
+      if (!confirmed) return;
+
+      try {
+        await apiClient.delete(`/system/products/${record.id}/`);
+        message.success('Master product deleted');
+        setProducts((prev) => prev.filter((p) => String(p.id) !== String(record.id)));
+        setProductPreferences((prev) => {
+          const next = { ...prev };
+          delete next[String(record.id)];
+          return next;
+        });
+        await loadMasterProducts();
+        await loadProductPreferences();
+      } catch (err: any) {
+        message.error(err?.response?.data?.detail || err?.response?.data?.error || 'Failed to delete master product');
+      }
+    })();
+  };
+
   const systemColumns: ColumnsType<SystemChoiceList> = [
     {
       title: 'Name',
@@ -793,7 +828,7 @@ const OptionListsPage: React.FC = () => {
     {
       title: 'Actions',
       key: 'actions',
-      width: 240,
+      width: 300,
       render: (_: unknown, record) => (
         <Space>
           <Button
@@ -816,6 +851,12 @@ const OptionListsPage: React.FC = () => {
           >
             Edit System
           </Button>
+          <Button
+            danger
+            icon={<DeleteOutlined />}
+            disabled={!canEditProducts}
+            onClick={() => confirmDeleteMasterProduct(record)}
+          />
         </Space>
       ),
     },
