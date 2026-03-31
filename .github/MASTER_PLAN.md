@@ -1330,6 +1330,8 @@ Deliverables:
 - 2026-03-30 — FlowEditor: FormProcess containers restored NodeToolbar actions + Add Step button — PR: #4218.
 - 2026-03-30 — Backend: expanded drf-spectacular schemas for Workflows + Cockpit slots (polymorphic search) — PR: #4220.
 - 2026-03-31 — Backend: soft deletes for logistics models (PO/SO/Invoice/Fulfillment) — PR: #4221.
+- 2026-03-31 — Workforms: collaboration heartbeat + reconnect hardening (WS ping/pong, jittered backoff, overlay error boundary) — PR: #4222.
+- 2026-03-31 — FlowEditor: render perf memoization (context value useMemo/useCallback + autosave/formbuilder guards) — PR: #4223.
 - 2026-03-31 — Backend: simplified Supplier/Customer HQ create schema for UniversalEntityForm (schema override + nullable non-core fields) — PR: #4224.
 - 2026-03-31 — Backend: Contacts department fields (mobile/office phones + Sales responsibility arrays) — PR: #4225.
 - 2026-03-31 — Backend: Plants/Locations nested department contacts + Vertical (K2C) type option — PR: #4226.

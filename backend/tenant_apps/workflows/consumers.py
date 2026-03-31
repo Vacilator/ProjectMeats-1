@@ -9,7 +9,9 @@ Any future database access MUST set tenant context and remain RLS-safe.
 
 from __future__ import annotations
 
+import asyncio
 import re
+import time
 import uuid
 from typing import Any
 from urllib.parse import parse_qs
@@ -27,6 +29,12 @@ class WorkflowCollaborationConsumer(AsyncJsonWebsocketConsumer):
     workflow_id: str
     tenant_id: str
     group_name: str
+
+    _heartbeat_task: asyncio.Task | None = None
+    _last_seen: float
+
+    HEARTBEAT_INTERVAL_SECONDS = 20
+    STALE_CONNECTION_SECONDS = 90
 
     async def connect(self):
         self.workflow_id = str(self.scope.get("url_route", {}).get("kwargs", {}).get("workflow_id", ""))
@@ -48,6 +56,10 @@ class WorkflowCollaborationConsumer(AsyncJsonWebsocketConsumer):
         await self.channel_layer.group_add(self.group_name, self.channel_name)
         await self.accept()
 
+        # Heartbeat: treat any client message as liveness (backward compatible with older clients).
+        self._last_seen = time.monotonic()
+        self._heartbeat_task = asyncio.create_task(self._heartbeat_loop())
+
         await self.send_json(
             {
                 "type": "presence.joined",
@@ -57,14 +69,44 @@ class WorkflowCollaborationConsumer(AsyncJsonWebsocketConsumer):
         )
 
     async def disconnect(self, close_code: int):
+        if getattr(self, "_heartbeat_task", None):
+            self._heartbeat_task.cancel()
+            self._heartbeat_task = None
+
         if getattr(self, "group_name", None):
             await self.channel_layer.group_discard(self.group_name, self.channel_name)
 
+    async def _heartbeat_loop(self):
+        """Send periodic pings and close stale connections.
+
+        Note: we do NOT require pong for compatibility; any inbound client message updates _last_seen.
+        """
+        try:
+            while True:
+                await asyncio.sleep(self.HEARTBEAT_INTERVAL_SECONDS)
+
+                # If we haven't heard from the client in a while, assume it's a zombie connection.
+                if time.monotonic() - getattr(self, "_last_seen", 0.0) > self.STALE_CONNECTION_SECONDS:
+                    await self.close(code=4408)
+                    return
+
+                await self.send_json({"type": "ping", "timestamp": int(time.time() * 1000)})
+        except asyncio.CancelledError:
+            return
+        except Exception:
+            # Never crash the consumer due to heartbeat issues.
+            return
+
     async def receive_json(self, content: Any, **kwargs: Any):
+        self._last_seen = time.monotonic()
+
         msg_type = (content or {}).get("type")
 
         if msg_type == "ping":
-            await self.send_json({"type": "pong"})
+            await self.send_json({"type": "pong", "timestamp": int(time.time() * 1000)})
+            return
+
+        if msg_type == "pong":
             return
 
         # Broadcast to other listeners in the same tenant+workflow group.
