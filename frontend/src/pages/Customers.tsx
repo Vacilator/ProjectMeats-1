@@ -8,9 +8,9 @@ import { Theme } from '../config/theme';
 import { apiService, Customer, apiClient } from '../services/apiService';
 import { PhoneInput, Select } from '../components/ui';
 import { MultiSelect } from '../components/Shared';
-import QuickCreateModal from '../components/FormSubmission/QuickCreateModal';
+import EntityFormSurface from '../components/Shared/EntityFormSurface';
 import { US_STATES } from '../utils/constants/states';
-import { CONTACT_DEPARTMENT_CHOICES, INDUSTRY_CHOICES, PROTEIN_TYPE_CHOICES } from '../utils/constants/choices';
+import { CONTACT_DEPARTMENT_CHOICES, PROTEIN_TYPE_CHOICES } from '../utils/constants/choices';
 
 interface CustomerLocation {
   id: number;
@@ -108,20 +108,6 @@ const Customers: React.FC = () => {
   const [preferenceProducts, setPreferenceProducts] = useState<Array<{ id: string; product_code: string; name: string; protein_type?: string }>>([]);
   const [customerProductsLoading, setCustomerProductsLoading] = useState(false);
 
-  const [formData, setFormData] = useState({
-    name: '',
-    contact_person: '',
-    email: '',
-    phone: '',
-    address: '',
-    city: '',
-    state: '',
-    zip_code: '',
-    country: '',
-    industry_array: [] as string[], // Phase 4: ArrayField integration
-    preferred_protein_types: [] as string[], // Phase 4: ArrayField integration
-    products: [] as string[], // Product IDs for M2M
-  });
 
   // Auto-open form if ?action=create in URL
   useEffect(() => {
@@ -136,16 +122,6 @@ const Customers: React.FC = () => {
     fetchProducts();
   }, []);
 
-  // Auto-fetch products when preferred_protein_types changes
-  useEffect(() => {
-    if (formData.preferred_protein_types && formData.preferred_protein_types.length > 0) {
-      fetchFilteredProducts(formData.preferred_protein_types);
-    } else {
-      // Reset to all products if no protein types selected
-      fetchProducts();
-    }
-  }, [formData.preferred_protein_types]);
-
   const fetchProducts = async () => {
     try {
       const response = await apiClient.get('/system/products/', { params: { limit: 500 } });
@@ -155,19 +131,6 @@ const Customers: React.FC = () => {
       setProducts(productsData);
     } catch (error) {
       logger.error('[Customers] Error fetching products:', error);
-    }
-  };
-
-  const fetchFilteredProducts = async (proteinTypes: string[]) => {
-    try {
-      const response = await apiClient.get('/system/products/', {
-        params: { protein: proteinTypes.join(','), limit: 500 },
-      });
-      const data = Array.isArray(response.data) ? response.data : (response.data.results || []);
-      setProducts(data);
-      // Note: Auto-select logic intentionally removed to improve UX
-    } catch (error) {
-      logger.error('[Customers] Error fetching filtered products:', error);
     }
   };
 
@@ -426,56 +389,8 @@ const Customers: React.FC = () => {
     void loadCustomerProductPanels(selectedCustomerId);
   }, [selectedCustomerId]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      if (editingCustomer) {
-        await apiService.updateCustomer(editingCustomer.id, {
-          ...formData,
-          products: formData.products,
-        });
-      } else {
-        await apiService.createCustomer({
-          ...formData,
-          products: formData.products,
-        });
-      }
-      setShowEditForm(false);
-      setEditingCustomer(null);
-      resetForm();
-      await customersQuery.refetch();
-    } catch (error: unknown) {
-      // Log detailed error information
-      const err = error as Error & { response?: { status: number; data: unknown }; stack?: string };
-      console.error('Error saving customer:', {
-        message: err.message || 'Unknown error',
-        stack: err.stack || 'No stack trace available',
-        response: err.response ? {
-          status: err.response.status,
-          data: err.response.data
-        } : 'No response data'
-      });
-      // Display user-friendly error to the UI
-      alert(`Failed to save customer: ${err.message || 'Please try again later'}`);
-    }
-  };
-
   const handleEdit = (customer: Customer) => {
     setEditingCustomer(customer);
-    setFormData({
-      name: customer.name,
-      contact_person: customer.contact_person || '',
-      email: customer.email || '',
-      phone: customer.phone || '',
-      address: customer.address || '',
-      city: customer.city || '',
-      state: customer.state || '',
-      zip_code: customer.zip_code || '',
-      country: customer.country || '',
-      industry_array: customer.industry_array || [], // Phase 4: Populate array
-      preferred_protein_types: customer.preferred_protein_types || [], // Phase 4: Populate array
-      products: (customer.products || []).map(String), // Populate product IDs
-    });
     setShowEditForm(true);
   };
 
@@ -498,29 +413,6 @@ const Customers: React.FC = () => {
     }
   };
 
-  const resetForm = () => {
-    setFormData({
-      name: '',
-      contact_person: '',
-      email: '',
-      phone: '',
-      address: '',
-      city: '',
-      state: '',
-      zip_code: '',
-      country: '',
-      industry_array: [], // Phase 4: Reset array
-      preferred_protein_types: [], // Phase 4: Reset array
-      products: [], // Reset products
-    });
-  };
-
-  const handleCancel = () => {
-    setShowForm(false);
-    setShowEditForm(false);
-    setEditingCustomer(null);
-    resetForm();
-  };
 
   if (loading) {
     return <LoadingContainer $theme={theme}>Loading customers...</LoadingContainer>;
@@ -566,168 +458,34 @@ const Customers: React.FC = () => {
       </TableControls>
 
       {showForm && (
-        <QuickCreateModal
+        <EntityFormSurface
           entityType="customer"
+          mode="create"
           isOpen={showForm}
           onClose={() => setShowForm(false)}
-          onCreated={() => { void customersQuery.refetch(); }}
+          onSuccess={() => {
+            setShowForm(false);
+            void customersQuery.refetch();
+          }}
         />
       )}
 
-      {showEditForm && (
-        <FormOverlay>
-          <FormContainer $theme={theme}>
-            <FormHeader $theme={theme}>
-              <FormTitle $theme={theme}>{editingCustomer ? 'Edit Customer' : 'Edit Customer'}</FormTitle>
-              <CloseButton $theme={theme} onClick={handleCancel}>×</CloseButton>
-            </FormHeader>
-
-            <Form onSubmit={handleSubmit}>
-              <FormGrid>
-                <FormGroup>
-                  <Label $theme={theme}>Company Name *</Label>
-                  <Input $theme={theme}
-                    type="text"
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    required
-                  />
-                </FormGroup>
-
-                <FormGroup>
-                  <Label $theme={theme}>Contact Person</Label>
-                  <Input $theme={theme}
-                    type="text"
-                    value={formData.contact_person}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        contact_person: e.target.value,
-                      })
-                    }
-                  />
-                </FormGroup>
-
-                <FormGroup>
-                  <Label $theme={theme}>Email</Label>
-                  <Input $theme={theme}
-                    type="email"
-                    value={formData.email}
-                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  />
-                </FormGroup>
-
-                <FormGroup>
-                  <Label $theme={theme}>Phone</Label>
-                  <PhoneInput
-                    value={formData.phone}
-                    onChange={(value) => setFormData({ ...formData, phone: value })}
-                    placeholder="(XXX)XXX-XXXX"
-                    aria-label="Phone number"
-                  />
-                </FormGroup>
-
-                <FormGroup $fullWidth>
-                  <Label $theme={theme}>Address</Label>
-                  <Input $theme={theme}
-                    type="text"
-                    value={formData.address}
-                    onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                  />
-                </FormGroup>
-
-                <FormGroup>
-                  <Label $theme={theme}>City</Label>
-                  <Input $theme={theme}
-                    type="text"
-                    value={formData.city}
-                    onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-                  />
-                </FormGroup>
-
-                <FormGroup>
-                  <Label $theme={theme}>State</Label>
-                  <Select
-                    value={formData.state}
-                    onChange={(value) => setFormData({ ...formData, state: value })}
-                    options={US_STATES}
-                    placeholder="Select state"
-                    aria-label="State"
-                  />
-                </FormGroup>
-
-                <FormGroup>
-                  <Label $theme={theme}>ZIP Code</Label>
-                  <Input $theme={theme}
-                    type="text"
-                    value={formData.zip_code}
-                    onChange={(e) => {
-                      // Only allow digits, max 5 characters
-                      const value = e.target.value.replace(/\D/g, '').slice(0, 5);
-                      setFormData({ ...formData, zip_code: value });
-                    }}
-                    maxLength={5}
-                    pattern="^\d{5}$"
-                    placeholder="12345"
-                  />
-                </FormGroup>
-
-                <FormGroup>
-                  <Label $theme={theme}>Country</Label>
-                  <Input $theme={theme}
-                    type="text"
-                    value={formData.country}
-                    onChange={(e) => setFormData({ ...formData, country: e.target.value })}
-                  />
-                </FormGroup>
-
-                <FormGroup $fullWidth>
-                  <MultiSelect
-                    value={formData.industry_array}
-                    onChange={(values) => setFormData({ ...formData, industry_array: values })}
-                    options={INDUSTRY_CHOICES}
-                    label="Industries"
-                    placeholder="Select industries (hold Ctrl/Cmd for multiple)"
-                  />
-                </FormGroup>
-
-                <FormGroup $fullWidth>
-                  <MultiSelect
-                    value={formData.preferred_protein_types}
-                    onChange={(values) => setFormData({ ...formData, preferred_protein_types: values })}
-                    options={PROTEIN_TYPE_CHOICES}
-                    label="Preferred Protein Types"
-                    placeholder="Select protein types (hold Ctrl/Cmd for multiple)"
-                  />
-                </FormGroup>
-
-                <FormGroup $fullWidth>
-                  <MultiSelect
-                    value={formData.products}
-                    onChange={(values) => setFormData({ ...formData, products: values })}
-                    options={products.map(p => ({ value: String(p.id), label: `${p.product_code}${p.name ? ' - ' + p.name : ''}` }))}
-                    label="Preferred Products"
-                    placeholder="Select preferred products (hold Ctrl/Cmd for multiple)"
-                  />
-                  {formData.preferred_protein_types.length > 0 && (
-                    <HelperText $theme={theme}>
-                      Showing {products.length} product(s) filtered by selected protein types
-                    </HelperText>
-                  )}
-                </FormGroup>
-              </FormGrid>
-
-              <FormActions>
-                <CancelButton type="button" onClick={handleCancel}>
-                  Cancel
-                </CancelButton>
-                <SubmitButton type="submit">
-                  {editingCustomer ? 'Update' : 'Update'} Customer
-                </SubmitButton>
-              </FormActions>
-            </Form>
-          </FormContainer>
-        </FormOverlay>
+      {showEditForm && editingCustomer && (
+        <EntityFormSurface
+          entityType="customer"
+          mode="edit"
+          entityId={editingCustomer.id}
+          isOpen={showEditForm}
+          onClose={() => {
+            setShowEditForm(false);
+            setEditingCustomer(null);
+          }}
+          onSuccess={() => {
+            setShowEditForm(false);
+            setEditingCustomer(null);
+            void customersQuery.refetch();
+          }}
+        />
       )}
 
       {showLocationModal && (
