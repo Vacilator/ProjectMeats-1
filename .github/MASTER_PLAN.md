@@ -1458,3 +1458,4 @@ Deliverables:
 
 - 2026-03-31 — Frontend: add global runtime `unhandledrejection` + `error` handlers via centralized logger/Sentry — PR: #4248.
 - 2026-03-31 — Frontend: Suppliers list fetch uses React Query (useQuery) + refetch on create/update/delete — PR: #4251.
+- 2026-03-31 — Frontend: Customers list fetch uses React Query (useQuery) + refetch on create/update/delete — PR: #4252.
