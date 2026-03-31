@@ -46,6 +46,7 @@ import { Button } from '../../components/ui/Button';
 import { TemplateSelector } from '../../components/FlowEditor/templates/TemplateSelector';
 import { FLOW_TEMPLATES, FlowTemplate } from '../../components/FlowEditor/templates/flowTemplates';
 import { createFormSubmission, getAvailableWorkForms } from '../../services/workformsApi';
+import { listTenantForms as listLegacyTenantForms } from '../../services/tenantFormService';
 import { useWorkFormPermissions, getUpgradeMessage } from '../../hooks/useWorkFormPermissions';
 
 // ============================================================================
@@ -54,6 +55,7 @@ import { useWorkFormPermissions, getUpgradeMessage } from '../../hooks/useWorkFo
 
 interface CatalogItem {
   id: string;
+  kind?: 'form' | 'workform';
   name: string;
   description: string;
   status: 'draft' | 'active' | 'inactive' | 'archived';
@@ -522,54 +524,80 @@ const FormsFlowsCatalog: React.FC = () => {
   // Phase 4.2: Get user permissions
   const { permissions, isLoading: permissionsLoading } = useWorkFormPermissions();
 
-  // Fetch existing workflows (TenantWorkForm)
+  // Fetch existing items:
+  // - WorkForms: TenantWorkForm (new editor)
+  // - Forms: legacy TenantForm (data-capture forms)
   const {
     data: forms = [],
     isLoading,
     error,
   } = useQuery<CatalogItem[]>({
-    queryKey: ['tenant-workforms'],
+    queryKey: ['workforms-catalog-items'],
     queryFn: async () => {
-      try {
-        const workforms = await getAvailableWorkForms();
-        const nowIso = new Date().toISOString();
+      const nowIso = new Date().toISOString();
 
-        // Adapt TenantWorkForm list items into the catalog's expected shape.
-        return workforms.map((wf) => {
-          const anyWf = wf as any;
-          const updated = String(anyWf.updated_at ?? nowIso);
-          const created = String(anyWf.created_at ?? updated);
+      const [workformsResult, legacyFormsResult] = await Promise.allSettled([
+        getAvailableWorkForms(),
+        listLegacyTenantForms(),
+      ]);
 
-          return {
-            id: String(anyWf.id),
-            name: String(anyWf.name ?? 'Untitled WorkForm'),
-            description: String(anyWf.description ?? ''),
-            status: (anyWf.status as CatalogItem['status']) ?? 'draft',
-            icon: '🧩',
-            // Prefer node_count for workflows; used for the primary metric row.
-            node_count: typeof anyWf.node_count === 'number' ? anyWf.node_count : undefined,
-            edge_count: typeof anyWf.edge_count === 'number' ? anyWf.edge_count : undefined,
-            execution_count:
-              typeof anyWf.execution_count === 'number' ? anyWf.execution_count : undefined,
-            last_executed_at: anyWf.last_executed_at ? String(anyWf.last_executed_at) : undefined,
-            version: typeof anyWf.version === 'number' ? anyWf.version : undefined,
-            // Keep legacy fields present so existing UI doesn't crash.
-            entity_count:
-              typeof anyWf.node_count === 'number'
-                ? anyWf.node_count
-                : typeof anyWf.entity_count === 'number'
-                  ? anyWf.entity_count
-                  : 0,
-            is_multi_entity: true,
-            is_system_template: false,
-            created_at: created,
-            updated_at: updated,
-          };
-        });
-      } catch (error) {
-        logger.error('[Catalog] Error fetching workforms:', error);
-        return [];
+      const workforms = workformsResult.status === 'fulfilled' ? workformsResult.value : [];
+      if (workformsResult.status === 'rejected') {
+        logger.error('[Catalog] Error fetching workforms:', workformsResult.reason);
       }
+
+      const legacyForms = legacyFormsResult.status === 'fulfilled' ? legacyFormsResult.value : [];
+      if (legacyFormsResult.status === 'rejected') {
+        logger.error('[Catalog] Error fetching legacy forms:', legacyFormsResult.reason);
+      }
+
+      const mappedWorkforms: CatalogItem[] = (workforms || []).map((wf) => {
+        const anyWf = wf as any;
+        const updated = String(anyWf.updated_at ?? nowIso);
+        const created = String(anyWf.created_at ?? updated);
+
+        return {
+          id: String(anyWf.id),
+          kind: 'workform',
+          name: String(anyWf.name ?? 'Untitled WorkForm'),
+          description: String(anyWf.description ?? ''),
+          status: (anyWf.status as CatalogItem['status']) ?? 'draft',
+          icon: '🧩',
+          node_count: typeof anyWf.node_count === 'number' ? anyWf.node_count : undefined,
+          edge_count: typeof anyWf.edge_count === 'number' ? anyWf.edge_count : undefined,
+          execution_count: typeof anyWf.execution_count === 'number' ? anyWf.execution_count : undefined,
+          last_executed_at: anyWf.last_executed_at ? String(anyWf.last_executed_at) : undefined,
+          version: typeof anyWf.version === 'number' ? anyWf.version : undefined,
+          entity_count: typeof anyWf.node_count === 'number' ? anyWf.node_count : 0,
+          is_multi_entity: true,
+          is_system_template: false,
+          created_at: created,
+          updated_at: updated,
+        };
+      });
+
+      const mappedLegacyForms: CatalogItem[] = (Array.isArray(legacyForms) ? legacyForms : []).map((f: any) => {
+        const updated = String(f.updated_at ?? nowIso);
+        const created = String(f.created_at ?? updated);
+        return {
+          id: String(f.id),
+          kind: 'form',
+          name: String(f.name ?? 'Untitled Form'),
+          description: String(f.description ?? ''),
+          status: (f.status as CatalogItem['status']) ?? 'draft',
+          icon: f.icon || '📋',
+          entity_count: typeof f.entity_count === 'number' ? f.entity_count : 1,
+          is_multi_entity: Boolean(f.is_multi_entity),
+          is_system_template: false,
+          created_at: created,
+          updated_at: updated,
+          flow_data: f.flow_data,
+        };
+      });
+
+      const combined = [...mappedWorkforms, ...mappedLegacyForms];
+      combined.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+      return combined;
     },
   });
 
@@ -582,8 +610,9 @@ const FormsFlowsCatalog: React.FC = () => {
 
   // Helper to determine if an item should be classified as a Workflow (Logic)
   const isWorkflow = React.useCallback((form: CatalogItem) => {
-    // New system: TenantWorkForm list items include node_count.
-    if (typeof form.node_count === 'number') return true;
+    // Explicit kind overrides (Catalog merges legacy forms + WorkForms).
+    if (form.kind === 'workform') return true;
+    if (form.kind === 'form') return false;
 
     // Legacy heuristics (kept for backward compatibility).
     if (form.is_multi_entity) return true;
@@ -713,8 +742,34 @@ const FormsFlowsCatalog: React.FC = () => {
   };
 
   // Open a workform in the editor
-  const handleEditForm = (formId: string) => {
-    navigate(`/workforms/editor/${formId}`);
+  const handleEditForm = async (form: CatalogItem) => {
+    // WorkForms: open in editor
+    if (form.kind === 'workform' || typeof form.node_count === 'number') {
+      navigate(`/workforms/editor/${form.id}`);
+      return;
+    }
+
+    // Legacy forms: start a submission and take user to the in-progress runner
+    if (form.status === 'inactive' || form.status === 'archived') {
+      showAlert({
+        type: 'warning',
+        title: 'Form unavailable',
+        content: 'This form is not active and cannot be started.',
+      });
+      return;
+    }
+
+    try {
+      const submission = await createFormSubmission(form.id);
+      navigate(`/workforms/in-progress/${submission.id}`);
+    } catch (error) {
+      logger.error('[Catalog] Failed to start form submission', error);
+      showAlert({
+        type: 'error',
+        title: 'Error',
+        content: 'Failed to start form. Please try again.',
+      });
+    }
   };
 
   // Format date
@@ -920,7 +975,7 @@ const FormsFlowsCatalog: React.FC = () => {
         <GridContainer>
           {filteredForms.map((form) => (
             <FormCard key={form.id}>
-              <CardContent onClick={() => handleEditForm(form.id)} style={{ cursor: 'pointer' }}>
+              <CardContent onClick={() => void handleEditForm(form)} style={{ cursor: 'pointer' }}>
                 <FormCardHeader>
                   <FormIcon>{form.icon || '📋'}</FormIcon>
                   <FormInfo>
@@ -982,7 +1037,7 @@ const FormsFlowsCatalog: React.FC = () => {
             <FormCard key={form.id}>
               <CardContent
                 onClick={() => {
-                  handleEditForm(form.id);
+                  void handleEditForm(form);
                 }}
                 style={{ cursor: 'pointer' }}
               >

@@ -2508,7 +2508,11 @@ class AvailableFormsViewSet(viewsets.ReadOnlyModelViewSet):
 
     @extend_schema(responses={200: AvailableQuickActionTargetSerializer(many=True)})
     def list(self, request, *args, **kwargs):
-        from apps.system.models.tenant_workform import TenantWorkForm, WorkFormStatusChoices
+        """Return legacy TenantForms only.
+
+        WorkForms (TenantWorkForm) should be fetched via /api/v1/tenant-workforms/
+        to avoid coupling this endpoint to the WorkForms editor data model.
+        """
 
         forms_qs = self.filter_queryset(self.get_queryset())
         forms_data = AvailableFormSerializer(forms_qs, many=True).data
@@ -2516,32 +2520,8 @@ class AvailableFormsViewSet(viewsets.ReadOnlyModelViewSet):
             row['type'] = 'form'
             row['node_count'] = None
 
-        workforms_qs = TenantWorkForm.objects.filter(
-            status__in=[WorkFormStatusChoices.ACTIVE, WorkFormStatusChoices.DRAFT]
-        ).order_by('name')
-        if not request.user.is_superuser:
-            workforms_qs = workforms_qs.filter(tenant=request.tenant)
-
-        workforms_data = []
-        for wf in workforms_qs:
-            workforms_data.append(
-                {
-                    'id': str(wf.id),
-                    'type': 'workflow',
-                    'name': wf.name,
-                    'description': wf.description or '',
-                    'icon': 'layers',
-                    'status': wf.status,
-                    'is_default': False,
-                    'is_quick_action_enabled': True,
-                    'step_count': 0,
-                    'node_count': wf.get_node_count(),
-                }
-            )
-
-        combined = list(forms_data) + workforms_data
-        combined.sort(key=lambda r: str(r.get('name') or '').lower())
-        return Response(combined)
+        forms_data.sort(key=lambda r: str(r.get('name') or '').lower())
+        return Response(forms_data)
 
 
 @extend_schema(tags=["Workflows", "Quick Actions"])
