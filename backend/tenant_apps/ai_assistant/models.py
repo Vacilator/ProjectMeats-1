@@ -362,3 +362,53 @@ class AIDocument(TenantAwareModel):
         indexes = [
             models.Index(fields=['tenant', 'owner', 'created_on'], name='aidoc_tnt_owner_created_idx'),
         ]
+
+
+class CommunicationStatus(models.TextChoices):
+    DRAFT = 'draft', 'Draft'
+    SENT = 'sent', 'Sent'
+    CANCELLED = 'cancelled', 'Cancelled'
+    FAILED = 'failed', 'Failed'
+
+
+class CommunicationLog(TenantAwareModel):
+    """Tenant-scoped outbound communications staged by the AI assistant."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='communication_logs_created',
+    )
+
+    # Generic link to a vendor/customer/etc (supports UUID or int PKs; stored as string)
+    entity_type = models.CharField(max_length=32, default='supplier')
+    entity_id = models.CharField(max_length=64, blank=True, default='')
+
+    to_email = models.EmailField()
+    subject = models.CharField(max_length=300, default='')
+    body = models.TextField(default='')
+
+    provider = models.CharField(
+        max_length=32,
+        default='manual',
+        help_text='manual|outlook (send is always human-approved)',
+    )
+
+    status = models.CharField(max_length=16, choices=CommunicationStatus.choices, default=CommunicationStatus.DRAFT, db_index=True)
+
+    sent_at = models.DateTimeField(null=True, blank=True)
+    error_message = models.TextField(blank=True, default='')
+    metadata = models.JSONField(default=dict, blank=True)
+
+    class Meta:
+        db_table = 'ai_assistant_communication_logs'
+        verbose_name = 'Communication Log'
+        verbose_name_plural = 'Communication Logs'
+        indexes = [
+            models.Index(fields=['tenant', 'status', 'created_on'], name='ai_comms_tenant_status_idx'),
+            models.Index(fields=['tenant', 'entity_type', 'created_on'], name='ai_comms_tenant_entity_idx'),
+        ]

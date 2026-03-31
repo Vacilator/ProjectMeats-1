@@ -201,6 +201,39 @@ DEFAULT_OPENAI_TOOLS = [
     {
         'type': 'function',
         'function': {
+            'name': 'trigger_workform',
+            'description': 'Trigger a TenantWorkForm execution and persist an execution record.',
+            'parameters': {
+                'type': 'object',
+                'properties': {
+                    'workflow_id': {'type': 'string', 'description': 'TenantWorkForm UUID'},
+                    'initial_data': {'type': 'object', 'description': 'Initial trigger/context payload'}
+                },
+                'required': ['workflow_id'],
+                'additionalProperties': False,
+            },
+        },
+    },
+    {
+        'type': 'function',
+        'function': {
+            'name': 'draft_vendor_email',
+            'description': 'Draft and store an outbound vendor email as a Draft (human-in-the-loop send).',
+            'parameters': {
+                'type': 'object',
+                'properties': {
+                    'vendor_id': {'type': 'string', 'description': 'Supplier/Customer UUID'},
+                    'context': {'type': 'string', 'description': 'Context for the email (issue, discrepancy, request, etc.)'},
+                    'vendor_type': {'type': 'string', 'description': 'supplier|customer (default supplier)'}
+                },
+                'required': ['vendor_id', 'context'],
+                'additionalProperties': False,
+            },
+        },
+    },
+    {
+        'type': 'function',
+        'function': {
             'name': 'create_record',
             'description': 'Create a tenant-scoped record (limited to safe entity types). (Legacy tool; prefer create_entity.)',
             'parameters': {
@@ -283,6 +316,8 @@ class ToolExecutor:
             'parse_document': self._parse_document,
             'create_task': self._create_task,
             'create_in_app_notification': self._create_in_app_notification,
+            'trigger_workform': self._trigger_workform,
+            'draft_vendor_email': self._draft_vendor_email,
             'ingest_feedback': self._ingest_feedback,
             'get_recent_errors': self._get_recent_errors,
             'create_record': self._create_record,
@@ -996,6 +1031,172 @@ class ToolExecutor:
             'count': len(created),
             'notification_ids': [str(r.id) for r in created],
             'notified_usernames': [r.user.username for r in created],
+        }
+
+    def _trigger_workform(self, arguments: Dict[str, Any], tenant: Any, user: Any = None) -> Any:
+        """Trigger a TenantWorkForm execution and persist an execution record."""
+        if not user or not getattr(user, 'is_authenticated', False):
+            raise ValueError('Authenticated user is required to trigger workforms')
+
+        workflow_id = (arguments.get('workflow_id') or '').strip()
+        if not workflow_id:
+            raise ValueError('Missing required parameter: workflow_id')
+
+        initial_data = arguments.get('initial_data') if isinstance(arguments.get('initial_data'), dict) else {}
+
+        from uuid import UUID
+        from django.utils import timezone
+
+        try:
+            workflow_uuid = UUID(str(workflow_id))
+        except Exception as e:
+            raise ValueError('Invalid workflow_id (expected UUID)') from e
+
+        from apps.system.models import TenantWorkForm
+        from apps.system.services.workform_engine import WorkFormEngine
+        from tenant_apps.workflows.models import TenantWorkFormExecution, TenantWorkFormExecutionStatus
+
+        workform = TenantWorkForm.objects.filter(id=workflow_uuid, tenant=tenant).first()
+        if not workform:
+            raise ValueError('WorkForm not found for this tenant')
+
+        execution = TenantWorkFormExecution.objects.create(
+            tenant=tenant,
+            workform=workform,
+            status=TenantWorkFormExecutionStatus.IN_PROGRESS,
+            initial_data=initial_data,
+            started_by=user,
+            started_at=timezone.now(),
+        )
+
+        # Execute immediately (scaffold). Future: enqueue async task.
+        engine = WorkFormEngine(
+            workform,
+            initial_context={
+                'trigger': initial_data,
+                'variables': {},
+                'errors': [],
+                'execution_id': str(execution.id),
+            },
+        )
+
+        result = engine.execute(trigger_payload=initial_data)
+
+        execution.context_data = result.context
+        if result.success:
+            execution.status = TenantWorkFormExecutionStatus.COMPLETED
+            execution.completed_at = timezone.now()
+        else:
+            execution.status = TenantWorkFormExecutionStatus.FAILED
+            execution.error_message = str(result.error or '')
+            execution.completed_at = timezone.now()
+        execution.save(update_fields=['status', 'context_data', 'error_message', 'completed_at'])
+
+        return {
+            'execution_id': str(execution.id),
+            'workflow_id': str(workform.id),
+            'status': execution.status,
+            'error': execution.error_message,
+            'context_preview': (execution.context_data or {}),
+        }
+
+    def _draft_vendor_email(self, arguments: Dict[str, Any], tenant: Any, user: Any = None) -> Any:
+        """Draft and store an outbound vendor email as a Draft (human-in-the-loop send)."""
+        if not user or not getattr(user, 'is_authenticated', False):
+            raise ValueError('Authenticated user is required to draft vendor emails')
+
+        vendor_id = (arguments.get('vendor_id') or '').strip()
+        context = (arguments.get('context') or '').strip()
+        vendor_type = (arguments.get('vendor_type') or '').strip().lower() or 'supplier'
+
+        if not vendor_id or not context:
+            raise ValueError('Missing required parameters: vendor_id, context')
+
+        vendor_uuid = None
+        vendor_pk = None
+        try:
+            from uuid import UUID
+
+            vendor_uuid = UUID(str(vendor_id))
+        except Exception:
+            try:
+                vendor_pk = int(str(vendor_id))
+            except Exception as e:
+                raise ValueError('Invalid vendor_id (expected UUID or integer id)') from e
+
+        entity = None
+        entity_email = ''
+        entity_name = ''
+
+        if vendor_type == 'supplier':
+            from tenant_apps.suppliers.models import Supplier
+
+            lookup_id = vendor_uuid if vendor_uuid is not None else vendor_pk
+            entity = Supplier.objects.filter(id=lookup_id, tenant=tenant).prefetch_related('contacts').first()
+            if entity:
+                entity_name = entity.name
+                entity_email = (entity.email or '').strip()
+        elif vendor_type == 'customer':
+            from tenant_apps.customers.models import Customer
+
+            lookup_id = vendor_uuid if vendor_uuid is not None else vendor_pk
+            entity = Customer.objects.filter(id=lookup_id, tenant=tenant).prefetch_related('contacts').first()
+            if entity:
+                entity_name = entity.name
+                entity_email = (getattr(entity, 'email', '') or '').strip()
+        else:
+            raise ValueError('Invalid vendor_type (expected supplier|customer)')
+
+        if not entity:
+            raise ValueError('Vendor not found for this tenant')
+
+        # Fallback: first contact email
+        if not entity_email:
+            try:
+                contact_mgr = getattr(entity, 'contacts', None)
+                contact = contact_mgr.first() if contact_mgr is not None else None
+                entity_email = (getattr(contact, 'email', '') or '').strip()
+            except Exception:
+                entity_email = ''
+
+        if not entity_email:
+            raise ValueError('Vendor has no email address on record')
+
+        subject = f"{entity_name}: Follow-up"
+        if len(context) <= 80:
+            subject = f"{entity_name}: {context}"
+
+        sender_name = (getattr(user, 'get_full_name', None)() or '').strip() if hasattr(user, 'get_full_name') else ''
+        if not sender_name:
+            sender_name = getattr(user, 'username', 'ProjectMeats')
+
+        body = (
+            f"Hi {entity_name},\n\n"
+            f"{context}\n\n"
+            f"Thanks,\n{sender_name}\n"
+        )
+
+        from tenant_apps.ai_assistant.models import CommunicationLog, CommunicationStatus
+
+        row = CommunicationLog.objects.create(
+            tenant=tenant,
+            created_by=user,
+            entity_type=vendor_type,
+            entity_id=str(vendor_id),
+            to_email=entity_email,
+            subject=subject[:300],
+            body=body,
+            status=CommunicationStatus.DRAFT,
+            provider='manual',
+            metadata={'source': 'draft_vendor_email'},
+        )
+
+        return {
+            'id': str(row.id),
+            'to_email': row.to_email,
+            'subject': row.subject,
+            'body': row.body,
+            'status': row.status,
         }
 
     def _ingest_feedback(self, arguments: Dict[str, Any], tenant: Any, user: Any = None) -> Any:

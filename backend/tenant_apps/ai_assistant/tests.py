@@ -372,3 +372,67 @@ class SwarmToolNotificationTest(TestCase):
         self.assertGreaterEqual(result["count"], 1)
         self.assertIn(self.owner.username, result["notified_usernames"])
         self.assertEqual(UserNotification.objects.filter(user=self.owner, tenant=self.tenant).count(), 1)
+
+
+class SwarmWorkformAndCommsToolsTest(TestCase):
+    """Smoke tests for WorkForm execution + comms draft tools."""
+
+    @classmethod
+    def setUpTestData(cls):
+        unique_id = uuid.uuid4().hex[:8]
+        cls.owner = User.objects.create_user(
+            username=f"owner2-{unique_id}",
+            email=f"owner2-{unique_id}@example.com",
+            password="testpass123",
+        )
+        cls.tenant = Tenant.objects.create(
+            name=f"Tools Company {unique_id}",
+            slug=f"tools-company-{unique_id}",
+            contact_email=f"admin-{unique_id}@toolscompany.com",
+            created_by=cls.owner,
+        )
+        TenantUser.objects.create(tenant=cls.tenant, user=cls.owner, role="owner")
+
+    def test_trigger_workform_creates_execution(self):
+        from apps.system.models import TenantWorkForm
+        from tenant_apps.ai_assistant.swarm.executor import ToolExecutor
+        from tenant_apps.workflows.models import TenantWorkFormExecution
+
+        wf = TenantWorkForm.objects.create(
+            tenant=self.tenant,
+            name="Test WF",
+            status="draft",
+            workflow_definition={
+                "nodes": [
+                    {"id": "n1", "type": "triggerManual", "data": {"label": "Start"}, "position": {"x": 0, "y": 0}},
+                ],
+                "edges": [],
+            },
+        )
+
+        ex = ToolExecutor()
+        result = ex._trigger_workform({"workflow_id": str(wf.id), "initial_data": {"hello": "world"}}, tenant=self.tenant, user=self.owner)
+
+        self.assertIn("execution_id", result)
+        self.assertEqual(result["status"], "completed")
+        self.assertEqual(TenantWorkFormExecution.objects.filter(tenant=self.tenant, workform=wf).count(), 1)
+
+    def test_draft_vendor_email_persists_draft(self):
+        from tenant_apps.ai_assistant.swarm.executor import ToolExecutor
+        from tenant_apps.ai_assistant.models import CommunicationLog, CommunicationStatus
+        from tenant_apps.suppliers.models import Supplier
+
+        supplier = Supplier.objects.create(tenant=self.tenant, name="ACME", email="acme@example.com")
+
+        ex = ToolExecutor()
+        result = ex._draft_vendor_email(
+            {"vendor_id": str(supplier.id), "context": "Invoice mismatch: PO price differs."},
+            tenant=self.tenant,
+            user=self.owner,
+        )
+
+        self.assertIn("id", result)
+        row = CommunicationLog.objects.get(id=result["id"])
+        self.assertEqual(row.tenant, self.tenant)
+        self.assertEqual(row.status, CommunicationStatus.DRAFT)
+        self.assertEqual(row.to_email, "acme@example.com")

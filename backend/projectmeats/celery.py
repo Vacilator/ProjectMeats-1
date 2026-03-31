@@ -39,6 +39,14 @@ app.conf.beat_schedule = {
             'expires': 3600.0,
         },
     },
+    'ai-watchdog-daily': {
+        'task': 'ai_assistant.run_daily_watchdog',
+        'schedule': crontab(minute=0, hour=6),
+        'args': (3,),
+        'options': {
+            'expires': 3600.0,
+        },
+    },
 }
 
 # Set timezone for scheduled tasks

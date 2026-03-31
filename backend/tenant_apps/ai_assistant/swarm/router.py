@@ -52,6 +52,8 @@ def build_swarm_system_prompt(
         "- get_entity_schema(entity_type) to discover required fields for record creation (same engine as the UI). "
         "- create_entity(entity_type, payload) to create tenant-scoped records. NEVER ask the user for tenant_id. "
         "- parse_document(file_id_or_url) to extract text from an uploaded AIDocument UUID (URL fetch disabled). "
+        "- trigger_workform(workflow_id[, initial_data]) to run a TenantWorkForm end-to-end (creates an execution record). "
+        "- draft_vendor_email(vendor_id, context[, vendor_type]) to stage an outbound email draft (human-in-the-loop send). "
         "- create_task(title, message[, entity_type, entity_id]) to create an in-app task notification for the current user. "
         "- create_in_app_notification(title, message[, ...]) to notify other users (owners/admins only). "
         "- get_recent_errors() to fetch the most recent Sentry issues for the active tenant. "
@@ -68,6 +70,8 @@ def build_swarm_system_prompt(
         "(3) Map extracted values to the schema. "
         "(4) Present a concise summary and ask the user to confirm. "
         "(5) Only after confirmation, call create_entity. "
+        "\n\nWORKFORM ORCHESTRATION (PREFERRED FOR MULTI-STEP FLOWS): "
+        "If the user asks to run a multi-step business process (e.g., supplier onboarding), prefer trigger_workform(workflow_id, initial_data) over creating records one-by-one. "
     )
 
     if lessons_block:

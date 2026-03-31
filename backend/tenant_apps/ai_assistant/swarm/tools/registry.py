@@ -235,6 +235,23 @@ def parse_document(file_id_or_url: str) -> Dict[str, Any]:
 
 
 @registry.register
+def trigger_workform(workflow_id: str, initial_data: Dict[str, Any] | None = None) -> Dict[str, Any]:
+    """Trigger a TenantWorkForm execution.
+
+    Executed via the Swarm tool loop in /api/v1/ai-assistant/chat/.
+    """
+
+    return {"status": "available_via_chat", "workflow_id": workflow_id}
+
+
+@registry.register
+def draft_vendor_email(vendor_id: str, context: str, vendor_type: str | None = None) -> Dict[str, Any]:
+    """Draft and store an outbound vendor email as a Draft (human-in-the-loop send)."""
+
+    return {"status": "available_via_chat", "vendor_id": vendor_id}
+
+
+@registry.register
 def create_record(entity: str, data: Dict[str, Any]) -> Dict[str, Any]:
     """Create a tenant-scoped record.
 
