@@ -17,6 +17,8 @@ This file is the **append-only PR-referenceable execution log**.
 
 - **2026-03-31** — UniversalEntityForm/DynamicFormEngine: state/province fields now render as a searchable dropdown (search by full name or abbreviation), including inline array sub-fields. (PR: #4322)
 
+- **2026-03-31** — UniversalEntityForm: purged legacy Location create/edit forms. Customers “+ New Location” and Locations table “Add/Edit” now route through `EntityFormSurface` → `UniversalEntityForm` (customer prefill via context). Customers can still optionally assign location products post-create. (PR: #4323)
+
 - **2026-03-31** — Workforms editor: DynamicConfigPanel now supports `formReference` and `keyValue` schema field types (removes the "Unknown field type" placeholder for real node configs). (PR: #4319)
 - **2026-03-31** — Workforms AI Suggestions: aligned prompt + backend fallback suggestions to canonical node type IDs; added frontend canonicalization + guard to prevent adding unknown suggested nodes. (PR: #4319)
 
