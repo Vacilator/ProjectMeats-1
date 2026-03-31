@@ -1320,3 +1320,4 @@ Deliverables:
 - 2026-03-30 — FlowEditor: FormProcess containers restored NodeToolbar actions + Add Step button — PR: #4218.
 - 2026-03-30 — Backend: expanded drf-spectacular schemas for Workflows + Cockpit slots (polymorphic search) — PR: #4220.
 - 2026-03-31 — Backend: Contacts department fields (mobile/office phones + Sales responsibility arrays) — PR: #4225.
+- 2026-03-31 — Backend: Plants/Locations nested department contacts + Vertical (K2C) type option — PR: #4226.
