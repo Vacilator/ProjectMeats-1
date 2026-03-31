@@ -7711,61 +7711,63 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       >
         <Background variant={backgroundVariant} gap={20} size={1} />
 
-        {/* Phase 9.2: Live cursors overlay */}
-        {collabPresence.length > 0 && (
-          <div
-            style={{
-              position: 'absolute',
-              inset: 0,
-              pointerEvents: 'none',
-              zIndex: 50,
-            }}
-            aria-hidden="true"
-          >
-            {collabPresence.map((u) => {
-              if (!u.cursor) return null;
+        {/* Phase 9.2: Live cursors overlay (graceful degradation) */}
+        <ErrorBoundary componentName="CollaborationOverlay" fallback={null}>
+          {collabPresence.length > 0 && (
+            <div
+              style={{
+                position: 'absolute',
+                inset: 0,
+                pointerEvents: 'none',
+                zIndex: 50,
+              }}
+              aria-hidden="true"
+            >
+              {collabPresence.map((u) => {
+                if (!u.cursor) return null;
 
-              const viewport = reactFlowInstance?.getViewport?.() || { x: 0, y: 0, zoom: 1 };
-              const left = u.cursor.x * viewport.zoom + viewport.x;
-              const top = u.cursor.y * viewport.zoom + viewport.y;
-              const color = u.color || 'rgb(var(--color-primary))';
+                const viewport = reactFlowInstance?.getViewport?.() || { x: 0, y: 0, zoom: 1 };
+                const left = u.cursor.x * viewport.zoom + viewport.x;
+                const top = u.cursor.y * viewport.zoom + viewport.y;
+                const color = u.color || 'rgb(var(--color-primary))';
 
-              return (
-                <div
-                  key={u.userId}
-                  style={{
-                    position: 'absolute',
-                    transform: `translate(${left}px, ${top}px)`,
-                  }}
-                >
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-                    <path
-                      d="M4 3l7.5 18 2-7 7-2L4 3z"
-                      fill={color}
-                      opacity={0.9}
-                    />
-                  </svg>
+                return (
                   <div
+                    key={u.userId}
                     style={{
-                      marginTop: -2,
-                      padding: '2px 6px',
-                      borderRadius: 999,
-                      background: 'rgb(var(--color-surface))',
-                      border: `1px solid ${color}`,
-                      color: 'rgb(var(--color-text-primary))',
-                      fontSize: 11,
-                      fontWeight: 600,
-                      display: 'inline-block',
-                      whiteSpace: 'nowrap',
+                      position: 'absolute',
+                      transform: `translate(${left}px, ${top}px)`,
                     }}
                   >
-                    {u.name || 'User'}
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                      <path
+                        d="M4 3l7.5 18 2-7 7-2L4 3z"
+                        fill={color}
+                        opacity={0.9}
+                      />
+                    </svg>
+                    <div
+                      style={{
+                        marginTop: -2,
+                        padding: '2px 6px',
+                        borderRadius: 999,
+                        background: 'rgb(var(--color-surface))',
+                        border: `1px solid ${color}`,
+                        color: 'rgb(var(--color-text-primary))',
+                        fontSize: 11,
+                        fontWeight: 600,
+                        display: 'inline-block',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      {u.name || 'User'}
+                    </div>
                   </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
+                );
+              })}
+            </div>
+          )}
+        </ErrorBoundary>
         {isMinimapVisible && (
           <MiniMap 
             nodeColor={(node) => {

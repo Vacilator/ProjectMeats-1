@@ -71,6 +71,10 @@ export function useCollaboration({ workflowId, tenantId }: UseCollaborationArgs)
   const isManuallyClosedRef = useRef(false);
   const connectRef = useRef<(() => void) | null>(null);
 
+  const lastServerMessageAtRef = useRef<number>(Date.now());
+  const heartbeatTimerRef = useRef<number | null>(null);
+  const staleCheckTimerRef = useRef<number | null>(null);
+
   // Local client identifier (used only for filtering if the server echoes it back)
   const localClientIdRef = useRef<string>(
     typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : `local-${Date.now()}`
@@ -119,8 +123,10 @@ export function useCollaboration({ workflowId, tenantId }: UseCollaborationArgs)
     clearReconnectTimer();
     reconnectAttemptRef.current += 1;
 
-    // Exponential backoff with cap
-    const delayMs = Math.min(15_000, 500 * 2 ** (reconnectAttemptRef.current - 1));
+    // Exponential backoff with cap + jitter to avoid thundering herd
+    const baseDelayMs = Math.min(15_000, 500 * 2 ** (reconnectAttemptRef.current - 1));
+    const jitterFactor = 0.8 + Math.random() * 0.4; // 0.8x - 1.2x
+    const delayMs = Math.max(250, Math.round(baseDelayMs * jitterFactor));
 
     reconnectTimerRef.current = window.setTimeout(() => {
       connectRef.current?.();
@@ -128,6 +134,8 @@ export function useCollaboration({ workflowId, tenantId }: UseCollaborationArgs)
   }, [wsUrl, clearReconnectTimer]);
 
   const handleMessage = useCallback((raw: MessageEvent) => {
+    lastServerMessageAtRef.current = Date.now();
+
     let parsed: unknown;
 
     try {
@@ -140,6 +148,15 @@ export function useCollaboration({ workflowId, tenantId }: UseCollaborationArgs)
 
     const msg = parsed as CollaborationMessage;
     const now = Date.now();
+
+    if (msg.type === 'ping') {
+      send({ type: 'pong', timestamp: now, userId: localClientIdRef.current });
+      return;
+    }
+
+    if (msg.type === 'pong') {
+      return;
+    }
 
     if (msg.type === 'presence_state' && msg.data && typeof msg.data === 'object') {
       const incomingUsers = Array.isArray(msg.data.users) ? msg.data.users : [];
@@ -223,6 +240,7 @@ export function useCollaboration({ workflowId, tenantId }: UseCollaborationArgs)
 
       ws.onopen = () => {
         reconnectAttemptRef.current = 0;
+        lastServerMessageAtRef.current = Date.now();
         setStatus('connected');
       };
 
@@ -270,6 +288,44 @@ export function useCollaboration({ workflowId, tenantId }: UseCollaborationArgs)
       // ignore
     }
   }, []);
+
+  // Heartbeat + stale detection.
+  useEffect(() => {
+    const ws = wsRef.current;
+    if (!wsUrl || !ws || status !== 'connected') return;
+
+    if (heartbeatTimerRef.current) {
+      window.clearInterval(heartbeatTimerRef.current);
+    }
+    heartbeatTimerRef.current = window.setInterval(() => {
+      send({ type: 'ping', timestamp: Date.now(), userId: localClientIdRef.current });
+    }, 20_000);
+
+    if (staleCheckTimerRef.current) {
+      window.clearInterval(staleCheckTimerRef.current);
+    }
+    staleCheckTimerRef.current = window.setInterval(() => {
+      const ageMs = Date.now() - lastServerMessageAtRef.current;
+      if (ageMs > 60_000) {
+        try {
+          ws.close(4000, 'stale');
+        } catch {
+          // ignore
+        }
+      }
+    }, 10_000);
+
+    return () => {
+      if (heartbeatTimerRef.current) {
+        window.clearInterval(heartbeatTimerRef.current);
+        heartbeatTimerRef.current = null;
+      }
+      if (staleCheckTimerRef.current) {
+        window.clearInterval(staleCheckTimerRef.current);
+        staleCheckTimerRef.current = null;
+      }
+    };
+  }, [wsUrl, status, send]);
 
   const sendCursor = useCallback((cursor: CollaborationCursor) => {
     send({
