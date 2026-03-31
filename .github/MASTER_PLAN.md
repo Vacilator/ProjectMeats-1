@@ -126,12 +126,19 @@ This file is the **append-only PR-referenceable execution log**.
 - Safety: wrapped WorkForms InProgress/History/Monitoring in ErrorBoundary.
 - PR: #4239
 
-### 2026-03-31 — AI tools: schema discovery + entity creation
-- Added Swarm tools:
-  - `get_entity_schema(entity_type)` (uses the same schema engine as `/api/v1/system/forms/schema/`)
+### 2026-03-31 — AI tools: schema discovery + entity creation + orchestration
+- Added/expanded Swarm tools:
+  - `get_entity_schema(entity_type)` (same engine as `/api/v1/system/forms/schema/`)
   - `create_entity(entity_type, payload)` allowlisted DRF create for supplier/customer/contact/plant/location
   - `parse_document(file_id_or_url)` (document_id-only for SSRF safety; uses Unstructured API when configured)
+  - `create_in_app_notification(...)` (notify admins/other users; permission-gated)
+  - `trigger_workform(workflow_id, initial_data)` (creates a persisted execution record + runs WorkFormEngine scaffold)
+  - `draft_vendor_email(vendor_id, context[, vendor_type])` (stages outbound email as Draft in CommunicationLog)
+- Hardened Swarm system prompt + routing to enforce:
+  - Schema → Ask → Create
+  - Read → Map → Confirm → Create (document-driven)
 - Unblocked fresh DBs/tests without pgvector by storing embeddings as JSON arrays (pgvector optional).
+- Added daily watchdog task (`ai_assistant.run_daily_watchdog`) to notify tenant admins about overdue POs.
 - PR: #4276
 
 ### 2026-03-30 — Docs: master plan gap analysis + roadmap hygiene
