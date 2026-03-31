@@ -177,7 +177,9 @@ const QuickActionsEditor: React.FC<QuickActionsEditorProps> = ({ isOpen, onClose
               ) : (
                 availableToAdd.map((item) => {
                   const itemType = item.type === 'workflow' ? 'workflow' : 'form';
-                  const count = itemType === 'workflow' ? (item.node_count ?? 0) : item.step_count;
+                  const count = itemType === 'workflow'
+                    ? (item.node_count ?? item.step_count ?? 0)
+                    : (item.step_count ?? 0);
                   const noun = itemType === 'workflow' ? 'node' : 'step';
 
                   return (

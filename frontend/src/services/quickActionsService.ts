@@ -57,12 +57,12 @@ export interface AvailableForm {
   id: string;
   type?: 'form' | 'workflow';
   name: string;
-  description: string;
-  icon: string;
-  status: string;
-  is_default: boolean;
-  is_quick_action_enabled: boolean;
-  step_count: number;
+  description?: string;
+  icon?: string;
+  status?: string;
+  is_default?: boolean;
+  is_quick_action_enabled?: boolean;
+  step_count?: number;
   node_count?: number | null;
 }
 

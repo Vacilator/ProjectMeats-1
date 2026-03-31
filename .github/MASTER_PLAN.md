@@ -113,6 +113,12 @@ This file is the **append-only PR-referenceable execution log**.
 - Added workflows migration to ensure TenantList has an explicit RLS INSERT policy (`WITH CHECK`).
 - PR: #4236
 
+### 2026-03-31 — Quick Actions: show Workforms
+- Quick Actions modal now shows active/draft Workforms by fetching from `/api/v1/tenant-workforms/` (same source as the Catalog page).
+- Legacy forms are still fetched from `/api/v1/workflows/available-forms/` (forms only), then merged + de-duped with Workforms into a single list.
+- Save payload continues to persist Workforms as `type="workflow"` + `workflow_id`.
+- PR: #4238
+
 ### 2026-03-30 — Docs: master plan gap analysis + roadmap hygiene
 - Updated `MASTER_PLAN.md` (canonical) with an industry-leader benchmark gap analysis (P0/P1/P2) and refreshed execution-ordered backlog.
 - Converted non-canonical roadmaps/plans into clearer **REFERENCE ONLY** docs (removed/neutralized misleading progress emphasis).
