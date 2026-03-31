@@ -9,25 +9,23 @@
  * - Actually create an Inquiry on save
  */
 
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import styled from 'styled-components';
 
-import { Select as AntSelect } from 'antd';
-import debounce from 'lodash/debounce';
-
 import { businessApi } from '@/services/businessApi';
-import { formatCurrency } from '@/utils/formatters';
 import { getChoices, type ChoiceOption } from '@/services/choicesService';
-import { PROTEIN_TYPE_CHOICES } from '@/utils/constants/choices';
+import { formatCurrency } from '@/utils/formatters';
 import { SmartProductAutocomplete } from './SmartProductAutocomplete';
 
 type EntityType = 'supplier' | 'customer';
 
-type EntityOption = { id: string | number; name: string };
+type EntityOption = { id: number; name: string };
 
 type LineItem = {
   key: string;
   productId: string;
+  supplierId: string;
+  plantId: string;
   quantity: string;
   desiredUom: string;
   desiredPricePerUnit: string;
@@ -41,6 +39,12 @@ export interface InquiryCreateModalProps {
   onSuccess: (created?: unknown) => void;
   initialEntityType?: EntityType;
   initialEntityId?: string | number;
+
+  /**
+   * When enabled, customer inquiries can select a supplier + plant per product line.
+   * (Used for Cockpit → customer inquiry creation.)
+   */
+  enableSupplierPlantSelection?: boolean;
 
   /** Optional: link the inquiry to a scheduled call (e.g., created from ScheduleCallModal). */
   sourceCallId?: string | number;
@@ -209,6 +213,65 @@ const Muted = styled.div`
   color: rgb(var(--color-text-secondary));
 `;
 
+const Error = styled.div`
+  margin-top: 0.75rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  background: rgba(239, 68, 68, 0.08);
+  border-radius: var(--radius-md);
+  color: rgb(239, 68, 68);
+  font-size: 0.875rem;
+`;
+
+const LinesTable = styled.div`
+  border: 1px solid rgb(var(--color-border));
+  border-radius: var(--radius-lg);
+  /* Allow SmartProductAutocomplete dropdown to render outside the table bounds */
+  overflow: visible;
+`;
+
+const LinesHeader = styled.div<{ $withSourcing?: boolean }>`
+  display: grid;
+  grid-template-columns: ${(p) =>
+    p.$withSourcing
+      ? '2.2fr 1.6fr 1.6fr 0.9fr 0.9fr 1fr 1fr 1fr 1.2fr 44px'
+      : '2.5fr 1fr 1fr 1fr 1fr 1fr 1.5fr 44px'};
+  gap: 0;
+  padding: 0.75rem 0.75rem;
+  background: rgb(var(--color-background));
+  border-bottom: 1px solid rgb(var(--color-border));
+  font-size: 0.75rem;
+  font-weight: 800;
+  color: rgb(var(--color-text-tertiary));
+  text-transform: uppercase;
+
+  @media (max-width: 900px) {
+    display: none;
+  }
+`;
+
+const LinesRow = styled.div<{ $withSourcing?: boolean }>`
+  display: grid;
+  grid-template-columns: ${(p) =>
+    p.$withSourcing
+      ? '2.2fr 1.6fr 1.6fr 0.9fr 0.9fr 1fr 1fr 1fr 1.2fr 44px'
+      : '2.5fr 1fr 1fr 1fr 1fr 1fr 1.5fr 44px'};
+  gap: 0.5rem;
+  padding: 0.75rem;
+  border-bottom: 1px solid rgb(var(--color-border));
+  align-items: start;
+
+  @media (max-width: 900px) {
+    grid-template-columns: 1fr;
+  }
+
+  &:last-child {
+    border-bottom: none;
+  }
+`;
+
+const LineCell = styled.div``;
+
 const ComputedValue = styled.div<{ $tone?: 'positive' | 'negative' | 'neutral' }>`
   width: 100%;
   padding: 0.625rem 0.75rem;
@@ -225,58 +288,6 @@ const ComputedValue = styled.div<{ $tone?: 'positive' | 'negative' | 'neutral' }
   text-align: right;
   font-variant-numeric: tabular-nums;
 `;
-
-const Error = styled.div`
-  margin-top: 0.75rem;
-  padding: 0.75rem 1rem;
-  border: 1px solid rgba(239, 68, 68, 0.35);
-  background: rgba(239, 68, 68, 0.08);
-  border-radius: var(--radius-md);
-  color: rgb(239, 68, 68);
-  font-size: 0.875rem;
-`;
-
-const LinesTable = styled.div`
-  border: 1px solid rgb(var(--color-border));
-  border-radius: var(--radius-lg);
-  overflow: visible;
-`;
-
-const LinesHeader = styled.div`
-  display: grid;
-  grid-template-columns: 2.5fr 1fr 1fr 1fr 1fr 1.1fr 1.5fr 44px;
-  gap: 0;
-  padding: 0.75rem 0.75rem;
-  background: rgb(var(--color-background));
-  border-bottom: 1px solid rgb(var(--color-border));
-  font-size: 0.75rem;
-  font-weight: 800;
-  color: rgb(var(--color-text-tertiary));
-  text-transform: uppercase;
-
-  @media (max-width: 900px) {
-    display: none;
-  }
-`;
-
-const LinesRow = styled.div`
-  display: grid;
-  grid-template-columns: 2.5fr 1fr 1fr 1fr 1fr 1.1fr 1.5fr 44px;
-  gap: 0.5rem;
-  padding: 0.75rem;
-  border-bottom: 1px solid rgb(var(--color-border));
-  align-items: start;
-
-  @media (max-width: 900px) {
-    grid-template-columns: 1fr;
-  }
-
-  &:last-child {
-    border-bottom: none;
-  }
-`;
-
-const LineCell = styled.div``;
 
 const RowActions = styled.div`
   display: flex;
@@ -331,6 +342,8 @@ const Button = styled.button<{ $variant?: 'primary' | 'secondary' }>`
 const newLine = (): LineItem => ({
   key: `line-${Date.now()}-${Math.random().toString(16).slice(2)}`,
   productId: '',
+  supplierId: '',
+  plantId: '',
   quantity: '',
   desiredUom: 'LBS',
   desiredPricePerUnit: '',
@@ -344,6 +357,7 @@ export const InquiryCreateModal: React.FC<InquiryCreateModalProps> = ({
   onSuccess,
   initialEntityType,
   initialEntityId,
+  enableSupplierPlantSelection = false,
   sourceCallId,
 }) => {
   const [submitting, setSubmitting] = useState(false);
@@ -356,14 +370,29 @@ export const InquiryCreateModal: React.FC<InquiryCreateModalProps> = ({
   const [entityOptions, setEntityOptions] = useState<EntityOption[]>([]);
   const [loadingEntities, setLoadingEntities] = useState(false);
 
-  const [shippingType, setShippingType] = useState<'tenant' | 'customer_pickup' | 'supplier_delivering'>('tenant');
   const [validUntil, setValidUntil] = useState('');
   const [notes, setNotes] = useState('');
   const [lines, setLines] = useState<LineItem[]>([newLine()]);
   const [uomOptions, setUomOptions] = useState<ChoiceOption[]>([]);
-  const [proteinFilter, setProteinFilter] = useState<string[]>([]);
 
   const canSubmit = useMemo(() => !submitting, [submitting]);
+
+  const showSupplierPlantSelection = enableSupplierPlantSelection && entityType === 'customer';
+
+  type SupplierChoice = { id: number; name: string; has_product?: boolean };
+  type PlantChoice = { id: number; name: string; code?: string; has_product?: boolean };
+
+  const [supplierChoicesByProduct, setSupplierChoicesByProduct] = useState<Record<string, SupplierChoice[]>>({});
+  const [plantChoicesBySupplierProduct, setPlantChoicesBySupplierProduct] = useState<Record<string, PlantChoice[]>>({});
+
+  const computeVarianceTotal = (line: LineItem): number | null => {
+    const qty = Number(line.quantity);
+    const desired = Number(line.desiredPricePerUnit);
+    const actual = Number(line.actualPricePerUnit);
+
+    if (!Number.isFinite(qty) || !Number.isFinite(desired) || !Number.isFinite(actual)) return null;
+    return (actual - desired) * qty;
+  };
 
   // Initialize from context on open.
   useEffect(() => {
@@ -386,23 +415,19 @@ export const InquiryCreateModal: React.FC<InquiryCreateModalProps> = ({
     })();
   }, [isOpen]);
 
-  const fetchEntityOptions = useCallback(
-    async (search: string) => {
+  useEffect(() => {
+    if (!isOpen) return;
+
+    void (async () => {
       setLoadingEntities(true);
-
       try {
-        const resp = await businessApi.get(`/entities/${encodeURIComponent(entityType)}/lookup/`, {
-          params: {
-            search: search || undefined,
-            page_size: 25,
-          },
-        });
-
-        const rows = (resp.data?.results ?? resp.data?.options ?? []) as any[];
+        const endpoint = entityType === 'supplier' ? '/suppliers/' : '/customers/';
+        const resp = await businessApi.get(endpoint, { params: { page_size: 500 } });
+        const rows = (resp.data?.results ?? resp.data) as any[];
         setEntityOptions(
           (Array.isArray(rows) ? rows : []).map((r: any) => ({
-            id: r.value ?? r.id,
-            name: r.label ?? r.name ?? `${entityType} #${r.value ?? r.id}`,
+            id: r.id,
+            name: r.name || r.company_name || r.title || `${entityType} #${r.id}`,
           }))
         );
       } catch {
@@ -410,54 +435,74 @@ export const InquiryCreateModal: React.FC<InquiryCreateModalProps> = ({
       } finally {
         setLoadingEntities(false);
       }
-    },
-    [entityType]
-  );
+    })();
+  }, [entityType, isOpen]);
 
-  const debouncedFetchEntityOptions = useMemo(
-    () =>
-      debounce((search: string) => {
-        void fetchEntityOptions(search);
-      }, 180),
-    [fetchEntityOptions]
-  );
-
-  // When opened from a specific entity (e.g., Cockpit Customer → New Inquiry),
-  // fetch only that entity name instead of pulling hundreds of rows.
+  // Supplier + plant option loading (customer inquiries only)
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen || !showSupplierPlantSelection) return;
 
-    if (initialEntityId != null) {
-      void (async () => {
-        setLoadingEntities(true);
+    const productIds = Array.from(new Set(lines.map((l) => l.productId).filter(Boolean)));
+
+    void (async () => {
+      for (const productId of productIds) {
+        if (supplierChoicesByProduct[productId]) continue;
         try {
-          const endpoint = entityType === 'supplier'
-            ? `/suppliers/${encodeURIComponent(String(initialEntityId))}/`
-            : `/customers/${encodeURIComponent(String(initialEntityId))}/`;
-          const resp = await businessApi.get(endpoint);
-          const row = resp.data ?? {};
-          const name = row.name || row.company_name || row.title || `${entityType} #${String(initialEntityId)}`;
-          setEntityOptions([{ id: initialEntityId, name: String(name) }]);
+          const resp = await businessApi.get('/suppliers/for-product/', { params: { product: productId } });
+          const rows = (resp.data?.results ?? resp.data) as any[];
+          setSupplierChoicesByProduct((prev) => ({
+            ...prev,
+            [productId]: (Array.isArray(rows) ? rows : []).map((r: any) => ({
+              id: Number(r.id),
+              name: String(r.name ?? '').trim() || `Supplier #${r.id}`,
+              has_product: Boolean(r.has_product),
+            })),
+          }));
         } catch {
-          setEntityOptions([{ id: initialEntityId, name: `${entityType} #${String(initialEntityId)}` }]);
-        } finally {
-          setLoadingEntities(false);
+          setSupplierChoicesByProduct((prev) => ({ ...prev, [productId]: [] }));
         }
-      })();
+      }
+    })();
+  }, [isOpen, lines, showSupplierPlantSelection]);
 
-      return;
-    }
+  useEffect(() => {
+    if (!isOpen || !showSupplierPlantSelection) return;
 
-    debouncedFetchEntityOptions('');
+    const keys = Array.from(
+      new Set(
+        lines
+          .filter((l) => l.productId && l.supplierId)
+          .map((l) => `${l.supplierId}::${l.productId}`)
+      )
+    );
 
-    return () => {
-      debouncedFetchEntityOptions.cancel();
-    };
-  }, [debouncedFetchEntityOptions, entityType, initialEntityId, isOpen]);
+    void (async () => {
+      for (const key of keys) {
+        if (plantChoicesBySupplierProduct[key]) continue;
+        const [supplierId, productId] = key.split('::');
+        try {
+          const resp = await businessApi.get('/plants/for-supplier-product/', {
+            params: { supplier: supplierId, product: productId },
+          });
+          const rows = (resp.data?.results ?? resp.data) as any[];
+          setPlantChoicesBySupplierProduct((prev) => ({
+            ...prev,
+            [key]: (Array.isArray(rows) ? rows : []).map((r: any) => ({
+              id: Number(r.id),
+              name: String(r.name ?? '').trim() || `Plant #${r.id}`,
+              code: String(r.code ?? '').trim() || undefined,
+              has_product: Boolean(r.has_product),
+            })),
+          }));
+        } catch {
+          setPlantChoicesBySupplierProduct((prev) => ({ ...prev, [key]: [] }));
+        }
+      }
+    })();
+  }, [isOpen, lines, showSupplierPlantSelection]);
 
   const reset = () => {
     setError(null);
-    setShippingType('tenant');
     setValidUntil('');
     setNotes('');
     setLines([newLine()]);
@@ -479,18 +524,6 @@ export const InquiryCreateModal: React.FC<InquiryCreateModalProps> = ({
       const next = prev.filter((l) => l.key !== key);
       return next.length ? next : [newLine()];
     });
-  };
-
-  const computeDeltaTotal = (line: LineItem): number | null => {
-    const qty = Number(line.quantity);
-    const desired = Number(line.desiredPricePerUnit);
-    const actual = Number(line.actualPricePerUnit);
-
-    if (!Number.isFinite(qty) || qty <= 0) return null;
-    if (!Number.isFinite(desired) || !Number.isFinite(actual)) return null;
-
-    // Requested: (DESIRED - actual) * qty
-    return (desired - actual) * qty;
   };
 
   const validate = (): string | null => {
@@ -537,7 +570,6 @@ export const InquiryCreateModal: React.FC<InquiryCreateModalProps> = ({
 
       const payload: Record<string, unknown> = {
         entity_type: entityType,
-        shipping_type: shippingType,
         source_type: sourceCallId ? 'scheduled_call' : 'other',
         ...(sourceCallId ? { source_call: Number(sourceCallId) } : {}),
         valid_until: validUntil || undefined,
@@ -598,7 +630,6 @@ export const InquiryCreateModal: React.FC<InquiryCreateModalProps> = ({
                     onChange={(e) => {
                       setEntityType(e.target.value as EntityType);
                       setEntityId('');
-                      setEntityOptions([]);
                     }}
                     disabled={!canSubmit || Boolean(initialEntityType)}
                   >
@@ -608,27 +639,18 @@ export const InquiryCreateModal: React.FC<InquiryCreateModalProps> = ({
                 </Field>
                 <Field $span={9}>
                   <Label>{entityType === 'customer' ? 'Customer' : 'Supplier'} *</Label>
-                  <AntSelect
-                    value={entityId || undefined}
-                    onChange={(val) => setEntityId(String(val ?? ''))}
+                  <Select
+                    value={entityId}
+                    onChange={(e) => setEntityId(e.target.value)}
                     disabled={!canSubmit || loadingEntities || Boolean(initialEntityId)}
-                    placeholder="Select…"
-                    style={{ width: '100%' }}
-                    showSearch
-                    allowClear
-                    filterOption={false}
-                    onSearch={(val) => {
-                      const next = String(val ?? '').trim();
-                      debouncedFetchEntityOptions(next);
-                    }}
-                    onClear={() => {
-                      debouncedFetchEntityOptions('');
-                    }}
-                    options={entityOptions.map((o) => ({
-                      value: String(o.id),
-                      label: o.name,
-                    }))}
-                  />
+                  >
+                    <option value="">Select…</option>
+                    {entityOptions.map((o) => (
+                      <option key={o.id} value={String(o.id)}>
+                        {o.name}
+                      </option>
+                    ))}
+                  </Select>
                   {loadingEntities && <Muted>Loading…</Muted>}
                 </Field>
               </Grid>
@@ -638,18 +660,6 @@ export const InquiryCreateModal: React.FC<InquiryCreateModalProps> = ({
               <SectionTitle>Inquiry</SectionTitle>
               <Grid>
                 <Field $span={4}>
-                  <Label>Shipping Type</Label>
-                  <Select
-                    value={shippingType}
-                    onChange={(e) => setShippingType(e.target.value as any)}
-                    disabled={!canSubmit}
-                  >
-                    <option value="tenant">Tenant</option>
-                    <option value="customer_pickup">Customer Pick-Up</option>
-                    <option value="supplier_delivering">Supplier Delivering</option>
-                  </Select>
-                </Field>
-                <Field $span={4}>
                   <Label>Valid Until</Label>
                   <Input
                     type="date"
@@ -658,7 +668,7 @@ export const InquiryCreateModal: React.FC<InquiryCreateModalProps> = ({
                     disabled={!canSubmit}
                   />
                 </Field>
-                <Field $span={12}>
+                <Field $span={8}>
                   <Label>Notes</Label>
                   <TextArea
                     value={notes}
@@ -672,33 +682,11 @@ export const InquiryCreateModal: React.FC<InquiryCreateModalProps> = ({
 
             <Section>
               <SectionTitle>Products</SectionTitle>
-
-              <div style={{ marginBottom: 10, maxWidth: 420 }}>
-                <Label>Protein Types Filter</Label>
-                <AntSelect
-                  mode="multiple"
-                  value={proteinFilter}
-                  onChange={(vals) => setProteinFilter(vals as string[])}
-                  options={PROTEIN_TYPE_CHOICES.map((o) => ({ value: o.value, label: o.label }))}
-                  placeholder="Search protein types"
-                  showSearch
-                  allowClear
-                  optionFilterProp="label"
-                  filterOption={(input, option) =>
-                    String(option?.label || '')
-                      .toLowerCase()
-                      .includes(String(input || '').toLowerCase())
-                  }
-                  style={{ width: '100%' }}
-                />
-                <Muted style={{ marginTop: 6 }}>
-                  Product search will be filtered by selected protein type(s).
-                </Muted>
-              </div>
-
               <LinesTable>
-                <LinesHeader>
+                <LinesHeader $withSourcing={showSupplierPlantSelection}>
                   <div>Product</div>
+                  {showSupplierPlantSelection && <div>Supplier</div>}
+                  {showSupplierPlantSelection && <div>Plant</div>}
                   <div>Qty</div>
                   <div>UOM</div>
                   <div>Desired $/U</div>
@@ -709,16 +697,55 @@ export const InquiryCreateModal: React.FC<InquiryCreateModalProps> = ({
                 </LinesHeader>
 
                 {lines.map((line) => (
-                  <LinesRow key={line.key}>
+                  <LinesRow key={line.key} $withSourcing={showSupplierPlantSelection}>
                     <LineCell>
                       <Label>Product *</Label>
                       <SmartProductAutocomplete
                         value={line.productId}
-                        onChange={(productId) => updateLine(line.key, { productId })}
+                        onChange={(productId) =>
+                          updateLine(line.key, { productId, supplierId: '', plantId: '' })
+                        }
                         disabled={!canSubmit}
-                        proteinTypeFilter={proteinFilter}
                       />
                     </LineCell>
+                    {showSupplierPlantSelection && (
+                      <LineCell>
+                        <Label>Supplier</Label>
+                        <Select
+                          value={line.supplierId}
+                          onChange={(e) =>
+                            updateLine(line.key, { supplierId: e.target.value, plantId: '' })
+                          }
+                          disabled={!canSubmit || !line.productId}
+                        >
+                          <option value="">Select…</option>
+                          {(supplierChoicesByProduct[line.productId] || []).map((s) => (
+                            <option key={String(s.id)} value={String(s.id)}>
+                              {s.has_product ? '✓ ' : ''}{s.name}
+                            </option>
+                          ))}
+                        </Select>
+                      </LineCell>
+                    )}
+
+                    {showSupplierPlantSelection && (
+                      <LineCell>
+                        <Label>Plant</Label>
+                        <Select
+                          value={line.plantId}
+                          onChange={(e) => updateLine(line.key, { plantId: e.target.value })}
+                          disabled={!canSubmit || !line.productId || !line.supplierId}
+                        >
+                          <option value="">Select…</option>
+                          {(plantChoicesBySupplierProduct[`${line.supplierId}::${line.productId}`] || []).map((p) => (
+                            <option key={String(p.id)} value={String(p.id)}>
+                              {p.has_product ? '✓ ' : ''}{p.code ? `${p.code} - ` : ''}{p.name}
+                            </option>
+                          ))}
+                        </Select>
+                      </LineCell>
+                    )}
+
                     <LineCell>
                       <Label>Qty *</Label>
                       <Input
@@ -769,10 +796,11 @@ export const InquiryCreateModal: React.FC<InquiryCreateModalProps> = ({
                     <LineCell>
                       <Label>Δ Total</Label>
                       {(() => {
-                        const delta = computeDeltaTotal(line);
+                        const delta = computeVarianceTotal(line);
                         const tone: 'positive' | 'negative' | 'neutral' =
                           delta == null ? 'neutral' : delta > 0 ? 'positive' : delta < 0 ? 'negative' : 'neutral';
-                        const text = delta == null ? '-' : `${delta > 0 ? '+' : ''}${formatCurrency(delta)}`;
+                        const text =
+                          delta == null ? '-' : `${delta > 0 ? '+' : ''}${formatCurrency(delta)}`;
                         return <ComputedValue $tone={tone}>{text}</ComputedValue>;
                       })()}
                     </LineCell>

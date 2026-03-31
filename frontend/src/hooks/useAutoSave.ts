@@ -106,6 +106,8 @@ export function useAutoSave<T>(
 
   const retryCountRef = useRef(0);
   const previousDataRef = useRef<T>(data);
+  const previousSerializedRef = useRef<string | null>(null);
+  const hasMountedRef = useRef(false);
   const savedIndicatorTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   /**
@@ -187,26 +189,44 @@ export function useAutoSave<T>(
    * Detect data changes and trigger auto-save
    */
   useEffect(() => {
-    // Skip if auto-save disabled
     if (!enabled) return;
 
-    // Skip on initial mount
-    if (!previousDataRef.current) {
+    const safeSerialize = (value: T): string | null => {
+      try {
+        return JSON.stringify(value);
+      } catch {
+        return null;
+      }
+    };
+
+    if (!hasMountedRef.current) {
+      hasMountedRef.current = true;
       previousDataRef.current = data;
+      previousSerializedRef.current = safeSerialize(data);
       return;
     }
 
-    // Check if data actually changed (deep comparison would be better but expensive)
-    const dataChanged = JSON.stringify(data) !== JSON.stringify(previousDataRef.current);
-    
-    if (dataChanged) {
-      setIsDirty(true);
-      setStatus('pending');
-      previousDataRef.current = data;
-      
-      // Trigger debounced save
-      debouncedSave(data);
+    // Fast path: referentially identical.
+    if (Object.is(data, previousDataRef.current)) {
+      return;
     }
+
+    const nextSerialized = safeSerialize(data);
+    const prevSerialized = previousSerializedRef.current;
+    const dataChanged = prevSerialized === null || nextSerialized === null ? true : nextSerialized !== prevSerialized;
+
+    // Always advance refs so we don't re-process semantically identical new references.
+    previousDataRef.current = data;
+    previousSerializedRef.current = nextSerialized;
+
+    if (!dataChanged) {
+      return;
+    }
+
+    setIsDirty(true);
+    setStatus('pending');
+
+    debouncedSave(data);
   }, [data, enabled, debouncedSave]);
 
   /**

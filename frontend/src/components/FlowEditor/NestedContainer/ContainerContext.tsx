@@ -6,7 +6,7 @@
  * 
  * Created: 2026-02-07
  */
-import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useCallback, useMemo, ReactNode } from 'react';
 import { Node, Edge } from '@xyflow/react';
 
 // ============================================================================
@@ -68,9 +68,9 @@ interface ContainerContextProviderProps {
 export const ContainerContextProvider: React.FC<ContainerContextProviderProps> = ({ children }) => {
   const [containerStack, setContainerStack] = useState<ContainerState[]>([]);
   
-  const currentContainer = containerStack.length > 0 
-    ? containerStack[containerStack.length - 1].containerId 
-    : null;
+  const currentContainer = useMemo(() => {
+    return containerStack.length > 0 ? containerStack[containerStack.length - 1].containerId : null;
+  }, [containerStack]);
   
   const enterContainer = useCallback((
     containerId: string,
@@ -109,7 +109,17 @@ export const ContainerContextProvider: React.FC<ContainerContextProviderProps> =
     return breadcrumbs;
   }, [containerStack]);
   
-  const value: ContainerContextType = {
+  const value = useMemo<ContainerContextType>(() => {
+    return {
+      currentContainer,
+      containerStack,
+      enterContainer,
+      exitContainer,
+      exitToMain,
+      isInContainer,
+      getBreadcrumbs,
+    };
+  }, [
     currentContainer,
     containerStack,
     enterContainer,
@@ -117,7 +127,7 @@ export const ContainerContextProvider: React.FC<ContainerContextProviderProps> =
     exitToMain,
     isInContainer,
     getBreadcrumbs,
-  };
+  ]);
   
   return (
     <ContainerContext.Provider value={value}>

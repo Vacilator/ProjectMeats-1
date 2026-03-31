@@ -1,15 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { Skeleton } from 'antd';
-import { isValidEmail } from '../shared/utils';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
 import { useTheme } from '../contexts/ThemeContext';
 import { Theme } from '../config/theme';
 import { apiService, Customer, apiClient } from '../services/apiService';
-import { CountrySelect, PhoneInput, Select, StateSelect } from '../components/ui';
+import { PhoneInput, Select } from '../components/ui';
 import { MultiSelect } from '../components/Shared';
+import QuickCreateModal from '../components/FormSubmission/QuickCreateModal';
+import { US_STATES } from '../utils/constants/states';
 import { INDUSTRY_CHOICES, PROTEIN_TYPE_CHOICES } from '../utils/constants/choices';
-import { confirmDialog, showAlert } from '../utils/uiDialogs';
 
 interface CustomerLocation {
   id: number;
@@ -36,16 +35,12 @@ interface CustomerContact {
   company?: string;
 }
 
-const LOCATION_PHONE_TYPE_OPTIONS = [
-  { value: 'office', label: 'Office' },
-  { value: 'mobile', label: 'Mobile' },
-];
-
 const Customers: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showForm, setShowForm] = useState(false);
   const [showEditForm, setShowEditForm] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
   const { theme } = useTheme();
@@ -74,22 +69,17 @@ const Customers: React.FC = () => {
     contact_name: '',
     email: '',
     phone: '',
-    phone_type: 'office' as 'office' | 'mobile',
   });
   const [formData, setFormData] = useState({
     name: '',
     contact_person: '',
     email: '',
-
-    phone_mobile: '',
-    phone_office: '',
-    phone_office_extension: '',
-
+    phone: '',
     address: '',
     city: '',
     state: '',
     zip_code: '',
-    country: 'USA',
+    country: '',
     industry_array: [] as string[], // Phase 4: ArrayField integration
     preferred_protein_types: [] as string[], // Phase 4: ArrayField integration
     products: [] as string[], // Product IDs for M2M
@@ -98,9 +88,7 @@ const Customers: React.FC = () => {
   // Auto-open form if ?action=create in URL
   useEffect(() => {
     if (searchParams.get('action') === 'create') {
-      setEditingCustomer(null);
-      resetForm();
-      setShowEditForm(true);
+      setShowForm(true);
       searchParams.delete('action');
       setSearchParams(searchParams);
     }
@@ -239,7 +227,6 @@ const Customers: React.FC = () => {
       contact_name: '',
       email: '',
       phone: '',
-      phone_type: 'office',
     });
     setShowLocationModal(true);
   };
@@ -248,20 +235,7 @@ const Customers: React.FC = () => {
     if (!selectedCustomerId) return;
 
     if (!locationForm.name.trim()) {
-      showAlert({
-        type: 'warning',
-        title: 'Validation',
-        content: 'Location name is required',
-      });
-      return;
-    }
-
-    if (locationForm.email?.trim() && !isValidEmail(locationForm.email.trim())) {
-      showAlert({
-        type: 'warning',
-        title: 'Validation',
-        content: 'Please enter a valid email address for the location',
-      });
+      alert('Location name is required');
       return;
     }
 
@@ -283,11 +257,7 @@ const Customers: React.FC = () => {
       await loadCustomerLocations(selectedCustomerId);
     } catch (error) {
       console.error('[Customers] Failed to create location:', error);
-      showAlert({
-        type: 'error',
-        title: 'Error',
-        content: 'Failed to create location',
-      });
+      alert('Failed to create location');
     }
   };
 
@@ -306,34 +276,17 @@ const Customers: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
-    if (formData.email?.trim() && !isValidEmail(formData.email.trim())) {
-      showAlert({
-        type: 'warning',
-        title: 'Validation',
-        content: 'Please enter a valid email address',
-      });
-      return;
-    }
-
-    const mobile = String(formData.phone_mobile || '').trim();
-    const office = String(formData.phone_office || '').trim();
-    const payload = {
-      ...formData,
-      products: formData.products,
-      // Backward compatible payload: older backends may only accept phone/phone_type.
-      ...(office
-        ? { phone: office, phone_type: 'office' as const }
-        : mobile
-          ? { phone: mobile, phone_type: 'mobile' as const }
-          : {}),
-    };
-
     try {
       if (editingCustomer) {
-        await apiService.updateCustomer(editingCustomer.id, payload);
+        await apiService.updateCustomer(editingCustomer.id, {
+          ...formData,
+          products: formData.products,
+        });
       } else {
-        await apiService.createCustomer(payload);
+        await apiService.createCustomer({
+          ...formData,
+          products: formData.products,
+        });
       }
       setShowEditForm(false);
       setEditingCustomer(null);
@@ -351,11 +304,7 @@ const Customers: React.FC = () => {
         } : 'No response data'
       });
       // Display user-friendly error to the UI
-      showAlert({
-        type: 'error',
-        title: 'Error',
-        content: `Failed to save customer: ${err.message || 'Please try again later'}`,
-      });
+      alert(`Failed to save customer: ${err.message || 'Please try again later'}`);
     }
   };
 
@@ -365,20 +314,12 @@ const Customers: React.FC = () => {
       name: customer.name,
       contact_person: customer.contact_person || '',
       email: customer.email || '',
-
-      phone_mobile:
-        (customer as any).phone_mobile ||
-        ((customer.phone_type === 'mobile' && customer.phone) ? customer.phone : ''),
-      phone_office:
-        (customer as any).phone_office ||
-        ((customer.phone_type !== 'mobile' && customer.phone) ? customer.phone : ''),
-      phone_office_extension: (customer as any).phone_office_extension || '',
-
+      phone: customer.phone || '',
       address: customer.address || '',
       city: customer.city || '',
       state: customer.state || '',
       zip_code: customer.zip_code || '',
-      country: customer.country || 'USA',
+      country: customer.country || '',
       industry_array: customer.industry_array || [], // Phase 4: Populate array
       preferred_protein_types: customer.preferred_protein_types || [], // Phase 4: Populate array
       products: (customer.products || []).map(String), // Populate product IDs
@@ -387,37 +328,21 @@ const Customers: React.FC = () => {
   };
 
   const handleDelete = async (id: number) => {
-    const confirmed = await confirmDialog({
-      title: 'Delete customer?',
-      content: 'Are you sure you want to delete this customer?',
-      okText: 'Delete',
-      cancelText: 'Cancel',
-      danger: true,
-    });
-
-    if (!confirmed) return;
-
-    try {
-      await apiService.deleteCustomer(id);
-      showAlert({
-        type: 'success',
-        title: 'Deleted',
-        content: 'Customer deleted successfully.',
-      });
-      await fetchCustomers(); // Re-fetch to update the list
-    } catch (error: unknown) {
-      // Type-safe error handling: Use 'unknown' instead of 'any' and assert expected structure
-      console.error('Error deleting customer:', error);
-      const err = error as { response?: { data?: { detail?: string; message?: string } }; message?: string };
-      const errorMessage = err?.response?.data?.detail
-        || err?.response?.data?.message
-        || err?.message
-        || 'Failed to delete customer';
-      showAlert({
-        type: 'error',
-        title: 'Error',
-        content: `Error: ${errorMessage}`,
-      });
+    if (window.confirm('Are you sure you want to delete this customer?')) {
+      try {
+        await apiService.deleteCustomer(id);
+        alert('Customer deleted successfully!');
+        await fetchCustomers(); // Re-fetch to update the list
+      } catch (error: unknown) {
+        // Type-safe error handling: Use 'unknown' instead of 'any' and assert expected structure
+        console.error('Error deleting customer:', error);
+        const err = error as { response?: { data?: { detail?: string; message?: string } }; message?: string };
+        const errorMessage = err?.response?.data?.detail 
+          || err?.response?.data?.message 
+          || err?.message 
+          || 'Failed to delete customer';
+        alert(`Error: ${errorMessage}`);
+      }
     }
   };
 
@@ -426,16 +351,12 @@ const Customers: React.FC = () => {
       name: '',
       contact_person: '',
       email: '',
-
-      phone_mobile: '',
-      phone_office: '',
-      phone_office_extension: '',
-
+      phone: '',
       address: '',
       city: '',
       state: '',
       zip_code: '',
-      country: 'USA',
+      country: '',
       industry_array: [], // Phase 4: Reset array
       preferred_protein_types: [], // Phase 4: Reset array
       products: [], // Reset products
@@ -443,31 +364,19 @@ const Customers: React.FC = () => {
   };
 
   const handleCancel = () => {
+    setShowForm(false);
     setShowEditForm(false);
     setEditingCustomer(null);
     resetForm();
   };
 
   if (loading) {
-    return (
-      <LoadingContainer $theme={theme}>
-        <Skeleton active paragraph={{ rows: 8 }} />
-      </LoadingContainer>
-    );
+    return <LoadingContainer $theme={theme}>Loading customers...</LoadingContainer>;
   }
 
   const visibleCustomers = customers.filter((c) => {
     if (!searchText.trim()) return true;
-    const haystack = [
-      c.name,
-      c.contact_person,
-      c.email,
-      (c as any).phone_office,
-      (c as any).phone_mobile,
-      c.phone,
-      c.city,
-      c.state,
-    ]
+    const haystack = [c.name, c.contact_person, c.email, c.phone, c.city, c.state]
       .filter(Boolean)
       .join(' ')
       .toLowerCase();
@@ -488,13 +397,7 @@ const Customers: React.FC = () => {
           <SecondaryButton type="button" onClick={() => navigate('/customers/contacts')}>
             Contacts
           </SecondaryButton>
-          <AddButton
-            onClick={() => {
-              setEditingCustomer(null);
-              resetForm();
-              setShowEditForm(true);
-            }}
-          >
+          <AddButton onClick={() => { setEditingCustomer(null); setShowForm(true); }}>
             + New Customer
           </AddButton>
         </HeaderActions>
@@ -510,12 +413,20 @@ const Customers: React.FC = () => {
         />
       </TableControls>
 
+      {showForm && (
+        <QuickCreateModal
+          entityType="customer"
+          isOpen={showForm}
+          onClose={() => setShowForm(false)}
+          onCreated={() => fetchCustomers()}
+        />
+      )}
 
       {showEditForm && (
         <FormOverlay>
           <FormContainer $theme={theme}>
             <FormHeader $theme={theme}>
-              <FormTitle $theme={theme}>{editingCustomer ? 'Edit Customer' : 'Create Customer'}</FormTitle>
+              <FormTitle $theme={theme}>{editingCustomer ? 'Edit Customer' : 'Edit Customer'}</FormTitle>
               <CloseButton $theme={theme} onClick={handleCancel}>×</CloseButton>
             </FormHeader>
 
@@ -555,38 +466,12 @@ const Customers: React.FC = () => {
                 </FormGroup>
 
                 <FormGroup>
-                  <Label $theme={theme}>Mobile Phone</Label>
+                  <Label $theme={theme}>Phone</Label>
                   <PhoneInput
-                    value={formData.phone_mobile}
-                    onChange={(value) => setFormData({ ...formData, phone_mobile: value })}
-                    placeholder="(XXX) XXX-XXXX"
-                    aria-label="Mobile phone"
-                  />
-                </FormGroup>
-
-                <FormGroup>
-                  <Label $theme={theme}>Office Phone</Label>
-                  <PhoneInput
-                    value={formData.phone_office}
-                    onChange={(value) => setFormData({ ...formData, phone_office: value })}
-                    placeholder="(XXX) XXX-XXXX"
-                    aria-label="Office phone"
-                  />
-                  <div style={{ height: 8 }} />
-                  <Label $theme={theme}>Extension</Label>
-                  <Input
-                    $theme={theme}
-                    type="text"
-                    value={formData.phone_office_extension}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        phone_office_extension: e.target.value.replace(/\D/g, '').slice(0, 6),
-                      })
-                    }
-                    placeholder="e.g., 123"
-                    inputMode="numeric"
-                    aria-label="Office extension"
+                    value={formData.phone}
+                    onChange={(value) => setFormData({ ...formData, phone: value })}
+                    placeholder="(XXX)XXX-XXXX"
+                    aria-label="Phone number"
                   />
                 </FormGroup>
 
@@ -610,10 +495,11 @@ const Customers: React.FC = () => {
 
                 <FormGroup>
                   <Label $theme={theme}>State</Label>
-                  <StateSelect
+                  <Select
                     value={formData.state}
                     onChange={(value) => setFormData({ ...formData, state: value })}
-                    placeholder="Search state"
+                    options={US_STATES}
+                    placeholder="Select state"
                     aria-label="State"
                   />
                 </FormGroup>
@@ -636,11 +522,10 @@ const Customers: React.FC = () => {
 
                 <FormGroup>
                   <Label $theme={theme}>Country</Label>
-                  <CountrySelect
+                  <Input $theme={theme}
+                    type="text"
                     value={formData.country}
-                    onChange={(value) => setFormData({ ...formData, country: value })}
-                    placeholder="Search country"
-                    aria-label="Country"
+                    onChange={(e) => setFormData({ ...formData, country: e.target.value })}
                   />
                 </FormGroup>
 
@@ -650,7 +535,7 @@ const Customers: React.FC = () => {
                     onChange={(values) => setFormData({ ...formData, industry_array: values })}
                     options={INDUSTRY_CHOICES}
                     label="Industries"
-                    placeholder="Search industries…"
+                    placeholder="Select industries (hold Ctrl/Cmd for multiple)"
                   />
                 </FormGroup>
 
@@ -685,7 +570,7 @@ const Customers: React.FC = () => {
                   Cancel
                 </CancelButton>
                 <SubmitButton type="submit">
-                  {editingCustomer ? 'Update' : 'Create'} Customer
+                  {editingCustomer ? 'Update' : 'Update'} Customer
                 </SubmitButton>
               </FormActions>
             </Form>
@@ -753,10 +638,11 @@ const Customers: React.FC = () => {
 
                 <FormGroup>
                   <Label $theme={theme}>State</Label>
-                  <StateSelect
+                  <Select
                     value={locationForm.state}
                     onChange={(value) => setLocationForm((p) => ({ ...p, state: value }))}
-                    placeholder="Search state"
+                    options={US_STATES}
+                    placeholder="Select state"
                     aria-label="State"
                   />
                 </FormGroup>
@@ -767,25 +653,17 @@ const Customers: React.FC = () => {
                     $theme={theme}
                     type="text"
                     value={locationForm.zip_code}
-                    onChange={(e) => {
-                      const value = e.target.value.replace(/\D/g, '').slice(0, 5);
-                      setLocationForm((p) => ({ ...p, zip_code: value }));
-                    }}
-                    maxLength={5}
-                    inputMode="numeric"
-                    pattern="^\d{5}$"
-                    placeholder="12345"
-                    aria-label="ZIP Code"
+                    onChange={(e) => setLocationForm((p) => ({ ...p, zip_code: e.target.value }))}
                   />
                 </FormGroup>
 
                 <FormGroup>
                   <Label $theme={theme}>Country</Label>
-                  <CountrySelect
+                  <Input
+                    $theme={theme}
+                    type="text"
                     value={locationForm.country}
-                    onChange={(value) => setLocationForm((p) => ({ ...p, country: value }))}
-                    placeholder="Search country"
-                    aria-label="Country"
+                    onChange={(e) => setLocationForm((p) => ({ ...p, country: e.target.value }))}
                   />
                 </FormGroup>
 
@@ -811,18 +689,10 @@ const Customers: React.FC = () => {
 
                 <FormGroup>
                   <Label $theme={theme}>Contact Phone</Label>
-                  <Select
-                    value={locationForm.phone_type}
-                    onChange={(value) => setLocationForm((p) => ({ ...p, phone_type: value as 'office' | 'mobile' }))}
-                    options={LOCATION_PHONE_TYPE_OPTIONS}
-                    placeholder="Phone type"
-                    aria-label="Location phone type"
-                  />
-                  <div style={{ height: 8 }} />
                   <PhoneInput
                     value={locationForm.phone}
                     onChange={(value) => setLocationForm((p) => ({ ...p, phone: value }))}
-                    placeholder="(XXX) XXX-XXXX"
+                    placeholder="(XXX)XXX-XXXX"
                     aria-label="Location phone"
                   />
                 </FormGroup>
@@ -861,24 +731,7 @@ const Customers: React.FC = () => {
             <TableBody>
               {visibleCustomers.map((customer) => (
                 <React.Fragment key={customer.id}>
-                <TableRow
-                  $theme={theme}
-                  key={customer.id}
-                  role="button"
-                  tabIndex={0}
-                  aria-expanded={selectedCustomerId === customer.id}
-                  style={{ cursor: 'pointer' }}
-                  onClick={(e) => {
-                    const target = e.target as HTMLElement | null;
-                    if (target?.closest('button, a, input, textarea, select, [role="button"]')) return;
-                    void toggleCustomerDrilldown(customer);
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key !== 'Enter' && e.key !== ' ') return;
-                    e.preventDefault();
-                    void toggleCustomerDrilldown(customer);
-                  }}
-                >
+                <TableRow $theme={theme} key={customer.id}>
                   <TableCell $theme={theme}>
                     <CompanyButton
                       $theme={theme}

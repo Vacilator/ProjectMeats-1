@@ -1,13 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Skeleton } from 'antd';
-import { isValidEmail } from '../shared/utils';
 import { logger } from '@/utils/logger';
-import { confirmDialog, showAlert } from '../utils/uiDialogs';
 
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { CountrySelect, PhoneInput, Select, StateSelect } from '../components/ui';
+import { PhoneInput, Select } from '../components/ui';
 import { MultiSelect } from '../components/Shared';
 import QuickCreateModal from '../components/FormSubmission/QuickCreateModal';
+import { US_STATES } from '../utils/constants/states';
 import { DEPARTMENT_CHOICES, PROTEIN_TYPE_CHOICES } from '../utils/constants/choices';
 import styled from 'styled-components';
 import { apiService, apiClient, Supplier } from '../services/apiService';
@@ -20,10 +18,6 @@ interface SupplierPlant {
   manager?: string;
   email?: string;
   phone?: string;
-  booking_contact_email?: string;
-  booking_contact_phone?: string;
-  booking_contact_phone_type?: 'office' | 'mobile';
-  fcfs?: boolean;
 }
 
 interface SupplierContact {
@@ -37,11 +31,6 @@ interface SupplierContact {
 }
 import { useTheme } from '../contexts/ThemeContext';
 import { Theme } from '../config/theme';
-
-const PHONE_TYPE_OPTIONS = [
-  { value: 'office', label: 'Office' },
-  { value: 'mobile', label: 'Mobile' },
-];
 
 const Suppliers: React.FC = () => {
   const { theme } = useTheme();
@@ -72,27 +61,18 @@ const Suppliers: React.FC = () => {
     manager: '',
     email: '',
     phone: '',
-    phone_type: 'office' as 'office' | 'mobile',
-    booking_contact_email: '',
-    booking_contact_phone: '',
-    booking_contact_phone_type: 'office' as 'office' | 'mobile',
-    fcfs: false,
   });
 
   const [formData, setFormData] = useState({
     name: '',
     contact_person: '',
     email: '',
-
-    phone_mobile: '',
-    phone_office: '',
-    phone_office_extension: '',
-
+    phone: '',
     address: '',
     city: '',
     state: '',
     zip_code: '',
-    country: 'USA',
+    country: '',
     departments_array: [] as string[], // Phase 4: ArrayField integration
     preferred_protein_types: [] as string[], // NEW: Protein filtering
   });
@@ -258,11 +238,6 @@ const Suppliers: React.FC = () => {
       manager: '',
       email: '',
       phone: '',
-      phone_type: 'office',
-      booking_contact_email: '',
-      booking_contact_phone: '',
-      booking_contact_phone_type: 'office',
-      fcfs: false,
     });
     setShowPlantModal(true);
   };
@@ -270,63 +245,26 @@ const Suppliers: React.FC = () => {
   const submitPlant = async () => {
     if (!selectedSupplierId) return;
 
-    if (!plantForm.name.trim()) {
-      showAlert({
-        type: 'warning',
-        title: 'Validation',
-        content: 'Plant name is required',
-      });
-      return;
-    }
-
-    if (plantForm.email?.trim() && !isValidEmail(plantForm.email.trim())) {
-      showAlert({
-        type: 'warning',
-        title: 'Validation',
-        content: 'Please enter a valid email address for the plant',
-      });
-      return;
-    }
-
-    if (plantForm.booking_contact_email?.trim() && !isValidEmail(plantForm.booking_contact_email.trim())) {
-      showAlert({
-        type: 'warning',
-        title: 'Validation',
-        content: 'Please enter a valid booking email address',
-      });
+    if (!plantForm.name.trim() || !plantForm.code.trim()) {
+      alert('Plant name and code are required');
       return;
     }
 
     try {
-      const payload: Record<string, unknown> = {
+      await apiClient.post('plants/', {
         supplier: selectedSupplierId,
         name: plantForm.name.trim(),
+        code: plantForm.code.trim(),
         plant_type: plantForm.plant_type,
         manager: plantForm.manager,
         email: plantForm.email,
         phone: plantForm.phone,
-        phone_type: plantForm.phone_type,
-        booking_contact_email: plantForm.booking_contact_email,
-        booking_contact_phone: plantForm.booking_contact_phone,
-        booking_contact_phone_type: plantForm.booking_contact_phone_type,
-        fcfs: plantForm.fcfs,
-      };
-
-      const code = plantForm.code.trim();
-      if (code) {
-        payload.code = code;
-      }
-
-      await apiClient.post('plants/', payload);
+      });
       setShowPlantModal(false);
       await loadSupplierPlants(selectedSupplierId);
     } catch (error: unknown) {
       logger.error('[Suppliers] Failed to create plant:', error);
-      showAlert({
-        type: 'error',
-        title: 'Error',
-        content: 'Failed to create plant',
-      });
+      alert('Failed to create plant');
     }
   };
 
@@ -379,36 +317,14 @@ const Suppliers: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
-    if (formData.email?.trim() && !isValidEmail(formData.email.trim())) {
-      showAlert({
-        type: 'warning',
-        title: 'Validation',
-        content: 'Please enter a valid email address',
-      });
-      return;
-    }
-
-    const mobile = String(formData.phone_mobile || '').trim();
-    const office = String(formData.phone_office || '').trim();
-    const payload = {
-      ...formData,
-      // Backward compatible payload: older backends may only accept phone/phone_type.
-      ...(office
-        ? { phone: office, phone_type: 'office' as const }
-        : mobile
-          ? { phone: mobile, phone_type: 'mobile' as const }
-          : {}),
-    };
-
     try {
       let supplierId: number;
 
       if (editingSupplier) {
-        const updated = await apiService.updateSupplier(editingSupplier.id, payload);
+        const updated = await apiService.updateSupplier(editingSupplier.id, formData);
         supplierId = updated.id;
       } else {
-        const created = await apiService.createSupplier(payload);
+        const created = await apiService.createSupplier(formData);
         supplierId = created.id;
       }
 
@@ -416,11 +332,7 @@ const Suppliers: React.FC = () => {
         await syncSupplierAvailableProducts(supplierId, availableProductIds);
       } catch (error) {
         logger.error('[Suppliers] Supplier saved but product sync failed:', error);
-        showAlert({
-          type: 'warning',
-          title: 'Saved with warnings',
-          content: 'Supplier saved, but products could not be updated. Please try again from the supplier Products page.',
-        });
+        alert('Supplier saved, but products could not be updated. Please try again from the supplier Products page.');
       }
 
       setShowEditForm(false);
@@ -437,11 +349,7 @@ const Suppliers: React.FC = () => {
         action: editingSupplier ? 'update' : 'create',
       });
 
-      showAlert({
-        type: 'error',
-        title: 'Error',
-        content: errorMessage,
-      });
+      alert(errorMessage);
     }
   };
 
@@ -451,18 +359,12 @@ const Suppliers: React.FC = () => {
       name: supplier.name,
       contact_person: supplier.contact_person || '',
       email: supplier.email || '',
-
-      phone_mobile:
-        (supplier as any).phone_mobile || ((supplier.phone_type === 'mobile' && supplier.phone) ? supplier.phone : ''),
-      phone_office:
-        (supplier as any).phone_office || ((supplier.phone_type !== 'mobile' && supplier.phone) ? supplier.phone : ''),
-      phone_office_extension: (supplier as any).phone_office_extension || '',
-
+      phone: supplier.phone || '',
       address: supplier.address || '',
       city: supplier.city || '',
       state: supplier.state || '',
       zip_code: supplier.zip_code || '',
-      country: supplier.country || 'USA',
+      country: supplier.country || '',
       departments_array: supplier.departments_array || [], // Phase 4: Populate array
       preferred_protein_types: supplier.preferred_protein_types || [], // NEW: Populate protein types
     });
@@ -474,38 +376,22 @@ const Suppliers: React.FC = () => {
   };
 
   const handleDelete = async (id: number) => {
-    const confirmed = await confirmDialog({
-      title: 'Delete supplier?',
-      content: 'Are you sure you want to delete this supplier?',
-      okText: 'Delete',
-      cancelText: 'Cancel',
-      danger: true,
-    });
-
-    if (!confirmed) return;
-
-    try {
-      await apiService.deleteSupplier(id);
-      showAlert({
-        type: 'success',
-        title: 'Deleted',
-        content: 'Supplier deleted successfully.',
-      });
-      await fetchSuppliers(); // Re-fetch to update the list
-    } catch (error: unknown) {
-      // Type-safe error handling: Use 'unknown' instead of 'any' and assert expected structure
-      // This ensures we handle errors safely while maintaining type checking
-      logger.error('Error deleting supplier:', error);
-      const err = error as { response?: { data?: { detail?: string; message?: string } }; message?: string };
-      const errorMessage = err?.response?.data?.detail
-        || err?.response?.data?.message
-        || err?.message
-        || 'Failed to delete supplier';
-      showAlert({
-        type: 'error',
-        title: 'Error',
-        content: `Error: ${errorMessage}`,
-      });
+    if (window.confirm('Are you sure you want to delete this supplier?')) {
+      try {
+        await apiService.deleteSupplier(id);
+        alert('Supplier deleted successfully!');
+        await fetchSuppliers(); // Re-fetch to update the list
+      } catch (error: unknown) {
+        // Type-safe error handling: Use 'unknown' instead of 'any' and assert expected structure
+        // This ensures we handle errors safely while maintaining type checking
+        logger.error('Error deleting supplier:', error);
+        const err = error as { response?: { data?: { detail?: string; message?: string } }; message?: string };
+        const errorMessage = err?.response?.data?.detail 
+          || err?.response?.data?.message 
+          || err?.message 
+          || 'Failed to delete supplier';
+        alert(`Error: ${errorMessage}`);
+      }
     }
   };
 
@@ -514,16 +400,12 @@ const Suppliers: React.FC = () => {
       name: '',
       contact_person: '',
       email: '',
-
-      phone_mobile: '',
-      phone_office: '',
-      phone_office_extension: '',
-
+      phone: '',
       address: '',
       city: '',
       state: '',
       zip_code: '',
-      country: 'USA',
+      country: '',
       departments_array: [], // Phase 4: Reset array
       preferred_protein_types: [], // NEW: Reset protein types
     });
@@ -539,25 +421,12 @@ const Suppliers: React.FC = () => {
   };
 
   if (loading) {
-    return (
-      <LoadingContainer $theme={theme}>
-        <Skeleton active paragraph={{ rows: 8 }} />
-      </LoadingContainer>
-    );
+    return <LoadingContainer $theme={theme}>Loading suppliers...</LoadingContainer>;
   }
 
   const visibleSuppliers = suppliers.filter((s) => {
     if (!searchText.trim()) return true;
-    const haystack = [
-      s.name,
-      s.contact_person,
-      s.email,
-      (s as any).phone_office,
-      (s as any).phone_mobile,
-      s.phone,
-      s.city,
-      s.state,
-    ]
+    const haystack = [s.name, s.contact_person, s.email, s.phone, s.city, s.state]
       .filter(Boolean)
       .join(' ')
       .toLowerCase();
@@ -650,38 +519,12 @@ const Suppliers: React.FC = () => {
                 </FormGroup>
 
                 <FormGroup>
-                  <Label $theme={theme}>Mobile Phone</Label>
+                  <Label $theme={theme}>Phone</Label>
                   <PhoneInput
-                    value={formData.phone_mobile}
-                    onChange={(value) => setFormData({ ...formData, phone_mobile: value })}
-                    placeholder="(XXX) XXX-XXXX"
-                    aria-label="Mobile phone"
-                  />
-                </FormGroup>
-
-                <FormGroup>
-                  <Label $theme={theme}>Office Phone</Label>
-                  <PhoneInput
-                    value={formData.phone_office}
-                    onChange={(value) => setFormData({ ...formData, phone_office: value })}
-                    placeholder="(XXX) XXX-XXXX"
-                    aria-label="Office phone"
-                  />
-                  <div style={{ height: 8 }} />
-                  <Label $theme={theme}>Extension</Label>
-                  <Input
-                    $theme={theme}
-                    type="text"
-                    value={formData.phone_office_extension}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        phone_office_extension: e.target.value.replace(/\D/g, '').slice(0, 6),
-                      })
-                    }
-                    placeholder="e.g., 123"
-                    inputMode="numeric"
-                    aria-label="Office extension"
+                    value={formData.phone}
+                    onChange={(value) => setFormData({ ...formData, phone: value })}
+                    placeholder="(XXX)XXX-XXXX"
+                    aria-label="Phone number"
                   />
                 </FormGroup>
 
@@ -707,10 +550,11 @@ const Suppliers: React.FC = () => {
 
                 <FormGroup>
                   <Label $theme={theme}>State</Label>
-                  <StateSelect
+                  <Select
                     value={formData.state}
                     onChange={(value) => setFormData({ ...formData, state: value })}
-                    placeholder="Search state"
+                    options={US_STATES}
+                    placeholder="Select state"
                     aria-label="State"
                   />
                 </FormGroup>
@@ -733,11 +577,11 @@ const Suppliers: React.FC = () => {
 
                 <FormGroup>
                   <Label $theme={theme}>Country</Label>
-                  <CountrySelect
+                  <Input
+                    $theme={theme}
+                    type="text"
                     value={formData.country}
-                    onChange={(value) => setFormData({ ...formData, country: value })}
-                    placeholder="Search country"
-                    aria-label="Country"
+                    onChange={(e) => setFormData({ ...formData, country: e.target.value })}
                   />
                 </FormGroup>
 
@@ -770,17 +614,8 @@ const Suppliers: React.FC = () => {
                       label: `${p.product_code} - ${p.effective_name || p.product_name || p.name || 'Unknown'}`
                     })) : []}
                     label="Available Products"
-                    placeholder={
-                      formData.preferred_protein_types.length
-                        ? 'Search products (filtered by protein types)…'
-                        : 'Search products…'
-                    }
+                    placeholder="Select products this supplier can provide"
                   />
-                  {formData.preferred_protein_types.length > 0 && (
-                    <HelperText $theme={theme}>
-                      Showing {products.length} product(s) filtered by selected protein types
-                    </HelperText>
-                  )}
                 </FormGroup>
               </FormGrid>
 
@@ -819,13 +654,13 @@ const Suppliers: React.FC = () => {
                 </FormGroup>
 
                 <FormGroup>
-                  <Label $theme={theme}>Code (optional)</Label>
+                  <Label $theme={theme}>Code *</Label>
                   <Input
                     $theme={theme}
                     type="text"
                     value={plantForm.code}
                     onChange={(e) => setPlantForm((p) => ({ ...p, code: e.target.value }))}
-                    placeholder="Leave blank to auto-generate"
+                    required
                   />
                 </FormGroup>
 
@@ -844,18 +679,6 @@ const Suppliers: React.FC = () => {
                     placeholder="Select type"
                     aria-label="Plant type"
                   />
-                </FormGroup>
-
-                <FormGroup>
-                  <Label $theme={theme}>FCFS (First Come First Serve)</Label>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <input
-                      type="checkbox"
-                      checked={plantForm.fcfs}
-                      onChange={(e) => setPlantForm((p) => ({ ...p, fcfs: e.target.checked }))}
-                    />
-                    <span>{plantForm.fcfs ? 'Yes' : 'No'}</span>
-                  </label>
                 </FormGroup>
 
                 <FormGroup>
@@ -880,52 +703,11 @@ const Suppliers: React.FC = () => {
 
                 <FormGroup>
                   <Label $theme={theme}>Phone</Label>
-                  <Select
-                    value={plantForm.phone_type}
-                    onChange={(value) => setPlantForm((p) => ({ ...p, phone_type: value as 'office' | 'mobile' }))}
-                    options={PHONE_TYPE_OPTIONS}
-                    placeholder="Phone type"
-                    aria-label="Plant phone type"
-                  />
-                  <div style={{ height: 8 }} />
                   <PhoneInput
                     value={plantForm.phone}
                     onChange={(value) => setPlantForm((p) => ({ ...p, phone: value }))}
-                    placeholder="(XXX) XXX-XXXX"
+                    placeholder="(XXX)XXX-XXXX"
                     aria-label="Plant phone"
-                  />
-                </FormGroup>
-
-                <div style={{ gridColumn: '1 / -1', fontWeight: 700, fontSize: 16 }}>Booking Contact</div>
-
-                <FormGroup>
-                  <Label $theme={theme}>Booking Email</Label>
-                  <Input
-                    $theme={theme}
-                    type="email"
-                    value={plantForm.booking_contact_email}
-                    onChange={(e) => setPlantForm((p) => ({ ...p, booking_contact_email: e.target.value }))}
-                    placeholder="booking@example.com"
-                  />
-                </FormGroup>
-
-                <FormGroup>
-                  <Label $theme={theme}>Booking Phone</Label>
-                  <Select
-                    value={plantForm.booking_contact_phone_type}
-                    onChange={(value) =>
-                      setPlantForm((p) => ({ ...p, booking_contact_phone_type: value as 'office' | 'mobile' }))
-                    }
-                    options={PHONE_TYPE_OPTIONS}
-                    placeholder="Phone type"
-                    aria-label="Booking phone type"
-                  />
-                  <div style={{ height: 8 }} />
-                  <PhoneInput
-                    value={plantForm.booking_contact_phone}
-                    onChange={(value) => setPlantForm((p) => ({ ...p, booking_contact_phone: value }))}
-                    placeholder="(XXX) XXX-XXXX"
-                    aria-label="Booking phone"
                   />
                 </FormGroup>
               </FormGrid>
@@ -963,24 +745,7 @@ const Suppliers: React.FC = () => {
             <TableBody>
               {visibleSuppliers.map((supplier) => (
                 <React.Fragment key={supplier.id}>
-                <TableRow
-                  key={supplier.id}
-                  $theme={theme}
-                  role="button"
-                  tabIndex={0}
-                  aria-expanded={selectedSupplierId === supplier.id}
-                  style={{ cursor: 'pointer' }}
-                  onClick={(e) => {
-                    const target = e.target as HTMLElement | null;
-                    if (target?.closest('button, a, input, textarea, select, [role="button"]')) return;
-                    void toggleSupplierDrilldown(supplier);
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key !== 'Enter' && e.key !== ' ') return;
-                    e.preventDefault();
-                    void toggleSupplierDrilldown(supplier);
-                  }}
-                >
+                <TableRow key={supplier.id} $theme={theme}>
                   <TableCell $theme={theme}>
                     <CompanyButton
                       $theme={theme}
@@ -994,19 +759,7 @@ const Suppliers: React.FC = () => {
                   </TableCell>
                   <TableCell $theme={theme}>{supplier.contact_person || '-'}</TableCell>
                   <TableCell $theme={theme}>{supplier.email || '-'}</TableCell>
-                  <TableCell $theme={theme}>
-                    {(() => {
-                      const office = String((supplier as any).phone_office || '').trim();
-                      const ext = String((supplier as any).phone_office_extension || '').trim();
-                      const mobile = String((supplier as any).phone_mobile || '').trim();
-                      const legacy = String(supplier.phone || '').trim();
-
-                      if (office) return ext ? `${office} x${ext}` : office;
-                      if (mobile) return mobile;
-                      if (legacy) return legacy;
-                      return '-';
-                    })()}
-                  </TableCell>
+                  <TableCell $theme={theme}>{supplier.phone || '-'}</TableCell>
                   <TableCell $theme={theme}>
                     {supplier.city && supplier.state
                       ? `${supplier.city}, ${supplier.state}`
@@ -1079,18 +832,6 @@ const Suppliers: React.FC = () => {
                               <MetaRow>
                                 <MetaKey>Phone</MetaKey>
                                 <MetaValue>{selectedPlant.phone || '—'}</MetaValue>
-                              </MetaRow>
-                              <MetaRow>
-                                <MetaKey>Booking Email</MetaKey>
-                                <MetaValue>{selectedPlant.booking_contact_email || '—'}</MetaValue>
-                              </MetaRow>
-                              <MetaRow>
-                                <MetaKey>Booking Phone</MetaKey>
-                                <MetaValue>{selectedPlant.booking_contact_phone || '—'}</MetaValue>
-                              </MetaRow>
-                              <MetaRow>
-                                <MetaKey>FCFS</MetaKey>
-                                <MetaValue>{selectedPlant.fcfs ? 'Yes' : 'No'}</MetaValue>
                               </MetaRow>
                             </MetaCard>
                           ) : (
@@ -1195,12 +936,6 @@ const Subtitle = styled.p`
   margin: 0;
   font-size: 14px;
   color: rgb(var(--color-text-secondary));
-`;
-
-const HelperText = styled.div<{ $theme: Theme }>`
-  margin-top: 6px;
-  font-size: 12px;
-  color: ${(props) => props.$theme.colors.textSecondary};
 `;
 
 const HeaderActions = styled.div`

@@ -12,10 +12,9 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 import styled from 'styled-components';
-import { Select as AntSelect } from 'antd';
 import { businessApi } from '../../services/businessApi';
 import { getChoices, type ChoiceOption } from '../../services/choicesService';
-import { PROTEIN_TYPE_CHOICES } from '../../utils/constants/choices';
+import { formatCurrency } from '../../utils/formatters';
 import { SmartProductAutocomplete } from '../Inquiry/SmartProductAutocomplete';
 import type { Product } from '../../types';
 
@@ -219,12 +218,13 @@ const Error = styled.div`
 const LinesTable = styled.div`
   border: 1px solid rgb(var(--color-border));
   border-radius: var(--radius-lg);
+  /* Allow SmartProductAutocomplete dropdown to render outside the table bounds */
   overflow: visible;
 `;
 
 const LinesHeader = styled.div`
   display: grid;
-  grid-template-columns: 3fr 0.9fr 1.1fr 1.1fr 1.1fr 2fr 44px;
+  grid-template-columns: 3fr 0.9fr 1.1fr 1.1fr 1.1fr 1.1fr 2fr 44px;
   gap: 0.5rem;
   padding: 0.75rem;
   background: rgba(var(--color-primary), 0.05);
@@ -241,7 +241,7 @@ const LinesHeader = styled.div`
 
 const LinesRow = styled.div`
   display: grid;
-  grid-template-columns: 3fr 0.9fr 1.1fr 1.1fr 1.1fr 2fr 44px;
+  grid-template-columns: 3fr 0.9fr 1.1fr 1.1fr 1.1fr 1.1fr 2fr 44px;
   gap: 0.5rem;
   padding: 0.75rem;
   border-bottom: 1px solid rgb(var(--color-border));
@@ -257,6 +257,23 @@ const LinesRow = styled.div`
 `;
 
 const RowCell = styled.div``;
+
+const ComputedValue = styled.div<{ $tone?: 'positive' | 'negative' | 'neutral' }>`
+  width: 100%;
+  padding: 0.625rem 0.75rem;
+  border: 1px solid rgb(var(--color-border));
+  border-radius: var(--radius-md);
+  font-size: 0.9rem;
+  background: rgba(var(--color-primary), 0.03);
+  color: ${(p) =>
+    p.$tone === 'positive'
+      ? 'rgb(34, 197, 94)'
+      : p.$tone === 'negative'
+        ? 'rgb(239, 68, 68)'
+        : 'rgb(var(--color-text-secondary))'};
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+`;
 
 const RemoveButton = styled.button`
   width: 36px;
@@ -361,9 +378,17 @@ export const InquiryCallModal: React.FC<InquiryCallModalProps> = ({
   const [entityOptions, setEntityOptions] = useState<EntityOption[]>([]);
   const [loadingEntities, setLoadingEntities] = useState(false);
   const [uomOptions, setUomOptions] = useState<ChoiceOption[]>([]);
-  const [proteinFilter, setProteinFilter] = useState<string[]>([]);
 
   const canSubmit = useMemo(() => !submitting, [submitting]);
+
+  const computeVarianceTotal = (line: LineItem): number | null => {
+    const qty = Number(line.quantity);
+    const desired = Number(line.desiredPricePerUnit);
+    const actual = Number(line.actualPricePerUnit);
+
+    if (!Number.isFinite(qty) || !Number.isFinite(desired) || !Number.isFinite(actual)) return null;
+    return (actual - desired) * qty;
+  };
 
   const reset = () => {
     setSubmitting(false);
@@ -608,30 +633,6 @@ export const InquiryCallModal: React.FC<InquiryCallModalProps> = ({
 
             <Section>
               <SectionTitle>Inquiry Products</SectionTitle>
-
-              <div style={{ marginBottom: 10, maxWidth: 420 }}>
-                <Label>Protein Types Filter</Label>
-                <AntSelect
-                  mode="multiple"
-                  value={proteinFilter}
-                  onChange={(vals) => setProteinFilter(vals as string[])}
-                  options={PROTEIN_TYPE_CHOICES.map((o) => ({ value: o.value, label: o.label }))}
-                  placeholder="Search protein types"
-                  showSearch
-                  allowClear
-                  optionFilterProp="label"
-                  filterOption={(input, option) =>
-                    String(option?.label || '')
-                      .toLowerCase()
-                      .includes(String(input || '').toLowerCase())
-                  }
-                  style={{ width: '100%' }}
-                />
-                <Muted style={{ marginTop: 6 }}>
-                  Product search will be filtered by selected protein type(s).
-                </Muted>
-              </div>
-
               <LinesTable>
                 <LinesHeader>
                   <div>Product</div>
@@ -639,6 +640,7 @@ export const InquiryCallModal: React.FC<InquiryCallModalProps> = ({
                   <div>Unit</div>
                   <div>Desired $/Unit</div>
                   <div>Actual $/Unit</div>
+                  <div>Δ Total</div>
                   <div>Notes</div>
                   <div />
                 </LinesHeader>
@@ -652,7 +654,6 @@ export const InquiryCallModal: React.FC<InquiryCallModalProps> = ({
                         onChange={(productId, product) => updateLine(l.key, { productId, product })}
                         placeholder="Search products…"
                         disabled={!canSubmit}
-                        proteinTypeFilter={proteinFilter}
                       />
                     </RowCell>
                     <RowCell>
@@ -702,6 +703,16 @@ export const InquiryCallModal: React.FC<InquiryCallModalProps> = ({
                         onChange={(e) => updateLine(l.key, { actualPricePerUnit: e.target.value })}
                         disabled={!canSubmit}
                       />
+                    </RowCell>
+                    <RowCell>
+                      <Label style={{ marginBottom: 6 }}>Δ Total</Label>
+                      {(() => {
+                        const delta = computeVarianceTotal(l);
+                        const tone: 'positive' | 'negative' | 'neutral' =
+                          delta == null ? 'neutral' : delta > 0 ? 'positive' : delta < 0 ? 'negative' : 'neutral';
+                        const text = delta == null ? '-' : `${delta > 0 ? '+' : ''}${formatCurrency(delta)}`;
+                        return <ComputedValue $tone={tone}>{text}</ComputedValue>;
+                      })()}
                     </RowCell>
                     <RowCell>
                       <Label style={{ marginBottom: 6 }}>Line Notes</Label>

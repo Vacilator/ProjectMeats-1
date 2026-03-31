@@ -10,8 +10,7 @@ import { useAdminPermissions } from '@/hooks/useAdminPermissions';
 import { getRuntimeConfig } from '@/config/runtime';
 import { extractBrandColors } from '@/utils/themeUtils';
 import { injectTenantColors } from '@/config/theme';
-import { PhoneInput } from '@/components/ui/PhoneInput';
-import { isValidEmail } from '@/shared/utils';
+import { formatUsPhone } from '@/utils/phone';
 
 interface Tenant {
   id: string;
@@ -20,7 +19,6 @@ interface Tenant {
   description: string;
   contact_email: string;
   contact_phone: string;
-  contact_phone_type?: 'office' | 'mobile';
   address: string;
   website: string;
   logo: string | null;
@@ -38,7 +36,6 @@ interface ProfileFormData {
   description: string;
   contact_email: string;
   contact_phone: string;
-  contact_phone_type: 'office' | 'mobile';
   address: string;
   website: string;
   primary_color_light: string;
@@ -122,6 +119,7 @@ const AdminProfilePage: React.FC = () => {
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const [removeLogo, setRemoveLogo] = useState(false);
   const [extractingColors, setExtractingColors] = useState(false);
+
   const logoInputRef = useRef<HTMLInputElement | null>(null);
 
   const {
@@ -142,7 +140,6 @@ const AdminProfilePage: React.FC = () => {
     description: '',
     contact_email: '',
     contact_phone: '',
-    contact_phone_type: 'office',
     address: '',
     website: '',
     primary_color_light: defaults.light,
@@ -156,8 +153,7 @@ const AdminProfilePage: React.FC = () => {
       name: tenant.name || '',
       description: tenant.description || '',
       contact_email: tenant.contact_email || '',
-      contact_phone: tenant.contact_phone || '',
-      contact_phone_type: tenant.contact_phone_type || 'office',
+      contact_phone: formatUsPhone(tenant.contact_phone || ''),
       address: tenant.address || '',
       website: tenant.website || '',
       primary_color_light: tenant.branding?.primary_color_light || defaults.light,
@@ -213,8 +209,7 @@ const AdminProfilePage: React.FC = () => {
       name: tenant.name || '',
       description: tenant.description || '',
       contact_email: tenant.contact_email || '',
-      contact_phone: tenant.contact_phone || '',
-      contact_phone_type: tenant.contact_phone_type || 'office',
+      contact_phone: formatUsPhone(tenant.contact_phone || ''),
       address: tenant.address || '',
       website: tenant.website || '',
       primary_color_light: tenant.branding?.primary_color_light || defaults.light,
@@ -229,9 +224,12 @@ const AdminProfilePage: React.FC = () => {
     );
   }, [defaults.dark, defaults.light, formData, logoFile, logoPreview, removeLogo, tenant]);
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+    setFormData((prev) => ({
+      ...prev,
+      [name]: name === 'contact_phone' ? formatUsPhone(value) : value,
+    }));
   };
 
   const handleColorChange = (field: 'primary_color_light' | 'primary_color_dark', value: string) => {
@@ -240,6 +238,8 @@ const AdminProfilePage: React.FC = () => {
 
   const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
+    // Allow re-selecting the same file to trigger onChange again.
+    e.target.value = '';
     if (!file) return;
 
     if (!file.type.startsWith('image/')) {
@@ -329,8 +329,7 @@ const AdminProfilePage: React.FC = () => {
       name: tenant.name || '',
       description: tenant.description || '',
       contact_email: tenant.contact_email || '',
-      contact_phone: tenant.contact_phone || '',
-      contact_phone_type: tenant.contact_phone_type || 'office',
+      contact_phone: formatUsPhone(tenant.contact_phone || ''),
       address: tenant.address || '',
       website: tenant.website || '',
       primary_color_light: tenant.branding?.primary_color_light || defaults.light,
@@ -346,12 +345,6 @@ const AdminProfilePage: React.FC = () => {
     e.preventDefault();
 
     if (!tenant) return;
-
-    const contactEmail = formData.contact_email?.trim();
-    if (contactEmail && !isValidEmail(contactEmail)) {
-      toast.error('Please enter a valid email address');
-      return;
-    }
 
     const settings = {
       theme: {
@@ -503,22 +496,16 @@ const AdminProfilePage: React.FC = () => {
 
               <Field>
                 <Label htmlFor="contact_phone">Phone</Label>
-                <Select
-                  id="contact_phone_type"
-                  name="contact_phone_type"
-                  value={formData.contact_phone_type}
-                  onChange={handleInputChange}
-                  aria-label="Phone type"
-                >
-                  <option value="office">Office</option>
-                  <option value="mobile">Mobile</option>
-                </Select>
-                <div style={{ height: 8 }} />
-                <PhoneInput
+                <Input
+                  id="contact_phone"
+                  name="contact_phone"
+                  type="tel"
+                  inputMode="numeric"
+                  maxLength={13}
                   value={formData.contact_phone}
-                  onChange={(value) => setFormData((p) => ({ ...p, contact_phone: value }))}
-                  placeholder="(XXX) XXX-XXXX"
-                  aria-label="Contact phone"
+                  onChange={handleInputChange}
+                  placeholder="(XXX)XXX-XXXX"
+                  autoComplete="tel"
                 />
               </Field>
 
@@ -576,7 +563,6 @@ const AdminProfilePage: React.FC = () => {
                     type="file"
                     accept="image/*"
                     onChange={handleLogoChange}
-                    aria-label="Upload logo"
                   />
                   <Button
                     type="button"
@@ -757,10 +743,6 @@ const TextArea = styled.textarea`
   min-height: 88px;
 `;
 
-const Select = styled.select`
-  ${inputStyles}
-`;
-
 const BrandingGrid = styled.div`
   display: grid;
   grid-template-columns: repeat(1, minmax(0, 1fr));
@@ -852,19 +834,7 @@ const RemoveLogoButton = styled.button`
 `;
 
 const HiddenFileInput = styled.input`
-  /*
-   * Keep the input in the DOM (not display:none) so programmatic clicks and
-   * label associations work reliably across browsers.
-   */
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  white-space: nowrap;
-  border: 0;
+  display: none;
 `;
 
 const Hint = styled.p`
