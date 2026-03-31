@@ -11,10 +11,15 @@
 
 import React from 'react';
 
+import { ErrorBoundary } from '@/components/common/ErrorBoundary';
 import ProcessMonitor from '../Cockpit/ProcessMonitor';
 
 export const Monitoring: React.FC = () => {
-  return <ProcessMonitor />;
+  return (
+    <ErrorBoundary>
+      <ProcessMonitor />
+    </ErrorBoundary>
+  );
 };
 
 export default Monitoring;

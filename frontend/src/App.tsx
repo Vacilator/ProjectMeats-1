@@ -91,6 +91,7 @@ import AdminErrorBoundary from './components/Admin/AdminErrorBoundary';
 import { ErrorBoundary as ProductionErrorBoundary } from './components/common/ErrorBoundary';
 import { logger } from './utils/logger';
 const CockpitPage = lazy(() => import('./pages/Cockpit'));
+import CockpitDashboard from './pages/Cockpit/CockpitDashboard';
 import ProcessMonitor from './pages/Cockpit/ProcessMonitor';
 import CockpitEntityRedirect from './pages/Cockpit/CockpitEntityRedirect';
 import { NotificationPreferences } from './pages/Settings/index';
@@ -297,7 +298,7 @@ const App: React.FC = () => {
                 <Route path="carriers" element={<Carriers />} />
                 <Route path="contacts" element={<Contacts />} />
                 <Route path="ai-assistant" element={<AIAssistant />} />
-                <Route path="calls" element={<CallLog />} />
+                <Route path="calls" element={<Navigate to="/cockpit/calls" replace />} />
                 <Route path="call-log" element={<Navigate to="/calls" replace />} />
                 <Route path="processes" element={<Navigate to="/forms-flows/catalog" replace />} />
                 <Route path="reports" element={<Reports />} />
@@ -318,6 +319,7 @@ const App: React.FC = () => {
                   <Route index element={<Navigate to="/workforms/tasks" replace />} />
                   <Route path="tasks" element={<MyTasks />} />
                   <Route path="in-progress" element={<WorkFormsInProgress />} />
+                  <Route path="in-progress/:id" element={<WorkFormsInProgress />} />
                   <Route path="monitoring" element={<WorkFormsMonitoring />} />
                   <Route path="catalog" element={<WorkFormsCatalog />} />
                   <Route path="history" element={<WorkFormsHistory />} />
@@ -410,10 +412,13 @@ const App: React.FC = () => {
                       <CockpitPage />
                     </Suspense>
                   }
-                />
-                <Route path="cockpit/process-monitor" element={<ProcessMonitor />} />
-                {/* Legacy deep-link route (redirects into /cockpit breadcrumb UX) */}
-                <Route path="cockpit/entity/:entityType/:entityId" element={<CockpitEntityRedirect />} />
+                >
+                  <Route index element={<Navigate to="/cockpit/dashboard" replace />} />
+                  <Route path="dashboard" element={<CockpitDashboard />} />
+                  <Route path="process-monitor" element={<ProcessMonitor />} />
+                  <Route path="calls" element={<CallLog />} />
+                  <Route path="entity/:entityType/:entityId" element={<CockpitEntityRedirect />} />
+                </Route>
                 {/* Note: /workspace now points to Admin Workspace, not Cockpit */}
               </Route>
             </Routes>

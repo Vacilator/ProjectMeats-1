@@ -1,20 +1,21 @@
 /**
  * WorkForms Layout Component
- * 
+ *
  * Parent layout for the WorkForms section with sub-navigation tabs.
  * Implements Phase 1 of the Cockpit & WorkForms Enhancement Plan.
- * 
+ *
  * Created: 2026-02-03
  * Updated: 2026-02-04 - Renamed from Forms & Flows to WorkForms
- * 
+ *
  * Features:
- * - Sub-navigation tabs (My Tasks, In Progress, Catalog, History)
+ * - URL-synchronized AntD Tabs (deep-link safe)
  * - Badge support for action item counts
  * - Responsive layout
  */
 import React from 'react';
-import { Outlet, NavLink, useLocation } from 'react-router-dom';
+import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
+import { Tabs } from 'antd';
 import { CheckSquare, Clock, BookOpen, History, FileText, Workflow } from 'lucide-react';
 import { useActionItems } from '../../contexts/ActionItemsContext';
 import { useAuth } from '../../contexts/AuthContext';
@@ -24,11 +25,12 @@ import { useAuth } from '../../contexts/AuthContext';
 // ============================================================================
 
 interface TabItem {
+  key: string;
   path: string;
   label: string;
   icon: React.ReactNode;
   badgeKey?: string;
-  adminOnly?: boolean; // New: Restrict to admin users
+  adminOnly?: boolean;
 }
 
 // ============================================================================
@@ -36,12 +38,12 @@ interface TabItem {
 // ============================================================================
 
 const TABS: TabItem[] = [
-  { path: '/workforms/tasks', label: 'My Tasks', icon: <CheckSquare size={18} />, badgeKey: 'actionRequired' },
-  { path: '/workforms/in-progress', label: 'In Progress', icon: <Clock size={18} /> },
-  { path: '/workforms/monitoring', label: 'Monitoring', icon: <Workflow size={18} /> },
-  { path: '/workforms/catalog', label: 'Catalog', icon: <BookOpen size={18} /> },
-  { path: '/workforms/history', label: 'History', icon: <History size={18} /> },
-  { path: '/workforms/editor', label: 'Editor', icon: <FileText size={18} />, adminOnly: true },
+  { key: 'tasks', path: '/workforms/tasks', label: 'My Tasks', icon: <CheckSquare size={18} />, badgeKey: 'actionRequired' },
+  { key: 'in-progress', path: '/workforms/in-progress', label: 'In Progress', icon: <Clock size={18} /> },
+  { key: 'monitoring', path: '/workforms/monitoring', label: 'Monitoring', icon: <Workflow size={18} /> },
+  { key: 'catalog', path: '/workforms/catalog', label: 'Catalog', icon: <BookOpen size={18} /> },
+  { key: 'history', path: '/workforms/history', label: 'History', icon: <History size={18} /> },
+  { key: 'editor', path: '/workforms/editor', label: 'Editor', icon: <FileText size={18} />, adminOnly: true },
 ];
 
 // ============================================================================
@@ -51,7 +53,7 @@ const TABS: TabItem[] = [
 const Container = styled.div`
   min-height: calc(100vh - 64px);
   background: rgb(var(--color-background));
-  
+
   @media (max-width: 768px) {
     min-height: calc(100vh - 56px);
   }
@@ -63,8 +65,7 @@ const Header = styled.div`
   justify-content: space-between;
   padding: 20px 24px 0;
   background: rgb(var(--color-surface));
-  border-bottom: 1px solid rgb(var(--color-border));
-  
+
   @media (max-width: 640px) {
     padding: 16px 16px 0;
     flex-wrap: wrap;
@@ -102,64 +103,28 @@ const HeaderSubtitle = styled.p`
   margin: 4px 0 0;
 `;
 
-const TabNav = styled.nav`
-  display: flex;
-  gap: 4px;
+const StyledTabs = styled(Tabs)`
   padding: 0 24px;
   background: rgb(var(--color-surface));
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
-  scrollbar-width: none;
-  
-  &::-webkit-scrollbar {
+  border-bottom: 1px solid rgb(var(--color-border));
+
+  .ant-tabs-nav {
+    margin: 0;
+  }
+
+  .ant-tabs-content-holder {
     display: none;
   }
-  
+
   @media (max-width: 640px) {
     padding: 0 16px;
-    gap: 0;
   }
 `;
 
-const TabLink = styled(NavLink)`
-  display: flex;
+const TabLabel = styled.span`
+  display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 12px 16px;
-  font-size: 14px;
-  font-weight: 500;
-  color: rgb(var(--color-text-secondary));
-  text-decoration: none;
-  border-bottom: 2px solid transparent;
-  transition: all 0.15s ease;
-  white-space: nowrap;
-  flex-shrink: 0;
-  
-  &:hover {
-    color: rgb(var(--color-text-primary));
-    background: rgb(var(--color-surface-hover));
-  }
-  
-  &.active {
-    color: rgb(var(--color-primary));
-    border-bottom-color: rgb(var(--color-primary));
-  }
-  
-  &:focus-visible {
-    outline: 2px solid rgb(var(--color-primary));
-    outline-offset: -2px;
-    border-radius: 4px;
-  }
-  
-  @media (max-width: 640px) {
-    padding: 12px 12px;
-    font-size: 13px;
-    gap: 6px;
-    
-    span {
-      /* Hide label text on small screens if needed, show icon */
-    }
-  }
 `;
 
 const TabBadge = styled.span`
@@ -179,7 +144,7 @@ const TabBadge = styled.span`
 
 const Content = styled.main`
   padding: 24px;
-  
+
   @media (max-width: 640px) {
     padding: 16px;
   }
@@ -191,20 +156,40 @@ const Content = styled.main`
 
 const WorkFormsLayout: React.FC = () => {
   const location = useLocation();
+  const navigate = useNavigate();
   const { counts } = useActionItems();
   const { isAdmin } = useAuth();
-  
-  // Map badgeKey to counts
+
   const badgeCounts: Record<string, number> = {
     actionRequired: counts.total,
     overdue: counts.overdue,
     dueToday: counts.due_today,
     dueThisWeek: counts.due_this_week,
   };
-  
-  // Filter tabs based on admin status
-  const visibleTabs = TABS.filter(tab => !tab.adminOnly || isAdmin);
-  
+
+  const visibleTabs = React.useMemo(() => TABS.filter((tab) => !tab.adminOnly || isAdmin), [isAdmin]);
+
+  const activeKey = React.useMemo(() => {
+    const pathname = location.pathname;
+    const match = visibleTabs.find((tab) => pathname === tab.path || pathname.startsWith(`${tab.path}/`));
+    return match?.key ?? visibleTabs[0]?.key ?? 'tasks';
+  }, [location.pathname, visibleTabs]);
+
+  const tabItems = React.useMemo(
+    () =>
+      visibleTabs.map((tab) => ({
+        key: tab.key,
+        label: (
+          <TabLabel>
+            {tab.icon}
+            <span>{tab.label}</span>
+            {tab.badgeKey && badgeCounts[tab.badgeKey] > 0 && <TabBadge>{badgeCounts[tab.badgeKey]}</TabBadge>}
+          </TabLabel>
+        ),
+      })),
+    [badgeCounts, visibleTabs]
+  );
+
   return (
     <Container>
       <Header>
@@ -218,24 +203,13 @@ const WorkFormsLayout: React.FC = () => {
           </div>
         </HeaderLeft>
       </Header>
-      
-      <TabNav role="tablist">
-        {visibleTabs.map((tab) => (
-          <TabLink
-            key={tab.path}
-            to={tab.path}
-            role="tab"
-            aria-selected={location.pathname === tab.path}
-          >
-            {tab.icon}
-            <span>{tab.label}</span>
-            {tab.badgeKey && badgeCounts[tab.badgeKey] && badgeCounts[tab.badgeKey] > 0 && (
-              <TabBadge>{badgeCounts[tab.badgeKey]}</TabBadge>
-            )}
-          </TabLink>
-        ))}
-      </TabNav>
-      
+
+      <StyledTabs
+        activeKey={activeKey}
+        items={tabItems}
+        onChange={(key) => navigate(`/workforms/${key}`)}
+      />
+
       <Content>
         <Outlet />
       </Content>
