@@ -68,6 +68,7 @@ type BackendField = {
   // Relationship metadata (schema endpoint)
   related_entity?: string | null;
   choices?: SchemaChoice[] | null;
+  ui?: Record<string, unknown> | null;
 };
 
 type BackendSchema = {
@@ -93,6 +94,8 @@ const normalizeEntityKey = (entityType: string): string => {
   // Plural resources commonly used in UI routes.
   if (lower === 'customers' || lower === 'customer') return 'customer';
   if (lower === 'suppliers' || lower === 'supplier') return 'supplier';
+  if (lower === 'plants' || lower === 'plant') return 'plant';
+  if (lower === 'locations' || lower === 'location') return 'location';
   if (lower === 'contacts' || lower === 'contact') return 'contact';
   if (lower === 'products' || lower === 'product') return 'product';
   if (lower === 'invoices' || lower === 'invoice') return 'invoice';
@@ -119,6 +122,8 @@ const normalizeEntityEndpoint = (entityType: string): string => {
   // Common singular → plural API resources
   if (lower === 'customer') return 'customers/';
   if (lower === 'supplier') return 'suppliers/';
+  if (lower === 'plant') return 'plants/';
+  if (lower === 'location') return 'locations/';
   if (lower === 'contact') return 'contacts/';
   if (lower === 'product') return 'products/';
 
@@ -494,15 +499,84 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
     const raw = (schema?.fields ?? [])
       .filter((f) => !shouldSkipField(f.key))
       .filter((f) => !f.related_entity)
-      .map((f) => ({
-        key: f.key,
-        label: f.label || f.key,
-        type: f.choices?.length ? 'select' : String(f.type ?? 'text'),
-        required: Boolean(f.required),
-        options: f.choices?.map((c) => String(c.value)) || undefined,
-        placeholder: f.placeholder || undefined,
-        help_text: f.help_text,
-      }));
+      .map((f) => {
+        const ui = f.ui && typeof f.ui === 'object' ? (f.ui as Record<string, unknown>) : null;
+        const widget = ui && typeof ui['widget'] === 'string' ? String(ui['widget']) : null;
+
+        const explicitType = String(f.type ?? '').toLowerCase();
+        const isInlineArray = explicitType === 'inline_form_array' || widget === 'inline_form_array';
+
+        const options = f.choices?.length
+          ? f.choices
+              .map((c) => ({
+                value: c.value != null ? String(c.value) : '',
+                label: typeof c.label === 'string' && c.label ? c.label : c.value != null ? String(c.value) : '',
+              }))
+              .filter((o) => Boolean(o.value))
+          : undefined;
+
+        const itemFieldsRaw =
+          isInlineArray && ui && Array.isArray((ui as Record<string, unknown>).item_fields)
+            ? ((ui as Record<string, unknown>).item_fields as unknown[])
+            : null;
+
+        const item_fields = itemFieldsRaw
+          ? itemFieldsRaw
+              .map((sf) => {
+                const sub = sf && typeof sf === 'object' ? (sf as Record<string, unknown>) : {};
+                const subUi =
+                  sub.ui && typeof sub.ui === 'object' ? (sub.ui as Record<string, unknown>) : null;
+                const subWidget =
+                  subUi && typeof subUi['widget'] === 'string' ? String(subUi['widget']) : undefined;
+                const subChoices = Array.isArray(sub.choices)
+                  ? (sub.choices as unknown[])
+                      .map((c) => {
+                        const ch = c && typeof c === 'object' ? (c as Record<string, unknown>) : {};
+                        const value = ch.value != null ? String(ch.value) : '';
+                        const label = typeof ch.label === 'string' && ch.label ? ch.label : value;
+                        return value ? { value, label } : null;
+                      })
+                      .filter(Boolean)
+                  : undefined;
+
+                return {
+                  key: String(sub.key || ''),
+                  label: typeof sub.label === 'string' ? sub.label : String(sub.key || ''),
+                  type: subChoices?.length ? 'select' : String(sub.type ?? 'text'),
+                  required: Boolean(sub.required),
+                  options: subChoices as Array<{ value: string; label: string }> | undefined,
+                  placeholder: typeof sub.placeholder === 'string' ? sub.placeholder : undefined,
+                  help_text: typeof sub.help_text === 'string' ? sub.help_text : undefined,
+                  ui: subWidget ? { widget: subWidget } : undefined,
+                };
+              })
+              .filter((sf) => Boolean(sf.key))
+          : undefined;
+
+        const add_button_label =
+          isInlineArray && ui && typeof (ui as Record<string, unknown>).add_button_label === 'string'
+            ? String((ui as Record<string, unknown>).add_button_label)
+            : undefined;
+
+        const item_label =
+          isInlineArray && ui && typeof (ui as Record<string, unknown>).item_label === 'string'
+            ? String((ui as Record<string, unknown>).item_label)
+            : undefined;
+
+        return {
+          key: f.key,
+          label: f.label || f.key,
+          type: isInlineArray ? 'inline_form_array' : f.choices?.length ? 'select' : String(f.type ?? 'text'),
+          required: Boolean(f.required),
+          options,
+          placeholder: f.placeholder || undefined,
+          help_text: f.help_text,
+          ui: widget ? { widget } : undefined,
+          item_fields,
+          add_button_label,
+          item_label,
+        };
+      });
 
     if (!preferredKeys.length) return raw;
 

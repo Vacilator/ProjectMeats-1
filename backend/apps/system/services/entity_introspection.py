@@ -27,6 +27,12 @@ ENTITY_ID_ALIASES = {
     'invoices': 'invoices.invoice',
     'claim': 'invoices.claim',
     'claims': 'invoices.claim',
+
+    # Hierarchy v1: Parents
+    'plant': 'plants.plant',
+    'plants': 'plants.plant',
+    'location': 'locations.location',
+    'locations': 'locations.location',
 }
 
 
