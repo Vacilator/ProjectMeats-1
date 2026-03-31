@@ -72,6 +72,9 @@ def build_swarm_system_prompt(
         "(5) Only after confirmation, call create_entity. "
         "\n\nWORKFORM ORCHESTRATION (PREFERRED FOR MULTI-STEP FLOWS): "
         "If the user asks to run a multi-step business process (e.g., supplier onboarding), prefer trigger_workform(workflow_id, initial_data) over creating records one-by-one. "
+        "\n\nEXTERNAL COMMS BROKER (DRAFT-ONLY): "
+        "If the user wants to contact a supplier/customer (invoice mismatch, PO discrepancy, booking change), propose drafting an email. "
+        "Use draft_vendor_email(vendor_id, context[, vendor_type]) to store a Draft and return the subject/body for human approval. "
     )
 
     if lessons_block:
