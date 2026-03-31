@@ -9,7 +9,6 @@ import { apiService, Customer, apiClient } from '../services/apiService';
 import { PhoneInput, Select } from '../components/ui';
 import { MultiSelect } from '../components/Shared';
 import EntityFormSurface from '../components/Shared/EntityFormSurface';
-import { US_STATES } from '../utils/constants/states';
 import { CONTACT_DEPARTMENT_CHOICES, PROTEIN_TYPE_CHOICES } from '../utils/constants/choices';
 
 interface CustomerLocation {
@@ -89,18 +88,6 @@ const Customers: React.FC = () => {
   });
 
   const [showLocationModal, setShowLocationModal] = useState(false);
-  const [locationForm, setLocationForm] = useState({
-    name: '',
-    location_type: 'warehouse',
-    address: '',
-    city: '',
-    state: '',
-    zip_code: '',
-    country: 'USA',
-    contact_name: '',
-    email: '',
-    phone: '',
-  });
   const [locationProductIds, setLocationProductIds] = useState<string[]>([]);
 
   const [productPanel, setProductPanel] = useState<'history' | 'preferences'>('history');
@@ -256,61 +243,16 @@ const Customers: React.FC = () => {
 
   const openCreateLocation = () => {
     if (!selectedCustomerId) return;
-    setLocationForm({
-      name: '',
-      location_type: 'warehouse',
-      address: '',
-      city: '',
-      state: '',
-      zip_code: '',
-      country: 'USA',
-      contact_name: '',
-      email: '',
-      phone: '',
-    });
     setLocationProductIds([]);
     setShowLocationModal(true);
   };
 
-  const submitLocation = async () => {
-    if (!selectedCustomerId) return;
+  const assignLocationProducts = async (locationId: number, productIds: string[]) => {
+    if (!productIds.length) return;
 
-    if (!locationForm.name.trim()) {
-      alert('Location name is required');
-      return;
-    }
-
-    try {
-      const resp = await apiClient.post('locations/', {
-        customer: selectedCustomerId,
-        name: locationForm.name.trim(),
-        location_type: locationForm.location_type,
-        address: locationForm.address,
-        city: locationForm.city,
-        state: locationForm.state,
-        zip_code: locationForm.zip_code,
-        country: locationForm.country,
-        contact_name: locationForm.contact_name,
-        email: locationForm.email,
-        phone: locationForm.phone,
-      });
-
-      const createdLocationId = resp?.data?.id as number | undefined;
-      if (createdLocationId && locationProductIds.length) {
-        await Promise.allSettled(
-          locationProductIds.map((productId) =>
-            apiClient.post(`/locations/${createdLocationId}/available-products/`, { product: productId })
-          )
-        );
-      }
-
-      setShowLocationModal(false);
-      setLocationProductIds([]);
-      await loadCustomerLocations(selectedCustomerId);
-    } catch (error) {
-      console.error('[Customers] Failed to create location:', error);
-      alert('Failed to create location');
-    }
+    await Promise.allSettled(
+      productIds.map((productId) => apiClient.post(`/locations/${locationId}/available-products/`, { product: productId }))
+    );
   };
 
   const openCreateLocationContact = () => {
@@ -488,146 +430,60 @@ const Customers: React.FC = () => {
         />
       )}
 
-      {showLocationModal && (
+      {showLocationModal && selectedCustomerId && (
         <FormOverlay>
-          <FormContainer $theme={theme}>
+          <FormContainer $theme={theme} data-testid="location-create-modal">
             <FormHeader $theme={theme}>
               <FormTitle $theme={theme}>Add New Location</FormTitle>
               <CloseButton $theme={theme} onClick={() => setShowLocationModal(false)}>×</CloseButton>
             </FormHeader>
 
-            <Form onSubmit={(e) => { e.preventDefault(); void submitLocation(); }}>
-              <FormGrid>
-                <FormGroup>
-                  <Label $theme={theme}>Location Name *</Label>
-                  <Input
-                    $theme={theme}
-                    type="text"
-                    value={locationForm.name}
-                    onChange={(e) => setLocationForm((p) => ({ ...p, name: e.target.value }))}
-                    required
-                  />
-                </FormGroup>
+            <FormGrid>
+              <FormGroup $fullWidth>
+                <MultiSelect
+                  value={locationProductIds}
+                  onChange={(values) => setLocationProductIds(values.map(String))}
+                  options={products.map((p) => ({
+                    value: String(p.id),
+                    label: `${p.product_code}${p.name ? ' - ' + p.name : ''}`,
+                  }))}
+                  label="Location Products List"
+                  placeholder="(Optional) Select products this location handles"
+                />
+              </FormGroup>
+            </FormGrid>
 
-                <FormGroup>
-                  <Label $theme={theme}>Type</Label>
-                  <Select
-                    value={locationForm.location_type}
-                    onChange={(value) => setLocationForm((p) => ({ ...p, location_type: value }))}
-                    options={[
-                      { value: 'warehouse', label: 'Warehouse' },
-                      { value: 'store', label: 'Store' },
-                      { value: 'distribution_center', label: 'Distribution Center' },
-                      { value: 'office', label: 'Office' },
-                      { value: 'other', label: 'Other' },
-                    ]}
-                    placeholder="Select type"
-                    aria-label="Location type"
-                  />
-                </FormGroup>
+            <EntityFormSurface
+              entityType="location"
+              mode="create"
+              variant="inline"
+              isOpen={showLocationModal}
+              onClose={() => setShowLocationModal(false)}
+              context={{ customerId: selectedCustomerId }}
+              initialValues={{
+                location_type: 'warehouse',
+                country: 'USA',
+              }}
+              onSuccess={(created) => {
+                const createdId = Number((created as { id?: unknown } | null)?.id);
+                const productIds = [...locationProductIds];
 
-                <FormGroup $fullWidth>
-                  <Label $theme={theme}>Address</Label>
-                  <Input
-                    $theme={theme}
-                    type="text"
-                    value={locationForm.address}
-                    onChange={(e) => setLocationForm((p) => ({ ...p, address: e.target.value }))}
-                  />
-                </FormGroup>
+                void (async () => {
+                  if (Number.isFinite(createdId) && createdId > 0) {
+                    try {
+                      await assignLocationProducts(createdId, productIds);
+                    } catch (error) {
+                      console.error('[Customers] Failed to assign location products:', error);
+                      alert('Location created, but failed to assign products.');
+                    }
+                  }
 
-                <FormGroup>
-                  <Label $theme={theme}>City</Label>
-                  <Input
-                    $theme={theme}
-                    type="text"
-                    value={locationForm.city}
-                    onChange={(e) => setLocationForm((p) => ({ ...p, city: e.target.value }))}
-                  />
-                </FormGroup>
-
-                <FormGroup>
-                  <Label $theme={theme}>State</Label>
-                  <Select
-                    value={locationForm.state}
-                    onChange={(value) => setLocationForm((p) => ({ ...p, state: value }))}
-                    options={US_STATES}
-                    placeholder="Select state"
-                    aria-label="State"
-                  />
-                </FormGroup>
-
-                <FormGroup>
-                  <Label $theme={theme}>ZIP Code</Label>
-                  <Input
-                    $theme={theme}
-                    type="text"
-                    value={locationForm.zip_code}
-                    onChange={(e) => setLocationForm((p) => ({ ...p, zip_code: e.target.value }))}
-                  />
-                </FormGroup>
-
-                <FormGroup>
-                  <Label $theme={theme}>Country</Label>
-                  <Input
-                    $theme={theme}
-                    type="text"
-                    value={locationForm.country}
-                    onChange={(e) => setLocationForm((p) => ({ ...p, country: e.target.value }))}
-                  />
-                </FormGroup>
-
-                <FormGroup>
-                  <Label $theme={theme}>Contact Name</Label>
-                  <Input
-                    $theme={theme}
-                    type="text"
-                    value={locationForm.contact_name}
-                    onChange={(e) => setLocationForm((p) => ({ ...p, contact_name: e.target.value }))}
-                  />
-                </FormGroup>
-
-                <FormGroup>
-                  <Label $theme={theme}>Contact Email</Label>
-                  <Input
-                    $theme={theme}
-                    type="email"
-                    value={locationForm.email}
-                    onChange={(e) => setLocationForm((p) => ({ ...p, email: e.target.value }))}
-                  />
-                </FormGroup>
-
-                <FormGroup>
-                  <Label $theme={theme}>Contact Phone</Label>
-                  <PhoneInput
-                    value={locationForm.phone}
-                    onChange={(value) => setLocationForm((p) => ({ ...p, phone: value }))}
-                    placeholder="(XXX)XXX-XXXX"
-                    aria-label="Location phone"
-                  />
-                </FormGroup>
-
-                <FormGroup $fullWidth>
-                  <MultiSelect
-                    value={locationProductIds}
-                    onChange={(values) => setLocationProductIds(values.map(String))}
-                    options={products.map((p) => ({
-                      value: String(p.id),
-                      label: `${p.product_code}${p.name ? ' - ' + p.name : ''}`
-                    }))}
-                    label="Location Products List"
-                    placeholder="Select products this location handles"
-                  />
-                </FormGroup>
-              </FormGrid>
-
-              <FormActions>
-                <CancelButton type="button" onClick={() => setShowLocationModal(false)}>
-                  Cancel
-                </CancelButton>
-                <SubmitButton type="submit">Create Location</SubmitButton>
-              </FormActions>
-            </Form>
+                  setShowLocationModal(false);
+                  setLocationProductIds([]);
+                  await loadCustomerLocations(selectedCustomerId);
+                })();
+              }}
+            />
           </FormContainer>
         </FormOverlay>
       )}

@@ -12,10 +12,9 @@
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { Table, Input, Button, Modal, Form, Select, message, Tag, Space } from 'antd';
+import { Table, Input, Button, message, Tag, Space } from 'antd';
 import { confirmDialog } from '@/utils/uiDialogs';
-import { CountrySelect } from '../../components/ui';
-import { US_STATES } from '../../utils/constants/states';
+import EntityFormSurface from '../../components/Shared/EntityFormSurface';
 import type { ColumnsType } from 'antd/es/table';
 import { SearchOutlined, PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import { apiClient } from '../../services/apiService';
@@ -48,9 +47,6 @@ interface Customer {
   name: string;
 }
 
-interface FormErrors {
-  [key: string]: string[];
-}
 
 // ============================================================================
 // Styled Components (Theme-Compliant)
@@ -185,7 +181,6 @@ const CustomerLocations: React.FC = () => {
   const navigate = useNavigate();
   const { customerId } = useParams<{ customerId?: string }>();
   const [searchParams] = useSearchParams();
-  const [form] = Form.useForm();
   
   // State
   const [locations, setLocations] = useState<Location[]>([]);
@@ -196,7 +191,6 @@ const CustomerLocations: React.FC = () => {
   const [editingLocation, setEditingLocation] = useState<Location | null>(null);
   const [contextCustomerId, setContextCustomerId] = useState<number | null>(null);
   const [searchText, setSearchText] = useState('');
-  const [formErrors, setFormErrors] = useState<FormErrors>({});
 
   // Detect context from URL (preferred) or navigation state (fallback)
   useEffect(() => {
@@ -288,37 +282,11 @@ const CustomerLocations: React.FC = () => {
 
   const handleAdd = () => {
     setEditingLocation(null);
-    setFormErrors({});
-    form.resetFields();
-
-    form.setFieldsValue({ phone_type: 'office', country: 'USA' });
-    
-    // Pre-fill customer if context exists
-    if (contextCustomerId) {
-      form.setFieldsValue({ customer: contextCustomerId });
-    }
-    
     setShowModal(true);
   };
 
   const handleEdit = (loc: Location) => {
     setEditingLocation(loc);
-    setFormErrors({});
-    form.setFieldsValue({
-      name: loc.name,
-      code: loc.code || '',
-      customer: loc.customer,
-      location_type: loc.location_type || 'warehouse',
-      address: loc.address || '',
-      city: loc.city || '',
-      state: loc.state || '',
-      zip_code: loc.zip_code || '',
-      country: loc.country || 'USA',
-      phone_type: loc.phone_type || 'office',
-      phone: loc.phone || '',
-      email: loc.email || '',
-      contact_name: loc.contact_name || '',
-    });
     setShowModal(true);
   };
 
@@ -343,32 +311,7 @@ const CustomerLocations: React.FC = () => {
     }
   };
 
-  const handleSubmit = async () => {
-    try {
-      const values = await form.validateFields();
-      setFormErrors({});
-      
-      if (editingLocation) {
-        await apiClient.patch(`locations/${editingLocation.id}/`, values);
-        message.success('Location updated successfully');
-      } else {
-        await apiClient.post('locations/', values);
-        message.success('Location created successfully');
-      }
-      
-      setShowModal(false);
-      loadLocations(contextCustomerId);
-    } catch (error: any) {
-      if (error.response?.status === 400) {
-        setFormErrors(error.response.data);
-      } else if (error.errorFields) {
-        // Ant Design form validation errors
-        return;
-      } else {
-        message.error('Failed to save location');
-      }
-    }
-  };
+
 
   const handleCustomerClick = (customerId: number) => {
     navigate(`/customers/${customerId}`);
@@ -528,124 +471,28 @@ const CustomerLocations: React.FC = () => {
         scroll={{ x: 'max-content' }}
       />
 
-      {/* Form Modal */}
-      <Modal
-        title={editingLocation ? 'Edit Location' : 'Add New Location'}
-        open={showModal}
-        onOk={handleSubmit}
-        onCancel={() => setShowModal(false)}
-        width={700}
-        okText={editingLocation ? 'Update' : 'Create'}
-      >
-        <Form form={form} layout="vertical">
-          <Form.Item
-            name="name"
-            label={<Label>Name<RequiredMark>*</RequiredMark></Label>}
-            rules={[{ required: true, message: 'Location name is required' }]}
-            validateStatus={formErrors.name ? 'error' : ''}
-            help={formErrors.name && <ErrorMessage>⚠ {formErrors.name[0]}</ErrorMessage>}
-          >
-            <Input placeholder="Location Name" />
-          </Form.Item>
-
-          <Form.Item
-            name="code"
-            label={<Label>Code</Label>}
-            validateStatus={formErrors.code ? 'error' : ''}
-            help={formErrors.code && <ErrorMessage>⚠ {formErrors.code[0]}</ErrorMessage>}
-          >
-            <Input placeholder="Location Code (optional)" />
-          </Form.Item>
-
-          <Form.Item
-            name="customer"
-            label={<Label>Customer</Label>}
-            validateStatus={formErrors.customer ? 'error' : ''}
-            help={formErrors.customer && <ErrorMessage>⚠ {formErrors.customer[0]}</ErrorMessage>}
-          >
-            <Select
-              placeholder="Select Customer"
-              disabled={!!contextCustomerId}
-              allowClear
-              showSearch
-              filterOption={(input, option) =>
-                (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
-              }
-              options={customers.map(c => ({ label: c.name, value: c.id }))}
-            />
-          </Form.Item>
-
-          <Form.Item
-            name="location_type"
-            label={<Label>Location Type</Label>}
-          >
-            <Select placeholder="Select Type">
-              <Select.Option value="warehouse">Warehouse</Select.Option>
-              <Select.Option value="store">Store</Select.Option>
-              <Select.Option value="distribution_center">Distribution Center</Select.Option>
-              <Select.Option value="office">Office</Select.Option>
-            </Select>
-          </Form.Item>
-
-          <Form.Item name="address" label={<Label>Address</Label>}>
-            <Input placeholder="Street Address" />
-          </Form.Item>
-
-          <Form.Item name="city" label={<Label>City</Label>}>
-            <Input placeholder="City" />
-          </Form.Item>
-
-          <Form.Item name="state" label={<Label>State</Label>}>
-            <Select
-              placeholder="Search state"
-              allowClear
-              showSearch
-              optionFilterProp="label"
-              options={US_STATES}
-              filterOption={(input, option) =>
-                String(option?.label || '').toLowerCase().includes(input.toLowerCase())
-                || String(option?.value || '').toLowerCase().includes(input.toLowerCase())
-              }
-            />
-          </Form.Item>
-
-          <Form.Item
-            name="zip_code"
-            label={<Label>ZIP Code</Label>}
-            rules={[{ pattern: /^\d{5}$/, message: 'ZIP Code must be exactly 5 digits' }]}
-            getValueFromEvent={(e) => String(e?.target?.value ?? '').replace(/\D/g, '').slice(0, 5)}
-          >
-            <Input placeholder="12345" maxLength={5} inputMode="numeric" />
-          </Form.Item>
-
-          <Form.Item name="country" label={<Label>Country</Label>}>
-            <CountrySelect placeholder="Search country" aria-label="Country" />
-          </Form.Item>
-
-          <Form.Item name="phone_type" label={<Label>Phone Type</Label>}>
-            <Select placeholder="Select type">
-              <Select.Option value="office">Office</Select.Option>
-              <Select.Option value="mobile">Mobile</Select.Option>
-            </Select>
-          </Form.Item>
-
-          <Form.Item name="phone" label={<Label>Phone</Label>}>
-            <Input placeholder="Phone Number" />
-          </Form.Item>
-
-          <Form.Item
-            name="email"
-            label={<Label>Email</Label>}
-            rules={[{ type: 'email', message: 'Please enter a valid email address' }]}
-          >
-            <Input type="email" placeholder="Email Address" />
-          </Form.Item>
-
-          <Form.Item name="contact_name" label={<Label>Contact Name</Label>}>
-            <Input placeholder="Primary Contact Name" />
-          </Form.Item>
-        </Form>
-      </Modal>
+      {showModal && (
+        <EntityFormSurface
+          entityType="location"
+          mode={editingLocation ? 'edit' : 'create'}
+          entityId={editingLocation?.id}
+          isOpen={showModal}
+          onClose={() => {
+            setShowModal(false);
+            setEditingLocation(null);
+          }}
+          initialValues={{
+            ...(contextCustomerId ? { customer: String(contextCustomerId) } : {}),
+            location_type: 'warehouse',
+            country: 'USA',
+          }}
+          onSuccess={() => {
+            setShowModal(false);
+            setEditingLocation(null);
+            void loadLocations(contextCustomerId);
+          }}
+        />
+      )}
     </PageContainer>
   );
 };
