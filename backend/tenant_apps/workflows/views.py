@@ -19,6 +19,8 @@ from rest_framework.permissions import IsAdminUser, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from drf_spectacular.utils import OpenApiTypes, extend_schema
+
 logger = logging.getLogger(__name__)
 
 from .models import (
@@ -50,6 +52,11 @@ from .permissions import (
     WorkFormPermissionHelper,
 )
 from .serializers import (
+    EntityOptionsResponseSerializer,
+    QuickCreateCreateResponseSerializer,
+    QuickCreateFieldsResponseSerializer,
+    SmartFieldMatchRequestSerializer,
+    SmartFieldMatchResponseSerializer,
     TenantFormCreateSerializer,
     TenantFormEntitySerializer,
     TenantFormFieldSerializer,
@@ -381,6 +388,7 @@ class FormStepDetailAPIView(APIView):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
+@extend_schema(tags=["Workflows", "Admin"])
 class SmartFieldMatchAPIView(APIView):
     """
     API endpoint for smart field matching suggestions.
@@ -389,6 +397,10 @@ class SmartFieldMatchAPIView(APIView):
 
     permission_classes = [IsAdminUser]
 
+    @extend_schema(
+        request=SmartFieldMatchRequestSerializer,
+        responses={200: SmartFieldMatchResponseSerializer},
+    )
     def post(self, request):
         """
         Find matching fields for auto-population.
@@ -1909,11 +1921,14 @@ class WorkflowExecutionLogViewSet(viewsets.ReadOnlyModelViewSet):
 
 from .serializers import (
     AvailableFormSerializer,
+    AvailableQuickActionTargetSerializer,
     FormStepSubmissionSerializer,
     FormSubmissionAutoSaveSerializer,
     FormSubmissionCreateSerializer,
     FormSubmissionDetailSerializer,
     FormSubmissionListSerializer,
+    QuickActionsGetResponseSerializer,
+    QuickActionsPutResponseSerializer,
     QuickActionsSerializer,
 )
 
@@ -2456,6 +2471,7 @@ class FormSubmissionViewSet(viewsets.ModelViewSet):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
+@extend_schema(tags=["Workflows", "Quick Actions"])
 class AvailableFormsViewSet(viewsets.ReadOnlyModelViewSet):
     """List Quick Actions targets.
 
@@ -2478,6 +2494,7 @@ class AvailableFormsViewSet(viewsets.ReadOnlyModelViewSet):
 
         return queryset.prefetch_related('entities').order_by('name')
 
+    @extend_schema(responses={200: AvailableQuickActionTargetSerializer(many=True)})
     def list(self, request, *args, **kwargs):
         from apps.system.models.tenant_workform import TenantWorkForm, WorkFormStatusChoices
 
@@ -2515,6 +2532,7 @@ class AvailableFormsViewSet(viewsets.ReadOnlyModelViewSet):
         return Response(combined)
 
 
+@extend_schema(tags=["Workflows", "Quick Actions"])
 class QuickActionsAPIView(APIView):
     """
     API endpoint for managing user's quick actions.
@@ -2525,6 +2543,7 @@ class QuickActionsAPIView(APIView):
 
     permission_classes = [IsAuthenticated]
 
+    @extend_schema(responses={200: QuickActionsGetResponseSerializer})
     def get(self, request):
         """Get user's quick actions from preferences."""
         try:
@@ -2535,6 +2554,10 @@ class QuickActionsAPIView(APIView):
 
         return Response({"items": quick_actions})
 
+    @extend_schema(
+        request=QuickActionsSerializer,
+        responses={200: QuickActionsPutResponseSerializer},
+    )
     def put(self, request):
         """Update user's quick actions."""
         try:
@@ -2636,12 +2659,16 @@ class QuickActionsAPIView(APIView):
 
             return Response({"success": True, "items": serializable_items})
         except Exception as e:
+            from apps.core.utils.logging import capture_exception
+
+            capture_exception(e, request=request, extra={"endpoint": "workflows/quick-actions"})
             logger.exception(f"Error updating quick actions: {e}")
             return Response(
                 {"error": f"Failed to update quick actions: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
 
+@extend_schema(tags=["Workflows", "Entities"])
 class EntityOptionsAPIView(APIView):
     """
     API endpoint for getting entity options for select fields.
@@ -2654,6 +2681,7 @@ class EntityOptionsAPIView(APIView):
 
     permission_classes = [IsAuthenticated]
 
+    @extend_schema(responses={200: EntityOptionsResponseSerializer})
     def get(self, request, entity_type):
         """Get options for an entity type."""
         from django.db.models import Q
@@ -2757,6 +2785,7 @@ class EntityOptionsAPIView(APIView):
             )
 
 
+@extend_schema(tags=["Workflows", "Entities"])
 class QuickCreateEntityAPIView(APIView):
     """
     API endpoint for quick-creating entity records from within forms.
@@ -2767,6 +2796,7 @@ class QuickCreateEntityAPIView(APIView):
 
     permission_classes = [IsAuthenticated]
 
+    @extend_schema(responses={200: QuickCreateFieldsResponseSerializer})
     def get(self, request, entity_type):
         """Get the required fields for quick-creating an entity."""
         from .services.field_registry import FieldRegistry
@@ -2935,6 +2965,10 @@ class QuickCreateEntityAPIView(APIView):
             }
         )
 
+    @extend_schema(
+        request=OpenApiTypes.OBJECT,
+        responses={201: QuickCreateCreateResponseSerializer},
+    )
     def post(self, request, entity_type):
         """Quick-create an entity record."""
         from .services.field_registry import FieldRegistry
@@ -3060,6 +3094,9 @@ class QuickCreateEntityAPIView(APIView):
             )
 
         except Exception as e:
+            from apps.core.utils.logging import capture_exception
+
+            capture_exception(e, request=request, extra={"endpoint": "workflows/quick-create", "entity_type": entity_type})
             logger.exception(f"Error quick-creating entity: {e}")
             return Response({"error": f"Failed to create {entity_type}: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -3594,6 +3631,7 @@ class UserNotificationPreferencesView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
+@extend_schema(tags=["Workflows", "Action Items"], responses={200: ActionItemSerializer(many=True)})
 class ActionItemsAPIView(APIView):
     """
     API endpoint for action items (tasks assigned to user).
@@ -3718,6 +3756,7 @@ class ActionItemsAPIView(APIView):
             return Response([], status=status.HTTP_200_OK)
 
 
+@extend_schema(tags=["Workflows", "Action Items"])
 class ActionItemCountsAPIView(APIView):
     """
     API endpoint for action item counts.
@@ -3727,6 +3766,7 @@ class ActionItemCountsAPIView(APIView):
 
     permission_classes = [IsAuthenticated]
 
+    @extend_schema(responses={200: ActionItemCountsSerializer})
     def get(self, request):
         """Get counts of action items for current user."""
         from collections import defaultdict

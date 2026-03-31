@@ -11,6 +11,8 @@ from rest_framework.exceptions import ValidationError
 from rest_framework.views import APIView
 from rest_framework.exceptions import PermissionDenied
 
+from drf_spectacular.utils import OpenApiTypes, PolymorphicProxySerializer, extend_schema
+
 from django.conf import settings
 from django.db.models import Q
 from django.db import IntegrityError
@@ -26,6 +28,8 @@ from .serializers import (
     ActivityLogUpdateSerializer,
     ScheduledCallSerializer,
     UserWorkspaceLayoutSerializer,
+    WorkspaceLayoutPayloadSerializer,
+    EntityAIOverviewResponseSerializer,
 )
 from .models import ActivityLog, ScheduledCall, UserWorkspaceLayout
 from tenant_apps.customers.models import Customer
@@ -35,6 +39,7 @@ from tenant_apps.suppliers.models import Supplier
 from tenant_apps.purchase_orders.models import PurchaseOrder
 
 
+@extend_schema(tags=["Cockpit", "AI"])
 class EntityAIOverviewView(APIView):
     """AI overview for a Cockpit entity.
 
@@ -44,6 +49,7 @@ class EntityAIOverviewView(APIView):
 
     permission_classes = [IsAuthenticated]
 
+    @extend_schema(responses={200: EntityAIOverviewResponseSerializer})
     def get(self, request, entity_type: str, entity_id: str):
         tenant = getattr(request, 'tenant', None) or getattr(request.user, 'current_tenant', None)
         if not tenant:
@@ -190,6 +196,17 @@ class EntityAIOverviewView(APIView):
         return Response({'summary': ai_response_text, 'status': 'success'})
 
 
+@extend_schema(
+    tags=["Cockpit", "Search"],
+    responses={
+        200: PolymorphicProxySerializer(
+            component_name="CockpitSlot",
+            serializers=[CustomerSlotSerializer, SupplierSlotSerializer, OrderSlotSerializer],
+            resource_type_field_name="type",
+            many=True,
+        )
+    },
+)
 class CockpitSlotViewSet(viewsets.ReadOnlyModelViewSet):
     """
     Aggregated search across tenant models (Customer, Supplier, PurchaseOrder).
@@ -236,6 +253,7 @@ class CockpitSlotViewSet(viewsets.ReadOnlyModelViewSet):
         return Response(results)
 
 
+@extend_schema(tags=["Cockpit", "Activity"])
 class ActivityLogViewSet(viewsets.ModelViewSet):
     """
     ViewSet for Activity Logs with strict tenant isolation.
@@ -309,6 +327,7 @@ class ActivityLogViewSet(viewsets.ModelViewSet):
         instance.delete()
 
 
+@extend_schema(tags=["Cockpit", "Calls"])
 class ScheduledCallViewSet(viewsets.ModelViewSet):
     """
     ViewSet for Scheduled Calls with strict tenant isolation.
@@ -391,6 +410,9 @@ class ScheduledCallViewSet(viewsets.ModelViewSet):
         except ValidationError:
             raise
         except Exception as e:
+            from apps.core.utils.logging import capture_exception
+
+            capture_exception(e, request=self.request, extra={"endpoint": "cockpit/scheduled-calls", "action": "create"})
             logger.error(f'Error creating call: {str(e)}', exc_info=True)
             raise ValidationError({
                 'error': 'Failed to schedule call',
@@ -433,6 +455,9 @@ class ScheduledCallViewSet(viewsets.ModelViewSet):
         except ValidationError:
             raise
         except Exception as e:
+            from apps.core.utils.logging import capture_exception
+
+            capture_exception(e, request=self.request, extra={"endpoint": "cockpit/scheduled-calls", "action": "update"})
             logger.error(f'Error updating call: {str(e)}', exc_info=True)
             raise ValidationError({
                 'error': 'Failed to update call',
@@ -475,6 +500,7 @@ class ScheduledCallViewSet(viewsets.ModelViewSet):
         )
 
 
+@extend_schema(tags=["Cockpit"])
 class WorkspaceLayoutView(APIView):
     """
     API view for managing user workspace layouts.
@@ -484,7 +510,8 @@ class WorkspaceLayoutView(APIView):
     DELETE: Reset to default layout (deletes saved layout)
     """
     permission_classes = [IsAuthenticated]
-    
+
+    @extend_schema(responses={200: WorkspaceLayoutPayloadSerializer})
     def get(self, request):
         """
         Get the current user's workspace layout.
@@ -519,6 +546,10 @@ class WorkspaceLayoutView(APIView):
             }
             return Response(default_response, status=status.HTTP_200_OK)
     
+    @extend_schema(
+        request=WorkspaceLayoutPayloadSerializer,
+        responses={200: WorkspaceLayoutPayloadSerializer},
+    )
     def put(self, request):
         """Save or update the user's workspace layout."""
         try:
@@ -546,6 +577,9 @@ class WorkspaceLayoutView(APIView):
             return Response(serializer.data, status=status.HTTP_201_CREATED)
             
         except Exception as e:
+            from apps.core.utils.logging import capture_exception
+
+            capture_exception(e, request=request, extra={"endpoint": "cockpit/workspace-layout", "action": "put"})
             logger.error(f"Error saving workspace layout: {str(e)}", exc_info=True)
             return Response(
                 {"error": "Failed to save layout", "detail": str(e)},
@@ -568,6 +602,7 @@ class WorkspaceLayoutView(APIView):
             )
 
 
+@extend_schema(tags=["Cockpit"])
 class WorkspaceStatsView(APIView):
     """
     API view for Cockpit dashboard statistics.
@@ -582,6 +617,7 @@ class WorkspaceStatsView(APIView):
     """
     permission_classes = [IsAuthenticated]
     
+    @extend_schema(responses={200: OpenApiTypes.OBJECT})
     def get(self, request):
         """Get workspace statistics for the current user's tenant."""
         if not hasattr(request, 'tenant') or not request.tenant:
@@ -688,6 +724,9 @@ class WorkspaceStatsView(APIView):
             return Response(stats)
             
         except Exception as e:
+            from apps.core.utils.logging import capture_exception
+
+            capture_exception(e, request=request, extra={"endpoint": "cockpit/workspace-stats"})
             logger.error(f"Error fetching workspace stats: {str(e)}", exc_info=True)
             return Response(
                 {"error": "Failed to fetch stats", "detail": str(e)},

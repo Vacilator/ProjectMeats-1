@@ -16,7 +16,8 @@
  *   } = useCustomerProducts(customerId);
  */
 import { useState, useCallback, useEffect } from 'react';
-import { businessApi } from '../services/businessApi';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { businessApi } from '@/services/businessApi';
 
 // Types
 export interface Product {
@@ -70,39 +71,68 @@ export interface UseCustomerProductsReturn {
 export function useCustomerProducts(
   initialCustomerId?: string | number
 ): UseCustomerProductsReturn {
-  const [allProducts, setAllProducts] = useState<Product[]>([]);
-  const [suggestedProducts, setSuggestedProducts] = useState<Product[]>([]);
-  const [associatedProducts, setAssociatedProducts] = useState<Product[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [customerId, setCustomerId] = useState<string | number | undefined>(initialCustomerId);
-  const [customerPreferences, setCustomerPreferences] = useState<string[]>([]);
+  const queryClient = useQueryClient();
 
-  // Fetch all products
-  const fetchAllProducts = useCallback(async () => {
-    try {
+  const [customerId, setCustomerId] = useState<string | number | undefined>(initialCustomerId);
+
+  const allProductsQuery = useQuery({
+    queryKey: ['system', 'products', { is_active: true }],
+    queryFn: async () => {
       const response = await businessApi.get('system/products/', {
         params: { is_active: true, page_size: 500 },
       });
-      const data = response.data.results || response.data;
-      const products = Array.isArray(data) ? data : [];
-      setAllProducts(products);
-      return products;
-    } catch (err: any) {
-      console.error('Failed to fetch all products:', err);
-      setError(err.message || 'Failed to fetch products');
-      return [];
-    }
-  }, []);
+      const data = (response.data as { results?: Product[] } | Product[]);
+      return Array.isArray(data) ? data : data.results ?? [];
+    },
+  });
 
-  // Fetch products filtered by protein types
-  const fetchProductsByProteinTypes = useCallback(async (proteinTypes: string[]): Promise<Product[]> => {
-    if (!proteinTypes || proteinTypes.length === 0) {
-      return allProducts;
-    }
+  const customerQuery = useQuery({
+    queryKey: ['customers', customerId],
+    enabled: Boolean(customerId),
+    queryFn: async () => {
+      const response = await businessApi.get<Customer>(`customers/${customerId}/`);
+      return response.data;
+    },
+  });
 
-    try {
-      // Build query string with multiple protein parameters
+  const associatedProductsQuery = useQuery({
+    queryKey: ['customers', customerId, 'products'],
+    enabled: Boolean(customerId),
+    queryFn: async () => {
+      const response = await businessApi.get<{ results?: Product[] } | Product[]>(`customers/${customerId}/products/`);
+      const data = Array.isArray(response.data) ? response.data : response.data.results;
+      return Array.isArray(data) ? data : [];
+    },
+  });
+
+  const customerPreferences = customerQuery.data?.preferred_protein_types ?? [];
+
+  const suggestedProductsQuery = useQuery({
+    queryKey: ['system', 'products', { is_active: true, protein: customerPreferences }],
+    enabled: customerPreferences.length > 0,
+    queryFn: async () => {
+      const normalizedProteins = customerPreferences
+        .map((t) => String(t).toLowerCase().trim())
+        .filter(Boolean);
+
+      const response = await businessApi.get<{ results?: Product[] } | Product[]>('system/products/', {
+        params: {
+          is_active: true,
+          protein: normalizedProteins,
+          page_size: 500,
+        },
+      });
+      const data = Array.isArray(response.data) ? response.data : response.data.results;
+      return Array.isArray(data) ? data : [];
+    },
+  });
+
+  const fetchProductsByProteinTypes = useCallback(
+    async (proteinTypes: string[]): Promise<Product[]> => {
+      if (!proteinTypes || proteinTypes.length === 0) {
+        return allProductsQuery.data ?? [];
+      }
+
       const normalizedProteins = proteinTypes
         .map((t) => String(t).toLowerCase().trim())
         .filter(Boolean);
@@ -116,52 +146,33 @@ export function useCustomerProducts(
       });
       const data = Array.isArray(response.data) ? response.data : response.data.results;
       return Array.isArray(data) ? data : [];
-    } catch (err: any) {
-      console.error('Failed to fetch products by protein types:', err);
-      return [];
-    }
-  }, [allProducts]);
+    },
+    [allProductsQuery.data]
+  );
 
-  // Fetch customer details and associated products
   const fetchProductsForCustomer = useCallback(async (custId: string | number) => {
-    setLoading(true);
-    setError(null);
     setCustomerId(custId);
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ['customers', custId] }),
+      queryClient.invalidateQueries({ queryKey: ['customers', custId, 'products'] }),
+    ]);
+  }, [queryClient]);
 
-    try {
-      // Fetch customer details
-      const customerResponse = await businessApi.get<Customer>(`customers/${custId}/`);
-      const customer = customerResponse.data;
-      const preferences = customer.preferred_protein_types || [];
-      setCustomerPreferences(preferences);
+  const allProducts = allProductsQuery.data ?? [];
+  const associatedProducts = associatedProductsQuery.data ?? [];
+  const suggestedProducts = suggestedProductsQuery.data ?? [];
 
-      // Fetch associated products
-      const associatedResponse = await businessApi.get<{ results?: Product[] } | Product[]>(`customers/${custId}/products/`);
-      const associatedData = Array.isArray(associatedResponse.data)
-        ? associatedResponse.data
-        : associatedResponse.data.results;
-      const associated = Array.isArray(associatedData) ? associatedData : [];
-      setAssociatedProducts(associated);
+  const loading =
+    allProductsQuery.isLoading ||
+    customerQuery.isLoading ||
+    associatedProductsQuery.isLoading ||
+    suggestedProductsQuery.isLoading;
 
-      // Fetch suggested products based on preferences
-      if (preferences.length > 0) {
-        const suggested = await fetchProductsByProteinTypes(preferences);
-        setSuggestedProducts(suggested);
-      } else {
-        setSuggestedProducts([]);
-      }
-
-      // Ensure we have all products loaded
-      if (allProducts.length === 0) {
-        await fetchAllProducts();
-      }
-    } catch (err: any) {
-      console.error('Failed to fetch products for customer:', err);
-      setError(err.message || 'Failed to fetch customer products');
-    } finally {
-      setLoading(false);
-    }
-  }, [allProducts.length, fetchAllProducts, fetchProductsByProteinTypes]);
+  const error =
+    (allProductsQuery.error instanceof Error ? allProductsQuery.error.message : null) ||
+    (customerQuery.error instanceof Error ? customerQuery.error.message : null) ||
+    (associatedProductsQuery.error instanceof Error ? associatedProductsQuery.error.message : null) ||
+    (suggestedProductsQuery.error instanceof Error ? suggestedProductsQuery.error.message : null);
 
   // Search products
   const searchProducts = useCallback(async (query: string): Promise<Product[]> => {
@@ -193,19 +204,19 @@ export function useCustomerProducts(
 
   // Refresh data
   const refresh = useCallback(async () => {
-    await fetchAllProducts();
+    await queryClient.invalidateQueries({ queryKey: ['system', 'products'] });
     if (customerId) {
-      await fetchProductsForCustomer(customerId);
+      await queryClient.invalidateQueries({ queryKey: ['customers', customerId] });
+      await queryClient.invalidateQueries({ queryKey: ['customers', customerId, 'products'] });
     }
-  }, [customerId, fetchAllProducts, fetchProductsForCustomer]);
+  }, [customerId, queryClient]);
 
   // Initial load
   useEffect(() => {
-    void fetchAllProducts();
     if (initialCustomerId) {
-      void fetchProductsForCustomer(initialCustomerId);
+      setCustomerId(initialCustomerId);
     }
-  }, [fetchAllProducts, fetchProductsForCustomer, initialCustomerId]);
+  }, [initialCustomerId]);
 
   return {
     allProducts,

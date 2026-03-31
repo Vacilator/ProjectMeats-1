@@ -19,6 +19,11 @@ from datetime import timedelta
 
 logger = logging.getLogger(__name__)
 
+# Lazy-imported models used by generate_ai_template_suggestions.
+# Kept as module attributes so unit tests can patch them.
+Tenant = None
+AIConfiguration = None
+
 
 @shared_task(name='workflows.execute_scheduled_workflow')
 def execute_scheduled_workflow(workflow_id: int, tenant_id: int):
@@ -341,8 +346,6 @@ def generate_ai_template_suggestions(
             }
     """
     from django.core.cache import cache
-    from apps.tenants.models import Tenant
-    from tenant_apps.ai_assistant.models import AIConfiguration
     from tenant_apps.workflows.services.prompter import AIPrompter
 
     if template_domain not in SUPPLY_CHAIN_DOMAINS:
@@ -358,6 +361,12 @@ def generate_ai_template_suggestions(
             ),
         }
 
+    global Tenant, AIConfiguration
+    if Tenant is None:
+        from apps.tenants.models import Tenant as TenantModel
+
+        Tenant = TenantModel
+
     current_flow = current_flow or {"nodes": [], "edges": []}
     cache_key = f"ai_template_suggestions:{tenant_id}:{template_domain}"
 
@@ -372,19 +381,32 @@ def generate_ai_template_suggestions(
         cached["cached"] = True
         return cached
 
+    from apps.tenants.models import Tenant as TenantModel
+
     try:
         tenant = Tenant.objects.get(id=tenant_id)
-    except Tenant.DoesNotExist:
+    except TenantModel.DoesNotExist:
         logger.error("[Celery] Tenant %s not found", tenant_id)
         return {"success": False, "error": "Tenant not found"}
 
     prompter = AIPrompter()
 
+    if AIConfiguration is None:
+        try:
+            from tenant_apps.ai_assistant.models import AIConfiguration as AIConfigurationModel
+
+            AIConfiguration = AIConfigurationModel
+        except Exception:
+            # ai_assistant may be disabled in some test settings; treat as no-config.
+            AIConfiguration = False
+
     # --- Try OpenAI if a configuration is available ---
-    ai_config = (
-        AIConfiguration.objects.filter(tenant=tenant, is_active=True, is_default=True)
-        .first()
-    )
+    ai_config = None
+    if AIConfiguration:
+        ai_config = (
+            AIConfiguration.objects.filter(tenant=tenant, is_active=True, is_default=True)
+            .first()
+        )
 
     if ai_config:
         try:

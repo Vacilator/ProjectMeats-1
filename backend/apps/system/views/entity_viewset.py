@@ -353,11 +353,10 @@ class EntityViewSet(viewsets.ViewSet):
         if candidate_lc in self.MODEL_MAP:
             resolved_type = candidate_lc
         else:
-            import re
+            from apps.core.utils.naming import to_snake_case
 
             # CamelCase/PascalCase -> snake_case
-            snake = re.sub(r'(.)([A-Z][a-z]+)', r'\1_\2', candidate)
-            snake = re.sub(r'([a-z0-9])([A-Z])', r'\1_\2', snake).lower()
+            snake = to_snake_case(candidate)
             if snake in self.MODEL_MAP:
                 resolved_type = snake
             elif snake.endswith('s') and snake[:-1] in self.MODEL_MAP:

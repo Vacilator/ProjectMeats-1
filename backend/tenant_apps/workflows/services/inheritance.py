@@ -309,7 +309,9 @@ class FieldInheritanceService:
         module_path = entity_to_app[entity_type]
         module = __import__(module_path, fromlist=[''])
         
-        model_name = ''.join(word.capitalize() for word in entity_type.split('_'))
+        from apps.core.utils.naming import snake_to_pascal
+
+        model_name = snake_to_pascal(entity_type)
         
         if not hasattr(module, model_name):
             raise ImportError(f"Model {model_name} not found in {module_path}")
