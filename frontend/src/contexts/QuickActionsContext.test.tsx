@@ -13,10 +13,15 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QuickActionsProvider, useQuickActions } from './QuickActionsContext';
+import { getAvailableWorkForms } from '@/services/workformsApi';
 import { quickActionsService, formSubmissionService } from '../services/quickActionsService';
 import { showAlert } from '@/utils/uiDialogs';
 
 // Mock services
+vi.mock('@/services/workformsApi', () => ({
+  getAvailableWorkForms: vi.fn(),
+}));
+
 vi.mock('../services/quickActionsService', () => ({
   quickActionsService: {
     getQuickActions: vi.fn(),
@@ -105,6 +110,7 @@ describe('QuickActionsContext', () => {
     // Default mock responses
     vi.mocked(quickActionsService.getQuickActions).mockResolvedValue({ items: mockQuickActions });
     vi.mocked(quickActionsService.getAvailableForms).mockResolvedValue(mockAvailableForms);
+    vi.mocked(getAvailableWorkForms).mockResolvedValue([] as any);
     vi.mocked(quickActionsService.updateQuickActions).mockImplementation(async (items) => ({
       success: true,
       items,
@@ -152,8 +158,27 @@ describe('QuickActionsContext', () => {
       expect(screen.getByTestId('forms-count')).toHaveTextContent('2');
     });
 
+    it('should load quick actions on mount when authenticated via JWT accessToken', async () => {
+      // Token must look like a non-expired JWT for jwtService.getAccessToken() to return it
+      const exp = Math.floor(Date.now() / 1000) + 3600; // 1 hour from now
+      localStorageMock = { accessToken: `header.${btoa(JSON.stringify({ exp }))}.sig` };
+
+      render(
+        <QuickActionsProvider>
+          <TestConsumer />
+        </QuickActionsProvider>
+      );
+
+      await waitFor(() => {
+        expect(screen.getByTestId('loading')).toHaveTextContent('ready');
+      });
+
+      expect(quickActionsService.getQuickActions).toHaveBeenCalledTimes(1);
+      expect(screen.getByTestId('actions-count')).toHaveTextContent('2');
+    });
+
     it('should not load when not authenticated', async () => {
-      localStorageMock = {}; // No auth token
+      localStorageMock = {}; // No JWT or legacy token
       
       render(
         <QuickActionsProvider>

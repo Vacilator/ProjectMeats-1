@@ -6,6 +6,7 @@
  */
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { getAvailableWorkForms } from '@/services/workformsApi';
+import { getAccessToken } from '@/services/jwtService';
 import { showAlert } from '@/utils/uiDialogs';
 import {
   quickActionsService,
@@ -122,8 +123,8 @@ export const QuickActionsProvider: React.FC<QuickActionsProviderProps> = ({ chil
   }, []);
 
   useEffect(() => {
-    // Only load if user is authenticated
-    const token = localStorage.getItem('authToken');
+    // Only load if user is authenticated (JWT or legacy token)
+    const token = getAccessToken();
     if (token) {
       refreshQuickActions();
     } else {
