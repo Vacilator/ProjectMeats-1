@@ -172,11 +172,12 @@ export const initSentry = (config?: SentryConfig): void => {
 /**
  * Set user context for error tracking
  */
-export const setSentryUser = (userId: string, email?: string, tenant?: string): void => {
+export const setSentryUser = (userId: string, email?: string, tenant?: string, username?: string): void => {
   Sentry.setUser({
     id: userId,
     email,
     tenant,
+    username,
   });
 };
 
