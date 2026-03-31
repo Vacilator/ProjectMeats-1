@@ -134,6 +134,7 @@ _PROJECT_APPS = [
     "apps.system",   # NEW: Centralized configuration system (v2.0 Wave 1)
     "apps.email_integration",  # Email OAuth & webhooks (system-level)
     "apps.integrations",  # Workflow email providers + tenant OAuth token store (ExternalAuthProvider)
+    "tenant_apps.integrations.apps.TenantIntegrationsConfig",  # Tenant webhooks + API keys (unique label: tenant_integrations)
     # NOTE: apps.schema_builder DELETED in v2.0 Wave 1 (0 records, superseded by workflows)
     # NOTE: shared_apps.system_config ARCHIVED 2026-02-14 (Phase 2 cleanup, superseded by apps.system)
     # Business apps (all use tenant_id for data isolation)
