@@ -11,7 +11,9 @@ from rest_framework.test import APIRequestFactory
 from tenant_apps.plants.models import Plant
 from tenant_apps.plants.serializers import PlantSerializer
 from tenant_apps.suppliers.models import Supplier
+from tenant_apps.contacts.models import Contact
 from apps.tenants.models import Tenant, TenantUser
+from apps.core.permissions import IsRoleAuthorized
 
 
 class PlantModelTest(TestCase):
@@ -187,3 +189,44 @@ class PlantModelTest(TestCase):
         self.assertEqual(plant.phone, "555-123-4567")
         self.assertEqual(plant.manager, "John Manager")
         self.assertTrue(plant.is_active)
+
+    def test_role_authorized_plant_manager_restrictions(self):
+        unique_id = uuid.uuid4().hex[:8]
+
+        pm_user = User.objects.create_user(
+            username=f"pm-{unique_id}",
+            email=f"pm-{unique_id}@example.com",
+            password="testpass123",
+        )
+        membership = TenantUser.objects.create(tenant=self.tenant, user=pm_user, role="plant_manager")
+
+        plant_allowed = Plant.objects.create(name=f"Allowed {unique_id}", code=f"A-{unique_id}", tenant=self.tenant)
+        plant_denied = Plant.objects.create(name=f"Denied {unique_id}", code=f"D-{unique_id}", tenant=self.tenant)
+
+        membership.restricted_plants.add(plant_allowed)
+
+        contact_allowed = Contact.objects.create(
+            tenant=self.tenant,
+            first_name="A",
+            last_name="User",
+            email=f"a-{unique_id}@example.com",
+            plant=plant_allowed,
+        )
+        contact_denied = Contact.objects.create(
+            tenant=self.tenant,
+            first_name="D",
+            last_name="User",
+            email=f"d-{unique_id}@example.com",
+            plant=plant_denied,
+        )
+
+        factory = APIRequestFactory()
+        req = factory.patch('/api/v1/plants/', {})
+        req.user = pm_user
+        req.tenant = self.tenant
+
+        perm = IsRoleAuthorized()
+        self.assertTrue(perm.has_object_permission(req, None, plant_allowed))
+        self.assertFalse(perm.has_object_permission(req, None, plant_denied))
+        self.assertTrue(perm.has_object_permission(req, None, contact_allowed))
+        self.assertFalse(perm.has_object_permission(req, None, contact_denied))
