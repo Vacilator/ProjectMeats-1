@@ -101,6 +101,13 @@ This file is the **append-only PR-referenceable execution log**.
 - Frontend: DynamicFormEngine supports `inline_form_array` (react-hook-form field arrays) incl. tag inputs for responsibility lists; UniversalEntityForm honors schema `ui` metadata.
 - PR: #4227
 
+### 2026-03-31 — Frontend: hierarchy navigation + row drilldowns + product insights
+- Navigation: grouped into Supply Chain (Suppliers → Plants → Contacts) and Demand Chain (Customers → Locations → Contacts).
+- Suppliers/Customers list: row-click drilldown (expanded panel); action buttons stop propagation.
+- Cockpit Customer detail: Product Insights toggle (Purchase History vs Aggregated Preferences).
+  - Aggregated Preferences uses `aggregated_preferred_products` from Customer detail and resolves titles via `/api/v1/master-products/`.
+- PR: #4234
+
 ### 2026-03-30 — Docs: master plan gap analysis + roadmap hygiene
 - Updated `MASTER_PLAN.md` (canonical) with an industry-leader benchmark gap analysis (P0/P1/P2) and refreshed execution-ordered backlog.
 - Converted non-canonical roadmaps/plans into clearer **REFERENCE ONLY** docs (removed/neutralized misleading progress emphasis).
