@@ -86,3 +86,16 @@ Candidates for refactor/deletion (pattern-based):
 **Non-breaking strategy:**
 - Wrap old components around new primitives first, then delete internal duplication.
 
+
+
+---
+
+## Reconnaissance Update — 2026-03-31T19:15:05Z
+
+### New hardening patterns observed
+- Quick Actions now needs **fail-open** fetching (use `Promise.allSettled`) to avoid legacy endpoint outages blanking modern WorkForms.
+- Catalog should treat **WorkForms vs legacy forms** as distinct kinds (editor vs submission runner).
+
+### Consolidation targets (confirmed by scan)
+- Non-React-Query fetchers remain common on pages/components (see SYSTEM_ERRORS_2026.md update).
+- Multiple modal/table patterns still exist; continue consolidation into AntD primitives.

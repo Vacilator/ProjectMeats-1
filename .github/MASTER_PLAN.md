@@ -1485,6 +1485,14 @@ Deliverables:
 - New remediation blueprint:
   - `docs/plans/V3_5_ENTERPRISE_REFACTOR_ROADMAP.md`
 
+### 2026-03-31T19:15:05Z — V3.5 reconnaissance refresh (audits + roadmap)
+- Appended new, timestamped findings to the existing audit docs and refreshed the roadmap with P0 stability adds.
+- Updates:
+  - `docs/audits/SYSTEM_ERRORS_2026.md` (tenant enforcement suspects list refreshed; confirms global runtime error handlers exist)
+  - `docs/audits/UI_UX_DEBT_2026.md` (adds fail-open fetch + “forms vs workforms” semantics notes)
+  - `docs/audits/API_SCHEMA_DRIFT.md` (adds quick drift scan for `lbs` + drf-spectacular evidence)
+  - `docs/plans/V3_5_ENTERPRISE_REFACTOR_ROADMAP.md` (adds P0 items: fail-open fetch + route semantics + stabilize available-forms)
+
 - 2026-03-31 — Frontend: add global runtime `unhandledrejection` + `error` handlers via centralized logger/Sentry — PR: #4248.
 - 2026-03-31 — Frontend: Suppliers list fetch uses React Query (useQuery) + refetch on create/update/delete — PR: #4251.
 - 2026-03-31 — Frontend: Customers list fetch uses React Query (useQuery) + refetch on create/update/delete — PR: #4252.

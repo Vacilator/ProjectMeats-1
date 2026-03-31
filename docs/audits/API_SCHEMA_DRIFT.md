@@ -72,3 +72,40 @@ Frontend contains many string unions (various files under `frontend/src/types/`)
   - Quick Actions
   - Documents
 
+
+
+---
+
+## Reconnaissance Update — 2026-03-31T19:15:05Z
+
+### drf-spectacular config evidence
+- `backend/projectmeats/urls.py`
+- `backend/projectmeats/settings/base.py`
+
+
+### High-signal mismatch search: 'lbs'
+- Frontend files mentioning `lbs`: **7** (showing up to 10)
+- `frontend/src/workforms/templates/Meatscentral-Inquiry-Flow-Template.ts`
+- `frontend/src/pages/Processes.tsx`
+- `frontend/src/pages/PurchaseOrders.tsx`
+- `frontend/src/components/Inquiry/InquiryCreateModal.tsx`
+- `frontend/src/components/Inquiry/InquiryTemplateModal.tsx`
+- `frontend/src/components/FormSubmission/FormSubmissionModal.tsx`
+- `frontend/src/components/FlowEditor/nodes/SmartWorkFormNode.tsx`
+
+- Backend files mentioning `lbs`: **14** (showing up to 10)
+- `backend/apps/core/models.py`
+- `backend/apps/system/management/commands/seed_system_choices.py`
+- `backend/apps/tenants/utils/test_data_seeder.py`
+- `backend/apps/core/management/commands/seed_logistics_data.py`
+- `backend/apps/core/management/commands/seed_all_modules.py`
+- `backend/tenant_apps/inquiries/models.py`
+- `backend/tenant_apps/inquiries/views.py`
+- `backend/tenant_apps/purchase_orders/models.py`
+- `backend/tenant_apps/purchase_orders/tests.py`
+- `backend/tenant_apps/invoices/models.py`
+- … +4 more
+
+
+### Recommendation
+- Treat choice values as **API-contract**, not UI strings. Generate TS enums/unions from OpenAPI and map UI labels separately.
