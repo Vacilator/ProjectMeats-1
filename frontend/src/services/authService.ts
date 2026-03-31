@@ -142,7 +142,7 @@ export class AuthService {
     const normalizedUser = normalizeUserProfile(user);
     this.user = normalizedUser;
     localStorage.setItem('user', JSON.stringify(normalizedUser));
-    
+
     // Store tenant information
     if (tenants && tenants.length > 0) {
       const primaryTenant = tenants[0];
@@ -152,6 +152,47 @@ export class AuthService {
     }
 
     return normalizedUser;
+  }
+
+  /**
+   * Guest login (demo mode)
+   * Uses /api/v1/auth/guest-login/ with legacy Token authentication.
+   */
+  async guestLogin(): Promise<UserProfile> {
+    try {
+      // Ensure we don't accidentally keep JWT tokens when switching into guest mode.
+      clearTokens();
+
+      const response = await apiClient.post('/auth/guest-login/', {});
+      const { token, user, tenant, tenants } = response.data;
+
+      if (!token) {
+        throw new Error('Guest login failed: missing token');
+      }
+
+      localStorage.setItem('authToken', token);
+
+      const normalizedUser = normalizeUserProfile(user);
+      this.user = normalizedUser;
+      localStorage.setItem('user', JSON.stringify(normalizedUser));
+
+      // Guest endpoint returns a single tenant object; fallback to tenants[] if present.
+      if (tenant?.id) {
+        localStorage.setItem('tenantId', tenant.id);
+        localStorage.setItem('tenantName', tenant.name);
+        localStorage.setItem('tenantSlug', tenant.slug);
+      } else if (tenants && tenants.length > 0) {
+        const primaryTenant = tenants[0];
+        localStorage.setItem('tenantId', primaryTenant.tenant__id);
+        localStorage.setItem('tenantName', primaryTenant.tenant__name);
+        localStorage.setItem('tenantSlug', primaryTenant.tenant__slug);
+      }
+
+      return normalizedUser;
+    } catch (error: any) {
+      const serverMessage = error?.response?.data?.error || error?.response?.data?.detail;
+      throw new Error(serverMessage || 'Guest login failed');
+    }
   }
 
   async signUp(credentials: SignUpCredentials): Promise<UserProfile> {
