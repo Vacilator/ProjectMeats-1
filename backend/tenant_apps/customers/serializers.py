@@ -12,7 +12,9 @@ from tenant_apps.locations.serializers import LocationListSerializer
 
 class CustomerSerializer(serializers.ModelSerializer):
     """Serializer for Customer model."""
-    
+
+    aggregated_preferred_products = serializers.SerializerMethodField()
+
     # ArrayField serialization
     industry_array = serializers.ListField(
         child=serializers.CharField(max_length=100),
@@ -24,7 +26,7 @@ class CustomerSerializer(serializers.ModelSerializer):
         required=False,
         allow_empty=True,
     )
-    
+
     # Nested locations (via reverse FK)
     locations = LocationListSerializer(many=True, read_only=True)
 
@@ -55,6 +57,7 @@ class CustomerSerializer(serializers.ModelSerializer):
             "industry",
             "industry_array",
             "preferred_protein_types",
+            "aggregated_preferred_products",
             "contacts",
             "products",
             "will_pickup_load",
@@ -73,6 +76,28 @@ class CustomerSerializer(serializers.ModelSerializer):
             "modified_on",
         ]
         read_only_fields = ["id", "created_on", "modified_on", "locations"]
+
+    def get_aggregated_preferred_products(self, obj) -> list[int]:
+        """Return distinct master product IDs aggregated from child locations/contacts.
+
+        NOTE: This is computed from queryset annotations to avoid N+1 queries.
+        """
+
+        values: list[int] = []
+        for field in ('preferred_products_from_locations', 'preferred_products_from_contacts'):
+            raw = getattr(obj, field, None)
+            if not raw:
+                continue
+            values.extend([int(v) for v in raw if v is not None])
+
+        seen: set[int] = set()
+        out: list[int] = []
+        for v in values:
+            if v in seen:
+                continue
+            seen.add(v)
+            out.append(v)
+        return out
 
     def validate_name(self, value):
         """Validate customer name is provided and is a valid string."""

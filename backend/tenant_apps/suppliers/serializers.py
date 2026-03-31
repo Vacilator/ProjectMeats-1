@@ -12,14 +12,21 @@ from tenant_apps.locations.serializers import LocationListSerializer
 
 class SupplierSerializer(serializers.ModelSerializer):
     """Serializer for Supplier model."""
-    
+
+    products_available = serializers.ListField(
+        child=serializers.IntegerField(),
+        read_only=True,
+        required=False,
+        help_text='Distinct master product IDs aggregated from child plants.',
+    )
+
     # ArrayField serialization
     departments_array = serializers.ListField(
         child=serializers.CharField(max_length=50),
         required=False,
         allow_empty=True,
     )
-    
+
     # Nested locations (via reverse FK)
     locations = LocationListSerializer(many=True, read_only=True)
 
@@ -68,6 +75,7 @@ class SupplierSerializer(serializers.ModelSerializer):
             "accounting_line_of_credit",
             "credit_app_sent",
             "credit_app_set_up",
+            "products_available",
             "created_on",
             "modified_on",
         ]

@@ -132,6 +132,38 @@ class Contact(TenantAwareModel):
         help_text='Items this contact is responsible for (Sales only)',
     )
 
+    # =====================================================================
+    # Additive M2M responsibilities/preferences (requested for rollups)
+    # =====================================================================
+    proteins_responsible = models.ManyToManyField(
+        'core.Protein',
+        through='ContactProteinResponsibility',
+        related_name='contacts_responsible',
+        blank=True,
+        help_text='Proteins this contact is responsible for (department-dependent)',
+    )
+    products_responsible = models.ManyToManyField(
+        'products.MasterProduct',
+        through='ContactMasterProductResponsibility',
+        related_name='contacts_responsible',
+        blank=True,
+        help_text='Master products this contact is responsible for (department-dependent)',
+    )
+    preferred_protein_types = models.ManyToManyField(
+        'core.Protein',
+        through='ContactPreferredProtein',
+        related_name='preferred_by_contacts',
+        blank=True,
+        help_text='Preferred proteins (used for aggregated customer preferences)',
+    )
+    preferred_products = models.ManyToManyField(
+        'products.MasterProduct',
+        through='ContactPreferredMasterProduct',
+        related_name='preferred_by_contacts',
+        blank=True,
+        help_text='Preferred master products (used for aggregated customer preferences)',
+    )
+
     # Enhanced fields from Excel requirements (legacy; kept for backward compatibility)
     contact_type = models.CharField(
         max_length=50,
@@ -183,3 +215,87 @@ class Contact(TenantAwareModel):
 
     def __str__(self):
         return f"{self.first_name} {self.last_name}"
+
+
+class ContactProteinResponsibility(TenantAwareModel):
+    """Tenant-safe link for Contact ↔ core.Protein responsibilities."""
+
+    contact = models.ForeignKey(Contact, on_delete=models.CASCADE, related_name='protein_responsibility_links')
+    protein = models.ForeignKey('core.Protein', on_delete=models.CASCADE, related_name='contact_responsibility_links')
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=['tenant', 'contact', 'protein'],
+                name='unique_contact_protein_responsibility_per_tenant',
+            )
+        ]
+        indexes = [
+            models.Index(fields=['tenant', 'contact']),
+            models.Index(fields=['tenant', 'protein']),
+        ]
+
+
+class ContactMasterProductResponsibility(TenantAwareModel):
+    """Tenant-safe link for Contact ↔ products.MasterProduct responsibilities."""
+
+    contact = models.ForeignKey(Contact, on_delete=models.CASCADE, related_name='master_product_responsibility_links')
+    master_product = models.ForeignKey(
+        'products.MasterProduct',
+        on_delete=models.CASCADE,
+        related_name='contact_responsibility_links',
+    )
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=['tenant', 'contact', 'master_product'],
+                name='unique_contact_master_product_responsibility_per_tenant',
+            )
+        ]
+        indexes = [
+            models.Index(fields=['tenant', 'contact']),
+            models.Index(fields=['tenant', 'master_product']),
+        ]
+
+
+class ContactPreferredProtein(TenantAwareModel):
+    """Tenant-safe link for Contact ↔ core.Protein preferences."""
+
+    contact = models.ForeignKey(Contact, on_delete=models.CASCADE, related_name='preferred_protein_links')
+    protein = models.ForeignKey('core.Protein', on_delete=models.CASCADE, related_name='preferred_by_contact_links')
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=['tenant', 'contact', 'protein'],
+                name='unique_contact_preferred_protein_per_tenant',
+            )
+        ]
+        indexes = [
+            models.Index(fields=['tenant', 'contact']),
+            models.Index(fields=['tenant', 'protein']),
+        ]
+
+
+class ContactPreferredMasterProduct(TenantAwareModel):
+    """Tenant-safe link for Contact ↔ products.MasterProduct preferences."""
+
+    contact = models.ForeignKey(Contact, on_delete=models.CASCADE, related_name='preferred_master_product_links')
+    master_product = models.ForeignKey(
+        'products.MasterProduct',
+        on_delete=models.CASCADE,
+        related_name='preferred_by_contact_links',
+    )
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=['tenant', 'contact', 'master_product'],
+                name='unique_contact_preferred_master_product_per_tenant',
+            )
+        ]
+        indexes = [
+            models.Index(fields=['tenant', 'contact']),
+            models.Index(fields=['tenant', 'master_product']),
+        ]

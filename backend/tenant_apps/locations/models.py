@@ -151,6 +151,16 @@ class Location(TenantAwareModel):
         help_text='Products commonly purchased/handled at this location',
     )
 
+    # Known products (new: tenant-scoped MasterProduct)
+    associated_master_products = models.ManyToManyField(
+        'products.MasterProduct',
+        through='LocationAssociatedMasterProduct',
+        related_name='known_by_locations',
+        blank=True,
+        verbose_name='Known Master Products',
+        help_text='Master products commonly purchased/handled at this location',
+    )
+
     # =========================================================================
     # Plant-specific fields (from merged plants app)
     # These fields are only used when location_type starts with 'plant_'
@@ -255,4 +265,33 @@ class LocationAssociatedProduct(TenantAwareModel):
         indexes = [
             models.Index(fields=['tenant', 'location']),
             models.Index(fields=['tenant', 'product']),
+        ]
+
+
+class LocationAssociatedMasterProduct(TenantAwareModel):
+    """Tenant-safe link table for Location ↔ products.MasterProduct affinity."""
+
+    location = models.ForeignKey(
+        Location,
+        on_delete=models.CASCADE,
+        related_name='associated_master_product_links',
+    )
+    master_product = models.ForeignKey(
+        'products.MasterProduct',
+        on_delete=models.CASCADE,
+        related_name='location_affinity_links',
+    )
+
+    class Meta:
+        verbose_name = 'Location Known Master Product'
+        verbose_name_plural = 'Location Known Master Products'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['tenant', 'location', 'master_product'],
+                name='unique_location_master_product_affinity_per_tenant',
+            )
+        ]
+        indexes = [
+            models.Index(fields=['tenant', 'location']),
+            models.Index(fields=['tenant', 'master_product']),
         ]
