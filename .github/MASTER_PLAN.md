@@ -1443,3 +1443,4 @@ Deliverables:
 - 2026-03-31 — System Products: ranked search respects visibility (global inactive + tenant hides), tenant preference upsert + RLS, Option Lists superadmin delete — PR: #4232.
 - 2026-03-31 — Frontend: avoid Recharts ResponsiveContainer zero-size warnings — PR: #4240.
 - 2026-03-31 — Docs: refresh canonical MASTER_PLAN runtime issues snapshot (mark suggest-nodes + chart warnings resolved) — PR: #4241.
+- 2026-03-31 — Email Ingestion Monitor: show reconnect CTA when Outlook not connected (error_code=not_connected) — PR: #4243.
