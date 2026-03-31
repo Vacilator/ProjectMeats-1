@@ -1461,3 +1461,4 @@ Deliverables:
 - 2026-03-31 — Frontend: Customers list fetch uses React Query (useQuery) + refetch on create/update/delete — PR: #4252.
 - 2026-03-31 — Frontend: Contacts list fetch uses React Query (useQuery) + refetch on create/update/delete — PR: #4253.
 - 2026-03-31 — Frontend: Inquiries list fetch uses React Query (useQuery) keyed by pagination+filters — PR: #4254.
+- 2026-03-31 — Frontend: Option Lists page uses React Query for lists/products/preferences — PR: #4255.
