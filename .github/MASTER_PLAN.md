@@ -86,6 +86,11 @@ This file is the **append-only PR-referenceable execution log**.
 ### 2026-03-31 — Pending work items (not shipped)
 These items were requested/planned in-session but are **not completed yet**:
 
+- **Session handoff (from `plan.md`)**
+  - Source of truth for remaining work: this section.
+  - Current SQL todos: `plant-schema-cruft-purge` (in_progress), `universal-form-input-fixes` (pending), `hierarchical-drilldown-routing` (pending).
+  - Repo rule reminder: changes must land via PRs (direct pushes to `development` are blocked).
+
 - **Plant schema cruft purge** (`plant-schema-cruft-purge`)
   - Backend: remove `Plant.code`, `Plant.manager`, `Plant.phone`, `Plant.email`, `Plant.phone_type`.
   - Update plant type label: `Vertical (Kill to Capture)` → `Vertical (Kill to Fabrication)`.
