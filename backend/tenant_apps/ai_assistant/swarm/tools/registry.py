@@ -201,6 +201,16 @@ def create_entity(entity_type: str, payload: Dict[str, Any]) -> Dict[str, Any]:
 
 
 @registry.register
+def parse_document(file_id_or_url: str) -> Dict[str, Any]:
+    """Parse an uploaded document into text + structured elements.
+
+    Executed via the Swarm tool loop in /api/v1/ai-assistant/chat/.
+    """
+
+    return {"status": "available_via_chat", "file_id_or_url": file_id_or_url}
+
+
+@registry.register
 def create_record(entity: str, data: Dict[str, Any]) -> Dict[str, Any]:
     """Create a tenant-scoped record.
 

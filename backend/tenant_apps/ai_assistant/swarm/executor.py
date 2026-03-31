@@ -159,6 +159,21 @@ DEFAULT_OPENAI_TOOLS = [
     {
         'type': 'function',
         'function': {
+            'name': 'parse_document',
+            'description': 'Parse an uploaded AI document (by document_id) via Unstructured API and return extracted text.',
+            'parameters': {
+                'type': 'object',
+                'properties': {
+                    'file_id_or_url': {'type': 'string', 'description': 'AIDocument UUID (preferred). URL is not supported for SSRF safety.'},
+                },
+                'required': ['file_id_or_url'],
+                'additionalProperties': False,
+            },
+        },
+    },
+    {
+        'type': 'function',
+        'function': {
             'name': 'create_record',
             'description': 'Create a tenant-scoped record (limited to safe entity types). (Legacy tool; prefer create_entity.)',
             'parameters': {
@@ -238,6 +253,7 @@ class ToolExecutor:
             'get_entity_details': self._get_entity_details,
             'get_entity_schema': self._get_entity_schema,
             'create_entity': self._create_entity,
+            'parse_document': self._parse_document,
             'create_task': self._create_task,
             'ingest_feedback': self._ingest_feedback,
             'get_recent_errors': self._get_recent_errors,
@@ -674,6 +690,95 @@ class ToolExecutor:
             raise ValueError(f'Create failed for {entity_key}: {data}')
 
         return getattr(resp, 'data', {})
+
+    def _parse_document(self, arguments: Dict[str, Any], tenant: Any, user: Any = None) -> Any:
+        """Parse an uploaded AIDocument via Unstructured API.
+
+        For safety (SSRF), this tool only accepts an AIDocument UUID.
+        """
+        if not user or not getattr(user, 'is_authenticated', False):
+            raise ValueError('Authenticated user is required to parse documents')
+
+        file_id_or_url = (arguments.get('file_id_or_url') or '').strip()
+        if not file_id_or_url:
+            raise ValueError('Missing required parameter: file_id_or_url')
+
+        from uuid import UUID
+
+        try:
+            document_id = UUID(file_id_or_url)
+        except Exception as e:
+            raise ValueError('parse_document currently requires an uploaded document_id (UUID); URL fetch is disabled') from e
+
+        from django.conf import settings
+
+        base_url = (getattr(settings, 'UNSTRUCTURED_API_URL', '') or '').strip()
+        api_key = (getattr(settings, 'UNSTRUCTURED_API_KEY', '') or '').strip()
+
+        if not base_url or not api_key:
+            raise ValueError('Unstructured API is not configured (missing UNSTRUCTURED_API_URL/UNSTRUCTURED_API_KEY)')
+
+        # Default to the common hosted API path if a base host was provided.
+        endpoint = base_url.rstrip('/')
+        if '/general/' not in endpoint and not endpoint.endswith('/general/v0/general'):
+            endpoint = f"{endpoint}/general/v0/general"
+
+        from tenant_apps.ai_assistant.models import AIDocument
+
+        doc = AIDocument.objects.filter(id=document_id, tenant=tenant, owner=user).first()
+        if not doc:
+            raise ValueError('Document not found for this tenant/user')
+
+        if not doc.file:
+            raise ValueError('Document record has no file attached')
+
+        filename = doc.original_filename or 'document'
+        content_type = doc.content_type or 'application/octet-stream'
+
+        import requests
+
+        with doc.file.open('rb') as f:
+            files = {
+                'files': (filename, f.read(), content_type),
+            }
+            headers = {
+                'Authorization': f'Bearer {api_key}',
+            }
+            resp = requests.post(
+                endpoint,
+                files=files,
+                headers=headers,
+                timeout=60,
+            )
+
+        if resp.status_code >= 400:
+            raise ValueError(f'Unstructured API error {resp.status_code}: {resp.text[:500]}')
+
+        try:
+            elements = resp.json()
+        except Exception as e:
+            raise ValueError('Unstructured API returned non-JSON response') from e
+
+        if not isinstance(elements, list):
+            raise ValueError('Unexpected Unstructured API response shape')
+
+        texts: list[str] = []
+        for el in elements[:500]:
+            if not isinstance(el, dict):
+                continue
+            t = el.get('text')
+            if isinstance(t, str) and t.strip():
+                texts.append(t.strip())
+
+        combined_text = "\n".join(texts)
+
+        return {
+            'document_id': str(doc.id),
+            'filename': filename,
+            'content_type': content_type,
+            'text': combined_text[:20000],
+            'elements_preview': elements[:50],
+        }
 
     def _create_task(self, arguments: Dict[str, Any], tenant: Any, user: Any = None) -> Any:
         """Create a task for the current user (implemented as an in-app notification)."""
