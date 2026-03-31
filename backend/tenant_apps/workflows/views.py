@@ -937,8 +937,7 @@ class TenantFilteredModelViewSet(viewsets.ModelViewSet):
 
 
 class TenantListViewSet(TenantFilteredModelViewSet):
-    """
-    API endpoint for Tenant Lists.
+    """API endpoint for Tenant Lists.
 
     Tenant-specific option lists for dropdown/multi-select fields.
     """
@@ -946,6 +945,23 @@ class TenantListViewSet(TenantFilteredModelViewSet):
     queryset = TenantList.objects.all()
     serializer_class = TenantListSerializer
     permission_classes = [IsTenantAdminOrOwnerOrReadOnly]
+
+    def perform_create(self, serializer):
+        """Ensure tenant + created_by are always set on create.
+
+        This prevents NOT NULL/unique/RLS failures surfacing as 500s.
+        """
+        tenant = getattr(self.request, 'tenant', None)
+        if not tenant:
+            raise ValidationError({"tenant": "Tenant context is required (X-Tenant-ID header)."})
+
+        self._ensure_rls_session_vars(str(tenant.id))
+
+        user = getattr(self.request, 'user', None)
+        if user and getattr(user, 'is_authenticated', False):
+            serializer.save(tenant=tenant, created_by=user)
+        else:
+            serializer.save(tenant=tenant)
 
     def create(self, request, *args, **kwargs):
         """Create list with a friendly error instead of 500 on IntegrityError."""
