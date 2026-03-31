@@ -68,6 +68,16 @@ This file is the **append-only PR-referenceable execution log**.
 - `SESSION_COOKIE_SECURE` — **ZOMBIE** (env:dev-backend)
 - `STAGING_DB_URL` — **ZOMBIE** (repo)
 
+### 2026-03-31 — Pending work items (not shipped)
+These items were requested/planned in-session but are **not completed yet**:
+- **Enterprise Polish**: Tenant Webhooks + API Keys (`enterprise-webhooks-api-keys`)
+  - Models + RLS + Celery dispatch task + retries/backoff + signing + event hooks
+- **V4.0 Vision Sprint docs** (planning complete; documents not created yet)
+  - `docs/plans/V4_0_IDEAL_STATE_GAP_ANALYSIS.md`
+  - `docs/plans/V4_0_UX_EXCELLENCE.md`
+  - `docs/plans/V4_0_FIELD_OPS_ARCHITECTURE.md`
+  - `docs/plans/V4_0_AUTONOMOUS_AI.md` (depends on Tenant Webhooks/API Keys)
+
 ### 2026-03-31 — Hard purge: legacy docs + archives (context bleed cleanup)
 - Destructive cleanup of superseded documentation and archived infra/scripts to reduce AI context bleed.
 - Deleted:
