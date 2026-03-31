@@ -1497,3 +1497,5 @@ Deliverables:
 - 2026-03-31 — CI/CD: format deploy run name (🚀 Deploy: <env> - <PR title (PR#)>) — PR: #4304.
 - 2026-03-31 — Integrations: tenant webhooks + API keys (Celery dispatch + signing) — PR: #4306.
 - 2026-03-31 — Docs: V4.0 vision sprint (gap analysis, UX excellence, field ops, autonomous AI) — PR: #4308.
+- 2026-03-31 — CI/CD: hotfix Master Pipeline run-name startup failure (remove replace() expression; uat/main runs had 0 jobs) — PR: #4310.
+- 2026-03-31 — Note: the earlier "Pending work items (not shipped)" section is obsolete; see PRs #4306 and #4308.
