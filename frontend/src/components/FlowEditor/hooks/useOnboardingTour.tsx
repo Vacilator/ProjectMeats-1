@@ -14,7 +14,9 @@
  */
 import { useState, useEffect, useCallback } from 'react';
 import {
+  ACTIONS,
   EVENTS,
+  ORIGIN,
   STATUS,
   type EventData,
   type Options,
@@ -30,6 +32,14 @@ export interface TourConfig {
 }
 
 const TOUR_STORAGE_KEY = 'projectmeats_tours_completed';
+
+export const resetTourCompletion = (tourName: string) => {
+  const completedTours = JSON.parse(localStorage.getItem(TOUR_STORAGE_KEY) || '[]');
+  const next = Array.isArray(completedTours)
+    ? completedTours.filter((name: string) => name !== tourName)
+    : [];
+  localStorage.setItem(TOUR_STORAGE_KEY, JSON.stringify(next));
+};
 
 /**
  * Custom hook for managing onboarding tours
@@ -52,31 +62,48 @@ export const useOnboardingTour = (tourConfig: TourConfig) => {
 
   const handleJoyrideCallback = useCallback(
     (data: EventData) => {
-      const { status, index, type, action } = data;
+      const { status, index, type, action, origin } = data;
 
-      if (status === STATUS.FINISHED || status === STATUS.SKIPPED) {
-        // Mark tour as completed
-        const completedTours = JSON.parse(
-          localStorage.getItem(TOUR_STORAGE_KEY) || '[]'
-        );
-
-        if (!completedTours.includes(tourConfig.name)) {
-          completedTours.push(tourConfig.name);
-          localStorage.setItem(
-            TOUR_STORAGE_KEY,
-            JSON.stringify(completedTours)
-          );
+      const completeTour = (markCompleted: boolean) => {
+        if (markCompleted) {
+          const completedTours = JSON.parse(localStorage.getItem(TOUR_STORAGE_KEY) || '[]');
+          if (!completedTours.includes(tourConfig.name)) {
+            completedTours.push(tourConfig.name);
+            localStorage.setItem(TOUR_STORAGE_KEY, JSON.stringify(completedTours));
+          }
         }
 
         setRun(false);
         setStepIndex(0);
-      } else if (type === EVENTS.STEP_AFTER || type === EVENTS.TARGET_NOT_FOUND) {
+      };
+
+      // Finished or explicitly skipped.
+      if (status === STATUS.FINISHED || status === STATUS.SKIPPED) {
+        completeTour(true);
+        return;
+      }
+
+      // Emergency escape hatch: clicking the overlay, close button, or ESC should never lock the UI.
+      if (
+        action === ACTIONS.CLOSE ||
+        action === ACTIONS.SKIP ||
+        origin === ORIGIN.OVERLAY ||
+        type === EVENTS.ERROR
+      ) {
+        completeTour(false);
+        return;
+      }
+
+      if (type === EVENTS.STEP_AFTER || type === EVENTS.TARGET_NOT_FOUND) {
         // If a step target isn't in the DOM (or isn't visible), Joyride emits TARGET_NOT_FOUND.
         // Advance so the tour never gets stuck behind the overlay.
-        setStepIndex(index + (action === 'prev' ? -1 : 1));
+        const delta = action === ACTIONS.PREV ? -1 : 1;
+        const maxIndex = Math.max(0, tourConfig.steps.length - 1);
+        const nextIndex = Math.min(maxIndex, Math.max(0, index + delta));
+        setStepIndex(nextIndex);
       }
     },
-    [tourConfig.name]
+    [tourConfig.name, tourConfig.steps.length]
   );
 
   const startTour = useCallback(() => {
@@ -165,17 +192,19 @@ export const workflowEditorTourSteps: Step[] = [
     placement: 'bottom',
   },
   {
-    target: '[data-tour="config-panel"]',
+    // Step 5 ("Configuration Panel") used to target the config portal, which is hidden until a node is selected.
+    // Targeting a hidden element can trap users behind the overlay if bounding boxes can't be computed.
+    target: '.react-flow__pane',
     content: (
       <div>
         <h3 style={{ margin: '0 0 8px 0' }}>⚙️ Configuration Panel</h3>
         <p style={{ margin: 0 }}>
-          When you click a node, configure its properties here.
+          Click any node on the canvas to open the Configuration Panel and edit its properties.
           Changes are saved automatically as you type.
         </p>
       </div>
     ),
-    placement: 'left',
+    placement: 'top',
     skipBeacon: true,
   },
   {
@@ -281,9 +310,14 @@ export const tourOptions: Partial<Options> = {
   backgroundColor: 'rgb(var(--color-background))',
   arrowColor: 'rgb(var(--color-background))',
   overlayColor: 'rgba(0, 0, 0, 0.5)',
-  zIndex: 10000,
+  // Keep the tour UI above fullscreen Workforms editor surfaces + portals.
+  zIndex: 20000,
   showProgress: true,
   buttons: ['back', 'close', 'primary', 'skip'],
+  // Escape hatch: allow backdrop click + ESC to always dismiss.
+  overlayClickAction: 'close',
+  dismissKeyAction: 'close',
+  closeButtonAction: 'skip',
 };
 
 export const tourStyles: PartialDeep<Styles> = {
@@ -292,6 +326,9 @@ export const tourStyles: PartialDeep<Styles> = {
     padding: '16px',
     fontSize: '14px',
     boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+  },
+  buttonClose: {
+    zIndex: 20001,
   },
   tooltipTitle: {
     fontSize: '16px',
@@ -315,5 +352,6 @@ export const tourStyles: PartialDeep<Styles> = {
   },
   buttonSkip: {
     color: 'rgb(var(--color-text-secondary))',
+    zIndex: 20001,
   },
 };
