@@ -24,6 +24,7 @@ from apps.core.models import (
     NetOrCatchChoices,
     PackageTypeChoices,
     ProteinTypeChoices,
+    SoftDeleteModel,
     TenantAwareModel,
     TimestampModel,
     WeightUnitChoices,
@@ -57,7 +58,7 @@ class LogisticsScenarioChoices(models.TextChoices):
     WE_PICKUP = "we_pickup", "Tenant - Pickup (We Handle Logistics)"
 
 
-class PurchaseOrder(OrderMethodsMixin, TenantAwareModel):
+class PurchaseOrder(OrderMethodsMixin, SoftDeleteModel, TenantAwareModel):
     """
     Purchase Order model for managing purchase orders.
     

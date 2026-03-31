@@ -6,6 +6,7 @@ Provides base models and common functionality used across all apps.
 from django.contrib.auth.models import User
 from django.core.validators import RegexValidator
 from django.db import models
+from django.utils import timezone
 
 
 class TenantManager(models.Manager):
@@ -382,27 +383,74 @@ class AbstractContact(models.Model):
 class TenantAwareModel(TimestampModel):
     """
     Abstract base model for tenant-aware entities.
-    
+
     Provides tenant isolation via ForeignKey and dynamic schema extension
     through custom_data JSONB field for System Blueprint features.
     """
-    
+
     tenant = models.ForeignKey(
         'tenants.Tenant',
         on_delete=models.CASCADE,
         help_text="Tenant this entity belongs to"
     )
-    
+
     custom_data = models.JSONField(
         default=dict,
         blank=True,
         help_text='Extensible schema data for dynamic fields defined in Blueprints.'
     )
-    
+
     objects = TenantManager()
-    
+
     class Meta:
         abstract = True
+
+
+class SoftDeleteManager(TenantManager):
+    """Default manager that hides soft-deleted records."""
+
+    def get_queryset(self):
+        return super().get_queryset().filter(is_deleted=False)
+
+
+class SoftDeleteModel(models.Model):
+    """Abstract base model for enterprise-grade soft deletes.
+
+    By default, soft-deleted records are hidden from normal queries via `objects`.
+    Use `all_objects` when you need to access deleted rows for admin/restore.
+    """
+
+    is_deleted = models.BooleanField(default=False, db_index=True)
+    deleted_at = models.DateTimeField(null=True, blank=True)
+
+    objects = SoftDeleteManager()
+    all_objects = TenantManager()
+
+    class Meta:
+        abstract = True
+
+    def soft_delete(self, *, using=None, deleted_at=None):
+        if self.is_deleted:
+            return
+
+        self.is_deleted = True
+        self.deleted_at = deleted_at or timezone.now()
+        self.save(update_fields=["is_deleted", "deleted_at"])
+
+    def restore(self, *, using=None):
+        if not self.is_deleted:
+            return
+
+        self.is_deleted = False
+        self.deleted_at = None
+        self.save(update_fields=["is_deleted", "deleted_at"])
+
+    def hard_delete(self, using=None, keep_parents=False):
+        return super().delete(using=using, keep_parents=keep_parents)
+
+    def delete(self, using=None, keep_parents=False):  # pragma: no cover
+        """Override default delete to avoid accidental hard deletes."""
+        self.soft_delete(using=using)
 
 
 class OwnedModel(TimestampModel):

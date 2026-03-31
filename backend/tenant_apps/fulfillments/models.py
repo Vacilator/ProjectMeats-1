@@ -11,7 +11,7 @@ from django.contrib.postgres.fields import ArrayField
 from django.db import models
 from django.utils import timezone
 
-from apps.core.models import TenantAwareModel
+from apps.core.models import SoftDeleteModel, TenantAwareModel
 
 
 class FulfillmentStatusChoices(models.TextChoices):
@@ -31,7 +31,7 @@ class FulfillmentShippingTypeChoices(models.TextChoices):
     SUPPLIER_DELIVERING = "supplier_delivering", "Supplier Delivering"
 
 
-class Fulfillment(TenantAwareModel):
+class Fulfillment(SoftDeleteModel, TenantAwareModel):
     """
     Fulfillment model for tracking shipments from inquiries.
     
