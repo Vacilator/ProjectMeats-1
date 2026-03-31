@@ -13,17 +13,39 @@ from django.db import transaction
 from django.utils import timezone
 from tenant_apps.sales_orders.models import SalesOrder
 from tenant_apps.sales_orders.serializers import SalesOrderSerializer
+from apps.core.exporting import CsvExportMixin
 import logging
 
 logger = logging.getLogger(__name__)
 
 
-class SalesOrderViewSet(viewsets.ModelViewSet):
+class SalesOrderViewSet(CsvExportMixin, viewsets.ModelViewSet):
     """ViewSet for managing sales orders."""
 
     queryset = SalesOrder.objects.all()
     serializer_class = SalesOrderSerializer
     permission_classes = [IsAuthenticated]
+
+    def get_csv_export_columns(self):
+        return [
+            ("Sales Order #", "our_sales_order_num"),
+            ("Customer", "customer.name"),
+            ("Supplier", "supplier.name"),
+            ("Carrier", "carrier.name"),
+            ("Product", "product.product_code"),
+            ("Quantity", "quantity"),
+            ("Total Weight", "total_weight"),
+            ("Weight Unit", "weight_unit"),
+            ("Total Amount", "total_amount"),
+            ("Status", "status"),
+            ("Payment Status", "payment_status"),
+            ("Pick Up Date", "pick_up_date"),
+            ("Delivery Date", "delivery_date"),
+            ("Created On", "created_on"),
+        ]
+
+    def get_csv_export_queryset(self, queryset):
+        return queryset.select_related("customer", "supplier", "carrier", "product")
 
     def get_queryset(self):
         """Filter sales orders by current tenant.

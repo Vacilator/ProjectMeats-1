@@ -14,18 +14,36 @@ from tenant_apps.purchase_orders.serializers import (
     PurchaseOrderSerializer,
     PurchaseOrderHistorySerializer,
 )
+from apps.core.exporting import CsvExportMixin
 import logging
 from django.utils import timezone
 
 logger = logging.getLogger(__name__)
 
 
-class PurchaseOrderViewSet(viewsets.ModelViewSet):
+class PurchaseOrderViewSet(CsvExportMixin, viewsets.ModelViewSet):
     """ViewSet for managing purchase orders."""
 
     queryset = PurchaseOrder.objects.all()
     serializer_class = PurchaseOrderSerializer
     permission_classes = [IsAuthenticated]
+
+    def get_csv_export_columns(self):
+        return [
+            ("Order Number", "order_number"),
+            ("Supplier", "supplier.name"),
+            ("Product", "product.product_code"),
+            ("Item Description", "item_description"),
+            ("Total Amount", "total_amount"),
+            ("Status", "status"),
+            ("Payment Status", "payment_status"),
+            ("Order Date", "order_date"),
+            ("Delivery Date", "delivery_date"),
+            ("Created On", "created_on"),
+        ]
+
+    def get_csv_export_queryset(self, queryset):
+        return queryset.select_related("supplier", "product")
 
     def get_queryset(self):
         """Filter purchase orders by current tenant.
