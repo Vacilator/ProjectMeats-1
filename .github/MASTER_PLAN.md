@@ -126,6 +126,13 @@ This file is the **append-only PR-referenceable execution log**.
 - Safety: wrapped WorkForms InProgress/History/Monitoring in ErrorBoundary.
 - PR: #4239
 
+### 2026-03-31 — AI tools: schema discovery + entity creation
+- Added Swarm tools:
+  - `get_entity_schema(entity_type)` (uses the same schema engine as `/api/v1/system/forms/schema/`)
+  - `create_entity(entity_type, payload)` allowlisted DRF create for supplier/customer/contact/plant/location
+- Unblocked fresh DBs/tests without pgvector by storing embeddings as JSON arrays (pgvector optional).
+- PR: #4276
+
 ### 2026-03-30 — Docs: master plan gap analysis + roadmap hygiene
 - Updated `MASTER_PLAN.md` (canonical) with an industry-leader benchmark gap analysis (P0/P1/P2) and refreshed execution-ordered backlog.
 - Converted non-canonical roadmaps/plans into clearer **REFERENCE ONLY** docs (removed/neutralized misleading progress emphasis).
