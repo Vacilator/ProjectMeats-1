@@ -1570,3 +1570,5 @@ Deliverables:
 - 2026-04-01 — Docs: align README with canonical master plan (remove 100 laims) — PR: #4338.
 
 - 2026-04-01 — CI/CD: fix Master Pipeline workflow file issue (run-name + md paths-ignore) — PR: #4339.
+
+- 2026-04-01 — CI/CD: deploy feed run-name flatten + auto-promote token fallback — PR: #4340.
