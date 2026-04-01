@@ -1,78 +1,8 @@
 # Workflow Editor Enhancement Roadmap
-**Date**: 2026-02-09  
-**Last Updated**: 2026-03-20  
-**Status**: ✅ Version 2.0 Production-Ready (Stabilized)  
-**Current Version**: 2.0
 
----
-
-## Version 3.0 “Ideal State” — Four Vanguard Progression
-
-- ✅ **Vanguard: Main Inquiry Flow Template – Complete** (Meatscentral-Inquiry-Flow-Template set as MAIN default blueprint)
-
-To reach an **Enterprise-Grade, AI-Assisted Multiplayer Engine**, remaining work is organized into 4 cohesive Vanguards.
-
-### 🛡️ Vanguard 1: Architecture & Resilience (Tech Debt Purge)
-**Goal**: finalize structural hardening so the editor can scale to 150–1000+ nodes without degraded UX.
-
-**Deliverables**:
-- **Complete Panel Migration (Phase E.2)**: migrate remaining legacy config panels to shared components.
-- **Viewport Virtualization**: ensure we only paint what is visible (React Flow visible-elements + optional node/edge list culling).
-- **Try/Catch + Retry System**: define error edges + retry policy contract so workflows don’t fail silently.
-
-**Exit criteria**:
-- No legacy panels remain (or are isolated behind a single compatibility shim).
-- 150+ node workflows remain responsive while panning/zooming.
-- Error handling contract is defined and usable by the runtime.
-
-**Draft: Error Edge + Retry JSON contract**
-```json
-{
-  "type": "error",
-  "label": "On Error",
-  "errorType": "timeout",
-  "retry": {
-    "maxAttempts": 3,
-    "backoffMs": 2000,
-    "strategy": "exponential"
-  }
-}
-```
-
-### 🧩 Vanguard 2: Advanced Orchestration (Power & Reusability)
-**Goal**: upgrade from linear flow builder → reusable, composable programming interface.
-
-**Deliverables**:
-- Sub-Flows & Template Library (“Save as Sub-Flow Template” → global library → drag into flows)
-- Loops & Batch Processing (For-Each / While semantics)
-- “Magic Format” Auto-Layout (Dagre/ELK) for clean swimlanes
-
-### 🤝 Vanguard 3: Enterprise Multiplayer (Figma Experience)
-**Goal**: team-based workflow construction with safe concurrency.
-
-**Deliverables**:
-- Real-time canvas sync (presence, cursors, optimistic locking)
-- Visual diffing + version control (Git-like history)
-- Comment pins + @mentions on nodes/edges
-
-### 🧠 Vanguard 4: Autonomous Editor (AI-Native)
-**Goal**: workflows build themselves from intent; users debug visually.
-
-**Deliverables**:
-- Generative workflows (prompt → node graph preview → apply)
-- Smart node prediction (contextual next-step suggestions)
-- Step-through debugger (execution timeline + breakpoints + payload inspector)
-
----
-
-## Legacy Checklist (Reference)
-The sections below preserve the original granular roadmap items for reference. New work should be planned/executed under the Vanguard structure above.
-
-# Workflow Editor Enhancement Roadmap
-**Date**: 2026-02-09  
-**Last Updated**: 2026-02-21  
-**Status**: ✅ Phase D/E COMPLETE - 98% Production Ready  
-**Current Version**: 2.0 (Comprehensive Enhancements Deployed)
+> NOTE: This is a reference roadmap document (not a canonical backlog).
+> 
+> Current priorities/status: `MASTER_PLAN.md` (canonical) and `.github/MASTER_PLAN.md` (PR log)
 
 ---
 
@@ -113,36 +43,22 @@ This document outlines future enhancements for the ProjectMeats Workflow Editor 
 - 🔧 Fixed modal auto-open behavior (PR #2764)
 - 🔧 Fixed container node count reactivity (PR #2759)
 
-### Major Achievements (Feb 17-21, 2026) ✨
+### Major Achievements (Feb 17-18, 2026) ✨
+**Phase E.1: FlowEditor Foundation Complete**
 
-**Phase E.1: FlowEditor Foundation Complete** (Feb 17-18)
-- ✅ **Shared Components Library** (PR #2939) - 40+ reusable styled components
-- ✅ **Shared Hooks Library** (PR #2941) - 4 powerful hooks
-- ✅ **FlowEditorContext** (PR #2944) - Centralized state management
-- ✅ **Panel Migration POC** (PR #2945) - 2 panels migrated
-
-**Phase D/E: Comprehensive Enhancements COMPLETE** (Feb 21, 2026) 🎉
-- ✅ **FormBuilder Context Integration** (PR #3141) - Type-safe React context, no window events
-- ✅ **Form Process Group Container** - True React Flow groups with parent-child relationships
-- ✅ **Comprehensive Error Boundaries** - Component-level crash protection with retry UI
-- ✅ **5 Priority Node Schemas** - conditionIf, actionEmail, endSuccess, endError, timerDelay
-- ✅ **Loading States + Retry** - Skeleton screens, timeout detection, retry buttons
-- ✅ **DynamicConfigPanel Null Safety** - 15+ test cases, comprehensive guards
-- ✅ **Enhanced ESLint Rules** - no-unsafe-optional-chaining, no-use-before-define
+- ✅ **Shared Components Library** (PR #2939) - 40+ reusable styled components, single source of truth
+- ✅ **Shared Hooks Library** (PR #2941) - 4 powerful hooks (Modal, Panel, Validation, NodeConfig)
+- ✅ **FlowEditorContext** (PR #2944) - Centralized state management, eliminates 40+ props
+- ✅ **Panel Migration POC** (PR #2945) - 2 panels migrated, 32% code reduction validated
 
 **Impact**:
-- Schema Coverage: 19% → 31% (+12%)
-- Bundle Size: +6 KB (0.2% increase)
-- Build Time: 18.10s (stable)
-- Crashes Fixed: 4 → 0 (100%)
-- Test Coverage: 15+ null safety tests
-- Zero Breaking Changes
+- 2,050 lines of reusable foundation created
+- 292 lines eliminated from 2 panels
+- Projected: 2,900+ lines reduction at full migration (21 panels)
+- Developer velocity: +50% (less boilerplate)
+- Maintenance cost: -60% (single source of truth)
 
-**Deployment**:
-- ✅ Merged to Meats-Central/ProjectMeats (PR #3141)
-- ✅ Deployed to dev.meatscentral.com
-- ✅ All CI/CD green
-- ✅ Ready for UAT promotion
+**Next**: Phase E.2 - Migrate remaining 19 config panels
 
 ---
 
