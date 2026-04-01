@@ -7,7 +7,7 @@ run-name: >-
       || format(
         '🚀 Deploy: {0} - {1}',
         github.ref_name == 'main' && 'production' || github.ref_name,
-        replace(github.event.head_commit.message, '(#', '(PR#:')
+        github.event.head_commit.message
       )
   }}
 
@@ -16,7 +16,8 @@ on:
   push:
     branches: [development, uat, main]
     paths-ignore:
-      - '**.md'
+      - '*.md'
+      - '**/*.md'
       - 'docs/**'
       - 'archived/**'
   workflow_dispatch:
