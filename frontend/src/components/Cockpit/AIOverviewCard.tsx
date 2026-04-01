@@ -159,6 +159,12 @@ export const AIOverviewCard: React.FC<AIOverviewCardProps> = ({ entityType, enti
         return;
       }
 
+      // Backend outage / gateway errors: don't toast-spam, just show a stable placeholder.
+      if (status === 500 || status === 502 || status === 503 || status === 504) {
+        setState({ status: 'unavailable', message: 'AI overview temporarily unavailable (server offline).' });
+        return;
+      }
+
       console.error('[AIOverviewCard] Failed to load AI overview:', err);
       setState({ status: 'error', message: 'AI Summary temporarily unavailable.' });
     }

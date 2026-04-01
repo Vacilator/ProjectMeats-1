@@ -89,7 +89,18 @@ export const useCockpitStats = (): UseCockpitStatsReturn => {
       const response = await apiClient.get<CockpitStats>('cockpit/stats/');
       return response.data;
     },
-    refetchInterval: REFETCH_INTERVAL,
+    // Circuit breaker: avoid retry-spam and focus refetch loops during backend outages.
+    retry: (failureCount, err: any) => {
+      const status = err?.response?.status;
+      if (typeof status === 'number' && status >= 500) return false;
+      return failureCount < 1;
+    },
+    refetchOnWindowFocus: false,
+    refetchInterval: (query) => {
+      const status = (query.state.error as any)?.response?.status;
+      if (typeof status === 'number' && status >= 500) return false;
+      return REFETCH_INTERVAL;
+    },
   });
 
   return {

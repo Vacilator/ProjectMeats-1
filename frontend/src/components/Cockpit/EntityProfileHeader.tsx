@@ -341,7 +341,15 @@ export const EntityProfileHeader: React.FC<EntityProfileHeaderProps> = ({
       const resp = await businessApi.get(`/system/entities/${encodeURIComponent(entityType)}/${encodeURIComponent(entityId)}/`);
       setData(resp.data as EntityDetailResponse);
     } catch (err: any) {
+      const status = err?.response?.status;
       console.error('[EntityProfileHeader] Failed to load entity:', err);
+
+      // During backend outages, avoid toast-spam; render a stable placeholder instead.
+      if (status === 500 || status === 502 || status === 503 || status === 504) {
+        setData(null);
+        return;
+      }
+
       message.error('Failed to load record details');
       setData(null);
     } finally {
@@ -388,8 +396,15 @@ export const EntityProfileHeader: React.FC<EntityProfileHeaderProps> = ({
       setData(resp.data as EntityDetailResponse);
       return resp.data as EntityDetailResponse;
     } catch (err: any) {
+      const status = err?.response?.status;
       console.error('[EntityProfileHeader] Failed to update field:', err);
-      message.error(err?.response?.data?.error || 'Failed to update field');
+
+      if (status === 500 || status === 502 || status === 503 || status === 504) {
+        message.error('Server temporarily unavailable. Please try again in a moment.');
+      } else {
+        message.error(err?.response?.data?.error || 'Failed to update field');
+      }
+
       void load();
       throw err;
     }
