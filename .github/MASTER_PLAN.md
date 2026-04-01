@@ -1572,3 +1572,5 @@ Deliverables:
 - 2026-04-01 — CI/CD: fix Master Pipeline workflow file issue (run-name + md paths-ignore) — PR: #4339.
 
 - 2026-04-01 — CI/CD: deploy feed run-name flatten + auto-promote token fallback — PR: #4340.
+
+- 2026-04-01 — Hotfix: restore Master Pipeline run-name (fix 0-job failures) — PR: #4341.
