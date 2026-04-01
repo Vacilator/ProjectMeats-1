@@ -1566,3 +1566,5 @@ Deliverables:
 - [x] FlowEditor UX polish (collapsed config summary + FormProcess drag/collapse fixes) — PR #4336
 
 - 2026-04-01 — Docs: clarify historical checklists + fix roadmap duplication — PR: #4337.
+
+- 2026-04-01 — Docs: align README with canonical master plan (remove 100 laims) — PR: #4338.
