@@ -1,5 +1,7 @@
 # What's New in ProjectMeats
 
+> ⚠️ **Reference only**: For current priorities/status, see repo-root **`MASTER_PLAN.md`** (canonical) and `.github/MASTER_PLAN.md` (shipped PR log).
+
 **Status**: 🔄 LIVING DOCUMENT  
 **Category**: Reference  
 **Last Updated**: 2026-03-18
@@ -59,9 +61,9 @@ New lightweight i18n module added at `mobile/src/i18n/`:
 
 ---
 
-## 🌟 March 2026 Wave: Golden State – All 9 Phases Complete 🎉
+## 🌟 Historical snapshot (March 2026): “Golden State” completion claim
 
-**Status**: ✅ All 9 Gap Analysis phases are code-complete and operational in dev.
+**Note:** This section is preserved for historical context. It may not match the current operational backlog. For current truth, see `MASTER_PLAN.md`.
 
 ### What's Complete
 
