@@ -264,10 +264,15 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
               })
             : null;
 
+          const rawType = typeof metaObj.type === 'string' ? metaObj.type : undefined;
+          const lowerKey = String(key || '').toLowerCase();
+          const inferredType =
+            lowerKey.includes('phone') ? 'phone' : lowerKey.includes('email') ? 'email' : mapDrfOptionsType(rawType);
+
           return {
             key,
             label: (typeof metaObj.label === 'string' && metaObj.label) || key,
-            type: mapDrfOptionsType(typeof metaObj.type === 'string' ? metaObj.type : undefined),
+            type: inferredType,
             required: Boolean(metaObj.required),
             help_text: (typeof metaObj.help_text === 'string' && metaObj.help_text) || '',
             choices,

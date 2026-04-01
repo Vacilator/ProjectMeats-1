@@ -26,7 +26,7 @@ import { confirmDialog } from '@/utils/uiDialogs';
 interface Plant {
   id: number;
   name: string;
-  code: string;
+  plant_est_num?: string;
   supplier: number | null;
   supplier_name?: string;
   plant_type?: string;
@@ -35,14 +35,10 @@ interface Plant {
   state?: string;
   zip_code?: string;
   country?: string;
-  phone?: string;
-  phone_type?: 'office' | 'mobile';
-  email?: string;
   booking_contact_email?: string;
   booking_contact_phone?: string;
   booking_contact_phone_type?: 'office' | 'mobile';
   fcfs?: boolean;
-  manager?: string;
   capacity?: number;
   is_active?: boolean;
 }
@@ -267,7 +263,7 @@ const Plants: React.FC = () => {
       const search = searchText.toLowerCase();
       filtered = filtered.filter(p => 
         p.name.toLowerCase().includes(search) ||
-        p.code.toLowerCase().includes(search) ||
+        (p.plant_est_num || '').toLowerCase().includes(search) ||
         p.supplier_name?.toLowerCase().includes(search) ||
         p.city?.toLowerCase().includes(search) ||
         p.state?.toLowerCase().includes(search)
@@ -324,11 +320,12 @@ const Plants: React.FC = () => {
       width: 200,
     },
     {
-      title: 'Code',
-      dataIndex: 'code',
-      key: 'code',
-      sorter: (a, b) => a.code.localeCompare(b.code),
-      width: 120,
+      title: 'Plant Est. #',
+      dataIndex: 'plant_est_num',
+      key: 'plant_est_num',
+      sorter: (a, b) => (a.plant_est_num || '').localeCompare(b.plant_est_num || ''),
+      width: 140,
+      render: (v) => v || '-',
     },
     {
       title: 'Supplier',
@@ -354,18 +351,22 @@ const Plants: React.FC = () => {
       dataIndex: 'plant_type',
       key: 'plant_type',
       filters: [
+        { text: 'Vertical', value: 'vertical' },
         { text: 'Processing', value: 'processing' },
         { text: 'Distribution', value: 'distribution' },
-        { text: 'Storage', value: 'storage' },
-        { text: 'Mixed', value: 'mixed' },
+        { text: 'Warehouse', value: 'warehouse' },
+        { text: 'Retail', value: 'retail' },
+        { text: 'Other', value: 'other' },
       ],
       onFilter: (value, record) => record.plant_type === value,
       render: (type) => {
         const colors: { [key: string]: string } = {
+          vertical: 'purple',
           processing: 'blue',
           distribution: 'green',
-          storage: 'orange',
-          mixed: 'purple',
+          warehouse: 'orange',
+          retail: 'cyan',
+          other: 'default',
         };
         return type ? <Tag color={colors[type] || 'default'}>{type}</Tag> : '-';
       },
@@ -383,16 +384,16 @@ const Plants: React.FC = () => {
       width: 160,
     },
     {
-      title: 'Contact',
-      key: 'contact',
+      title: 'Booking Contact',
+      key: 'booking_contact',
       render: (_, record) => (
         <div>
-          {record.phone && <div>📞 {record.phone}</div>}
-          {record.manager && <div>👤 {record.manager}</div>}
-          {!record.phone && !record.manager && '-'}
+          {record.booking_contact_email && <div>{record.booking_contact_email}</div>}
+          {record.booking_contact_phone && <div>{record.booking_contact_phone}</div>}
+          {!record.booking_contact_email && !record.booking_contact_phone && '-'}
         </div>
       ),
-      width: 180,
+      width: 220,
     },
     {
       title: 'Actions',
@@ -463,7 +464,7 @@ const Plants: React.FC = () => {
 
       <TableControls>
         <Input
-          placeholder="Search plants by name, code, supplier, or location..."
+          placeholder="Search plants by name, est. #, supplier, or location..."
           prefix={<SearchOutlined />}
           value={searchText}
           onChange={(e) => setSearchText(e.target.value)}
@@ -482,8 +483,11 @@ const Plants: React.FC = () => {
           return {
             onClick: () => {
               const sid = contextSupplierId ?? rec.supplier ?? undefined;
-              const base = sid ? `/suppliers/${sid}/contacts` : '/suppliers/contacts';
-              navigate(`${base}?plant=${rec.id}`);
+              if (sid) {
+                navigate(`/suppliers/${sid}/plants/${rec.id}`);
+                return;
+              }
+              navigate(`/plants/${rec.id}`);
             },
             style: { cursor: 'pointer' },
           };

@@ -457,8 +457,11 @@ const CustomerLocations: React.FC = () => {
           return {
             onClick: () => {
               const cid = contextCustomerId ?? rec.customer ?? undefined;
-              const base = cid ? `/customers/${cid}/contacts` : '/customers/contacts';
-              navigate(`${base}?location=${rec.id}`);
+              if (cid) {
+                navigate(`/customers/${cid}/locations/${rec.id}`);
+                return;
+              }
+              navigate(`/locations/${rec.id}`);
             },
             style: { cursor: 'pointer' },
           };

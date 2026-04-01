@@ -1,5 +1,3 @@
-import uuid
-
 from rest_framework import serializers
 
 from apps.core.models import PhoneTypeChoices
@@ -42,8 +40,6 @@ class MasterProductMinimalSerializer(serializers.ModelSerializer):
 
 
 class PlantSerializer(serializers.ModelSerializer):
-    code = serializers.CharField(required=False, allow_blank=True)
-
     sales_contacts = DepartmentContactInputSerializer(many=True, required=False, write_only=True)
     qa_contacts = DepartmentContactInputSerializer(many=True, required=False, write_only=True)
     booking_contacts = DepartmentContactInputSerializer(many=True, required=False, write_only=True)
@@ -84,7 +80,6 @@ class PlantSerializer(serializers.ModelSerializer):
         fields = [
             "id",
             "name",
-            "code",
             "plant_est_num",
             "plant_type",
             "supplier",
@@ -96,13 +91,9 @@ class PlantSerializer(serializers.ModelSerializer):
             "state",
             "zip_code",
             "country",
-            "phone",
-            "phone_type",
-            "email",
             "booking_contact_email",
             "booking_contact_phone",
             "booking_contact_phone_type",
-            "manager",
             "capacity",
             "is_active",
             "fcfs",
@@ -126,18 +117,6 @@ class PlantSerializer(serializers.ModelSerializer):
             "created_by_name",
         ]
 
-    def _generate_code(self, name: str | None) -> str:
-        base = (name or 'Plant').strip().upper()
-        base = ''.join(ch for ch in base if ch.isalnum())
-        prefix = (base[:3] or 'PLT').ljust(3, 'T')
-
-        for _ in range(20):
-            candidate = f"{prefix}-{uuid.uuid4().hex[:8].upper()}"
-            if not Plant.objects.filter(code=candidate).exists():
-                return candidate
-
-        return f"PLT-{uuid.uuid4().hex[:12].upper()}"
-
     def create(self, validated_data):
         sales_contacts = validated_data.pop('sales_contacts', [])
         qa_contacts = validated_data.pop('qa_contacts', [])
@@ -146,10 +125,6 @@ class PlantSerializer(serializers.ModelSerializer):
 
         request = self.context.get('request')
         validated_data["created_by"] = request.user if request else None
-
-        code = validated_data.get('code')
-        if not code or not str(code).strip():
-            validated_data['code'] = self._generate_code(validated_data.get('name'))
 
         plant = super().create(validated_data)
 
@@ -192,9 +167,4 @@ class PlantSerializer(serializers.ModelSerializer):
         return plant
 
     def update(self, instance, validated_data):
-        if 'code' in validated_data:
-            code = validated_data.get('code')
-            if not code or not str(code).strip():
-                validated_data['code'] = self._generate_code(validated_data.get('name') or instance.name)
-
         return super().update(instance, validated_data)

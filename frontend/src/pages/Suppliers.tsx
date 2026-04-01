@@ -11,7 +11,6 @@ import { apiService, apiClient, Supplier } from '../services/apiService';
 interface SupplierPlant {
   id: number;
   name: string;
-  code: string;
   plant_type?: string;
   plant_est_num?: string;
   address?: string;
@@ -19,9 +18,6 @@ interface SupplierPlant {
   state?: string;
   zip_code?: string;
   country?: string;
-  manager?: string;
-  email?: string;
-  phone?: string;
 }
 
 interface SupplierContact {
@@ -536,11 +532,16 @@ const Suppliers: React.FC = () => {
                                   data-testid={`plant-row-${plant.id}`}
                                   type="button"
                                   $active={selectedPlantId === plant.id}
-                                  onClick={() => setSelectedPlantId(plant.id)}
+                                  onClick={() => {
+                                    setSelectedPlantId(plant.id);
+                                    if (selectedSupplierId) {
+                                      navigate(`/suppliers/${selectedSupplierId}/plants/${plant.id}`);
+                                    }
+                                  }}
                                 >
                                   <ChildListName>{plant.name}</ChildListName>
                                   <ChildListMeta>
-                                    <span>{plant.code}</span>
+                                    <span>{plant.plant_est_num || `Plant #${plant.id}`}</span>
                                     {plant.plant_type ? <span>• {plant.plant_type}</span> : null}
                                   </ChildListMeta>
                                 </ChildListItem>
@@ -602,18 +603,6 @@ const Suppliers: React.FC = () => {
                                     : '—'}
                                 </MetaValue>
                               </MetaRow>
-                              <MetaRow>
-                                <MetaKey>Manager</MetaKey>
-                                <MetaValue>{selectedPlant.manager || '—'}</MetaValue>
-                              </MetaRow>
-                              <MetaRow>
-                                <MetaKey>Email</MetaKey>
-                                <MetaValue>{selectedPlant.email || '—'}</MetaValue>
-                              </MetaRow>
-                              <MetaRow>
-                                <MetaKey>Phone</MetaKey>
-                                <MetaValue>{selectedPlant.phone || '—'}</MetaValue>
-                              </MetaRow>
                             </MetaCard>
                           ) : (
                             <ExpandedHint>Select a plant to view details.</ExpandedHint>
@@ -632,6 +621,7 @@ const Suppliers: React.FC = () => {
                                       {c.first_name} {c.last_name}
                                     </ContactName>
                                     <ContactMeta>
+                                      {(c as any).department ? <span>{(c as any).department}</span> : null}
                                       {c.position ? <span>{c.position}</span> : null}
                                       {c.email ? <span>{c.email}</span> : null}
                                       {c.phone ? <span>{c.phone}</span> : null}

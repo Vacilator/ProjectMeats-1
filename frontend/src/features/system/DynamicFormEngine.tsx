@@ -18,7 +18,6 @@ import StateSelect from '../../components/ui/StateSelect';
 import { CountrySelect } from '../../components/ui';
 import { DEFAULT_COUNTRY } from '../../utils/constants/countries';
 import { resolveConfig } from '../../services/configService';
-import { formatUsPhone } from '../../utils/phone';
 import { getChoicesForField, isStaticChoiceField } from '../../services/choicesService';
 
 // Field definition types
@@ -803,12 +802,11 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
               render={({ field: controllerField }) => (
                 <Input
                   type="tel"
-                  inputMode="numeric"
-                  maxLength={13}
+                  inputMode="tel"
                   id={field.key}
-                  value={formatUsPhone(String(controllerField.value || ''))}
-                  onChange={(e) => controllerField.onChange(formatUsPhone(e.target.value))}
-                  placeholder={field.placeholder || '(XXX)XXX-XXXX'}
+                  value={String(controllerField.value || '')}
+                  onChange={(e) => controllerField.onChange(e.target.value)}
+                  placeholder={field.placeholder || '(555) 123-4567'}
                   hasError={hasError}
                   disabled={isSubmitting}
                   autoComplete="tel"
