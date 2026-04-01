@@ -432,19 +432,17 @@ class AIDocumentViewSet(viewsets.ModelViewSet):
         return qs
 
     def perform_create(self, serializer):
+        from django.db import transaction
+        from django.db.utils import DatabaseError, ProgrammingError
+        from rest_framework.exceptions import ValidationError
+
         tenant = getattr(self.request, 'tenant', None)
         if not tenant:
-            from rest_framework.exceptions import ValidationError
-
             raise ValidationError('Tenant context required.')
 
         tenant_id = str(getattr(tenant, 'id', '') or '')
 
         try:
-            from django.db import transaction
-            from django.db.utils import DatabaseError, ProgrammingError
-            from rest_framework.exceptions import ValidationError
-
             from apps.tenants.rls import set_current_tenant
 
             with transaction.atomic():
@@ -466,34 +464,30 @@ class AIDocumentViewSet(viewsets.ModelViewSet):
                     content_type=getattr(self.request.FILES.get('file'), 'content_type', '') or '',
                     file_size=getattr(self.request.FILES.get('file'), 'size', 0) or 0,
                 )
-        except Exception as e:
+        except ValidationError:
+            raise
+        except OSError as e:
+            logger.error('AIDocument upload: storage error: %s', str(e), exc_info=True)
+            raise ValidationError(
+                'Upload failed: storage is not writable. Please contact an administrator.'
+            )
+        except (DatabaseError, ProgrammingError) as e:
+            msg = str(e)
+            lower = msg.lower()
+            logger.error('AIDocument upload: database error: %s', msg, exc_info=True)
 
-            if isinstance(e, ValidationError):
-                raise
-
-            if isinstance(e, OSError):
-                logger.error('AIDocument upload: storage error: %s', str(e), exc_info=True)
+            if 'does not exist' in lower and 'ai_assistant_documents' in lower:
                 raise ValidationError(
-                    'Upload failed: storage is not writable. Please contact an administrator.'
+                    'Upload failed: documents table is not ready (migrations not applied). Please contact an administrator.'
                 )
 
-            if isinstance(e, (DatabaseError, ProgrammingError)):
-                msg = str(e)
-                lower = msg.lower()
-                logger.error('AIDocument upload: database error: %s', msg, exc_info=True)
+            if 'row-level security' in lower or 'rls' in lower:
+                raise ValidationError(
+                    'Upload failed: tenant context could not be asserted for RLS. Please reload and retry.'
+                )
 
-                if 'does not exist' in lower and 'ai_assistant_documents' in lower:
-                    raise ValidationError(
-                        'Upload failed: documents table is not ready (migrations not applied). Please contact an administrator.'
-                    )
-
-                if 'row-level security' in lower or 'rls' in lower:
-                    raise ValidationError(
-                        'Upload failed: tenant context could not be asserted for RLS. Please reload and retry.'
-                    )
-
-                raise ValidationError('Upload failed: database error. Please retry in a moment.')
-
+            raise ValidationError('Upload failed: database error. Please retry in a moment.')
+        except Exception as e:
             logger.error('AIDocument upload: unexpected error: %s', str(e), exc_info=True)
             raise ValidationError('Upload failed: unexpected error. Please retry.')
 
