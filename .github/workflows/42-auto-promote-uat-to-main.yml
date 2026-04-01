@@ -27,20 +27,10 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Ensure PAT is configured
-        env:
-          PAT: ${{ secrets.PAT }}
-        run: |
-          set -euo pipefail
-          if [ -z "${PAT}" ]; then
-            echo "❌ Missing required secret: PAT"
-            echo "Add a repo secret named PAT with permissions to create pull requests."
-            exit 1
-          fi
-
       - name: Create promotion PR (if missing)
         env:
-          GH_TOKEN: ${{ secrets.PAT }}
+          # Prefer PAT if configured, otherwise fall back to the workflow GITHUB_TOKEN.
+          GH_TOKEN: ${{ secrets.PAT || github.token }}
           REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
