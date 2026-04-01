@@ -1,25 +1,26 @@
 # Project Meats
 
-![Progress](https://img.shields.io/badge/Progress-100%25%20%E2%80%93%20Production%20Ready%20%28secrets%20activated%29-brightgreen)
+![Status](https://img.shields.io/badge/Status-Active%20Development-blue)
 
 **Multi-tenant meat supply-chain platform** - Shared-schema multi-tenancy with Django + React
 
-**Status**: ✅ 100% – Production Ready (secrets activated)
+**Status**: 🔄 Active development (canonical priorities + shipped evidence live in `MASTER_PLAN.md`)
 
 ---
 
 ## 🎯 Quick Links (Start Here)
 
 **For All Contributors:**
-- **[ROADMAP.md](ROADMAP.md)** - 📊 High-level project progress (9 phases, **100% complete**)
-- **[MASTER_PLAN.md](MASTER_PLAN.md)** - 📋 Granular task list & technical debt tracker
+- **[MASTER_PLAN.md](MASTER_PLAN.md)** - ✅ Canonical priorities + current truth snapshot
+- **[.github/MASTER_PLAN.md](.github/MASTER_PLAN.md)** - 🧾 Append-only PR execution log (shipped evidence)
+- **[ROADMAP.md](ROADMAP.md)** - 📊 Reference roadmap (non-canonical; may be outdated)
 - **[manifests/GOLDEN_FILES.md](manifests/GOLDEN_FILES.md)** - 🗂️ Source of truth registry
 - **[docs/GOLDEN_PIPELINE.md](docs/GOLDEN_PIPELINE.md)** - 🏆 Deployment standards (authoritative)
 
 **For AI Agents:**
 - **ALWAYS** reference `/manifests/GOLDEN_FILES.md` before proposing schema changes
-- Check ROADMAP.md for current priorities and blockers
-- Consult MASTER_PLAN.md for granular task context
+- Use `MASTER_PLAN.md` as the single source of truth for current priorities/status
+- Treat `ROADMAP.md` / `UI_ROADMAP.md` as reference-only
 
 ---
 
