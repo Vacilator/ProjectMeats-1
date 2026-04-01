@@ -844,11 +844,23 @@ class ToolExecutor:
             headers = {
                 'Authorization': f'Bearer {api_key}',
             }
-            resp = requests.post(
-                endpoint,
-                files=files,
-                headers=headers,
-                timeout=60,
+            try:
+                resp = requests.post(
+                    endpoint,
+                    files=files,
+                    headers=headers,
+                    timeout=60,
+                )
+            except requests.exceptions.RequestException:
+                return (
+                    'Error: The document parsing service is currently unreachable. '
+                    'Please inform the user that the server is experiencing issues.'
+                )
+
+        if resp.status_code in (502, 503, 504):
+            return (
+                f'Error: The document parsing service is currently unreachable (HTTP {resp.status_code}). '
+                'Please inform the user that the server is experiencing issues.'
             )
 
         if resp.status_code >= 400:

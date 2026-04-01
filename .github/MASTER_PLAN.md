@@ -26,6 +26,10 @@ This file is the **append-only PR-referenceable execution log**.
 
 - **2026-03-31** — Workforms editor: Form Submitted trigger config now lists saved FormProcess nodes via a dynamic dropdown (label: title/display-name + created date). (PR: #4318)
 
+- **2026-03-31** — **HOTFIX**: Stabilized `AvailableFormsViewSet` (Quick Actions) to avoid ORM/enum edge cases and added explicit “document parsing service unreachable” error return for the AI `parse_document` tool. (PR: #4327)
+
+- **2026-03-31** — Workforms editor onboarding: prevented Step 5 tour overlay lockout by targeting stable canvas element, enabling overlay/Esc dismissal, and aborting cleanly on close/overlay/error events. (PR: #4329)
+
 - **2026-03-31** — Cockpit resilience: added circuit breakers to prevent retry/toast spam during 5xx/502 backend outages; show stable "Data unavailable" placeholders. (PR: #4331)
 
 ### 2026-03-31 — Secret audit drift (manifest v5.1)
