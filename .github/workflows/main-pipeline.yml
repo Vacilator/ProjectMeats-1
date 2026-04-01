@@ -2,12 +2,12 @@ name: Master Pipeline
 
 run-name: >-
   ${{
-    github.event_name == 'pull_request'
-      && format('🔍 PR Check: {0} (PR#{1})', github.event.pull_request.title, github.event.pull_request.number)
-      || (
-        github.event_name == 'workflow_dispatch'
-          && format('🚀 Deploy: {0} - manual', github.event.inputs.environment)
-          || format('🚀 Deploy: {0} - {1}', github.ref_name, github.event.head_commit.message)
+    github.event_name == 'workflow_dispatch'
+      && format('🚀 Deploy: {0} - manual', inputs.environment)
+      || format(
+        '🚀 Deploy: {0} - {1}',
+        github.ref_name == 'main' && 'production' || github.ref_name,
+        replace(github.event.head_commit.message, '(#', '(PR#:')
       )
   }}
 

@@ -1,17 +1,27 @@
-"""
-Tests for AI Assistant app models.
+"""Tests for AI Assistant app models.
 
 Uses shared-schema multi-tenancy with tenant ForeignKey isolation.
+
+Note: The test settings (`projectmeats.settings.test`) may exclude `tenant_apps.ai_assistant`
+(e.g. when optional Postgres extensions aren't available). In that case, skip this module's tests.
 """
+
+import unittest
 import uuid
-from django.test import TestCase
+
+from django.conf import settings
 from django.contrib.auth.models import User
+from django.test import TestCase
+
+if 'tenant_apps.ai_assistant' not in settings.INSTALLED_APPS:
+    raise unittest.SkipTest('tenant_apps.ai_assistant is excluded from INSTALLED_APPS in test settings')
+
 from tenant_apps.ai_assistant.models import (
+    AIConfiguration,
+    ChatMessage,
     ChatSession,
     ChatSessionStatusChoices,
-    ChatMessage,
     MessageTypeChoices,
-    AIConfiguration,
 )
 from apps.tenants.models import Tenant, TenantUser
 

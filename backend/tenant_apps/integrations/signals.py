@@ -33,14 +33,25 @@ def _enqueue_event(*, tenant_id: str, event_type: str, payload: Dict[str, Any]) 
 
 
 def _serialize_purchase_order(po: PurchaseOrder) -> Dict[str, Any]:
+    def _iso_date(value: Any) -> Optional[str]:
+        if not value:
+            return None
+        # In post_save signals, DateFields may still be a raw string from assignment
+        # (Django coerces for DB, but doesn't mutate the instance attribute).
+        if hasattr(value, 'isoformat'):
+            return value.isoformat()
+        if isinstance(value, str):
+            return value
+        return str(value)
+
     return {
         'id': po.id,
         'order_number': po.order_number,
         'status': po.status,
         'payment_status': po.payment_status,
         'total_amount': str(po.total_amount),
-        'order_date': po.order_date.isoformat() if po.order_date else None,
-        'delivery_date': po.delivery_date.isoformat() if po.delivery_date else None,
+        'order_date': _iso_date(po.order_date),
+        'delivery_date': _iso_date(po.delivery_date),
         'supplier_id': po.supplier_id,
         'product_id': po.product_id,
         'created_on': po.created_on.isoformat() if getattr(po, 'created_on', None) else None,

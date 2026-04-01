@@ -32,6 +32,8 @@ This file is the **append-only PR-referenceable execution log**.
 
 - **2026-03-31** — Cockpit resilience: added circuit breakers to prevent retry/toast spam during 5xx/502 backend outages; show stable "Data unavailable" placeholders. (PR: #4331)
 
+- **2026-04-01** — CI/CD: updated Master Pipeline deployment run-name formatting, restored PR validation checks in Actions feed, and re-enabled auto-promotion PR creation (development→uat, uat→main). (PR: #4333)
+
 ### 2026-03-31 — Secret audit drift (manifest v5.1)
 - Command: `python config/manage_env.py audit --repo Meats-Central/ProjectMeats`
 - Stale/Zombie secrets found in GitHub but NOT in `manifests/env.manifest.json` (or legacy `DEV_`/`UAT_`/`PROD_` prefixed):

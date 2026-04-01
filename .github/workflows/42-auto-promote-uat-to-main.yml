@@ -1,0 +1,67 @@
+name: Auto Promote UAT → Main
+
+run-name: >-
+  ${{
+    github.event_name == 'workflow_run'
+      && format('Auto-Promote: uat → main ({0})', github.event.workflow_run.head_sha)
+      || 'Auto-Promote: uat → main'
+  }}
+
+on:
+  workflow_run:
+    workflows: ["Master Pipeline"]
+    types: [completed]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  create-pr:
+    name: Create PR uat → main
+    if: >-
+      ${{
+        github.event.workflow_run.conclusion == 'success' &&
+        github.event.workflow_run.head_branch == 'uat'
+      }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Ensure PAT is configured
+        env:
+          PAT: ${{ secrets.PAT }}
+        run: |
+          set -euo pipefail
+          if [ -z "${PAT}" ]; then
+            echo "❌ Missing required secret: PAT"
+            echo "Add a repo secret named PAT with permissions to create pull requests."
+            exit 1
+          fi
+
+      - name: Create promotion PR (if missing)
+        env:
+          GH_TOKEN: ${{ secrets.PAT }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+
+          existing=$(gh pr list --repo "$REPO" --base main --head uat --state open --json number --jq '.[0].number')
+          if [ -n "$existing" ]; then
+            echo "✅ Promotion PR already exists: #$existing"
+            exit 0
+          fi
+
+          sha="${{ github.event.workflow_run.head_sha }}"
+          msg="${{ github.event.workflow_run.head_commit.message }}"
+
+          title="🚀 Promote uat → main (${sha:0:7})"
+          if [ -n "${msg}" ]; then
+            title="🚀 Promote uat → main - ${msg}"
+          fi
+
+          gh pr create \
+            --repo "$REPO" \
+            --base main \
+            --head uat \
+            --title "$title" \
+            --body "Automated promotion PR created after successful UAT deployment.\n\n- Source: uat\n- Target: main\n- Commit: $sha\n\nThis PR does not bypass any gates; please review + merge when ready."

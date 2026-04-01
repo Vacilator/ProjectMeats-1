@@ -491,7 +491,9 @@ def sync_emails(request):
 
         # This is a user-triggered action. Prefer a 200 + structured failure payload so the UI
         # can display actionable guidance instead of treating it as a hard outage.
-        error_detail = str(sync_err) if getattr(settings, 'DEBUG', False) else "Email sync failed. Outlook connection may be expired or misconfigured."
+        # This endpoint is a user-triggered action; include the exception message so callers/tests
+        # can surface a concrete failure reason (while still returning a 200 + structured payload).
+        error_detail = f"Email sync failed. Outlook connection may be expired or misconfigured. ({sync_err})"
         return Response(
             {
                 "ok": False,
