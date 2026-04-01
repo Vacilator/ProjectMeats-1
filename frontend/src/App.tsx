@@ -51,6 +51,10 @@ import CustomerProducts from './pages/Customers/Products';
 import PlantProducts from './pages/Plants/Products';
 import PlantDetailView from './pages/Plants/PlantDetailView';
 import LocationDetailView from './pages/Locations/LocationDetailView';
+import SupplierPlantDetail from './pages/Suppliers/PlantDetail';
+import SupplierPlantContactDetail from './pages/Suppliers/PlantContactDetail';
+import CustomerLocationDetail from './pages/Customers/LocationDetail';
+import CustomerLocationContactDetail from './pages/Customers/LocationContactDetail';
 import Carriers from './pages/Carriers';
 import AIAssistant from './pages/AIAssistant';
 import CallLog from './pages/Cockpit/CallLog';
@@ -254,6 +258,11 @@ const App: React.FC = () => {
                 <Route path="suppliers/:supplierId/contacts" element={<Contacts />} />
                 <Route path="suppliers/plants" element={<Plants />} />
                 <Route path="suppliers/:supplierId/plants" element={<Plants />} />
+                <Route path="suppliers/:supplierId/plants/:plantId" element={<SupplierPlantDetail />} />
+                <Route
+                  path="suppliers/:supplierId/plants/:plantId/contacts/:contactId"
+                  element={<SupplierPlantContactDetail />}
+                />
                 <Route path="suppliers/:id/products" element={<SupplierProducts />} />
                 <Route path="plants/:id" element={<PlantDetailView />} />
                 <Route path="plants/:id/products" element={<PlantProducts />} />
@@ -277,6 +286,11 @@ const App: React.FC = () => {
                 <Route path="customers/:customerId/contacts" element={<Contacts />} />
                 <Route path="customers/locations" element={<CustomerLocations />} />
                 <Route path="customers/:customerId/locations" element={<CustomerLocations />} />
+                <Route path="customers/:customerId/locations/:locationId" element={<CustomerLocationDetail />} />
+                <Route
+                  path="customers/:customerId/locations/:locationId/contacts/:contactId"
+                  element={<CustomerLocationContactDetail />}
+                />
                 <Route path="customers/:id/products" element={<CustomerProducts />} />
                 
                 {/* Orders */}

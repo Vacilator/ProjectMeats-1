@@ -45,7 +45,6 @@ class PlantModelTest(TestCase):
         unique_id = uuid.uuid4().hex[:8]
         plant = Plant.objects.create(
             name=f"Processing Plant {unique_id}",
-            code=f"PP-{unique_id}",
             plant_est_num=f"EST-{unique_id}",
             plant_type="processing",
             city="Chicago",
@@ -53,14 +52,14 @@ class PlantModelTest(TestCase):
             country="USA",
             tenant=self.tenant,
         )
-        
+
         self.assertEqual(plant.name, f"Processing Plant {unique_id}")
-        self.assertEqual(plant.code, f"PP-{unique_id}")
+        self.assertEqual(plant.plant_est_num, f"EST-{unique_id}")
         self.assertEqual(plant.plant_type, "processing")
         self.assertEqual(plant.tenant, self.tenant)
 
-    def test_create_plant_without_code_generates_code(self):
-        """Plant code should be optional in API input (auto-generated if blank)."""
+    def test_create_plant_via_serializer(self):
+        """Plant should be creatable via serializer without legacy fields."""
         unique_id = uuid.uuid4().hex[:8]
 
         factory = APIRequestFactory()
@@ -73,27 +72,25 @@ class PlantModelTest(TestCase):
                 'name': f"Processing Plant {unique_id}",
                 'plant_type': 'processing',
                 'supplier': self.supplier.id,
-                'code': '',
             },
             context={'request': request},
         )
         serializer.is_valid(raise_exception=True)
         plant = serializer.save(tenant=self.tenant)
 
-        self.assertTrue(isinstance(plant.code, str) and plant.code)
-        self.assertIn('-', plant.code)
         self.assertEqual(plant.tenant, self.tenant)
+        self.assertEqual(plant.name, f"Processing Plant {unique_id}")
 
     def test_plant_str_representation(self):
         """Test the string representation of a plant."""
         unique_id = uuid.uuid4().hex[:8]
         plant = Plant.objects.create(
             name=f"Distribution Center {unique_id}",
-            code=f"DC-{unique_id}",
+            plant_est_num=f"EST-{unique_id}",
             tenant=self.tenant,
         )
-        
-        self.assertIn(f"DC-{unique_id}", str(plant))
+
+        self.assertIn(f"EST-{unique_id}", str(plant))
         self.assertIn("Distribution Center", str(plant))
 
     def test_plant_with_supplier(self):
@@ -101,11 +98,10 @@ class PlantModelTest(TestCase):
         unique_id = uuid.uuid4().hex[:8]
         plant = Plant.objects.create(
             name=f"Supplier Plant {unique_id}",
-            code=f"SP-{unique_id}",
             supplier=self.supplier,
             tenant=self.tenant,
         )
-        
+
         self.assertEqual(plant.supplier, self.supplier)
         self.assertIn(plant, self.supplier.supplier_plants.all())
 
@@ -116,7 +112,6 @@ class PlantModelTest(TestCase):
         for plant_type, _ in Plant.PLANT_TYPE_CHOICES:
             plant = Plant.objects.create(
                 name=f"Plant {plant_type} {unique_id}",
-                code=f"P-{plant_type[:3]}-{unique_id}",
                 plant_type=plant_type,
                 tenant=self.tenant,
             )
@@ -129,7 +124,6 @@ class PlantModelTest(TestCase):
         # Create plant for first tenant
         plant1 = Plant.objects.create(
             name=f"Plant 1 {unique_id}",
-            code=f"P1-{unique_id}",
             tenant=self.tenant,
         )
         
@@ -149,7 +143,6 @@ class PlantModelTest(TestCase):
         # Create plant for second tenant
         plant2 = Plant.objects.create(
             name=f"Plant 2 {unique_id}",
-            code=f"P2-{unique_id}",
             tenant=other_tenant,
         )
         
@@ -167,28 +160,22 @@ class PlantModelTest(TestCase):
         unique_id = uuid.uuid4().hex[:8]
         plant = Plant.objects.create(
             name=f"Large Plant {unique_id}",
-            code=f"LP-{unique_id}",
             capacity=10000,
             tenant=self.tenant,
         )
         
         self.assertEqual(plant.capacity, 10000)
 
-    def test_plant_contact_info(self):
-        """Test plant with contact information."""
+    def test_plant_operational_flags(self):
+        """Test plant operational flags."""
         unique_id = uuid.uuid4().hex[:8]
         plant = Plant.objects.create(
-            name=f"Contact Plant {unique_id}",
-            code=f"CP-{unique_id}",
-            phone="555-123-4567",
-            email=f"plant-{unique_id}@test.com",
-            manager="John Manager",
+            name=f"Plant {unique_id}",
             tenant=self.tenant,
         )
-        
-        self.assertEqual(plant.phone, "555-123-4567")
-        self.assertEqual(plant.manager, "John Manager")
+
         self.assertTrue(plant.is_active)
+        self.assertFalse(plant.fcfs)
 
     def test_role_authorized_plant_manager_restrictions(self):
         unique_id = uuid.uuid4().hex[:8]
@@ -200,8 +187,8 @@ class PlantModelTest(TestCase):
         )
         membership = TenantUser.objects.create(tenant=self.tenant, user=pm_user, role="plant_manager")
 
-        plant_allowed = Plant.objects.create(name=f"Allowed {unique_id}", code=f"A-{unique_id}", tenant=self.tenant)
-        plant_denied = Plant.objects.create(name=f"Denied {unique_id}", code=f"D-{unique_id}", tenant=self.tenant)
+        plant_allowed = Plant.objects.create(name=f"Allowed {unique_id}", tenant=self.tenant)
+        plant_denied = Plant.objects.create(name=f"Denied {unique_id}", tenant=self.tenant)
 
         membership.restricted_plants.add(plant_allowed)
 

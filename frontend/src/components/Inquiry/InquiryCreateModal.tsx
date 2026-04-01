@@ -490,7 +490,6 @@ export const InquiryCreateModal: React.FC<InquiryCreateModalProps> = ({
             [key]: (Array.isArray(rows) ? rows : []).map((r: any) => ({
               id: Number(r.id),
               name: String(r.name ?? '').trim() || `Plant #${r.id}`,
-              code: String(r.code ?? '').trim() || undefined,
               has_product: Boolean(r.has_product),
             })),
           }));

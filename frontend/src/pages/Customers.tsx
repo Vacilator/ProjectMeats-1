@@ -547,7 +547,12 @@ const Customers: React.FC = () => {
                                   key={loc.id}
                                   type="button"
                                   $active={selectedLocationId === loc.id}
-                                  onClick={() => setSelectedLocationId(loc.id)}
+                                  onClick={() => {
+                                    setSelectedLocationId(loc.id);
+                                    if (selectedCustomerId) {
+                                      navigate(`/customers/${selectedCustomerId}/locations/${loc.id}`);
+                                    }
+                                  }}
                                 >
                                   <ChildListName>{loc.name}</ChildListName>
                                   <ChildListMeta>
@@ -622,6 +627,7 @@ const Customers: React.FC = () => {
                                       {c.first_name} {c.last_name}
                                     </ContactName>
                                     <ContactMeta>
+                                      {(c as any).department ? <span>{(c as any).department}</span> : null}
                                       {c.position ? <span>{c.position}</span> : null}
                                       {c.email ? <span>{c.email}</span> : null}
                                       {c.phone ? <span>{c.phone}</span> : null}

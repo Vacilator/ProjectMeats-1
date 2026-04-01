@@ -277,6 +277,7 @@ const Contacts: React.FC = () => {
               <TableHeaderCell>Name</TableHeaderCell>
               <TableHeaderCell>Company</TableHeaderCell>
               <TableHeaderCell>Position</TableHeaderCell>
+              <TableHeaderCell>Department</TableHeaderCell>
               <TableHeaderCell>Email</TableHeaderCell>
               <TableHeaderCell>Phone</TableHeaderCell>
               <TableHeaderCell>Actions</TableHeaderCell>
@@ -290,6 +291,7 @@ const Contacts: React.FC = () => {
                 </TableCell>
                 <TableCell>{contact.company || '-'}</TableCell>
                 <TableCell>{contact.position || '-'}</TableCell>
+                <TableCell>{(contact as any).department || '-'}</TableCell>
                 <TableCell>{contact.email || '-'}</TableCell>
                 <TableCell>{contact.phone || '-'}</TableCell>
                 <TableCell>

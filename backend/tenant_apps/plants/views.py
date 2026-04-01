@@ -22,8 +22,8 @@ class PlantViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated, IsRoleAuthorized]
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     filterset_fields = ["supplier", "plant_type", "is_active", "city", "state"]
-    search_fields = ["name", "code", "address", "city", "state", "manager"]
-    ordering_fields = ["name", "code", "created_at", "capacity"]
+    search_fields = ["name", "address", "city", "state", "plant_est_num"]
+    ordering_fields = ["name", "created_at", "capacity"]
     ordering = ["name"]
 
     def get_queryset(self):
@@ -169,10 +169,9 @@ class PlantViewSet(viewsets.ModelViewSet):
             {
                 'id': p.id,
                 'name': p.name,
-                'code': p.code,
                 'has_product': bool(getattr(p, 'has_product', False)),
             }
-            for p in qs.only('id', 'name', 'code')
+            for p in qs.only('id', 'name')
         ]
 
         return Response(data)

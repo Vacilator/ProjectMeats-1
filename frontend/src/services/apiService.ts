@@ -575,6 +575,7 @@ export interface Contact {
   phone_type?: 'mobile' | 'office';
   company?: string;
   position?: string;
+  department?: string;
   created_at: string;
   updated_at: string;
 }
@@ -582,14 +583,19 @@ export interface Contact {
 export interface Plant {
   id: number;
   name: string;
+  plant_est_num?: string;
+  plant_type?: string;
   address?: string;
   city?: string;
   state?: string;
   zip_code?: string;
   country?: string;
-  phone?: string;
-  phone_type?: 'mobile' | 'office';
-  manager?: string;
+  booking_contact_email?: string;
+  booking_contact_phone?: string;
+  booking_contact_phone_type?: 'mobile' | 'office';
+  capacity?: number;
+  is_active?: boolean;
+  fcfs?: boolean;
   created_at: string;
   updated_at: string;
 }
