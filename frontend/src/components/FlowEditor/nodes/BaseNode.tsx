@@ -217,6 +217,18 @@ const ConfigPreview = styled.div`
   color: rgb(var(--color-text-secondary));
 `;
 
+const CollapsedConfigPreview = styled.div`
+  padding: 8px 12px;
+  border-top: 1px solid rgb(var(--color-border));
+  background: rgb(var(--color-background) / 0.6);
+  font-size: 11px;
+  color: rgb(var(--color-text-secondary));
+
+  strong {
+    color: rgb(var(--color-text-primary));
+  }
+`;
+
 const BreakpointDot = styled.div`
   position: absolute;
   top: -6px;
@@ -606,6 +618,22 @@ export const BaseNode: React.FC<BaseNodeProps & { children?: React.ReactNode }> 
           </HeaderToggleButton>
         )}
       </NodeHeader>
+
+      {!isExpanded && config && Object.keys(config).length > 0 && (
+        <CollapsedConfigPreview aria-label="Node configuration summary">
+          {Object.entries(config)
+            .slice(0, 2)
+            .map(([key, value]) => {
+              const str = String(value ?? '');
+              const short = str.length > 44 ? `${str.slice(0, 44)}…` : str;
+              return (
+                <div key={key}>
+                  <strong>{key}:</strong> {short}
+                </div>
+              );
+            })}
+        </CollapsedConfigPreview>
+      )}
 
       {/* Body (collapsible) */}
       {isExpanded && (
