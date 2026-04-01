@@ -1,8 +1,12 @@
 # WorkForms Editor Enhancement Project
 
+> NOTE: This is a historical planning doc. Unchecked boxes here are **not** an active backlog.
+> 
+> Current priorities/status: `MASTER_PLAN.md` (canonical) and `.github/MASTER_PLAN.md` (PR log)
+
 **Project Code:** WF-ENH-2026-Q1  
 **Created:** 2026-02-06  
-**Status:** 🔵 Planning Phase  
+**Status:** 🔵 Planning Phase (Historical)  
 **Priority:** 🔴 High  
 **Est. Duration:** 6 weeks  
 **Target Completion:** 2026-03-20
