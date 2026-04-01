@@ -141,7 +141,7 @@ const ContainerHeader = styled.div`
   background: rgb(139, 92, 246);
   border-bottom: none;
   border-radius: 10px 10px 0 0;
-  cursor: pointer;
+  cursor: grab;
   user-select: none;
   color: white;
   overflow: hidden; /* Contain header styling within rounded corners */
@@ -149,14 +149,27 @@ const ContainerHeader = styled.div`
   &:hover {
     background: rgb(124, 77, 235); /* Slightly darker on hover */
   }
+
+  &:active {
+    cursor: grabbing;
+  }
 `;
 
-const ExpandIcon = styled.div`
+const ExpandIcon = styled.button`
   display: flex;
   align-items: center;
   justify-content: center;
   color: white; /* White icon for solid header */
   transition: transform 0.2s ease;
+  border: none;
+  background: transparent;
+  padding: 4px;
+  border-radius: 6px;
+  cursor: pointer;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.16);
+  }
 `;
 
 const ContainerIcon = styled.div`
@@ -170,15 +183,15 @@ const ContainerTitle = styled.div`
   h3 {
     margin: 0;
     font-size: 15px;
-    font-weight: 600;
-    color: rgb(var(--color-text-primary));
+    font-weight: 700;
+    color: rgba(255, 255, 255, 0.98);
     line-height: 1.3;
   }
   
   p {
     margin: 4px 0 0;
     font-size: 12px;
-    color: rgb(var(--color-text-secondary));
+    color: rgba(255, 255, 255, 0.85);
     line-height: 1.2;
   }
 `;
@@ -204,16 +217,6 @@ const ContainerBody = styled.div<{ isExpanded: boolean }>`
   position: relative;
   overflow: ${props => props.isExpanded ? 'visible' : 'hidden'};
   
-  /* CRITICAL: When expanded, container body must NOT block drop events */
-  /* Drop events need to reach the ReactFlow component's drop zone */
-  ${props => props.isExpanded && `
-    pointer-events: none;
-    
-    /* Re-enable pointer events for buttons and interactive elements */
-    button, a, input, select, textarea {
-      pointer-events: auto;
-    }
-  `}
 `;
 
 /* Phase B: Visual area for child nodes */
@@ -634,16 +637,20 @@ export const FormProcessNode = React.memo<FormProcessNodeProps>(({
           isExpanded={isExpanded}
           className={`pm-node ${selected ? 'selected is-selected' : ''} ${data.isDropTarget ? 'drag-over' : ''}`}
         >
-          <ContainerHeader
-            onClick={(e) => {
-              if (isEditingTitle) {
-                e.stopPropagation();
-                return;
-              }
-              handleHeaderClick(e);
-            }}
-          >
-            <ExpandIcon>
+          <ContainerHeader>
+            <ExpandIcon
+              type="button"
+              className="nodrag"
+              onClick={(e) => {
+                if (isEditingTitle) {
+                  e.stopPropagation();
+                  return;
+                }
+                handleHeaderClick(e);
+              }}
+              aria-label={isExpanded ? 'Collapse container' : 'Expand container'}
+              title={isExpanded ? 'Collapse' : 'Expand'}
+            >
               {isExpanded ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
             </ExpandIcon>
             
