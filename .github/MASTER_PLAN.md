@@ -36,7 +36,7 @@ This file is the **append-only PR-referenceable execution log**.
 
 - **2026-04-01** — Plants: removed legacy Plant fields (`code`, `manager`, `phone`, `email`), updated Vertical plant type label to “Vertical (Kill to Fabrication)”, fixed contact phone inputs, added Department column in contact lists, and implemented strict drill-down routing + breadcrumbs (Suppliers→Plants→Contacts, Customers→Locations→Contacts). (PR: #4332)
 
-- **2026-04-06** — Suppliers/Plants UX polish: fixed UniversalEntityForm “pushed left / distorted” modal rendering by making AntD modal width responsive (`min(720px, calc(100vw - 32px))`), hardening container sizing (`max-width: 100%`, `box-sizing: border-box`, `overflow-x: hidden`), and ensuring AntD `<Select>` dropdowns mount inside the active modal/drawer container via `getPopupContainer`. Plant detail view now uses Record Pivot standard (`EntityProfileHeader` + Contacts tab) instead of a full read-only UniversalEntityForm wall. (PR: TBD)
+- **2026-04-06** — Suppliers/Plants UX polish: fixed UniversalEntityForm “pushed left / distorted” modal rendering by making AntD modal width responsive (`min(720px, calc(100vw - 32px))`), hardening container sizing (`max-width: 100%`, `box-sizing: border-box`, `overflow-x: hidden`), and ensuring AntD `<Select>` dropdowns mount inside the active modal/drawer container via `getPopupContainer`. Plant detail view now uses Record Pivot standard (`EntityProfileHeader` + Contacts tab) instead of a full read-only UniversalEntityForm wall. (PR: #4344)
 
 ### 2026-03-31 — Secret audit drift (manifest v5.1)
 - Command: `python config/manage_env.py audit --repo Meats-Central/ProjectMeats`
