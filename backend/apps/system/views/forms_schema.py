@@ -409,11 +409,19 @@ class SystemFormSchemaView(APIView):
                         'ui': {},
                     },
                     {
+                        'key': 'phone_office',
+                        'label': 'Headquarters Phone Number',
+                        'type': 'phone',
+                        'required': False,
+                        'order': 1,
+                        'ui': {},
+                    },
+                    {
                         'key': 'address',
                         'label': 'Headquarters Address',
                         'type': 'textarea',
                         'required': False,
-                        'order': 1,
+                        'order': 2,
                         'ui': {'widget': 'textarea'},
                     },
                     {
@@ -421,7 +429,7 @@ class SystemFormSchemaView(APIView):
                         'label': 'Headquarters City',
                         'type': 'text',
                         'required': False,
-                        'order': 2,
+                        'order': 3,
                         'ui': {},
                     },
                     {
@@ -429,7 +437,7 @@ class SystemFormSchemaView(APIView):
                         'label': 'Headquarters State',
                         'type': 'text',
                         'required': False,
-                        'order': 3,
+                        'order': 4,
                         'ui': {},
                     },
                     {
@@ -437,7 +445,7 @@ class SystemFormSchemaView(APIView):
                         'label': 'Headquarters ZIP Code',
                         'type': 'text',
                         'required': False,
-                        'order': 4,
+                        'order': 5,
                         'ui': {},
                     },
                     {
@@ -445,11 +453,11 @@ class SystemFormSchemaView(APIView):
                         'label': 'Country',
                         'type': 'text',
                         'required': False,
-                        'order': 5,
+                        'order': 6,
                         'ui': {},
                     },
                 ],
-                'key_fields': ['name', 'address', 'city', 'state', 'zip_code', 'country'],
+                'key_fields': ['name', 'phone_office', 'address', 'city', 'state', 'zip_code', 'country'],
             }
 
             key_set = set(schema.get('key_fields') or [])
