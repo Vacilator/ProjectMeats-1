@@ -230,6 +230,16 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
   const schemaEntityKey = useMemo(() => normalizeEntityKey(entityType), [entityType]);
   const endpoint = useMemo(() => normalizeEntityEndpoint(entityType), [entityType]);
 
+  const getSelectPopupContainer = useCallback((triggerNode: HTMLElement) => {
+    const modalBody = (triggerNode?.closest?.('.ant-modal-body') as HTMLElement | null) ?? null;
+    if (modalBody) return modalBody;
+
+    const drawerBody = (triggerNode?.closest?.('.ant-drawer-body') as HTMLElement | null) ?? null;
+    if (drawerBody) return drawerBody;
+
+    return document.body;
+  }, []);
+
   const loadSchema = useCallback(async () => {
     // 1) Preferred: metadata endpoint (tenant-safe)
     try {
@@ -1002,6 +1012,7 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
                         value={value || undefined}
                         onChange={(next) => setFkValues((prev) => ({ ...prev, [f.key]: String(next) }))}
                         notFoundContent={loadingProducts[f.key] ? <Spin size="small" /> : null}
+                        getPopupContainer={getSelectPopupContainer}
                         style={{ width: '100%' }}
                         placeholder="Search products…"
                       />
@@ -1054,6 +1065,7 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
                       options={options.map((o) => ({ value: String(o.id), label: o.name }))}
                       value={value || undefined}
                       onChange={(next) => setFkValues((prev) => ({ ...prev, [f.key]: String(next) }))}
+                      getPopupContainer={getSelectPopupContainer}
                       style={{ width: '100%' }}
                       placeholder={`Select ${f.label || f.key}`}
                       filterOption={(input, option) =>
