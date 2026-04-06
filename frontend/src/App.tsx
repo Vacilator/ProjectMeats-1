@@ -38,6 +38,7 @@ const queryClient = new QueryClient({
 import Suppliers from './pages/Suppliers';
 import Customers from './pages/Customers';
 import UniversalEntityRecordPage from './pages/Entities/UniversalEntityRecordPage';
+import UniversalEntityRecordRoute from './pages/Entities/UniversalEntityRecordRoute';
 import PurchaseOrders from './pages/PurchaseOrders';
 import SalesOrders from './pages/SalesOrders';
 import AccountsReceivables from './pages/AccountsReceivables';
@@ -239,6 +240,9 @@ const App: React.FC = () => {
                 <Route path="/signup" element={<SignUp />} />
               <Route path="/" element={<Layout />}>
                 <Route index element={<Navigate to="/cockpit" replace />} />
+
+                {/* Canonical record destination */}
+                <Route path="records/:entityType/:id" element={<UniversalEntityRecordRoute />} />
                 
                 {/* Suppliers & Related */}
                 <Route path="suppliers" element={<Suppliers />} />

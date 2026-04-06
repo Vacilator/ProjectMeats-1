@@ -33,6 +33,8 @@ class EntityViewSet(viewsets.ViewSet):
     MODEL_MAP = {
         'customer': ('customers', 'Customer'),
         'supplier': ('suppliers', 'Supplier'),
+        'plant': ('plants', 'Plant'),
+        'location': ('locations', 'Location'),
         # Products are system-wide (tenantless) after the Phase 3 deduplication.
         'product': ('system', 'Product'),
         'contact': ('contacts', 'Contact'),

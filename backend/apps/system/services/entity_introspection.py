@@ -182,12 +182,20 @@ def get_entity_fields(entity_id: str):
         if field.primary_key:
             continue
         
+        read_only = bool(
+            (hasattr(field, 'editable') and getattr(field, 'editable', True) is False)
+            or (hasattr(field, 'auto_now') and getattr(field, 'auto_now', False))
+            or (hasattr(field, 'auto_now_add') and getattr(field, 'auto_now_add', False))
+        )
+
         field_data = {
             'name': field.name,
             'label': field.verbose_name.title() if hasattr(field, 'verbose_name') else field.name.replace('_', ' ').title(),
             'field_type': get_field_type_mapping(field),
             'is_required': not field.blank if hasattr(field, 'blank') else False,
             'help_text': field.help_text if hasattr(field, 'help_text') else '',
+            # Additive presentation metadata (used by forms_schema.py)
+            'read_only': read_only,
         }
         
         # Add type-specific metadata

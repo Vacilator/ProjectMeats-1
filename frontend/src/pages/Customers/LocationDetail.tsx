@@ -1,9 +1,10 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { Breadcrumb, Button, Card, Empty, Spin, Table } from 'antd';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { Breadcrumb, Button, Card, Empty, Spin, Table, Tabs } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 
-import { EntityFormSurface } from '@/components/Shared';
+import { EntityProfileHeader } from '@/components/Cockpit';
+import { ActivityFeed, EntityFormSurface } from '@/components/Shared';
 import { apiClient } from '@/services/apiService';
 
 type RouteParams = { customerId?: string; locationId?: string };
@@ -35,6 +36,9 @@ export const LocationDetail: React.FC = () => {
 
   const cid = String(customerId || '').trim();
   const lid = String(locationId || '').trim();
+
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [showEditModal, setShowEditModal] = useState(false);
 
   const [loading, setLoading] = useState(true);
   const [customer, setCustomer] = useState<CustomerRow | null>(null);
@@ -70,7 +74,7 @@ export const LocationDetail: React.FC = () => {
     return () => {
       mounted = false;
     };
-  }, [cid, lid]);
+  }, [cid, lid, refreshKey]);
 
   useEffect(() => {
     if (!lid) return;
@@ -103,6 +107,42 @@ export const LocationDetail: React.FC = () => {
     const name = String(location?.name || '').trim();
     return name || (lid ? `Location #${lid}` : 'Location');
   }, [lid, location?.name]);
+
+  const handleNavigateToEntity = useCallback(
+    (entityType: string, entityId: string, _label: string) => {
+      const t = String(entityType || '').trim().toLowerCase();
+      const id = String(entityId || '').trim();
+      if (!t || !id) return;
+
+      if (t === 'customer') {
+        navigate(`/customers/${id}`);
+        return;
+      }
+
+      if (t === 'location') {
+        navigate(cid ? `/customers/${cid}/locations/${id}` : `/locations/${id}`);
+        return;
+      }
+
+      if (t === 'contact') {
+        navigate(`/records/contact/${encodeURIComponent(String(id))}`);
+        return;
+      }
+
+      if (t === 'supplier') {
+        navigate(`/suppliers/${id}`);
+        return;
+      }
+
+      if (t === 'plant') {
+        navigate(`/plants/${id}`);
+        return;
+      }
+
+      navigate(`/${t}/${id}`);
+    },
+    [cid, lid, navigate]
+  );
 
   const columns: ColumnsType<ContactRow> = useMemo(
     () => [
@@ -145,7 +185,15 @@ export const LocationDetail: React.FC = () => {
 
   return (
     <div style={{ padding: 16 }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 12,
+          flexWrap: 'wrap',
+        }}
+      >
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
           <Button onClick={() => navigate(-1)}>Back</Button>
           <Breadcrumb
@@ -170,7 +218,27 @@ export const LocationDetail: React.FC = () => {
             ]}
           />
         </div>
+
+        <div style={{ display: 'flex', gap: 8 }}>
+          <Button type="primary" onClick={() => setShowEditModal(true)} disabled={!lid || loading}>
+            Edit Location
+          </Button>
+        </div>
       </div>
+
+      {showEditModal && lid && (
+        <EntityFormSurface
+          entityType="location"
+          mode="edit"
+          entityId={lid}
+          isOpen={showEditModal}
+          onClose={() => setShowEditModal(false)}
+          onSuccess={() => {
+            setShowEditModal(false);
+            setRefreshKey((k) => k + 1);
+          }}
+        />
+      )}
 
       <div style={{ marginTop: 12 }}>
         {loading ? (
@@ -178,37 +246,58 @@ export const LocationDetail: React.FC = () => {
             <Spin />
           </Card>
         ) : (
-          <EntityFormSurface
+          <EntityProfileHeader
+            key={`${lid}-${refreshKey}`}
             entityType="location"
-            mode="view"
-            variant="inline"
-            isOpen={true}
             entityId={lid}
-            onClose={() => navigate('/customers')}
+            variant="full"
+            onNavigateToEntity={handleNavigateToEntity}
           />
         )}
       </div>
 
-      <Card style={{ marginTop: 16 }} title="Contacts">
-        {loadingContacts ? (
-          <div style={{ padding: 12 }}>
-            <Spin />
-          </div>
-        ) : contacts.length === 0 ? (
-          <Empty description="No contacts for this location" />
-        ) : (
-          <Table
-            columns={columns}
-            dataSource={contacts}
-            rowKey={(r) => String(r.id)}
-            pagination={false}
-            onRow={(record) => ({
-              onClick: () => navigate(`/customers/${cid}/locations/${lid}/contacts/${record.id}`),
-              style: { cursor: 'pointer' },
-            })}
-          />
-        )}
-      </Card>
+      <Tabs
+        style={{ marginTop: 12 }}
+        items={[
+          {
+            key: 'contacts',
+            label: `Contacts (${contacts.length})`,
+            children: (
+              <Card size="small" title="Contacts">
+                {loadingContacts ? (
+                  <div style={{ padding: 12 }}>
+                    <Spin />
+                  </div>
+                ) : contacts.length === 0 ? (
+                  <Empty description="No contacts for this location" />
+                ) : (
+                  <Table
+                    size="small"
+                    columns={columns}
+                    dataSource={contacts}
+                    rowKey={(r) => String(r.id)}
+                    pagination={false}
+                    onRow={(record) => ({
+                      onClick: () => navigate(`/records/contact/${encodeURIComponent(String(record.id))}`),
+                      style: { cursor: 'pointer' },
+                    })}
+                  />
+                )}
+              </Card>
+            ),
+          },
+          {
+            key: 'activity',
+            label: 'Activity',
+            children:
+              Number.isFinite(Number(lid)) && Number(lid) > 0 ? (
+                <ActivityFeed entityType="location" entityId={Number(lid)} showCreateForm maxHeight="520px" />
+              ) : (
+                <Empty description="Activity unavailable" />
+              ),
+          },
+        ]}
+      />
     </div>
   );
 };

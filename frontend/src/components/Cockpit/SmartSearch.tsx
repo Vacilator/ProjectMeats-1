@@ -20,8 +20,11 @@ import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import styled from 'styled-components';
 import {
   Search, Star, Clock, FileText,
-  Users, Building2, Package, TrendingUp, X
+  Users, Building2, Package,
+  TrendingUp, X
 } from 'lucide-react';
+
+import { getEntityIcon, getEntityTone } from '@/components/Shared/entityListPresentation';
 import debounce from 'lodash/debounce';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Tabs, Spin, Button, Dropdown, message, type MenuProps } from 'antd';
@@ -324,61 +327,6 @@ const EmptyMessage = styled.div`
 // ============================================================================
 // Helper Functions
 // ============================================================================
-
-const getEntityIcon = (type: SearchEntity['type'], size = 20) => {
-  switch (type) {
-    case 'customer':
-      return <Users size={size} />;
-    case 'supplier':
-      return <Building2 size={size} />;
-    case 'contact':
-      return <Users size={size} />;
-    case 'product':
-      return <Package size={size} />;
-    case 'purchase_order':
-    case 'sales_order':
-    case 'invoice':
-      return <FileText size={size} />;
-    case 'inquiry':
-      return <FileText size={size} />;
-    case 'claim':
-      return <FileText size={size} />;
-    case 'call':
-      return <Clock size={size} />;
-    case 'tenant_user':
-      return <Users size={size} />;
-    default:
-      return <FileText size={size} />;
-  }
-};
-
-const getEntityTone = (type: SearchEntity['type']) => {
-  // Return an RGB tuple CSS var (e.g. "var(--color-success)") so we can use rgb()/rgba() safely.
-  switch (type) {
-    case 'customer':
-      return 'var(--color-success)';
-    case 'supplier':
-      return 'var(--color-primary)';
-    case 'contact':
-      return 'var(--color-info)';
-    case 'product':
-      return 'var(--color-warning)';
-    case 'purchase_order':
-    case 'sales_order':
-    case 'invoice':
-      return 'var(--color-warning)';
-    case 'inquiry':
-      return 'var(--color-error)';
-    case 'claim':
-      return 'var(--color-error)';
-    case 'call':
-      return 'var(--color-info)';
-    case 'tenant_user':
-      return 'var(--color-primary)';
-    default:
-      return 'var(--color-primary)';
-  }
-};
 
 /**
  * Format relationship type to human-readable title
