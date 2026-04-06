@@ -1,8 +1,9 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { Breadcrumb, Button, Card, Empty, Spin, Table } from 'antd';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { Breadcrumb, Button, Card, Empty, Spin, Table, Tabs } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 
+import { EntityProfileHeader } from '@/components/Cockpit';
 import { EntityFormSurface } from '@/components/Shared';
 import { apiClient } from '@/services/apiService';
 
@@ -35,6 +36,9 @@ export const PlantDetail: React.FC = () => {
 
   const sid = String(supplierId || '').trim();
   const pid = String(plantId || '').trim();
+
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [showEditModal, setShowEditModal] = useState(false);
 
   const [loading, setLoading] = useState(true);
   const [supplier, setSupplier] = useState<SupplierRow | null>(null);
@@ -70,7 +74,7 @@ export const PlantDetail: React.FC = () => {
     return () => {
       mounted = false;
     };
-  }, [pid, sid]);
+  }, [pid, refreshKey, sid]);
 
   useEffect(() => {
     if (!pid) return;
@@ -103,6 +107,42 @@ export const PlantDetail: React.FC = () => {
     const name = String(plant?.name || '').trim();
     return name || (pid ? `Plant #${pid}` : 'Plant');
   }, [pid, plant?.name]);
+
+  const handleNavigateToEntity = useCallback(
+    (entityType: string, entityId: string, _label: string) => {
+      const t = String(entityType || '').trim().toLowerCase();
+      const id = String(entityId || '').trim();
+      if (!t || !id) return;
+
+      if (t === 'supplier') {
+        navigate(`/suppliers/${id}`);
+        return;
+      }
+
+      if (t === 'plant') {
+        navigate(sid ? `/suppliers/${sid}/plants/${id}` : `/plants/${id}`);
+        return;
+      }
+
+      if (t === 'contact') {
+        navigate(sid && pid ? `/suppliers/${sid}/plants/${pid}/contacts/${id}` : `/contacts?contact=${id}`);
+        return;
+      }
+
+      if (t === 'customer') {
+        navigate(`/customers/${id}`);
+        return;
+      }
+
+      if (t === 'location') {
+        navigate(`/locations/${id}`);
+        return;
+      }
+
+      navigate(`/${t}/${id}`);
+    },
+    [navigate, pid, sid]
+  );
 
   const columns: ColumnsType<ContactRow> = useMemo(
     () => [
@@ -145,7 +185,15 @@ export const PlantDetail: React.FC = () => {
 
   return (
     <div style={{ padding: 16 }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 12,
+          flexWrap: 'wrap',
+        }}
+      >
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
           <Button onClick={() => navigate(-1)}>Back</Button>
           <Breadcrumb
@@ -170,7 +218,27 @@ export const PlantDetail: React.FC = () => {
             ]}
           />
         </div>
+
+        <div style={{ display: 'flex', gap: 8 }}>
+          <Button type="primary" onClick={() => setShowEditModal(true)} disabled={!pid || loading}>
+            Edit Plant
+          </Button>
+        </div>
       </div>
+
+      {showEditModal && pid && (
+        <EntityFormSurface
+          entityType="plant"
+          mode="edit"
+          entityId={pid}
+          isOpen={showEditModal}
+          onClose={() => setShowEditModal(false)}
+          onSuccess={() => {
+            setShowEditModal(false);
+            setRefreshKey((k) => k + 1);
+          }}
+        />
+      )}
 
       <div style={{ marginTop: 12 }}>
         {loading ? (
@@ -178,37 +246,47 @@ export const PlantDetail: React.FC = () => {
             <Spin />
           </Card>
         ) : (
-          <EntityFormSurface
+          <EntityProfileHeader
+            key={`${pid}-${refreshKey}`}
             entityType="plant"
-            mode="view"
-            variant="inline"
-            isOpen={true}
             entityId={pid}
-            onClose={() => navigate('/suppliers')}
+            variant="full"
+            onNavigateToEntity={handleNavigateToEntity}
           />
         )}
       </div>
 
-      <Card style={{ marginTop: 16 }} title="Contacts">
-        {loadingContacts ? (
-          <div style={{ padding: 12 }}>
-            <Spin />
-          </div>
-        ) : contacts.length === 0 ? (
-          <Empty description="No contacts for this plant" />
-        ) : (
-          <Table
-            columns={columns}
-            dataSource={contacts}
-            rowKey={(r) => String(r.id)}
-            pagination={false}
-            onRow={(record) => ({
-              onClick: () => navigate(`/suppliers/${sid}/plants/${pid}/contacts/${record.id}`),
-              style: { cursor: 'pointer' },
-            })}
-          />
-        )}
-      </Card>
+      <Tabs
+        style={{ marginTop: 12 }}
+        items={[
+          {
+            key: 'contacts',
+            label: `Contacts (${contacts.length})`,
+            children: (
+              <Card title="Contacts">
+                {loadingContacts ? (
+                  <div style={{ padding: 12 }}>
+                    <Spin />
+                  </div>
+                ) : contacts.length === 0 ? (
+                  <Empty description="No contacts for this plant" />
+                ) : (
+                  <Table
+                    columns={columns}
+                    dataSource={contacts}
+                    rowKey={(r) => String(r.id)}
+                    pagination={false}
+                    onRow={(record) => ({
+                      onClick: () => navigate(`/suppliers/${sid}/plants/${pid}/contacts/${record.id}`),
+                      style: { cursor: 'pointer' },
+                    })}
+                  />
+                )}
+              </Card>
+            ),
+          },
+        ]}
+      />
     </div>
   );
 };

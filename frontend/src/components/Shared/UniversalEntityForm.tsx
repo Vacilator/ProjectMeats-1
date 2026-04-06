@@ -82,9 +82,12 @@ type BackendSchema = {
   key_fields?: string[];
 };
 
-const Container = styled.div`
+const Container = styled.div<{ $variant: UniversalEntityFormVariant }>`
   width: 100%;
-  min-height: 520px;
+  max-width: 100%;
+  box-sizing: border-box;
+  overflow-x: hidden;
+  min-height: ${(p) => (p.$variant === 'modal' ? '520px' : 'auto')};
 `;
 
 const normalizeEntityKey = (entityType: string): string => {
@@ -226,6 +229,16 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
 
   const schemaEntityKey = useMemo(() => normalizeEntityKey(entityType), [entityType]);
   const endpoint = useMemo(() => normalizeEntityEndpoint(entityType), [entityType]);
+
+  const getSelectPopupContainer = useCallback((triggerNode: HTMLElement) => {
+    const modalBody = (triggerNode?.closest?.('.ant-modal-body') as HTMLElement | null) ?? null;
+    if (modalBody) return modalBody;
+
+    const drawerBody = (triggerNode?.closest?.('.ant-drawer-body') as HTMLElement | null) ?? null;
+    if (drawerBody) return drawerBody;
+
+    return document.body;
+  }, []);
 
   const loadSchema = useCallback(async () => {
     // 1) Preferred: metadata endpoint (tenant-safe)
@@ -917,7 +930,7 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
     );
 
   const content = (
-    <Container>
+    <Container $variant={variant}>
       {loading ? (
         <div style={{ padding: 16 }}>
           <Skeleton active paragraph={{ rows: 6 }} />
@@ -999,6 +1012,7 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
                         value={value || undefined}
                         onChange={(next) => setFkValues((prev) => ({ ...prev, [f.key]: String(next) }))}
                         notFoundContent={loadingProducts[f.key] ? <Spin size="small" /> : null}
+                        getPopupContainer={getSelectPopupContainer}
                         style={{ width: '100%' }}
                         placeholder="Search products…"
                       />
@@ -1051,6 +1065,7 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
                       options={options.map((o) => ({ value: String(o.id), label: o.name }))}
                       value={value || undefined}
                       onChange={(next) => setFkValues((prev) => ({ ...prev, [f.key]: String(next) }))}
+                      getPopupContainer={getSelectPopupContainer}
                       style={{ width: '100%' }}
                       placeholder={`Select ${f.label || f.key}`}
                       filterOption={(input, option) =>
@@ -1153,6 +1168,7 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
   return (
     <Modal
       open={isOpen}
+      centered
       onCancel={() => {
         if (submitting) return;
         onClose();
@@ -1160,7 +1176,7 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
       maskClosable={!submitting}
       keyboard={!submitting}
       footer={null}
-      width={720}
+      width="min(720px, calc(100vw - 32px))"
       destroyOnClose
       title={schema?.name || (entityId ? `${entityType} ${entityId}` : `New ${entityType}`)}
     >
