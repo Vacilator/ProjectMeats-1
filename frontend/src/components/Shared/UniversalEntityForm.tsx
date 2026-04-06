@@ -82,9 +82,12 @@ type BackendSchema = {
   key_fields?: string[];
 };
 
-const Container = styled.div`
+const Container = styled.div<{ $variant: UniversalEntityFormVariant }>`
   width: 100%;
-  min-height: 520px;
+  max-width: 100%;
+  box-sizing: border-box;
+  overflow-x: hidden;
+  min-height: ${(p) => (p.$variant === 'modal' ? '520px' : 'auto')};
 `;
 
 const normalizeEntityKey = (entityType: string): string => {
@@ -917,7 +920,7 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
     );
 
   const content = (
-    <Container>
+    <Container $variant={variant}>
       {loading ? (
         <div style={{ padding: 16 }}>
           <Skeleton active paragraph={{ rows: 6 }} />
@@ -1153,6 +1156,7 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
   return (
     <Modal
       open={isOpen}
+      centered
       onCancel={() => {
         if (submitting) return;
         onClose();
@@ -1160,7 +1164,7 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
       maskClosable={!submitting}
       keyboard={!submitting}
       footer={null}
-      width={720}
+      width="min(720px, calc(100vw - 32px))"
       destroyOnClose
       title={schema?.name || (entityId ? `${entityType} ${entityId}` : `New ${entityType}`)}
     >
