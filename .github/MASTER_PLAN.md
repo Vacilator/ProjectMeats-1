@@ -43,7 +43,7 @@ This file is the **append-only PR-referenceable execution log**.
   - Record view: `EntityProfileHeader` top section; edit opens `EntityFormSurface` modal
   - Relationships: Tabs below header; at minimum Contacts + Activity
   - Density parity: ~12px spacing, `Table size="small"`, row-click navigation like Cockpit
-  (PR: #TBD)
+  (PR: #4351)
 
 - **2026-04-06** — **Unified Component Architecture (Schema-driven Record Management)**: formalized backend form schema metadata as the “brain” for header/table rendering, and introduced canonical record navigation.
   - Backend: `/api/v1/system/forms/schema/` normalized to always include per-field `read_only`, `hidden`, `group`, `surfaces` + top-level `header_fields`/`groups` metadata.
