@@ -852,7 +852,33 @@ jobs:
           FULL_IMAGE="${{ env.REGISTRY }}/${{ env.BACKEND_IMAGE }}:${IMAGE_TAG}"
           
           echo "Using image: $FULL_IMAGE"
-          docker pull "$FULL_IMAGE"
+
+          pull_with_retry() {
+            local image="$1"
+            local attempt=1
+            local max_attempts=5
+            local delay=5
+
+            while [ $attempt -le $max_attempts ]; do
+              echo "docker pull attempt ${attempt}/${max_attempts}: ${image}"
+              if docker pull "$image"; then
+                return 0
+              fi
+
+              if [ $attempt -lt $max_attempts ]; then
+                echo "Pull failed; retrying in ${delay}s..."
+                sleep "$delay"
+                delay=$((delay * 2))
+              fi
+
+              attempt=$((attempt + 1))
+            done
+
+            echo "✗ docker pull failed after ${max_attempts} attempts"
+            return 1
+          }
+
+          pull_with_retry "$FULL_IMAGE"
           
           echo ""
           echo "Running migrations..."
@@ -1086,8 +1112,33 @@ jobs:
             df -h /
           fi
           
-          # Pull new image
-          docker pull "$REG/$IMG:$TAG"
+          # Pull new image (retry for transient DOCR auth timeouts)
+          pull_with_retry() {
+            local image="$1"
+            local attempt=1
+            local max_attempts=5
+            local delay=5
+
+            while [ $attempt -le $max_attempts ]; do
+              echo "docker pull attempt ${attempt}/${max_attempts}: ${image}"
+              if docker pull "$image"; then
+                return 0
+              fi
+
+              if [ $attempt -lt $max_attempts ]; then
+                echo "Pull failed; retrying in ${delay}s..."
+                sleep "$delay"
+                delay=$((delay * 2))
+              fi
+
+              attempt=$((attempt + 1))
+            done
+
+            echo "✗ docker pull failed after ${max_attempts} attempts"
+            return 1
+          }
+
+          pull_with_retry "$REG/$IMG:$TAG"
           
           # Stop old containers (both old and new naming conventions)
           docker stop projectmeats-backend pm-backend 2>/dev/null || true
@@ -1288,9 +1339,34 @@ jobs:
             df -h /
           fi
           
-          # Pull new image
+          # Pull new image (retry for transient DOCR auth timeouts)
+          pull_with_retry() {
+            local image="$1"
+            local attempt=1
+            local max_attempts=5
+            local delay=5
+
+            while [ $attempt -le $max_attempts ]; do
+              echo "docker pull attempt ${attempt}/${max_attempts}: ${image}"
+              if docker pull "$image"; then
+                return 0
+              fi
+
+              if [ $attempt -lt $max_attempts ]; then
+                echo "Pull failed; retrying in ${delay}s..."
+                sleep "$delay"
+                delay=$((delay * 2))
+              fi
+
+              attempt=$((attempt + 1))
+            done
+
+            echo "✗ docker pull failed after ${max_attempts} attempts"
+            return 1
+          }
+
           echo "Pulling image: $REG/$IMG:$IMAGE_TAG"
-          docker pull "$REG/$IMG:$IMAGE_TAG"
+          pull_with_retry "$REG/$IMG:$IMAGE_TAG"
           echo "✓ Image pulled successfully"
           
           # Stop old containers (both old and new naming conventions)
