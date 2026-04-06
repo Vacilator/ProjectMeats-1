@@ -51,7 +51,7 @@ This file is the **append-only PR-referenceable execution log**.
   - Unified Tables: added `UnifiedEntityTable` (AntD Table, Cockpit-consistent density) with a standard Quick Edit drawer that mounts `EntityFormSurface`.
   - Tabbed Record Page: `UniversalEntityRecordPage` now mounts standard tabs (Overview/Details/Related/Timeline) and uses `UnifiedEntityTable` for related lists.
   - Canonical Routing: added `/records/:entityType/:id` as the default destination for row-click navigation; backend `EntityViewSet` now supports `plant` and `location` for canonical record loading.
-  (PR: #TBD)
+  (PR: #4351)
 
 ### 2026-03-31 — Secret audit drift (manifest v5.1)
 - Command: `python config/manage_env.py audit --repo Meats-Central/ProjectMeats`
