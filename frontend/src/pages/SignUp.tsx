@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { EyeInvisibleOutlined, EyeOutlined } from '@ant-design/icons';
 import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import styled from 'styled-components';
 import { useAuth } from '../contexts/AuthContext';
@@ -10,7 +11,6 @@ interface SignUpFormData {
   confirmPassword: string;
   firstName: string;
   lastName: string;
-  company?: string;
 }
 
 const SignUp: React.FC = () => {
@@ -21,8 +21,9 @@ const SignUp: React.FC = () => {
     confirmPassword: '',
     firstName: '',
     lastName: '',
-    company: '',
   });
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
@@ -75,7 +76,6 @@ const SignUp: React.FC = () => {
         password: formData.password,
         firstName: formData.firstName,
         lastName: formData.lastName,
-        company: formData.company,
         token: token || undefined,
       });
 
@@ -194,42 +194,55 @@ const SignUp: React.FC = () => {
             />
           </FormGroup>
 
-          <FormGroup>
-            <Label>Company (Optional)</Label>
-            <Input
-              type="text"
-              name="company"
-              value={formData.company}
-              onChange={handleInputChange}
-              placeholder="Your company name"
-              disabled={loading}
-            />
-          </FormGroup>
 
           <FormRow>
             <FormGroup>
               <Label>Password *</Label>
-              <Input
-                type="password"
-                name="password"
-                value={formData.password}
-                onChange={handleInputChange}
-                placeholder="Create a password"
-                disabled={loading}
-                required
-              />
+              <PasswordInputWrapper>
+                <PasswordInput
+                  type={showPassword ? 'text' : 'password'}
+                  name="password"
+                  value={formData.password}
+                  onChange={handleInputChange}
+                  placeholder="Create a password"
+                  disabled={loading}
+                  autoComplete="new-password"
+                  required
+                />
+                <PasswordToggleButton
+                  type="button"
+                  onClick={() => setShowPassword((v) => !v)}
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  aria-pressed={showPassword}
+                  disabled={loading}
+                >
+                  {showPassword ? <EyeInvisibleOutlined /> : <EyeOutlined />}
+                </PasswordToggleButton>
+              </PasswordInputWrapper>
             </FormGroup>
             <FormGroup>
               <Label>Confirm Password *</Label>
-              <Input
-                type="password"
-                name="confirmPassword"
-                value={formData.confirmPassword}
-                onChange={handleInputChange}
-                placeholder="Confirm your password"
-                disabled={loading}
-                required
-              />
+              <PasswordInputWrapper>
+                <PasswordInput
+                  type={showConfirmPassword ? 'text' : 'password'}
+                  name="confirmPassword"
+                  value={formData.confirmPassword}
+                  onChange={handleInputChange}
+                  placeholder="Confirm your password"
+                  disabled={loading}
+                  autoComplete="new-password"
+                  required
+                />
+                <PasswordToggleButton
+                  type="button"
+                  onClick={() => setShowConfirmPassword((v) => !v)}
+                  aria-label={showConfirmPassword ? 'Hide password confirmation' : 'Show password confirmation'}
+                  aria-pressed={showConfirmPassword}
+                  disabled={loading}
+                >
+                  {showConfirmPassword ? <EyeInvisibleOutlined /> : <EyeOutlined />}
+                </PasswordToggleButton>
+              </PasswordInputWrapper>
             </FormGroup>
           </FormRow>
 
@@ -375,6 +388,48 @@ const Input = styled.input`
 
   &:disabled {
     background-color: rgb(var(--color-surface-hover));
+    cursor: not-allowed;
+  }
+`;
+
+const PasswordInputWrapper = styled.div`
+  position: relative;
+  width: 100%;
+`;
+
+const PasswordInput = styled(Input)`
+  padding-right: 44px;
+`;
+
+const PasswordToggleButton = styled.button`
+  position: absolute;
+  top: 50%;
+  right: 10px;
+  transform: translateY(-50%);
+  height: 32px;
+  width: 32px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: rgb(var(--color-text-secondary));
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+
+  &:hover:not(:disabled) {
+    background: rgb(var(--color-surface-hover));
+    color: rgb(var(--color-text-primary));
+  }
+
+  &:focus-visible {
+    outline: none;
+    border-color: rgb(var(--color-primary));
+    box-shadow: 0 0 0 3px rgb(var(--color-primary) / 0.12);
+  }
+
+  &:disabled {
+    opacity: 0.6;
     cursor: not-allowed;
   }
 `;
