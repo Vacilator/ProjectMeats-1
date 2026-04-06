@@ -4,7 +4,7 @@ import type { ColumnsType } from 'antd/es/table';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 
 import { EntityProfileHeader } from '@/components/Cockpit';
-import { EntityFormSurface } from '@/components/Shared';
+import { ActivityFeed, EntityFormSurface } from '@/components/Shared';
 import { apiClient } from '@/services/apiService';
 
 type RouteParams = { supplierId?: string; plantId?: string };
@@ -125,7 +125,7 @@ export const PlantDetail: React.FC = () => {
       }
 
       if (t === 'contact') {
-        navigate(sid && pid ? `/suppliers/${sid}/plants/${pid}/contacts/${id}` : `/contacts?contact=${id}`);
+        navigate(`/records/contact/${encodeURIComponent(String(id))}`);
         return;
       }
 
@@ -263,7 +263,7 @@ export const PlantDetail: React.FC = () => {
             key: 'contacts',
             label: `Contacts (${contacts.length})`,
             children: (
-              <Card title="Contacts">
+              <Card size="small" title="Contacts">
                 {loadingContacts ? (
                   <div style={{ padding: 12 }}>
                     <Spin />
@@ -272,18 +272,29 @@ export const PlantDetail: React.FC = () => {
                   <Empty description="No contacts for this plant" />
                 ) : (
                   <Table
+                    size="small"
                     columns={columns}
                     dataSource={contacts}
                     rowKey={(r) => String(r.id)}
                     pagination={false}
                     onRow={(record) => ({
-                      onClick: () => navigate(`/suppliers/${sid}/plants/${pid}/contacts/${record.id}`),
+                      onClick: () => navigate(`/records/contact/${encodeURIComponent(String(record.id))}`),
                       style: { cursor: 'pointer' },
                     })}
                   />
                 )}
               </Card>
             ),
+          },
+          {
+            key: 'activity',
+            label: 'Activity',
+            children:
+              Number.isFinite(Number(pid)) && Number(pid) > 0 ? (
+                <ActivityFeed entityType="plant" entityId={Number(pid)} showCreateForm maxHeight="520px" />
+              ) : (
+                <Empty description="Activity unavailable" />
+              ),
           },
         ]}
       />

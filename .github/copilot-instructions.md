@@ -14,6 +14,7 @@
 ### Quick Reference: Common Copilot Agent Tasks
 
 **Before Creating PR:**
+- [ ] **MANDATORY WORKFLOW**: for every batch of changes, ALWAYS: `git switch -c <new-branch>` → open a PR → merge to `development` to trigger Dev deployment (do not leave work unmerged).
 - [ ] Run `.github/scripts/validate-migrations.sh` (if backend changes)
 - [ ] Run `.github/scripts/validate-environment.sh` (if config changes)
 - [ ] Test migrations on fresh database

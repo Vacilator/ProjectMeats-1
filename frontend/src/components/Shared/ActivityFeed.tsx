@@ -39,7 +39,17 @@ interface ActivityLog {
 }
 
 interface ActivityFeedProps {
-  entityType: 'supplier' | 'customer' | 'plant' | 'purchase_order' | 'sales_order' | 'carrier' | 'product' | 'invoice' | 'contact';
+  entityType:
+    | 'supplier'
+    | 'customer'
+    | 'plant'
+    | 'location'
+    | 'purchase_order'
+    | 'sales_order'
+    | 'carrier'
+    | 'product'
+    | 'invoice'
+    | 'contact';
   entityId: number;
   showCreateForm?: boolean;
   maxHeight?: string;

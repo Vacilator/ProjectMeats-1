@@ -211,6 +211,120 @@ def _inline_department_fields() -> list[dict[str, Any]]:
     ]
 
 
+def _inline_inquiry_product_item_fields() -> list[dict[str, Any]]:
+    # NOTE: Inline arrays currently support scalar fields + static choices.
+    # For the enhanced product picker UX, EntityFormSurface routes inquiry creation
+    # through InquiryCreateModal by default.
+    uom_choices = [
+        {'value': 'LBS', 'label': 'Pounds (LBS)'},
+        {'value': 'KG', 'label': 'Kilograms (KG)'},
+        {'value': 'CS', 'label': 'Cases (CS)'},
+        {'value': 'EA', 'label': 'Each (EA)'},
+        {'value': 'PLT', 'label': 'Pallets (PLT)'},
+        {'value': 'BOX', 'label': 'Boxes (BOX)'},
+    ]
+
+    return [
+        {
+            'key': 'product',
+            'label': 'Product',
+            'type': 'text',
+            'required': True,
+            'help_text': 'Product ID (enhanced inquiry form provides autocomplete).',
+            'placeholder': 'e.g. 123',
+            'relationship': None,
+            'ui': {'widget': 'text'},
+            'related_entity': None,
+            'choices': None,
+        },
+        {
+            'key': 'quantity',
+            'label': 'Quantity',
+            'type': 'number',
+            'required': True,
+            'help_text': '',
+            'placeholder': 'e.g. 20000',
+            'relationship': None,
+            'ui': {'widget': 'number'},
+            'related_entity': None,
+            'choices': None,
+        },
+        {
+            'key': 'desired_uom',
+            'label': 'UOM',
+            'type': 'text',
+            'required': False,
+            'help_text': '',
+            'placeholder': None,
+            'relationship': None,
+            'ui': {'widget': 'select'},
+            'related_entity': None,
+            'choices': uom_choices,
+        },
+        {
+            'key': 'desired_price_per_unit',
+            'label': 'Desired Price / Unit',
+            'type': 'number',
+            'required': False,
+            'help_text': '',
+            'placeholder': 'e.g. 4.25',
+            'relationship': None,
+            'ui': {'widget': 'number'},
+            'related_entity': None,
+            'choices': None,
+        },
+        {
+            'key': 'actual_price_per_unit',
+            'label': 'Actual Price / Unit',
+            'type': 'number',
+            'required': False,
+            'help_text': '',
+            'placeholder': 'e.g. 4.40',
+            'relationship': None,
+            'ui': {'widget': 'number'},
+            'related_entity': None,
+            'choices': None,
+        },
+        {
+            'key': 'supplier',
+            'label': 'Supplier (optional)',
+            'type': 'text',
+            'required': False,
+            'help_text': 'Supplier ID (optional per-line sourcing).',
+            'placeholder': None,
+            'relationship': None,
+            'ui': {'widget': 'text'},
+            'related_entity': None,
+            'choices': None,
+        },
+        {
+            'key': 'plant',
+            'label': 'Plant (optional)',
+            'type': 'text',
+            'required': False,
+            'help_text': 'Plant ID (optional per-line sourcing).',
+            'placeholder': None,
+            'relationship': None,
+            'ui': {'widget': 'text'},
+            'related_entity': None,
+            'choices': None,
+        },
+        {
+            'key': 'notes',
+            'label': 'Line Notes',
+            'type': 'textarea',
+            'required': False,
+            'help_text': '',
+            'placeholder': None,
+            'relationship': None,
+            'ui': {'widget': 'textarea'},
+            'related_entity': None,
+            'choices': None,
+        },
+    ]
+
+
+
 _SKIP_FIELDS = {
     'tenant',
     'custom_data',
@@ -219,6 +333,74 @@ _SKIP_FIELDS = {
     'created_on',
     'updated_on',
 }
+
+
+def _infer_field_group(key: str) -> str:
+    k = (key or '').lower()
+    if k in {'name', 'title', 'status', 'entity_type'}:
+        return 'Overview'
+    if 'contact' in k or k in {'email', 'phone', 'phone_type'}:
+        return 'Contact'
+    if k in {'address', 'street_address', 'city', 'state', 'zip_code', 'country'}:
+        return 'Address'
+    if 'date' in k or k in {'valid_until', 'due_date', 'delivery_date', 'order_date', 'invoice_date'}:
+        return 'Dates'
+    if 'note' in k or k in {'notes', 'competitor_names', 'competitor_pricing_notes', 'win_loss_reason'}:
+        return 'Notes'
+    return 'Details'
+
+
+def _normalize_schema(schema: dict[str, Any]) -> dict[str, Any]:
+    fields = list(schema.get('fields') or [])
+    key_fields = list(schema.get('key_fields') or [])
+    header_fields = list(schema.get('header_fields') or []) or list(key_fields)
+
+    normalized_fields: list[dict[str, Any]] = []
+    for idx, f in enumerate(fields):
+        ff = dict(f)
+        key = str(ff.get('key') or '').strip()
+        if not key:
+            continue
+
+        ui = ff.get('ui') if isinstance(ff.get('ui'), dict) else {}
+        read_only = bool(ff.get('read_only')) or bool(ui.get('read_only'))
+        hidden = bool(ff.get('hidden')) or bool(ui.get('hidden'))
+
+        ff['order'] = int(ff.get('order') if ff.get('order') is not None else idx)
+        ff['group'] = str(ff.get('group') or _infer_field_group(key))
+        ff['read_only'] = read_only
+        ff['hidden'] = hidden
+
+        surfaces = ff.get('surfaces') if isinstance(ff.get('surfaces'), dict) else {}
+        ff['surfaces'] = {
+            'header': bool(surfaces.get('header', key in header_fields)),
+            'form': bool(surfaces.get('form', not hidden)),
+            'table': bool(surfaces.get('table', key in header_fields)),
+        }
+
+        ff['ui'] = {**ui, 'read_only': read_only}
+
+        normalized_fields.append(ff)
+
+    normalized_fields.sort(key=lambda x: int(x.get('order') or 0))
+
+    # Derive ordered groups (stable by first occurrence)
+    seen: set[str] = set()
+    groups: list[dict[str, Any]] = []
+    for f in normalized_fields:
+        g = str(f.get('group') or '').strip()
+        if not g or g in seen:
+            continue
+        seen.add(g)
+        groups.append({'id': g.lower().replace(' ', '_'), 'label': g, 'order': len(groups)})
+
+    return {
+        **schema,
+        'fields': normalized_fields,
+        'key_fields': key_fields,
+        'header_fields': header_fields,
+        'groups': schema.get('groups') or groups,
+    }
 
 
 def _map_field_type(introspected_type: str) -> str:
@@ -345,6 +527,8 @@ class SystemFormSchemaView(APIView):
                         'help_text': f.get('help_text') or '',
                         'relationship': relationship,
                         'ui': ui,
+                        # Additive presentation metadata
+                        'read_only': bool(f.get('read_only', False)),
                         # Backward-compat for existing clients
                         'related_entity': related_entity,
                         'choices': f.get('choices') or None,
@@ -381,12 +565,14 @@ class SystemFormSchemaView(APIView):
                 mf['is_advanced'] = bool(mf_key and (mf_key not in key_set) and (not mf_required))
 
             return Response(
-                {
-                    'name': 'Plant' if canonical == 'plants.plant' else 'Location',
-                    'description': 'Create or edit with department contacts.',
-                    'key_fields': key_fields,
-                    'fields': mapped_fields,
-                }
+                _normalize_schema(
+                    {
+                        'name': 'Plant' if canonical == 'plants.plant' else 'Location',
+                        'description': 'Create or edit with department contacts.',
+                        'key_fields': key_fields,
+                        'fields': mapped_fields,
+                    }
+                )
             )
 
         canonical = entity_type_lower
@@ -466,7 +652,7 @@ class SystemFormSchemaView(APIView):
                 mf_required = bool(mf.get('required'))
                 mf['is_advanced'] = bool(mf_key and (mf_key not in key_set) and (not mf_required))
 
-            return Response(schema, status=status.HTTP_200_OK)
+            return Response(_normalize_schema(schema), status=status.HTTP_200_OK)
 
         if canonical in {
             'customer',
@@ -536,7 +722,208 @@ class SystemFormSchemaView(APIView):
                 mf_required = bool(mf.get('required'))
                 mf['is_advanced'] = bool(mf_key and (mf_key not in key_set) and (not mf_required))
 
-            return Response(schema, status=status.HTTP_200_OK)
+            return Response(_normalize_schema(schema), status=status.HTTP_200_OK)
+
+        if canonical in {
+            'inquiry',
+            'inquiries',
+            'inquiries.inquiry',
+            'tenant_apps.inquiries.inquiry',
+        }:
+            schema = {
+                'name': 'Inquiry (Ideal)',
+                'description': 'Ideal inquiry create/edit schema (V3.5 unified UX).',
+                'fields': [
+                    {
+                        'key': 'entity_type',
+                        'label': 'Inquiry For',
+                        'type': 'text',
+                        'required': True,
+                        'order': 0,
+                        'ui': {'widget': 'select'},
+                        'related_entity': None,
+                        'choices': [
+                            {'value': 'customer', 'label': 'Customer'},
+                            {'value': 'supplier', 'label': 'Supplier'},
+                        ],
+                    },
+                    {
+                        'key': 'shipping_type',
+                        'label': 'Shipping Type',
+                        'type': 'text',
+                        'required': False,
+                        'order': 1,
+                        'ui': {'widget': 'select'},
+                        'related_entity': None,
+                        'choices': [
+                            {'value': 'tenant', 'label': 'Tenant'},
+                            {'value': 'customer_pickup', 'label': 'Customer Pick-Up'},
+                            {'value': 'supplier_delivering', 'label': 'Supplier Delivering'},
+                        ],
+                    },
+                    {
+                        'key': 'customer',
+                        'label': 'Customer',
+                        'type': 'text',
+                        'required': False,
+                        'order': 2,
+                        'ui': {'widget': 'searchable_select'},
+                        'related_entity': 'customers.customer',
+                        'choices': None,
+                    },
+                    {
+                        'key': 'supplier',
+                        'label': 'Supplier',
+                        'type': 'text',
+                        'required': False,
+                        'order': 3,
+                        'ui': {'widget': 'searchable_select'},
+                        'related_entity': 'suppliers.supplier',
+                        'choices': None,
+                    },
+                    {
+                        'key': 'contact',
+                        'label': 'Primary Contact',
+                        'type': 'text',
+                        'required': False,
+                        'order': 4,
+                        'ui': {'widget': 'searchable_select'},
+                        'related_entity': 'contacts.contact',
+                        'choices': None,
+                    },
+                    {
+                        'key': 'contact_name',
+                        'label': 'Contact Name (snapshot)',
+                        'type': 'text',
+                        'required': False,
+                        'order': 5,
+                        'ui': {},
+                    },
+                    {
+                        'key': 'contact_email',
+                        'label': 'Contact Email (snapshot)',
+                        'type': 'email',
+                        'required': False,
+                        'order': 6,
+                        'ui': {'widget': 'email'},
+                    },
+                    {
+                        'key': 'contact_phone',
+                        'label': 'Contact Phone (snapshot)',
+                        'type': 'phone',
+                        'required': False,
+                        'order': 7,
+                        'ui': {'widget': 'phone'},
+                    },
+                    {
+                        'key': 'source_type',
+                        'label': 'Source',
+                        'type': 'text',
+                        'required': False,
+                        'order': 8,
+                        'ui': {'widget': 'select'},
+                        'related_entity': None,
+                        'choices': [
+                            {'value': 'scheduled_call', 'label': 'Scheduled Call'},
+                            {'value': 'inbound_call', 'label': 'Inbound Call'},
+                            {'value': 'email', 'label': 'Email'},
+                            {'value': 'website', 'label': 'Website'},
+                            {'value': 'trade_show', 'label': 'Trade Show'},
+                            {'value': 'referral', 'label': 'Referral'},
+                            {'value': 'other', 'label': 'Other'},
+                        ],
+                    },
+                    {
+                        'key': 'source_call',
+                        'label': 'Source Call',
+                        'type': 'text',
+                        'required': False,
+                        'order': 9,
+                        'help_text': 'Scheduled call ID (optional).',
+                        'ui': {'widget': 'text'},
+                        'related_entity': None,
+                        'choices': None,
+                    },
+                    {
+                        'key': 'valid_until',
+                        'label': 'Valid Until',
+                        'type': 'date',
+                        'required': False,
+                        'order': 10,
+                        'ui': {'widget': 'date'},
+                    },
+                    {
+                        'key': 'notes',
+                        'label': 'Notes',
+                        'type': 'textarea',
+                        'required': False,
+                        'order': 11,
+                        'ui': {'widget': 'textarea'},
+                    },
+                    {
+                        'key': 'products',
+                        'label': 'Products',
+                        'type': 'inline_form_array',
+                        'required': False,
+                        'order': 12,
+                        'ui': {
+                            'widget': 'inline_form_array',
+                            'add_button_label': 'Add Product Line',
+                            'item_label': 'Product Line',
+                            'item_fields': _inline_inquiry_product_item_fields(),
+                        },
+                        'related_entity': None,
+                        'choices': None,
+                    },
+                    {
+                        'key': 'competitor_names',
+                        'label': 'Competitors',
+                        'type': 'textarea',
+                        'required': False,
+                        'order': 100,
+                        'ui': {'widget': 'textarea'},
+                    },
+                    {
+                        'key': 'competitor_pricing_notes',
+                        'label': 'Competitor Pricing Notes',
+                        'type': 'textarea',
+                        'required': False,
+                        'order': 101,
+                        'ui': {'widget': 'textarea'},
+                    },
+                    {
+                        'key': 'win_loss_reason',
+                        'label': 'Win/Loss Reason',
+                        'type': 'textarea',
+                        'required': False,
+                        'order': 102,
+                        'ui': {'widget': 'textarea'},
+                    },
+                ],
+                'key_fields': [
+                    'entity_type',
+                    'customer',
+                    'supplier',
+                    'contact',
+                    'contact_name',
+                    'contact_email',
+                    'contact_phone',
+                    'shipping_type',
+                    'source_type',
+                    'source_call',
+                    'valid_until',
+                    'notes',
+                    'products',
+                ],
+            }
+
+            key_set = set(schema.get('key_fields') or [])
+            for mf in schema.get('fields') or []:
+                mf_key = str(mf.get('key') or '')
+                mf_required = bool(mf.get('required'))
+                mf['is_advanced'] = bool(mf_key and (mf_key not in key_set) and (not mf_required))
+
+            return Response(_normalize_schema(schema), status=status.HTTP_200_OK)
 
         # get_entity_fields already supports aliases like 'customer', 'supplier', etc.
         fields = get_entity_fields(entity_type)
@@ -596,6 +983,8 @@ class SystemFormSchemaView(APIView):
                     'help_text': f.get('help_text') or '',
                     'relationship': relationship,
                     'ui': ui,
+                    # Additive presentation metadata
+                    'read_only': bool(f.get('read_only', False)),
                     # Backward-compat for existing clients
                     'related_entity': related_entity,
                     'choices': f.get('choices') or None,
@@ -647,4 +1036,4 @@ class SystemFormSchemaView(APIView):
             'key_fields': key_fields,
         }
 
-        return Response(schema, status=status.HTTP_200_OK)
+        return Response(_normalize_schema(schema), status=status.HTTP_200_OK)

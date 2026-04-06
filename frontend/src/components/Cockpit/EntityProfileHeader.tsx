@@ -22,15 +22,71 @@ export interface EntityDetailResponse {
   can_edit?: boolean;
 }
 
+type BackendSchemaField = {
+  key: string;
+  label?: string;
+  type?: string;
+  required?: boolean;
+  order?: number;
+
+  hidden?: boolean;
+  read_only?: boolean;
+  group?: string;
+  surfaces?: {
+    header?: boolean;
+    form?: boolean;
+    table?: boolean;
+  };
+
+  ui?: Record<string, unknown> | null;
+  related_entity?: string | null;
+  choices?: Array<{ value: unknown; label: string }> | null;
+};
+
+type BackendSchema = {
+  name?: string;
+  description?: string;
+  fields?: BackendSchemaField[];
+  key_fields?: string[];
+  header_fields?: string[];
+  groups?: Array<{ id: string; label: string; order?: number }>;
+};
+
+const normalizeSchemaEntityType = (raw: string): string => {
+  const t = String(raw || '').trim().toLowerCase();
+
+  if (t === 'inquiry' || t === 'inquiries') return 'inquiry';
+  if (t === 'sales_order' || t === 'sales-orders' || t === 'sales_orders') return 'sales_order';
+  if (t === 'purchase_order' || t === 'purchase-orders' || t === 'purchase_orders') return 'purchase_order';
+
+  if (t === 'customer' || t === 'customers') return 'customer';
+  if (t === 'supplier' || t === 'suppliers') return 'supplier';
+  if (t === 'plant' || t === 'plants') return 'plant';
+  if (t === 'location' || t === 'locations') return 'location';
+  if (t === 'contact' || t === 'contacts') return 'contact';
+  if (t === 'invoice' || t === 'invoices') return 'invoice';
+  if (t === 'claim' || t === 'claims') return 'claim';
+
+  return t;
+};
+
 export interface EntityProfileHeaderProps {
   entityType: string;
   entityId: string;
   onNavigateToEntity: (entityType: string, entityId: string, label: string) => void;
+
   /**
    * When set to "compact", only the most important fields are shown.
    * Defaults to "full" for backward compatibility.
    */
   variant?: 'full' | 'compact';
+
+  /**
+   * Layout mode:
+   * - grid: existing dense field grid
+   * - sidebar: field grid + right sidebar for secondary widgets (products, etc.)
+   */
+  layout?: 'grid' | 'sidebar';
 }
 
 const Container = styled.div`
@@ -82,6 +138,27 @@ const FieldsGrid = styled.div`
   @media (max-width: 640px) {
     grid-template-columns: 1fr;
   }
+`;
+
+const SidebarLayout = styled.div`
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 340px;
+  gap: 16px;
+
+  @media (max-width: 1024px) {
+    grid-template-columns: 1fr;
+  }
+`;
+
+const GroupHeading = styled.div`
+  grid-column: 1 / -1;
+  font-size: 12px;
+  font-weight: 800;
+  color: rgb(var(--color-text-secondary));
+  letter-spacing: 0.2px;
+  text-transform: uppercase;
+  padding-top: 6px;
+  border-top: 1px solid rgb(var(--color-border));
 `;
 
 const FieldRow = styled.div`
@@ -329,6 +406,7 @@ export const EntityProfileHeader: React.FC<EntityProfileHeaderProps> = ({
   variant = 'full',
 }) => {
   const [data, setData] = useState<EntityDetailResponse | null>(null);
+  const [schema, setSchema] = useState<BackendSchema | null>(null);
   const [loading, setLoading] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
   const [showAllFields, setShowAllFields] = useState(false);
@@ -338,24 +416,38 @@ export const EntityProfileHeader: React.FC<EntityProfileHeaderProps> = ({
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const resp = await businessApi.get(`/system/entities/${encodeURIComponent(entityType)}/${encodeURIComponent(entityId)}/`);
-      setData(resp.data as EntityDetailResponse);
-    } catch (err: any) {
-      const status = err?.response?.status;
-      console.error('[EntityProfileHeader] Failed to load entity:', err);
+      const schemaKey = normalizeSchemaEntityType(entityType);
+      const [detailRes, schemaRes] = await Promise.allSettled([
+        businessApi.get(`/system/entities/${encodeURIComponent(entityType)}/${encodeURIComponent(entityId)}/`),
+        businessApi.get('/system/forms/schema/', { params: { entity_type: schemaKey } }),
+      ]);
 
-      // During backend outages, avoid toast-spam; render a stable placeholder instead.
-      if (status === 500 || status === 502 || status === 503 || status === 504) {
+      if (detailRes.status === 'fulfilled') {
+        setData(detailRes.value.data as EntityDetailResponse);
+      } else {
+        const err: any = detailRes.reason;
+        const status = err?.response?.status;
+        console.error('[EntityProfileHeader] Failed to load entity:', err);
+
+        // During backend outages, avoid toast-spam; render a stable placeholder instead.
+        if (status === 500 || status === 502 || status === 503 || status === 504) {
+          setData(null);
+          return;
+        }
+
+        message.error('Failed to load record details');
         setData(null);
-        return;
       }
 
-      message.error('Failed to load record details');
-      setData(null);
+      if (schemaRes.status === 'fulfilled') {
+        setSchema(schemaRes.value.data as BackendSchema);
+      } else {
+        setSchema(null);
+      }
     } finally {
       setLoading(false);
     }
-  }, [entityType, entityId]);
+  }, [entityId, entityType]);
 
   useEffect(() => {
     void load();
@@ -475,28 +567,80 @@ export const EntityProfileHeader: React.FC<EntityProfileHeaderProps> = ({
       .filter(Boolean) as ProductListEntry[];
   }, [data?.fields, data?.metadata]);
 
-  const fieldEntries = useMemo(() => {
-    const fields = data?.fields ?? {};
-    const entries = Object.entries(fields).filter(([key]) => !['id', 'preferred_products', 'active_products'].includes(key));
+  type HeaderFieldEntry = {
+    key: string;
+    label: string;
+    value: unknown;
+    readOnly: boolean;
+    group: string;
+  };
+
+  const headerFieldEntries = useMemo<HeaderFieldEntry[]>(() => {
+    const fields = (data?.fields ?? {}) as Record<string, unknown>;
+
+    if (schema?.fields?.length) {
+      const schemaFields = (schema.fields || []).filter((f) => f && typeof f.key === 'string' && f.key.trim());
+      const byKey = new Map(schemaFields.map((f) => [String(f.key), f] as const));
+
+      const headerKeysRaw: string[] = Array.isArray(schema.header_fields) && schema.header_fields.length
+        ? schema.header_fields.map(String)
+        : Array.isArray(schema.key_fields)
+          ? schema.key_fields.map(String)
+          : [];
+
+      const surfaceKeys = schemaFields
+        .filter((f) => Boolean(f.surfaces?.header) && !f.hidden)
+        .sort((a, b) => Number(a.order ?? 0) - Number(b.order ?? 0))
+        .map((f) => String(f.key));
+
+      const orderedKeys = (headerKeysRaw.length ? headerKeysRaw : surfaceKeys)
+        .map((k) => String(k || '').trim())
+        .filter(Boolean);
+
+      const uniqKeys: string[] = [];
+      orderedKeys.forEach((k) => {
+        if (!uniqKeys.includes(k)) uniqKeys.push(k);
+      });
+
+      const entries = uniqKeys
+        .map((k) => {
+          const def = byKey.get(k);
+          if (!def) return null;
+          if (def.hidden) return null;
+          if (def.surfaces && def.surfaces.header === false) return null;
+
+          return {
+            key: k,
+            label: String(def.label || k),
+            value: fields[k],
+            readOnly: Boolean(def.read_only),
+            group: String(def.group || 'Details'),
+          } as HeaderFieldEntry;
+        })
+        .filter(Boolean) as HeaderFieldEntry[];
+
+      return variant === 'compact' && !showAllFields ? entries.slice(0, 6) : entries;
+    }
+
+    // Fallback: pre-schema behavior
+    const entries = Object.entries(fields)
+      .filter(([key]) => !['id', 'preferred_products', 'active_products'].includes(key))
+      .map(([key, value]) => ({
+        key,
+        label: key,
+        value,
+        readOnly: false,
+        group: 'Details',
+      }));
 
     if (variant !== 'compact') {
-      return entries.sort(([a], [b]) => a.localeCompare(b));
+      return entries.sort((a, b) => a.key.localeCompare(b.key));
     }
 
     const type = String(entityType || '').toLowerCase();
     const preferredByType: Record<string, string[]> = {
-      customer: [
-        'company_name', 'company', 'name',
-        'phone', 'phone_number',
-        'email', 'contact_email',
-        'status',
-      ],
-      supplier: [
-        'company_name', 'company', 'name',
-        'phone', 'phone_number',
-        'email', 'contact_email',
-        'status',
-      ],
+      customer: ['company_name', 'company', 'name', 'phone', 'phone_number', 'email', 'contact_email', 'status'],
+      supplier: ['company_name', 'company', 'name', 'phone', 'phone_number', 'email', 'contact_email', 'status'],
       contact: ['first_name', 'last_name', 'email', 'phone', 'status'],
       sales_order: ['our_sales_order_num', 'delivery_po_num', 'status', 'due_date', 'delivery_date'],
       purchase_order: ['order_number', 'our_purchase_order_num', 'status', 'due_date', 'delivery_date'],
@@ -504,17 +648,34 @@ export const EntityProfileHeader: React.FC<EntityProfileHeaderProps> = ({
     };
 
     const preferred = preferredByType[type] ?? [];
-    const preferredIndex = new Map(preferred.map((key, idx) => [key, idx] as const));
+    const preferredIndex = new Map(preferred.map((k, idx) => [k, idx] as const));
 
-    const sorted = entries.sort(([a], [b]) => {
-      const ai = preferredIndex.has(a) ? preferredIndex.get(a)! : Number.POSITIVE_INFINITY;
-      const bi = preferredIndex.has(b) ? preferredIndex.get(b)! : Number.POSITIVE_INFINITY;
+    const sorted = [...entries].sort((a, b) => {
+      const ai = preferredIndex.has(a.key) ? (preferredIndex.get(a.key) as number) : Number.POSITIVE_INFINITY;
+      const bi = preferredIndex.has(b.key) ? (preferredIndex.get(b.key) as number) : Number.POSITIVE_INFINITY;
       if (ai !== bi) return ai - bi;
-      return a.localeCompare(b);
+      return a.key.localeCompare(b.key);
     });
 
     return showAllFields ? sorted : sorted.slice(0, 6);
-  }, [data, entityType, showAllFields, variant]);
+  }, [data, entityType, schema, showAllFields, variant]);
+
+  const groupedHeaderFieldEntries = useMemo(() => {
+    const byGroup = new Map<string, HeaderFieldEntry[]>();
+    headerFieldEntries.forEach((f) => {
+      const g = String(f.group || 'Details');
+      byGroup.set(g, [...(byGroup.get(g) || []), f]);
+    });
+
+    const schemaGroups = Array.isArray(schema?.groups) ? [...schema.groups] : [];
+    schemaGroups.sort((a, b) => Number(a.order ?? 0) - Number(b.order ?? 0));
+
+    const orderedGroupLabels = schemaGroups.length ? schemaGroups.map((g) => g.label) : Array.from(byGroup.keys());
+
+    return orderedGroupLabels
+      .map((label) => ({ label, fields: byGroup.get(label) || [] }))
+      .filter((g) => g.fields.length > 0);
+  }, [headerFieldEntries, schema?.groups]);
 
   return (
     <Container>
@@ -558,128 +719,139 @@ export const EntityProfileHeader: React.FC<EntityProfileHeaderProps> = ({
       ) : (
         <>
           <FieldsGrid>
-            {fieldEntries.map(([key, value]) => {
-              if (isEntityReference(value) && value.type && value.id !== null && value.id !== undefined) {
-                const label = value.title || `${value.type} ${value.id}`;
-                return (
-                  <FieldRow key={key}>
-                    <FieldLabel>{key}</FieldLabel>
-                    <FieldValue>
-                      <LinkButton
-                        onClick={() => onNavigateToEntity(String(value.type), String(value.id), label)}
-                        title="Navigate"
-                      >
-                        {label}
-                      </LinkButton>
-                    </FieldValue>
-                  </FieldRow>
-                );
-              }
+            {groupedHeaderFieldEntries.map((group) => (
+              <React.Fragment key={group.label}>
+                {groupedHeaderFieldEntries.length > 1 && <GroupHeading>{group.label}</GroupHeading>}
+                {group.fields.map(({ key, label: fieldLabel, value, readOnly }) => {
+                  if (isEntityReference(value) && value.type && value.id !== null && value.id !== undefined) {
+                    const linkLabel = value.title || `${value.type} ${value.id}`;
+                    return (
+                      <FieldRow key={key}>
+                        <FieldLabel>{String(fieldLabel || key)}</FieldLabel>
+                        <FieldValue>
+                          <LinkButton
+                            onClick={() => onNavigateToEntity(String(value.type), String(value.id), linkLabel)}
+                            title="Navigate"
+                          >
+                            {linkLabel}
+                          </LinkButton>
+                        </FieldValue>
+                      </FieldRow>
+                    );
+                  }
 
-              const scalar = formatScalar(value);
-              const lowerKey = String(key).toLowerCase();
-              const isMultiValue = Array.isArray(value) || lowerKey.includes('products');
-              const isEditingMulti = editingArrayField === key;
-              const isEditableText = canEdit && isEditMode && !isMultiValue && typeof value === 'string' && scalar.length <= 200;
+                  const scalar = formatScalar(value);
+                  const lowerKey = String(key).toLowerCase();
+                  const isMultiValue = Array.isArray(value) || lowerKey.includes('products');
+                  const isEditingMulti = editingArrayField === key;
+                  const isEditableText =
+                    canEdit &&
+                    isEditMode &&
+                    !readOnly &&
+                    !isMultiValue &&
+                    typeof value === 'string' &&
+                    scalar.length <= 200;
 
-              const renderMultiValue = () => {
-                const values = Array.isArray(value) ? normalizeArrayStrings(value) : [];
+                  const renderMultiValue = () => {
+                    const values = Array.isArray(value) ? normalizeArrayStrings(value) : [];
 
-                if (isEditingMulti) {
+                    if (isEditingMulti) {
+                      return (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                          <Select
+                            mode="tags"
+                            value={arrayDraft}
+                            options={Array.from(new Set([...values, ...arrayDraft])).map((v) => ({ value: v, label: v }))}
+                            placeholder="Add values…"
+                            tokenSeparators={[',']}
+                            onChange={(vals) => setArrayDraft(vals as string[])}
+                            style={{ width: '100%' }}
+                          />
+                          <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+                            <LinkButton
+                              type="button"
+                              onClick={() => {
+                                setEditingArrayField(null);
+                                setArrayDraft([]);
+                              }}
+                            >
+                              Cancel
+                            </LinkButton>
+                            <LinkButton
+                              type="button"
+                              onClick={async () => {
+                                await patchField(key, arrayDraft);
+                                setEditingArrayField(null);
+                                setArrayDraft([]);
+                              }}
+                            >
+                              Save
+                            </LinkButton>
+                          </div>
+                        </div>
+                      );
+                    }
+
+                    return (
+                      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 }}>
+                        {values.length ? (
+                          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                            {values.map((v) => (
+                              <Tag key={`${key}:${v}`} color="geekblue">
+                                {v}
+                              </Tag>
+                            ))}
+                          </div>
+                        ) : (
+                          <span style={{ color: 'rgb(var(--color-text-tertiary))' }}>—</span>
+                        )}
+
+                        {canEdit && isEditMode && !readOnly && (
+                          <LinkButton
+                            type="button"
+                            onClick={() => {
+                              setEditingArrayField(key);
+                              setArrayDraft(values);
+                            }}
+                          >
+                            Edit
+                          </LinkButton>
+                        )}
+                      </div>
+                    );
+                  };
+
                   return (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                      <Select
-                        mode="tags"
-                        value={arrayDraft}
-                        options={Array.from(new Set([...values, ...arrayDraft])).map((v) => ({ value: v, label: v }))}
-                        placeholder="Add values…"
-                        tokenSeparators={[',']}
-                        onChange={(vals) => setArrayDraft(vals as string[])}
-                        style={{ width: '100%' }}
-                      />
-                      <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
-                        <LinkButton
-                          type="button"
-                          onClick={() => {
-                            setEditingArrayField(null);
-                            setArrayDraft([]);
-                          }}
-                        >
-                          Cancel
-                        </LinkButton>
-                        <LinkButton
-                          type="button"
-                          onClick={async () => {
-                            await patchField(key, arrayDraft);
-                            setEditingArrayField(null);
-                            setArrayDraft([]);
-                          }}
-                        >
-                          Save
-                        </LinkButton>
-                      </div>
-                    </div>
+                    <FieldRow key={key}>
+                      <FieldLabel>{String(fieldLabel || key)}</FieldLabel>
+                      <FieldValue $editable={isEditableText}>
+                        {typeof value === 'boolean' ? (
+                          <Tag color={value ? 'success' : 'default'}>{value ? 'Yes' : 'No'}</Tag>
+                        ) : isMultiValue ? (
+                          renderMultiValue()
+                        ) : isEditableText ? (
+                          <Text
+                            editable={
+                              isEditMode
+                                ? {
+                                    onChange: (next) => debouncedPatch(key, next),
+                                    tooltip: 'Click to edit',
+                                    triggerType: ['icon', 'text'],
+                                  }
+                                : false
+                            }
+                          >
+                            {scalar || <span style={{ color: 'rgb(var(--color-text-tertiary))' }}>—</span>}
+                          </Text>
+                        ) : (
+                          scalar || <span style={{ color: 'rgb(var(--color-text-tertiary))' }}>—</span>
+                        )}
+                      </FieldValue>
+                    </FieldRow>
                   );
-                }
-
-                return (
-                  <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 }}>
-                    {values.length ? (
-                      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                        {values.map((v) => (
-                          <Tag key={`${key}:${v}`} color="geekblue">
-                            {v}
-                          </Tag>
-                        ))}
-                      </div>
-                    ) : (
-                      <span style={{ color: 'rgb(var(--color-text-tertiary))' }}>—</span>
-                    )}
-
-                    {canEdit && isEditMode && (
-                      <LinkButton
-                        type="button"
-                        onClick={() => {
-                          setEditingArrayField(key);
-                          setArrayDraft(values);
-                        }}
-                      >
-                        Edit
-                      </LinkButton>
-                    )}
-                  </div>
-                );
-              };
-
-              return (
-                <FieldRow key={key}>
-                  <FieldLabel>{key}</FieldLabel>
-                  <FieldValue $editable={isEditableText}>
-                    {typeof value === 'boolean' ? (
-                      <Tag color={value ? 'success' : 'default'}>{value ? 'Yes' : 'No'}</Tag>
-                    ) : isMultiValue ? (
-                      renderMultiValue()
-                    ) : isEditableText ? (
-                      <Text
-                        editable={
-                          isEditMode
-                            ? {
-                                onChange: (next) => debouncedPatch(key, next),
-                                tooltip: 'Click to edit',
-                                triggerType: ['icon', 'text'],
-                              }
-                            : false
-                        }
-                      >
-                        {scalar || <span style={{ color: 'rgb(var(--color-text-tertiary))' }}>—</span>}
-                      </Text>
-                    ) : (
-                      scalar || <span style={{ color: 'rgb(var(--color-text-tertiary))' }}>—</span>
-                    )}
-                  </FieldValue>
-                </FieldRow>
-              );
-            })}
+                })}
+              </React.Fragment>
+            ))}
           </FieldsGrid>
 
           {(() => {

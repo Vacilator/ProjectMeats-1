@@ -38,6 +38,21 @@ This file is the **append-only PR-referenceable execution log**.
 
 - **2026-04-06** — Suppliers/Plants UX polish: fixed UniversalEntityForm “pushed left / distorted” modal rendering by making AntD modal width responsive (`min(720px, calc(100vw - 32px))`), hardening container sizing (`max-width: 100%`, `box-sizing: border-box`, `overflow-x: hidden`), and ensuring AntD `<Select>` dropdowns mount inside the active modal/drawer container via `getPopupContainer`. Plant detail view now uses Record Pivot standard (`EntityProfileHeader` + Contacts tab) instead of a full read-only UniversalEntityForm wall. (PR: #4344)
 
+- **2026-04-06** — **V3.5 Unified UX Standard (Unified Forms + Record Pivot)**: all primary create/edit entry points route through `EntityFormSurface` (enhanced entity forms are selected inside it). Plant + Location detail pages use the Record Pivot layout (`EntityProfileHeader` top section + AntD `Tabs`), with relationship content in tabs (Contacts + Activity via `ActivityFeed`). Backend form schema now includes an explicit `inquiries.inquiry` “Ideal Inquiry Form” schema including product line items (inline array) for universal form parity.
+  - Create/edit: `EntityFormSurface` only (no direct modal/form calls from pages)
+  - Record view: `EntityProfileHeader` top section; edit opens `EntityFormSurface` modal
+  - Relationships: Tabs below header; at minimum Contacts + Activity
+  - Density parity: ~12px spacing, `Table size="small"`, row-click navigation like Cockpit
+  (PR: #TBD)
+
+- **2026-04-06** — **Unified Component Architecture (Schema-driven Record Management)**: formalized backend form schema metadata as the “brain” for header/table rendering, and introduced canonical record navigation.
+  - Backend: `/api/v1/system/forms/schema/` normalized to always include per-field `read_only`, `hidden`, `group`, `surfaces` + top-level `header_fields`/`groups` metadata.
+  - Record Pivot: `EntityProfileHeader` now supports `layout` variants and renders header fields based on schema order + grouping.
+  - Unified Tables: added `UnifiedEntityTable` (AntD Table, Cockpit-consistent density) with a standard Quick Edit drawer that mounts `EntityFormSurface`.
+  - Tabbed Record Page: `UniversalEntityRecordPage` now mounts standard tabs (Overview/Details/Related/Timeline) and uses `UnifiedEntityTable` for related lists.
+  - Canonical Routing: added `/records/:entityType/:id` as the default destination for row-click navigation; backend `EntityViewSet` now supports `plant` and `location` for canonical record loading.
+  (PR: #TBD)
+
 ### 2026-03-31 — Secret audit drift (manifest v5.1)
 - Command: `python config/manage_env.py audit --repo Meats-Central/ProjectMeats`
 - Stale/Zombie secrets found in GitHub but NOT in `manifests/env.manifest.json` (or legacy `DEV_`/`UAT_`/`PROD_` prefixed):
