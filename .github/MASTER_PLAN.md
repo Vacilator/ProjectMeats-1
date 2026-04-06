@@ -53,6 +53,12 @@ This file is the **append-only PR-referenceable execution log**.
   - Canonical Routing: added `/records/:entityType/:id` as the default destination for row-click navigation; backend `EntityViewSet` now supports `plant` and `location` for canonical record loading.
   (PR: #4351)
 
+- **2026-04-06** — **Phase 7.0/9.5: Autonomous PO Ingestion stabilized**: fixed AI document parsing failure modes and implemented an end-to-end PO ingestion tool chain.
+  - `parse_document`: now accepts UUID or integer document IDs, streams file uploads, sends compatible Unstructured auth headers, and returns structured error payloads (no more silent “unreachable”).
+  - Added tools: `extract_purchase_order_fields`, `create_purchase_order`, and `ingest_purchase_order_document` to enable autonomous supplier creation + PO drafting from PO PDFs.
+  - Swarm prompt updated to use `ingest_purchase_order_document(document_id)` for Purchase Order documents.
+  (PR: #4353)
+
 ### 2026-03-31 — Secret audit drift (manifest v5.1)
 - Command: `python config/manage_env.py audit --repo Meats-Central/ProjectMeats`
 - Stale/Zombie secrets found in GitHub but NOT in `manifests/env.manifest.json` (or legacy `DEV_`/`UAT_`/`PROD_` prefixed):
