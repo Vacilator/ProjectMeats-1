@@ -17,22 +17,6 @@ interface HeaderProps {
   // No props needed currently
 }
 
-// Search icon SVG component
-const SearchIcon: React.FC = () => (
-  <svg 
-    width="16" 
-    height="16" 
-    viewBox="0 0 24 24" 
-    fill="none" 
-    stroke="currentColor" 
-    strokeWidth="2" 
-    strokeLinecap="round" 
-    strokeLinejoin="round"
-  >
-    <circle cx="11" cy="11" r="8" />
-    <path d="m21 21-4.3-4.3" />
-  </svg>
-);
 
 const Header: React.FC<HeaderProps> = () => {
   const { theme, themeName, toggleTheme } = useTheme();
@@ -175,7 +159,7 @@ const Header: React.FC<HeaderProps> = () => {
       <SearchForm onSubmit={handleSearchSubmit}>
         <SearchInputWrapper $theme={theme}>
           <SearchIconWrapper $theme={theme}>
-            <SearchIcon />
+            <Icon name="search" size={16} />
           </SearchIconWrapper>
           <SearchInput
             ref={searchInputRef}
