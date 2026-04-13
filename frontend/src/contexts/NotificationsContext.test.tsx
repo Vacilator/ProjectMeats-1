@@ -5,11 +5,22 @@ import { renderHook, act, waitFor } from '@testing-library/react';
 import React, { ReactNode } from 'react';
 import { vi } from 'vitest';
 import { NotificationsProvider, useNotifications, Notification, ActionItem } from './NotificationsContext';
-import { AuthProvider } from './AuthContext';
 
-// Mock fetch
-const mockFetch = vi.fn();
-global.fetch = mockFetch;
+import { notificationsService } from '../services/notificationsService';
+
+vi.mock('../services/notificationsService', () => ({
+  notificationsService: {
+    listNotifications: vi.fn(),
+    getUnreadCount: vi.fn(),
+    markAsRead: vi.fn(),
+    markAllRead: vi.fn(),
+    dismiss: vi.fn(),
+    listActionItems: vi.fn(),
+    getActionItemCounts: vi.fn(),
+    getPreferences: vi.fn(),
+    updatePreferences: vi.fn(),
+  },
+}));
 
 // Mock localStorage
 const mockLocalStorage = {
@@ -138,44 +149,17 @@ const createWrapper = () => {
 describe('NotificationsContext', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    
-    // Default mock responses
-    mockFetch.mockImplementation((url: string) => {
-      if (url.includes('/notifications/unread-count/')) {
-        return Promise.resolve({
-          ok: true,
-          json: () => Promise.resolve({ count: 1 }),
-        });
-      }
-      if (url.includes('/notifications/') && !url.includes('/read/') && !url.includes('/mark-all-read/')) {
-        return Promise.resolve({
-          ok: true,
-          json: () => Promise.resolve(mockNotifications),
-        });
-      }
-      if (url.includes('/action-items/counts/')) {
-        return Promise.resolve({
-          ok: true,
-          json: () => Promise.resolve(mockActionItemCounts),
-        });
-      }
-      if (url.includes('/action-items/')) {
-        return Promise.resolve({
-          ok: true,
-          json: () => Promise.resolve(mockActionItems),
-        });
-      }
-      if (url.includes('/notification-preferences/')) {
-        return Promise.resolve({
-          ok: true,
-          json: () => Promise.resolve(mockPreferences),
-        });
-      }
-      return Promise.resolve({
-        ok: true,
-        json: () => Promise.resolve({}),
-      });
-    });
+
+    vi.mocked(notificationsService.listNotifications).mockResolvedValue(mockNotifications as any);
+    vi.mocked(notificationsService.getUnreadCount).mockResolvedValue(1 as any);
+    vi.mocked(notificationsService.listActionItems).mockResolvedValue(mockActionItems as any);
+    vi.mocked(notificationsService.getActionItemCounts).mockResolvedValue(mockActionItemCounts as any);
+    vi.mocked(notificationsService.getPreferences).mockResolvedValue(mockPreferences as any);
+    vi.mocked(notificationsService.updatePreferences).mockResolvedValue(mockPreferences as any);
+
+    vi.mocked(notificationsService.markAsRead).mockResolvedValue(undefined as any);
+    vi.mocked(notificationsService.markAllRead).mockResolvedValue(1 as any);
+    vi.mocked(notificationsService.dismiss).mockResolvedValue(undefined as any);
   });
 
   describe('useNotifications hook', () => {
@@ -230,49 +214,6 @@ describe('NotificationsContext', () => {
 
   describe('markAsRead', () => {
     it('should mark notification as read', async () => {
-      mockFetch.mockImplementation((url: string, options?: RequestInit) => {
-        if (url.includes('/read/') && options?.method === 'POST') {
-          return Promise.resolve({
-            ok: true,
-            json: () => Promise.resolve({ status: 'success' }),
-          });
-        }
-        // Return default responses for other endpoints
-        if (url.includes('/notifications/unread-count/')) {
-          return Promise.resolve({
-            ok: true,
-            json: () => Promise.resolve({ count: 1 }),
-          });
-        }
-        if (url.includes('/notifications/')) {
-          return Promise.resolve({
-            ok: true,
-            json: () => Promise.resolve(mockNotifications),
-          });
-        }
-        if (url.includes('/action-items/counts/')) {
-          return Promise.resolve({
-            ok: true,
-            json: () => Promise.resolve(mockActionItemCounts),
-          });
-        }
-        if (url.includes('/action-items/')) {
-          return Promise.resolve({
-            ok: true,
-            json: () => Promise.resolve(mockActionItems),
-          });
-        }
-        if (url.includes('/notification-preferences/')) {
-          return Promise.resolve({
-            ok: true,
-            json: () => Promise.resolve(mockPreferences),
-          });
-        }
-        return Promise.resolve({
-          ok: true,
-          json: () => Promise.resolve({}),
-        });
-      });
 
       const { result } = renderHook(() => useNotifications(), {
         wrapper: createWrapper(),
@@ -293,48 +234,6 @@ describe('NotificationsContext', () => {
 
   describe('markAllAsRead', () => {
     it('should mark all notifications as read', async () => {
-      mockFetch.mockImplementation((url: string, options?: RequestInit) => {
-        if (url.includes('/mark-all-read/') && options?.method === 'POST') {
-          return Promise.resolve({
-            ok: true,
-            json: () => Promise.resolve({ status: 'success', count: 1 }),
-          });
-        }
-        if (url.includes('/notifications/unread-count/')) {
-          return Promise.resolve({
-            ok: true,
-            json: () => Promise.resolve({ count: 1 }),
-          });
-        }
-        if (url.includes('/notifications/')) {
-          return Promise.resolve({
-            ok: true,
-            json: () => Promise.resolve(mockNotifications),
-          });
-        }
-        if (url.includes('/action-items/counts/')) {
-          return Promise.resolve({
-            ok: true,
-            json: () => Promise.resolve(mockActionItemCounts),
-          });
-        }
-        if (url.includes('/action-items/')) {
-          return Promise.resolve({
-            ok: true,
-            json: () => Promise.resolve(mockActionItems),
-          });
-        }
-        if (url.includes('/notification-preferences/')) {
-          return Promise.resolve({
-            ok: true,
-            json: () => Promise.resolve(mockPreferences),
-          });
-        }
-        return Promise.resolve({
-          ok: true,
-          json: () => Promise.resolve({}),
-        });
-      });
 
       const { result } = renderHook(() => useNotifications(), {
         wrapper: createWrapper(),
@@ -357,48 +256,6 @@ describe('NotificationsContext', () => {
 
   describe('dismissNotification', () => {
     it('should remove notification from list', async () => {
-      mockFetch.mockImplementation((url: string, options?: RequestInit) => {
-        if (url.includes('/notifications/notif-1/') && options?.method === 'DELETE') {
-          return Promise.resolve({
-            ok: true,
-            json: () => Promise.resolve({}),
-          });
-        }
-        if (url.includes('/notifications/unread-count/')) {
-          return Promise.resolve({
-            ok: true,
-            json: () => Promise.resolve({ count: 1 }),
-          });
-        }
-        if (url.includes('/notifications/')) {
-          return Promise.resolve({
-            ok: true,
-            json: () => Promise.resolve(mockNotifications),
-          });
-        }
-        if (url.includes('/action-items/counts/')) {
-          return Promise.resolve({
-            ok: true,
-            json: () => Promise.resolve(mockActionItemCounts),
-          });
-        }
-        if (url.includes('/action-items/')) {
-          return Promise.resolve({
-            ok: true,
-            json: () => Promise.resolve(mockActionItems),
-          });
-        }
-        if (url.includes('/notification-preferences/')) {
-          return Promise.resolve({
-            ok: true,
-            json: () => Promise.resolve(mockPreferences),
-          });
-        }
-        return Promise.resolve({
-          ok: true,
-          json: () => Promise.resolve({}),
-        });
-      });
 
       const { result } = renderHook(() => useNotifications(), {
         wrapper: createWrapper(),
@@ -460,49 +317,8 @@ describe('NotificationsContext', () => {
 
     it('should update preferences', async () => {
       const updatedPrefs = { ...mockPreferences, email_enabled: false };
-      
-      mockFetch.mockImplementation((url: string, options?: RequestInit) => {
-        if (url.includes('/notification-preferences/') && options?.method === 'PUT') {
-          return Promise.resolve({
-            ok: true,
-            json: () => Promise.resolve(updatedPrefs),
-          });
-        }
-        if (url.includes('/notifications/unread-count/')) {
-          return Promise.resolve({
-            ok: true,
-            json: () => Promise.resolve({ count: 1 }),
-          });
-        }
-        if (url.includes('/notifications/')) {
-          return Promise.resolve({
-            ok: true,
-            json: () => Promise.resolve(mockNotifications),
-          });
-        }
-        if (url.includes('/action-items/counts/')) {
-          return Promise.resolve({
-            ok: true,
-            json: () => Promise.resolve(mockActionItemCounts),
-          });
-        }
-        if (url.includes('/action-items/')) {
-          return Promise.resolve({
-            ok: true,
-            json: () => Promise.resolve(mockActionItems),
-          });
-        }
-        if (url.includes('/notification-preferences/')) {
-          return Promise.resolve({
-            ok: true,
-            json: () => Promise.resolve(mockPreferences),
-          });
-        }
-        return Promise.resolve({
-          ok: true,
-          json: () => Promise.resolve({}),
-        });
-      });
+
+      vi.mocked(notificationsService.updatePreferences).mockResolvedValue(updatedPrefs as any);
 
       const { result } = renderHook(() => useNotifications(), {
         wrapper: createWrapper(),
@@ -532,7 +348,7 @@ describe('NotificationsContext', () => {
 
       // Polling is started automatically when authenticated
       // We can't easily test the interval, but we can verify initial fetch happened
-      expect(mockFetch).toHaveBeenCalled();
+      expect(notificationsService.listNotifications).toHaveBeenCalled();
     });
 
     it('should stop polling when stopPolling is called', async () => {
@@ -555,36 +371,9 @@ describe('NotificationsContext', () => {
 
   describe('error handling', () => {
     it('should handle fetch errors gracefully', async () => {
-      mockFetch.mockImplementation((url: string) => {
-        if (url.includes('/notifications/') && !url.includes('/unread-count/')) {
-          return Promise.resolve({
-            ok: false,
-            status: 500,
-          });
-        }
-        if (url.includes('/notifications/unread-count/')) {
-          return Promise.resolve({
-            ok: true,
-            json: () => Promise.resolve({ count: 0 }),
-          });
-        }
-        if (url.includes('/action-items/')) {
-          return Promise.resolve({
-            ok: true,
-            json: () => Promise.resolve([]),
-          });
-        }
-        if (url.includes('/notification-preferences/')) {
-          return Promise.resolve({
-            ok: true,
-            json: () => Promise.resolve(mockPreferences),
-          });
-        }
-        return Promise.resolve({
-          ok: true,
-          json: () => Promise.resolve({}),
-        });
-      });
+      vi.mocked(notificationsService.listNotifications).mockRejectedValue(new Error('Server error'));
+      vi.mocked(notificationsService.getUnreadCount).mockResolvedValue(0 as any);
+      vi.mocked(notificationsService.listActionItems).mockResolvedValue([] as any);
 
       const { result } = renderHook(() => useNotifications(), {
         wrapper: createWrapper(),

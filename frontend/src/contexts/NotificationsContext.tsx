@@ -9,7 +9,7 @@
  */
 import React, { createContext, useContext, useEffect, useState, useCallback, ReactNode } from 'react';
 import { useAuth } from './AuthContext';
-import { getAuthHeader } from '../services/jwtService';
+import { notificationsService } from '../services/notificationsService';
 
 // ============================================================================
 // TYPES
@@ -133,107 +133,56 @@ const NotificationsContext = createContext<NotificationsContextType | undefined>
 // API FUNCTIONS
 // ============================================================================
 
-const API_BASE = '/api/v1/workflows';
+// All notifications requests go through the JWT-aware axios apiClient via notificationsService.
 
-const buildApiHeaders = (): Record<string, string> => {
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-  };
-
-  const authHeader = getAuthHeader();
-  if (authHeader) {
-    headers.Authorization = authHeader;
+const getApiErrorMessage = (error: unknown, fallbackMessage: string): string => {
+  if (error && typeof error === 'object') {
+    const err: any = error as any;
+    return (
+      err.response?.data?.error ||
+      err.response?.data?.detail ||
+      err.response?.data?.message ||
+      err.message ||
+      fallbackMessage
+    );
   }
 
-  const tenantId = localStorage.getItem('tenantId');
-  if (tenantId) {
-    headers['X-Tenant-ID'] = tenantId;
-  }
-
-  return headers;
+  return fallbackMessage;
 };
 
 async function fetchNotificationsAPI(): Promise<Notification[]> {
   try {
-    const authHeader = getAuthHeader();
-    if (!authHeader) return []; // Silently return empty if not authenticated
-
-    const response = await fetch(`${API_BASE}/notifications/`, {
-      headers: buildApiHeaders(),
-    });
-    
-    // Silently return empty array for 401/404 (feature not available)
-    if (response.status === 401 || response.status === 404) return [];
-    if (!response.ok) throw new Error('Failed to fetch notifications');
-    
-    const data = await response.json();
-    // Handle both paginated response {results: []} and bare array
-    return Array.isArray(data) ? data : (data.results || []);
+    return (await notificationsService.listNotifications()) as Notification[];
   } catch (error) {
     console.warn('[NotificationsContext] Notifications API not available:', error);
-    return []; // Graceful degradation
+    return [];
   }
 }
 
 async function fetchUnreadCountAPI(): Promise<number> {
   try {
-    const authHeader = getAuthHeader();
-    if (!authHeader) return 0; // Silently return 0 if not authenticated
-
-    const response = await fetch(`${API_BASE}/notifications/unread-count/`, {
-      headers: buildApiHeaders(),
-    });
-    
-    // Silently return 0 for 401/404 (feature not available)
-    if (response.status === 401 || response.status === 404) return 0;
-    if (!response.ok) throw new Error('Failed to fetch unread count');
-    
-    const data = await response.json();
-    return data.count;
+    return await notificationsService.getUnreadCount();
   } catch (error) {
     console.warn('[NotificationsContext] Unread count API not available:', error);
-    return 0; // Graceful degradation
+    return 0;
   }
 }
 
 async function markAsReadAPI(id: string): Promise<void> {
-  const response = await fetch(`${API_BASE}/notifications/${id}/read/`, {
-    method: 'POST',
-    headers: buildApiHeaders(),
-  });
-  if (!response.ok) throw new Error('Failed to mark notification as read');
+  await notificationsService.markAsRead(id);
 }
 
 async function markAllAsReadAPI(): Promise<number> {
-  const response = await fetch(`${API_BASE}/notifications/mark-all-read/`, {
-    method: 'POST',
-    headers: buildApiHeaders(),
-  });
-  if (!response.ok) throw new Error('Failed to mark all as read');
-  const data = await response.json();
-  return data.count;
+  return notificationsService.markAllRead();
 }
 
 async function dismissNotificationAPI(id: string): Promise<void> {
-  const response = await fetch(`${API_BASE}/notifications/${id}/`, {
-    method: 'DELETE',
-    headers: buildApiHeaders(),
-  });
-  if (!response.ok) throw new Error('Failed to dismiss notification');
+  await notificationsService.dismiss(id);
 }
 
 async function fetchActionItemsAPI(): Promise<ActionItem[]> {
   try {
-    const authHeader = getAuthHeader();
-    if (!authHeader) return [];
-
-    const response = await fetch(`${API_BASE}/action-items/`, {
-      headers: buildApiHeaders(),
-    });
-    
-    if (response.status === 401 || response.status === 404) return [];
-    if (!response.ok) throw new Error('Failed to fetch action items');
-    return response.json();
+    return (await notificationsService.listActionItems()) as ActionItem[];
   } catch (error) {
     console.warn('[NotificationsContext] Action items API not available:', error);
     return [];
@@ -242,34 +191,7 @@ async function fetchActionItemsAPI(): Promise<ActionItem[]> {
 
 async function fetchActionItemCountsAPI(): Promise<ActionItemCounts> {
   try {
-    const authHeader = getAuthHeader();
-    if (!authHeader) {
-      return {
-        total: 0,
-        overdue: 0,
-        due_today: 0,
-        due_this_week: 0,
-        by_priority: {},
-        by_form: [],
-      };
-    }
-
-    const response = await fetch(`${API_BASE}/action-items/counts/`, {
-      headers: buildApiHeaders(),
-    });
-    
-    if (response.status === 401 || response.status === 404) {
-      return {
-        total: 0,
-        overdue: 0,
-        due_today: 0,
-        due_this_week: 0,
-        by_priority: {},
-        by_form: [],
-      };
-    }
-    if (!response.ok) throw new Error('Failed to fetch action item counts');
-    return response.json();
+    return (await notificationsService.getActionItemCounts()) as ActionItemCounts;
   } catch (error) {
     console.warn('[NotificationsContext] Action item counts API not available:', error);
     return {
@@ -285,46 +207,7 @@ async function fetchActionItemCountsAPI(): Promise<ActionItemCounts> {
 
 async function fetchPreferencesAPI(): Promise<NotificationPreferences> {
   try {
-    const authHeader = getAuthHeader();
-    if (!authHeader) {
-      return {
-        id: '',
-        user: 0,
-        notifications_enabled: true,
-        email_enabled: true,
-        sms_enabled: false,
-        push_enabled: false,
-        type_preferences: {} as Record<NotificationType, Array<'email' | 'push' | 'in_app'>>,
-        quiet_hours_enabled: false,
-        quiet_hours_start: null,
-        quiet_hours_end: null,
-        daily_digest_enabled: false,
-        weekly_digest_enabled: false,
-      };
-    }
-
-    const response = await fetch(`${API_BASE}/notification-preferences/`, {
-      headers: buildApiHeaders(),
-    });
-    
-    if (response.status === 401 || response.status === 404) {
-      return {
-        id: '',
-        user: 0,
-        notifications_enabled: true,
-        email_enabled: true,
-        sms_enabled: false,
-        push_enabled: false,
-        type_preferences: {} as Record<NotificationType, Array<'email' | 'push' | 'in_app'>>,
-        quiet_hours_enabled: false,
-        quiet_hours_start: null,
-        quiet_hours_end: null,
-        daily_digest_enabled: false,
-        weekly_digest_enabled: false,
-      };
-    }
-    if (!response.ok) throw new Error('Failed to fetch preferences');
-    return response.json();
+    return (await notificationsService.getPreferences()) as NotificationPreferences;
   } catch (error) {
     console.warn('[NotificationsContext] Preferences API not available:', error);
     return {
@@ -345,13 +228,7 @@ async function fetchPreferencesAPI(): Promise<NotificationPreferences> {
 }
 
 async function updatePreferencesAPI(prefs: Partial<NotificationPreferences>): Promise<NotificationPreferences> {
-  const response = await fetch(`${API_BASE}/notification-preferences/`, {
-    method: 'PUT',
-    headers: buildApiHeaders(),
-    body: JSON.stringify(prefs),
-  });
-  if (!response.ok) throw new Error('Failed to update preferences');
-  return response.json();
+  return (await notificationsService.updatePreferences(prefs as Record<string, unknown>)) as NotificationPreferences;
 }
 
 // ============================================================================
@@ -394,7 +271,7 @@ export const NotificationsProvider: React.FC<NotificationsProviderProps> = ({
       setNotifications(notifs);
       setUnreadCount(count);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch notifications');
+      setError(getApiErrorMessage(err, 'Failed to fetch notifications'));
     } finally {
       setLoading(false);
     }
@@ -409,7 +286,7 @@ export const NotificationsProvider: React.FC<NotificationsProviderProps> = ({
       );
       setUnreadCount(prev => Math.max(0, prev - 1));
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to mark as read');
+      setError(getApiErrorMessage(err, 'Failed to mark as read'));
     }
   }, []);
   
@@ -422,7 +299,7 @@ export const NotificationsProvider: React.FC<NotificationsProviderProps> = ({
       );
       setUnreadCount(0);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to mark all as read');
+      setError(getApiErrorMessage(err, 'Failed to mark all as read'));
     }
   }, []);
   
@@ -436,7 +313,7 @@ export const NotificationsProvider: React.FC<NotificationsProviderProps> = ({
         setUnreadCount(prev => Math.max(0, prev - 1));
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to dismiss notification');
+      setError(getApiErrorMessage(err, 'Failed to dismiss notification'));
     }
   }, [notifications]);
   
@@ -463,7 +340,7 @@ export const NotificationsProvider: React.FC<NotificationsProviderProps> = ({
       const updated = await updatePreferencesAPI(prefs);
       setPreferences(updated);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to update preferences');
+      setError(getApiErrorMessage(err, 'Failed to update preferences'));
       throw err;
     }
   }, []);
