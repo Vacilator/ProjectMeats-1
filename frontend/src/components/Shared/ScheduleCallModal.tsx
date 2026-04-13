@@ -24,7 +24,10 @@
  * 
  * Updated: 2026-02-03 - Added CallTimer support
  */
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
+import { z } from 'zod';
+
+import { useZodForm } from '@/hooks/useZodForm';
 import styled from 'styled-components';
 import { businessApi } from '../../services/businessApi';
 import { EntityFormSurface } from './EntityFormSurface';
@@ -77,6 +80,19 @@ interface EntityOption {
   id: number;
   name: string;
 }
+
+const scheduleCallFormSchema = z.object({
+  title: z.string().trim().min(1, 'Title is required'),
+  description: z.string().optional().default(''),
+  entityType: z.enum(['supplier', 'customer']),
+  entityId: z.string().trim().regex(/^\d+$/, 'Valid supplier/customer is required'),
+  scheduledFor: z.string().min(1, 'Scheduled date and time is required'),
+  durationMinutes: z.string().trim().regex(/^\d+$/, 'Duration must be a number'),
+  callPurpose: z.string().trim().min(1),
+  outcome: z.string().optional().default(''),
+});
+
+type ScheduleCallFormValues = z.infer<typeof scheduleCallFormSchema>;
 
 // ============================================================================
 // Styled Components (Theme-Compliant)
@@ -332,18 +348,43 @@ export const ScheduleCallModal: React.FC<ScheduleCallModalProps> = ({
   defaultEntityId,
 }) => {
   const isEditMode = !!initialData?.id;
-  
-  const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
-  const [entityType, setEntityType] = useState<EntityType>('supplier');
-  const [entityId, setEntityId] = useState('');
-  const [scheduledFor, setScheduledFor] = useState('');
-  const [durationMinutes, setDurationMinutes] = useState('30');
-  const [callPurpose, setCallPurpose] = useState('follow_up');
-  const [outcome, setOutcome] = useState('');
-  const [submitting, setSubmitting] = useState(false);
+
+  const scheduleCallForm = useZodForm(scheduleCallFormSchema, {
+    defaultValues: {
+      title: '',
+      description: '',
+      entityType: (defaultEntityType || 'supplier') as EntityType,
+      entityId:
+        defaultEntityId !== undefined && defaultEntityId !== null && String(defaultEntityId).trim() !== ''
+          ? String(defaultEntityId)
+          : '',
+      scheduledFor: '',
+      durationMinutes: '30',
+      callPurpose: defaultCallPurpose || 'follow_up',
+      outcome: '',
+    },
+    mode: 'onBlur',
+  });
+
+  const {
+    handleSubmit,
+    reset,
+    setValue,
+    watch,
+    formState: { isSubmitting },
+  } = scheduleCallForm;
+
+  const entityType = watch('entityType') as EntityType;
+  const entityId = watch('entityId');
+  const title = watch('title');
+  const description = watch('description');
+  const scheduledFor = watch('scheduledFor');
+  const durationMinutes = watch('durationMinutes');
+  const callPurpose = watch('callPurpose');
+  const outcome = watch('outcome');
+
   const [error, setError] = useState<string | null>(null);
-  
+
   // Call timer state (for logging call duration)
   const [isTimerActive, setIsTimerActive] = useState(false);
   const [timerDurationSeconds, setTimerDurationSeconds] = useState(0);
@@ -355,32 +396,45 @@ export const ScheduleCallModal: React.FC<ScheduleCallModalProps> = ({
   const [entityOptions, setEntityOptions] = useState<EntityOption[]>([]);
   const [loadingEntities, setLoadingEntities] = useState(false);
 
-  // Load initial data for editing
+  // Load initial data for editing / initialize create defaults
   useEffect(() => {
-    if (initialData && isOpen) {
-      setTitle(initialData.title || '');
-      setDescription(initialData.description || '');
-      setEntityType((initialData.entity_type as EntityType) || 'supplier');
-      setEntityId(String(initialData.entity_id || ''));
+    if (!isOpen) return;
 
-      // Format date for datetime-local input (remove Z and seconds for local timezone)
-      const formattedDate = initialData.scheduled_for ? new Date(initialData.scheduled_for).toISOString().slice(0, 16) : '';
-      setScheduledFor(formattedDate);
+    setError(null);
 
-      setDurationMinutes(String(initialData.duration_minutes || 30));
-      setCallPurpose(initialData.call_purpose || 'follow_up');
-      setOutcome(initialData.outcome || '');
-    } else if (isOpen) {
-      resetForm();
-      setCallPurpose(defaultCallPurpose || 'follow_up');
-      if (defaultEntityType) {
-        setEntityType(defaultEntityType);
-      }
-      if (defaultEntityId !== undefined && defaultEntityId !== null && String(defaultEntityId).trim() !== '') {
-        setEntityId(String(defaultEntityId));
-      }
+    if (initialData) {
+      const formattedDate = initialData.scheduled_for
+        ? new Date(initialData.scheduled_for).toISOString().slice(0, 16)
+        : '';
+
+      reset({
+        title: initialData.title || '',
+        description: initialData.description || '',
+        entityType: ((initialData.entity_type as EntityType) || 'supplier') as EntityType,
+        entityId: String(initialData.entity_id || ''),
+        scheduledFor: formattedDate,
+        durationMinutes: String(initialData.duration_minutes || 30),
+        callPurpose: initialData.call_purpose || 'follow_up',
+        outcome: initialData.outcome || '',
+      });
+
+      return;
     }
-  }, [initialData, isOpen, defaultCallPurpose, defaultEntityId, defaultEntityType]);
+
+    reset({
+      title: '',
+      description: '',
+      entityType: (defaultEntityType || 'supplier') as EntityType,
+      entityId:
+        defaultEntityId !== undefined && defaultEntityId !== null && String(defaultEntityId).trim() !== ''
+          ? String(defaultEntityId)
+          : '',
+      scheduledFor: '',
+      durationMinutes: '30',
+      callPurpose: defaultCallPurpose || 'follow_up',
+      outcome: '',
+    });
+  }, [defaultCallPurpose, defaultEntityId, defaultEntityType, initialData, isOpen, reset]);
 
   // Fetch entity options when entity type changes
   useEffect(() => {
@@ -412,77 +466,68 @@ export const ScheduleCallModal: React.FC<ScheduleCallModalProps> = ({
   };
 
   const resetForm = () => {
-    setTitle('');
-    setDescription('');
-    setEntityType('supplier');
-    setEntityId('');
-    setScheduledFor('');
-    setDurationMinutes('30');
-    setCallPurpose('follow_up');
-    setOutcome('');
+    reset({
+      title: '',
+      description: '',
+      entityType: (defaultEntityType || 'supplier') as EntityType,
+      entityId:
+        defaultEntityId !== undefined && defaultEntityId !== null && String(defaultEntityId).trim() !== ''
+          ? String(defaultEntityId)
+          : '',
+      scheduledFor: '',
+      durationMinutes: '30',
+      callPurpose: defaultCallPurpose || 'follow_up',
+      outcome: '',
+    });
     setError(null);
     setEntityOptions([]);
   };
 
   const handleClose = () => {
-    if (!submitting) {
+    if (!isSubmitting) {
       resetForm();
       onClose();
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const onValidSubmit = async (values: ScheduleCallFormValues) => {
     setError(null);
-
-    // Validation
-    if (!title.trim()) {
-      setError('Title is required');
-      return;
-    }
-
-    if (!entityId || isNaN(Number(entityId))) {
-      setError('Valid Entity ID is required');
-      return;
-    }
-
-    if (!scheduledFor) {
-      setError('Scheduled date and time is required');
-      return;
-    }
-
-    setSubmitting(true);
 
     try {
       const payload = {
-        title: title.trim(),
-        description: description.trim(),
-        entity_type: entityType,
-        entity_id: Number(entityId),
-        scheduled_for: scheduledFor,
-        duration_minutes: Number(durationMinutes),
-        call_purpose: callPurpose,
-        ...(outcome && { outcome: outcome.trim() }),
+        title: values.title.trim(),
+        description: values.description?.trim() || '',
+        entity_type: values.entityType,
+        entity_id: Number(values.entityId),
+        scheduled_for: values.scheduledFor,
+        duration_minutes: Number(values.durationMinutes),
+        call_purpose: values.callPurpose,
+        ...(values.outcome?.trim() ? { outcome: values.outcome.trim() } : {}),
       };
 
       if (isEditMode && initialData?.id) {
-        // Update existing call
         await businessApi.patch(`/workspace/scheduled-calls/${initialData.id}/`, payload);
       } else {
-        // Create new call
         await businessApi.post('/workspace/scheduled-calls/', payload);
       }
 
-      // Success
       resetForm();
       onSuccess();
       onClose();
     } catch (err: any) {
       console.error(`Failed to ${isEditMode ? 'update' : 'schedule'} call:`, err);
-      setError(err.response?.data?.detail || err.response?.data?.message || `Failed to ${isEditMode ? 'update' : 'schedule'} call. Please try again.`);
-    } finally {
-      setSubmitting(false);
+      setError(
+        err.response?.data?.detail ||
+          err.response?.data?.message ||
+          `Failed to ${isEditMode ? 'update' : 'schedule'} call. Please try again.`
+      );
     }
+  };
+
+  const onInvalidSubmit = (formErrors: Record<string, unknown>) => {
+    const first = Object.values(formErrors)[0] as any;
+    const msg = first && typeof first.message === 'string' ? String(first.message) : 'Please fix the highlighted fields.';
+    setError(msg);
   };
 
   if (!isOpen) return null;
@@ -490,7 +535,7 @@ export const ScheduleCallModal: React.FC<ScheduleCallModalProps> = ({
   return (
     <Overlay isOpen={isOpen} onClick={handleClose}>
       <Modal onClick={(e) => e.stopPropagation()}>
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={(e) => void handleSubmit(onValidSubmit, onInvalidSubmit)(e)}>
           <ModalHeader>
             <ModalTitle>{isEditMode ? 'Edit Call' : 'Schedule New Call'}</ModalTitle>
             <CloseButton type="button" onClick={handleClose}>&times;</CloseButton>
@@ -502,10 +547,10 @@ export const ScheduleCallModal: React.FC<ScheduleCallModalProps> = ({
               <Input
                 type="text"
                 value={title}
-                onChange={(e) => setTitle(e.target.value)}
+                onChange={(e) => setValue('title', e.target.value, { shouldValidate: true })}
                 placeholder="e.g., Follow-up on order inquiry"
                 maxLength={200}
-                disabled={submitting}
+                disabled={isSubmitting}
               />
             </FormGroup>
 
@@ -513,9 +558,9 @@ export const ScheduleCallModal: React.FC<ScheduleCallModalProps> = ({
               <Label>Description</Label>
               <TextArea
                 value={description}
-                onChange={(e) => setDescription(e.target.value)}
+                onChange={(e) => setValue('description', e.target.value)}
                 placeholder="Add notes about what to discuss..."
-                disabled={submitting}
+                disabled={isSubmitting}
               />
             </FormGroup>
 
@@ -524,10 +569,10 @@ export const ScheduleCallModal: React.FC<ScheduleCallModalProps> = ({
               <Select
                 value={entityType}
                 onChange={(e) => {
-                  setEntityType(e.target.value as EntityType);
-                  setEntityId(''); // Reset entity selection when type changes
+                  setValue('entityType', e.target.value as EntityType, { shouldValidate: true });
+                  setValue('entityId', '', { shouldValidate: true });
                 }}
-                disabled={submitting}
+                disabled={isSubmitting}
               >
                 <option value="supplier">Supplier</option>
                 <option value="customer">Customer</option>
@@ -541,8 +586,8 @@ export const ScheduleCallModal: React.FC<ScheduleCallModalProps> = ({
               </Label>
               <Select
                 value={entityId}
-                onChange={(e) => setEntityId(e.target.value)}
-                disabled={submitting || loadingEntities}
+                onChange={(e) => setValue('entityId', e.target.value, { shouldValidate: true })}
+                disabled={isSubmitting || loadingEntities}
               >
                 <option value="">
                   {loadingEntities 
@@ -568,8 +613,8 @@ export const ScheduleCallModal: React.FC<ScheduleCallModalProps> = ({
               <Input
                 type="datetime-local"
                 value={scheduledFor}
-                onChange={(e) => setScheduledFor(e.target.value)}
-                disabled={submitting}
+                onChange={(e) => setValue('scheduledFor', e.target.value, { shouldValidate: true })}
+                disabled={isSubmitting}
                 step="900"
                 aria-label="Schedule date and time in 15-minute increments"
               />
@@ -581,11 +626,11 @@ export const ScheduleCallModal: React.FC<ScheduleCallModalProps> = ({
               <Input
                 type="number"
                 value={durationMinutes}
-                onChange={(e) => setDurationMinutes(e.target.value)}
+                onChange={(e) => setValue('durationMinutes', e.target.value, { shouldValidate: true })}
                 min="5"
                 max="480"
                 step="5"
-                disabled={submitting}
+                disabled={isSubmitting}
               />
             </FormGroup>
 
@@ -593,8 +638,8 @@ export const ScheduleCallModal: React.FC<ScheduleCallModalProps> = ({
               <Label>Call Purpose</Label>
               <Select
                 value={callPurpose}
-                onChange={(e) => setCallPurpose(e.target.value)}
-                disabled={submitting}
+                onChange={(e) => setValue('callPurpose', e.target.value, { shouldValidate: true })}
+                disabled={isSubmitting}
               >
                 <option value="follow_up">Follow-up</option>
                 <option value="inquiry">Inquiry</option>
@@ -610,9 +655,9 @@ export const ScheduleCallModal: React.FC<ScheduleCallModalProps> = ({
                 <Label>Outcome</Label>
                 <TextArea
                   value={outcome}
-                  onChange={(e) => setOutcome(e.target.value)}
+                  onChange={(e) => setValue('outcome', e.target.value)}
                   placeholder="What was the outcome of this call?"
-                  disabled={submitting}
+                  disabled={isSubmitting}
                 />
               </FormGroup>
             )}
@@ -627,7 +672,7 @@ export const ScheduleCallModal: React.FC<ScheduleCallModalProps> = ({
                     onStop={(seconds) => {
                       setTimerDurationSeconds(seconds);
                       // Update duration in minutes, rounded up
-                      setDurationMinutes(String(Math.ceil(seconds / 60)));
+                      setValue('durationMinutes', String(Math.ceil(seconds / 60)), { shouldValidate: true });
                       setIsTimerActive(false);
                     }}
                     onTick={(seconds) => setTimerDurationSeconds(seconds)}
@@ -649,18 +694,18 @@ export const ScheduleCallModal: React.FC<ScheduleCallModalProps> = ({
                 <NewInquiryButton
                   type="button"
                   onClick={() => setShowInquiryModal(true)}
-                  disabled={submitting}
+                  disabled={isSubmitting}
                 >
                   📋 New Inquiry
                 </NewInquiryButton>
               )}
             </ModalFooterLeft>
             <ModalFooterRight>
-              <CancelButton type="button" onClick={handleClose} disabled={submitting}>
+              <CancelButton type="button" onClick={handleClose} disabled={isSubmitting}>
                 Cancel
               </CancelButton>
-              <SubmitButton type="submit" disabled={submitting}>
-                {submitting ? (isEditMode ? 'Updating...' : 'Scheduling...') : (isEditMode ? 'Update Call' : 'Schedule Call')}
+              <SubmitButton type="submit" disabled={isSubmitting}>
+                {isSubmitting ? (isEditMode ? 'Updating...' : 'Scheduling...') : (isEditMode ? 'Update Call' : 'Schedule Call')}
               </SubmitButton>
             </ModalFooterRight>
           </ModalFooter>
