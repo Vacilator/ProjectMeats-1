@@ -22,7 +22,7 @@ import DynamicFormEngine from '../../features/system/DynamicFormEngine';
 import EntityOptionsSelect from '../FormSubmission/SearchableSelect';
 import { isValidEmail } from '../../shared/utils';
 
-export type UniversalEntityFormMode = 'create' | 'edit' | 'view';
+export type UniversalEntityFormMode = 'create' | 'edit' | 'view' | 'clone';
 export type UniversalEntityFormVariant = 'modal' | 'inline';
 
 export interface UniversalEntityFormProps {
@@ -208,8 +208,12 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
   const [recordValues, setRecordValues] = useState<Record<string, unknown> | null>(null);
 
   const inferredMode: UniversalEntityFormMode = useMemo(() => {
+    const hasId = entityId != null && String(entityId).trim().length > 0;
+
+    if (mode === 'clone') return hasId ? 'clone' : 'create';
     if (mode) return mode;
-    return entityId != null && String(entityId).trim() ? 'edit' : 'create';
+
+    return hasId ? 'edit' : 'create';
   }, [entityId, mode]);
 
   const canSwitchModes = allowModeSwitch ?? inferredMode === 'view';
@@ -742,7 +746,10 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
 
       try {
         setSubmitting(true);
-        const resp = entityId
+        const hasEntityId = entityId != null && String(entityId).trim().length > 0;
+        const isEditSubmit = hasEntityId && activeMode === 'edit';
+
+        const resp = isEditSubmit
           ? await apiClient.patch(`${endpoint}${entityId}/`, payload)
           : await apiClient.post(endpoint, payload);
 
@@ -788,6 +795,7 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
     [
       endpoint,
       entityId,
+      activeMode,
       fkFields,
       fkValues,
       formInitialValues,
@@ -1178,7 +1186,12 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
       footer={null}
       width="min(720px, calc(100vw - 32px))"
       destroyOnClose
-      title={schema?.name || (entityId ? `${entityType} ${entityId}` : `New ${entityType}`)}
+      title={
+        activeMode === 'clone'
+          ? `Clone ${entityType}`
+          : schema?.name ||
+            (entityId ? `${entityType} ${entityId}` : `New ${entityType}`)
+      }
     >
       {content}
     </Modal>

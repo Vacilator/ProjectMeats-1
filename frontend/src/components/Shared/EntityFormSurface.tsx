@@ -18,7 +18,7 @@ import { getRuntimeConfigBoolean } from '@/config/runtime';
 import UniversalEntityForm from './UniversalEntityForm';
 import { InquiryCreateModal } from '../Inquiry/InquiryCreateModal';
 
-export type EntityFormMode = 'create' | 'edit' | 'view';
+export type EntityFormMode = 'create' | 'edit' | 'view' | 'clone';
 
 export type EntityFormSurfaceVariant = 'modal' | 'inline';
 
@@ -122,7 +122,7 @@ export const EntityFormSurface: React.FC<EntityFormSurfaceProps> = ({
       entityType={entityType}
       mode={mode}
       variant={variant}
-      entityId={mode === 'edit' || mode === 'view' ? entityId : undefined}
+      entityId={mode === 'edit' || mode === 'view' || mode === 'clone' ? entityId : undefined}
       isOpen={isOpen}
       onClose={onClose}
       onSuccess={(result) => onSuccess?.(result)}
