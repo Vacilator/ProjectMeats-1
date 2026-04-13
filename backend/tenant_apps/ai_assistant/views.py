@@ -55,6 +55,17 @@ SWARM_SYSTEM_PROMPT = (
 from tenant_apps.ai_assistant.swarm.executor import DEFAULT_OPENAI_TOOLS
 
 
+def ai_not_configured_response() -> Response:
+    return Response(
+        {
+            'error': 'AI is not enabled for this environment.',
+            'code': 'AI_NOT_CONFIGURED',
+            'detail': 'OpenAI is not configured on the server (missing OPENAI_API_KEY).',
+        },
+        status=status.HTTP_503_SERVICE_UNAVAILABLE,
+    )
+
+
 class ChatSessionViewSet(viewsets.ModelViewSet):
     """ViewSet for managing chat sessions."""
 
@@ -196,17 +207,7 @@ class ChatBotAPIViewSet(viewsets.ViewSet):
 
             openai_api_key = getattr(settings, 'OPENAI_API_KEY', None) or os.environ.get('OPENAI_API_KEY')
             if not openai_api_key:
-                return Response(
-                    {
-                        'error': 'OpenAI not configured (missing OPENAI_API_KEY)',
-                        'detail': (
-                            'Backend container is missing OPENAI_API_KEY. '
-                            'Verify the GitHub Environment secret OPENAI_API_KEY is set for the active backend environment '
-                            'and that the deploy-backend job writes it into backend.env / passes it to docker run.'
-                        ),
-                    },
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
+                return ai_not_configured_response()
 
             try:
                 from apps.system.services.ai_model_resolver import get_active_openai_model_id
@@ -318,7 +319,10 @@ class ChatBotAPIViewSet(viewsets.ViewSet):
 
             except Exception as e:
                 logger.warning('Swarm tool loop failed: %s', str(e), exc_info=True)
-                return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+                msg = str(e)
+                if 'OPENAI_API_KEY' in msg or 'OpenAI not configured' in msg:
+                    return ai_not_configured_response()
+                return Response({'error': msg or 'AI request failed'}, status=status.HTTP_400_BAD_REQUEST)
 
             metadata = {
                 'model': model_name,
