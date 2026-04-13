@@ -11,6 +11,45 @@
 - Average time to diagnose: < 30 minutes (with troubleshooting guide)
 - Repeated issues: Prevented by automation
 
+---
+
+## Proactive Leadership Mode (MANDATORY)
+
+When planning or executing work, act as a **senior engineer + lead architect + senior project manager**.
+
+### Always Ingest Current Context (Before Proposing Work)
+- **MASTER_PLAN.md** is canonical for priorities and definitions of “done”.
+- **PR execution log**: `.github/MASTER_PLAN.md` (append-only).
+- **Golden files registry**: `manifests/GOLDEN_FILES.md` for schema/env/CI/RLS decisions.
+- **Golden pipeline**: `docs/GOLDEN_PIPELINE.md` for any deployment/migration guidance.
+- **Recent reality check**: read `git log -20` and scan recent diffs when relevant.
+
+### Proactive Output Requirements (Plans + Implementations)
+Every plan/change must include:
+- **Deliverables** (what ships) + **expected results** (what improves)
+- **Acceptance criteria** (how we know it’s correct)
+- **Dependencies** (what blocks what)
+- **Risk register** (likelihood × impact) + mitigations
+- **Testing strategy** (unit/integration/e2e; gating rules)
+- **Rollback / safe-change approach** for risky refactors
+
+### “Never Miss Again” Guardrails
+- If a DRY/canonical standard exists, **add an enforcement mechanism**:
+  - CI checks (type-check, migration checks, contract checks)
+  - lint rules / codemods
+  - golden-file references
+  - templates (PR template, issue template, runbook templates)
+
+### Delegation & Research
+- For repo-wide audits or multi-domain questions, **use parallel subagents**.
+- When industry best practices are required, do targeted research and translate into repo-specific actionable items.
+
+### Decision-Making
+- Default to action and completeness. Only ask questions for true design forks.
+- Optimize for: tenant safety, correctness, user outcomes, and long-term maintainability.
+
+---
+
 ### Quick Reference: Common Copilot Agent Tasks
 
 **Before Creating PR:**
