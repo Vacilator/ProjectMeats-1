@@ -4,7 +4,10 @@
  * Modal for delegating a task/form step to another user.
  * Allows selecting a delegate, setting due date, and adding notes.
  */
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
+import { z } from 'zod';
+
+import { useZodForm } from '@/hooks/useZodForm';
 import styled, { keyframes } from 'styled-components';
 
 // ============================================================================
@@ -38,6 +41,28 @@ export interface DelegateTaskModalProps {
   availableUsers: User[];
   isLoading?: boolean;
 }
+
+// ============================================================================
+// FORM (RHF + Zod)
+// ============================================================================
+
+const delegateTaskFormSchema = z.object({
+  delegateUserId: z.string().trim().min(1, 'Delegate is required'),
+  reason: z.string().optional().default(''),
+  dueDate: z.string().optional().default(''),
+  notifyOriginalAssignee: z.coerce.boolean().default(true),
+  retainAccess: z.coerce.boolean().default(false),
+});
+
+type DelegateTaskFormValues = z.infer<typeof delegateTaskFormSchema>;
+
+const delegateTaskFormDefaults: DelegateTaskFormValues = {
+  delegateUserId: '',
+  reason: '',
+  dueDate: '',
+  notifyOriginalAssignee: true,
+  retainAccess: false,
+};
 
 // ============================================================================
 // ANIMATIONS
@@ -75,7 +100,7 @@ const Modal = styled.div`
   max-width: 500px;
   max-height: 90vh;
   overflow-y: auto;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  box-shadow: var(--shadow-float);
   animation: ${slideUp} 0.3s ease;
 `;
 
@@ -154,7 +179,7 @@ const SearchInput = styled.input`
   &:focus {
     outline: none;
     border-color: rgb(var(--color-primary, 102 126 234));
-    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    box-shadow: 0 0 0 3px rgba(var(--color-primary), 0.1);
   }
 `;
 
@@ -173,8 +198,8 @@ const UserOption = styled.div<{ $selected: boolean }>`
   padding: 12px;
   cursor: pointer;
   transition: background 0.15s ease;
-  background: ${props => props.$selected 
-    ? 'rgba(102, 126, 234, 0.1)' 
+  background: ${props => props.$selected
+    ? 'rgba(var(--color-primary), 0.1)'
     : 'transparent'};
   border-bottom: 1px solid rgb(var(--color-border, 224 224 224));
   
@@ -183,8 +208,8 @@ const UserOption = styled.div<{ $selected: boolean }>`
   }
   
   &:hover {
-    background: ${props => props.$selected 
-      ? 'rgba(102, 126, 234, 0.15)' 
+    background: ${props => props.$selected
+      ? 'rgba(var(--color-primary), 0.15)'
       : 'rgb(var(--color-background, 248 249 250))'};
   }
 `;
@@ -251,7 +276,7 @@ const TextArea = styled.textarea`
   &:focus {
     outline: none;
     border-color: rgb(var(--color-primary, 102 126 234));
-    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    box-shadow: 0 0 0 3px rgba(var(--color-primary), 0.1);
   }
 `;
 
@@ -265,7 +290,7 @@ const DateInput = styled.input`
   &:focus {
     outline: none;
     border-color: rgb(var(--color-primary, 102 126 234));
-    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    box-shadow: 0 0 0 3px rgba(var(--color-primary), 0.1);
   }
 `;
 
@@ -340,6 +365,21 @@ const NoResults = styled.div`
   font-size: 14px;
 `;
 
+const ErrorMessage = styled.div`
+  color: rgb(var(--color-error));
+  font-size: 0.875rem;
+  margin-top: 0.5rem;
+  padding: 0.5rem;
+  background: rgba(220, 38, 38, 0.1);
+  border-radius: var(--radius-md);
+`;
+
+const FieldError = styled.div`
+  color: rgb(var(--color-error));
+  font-size: 0.875rem;
+  margin-top: 0.5rem;
+`;
+
 // ============================================================================
 // HELPER FUNCTIONS
 // ============================================================================
@@ -367,12 +407,12 @@ export const DelegateTaskModal: React.FC<DelegateTaskModalProps> = ({
   isLoading = false,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedUser, setSelectedUser] = useState<User | null>(null);
-  const [reason, setReason] = useState('');
-  const [dueDate, setDueDate] = useState('');
-  const [notifyOriginal, setNotifyOriginal] = useState(true);
-  const [retainAccess, setRetainAccess] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
+  const [selectedUserId, setSelectedUserId] = useState('');
+  const [submitError, setSubmitError] = useState<string | null>(null);
+
+  const form = useZodForm<DelegateTaskFormValues>(delegateTaskFormSchema, {
+    defaultValues: delegateTaskFormDefaults,
+  });
 
   // Filter users based on search
   const filteredUsers = availableUsers.filter(user => {
@@ -390,34 +430,39 @@ export const DelegateTaskModal: React.FC<DelegateTaskModalProps> = ({
   useEffect(() => {
     if (!isOpen) {
       setSearchQuery('');
-      setSelectedUser(null);
-      setReason('');
-      setDueDate('');
-      setNotifyOriginal(true);
-      setRetainAccess(false);
+      setSelectedUserId('');
+      setSubmitError(null);
+      form.reset(delegateTaskFormDefaults);
     }
-  }, [isOpen]);
+  }, [form, isOpen]);
 
-  const handleSubmit = async () => {
-    if (!selectedUser) return;
-    
-    setSubmitting(true);
+  const handleSubmit = form.handleSubmit(async (values) => {
+    const delegateUser = availableUsers.find(user => user.id === values.delegateUserId);
+    if (!delegateUser) {
+      form.setError('delegateUserId', {
+        type: 'manual',
+        message: 'Selected user is no longer available',
+      });
+      return;
+    }
+
+    setSubmitError(null);
+
     try {
       await onDelegate({
-        delegateUserId: selectedUser.id,
-        delegateUser: selectedUser,
-        reason,
-        dueDate: dueDate || undefined,
-        notifyOriginalAssignee: notifyOriginal,
-        retainAccess,
+        delegateUserId: delegateUser.id,
+        delegateUser,
+        reason: values.reason,
+        dueDate: values.dueDate || undefined,
+        notifyOriginalAssignee: values.notifyOriginalAssignee,
+        retainAccess: values.retainAccess,
       });
       onClose();
     } catch (error) {
       console.error('Delegation failed:', error);
-    } finally {
-      setSubmitting(false);
+      setSubmitError('Delegation failed. Please try again.');
     }
-  };
+  });
 
   const handleOverlayClick = (e: React.MouseEvent) => {
     if (e.target === e.currentTarget) {
@@ -435,121 +480,129 @@ export const DelegateTaskModal: React.FC<DelegateTaskModalProps> = ({
           <CloseButton onClick={onClose} aria-label="Close modal">×</CloseButton>
         </Header>
         
-        <Body>
-          <TaskInfo>
-            <TaskLabel>Task to delegate</TaskLabel>
-            <TaskName>{taskName}</TaskName>
-          </TaskInfo>
-          
-          <FormGroup>
-            <Label htmlFor="delegate-search">Select delegate *</Label>
-            <SearchInput
-              id="delegate-search"
-              type="text"
-              placeholder="Search by name, email, or role..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
-            <UserList>
-              {filteredUsers.length === 0 ? (
-                <NoResults>
-                  {searchQuery ? 'No users found matching your search' : 'No available users'}
-                </NoResults>
-              ) : (
-                filteredUsers.map(user => (
-                  <UserOption
-                    key={user.id}
-                    $selected={selectedUser?.id === user.id}
-                    onClick={() => setSelectedUser(user)}
-                    role="option"
-                    aria-selected={selectedUser?.id === user.id}
-                  >
-                    <UserAvatar $hasImage={!!user.avatar}>
-                      {user.avatar ? (
-                        <img src={user.avatar} alt={user.name} />
-                      ) : (
-                        getInitials(user.name)
+        <form onSubmit={handleSubmit}>
+          <Body>
+            <TaskInfo>
+              <TaskLabel>Task to delegate</TaskLabel>
+              <TaskName>{taskName}</TaskName>
+            </TaskInfo>
+
+            {submitError && <ErrorMessage role="alert">{submitError}</ErrorMessage>}
+
+            <FormGroup>
+              <Label htmlFor="delegate-search">Select delegate *</Label>
+              <input type="hidden" {...form.register('delegateUserId')} />
+              <SearchInput
+                id="delegate-search"
+                type="text"
+                placeholder="Search by name, email, or role..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+              <UserList>
+                {filteredUsers.length === 0 ? (
+                  <NoResults>
+                    {searchQuery ? 'No users found matching your search' : 'No available users'}
+                  </NoResults>
+                ) : (
+                  filteredUsers.map(user => (
+                    <UserOption
+                      key={user.id}
+                      $selected={selectedUserId === user.id}
+                      onClick={() => {
+                        setSubmitError(null);
+                        setSelectedUserId(user.id);
+                        form.setValue('delegateUserId', user.id, { shouldValidate: true, shouldDirty: true });
+                      }}
+                      role="option"
+                      aria-selected={selectedUserId === user.id}
+                    >
+                      <UserAvatar $hasImage={!!user.avatar}>
+                        {user.avatar ? (
+                          <img src={user.avatar} alt={user.name} />
+                        ) : (
+                          getInitials(user.name)
+                        )}
+                      </UserAvatar>
+                      <UserInfo>
+                        <UserName>{user.name}</UserName>
+                        <UserMeta>
+                          {user.email}
+                          {user.role && ` • ${user.role}`}
+                          {user.department && ` • ${user.department}`}
+                        </UserMeta>
+                      </UserInfo>
+                      {selectedUserId === user.id && (
+                        <SelectedBadge>Selected</SelectedBadge>
                       )}
-                    </UserAvatar>
-                    <UserInfo>
-                      <UserName>{user.name}</UserName>
-                      <UserMeta>
-                        {user.email}
-                        {user.role && ` • ${user.role}`}
-                        {user.department && ` • ${user.department}`}
-                      </UserMeta>
-                    </UserInfo>
-                    {selectedUser?.id === user.id && (
-                      <SelectedBadge>Selected</SelectedBadge>
-                    )}
-                  </UserOption>
-                ))
+                    </UserOption>
+                  ))
+                )}
+              </UserList>
+              {form.formState.errors.delegateUserId?.message && (
+                <FieldError role="alert">{String(form.formState.errors.delegateUserId.message)}</FieldError>
               )}
-            </UserList>
-          </FormGroup>
-          
-          <FormGroup>
-            <Label htmlFor="delegate-reason">Reason for delegation</Label>
-            <TextArea
-              id="delegate-reason"
-              placeholder="Optional: Explain why you're delegating this task..."
-              value={reason}
-              onChange={(e) => setReason(e.target.value)}
-            />
-          </FormGroup>
-          
-          <FormGroup>
-            <Label htmlFor="delegate-due">New due date</Label>
-            <DateInput
-              id="delegate-due"
-              type="date"
-              value={dueDate}
-              onChange={(e) => setDueDate(e.target.value)}
-              min={new Date().toISOString().split('T')[0]}
-            />
-          </FormGroup>
-          
-          <FormGroup>
-            <CheckboxGroup>
-              <CheckboxLabel>
-                <input
-                  type="checkbox"
-                  checked={notifyOriginal}
-                  onChange={(e) => setNotifyOriginal(e.target.checked)}
-                />
-                <CheckboxText>
-                  <CheckboxTitle>Notify original assignee</CheckboxTitle>
-                  <CheckboxHint>Send notification when task is delegated and completed</CheckboxHint>
-                </CheckboxText>
-              </CheckboxLabel>
-              
-              <CheckboxLabel>
-                <input
-                  type="checkbox"
-                  checked={retainAccess}
-                  onChange={(e) => setRetainAccess(e.target.checked)}
-                />
-                <CheckboxText>
-                  <CheckboxTitle>Retain view access</CheckboxTitle>
-                  <CheckboxHint>Original assignee can still view task progress</CheckboxHint>
-                </CheckboxText>
-              </CheckboxLabel>
-            </CheckboxGroup>
-          </FormGroup>
-        </Body>
-        
-        <Footer>
-          <Button $variant="secondary" onClick={onClose} disabled={submitting}>
-            Cancel
-          </Button>
-          <Button 
-            $variant="primary" 
-            onClick={handleSubmit}
-            disabled={!selectedUser || submitting || isLoading}
-          >
-            {submitting ? 'Delegating...' : 'Delegate Task'}
-          </Button>
-        </Footer>
+            </FormGroup>
+
+            <FormGroup>
+              <Label htmlFor="delegate-reason">Reason for delegation</Label>
+              <TextArea
+                id="delegate-reason"
+                placeholder="Optional: Explain why you're delegating this task..."
+                {...form.register('reason')}
+              />
+            </FormGroup>
+
+            <FormGroup>
+              <Label htmlFor="delegate-due">New due date</Label>
+              <DateInput
+                id="delegate-due"
+                type="date"
+                min={new Date().toISOString().split('T')[0]}
+                {...form.register('dueDate')}
+              />
+            </FormGroup>
+
+            <FormGroup>
+              <CheckboxGroup>
+                <CheckboxLabel>
+                  <input type="checkbox" {...form.register('notifyOriginalAssignee')} />
+                  <CheckboxText>
+                    <CheckboxTitle>Notify original assignee</CheckboxTitle>
+                    <CheckboxHint>Send notification when task is delegated and completed</CheckboxHint>
+                  </CheckboxText>
+                </CheckboxLabel>
+
+                <CheckboxLabel>
+                  <input type="checkbox" {...form.register('retainAccess')} />
+                  <CheckboxText>
+                    <CheckboxTitle>Retain view access</CheckboxTitle>
+                    <CheckboxHint>Original assignee can still view task progress</CheckboxHint>
+                  </CheckboxText>
+                </CheckboxLabel>
+              </CheckboxGroup>
+            </FormGroup>
+          </Body>
+
+          <Footer>
+            <Button
+              $variant="secondary"
+              type="button"
+              onClick={onClose}
+              disabled={form.formState.isSubmitting}
+            >
+              Cancel
+            </Button>
+            <Button
+              $variant="primary"
+              type="button"
+              onClick={handleSubmit}
+              disabled={!selectedUserId || form.formState.isSubmitting || isLoading}
+            >
+              {form.formState.isSubmitting ? 'Delegating...' : 'Delegate Task'}
+            </Button>
+          </Footer>
+        </form>
       </Modal>
     </Overlay>
   );

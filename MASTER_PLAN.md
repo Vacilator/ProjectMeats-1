@@ -1259,16 +1259,16 @@ def get_queryset(self):
 #### 10.2.3: Standardize Validation (RHF + Zod Everywhere) [HIGH]
 **Effort**: 12 hours
 
+**Progress**: ✅ Batch 1 shipped — PR #4366 (added `useZodForm` + migrated `ScheduleCallModal` to RHF+Zod)
+
 **Current State**: 3 validation patterns
-- Pattern 1: React Hook Form + Zod (3 files only ✅)
+- Pattern 1: React Hook Form + Zod (5+ files ✅)
 - Pattern 2: Manual useState (20+ components ❌)
 - Pattern 3: Per-field auto-save (FormSubmission ❌)
 
 **Files Using Manual Validation:**
 - `InquiryCreateModal.tsx` - 11+ useState calls
 - `CreateFulfillmentModal.tsx` - Manual checks
-- `ScheduleCallModal.tsx` - Manual checks
-- `DelegateTaskModal.tsx` - Manual checks
 - Plus 16+ more modals
 
 **Target**: 100% React Hook Form + Zod
@@ -1276,10 +1276,12 @@ def get_queryset(self):
 #### 10.2.4: Add Mode Support (Create/Edit/View/Clone) [MEDIUM]
 **Effort**: 10 hours
 
+**Progress**: ✅ Partial shipped — PR #4365 (UniversalEntityForm now supports clone mode)
+
 **Current Mode Support Matrix:**
 | Component | Create | Edit | View | Clone |
 |-----------|--------|------|------|-------|
-| UniversalEntityForm | ✅ | ✅ | ✅ | ❌ |
+| UniversalEntityForm | ✅ | ✅ | ✅ | ✅ |
 | All Inquiry modals | ✅ only | ❌ | ❌ | ❌ |
 | All other modals | ✅ only | ❌ | ❌ | ❌ |
 
@@ -1292,9 +1294,11 @@ def get_queryset(self):
 #### 10.3.1: Create Missing Atom Components [HIGH]
 **Effort**: 8 hours
 
+**Progress**: ✅ Shipped — PR #4362 (added canonical atoms)
+
 **Existing Atoms** (10 files): Button, Card, Icon, Select, CountrySelect, StateSelect, PhoneInput
 
-**Missing Atoms:**
+**Atoms Delivered:**
 - `frontend/src/components/ui/atoms/Input.tsx` - Text input (currently hardcoded everywhere)
 - `frontend/src/components/ui/atoms/Badge.tsx` - Status indicators
 - `frontend/src/components/ui/atoms/Checkbox.tsx` - Form checkboxes
