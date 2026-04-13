@@ -15,7 +15,7 @@ export const useZodForm = <TFieldValues extends FieldValues>(
   formProps?: Omit<UseFormProps<TFieldValues>, 'resolver'>
 ): UseFormReturn<TFieldValues> => {
   return useForm<TFieldValues>({
-    resolver: zodResolver(schema) as any,
+    resolver: zodResolver(schema as any) as any,
     ...(formProps || {}),
   });
 };
