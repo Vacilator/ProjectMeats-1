@@ -14,6 +14,7 @@ export { UniversalEntityForm } from './UniversalEntityForm';
 export { EntityFormSurface } from './EntityFormSurface';
 export { UnifiedEntityTable } from './UnifiedEntityTable';
 export { SearchableSelect } from './SearchableSelect';
+export { LocalSearchableSelect } from './LocalSearchableSelect';
 export type { LocationSelectorProps } from './LocationSelector';
 export type { MultiSelectProps, MultiSelectOption } from './MultiSelect';
-export type { SearchableSelectOption } from './SearchableSelect';
+export type { SearchableSelectOption } from './LocalSearchableSelect';
