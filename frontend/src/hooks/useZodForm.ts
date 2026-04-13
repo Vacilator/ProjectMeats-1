@@ -6,16 +6,16 @@
  */
 
 import { useForm } from 'react-hook-form';
-import type { UseFormProps, UseFormReturn } from 'react-hook-form';
+import type { FieldValues, UseFormProps, UseFormReturn } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import type { z } from 'zod';
 
-export const useZodForm = <TSchema extends z.ZodTypeAny>(
-  schema: TSchema,
-  formProps?: Omit<UseFormProps<z.infer<TSchema>>, 'resolver'>
-): UseFormReturn<z.infer<TSchema>> => {
-  return useForm<z.infer<TSchema>>({
-    resolver: zodResolver(schema),
+export const useZodForm = <TFieldValues extends FieldValues>(
+  schema: z.ZodTypeAny,
+  formProps?: Omit<UseFormProps<TFieldValues>, 'resolver'>
+): UseFormReturn<TFieldValues> => {
+  return useForm<TFieldValues>({
+    resolver: zodResolver(schema) as any,
     ...(formProps || {}),
   });
 };

@@ -349,7 +349,7 @@ export const ScheduleCallModal: React.FC<ScheduleCallModalProps> = ({
 }) => {
   const isEditMode = !!initialData?.id;
 
-  const scheduleCallForm = useZodForm(scheduleCallFormSchema, {
+  const scheduleCallForm = useZodForm<ScheduleCallFormValues>(scheduleCallFormSchema, {
     defaultValues: {
       title: '',
       description: '',
