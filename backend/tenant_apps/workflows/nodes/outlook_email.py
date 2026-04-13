@@ -14,6 +14,13 @@ from django.core.exceptions import ValidationError
 logger = logging.getLogger(__name__)
 
 
+def _email_integrations_cta() -> dict:
+    return {
+        'label': 'Open Email Integrations',
+        'url': '/settings/email-integrations',
+    }
+
+
 class OutlookEmailNode:
     """
     Workflow node for sending emails via Microsoft Outlook.
@@ -167,17 +174,71 @@ class OutlookEmailNode:
             except ExternalAuthProvider.DoesNotExist:
                 return {
                     'status': 'error',
-                    'message': 'Microsoft account not connected. Please connect in Settings > Integrations.',
+                    'message': 'Microsoft account not connected.',
+                    'code': 'not_connected',
+                    'error_code': 'not_connected',
+                    'hint': 'Connect Outlook in Settings → Email Integrations, then retry.',
+                    'cta': _email_integrations_cta(),
                     'node_id': self.node_id,
                 }
-            
+
             # Refresh token if needed
             if auth_provider.is_token_expired():
                 logger.info(f"Refreshing expired token for tenant {tenant_id}")
-                auth_provider.refresh_if_needed()
-            
+                try:
+                    auth_provider.refresh_if_needed()
+                except Exception as e:
+                    logger.warning(
+                        'Outlook token refresh failed tenant=%s provider_id=%s: %s',
+                        tenant_id,
+                        getattr(auth_provider, 'id', None),
+                        str(e),
+                        exc_info=True,
+                    )
+                    return {
+                        'status': 'error',
+                        'message': 'Outlook authentication needs to be refreshed.',
+                        'code': 'token_refresh_failed',
+                        'error_code': 'token_refresh_failed',
+                        'hint': 'Reconnect Outlook in Settings → Email Integrations, then retry.',
+                        'cta': _email_integrations_cta(),
+                        'node_id': self.node_id,
+                    }
+
             # Get decrypted access token
-            access_token = auth_provider.get_decrypted_token('access')
+            try:
+                access_token = auth_provider.get_decrypted_token('access')
+            except Exception as e:
+                try:
+                    from cryptography.fernet import InvalidToken
+
+                    is_decrypt = isinstance(e, InvalidToken)
+                except Exception:
+                    is_decrypt = 'decrypt' in str(e).lower() or 'invalidtoken' in str(e).lower()
+
+                if is_decrypt:
+                    return {
+                        'status': 'error',
+                        'message': 'Outlook connection needs to be refreshed for security reasons.',
+                        'code': 'decryption_failed',
+                        'error_code': 'decryption_failed',
+                        'hint': 'Reconnect Outlook in Settings → Email Integrations, then retry.',
+                        'cta': _email_integrations_cta(),
+                        'node_id': self.node_id,
+                    }
+
+                raise
+
+            if not access_token:
+                return {
+                    'status': 'error',
+                    'message': 'No Outlook access token available.',
+                    'code': 'token_missing',
+                    'error_code': 'token_missing',
+                    'hint': 'Reconnect Outlook in Settings → Email Integrations, then retry.',
+                    'cta': _email_integrations_cta(),
+                    'node_id': self.node_id,
+                }
             
             # Render email template with context
             to_addresses = [
@@ -243,15 +304,21 @@ class OutlookEmailNode:
             logger.error(f"Token expired for tenant {tenant_id} in node {self.node_id}")
             return {
                 'status': 'error',
-                'message': 'Email authentication expired. Please reconnect in Settings > Integrations.',
+                'message': 'Outlook authentication expired or is invalid.',
+                'code': 'token_invalid',
+                'error_code': 'token_invalid',
+                'hint': 'Reconnect Outlook in Settings → Email Integrations, then retry.',
+                'cta': _email_integrations_cta(),
                 'node_id': self.node_id,
             }
-        
+
         except ValidationError as e:
             logger.error(f"Email validation error in node {self.node_id}: {str(e)}")
             return {
                 'status': 'error',
                 'message': f'Email validation error: {str(e)}',
+                'code': 'validation_error',
+                'error_code': 'validation_error',
                 'node_id': self.node_id,
             }
         
