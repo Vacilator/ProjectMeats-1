@@ -678,6 +678,7 @@ class AIFeedbackViewSet(mixins.CreateModelMixin, mixins.ListModelMixin, mixins.R
     """
 
     serializer_class = AIFeedbackLogSerializer
+    permission_classes = [IsAuthenticated]
     filter_backends = [filters.OrderingFilter]
     ordering_fields = ['created_on']
     ordering = ['-created_on']

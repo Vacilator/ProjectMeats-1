@@ -1500,13 +1500,13 @@ class TenantFormRuleViewSet(viewsets.ModelViewSet):
 
 
 class TenantWorkflowViewSet(TenantFilteredModelViewSet):
-    """
-    API endpoint for Tenant Workflows.
+    """API endpoint for Tenant Workflows.
 
     Automation rules with triggers and actions.
     """
 
     queryset = TenantWorkflow.objects.all()
+    permission_classes = [IsAuthenticated]
 
     def get_serializer_class(self):
         if self.action == "create":
