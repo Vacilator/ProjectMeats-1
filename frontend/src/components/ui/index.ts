@@ -15,3 +15,5 @@ export { CountrySelect } from './CountrySelect';
 export { PhoneInput } from './PhoneInput';
 export { default as Icon, AVAILABLE_ICONS, ICON_CATEGORIES } from './Icon';
 export { default as IconPicker } from './IconPicker';
+
+export * from './atoms';
