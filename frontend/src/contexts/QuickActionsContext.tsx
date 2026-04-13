@@ -82,6 +82,12 @@ export const QuickActionsProvider: React.FC<QuickActionsProviderProps> = ({ chil
         getAvailableWorkForms(),
       ]);
 
+      if (actionsResult.status === 'rejected') {
+        const msg = actionsResult.reason?.message || 'Failed to load quick actions';
+        console.warn('[QuickActions] getQuickActions failed', actionsResult.reason);
+        setError(msg);
+      }
+
       const actionsResponse = actionsResult.status === 'fulfilled' ? actionsResult.value : { items: [] };
       setQuickActions(actionsResponse.items || []);
 
