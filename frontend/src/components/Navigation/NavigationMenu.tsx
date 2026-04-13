@@ -17,6 +17,7 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { Theme } from '../../config/theme';
 import { useActionItems, getBadgeValue } from '../../contexts/ActionItemsContext';
 import { useAuth } from '../../contexts/AuthContext';
+import { Icon } from '../ui';
 
 interface NavigationMenuProps {
   items: NavigationItem[];
@@ -24,25 +25,18 @@ interface NavigationMenuProps {
   level?: number;
 }
 
-// Chevron SVG icon component for accordion expand/collapse
+// Chevron icon component for accordion expand/collapse
 const ChevronIcon: React.FC<{ isExpanded: boolean }> = ({ isExpanded }) => (
-  <svg 
-    width="12" 
-    height="12" 
-    viewBox="0 0 24 24" 
-    fill="none" 
-    stroke="currentColor" 
-    strokeWidth="2.5" 
-    strokeLinecap="round" 
-    strokeLinejoin="round"
+  <span
     style={{
+      display: 'inline-flex',
       transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)',
       transition: 'transform 0.2s ease',
-      flexShrink: 0
+      flexShrink: 0,
     }}
   >
-    <polyline points="9 18 15 12 9 6" />
-  </svg>
+    <Icon name="chevron-right" size={12} />
+  </span>
 );
 
 const NavigationMenu: React.FC<NavigationMenuProps> = ({ items, isExpanded: sidebarExpanded, level = 0 }) => {
