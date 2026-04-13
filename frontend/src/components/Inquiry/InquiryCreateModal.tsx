@@ -10,6 +10,9 @@
  */
 
 import React, { useEffect, useMemo, useState } from 'react';
+import { z } from 'zod';
+
+import { useZodForm } from '@/hooks/useZodForm';
 import styled from 'styled-components';
 
 import { businessApi } from '@/services/businessApi';
@@ -351,6 +354,18 @@ const newLine = (): LineItem => ({
   notes: '',
 });
 
+const inquiryMetaSchema = z.object({
+  validUntil: z.string().optional().default(''),
+  notes: z.string().optional().default(''),
+});
+
+type InquiryMetaValues = z.infer<typeof inquiryMetaSchema>;
+
+const inquiryMetaDefaults: InquiryMetaValues = {
+  validUntil: '',
+  notes: '',
+};
+
 export const InquiryCreateModal: React.FC<InquiryCreateModalProps> = ({
   isOpen,
   onClose,
@@ -360,7 +375,11 @@ export const InquiryCreateModal: React.FC<InquiryCreateModalProps> = ({
   enableSupplierPlantSelection = false,
   sourceCallId,
 }) => {
-  const [submitting, setSubmitting] = useState(false);
+  const form = useZodForm<InquiryMetaValues>(inquiryMetaSchema, {
+    defaultValues: inquiryMetaDefaults,
+  });
+
+  const submitting = form.formState.isSubmitting;
   const [error, setError] = useState<string | null>(null);
 
   const [entityType, setEntityType] = useState<EntityType>(initialEntityType ?? 'customer');
@@ -370,8 +389,6 @@ export const InquiryCreateModal: React.FC<InquiryCreateModalProps> = ({
   const [entityOptions, setEntityOptions] = useState<EntityOption[]>([]);
   const [loadingEntities, setLoadingEntities] = useState(false);
 
-  const [validUntil, setValidUntil] = useState('');
-  const [notes, setNotes] = useState('');
   const [lines, setLines] = useState<LineItem[]>([newLine()]);
   const [uomOptions, setUomOptions] = useState<ChoiceOption[]>([]);
 
@@ -502,8 +519,7 @@ export const InquiryCreateModal: React.FC<InquiryCreateModalProps> = ({
 
   const reset = () => {
     setError(null);
-    setValidUntil('');
-    setNotes('');
+    form.reset(inquiryMetaDefaults);
     setLines([newLine()]);
     setEntityOptions([]);
   };
@@ -543,8 +559,7 @@ export const InquiryCreateModal: React.FC<InquiryCreateModalProps> = ({
     return null;
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = form.handleSubmit(async (values) => {
     setError(null);
 
     const msg = validate();
@@ -552,8 +567,6 @@ export const InquiryCreateModal: React.FC<InquiryCreateModalProps> = ({
       setError(msg);
       return;
     }
-
-    setSubmitting(true);
 
     try {
       const products = lines
@@ -571,8 +584,8 @@ export const InquiryCreateModal: React.FC<InquiryCreateModalProps> = ({
         entity_type: entityType,
         source_type: sourceCallId ? 'scheduled_call' : 'other',
         ...(sourceCallId ? { source_call: Number(sourceCallId) } : {}),
-        valid_until: validUntil || undefined,
-        notes: notes.trim() || undefined,
+        valid_until: values.validUntil || undefined,
+        notes: values.notes.trim() || undefined,
         products,
       };
 
@@ -597,10 +610,8 @@ export const InquiryCreateModal: React.FC<InquiryCreateModalProps> = ({
           : null) ||
         err?.message;
       setError(typeof apiMsg === 'string' && apiMsg ? apiMsg : 'Failed to create inquiry. Please try again.');
-    } finally {
-      setSubmitting(false);
     }
-  };
+  });
 
   if (!isOpen) return null;
 
@@ -662,18 +673,16 @@ export const InquiryCreateModal: React.FC<InquiryCreateModalProps> = ({
                   <Label>Valid Until</Label>
                   <Input
                     type="date"
-                    value={validUntil}
-                    onChange={(e) => setValidUntil(e.target.value)}
                     disabled={!canSubmit}
+                    {...form.register('validUntil')}
                   />
                 </Field>
                 <Field $span={8}>
                   <Label>Notes</Label>
                   <TextArea
-                    value={notes}
-                    onChange={(e) => setNotes(e.target.value)}
                     placeholder="Optional context, requirements, competitor notes…"
                     disabled={!canSubmit}
+                    {...form.register('notes')}
                   />
                 </Field>
               </Grid>
