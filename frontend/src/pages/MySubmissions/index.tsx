@@ -49,8 +49,8 @@ const FilterTab = styled.button<{ active?: boolean }>`
   border-radius: 0.375rem;
   cursor: pointer;
   transition: all 0.15s ease;
-  background: ${({ active }) => active ? 'var(--color-primary, rgb(var(--color-primary)))' : 'transparent'};
-  color: ${({ active }) => active ? 'white' : 'var(--text-secondary, rgb(var(--color-text-muted)))'};
+  background: ${({ active }) => active ? 'rgb(var(--color-primary))' : 'transparent'};
+  color: ${({ active }) => active ? 'rgb(var(--color-primary-foreground))' : 'rgb(var(--color-text-muted))'};
 
   &:hover {
     background: ${({ active }) => active ? 'var(--color-primary-dark, rgb(var(--color-primary)))' : 'var(--bg-secondary, rgb(var(--color-surface)))'};
