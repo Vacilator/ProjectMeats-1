@@ -1,303 +1,360 @@
 /**
- * Searchable Select Component
+ * SearchableSelect Component
  * 
- * A searchable dropdown with filtering for foreign key selection.
- * Users can type to filter options and see display names instead of IDs.
- * 
- * Features:
- * - Text input for search/filter
- * - Dropdown shows filtered results
- * - Click-outside to close
- * - Keyboard navigation (up/down arrows, enter to select, escape to close)
- * - Shows display name, not ID
- * - Theme-compliant styling
- * 
- * Usage:
- * ```tsx
- * <SearchableSelect
- *   label="Customer"
- *   value={selectedCustomerId}
- *   options={customers}
- *   onChange={(id) => setSelectedCustomerId(id)}
- *   placeholder="Select Customer"
- *   required
- * />
- * ```
+ * A smart select component that:
+ * - Shows normal dropdown for small option sets (<50)
+ * - Switches to searchable API-backed dropdown for large sets
+ * - Debounced search (300ms)
+ * - Loading states and "no results" handling
+ * - Keyboard navigation support
  */
-import React, { useMemo, useState, useRef, useEffect } from 'react';
-import Fuse from 'fuse.js';
-import styled from 'styled-components';
+import React, { useId, useState, useEffect, useRef, useCallback } from 'react';
+import styled, { css, keyframes } from 'styled-components';
+import { entityOptionsService } from '../../services/quickActionsService';
+import QuickCreateModal from '../FormSubmission/QuickCreateModal';
 
-// ============================================================================
-// TypeScript Interfaces
-// ============================================================================
-
-export interface SearchableSelectOption {
-  id: number | string;
-  name: string;
-  [key: string]: unknown; // Allow additional fields
+interface Option {
+  value: string;
+  label: string;
 }
 
 interface SearchableSelectProps {
-  label?: string;
-  value: string | number;
-  options?: SearchableSelectOption[]; // Make optional to handle undefined
-  onChange: (value: string | number, option?: SearchableSelectOption) => void;
+  entityType: string;
+  value: string;
+  onChange: (value: string) => void;
+  onBlur?: () => void;
   placeholder?: string;
-  required?: boolean;
+  hasError?: boolean;
   disabled?: boolean;
-  error?: string;
-  loading?: boolean; // Add loading state
+  initialOptions?: Option[];
+  threshold?: number; // Number of options before switching to search mode
+  filterParams?: Record<string, any>;
+
+  /** Enable “+ Add new …” option that opens QuickCreateModal. */
+  allowCreate?: boolean;
+
+  /** Optional override for the create option label. */
+  createOptionLabel?: string;
+
+  /** Force API-backed search mode even for small option sets. */
+  forceSearch?: boolean;
+
+  /** Debounce delay for server-side search, in ms. Set to 0 for per-keystroke. */
+  debounceMs?: number;
 }
 
-// ============================================================================
-// Styled Components (Theme-Compliant)
-// ============================================================================
+const spin = keyframes`
+  to { transform: rotate(360deg); }
+`;
 
 const Container = styled.div`
   position: relative;
   width: 100%;
 `;
 
-const Label = styled.label`
-  display: block;
-  font-size: 0.875rem;
-  font-weight: 500;
-  color: rgb(var(--color-text-primary));
-  margin-bottom: 0.5rem;
-`;
-
-const Required = styled.span`
-  color: rgba(239, 68, 68, 1);
-  margin-left: 0.25rem;
-`;
-
-const InputWrapper = styled.div<{ isOpen: boolean; hasError?: boolean }>`
-  position: relative;
+const SelectTrigger = styled.button<{ $hasError?: boolean; $isOpen?: boolean }>`
   width: 100%;
-`;
-
-const Input = styled.input<{ hasError?: boolean }>`
-  width: 100%;
-  padding: 0.75rem 2.5rem 0.75rem 0.75rem;
-  background: rgb(var(--color-background));
-  border: 1px solid ${props => props.hasError ? 'rgba(239, 68, 68, 1)' : 'rgb(var(--color-border))'};
-  border-radius: var(--radius-md);
+  min-height: 44px;
+  padding: 10px 40px 10px 14px;
+  font-size: 14px;
+  line-height: 1.5;
   color: rgb(var(--color-text-primary));
-  font-size: 0.875rem;
+  text-align: left;
+  background: white;
+  border: 1.5px solid ${props => props.$hasError ? 'rgb(var(--color-error))' : props.$isOpen ? 'rgb(var(--color-primary))' : 'rgb(var(--color-border))'};
+  border-radius: 8px;
   cursor: pointer;
+  transition: all 0.15s;
+  
+  ${props => props.$hasError && css`
+    background: rgba(var(--color-error), 0.14);
+  `}
+  
+  &:hover:not(:disabled) {
+    border-color: ${props => props.$hasError ? 'rgb(var(--color-error))' : 'rgb(var(--color-primary))'};
+  }
   
   &:focus {
     outline: none;
-    border-color: ${props => props.hasError ? 'rgba(239, 68, 68, 1)' : 'rgb(var(--color-primary))'};
+    border-color: rgb(var(--color-primary));
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
   }
   
-  &::placeholder {
-    color: rgb(var(--color-text-secondary));
-  }
-
   &:disabled {
-    opacity: 0.5;
+    background: rgb(var(--color-surface-hover));
     cursor: not-allowed;
+    opacity: 0.7;
   }
 `;
 
-const DropdownIcon = styled.div<{ isOpen: boolean }>`
+const ChevronIcon = styled.span<{ $isOpen?: boolean }>`
   position: absolute;
-  right: 0.75rem;
+  right: 12px;
   top: 50%;
-  transform: translateY(-50%) ${props => props.isOpen ? 'rotate(180deg)' : 'rotate(0deg)'};
-  transition: transform 0.2s ease;
+  transform: translateY(-50%) ${props => props.$isOpen ? 'rotate(180deg)' : 'rotate(0)'};
+  transition: transform 0.2s;
+  color: rgb(var(--color-text-muted));
   pointer-events: none;
-  color: rgb(var(--color-text-secondary));
-  font-size: 0.875rem;
 `;
 
-const DropdownList = styled.ul<{ isOpen: boolean }>`
-  display: ${props => props.isOpen ? 'block' : 'none'};
+const Dropdown = styled.div<{ $isOpen: boolean }>`
   position: absolute;
   top: calc(100% + 4px);
   left: 0;
   right: 0;
-  max-height: 250px;
-  overflow-y: auto;
-  background: rgb(var(--color-surface));
+  background: white;
   border: 1px solid rgb(var(--color-border));
-  border-radius: var(--radius-md);
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-  z-index: 100;
-  margin: 0;
-  padding: 0;
-  list-style: none;
+  border-radius: 8px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+  z-index: 1000;
+  max-height: 300px;
+  display: ${props => props.$isOpen ? 'flex' : 'none'};
+  flex-direction: column;
+  overflow: hidden;
+`;
 
-  /* Custom scrollbar */
-  &::-webkit-scrollbar {
-    width: 8px;
+const SearchInput = styled.input`
+  width: 100%;
+  padding: 12px 14px;
+  font-size: 14px;
+  border: none;
+  border-bottom: 1px solid rgb(var(--color-border));
+  background: rgb(var(--color-surface));
+  
+  &:focus {
+    outline: none;
+    background: white;
   }
-
-  &::-webkit-scrollbar-track {
-    background: rgb(var(--color-background));
-  }
-
-  &::-webkit-scrollbar-thumb {
-    background: rgb(var(--color-border));
-    border-radius: 4px;
-  }
-
-  &::-webkit-scrollbar-thumb:hover {
-    background: rgb(var(--color-text-secondary));
+  
+  &::placeholder {
+    color: rgb(var(--color-text-muted));
   }
 `;
 
-const DropdownItem = styled.li<{ isSelected: boolean; isFocused: boolean }>`
-  padding: 0.75rem;
+const OptionsList = styled.div`
+  flex: 1;
+  overflow-y: auto;
+  max-height: 250px;
+`;
+
+const OptionItem = styled.button<{ $isHighlighted?: boolean; $isSelected?: boolean }>`
+  width: 100%;
+  padding: 10px 14px;
+  font-size: 14px;
+  text-align: left;
+  border: none;
+  background: ${props => 
+    props.$isHighlighted ? 'rgba(var(--color-primary), 0.10)' : 
+    props.$isSelected ? 'rgba(var(--color-success), 0.12)' : 
+    'white'
+  };
+  color: ${props => props.$isSelected ? 'rgb(var(--color-success))' : 'rgb(var(--color-text-primary))'};
   cursor: pointer;
-  color: rgb(var(--color-text-primary));
-  font-size: 0.875rem;
-  background: ${props => {
-    if (props.isSelected) return 'rgba(var(--color-primary), 0.1)';
-    if (props.isFocused) return 'rgb(var(--color-surface-hover))';
-    return 'transparent';
-  }};
-  transition: background 0.15s ease;
-
+  transition: background 0.1s;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  
   &:hover {
-    background: rgb(var(--color-surface-hover));
+    background: rgba(var(--color-primary), 0.10);
   }
-
-  ${props => props.isSelected && `
-    font-weight: 600;
-    color: rgb(var(--color-primary));
+  
+  ${props => props.$isSelected && css`
+    font-weight: 500;
+    
+    &::after {
+      content: '✓';
+      margin-left: auto;
+      color: rgb(var(--color-success));
+    }
   `}
 `;
 
-const EmptyState = styled.div`
-  padding: 1rem 0.75rem;
-  text-align: center;
-  color: rgb(var(--color-text-secondary));
-  font-size: 0.875rem;
-`;
-
 const LoadingState = styled.div`
-  padding: 1rem 0.75rem;
-  text-align: center;
-  color: rgb(var(--color-text-secondary));
-  font-size: 0.875rem;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 0.5rem;
+  gap: 8px;
+  padding: 20px;
+  color: rgb(var(--color-text-muted));
+  font-size: 14px;
 `;
 
-const Spinner = styled.div`
+const Spinner = styled.span`
   width: 16px;
   height: 16px;
   border: 2px solid rgb(var(--color-border));
   border-top-color: rgb(var(--color-primary));
   border-radius: 50%;
-  animation: spin 0.6s linear infinite;
-
-  @keyframes spin {
-    to { transform: rotate(360deg); }
-  }
+  animation: ${spin} 0.6s linear infinite;
 `;
 
-const ErrorText = styled.div`
-  font-size: 0.75rem;
-  color: rgba(239, 68, 68, 1);
-  margin-top: 0.25rem;
+const NoResults = styled.div`
+  padding: 20px;
+  text-align: center;
+  color: rgb(var(--color-text-muted));
+  font-size: 14px;
 `;
 
-// ============================================================================
-// Main Component
-// ============================================================================
+const InfoBar = styled.div`
+  padding: 8px 14px;
+  font-size: 12px;
+  color: rgb(var(--color-text-muted));
+  background: rgb(var(--color-surface));
+  border-top: 1px solid rgb(var(--color-border));
+`;
+
+const PlaceholderText = styled.span`
+  color: rgb(var(--color-text-muted));
+`;
+
+const CREATE_SENTINEL_VALUE = '__create__';
 
 export const SearchableSelect: React.FC<SearchableSelectProps> = ({
-  label,
+  entityType,
   value,
-  options = [], // Default to empty array if undefined
   onChange,
-  placeholder = 'Select an option',
-  required = false,
+  onBlur,
+  placeholder = 'Select...',
+  hasError = false,
   disabled = false,
-  error,
-  loading = false, // Default to false
+  initialOptions = [],
+  threshold = 50,
+  filterParams,
+  allowCreate = true,
+  createOptionLabel,
+  forceSearch = false,
+  debounceMs = 150,
 }) => {
+  const instanceId = useId();
+
   const [isOpen, setIsOpen] = useState(false);
+  const [options, setOptions] = useState<Option[]>(initialOptions);
   const [searchQuery, setSearchQuery] = useState('');
-  const [debouncedQuery, setDebouncedQuery] = useState('');
-  const [isTyping, setIsTyping] = useState(false);
-  const [focusedIndex, setFocusedIndex] = useState(0);
+  const [isLoading, setIsLoading] = useState(false);
+  const [totalCount, setTotalCount] = useState(0);
+  const [highlightedIndex, setHighlightedIndex] = useState(-1);
+  const [isSearchMode, setIsSearchMode] = useState(forceSearch);
+  const [isQuickCreateOpen, setIsQuickCreateOpen] = useState(false);
+  
   const containerRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Safely handle options with null checks
-  const safeOptions = options || [];
-
-  // Get the display name for the selected value
-  const selectedOption = safeOptions.find(opt => opt && String(opt.id) === String(value));
-  const displayValue = selectedOption ? selectedOption.name : '';
-
-  const searchableOptions = useMemo(
-    () => safeOptions.filter((option): option is SearchableSelectOption => !!option && typeof option.name === 'string'),
-    [safeOptions]
-  );
-
+  // Determine if we should use search mode
   useEffect(() => {
-    // Debounce + "typing..." indicator to make the dropdown feel responsive under load.
-    setIsTyping(true);
-    const timer = window.setTimeout(() => {
-      setDebouncedQuery(searchQuery);
-      setIsTyping(false);
-    }, 180);
-
-    return () => window.clearTimeout(timer);
-  }, [searchQuery]);
-
-  const fuse = useMemo(() => {
-    return new Fuse(searchableOptions, {
-      keys: ['name'],
-      includeScore: true,
-      threshold: 0.35,
-      ignoreLocation: true,
-      minMatchCharLength: 1,
-    });
-  }, [searchableOptions]);
-
-  const filteredOptions = useMemo(() => {
-    const query = debouncedQuery.trim();
-    if (!query) {
-      return searchableOptions;
+    if (forceSearch) {
+      setIsSearchMode(true);
+      return;
     }
 
-    return fuse
-      .search(query)
-      .map((result) => result.item)
-      .filter((option) => option && typeof option.name === 'string');
-  }, [debouncedQuery, fuse, searchableOptions]);
+    if (initialOptions.length >= threshold || totalCount >= threshold) {
+      setIsSearchMode(true);
+    }
+  }, [forceSearch, initialOptions.length, totalCount, threshold]);
 
-  // Handle click outside to close dropdown
+  // Load initial options if not provided
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+    if (initialOptions.length === 0 && entityType) {
+      loadOptions();
+    }
+  }, [entityType, filterParams, initialOptions.length]);
+
+  // Handle outside clicks
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
         setIsOpen(false);
-        setSearchQuery('');
+        onBlur?.();
       }
     };
 
     if (isOpen) {
       document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [isOpen, onBlur]);
+
+  // Focus search input when dropdown opens
+  useEffect(() => {
+    if (isOpen && isSearchMode && searchInputRef.current) {
+      setTimeout(() => searchInputRef.current?.focus(), 50);
+    }
+  }, [isOpen, isSearchMode]);
+
+  const loadOptions = async (query: string = '') => {
+    setIsLoading(true);
+    try {
+      // Stable cancel key so in-flight requests are cancelled when the user types.
+      const cancelKey = `entity-options:${instanceId}:${entityType}`;
+      const response = await entityOptionsService.searchOptions(entityType, query, cancelKey, filterParams);
+      setOptions(response.options);
+      setTotalCount(response.total_count);
+
+      if (forceSearch || response.total_count >= threshold) {
+        setIsSearchMode(true);
+      }
+    } catch (err) {
+      console.error('Failed to load options:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const query = e.target.value;
+    setSearchQuery(query);
+    setHighlightedIndex(-1);
+
+    // Debounce search
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
     }
 
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [isOpen]);
+    searchTimeoutRef.current = setTimeout(() => {
+      void loadOptions(query);
+    }, Math.max(0, debounceMs));
+  }, [debounceMs, loadOptions]);
 
-  // Handle keyboard navigation
+  const handleToggle = () => {
+    if (disabled) return;
+    
+    if (!isOpen) {
+      setIsOpen(true);
+      setSearchQuery('');
+      if (options.length === 0 || isSearchMode) {
+        loadOptions();
+      }
+    } else {
+      setIsOpen(false);
+    }
+  };
+
+  const createLabel =
+    createOptionLabel || `+ Add new ${String(entityType).replace(/_/g, ' ')}`;
+
+  const renderedOptions: Option[] =
+    allowCreate && !disabled
+      ? [...options, { value: CREATE_SENTINEL_VALUE, label: createLabel }]
+      : options;
+
+  const handleSelect = (option: Option) => {
+    if (option.value === CREATE_SENTINEL_VALUE) {
+      setIsOpen(false);
+      setSearchQuery('');
+      setHighlightedIndex(-1);
+      setIsQuickCreateOpen(true);
+      return;
+    }
+
+    onChange(option.value);
+    setIsOpen(false);
+    setSearchQuery('');
+  };
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (!isOpen) {
-      if (e.key === 'Enter' || e.key === 'ArrowDown') {
+      if (e.key === 'Enter' || e.key === ' ' || e.key === 'ArrowDown') {
         e.preventDefault();
         setIsOpen(true);
       }
@@ -307,107 +364,112 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
     switch (e.key) {
       case 'ArrowDown':
         e.preventDefault();
-        setFocusedIndex(prev => 
-          prev < filteredOptions.length - 1 ? prev + 1 : prev
-        );
+        setHighlightedIndex((prev) => (prev < renderedOptions.length - 1 ? prev + 1 : 0));
         break;
       case 'ArrowUp':
         e.preventDefault();
-        setFocusedIndex(prev => prev > 0 ? prev - 1 : prev);
+        setHighlightedIndex((prev) => (prev > 0 ? prev - 1 : renderedOptions.length - 1));
         break;
       case 'Enter':
         e.preventDefault();
-        if (filteredOptions[focusedIndex]) {
-          handleSelect(filteredOptions[focusedIndex]);
+        if (highlightedIndex >= 0 && renderedOptions[highlightedIndex]) {
+          handleSelect(renderedOptions[highlightedIndex]);
         }
         break;
       case 'Escape':
         e.preventDefault();
         setIsOpen(false);
-        setSearchQuery('');
         break;
     }
   };
 
-  const handleSelect = (option: SearchableSelectOption) => {
-    onChange(option.id, option);
-    setIsOpen(false);
-    setSearchQuery('');
-    setFocusedIndex(0);
-  };
-
-  const handleInputClick = () => {
-    if (!disabled) {
-      setIsOpen(!isOpen);
-      if (!isOpen) {
-        setSearchQuery('');
-        setFocusedIndex(0);
-      }
-    }
-  };
-
-  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setSearchQuery(e.target.value);
-    setIsOpen(true);
-    setFocusedIndex(0);
-  };
+  const selectedOption = options.find(o => o.value === value) || 
+    initialOptions.find(o => o.value === value);
 
   return (
     <Container ref={containerRef}>
-      {label && (
-        <Label>
-          {label}
-          {required && <Required>*</Required>}
-        </Label>
-      )}
-      
-      <InputWrapper isOpen={isOpen} hasError={!!error}>
-        <Input
-          ref={inputRef}
-          type="text"
-          value={isOpen ? searchQuery : displayValue}
-          onChange={handleSearchChange}
-          onClick={handleInputClick}
-          onKeyDown={handleKeyDown}
-          placeholder={placeholder}
-          disabled={disabled}
-          hasError={!!error}
-          autoComplete="off"
-        />
-        <DropdownIcon isOpen={isOpen}>▼</DropdownIcon>
-      </InputWrapper>
-
-      <DropdownList isOpen={isOpen && !disabled}>
-        {loading ? (
-          <LoadingState>
-            <Spinner />
-            Loading options...
-          </LoadingState>
-        ) : isTyping ? (
-          <LoadingState>
-            <Spinner />
-            Typing...
-          </LoadingState>
-        ) : filteredOptions.length === 0 ? (
-          <EmptyState>
-            {searchQuery ? 'No matching results' : safeOptions.length === 0 ? 'No options available' : 'No matching results'}
-          </EmptyState>
+      <SelectTrigger
+        type="button"
+        $hasError={hasError}
+        $isOpen={isOpen}
+        onClick={handleToggle}
+        onKeyDown={handleKeyDown}
+        disabled={disabled}
+        aria-haspopup="listbox"
+        aria-expanded={isOpen}
+      >
+        {selectedOption ? (
+          selectedOption.label
         ) : (
-          filteredOptions.map((option, index) => (
-            <DropdownItem
-              key={option.id}
-              isSelected={String(option.id) === String(value)}
-              isFocused={index === focusedIndex}
-              onClick={() => handleSelect(option)}
-              onMouseEnter={() => setFocusedIndex(index)}
-            >
-              {option.name}
-            </DropdownItem>
-          ))
+          <PlaceholderText>{placeholder}</PlaceholderText>
         )}
-      </DropdownList>
+        <ChevronIcon $isOpen={isOpen}>▼</ChevronIcon>
+      </SelectTrigger>
 
-      {error && <ErrorText>{error}</ErrorText>}
+      <Dropdown $isOpen={isOpen} role="listbox">
+        {isSearchMode && (
+          <SearchInput
+            ref={searchInputRef}
+            type="text"
+            value={searchQuery}
+            onChange={handleSearchChange}
+            onKeyDown={handleKeyDown}
+            placeholder="🔍 Type to search..."
+            aria-label="Search options"
+          />
+        )}
+
+        <OptionsList>
+          {isLoading ? (
+            <LoadingState>
+              <Spinner />
+              Searching...
+            </LoadingState>
+          ) : renderedOptions.length === 0 ? (
+            <NoResults>
+              {searchQuery ? 'No matches found' : 'No options available'}
+            </NoResults>
+          ) : (
+            renderedOptions.map((option, index) => (
+              <OptionItem
+                key={option.value}
+                type="button"
+                $isHighlighted={index === highlightedIndex}
+                $isSelected={option.value === value}
+                onClick={() => handleSelect(option)}
+                role="option"
+                aria-selected={option.value === value}
+              >
+                {option.label}
+              </OptionItem>
+            ))
+          )}
+        </OptionsList>
+
+        {totalCount > options.length && (
+          <InfoBar>
+            Showing {options.length} of {totalCount} results
+            {searchQuery && ' - refine your search for more specific results'}
+          </InfoBar>
+        )}
+      </Dropdown>
+
+      {allowCreate && (
+        <QuickCreateModal
+          entityType={entityType}
+          isOpen={isQuickCreateOpen}
+          onClose={() => setIsQuickCreateOpen(false)}
+          onCreated={(entity) => {
+            setIsQuickCreateOpen(false);
+            setOptions((prev) => {
+              if (prev.some((o) => o.value === entity.value)) return prev;
+              return [{ value: entity.value, label: entity.label }, ...prev];
+            });
+            onChange(entity.value);
+            void loadOptions('');
+          }}
+        />
+      )}
     </Container>
   );
 };

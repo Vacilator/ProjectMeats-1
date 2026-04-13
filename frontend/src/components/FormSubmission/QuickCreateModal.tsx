@@ -10,7 +10,7 @@
 
 import React, { useMemo } from 'react';
 
-import { EntityFormSurface } from '../Shared';
+import { EntityFormSurface } from '../Shared/EntityFormSurface';
 import type { EntityFormContext } from '../Shared/EntityFormSurface';
 
 interface QuickCreateModalProps {
