@@ -340,7 +340,7 @@ const PrimaryButton = styled.button`
   gap: 0.5rem;
   padding: 0.75rem 1.5rem;
   background: rgb(var(--color-primary));
-  color: rgb(var(--color-surface))fff;
+  color: rgb(var(--color-primary-foreground));
   border: none;
   border-radius: 0.5rem;
   font-size: 0.9375rem;
