@@ -44,6 +44,23 @@ Every plan/change must include:
 - For repo-wide audits or multi-domain questions, **use parallel subagents**.
 - When industry best practices are required, do targeted research and translate into repo-specific actionable items.
 
+### Copilot Squad (Fleet Mode)
+When working in **GitHub Copilot CLI** for this repo, default to a “squad” approach using **Fleet mode** (parallel subagents) for anything that touches multiple domains (backend/frontend/CI).
+
+**How to use in Copilot CLI:**
+- Run `/fleet` to enable fleet mode (parallel subagents)
+- Use `/tasks` to monitor/cancel background subagent work
+- Use `/diff` and `/review` before committing or opening PRs
+
+**Recommended squad split:**
+- *Explore agent*: locate files, map the flow, identify risks
+- *Implementation agent*: make the code changes
+- *Validation agent*: run repo scripts/tests (per `TESTING_INSTRUCTIONS.md`)
+- *Release agent*: prepare PR notes + rollback steps
+
+**Prompt template:**
+“Enable fleet. Spin up parallel agents to (1) find the relevant files/entrypoints, (2) run the smallest test suite that covers the change, and (3) scan docs/golden files for constraints. Report back with a concrete patch plan and risks.”
+
 ### Decision-Making
 - Default to action and completeness. Only ask questions for true design forks.
 - Optimize for: tenant safety, correctness, user outcomes, and long-term maintainability.
