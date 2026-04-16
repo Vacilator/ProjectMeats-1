@@ -11,7 +11,7 @@ from django.contrib.auth.models import User
 
 class Plant(TenantAwareModel):
     PLANT_TYPE_CHOICES = [
-        ("vertical", "Vertical (Kill to Capture)"),
+        ("vertical", "Vertical (Kill to Fabrication)"),
         ("processing", "Processing Plant"),
         ("distribution", "Distribution Center"),
         ("warehouse", "Warehouse"),
@@ -50,7 +50,6 @@ class Plant(TenantAwareModel):
     )
 
     name = models.CharField(max_length=200)
-    code = models.CharField(max_length=50, unique=True)
     plant_est_num = models.CharField(
         max_length=50,
         blank=True,
@@ -65,15 +64,6 @@ class Plant(TenantAwareModel):
     state = models.CharField(max_length=100, default='', blank=True)
     zip_code = models.CharField(max_length=20, default='', blank=True)
     country = models.CharField(max_length=100, default="USA")
-    phone = models.CharField(max_length=20, blank=True, default='')
-    phone_type = models.CharField(
-        max_length=10,
-        choices=PhoneTypeChoices.choices,
-        blank=True,
-        default=PhoneTypeChoices.OFFICE,
-        help_text="Plant phone type (mobile or office)",
-    )
-    email = models.EmailField(blank=True, default='')
 
     booking_contact_email = models.EmailField(
         blank=True,
@@ -94,7 +84,6 @@ class Plant(TenantAwareModel):
         help_text='Booking contact phone type (mobile or office)',
     )
 
-    manager = models.CharField(max_length=100, blank=True, default='')
     capacity = models.PositiveIntegerField(
         help_text="Capacity in units", null=True, blank=True
     )
@@ -114,12 +103,13 @@ class Plant(TenantAwareModel):
         verbose_name = "Plant"
         verbose_name_plural = "Plants"
         indexes = [
-            models.Index(fields=['tenant', 'code']),
             models.Index(fields=['tenant', 'name']),
+            models.Index(fields=['tenant', 'plant_est_num']),
         ]
 
     def __str__(self):
-        return f"{self.code} - {self.name}"
+        ident = (self.plant_est_num or '').strip()
+        return f"{ident} - {self.name}" if ident else self.name
 
 
 class PlantAssociatedProduct(TenantAwareModel):

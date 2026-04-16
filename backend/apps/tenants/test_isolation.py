@@ -9,58 +9,115 @@ ProjectMeats uses shared-schema multi-tenancy where:
 This module tests that data is properly isolated between tenants using tenant_id filtering.
 """
 
+from datetime import date
+
+from django.contrib.auth.models import User
+from django.db import IntegrityError
 from django.test import TestCase
-from unittest import skip
+
+from apps.tenants.models import Tenant, TenantUser
+from tenant_apps.carriers.models import Carrier
+from tenant_apps.contacts.models import Contact
+from tenant_apps.customers.models import Customer
+from tenant_apps.invoices.models import Invoice
+from tenant_apps.purchase_orders.models import PurchaseOrder
+from tenant_apps.suppliers.models import Supplier
+from tenant_apps.plants.models import Plant
 
 
-@skip("Isolation tests require database setup - run manually with test database")
 class TenantIsolationTests(TestCase):
     """Test cases for shared-schema tenant data isolation.
-    
-    These tests demonstrate how tenant isolation works with tenant_id ForeignKeys.
-    They are skipped in the standard test suite but serve as documentation.
-    
-    Key Patterns:
-    1. All business models have a `tenant` ForeignKey
-    2. ViewSets filter querysets with tenant=request.tenant
-    3. ViewSets assign tenant on perform_create()
+
+    These tests are designed to run in CI to prevent regressions that could
+    cause cross-tenant data exposure.
     """
 
+    def setUp(self):
+        self.user_a = User.objects.create_user(username='user_a', password='pass')
+        self.user_b = User.objects.create_user(username='user_b', password='pass')
+
+        self.tenant_a = Tenant.objects.create(
+            name='Tenant A',
+            slug='tenant-a',
+            contact_email='a@example.com',
+            created_by=self.user_a,
+        )
+        self.tenant_b = Tenant.objects.create(
+            name='Tenant B',
+            slug='tenant-b',
+            contact_email='b@example.com',
+            created_by=self.user_b,
+        )
+
+        TenantUser.objects.create(tenant=self.tenant_a, user=self.user_a, role='owner', is_active=True)
+        TenantUser.objects.create(tenant=self.tenant_b, user=self.user_b, role='owner', is_active=True)
+
     def test_supplier_isolation(self):
-        """Test that suppliers are isolated via tenant_id ForeignKey."""
-        # In shared-schema approach:
-        # Supplier.objects.filter(tenant=tenant_a) returns only tenant_a's suppliers
-        # Supplier.objects.filter(tenant=tenant_b) returns only tenant_b's suppliers
-        pass
+        Supplier.objects.create(tenant=self.tenant_a, name='Supplier A')
+        Supplier.objects.create(tenant=self.tenant_b, name='Supplier B')
+
+        self.assertEqual(Supplier.objects.filter(tenant=self.tenant_a).count(), 1)
+        self.assertEqual(Supplier.objects.filter(tenant=self.tenant_b).count(), 1)
+        self.assertEqual(Supplier.objects.exclude(tenant=self.tenant_a).count(), 1)
 
     def test_customer_isolation(self):
-        """Test that customers are isolated via tenant_id ForeignKey."""
-        pass
+        Customer.objects.create(tenant=self.tenant_a, name='Customer A')
+        Customer.objects.create(tenant=self.tenant_b, name='Customer B')
+
+        self.assertEqual(Customer.objects.filter(tenant=self.tenant_a).count(), 1)
+        self.assertEqual(Customer.objects.filter(tenant=self.tenant_b).count(), 1)
 
     def test_purchase_order_isolation(self):
-        """Test that purchase orders are isolated between tenants."""
-        pass
+        supplier_a = Supplier.objects.create(tenant=self.tenant_a, name='Supplier A')
+        supplier_b = Supplier.objects.create(tenant=self.tenant_b, name='Supplier B')
+
+        PurchaseOrder.objects.create(
+            tenant=self.tenant_a,
+            supplier=supplier_a,
+            order_number='PO-A-1',
+            order_date=date.today(),
+        )
+        PurchaseOrder.objects.create(
+            tenant=self.tenant_b,
+            supplier=supplier_b,
+            order_number='PO-B-1',
+            order_date=date.today(),
+        )
+
+        self.assertEqual(PurchaseOrder.objects.filter(tenant=self.tenant_a).count(), 1)
+        self.assertEqual(PurchaseOrder.objects.filter(tenant=self.tenant_b).count(), 1)
 
     def test_plant_isolation(self):
-        """Test that plants are isolated between tenants."""
-        pass
+        Plant.objects.create(tenant=self.tenant_a, name='Plant A')
+        Plant.objects.create(tenant=self.tenant_b, name='Plant B')
+
+        self.assertEqual(Plant.objects.filter(tenant=self.tenant_a).count(), 1)
+        self.assertEqual(Plant.objects.filter(tenant=self.tenant_b).count(), 1)
 
     def test_contact_isolation(self):
-        """Test that contacts are isolated between tenants."""
-        pass
+        Contact.objects.create(tenant=self.tenant_a, first_name='A', last_name='User')
+        Contact.objects.create(tenant=self.tenant_b, first_name='B', last_name='User')
+
+        self.assertEqual(Contact.objects.filter(tenant=self.tenant_a).count(), 1)
+        self.assertEqual(Contact.objects.filter(tenant=self.tenant_b).count(), 1)
 
     def test_carrier_isolation(self):
-        """Test that carriers are isolated between tenants."""
-        pass
+        Carrier.objects.create(tenant=self.tenant_a, name='Carrier A', code='A')
+        Carrier.objects.create(tenant=self.tenant_b, name='Carrier B', code='B')
+
+        self.assertEqual(Carrier.objects.filter(tenant=self.tenant_a).count(), 1)
+        self.assertEqual(Carrier.objects.filter(tenant=self.tenant_b).count(), 1)
 
     def test_accounts_receivable_isolation(self):
-        """Test that accounts receivable are isolated between tenants."""
-        pass
+        customer_a = Customer.objects.create(tenant=self.tenant_a, name='Customer A')
+        customer_b = Customer.objects.create(tenant=self.tenant_b, name='Customer B')
+
+        Invoice.objects.create(tenant=self.tenant_a, customer=customer_a, invoice_number='INV-A-1')
+        Invoice.objects.create(tenant=self.tenant_b, customer=customer_b, invoice_number='INV-B-1')
+
+        self.assertEqual(Invoice.objects.filter(tenant=self.tenant_a).count(), 1)
+        self.assertEqual(Invoice.objects.filter(tenant=self.tenant_b).count(), 1)
 
     def test_null_tenant_not_visible(self):
-        """Test that records without tenant assignment are not visible.
-        
-        With shared-schema isolation, all business records MUST have a tenant.
-        Records with NULL tenant should not be returned by filtered querysets.
-        """
-        pass
+        with self.assertRaises(IntegrityError):
+            Supplier.objects.create(name='No Tenant Supplier')

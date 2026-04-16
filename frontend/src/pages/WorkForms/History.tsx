@@ -25,8 +25,7 @@ import {
   Clock, AlertCircle
 } from 'lucide-react';
 import { businessApi } from '../../services/businessApi';
-import { workflowExecutionService } from '../../services/workflowExecutionService';
-import { WorkflowExecution, WorkflowAuditEntry } from '../../types/workflows';
+import { workformExecutionService, WorkFormExecution } from '@/services/workformExecutionService';
 
 // ============================================================================
 // Types
@@ -490,10 +489,9 @@ const FormsFlowsHistory: React.FC = () => {
   const pageSize = 20;
   
   // Workflow executions state
-  const [workflowExecutions, setWorkflowExecutions] = useState<WorkflowExecution[]>([]);
+  const [workflowExecutions, setWorkflowExecutions] = useState<WorkFormExecution[]>([]);
   const [workflowsLoading, setWorkflowsLoading] = useState(false);
   const [expandedWorkflow, setExpandedWorkflow] = useState<string | null>(null);
-  const [auditTrails, setAuditTrails] = useState<Record<string, WorkflowAuditEntry[]>>({});
   
   // Fetch completed/cancelled submissions
   const fetchSubmissions = async () => {
@@ -550,8 +548,8 @@ const FormsFlowsHistory: React.FC = () => {
       if (startDate) params.start_date = startDate;
       if (endDate) params.end_date = endDate;
       if (searchQuery) params.search = searchQuery;
-      
-      const response = await workflowExecutionService.getExecutions(params as any);
+
+      const response = await workformExecutionService.getExecutions(params as any);
       setWorkflowExecutions(response.results);
       setTotalCount(response.count);
     } catch (error) {
@@ -561,32 +559,10 @@ const FormsFlowsHistory: React.FC = () => {
       setWorkflowsLoading(false);
     }
   };
-  
-  // Fetch workflow audit trail
-  const fetchAuditTrail = async (workflowId: string) => {
-    if (auditTrails[workflowId]) {
-      return; // Already loaded
-    }
-    
-    try {
-      const response = await workflowExecutionService.getAuditTrail(workflowId);
-      setAuditTrails(prev => ({
-        ...prev,
-        [workflowId]: response.audit_trail,
-      }));
-    } catch (error) {
-      console.error('Failed to fetch audit trail:', error);
-    }
-  };
-  
+
   // Toggle workflow expansion
   const toggleWorkflowExpansion = (workflowId: string) => {
-    if (expandedWorkflow === workflowId) {
-      setExpandedWorkflow(null);
-    } else {
-      setExpandedWorkflow(workflowId);
-      fetchAuditTrail(workflowId);
-    }
+    setExpandedWorkflow((cur) => (cur === workflowId ? null : workflowId));
   };
   
   // Fetch data when tab changes
@@ -807,8 +783,7 @@ const FormsFlowsHistory: React.FC = () => {
               <tbody>
                 {workflowExecutions.map((execution) => {
                   const isExpanded = expandedWorkflow === execution.id;
-                  const trail = auditTrails[execution.id] || [];
-                  
+
                   return (
                     <React.Fragment key={execution.id}>
                       <ExpandableRow $expanded={isExpanded}>
@@ -821,7 +796,7 @@ const FormsFlowsHistory: React.FC = () => {
                           </ViewButton>
                         </TableCell>
                         <TableCell>
-                          <FormName>{execution.workflow_name}</FormName>
+                          <FormName>{execution.workform_name}</FormName>
                         </TableCell>
                         <TableCell>
                           <StatusBadge $status={execution.status}>
@@ -831,54 +806,31 @@ const FormsFlowsHistory: React.FC = () => {
                           </StatusBadge>
                         </TableCell>
                         <TableCell>{execution.started_by_name || '-'}</TableCell>
-                        <TableCell>{formatDate(execution.created_at)}</TableCell>
+                        <TableCell>{formatDate(execution.started_at || execution.created_on)}</TableCell>
                         <TableCell>{formatDate(execution.completed_at || '')}</TableCell>
-                        <TableCell>{formatDuration(execution.created_at, execution.completed_at)}</TableCell>
+                        <TableCell>{formatDuration(execution.started_at || execution.created_on, execution.completed_at || undefined)}</TableCell>
                       </ExpandableRow>
                       
                       {isExpanded && (
                         <tr>
                           <ExpandedContent colSpan={7}>
-                            <h4 style={{ marginTop: 0, marginBottom: 16 }}>Execution Timeline</h4>
-                            {trail.length === 0 ? (
-                              <p style={{ color: 'rgb(var(--color-text-tertiary))' }}>
-                                Loading timeline...
-                              </p>
-                            ) : (
-                              <Timeline>
-                                {trail.map((entry) => (
-                                  <TimelineItem key={entry.id}>
-                                    <TimelineDot $status={entry.action} />
-                                    <TimelineContent>
-                                      <TimelineHeader>
-                                        <TimelineTitle>{entry.step_name}</TimelineTitle>
-                                        <TimelineTime>
-                                          {formatDate(entry.timestamp)}
-                                          {entry.duration_seconds && (
-                                            <DurationBadge>
-                                              <Clock size={10} />
-                                              {formatSeconds(entry.duration_seconds)}
-                                            </DurationBadge>
-                                          )}
-                                        </TimelineTime>
-                                      </TimelineHeader>
-                                      <TimelineMeta>
-                                        {entry.action === 'completed' && '✓ Completed'}
-                                        {entry.action === 'started' && '• Started'}
-                                        {entry.action === 'failed' && '✗ Failed'}
-                                        {entry.action === 'skipped' && '○ Skipped'}
-                                        {entry.user_name && ` by ${entry.user_name}`}
-                                      </TimelineMeta>
-                                      {entry.notes && (
-                                        <div style={{ marginTop: 8, fontSize: 13, color: 'rgb(var(--color-text-secondary))' }}>
-                                          {entry.notes}
-                                        </div>
-                                      )}
-                                    </TimelineContent>
-                                  </TimelineItem>
-                                ))}
-                              </Timeline>
-                            )}
+                            <h4 style={{ marginTop: 0, marginBottom: 16 }}>Execution Details</h4>
+                            <pre
+                              style={{
+                                margin: 0,
+                                padding: 12,
+                                background: 'rgb(var(--color-surface))',
+                                border: '1px solid rgb(var(--color-border))',
+                                borderRadius: 8,
+                                overflow: 'auto',
+                                maxHeight: 360,
+                              }}
+                            >
+                              {JSON.stringify({
+                                audit_trail: execution.audit_trail || [],
+                                context_data: execution.context_data || {},
+                              }, null, 2)}
+                            </pre>
                           </ExpandedContent>
                         </tr>
                       )}

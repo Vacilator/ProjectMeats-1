@@ -60,9 +60,9 @@ export const ConfigPreview: React.FC<ConfigPreviewProps> = ({
     const fontFamily = getConfig<string>('ui.theme.font_family', 'Inter');
     const darkMode = getConfig<boolean>('ui.theme.dark_mode', false);
     
-    const bgColor = darkMode ? 'rgb(var(--color-background))' : 'rgb(var(--color-surface))fff';
-    const textColor = darkMode ? 'rgb(var(--color-text-primary))' : 'rgb(var(--color-background))';
-    const cardBg = darkMode ? 'rgb(var(--color-surface))' : 'rgb(var(--color-surface))';
+    const bgColor = darkMode ? 'rgb(var(--color-background))' : 'rgb(var(--color-surface))';
+    const textColor = 'rgb(var(--color-text-primary))';
+    const cardBg = 'rgb(var(--color-surface))';
     
     return (
       <div 

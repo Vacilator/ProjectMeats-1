@@ -1,0 +1,57 @@
+name: Auto Promote Dev → UAT
+
+run-name: >-
+  ${{
+    github.event_name == 'workflow_run'
+      && format('Auto-Promote: development → uat ({0})', github.event.workflow_run.head_sha)
+      || 'Auto-Promote: development → uat'
+  }}
+
+on:
+  workflow_run:
+    workflows: ["Master Pipeline"]
+    types: [completed]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  create-pr:
+    name: Create PR development → uat
+    if: >-
+      ${{
+        github.event.workflow_run.conclusion == 'success' &&
+        github.event.workflow_run.head_branch == 'development'
+      }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Create promotion PR (if missing)
+        env:
+          # Prefer PAT if configured, otherwise fall back to the workflow GITHUB_TOKEN.
+          GH_TOKEN: ${{ secrets.PAT || github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+
+          existing=$(gh pr list --repo "$REPO" --base uat --head development --state open --json number --jq '.[0].number')
+          if [ -n "$existing" ]; then
+            echo "✅ Promotion PR already exists: #$existing"
+            exit 0
+          fi
+
+          sha="${{ github.event.workflow_run.head_sha }}"
+          msg="${{ github.event.workflow_run.head_commit.message }}"
+
+          title="🚀 Promote development → uat (${sha:0:7})"
+          if [ -n "${msg}" ]; then
+            title="🚀 Promote development → uat - ${msg}"
+          fi
+
+          gh pr create \
+            --repo "$REPO" \
+            --base uat \
+            --head development \
+            --title "$title" \
+            --body "Automated promotion PR created after successful development deployment.\n\n- Source: development\n- Target: uat\n- Commit: $sha\n\nThis PR does not bypass any gates; please review + merge when ready."

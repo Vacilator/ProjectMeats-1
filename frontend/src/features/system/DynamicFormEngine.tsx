@@ -14,10 +14,10 @@ import * as z from 'zod';
 import styled from 'styled-components';
 import { Button } from '../../components/ui/Button';
 import { Select } from '../../components/ui/Select';
+import StateSelect from '../../components/ui/StateSelect';
 import { CountrySelect } from '../../components/ui';
 import { DEFAULT_COUNTRY } from '../../utils/constants/countries';
 import { resolveConfig } from '../../services/configService';
-import { formatUsPhone } from '../../utils/phone';
 import { getChoicesForField, isStaticChoiceField } from '../../services/choicesService';
 
 // Field definition types
@@ -425,6 +425,17 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
     return dynamicOptions[field.key] || [];
   };
 
+  const isStateLikeKey = (normalizedKey: string): boolean => {
+    if (!normalizedKey) return false;
+    if (normalizedKey === 'state') return true;
+    if (normalizedKey.endsWith('_state')) return true;
+    if (normalizedKey === 'province') return true;
+    if (normalizedKey.endsWith('_province')) return true;
+    if (normalizedKey.includes('province')) return true;
+    if (normalizedKey.includes('state')) return true;
+    return false;
+  };
+
   const InlineFormArrayField: React.FC<{ field: FieldDefinition; showRequired: boolean }> = ({
     field,
     showRequired,
@@ -440,6 +451,29 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
     const renderItemField = (itemField: FieldDefinition, namePath: string, idx: number) => {
       const itemErr = (errors as any)?.[field.key]?.[idx]?.[itemField.key];
       const hasItemError = Boolean(itemErr);
+
+      const itemNormalizedKey = String(itemField.key).toLowerCase();
+      if (isStateLikeKey(itemNormalizedKey) || itemField.ui?.widget === 'state_select') {
+        return (
+          <FieldGroup key={namePath} style={{ marginBottom: 12 }}>
+            <Label required={formConfig.showRequiredIndicator && itemField.required}>{itemField.label}</Label>
+            <Controller
+              name={namePath as never}
+              control={control}
+              render={({ field: controllerField }) => (
+                <StateSelect
+                  value={String(controllerField.value || '')}
+                  onChange={controllerField.onChange}
+                  placeholder={itemField.placeholder || 'Search state'}
+                  disabled={isSubmitting}
+                  aria-label={itemField.label}
+                />
+              )}
+            />
+            {hasItemError && <ErrorText>{String(itemErr?.message || 'Invalid value')}</ErrorText>}
+          </FieldGroup>
+        );
+      }
 
       if (itemField.ui?.widget === 'tags') {
         return (
@@ -609,6 +643,33 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
     }
 
     const normalizedKey = String(field.key).toLowerCase();
+
+    const isStateLikeField = isStateLikeKey(normalizedKey) || field.ui?.widget === 'state_select';
+    if (isStateLikeField) {
+      return (
+        <FieldGroup key={field.key}>
+          <Label htmlFor={field.key} required={showRequired}>
+            {field.label}
+          </Label>
+          <Controller
+            name={field.key}
+            control={control}
+            render={({ field: controllerField }) => (
+              <StateSelect
+                value={String(controllerField.value || '')}
+                onChange={controllerField.onChange}
+                placeholder={field.placeholder || 'Search state'}
+                disabled={isSubmitting}
+                aria-label={field.label}
+              />
+            )}
+          />
+          {formConfig.showHelpText && field.help_text && <HelpText>{field.help_text}</HelpText>}
+          {error && <ErrorText>{error.message as string}</ErrorText>}
+        </FieldGroup>
+      );
+    }
+
     const isIndustryField = normalizedKey === 'industry' || normalizedKey === 'industry_array';
 
     if (isIndustryField && field.type === 'select') {
@@ -741,12 +802,11 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
               render={({ field: controllerField }) => (
                 <Input
                   type="tel"
-                  inputMode="numeric"
-                  maxLength={13}
+                  inputMode="tel"
                   id={field.key}
-                  value={formatUsPhone(String(controllerField.value || ''))}
-                  onChange={(e) => controllerField.onChange(formatUsPhone(e.target.value))}
-                  placeholder={field.placeholder || '(XXX)XXX-XXXX'}
+                  value={String(controllerField.value || '')}
+                  onChange={(e) => controllerField.onChange(e.target.value)}
+                  placeholder={field.placeholder || '(555) 123-4567'}
                   hasError={hasError}
                   disabled={isSubmitting}
                   autoComplete="tel"

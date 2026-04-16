@@ -1,14 +1,20 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Button, Card, Spin, Table } from 'antd';
-import type { ColumnsType } from 'antd/es/table';
+import { Button, Card, Spin, Tabs, Typography } from 'antd';
 import { useNavigate, useParams } from 'react-router-dom';
 
-import { EntityFormSurface } from '@/components/Shared';
+import { EntityProfileHeader } from '@/components/Cockpit';
+import { ActivityFeed, EntityFormSurface, UnifiedEntityTable } from '@/components/Shared';
 import type { EntityFormMode } from '@/components/Shared/EntityFormSurface';
 import { apiClient } from '@/services/apiService';
+import { businessApi } from '@/services/businessApi';
 
 type RouteParams = {
   id?: string;
+};
+
+type RelationshipsPayload = {
+  relationships?: Record<string, unknown[]>;
+  counts?: Record<string, number>;
 };
 
 export interface UniversalEntityRecordPageProps {
@@ -27,6 +33,11 @@ const extractId = (result: unknown): string | null => {
   return s ? s : null;
 };
 
+const getRecordPath = (entityType: string, id: string) => {
+  const t = String(entityType || '').trim().toLowerCase();
+  return `/records/${encodeURIComponent(t)}/${encodeURIComponent(id)}`;
+};
+
 export const UniversalEntityRecordPage: React.FC<UniversalEntityRecordPageProps> = ({
   entityType,
   basePath,
@@ -41,21 +52,26 @@ export const UniversalEntityRecordPage: React.FC<UniversalEntityRecordPageProps>
   const isSupplier = normalizedEntityType === 'supplier';
   const isCustomer = normalizedEntityType === 'customer';
 
-  const showHierarchySection = mode === 'view' && Boolean(entityId) && (isSupplier || isCustomer);
+  const showTabs = mode === 'view' && Boolean(entityId);
 
   const childEntityType = isSupplier ? 'plant' : 'location';
   const childEntityDisplayName = isSupplier ? 'Plant' : 'Location';
   const childLabel = isSupplier ? 'Plants' : 'Locations';
   const childEndpoint = isSupplier ? 'plants/' : 'locations/';
   const childFilterKey = isSupplier ? 'supplier' : 'customer';
-  const childDetailRouteBase = isSupplier ? '/plants' : '/locations';
 
   const [childRows, setChildRows] = useState<Record<string, unknown>[]>([]);
   const [childLoading, setChildLoading] = useState(false);
   const [childCreateOpen, setChildCreateOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+
+  const [overviewLoading, setOverviewLoading] = useState(false);
+  const [relationshipCounts, setRelationshipCounts] = useState<Record<string, number>>({});
+  const [relationships, setRelationships] = useState<Record<string, unknown[]>>({});
+  const [summary, setSummary] = useState<string>('');
 
   const loadChildRows = useCallback(async () => {
-    if (!entityId || !showHierarchySection) return;
+    if (!entityId || !(isSupplier || isCustomer) || mode !== 'view') return;
     setChildLoading(true);
     try {
       const resp = await apiClient.get(childEndpoint, {
@@ -70,15 +86,46 @@ export const UniversalEntityRecordPage: React.FC<UniversalEntityRecordPageProps>
       const payloadObj = payload && typeof payload === 'object' ? (payload as Record<string, unknown>) : null;
       const rows = Array.isArray(payloadObj?.results) ? (payloadObj?.results as unknown[]) : (payload as unknown[]);
 
-      setChildRows((Array.isArray(rows) ? rows : []).filter((r) => r && typeof r === 'object') as Record<string, unknown>[]);
+      setChildRows(
+        (Array.isArray(rows) ? rows : []).filter((r) => r && typeof r === 'object') as Record<string, unknown>[]
+      );
     } finally {
       setChildLoading(false);
     }
-  }, [childEndpoint, childFilterKey, entityId, showHierarchySection]);
+  }, [childEndpoint, childFilterKey, entityId, isCustomer, isSupplier, mode]);
+
+  const loadOverview = useCallback(async () => {
+    if (!entityId || mode !== 'view') return;
+
+    setOverviewLoading(true);
+    try {
+      const relPromise = businessApi.get(`/system/entities/${normalizedEntityType}/${encodeURIComponent(entityId)}/relationships/`);
+      const summaryPromise = businessApi.get(`/system/entities/${normalizedEntityType}/${encodeURIComponent(entityId)}/summary/`);
+
+      const [relRes, summaryRes] = await Promise.allSettled([relPromise, summaryPromise]);
+
+      if (relRes.status === 'fulfilled') {
+        const payload = (relRes.value.data || {}) as RelationshipsPayload;
+        setRelationshipCounts(payload.counts || {});
+        setRelationships(payload.relationships || {});
+      }
+
+      if (summaryRes.status === 'fulfilled') {
+        const s = String((summaryRes.value.data as any)?.summary ?? '').trim();
+        setSummary(s);
+      }
+    } finally {
+      setOverviewLoading(false);
+    }
+  }, [entityId, mode, normalizedEntityType]);
 
   useEffect(() => {
     void loadChildRows();
   }, [loadChildRows]);
+
+  useEffect(() => {
+    void loadOverview();
+  }, [loadOverview]);
 
   const formMode: EntityFormMode = useMemo(() => {
     if (mode === 'create') return 'create';
@@ -92,27 +139,60 @@ export const UniversalEntityRecordPage: React.FC<UniversalEntityRecordPageProps>
     return `${entityType}`;
   }, [entityType, mode]);
 
-  const childColumns: ColumnsType<Record<string, unknown>> = useMemo(() => {
-    if (isSupplier) {
-      return [
-        { title: 'Name', dataIndex: 'name', key: 'name' },
-        { title: 'Code', dataIndex: 'code', key: 'code' },
-        { title: 'Type', dataIndex: 'plant_type', key: 'plant_type' },
-        { title: 'Establishment #', dataIndex: 'plant_est_num', key: 'plant_est_num' },
-        { title: 'City', dataIndex: 'city', key: 'city' },
-        { title: 'State', dataIndex: 'state', key: 'state' },
-      ];
-    }
+  const numericEntityId = useMemo(() => {
+    const n = Number(entityId);
+    return Number.isFinite(n) ? n : null;
+  }, [entityId]);
 
-    return [
-      { title: 'Name', dataIndex: 'name', key: 'name' },
-      { title: 'Code', dataIndex: 'code', key: 'code' },
-      { title: 'Type', dataIndex: 'location_type', key: 'location_type' },
-      { title: 'Establishment #', dataIndex: 'plant_est_num', key: 'plant_est_num' },
-      { title: 'City', dataIndex: 'city', key: 'city' },
-      { title: 'State', dataIndex: 'state', key: 'state' },
-    ];
-  }, [isSupplier]);
+  const renderRelationshipTable = useCallback(
+    (relKey: string, label: string) => {
+      const rows = relationships[relKey] || [];
+      if (!Array.isArray(rows) || rows.length === 0) return null;
+
+      const types = new Set(rows.map((r: any) => String(r?.type ?? '').toLowerCase()).filter(Boolean));
+      const isMixed = types.size > 1;
+      const tableEntityType = !isMixed
+        ? Array.from(types)[0]
+        : relKey === 'contacts'
+          ? 'contact'
+          : relKey === 'inquiries'
+            ? 'inquiry'
+            : relKey === 'invoices'
+              ? 'invoice'
+              : relKey.includes('product')
+                ? 'product'
+                : 'sales_order';
+
+      return (
+        <Card
+          key={relKey}
+          size="small"
+          style={{ marginBottom: 12 }}
+          title={
+            <span>
+              {label}{' '}
+              {relationshipCounts[relKey] != null ? (
+                <span style={{ color: 'rgb(var(--color-text-tertiary))' }}>({relationshipCounts[relKey]})</span>
+              ) : null}
+            </span>
+          }
+        >
+          <UnifiedEntityTable
+            entityType={tableEntityType}
+            data={rows as any}
+            enableQuickEdit={!isMixed}
+            recordPathForRow={(_t, row: any) => {
+              const rowId = String(row?.id ?? '').trim();
+              const rowType = String(row?.type ?? tableEntityType).trim();
+              if (!rowId) return null;
+              return getRecordPath(rowType, rowId);
+            }}
+          />
+        </Card>
+      );
+    },
+    [relationshipCounts, relationships]
+  );
 
   return (
     <div style={{ padding: 16 }}>
@@ -127,13 +207,11 @@ export const UniversalEntityRecordPage: React.FC<UniversalEntityRecordPageProps>
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <Button onClick={() => navigate(basePath)}>Back</Button>
-          <div style={{ fontSize: 16, fontWeight: 600, color: 'rgb(var(--color-text-primary))' }}>
-            {title}
-          </div>
+          <div style={{ fontSize: 16, fontWeight: 600, color: 'rgb(var(--color-text-primary))' }}>{title}</div>
         </div>
 
         {mode === 'view' && entityId && (
-          <Button type="primary" onClick={() => navigate(`${basePath}/${encodeURIComponent(entityId)}/edit`)}>
+          <Button type="primary" onClick={() => setEditOpen(true)}>
             Edit
           </Button>
         )}
@@ -143,74 +221,174 @@ export const UniversalEntityRecordPage: React.FC<UniversalEntityRecordPageProps>
         )}
       </div>
 
-      <EntityFormSurface
-        entityType={entityType}
-        mode={formMode}
-        variant="inline"
-        isOpen={true}
-        entityId={formMode === 'create' ? undefined : entityId}
-        onClose={() => navigate(basePath)}
-        onSuccess={(result) => {
-          const nextId = extractId(result);
+      {/* Create/Edit keep the form-first experience. */}
+      {mode !== 'view' && (
+        <EntityFormSurface
+          entityType={entityType}
+          mode={formMode}
+          variant="inline"
+          isOpen={true}
+          entityId={formMode === 'create' ? undefined : entityId}
+          onClose={() => navigate(basePath)}
+          onSuccess={(result) => {
+            const nextId = extractId(result);
 
-          if (mode === 'create' && nextId) {
-            navigate(`${basePath}/${encodeURIComponent(nextId)}`);
-            return;
-          }
+            if (mode === 'create' && nextId) {
+              navigate(`${basePath}/${encodeURIComponent(nextId)}`);
+              return;
+            }
 
-          if (mode === 'edit' && entityId) {
-            navigate(`${basePath}/${encodeURIComponent(entityId)}`);
-            return;
-          }
-        }}
-      />
-
-      {showHierarchySection && (
-        <Card
-          style={{ marginTop: 16 }}
-          title={childLabel}
-          extra={
-            <Button type="primary" onClick={() => setChildCreateOpen(true)}>
-              New {childEntityDisplayName}
-            </Button>
-          }
-        >
-          {childLoading ? (
-            <div style={{ padding: 12 }}>
-              <Spin />
-            </div>
-          ) : (
-            <Table
-              rowKey={(row) => String(row.id ?? '')}
-              columns={childColumns}
-              dataSource={childRows}
-              pagination={false}
-              size="small"
-              onRow={(row) => ({
-                onClick: () => {
-                  const rowId = String(row.id ?? '').trim();
-                  if (!rowId) return;
-                  navigate(`${childDetailRouteBase}/${encodeURIComponent(rowId)}`);
-                },
-              })}
-            />
-          )}
-        </Card>
+            if (mode === 'edit' && entityId) {
+              navigate(`${basePath}/${encodeURIComponent(entityId)}`);
+              return;
+            }
+          }}
+        />
       )}
 
-      {showHierarchySection && (
-        <EntityFormSurface
-          entityType={childEntityType}
-          mode="create"
-          variant="modal"
-          isOpen={childCreateOpen}
-          onClose={() => setChildCreateOpen(false)}
-          onSuccess={() => {
-            setChildCreateOpen(false);
-            void loadChildRows();
-          }}
-          initialValues={{ [childFilterKey]: entityId }}
-        />
+      {/* View mode becomes the unified record pivot + standard tabs. */}
+      {showTabs && entityId && (
+        <>
+          <EntityFormSurface
+            entityType={entityType}
+            mode="edit"
+            variant="modal"
+            isOpen={editOpen}
+            entityId={entityId}
+            onClose={() => setEditOpen(false)}
+            onSuccess={() => {
+              setEditOpen(false);
+              void loadOverview();
+              void loadChildRows();
+            }}
+          />
+
+          <EntityProfileHeader
+            entityType={normalizedEntityType}
+            entityId={entityId}
+            onNavigateToEntity={(t, pk) => {
+              navigate(getRecordPath(t, pk));
+            }}
+            layout="grid"
+            variant="full"
+          />
+
+          <Tabs
+            style={{ marginTop: 12 }}
+            items={[
+              {
+                key: 'overview',
+                label: 'Overview',
+                children: overviewLoading ? (
+                  <div style={{ padding: 12 }}>
+                    <Spin />
+                  </div>
+                ) : (
+                  <>
+                    <Card size="small" title="AI Summary" style={{ marginBottom: 12 }}>
+                      <Typography.Paragraph style={{ marginBottom: 0 }}>
+                        {summary || 'Summary unavailable.'}
+                      </Typography.Paragraph>
+                    </Card>
+
+                    <Card size="small" title="Counts">
+                      {Object.keys(relationshipCounts).length ? (
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+                          {Object.entries(relationshipCounts).map(([k, v]) => (
+                            <div key={k} style={{ minWidth: 160 }}>
+                              <div style={{ fontSize: 12, color: 'rgb(var(--color-text-tertiary))' }}>{k}</div>
+                              <div style={{ fontSize: 16, fontWeight: 600, color: 'rgb(var(--color-text-primary))' }}>
+                                {v}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <span style={{ color: 'rgb(var(--color-text-tertiary))' }}>No related counts available.</span>
+                      )}
+                    </Card>
+                  </>
+                ),
+              },
+              {
+                key: 'details',
+                label: 'Details',
+                children: (
+                  <EntityFormSurface
+                    entityType={entityType}
+                    mode="view"
+                    variant="inline"
+                    isOpen={true}
+                    entityId={entityId}
+                    onClose={() => navigate(basePath)}
+                  />
+                ),
+              },
+              {
+                key: 'related',
+                label: 'Related',
+                children: (
+                  <>
+                    {renderRelationshipTable('contacts', 'Contacts')}
+                    {renderRelationshipTable('inquiries', 'Inquiries')}
+                    {renderRelationshipTable('recent_orders', 'Recent Orders')}
+                    {renderRelationshipTable('invoices', 'Invoices')}
+                    {renderRelationshipTable('related_products', 'Related Products')}
+
+                    {(isSupplier || isCustomer) && (
+                      <Card
+                        size="small"
+                        title={childLabel}
+                        extra={
+                          <Button type="primary" onClick={() => setChildCreateOpen(true)}>
+                            New {childEntityDisplayName}
+                          </Button>
+                        }
+                      >
+                        {childLoading ? (
+                          <div style={{ padding: 12 }}>
+                            <Spin />
+                          </div>
+                        ) : (
+                          <UnifiedEntityTable
+                            entityType={childEntityType}
+                            data={childRows as any}
+                            loading={childLoading}
+                            onReload={loadChildRows}
+                          />
+                        )}
+                      </Card>
+                    )}
+                  </>
+                ),
+              },
+              {
+                key: 'timeline',
+                label: 'Timeline',
+                children: numericEntityId ? (
+                  <ActivityFeed entityType={normalizedEntityType as any} entityId={numericEntityId} showCreateForm />
+                ) : (
+                  <span style={{ color: 'rgb(var(--color-text-tertiary))' }}>Timeline unavailable.</span>
+                ),
+              },
+            ]}
+          />
+
+          {(isSupplier || isCustomer) && (
+            <EntityFormSurface
+              entityType={childEntityType}
+              mode="create"
+              variant="modal"
+              isOpen={childCreateOpen}
+              onClose={() => setChildCreateOpen(false)}
+              onSuccess={() => {
+                setChildCreateOpen(false);
+                void loadChildRows();
+              }}
+              initialValues={{ [childFilterKey]: entityId }}
+            />
+          )}
+        </>
       )}
     </div>
   );

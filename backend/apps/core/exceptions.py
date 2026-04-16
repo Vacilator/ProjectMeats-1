@@ -8,9 +8,14 @@ friendly Response body.
 
 import logging
 
-from django.core.exceptions import ValidationError as DjangoValidationError
+from django.core.exceptions import (
+    RequestDataTooBig,
+    SuspiciousOperation,
+    ValidationError as DjangoValidationError,
+)
 from django.db import DatabaseError
 from django.http import Http404
+from django.http.multipartparser import MultiPartParserError
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import exception_handler as drf_exception_handler
@@ -94,6 +99,61 @@ def exception_handler(exc, context):
             _capture_exception(exc, context, response_status=response.status_code)
 
         return response
+
+    # Handle request payloads that exceed server limits (commonly seen as 500s on multipart uploads)
+    # RequestDataTooBig subclasses SuspiciousOperation, so it must be checked first.
+    if isinstance(exc, RequestDataTooBig):
+        logger.warning(
+            f'Request payload too large: {str(exc)}',
+            extra={
+                'path': context.get('request').path if context.get('request') else 'Unknown',
+            },
+            exc_info=True,
+        )
+        return Response(
+            {
+                'error': 'Payload Too Large',
+                'code': 'PAYLOAD_TOO_LARGE',
+                'details': 'The uploaded file is too large for the server to accept. Please upload a smaller file.',
+            },
+            status=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+        )
+
+    # Handle malformed multipart uploads cleanly (avoid generic 500)
+    if isinstance(exc, MultiPartParserError):
+        logger.warning(
+            f'Multipart parse error: {str(exc)}',
+            extra={
+                'path': context.get('request').path if context.get('request') else 'Unknown',
+            },
+            exc_info=True,
+        )
+        return Response(
+            {
+                'error': 'Bad Request',
+                'code': 'MULTIPART_PARSE_ERROR',
+                'details': 'Upload failed: malformed multipart request. Please retry.',
+            },
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    # Handle suspicious operations (e.g., invalid multipart boundaries, tampered payloads)
+    if isinstance(exc, SuspiciousOperation):
+        logger.warning(
+            f'Suspicious operation: {exc.__class__.__name__} - {str(exc)}',
+            extra={
+                'path': context.get('request').path if context.get('request') else 'Unknown',
+            },
+            exc_info=True,
+        )
+        return Response(
+            {
+                'error': 'Bad Request',
+                'code': 'SUSPICIOUS_OPERATION',
+                'details': 'Request rejected. Please retry.',
+            },
+            status=status.HTTP_400_BAD_REQUEST,
+        )
 
     # Handle Django validation errors
     if isinstance(exc, DjangoValidationError):

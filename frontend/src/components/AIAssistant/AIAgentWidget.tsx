@@ -803,6 +803,7 @@ export const AIAgentWidget: React.FC = () => {
         const obj = data as Record<string, unknown>;
         if (typeof obj.error === 'string') serverError = obj.error;
         else if (typeof obj.detail === 'string') serverError = obj.detail;
+        else if (typeof obj.details === 'string') serverError = obj.details;
         else serverError = formatSerializerErrors(obj);
       }
 

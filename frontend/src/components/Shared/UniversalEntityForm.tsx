@@ -22,7 +22,7 @@ import DynamicFormEngine from '../../features/system/DynamicFormEngine';
 import EntityOptionsSelect from '../FormSubmission/SearchableSelect';
 import { isValidEmail } from '../../shared/utils';
 
-export type UniversalEntityFormMode = 'create' | 'edit' | 'view';
+export type UniversalEntityFormMode = 'create' | 'edit' | 'view' | 'clone';
 export type UniversalEntityFormVariant = 'modal' | 'inline';
 
 export interface UniversalEntityFormProps {
@@ -82,9 +82,12 @@ type BackendSchema = {
   key_fields?: string[];
 };
 
-const Container = styled.div`
+const Container = styled.div<{ $variant: UniversalEntityFormVariant }>`
   width: 100%;
-  min-height: 520px;
+  max-width: 100%;
+  box-sizing: border-box;
+  overflow-x: hidden;
+  min-height: ${(p) => (p.$variant === 'modal' ? '520px' : 'auto')};
 `;
 
 const normalizeEntityKey = (entityType: string): string => {
@@ -205,8 +208,12 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
   const [recordValues, setRecordValues] = useState<Record<string, unknown> | null>(null);
 
   const inferredMode: UniversalEntityFormMode = useMemo(() => {
+    const hasId = entityId != null && String(entityId).trim().length > 0;
+
+    if (mode === 'clone') return hasId ? 'clone' : 'create';
     if (mode) return mode;
-    return entityId != null && String(entityId).trim() ? 'edit' : 'create';
+
+    return hasId ? 'edit' : 'create';
   }, [entityId, mode]);
 
   const canSwitchModes = allowModeSwitch ?? inferredMode === 'view';
@@ -226,6 +233,16 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
 
   const schemaEntityKey = useMemo(() => normalizeEntityKey(entityType), [entityType]);
   const endpoint = useMemo(() => normalizeEntityEndpoint(entityType), [entityType]);
+
+  const getSelectPopupContainer = useCallback((triggerNode: HTMLElement) => {
+    const modalBody = (triggerNode?.closest?.('.ant-modal-body') as HTMLElement | null) ?? null;
+    if (modalBody) return modalBody;
+
+    const drawerBody = (triggerNode?.closest?.('.ant-drawer-body') as HTMLElement | null) ?? null;
+    if (drawerBody) return drawerBody;
+
+    return document.body;
+  }, []);
 
   const loadSchema = useCallback(async () => {
     // 1) Preferred: metadata endpoint (tenant-safe)
@@ -264,10 +281,15 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
               })
             : null;
 
+          const rawType = typeof metaObj.type === 'string' ? metaObj.type : undefined;
+          const lowerKey = String(key || '').toLowerCase();
+          const inferredType =
+            lowerKey.includes('phone') ? 'phone' : lowerKey.includes('email') ? 'email' : mapDrfOptionsType(rawType);
+
           return {
             key,
             label: (typeof metaObj.label === 'string' && metaObj.label) || key,
-            type: mapDrfOptionsType(typeof metaObj.type === 'string' ? metaObj.type : undefined),
+            type: inferredType,
             required: Boolean(metaObj.required),
             help_text: (typeof metaObj.help_text === 'string' && metaObj.help_text) || '',
             choices,
@@ -724,7 +746,10 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
 
       try {
         setSubmitting(true);
-        const resp = entityId
+        const hasEntityId = entityId != null && String(entityId).trim().length > 0;
+        const isEditSubmit = hasEntityId && activeMode === 'edit';
+
+        const resp = isEditSubmit
           ? await apiClient.patch(`${endpoint}${entityId}/`, payload)
           : await apiClient.post(endpoint, payload);
 
@@ -770,6 +795,7 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
     [
       endpoint,
       entityId,
+      activeMode,
       fkFields,
       fkValues,
       formInitialValues,
@@ -912,7 +938,7 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
     );
 
   const content = (
-    <Container>
+    <Container $variant={variant}>
       {loading ? (
         <div style={{ padding: 16 }}>
           <Skeleton active paragraph={{ rows: 6 }} />
@@ -994,6 +1020,7 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
                         value={value || undefined}
                         onChange={(next) => setFkValues((prev) => ({ ...prev, [f.key]: String(next) }))}
                         notFoundContent={loadingProducts[f.key] ? <Spin size="small" /> : null}
+                        getPopupContainer={getSelectPopupContainer}
                         style={{ width: '100%' }}
                         placeholder="Search products…"
                       />
@@ -1046,6 +1073,7 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
                       options={options.map((o) => ({ value: String(o.id), label: o.name }))}
                       value={value || undefined}
                       onChange={(next) => setFkValues((prev) => ({ ...prev, [f.key]: String(next) }))}
+                      getPopupContainer={getSelectPopupContainer}
                       style={{ width: '100%' }}
                       placeholder={`Select ${f.label || f.key}`}
                       filterOption={(input, option) =>
@@ -1148,6 +1176,7 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
   return (
     <Modal
       open={isOpen}
+      centered
       onCancel={() => {
         if (submitting) return;
         onClose();
@@ -1155,9 +1184,14 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
       maskClosable={!submitting}
       keyboard={!submitting}
       footer={null}
-      width={720}
+      width="min(720px, calc(100vw - 32px))"
       destroyOnClose
-      title={schema?.name || (entityId ? `${entityType} ${entityId}` : `New ${entityType}`)}
+      title={
+        activeMode === 'clone'
+          ? `Clone ${entityType}`
+          : schema?.name ||
+            (entityId ? `${entityType} ${entityId}` : `New ${entityType}`)
+      }
     >
       {content}
     </Modal>

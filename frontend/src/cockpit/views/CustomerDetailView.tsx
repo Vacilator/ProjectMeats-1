@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import styled from 'styled-components';
 
 import { EntityFormSurface, ScheduleCallModal } from '@/components/Shared';
@@ -499,6 +499,12 @@ export const CustomerDetailView: React.FC<CustomerDetailViewProps> = ({
   const [defaultCallPurpose, setDefaultCallPurpose] = useState<string | undefined>(undefined);
   const [showInquiryCallModal, setShowInquiryCallModal] = useState(false);
 
+  const queryRetry = useCallback((failureCount: number, err: any) => {
+    const status = err?.response?.status;
+    if (typeof status === 'number' && status >= 500) return false;
+    return failureCount < 1;
+  }, []);
+
   const entityQuery = useQuery({
     queryKey: ['cockpit-entity', canonicalType, entityId],
     enabled: Boolean(canonicalType && entityId),
@@ -508,6 +514,8 @@ export const CustomerDetailView: React.FC<CustomerDetailViewProps> = ({
       const res = await businessApi.get(`/${path}/${entityId}/`);
       return res.data as EntityRecord;
     },
+    retry: queryRetry,
+    refetchOnWindowFocus: false,
   });
 
   const countsQuery = useQuery({
@@ -518,6 +526,8 @@ export const CustomerDetailView: React.FC<CustomerDetailViewProps> = ({
       const res = await businessApi.get(`/entities/${canonicalType}/${entityId}/relationships/?counts=true`);
       return res.data as RelationshipCountsResponse;
     },
+    retry: queryRetry,
+    refetchOnWindowFocus: false,
   });
 
   const locationsQuery = useQuery({
@@ -530,6 +540,8 @@ export const CustomerDetailView: React.FC<CustomerDetailViewProps> = ({
       );
       return (res.data as RelationshipItemsResponse).items ?? [];
     },
+    retry: queryRetry,
+    refetchOnWindowFocus: false,
   });
 
   const productsQuery = useQuery({
@@ -540,6 +552,8 @@ export const CustomerDetailView: React.FC<CustomerDetailViewProps> = ({
       const res = await businessApi.get(`/entities/${canonicalType}/${entityId}/relationships/products/?limit=25`);
       return (res.data as RelationshipItemsResponse).items ?? [];
     },
+    retry: queryRetry,
+    refetchOnWindowFocus: false,
   });
 
   const masterProductsQuery = useQuery({
@@ -551,6 +565,8 @@ export const CustomerDetailView: React.FC<CustomerDetailViewProps> = ({
       const items = Array.isArray(raw) ? raw : Array.isArray(raw?.results) ? raw.results : [];
       return items as Array<{ id: number | string; display_name?: string; item_name?: string; type?: string }>;
     },
+    retry: queryRetry,
+    refetchOnWindowFocus: false,
   });
 
   const tabItemsQuery = useQuery({
@@ -562,7 +578,8 @@ export const CustomerDetailView: React.FC<CustomerDetailViewProps> = ({
       const res = await businessApi.get(`/entities/${canonicalType}/${entityId}/relationships/${rel}/?limit=50`);
       return (res.data as RelationshipItemsResponse).items ?? [];
     },
-    retry: 0,
+    retry: queryRetry,
+    refetchOnWindowFocus: false,
   });
 
   const entity = entityQuery.data;

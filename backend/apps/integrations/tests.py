@@ -44,7 +44,10 @@ class EmailSyncTests(APITestCase):
         self.assertEqual(resp.status_code, status.HTTP_200_OK)
         self.assertEqual(resp.data.get('ok'), False)
         self.assertEqual(resp.data.get('code'), 'sync_exception')
-        self.assertIn('boom', resp.data.get('error', ''))
+
+        # Must not leak raw exception strings to callers (security + UX stability)
+        self.assertNotIn('boom', resp.data.get('error', ''))
+        self.assertEqual(resp.data.get('details', {}).get('type'), 'RuntimeError')
 
     @patch('tenant_apps.integrations.services.email_ingestion.EmailIngestionService.poll_tenant_by_id')
     def test_sync_emails_soft_fails_when_graph_returns_zero_scanned_with_errors(self, poll_tenant_by_id):

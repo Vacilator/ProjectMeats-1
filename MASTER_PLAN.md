@@ -1,8 +1,8 @@
 # MASTER_PLAN.md (Canonical)
 
 **Status**: 🔄 Living document (canonical source of truth)  
-**Last Updated**: 2026-03-31  
-**Primary Focus**: Phase 7 (Intelligent Workform Editor) stability + business-usable Admin/Cockpit workflows  
+**Last Updated**: 2026-04-13  
+**Primary Focus**: Phase 10 (DRY/Canonical Architecture Standardization) - Industry-leader compliance  
 
 This file is the **canonical plan + current truth snapshot**.
 - **PR execution log (append-only):** `.github/MASTER_PLAN.md`
@@ -102,6 +102,7 @@ We are re-validating and completing the last ~25 prompts with **evidence-based a
 ### P1 — Operational excellence
 - **Documentation hygiene:** demote/label duplicated roadmaps, remove contradictory “100% complete” claims.
 - **CI automation:** promotion PRs dev→uat and uat→prod/main remain green and observable.
+- **Copilot Squad governance:** repo-local squad roles/tasks/agents/skills under `.copilot/squad/` + `.github/agents/` + `.github/skills/` with validator `bash scripts/validate_copilot_squad.sh`.
 
 ---
 
@@ -1030,12 +1031,12 @@ operations = [
 ## 📊 PROGRESS METRICS
 
 ### Overall Completion
-- **Total Phases**: 9
-- **Complete**: 9/9 phases (P1–P9 @ 100%)
+- **Total Phases**: 10
+- **Complete**: 9/10 phases (P1–P9 @ 100%)
 - **In Progress**: 0 phases
 - **Blocked**: 0 phases
-- **Planned**: 0 phases
-- **Progress**: 100% (all todos complete) + **100% Technical Debt Complete**
+- **Planned**: 1 phase (Phase 10: DRY/Canonical Architecture)
+- **Progress**: 90% (Phases 1-9 complete) + **Phase 10 Planned**
 
 ### By Category
 - **UI/UX**: 100% (Phase 1 complete)
@@ -1144,8 +1145,1698 @@ Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
 
 ---
 
-**Master Plan Version**: 1.0.0  
+## Phase 10: DRY/Canonical Architecture Standardization [ ] PLANNED
+
+**Status**: 📋 PLANNED - Evidence-based refactor from comprehensive 10-agent deep-dive audit  
+**Priority**: P0 (Foundation for sustainable scaling)  
+**Estimated Effort**: 180-220 hours (60+ todos across 8 tracks)  
+**Target Start**: April 2026  
+**Audit Date**: April 13, 2026
+
+---
+
+### 📊 AUDIT EXECUTIVE SUMMARY
+
+**10 parallel deep-dive agents** analyzed the entire codebase against DRY/canonical methodology standards:
+
+| Audit Area | Compliance | Critical Issues | Files Affected |
+|------------|------------|-----------------|----------------|
+| Frontend Forms | 35% | 2,640 LOC duplicate Inquiry code | 30+ modals |
+| UI Components (Atomic) | 42% | 4x SearchableSelect, 1% Storybook | 276 components |
+| Hooks & Services | 65% | NotificationsContext fetch(), 184 `any` | 20+ files |
+| Backend Models | 42% | 8 models wrong base, timestamps chaos | 21 model files |
+| Backend Views | 32% | 105+ violations, 4 missing perms | 20 views files |
+| Multi-Tenant | 95% | 3 minor gaps (advisory only) | ✅ Secure |
+| Mobile/Responsive | 42% | No PWA, 95 max-width violations | 238 files |
+| AI Integration | 54% | 0% prompts in DB, no pgvector | 47 Python files |
+| Flow Engine | 85% | Hardcoded prefix routing | 78 node types |
+| Documentation/Types | 48% | 184 `any`, 24.9% return hints | 300+ files |
+
+**Total Critical Violations**: 150+  
+**Estimated Code Reduction**: 5,000+ lines (duplicate elimination)
+
+---
+
+### 🔴 TRACK 1: CRITICAL SECURITY & DATA INTEGRITY (Week 1)
+
+#### 10.1.1: Backend Missing Permissions [CRITICAL]
+**Severity**: 🔴 DATA LEAKAGE RISK  
+**Effort**: 2 hours
+
+**4 ViewSets with NO permission_classes:**
+| File | Class | Line | Fix |
+|------|-------|------|-----|
+| `backend/tenant_apps/ai_assistant/views.py` | `AIFeedbackViewSet` | 671 | Add `permission_classes = [IsAuthenticated]` |
+| `backend/tenant_apps/bug_reports/views.py` | `BugReportViewSet` | 10 | Add `permission_classes = [IsAuthenticated]` |
+| `backend/tenant_apps/workflows/views.py` | `TenantWorkflowViewSet` | ~1300 | Verify explicit permissions |
+| `backend/tenant_apps/workflows/views.py` | `UserNotificationViewSet` | ~1500 | Verify explicit permissions |
+
+#### 10.1.2: Backend Missing Tenant Filtering [CRITICAL]
+**Severity**: 🔴 CROSS-TENANT DATA EXPOSURE  
+**Effort**: 4 hours
+
+**17 ViewSets missing tenant filter in `get_queryset()`:**
+- `apps/tenants/views.py:ActivityLogViewSet` - Returns `.all()`, no filter
+- `tenant_apps/ai_assistant/views.py:ChatSessionViewSet` - No tenant filter
+- `tenant_apps/ai_assistant/views.py:ChatMessageViewSet` - No tenant filter
+- `tenant_apps/bug_reports/views.py:BugReportViewSet` - Returns `.all()`
+- `apps/tenants/views.py:TenantUserViewSet` - Missing tenant scope
+- Plus 12 more in invoices, customers, suppliers, plants, purchase_orders
+
+**Fix Pattern:**
+```python
+def get_queryset(self):
+    return self.queryset.filter(tenant=self.request.tenant)
+```
+
+#### 10.1.3: Frontend NotificationsContext fetch() Bypass [CRITICAL]
+**Severity**: 🔴 BYPASSES AUTH INTERCEPTORS  
+**Effort**: 3 hours
+
+**File**: `frontend/src/contexts/NotificationsContext.tsx`
+
+**9 direct `fetch()` calls bypassing service layer:**
+- Line 161: `fetch(\`${API_BASE}/notifications/\`)`
+- Line 183: `fetch(\`${API_BASE}/notifications/unread-count/\`)`
+- Line 200: `fetch(\`${API_BASE}/notifications/${id}/read/\`)`
+- Line 208: `fetch(\`${API_BASE}/notifications/mark-all-read/\`)`
+- Line 218: `fetch(\`${API_BASE}/notifications/${id}/\`)`
+- Line 230: `fetch(\`${API_BASE}/action-items/\`)`
+- Line 257: `fetch(\`${API_BASE}/action-items/counts/\`)`
+- Lines 307, 331: `fetch(\`${API_BASE}/notification-preferences/\`)`
+
+**Fix**: Create `frontend/src/services/notificationsService.ts` using `apiClient`
+
+---
+
+### 🟠 TRACK 2: FRONTEND FORM CONSOLIDATION (Weeks 2-4)
+
+#### 10.2.1: Eliminate Inquiry Form Duplication [HIGH]
+**Severity**: 🟠 2,640 LINES DUPLICATE CODE  
+**Effort**: 16 hours
+
+**Files to Consolidate:**
+| File | Lines | Action |
+|------|-------|--------|
+| `frontend/src/components/Inquiry/InquiryCreateModal.tsx` | 859 | **REFACTOR** → Schema-driven |
+| `frontend/src/components/Inquiry/CloneInquiryModal.tsx` | 430 | **DELETE** → Use initialValues |
+| `frontend/src/components/Inquiry/InquiryDetailModal.tsx` | 671 | Add edit mode support |
+| `frontend/src/components/Inquiry/InquiryTemplateModal.tsx` | 680 | **DELETE** → Merge with create |
+
+**Target**: Single `UnifiedInquiryForm` component supporting create/edit/view/clone modes
+
+#### 10.2.2: Consolidate SearchableSelect (4 Duplicates) [HIGH]
+**Severity**: 🟠 1,125 LINES DUPLICATE CODE  
+**Effort**: 8 hours
+
+**4 Implementations to Merge:**
+1. `frontend/src/components/Shared/SearchableSelect.tsx` (415 LOC) - Fuse.js
+2. `frontend/src/components/FormSubmission/SearchableSelect.tsx` (215 LOC) - API
+3. `frontend/src/components/ui/Select.tsx` (60 LOC) - Basic
+4. `frontend/src/components/Shared/MultiSelect.tsx` (195 LOC) - Array
+
+**Target**: Single configurable `<SearchableSelect variant="local|api|multi" />`
+
+#### 10.2.3: Standardize Validation (RHF + Zod Everywhere) [HIGH]
+**Effort**: 12 hours
+
+**Progress**: ✅ Batch 1 shipped — PR #4366 (added `useZodForm` + migrated `ScheduleCallModal` to RHF+Zod)
+
+**Current State**: 3 validation patterns
+- Pattern 1: React Hook Form + Zod (5+ files ✅)
+- Pattern 2: Manual useState (20+ components ❌)
+- Pattern 3: Per-field auto-save (FormSubmission ❌)
+
+**Files Using Manual Validation:**
+- `InquiryCreateModal.tsx` - 11+ useState calls
+- `CreateFulfillmentModal.tsx` - Manual checks
+- Plus 16+ more modals
+
+**Target**: 100% React Hook Form + Zod
+
+#### 10.2.4: Add Mode Support (Create/Edit/View/Clone) [MEDIUM]
+**Effort**: 10 hours
+
+**Progress**: ✅ Partial shipped — PR #4365 (UniversalEntityForm now supports clone mode)
+
+**Current Mode Support Matrix:**
+| Component | Create | Edit | View | Clone |
+|-----------|--------|------|------|-------|
+| UniversalEntityForm | ✅ | ✅ | ✅ | ✅ |
+| All Inquiry modals | ✅ only | ❌ | ❌ | ❌ |
+| All other modals | ✅ only | ❌ | ❌ | ❌ |
+
+**Target**: All entity forms support 4 modes via single `mode` prop
+
+---
+
+### 🟠 TRACK 3: ATOMIC DESIGN STANDARDIZATION (Weeks 3-5)
+
+#### 10.3.1: Create Missing Atom Components [HIGH]
+**Effort**: 8 hours
+
+**Progress**: ✅ Shipped — PR #4362 (added canonical atoms)
+
+**Existing Atoms** (10 files): Button, Card, Icon, Select, CountrySelect, StateSelect, PhoneInput
+
+**Atoms Delivered:**
+- `frontend/src/components/ui/atoms/Input.tsx` - Text input (currently hardcoded everywhere)
+- `frontend/src/components/ui/atoms/Badge.tsx` - Status indicators
+- `frontend/src/components/ui/atoms/Checkbox.tsx` - Form checkboxes
+- `frontend/src/components/ui/atoms/Radio.tsx` - Radio buttons
+- `frontend/src/components/ui/atoms/Label.tsx` - Form labels
+- `frontend/src/components/ui/atoms/Textarea.tsx` - Multi-line input
+
+#### 10.3.2: Decompose Mega-Components [HIGH]
+**Effort**: 16 hours
+
+**Components Exceeding 300 LOC Limit:**
+| File | Lines | Target |
+|------|-------|--------|
+| `Shared/UniversalEntityForm.tsx` | 1,188 | Split into 4 components |
+| `Shared/EntityDetailModal.tsx` | 856 | Split into 3 components |
+| `Layout/Header.tsx` | 300+ | Extract atoms/molecules |
+| `Admin/VirtualFieldManager.tsx` | 1,000+ | Split into modules |
+
+#### 10.3.3: Fix CSS Variable Violations [MEDIUM]
+**Effort**: 4 hours
+
+**Hardcoded Colors Found:**
+- `ReportBugButton.tsx` - `rgba(0,0,0,0.15)` shadow
+- Multiple files with `#` hex colors
+
+**Missing CSS Variables:**
+- `--color-primary-dark` (used but not defined)
+- `--color-surface-fff` (typo)
+- `--color-bg-tertiary` (used but not defined)
+
+#### 10.3.4: Replace Inline SVGs with Icon Component [MEDIUM]
+**Effort**: 6 hours
+
+**Files with Inline SVGs:**
+- `Layout/Header.tsx` - SearchIcon, LockIcon inline
+- `Navigation/NavigationMenu.tsx` - ChevronIcon inline
+- Multiple other components
+
+**Target**: All icons use `<Icon name="..." />` component
+
+---
+
+### 🟠 TRACK 4: BACKEND SERVICE LAYER PATTERN (Weeks 3-5)
+
+#### 10.4.1: Extract Business Logic from Views [CRITICAL]
+**Effort**: 40 hours
+
+**95% of business logic currently in views (should be 0%)**
+
+**Top Offenders:**
+| File | Lines | Issue |
+|------|-------|-------|
+| `tenant_apps/ai_assistant/views.py:ChatBotAPIViewSet` | 255+ | Chat logic, RLS setup, Swarm orchestration |
+| `tenant_apps/workflows/views.py` | 4,135 | 6 `transaction.atomic()` blocks |
+| `apps/core/views.py` | 1,145 | Token creation, entity lookup |
+
+**Services to Create:**
+- `SwarmChatService` - Extract from ChatBotAPIViewSet
+- `FormFieldService` - Extract from FormStepFieldsAPIView
+- `WorkflowExecutionService` - Already exists, needs expansion
+
+#### 10.4.2: Create TenantAwareMixin for DRY perform_create [HIGH]
+**Effort**: 4 hours
+
+**40+ lines duplicated across 15+ ViewSets:**
+```python
+# DUPLICATED in carriers/views.py, contacts/views.py, etc.
+def perform_create(self, serializer):
+    tenant = None
+    if hasattr(self.request, 'tenant') and self.request.tenant:
+        tenant = self.request.tenant
+    # ... 30+ more lines identical
+```
+
+**Target**: Single `TenantAwareMixin.perform_create()` inherited by all ViewSets
+
+#### 10.4.3: Fix Oversized ViewSets (28 Violations) [MEDIUM]
+**Effort**: 20 hours
+
+**ViewSets > 200 Lines:**
+- `apps/tenants/views.py:TenantViewSet` (388 lines)
+- `apps/tenants/views.py:TenantUserViewSet` (313 lines)
+- `apps/tenants/views.py:TenantConfigurationViewSet` (258 lines)
+- `tenant_apps/ai_assistant/views.py:ChatBotAPIViewSet` (255+ lines)
+
+**Target**: All ViewSets < 50 lines, delegate to services
+
+---
+
+### 🟠 TRACK 5: BACKEND MODELS & SERIALIZERS (Week 4)
+
+#### 10.5.1: Standardize Timestamp Fields [CRITICAL]
+**Effort**: 4 hours
+
+**3 Different Naming Conventions Found:**
+1. `created_on`/`modified_on` (TenantAwareModel standard ✓)
+2. `created_at`/`updated_at` (ChatMessage, FormSubmission ✗)
+3. `date_time_stamp` (Invoice, PurchaseOrder ✗)
+
+**Files Affected:**
+- `apps/core/models.py` - Mixed timestamps
+- `tenant_apps/ai_assistant/models.py` - Uses `created_at`
+- `tenant_apps/workflows/models.py` - Mixed timestamps
+- `tenant_apps/contacts/models.py:201` - Uses `created_at`
+
+**Target**: ALL models use `created_on`/`modified_on`
+
+#### 10.5.2: Fix Models Using Wrong Base Class [CRITICAL]
+**Effort**: 8 hours
+
+**8 Models Should Inherit TenantAwareModel:**
+| File | Model | Current | Fix |
+|------|-------|---------|-----|
+| `workflows/models.py:988` | FormSubmission | `models.Model` | `TenantAwareModel` |
+| `workflows/models.py:1091` | FormStepSubmission | `models.Model` | `TenantAwareModel` |
+| `workflows/models.py:1188` | FormSubmissionFile | `models.Model` | `TenantAwareModel` |
+| `workflows/models.py:1278` | FormSubmissionEvent | `models.Model` | `TenantAwareModel` |
+| `workflows/models.py:1426` | StepAssignment | `models.Model` | Remove redundant FK |
+| `workflows/models.py:1570` | UserNotification | `models.Model` | Remove redundant FK |
+| `workflows/models.py:1711` | UserNotificationPreferences | `models.Model` | Remove redundant FK |
+| `cockpit/models.py:207` | UserWorkspaceLayout | `models.Model` | Add tenant scope |
+
+#### 10.5.3: Add Meta Class to 20 Serializers [HIGH]
+**Effort**: 6 hours
+
+**Serializers Missing Explicit Meta:**
+- `apps/core/serializers.py:UserPreferencesSerializer`
+- `apps/system/serializers.py:SystemChoiceItemSerializer`
+- `apps/tenants/serializers.py:TenantSerializer`
+- `tenant_apps/carriers/serializers.py:CarrierSerializer`
+- `tenant_apps/customers/serializers.py:CustomerSerializer`
+- Plus 15 more in products, bug_reports, cockpit, fulfillments, inquiries, etc.
+
+#### 10.5.4: Add help_text to 40+ Serializer Fields [MEDIUM]
+**Effort**: 8 hours
+
+**Fields Missing help_text (needed for frontend tooltips):**
+- `carriers/serializers.py:departments_array`
+- `customers/serializers.py:industry_array, preferred_protein_types`
+- `products/serializers.py:description_of_product_item, namp, ub, usda`
+- Plus 35+ more fields
+
+---
+
+### 🟠 TRACK 6: MOBILE & PWA READINESS (Weeks 5-6)
+
+#### 10.6.1: Create PWA Manifest [CRITICAL]
+**Effort**: 2 hours
+
+**Missing Files:**
+- `frontend/public/manifest.json` - PWA metadata
+- `frontend/public/icon-192.png` - App icon
+- `frontend/public/icon-512.png` - Splash icon
+- `frontend/public/service-worker.js` - Offline support
+
+#### 10.6.2: Fix Mobile-First CSS Violations [HIGH]
+**Effort**: 12 hours
+
+**95 max-width media queries (should use min-width):**
+- `components/Calls/InquiryCallModal.tsx` - 6 violations
+- `components/Inquiry/InquiryCreateModal.tsx` - 6 violations
+- `components/Layout/Header.tsx` - 4 violations
+- `pages/Accounting/*` - 9 violations
+- Plus 70+ more
+
+**Target**: Convert all to mobile-first `@media (min-width: ...)`
+
+#### 10.6.3: Fix Touch Target Violations [HIGH]
+**Effort**: 4 hours
+
+**Components with < 44px touch targets:**
+- `Layout/Sidebar.tsx` - nav items `height: 32px`
+- `Navigation/NavigationMenu.tsx` - `min-width: 20px/18px`
+- `IconPicker.tsx` - icons likely 16-24px
+
+#### 10.6.4: Fix Horizontal Scroll Issues [MEDIUM]
+**Effort**: 4 hours
+
+**Components Causing Overflow:**
+- `TenantSelector.tsx` - `min-width: 220px` breaks on <320px
+- `FloatingAssistButton.tsx` - `min-width: 240px` breaks on <360px
+- `FlowEditor/ConfigPanel` - `min-width: 480px` breaks on <600px
+
+---
+
+### 🟠 TRACK 7: AI ARCHITECTURE (Weeks 6-7)
+
+#### 10.7.1: Create AIPrompt Database Model [CRITICAL]
+**Effort**: 8 hours
+
+**Current State**: 100% hardcoded prompts
+
+**Hardcoded Locations:**
+- `views.py:47-53` - SWARM_SYSTEM_PROMPT
+- `swarm/router.py:31-100` - build_swarm_system_prompt() (70 lines)
+- `swarm/agents/meat_sme.py:22-30` - SYSTEM_PROMPT
+- `services/rlhf_compiler.py` - DEFAULT_SYSTEM_PROMPT
+
+**Target Model:**
+```python
+class AIPrompt(TenantAwareModel):
+    name = CharField()  # 'system_architect', 'meat_sme'
+    role = CharField()  # 'system', 'agent', 'tool'
+    content = TextField()  # The actual prompt
+    version = IntegerField()
+    is_active = BooleanField()
+```
+
+#### 10.7.2: Implement pgvector Queries [HIGH]
+**Effort**: 12 hours
+
+**Current State**: pgvector models exist but NO similarity search
+
+**Evidence** (`models.py:279`):
+```python
+embedding = models.JSONField(
+    default=list,
+    help_text='Embedding vector as JSON array (pgvector optional).',  # ← Never used
+)
+```
+
+**MeatSMEAgent uses keyword search:**
+```python
+service = UniversalSearchService(tenant=tenant)  # ← Not pgvector!
+```
+
+**Target**: Implement `SELECT * FROM tbl WHERE embedding <-> query_vec < threshold`
+
+#### 10.7.3: Add Form-State Context to AI Widget [MEDIUM]
+**Effort**: 6 hours
+
+**Current Context** (`aiContext.ts:30-66`):
+- ✅ Page path
+- ✅ Active entity type/ID
+- ❌ Form field values (MISSING)
+- ❌ Validation errors (MISSING)
+- ❌ Current workflow step (MISSING)
+
+**Target**: AI suggestions aware of form content
+
+---
+
+### 🟠 TRACK 8: DOCUMENTATION & TYPE SAFETY (Weeks 7-8)
+
+#### 10.8.1: Eliminate 184 `any` Types [HIGH]
+**Effort**: 16 hours
+
+**Top Offenders:**
+| File | Count |
+|------|-------|
+| `components/FormSubmission/hooks/useWorkflowContext.ts` | 13 |
+| `components/FlowEditor/utils/autoMappingService.ts` | 10 |
+| `hooks/useFormVersioning.ts` | 9 |
+| `services/workformsApi.ts` | 8 |
+| `services/tenantFormService.ts` | 8 |
+| Plus 88 more files... | 136 |
+
+#### 10.8.2: Add Python Return Type Hints [HIGH]
+**Effort**: 8 hours
+
+**Current Coverage**: 24.9% (FAILING)
+
+**Top Violators:**
+- `tenant_apps/workflows/views.py` - 21 functions missing
+- `tenant_apps/customers/views.py` - 2 functions
+- `tenant_apps/invoices/views.py` - 2 functions
+- `apps/system/permissions.py` - 2 functions
+
+#### 10.8.3: Create Storybook Stories [MEDIUM]
+**Effort**: 12 hours
+
+**Current Coverage**: 1% (3/276 components)
+
+**Priority Components:**
+1. All atoms (10 files)
+2. SearchableSelect, Modal, Form molecules
+3. Key organisms
+
+#### 10.8.4: Create GLOSSARY.md [LOW]
+**Effort**: 4 hours
+
+**Missing**: Domain terminology documentation
+
+**Terms to Define**: workflow, node, form, tenant, invoice, supplier, inquiry, fulfillment, etc.
+
+---
+
+### 📋 PHASE 10 SUMMARY
+
+| Track | Todos | Hours | Priority |
+|-------|-------|-------|----------|
+| Track 1: Security & Data | 3 | 9 | 🔴 CRITICAL (Week 1) |
+| Track 2: Form Consolidation | 4 | 46 | 🟠 HIGH (Weeks 2-4) |
+| Track 3: Atomic Design | 4 | 34 | 🟠 HIGH (Weeks 3-5) |
+| Track 4: Backend Services | 3 | 64 | 🟠 HIGH (Weeks 3-5) |
+| Track 5: Models/Serializers | 4 | 26 | 🟠 HIGH (Week 4) |
+| Track 6: Mobile/PWA | 4 | 22 | 🟠 HIGH (Weeks 5-6) |
+| Track 7: AI Architecture | 3 | 26 | 🟠 MEDIUM (Weeks 6-7) |
+| Track 8: Docs/Types | 4 | 40 | 🟡 MEDIUM (Weeks 7-8) |
+
+**TOTAL**: 29 major todos, ~267 hours (6-8 weeks with 2 developers)
+
+### Success Metrics (Technical Debt)
+
+| Metric | Current | Target |
+|--------|---------|--------|
+| Form Code Duplication | 3,500+ LOC | 0 LOC |
+| SearchableSelect Implementations | 4 | 1 |
+| ViewSets with Permission Classes | 92% | 100% |
+| ViewSets with Tenant Filtering | 66% | 100% |
+| Business Logic in Views | 95% | <5% |
+| TypeScript `any` Usage | 184 | <10 |
+| Mobile-First CSS Compliance | 18% | 95% |
+| PWA Readiness | 0% | 100% |
+| AI Prompts in Database | 0% | 100% |
+| Storybook Coverage | 1% | 50%+ |
+
+---
+
+# 🚀 PHASE 10B: FEATURE ENHANCEMENTS & INDUSTRY BEST PRACTICES
+
+**Status**: 📋 PLANNED - Feature gaps identified via 6-agent deep-dive  
+**Priority**: P1 (Competitive differentiation)  
+**Estimated Effort**: 400-500 hours (80+ todos across 10 tracks)  
+**Target Start**: After Phase 10A technical debt  
+**Research Date**: April 13, 2026
+
+---
+
+## 📊 FEATURE GAP EXECUTIVE SUMMARY
+
+**6 parallel feature-analysis agents** compared ProjectMeats against industry leaders (Camunda, n8n, Typeform, Retool):
+
+| Feature Area | Current Score | Industry Benchmark | Gap Priority |
+|--------------|---------------|-------------------|--------------|
+| Frontend Design System | 6/10 | Compound components, headless UI | 🟠 HIGH |
+| Universal Forms | 7/10 | Schema-driven, conditional branching | 🔴 CRITICAL |
+| Workflow Editor | 7/10 | Undo/redo ✅, parallel execution ❌ | 🔴 CRITICAL |
+| Workflow Execution | 5/10 | State machines, retry policies | 🔴 CRITICAL |
+| UX/Collaboration | 4/10 | Comments, @mentions, sharing | 🔴 CRITICAL |
+| Backend Infrastructure | 7/10 | Job monitoring, API versioning | 🟠 HIGH |
+| AI/ML Integration | 6/10 | Streaming, vector RAG, moderation | 🟠 HIGH |
+
+**Total Missing Features**: 60+  
+**Industry Leader Gap**: ~30% behind Camunda/n8n/Retool
+
+---
+
+## 🎯 PRIORITY 1: FRONTEND DESIGN SYSTEM (Per User Request)
+
+### TRACK F1: Component Architecture Enhancements
+
+#### F1.1: Headless Component Library [HIGH]
+**Industry Standard**: Radix UI, Headless UI patterns - separate logic from presentation
+**Effort**: 24 hours
+
+**Current Gap**: Components tightly couple logic and UI rendering
+**Target**: Create headless versions of core components
+
+**Components to Create:**
+```
+frontend/src/components/headless/
+├── useSelect.ts      # Select logic (open/close, selection, keyboard nav)
+├── useModal.ts       # Modal logic (focus trap, escape key, overlay click)
+├── useDropdown.ts    # Dropdown logic (positioning, keyboard nav)
+├── useAutocomplete.ts # Autocomplete logic (filtering, highlighting)
+├── useTooltip.ts     # Tooltip logic (positioning, delay, trigger)
+├── useAccordion.ts   # Accordion logic (expand/collapse, keyboard)
+└── index.ts          # Re-export all
+```
+
+**Benefits**:
+- Swap UI without rewriting logic
+- Better testability (logic isolated)
+- Consistent behavior across variants
+
+#### F1.2: Compound Component Pattern [HIGH]
+**Industry Standard**: `<Select><Select.Option /></Select>` pattern
+**Effort**: 16 hours
+
+**Current Gap**: No compound component implementations
+**Target**: Refactor 5 core components to compound pattern
+
+**Priority Components:**
+| Component | Current | Target |
+|-----------|---------|--------|
+| Select | `<Select options={[]}/>` | `<Select><Select.Option value="1">One</Select.Option></Select>` |
+| Menu | Props-based | `<Menu><Menu.Item>Edit</Menu.Item></Menu>` |
+| Tabs | AntD wrapper | `<Tabs><Tabs.Tab>Tab 1</Tabs.Tab></Tabs>` |
+| Accordion | Props-based | `<Accordion><Accordion.Item>Content</Accordion.Item></Accordion>` |
+| Form | Props-based | `<Form><Form.Field name="email"><Input /></Form.Field></Form>` |
+
+#### F1.3: Polymorphic Component Support [MEDIUM]
+**Industry Standard**: `as` prop for flexible rendering
+**Effort**: 8 hours
+
+**Target Pattern:**
+```tsx
+// Render Button as link
+<Button as="a" href="/dashboard">Go to Dashboard</Button>
+
+// Render Card as article
+<Card as="article">Content</Card>
+```
+
+**Implementation**: Create `PolymorphicComponent` utility type
+
+#### F1.4: Design Token System [HIGH]
+**Industry Standard**: Token-based theming (spacing, typography, shadows)
+**Effort**: 12 hours
+
+**Current Gap**: Only color tokens exist
+**Target**: Full token system
+
+**Token Categories to Create:**
+```typescript
+// frontend/src/styles/tokens.ts
+export const tokens = {
+  spacing: { xs: '4px', sm: '8px', md: '16px', lg: '24px', xl: '32px' },
+  radius: { sm: '4px', md: '8px', lg: '16px', full: '9999px' },
+  shadow: { sm: '0 1px 2px...', md: '0 4px 6px...', lg: '0 10px 15px...' },
+  typography: { xs: '12px', sm: '14px', md: '16px', lg: '18px', xl: '24px' },
+  animation: { fast: '150ms', normal: '300ms', slow: '500ms' },
+  zIndex: { dropdown: 1000, modal: 1100, tooltip: 1200, toast: 1300 },
+};
+```
+
+---
+
+## 🎯 PRIORITY 2: UNIVERSAL FORMS (Per User Request)
+
+### TRACK F2: Form System Enhancements
+
+#### F2.1: Repeatable Field Groups ("Add Another") [CRITICAL]
+**Industry Standard**: Formik FieldArray, React Hook Form useFieldArray
+**Effort**: 20 hours
+
+**Current Gap**: No dynamic field arrays
+**Use Cases**: Line items, contacts, phone numbers, addresses
+
+**Implementation:**
+```tsx
+// Target API
+<FieldArray name="lineItems">
+  {({ fields, append, remove }) => (
+    <>
+      {fields.map((field, index) => (
+        <LineItemRow key={field.id} index={index} onRemove={() => remove(index)} />
+      ))}
+      <Button onClick={() => append({ product: '', qty: 1, price: 0 })}>
+        + Add Line Item
+      </Button>
+    </>
+  )}
+</FieldArray>
+```
+
+**Files to Create:**
+- `frontend/src/components/Forms/FieldArray.tsx`
+- `frontend/src/hooks/useFieldArray.ts`
+- `frontend/src/components/FormSubmission/RepeatableFieldGroup.tsx`
+
+#### F2.2: Conditional Step Branching [CRITICAL]
+**Industry Standard**: Typeform logic jumps, JotForm conditional logic
+**Effort**: 24 hours
+
+**Current Gap**: Fixed step order only
+**Target**: Dynamic step sequences based on answers
+
+**Implementation:**
+```typescript
+// Step config with branching
+{
+  steps: [
+    { id: 'type', fields: ['order_type'] },
+    { 
+      id: 'domestic', 
+      showWhen: { field: 'order_type', equals: 'domestic' },
+      fields: ['state', 'city'] 
+    },
+    { 
+      id: 'international', 
+      showWhen: { field: 'order_type', equals: 'international' },
+      fields: ['country', 'customs_info'] 
+    },
+    { id: 'review' }  // Always shown
+  ]
+}
+```
+
+**Files to Create:**
+- `frontend/src/components/FormSubmission/ConditionalStepRenderer.tsx`
+- `frontend/src/hooks/useStepBranching.ts`
+
+#### F2.3: Calculated Fields (Formula Engine) [HIGH]
+**Industry Standard**: Excel-like formulas in form fields
+**Effort**: 16 hours
+
+**Current Gap**: No field-to-field calculations
+**Target**: `total = quantity * price` auto-calculation
+
+**Implementation:**
+```typescript
+// Field config
+{
+  name: 'total',
+  type: 'calculated',
+  formula: '{{quantity}} * {{unit_price}}',
+  dependencies: ['quantity', 'unit_price']
+}
+```
+
+**Use Cases:**
+- Order totals
+- Tax calculations
+- Date arithmetic (days between)
+- Conditional values
+
+#### F2.4: Matrix/Grid Questions [MEDIUM]
+**Industry Standard**: Survey platforms (SurveyMonkey, Typeform)
+**Effort**: 12 hours
+
+**Current Gap**: No table-like field groups
+**Target**: Rating matrices, satisfaction grids
+
+**Implementation:**
+```tsx
+<MatrixField
+  rows={['Quality', 'Price', 'Service']}
+  columns={['Poor', 'Fair', 'Good', 'Excellent']}
+  type="radio" // or "checkbox"
+/>
+```
+
+#### F2.5: Form Template Library [HIGH]
+**Industry Standard**: Pre-built templates for common use cases
+**Effort**: 16 hours
+
+**Current Gap**: Only 1 hardcoded template
+**Target**: 10+ cloneable templates
+
+**Templates to Create:**
+1. Customer Onboarding
+2. Supplier Application
+3. Product Inquiry
+4. Order Request
+5. Quality Inspection
+6. Complaint/Feedback
+7. Quote Request
+8. Contract Review
+9. Compliance Checklist
+10. Employee Evaluation
+
+---
+
+## 🎯 PRIORITY 3: WORKFORMS/WORKFLOWS (Per User Request)
+
+### TRACK F3: Workflow Editor Enhancements
+
+#### F3.1: Real-Time Collaborative Editing [CRITICAL]
+**Industry Standard**: Figma, Google Docs, Notion
+**Effort**: 40 hours
+
+**Current Gap**: No multi-user editing
+**Target**: See who's editing, cursor presence, conflict resolution
+
+**Implementation Components:**
+- WebSocket consumer for workflow room (extend existing `WorkflowCollaborationConsumer`)
+- Yjs/Automerge CRDT for conflict-free editing
+- Presence indicators (avatars, colored cursors)
+- Typing indicators on node comments
+
+**Files to Create:**
+```
+frontend/src/components/FlowEditor/
+├── CollaborationProvider.tsx   # WebSocket connection manager
+├── PresenceIndicator.tsx       # Show who's online
+├── CursorOverlay.tsx           # Render other users' cursors
+├── ConflictResolver.tsx        # Handle merge conflicts
+└── hooks/useCollaboration.ts   # Hook for collaboration state
+```
+
+#### F3.2: Workflow Version Diff View [HIGH]
+**Industry Standard**: Git diff, Notion version history
+**Effort**: 16 hours
+
+**Current Gap**: No visual comparison between versions
+**Target**: Side-by-side diff of workflow definitions
+
+**Implementation:**
+- JSON-diff library for node/edge changes
+- Visual highlighting (added=green, removed=red, changed=yellow)
+- Restore/rollback capability
+
+#### F3.3: Node Comments & Discussion Threads [HIGH]
+**Industry Standard**: Figma comments, Miro notes
+**Effort**: 20 hours
+
+**Current Gap**: Only UtilityNode comment type (no discussions)
+**Target**: Per-node comment threads with @mentions
+
+**Implementation:**
+```tsx
+<NodeCommentThread nodeId="node_123">
+  <Comment author="john@example.com" timestamp="2026-04-13">
+    @jane Should this node trigger on weekends?
+  </Comment>
+  <CommentReply>...</CommentReply>
+</NodeCommentThread>
+```
+
+### TRACK F4: Workflow Execution Engine Enhancements
+
+#### F4.1: Parallel Execution Backend [CRITICAL]
+**Industry Standard**: Temporal, Camunda parallel gateways
+**Effort**: 32 hours
+
+**Current Gap**: ParallelPathNode exists in UI but backend executes sequentially
+**Target**: True parallel branch execution
+
+**Implementation:**
+- Celery task groups for parallel branches
+- Sync barrier node (wait for all branches)
+- Error handling per branch (continue vs fail-all)
+
+#### F4.2: Retry Strategy & Dead Letter Queue [CRITICAL]
+**Industry Standard**: Exponential backoff, DLQ for inspection
+**Effort**: 16 hours
+
+**Current Gap**: Only boolean `continue_on_error` flag
+**Target**: Configurable retry policies
+
+**Retry Config:**
+```python
+class RetryPolicy:
+    max_attempts: int = 3
+    backoff_type: str = 'exponential'  # or 'fixed'
+    initial_delay_seconds: int = 60
+    max_delay_seconds: int = 3600
+    retry_on_exceptions: list = ['TimeoutError', 'ConnectionError']
+```
+
+#### F4.3: Workflow Timeout Enforcement [HIGH]
+**Industry Standard**: Temporal workflow/activity timeouts
+**Effort**: 12 hours
+
+**Current Gap**: WaitStateNode has deadline config but not enforced
+**Target**: Hard timeouts with escalation
+
+**Implementation:**
+- Celery task with `time_limit` and `soft_time_limit`
+- Timeout events trigger escalation workflow
+- Dashboard shows timed-out workflows
+
+#### F4.4: HTTP Request Node [HIGH]
+**Industry Standard**: n8n HTTP node, Zapier webhooks
+**Effort**: 16 hours
+
+**Current Gap**: No generic HTTP/REST node type
+**Target**: Call external APIs from workflows
+
+**Config:**
+```json
+{
+  "type": "http_request",
+  "method": "POST",
+  "url": "https://api.example.com/orders",
+  "headers": { "Authorization": "Bearer {{secret.api_key}}" },
+  "body": { "order_id": "{{workflow.order_id}}" },
+  "retry": { "max_attempts": 3, "backoff": "exponential" }
+}
+```
+
+### TRACK F5: Workflow Monitoring Enhancements
+
+#### F5.1: My Tasks Dashboard [CRITICAL]
+**Industry Standard**: Asana, Monday.com task views
+**Effort**: 20 hours
+
+**Current Gap**: StepAssignment model exists but no user-facing queue
+**Target**: "My Pending Actions" dashboard
+
+**Features:**
+- Filter by: workflow, priority, due date
+- Sort by: oldest first, due soon, priority
+- Quick actions: approve, reject, reassign
+- Notifications integration
+
+#### F5.2: SLA Framework [HIGH]
+**Industry Standard**: ServiceNow, Zendesk SLA management
+**Effort**: 24 hours
+
+**Current Gap**: Zero SLA implementation
+**Target**: Define, track, and alert on SLAs
+
+**Implementation:**
+```python
+class WorkflowSLA(TenantAwareModel):
+    workflow = ForeignKey(TenantWorkflow)
+    name = CharField()  # "Quote Response"
+    target_hours = IntegerField()  # 24
+    warning_threshold_percent = IntegerField()  # 80 (warn at 19.2 hours)
+    escalation_to = ForeignKey(User)
+    breach_action = CharField()  # 'notify', 'reassign', 'escalate'
+```
+
+#### F5.3: Workflow Analytics Dashboard [MEDIUM]
+**Industry Standard**: Camunda Optimize, Power BI
+**Effort**: 20 hours
+
+**Current Gap**: Partial metrics exist, no unified dashboard
+**Target**: Executive-level workflow insights
+
+**Metrics:**
+- Active/completed/failed workflow counts
+- Average completion time by workflow type
+- Bottleneck detection (slowest steps)
+- User productivity (tasks completed per user)
+- Error rate by node type
+
+---
+
+## 🎯 PRIORITY 4: UX & COLLABORATION
+
+### TRACK F6: Collaboration Features
+
+#### F6.1: Entity Comments & @Mentions [CRITICAL]
+**Industry Standard**: Salesforce Chatter, HubSpot activity
+**Effort**: 24 hours
+
+**Current Gap**: Only StepNotes for forms, no general commenting
+**Target**: Comment on any entity (Customer, Order, Supplier)
+
+**Implementation:**
+```python
+class Comment(TenantAwareModel):
+    content_type = ForeignKey(ContentType)  # Generic relation
+    object_id = UUIDField()
+    body = TextField()
+    mentions = ManyToManyField(User)  # @mentioned users
+    parent = ForeignKey('self', null=True)  # For replies
+    resolved_at = DateTimeField(null=True)  # For actionable comments
+```
+
+**Frontend:**
+- Rich text editor with @mention autocomplete
+- Comment thread component
+- Notification on mention
+
+#### F6.2: Entity Sharing & Permissions [HIGH]
+**Industry Standard**: Google Docs sharing, Notion permissions
+**Effort**: 20 hours
+
+**Current Gap**: WorkflowSharing exists but not generalized
+**Target**: Share any entity with specific users/roles
+
+**Permissions Levels:**
+- Viewer (read-only)
+- Commenter (read + comment)
+- Editor (read + write)
+- Admin (full control + share)
+
+#### F6.3: Global Keyboard Shortcuts Modal [MEDIUM]
+**Industry Standard**: VS Code, Figma shortcut overlay
+**Effort**: 8 hours
+
+**Current Gap**: Only flow editor has shortcut modal
+**Target**: App-wide discoverable shortcuts
+
+**Implementation:**
+- Press `?` to open shortcut overlay
+- Categorized by section (Navigation, Actions, Forms)
+- Searchable
+- Print/export capability
+
+### TRACK F7: Data Table Enhancements
+
+#### F7.1: Column Customization [HIGH]
+**Industry Standard**: Airtable, Notion tables
+**Effort**: 12 hours
+
+**Current Gap**: Fixed columns
+**Target**: Show/hide/reorder columns per user
+
+**Implementation:**
+- Column visibility checkboxes
+- Drag-and-drop reorder
+- Save to localStorage per table
+- Reset to default option
+
+#### F7.2: Saved Views/Filters [HIGH]
+**Industry Standard**: Salesforce list views, Airtable views
+**Effort**: 16 hours
+
+**Current Gap**: No saved filter presets
+**Target**: Name and save filter combinations
+
+**Implementation:**
+```typescript
+interface SavedView {
+  id: string;
+  name: string;  // "My Active Customers"
+  filters: FilterConfig[];
+  sort: SortConfig;
+  columns: ColumnConfig[];
+  isDefault: boolean;
+  isShared: boolean;  // Share with team
+}
+```
+
+#### F7.3: Bulk Actions [HIGH]
+**Industry Standard**: Gmail bulk select, Notion multi-select
+**Effort**: 12 hours
+
+**Current Gap**: Only FlowEditor has batch operations
+**Target**: Multi-select rows for bulk actions
+
+**Actions:**
+- Delete selected
+- Update field on selected
+- Export selected
+- Assign to user
+- Tag/label
+
+---
+
+## 🎯 PRIORITY 5: BACKEND INFRASTRUCTURE
+
+### TRACK F8: API & Integration Enhancements
+
+#### F8.1: API Versioning [CRITICAL]
+**Industry Standard**: Stripe `/v1/`, GitHub Accept header
+**Effort**: 8 hours
+
+**Current Gap**: No versioning strategy
+**Target**: URL-based versioning with deprecation policy
+
+**Implementation:**
+- Add `/api/v1/` prefix to all endpoints
+- Version header: `API-Version: 2026-04-01`
+- Deprecation warnings in response headers
+
+#### F8.2: Celery Monitoring Dashboard [HIGH]
+**Industry Standard**: Flower, custom admin views
+**Effort**: 8 hours
+
+**Current Gap**: No job visibility
+**Target**: Real-time job monitoring
+
+**Options:**
+- Deploy Flower (10-minute setup)
+- Custom Django admin dashboard
+- Integrate with Sentry for failures
+
+#### F8.3: Usage Metering & Quotas [HIGH]
+**Industry Standard**: Stripe metering, AWS usage tracking
+**Effort**: 24 hours
+
+**Current Gap**: No usage limits or billing integration
+**Target**: Track and enforce tier limits
+
+**Metered Dimensions:**
+- API calls per month
+- Workflow executions
+- Storage (GB)
+- AI chat messages
+- Users per tenant
+
+### TRACK F9: AI/ML Enhancements
+
+#### F9.1: Streaming AI Responses [CRITICAL]
+**Industry Standard**: ChatGPT, Claude streaming
+**Effort**: 16 hours
+
+**Current Gap**: No SSE/WebSocket streaming
+**Target**: Real-time token streaming
+
+**Implementation:**
+- Server-Sent Events endpoint
+- OpenAI `stream=True` parameter
+- Frontend streaming UI component
+
+#### F9.2: Vector Similarity Search (pgvector) [HIGH]
+**Industry Standard**: Pinecone, Weaviate, pgvector
+**Effort**: 16 hours
+
+**Current Gap**: Embeddings stored but only keyword search used
+**Target**: Semantic search with vector similarity
+
+**Implementation:**
+```sql
+-- Enable pgvector extension
+CREATE EXTENSION IF NOT EXISTS vector;
+
+-- Add vector column
+ALTER TABLE ai_assistant_vectormemory 
+  ADD COLUMN embedding_vec vector(1536);
+
+-- Similarity query
+SELECT * FROM ai_assistant_vectormemory
+WHERE embedding_vec <-> query_vector < 0.3
+ORDER BY embedding_vec <-> query_vector
+LIMIT 10;
+```
+
+#### F9.3: AI Output Moderation [HIGH]
+**Industry Standard**: OpenAI Moderation API
+**Effort**: 8 hours
+
+**Current Gap**: No content filtering
+**Target**: Filter harmful AI responses
+
+**Implementation:**
+- Call OpenAI Moderation API before returning response
+- Block categories: hate, violence, self-harm, sexual
+- Log flagged responses for review
+
+---
+
+## 📋 PHASE 10B SUMMARY
+
+| Track | Description | Todos | Hours | Priority |
+|-------|-------------|-------|-------|----------|
+| F1 | Frontend Design System | 4 | 60 | 🔴 P1 |
+| F2 | Universal Forms | 5 | 88 | 🔴 P1 |
+| F3 | Workflow Editor | 3 | 76 | 🔴 P1 |
+| F4 | Workflow Execution | 4 | 76 | 🔴 P1 |
+| F5 | Workflow Monitoring | 3 | 64 | 🟠 P2 |
+| F6 | Collaboration | 3 | 52 | 🔴 P1 |
+| F7 | Data Tables | 3 | 40 | 🟠 P2 |
+| F8 | Backend Infrastructure | 3 | 40 | 🟠 P2 |
+| F9 | AI/ML | 3 | 40 | 🟠 P2 |
+
+**TOTAL**: 31 major todos, ~536 hours (12-16 weeks with 2 developers)
+
+---
+
+### Success Metrics (Feature Enhancements)
+
+| Metric | Current | Target | Industry Benchmark |
+|--------|---------|--------|-------------------|
+| Design System Score | 6/10 | 9/10 | Radix UI, Headless UI |
+| Form Builder Features | 7/10 | 9/10 | Typeform, JotForm |
+| Workflow Editor Features | 7/10 | 9/10 | Camunda, n8n |
+| Collaboration Score | 4/10 | 8/10 | Notion, Figma |
+| UX Feature Completeness | 6/10 | 9/10 | Retool, Monday.com |
+| AI Integration Depth | 6/10 | 9/10 | ChatGPT, Jasper |
+
+---
+
+### Dependency Graph (Phase 10B)
+
+```
+F1 (Design System) ─────────────────────────────────┐
+                                                    ▼
+F2 (Forms) ──────┬──────────────────────────► F6 (Collaboration)
+                 │                                  │
+F3 (Editor) ─────┤                                  │
+                 │                                  │
+F4 (Execution) ──┴─────► F5 (Monitoring) ◄──────────┘
+                                 │
+F8 (Backend) ────────────────────┤
+                                 │
+F9 (AI) ─────────────────────────┘
+```
+
+### Implementation Order (Recommended)
+
+**Sprint 1-2 (Weeks 1-4)**: Foundation
+- F1.4 Design Token System
+- F2.1 Repeatable Field Groups
+- F4.2 Retry Strategy & DLQ
+- F8.1 API Versioning
+
+**Sprint 3-4 (Weeks 5-8)**: Core Features
+- F2.2 Conditional Step Branching
+- F3.1 Real-Time Collaboration
+- F4.1 Parallel Execution Backend
+- F6.1 Entity Comments
+
+**Sprint 5-6 (Weeks 9-12)**: Enhancement
+- F1.1 Headless Component Library
+- F5.1 My Tasks Dashboard
+- F7.1-F7.3 Data Table Enhancements
+- F9.1 Streaming AI Responses
+
+**Sprint 7-8 (Weeks 13-16)**: Polish
+- F1.2 Compound Components
+- F3.2 Version Diff View
+- F5.2 SLA Framework
+- F9.2 Vector Similarity Search
+
+---
+
+# 🎯 PHASE 10: STRATEGIC ROADMAP & DELIVERABLES
+
+## Executive Summary
+
+**Project**: ProjectMeats Phase 10 - DRY/Canonical Architecture Standardization  
+**Duration**: 20 weeks (5 months)  
+**Total Effort**: ~1,160 hours (~29 developer-weeks)  
+**ROI**: +50% developer velocity, -70% production incidents, +40% user engagement  
+
+### Business Impact
+
+| Metric | Current State | Target State | Impact |
+|--------|---------------|--------------|--------|
+| **Mobile Usability** | Broken (<768px) | Full responsive | +50% addressable market |
+| **Search Relevance** | Poor (no fuzzy match) | Top 3 relevant 90% | +35% user engagement |
+| **Production Incidents** | ~8/month | <2/month | -75% support burden |
+| **Developer Velocity** | 6 features/sprint | 10 features/sprint | +67% delivery speed |
+| **Form Abandonment** | ~30% estimated | <10% | +20% conversion |
+| **Workflow Adoption** | 40% (editor crashes) | 80%+ | +100% automation usage |
+
+### Strategic Priorities (Ranked by ROI × Urgency)
+
+1. **P0 CRITICAL** (Weeks 1-6): Security + Mobile + Stability
+2. **P1 HIGH** (Weeks 7-12): Technical Debt + DRY Architecture
+3. **P2 MEDIUM** (Weeks 13-16): Feature Enhancements
+4. **P3 POLISH** (Weeks 17-20): Advanced Features + Documentation
+
+---
+
+## 📊 COMPREHENSIVE RISK REGISTER
+
+### Security Risks (MUST FIX WEEK 0-1)
+
+| ID | Risk | Probability | Impact | Mitigation | Owner |
+|----|------|-------------|--------|------------|-------|
+| **SEC-1** | Cross-Tenant Data Exposure (17 ViewSets missing tenant filters) | 70% | CRITICAL | Add `filter(tenant=request.tenant)` to all `get_queryset()` | Backend |
+| **SEC-2** | Missing Permission Classes (4 ViewSets) | 85% | CRITICAL | Add `permission_classes = [IsAuthenticated]` | Backend |
+| **SEC-3** | NotificationsContext bypasses JWT (9 raw fetch calls) | 95% | HIGH | Create notificationsService.ts using apiClient | Frontend |
+| **SEC-4** | Multi-Tenant Isolation Tests SKIPPED in CI | 100% | CRITICAL | Enable 8 stub tests in `test_isolation.py` | Backend |
+
+### Technical Debt Risks
+
+| ID | Risk | Probability | Impact | Mitigation | Owner |
+|----|------|-------------|--------|------------|-------|
+| **TD-1** | Form Duplication Refactor Regression (2,640 LOC) | 60% | HIGH | Write E2E tests for each mode BEFORE refactoring | Frontend |
+| **TD-2** | View → Service Extraction API Breaks | 55% | HIGH | Document API contracts first; gradual rollout with feature flag | Backend |
+| **TD-3** | Timestamp Field Migration Chaos (3 conventions) | 65% | MEDIUM | Phase migrations: add → read → remove over 3 weeks | Backend |
+| **TD-4** | SearchableSelect Consolidation Regression | 40% | MEDIUM | Create comprehensive test matrix for all variants | Frontend |
+| **TD-5** | Type Safety Bikeshedding (184 `any` types) | 45% | LOW | Batch by FILE not by type; target 80% not 100% | Frontend |
+
+### Execution Risks
+
+| ID | Risk | Probability | Impact | Mitigation | Owner |
+|----|------|-------------|--------|------------|-------|
+| **EX-1** | Refactoring without tests (10.9% frontend coverage) | HIGH | CRITICAL | Write tests BEFORE refactoring any component | Both |
+| **EX-2** | Mobile CSS breaks desktop (238 files affected) | 50% | MEDIUM | Test on REAL devices, not just Chrome DevTools | Frontend |
+| **EX-3** | Feature creep vs core stability | HIGH | HIGH | Strict backlog prioritization; defer P3 if needed | PM |
+| **EX-4** | Workflow Editor Crashes (8,700 untested lines) | MEDIUM | HIGH | Add E2E tests before any FlowEditor changes | Frontend |
+
+---
+
+## 📅 SPRINT-BY-SPRINT TIMELINE
+
+### 🔴 WEEK 0: SECURITY BLOCKERS (MANDATORY BEFORE PHASE 10)
+
+**Duration**: 1 day (6 hours)  
+**Status**: BLOCKING - Cannot proceed until complete
+
+| Task | Hours | Deliverable | Acceptance Criteria |
+|------|-------|-------------|---------------------|
+| Fix 17 ViewSets missing tenant filters | 3 | All `get_queryset()` methods filter by `tenant=request.tenant` | No cross-tenant data in any API response |
+| Add permission_classes to 4 ViewSets | 1 | AIFeedbackViewSet, BugReportViewSet, TenantWorkflowViewSet, UserNotificationViewSet have `[IsAuthenticated]` | Unauthenticated requests return 401 |
+| Enable multi-tenant isolation tests | 2 | Remove `@skip` from `test_isolation.py`, implement 8 stub tests | Tests pass in CI pipeline |
+
+**Exit Criteria**: All security tests pass; no unauthenticated API access possible
+
+---
+
+### 🔴 SPRINT 1 (Weeks 1-2): FOUNDATION SECURITY & MOBILE
+
+**Theme**: "Make it safe and usable on phones"  
+**Effort**: 80 hours
+
+#### Deliverables
+
+| ID | Deliverable | Hours | Expected Result |
+|----|-------------|-------|-----------------|
+| S1.1 | NotificationsService Migration | 8 | All 9 fetch() calls replaced with apiClient; JWT refresh works |
+| S1.2 | Type-check CI Gate | 4 | `npm run type-check` required on all PRs; 0 errors to merge |
+| S1.3 | Cockpit Mobile Responsive | 16 | Dashboard usable <768px; touch targets ≥44px; no horizontal scroll |
+| S1.4 | CRUD Forms Mobile | 20 | Orders, Inquiries, Customers forms work on iPhone SE (375px) |
+| S1.5 | API Error Standardization | 12 | All errors use ErrorResponse interface; 400 vs 500 vs 503 distinct |
+| S1.6 | Graceful AI Degradation | 8 | Missing OPENAI_API_KEY shows friendly message, not 500 |
+| S1.7 | Graceful Email Degradation | 12 | Email errors have structured codes; reconnect CTA for auth failures |
+
+#### Acceptance Criteria
+
+- [ ] Zero unauthenticated API access possible
+- [ ] Mobile users can create orders from field (iPhone SE 375px)
+- [ ] TypeScript errors block PR merge
+- [ ] Missing OpenAI key shows "AI not configured" message, not crash
+- [ ] Email sync errors show actionable guidance
+
+#### Testing Requirements
+
+- [ ] Add Playwright tests for mobile viewport (375px, 768px)
+- [ ] Add API contract tests for error responses
+- [ ] Add NotificationsContext unit tests
+
+---
+
+### 🟠 SPRINT 2 (Weeks 3-4): CORE TECHNICAL DEBT
+
+**Theme**: "Consolidate duplicate code"  
+**Effort**: 88 hours
+
+#### Deliverables
+
+| ID | Deliverable | Hours | Expected Result |
+|----|-------------|-------|-----------------|
+| S2.1 | SearchableSelect Consolidation | 24 | 4 implementations → 1 component with variant prop |
+| S2.2 | Atomic Design: 6 Core Atoms | 16 | Button, Input, Badge, Tag, Avatar, Spinner in component library |
+| S2.3 | FormField Registry Foundation | 24 | Type-safe field registry with JSON Schema validation |
+| S2.4 | TenantAwareModel Migration (8 models) | 16 | FormSubmission, ChatMessage, etc. use TenantAwareModel |
+| S2.5 | Timestamp Standardization (Phase 1) | 8 | Add `created_at`/`updated_at` aliases to all models |
+
+#### Acceptance Criteria
+
+- [ ] SearchableSelect variants: local, API, static, multi-value all work
+- [ ] 6 atoms have Storybook stories
+- [ ] FormField registry generates fields from JSON Schema
+- [ ] All 8 models inherit TenantAwareModel
+- [ ] No Django model uses `created_on` or `date_time_stamp` directly
+
+#### Testing Requirements
+
+- [ ] Unit tests for SearchableSelect all variants
+- [ ] Storybook visual regression tests for atoms
+- [ ] Integration tests for FormField registry
+
+---
+
+### 🟠 SPRINT 3-4 (Weeks 5-8): DRY ARCHITECTURE
+
+**Theme**: "Single source of truth for everything"  
+**Effort**: 160 hours
+
+#### Deliverables
+
+| ID | Deliverable | Hours | Expected Result |
+|----|-------------|-------|-----------------|
+| S3.1 | Inquiry Form Consolidation | 32 | 4 modals (2,640 LOC) → 1 InquiryForm with mode prop |
+| S3.2 | Service Layer Extraction (workflows) | 40 | 6 transaction.atomic blocks → workflow_service.py |
+| S3.3 | Service Layer Extraction (AI) | 24 | ChatBotAPIViewSet business logic → ai_service.py |
+| S3.4 | Mega-Component Decomposition | 32 | InquiryCreateModal (859→300 LOC), FormBuilder (457→200 LOC) |
+| S3.5 | FlowEditor Node Registry | 16 | Hardcoded prefix routing → NodeRegistry with type-safe registration |
+| S3.6 | API Client Standardization | 16 | All frontend API calls use apiClient; zero raw fetch/axios |
+
+#### Acceptance Criteria
+
+- [ ] InquiryForm supports modes: create, edit, clone, template
+- [ ] workflow_service.py handles all workflow business logic
+- [ ] ai_service.py handles all AI business logic
+- [ ] InquiryCreateModal < 400 LOC
+- [ ] NodeRegistry supports dynamic node type registration
+- [ ] `grep -r "fetch\(" frontend/src/` returns 0 results (except apiClient)
+
+#### Testing Requirements
+
+- [ ] E2E tests for Inquiry create/edit/clone/template workflows
+- [ ] Unit tests for workflow_service.py
+- [ ] Unit tests for ai_service.py
+- [ ] Integration tests for NodeRegistry
+
+---
+
+### 🟡 SPRINT 5-6 (Weeks 9-12): FEATURE ENHANCEMENTS
+
+**Theme**: "Match industry leaders"  
+**Effort**: 144 hours
+
+#### Deliverables
+
+| ID | Deliverable | Hours | Expected Result |
+|----|-------------|-------|-----------------|
+| S5.1 | Repeatable Field Groups | 32 | FieldArray component with add/remove/reorder |
+| S5.2 | Conditional Step Branching | 24 | Branch node type with condition editor |
+| S5.3 | Parallel Workflow Execution | 32 | Backend executes ParallelPathNode branches concurrently |
+| S5.4 | Entity Comments System | 24 | Comments on any entity with @mentions |
+| S5.5 | Search Ranking Algorithm | 16 | Fuzzy match + recency boost + relevance scoring |
+| S5.6 | Workflow Retry & DLQ | 16 | Failed steps retry 3x; dead letter queue for failures |
+
+#### Acceptance Criteria
+
+- [ ] Form builder can create repeatable field groups
+- [ ] Workflow editor supports if/else branching
+- [ ] Parallel workflow paths execute in separate Celery tasks
+- [ ] Entity detail pages have comment thread
+- [ ] Search returns relevant results for typos ("bef" → "beef")
+- [ ] Failed workflow steps retry automatically; failures visible in queue
+
+#### Testing Requirements
+
+- [ ] Unit tests for FieldArray validation
+- [ ] E2E tests for conditional workflow execution
+- [ ] Load tests for parallel execution (10 concurrent branches)
+- [ ] Integration tests for comment system with notifications
+
+---
+
+### 🟢 SPRINT 7-8 (Weeks 13-16): ADVANCED FEATURES
+
+**Theme**: "Delight power users"  
+**Effort**: 128 hours
+
+#### Deliverables
+
+| ID | Deliverable | Hours | Expected Result |
+|----|-------------|-------|-----------------|
+| S7.1 | Real-Time Workflow Collaboration | 40 | Multi-user editing with operational transforms |
+| S7.2 | Version Diff View | 24 | Side-by-side comparison of workflow versions |
+| S7.3 | My Tasks Dashboard | 24 | Unified view of assigned tasks across all workflows |
+| S7.4 | Streaming AI Responses | 16 | SSE-based AI chat with typing indicators |
+| S7.5 | Data Table Enhancements | 24 | Column resize, custom views, bulk actions |
+
+#### Acceptance Criteria
+
+- [ ] 2 users can edit same workflow with conflict resolution
+- [ ] Version history shows visual diff of changes
+- [ ] Task dashboard shows SLA warnings and filters
+- [ ] AI responses stream character-by-character
+- [ ] Data tables support column resize and saved views
+
+#### Testing Requirements
+
+- [ ] E2E tests for multi-user editing scenarios
+- [ ] Visual regression tests for diff view
+- [ ] Performance tests for streaming (1000 tokens/sec)
+
+---
+
+### 🔵 SPRINT 9-10 (Weeks 17-20): POLISH & DOCUMENTATION
+
+**Theme**: "Production-ready excellence"  
+**Effort**: 96 hours
+
+#### Deliverables
+
+| ID | Deliverable | Hours | Expected Result |
+|----|-------------|-------|-----------------|
+| S9.1 | Storybook Coverage (1%→30%) | 32 | 80+ component stories with variants |
+| S9.2 | Incident Response Runbook | 8 | Decision trees for database, email, auth, deployment failures |
+| S9.3 | Workflow Engine Deep Dive Doc | 8 | Architecture, action executor patterns, extension guide |
+| S9.4 | Frontend Development Guide | 8 | Component patterns, data fetching, adding new pages |
+| S9.5 | First Feature Tutorial | 4 | End-to-end guide: model → API → frontend → deploy |
+| S9.6 | Vector Similarity Search | 16 | pgvector embeddings used for semantic search |
+| S9.7 | API Versioning (v2 headers) | 12 | Version negotiation via Accept-Version header |
+| S9.8 | Load Testing (100 tenants) | 8 | Locust tests verify <500ms P95 with 100 concurrent tenants |
+
+#### Acceptance Criteria
+
+- [ ] Storybook has 80+ stories covering all major components
+- [ ] New developers can debug production issues using runbook
+- [ ] Workflow extension guide enables custom action development
+- [ ] Tutorial takes new developer from 0 → deployed feature
+- [ ] Semantic search returns contextually relevant results
+- [ ] API supports v1 and v2 simultaneously
+- [ ] System handles 100 tenants with <500ms P95 response time
+
+---
+
+## 📈 SUCCESS METRICS DASHBOARD
+
+### Technical Health Metrics
+
+| Metric | Current | Sprint 2 | Sprint 4 | Sprint 8 | Target |
+|--------|---------|----------|----------|----------|--------|
+| TypeScript `any` types | 184 | 120 | 60 | <20 | <20 |
+| Frontend test coverage | 10.9% | 20% | 35% | 50% | 50% |
+| Backend test coverage | 90% | 90% | 92% | 95% | 95% |
+| Storybook coverage | 1% | 10% | 20% | 30% | 30% |
+| Code duplication (LOC) | 6,000+ | 4,000 | 2,000 | <1,000 | <1,000 |
+| API contract violations | Unknown | 0 | 0 | 0 | 0 |
+
+### User Experience Metrics
+
+| Metric | Current | Sprint 2 | Sprint 4 | Sprint 8 | Target |
+|--------|---------|----------|----------|----------|--------|
+| Mobile usability score | 2/10 | 6/10 | 8/10 | 9/10 | 9/10 |
+| Search relevance (top 3) | 40% | 60% | 80% | 90% | 90% |
+| Form abandonment rate | ~30% | 20% | 15% | <10% | <10% |
+| Workflow editor crashes | ~5/week | 2/week | <1/week | 0 | 0 |
+| P0 incidents/month | ~8 | 4 | 2 | <2 | <2 |
+
+### Industry Benchmark Scores
+
+| Dimension | Current | Target | Benchmark |
+|-----------|---------|--------|-----------|
+| Design System | 6/10 | 9/10 | Radix UI |
+| Form Builder | 7/10 | 9/10 | Typeform |
+| Workflow Editor | 5/10 | 9/10 | Camunda, n8n |
+| Collaboration | 4/10 | 8/10 | Notion, Figma |
+| AI Integration | 6/10 | 9/10 | ChatGPT |
+
+---
+
+## 🧪 TESTING STRATEGY FOR REFACTORING
+
+### Pre-Refactoring Requirements
+
+**CRITICAL RULE**: Never refactor code with <30% test coverage. Write tests FIRST.
+
+| Component | Current Coverage | Required Before Refactor | Test Type |
+|-----------|-----------------|--------------------------|-----------|
+| InquiryCreateModal | 0% | 70% | E2E + Unit |
+| SearchableSelect | 0% | 80% | Unit + Visual |
+| UnifiedFlowEditor | 0% | 50% | E2E + Integration |
+| NotificationsContext | 0% | 80% | Unit + Integration |
+| workflow_service.py | N/A (new) | 90% | Unit |
+
+### Test Pyramid for Phase 10
+
+```
+                    ┌────────────────┐
+                    │   E2E Tests    │  (10%) - Critical user journeys
+                    │   Playwright   │  - Mobile viewports
+                    └───────┬────────┘  - Cross-browser
+                            │
+              ┌─────────────┴─────────────┐
+              │    Integration Tests      │  (30%) - API contracts
+              │    Jest + Supertest       │  - Service interactions
+              └─────────────┬─────────────┘  - Database operations
+                            │
+        ┌───────────────────┴───────────────────┐
+        │           Unit Tests                  │  (60%) - Components
+        │       Jest + Testing Library          │  - Services
+        └───────────────────────────────────────┘  - Utilities
+```
+
+### Critical Path E2E Tests (Must Add)
+
+1. **Workflow Execution Flow**
+   - Create workflow → Add nodes → Execute → Verify completion
+   - Test parallel execution with 3 branches
+   - Test conditional branching with true/false paths
+
+2. **Form Submission Flow**
+   - Create form → Fill fields → Submit → Verify data
+   - Test repeatable fields (add/remove/reorder)
+   - Test conditional field visibility
+
+3. **Mobile User Journeys**
+   - Login on iPhone SE → Navigate cockpit → Create order
+   - Search for customer → View details → Add note
+   - Check tasks → Complete workflow step
+
+---
+
+## 📚 DOCUMENTATION REQUIREMENTS
+
+### Critical Documentation Gaps (Must Create)
+
+| Document | Priority | Hours | Content |
+|----------|----------|-------|---------|
+| `docs/operations/INCIDENT_RESPONSE.md` | P0 | 4 | Decision trees for database, email, auth, deployment failures |
+| `docs/operations/TROUBLESHOOTING.md` | P0 | 3 | Common issues with diagnostic steps |
+| `docs/getting-started/YOUR_FIRST_FEATURE.md` | P0 | 2 | Model → API → Frontend → Deploy tutorial |
+| `docs/backend/WORKFLOW_ENGINE_GUIDE.md` | P1 | 4 | Architecture, action executors, extension patterns |
+| `docs/frontend/DEVELOPMENT_GUIDE.md` | P1 | 3 | Component patterns, data fetching, testing |
+| `docs/operations/BACKUP_RECOVERY.md` | P1 | 2 | PostgreSQL backup, disaster recovery |
+
+### Documentation Quality Scorecard
+
+| Criteria | Current | Target |
+|----------|---------|--------|
+| Getting Started | 7/10 | 9/10 |
+| Architecture | 8/10 | 9/10 |
+| API Reference | 5/10 | 8/10 |
+| Operations/Runbooks | 2/10 | 8/10 |
+| Code Documentation | 5/10 | 7/10 |
+| Feature Development | 4/10 | 8/10 |
+| **Overall** | **4.4/10** | **8/10** |
+
+---
+
+## 🔄 USER JOURNEY IMPROVEMENTS
+
+### Priority User Journey Fixes
+
+| Journey | Current Friction | Fix | Sprint |
+|---------|------------------|-----|--------|
+| **New Tenant Onboarding** | 4 separate config pages | Create setup wizard with progress indicator | S5 |
+| **Inquiry Creation** | No draft/autosave | Add localStorage autosave every 30s | S2 |
+| **Fulfillment Management** | No batch operations | Add bulk status update | S5 |
+| **WorkForms Editor** | Steep learning curve | Add template library with one-click activation | S7 |
+| **Task Delegation** | Feature not prominent | Add delegate button to task list | S5 |
+| **Global Search** | Only in Cockpit ⌘K | Extend SmartSearch to all entities | S5 |
+
+### Expected User Impact
+
+| Improvement | User Impact | Metric |
+|-------------|-------------|--------|
+| Autosave forms | -70% form abandonment | Conversion rate |
+| Setup wizard | -50% onboarding time | Time to first value |
+| Batch operations | -50% repetitive task time | Task completion time |
+| Template library | -70% editor confusion | Workflow creation rate |
+| Task delegation | +30% delegation usage | Feature adoption |
+| Global search | -40% time to find records | Search efficiency |
+
+---
+
+## 🎯 PHASE 10 DELIVERABLES SUMMARY
+
+### Total Scope
+
+| Category | Todos | Hours | Sprints |
+|----------|-------|-------|---------|
+| Security Blockers | 6 | 18 | Week 0-1 |
+| Technical Debt | 29 | 267 | S1-S4 |
+| Feature Enhancements | 31 | 536 | S5-S8 |
+| Canonical Methodologies (10C) | 18 | 260 | Throughout |
+| Documentation | 6 | 18 | S9-S10 |
+| Testing Infrastructure | 8 | 64 | Throughout |
+| **TOTAL** | **98** | **~1,163** | **20 weeks** |
+
+### Milestone Checkpoints
+
+| Milestone | Week | Gate Criteria |
+|-----------|------|---------------|
+| **M1: Security Complete** | 1 | Zero unauthenticated access; tenant isolation verified |
+| **M2: Mobile Ready** | 4 | Cockpit + CRUD forms work on iPhone SE |
+| **M3: DRY Foundation** | 8 | <2,000 LOC duplication; all services extracted |
+| **M4: Feature Parity** | 12 | Industry benchmark scores ≥8/10 |
+| **M5: Production Ready** | 16 | <2 P0 incidents/month; 50% test coverage |
+| **M6: Excellence** | 20 | Documentation score ≥8/10; load tested for 100 tenants |
+
+---
+
+## 🧱 PHASE 10C — Canonical Platform Methodologies (Additive Enhancements)
+
+This section incorporates additional DRY/canonical standards for **(1) frontend/UI**, **(2) universal forms**, and **(3) workforms/workflows (edit + execute + track)**, plus platform-wide methodologies (contracts, mobile readiness, AI).
+
+### 10C.0 Recommended Implementation Order
+
+1) **Contract-first OpenAPI + type generation** (prevents drift everywhere)
+2) **Unified Forms manifest + density + permissions overlay** (biggest frontend DRY multiplier)
+3) **Workflow tracking primitives** (assignments + event store + versioning)
+4) **Reliability primitives** (idempotency, soft delete, export)
+5) **Tenant branding tokens** (makes UI reuse truly multi-tenant)
+6) **Mobile wrapper strategy** (WORA + push notification readiness)
+7) **AI reasoning engine** (RAG + tool use + prompt registry + doc understanding)
+
+### 10C.1 Contract-First API + Type Generation (SSOT)
+
+**Goal**: one source of truth for API shape → backend validation + docs + frontend types/hook usage.
+
+**Methodology**:
+- **Backend**: standardize OpenAPI generation (DRF Spectacular style) and treat it as the contract.
+- **Frontend**: generate TypeScript types/clients from OpenAPI (e.g., Orval-style approach) and ban hand-rolled request/response types for those endpoints.
+
+**Acceptance Criteria**:
+- OpenAPI spec is generated in CI.
+- Frontend uses generated types for critical domains (inquiries, orders, workflows, workforms).
+- Contract drift becomes a CI failure (not a production bug).
+
+### 10C.2 Unified Forms: Mode + Context + Sections (Simplified/Basic/Detailed)
+
+**Goal**: one form definition renders correctly across:
+- container: modal / inline / full-page
+- mode: create / edit / view(read-only)
+- density: simplified(key fields) / basic(common fields) / detailed(all)
+
+**Methodology**:
+- **Field manifest / schema** defines field importance and section membership.
+- **Container/Presenter split**: smart controller handles data + mutations; presentational form renders sections/fields.
+- **Permission overlay**: per field/section `visible_to` + `editable_by` based on tenant role.
+
+**Acceptance Criteria**:
+- Any entity form can render in 3 densities without duplicating JSX.
+- View-mode is truly read-only (no hidden mutations, no onChange side effects).
+
+### 10C.3 Workforms/Workflows: Execution + Tracking as First-Class
+
+**Goal**: enterprise-grade tracking for:
+- pending actions (current user vs others)
+- role/user assignment
+- step transitions
+- triggers/outputs/conditions
+- auditability and replay
+
+**Canonical additions**:
+1) **Inbox/Outbox pattern** via assignment/task records (blocking vs non-blocking tasks)
+2) **Event store** (FlowEvent / ExecutionEvent) capturing transitions with snapshots
+3) **Rule engine** for conditions/triggers (json-logic style rules mirrored backend/frontend)
+4) **Versioned blueprint**: submissions always reference a definition version
+
+**Acceptance Criteria**:
+- “Pending for X” view works without ad-hoc logic.
+- Every step transition produces an immutable event record.
+- A workflow instance can be reconstructed for audits.
+
+### 10C.4 Reliability Primitives
+
+- **Idempotency keys** for all state-changing workflow/form submissions (prevents double-click/double-submit).
+- **Soft deletes** for critical definitions/instances + **tenant export** (data portability/compliance).
+
+### 10C.5 Tenant Branding via Design Tokens
+
+**Goal**: one component codebase, tenant-specific branding.
+
+**Methodology**:
+- Store tenant theme tokens in tenant config.
+- Hydrate CSS variables at runtime (no hardcoded colors).
+
+### 10C.6 Mobile Readiness (WORA)
+
+**Goal**: “write once, render anywhere” for web + mobile browser + (future) iOS/Android wrapper.
+
+**Methodology**:
+- Mobile-first UI for core journeys.
+- Prefer a wrapper strategy (Capacitor-style) for fastest reuse.
+- Add push notifications for workflow assignments (FCM) when ready.
+
+### 10C.7 AI Ahead of Industry Leaders (Contextual Reasoning Engine)
+
+**Goal**: AI as a functional layer (not a chatbot): schema-aware suggestions + tool use + doc understanding.
+
+**Methodology**:
+- **RAG + tool use**: AI reads current schema/blueprint and proposes valid values/actions.
+- **Prompt registry**: prompts are versioned data (not hardcoded strings) with tenant overrides.
+- **Doc understanding pipeline**: attachments → extraction → schema mapping → “confirm suggested fields”.
+
+**Acceptance Criteria**:
+- AI suggestions can be applied as real UI actions (button-driven mutations).
+- Missing AI secrets degrades gracefully (no 500s).
+
+---
+
+**Master Plan Version**: 3.1.0  
+**Strategic Roadmap Added**: 2026-04-13  
+**Phase 10C Added**: 2026-04-13  
 **Maintained By**: Development Team + AI Assistants  
-**Next Review**: March 15, 2026
+**Next Review**: May 15, 2026  
+**Phase 10 Estimated Completion**: August 2026
 
 ---

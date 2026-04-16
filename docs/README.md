@@ -60,21 +60,14 @@ Major enhancement to WorkForms editor with 6-week, 9-phase implementation:
 
 ---
 
-## 📋 Source of Truth Documents
+## 📋 Canonical status & evidence
 
-These are the **authoritative** documents for ProjectMeats. When in doubt, these are correct:
+The canonical source of truth for **current** priorities, status, and shipped evidence is:
 
-| Topic | Source of Truth | Last Updated |
-|-------|-----------------|--------------|
-| **What's New** | [What's New](WHATS_NEW.md) 🆕 | 2026-02-02 |
-| **Wave 2 Completion** | [Wave 2 Explained](implementation-history/WAVE_2_COMPLETION_EXPLAINED.md) 🆕 | 2026-02-02 |
-| **Overall v2.0 Plan** | [Master Plan v3.1](plans/PROJECTMEATS_V2_MASTER_PLAN.md) | 2026-02-01 |
-| **Current Progress** | [Progress Tracker](plans/PROGRESS_TRACKER.md) | 2026-02-01 |
-| **CI/CD Pipeline** | [Roadmap](ROADMAP.md) + [Golden Pipeline](reference/GOLDEN_PIPELINE.md) | 2026-01-04 |
-| **Secrets & Config** | [Configuration & Secrets](reference/CONFIGURATION_AND_SECRETS.md) | 2026-01-04 |
-| **Multi-Tenancy** | [Architecture](architecture/ARCHITECTURE.md) | Shared-schema, NOT django-tenants |
-| **Frontend Styling** | [Design System](guides/DESIGN_SYSTEM.md) | 2026-01-31 |
-| **Deployment Process** | [Development Workflow](guides/DEVELOPMENT_WORKFLOW.md) | 2026-01-04 |
+- **`MASTER_PLAN.md`** (repo root) — canonical plan + current truth snapshot
+- **`.github/MASTER_PLAN.md`** — append-only shipped PR log
+
+Everything under `docs/` is supporting reference/historical context. If anything here conflicts with `MASTER_PLAN.md`, treat it as outdated.
 
 ### ⚠️ Superseded Plans (Archived)
 
@@ -95,9 +88,9 @@ These documents have been **archived** to `archive/superseded-plans/`:
 docs/
 ├── README.md                    ← You are here (navigation hub)
 │
-├── plans/                       # 🎯 Active planning documents
-│   ├── PROJECTMEATS_V2_MASTER_PLAN.md  # THE source of truth for v2.0
-│   └── PROGRESS_TRACKER.md      # Living progress document
+├── plans/                       # Planning documents (may be historical)
+│   ├── PROJECTMEATS_V2_MASTER_PLAN.md  # Historical v2 plan (see repo-root MASTER_PLAN.md for current truth)
+│   └── PROGRESS_TRACKER.md      # Historical progress tracker
 │
 ├── getting-started/             # Onboarding & setup
 │   ├── README.md                # Index
@@ -116,7 +109,7 @@ docs/
 │
 ├── reference/                   # Technical reference
 │   ├── README.md                # Index
-│   ├── CONFIGURATION_AND_SECRETS.md  # Env var source of truth
+│   ├── CONFIGURATION_AND_SECRETS.md  # Env var reference (see config/env.manifest.json for canonical mappings)
 │   └── *.md                     # APIs, changelog, etc.
 │
 ├── features/                    # Feature documentation
@@ -220,7 +213,7 @@ docs/
 ## 🆘 Need Help?
 
 1. **Can't find a document?** Check [implementation-history/](implementation-history/) for completed features
-2. **Conflicting information?** The [Master Plan](plans/PROJECTMEATS_V2_MASTER_PLAN.md) is the source of truth
+2. **Conflicting information?** See repo-root **`MASTER_PLAN.md`** (canonical) and `.github/MASTER_PLAN.md` (shipped PR log)
 3. **Outdated docs?** Flag them for archive in a PR
 
 ---

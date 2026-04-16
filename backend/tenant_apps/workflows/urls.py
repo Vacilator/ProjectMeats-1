@@ -21,6 +21,7 @@ from .views import (
     FieldTemplatesAPIView,
     # Form Submission API Views
     FormSubmissionViewSet, AvailableFormsViewSet, QuickActionsAPIView,
+    TenantWorkFormExecutionViewSet,
     # Entity Options API Views
     EntityOptionsAPIView, QuickCreateEntityAPIView,
     # Form Import/Export API Views
@@ -70,6 +71,7 @@ router.register(r'execution-logs', WorkflowExecutionLogViewSet, basename='workfl
 
 # Form Submissions
 router.register(r'form-submissions', FormSubmissionViewSet, basename='form-submission')
+router.register(r'workform-executions', TenantWorkFormExecutionViewSet, basename='workform-execution')
 router.register(r'available-forms', AvailableFormsViewSet, basename='available-form')
 
 # Wave 3: Step Assignments and Notifications

@@ -20,35 +20,61 @@ from apps.core.utils.health import check_all_services
 @require_http_methods(["GET"])
 @csrf_exempt
 def health_check(request):
+    """Basic health check endpoint.
+
+    Invariants:
+    - Must be safe to call even when optional external services are not configured.
+    - Must be stable and machine-readable for deploy monitors.
+    - Must remain backward compatible (existing keys preserved).
     """
-    Basic health check endpoint.
-    Returns application status and basic system info.
-    """
+
+    db_error = None
     try:
-        # Test database connection
         with connection.cursor() as cursor:
             cursor.execute("SELECT 1")
-
         db_status = "healthy"
     except Exception as e:
-        db_status = f"unhealthy: {str(e)}"
+        db_status = "unhealthy"
+        db_error = {
+            "code": "db_connection_failed",
+            "type": e.__class__.__name__,
+            # Avoid leaking sensitive connection details; cap message length.
+            "message": (str(e) or "")[0:200],
+        }
 
-    services = check_all_services()
+    try:
+        services = check_all_services()
+    except Exception as e:
+        services = {
+            "summary": {"total_services": 0, "available": 0, "configured": 0},
+            "error": {
+                "code": "service_checks_failed",
+                "type": e.__class__.__name__,
+                "message": (str(e) or "")[0:200],
+            },
+        }
+
     features = {
-        'ai': bool(services.get('openai', {}).get('api_key_set')),
-        'outlook_oauth': bool(services.get('microsoft_oauth', {}).get('configured')),
-        'email_send': bool(services.get('sendgrid', {}).get('configured')),
-        'redis': bool(services.get('redis', {}).get('available')),
-        'rag': bool(services.get('pgvector', {}).get('available')),
-        'sentry': bool(services.get('sentry', {}).get('dsn_set')),
+        "ai": bool(services.get("openai", {}).get("api_key_set")),
+        "outlook_oauth": bool(services.get("microsoft_oauth", {}).get("configured")),
+        "email_send": bool(services.get("sendgrid", {}).get("configured")),
+        "redis": bool(services.get("redis", {}).get("available")),
+        "rag": bool(services.get("pgvector", {}).get("available")),
+        "sentry": bool(services.get("sentry", {}).get("dsn_set")),
     }
+
+    service_summary = services.get("summary", {}) if isinstance(services, dict) else {}
 
     return JsonResponse(
         {
             "status": "healthy" if db_status == "healthy" else "degraded",
             "timestamp": timezone.now().isoformat(),
             "version": "1.0.0",
-            "database": db_status,
+            # Backward-compatible field
+            "database": db_status if db_error is None else f"unhealthy: {db_error.get('type')}",
+            # New structured fields
+            "database_status": {"status": db_status, "error": db_error},
+            "service_summary": service_summary,
             "debug": settings.DEBUG,
             "features": features,
             "services": services,

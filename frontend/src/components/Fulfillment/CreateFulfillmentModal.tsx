@@ -10,6 +10,9 @@
  * - Estimated delivery date
  */
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { z } from 'zod';
+
+import { useZodForm } from '@/hooks/useZodForm';
 import styled from 'styled-components';
 import { apiClient } from '../../services/apiService';
 import { 
@@ -54,6 +57,30 @@ interface FulfillmentLineItem {
 }
 
 // ============================================================================
+// FORM (RHF + Zod)
+// ============================================================================
+
+const createFulfillmentFormSchema = z.object({
+  shippingType: z.enum(['tenant', 'customer_pickup', 'supplier_delivering']),
+  supplierId: z.string().trim().min(1, 'Please select a supplier'),
+  carrierId: z.string().optional().default(''),
+  trackingNumbers: z.string().optional().default(''),
+  estimatedDelivery: z.string().optional().default(''),
+  notes: z.string().optional().default(''),
+});
+
+type CreateFulfillmentFormValues = z.infer<typeof createFulfillmentFormSchema>;
+
+const createFulfillmentFormDefaults: CreateFulfillmentFormValues = {
+  shippingType: 'tenant',
+  supplierId: '',
+  carrierId: '',
+  trackingNumbers: '',
+  estimatedDelivery: '',
+  notes: '',
+};
+
+// ============================================================================
 // Styled Components
 // ============================================================================
 
@@ -78,7 +105,7 @@ const Modal = styled.div`
   max-width: 800px;
   max-height: 90vh;
   overflow-y: auto;
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  box-shadow: var(--shadow-float);
 `;
 
 const ModalHeader = styled.div`
@@ -377,6 +404,12 @@ const ErrorMessage = styled.div`
   margin-bottom: 1rem;
 `;
 
+const FieldError = styled.div`
+  color: rgb(var(--color-error));
+  font-size: 0.75rem;
+  margin-top: 0.25rem;
+`;
+
 const HelpText = styled.p`
   font-size: 0.75rem;
   color: rgb(var(--color-text-secondary));
@@ -400,10 +433,10 @@ const StatusBadge = styled.span<{ status: string }>`
   }};
   color: ${props => {
     switch (props.status) {
-      case 'accepted': return 'rgb(22, 163, 74)';
-      case 'pending': return 'rgb(202, 138, 4)';
-      case 'quoted': return 'rgb(37, 99, 235)';
-      default: return 'rgb(75, 85, 99)';
+      case 'accepted': return 'rgb(34, 197, 94)';
+      case 'pending': return 'rgb(234, 179, 8)';
+      case 'quoted': return 'rgb(59, 130, 246)';
+      default: return 'rgb(107, 114, 128)';
     }
   }};
 `;
@@ -428,25 +461,22 @@ export const CreateFulfillmentModal: React.FC<CreateFulfillmentModalProps> = ({
   const [loadingCustomers, setLoadingCustomers] = useState(false);
   const [loadingInquiries, setLoadingInquiries] = useState(false);
 
-  // Form state
-  const [shippingType, setShippingType] = useState<'tenant' | 'customer_pickup' | 'supplier_delivering'>('tenant');
-  const [supplierId, setSupplierId] = useState('');
-  const [carrierId, setCarrierId] = useState('');
-  const [trackingNumbers, setTrackingNumbers] = useState('');
-  const [estimatedDelivery, setEstimatedDelivery] = useState('');
-  const [notes, setNotes] = useState('');
-  
+  const form = useZodForm<CreateFulfillmentFormValues>(createFulfillmentFormSchema, {
+    defaultValues: createFulfillmentFormDefaults,
+  });
+
+  const submitting = form.formState.isSubmitting;
+
   // Product lines
   const [lineItems, setLineItems] = useState<FulfillmentLineItem[]>([]);
-  
+
   // Options
   const [supplierOptions, setSupplierOptions] = useState<SupplierOption[]>([]);
   const [carrierOptions, setCarrierOptions] = useState<CarrierOption[]>([]);
-  
+
   // Loading states
   const [loadingSuppliers, setLoadingSuppliers] = useState(false);
   const [loadingCarriers, setLoadingCarriers] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // Guided selection: load customers ordered by most recent inquiry
@@ -563,23 +593,17 @@ export const CreateFulfillmentModal: React.FC<CreateFulfillmentModalProps> = ({
     void loadInquiryDetail(selectedInquiryId);
   }, [inquiry, isOpen, loadInquiryDetail, selectedInquiryId]);
 
-  const resetFulfillmentFields = useCallback(() => {
-    setShippingType('tenant');
-    setSupplierId('');
-    setCarrierId('');
-    setTrackingNumbers('');
-    setEstimatedDelivery('');
-    setNotes('');
+  const resetFulfillmentFields = useCallback((next?: Partial<CreateFulfillmentFormValues>) => {
+    form.reset({ ...createFulfillmentFormDefaults, ...(next || {}) });
     setLineItems([]);
     setError(null);
-  }, []);
+  }, [form]);
 
   // Initialize line items from inquiry products
   useEffect(() => {
     if (isOpen && resolvedInquiry?.products) {
       // When the inquiry changes, reset fulfillment-specific fields.
-      resetFulfillmentFields();
-      setShippingType(resolvedInquiry.shipping_type || 'tenant');
+      resetFulfillmentFields({ shippingType: resolvedInquiry.shipping_type || 'tenant' });
 
       const items: FulfillmentLineItem[] = resolvedInquiry.products.map((p: InquiryProduct) => ({
         inquiryProductId: p.id,
@@ -624,7 +648,7 @@ export const CreateFulfillmentModal: React.FC<CreateFulfillmentModalProps> = ({
       
       // Auto-select if only one supplier
       if (options.length === 1) {
-        setSupplierId(options[0].id);
+        form.setValue('supplierId', options[0].id, { shouldValidate: true, shouldDirty: true });
       }
     } catch (err) {
       console.error('Failed to fetch suppliers:', err);
@@ -705,18 +729,11 @@ export const CreateFulfillmentModal: React.FC<CreateFulfillmentModalProps> = ({
     }
   }
 
-  async function handleSubmit(e: React.FormEvent): Promise<void> {
-    e.preventDefault();
+  const handleSubmit = form.handleSubmit(async (values) => {
     setError(null);
 
     if (!resolvedInquiry) {
       setError('Please select a customer and inquiry');
-      return;
-    }
-
-    // Validation
-    if (!supplierId) {
-      setError('Please select a supplier');
       return;
     }
 
@@ -725,18 +742,18 @@ export const CreateFulfillmentModal: React.FC<CreateFulfillmentModalProps> = ({
       return;
     }
 
-    setSubmitting(true);
-
     try {
       const payload = {
         inquiry: resolvedInquiry.id,
-        supplier: supplierId,
+        supplier: values.supplierId,
         customer: resolvedInquiry.customer || undefined,
-        carrier: carrierId || undefined,
-        shipping_type: shippingType,
-        tracking_numbers: trackingNumbers ? trackingNumbers.split(',').map(t => t.trim()).filter(Boolean) : undefined,
-        expected_delivery: estimatedDelivery || undefined,
-        notes: notes || undefined,
+        carrier: values.carrierId || undefined,
+        shipping_type: values.shippingType,
+        tracking_numbers: values.trackingNumbers
+          ? values.trackingNumbers.split(',').map(t => t.trim()).filter(Boolean)
+          : undefined,
+        expected_delivery: values.estimatedDelivery || undefined,
+        notes: values.notes || undefined,
         products: selectedItems.map(item => ({
           inquiry_product: item.inquiryProductId,
           quantity_fulfilled: item.quantityToFulfill,
@@ -751,15 +768,13 @@ export const CreateFulfillmentModal: React.FC<CreateFulfillmentModalProps> = ({
       onClose();
     } catch (err: any) {
       console.error('Failed to create fulfillment:', err);
-      const errorDetail = err.response?.data?.detail 
-        || err.response?.data?.message 
-        || JSON.stringify(err.response?.data) 
+      const errorDetail = err.response?.data?.detail
+        || err.response?.data?.message
+        || JSON.stringify(err.response?.data)
         || 'Failed to create fulfillment. Please try again.';
       setError(errorDetail);
-    } finally {
-      setSubmitting(false);
     }
-  }
+  });
 
   if (!isOpen) return null;
 
@@ -855,8 +870,7 @@ export const CreateFulfillmentModal: React.FC<CreateFulfillmentModalProps> = ({
                 <FormGroup>
                   <Label>Shipping Type</Label>
                   <Select
-                    value={shippingType}
-                    onChange={(e) => setShippingType(e.target.value as any)}
+                    {...form.register('shippingType')}
                     disabled={submitting}
                   >
                     <option value="tenant">Tenant</option>
@@ -868,8 +882,7 @@ export const CreateFulfillmentModal: React.FC<CreateFulfillmentModalProps> = ({
                 <FormGroup>
                   <Label>Supplier *</Label>
                   <Select
-                    value={supplierId}
-                    onChange={(e) => setSupplierId(e.target.value)}
+                    {...form.register('supplierId')}
                     disabled={submitting || loadingSuppliers}
                   >
                     <option value="">
@@ -881,14 +894,16 @@ export const CreateFulfillmentModal: React.FC<CreateFulfillmentModalProps> = ({
                       </option>
                     ))}
                   </Select>
+                  {form.formState.errors.supplierId?.message && (
+                    <FieldError role="alert">{String(form.formState.errors.supplierId.message)}</FieldError>
+                  )}
                   <HelpText>Only suppliers with selected products are shown</HelpText>
                 </FormGroup>
 
                 <FormGroup>
                   <Label>Carrier</Label>
                   <Select
-                    value={carrierId}
-                    onChange={(e) => setCarrierId(e.target.value)}
+                    {...form.register('carrierId')}
                     disabled={submitting || loadingCarriers}
                   >
                     <option value="">
@@ -908,10 +923,9 @@ export const CreateFulfillmentModal: React.FC<CreateFulfillmentModalProps> = ({
                   <Label>Tracking Numbers</Label>
                   <Input
                     type="text"
-                    value={trackingNumbers}
-                    onChange={(e) => setTrackingNumbers(e.target.value)}
                     placeholder="Comma-separated tracking numbers"
                     disabled={submitting}
+                    {...form.register('trackingNumbers')}
                   />
                   <HelpText>Enter multiple tracking numbers separated by commas</HelpText>
                 </FormGroup>
@@ -920,9 +934,8 @@ export const CreateFulfillmentModal: React.FC<CreateFulfillmentModalProps> = ({
                   <Label>Estimated Delivery</Label>
                   <Input
                     type="date"
-                    value={estimatedDelivery}
-                    onChange={(e) => setEstimatedDelivery(e.target.value)}
                     disabled={submitting}
+                    {...form.register('estimatedDelivery')}
                   />
                 </FormGroup>
               </FormRow>
@@ -989,10 +1002,9 @@ export const CreateFulfillmentModal: React.FC<CreateFulfillmentModalProps> = ({
               <FormGroup>
                 <Label>Notes</Label>
                 <TextArea
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
                   placeholder="Add any notes about this fulfillment..."
                   disabled={submitting}
+                  {...form.register('notes')}
                 />
               </FormGroup>
             </Section>

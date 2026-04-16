@@ -1,0 +1,70 @@
+/**
+ * WorkForm Execution API Service
+ *
+ * Tracks executions of apps.system.models.TenantWorkForm via
+ * tenant_apps.workflows.models.TenantWorkFormExecution.
+ */
+
+import { businessApi } from './businessApi';
+
+export type WorkFormExecutionStatus = 'pending' | 'in_progress' | 'completed' | 'failed' | 'cancelled';
+
+export interface WorkFormExecution {
+  id: string;
+  tenant: string;
+  workform: string;
+  workform_name: string;
+  status: WorkFormExecutionStatus;
+  initial_data: Record<string, unknown>;
+  context_data: Record<string, unknown>;
+  audit_trail: any[];
+  started_by?: string | null;
+  started_by_name?: string | null;
+  started_at?: string | null;
+  completed_at?: string | null;
+  error_message?: string;
+  created_on: string;
+  modified_on: string;
+}
+
+export interface WorkFormExecutionListResponse {
+  count: number;
+  next: string | null;
+  previous: string | null;
+  results: WorkFormExecution[];
+}
+
+export class WorkFormExecutionService {
+  private baseUrl = '/workflows/workform-executions/';
+
+  async getExecutions(params?: {
+    status?: string;
+    search?: string;
+    start_date?: string;
+    end_date?: string;
+    page?: number;
+    page_size?: number;
+  }): Promise<WorkFormExecutionListResponse> {
+    const response = await businessApi.get(this.baseUrl, { params });
+
+    const results = Array.isArray(response.data?.results)
+      ? response.data.results
+      : Array.isArray(response.data)
+        ? response.data
+        : [];
+
+    return {
+      count: response.data?.count ?? results.length,
+      next: response.data?.next ?? null,
+      previous: response.data?.previous ?? null,
+      results,
+    };
+  }
+
+  async getExecution(id: string): Promise<WorkFormExecution> {
+    const response = await businessApi.get(`${this.baseUrl}${id}/`);
+    return response.data;
+  }
+}
+
+export const workformExecutionService = new WorkFormExecutionService();

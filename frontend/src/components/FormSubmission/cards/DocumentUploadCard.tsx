@@ -342,6 +342,7 @@ export const DocumentUploadCard: React.FC<InteractionCardProps> = ({
         const obj = data as Record<string, unknown>;
         if (typeof obj.error === 'string') return obj.error;
         if (typeof obj.detail === 'string') return obj.detail;
+        if (typeof obj.details === 'string') return obj.details;
 
         const parts: string[] = [];
         for (const [key, value] of Object.entries(obj)) {

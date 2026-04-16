@@ -10,6 +10,9 @@
  */
 
 import React, { useEffect, useMemo, useState } from 'react';
+import { z } from 'zod';
+
+import { useZodForm } from '@/hooks/useZodForm';
 import styled from 'styled-components';
 
 import { businessApi } from '@/services/businessApi';
@@ -213,6 +216,12 @@ const Muted = styled.div`
   color: rgb(var(--color-text-secondary));
 `;
 
+const FieldError = styled.div`
+  margin-top: 0.5rem;
+  color: rgb(var(--color-error));
+  font-size: 0.8rem;
+`;
+
 const Error = styled.div`
   margin-top: 0.75rem;
   padding: 0.75rem 1rem;
@@ -351,6 +360,25 @@ const newLine = (): LineItem => ({
   notes: '',
 });
 
+const inquiryCreateSchema = z.object({
+  entityType: z.enum(['customer', 'supplier']),
+  entityId: z.string().trim().regex(/^\d+$/, 'Please select a valid customer/supplier'),
+  validUntil: z.string().optional().default(''),
+  notes: z.string().optional().default(''),
+});
+
+type InquiryCreateValues = z.infer<typeof inquiryCreateSchema>;
+
+const buildInquiryCreateDefaults = (opts: {
+  initialEntityType?: EntityType;
+  initialEntityId?: string | number;
+}): InquiryCreateValues => ({
+  entityType: opts.initialEntityType ?? 'customer',
+  entityId: opts.initialEntityId != null ? String(opts.initialEntityId) : '',
+  validUntil: '',
+  notes: '',
+});
+
 export const InquiryCreateModal: React.FC<InquiryCreateModalProps> = ({
   isOpen,
   onClose,
@@ -360,18 +388,19 @@ export const InquiryCreateModal: React.FC<InquiryCreateModalProps> = ({
   enableSupplierPlantSelection = false,
   sourceCallId,
 }) => {
-  const [submitting, setSubmitting] = useState(false);
+  const form = useZodForm<InquiryCreateValues>(inquiryCreateSchema, {
+    defaultValues: buildInquiryCreateDefaults({ initialEntityType, initialEntityId }),
+  });
+
+  const submitting = form.formState.isSubmitting;
   const [error, setError] = useState<string | null>(null);
 
-  const [entityType, setEntityType] = useState<EntityType>(initialEntityType ?? 'customer');
-  const [entityId, setEntityId] = useState<string>(
-    initialEntityId != null ? String(initialEntityId) : ''
-  );
+  const entityType = form.watch('entityType');
+  const entityId = form.watch('entityId');
+
   const [entityOptions, setEntityOptions] = useState<EntityOption[]>([]);
   const [loadingEntities, setLoadingEntities] = useState(false);
 
-  const [validUntil, setValidUntil] = useState('');
-  const [notes, setNotes] = useState('');
   const [lines, setLines] = useState<LineItem[]>([newLine()]);
   const [uomOptions, setUomOptions] = useState<ChoiceOption[]>([]);
 
@@ -398,9 +427,8 @@ export const InquiryCreateModal: React.FC<InquiryCreateModalProps> = ({
   useEffect(() => {
     if (!isOpen) return;
 
-    if (initialEntityType) setEntityType(initialEntityType);
-    if (initialEntityId != null) setEntityId(String(initialEntityId));
-  }, [initialEntityId, initialEntityType, isOpen]);
+    form.reset(buildInquiryCreateDefaults({ initialEntityType, initialEntityId }));
+  }, [form, initialEntityId, initialEntityType, isOpen]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -490,7 +518,6 @@ export const InquiryCreateModal: React.FC<InquiryCreateModalProps> = ({
             [key]: (Array.isArray(rows) ? rows : []).map((r: any) => ({
               id: Number(r.id),
               name: String(r.name ?? '').trim() || `Plant #${r.id}`,
-              code: String(r.code ?? '').trim() || undefined,
               has_product: Boolean(r.has_product),
             })),
           }));
@@ -503,8 +530,7 @@ export const InquiryCreateModal: React.FC<InquiryCreateModalProps> = ({
 
   const reset = () => {
     setError(null);
-    setValidUntil('');
-    setNotes('');
+    form.reset(buildInquiryCreateDefaults({ initialEntityType, initialEntityId }));
     setLines([newLine()]);
     setEntityOptions([]);
   };
@@ -544,8 +570,7 @@ export const InquiryCreateModal: React.FC<InquiryCreateModalProps> = ({
     return null;
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = form.handleSubmit(async (values) => {
     setError(null);
 
     const msg = validate();
@@ -553,8 +578,6 @@ export const InquiryCreateModal: React.FC<InquiryCreateModalProps> = ({
       setError(msg);
       return;
     }
-
-    setSubmitting(true);
 
     try {
       const products = lines
@@ -569,16 +592,16 @@ export const InquiryCreateModal: React.FC<InquiryCreateModalProps> = ({
         }));
 
       const payload: Record<string, unknown> = {
-        entity_type: entityType,
+        entity_type: values.entityType,
         source_type: sourceCallId ? 'scheduled_call' : 'other',
         ...(sourceCallId ? { source_call: Number(sourceCallId) } : {}),
-        valid_until: validUntil || undefined,
-        notes: notes.trim() || undefined,
+        valid_until: values.validUntil || undefined,
+        notes: values.notes.trim() || undefined,
         products,
       };
 
-      if (entityType === 'customer') payload.customer = Number(entityId);
-      if (entityType === 'supplier') payload.supplier = Number(entityId);
+      if (values.entityType === 'customer') payload.customer = Number(values.entityId);
+      if (values.entityType === 'supplier') payload.supplier = Number(values.entityId);
 
       const resp = await businessApi.post('/inquiries/', payload);
       reset();
@@ -598,12 +621,13 @@ export const InquiryCreateModal: React.FC<InquiryCreateModalProps> = ({
           : null) ||
         err?.message;
       setError(typeof apiMsg === 'string' && apiMsg ? apiMsg : 'Failed to create inquiry. Please try again.');
-    } finally {
-      setSubmitting(false);
     }
-  };
+  });
 
   if (!isOpen) return null;
+
+  const entityTypeField = form.register('entityType');
+  const entityIdField = form.register('entityId');
 
   return (
     <Overlay $open={isOpen} onClick={close}>
@@ -626,10 +650,11 @@ export const InquiryCreateModal: React.FC<InquiryCreateModalProps> = ({
                 <Field $span={3}>
                   <Label>Entity Type *</Label>
                   <Select
-                    value={entityType}
+                    {...entityTypeField}
                     onChange={(e) => {
-                      setEntityType(e.target.value as EntityType);
-                      setEntityId('');
+                      entityTypeField.onChange(e);
+                      form.setValue('entityId', '', { shouldValidate: true, shouldDirty: true });
+                      setEntityOptions([]);
                     }}
                     disabled={!canSubmit || Boolean(initialEntityType)}
                   >
@@ -640,8 +665,7 @@ export const InquiryCreateModal: React.FC<InquiryCreateModalProps> = ({
                 <Field $span={9}>
                   <Label>{entityType === 'customer' ? 'Customer' : 'Supplier'} *</Label>
                   <Select
-                    value={entityId}
-                    onChange={(e) => setEntityId(e.target.value)}
+                    {...entityIdField}
                     disabled={!canSubmit || loadingEntities || Boolean(initialEntityId)}
                   >
                     <option value="">Select…</option>
@@ -651,6 +675,9 @@ export const InquiryCreateModal: React.FC<InquiryCreateModalProps> = ({
                       </option>
                     ))}
                   </Select>
+                  {form.formState.errors.entityId?.message && (
+                    <FieldError role="alert">{String(form.formState.errors.entityId.message)}</FieldError>
+                  )}
                   {loadingEntities && <Muted>Loading…</Muted>}
                 </Field>
               </Grid>
@@ -663,18 +690,16 @@ export const InquiryCreateModal: React.FC<InquiryCreateModalProps> = ({
                   <Label>Valid Until</Label>
                   <Input
                     type="date"
-                    value={validUntil}
-                    onChange={(e) => setValidUntil(e.target.value)}
                     disabled={!canSubmit}
+                    {...form.register('validUntil')}
                   />
                 </Field>
                 <Field $span={8}>
                   <Label>Notes</Label>
                   <TextArea
-                    value={notes}
-                    onChange={(e) => setNotes(e.target.value)}
                     placeholder="Optional context, requirements, competitor notes…"
                     disabled={!canSubmit}
+                    {...form.register('notes')}
                   />
                 </Field>
               </Grid>

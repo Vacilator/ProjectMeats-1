@@ -55,6 +55,17 @@ SWARM_SYSTEM_PROMPT = (
 from tenant_apps.ai_assistant.swarm.executor import DEFAULT_OPENAI_TOOLS
 
 
+def ai_not_configured_response() -> Response:
+    return Response(
+        {
+            'error': 'AI is not enabled for this environment.',
+            'code': 'AI_NOT_CONFIGURED',
+            'detail': 'OpenAI is not configured on the server (missing OPENAI_API_KEY).',
+        },
+        status=status.HTTP_503_SERVICE_UNAVAILABLE,
+    )
+
+
 class ChatSessionViewSet(viewsets.ModelViewSet):
     """ViewSet for managing chat sessions."""
 
@@ -196,17 +207,7 @@ class ChatBotAPIViewSet(viewsets.ViewSet):
 
             openai_api_key = getattr(settings, 'OPENAI_API_KEY', None) or os.environ.get('OPENAI_API_KEY')
             if not openai_api_key:
-                return Response(
-                    {
-                        'error': 'OpenAI not configured (missing OPENAI_API_KEY)',
-                        'detail': (
-                            'Backend container is missing OPENAI_API_KEY. '
-                            'Verify the GitHub Environment secret OPENAI_API_KEY is set for the active backend environment '
-                            'and that the deploy-backend job writes it into backend.env / passes it to docker run.'
-                        ),
-                    },
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
+                return ai_not_configured_response()
 
             try:
                 from apps.system.services.ai_model_resolver import get_active_openai_model_id
@@ -318,7 +319,10 @@ class ChatBotAPIViewSet(viewsets.ViewSet):
 
             except Exception as e:
                 logger.warning('Swarm tool loop failed: %s', str(e), exc_info=True)
-                return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+                msg = str(e)
+                if 'OPENAI_API_KEY' in msg or 'OpenAI not configured' in msg:
+                    return ai_not_configured_response()
+                return Response({'error': msg or 'AI request failed'}, status=status.HTTP_400_BAD_REQUEST)
 
             metadata = {
                 'model': model_name,
@@ -432,19 +436,17 @@ class AIDocumentViewSet(viewsets.ModelViewSet):
         return qs
 
     def perform_create(self, serializer):
+        from django.db import transaction
+        from django.db.utils import DatabaseError, ProgrammingError
+        from rest_framework.exceptions import ValidationError
+
         tenant = getattr(self.request, 'tenant', None)
         if not tenant:
-            from rest_framework.exceptions import ValidationError
-
             raise ValidationError('Tenant context required.')
 
         tenant_id = str(getattr(tenant, 'id', '') or '')
 
         try:
-            from django.db import transaction
-            from django.db.utils import DatabaseError, ProgrammingError
-            from rest_framework.exceptions import ValidationError
-
             from apps.tenants.rls import set_current_tenant
 
             with transaction.atomic():
@@ -466,34 +468,30 @@ class AIDocumentViewSet(viewsets.ModelViewSet):
                     content_type=getattr(self.request.FILES.get('file'), 'content_type', '') or '',
                     file_size=getattr(self.request.FILES.get('file'), 'size', 0) or 0,
                 )
-        except Exception as e:
+        except ValidationError:
+            raise
+        except OSError as e:
+            logger.error('AIDocument upload: storage error: %s', str(e), exc_info=True)
+            raise ValidationError(
+                'Upload failed: storage is not writable. Please contact an administrator.'
+            )
+        except (DatabaseError, ProgrammingError) as e:
+            msg = str(e)
+            lower = msg.lower()
+            logger.error('AIDocument upload: database error: %s', msg, exc_info=True)
 
-            if isinstance(e, ValidationError):
-                raise
-
-            if isinstance(e, OSError):
-                logger.error('AIDocument upload: storage error: %s', str(e), exc_info=True)
+            if 'does not exist' in lower and 'ai_assistant_documents' in lower:
                 raise ValidationError(
-                    'Upload failed: storage is not writable. Please contact an administrator.'
+                    'Upload failed: documents table is not ready (migrations not applied). Please contact an administrator.'
                 )
 
-            if isinstance(e, (DatabaseError, ProgrammingError)):
-                msg = str(e)
-                lower = msg.lower()
-                logger.error('AIDocument upload: database error: %s', msg, exc_info=True)
+            if 'row-level security' in lower or 'rls' in lower:
+                raise ValidationError(
+                    'Upload failed: tenant context could not be asserted for RLS. Please reload and retry.'
+                )
 
-                if 'does not exist' in lower and 'ai_assistant_documents' in lower:
-                    raise ValidationError(
-                        'Upload failed: documents table is not ready (migrations not applied). Please contact an administrator.'
-                    )
-
-                if 'row-level security' in lower or 'rls' in lower:
-                    raise ValidationError(
-                        'Upload failed: tenant context could not be asserted for RLS. Please reload and retry.'
-                    )
-
-                raise ValidationError('Upload failed: database error. Please retry in a moment.')
-
+            raise ValidationError('Upload failed: database error. Please retry in a moment.')
+        except Exception as e:
             logger.error('AIDocument upload: unexpected error: %s', str(e), exc_info=True)
             raise ValidationError('Upload failed: unexpected error. Please retry.')
 
@@ -684,6 +682,7 @@ class AIFeedbackViewSet(mixins.CreateModelMixin, mixins.ListModelMixin, mixins.R
     """
 
     serializer_class = AIFeedbackLogSerializer
+    permission_classes = [IsAuthenticated]
     filter_backends = [filters.OrderingFilter]
     ordering_fields = ['created_on']
     ordering = ['-created_on']

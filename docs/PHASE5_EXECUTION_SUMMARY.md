@@ -1,5 +1,10 @@
 # Phase 5 Execution Summary
 
+> ⚠️ **Historical doc**
+> The “frontend pending” status in this document is out of date.
+> As of 2026-03-31, the frontend contains Workflow Execution UI integrations (e.g. `frontend/src/pages/MyTasks/MyTasks.tsx`, `frontend/src/pages/WorkForms/History.tsx`, `frontend/src/pages/WorkForms/InProgress.tsx`) using `frontend/src/services/workflowExecutionService.ts`.
+> Treat the remaining TODOs below as backlog ideas, not current status.
+
 ## ✅ Completed Tasks
 
 ### Backend Implementation (100% Complete)
@@ -50,7 +55,7 @@
    - File: `backend/tenant_apps/workflows/migrations/0010_workflowexecution.py`
    - Status: Applied successfully ✓
 
-### Frontend Implementation (50% Complete)
+### Frontend Implementation (Historical Snapshot)
 
 1. **Enhanced Catalog with Tabs** ✅
    - Location: `frontend/src/pages/WorkForms/Catalog.tsx`

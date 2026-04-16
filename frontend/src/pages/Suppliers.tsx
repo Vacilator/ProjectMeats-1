@@ -3,18 +3,14 @@ import { useQuery } from '@tanstack/react-query';
 import { logger } from '@/utils/logger';
 
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { PhoneInput, Select } from '../components/ui';
 import { MultiSelect } from '../components/Shared';
 import EntityFormSurface from '../components/Shared/EntityFormSurface';
-import { US_STATES } from '../utils/constants/states';
-import { CONTACT_DEPARTMENT_CHOICES, PROTEIN_TYPE_CHOICES } from '../utils/constants/choices';
 import styled from 'styled-components';
 import { apiService, apiClient, Supplier } from '../services/apiService';
 
 interface SupplierPlant {
   id: number;
   name: string;
-  code: string;
   plant_type?: string;
   plant_est_num?: string;
   address?: string;
@@ -22,9 +18,6 @@ interface SupplierPlant {
   state?: string;
   zip_code?: string;
   country?: string;
-  manager?: string;
-  email?: string;
-  phone?: string;
 }
 
 interface SupplierContact {
@@ -74,33 +67,8 @@ const Suppliers: React.FC = () => {
   const [plantContactsLoading, setPlantContactsLoading] = useState(false);
 
   const [showContactModal, setShowContactModal] = useState(false);
-  const [contactForm, setContactForm] = useState({
-    department: 'sales',
-    first_name: '',
-    last_name: '',
-    mobile_phone: '',
-    office_phone: '',
-    office_phone_ext: '',
-    email: '',
-    protein_types_responsible: [] as string[],
-    items_responsible: [] as string[],
-  });
 
   const [showPlantModal, setShowPlantModal] = useState(false);
-  const [plantForm, setPlantForm] = useState({
-    name: '',
-    code: '',
-    plant_est_num: '',
-    plant_type: 'processing',
-    address: '',
-    city: '',
-    state: '',
-    zip_code: '',
-    country: 'USA',
-    manager: '',
-    email: '',
-    phone: '',
-  });
   const [plantProductIds, setPlantProductIds] = useState<string[]>([]);
 
 
@@ -251,116 +219,21 @@ const Suppliers: React.FC = () => {
 
   const openCreatePlant = () => {
     if (!selectedSupplierId) return;
-    setPlantForm({
-      name: '',
-      code: '',
-      plant_est_num: '',
-      plant_type: 'processing',
-      address: '',
-      city: '',
-      state: '',
-      zip_code: '',
-      country: 'USA',
-      manager: '',
-      email: '',
-      phone: '',
-    });
     setPlantProductIds([]);
     setShowPlantModal(true);
   };
 
-  const submitPlant = async () => {
-    if (!selectedSupplierId) return;
+  const assignPlantProducts = async (plantId: number, productIds: string[]) => {
+    if (!productIds.length) return;
 
-    if (!plantForm.name.trim()) {
-      alert('Plant name is required');
-      return;
-    }
-
-    try {
-      const resp = await apiClient.post('plants/', {
-        supplier: selectedSupplierId,
-        name: plantForm.name.trim(),
-        code: plantForm.code?.trim() || '',
-        plant_est_num: plantForm.plant_est_num?.trim() || '',
-        plant_type: plantForm.plant_type,
-        address: plantForm.address,
-        city: plantForm.city,
-        state: plantForm.state,
-        zip_code: plantForm.zip_code,
-        country: plantForm.country,
-        manager: plantForm.manager,
-        email: plantForm.email,
-        phone: plantForm.phone,
-      });
-
-      const createdPlantId = resp?.data?.id as number | undefined;
-      if (createdPlantId && plantProductIds.length) {
-        await Promise.allSettled(
-          plantProductIds.map((productId) =>
-            apiClient.post(`/plants/${createdPlantId}/available-products/`, { product: productId })
-          )
-        );
-      }
-
-      setShowPlantModal(false);
-      setPlantProductIds([]);
-      await loadSupplierPlants(selectedSupplierId);
-    } catch (error: unknown) {
-      logger.error('[Suppliers] Failed to create plant:', error);
-      alert('Failed to create plant');
-    }
+    await Promise.allSettled(
+      productIds.map((productId) => apiClient.post(`/plants/${plantId}/available-products/`, { product: productId }))
+    );
   };
 
   const openCreatePlantContact = () => {
     if (!selectedSupplierId || !selectedPlantId) return;
-    setContactForm({
-      department: 'sales',
-      first_name: '',
-      last_name: '',
-      mobile_phone: '',
-      office_phone: '',
-      office_phone_ext: '',
-      email: '',
-      protein_types_responsible: [],
-      items_responsible: [],
-    });
     setShowContactModal(true);
-  };
-
-  const submitPlantContact = async () => {
-    if (!selectedSupplierId || !selectedPlantId) return;
-    if (!contactForm.first_name.trim() || !contactForm.last_name.trim()) {
-      alert('First name and last name are required');
-      return;
-    }
-
-    try {
-      const officePhone = (contactForm.office_phone || '').trim();
-      const mobilePhone = (contactForm.mobile_phone || '').trim();
-
-      await apiClient.post('contacts/', {
-        supplier: selectedSupplierId,
-        plant: selectedPlantId,
-        department: contactForm.department,
-        first_name: contactForm.first_name.trim(),
-        last_name: contactForm.last_name.trim(),
-        email: contactForm.email || null,
-        mobile_phone: contactForm.mobile_phone,
-        office_phone: contactForm.office_phone,
-        office_phone_ext: contactForm.office_phone_ext,
-        protein_types_responsible: contactForm.protein_types_responsible,
-        items_responsible: contactForm.items_responsible,
-        phone: officePhone || mobilePhone || '',
-        phone_type: officePhone ? 'office' : mobilePhone ? 'mobile' : 'office',
-      });
-
-      setShowContactModal(false);
-      await loadPlantContacts(selectedPlantId);
-    } catch (error) {
-      logger.error('[Suppliers] Failed to create contact:', error);
-      alert('Failed to create contact');
-    }
   };
 
   const selectedPlant = selectedPlantId
@@ -476,7 +349,7 @@ const Suppliers: React.FC = () => {
         />
       )}
 
-      {showPlantModal && (
+      {showPlantModal && selectedSupplierId && (
         <FormOverlay>
           <FormContainer $theme={theme} data-testid="plant-create-modal">
             <FormHeader $theme={theme}>
@@ -484,281 +357,72 @@ const Suppliers: React.FC = () => {
               <CloseButton $theme={theme} onClick={() => setShowPlantModal(false)}>×</CloseButton>
             </FormHeader>
 
-            <Form onSubmit={(e) => { e.preventDefault(); void submitPlant(); }}>
-              <FormGrid>
-                <FormGroup>
-                  <Label $theme={theme}>Plant Name *</Label>
-                  <Input
-                    $theme={theme}
-                    type="text"
-                    value={plantForm.name}
-                    onChange={(e) => setPlantForm((p) => ({ ...p, name: e.target.value }))}
-                    required
-                  />
-                </FormGroup>
+            <FormGrid>
+              <FormGroup $fullWidth>
+                <MultiSelect
+                  value={plantProductIds}
+                  onChange={(values) => setPlantProductIds(values.map(String))}
+                  options={Array.isArray(products) ? products.map(p => ({
+                    value: String(p.id),
+                    label: `${p.product_code} - ${p.effective_name || p.product_name || p.name || 'Unknown'}`
+                  })) : []}
+                  label="Plant Products List"
+                  placeholder="(Optional) Select products this plant handles"
+                />
+              </FormGroup>
+            </FormGrid>
 
-                <FormGroup>
-                  <Label $theme={theme}>Plant Est. #</Label>
-                  <Input
-                    $theme={theme}
-                    type="text"
-                    value={plantForm.plant_est_num}
-                    onChange={(e) => setPlantForm((p) => ({ ...p, plant_est_num: e.target.value }))}
-                  />
-                </FormGroup>
+            <EntityFormSurface
+              entityType="plant"
+              mode="create"
+              variant="inline"
+              isOpen={showPlantModal}
+              onClose={() => setShowPlantModal(false)}
+              context={{ supplierId: selectedSupplierId }}
+              initialValues={{
+                plant_type: 'processing',
+                country: 'USA',
+              }}
+              onSuccess={(created) => {
+                const createdId = Number((created as { id?: unknown } | null)?.id);
+                const productIds = [...plantProductIds];
 
-                <FormGroup>
-                  <Label $theme={theme}>Plant Type</Label>
-                  <Select
-                    value={plantForm.plant_type}
-                    onChange={(value) => setPlantForm((p) => ({ ...p, plant_type: value }))}
-                    options={[
-                      { value: 'vertical', label: 'Vertical (Kill to Capture)' },
-                      { value: 'processing', label: 'Processing Plant' },
-                      { value: 'distribution', label: 'Distribution Center' },
-                      { value: 'warehouse', label: 'Warehouse' },
-                      { value: 'retail', label: 'Retail Location' },
-                      { value: 'other', label: 'Other' },
-                    ]}
-                    placeholder="Select plant type"
-                    aria-label="Plant type"
-                  />
-                </FormGroup>
+                void (async () => {
+                  if (Number.isFinite(createdId) && createdId > 0) {
+                    try {
+                      await assignPlantProducts(createdId, productIds);
+                    } catch (error) {
+                      logger.error('[Suppliers] Failed to assign plant products:', error);
+                      alert('Plant created, but failed to assign products.');
+                    }
+                  }
 
-                <FormGroup>
-                  <Label $theme={theme}>Code</Label>
-                  <Input
-                    $theme={theme}
-                    type="text"
-                    value={plantForm.code}
-                    onChange={(e) => setPlantForm((p) => ({ ...p, code: e.target.value }))}
-                    placeholder="Optional (auto-generated if blank)"
-                  />
-                </FormGroup>
-
-                <FormGroup $fullWidth>
-                  <Label $theme={theme}>Plant Address</Label>
-                  <Input
-                    $theme={theme}
-                    type="text"
-                    value={plantForm.address}
-                    onChange={(e) => setPlantForm((p) => ({ ...p, address: e.target.value }))}
-                  />
-                </FormGroup>
-
-                <FormGroup>
-                  <Label $theme={theme}>Plant City</Label>
-                  <Input
-                    $theme={theme}
-                    type="text"
-                    value={plantForm.city}
-                    onChange={(e) => setPlantForm((p) => ({ ...p, city: e.target.value }))}
-                  />
-                </FormGroup>
-
-                <FormGroup>
-                  <Label $theme={theme}>Plant State</Label>
-                  <Select
-                    value={plantForm.state}
-                    onChange={(value) => setPlantForm((p) => ({ ...p, state: value }))}
-                    options={US_STATES}
-                    placeholder="Select state"
-                    aria-label="Plant state"
-                  />
-                </FormGroup>
-
-                <FormGroup>
-                  <Label $theme={theme}>Plant ZIP Code</Label>
-                  <Input
-                    $theme={theme}
-                    type="text"
-                    value={plantForm.zip_code}
-                    onChange={(e) => setPlantForm((p) => ({ ...p, zip_code: e.target.value }))}
-                  />
-                </FormGroup>
-
-                <FormGroup>
-                  <Label $theme={theme}>Country</Label>
-                  <Input
-                    $theme={theme}
-                    type="text"
-                    value={plantForm.country}
-                    onChange={(e) => setPlantForm((p) => ({ ...p, country: e.target.value }))}
-                  />
-                </FormGroup>
-
-                <FormGroup>
-                  <Label $theme={theme}>Manager</Label>
-                  <Input
-                    $theme={theme}
-                    type="text"
-                    value={plantForm.manager}
-                    onChange={(e) => setPlantForm((p) => ({ ...p, manager: e.target.value }))}
-                  />
-                </FormGroup>
-
-                <FormGroup>
-                  <Label $theme={theme}>Email</Label>
-                  <Input
-                    $theme={theme}
-                    type="email"
-                    value={plantForm.email}
-                    onChange={(e) => setPlantForm((p) => ({ ...p, email: e.target.value }))}
-                  />
-                </FormGroup>
-
-                <FormGroup>
-                  <Label $theme={theme}>Phone</Label>
-                  <PhoneInput
-                    value={plantForm.phone}
-                    onChange={(value) => setPlantForm((p) => ({ ...p, phone: value }))}
-                    placeholder="(XXX)XXX-XXXX"
-                    aria-label="Plant phone"
-                  />
-                </FormGroup>
-
-                <FormGroup $fullWidth>
-                  <MultiSelect
-                    value={plantProductIds}
-                    onChange={(values) => setPlantProductIds(values.map(String))}
-                    options={Array.isArray(products) ? products.map(p => ({
-                      value: String(p.id),
-                      label: `${p.product_code} - ${p.effective_name || p.product_name || p.name || 'Unknown'}`
-                    })) : []}
-                    label="Plant Products List"
-                    placeholder="Select products this plant handles"
-                  />
-                </FormGroup>
-              </FormGrid>
-
-              <FormActions>
-                <CancelButton type="button" onClick={() => setShowPlantModal(false)}>
-                  Cancel
-                </CancelButton>
-                <SubmitButton type="submit">Create Plant</SubmitButton>
-              </FormActions>
-            </Form>
+                  setShowPlantModal(false);
+                  setPlantProductIds([]);
+                  await loadSupplierPlants(selectedSupplierId);
+                })();
+              }}
+            />
           </FormContainer>
         </FormOverlay>
       )}
 
-      {showContactModal && (
-        <FormOverlay>
-          <FormContainer $theme={theme} data-testid="plant-contact-modal">
-            <FormHeader $theme={theme}>
-              <FormTitle $theme={theme}>Add Plant Contact</FormTitle>
-              <CloseButton $theme={theme} onClick={() => setShowContactModal(false)}>×</CloseButton>
-            </FormHeader>
-
-            <Form onSubmit={(e) => { e.preventDefault(); void submitPlantContact(); }}>
-              <FormGrid>
-                <FormGroup>
-                  <Label $theme={theme}>Department</Label>
-                  <Select
-                    value={contactForm.department}
-                    onChange={(value) => setContactForm((p) => ({ ...p, department: value }))}
-                    options={CONTACT_DEPARTMENT_CHOICES}
-                    placeholder="Select department"
-                    aria-label="Department"
-                  />
-                </FormGroup>
-
-                <FormGroup>
-                  <Label $theme={theme}>First Name *</Label>
-                  <Input
-                    $theme={theme}
-                    type="text"
-                    value={contactForm.first_name}
-                    onChange={(e) => setContactForm((p) => ({ ...p, first_name: e.target.value }))}
-                    required
-                  />
-                </FormGroup>
-
-                <FormGroup>
-                  <Label $theme={theme}>Last Name *</Label>
-                  <Input
-                    $theme={theme}
-                    type="text"
-                    value={contactForm.last_name}
-                    onChange={(e) => setContactForm((p) => ({ ...p, last_name: e.target.value }))}
-                    required
-                  />
-                </FormGroup>
-
-                <FormGroup>
-                  <Label $theme={theme}>Email</Label>
-                  <Input
-                    $theme={theme}
-                    type="email"
-                    value={contactForm.email}
-                    onChange={(e) => setContactForm((p) => ({ ...p, email: e.target.value }))}
-                  />
-                </FormGroup>
-
-                <FormGroup>
-                  <Label $theme={theme}>Mobile Phone</Label>
-                  <PhoneInput
-                    value={contactForm.mobile_phone}
-                    onChange={(value) => setContactForm((p) => ({ ...p, mobile_phone: value }))}
-                    placeholder="(XXX)XXX-XXXX"
-                    aria-label="Mobile phone"
-                  />
-                </FormGroup>
-
-                <FormGroup>
-                  <Label $theme={theme}>Office Phone</Label>
-                  <PhoneInput
-                    value={contactForm.office_phone}
-                    onChange={(value) => setContactForm((p) => ({ ...p, office_phone: value }))}
-                    placeholder="(XXX)XXX-XXXX"
-                    aria-label="Office phone"
-                  />
-                </FormGroup>
-
-                <FormGroup>
-                  <Label $theme={theme}>Office EXT</Label>
-                  <Input
-                    $theme={theme}
-                    type="text"
-                    value={contactForm.office_phone_ext}
-                    onChange={(e) => setContactForm((p) => ({ ...p, office_phone_ext: e.target.value }))}
-                    placeholder="e.g., 123"
-                  />
-                </FormGroup>
-
-                <FormGroup $fullWidth>
-                  <MultiSelect
-                    value={contactForm.protein_types_responsible}
-                    onChange={(values) => setContactForm((p) => ({ ...p, protein_types_responsible: values }))}
-                    options={PROTEIN_TYPE_CHOICES}
-                    label="Protein Type Responsible For"
-                    placeholder="Select protein types"
-                  />
-                </FormGroup>
-
-                <FormGroup $fullWidth>
-                  <MultiSelect
-                    value={contactForm.items_responsible}
-                    onChange={(values) => setContactForm((p) => ({ ...p, items_responsible: values.map(String) }))}
-                    options={Array.isArray(products) ? products.map(p => ({
-                      value: String(p.id),
-                      label: `${p.product_code} - ${p.effective_name || p.product_name || p.name || 'Unknown'}`
-                    })) : []}
-                    label="Products Responsible For"
-                    placeholder="Select products"
-                  />
-                </FormGroup>
-              </FormGrid>
-
-              <FormActions>
-                <CancelButton type="button" onClick={() => setShowContactModal(false)}>
-                  Cancel
-                </CancelButton>
-                <SubmitButton type="submit">Create Contact</SubmitButton>
-              </FormActions>
-            </Form>
-          </FormContainer>
-        </FormOverlay>
+      {showContactModal && selectedSupplierId && selectedPlantId && (
+        <EntityFormSurface
+          entityType="contact"
+          mode="create"
+          isOpen={showContactModal}
+          onClose={() => setShowContactModal(false)}
+          context={{ supplierId: selectedSupplierId }}
+          initialValues={{
+            plant: String(selectedPlantId),
+            department: 'sales',
+          }}
+          onSuccess={() => {
+            setShowContactModal(false);
+            void loadPlantContacts(selectedPlantId);
+          }}
+        />
       )}
 
       <TableContainer $theme={theme}>
@@ -868,11 +532,16 @@ const Suppliers: React.FC = () => {
                                   data-testid={`plant-row-${plant.id}`}
                                   type="button"
                                   $active={selectedPlantId === plant.id}
-                                  onClick={() => setSelectedPlantId(plant.id)}
+                                  onClick={() => {
+                                    setSelectedPlantId(plant.id);
+                                    if (selectedSupplierId) {
+                                      navigate(`/suppliers/${selectedSupplierId}/plants/${plant.id}`);
+                                    }
+                                  }}
                                 >
                                   <ChildListName>{plant.name}</ChildListName>
                                   <ChildListMeta>
-                                    <span>{plant.code}</span>
+                                    <span>{plant.plant_est_num || `Plant #${plant.id}`}</span>
                                     {plant.plant_type ? <span>• {plant.plant_type}</span> : null}
                                   </ChildListMeta>
                                 </ChildListItem>
@@ -934,18 +603,6 @@ const Suppliers: React.FC = () => {
                                     : '—'}
                                 </MetaValue>
                               </MetaRow>
-                              <MetaRow>
-                                <MetaKey>Manager</MetaKey>
-                                <MetaValue>{selectedPlant.manager || '—'}</MetaValue>
-                              </MetaRow>
-                              <MetaRow>
-                                <MetaKey>Email</MetaKey>
-                                <MetaValue>{selectedPlant.email || '—'}</MetaValue>
-                              </MetaRow>
-                              <MetaRow>
-                                <MetaKey>Phone</MetaKey>
-                                <MetaValue>{selectedPlant.phone || '—'}</MetaValue>
-                              </MetaRow>
                             </MetaCard>
                           ) : (
                             <ExpandedHint>Select a plant to view details.</ExpandedHint>
@@ -964,6 +621,7 @@ const Suppliers: React.FC = () => {
                                       {c.first_name} {c.last_name}
                                     </ContactName>
                                     <ContactMeta>
+                                      {(c as any).department ? <span>{(c as any).department}</span> : null}
                                       {c.position ? <span>{c.position}</span> : null}
                                       {c.email ? <span>{c.email}</span> : null}
                                       {c.phone ? <span>{c.phone}</span> : null}

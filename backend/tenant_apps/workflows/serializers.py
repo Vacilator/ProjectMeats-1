@@ -396,6 +396,46 @@ class WorkflowExecutionLogSerializer(serializers.ModelSerializer):
 
 
 # =============================================================================
+# WORKFORM EXECUTION SERIALIZERS (TenantWorkForm)
+# =============================================================================
+
+from .models import TenantWorkFormExecution
+
+
+class TenantWorkFormExecutionSerializer(serializers.ModelSerializer):
+    """Serializer for TenantWorkFormExecution model."""
+
+    workform_name = serializers.CharField(source='workform.name', read_only=True)
+    started_by_name = serializers.SerializerMethodField()
+
+    class Meta:
+        model = TenantWorkFormExecution
+        fields = [
+            'id',
+            'tenant',
+            'workform',
+            'workform_name',
+            'status',
+            'initial_data',
+            'context_data',
+            'audit_trail',
+            'started_by',
+            'started_by_name',
+            'started_at',
+            'completed_at',
+            'error_message',
+            'created_on',
+            'modified_on',
+        ]
+        read_only_fields = fields
+
+    def get_started_by_name(self, obj):
+        if obj.started_by:
+            return obj.started_by.get_full_name() or obj.started_by.username
+        return None
+
+
+# =============================================================================
 # FORM SUBMISSION SERIALIZERS
 # =============================================================================
 

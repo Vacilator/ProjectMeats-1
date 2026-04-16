@@ -491,12 +491,12 @@ def sync_emails(request):
 
         # This is a user-triggered action. Prefer a 200 + structured failure payload so the UI
         # can display actionable guidance instead of treating it as a hard outage.
-        error_detail = str(sync_err) if getattr(settings, 'DEBUG', False) else "Email sync failed. Outlook connection may be expired or misconfigured."
+        # IMPORTANT: Never leak raw decryption/token exception strings to the client.
         return Response(
             {
                 "ok": False,
                 "message": "Email sync failed",
-                "error": error_detail,
+                "error": "Email sync failed. Outlook connection may be expired or misconfigured.",
                 "code": "sync_exception",
                 "error_code": "sync_exception",
                 "hint": "If this persists, reconnect Outlook in Settings → Email Integrations and retry.",
@@ -506,6 +506,9 @@ def sync_emails(request):
                 },
                 "tenant_id": tenant_id,
                 "provider_email": provider.connected_email,
+                "details": {
+                    "type": sync_err.__class__.__name__,
+                },
             },
             status=status.HTTP_200_OK,
         )

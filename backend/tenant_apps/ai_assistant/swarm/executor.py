@@ -236,6 +236,98 @@ DEFAULT_OPENAI_TOOLS = [
     {
         'type': 'function',
         'function': {
+            'name': 'extract_purchase_order_fields',
+            'description': 'Extract structured PO fields (vendor, PO number, items/weights) from document text.',
+            'parameters': {
+                'type': 'object',
+                'properties': {
+                    'text': {'type': 'string', 'description': 'Raw text extracted from parse_document.'},
+                },
+                'required': ['text'],
+                'additionalProperties': False,
+            },
+        },
+    },
+    {
+        'type': 'function',
+        'function': {
+            'name': 'create_purchase_order',
+            'description': 'Create a Purchase Order record from extracted fields (draft/pending).',
+            'parameters': {
+                'type': 'object',
+                'properties': {
+                    'order_number': {'type': 'string', 'description': 'PO number (maps to PurchaseOrder.order_number).'},
+                    'supplier_id': {'type': 'string', 'description': 'Supplier ID (maps to PurchaseOrder.supplier).'},
+                    'product_id': {'type': 'string', 'description': 'Optional system.Product id (maps to PurchaseOrder.product).'},
+                    'item_description': {'type': 'string', 'description': 'Line item description.'},
+                    'quantity': {'type': 'integer', 'description': 'Optional quantity.'},
+                    'total_weight': {'type': 'number', 'description': 'Optional total weight (lbs).'},
+                    'weight_unit': {'type': 'string', 'description': 'Weight unit (LBS/KG). Default LBS.'},
+                    'order_date': {'type': 'string', 'description': 'Optional order date (YYYY-MM-DD). Defaults to today.'},
+                    'notes': {'type': 'string', 'description': 'Optional notes.'},
+                },
+                'required': ['supplier_id', 'item_description'],
+                'additionalProperties': False,
+            },
+        },
+    },
+    {
+        'type': 'function',
+        'function': {
+            'name': 'create_supplier',
+            'description': 'Create a Supplier from PO header details when missing.',
+            'parameters': {
+                'type': 'object',
+                'properties': {
+                    'name': {'type': 'string'},
+                    'email': {'type': 'string'},
+                    'phone': {'type': 'string'},
+                    'address': {'type': 'string'},
+                    'city': {'type': 'string'},
+                    'state': {'type': 'string'},
+                    'zip_code': {'type': 'string'},
+                    'country': {'type': 'string'},
+                },
+                'required': ['name'],
+                'additionalProperties': False,
+            },
+        },
+    },
+    {
+        'type': 'function',
+        'function': {
+            'name': 'create_product',
+            'description': 'Create or align a Product to the Tier-1 catalog (best-effort; may require staff).',
+            'parameters': {
+                'type': 'object',
+                'properties': {
+                    'name': {'type': 'string'},
+                    'product_code': {'type': 'string'},
+                    'protein_type': {'type': 'string'},
+                },
+                'required': ['name'],
+                'additionalProperties': False,
+            },
+        },
+    },
+    {
+        'type': 'function',
+        'function': {
+            'name': 'ingest_purchase_order_document',
+            'description': 'End-to-end PO ingestion: parse document, extract fields, create missing supplier, and draft a PO.',
+            'parameters': {
+                'type': 'object',
+                'properties': {
+                    'document_id': {'type': 'string', 'description': 'AIDocument UUID.'},
+                },
+                'required': ['document_id'],
+                'additionalProperties': False,
+            },
+        },
+    },
+    {
+        'type': 'function',
+        'function': {
             'name': 'trigger_workform',
             'description': 'Trigger a TenantWorkForm execution and persist an execution record.',
             'parameters': {
@@ -349,6 +441,11 @@ class ToolExecutor:
             'get_entity_schema': self._get_entity_schema,
             'create_entity': self._create_entity,
             'parse_document': self._parse_document,
+            'extract_purchase_order_fields': self._extract_purchase_order_fields,
+            'create_purchase_order': self._create_purchase_order,
+            'create_supplier': self._create_supplier,
+            'create_product': self._create_product,
+            'ingest_purchase_order_document': self._ingest_purchase_order_document,
             'create_task': self._create_task,
             'create_in_app_notification': self._create_in_app_notification,
             'trigger_workform': self._trigger_workform,
@@ -803,12 +900,24 @@ class ToolExecutor:
         if not file_id_or_url:
             raise ValueError('Missing required parameter: file_id_or_url')
 
-        from uuid import UUID
+        # Safety (SSRF): only accept an uploaded AIDocument identifier (UUID or integer ID). URL fetch is disabled.
+        document_uuid = None
+        document_int = None
 
         try:
-            document_id = UUID(file_id_or_url)
-        except Exception as e:
-            raise ValueError('parse_document currently requires an uploaded document_id (UUID); URL fetch is disabled') from e
+            from uuid import UUID
+
+            document_uuid = UUID(file_id_or_url)
+        except Exception:
+            document_uuid = None
+
+        if document_uuid is None:
+            try:
+                document_int = int(file_id_or_url)
+            except Exception as e:
+                raise ValueError(
+                    'parse_document requires an uploaded document_id (UUID or integer). URL fetch is disabled for SSRF safety.'
+                ) from e
 
         from django.conf import settings
 
@@ -825,7 +934,7 @@ class ToolExecutor:
 
         from tenant_apps.ai_assistant.models import AIDocument
 
-        doc = AIDocument.objects.filter(id=document_id, tenant=tenant, owner=user).first()
+        doc = AIDocument.objects.filter(id=(document_int or document_uuid), tenant=tenant, owner=user).first()
         if not doc:
             raise ValueError('Document not found for this tenant/user')
 
@@ -837,19 +946,54 @@ class ToolExecutor:
 
         import requests
 
-        with doc.file.open('rb') as f:
-            files = {
-                'files': (filename, f.read(), content_type),
+        try:
+            with doc.file.open('rb') as f:
+                # Stream the file object; avoid f.read() to reduce memory pressure for large PDFs.
+                files = {
+                    'files': (filename, f, content_type),
+                }
+
+                # Auth header varies by Unstructured deployment. Send both to be compatible.
+                headers = {
+                    'Authorization': f'Bearer {api_key}',
+                    'unstructured-api-key': api_key,
+                    'Accept': 'application/json',
+                }
+
+                resp = requests.post(
+                    endpoint,
+                    files=files,
+                    headers=headers,
+                    timeout=60,
+                )
+        except requests.exceptions.RequestException as exc:
+            logger.warning('[parse_document] Unstructured request failed (endpoint=%s): %s', endpoint, str(exc))
+            return {
+                'status': 'error',
+                'error_code': 'UNSTRUCTURED_UNREACHABLE',
+                'message': 'The document parsing service is currently unreachable. Please try again later.',
+                'endpoint': endpoint,
             }
-            headers = {
-                'Authorization': f'Bearer {api_key}',
+
+        if resp.status_code in (502, 503, 504):
+            return {
+                'status': 'error',
+                'error_code': 'UNSTRUCTURED_UNREACHABLE',
+                'message': f'The document parsing service is currently unreachable (HTTP {resp.status_code}).',
+                'endpoint': endpoint,
             }
-            resp = requests.post(
-                endpoint,
-                files=files,
-                headers=headers,
-                timeout=60,
+
+        if resp.status_code in (401, 403):
+            logger.error(
+                '[parse_document] Unstructured auth failed (HTTP %s). Check UNSTRUCTURED_API_KEY/header format.',
+                resp.status_code,
             )
+            return {
+                'status': 'error',
+                'error_code': 'UNSTRUCTURED_AUTH_FAILED',
+                'message': f'Document parsing service authentication failed (HTTP {resp.status_code}).',
+                'endpoint': endpoint,
+            }
 
         if resp.status_code >= 400:
             raise ValueError(f'Unstructured API error {resp.status_code}: {resp.text[:500]}')
@@ -878,6 +1022,307 @@ class ToolExecutor:
             'content_type': content_type,
             'text': combined_text[:20000],
             'elements_preview': elements[:50],
+        }
+
+    def _extract_purchase_order_fields(self, arguments: Dict[str, Any], tenant: Any, user: Any = None) -> Any:
+        """Extract a normalized PO payload from raw document text.
+
+        Best-effort:
+        - If OpenAI is configured, prefer JSON extraction.
+        - Otherwise use a deterministic regex fallback (sufficient for tests / degraded envs).
+        """
+        raw_text = (arguments.get('text') or '').strip()
+        if not raw_text:
+            raise ValueError('Missing required parameter: text')
+
+        # Deterministic fallback first so we always return something stable.
+        import re
+
+        text = raw_text.replace('\r', '\n')
+        compact = re.sub(r'\s+', ' ', text)
+
+        order_number = None
+        m = re.search(r'\bPO[\s\-#]*([0-9]{3,})\b', compact, re.IGNORECASE)
+        if m:
+            order_number = m.group(1)
+
+        vendor_name = None
+        m = re.search(r'\bVendor\s*[:\-]\s*([^\n]+)', text, re.IGNORECASE)
+        if m:
+            vendor_name = m.group(1).strip()[:255]
+
+        # Weight like "40,000 lbs".
+        total_weight = None
+        weight_unit = 'LBS'
+        m = re.search(r'([0-9]{1,3}(?:,[0-9]{3})+|[0-9]+)\s*(lbs|lb|pounds|kg|kgs)\b', compact, re.IGNORECASE)
+        if m:
+            num = m.group(1).replace(',', '')
+            try:
+                total_weight = float(num)
+            except Exception:
+                total_weight = None
+            unit = m.group(2).lower()
+            weight_unit = 'KG' if unit.startswith('kg') else 'LBS'
+
+        item_description = None
+        m = re.search(r'\b(Item|Description)\s*[:\-]\s*([^\n]+)', text, re.IGNORECASE)
+        if m:
+            item_description = m.group(2).strip()[:500]
+
+        # OpenAI extractor (optional) – may override fallback values.
+        from django.conf import settings
+        openai_api_key = getattr(settings, 'OPENAI_API_KEY', None)
+        if openai_api_key:
+            try:
+                from openai import OpenAI
+
+                client = OpenAI(api_key=openai_api_key, organization=getattr(settings, 'OPENAI_ORG_ID', None) or None)
+                prompt = (
+                    'Extract purchase order fields from this text and return JSON with keys: '
+                    '{order_number, vendor_name, items:[{description,total_weight,weight_unit,quantity}]}. '\
+                    'If a field is missing, use null. Text:\n' + raw_text
+                )
+                completion = client.chat.completions.create(
+                    model='gpt-4o-mini',
+                    messages=[{'role': 'user', 'content': prompt}],
+                    temperature=0,
+                    max_tokens=600,
+                )
+                content = (completion.choices[0].message.content or '').strip()
+                import json as _json
+
+                parsed = _json.loads(content)
+                if isinstance(parsed, dict):
+                    order_number = str(parsed.get('order_number') or order_number or '').strip() or order_number
+                    vendor_name = str(parsed.get('vendor_name') or vendor_name or '').strip() or vendor_name
+                    items = parsed.get('items') if isinstance(parsed.get('items'), list) else None
+                    if items and isinstance(items[0], dict):
+                        item0 = items[0]
+                        item_description = str(item0.get('description') or item_description or '').strip() or item_description
+                        if total_weight is None and item0.get('total_weight') is not None:
+                            try:
+                                total_weight = float(item0.get('total_weight'))
+                            except Exception:
+                                pass
+                        if item0.get('weight_unit'):
+                            weight_unit = str(item0.get('weight_unit')).upper().strip() or weight_unit
+            except Exception as exc:
+                logger.warning('[extract_purchase_order_fields] OpenAI extraction failed; using fallback: %s', str(exc))
+
+        items_out = []
+        if item_description or total_weight is not None:
+            items_out.append(
+                {
+                    'description': item_description,
+                    'total_weight': total_weight,
+                    'weight_unit': weight_unit,
+                    'quantity': None,
+                }
+            )
+
+        return {
+            'order_number': order_number,
+            'vendor_name': vendor_name,
+            'items': items_out,
+        }
+
+    def _create_supplier(self, arguments: Dict[str, Any], tenant: Any, user: Any = None) -> Any:
+        payload = {k: v for k, v in (arguments or {}).items() if v not in (None, '')}
+        name = str(payload.get('name') or '').strip()
+        if not name:
+            raise ValueError('Supplier name is required')
+        return self._create_entity({'entity_type': 'supplier', 'payload': payload}, tenant, user=user)
+
+    def _create_product(self, arguments: Dict[str, Any], tenant: Any, user: Any = None) -> Any:
+        """Best-effort product creation.
+
+        - If the user is staff, create a system.Product (Tier-1 catalog).
+        - Otherwise, return a stable error so the agent can proceed without a product FK.
+        """
+        name = str((arguments.get('name') or '')).strip()
+        if not name:
+            raise ValueError('Missing required parameter: name')
+
+        if not (getattr(user, 'is_staff', False) or getattr(user, 'is_superuser', False)):
+            return {
+                'status': 'error',
+                'error_code': 'PRODUCT_CREATE_FORBIDDEN',
+                'message': 'Creating Tier-1 catalog products requires a staff user. Proceeding without product linkage.',
+                'name': name,
+            }
+
+        from rest_framework.test import APIRequestFactory, force_authenticate
+        from apps.system.views.product_viewset import SystemProductViewSet
+
+        product_code = str(arguments.get('product_code') or '').strip() or None
+        protein_type = str(arguments.get('protein_type') or '').strip().lower() or ''
+
+        factory = APIRequestFactory()
+        req = factory.post('/api/v1/system/products/', {'name': name, 'product_code': product_code, 'protein_type': protein_type}, format='json')
+        force_authenticate(req, user=user)
+        req.tenant = tenant
+
+        view = SystemProductViewSet.as_view({'post': 'create'})
+        resp = view(req)
+        if getattr(resp, 'status_code', 200) >= 400:
+            raise ValueError(f'Product create failed: {getattr(resp, "data", None)}')
+        return getattr(resp, 'data', {})
+
+    def _create_purchase_order(self, arguments: Dict[str, Any], tenant: Any, user: Any = None) -> Any:
+        if not user or not getattr(user, 'is_authenticated', False):
+            raise ValueError('Authenticated user is required to create purchase orders')
+
+        from django.utils import timezone
+
+        supplier_id = str(arguments.get('supplier_id') or '').strip()
+        if not supplier_id:
+            raise ValueError('Missing required parameter: supplier_id')
+
+        payload: Dict[str, Any] = {
+            'supplier': supplier_id,
+            'item_description': str(arguments.get('item_description') or '').strip(),
+            'notes': str(arguments.get('notes') or '').strip() or None,
+        }
+        if not payload['item_description']:
+            raise ValueError('Missing required parameter: item_description')
+
+        if arguments.get('order_number'):
+            payload['order_number'] = str(arguments.get('order_number') or '').strip()
+
+        if arguments.get('product_id'):
+            payload['product'] = str(arguments.get('product_id') or '').strip()
+
+        if arguments.get('quantity') is not None:
+            try:
+                payload['quantity'] = int(arguments.get('quantity'))
+            except Exception:
+                pass
+
+        if arguments.get('total_weight') is not None:
+            try:
+                payload['total_weight'] = float(arguments.get('total_weight'))
+            except Exception:
+                pass
+
+        payload['weight_unit'] = str(arguments.get('weight_unit') or 'LBS').strip().upper() or 'LBS'
+
+        order_date = str(arguments.get('order_date') or '').strip()
+        payload['order_date'] = order_date or str(timezone.localdate())
+
+        from rest_framework.test import APIRequestFactory, force_authenticate
+        from tenant_apps.purchase_orders.views import PurchaseOrderViewSet
+
+        factory = APIRequestFactory()
+        req = factory.post('/api/v1/purchase-orders/', payload, format='json')
+        force_authenticate(req, user=user)
+        req.tenant = tenant
+
+        view = PurchaseOrderViewSet.as_view({'post': 'create'})
+        resp = view(req)
+        if getattr(resp, 'status_code', 200) >= 400:
+            raise ValueError(f'Purchase order create failed: {getattr(resp, "data", None)}')
+
+        return getattr(resp, 'data', {})
+
+    def _ingest_purchase_order_document(self, arguments: Dict[str, Any], tenant: Any, user: Any = None) -> Any:
+        """Autonomous PO ingestion entry point."""
+        document_id = str(arguments.get('document_id') or '').strip()
+        if not document_id:
+            raise ValueError('Missing required parameter: document_id')
+
+        parsed = self._parse_document({'file_id_or_url': document_id}, tenant, user=user)
+        if isinstance(parsed, dict) and parsed.get('status') == 'error':
+            return parsed
+
+        text = parsed.get('text') if isinstance(parsed, dict) else None
+        if not isinstance(text, str) or not text.strip():
+            return {
+                'status': 'error',
+                'error_code': 'PARSE_EMPTY',
+                'message': 'Parsed document text was empty; cannot ingest PO.',
+            }
+
+        extracted = self._extract_purchase_order_fields({'text': text}, tenant, user=user)
+        vendor_name = str(extracted.get('vendor_name') or '').strip()
+        order_number = str(extracted.get('order_number') or '').strip() or None
+
+        items = extracted.get('items') if isinstance(extracted.get('items'), list) else []
+        item0 = items[0] if items else {}
+        description = str((item0 or {}).get('description') or '').strip() or 'PO Item'
+        total_weight = (item0 or {}).get('total_weight', None)
+        weight_unit = str((item0 or {}).get('weight_unit') or 'LBS').strip().upper() or 'LBS'
+
+        from tenant_apps.suppliers.models import Supplier
+
+        supplier = None
+        if vendor_name:
+            supplier = Supplier.objects.filter(tenant=tenant, name__iexact=vendor_name).first()
+
+        created_supplier = False
+        if not supplier:
+            if not vendor_name:
+                vendor_name = 'Unknown Vendor'
+            created = self._create_supplier({'name': vendor_name}, tenant, user=user)
+            supplier_id = str((created or {}).get('id') or '').strip()
+            supplier = Supplier.objects.filter(tenant=tenant, id=supplier_id).first()
+            created_supplier = True
+
+        # Try to align to Tier-1 system products, but do not block PO creation.
+        product_id = None
+        try:
+            from apps.system.models import Product
+
+            product = Product.objects.filter(name__icontains=description).order_by('id').first()
+            if product:
+                product_id = str(product.id)
+        except Exception:
+            product_id = None
+
+        po = self._create_purchase_order(
+            {
+                'order_number': order_number,
+                'supplier_id': str(supplier.id),
+                'product_id': product_id,
+                'item_description': description,
+                'total_weight': total_weight,
+                'weight_unit': weight_unit,
+            },
+            tenant,
+            user=user,
+        )
+
+        po_number = str(po.get('order_number') or order_number or '').strip() or '(auto)'
+        weight_display = None
+        if total_weight is not None:
+            try:
+                weight_display = f"{int(float(total_weight)):,} {weight_unit.lower()}"
+            except Exception:
+                weight_display = f"{total_weight} {weight_unit.lower()}"
+
+        message = None
+        if created_supplier:
+            if weight_display:
+                message = (
+                    f"I couldn't find {vendor_name}, so I created them for you. "
+                    f"I've also drafted PO #{po_number} for {weight_display} of {description}."
+                )
+            else:
+                message = (
+                    f"I couldn't find {vendor_name}, so I created them for you. "
+                    f"I've also drafted PO #{po_number} for {description}."
+                )
+        else:
+            if weight_display:
+                message = f"I've drafted PO #{po_number} for {weight_display} of {description}."
+            else:
+                message = f"I've drafted PO #{po_number} for {description}."
+
+        return {
+            'status': 'ok',
+            'created_supplier': created_supplier,
+            'supplier_id': str(supplier.id) if supplier else None,
+            'purchase_order': po,
+            'message': message,
         }
 
     def _create_task(self, arguments: Dict[str, Any], tenant: Any, user: Any = None) -> Any:

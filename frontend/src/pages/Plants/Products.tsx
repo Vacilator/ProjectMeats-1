@@ -27,7 +27,7 @@ interface SystemProduct {
 interface Plant {
   id: number;
   name: string;
-  code: string;
+  plant_est_num?: string;
   supplier?: number;
   supplier_name?: string;
 }
@@ -336,7 +336,7 @@ const PlantProducts: React.FC = () => {
         <TitleSection>
           <PageTitle>Plant Available Products</PageTitle>
           <PageSubtitle>
-            Products available at {plant ? `${plant.name} (${plant.code})` : 'this plant'}
+            Products available at {plant ? `${plant.name}${plant.plant_est_num ? ` (${plant.plant_est_num})` : ''}` : 'this plant'}
           </PageSubtitle>
         </TitleSection>
         <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/suppliers/plants')}>
@@ -346,7 +346,7 @@ const PlantProducts: React.FC = () => {
 
       {plant && (
         <ContextBanner>
-          Viewing available products for plant: <span>{plant.name} ({plant.code})</span>
+          Viewing available products for plant: <span>{plant.name}{plant.plant_est_num ? ` (${plant.plant_est_num})` : ''}</span>
           {plant.supplier_name && <> — Supplier: <span>{plant.supplier_name}</span></>}
         </ContextBanner>
       )}

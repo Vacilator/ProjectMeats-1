@@ -38,6 +38,7 @@ const queryClient = new QueryClient({
 import Suppliers from './pages/Suppliers';
 import Customers from './pages/Customers';
 import UniversalEntityRecordPage from './pages/Entities/UniversalEntityRecordPage';
+import UniversalEntityRecordRoute from './pages/Entities/UniversalEntityRecordRoute';
 import PurchaseOrders from './pages/PurchaseOrders';
 import SalesOrders from './pages/SalesOrders';
 import AccountsReceivables from './pages/AccountsReceivables';
@@ -51,6 +52,10 @@ import CustomerProducts from './pages/Customers/Products';
 import PlantProducts from './pages/Plants/Products';
 import PlantDetailView from './pages/Plants/PlantDetailView';
 import LocationDetailView from './pages/Locations/LocationDetailView';
+import SupplierPlantDetail from './pages/Suppliers/PlantDetail';
+import SupplierPlantContactDetail from './pages/Suppliers/PlantContactDetail';
+import CustomerLocationDetail from './pages/Customers/LocationDetail';
+import CustomerLocationContactDetail from './pages/Customers/LocationContactDetail';
 import Carriers from './pages/Carriers';
 import AIAssistant from './pages/AIAssistant';
 import CallLog from './pages/Cockpit/CallLog';
@@ -96,6 +101,8 @@ import WorkFormsLayout from './pages/WorkForms';
 import WorkFormsCatalog from './pages/WorkForms/Catalog';
 import WorkFormsInProgress from './pages/WorkForms/InProgress';
 import WorkFormsHistory from './pages/WorkForms/History';
+import ExecuteWorkForm from './pages/WorkForms/Execute';
+import WorkFormExecutionDetails from './pages/WorkForms/ExecutionDetails';
 const WorkFormsEditor = lazy(() => import('./pages/WorkForms/Editor'));
 import WorkFormsMonitoring from './pages/WorkForms/Monitoring';
 
@@ -233,6 +240,9 @@ const App: React.FC = () => {
                 <Route path="/signup" element={<SignUp />} />
               <Route path="/" element={<Layout />}>
                 <Route index element={<Navigate to="/cockpit" replace />} />
+
+                {/* Canonical record destination */}
+                <Route path="records/:entityType/:id" element={<UniversalEntityRecordRoute />} />
                 
                 {/* Suppliers & Related */}
                 <Route path="suppliers" element={<Suppliers />} />
@@ -252,6 +262,11 @@ const App: React.FC = () => {
                 <Route path="suppliers/:supplierId/contacts" element={<Contacts />} />
                 <Route path="suppliers/plants" element={<Plants />} />
                 <Route path="suppliers/:supplierId/plants" element={<Plants />} />
+                <Route path="suppliers/:supplierId/plants/:plantId" element={<SupplierPlantDetail />} />
+                <Route
+                  path="suppliers/:supplierId/plants/:plantId/contacts/:contactId"
+                  element={<SupplierPlantContactDetail />}
+                />
                 <Route path="suppliers/:id/products" element={<SupplierProducts />} />
                 <Route path="plants/:id" element={<PlantDetailView />} />
                 <Route path="plants/:id/products" element={<PlantProducts />} />
@@ -275,6 +290,11 @@ const App: React.FC = () => {
                 <Route path="customers/:customerId/contacts" element={<Contacts />} />
                 <Route path="customers/locations" element={<CustomerLocations />} />
                 <Route path="customers/:customerId/locations" element={<CustomerLocations />} />
+                <Route path="customers/:customerId/locations/:locationId" element={<CustomerLocationDetail />} />
+                <Route
+                  path="customers/:customerId/locations/:locationId/contacts/:contactId"
+                  element={<CustomerLocationContactDetail />}
+                />
                 <Route path="customers/:id/products" element={<CustomerProducts />} />
                 
                 {/* Orders */}
@@ -323,6 +343,8 @@ const App: React.FC = () => {
                   <Route path="monitoring" element={<WorkFormsMonitoring />} />
                   <Route path="catalog" element={<WorkFormsCatalog />} />
                   <Route path="history" element={<WorkFormsHistory />} />
+                  <Route path="execute/:id" element={<ExecuteWorkForm />} />
+                  <Route path="executions/:id" element={<WorkFormExecutionDetails />} />
                   <Route
                     path="editor"
                     element={

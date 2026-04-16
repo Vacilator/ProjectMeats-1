@@ -17,22 +17,6 @@ interface HeaderProps {
   // No props needed currently
 }
 
-// Search icon SVG component
-const SearchIcon: React.FC = () => (
-  <svg 
-    width="16" 
-    height="16" 
-    viewBox="0 0 24 24" 
-    fill="none" 
-    stroke="currentColor" 
-    strokeWidth="2" 
-    strokeLinecap="round" 
-    strokeLinejoin="round"
-  >
-    <circle cx="11" cy="11" r="8" />
-    <path d="m21 21-4.3-4.3" />
-  </svg>
-);
 
 const Header: React.FC<HeaderProps> = () => {
   const { theme, themeName, toggleTheme } = useTheme();
@@ -119,7 +103,7 @@ const Header: React.FC<HeaderProps> = () => {
     }
 
     if (action.type === 'workflow' && action.workflow_id) {
-      navigate(`/workforms/editor/${action.workflow_id}`);
+      navigate(`/workforms/execute/${action.workflow_id}`);
       setShowQuickMenu(false);
     }
   };
@@ -175,7 +159,7 @@ const Header: React.FC<HeaderProps> = () => {
       <SearchForm onSubmit={handleSearchSubmit}>
         <SearchInputWrapper $theme={theme}>
           <SearchIconWrapper $theme={theme}>
-            <SearchIcon />
+            <Icon name="search" size={16} />
           </SearchIconWrapper>
           <SearchInput
             ref={searchInputRef}
@@ -378,6 +362,15 @@ const HeaderContainer = styled.header<{ $theme: Theme }>`
   transition: all 0.3s ease;
   gap: 20px;
 
+  /* Tablet: allow header content to wrap to avoid horizontal overflow */
+  @media (max-width: 900px) {
+    padding: 10px 12px;
+    height: auto;
+    min-height: 60px;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
   @media (max-width: 640px) {
     padding: 10px 12px;
     height: auto;
@@ -402,8 +395,13 @@ const HeaderTitle = styled.h1<{ $theme: Theme }>`
 const SearchForm = styled.form`
   flex: 1;
   max-width: 500px;
+  min-width: 0;
   display: flex;
   align-items: center;
+
+  @media (max-width: 900px) {
+    max-width: none;
+  }
 
   @media (max-width: 640px) {
     order: 3;

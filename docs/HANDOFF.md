@@ -1,5 +1,11 @@
 # Handoff Document: Gap Analysis Project
 
+> ⚠️ **Historical Snapshot (Feb 2026)**
+> This document is preserved for context, but it no longer reflects current repo status.
+> For the current authoritative status, refer to:
+> - `MASTER_PLAN.md` (repo root)
+> - `.github/MASTER_PLAN.md` (append-only shipped PR log)
+
 **Date**: February 26, 2026  
 **Session**: Evening completion of Phase 6  
 **Overall Progress**: 51.7% complete (15/29 todos)
@@ -32,11 +38,12 @@
 
 ---
 
-## 🚧 Pending PRs (Requires Manual Creation)
+## 📦 Historical PR Links (Merged)
 
-**Why Manual**: `gh pr create` fails for fork→upstream PRs. Must create via web UI.
+> ⚠️ This section is **historical**. The referenced PRs/branches were merged long ago.
+> Use `gh pr list` and `.github/MASTER_PLAN.md` for current shipped state.
 
-### 4 PRs Awaiting Merge
+### 4 PR links (historical)
 
 1. **Phase 6.2: Security Hardening**  
    https://github.com/Meats-Central/ProjectMeats/compare/development...Vacilator:ProjectMeats-1:feat/gap-analysis-phase6-2-security-hardening?expand=1

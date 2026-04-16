@@ -11,27 +11,28 @@ class PlantAdmin(TenantFilteredAdmin):
 
     list_display = (
         "name",
-        "code",
         "plant_est_num",
         "plant_type",
         "city",
         "state",
-        "manager",
         "is_active",
         "created_at",
     )
     list_filter = ("plant_type", "is_active", "country", "state", "created_at")
-    search_fields = ("name", "code", "manager", "city")
+    search_fields = ("name", "plant_est_num", "city")
     readonly_fields = ("created_at", "updated_at")
 
     fieldsets = (
         (
             "Basic Information",
-            {"fields": ("name", "code", "plant_est_num", "plant_type", "manager")},
+            {"fields": ("name", "plant_est_num", "plant_type")},
         ),
         ("Address", {"fields": ("address", "city", "state", "zip_code", "country")}),
-        ("Contact Information", {"fields": ("phone", "email")}),
-        ("Operational Details", {"fields": ("capacity", "is_active")}),
+        (
+            "Booking Contact (Optional)",
+            {"fields": ("booking_contact_email", "booking_contact_phone", "booking_contact_phone_type")},
+        ),
+        ("Operational Details", {"fields": ("capacity", "is_active", "fcfs")}),
         (
             "Metadata",
             {

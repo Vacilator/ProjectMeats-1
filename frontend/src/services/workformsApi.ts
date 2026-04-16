@@ -355,15 +355,15 @@ export const listTenantWorkForms = async (params?: {
   status?: 'draft' | 'active' | 'archived';
   search?: string;
 }): Promise<TenantWorkForm[]> => {
-  const response = await apiClient.get('/workflows/workflows/', { params });
-  return response.data;
+  const response = await apiClient.get('/tenant-workforms/', { params });
+  return response.data.results || response.data || [];
 };
 
 /**
  * Get a specific tenant workflow by ID
  */
 export const getTenantWorkForm = async (workformId: string): Promise<TenantWorkForm> => {
-  const response = await apiClient.get(`/workflows/workflows/${workformId}/`);
+  const response = await apiClient.get(`/tenant-workforms/${workformId}/`);
   return response.data;
 };
 
@@ -376,7 +376,7 @@ export const createTenantWorkForm = async (data: {
   status?: 'draft' | 'active' | 'archived';
   workflow_definition: any;
 }): Promise<TenantWorkForm> => {
-  const response = await apiClient.post('/workflows/workflows/', data);
+  const response = await apiClient.post('/tenant-workforms/', data);
   return response.data;
 };
 
@@ -387,7 +387,7 @@ export const updateTenantWorkForm = async (
   workformId: string,
   data: Partial<TenantWorkForm>
 ): Promise<TenantWorkForm> => {
-  const response = await apiClient.put(`/workflows/workflows/${workformId}/`, data);
+  const response = await apiClient.put(`/tenant-workforms/${workformId}/`, data);
   return response.data;
 };
 
@@ -395,7 +395,7 @@ export const updateTenantWorkForm = async (
  * Delete a tenant workflow
  */
 export const deleteTenantWorkForm = async (workformId: string): Promise<void> => {
-  await apiClient.delete(`/workflows/workflows/${workformId}/`);
+  await apiClient.delete(`/tenant-workforms/${workformId}/`);
 };
 
 // ============================================================================
@@ -413,7 +413,7 @@ export const cloneWorkForm = async (
     include_form_references?: boolean;
   }
 ): Promise<TenantWorkForm> => {
-  const response = await apiClient.post(`/workflows/workflows/${workformId}/clone/`, data);
+  const response = await apiClient.post(`/tenant-workforms/${workformId}/clone/`, data);
   return response.data;
 };
 
@@ -434,7 +434,7 @@ export const getWorkFormUsage = async (
   created_at: string;
   updated_at: string;
 }> => {
-  const response = await apiClient.get(`/workflows/workflows/${workformId}/usage/`);
+  const response = await apiClient.get(`/tenant-workforms/${workformId}/usage/`);
   return response.data;
 };
 
@@ -448,7 +448,7 @@ export const validateWorkForm = async (
   missing_forms: string[];
   total_references: number;
 }> => {
-  const response = await apiClient.post(`/workflows/workflows/${workformId}/validate/`);
+  const response = await apiClient.post(`/tenant-workforms/${workformId}/validate/`);
   return response.data;
 };
 
@@ -491,7 +491,7 @@ export interface ContainerDetail {
 export const listWorkFormContainers = async (
   workformId: string
 ): Promise<{ containers: ContainerSummary[] }> => {
-  const response = await apiClient.get(`/workflows/workflows/${workformId}/containers/`);
+  const response = await apiClient.get(`/tenant-workforms/${workformId}/containers/`);
   return response.data;
 };
 
@@ -502,7 +502,7 @@ export const getContainerDetail = async (
   workformId: string,
   containerId: string
 ): Promise<ContainerDetail> => {
-  const response = await apiClient.get(`/workflows/workflows/${workformId}/containers/${containerId}/`);
+  const response = await apiClient.get(`/tenant-workforms/${workformId}/containers/${containerId}/`);
   return response.data;
 };
 
@@ -514,7 +514,7 @@ export const addNodeToContainer = async (
   nodeId: string,
   containerId: string
 ): Promise<{ message: string; node_id: string; container_id: string }> => {
-  const response = await apiClient.post(`/workflows/workflows/${workformId}/containers/add-node/`, {
+  const response = await apiClient.post(`/tenant-workforms/${workformId}/containers/add-node/`, {
     node_id: nodeId,
     container_id: containerId
   });
@@ -528,7 +528,7 @@ export const removeNodeFromContainer = async (
   workformId: string,
   nodeId: string
 ): Promise<{ message: string; node_id: string }> => {
-  const response = await apiClient.post(`/workflows/workflows/${workformId}/containers/remove-node/`, {
+  const response = await apiClient.post(`/tenant-workforms/${workformId}/containers/remove-node/`, {
     node_id: nodeId
   });
   return response.data;

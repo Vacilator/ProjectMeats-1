@@ -11,6 +11,54 @@ This file is the **append-only PR-referenceable execution log**.
 
 ## Operational Notes
 
+- **2026-03-31** — WorkForms runtime: Quick Actions workflow items now execute via `/workforms/execute/:id` (not editor). Backend adds `POST /api/v1/tenant-workforms/:id/execute/` to create `TenantWorkFormExecution` and run async via Celery; adds `/api/v1/workflows/workform-executions/` and surfaces active executions in WorkForms Monitoring; Catalog supports deleting draft/archived WorkForms with confirmation. (PR: #4320)
+
+- **2026-03-31** — UniversalEntityForm: purged legacy Plant create/edit forms. Suppliers “+ New Plant” and Plants table “Add/Edit” now route through `EntityFormSurface` → `UniversalEntityForm` (supplier prefill via context). Suppliers can still optionally assign plant products post-create. (PR: #4321)
+
+- **2026-03-31** — UniversalEntityForm/DynamicFormEngine: state/province fields now render as a searchable dropdown (search by full name or abbreviation), including inline array sub-fields. (PR: #4322)
+
+- **2026-03-31** — UniversalEntityForm: purged legacy Location create/edit forms. Customers “+ New Location” and Locations table “Add/Edit” now route through `EntityFormSurface` → `UniversalEntityForm` (customer prefill via context). Customers can still optionally assign location products post-create. (PR: #4323)
+
+- **2026-03-31** — UniversalEntityForm: Contacts page create/edit now routes through `EntityFormSurface` → `UniversalEntityForm` (schema-driven). Context from supplier/customer/plant/location query params is prefilled on create. (PR: #4324)
+
+- **2026-03-31** — Workforms editor: DynamicConfigPanel now supports `formReference` and `keyValue` schema field types (removes the "Unknown field type" placeholder for real node configs). (PR: #4319)
+- **2026-03-31** — Workforms AI Suggestions: aligned prompt + backend fallback suggestions to canonical node type IDs; added frontend canonicalization + guard to prevent adding unknown suggested nodes. (PR: #4319)
+
+- **2026-03-31** — Workforms editor: Form Submitted trigger config now lists saved FormProcess nodes via a dynamic dropdown (label: title/display-name + created date). (PR: #4318)
+
+- **2026-03-31** — **HOTFIX**: Stabilized `AvailableFormsViewSet` (Quick Actions) to avoid ORM/enum edge cases and added explicit “document parsing service unreachable” error return for the AI `parse_document` tool. (PR: #4327)
+
+- **2026-03-31** — Workforms editor onboarding: prevented Step 5 tour overlay lockout by targeting stable canvas element, enabling overlay/Esc dismissal, and aborting cleanly on close/overlay/error events. (PR: #4329)
+
+- **2026-03-31** — Cockpit resilience: added circuit breakers to prevent retry/toast spam during 5xx/502 backend outages; show stable "Data unavailable" placeholders. (PR: #4331)
+
+- **2026-04-01** — CI/CD: updated Master Pipeline deployment run-name formatting, restored PR validation checks in Actions feed, and re-enabled auto-promotion PR creation (development→uat, uat→main). (PR: #4333)
+
+- **2026-04-01** — Plants: removed legacy Plant fields (`code`, `manager`, `phone`, `email`), updated Vertical plant type label to “Vertical (Kill to Fabrication)”, fixed contact phone inputs, added Department column in contact lists, and implemented strict drill-down routing + breadcrumbs (Suppliers→Plants→Contacts, Customers→Locations→Contacts). (PR: #4332)
+
+- **2026-04-06** — Suppliers/Plants UX polish: fixed UniversalEntityForm “pushed left / distorted” modal rendering by making AntD modal width responsive (`min(720px, calc(100vw - 32px))`), hardening container sizing (`max-width: 100%`, `box-sizing: border-box`, `overflow-x: hidden`), and ensuring AntD `<Select>` dropdowns mount inside the active modal/drawer container via `getPopupContainer`. Plant detail view now uses Record Pivot standard (`EntityProfileHeader` + Contacts tab) instead of a full read-only UniversalEntityForm wall. (PR: #4344)
+
+- **2026-04-06** — **V3.5 Unified UX Standard (Unified Forms + Record Pivot)**: all primary create/edit entry points route through `EntityFormSurface` (enhanced entity forms are selected inside it). Plant + Location detail pages use the Record Pivot layout (`EntityProfileHeader` top section + AntD `Tabs`), with relationship content in tabs (Contacts + Activity via `ActivityFeed`). Backend form schema now includes an explicit `inquiries.inquiry` “Ideal Inquiry Form” schema including product line items (inline array) for universal form parity.
+  - Create/edit: `EntityFormSurface` only (no direct modal/form calls from pages)
+  - Record view: `EntityProfileHeader` top section; edit opens `EntityFormSurface` modal
+  - Relationships: Tabs below header; at minimum Contacts + Activity
+  - Density parity: ~12px spacing, `Table size="small"`, row-click navigation like Cockpit
+  (PR: #4351)
+
+- **2026-04-06** — **Unified Component Architecture (Schema-driven Record Management)**: formalized backend form schema metadata as the “brain” for header/table rendering, and introduced canonical record navigation.
+  - Backend: `/api/v1/system/forms/schema/` normalized to always include per-field `read_only`, `hidden`, `group`, `surfaces` + top-level `header_fields`/`groups` metadata.
+  - Record Pivot: `EntityProfileHeader` now supports `layout` variants and renders header fields based on schema order + grouping.
+  - Unified Tables: added `UnifiedEntityTable` (AntD Table, Cockpit-consistent density) with a standard Quick Edit drawer that mounts `EntityFormSurface`.
+  - Tabbed Record Page: `UniversalEntityRecordPage` now mounts standard tabs (Overview/Details/Related/Timeline) and uses `UnifiedEntityTable` for related lists.
+  - Canonical Routing: added `/records/:entityType/:id` as the default destination for row-click navigation; backend `EntityViewSet` now supports `plant` and `location` for canonical record loading.
+  (PR: #4351)
+
+- **2026-04-06** — **Phase 7.0/9.5: Autonomous PO Ingestion stabilized**: fixed AI document parsing failure modes and implemented an end-to-end PO ingestion tool chain.
+  - `parse_document`: now accepts UUID or integer document IDs, streams file uploads, sends compatible Unstructured auth headers, and returns structured error payloads (no more silent “unreachable”).
+  - Added tools: `extract_purchase_order_fields`, `create_purchase_order`, and `ingest_purchase_order_document` to enable autonomous supplier creation + PO drafting from PO PDFs.
+  - Swarm prompt updated to use `ingest_purchase_order_document(document_id)` for Purchase Order documents.
+  (PR: #4353)
+
 ### 2026-03-31 — Secret audit drift (manifest v5.1)
 - Command: `python config/manage_env.py audit --repo Meats-Central/ProjectMeats`
 - Stale/Zombie secrets found in GitHub but NOT in `manifests/env.manifest.json` (or legacy `DEV_`/`UAT_`/`PROD_` prefixed):
@@ -70,8 +118,38 @@ This file is the **append-only PR-referenceable execution log**.
 
 ### 2026-03-31 — Pending work items (not shipped)
 These items were requested/planned in-session but are **not completed yet**:
+
+- **Session handoff (from `plan.md`)**
+  - Source of truth for remaining work: this section.
+  - Current SQL todos: `plant-schema-cruft-purge` (in_progress), `universal-form-input-fixes` (pending), `hierarchical-drilldown-routing` (pending).
+  - Repo rule reminder: changes must land via PRs (direct pushes to `development` are blocked).
+
+- **Plant schema cruft purge** (`plant-schema-cruft-purge`)
+  - Backend: remove `Plant.code`, `Plant.manager`, `Plant.phone`, `Plant.email`, `Plant.phone_type`.
+  - Update plant type label: `Vertical (Kill to Capture)` → `Vertical (Kill to Fabrication)`.
+  - Add migration (expected next number): `backend/tenant_apps/plants/migrations/0016_plant_schema_cleanup.py`.
+  - Update `PlantSerializer`, `PlantViewSet` search/order fields, Django admin, and `tenant_apps.plants` tests.
+  - Verify:
+    - `python backend/manage.py makemigrations --check`
+    - `python backend/manage.py test tenant_apps.plants`
+
+- **UniversalEntityForm input fixes** (`universal-form-input-fixes`)
+  - Fix grayed/unclickable dropdowns (AntD `<Select>` in overlays/modals): ensure `getPopupContainer` is consistently applied for our wrapper selects.
+  - Fix Contact phone fields so they accept standard typing (e.g. `(555) 123-4567`) without blocking; apply formatting on blur, not on each keystroke.
+  - Ensure **Department** is visible in all Contacts list UIs where contacts are presented (tables + previews).
+
+- **Hierarchical drill-down routing** (`hierarchical-drilldown-routing`)
+  - Suppliers → Plants → Contacts:
+    - Row-click navigation: `/suppliers/:supplierId/plants/:plantId` and `/suppliers/:supplierId/plants/:plantId/contacts/:contactId`
+    - Breadcrumb format: `Supplier: <name> > Plants: <plant name>`
+  - Customers → Locations → Contacts:
+    - Row-click navigation: `/customers/:customerId/locations/:locationId` and `/customers/:customerId/locations/:locationId/contacts/:contactId`
+    - Breadcrumb format: `Customer: <name> > Locations: <location name>`
+  - Mirror behavior between Supplier and Customer sides.
+
 - **Enterprise Polish**: Tenant Webhooks + API Keys (`enterprise-webhooks-api-keys`)
   - Models + RLS + Celery dispatch task + retries/backoff + signing + event hooks
+
 - **V4.0 Vision Sprint docs** (planning complete; documents not created yet)
   - `docs/plans/V4_0_IDEAL_STATE_GAP_ANALYSIS.md`
   - `docs/plans/V4_0_UX_EXCELLENCE.md`
@@ -1499,3 +1577,33 @@ Deliverables:
 - 2026-03-31 — Docs: V4.0 vision sprint (gap analysis, UX excellence, field ops, autonomous AI) — PR: #4308.
 - 2026-03-31 — CI/CD: hotfix Master Pipeline run-name startup failure (remove replace() expression; uat/main runs had 0 jobs) — PR: #4310.
 - 2026-03-31 — Note: the earlier "Pending work items (not shipped)" section is obsolete; see PRs #4306 and #4308.
+- 2026-03-31 — Auth: guest login UI (Try Demo as Guest) wired to /api/v1/auth/guest-login/ — PR: #4313.
+- 2026-03-31 — Docs: clarify historical pending items (handoff + Phase 5 execution summary) — PR: #4314.
+- 2026-03-31 — Docs: remove stale pending labels (handoff + Phase 5 docs headings) — PR: #4315.
+- 2026-03-31 — Ops: promote development → uat (pipeline hotfix) — PR: #4311. Verified UAT deploy run: 23820147951 ✅
+- 2026-03-31 — Ops: promote uat → main (pipeline hotfix) — PR: #4312. Verified main deploy run: 23820173539 ✅
+- 2026-03-31 — Docs: V4.0 enterprise moat sprint (traceability, yield mgmt, enterprise gateway, risk/compliance) — PR: #4317.
+- 2026-03-31 — Frontend: Suppliers/Customers nested contact create uses EntityFormSurface (retire bespoke contact modals) — PR: #4325.
+- 2026-03-31 — Workforms: QuickCreateModal now uses EntityFormSurface → UniversalEntityForm (retire bespoke quick-create fields UI). — PR: #4326.
+
+- [x] FlowEditor UX polish (collapsed config summary + FormProcess drag/collapse fixes) — PR #4336
+
+- 2026-04-01 — Docs: clarify historical checklists + fix roadmap duplication — PR: #4337.
+
+- 2026-04-01 — Docs: align README with canonical master plan (remove 100 laims) — PR: #4338.
+
+- 2026-04-01 — CI/CD: fix Master Pipeline workflow file issue (run-name + md paths-ignore) — PR: #4339.
+
+- 2026-04-01 — CI/CD: deploy feed run-name flatten + auto-promote token fallback — PR: #4340.
+
+- **2026-04-16** — Copilot Squad: added enterprise squad roles/tasks/agents/skills + validator and optional gh wrapper (`gh copilot squad run`). (PR: #4374)
+- **2026-04-16** — Copilot Squad: PR validation now checks squad structure (`scripts/validate_copilot_squad.sh`). (PR: #4375)
+- **2026-04-16** — Health: hardened `/api/v1/health/` with structured dependency signals + resilience. (PR: #4376)
+- **2026-04-16** — Integrations: harden Email Sync Now error responses (no raw exception leakage) + update tests. (PR: #4377)
+- **2026-04-16** — AI: fix document upload 500s (handle too-large/multipart errors as 4xx; raise upload limit; add tests). (PR: #4379)
+- **2026-04-16** — AI: frontend upload UIs show backend `details` messaging for upload failures. (PR: #4380)
+- **2026-04-16** — Tests: add API error contract check for AI chat not configured (503 + stable shape). (PR: #4381)
+- **2026-04-16** — E2E: add mobile viewport smoke coverage (375px + 768px) and fix header tablet overflow. (PR: #4382)
+- **2026-04-16** — Security: require auth for key ViewSets (Bug Reports) + add 401 regression tests. (PR: #4384)
+- **2026-04-16** — Tests: add API tenant isolation suite (8 list endpoints) to prevent cross-tenant regressions. (PR: #4385)
+- **2026-04-16** — Tests: add static audit ensuring tenant-scoped ViewSets don’t use unsafe default get_queryset. (PR: #4386)

@@ -231,7 +231,7 @@ const BaseButton = styled.button`
 
 const PrimaryButton = styled(BaseButton)`
   background: rgb(var(--color-primary));
-  color: rgb(var(--color-surface))fff;
+  color: rgb(var(--color-primary-foreground));
   
   &:not(:disabled):hover {
     background: rgb(var(--color-primary-dark));
@@ -258,10 +258,10 @@ const FloatingButton = styled.button`
   height: 56px;
   border-radius: 50%;
   background: rgb(var(--color-primary));
-  color: rgb(var(--color-surface))fff;
+  color: rgb(var(--color-primary-foreground));
   border: none;
   cursor: pointer;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  box-shadow: var(--shadow-float);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -270,7 +270,7 @@ const FloatingButton = styled.button`
   
   &:hover {
     transform: scale(1.1);
-    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+    box-shadow: var(--shadow-float-hover);
   }
   
   &:active {

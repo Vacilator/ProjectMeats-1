@@ -15,3 +15,5 @@ export type { default as UseCommandPaletteReturn } from './useCommandPalette';
 
 export { useActionItemCounts, POLL_INTERVAL_ACTIVE, POLL_INTERVAL_BACKGROUND } from './useActionItemCounts';
 export type { ActionItemCounts, UseActionItemCountsResult } from './useActionItemCounts';
+
+export { useZodForm } from './useZodForm';

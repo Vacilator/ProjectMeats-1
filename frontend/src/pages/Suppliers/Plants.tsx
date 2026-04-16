@@ -12,9 +12,8 @@
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { Table, Input, Button, Modal, Form, Select, Checkbox, message, Tag, Space } from 'antd';
-import { CountrySelect, PhoneInput } from '../../components/ui';
-import { US_STATES } from '../../utils/constants/states';
+import { Table, Input, Button, message, Tag, Space } from 'antd';
+import EntityFormSurface from '../../components/Shared/EntityFormSurface';
 import type { ColumnsType } from 'antd/es/table';
 import { SearchOutlined, PlusOutlined, EditOutlined, DeleteOutlined, AppstoreOutlined } from '@ant-design/icons';
 import { apiClient } from '../../services/apiService';
@@ -27,7 +26,7 @@ import { confirmDialog } from '@/utils/uiDialogs';
 interface Plant {
   id: number;
   name: string;
-  code: string;
+  plant_est_num?: string;
   supplier: number | null;
   supplier_name?: string;
   plant_type?: string;
@@ -36,14 +35,10 @@ interface Plant {
   state?: string;
   zip_code?: string;
   country?: string;
-  phone?: string;
-  phone_type?: 'office' | 'mobile';
-  email?: string;
   booking_contact_email?: string;
   booking_contact_phone?: string;
   booking_contact_phone_type?: 'office' | 'mobile';
   fcfs?: boolean;
-  manager?: string;
   capacity?: number;
   is_active?: boolean;
 }
@@ -53,9 +48,6 @@ interface Supplier {
   name: string;
 }
 
-interface FormErrors {
-  [key: string]: string[];
-}
 
 // ============================================================================
 // Styled Components (Theme-Compliant)
@@ -194,7 +186,6 @@ const Plants: React.FC = () => {
   const navigate = useNavigate();
   const { supplierId } = useParams<{ supplierId?: string }>();
   const [searchParams] = useSearchParams();
-  const [form] = Form.useForm();
   
   // State
   const [plants, setPlants] = useState<Plant[]>([]);
@@ -205,7 +196,6 @@ const Plants: React.FC = () => {
   const [editingPlant, setEditingPlant] = useState<Plant | null>(null);
   const [contextSupplierId, setContextSupplierId] = useState<number | null>(null);
   const [searchText, setSearchText] = useState('');
-  const [formErrors, setFormErrors] = useState<FormErrors>({});
 
   // Detect context from URL (preferred) or navigation state (fallback)
   useEffect(() => {
@@ -273,7 +263,7 @@ const Plants: React.FC = () => {
       const search = searchText.toLowerCase();
       filtered = filtered.filter(p => 
         p.name.toLowerCase().includes(search) ||
-        p.code.toLowerCase().includes(search) ||
+        (p.plant_est_num || '').toLowerCase().includes(search) ||
         p.supplier_name?.toLowerCase().includes(search) ||
         p.city?.toLowerCase().includes(search) ||
         p.state?.toLowerCase().includes(search)
@@ -285,42 +275,11 @@ const Plants: React.FC = () => {
 
   const handleAdd = () => {
     setEditingPlant(null);
-    setFormErrors({});
-    form.resetFields();
-
-    form.setFieldsValue({ phone_type: 'office', booking_contact_phone_type: 'office', fcfs: false, country: 'USA' });
-    
-    // Pre-fill supplier if context exists
-    if (contextSupplierId) {
-      form.setFieldsValue({ supplier: contextSupplierId });
-    }
-    
     setShowModal(true);
   };
 
   const handleEdit = (plant: Plant) => {
     setEditingPlant(plant);
-    setFormErrors({});
-    form.setFieldsValue({
-      name: plant.name,
-      code: plant.code,
-      supplier: plant.supplier,
-      plant_type: plant.plant_type || 'processing',
-      address: plant.address || '',
-      city: plant.city || '',
-      state: plant.state || '',
-      zip_code: plant.zip_code || '',
-      country: plant.country || 'USA',
-      phone_type: plant.phone_type || 'office',
-      phone: plant.phone || '',
-      email: plant.email || '',
-      booking_contact_email: plant.booking_contact_email || '',
-      fcfs: !!plant.fcfs,
-      booking_contact_phone_type: plant.booking_contact_phone_type || 'office',
-      booking_contact_phone: plant.booking_contact_phone || '',
-      manager: plant.manager || '',
-      capacity: plant.capacity || '',
-    });
     setShowModal(true);
   };
 
@@ -345,40 +304,7 @@ const Plants: React.FC = () => {
     }
   };
 
-  const handleSubmit = async () => {
-    try {
-      const values = await form.validateFields();
-      setFormErrors({});
 
-      const payload: Record<string, unknown> = {
-        ...values,
-      };
-
-      if (typeof values.code === 'string' && values.code.trim() === '') {
-        delete payload.code;
-      }
-      
-      if (editingPlant) {
-        await apiClient.patch(`plants/${editingPlant.id}/`, payload);
-        message.success('Plant updated successfully');
-      } else {
-        await apiClient.post('plants/', payload);
-        message.success('Plant created successfully');
-      }
-      
-      setShowModal(false);
-      loadPlants(contextSupplierId);
-    } catch (error: any) {
-      if (error.response?.status === 400) {
-        setFormErrors(error.response.data);
-      } else if (error.errorFields) {
-        // Ant Design form validation errors
-        return;
-      } else {
-        message.error('Failed to save plant');
-      }
-    }
-  };
 
   const handleSupplierClick = (supplierId: number) => {
     navigate(`/suppliers/${supplierId}`);
@@ -394,11 +320,12 @@ const Plants: React.FC = () => {
       width: 200,
     },
     {
-      title: 'Code',
-      dataIndex: 'code',
-      key: 'code',
-      sorter: (a, b) => a.code.localeCompare(b.code),
-      width: 120,
+      title: 'Plant Est. #',
+      dataIndex: 'plant_est_num',
+      key: 'plant_est_num',
+      sorter: (a, b) => (a.plant_est_num || '').localeCompare(b.plant_est_num || ''),
+      width: 140,
+      render: (v) => v || '-',
     },
     {
       title: 'Supplier',
@@ -424,18 +351,22 @@ const Plants: React.FC = () => {
       dataIndex: 'plant_type',
       key: 'plant_type',
       filters: [
+        { text: 'Vertical', value: 'vertical' },
         { text: 'Processing', value: 'processing' },
         { text: 'Distribution', value: 'distribution' },
-        { text: 'Storage', value: 'storage' },
-        { text: 'Mixed', value: 'mixed' },
+        { text: 'Warehouse', value: 'warehouse' },
+        { text: 'Retail', value: 'retail' },
+        { text: 'Other', value: 'other' },
       ],
       onFilter: (value, record) => record.plant_type === value,
       render: (type) => {
         const colors: { [key: string]: string } = {
+          vertical: 'purple',
           processing: 'blue',
           distribution: 'green',
-          storage: 'orange',
-          mixed: 'purple',
+          warehouse: 'orange',
+          retail: 'cyan',
+          other: 'default',
         };
         return type ? <Tag color={colors[type] || 'default'}>{type}</Tag> : '-';
       },
@@ -453,16 +384,16 @@ const Plants: React.FC = () => {
       width: 160,
     },
     {
-      title: 'Contact',
-      key: 'contact',
+      title: 'Booking Contact',
+      key: 'booking_contact',
       render: (_, record) => (
         <div>
-          {record.phone && <div>📞 {record.phone}</div>}
-          {record.manager && <div>👤 {record.manager}</div>}
-          {!record.phone && !record.manager && '-'}
+          {record.booking_contact_email && <div>{record.booking_contact_email}</div>}
+          {record.booking_contact_phone && <div>{record.booking_contact_phone}</div>}
+          {!record.booking_contact_email && !record.booking_contact_phone && '-'}
         </div>
       ),
-      width: 180,
+      width: 220,
     },
     {
       title: 'Actions',
@@ -533,7 +464,7 @@ const Plants: React.FC = () => {
 
       <TableControls>
         <Input
-          placeholder="Search plants by name, code, supplier, or location..."
+          placeholder="Search plants by name, est. #, supplier, or location..."
           prefix={<SearchOutlined />}
           value={searchText}
           onChange={(e) => setSearchText(e.target.value)}
@@ -552,8 +483,11 @@ const Plants: React.FC = () => {
           return {
             onClick: () => {
               const sid = contextSupplierId ?? rec.supplier ?? undefined;
-              const base = sid ? `/suppliers/${sid}/contacts` : '/suppliers/contacts';
-              navigate(`${base}?plant=${rec.id}`);
+              if (sid) {
+                navigate(`/suppliers/${sid}/plants/${rec.id}`);
+                return;
+              }
+              navigate(`/plants/${rec.id}`);
             },
             style: { cursor: 'pointer' },
           };
@@ -566,151 +500,28 @@ const Plants: React.FC = () => {
         scroll={{ x: 'max-content' }}
       />
 
-      {/* Form Modal */}
-      <Modal
-        title={editingPlant ? 'Edit Plant' : 'Add New Plant'}
-        open={showModal}
-        onOk={handleSubmit}
-        onCancel={() => setShowModal(false)}
-        width={700}
-        okText={editingPlant ? 'Update' : 'Create'}
-      >
-        <Form form={form} layout="vertical">
-          <Form.Item
-            name="name"
-            label={<Label>Name<RequiredMark>*</RequiredMark></Label>}
-            rules={[{ required: true, message: 'Plant name is required' }]}
-            validateStatus={formErrors.name ? 'error' : ''}
-            help={formErrors.name && <ErrorMessage>⚠ {formErrors.name[0]}</ErrorMessage>}
-          >
-            <Input placeholder="Plant Name" />
-          </Form.Item>
-
-          <Form.Item
-            name="code"
-            label={<Label>Code</Label>}
-            validateStatus={formErrors.code ? 'error' : ''}
-            help={formErrors.code && <ErrorMessage>⚠ {formErrors.code[0]}</ErrorMessage>}
-          >
-            <Input placeholder="Plant Code (optional; auto-generated if blank)" />
-          </Form.Item>
-
-          <Form.Item
-            name="supplier"
-            label={<Label>Supplier</Label>}
-            validateStatus={formErrors.supplier ? 'error' : ''}
-            help={formErrors.supplier && <ErrorMessage>⚠ {formErrors.supplier[0]}</ErrorMessage>}
-          >
-            <Select
-              placeholder="Select Supplier"
-              disabled={!!contextSupplierId}
-              allowClear
-              showSearch
-              filterOption={(input, option) =>
-                (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
-              }
-              options={suppliers.map(s => ({ label: s.name, value: s.id }))}
-            />
-          </Form.Item>
-
-          <Form.Item
-            name="plant_type"
-            label={<Label>Plant Type</Label>}
-          >
-            <Select placeholder="Select Type">
-              <Select.Option value="processing">Processing</Select.Option>
-              <Select.Option value="distribution">Distribution</Select.Option>
-              <Select.Option value="storage">Storage</Select.Option>
-              <Select.Option value="mixed">Mixed</Select.Option>
-            </Select>
-          </Form.Item>
-
-          <Form.Item name="address" label={<Label>Address</Label>}>
-            <Input placeholder="Street Address" />
-          </Form.Item>
-
-          <Form.Item name="city" label={<Label>City</Label>}>
-            <Input placeholder="City" />
-          </Form.Item>
-
-          <Form.Item name="state" label={<Label>State</Label>}>
-            <Select
-              placeholder="Search state"
-              allowClear
-              showSearch
-              optionFilterProp="label"
-              options={US_STATES}
-              filterOption={(input, option) =>
-                String(option?.label || '').toLowerCase().includes(input.toLowerCase())
-                || String(option?.value || '').toLowerCase().includes(input.toLowerCase())
-              }
-            />
-          </Form.Item>
-
-          <Form.Item
-            name="zip_code"
-            label={<Label>ZIP Code</Label>}
-            rules={[{ pattern: /^\d{5}$/, message: 'ZIP Code must be exactly 5 digits' }]}
-            getValueFromEvent={(e) => String(e?.target?.value ?? '').replace(/\D/g, '').slice(0, 5)}
-          >
-            <Input placeholder="12345" maxLength={5} inputMode="numeric" />
-          </Form.Item>
-
-          <Form.Item name="country" label={<Label>Country</Label>}>
-            <CountrySelect placeholder="Search country" aria-label="Country" />
-          </Form.Item>
-
-          <Form.Item name="phone_type" label={<Label>Phone Type</Label>}>
-            <Select placeholder="Select type">
-              <Select.Option value="office">Office</Select.Option>
-              <Select.Option value="mobile">Mobile</Select.Option>
-            </Select>
-          </Form.Item>
-
-          <Form.Item name="phone" label={<Label>Phone</Label>}>
-            <Input placeholder="Phone Number" />
-          </Form.Item>
-
-          <Form.Item
-            name="email"
-            label={<Label>Email</Label>}
-            rules={[{ type: 'email', message: 'Please enter a valid email address' }]}
-          >
-            <Input type="email" placeholder="Email Address" />
-          </Form.Item>
-
-          <div style={{ fontWeight: 700, fontSize: 16, marginTop: 8 }}>Booking Contact</div>
-
-          <Form.Item
-            name="booking_contact_email"
-            label={<Label>Booking Email</Label>}
-            rules={[{ type: 'email', message: 'Please enter a valid booking email address' }]}
-          >
-            <Input type="email" placeholder="booking@example.com" />
-          </Form.Item>
-
-          <Form.Item name="fcfs" valuePropName="checked">
-            <Checkbox>FCFS (First Come First Serve)</Checkbox>
-          </Form.Item>
-
-          <Form.Item name="booking_contact_phone_type" label={<Label>Booking Phone Type</Label>}>
-            <Select placeholder="Select type">
-              <Select.Option value="office">Office</Select.Option>
-              <Select.Option value="mobile">Mobile</Select.Option>
-            </Select>
-          </Form.Item>
-
-          <Form.Item name="booking_contact_phone" label={<Label>Booking Phone</Label>}>
-            <PhoneInput aria-label="Booking phone" />
-          </Form.Item>
-
-          <Form.Item name="manager" label={<Label>Manager</Label>}>
-            <Input placeholder="Facility Manager Name" />
-          </Form.Item>
-
-
-        </Form>
-      </Modal>
+      {showModal && (
+        <EntityFormSurface
+          entityType="plant"
+          mode={editingPlant ? 'edit' : 'create'}
+          entityId={editingPlant?.id}
+          isOpen={showModal}
+          onClose={() => {
+            setShowModal(false);
+            setEditingPlant(null);
+          }}
+          initialValues={{
+            ...(contextSupplierId ? { supplier: String(contextSupplierId) } : {}),
+            plant_type: 'processing',
+            country: 'USA',
+          }}
+          onSuccess={() => {
+            setShowModal(false);
+            setEditingPlant(null);
+            void loadPlants(contextSupplierId);
+          }}
+        />
+      )}
     </PageContainer>
   );
 };
