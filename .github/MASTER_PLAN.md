@@ -71,6 +71,8 @@ This file is the **append-only PR-referenceable execution log**.
 
 - **2026-04-16** — Forms UX: FormSubmissionModal now disables in-dropdown create for related-entity SearchableSelect fields because the screen already provides a separate "+ New" Quick Create button. (PR: #4416)
 
+- **2026-04-16** — Frontend: added SearchableSelect `variant="static"` (no API) for static option sets; includes unit coverage. (PR: #4418)
+
 ### 2026-03-31 — Secret audit drift (manifest v5.1)
 - Command: `python config/manage_env.py audit --repo Meats-Central/ProjectMeats`
 - Stale/Zombie secrets found in GitHub but NOT in `manifests/env.manifest.json` (or legacy `DEV_`/`UAT_`/`PROD_` prefixed):
