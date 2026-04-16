@@ -63,6 +63,8 @@ This file is the **append-only PR-referenceable execution log**.
 
 - **2026-04-16** — CI: Master Pipeline run-name now uses PR merge context (when available) to improve the Actions “All workflows” feed readability; falls back to SHA + run number when metadata isn’t available. (PR: #4408)
 
+- **2026-04-16** — Frontend: added unit coverage for Shared select components (SearchableSelect, LocalSearchableSelect, MultiSelect) as a safety net before consolidation. (PR: #4410)
+
 ### 2026-03-31 — Secret audit drift (manifest v5.1)
 - Command: `python config/manage_env.py audit --repo Meats-Central/ProjectMeats`
 - Stale/Zombie secrets found in GitHub but NOT in `manifests/env.manifest.json` (or legacy `DEV_`/`UAT_`/`PROD_` prefixed):
