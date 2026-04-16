@@ -1615,3 +1615,5 @@ Deliverables:
 - **2026-04-16** — Security: DRF default permission set to IsAuthenticated; explicit allowlist for OAuth callbacks + email webhooks + regression tests. (PR: #4394)
 
 - 2026-04-16 — ci: improve Master Pipeline run-name to show PR title + number instead of SHA — PR: #pending.
+
+- **2026-04-16** — Mobile: Purchase Orders page + create overlay usable at 375px; add E2E create-flow coverage (mocked APIs). (PR: #4397)
