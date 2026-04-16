@@ -4,6 +4,8 @@
 
 For current priorities, status, and evidence, see **`MASTER_PLAN.md` (canonical)**.
 
+**Copilot Squad (repo governance):** `.copilot/squad/README.md` documents the enterprise squad roles + reusable tasks for this repo.
+
 ---
 
 ## 📊 Overall Progress (historical; non-canonical)

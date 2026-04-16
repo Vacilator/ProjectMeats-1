@@ -102,6 +102,7 @@ We are re-validating and completing the last ~25 prompts with **evidence-based a
 ### P1 — Operational excellence
 - **Documentation hygiene:** demote/label duplicated roadmaps, remove contradictory “100% complete” claims.
 - **CI automation:** promotion PRs dev→uat and uat→prod/main remain green and observable.
+- **Copilot Squad governance:** repo-local squad roles/tasks/agents/skills under `.copilot/squad/` + `.github/agents/` + `.github/skills/` with validator `bash scripts/validate_copilot_squad.sh`.
 
 ---
 

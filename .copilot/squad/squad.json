@@ -1,0 +1,229 @@
+{
+  "version": "1.0.0",
+  "name": "projectmeats-copilot-squad",
+  "description": "Enterprise-grade Copilot Squad configuration for ProjectMeats (governance-driven, golden-standard compliant).",
+  "authoritative_refs": {
+    "golden_pipeline": ["docs/GOLDEN_PIPELINE.md", "docs/reference/GOLDEN_PIPELINE.md"],
+    "golden_files": ["manifests/GOLDEN_FILES.md"],
+    "canonical_plan": ["MASTER_PLAN.md"],
+    "pr_log": [".github/MASTER_PLAN.md"],
+    "architecture": ["docs/architecture/ARCHITECTURE.md"],
+    "workforms_migration_standards": ["docs/workforms/MIGRATION_STANDARDS.md"],
+    "backend_rules": [".github/instructions/backend.instructions.md"],
+    "frontend_rules": [".github/instructions/frontend.instructions.md"],
+    "workflows_rules": [".github/instructions/workflows.instructions.md"],
+    "mobile_rules": [".github/instructions/mobile.instructions.md"]
+  },
+  "agents": [
+    {
+      "id": "architect",
+      "display_name": "Architect",
+      "role_file": ".copilot/squad/roles/architect.md",
+      "copilot_agent_profile": ".github/agents/projectmeats-architect.agent.md",
+      "escalation": {"blocks": true, "primary_contact": "lead-engineer"},
+      "review_required_for": [
+        "ci-cd-workflow-changes",
+        "update-golden-files",
+        "multi-tenant-safe-migration",
+        "cross-agent-architectural-review"
+      ]
+    },
+    {
+      "id": "lead-engineer",
+      "display_name": "Lead Engineer",
+      "role_file": ".copilot/squad/roles/lead-engineer.md",
+      "copilot_agent_profile": ".github/agents/projectmeats-lead-engineer.agent.md",
+      "escalation": {"blocks": false, "primary_contact": "architect"},
+      "review_required_for": ["add-backend-endpoint", "add-frontend-component", "add-mobile-feature", "add-test-coverage"]
+    },
+    {
+      "id": "backend-lead",
+      "display_name": "Backend Lead",
+      "role_file": ".copilot/squad/roles/backend-lead.md",
+      "copilot_agent_profile": ".github/agents/projectmeats-backend-lead.agent.md",
+      "escalation": {"blocks": true, "primary_contact": "architect"},
+      "review_required_for": ["add-backend-endpoint", "multi-tenant-safe-migration"]
+    },
+    {
+      "id": "frontend-lead",
+      "display_name": "Frontend Lead",
+      "role_file": ".copilot/squad/roles/frontend-lead.md",
+      "copilot_agent_profile": ".github/agents/projectmeats-frontend-lead.agent.md",
+      "escalation": {"blocks": true, "primary_contact": "lead-engineer"},
+      "review_required_for": ["add-frontend-component"]
+    },
+    {
+      "id": "mobile-lead",
+      "display_name": "Mobile Lead",
+      "role_file": ".copilot/squad/roles/mobile-lead.md",
+      "copilot_agent_profile": ".github/agents/projectmeats-mobile-lead.agent.md",
+      "escalation": {"blocks": true, "primary_contact": "lead-engineer"},
+      "review_required_for": ["add-mobile-feature"]
+    },
+    {
+      "id": "devops-engineer",
+      "display_name": "DevOps Engineer",
+      "role_file": ".copilot/squad/roles/devops-engineer.md",
+      "copilot_agent_profile": ".github/agents/projectmeats-devops-engineer.agent.md",
+      "escalation": {"blocks": true, "primary_contact": "architect"},
+      "review_required_for": ["ci-cd-workflow-changes"]
+    },
+    {
+      "id": "tester",
+      "display_name": "Tester",
+      "role_file": ".copilot/squad/roles/tester.md",
+      "copilot_agent_profile": ".github/agents/projectmeats-tester.agent.md",
+      "escalation": {"blocks": true, "primary_contact": "lead-engineer"},
+      "review_required_for": ["add-test-coverage", "multi-tenant-safe-migration"]
+    },
+    {
+      "id": "documentation-steward",
+      "display_name": "Documentation Steward",
+      "role_file": ".copilot/squad/roles/documentation-steward.md",
+      "copilot_agent_profile": ".github/agents/projectmeats-documentation-steward.agent.md",
+      "escalation": {"blocks": true, "primary_contact": "project-manager"},
+      "review_required_for": ["update-documentation", "update-golden-files"]
+    },
+    {
+      "id": "project-manager",
+      "display_name": "Project Manager",
+      "role_file": ".copilot/squad/roles/project-manager.md",
+      "copilot_agent_profile": ".github/agents/projectmeats-project-manager.agent.md",
+      "escalation": {"blocks": false, "primary_contact": "lead-engineer"},
+      "review_required_for": ["update-documentation"]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "add-backend-endpoint",
+      "playbook_file": ".copilot/squad/tasks/add-backend-endpoint.md",
+      "skill_id": "add-backend-endpoint",
+      "default_agent": "backend-lead",
+      "required_agents": ["lead-engineer"],
+      "risk_level": "medium",
+      "required_checks": [
+        "cd backend && python manage.py makemigrations --check",
+        "cd backend && python manage.py test"
+      ]
+    },
+    {
+      "id": "add-frontend-component",
+      "playbook_file": ".copilot/squad/tasks/add-frontend-component.md",
+      "skill_id": "add-frontend-component",
+      "default_agent": "frontend-lead",
+      "required_agents": ["lead-engineer"],
+      "risk_level": "medium",
+      "required_checks": [
+        "npm --prefix frontend run type-check",
+        "npm --prefix frontend run verify-standards",
+        "npm --prefix frontend run test:ci"
+      ]
+    },
+    {
+      "id": "add-mobile-feature",
+      "playbook_file": ".copilot/squad/tasks/add-mobile-feature.md",
+      "skill_id": "add-mobile-feature",
+      "default_agent": "mobile-lead",
+      "required_agents": ["lead-engineer"],
+      "risk_level": "medium",
+      "required_checks": ["npm --prefix mobile run lint", "npm --prefix mobile run test"]
+    },
+    {
+      "id": "update-documentation",
+      "playbook_file": ".copilot/squad/tasks/update-documentation.md",
+      "skill_id": "update-documentation",
+      "default_agent": "documentation-steward",
+      "required_agents": ["project-manager"],
+      "risk_level": "low",
+      "required_checks": []
+    },
+    {
+      "id": "add-test-coverage",
+      "playbook_file": ".copilot/squad/tasks/add-test-coverage.md",
+      "skill_id": "add-test-coverage",
+      "default_agent": "tester",
+      "required_agents": ["lead-engineer"],
+      "risk_level": "low",
+      "required_checks": []
+    },
+    {
+      "id": "update-golden-files",
+      "playbook_file": ".copilot/squad/tasks/update-golden-files.md",
+      "skill_id": "update-golden-files",
+      "default_agent": "architect",
+      "required_agents": ["documentation-steward"],
+      "risk_level": "high",
+      "required_checks": ["python config/manage_env.py audit"]
+    },
+    {
+      "id": "multi-tenant-safe-migration",
+      "playbook_file": ".copilot/squad/tasks/multi-tenant-safe-migration.md",
+      "skill_id": "multi-tenant-safe-migration",
+      "default_agent": "backend-lead",
+      "required_agents": ["architect", "tester"],
+      "risk_level": "high",
+      "required_checks": [
+        "cd backend && python manage.py makemigrations",
+        "cd backend && python manage.py makemigrations --check",
+        "cd backend && python manage.py migrate --plan"
+      ]
+    },
+    {
+      "id": "ci-cd-workflow-changes",
+      "playbook_file": ".copilot/squad/tasks/ci-cd-workflow-changes.md",
+      "skill_id": "ci-cd-workflow-changes",
+      "default_agent": "devops-engineer",
+      "required_agents": ["architect"],
+      "risk_level": "high",
+      "required_checks": ["bash scripts/verify_golden_state.sh"]
+    },
+    {
+      "id": "cross-agent-architectural-review",
+      "playbook_file": ".copilot/squad/tasks/cross-agent-architectural-review.md",
+      "skill_id": "cross-agent-architectural-review",
+      "default_agent": "architect",
+      "required_agents": [
+        "lead-engineer",
+        "backend-lead",
+        "frontend-lead",
+        "mobile-lead",
+        "devops-engineer",
+        "tester",
+        "documentation-steward",
+        "project-manager"
+      ],
+      "risk_level": "high",
+      "required_checks": []
+    }
+  ],
+  "collaboration": {
+    "blocking_rules": {
+      "workflows": {
+        "paths": [".github/workflows/**"],
+        "requires": ["devops-engineer", "architect"]
+      },
+      "secrets_and_manifest": {
+        "paths": ["config/env.manifest.json", "docs/CONFIGURATION_AND_SECRETS.md"],
+        "requires": ["devops-engineer", "architect", "documentation-steward"]
+      },
+      "migrations": {
+        "paths": ["backend/**/migrations/**"],
+        "requires": ["backend-lead", "architect", "tester"]
+      },
+      "rls": {
+        "paths": ["manifests/RLS_POLICIES.md"],
+        "requires": ["backend-lead", "architect"]
+      }
+    },
+    "handoff_artifacts": {
+      "implementation": ["diff summary", "tests run + results", "rollback steps"],
+      "architecture": ["constraints referenced", "risk register", "acceptance criteria"],
+      "docs": ["doc links updated", "canonical vs reference verified"]
+    },
+    "decision_protocol": {
+      "default": "Lead Engineer decides unless golden invariant is impacted; then Architect decides.",
+      "tie_break": "Architect",
+      "escalation": "Project Manager owns scope prioritization if business/user outcome conflicts with engineering preference."
+    }
+  }
+}
