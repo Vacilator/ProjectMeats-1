@@ -1647,6 +1647,9 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
                   hasError={hasError}
                   initialOptions={opts}
                   threshold={50}
+                  // This screen already provides a separate "+ New" button.
+                  // Disable in-dropdown create to avoid duplicate create affordances.
+                  allowCreate={false}
                 />
               </SelectWrapper>
               <QuickAddButton
