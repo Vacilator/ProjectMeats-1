@@ -1,0 +1,225 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+usage() {
+  cat <<'USAGE'
+Usage:
+  scripts/gh-copilot squad run <task-id> [--agent <agent-id>] [--mode plan|autopilot|interactive] [--execute]
+  scripts/gh-copilot squad list
+  scripts/gh-copilot squad show <task-id>
+
+Notes:
+- This repo uses GitHub Copilot CLI as `copilot`.
+- `gh copilot` is implemented via a gh alias that forwards to this script.
+- By default, this script prints the recommended `copilot` command (safe). Use --execute to run it.
+USAGE
+}
+
+require_repo_root() {
+  git rev-parse --show-toplevel >/dev/null
+}
+
+squad_json() {
+  echo ".copilot/squad/squad.json"
+}
+
+list_tasks() {
+  python - <<'PY'
+import json
+p = '.copilot/squad/squad.json'
+with open(p, 'r', encoding='utf-8') as f:
+  data = json.load(f)
+for t in data.get('tasks', []):
+  print(t['id'])
+PY
+}
+
+show_task() {
+  local task_id="$1"
+  python - <<PY
+import json
+p = '.copilot/squad/squad.json'
+with open(p, 'r', encoding='utf-8') as f:
+  data = json.load(f)
+for t in data.get('tasks', []):
+  if t.get('id') == '${task_id}':
+    print(json.dumps(t, indent=2))
+    raise SystemExit(0)
+raise SystemExit(2)
+PY
+}
+
+infer_default_agent() {
+  local task_id="$1"
+  python - <<PY
+import json
+p = '.copilot/squad/squad.json'
+with open(p, 'r', encoding='utf-8') as f:
+  data = json.load(f)
+for t in data.get('tasks', []):
+  if t.get('id') == '${task_id}':
+    print(t.get('default_agent', 'lead-engineer'))
+    raise SystemExit(0)
+print('lead-engineer')
+PY
+}
+
+agent_profile_for() {
+  local agent_id="$1"
+  python - <<PY
+import json
+p = '.copilot/squad/squad.json'
+with open(p, 'r', encoding='utf-8') as f:
+  data = json.load(f)
+for a in data.get('agents', []):
+  if a.get('id') == '${agent_id}':
+    # map to copilot agent profile name
+    prof = a.get('copilot_agent_profile','')
+    # ID in copilot is derived from filename; ours is `projectmeats-<role>`
+    # return `name` we used in YAML frontmatter, which matches filename.
+    print(prof.split('/')[-1].replace('.agent.md',''))
+    raise SystemExit(0)
+print('projectmeats-lead-engineer')
+PY
+}
+
+playbook_for() {
+  local task_id="$1"
+  python - <<PY
+import json
+p = '.copilot/squad/squad.json'
+with open(p, 'r', encoding='utf-8') as f:
+  data = json.load(f)
+for t in data.get('tasks', []):
+  if t.get('id') == '${task_id}':
+    print(t.get('playbook_file',''))
+    raise SystemExit(0)
+raise SystemExit(2)
+PY
+}
+
+run_task() {
+  local task_id="$1"; shift
+  local agent_override=""
+  local mode="interactive"
+  local execute=0
+
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --agent)
+        agent_override="$2"; shift 2 ;;
+      --mode)
+        mode="$2"; shift 2 ;;
+      --execute)
+        execute=1; shift ;;
+      -h|--help)
+        usage; exit 0 ;;
+      *)
+        echo "Unknown arg: $1" >&2
+        usage
+        exit 2
+        ;;
+    esac
+  done
+
+  if ! [ -f "$(squad_json)" ]; then
+    echo "Missing $(squad_json). Run validation." >&2
+    exit 2
+  fi
+
+  local default_agent
+  default_agent=$(infer_default_agent "$task_id")
+  local agent_id
+  agent_id="${agent_override:-$default_agent}"
+  local copilot_agent
+  copilot_agent=$(agent_profile_for "$agent_id")
+  local playbook
+  playbook=$(playbook_for "$task_id")
+
+  if [ -z "$playbook" ] || ! [ -f "$playbook" ]; then
+    echo "Unknown task or missing playbook for: $task_id" >&2
+    echo "Available tasks:" >&2
+    list_tasks >&2
+    exit 2
+  fi
+
+  local prompt
+  prompt=$(cat <<PROMPT
+Follow the ProjectMeats Squad playbook: @$playbook
+
+1) Restate deliverables + acceptance criteria.
+2) Identify dependencies + risks + mitigations.
+3) Implement the change (if requested) following repo governance.
+4) Run the smallest relevant existing validation commands.
+5) Provide rollback steps.
+PROMPT
+)
+
+  local cmd=(copilot --agent="$copilot_agent")
+  case "$mode" in
+    plan)
+      cmd+=(--plan -i "$prompt")
+      ;;
+    autopilot)
+      cmd+=(--autopilot -i "$prompt")
+      ;;
+    interactive)
+      cmd+=(-i "$prompt")
+      ;;
+    *)
+      echo "Invalid mode: $mode (use plan|autopilot|interactive)" >&2
+      exit 2
+      ;;
+  esac
+
+  echo "# Task: $task_id"
+  echo "# Agent: $agent_id (copilot --agent=$copilot_agent)"
+  echo "# Mode: $mode"
+  echo
+  printf '%q ' "${cmd[@]}"; echo
+
+  if [ "$execute" -eq 1 ]; then
+    echo
+    exec "${cmd[@]}"
+  fi
+}
+
+main() {
+  require_repo_root
+
+  if [ $# -lt 1 ]; then
+    usage; exit 2
+  fi
+
+  case "$1" in
+    squad)
+      shift
+      case "${1:-}" in
+        run)
+          shift
+          [ $# -ge 1 ] || { usage; exit 2; }
+          run_task "$@"
+          ;;
+        list)
+          list_tasks
+          ;;
+        show)
+          shift
+          [ $# -ge 1 ] || { usage; exit 2; }
+          show_task "$1"
+          ;;
+        *)
+          usage; exit 2
+          ;;
+      esac
+      ;;
+    -h|--help|help)
+      usage
+      ;;
+    *)
+      usage; exit 2
+      ;;
+  esac
+}
+
+main "$@"

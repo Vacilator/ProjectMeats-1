@@ -1595,3 +1595,5 @@ Deliverables:
 - 2026-04-01 — CI/CD: fix Master Pipeline workflow file issue (run-name + md paths-ignore) — PR: #4339.
 
 - 2026-04-01 — CI/CD: deploy feed run-name flatten + auto-promote token fallback — PR: #4340.
+
+- **2026-04-16** — Copilot Squad: added enterprise squad roles/tasks/agents/skills + validator and optional gh wrapper (`gh copilot squad run`). (PR: #4374)

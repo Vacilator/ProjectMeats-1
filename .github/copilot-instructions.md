@@ -52,6 +52,14 @@ When working in **GitHub Copilot CLI** for this repo, default to a “squad” a
 - Use `/tasks` to monitor/cancel background subagent work
 - Use `/diff` and `/review` before committing or opening PRs
 
+**Squad registry (roles + tasks):**
+- See `.copilot/squad/README.md` and `.copilot/squad/squad.json`
+- Validate setup: `bash scripts/validate_copilot_squad.sh`
+
+**Optional gh wrapper:**
+- Install alias: `bash scripts/install_gh_copilot_alias.sh`
+- Then run tasks: `gh copilot squad run <task-id>`
+
 **Recommended squad split:**
 - *Explore agent*: locate files, map the flow, identify risks
 - *Implementation agent*: make the code changes
