@@ -2393,14 +2393,14 @@ F9 (AI) ────────────────────────
 
 - [ ] Zero unauthenticated API access possible
 - [ ] Mobile users can create orders from field (iPhone SE 375px)
-- [ ] TypeScript errors block PR merge
-- [ ] Missing OpenAI key shows "AI not configured" message, not crash
+- [x] TypeScript errors block PR merge (PR validation includes `npm run type-check`)
+- [x] Missing OpenAI key shows "AI not configured" message, not crash (stable 503 error contract + frontend details messaging)
 - [ ] Email sync errors show actionable guidance
 
 #### Testing Requirements
 
-- [ ] Add Playwright tests for mobile viewport (375px, 768px)
-- [ ] Add API contract tests for error responses
+- [x] Add Playwright tests for mobile viewport (375px, 768px) (frontend/e2e/mobile_viewports.spec.ts; PR #4382)
+- [x] Add API contract tests for error responses (PR #4381; upload 4xx mapping PR #4379)
 - [x] Add NotificationsContext unit tests (Vitest: `frontend/src/contexts/NotificationsContext.test.tsx`, 14 tests; stderr noise cleaned in PR #4388)
 
 ---
