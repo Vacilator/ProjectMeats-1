@@ -1604,3 +1604,6 @@ Deliverables:
 - **2026-04-16** — AI: frontend upload UIs show backend `details` messaging for upload failures. (PR: #4380)
 - **2026-04-16** — Tests: add API error contract check for AI chat not configured (503 + stable shape). (PR: #4381)
 - **2026-04-16** — E2E: add mobile viewport smoke coverage (375px + 768px) and fix header tablet overflow. (PR: #4382)
+- **2026-04-16** — Security: require auth for key ViewSets (Bug Reports) + add 401 regression tests. (PR: #4384)
+- **2026-04-16** — Tests: add API tenant isolation suite (8 list endpoints) to prevent cross-tenant regressions. (PR: #4385)
+- **2026-04-16** — Tests: add static audit ensuring tenant-scoped ViewSets don’t use unsafe default get_queryset. (PR: #4386)
