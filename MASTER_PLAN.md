@@ -2431,7 +2431,7 @@ F9 (AI) ────────────────────────
 
 #### Testing Requirements
 
-- [ ] Unit tests for SearchableSelect all variants
+- [x] Unit tests for SearchableSelect variants (local, API, static, multi-value) (PR #4410)
 - [ ] Storybook visual regression tests for atoms
 - [ ] Integration tests for FormField registry
 
