@@ -1600,3 +1600,7 @@ Deliverables:
 - **2026-04-16** — Copilot Squad: PR validation now checks squad structure (`scripts/validate_copilot_squad.sh`). (PR: #4375)
 - **2026-04-16** — Health: hardened `/api/v1/health/` with structured dependency signals + resilience. (PR: #4376)
 - **2026-04-16** — Integrations: harden Email Sync Now error responses (no raw exception leakage) + update tests. (PR: #4377)
+- **2026-04-16** — AI: fix document upload 500s (handle too-large/multipart errors as 4xx; raise upload limit; add tests). (PR: #4379)
+- **2026-04-16** — AI: frontend upload UIs show backend `details` messaging for upload failures. (PR: #4380)
+- **2026-04-16** — Tests: add API error contract check for AI chat not configured (503 + stable shape). (PR: #4381)
+- **2026-04-16** — E2E: add mobile viewport smoke coverage (375px + 768px) and fix header tablet overflow. (PR: #4382)
