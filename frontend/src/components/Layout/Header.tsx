@@ -362,6 +362,15 @@ const HeaderContainer = styled.header<{ $theme: Theme }>`
   transition: all 0.3s ease;
   gap: 20px;
 
+  /* Tablet: allow header content to wrap to avoid horizontal overflow */
+  @media (max-width: 900px) {
+    padding: 10px 12px;
+    height: auto;
+    min-height: 60px;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
   @media (max-width: 640px) {
     padding: 10px 12px;
     height: auto;
@@ -386,8 +395,13 @@ const HeaderTitle = styled.h1<{ $theme: Theme }>`
 const SearchForm = styled.form`
   flex: 1;
   max-width: 500px;
+  min-width: 0;
   display: flex;
   align-items: center;
+
+  @media (max-width: 900px) {
+    max-width: none;
+  }
 
   @media (max-width: 640px) {
     order: 3;
