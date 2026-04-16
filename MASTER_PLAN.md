@@ -2401,7 +2401,7 @@ F9 (AI) ────────────────────────
 
 - [ ] Add Playwright tests for mobile viewport (375px, 768px)
 - [ ] Add API contract tests for error responses
-- [ ] Add NotificationsContext unit tests
+- [x] Add NotificationsContext unit tests (Vitest: `frontend/src/contexts/NotificationsContext.test.tsx`, 14 tests; stderr noise cleaned in PR #4388)
 
 ---
 
@@ -2611,7 +2611,7 @@ F9 (AI) ────────────────────────
 | InquiryCreateModal | 0% | 70% | E2E + Unit |
 | SearchableSelect | 0% | 80% | Unit + Visual |
 | UnifiedFlowEditor | 0% | 50% | E2E + Integration |
-| NotificationsContext | 0% | 80% | Unit + Integration |
+| NotificationsContext | Unit tests added (14, Vitest) | 80% | Unit + Integration |
 | workflow_service.py | N/A (new) | 90% | Unit |
 
 ### Test Pyramid for Phase 10

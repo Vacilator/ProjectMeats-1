@@ -1607,3 +1607,5 @@ Deliverables:
 - **2026-04-16** — Security: require auth for key ViewSets (Bug Reports) + add 401 regression tests. (PR: #4384)
 - **2026-04-16** — Tests: add API tenant isolation suite (8 list endpoints) to prevent cross-tenant regressions. (PR: #4385)
 - **2026-04-16** — Tests: add static audit ensuring tenant-scoped ViewSets don’t use unsafe default get_queryset. (PR: #4386)
+
+- **2026-04-16** — Tests: clean NotificationsContext unit test localStorage mock to avoid AuthService JSON.parse stderr noise. (PR: #4388)
