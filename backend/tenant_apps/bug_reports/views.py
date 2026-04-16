@@ -2,6 +2,7 @@
 Bug Reports views for ProjectMeats.
 """
 from rest_framework import viewsets, filters
+from rest_framework.permissions import IsAuthenticated
 from django_filters.rest_framework import DjangoFilterBackend
 from .models import BugReport
 from .serializers import BugReportSerializer
@@ -15,7 +16,7 @@ class BugReportViewSet(viewsets.ModelViewSet):
 
     queryset = BugReport.objects.all()
     serializer_class = BugReportSerializer
-    permission_classes = []  # set in get_permissions()
+    permission_classes = [IsAuthenticated]
     filter_backends = [
         DjangoFilterBackend,
         filters.SearchFilter,
@@ -26,11 +27,6 @@ class BugReportViewSet(viewsets.ModelViewSet):
     ordering_fields = ["created_at", "updated_at", "severity"]
     ordering = ["-created_at"]
 
-    def get_permissions(self):
-        # Bug reports are internal; require auth.
-        from rest_framework.permissions import IsAuthenticated
-
-        return [IsAuthenticated()]
 
     def get_queryset(self):
         tenant = getattr(self.request, 'tenant', None)
