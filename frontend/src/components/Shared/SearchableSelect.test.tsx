@@ -12,13 +12,19 @@ vi.mock('../../services/quickActionsService', () => ({
 }));
 
 // Avoid pulling in the real modal implementation in unit tests.
+const quickCreateModalPropsSpy = vi.fn();
+
 vi.mock('../FormSubmission/QuickCreateModal', () => ({
-  default: () => null,
+  default: (props: any) => {
+    quickCreateModalPropsSpy(props);
+    return null;
+  },
 }));
 
 describe('SearchableSelect', () => {
   beforeEach(() => {
     searchOptionsMock.mockReset();
+    quickCreateModalPropsSpy.mockClear();
   });
 
   afterEach(() => {
@@ -160,5 +166,51 @@ describe('SearchableSelect', () => {
     });
 
     expect(onBlur).toHaveBeenCalled();
+  });
+
+  it('opens QuickCreateModal when selecting the create sentinel and wires onCreated to onChange', async () => {
+    const onChange = vi.fn();
+
+    searchOptionsMock.mockResolvedValue({
+      entity_type: 'customer',
+      entity_label: 'Customer',
+      options: [{ value: '3', label: 'Gamma' }],
+      count: 1,
+      can_create: true,
+      total_count: 1,
+      has_more: false,
+    });
+
+    render(
+      <SearchableSelect
+        entityType="customer"
+        value=""
+        onChange={onChange}
+        initialOptions={[{ value: '1', label: 'Alpha' }]}
+        allowCreate
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button'));
+
+    const createOption = await screen.findByRole('option', { name: '+ Add new customer' });
+    fireEvent.click(createOption);
+
+    expect(onChange).not.toHaveBeenCalled();
+
+    // Our QuickCreateModal mock captures props; assert it was opened.
+    expect(quickCreateModalPropsSpy).toHaveBeenCalled();
+    const lastCall = quickCreateModalPropsSpy.mock.calls.at(-1);
+    const modalProps = lastCall?.[0];
+    expect(modalProps?.isOpen).toBe(true);
+
+    // Simulate successful creation (triggers internal state updates)
+    await act(async () => {
+      modalProps.onCreated({ value: '3', label: 'Gamma' });
+    });
+
+    await waitFor(() => {
+      expect(onChange).toHaveBeenCalledWith('3');
+    });
   });
 });
