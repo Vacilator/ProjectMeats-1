@@ -55,6 +55,11 @@ const PageContainer = styled.div`
   height: 100%;
   padding: 1.5rem;
   background: rgb(var(--color-background));
+  min-width: 0;
+
+  @media (max-width: 520px) {
+    padding: 1rem;
+  }
 `;
 
 const PageHeader = styled.div`
@@ -62,6 +67,8 @@ const PageHeader = styled.div`
   align-items: center;
   justify-content: space-between;
   margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+  gap: 1rem;
 `;
 
 const PageTitle = styled.h1`
@@ -69,11 +76,23 @@ const PageTitle = styled.h1`
   font-weight: 700;
   color: rgb(var(--color-text-primary));
   margin: 0;
+
+  @media (max-width: 520px) {
+    font-size: 1.75rem;
+  }
 `;
 
 const HeaderActions = styled.div`
   display: flex;
   gap: 0.75rem;
+  align-items: center;
+  flex-wrap: wrap;
+
+  @media (max-width: 520px) {
+    width: 100%;
+    flex-direction: column;
+    align-items: stretch;
+  }
 `;
 
 const SecondaryButton = styled.button`
@@ -86,6 +105,12 @@ const SecondaryButton = styled.button`
   font-weight: 500;
   cursor: pointer;
   transition: background 0.2s ease;
+  min-height: 44px;
+
+  @media (max-width: 520px) {
+    width: 100%;
+    justify-content: center;
+  }
 
   &:hover {
     background: rgb(var(--color-surface-hover));
@@ -100,13 +125,19 @@ const SecondaryButton = styled.button`
 const PrimaryButton = styled.button`
   padding: 0.75rem 1.5rem;
   background: rgb(var(--color-primary));
-  color: white;
+  color: rgb(var(--color-primary-foreground));
   border: none;
   border-radius: var(--radius-md);
   font-size: 0.875rem;
   font-weight: 500;
   cursor: pointer;
   transition: opacity 0.2s ease;
+  min-height: 44px;
+
+  @media (max-width: 520px) {
+    width: 100%;
+    justify-content: center;
+  }
 
   &:hover {
     opacity: 0.9;
@@ -125,6 +156,8 @@ const ContentContainer = styled.div<{ hasSidePanel?: boolean }>`
   height: calc(100vh - 180px);
   overflow: hidden;
   transition: grid-template-columns 0.3s ease;
+  min-width: 0;
+  max-width: 100%;
   
   /* Stack layout on tablets and mobile */
   @media (max-width: 1024px) {
@@ -140,6 +173,7 @@ const MainContent = styled.div`
   border: 1px solid rgb(var(--color-border));
   border-radius: var(--radius-lg);
   overflow: hidden;
+  min-width: 0;
 `;
 
 const FilterBar = styled.div`
@@ -149,10 +183,14 @@ const FilterBar = styled.div`
   background: rgb(var(--color-surface));
   border-bottom: 1px solid rgb(var(--color-border));
   flex-wrap: wrap;
+  min-width: 0;
 `;
 
 const FilterButton = styled.button<{ isActive?: boolean }>`
   padding: 0.5rem 1rem;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
   background: ${props => props.isActive ? 'rgba(var(--color-primary), 0.1)' : 'transparent'};
   color: ${props => props.isActive ? 'rgb(var(--color-primary))' : 'rgb(var(--color-text-secondary))'};
   border: 1px solid ${props => props.isActive ? 'rgb(var(--color-primary))' : 'rgb(var(--color-border))'};
@@ -178,6 +216,13 @@ const SearchBar = styled.input`
   border: 1px solid rgb(var(--color-border));
   border-radius: var(--radius-sm);
   font-size: 0.875rem;
+  min-height: 44px;
+
+  @media (max-width: 520px) {
+    min-width: 0;
+    width: 100%;
+    font-size: 16px; /* prevent iOS Safari zoom-on-focus */
+  }
 
   &:focus {
     outline: none;
@@ -192,6 +237,9 @@ const SearchBar = styled.input`
 const TableContainer = styled.div`
   flex: 1;
   overflow-y: auto;
+  max-width: 100%;
+  min-width: 0;
+  -webkit-overflow-scrolling: touch;
 
   /* Only enable horizontal scroll on small screens when truly needed */
   @media (max-width: 768px) {
@@ -230,6 +278,10 @@ const Table = styled.table`
   @media (max-width: 768px) {
     min-width: 600px;
   }
+
+  @media (max-width: 520px) {
+    min-width: 0;
+  }
 `;
 
 const TableHeader = styled.thead`
@@ -259,6 +311,15 @@ const TableHeaderCell = styled.th`
   text-transform: uppercase;
   letter-spacing: 0.05em;
   white-space: nowrap;
+
+  @media (max-width: 520px) {
+    padding: 0.75rem 1rem;
+
+    &:nth-child(3),
+    &:nth-child(4) {
+      display: none;
+    }
+  }
 `;
 
 const TableCell = styled.td`
@@ -266,6 +327,20 @@ const TableCell = styled.td`
   font-size: 0.875rem;
   color: rgb(var(--color-text-primary));
   white-space: nowrap;
+
+  @media (max-width: 520px) {
+    padding: 0.75rem 1rem;
+
+    &:nth-child(3),
+    &:nth-child(4) {
+      display: none;
+    }
+
+    &:nth-child(2) {
+      white-space: normal;
+      word-break: break-word;
+    }
+  }
 `;
 
 const StatusBadge = styled.span<{ status: OrderStatus }>`
@@ -280,33 +355,33 @@ const StatusBadge = styled.span<{ status: OrderStatus }>`
     switch (props.status) {
       case 'draft':
         return `
-          background: rgba(107, 114, 128, 0.1);
-          color: rgb(107, 114, 128);
+          background: rgba(var(--color-text-secondary), 0.12);
+          color: rgb(var(--color-text-secondary));
         `;
       case 'confirmed':
         return `
-          background: rgba(59, 130, 246, 0.1);
-          color: rgb(59, 130, 246);
+          background: rgba(var(--color-info), 0.12);
+          color: rgb(var(--color-info));
         `;
       case 'processing':
         return `
-          background: rgba(251, 191, 36, 0.1);
-          color: rgb(251, 191, 36);
+          background: rgba(var(--color-warning), 0.12);
+          color: rgb(var(--color-warning));
         `;
       case 'shipped':
         return `
-          background: rgba(139, 92, 246, 0.1);
-          color: rgb(139, 92, 246);
+          background: rgba(var(--color-info), 0.12);
+          color: rgb(var(--color-info));
         `;
       case 'delivered':
         return `
-          background: rgba(34, 197, 94, 0.1);
-          color: rgb(34, 197, 94);
+          background: rgba(var(--color-success), 0.12);
+          color: rgb(var(--color-success));
         `;
       case 'cancelled':
         return `
-          background: rgba(239, 68, 68, 0.1);
-          color: rgb(239, 68, 68);
+          background: rgba(var(--color-danger), 0.12);
+          color: rgb(var(--color-danger));
         `;
       default:
         return '';
@@ -325,10 +400,10 @@ const LoadingState = styled.div`
 
 const ErrorState = styled.div`
   padding: 1rem 1.5rem;
-  background: rgba(239, 68, 68, 0.1);
-  border: 1px solid rgba(239, 68, 68, 0.3);
+  background: rgba(var(--color-danger), 0.12);
+  border: 1px solid rgba(var(--color-danger), 0.3);
   border-radius: var(--radius-md);
-  color: rgb(239, 68, 68);
+  color: rgb(var(--color-danger));
   font-size: 0.875rem;
   margin: 1rem 1.5rem;
 `;
@@ -378,12 +453,17 @@ const CloseButton = styled.button`
   top: 1rem;
   right: 1rem;
   padding: 0.5rem;
+  min-width: 44px;
+  min-height: 44px;
   background: transparent;
   border: none;
   color: rgb(var(--color-text-secondary));
   cursor: pointer;
   font-size: 1.25rem;
   transition: color 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 
   &:hover {
     color: rgb(var(--color-text-primary));
@@ -651,7 +731,7 @@ export const SalesOrdersPage: React.FC = () => {
           {error && <ErrorState>{error}</ErrorState>}
 
           {/* Table */}
-          <TableContainer>
+          <TableContainer data-testid="sales-orders-table-container">
             {loading ? (
               <LoadingState>
                 <Skeleton active paragraph={{ rows: 8 }} />
@@ -703,7 +783,7 @@ export const SalesOrdersPage: React.FC = () => {
         {selectedOrder && (
           <SidePanel>
             <SidePanelHeader>
-              <CloseButton onClick={handleClosePanel}>×</CloseButton>
+              <CloseButton onClick={handleClosePanel} aria-label="Close order details">×</CloseButton>
               <SidePanelTitle>Order Details</SidePanelTitle>
               <SidePanelSubtitle>{selectedOrder.order_number}</SidePanelSubtitle>
             </SidePanelHeader>
