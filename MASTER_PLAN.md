@@ -2392,7 +2392,7 @@ F9 (AI) ────────────────────────
 #### Acceptance Criteria
 
 - [x] Zero unauthenticated API access possible (DRF default permission is IsAuthenticated; public endpoints are explicitly allowlisted + tested)
-- [ ] Mobile users can create orders from field (iPhone SE 375px)
+- [x] Mobile users can create orders from field (iPhone SE 375px) (E2E: mobile_purchase_orders_create, mobile_inquiries_375, mobile_sales_orders_create; PRs #4397, #4399, #4401)
 - [x] TypeScript errors block PR merge (PR validation includes `npm run type-check`)
 - [x] Missing OpenAI key shows "AI not configured" message, not crash (stable 503 error contract + frontend details messaging)
 - [x] Email sync errors show actionable guidance (Sync Now returns structured code/error_code + reconnect CTA; tests in apps.integrations)
