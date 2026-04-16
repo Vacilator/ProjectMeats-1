@@ -72,16 +72,16 @@ const Required = styled.span`
   margin-left: 0.25rem;
 `;
 
-const InputWrapper = styled.div<{ isOpen: boolean; hasError?: boolean }>`
+const InputWrapper = styled.div<{ $isOpen: boolean; $hasError?: boolean }>`
   position: relative;
   width: 100%;
 `;
 
-const Input = styled.input<{ hasError?: boolean }>`
+const Input = styled.input<{ $hasError?: boolean }>`
   width: 100%;
   padding: 0.75rem 2.5rem 0.75rem 0.75rem;
   background: rgb(var(--color-background));
-  border: 1px solid ${props => props.hasError ? 'rgba(239, 68, 68, 1)' : 'rgb(var(--color-border))'};
+  border: 1px solid ${props => props.$hasError ? 'rgba(239, 68, 68, 1)' : 'rgb(var(--color-border))'};
   border-radius: var(--radius-md);
   color: rgb(var(--color-text-primary));
   font-size: 0.875rem;
@@ -89,7 +89,7 @@ const Input = styled.input<{ hasError?: boolean }>`
   
   &:focus {
     outline: none;
-    border-color: ${props => props.hasError ? 'rgba(239, 68, 68, 1)' : 'rgb(var(--color-primary))'};
+    border-color: ${props => props.$hasError ? 'rgba(239, 68, 68, 1)' : 'rgb(var(--color-primary))'};
   }
   
   &::placeholder {
@@ -102,19 +102,19 @@ const Input = styled.input<{ hasError?: boolean }>`
   }
 `;
 
-const DropdownIcon = styled.div<{ isOpen: boolean }>`
+const DropdownIcon = styled.div<{ $isOpen: boolean }>`
   position: absolute;
   right: 0.75rem;
   top: 50%;
-  transform: translateY(-50%) ${props => props.isOpen ? 'rotate(180deg)' : 'rotate(0deg)'};
+  transform: translateY(-50%) ${props => props.$isOpen ? 'rotate(180deg)' : 'rotate(0deg)'};
   transition: transform 0.2s ease;
   pointer-events: none;
   color: rgb(var(--color-text-secondary));
   font-size: 0.875rem;
 `;
 
-const DropdownList = styled.ul<{ isOpen: boolean }>`
-  display: ${props => props.isOpen ? 'block' : 'none'};
+const DropdownList = styled.ul<{ $isOpen: boolean }>`
+  display: ${props => props.$isOpen ? 'block' : 'none'};
   position: absolute;
   top: calc(100% + 4px);
   left: 0;
@@ -149,14 +149,14 @@ const DropdownList = styled.ul<{ isOpen: boolean }>`
   }
 `;
 
-const DropdownItem = styled.li<{ isSelected: boolean; isFocused: boolean }>`
+const DropdownItem = styled.li<{ $isSelected: boolean; $isFocused: boolean }>`
   padding: 0.75rem;
   cursor: pointer;
   color: rgb(var(--color-text-primary));
   font-size: 0.875rem;
   background: ${props => {
-    if (props.isSelected) return 'rgba(var(--color-primary), 0.1)';
-    if (props.isFocused) return 'rgb(var(--color-surface-hover))';
+    if (props.$isSelected) return 'rgba(var(--color-primary), 0.1)';
+    if (props.$isFocused) return 'rgb(var(--color-surface-hover))';
     return 'transparent';
   }};
   transition: background 0.15s ease;
@@ -165,7 +165,7 @@ const DropdownItem = styled.li<{ isSelected: boolean; isFocused: boolean }>`
     background: rgb(var(--color-surface-hover));
   }
 
-  ${props => props.isSelected && `
+  ${props => props.$isSelected && `
     font-weight: 600;
     color: rgb(var(--color-primary));
   `}
@@ -361,7 +361,7 @@ export const LocalSearchableSelect: React.FC<LocalSearchableSelectProps> = ({
         </Label>
       )}
       
-      <InputWrapper isOpen={isOpen} hasError={!!error}>
+      <InputWrapper $isOpen={isOpen} $hasError={!!error}>
         <Input
           ref={inputRef}
           type="text"
@@ -371,13 +371,13 @@ export const LocalSearchableSelect: React.FC<LocalSearchableSelectProps> = ({
           onKeyDown={handleKeyDown}
           placeholder={placeholder}
           disabled={disabled}
-          hasError={!!error}
+          $hasError={!!error}
           autoComplete="off"
         />
-        <DropdownIcon isOpen={isOpen}>▼</DropdownIcon>
+        <DropdownIcon $isOpen={isOpen}>▼</DropdownIcon>
       </InputWrapper>
 
-      <DropdownList isOpen={isOpen && !disabled}>
+      <DropdownList $isOpen={isOpen && !disabled}>
         {loading ? (
           <LoadingState>
             <Spinner />
@@ -396,8 +396,8 @@ export const LocalSearchableSelect: React.FC<LocalSearchableSelectProps> = ({
           filteredOptions.map((option, index) => (
             <DropdownItem
               key={option.id}
-              isSelected={String(option.id) === String(value)}
-              isFocused={index === focusedIndex}
+              $isSelected={String(option.id) === String(value)}
+              $isFocused={index === focusedIndex}
               onClick={() => handleSelect(option)}
               onMouseEnter={() => setFocusedIndex(index)}
             >
