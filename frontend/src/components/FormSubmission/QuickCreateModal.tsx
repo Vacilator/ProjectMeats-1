@@ -48,9 +48,10 @@ const Modal = styled.div`
   background: var(--bg-primary, rgb(var(--color-surface)));
   border-radius: 0.75rem;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-  width: 90%;
-  max-width: 500px;
-  max-height: 90vh;
+  width: min(500px, calc(100vw - 24px));
+  max-width: calc(100vw - 24px);
+  max-height: min(90vh, calc(100vh - 24px));
+  box-sizing: border-box;
   overflow: hidden;
   animation: slideUp 0.3s ease;
 

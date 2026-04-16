@@ -69,6 +69,9 @@ const Layout: React.FC = () => {
 const LayoutContainer = styled.div<{ $theme: Theme }>`
   display: flex;
   min-height: 100vh;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
   background-color: ${(props) => props.$theme.colors.background};
 `;
 
@@ -80,6 +83,13 @@ const MainArea = styled.div<{ $sidebarOpen: boolean; $sidebarHovered: boolean }>
   flex-direction: column;
   min-height: 100vh;
   will-change: margin-left;
+  min-width: 0;
+  max-width: 100%;
+
+  /* On mobile, the sidebar overlays instead of shifting the app shell, preventing horizontal overflow. */
+  @media (max-width: 767px) {
+    margin-left: 0;
+  }
 `;
 
 const Content = styled.main<{ $theme: Theme }>`
@@ -89,6 +99,8 @@ const Content = styled.main<{ $theme: Theme }>`
   overflow-y: auto;
   display: flex;
   justify-content: center;
+  min-width: 0;
+  max-width: 100%;
 
   @media (min-width: 768px) {
     padding: 2rem;
@@ -100,6 +112,7 @@ const CenteredContainer = styled.div`
   max-width: 1200px;
   margin: 0 auto;
   padding: 0 1rem;
+  min-width: 0;
 
   @media (max-width: 768px) {
     padding: 0;

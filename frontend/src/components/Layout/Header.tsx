@@ -363,6 +363,16 @@ const HeaderContainer = styled.header<{ $theme: Theme }>`
   box-shadow: 0 2px 4px ${(props) => props.$theme.colors.shadow};
   transition: all 0.3s ease;
   gap: 20px;
+  min-width: 0;
+  max-width: 100%;
+
+  @media (max-width: 520px) {
+    height: auto;
+    min-height: 60px;
+    padding: 8px 12px;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
 `;
 
 const HeaderTitle = styled.h1<{ $theme: Theme }>`
@@ -371,6 +381,14 @@ const HeaderTitle = styled.h1<{ $theme: Theme }>`
   color: ${(props) => props.$theme.colors.headerText};
   margin: 0;
   white-space: nowrap;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+
+  @media (max-width: 520px) {
+    font-size: 16px;
+    flex: 1 1 auto;
+  }
 `;
 
 const SearchForm = styled.form`
@@ -378,6 +396,13 @@ const SearchForm = styled.form`
   max-width: 500px;
   display: flex;
   align-items: center;
+  min-width: 0;
+
+  @media (max-width: 520px) {
+    order: 3;
+    flex: 1 1 100%;
+    max-width: none;
+  }
 `;
 
 const SearchInputWrapper = styled.div<{ $theme: Theme }>`
@@ -411,6 +436,10 @@ const SearchInput = styled.input<{ $theme: Theme }>`
   outline: none;
   font-size: 14px;
   color: ${(props) => props.$theme.colors.textPrimary};
+
+  @media (max-width: 520px) {
+    font-size: 16px; /* iOS Safari zoom-on-focus prevention */
+  }
   
   &::placeholder {
     color: ${(props) => props.$theme.colors.textSecondary};
@@ -421,6 +450,14 @@ const HeaderActions = styled.div`
   display: flex;
   align-items: center;
   gap: 15px;
+  flex: 0 0 auto;
+
+  @media (max-width: 520px) {
+    order: 2;
+    margin-left: auto;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
 `;
 
 const QuickMenuContainer = styled.div`
