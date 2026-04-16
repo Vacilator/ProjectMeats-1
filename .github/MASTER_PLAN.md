@@ -1613,3 +1613,5 @@ Deliverables:
 - **2026-04-16** — Tests: lock Email Sync Now actionable error payloads (not_connected + token_invalid reconnect CTA). (PR: #4392)
 
 - **2026-04-16** — Security: DRF default permission set to IsAuthenticated; explicit allowlist for OAuth callbacks + email webhooks + regression tests. (PR: #4394)
+
+- 2026-04-16 — ci: improve Master Pipeline run-name to show PR title + number instead of SHA — PR: #pending.

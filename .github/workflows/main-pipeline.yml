@@ -7,7 +7,7 @@ run-name: >-
       || format(
         '🚀 Deploy: {0} - {1}',
         github.ref_name == 'main' && 'production' || github.ref_name,
-        github.sha
+        github.event.head_commit.message
       )
   }}
 
