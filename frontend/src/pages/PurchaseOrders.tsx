@@ -14,7 +14,13 @@ const Header = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 12px;
   margin-bottom: 30px;
+
+  @media (max-width: 520px) {
+    flex-wrap: wrap;
+    align-items: flex-start;
+  }
 `;
 
 const Title = styled.h1`
@@ -28,6 +34,15 @@ const HeaderActions = styled.div`
   display: flex;
   align-items: center;
   gap: 12px;
+
+  @media (max-width: 520px) {
+    width: 100%;
+    flex-wrap: wrap;
+
+    & > button {
+      flex: 1 1 100%;
+    }
+  }
 `;
 
 const AddButton = styled.button`
@@ -40,6 +55,11 @@ const AddButton = styled.button`
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s;
+  min-height: 44px;
+
+  @media (max-width: 520px) {
+    padding: 12px 16px;
+  }
 
   &:hover {
     background: rgb(var(--color-primary-hover));
@@ -57,6 +77,7 @@ const SecondaryButton = styled.button`
   font-weight: 600;
   cursor: pointer;
   transition: background 0.2s;
+  min-height: 44px;
 
   &:hover {
     background: rgb(var(--color-surface-hover));
@@ -128,8 +149,19 @@ const EmptyDescription = styled.p`
   font-size: 16px;
 `;
 
+const TableWrapper = styled.div`
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  border-radius: 12px;
+
+  /* Prevent wide tables from causing page-level horizontal scrolling on mobile. */
+  max-width: 100%;
+`;
+
 const Table = styled.table`
   width: 100%;
+  min-width: 880px;
   background: rgb(var(--color-surface));
   border-radius: 12px;
   overflow: hidden;
@@ -220,6 +252,12 @@ const FormOverlay = styled.div`
   align-items: center;
   justify-content: center;
   z-index: 1000;
+  padding: 16px;
+  overflow-y: auto;
+
+  @media (max-width: 520px) {
+    align-items: flex-start;
+  }
 `;
 
 const FormContainer = styled.div`
@@ -227,9 +265,9 @@ const FormContainer = styled.div`
   color: rgb(var(--color-surface-foreground));
   border-radius: 12px;
   padding: 0;
-  width: 90%;
+  width: 100%;
   max-width: 600px;
-  max-height: 90vh;
+  max-height: calc(100vh - 32px);
   overflow-y: auto;
   border: 1px solid rgb(var(--color-border));
 `;
@@ -240,6 +278,10 @@ const FormHeader = styled.div`
   align-items: center;
   padding: 24px;
   border-bottom: 1px solid rgb(var(--color-border));
+
+  @media (max-width: 520px) {
+    padding: 16px;
+  }
 `;
 
 const FormTitle = styled.h2`
@@ -256,11 +298,12 @@ const CloseButton = styled.button`
   cursor: pointer;
   color: rgb(var(--color-text-secondary));
   padding: 0;
-  width: 30px;
-  height: 30px;
+  width: 44px;
+  height: 44px;
   display: flex;
   align-items: center;
   justify-content: center;
+  border-radius: 8px;
 
   &:hover {
     color: rgb(var(--color-text-primary));
@@ -269,6 +312,10 @@ const CloseButton = styled.button`
 
 const Form = styled.form`
   padding: 24px;
+
+  @media (max-width: 520px) {
+    padding: 16px;
+  }
 `;
 
 const FormGroup = styled.div`
@@ -290,6 +337,12 @@ const Input = styled.input`
   border-radius: 6px;
   font-size: 14px;
   transition: border-color 0.2s;
+  min-height: 44px;
+
+  @media (max-width: 520px) {
+    /* Prevent iOS Safari zoom-on-focus */
+    font-size: 16px;
+  }
 
   &:focus {
     outline: none;
@@ -315,6 +368,12 @@ const Select = styled.select`
   border-radius: 6px;
   font-size: 14px;
   transition: border-color 0.2s;
+  min-height: 44px;
+
+  @media (max-width: 520px) {
+    /* Prevent iOS Safari zoom-on-focus */
+    font-size: 16px;
+  }
 
   &:focus {
     outline: none;
@@ -330,6 +389,11 @@ const TextArea = styled.textarea`
   font-size: 14px;
   resize: vertical;
   transition: border-color 0.2s;
+
+  @media (max-width: 520px) {
+    /* Prevent iOS Safari zoom-on-focus */
+    font-size: 16px;
+  }
 
   &:focus {
     outline: none;
@@ -349,6 +413,15 @@ const FormActions = styled.div`
   gap: 12px;
   justify-content: flex-end;
   margin-top: 24px;
+
+  @media (max-width: 520px) {
+    flex-wrap: wrap;
+
+    & > button {
+      flex: 1 1 100%;
+      min-height: 44px;
+    }
+  }
 `;
 
 const CancelButton = styled.button`
@@ -941,7 +1014,8 @@ const PurchaseOrders: React.FC = () => {
           <EmptyDescription>Get started by creating your first purchase order</EmptyDescription>
         </EmptyState>
       ) : (
-        <Table>
+        <TableWrapper>
+          <Table>
           <TableHeader>
             <TableRow>
               <TableHeaderCell>Order Number</TableHeaderCell>
@@ -1010,7 +1084,8 @@ const PurchaseOrders: React.FC = () => {
               );
             })}
           </TableBody>
-        </Table>
+          </Table>
+        </TableWrapper>
       )}
 
       {showForm && (
