@@ -3,11 +3,12 @@ name: Master Pipeline
 run-name: >-
   ${{
     github.event_name == 'workflow_dispatch'
-      && format('🚀 Deploy: {0} - manual', inputs.environment)
+      && format('🚀 Deploy: {0} - manual @ {1} by {2}', inputs.environment, github.sha, github.actor)
       || format(
-        '🚀 Deploy: {0} - {1}',
+        '🚀 Deploy: {0} @ {1} by {2}',
         github.ref_name == 'main' && 'production' || github.ref_name,
-        github.event.head_commit.message
+        github.sha,
+        github.actor
       )
   }}
 
