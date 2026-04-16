@@ -93,6 +93,13 @@ import os
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
+# ------------------------------------------------------------------------------
+# Upload limits (align backend with frontend 10MB document uploads)
+# ------------------------------------------------------------------------------
+# Without this, Django can raise RequestDataTooBig during multipart parsing, which
+# can surface as a 500 if not handled by DRF.
+DATA_UPLOAD_MAX_MEMORY_SIZE = 20 * 1024 * 1024  # 20MB
+
 # ==============================================================================
 # SHARED SCHEMA MULTI-TENANCY CONFIGURATION
 # ==============================================================================
