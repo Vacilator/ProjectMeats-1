@@ -70,6 +70,9 @@ const LayoutContainer = styled.div<{ $theme: Theme }>`
   display: flex;
   min-height: 100vh;
   background-color: ${(props) => props.$theme.colors.background};
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
 `;
 
 const MainArea = styled.div<{ $sidebarOpen: boolean; $sidebarHovered: boolean }>`
@@ -80,6 +83,9 @@ const MainArea = styled.div<{ $sidebarOpen: boolean; $sidebarHovered: boolean }>
   flex-direction: column;
   min-height: 100vh;
   will-change: margin-left;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
 
   @media (max-width: 768px) {
     margin-left: 0;
@@ -93,6 +99,9 @@ const Content = styled.main<{ $theme: Theme }>`
   overflow-y: auto;
   display: flex;
   justify-content: center;
+  min-width: 0;
+  width: 100%;
+  max-width: 100%;
 
   @media (min-width: 768px) {
     padding: 2rem;
@@ -104,6 +113,7 @@ const CenteredContainer = styled.div`
   max-width: 1200px;
   margin: 0 auto;
   padding: 0 1rem;
+  min-width: 0;
 
   @media (max-width: 768px) {
     padding: 0;
