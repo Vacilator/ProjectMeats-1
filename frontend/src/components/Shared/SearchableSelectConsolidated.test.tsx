@@ -1,8 +1,20 @@
 import React from 'react';
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { render, screen, fireEvent, act } from '@testing-library/react';
+import { render, screen, fireEvent, act, waitFor } from '@testing-library/react';
 
 import SearchableSelect from './SearchableSelect';
+
+const searchOptionsMock = vi.fn();
+
+vi.mock('../../services/quickActionsService', () => ({
+  entityOptionsService: {
+    searchOptions: (...args: any[]) => searchOptionsMock(...args),
+  },
+}));
+
+vi.mock('../FormSubmission/QuickCreateModal', () => ({
+  default: () => null,
+}));
 
 vi.mock('../../contexts/ThemeContext', () => ({
   useTheme: () => ({
@@ -19,6 +31,35 @@ vi.mock('../../contexts/ThemeContext', () => ({
 describe('SearchableSelect (consolidated variants)', () => {
   afterEach(() => {
     vi.useRealTimers();
+  });
+
+  it('renders static variant (no API) and selects from options', async () => {
+    const onChange = vi.fn();
+
+    render(
+      <SearchableSelect
+        variant="static"
+        value=""
+        onChange={onChange}
+        options={[
+          { value: '1', label: 'Alpha' },
+          { value: '2', label: 'Beta' },
+        ]}
+        placeholder="Select..."
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button'));
+    expect(await screen.findByRole('option', { name: 'Beta' })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('option', { name: 'Beta' }));
+
+    expect(searchOptionsMock).not.toHaveBeenCalled();
+    expect(onChange).toHaveBeenCalledWith('2');
+
+    await waitFor(() => {
+      expect(screen.queryByRole('option', { name: 'Beta' })).not.toBeInTheDocument();
+    });
   });
 
   it('renders multi variant via variant prop', () => {
