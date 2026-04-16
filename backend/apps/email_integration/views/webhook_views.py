@@ -17,7 +17,7 @@ from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 
 from apps.email_integration.models import EmailAccount, EmailLog
@@ -265,6 +265,7 @@ def outlook_webhook_unsubscribe(request, account_id):
 
 @csrf_exempt
 @api_view(['POST'])
+@permission_classes([AllowAny])
 def outlook_webhook_notifications(request):
     """
     Handle webhook notifications from Microsoft Graph.
@@ -545,6 +546,7 @@ def gmail_webhook_unsubscribe(request, account_id):
 
 @csrf_exempt
 @api_view(['POST'])
+@permission_classes([AllowAny])
 def gmail_webhook_notifications(request):
     """
     Handle Pub/Sub push notifications from Gmail.

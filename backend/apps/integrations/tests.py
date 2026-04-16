@@ -89,3 +89,9 @@ class EmailSyncTests(APITestCase):
         self.assertEqual(resp.data.get('error'), 'Token invalid/expired')
         self.assertEqual(resp.data.get('error_code'), 'token_invalid')
         self.assertEqual(resp.data.get('cta', {}).get('url'), '/settings/email-integrations')
+
+
+class IntegrationsOAuthCallbackPublicTests(APITestCase):
+    def test_oauth_callback_allows_anonymous(self):
+        resp = self.client.get('/api/v1/integrations/oauth/callback/microsoft/?error=access_denied')
+        self.assertEqual(resp.status_code, 302)
