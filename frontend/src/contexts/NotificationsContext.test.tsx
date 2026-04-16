@@ -23,8 +23,12 @@ vi.mock('../services/notificationsService', () => ({
 }));
 
 // Mock localStorage
+// AuthService expects localStorage.getItem('user') to be JSON.
 const mockLocalStorage = {
-  getItem: vi.fn(() => 'test-token'),
+  getItem: vi.fn((key: string) => {
+    if (key === 'user') return JSON.stringify({ id: 1, username: 'testuser' });
+    return null;
+  }),
   setItem: vi.fn(),
   removeItem: vi.fn(),
 };
