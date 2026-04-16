@@ -59,6 +59,8 @@ This file is the **append-only PR-referenceable execution log**.
   - Swarm prompt updated to use `ingest_purchase_order_document(document_id)` for Purchase Order documents.
   (PR: #4353)
 
+- **2026-04-16** — Mobile: Customers usable at 375px. Added deterministic Playwright coverage (`frontend/e2e/mobile_customers_create.spec.ts`) and hardened app shell on small screens (Header wrapping + Layout sidebar offset) to prevent page-level horizontal overflow. (PR: #4406)
+
 ### 2026-03-31 — Secret audit drift (manifest v5.1)
 - Command: `python config/manage_env.py audit --repo Meats-Central/ProjectMeats`
 - Stale/Zombie secrets found in GitHub but NOT in `manifests/env.manifest.json` (or legacy `DEV_`/`UAT_`/`PROD_` prefixed):
