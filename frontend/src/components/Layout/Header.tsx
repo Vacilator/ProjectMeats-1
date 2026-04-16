@@ -361,6 +361,8 @@ const HeaderContainer = styled.header<{ $theme: Theme }>`
   box-shadow: 0 2px 4px ${(props) => props.$theme.colors.shadow};
   transition: all 0.3s ease;
   gap: 20px;
+  min-width: 0;
+  max-width: 100%;
 
   /* Tablet: allow header content to wrap to avoid horizontal overflow */
   @media (max-width: 900px) {
@@ -386,6 +388,9 @@ const HeaderTitle = styled.h1<{ $theme: Theme }>`
   color: ${(props) => props.$theme.colors.headerText};
   margin: 0;
   white-space: nowrap;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 
   @media (max-width: 640px) {
     display: none;
@@ -398,6 +403,7 @@ const SearchForm = styled.form`
   min-width: 0;
   display: flex;
   align-items: center;
+  min-width: 0;
 
   @media (max-width: 900px) {
     max-width: none;
@@ -441,6 +447,10 @@ const SearchInput = styled.input<{ $theme: Theme }>`
   outline: none;
   font-size: 14px;
   color: ${(props) => props.$theme.colors.textPrimary};
+
+  @media (max-width: 520px) {
+    font-size: 16px; /* iOS Safari zoom-on-focus prevention */
+  }
   
   &::placeholder {
     color: ${(props) => props.$theme.colors.textSecondary};
@@ -451,9 +461,13 @@ const HeaderActions = styled.div`
   display: flex;
   align-items: center;
   gap: 15px;
+  flex: 0 0 auto;
 
   @media (max-width: 640px) {
     gap: 10px;
+    margin-left: auto;
+    flex-wrap: wrap;
+    justify-content: flex-end;
   }
 `;
 

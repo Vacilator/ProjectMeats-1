@@ -69,6 +69,9 @@ const Layout: React.FC = () => {
 const LayoutContainer = styled.div<{ $theme: Theme }>`
   display: flex;
   min-height: 100vh;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
   background-color: ${(props) => props.$theme.colors.background};
   width: 100%;
   max-width: 100%;
@@ -87,6 +90,7 @@ const MainArea = styled.div<{ $sidebarOpen: boolean; $sidebarHovered: boolean }>
   max-width: 100%;
   min-width: 0;
 
+  /* On mobile, the sidebar overlays instead of shifting the app shell, preventing horizontal overflow. */
   @media (max-width: 768px) {
     margin-left: 0;
   }
