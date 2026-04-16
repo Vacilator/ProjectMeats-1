@@ -1617,3 +1617,4 @@ Deliverables:
 - 2026-04-16 — ci: improve Master Pipeline run-name to show PR title + number instead of SHA — PR: #pending.
 
 - **2026-04-16** — Mobile: Purchase Orders page + create overlay usable at 375px; add E2E create-flow coverage (mocked APIs). (PR: #4397)
+- **2026-04-16** — Mobile: Inquiries page usable at 375px; add E2E coverage; constrain Layout containers to prevent page-level horizontal overflow. (PR: #4399)
