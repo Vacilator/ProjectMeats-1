@@ -1597,3 +1597,6 @@ Deliverables:
 - 2026-04-01 — CI/CD: deploy feed run-name flatten + auto-promote token fallback — PR: #4340.
 
 - **2026-04-16** — Copilot Squad: added enterprise squad roles/tasks/agents/skills + validator and optional gh wrapper (`gh copilot squad run`). (PR: #4374)
+- **2026-04-16** — Copilot Squad: PR validation now checks squad structure (`scripts/validate_copilot_squad.sh`). (PR: #4375)
+- **2026-04-16** — Health: hardened `/api/v1/health/` with structured dependency signals + resilience. (PR: #4376)
+- **2026-04-16** — Integrations: harden Email Sync Now error responses (no raw exception leakage) + update tests. (PR: #4377)
