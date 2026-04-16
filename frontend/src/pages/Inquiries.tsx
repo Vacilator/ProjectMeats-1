@@ -31,6 +31,7 @@ const Container = styled.div`
   padding: 1.5rem;
   max-width: 1400px;
   margin: 0 auto;
+  min-width: 0;
 `;
 
 const Header = styled.div`
@@ -56,6 +57,13 @@ const HeaderActions = styled.div`
   display: flex;
   gap: 0.75rem;
   align-items: center;
+  flex-wrap: wrap;
+
+  @media (max-width: 520px) {
+    width: 100%;
+    flex-direction: column;
+    align-items: stretch;
+  }
 `;
 
 const CreateButton = styled.button`
@@ -63,13 +71,19 @@ const CreateButton = styled.button`
   border: none;
   border-radius: var(--radius-md);
   background: rgb(var(--color-primary));
-  color: white;
+  color: rgb(var(--color-primary-foreground));
   font-size: 0.875rem;
   font-weight: 500;
   cursor: pointer;
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  min-height: 44px;
+
+  @media (max-width: 520px) {
+    width: 100%;
+    justify-content: center;
+  }
   
   &:hover {
     opacity: 0.9;
@@ -88,6 +102,12 @@ const SecondaryButton = styled.button`
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  min-height: 44px;
+
+  @media (max-width: 520px) {
+    width: 100%;
+    justify-content: center;
+  }
   
   &:hover {
     background: rgba(var(--color-primary), 0.05);
@@ -97,6 +117,10 @@ const SecondaryButton = styled.button`
 
 const DropdownContainer = styled.div`
   position: relative;
+
+  @media (max-width: 520px) {
+    width: 100%;
+  }
 `;
 
 const DropdownMenu = styled.div<{ $isOpen: boolean }>`
@@ -108,7 +132,7 @@ const DropdownMenu = styled.div<{ $isOpen: boolean }>`
   background: rgb(var(--color-surface));
   border: 1px solid rgb(var(--color-border));
   border-radius: var(--radius-md);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  box-shadow: var(--shadow-float);
   min-width: 200px;
   max-height: 300px;
   overflow-y: auto;
@@ -145,6 +169,12 @@ const DropdownLabel = styled.div`
   background: rgba(var(--color-primary), 0.05);
 `;
 
+const TemplateMeta = styled.span`
+  font-size: 0.75rem;
+  color: rgb(var(--color-text-secondary));
+  margin-left: 0.5rem;
+`;
+
 const FiltersBar = styled.div`
   display: flex;
   gap: 1rem;
@@ -161,6 +191,13 @@ const SearchInput = styled.input`
   background: rgb(var(--color-surface));
   color: rgb(var(--color-text-primary));
   min-width: 250px;
+  min-height: 44px;
+
+  @media (max-width: 520px) {
+    min-width: 0;
+    width: 100%;
+    font-size: 16px; /* iOS Safari zoom-on-focus prevention */
+  }
   
   &:focus {
     outline: none;
@@ -181,6 +218,13 @@ const FilterSelect = styled.select`
   background: rgb(var(--color-surface));
   color: rgb(var(--color-text-primary));
   cursor: pointer;
+  min-height: 44px;
+
+  @media (max-width: 520px) {
+    min-width: 0;
+    width: 100%;
+    font-size: 16px; /* iOS Safari zoom-on-focus prevention */
+  }
   
   &:focus {
     outline: none;
@@ -188,11 +232,25 @@ const FilterSelect = styled.select`
   }
 `;
 
+const TableWrapper = styled.div`
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  max-width: 100%;
+  min-width: 0;
+  border-radius: var(--radius-lg);
+`;
+
 const Table = styled.div`
   background: rgb(var(--color-surface));
   border: 1px solid rgb(var(--color-border));
   border-radius: var(--radius-lg);
   overflow: hidden;
+  min-width: 920px;
+
+  @media (max-width: 520px) {
+    min-width: 0;
+  }
 `;
 
 const TableHeader = styled.div`
@@ -206,6 +264,14 @@ const TableHeader = styled.div`
   color: rgb(var(--color-text-primary));
   text-transform: uppercase;
   letter-spacing: 0.025em;
+
+  @media (max-width: 520px) {
+    grid-template-columns: 120px 1fr 110px;
+
+    > :nth-child(n+4) {
+      display: none;
+    }
+  }
 `;
 
 const TableRow = styled.div`
@@ -217,6 +283,14 @@ const TableRow = styled.div`
   align-items: center;
   cursor: pointer;
   transition: background 0.15s;
+
+  @media (max-width: 520px) {
+    grid-template-columns: 120px 1fr 110px;
+
+    > :nth-child(n+4) {
+      display: none;
+    }
+  }
   
   &:last-child {
     border-bottom: none;
@@ -253,26 +327,26 @@ const StatusBadge = styled.span<{ status: string }>`
   font-weight: 500;
   background: ${props => {
     switch (props.status) {
-      case 'accepted': return 'rgba(34, 197, 94, 0.1)';
-      case 'fulfilled': return 'rgba(34, 197, 94, 0.2)';
-      case 'pending': return 'rgba(234, 179, 8, 0.1)';
-      case 'quoted': return 'rgba(59, 130, 246, 0.1)';
-      case 'rejected': return 'rgba(239, 68, 68, 0.1)';
-      case 'expired': return 'rgba(107, 114, 128, 0.1)';
-      case 'draft': return 'rgba(107, 114, 128, 0.1)';
-      default: return 'rgba(107, 114, 128, 0.1)';
+      case 'accepted': return 'rgba(var(--color-success), 0.12)';
+      case 'fulfilled': return 'rgba(var(--color-success), 0.18)';
+      case 'pending': return 'rgba(var(--color-warning), 0.12)';
+      case 'quoted': return 'rgba(var(--color-info), 0.12)';
+      case 'rejected': return 'rgba(var(--color-danger), 0.12)';
+      case 'expired': return 'rgba(var(--color-text-secondary), 0.12)';
+      case 'draft': return 'rgba(var(--color-text-secondary), 0.12)';
+      default: return 'rgba(var(--color-text-secondary), 0.12)';
     }
   }};
   color: ${props => {
     switch (props.status) {
-      case 'accepted': return 'rgb(22, 163, 74)';
-      case 'fulfilled': return 'rgb(22, 163, 74)';
-      case 'pending': return 'rgb(202, 138, 4)';
-      case 'quoted': return 'rgb(37, 99, 235)';
-      case 'rejected': return 'rgb(220, 38, 38)';
-      case 'expired': return 'rgb(75, 85, 99)';
-      case 'draft': return 'rgb(75, 85, 99)';
-      default: return 'rgb(75, 85, 99)';
+      case 'accepted': return 'rgb(var(--color-success))';
+      case 'fulfilled': return 'rgb(var(--color-success))';
+      case 'pending': return 'rgb(var(--color-warning))';
+      case 'quoted': return 'rgb(var(--color-info))';
+      case 'rejected': return 'rgb(var(--color-danger))';
+      case 'expired': return 'rgb(var(--color-text-secondary))';
+      case 'draft': return 'rgb(var(--color-text-secondary))';
+      default: return 'rgb(var(--color-text-secondary))';
     }
   }};
 `;
@@ -327,16 +401,31 @@ const Pagination = styled.div`
   align-items: center;
   padding: 1rem 1.5rem;
   border-top: 1px solid rgb(var(--color-border));
+  flex-wrap: wrap;
+  gap: 0.75rem;
+
+  @media (max-width: 520px) {
+    align-items: stretch;
+  }
 `;
 
 const PaginationInfo = styled.span`
   font-size: 0.875rem;
   color: rgb(var(--color-text-secondary));
+
+  @media (max-width: 520px) {
+    width: 100%;
+  }
 `;
 
 const PaginationButtons = styled.div`
   display: flex;
   gap: 0.5rem;
+
+  @media (max-width: 520px) {
+    width: 100%;
+    justify-content: space-between;
+  }
 `;
 
 const PaginationButton = styled.button`
@@ -347,6 +436,7 @@ const PaginationButton = styled.button`
   color: rgb(var(--color-text-primary));
   font-size: 0.875rem;
   cursor: pointer;
+  min-height: 44px;
   
   &:hover:not(:disabled) {
     background: rgba(var(--color-primary), 0.05);
@@ -526,9 +616,7 @@ const Inquiries: React.FC = () => {
                     onClick={() => handleCreateFromTemplate(template.id)}
                   >
                     {template.name}
-                    <span style={{ fontSize: '0.75rem', color: 'gray', marginLeft: '8px' }}>
-                      ({template.product_count} products)
-                    </span>
+                    <TemplateMeta>({template.product_count} products)</TemplateMeta>
                   </DropdownItem>
                 ))}
                 <DropdownItem onClick={() => navigate('/inquiries/templates')}>
@@ -584,16 +672,17 @@ const Inquiries: React.FC = () => {
         </FilterSelect>
       </FiltersBar>
 
-      <Table>
-        <TableHeader>
-          <span>Inquiry #</span>
-          <span>Customer/Supplier</span>
-          <span>Status</span>
-          <span>Products</span>
-          <span>Value</span>
-          <span>Valid Until</span>
-          <span>Created</span>
-        </TableHeader>
+      <TableWrapper data-testid="inquiries-table-wrapper">
+        <Table>
+          <TableHeader>
+            <span>Inquiry #</span>
+            <span>Customer/Supplier</span>
+            <span>Status</span>
+            <span>Products</span>
+            <span>Value</span>
+            <span>Valid Until</span>
+            <span>Created</span>
+          </TableHeader>
 
         {loading ? (
           <LoadingState>
@@ -638,7 +727,7 @@ const Inquiries: React.FC = () => {
                 </StatusBadge>
                 <ProductCount>{inquiry.product_count || 0}</ProductCount>
                 <Amount>{formatCurrency(inquiry.total_actual || inquiry.total_desired)}</Amount>
-                <DateCell style={{ color: inquiry.is_expired ? 'rgb(220, 38, 38)' : undefined }}>
+                <DateCell style={{ color: inquiry.is_expired ? 'rgb(var(--color-danger))' : undefined }}>
                   {inquiry.valid_until ? formatDate(inquiry.valid_until) : '-'}
                   {inquiry.is_expired && ' ⚠️'}
                 </DateCell>
@@ -670,6 +759,7 @@ const Inquiries: React.FC = () => {
           </>
         )}
       </Table>
+      </TableWrapper>
 
       {/* Create Inquiry (EntityFormSurface → enhanced inquiry form by default) */}
       <EntityFormSurface
