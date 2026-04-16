@@ -128,3 +128,14 @@ jobs:
       - name: Type check
         working-directory: ./frontend
         run: npm run type-check
+
+  validate-copilot-squad:
+    name: Validate Copilot Squad
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Validate squad structure
+        run: bash scripts/validate_copilot_squad.sh

@@ -16,7 +16,8 @@ require_dir() {
 
 require_heading() {
   local file="$1"; local heading="$2"
-  rg -n --fixed-strings "$heading" "$file" >/dev/null || fail "Missing heading '$heading' in $file"
+  # Use POSIX grep for CI portability (ripgrep isn't guaranteed on runners)
+  grep -Fnq "$heading" "$file" || fail "Missing heading '$heading' in $file"
 }
 
 require_dir .copilot/squad
