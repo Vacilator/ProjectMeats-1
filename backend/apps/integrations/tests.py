@@ -49,6 +49,22 @@ class EmailSyncTests(APITestCase):
         self.assertNotIn('boom', resp.data.get('error', ''))
         self.assertEqual(resp.data.get('details', {}).get('type'), 'RuntimeError')
 
+    def test_sync_emails_returns_not_connected_payload(self):
+        ExternalAuthProvider.objects.filter(tenant=self.tenant, provider_type='microsoft').update(is_active=False)
+
+        resp = self.client.post(
+            '/api/v1/integrations/email/sync/',
+            {},
+            format='json',
+            HTTP_X_TENANT_ID=str(self.tenant.id),
+        )
+
+        self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(resp.data.get('code'), 'not_connected')
+        self.assertEqual(resp.data.get('error_code'), 'not_connected')
+        self.assertIn('hint', resp.data)
+        self.assertEqual(resp.data.get('cta', {}).get('url'), '/settings/email-integrations')
+
     @patch('tenant_apps.integrations.services.email_ingestion.EmailIngestionService.poll_tenant_by_id')
     def test_sync_emails_soft_fails_when_graph_returns_zero_scanned_with_errors(self, poll_tenant_by_id):
         poll_tenant_by_id.return_value = {
@@ -71,3 +87,5 @@ class EmailSyncTests(APITestCase):
         self.assertEqual(resp.data.get('ok'), False)
         self.assertEqual(resp.data.get('code'), 'sync_failed')
         self.assertEqual(resp.data.get('error'), 'Token invalid/expired')
+        self.assertEqual(resp.data.get('error_code'), 'token_invalid')
+        self.assertEqual(resp.data.get('cta', {}).get('url'), '/settings/email-integrations')
