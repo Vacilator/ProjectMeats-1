@@ -2395,7 +2395,7 @@ F9 (AI) ────────────────────────
 - [ ] Mobile users can create orders from field (iPhone SE 375px)
 - [x] TypeScript errors block PR merge (PR validation includes `npm run type-check`)
 - [x] Missing OpenAI key shows "AI not configured" message, not crash (stable 503 error contract + frontend details messaging)
-- [ ] Email sync errors show actionable guidance
+- [x] Email sync errors show actionable guidance (Sync Now returns structured code/error_code + reconnect CTA; tests in apps.integrations)
 
 #### Testing Requirements
 

@@ -1609,3 +1609,5 @@ Deliverables:
 - **2026-04-16** — Tests: add static audit ensuring tenant-scoped ViewSets don’t use unsafe default get_queryset. (PR: #4386)
 
 - **2026-04-16** — Tests: clean NotificationsContext unit test localStorage mock to avoid AuthService JSON.parse stderr noise. (PR: #4388)
+
+- **2026-04-16** — Tests: lock Email Sync Now actionable error payloads (not_connected + token_invalid reconnect CTA). (PR: #4392)
