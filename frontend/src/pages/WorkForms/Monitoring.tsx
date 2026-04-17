@@ -12,6 +12,7 @@
 import React from 'react';
 
 import { useQuery } from '@tanstack/react-query';
+import { Link } from 'react-router-dom';
 
 import { ErrorBoundary } from '@/components/common/ErrorBoundary';
 import { Card } from '@/components/ui/Card';
@@ -53,9 +54,9 @@ export const Monitoring: React.FC = () => {
               <ul style={{ marginTop: 12, paddingLeft: 18 }}>
                 {active.map((ex) => (
                   <li key={ex.id}>
-                    <a href={`/workforms/executions/${ex.id}`}>
+                    <Link to={`/workforms/executions/${ex.id}`}>
                       {ex.workform_name} — {ex.status}
-                    </a>
+                    </Link>
                   </li>
                 ))}
               </ul>

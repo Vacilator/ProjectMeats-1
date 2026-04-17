@@ -86,13 +86,14 @@ export const QuickActionsProvider: React.FC<QuickActionsProviderProps> = ({ chil
         getAvailableWorkForms(),
       ]);
 
-      const authFailure = [actionsResult, formsResult, workformsResult].some(
-        (r) => r.status === 'rejected' && isAuthError(r.reason)
-      );
+      const isAuthRejection = (r: PromiseSettledResult<unknown>) =>
+        r.status === 'rejected' && isAuthError((r as PromiseRejectedResult).reason);
 
-      // Important: support cookie-auth sessions (no localStorage token). If the user is not authenticated,
-      // the API will 401/403. Treat that as a normal "logged out" state rather than surfacing an error.
-      if (authFailure) {
+      // Important: support cookie-auth sessions (no localStorage token).
+      // Treat "all three sources rejected with 401/403" as a normal logged-out state.
+      // Otherwise, degrade gracefully (e.g., workforms list may be forbidden while legacy forms still work).
+      const loggedOut = [actionsResult, formsResult, workformsResult].every(isAuthRejection);
+      if (loggedOut) {
         setQuickActions([]);
         setAvailableForms([]);
         setError(null);
@@ -100,9 +101,11 @@ export const QuickActionsProvider: React.FC<QuickActionsProviderProps> = ({ chil
       }
 
       if (actionsResult.status === 'rejected') {
+        // Don't treat auth errors here as "logged out" unless *all* sources failed auth.
+        // This allows partial functionality when one endpoint is forbidden.
         const msg = actionsResult.reason?.message || 'Failed to load quick actions';
         console.warn('[QuickActions] getQuickActions failed', actionsResult.reason);
-        setError(msg);
+        setError(isAuthError(actionsResult.reason) ? null : msg);
       }
 
       const actionsResponse = actionsResult.status === 'fulfilled' ? actionsResult.value : { items: [] };

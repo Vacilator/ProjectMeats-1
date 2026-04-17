@@ -10,7 +10,15 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Skeleton } from 'antd';
 import { showAlert } from '@/utils/uiDialogs';
-import { executeTenantWorkForm, type WorkFormExecuteResponse } from '@/services/workformsApi';
+import {
+  createFormSubmission,
+  executeTenantWorkForm,
+  type WorkFormExecuteResponse,
+} from '@/services/workformsApi';
+
+type ExecuteResult =
+  | { kind: 'workform'; execution: WorkFormExecuteResponse }
+  | { kind: 'form'; submissionId: string };
 
 export const ExecuteWorkForm: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -18,7 +26,7 @@ export const ExecuteWorkForm: React.FC = () => {
   const queryClient = useQueryClient();
 
   const mutation = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (): Promise<ExecuteResult> => {
       if (!id) throw new Error('Missing workform id');
 
       let initialData: Record<string, unknown> = {};
@@ -38,14 +46,31 @@ export const ExecuteWorkForm: React.FC = () => {
         // Ignore malformed session payload
       }
 
-      return executeTenantWorkForm(id, initialData);
+      try {
+        const execution = await executeTenantWorkForm(id, initialData);
+        return { kind: 'workform', execution };
+      } catch (err: any) {
+        // Backward compatibility: older QuickActions may still point at legacy form/workflow IDs.
+        // If the TenantWorkForm execute endpoint returns 404, fall back to legacy form submission runner.
+        if (err?.response?.status === 404) {
+          const submission = await createFormSubmission(id);
+          return { kind: 'form', submissionId: submission.id };
+        }
+        throw err;
+      }
     },
-    onSuccess: async (data: WorkFormExecuteResponse) => {
+    onSuccess: async (result: ExecuteResult) => {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['workforms-catalog-items'] }),
         queryClient.invalidateQueries({ queryKey: ['workform-executions', 'active'] }),
       ]);
 
+      if (result.kind === 'form') {
+        navigate(`/workforms/in-progress/${result.submissionId}`, { replace: true });
+        return;
+      }
+
+      const data = result.execution;
       if (data.status === 'failed') {
         showAlert({
           type: 'error',

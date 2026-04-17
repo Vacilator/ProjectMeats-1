@@ -17,13 +17,15 @@
  */
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
-import { useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { ErrorBoundary } from '@/components/common/ErrorBoundary';
 import { confirmDialog, showAlert } from '@/utils/uiDialogs';
-import { Play, Clock, Filter, RefreshCw, FileText, X } from 'lucide-react';
+import { Play, Clock, Filter, RefreshCw, FileText, X, Eye } from 'lucide-react';
 import { businessApi } from '../../services/businessApi';
 import { useQuickActions } from '../../contexts/QuickActionsContext';
 import { workflowExecutionService } from '../../services/workflowExecutionService';
+import { workformExecutionService } from '@/services/workformExecutionService';
 
 // ============================================================================
 // Types
@@ -58,6 +60,34 @@ const Toolbar = styled.div`
   @media (max-width: 640px) {
     flex-direction: column;
     align-items: stretch;
+  }
+`;
+
+const TabsContainer = styled.div`
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+  border-bottom: 2px solid rgb(var(--color-border));
+`;
+
+const Tab = styled.button<{ $active: boolean }>`
+  padding: 10px 16px;
+  border: none;
+  background: none;
+  font-size: 14px;
+  font-weight: 600;
+  color: ${({ $active }) => ($active ? 'rgb(var(--color-primary))' : 'rgb(var(--color-text-secondary))')};
+  border-bottom: 2px solid ${({ $active }) => ($active ? 'rgb(var(--color-primary))' : 'transparent')};
+  margin-bottom: -2px;
+  cursor: pointer;
+
+  &:hover {
+    color: rgb(var(--color-primary));
+  }
+
+  &:focus-visible {
+    outline: 2px solid rgb(var(--color-primary));
+    outline-offset: 2px;
   }
 `;
 
@@ -439,6 +469,7 @@ const ModalButton = styled.button<{ $variant?: 'danger' }>`
 const FormsFlowsInProgress: React.FC = () => {
   const [submissions, setSubmissions] = useState<FormSubmission[]>([]);
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<'submissions' | 'executions'>('submissions');
   const [searchQuery, setSearchQuery] = useState('');
   const [filterMode, setFilterMode] = useState<'all' | 'my' | 'team'>('all');
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
@@ -447,6 +478,7 @@ const FormsFlowsInProgress: React.FC = () => {
   const [selectedSubmission, setSelectedSubmission] = useState<FormSubmission | null>(null);
 
   const { id: submissionId } = useParams<{ id?: string }>();
+  const navigate = useNavigate();
   const { resumeSubmission } = useQuickActions();
 
   useEffect(() => {
@@ -485,18 +517,33 @@ const FormsFlowsInProgress: React.FC = () => {
   
   // Initial fetch
   useEffect(() => {
+    if (activeTab !== 'submissions') return;
     fetchSubmissions();
-  }, [filterMode]);
+  }, [activeTab, filterMode]);
   
   // Real-time polling (10 seconds)
   useEffect(() => {
+    if (activeTab !== 'submissions') return;
+
     const interval = setInterval(() => {
       fetchSubmissions();
     }, 10000);
     
     return () => clearInterval(interval);
-  }, [filterMode]);
+  }, [activeTab, filterMode]);
   
+  const executionsQuery = useQuery({
+    queryKey: ['workform-executions', 'in-progress', filterMode],
+    queryFn: async () =>
+      workformExecutionService.getExecutions({
+        status: 'pending,in_progress',
+        started_by: filterMode === 'my' ? 'me' : undefined,
+        page_size: 50,
+      }),
+    enabled: activeTab === 'executions',
+    refetchInterval: 10000,
+  });
+
   // Handle cancel confirmation
   const handleCancelClick = (submission: FormSubmission) => {
     setSelectedSubmission(submission);
@@ -557,107 +604,201 @@ const FormsFlowsInProgress: React.FC = () => {
   
   return (
     <ErrorBoundary resetKeys={[submissionId, filterMode, searchQuery]}>
-      <Container role="region" aria-label="In Progress Forms">
-      <Toolbar>
-        <ToolbarLeft>
-          <SearchInput
-            type="search"
-            placeholder="Search in-progress forms..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            aria-label="Search in-progress forms"
-          />
-          <FilterSelect
-            value={filterMode}
-            onChange={(e) => setFilterMode(e.target.value as any)}
-            aria-label="Filter workflows"
+      <Container role="region" aria-label="In Progress Work">
+        <TabsContainer role="tablist" aria-label="In Progress tabs">
+          <Tab
+            type="button"
+            role="tab"
+            $active={activeTab === 'submissions'}
+            aria-selected={activeTab === 'submissions'}
+            onClick={() => setActiveTab('submissions')}
           >
-            <option value="all">All Workflows</option>
-            <option value="my">My Workflows</option>
-            <option value="team">Team Workflows</option>
-          </FilterSelect>
-        </ToolbarLeft>
-        <div style={{ display: 'flex', alignItems: 'center' }}>
-          <LastUpdated>
-            Last updated: {lastUpdated.toLocaleTimeString()}
-          </LastUpdated>
-          <RefreshButton 
-            onClick={fetchSubmissions} 
-            disabled={loading}
-            aria-label={loading ? 'Loading...' : 'Refresh list'}
+            Form Submissions
+          </Tab>
+          <Tab
+            type="button"
+            role="tab"
+            $active={activeTab === 'executions'}
+            aria-selected={activeTab === 'executions'}
+            onClick={() => setActiveTab('executions')}
           >
-            <RefreshCw size={18} className={loading ? 'animate-spin' : ''} aria-hidden="true" />
-          </RefreshButton>
-        </div>
-      </Toolbar>
-      
-      {loading ? (
-        <LoadingState role="status" aria-live="polite">Loading submissions...</LoadingState>
-      ) : filteredSubmissions.length === 0 ? (
-        <EmptyState role="status" aria-live="polite">
-          <EmptyIcon aria-hidden="true">
-            <Clock size={48} />
-          </EmptyIcon>
-          <EmptyTitle>No forms in progress</EmptyTitle>
-          <EmptyMessage>
-            {searchQuery 
-              ? 'No matching forms found. Try a different search term.'
-              : 'You have no active form submissions or workflow executions running right now. Start a new one from the Catalog.'}
-          </EmptyMessage>
-        </EmptyState>
-      ) : (
-        <CardGrid role="list" aria-label={`${filteredSubmissions.length} forms in progress`}>
-          {filteredSubmissions.map((submission) => {
-            const progress = submission.total_steps > 0 
-              ? Math.round((submission.current_step / submission.total_steps) * 100)
-              : 0;
-            
-            return (
-              <Card key={submission.id} role="listitem" aria-label={`${submission.form_name}, ${progress}% complete`}>
-                <CardHeader>
-                  <CardIcon aria-hidden="true">
-                    {submission.form_icon || <FileText size={22} />}
-                  </CardIcon>
-                  <StatusBadge $status={submission.status}>
-                    <Clock size={12} aria-hidden="true" />
-                    {submission.status === 'in_progress' ? 'In Progress' : 'Draft'}
-                  </StatusBadge>
-                </CardHeader>
-                
-                <CardTitle>{submission.form_name}</CardTitle>
-                <CardMeta>
-                  Updated {formatTimeAgo(submission.updated_at)}
-                  {submission.created_by_name && ` • By ${submission.created_by_name}`}
-                </CardMeta>
-                
-                <ProgressBar role="progressbar" aria-valuenow={progress} aria-valuemin={0} aria-valuemax={100} aria-label={`Progress: ${progress}%`}>
-                  <ProgressFill $percent={progress} />
-                </ProgressBar>
-                <ProgressText>
-                  <span>Step {submission.current_step} of {submission.total_steps}</span>
-                  <span>{progress}% complete</span>
-                </ProgressText>
-                
-                <CardActions>
-                  <ResumeButton 
-                    onClick={() => handleResume(submission)}
-                    aria-label={`Resume ${submission.form_name}`}
-                  >
-                    <Play size={16} aria-hidden="true" />
-                    Resume
-                  </ResumeButton>
-                  <CancelButton
-                    onClick={() => handleCancelClick(submission)}
-                    aria-label={`Cancel ${submission.form_name}`}
-                  >
-                    <X size={16} />
-                  </CancelButton>
-                </CardActions>
-              </Card>
+            WorkForm Executions
+          </Tab>
+        </TabsContainer>
+
+        <Toolbar>
+          <ToolbarLeft>
+            <SearchInput
+              type="search"
+              placeholder={activeTab === 'executions' ? 'Search executions…' : 'Search in-progress forms…'}
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              aria-label={activeTab === 'executions' ? 'Search executions' : 'Search in-progress forms'}
+            />
+            <FilterSelect
+              value={filterMode}
+              onChange={(e) => setFilterMode(e.target.value as any)}
+              aria-label="Filter workflows"
+            >
+              <option value="all">All Workflows</option>
+              <option value="my">My Workflows</option>
+              <option value="team">Team Workflows</option>
+            </FilterSelect>
+          </ToolbarLeft>
+          <div style={{ display: 'flex', alignItems: 'center' }}>
+            <LastUpdated>Last updated: {lastUpdated.toLocaleTimeString()}</LastUpdated>
+            <RefreshButton
+              onClick={() => (activeTab === 'executions' ? executionsQuery.refetch() : fetchSubmissions())}
+              disabled={activeTab === 'executions' ? executionsQuery.isFetching : loading}
+              aria-label={(activeTab === 'executions' ? executionsQuery.isFetching : loading) ? 'Loading…' : 'Refresh list'}
+            >
+              <RefreshCw
+                size={18}
+                className={(activeTab === 'executions' ? executionsQuery.isFetching : loading) ? 'animate-spin' : ''}
+                aria-hidden="true"
+              />
+            </RefreshButton>
+          </div>
+        </Toolbar>
+
+        {activeTab === 'executions' ? (
+          (() => {
+            const executions = executionsQuery.data?.results ?? [];
+            const filtered = executions.filter((ex) =>
+              (ex.workform_name || '').toLowerCase().includes(searchQuery.toLowerCase())
             );
-          })}
-        </CardGrid>
-      )}
+
+            if (executionsQuery.isLoading) {
+              return <LoadingState role="status" aria-live="polite">Loading executions…</LoadingState>;
+            }
+
+            if (filtered.length === 0) {
+              return (
+                <EmptyState role="status" aria-live="polite">
+                  <EmptyIcon aria-hidden="true">
+                    <Clock size={48} />
+                  </EmptyIcon>
+                  <EmptyTitle>No executions in progress</EmptyTitle>
+                  <EmptyMessage>
+                    {searchQuery
+                      ? 'No matching executions found. Try a different search term.'
+                      : 'You have no active WorkForm executions running right now. Start one from the Catalog.'}
+                  </EmptyMessage>
+                </EmptyState>
+              );
+            }
+
+            return (
+              <CardGrid role="list" aria-label={`${filtered.length} executions in progress`}>
+                {filtered.map((ex) => (
+                  <Card
+                    key={ex.id}
+                    role="listitem"
+                    aria-label={`${ex.workform_name}, status ${ex.status}`}
+                    onClick={() => navigate(`/workforms/executions/${ex.id}`)}
+                  >
+                    <CardHeader>
+                      <CardIcon aria-hidden="true">
+                        <FileText size={22} />
+                      </CardIcon>
+                      <StatusBadge $status={ex.status}>
+                        <Clock size={12} aria-hidden="true" />
+                        {ex.status}
+                      </StatusBadge>
+                    </CardHeader>
+
+                    <CardTitle>{ex.workform_name}</CardTitle>
+                    <CardMeta>
+                      {ex.started_at ? `Started ${formatTimeAgo(ex.started_at)}` : 'Started recently'}
+                      {ex.started_by_name ? ` • By ${ex.started_by_name}` : ''}
+                    </CardMeta>
+
+                    <CardActions>
+                      <ResumeButton
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigate(`/workforms/executions/${ex.id}`);
+                        }}
+                        aria-label={`View ${ex.workform_name}`}
+                      >
+                        <Eye size={16} aria-hidden="true" />
+                        View
+                      </ResumeButton>
+                    </CardActions>
+                  </Card>
+                ))}
+              </CardGrid>
+            );
+          })()
+        ) : loading ? (
+          <LoadingState role="status" aria-live="polite">Loading submissions...</LoadingState>
+        ) : filteredSubmissions.length === 0 ? (
+          <EmptyState role="status" aria-live="polite">
+            <EmptyIcon aria-hidden="true">
+              <Clock size={48} />
+            </EmptyIcon>
+            <EmptyTitle>No forms in progress</EmptyTitle>
+            <EmptyMessage>
+              {searchQuery
+                ? 'No matching forms found. Try a different search term.'
+                : 'You have no active form submissions or workflow executions running right now. Start a new one from the Catalog.'}
+            </EmptyMessage>
+          </EmptyState>
+        ) : (
+          <CardGrid role="list" aria-label={`${filteredSubmissions.length} forms in progress`}>
+            {filteredSubmissions.map((submission) => {
+              const progress = submission.total_steps > 0
+                ? Math.round((submission.current_step / submission.total_steps) * 100)
+                : 0;
+
+              return (
+                <Card key={submission.id} role="listitem" aria-label={`${submission.form_name}, ${progress}% complete`}>
+                  <CardHeader>
+                    <CardIcon aria-hidden="true">
+                      {submission.form_icon || <FileText size={22} />}
+                    </CardIcon>
+                    <StatusBadge $status={submission.status}>
+                      <Clock size={12} aria-hidden="true" />
+                      {submission.status === 'in_progress' ? 'In Progress' : 'Draft'}
+                    </StatusBadge>
+                  </CardHeader>
+
+                  <CardTitle>{submission.form_name}</CardTitle>
+                  <CardMeta>
+                    Updated {formatTimeAgo(submission.updated_at)}
+                    {submission.created_by_name && ` • By ${submission.created_by_name}`}
+                  </CardMeta>
+
+                  <ProgressBar
+                    role="progressbar"
+                    aria-valuenow={progress}
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                    aria-label={`Progress: ${progress}%`}
+                  >
+                    <ProgressFill $percent={progress} />
+                  </ProgressBar>
+                  <ProgressText>
+                    <span>
+                      Step {submission.current_step} of {submission.total_steps}
+                    </span>
+                    <span>{progress}% complete</span>
+                  </ProgressText>
+
+                  <CardActions>
+                    <ResumeButton onClick={() => handleResume(submission)} aria-label={`Resume ${submission.form_name}`}>
+                      <Play size={16} aria-hidden="true" />
+                      Resume
+                    </ResumeButton>
+                    <CancelButton onClick={() => handleCancelClick(submission)} aria-label={`Cancel ${submission.form_name}`}>
+                      <X size={16} />
+                    </CancelButton>
+                  </CardActions>
+                </Card>
+              );
+            })}
+          </CardGrid>
+        )}
       
       {/* Cancel Confirmation Modal */}
       <Modal $isOpen={showCancelModal} onClick={() => setShowCancelModal(false)}>

@@ -85,6 +85,7 @@ export interface TenantForm {
   updated_by_name?: string;
 }
 
+
 // ---------------------------------------------------------------------------
 // System / TenantForm helpers (Phase 9: remove direct axios usage)
 // ---------------------------------------------------------------------------
@@ -231,11 +232,15 @@ export const getEntityLookup = async (
 export const listTenantForms = async (params?: {
   type?: 'single_step' | 'multi_step';
   search?: string;
+  status?: string;
+  page?: number;
+  page_size?: number;
   is_workform?: boolean;
   parent_workform_id?: string;
 }): Promise<TenantForm[]> => {
   const response = await apiClient.get('/tenant-forms/', { params });
-  return response.data.results || response.data || [];
+  const data = response.data?.results || response.data || [];
+  return Array.isArray(data) ? data : [];
 };
 
 /**
