@@ -10,7 +10,7 @@ from datetime import timedelta
 
 from django.contrib.auth.models import User
 from django.db import IntegrityError, transaction
-from django.db.models import Count, F, Max, Prefetch
+from django.db.models import Count, Exists, F, Max, OuterRef, Prefetch, Q
 from django.utils import timezone
 from django.utils.dateparse import parse_date
 from rest_framework import mixins, serializers, status, viewsets
@@ -2076,13 +2076,10 @@ class TenantWorkFormExecutionViewSet(viewsets.ReadOnlyModelViewSet):
         from .models import TenantWorkFormExecution
 
         tenant = getattr(self.request, 'tenant', None)
-        if not self.request.user.is_superuser and not tenant:
+        if not tenant:
             return TenantWorkFormExecution.objects.none()
 
-        qs = TenantWorkFormExecution.objects.select_related('workform', 'started_by', 'tenant')
-
-        if not self.request.user.is_superuser:
-            qs = qs.filter(tenant=tenant)
+        qs = TenantWorkFormExecution.objects.select_related('workform', 'started_by', 'tenant').filter(tenant=tenant)
 
         workform_id = (self.request.query_params.get('workform') or '').strip()
         if workform_id:
@@ -2090,7 +2087,22 @@ class TenantWorkFormExecutionViewSet(viewsets.ReadOnlyModelViewSet):
 
         started_by = (self.request.query_params.get('started_by') or '').strip()
         if started_by:
-            qs = qs.filter(started_by_id=started_by)
+            # Prevent user-id enumeration: allow started_by=me for all users; allow arbitrary IDs only for tenant admins.
+            if started_by == 'me':
+                qs = qs.filter(started_by=self.request.user)
+            else:
+                from apps.tenants.models import TenantUser
+
+                is_tenant_admin = TenantUser.objects.filter(
+                    tenant=tenant,
+                    user=self.request.user,
+                    is_active=True,
+                    role__in=['owner', 'admin'],
+                ).exists()
+                if not is_tenant_admin:
+                    return TenantWorkFormExecution.objects.none()
+
+                qs = qs.filter(started_by_id=started_by)
 
         entity_type = (self.request.query_params.get('entity_type') or '').strip()
         if entity_type:
@@ -2200,38 +2212,59 @@ class FormSubmissionViewSet(viewsets.ModelViewSet):
         Returns empty queryset on any database/RLS errors to prevent 500 responses.
         """
         try:
-            qs = FormSubmission.objects.filter(tenant=self.request.tenant)
+            tenant = getattr(self.request, 'tenant', None)
+            if not tenant:
+                return FormSubmission.objects.none()
 
-            # Filter by assigned_to (apply before non-admin created_by restriction)
-            # Note: This filters submissions where the user has at least one step assignment
-            # in the form definition (via StepAssignment), regardless of the submission's current step.
-            # Security: Non-admin users are restricted to 'assigned_to=me' only to prevent user ID enumeration.
-            assigned_to = self.request.query_params.get("assigned_to")
+            qs = FormSubmission.objects.filter(tenant=tenant)
+
+            # ------------------------------------------------------------------
+            # Visibility / assignment filtering
+            # ------------------------------------------------------------------
+            assigned_to = (self.request.query_params.get("assigned_to") or '').strip()
+
+            # Tenant role (used for admin checks + role-based assignments)
+            try:
+                from apps.tenants.models import TenantUser
+
+                tenant_user = TenantUser.objects.filter(tenant=tenant, user=self.request.user, is_active=True).first()
+                tenant_role = tenant_user.role if tenant_user else None
+            except Exception:
+                tenant_role = None
+
+            is_tenant_admin = bool(self.request.user.is_superuser or tenant_role in ['owner', 'admin'])
+
+            # Determine whether a submission is assigned to the current user at the *current_step*.
+            # This avoids showing every submission of a form just because the user is assigned to a different step.
+            base_assignment_qs = StepAssignment.objects.filter(
+                tenant=tenant,
+                form_id=OuterRef('form_id'),
+                step_id=OuterRef('current_step_id'),
+            )
+            assignment_filter = Q(assignment_type='user', assigned_user=self.request.user)
+            if tenant_role:
+                assignment_filter |= Q(assignment_type__in=['role', 'team'], assigned_role=tenant_role)
+            assignment_filter |= Q(assignment_type='pool')
+
+            qs = qs.annotate(_assigned_to_me=Exists(base_assignment_qs.filter(assignment_filter)))
+
             if assigned_to:
-                if assigned_to == "me":
-                    qs = qs.filter(form__step_assignments__assigned_user=self.request.user).distinct()
-                elif self.request.user.is_staff:
-                    try:
-                        user = User.objects.get(id=assigned_to)
-                        qs = qs.filter(form__step_assignments__assigned_user=user).distinct()
-                    except (User.DoesNotExist, ValueError) as e:
-                        logger.warning(
-                            f"Invalid assigned_to parameter: {assigned_to} - {type(e).__name__}: {e}",
-                            extra={"user": self.request.user.username, "assigned_to": assigned_to},
-                        )
-                        qs = qs.none()
+                # Security: allow assigned_to=me for everyone; allow arbitrary IDs only for tenant admins.
+                if assigned_to == 'me':
+                    qs = qs.filter(_assigned_to_me=True)
                 else:
-                    logger.warning(
-                        f"Non-admin user attempted to use assigned_to with value: {assigned_to}",
-                        extra={"user": self.request.user.username, "assigned_to": assigned_to},
-                    )
-                    qs = qs.none()
-
-            # Non-admin users only see their own submissions unless explicitly filtering by assigned_to=me.
-            # This enables MyTasks to show in-progress workflows assigned to the user even if they
-            # were initiated by someone else.
-            if not self.request.user.is_staff and assigned_to != "me":
-                qs = qs.filter(created_by=self.request.user)
+                    if not is_tenant_admin:
+                        qs = qs.none()
+                    else:
+                        qs = qs.annotate(
+                            _assigned_to_target=Exists(
+                                base_assignment_qs.filter(assignment_type='user', assigned_user_id=assigned_to)
+                            )
+                        ).filter(_assigned_to_target=True)
+            else:
+                # Default visibility: non-admin users should see what they started + what is assigned to them.
+                if not is_tenant_admin:
+                    qs = qs.filter(Q(created_by=self.request.user) | Q(_assigned_to_me=True))
 
             # Filter by status (support comma-separated list)
             status_filter = self.request.query_params.get("status")
@@ -2678,29 +2711,40 @@ class AvailableFormsViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = AvailableFormSerializer
 
     def get_queryset(self):
-        """Return ONLY TenantForms for Quick Actions.
+        """Tenant-scoped TenantForms for Quick Actions.
 
-        This endpoint must never attempt to merge models (no `.union()`), since that has repeatedly
-        caused production issues and is not required for the Quick Actions UX.
+        NOTE: This ViewSet is used as a backing queryset for filtering/pagination.
+        We *only* return the workflows app TenantForm model here.
+
+        WorkForms (apps.system.TenantWorkForm) are added in `list()` as a second query
+        to avoid cross-model unions.
         """
         tenant = getattr(self.request, 'tenant', None)
+        if not tenant:
+            return TenantForm.objects.none()
 
-        queryset = TenantForm.objects.filter(status__in=['active', 'draft'])
+        return (
+            TenantForm.objects.filter(
+                tenant=tenant,
+                status__in=['active', 'draft'],
+            ).order_by('-created_at')
+        )
 
-        # Superusers may inspect forms across tenants.
-        if not self.request.user.is_superuser:
-            if not tenant:
-                return TenantForm.objects.none()
-            queryset = queryset.filter(tenant=tenant)
+    def _get_workforms(self, request):
+        """Tenant-scoped WorkForms for Quick Actions."""
+        from apps.system.models import TenantWorkForm
 
-        return queryset.order_by('-created_at')
+        tenant = getattr(request, 'tenant', None)
+        if not tenant:
+            return TenantWorkForm.objects.none()
+
+        return TenantWorkForm.objects.filter(tenant=tenant, status__in=['active', 'draft']).order_by('-updated_at')
 
     @extend_schema(responses={200: AvailableQuickActionTargetSerializer(many=True)})
     def list(self, request, *args, **kwargs):
-        """Return legacy TenantForms only.
+        """Return Quick Action targets (forms + workforms).
 
-        WorkForms (TenantWorkForm) should be fetched via /api/v1/tenant-workforms/
-        to avoid coupling this endpoint to the WorkForms editor data model.
+        Response rows are normalized to the `AvailableQuickActionTargetSerializer` schema.
         """
 
         forms_qs = self.filter_queryset(self.get_queryset())
@@ -2709,8 +2753,26 @@ class AvailableFormsViewSet(viewsets.ReadOnlyModelViewSet):
             row['type'] = 'form'
             row['node_count'] = None
 
-        forms_data.sort(key=lambda r: str(r.get('name') or '').lower())
-        return Response(forms_data)
+        workforms_data = []
+        for wf in self._get_workforms(request):
+            workforms_data.append(
+                {
+                    'id': str(wf.id),
+                    'type': 'workflow',
+                    'name': wf.name,
+                    'description': wf.description or '',
+                    'icon': 'workflow',
+                    'status': wf.status,
+                    'is_default': False,
+                    'is_quick_action_enabled': True,
+                    'step_count': None,
+                    'node_count': wf.get_node_count() if hasattr(wf, 'get_node_count') else None,
+                }
+            )
+
+        data = forms_data + workforms_data
+        data.sort(key=lambda r: str(r.get('name') or '').lower())
+        return Response(data)
 
 
 @extend_schema(tags=["Workflows", "Quick Actions"])
@@ -2761,59 +2823,34 @@ class QuickActionsAPIView(APIView):
 
             for item in items:
                 if item["type"] == "form" and item.get("form_id"):
-                    form = TenantForm.objects.filter(
-                        id=item["form_id"],
-                        tenant=request.tenant,
-                    ).first()
-
-                    if not form and request.user.is_superuser:
-                        form = TenantForm.objects.filter(id=item["form_id"]).first()
-                        if form:
-                            logger.info(f"Superuser accessing form {item['form_id']} from tenant {form.tenant}")
+                    form = (
+                        TenantForm.objects.filter(
+                            tenant=request.tenant,
+                            id=item["form_id"],
+                            status__in=[FormStatus.DRAFT, FormStatus.ACTIVE],
+                        ).first()
+                        if request.tenant
+                        else None
+                    )
 
                     if not form:
-                        any_form = TenantForm.objects.filter(id=item["form_id"]).first()
-                        if any_form:
-                            logger.warning(
-                                f"Form {item['form_id']} exists in tenant {any_form.tenant} "
-                                f"but user's tenant is {request.tenant}"
-                            )
-                            return Response(
-                                {"error": f'Form "{any_form.name}" belongs to a different tenant'},
-                                status=status.HTTP_400_BAD_REQUEST,
-                            )
-
-                        logger.warning(f"Form {item['form_id']} does not exist in any tenant")
                         return Response(
-                            {"error": f'Form {item["form_id"]} not found'}, status=status.HTTP_400_BAD_REQUEST
+                            {"error": f'Form {item["form_id"]} not found'},
+                            status=status.HTTP_400_BAD_REQUEST,
                         )
 
                 if item["type"] == "workflow" and item.get("workflow_id"):
-                    wf = TenantWorkForm.objects.filter(
-                        id=item["workflow_id"],
-                        tenant=request.tenant,
-                    ).first()
-
-                    if not wf and request.user.is_superuser:
-                        wf = TenantWorkForm.objects.filter(id=item["workflow_id"]).first()
-                        if wf:
-                            logger.info(
-                                f"Superuser accessing workform {item['workflow_id']} from tenant {wf.tenant_id}"
-                            )
+                    wf = (
+                        TenantWorkForm.objects.filter(
+                            tenant=request.tenant,
+                            id=item["workflow_id"],
+                            status__in=['draft', 'active'],
+                        ).first()
+                        if request.tenant
+                        else None
+                    )
 
                     if not wf:
-                        any_wf = TenantWorkForm.objects.filter(id=item["workflow_id"]).first()
-                        if any_wf:
-                            logger.warning(
-                                f"WorkForm {item['workflow_id']} exists in tenant {any_wf.tenant_id} "
-                                f"but user's tenant is {request.tenant}"
-                            )
-                            return Response(
-                                {"error": 'WorkForm belongs to a different tenant'},
-                                status=status.HTTP_400_BAD_REQUEST,
-                            )
-
-                        logger.warning(f"WorkForm {item['workflow_id']} does not exist in any tenant")
                         return Response(
                             {"error": f'WorkForm {item["workflow_id"]} not found'},
                             status=status.HTTP_400_BAD_REQUEST,

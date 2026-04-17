@@ -188,10 +188,12 @@ class TenantWorkFormViewSet(viewsets.ModelViewSet):
         """Filter workflows by tenant."""
         queryset = TenantWorkForm.objects.filter(tenant=self.request.tenant)
         
-        # Filter by status
+        # Filter by status (support comma-separated list)
         workflow_status = self.request.query_params.get('status')
         if workflow_status:
-            queryset = queryset.filter(status=workflow_status)
+            statuses = [s.strip() for s in str(workflow_status).split(',') if s.strip()]
+            if statuses:
+                queryset = queryset.filter(status__in=statuses)
         
         # Filter by search term (name or description)
         search = self.request.query_params.get('search')
@@ -235,9 +237,6 @@ class TenantWorkFormViewSet(viewsets.ModelViewSet):
         if getattr(user, 'is_superuser', False):
             return True
 
-        if workform.created_by_id == user.id:
-            return True
-
         tenant = getattr(request, 'tenant', None)
         if not tenant:
             return False
@@ -246,7 +245,13 @@ class TenantWorkFormViewSet(viewsets.ModelViewSet):
             from apps.tenants.models import TenantUser
 
             tenant_user = TenantUser.objects.get(user=user, tenant=tenant, is_active=True)
-            return tenant_user.role in ['owner', 'admin']
+
+            # owner/admin can manage any workform
+            if tenant_user.role in ['owner', 'admin']:
+                return True
+
+            # creator can manage their own workform, but only while they remain an active tenant member
+            return workform.created_by_id == user.id
         except Exception:
             return False
 
@@ -260,9 +265,6 @@ class TenantWorkFormViewSet(viewsets.ModelViewSet):
         if getattr(user, 'is_superuser', False):
             return True
 
-        if workform.created_by_id == user.id:
-            return True
-
         tenant = getattr(request, 'tenant', None)
         if not tenant:
             return False
@@ -270,9 +272,22 @@ class TenantWorkFormViewSet(viewsets.ModelViewSet):
         try:
             from apps.tenants.models import TenantUser
 
+            # Execution is allowed for any *active* tenant member.
             return TenantUser.objects.filter(user=user, tenant=tenant, is_active=True).exists()
         except Exception:
             return False
+
+    def update(self, request, *args, **kwargs):
+        workform = self.get_object()
+        if not self._can_manage_workform(workform):
+            return Response({"error": "Permission denied"}, status=status.HTTP_403_FORBIDDEN)
+        return super().update(request, *args, **kwargs)
+
+    def partial_update(self, request, *args, **kwargs):
+        workform = self.get_object()
+        if not self._can_manage_workform(workform):
+            return Response({"error": "Permission denied"}, status=status.HTTP_403_FORBIDDEN)
+        return super().partial_update(request, *args, **kwargs)
 
     def destroy(self, request, *args, **kwargs):
         workform = self.get_object()

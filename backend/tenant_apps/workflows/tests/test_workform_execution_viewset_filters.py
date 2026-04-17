@@ -59,6 +59,10 @@ class TenantWorkFormExecutionViewSetFilterTests(TestCase):
             workform=self.workform_a,
             status='completed',
             initial_data={'entity_type': 'customer', 'entity_id': '1'},
+            audit_trail=[
+                {'event': 'action_start', 'node_id': 'n1', 'node_type': 'actionEmail'},
+                {'event': 'action_success', 'node_id': 'n1', 'node_type': 'actionEmail'},
+            ],
             started_by=self.user,
         )
         self.exec_a_2 = TenantWorkFormExecution.objects.create(
@@ -96,10 +100,15 @@ class TenantWorkFormExecutionViewSetFilterTests(TestCase):
         resp = TenantWorkFormExecutionViewSet.as_view({'get': 'list'})(req)
         self.assertEqual(resp.status_code, 200)
 
-        ids = {row.get('id') for row in self._items(resp)}
+        rows = self._items(resp)
+        ids = {row.get('id') for row in rows}
         self.assertIn(str(self.exec_a_1.id), ids)
         self.assertNotIn(str(self.exec_a_2.id), ids)
         self.assertNotIn(str(self.exec_b_1.id), ids)
+
+        # Serializer exposes per-node statuses derived from audit_trail
+        row = next(r for r in rows if r.get('id') == str(self.exec_a_1.id))
+        self.assertEqual(row.get('node_statuses', {}).get('n1'), 'completed')
 
     def test_filters_by_workform_id(self):
         req = self._get(
