@@ -179,11 +179,11 @@ check_fetch_depth() {
     local issues=0
     
     for workflow in "${workflows[@]}"; do
-        # Check if using checkout action
-        if grep -q "actions/checkout@v4" "$workflow"; then
-            # Check if fetch-depth is set
-            if ! grep -A 3 "actions/checkout@v4" "$workflow" | grep -q "fetch-depth"; then
-                log_warn "No fetch-depth set in $workflow (will use default full history)"
+        # Check if using checkout action (any version)
+        if grep -qE "actions/checkout@" "$workflow"; then
+            # Check if fetch-depth is set near checkout steps
+            if ! grep -A 6 -E "actions/checkout@" "$workflow" | grep -q "fetch-depth"; then
+                log_warn "No fetch-depth set in $workflow (will use default history depth)"
                 ((issues++))
             fi
         fi
@@ -204,7 +204,7 @@ check_error_handling() {
     
     for script in "${scripts[@]}"; do
         if [[ -f "$script" ]]; then
-            if ! head -5 "$script" | grep -q "set -euo pipefail"; then
+            if ! grep -q "set -euo pipefail" "$script"; then
                 log_warn "Missing 'set -euo pipefail' in $script"
             else
                 log_info "✓ $script has error handling"
