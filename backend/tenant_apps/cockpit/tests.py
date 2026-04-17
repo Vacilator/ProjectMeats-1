@@ -53,7 +53,10 @@ class CockpitSearchTestCase(TestCase):
         
         # Authenticate
         self.client.force_authenticate(user=self.user)
-        
+
+        # Tenant context (shared-schema): API tenant isolation is scoped by X-Tenant-ID.
+        self.tenant_header = {'HTTP_X_TENANT_ID': str(self.tenant.id)}
+
         # Create test data with unique identifiers
         self.customer = Customer.objects.create(
             tenant=self.tenant,
@@ -83,7 +86,7 @@ class CockpitSearchTestCase(TestCase):
     
     def test_search_returns_all_types(self):
         """Test that search returns results from all model types."""
-        response = self.client.get('/api/v1/cockpit/slots/', {'q': 'o'})
+        response = self.client.get('/api/v1/cockpit/slots/', {'q': 'o'}, **self.tenant_header)
         
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         
@@ -95,7 +98,7 @@ class CockpitSearchTestCase(TestCase):
     
     def test_search_by_customer_name(self):
         """Test searching for customers by name."""
-        response = self.client.get('/api/v1/cockpit/slots/', {'q': 'Acme'})
+        response = self.client.get('/api/v1/cockpit/slots/', {'q': 'Acme'}, **self.tenant_header)
         
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         
@@ -106,7 +109,7 @@ class CockpitSearchTestCase(TestCase):
     
     def test_search_by_order_number(self):
         """Test searching for orders by order number."""
-        response = self.client.get('/api/v1/cockpit/slots/', {'q': 'PO-2024'})
+        response = self.client.get('/api/v1/cockpit/slots/', {'q': 'PO-2024'}, **self.tenant_header)
         
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         
@@ -117,14 +120,54 @@ class CockpitSearchTestCase(TestCase):
     
     def test_empty_search_returns_empty(self):
         """Test that empty query returns empty results."""
-        response = self.client.get('/api/v1/cockpit/slots/', {'q': ''})
-        
+        response = self.client.get('/api/v1/cockpit/slots/', {'q': ''}, **self.tenant_header)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 0)
+
+    def test_search_is_tenant_scoped(self):
+        """Regression guard: matching records in other tenants must not appear."""
+        unique_id = uuid.uuid4().hex[:8]
+        other_tenant = Tenant.objects.create(
+            name=f'Other Cockpit Tenant {unique_id}',
+            slug=f'other-cockpit-{unique_id}',
+            contact_email=f'other-{unique_id}@example.com',
+            is_active=True,
+        )
+
+        # Create matching data in other tenant
+        other_supplier = Supplier.objects.create(
+            tenant=other_tenant,
+            name=f'Global Supplies OTHER {unique_id}',
+            contact_person=f'Jane Smith OTHER {unique_id}',
+            email=f'jane-other-{unique_id}@global.com',
+            phone='555-9999',
+        )
+        PurchaseOrder.objects.create(
+            tenant=other_tenant,
+            order_number=f'PO-OTHER-{unique_id}',
+            our_purchase_order_num=f'INT-OTHER-{unique_id}',
+            supplier=other_supplier,
+            status='pending',
+            order_date='2024-01-01',
+            total_amount='1500.00',
+        )
+        Customer.objects.create(
+            tenant=other_tenant,
+            name=f'Acme Corporation OTHER {unique_id}',
+            contact_person=f'John Doe OTHER {unique_id}',
+            email=f'john-other-{unique_id}@acme.com',
+            phone='555-0000',
+        )
+
+        response = self.client.get('/api/v1/cockpit/slots/', {'q': 'OTHER'}, **self.tenant_header)
+
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(response.data), 0)
     
     def test_no_results_for_nonexistent_query(self):
         """Test that search with no matches returns empty."""
-        response = self.client.get('/api/v1/cockpit/slots/', {'q': 'ZZZZZZZZZ'})
+        response = self.client.get('/api/v1/cockpit/slots/', {'q': 'ZZZZZZZZZ'}, **self.tenant_header)
         
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(response.data), 0)
@@ -132,6 +175,6 @@ class CockpitSearchTestCase(TestCase):
     def test_requires_authentication(self):
         """Test that endpoint requires authentication."""
         self.client.logout()
-        response = self.client.get('/api/v1/cockpit/slots/', {'q': 'test'})
+        response = self.client.get('/api/v1/cockpit/slots/', {'q': 'test'}, **self.tenant_header)
         
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
