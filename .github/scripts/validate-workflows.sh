@@ -47,36 +47,67 @@ validate_yaml_syntax() {
     return 0
 }
 
-# Check for required secrets
-check_required_secrets() {
-    log_info "Checking for required secrets references..."
-    
-    local required_secrets=(
-        "DO_ACCESS_TOKEN"
-        "DEV_HOST"
-        "DEV_USER"
-        "DEV_SSH_PASSWORD"
-        "STAGING_HOST"
-        "STAGING_USER"
-        "SSH_PASSWORD"
-        "PRODUCTION_HOST"
-        "PRODUCTION_USER"
-    )
-    
-    local missing=()
-    
-    for secret in "${required_secrets[@]}"; do
-        if ! grep -r "secrets\.$secret" .github/workflows/*.yml >/dev/null 2>&1; then
-            missing+=("$secret")
-        fi
-    done
-    
-    if [[ ${#missing[@]} -gt 0 ]]; then
-        log_warn "Secrets not referenced in workflows: ${missing[*]}"
-    else
-        log_info "✓ All required secrets referenced"
+# Check workflow secrets against env manifest (key workflows only)
+check_manifest_secrets_for_key_workflows() {
+    log_info "Checking workflow secrets against manifests/env.manifest.json (key workflows)..."
+
+    if ! python - <<'PY'
+import json
+import re
+import sys
+from pathlib import Path
+
+manifest_path = Path('manifests/env.manifest.json')
+if not manifest_path.exists():
+    manifest_path = Path('config/env.manifest.json')
+
+if not manifest_path.exists():
+    print('ERROR: env manifest not found at manifests/env.manifest.json (or legacy config/env.manifest.json)', file=sys.stderr)
+    raise SystemExit(1)
+
+manifest = json.loads(manifest_path.read_text(encoding='utf-8'))
+
+allowed = set((manifest.get('repository_secrets') or {}).keys())
+env_secrets = manifest.get('environment_secrets') or {}
+for _cat, items in env_secrets.items():
+    if isinstance(items, dict):
+        allowed |= set(items.keys())
+
+allowed |= {'GITHUB_TOKEN'}
+
+key_workflows = [
+    'reusable-deploy.yml',
+    'main-pipeline.yml',
+    'build-dev-image.yml',
+    '41-auto-promote-dev-to-uat.yml',
+    '42-auto-promote-uat-to-main.yml',
+]
+
+secret_re = re.compile(r"secrets\.([A-Z0-9_]+)")
+
+errors = []
+for wf in key_workflows:
+    wf_path = Path('.github/workflows') / wf
+    if not wf_path.exists():
+        continue
+
+    text = wf_path.read_text(encoding='utf-8', errors='ignore')
+    referenced = set(secret_re.findall(text))
+
+    missing = sorted(referenced - allowed)
+    if missing:
+        errors.append(f"{wf}: missing from manifest: {', '.join(missing)}")
+
+if errors:
+    for e in errors:
+        print(f"ERROR: {e}", file=sys.stderr)
+    raise SystemExit(1)
+PY
+    then
+        return 1
     fi
-    
+
+    log_info "✓ Key workflow secrets are manifest-defined"
     return 0
 }
 
@@ -314,7 +345,7 @@ main() {
     local failed=0
     
     validate_yaml_syntax || ((failed++))
-    check_required_secrets || ((failed++))
+    check_manifest_secrets_for_key_workflows || ((failed++))
     check_cache_config || ((failed++))
     check_health_checks || ((failed++))
     check_fetch_depth || ((failed++))
