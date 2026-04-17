@@ -75,7 +75,7 @@ class RankedSearchViewSet(viewsets.ViewSet):
         entity_types_str = request.query_params.get('entity_types', '')
         limit = int(request.query_params.get('limit', 5))
         
-        tenant = request.tenant
+        tenant = getattr(request, 'tenant', None)
         
         # Parse entity types filter
         if entity_types_str:
@@ -97,7 +97,17 @@ class RankedSearchViewSet(viewsets.ViewSet):
                 'counts': counts,
                 'total': 0,
             })
-        
+
+        # Fail closed: ranked search must be scoped to a tenant in shared-schema mode.
+        if not tenant:
+            return Response({
+                'query': query,
+                'date_range': date_range,
+                'results': [],
+                'counts': {},
+                'total': 0,
+            })
+
         # Search customers with intelligent ranking
         if 'customer' in entity_types:
             self._search_customers(query, tenant, limit, results, counts)
@@ -144,13 +154,13 @@ class RankedSearchViewSet(viewsets.ViewSet):
             
             # Build query for all matching customers (for accurate count)
             customers_qs = Customer.objects.filter(
-                Q(name__icontains=query) | 
-                Q(contact_person__icontains=query) |
-                Q(email__icontains=query) |
-                Q(city__icontains=query)
+                tenant=tenant,
+            ).filter(
+                Q(name__icontains=query)
+                | Q(contact_person__icontains=query)
+                | Q(email__icontains=query)
+                | Q(city__icontains=query)
             )
-            if tenant:
-                customers_qs = customers_qs.filter(tenant=tenant)
             
             # Get total count BEFORE limiting
             counts['customer'] = customers_qs.count()
@@ -202,13 +212,13 @@ class RankedSearchViewSet(viewsets.ViewSet):
             from tenant_apps.suppliers.models import Supplier
             
             suppliers_qs = Supplier.objects.filter(
-                Q(name__icontains=query) |
-                Q(contact_person__icontains=query) |
-                Q(email__icontains=query) |
-                Q(city__icontains=query)
+                tenant=tenant,
+            ).filter(
+                Q(name__icontains=query)
+                | Q(contact_person__icontains=query)
+                | Q(email__icontains=query)
+                | Q(city__icontains=query)
             )
-            if tenant:
-                suppliers_qs = suppliers_qs.filter(tenant=tenant)
             
             counts['supplier'] = suppliers_qs.count()
             suppliers = list(suppliers_qs[:limit * 2])
@@ -303,13 +313,13 @@ class RankedSearchViewSet(viewsets.ViewSet):
             from tenant_apps.contacts.models import Contact
             
             contacts_qs = Contact.objects.filter(
-                Q(first_name__icontains=query) |
-                Q(last_name__icontains=query) |
-                Q(email__icontains=query) |
-                Q(phone__icontains=query)
+                tenant=tenant,
+            ).filter(
+                Q(first_name__icontains=query)
+                | Q(last_name__icontains=query)
+                | Q(email__icontains=query)
+                | Q(phone__icontains=query)
             )
-            if tenant:
-                contacts_qs = contacts_qs.filter(tenant=tenant)
             
             counts['contact'] = contacts_qs.count()
             contacts = list(contacts_qs[:limit])
@@ -343,11 +353,10 @@ class RankedSearchViewSet(viewsets.ViewSet):
             from tenant_apps.purchase_orders.models import PurchaseOrder
             
             pos_qs = PurchaseOrder.objects.filter(
-                Q(order_number__icontains=query) |
-                Q(our_purchase_order_num__icontains=query)
+                tenant=tenant,
+            ).filter(
+                Q(order_number__icontains=query) | Q(our_purchase_order_num__icontains=query)
             ).select_related('supplier')
-            if tenant:
-                pos_qs = pos_qs.filter(tenant=tenant)
             
             counts['po'] = pos_qs.count()
             pos = list(pos_qs[:limit])
@@ -378,10 +387,10 @@ class RankedSearchViewSet(viewsets.ViewSet):
             from tenant_apps.sales_orders.models import SalesOrder
             
             sos_qs = SalesOrder.objects.filter(
+                tenant=tenant,
+            ).filter(
                 Q(order_number__icontains=query)
             ).select_related('customer')
-            if tenant:
-                sos_qs = sos_qs.filter(tenant=tenant)
             
             counts['so'] = sos_qs.count()
             sos = list(sos_qs[:limit])
