@@ -177,21 +177,27 @@ describe('QuickActionsContext', () => {
       expect(screen.getByTestId('actions-count')).toHaveTextContent('2');
     });
 
-    it('should not load when not authenticated', async () => {
-      localStorageMock = {}; // No JWT or legacy token
-      
+    it('should treat 401/403 as logged-out state (no error)', async () => {
+      localStorageMock = {}; // No JWT or legacy token (cookie-auth may still exist in real app)
+
+      vi.mocked(quickActionsService.getQuickActions).mockRejectedValue({ response: { status: 401 } } as any);
+      vi.mocked(quickActionsService.getAvailableForms).mockRejectedValue({ response: { status: 401 } } as any);
+      vi.mocked(getAvailableWorkForms).mockRejectedValue({ response: { status: 401 } } as any);
+
       render(
         <QuickActionsProvider>
           <TestConsumer />
         </QuickActionsProvider>
       );
-      
+
       await waitFor(() => {
         expect(screen.getByTestId('loading')).toHaveTextContent('ready');
       });
-      
-      expect(quickActionsService.getQuickActions).not.toHaveBeenCalled();
+
+      expect(quickActionsService.getQuickActions).toHaveBeenCalledTimes(1);
+      expect(screen.getByTestId('error')).toHaveTextContent('none');
       expect(screen.getByTestId('actions-count')).toHaveTextContent('0');
+      expect(screen.getByTestId('forms-count')).toHaveTextContent('0');
     });
 
     it('should handle load error gracefully', async () => {

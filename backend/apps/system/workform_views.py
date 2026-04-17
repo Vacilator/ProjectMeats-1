@@ -226,7 +226,7 @@ class TenantWorkFormViewSet(viewsets.ModelViewSet):
         )
 
     def _can_manage_workform(self, workform: TenantWorkForm) -> bool:
-        """Only allow delete/execute for superusers, tenant admins, or the creator."""
+        """Only allow destructive/manage operations for superusers, tenant admins, or the creator."""
         request = self.request
         user = getattr(request, 'user', None)
         if not user or not getattr(user, 'is_authenticated', False):
@@ -250,6 +250,30 @@ class TenantWorkFormViewSet(viewsets.ModelViewSet):
         except Exception:
             return False
 
+    def _can_execute_workform(self, workform: TenantWorkForm) -> bool:
+        """Allow execution for any active tenant member (plus creator/superuser)."""
+        request = self.request
+        user = getattr(request, 'user', None)
+        if not user or not getattr(user, 'is_authenticated', False):
+            return False
+
+        if getattr(user, 'is_superuser', False):
+            return True
+
+        if workform.created_by_id == user.id:
+            return True
+
+        tenant = getattr(request, 'tenant', None)
+        if not tenant:
+            return False
+
+        try:
+            from apps.tenants.models import TenantUser
+
+            return TenantUser.objects.filter(user=user, tenant=tenant, is_active=True).exists()
+        except Exception:
+            return False
+
     def destroy(self, request, *args, **kwargs):
         workform = self.get_object()
         if not self._can_manage_workform(workform):
@@ -260,7 +284,7 @@ class TenantWorkFormViewSet(viewsets.ModelViewSet):
     def execute(self, request, pk=None):
         """Execute a TenantWorkForm and create a persisted execution record."""
         workform = self.get_object()
-        if not self._can_manage_workform(workform):
+        if not self._can_execute_workform(workform):
             return Response({"error": "Permission denied"}, status=status.HTTP_403_FORBIDDEN)
 
         initial_data = request.data.get('initial_data') if isinstance(request.data, dict) else None
