@@ -48,6 +48,7 @@ describe('EntityWorkflowStatusPanel', () => {
           initial_data: {},
           context_data: {},
           audit_trail: [{ event: 'execution_start', node_id: 'n1', ts: '2026-01-01T00:00:00Z' }],
+          node_statuses: { n1: 'completed' },
           started_by: null,
           started_by_name: 'Tester',
           started_at: '2026-01-01T00:00:00Z',
@@ -78,6 +79,12 @@ describe('EntityWorkflowStatusPanel', () => {
 
     // Expand collapse to show audit
     await userEvent.click(screen.getByText('My WorkForm'));
+    expect(await screen.findByText(/Step status/i)).toBeInTheDocument();
+    const pills = screen.getAllByText((_, node) =>
+      (node?.textContent ?? '').replace(/\s+/g, ' ').trim() === 'n1: completed'
+    );
+    expect(pills.length).toBeGreaterThan(0);
+
     expect(await screen.findByText(/execution_start/i)).toBeInTheDocument();
     expect(screen.getByText(/View execution details/i)).toBeInTheDocument();
   });
