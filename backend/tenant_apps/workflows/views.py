@@ -1378,8 +1378,11 @@ class TenantFormEntityViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         qs = super().get_queryset()
-        if hasattr(self.request, "tenant") and self.request.tenant:
-            qs = qs.filter(form__tenant=self.request.tenant)
+        tenant = getattr(self.request, "tenant", None)
+        if not tenant:
+            return qs.none()
+
+        qs = qs.filter(form__tenant=tenant)
 
         # Filter by form
         form_id = self.request.query_params.get("form")
@@ -1413,8 +1416,11 @@ class TenantFormFieldViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         qs = super().get_queryset()
-        if hasattr(self.request, "tenant") and self.request.tenant:
-            qs = qs.filter(form_entity__form__tenant=self.request.tenant)
+        tenant = getattr(self.request, "tenant", None)
+        if not tenant:
+            return qs.none()
+
+        qs = qs.filter(form_entity__form__tenant=tenant)
 
         # Filter by entity
         entity_id = self.request.query_params.get("entity")
@@ -1442,7 +1448,14 @@ class TenantFormFieldViewSet(viewsets.ModelViewSet):
             404: {"error": "Field not found or cascading not enabled"}
         """
         from tenant_apps.workflows.services.cascading import CascadingFieldService
-        
+
+        tenant = getattr(request, 'tenant', None)
+        if not tenant:
+            return Response(
+                {"error": "Tenant context is required (X-Tenant-ID header)"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         field = self.get_object()
         parent_value = request.query_params.get('parent_value')
         
@@ -1462,7 +1475,7 @@ class TenantFormFieldViewSet(viewsets.ModelViewSet):
             options = CascadingFieldService.get_cascaded_options(
                 field=field,
                 parent_value=parent_value,
-                tenant_id=str(request.tenant.id) if request.tenant else None
+                tenant_id=str(tenant.id)
             )
             return Response(options, status=status.HTTP_200_OK)
         except Exception as e:
@@ -1483,8 +1496,11 @@ class TenantFormRuleViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         qs = super().get_queryset()
-        if hasattr(self.request, "tenant") and self.request.tenant:
-            qs = qs.filter(form__tenant=self.request.tenant)
+        tenant = getattr(self.request, "tenant", None)
+        if not tenant:
+            return qs.none()
+
+        qs = qs.filter(form__tenant=tenant)
 
         # Filter by form
         form_id = self.request.query_params.get("form")
@@ -1869,8 +1885,11 @@ class TenantWorkflowConditionViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         qs = super().get_queryset()
-        if hasattr(self.request, "tenant") and self.request.tenant:
-            qs = qs.filter(workflow__tenant=self.request.tenant)
+        tenant = getattr(self.request, "tenant", None)
+        if not tenant:
+            return qs.none()
+
+        qs = qs.filter(workflow__tenant=tenant)
 
         workflow_id = self.request.query_params.get("workflow")
         if workflow_id:
@@ -1890,8 +1909,11 @@ class TenantWorkflowActionViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         qs = super().get_queryset()
-        if hasattr(self.request, "tenant") and self.request.tenant:
-            qs = qs.filter(workflow__tenant=self.request.tenant)
+        tenant = getattr(self.request, "tenant", None)
+        if not tenant:
+            return qs.none()
+
+        qs = qs.filter(workflow__tenant=tenant)
 
         workflow_id = self.request.query_params.get("workflow")
         if workflow_id:
@@ -1913,8 +1935,11 @@ class WorkflowExecutionLogViewSet(viewsets.ReadOnlyModelViewSet):
 
     def get_queryset(self):
         qs = super().get_queryset()
-        if hasattr(self.request, "tenant") and self.request.tenant:
-            qs = qs.filter(workflow__tenant=self.request.tenant)
+        tenant = getattr(self.request, "tenant", None)
+        if not tenant:
+            return qs.none()
+
+        qs = qs.filter(workflow__tenant=tenant)
 
         # Filter by workflow
         workflow_id = self.request.query_params.get("workflow")
@@ -3477,15 +3502,26 @@ class FormStatusHistoryViewSet(mixins.ListModelMixin, mixins.CreateModelMixin, v
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        submission_id = self.kwargs.get("submission_id")
-        return FormStatusHistory.objects.filter(submission_id=submission_id).select_related("changed_by", "submission")
+        tenant = getattr(self.request, 'tenant', None)
+        if not tenant:
+            return FormStatusHistory.objects.none()
+
+        submission_id = self.kwargs.get('submission_id')
+        return (
+            FormStatusHistory.objects.filter(submission_id=submission_id, submission__tenant=tenant)
+            .select_related('changed_by', 'submission')
+        )
 
     def perform_create(self, serializer):
-        submission_id = self.kwargs.get("submission_id")
+        tenant = getattr(self.request, 'tenant', None)
+        if not tenant:
+            raise serializers.ValidationError('Tenant context is required (X-Tenant-ID header).')
+
+        submission_id = self.kwargs.get('submission_id')
         try:
-            submission = FormSubmission.objects.get(pk=submission_id)
+            submission = FormSubmission.objects.get(pk=submission_id, tenant=tenant)
         except FormSubmission.DoesNotExist:
-            raise serializers.ValidationError("Submission not found")
+            raise serializers.ValidationError('Submission not found')
 
         # Get current status before change
         from_status = submission.status
@@ -3517,9 +3553,12 @@ class StepAssignmentViewSet(viewsets.ModelViewSet):
             "tenant", "form", "step", "assigned_user", "escalation_user", "created_by"
         )
 
-        # Filter by tenant
-        if hasattr(self.request, "tenant") and self.request.tenant:
-            queryset = queryset.filter(tenant=self.request.tenant)
+        # Filter by tenant (fail closed)
+        tenant = getattr(self.request, "tenant", None)
+        if not tenant:
+            return queryset.none()
+
+        queryset = queryset.filter(tenant=tenant)
 
         # Filter by form
         form_id = self.request.query_params.get("form")
@@ -3562,9 +3601,12 @@ class UserNotificationViewSet(
     def get_queryset(self):
         queryset = UserNotification.objects.filter(user=self.request.user, is_dismissed=False).select_related("tenant")
 
-        # Filter by tenant if available
-        if hasattr(self.request, "tenant") and self.request.tenant:
-            queryset = queryset.filter(tenant=self.request.tenant)
+        # Filter by tenant (fail closed)
+        tenant = getattr(self.request, "tenant", None)
+        if not tenant:
+            return queryset.none()
+
+        queryset = queryset.filter(tenant=tenant)
 
         # Filter by read status
         is_read = self.request.query_params.get("is_read")
