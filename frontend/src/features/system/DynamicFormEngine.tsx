@@ -19,6 +19,8 @@ import { CountrySelect } from '../../components/ui';
 import { DEFAULT_COUNTRY } from '../../utils/constants/countries';
 import { resolveConfig } from '../../services/configService';
 import { getChoicesForField, isStaticChoiceField } from '../../services/choicesService';
+import { formatUsPhone } from '../../utils/phone';
+import { getAntdPopupContainer } from '../../utils/antdPopupContainer';
 
 // Field definition types
 type SelectOption = string | { value: string; label: string };
@@ -391,6 +393,7 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
     register,
     handleSubmit,
     control,
+    setValue,
     formState: { errors },
   } = useForm({
     resolver: zodResolver(validationSchema),
@@ -489,6 +492,7 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
                   onChange={controllerField.onChange}
                   placeholder={itemField.placeholder || 'Add values'}
                   disabled={isSubmitting}
+                  getPopupContainer={getAntdPopupContainer}
                   style={{ width: '100%' }}
                 />
               )}
@@ -535,7 +539,14 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
           <Input
             type={inputType}
             id={namePath}
-            {...register(namePath)}
+            {...register(namePath as never, {
+              onBlur: (e) => {
+                if (itemField.type !== 'phone') return;
+                const raw = (e?.target as HTMLInputElement | null)?.value ?? '';
+                const formatted = formatUsPhone(String(raw));
+                setValue(namePath as any, formatted as any, { shouldDirty: true, shouldValidate: true });
+              },
+            })}
             placeholder={itemField.placeholder}
             hasError={hasItemError}
             disabled={isSubmitting}
@@ -692,6 +703,7 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
                 showSearch
                 allowClear
                 optionFilterProp="label"
+                getPopupContainer={getAntdPopupContainer}
                 style={{ width: '100%' }}
                 filterOption={(input, option) =>
                   String(option?.label || '')
@@ -806,6 +818,7 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
                   id={field.key}
                   value={String(controllerField.value || '')}
                   onChange={(e) => controllerField.onChange(e.target.value)}
+                  onBlur={(e) => controllerField.onChange(formatUsPhone(e.target.value))}
                   placeholder={field.placeholder || '(555) 123-4567'}
                   hasError={hasError}
                   disabled={isSubmitting}

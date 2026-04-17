@@ -15,6 +15,7 @@ import { Select } from 'antd';
 import styled from 'styled-components';
 import { Theme } from '../../config/theme';
 import { useTheme } from '../../contexts/ThemeContext';
+import { getAntdPopupContainer, type AntdGetPopupContainer } from '../../utils/antdPopupContainer';
 
 export interface MultiSelectOption {
   value: string;
@@ -30,6 +31,11 @@ export interface MultiSelectProps {
   error?: string;
   disabled?: boolean;
   required?: boolean;
+  /**
+   * Ensures dropdown renders within the correct overlay stacking context.
+   * Defaults to a modal/drawer-safe container.
+   */
+  getPopupContainer?: AntdGetPopupContainer;
   'aria-label'?: string;
   id?: string;
 }
@@ -43,6 +49,7 @@ export const MultiSelect: React.FC<MultiSelectProps> = ({
   error,
   disabled = false,
   required = false,
+  getPopupContainer,
   'aria-label': ariaLabel,
   id,
 }) => {
@@ -74,6 +81,7 @@ export const MultiSelect: React.FC<MultiSelectProps> = ({
         options={options}
         disabled={disabled}
         placeholder={placeholder}
+        getPopupContainer={getPopupContainer ?? getAntdPopupContainer}
         style={{ width: '100%' }}
         status={error ? 'error' : ''}
         aria-label={ariaLabel || label}

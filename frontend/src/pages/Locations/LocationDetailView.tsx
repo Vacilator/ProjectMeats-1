@@ -40,11 +40,14 @@ const renderContact = (c: ContactRow) => {
     <Card key={String(c.id)} size="small" style={{ marginBottom: 10 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
         <div style={{ fontWeight: 700, color: 'rgb(var(--color-text-primary))' }}>{name}</div>
-        {c.email ? (
-          <a href={`mailto:${c.email}`} style={{ color: 'rgb(var(--color-primary))' }}>
-            {c.email}
-          </a>
-        ) : null}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          {c.department ? <Tag>{c.department}</Tag> : null}
+          {c.email ? (
+            <a href={`mailto:${c.email}`} style={{ color: 'rgb(var(--color-primary))' }}>
+              {c.email}
+            </a>
+          ) : null}
+        </div>
       </div>
 
       {phones.length ? (

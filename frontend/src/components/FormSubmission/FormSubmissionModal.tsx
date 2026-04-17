@@ -1264,12 +1264,27 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
     });
     
     // Get value directly from formData state
-    const value = formData[stepId]?.[key];
-    logger.debug('[handleBlur]', { stepId, key, value, hasUnsavedChanges: hasUnsavedChanges.current });
-    
-    // Find the field to get validation rules
+    let value = formData[stepId]?.[key];
+
+    // For phone fields: allow free typing while focused, but normalize on blur.
     const step = steps.find(s => s.id === stepId);
     const field = step?.fields.find(f => f.key === key);
+
+    if (field?.type === 'phone') {
+      const formatted = formatUsPhone(String(value || ''));
+      if (formatted !== String(value || '')) {
+        setFormData((prev) => ({
+          ...prev,
+          [stepId]: {
+            ...(prev[stepId] || {}),
+            [key]: formatted,
+          },
+        }));
+        value = formatted;
+      }
+    }
+
+    logger.debug('[handleBlur]', { stepId, key, value, hasUnsavedChanges: hasUnsavedChanges.current });
     
     // Validate on blur if enabled via config (Wave 4 - Task 4.11)
     if (field && formConfig.validateOnBlur) {
@@ -1845,12 +1860,12 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
             {...ariaProps}
             $hasError={hasError}
             type="tel"
-            inputMode="numeric"
-            maxLength={13}
-            value={formatUsPhone(String(value || ''))}
-            onChange={e => handleChange(stepId, field.key, formatUsPhone(e.target.value))}
+            inputMode="tel"
+            maxLength={14}
+            value={String(value || '')}
+            onChange={e => handleChange(stepId, field.key, e.target.value)}
             onBlur={() => handleBlur(stepId, field.key)}
-            placeholder={field.placeholder || '(XXX)XXX-XXXX'}
+            placeholder={field.placeholder || '(XXX) XXX-XXXX'}
             autoComplete="tel"
           />
         );

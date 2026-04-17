@@ -32,6 +32,7 @@ interface CustomerContact {
   phone?: string;
   position?: string;
   company?: string;
+  department?: string;
 }
 
 const Customers: React.FC = () => {
@@ -650,7 +651,7 @@ const Customers: React.FC = () => {
                                       {c.first_name} {c.last_name}
                                     </ContactName>
                                     <ContactMeta>
-                                      {(c as any).department ? <span>{(c as any).department}</span> : null}
+                                      <span>Dept: {String(c.department || '—')}</span>
                                       {c.position ? <span>{c.position}</span> : null}
                                       {c.email ? <span>{c.email}</span> : null}
                                       {c.phone ? <span>{c.phone}</span> : null}
