@@ -446,3 +446,67 @@ class SwarmWorkformAndCommsToolsTest(TestCase):
         self.assertEqual(row.tenant, self.tenant)
         self.assertEqual(row.status, CommunicationStatus.DRAFT)
         self.assertEqual(row.to_email, "acme@example.com")
+
+
+class AIDocumentViewSetTenantScopingTests(TestCase):
+    def setUp(self):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        from rest_framework.test import APIRequestFactory, force_authenticate
+
+        from tenant_apps.ai_assistant.models import AIDocument
+
+        unique = uuid.uuid4().hex[:8]
+        self.factory = APIRequestFactory()
+        self._force_authenticate = force_authenticate
+
+        self.user = User.objects.create_user(username=f"aidoc-{unique}", password="pw")
+
+        self.tenant_a = Tenant.objects.create(
+            name=f"Tenant A {unique}",
+            slug=f"tenant-a-{unique}",
+            contact_email=f"a-{unique}@example.com",
+            is_active=True,
+            created_by=self.user,
+        )
+        self.tenant_b = Tenant.objects.create(
+            name=f"Tenant B {unique}",
+            slug=f"tenant-b-{unique}",
+            contact_email=f"b-{unique}@example.com",
+            is_active=True,
+            created_by=self.user,
+        )
+
+        TenantUser.objects.create(tenant=self.tenant_a, user=self.user, role="admin", is_active=True)
+        TenantUser.objects.create(tenant=self.tenant_b, user=self.user, role="admin", is_active=True)
+
+        file_a = SimpleUploadedFile("a.txt", b"hello a", content_type="text/plain")
+        file_b = SimpleUploadedFile("b.txt", b"hello b", content_type="text/plain")
+
+        AIDocument.objects.create(tenant=self.tenant_a, owner=self.user, file=file_a, original_filename="a.txt")
+        AIDocument.objects.create(tenant=self.tenant_b, owner=self.user, file=file_b, original_filename="b.txt")
+
+    def _get(self, tenant):
+        request = self.factory.get("/api/v1/ai-assistant/documents/")
+        self._force_authenticate(request, user=self.user)
+        request.tenant = tenant
+        return request
+
+    def _items(self, response):
+        data = response.data
+        if isinstance(data, dict) and "results" in data:
+            return data["results"]
+        return data
+
+    def test_documents_are_scoped_and_fail_closed(self):
+        from tenant_apps.ai_assistant.views import AIDocumentViewSet
+
+        resp = AIDocumentViewSet.as_view({"get": "list"})(self._get(self.tenant_a))
+        self.assertEqual(resp.status_code, 200)
+        joined = str(self._items(resp))
+        self.assertIn("a.txt", joined)
+        self.assertNotIn("b.txt", joined)
+
+        resp2 = AIDocumentViewSet.as_view({"get": "list"})(self._get(None))
+        self.assertEqual(resp2.status_code, 200)
+        self.assertEqual(len(self._items(resp2)), 0)
+
