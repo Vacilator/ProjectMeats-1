@@ -20,7 +20,7 @@ Update authoritative registries so future work stays consistent and discoverable
    - script under `scripts/`
    - CI check (only if consistent with Golden Pipeline)
 4. If env vars/secrets changed:
-   - update `config/env.manifest.json` first
+   - update `manifests/env.manifest.json` first
    - run `python config/manage_env.py audit`
 
 ## Validation

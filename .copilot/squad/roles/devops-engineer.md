@@ -14,7 +14,7 @@ Maintain **deployment reliability** and enforce Golden Pipeline practices across
 
 ## Constraints / Must-Nots
 - Must not log secrets.
-- Must not guess secret names; must use `config/env.manifest.json`.
+- Must not guess secret names; must use `manifests/env.manifest.json`.
 - Must not add “quick hacks” that violate golden rules.
 
 ## Communication style
@@ -28,7 +28,7 @@ Maintain **deployment reliability** and enforce Golden Pipeline practices across
 ## Required references
 - `docs/GOLDEN_PIPELINE.md`
 - `.github/instructions/workflows.instructions.md`
-- `config/env.manifest.json`
+- `manifests/env.manifest.json`
 - `manifests/GOLDEN_FILES.md`
 
 ## Definition of Done
