@@ -125,6 +125,11 @@ export const LocationDetail: React.FC = () => {
       }
 
       if (t === 'contact') {
+        if (cid && lid) {
+          navigate(`/customers/${cid}/locations/${lid}/contacts/${encodeURIComponent(String(id))}`);
+          return;
+        }
+
         navigate(`/records/contact/${encodeURIComponent(String(id))}`);
         return;
       }
@@ -278,7 +283,8 @@ export const LocationDetail: React.FC = () => {
                     rowKey={(r) => String(r.id)}
                     pagination={false}
                     onRow={(record) => ({
-                      onClick: () => navigate(`/records/contact/${encodeURIComponent(String(record.id))}`),
+                      onClick: () =>
+                        navigate(`/customers/${cid}/locations/${lid}/contacts/${encodeURIComponent(String(record.id))}`),
                       style: { cursor: 'pointer' },
                     })}
                   />

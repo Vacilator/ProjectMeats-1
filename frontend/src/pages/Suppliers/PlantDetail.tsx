@@ -125,6 +125,11 @@ export const PlantDetail: React.FC = () => {
       }
 
       if (t === 'contact') {
+        if (sid && pid) {
+          navigate(`/suppliers/${sid}/plants/${pid}/contacts/${encodeURIComponent(String(id))}`);
+          return;
+        }
+
         navigate(`/records/contact/${encodeURIComponent(String(id))}`);
         return;
       }
@@ -278,7 +283,8 @@ export const PlantDetail: React.FC = () => {
                     rowKey={(r) => String(r.id)}
                     pagination={false}
                     onRow={(record) => ({
-                      onClick: () => navigate(`/records/contact/${encodeURIComponent(String(record.id))}`),
+                      onClick: () =>
+                        navigate(`/suppliers/${sid}/plants/${pid}/contacts/${encodeURIComponent(String(record.id))}`),
                       style: { cursor: 'pointer' },
                     })}
                   />
