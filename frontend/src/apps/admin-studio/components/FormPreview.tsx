@@ -57,14 +57,15 @@ const FormPreview: React.FC<FormPreviewProps> = ({ fields, onClose }) => {
         return (
           <input
             type="tel"
-            value={formatUsPhone(String(formData[field.key] || ''))}
-            onChange={(e) => handleChange(field.key, formatUsPhone(e.target.value))}
+            value={String(formData[field.key] || '')}
+            onChange={(e) => handleChange(field.key, e.target.value)}
+            onBlur={(e) => handleChange(field.key, formatUsPhone(e.target.value))}
             required={field.required}
-            maxLength={13}
-            inputMode="numeric"
+            maxLength={14}
+            inputMode="tel"
             autoComplete="tel"
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            placeholder={field.label ? `(XXX)XXX-XXXX` : '(XXX)XXX-XXXX'}
+            placeholder={field.label ? `(XXX) XXX-XXXX` : '(XXX) XXX-XXXX'}
           />
         );
 

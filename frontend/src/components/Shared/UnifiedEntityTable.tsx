@@ -189,6 +189,21 @@ export const UnifiedEntityTable = <Row extends UnifiedEntityTableRow = UnifiedEn
       });
     });
 
+    // Ensure Department is consistently visible for Contact lists even if schema omits it from table surface.
+    const normalizedType = normalizeSchemaEntityType(entityType);
+    const hasDeptColumn = cols.some((c) => (c as any)?.key === 'department');
+    if (normalizedType === 'contact' && !hasDeptColumn) {
+      cols.push({
+        title: 'Department',
+        dataIndex: 'department' as any,
+        key: 'department',
+        render: (v: unknown) => {
+          const s = formatScalar(v);
+          return s || <span style={{ color: 'rgb(var(--color-text-tertiary))' }}>—</span>;
+        },
+      });
+    }
+
     if (enableQuickEdit) {
       cols.push({
         title: '',

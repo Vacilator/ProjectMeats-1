@@ -29,7 +29,7 @@ export interface PhoneInputProps {
 export const PhoneInput: React.FC<PhoneInputProps> = ({
   value = '',
   onChange,
-  placeholder = '(XXX)XXX-XXXX',
+  placeholder = '(XXX) XXX-XXXX',
   error,
   disabled = false,
   required = false,
@@ -39,20 +39,26 @@ export const PhoneInput: React.FC<PhoneInputProps> = ({
   const { theme } = useTheme();
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    onChange?.(e.target.value);
+  };
+
+  const handleBlur = (e: React.FocusEvent<HTMLInputElement>) => {
     onChange?.(formatUsPhone(e.target.value));
   };
 
   return (
     <PhoneInputContainer>
       <StyledInputMask
-        mask="(999)999-9999"
-        value={formatUsPhone(value)}
+        mask="(999) 999-9999"
+        value={value}
         onChange={handleChange}
+        onBlur={handleBlur}
         disabled={disabled}
         placeholder={placeholder}
         aria-label={ariaLabel}
-        inputMode="numeric"
-        maxLength={13}
+        inputMode="tel"
+        autoComplete="tel"
+        maxLength={14}
         required={required}
         id={id}
         $theme={theme}

@@ -21,6 +21,8 @@ import { apiClient } from '../../services/apiService';
 import DynamicFormEngine from '../../features/system/DynamicFormEngine';
 import EntityOptionsSelect from '../FormSubmission/SearchableSelect';
 import { isValidEmail } from '../../shared/utils';
+import { normalizeUsPhone } from '../../utils/phone';
+import { getSelectPopupContainer as getDefaultSelectPopupContainer } from '../../utils/antd';
 
 export type UniversalEntityFormMode = 'create' | 'edit' | 'view' | 'clone';
 export type UniversalEntityFormVariant = 'modal' | 'inline';
@@ -171,6 +173,26 @@ const shouldSkipField = (key: string): boolean => {
   ].includes(k);
 };
 
+const isPhoneNumberFieldKey = (key: string): boolean => {
+  const k = String(key || '').trim().toLowerCase();
+  if (!k) return false;
+
+  // Explicit non-number phone-related fields
+  if (k === 'phone_type' || k.endsWith('_phone_type') || k.endsWith('phone_type')) return false;
+  if (k === 'phone_ext' || k.endsWith('_phone_ext') || k.endsWith('phone_ext')) return false;
+
+  // Common number fields
+  if (k === 'phone') return true;
+  if (k.endsWith('_phone')) return true;
+  if (k.includes('phone_number') || k.includes('phonenumber')) return true;
+
+  // Contact-ish variants
+  if (k === 'mobile_phone' || k === 'office_phone') return true;
+  if (k.endsWith('_mobile_phone') || k.endsWith('_office_phone')) return true;
+
+  return false;
+};
+
 const mapDrfOptionsType = (t: string | undefined): string => {
   const type = String(t || '').toLowerCase();
   if (type.includes('boolean')) return 'checkbox';
@@ -235,13 +257,7 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
   const endpoint = useMemo(() => normalizeEntityEndpoint(entityType), [entityType]);
 
   const getSelectPopupContainer = useCallback((triggerNode: HTMLElement) => {
-    const modalBody = (triggerNode?.closest?.('.ant-modal-body') as HTMLElement | null) ?? null;
-    if (modalBody) return modalBody;
-
-    const drawerBody = (triggerNode?.closest?.('.ant-drawer-body') as HTMLElement | null) ?? null;
-    if (drawerBody) return drawerBody;
-
-    return document.body;
+    return getDefaultSelectPopupContainer(triggerNode);
   }, []);
 
   const loadSchema = useCallback(async () => {
@@ -284,7 +300,7 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
           const rawType = typeof metaObj.type === 'string' ? metaObj.type : undefined;
           const lowerKey = String(key || '').toLowerCase();
           const inferredType =
-            lowerKey.includes('phone') ? 'phone' : lowerKey.includes('email') ? 'email' : mapDrfOptionsType(rawType);
+            isPhoneNumberFieldKey(lowerKey) ? 'phone' : lowerKey.includes('email') ? 'email' : mapDrfOptionsType(rawType);
 
           return {
             key,
@@ -700,6 +716,23 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
           .map((f) => [f.key, f.label || f.key] as const)
       );
 
+      const phoneKeySet = new Set(
+        (scalarFields || [])
+          .filter((f) => isPhoneNumberFieldKey(String(f.key || '')))
+          .map((f) => f.key)
+      );
+
+      const inlineArrayPhoneKeys = new Map<string, string[]>();
+      (scalarFields || [])
+        .filter((f) => String(f.type || '').toLowerCase() === 'inline_form_array')
+        .forEach((f: any) => {
+          const itemFields: any[] = Array.isArray(f.item_fields) ? f.item_fields : [];
+          const keys = itemFields
+            .filter((it) => isPhoneNumberFieldKey(String(it?.key || '')))
+            .map((it) => String(it.key));
+          if (keys.length) inlineArrayPhoneKeys.set(String(f.key), keys);
+        });
+
       Object.entries(payload).forEach(([k, v]) => {
         if (v === '') {
           delete payload[k];
@@ -715,6 +748,10 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
             payload[k] = trimmed.replace(/\D/g, '').slice(0, 5);
             return;
           }
+          if (phoneKeySet.has(k)) {
+            payload[k] = normalizeUsPhone(trimmed);
+            return;
+          }
           if (numberKeys.has(k)) {
             const n = Number(trimmed);
             if (Number.isFinite(n)) payload[k] = n;
@@ -722,6 +759,26 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
             payload[k] = trimmed;
           }
         }
+      });
+
+      // Normalize phone numbers in inline form arrays (digits-only for API payload).
+      inlineArrayPhoneKeys.forEach((phoneKeys, arrayKey) => {
+        const items = payload[arrayKey];
+        if (!Array.isArray(items) || !phoneKeys.length) return;
+
+        payload[arrayKey] = items.map((row) => {
+          const rec =
+            row && typeof row === 'object'
+              ? ({ ...(row as Record<string, unknown>) } as Record<string, unknown>)
+              : ({} as Record<string, unknown>);
+
+          phoneKeys.forEach((k) => {
+            const v = rec[k];
+            if (typeof v === 'string') rec[k] = normalizeUsPhone(v);
+          });
+
+          return rec;
+        });
       });
 
       // Validate email(s) before submit.
