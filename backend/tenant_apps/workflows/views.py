@@ -2233,10 +2233,12 @@ class FormSubmissionViewSet(viewsets.ModelViewSet):
             if not self.request.user.is_staff and assigned_to != "me":
                 qs = qs.filter(created_by=self.request.user)
 
-            # Filter by status
+            # Filter by status (support comma-separated list)
             status_filter = self.request.query_params.get("status")
             if status_filter:
-                qs = qs.filter(status=status_filter)
+                statuses = [s.strip() for s in str(status_filter).split(',') if s.strip()]
+                if statuses:
+                    qs = qs.filter(status__in=statuses)
 
             # Filter by form
             form_id = self.request.query_params.get("form")

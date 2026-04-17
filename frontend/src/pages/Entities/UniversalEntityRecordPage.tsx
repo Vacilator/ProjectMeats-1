@@ -1,5 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Button, Card, Spin, Tabs, Typography } from 'antd';
+
+import { EntityWorkflowStatusPanel } from '@/components/Entities/EntityWorkflowStatusPanel';
 import { useNavigate, useParams } from 'react-router-dom';
 
 import { EntityProfileHeader } from '@/components/Cockpit';
@@ -360,6 +362,13 @@ export const UniversalEntityRecordPage: React.FC<UniversalEntityRecordPageProps>
                       </Card>
                     )}
                   </>
+                ),
+              },
+              {
+                key: 'workflows',
+                label: 'Workflows',
+                children: (
+                  <EntityWorkflowStatusPanel entityType={normalizedEntityType} entityId={String(entityId)} />
                 ),
               },
               {

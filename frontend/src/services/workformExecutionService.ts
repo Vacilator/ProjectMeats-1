@@ -44,6 +44,10 @@ export class WorkFormExecutionService {
     end_date?: string;
     page?: number;
     page_size?: number;
+    workform?: string;
+    started_by?: string;
+    entity_type?: string;
+    entity_id?: string;
   }): Promise<WorkFormExecutionListResponse> {
     const response = await businessApi.get(this.baseUrl, { params });
 
