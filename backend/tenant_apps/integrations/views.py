@@ -62,8 +62,7 @@ class TenantWebhookViewSet(TenantAdminOnlyMixin, viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         self._assert_admin()
-        # Create serializer uses request context to set tenant/user and generate secrets.
-        serializer.save()
+        serializer.save(tenant=self.request.tenant, created_by=self.request.user)
 
     @action(detail=True, methods=['post'])
     def rotate_secret(self, request, pk=None):
@@ -85,8 +84,7 @@ class TenantAPIKeyViewSet(TenantAdminOnlyMixin, viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         self._assert_admin()
-        # Create serializers use request context to set tenant/user and generate secrets.
-        serializer.save()
+        serializer.save(tenant=self.request.tenant, created_by=self.request.user)
 
     def destroy(self, request, *args, **kwargs):
         """Revoke instead of hard delete."""

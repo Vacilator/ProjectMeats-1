@@ -33,7 +33,7 @@ def _sign(secret: str, timestamp: str, body: str) -> str:
     soft_time_limit=20,
     time_limit=30,
 )
-def dispatch_webhook_payload(self, webhook_id: int, event_type: str, payload: Dict[str, Any]):
+def dispatch_webhook_payload(self, webhook_id: int, tenant_id: str, event_type: str, payload: Dict[str, Any]):
     """POST an event payload to a tenant webhook with exponential backoff.
 
     Retries on:
@@ -42,9 +42,19 @@ def dispatch_webhook_payload(self, webhook_id: int, event_type: str, payload: Di
     - HTTP 5xx
     """
 
-    try:
-        webhook = TenantWebhook.objects.select_related('tenant').get(id=webhook_id)
-    except TenantWebhook.DoesNotExist:
+    from apps.tenants.rls import set_current_tenant
+
+    rls = set_current_tenant(str(tenant_id))
+    if not rls.ok:
+        logger.warning('[Webhooks] Skipping webhook=%s (RLS set failed: %s)', webhook_id, rls.error)
+        return {'success': False, 'reason': 'rls_set_failed', 'error': rls.error}
+
+    webhook = (
+        TenantWebhook.objects.select_related('tenant')
+        .filter(id=webhook_id, tenant_id=tenant_id)
+        .first()
+    )
+    if not webhook:
         return {'success': False, 'reason': 'webhook_not_found'}
 
     if not webhook.is_active:

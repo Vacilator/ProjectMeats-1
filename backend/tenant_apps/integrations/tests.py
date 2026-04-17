@@ -73,7 +73,12 @@ class TenantIntegrationsTaskTests(TestCase):
         )
 
         payload = {'hello': 'world'}
-        result = dispatch_webhook_payload.run(webhook_id=wh.id, event_type=wh.event_type, payload=payload)
+        result = dispatch_webhook_payload.run(
+            webhook_id=wh.id,
+            tenant_id=str(self.tenant.id),
+            event_type=wh.event_type,
+            payload=payload,
+        )
         self.assertTrue(result['success'])
 
         _, kwargs = mock_post.call_args

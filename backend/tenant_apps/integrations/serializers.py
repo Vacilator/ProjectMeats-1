@@ -34,8 +34,8 @@ class TenantWebhookCreateSerializer(serializers.ModelSerializer):
         ]
 
     def create(self, validated_data):
-        tenant = self.context['tenant']
-        user = self.context.get('user')
+        tenant = validated_data.pop('tenant', None) or self.context['tenant']
+        user = validated_data.pop('created_by', None) or self.context.get('user')
         validated_data.setdefault('signing_secret', generate_webhook_secret())
         return TenantWebhook.objects.create(tenant=tenant, created_by=user, **validated_data)
 
@@ -73,8 +73,8 @@ class TenantAPIKeyCreateSerializer(serializers.ModelSerializer):
         ]
 
     def create(self, validated_data):
-        tenant = self.context['tenant']
-        user = self.context.get('user')
+        tenant = validated_data.pop('tenant', None) or self.context['tenant']
+        user = validated_data.pop('created_by', None) or self.context.get('user')
 
         full_key, prefix, secret_hash = generate_api_key()
         obj = TenantAPIKey.objects.create(
