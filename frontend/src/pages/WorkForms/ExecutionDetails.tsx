@@ -56,6 +56,24 @@ export const WorkFormExecutionDetails: React.FC = () => {
             ) : null}
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 12 }}>
+              {execution.node_statuses && Object.keys(execution.node_statuses).length > 0 ? (
+                <div>
+                  <div style={{ fontWeight: 600, marginBottom: 6 }}>Step status</div>
+                  <pre
+                    style={{
+                      background: 'rgb(var(--color-surface))',
+                      border: '1px solid rgb(var(--color-border))',
+                      borderRadius: 8,
+                      padding: 12,
+                      overflow: 'auto',
+                      maxHeight: 240,
+                    }}
+                  >
+                    {JSON.stringify(execution.node_statuses, null, 2)}
+                  </pre>
+                </div>
+              ) : null}
+
               <div>
                 <div style={{ fontWeight: 600, marginBottom: 6 }}>Context</div>
                 <pre

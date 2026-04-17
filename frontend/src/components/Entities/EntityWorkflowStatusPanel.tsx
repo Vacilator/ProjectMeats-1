@@ -33,6 +33,39 @@ export const EntityWorkflowStatusPanel: React.FC<EntityWorkflowStatusPanelProps>
 
   const executions = query.data?.results ?? [];
 
+  const renderNodeStatuses = (execution: WorkFormExecution) => {
+    const map = execution.node_statuses;
+    if (!map || typeof map !== 'object') return null;
+
+    const entries = Object.entries(map).filter(([k, v]) => Boolean(k) && Boolean(v));
+    if (entries.length === 0) return null;
+
+    entries.sort(([a], [b]) => a.localeCompare(b));
+
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+        <div style={{ fontWeight: 600 }}>Step status</div>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+          {entries.map(([nodeId, status]) => (
+            <span
+              key={`${execution.id}:node:${nodeId}`}
+              style={{
+                border: '1px solid rgb(var(--color-border))',
+                background: 'rgb(var(--color-surface))',
+                borderRadius: 999,
+                padding: '2px 8px',
+                fontSize: 12,
+                color: 'rgb(var(--color-text-secondary))',
+              }}
+            >
+              {nodeId}: <span style={{ fontWeight: 600 }}>{String(status)}</span>
+            </span>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
   const renderAudit = (execution: WorkFormExecution) => {
     const trail = Array.isArray(execution.audit_trail) ? execution.audit_trail : [];
 
@@ -85,6 +118,8 @@ export const EntityWorkflowStatusPanel: React.FC<EntityWorkflowStatusPanelProps>
                   {ex.error_message ? (
                     <div style={{ color: 'rgb(var(--color-error))' }}>{ex.error_message}</div>
                   ) : null}
+
+                  {renderNodeStatuses(ex)}
 
                   <div>{renderAudit(ex)}</div>
 
