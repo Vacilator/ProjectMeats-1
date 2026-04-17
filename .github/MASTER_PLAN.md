@@ -73,6 +73,12 @@ This file is the **append-only PR-referenceable execution log**.
 
 - **2026-04-16** — Frontend: added SearchableSelect `variant="static"` (no API) for static option sets; includes unit coverage. (PR: #4418)
 
+- **2026-04-17** — Entities: record-level “Workflows” tab shows WorkForm executions filtered by entity with audit trail; backend form-submissions status filter accepts comma-separated lists. (PR: #4452)
+
+- **2026-04-17** — WorkForms backend: harden execution/submission visibility (fail-closed tenant), prevent started_by/assigned_to user-ID enumeration (me-only unless tenant admin), Quick Actions available-forms includes tenant WorkForms, and expose `node_statuses` derived from audit trail. (PR: #4453)
+
+- **2026-04-17** — WorkForms frontend: restore runtime UX (Catalog Quick Run executes WorkForms, In Progress shows WorkForm executions, Execute falls back to legacy runner for older QuickActions, and FormSelectorModal uses tenant-forms service layer). (PR: #4454)
+
 ### 2026-03-31 — Secret audit drift (manifest v5.1)
 - Command: `python config/manage_env.py audit --repo Meats-Central/ProjectMeats`
 - Stale/Zombie secrets found in GitHub but NOT in `manifests/env.manifest.json` (or legacy `DEV_`/`UAT_`/`PROD_` prefixed):
