@@ -439,39 +439,54 @@ class TenantUserViewSet(viewsets.ModelViewSet):
     ordering = ["-created_at"]
 
     def get_queryset(self):
-        """Filter based on user permissions."""
+        """Filter associations to the current tenant context.
+
+        In shared-schema multi-tenancy, API access should be scoped to request.tenant.
+        """
         user = self.request.user
+        tenant = getattr(self.request, 'tenant', None)
+
+        if not tenant:
+            return TenantUser.objects.none()
+
         if user.is_superuser:
-            return TenantUser.objects.select_related("user", "tenant")
+            return TenantUser.objects.filter(tenant=tenant).select_related('user', 'tenant')
 
-        # Users can only see associations for tenants they have admin access to
-        admin_tenant_ids = TenantUser.objects.filter(
-            user=user, role__in=["owner", "admin"], is_active=True
-        ).values_list("tenant_id", flat=True)
+        is_admin = TenantUser.objects.filter(
+            tenant=tenant,
+            user=user,
+            role__in=['owner', 'admin'],
+            is_active=True,
+        ).exists()
+        if not is_admin:
+            return TenantUser.objects.none()
 
-        return TenantUser.objects.filter(tenant_id__in=admin_tenant_ids).select_related(
-            "user", "tenant"
-        )
+        return TenantUser.objects.filter(tenant=tenant).select_related('user', 'tenant')
 
     def perform_create(self, serializer):
-        """Ensure user has permission to create associations."""
-        tenant = serializer.validated_data["tenant"]
+        """Ensure user has permission to create associations.
+
+        Tenant is enforced from request.tenant (TenantMiddleware), not from client input.
+        """
+        from rest_framework.exceptions import ValidationError
+
+        tenant = getattr(self.request, 'tenant', None)
+        if not tenant:
+            raise ValidationError({'tenant': 'Tenant context required'})
 
         # Check if user has admin access to the tenant
         if (
             not TenantUser.objects.filter(
                 tenant=tenant,
                 user=self.request.user,
-                role__in=["owner", "admin"],
+                role__in=['owner', 'admin'],
                 is_active=True,
             ).exists()
             and not self.request.user.is_superuser
         ):
-            raise permissions.PermissionDenied(
-                "You don't have permission to manage users for this tenant."
-            )
+            raise permissions.PermissionDenied("You don't have permission to manage users for this tenant.")
 
-        instance = serializer.save()
+        instance = serializer.save(tenant=tenant)
 
         try:
             ActivityLog.log_activity(
@@ -759,22 +774,26 @@ class ActivityLogViewSet(viewsets.ReadOnlyModelViewSet):
     ordering = ["-created_at"]
     
     def get_queryset(self):
-        """Filter activity logs based on user permissions."""
+        """Filter activity logs to the current tenant context."""
         user = self.request.user
-        
+        tenant = getattr(self.request, 'tenant', None)
+
+        if not tenant:
+            return ActivityLog.objects.none()
+
         if user.is_superuser:
-            return ActivityLog.objects.select_related("user", "tenant")
-        
-        # Get tenants where user is admin or owner
-        admin_tenant_ids = TenantUser.objects.filter(
+            return ActivityLog.objects.filter(tenant=tenant).select_related('user', 'tenant')
+
+        is_admin = TenantUser.objects.filter(
+            tenant=tenant,
             user=user,
-            role__in=["owner", "admin"],
-            is_active=True
-        ).values_list("tenant_id", flat=True)
-        
-        return ActivityLog.objects.filter(
-            tenant_id__in=admin_tenant_ids
-        ).select_related("user", "tenant")
+            role__in=['owner', 'admin'],
+            is_active=True,
+        ).exists()
+        if not is_admin:
+            return ActivityLog.objects.none()
+
+        return ActivityLog.objects.filter(tenant=tenant).select_related('user', 'tenant')
     
     @action(detail=False, methods=["get"])
     def export(self, request):
@@ -844,42 +863,37 @@ class TenantConfigurationViewSet(viewsets.ModelViewSet):
     ordering = ["category", "key"]
     
     def get_queryset(self):
-        """Filter configurations for user's tenant."""
+        """Filter configurations to the current tenant context."""
         user = self.request.user
-        
+        tenant = getattr(self.request, 'tenant', None)
+
+        if not tenant:
+            return TenantConfiguration.objects.none()
+
         if user.is_superuser:
-            return TenantConfiguration.objects.select_related("tenant", "updated_by")
-        
-        # Get tenants where user is admin or owner
-        admin_tenant_ids = TenantUser.objects.filter(
+            return TenantConfiguration.objects.filter(tenant=tenant).select_related('tenant', 'updated_by')
+
+        # Permission class enforces admin/owner; keep a defense-in-depth check here.
+        is_admin = TenantUser.objects.filter(
+            tenant=tenant,
             user=user,
-            role__in=["owner", "admin"],
-            is_active=True
-        ).values_list("tenant_id", flat=True)
-        
-        return TenantConfiguration.objects.filter(
-            tenant_id__in=admin_tenant_ids
-        ).select_related("tenant", "updated_by")
+            role__in=['owner', 'admin'],
+            is_active=True,
+        ).exists()
+        if not is_admin:
+            return TenantConfiguration.objects.none()
+
+        return TenantConfiguration.objects.filter(tenant=tenant).select_related('tenant', 'updated_by')
     
     def perform_create(self, serializer):
         """Set tenant and updated_by on creation."""
-        # Use tenant from request (set by TenantMiddleware)
-        tenant_id = self.request.headers.get('X-Tenant-ID')
-        if tenant_id:
-            tenant = Tenant.objects.get(id=tenant_id)
-            instance = serializer.save(tenant=tenant, updated_by=self.request.user)
-        else:
-            # Fallback: Use first tenant where user is admin
-            tenant_user = TenantUser.objects.filter(
-                user=self.request.user,
-                role__in=["owner", "admin"],
-                is_active=True
-            ).first()
+        from rest_framework.exceptions import ValidationError
 
-            if not tenant_user:
-                raise permissions.PermissionDenied("User is not an admin of any tenant")
+        tenant = getattr(self.request, 'tenant', None)
+        if not tenant:
+            raise ValidationError({'tenant': 'Tenant context required'})
 
-            instance = serializer.save(tenant=tenant_user.tenant, updated_by=self.request.user)
+        instance = serializer.save(tenant=tenant, updated_by=self.request.user)
 
         try:
             ActivityLog.log_activity(
