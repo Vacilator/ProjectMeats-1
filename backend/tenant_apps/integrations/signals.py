@@ -29,7 +29,7 @@ def _enqueue_event(*, tenant_id: str, event_type: str, payload: Dict[str, Any]) 
     )
 
     for webhook in webhooks:
-        dispatch_webhook_payload.delay(webhook.id, event_type, payload)
+        dispatch_webhook_payload.delay(webhook.id, tenant_id, event_type, payload)
 
 
 def _serialize_purchase_order(po: PurchaseOrder) -> Dict[str, Any]:
