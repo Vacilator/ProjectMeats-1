@@ -2075,10 +2075,30 @@ class TenantWorkFormExecutionViewSet(viewsets.ReadOnlyModelViewSet):
     def get_queryset(self):
         from .models import TenantWorkFormExecution
 
+        tenant = getattr(self.request, 'tenant', None)
+        if not self.request.user.is_superuser and not tenant:
+            return TenantWorkFormExecution.objects.none()
+
         qs = TenantWorkFormExecution.objects.select_related('workform', 'started_by', 'tenant')
 
         if not self.request.user.is_superuser:
-            qs = qs.filter(tenant=self.request.tenant)
+            qs = qs.filter(tenant=tenant)
+
+        workform_id = (self.request.query_params.get('workform') or '').strip()
+        if workform_id:
+            qs = qs.filter(workform_id=workform_id)
+
+        started_by = (self.request.query_params.get('started_by') or '').strip()
+        if started_by:
+            qs = qs.filter(started_by_id=started_by)
+
+        entity_type = (self.request.query_params.get('entity_type') or '').strip()
+        if entity_type:
+            qs = qs.filter(initial_data__entity_type=entity_type)
+
+        entity_id = (self.request.query_params.get('entity_id') or '').strip()
+        if entity_id:
+            qs = qs.filter(initial_data__entity_id=str(entity_id))
 
         status_param = self.request.query_params.get('status')
         if status_param:

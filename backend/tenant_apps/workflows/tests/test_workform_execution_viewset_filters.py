@@ -1,0 +1,121 @@
+from __future__ import annotations
+
+import uuid
+
+from django.contrib.auth.models import User
+from django.test import TestCase
+from rest_framework.test import APIRequestFactory, force_authenticate
+
+from apps.system.models import TenantWorkForm
+from apps.tenants.models import Tenant, TenantUser
+from tenant_apps.workflows.models import TenantWorkFormExecution
+from tenant_apps.workflows.views import TenantWorkFormExecutionViewSet
+
+
+class TenantWorkFormExecutionViewSetFilterTests(TestCase):
+    def setUp(self):
+        unique = uuid.uuid4().hex[:8]
+        self.factory = APIRequestFactory()
+
+        self.user = User.objects.create_user(username=f'u-{unique}', password='pw')
+
+        self.tenant_a = Tenant.objects.create(
+            name=f'Tenant A {unique}',
+            slug=f'tenant-a-{unique}',
+            contact_email=f'a-{unique}@example.com',
+            is_active=True,
+            created_by=self.user,
+        )
+        self.tenant_b = Tenant.objects.create(
+            name=f'Tenant B {unique}',
+            slug=f'tenant-b-{unique}',
+            contact_email=f'b-{unique}@example.com',
+            is_active=True,
+            created_by=self.user,
+        )
+
+        TenantUser.objects.create(tenant=self.tenant_a, user=self.user, role='admin', is_active=True)
+        TenantUser.objects.create(tenant=self.tenant_b, user=self.user, role='admin', is_active=True)
+
+        self.workform_a = TenantWorkForm.objects.create(
+            tenant=self.tenant_a,
+            name='WF A',
+            workflow_definition={'nodes': [{'id': 't1', 'type': 'triggerManual'}], 'edges': []},
+            status='active',
+            created_by=self.user,
+            updated_by=self.user,
+        )
+        self.workform_b = TenantWorkForm.objects.create(
+            tenant=self.tenant_b,
+            name='WF B',
+            workflow_definition={'nodes': [{'id': 't1', 'type': 'triggerManual'}], 'edges': []},
+            status='active',
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+        self.exec_a_1 = TenantWorkFormExecution.objects.create(
+            tenant=self.tenant_a,
+            workform=self.workform_a,
+            status='completed',
+            initial_data={'entity_type': 'customer', 'entity_id': '1'},
+            started_by=self.user,
+        )
+        self.exec_a_2 = TenantWorkFormExecution.objects.create(
+            tenant=self.tenant_a,
+            workform=self.workform_a,
+            status='completed',
+            initial_data={'entity_type': 'customer', 'entity_id': '2'},
+            started_by=self.user,
+        )
+        self.exec_b_1 = TenantWorkFormExecution.objects.create(
+            tenant=self.tenant_b,
+            workform=self.workform_b,
+            status='completed',
+            initial_data={'entity_type': 'customer', 'entity_id': '1'},
+            started_by=self.user,
+        )
+
+    def _get(self, path: str, tenant):
+        request = self.factory.get(path)
+        force_authenticate(request, user=self.user)
+        request.tenant = tenant
+        return request
+
+    def _items(self, response):
+        data = response.data
+        if isinstance(data, dict) and 'results' in data:
+            return data['results']
+        return data
+
+    def test_filters_by_entity_and_tenant(self):
+        req = self._get(
+            '/api/v1/workflows/workform-executions/?entity_type=customer&entity_id=1',
+            self.tenant_a,
+        )
+        resp = TenantWorkFormExecutionViewSet.as_view({'get': 'list'})(req)
+        self.assertEqual(resp.status_code, 200)
+
+        ids = {row.get('id') for row in self._items(resp)}
+        self.assertIn(str(self.exec_a_1.id), ids)
+        self.assertNotIn(str(self.exec_a_2.id), ids)
+        self.assertNotIn(str(self.exec_b_1.id), ids)
+
+    def test_filters_by_workform_id(self):
+        req = self._get(
+            f'/api/v1/workflows/workform-executions/?workform={self.workform_a.id}',
+            self.tenant_a,
+        )
+        resp = TenantWorkFormExecutionViewSet.as_view({'get': 'list'})(req)
+        self.assertEqual(resp.status_code, 200)
+
+        ids = {row.get('id') for row in self._items(resp)}
+        self.assertIn(str(self.exec_a_1.id), ids)
+        self.assertIn(str(self.exec_a_2.id), ids)
+        self.assertNotIn(str(self.exec_b_1.id), ids)
+
+    def test_missing_tenant_fails_closed(self):
+        req = self._get('/api/v1/workflows/workform-executions/', None)
+        resp = TenantWorkFormExecutionViewSet.as_view({'get': 'list'})(req)
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(len(self._items(resp)), 0)
