@@ -21,7 +21,7 @@ Update GitHub Actions workflows without violating ProjectMeats’ **Golden Stand
    - parallel frontend/backend swimlanes
    - migrations are runner-driven and idempotent (`--fake-initial`)
 3. If secrets/env vars change:
-   - update `config/env.manifest.json`
+   - update `manifests/env.manifest.json`
    - never echo secrets
 4. Validate golden state:
    - `bash scripts/verify_golden_state.sh`

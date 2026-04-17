@@ -203,7 +203,7 @@
         "requires": ["devops-engineer", "architect"]
       },
       "secrets_and_manifest": {
-        "paths": ["config/env.manifest.json", "docs/CONFIGURATION_AND_SECRETS.md"],
+        "paths": ["manifests/env.manifest.json", "docs/CONFIGURATION_AND_SECRETS.md"],
         "requires": ["devops-engineer", "architect", "documentation-steward"]
       },
       "migrations": {

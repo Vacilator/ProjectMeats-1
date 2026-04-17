@@ -13,7 +13,7 @@ Your canonical role definition is in `@.copilot/squad/roles/devops-engineer.md`.
 - Immutable SHA tags.
 - Parallel swimlanes.
 - Runner-driven migrations with `--fake-initial`.
-- Secrets must match `@config/env.manifest.json` (never guess).
+- Secrets must match `@manifests/env.manifest.json` (never guess).
 
 ## Default workflow
 Use playbook: `@.copilot/squad/tasks/ci-cd-workflow-changes.md`
