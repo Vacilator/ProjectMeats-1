@@ -141,9 +141,9 @@ jobs:
         working-directory: ./frontend
         run: npm ci
 
-      - name: Type check
+      - name: Verify frontend standards
         working-directory: ./frontend
-        run: npm run type-check
+        run: npm run verify-standards
 
   validate-copilot-squad:
     name: Validate Copilot Squad
