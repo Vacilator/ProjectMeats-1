@@ -50,7 +50,7 @@ import { createFormSubmission, getAvailableWorkForms } from '../../services/work
 import { deleteWorkflow } from '../../components/FlowEditor/utils/workflowPersistence';
 import { useQuickActions } from '../../contexts/QuickActionsContext';
 import { Popconfirm } from 'antd';
-import { listTenantForms as listLegacyTenantForms } from '../../services/tenantFormService';
+import { quickActionsService } from '@/services/quickActionsService';
 import { useWorkFormPermissions, getUpgradeMessage } from '../../hooks/useWorkFormPermissions';
 
 // ============================================================================
@@ -588,7 +588,7 @@ const FormsFlowsCatalog: React.FC = () => {
 
       const [workformsResult, legacyFormsResult] = await Promise.allSettled([
         getAvailableWorkForms(),
-        listLegacyTenantForms(),
+        quickActionsService.getAvailableForms(),
       ]);
 
       const workforms = workformsResult.status === 'fulfilled' ? workformsResult.value : [];

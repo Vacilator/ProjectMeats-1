@@ -166,6 +166,26 @@ export const createFormSubmission = async (formId: string): Promise<FormSubmissi
   return response.data;
 };
 
+export interface WorkFormExecuteResponse {
+  id: string;
+  workform_id: string;
+  workform_name: string;
+  status: string;
+  started_at?: string;
+  completed_at?: string | null;
+  error_message?: string;
+}
+
+export const executeTenantWorkForm = async (
+  workformId: string,
+  initialData?: Record<string, unknown>
+): Promise<WorkFormExecuteResponse> => {
+  const response = await apiClient.post(`/tenant-workforms/${workformId}/execute/`, {
+    initial_data: initialData ?? {},
+  });
+  return response.data;
+};
+
 // ============================================================================
 // Entity APIs (Phase 1.1-1.3)
 // ============================================================================

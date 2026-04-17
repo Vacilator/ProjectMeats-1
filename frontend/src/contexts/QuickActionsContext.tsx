@@ -6,7 +6,6 @@
  */
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { getAvailableWorkForms } from '@/services/workformsApi';
-import { getAccessToken } from '@/services/jwtService';
 import { showAlert } from '@/utils/uiDialogs';
 import {
   quickActionsService,
@@ -72,15 +71,33 @@ export const QuickActionsProvider: React.FC<QuickActionsProviderProps> = ({ chil
 
   // Load quick actions on mount
   const refreshQuickActions = useCallback(async () => {
+    const isAuthError = (err: any) => {
+      const status = err?.response?.status;
+      return status === 401 || status === 403;
+    };
+
     try {
       setIsLoading(true);
       setError(null);
-      
+
       const [actionsResult, formsResult, workformsResult] = await Promise.allSettled([
         quickActionsService.getQuickActions(),
         quickActionsService.getAvailableForms(),
         getAvailableWorkForms(),
       ]);
+
+      const authFailure = [actionsResult, formsResult, workformsResult].some(
+        (r) => r.status === 'rejected' && isAuthError(r.reason)
+      );
+
+      // Important: support cookie-auth sessions (no localStorage token). If the user is not authenticated,
+      // the API will 401/403. Treat that as a normal "logged out" state rather than surfacing an error.
+      if (authFailure) {
+        setQuickActions([]);
+        setAvailableForms([]);
+        setError(null);
+        return;
+      }
 
       if (actionsResult.status === 'rejected') {
         const msg = actionsResult.reason?.message || 'Failed to load quick actions';
@@ -150,13 +167,8 @@ export const QuickActionsProvider: React.FC<QuickActionsProviderProps> = ({ chil
   }, []);
 
   useEffect(() => {
-    // Only load if user is authenticated (JWT or legacy token)
-    const token = getAccessToken();
-    if (token) {
-      refreshQuickActions();
-    } else {
-      setIsLoading(false);
-    }
+    // Always attempt to load: supports cookie-auth sessions (no localStorage token).
+    refreshQuickActions();
   }, [refreshQuickActions]);
 
   const updateQuickActions = useCallback(async (items: QuickActionItem[]) => {

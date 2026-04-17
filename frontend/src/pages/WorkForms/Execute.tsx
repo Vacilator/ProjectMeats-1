@@ -9,18 +9,8 @@ import React, { useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Skeleton } from 'antd';
-import { apiClient } from '@/services/apiService';
 import { showAlert } from '@/utils/uiDialogs';
-
-interface ExecuteResponse {
-  id: string;
-  workform_id: string;
-  workform_name: string;
-  status: string;
-  started_at?: string;
-  completed_at?: string;
-  error_message?: string;
-}
+import { executeTenantWorkForm, type WorkFormExecuteResponse } from '@/services/workformsApi';
 
 export const ExecuteWorkForm: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -30,12 +20,27 @@ export const ExecuteWorkForm: React.FC = () => {
   const mutation = useMutation({
     mutationFn: async () => {
       if (!id) throw new Error('Missing workform id');
-      const response = await apiClient.post<ExecuteResponse>(`/tenant-workforms/${id}/execute/`, {
-        initial_data: {},
-      });
-      return response.data;
+
+      let initialData: Record<string, unknown> = {};
+      try {
+        const raw = sessionStorage.getItem('pm.activeRecordContext');
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          const activeRecord = parsed?.activeRecord;
+          if (activeRecord?.type && activeRecord?.id != null) {
+            initialData = {
+              entity_type: String(activeRecord.type),
+              entity_id: String(activeRecord.id),
+            };
+          }
+        }
+      } catch {
+        // Ignore malformed session payload
+      }
+
+      return executeTenantWorkForm(id, initialData);
     },
-    onSuccess: async (data) => {
+    onSuccess: async (data: WorkFormExecuteResponse) => {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['workforms-catalog-items'] }),
         queryClient.invalidateQueries({ queryKey: ['workform-executions', 'active'] }),
