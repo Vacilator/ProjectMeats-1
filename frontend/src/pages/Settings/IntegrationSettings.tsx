@@ -5,24 +5,10 @@ import React, { useState, useEffect } from 'react';
 import { Skeleton } from 'antd';
 import { AlertCircle, CheckCircle, Mail, ExternalLink } from 'lucide-react';
 import { confirmDialog } from '@/utils/uiDialogs';
-import { apiClient as axios } from '../../services/apiService';
-
-interface Connection {
-  provider: string;
-  provider_name: string;
-  connected_email: string;
-  connected_name: string;
-  is_expired: boolean;
-  connected_at: string;
-}
-
-interface ConnectionStatus {
-  connections: Connection[];
-  count: number;
-}
+import { integrationsService, type OAuthConnection } from '@/services/integrationsService';
 
 export const IntegrationSettings: React.FC = () => {
-  const [connections, setConnections] = useState<Connection[]>([]);
+  const [connections, setConnections] = useState<OAuthConnection[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -54,8 +40,8 @@ export const IntegrationSettings: React.FC = () => {
     setError(null);
 
     try {
-      const response = await axios.get<ConnectionStatus>('/integrations/oauth/status/');
-      setConnections(response.data.connections);
+      const data = await integrationsService.getOAuthConnectionStatus();
+      setConnections(data.connections);
     } catch (err: any) {
       setError(err.response?.data?.error || 'Failed to fetch connection status');
     } finally {
@@ -85,7 +71,7 @@ export const IntegrationSettings: React.FC = () => {
     setError(null);
 
     try {
-      await axios.post('/integrations/oauth/disconnect/', { provider });
+      await integrationsService.disconnectOAuth(provider);
       setSuccess('Email account disconnected successfully');
       fetchConnectionStatus();
     } catch (err: any) {
@@ -95,7 +81,7 @@ export const IntegrationSettings: React.FC = () => {
     }
   };
 
-  const getConnectionForProvider = (provider: string): Connection | undefined => {
+  const getConnectionForProvider = (provider: string): OAuthConnection | undefined => {
     return connections.find(conn => conn.provider === provider);
   };
 
@@ -191,7 +177,7 @@ interface EmailProviderCardProps {
   name: string;
   description: string;
   icon: React.ReactNode;
-  connection?: Connection;
+  connection?: OAuthConnection;
   onConnect: () => void;
   onDisconnect: () => void;
   isDisconnecting: boolean;

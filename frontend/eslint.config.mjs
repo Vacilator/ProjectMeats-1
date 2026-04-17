@@ -77,4 +77,33 @@ export default [
       'react/self-closing-comp': 'warn',
     },
   },
+  {
+    // Service-layer guardrail: prevent direct network primitives in UI/hook code.
+    files: ['src/**/*.{js,jsx,ts,tsx}'],
+    ignores: ['src/services/**'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          paths: [
+            {
+              name: 'axios',
+              message: 'Do not import axios directly outside src/services; use the service layer.',
+            },
+          ],
+        },
+      ],
+      'no-restricted-globals': [
+        'error',
+        {
+          name: 'fetch',
+          message: 'Do not use fetch() outside src/services; use the service layer.',
+        },
+        {
+          name: 'XMLHttpRequest',
+          message: 'Do not use XMLHttpRequest outside src/services; use the service layer.',
+        },
+      ],
+    },
+  },
 ];
