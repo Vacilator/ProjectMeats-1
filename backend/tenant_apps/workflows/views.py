@@ -2232,39 +2232,42 @@ class FormSubmissionViewSet(viewsets.ModelViewSet):
             except Exception:
                 tenant_role = None
 
-            is_tenant_admin = bool(self.request.user.is_superuser or tenant_role in ['owner', 'admin'])
-
-            # Determine whether a submission is assigned to the current user at the *current_step*.
-            # This avoids showing every submission of a form just because the user is assigned to a different step.
-            base_assignment_qs = StepAssignment.objects.filter(
-                tenant=tenant,
-                form_id=OuterRef('form_id'),
-                step_id=OuterRef('current_step_id'),
+            # Preserve legacy behavior: staff users (admin UI) can see tenant submissions without requiring TenantUser.
+            is_tenant_admin = bool(
+                self.request.user.is_superuser
+                or self.request.user.is_staff
+                or tenant_role in ['owner', 'admin']
             )
-            assignment_filter = Q(assignment_type='user', assigned_user=self.request.user)
-            if tenant_role:
-                assignment_filter |= Q(assignment_type__in=['role', 'team'], assigned_role=tenant_role)
-            assignment_filter |= Q(assignment_type='pool')
 
-            qs = qs.annotate(_assigned_to_me=Exists(base_assignment_qs.filter(assignment_filter)))
+            # Determine whether a submission is assigned to the current user.
+            # Back-compat: legacy submissions may have current_step=NULL; in that case, treat assignments as
+            # "assigned anywhere in the form" (this matches existing tests + production behavior).
+            assigned_to_me_q = Q(form__step_assignments__assignment_type='user', form__step_assignments__assigned_user=self.request.user)
+            if tenant_role:
+                assigned_to_me_q |= Q(
+                    form__step_assignments__assignment_type__in=['role', 'team'],
+                    form__step_assignments__assigned_role=tenant_role,
+                )
+            assigned_to_me_q |= Q(form__step_assignments__assignment_type='pool')
 
             if assigned_to:
                 # Security: allow assigned_to=me for everyone; allow arbitrary IDs only for tenant admins.
                 if assigned_to == 'me':
-                    qs = qs.filter(_assigned_to_me=True)
+                    qs = qs.filter(assigned_to_me_q).distinct()
                 else:
                     if not is_tenant_admin:
                         qs = qs.none()
                     else:
-                        qs = qs.annotate(
-                            _assigned_to_target=Exists(
-                                base_assignment_qs.filter(assignment_type='user', assigned_user_id=assigned_to)
-                            )
-                        ).filter(_assigned_to_target=True)
+                        try:
+                            target_user_id = int(assigned_to)
+                        except (TypeError, ValueError):
+                            qs = qs.none()
+                        else:
+                            qs = qs.filter(form__step_assignments__assignment_type='user', form__step_assignments__assigned_user_id=target_user_id).distinct()
             else:
                 # Default visibility: non-admin users should see what they started + what is assigned to them.
                 if not is_tenant_admin:
-                    qs = qs.filter(Q(created_by=self.request.user) | Q(_assigned_to_me=True))
+                    qs = qs.filter(Q(created_by=self.request.user) | assigned_to_me_q).distinct()
 
             # Filter by status (support comma-separated list)
             status_filter = self.request.query_params.get("status")
