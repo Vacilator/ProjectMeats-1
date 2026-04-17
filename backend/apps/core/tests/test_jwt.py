@@ -27,8 +27,8 @@ class JWTConfigurationTestCase(TestCase):
         from django.conf import settings
         auth_classes = settings.REST_FRAMEWORK.get('DEFAULT_AUTHENTICATION_CLASSES', [])
         self.assertIn(
-            'rest_framework_simplejwt.authentication.JWTAuthentication',
-            auth_classes
+            'apps.tenants.authentication.TenantAwareJWTAuthentication',
+            auth_classes,
         )
     
     def test_simple_jwt_settings_exist(self):
