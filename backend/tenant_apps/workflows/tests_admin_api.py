@@ -111,7 +111,8 @@ class AdminAPITests(APITestCase):
         )
     
     def setUp(self):
-        self.client.force_authenticate(user=self.admin_user)
+        # Use session auth so TenantMiddleware can safely honor X-Tenant-ID.
+        self.client.force_login(self.admin_user)
         self.client.credentials(HTTP_X_TENANT_ID=str(self.tenant.id))
     
     def test_get_available_entities_api(self):
@@ -389,7 +390,8 @@ class FieldConfigAPITests(APITestCase):
         )
     
     def setUp(self):
-        self.client.force_authenticate(user=self.admin_user)
+        # Use session auth so TenantMiddleware can safely honor X-Tenant-ID.
+        self.client.force_login(self.admin_user)
         self.client.credentials(HTTP_X_TENANT_ID=str(self.tenant.id))
     
     def test_get_field_config(self):
@@ -540,7 +542,8 @@ class FormRulesAPITests(APITestCase):
         )
     
     def setUp(self):
-        self.client.force_authenticate(user=self.admin_user)
+        # Use session auth so TenantMiddleware can safely honor X-Tenant-ID.
+        self.client.force_login(self.admin_user)
         self.client.credentials(HTTP_X_TENANT_ID=str(self.tenant.id))
     
     def test_get_form_rules_empty(self):
@@ -735,7 +738,8 @@ class FormStepsAPITests(APITestCase):
         )
     
     def setUp(self):
-        self.client.force_authenticate(user=self.admin_user)
+        # Use session auth so TenantMiddleware can safely honor X-Tenant-ID.
+        self.client.force_login(self.admin_user)
         self.client.credentials(HTTP_X_TENANT_ID=str(self.tenant.id))
     
     def test_get_form_steps(self):
