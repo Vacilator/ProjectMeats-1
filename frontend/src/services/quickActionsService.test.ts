@@ -124,13 +124,22 @@ describe('QuickActionsService', () => {
 
   describe('formSubmissionService', () => {
     describe('list', () => {
-      it('should list form submissions', async () => {
+      it('should list form submissions (array response)', async () => {
         const mockSubmissions = [{ id: 'sub_1', form_name: 'Test Form', status: 'draft' }];
         mockApiClient.get.mockResolvedValue({ data: mockSubmissions });
 
         const result = await formSubmissionService.list();
 
         expect(mockApiClient.get).toHaveBeenCalledWith('/workflows/form-submissions/', { params: undefined });
+        expect(result).toEqual(mockSubmissions);
+      });
+
+      it('should list form submissions (paginated response)', async () => {
+        const mockSubmissions = [{ id: 'sub_1', form_name: 'Test Form', status: 'draft' }];
+        mockApiClient.get.mockResolvedValue({ data: { count: 1, results: mockSubmissions } });
+
+        const result = await formSubmissionService.list();
+
         expect(result).toEqual(mockSubmissions);
       });
 
