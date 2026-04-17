@@ -103,8 +103,16 @@ export const extractFormReferences = (nodes: Node[]): string[] => {
     }
 
     // Form Reference node
-    if (node.type === 'formReference' && nodeData.tenantFormId) {
-      formIds.add(nodeData.tenantFormId);
+    if (node.type === 'formReference') {
+      if (nodeData.tenantFormId) {
+        formIds.add(nodeData.tenantFormId);
+      } else if (
+        typeof nodeData.formId === 'string' &&
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(nodeData.formId)
+      ) {
+        // Back-compat: older workflows stored the reference as formId.
+        formIds.add(nodeData.formId);
+      }
     }
 
     // Form containers

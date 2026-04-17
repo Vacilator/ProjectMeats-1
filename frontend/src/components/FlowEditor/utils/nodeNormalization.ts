@@ -157,6 +157,29 @@ export function normalizeNodeData(node: Node): Node {
     } as Node;
   }
 
+  // --------------------------------------------------------------------------
+  // FormReference canonicalization: tenantFormId is the canonical key.
+  // Support legacy data.formId by aliasing it to tenantFormId when UUID-like.
+  // --------------------------------------------------------------------------
+  if (next.type === 'formReference') {
+    const data: any = next.data || {};
+    const candidate = data.tenantFormId ?? data.formId;
+    const uuidLike =
+      typeof candidate === 'string' &&
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(candidate);
+
+    if (uuidLike) {
+      next = {
+        ...next,
+        data: {
+          ...data,
+          tenantFormId: data.tenantFormId ?? candidate,
+          formId: data.formId ?? candidate,
+        },
+      } as Node;
+    }
+  }
+
   // Get node type definition
   const nodeTypeDef = NODE_TYPE_REGISTRY[next.type ?? ''];
 
