@@ -92,6 +92,9 @@ class TenantMiddleware:
         # 1. FIRST: Try to get tenant from X-Tenant-ID header (explicit tenant selection)
         # This takes priority even for Global System Admins so they can switch tenants
         tenant_id = request.headers.get("X-Tenant-ID")
+        # IMPORTANT: Header-based tenant selection is validated post-auth for JWT/Token
+        # requests (see apps.tenants.authentication). Middleware may still resolve
+        # request.tenant for routing and view-layer filtering.
         if tenant_id:
             try:
                 tenant = Tenant.objects.get(id=tenant_id, is_active=True)
@@ -341,7 +344,7 @@ class TenantMiddleware:
             raise
         finally:
             # Prevent cross-request tenant leakage on pooled DB connections.
-            if rls_set:
+            if rls_set or getattr(request, '_rls_set', False):
                 try:
                     with connection.cursor() as cursor:
                         cursor.execute("RESET app.current_tenant_id")

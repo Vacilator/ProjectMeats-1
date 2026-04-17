@@ -58,7 +58,8 @@ class TenantIsolationApiTests(APITestCase):
         # must still be scoped to the current request tenant context.
         TenantUser.objects.create(tenant=self.tenant_b, user=self.user_a, role='admin', is_active=True)
 
-        self.client.force_authenticate(user=self.user_a)
+        # Use session auth so TenantMiddleware can see an authenticated user and safely honor X-Tenant-ID.
+        self.client.force_login(self.user_a)
         self.tenant_header = {'HTTP_X_TENANT_ID': str(self.tenant_a.id)}
 
     def _assert_only_a(self, resp, a_marker: str, b_marker: str):
