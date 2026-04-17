@@ -78,6 +78,16 @@ from .services.form_process_persistence import FormProcessPersistenceService
 # =============================================================================
 
 
+def _require_tenant(request):
+    tenant = getattr(request, 'tenant', None)
+    if not tenant:
+        return None, Response(
+            {'error': 'Tenant context is required (X-Tenant-ID header).'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    return tenant, None
+
+
 class EntityFieldsAPIView(APIView):
     """
     API endpoint for getting available fields for an entity type.
@@ -129,8 +139,12 @@ class FormStepFieldsAPIView(APIView):
 
     def get(self, request, step_id):
         """Get selected and available fields for a form step."""
+        tenant, error = _require_tenant(request)
+        if error:
+            return error
+
         try:
-            step = TenantFormEntity.objects.select_related("form").get(pk=step_id)
+            step = TenantFormEntity.objects.select_related("form").get(pk=step_id, tenant=tenant)
         except TenantFormEntity.DoesNotExist:
             return Response({"error": "Form step not found"}, status=status.HTTP_404_NOT_FOUND)
 
@@ -190,8 +204,12 @@ class FormStepFieldsAPIView(APIView):
 
     def post(self, request, step_id):
         """Save field selection for a form step."""
+        tenant, error = _require_tenant(request)
+        if error:
+            return error
+
         try:
-            step = TenantFormEntity.objects.get(pk=step_id)
+            step = TenantFormEntity.objects.get(pk=step_id, tenant=tenant)
         except TenantFormEntity.DoesNotExist:
             return Response({"error": "Form step not found"}, status=status.HTTP_404_NOT_FOUND)
 
@@ -233,8 +251,12 @@ class FormStepReorderAPIView(APIView):
 
     def post(self, request, form_id):
         """Reorder steps in a form."""
+        tenant, error = _require_tenant(request)
+        if error:
+            return error
+
         try:
-            form = TenantForm.objects.get(pk=form_id)
+            form = TenantForm.objects.get(pk=form_id, tenant=tenant)
         except TenantForm.DoesNotExist:
             return Response({"error": "Form not found"}, status=status.HTTP_404_NOT_FOUND)
 
@@ -262,8 +284,12 @@ class FormStepsAPIView(APIView):
 
     def get(self, request, form_id):
         """Get all steps for a form."""
+        tenant, error = _require_tenant(request)
+        if error:
+            return error
+
         try:
-            form = TenantForm.objects.get(pk=form_id)
+            form = TenantForm.objects.get(pk=form_id, tenant=tenant)
         except TenantForm.DoesNotExist:
             return Response({"error": "Form not found"}, status=status.HTTP_404_NOT_FOUND)
 
@@ -285,8 +311,12 @@ class FormStepsAPIView(APIView):
 
     def post(self, request, form_id):
         """Create a new step for a form."""
+        tenant, error = _require_tenant(request)
+        if error:
+            return error
+
         try:
-            form = TenantForm.objects.get(pk=form_id)
+            form = TenantForm.objects.get(pk=form_id, tenant=tenant)
         except TenantForm.DoesNotExist:
             return Response({"error": "Form not found"}, status=status.HTTP_404_NOT_FOUND)
 
@@ -330,8 +360,12 @@ class FormStepDetailAPIView(APIView):
 
     def get(self, request, step_id):
         """Get a single step."""
+        tenant, error = _require_tenant(request)
+        if error:
+            return error
+
         try:
-            step = TenantFormEntity.objects.get(pk=step_id)
+            step = TenantFormEntity.objects.get(pk=step_id, tenant=tenant)
         except TenantFormEntity.DoesNotExist:
             return Response({"error": "Step not found"}, status=status.HTTP_404_NOT_FOUND)
 
@@ -348,8 +382,12 @@ class FormStepDetailAPIView(APIView):
 
     def put(self, request, step_id):
         """Update a step."""
+        tenant, error = _require_tenant(request)
+        if error:
+            return error
+
         try:
-            step = TenantFormEntity.objects.get(pk=step_id)
+            step = TenantFormEntity.objects.get(pk=step_id, tenant=tenant)
         except TenantFormEntity.DoesNotExist:
             return Response({"error": "Step not found"}, status=status.HTTP_404_NOT_FOUND)
 
@@ -378,8 +416,12 @@ class FormStepDetailAPIView(APIView):
 
     def delete(self, request, step_id):
         """Delete a step."""
+        tenant, error = _require_tenant(request)
+        if error:
+            return error
+
         try:
-            step = TenantFormEntity.objects.get(pk=step_id)
+            step = TenantFormEntity.objects.get(pk=step_id, tenant=tenant)
         except TenantFormEntity.DoesNotExist:
             return Response({"error": "Step not found"}, status=status.HTTP_404_NOT_FOUND)
 
@@ -440,10 +482,14 @@ class FieldConfigAPIView(APIView):
 
     def get(self, request, field_id):
         """Get field configuration including auto-populate settings."""
+        tenant, error = _require_tenant(request)
+        if error:
+            return error
+
         try:
             field = TenantFormField.objects.select_related(
                 "form_entity", "form_entity__form", "auto_populate_source_step"
-            ).get(pk=field_id)
+            ).get(pk=field_id, tenant=tenant)
         except TenantFormField.DoesNotExist:
             return Response({"error": "Field not found"}, status=status.HTTP_404_NOT_FOUND)
 
@@ -517,8 +563,12 @@ class FieldConfigAPIView(APIView):
 
     def post(self, request, field_id):
         """Update field configuration including auto-populate settings."""
+        tenant, error = _require_tenant(request)
+        if error:
+            return error
+
         try:
-            field = TenantFormField.objects.get(pk=field_id)
+            field = TenantFormField.objects.get(pk=field_id, tenant=tenant)
         except TenantFormField.DoesNotExist:
             return Response({"error": "Field not found"}, status=status.HTTP_404_NOT_FOUND)
 
@@ -540,7 +590,7 @@ class FieldConfigAPIView(APIView):
             source_step_id = auto_populate.get("source_step")
             if source_step_id:
                 try:
-                    source_step = TenantFormEntity.objects.get(pk=source_step_id)
+                    source_step = TenantFormEntity.objects.get(pk=source_step_id, tenant=tenant)
                     field.auto_populate_source_step = source_step
                 except TenantFormEntity.DoesNotExist:
                     pass
@@ -577,8 +627,12 @@ class FormMappingsAPIView(APIView):
         """Get all field mappings for a form."""
         from .services import FieldMappingService
 
+        tenant, error = _require_tenant(request)
+        if error:
+            return error
+
         try:
-            form = TenantForm.objects.prefetch_related("entities").get(pk=form_id)
+            form = TenantForm.objects.prefetch_related("entities").get(pk=form_id, tenant=tenant)
         except TenantForm.DoesNotExist:
             return Response({"error": "Form not found"}, status=status.HTTP_404_NOT_FOUND)
 
@@ -619,8 +673,12 @@ class FormAutoMapAPIView(APIView):
         """Compute auto-mapping suggestions without applying them."""
         from .services import FieldMappingService
 
+        tenant, error = _require_tenant(request)
+        if error:
+            return error
+
         try:
-            form = TenantForm.objects.prefetch_related("entities").get(pk=form_id)
+            form = TenantForm.objects.prefetch_related("entities").get(pk=form_id, tenant=tenant)
         except TenantForm.DoesNotExist:
             return Response({"error": "Form not found"}, status=status.HTTP_404_NOT_FOUND)
 
@@ -633,8 +691,12 @@ class FormAutoMapAPIView(APIView):
         """Apply auto-mappings (either suggested or provided)."""
         from .services import FieldMappingService
 
+        tenant, error = _require_tenant(request)
+        if error:
+            return error
+
         try:
-            form = TenantForm.objects.prefetch_related("entities").get(pk=form_id)
+            form = TenantForm.objects.prefetch_related("entities").get(pk=form_id, tenant=tenant)
         except TenantForm.DoesNotExist:
             return Response({"error": "Form not found"}, status=status.HTTP_404_NOT_FOUND)
 
@@ -667,8 +729,12 @@ class FieldMappingAPIView(APIView):
         """Update a field's mapping."""
         from .services import FieldMappingService
 
+        tenant, error = _require_tenant(request)
+        if error:
+            return error
+
         try:
-            field = TenantFormField.objects.get(pk=field_id)
+            field = TenantFormField.objects.get(pk=field_id, tenant=tenant)
         except TenantFormField.DoesNotExist:
             return Response({"error": "Field not found"}, status=status.HTTP_404_NOT_FOUND)
 
@@ -691,8 +757,12 @@ class FieldMappingAPIView(APIView):
         """Remove a field's mapping."""
         from .services import FieldMappingService
 
+        tenant, error = _require_tenant(request)
+        if error:
+            return error
+
         try:
-            field = TenantFormField.objects.get(pk=field_id)
+            field = TenantFormField.objects.get(pk=field_id, tenant=tenant)
         except TenantFormField.DoesNotExist:
             return Response({"error": "Field not found"}, status=status.HTTP_404_NOT_FOUND)
 
@@ -711,8 +781,12 @@ class FormRulesAPIView(APIView):
 
     def get(self, request, form_id):
         """Get all rules for a form with step/field context."""
+        tenant, error = _require_tenant(request)
+        if error:
+            return error
+
         try:
-            form = TenantForm.objects.prefetch_related("entities", "rules").get(pk=form_id)
+            form = TenantForm.objects.prefetch_related("entities", "rules").get(pk=form_id, tenant=tenant)
         except TenantForm.DoesNotExist:
             return Response({"error": "Form not found"}, status=status.HTTP_404_NOT_FOUND)
 
@@ -756,8 +830,12 @@ class FormRulesAPIView(APIView):
 
     def post(self, request, form_id):
         """Create a new rule for a form."""
+        tenant, error = _require_tenant(request)
+        if error:
+            return error
+
         try:
-            form = TenantForm.objects.get(pk=form_id)
+            form = TenantForm.objects.get(pk=form_id, tenant=tenant)
         except TenantForm.DoesNotExist:
             return Response({"error": "Form not found"}, status=status.HTTP_404_NOT_FOUND)
 
@@ -795,8 +873,12 @@ class FormRuleDetailAPIView(APIView):
 
     def get(self, request, rule_id):
         """Get a single rule."""
+        tenant, error = _require_tenant(request)
+        if error:
+            return error
+
         try:
-            rule = TenantFormRule.objects.select_related("form").get(pk=rule_id)
+            rule = TenantFormRule.objects.select_related("form").get(pk=rule_id, tenant=tenant)
         except TenantFormRule.DoesNotExist:
             return Response({"error": "Rule not found"}, status=status.HTTP_404_NOT_FOUND)
 
@@ -815,8 +897,12 @@ class FormRuleDetailAPIView(APIView):
 
     def put(self, request, rule_id):
         """Update a rule."""
+        tenant, error = _require_tenant(request)
+        if error:
+            return error
+
         try:
-            rule = TenantFormRule.objects.get(pk=rule_id)
+            rule = TenantFormRule.objects.get(pk=rule_id, tenant=tenant)
         except TenantFormRule.DoesNotExist:
             return Response({"error": "Rule not found"}, status=status.HTTP_404_NOT_FOUND)
 
@@ -843,8 +929,12 @@ class FormRuleDetailAPIView(APIView):
 
     def delete(self, request, rule_id):
         """Delete a rule."""
+        tenant, error = _require_tenant(request)
+        if error:
+            return error
+
         try:
-            rule = TenantFormRule.objects.get(pk=rule_id)
+            rule = TenantFormRule.objects.get(pk=rule_id, tenant=tenant)
         except TenantFormRule.DoesNotExist:
             return Response({"error": "Rule not found"}, status=status.HTTP_404_NOT_FOUND)
 
@@ -3227,15 +3317,14 @@ class FormExportAPIView(APIView):
         """Export a form configuration as JSON."""
         from .services.import_export import export_form
 
+        tenant, error = _require_tenant(request)
+        if error:
+            return error
+
         try:
-            form = TenantForm.objects.get(pk=form_id)
+            form = TenantForm.objects.get(pk=form_id, tenant=tenant)
         except TenantForm.DoesNotExist:
             return Response({"error": "Form not found"}, status=status.HTTP_404_NOT_FOUND)
-
-        # Check tenant access
-        if hasattr(request, "tenant") and request.tenant:
-            if form.tenant_id and form.tenant_id != request.tenant.id:
-                return Response({"error": "Access denied"}, status=status.HTTP_403_FORBIDDEN)
 
         include_metadata = request.query_params.get("metadata", "true").lower() == "true"
         export_data = export_form(form, include_metadata=include_metadata)
@@ -3309,15 +3398,14 @@ class FormDuplicateAPIView(APIView):
         """Duplicate a form within the same tenant."""
         from .services.import_export import duplicate_form
 
+        tenant, error = _require_tenant(request)
+        if error:
+            return error
+
         try:
-            form = TenantForm.objects.get(pk=form_id)
+            form = TenantForm.objects.get(pk=form_id, tenant=tenant)
         except TenantForm.DoesNotExist:
             return Response({"error": "Form not found"}, status=status.HTTP_404_NOT_FOUND)
-
-        # Check tenant access
-        tenant = getattr(request, "tenant", None)
-        if tenant and form.tenant_id and form.tenant_id != tenant.id:
-            return Response({"error": "Access denied"}, status=status.HTTP_403_FORBIDDEN)
 
         new_name = request.data.get("name")
 
@@ -3365,15 +3453,14 @@ class FormAnalyticsAPIView(APIView):
 
         if form_id:
             # Specific form analytics
+            tenant, error = _require_tenant(request)
+            if error:
+                return error
+
             try:
-                form = TenantForm.objects.get(pk=form_id)
+                form = TenantForm.objects.get(pk=form_id, tenant=tenant)
             except TenantForm.DoesNotExist:
                 return Response({"error": "Form not found"}, status=status.HTTP_404_NOT_FOUND)
-
-            # Check tenant access
-            if hasattr(request, "tenant") and request.tenant:
-                if form.tenant_id and form.tenant_id != request.tenant.id:
-                    return Response({"error": "Access denied"}, status=status.HTTP_403_FORBIDDEN)
 
             analytics = get_form_analytics(form, days=days, include_events=include_events)
             return Response(analytics)
@@ -3401,15 +3488,14 @@ class FormEventAPIView(APIView):
         """Record a form analytics event."""
         from .services.analytics import record_form_event
 
+        tenant, error = _require_tenant(request)
+        if error:
+            return error
+
         try:
-            submission = FormSubmission.objects.get(pk=submission_id)
+            submission = FormSubmission.objects.get(pk=submission_id, tenant=tenant)
         except FormSubmission.DoesNotExist:
             return Response({"error": "Submission not found"}, status=status.HTTP_404_NOT_FOUND)
-
-        # Check access
-        if hasattr(request, "tenant") and request.tenant:
-            if submission.tenant_id != request.tenant.id:
-                return Response({"error": "Access denied"}, status=status.HTTP_403_FORBIDDEN)
 
         event_type = request.data.get("event_type")
         if not event_type:
@@ -3446,15 +3532,14 @@ class FormTestDataAPIView(APIView):
         """Generate test data for a form."""
         from .services.test_data import generate_form_test_data
 
+        tenant, error = _require_tenant(request)
+        if error:
+            return error
+
         try:
-            form = TenantForm.objects.get(pk=form_id)
+            form = TenantForm.objects.get(pk=form_id, tenant=tenant)
         except TenantForm.DoesNotExist:
             return Response({"error": "Form not found"}, status=status.HTTP_404_NOT_FOUND)
-
-        # Check tenant access
-        if hasattr(request, "tenant") and request.tenant:
-            if form.tenant_id and form.tenant_id != request.tenant.id:
-                return Response({"error": "Access denied"}, status=status.HTTP_403_FORBIDDEN)
 
         # Get form snapshot
         form_snapshot = form.form_snapshot
