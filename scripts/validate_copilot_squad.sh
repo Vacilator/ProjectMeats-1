@@ -27,6 +27,114 @@ require_dir .copilot/squad/tasks
 require_file .copilot/squad/squad.json
 python -m json.tool .copilot/squad/squad.json >/dev/null || fail "Invalid JSON: .copilot/squad/squad.json"
 
+# Semantic validation: ensure squad.json references are consistent and files exist.
+python - <<'PY' || fail "Invalid squad.json references"
+import json
+import os
+import re
+import sys
+
+p = '.copilot/squad/squad.json'
+with open(p, 'r', encoding='utf-8') as f:
+  data = json.load(f)
+
+errors: list[str] = []
+
+def req_path(path: str | None, ctx: str) -> None:
+  if not path or not isinstance(path, str):
+    errors.append(f"Missing path for {ctx}")
+    return
+  if not os.path.exists(path):
+    errors.append(f"Missing path for {ctx}: {path}")
+
+ver = str(data.get('version', ''))
+if not re.match(r'^\d+\.\d+\.\d+$', ver):
+  errors.append(f"Invalid version (expected semver): {ver}")
+
+refs = data.get('authoritative_refs') or {}
+if not isinstance(refs, dict):
+  errors.append('authoritative_refs must be an object')
+else:
+  for k, paths in refs.items():
+    if not isinstance(paths, list):
+      errors.append(f"authoritative_refs.{k} must be an array")
+      continue
+    for rp in paths:
+      req_path(rp if isinstance(rp, str) else None, f"authoritative_refs.{k}")
+
+agents = data.get('agents') or []
+tasks = data.get('tasks') or []
+
+if not isinstance(agents, list):
+  errors.append('agents must be an array')
+  agents = []
+if not isinstance(tasks, list):
+  errors.append('tasks must be an array')
+  tasks = []
+
+agent_ids: list[str] = []
+for a in agents:
+  if not isinstance(a, dict):
+    errors.append('agent entry must be an object')
+    continue
+  aid = a.get('id')
+  if not isinstance(aid, str) or not aid:
+    errors.append('agent.id must be a non-empty string')
+    continue
+  agent_ids.append(aid)
+  req_path(a.get('role_file') if isinstance(a.get('role_file'), str) else None, f"agent.{aid}.role_file")
+  req_path(
+    a.get('copilot_agent_profile') if isinstance(a.get('copilot_agent_profile'), str) else None,
+    f"agent.{aid}.copilot_agent_profile",
+  )
+
+if len(agent_ids) != len(set(agent_ids)):
+  errors.append('Duplicate agent IDs found in squad.json')
+
+task_ids: list[str] = []
+for t in tasks:
+  if not isinstance(t, dict):
+    errors.append('task entry must be an object')
+    continue
+  tid = t.get('id')
+  if not isinstance(tid, str) or not tid:
+    errors.append('task.id must be a non-empty string')
+    continue
+  task_ids.append(tid)
+  req_path(t.get('playbook_file') if isinstance(t.get('playbook_file'), str) else None, f"task.{tid}.playbook_file")
+
+  da = t.get('default_agent')
+  if isinstance(da, str) and da and da not in set(agent_ids):
+    errors.append(f"task.{tid}.default_agent references unknown agent: {da}")
+
+  for ra in (t.get('required_agents') or []):
+    if isinstance(ra, str) and ra not in set(agent_ids):
+      errors.append(f"task.{tid}.required_agents references unknown agent: {ra}")
+
+  skill_id = t.get('skill_id')
+  if isinstance(skill_id, str) and skill_id:
+    req_path(f".github/skills/{skill_id}/SKILL.md", f"task.{tid}.skill_id")
+
+if len(task_ids) != len(set(task_ids)):
+  errors.append('Duplicate task IDs found in squad.json')
+
+known_tasks = set(task_ids)
+for a in agents:
+  if not isinstance(a, dict):
+    continue
+  aid = a.get('id')
+  if not isinstance(aid, str) or not aid:
+    continue
+  for rt in (a.get('review_required_for') or []):
+    if isinstance(rt, str) and rt not in known_tasks:
+      errors.append(f"agent.{aid}.review_required_for references unknown task: {rt}")
+
+if errors:
+  for e in errors:
+    print(f"ERROR: {e}", file=sys.stderr)
+  raise SystemExit(1)
+PY
+
 # role files
 for f in \
   architect lead-engineer backend-lead frontend-lead mobile-lead devops-engineer tester documentation-steward project-manager
@@ -67,5 +175,11 @@ count_skills=$(find .github/skills -name SKILL.md | wc -l | tr -d ' ')
 # wrapper script
 require_file scripts/gh-copilot
 require_file scripts/install_gh_copilot_alias.sh
+
+# wrapper smoke tests (must not require copilot to be installed)
+bash scripts/gh-copilot squad list >/dev/null || fail "gh-copilot squad list failed"
+while IFS= read -r tid; do
+  bash scripts/gh-copilot squad show "$tid" >/dev/null || fail "gh-copilot squad show failed for task: $tid"
+done < <(bash scripts/gh-copilot squad list)
 
 echo "✅ Copilot Squad structure validated"
