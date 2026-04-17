@@ -92,7 +92,11 @@ class TenantMiddleware:
         # 1. FIRST: Try to get tenant from X-Tenant-ID header (explicit tenant selection)
         # This takes priority even for Global System Admins so they can switch tenants
         tenant_id = request.headers.get("X-Tenant-ID")
-        if tenant_id:
+        # IMPORTANT: Only trust header-based tenant selection when the user is already
+        # authenticated at the Django middleware layer (session auth). For JWT/Token,
+        # DRF authentication happens later; tenant selection + membership validation
+        # must be applied post-auth (see apps.tenants.authentication).
+        if tenant_id and request.user.is_authenticated:
             try:
                 tenant = Tenant.objects.get(id=tenant_id, is_active=True)
                 resolution_method = "X-Tenant-ID header"
@@ -341,7 +345,7 @@ class TenantMiddleware:
             raise
         finally:
             # Prevent cross-request tenant leakage on pooled DB connections.
-            if rls_set:
+            if rls_set or getattr(request, '_rls_set', False):
                 try:
                     with connection.cursor() as cursor:
                         cursor.execute("RESET app.current_tenant_id")
