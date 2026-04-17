@@ -18,7 +18,8 @@ import { FileText, ExternalLink, Edit, Eye } from 'lucide-react';
 // ============================================================================
 
 export interface FormReferenceNodeData extends BaseNodeData {
-  formId?: string;
+  tenantFormId?: string;
+  formId?: string; // legacy alias
   formName?: string;
   formDescription?: string;
   fieldCount?: number;
@@ -185,21 +186,24 @@ const Badge = styled.span<{ $type?: 'warning' | 'info' }>`
 // ============================================================================
 
 export const FormReferenceNode = React.memo<NodeProps<Node<FormReferenceNodeData>>>(({ data, selected, id }) => {
-  const hasForm = data.formId && data.formName;
+  const resolvedFormId = data.tenantFormId ?? data.formId;
+  const hasForm = Boolean(resolvedFormId);
   
   const handleEditForm = () => {
-    // TODO: Open form in FormBuilder
-    console.log('Edit form:', data.formId);
+    // TODO: Open form in FormBuilder (needs a canonical route)
+    // Keep as no-op for now.
   };
-  
+
   const handlePreviewForm = () => {
-    // TODO: Open form preview modal
-    console.log('Preview form:', data.formId);
+    // TODO: Open form preview modal (needs a canonical surface)
+    // Keep as no-op for now.
   };
-  
+
   const handleChangeForm = () => {
-    // TODO: Open form selector modal
-    console.log('Change form');
+    // Use the standard config-panel edit flow.
+    if (typeof (data as any)?.onEdit === 'function') {
+      (data as any).onEdit();
+    }
   };
   
   const displayNode = hasForm ? (
@@ -210,7 +214,7 @@ export const FormReferenceNode = React.memo<NodeProps<Node<FormReferenceNodeData
             <FileText size={20} />
           </FormIcon>
           <FormDetails>
-            <FormName>{data.formName}</FormName>
+            <FormName>{data.formName || resolvedFormId || 'Form'}</FormName>
             {data.formDescription && (
               <FormDescription>{data.formDescription}</FormDescription>
             )}

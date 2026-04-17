@@ -2504,11 +2504,12 @@ const formReferenceSchema: NodeConfigSchema = {
       defaultExpanded: true,
       fields: [
         {
-          id: 'formId',
-          type: 'text',
-          label: 'Form ID',
-          placeholder: 'Enter form ID to reference...',
+          id: 'tenantFormId',
+          type: 'formReference',
+          label: 'Form',
+          placeholder: 'Select form...',
           required: true,
+          validation: [{ type: 'required', message: 'Form is required' }],
         },
         {
           id: 'passData',
