@@ -1,4 +1,4 @@
-name: 🚀 Deploy Pipeline
+name: "🚀 Deploy: Dev/UAT/Prod (Frontend + Backend via Golden Pipeline)"
 
 run-name: >-
   ${{
