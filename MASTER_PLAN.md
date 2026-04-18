@@ -68,6 +68,9 @@ We are re-validating and completing the last ~25 prompts with **evidence-based a
 - Plants: fix available-products endpoint routing so GET /plants/{id}/available-products works (was 405) — PR #3986
 - UniversalEntityForm: fix invoice schema 404 + required FK validation + better 400 error surfacing — PR #3989
 - Inquiries: prevent 500 on /api/v1/inquiries/ when tenant context missing — PR #3990
+- WorkForms/Quick Actions runtime restored + hardening (executions, visibility, back-compat): PRs #4452–#4456 (tested: backend + frontend)
+- WorkForms: per-step node status rendering (entity record + execution details): PR #4457 (tested: frontend)
+- CI: master deploy pipeline workflow display name clarified for Actions feed: PR #4458 (tested: workflow validator)
 
 ### Current blockers / external dependencies
 - Some features require environment secrets/infra to activate fully (e.g., OpenAI key, OAuth credentials). Code must degrade gracefully when secrets are missing.
