@@ -9,7 +9,7 @@ import {
 } from 'react-native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { ApiService } from '../services/ApiService';
-import { RootStackParamList, User, GuestUser, Tenant, Customer, Supplier } from '../types';
+import { RootStackParamList, User, GuestUser, Tenant } from '../types';
 import { useMobileTranslation } from '../i18n';
 
 type HomeScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Home'>;

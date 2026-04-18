@@ -28,7 +28,6 @@ export default function App() {
   const [isGuest, setIsGuest] = useState(false);
   const [user, setUser] = useState<User | null>(null);
   const [currentTenant, setCurrentTenant] = useState<Tenant | null>(null);
-  const [guestSession, setGuestSession] = useState<GuestSession | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -87,7 +86,6 @@ export default function App() {
       setIsGuest(false);
       setUser(null);
       setCurrentTenant(null);
-      setGuestSession(null);
       ApiService.removeAuthToken();
     } catch (error) {
       console.error('Error during logout:', error);
@@ -110,7 +108,6 @@ export default function App() {
       updated_at: new Date().toISOString(),
       settings: {},
     };
-    setGuestSession(session);
     setCurrentTenant(guestTenant);
     setIsGuest(true);
     setIsAuthenticated(true);
