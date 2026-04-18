@@ -31,8 +31,8 @@ We are re-validating and completing the last ~25 prompts with **evidence-based a
 ### Execution order (P0→P1)
 1. **Docs plan** (this section + PR log entry) — merge first.
 2. ✅ **Cockpit Favorites (industry-grade)** — shipped (backend favorites API + optimistic UX, tenant-safe, RLS-backed). PR: **#4037**.
-3. **Email Ingestion Monitor “Sync Now”:** ensure decrypt errors surface as stable structured codes and the UI shows a reconnect CTA (no raw string).
-4. **AI Document Upload:** reproduce via `test_document_upload` command and eliminate remaining 500s.
+3. ✅ **Email Ingestion Monitor “Sync Now”:** stable structured error codes + reconnect CTA (no raw decrypt/token exception strings). Verified via backend tests. PR: **#3951**.
+4. ✅ **AI Document Upload:** upload endpoint fails closed (201/400 only) with actionable error payloads; regression coverage added. PR: **#4460**.
 5. **Verify prior batches:** Universal Forms, Cockpit Search relevance/entity coverage, Workform Editor UX.
 
 ### Acceptance criteria (high signal)
