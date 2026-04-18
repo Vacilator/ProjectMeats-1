@@ -7,9 +7,9 @@ import dj_database_url
 
 from .base import *  # noqa
 
-# Tests run in environments that may not have optional Postgres extensions installed (e.g. pgvector).
-# Keep the test suite runnable by excluding AI Assistant vector features from INSTALLED_APPS.
-INSTALLED_APPS = tuple(app for app in INSTALLED_APPS if app != 'tenant_apps.ai_assistant')
+# Tests run in environments that may not have optional Postgres extensions installed.
+# AI Assistant storage now uses JSON-backed embeddings and does not require pgvector, so we keep it enabled
+# to allow regression coverage for document uploads and assistant models.
 
 # Secret key for tests
 SECRET_KEY = "test-secret-key-not-for-production-use-only-testing"
