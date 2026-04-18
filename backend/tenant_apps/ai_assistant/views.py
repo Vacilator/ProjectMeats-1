@@ -431,9 +431,9 @@ class AIDocumentViewSet(viewsets.ModelViewSet):
         tenant = getattr(self.request, 'tenant', None)
         qs = AIDocument.objects.all().select_related('tenant', 'owner', 'session')
         qs = qs.filter(owner=self.request.user)
-        if tenant:
-            qs = qs.filter(tenant=tenant)
-        return qs
+        if not tenant:
+            return qs.none()
+        return qs.filter(tenant=tenant)
 
     def perform_create(self, serializer):
         from django.db import transaction

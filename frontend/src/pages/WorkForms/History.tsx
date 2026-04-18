@@ -16,6 +16,7 @@
  * - Export to CSV (future)
  */
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
 import { ErrorBoundary } from '@/components/common/ErrorBoundary';
 import { showAlert } from '@/utils/uiDialogs';
@@ -477,6 +478,7 @@ const DurationBadge = styled.span`
 const FormsFlowsHistory: React.FC = () => {
   // Tab state
   const [activeTab, setActiveTab] = useState<'submissions' | 'workflows'>('submissions');
+  const navigate = useNavigate();
   
   // Submissions state
   const [submissions, setSubmissions] = useState<FormSubmission[]>([]);
@@ -778,6 +780,7 @@ const FormsFlowsHistory: React.FC = () => {
                   <TableHeader scope="col">Started At</TableHeader>
                   <TableHeader scope="col">Completed At</TableHeader>
                   <TableHeader scope="col">Duration</TableHeader>
+                  <TableHeader scope="col">Details</TableHeader>
                 </tr>
               </TableHead>
               <tbody>
@@ -809,11 +812,23 @@ const FormsFlowsHistory: React.FC = () => {
                         <TableCell>{formatDate(execution.started_at || execution.created_on)}</TableCell>
                         <TableCell>{formatDate(execution.completed_at || '')}</TableCell>
                         <TableCell>{formatDuration(execution.started_at || execution.created_on, execution.completed_at || undefined)}</TableCell>
+                        <TableCell>
+                          <ViewButton
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              navigate(`/workforms/executions/${execution.id}`);
+                            }}
+                            aria-label={`View execution details for ${execution.workform_name}`}
+                          >
+                            <Eye size={14} aria-hidden="true" />
+                            View
+                          </ViewButton>
+                        </TableCell>
                       </ExpandableRow>
                       
                       {isExpanded && (
                         <tr>
-                          <ExpandedContent colSpan={7}>
+                          <ExpandedContent colSpan={8}>
                             <h4 style={{ marginTop: 0, marginBottom: 16 }}>Execution Details</h4>
                             <pre
                               style={{

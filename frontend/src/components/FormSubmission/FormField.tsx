@@ -358,13 +358,23 @@ const FormField: React.FC<FormFieldProps> = ({
           <Input
             {...commonProps}
             type="tel"
-            inputMode="numeric"
-            maxLength={13}
+            inputMode="tel"
+            maxLength={14}
             autoComplete="tel"
-            value={formatUsPhone(String(localValue || ''))}
-            placeholder={field.placeholder || '(XXX)XXX-XXXX'}
-            onChange={(e) => handleChange(formatUsPhone(e.target.value))}
-            onBlur={handleBlur}
+            value={String(localValue || '')}
+            placeholder={field.placeholder || '(XXX) XXX-XXXX'}
+            onChange={(e) => handleChange(e.target.value)}
+            onBlur={(e) => {
+              const formatted = formatUsPhone(e.target.value);
+              setLocalValue(formatted);
+
+              if (debounceRef.current) {
+                clearTimeout(debounceRef.current);
+              }
+
+              onChange(formatted);
+              onBlur();
+            }}
           />
         );
 

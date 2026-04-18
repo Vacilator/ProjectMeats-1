@@ -169,14 +169,25 @@ export const formSubmissionService = {
    * List user's form submissions
    * @param cancelKey - Optional key for cancellation tracking
    */
-  async list(params?: { status?: string; form?: string }, cancelKey?: string): Promise<FormSubmissionListItem[]> {
-    const config = cancelKey 
+  async list(
+    params?: { status?: string; form?: string; assigned_to?: string; page?: number; page_size?: number; search?: string },
+    cancelKey?: string
+  ): Promise<FormSubmissionListItem[]> {
+    const config = cancelKey
       ? { params, cancelToken: cancelTokenManager.create(cancelKey).token }
       : { params };
     try {
       const response = await apiClient.get('/workflows/form-submissions/', config);
       if (cancelKey) cancelTokenManager.remove(cancelKey);
-      return response.data;
+
+      const data = response.data;
+      const results = Array.isArray(data)
+        ? data
+        : Array.isArray(data?.results)
+          ? data.results
+          : [];
+
+      return results;
     } catch (err) {
       if (cancelKey) cancelTokenManager.remove(cancelKey);
       throw err;

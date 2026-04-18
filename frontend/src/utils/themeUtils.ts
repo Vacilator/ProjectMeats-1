@@ -46,34 +46,16 @@ const resolveLogoSrc = async (logoUrl: string): Promise<{ src: string; revoke: (
   if (isDataUrl) return { src: logoUrl, revoke: null };
 
   // Hardening: logo URLs may be behind auth.
-  // Fetching as a blob with credentials + Authorization avoids CORS/tainted-canvas issues.
+  // Fetching as a blob avoids CORS/tainted-canvas issues for some upload flows.
   try {
-    const { getAuthHeader, refreshAccessToken } = await import('../services/jwtService');
+    const { apiClient } = await import('../services/apiService');
 
-    let authHeader = getAuthHeader();
-    if (!authHeader) {
-      try {
-        const newAccessToken = await refreshAccessToken();
-        if (newAccessToken) authHeader = `Bearer ${newAccessToken}`;
-      } catch {
-        // ignore refresh failures; we'll attempt fetch without Authorization
-      }
-    }
+    const res = await apiClient.get(logoUrl, {
+      responseType: 'blob',
+    });
 
-    const headers: HeadersInit = {};
-    if (authHeader) headers['Authorization'] = authHeader;
-
-    // Tenant-aware hardening: tenant media endpoints may require X-Tenant-ID.
-    try {
-      const tenantId = localStorage.getItem('tenantId');
-      if (tenantId) headers['X-Tenant-ID'] = tenantId;
-    } catch {
-      // ignore (e.g. storage blocked)
-    }
-
-    const res = await fetch(logoUrl, { credentials: 'include', headers });
-    if (res.ok) {
-      const blob = await res.blob();
+    const blob = res.data as Blob;
+    if (blob) {
       const objectUrl = URL.createObjectURL(blob);
       return { src: objectUrl, revoke: () => URL.revokeObjectURL(objectUrl) };
     }

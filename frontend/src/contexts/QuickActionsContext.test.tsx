@@ -177,21 +177,80 @@ describe('QuickActionsContext', () => {
       expect(screen.getByTestId('actions-count')).toHaveTextContent('2');
     });
 
-    it('should not load when not authenticated', async () => {
-      localStorageMock = {}; // No JWT or legacy token
-      
+    it('should treat 401/403 as logged-out state (no error)', async () => {
+      localStorageMock = {}; // No JWT or legacy token (cookie-auth may still exist in real app)
+
+      vi.mocked(quickActionsService.getQuickActions).mockRejectedValue({ response: { status: 401 } } as any);
+      vi.mocked(quickActionsService.getAvailableForms).mockRejectedValue({ response: { status: 401 } } as any);
+      vi.mocked(getAvailableWorkForms).mockRejectedValue({ response: { status: 401 } } as any);
+
       render(
         <QuickActionsProvider>
           <TestConsumer />
         </QuickActionsProvider>
       );
-      
+
       await waitFor(() => {
         expect(screen.getByTestId('loading')).toHaveTextContent('ready');
       });
-      
-      expect(quickActionsService.getQuickActions).not.toHaveBeenCalled();
+
+      expect(quickActionsService.getQuickActions).toHaveBeenCalledTimes(1);
+      expect(screen.getByTestId('error')).toHaveTextContent('none');
       expect(screen.getByTestId('actions-count')).toHaveTextContent('0');
+      expect(screen.getByTestId('forms-count')).toHaveTextContent('0');
+    });
+
+    it('should merge legacy forms + workforms into availableForms with correct typing', async () => {
+      let ctxRef: any;
+
+      vi.mocked(quickActionsService.getQuickActions).mockResolvedValue({ items: [] } as any);
+      vi.mocked(quickActionsService.getAvailableForms).mockResolvedValue([
+        {
+          id: 'form-a',
+          type: 'form',
+          name: 'Alpha Form',
+          description: '',
+          icon: 'file-text',
+          status: 'active',
+          is_default: false,
+          is_quick_action_enabled: true,
+          step_count: 1,
+        },
+        {
+          id: 'wf-1',
+          type: 'workflow',
+          name: 'Should Be Ignored (workflow from legacy list)',
+          description: '',
+          icon: 'layers',
+          status: 'active',
+          is_default: false,
+          is_quick_action_enabled: true,
+          node_count: 2,
+          step_count: 0,
+        },
+      ] as any);
+
+      vi.mocked(getAvailableWorkForms).mockResolvedValue([
+        { id: 'wf-1', name: 'Beta WorkForm', description: '', status: 'active', node_count: 2, edge_count: 0, updated_at: '' },
+        { id: 'wf-2', name: 'Archived WorkForm', description: '', status: 'archived', node_count: 1, edge_count: 0, updated_at: '' },
+      ] as any);
+
+      render(
+        <QuickActionsProvider>
+          <TestConsumer onContext={(ctx) => (ctxRef = ctx)} />
+        </QuickActionsProvider>
+      );
+
+      await waitFor(() => {
+        expect(screen.getByTestId('loading')).toHaveTextContent('ready');
+      });
+
+      const rows = ctxRef.availableForms as any[];
+      const keys = new Set(rows.map((r) => `${r.type}:${r.id}`));
+
+      expect(keys).toContain('form:form-a');
+      expect(keys).toContain('workflow:wf-1');
+      expect(keys).not.toContain('workflow:wf-2');
     });
 
     it('should handle load error gracefully', async () => {

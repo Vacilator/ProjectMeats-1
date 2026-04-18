@@ -408,6 +408,9 @@ class TenantWorkFormExecutionSerializer(serializers.ModelSerializer):
     workform_name = serializers.CharField(source='workform.name', read_only=True)
     started_by_name = serializers.SerializerMethodField()
 
+    # WorkForms runtime: expose a compact per-node status map derived from audit_trail
+    node_statuses = serializers.SerializerMethodField()
+
     class Meta:
         model = TenantWorkFormExecution
         fields = [
@@ -419,6 +422,7 @@ class TenantWorkFormExecutionSerializer(serializers.ModelSerializer):
             'initial_data',
             'context_data',
             'audit_trail',
+            'node_statuses',
             'started_by',
             'started_by_name',
             'started_at',
@@ -433,6 +437,39 @@ class TenantWorkFormExecutionSerializer(serializers.ModelSerializer):
         if obj.started_by:
             return obj.started_by.get_full_name() or obj.started_by.username
         return None
+
+    def get_node_statuses(self, obj):
+        """Return a per-node status map derived from the execution audit trail.
+
+        The WorkFormEngine writes `audit_trail` as a list of events like:
+        - node_enter
+        - action_start / action_success / action_error
+
+        Frontend uses this to render per-step/per-node execution status.
+        """
+        trail = obj.audit_trail
+        if not isinstance(trail, list):
+            return {}
+
+        # Last matching event wins per node_id.
+        status_by_node = {}
+        for row in trail:
+            if not isinstance(row, dict):
+                continue
+
+            node_id = row.get('node_id')
+            event = row.get('event')
+            if not node_id or not event:
+                continue
+
+            if event in {'action_success', 'node_terminal'}:
+                status_by_node[node_id] = 'completed'
+            elif event in {'action_error'}:
+                status_by_node[node_id] = 'failed'
+            elif event in {'action_start', 'node_enter', 'execution_start', 'loop_enqueued'}:
+                status_by_node[node_id] = 'in_progress'
+
+        return status_by_node
 
 
 # =============================================================================

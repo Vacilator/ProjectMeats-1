@@ -291,7 +291,7 @@ const Contacts: React.FC = () => {
                 </TableCell>
                 <TableCell>{contact.company || '-'}</TableCell>
                 <TableCell>{contact.position || '-'}</TableCell>
-                <TableCell>{(contact as any).department || '-'}</TableCell>
+                <TableCell>{contact.department || '-'}</TableCell>
                 <TableCell>{contact.email || '-'}</TableCell>
                 <TableCell>{contact.phone || '-'}</TableCell>
                 <TableCell>

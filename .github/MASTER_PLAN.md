@@ -59,6 +59,26 @@ This file is the **append-only PR-referenceable execution log**.
   - Swarm prompt updated to use `ingest_purchase_order_document(document_id)` for Purchase Order documents.
   (PR: #4353)
 
+- **2026-04-16** — Mobile: Customers usable at 375px. Added deterministic Playwright coverage (`frontend/e2e/mobile_customers_create.spec.ts`) and hardened app shell on small screens (Header wrapping + Layout sidebar offset) to prevent page-level horizontal overflow. (PR: #4406)
+
+- **2026-04-16** — CI: Master Pipeline run-name now uses PR merge context (when available) to improve the Actions “All workflows” feed readability; falls back to SHA + run number when metadata isn’t available. (PR: #4408)
+
+- **2026-04-16** — Frontend: added unit coverage for Shared select components (SearchableSelect, LocalSearchableSelect, MultiSelect) as a safety net before consolidation. (PR: #4410)
+
+- **2026-04-16** — Frontend: introduced consolidated `SearchableSelect` surface with a `variant` prop (entity/local/multi) while keeping legacy exports as thin wrappers (no caller changes). (PR: #4412)
+
+- **2026-04-16** — Frontend tests: added unit coverage for consolidated `SearchableSelect` variants (local/multi) and the `allowCreate` → QuickCreate flow. (PR: #4414)
+
+- **2026-04-16** — Forms UX: FormSubmissionModal now disables in-dropdown create for related-entity SearchableSelect fields because the screen already provides a separate "+ New" Quick Create button. (PR: #4416)
+
+- **2026-04-16** — Frontend: added SearchableSelect `variant="static"` (no API) for static option sets; includes unit coverage. (PR: #4418)
+
+- **2026-04-17** — Entities: record-level “Workflows” tab shows WorkForm executions filtered by entity with audit trail; backend form-submissions status filter accepts comma-separated lists. (PR: #4452)
+
+- **2026-04-17** — WorkForms backend: harden execution/submission visibility (fail-closed tenant), prevent started_by/assigned_to user-ID enumeration (me-only unless tenant admin), Quick Actions available-forms includes tenant WorkForms, and expose `node_statuses` derived from audit trail. (PR: #4453)
+
+- **2026-04-17** — WorkForms frontend: restore runtime UX (Catalog Quick Run executes WorkForms, In Progress shows WorkForm executions, Execute falls back to legacy runner for older QuickActions, and FormSelectorModal uses tenant-forms service layer). (PR: #4454)
+
 ### 2026-03-31 — Secret audit drift (manifest v5.1)
 - Command: `python config/manage_env.py audit --repo Meats-Central/ProjectMeats`
 - Stale/Zombie secrets found in GitHub but NOT in `manifests/env.manifest.json` (or legacy `DEV_`/`UAT_`/`PROD_` prefixed):
@@ -1607,3 +1627,16 @@ Deliverables:
 - **2026-04-16** — Security: require auth for key ViewSets (Bug Reports) + add 401 regression tests. (PR: #4384)
 - **2026-04-16** — Tests: add API tenant isolation suite (8 list endpoints) to prevent cross-tenant regressions. (PR: #4385)
 - **2026-04-16** — Tests: add static audit ensuring tenant-scoped ViewSets don’t use unsafe default get_queryset. (PR: #4386)
+
+- **2026-04-16** — Tests: clean NotificationsContext unit test localStorage mock to avoid AuthService JSON.parse stderr noise. (PR: #4388)
+
+- **2026-04-16** — Tests: lock Email Sync Now actionable error payloads (not_connected + token_invalid reconnect CTA). (PR: #4392)
+
+- **2026-04-16** — Security: DRF default permission set to IsAuthenticated; explicit allowlist for OAuth callbacks + email webhooks + regression tests. (PR: #4394)
+
+- 2026-04-16 — ci: improve Master Pipeline run-name to show PR title + number instead of SHA — PR: #pending.
+
+- **2026-04-16** — Mobile: Purchase Orders page + create overlay usable at 375px; add E2E create-flow coverage (mocked APIs). (PR: #4397)
+- **2026-04-16** — Mobile: Inquiries page usable at 375px; add E2E coverage; constrain Layout containers to prevent page-level horizontal overflow. (PR: #4399)
+- **2026-04-16** — Mobile: Sales Orders page + create modal usable at 375px; add E2E create-flow coverage (schema mocked). (PR: #4401)
+- **2026-04-16** — CI: Master Pipeline run-name now uses env/branch + SHA + actor (avoid commit message leakage). (PR: #4404)

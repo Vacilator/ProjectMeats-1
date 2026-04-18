@@ -6,7 +6,6 @@
  */
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { getAvailableWorkForms } from '@/services/workformsApi';
-import { getAccessToken } from '@/services/jwtService';
 import { showAlert } from '@/utils/uiDialogs';
 import {
   quickActionsService,
@@ -72,20 +71,41 @@ export const QuickActionsProvider: React.FC<QuickActionsProviderProps> = ({ chil
 
   // Load quick actions on mount
   const refreshQuickActions = useCallback(async () => {
+    const isAuthError = (err: any) => {
+      const status = err?.response?.status;
+      return status === 401 || status === 403;
+    };
+
     try {
       setIsLoading(true);
       setError(null);
-      
+
       const [actionsResult, formsResult, workformsResult] = await Promise.allSettled([
         quickActionsService.getQuickActions(),
         quickActionsService.getAvailableForms(),
         getAvailableWorkForms(),
       ]);
 
+      const isAuthRejection = (r: PromiseSettledResult<unknown>) =>
+        r.status === 'rejected' && isAuthError((r as PromiseRejectedResult).reason);
+
+      // Important: support cookie-auth sessions (no localStorage token).
+      // Treat "all three sources rejected with 401/403" as a normal logged-out state.
+      // Otherwise, degrade gracefully (e.g., workforms list may be forbidden while legacy forms still work).
+      const loggedOut = [actionsResult, formsResult, workformsResult].every(isAuthRejection);
+      if (loggedOut) {
+        setQuickActions([]);
+        setAvailableForms([]);
+        setError(null);
+        return;
+      }
+
       if (actionsResult.status === 'rejected') {
+        // Don't treat auth errors here as "logged out" unless *all* sources failed auth.
+        // This allows partial functionality when one endpoint is forbidden.
         const msg = actionsResult.reason?.message || 'Failed to load quick actions';
         console.warn('[QuickActions] getQuickActions failed', actionsResult.reason);
-        setError(msg);
+        setError(isAuthError(actionsResult.reason) ? null : msg);
       }
 
       const actionsResponse = actionsResult.status === 'fulfilled' ? actionsResult.value : { items: [] };
@@ -150,13 +170,8 @@ export const QuickActionsProvider: React.FC<QuickActionsProviderProps> = ({ chil
   }, []);
 
   useEffect(() => {
-    // Only load if user is authenticated (JWT or legacy token)
-    const token = getAccessToken();
-    if (token) {
-      refreshQuickActions();
-    } else {
-      setIsLoading(false);
-    }
+    // Always attempt to load: supports cookie-auth sessions (no localStorage token).
+    refreshQuickActions();
   }, [refreshQuickActions]);
 
   const updateQuickActions = useCallback(async (items: QuickActionItem[]) => {

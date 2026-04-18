@@ -29,6 +29,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
@@ -91,10 +93,11 @@ jobs:
           DJANGO_SUPERUSER_EMAIL: ${{ secrets.DJANGO_SUPERUSER_EMAIL }}
           DJANGO_SUPERUSER_PASSWORD: ${{ secrets.DJANGO_SUPERUSER_PASSWORD }}
           # Core Django settings
-          SECRET_KEY: ${{ secrets.SECRET_KEY }}
+          # Prefer canonical env.manifest.json names; allow legacy fallback for safety.
+          SECRET_KEY: ${{ secrets.DJANGO_SECRET_KEY || secrets.SECRET_KEY }}
           DJANGO_SETTINGS_MODULE: ${{ secrets.DJANGO_SETTINGS_MODULE }}
-          # Database configuration
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          # Database configuration (optional; DB_* vars are the primary interface)
+          DATABASE_URL: ${{ secrets.DATABASE_URL || '' }}
           DB_NAME: ${{ secrets.DB_NAME }}
           DB_USER: ${{ secrets.DB_USER }}
           DB_PASSWORD: ${{ secrets.DB_PASSWORD }}

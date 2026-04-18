@@ -90,7 +90,7 @@
     "serve": "vite preview",
     "storybook": "storybook dev -p 6006",
     "build-storybook": "storybook build",
-    "verify-standards": "npm run type-check && npm run lint:colors && echo '✅ Frontend standards verification passed'"
+    "verify-standards": "npm run type-check && npm run lint && npm run lint:colors && echo '✅ Frontend standards verification passed'"
   },
   "browserslist": {
     "production": [

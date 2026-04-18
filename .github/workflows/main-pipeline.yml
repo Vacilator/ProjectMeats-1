@@ -1,13 +1,22 @@
-name: Master Pipeline
+name: "🚀 Deploy: Dev/UAT/Prod (Frontend + Backend via Golden Pipeline)"
 
 run-name: >-
   ${{
     github.event_name == 'workflow_dispatch'
-      && format('🚀 Deploy: {0} - manual', inputs.environment)
+      && format(
+        '🛠️ Deploy: {0} — manual (run#{1}) by {2}',
+        inputs.environment,
+        github.run_number,
+        github.actor
+      )
       || format(
-        '🚀 Deploy: {0} - {1}',
-        github.ref_name == 'main' && 'production' || github.ref_name,
-        github.sha
+        '🚀 Deploy: {0} — {1} (run#{2})',
+        github.ref_name == 'development' && 'Dev'
+          || github.ref_name == 'uat' && 'UAT'
+          || github.ref_name == 'main' && 'Prod'
+          || github.ref_name,
+        github.event.head_commit && github.event.head_commit.message || github.sha,
+        github.run_number
       )
   }}
 

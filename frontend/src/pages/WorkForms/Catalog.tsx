@@ -50,7 +50,7 @@ import { createFormSubmission, getAvailableWorkForms } from '../../services/work
 import { deleteWorkflow } from '../../components/FlowEditor/utils/workflowPersistence';
 import { useQuickActions } from '../../contexts/QuickActionsContext';
 import { Popconfirm } from 'antd';
-import { listTenantForms as listLegacyTenantForms } from '../../services/tenantFormService';
+import { quickActionsService } from '@/services/quickActionsService';
 import { useWorkFormPermissions, getUpgradeMessage } from '../../hooks/useWorkFormPermissions';
 
 // ============================================================================
@@ -588,7 +588,7 @@ const FormsFlowsCatalog: React.FC = () => {
 
       const [workformsResult, legacyFormsResult] = await Promise.allSettled([
         getAvailableWorkForms(),
-        listLegacyTenantForms(),
+        quickActionsService.getAvailableForms(),
       ]);
 
       const workforms = workformsResult.status === 'fulfilled' ? workformsResult.value : [];
@@ -767,18 +767,22 @@ const FormsFlowsCatalog: React.FC = () => {
     navigate('/workforms/editor');
   };
 
-  // NEW: Handle Quick Run (one-click workflow execution)
-  const handleQuickRun = async (formId: string, event: React.MouseEvent) => {
+  // NEW: Handle Quick Run (one-click execution)
+  const handleQuickRun = async (item: CatalogItem, event: React.MouseEvent) => {
     event.stopPropagation(); // Prevent card click from triggering
-    setIsQuickRunning(formId);
+    setIsQuickRunning(item.id);
     try {
-      logger.info('[Catalog] Quick Run initiated for form:', formId);
-      // Create a new submission and navigate directly to the editor
-      const submission = await createFormSubmission(formId);
-      const submissionId = submission.id;
-      logger.info('[Catalog] Submission created:', submissionId);
-      // Navigate to in-progress view with the new submission
-      navigate(`/workforms/in-progress/${submissionId}`);
+      logger.info('[Catalog] Quick Run initiated:', { id: item.id, kind: item.kind });
+
+      // WorkForms: execute via runtime engine
+      if (item.kind === 'workform' || typeof item.node_count === 'number') {
+        navigate(`/workforms/execute/${item.id}`);
+        return;
+      }
+
+      // Legacy forms: create submission + open runner
+      const submission = await createFormSubmission(item.id);
+      navigate(`/workforms/in-progress/${submission.id}`);
     } catch (error) {
       logger.error('[Catalog] Quick Run failed:', error);
       showAlert({
@@ -1059,7 +1063,7 @@ const FormsFlowsCatalog: React.FC = () => {
                   <div style={{ marginTop: '1rem' }}>
                     <QuickRunButton
                       $isRunning={isQuickRunning === form.id}
-                      onClick={(e) => handleQuickRun(form.id, e)}
+                      onClick={(e) => handleQuickRun(form, e)}
                       disabled={isQuickRunning === form.id}
                       title="Start this workflow with one click"
                     >
@@ -1148,7 +1152,7 @@ const FormsFlowsCatalog: React.FC = () => {
                   <div style={{ marginTop: '1rem', marginLeft: '4rem' }}>
                     <QuickRunButton
                       $isRunning={isQuickRunning === form.id}
-                      onClick={(e) => handleQuickRun(form.id, e)}
+                      onClick={(e) => handleQuickRun(form, e)}
                       disabled={isQuickRunning === form.id}
                       title="Start this workflow with one click"
                     >

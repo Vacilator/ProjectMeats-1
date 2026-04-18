@@ -32,6 +32,7 @@ interface CustomerContact {
   phone?: string;
   position?: string;
   company?: string;
+  department?: string;
 }
 
 const Customers: React.FC = () => {
@@ -376,7 +377,13 @@ const Customers: React.FC = () => {
           <FormContainer $theme={theme} data-testid="location-create-modal">
             <FormHeader $theme={theme}>
               <FormTitle $theme={theme}>Add New Location</FormTitle>
-              <CloseButton $theme={theme} onClick={() => setShowLocationModal(false)}>×</CloseButton>
+              <CloseButton
+                $theme={theme}
+                onClick={() => setShowLocationModal(false)}
+                aria-label="Close location create modal"
+              >
+                ×
+              </CloseButton>
             </FormHeader>
 
             <FormGrid>
@@ -447,7 +454,7 @@ const Customers: React.FC = () => {
         />
       )}
 
-      <TableContainer $theme={theme}>
+      <TableContainer $theme={theme} data-testid="customers-table-container">
         {customers.length === 0 ? (
           <EmptyState>
             <EmptyIcon>👥</EmptyIcon>
@@ -485,7 +492,20 @@ const Customers: React.FC = () => {
                 >
                   <TableCell $theme={theme}>
                     <CompanyButton $theme={theme} $selected={selectedCustomerId === customer.id}>
-                      <CompanyName $theme={theme}>{customer.name}</CompanyName>
+                      <div>
+                        <CompanyName $theme={theme}>{customer.name}</CompanyName>
+                        <CompanyMeta>
+                          {[
+                            customer.contact_person,
+                            customer.email,
+                            customer.phone,
+                            [customer.city, customer.state].filter(Boolean).join(', '),
+                          ]
+                            .filter(Boolean)
+                            .slice(0, 2)
+                            .join(' · ') || '—'}
+                        </CompanyMeta>
+                      </div>
                       <CompanyChevron aria-hidden="true">{selectedCustomerId === customer.id ? '▾' : '▸'}</CompanyChevron>
                     </CompanyButton>
                   </TableCell>
@@ -498,22 +518,26 @@ const Customers: React.FC = () => {
                       : customer.city || customer.state || '-'}
                   </TableCell>
                   <TableCell $theme={theme}>
-                    <ActionButton
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleEdit(customer);
-                      }}
-                    >
-                      Edit
-                    </ActionButton>
-                    <DeleteButton
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        void handleDelete(customer.id);
-                      }}
-                    >
-                      Delete
-                    </DeleteButton>
+                    <RowActions>
+                      <ActionButton
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleEdit(customer);
+                        }}
+                      >
+                        Edit
+                      </ActionButton>
+                      <DeleteButton
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          void handleDelete(customer.id);
+                        }}
+                      >
+                        Delete
+                      </DeleteButton>
+                    </RowActions>
                   </TableCell>
                 </TableRow>
                 {selectedCustomerId === customer.id && (
@@ -627,7 +651,7 @@ const Customers: React.FC = () => {
                                       {c.first_name} {c.last_name}
                                     </ContactName>
                                     <ContactMeta>
-                                      {(c as any).department ? <span>{(c as any).department}</span> : null}
+                                      <span>Dept: {String(c.department || '—')}</span>
                                       {c.position ? <span>{c.position}</span> : null}
                                       {c.email ? <span>{c.email}</span> : null}
                                       {c.phone ? <span>{c.phone}</span> : null}
@@ -704,6 +728,11 @@ const PageContainer = styled.div`
   padding: 1.5rem;
   background: rgb(var(--color-background));
   min-height: 100%;
+  min-width: 0;
+
+  @media (max-width: 420px) {
+    padding: 1rem;
+  }
 `;
 
 const Header = styled.div`
@@ -726,6 +755,10 @@ const Title = styled.h1<{ $theme: Theme }>`
   font-weight: 700;
   color: ${(props) => props.$theme.colors.textPrimary};
   margin: 0;
+
+  @media (max-width: 420px) {
+    font-size: 24px;
+  }
 `;
 
 const Subtitle = styled.p`
@@ -739,6 +772,12 @@ const HeaderActions = styled.div`
   gap: 10px;
   align-items: center;
   flex-wrap: wrap;
+
+  @media (max-width: 420px) {
+    width: 100%;
+    flex-direction: column;
+    align-items: stretch;
+  }
 `;
 
 const SecondaryButton = styled.button`
@@ -750,6 +789,11 @@ const SecondaryButton = styled.button`
   font-size: 13px;
   font-weight: 500;
   cursor: pointer;
+  min-height: 44px;
+
+  @media (max-width: 420px) {
+    width: 100%;
+  }
 
   &:hover {
     background: rgb(var(--color-surface));
@@ -759,7 +803,7 @@ const SecondaryButton = styled.button`
 
 const AddButton = styled.button`
   background: rgb(var(--color-primary));
-  color: white;
+  color: rgb(var(--color-primary-foreground));
   border: none;
   border-radius: 8px;
   padding: 10px 16px;
@@ -767,6 +811,12 @@ const AddButton = styled.button`
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s ease;
+  min-height: 44px;
+
+  @media (max-width: 420px) {
+    width: 100%;
+    justify-content: center;
+  }
 
   &:hover {
     transform: translateY(-1px);
@@ -780,6 +830,8 @@ const TableControls = styled.div`
   gap: 12px;
   align-items: center;
   margin-bottom: 12px;
+  flex-wrap: wrap;
+  min-width: 0;
 `;
 
 const SearchInput = styled.input`
@@ -789,6 +841,12 @@ const SearchInput = styled.input`
   border: 1px solid rgb(var(--color-border));
   background: rgb(var(--color-surface));
   color: rgb(var(--color-text-primary));
+  min-height: 44px;
+
+  @media (max-width: 520px) {
+    width: 100%;
+    font-size: 16px; /* iOS Safari zoom-on-focus prevention */
+  }
 
   &::placeholder {
     color: rgb(var(--color-text-secondary));
@@ -830,6 +888,10 @@ const FormHeader = styled.div<{ $theme: Theme }>`
   align-items: center;
   padding: 20px 30px;
   border-bottom: 1px solid ${(props) => props.$theme.colors.border};
+
+  @media (max-width: 420px) {
+    padding: 14px 16px;
+  }
 `;
 
 const FormTitle = styled.h2<{ $theme: Theme }>`
@@ -843,6 +905,11 @@ const CloseButton = styled.button<{ $theme: Theme }>`
   font-size: 24px;
   cursor: pointer;
   color: ${(props) => props.$theme.colors.textSecondary};
+  min-width: 44px;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 
   &:hover {
     color: ${(props) => props.$theme.colors.textPrimary};
@@ -858,6 +925,12 @@ const FormGrid = styled.div`
   grid-template-columns: 1fr 1fr;
   gap: 20px;
   margin-bottom: 30px;
+
+  @media (max-width: 520px) {
+    grid-template-columns: 1fr;
+    gap: 12px;
+    margin-bottom: 16px;
+  }
 `;
 
 const FormGroup = styled.div<{ $fullWidth?: boolean }>`
@@ -893,7 +966,7 @@ const FormActions = styled.div`
 
 const CancelButton = styled.button`
   background: rgb(var(--color-text-secondary));
-  color: white;
+  color: rgb(var(--color-primary-foreground));
   border: none;
   border-radius: 6px;
   padding: 10px 20px;
@@ -907,7 +980,7 @@ const CancelButton = styled.button`
 
 const SubmitButton = styled.button`
   background: rgb(var(--color-primary));
-  color: white;
+  color: rgb(var(--color-primary-foreground));
   border: none;
   border-radius: 6px;
   padding: 10px 20px;
@@ -916,15 +989,19 @@ const SubmitButton = styled.button`
 
   &:hover {
     transform: translateY(-1px);
-    box-shadow: 0 4px 15px rgba(231, 76, 60, 0.3);
+    box-shadow: 0 4px 15px rgb(var(--color-primary) / 0.3);
   }
 `;
 
 const TableContainer = styled.div<{ $theme: Theme }>`
   background: ${(props) => props.$theme.colors.surface};
   border-radius: 12px;
-  overflow: hidden;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
   box-shadow: 0 2px 10px ${(props) => props.$theme.colors.shadow};
+  max-width: 100%;
+  min-width: 0;
 `;
 
 const EmptyState = styled.div`
@@ -954,6 +1031,15 @@ const Table = styled.table`
 
 const TableHeader = styled.thead<{ $theme: Theme }>`
   background: ${(props) => props.$theme.colors.background};
+
+  @media (max-width: 420px) {
+    th:nth-child(2),
+    th:nth-child(3),
+    th:nth-child(4),
+    th:nth-child(5) {
+      display: none;
+    }
+  }
 `;
 
 const TableBody = styled.tbody``;
@@ -961,6 +1047,15 @@ const TableBody = styled.tbody``;
 const TableRow = styled.tr<{ $theme: Theme }>`
   border-bottom: 1px solid ${(props) => props.$theme.colors.border};
   cursor: pointer;
+
+  @media (max-width: 420px) {
+    td:nth-child(2),
+    td:nth-child(3),
+    td:nth-child(4),
+    td:nth-child(5) {
+      display: none;
+    }
+  }
 
   &:hover {
     background: ${(props) => props.$theme.colors.background};
@@ -977,10 +1072,18 @@ const TableHeaderCell = styled.th<{ $theme: Theme }>`
   text-align: left;
   font-weight: 600;
   color: ${(props) => props.$theme.colors.textPrimary};
+
+  @media (max-width: 420px) {
+    padding: 12px 14px;
+  }
 `;
 
 const TableCell = styled.td<{ $theme: Theme }>`
   padding: 15px 20px;
+
+  @media (max-width: 420px) {
+    padding: 12px 14px;
+  }
 `;
 
 const CompanyButton = styled.div<{ $theme: Theme; $selected: boolean }>`
@@ -997,6 +1100,32 @@ const CompanyButton = styled.div<{ $theme: Theme; $selected: boolean }>`
 const CompanyName = styled.div<{ $theme: Theme }>`
   font-weight: 600;
   color: ${(props) => props.$theme.colors.textPrimary};
+  overflow-wrap: anywhere;
+  word-break: break-word;
+`;
+
+const CompanyMeta = styled.div`
+  display: none;
+  margin-top: 2px;
+  font-size: 12px;
+  color: rgb(var(--color-text-secondary));
+  line-height: 1.2;
+  word-break: break-word;
+
+  @media (max-width: 420px) {
+    display: block;
+  }
+`;
+
+const RowActions = styled.div`
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+
+  @media (max-width: 420px) {
+    justify-content: flex-start;
+  }
 `;
 
 const CompanyChevron = styled.span`
@@ -1036,6 +1165,10 @@ const ExpandedHeader = styled.div`
   justify-content: space-between;
   gap: 10px;
   margin-bottom: 10px;
+
+  @media (max-width: 420px) {
+    flex-wrap: wrap;
+  }
 `;
 
 const ExpandedTitle = styled.div`
@@ -1046,6 +1179,11 @@ const ExpandedTitle = styled.div`
 const ExpandedActions = styled.div`
   display: inline-flex;
   gap: 8px;
+
+  @media (max-width: 420px) {
+    flex-wrap: wrap;
+    width: 100%;
+  }
 `;
 
 const SmallButton = styled.button`
@@ -1117,7 +1255,7 @@ const MetaCard = styled.div`
 
 const MetaRow = styled.div`
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 10px;
   padding: 6px 0;
@@ -1132,6 +1270,10 @@ const MetaKey = styled.div`
 const MetaValue = styled.div`
   font-size: 13px;
   color: rgb(var(--color-text-primary));
+  min-width: 0;
+  text-align: right;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 `;
 
 const ContactsList = styled.div`
@@ -1162,24 +1304,27 @@ const ContactMeta = styled.div`
 `;
 
 const ActionButton = styled.button`
-  background: rgb(59, 130, 246);
-  color: white;
+  background: rgb(var(--color-primary));
+  color: rgb(var(--color-primary-foreground));
   border: none;
   border-radius: 4px;
   padding: 6px 12px;
   font-size: 12px;
   cursor: pointer;
-  margin-right: 8px;
   transition: background-color 0.2s ease;
 
   &:hover {
-    background: rgb(var(--color-primary));
+    background: rgba(var(--color-primary), 0.9);
+  }
+
+  @media (max-width: 420px) {
+    min-height: 44px;
   }
 `;
 
 const DeleteButton = styled.button`
-  background: rgb(var(--color-primary));
-  color: white;
+  background: rgb(var(--color-danger));
+  color: rgb(var(--color-primary-foreground));
   border: none;
   border-radius: 4px;
   padding: 6px 12px;
@@ -1188,7 +1333,11 @@ const DeleteButton = styled.button`
   transition: background-color 0.2s ease;
 
   &:hover {
-    background: rgb(var(--color-primary));
+    background: rgba(var(--color-danger), 0.9);
+  }
+
+  @media (max-width: 420px) {
+    min-height: 44px;
   }
 `;
 

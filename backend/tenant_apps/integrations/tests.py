@@ -6,6 +6,7 @@ from django.contrib.auth.models import User
 from django.test import TestCase
 
 from apps.tenants.models import Tenant
+from apps.tenants.rls import RlsSetResult
 
 from .models import TenantAPIKey, TenantWebhook, TenantWebhookEventType, generate_api_key
 from .tasks import dispatch_webhook_payload
@@ -73,10 +74,40 @@ class TenantIntegrationsTaskTests(TestCase):
         )
 
         payload = {'hello': 'world'}
-        result = dispatch_webhook_payload.run(webhook_id=wh.id, event_type=wh.event_type, payload=payload)
+        result = dispatch_webhook_payload.run(
+            webhook_id=wh.id,
+            tenant_id=str(self.tenant.id),
+            event_type=wh.event_type,
+            payload=payload,
+        )
         self.assertTrue(result['success'])
 
         _, kwargs = mock_post.call_args
         headers = kwargs['headers']
         self.assertIn('X-PM-Signature', headers)
         self.assertEqual(headers['X-PM-Event'], wh.event_type)
+
+    @patch('tenant_apps.integrations.tasks.requests.post')
+    @patch('apps.tenants.rls.set_current_tenant', return_value=RlsSetResult(ok=False, error='db unavailable'))
+    def test_dispatch_webhook_payload_skips_when_rls_set_fails(self, mock_set_current_tenant, mock_post):
+        wh = TenantWebhook.objects.create(
+            tenant=self.tenant,
+            created_by=self.user,
+            target_url='https://example.com/webhook',
+            event_type=TenantWebhookEventType.PURCHASE_ORDER_CREATED,
+            is_active=True,
+            signing_secret='secret',
+        )
+
+        result = dispatch_webhook_payload.run(
+            webhook_id=wh.id,
+            tenant_id=str(self.tenant.id),
+            event_type=wh.event_type,
+            payload={'hello': 'world'},
+        )
+
+        self.assertFalse(result['success'])
+        self.assertEqual(result['reason'], 'rls_set_failed')
+        self.assertIn('db unavailable', result.get('error', ''))
+        mock_set_current_tenant.assert_called_once_with(str(self.tenant.id))
+        mock_post.assert_not_called()

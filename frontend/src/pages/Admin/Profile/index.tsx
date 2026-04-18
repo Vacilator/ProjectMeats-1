@@ -228,7 +228,7 @@ const AdminProfilePage: React.FC = () => {
     const { name, value } = e.target;
     setFormData((prev) => ({
       ...prev,
-      [name]: name === 'contact_phone' ? formatUsPhone(value) : value,
+      [name]: value,
     }));
   };
 
@@ -500,11 +500,17 @@ const AdminProfilePage: React.FC = () => {
                   id="contact_phone"
                   name="contact_phone"
                   type="tel"
-                  inputMode="numeric"
-                  maxLength={13}
+                  inputMode="tel"
+                  maxLength={14}
                   value={formData.contact_phone}
                   onChange={handleInputChange}
-                  placeholder="(XXX)XXX-XXXX"
+                  onBlur={(e) => {
+                    setFormData((prev) => ({
+                      ...prev,
+                      contact_phone: formatUsPhone(e.target.value || ''),
+                    }));
+                  }}
+                  placeholder="(XXX) XXX-XXXX"
                   autoComplete="tel"
                 />
               </Field>

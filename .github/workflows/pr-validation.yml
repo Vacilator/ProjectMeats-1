@@ -22,6 +22,24 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  infrastructure-check:
+    name: Infrastructure Drift Gate
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+
+      - name: Verify golden pipeline invariants
+        run: bash .github/scripts/check_infrastructure.sh
+
   validate-migrations:
     name: Validate Migrations
     runs-on: ubuntu-latest
@@ -125,9 +143,9 @@ jobs:
         working-directory: ./frontend
         run: npm ci
 
-      - name: Type check
+      - name: Verify frontend standards
         working-directory: ./frontend
-        run: npm run type-check
+        run: npm run verify-standards
 
   validate-copilot-squad:
     name: Validate Copilot Squad

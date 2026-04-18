@@ -28,6 +28,7 @@ interface SupplierContact {
   phone?: string;
   position?: string;
   company?: string;
+  department?: string;
 }
 import { useTheme } from '../contexts/ThemeContext';
 import { Theme } from '../config/theme';
@@ -621,7 +622,7 @@ const Suppliers: React.FC = () => {
                                       {c.first_name} {c.last_name}
                                     </ContactName>
                                     <ContactMeta>
-                                      {(c as any).department ? <span>{(c as any).department}</span> : null}
+                                      <span>Dept: {String(c.department || '—')}</span>
                                       {c.position ? <span>{c.position}</span> : null}
                                       {c.email ? <span>{c.email}</span> : null}
                                       {c.phone ? <span>{c.phone}</span> : null}

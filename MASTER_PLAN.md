@@ -68,6 +68,9 @@ We are re-validating and completing the last ~25 prompts with **evidence-based a
 - Plants: fix available-products endpoint routing so GET /plants/{id}/available-products works (was 405) — PR #3986
 - UniversalEntityForm: fix invoice schema 404 + required FK validation + better 400 error surfacing — PR #3989
 - Inquiries: prevent 500 on /api/v1/inquiries/ when tenant context missing — PR #3990
+- WorkForms/Quick Actions runtime restored + hardening (executions, visibility, back-compat): PRs #4452–#4456 (tested: backend + frontend)
+- WorkForms: per-step node status rendering (entity record + execution details): PR #4457 (tested: frontend)
+- CI: master deploy pipeline workflow display name clarified for Actions feed: PR #4458 (tested: workflow validator)
 
 ### Current blockers / external dependencies
 - Some features require environment secrets/infra to activate fully (e.g., OpenAI key, OAuth credentials). Code must degrade gracefully when secrets are missing.
@@ -2391,17 +2394,18 @@ F9 (AI) ────────────────────────
 
 #### Acceptance Criteria
 
-- [ ] Zero unauthenticated API access possible
-- [ ] Mobile users can create orders from field (iPhone SE 375px)
-- [ ] TypeScript errors block PR merge
-- [ ] Missing OpenAI key shows "AI not configured" message, not crash
-- [ ] Email sync errors show actionable guidance
+- [x] Zero unauthenticated API access possible (DRF default permission is IsAuthenticated; public endpoints are explicitly allowlisted + tested)
+- [x] Mobile users can create orders from field (iPhone SE 375px) (E2E: mobile_purchase_orders_create, mobile_inquiries_375, mobile_sales_orders_create; PRs #4397, #4399, #4401)
+- [x] Mobile users can create customers from field (iPhone SE 375px) (E2E: mobile_customers_create; PR #4406)
+- [x] TypeScript errors block PR merge (PR validation includes `npm run type-check`)
+- [x] Missing OpenAI key shows "AI not configured" message, not crash (stable 503 error contract + frontend details messaging)
+- [x] Email sync errors show actionable guidance (Sync Now returns structured code/error_code + reconnect CTA; tests in apps.integrations)
 
 #### Testing Requirements
 
-- [ ] Add Playwright tests for mobile viewport (375px, 768px)
-- [ ] Add API contract tests for error responses
-- [ ] Add NotificationsContext unit tests
+- [x] Add Playwright tests for mobile viewport (375px, 768px) (frontend/e2e/mobile_viewports.spec.ts; PR #4382)
+- [x] Add API contract tests for error responses (PR #4381; upload 4xx mapping PR #4379)
+- [x] Add NotificationsContext unit tests (Vitest: `frontend/src/contexts/NotificationsContext.test.tsx`, 14 tests; stderr noise cleaned in PR #4388)
 
 ---
 
@@ -2430,7 +2434,7 @@ F9 (AI) ────────────────────────
 
 #### Testing Requirements
 
-- [ ] Unit tests for SearchableSelect all variants
+- [x] Unit tests for SearchableSelect variants (local, API, static, multi-value) (PR #4410)
 - [ ] Storybook visual regression tests for atoms
 - [ ] Integration tests for FormField registry
 
@@ -2611,7 +2615,7 @@ F9 (AI) ────────────────────────
 | InquiryCreateModal | 0% | 70% | E2E + Unit |
 | SearchableSelect | 0% | 80% | Unit + Visual |
 | UnifiedFlowEditor | 0% | 50% | E2E + Integration |
-| NotificationsContext | 0% | 80% | Unit + Integration |
+| NotificationsContext | Unit tests added (14, Vitest) | 80% | Unit + Integration |
 | workflow_service.py | N/A (new) | 90% | Unit |
 
 ### Test Pyramid for Phase 10

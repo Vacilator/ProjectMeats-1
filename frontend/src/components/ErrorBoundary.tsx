@@ -112,7 +112,7 @@ class ErrorBoundary extends Component<Props, State> {
     try {
       // Check if telemetry endpoint exists
       const telemetryEndpoint = '/api/telemetry/errors/';
-      
+
       const payload = {
         message: error.message,
         stack: error.stack,
@@ -121,16 +121,15 @@ class ErrorBoundary extends Component<Props, State> {
         userAgent: navigator.userAgent,
         timestamp: new Date().toISOString(),
       };
-      
-      // Non-blocking fetch (fire and forget)
-      fetch(telemetryEndpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      }).catch(err => {
-        // Silently fail if telemetry endpoint doesn't exist
-        console.warn('Telemetry endpoint not available:', err);
-      });
+
+      // Non-blocking request (fire and forget). We intentionally avoid raw fetch
+      // and reuse our centralized client for consistent auth/tenant context.
+      import('../services/apiService')
+        .then(({ adminClient }) => adminClient.post(telemetryEndpoint, payload))
+        .catch((err) => {
+          // Silently fail if telemetry endpoint doesn't exist
+          console.warn('Telemetry endpoint not available:', err);
+        });
     } catch (e) {
       // Don't throw errors from telemetry
       console.warn('Failed to send telemetry:', e);

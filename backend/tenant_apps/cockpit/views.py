@@ -227,28 +227,33 @@ class CockpitSlotViewSet(viewsets.ReadOnlyModelViewSet):
         - Polymorphic list with 'type' field: 'customer', 'supplier', or 'order'
         """
         q = request.query_params.get('q', '').strip()
-        
+
+        tenant = getattr(request, 'tenant', None)
+        if not tenant:
+            # Fail closed: shared-schema search must never return cross-tenant results.
+            return Response([])
+
         results = []
-        
+
         if q:
             # Search customers by name
-            customers = Customer.objects.filter(
+            customers = Customer.objects.filter(tenant=tenant).filter(
                 Q(name__icontains=q) | Q(contact_person__icontains=q)
             )[:10]
             results.extend(CustomerSlotSerializer(customers, many=True).data)
-            
+
             # Search suppliers by name
-            suppliers = Supplier.objects.filter(
+            suppliers = Supplier.objects.filter(tenant=tenant).filter(
                 Q(name__icontains=q) | Q(contact_person__icontains=q)
             )[:10]
             results.extend(SupplierSlotSerializer(suppliers, many=True).data)
-            
+
             # Search orders by order numbers
-            orders = PurchaseOrder.objects.filter(
+            orders = PurchaseOrder.objects.filter(tenant=tenant).filter(
                 Q(order_number__icontains=q) | Q(our_purchase_order_num__icontains=q)
             ).select_related('supplier')[:10]
             results.extend(OrderSlotSerializer(orders, many=True).data)
-        
+
         return Response(results)
 
 

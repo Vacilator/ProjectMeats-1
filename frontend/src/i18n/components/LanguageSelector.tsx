@@ -5,6 +5,8 @@ import { useTranslation } from '../hooks';
 import { supportedLanguages, languageNames, type SupportedLanguage } from '../config';
 import styled from 'styled-components';
 
+import { getAntdPopupContainer } from '../../utils/antdPopupContainer';
+
 const LanguageSelectorWrapper = styled.div`
   display: inline-flex;
   align-items: center;
@@ -57,6 +59,7 @@ export const LanguageSelector: React.FC<LanguageSelectorProps> = ({
         value={currentLanguage}
         onChange={handleChange}
         options={options}
+        getPopupContainer={getAntdPopupContainer}
         aria-label="Select language"
       />
     </LanguageSelectorWrapper>

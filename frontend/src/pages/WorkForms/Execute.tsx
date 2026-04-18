@@ -9,18 +9,16 @@ import React, { useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Skeleton } from 'antd';
-import { apiClient } from '@/services/apiService';
 import { showAlert } from '@/utils/uiDialogs';
+import {
+  createFormSubmission,
+  executeTenantWorkForm,
+  type WorkFormExecuteResponse,
+} from '@/services/workformsApi';
 
-interface ExecuteResponse {
-  id: string;
-  workform_id: string;
-  workform_name: string;
-  status: string;
-  started_at?: string;
-  completed_at?: string;
-  error_message?: string;
-}
+type ExecuteResult =
+  | { kind: 'workform'; execution: WorkFormExecuteResponse }
+  | { kind: 'form'; submissionId: string };
 
 export const ExecuteWorkForm: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -28,19 +26,51 @@ export const ExecuteWorkForm: React.FC = () => {
   const queryClient = useQueryClient();
 
   const mutation = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (): Promise<ExecuteResult> => {
       if (!id) throw new Error('Missing workform id');
-      const response = await apiClient.post<ExecuteResponse>(`/tenant-workforms/${id}/execute/`, {
-        initial_data: {},
-      });
-      return response.data;
+
+      let initialData: Record<string, unknown> = {};
+      try {
+        const raw = sessionStorage.getItem('pm.activeRecordContext');
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          const activeRecord = parsed?.activeRecord;
+          if (activeRecord?.type && activeRecord?.id != null) {
+            initialData = {
+              entity_type: String(activeRecord.type),
+              entity_id: String(activeRecord.id),
+            };
+          }
+        }
+      } catch {
+        // Ignore malformed session payload
+      }
+
+      try {
+        const execution = await executeTenantWorkForm(id, initialData);
+        return { kind: 'workform', execution };
+      } catch (err: any) {
+        // Backward compatibility: older QuickActions may still point at legacy form/workflow IDs.
+        // If the TenantWorkForm execute endpoint returns 404, fall back to legacy form submission runner.
+        if (err?.response?.status === 404) {
+          const submission = await createFormSubmission(id);
+          return { kind: 'form', submissionId: submission.id };
+        }
+        throw err;
+      }
     },
-    onSuccess: async (data) => {
+    onSuccess: async (result: ExecuteResult) => {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['workforms-catalog-items'] }),
         queryClient.invalidateQueries({ queryKey: ['workform-executions', 'active'] }),
       ]);
 
+      if (result.kind === 'form') {
+        navigate(`/workforms/in-progress/${result.submissionId}`, { replace: true });
+        return;
+      }
+
+      const data = result.execution;
       if (data.status === 'failed') {
         showAlert({
           type: 'error',

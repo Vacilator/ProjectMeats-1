@@ -239,13 +239,14 @@ def execute_workform_execution(execution_id: str, tenant_id: str) -> dict:
         result = engine.execute(trigger_payload=initial_data)
 
         execution.context_data = result.context
+        execution.audit_trail = (result.context or {}).get('audit_trail', [])
         if result.success:
             execution.status = TenantWorkFormExecutionStatus.COMPLETED
         else:
             execution.status = TenantWorkFormExecutionStatus.FAILED
             execution.error_message = str(result.error or '')
         execution.completed_at = timezone.now()
-        execution.save(update_fields=['status', 'context_data', 'error_message', 'completed_at'])
+        execution.save(update_fields=['status', 'context_data', 'audit_trail', 'error_message', 'completed_at'])
 
         return {'success': result.success, 'execution_id': str(execution.id), 'error': result.error}
     except Exception as exc:  # noqa: BLE001

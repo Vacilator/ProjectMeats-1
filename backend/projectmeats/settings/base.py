@@ -266,13 +266,13 @@ REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
         # JWT Authentication (Wave S1: Security Hardening)
         # Short-lived access tokens with refresh token rotation
-        "rest_framework_simplejwt.authentication.JWTAuthentication",
+        "apps.tenants.authentication.TenantAwareJWTAuthentication",
         # Legacy token auth (for backward compatibility during migration)
-        "rest_framework.authentication.TokenAuthentication",
+        "apps.tenants.authentication.TenantAwareTokenAuthentication",
         "rest_framework.authentication.SessionAuthentication",  # For Studio and browsable API
     ],
     "DEFAULT_PERMISSION_CLASSES": [
-        "rest_framework.permissions.AllowAny",
+        "rest_framework.permissions.IsAuthenticated",
     ],
     # Rate Limiting / Throttling (Wave S2: Security Hardening)
     # Prevents brute force attacks and API abuse

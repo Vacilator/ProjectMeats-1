@@ -15,7 +15,8 @@ from django.contrib.auth.models import User
 from rest_framework import status
 from rest_framework.test import APITestCase
 
-from apps.tenants.models import Tenant, TenantUser
+from apps.tenants.activity_models import ActivityLog
+from apps.tenants.models import Tenant, TenantConfiguration, TenantUser
 from tenant_apps.carriers.models import Carrier
 from tenant_apps.contacts.models import Contact
 from tenant_apps.customers.models import Customer
@@ -53,8 +54,12 @@ class TenantIsolationApiTests(APITestCase):
 
         TenantUser.objects.create(tenant=self.tenant_a, user=self.user_a, role='owner', is_active=True)
         TenantUser.objects.create(tenant=self.tenant_b, user=self.user_b, role='owner', is_active=True)
+        # Cross-tenant regression guard: user_a is admin in both tenants, but API responses
+        # must still be scoped to the current request tenant context.
+        TenantUser.objects.create(tenant=self.tenant_b, user=self.user_a, role='admin', is_active=True)
 
-        self.client.force_authenticate(user=self.user_a)
+        # Use session auth so TenantMiddleware can see an authenticated user and safely honor X-Tenant-ID.
+        self.client.force_login(self.user_a)
         self.tenant_header = {'HTTP_X_TENANT_ID': str(self.tenant_a.id)}
 
     def _assert_only_a(self, resp, a_marker: str, b_marker: str):
@@ -135,3 +140,57 @@ class TenantIsolationApiTests(APITestCase):
         # Minimal smoke for workflows endpoint filtering behavior (no fixtures required).
         resp = self.client.get('/api/v1/workflows/workflows/', **self.tenant_header)
         self.assertEqual(resp.status_code, status.HTTP_200_OK)
+
+    def test_tenant_users_list_is_tenant_scoped(self):
+        resp = self.client.get('/api/v1/tenant-users/', **self.tenant_header)
+        self._assert_only_a(resp, 'user_a', 'user_b')
+
+    def test_activity_logs_list_is_tenant_scoped(self):
+        ActivityLog.log_activity(
+            tenant=self.tenant_a,
+            user=self.user_a,
+            action='test.log',
+            description='LOG-A-ONLY',
+            entity_type='Test',
+            entity_id=None,
+            metadata={},
+            ip_address='127.0.0.1',
+        )
+        ActivityLog.log_activity(
+            tenant=self.tenant_b,
+            user=self.user_b,
+            action='test.log',
+            description='LOG-B-ONLY',
+            entity_type='Test',
+            entity_id=None,
+            metadata={},
+            ip_address='127.0.0.1',
+        )
+
+        resp = self.client.get('/api/v1/activity-logs/', **self.tenant_header)
+        self._assert_only_a(resp, 'LOG-A-ONLY', 'LOG-B-ONLY')
+
+    def test_configurations_list_is_tenant_scoped(self):
+        TenantConfiguration.objects.create(
+            tenant=self.tenant_a,
+            category='general',
+            key='cfg_a',
+            display_name='CFG-A-ONLY',
+            description='cfg',
+            value='1',
+            data_type='string',
+            updated_by=self.user_a,
+        )
+        TenantConfiguration.objects.create(
+            tenant=self.tenant_b,
+            category='general',
+            key='cfg_b',
+            display_name='CFG-B-ONLY',
+            description='cfg',
+            value='1',
+            data_type='string',
+            updated_by=self.user_b,
+        )
+
+        resp = self.client.get('/api/v1/configurations/', **self.tenant_header)
+        self._assert_only_a(resp, 'CFG-A-ONLY', 'CFG-B-ONLY')

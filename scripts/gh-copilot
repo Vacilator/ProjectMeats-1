@@ -36,64 +36,85 @@ PY
 
 show_task() {
   local task_id="$1"
-  python - <<PY
+  python - "$task_id" <<'PY'
 import json
+import sys
+
 p = '.copilot/squad/squad.json'
+task_id = sys.argv[1]
+
 with open(p, 'r', encoding='utf-8') as f:
   data = json.load(f)
+
 for t in data.get('tasks', []):
-  if t.get('id') == '${task_id}':
+  if t.get('id') == task_id:
     print(json.dumps(t, indent=2))
     raise SystemExit(0)
+
 raise SystemExit(2)
 PY
 }
 
 infer_default_agent() {
   local task_id="$1"
-  python - <<PY
+  python - "$task_id" <<'PY'
 import json
+import sys
+
 p = '.copilot/squad/squad.json'
+task_id = sys.argv[1]
+
 with open(p, 'r', encoding='utf-8') as f:
   data = json.load(f)
+
 for t in data.get('tasks', []):
-  if t.get('id') == '${task_id}':
+  if t.get('id') == task_id:
     print(t.get('default_agent', 'lead-engineer'))
     raise SystemExit(0)
-print('lead-engineer')
+
+raise SystemExit(2)
 PY
 }
 
 agent_profile_for() {
   local agent_id="$1"
-  python - <<PY
+  python - "$agent_id" <<'PY'
 import json
+import sys
+
 p = '.copilot/squad/squad.json'
+agent_id = sys.argv[1]
+
 with open(p, 'r', encoding='utf-8') as f:
   data = json.load(f)
+
 for a in data.get('agents', []):
-  if a.get('id') == '${agent_id}':
-    # map to copilot agent profile name
-    prof = a.get('copilot_agent_profile','')
-    # ID in copilot is derived from filename; ours is `projectmeats-<role>`
-    # return `name` we used in YAML frontmatter, which matches filename.
-    print(prof.split('/')[-1].replace('.agent.md',''))
+  if a.get('id') == agent_id:
+    prof = a.get('copilot_agent_profile', '')
+    print(prof.split('/')[-1].replace('.agent.md', ''))
     raise SystemExit(0)
-print('projectmeats-lead-engineer')
+
+raise SystemExit(2)
 PY
 }
 
 playbook_for() {
   local task_id="$1"
-  python - <<PY
+  python - "$task_id" <<'PY'
 import json
+import sys
+
 p = '.copilot/squad/squad.json'
+task_id = sys.argv[1]
+
 with open(p, 'r', encoding='utf-8') as f:
   data = json.load(f)
+
 for t in data.get('tasks', []):
-  if t.get('id') == '${task_id}':
-    print(t.get('playbook_file',''))
+  if t.get('id') == task_id:
+    print(t.get('playbook_file', ''))
     raise SystemExit(0)
+
 raise SystemExit(2)
 PY
 }
@@ -127,21 +148,33 @@ run_task() {
     exit 2
   fi
 
-  local default_agent
-  default_agent=$(infer_default_agent "$task_id")
-  local agent_id
-  agent_id="${agent_override:-$default_agent}"
-  local copilot_agent
-  copilot_agent=$(agent_profile_for "$agent_id")
   local playbook
-  playbook=$(playbook_for "$task_id")
-
-  if [ -z "$playbook" ] || ! [ -f "$playbook" ]; then
-    echo "Unknown task or missing playbook for: $task_id" >&2
+  playbook=$(playbook_for "$task_id") || {
+    echo "Unknown task: $task_id" >&2
     echo "Available tasks:" >&2
     list_tasks >&2
     exit 2
+  }
+
+  if [ -z "$playbook" ] || ! [ -f "$playbook" ]; then
+    echo "Missing playbook file for task '$task_id': $playbook" >&2
+    exit 2
   fi
+
+  local default_agent
+  default_agent=$(infer_default_agent "$task_id") || {
+    echo "Could not infer default agent for task: $task_id" >&2
+    exit 2
+  }
+
+  local agent_id
+  agent_id="${agent_override:-$default_agent}"
+
+  local copilot_agent
+  copilot_agent=$(agent_profile_for "$agent_id") || {
+    echo "Unknown agent: $agent_id" >&2
+    exit 2
+  }
 
   local prompt
   prompt=$(cat <<PROMPT

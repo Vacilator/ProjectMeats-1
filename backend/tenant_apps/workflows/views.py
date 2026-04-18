@@ -10,7 +10,7 @@ from datetime import timedelta
 
 from django.contrib.auth.models import User
 from django.db import IntegrityError, transaction
-from django.db.models import Count, F, Max, Prefetch
+from django.db.models import Count, Exists, F, Max, OuterRef, Prefetch, Q
 from django.utils import timezone
 from django.utils.dateparse import parse_date
 from rest_framework import mixins, serializers, status, viewsets
@@ -78,6 +78,16 @@ from .services.form_process_persistence import FormProcessPersistenceService
 # =============================================================================
 
 
+def _require_tenant(request):
+    tenant = getattr(request, 'tenant', None)
+    if not tenant:
+        return None, Response(
+            {'error': 'Tenant context is required (X-Tenant-ID header).'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    return tenant, None
+
+
 class EntityFieldsAPIView(APIView):
     """
     API endpoint for getting available fields for an entity type.
@@ -129,8 +139,12 @@ class FormStepFieldsAPIView(APIView):
 
     def get(self, request, step_id):
         """Get selected and available fields for a form step."""
+        tenant, error = _require_tenant(request)
+        if error:
+            return error
+
         try:
-            step = TenantFormEntity.objects.select_related("form").get(pk=step_id)
+            step = TenantFormEntity.objects.select_related("form").get(pk=step_id, tenant=tenant)
         except TenantFormEntity.DoesNotExist:
             return Response({"error": "Form step not found"}, status=status.HTTP_404_NOT_FOUND)
 
@@ -190,8 +204,12 @@ class FormStepFieldsAPIView(APIView):
 
     def post(self, request, step_id):
         """Save field selection for a form step."""
+        tenant, error = _require_tenant(request)
+        if error:
+            return error
+
         try:
-            step = TenantFormEntity.objects.get(pk=step_id)
+            step = TenantFormEntity.objects.get(pk=step_id, tenant=tenant)
         except TenantFormEntity.DoesNotExist:
             return Response({"error": "Form step not found"}, status=status.HTTP_404_NOT_FOUND)
 
@@ -233,8 +251,12 @@ class FormStepReorderAPIView(APIView):
 
     def post(self, request, form_id):
         """Reorder steps in a form."""
+        tenant, error = _require_tenant(request)
+        if error:
+            return error
+
         try:
-            form = TenantForm.objects.get(pk=form_id)
+            form = TenantForm.objects.get(pk=form_id, tenant=tenant)
         except TenantForm.DoesNotExist:
             return Response({"error": "Form not found"}, status=status.HTTP_404_NOT_FOUND)
 
@@ -262,8 +284,12 @@ class FormStepsAPIView(APIView):
 
     def get(self, request, form_id):
         """Get all steps for a form."""
+        tenant, error = _require_tenant(request)
+        if error:
+            return error
+
         try:
-            form = TenantForm.objects.get(pk=form_id)
+            form = TenantForm.objects.get(pk=form_id, tenant=tenant)
         except TenantForm.DoesNotExist:
             return Response({"error": "Form not found"}, status=status.HTTP_404_NOT_FOUND)
 
@@ -285,8 +311,12 @@ class FormStepsAPIView(APIView):
 
     def post(self, request, form_id):
         """Create a new step for a form."""
+        tenant, error = _require_tenant(request)
+        if error:
+            return error
+
         try:
-            form = TenantForm.objects.get(pk=form_id)
+            form = TenantForm.objects.get(pk=form_id, tenant=tenant)
         except TenantForm.DoesNotExist:
             return Response({"error": "Form not found"}, status=status.HTTP_404_NOT_FOUND)
 
@@ -330,8 +360,12 @@ class FormStepDetailAPIView(APIView):
 
     def get(self, request, step_id):
         """Get a single step."""
+        tenant, error = _require_tenant(request)
+        if error:
+            return error
+
         try:
-            step = TenantFormEntity.objects.get(pk=step_id)
+            step = TenantFormEntity.objects.get(pk=step_id, tenant=tenant)
         except TenantFormEntity.DoesNotExist:
             return Response({"error": "Step not found"}, status=status.HTTP_404_NOT_FOUND)
 
@@ -348,8 +382,12 @@ class FormStepDetailAPIView(APIView):
 
     def put(self, request, step_id):
         """Update a step."""
+        tenant, error = _require_tenant(request)
+        if error:
+            return error
+
         try:
-            step = TenantFormEntity.objects.get(pk=step_id)
+            step = TenantFormEntity.objects.get(pk=step_id, tenant=tenant)
         except TenantFormEntity.DoesNotExist:
             return Response({"error": "Step not found"}, status=status.HTTP_404_NOT_FOUND)
 
@@ -378,8 +416,12 @@ class FormStepDetailAPIView(APIView):
 
     def delete(self, request, step_id):
         """Delete a step."""
+        tenant, error = _require_tenant(request)
+        if error:
+            return error
+
         try:
-            step = TenantFormEntity.objects.get(pk=step_id)
+            step = TenantFormEntity.objects.get(pk=step_id, tenant=tenant)
         except TenantFormEntity.DoesNotExist:
             return Response({"error": "Step not found"}, status=status.HTTP_404_NOT_FOUND)
 
@@ -440,10 +482,14 @@ class FieldConfigAPIView(APIView):
 
     def get(self, request, field_id):
         """Get field configuration including auto-populate settings."""
+        tenant, error = _require_tenant(request)
+        if error:
+            return error
+
         try:
             field = TenantFormField.objects.select_related(
                 "form_entity", "form_entity__form", "auto_populate_source_step"
-            ).get(pk=field_id)
+            ).get(pk=field_id, tenant=tenant)
         except TenantFormField.DoesNotExist:
             return Response({"error": "Field not found"}, status=status.HTTP_404_NOT_FOUND)
 
@@ -517,8 +563,12 @@ class FieldConfigAPIView(APIView):
 
     def post(self, request, field_id):
         """Update field configuration including auto-populate settings."""
+        tenant, error = _require_tenant(request)
+        if error:
+            return error
+
         try:
-            field = TenantFormField.objects.get(pk=field_id)
+            field = TenantFormField.objects.get(pk=field_id, tenant=tenant)
         except TenantFormField.DoesNotExist:
             return Response({"error": "Field not found"}, status=status.HTTP_404_NOT_FOUND)
 
@@ -540,7 +590,7 @@ class FieldConfigAPIView(APIView):
             source_step_id = auto_populate.get("source_step")
             if source_step_id:
                 try:
-                    source_step = TenantFormEntity.objects.get(pk=source_step_id)
+                    source_step = TenantFormEntity.objects.get(pk=source_step_id, tenant=tenant)
                     field.auto_populate_source_step = source_step
                 except TenantFormEntity.DoesNotExist:
                     pass
@@ -577,8 +627,12 @@ class FormMappingsAPIView(APIView):
         """Get all field mappings for a form."""
         from .services import FieldMappingService
 
+        tenant, error = _require_tenant(request)
+        if error:
+            return error
+
         try:
-            form = TenantForm.objects.prefetch_related("entities").get(pk=form_id)
+            form = TenantForm.objects.prefetch_related("entities").get(pk=form_id, tenant=tenant)
         except TenantForm.DoesNotExist:
             return Response({"error": "Form not found"}, status=status.HTTP_404_NOT_FOUND)
 
@@ -619,8 +673,12 @@ class FormAutoMapAPIView(APIView):
         """Compute auto-mapping suggestions without applying them."""
         from .services import FieldMappingService
 
+        tenant, error = _require_tenant(request)
+        if error:
+            return error
+
         try:
-            form = TenantForm.objects.prefetch_related("entities").get(pk=form_id)
+            form = TenantForm.objects.prefetch_related("entities").get(pk=form_id, tenant=tenant)
         except TenantForm.DoesNotExist:
             return Response({"error": "Form not found"}, status=status.HTTP_404_NOT_FOUND)
 
@@ -633,8 +691,12 @@ class FormAutoMapAPIView(APIView):
         """Apply auto-mappings (either suggested or provided)."""
         from .services import FieldMappingService
 
+        tenant, error = _require_tenant(request)
+        if error:
+            return error
+
         try:
-            form = TenantForm.objects.prefetch_related("entities").get(pk=form_id)
+            form = TenantForm.objects.prefetch_related("entities").get(pk=form_id, tenant=tenant)
         except TenantForm.DoesNotExist:
             return Response({"error": "Form not found"}, status=status.HTTP_404_NOT_FOUND)
 
@@ -667,8 +729,12 @@ class FieldMappingAPIView(APIView):
         """Update a field's mapping."""
         from .services import FieldMappingService
 
+        tenant, error = _require_tenant(request)
+        if error:
+            return error
+
         try:
-            field = TenantFormField.objects.get(pk=field_id)
+            field = TenantFormField.objects.get(pk=field_id, tenant=tenant)
         except TenantFormField.DoesNotExist:
             return Response({"error": "Field not found"}, status=status.HTTP_404_NOT_FOUND)
 
@@ -691,8 +757,12 @@ class FieldMappingAPIView(APIView):
         """Remove a field's mapping."""
         from .services import FieldMappingService
 
+        tenant, error = _require_tenant(request)
+        if error:
+            return error
+
         try:
-            field = TenantFormField.objects.get(pk=field_id)
+            field = TenantFormField.objects.get(pk=field_id, tenant=tenant)
         except TenantFormField.DoesNotExist:
             return Response({"error": "Field not found"}, status=status.HTTP_404_NOT_FOUND)
 
@@ -711,8 +781,12 @@ class FormRulesAPIView(APIView):
 
     def get(self, request, form_id):
         """Get all rules for a form with step/field context."""
+        tenant, error = _require_tenant(request)
+        if error:
+            return error
+
         try:
-            form = TenantForm.objects.prefetch_related("entities", "rules").get(pk=form_id)
+            form = TenantForm.objects.prefetch_related("entities", "rules").get(pk=form_id, tenant=tenant)
         except TenantForm.DoesNotExist:
             return Response({"error": "Form not found"}, status=status.HTTP_404_NOT_FOUND)
 
@@ -756,8 +830,12 @@ class FormRulesAPIView(APIView):
 
     def post(self, request, form_id):
         """Create a new rule for a form."""
+        tenant, error = _require_tenant(request)
+        if error:
+            return error
+
         try:
-            form = TenantForm.objects.get(pk=form_id)
+            form = TenantForm.objects.get(pk=form_id, tenant=tenant)
         except TenantForm.DoesNotExist:
             return Response({"error": "Form not found"}, status=status.HTTP_404_NOT_FOUND)
 
@@ -795,8 +873,12 @@ class FormRuleDetailAPIView(APIView):
 
     def get(self, request, rule_id):
         """Get a single rule."""
+        tenant, error = _require_tenant(request)
+        if error:
+            return error
+
         try:
-            rule = TenantFormRule.objects.select_related("form").get(pk=rule_id)
+            rule = TenantFormRule.objects.select_related("form").get(pk=rule_id, tenant=tenant)
         except TenantFormRule.DoesNotExist:
             return Response({"error": "Rule not found"}, status=status.HTTP_404_NOT_FOUND)
 
@@ -815,8 +897,12 @@ class FormRuleDetailAPIView(APIView):
 
     def put(self, request, rule_id):
         """Update a rule."""
+        tenant, error = _require_tenant(request)
+        if error:
+            return error
+
         try:
-            rule = TenantFormRule.objects.get(pk=rule_id)
+            rule = TenantFormRule.objects.get(pk=rule_id, tenant=tenant)
         except TenantFormRule.DoesNotExist:
             return Response({"error": "Rule not found"}, status=status.HTTP_404_NOT_FOUND)
 
@@ -843,8 +929,12 @@ class FormRuleDetailAPIView(APIView):
 
     def delete(self, request, rule_id):
         """Delete a rule."""
+        tenant, error = _require_tenant(request)
+        if error:
+            return error
+
         try:
-            rule = TenantFormRule.objects.get(pk=rule_id)
+            rule = TenantFormRule.objects.get(pk=rule_id, tenant=tenant)
         except TenantFormRule.DoesNotExist:
             return Response({"error": "Rule not found"}, status=status.HTTP_404_NOT_FOUND)
 
@@ -1378,8 +1468,11 @@ class TenantFormEntityViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         qs = super().get_queryset()
-        if hasattr(self.request, "tenant") and self.request.tenant:
-            qs = qs.filter(form__tenant=self.request.tenant)
+        tenant = getattr(self.request, "tenant", None)
+        if not tenant:
+            return qs.none()
+
+        qs = qs.filter(form__tenant=tenant)
 
         # Filter by form
         form_id = self.request.query_params.get("form")
@@ -1413,8 +1506,11 @@ class TenantFormFieldViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         qs = super().get_queryset()
-        if hasattr(self.request, "tenant") and self.request.tenant:
-            qs = qs.filter(form_entity__form__tenant=self.request.tenant)
+        tenant = getattr(self.request, "tenant", None)
+        if not tenant:
+            return qs.none()
+
+        qs = qs.filter(form_entity__form__tenant=tenant)
 
         # Filter by entity
         entity_id = self.request.query_params.get("entity")
@@ -1442,7 +1538,14 @@ class TenantFormFieldViewSet(viewsets.ModelViewSet):
             404: {"error": "Field not found or cascading not enabled"}
         """
         from tenant_apps.workflows.services.cascading import CascadingFieldService
-        
+
+        tenant = getattr(request, 'tenant', None)
+        if not tenant:
+            return Response(
+                {"error": "Tenant context is required (X-Tenant-ID header)"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         field = self.get_object()
         parent_value = request.query_params.get('parent_value')
         
@@ -1462,7 +1565,7 @@ class TenantFormFieldViewSet(viewsets.ModelViewSet):
             options = CascadingFieldService.get_cascaded_options(
                 field=field,
                 parent_value=parent_value,
-                tenant_id=str(request.tenant.id) if request.tenant else None
+                tenant_id=str(tenant.id)
             )
             return Response(options, status=status.HTTP_200_OK)
         except Exception as e:
@@ -1483,8 +1586,11 @@ class TenantFormRuleViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         qs = super().get_queryset()
-        if hasattr(self.request, "tenant") and self.request.tenant:
-            qs = qs.filter(form__tenant=self.request.tenant)
+        tenant = getattr(self.request, "tenant", None)
+        if not tenant:
+            return qs.none()
+
+        qs = qs.filter(form__tenant=tenant)
 
         # Filter by form
         form_id = self.request.query_params.get("form")
@@ -1869,8 +1975,11 @@ class TenantWorkflowConditionViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         qs = super().get_queryset()
-        if hasattr(self.request, "tenant") and self.request.tenant:
-            qs = qs.filter(workflow__tenant=self.request.tenant)
+        tenant = getattr(self.request, "tenant", None)
+        if not tenant:
+            return qs.none()
+
+        qs = qs.filter(workflow__tenant=tenant)
 
         workflow_id = self.request.query_params.get("workflow")
         if workflow_id:
@@ -1890,8 +1999,11 @@ class TenantWorkflowActionViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         qs = super().get_queryset()
-        if hasattr(self.request, "tenant") and self.request.tenant:
-            qs = qs.filter(workflow__tenant=self.request.tenant)
+        tenant = getattr(self.request, "tenant", None)
+        if not tenant:
+            return qs.none()
+
+        qs = qs.filter(workflow__tenant=tenant)
 
         workflow_id = self.request.query_params.get("workflow")
         if workflow_id:
@@ -1913,8 +2025,11 @@ class WorkflowExecutionLogViewSet(viewsets.ReadOnlyModelViewSet):
 
     def get_queryset(self):
         qs = super().get_queryset()
-        if hasattr(self.request, "tenant") and self.request.tenant:
-            qs = qs.filter(workflow__tenant=self.request.tenant)
+        tenant = getattr(self.request, "tenant", None)
+        if not tenant:
+            return qs.none()
+
+        qs = qs.filter(workflow__tenant=tenant)
 
         # Filter by workflow
         workflow_id = self.request.query_params.get("workflow")
@@ -1960,10 +2075,42 @@ class TenantWorkFormExecutionViewSet(viewsets.ReadOnlyModelViewSet):
     def get_queryset(self):
         from .models import TenantWorkFormExecution
 
-        qs = TenantWorkFormExecution.objects.select_related('workform', 'started_by', 'tenant')
+        tenant = getattr(self.request, 'tenant', None)
+        if not tenant:
+            return TenantWorkFormExecution.objects.none()
 
-        if not self.request.user.is_superuser:
-            qs = qs.filter(tenant=self.request.tenant)
+        qs = TenantWorkFormExecution.objects.select_related('workform', 'started_by', 'tenant').filter(tenant=tenant)
+
+        workform_id = (self.request.query_params.get('workform') or '').strip()
+        if workform_id:
+            qs = qs.filter(workform_id=workform_id)
+
+        started_by = (self.request.query_params.get('started_by') or '').strip()
+        if started_by:
+            # Prevent user-id enumeration: allow started_by=me for all users; allow arbitrary IDs only for tenant admins.
+            if started_by == 'me':
+                qs = qs.filter(started_by=self.request.user)
+            else:
+                from apps.tenants.models import TenantUser
+
+                is_tenant_admin = TenantUser.objects.filter(
+                    tenant=tenant,
+                    user=self.request.user,
+                    is_active=True,
+                    role__in=['owner', 'admin'],
+                ).exists()
+                if not is_tenant_admin:
+                    return TenantWorkFormExecution.objects.none()
+
+                qs = qs.filter(started_by_id=started_by)
+
+        entity_type = (self.request.query_params.get('entity_type') or '').strip()
+        if entity_type:
+            qs = qs.filter(initial_data__entity_type=entity_type)
+
+        entity_id = (self.request.query_params.get('entity_id') or '').strip()
+        if entity_id:
+            qs = qs.filter(initial_data__entity_id=str(entity_id))
 
         status_param = self.request.query_params.get('status')
         if status_param:
@@ -2065,43 +2212,69 @@ class FormSubmissionViewSet(viewsets.ModelViewSet):
         Returns empty queryset on any database/RLS errors to prevent 500 responses.
         """
         try:
-            qs = FormSubmission.objects.filter(tenant=self.request.tenant)
+            tenant = getattr(self.request, 'tenant', None)
+            if not tenant:
+                return FormSubmission.objects.none()
 
-            # Filter by assigned_to (apply before non-admin created_by restriction)
-            # Note: This filters submissions where the user has at least one step assignment
-            # in the form definition (via StepAssignment), regardless of the submission's current step.
-            # Security: Non-admin users are restricted to 'assigned_to=me' only to prevent user ID enumeration.
-            assigned_to = self.request.query_params.get("assigned_to")
+            qs = FormSubmission.objects.filter(tenant=tenant)
+
+            # ------------------------------------------------------------------
+            # Visibility / assignment filtering
+            # ------------------------------------------------------------------
+            assigned_to = (self.request.query_params.get("assigned_to") or '').strip()
+
+            # Tenant role (used for admin checks + role-based assignments)
+            try:
+                from apps.tenants.models import TenantUser
+
+                tenant_user = TenantUser.objects.filter(tenant=tenant, user=self.request.user, is_active=True).first()
+                tenant_role = tenant_user.role if tenant_user else None
+            except Exception:
+                tenant_role = None
+
+            # Preserve legacy behavior: staff users (admin UI) can see tenant submissions without requiring TenantUser.
+            is_tenant_admin = bool(
+                self.request.user.is_superuser
+                or self.request.user.is_staff
+                or tenant_role in ['owner', 'admin']
+            )
+
+            # Determine whether a submission is assigned to the current user.
+            # Back-compat: legacy submissions may have current_step=NULL; in that case, treat assignments as
+            # "assigned anywhere in the form" (this matches existing tests + production behavior).
+            assigned_to_me_q = Q(form__step_assignments__assignment_type='user', form__step_assignments__assigned_user=self.request.user)
+            if tenant_role:
+                assigned_to_me_q |= Q(
+                    form__step_assignments__assignment_type__in=['role', 'team'],
+                    form__step_assignments__assigned_role=tenant_role,
+                )
+            assigned_to_me_q |= Q(form__step_assignments__assignment_type='pool')
+
             if assigned_to:
-                if assigned_to == "me":
-                    qs = qs.filter(form__step_assignments__assigned_user=self.request.user).distinct()
-                elif self.request.user.is_staff:
-                    try:
-                        user = User.objects.get(id=assigned_to)
-                        qs = qs.filter(form__step_assignments__assigned_user=user).distinct()
-                    except (User.DoesNotExist, ValueError) as e:
-                        logger.warning(
-                            f"Invalid assigned_to parameter: {assigned_to} - {type(e).__name__}: {e}",
-                            extra={"user": self.request.user.username, "assigned_to": assigned_to},
-                        )
-                        qs = qs.none()
+                # Security: allow assigned_to=me for everyone; allow arbitrary IDs only for tenant admins.
+                if assigned_to == 'me':
+                    qs = qs.filter(assigned_to_me_q).distinct()
                 else:
-                    logger.warning(
-                        f"Non-admin user attempted to use assigned_to with value: {assigned_to}",
-                        extra={"user": self.request.user.username, "assigned_to": assigned_to},
-                    )
-                    qs = qs.none()
+                    if not is_tenant_admin:
+                        qs = qs.none()
+                    else:
+                        try:
+                            target_user_id = int(assigned_to)
+                        except (TypeError, ValueError):
+                            qs = qs.none()
+                        else:
+                            qs = qs.filter(form__step_assignments__assignment_type='user', form__step_assignments__assigned_user_id=target_user_id).distinct()
+            else:
+                # Default visibility: non-admin users should see what they started + what is assigned to them.
+                if not is_tenant_admin:
+                    qs = qs.filter(Q(created_by=self.request.user) | assigned_to_me_q).distinct()
 
-            # Non-admin users only see their own submissions unless explicitly filtering by assigned_to=me.
-            # This enables MyTasks to show in-progress workflows assigned to the user even if they
-            # were initiated by someone else.
-            if not self.request.user.is_staff and assigned_to != "me":
-                qs = qs.filter(created_by=self.request.user)
-
-            # Filter by status
+            # Filter by status (support comma-separated list)
             status_filter = self.request.query_params.get("status")
             if status_filter:
-                qs = qs.filter(status=status_filter)
+                statuses = [s.strip() for s in str(status_filter).split(',') if s.strip()]
+                if statuses:
+                    qs = qs.filter(status__in=statuses)
 
             # Filter by form
             form_id = self.request.query_params.get("form")
@@ -2541,29 +2714,40 @@ class AvailableFormsViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = AvailableFormSerializer
 
     def get_queryset(self):
-        """Return ONLY TenantForms for Quick Actions.
+        """Tenant-scoped TenantForms for Quick Actions.
 
-        This endpoint must never attempt to merge models (no `.union()`), since that has repeatedly
-        caused production issues and is not required for the Quick Actions UX.
+        NOTE: This ViewSet is used as a backing queryset for filtering/pagination.
+        We *only* return the workflows app TenantForm model here.
+
+        WorkForms (apps.system.TenantWorkForm) are added in `list()` as a second query
+        to avoid cross-model unions.
         """
         tenant = getattr(self.request, 'tenant', None)
+        if not tenant:
+            return TenantForm.objects.none()
 
-        queryset = TenantForm.objects.filter(status__in=['active', 'draft'])
+        return (
+            TenantForm.objects.filter(
+                tenant=tenant,
+                status__in=['active', 'draft'],
+            ).order_by('-created_at')
+        )
 
-        # Superusers may inspect forms across tenants.
-        if not self.request.user.is_superuser:
-            if not tenant:
-                return TenantForm.objects.none()
-            queryset = queryset.filter(tenant=tenant)
+    def _get_workforms(self, request):
+        """Tenant-scoped WorkForms for Quick Actions."""
+        from apps.system.models import TenantWorkForm
 
-        return queryset.order_by('-created_at')
+        tenant = getattr(request, 'tenant', None)
+        if not tenant:
+            return TenantWorkForm.objects.none()
+
+        return TenantWorkForm.objects.filter(tenant=tenant, status__in=['active', 'draft']).order_by('-updated_at')
 
     @extend_schema(responses={200: AvailableQuickActionTargetSerializer(many=True)})
     def list(self, request, *args, **kwargs):
-        """Return legacy TenantForms only.
+        """Return Quick Action targets (forms + workforms).
 
-        WorkForms (TenantWorkForm) should be fetched via /api/v1/tenant-workforms/
-        to avoid coupling this endpoint to the WorkForms editor data model.
+        Response rows are normalized to the `AvailableQuickActionTargetSerializer` schema.
         """
 
         forms_qs = self.filter_queryset(self.get_queryset())
@@ -2572,8 +2756,26 @@ class AvailableFormsViewSet(viewsets.ReadOnlyModelViewSet):
             row['type'] = 'form'
             row['node_count'] = None
 
-        forms_data.sort(key=lambda r: str(r.get('name') or '').lower())
-        return Response(forms_data)
+        workforms_data = []
+        for wf in self._get_workforms(request):
+            workforms_data.append(
+                {
+                    'id': str(wf.id),
+                    'type': 'workflow',
+                    'name': wf.name,
+                    'description': wf.description or '',
+                    'icon': 'workflow',
+                    'status': wf.status,
+                    'is_default': False,
+                    'is_quick_action_enabled': True,
+                    'step_count': None,
+                    'node_count': wf.get_node_count() if hasattr(wf, 'get_node_count') else None,
+                }
+            )
+
+        data = forms_data + workforms_data
+        data.sort(key=lambda r: str(r.get('name') or '').lower())
+        return Response(data)
 
 
 @extend_schema(tags=["Workflows", "Quick Actions"])
@@ -2624,59 +2826,34 @@ class QuickActionsAPIView(APIView):
 
             for item in items:
                 if item["type"] == "form" and item.get("form_id"):
-                    form = TenantForm.objects.filter(
-                        id=item["form_id"],
-                        tenant=request.tenant,
-                    ).first()
-
-                    if not form and request.user.is_superuser:
-                        form = TenantForm.objects.filter(id=item["form_id"]).first()
-                        if form:
-                            logger.info(f"Superuser accessing form {item['form_id']} from tenant {form.tenant}")
+                    form = (
+                        TenantForm.objects.filter(
+                            tenant=request.tenant,
+                            id=item["form_id"],
+                            status__in=[FormStatus.DRAFT, FormStatus.ACTIVE],
+                        ).first()
+                        if request.tenant
+                        else None
+                    )
 
                     if not form:
-                        any_form = TenantForm.objects.filter(id=item["form_id"]).first()
-                        if any_form:
-                            logger.warning(
-                                f"Form {item['form_id']} exists in tenant {any_form.tenant} "
-                                f"but user's tenant is {request.tenant}"
-                            )
-                            return Response(
-                                {"error": f'Form "{any_form.name}" belongs to a different tenant'},
-                                status=status.HTTP_400_BAD_REQUEST,
-                            )
-
-                        logger.warning(f"Form {item['form_id']} does not exist in any tenant")
                         return Response(
-                            {"error": f'Form {item["form_id"]} not found'}, status=status.HTTP_400_BAD_REQUEST
+                            {"error": f'Form {item["form_id"]} not found'},
+                            status=status.HTTP_400_BAD_REQUEST,
                         )
 
                 if item["type"] == "workflow" and item.get("workflow_id"):
-                    wf = TenantWorkForm.objects.filter(
-                        id=item["workflow_id"],
-                        tenant=request.tenant,
-                    ).first()
-
-                    if not wf and request.user.is_superuser:
-                        wf = TenantWorkForm.objects.filter(id=item["workflow_id"]).first()
-                        if wf:
-                            logger.info(
-                                f"Superuser accessing workform {item['workflow_id']} from tenant {wf.tenant_id}"
-                            )
+                    wf = (
+                        TenantWorkForm.objects.filter(
+                            tenant=request.tenant,
+                            id=item["workflow_id"],
+                            status__in=['draft', 'active'],
+                        ).first()
+                        if request.tenant
+                        else None
+                    )
 
                     if not wf:
-                        any_wf = TenantWorkForm.objects.filter(id=item["workflow_id"]).first()
-                        if any_wf:
-                            logger.warning(
-                                f"WorkForm {item['workflow_id']} exists in tenant {any_wf.tenant_id} "
-                                f"but user's tenant is {request.tenant}"
-                            )
-                            return Response(
-                                {"error": 'WorkForm belongs to a different tenant'},
-                                status=status.HTTP_400_BAD_REQUEST,
-                            )
-
-                        logger.warning(f"WorkForm {item['workflow_id']} does not exist in any tenant")
                         return Response(
                             {"error": f'WorkForm {item["workflow_id"]} not found'},
                             status=status.HTTP_400_BAD_REQUEST,
@@ -3202,15 +3379,14 @@ class FormExportAPIView(APIView):
         """Export a form configuration as JSON."""
         from .services.import_export import export_form
 
+        tenant, error = _require_tenant(request)
+        if error:
+            return error
+
         try:
-            form = TenantForm.objects.get(pk=form_id)
+            form = TenantForm.objects.get(pk=form_id, tenant=tenant)
         except TenantForm.DoesNotExist:
             return Response({"error": "Form not found"}, status=status.HTTP_404_NOT_FOUND)
-
-        # Check tenant access
-        if hasattr(request, "tenant") and request.tenant:
-            if form.tenant_id and form.tenant_id != request.tenant.id:
-                return Response({"error": "Access denied"}, status=status.HTTP_403_FORBIDDEN)
 
         include_metadata = request.query_params.get("metadata", "true").lower() == "true"
         export_data = export_form(form, include_metadata=include_metadata)
@@ -3284,15 +3460,14 @@ class FormDuplicateAPIView(APIView):
         """Duplicate a form within the same tenant."""
         from .services.import_export import duplicate_form
 
+        tenant, error = _require_tenant(request)
+        if error:
+            return error
+
         try:
-            form = TenantForm.objects.get(pk=form_id)
+            form = TenantForm.objects.get(pk=form_id, tenant=tenant)
         except TenantForm.DoesNotExist:
             return Response({"error": "Form not found"}, status=status.HTTP_404_NOT_FOUND)
-
-        # Check tenant access
-        tenant = getattr(request, "tenant", None)
-        if tenant and form.tenant_id and form.tenant_id != tenant.id:
-            return Response({"error": "Access denied"}, status=status.HTTP_403_FORBIDDEN)
 
         new_name = request.data.get("name")
 
@@ -3340,15 +3515,14 @@ class FormAnalyticsAPIView(APIView):
 
         if form_id:
             # Specific form analytics
+            tenant, error = _require_tenant(request)
+            if error:
+                return error
+
             try:
-                form = TenantForm.objects.get(pk=form_id)
+                form = TenantForm.objects.get(pk=form_id, tenant=tenant)
             except TenantForm.DoesNotExist:
                 return Response({"error": "Form not found"}, status=status.HTTP_404_NOT_FOUND)
-
-            # Check tenant access
-            if hasattr(request, "tenant") and request.tenant:
-                if form.tenant_id and form.tenant_id != request.tenant.id:
-                    return Response({"error": "Access denied"}, status=status.HTTP_403_FORBIDDEN)
 
             analytics = get_form_analytics(form, days=days, include_events=include_events)
             return Response(analytics)
@@ -3376,15 +3550,14 @@ class FormEventAPIView(APIView):
         """Record a form analytics event."""
         from .services.analytics import record_form_event
 
+        tenant, error = _require_tenant(request)
+        if error:
+            return error
+
         try:
-            submission = FormSubmission.objects.get(pk=submission_id)
+            submission = FormSubmission.objects.get(pk=submission_id, tenant=tenant)
         except FormSubmission.DoesNotExist:
             return Response({"error": "Submission not found"}, status=status.HTTP_404_NOT_FOUND)
-
-        # Check access
-        if hasattr(request, "tenant") and request.tenant:
-            if submission.tenant_id != request.tenant.id:
-                return Response({"error": "Access denied"}, status=status.HTTP_403_FORBIDDEN)
 
         event_type = request.data.get("event_type")
         if not event_type:
@@ -3421,15 +3594,14 @@ class FormTestDataAPIView(APIView):
         """Generate test data for a form."""
         from .services.test_data import generate_form_test_data
 
+        tenant, error = _require_tenant(request)
+        if error:
+            return error
+
         try:
-            form = TenantForm.objects.get(pk=form_id)
+            form = TenantForm.objects.get(pk=form_id, tenant=tenant)
         except TenantForm.DoesNotExist:
             return Response({"error": "Form not found"}, status=status.HTTP_404_NOT_FOUND)
-
-        # Check tenant access
-        if hasattr(request, "tenant") and request.tenant:
-            if form.tenant_id and form.tenant_id != request.tenant.id:
-                return Response({"error": "Access denied"}, status=status.HTTP_403_FORBIDDEN)
 
         # Get form snapshot
         form_snapshot = form.form_snapshot
@@ -3477,15 +3649,26 @@ class FormStatusHistoryViewSet(mixins.ListModelMixin, mixins.CreateModelMixin, v
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        submission_id = self.kwargs.get("submission_id")
-        return FormStatusHistory.objects.filter(submission_id=submission_id).select_related("changed_by", "submission")
+        tenant = getattr(self.request, 'tenant', None)
+        if not tenant:
+            return FormStatusHistory.objects.none()
+
+        submission_id = self.kwargs.get('submission_id')
+        return (
+            FormStatusHistory.objects.filter(submission_id=submission_id, submission__tenant=tenant)
+            .select_related('changed_by', 'submission')
+        )
 
     def perform_create(self, serializer):
-        submission_id = self.kwargs.get("submission_id")
+        tenant = getattr(self.request, 'tenant', None)
+        if not tenant:
+            raise serializers.ValidationError('Tenant context is required (X-Tenant-ID header).')
+
+        submission_id = self.kwargs.get('submission_id')
         try:
-            submission = FormSubmission.objects.get(pk=submission_id)
+            submission = FormSubmission.objects.get(pk=submission_id, tenant=tenant)
         except FormSubmission.DoesNotExist:
-            raise serializers.ValidationError("Submission not found")
+            raise serializers.ValidationError('Submission not found')
 
         # Get current status before change
         from_status = submission.status
@@ -3517,9 +3700,12 @@ class StepAssignmentViewSet(viewsets.ModelViewSet):
             "tenant", "form", "step", "assigned_user", "escalation_user", "created_by"
         )
 
-        # Filter by tenant
-        if hasattr(self.request, "tenant") and self.request.tenant:
-            queryset = queryset.filter(tenant=self.request.tenant)
+        # Filter by tenant (fail closed)
+        tenant = getattr(self.request, "tenant", None)
+        if not tenant:
+            return queryset.none()
+
+        queryset = queryset.filter(tenant=tenant)
 
         # Filter by form
         form_id = self.request.query_params.get("form")
@@ -3562,9 +3748,12 @@ class UserNotificationViewSet(
     def get_queryset(self):
         queryset = UserNotification.objects.filter(user=self.request.user, is_dismissed=False).select_related("tenant")
 
-        # Filter by tenant if available
-        if hasattr(self.request, "tenant") and self.request.tenant:
-            queryset = queryset.filter(tenant=self.request.tenant)
+        # Filter by tenant (fail closed)
+        tenant = getattr(self.request, "tenant", None)
+        if not tenant:
+            return queryset.none()
+
+        queryset = queryset.filter(tenant=tenant)
 
         # Filter by read status
         is_read = self.request.query_params.get("is_read")

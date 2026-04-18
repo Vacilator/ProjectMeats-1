@@ -23,6 +23,8 @@ import logging
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 
+from django.utils import timezone
+
 from apps.system.models.tenant_workform import TenantWorkForm
 from tenant_apps.workflows.services.action_executor import ActionExecutor
 
@@ -51,6 +53,7 @@ class WorkFormEngine:
         self.context: Dict[str, Any] = initial_context or {}
         self.context.setdefault('variables', {})
         self.context.setdefault('errors', [])
+        self.context.setdefault('audit_trail', [])
 
         self.action_executor = ActionExecutor(workform.tenant, self.context)
 
@@ -66,6 +69,8 @@ class WorkFormEngine:
         start_id = start_node_id or self._find_start_node_id()
         if not start_id:
             return ExecutionResult(success=False, context=self.context, error='No start/trigger node found')
+
+        self._append_audit_event('execution_start', node_id=start_id)
 
         stop_set = set(stop_node_ids or [])
 
@@ -84,9 +89,11 @@ class WorkFormEngine:
                 return ExecutionResult(success=False, context=self.context, error=f'Node not found: {current_id}')
 
             node_type = (node.get('type') or '').strip()
+            self._append_audit_event('node_enter', node_id=current_id, node_type=node_type)
 
             # Terminal nodes
             if node_type.startswith('end') or node_type.startswith('terminal'):
+                self._append_audit_event('node_terminal', node_id=current_id, node_type=node_type)
                 break
 
             # Loop nodes
@@ -95,8 +102,11 @@ class WorkFormEngine:
                 on_complete = self._next_node_id(current_id, prefer_error=False, source_handle='on-complete')
 
                 # Enqueue sub-executions for each array item down the Loop Body edge.
+                enqueued = 0
                 if loop_body_start:
-                    self._handle_loop_node(node, loop_body_start_node_id=loop_body_start)
+                    enqueued = self._handle_loop_node(node, loop_body_start_node_id=loop_body_start)
+
+                self._append_audit_event('loop_enqueued', node_id=current_id, node_type=node_type, items=enqueued)
 
                 # Continue down the On Complete path (or fall back to first non-error edge).
                 current_id = on_complete or self._next_node_id(
@@ -109,7 +119,9 @@ class WorkFormEngine:
             # Action nodes: wrap with try/except and route to error edge if present
             if node_type.startswith('action'):
                 try:
+                    self._append_audit_event('action_start', node_id=current_id, node_type=node_type)
                     self._execute_action_node(node)
+                    self._append_audit_event('action_success', node_id=current_id, node_type=node_type)
                     current_id = self._next_node_id(current_id, prefer_error=False)
                     continue
                 except Exception as e:  # noqa: BLE001 - routing policy
@@ -122,10 +134,12 @@ class WorkFormEngine:
                         }
                         self.context['errors'].append(payload)
                         self.context['variables']['last_error'] = payload
+                        self._append_audit_event('action_error', node_id=current_id, node_type=node_type, error=str(e), routed_to=error_target)
                         logger.warning('[WorkFormEngine] Routed error from %s to %s: %s', current_id, error_target, e)
                         current_id = error_target
                         continue
 
+                    self._append_audit_event('action_error', node_id=current_id, node_type=node_type, error=str(e))
                     return ExecutionResult(success=False, context=self.context, error=str(e))
 
             # Default: traverse first non-error outgoing edge
@@ -137,11 +151,31 @@ class WorkFormEngine:
         except Exception:
             logger.exception('[WorkFormEngine] Failed to increment execution count')
 
+        self._append_audit_event('execution_complete')
         return ExecutionResult(success=True, context=self.context)
 
     # ---------------------------------------------------------------------
     # Internals
     # ---------------------------------------------------------------------
+
+    def _append_audit_event(self, event: str, *, node_id: Optional[str] = None, node_type: Optional[str] = None, **meta) -> None:
+        trail = self.context.get('audit_trail')
+        if not isinstance(trail, list):
+            trail = []
+            self.context['audit_trail'] = trail
+
+        row: Dict[str, Any] = {
+            'ts': timezone.now().isoformat(),
+            'event': event,
+        }
+        if node_id:
+            row['node_id'] = node_id
+        if node_type:
+            row['node_type'] = node_type
+        if meta:
+            row.update(meta)
+
+        trail.append(row)
 
     def _find_start_node_id(self) -> Optional[str]:
         # Prefer trigger* nodes
@@ -206,7 +240,7 @@ class WorkFormEngine:
 
         self.context['variables']['last_action_result'] = result
 
-    def _handle_loop_node(self, node: Dict[str, Any], *, loop_body_start_node_id: str) -> None:
+    def _handle_loop_node(self, node: Dict[str, Any], *, loop_body_start_node_id: str) -> int:
         data = node.get('data') or {}
         config = data.get('config') or {}
 
@@ -216,11 +250,11 @@ class WorkFormEngine:
         items = self._resolve_array(array_expr)
         if items is None:
             logger.warning('[WorkFormEngine] Loop array resolved to None: %s', array_expr)
-            return
+            return 0
 
         if not isinstance(items, list):
             logger.warning('[WorkFormEngine] Loop array is not a list (%s): %s', type(items).__name__, array_expr)
-            return
+            return 0
 
         if len(items) > max_iterations:
             items = items[:max_iterations]
@@ -239,6 +273,8 @@ class WorkFormEngine:
                 item=item,
                 base_context=base_context,
             )
+
+        return len(items)
 
     def _resolve_array(self, expr: Any) -> Optional[Any]:
         if not expr:

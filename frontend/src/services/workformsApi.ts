@@ -85,6 +85,7 @@ export interface TenantForm {
   updated_by_name?: string;
 }
 
+
 // ---------------------------------------------------------------------------
 // System / TenantForm helpers (Phase 9: remove direct axios usage)
 // ---------------------------------------------------------------------------
@@ -166,6 +167,26 @@ export const createFormSubmission = async (formId: string): Promise<FormSubmissi
   return response.data;
 };
 
+export interface WorkFormExecuteResponse {
+  id: string;
+  workform_id: string;
+  workform_name: string;
+  status: string;
+  started_at?: string;
+  completed_at?: string | null;
+  error_message?: string;
+}
+
+export const executeTenantWorkForm = async (
+  workformId: string,
+  initialData?: Record<string, unknown>
+): Promise<WorkFormExecuteResponse> => {
+  const response = await apiClient.post(`/tenant-workforms/${workformId}/execute/`, {
+    initial_data: initialData ?? {},
+  });
+  return response.data;
+};
+
 // ============================================================================
 // Entity APIs (Phase 1.1-1.3)
 // ============================================================================
@@ -211,11 +232,15 @@ export const getEntityLookup = async (
 export const listTenantForms = async (params?: {
   type?: 'single_step' | 'multi_step';
   search?: string;
+  status?: string;
+  page?: number;
+  page_size?: number;
   is_workform?: boolean;
   parent_workform_id?: string;
 }): Promise<TenantForm[]> => {
   const response = await apiClient.get('/tenant-forms/', { params });
-  return response.data.results || response.data || [];
+  const data = response.data?.results || response.data || [];
+  return Array.isArray(data) ? data : [];
 };
 
 /**

@@ -18,7 +18,7 @@ Protect ProjectMeats’ **non-negotiable invariants** (Golden Pipeline, Golden F
   - remote deployments using `docker-compose`
   - mutable image tags for production deploys (`:latest`)
   - migrations executed via SSH inside deployed containers
-  - guessed/implicit secret names (must follow `config/env.manifest.json`)
+  - guessed/implicit secret names (must follow `manifests/env.manifest.json`)
 - Must not accept “it should work” without evidence (commands run, logs, CI links).
 
 ## Communication style
@@ -34,7 +34,7 @@ Protect ProjectMeats’ **non-negotiable invariants** (Golden Pipeline, Golden F
 - `docs/GOLDEN_PIPELINE.md`
 - `docs/reference/GOLDEN_PIPELINE.md`
 - `manifests/GOLDEN_FILES.md`
-- `config/env.manifest.json`
+- `manifests/env.manifest.json`
 - `docs/architecture/ARCHITECTURE.md`
 
 ## Definition of Done

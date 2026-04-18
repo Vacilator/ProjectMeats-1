@@ -11,7 +11,7 @@ import React, { useState } from 'react';
 import styled from 'styled-components';
 import { useQuery } from '@tanstack/react-query';
 import { X, Search, Check, FileText, Calendar, Users } from 'lucide-react';
-import { adminClient } from '../../services/apiService';
+import { listTenantForms } from '@/services/workformsApi';
 import type { FormDefinition } from '../form-builder';
 import { useTranslation } from '../../i18n';
 
@@ -316,8 +316,11 @@ export const FormSelectorModal: React.FC<FormSelectorModalProps> = ({
   const { data: forms = [], isLoading } = useQuery({
     queryKey: ['forms', 'library'],
     queryFn: async () => {
-      const response = await adminClient.get('/workforms/');
-      return response.data.results || response.data || [];
+      const rows = await listTenantForms({ page_size: 200 });
+      return rows.map((row: any) => ({
+        ...row,
+        entity_count: row.entity_count ?? row.usage_count ?? 0,
+      }));
     },
     enabled: isOpen,
   });
