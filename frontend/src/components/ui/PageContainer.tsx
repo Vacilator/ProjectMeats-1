@@ -20,7 +20,7 @@ interface PageContainerProps {
   maxWidth?: 'sm' | 'md' | 'lg' | 'xl' | 'full';
 }
 
-const Container = styled.div<{ maxWidth?: string }>`
+const Container = styled.div<{ $maxWidth?: string }>`
   flex: 1;
   padding: 1rem;
   background-color: rgb(var(--color-background));
@@ -30,8 +30,8 @@ const Container = styled.div<{ maxWidth?: string }>`
     padding: 2rem;
   }
 
-  ${({ maxWidth }) => {
-    switch (maxWidth) {
+  ${({ $maxWidth }) => {
+    switch ($maxWidth) {
       case 'sm':
         return 'max-width: 640px; margin: 0 auto;';
       case 'md':
@@ -109,7 +109,7 @@ export const PageContainer: React.FC<PageContainerProps> = ({
   maxWidth = 'full'
 }) => {
   return (
-    <Container maxWidth={maxWidth}>
+    <Container $maxWidth={maxWidth}>
       {(title || actions) && (
         <HeaderSection>
           <HeaderContent>
