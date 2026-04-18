@@ -71,6 +71,9 @@ We are re-validating and completing the last ~25 prompts with **evidence-based a
 - WorkForms/Quick Actions runtime restored + hardening (executions, visibility, back-compat): PRs #4452–#4456 (tested: backend + frontend)
 - WorkForms: per-step node status rendering (entity record + execution details): PR #4457 (tested: frontend)
 - CI: master deploy pipeline workflow display name clarified for Actions feed: PR #4458 (tested: workflow validator)
+- AI Assistant: document upload “no 500s” regression coverage (uploads return 201/400 only): PR #4460 (tested: backend)
+- Dependencies: merged grouped npm/yarn bumps (root + mobile): PR #4439 (tested: CI)
+- Promotion: merged development → uat: PR #4389 (tested: CI + deploy)
 
 ### Current blockers / external dependencies
 - Some features require environment secrets/infra to activate fully (e.g., OpenAI key, OAuth credentials). Code must degrade gracefully when secrets are missing.
