@@ -1,10 +1,9 @@
-import axios, { AxiosInstance, AxiosRequestConfig } from 'axios';
-import { 
-  LoginRequest, 
-  LoginResponse, 
-  User, 
-  Tenant, 
-  UserTenant, 
+import axios, { AxiosInstance } from 'axios';
+import {
+  LoginRequest,
+  LoginResponse,
+  Tenant,
+  UserTenant,
   ApiResponse,
   Customer,
   Supplier,

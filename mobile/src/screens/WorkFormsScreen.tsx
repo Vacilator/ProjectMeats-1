@@ -80,7 +80,7 @@ export default function WorkFormsScreen({ navigation, tenant, user, isGuest = fa
     try {
       const response = await ApiService.getWorkForms();
       setForms(response.results);
-    } catch (error: any) {
+    } catch {
       if (!isRefresh) {
         Alert.alert('Error', 'Unable to load workforms. Please try again.');
       }

@@ -1,3 +1,4 @@
+/* eslint-disable import/first */
 // Tests for the new guest-mode and invite-only API methods in ApiService.
 // Uses manual mocks to avoid native module dependencies.
 jest.mock('axios', () => {
