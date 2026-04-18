@@ -119,6 +119,18 @@ export const EntityWorkflowStatusPanel: React.FC<EntityWorkflowStatusPanelProps>
                     <div style={{ color: 'rgb(var(--color-error))' }}>{ex.error_message}</div>
                   ) : null}
 
+                  <div style={{ color: 'rgb(var(--color-text-secondary))' }}>
+                    Current step:{' '}
+                    <span style={{ fontWeight: 600 }}>{ex.current_node_id ?? '—'}</span>
+                    {ex.current_node_type ? <span> • {ex.current_node_type}</span> : null}
+                  </div>
+
+                  {ex.errors && ex.errors.length > 0 ? (
+                    <div style={{ color: 'rgb(var(--color-error))' }}>
+                      {ex.errors.length} error{ex.errors.length === 1 ? '' : 's'}
+                    </div>
+                  ) : null}
+
                   {renderNodeStatuses(ex)}
 
                   <div>{renderAudit(ex)}</div>
