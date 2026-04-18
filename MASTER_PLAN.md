@@ -45,7 +45,7 @@ We are re-validating and completing the last ~25 prompts with **evidence-based a
 ## Reality Snapshot (as of 2026-03-26)
 
 ### What is actively in progress
-- **Type-check hardening:** `pr-golden-sweep-typecheck` (tracked in SQL session todos)
+- **Type-check status:** currently clean (`npm -C frontend run type-check`); keep as a hard gate and only relax with evidence.
 
 ### Recently shipped fixes (evidence)
 - Cockpit Favorites: backend persistence + optimistic UX + RLS policy — PR #4037
