@@ -23,6 +23,12 @@ export interface WorkFormExecution {
    * Keys are node IDs, values are statuses like "completed" / "failed" / "in_progress".
    */
   node_statuses?: Record<string, string>;
+  /** Backend-derived "where am I" pointer for UI surfaces. */
+  current_node_id?: string | null;
+  current_node_type?: string | null;
+  last_event?: string | null;
+  /** Compact list of errors recorded during execution (if any). */
+  errors?: Array<{ node_id?: string; node_type?: string; error: string; routed_to?: string; ts?: string }>;
   started_by?: string | null;
   started_by_name?: string | null;
   started_at?: string | null;

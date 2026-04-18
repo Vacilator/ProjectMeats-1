@@ -4,6 +4,8 @@ Serializers for Tenant Workflows API.
 Bundle Two: System → Tenant Workflows & New Data Entities
 Provides REST API serialization for Forms, Workflows, and Lists.
 """
+from typing import Any, Dict, List
+
 from rest_framework import serializers
 
 from .models import (
@@ -411,6 +413,12 @@ class TenantWorkFormExecutionSerializer(serializers.ModelSerializer):
     # WorkForms runtime: expose a compact per-node status map derived from audit_trail
     node_statuses = serializers.SerializerMethodField()
 
+    # WorkForms runtime: surface "where am I" + error summary for UI panels.
+    current_node_id = serializers.SerializerMethodField()
+    current_node_type = serializers.SerializerMethodField()
+    last_event = serializers.SerializerMethodField()
+    errors = serializers.SerializerMethodField()
+
     class Meta:
         model = TenantWorkFormExecution
         fields = [
@@ -423,6 +431,10 @@ class TenantWorkFormExecutionSerializer(serializers.ModelSerializer):
             'context_data',
             'audit_trail',
             'node_statuses',
+            'current_node_id',
+            'current_node_type',
+            'last_event',
+            'errors',
             'started_by',
             'started_by_name',
             'started_at',
@@ -437,6 +449,75 @@ class TenantWorkFormExecutionSerializer(serializers.ModelSerializer):
         if obj.started_by:
             return obj.started_by.get_full_name() or obj.started_by.username
         return None
+
+    def _last_node_event(self, obj):
+        trail = obj.audit_trail
+        if not isinstance(trail, list):
+            return None
+
+        for row in reversed(trail):
+            if isinstance(row, dict) and row.get('node_id'):
+                return row
+
+        return None
+
+    def get_current_node_id(self, obj):
+        row = self._last_node_event(obj)
+        return row.get('node_id') if isinstance(row, dict) else None
+
+    def get_current_node_type(self, obj):
+        row = self._last_node_event(obj)
+        return row.get('node_type') if isinstance(row, dict) else None
+
+    def get_last_event(self, obj):
+        row = self._last_node_event(obj)
+        return row.get('event') if isinstance(row, dict) else None
+
+    def get_errors(self, obj):
+        """Return a compact list of errors recorded during execution.
+
+        Sources:
+        - context_data.errors (WorkFormEngine routing payloads)
+        - audit_trail action_error events (fallback)
+        """
+        errors: List[Dict[str, Any]] = []
+
+        ctx = obj.context_data
+        if isinstance(ctx, dict):
+            ctx_errors = ctx.get('errors')
+            if isinstance(ctx_errors, list):
+                for row in ctx_errors:
+                    if isinstance(row, dict) and row.get('error'):
+                        errors.append(row)
+
+        trail = obj.audit_trail
+        if isinstance(trail, list):
+            for row in trail:
+                if not isinstance(row, dict):
+                    continue
+                if row.get('event') != 'action_error':
+                    continue
+                if not row.get('error'):
+                    continue
+                errors.append({
+                    'node_id': row.get('node_id'),
+                    'node_type': row.get('node_type'),
+                    'error': row.get('error'),
+                    'routed_to': row.get('routed_to'),
+                    'ts': row.get('ts'),
+                })
+
+        # Dedupe while preserving order
+        seen = set()
+        unique = []
+        for row in errors:
+            key = (row.get('node_id'), row.get('error'), row.get('ts'))
+            if key in seen:
+                continue
+            seen.add(key)
+            unique.append(row)
+
+        return unique
 
     def get_node_statuses(self, obj):
         """Return a per-node status map derived from the execution audit trail.
@@ -470,6 +551,104 @@ class TenantWorkFormExecutionSerializer(serializers.ModelSerializer):
                 status_by_node[node_id] = 'in_progress'
 
         return status_by_node
+
+
+class TenantWorkFormExecutionRuntimeStateSerializer(serializers.ModelSerializer):
+    """Slim runtime projection for TenantWorkFormExecution.
+
+    Goal: allow frontend to render runtime state (current node, node statuses,
+    errors) without returning full `context_data` or `audit_trail` blobs.
+
+    This is additive; existing list/retrieve endpoints still use
+    TenantWorkFormExecutionSerializer.
+    """
+
+    workform_name = serializers.CharField(source='workform.name', read_only=True)
+    started_by_name = serializers.SerializerMethodField()
+
+    node_statuses = serializers.SerializerMethodField()
+    current_node = serializers.SerializerMethodField()
+    errors = serializers.SerializerMethodField()
+
+    entity_ref = serializers.SerializerMethodField()
+
+    class Meta:
+        model = TenantWorkFormExecution
+        fields = [
+            'id',
+            'workform',
+            'workform_name',
+            'status',
+            'entity_ref',
+            'node_statuses',
+            'current_node',
+            'errors',
+            'started_by',
+            'started_by_name',
+            'started_at',
+            'completed_at',
+            'error_message',
+            'created_on',
+            'modified_on',
+        ]
+        read_only_fields = fields
+
+    def get_started_by_name(self, obj):
+        if obj.started_by:
+            return obj.started_by.get_full_name() or obj.started_by.username
+        return None
+
+    def get_entity_ref(self, obj):
+        initial = obj.initial_data or {}
+        if not isinstance(initial, dict):
+            return {}
+
+        # Allowlist only.
+        out = {}
+        for key in ('entity_type', 'entity_id', 'submission_id', 'form_submission_id'):
+            if key in initial:
+                out[key] = initial.get(key)
+
+        # Normalize common variants.
+        if 'form_submission_id' in out and 'submission_id' not in out:
+            out['submission_id'] = out['form_submission_id']
+
+        return out
+
+    def get_node_statuses(self, obj):
+        # Delegate to the full serializer logic.
+        return TenantWorkFormExecutionSerializer(obj, context=self.context).get_node_statuses(obj)
+
+    def get_errors(self, obj):
+        return TenantWorkFormExecutionSerializer(obj, context=self.context).get_errors(obj)
+
+    def get_current_node(self, obj):
+        node_id = TenantWorkFormExecutionSerializer(obj, context=self.context).get_current_node_id(obj)
+        if not node_id:
+            return None
+
+        node_type = None
+        label = None
+
+        definition = getattr(getattr(obj, 'workform', None), 'workflow_definition', None) or {}
+        nodes = definition.get('nodes', []) if isinstance(definition, dict) else []
+
+        if isinstance(nodes, list):
+            for n in nodes:
+                if isinstance(n, dict) and n.get('id') == node_id:
+                    node_type = n.get('type')
+                    data = n.get('data') if isinstance(n.get('data'), dict) else {}
+                    label = data.get('label') or data.get('containerName') or data.get('name')
+                    break
+
+        statuses = self.get_node_statuses(obj)
+
+        return {
+            'node_id': node_id,
+            'node_type': node_type,
+            'label': label,
+            'status': statuses.get(node_id),
+        }
 
 
 # =============================================================================

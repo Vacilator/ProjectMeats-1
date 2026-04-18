@@ -110,6 +110,12 @@ class TenantWorkFormExecutionViewSetFilterTests(TestCase):
         row = next(r for r in rows if r.get('id') == str(self.exec_a_1.id))
         self.assertEqual(row.get('node_statuses', {}).get('n1'), 'completed')
 
+        # Runtime metadata helpers
+        self.assertEqual(row.get('current_node_id'), 'n1')
+        self.assertEqual(row.get('current_node_type'), 'actionEmail')
+        self.assertEqual(row.get('last_event'), 'action_success')
+        self.assertEqual(row.get('errors'), [])
+
     def test_filters_by_workform_id(self):
         req = self._get(
             f'/api/v1/workflows/workform-executions/?workform={self.workform_a.id}',

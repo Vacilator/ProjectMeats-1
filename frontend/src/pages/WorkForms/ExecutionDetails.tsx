@@ -56,6 +56,50 @@ export const WorkFormExecutionDetails: React.FC = () => {
             ) : null}
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 12 }}>
+              <div>
+                <div style={{ fontWeight: 600, marginBottom: 6 }}>Current step</div>
+                {execution.current_node_id ? (
+                  <div style={{ color: 'rgb(var(--color-text-secondary))' }}>
+                    Node: <span style={{ fontWeight: 600 }}>{execution.current_node_id}</span>
+                    {execution.current_node_type ? <span> • {execution.current_node_type}</span> : null}
+                    {execution.last_event ? <span> • last: {execution.last_event}</span> : null}
+                  </div>
+                ) : (
+                  <div style={{ color: 'rgb(var(--color-text-secondary))' }}>No active node recorded.</div>
+                )}
+              </div>
+
+              {execution.errors && execution.errors.length > 0 ? (
+                <div>
+                  <div style={{ fontWeight: 600, marginBottom: 6 }}>Errors</div>
+                  <ul style={{ margin: 0, paddingLeft: 18 }}>
+                    {execution.errors.map((e, idx) => (
+                      <li key={`${execution.id}:err:${idx}`} style={{ color: 'rgb(var(--color-error))' }}>
+                        {e.node_id ? <span style={{ fontWeight: 600 }}>{e.node_id}</span> : null}
+                        {e.node_id ? <span>: </span> : null}
+                        {e.error}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
+
+              <div>
+                <div style={{ fontWeight: 600, marginBottom: 6 }}>Inputs</div>
+                <pre
+                  style={{
+                    background: 'rgb(var(--color-surface))',
+                    border: '1px solid rgb(var(--color-border))',
+                    borderRadius: 8,
+                    padding: 12,
+                    overflow: 'auto',
+                    maxHeight: 240,
+                  }}
+                >
+                  {JSON.stringify(execution.initial_data ?? {}, null, 2)}
+                </pre>
+              </div>
+
               {execution.node_statuses && Object.keys(execution.node_statuses).length > 0 ? (
                 <div>
                   <div style={{ fontWeight: 600, marginBottom: 6 }}>Step status</div>

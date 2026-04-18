@@ -49,6 +49,10 @@ describe('EntityWorkflowStatusPanel', () => {
           context_data: {},
           audit_trail: [{ event: 'execution_start', node_id: 'n1', ts: '2026-01-01T00:00:00Z' }],
           node_statuses: { n1: 'completed' },
+          current_node_id: 'n1',
+          current_node_type: 'actionEmail',
+          last_event: 'execution_start',
+          errors: [{ node_id: 'n1', error: 'Boom' }],
           started_by: null,
           started_by_name: 'Tester',
           started_at: '2026-01-01T00:00:00Z',
@@ -79,6 +83,8 @@ describe('EntityWorkflowStatusPanel', () => {
 
     // Expand collapse to show audit
     await userEvent.click(screen.getByText('My WorkForm'));
+    expect(await screen.findByText(/Current step/i)).toBeInTheDocument();
+    expect(screen.getByText(/1 error/i)).toBeInTheDocument();
     expect(await screen.findByText(/Step status/i)).toBeInTheDocument();
     const pills = screen.getAllByText((_, node) =>
       (node?.textContent ?? '').replace(/\s+/g, ' ').trim() === 'n1: completed'
