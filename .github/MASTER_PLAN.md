@@ -78,6 +78,11 @@ This file is the **append-only PR-referenceable execution log**.
 - **2026-04-17** — WorkForms backend: harden execution/submission visibility (fail-closed tenant), prevent started_by/assigned_to user-ID enumeration (me-only unless tenant admin), Quick Actions available-forms includes tenant WorkForms, and expose `node_statuses` derived from audit trail. (PR: #4453)
 
 - **2026-04-17** — WorkForms frontend: restore runtime UX (Catalog Quick Run executes WorkForms, In Progress shows WorkForm executions, Execute falls back to legacy runner for older QuickActions, and FormSelectorModal uses tenant-forms service layer). (PR: #4454)
+- **2026-04-18** — CI: improve deploy pipeline workflow display name for Actions feed clarity. (PR: #4458)
+- **2026-04-18** — Docs: update canonical root `MASTER_PLAN.md` snapshot with WorkForms PRs (#4452–#4458). (PR: #4459)
+- **2026-04-18** — Tests: cover AI document upload endpoint to guarantee 201/400 only (no 500s) + prevent raw exception leakage. (PR: #4460)
+- **2026-04-18** — Dependencies: merged grouped npm/yarn bumps (root + mobile) and closed superseded singles. (PR: #4439)
+- **2026-04-18** — Promotion: merged development → uat after checks green (merge commit). (PR: #4389)
 
 ### 2026-03-31 — Secret audit drift (manifest v5.1)
 - Command: `python config/manage_env.py audit --repo Meats-Central/ProjectMeats`
