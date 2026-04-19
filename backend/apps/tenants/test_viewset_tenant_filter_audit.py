@@ -33,6 +33,10 @@ TENANT_APP_URL_MODULES = [
     'tenant_apps.workflows.urls',
     'tenant_apps.bug_reports.urls',
     'tenant_apps.integrations.urls',
+    # Coverage gaps (historical): include apps that register tenant-scoped resources.
+    'tenant_apps.ai_assistant.urls',
+    'tenant_apps.cockpit.urls',
+    'tenant_apps.products.urls',
 ]
 
 
