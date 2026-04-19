@@ -11,6 +11,11 @@ import styled from 'styled-components';
 import { useZodForm } from '@/hooks/useZodForm';
 import { showAlert } from '@/utils/uiDialogs';
 import { businessApi } from '@/services/businessApi';
+import {
+  InquiryModalBody,
+  InquiryModalFooter,
+  InquiryModalFrame,
+} from './InquiryModalFrame';
 import { Inquiry } from '../../types';
 
 function unwrapResults<T>(data: { results?: T[] } | T[]): T[] {
@@ -77,57 +82,6 @@ const buildCloneInquiryDefaults = (): CloneInquiryValues => ({
 // Styled Components
 // ============================================================================
 
-const Overlay = styled.div<{ $isOpen: boolean }>`
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
-  display: ${props => props.$isOpen ? 'flex' : 'none'};
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-`;
-
-const ModalContainer = styled.div`
-  background: rgb(var(--color-surface));
-  border-radius: var(--radius-lg);
-  width: 90%;
-  max-width: 500px;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-`;
-
-const Header = styled.div`
-  padding: 20px 24px;
-  border-bottom: 1px solid rgb(var(--color-border));
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-`;
-
-const Title = styled.h2`
-  margin: 0;
-  font-size: 1.25rem;
-  color: rgb(var(--color-text-primary));
-`;
-
-const CloseButton = styled.button`
-  background: none;
-  border: none;
-  font-size: 1.5rem;
-  cursor: pointer;
-  color: rgb(var(--color-text-secondary));
-  padding: 4px 8px;
-  
-  &:hover {
-    color: rgb(var(--color-text-primary));
-  }
-`;
-
-const Content = styled.div`
-  padding: 24px;
-`;
 
 const SourceInfo = styled.div`
   background: rgba(var(--color-primary), 0.05);
@@ -217,13 +171,6 @@ const InlineError = styled.div`
   font-size: 0.85rem;
 `;
 
-const Footer = styled.div`
-  padding: 16px 24px;
-  border-top: 1px solid rgb(var(--color-border));
-  display: flex;
-  justify-content: flex-end;
-  gap: 12px;
-`;
 
 const Button = styled.button<{ $variant?: 'primary' | 'secondary' }>`
   padding: 10px 20px;
@@ -361,111 +308,102 @@ export const CloneInquiryModal: React.FC<CloneInquiryModalProps> = ({
     : inquiry.customer_name;
   
   return (
-    <Overlay $isOpen={isOpen} onClick={onClose}>
-      <ModalContainer onClick={e => e.stopPropagation()}>
-        <Header>
-          <Title>📋 Clone Inquiry</Title>
-          <CloseButton onClick={onClose}>×</CloseButton>
-        </Header>
-        
-        <form onSubmit={form.handleSubmit(onSubmit)}>
-          <Content>
-            <SourceInfo>
-              <SourceLabel>Cloning from:</SourceLabel>
-              <SourceValue>
-                {inquiry.inquiry_number} - {entityName}
-              </SourceValue>
-            </SourceInfo>
+    <InquiryModalFrame isOpen={isOpen} onClose={onClose} title="📋 Clone Inquiry" maxWidth={500}>
+      <form onSubmit={form.handleSubmit(onSubmit)}>
+        <InquiryModalBody>
+          <SourceInfo>
+            <SourceLabel>Cloning from:</SourceLabel>
+            <SourceValue>
+              {inquiry.inquiry_number} - {entityName}
+            </SourceValue>
+          </SourceInfo>
 
-            <CheckboxGroup>
-              <div>
-                <CheckboxRow>
-                  <Checkbox
-                    type="checkbox"
-                    aria-label="Include Products"
-                    checked={includeProducts}
-                    onChange={(e) => form.setValue('includeProducts', e.target.checked, { shouldDirty: true })}
-                    id="includeProducts"
-                  />
-                  <CheckboxLabel>Include Products</CheckboxLabel>
-                </CheckboxRow>
-                <CheckboxHint>Copy all products from the original inquiry</CheckboxHint>
-              </div>
+          <CheckboxGroup>
+            <div>
+              <CheckboxRow>
+                <Checkbox
+                  type="checkbox"
+                  aria-label="Include Products"
+                  checked={includeProducts}
+                  onChange={(e) => form.setValue('includeProducts', e.target.checked, { shouldDirty: true })}
+                  id="includeProducts"
+                />
+                <CheckboxLabel>Include Products</CheckboxLabel>
+              </CheckboxRow>
+              <CheckboxHint>Copy all products from the original inquiry</CheckboxHint>
+            </div>
 
-              <div>
-                <CheckboxRow>
-                  <Checkbox
-                    type="checkbox"
-                    aria-label="Include Pricing"
-                    checked={includePricing}
-                    onChange={(e) => form.setValue('includePricing', e.target.checked, { shouldDirty: true })}
-                    disabled={!includeProducts}
-                    id="includePricing"
-                  />
-                  <CheckboxLabel>Include Pricing</CheckboxLabel>
-                </CheckboxRow>
-                <CheckboxHint>Copy desired prices and quantities (requires products)</CheckboxHint>
-              </div>
-            </CheckboxGroup>
+            <div>
+              <CheckboxRow>
+                <Checkbox
+                  type="checkbox"
+                  aria-label="Include Pricing"
+                  checked={includePricing}
+                  onChange={(e) => form.setValue('includePricing', e.target.checked, { shouldDirty: true })}
+                  disabled={!includeProducts}
+                  id="includePricing"
+                />
+                <CheckboxLabel>Include Pricing</CheckboxLabel>
+              </CheckboxRow>
+              <CheckboxHint>Copy desired prices and quantities (requires products)</CheckboxHint>
+            </div>
+          </CheckboxGroup>
 
-            {form.formState.errors.includePricing?.message ? (
-              <InlineError>{String(form.formState.errors.includePricing.message)}</InlineError>
-            ) : null}
+          {form.formState.errors.includePricing?.message ? (
+            <InlineError>{String(form.formState.errors.includePricing.message)}</InlineError>
+          ) : null}
 
+          <FormGroup>
+            <Label>Clone to Different {inquiry.entity_type === 'supplier' ? 'Supplier' : 'Customer'} (Optional)</Label>
+            <Select
+              aria-label="Clone to entity"
+              value={newEntityId}
+              onChange={(e) => {
+                form.setValue('newEntityId', e.target.value, { shouldDirty: true });
+                form.setValue('newContactId', '', { shouldDirty: true });
+              }}
+            >
+              <option value="">Same as original ({entityName})</option>
+              {entities.map((entity) => (
+                <option key={entity.id} value={entity.id}>
+                  {entity.name}
+                </option>
+              ))}
+            </Select>
+          </FormGroup>
+
+          {(newEntityId || contacts.length > 0) && (
             <FormGroup>
-              <Label>
-                Clone to Different {inquiry.entity_type === 'supplier' ? 'Supplier' : 'Customer'} (Optional)
-              </Label>
+              <Label>Contact (Optional)</Label>
               <Select
-                aria-label="Clone to entity"
-                value={newEntityId}
-                onChange={(e) => {
-                  form.setValue('newEntityId', e.target.value, { shouldDirty: true });
-                  form.setValue('newContactId', '', { shouldDirty: true });
-                }}
+                aria-label="Clone to contact"
+                value={newContactId}
+                onChange={(e) => form.setValue('newContactId', e.target.value, { shouldDirty: true })}
               >
-                <option value="">Same as original ({entityName})</option>
-                {entities.map((entity) => (
-                  <option key={entity.id} value={entity.id}>
-                    {entity.name}
+                <option value="">
+                  {newEntityId ? 'Select contact...' : `Same as original (${inquiry.contact_name || 'None'})`}
+                </option>
+                {contacts.map((contact) => (
+                  <option key={contact.id} value={contact.id}>
+                    {contact.first_name} {contact.last_name}
+                    {contact.email && ` (${contact.email})`}
                   </option>
                 ))}
               </Select>
             </FormGroup>
+          )}
+        </InquiryModalBody>
 
-            {(newEntityId || contacts.length > 0) && (
-              <FormGroup>
-                <Label>Contact (Optional)</Label>
-                <Select
-                  aria-label="Clone to contact"
-                  value={newContactId}
-                  onChange={(e) => form.setValue('newContactId', e.target.value, { shouldDirty: true })}
-                >
-                  <option value="">
-                    {newEntityId ? 'Select contact...' : `Same as original (${inquiry.contact_name || 'None'})`}
-                  </option>
-                  {contacts.map((contact) => (
-                    <option key={contact.id} value={contact.id}>
-                      {contact.first_name} {contact.last_name}
-                      {contact.email && ` (${contact.email})`}
-                    </option>
-                  ))}
-                </Select>
-              </FormGroup>
-            )}
-          </Content>
-
-          <Footer>
-            <Button type="button" onClick={onClose}>
-              Cancel
-            </Button>
-            <Button $variant="primary" type="submit" disabled={cloning}>
-              {cloning ? 'Cloning...' : 'Clone Inquiry'}
-            </Button>
-          </Footer>
-        </form>
-      </ModalContainer>
-    </Overlay>
+        <InquiryModalFooter>
+          <Button type="button" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button $variant="primary" type="submit" disabled={cloning}>
+            {cloning ? 'Cloning...' : 'Clone Inquiry'}
+          </Button>
+        </InquiryModalFooter>
+      </form>
+    </InquiryModalFrame>
   );
 };
 
