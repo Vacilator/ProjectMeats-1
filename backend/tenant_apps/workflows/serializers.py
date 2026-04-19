@@ -416,8 +416,12 @@ class TenantWorkFormExecutionSerializer(serializers.ModelSerializer):
     # WorkForms runtime: surface "where am I" + error summary for UI panels.
     current_node_id = serializers.SerializerMethodField()
     current_node_type = serializers.SerializerMethodField()
+    current_node_label = serializers.SerializerMethodField()
     last_event = serializers.SerializerMethodField()
     errors = serializers.SerializerMethodField()
+
+    # UI helper: map node_id -> label from the underlying WorkForm definition
+    node_labels = serializers.SerializerMethodField()
 
     class Meta:
         model = TenantWorkFormExecution
@@ -431,8 +435,10 @@ class TenantWorkFormExecutionSerializer(serializers.ModelSerializer):
             'context_data',
             'audit_trail',
             'node_statuses',
+            'node_labels',
             'current_node_id',
             'current_node_type',
+            'current_node_label',
             'last_event',
             'errors',
             'started_by',
@@ -450,6 +456,54 @@ class TenantWorkFormExecutionSerializer(serializers.ModelSerializer):
             return obj.started_by.get_full_name() or obj.started_by.username
         return None
 
+    def _workflow_definition_nodes(self, obj) -> List[Dict[str, Any]]:
+        definition = getattr(getattr(obj, 'workform', None), 'workflow_definition', None) or {}
+        if not isinstance(definition, dict):
+            return []
+
+        nodes = definition.get('nodes', [])
+        return nodes if isinstance(nodes, list) else []
+
+    def _node_labels_map(self, obj) -> Dict[str, str]:
+        """Map of node_id -> label (best-effort) from workform.workflow_definition."""
+        cache = getattr(self, '_node_labels_cache', None)
+        if cache is None:
+            cache = {}
+            setattr(self, '_node_labels_cache', cache)
+
+        key = str(getattr(obj, 'pk', '') or '')
+        if key in cache:
+            return cache[key]
+
+        mapping: Dict[str, str] = {}
+        for node in self._workflow_definition_nodes(obj):
+            if not isinstance(node, dict):
+                continue
+            node_id = node.get('id')
+            if not node_id:
+                continue
+
+            data = node.get('data') if isinstance(node.get('data'), dict) else {}
+            label = (
+                data.get('label')
+                or data.get('name')
+                or data.get('containerName')
+                or node.get('label')
+                or node.get('name')
+            )
+            if isinstance(label, str):
+                label = label.strip()
+            if label:
+                mapping[str(node_id)] = str(label)
+
+        cache[key] = mapping
+        return mapping
+
+    def _node_label(self, obj, node_id: str | None) -> str | None:
+        if not node_id:
+            return None
+        return self._node_labels_map(obj).get(str(node_id))
+
     def _last_node_event(self, obj):
         trail = obj.audit_trail
         if not isinstance(trail, list):
@@ -461,6 +515,7 @@ class TenantWorkFormExecutionSerializer(serializers.ModelSerializer):
 
         return None
 
+
     def get_current_node_id(self, obj):
         row = self._last_node_event(obj)
         return row.get('node_id') if isinstance(row, dict) else None
@@ -468,6 +523,14 @@ class TenantWorkFormExecutionSerializer(serializers.ModelSerializer):
     def get_current_node_type(self, obj):
         row = self._last_node_event(obj)
         return row.get('node_type') if isinstance(row, dict) else None
+
+    def get_current_node_label(self, obj):
+        node_id = self.get_current_node_id(obj)
+        return self._node_label(obj, node_id)
+
+    def get_node_labels(self, obj):
+        return self._node_labels_map(obj)
+
 
     def get_last_event(self, obj):
         row = self._last_node_event(obj)
@@ -479,8 +542,13 @@ class TenantWorkFormExecutionSerializer(serializers.ModelSerializer):
         Sources:
         - context_data.errors (WorkFormEngine routing payloads)
         - audit_trail action_error events (fallback)
+
+        Additive enrichment:
+        - node_label from workform.workflow_definition.nodes[].data.*
         """
         errors: List[Dict[str, Any]] = []
+
+        labels = self._node_labels_map(obj)
 
         ctx = obj.context_data
         if isinstance(ctx, dict):
@@ -488,7 +556,11 @@ class TenantWorkFormExecutionSerializer(serializers.ModelSerializer):
             if isinstance(ctx_errors, list):
                 for row in ctx_errors:
                     if isinstance(row, dict) and row.get('error'):
-                        errors.append(row)
+                        cloned = dict(row)
+                        node_id = cloned.get('node_id')
+                        if node_id:
+                            cloned.setdefault('node_label', labels.get(str(node_id)))
+                        errors.append(cloned)
 
         trail = obj.audit_trail
         if isinstance(trail, list):
@@ -499,9 +571,11 @@ class TenantWorkFormExecutionSerializer(serializers.ModelSerializer):
                     continue
                 if not row.get('error'):
                     continue
+                node_id = row.get('node_id')
                 errors.append({
-                    'node_id': row.get('node_id'),
+                    'node_id': node_id,
                     'node_type': row.get('node_type'),
+                    'node_label': labels.get(str(node_id)) if node_id else None,
                     'error': row.get('error'),
                     'routed_to': row.get('routed_to'),
                     'ts': row.get('ts'),
@@ -568,6 +642,8 @@ class TenantWorkFormExecutionRuntimeStateSerializer(serializers.ModelSerializer)
 
     node_statuses = serializers.SerializerMethodField()
     current_node = serializers.SerializerMethodField()
+    current_node_label = serializers.SerializerMethodField()
+    node_labels = serializers.SerializerMethodField()
     errors = serializers.SerializerMethodField()
 
     entity_ref = serializers.SerializerMethodField()
@@ -582,6 +658,8 @@ class TenantWorkFormExecutionRuntimeStateSerializer(serializers.ModelSerializer)
             'entity_ref',
             'node_statuses',
             'current_node',
+            'current_node_label',
+            'node_labels',
             'errors',
             'started_by',
             'started_by_name',
@@ -615,30 +693,36 @@ class TenantWorkFormExecutionRuntimeStateSerializer(serializers.ModelSerializer)
 
         return out
 
+    def _full(self, obj) -> TenantWorkFormExecutionSerializer:
+        return TenantWorkFormExecutionSerializer(obj, context=self.context)
+
     def get_node_statuses(self, obj):
         # Delegate to the full serializer logic.
-        return TenantWorkFormExecutionSerializer(obj, context=self.context).get_node_statuses(obj)
+        return self._full(obj).get_node_statuses(obj)
+
+    def get_node_labels(self, obj):
+        return self._full(obj).get_node_labels(obj)
 
     def get_errors(self, obj):
-        return TenantWorkFormExecutionSerializer(obj, context=self.context).get_errors(obj)
+        return self._full(obj).get_errors(obj)
+
+    def get_current_node_label(self, obj):
+        return self._full(obj).get_current_node_label(obj)
 
     def get_current_node(self, obj):
-        node_id = TenantWorkFormExecutionSerializer(obj, context=self.context).get_current_node_id(obj)
+        node_id = self._full(obj).get_current_node_id(obj)
         if not node_id:
             return None
 
         node_type = None
-        label = None
+        label = self.get_node_labels(obj).get(str(node_id))
 
         definition = getattr(getattr(obj, 'workform', None), 'workflow_definition', None) or {}
         nodes = definition.get('nodes', []) if isinstance(definition, dict) else []
-
         if isinstance(nodes, list):
             for n in nodes:
                 if isinstance(n, dict) and n.get('id') == node_id:
                     node_type = n.get('type')
-                    data = n.get('data') if isinstance(n.get('data'), dict) else {}
-                    label = data.get('label') or data.get('containerName') or data.get('name')
                     break
 
         statuses = self.get_node_statuses(obj)

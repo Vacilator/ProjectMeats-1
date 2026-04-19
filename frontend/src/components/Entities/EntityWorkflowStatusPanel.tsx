@@ -40,27 +40,44 @@ export const EntityWorkflowStatusPanel: React.FC<EntityWorkflowStatusPanelProps>
     const entries = Object.entries(map).filter(([k, v]) => Boolean(k) && Boolean(v));
     if (entries.length === 0) return null;
 
-    entries.sort(([a], [b]) => a.localeCompare(b));
+    const labels = execution.node_labels ?? {};
+
+    entries.sort(([a], [b]) => {
+      const la = labels[a] ?? a;
+      const lb = labels[b] ?? b;
+      return la.localeCompare(lb);
+    });
 
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
         <div style={{ fontWeight: 600 }}>Step status</div>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-          {entries.map(([nodeId, status]) => (
-            <span
-              key={`${execution.id}:node:${nodeId}`}
-              style={{
-                border: '1px solid rgb(var(--color-border))',
-                background: 'rgb(var(--color-surface))',
-                borderRadius: 999,
-                padding: '2px 8px',
-                fontSize: 12,
-                color: 'rgb(var(--color-text-secondary))',
-              }}
-            >
-              {nodeId}: <span style={{ fontWeight: 600 }}>{String(status)}</span>
-            </span>
-          ))}
+          {entries.map(([nodeId, status]) => {
+            const label = labels[nodeId];
+            return (
+              <span
+                key={`${execution.id}:node:${nodeId}`}
+                style={{
+                  border: '1px solid rgb(var(--color-border))',
+                  background: 'rgb(var(--color-surface))',
+                  borderRadius: 999,
+                  padding: '2px 8px',
+                  fontSize: 12,
+                  color: 'rgb(var(--color-text-secondary))',
+                }}
+              >
+                {label ? (
+                  <>
+                    {label}{' '}
+                    <span style={{ color: 'rgb(var(--color-text-tertiary))' }}>({nodeId})</span>
+                  </>
+                ) : (
+                  nodeId
+                )}
+                : <span style={{ fontWeight: 600 }}>{String(status)}</span>
+              </span>
+            );
+          })}
         </div>
       </div>
     );
@@ -121,7 +138,10 @@ export const EntityWorkflowStatusPanel: React.FC<EntityWorkflowStatusPanelProps>
 
                   <div style={{ color: 'rgb(var(--color-text-secondary))' }}>
                     Current step:{' '}
-                    <span style={{ fontWeight: 600 }}>{ex.current_node_id ?? '—'}</span>
+                    <span style={{ fontWeight: 600 }}>{ex.current_node_label ?? ex.current_node_id ?? '—'}</span>
+                    {ex.current_node_label && ex.current_node_id ? (
+                      <span style={{ color: 'rgb(var(--color-text-tertiary))' }}> ({ex.current_node_id})</span>
+                    ) : null}
                     {ex.current_node_type ? <span> • {ex.current_node_type}</span> : null}
                   </div>
 

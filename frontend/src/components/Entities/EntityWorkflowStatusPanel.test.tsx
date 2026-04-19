@@ -49,8 +49,10 @@ describe('EntityWorkflowStatusPanel', () => {
           context_data: {},
           audit_trail: [{ event: 'execution_start', node_id: 'n1', ts: '2026-01-01T00:00:00Z' }],
           node_statuses: { n1: 'completed' },
+          node_labels: { n1: 'Send Email' },
           current_node_id: 'n1',
           current_node_type: 'actionEmail',
+          current_node_label: 'Send Email',
           last_event: 'execution_start',
           errors: [{ node_id: 'n1', error: 'Boom' }],
           started_by: null,
@@ -87,7 +89,7 @@ describe('EntityWorkflowStatusPanel', () => {
     expect(screen.getByText(/1 error/i)).toBeInTheDocument();
     expect(await screen.findByText(/Step status/i)).toBeInTheDocument();
     const pills = screen.getAllByText((_, node) =>
-      (node?.textContent ?? '').replace(/\s+/g, ' ').trim() === 'n1: completed'
+      (node?.textContent ?? '').replace(/\s+/g, ' ').trim() === 'Send Email (n1): completed'
     );
     expect(pills.length).toBeGreaterThan(0);
 
