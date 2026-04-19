@@ -1,6 +1,7 @@
 import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
@@ -25,10 +26,12 @@ describe('WorkFormExecutionDetails', () => {
       context_data: {},
       audit_trail: [],
       node_statuses: {},
+      node_labels: { n1: 'Send Email' },
       current_node_id: 'n1',
       current_node_type: 'actionEmail',
+      current_node_label: 'Send Email',
       last_event: 'action_error',
-      errors: [{ node_id: 'n1', error: 'Boom' }],
+      errors: [{ node_id: 'n1', node_label: 'Send Email', error: 'Boom' }],
       started_by: null,
       started_by_name: null,
       started_at: null,
@@ -57,14 +60,16 @@ describe('WorkFormExecutionDetails', () => {
     expect(await screen.findByText('My WorkForm')).toBeInTheDocument();
     expect(screen.getByText(/Status:/i)).toBeInTheDocument();
 
-    expect(await screen.findByText(/Current step/i)).toBeInTheDocument();
+    expect(await screen.findByText(/^Current step$/i)).toBeInTheDocument();
     expect(screen.getByText(/Node:/i)).toBeInTheDocument();
-    expect(screen.getAllByText('n1').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Send Email').length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/n1/i).length).toBeGreaterThan(0);
 
-    expect(await screen.findByText(/Inputs/i)).toBeInTheDocument();
-    expect(screen.getByText(/entity_type/i)).toBeInTheDocument();
+    expect(await screen.findByText(/^Inputs$/i)).toBeInTheDocument();
+    await userEvent.click(screen.getByText(/View raw inputs/i));
+    expect(await screen.findByText(/entity_type/i)).toBeInTheDocument();
 
-    expect(await screen.findByText(/Errors/i)).toBeInTheDocument();
+    expect(await screen.findByText(/^Errors$/i)).toBeInTheDocument();
     expect(screen.getAllByText('Boom').length).toBeGreaterThan(0);
   });
 });

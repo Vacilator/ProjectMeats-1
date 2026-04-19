@@ -37,10 +37,18 @@ class TenantWorkFormExecutionViewSetFilterTests(TestCase):
         TenantUser.objects.create(tenant=self.tenant_a, user=self.user, role='admin', is_active=True)
         TenantUser.objects.create(tenant=self.tenant_b, user=self.user, role='admin', is_active=True)
 
+        definition = {
+            'nodes': [
+                {'id': 't1', 'type': 'triggerManual', 'data': {'label': 'Manual Trigger'}},
+                {'id': 'n1', 'type': 'actionEmail', 'data': {'label': 'Send Email'}},
+            ],
+            'edges': [],
+        }
+
         self.workform_a = TenantWorkForm.objects.create(
             tenant=self.tenant_a,
             name='WF A',
-            workflow_definition={'nodes': [{'id': 't1', 'type': 'triggerManual'}], 'edges': []},
+            workflow_definition=definition,
             status='active',
             created_by=self.user,
             updated_by=self.user,
@@ -48,7 +56,7 @@ class TenantWorkFormExecutionViewSetFilterTests(TestCase):
         self.workform_b = TenantWorkForm.objects.create(
             tenant=self.tenant_b,
             name='WF B',
-            workflow_definition={'nodes': [{'id': 't1', 'type': 'triggerManual'}], 'edges': []},
+            workflow_definition=definition,
             status='active',
             created_by=self.user,
             updated_by=self.user,
@@ -77,6 +85,19 @@ class TenantWorkFormExecutionViewSetFilterTests(TestCase):
             workform=self.workform_b,
             status='completed',
             initial_data={'entity_type': 'customer', 'entity_id': '1'},
+            started_by=self.user,
+        )
+
+        self.exec_a_err = TenantWorkFormExecution.objects.create(
+            tenant=self.tenant_a,
+            workform=self.workform_a,
+            status='failed',
+            initial_data={'entity_type': 'customer', 'entity_id': '99'},
+            context_data={
+                'errors': [
+                    {'node_id': 'n1', 'node_type': 'actionEmail', 'error': 'Boom'},
+                ]
+            },
             started_by=self.user,
         )
 
@@ -113,8 +134,27 @@ class TenantWorkFormExecutionViewSetFilterTests(TestCase):
         # Runtime metadata helpers
         self.assertEqual(row.get('current_node_id'), 'n1')
         self.assertEqual(row.get('current_node_type'), 'actionEmail')
+        self.assertEqual(row.get('current_node_label'), 'Send Email')
+        self.assertEqual(row.get('node_labels', {}).get('n1'), 'Send Email')
         self.assertEqual(row.get('last_event'), 'action_success')
         self.assertEqual(row.get('errors'), [])
+
+    def test_errors_include_node_label(self):
+        req = self._get(
+            '/api/v1/workflows/workform-executions/?entity_type=customer&entity_id=99',
+            self.tenant_a,
+        )
+        resp = TenantWorkFormExecutionViewSet.as_view({'get': 'list'})(req)
+        self.assertEqual(resp.status_code, 200)
+
+        rows = self._items(resp)
+        ids = {row.get('id') for row in rows}
+        self.assertIn(str(self.exec_a_err.id), ids)
+        self.assertNotIn(str(self.exec_b_1.id), ids)
+
+        row = next(r for r in rows if r.get('id') == str(self.exec_a_err.id))
+        self.assertEqual(row.get('errors')[0].get('node_id'), 'n1')
+        self.assertEqual(row.get('errors')[0].get('node_label'), 'Send Email')
 
     def test_filters_by_workform_id(self):
         req = self._get(
