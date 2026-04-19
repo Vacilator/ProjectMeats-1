@@ -33,6 +33,9 @@
       "expo-font",
       "expo-splash-screen"
     ],
-    "scheme": "projectmeats"
+    "scheme": "projectmeats",
+    "extra": {
+      "apiBaseUrl": "http://localhost:8000/api/v1"
+    }
   }
 }
