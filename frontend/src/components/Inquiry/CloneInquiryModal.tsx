@@ -4,8 +4,11 @@
  * Allows users to quickly create a new inquiry based on an existing one,
  * optionally copying products and pricing to a different entity/contact.
  */
-import React, { useState, useEffect } from 'react';
+import React, { useEffect } from 'react';
+import { z } from 'zod';
 import styled from 'styled-components';
+
+import { useZodForm } from '@/hooks/useZodForm';
 import { showAlert } from '@/utils/uiDialogs';
 import { businessApi } from '@/services/businessApi';
 import { Inquiry } from '../../types';
@@ -43,6 +46,32 @@ interface Contact {
   last_name: string;
   email?: string;
 }
+
+const cloneInquirySchema = z
+  .object({
+    includeProducts: z.boolean().default(true),
+    includePricing: z.boolean().default(false),
+    newEntityId: z.string().optional().default(''),
+    newContactId: z.string().optional().default(''),
+  })
+  .superRefine((values, ctx) => {
+    if (values.includePricing && !values.includeProducts) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['includePricing'],
+        message: 'Pricing can only be cloned when products are included.',
+      });
+    }
+  });
+
+type CloneInquiryValues = z.infer<typeof cloneInquirySchema>;
+
+const buildCloneInquiryDefaults = (): CloneInquiryValues => ({
+  includeProducts: true,
+  includePricing: false,
+  newEntityId: '',
+  newContactId: '',
+});
 
 // ============================================================================
 // Styled Components
@@ -182,6 +211,12 @@ const CheckboxHint = styled.span`
   margin-top: 2px;
 `;
 
+const InlineError = styled.div`
+  margin-top: 10px;
+  color: rgb(var(--color-error));
+  font-size: 0.85rem;
+`;
+
 const Footer = styled.div`
   padding: 16px 24px;
   border-top: 1px solid rgb(var(--color-border));
@@ -232,17 +267,26 @@ export const CloneInquiryModal: React.FC<CloneInquiryModalProps> = ({
   onCloned,
   inquiry,
 }) => {
-  // Form state
-  const [includeProducts, setIncludeProducts] = useState(true);
-  const [includePricing, setIncludePricing] = useState(false);
-  const [newEntityId, setNewEntityId] = useState<string>('');
-  const [newContactId, setNewContactId] = useState<string>('');
-  
+  const form = useZodForm<CloneInquiryValues>(cloneInquirySchema, {
+    defaultValues: buildCloneInquiryDefaults(),
+  });
+
+  const includeProducts = form.watch('includeProducts');
+  const includePricing = form.watch('includePricing');
+  const newEntityId = form.watch('newEntityId');
+  const newContactId = form.watch('newContactId');
+  const cloning = form.formState.isSubmitting;
+
   // Data state
-  const [entities, setEntities] = useState<Entity[]>([]);
-  const [contacts, setContacts] = useState<Contact[]>([]);
-  const [cloning, setCloning] = useState(false);
-  
+  const [entities, setEntities] = React.useState<Entity[]>([]);
+  const [contacts, setContacts] = React.useState<Contact[]>([]);
+
+  useEffect(() => {
+    if (!includeProducts && includePricing) {
+      form.setValue('includePricing', false, { shouldDirty: true });
+    }
+  }, [form, includePricing, includeProducts]);
+
   // Load entities based on inquiry type
   useEffect(() => {
     if (isOpen && inquiry) {
@@ -280,30 +324,26 @@ export const CloneInquiryModal: React.FC<CloneInquiryModalProps> = ({
   // Reset form when modal opens
   useEffect(() => {
     if (isOpen) {
-      setIncludeProducts(true);
-      setIncludePricing(false);
-      setNewEntityId('');
-      setNewContactId('');
+      form.reset(buildCloneInquiryDefaults());
     }
-  }, [isOpen]);
-  
-  const handleClone = async () => {
-    setCloning(true);
+  }, [form, isOpen]);
+
+  const onSubmit = async (values: CloneInquiryValues) => {
     try {
       const payload: CloneInquiryPayload = {
-        include_products: includeProducts,
-        include_pricing: includePricing,
+        include_products: values.includeProducts,
+        include_pricing: values.includePricing,
       };
-      
-      if (newEntityId) {
-        payload.new_entity_id = newEntityId;
+
+      if (values.newEntityId) {
+        payload.new_entity_id = values.newEntityId;
       }
-      if (newContactId) {
-        payload.new_contact_id = newContactId;
+      if (values.newContactId) {
+        payload.new_contact_id = values.newContactId;
       }
-      
+
       const response = await businessApi.post<Inquiry>(`/inquiries/${inquiry.id}/clone/`, payload);
-      
+
       onCloned(response.data);
       onClose();
     } catch (error) {
@@ -313,8 +353,6 @@ export const CloneInquiryModal: React.FC<CloneInquiryModalProps> = ({
         title: 'Error',
         content: 'Failed to clone inquiry',
       });
-    } finally {
-      setCloning(false);
     }
   };
   
@@ -330,98 +368,102 @@ export const CloneInquiryModal: React.FC<CloneInquiryModalProps> = ({
           <CloseButton onClick={onClose}>×</CloseButton>
         </Header>
         
-        <Content>
-          <SourceInfo>
-            <SourceLabel>Cloning from:</SourceLabel>
-            <SourceValue>
-              {inquiry.inquiry_number} - {entityName}
-            </SourceValue>
-          </SourceInfo>
-          
-          <CheckboxGroup>
-            <div>
-              <CheckboxRow>
-                <Checkbox
-                  type="checkbox"
-                  checked={includeProducts}
-                  onChange={e => setIncludeProducts(e.target.checked)}
-                  id="includeProducts"
-                />
-                <CheckboxLabel>Include Products</CheckboxLabel>
-              </CheckboxRow>
-              <CheckboxHint>
-                Copy all products from the original inquiry
-              </CheckboxHint>
-            </div>
-            
-            <div>
-              <CheckboxRow>
-                <Checkbox
-                  type="checkbox"
-                  checked={includePricing}
-                  onChange={e => setIncludePricing(e.target.checked)}
-                  disabled={!includeProducts}
-                  id="includePricing"
-                />
-                <CheckboxLabel>Include Pricing</CheckboxLabel>
-              </CheckboxRow>
-              <CheckboxHint>
-                Copy desired prices and quantities (requires products)
-              </CheckboxHint>
-            </div>
-          </CheckboxGroup>
-          
-          <FormGroup>
-            <Label>
-              Clone to Different {inquiry.entity_type === 'supplier' ? 'Supplier' : 'Customer'} (Optional)
-            </Label>
-            <Select
-              value={newEntityId}
-              onChange={e => {
-                setNewEntityId(e.target.value);
-                setNewContactId('');
-              }}
-            >
-              <option value="">Same as original ({entityName})</option>
-              {entities.map(entity => (
-                <option key={entity.id} value={entity.id}>
-                  {entity.name}
-                </option>
-              ))}
-            </Select>
-          </FormGroup>
-          
-          {(newEntityId || contacts.length > 0) && (
+        <form onSubmit={form.handleSubmit(onSubmit)}>
+          <Content>
+            <SourceInfo>
+              <SourceLabel>Cloning from:</SourceLabel>
+              <SourceValue>
+                {inquiry.inquiry_number} - {entityName}
+              </SourceValue>
+            </SourceInfo>
+
+            <CheckboxGroup>
+              <div>
+                <CheckboxRow>
+                  <Checkbox
+                    type="checkbox"
+                    aria-label="Include Products"
+                    checked={includeProducts}
+                    onChange={(e) => form.setValue('includeProducts', e.target.checked, { shouldDirty: true })}
+                    id="includeProducts"
+                  />
+                  <CheckboxLabel>Include Products</CheckboxLabel>
+                </CheckboxRow>
+                <CheckboxHint>Copy all products from the original inquiry</CheckboxHint>
+              </div>
+
+              <div>
+                <CheckboxRow>
+                  <Checkbox
+                    type="checkbox"
+                    aria-label="Include Pricing"
+                    checked={includePricing}
+                    onChange={(e) => form.setValue('includePricing', e.target.checked, { shouldDirty: true })}
+                    disabled={!includeProducts}
+                    id="includePricing"
+                  />
+                  <CheckboxLabel>Include Pricing</CheckboxLabel>
+                </CheckboxRow>
+                <CheckboxHint>Copy desired prices and quantities (requires products)</CheckboxHint>
+              </div>
+            </CheckboxGroup>
+
+            {form.formState.errors.includePricing?.message ? (
+              <InlineError>{String(form.formState.errors.includePricing.message)}</InlineError>
+            ) : null}
+
             <FormGroup>
-              <Label>Contact (Optional)</Label>
+              <Label>
+                Clone to Different {inquiry.entity_type === 'supplier' ? 'Supplier' : 'Customer'} (Optional)
+              </Label>
               <Select
-                value={newContactId}
-                onChange={e => setNewContactId(e.target.value)}
+                aria-label="Clone to entity"
+                value={newEntityId}
+                onChange={(e) => {
+                  form.setValue('newEntityId', e.target.value, { shouldDirty: true });
+                  form.setValue('newContactId', '', { shouldDirty: true });
+                }}
               >
-                <option value="">
-                  {newEntityId ? 'Select contact...' : `Same as original (${inquiry.contact_name || 'None'})`}
-                </option>
-                {contacts.map(contact => (
-                  <option key={contact.id} value={contact.id}>
-                    {contact.first_name} {contact.last_name}
-                    {contact.email && ` (${contact.email})`}
+                <option value="">Same as original ({entityName})</option>
+                {entities.map((entity) => (
+                  <option key={entity.id} value={entity.id}>
+                    {entity.name}
                   </option>
                 ))}
               </Select>
             </FormGroup>
-          )}
-        </Content>
-        
-        <Footer>
-          <Button onClick={onClose}>Cancel</Button>
-          <Button 
-            $variant="primary" 
-            onClick={handleClone}
-            disabled={cloning}
-          >
-            {cloning ? 'Cloning...' : 'Clone Inquiry'}
-          </Button>
-        </Footer>
+
+            {(newEntityId || contacts.length > 0) && (
+              <FormGroup>
+                <Label>Contact (Optional)</Label>
+                <Select
+                  aria-label="Clone to contact"
+                  value={newContactId}
+                  onChange={(e) => form.setValue('newContactId', e.target.value, { shouldDirty: true })}
+                >
+                  <option value="">
+                    {newEntityId ? 'Select contact...' : `Same as original (${inquiry.contact_name || 'None'})`}
+                  </option>
+                  {contacts.map((contact) => (
+                    <option key={contact.id} value={contact.id}>
+                      {contact.first_name} {contact.last_name}
+                      {contact.email && ` (${contact.email})`}
+                    </option>
+                  ))}
+                </Select>
+              </FormGroup>
+            )}
+          </Content>
+
+          <Footer>
+            <Button type="button" onClick={onClose}>
+              Cancel
+            </Button>
+            <Button $variant="primary" type="submit" disabled={cloning}>
+              {cloning ? 'Cloning...' : 'Clone Inquiry'}
+            </Button>
+          </Footer>
+        </form>
       </ModalContainer>
     </Overlay>
   );
