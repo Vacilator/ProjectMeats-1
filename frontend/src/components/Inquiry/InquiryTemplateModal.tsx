@@ -9,6 +9,11 @@ import styled from 'styled-components';
 import { Select as AntSelect } from 'antd';
 import { showAlert } from '@/utils/uiDialogs';
 import { businessApi } from '../../services/businessApi';
+import {
+  InquiryModalBody,
+  InquiryModalFooter,
+  InquiryModalFrame,
+} from './InquiryModalFrame';
 import { InquiryTemplate, InquiryEntityType } from '../../types';
 import { PROTEIN_TYPE_CHOICES } from '../../utils/constants/choices';
 
@@ -45,62 +50,6 @@ interface TemplateProductLine {
 // Styled Components
 // ============================================================================
 
-const Overlay = styled.div<{ $isOpen: boolean }>`
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
-  display: ${props => props.$isOpen ? 'flex' : 'none'};
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-`;
-
-const ModalContainer = styled.div`
-  background: rgb(var(--color-surface));
-  border-radius: var(--radius-lg);
-  width: 90%;
-  max-width: 900px;
-  max-height: 90vh;
-  display: flex;
-  flex-direction: column;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-`;
-
-const Header = styled.div`
-  padding: 20px 24px;
-  border-bottom: 1px solid rgb(var(--color-border));
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-`;
-
-const Title = styled.h2`
-  margin: 0;
-  font-size: 1.25rem;
-  color: rgb(var(--color-text-primary));
-`;
-
-const CloseButton = styled.button`
-  background: none;
-  border: none;
-  font-size: 1.5rem;
-  cursor: pointer;
-  color: rgb(var(--color-text-secondary));
-  padding: 4px 8px;
-  
-  &:hover {
-    color: rgb(var(--color-text-primary));
-  }
-`;
-
-const Content = styled.div`
-  flex: 1;
-  overflow-y: auto;
-  padding: 24px;
-`;
 
 const FormSection = styled.div`
   margin-bottom: 24px;
@@ -249,13 +198,6 @@ const AddProductButton = styled.button`
   }
 `;
 
-const Footer = styled.div`
-  padding: 16px 24px;
-  border-top: 1px solid rgb(var(--color-border));
-  display: flex;
-  justify-content: flex-end;
-  gap: 12px;
-`;
 
 const Button = styled.button<{ $variant?: 'primary' | 'secondary' }>`
   padding: 10px 20px;
@@ -466,16 +408,13 @@ export const InquiryTemplateModal: React.FC<InquiryTemplateModalProps> = ({
   };
   
   return (
-    <Overlay $isOpen={isOpen} onClick={onClose}>
-      <ModalContainer onClick={e => e.stopPropagation()}>
-        <Header>
-          <Title>
-            {isEditing ? '✏️ Edit Template' : '📋 Create Inquiry Template'}
-          </Title>
-          <CloseButton onClick={onClose}>×</CloseButton>
-        </Header>
-        
-        <Content>
+    <InquiryModalFrame
+      isOpen={isOpen}
+      onClose={onClose}
+      title={isEditing ? '✏️ Edit Template' : '📋 Create Inquiry Template'}
+      maxWidth={900}
+    >
+      <InquiryModalBody>
           {/* Basic Info */}
           <FormSection>
             <SectionTitle>📝 Template Info</SectionTitle>
@@ -660,9 +599,9 @@ export const InquiryTemplateModal: React.FC<InquiryTemplateModalProps> = ({
               placeholder="Default notes to include in inquiries created from this template..."
             />
           </FormSection>
-        </Content>
-        
-        <Footer>
+      </InquiryModalBody>
+
+      <InquiryModalFooter>
           <Button onClick={onClose}>Cancel</Button>
           <Button 
             $variant="primary" 
@@ -671,9 +610,8 @@ export const InquiryTemplateModal: React.FC<InquiryTemplateModalProps> = ({
           >
             {saving ? 'Saving...' : (isEditing ? 'Save Changes' : 'Create Template')}
           </Button>
-        </Footer>
-      </ModalContainer>
-    </Overlay>
+      </InquiryModalFooter>
+    </InquiryModalFrame>
   );
 };
 

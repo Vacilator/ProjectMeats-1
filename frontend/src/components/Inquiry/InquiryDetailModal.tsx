@@ -18,6 +18,7 @@ import {
   InquiryStatus,
 } from '../../types';
 import { CreateFulfillmentModal } from '../Fulfillment';
+import { InquiryModalContainer, InquiryModalOverlay } from './InquiryModalFrame';
 
 // ============================================================================
 // TypeScript Interfaces
@@ -35,29 +36,6 @@ interface InquiryDetailModalProps {
 // Styled Components
 // ============================================================================
 
-const Overlay = styled.div<{ isOpen: boolean }>`
-  display: ${props => props.isOpen ? 'flex' : 'none'};
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.6);
-  z-index: 1000;
-  align-items: center;
-  justify-content: center;
-  padding: 1rem;
-`;
-
-const Modal = styled.div`
-  background: rgb(var(--color-surface));
-  border-radius: var(--radius-lg);
-  width: 100%;
-  max-width: 900px;
-  max-height: 90vh;
-  overflow-y: auto;
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
-`;
 
 const ModalHeader = styled.div`
   padding: 1.5rem;
@@ -113,6 +91,8 @@ const CloseButton = styled.button`
 
 const ModalBody = styled.div`
   padding: 1.5rem;
+  flex: 1;
+  overflow-y: auto;
 `;
 
 const Section = styled.div`
@@ -424,8 +404,8 @@ export const InquiryDetailModal: React.FC<InquiryDetailModalProps> = ({
 
   return (
     <>
-      <Overlay isOpen={isOpen} onClick={onClose}>
-        <Modal onClick={(e) => e.stopPropagation()}>
+      <InquiryModalOverlay $open={isOpen} onClick={onClose}>
+        <InquiryModalContainer $maxWidth={900} onClick={(e) => e.stopPropagation()}>
           <ModalHeader>
             <HeaderLeft>
               <ModalTitle>
@@ -652,8 +632,8 @@ export const InquiryDetailModal: React.FC<InquiryDetailModalProps> = ({
               </CloseModalButton>
             </FooterRight>
           </ModalFooter>
-        </Modal>
-      </Overlay>
+        </InquiryModalContainer>
+      </InquiryModalOverlay>
 
       {/* Fulfillment Modal */}
       {showFulfillmentModal && (
