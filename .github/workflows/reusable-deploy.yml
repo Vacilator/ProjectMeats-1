@@ -260,6 +260,14 @@ jobs:
       contents: read
       security-events: write
     steps:
+      - name: Cache Trivy DB
+        uses: actions/cache@v5
+        with:
+          path: ~/.cache/trivy
+          key: ${{ runner.os }}-trivy-cache-57a97c7e
+          restore-keys: |
+            ${{ runner.os }}-trivy-cache-
+
       # SARIF generation should not gate deployments.
       # Trivy's SARIF mode may include all severities, which can incorrectly fail the job
       # even when CRITICAL/HIGH are 0. We enforce severity thresholds in a separate step.
@@ -307,6 +315,27 @@ jobs:
         env:
           TRIVY_USERNAME: ${{ secrets.DO_ACCESS_TOKEN }}
           TRIVY_PASSWORD: ${{ secrets.DO_ACCESS_TOKEN }}
+
+      - name: Generate SBOM (CycloneDX)
+        if: always()
+        continue-on-error: true
+        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # v0.35.0
+        with:
+          image-ref: ${{ env.REGISTRY }}/${{ env.BACKEND_IMAGE }}:${{ inputs.environment }}-${{ github.sha }}
+          format: 'cyclonedx'
+          output: 'sbom-backend.cdx.json'
+          exit-code: '0'
+        env:
+          TRIVY_USERNAME: ${{ secrets.DO_ACCESS_TOKEN }}
+          TRIVY_PASSWORD: ${{ secrets.DO_ACCESS_TOKEN }}
+
+      - name: Upload SBOM (backend)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom-backend-${{ inputs.environment }}-${{ github.sha }}
+          path: sbom-backend.cdx.json
+          if-no-files-found: ignore
 
       - name: Upload Trivy results to GitHub Security
         if: always()
@@ -467,6 +496,14 @@ jobs:
       contents: read
       security-events: write
     steps:
+      - name: Cache Trivy DB
+        uses: actions/cache@v5
+        with:
+          path: ~/.cache/trivy
+          key: ${{ runner.os }}-trivy-cache-57a97c7e
+          restore-keys: |
+            ${{ runner.os }}-trivy-cache-
+
       # SARIF generation should not gate deployments (see backend scan notes).
       - name: Run Trivy vulnerability scanner (SARIF)
         uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # v0.35.0
@@ -512,6 +549,27 @@ jobs:
         env:
           TRIVY_USERNAME: ${{ secrets.DO_ACCESS_TOKEN }}
           TRIVY_PASSWORD: ${{ secrets.DO_ACCESS_TOKEN }}
+
+      - name: Generate SBOM (CycloneDX)
+        if: always()
+        continue-on-error: true
+        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # v0.35.0
+        with:
+          image-ref: ${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE }}:${{ inputs.environment }}-${{ github.sha }}
+          format: 'cyclonedx'
+          output: 'sbom-frontend.cdx.json'
+          exit-code: '0'
+        env:
+          TRIVY_USERNAME: ${{ secrets.DO_ACCESS_TOKEN }}
+          TRIVY_PASSWORD: ${{ secrets.DO_ACCESS_TOKEN }}
+
+      - name: Upload SBOM (frontend)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom-frontend-${{ inputs.environment }}-${{ github.sha }}
+          path: sbom-frontend.cdx.json
+          if-no-files-found: ignore
 
       - name: Upload Trivy results to GitHub Security
         if: always()
