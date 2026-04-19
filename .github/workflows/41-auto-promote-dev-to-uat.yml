@@ -9,7 +9,7 @@ run-name: >-
 
 on:
   workflow_run:
-    workflows: ["Master Pipeline"]
+    workflows: ["🚀 Deploy: Dev/UAT/Prod (Frontend + Backend via Golden Pipeline)"]
     types: [completed]
 
 permissions:

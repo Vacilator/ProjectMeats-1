@@ -320,6 +320,83 @@ check_concurrency() {
     return 0
 }
 
+# Check for floating action refs (supply chain)
+check_no_floating_action_refs() {
+    log_info "Checking for floating action refs (no @master/@main/@HEAD)..."
+
+    local workflows=(.github/workflows/*.yml .github/workflows/*.yaml)
+    local failed=0
+
+    for workflow in "${workflows[@]}"; do
+        [[ -f "$workflow" ]] || continue
+        if grep -nE "^\s*uses:\s+[^\s]+@(master|main|HEAD)\b" "$workflow" >/dev/null; then
+            log_error "Floating action ref found in $workflow"
+            grep -nE "^\s*uses:\s+[^\s]+@(master|main|HEAD)\b" "$workflow" || true
+            ((failed++))
+        fi
+    done
+
+    if [[ $failed -gt 0 ]]; then
+        log_error "Found $failed workflow(s) with floating action refs"
+        return 1
+    fi
+
+    log_info "✓ No floating action refs detected"
+    return 0
+}
+
+# Check workflow_run targets exist (promotion reliability)
+check_workflow_run_targets_exist() {
+    log_info "Checking workflow_run referenced workflow names exist..."
+
+    if ! python - <<'PY'
+import sys
+from pathlib import Path
+
+try:
+    import yaml
+except Exception as e:
+    print(f"ERROR: pyyaml not available: {e}", file=sys.stderr)
+    raise SystemExit(1)
+
+wf_dir = Path('.github/workflows')
+workflow_files = sorted([p for p in wf_dir.glob('*.yml')] + [p for p in wf_dir.glob('*.yaml')])
+
+names = set()
+for p in workflow_files:
+    data = yaml.safe_load(p.read_text(encoding='utf-8', errors='ignore')) or {}
+    name = data.get('name')
+    if isinstance(name, str) and name.strip():
+        names.add(name.strip())
+
+errors = []
+for p in workflow_files:
+    data = yaml.safe_load(p.read_text(encoding='utf-8', errors='ignore')) or {}
+    on = data.get('on') or {}
+    wr = on.get('workflow_run') if isinstance(on, dict) else None
+    if not isinstance(wr, dict):
+        continue
+    targets = wr.get('workflows')
+    if not isinstance(targets, list):
+        continue
+    for t in targets:
+        if isinstance(t, str) and t.strip() and t.strip() not in names:
+            errors.append(f"{p.name}: workflow_run references missing workflow name: {t}")
+
+if errors:
+    for e in errors:
+        print(f"ERROR: {e}", file=sys.stderr)
+    raise SystemExit(1)
+
+print('✓ All workflow_run targets exist')
+PY
+    then
+        return 1
+    fi
+
+    return 0
+}
+
 # Check for environment-specific configurations
 check_env_separation() {
     log_info "Checking environment separation..."
@@ -354,6 +431,8 @@ main() {
     check_retry_logic || ((failed++))
     check_migration_safety || ((failed++))
     check_concurrency || ((failed++))
+    check_no_floating_action_refs || ((failed++))
+    check_workflow_run_targets_exist || ((failed++))
     check_env_separation || ((failed++))
     
     log_info "========================================="
