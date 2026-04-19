@@ -3,7 +3,11 @@ import { Card, Collapse, Spin } from 'antd';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 
-import { workformExecutionService, type WorkFormExecution } from '@/services/workformExecutionService';
+import {
+  workformExecutionService,
+  type WorkFormExecution,
+  type WorkFormExecutionAuditEvent,
+} from '@/services/workformExecutionService';
 
 export interface EntityWorkflowStatusPanelProps {
   entityType: string;
@@ -84,7 +88,7 @@ export const EntityWorkflowStatusPanel: React.FC<EntityWorkflowStatusPanelProps>
   };
 
   const renderAudit = (execution: WorkFormExecution) => {
-    const trail = Array.isArray(execution.audit_trail) ? execution.audit_trail : [];
+    const trail: WorkFormExecutionAuditEvent[] = Array.isArray(execution.audit_trail) ? execution.audit_trail : [];
 
     if (trail.length === 0) {
       return <div style={{ color: 'rgb(var(--color-text-tertiary))' }}>No step events recorded yet.</div>;
@@ -92,15 +96,19 @@ export const EntityWorkflowStatusPanel: React.FC<EntityWorkflowStatusPanelProps>
 
     return (
       <ol style={{ margin: 0, paddingLeft: 18, display: 'flex', flexDirection: 'column', gap: 6 }}>
-        {trail.map((row: any, idx: number) => (
-          <li key={`${execution.id}:${idx}`}>
-            <span style={{ fontWeight: 600 }}>{String(row?.event ?? 'event')}</span>
-            {row?.node_id ? <span> • node {String(row.node_id)}</span> : null}
-            {row?.ts ? (
-              <span style={{ color: 'rgb(var(--color-text-tertiary))' }}> • {formatTimestamp(String(row.ts))}</span>
-            ) : null}
-          </li>
-        ))}
+        {trail.map((raw: WorkFormExecutionAuditEvent, idx: number) => {
+          const event = typeof raw?.event === 'string' ? raw.event : 'event';
+          const nodeId = typeof raw?.node_id === 'string' ? raw.node_id : null;
+          const ts = typeof raw?.ts === 'string' ? raw.ts : null;
+
+          return (
+            <li key={`${execution.id}:${idx}`}>
+              <span style={{ fontWeight: 600 }}>{event}</span>
+              {nodeId ? <span> • node {nodeId}</span> : null}
+              {ts ? <span style={{ color: 'rgb(var(--color-text-tertiary))' }}> • {formatTimestamp(ts)}</span> : null}
+            </li>
+          );
+        })}
       </ol>
     );
   };
