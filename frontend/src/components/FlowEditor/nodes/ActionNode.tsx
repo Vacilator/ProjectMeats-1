@@ -137,10 +137,18 @@ function getActionDetails(data: ActionNodeData): { mainItems: ActionDetailItem[]
     case 'createRecord':
     case 'updateRecord':
     case 'deleteRecord': {
+      const fieldsValue = (data.fields ?? (data as any).fieldMappings) as any;
+
+      const fieldSummary = Array.isArray(fieldsValue)
+        ? `${fieldsValue.length} mapping(s)`
+        : fieldsValue && typeof fieldsValue === 'object'
+          ? Object.keys(fieldsValue).join(', ')
+          : undefined;
+
       const mainItems = [
-        { label: 'Entity', value: data.entity },
+        { label: 'Entity', value: (data.entity ?? (data as any).entityType) as any },
         { label: 'Record ID', value: data.recordId },
-        { label: 'Fields', value: data.fields ? Object.keys(data.fields).join(', ') : undefined },
+        { label: 'Fields', value: fieldSummary },
       ];
       return { mainItems, extraItems: [] };
     }

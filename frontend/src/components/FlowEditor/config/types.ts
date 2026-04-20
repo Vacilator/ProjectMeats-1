@@ -269,6 +269,9 @@ export interface ConfigField {
   /** Key-value field: label for add button */
   addButtonText?: string;
 
+  /** Key-value fields: persistence shape (default: array pairs) */
+  keyValueMode?: 'array' | 'record';
+
   /** Entity-field picker: pre-selected field id */
   entityFieldId?: string;
 
