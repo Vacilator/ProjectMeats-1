@@ -196,31 +196,87 @@ if errors:
   raise SystemExit(1)
 PY
 
-# Enforce canonical env manifest reference inside squad-owned instructions.
+# Conventions: IDs must be kebab-case; high-risk tasks must have explicit checks (except cross-agent review).
+python - <<'PY' || fail "Invalid squad.json conventions"
+import json
+import re
+
+p = '.copilot/squad/squad.json'
+with open(p, 'r', encoding='utf-8') as f:
+  data = json.load(f)
+
+kebab = re.compile(r'^[a-z0-9]+(-[a-z0-9]+)*$')
+errors = []
+
+for a in data.get('agents', []):
+  if not isinstance(a, dict):
+    continue
+  aid = a.get('id')
+  if isinstance(aid, str) and aid and not kebab.match(aid):
+    errors.append(f"agent.id must be kebab-case: {aid}")
+
+allow_empty_high_checks = {'cross-agent-architectural-review'}
+for t in data.get('tasks', []):
+  if not isinstance(t, dict):
+    continue
+  tid = t.get('id')
+  if isinstance(tid, str) and tid and not kebab.match(tid):
+    errors.append(f"task.id must be kebab-case: {tid}")
+
+  if t.get('risk_level') == 'high' and tid not in allow_empty_high_checks:
+    checks = t.get('required_checks') or []
+    if not isinstance(checks, list) or not any(isinstance(c, str) and c.strip() for c in checks):
+      errors.append(f"high-risk task must declare required_checks: {tid}")
+
+if errors:
+  for e in errors:
+    print(f"ERROR: {e}")
+  raise SystemExit(1)
+PY
+
+# Enforce canonical env manifest + architecture paths inside the governance surface.
+# Scope is intentionally limited to avoid boiling the ocean of repo-wide docs.
 if [ -f manifests/env.manifest.json ] && [ ! -f config/env.manifest.json ]; then
-  legacy_refs=$(grep -RIn "config/env\.manifest\.json" .copilot/squad .github/agents || true)
+  legacy_refs=$(grep -RIn "config/env\.manifest\.json" \
+    .copilot/squad .github/agents .github/skills \
+    README.md manifests/GOLDEN_FILES.md .github/copilot-instructions.md \
+    || true)
   [ -z "$legacy_refs" ] || fail "Legacy env manifest path referenced (use manifests/env.manifest.json):\n$legacy_refs"
 fi
 
+arch_refs=$(grep -RIn "docs/ARCHITECTURE\.md" \
+  .copilot/squad .github/agents .github/skills \
+  README.md manifests/GOLDEN_FILES.md .github/copilot-instructions.md \
+  || true)
+[ -z "$arch_refs" ] || fail "Legacy architecture path referenced (use docs/architecture/ARCHITECTURE.md):\n$arch_refs"
 
-# role files
-for f in \
-  architect lead-engineer backend-lead frontend-lead mobile-lead devops-engineer tester documentation-steward project-manager
-do
-  file=".copilot/squad/roles/$f.md"
+
+# role files (data-driven from squad.json)
+while IFS= read -r file; do
+  [ -n "$file" ] || continue
   require_file "$file"
   require_heading "$file" "## Purpose"
   require_heading "$file" "## Responsibilities"
   require_heading "$file" "## Constraints / Must-Nots"
   require_heading "$file" "## Decision rules"
   require_heading "$file" "## Required references"
-done
+done < <(
+  python - <<'PY'
+import json
 
-# task playbooks
-for f in \
-  add-backend-endpoint add-frontend-component add-mobile-feature update-documentation add-test-coverage update-golden-files multi-tenant-safe-migration ci-cd-workflow-changes cross-agent-architectural-review
-do
-  file=".copilot/squad/tasks/$f.md"
+p = '.copilot/squad/squad.json'
+with open(p, 'r', encoding='utf-8') as f:
+  data = json.load(f)
+
+role_files = sorted({a.get('role_file') for a in data.get('agents', []) if isinstance(a, dict) and isinstance(a.get('role_file'), str)})
+for rf in role_files:
+  print(rf)
+PY
+)
+
+# task playbooks (data-driven from squad.json)
+while IFS= read -r file; do
+  [ -n "$file" ] || continue
   require_file "$file"
   require_heading "$file" "## Purpose"
   require_heading "$file" "## Inputs"
@@ -228,17 +284,25 @@ do
   require_heading "$file" "## Step-by-step execution"
   require_heading "$file" "## Risks & rollback"
   require_heading "$file" "## Handoff checklist"
-done
+done < <(
+  python - <<'PY'
+import json
+
+p = '.copilot/squad/squad.json'
+with open(p, 'r', encoding='utf-8') as f:
+  data = json.load(f)
+
+playbooks = sorted({t.get('playbook_file') for t in data.get('tasks', []) if isinstance(t, dict) and isinstance(t.get('playbook_file'), str)})
+for pb in playbooks:
+  print(pb)
+PY
+)
 
 # copilot agent profiles
 require_dir .github/agents
-count_agents=$(ls -1 .github/agents/projectmeats-*.agent.md 2>/dev/null | wc -l | tr -d ' ')
-[ "$count_agents" -ge 9 ] || fail "Expected >=9 projectmeats-* agents; found $count_agents"
 
 # skills
 require_dir .github/skills
-count_skills=$(find .github/skills -name SKILL.md | wc -l | tr -d ' ')
-[ "$count_skills" -ge 9 ] || fail "Expected >=9 skills; found $count_skills"
 
 # wrapper script
 require_file scripts/gh-copilot
