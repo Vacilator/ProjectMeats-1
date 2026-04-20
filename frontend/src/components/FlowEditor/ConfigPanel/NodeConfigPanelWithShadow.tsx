@@ -22,6 +22,7 @@ import { DynamicConfigPanel } from './DynamicConfigPanel';
 import { FormProcessConfigPanel } from './FormProcessConfigPanel';
 import { FormNodeConfig } from './nodes/FormNodeConfig';
 import { useNodeShadowState } from '../hooks/useNodeShadowState';
+import { sanitizeNodeConfigForPersistence } from '../utils/nodeDataSanitization';
 import {
   PrimaryButton,
   SecondaryButton,
@@ -200,11 +201,13 @@ export const NodeConfigPanelWithShadow: React.FC<NodeConfigPanelWithShadowProps>
   const handleApply = useCallback(() => {
     if (!node) return;
     
+    const sanitized = (sanitizeNodeConfigForPersistence(shadowConfig) || {}) as Record<string, any>;
+
     // Commit shadow state
     commitShadow();
-    
+
     // Also call the original onUpdate to trigger history
-    onUpdate(node.id, shadowConfig);
+    onUpdate(node.id, sanitized);
   }, [node, commitShadow, onUpdate, shadowConfig]);
   
   // Callbacks for FormProcessConfigPanel

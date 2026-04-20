@@ -15,6 +15,7 @@ import { Node, Edge } from '@xyflow/react';
 import { logger } from '@/utils/logger';
 
 import { sortNodesTopologically } from './nodeSorting';
+import { sanitizeNodeDataForPersistence } from './nodeDataSanitization';
 import { apiClient } from '../../../services/apiService';
 
 // ============================================================================
@@ -153,19 +154,22 @@ export const prepareWorkflowForSave = (
   // Ensure all nodes have proper parentId metadata (React Flow v11+)
   // (This is already set by React Flow, but we verify it's serialized)
   for (const node of sortedNodes) {
+    // Strip UI-only keys before persistence (shadowConfig, dirty flags, debug flags, etc).
+    node.data = sanitizeNodeDataForPersistence(node.data);
+
     if (node.parentId) {
       // Ensure extent is serialized
       if (!node.extent) {
         node.extent = 'parent';
       }
-      
+
       // Ensure expandParent is set for child nodes
       if (node.expandParent === undefined) {
         node.expandParent = true;
       }
     }
   }
-  
+
   return {
     nodes: sortedNodes,
     edges: edgesCopy,
