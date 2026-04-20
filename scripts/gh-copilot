@@ -177,15 +177,79 @@ run_task() {
   }
 
   local prompt
-  prompt=$(cat <<PROMPT
-Follow the ProjectMeats Squad playbook: @$playbook
+  prompt=$(python - "$task_id" "$agent_id" "$playbook" <<'PY'
+import json
+import sys
 
-1) Restate deliverables + acceptance criteria.
-2) Identify dependencies + risks + mitigations.
-3) Implement the change (if requested) following repo governance.
-4) Run the smallest relevant existing validation commands.
-5) Provide rollback steps.
-PROMPT
+task_id, agent_id, playbook = sys.argv[1], sys.argv[2], sys.argv[3]
+
+p = '.copilot/squad/squad.json'
+with open(p, 'r', encoding='utf-8') as f:
+  data = json.load(f)
+
+shipping = (data.get('shipping') or {})
+canonical_repo = shipping.get('canonical_repo', 'Meats-Central/ProjectMeats')
+base_branch = shipping.get('canonical_base_branch', 'development')
+
+task = None
+for t in data.get('tasks', []):
+  if isinstance(t, dict) and t.get('id') == task_id:
+    task = t
+    break
+
+if not task:
+  raise SystemExit(2)
+
+risk = task.get('risk_level', 'unknown')
+required_checks = task.get('required_checks') or []
+if not isinstance(required_checks, list):
+  required_checks = []
+
+authoritative_refs = data.get('authoritative_refs') or {}
+
+lines = []
+lines.append(f"Follow the ProjectMeats Squad playbook: @{playbook}")
+lines.append("")
+lines.append(f"Task: {task_id} (risk: {risk})")
+if task.get('deprecated'):
+  sup = task.get('superseded_by')
+  if sup:
+    lines.append(f"NOTE: This task is deprecated; prefer `{sup}`.")
+  else:
+    lines.append("NOTE: This task is deprecated; prefer the v2 task taxonomy.")
+
+lines.append("")
+lines.append("Shipping discipline (MANDATORY):")
+lines.append(f"- Create a new branch")
+lines.append(f"- Open a PR")
+lines.append(f"- Merge to `{canonical_repo}:{base_branch}`")
+lines.append("- Re-sync local development after merge")
+
+lines.append("")
+lines.append("Canonical references (must honor):")
+for k, paths in authoritative_refs.items():
+  if isinstance(paths, list):
+    for rp in paths:
+      if isinstance(rp, str):
+        lines.append(f"- {rp}")
+
+lines.append("")
+lines.append("Execution requirements:")
+lines.append("1) Restate deliverables + acceptance criteria.")
+lines.append("2) Identify dependencies + risks + mitigations.")
+lines.append("3) Implement the change (if requested) following repo governance.")
+if required_checks:
+  lines.append("4) Run these required existing checks:")
+  for c in required_checks:
+    if isinstance(c, str) and c.strip():
+      lines.append(f"   - {c}")
+  lines.append("5) Provide rollback steps.")
+else:
+  lines.append("4) Run the smallest relevant existing validation commands.")
+  lines.append("5) Provide rollback steps.")
+
+print("\n".join(lines))
+PY
 )
 
   local cmd=(copilot --agent="$copilot_agent")

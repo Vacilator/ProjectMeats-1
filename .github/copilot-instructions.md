@@ -78,12 +78,12 @@ When working in **GitHub Copilot CLI** for this repo, default to a “squad” a
 ### Quick Reference: Common Copilot Agent Tasks
 
 **Before Creating PR:**
-- [ ] **MANDATORY WORKFLOW**: for every batch of changes, ALWAYS: `git switch -c <new-branch>` → open a PR → merge to `development` to trigger Dev deployment (do not leave work unmerged).
+- [ ] **MANDATORY WORKFLOW**: for every batch of changes, ALWAYS: `git switch -c <new-branch>` → open a PR → merge to `Meats-Central/ProjectMeats:development` to trigger Dev deployment (do not leave work unmerged).
 - [ ] Run `.github/scripts/validate-migrations.sh` (if backend changes)
 - [ ] Run `.github/scripts/validate-environment.sh` (if config changes)
 - [ ] Test migrations on fresh database
 - [ ] Ensure pre-commit hooks pass
-- [ ] Review architecture decisions in `docs/ARCHITECTURE.md`
+- [ ] Review architecture decisions in `docs/architecture/ARCHITECTURE.md`
 - [ ] Update copilot-log.md with lessons learned
 
 **For Migration Changes:**
@@ -114,7 +114,7 @@ When working in **GitHub Copilot CLI** for this repo, default to a “squad” a
 ### Resources for Copilot Agents
 
 - **copilot-log.md** - 4700+ lines of historical lessons, search for similar issues
-- **docs/ARCHITECTURE.md** - Single source of truth for architecture decisions
+- **docs/architecture/ARCHITECTURE.md** - Single source of truth for architecture decisions
 - **Validation scripts** in `.github/scripts/` - Use these to validate changes
 - **Deployment workflows** in `.github/workflows/` - Reference for CI/CD patterns
 - **manifests/GOLDEN_FILES.md** - Registry of authoritative source files
@@ -125,8 +125,8 @@ When working in **GitHub Copilot CLI** for this repo, default to a “squad” a
   - RLS policy modifications
   - Environment variable additions
   - CI/CD workflow updates
-- Check ROADMAP.md for current priorities and blockers
-- Consult MASTER_PLAN.md for granular task context
+- **Priorities / “done” definitions:** `MASTER_PLAN.md` (canonical)
+- `ROADMAP.md` / `UI_ROADMAP.md` are reference-only unless explicitly promoted in `MASTER_PLAN.md`
 
 ---
 
@@ -202,20 +202,20 @@ Our deployment workflows use `--fake-initial` to ensure reliable redeployments w
 
 **References:**
 - Django Docs: https://docs.djangoproject.com/en/4.2/ref/django-admin/#cmdoption-migrate-fake-initial
-- Our Implementation: `.github/workflows/11-dev-deployment.yml` (deploy-backend job)
+- Our implementation: `.github/workflows/main-pipeline.yml` and `.github/workflows/reusable-deploy.yml`
 
 ---
 
 ## 🔐 Secret Management
 
-### SOURCE OF TRUTH: `config/env.manifest.json`
+### SOURCE OF TRUTH: `manifests/env.manifest.json`
 
 **All environment variables and GitHub secret mappings are defined in the Environment Manifest.**
 
 ### Critical Rules
 
 #### 1. Strict Adherence
-- ✅ **ALWAYS** read `config/env.manifest.json` for secret names
+- ✅ **ALWAYS** read `manifests/env.manifest.json` for secret names
 - ❌ **NEVER** guess or infer secret names from patterns
 - ❌ **NEVER** assume naming conventions are consistent
 - ✅ **ALWAYS** use exact `ci_secret_mapping` values in workflows
@@ -293,7 +293,7 @@ env:
 
 1. **Update Manifest First**
    ```bash
-   vim config/env.manifest.json
+   vim manifests/env.manifest.json
    # Add to appropriate category with mapping
    ```
 
@@ -316,7 +316,7 @@ env:
 
 For detailed secret handling rules, see:
 - **`.github/ai-context/env-handling.md`** - Comprehensive guide for AI and developers
-- **`config/env.manifest.json`** - Single source of truth for all mappings
+- **`manifests/env.manifest.json`** - Single source of truth for all mappings
 
 ### Troubleshooting
 
@@ -336,237 +336,10 @@ For detailed secret handling rules, see:
 
 ---
 
-## 📋 COMPLETE PHASE 1-9 ROADMAP
+## Planning / priorities (canonical)
 
-### Overview: Gap Analysis Project (February 2026)
-
-**Objective**: Bring ProjectMeats from 79.8% → 90%+ feature parity with industry leaders
-
-**Progress**: 51.7% complete (15/29 todos)
-
----
-
-### Phase 1: UI/UX Enhancement ✅ [COMPLETE - 100%]
-
-**Status**: Completed January 2026  
-**Deliverables**:
-- ✅ Onboarding tours with react-joyride (Gap Analysis Phase 1.1)
-- ✅ Responsive design patterns (mobile-first)
-- ✅ WCAG 2.1 Level AA accessibility compliance
-- ✅ Keyboard navigation and screen reader support
-- ✅ High-contrast mode support
-
-**Key Files**:
-- `frontend/src/components/Onboarding/`
-- `frontend/src/hooks/useAccessibility.ts`
-- `frontend/src/styles/responsive.ts`
-
----
-
-### Phase 2: Forms/Workflows - AI-Powered 🔒 [BLOCKED - 0%]
-
-**Status**: BLOCKED - Requires OpenAI API key  
-**Estimated Effort**: 29-37 hours (5 todos)
-
-**Planned Features**:
-- ❌ Phase 2.1: AI Field Suggestions (contextual recommendations)
-- ❌ Phase 2.2: Template Library (import/export workflows)
-- ❌ Phase 2.3: Entity Cascading (protein → cuts automation)
-- ❌ Phase 2.4: Form Process Groups Version Control
-- ❌ Phase 2.5: Enhanced Inheritance (type-checking for forms)
-
-**Key Files** (when unblocked):
-- `backend/tenant_apps/workflows/ai_suggestions.py`
-- `frontend/src/services/aiNodeSuggestionService.ts`
-- `backend/tenant_apps/workflows/template_manager.py`
-
-**Blocker**: OpenAI API key configuration in environment secrets
-
----
-
-### Phase 3: Search Intelligence 🔒 [BLOCKED - 0%]
-
-**Status**: BLOCKED - Requires Redis instance  
-**Estimated Effort**: 26-33 hours (4 todos)
-
-**Planned Features**:
-- ❌ Phase 3.1: Mind-Map Visualizations (react-flow)
-- ❌ Phase 3.2: Real-Time Search Updates (WebSocket-based)
-- ❌ Phase 3.3: NLP Query Refinement (natural language processing)
-- ❌ Phase 3.4: Continuous Search (suggestions as you type)
-
-**Key Files** (when unblocked):
-- `frontend/src/components/Search/MindMap.tsx`
-- `backend/apps/search/nlp_processor.py`
-- `backend/apps/search/realtime_index.py`
-
-**Blocker**: Redis instance for caching and real-time data
-
----
-
-### Phase 4: Admin Management ✅ [COMPLETE - 100%]
-
-**Status**: Completed January 2026  
-**Deliverables**:
-- ✅ Tabbed product catalog with drag-and-drop
-- ✅ Metrics dashboard with real-time analytics
-- ✅ Role-Based Access Control (RBAC) system
-- ✅ Tenant creation wizard (Gap Analysis Phase 4.5)
-- ✅ System Blueprint for extensible schemas
-
-**Key Files**:
-- `frontend/src/components/Admin/TabbedCatalog.tsx`
-- `frontend/src/components/Admin/MetricsDashboard.tsx`
-- `backend/apps/tenants/rbac.py`
-- `backend/apps/tenants/wizard.py`
-
----
-
-### Phase 5: Integrations 🔒 [BLOCKED - 0%]
-
-**Status**: BLOCKED - Requires Microsoft OAuth  
-**Estimated Effort**: 40-49 hours (4 todos)
-
-**Planned Features**:
-- ❌ Phase 5.1: Email Webhook Tracking (event monitoring)
-- ❌ Phase 5.2: Outlook Integration (calendar + email sync)
-- ❌ Phase 5.3: External API Connectors (framework)
-- ❌ Phase 5.4: Third-Party Sync (bidirectional data)
-
-**Key Files** (when unblocked):
-- `backend/apps/integrations/outlook/`
-- `backend/apps/integrations/webhooks/`
-- `frontend/src/services/outlookApi.ts`
-
-**Blocker**: Microsoft OAuth credentials for Outlook/365 integration
-
----
-
-### Phase 6: Performance & Security 🚀 [NEAR-COMPLETE - 83%]
-
-**Status**: 5/6 completed, 1 blocked  
-**Completion Date**: February 26, 2026
-
-**Completed Features**:
-- ✅ Phase 6.2: Security Hardening (OWASP Top 10, 85% coverage) - **DEPLOYED**
-- ✅ Phase 6.3: E2E Test Coverage (31 Playwright tests, 5 browsers) - **DEPLOYED**
-- ✅ Phase 6.5: Frontend Optimization (performance utilities) - **DEPLOYED**
-- ✅ Phase 6.6: Load Testing (Locust framework, 3 profiles) - **DEPLOYED**
-
-**Blocked Feature**:
-- 🔒 Phase 6.4: Sentry Integration (real-time error tracking, APM)
-
-**Key Files**:
-- `backend/apps/core/security.py` (OWASP compliance)
-- `frontend/src/utils/security.ts` (XSS prevention, encryption)
-- `frontend/e2e/` (Playwright test suites)
-- `frontend/src/utils/performance.ts` (monitoring hooks)
-- `backend/locustfile.py` (load testing scenarios)
-
-**Blocker**: Sentry account for error tracking and APM dashboard
-
----
-
-### Phase 7: Intelligent Workform Editor 📍 [PRIMARY FOCUS - In Progress]
-
-**Status**: Active Development  
-**Priority**: **HIGHEST** - All new work should align with Phase 7 objectives
-
-**Core Objectives**:
-
-#### 7.1: AI-Powered Field Suggestions (In Progress)
-- Contextual field recommendations based on workflow patterns
-- Machine learning from existing workflows across tenants
-- Smart defaults based on industry best practices
-
-#### 7.2: Enhanced Drag-and-Drop (In Progress)
-- Improved node positioning with smart snapping
-- Container management with nested workflows
-- Visual connection indicators and validation
-- Batch operations (group select, copy, paste)
-
-#### 7.3: Real-Time Collaboration (Planned)
-- Multi-user editing with operational transforms
-- Presence indicators and cursor tracking
-- Conflict resolution strategies
-- Activity history and audit trail
-
-#### 7.4: Advanced Node Types (Planned)
-- Conditional branching (if/else logic)
-- Loop constructs (for-each, while)
-- Parallel execution paths
-- Sub-workflow embedding
-
-#### 7.5: Performance Optimization (Ongoing)
-- Sub-100ms render times for complex workflows
-- Virtualized node lists for 1000+ node graphs
-- Optimistic UI updates
-- Incremental auto-save with debouncing
-
-#### 7.6: Accessibility & I18n (Ongoing)
-- WCAG 2.1 AAA compliance
-- Full keyboard navigation
-- Screen reader support with ARIA labels
-- Multi-language support
-
-**Key Files**:
-- `frontend/src/components/FlowEditor/UnifiedFlowEditor.tsx` (main editor)
-- `frontend/src/components/FlowEditor/nodes/` (node types)
-- `frontend/src/components/FlowEditor/panels/` (config panels)
-- `backend/tenant_apps/workflows/models.py` (workflow data)
-- `backend/tenant_apps/workflows/views.py` (API endpoints)
-
-**Development Principles**:
-- **Additive-Only Changes**: NEVER break existing workflows (5+ months production data)
-- **Multi-Tenant Safety**: All changes work across ALL tenants
-- **Performance First**: Profile before optimizing, measure bundle impact
-- **User Experience**: Progressive enhancement, clear error messages, undo/redo
-
----
-
-### Phase 8: Advanced Caching & Parallelization ⏳ [PLANNED - Q2 2026]
-
-**Status**: Planning Phase  
-**Estimated Start**: April 2026
-
-**Planned Features**:
-- Redis-based query result caching
-- CDN integration for static assets
-- Parallel task execution for workflows
-- Background job processing with Celery
-- Edge caching strategies
-
-**Dependencies**: Redis infrastructure (also blocks Phase 3)
-
----
-
-### Phase 9: Security Scanning & SBOM 🔐 [PLANNED - Q2 2026]
-
-**Status**: Planning Phase  
-**Estimated Start**: May 2026
-
-**Planned Features**:
-- Automated SBOM (Software Bill of Materials) generation
-- Container image scanning with Trivy/Grype
-- Dependency vulnerability scanning
-- License compliance checking
-- Security audit reports
-
-**Integration**: GitHub Actions security workflows
-
----
-
-## 🎯 Phase Priority Order for AI Development
-
-1. **Phase 7** (PRIMARY): Intelligent Workform Editor - **ALL NEW WORK ALIGNS HERE**
-2. **Phase 6.4** (when unblocked): Sentry integration
-3. **Phase 2** (when unblocked): AI-powered forms and workflows
-4. **Phase 3** (when unblocked): Search intelligence
-5. **Phase 5** (when unblocked): Third-party integrations
-6. **Phase 8** (Q2 2026): Caching and parallelization
-7. **Phase 9** (Q2 2026): Security scanning and SBOM
-
----
+- Canonical priorities, sequencing, and “done” definitions: `MASTER_PLAN.md`
+- `ROADMAP.md` and `UI_ROADMAP.md` are reference-only unless explicitly promoted in `MASTER_PLAN.md`
 
 ## 🚫 STRICT MANDATES FOR ALL PHASES
 
@@ -1061,7 +834,7 @@ Before suggesting any deployment changes:
 
 ```bash
 # 1. Verify manifest is authoritative
-cat config/env.manifest.json | jq '.version'
+cat manifests/env.manifest.json | jq '.version'
 
 # 2. Run secret audit
 python config/manage_env.py audit
@@ -1081,7 +854,7 @@ When answering deployment questions:
 1. **PRIMARY**: docs/GOLDEN_PIPELINE.md
 2. **Secrets**: docs/CONFIGURATION_AND_SECRETS.md
 3. **Workflow**: .github/workflows/reusable-deploy.yml
-4. **Config**: config/env.manifest.json
+4. **Config**: manifests/env.manifest.json
 5. **UI/UX**: docs/DESIGN_SYSTEM.md (single source of truth)
 
 ---

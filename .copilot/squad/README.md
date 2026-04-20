@@ -15,6 +15,24 @@ This directory defines an **enterprise-grade Copilot Squad** for the ProjectMeat
 - Architecture (shared-schema multi-tenancy): `docs/architecture/ARCHITECTURE.md`
 - Workforms additive-only standards: `docs/workforms/MIGRATION_STANDARDS.md`
 
+## Shipping discipline (MANDATORY)
+All work ships via **new branch → PR → merge to `Meats-Central/ProjectMeats:development`**.
+
+- `MASTER_PLAN.md` is canonical for priorities/“done”.
+- `ROADMAP.md` / `UI_ROADMAP.md` are reference-only unless explicitly promoted in `MASTER_PLAN.md`.
+
+## Task taxonomy (v2 — recommended)
+Use these “few powerful tasks” for most work:
+- `backend-change`
+- `frontend-change`
+- `mobile-change`
+- `db-migration-change` (high risk)
+- `ci-cd-change` (high risk)
+- `docs-change`
+- `golden-registry-change` (high risk)
+
+Legacy `add-*` tasks are kept for compatibility but are marked deprecated in `squad.json`.
+
 ## How to use (Copilot CLI)
 This squad is designed for **GitHub Copilot CLI** (`copilot`).
 
