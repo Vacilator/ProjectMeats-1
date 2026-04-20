@@ -3,7 +3,7 @@ RLS Policy Audit Management Command (Phase 9.3)
 
 Verifies that all tenant-aware models have corresponding PostgreSQL RLS policies.
 """
-from django.core.management.base import BaseCommand
+from django.core.management.base import BaseCommand, CommandError
 from django.db import connection
 from django.apps import apps
 from apps.core.models import TenantAwareModel
@@ -17,6 +17,11 @@ class Command(BaseCommand):
             '--fix',
             action='store_true',
             help='Automatically create missing RLS policies'
+        )
+        parser.add_argument(
+            '--strict',
+            action='store_true',
+            help='Exit non-zero if any models are not RLS compliant'
         )
     
     def handle(self, *args, **options):
@@ -88,6 +93,9 @@ class Command(BaseCommand):
                 self.stdout.write('Run with --fix to automatically create missing policies')
         
         self.stdout.write(self.style.WARNING('=' * 80))
+
+        if options.get('strict') and compliant_count != len(results):
+            raise CommandError(f"{len(results) - compliant_count} models are not RLS compliant")
     
     def get_tenant_aware_models(self):
         """Get models that MUST have RLS.

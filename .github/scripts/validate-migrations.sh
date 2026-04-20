@@ -143,6 +143,18 @@ if command -v psql &> /dev/null && [ -n "${CI:-}" ]; then
         echo "✅ Migrations applied successfully on fresh database"
     else
         echo "❌ ERROR: Migrations failed on fresh database"
+        PGPASSWORD=postgres psql -h localhost -U postgres -c "DROP DATABASE IF EXISTS test_migration_validation;" 2>/dev/null || true
+        export DATABASE_URL="$ORIGINAL_DB_URL"
+        exit 1
+    fi
+
+    echo ""
+    echo "Step 8: Auditing RLS compliance (fresh database)..."
+    if python manage.py audit_rls_compliance --strict; then
+        echo "✅ RLS compliance audit passed"
+    else
+        echo "❌ ERROR: RLS compliance audit failed"
+        PGPASSWORD=postgres psql -h localhost -U postgres -c "DROP DATABASE IF EXISTS test_migration_validation;" 2>/dev/null || true
         export DATABASE_URL="$ORIGINAL_DB_URL"
         exit 1
     fi
