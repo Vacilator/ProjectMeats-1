@@ -833,7 +833,7 @@ const FormsFlowsCatalog: React.FC = () => {
   };
 
   return (
-    <Container>
+    <Container data-testid="workforms-catalog-page">
       <Header>
         <Title>Forms & Flows</Title>
         <HeaderActions>
@@ -842,6 +842,7 @@ const FormsFlowsCatalog: React.FC = () => {
               <Search size={16} />
             </SearchIconWrapper>
             <SearchInput
+              data-testid="workforms-catalog-search"
               type="text"
               placeholder="Search forms..."
               value={searchQuery}
@@ -867,17 +868,25 @@ const FormsFlowsCatalog: React.FC = () => {
 
       {/* Phase 5: Tabbed View - Logic vs Data + Templates (Phase 2.2) */}
       <TabsContainer>
-        <Tab $active={activeTab === 'workflows'} onClick={() => setActiveTab('workflows')}>
+        <Tab
+          data-testid="workforms-catalog-tab-workflows"
+          $active={activeTab === 'workflows'}
+          onClick={() => setActiveTab('workflows')}
+        >
           <Workflow size={18} />
           Workflows (Logic)
           {workflowsCount > 0 && <TabBadge>{workflowsCount}</TabBadge>}
         </Tab>
-        <Tab $active={activeTab === 'forms'} onClick={() => setActiveTab('forms')}>
+        <Tab data-testid="workforms-catalog-tab-forms" $active={activeTab === 'forms'} onClick={() => setActiveTab('forms')}>
           <Database size={18} />
           Forms (Data)
           {formsCount > 0 && <TabBadge>{formsCount}</TabBadge>}
         </Tab>
-        <Tab $active={activeTab === 'templates'} onClick={() => setActiveTab('templates')}>
+        <Tab
+          data-testid="workforms-catalog-tab-templates"
+          $active={activeTab === 'templates'}
+          onClick={() => setActiveTab('templates')}
+        >
           <Boxes size={18} />
           Industry Templates
           <TabBadge style={{ background: 'rgb(var(--color-success))' }}>{FLOW_TEMPLATES.length}</TabBadge>
@@ -1027,110 +1036,28 @@ const FormsFlowsCatalog: React.FC = () => {
         </EmptyState>
       ) : viewMode === 'grid' ? (
         <GridContainer>
-          {filteredForms.map((form) => (
-            <FormCard key={form.id}>
-              <CardContent onClick={() => void handleEditForm(form)} style={{ cursor: 'pointer' }}>
-                <FormCardHeader>
-                  <FormIcon>{form.icon || '📋'}</FormIcon>
-                  <FormInfo>
-                    <FormTitle>{form.name}</FormTitle>
-                    <FormDescription>{form.description || 'No description'}</FormDescription>
-                  </FormInfo>
-                </FormCardHeader>
-                <FormMeta>
-                  <MetaItem>
-                    <Workflow size={14} />
-                    {typeof form.node_count === 'number'
-                      ? form.node_count
-                      : form.entity_count || 0}{' '}
-                    {typeof form.node_count === 'number'
-                      ? form.node_count === 1
-                        ? 'node'
-                        : 'nodes'
-                      : (form.entity_count || 0) === 1
-                        ? 'step'
-                        : 'steps'}
-                  </MetaItem>
-                  <MetaItem>
-                    <Clock size={14} />
-                    {formatDate(form.updated_at)}
-                  </MetaItem>
-                  <StatusBadge $status={form.status}>{form.status}</StatusBadge>
-                </FormMeta>
+          {filteredForms.map((form) => {
+            const isWorkform = form.kind === 'workform' || typeof form.node_count === 'number';
 
-                {/* NEW: Quick Run Button (if workflow supports it) */}
-                {form.can_quick_run && form.status === 'active' && (
-                  <div style={{ marginTop: '1rem' }}>
-                    <QuickRunButton
-                      $isRunning={isQuickRunning === form.id}
-                      onClick={(e) => handleQuickRun(form, e)}
-                      disabled={isQuickRunning === form.id}
-                      title="Start this workflow with one click"
-                    >
-                      {isQuickRunning === form.id ? (
-                        <>
-                          <Loader size={16} />
-                          Starting...
-                        </>
-                      ) : (
-                        <>
-                          <Play size={16} />
-                          Quick Run
-                        </>
-                      )}
-                    </QuickRunButton>
-                  </div>
-                )}
-
-                {/* Delete (WorkForms only) */}
-                {typeof form.node_count === 'number' && permissions.can_delete && form.status !== 'active' && (
-                  <ActionRow>
-                    <Popconfirm
-                      title="Delete this WorkForm?"
-                      description="This will permanently delete the WorkForm and any extracted forms."
-                      okText="Delete"
-                      cancelText="Cancel"
-                      okButtonProps={{ danger: true }}
-                      onConfirm={() => deleteWorkFormMutation.mutate(form.id)}
-                    >
-                      <IconActionButton
-                        type="button"
-                        onClick={(e) => e.stopPropagation()}
-                        disabled={deleteWorkFormMutation.isPending}
-                        aria-label={`Delete ${form.name}`}
-                      >
-                        <Trash2 size={14} aria-hidden="true" />
-                        Delete
-                      </IconActionButton>
-                    </Popconfirm>
-                  </ActionRow>
-                )}
-              </CardContent>
-            </FormCard>
-          ))}
-        </GridContainer>
-      ) : (
-        <ListContainer>
-          {filteredForms.map((form) => (
-            <FormCard key={form.id}>
-              <CardContent
-                onClick={() => {
-                  void handleEditForm(form);
-                }}
-                style={{ cursor: 'pointer' }}
+            return (
+              <FormCard
+                key={form.id}
+                data-testid="workforms-catalog-item"
+                data-item-id={form.id}
+                data-kind={form.kind ?? (isWorkform ? 'workform' : 'form')}
               >
-                <FormCardHeader>
-                  <FormIcon>{form.icon || '📋'}</FormIcon>
-                  <FormInfo>
-                    <FormTitle>{form.name}</FormTitle>
-                    <FormDescription>{form.description || 'No description'}</FormDescription>
-                  </FormInfo>
+                <CardContent onClick={() => void handleEditForm(form)} style={{ cursor: 'pointer' }}>
+                  <FormCardHeader>
+                    <FormIcon>{form.icon || '📋'}</FormIcon>
+                    <FormInfo>
+                      <FormTitle data-testid="workforms-catalog-item-name">{form.name}</FormTitle>
+                      <FormDescription>{form.description || 'No description'}</FormDescription>
+                    </FormInfo>
+                  </FormCardHeader>
                   <FormMeta>
                     <MetaItem>
                       <Workflow size={14} />
-                      {typeof form.node_count === 'number'
-                        ? form.node_count
-                        : form.entity_count || 0}{' '}
+                      {typeof form.node_count === 'number' ? form.node_count : form.entity_count || 0}{' '}
                       {typeof form.node_count === 'number'
                         ? form.node_count === 1
                           ? 'node'
@@ -1145,58 +1072,156 @@ const FormsFlowsCatalog: React.FC = () => {
                     </MetaItem>
                     <StatusBadge $status={form.status}>{form.status}</StatusBadge>
                   </FormMeta>
-                </FormCardHeader>
 
-                {/* NEW: Quick Run Button (if workflow supports it) */}
-                {form.can_quick_run && form.status === 'active' && (
-                  <div style={{ marginTop: '1rem', marginLeft: '4rem' }}>
-                    <QuickRunButton
-                      $isRunning={isQuickRunning === form.id}
-                      onClick={(e) => handleQuickRun(form, e)}
-                      disabled={isQuickRunning === form.id}
-                      title="Start this workflow with one click"
-                    >
-                      {isQuickRunning === form.id ? (
-                        <>
-                          <Loader size={16} />
-                          Starting...
-                        </>
-                      ) : (
-                        <>
-                          <Play size={16} />
-                          Quick Run
-                        </>
-                      )}
-                    </QuickRunButton>
-                  </div>
-                )}
-
-                {/* Delete (WorkForms only) */}
-                {typeof form.node_count === 'number' && permissions.can_delete && form.status !== 'active' && (
-                  <ActionRow style={{ marginLeft: '4rem' }}>
-                    <Popconfirm
-                      title="Delete this WorkForm?"
-                      description="This will permanently delete the WorkForm and any extracted forms."
-                      okText="Delete"
-                      cancelText="Cancel"
-                      okButtonProps={{ danger: true }}
-                      onConfirm={() => deleteWorkFormMutation.mutate(form.id)}
-                    >
-                      <IconActionButton
-                        type="button"
-                        onClick={(e) => e.stopPropagation()}
-                        disabled={deleteWorkFormMutation.isPending}
-                        aria-label={`Delete ${form.name}`}
+                  {/* Execute / Quick Run (WorkForms always show Execute when active; legacy forms gate on can_quick_run) */}
+                  {form.status === 'active' && (form.can_quick_run || isWorkform) && (
+                    <div style={{ marginTop: '1rem' }}>
+                      <QuickRunButton
+                        data-testid="workforms-catalog-item-execute"
+                        $isRunning={isQuickRunning === form.id}
+                        onClick={(e) => handleQuickRun(form, e)}
+                        disabled={isQuickRunning === form.id}
+                        title={isWorkform ? 'Execute this WorkForm' : 'Start this workflow with one click'}
                       >
-                        <Trash2 size={14} aria-hidden="true" />
-                        Delete
-                      </IconActionButton>
-                    </Popconfirm>
-                  </ActionRow>
-                )}
-              </CardContent>
-            </FormCard>
-          ))}
+                        {isQuickRunning === form.id ? (
+                          <>
+                            <Loader size={16} />
+                            Starting...
+                          </>
+                        ) : (
+                          <>
+                            <Play size={16} />
+                            {isWorkform ? 'Execute' : 'Quick Run'}
+                          </>
+                        )}
+                      </QuickRunButton>
+                    </div>
+                  )}
+
+                  {/* Delete (WorkForms only) */}
+                  {isWorkform && permissions.can_delete && form.status !== 'active' && (
+                    <ActionRow>
+                      <Popconfirm
+                        title="Delete this WorkForm?"
+                        description="This will permanently delete the WorkForm and any extracted forms."
+                        okText="Delete"
+                        cancelText="Cancel"
+                        okButtonProps={{ danger: true }}
+                        onConfirm={() => deleteWorkFormMutation.mutate(form.id)}
+                      >
+                        <IconActionButton
+                          type="button"
+                          onClick={(e) => e.stopPropagation()}
+                          disabled={deleteWorkFormMutation.isPending}
+                          aria-label={`Delete ${form.name}`}
+                        >
+                          <Trash2 size={14} aria-hidden="true" />
+                          Delete
+                        </IconActionButton>
+                      </Popconfirm>
+                    </ActionRow>
+                  )}
+                </CardContent>
+              </FormCard>
+            );
+          })}
+        </GridContainer>
+      ) : (
+        <ListContainer>
+          {filteredForms.map((form) => {
+            const isWorkform = form.kind === 'workform' || typeof form.node_count === 'number';
+
+            return (
+              <FormCard
+                key={form.id}
+                data-testid="workforms-catalog-item"
+                data-item-id={form.id}
+                data-kind={form.kind ?? (isWorkform ? 'workform' : 'form')}
+              >
+                <CardContent
+                  onClick={() => {
+                    void handleEditForm(form);
+                  }}
+                  style={{ cursor: 'pointer' }}
+                >
+                  <FormCardHeader>
+                    <FormIcon>{form.icon || '📋'}</FormIcon>
+                    <FormInfo>
+                      <FormTitle data-testid="workforms-catalog-item-name">{form.name}</FormTitle>
+                      <FormDescription>{form.description || 'No description'}</FormDescription>
+                    </FormInfo>
+                    <FormMeta>
+                      <MetaItem>
+                        <Workflow size={14} />
+                        {typeof form.node_count === 'number' ? form.node_count : form.entity_count || 0}{' '}
+                        {typeof form.node_count === 'number'
+                          ? form.node_count === 1
+                            ? 'node'
+                            : 'nodes'
+                          : (form.entity_count || 0) === 1
+                            ? 'step'
+                            : 'steps'}
+                      </MetaItem>
+                      <MetaItem>
+                        <Clock size={14} />
+                        {formatDate(form.updated_at)}
+                      </MetaItem>
+                      <StatusBadge $status={form.status}>{form.status}</StatusBadge>
+                    </FormMeta>
+                  </FormCardHeader>
+
+                  {/* Execute / Quick Run (WorkForms always show Execute when active; legacy forms gate on can_quick_run) */}
+                  {form.status === 'active' && (form.can_quick_run || isWorkform) && (
+                    <div style={{ marginTop: '1rem', marginLeft: '4rem' }}>
+                      <QuickRunButton
+                        data-testid="workforms-catalog-item-execute"
+                        $isRunning={isQuickRunning === form.id}
+                        onClick={(e) => handleQuickRun(form, e)}
+                        disabled={isQuickRunning === form.id}
+                        title={isWorkform ? 'Execute this WorkForm' : 'Start this workflow with one click'}
+                      >
+                        {isQuickRunning === form.id ? (
+                          <>
+                            <Loader size={16} />
+                            Starting...
+                          </>
+                        ) : (
+                          <>
+                            <Play size={16} />
+                            {isWorkform ? 'Execute' : 'Quick Run'}
+                          </>
+                        )}
+                      </QuickRunButton>
+                    </div>
+                  )}
+
+                  {/* Delete (WorkForms only) */}
+                  {isWorkform && permissions.can_delete && form.status !== 'active' && (
+                    <ActionRow style={{ marginLeft: '4rem' }}>
+                      <Popconfirm
+                        title="Delete this WorkForm?"
+                        description="This will permanently delete the WorkForm and any extracted forms."
+                        okText="Delete"
+                        cancelText="Cancel"
+                        okButtonProps={{ danger: true }}
+                        onConfirm={() => deleteWorkFormMutation.mutate(form.id)}
+                      >
+                        <IconActionButton
+                          type="button"
+                          onClick={(e) => e.stopPropagation()}
+                          disabled={deleteWorkFormMutation.isPending}
+                          aria-label={`Delete ${form.name}`}
+                        >
+                          <Trash2 size={14} aria-hidden="true" />
+                          Delete
+                        </IconActionButton>
+                      </Popconfirm>
+                    </ActionRow>
+                  )}
+                </CardContent>
+              </FormCard>
+            );
+          })}
         </ListContainer>
       )}
 

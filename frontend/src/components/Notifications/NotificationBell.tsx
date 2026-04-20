@@ -165,6 +165,7 @@ const NotificationBell: React.FC<NotificationBellProps> = ({ className }) => {
   return (
     <BellContainer ref={containerRef} className={className}>
       <BellButton
+        data-testid="notification-bell-button"
         onClick={handleToggle}
         $hasUnread={unreadCount > 0}
         $isAnimating={isAnimating}
@@ -174,7 +175,7 @@ const NotificationBell: React.FC<NotificationBellProps> = ({ className }) => {
       >
         <Bell size={20} />
         {unreadCount > 0 && (
-          <Badge $count={unreadCount} aria-hidden="true">
+          <Badge data-testid="notification-bell-badge" $count={unreadCount} aria-hidden="true">
             {displayCount}
           </Badge>
         )}

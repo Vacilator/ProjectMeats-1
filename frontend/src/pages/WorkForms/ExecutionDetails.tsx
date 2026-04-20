@@ -22,6 +22,11 @@ export const WorkFormExecutionDetails: React.FC = () => {
       return workformExecutionService.getExecution(id);
     },
     enabled: !!id,
+    refetchInterval: (q) => {
+      const status = (q.state.data as any)?.status as string | undefined;
+      return status === 'pending' || status === 'in_progress' ? 2000 : false;
+    },
+    refetchIntervalInBackground: true,
   });
 
   const execution = query.data;
@@ -53,15 +58,27 @@ export const WorkFormExecutionDetails: React.FC = () => {
         ) : query.isError || !execution ? (
           <div>Execution not found.</div>
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div data-testid="workform-execution-details-page" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
               <div>
-                <div style={{ fontWeight: 700, fontSize: 16 }}>{execution.workform_name}</div>
+                <div data-testid="workform-execution-name" style={{ fontWeight: 700, fontSize: 16 }}>
+                  {execution.workform_name}
+                </div>
                 <div style={{ color: 'rgb(var(--color-text-secondary))', fontSize: 13 }}>
-                  Status: <span style={{ fontWeight: 600 }}>{execution.status}</span>
+                  Status:{' '}
+                  <span data-testid="workform-execution-status" style={{ fontWeight: 600 }}>
+                    {execution.status}
+                  </span>
                 </div>
               </div>
               <div style={{ display: 'flex', gap: 8 }}>
+                <Button
+                  data-testid="workform-execution-refresh"
+                  variant="secondary"
+                  onClick={() => void query.refetch()}
+                >
+                  Refresh
+                </Button>
                 <Button variant="secondary" onClick={() => navigate('/workforms/history')}>
                   View History
                 </Button>
@@ -72,11 +89,13 @@ export const WorkFormExecutionDetails: React.FC = () => {
             </div>
 
             {execution.error_message ? (
-              <div style={{ color: 'rgb(var(--color-error))' }}>{execution.error_message}</div>
+              <div data-testid="workform-execution-error-message" style={{ color: 'rgb(var(--color-error))' }}>
+                {execution.error_message}
+              </div>
             ) : null}
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 12 }}>
-              <div>
+              <div data-testid="workform-execution-current-step">
                 <div style={{ fontWeight: 600, marginBottom: 6 }}>Current step</div>
                 {execution.current_node_id ? (
                   <div style={{ color: 'rgb(var(--color-text-secondary))' }}>
@@ -96,7 +115,7 @@ export const WorkFormExecutionDetails: React.FC = () => {
               </div>
 
               {execution.errors && execution.errors.length > 0 ? (
-                <div>
+                <div data-testid="workform-execution-errors">
                   <div style={{ fontWeight: 600, marginBottom: 6 }}>Errors</div>
                   <ul style={{ margin: 0, paddingLeft: 18 }}>
                     {execution.errors.map((e, idx) => (

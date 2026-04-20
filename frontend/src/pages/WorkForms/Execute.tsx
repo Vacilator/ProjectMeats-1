@@ -96,8 +96,10 @@ export const ExecuteWorkForm: React.FC = () => {
   }, [id]);
 
   return (
-    <div>
-      <Skeleton active paragraph={{ rows: 6 }} />
+    <div data-testid="workforms-execute-page">
+      <div data-testid="workforms-execute-loading">
+        <Skeleton active paragraph={{ rows: 6 }} />
+      </div>
     </div>
   );
 };
