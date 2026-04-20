@@ -2,11 +2,8 @@
 // Tests for the new guest-mode and invite-only API methods in ApiService.
 // Uses manual mocks to avoid native module dependencies.
 jest.mock('axios', () => {
-  const actualAxios = jest.requireActual('axios');
-  return {
-    ...actualAxios,
+  const axiosMock = {
     create: jest.fn(() => ({
-      ...actualAxios.create(),
       get: jest.fn(),
       post: jest.fn(),
       patch: jest.fn(),
@@ -17,6 +14,12 @@ jest.mock('axios', () => {
         response: { use: jest.fn() },
       },
     })),
+  };
+
+  return {
+    __esModule: true,
+    default: axiosMock,
+    ...axiosMock,
   };
 });
 
@@ -135,23 +138,41 @@ describe('ApiService – invite flow', () => {
   });
 });
 
+describe('ApiService – tenant context', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    internalApi.defaults.headers.common = {};
+  });
+
+  it('setTenantId sets X-Tenant-ID header', () => {
+    ApiService.setTenantId('tenant-123');
+    expect(internalApi.defaults.headers.common['X-Tenant-ID']).toBe('tenant-123');
+  });
+
+  it('clearTenantId removes X-Tenant-ID header', () => {
+    ApiService.setTenantId('tenant-123');
+    ApiService.clearTenantId();
+    expect(internalApi.defaults.headers.common['X-Tenant-ID']).toBeUndefined();
+  });
+});
+
 describe('ApiService – workforms', () => {
   beforeEach(() => {
     jest.clearAllMocks();
   });
 
-  it('getWorkForms calls GET /workflows/ and returns results', async () => {
+  it('getWorkForms calls GET /tenant-workforms/ and maps list results', async () => {
     const mockResponse = {
       count: 2,
       results: [
         {
           id: 'wf-1',
           name: 'Intake',
-          tenant: 't-1',
-          is_active: true,
+          description: 'Desc',
+          status: 'active',
           node_count: 3,
-          created_at: '',
-          updated_at: '',
+          created_at: '2026-01-01T00:00:00Z',
+          updated_at: '2026-01-02T00:00:00Z',
         },
       ],
     };
@@ -160,23 +181,25 @@ describe('ApiService – workforms', () => {
     const result = await ApiService.getWorkForms();
     expect(result.count).toBe(2);
     expect(result.results[0].name).toBe('Intake');
-    expect(internalApi.get).toHaveBeenCalledWith('/workflows/');
+    expect(result.results[0].is_active).toBe(true);
+    expect(internalApi.get).toHaveBeenCalledWith('/tenant-workforms/');
   });
 
-  it('getWorkForm calls GET /workflows/{id}/', async () => {
+  it('getWorkForm calls GET /tenant-workforms/{id}/ and maps detail response', async () => {
     const mockForm = {
       id: 'wf-1',
       name: 'Intake',
-      tenant: 't-1',
-      is_active: true,
+      description: 'Desc',
+      status: 'draft',
       node_count: 3,
-      created_at: '',
-      updated_at: '',
+      created_at: '2026-01-01T00:00:00Z',
+      updated_at: '2026-01-02T00:00:00Z',
     };
     internalApi.get.mockResolvedValueOnce({ data: mockForm });
 
     const result = await ApiService.getWorkForm('wf-1');
     expect(result.id).toBe('wf-1');
-    expect(internalApi.get).toHaveBeenCalledWith('/workflows/wf-1/');
+    expect(result.is_active).toBe(false);
+    expect(internalApi.get).toHaveBeenCalledWith('/tenant-workforms/wf-1/');
   });
 });
