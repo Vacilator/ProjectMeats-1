@@ -1,7 +1,7 @@
 # MASTER_PLAN.md (Canonical)
 
 **Status**: 🔄 Living document (canonical source of truth)  
-**Last Updated**: 2026-04-13  
+**Last Updated**: 2026-04-20  
 **Primary Focus**: Phase 10 (DRY/Canonical Architecture Standardization) - Industry-leader compliance  
 
 This file is the **canonical plan + current truth snapshot**.
@@ -20,12 +20,13 @@ We are re-validating and completing the last ~25 prompts with **evidence-based a
 - ✅ Workforms AI Suggestions route drift — **RESOLVED** (PR #3998): frontend calls `POST /api/v1/workflows/suggest-nodes/` and backend also exposes legacy alias `POST /api/v1/suggest-nodes/`.
 - AI Chat: lessons memory NameError fixed (PR #4045); remaining 400s should be treated as environment config issues (missing OPENAI_API_KEY) with graceful messaging.
 - ✅ Charts: Recharts `ResponsiveContainer` warnings (width/height -1) — **RESOLVED** (PR #4240): set non-zero `minWidth/minHeight` on chart containers to avoid zero-size renders.
-- ⚠️ WorkForms E2E runtime gaps (Workstream B — tracked in Backlog):
-  - WorkFormEngine action support appears limited to `actionEmail`, `actionCreateRecord`, `actionUpdateRecord`, `actionNotification`.
-  - `actionNotification` maps to `send_notification`, but `ActionExecutor.send_notification` is currently a stub (logs only) → no notifications are created.
-  - Notifications APIs exist at `/api/v1/workflows/notifications/*`, but WorkForms does not currently create notification records.
-  - WorkForm executions run async via Celery task `system.execute_workform_execution` → needs structured validation + explainable execution errors/status.
-  - Gmail OAuth endpoints exist (`backend/apps/email_integration/views/oauth_views.py`), but `manifests/env.manifest.json` lacks Google secrets → config drift; must degrade gracefully when unset.
+- ✅ WorkForms E2E runtime gaps (Workstream B) — **RESOLVED** (PRs #4480–#4487):
+  - Notifications persist end-to-end (`actionNotify` → `UserNotification`) + tests (PR #4481)
+  - Node runtime support validation + activation guardrails (PR #4483)
+  - Playwright execution smoke proving execute + notification (PR #4484)
+  - Quick Actions + Catalog reliably list/execute WorkForms (PR #4485)
+  - Entity pages show execution history; backend entity_id filter supports JSON string/int (PR #4486)
+  - Gmail connector MVP + OAuth hardening + frontend wiring + setup docs (PR #4487)
 
 ### Priority execution strategy
 1) Quick wins: ✅ suggest-nodes route drift (PR #3998); ✅ chart sizing warnings (PR #4240).
@@ -114,11 +115,17 @@ We are re-validating and completing the last ~25 prompts with **evidence-based a
 ### P0 — WorkForms E2E completion (Workstream B)
 **Goal:** Make WorkForms publish + execute + monitor **end-to-end** with deterministic runtime behavior, explainable execution details, and tenant-safe notifications/connectors — while respecting **shared-schema multi-tenancy (Postgres RLS + `app.current_tenant`)** and **Golden Pipeline** constraints.
 
-**Current reality (gaps to close):**
-- Runtime coverage: WorkFormEngine appears to support only `actionEmail`, `actionCreateRecord`, `actionUpdateRecord`, `actionNotification`.
-- Notifications: `actionNotification → send_notification`, but `ActionExecutor.send_notification` is a stub (log-only) → WorkForms executions do not create notifications, despite existing APIs at `/api/v1/workflows/notifications/*`.
-- Execution model: WorkForm executions are async via Celery task `system.execute_workform_execution` → execution details must capture structured validation + explainable failures (not silent/no-op or log-only).
-- Gmail: OAuth endpoints exist (`backend/apps/email_integration/views/oauth_views.py`), but `manifests/env.manifest.json` lacks Google secrets → must add optional config + harden OAuth + document explicit setup steps.
+**Status:** ✅ Completed (PRs #4480–#4487)
+
+**Evidence / shipped:**
+- Plan + backlog documented (PR #4480)
+- Notifications persisted end-to-end (PR #4481)
+- Gmail env manifest keys added (PR #4482)
+- Runtime validation + activation guardrails (PR #4483)
+- Playwright execution smoke (PR #4484)
+- Quick Actions + Catalog WorkForms reliability (PR #4485)
+- Entity execution visibility + robust entity_id filtering (PR #4486)
+- Gmail connector MVP + OAuth hardening + widget wiring + setup docs (PR #4487)
 
 **Deliverables (Workstream B):**
 1) **Node support matrix + publish-time guardrails**
