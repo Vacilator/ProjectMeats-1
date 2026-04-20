@@ -92,6 +92,7 @@ function validateRule(
       return null;
 
     case 'regex':
+    case 'pattern':
       if (typeof value === 'string') {
         const regex = rule.value instanceof RegExp ? rule.value : new RegExp(rule.value);
         if (!regex.test(value)) {

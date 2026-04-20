@@ -29,7 +29,7 @@ import {
  * Render a text input field
  */
 export function renderTextField(
-  props: FieldRendererProps<string>
+  props: FieldRendererProps<string | number | undefined>
 ): React.ReactNode {
   const { field, value, onChange, error } = props;
 
@@ -48,7 +48,7 @@ export function renderTextField(
       </Label>
       {field.type === 'textarea' ? (
         <TextArea
-          value={value || ''}
+          value={value ?? ''}
           onChange={(e) => onChange(e.target.value)}
           placeholder={placeholder}
           disabled={field.disabled || props.disabled}
@@ -63,8 +63,23 @@ export function renderTextField(
             : field.type === 'time' ? 'time'
             : 'text'
           }
-          value={value || ''}
-          onChange={(e) => onChange(e.target.value)}
+          value={value ?? ''}
+          onChange={(e) => {
+            if (field.type === 'number') {
+              const raw = e.target.value;
+              if (raw === '') {
+                onChange(undefined);
+                return;
+              }
+              const parsed = Number(raw);
+              if (!Number.isNaN(parsed)) {
+                onChange(parsed);
+              }
+              return;
+            }
+
+            onChange(e.target.value);
+          }}
           placeholder={placeholder}
           disabled={field.disabled || props.disabled}
         />
@@ -83,9 +98,11 @@ export function renderSelectField(
 ): React.ReactNode {
   const { field, value, onChange, error } = props;
 
+  const isMulti = field.type === 'multiselect' || field.type === 'multiSelect' || field.multiple === true;
+
   const handleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    if (field.type === 'multiselect') {
-      const options = Array.from(e.target.selectedOptions, option => option.value);
+    if (isMulti) {
+      const options = Array.from(e.target.selectedOptions, (option) => option.value);
       onChange(options);
     } else {
       onChange(e.target.value);
@@ -99,12 +116,20 @@ export function renderSelectField(
         {field.required && <span style={{ color: 'rgb(var(--color-error))' }}> *</span>}
       </Label>
       <Select
-        value={value || (field.type === 'multiselect' ? [] : '')}
+        value={
+          isMulti
+            ? Array.isArray(value)
+              ? value
+              : value
+                ? [String(value)]
+                : []
+            : String((value as any) ?? '')
+        }
         onChange={handleChange}
         disabled={field.disabled || props.disabled}
-        multiple={field.type === 'multiselect'}
+        multiple={isMulti}
       >
-        {!field.required && field.type !== 'multiselect' && (
+        {!field.required && !isMulti && (
           <option value="">-- Select --</option>
         )}
         {field.options?.map(option => (

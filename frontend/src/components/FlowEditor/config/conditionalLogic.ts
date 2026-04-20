@@ -85,6 +85,22 @@ function evaluateOperator(
       }
       return true;
 
+    case 'in': {
+      const allowed = Array.isArray(targetValue) ? targetValue : [targetValue];
+      if (Array.isArray(fieldValue)) {
+        return fieldValue.some((v) => allowed.includes(v));
+      }
+      return allowed.includes(fieldValue);
+    }
+
+    case 'notIn': {
+      const blocked = Array.isArray(targetValue) ? targetValue : [targetValue];
+      if (Array.isArray(fieldValue)) {
+        return !fieldValue.some((v) => blocked.includes(v));
+      }
+      return !blocked.includes(fieldValue);
+    }
+
     case 'greaterThan':
       if (typeof fieldValue === 'number' && typeof targetValue === 'number') {
         return fieldValue > targetValue;
