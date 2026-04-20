@@ -200,6 +200,20 @@ export const NestedChildrenRenderer: React.FC<NestedChildrenRendererProps> = ({
   onChange,
   error
 }) => {
+  const effectiveChildSchema: Omit<NodeConfigSchema, 'nodeType' | 'displayName'> | undefined =
+    field.childSchema ??
+    ((field as any).itemSchema && Array.isArray((field as any).itemSchema.fields)
+      ? {
+          sections: [
+            {
+              id: 'item',
+              title: 'Item',
+              fields: (field as any).itemSchema.fields,
+            },
+          ],
+        }
+      : undefined);
+
   const [expandedChildren, setExpandedChildren] = useState<Set<number>>(
     new Set(value.length === 1 ? [0] : []) // Auto-expand if only one child
   );
@@ -219,7 +233,7 @@ export const NestedChildrenRenderer: React.FC<NestedChildrenRendererProps> = ({
   
   // Add new child
   const handleAddChild = useCallback(() => {
-    const newChild = field.childSchema?.sections?.reduce((acc, section) => {
+    const newChild = effectiveChildSchema?.sections?.reduce((acc, section) => {
       section.fields.forEach(f => {
         if (f.defaultValue !== undefined) {
           acc[f.id] = f.defaultValue;
@@ -233,7 +247,7 @@ export const NestedChildrenRenderer: React.FC<NestedChildrenRendererProps> = ({
     
     // Auto-expand new child
     setExpandedChildren(prev => new Set([...prev, newValue.length - 1]));
-  }, [field, value, onChange]);
+  }, [effectiveChildSchema, value, onChange]);
   
   // Remove child
   const handleRemoveChild = useCallback((index: number, e: React.MouseEvent) => {
@@ -261,7 +275,7 @@ export const NestedChildrenRenderer: React.FC<NestedChildrenRendererProps> = ({
   // Get child title (from first text field or index)
   const getChildTitle = (child: any, index: number): string => {
     // Try to find a title/name/label field
-    const titleField = field.childSchema?.sections?.flatMap(s => s.fields)
+    const titleField = effectiveChildSchema?.sections?.flatMap(s => s.fields)
       .find(f => ['title', 'name', 'label', 'stepTitle'].includes(f.id));
     
     if (titleField && child[titleField.id]) {
@@ -308,7 +322,7 @@ export const NestedChildrenRenderer: React.FC<NestedChildrenRendererProps> = ({
                 {isExpanded && (
                   <ChildContent>
                     {/* Render child fields inline without full DynamicConfigPanel */}
-                    {field.childSchema?.sections?.map(section => (
+                    {effectiveChildSchema?.sections?.map(section => (
                       <div key={section.id}>
                         {section.fields.map(childField => (
                           <div key={childField.id} style={{ marginBottom: '12px' }}>
