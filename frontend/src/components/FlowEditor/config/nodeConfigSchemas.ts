@@ -1030,28 +1030,10 @@ export const formStepSingleSchema = formSchema;
 // Registry initialization
 // ============================================================================
 
-// NOTE: Registry initialization is deferred until end-of-module to avoid TDZ
-// errors from schema constants declared later in this file.
-
-// CRITICAL HOTFIX (2026-03-18): Defer all registry calls to bypass Vite/Rollup ES Module TDZ
-// When index.ts re-exports cause evaluation order issues, schemaRegistry may not be
-// instantiated yet. setTimeout pushes execution to next macro-task after all modules link.
-setTimeout(() => {
-  if (typeof schemaRegistry !== 'undefined') {
-    // Phase E Fix (2026-02-19): Register backward compatibility aliases
-    // formStepSingle nodes should use the same schema as 'form' nodes
-    schemaRegistry.register({
-      ...formSchema,
-      nodeType: 'formStepSingle',
-      displayName: 'Form (Legacy)',
-      description: '[DEPRECATED] Use the "Form" node instead. This exists for backward compatibility only.',
-    }, true); // Allow overwrite
-
-    logger.debug('[Schema Registry] Registered backward compatibility: formStepSingle → formSchema');
-  } else {
-    console.error('[Schema Registry] CRITICAL: schemaRegistry still undefined after deferral at line 1013');
-  }
-}, 0);
+// NOTE:
+// Schema registry initialization (including backward-compat aliases) is performed
+// synchronously at end-of-module (see bottom of file) to avoid any runtime race
+// where DynamicConfigPanel resolves fallback schemas.
 
 // ============================================================================
 // Phase 2: Trigger Node Schema (Unified Entry Point)
@@ -3099,12 +3081,13 @@ const actionHTTPSchema: NodeConfigSchema = {
         {
           id: 'headers',
           type: 'keyValue',
+          keyValueMode: 'record',
           label: 'Headers',
           helpText: 'HTTP headers to send with the request',
           placeholder: { key: 'Header name', value: 'Header value' },
-          defaultValue: [
-            { key: 'Content-Type', value: 'application/json' }
-          ],
+          defaultValue: {
+            'Content-Type': 'application/json',
+          },
           addButtonText: '+ Add Header',
         },
         {
@@ -3226,6 +3209,7 @@ const actionHTTPSchema: NodeConfigSchema = {
         {
           id: 'extractFields',
           type: 'keyValue',
+          keyValueMode: 'record',
           label: 'Extract Specific Fields',
           helpText: 'JSONPath expressions to extract data (e.g., $.data.id)',
           placeholder: { key: 'Field name', value: 'JSONPath expression' },
@@ -3310,18 +3294,42 @@ const actionNotifySchema: NodeConfigSchema = {
       defaultExpanded: true,
       fields: [
         {
+          id: 'userId',
+          type: 'text',
+          label: 'Recipient User ID',
+          placeholder: 'e.g., {{trigger.userId}}',
+          helpText: 'User identifier to receive the notification (supports variables)',
+          required: true,
+          validation: [{ type: 'required', message: 'Recipient user is required' }],
+        },
+        {
           id: 'title',
           type: 'text',
           label: 'Title',
           placeholder: 'Notification title...',
-          required: true,
+          helpText: 'Short notification title',
+          required: false,
         },
         {
           id: 'message',
           type: 'textarea',
           label: 'Message',
           placeholder: 'Notification message...',
+          helpText: 'Notification body (supports variables)',
           required: true,
+          validation: [{ type: 'required', message: 'Message is required' }],
+        },
+        {
+          id: 'priority',
+          type: 'select',
+          label: 'Priority',
+          defaultValue: 'normal',
+          options: [
+            { value: 'low', label: 'Low' },
+            { value: 'normal', label: 'Normal' },
+            { value: 'high', label: 'High' },
+          ],
+          helpText: 'Higher priority may surface more prominently',
         },
       ]
     }
@@ -3344,11 +3352,23 @@ const actionScriptSchema: NodeConfigSchema = {
       defaultExpanded: true,
       fields: [
         {
+          id: 'language',
+          type: 'select',
+          label: 'Language',
+          defaultValue: 'javascript',
+          options: [
+            { value: 'javascript', label: 'JavaScript' },
+            { value: 'python', label: 'Python' },
+          ],
+          helpText: 'Execution runtime (if supported by the engine)',
+        },
+        {
           id: 'code',
           type: 'textarea',
-          label: 'JavaScript Code',
+          label: 'Code',
           placeholder: '// Your code here...',
           required: true,
+          validation: [{ type: 'required', message: 'Code is required' }],
         },
       ]
     }
@@ -3372,10 +3392,20 @@ const actionCreateRecordSchema: NodeConfigSchema = {
       fields: [
         {
           id: 'entityType',
-          type: 'text',
+          type: 'entityType',
           label: 'Entity Type',
-          placeholder: 'e.g., PurchaseOrder',
+          placeholder: 'Select an entity...',
+          helpText: 'Choose which entity type to create',
           required: true,
+          validation: [{ type: 'required', message: 'Entity type is required' }],
+        },
+        {
+          id: 'fieldMappings',
+          type: 'field-mapping',
+          label: 'Field Mappings',
+          helpText: 'Map upstream variables to entity fields',
+          entityFieldId: 'entityType',
+          showAutoSuggest: true,
         },
       ]
     }
@@ -3399,17 +3429,29 @@ const actionUpdateRecordSchema: NodeConfigSchema = {
       fields: [
         {
           id: 'entityType',
-          type: 'text',
+          type: 'entityType',
           label: 'Entity Type',
-          placeholder: 'e.g., PurchaseOrder',
+          placeholder: 'Select an entity...',
+          helpText: 'Choose which entity type to update',
           required: true,
+          validation: [{ type: 'required', message: 'Entity type is required' }],
         },
         {
           id: 'recordId',
           type: 'text',
           label: 'Record ID',
-          placeholder: 'ID of record to update',
+          placeholder: 'ID of record to update (supports {{variables}})',
+          helpText: 'Identifier of the record to update',
           required: true,
+          validation: [{ type: 'required', message: 'Record ID is required' }],
+        },
+        {
+          id: 'fieldMappings',
+          type: 'field-mapping',
+          label: 'Field Updates',
+          helpText: 'Map upstream variables to entity fields to update',
+          entityFieldId: 'entityType',
+          showAutoSuggest: true,
         },
       ]
     }
@@ -3433,17 +3475,21 @@ const actionDeleteRecordSchema: NodeConfigSchema = {
       fields: [
         {
           id: 'entityType',
-          type: 'text',
+          type: 'entityType',
           label: 'Entity Type',
-          placeholder: 'e.g., PurchaseOrder',
+          placeholder: 'Select an entity...',
+          helpText: 'Choose which entity type to delete from',
           required: true,
+          validation: [{ type: 'required', message: 'Entity type is required' }],
         },
         {
           id: 'recordId',
           type: 'text',
           label: 'Record ID',
-          placeholder: 'ID of record to delete',
+          placeholder: 'ID of record to delete (supports {{variables}})',
+          helpText: 'Identifier of the record to delete',
           required: true,
+          validation: [{ type: 'required', message: 'Record ID is required' }],
         },
       ]
     }
@@ -4318,14 +4364,21 @@ export const subWorkflowSchema: NodeConfigSchema = {
 // Build + initialize schemas at end-of-module to avoid TDZ errors.
 export const allSchemas: NodeConfigSchema[] = buildAllSchemas();
 
-// CRITICAL HOTFIX (2026-03-18): Defer initialization to bypass Vite/Rollup ES Module TDZ
-setTimeout(() => {
-  if (typeof schemaRegistry !== 'undefined') {
-    schemaRegistry.initialize(allSchemas);
-    logger.debug(`[Schema Registry] Complete config coverage: ${allSchemas.length} node schemas registered`);
-  } else {
-    console.error('[Schema Registry] CRITICAL: schemaRegistry still undefined after deferral at line 4171');
-  }
-}, 0);
+// Initialize synchronously so config panels never race into fallback schemas.
+// Registry init is idempotent (it no-ops if already initialized).
+schemaRegistry.initialize(allSchemas);
+
+// Phase E Fix: Register backward compatibility aliases.
+schemaRegistry.register(
+  {
+    ...formSchema,
+    nodeType: 'formStepSingle',
+    displayName: 'Form (Legacy)',
+    description: '[DEPRECATED] Use the "Form" node instead. This exists for backward compatibility only.',
+  },
+  true,
+);
+
+logger.debug(`[Schema Registry] Complete config coverage: ${allSchemas.length} node schemas registered`);
 
 // Cache bust: 1771875847

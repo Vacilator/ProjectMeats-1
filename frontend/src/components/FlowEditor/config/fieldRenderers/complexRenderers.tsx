@@ -128,34 +128,51 @@ export function renderEntitySelector(props: FieldRenderProps): React.ReactElemen
  */
 export function renderFieldMapping(props: FieldRenderProps): React.ReactElement {
   const { field, value, onChange, error, data } = props;
-  
-  // FieldMappingPanel expects entity, upstreamVariables, mappings, onMappingsChange
-  const mappings = value || {};
-  const entityType = data?.entityType as string | undefined;
-  
+
+  // IMPORTANT:
+  // - Schemas may store the "selected entity" under different keys (e.g., entityType vs entity).
+  // - Schemas may specify the source key via field.entityFieldId.
+  // - FieldMappingPanel expects (mappings: FieldMapping[], formFields, targetEntity, onChange).
+  const entityFieldId = (field as any).entityFieldId as string | undefined;
+
+  const entityType = (
+    (entityFieldId ? (data as any)?.[entityFieldId] : undefined) ??
+    (data as any)?.entityType ??
+    (data as any)?.eventEntity ??
+    (data as any)?.entity
+  ) as string | undefined;
+
   if (!entityType) {
     return (
       <FieldContainer>
-        <EmptyState>
-          ℹ️ Select an entity type first to configure field mappings
-        </EmptyState>
+        <EmptyState>ℹ️ Select an entity type first to configure field mappings</EmptyState>
       </FieldContainer>
     );
   }
-  
-  const handleMappingsChange = (newMappings: Record<string, any>) => {
-    onChange(newMappings);
-  };
-  
-  const MappingPanel = FieldMappingPanel as any;
+
+  // Build source field list from upstream variables (best-effort).
+  const upstream = ((data as any)?._upstreamVariables as any[] | undefined) ?? [];
+  const formFields = upstream.map((v) => ({
+    id: String(v.template ?? `${v.nodeId}.${v.fieldName}`),
+    label: String(v.fieldLabel ?? v.fieldName ?? ''),
+    type: String(v.fieldType ?? 'string'),
+  }));
+
+  // Coerce mappings to the array shape expected by FieldMappingPanel.
+  const mappings = Array.isArray(value)
+    ? value
+    : Array.isArray(field.defaultValue)
+      ? (field.defaultValue as any)
+      : [];
 
   return (
     <FieldContainer>
-      <MappingPanel
-        entity={entityType}
-        upstreamVariables={data?._upstreamVariables || []}
-        mappings={mappings}
-        onMappingsChange={handleMappingsChange}
+      <FieldMappingPanel
+        mappings={mappings as any}
+        formFields={formFields}
+        targetEntity={entityType}
+        onChange={(newMappings) => onChange(newMappings)}
+        availableSteps={[]}
       />
       {error && <ErrorMessage>{error}</ErrorMessage>}
     </FieldContainer>
@@ -173,7 +190,6 @@ export function renderFieldMapping(props: FieldRenderProps): React.ReactElement 
 export function renderVariablePicker(props: FieldRenderProps): React.ReactElement {
   const { field, value, onChange, error, data } = props;
 
-  const selectedTemplate = value as string | undefined;
   const upstream = (data as any)?._upstreamVariables as any[] | undefined;
 
   const variables: VariableOption[] = (upstream || []).map((v) => ({
@@ -189,9 +205,19 @@ export function renderVariablePicker(props: FieldRenderProps): React.ReactElemen
     sampleValue: undefined,
   }));
 
-  const selectedVariables = selectedTemplate
-    ? variables.filter((v) => v.path === selectedTemplate)
-    : undefined;
+  const isMulti = field.multiple === true;
+
+  const selectedTemplates: string[] = isMulti
+    ? Array.isArray(value)
+      ? value.map(String)
+      : value
+        ? [String(value)]
+        : []
+    : typeof value === 'string'
+      ? [value]
+      : [];
+
+  const selectedVariables = variables.filter((v) => selectedTemplates.includes(v.path));
 
   const placeholder =
     typeof field.placeholder === 'string'
@@ -203,7 +229,20 @@ export function renderVariablePicker(props: FieldRenderProps): React.ReactElemen
       <VariablePicker
         variables={variables}
         selectedVariables={selectedVariables}
-        onSelect={(variable) => onChange(variable.path)}
+        onSelect={(variable) => {
+          if (!isMulti) {
+            onChange(variable.path);
+            return;
+          }
+
+          // Toggle selection in multi mode.
+          const exists = selectedTemplates.includes(variable.path);
+          const next = exists
+            ? selectedTemplates.filter((t) => t !== variable.path)
+            : [...selectedTemplates, variable.path];
+
+          onChange(next);
+        }}
         placeholder={placeholder}
         showSearch
       />

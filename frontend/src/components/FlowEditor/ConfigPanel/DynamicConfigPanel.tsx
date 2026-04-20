@@ -267,28 +267,50 @@ export const DynamicConfigPanel: React.FC<DynamicConfigPanelProps> = ({
     );
   }
 
+  const effectiveFormData = useMemo(() => {
+    const next: any = { ...(formData as any) };
+
+    // Additive aliasing for legacy/workflow-safe interoperability.
+    if (next.entityType === undefined && next.entity !== undefined) next.entityType = next.entity;
+    if (next.entity === undefined && next.entityType !== undefined) next.entity = next.entityType;
+
+    if (next.fieldMappings === undefined && next.fields !== undefined) next.fieldMappings = next.fields;
+    if (next.fields === undefined && next.fieldMappings !== undefined) next.fields = next.fieldMappings;
+
+    // Materialize schema defaults for evaluation (visibility/validation).
+    schema.sections.forEach((section) => {
+      section.fields.forEach((field) => {
+        if (field.defaultValue !== undefined && next[field.id] === undefined) {
+          next[field.id] = field.defaultValue;
+        }
+      });
+    });
+
+    return next as Record<string, any>;
+  }, [schema, formData]);
+
   // Calculate which fields should be visible based on conditional rules
   const visibleFields = useMemo(() => {
     const visible = new Set<string>();
-    
-    schema.sections.forEach(section => {
+
+    schema.sections.forEach((section) => {
       // Check section-level conditional (using robust helper)
-      if (!checkIsVisible(section, formData)) {
+      if (!checkIsVisible(section, effectiveFormData)) {
         return; // Hide entire section
       }
 
-      section.fields.forEach(field => {
+      section.fields.forEach((field) => {
         // Check field-level conditional (using robust helper)
-        if (checkIsVisible(field, formData)) {
+        if (checkIsVisible(field, effectiveFormData)) {
           visible.add(field.id);
         }
       });
     });
-    
-    return visible;
-  }, [schema, formData]);
 
-  const entityType = (formData as any)?.entityType as string | undefined;
+    return visible;
+  }, [schema, effectiveFormData]);
+
+  const entityType = (effectiveFormData as any)?.entityType as string | undefined;
 
   const { data: entityFieldsResp } = useEntityFields(entityType, {
     enabled: Boolean(entityType) && (node?.type === 'form' || node?.type === 'formStep' || node?.type === 'formStepSingle'),
@@ -618,7 +640,17 @@ export const DynamicConfigPanel: React.FC<DynamicConfigPanelProps> = ({
     const isVisible = visibleFields.has(field.id);
     
     // Always render but with conditional visibility for smooth transitions
-    const value = formData[field.id] ?? field.defaultValue;
+    const rawValue = (effectiveFormData as any)[field.id];
+
+    // Additive aliasing for legacy/workflow-safe interoperability.
+    // (Do not mutate formData here; just compute the displayed value.)
+    const value =
+      rawValue ??
+      (field.id === 'entityType' ? (formData as any).entity : undefined) ??
+      (field.id === 'fields' ? (formData as any).fieldMappings : undefined) ??
+      (field.id === 'fieldMappings' ? (formData as any).fields : undefined) ??
+      field.defaultValue;
+
     const error = errors[field.id];
 
     const commonProps = {
@@ -751,37 +783,82 @@ export const DynamicConfigPanel: React.FC<DynamicConfigPanelProps> = ({
       }
 
       case 'keyValue': {
-        const pairs: Array<{ key: string; value: string }> = Array.isArray(value)
-          ? value
-          : Array.isArray(field.defaultValue)
-            ? (field.defaultValue as any)
-            : [];
+        const mode = (field as any).keyValueMode === 'record' ? 'record' : 'array';
+
+        const coercePairs = (input: unknown): Array<{ key: string; value: string }> => {
+          if (Array.isArray(input)) return input as any;
+          if (input && typeof input === 'object') {
+            return Object.entries(input as Record<string, any>).map(([k, v]) => ({
+              key: String(k),
+              value: v === undefined || v === null ? '' : String(v),
+            }));
+          }
+          return [];
+        };
+
+        const pairs: Array<{ key: string; value: string }> =
+          mode === 'record'
+            ? coercePairs(value ?? field.defaultValue)
+            : Array.isArray(value)
+              ? (value as any)
+              : Array.isArray(field.defaultValue)
+                ? (field.defaultValue as any)
+                : [];
 
         const placeholderKey = (field.placeholder as any)?.key || 'Key';
         const placeholderValue = (field.placeholder as any)?.value || 'Value';
         const addText = (field as any).addButtonText || '+ Add';
 
+        const emit = (nextPairs: Array<{ key: string; value: string }>) => {
+          if (mode === 'record') {
+            const out: Record<string, string> = {};
+            nextPairs.forEach((p) => {
+              const k = String(p?.key ?? '').trim();
+              if (!k) return;
+              out[k] = String(p?.value ?? '');
+            });
+            commonProps.onChange(out);
+            return;
+          }
+
+          commonProps.onChange(nextPairs);
+        };
+
         const updatePair = (idx: number, patch: Partial<{ key: string; value: string }>) => {
           const next = pairs.map((p, i) => (i === idx ? { ...p, ...patch } : p));
-          commonProps.onChange(next);
+
+          // In record mode, allow a draft row with an empty key to exist long enough
+          // for the user to type a key (otherwise the row disappears immediately).
+          if (mode === 'record' && next.some((p) => !String(p?.key ?? '').trim())) {
+            commonProps.onChange(next);
+            return;
+          }
+
+          emit(next);
         };
 
         const removePair = (idx: number) => {
           const next = pairs.filter((_, i) => i != idx);
-          commonProps.onChange(next);
+          emit(next);
         };
 
         const addPair = () => {
-          commonProps.onChange([...(pairs || []), { key: '', value: '' }]);
+          const next = [...(pairs || []), { key: '', value: '' }];
+
+          // Draft rows in record mode must persist until the key is filled.
+          if (mode === 'record') {
+            commonProps.onChange(next);
+            return;
+          }
+
+          emit(next);
         };
 
         renderedField = (
           <FormField key={field.id}>
             <Label>{field.label}</Label>
             <KeyValueList>
-              {pairs.length === 0 && (
-                <KeyValueEmpty>None configured yet.</KeyValueEmpty>
-              )}
+              {pairs.length === 0 && <KeyValueEmpty>None configured yet.</KeyValueEmpty>}
               {pairs.map((p, idx) => (
                 <KeyValueRow key={`${field.id}-${idx}`}>
                   <Input
@@ -966,7 +1043,7 @@ export const DynamicConfigPanel: React.FC<DynamicConfigPanelProps> = ({
   // Render a section
   const renderSection = (section: ConfigSection) => {
     // Check section-level conditional (using robust helper)
-    if (!checkIsVisible(section, formData)) {
+    if (!checkIsVisible(section, effectiveFormData)) {
       return null;
     }
 
