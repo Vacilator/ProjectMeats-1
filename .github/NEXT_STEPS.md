@@ -1,7 +1,11 @@
-# Next Steps - Post-Pipeline Stabilization
+# Next Steps - Post-Pipeline Stabilization (Archived)
 
 **Created:** 2025-12-09  
-**Status:** Tracking immediate follow-up tasks
+**Status:** Archived (historical reference only)
+
+**Authority:** For current priorities and truth, use `MASTER_PLAN.md` (canonical) and `docs/GOLDEN_PIPELINE.md`.
+
+> NOTE: This file contains historical items (including older migration approaches) and should not be treated as an active backlog.
 
 ---
 
