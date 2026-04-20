@@ -20,6 +20,12 @@ We are re-validating and completing the last ~25 prompts with **evidence-based a
 - ✅ Workforms AI Suggestions route drift — **RESOLVED** (PR #3998): frontend calls `POST /api/v1/workflows/suggest-nodes/` and backend also exposes legacy alias `POST /api/v1/suggest-nodes/`.
 - AI Chat: lessons memory NameError fixed (PR #4045); remaining 400s should be treated as environment config issues (missing OPENAI_API_KEY) with graceful messaging.
 - ✅ Charts: Recharts `ResponsiveContainer` warnings (width/height -1) — **RESOLVED** (PR #4240): set non-zero `minWidth/minHeight` on chart containers to avoid zero-size renders.
+- ⚠️ WorkForms E2E runtime gaps (Workstream B — tracked in Backlog):
+  - WorkFormEngine action support appears limited to `actionEmail`, `actionCreateRecord`, `actionUpdateRecord`, `actionNotification`.
+  - `actionNotification` maps to `send_notification`, but `ActionExecutor.send_notification` is currently a stub (logs only) → no notifications are created.
+  - Notifications APIs exist at `/api/v1/workflows/notifications/*`, but WorkForms does not currently create notification records.
+  - WorkForm executions run async via Celery task `system.execute_workform_execution` → needs structured validation + explainable execution errors/status.
+  - Gmail OAuth endpoints exist (`backend/apps/email_integration/views/oauth_views.py`), but `manifests/env.manifest.json` lacks Google secrets → config drift; must degrade gracefully when unset.
 
 ### Priority execution strategy
 1) Quick wins: ✅ suggest-nodes route drift (PR #3998); ✅ chart sizing warnings (PR #4240).
@@ -104,6 +110,50 @@ We are re-validating and completing the last ~25 prompts with **evidence-based a
 - **Mobile responsiveness:** Cockpit + core CRUD forms usable <768px; touch targets; FlowEditor mobile/tablet fallback.
 - **Email ingestion monitor:** correctness, diagnostics, reconnect CTA, progress reporting, attachment-aware detection.
 - **Admin workspace usability:** option lists/system lists visibility + custom list create/edit flows.
+
+### P0 — WorkForms E2E completion (Workstream B)
+**Goal:** Make WorkForms publish + execute + monitor **end-to-end** with deterministic runtime behavior, explainable execution details, and tenant-safe notifications/connectors — while respecting **shared-schema multi-tenancy (Postgres RLS + `app.current_tenant`)** and **Golden Pipeline** constraints.
+
+**Current reality (gaps to close):**
+- Runtime coverage: WorkFormEngine appears to support only `actionEmail`, `actionCreateRecord`, `actionUpdateRecord`, `actionNotification`.
+- Notifications: `actionNotification → send_notification`, but `ActionExecutor.send_notification` is a stub (log-only) → WorkForms executions do not create notifications, despite existing APIs at `/api/v1/workflows/notifications/*`.
+- Execution model: WorkForm executions are async via Celery task `system.execute_workform_execution` → execution details must capture structured validation + explainable failures (not silent/no-op or log-only).
+- Gmail: OAuth endpoints exist (`backend/apps/email_integration/views/oauth_views.py`), but `manifests/env.manifest.json` lacks Google secrets → must add optional config + harden OAuth + document explicit setup steps.
+
+**Deliverables (Workstream B):**
+1) **Node support matrix + publish-time guardrails**
+   - Define a canonical “supported nodes/actions” matrix for WorkForms runtime (what executes vs. what is editor-only/unsupported).
+   - Add publish-time (and/or “Quick Run” time) validation that blocks unsupported nodes/actions with actionable reasons.
+   - **Additive-only constraint:** do not break previously published workflows; guardrails apply to new publishes/edits, with clear compatibility messaging.
+
+2) **Structured validation + explainable errors (execution details)**
+   - Persist per-step validation failures and runtime errors into execution details (node id, error code, user-facing message, remediation).
+   - UI surfaces errors in WorkForms execution details without leaking raw exceptions; errors must be deterministic and debuggable.
+
+3) **Notifications end-to-end**
+   - Implement `ActionExecutor.send_notification` to create tenant-scoped notification records (so `/api/v1/workflows/notifications/*` reflects WorkForms events).
+   - Ensure notification creation and reads are **RLS-safe** in shared-schema multi-tenancy (no cross-tenant leakage).
+   - Minimal acceptance: a WorkForm run can reliably generate a notification visible to intended recipients.
+
+4) **Quick Actions completeness for WorkForms**
+   - Ensure WorkForms “Quick Run / Quick Actions” paths cover supported actions end-to-end (create/update/email/notification) with the same validation + error semantics.
+   - Confirm execution status + results are visible post-run (async Celery completion).
+
+5) **Entity workflow status panel**
+   - Add/complete an entity-facing status panel showing latest WorkForm execution(s): current step/node, last error (if any), and relevant notifications, with a link into full execution details.
+
+6) **Gmail connector (optional, hardened, explicit setup)**
+   - Add optional Google OAuth secrets to `manifests/env.manifest.json` (feature stays disabled when unset; must degrade gracefully).
+   - OAuth hardening: tenant binding + CSRF/state validation (and any required PKCE/redirect constraints) with explicit failure modes.
+   - Minimal sync stub: smallest “connectivity proof” that confirms auth works (without requiring full ingestion parity on day one).
+   - Document explicit user/admin setup steps (required env vars, redirect URLs, scopes, and how to verify connection).
+
+**Acceptance criteria (must meet Golden Pipeline + multi-tenant constraints):**
+- Publishing/running a WorkForm with unsupported nodes/actions fails fast with a structured, user-readable explanation (not a Celery log-only failure).
+- A WorkForm `actionNotification` produces an actual notification record retrievable via `/api/v1/workflows/notifications/*` and visible only within the correct tenant (RLS).
+- Execution details show per-step status + structured errors for async runs (Celery) with no raw exception leakage.
+- Gmail connector is explicitly “disabled until configured”; missing secrets never cause 500s; once configured, OAuth flow succeeds with hardened validation.
+- All changes remain compliant with shared-schema multi-tenancy and ship through Golden Pipeline gates (type-check, tests, and any required E2E coverage for the WorkForms critical path).
 
 ### P1 — Operational excellence
 - **Documentation hygiene:** demote/label duplicated roadmaps, remove contradictory “100% complete” claims.
