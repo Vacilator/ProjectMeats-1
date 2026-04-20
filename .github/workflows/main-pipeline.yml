@@ -4,18 +4,24 @@ run-name: >-
   ${{
     github.event_name == 'workflow_dispatch'
       && format(
-        '🛠️ Deploy: {0} — manual (run#{1}) by {2}',
-        inputs.environment,
-        github.run_number,
-        github.actor
+        '🛠️ Deploy: {0} — manual on {1} ({2}) by {3} (run#{4})',
+        inputs.environment == 'development' && 'Dev'
+          || inputs.environment == 'uat' && 'UAT'
+          || inputs.environment == 'production' && 'Prod'
+          || inputs.environment,
+        github.ref_name,
+        github.sha,
+        github.actor,
+        github.run_number
       )
       || format(
-        '🚀 Deploy: {0} — {1} (run#{2})',
+        '🚀 Deploy: {0} — {1} ({2}) (run#{3})',
         github.ref_name == 'development' && 'Dev'
           || github.ref_name == 'uat' && 'UAT'
           || github.ref_name == 'main' && 'Prod'
           || github.ref_name,
-        github.event.head_commit && github.event.head_commit.message || github.sha,
+        github.ref_name,
+        github.sha,
         github.run_number
       )
   }}
