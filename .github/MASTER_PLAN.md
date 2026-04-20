@@ -1654,3 +1654,5 @@ Deliverables:
 - **2026-04-20** — Entities: Plant + Location detail pages now include an **Automation** tab showing record-scoped WorkForm executions; backend entity execution filtering matches entity_id persisted as JSON string or number. (PR: #4486)
 - **2026-04-20** — Email integrations: started Gmail connector MVP — signed OAuth state (user_id + tenant_id), clear not_configured behavior, exposed `/api/v1/workflows/email/email-accounts/`, and wired EmailIntegrationWidget to email_integration endpoints; setup checklist documented. (PR: #4487)
 - **2026-04-20** — CI note: the earlier `PR: #pending` run-name placeholder corresponds to the Master Pipeline PR-context run-name work (PR #4408 / #4396), and is superseded by the later run-name hardening entry (PR #4404).
+
+- **2026-04-20** — Docs reality correction (append-only): prior entries claiming `docs/plans/*` were purged and that V4.0 sprint docs were "not created yet" are **historical** and superseded. V3.5/V4.0 planning docs exist under `docs/plans/` (e.g., `V4_0_IDEAL_STATE_GAP_ANALYSIS.md`, `V4_0_UX_EXCELLENCE.md`, `V4_0_FIELD_OPS_ARCHITECTURE.md`). Canonical plan/status remains `MASTER_PLAN.md`.

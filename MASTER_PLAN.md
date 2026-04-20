@@ -10,7 +10,21 @@ This file is the **canonical plan + current truth snapshot**.
 
 ---
 
-## Recovery Execution Plan (as of 2026-03-27T17:03Z)
+## Current Execution Snapshot (as of 2026-04-20)
+
+### What is true right now
+- **WorkForms E2E** is shipped end-to-end (execute + monitoring + notifications + Quick Actions + Gmail connector MVP).
+- **Primary execution focus (P0):** close remaining correctness + UX gaps surfaced by squad audits.
+
+### P0 priorities (next)
+- **WorkForms Editor stability**: deterministic schema init (no timer races), resolve form "fields" model mismatch, sanitize UI-only shadow state on save, remove hardcoded colors, and fix a11y for tabs/modals.
+- **Security / tenant isolation**: remove unauthenticated OAuth endpoint shadowing; enforce tenant membership on callbacks; add/enforce RLS for tenant-bearing tables (system workforms + integrations token store).
+- **CI guardrails (never-miss-again)**: pin GitHub Actions to SHAs, expand secrets-manifest validation to all workflows, and add CI enforcement for RLS compliance audit.
+- **Mobile parity**: align guest/invite/auth endpoints with backend; add OpenAPI-based contract tests to prevent "green but broken".
+
+### Historical context (kept for traceability)
+
+## Historical: Recovery Execution Plan (as of 2026-03-27T17:03Z)
 
 We are re-validating and completing the last ~25 prompts with **evidence-based acceptance criteria** and strict shipping discipline.
 
@@ -372,7 +386,7 @@ Based on a deep architectural audit of the provided source files and error logs,
 >
 > **Strict Compliance:**
 > * Relocate `<div id="config-portal"></div>` to `frontend/index.html` within the `<body>` to eliminate mount race conditions.
-> * Update `.github/MASTER_PLAN.md` with the resolution of "Node Config Blackout & Registry Normalization."
+> * Append PR entry to `.github/MASTER_PLAN.md` (append-only PR log) and update canonical status in `MASTER_PLAN.md`.
 
 #### III. 📝 VERIFICATION TASKS
 
@@ -595,7 +609,7 @@ Based on the mandatory protocol, I have audited the current state of the Cockpit
 >
 > **Strict Compliance:**
 > * All data fetching must use `BusinessApi`.
-> * Update `.github/MASTER_PLAN.md` with PR references and increment progress to 98%.
+> * Append PR entry to `.github/MASTER_PLAN.md` (append-only PR log) and update canonical status in `MASTER_PLAN.md`.
 
 ### III. 📝 MY TASKS
 
@@ -845,7 +859,7 @@ Based on the mandatory protocol, I have audited the current state of the Cockpit
   - Graceful degradation to static suggestions
   - 8 unit tests for connectivity checks
   - **Files**: 
-    - `backend/scripts/infrastructure_diagnostics.py` (197 lines)
+    - `backend/apps/core/management/commands/check_infrastructure.py` (management command)
     - `backend/tenant_apps/workflows/views.py` (+89 lines)
     - `frontend/src/components/FlowEditor/components/AISuggestionsPanel.tsx` (+120 lines)
   - **Status**: Code complete, awaiting infrastructure audit
@@ -891,7 +905,7 @@ Based on the mandatory protocol, I have audited the current state of the Cockpit
 **Key Files**:
 - `frontend/src/components/FlowEditor/UnifiedFlowEditor.tsx` (7,000+ lines)
 - `backend/tenant_apps/workflows/views.py` (3,600+ lines, 15 endpoints)
-- `backend/scripts/infrastructure_diagnostics.py` (197 lines)
+- `backend/apps/core/management/commands/check_infrastructure.py` (management command)
 
 **Development Principles**:
 - ✅ **Additive-Only Changes**: Never break existing workflows
@@ -1198,13 +1212,11 @@ Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
 - **Migration Standards**: `docs/workforms/MIGRATION_STANDARDS.md`
 - **Handoff Document**: `docs/HANDOFF.md`
 
-### Phase-Specific Docs
-- Phase 1: `docs/plans/archive/PHASE1_INTEGRATION_COMPLETE.md`
-- Phase 2: `docs/plans/archive/PHASE2_EXECUTION_COMPLETE.md`
-- Phase 3: `docs/plans/archive/PHASE3_DEPLOYMENT_CHECKLIST.md`
-- Phase 4: `docs/plans/archive/PHASE4_EXECUTION_SUMMARY.md`
-- Phase 5: `docs/plans/archive/PHASE5_IMPLEMENTATION_SUMMARY.md`
-- Phase 6: `docs/plans/archive/PHASE6_SUMMARY.md`, `docs/plans/archive/PHASE_6_*_COMPLETE.md`
+### Phase-Specific / Initiative Docs
+- Phase 3: `docs/PHASE3_QUICK_START.md`
+- Phase 5: `docs/PHASE5_IMPLEMENTATION_REPORT.md`, `docs/PHASE5_EXECUTION_SUMMARY.md`, `docs/PHASE5_API_CONTRACT.md`
+- Phase 7: `docs/PHASE7_RECOVERY_COMPLETE.md`
+- V3.5/V4 planning: `docs/plans/V3_5_ENTERPRISE_REFACTOR_ROADMAP.md`, `docs/plans/V4_0_IDEAL_STATE_GAP_ANALYSIS.md`, `docs/plans/V4_0_UX_EXCELLENCE.md`
 
 ---
 

@@ -483,11 +483,12 @@ When `OPENAI_API_KEY` is added: AI suggestions activate instantly, Badge: yellow
 
 ## 📚 Related Documentation
 
-- **Master Plan**: `.github/MASTER_PLAN.md` (detailed task breakdown)
-- **Architecture**: `docs/ARCHITECTURE.md` (system design decisions)
-- **AI Instructions**: `.github/copilot-instructions.md` (development standards)
-- **Golden Files**: `/manifests/GOLDEN_FILES.md` (source of truth index)
-- **Security Compliance**: `/manifests/RLS_POLICIES.md` (RLS audit results)
+- **Master Plan (canonical)**: `MASTER_PLAN.md`
+- **PR execution log (append-only)**: `.github/MASTER_PLAN.md`
+- **Architecture**: `docs/architecture/ARCHITECTURE.md`
+- **AI Instructions**: `.github/copilot-instructions.md`
+- **Golden Files**: `/manifests/GOLDEN_FILES.md`
+- **Security Compliance**: `/manifests/RLS_POLICIES.md`
 
 ---
 
