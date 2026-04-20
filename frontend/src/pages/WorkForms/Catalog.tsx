@@ -586,7 +586,7 @@ const FormsFlowsCatalog: React.FC = () => {
     queryFn: async () => {
       const nowIso = new Date().toISOString();
 
-      const [workformsResult, legacyFormsResult] = await Promise.allSettled([
+      const [workformsResult, targetsResult] = await Promise.allSettled([
         getAvailableWorkForms(),
         quickActionsService.getAvailableForms(),
       ]);
@@ -596,9 +596,9 @@ const FormsFlowsCatalog: React.FC = () => {
         logger.error('[Catalog] Error fetching workforms:', workformsResult.reason);
       }
 
-      const legacyForms = legacyFormsResult.status === 'fulfilled' ? legacyFormsResult.value : [];
-      if (legacyFormsResult.status === 'rejected') {
-        logger.error('[Catalog] Error fetching legacy forms:', legacyFormsResult.reason);
+      const targets = targetsResult.status === 'fulfilled' ? targetsResult.value : [];
+      if (targetsResult.status === 'rejected') {
+        logger.error('[Catalog] Error fetching available targets:', targetsResult.reason);
       }
 
       const mappedWorkforms: CatalogItem[] = (workforms || []).map((wf) => {
@@ -626,26 +626,38 @@ const FormsFlowsCatalog: React.FC = () => {
         };
       });
 
-      const mappedLegacyForms: CatalogItem[] = (Array.isArray(legacyForms) ? legacyForms : []).map((f: any) => {
-        const updated = String(f.updated_at ?? nowIso);
-        const created = String(f.created_at ?? updated);
+      const mappedTargets: CatalogItem[] = (Array.isArray(targets) ? targets : []).map((t: any) => {
+        const updated = String(t.updated_at ?? nowIso);
+        const created = String(t.created_at ?? updated);
+        const isWorkform = t.type === 'workflow';
+
         return {
-          id: String(f.id),
-          kind: 'form',
-          name: String(f.name ?? 'Untitled Form'),
-          description: String(f.description ?? ''),
-          status: (f.status as CatalogItem['status']) ?? 'draft',
-          icon: f.icon || '📋',
-          entity_count: typeof f.entity_count === 'number' ? f.entity_count : 1,
-          is_multi_entity: Boolean(f.is_multi_entity),
-          is_system_template: false,
+          id: String(t.id),
+          kind: isWorkform ? 'workform' : 'form',
+          name: String(t.name ?? (isWorkform ? 'Untitled WorkForm' : 'Untitled Form')),
+          description: String(t.description ?? ''),
+          status: (t.status as CatalogItem['status']) ?? 'draft',
+          icon: t.icon || (isWorkform ? '🧩' : '📋'),
+          entity_count: typeof t.entity_count === 'number' ? t.entity_count : 1,
+          is_multi_entity: Boolean(t.is_multi_entity),
+          is_system_template: Boolean(t.is_system_template),
+          node_count: typeof t.node_count === 'number' ? t.node_count : undefined,
           created_at: created,
           updated_at: updated,
-          flow_data: f.flow_data,
+          flow_data: t.flow_data,
         };
       });
 
-      const combined = [...mappedWorkforms, ...mappedLegacyForms];
+      // De-dupe by kind:id and prefer the richer /tenant-workforms/ payload when available.
+      const byKey = new Map<string, CatalogItem>();
+      for (const item of mappedTargets) {
+        byKey.set(`${item.kind}:${item.id}`, item);
+      }
+      for (const wf of mappedWorkforms) {
+        byKey.set(`workform:${wf.id}`, { ...byKey.get(`workform:${wf.id}`), ...wf });
+      }
+
+      const combined = Array.from(byKey.values());
       combined.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
       return combined;
     },
@@ -775,7 +787,7 @@ const FormsFlowsCatalog: React.FC = () => {
       logger.info('[Catalog] Quick Run initiated:', { id: item.id, kind: item.kind });
 
       // WorkForms: execute via runtime engine
-      if (item.kind === 'workform' || typeof item.node_count === 'number') {
+      if (item.kind === 'workform') {
         navigate(`/workforms/execute/${item.id}`);
         return;
       }
@@ -798,7 +810,7 @@ const FormsFlowsCatalog: React.FC = () => {
   // Open a workform in the editor
   const handleEditForm = async (form: CatalogItem) => {
     // WorkForms: open in editor
-    if (form.kind === 'workform' || typeof form.node_count === 'number') {
+    if (form.kind === 'workform') {
       navigate(`/workforms/editor/${form.id}`);
       return;
     }
@@ -1037,7 +1049,7 @@ const FormsFlowsCatalog: React.FC = () => {
       ) : viewMode === 'grid' ? (
         <GridContainer>
           {filteredForms.map((form) => {
-            const isWorkform = form.kind === 'workform' || typeof form.node_count === 'number';
+            const isWorkform = form.kind === 'workform';
 
             return (
               <FormCard
@@ -1129,7 +1141,7 @@ const FormsFlowsCatalog: React.FC = () => {
       ) : (
         <ListContainer>
           {filteredForms.map((form) => {
-            const isWorkform = form.kind === 'workform' || typeof form.node_count === 'number';
+            const isWorkform = form.kind === 'workform';
 
             return (
               <FormCard

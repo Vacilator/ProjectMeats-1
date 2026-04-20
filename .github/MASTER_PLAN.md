@@ -1650,3 +1650,4 @@ Deliverables:
 - **2026-04-16** — Mobile: Sales Orders page + create modal usable at 375px; add E2E create-flow coverage (schema mocked). (PR: #4401)
 - **2026-04-16** — CI: Master Pipeline run-name now uses env/branch + SHA + actor (avoid commit message leakage). (PR: #4404)
 - **2026-04-20** — WorkForms E2E: added stable `data-testid` selectors for Catalog/Execute/Execution Details, added execution-details polling for async runs, and added Playwright smoke spec for runtime execute + in-app notification. (PR: #4484)
+- **2026-04-20** — Quick Actions: `/workflows/available-forms/` now treated as the canonical unified list (forms + WorkForms); WorkForms show in Customize Quick Actions and in the header submenu; WorkForms Catalog classifies by `type` and de-dupes to avoid broken execute flows. (PR: #4485)
