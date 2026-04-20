@@ -1282,6 +1282,11 @@ jobs:
             docker logs pm-backend --tail 100
             exit 1
           fi
+
+          echo ""
+          echo "=== Integration diagnostics (non-secret) ==="
+          docker exec pm-backend python -c "import json,urllib.request; data=json.load(urllib.request.urlopen('http://127.0.0.1:8000/api/v1/health/', timeout=10)); summary=data.get('integration_summary',{}); warnings=data.get('integration_warnings',[]); print('integration_summary:'); print(json.dumps(summary, indent=2, sort_keys=True)); print(''); print('integration_warnings:' if warnings else 'No integration warnings.'); [print(f\"- {(w or {}).get('code')}: {(w or {}).get('message')}\") for w in warnings]"
+          echo "=== End integration diagnostics ==="
           
           # Verify EMAIL_HOST_PASSWORD in container
           echo "Verifying EMAIL_HOST_PASSWORD in container..."

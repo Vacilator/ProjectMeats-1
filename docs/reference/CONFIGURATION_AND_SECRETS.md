@@ -9,7 +9,7 @@
 **Single Source of Truth for ProjectMeats Environments**
 
 > **Authority**: This document describes the authoritative configuration system for ProjectMeats.  
-> **Version**: Manifest v3.4 (February 2026) - Environment-Scoped Secrets
+> **Version**: Manifest v5.x (current) - Environment-Scoped Secrets
 
 ---
 
@@ -173,6 +173,16 @@ gh secret set OPENAI_API_KEY --env production-backend --body "$OPENAI_API_KEY"
 python config/manage_env.py audit
 # then trigger the deploy workflow for uat / main
 ```
+
+### 4) Verify integration readiness (non-secret signals)
+
+After deployment, check the backend health payload:
+
+- `GET /api/v1/health/`
+  - `integration_summary` (booleans + models/environments only)
+  - `integration_warnings` (machine-readable codes, safe messages)
+
+This is intentionally designed to surface **misconfiguration vs intentionally-disabled** integrations (e.g. Sentry enabled but missing DSN) without ever exposing secret values.
 
 ---
 

@@ -27,6 +27,15 @@ class HealthCheckTests(TestCase):
         self.assertIsInstance(data['database_status'], dict)
         self.assertIn('service_summary', data)
 
+        # Observability/readiness fields (additive)
+        self.assertIn('integration_summary', data)
+        self.assertIsInstance(data['integration_summary'], dict)
+        self.assertIn('integration_warnings', data)
+        self.assertIsInstance(data['integration_warnings'], list)
+
+        # In test runs we do not have Redis configured, so redis readiness should be false.
+        self.assertIs(data['features'].get('redis'), False)
+
     @patch('projectmeats.health.check_all_services', side_effect=Exception('boom'))
     def test_health_survives_service_check_failure(self, _mock_check):
         resp = self.client.get('/api/v1/health/')
