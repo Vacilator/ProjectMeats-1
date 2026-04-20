@@ -90,14 +90,41 @@ class Command(BaseCommand):
         self.stdout.write(self.style.WARNING('=' * 80))
     
     def get_tenant_aware_models(self):
+        """Get models that MUST have RLS.
+
+        Historically we audited only TenantAwareModel subclasses.
+        For defense-in-depth we also include a small allowlist of non-TenantAwareModel
+        models that still carry a tenant FK and store sensitive tenant-scoped data.
         """
-        Get all models that inherit from TenantAwareModel.
-        """
+
         models = []
         for model in apps.get_models():
             if issubclass(model, TenantAwareModel) and model != TenantAwareModel:
                 models.append(model)
-        return models
+
+        # Non-TenantAwareModel tables that must still have RLS enabled.
+        must_have = {
+            "system.TenantForm",
+            "system.TenantWorkForm",
+            "integrations.ExternalAuthProvider",
+        }
+        for label in sorted(must_have):
+            try:
+                models.append(apps.get_model(label))
+            except Exception:
+                # If an app is not installed in the current environment, skip.
+                continue
+
+        # De-dupe while keeping stable output order.
+        seen = set()
+        out = []
+        for m in models:
+            key = f"{m._meta.app_label}.{m.__name__}"
+            if key in seen:
+                continue
+            seen.add(key)
+            out.append(m)
+        return out
     
     def check_rls_enabled(self, table_name):
         """

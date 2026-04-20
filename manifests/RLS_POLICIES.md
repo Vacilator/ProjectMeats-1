@@ -1,7 +1,7 @@
 # Security Compliance & RLS Audit Log
 
-**Last Updated**: March 31, 2026  
-**Status**: ✅ ALL SYSTEMS COMPLIANT
+**Last Updated**: April 20, 2026  
+**Status**: ✅ ALL SYSTEMS COMPLIANT (pending next deployment audit)
 
 ---
 
@@ -78,6 +78,24 @@ All workflow-related tables have Row-Level Security **ENABLED** and **FORCED**:
 
 ---
 
+## System WorkForms Module (2 tables) - ✅ 100% COMPLIANT (code)
+
+| Table Name | RLS Enabled | Policy Name | Session Variable |
+|------------|-------------|-------------|------------------|
+| `tenant_forms` | ✅ | `tenant_forms_tenant_isolation` | `app.current_tenant` |
+| `tenant_workforms` | ✅ | `tenant_workforms_tenant_isolation` | `app.current_tenant` |
+
+---
+
+## Integrations Module (2 tables) - ✅ 100% COMPLIANT (code)
+
+| Table Name | RLS Enabled | Policy Name | Session Variable |
+|------------|-------------|-------------|------------------|
+| `integrations_emaillog` | ✅ | `integrations_emaillog_tenant_isolation` | `app.current_tenant` |
+| `integrations_externalauthprovider` | ✅ | `integrations_externalauthprovider_tenant_isolation` | `app.current_tenant` |
+
+---
+
 ## Tenant Integrations Module (2 tables) - ✅ 100% COMPLIANT
 
 | Table Name | RLS Enabled | Policy Name | Session Variable |
@@ -118,6 +136,10 @@ All workflow-related tables have Row-Level Security **ENABLED** and **FORCED**:
 
 **Latest Audit (2026-03-22)**:
 - `python manage.py audit_rls_compliance` → **38/38 tenant-aware models compliant** ✅
+
+**Audit Scope Update (2026-04-20)**:
+- `audit_rls_compliance` now also includes an allowlist of tenant-scoped models that do **not** inherit `TenantAwareModel` (System WorkForms + Integrations).
+- Expected result after next deployment audit: **41/41 tenant-scoped models compliant** ✅
 
 **Tenant Isolation Policies** (from `pg_policies`):
 - Tables with at least one `*_tenant_isolation` policy: **47**
