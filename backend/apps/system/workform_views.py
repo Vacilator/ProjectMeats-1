@@ -277,16 +277,52 @@ class TenantWorkFormViewSet(viewsets.ModelViewSet):
         except Exception:
             return False
 
+    def _validate_before_activation(self, workform: TenantWorkForm, requested_status: str | None):
+        if requested_status != 'active':
+            return None
+
+        # Backward compatibility: do not block updates to already-active WorkForms.
+        if workform.status == 'active':
+            return None
+
+        refs = workform.validate_form_references()
+        runtime = workform.validate_runtime_support()
+
+        if not refs.get('valid', True) or not runtime.get('valid', True):
+            return Response(
+                {
+                    'error': 'workform_validation_failed',
+                    'detail': 'WorkForm cannot be activated until validation issues are resolved.',
+                    'references': refs,
+                    'runtime': runtime,
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        return None
+
     def update(self, request, *args, **kwargs):
         workform = self.get_object()
         if not self._can_manage_workform(workform):
             return Response({"error": "Permission denied"}, status=status.HTTP_403_FORBIDDEN)
+
+        requested_status = request.data.get('status') if isinstance(request.data, dict) else None
+        gate = self._validate_before_activation(workform, str(requested_status) if requested_status is not None else None)
+        if gate is not None:
+            return gate
+
         return super().update(request, *args, **kwargs)
 
     def partial_update(self, request, *args, **kwargs):
         workform = self.get_object()
         if not self._can_manage_workform(workform):
             return Response({"error": "Permission denied"}, status=status.HTTP_403_FORBIDDEN)
+
+        requested_status = request.data.get('status') if isinstance(request.data, dict) else None
+        gate = self._validate_before_activation(workform, str(requested_status) if requested_status is not None else None)
+        if gate is not None:
+            return gate
+
         return super().partial_update(request, *args, **kwargs)
 
     def destroy(self, request, *args, **kwargs):
@@ -409,9 +445,16 @@ class TenantWorkFormViewSet(viewsets.ModelViewSet):
         POST /api/v1/tenant-workforms/{id}/validate/
         """
         workform = self.get_object()
-        validation_result = workform.validate_form_references()
-        
-        return Response(validation_result)
+        references = workform.validate_form_references()
+        runtime = workform.validate_runtime_support()
+
+        # Preserve backward compatible keys (valid/missing_forms/total_references)
+        merged = dict(references)
+        merged['runtime_valid'] = bool(runtime.get('valid', False))
+        merged['runtime'] = runtime
+        merged['valid'] = bool(references.get('valid', False)) and bool(runtime.get('valid', False))
+
+        return Response(merged)
     
     @action(detail=True, methods=['get'], url_path='containers')
     def list_containers(self, request, pk=None):

@@ -86,6 +86,7 @@ This file is the **append-only PR-referenceable execution log**.
 - **2026-04-20** — Docs: add WorkForms E2E completion workstream + runtime gap snapshot to canonical root `MASTER_PLAN.md` for execution tracking. (PR: #4480)
 - **2026-04-20** — WorkForms runtime: implement real in-app notifications (actionNotify -> send_notification) with tenant-safe persistence and preferences respect; add backend tests. (PR: #4481)
 - **2026-04-20** — Env manifest: add optional Gmail OAuth secret keys (GOOGLE_CLIENT_ID/SECRET/REDIRECT_URI) to canonical env manifest. (PR: #4482)
+- **2026-04-20** — WorkForms runtime: add runtime support validation (unsupported action nodes) + block activation when runtime validation fails; extend validate endpoint to return runtime validation details. (PR: #4483)
 
 ### 2026-03-31 — Secret audit drift (manifest v5.1)
 - Command: `python config/manage_env.py audit --repo Meats-Central/ProjectMeats`
