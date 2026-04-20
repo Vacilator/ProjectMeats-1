@@ -24,6 +24,9 @@ require_dir .copilot/squad
 require_dir .copilot/squad/roles
 require_dir .copilot/squad/tasks
 
+require_file .copilot/squad/README.md
+require_heading .copilot/squad/README.md "## Collaboration protocol: Relay → Synthesize (MANDATORY)"
+
 require_file .copilot/squad/squad.json
 python -m json.tool .copilot/squad/squad.json >/dev/null || fail "Invalid JSON: .copilot/squad/squad.json"
 

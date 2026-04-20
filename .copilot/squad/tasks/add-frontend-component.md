@@ -14,6 +14,8 @@ Add a UI component that is **accessible**, **theme-compliant**, and **type-safe*
 - Tests (unit/e2e as appropriate)
 
 ## Step-by-step execution
+0. **Relay → synthesize (Lead Engineer)**
+   - After fleet agents complete, run a Lead Engineer synthesis pass to unify findings into one patch plan.
 1. **Confirm styling & API constraints**
    - Read: `.github/instructions/frontend.instructions.md`
    - Read: `docs/DESIGN_SYSTEM.md`
