@@ -7,7 +7,20 @@ import type { ConfigField, ConditionalRule } from '../types';
 import { evaluateCondition } from '../conditionalLogic';
 import { validateField } from '../validationEngine';
 import { renderSelectField, renderTextField } from '../fieldRenderers/basicRenderers';
+import { renderFieldMapping, renderVariablePicker } from '../fieldRenderers/complexRenderers';
 import { NestedChildrenRenderer } from '../../ConfigPanel/NestedChildrenRenderer';
+
+// Mock FieldMappingPanel to keep renderer tests lightweight + deterministic.
+const { mockFieldMappingPanel } = vi.hoisted(() => ({
+  mockFieldMappingPanel: vi.fn(),
+}));
+
+vi.mock('../../ConfigPanel/FieldMappingPanel', () => ({
+  default: (props: any) => {
+    mockFieldMappingPanel(props);
+    return <div data-testid="field-mapping-panel" />;
+  },
+}));
 
 describe('FlowEditor config engine regressions', () => {
   it('conditionalLogic supports in / notIn operators', () => {
@@ -131,5 +144,105 @@ describe('FlowEditor config engine regressions', () => {
     // Child fields should render (auto-expanded)
     expect(screen.getByText('Label')).toBeInTheDocument();
     expect(screen.getByText('Value')).toBeInTheDocument();
+  });
+
+  it('renderVariablePicker supports multiple selection (string[]) when field.multiple=true', () => {
+    const field: ConfigField = {
+      id: 'attachments',
+      label: 'Attachments',
+      type: 'variablePicker',
+      multiple: true,
+    };
+
+    const upstream = [
+      {
+        template: '{{form.email}}',
+        fieldName: 'email',
+        fieldLabel: 'Email',
+        fieldType: 'string',
+        nodeId: 'n1',
+        nodeName: 'Form',
+        nodeType: 'form',
+      },
+      {
+        template: '{{form.id}}',
+        fieldName: 'id',
+        fieldLabel: 'ID',
+        fieldType: 'string',
+        nodeId: 'n1',
+        nodeName: 'Form',
+        nodeType: 'form',
+      },
+    ];
+
+    const Wrapper: React.FC = () => {
+      const [val, setVal] = React.useState<string[]>([]);
+      return (
+        <div>
+          {renderVariablePicker({
+            field,
+            value: val,
+            onChange: setVal,
+            error: undefined,
+            data: { _upstreamVariables: upstream },
+          } as any)}
+          <div data-testid="value">{JSON.stringify(val)}</div>
+        </div>
+      );
+    };
+
+    render(<Wrapper />);
+
+    // Select two variables
+    fireEvent.click(screen.getByText('Email').closest('button')!);
+    expect(screen.getByTestId('value')).toHaveTextContent('{{form.email}}');
+
+    fireEvent.click(screen.getByText('ID').closest('button')!);
+    expect(screen.getByTestId('value')).toHaveTextContent('{{form.email}}');
+    expect(screen.getByTestId('value')).toHaveTextContent('{{form.id}}');
+
+    // Toggle off the first
+    fireEvent.click(screen.getByText('Email').closest('button')!);
+    expect(screen.getByTestId('value')).not.toHaveTextContent('{{form.email}}');
+    expect(screen.getByTestId('value')).toHaveTextContent('{{form.id}}');
+  });
+
+  it('renderFieldMapping respects field.entityFieldId (createRecord schema compatibility)', () => {
+    const field: ConfigField = {
+      id: 'fieldMappings',
+      label: 'Field Mappings',
+      type: 'field-mapping',
+      entityFieldId: 'entity',
+    };
+
+    const node = renderFieldMapping({
+      field,
+      value: [],
+      onChange: vi.fn(),
+      error: undefined,
+      data: {
+        entity: 'supplier',
+        _upstreamVariables: [
+          {
+            template: '{{form.email}}',
+            fieldName: 'email',
+            fieldLabel: 'Email',
+            fieldType: 'string',
+            nodeId: 'n1',
+            nodeName: 'Form',
+            nodeType: 'form',
+          },
+        ],
+      },
+    } as any);
+
+    render(<>{node}</>);
+
+    expect(screen.getByTestId('field-mapping-panel')).toBeInTheDocument();
+    expect(mockFieldMappingPanel).toHaveBeenCalled();
+
+    const props = mockFieldMappingPanel.mock.calls.at(-1)?.[0];
+    expect(props.targetEntity).toBe('supplier');
+    expect(props.formFields).toEqual([{ id: '{{form.email}}', label: 'Email', type: 'string' }]);
   });
 });
