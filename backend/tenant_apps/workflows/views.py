@@ -2110,7 +2110,15 @@ class TenantWorkFormExecutionViewSet(viewsets.ReadOnlyModelViewSet):
 
         entity_id = (self.request.query_params.get('entity_id') or '').strip()
         if entity_id:
-            qs = qs.filter(initial_data__entity_id=str(entity_id))
+            # initial_data is a JSONField; entity_id may be persisted as either a JSON string
+            # ("1") or a JSON number (1) depending on the caller payload.
+            entity_id_str = str(entity_id)
+            entity_id_filter = Q(initial_data__entity_id=entity_id_str)
+            try:
+                entity_id_filter |= Q(initial_data__entity_id=int(entity_id_str))
+            except (TypeError, ValueError):
+                pass
+            qs = qs.filter(entity_id_filter)
 
         status_param = self.request.query_params.get('status')
         if status_param:
