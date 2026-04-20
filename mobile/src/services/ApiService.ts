@@ -1,4 +1,5 @@
 import axios, { AxiosInstance } from 'axios';
+import Constants from 'expo-constants';
 import {
   LoginRequest,
   LoginResponse,
@@ -21,11 +22,14 @@ class ApiServiceClass {
   private baseURL: string;
 
   constructor() {
-    // Use the same backend URL as the web frontend
-    // In production, this should come from environment variables
-    this.baseURL = __DEV__ 
-      ? 'http://localhost:8000/api/v1' 
-      : 'https://your-production-domain.com/api/v1';
+    const envBaseUrl = process.env.EXPO_PUBLIC_API_BASE_URL;
+    const extraBaseUrl = (Constants.expoConfig?.extra as any)?.apiBaseUrl as string | undefined;
+
+    // Prefer environment-configured URL (build-time), then app.json extra, then sensible defaults.
+    const configured = (envBaseUrl || extraBaseUrl || '').trim();
+    this.baseURL = (
+      configured || (__DEV__ ? 'http://localhost:8000/api/v1' : 'https://dev.meatscentral.com/api/v1')
+    ).replace(/\/+$/, '');
 
     this.api = axios.create({
       baseURL: this.baseURL,
@@ -56,11 +60,20 @@ class ApiServiceClass {
   }
 
   setAuthToken(token: string) {
+    // Legacy token auth (matches /api/v1/auth/login/ response)
     this.api.defaults.headers.common['Authorization'] = `Token ${token}`;
   }
 
   removeAuthToken() {
     delete this.api.defaults.headers.common['Authorization'];
+  }
+
+  setTenantId(tenantId: string) {
+    this.api.defaults.headers.common['X-Tenant-ID'] = tenantId;
+  }
+
+  clearTenantId() {
+    delete this.api.defaults.headers.common['X-Tenant-ID'];
   }
 
   // Authentication endpoints
@@ -75,27 +88,27 @@ class ApiServiceClass {
 
   // Tenant endpoints
   async getTenants(): Promise<ApiResponse<Tenant>> {
-    const response = await this.api.get('/api/tenants/');
+    const response = await this.api.get('/tenants/');
     return response.data;
   }
 
   async getMyTenants(): Promise<UserTenant[]> {
-    const response = await this.api.get('/api/tenants/my_tenants/');
+    const response = await this.api.get('/tenants/my_tenants/');
     return response.data;
   }
 
   async createTenant(tenantData: Partial<Tenant>): Promise<Tenant> {
-    const response = await this.api.post('/api/tenants/', tenantData);
+    const response = await this.api.post('/tenants/', tenantData);
     return response.data;
   }
 
   async getTenant(id: string): Promise<Tenant> {
-    const response = await this.api.get(`/api/tenants/${id}/`);
+    const response = await this.api.get(`/tenants/${id}/`);
     return response.data;
   }
 
   async updateTenant(id: string, tenantData: Partial<Tenant>): Promise<Tenant> {
-    const response = await this.api.patch(`/api/tenants/${id}/`, tenantData);
+    const response = await this.api.patch(`/tenants/${id}/`, tenantData);
     return response.data;
   }
 
@@ -225,7 +238,7 @@ class ApiServiceClass {
   }
 
   // Health check
-  async healthCheck(): Promise<any> {
+  async healthCheck(): Promise<unknown> {
     const response = await this.api.get('/health/');
     return response.data;
   }
@@ -257,13 +270,42 @@ class ApiServiceClass {
 
   // WorkForms endpoints
   async getWorkForms(): Promise<ApiResponse<WorkForm>> {
-    const response = await this.api.get('/workflows/');
-    return response.data;
+    const response = await this.api.get('/tenant-workforms/');
+    const data = response.data;
+
+    const results = Array.isArray(data?.results) ? data.results : [];
+    return {
+      count: data?.count ?? results.length,
+      next: data?.next,
+      previous: data?.previous,
+      results: results.map((row: any) => ({
+        id: String(row.id),
+        name: String(row.name ?? ''),
+        description: row.description ?? undefined,
+        tenant: String(row.tenant ?? ''),
+        is_active: String(row.status ?? '').toLowerCase() === 'active',
+        node_count: Number(row.node_count ?? 0),
+        created_at: String(row.created_at ?? ''),
+        updated_at: String(row.updated_at ?? ''),
+      })),
+    };
   }
 
   async getWorkForm(id: string): Promise<WorkForm> {
-    const response = await this.api.get(`/workflows/${id}/`);
-    return response.data;
+    const response = await this.api.get(`/tenant-workforms/${id}/`);
+    const row = response.data;
+
+    return {
+      id: String(row.id),
+      name: String(row.name ?? ''),
+      description: row.description ?? undefined,
+      tenant: String(row.tenant ?? ''),
+      is_active: String(row.status ?? '').toLowerCase() === 'active',
+      node_count: Number(row.node_count ?? 0),
+      nodes: Array.isArray(row.nodes) ? row.nodes : undefined,
+      created_at: String(row.created_at ?? ''),
+      updated_at: String(row.updated_at ?? ''),
+    };
   }
 }
 

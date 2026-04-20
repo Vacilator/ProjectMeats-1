@@ -43,6 +43,6 @@ export const en = {
     welcome: (name: string) => `Welcome, ${name}`,
     trialAccount: 'TRIAL ACCOUNT',
   },
-} as const;
+};
 
 export type MobileTranslations = typeof en;

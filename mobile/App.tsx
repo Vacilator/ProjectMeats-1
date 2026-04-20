@@ -46,7 +46,11 @@ export default function App() {
         ApiService.setAuthToken(token);
         
         if (tenantData) {
-          setCurrentTenant(JSON.parse(tenantData));
+          const parsed = JSON.parse(tenantData);
+          setCurrentTenant(parsed);
+          if (parsed?.id) {
+            ApiService.setTenantId(String(parsed.id));
+          }
         }
       }
     } catch (error) {
@@ -74,6 +78,7 @@ export default function App() {
     try {
       await AsyncStorage.setItem('currentTenant', JSON.stringify(tenant));
       setCurrentTenant(tenant);
+      ApiService.setTenantId(String(tenant.id));
     } catch (error) {
       console.error('Error saving tenant data:', error);
     }
@@ -87,6 +92,7 @@ export default function App() {
       setUser(null);
       setCurrentTenant(null);
       ApiService.removeAuthToken();
+      ApiService.clearTenantId();
     } catch (error) {
       console.error('Error during logout:', error);
     }
@@ -109,6 +115,7 @@ export default function App() {
       settings: {},
     };
     setCurrentTenant(guestTenant);
+    ApiService.setTenantId(String(session.tenant_id));
     setIsGuest(true);
     setIsAuthenticated(true);
   };
@@ -189,6 +196,7 @@ export default function App() {
                         handleLogout();
                       } else {
                         setCurrentTenant(null);
+                        ApiService.clearTenantId();
                       }
                     }}
                   />
