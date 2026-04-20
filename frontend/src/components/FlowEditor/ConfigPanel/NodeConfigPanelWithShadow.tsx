@@ -229,6 +229,7 @@ export const NodeConfigPanelWithShadow: React.FC<NodeConfigPanelWithShadowProps>
         name: `Step ${nodes.filter(n => n.parentId === node.id).length + 1}`,
         entityType: '',
         fields: [],
+        formFields: [],
       },
       parentId: node.id,
     };

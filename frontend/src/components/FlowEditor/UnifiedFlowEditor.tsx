@@ -3718,6 +3718,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
             label: `Page ${index + 1}`,
             status: 'draft',
             fields: [],
+            formFields: [],
             ...getDefaultNodeData('form'),
           },
           selected: index === 0,
@@ -4545,6 +4546,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
             label: `Page ${index + 1}`,
             status: 'draft',
             fields: [],
+            formFields: [],
             ...getDefaultNodeData('form'),
           },
         });
@@ -6820,6 +6822,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
             stepTitle: `Page ${newPageNumber}`,
             label: `Page ${newPageNumber}`,
             fields: [],
+            formFields: [],
             order: insertIndex,
           },
           parentId: containerId,

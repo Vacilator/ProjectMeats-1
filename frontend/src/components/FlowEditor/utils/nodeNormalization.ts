@@ -12,6 +12,12 @@
 import { Node } from '@xyflow/react';
 import { NODE_TYPE_REGISTRY } from '../nodeTypes';
 import { formatEntityTypeLabel } from './formatEntityTypeLabel';
+import {
+  getResolvedFormFields,
+  isFormBuilderFieldArray,
+  isSelectedFieldArray,
+  toFormFieldsFromSelectedFields,
+} from './formFieldsDualModel';
 
 const LEGACY_FORM_STEP_TYPE_MAP: Record<string, 'form'> = {
   formStep: 'form',
@@ -107,6 +113,28 @@ export function normalizeNodeData(node: Node): Node {
         nodeType: canonicalFormType,
       },
     } as Node;
+  }
+
+  // --------------------------------------------------------------------------
+  // Form Fields Dual-Model: ensure formFields exists for form-like nodes.
+  // --------------------------------------------------------------------------
+  if (next.type === 'form') {
+    const data: any = next.data || {};
+
+    if (!isFormBuilderFieldArray(data.formFields)) {
+      const resolved = getResolvedFormFields(data);
+      if (resolved.length > 0) {
+        next = { ...next, data: { ...data, formFields: resolved } } as Node;
+      } else if (isSelectedFieldArray(data.fields)) {
+        next = {
+          ...next,
+          data: {
+            ...data,
+            formFields: toFormFieldsFromSelectedFields(data.fields),
+          },
+        } as Node;
+      }
+    }
   }
 
   // --------------------------------------------------------------------------
