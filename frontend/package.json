@@ -64,7 +64,7 @@
     "recharts": "^3.8.1",
     "styled-components": "^6.4.0",
     "use-undo": "^1.2.0",
-    "uuid": "^13.0.0",
+    "uuid": "^14.0.0",
     "zod": "^4.3.6",
     "zundo": "^2.3.0"
   },
