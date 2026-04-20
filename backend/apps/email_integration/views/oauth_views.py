@@ -10,6 +10,8 @@ Created: 2026-02-23 - Email Integration Phase 2
 import logging
 from datetime import timedelta
 from django.conf import settings
+from django.core import signing
+from django.core.signing import BadSignature, SignatureExpired
 from django.shortcuts import redirect
 from django.utils import timezone
 from django.http import JsonResponse
@@ -21,6 +23,17 @@ from rest_framework.response import Response
 from apps.email_integration.models import EmailAccount, EmailLog
 
 logger = logging.getLogger(__name__)
+
+OAUTH_STATE_SALT = 'email_integration.oauth_state'
+OAUTH_STATE_MAX_AGE_SECONDS = 10 * 60
+
+
+def _sign_oauth_state(payload: dict) -> str:
+    return signing.dumps(payload, salt=OAUTH_STATE_SALT)
+
+
+def _unsign_oauth_state(state: str) -> dict:
+    return signing.loads(state, salt=OAUTH_STATE_SALT, max_age=OAUTH_STATE_MAX_AGE_SECONDS)
 
 
 # ============================================================================
@@ -58,8 +71,14 @@ def outlook_auth_init(request):
             "offline_access"
         ]
         
-        # Store user ID in state for callback
-        state = f"{request.user.id}"
+        tenant = getattr(request, 'tenant', None)
+        if not tenant:
+            return JsonResponse(
+                {'error': 'Tenant context required', 'code': 'tenant_required'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        state = _sign_oauth_state({'user_id': request.user.id, 'tenant_id': str(tenant.id), 'provider': 'outlook'})
         
         auth_url = msal_app.get_authorization_request_url(
             scopes=scopes,
@@ -103,11 +122,30 @@ def outlook_auth_callback(request):
         return redirect(f"{settings.FRONTEND_URL}/cockpit?oauth_error=missing_params")
     
     try:
-        # Get user from state
+        try:
+            payload = _unsign_oauth_state(state)
+        except SignatureExpired:
+            return redirect(f"{settings.FRONTEND_URL}/cockpit?oauth_error=state_expired")
+        except BadSignature:
+            return redirect(f"{settings.FRONTEND_URL}/cockpit?oauth_error=invalid_state")
+
+        user_id = payload.get('user_id')
+        tenant_id = payload.get('tenant_id')
+        if not user_id or not tenant_id:
+            return redirect(f"{settings.FRONTEND_URL}/cockpit?oauth_error=invalid_state")
+
         from django.contrib.auth import get_user_model
+        from apps.tenants.models import Tenant, TenantUser
+
         User = get_user_model()
-        user = User.objects.get(id=int(state))
-        
+        user = User.objects.get(id=int(user_id))
+        tenant = Tenant.objects.filter(id=tenant_id, is_active=True).first()
+        if not tenant:
+            return redirect(f"{settings.FRONTEND_URL}/cockpit?oauth_error=invalid_tenant")
+
+        if not TenantUser.objects.filter(tenant=tenant, user=user, is_active=True).exists():
+            return redirect(f"{settings.FRONTEND_URL}/cockpit?oauth_error=tenant_denied")
+
         # Exchange code for tokens
         client_id = settings.MICROSOFT_CLIENT_ID
         client_secret = settings.MICROSOFT_CLIENT_SECRET
@@ -193,16 +231,37 @@ def gmail_auth_init(request):
     from google_auth_oauthlib.flow import Flow
     
     try:
+        client_id = str(getattr(settings, 'GOOGLE_CLIENT_ID', '') or '').strip()
+        client_secret = str(getattr(settings, 'GOOGLE_CLIENT_SECRET', '') or '').strip()
+        redirect_uri = str(getattr(settings, 'GOOGLE_REDIRECT_URI', '') or '').strip()
+
+        if not client_id or not client_secret or not redirect_uri:
+            return JsonResponse(
+                {
+                    'error': 'Gmail OAuth is not configured',
+                    'code': 'not_configured',
+                    'required': ['GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET', 'GOOGLE_REDIRECT_URI'],
+                },
+                status=status.HTTP_501_NOT_IMPLEMENTED,
+            )
+
+        tenant = getattr(request, 'tenant', None)
+        if not tenant:
+            return JsonResponse(
+                {'error': 'Tenant context required', 'code': 'tenant_required'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         client_config = {
             "web": {
-                "client_id": settings.GOOGLE_CLIENT_ID,
-                "client_secret": settings.GOOGLE_CLIENT_SECRET,
-                "redirect_uris": [settings.GOOGLE_REDIRECT_URI],
+                "client_id": client_id,
+                "client_secret": client_secret,
+                "redirect_uris": [redirect_uri],
                 "auth_uri": "https://accounts.google.com/o/oauth2/auth",
                 "token_uri": "https://oauth2.googleapis.com/token",
             }
         }
-        
+
         flow = Flow.from_client_config(
             client_config,
             scopes=[
@@ -210,11 +269,10 @@ def gmail_auth_init(request):
                 'https://www.googleapis.com/auth/gmail.send',
                 'https://www.googleapis.com/auth/userinfo.email',
             ],
-            redirect_uri=settings.GOOGLE_REDIRECT_URI
+            redirect_uri=redirect_uri
         )
-        
-        # Store user ID in state
-        state = f"{request.user.id}"
+
+        state = _sign_oauth_state({'user_id': request.user.id, 'tenant_id': str(tenant.id), 'provider': 'gmail'})
         
         auth_url, _ = flow.authorization_url(
             access_type='offline',
@@ -258,17 +316,43 @@ def gmail_auth_callback(request):
         return redirect(f"{settings.FRONTEND_URL}/cockpit?oauth_error=missing_params")
     
     try:
-        # Get user from state
+        try:
+            payload = _unsign_oauth_state(state)
+        except SignatureExpired:
+            return redirect(f"{settings.FRONTEND_URL}/cockpit?oauth_error=state_expired")
+        except BadSignature:
+            return redirect(f"{settings.FRONTEND_URL}/cockpit?oauth_error=invalid_state")
+
+        user_id = payload.get('user_id')
+        tenant_id = payload.get('tenant_id')
+        if not user_id or not tenant_id:
+            return redirect(f"{settings.FRONTEND_URL}/cockpit?oauth_error=invalid_state")
+
         from django.contrib.auth import get_user_model
+        from apps.tenants.models import Tenant, TenantUser
+
         User = get_user_model()
-        user = User.objects.get(id=int(state))
-        
+        user = User.objects.get(id=int(user_id))
+        tenant = Tenant.objects.filter(id=tenant_id, is_active=True).first()
+        if not tenant:
+            return redirect(f"{settings.FRONTEND_URL}/cockpit?oauth_error=invalid_tenant")
+
+        if not TenantUser.objects.filter(tenant=tenant, user=user, is_active=True).exists():
+            return redirect(f"{settings.FRONTEND_URL}/cockpit?oauth_error=tenant_denied")
+
+        client_id = str(getattr(settings, 'GOOGLE_CLIENT_ID', '') or '').strip()
+        client_secret = str(getattr(settings, 'GOOGLE_CLIENT_SECRET', '') or '').strip()
+        redirect_uri = str(getattr(settings, 'GOOGLE_REDIRECT_URI', '') or '').strip()
+
+        if not client_id or not client_secret or not redirect_uri:
+            return redirect(f"{settings.FRONTEND_URL}/cockpit?oauth_error=not_configured")
+
         # Exchange code for tokens
         client_config = {
             "web": {
-                "client_id": settings.GOOGLE_CLIENT_ID,
-                "client_secret": settings.GOOGLE_CLIENT_SECRET,
-                "redirect_uris": [settings.GOOGLE_REDIRECT_URI],
+                "client_id": client_id,
+                "client_secret": client_secret,
+                "redirect_uris": [redirect_uri],
                 "auth_uri": "https://accounts.google.com/o/oauth2/auth",
                 "token_uri": "https://oauth2.googleapis.com/token",
             }
@@ -281,7 +365,7 @@ def gmail_auth_callback(request):
                 'https://www.googleapis.com/auth/gmail.send',
                 'https://www.googleapis.com/auth/userinfo.email',
             ],
-            redirect_uri=settings.GOOGLE_REDIRECT_URI,
+            redirect_uri=redirect_uri,
             state=state
         )
         

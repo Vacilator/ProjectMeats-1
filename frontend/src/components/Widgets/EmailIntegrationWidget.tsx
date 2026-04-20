@@ -316,7 +316,7 @@ export const EmailIntegrationWidget: React.FC<EmailIntegrationWidgetProps> = ({ 
     try {
       setLoading(true);
       setError(null);
-      const response = await apiClient.get('/workflows/email-accounts/');
+      const response = await apiClient.get('/workflows/email/email-accounts/');
       setAccounts(response.data);
     } catch (err: any) {
       console.error('Failed to fetch email accounts:', err);
@@ -337,13 +337,9 @@ export const EmailIntegrationWidget: React.FC<EmailIntegrationWidgetProps> = ({ 
 
   const handleConnect = async (provider: 'outlook' | 'gmail') => {
     try {
-      const backendProvider = provider === 'outlook' ? 'microsoft' : 'google';
-
       // Use secure apiClient to get the OAuth URL, preserving JWT and Tenant headers.
       // Backend returns JSON { auth_url } (not a redirect) so the SPA can do a top-level navigation.
-      const response = await apiClient.get('/integrations/oauth/authorize/', {
-        params: { provider: backendProvider },
-      });
+      const response = await apiClient.get(`/workflows/email/email/${provider}/auth/init/`);
 
       if (response.data?.auth_url) {
         window.location.href = response.data.auth_url;
@@ -372,7 +368,7 @@ export const EmailIntegrationWidget: React.FC<EmailIntegrationWidgetProps> = ({ 
     if (!confirmed) return;
 
     try {
-      await apiClient.delete(`/workflows/email-accounts/${accountId}/`);
+      await apiClient.delete(`/workflows/email/email-accounts/${accountId}/`);
       setAccounts(accounts.filter(acc => acc.id !== accountId));
     } catch (err: any) {
       console.error('Failed to disconnect account:', err);
