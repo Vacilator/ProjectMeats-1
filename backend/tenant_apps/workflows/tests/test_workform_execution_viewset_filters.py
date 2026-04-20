@@ -73,6 +73,14 @@ class TenantWorkFormExecutionViewSetFilterTests(TestCase):
             ],
             started_by=self.user,
         )
+        # Ensure entity_id filtering works even when the JSON payload persisted a number.
+        self.exec_a_1_int = TenantWorkFormExecution.objects.create(
+            tenant=self.tenant_a,
+            workform=self.workform_a,
+            status='completed',
+            initial_data={'entity_type': 'customer', 'entity_id': 1},
+            started_by=self.user,
+        )
         self.exec_a_2 = TenantWorkFormExecution.objects.create(
             tenant=self.tenant_a,
             workform=self.workform_a,
@@ -85,6 +93,13 @@ class TenantWorkFormExecutionViewSetFilterTests(TestCase):
             workform=self.workform_b,
             status='completed',
             initial_data={'entity_type': 'customer', 'entity_id': '1'},
+            started_by=self.user,
+        )
+        self.exec_b_1_int = TenantWorkFormExecution.objects.create(
+            tenant=self.tenant_b,
+            workform=self.workform_b,
+            status='completed',
+            initial_data={'entity_type': 'customer', 'entity_id': 1},
             started_by=self.user,
         )
 
@@ -124,8 +139,10 @@ class TenantWorkFormExecutionViewSetFilterTests(TestCase):
         rows = self._items(resp)
         ids = {row.get('id') for row in rows}
         self.assertIn(str(self.exec_a_1.id), ids)
+        self.assertIn(str(self.exec_a_1_int.id), ids)
         self.assertNotIn(str(self.exec_a_2.id), ids)
         self.assertNotIn(str(self.exec_b_1.id), ids)
+        self.assertNotIn(str(self.exec_b_1_int.id), ids)
 
         # Serializer exposes per-node statuses derived from audit_trail
         row = next(r for r in rows if r.get('id') == str(self.exec_a_1.id))
@@ -151,6 +168,7 @@ class TenantWorkFormExecutionViewSetFilterTests(TestCase):
         ids = {row.get('id') for row in rows}
         self.assertIn(str(self.exec_a_err.id), ids)
         self.assertNotIn(str(self.exec_b_1.id), ids)
+        self.assertNotIn(str(self.exec_b_1_int.id), ids)
 
         row = next(r for r in rows if r.get('id') == str(self.exec_a_err.id))
         self.assertEqual(row.get('errors')[0].get('node_id'), 'n1')
@@ -166,8 +184,10 @@ class TenantWorkFormExecutionViewSetFilterTests(TestCase):
 
         ids = {row.get('id') for row in self._items(resp)}
         self.assertIn(str(self.exec_a_1.id), ids)
+        self.assertIn(str(self.exec_a_1_int.id), ids)
         self.assertIn(str(self.exec_a_2.id), ids)
         self.assertNotIn(str(self.exec_b_1.id), ids)
+        self.assertNotIn(str(self.exec_b_1_int.id), ids)
 
     def test_missing_tenant_fails_closed(self):
         req = self._get('/api/v1/workflows/workform-executions/', None)
