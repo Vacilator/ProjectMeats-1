@@ -20,6 +20,7 @@ import { Node, Edge } from '@xyflow/react';
 import { AlertCircle } from 'lucide-react';
 import { TabbedConfigPanel } from './TabbedConfigPanel';
 import { useNodeShadowState } from '../hooks/useNodeShadowState';
+import { sanitizeNodeConfigForPersistence } from '../utils/nodeDataSanitization';
 import {
   PrimaryButton,
   SecondaryButton,
@@ -189,11 +190,13 @@ export const TabbedConfigPanelWithShadow: React.FC<TabbedConfigPanelWithShadowPr
   const handleApply = useCallback(() => {
     if (!node) return;
     
+    const sanitized = (sanitizeNodeConfigForPersistence(shadowConfig) || {}) as Record<string, any>;
+
     // Commit shadow state
     commitShadow();
-    
+
     // Also call the original onUpdate to trigger history
-    onUpdate(node.id, shadowConfig);
+    onUpdate(node.id, sanitized);
     
     console.log('[Shadow State] Applied changes to node:', node.id);
   }, [node, commitShadow, onUpdate, shadowConfig]);
