@@ -307,5 +307,7 @@ class WorkFormEngine:
             'actionCreateRecord': 'create_record',
             'actionUpdateRecord': 'update_record',
             'actionNotification': 'send_notification',
+            'actionNotify': 'send_notification',  # canonical FlowEditor node type
+            'notify': 'send_notification',  # legacy/alias
         }
         return mapping.get(node_type, node_type)
