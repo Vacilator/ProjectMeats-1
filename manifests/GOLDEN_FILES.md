@@ -11,7 +11,7 @@ Complete environment variable registry with GitHub secret mappings (Version 5.1)
 Index of all authoritative sources for AI agents and developers
 
 ### `RLS_POLICIES.md`
-PostgreSQL Row-Level Security policy registry (38 tenant-aware models compliant; 45 tables with tenant isolation; 48 isolation policies)
+PostgreSQL Row-Level Security policy registry (audit log; see file for latest counts)
 
 ### `ai_standards/`
 AI prompt engineering standards and templates for consistent AI behavior
