@@ -81,17 +81,17 @@ const NodeContainer = styled.div<{
   min-width: 180px;
   background: rgb(var(--color-surface, 255, 255, 255));
   border: 2px solid ${props => {
-    if (props.$isDirty) return 'rgb(234, 179, 8)'; // Yellow for dirty (Phase 2)
+    if (props.$isDirty) return 'rgb(var(--color-warning))'; // Yellow for dirty (Phase 2)
     if (props.$selected) return props.$color;
-    if (props.$status === 'error') return 'rgb(239, 68, 68)';
-    if (props.$isPinned) return 'rgb(99, 102, 241)'; // Indigo for pinned
+    if (props.$status === 'error') return 'rgb(var(--color-error))';
+    if (props.$isPinned) return 'rgb(var(--color-primary))'; // Indigo for pinned
     return 'rgb(var(--color-border))';
   }};
   border-radius: var(--radius-lg);
   padding: 0;
   box-shadow: ${props => props.$selected 
-    ? '0 4px 12px rgba(0, 0, 0, 0.15)' 
-    : '0 2px 6px rgba(0, 0, 0, 0.1)'};
+    ? '0 4px 12px rgba(var(--color-overlay), 0.15)' 
+    : '0 2px 6px rgba(var(--color-overlay), 0.1)'};
   transition: all 0.2s ease;
   
   /* Drag preview - semi-transparent ghost */
@@ -103,10 +103,10 @@ const NodeContainer = styled.div<{
     
     @keyframes dirtyPulse {
       0%, 100% {
-        box-shadow: 0 2px 6px rgba(234, 179, 8, 0.3);
+        box-shadow: 0 2px 6px rgba(var(--color-warning), 0.3);
       }
       50% {
-        box-shadow: 0 4px 12px rgba(234, 179, 8, 0.5);
+        box-shadow: 0 4px 12px rgba(var(--color-warning), 0.5);
       }
     }
   `}
@@ -120,7 +120,7 @@ const NodeContainer = styled.div<{
       left: -4px;
       right: -4px;
       bottom: -4px;
-      border: 2px dashed rgb(99, 102, 241);
+      border: 2px dashed rgb(var(--color-primary));
       border-radius: var(--radius-lg);
       pointer-events: none;
       opacity: 0.3;
@@ -128,7 +128,7 @@ const NodeContainer = styled.div<{
   `}
   
   &:hover {
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    box-shadow: 0 4px 12px rgba(var(--color-overlay), 0.15);
   }
 `;
 
@@ -172,8 +172,8 @@ const NodeTitle = styled.span<{ $editable?: boolean }>`
 
 const NodeTitleInput = styled.input`
   flex: 1;
-  background: rgba(255, 255, 255, 0.2);
-  border: 1px solid rgba(255, 255, 255, 0.5);
+  background: rgba(var(--color-header-background), 0.2);
+  border: 1px solid rgba(var(--color-header-background), 0.5);
   border-radius: 4px;
   padding: 2px 6px;
   color: white;
@@ -182,7 +182,7 @@ const NodeTitleInput = styled.input`
   outline: none;
   
   &:focus {
-    background: rgba(255, 255, 255, 0.3);
+    background: rgba(var(--color-header-background), 0.3);
     border-color: white;
   }
 `;
@@ -193,7 +193,7 @@ const StepNumber = styled.span`
   justify-content: center;
   width: 20px;
   height: 20px;
-  background: rgba(255, 255, 255, 0.3);
+  background: rgba(var(--color-header-background), 0.3);
   border-radius: 50%;
   font-size: 11px;
   font-weight: 700;
@@ -245,11 +245,11 @@ const BreakpointDot = styled.div`
 const ErrorMessage = styled.div`
   margin-top: 8px;
   padding: 6px 8px;
-  background: rgba(239, 68, 68, 0.1);
-  border: 1px solid rgb(239, 68, 68);
+  background: rgba(var(--color-error), 0.1);
+  border: 1px solid rgb(var(--color-error));
   border-radius: var(--radius-sm);
   font-size: 11px;
-  color: rgb(239, 68, 68);
+  color: rgb(var(--color-error));
 `;
 
 const StyledHandle = styled(Handle)<{ $color: string }>`
@@ -284,7 +284,7 @@ const ToolbarCard = styled.div`
   padding: 6px;
   border-radius: 8px;
   border: 1px solid rgb(var(--color-border));
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 4px 12px rgba(var(--color-overlay), 0.15);
 `;
 
 const ToolbarBtn = styled.button<{ $danger?: boolean }>`
@@ -293,13 +293,13 @@ const ToolbarBtn = styled.button<{ $danger?: boolean }>`
   border: none;
   background: transparent;
   cursor: pointer;
-  color: ${(props) => (props.$danger ? 'rgb(239, 68, 68)' : 'rgb(var(--color-text-secondary))')};
+  color: ${(props) => (props.$danger ? 'rgb(var(--color-error))' : 'rgb(var(--color-text-secondary))')};
   transition: all 0.15s ease;
 
   &:hover {
     background: ${(props) =>
-      props.$danger ? 'rgba(239, 68, 68, 0.1)' : 'rgba(var(--color-primary), 0.1)'};
-    color: ${(props) => (props.$danger ? 'rgb(239, 68, 68)' : 'rgb(var(--color-primary))')};
+      props.$danger ? 'rgba(var(--color-error), 0.1)' : 'rgba(var(--color-primary), 0.1)'};
+    color: ${(props) => (props.$danger ? 'rgb(var(--color-error))' : 'rgb(var(--color-primary))')};
   }
 `;
 
@@ -343,8 +343,8 @@ const HeaderToggleButton = styled.button`
   width: 24px;
   height: 24px;
   border-radius: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.45);
-  background: rgba(255, 255, 255, 0.16);
+  border: 1px solid rgba(var(--color-header-background), 0.45);
+  background: rgba(var(--color-header-background), 0.16);
   color: white;
   cursor: pointer;
   display: flex;
@@ -355,7 +355,7 @@ const HeaderToggleButton = styled.button`
 
   &:hover {
     opacity: 1;
-    background: rgba(255, 255, 255, 0.22);
+    background: rgba(var(--color-header-background), 0.22);
     transform: scale(1.05);
   }
 
@@ -686,7 +686,7 @@ export const BaseNode: React.FC<BaseNodeProps & { children?: React.ReactNode }> 
           type="source"
           position={Position.Bottom}
           id="error"
-          $color="rgb(239, 68, 68)"
+          $color="rgb(var(--color-error))"
           style={{
             left: '82%',
             transform: 'translateX(-50%)',

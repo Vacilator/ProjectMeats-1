@@ -68,6 +68,9 @@
   --color-error: 239, 68, 68; /* red-500 */
   --color-info: 59, 130, 246; /* blue-500 */
 
+  /* --- Overlay/Backdrop --- */
+  --color-overlay: 0, 0, 0;
+
   /* --- Shadows --- */
   --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
   --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);

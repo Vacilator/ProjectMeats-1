@@ -366,7 +366,7 @@ const StepCard = styled.div<{ $active?: boolean; $isDrop?: boolean }>`
   ${(p) =>
     p.$isDrop
       ? `
-    outline: 2px dashed rgb(34, 197, 94);
+    outline: 2px dashed rgb(var(--color-success));
     outline-offset: 2px;
   `
       : ''}
@@ -887,7 +887,7 @@ export const SmartWorkFormNode = React.memo<NodeProps<SmartWorkFormFlowNode>>(({
                       <div style={{ display: 'flex', gap: 10, marginTop: 2 }}>
                         <FieldType>{f.type || 'text'}</FieldType>
                         {f.required ? (
-                          <FieldType style={{ color: 'rgb(239, 68, 68)' }}>required</FieldType>
+                          <FieldType style={{ color: 'rgb(var(--color-error))' }}>required</FieldType>
                         ) : null}
                       </div>
                     </div>

@@ -32,7 +32,7 @@ const Overlay = styled.div`
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.7);
+  background: rgba(var(--color-overlay), 0.7);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -48,7 +48,7 @@ const Modal = styled.div`
   max-height: 90vh;
   display: flex;
   flex-direction: column;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 20px 60px rgba(var(--color-overlay), 0.3);
 `;
 
 const Header = styled.div`
@@ -162,7 +162,7 @@ const TemplateCard = styled.div`
   &:hover {
     border-color: rgb(var(--color-primary));
     transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 4px 12px rgba(var(--color-overlay), 0.1);
   }
 `;
 

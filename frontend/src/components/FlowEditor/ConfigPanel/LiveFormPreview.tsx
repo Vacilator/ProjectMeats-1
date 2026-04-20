@@ -68,7 +68,7 @@ const PreviewCard = styled.div`
   background: white;
   border-radius: 12px;
   padding: 24px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 12px rgba(var(--color-overlay), 0.1);
 `;
 
 const FormTitle = styled.h2`
@@ -136,7 +136,7 @@ const Input = styled.input`
   &:focus {
     outline: none;
     border-color: rgb(var(--color-info));
-    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+    box-shadow: 0 0 0 3px rgba(var(--color-primary), 0.1);
   }
   
   &::placeholder {
@@ -159,7 +159,7 @@ const Textarea = styled.textarea`
   &:focus {
     outline: none;
     border-color: rgb(var(--color-info));
-    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+    box-shadow: 0 0 0 3px rgba(var(--color-primary), 0.1);
   }
   
   &::placeholder {
@@ -180,7 +180,7 @@ const Select = styled.select`
   &:focus {
     outline: none;
     border-color: rgb(var(--color-info));
-    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+    box-shadow: 0 0 0 3px rgba(var(--color-primary), 0.1);
   }
 `;
 
@@ -236,7 +236,7 @@ const FileInput = styled.div`
   
   &:hover {
     border-color: rgb(var(--color-info));
-    background: rgba(99, 102, 241, 0.05);
+    background: rgba(var(--color-primary), 0.05);
   }
 `;
 

@@ -39,7 +39,7 @@ const PanelOverlay = styled.div<{ $isVisible: boolean }>`
   width: ${props => props.$isVisible ? '450px' : '0'};
   background: rgb(var(--color-background));
   border-left: 1px solid rgb(var(--color-border));
-  box-shadow: -4px 0 12px rgba(0, 0, 0, 0.1);
+  box-shadow: -4px 0 12px rgba(var(--color-overlay), 0.1);
   z-index: 100;
   transition: width 0.3s ease;
   overflow: hidden;
@@ -147,7 +147,7 @@ const PreviewViewport = styled.div<{ $size: ViewportSize }>`
   max-width: 100%;
   background: white;
   border-radius: var(--radius-lg);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 12px rgba(var(--color-overlay), 0.1);
   padding: 24px;
   transition: width 0.3s ease;
 `;
@@ -172,17 +172,17 @@ const FieldLabel = styled.label`
 
 const FieldInput = styled.input<{ $hasError?: boolean }>`
   padding: 10px 12px;
-  border: 1px solid ${props => props.$hasError ? 'rgb(239, 68, 68)' : 'rgb(var(--color-border))'};
+  border: 1px solid ${props => props.$hasError ? 'rgb(var(--color-error))' : 'rgb(var(--color-border))'};
   border-radius: var(--radius-md);
   font-size: 14px;
   color: rgb(var(--color-text-primary));
-  background: ${props => props.$hasError ? 'rgb(254, 242, 242)' : 'rgb(var(--color-surface))'};
+  background: ${props => props.$hasError ? 'rgba(var(--color-error), 0.08)' : 'rgb(var(--color-surface))'};
   transition: all 0.15s ease;
   
   &:focus {
     outline: none;
-    border-color: ${props => props.$hasError ? 'rgb(239, 68, 68)' : 'rgb(var(--color-primary))'};
-    box-shadow: 0 0 0 3px ${props => props.$hasError ? 'rgba(239, 68, 68, 0.1)' : 'rgba(var(--color-primary), 0.1)'};
+    border-color: ${props => props.$hasError ? 'rgb(var(--color-error))' : 'rgb(var(--color-primary))'};
+    box-shadow: 0 0 0 3px ${props => props.$hasError ? 'rgba(var(--color-error), 0.1)' : 'rgba(var(--color-primary), 0.1)'};
   }
   
   &::placeholder {
@@ -192,11 +192,11 @@ const FieldInput = styled.input<{ $hasError?: boolean }>`
 
 const FieldTextarea = styled.textarea<{ $hasError?: boolean }>`
   padding: 10px 12px;
-  border: 1px solid ${props => props.$hasError ? 'rgb(239, 68, 68)' : 'rgb(var(--color-border))'};
+  border: 1px solid ${props => props.$hasError ? 'rgb(var(--color-error))' : 'rgb(var(--color-border))'};
   border-radius: var(--radius-md);
   font-size: 14px;
   color: rgb(var(--color-text-primary));
-  background: ${props => props.$hasError ? 'rgb(254, 242, 242)' : 'rgb(var(--color-surface))'};
+  background: ${props => props.$hasError ? 'rgba(var(--color-error), 0.08)' : 'rgb(var(--color-surface))'};
   font-family: inherit;
   resize: vertical;
   min-height: 80px;
@@ -204,8 +204,8 @@ const FieldTextarea = styled.textarea<{ $hasError?: boolean }>`
   
   &:focus {
     outline: none;
-    border-color: ${props => props.$hasError ? 'rgb(239, 68, 68)' : 'rgb(var(--color-primary))'};
-    box-shadow: 0 0 0 3px ${props => props.$hasError ? 'rgba(239, 68, 68, 0.1)' : 'rgba(var(--color-primary), 0.1)'};
+    border-color: ${props => props.$hasError ? 'rgb(var(--color-error))' : 'rgb(var(--color-primary))'};
+    box-shadow: 0 0 0 3px ${props => props.$hasError ? 'rgba(var(--color-error), 0.1)' : 'rgba(var(--color-primary), 0.1)'};
   }
   
   &::placeholder {
@@ -215,18 +215,18 @@ const FieldTextarea = styled.textarea<{ $hasError?: boolean }>`
 
 const FieldSelect = styled.select<{ $hasError?: boolean }>`
   padding: 10px 12px;
-  border: 1px solid ${props => props.$hasError ? 'rgb(239, 68, 68)' : 'rgb(var(--color-border))'};
+  border: 1px solid ${props => props.$hasError ? 'rgb(var(--color-error))' : 'rgb(var(--color-border))'};
   border-radius: var(--radius-md);
   font-size: 14px;
   color: rgb(var(--color-text-primary));
-  background: ${props => props.$hasError ? 'rgb(254, 242, 242)' : 'rgb(var(--color-surface))'};
+  background: ${props => props.$hasError ? 'rgba(var(--color-error), 0.08)' : 'rgb(var(--color-surface))'};
   cursor: pointer;
   transition: all 0.15s ease;
   
   &:focus {
     outline: none;
-    border-color: ${props => props.$hasError ? 'rgb(239, 68, 68)' : 'rgb(var(--color-primary))'};
-    box-shadow: 0 0 0 3px ${props => props.$hasError ? 'rgba(239, 68, 68, 0.1)' : 'rgba(var(--color-primary), 0.1)'};
+    border-color: ${props => props.$hasError ? 'rgb(var(--color-error))' : 'rgb(var(--color-primary))'};
+    box-shadow: 0 0 0 3px ${props => props.$hasError ? 'rgba(var(--color-error), 0.1)' : 'rgba(var(--color-primary), 0.1)'};
   }
 `;
 
@@ -237,7 +237,7 @@ const FieldHelpText = styled.span`
 
 const FieldError = styled.div`
   font-size: 12px;
-  color: rgb(239, 68, 68);
+  color: rgb(var(--color-error));
   margin-top: 4px;
   display: flex;
   align-items: center;
@@ -246,8 +246,8 @@ const FieldError = styled.div`
 `;
 
 const ValidationSummary = styled.div`
-  background: rgb(254, 226, 226);
-  border: 1px solid rgb(239, 68, 68);
+  background: rgba(var(--color-error), 0.12);
+  border: 1px solid rgb(var(--color-error));
   border-radius: var(--radius-md);
   padding: 12px 16px;
   margin-bottom: 20px;
@@ -257,7 +257,7 @@ const ValidationTitle = styled.div`
   display: flex;
   align-items: center;
   gap: 8px;
-  color: rgb(239, 68, 68);
+  color: rgb(var(--color-error));
   font-weight: 600;
   font-size: 14px;
   margin-bottom: 8px;
@@ -266,7 +266,7 @@ const ValidationTitle = styled.div`
 const ValidationList = styled.ul`
   margin: 0;
   padding-left: 20px;
-  color: rgb(185, 28, 28);
+  color: rgb(var(--color-danger));
   font-size: 13px;
   
   li {
@@ -712,7 +712,7 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({
                   <FormField key={field.id}>
                     <FieldLabel>
                       {field.label}
-                      {field.required && <span style={{ color: 'rgb(239, 68, 68)' }}> *</span>}
+                      {field.required && <span style={{ color: 'rgb(var(--color-error))' }}> *</span>}
                     </FieldLabel>
                     
                     {/* Textarea */}

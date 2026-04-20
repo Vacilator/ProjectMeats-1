@@ -137,7 +137,7 @@ const ToolbarCard = styled.div`
   border-radius: 10px;
   background: rgb(var(--color-surface));
   border: 1px solid rgb(var(--color-border));
-  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.12);
+  box-shadow: 0 8px 22px rgba(var(--color-overlay), 0.12);
 `;
 
 const ToolbarBtn = styled.button<{ $danger?: boolean }>`
@@ -149,7 +149,7 @@ const ToolbarBtn = styled.button<{ $danger?: boolean }>`
   border-radius: 8px;
   border: 1px solid rgb(var(--color-border));
   background: rgb(var(--color-background));
-  color: ${(p) => (p.$danger ? 'rgb(239, 68, 68)' : 'rgb(var(--color-text-primary))')};
+  color: ${(p) => (p.$danger ? 'rgb(var(--color-error))' : 'rgb(var(--color-text-primary))')};
   cursor: pointer;
 
   &:hover {

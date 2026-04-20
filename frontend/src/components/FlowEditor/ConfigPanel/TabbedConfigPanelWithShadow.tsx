@@ -88,7 +88,7 @@ const ActionBar = styled.div<{ $show: boolean }>`
   padding-bottom: calc(16px + env(safe-area-inset-bottom));
   border-top: 1px solid rgb(var(--color-border));
   background: rgb(var(--color-surface));
-  box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 -2px 8px rgba(var(--color-overlay), 0.05);
 
   @media (max-width: 600px) {
     width: 100vw;
@@ -102,7 +102,7 @@ const ConfirmationModal = styled.div<{ $show: boolean }>`
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(var(--color-overlay), 0.5);
   align-items: center;
   justify-content: center;
   z-index: 2000;
@@ -119,7 +119,7 @@ const DialogBox = styled.div`
   border-radius: var(--radius-lg);
   padding: 24px;
   min-width: 400px;
-  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 4px 24px rgba(var(--color-overlay), 0.15);
 `;
 
 const DialogHeader = styled.h3`

@@ -87,7 +87,7 @@ const Container = styled.div`
   height: 100vh;
   background: rgb(var(--color-surface));
   border-left: 1px solid rgb(var(--color-border));
-  box-shadow: -4px 0 12px rgba(0, 0, 0, 0.1);
+  box-shadow: -4px 0 12px rgba(var(--color-overlay), 0.1);
   display: flex;
   flex-direction: column;
   z-index: 1000;

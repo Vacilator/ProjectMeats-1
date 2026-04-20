@@ -153,7 +153,7 @@ const FieldLabel = styled.span`
 `;
 
 const RequiredBadge = styled.span`
-  color: rgb(239, 68, 68);
+  color: rgb(var(--color-error));
   font-weight: 700;
 `;
 

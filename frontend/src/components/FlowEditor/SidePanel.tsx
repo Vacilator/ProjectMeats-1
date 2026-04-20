@@ -61,7 +61,7 @@ const Backdrop = styled.div`
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: rgba(0, 0, 0, 0.5);
+  background-color: rgba(var(--color-overlay), 0.5);
   z-index: 9999;
   display: flex;
   justify-content: flex-end;
@@ -73,7 +73,7 @@ const PanelContent = styled.div`
   width: 450px;
   max-width: 90vw;
   background: rgb(var(--color-surface));
-  box-shadow: -4px 0 12px rgba(0, 0, 0, 0.1);
+  box-shadow: -4px 0 12px rgba(var(--color-overlay), 0.1);
   animation: slideIn 0.25s ease-out;
   overflow-y: auto;
 

@@ -83,7 +83,7 @@
     width: 100% !important;
     max-height: 70vh !important;
     border-radius: var(--radius-lg) var(--radius-lg) 0 0 !important;
-    box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.15) !important;
+    box-shadow: 0 -4px 12px rgba(var(--color-overlay), 0.15) !important;
   }
 
   /* Canvas - Full viewport */
@@ -335,7 +335,7 @@
 @media (prefers-color-scheme: dark) {
   /* Higher contrast in dark mode */
   .react-flow__node {
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3) !important;
+    box-shadow: 0 2px 8px rgba(var(--color-overlay), 0.3) !important;
   }
 
   /* Dimmer backgrounds */

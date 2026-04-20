@@ -28,20 +28,20 @@ interface SuccessEdgeData extends Record<string, unknown> {
 
 const SuccessLabel = styled.div`
   position: absolute;
-  background: rgb(220, 252, 231);
-  border: 2px solid rgb(34, 197, 94);
+  background: rgba(var(--color-success), 0.12);
+  border: 2px solid rgb(var(--color-success));
   border-radius: var(--radius-md, 6px);
   padding: 4px 12px;
   font-size: 12px;
   font-weight: 600;
-  color: rgb(21, 128, 61);
+  color: rgb(var(--color-success));
   pointer-events: all;
   cursor: pointer;
   transition: all 0.2s ease;
   box-shadow: 0 2px 4px rgb(34 197 94 / 0.2);
 
   &:hover {
-    background: rgb(34, 197, 94);
+    background: rgb(var(--color-success));
     color: white;
     transform: scale(1.05);
     box-shadow: 0 4px 8px rgb(34 197 94 / 0.3);
@@ -58,7 +58,7 @@ const SuccessLabel = styled.div`
 
 const SuccessBadge = styled.div`
   position: absolute;
-  background: rgb(22, 163, 74);
+  background: rgb(var(--color-success));
   border: 2px solid white;
   border-radius: 50%;
   min-width: 20px;
@@ -109,7 +109,7 @@ export const SuccessEdge = React.memo<EdgeProps<Edge<SuccessEdgeData>>>(({
   const successCount = data?.successCount;
 
   const edgeStyle: React.CSSProperties = {
-    stroke: 'rgb(34, 197, 94)', // Green
+    stroke: 'rgb(var(--color-success))', // Green
     strokeWidth: 3,
     transition: 'all 0.3s ease',
     ...style,
@@ -120,7 +120,7 @@ export const SuccessEdge = React.memo<EdgeProps<Edge<SuccessEdgeData>>>(({
     type: MarkerType.ArrowClosed,
     width: 24,
     height: 24,
-    color: 'rgb(34, 197, 94)',
+    color: 'rgb(var(--color-success))',
   };
 
   return (
@@ -136,7 +136,7 @@ export const SuccessEdge = React.memo<EdgeProps<Edge<SuccessEdgeData>>>(({
           orient="auto"
           markerUnits="userSpaceOnUse"
         >
-          <circle cx="8" cy="8" r="7" fill="rgb(34, 197, 94)" stroke="white" strokeWidth="1" />
+          <circle cx="8" cy="8" r="7" fill="rgb(var(--color-success))" stroke="white" strokeWidth="1" />
           <path
             d="M 5,8 L 7,10 L 11,6"
             fill="none"
@@ -161,13 +161,13 @@ export const SuccessEdge = React.memo<EdgeProps<Edge<SuccessEdgeData>>>(({
       {/* Animated sparkle effect for success */}
       {animated && (
         <>
-          <circle r="3" fill="rgb(34, 197, 94)" opacity="1">
+          <circle r="3" fill="rgb(var(--color-success))" opacity="1">
             <animateMotion dur="1.5s" repeatCount="indefinite" path={edgePath} />
           </circle>
-          <circle r="2" fill="rgb(134, 239, 172)" opacity="0.7">
+          <circle r="2" fill="rgba(var(--color-success), 0.35)" opacity="0.7">
             <animateMotion dur="1.5s" begin="0.3s" repeatCount="indefinite" path={edgePath} />
           </circle>
-          <circle r="2" fill="rgb(134, 239, 172)" opacity="0.7">
+          <circle r="2" fill="rgba(var(--color-success), 0.35)" opacity="0.7">
             <animateMotion dur="1.5s" begin="0.6s" repeatCount="indefinite" path={edgePath} />
           </circle>
         </>

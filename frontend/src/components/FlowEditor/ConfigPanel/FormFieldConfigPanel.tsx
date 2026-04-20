@@ -604,7 +604,7 @@ export const FormFieldConfigPanel: React.FC<FormFieldConfigPanelProps> = ({
                       menu: (base) => ({
                         ...base,
                         borderRadius: 'var(--radius-md)',
-                        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+                        boxShadow: '0 4px 12px rgba(var(--color-overlay), 0.15)',
                         zIndex: 9999,
                       }),
                     }}

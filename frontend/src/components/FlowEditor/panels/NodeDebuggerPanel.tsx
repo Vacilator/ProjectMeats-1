@@ -494,9 +494,9 @@ const WarningBanner = styled.div`
   align-items: center;
   gap: 8px;
   padding: 12px 20px;
-  background: rgb(234, 179, 8, 0.1);
-  border-bottom: 1px solid rgb(234, 179, 8);
-  color: rgb(234, 179, 8);
+  background: rgba(var(--color-warning), 0.1);
+  border-bottom: 1px solid rgb(var(--color-warning));
+  color: rgb(var(--color-warning));
   font-size: 13px;
 `;
 
@@ -565,9 +565,9 @@ const ErrorBadge = styled.div`
   align-items: center;
   gap: 4px;
   padding: 4px 8px;
-  background: rgb(239, 68, 68, 0.1);
+  background: rgba(var(--color-error), 0.1);
   border-radius: 4px;
-  color: rgb(239, 68, 68);
+  color: rgb(var(--color-error));
   font-size: 11px;
   font-weight: 500;
 `;
@@ -602,9 +602,9 @@ const StatusBanner = styled.div<{ $success: boolean }>`
   gap: 8px;
   padding: 12px 16px;
   border-radius: 6px;
-  background: ${props => props.$success ? 'rgb(34, 197, 94, 0.1)' : 'rgb(239, 68, 68, 0.1)'};
-  border: 1px solid ${props => props.$success ? 'rgb(34, 197, 94)' : 'rgb(239, 68, 68)'};
-  color: ${props => props.$success ? 'rgb(34, 197, 94)' : 'rgb(239, 68, 68)'};
+  background: ${props => props.$success ? 'rgba(var(--color-success), 0.1)' : 'rgba(var(--color-error), 0.1)'};
+  border: 1px solid ${props => props.$success ? 'rgb(var(--color-success))' : 'rgb(var(--color-error))'};
+  color: ${props => props.$success ? 'rgb(var(--color-success))' : 'rgb(var(--color-error))'};
   font-size: 14px;
   font-weight: 500;
   margin-bottom: 16px;
@@ -624,9 +624,9 @@ const ErrorItem = styled.div`
   align-items: flex-start;
   gap: 8px;
   padding: 8px 12px;
-  background: rgb(239, 68, 68, 0.05);
-  border-left: 3px solid rgb(239, 68, 68);
-  color: rgb(239, 68, 68);
+  background: rgba(var(--color-error), 0.05);
+  border-left: 3px solid rgb(var(--color-error));
+  color: rgb(var(--color-error));
   font-size: 13px;
   margin-bottom: 8px;
 `;
@@ -640,9 +640,9 @@ const WarningItem = styled.div`
   align-items: flex-start;
   gap: 8px;
   padding: 8px 12px;
-  background: rgb(234, 179, 8, 0.05);
-  border-left: 3px solid rgb(234, 179, 8);
-  color: rgb(234, 179, 8);
+  background: rgba(var(--color-warning), 0.05);
+  border-left: 3px solid rgb(var(--color-warning));
+  color: rgb(var(--color-warning));
   font-size: 13px;
   margin-bottom: 8px;
 `;
@@ -661,7 +661,7 @@ const ExecuteButton = styled.button`
   width: 100%;
   padding: 12px 20px;
   background: rgb(var(--color-primary));
-  color: white;
+  color: rgb(var(--color-primary-foreground));
   border: none;
   border-radius: 6px;
   font-size: 14px;

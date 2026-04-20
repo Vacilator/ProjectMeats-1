@@ -188,7 +188,7 @@ const FieldCard = styled.div<{ $mapped?: boolean; $selected?: boolean }>`
   background: rgb(var(--color-background));
   border: 2px solid ${props => 
     props.$selected ? 'rgb(var(--color-primary))' :
-    props.$mapped ? 'rgba(34, 197, 94, 0.3)' : 
+    props.$mapped ? 'rgba(var(--color-success), 0.3)' : 
     'rgb(var(--color-border))'};
   border-radius: var(--radius-md);
   cursor: pointer;
@@ -197,7 +197,7 @@ const FieldCard = styled.div<{ $mapped?: boolean; $selected?: boolean }>`
   
   &:hover {
     border-color: rgb(var(--color-primary));
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    box-shadow: 0 2px 8px rgba(var(--color-overlay), 0.05);
   }
 `;
 
@@ -227,18 +227,18 @@ const FieldBadge = styled.div<{ $type: 'required' | 'mapped' | 'auto' }>`
   ${props => {
     if (props.$type === 'required') {
       return `
-        background: rgba(239, 68, 68, 0.1);
-        color: rgb(239, 68, 68);
+        background: rgba(var(--color-error), 0.1);
+        color: rgb(var(--color-error));
       `;
     } else if (props.$type === 'mapped') {
       return `
-        background: rgba(34, 197, 94, 0.1);
-        color: rgb(34, 197, 94);
+        background: rgba(var(--color-success), 0.1);
+        color: rgb(var(--color-success));
       `;
     } else {
       return `
-        background: rgba(59, 130, 246, 0.1);
-        color: rgb(59, 130, 246);
+        background: rgba(var(--color-info), 0.1);
+        color: rgb(var(--color-info));
       `;
     }
   }}
@@ -283,7 +283,7 @@ const MappingItem = styled.div`
   
   &:hover {
     border-color: rgb(var(--color-primary));
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    box-shadow: 0 2px 8px rgba(var(--color-overlay), 0.05);
   }
 `;
 
@@ -360,18 +360,18 @@ const ValidationAlert = styled.div<{ $type: 'error' | 'warning' | 'success' }>`
   ${props => {
     if (props.$type === 'error') {
       return `
-        background: rgba(239, 68, 68, 0.1);
-        color: rgb(239, 68, 68);
+        background: rgba(var(--color-error), 0.1);
+        color: rgb(var(--color-error));
       `;
     } else if (props.$type === 'warning') {
       return `
-        background: rgba(234, 179, 8, 0.1);
-        color: rgb(234, 179, 8);
+        background: rgba(var(--color-warning), 0.1);
+        color: rgb(var(--color-warning));
       `;
     } else {
       return `
-        background: rgba(34, 197, 94, 0.1);
-        color: rgb(34, 197, 94);
+        background: rgba(var(--color-success), 0.1);
+        color: rgb(var(--color-success));
       `;
     }
   }}
@@ -720,8 +720,8 @@ export const FieldMappingPanel: React.FC<FieldMappingPanelProps> = ({
                       <ArrowRight size={14} />
                       <span>{getEntityFieldLabel(mapping.entityField)}</span>
                     </MappingPath>
-                    {!validation.valid && <AlertCircle size={14} color="rgb(239, 68, 68)" />}
-                    {validation.valid && <CheckCircle size={14} color="rgb(34, 197, 94)" />}
+                    {!validation.valid && <AlertCircle size={14} color="rgb(var(--color-error))" />}
+                    {validation.valid && <CheckCircle size={14} color="rgb(var(--color-success))" />}
                   </MappingTitle>
                   <MappingActions>
                     {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}

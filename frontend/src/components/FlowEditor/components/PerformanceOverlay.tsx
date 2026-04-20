@@ -73,9 +73,9 @@ const OverlayContainer = styled.div<{
     }
   }}
   
-  background: rgba(0, 0, 0, 0.85);
+  background: rgba(var(--color-overlay), 0.85);
   backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(var(--color-header-background), 0.1);
   border-radius: 8px;
   padding: 12px 16px;
   font-family: 'SF Mono', 'Monaco', 'Cascadia Code', 'Courier New', monospace;
@@ -84,7 +84,7 @@ const OverlayContainer = styled.div<{
   color: rgb(var(--color-text-primary, 255, 255, 255));
   z-index: 9999;
   min-width: 200px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 4px 12px rgba(var(--color-overlay), 0.3);
   user-select: none;
   
   /* Prevent overlay from blocking interactions */
@@ -107,7 +107,7 @@ const MetricRow = styled.div<{ $warning?: boolean }>`
 `;
 
 const MetricLabel = styled.span`
-  color: rgba(255, 255, 255, 0.7);
+  color: rgba(var(--color-header-background), 0.7);
   margin-right: 16px;
 `;
 
@@ -118,7 +118,7 @@ const MetricValue = styled.span<{ $color?: string }>`
 
 const Divider = styled.div`
   height: 1px;
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(var(--color-header-background), 0.1);
   margin: 12px 0;
 `;
 
@@ -134,21 +134,21 @@ const Badge = styled.span<{ $type: 'success' | 'warning' | 'error' }>`
     switch (props.$type) {
       case 'success':
         return `
-          background: rgba(34, 197, 94, 0.2);
-          color: rgb(34, 197, 94);
-          border: 1px solid rgba(34, 197, 94, 0.4);
+          background: rgba(var(--color-success), 0.2);
+          color: rgb(var(--color-success));
+          border: 1px solid rgba(var(--color-success), 0.4);
         `;
       case 'warning':
         return `
-          background: rgba(234, 179, 8, 0.2);
-          color: rgb(234, 179, 8);
-          border: 1px solid rgba(234, 179, 8, 0.4);
+          background: rgba(var(--color-warning), 0.2);
+          color: rgb(var(--color-warning));
+          border: 1px solid rgba(var(--color-warning), 0.4);
         `;
       case 'error':
         return `
-          background: rgba(239, 68, 68, 0.2);
-          color: rgb(239, 68, 68);
-          border: 1px solid rgba(239, 68, 68, 0.4);
+          background: rgba(var(--color-error), 0.2);
+          color: rgb(var(--color-error));
+          border: 1px solid rgba(var(--color-error), 0.4);
         `;
     }
   }}
@@ -172,7 +172,7 @@ const Title = styled.div`
 const ToggleButton = styled.button`
   background: none;
   border: none;
-  color: rgba(255, 255, 255, 0.5);
+  color: rgba(var(--color-header-background), 0.5);
   font-size: 18px;
   cursor: pointer;
   padding: 0;
@@ -184,7 +184,7 @@ const ToggleButton = styled.button`
   transition: color 0.2s;
   
   &:hover {
-    color: rgba(255, 255, 255, 0.9);
+    color: rgba(var(--color-header-background), 0.9);
   }
 `;
 
@@ -279,10 +279,10 @@ export const PerformanceOverlay: React.FC<PerformanceOverlayProps> = ({
           <MetricValue
             $color={
               fps >= 55
-                ? 'rgb(34, 197, 94)'
+                ? 'rgb(var(--color-success))'
                 : fps >= 30
-                ? 'rgb(234, 179, 8)'
-                : 'rgb(239, 68, 68)'
+                ? 'rgb(var(--color-warning))'
+                : 'rgb(var(--color-error))'
             }
           >
             {fps}
@@ -306,7 +306,7 @@ export const PerformanceOverlay: React.FC<PerformanceOverlayProps> = ({
           {isVirtualized && (
             <MetricRow>
               <MetricLabel>Rendered:</MetricLabel>
-              <MetricValue $color="rgb(102, 126, 234)">
+              <MetricValue $color="rgb(var(--color-primary))">
                 {virtualizationRatio.toFixed(1)}%
               </MetricValue>
             </MetricRow>
@@ -319,8 +319,8 @@ export const PerformanceOverlay: React.FC<PerformanceOverlayProps> = ({
               <MetricValue
                 $color={
                   highMemory
-                    ? 'rgb(239, 68, 68)'
-                    : 'rgb(34, 197, 94)'
+                    ? 'rgb(var(--color-error))'
+                    : 'rgb(var(--color-success))'
                 }
               >
                 {memoryMB} MB
@@ -335,10 +335,10 @@ export const PerformanceOverlay: React.FC<PerformanceOverlayProps> = ({
               <MetricValue
                 $color={
                   slowRender
-                    ? 'rgb(239, 68, 68)'
+                    ? 'rgb(var(--color-error))'
                     : avgRenderTime > 10
-                    ? 'rgb(234, 179, 8)'
-                    : 'rgb(34, 197, 94)'
+                    ? 'rgb(var(--color-warning))'
+                    : 'rgb(var(--color-success))'
                 }
               >
                 {avgRenderTime.toFixed(2)} ms
@@ -351,7 +351,7 @@ export const PerformanceOverlay: React.FC<PerformanceOverlayProps> = ({
             <>
               <Divider />
               <MetricRow>
-                <MetricLabel style={{ color: 'rgb(239, 68, 68)' }}>
+                <MetricLabel style={{ color: 'rgb(var(--color-error))' }}>
                   ⚠️ Warnings:
                 </MetricLabel>
               </MetricRow>

@@ -88,10 +88,10 @@ interface WorkflowAnalyticsDashboardProps {
 }
 
 const STATUS_COLORS = {
-  success: 'rgb(34, 197, 94)',
-  failure: 'rgb(239, 68, 68)',
-  pending: 'rgb(234, 179, 8)',
-  running: 'rgb(59, 130, 246)'
+  success: 'rgb(var(--color-success))',
+  failure: 'rgb(var(--color-error))',
+  pending: 'rgb(var(--color-warning))',
+  running: 'rgb(var(--color-info))'
 };
 
 const CHART_COLORS = ['rgb(var(--color-primary))', 'rgb(var(--color-info))', 'rgb(var(--color-info))', 'rgb(var(--color-info))'];

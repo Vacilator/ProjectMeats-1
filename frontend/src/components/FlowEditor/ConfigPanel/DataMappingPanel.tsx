@@ -100,7 +100,7 @@ const MappingRow = styled.div<{ hasError?: boolean }>`
   background: rgb(var(--color-background-secondary));
   border-radius: 6px;
   border: 1px solid ${props => 
-    props.hasError ? 'rgb(239, 68, 68)' : 'rgb(var(--color-border))'
+    props.hasError ? 'rgb(var(--color-error))' : 'rgb(var(--color-border))'
   };
 `;
 
@@ -177,7 +177,7 @@ const DeleteButton = styled.button`
   justify-content: center;
 
   &:hover {
-    background: rgb(239, 68, 68);
+    background: rgb(var(--color-error));
     color: white;
   }
 `;
@@ -219,14 +219,14 @@ const ValidationMessage = styled.div<{ type: 'error' | 'success' }>`
   font-size: 12px;
   color: ${props => 
     props.type === 'error' 
-      ? 'rgb(239, 68, 68)' 
-      : 'rgb(34, 197, 94)'
+      ? 'rgb(var(--color-error))' 
+      : 'rgb(var(--color-success))'
   };
   padding: 8px 12px;
   background: ${props => 
     props.type === 'error' 
-      ? 'rgba(239, 68, 68, 0.1)' 
-      : 'rgba(34, 197, 94, 0.1)'
+      ? 'rgba(var(--color-error), 0.1)' 
+      : 'rgba(var(--color-success), 0.1)'
   };
   border-radius: 6px;
   margin-top: 8px;
@@ -244,8 +244,8 @@ const InfoBox = styled.div`
   align-items: flex-start;
   gap: 8px;
   padding: 12px;
-  background: rgba(59, 130, 246, 0.1);
-  border: 1px solid rgba(59, 130, 246, 0.3);
+  background: rgba(var(--color-info), 0.1);
+  border: 1px solid rgba(var(--color-info), 0.3);
   border-radius: 6px;
   font-size: 13px;
   color: rgb(var(--color-text-secondary));

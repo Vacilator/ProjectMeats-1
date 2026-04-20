@@ -92,31 +92,31 @@ const getWaitTypeInfo = (waitType: WaitType) => {
       return {
         icon: UserCheck,
         label: 'Waiting for Approval',
-        color: 'rgb(234, 179, 8)', // Yellow
+        color: 'rgb(var(--color-warning))', // Yellow
       };
     case 'document':
       return {
         icon: FileText,
         label: 'Waiting for Document',
-        color: 'rgb(59, 130, 246)', // Blue
+        color: 'rgb(var(--color-info))', // Blue
       };
     case 'response':
       return {
         icon: MessageSquare,
         label: 'Waiting for Response',
-        color: 'rgb(147, 51, 234)', // Purple
+        color: 'rgb(var(--color-primary))',
       };
     case 'payment':
       return {
         icon: CreditCard,
         label: 'Waiting for Payment',
-        color: 'rgb(34, 197, 94)', // Green
+        color: 'rgb(var(--color-success))', // Green
       };
     default:
       return {
         icon: Clock,
         label: 'Waiting',
-        color: 'rgb(156, 163, 175)', // Gray
+        color: 'rgb(var(--color-text-tertiary))',
       };
   }
 };

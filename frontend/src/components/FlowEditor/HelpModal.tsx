@@ -99,7 +99,7 @@ const helpSections: HelpSection[] = [
 const Overlay = styled.div`
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(var(--color-overlay), 0.5);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -116,7 +116,7 @@ const Overlay = styled.div`
 const Modal = styled.div`
   background: rgb(var(--color-background));
   border-radius: var(--radius-lg, 8px);
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  box-shadow: 0 25px 50px -12px rgba(var(--color-overlay), 0.25);
   width: 100%;
   max-width: 900px;
   max-height: 90vh;
@@ -236,7 +236,7 @@ const KeyBadge = styled.div`
   min-width: 140px;
   text-align: center;
   white-space: nowrap;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  box-shadow: var(--shadow-sm);
 `;
 
 const Description = styled.div`

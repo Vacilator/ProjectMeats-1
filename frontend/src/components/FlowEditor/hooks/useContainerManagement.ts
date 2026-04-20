@@ -79,7 +79,7 @@ const MIN_CONTAINER_HEIGHT = 300;
  * // Group selected nodes
  * const container = createContainerFromSelection({
  *   label: 'Login Flow',
- *   backgroundColor: 'rgba(103, 126, 234, 0.05)'
+ *   backgroundColor: 'rgba(var(--color-primary), 0.05)'
  * });
  * ```
  */

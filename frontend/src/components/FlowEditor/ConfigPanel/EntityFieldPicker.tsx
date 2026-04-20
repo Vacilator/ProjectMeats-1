@@ -182,11 +182,11 @@ const FieldBadge = styled.span<{ variant?: 'required' | 'type' }>`
   font-weight: 500;
   border-radius: 3px;
   background: ${props => {
-    if (props.variant === 'required') return 'rgba(239, 68, 68, 0.1)';
+    if (props.variant === 'required') return 'rgba(var(--color-error), 0.1)';
     return 'rgba(var(--color-primary), 0.1)';
   }};
   color: ${props => {
-    if (props.variant === 'required') return 'rgb(239, 68, 68)';
+    if (props.variant === 'required') return 'rgb(var(--color-error))';
     return 'rgb(var(--color-primary))';
   }};
 `;
@@ -223,8 +223,8 @@ const RemoveButton = styled.button`
   transition: all 0.2s ease;
 
   &:hover {
-    background: rgba(239, 68, 68, 0.1);
-    color: rgb(239, 68, 68);
+    background: rgba(var(--color-error), 0.1);
+    color: rgb(var(--color-error));
   }
 `;
 
@@ -265,10 +265,10 @@ const LoadingText = styled.div`
 
 const ErrorText = styled.div`
   padding: 12px;
-  background: rgba(239, 68, 68, 0.1);
-  border: 1px solid rgba(239, 68, 68, 0.3);
+  background: rgba(var(--color-error), 0.1);
+  border: 1px solid rgba(var(--color-error), 0.3);
   border-radius: 6px;
-  color: rgb(239, 68, 68);
+  color: rgb(var(--color-error));
   font-size: 14px;
 `;
 

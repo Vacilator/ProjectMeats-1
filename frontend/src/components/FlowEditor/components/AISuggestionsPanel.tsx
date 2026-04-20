@@ -44,7 +44,7 @@ const Panel = styled.div<{ $isVisible: boolean }>`
   max-height: 400px;
   background: rgb(var(--color-surface));
   border-radius: 12px;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 10px 40px rgba(var(--color-overlay), 0.15);
   border: 1px solid rgb(var(--color-border));
   overflow: hidden;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -150,14 +150,14 @@ const ConfidenceBadge = styled.div<{ $confidence: number }>`
   font-size: 11px;
   font-weight: 600;
   background: ${props => {
-    if (props.$confidence >= 0.8) return 'rgba(34, 197, 94, 0.15)';
-    if (props.$confidence >= 0.6) return 'rgba(234, 179, 8, 0.15)';
-    return 'rgba(59, 130, 246, 0.15)';
+    if (props.$confidence >= 0.8) return 'rgba(var(--color-success), 0.15)';
+    if (props.$confidence >= 0.6) return 'rgba(var(--color-warning), 0.15)';
+    return 'rgba(var(--color-info), 0.15)';
   }};
   color: ${props => {
-    if (props.$confidence >= 0.8) return 'rgb(22, 163, 74)';
-    if (props.$confidence >= 0.6) return 'rgb(202, 138, 4)';
-    return 'rgb(37, 99, 235)';
+    if (props.$confidence >= 0.8) return 'rgb(var(--color-success))';
+    if (props.$confidence >= 0.6) return 'rgb(var(--color-warning))';
+    return 'rgb(var(--color-info))';
   }};
 `;
 
@@ -204,11 +204,11 @@ const ModeBadge = styled.span<{ $mode: 'ai' | 'static' }>`
   font-weight: 600;
   margin-left: 8px;
   background: ${props => props.$mode === 'ai' 
-    ? 'rgba(147, 51, 234, 0.1)' 
-    : 'rgba(59, 130, 246, 0.1)'};
+    ? 'rgba(var(--color-primary), 0.1)' 
+    : 'rgba(var(--color-info), 0.1)'};
   color: ${props => props.$mode === 'ai' 
-    ? 'rgb(147, 51, 234)' 
-    : 'rgb(59, 130, 246)'};
+    ? 'rgb(var(--color-primary))' 
+    : 'rgb(var(--color-info))'};
   
   svg {
     color: inherit;
@@ -220,7 +220,7 @@ const ErrorState = styled.div`
   text-align: center;
   
   svg {
-    color: rgb(239, 68, 68);
+    color: rgb(var(--color-error));
     margin-bottom: 8px;
   }
   

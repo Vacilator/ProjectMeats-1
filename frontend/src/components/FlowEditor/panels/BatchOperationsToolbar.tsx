@@ -46,7 +46,7 @@ const ToolbarContainer = styled.div<{ $visible: boolean; $position: { x: number;
   padding: 8px;
   display: ${(props) => (props.$visible ? 'flex' : 'none')};
   gap: 4px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 4px 12px rgba(var(--color-overlay), 0.15);
   z-index: 1000;
   backdrop-filter: blur(10px);
   animation: slideInDown 0.2s ease-out;
