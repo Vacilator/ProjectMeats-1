@@ -6,11 +6,12 @@ from datetime import timedelta
 from urllib.parse import urlencode, quote
 
 from django.conf import settings
+from django.core import signing
 from django.core.signing import BadSignature, SignatureExpired, TimestampSigner
 from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
 from django.shortcuts import redirect
 from django.utils import timezone
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.views import APIView
 
 from apps.integrations.microsoft.utils import get_microsoft_redirect_uri
@@ -25,6 +26,7 @@ _OAUTH_COOKIE_PREFIX = 'pm_oauth'
 _OAUTH_COOKIE_MAX_AGE_SECONDS = 15 * 60
 _OAUTH_COOKIE_PATH = '/api/v1/integrations/oauth/'
 _SIGNER = TimestampSigner(salt='pm.integrations.oauth')
+_STATE_SALT = 'pm.integrations.oauth.state'
 
 
 def _oauth_cookie_name(key: str, provider: str) -> str:
@@ -64,15 +66,14 @@ def _clear_oauth_cookies(response, provider: str) -> None:
 
 
 class OAuthAuthorizeView(APIView):
-    """Redirect the user to the provider's OAuth2 authorization page.
+    """Return (or redirect to) the provider's OAuth2 authorization URL.
 
-    IMPORTANT:
-    - This endpoint must work via plain browser navigation (no Authorization header).
-    - We store `state` in the session for CSRF protection and validate it in the callback handler.
+    Security requirements:
+    - Initiation must be tied to an authenticated user.
+    - Callback must validate a signed state containing tenant_id + user_id and enforce membership.
     """
 
-    authentication_classes = []
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticated]
 
     def get(self, request):
         provider = request.query_params.get('provider', 'microsoft')
@@ -128,14 +129,24 @@ class OAuthAuthorizeView(APIView):
         if not tenant:
             return HttpResponse('Tenant not resolved for this request.', status=400, content_type='text/plain')
 
-        # Generate CSRF state.
-        state = secrets.token_urlsafe(32)
+        # Generate signed state tied to the authenticated user + tenant.
+        #
+        # Why signed?
+        # - Callback arrives without Authorization header.
+        # - Session cookie may be blocked on cross-site redirects.
+        # - Signed state provides integrity and lets us enforce tenant membership.
+        nonce = secrets.token_urlsafe(16)
+        state = signing.dumps(
+            {
+                'tenant_id': str(tenant.id),
+                'user_id': str(request.user.id),
+                'provider': provider,
+                'nonce': nonce,
+            },
+            salt=_STATE_SALT,
+        )
 
         # Persist state/tenant for callback verification.
-        #
-        # Why cookies too?
-        # Production uses SESSION_COOKIE_SAMESITE=Strict, which prevents the session cookie
-        # from being sent on cross-site redirects back from Microsoft.
         request.session[f'oauth_state_{provider}'] = state
         request.session[f'oauth_tenant_{provider}'] = str(tenant.id)
 
@@ -248,20 +259,45 @@ class OAuthCallbackView(APIView):
             _clear_oauth_cookies(response, provider)
             return response
 
-        tenant_id = request.session.get(f'oauth_tenant_{provider}') or _get_signed_oauth_cookie(
-            request,
-            name=_oauth_cookie_name('tenant', provider),
-        )
-        if not tenant_id:
-            response = redirect(f'/settings/email-integrations?error=no_tenant&provider={quote(provider)}')
+        # Decode signed state payload (must include tenant_id + user_id).
+        try:
+            state_payload = signing.loads(state, salt=_STATE_SALT, max_age=_OAUTH_COOKIE_MAX_AGE_SECONDS)
+        except Exception:
+            response = redirect(f'/settings/email-integrations?error=invalid_state&provider={quote(provider)}')
             _clear_oauth_cookies(response, provider)
             return response
-        tenant_id = str(tenant_id)
+
+        tenant_id = str(state_payload.get('tenant_id') or '')
+        user_id = str(state_payload.get('user_id') or '')
+        if not tenant_id or not user_id:
+            response = redirect(f'/settings/email-integrations?error=invalid_state&provider={quote(provider)}')
+            _clear_oauth_cookies(response, provider)
+            return response
 
         try:
             tenant = Tenant.objects.get(id=tenant_id)
         except Tenant.DoesNotExist:
             response = redirect(f'/settings/email-integrations?error=tenant_not_found&provider={quote(provider)}')
+            _clear_oauth_cookies(response, provider)
+            return response
+
+        # Enforce tenant membership for the initiating user.
+        from django.contrib.auth import get_user_model
+        from apps.tenants.models import TenantUser
+
+        User = get_user_model()
+        try:
+            initiating_user = User.objects.get(id=user_id)
+        except User.DoesNotExist:
+            response = redirect(f'/settings/email-integrations?error=user_not_found&provider={quote(provider)}')
+            _clear_oauth_cookies(response, provider)
+            return response
+
+        if not (
+            getattr(initiating_user, 'is_superuser', False)
+            or TenantUser.objects.filter(tenant=tenant, user=initiating_user, is_active=True).exists()
+        ):
+            response = redirect(f'/settings/email-integrations?error=permission_denied&provider={quote(provider)}')
             _clear_oauth_cookies(response, provider)
             return response
 
