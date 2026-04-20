@@ -111,20 +111,25 @@ export const QuickActionsProvider: React.FC<QuickActionsProviderProps> = ({ chil
       const actionsResponse = actionsResult.status === 'fulfilled' ? actionsResult.value : { items: [] };
       setQuickActions(actionsResponse.items || []);
 
-      const formsResponse = formsResult.status === 'fulfilled' ? formsResult.value : [];
-      const legacyForms = (Array.isArray(formsResponse) ? formsResponse : [])
-        .filter((item) => (item.type ?? 'form') === 'form')
-        .map((item) => ({
-          ...item,
-          type: 'form' as const,
-        }));
+      const availableResponse = formsResult.status === 'fulfilled' ? formsResult.value : [];
+      const availableTargets = (Array.isArray(availableResponse) ? availableResponse : [])
+        .filter((item) => (item.type ?? 'form') === 'form' || item.type === 'workflow')
+        .map((item) => {
+          const isWorkflow = item.type === 'workflow';
+          return {
+            ...item,
+            type: isWorkflow ? ('workflow' as const) : ('form' as const),
+            icon: item.icon || (isWorkflow ? 'layers' : 'file-text'),
+          } as AvailableForm;
+        });
 
       if (formsResult.status === 'rejected') {
-        console.warn('[QuickActions] Legacy available-forms failed; continuing with WorkForms only', formsResult.reason);
+        console.warn('[QuickActions] available-forms failed; continuing with WorkForms enrichment only', formsResult.reason);
       }
 
+      // Optional enrichment from /tenant-workforms/ (may be permission-scoped differently).
       const workformsResponse = workformsResult.status === 'fulfilled' ? workformsResult.value : [];
-      const workforms = (Array.isArray(workformsResponse) ? workformsResponse : [])
+      const workformsEnrichment = (Array.isArray(workformsResponse) ? workformsResponse : [])
         .filter((wf) => wf.status === 'active' || wf.status === 'draft')
         .map((wf) => {
           const anyWf = wf as any;
@@ -133,7 +138,7 @@ export const QuickActionsProvider: React.FC<QuickActionsProviderProps> = ({ chil
               ? anyWf.node_count
               : typeof anyWf.step_count === 'number'
                 ? anyWf.step_count
-                : 0;
+                : null;
 
           return {
             id: wf.id,
@@ -146,17 +151,25 @@ export const QuickActionsProvider: React.FC<QuickActionsProviderProps> = ({ chil
             is_quick_action_enabled: true,
             step_count: typeof anyWf.step_count === 'number' ? anyWf.step_count : 0,
             node_count: nodeCount,
-          };
+          } as AvailableForm;
         });
 
       if (workformsResult.status === 'rejected') {
-        console.warn('[QuickActions] WorkForms list failed; continuing with legacy forms only', workformsResult.reason);
+        console.warn('[QuickActions] WorkForms list failed; continuing with available-forms only', workformsResult.reason);
       }
 
       const byKey = new Map<string, AvailableForm>();
-      for (const item of [...legacyForms, ...workforms]) {
-        const key = `${item.type ?? 'form'}:${item.id}`;
-        byKey.set(key, item);
+
+      for (const item of availableTargets) {
+        byKey.set(`${item.type ?? 'form'}:${item.id}`, item);
+      }
+
+      // Enrich/override workflow rows with WorkForms list data when available.
+      for (const wf of workformsEnrichment) {
+        byKey.set(`workflow:${wf.id}`, {
+          ...byKey.get(`workflow:${wf.id}`),
+          ...wf,
+        });
       }
 
       const combined = Array.from(byKey.values()).sort((a, b) => (a.name ?? '').localeCompare(b.name ?? ''));
