@@ -161,6 +161,20 @@
       "review_required_for": [
         "update-documentation"
       ]
+    },
+    {
+      "id": "ux-expert",
+      "display_name": "UI/UX Expert",
+      "role_file": ".copilot/squad/roles/ux-expert.md",
+      "copilot_agent_profile": ".github/agents/projectmeats-frontend-lead.agent.md",
+      "escalation": {
+        "blocks": false,
+        "primary_contact": "project-manager"
+      },
+      "review_required_for": [
+        "frontend-change",
+        "docs-change"
+      ]
     }
   ],
   "tasks": [
