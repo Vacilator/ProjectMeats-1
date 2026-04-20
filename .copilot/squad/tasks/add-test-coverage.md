@@ -15,6 +15,8 @@ Add automated tests that prevent regressions without flakiness.
   - mobile: Jest
 
 ## Step-by-step execution
+0. **Relay → synthesize (Lead Engineer)**
+   - After fleet agents complete, run a Lead Engineer synthesis pass to unify findings into one patch plan.
 1. Write acceptance criteria first (Given/When/Then).
 2. Choose minimal test level that catches regression.
 3. Prefer deterministic assertions.

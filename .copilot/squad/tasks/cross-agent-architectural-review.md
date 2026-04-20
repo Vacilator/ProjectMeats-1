@@ -17,6 +17,8 @@ Run a structured, cross-functional review before landing risky or cross-cutting 
   - rollback plan
 
 ## Step-by-step execution
+0. **Relay → synthesize (Lead Engineer)**
+   - Collect domain findings, then run a Lead Engineer synthesis pass to resolve conflicts and produce one go/no-go recommendation.
 1. Architect reviews golden invariant compliance.
 2. Lead Engineer reviews cross-layer cohesion.
 3. Domain leads review within their domain.

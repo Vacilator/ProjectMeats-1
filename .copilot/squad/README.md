@@ -48,6 +48,16 @@ copilot
 3) Select a custom agent:
 - Run `/agent` and choose one of the `projectmeats-*` agents
 
+## Collaboration protocol: Relay → Synthesize (MANDATORY)
+Copilot fleet subagents do not directly chat with each other mid-run. We enforce collaboration by a **relay + synthesis** pattern:
+
+1) Run parallel domain agents (fleet) to gather findings.
+2) Relay the key findings (paste summaries) into a **Lead Engineer** follow-up run.
+3) The Lead Engineer produces a single, coherent execution plan: deliverables, acceptance criteria, dependencies, risks, testing, rollback.
+
+**Standard synthesis prompt** (copy/paste):
+> “Synthesize the following squad findings into one patch plan. Resolve conflicts, pick a recommended approach, list risks + mitigations, and specify the smallest test suite that proves correctness. Findings: …”
+
 4) Use a reusable playbook via skills:
 - Run `/skills list`
 - Then invoke the skill (or ask the agent to run it)
