@@ -21,6 +21,7 @@ import { VisualFormBuilderPanel } from './VisualFormBuilderPanel';
 import { LiveFormPreview } from './LiveFormPreview';
 import DeveloperJsonEditor from './DeveloperJsonEditor';
 import { FormField } from '../../form-builder/types';
+import { getResolvedFormFields } from '../utils/formFieldsDualModel';
 
 // ============================================================================
 // Types
@@ -191,9 +192,10 @@ export const TabbedConfigPanel: React.FC<TabbedConfigPanelProps> = ({
                 transition={{ duration: 0.2 }}
               >
                 <VisualFormBuilderPanel
-                  fields={(node.data?.fields as FormField[]) || []}
+                  fields={getResolvedFormFields(node.data)}
                   onChange={(newFields) => {
-                    onUpdateNode(node.id, { fields: newFields });
+                    // Dual-model: persist form-builder fields separately from config-time entity picker selections.
+                    onUpdateNode(node.id, { formFields: newFields });
                   }}
                 />
               </TabPanel>

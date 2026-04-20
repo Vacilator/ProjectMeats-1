@@ -38,6 +38,7 @@ import {
 } from '../utils/scheduleCron';
 import { evaluateCondition } from '../config/conditionalLogic';
 import { validateField } from '../config/validationEngine';
+import { toFormFieldsFromSelectedFields } from '../utils/formFieldsDualModel';
 
 // Field renderers
 import { 
@@ -387,7 +388,11 @@ export const DynamicConfigPanel: React.FC<DynamicConfigPanelProps> = ({
     }
 
     const defaults = buildSmartDefaults(entityFieldsResp.fields);
-    const next = { ...(formData as any), fields: defaults };
+    const next = {
+      ...(formData as any),
+      fields: defaults,
+      formFields: toFormFieldsFromSelectedFields(defaults as any),
+    };
     setFormData(next);
     onUpdateNode(node.id, next);
     pendingAutoDefaultsRef.current = null;
@@ -411,7 +416,7 @@ export const DynamicConfigPanel: React.FC<DynamicConfigPanelProps> = ({
         (node.type === 'form' || node.type === 'formStep' || node.type === 'formStepSingle')
       ) {
         pendingAutoDefaultsRef.current = value as string;
-        const next = { ...prev, entityType: value, fields: [] };
+        const next = { ...prev, entityType: value, fields: [], formFields: [] };
         onUpdateNode(node.id, next);
         return next;
       }
@@ -513,6 +518,16 @@ export const DynamicConfigPanel: React.FC<DynamicConfigPanelProps> = ({
           }));
         }
 
+        return next;
+      }
+
+      if (fieldId === 'fields' && field?.type === 'entity-field-picker') {
+        const next = {
+          ...prev,
+          fields: value,
+          formFields: Array.isArray(value) ? toFormFieldsFromSelectedFields(value as any) : [],
+        };
+        onUpdateNode(node.id, next);
         return next;
       }
 

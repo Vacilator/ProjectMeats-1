@@ -316,6 +316,7 @@ export const NodeContextMenu: React.FC<ContextMenuProps> = ({ node, x, y, onClos
         label: `Step ${childNodes.length + 1}`,
         status: 'draft',
         fields: [],
+        formFields: [],
       },
       draggable: true,
     };

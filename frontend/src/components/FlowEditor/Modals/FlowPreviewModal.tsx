@@ -19,6 +19,7 @@ import styled from 'styled-components';
 import { X, Play, Pause, RotateCcw, FastForward, CheckCircle, AlertCircle, Clock } from 'lucide-react';
 import { Node, Edge, useReactFlow } from '@xyflow/react';
 import { FormField } from '@/components/form-builder/types';
+import { getResolvedFormFields } from '../utils/formFieldsDualModel';
 
 /**
  * Props for FlowPreviewModal
@@ -398,7 +399,7 @@ export const FlowPreviewModal: React.FC<FlowPreviewModalProps> = React.memo(({
     
     if (node.type?.includes('form')) {
       // Generate mock form data
-      const fields = ((node.data as any)?.fields as FormField[] | undefined) || [];
+      const fields = getResolvedFormFields(node.data);
       fields.forEach((field) => {
         mockData[field.id] = `Mock ${field.type} value`;
       });
