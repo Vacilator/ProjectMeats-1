@@ -294,36 +294,162 @@ class ActionExecutor:
         }
     
     def send_notification(self, config: Dict[str, Any]) -> Dict[str, Any]:
+        """Send an in-app notification.
+
+        This action is used by BOTH execution engines:
+        - TenantWorkflow (automation rules)
+        - TenantWorkForm (FlowEditor graphs)
+
+        Config (supported shapes):
+            title: Notification title (supports {{variables}})
+            message: Notification message (supports {{variables}})
+            action_url/link: Optional link
+            notification_type: Optional; defaults to "workflow_trigger"
+            priority: Optional; defaults to "normal"
+
+            Recipients:
+              - user_id: single user id (supports {{variables}})
+              - user_ids/users: list of user ids (supports {{variables}} per entry)
+
+        If recipients are not provided (common for WorkForms today), we fall back to the
+        actor that started the execution (inferred via context.execution_id).
+
+        Security/tenant-safety:
+        - Recipient must be an ACTIVE member of this tenant (or a superuser) to avoid
+          cross-tenant notification leakage.
+        - Respects UserNotificationPreferences (master toggle + in_app channel).
         """
-        Send in-app notification.
-        
-        Config:
-            user_id: User to notify or {{variable}}
-            title: Notification title
-            message: Notification message
-            link: Optional link
-        """
+
         try:
-            user_id_template = config.get('user_id')
+            from django.contrib.auth import get_user_model
+
+            from apps.tenants.models import TenantUser
+
+            from tenant_apps.workflows.models import (
+                DeliveryChannel,
+                NotificationPriority,
+                NotificationType,
+                TenantWorkFormExecution,
+                UserNotification,
+                UserNotificationPreferences,
+            )
+
+            UserModel = get_user_model()
+
             title = self._resolve_template(config.get('title', ''))
             message = self._resolve_template(config.get('message', ''))
-            
-            if not user_id_template or not title:
-                return {'success': False, 'error': 'Missing user_id or title'}
-            
-            user_id = self._resolve_template(str(user_id_template))
-            
-            # Create notification (assuming a Notification model exists)
-            # For now, just log it
-            logger.info(f"Notification for user {user_id}: {title}")
-            
+            action_url = self._resolve_template(config.get('action_url') or config.get('link') or '')
+
+            if not title:
+                return {'success': False, 'error': 'Missing title'}
+
+            notification_type = str(config.get('notification_type') or NotificationType.WORKFLOW_TRIGGER.value)
+            allowed_types = {str(nt.value) for nt in NotificationType}
+            if notification_type not in allowed_types:
+                notification_type = NotificationType.SYSTEM.value
+
+            priority = str(config.get('priority') or NotificationPriority.NORMAL.value)
+            allowed_priorities = {str(p.value) for p in NotificationPriority}
+            if priority not in allowed_priorities:
+                priority = NotificationPriority.NORMAL.value
+
+            # Resolve recipients
+            recipients: list[int] = []
+
+            def _coerce_user_id(value: Any) -> int | None:
+                if value is None:
+                    return None
+                try:
+                    return int(str(value).strip())
+                except Exception:
+                    return None
+
+            raw_user_ids = config.get('user_ids') or config.get('users')
+            if isinstance(raw_user_ids, list):
+                for row in raw_user_ids:
+                    resolved = self._resolve_template(str(row)) if isinstance(row, str) else row
+                    coerced = _coerce_user_id(resolved)
+                    if coerced is not None:
+                        recipients.append(coerced)
+
+            raw_user_id = config.get('user_id')
+            if raw_user_id is not None:
+                resolved = self._resolve_template(str(raw_user_id)) if isinstance(raw_user_id, str) else raw_user_id
+                coerced = _coerce_user_id(resolved)
+                if coerced is not None:
+                    recipients.append(coerced)
+
+            # WorkForms fallback: infer the actor from the execution.
+            if not recipients:
+                execution_id = self.context.get('execution_id')
+                if not execution_id and isinstance(self.context.get('variables'), dict):
+                    execution_id = self.context['variables'].get('execution_id')
+
+                if execution_id:
+                    execution = (
+                        TenantWorkFormExecution.objects.select_related('started_by')
+                        .filter(id=str(execution_id), tenant=self.tenant)
+                        .first()
+                    )
+                    if execution and execution.started_by_id:
+                        recipients = [int(execution.started_by_id)]
+
+            if not recipients:
+                return {'success': False, 'error': 'No recipients resolved (provide user_id/user_ids or run within a WorkForm execution context)'}
+
+            created: list[str] = []
+            skipped: list[dict[str, Any]] = []
+
+            # Deduplicate while preserving order
+            seen = set()
+            recipients = [r for r in recipients if not (r in seen or seen.add(r))]
+
+            for user_id in recipients:
+                user = UserModel.objects.filter(id=user_id).first()
+                if not user:
+                    return {'success': False, 'error': f'Recipient user not found: {user_id}'}
+
+                is_member = TenantUser.objects.filter(tenant=self.tenant, user=user, is_active=True).exists()
+                if not is_member and not getattr(user, 'is_superuser', False):
+                    return {'success': False, 'error': 'Recipient is not an active member of this tenant'}
+
+                prefs, _created = UserNotificationPreferences.objects.get_or_create(
+                    user=user,
+                    tenant=self.tenant,
+                    defaults={'type_preferences': UserNotificationPreferences.get_defaults()},
+                )
+
+                if not prefs.should_notify(notification_type, DeliveryChannel.IN_APP.value):
+                    skipped.append({'user_id': user_id, 'reason': 'disabled_by_preferences'})
+                    continue
+
+                n = UserNotification.objects.create(
+                    tenant=self.tenant,
+                    user=user,
+                    notification_type=notification_type,
+                    title=title,
+                    message=message or '',
+                    priority=priority,
+                    action_url=action_url,
+                    metadata={
+                        'source': 'workflow_action',
+                        'notification_type': notification_type,
+                        'execution_id': str(self.context.get('execution_id') or ''),
+                    },
+                )
+                created.append(str(n.id))
+
             return {
                 'success': True,
-                'user_id': user_id,
+                'notification_type': notification_type,
+                'priority': priority,
+                'created_ids': created,
+                'skipped': skipped,
                 'title': title,
                 'message': message,
+                'action_url': action_url,
             }
-            
+
         except Exception as e:
             logger.exception(f"Error sending notification: {str(e)}")
             return {'success': False, 'error': str(e)}
