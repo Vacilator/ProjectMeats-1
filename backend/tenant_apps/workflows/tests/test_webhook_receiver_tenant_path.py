@@ -56,7 +56,13 @@ class WorkflowWebhookTenantPathTests(TestCase):
     @patch('tenant_apps.workflows.views_triggers.set_current_tenant')
     @patch('tenant_apps.workflows.views_triggers.execute_workflow')
     def test_tenant_scoped_webhook_executes_and_sets_rls(self, execute_workflow, set_current_tenant):
-        set_current_tenant.return_value = SimpleNamespace(ok=True)
+        events: list[str] = []
+
+        def set_side_effect(tid: str):
+            events.append('set_current_tenant')
+            return SimpleNamespace(ok=True)
+
+        set_current_tenant.side_effect = set_side_effect
         execute_workflow.return_value = SimpleNamespace(id=uuid.uuid4(), status='success')
 
         url = (
@@ -64,16 +70,30 @@ class WorkflowWebhookTenantPathTests(TestCase):
             f'{self.workflow.id}/{self.webhook_token}/'
         )
 
-        resp = self.client.post(
-            url,
-            data={'hello': 'world'},
-            format='json',
-            HTTP_AUTHORIZATION=f'Bearer {self.webhook_secret}',
-        )
+        orig_select_related = TenantWorkflow.objects.select_related
+
+        def select_related_spy(*args, **kwargs):
+            events.append('workflow_select_related')
+            return orig_select_related(*args, **kwargs)
+
+        with patch('tenant_apps.workflows.views_triggers.TenantWorkflow.objects.select_related', side_effect=select_related_spy):
+            resp = self.client.post(
+                url,
+                data={'hello': 'world'},
+                format='json',
+                HTTP_AUTHORIZATION=f'Bearer {self.webhook_secret}',
+                # Public endpoints must not honor X-Tenant-ID; path param is canonical.
+                HTTP_X_TENANT_ID=str(self.other_tenant.id),
+            )
 
         self.assertEqual(resp.status_code, 200, resp.content)
         set_current_tenant.assert_called_with(str(self.tenant.id))
         execute_workflow.assert_called()
+
+        # Critical: RLS tenant context must be set BEFORE hitting tenant-scoped ORM.
+        self.assertIn('set_current_tenant', events)
+        self.assertIn('workflow_select_related', events)
+        self.assertLess(events.index('set_current_tenant'), events.index('workflow_select_related'))
 
     @patch('tenant_apps.workflows.views_triggers.set_current_tenant')
     @patch('tenant_apps.workflows.views_triggers.execute_workflow')
