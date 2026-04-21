@@ -10,7 +10,7 @@
  * - Error handling
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, waitFor, act } from '@testing-library/react';
+import { render, screen, waitFor, act, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QuickActionsProvider, useQuickActions } from './QuickActionsContext';
 import { getAvailableWorkForms } from '@/services/workformsApi';
@@ -611,11 +611,13 @@ describe('QuickActionsContext', () => {
         expect(screen.getByTestId('error')).toHaveTextContent('Form not found');
       });
       
-      expect(vi.mocked(showAlert)).toHaveBeenCalledWith({
-        type: 'error',
-        title: 'Error',
-        content: 'Form not found',
-      });
+      expect(vi.mocked(showAlert)).toHaveBeenCalledTimes(1);
+      const alertArgs = vi.mocked(showAlert).mock.calls[0][0];
+      expect(alertArgs.type).toBe('error');
+      expect(alertArgs.title).toBe('Error');
+
+      const renderedAlert = render(<>{alertArgs.content}</>);
+      expect(within(renderedAlert.container).getByText('Form not found')).toBeInTheDocument();
       
       consoleSpy.mockRestore();
     });

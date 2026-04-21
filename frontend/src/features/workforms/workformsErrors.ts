@@ -1,3 +1,5 @@
+import { ApiServiceError } from '@/services/apiErrors';
+
 export type WorkformsErrorContext =
   | 'catalog.load'
   | 'catalog.start'
@@ -17,12 +19,29 @@ type ErrorWithResponse = {
 };
 
 function getHttpStatus(error: unknown): number | undefined {
+  if (error instanceof ApiServiceError) {
+    return typeof error.status === 'number' ? error.status : undefined;
+  }
+
   const e = error as ErrorWithResponse | null;
   const status = e?.response?.status;
   return typeof status === 'number' ? status : undefined;
 }
 
 function getBackendMessage(error: unknown): string | undefined {
+  if (error instanceof ApiServiceError) {
+    const data = error.responseData as any;
+    const candidates = [
+      typeof data?.detail === 'string' ? data.detail : undefined,
+      typeof data?.error === 'string' ? data.error : undefined,
+      typeof data?.message === 'string' ? data.message : undefined,
+      typeof error.friendlyMessage === 'string' ? error.friendlyMessage : undefined,
+      typeof error.message === 'string' ? error.message : undefined,
+    ].filter(Boolean) as string[];
+
+    return candidates[0];
+  }
+
   const e = error as ErrorWithResponse | null;
   const data = e?.response?.data;
 

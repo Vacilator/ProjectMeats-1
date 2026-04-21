@@ -10,6 +10,8 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Skeleton } from 'antd';
 import { showAlert } from '@/utils/uiDialogs';
+import { getWorkformsErrorUi } from '@/features/workforms/workformsErrors';
+import { ApiErrorContent } from '@/components/errors/ApiErrorContent';
 import {
   createFormSubmission,
   executeTenantWorkForm,
@@ -82,8 +84,12 @@ export const ExecuteWorkForm: React.FC = () => {
       navigate(`/workforms/executions/${data.id}`, { replace: true });
     },
     onError: (err: any) => {
-      const msg = err?.response?.data?.error || err?.message || 'Failed to start WorkForm.';
-      showAlert({ type: 'error', title: 'Error', content: msg });
+      const ui = getWorkformsErrorUi(err, 'execute.start');
+      showAlert({
+        type: 'error',
+        title: ui.title,
+        content: <ApiErrorContent error={err} fallbackMessage={ui.message} />,
+      });
       navigate('/workforms/catalog', { replace: true });
     },
   });

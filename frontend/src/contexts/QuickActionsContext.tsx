@@ -8,6 +8,8 @@ import React, { createContext, useContext, useState, useEffect, useCallback, Rea
 import { getAvailableWorkForms } from '@/services/workformsApi';
 import { showAlert } from '@/utils/uiDialogs';
 import { logger } from '@/utils/logger';
+import { ApiErrorContent } from '@/components/errors/ApiErrorContent';
+import { getApiErrorPresentation } from '@/services/apiErrorPresentation';
 import {
   quickActionsService,
   formSubmissionService,
@@ -261,13 +263,14 @@ export const QuickActionsProvider: React.FC<QuickActionsProviderProps> = ({ chil
       logger.debug('[QuickActions] Form submission created:', submission?.id);
     } catch (err: any) {
       logger.error('[QuickActions] Failed to start form submission:', err);
-      const errorMsg = err?.response?.data?.error || err?.message || 'Failed to start form';
-      setError(errorMsg);
+      const presentation = getApiErrorPresentation(err, { fallbackMessage: 'Failed to start form' });
+      setError(presentation.friendlyMessage);
+
       // Alert the user since the modal won't open
       showAlert({
         type: 'error',
         title: 'Error',
-        content: errorMsg,
+        content: <ApiErrorContent error={err} fallbackMessage={presentation.friendlyMessage} />,
       });
     }
   }, [startFormSubmission]);

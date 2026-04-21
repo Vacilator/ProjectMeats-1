@@ -6,6 +6,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 import Catalog from './Catalog';
 import { getAvailableWorkForms } from '../../services/workformsApi';
+import { ApiServiceError } from '../../services/apiErrors';
 import { quickActionsService } from '@/services/quickActionsService';
 
 vi.mock('../../services/workformsApi', () => ({
@@ -72,6 +73,38 @@ describe('WorkForms Catalog error state', () => {
 
     expect(await screen.findByText("Couldn't load catalog")).toBeInTheDocument();
     expect(screen.getByText('Boom')).toBeInTheDocument();
+    expect(screen.getByText(/status 500/i)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /try again/i })).toBeInTheDocument();
+  });
+
+  it('surfaces circuit-breaker friendly errors with status', async () => {
+    const err = new ApiServiceError('Server error. Please try again shortly.', {
+      kind: 'circuit_breaker',
+      status: 503,
+      code: 'CIRCUIT_BREAKER',
+    });
+
+    vi.mocked(getAvailableWorkForms).mockRejectedValueOnce(err);
+    vi.mocked(quickActionsService.getAvailableForms).mockRejectedValueOnce(err);
+
+    const client = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false },
+      },
+    });
+
+    render(
+      <QueryClientProvider client={client}>
+        <MemoryRouter initialEntries={['/workforms/catalog']}>
+          <Routes>
+            <Route path="/workforms/catalog" element={<Catalog />} />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>
+    );
+
+    expect(await screen.findByText("Couldn't load catalog")).toBeInTheDocument();
+    expect(screen.getByText('Server error. Please try again shortly.')).toBeInTheDocument();
+    expect(screen.getByText(/status 503/i)).toBeInTheDocument();
   });
 });
