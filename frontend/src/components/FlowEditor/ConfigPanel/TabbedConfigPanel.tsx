@@ -22,6 +22,7 @@ import { LiveFormPreview } from './LiveFormPreview';
 import DeveloperJsonEditor from './DeveloperJsonEditor';
 import { FormField } from '../../form-builder/types';
 import { getResolvedFormFields } from '../utils/formFieldsDualModel';
+import { IS_DEV_BUILD } from '@/utils/buildFlags';
 
 // ============================================================================
 // Types
@@ -68,6 +69,7 @@ export const TabbedConfigPanel: React.FC<TabbedConfigPanelProps> = ({
 }) => {
   const [activeTab, setActiveTab] = useState<TabId>('general');
   const [developerMode, setDeveloperMode] = useState(() => {
+    if (!IS_DEV_BUILD) return false;
     try {
       return window.localStorage.getItem('pm.floweditor.devMode') === 'true';
     } catch {
@@ -75,9 +77,20 @@ export const TabbedConfigPanel: React.FC<TabbedConfigPanelProps> = ({
     }
   });
 
-  // Per MASTER_PLAN: raw JSON editing must not be part of the standard user flow.
-  // We only show the UI toggle in dev builds; power users can still enable via localStorage.
-  const showDevToolsToggle = import.meta.env.DEV;
+  useEffect(() => {
+    if (IS_DEV_BUILD) return;
+
+    setDeveloperMode(false);
+    try {
+      window.localStorage.removeItem('pm.floweditor.devMode');
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  // Per MASTER_PLAN: raw JSON editing must not ship to production.
+  // This is intentionally build-time gated so it cannot be enabled via runtime config/localStorage in prod.
+  const showDevToolsToggle = IS_DEV_BUILD;
 
   if (!node) return null;
 
@@ -231,7 +244,7 @@ export const TabbedConfigPanel: React.FC<TabbedConfigPanelProps> = ({
                   </DevToolsRow>
                 )}
 
-                {developerMode && (
+                {IS_DEV_BUILD && developerMode && (
                   <DeveloperJsonEditor
                     value={node.data}
                     onApply={(newData) => onUpdateNode(node.id, newData)}
