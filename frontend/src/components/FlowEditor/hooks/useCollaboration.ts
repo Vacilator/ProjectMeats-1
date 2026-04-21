@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { config, getRuntimeConfig } from '../../../config/runtime';
+import { getAccessToken } from '../../../services/jwtService';
 
 export type CollaborationStatus = 'disconnected' | 'connecting' | 'connected' | 'error';
 
@@ -83,10 +84,14 @@ export function useCollaboration({ workflowId, tenantId }: UseCollaborationArgs)
   const wsUrl = useMemo(() => {
     if (!workflowId || !tenantId) return null;
 
+    const accessToken = getAccessToken();
+    if (!accessToken) return null;
+
     const base = deriveWsBaseUrl();
     const url = new URL(`${base}/ws/workflows/${workflowId}/collab/`);
     url.searchParams.set('tenant_id', tenantId);
     url.searchParams.set('client_id', localClientIdRef.current);
+    url.searchParams.set('access_token', accessToken);
     return url.toString();
   }, [workflowId, tenantId]);
 
