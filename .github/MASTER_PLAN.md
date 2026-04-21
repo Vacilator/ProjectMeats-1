@@ -88,6 +88,8 @@ This file is the **append-only PR-referenceable execution log**.
 - **2026-04-20** — Env manifest: add optional Gmail OAuth secret keys (GOOGLE_CLIENT_ID/SECRET/REDIRECT_URI) to canonical env manifest. (PR: #4482)
 - **2026-04-20** — WorkForms runtime: add runtime support validation (unsupported action nodes) + block activation when runtime validation fails; extend validate endpoint to return runtime validation details. (PR: #4483)
 
+- **2026-04-21** — Mobile: align WorkForms API contract with backend serializers (status + workflow_definition) and add OpenAPI contract assertions for `/tenant-workforms/` list/detail. (PR: #4562)
+
 ### 2026-03-31 — Secret audit drift (manifest v5.1)
 - Command: `python config/manage_env.py audit --repo Meats-Central/ProjectMeats`
 - Stale/Zombie secrets found in GitHub but NOT in `manifests/env.manifest.json` (or legacy `DEV_`/`UAT_`/`PROD_` prefixed):
