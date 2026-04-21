@@ -47,15 +47,30 @@ validate_yaml_syntax() {
     return 0
 }
 
-# Check workflow secrets against env manifest (key workflows only)
-check_manifest_secrets_for_key_workflows() {
-    log_info "Checking workflow secrets against manifests/env.manifest.json (key workflows)..."
+# Check workflow secrets against env manifest (all workflows)
+check_manifest_secrets_for_all_workflows() {
+    local report_only="${WORKFLOW_SECRETS_MANIFEST_REPORT_ONLY:-0}"
+
+    if [[ "$report_only" == "1" ]]; then
+        log_warn "Checking workflow secrets against manifests/env.manifest.json (ALL workflows, report-only)..."
+    else
+        log_info "Checking workflow secrets against manifests/env.manifest.json (ALL workflows)..."
+    fi
 
     if ! python - <<'PY'
 import json
 import re
 import sys
+import os
 from pathlib import Path
+
+try:
+    import yaml
+except Exception as e:
+    print(f"ERROR: pyyaml not available: {e}", file=sys.stderr)
+    raise SystemExit(1)
+
+report_only = os.environ.get('WORKFLOW_SECRETS_MANIFEST_REPORT_ONLY') == '1'
 
 manifest_path = Path('manifests/env.manifest.json')
 if not manifest_path.exists():
@@ -73,41 +88,75 @@ for _cat, items in env_secrets.items():
     if isinstance(items, dict):
         allowed |= set(items.keys())
 
+# GitHub-provided token is always available
 allowed |= {'GITHUB_TOKEN'}
 
-key_workflows = [
-    'reusable-deploy.yml',
-    'main-pipeline.yml',
-    'build-dev-image.yml',
-    '41-auto-promote-dev-to-uat.yml',
-    '42-auto-promote-uat-to-main.yml',
-]
+# Scan only inside GitHub Actions expression blocks (${{ ... }}) to avoid false positives in comments.
+expr_block_re = re.compile(r"\$\{\{.*?\}\}", re.DOTALL)
+secret_dot_re = re.compile(r"\bsecrets\.([A-Z0-9_]+)\b")
+secret_bracket_re = re.compile(r"secrets\[['\"]([A-Z0-9_]+)['\"]\]")
+secret_dynamic_index_re = re.compile(r"\bsecrets\[(?!['\"]).+?\]")
 
-secret_re = re.compile(r"secrets\.([A-Z0-9_]+)")
+wf_dir = Path('.github/workflows')
+workflow_files = sorted([p for p in wf_dir.rglob('*.yml')] + [p for p in wf_dir.rglob('*.yaml')])
+workflow_files = [p for p in workflow_files if 'archived' not in p.parts]
 
 errors = []
-for wf in key_workflows:
-    wf_path = Path('.github/workflows') / wf
-    if not wf_path.exists():
+for wf_path in workflow_files:
+    text = wf_path.read_text(encoding='utf-8', errors='ignore')
+
+    referenced = set()
+    has_dynamic_index = False
+
+    for block in expr_block_re.findall(text):
+        referenced |= set(secret_dot_re.findall(block))
+        referenced |= set(secret_bracket_re.findall(block))
+        if secret_dynamic_index_re.search(block):
+            has_dynamic_index = True
+
+    # Validate reusable workflow contract secrets: on.workflow_call.secrets (YAML keys)
+    try:
+        data = yaml.safe_load(text) or {}
+    except Exception as e:
+        errors.append(f"{wf_path.name}: failed to parse YAML for secrets contract validation: {e}")
         continue
 
-    text = wf_path.read_text(encoding='utf-8', errors='ignore')
-    referenced = set(secret_re.findall(text))
+    on_section = None
+    if isinstance(data, dict):
+        on_section = data.get('on') if 'on' in data else data.get(True)
+
+    if isinstance(on_section, dict):
+        workflow_call = on_section.get('workflow_call')
+        if isinstance(workflow_call, dict):
+            declared_secrets = workflow_call.get('secrets')
+            if isinstance(declared_secrets, dict):
+                for k in declared_secrets.keys():
+                    if isinstance(k, str):
+                        referenced.add(k)
 
     missing = sorted(referenced - allowed)
     if missing:
-        errors.append(f"{wf}: missing from manifest: {', '.join(missing)}")
+        errors.append(f"{wf_path.name}: missing from manifest: {', '.join(missing)}")
+
+    if has_dynamic_index:
+        errors.append(f"{wf_path.name}: dynamic secrets[...] indexing detected (not allowed)")
 
 if errors:
     for e in errors:
-        print(f"ERROR: {e}", file=sys.stderr)
+        level = 'WARN' if report_only else 'ERROR'
+        print(f"{level}: {e}", file=sys.stderr)
+
+    if report_only:
+        raise SystemExit(0)
+
     raise SystemExit(1)
+
+print('✓ All workflow secrets are manifest-defined')
 PY
     then
         return 1
     fi
 
-    log_info "✓ Key workflow secrets are manifest-defined"
     return 0
 }
 
@@ -463,7 +512,7 @@ main() {
     local failed=0
     
     validate_yaml_syntax || ((failed++))
-    check_manifest_secrets_for_key_workflows || ((failed++))
+    check_manifest_secrets_for_all_workflows || ((failed++))
     check_cache_config || ((failed++))
     check_health_checks || ((failed++))
     check_fetch_depth || ((failed++))
