@@ -18,7 +18,7 @@ This directory contains validation and automation scripts used by GitHub Actions
 2. Migration plan is valid (`migrate --plan`)
 3. No migration conflicts (`showmigrations`)
 4. Python syntax in all migration files
-5. RLS policy SQL is present in newly-changed tenant-aware `CreateModel` migrations (requires `ENABLE ROW LEVEL SECURITY` + `CREATE POLICY`)
+5. RLS policy SQL is present in newly-changed tenant-aware `CreateModel` migrations (requires `ENABLE ROW LEVEL SECURITY` + `FORCE ROW LEVEL SECURITY` + `CREATE POLICY`)
 6. Migration dependencies are consistent
 7. Migrations work on fresh database (CI only)
 
