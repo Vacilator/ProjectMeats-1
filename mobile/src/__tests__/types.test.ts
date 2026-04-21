@@ -11,15 +11,27 @@ import {
 describe('GuestSession type', () => {
   it('should have the required fields', () => {
     const session: GuestSession = {
-      guest_token: 'gt_abc123',
-      tenant_id: 'uuid-1',
-      tenant_name: 'Test Tenant',
-      tenant_slug: 'test-tenant',
-      expires_at: '2026-03-19T00:00:00Z',
-      permissions: ['view_workforms'],
+      token: 'tok_guest',
+      user: {
+        id: 1,
+        username: 'guest',
+        email: '',
+        first_name: 'Guest',
+        last_name: '',
+        is_active: true,
+        date_joined: '2026-03-19T00:00:00Z',
+      },
+      tenant: {
+        id: 'uuid-1',
+        name: 'Guest Tenant',
+        slug: 'guest',
+        role: 'admin',
+        is_guest: true,
+      },
+      message: 'Welcome',
     };
-    expect(session.guest_token).toBe('gt_abc123');
-    expect(session.permissions).toContain('view_workforms');
+    expect(session.token).toBe('tok_guest');
+    expect(session.tenant.is_guest).toBe(true);
   });
 });
 
@@ -27,45 +39,26 @@ describe('TenantInvite type', () => {
   it('should have the required fields', () => {
     const invite: TenantInvite = {
       token: 'uuid-token',
-      tenant_id: 'uuid-1',
-      tenant_name: 'Test Tenant',
-      tenant_slug: 'test-tenant',
-      invited_by: 'admin',
-      invited_email: 'user@example.com',
+      valid: true,
+      email: 'user@example.com',
       role: 'user',
+      is_reusable: false,
+      uses_remaining: 1,
+      tenant: { name: 'Test Tenant', slug: 'test-tenant' },
+      message: null,
       expires_at: '2026-03-25T00:00:00Z',
-      is_expired: false,
-      is_accepted: false,
     };
-    expect(invite.is_expired).toBe(false);
+    expect(invite.valid).toBe(true);
     expect(invite.role).toBe('user');
-  });
-
-  it('should accept all valid role values', () => {
-    const roles: TenantInvite['role'][] = ['admin', 'manager', 'user', 'readonly'];
-    roles.forEach((role) => {
-      const invite: TenantInvite = {
-        token: 'tok',
-        tenant_id: '1',
-        tenant_name: 'T',
-        tenant_slug: 't',
-        invited_by: 'a',
-        invited_email: 'e@e.com',
-        role,
-        expires_at: '',
-        is_expired: false,
-        is_accepted: false,
-      };
-      expect(invite.role).toBe(role);
-    });
   });
 });
 
 describe('InviteAcceptRequest type', () => {
-  it('should require token, username, password', () => {
+  it('should require token, username, email, password', () => {
     const req: InviteAcceptRequest = {
       token: 'uuid-token',
       username: 'newuser',
+      email: 'user@example.com',
       password: 'password123',
     };
     expect(req.token).toBe('uuid-token');
@@ -76,6 +69,7 @@ describe('InviteAcceptRequest type', () => {
     const req: InviteAcceptRequest = {
       token: 'tok',
       username: 'u',
+      email: 'e@e.com',
       password: 'p',
       first_name: 'John',
       last_name: 'Doe',

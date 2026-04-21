@@ -39,12 +39,14 @@ export default function App() {
       const token = await AsyncStorage.getItem('authToken');
       const userData = await AsyncStorage.getItem('userData');
       const tenantData = await AsyncStorage.getItem('currentTenant');
-      
+      const isGuestFlag = await AsyncStorage.getItem('isGuest');
+
       if (token && userData) {
         setIsAuthenticated(true);
+        setIsGuest(isGuestFlag === '1');
         setUser(JSON.parse(userData));
         ApiService.setAuthToken(token);
-        
+
         if (tenantData) {
           const parsed = JSON.parse(tenantData);
           setCurrentTenant(parsed);
@@ -64,7 +66,8 @@ export default function App() {
     try {
       await AsyncStorage.setItem('authToken', token);
       await AsyncStorage.setItem('userData', JSON.stringify(userData));
-      
+      await AsyncStorage.setItem('isGuest', '0');
+
       setIsAuthenticated(true);
       setIsGuest(false);
       setUser(userData);
@@ -86,7 +89,14 @@ export default function App() {
 
   const handleLogout = async () => {
     try {
-      await AsyncStorage.multiRemove(['authToken', 'userData', 'currentTenant']);
+      // Best-effort server-side token invalidation (no-op if already logged out).
+      try {
+        await ApiService.logout();
+      } catch {
+        // Ignore network/auth errors during logout; local logout still proceeds.
+      }
+
+      await AsyncStorage.multiRemove(['authToken', 'userData', 'currentTenant', 'isGuest']);
       setIsAuthenticated(false);
       setIsGuest(false);
       setUser(null);
@@ -98,12 +108,12 @@ export default function App() {
     }
   };
 
-  // Guest session handler: no full auth, limited to guest tenant
-  const handleGuestLogin = (session: GuestSession) => {
+  // Guest session handler: guest user is authenticated via Token auth, but we keep a separate UX.
+  const handleGuestLogin = async (session: GuestSession) => {
     const guestTenant: Tenant = {
-      id: session.tenant_id,
-      name: session.tenant_name,
-      slug: session.tenant_slug,
+      id: session.tenant.id,
+      name: session.tenant.name,
+      slug: session.tenant.slug,
       contact_email: '',
       contact_phone: '',
       is_active: true,
@@ -114,10 +124,23 @@ export default function App() {
       updated_at: new Date().toISOString(),
       settings: {},
     };
-    setCurrentTenant(guestTenant);
-    ApiService.setTenantId(String(session.tenant_id));
-    setIsGuest(true);
-    setIsAuthenticated(true);
+
+    try {
+      await AsyncStorage.setItem('authToken', session.token);
+      await AsyncStorage.setItem('userData', JSON.stringify(session.user));
+      await AsyncStorage.setItem('currentTenant', JSON.stringify(guestTenant));
+      await AsyncStorage.setItem('isGuest', '1');
+
+      ApiService.setAuthToken(session.token);
+      ApiService.setTenantId(String(session.tenant.id));
+
+      setUser(session.user);
+      setCurrentTenant(guestTenant);
+      setIsGuest(true);
+      setIsAuthenticated(true);
+    } catch (error) {
+      console.error('Error saving guest session:', error);
+    }
   };
 
   if (isLoading) {

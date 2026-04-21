@@ -244,27 +244,42 @@ class ApiServiceClass {
   }
 
   // Guest mode endpoints
-  async loginAsGuest(tenantSlug: string, accessCode?: string): Promise<GuestSession> {
-    const payload: Record<string, string> = { tenant_slug: tenantSlug };
-    if (accessCode) {
-      payload.access_code = accessCode;
-    }
-    const response = await this.api.post('/auth/guest-session/', payload);
+  // Backend implementation is a legacy guest user login (Token auth), not a per-tenant guest session.
+  async guestLogin(): Promise<GuestSession> {
+    const response = await this.api.post('/auth/guest-login/');
     return response.data;
   }
 
-  setGuestToken(guestToken: string) {
-    this.api.defaults.headers.common['Authorization'] = `GuestToken ${guestToken}`;
+  /**
+   * @deprecated Backend does not currently support the GuestToken auth scheme.
+   * Prefer `setAuthToken()` with the token returned from `guestLogin()`.
+   */
+  setGuestToken(_guestToken: string) {
+    // Intentionally no-op to avoid setting an unsupported Authorization scheme.
   }
 
   // Invite-only endpoints
   async validateInvite(token: string): Promise<TenantInvite> {
-    const response = await this.api.get(`/auth/invites/${token}/`);
-    return response.data;
+    // Backend route: GET /api/v1/invitations/validate/?token=...
+    const response = await this.api.get('/invitations/validate/', {
+      params: { token },
+    });
+
+    // Include the token in the returned object for UI convenience.
+    return { token, ...response.data };
   }
 
   async acceptInvite(inviteData: InviteAcceptRequest): Promise<LoginResponse> {
-    const response = await this.api.post('/auth/invites/accept/', inviteData);
+    // Backend route: POST /api/v1/auth/signup-with-invitation/
+    const payload = {
+      invitation_token: inviteData.token,
+      username: inviteData.username,
+      email: inviteData.email,
+      password: inviteData.password,
+      first_name: inviteData.first_name,
+      last_name: inviteData.last_name,
+    };
+    const response = await this.api.post('/auth/signup-with-invitation/', payload);
     return response.data;
   }
 
