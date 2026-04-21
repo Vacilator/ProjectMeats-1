@@ -2931,15 +2931,44 @@ class EntityOptionsAPIView(APIView):
         try:
             if hasattr(model, "tenant"):
                 queryset = model.objects.filter(tenant=tenant)
+            elif entity_type == "product":
+                # system.Product is global (no tenant FK).
+                # Apply central visibility rules so we do not leak:
+                # - tenant-hidden system products
+                # - tenant-owned custom products (is_system=False)
+                from django.db.models import Prefetch
+
+                from apps.system.models import TenantProductPreference
+                from apps.system.services.product_visibility import visible_products_qs
+
+                queryset = visible_products_qs(tenant=tenant, qs=model.objects.all()).prefetch_related(
+                    Prefetch(
+                        "tenant_preferences",
+                        queryset=TenantProductPreference.objects.filter(tenant=tenant),
+                    )
+                )
             else:
-                queryset = model.objects.all()
+                # Fail closed for global/non-tenant models (unless explicitly allowlisted).
+                return Response(
+                    {"error": "Entity options are not available for this entity type."},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
 
             # Search functionality
             search_query = request.query_params.get("q", "").strip()
             if search_query:
                 # Build search filter based on common fields
                 search_filter = Q()
-                searchable_fields = ["name", "title", "code", "email", "first_name", "last_name", "company_name"]
+                searchable_fields = [
+                    "name",
+                    "title",
+                    "code",
+                    "product_code",
+                    "email",
+                    "first_name",
+                    "last_name",
+                    "company_name",
+                ]
                 for field_name in searchable_fields:
                     if hasattr(model, field_name):
                         search_filter |= Q(**{f"{field_name}__icontains": search_query})
@@ -2961,7 +2990,19 @@ class EntityOptionsAPIView(APIView):
             for obj in queryset:
                 # Try to get a display label
                 label = str(obj)
-                if hasattr(obj, "name"):
+
+                if entity_type == "product":
+                    # Prefer tenant override when present.
+                    pref = None
+                    try:
+                        pref = obj.tenant_preferences.all()[0] if hasattr(obj, "tenant_preferences") else None
+                    except Exception:
+                        pref = None
+
+                    effective_name = getattr(pref, "effective_name", "") or getattr(obj, "name", "") or str(obj)
+                    product_code = getattr(obj, "product_code", "")
+                    label = f"{product_code} - {effective_name}" if product_code else effective_name
+                elif hasattr(obj, "name"):
                     label = obj.name
                 elif hasattr(obj, "title"):
                     label = obj.title
@@ -2991,7 +3032,10 @@ class EntityOptionsAPIView(APIView):
 
             is_global_admin = request.user.groups.filter(name='Global System Admins').exists()
 
-            if entity_type in QUICK_CREATE_MEMBER_ENTITY_TYPES:
+            if entity_type == "product":
+                # Products are system-wide; only superusers/global admins should create them.
+                can_create = bool(getattr(request.user, "is_superuser", False)) or is_global_admin
+            elif entity_type in QUICK_CREATE_MEMBER_ENTITY_TYPES:
                 can_create = bool(getattr(request.user, "is_superuser", False)) or is_global_admin or _is_active_tenant_member()
             else:
                 can_create = request.user.has_perm(f"{model._meta.app_label}.add_{model._meta.model_name}")
@@ -3233,7 +3277,11 @@ class QuickCreateEntityAPIView(APIView):
 
         is_global_admin = request.user.groups.filter(name='Global System Admins').exists()
 
-        if entity_type in QUICK_CREATE_MEMBER_ENTITY_TYPES:
+        if entity_type == "product":
+            # Products are system-wide master data.
+            if not (getattr(request.user, "is_superuser", False) or is_global_admin):
+                return Response({"error": "Permission denied"}, status=status.HTTP_403_FORBIDDEN)
+        elif entity_type in QUICK_CREATE_MEMBER_ENTITY_TYPES:
             if not (getattr(request.user, "is_superuser", False) or is_global_admin or _is_active_tenant_member()):
                 return Response({"error": "Permission denied"}, status=status.HTTP_403_FORBIDDEN)
         else:

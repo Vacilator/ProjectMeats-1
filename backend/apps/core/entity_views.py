@@ -330,12 +330,18 @@ def entity_lookup(request, entity_type):
             tenant = tenant_user.tenant
 
     # Build base queryset with tenant filter where applicable.
-    # Some entities are system-wide (e.g., Product) or utility (e.g., User).
+    # Some entities are system-wide (e.g., system.Product) or utility (e.g., User).
     queryset = model.objects.all()
 
     if entity_type == 'user':
         # Safe default: only allow selecting the current user.
         queryset = queryset.filter(id=request.user.id)
+    elif entity_type == 'product':
+        # system.Product has no tenant FK; apply visibility rules so we don't leak
+        # tenant-owned custom products or tenant-hidden system products.
+        from apps.system.services.product_visibility import visible_products_qs
+
+        queryset = visible_products_qs(tenant=tenant, qs=queryset)
     else:
         if not tenant:
             return Response(
@@ -354,6 +360,8 @@ def entity_lookup(request, entity_type):
             search_fields.append('name')
         if hasattr(model, 'code'):
             search_fields.append('code')
+        if hasattr(model, 'product_code'):
+            search_fields.append('product_code')
         if hasattr(model, 'company_name'):
             search_fields.append('company_name')
         if hasattr(model, 'email'):
@@ -385,6 +393,9 @@ def entity_lookup(request, entity_type):
             # Add code if available
             if hasattr(obj, 'code') and obj.code:
                 label = f"{obj.name} ({obj.code})"
+            # Product uses product_code not code
+            if hasattr(obj, 'product_code') and getattr(obj, 'product_code', None):
+                label = f"{obj.product_code} - {obj.name}"
         elif hasattr(obj, 'company_name'):
             label = obj.company_name
         elif hasattr(obj, 'email'):
