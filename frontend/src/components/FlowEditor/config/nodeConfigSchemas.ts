@@ -799,7 +799,11 @@ export const createRecordSchema: NodeConfigSchema = {
               message: 'All mappings must have both target field and source value',
               validator: (value: any) => {
                 if (!value || value.length === 0) return true;
-                const hasMissingMappings = value.some((m: any) => !m.targetField || !m.sourceExpression);
+                const hasMissingMappings = value.some((m: any) => {
+                  const hasTarget = Boolean(m?.entityField || m?.targetField || m?.targetFieldName);
+                  const hasSource = Boolean(m?.formFieldId || m?.sourceExpression || m?.sourceFieldName);
+                  return !hasTarget || !hasSource;
+                });
                 return !hasMissingMappings;
               },
             },
