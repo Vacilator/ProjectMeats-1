@@ -177,6 +177,9 @@ export const DynamicConfigPanel: React.FC<DynamicConfigPanelProps> = ({
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
   const isReadOnly = Boolean(readOnly);
+  const [keyValueDrafts, setKeyValueDrafts] = useState<
+    Record<string, Array<{ key: string; value: string }>>
+  >({});
 
   // Tenant forms cache for schema fields like `formReference`
   const [tenantForms, setTenantForms] = useState<any[]>([]);
@@ -256,6 +259,11 @@ export const DynamicConfigPanel: React.FC<DynamicConfigPanelProps> = ({
   // Reset validation errors when the selected node changes.
   useEffect(() => {
     setErrors({});
+  }, [node?.id]);
+
+  // Clear key-value draft rows when the selected node changes.
+  useEffect(() => {
+    setKeyValueDrafts({});
   }, [node?.id]);
 
   // REMOVED: Error panel no longer needed - schemaRegistry always returns a schema
@@ -911,73 +919,173 @@ export const DynamicConfigPanel: React.FC<DynamicConfigPanelProps> = ({
       case 'keyValue': {
         const mode = (field as any).keyValueMode === 'record' ? 'record' : 'array';
 
-        const coercePairs = (input: unknown): Array<{ key: string; value: string }> => {
-          if (Array.isArray(input)) return input as any;
-          if (input && typeof input === 'object') {
-            return Object.entries(input as Record<string, any>).map(([k, v]) => ({
-              key: String(k),
-              value: v === undefined || v === null ? '' : String(v),
-            }));
-          }
-          return [];
-        };
-
-        const pairs: Array<{ key: string; value: string }> =
-          mode === 'record'
-            ? coercePairs(value ?? field.defaultValue)
-            : Array.isArray(value)
-              ? (value as any)
-              : Array.isArray(field.defaultValue)
-                ? (field.defaultValue as any)
-                : [];
-
         const placeholderKey = (field.placeholder as any)?.key || 'Key';
         const placeholderValue = (field.placeholder as any)?.value || 'Value';
         const addText = (field as any).addButtonText || '+ Add';
 
-        const emit = (nextPairs: Array<{ key: string; value: string }>) => {
-          if (mode === 'record') {
-            const out: Record<string, string> = {};
-            nextPairs.forEach((p) => {
-              const k = String(p?.key ?? '').trim();
-              if (!k) return;
-              out[k] = String(p?.value ?? '');
-            });
-            commonProps.onChange(out);
-            return;
-          }
+        if (mode === 'record') {
+          const coerceRecord = (input: unknown): Record<string, string> => {
+            if (Array.isArray(input)) {
+              const out: Record<string, string> = {};
+              (input as any[]).forEach((p: any) => {
+                const k = String(p?.key ?? '').trim();
+                if (!k) return;
+                out[k] = String(p?.value ?? '');
+              });
+              return out;
+            }
 
+            if (input && typeof input === 'object') {
+              const out: Record<string, string> = {};
+              Object.entries(input as Record<string, any>).forEach(([k, v]) => {
+                const key = String(k).trim();
+                if (!key) return;
+                out[key] = v === undefined || v === null ? '' : String(v);
+              });
+              return out;
+            }
+
+            return {};
+          };
+
+          const record = coerceRecord(value ?? field.defaultValue);
+          const persistedPairs = Object.entries(record).map(([k, v]) => ({ key: k, value: String(v ?? '') }));
+          const draftPairs = keyValueDrafts[field.id] ?? [];
+          const pairs = [...persistedPairs, ...draftPairs];
+
+          const setDraftPairs = (nextDraft: Array<{ key: string; value: string }>) => {
+            setKeyValueDrafts((prev) => ({
+              ...prev,
+              [field.id]: nextDraft,
+            }));
+          };
+
+          const emitRecord = (nextRecord: Record<string, string>) => {
+            commonProps.onChange(nextRecord);
+          };
+
+          const addPair = () => {
+            setDraftPairs([...(draftPairs || []), { key: '', value: '' }]);
+          };
+
+          const removePair = (idx: number) => {
+            if (idx < persistedPairs.length) {
+              const keyToRemove = String(persistedPairs[idx]?.key ?? '').trim();
+              if (!keyToRemove) return;
+              const next = { ...record };
+              delete next[keyToRemove];
+              emitRecord(next);
+              return;
+            }
+
+            const draftIdx = idx - persistedPairs.length;
+            const nextDraft = (draftPairs || []).filter((_, i) => i !== draftIdx);
+            setDraftPairs(nextDraft);
+          };
+
+          const updatePair = (idx: number, patch: Partial<{ key: string; value: string }>) => {
+            if (idx < persistedPairs.length) {
+              const prevKey = String(persistedPairs[idx]?.key ?? '').trim();
+              const prevVal = String(persistedPairs[idx]?.value ?? '');
+
+              const nextKeyRaw = patch.key !== undefined ? String(patch.key) : prevKey;
+              const nextValRaw = patch.value !== undefined ? String(patch.value) : prevVal;
+
+              const nextKey = String(nextKeyRaw ?? '').trim();
+              const nextVal = String(nextValRaw ?? '');
+
+              const nextRecord = { ...record };
+              if (prevKey) delete nextRecord[prevKey];
+              if (nextKey) nextRecord[nextKey] = nextVal;
+
+              emitRecord(nextRecord);
+              return;
+            }
+
+            const draftIdx = idx - persistedPairs.length;
+            const current = (draftPairs || [])[draftIdx] ?? { key: '', value: '' };
+            const nextRow = { ...current, ...patch };
+            const nextDraft = (draftPairs || []).map((p, i) => (i === draftIdx ? nextRow : p));
+
+            const promotedKey = String(nextRow.key ?? '').trim();
+            if (promotedKey) {
+              emitRecord({ ...record, [promotedKey]: String(nextRow.value ?? '') });
+              setDraftPairs(nextDraft.filter((_, i) => i !== draftIdx));
+              return;
+            }
+
+            setDraftPairs(nextDraft);
+          };
+
+          renderedField = (
+            <FormField key={field.id}>
+              <Label>{field.label}</Label>
+              <KeyValueList>
+                {pairs.length === 0 && <KeyValueEmpty>None configured yet.</KeyValueEmpty>}
+                {pairs.map((p, idx) => (
+                  <KeyValueRow key={`${field.id}-${idx}`}>
+                    <Input
+                      value={p?.key ?? ''}
+                      placeholder={placeholderKey}
+                      onChange={(e) => updatePair(idx, { key: e.target.value })}
+                      disabled={field.disabled || commonProps.disabled}
+                    />
+                    <Input
+                      value={p?.value ?? ''}
+                      placeholder={placeholderValue}
+                      onChange={(e) => updatePair(idx, { value: e.target.value })}
+                      disabled={field.disabled || commonProps.disabled}
+                    />
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      onClick={() => removePair(idx)}
+                      disabled={field.disabled || commonProps.disabled}
+                      style={{ padding: '6px 10px' }}
+                    >
+                      Remove
+                    </Button>
+                  </KeyValueRow>
+                ))}
+                <Button
+                  type="button"
+                  variant="primary"
+                  onClick={addPair}
+                  disabled={field.disabled || commonProps.disabled}
+                  style={{ alignSelf: 'flex-start' }}
+                >
+                  {addText}
+                </Button>
+              </KeyValueList>
+              {field.helpText && !error && <HelpText>{field.helpText}</HelpText>}
+              {error && <ErrorMessage>{error}</ErrorMessage>}
+            </FormField>
+          );
+
+          break;
+        }
+
+        // Array mode (persist pairs directly)
+        const pairs: Array<{ key: string; value: string }> = Array.isArray(value)
+          ? (value as any)
+          : Array.isArray(field.defaultValue)
+            ? (field.defaultValue as any)
+            : [];
+
+        const emit = (nextPairs: Array<{ key: string; value: string }>) => {
           commonProps.onChange(nextPairs);
         };
 
         const updatePair = (idx: number, patch: Partial<{ key: string; value: string }>) => {
-          const next = pairs.map((p, i) => (i === idx ? { ...p, ...patch } : p));
-
-          // In record mode, allow a draft row with an empty key to exist long enough
-          // for the user to type a key (otherwise the row disappears immediately).
-          if (mode === 'record' && next.some((p) => !String(p?.key ?? '').trim())) {
-            commonProps.onChange(next);
-            return;
-          }
-
-          emit(next);
+          emit(pairs.map((p, i) => (i === idx ? { ...p, ...patch } : p)));
         };
 
         const removePair = (idx: number) => {
-          const next = pairs.filter((_, i) => i != idx);
-          emit(next);
+          emit(pairs.filter((_, i) => i !== idx));
         };
 
         const addPair = () => {
-          const next = [...(pairs || []), { key: '', value: '' }];
-
-          // Draft rows in record mode must persist until the key is filled.
-          if (mode === 'record') {
-            commonProps.onChange(next);
-            return;
-          }
-
-          emit(next);
+          emit([...(pairs || []), { key: '', value: '' }]);
         };
 
         renderedField = (
