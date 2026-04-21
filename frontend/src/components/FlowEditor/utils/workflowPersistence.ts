@@ -102,7 +102,8 @@ export const extractFormReferences = (nodes: Node[]): string[] => {
   const formIds = new Set<string>();
 
   for (const node of nodes) {
-    const nodeData = node.data as any;
+    const rawData = (node as any)?.data;
+    const nodeData = rawData && typeof rawData === 'object' ? (rawData as any) : {};
 
     // Form Step node (legacy)
     if (node.type === 'formStep' && nodeData.tenantFormId) {
