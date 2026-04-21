@@ -397,71 +397,6 @@ const CancelButton = styled.button`
   }
 `;
 
-const Modal = styled.div<{ $isOpen: boolean }>`
-  display: ${({ $isOpen }) => $isOpen ? 'flex' : 'none'};
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgb(var(--color-text-primary) / 0.50);
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-`;
-
-const ModalContent = styled.div`
-  background: rgb(var(--color-surface));
-  border-radius: var(--radius-lg, 12px);
-  padding: 24px;
-  max-width: 400px;
-  width: 90%;
-`;
-
-const ModalTitle = styled.h3`
-  font-size: 18px;
-  font-weight: 600;
-  color: rgb(var(--color-text-primary));
-  margin: 0 0 12px;
-`;
-
-const ModalText = styled.p`
-  font-size: 14px;
-  color: rgb(var(--color-text-secondary));
-  margin: 0 0 20px;
-`;
-
-const ModalActions = styled.div`
-  display: flex;
-  gap: 8px;
-  justify-content: flex-end;
-`;
-
-const ModalButton = styled.button<{ $variant?: 'danger' }>`
-  padding: 10px 20px;
-  border: none;
-  border-radius: var(--radius-md, 8px);
-  font-size: 14px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: opacity 0.15s ease;
-  
-  background: ${({ $variant }) => 
-    $variant === 'danger' ? 'rgb(239, 68, 68)' : 'rgb(var(--color-border))'
-  };
-  color: ${({ $variant }) => 
-    $variant === 'danger' ? 'white' : 'rgb(var(--color-text-primary))'
-  };
-  
-  &:hover {
-    opacity: 0.9;
-  }
-  
-  &:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-  }
-`;
 
 // ============================================================================
 // Component
@@ -475,8 +410,6 @@ const FormsFlowsInProgress: React.FC = () => {
   const [filterMode, setFilterMode] = useState<'all' | 'my' | 'team'>('all');
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
   const [cancelingId, setCancelingId] = useState<string | null>(null);
-  const [showCancelModal, setShowCancelModal] = useState(false);
-  const [selectedSubmission, setSelectedSubmission] = useState<FormSubmission | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
 
   const { id: submissionId } = useParams<{ id?: string }>();
@@ -549,26 +482,24 @@ const FormsFlowsInProgress: React.FC = () => {
     refetchInterval: 10000,
   });
 
-  // Handle cancel confirmation
-  const handleCancelClick = (submission: FormSubmission) => {
-    setSelectedSubmission(submission);
-    setShowCancelModal(true);
-  };
-  
-  // Handle cancel workflow
-  const handleCancelConfirm = async () => {
-    if (!selectedSubmission) return;
-    
-    setCancelingId(selectedSubmission.id);
+  const handleCancelClick = async (submission: FormSubmission) => {
+    const ok = await confirmDialog({
+      title: 'Cancel submission?',
+      content: `Are you sure you want to cancel "${submission.form_name}"? This action cannot be undone.`,
+      okText: 'Yes, cancel',
+      cancelText: 'Keep working',
+      danger: true,
+    });
+
+    if (!ok) return;
+
+    setCancelingId(submission.id);
     try {
-      await workflowExecutionService.cancelExecution(selectedSubmission.id, {
+      await workflowExecutionService.cancelExecution(submission.id, {
         reason: 'Cancelled by user',
       });
-      
-      // Update UI immediately
-      setSubmissions(prev => prev.filter(s => s.id !== selectedSubmission.id));
-      setShowCancelModal(false);
-      setSelectedSubmission(null);
+
+      setSubmissions((prev) => prev.filter((s) => s.id !== submission.id));
     } catch (error) {
       console.error('Failed to cancel workflow:', error);
       const ui = getWorkformsErrorUi(error, 'inProgress.cancel');
@@ -849,7 +780,11 @@ const FormsFlowsInProgress: React.FC = () => {
                       <Play size={16} aria-hidden="true" />
                       Resume
                     </ResumeButton>
-                    <CancelButton onClick={() => handleCancelClick(submission)} aria-label={`Cancel ${submission.form_name}`}>
+                    <CancelButton
+                      onClick={() => void handleCancelClick(submission)}
+                      disabled={cancelingId === submission.id}
+                      aria-label={`Cancel ${submission.form_name}`}
+                    >
                       <X size={16} />
                     </CancelButton>
                   </CardActions>
@@ -858,29 +793,6 @@ const FormsFlowsInProgress: React.FC = () => {
             })}
           </CardGrid>
         )}
-      
-      {/* Cancel Confirmation Modal */}
-      <Modal $isOpen={showCancelModal} onClick={() => setShowCancelModal(false)}>
-        <ModalContent onClick={(e) => e.stopPropagation()}>
-          <ModalTitle>Cancel submission?</ModalTitle>
-          <ModalText>
-            Are you sure you want to cancel "{selectedSubmission?.form_name}"?
-            This action cannot be undone.
-          </ModalText>
-          <ModalActions>
-            <ModalButton onClick={() => setShowCancelModal(false)}>
-              Keep Working
-            </ModalButton>
-            <ModalButton
-              $variant="danger"
-              onClick={handleCancelConfirm}
-              disabled={!!cancelingId}
-            >
-              {cancelingId ? 'Cancelling...' : 'Yes, Cancel'}
-            </ModalButton>
-          </ModalActions>
-        </ModalContent>
-      </Modal>
       </Container>
     </ErrorBoundary>
   );
