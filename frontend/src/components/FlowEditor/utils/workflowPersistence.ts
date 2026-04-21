@@ -16,7 +16,16 @@ import { logger } from '@/utils/logger';
 
 import { sortNodesTopologically } from './nodeSorting';
 import { sanitizeNodeDataForPersistence } from './nodeDataSanitization';
-import { apiClient } from '../../../services/apiService';
+import {
+  createTenantWorkForm,
+  deleteTenantWorkForm,
+  getTenantWorkForm,
+  listTenantWorkForms,
+  validateWorkForm,
+  listWorkFormContainers,
+  getContainerDetail,
+  updateTenantWorkForm,
+} from '@/services/workformsApi';
 
 // Ensure schemas are registered so defaults can be materialized.
 import '../config/nodeConfigSchemas';
@@ -297,25 +306,15 @@ export const saveWorkflow = async (
       workflow_definition,
     };
     
-    let response;
-    
     if (existingWorkflowId) {
-      // Update existing workflow (PUT)
-      response = await apiClient.put(
-        `/tenant-workforms/${existingWorkflowId}/`,
-        payload
-      );
-      logger.debug('✅ Workflow updated:', response.data);
-    } else {
-      // Create new workflow (POST)
-      response = await apiClient.post(
-        `/tenant-workforms/`,
-        payload
-      );
-      logger.debug('✅ Workflow created:', response.data);
+      const data = await updateTenantWorkForm(existingWorkflowId, payload as any);
+      logger.debug('✅ Workflow updated:', data);
+      return data as any;
     }
-    
-    return response.data;
+
+    const data = await createTenantWorkForm(payload as any);
+    logger.debug('✅ Workflow created:', data);
+    return data as any;
   } catch (error: any) {
     logger.error('❌ Error saving workflow:', {
       message: error?.message,
@@ -398,18 +397,18 @@ export const loadWorkflow = async (
   // Removed getApiBaseUrl - using apiClient
   
   try {
-    const response = await apiClient.get(`/tenant-workforms/${workflowId}/`);
-    
-    logger.debug('✅ Workflow loaded:', response.data);
-    
+    const data = await getTenantWorkForm(workflowId);
+
+    logger.debug('✅ Workflow loaded:', data);
+
     // Reconstruct parent-child relationships
-    if (response.data.workflow_definition?.nodes) {
-      response.data.workflow_definition.nodes = reconstructParentChildRelationships(
-        response.data.workflow_definition.nodes
+    if ((data as any).workflow_definition?.nodes) {
+      (data as any).workflow_definition.nodes = reconstructParentChildRelationships(
+        (data as any).workflow_definition.nodes
       );
     }
-    
-    return response.data;
+
+    return data as any;
   } catch (error: any) {
     logger.error('❌ Error loading workflow:', error);
     
@@ -435,25 +434,10 @@ export const listWorkflows = async (
     search?: string;
   }
 ): Promise<WorkflowListItem[]> => {
-  // Removed getApiBaseUrl - using apiClient
-  
-  // Build query params
-  const params = new URLSearchParams();
-  if (filters?.status) params.append('status', filters.status);
-  if (filters?.search) params.append('search', filters.search);
-  
-  const queryString = params.toString();
-  const url = `/tenant-workforms/${queryString ? `?${queryString}` : ''}`;
-  
   try {
-    const response = await apiClient.get(url);
-    
-    // API returns paginated response: {count, next, previous, results: [...]}
-    // Extract results array from pagination wrapper
-    const workflows = response.data.results || response.data;
-    
+    const workflows = await listTenantWorkForms(filters);
     logger.debug(`✅ Loaded ${workflows.length} workflows`);
-    return workflows;
+    return workflows as any;
   } catch (error: any) {
     logger.error('❌ Error listing workflows:', error);
     
@@ -476,10 +460,7 @@ export const deleteWorkflow = async (workflowId: string): Promise<void> => {
   // Removed getApiBaseUrl - using apiClient
   
   try {
-    await apiClient.delete(
-      `/tenant-workforms/${workflowId}/`,
-      
-    );
+    await deleteTenantWorkForm(workflowId);
     logger.debug('✅ Workflow deleted:', workflowId);
   } catch (error: any) {
     logger.error('❌ Error deleting workflow:', error);
@@ -510,14 +491,9 @@ export const validateWorkflow = async (
   // Removed getApiBaseUrl - using apiClient
   
   try {
-    const response = await apiClient.post(
-      `/tenant-workforms/${workflowId}/validate/`,
-      {},
-      
-    );
-    
-    logger.debug('✅ Workflow validation:', response.data);
-    return response.data;
+    const data = await validateWorkForm(workflowId);
+    logger.debug('✅ Workflow validation:', data);
+    return data;
   } catch (error: any) {
     logger.error('❌ Error validating workflow:', error);
     throw error;
@@ -546,12 +522,8 @@ export const listContainers = async (
   // Removed getApiBaseUrl - using apiClient
   
   try {
-    const response = await apiClient.get(
-      `/tenant-workforms/${workflowId}/containers/`,
-      
-    );
-    
-    return response.data.containers || [];
+    const data = await listWorkFormContainers(workflowId);
+    return data.containers || [];
   } catch (error: any) {
     logger.error('❌ Error listing containers:', error);
     throw error;
@@ -579,12 +551,8 @@ export const getContainerDetails = async (
   // Removed getApiBaseUrl - using apiClient
   
   try {
-    const response = await apiClient.get(
-      `/tenant-workforms/${workflowId}/containers/${containerId}/`,
-      
-    );
-    
-    return response.data;
+    const data = await getContainerDetail(workflowId, containerId);
+    return data as any;
   } catch (error: any) {
     logger.error('❌ Error getting container details:', error);
     throw error;
