@@ -21,7 +21,8 @@ import { getNodeTypeDefinition } from '../nodeTypes';
 // ============================================================================
 
 export interface TriggerNodeData extends BaseNodeData {
-  triggerType: 'manual' | 'schedule' | 'webhook' | 'event' | 'form';
+  // `formSubmit` is legacy drift from earlier editor defaults; normalize it to `form` at runtime.
+  triggerType: 'manual' | 'schedule' | 'webhook' | 'event' | 'form' | 'formSubmit';
   schedule?: string; // cron expression
   webhookUrl?: string;
   eventEntity?: string;
@@ -104,13 +105,15 @@ const TriggerBadge = styled.span<{ $type: string }>`
 export const TriggerNode = React.memo<NodeProps<Node<TriggerNodeData>>>((props) => {
   const { data, selected, id } = props;
   const {
-    triggerType,
+    triggerType: rawTriggerType,
     schedule,
     webhookUrl,
     eventEntity,
     eventType,
     formId,
   } = data;
+
+  const triggerType = rawTriggerType === 'formSubmit' ? 'form' : rawTriggerType;
 
   const scheduleSummary = (data as any)?.scheduleSummary as string | undefined;
   

@@ -2888,9 +2888,10 @@ const triggerFormSchema: NodeConfigSchema = {
       fields: [
         {
           id: 'formId',
-          type: 'text',
-          label: 'Form ID',
-          placeholder: 'ID of form to watch...',
+          type: 'formReference',
+          label: 'Form',
+          placeholder: 'Select a form...',
+          helpText: 'Select the form whose submissions should trigger this workflow',
           required: true,
         },
       ]

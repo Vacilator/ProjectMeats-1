@@ -497,6 +497,55 @@ export const DynamicConfigPanel: React.FC<DynamicConfigPanelProps> = ({
         return draft;
       }
 
+      const isFormStep =
+        semanticNodeType === 'formStep' ||
+        semanticNodeType === 'formStepSingle' ||
+        semanticNodeType === 'formStepSingleNode';
+
+      // Form steps historically used `name`/`description` in schemas but nodes display `stepTitle/stepDescription`.
+      // Keep these keys in sync so editing feels responsive and saved data remains backwards compatible.
+      if (isFormStep && fieldId === 'name') {
+        const next: any = {
+          ...prev,
+          name: value,
+          title: value,
+          label: value,
+          stepTitle: value,
+        };
+
+        onUpdateNode(node.id, next);
+
+        if (field) {
+          const error = validateField(field, value, next);
+          setErrors((errs) => ({
+            ...errs,
+            [fieldId]: error || '',
+          }));
+        }
+
+        return next;
+      }
+
+      if (isFormStep && fieldId === 'description') {
+        const next: any = {
+          ...prev,
+          description: value,
+          stepDescription: value,
+        };
+
+        onUpdateNode(node.id, next);
+
+        if (field) {
+          const error = validateField(field, value, next);
+          setErrors((errs) => ({
+            ...errs,
+            [fieldId]: error || '',
+          }));
+        }
+
+        return next;
+      }
+
       // Canonical node title: keep legacy keys in sync for backwards compatibility.
       if (fieldId === 'title') {
         const next: any = {
