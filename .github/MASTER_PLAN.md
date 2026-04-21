@@ -1681,3 +1681,4 @@ Deliverables:
 - **2026-04-21** — CI: stop pushing mutable `:latest` tags — build-dev-image now pushes only immutable sha tags; devcontainer builds locally to avoid `:latest` dependency; update workflow instructions to match no-latest policy. (PR: #4546)
 - **2026-04-21** — CI: digest-pin workflow service images (postgres + pgvector) to multi-arch manifest digests for deterministic runs. (PR: #4548)
 - **2026-04-21** — Docs: refresh discovery backlog pointers and update canonical `MASTER_PLAN.md` execution snapshot (no behavior changes). (PR: #4550)
+- **2026-04-21** — Workflows: tenant-path webhook receiver sets tenant/RLS context before ORM lookup (FORCE RLS safe) and adds call-order regression coverage. (PR: #4552)
