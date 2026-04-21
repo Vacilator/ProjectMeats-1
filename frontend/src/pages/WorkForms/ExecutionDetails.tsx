@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/Button';
 import { PageContainer } from '@/components/ui/PageContainer';
 import { workformExecutionService } from '@/services/workformExecutionService';
 import { formSubmissionService } from '@/services/quickActionsService';
+import { getWorkformsErrorUi } from '@/features/workforms/workformsErrors';
 
 export const WorkFormExecutionDetails: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -56,7 +57,23 @@ export const WorkFormExecutionDetails: React.FC = () => {
         {query.isLoading ? (
           <div>Loading run…</div>
         ) : query.isError || !execution ? (
-          <div>Run not found.</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <div style={{ fontWeight: 700 }}>{getWorkformsErrorUi(query.error, 'executionDetails.load').title}</div>
+            <div style={{ color: 'rgb(var(--color-text-secondary))' }}>
+              {getWorkformsErrorUi(query.error, 'executionDetails.load').message}
+            </div>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <Button variant="secondary" onClick={() => void query.refetch()}>
+                Try again
+              </Button>
+              <Button variant="secondary" onClick={() => navigate('/workforms/history')}>
+                View History
+              </Button>
+              <Button variant="secondary" onClick={() => navigate('/workforms/catalog')}>
+                Back to Catalog
+              </Button>
+            </div>
+          </div>
         ) : (
           <div data-testid="workform-execution-details-page" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>

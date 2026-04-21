@@ -26,6 +26,7 @@ import { businessApi } from '../../services/businessApi';
 import { useQuickActions } from '../../contexts/QuickActionsContext';
 import { workflowExecutionService } from '../../services/workflowExecutionService';
 import { workformExecutionService } from '@/services/workformExecutionService';
+import { getWorkformsErrorUi } from '@/features/workforms/workformsErrors';
 
 // ============================================================================
 // Types
@@ -476,6 +477,7 @@ const FormsFlowsInProgress: React.FC = () => {
   const [cancelingId, setCancelingId] = useState<string | null>(null);
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [selectedSubmission, setSelectedSubmission] = useState<FormSubmission | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const { id: submissionId } = useParams<{ id?: string }>();
   const navigate = useNavigate();
@@ -484,11 +486,12 @@ const FormsFlowsInProgress: React.FC = () => {
   useEffect(() => {
     if (!submissionId) return;
 
-    resumeSubmission(submissionId).catch(() => {
+    resumeSubmission(submissionId).catch((error) => {
+      const ui = getWorkformsErrorUi(error, 'inProgress.load');
       showAlert({
         type: 'error',
-        title: 'Error',
-        content: 'Failed to load the selected in-progress workflow. Please try again.',
+        title: ui.title,
+        content: ui.message,
       });
     });
   }, [resumeSubmission, submissionId]);
@@ -496,6 +499,7 @@ const FormsFlowsInProgress: React.FC = () => {
   // Fetch in-progress submissions
   const fetchSubmissions = async () => {
     setLoading(true);
+    setLoadError(null);
     try {
       const params: any = { status: 'in_progress,draft' };
       
@@ -510,6 +514,7 @@ const FormsFlowsInProgress: React.FC = () => {
     } catch (error) {
       console.error('Failed to fetch submissions:', error);
       setSubmissions([]);
+      setLoadError(getWorkformsErrorUi(error, 'inProgress.load').message);
     } finally {
       setLoading(false);
     }
@@ -566,10 +571,11 @@ const FormsFlowsInProgress: React.FC = () => {
       setSelectedSubmission(null);
     } catch (error) {
       console.error('Failed to cancel workflow:', error);
+      const ui = getWorkformsErrorUi(error, 'inProgress.cancel');
       showAlert({
         type: 'error',
-        title: 'Error',
-        content: 'Failed to cancel workflow. Please try again.',
+        title: ui.title,
+        content: ui.message,
       });
     } finally {
       setCancelingId(null);
@@ -626,6 +632,43 @@ const FormsFlowsInProgress: React.FC = () => {
           </Tab>
         </TabsContainer>
 
+        {loadError && activeTab === 'submissions' ? (
+          <div
+            role="status"
+            aria-live="polite"
+            style={{
+              margin: '12px 0',
+              padding: '12px',
+              border: '1px solid rgb(var(--color-border))',
+              borderRadius: 12,
+              background: 'rgb(var(--color-primary) / 0.06)',
+              color: 'rgb(var(--color-text-primary))',
+              display: 'flex',
+              justifyContent: 'space-between',
+              gap: 12,
+              alignItems: 'center',
+              flexWrap: 'wrap',
+            }}
+          >
+            <span>{loadError}</span>
+            <button
+              type="button"
+              onClick={() => fetchSubmissions()}
+              style={{
+                border: '1px solid rgb(var(--color-border))',
+                background: 'rgb(var(--color-surface))',
+                color: 'rgb(var(--color-text-primary))',
+                padding: '6px 10px',
+                borderRadius: 10,
+                cursor: 'pointer',
+                fontWeight: 600,
+              }}
+            >
+              Try again
+            </button>
+          </div>
+        ) : null}
+
         <Toolbar>
           <ToolbarLeft>
             <SearchInput
@@ -670,6 +713,22 @@ const FormsFlowsInProgress: React.FC = () => {
 
             if (executionsQuery.isLoading) {
               return <LoadingState role="status" aria-live="polite">Loading runs…</LoadingState>;
+            }
+
+            if (executionsQuery.isError) {
+              const ui = getWorkformsErrorUi(executionsQuery.error, 'inProgress.load');
+              return (
+                <EmptyState role="status" aria-live="polite">
+                  <EmptyIcon aria-hidden="true">
+                    <Clock size={48} />
+                  </EmptyIcon>
+                  <EmptyTitle>{ui.title}</EmptyTitle>
+                  <EmptyMessage>{ui.message}</EmptyMessage>
+                  <ResumeButton onClick={() => void executionsQuery.refetch()} aria-label="Try again">
+                    Try again
+                  </ResumeButton>
+                </EmptyState>
+              );
             }
 
             if (filtered.length === 0) {
@@ -803,9 +862,9 @@ const FormsFlowsInProgress: React.FC = () => {
       {/* Cancel Confirmation Modal */}
       <Modal $isOpen={showCancelModal} onClick={() => setShowCancelModal(false)}>
         <ModalContent onClick={(e) => e.stopPropagation()}>
-          <ModalTitle>Cancel Workflow?</ModalTitle>
+          <ModalTitle>Cancel submission?</ModalTitle>
           <ModalText>
-            Are you sure you want to cancel "{selectedSubmission?.form_name}"? 
+            Are you sure you want to cancel "{selectedSubmission?.form_name}"?
             This action cannot be undone.
           </ModalText>
           <ModalActions>
