@@ -119,6 +119,12 @@ class Command(BaseCommand):
             # Integrations (tenant-bearing tables in apps.integrations)
             "integrations.ExternalAuthProvider",
             "integrations.EmailLog",
+
+            # Email integration (tenant-bearing tables in apps.email_integration)
+            "email_integration.EmailAccount",
+            "email_integration.EmailAction",
+            "email_integration.EmailLog",
+            "email_integration.EmailTrigger",
         }
         for label in sorted(must_have):
             try:
