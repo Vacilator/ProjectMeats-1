@@ -38,37 +38,24 @@ class PlantViewSet(viewsets.ModelViewSet):
         return Plant.objects.none()
 
     def perform_create(self, serializer):
-        """Set the tenant when creating a new plant."""
-        tenant = None
-        
-        # First, try to get tenant from middleware (request.tenant)
-        if hasattr(self.request, 'tenant') and self.request.tenant:
-            tenant = self.request.tenant
-        
-        # If middleware didn't set tenant, try to get user's default tenant
-        elif self.request.user and self.request.user.is_authenticated:
-            from apps.tenants.models import TenantUser
-            tenant_user = (
-                TenantUser.objects.filter(user=self.request.user, is_active=True)
-                .select_related('tenant')
-                .order_by('-role')  # Prioritize owner/admin roles
-                .first()
-            )
-            if tenant_user:
-                tenant = tenant_user.tenant
-        
-        # If still no tenant, raise error
+        """Set the tenant when creating a new plant.
+
+        Tenant context must be explicitly resolved by middleware/auth.
+        We do not silently default to the user's first tenant on writes.
+        """
+
+        tenant = getattr(self.request, 'tenant', None)
         if not tenant:
             logger.error(
                 'Plant creation attempted without tenant context',
                 extra={
                     'user': self.request.user.username if self.request.user and self.request.user.is_authenticated else 'Anonymous',
                     'has_request_tenant': hasattr(self.request, 'tenant'),
-                    'timestamp': timezone.now().isoformat()
-                }
+                    'timestamp': timezone.now().isoformat(),
+                },
             )
-            raise ValidationError('Tenant context is required to create a plant.')
-        
+            raise DRFValidationError('Tenant context is required to create a plant.')
+
         serializer.save(tenant=tenant)
 
     def create(self, request, *args, **kwargs):
