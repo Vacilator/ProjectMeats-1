@@ -347,6 +347,7 @@ jobs:
     name: "Test Backend"
     needs: [build-backend]
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     services:
       postgres:
         # Digest-pinned (multi-arch manifest) for deterministic CI
@@ -396,11 +397,11 @@ jobs:
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/projectmeats_test
           DJANGO_SETTINGS_MODULE: projectmeats.settings.test
+          # Allow tests to import repo-root modules like `scripts.*` (matches pr-validation.yml)
+          PYTHONPATH: ${{ github.workspace }}
+          CI: '1'
         run: |
-          # TEMPORARILY DISABLED: Tests fail on fresh DB due to idempotency check paradox
-          # Will be fixed in separate PR after deployment completes
-          # python manage.py test apps/ --verbosity=2
-          echo "⚠️  Tests temporarily bypassed to unblock RLS deployment"
+          python manage.py test --verbosity=2
 
   # ==========================================
   # FRONTEND SWIMLANE  
@@ -582,15 +583,35 @@ jobs:
     name: "Test Frontend"
     needs: [build-frontend]
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 15
     steps:
-      - name: Skip tests temporarily (Vitest hanging issue)
+      - name: Checkout code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          ref: ${{ inputs.ref }}
+
+      - name: Set up Node
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend deps
+        working-directory: ./frontend
+        run: npm ci
+
+      - name: Verify frontend standards
+        working-directory: ./frontend
+        run: npm run verify-standards
+
+      - name: Run frontend unit tests
+        working-directory: ./frontend
+        env:
+          CI: '1'
         run: |
-          echo "⚠️ Frontend tests temporarily bypassed due to Vitest cleanup hang"
-          echo "Tests pass but Vitest process doesn't exit after 12+ minutes"
-          echo "Issue: Fork pool cleanup hangs in CI environment"
-          echo "TODO: Fix Vitest configuration or upgrade to newer version"
-          exit 0
+          # Hard timeout to avoid Vitest cleanup hangs blocking deploy indefinitely.
+          timeout 10m npm run test:ci
 
   # ==========================================
   # Pre-Deployment: Migration Sanity Check
@@ -659,7 +680,8 @@ jobs:
   
   migrate:
     name: "Run Database Migrations"
-    needs: [check-migrations]
+    # Gate all mutation steps on both backend + frontend tests to avoid partial deploys.
+    needs: [check-migrations, test-frontend]
     runs-on: ubuntu-latest
     environment: ${{ inputs.backend_environment }}
     timeout-minutes: 15
@@ -1088,7 +1110,7 @@ jobs:
           	DB_HOST=${{ secrets.DB_HOST }}
           	DB_PORT=${{ secrets.DB_PORT }}
           	DB_ENGINE=django.db.backends.postgresql
-          	SENDGRID_API_KEY=${{ secrets.EMAIL_HOST_PASSWORD }}
+          	EMAIL_HOST_PASSWORD=${{ secrets.EMAIL_HOST_PASSWORD }}
           	DEFAULT_FROM_EMAIL=no-reply@meatscentral.com
           	SENTRY_DSN=${{ secrets.SENTRY_DSN }}
           	SENTRY_ENABLED=${{ secrets.SENTRY_ENABLED }}
@@ -1105,14 +1127,14 @@ jobs:
           	OAUTH_ENCRYPTION_KEY=${{ secrets.OAUTH_ENCRYPTION_KEY }}
           	EOF
           
-          # Verify SENDGRID_API_KEY is set (show length only for security)
+          # Verify EMAIL_HOST_PASSWORD is set (show length only for security)
           if [ -n "${{ secrets.EMAIL_HOST_PASSWORD }}" ]; then
-            echo "✓ SENDGRID_API_KEY is set (${#EMAIL_HOST_PASSWORD} characters)"
+            echo "✓ EMAIL_HOST_PASSWORD is set"
           else
-            echo "⚠️  WARNING: SENDGRID_API_KEY is NOT set in environment secrets"
+            echo "⚠️  WARNING: EMAIL_HOST_PASSWORD is NOT set in environment secrets"
           fi
           
-          echo "✓ backend.env file created locally (SendGrid Web API configured)"
+          echo "✓ backend.env file created locally"
       
       - name: Transfer .env to Server
         env:
@@ -1307,7 +1329,8 @@ jobs:
   
   deploy-frontend:
     name: "Deploy Frontend Container"
-    needs: [migrate, test-frontend, security-scan-frontend]
+    # Frontend swimlane stays independent (no backend/migration dependency).
+    needs: [test-frontend, security-scan-frontend]
     runs-on: ubuntu-latest
     environment: ${{ inputs.frontend_environment }}
     steps:
