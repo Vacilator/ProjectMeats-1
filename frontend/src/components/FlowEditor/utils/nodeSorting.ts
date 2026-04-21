@@ -10,6 +10,8 @@
 
 import { Node } from '@xyflow/react';
 
+import { logger } from '@/utils/logger';
+
 /**
  * Sort nodes topologically to ensure parents appear before children.
  * 
@@ -147,7 +149,7 @@ function verifyNodeOrdering(nodes: Node[]): boolean {
   if (hasOrderingError) {
     console.error('[Node Sort] ❌ Sorting failed - parent-child ordering violated');
   } else {
-    console.log(`[Node Sort] ✅ Successfully sorted ${nodes.length} nodes`);
+    logger.debug(`✅ Successfully sorted ${nodes.length} nodes`, { component: 'NodeSorting' });
   }
 
   return !hasOrderingError;

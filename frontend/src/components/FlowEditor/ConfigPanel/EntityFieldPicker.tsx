@@ -39,6 +39,8 @@ import {
 } from './SkeletonLoaders';
 import { useTimeout } from '../hooks/useTimeout';
 
+import { logger } from '@/utils/logger';
+
 // ============================================================================
 // Types
 // ============================================================================
@@ -388,7 +390,10 @@ export const EntityFieldPicker: React.FC<EntityFieldPickerProps> = ({
   // Reactive cascade: watch initialEntityType prop changes (uncontrolled mode)
   useEffect(() => {
     if (initialEntityType && initialEntityType !== selectedEntityType) {
-      console.log('[EntityFieldPicker] initialEntityType changed, updating:', initialEntityType);
+      logger.debug('initialEntityType changed, updating', {
+        component: 'EntityFieldPicker',
+        metadata: { initialEntityType },
+      });
       setSelectedEntityType(initialEntityType);
       setSearchTerm('');
       setFieldTypeFilter('all');
@@ -418,7 +423,7 @@ export const EntityFieldPicker: React.FC<EntityFieldPickerProps> = ({
 
   const handleEntityChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const entityType = e.target.value;
-    console.log('[EntityFieldPicker] Entity selected:', entityType);
+    logger.debug('Entity selected', { component: 'EntityFieldPicker', metadata: { entityType } });
     setSelectedEntityType(entityType);
     setSearchTerm('');
     setFieldTypeFilter('all');
@@ -428,21 +433,21 @@ export const EntityFieldPicker: React.FC<EntityFieldPickerProps> = ({
     onFieldsChange([]);
     
     if (onEntityTypeChange) {
-      console.log('[EntityFieldPicker] Notifying parent of entity change');
+      logger.debug('Notifying parent of entity change', { component: 'EntityFieldPicker' });
       onEntityTypeChange(entityType);
     }
   };
   
   // Retry handlers
   const handleRetryEntities = () => {
-    console.log('[EntityFieldPicker] Retrying entity list fetch');
+    logger.debug('Retrying entity list fetch', { component: 'EntityFieldPicker' });
     setRetryCount(prev => prev + 1);
     resetEntitiesTimeout();
     refetchEntities();
   };
   
   const handleRetryFields = () => {
-    console.log('[EntityFieldPicker] Retrying fields fetch');
+    logger.debug('Retrying fields fetch', { component: 'EntityFieldPicker' });
     setRetryCount(prev => prev + 1);
     resetFieldsTimeout();
     refetchFields();

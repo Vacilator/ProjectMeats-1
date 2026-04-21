@@ -11,6 +11,8 @@
 import { NodeConfigSchema, SchemaValidationResult } from './types';
 import type { ConfigField, ValidationRule } from './types';
 
+import { logger } from '@/utils/logger';
+
 /**
  * Singleton registry for node configuration schemas
  */
@@ -283,7 +285,7 @@ class ConfigSchemaRegistry {
   clear(): void {
     this.schemas.clear();
     this.initialized = false;
-    console.log('ConfigSchemaRegistry cleared');
+    logger.debug('ConfigSchemaRegistry cleared', { component: 'ConfigSchemaRegistry' });
   }
 
   /**

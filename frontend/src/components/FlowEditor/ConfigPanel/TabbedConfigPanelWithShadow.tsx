@@ -21,6 +21,8 @@ import { AlertCircle } from 'lucide-react';
 import { TabbedConfigPanel } from './TabbedConfigPanel';
 import { useNodeShadowState } from '../hooks/useNodeShadowState';
 import { sanitizeNodeConfigForPersistence } from '../utils/nodeDataSanitization';
+
+import { logger } from '@/utils/logger';
 import {
   PrimaryButton,
   SecondaryButton,
@@ -203,14 +205,14 @@ export const TabbedConfigPanelWithShadow: React.FC<TabbedConfigPanelWithShadowPr
     // Also call the original onUpdate to trigger history
     onUpdate(node.id, sanitized);
     
-    console.log('[Shadow State] Applied changes to node:', node.id);
+    logger.debug('Applied changes to node', { component: 'ShadowState', metadata: { nodeId: node.id } });
   }, [node, isReadOnly, commitShadow, onUpdate, shadowConfig]);
 
   // Handle discard
   const handleDiscard = useCallback(() => {
     if (isReadOnly) return;
     discardShadow();
-    console.log('[Shadow State] Discarded changes');
+    logger.debug('Discarded changes', { component: 'ShadowState' });
   }, [isReadOnly, discardShadow]);
 
   // Handle close with confirmation if dirty

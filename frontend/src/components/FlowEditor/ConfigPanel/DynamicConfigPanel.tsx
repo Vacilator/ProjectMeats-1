@@ -16,6 +16,8 @@ import styled from 'styled-components';
 import { Node, Edge } from '@xyflow/react';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 
+import { logger } from '@/utils/logger';
+
 // Smart Auto-Map (Phase 7 stabilization)
 import { AutoMappingService, FieldMappingSuggestion } from '../utils/autoMappingService';
 import { AutoMappingSuggestionsPanel } from '../components/AutoMappingSuggestionsPanel';
@@ -209,15 +211,18 @@ export const DynamicConfigPanel: React.FC<DynamicConfigPanelProps> = ({
 
     // Debug logging for schema resolution
     const isFallback = resolvedSchema?.version?.includes('fallback');
-    console.log('[DynamicConfigPanel] Schema resolution:', {
-      nodeType: semanticNodeType,
-      runtimeType: node.type,
-      nodeId: node.id,
-      schemaDisplayName: resolvedSchema?.displayName,
-      isFallback,
-      sectionCount: resolvedSchema?.sections?.length || 0,
+    logger.debug('Schema resolution', {
+      component: 'DynamicConfigPanel',
+      metadata: {
+        nodeType: semanticNodeType,
+        runtimeType: node.type,
+        nodeId: node.id,
+        schemaDisplayName: resolvedSchema?.displayName,
+        isFallback,
+        sectionCount: resolvedSchema?.sections?.length || 0,
+      },
     });
-    
+
     return resolvedSchema;
   }, [node?.type, node?.id, node?.data]);
 
@@ -1218,7 +1223,10 @@ export const DynamicConfigPanel: React.FC<DynamicConfigPanelProps> = ({
                 }
                 // Check if button has FormBuilder action metadata
                 if (field.metadata?.action === 'openFormBuilder') {
-                  console.log('[DynamicConfigPanel] Opening FormBuilder for node:', node.id);
+                  logger.debug('Opening FormBuilder', {
+                    component: 'DynamicConfigPanel',
+                    metadata: { nodeId: node.id },
+                  });
                   openFormBuilder({
                     nodeId: node.id,
                     nodeData: node.data,
