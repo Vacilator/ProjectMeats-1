@@ -8,6 +8,16 @@ For current priorities, status, and evidence, see **`MASTER_PLAN.md` (canonical)
 
 ---
 
+## 🔎 Discovery Backlog (2026-04-21)
+
+This is a lightweight pointer list from squad discovery. **Execute via `MASTER_PLAN.md` (canonical) + `.github/MASTER_PLAN.md` (PR log)**.
+
+- P0 Security/RLS correctness: workflow webhooks RLS ordering + legacy endpoint fail-closed; integrations OAuth callback RLS ordering; prevent WorkForms activation bypass on create.
+- P0 Mobile: align WorkForms contract (types + OpenAPI coverage) and add a real WorkForm detail view.
+- P0 CI follow-up: re-enable backend/frontend tests in `reusable-deploy.yml`; update workflow validator to cover current canonical topology.
+
+---
+
 ## 📊 Overall Progress (historical; non-canonical)
 
 This file previously displayed “100% complete” progress claims. Those claims are **not authoritative** and are intentionally not treated as current status.

@@ -1,7 +1,7 @@
 # MASTER_PLAN.md (Canonical)
 
 **Status**: 🔄 Living document (canonical source of truth)  
-**Last Updated**: 2026-04-20  
+**Last Updated**: 2026-04-21  
 **Primary Focus**: Phase 10 (DRY/Canonical Architecture Standardization) - Industry-leader compliance  
 
 This file is the **canonical plan + current truth snapshot**.
@@ -18,9 +18,13 @@ This file is the **canonical plan + current truth snapshot**.
 
 ### P0 priorities (next)
 - **WorkForms Editor stability**: deterministic schema init (no timer races), resolve form "fields" model mismatch, sanitize UI-only shadow state on save, remove hardcoded colors, and fix a11y for tabs/modals.
-- **Security / tenant isolation**: remove unauthenticated OAuth endpoint shadowing; enforce tenant membership on callbacks; add/enforce RLS for tenant-bearing tables (system workforms + integrations token store).
-- **CI guardrails (never-miss-again)**: pin GitHub Actions to SHAs, expand secrets-manifest validation to all workflows, and add CI enforcement for RLS compliance audit.
-- **Mobile parity**: align guest/invite/auth endpoints with backend; add OpenAPI-based contract tests to prevent "green but broken".
+- **Security / tenant isolation** (RLS correctness):
+  - Workflow webhook receiver must set `request.tenant` + `set_current_tenant()` **before** ORM lookup (FORCE RLS correctness).
+  - Legacy workflow webhook endpoint must fail closed unless tenant context is resolvable (migrate callers to tenant-path URL).
+  - Integrations OAuth callback must set tenant + RLS session vars before writing tenant-scoped rows.
+  - WorkForms create must not bypass activation validation when `status=active`.
+- **CI guardrails (never-miss-again)**: keep Golden Drift Gate green; follow-ups include re-enabling backend/frontend test gates in `reusable-deploy.yml`.
+- **Mobile parity**: align WorkForms mobile models with backend (`workflow_definition`), extend OpenAPI contract coverage for `/tenant-workforms/*`, and add a real WorkForm detail view.
 
 ### Historical context (kept for traceability)
 
