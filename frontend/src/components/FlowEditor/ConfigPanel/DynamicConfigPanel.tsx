@@ -55,7 +55,7 @@ import {
   renderValidationBuilder,
 } from '../config/fieldRenderers/complexRenderers';
 import { NestedChildrenRenderer } from './NestedChildrenRenderer';
-import { listTenantForms } from '../../../services/workformsApi';
+import { listTenantForms, getTenantForm } from '../../../services/workformsApi';
 
 // Import shared styled components
 import {
@@ -811,7 +811,56 @@ export const DynamicConfigPanel: React.FC<DynamicConfigPanelProps> = ({
             <Label>{field.label}</Label>
             <Select
               value={selected}
-              onChange={(e) => commonProps.onChange(e.target.value)}
+              onChange={async (e) => {
+                const selectedFormId = e.target.value;
+                commonProps.onChange(selectedFormId);
+
+                if (!node?.id) return;
+                if (!selectedFormId) return;
+
+                const nodeId = node.id;
+                const selectedFromList = forms.find((f: any) => String(f?.id) === String(selectedFormId));
+                const friendlyName =
+                  selectedFromList?.title ||
+                  selectedFromList?.display_name ||
+                  selectedFromList?.displayName ||
+                  selectedFromList?.name ||
+                  undefined;
+                const friendlyDescription = selectedFromList?.description || selectedFromList?.helpText || undefined;
+
+                try {
+                  const form = await getTenantForm(String(selectedFormId));
+                  const definition = (form as any).form_definition ?? (form as any).flow_data;
+
+                  let fieldCount = 0;
+                  let sectionCount = 0;
+
+                  if (definition?.fields && Array.isArray(definition.fields)) {
+                    fieldCount = definition.fields.length;
+                    sectionCount = 1;
+                  } else if (definition?.steps && Array.isArray(definition.steps)) {
+                    sectionCount = definition.steps.length;
+                    fieldCount = definition.steps.reduce((acc: number, step: any) => {
+                      const count = Array.isArray(step?.fields) ? step.fields.length : 0;
+                      return acc + count;
+                    }, 0);
+                  }
+
+                  if (!node?.id || node.id !== nodeId) return;
+
+                  onUpdateNode(nodeId, {
+                    // Keep common legacy keys in sync.
+                    formId: selectedFormId,
+                    tenantFormId: selectedFormId,
+                    formName: friendlyName ?? (form as any)?.name,
+                    formDescription: friendlyDescription ?? (form as any)?.description,
+                    fieldCount,
+                    sectionCount,
+                  });
+                } catch (err) {
+                  console.warn('[DynamicConfigPanel] Failed to load selected form metadata:', err);
+                }
+              }}
               disabled={field.disabled || commonProps.disabled || tenantFormsLoading}
               $hasError={Boolean(error)}
             >
