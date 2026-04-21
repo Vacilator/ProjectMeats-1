@@ -7,12 +7,15 @@ from rest_framework import status
 from rest_framework.test import APITestCase
 
 from apps.system.models import TenantWorkForm
-from apps.tenants.models import Tenant, TenantUser
+from django.test.utils import override_settings
+
+from apps.tenants.models import Tenant, TenantDomain, TenantUser
 
 
 User = get_user_model()
 
 
+@override_settings(ALLOWED_HOSTS=['*'])
 class WorkFormRuntimeSupportValidationTests(APITestCase):
     def setUp(self):
         unique = uuid.uuid4().hex[:8]
@@ -29,6 +32,14 @@ class WorkFormRuntimeSupportValidationTests(APITestCase):
         )
 
         TenantUser.objects.create(tenant=self.tenant, user=self.user, role='admin', is_active=True)
+
+        domain = TenantDomain.objects.create(
+            tenant=self.tenant,
+            domain=f'{self.tenant.slug}.example.com',
+            is_primary=True,
+        )
+        # TenantMiddleware resolves tenant from host (force_authenticate doesn't run through middleware auth).
+        self.client.defaults['HTTP_HOST'] = domain.domain
 
         self.workform = TenantWorkForm.objects.create(
             tenant=self.tenant,
@@ -80,3 +91,34 @@ class WorkFormRuntimeSupportValidationTests(APITestCase):
         self.assertEqual(payload.get('error'), 'workform_validation_failed')
         self.assertIn('runtime', payload)
         self.assertFalse(payload['runtime'].get('valid', True))
+
+    def test_create_active_is_blocked_when_runtime_invalid(self):
+        resp = self.client.post(
+            '/api/v1/tenant-workforms/',
+            data={
+                'name': 'WF create',
+                'description': '',
+                'status': 'active',
+                'workflow_definition': {
+                    'nodes': [
+                        {'id': 't1', 'type': 'triggerManual', 'data': {'label': 'Manual Trigger'}},
+                        {'id': 'bad', 'type': 'actionHttp', 'data': {'label': 'HTTP Request'}},
+                        {'id': 'end', 'type': 'end', 'data': {'label': 'End'}},
+                    ],
+                    'edges': [
+                        {'id': 'e1', 'source': 't1', 'target': 'bad', 'type': 'default'},
+                        {'id': 'e2', 'source': 'bad', 'target': 'end', 'type': 'default'},
+                    ],
+                },
+            },
+            format='json',
+            HTTP_X_TENANT_ID=str(self.tenant.id),
+        )
+
+        self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST, resp.content)
+        payload = resp.json()
+        self.assertEqual(payload.get('error'), 'workform_validation_failed')
+        self.assertIn('runtime', payload)
+        self.assertFalse(payload['runtime'].get('valid', True))
+
+        self.assertFalse(TenantWorkForm.objects.filter(tenant=self.tenant, name='WF create').exists())
