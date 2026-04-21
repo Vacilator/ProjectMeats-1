@@ -331,6 +331,123 @@ check_docker_port_bindings() {
     return 0
 }
 
+check_golden_workflow_topology() {
+    log_info "Checking golden workflow topology..."
+
+    local failed=0
+
+    # Ban docker-compose usage in workflows (deployments must use docker run)
+    if grep -R "docker-compose" .github/workflows/*.yml .github/workflows/*.yaml >/dev/null 2>&1; then
+        log_error "docker-compose usage detected in workflows (prohibited)"
+        grep -R "docker-compose" .github/workflows/*.yml .github/workflows/*.yaml || true
+        ((failed++))
+    fi
+
+    # Ban :latest tags in workflow files
+    if grep -R ":latest" .github/workflows/*.yml .github/workflows/*.yaml >/dev/null 2>&1; then
+        log_error "':latest' tag detected in workflows (prohibited)"
+        grep -R ":latest" .github/workflows/*.yml .github/workflows/*.yaml || true
+        ((failed++))
+    fi
+
+    # Enforce backend .env uses manifest-defined EMAIL_HOST_PASSWORD (not legacy SENDGRID_API_KEY)
+    if [[ -f .github/workflows/reusable-deploy.yml ]]; then
+        if grep -q "SENDGRID_API_KEY=" .github/workflows/reusable-deploy.yml; then
+            log_error "reusable-deploy.yml writes SENDGRID_API_KEY into backend.env (must use EMAIL_HOST_PASSWORD from env manifest)"
+            ((failed++))
+        fi
+
+        # Disallow known "tests bypass" markers
+        if grep -qi "temporarily bypassed\|skip tests temporarily" .github/workflows/reusable-deploy.yml; then
+            log_error "reusable-deploy.yml still contains test bypass markers"
+            grep -ni "temporarily bypassed\|skip tests temporarily" .github/workflows/reusable-deploy.yml || true
+            ((failed++))
+        fi
+
+        # Validate job dependency topology via YAML parse
+        if ! python - <<'PY'
+import sys
+from pathlib import Path
+
+import yaml
+
+wf = Path('.github/workflows/reusable-deploy.yml')
+data = yaml.safe_load(wf.read_text(encoding='utf-8')) or {}
+jobs = data.get('jobs') or {}
+
+required_jobs = {
+    'build-backend',
+    'test-backend',
+    'build-frontend',
+    'test-frontend',
+    'check-migrations',
+    'migrate',
+    'deploy-backend',
+    'deploy-frontend',
+}
+
+missing = sorted(required_jobs - set(jobs.keys()))
+if missing:
+    print(f"ERROR: reusable-deploy.yml missing expected jobs: {', '.join(missing)}", file=sys.stderr)
+    raise SystemExit(1)
+
+
+def needs_list(job_name: str):
+    job = jobs.get(job_name) or {}
+    needs = job.get('needs')
+    if needs is None:
+        return []
+    if isinstance(needs, str):
+        return [needs]
+    if isinstance(needs, list):
+        return [n for n in needs if isinstance(n, str)]
+    return []
+
+# Golden invariants
+migrate_needs = set(needs_list('migrate'))
+if 'check-migrations' not in migrate_needs or 'test-frontend' not in migrate_needs:
+    print("ERROR: migrate must need [check-migrations, test-frontend] to avoid partial deploys", file=sys.stderr)
+    raise SystemExit(1)
+
+check_migrations_needs = set(needs_list('check-migrations'))
+if 'test-backend' not in check_migrations_needs:
+    print("ERROR: check-migrations must need test-backend", file=sys.stderr)
+    raise SystemExit(1)
+
+deploy_frontend_needs = set(needs_list('deploy-frontend'))
+if 'deploy-backend' in deploy_frontend_needs:
+    print("ERROR: deploy-frontend must NOT depend on deploy-backend (parallel swimlanes)", file=sys.stderr)
+    raise SystemExit(1)
+
+for required in ('migrate', 'test-frontend'):
+    if required not in deploy_frontend_needs:
+        print(f"ERROR: deploy-frontend must need {required}", file=sys.stderr)
+        raise SystemExit(1)
+
+if 'security-scan-frontend' not in deploy_frontend_needs:
+    print("ERROR: deploy-frontend must need security-scan-frontend", file=sys.stderr)
+    raise SystemExit(1)
+
+deploy_backend_needs = set(needs_list('deploy-backend'))
+if 'migrate' not in deploy_backend_needs:
+    print("ERROR: deploy-backend must need migrate", file=sys.stderr)
+    raise SystemExit(1)
+
+print('✓ reusable-deploy.yml topology OK')
+PY
+        then
+            ((failed++))
+        fi
+    fi
+
+    if [[ $failed -gt 0 ]]; then
+        return 1
+    fi
+
+    log_info "✓ Golden workflow topology validated"
+    return 0
+}
+
 check_retry_logic() {
     log_info "Checking retry logic in health checks..."
 
@@ -595,6 +712,7 @@ main() {
     check_error_handling || ((failed++))
     check_timeouts || ((failed++))
     check_docker_port_bindings || ((failed++))
+    check_golden_workflow_topology || ((failed++))
     check_retry_logic || ((failed++))
     check_migration_safety || ((failed++))
     check_concurrency || ((failed++))
