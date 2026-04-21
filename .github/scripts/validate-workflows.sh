@@ -797,7 +797,61 @@ PY
     return 0
 }
 
+check_immutable_deploy_tags() {
+    log_info "Checking deploy image tags are SHA-derived (github.sha)..."
+
+    if [[ ! -f .github/workflows/reusable-deploy.yml ]]; then
+        log_info "No reusable-deploy.yml found (skipping immutable deploy tag checks)"
+        return 0
+    fi
+
+    if ! python - <<'PY'
+import re
+import sys
+from pathlib import Path
+
+wf_path = Path('.github/workflows/reusable-deploy.yml')
+text = wf_path.read_text(encoding='utf-8', errors='ignore')
+
+errors = []
+
+# 1) Hard block any env-only tag usage in reusable-deploy.yml.
+# Require tags that include both inputs.environment and github.sha.
+env_only_tag_re = re.compile(r":\s*\$\{\{\s*inputs\.environment\s*\}\}(?!\s*-\s*\$\{\{\s*github\.sha\s*\}\})")
+if env_only_tag_re.search(text):
+    errors.append(f"{wf_path.name}: env-only image tag detected (must include github.sha)")
+
+# 2) Require explicit SHA-derived tag variables in key locations.
+sha_tag_expr = r"\$\{\{\s*inputs\.environment\s*\}\}\s*-\s*\$\{\{\s*github\.sha\s*\}\}"
+
+tag_pat = re.compile(r"\bTAG\s*=\s*['\"]" + sha_tag_expr + r"['\"]")
+image_tag_pat = re.compile(r"\bIMAGE_TAG\s*=\s*['\"]" + sha_tag_expr + r"['\"]")
+
+if not tag_pat.search(text):
+    errors.append(f"{wf_path.name}: missing SHA-derived TAG assignment (expected TAG=\"${{ inputs.environment }}-${{ github.sha }}\")")
+
+if len(image_tag_pat.findall(text)) < 2:
+    errors.append(
+        f"{wf_path.name}: missing SHA-derived IMAGE_TAG assignments (expected at least 2 occurrences for migrate+frontend)"
+    )
+
+if errors:
+    for e in errors:
+        print(f"ERROR: {e}", file=sys.stderr)
+    raise SystemExit(1)
+
+print('✓ Deploy image tags are SHA-derived (inputs.environment-github.sha)')
+PY
+    then
+        return 1
+    fi
+
+    return 0
+}
+
+# Check workflow_run targets exist (promotion reliability)
 check_workflow_run_targets_exist() {
+
     log_info "Checking workflow_run referenced workflow names exist..."
 
     if ! python - <<'PY'
@@ -1027,6 +1081,7 @@ main() {
     check_actions_pinned_to_sha || ((failed++))
     check_no_floating_action_refs || ((failed++))
     check_digest_pinned_workflow_images || ((failed++))
+    check_immutable_deploy_tags || ((failed++))
     check_workflow_run_targets_exist || ((failed++))
     check_env_separation || ((failed++))
     
