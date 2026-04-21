@@ -15,9 +15,10 @@ This file is the **canonical plan + current truth snapshot**.
 ### What is true right now
 - **WorkForms E2E** is shipped end-to-end (execute + monitoring + notifications + Quick Actions + Gmail connector MVP).
 - **Primary execution focus (P0):** close remaining correctness + UX gaps surfaced by squad audits.
+- Recently shipped hardening includes FlowEditor a11y tabs + HelpModal stability, back-compat theme token aliases, WorkForms RBAC regression coverage, and debug logging cleanup (see PR refs in `.github/MASTER_PLAN.md`).
 
 ### P0 priorities (next)
-- **WorkForms Editor stability**: deterministic schema init (no timer races), resolve form "fields" model mismatch, sanitize UI-only shadow state on save, remove hardcoded colors, and fix a11y for tabs/modals.
+- **WorkForms Editor stability**: deterministic schema init (no timer races), resolve form "fields" model mismatch, sanitize UI-only shadow state on save; continue hardening remaining a11y + theme-token usage as needed.
 - **Security / tenant isolation** (RLS correctness):
   - Workflow webhook receiver must set `request.tenant` + `set_current_tenant()` **before** ORM lookup (FORCE RLS correctness).
   - Legacy workflow webhook endpoint must fail closed unless tenant context is resolvable (migrate callers to tenant-path URL).

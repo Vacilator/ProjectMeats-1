@@ -74,6 +74,17 @@ This architecture separates **Structure** (React Components) from **Appearance**
 --shadow-lg              /* Large elevation */
 ```
 
+### Legacy / back-compat theme variable aliases
+
+Some older components still reference legacy tokens. These are supported via aliases in `frontend/src/index.css`, but **do not use them in new code**—prefer the canonical tokens above.
+
+- `--color-bg-layout` → `--color-background`
+- `--color-bg-primary` → `--color-surface`
+- `--color-text-tertiary` → `--color-text-secondary`
+- `--color-primary-dark` → `--color-primary-hover`
+- `--color-background-secondary` → `--color-surface`
+- `--color-background-tertiary` → `--color-surface-hover`
+
 ### ❌ NEVER Hardcode Colors
 
 ```tsx
