@@ -32,4 +32,14 @@ describe('schemaRegistry action schemas', () => {
     expect(updateFieldIds.has('recordId')).toBe(true);
     expect(updateFieldIds.has('fieldMappings')).toBe(true);
   });
+
+  it('keeps documentGenerate template field usable (no stuck loading select)', () => {
+    const schema = schemaRegistry.getSchema('documentGenerate');
+    const templateField = schema.sections
+      .flatMap((s) => s.fields ?? [])
+      .find((f) => f.id === 'templateId');
+
+    expect(templateField).toBeDefined();
+    expect((templateField as any).type).toBe('text');
+  });
 });

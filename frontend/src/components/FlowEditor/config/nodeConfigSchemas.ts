@@ -1402,24 +1402,16 @@ export const documentGenerateSchema: NodeConfigSchema = {
         },
         {
           id: 'templateId',
-          type: 'select',
-          label: 'Template',
-          placeholder: 'Select template...',
-          helpText: 'Pre-configured document template',
+          type: 'text',
+          label: 'Template ID',
+          placeholder: 'Paste a template ID...',
+          helpText: 'Template Library integration is not yet available here. Paste the template ID for now.',
           required: true,
-          options: [
-            {
-              value: '__loading__',
-              label: 'Loading Templates...',
-              disabled: true,
-            },
-          ],
           conditional: {
             field: 'templateSource',
             operator: 'equals',
             value: 'library'
           },
-          // Options loaded dynamically from API
           validation: [{ type: 'required', message: 'Template is required' }]
         },
         {
