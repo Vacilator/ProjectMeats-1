@@ -303,12 +303,13 @@ check_docker_port_bindings() {
         fi
 
         # Prohibit exposing frontend container on all interfaces
-        if grep -Eq -- "-p[[:space:]]+8080:80" "$workflow"; then
+        # (match both "-p 8080:80" and "-p8080:80")
+        if grep -Eq -- "-p[[:space:]]*8080:80" "$workflow"; then
             log_error "Prohibited port mapping found in $workflow: '-p 8080:80' (must be 127.0.0.1:8080:80)"
             ((failed++))
         fi
 
-        if grep -Eq -- "-p[[:space:]]+0\.0\.0\.0:8080:80" "$workflow"; then
+        if grep -Eq -- "-p[[:space:]]*0\.0\.0\.0:8080:80" "$workflow"; then
             log_error "Prohibited port mapping found in $workflow: '-p 0.0.0.0:8080:80' (must be 127.0.0.1:8080:80)"
             ((failed++))
         fi
@@ -336,17 +337,53 @@ check_golden_workflow_topology() {
 
     local failed=0
 
-    # Ban docker-compose usage in workflows (deployments must use docker run)
-    if grep -R "docker-compose" .github/workflows/*.yml .github/workflows/*.yaml >/dev/null 2>&1; then
-        log_error "docker-compose usage detected in workflows (prohibited)"
-        grep -R "docker-compose" .github/workflows/*.yml .github/workflows/*.yaml || true
-        ((failed++))
-    fi
+    # Ban docker-compose / docker compose and ban :latest tags.
+    # - Deployments must use `docker run` on remote hosts (no compose)
+    # - Image tags must be immutable (no :latest)
+    # Scan both workflows and .github/scripts (excluding this validator script itself).
+    if ! python - <<'PY'
+import re
+import sys
+from pathlib import Path
 
-    # Ban :latest tags in workflow files
-    if grep -R ":latest" .github/workflows/*.yml .github/workflows/*.yaml >/dev/null 2>&1; then
-        log_error "':latest' tag detected in workflows (prohibited)"
-        grep -R ":latest" .github/workflows/*.yml .github/workflows/*.yaml || true
+paths = [Path('.github/workflows'), Path('.github/scripts')]
+
+# Exclude self, otherwise we'd match the validator's own "docker-compose" / ":latest" strings.
+exclude = {Path('.github/scripts/validate-workflows.sh').resolve()}
+
+files = []
+for base in paths:
+    if not base.exists():
+        continue
+    for p in base.rglob('*'):
+        if not p.is_file():
+            continue
+        if p.suffix not in {'.yml', '.yaml', '.sh'}:
+            continue
+        if p.resolve() in exclude:
+            continue
+        files.append(p)
+
+compose_re = re.compile(r"\bdocker-compose\b|\bdocker\s+compose\b")
+latest_re = re.compile(r":latest\b")
+
+errors = []
+for p in sorted(files):
+    text = p.read_text(encoding='utf-8', errors='ignore').splitlines()
+    for i, line in enumerate(text, start=1):
+        if compose_re.search(line):
+            errors.append(f"{p}: {i}: docker compose usage detected (prohibited): {line.strip()}")
+        if latest_re.search(line):
+            errors.append(f"{p}: {i}: ':latest' tag detected (prohibited): {line.strip()}")
+
+if errors:
+    for e in errors:
+        print(f"ERROR: {e}", file=sys.stderr)
+    raise SystemExit(1)
+
+print('✓ No docker compose usage and no :latest tags detected')
+PY
+    then
         ((failed++))
     fi
 
@@ -364,25 +401,34 @@ check_golden_workflow_topology() {
             ((failed++))
         fi
 
-        # Validate job dependency topology via YAML parse
+        # Validate job dependency topology via YAML parse (enforce golden graph invariants)
         if ! python - <<'PY'
+import re
 import sys
 from pathlib import Path
 
 import yaml
 
 wf = Path('.github/workflows/reusable-deploy.yml')
-data = yaml.safe_load(wf.read_text(encoding='utf-8')) or {}
+data = yaml.safe_load(wf.read_text(encoding='utf-8', errors='ignore')) or {}
 jobs = data.get('jobs') or {}
 
 required_jobs = {
+    # Gate
+    'check_infrastructure',
+
+    # Backend swimlane
     'build-backend',
+    'security-scan-backend',
     'test-backend',
-    'build-frontend',
-    'test-frontend',
     'check-migrations',
     'migrate',
     'deploy-backend',
+
+    # Frontend swimlane
+    'build-frontend',
+    'security-scan-frontend',
+    'test-frontend',
     'deploy-frontend',
 }
 
@@ -392,48 +438,84 @@ if missing:
     raise SystemExit(1)
 
 
-def needs_list(job_name: str):
+def needs_set(job_name: str) -> set[str]:
     job = jobs.get(job_name) or {}
     needs = job.get('needs')
     if needs is None:
-        return []
+        return set()
     if isinstance(needs, str):
-        return [needs]
+        return {needs}
     if isinstance(needs, list):
-        return [n for n in needs if isinstance(n, str)]
-    return []
+        return {n for n in needs if isinstance(n, str)}
+    return set()
 
-# Golden invariants
-migrate_needs = set(needs_list('migrate'))
-if 'check-migrations' not in migrate_needs or 'test-frontend' not in migrate_needs:
-    print("ERROR: migrate must need [check-migrations, test-frontend] to avoid partial deploys", file=sys.stderr)
-    raise SystemExit(1)
 
-check_migrations_needs = set(needs_list('check-migrations'))
-if 'test-backend' not in check_migrations_needs:
-    print("ERROR: check-migrations must need test-backend", file=sys.stderr)
-    raise SystemExit(1)
-
-deploy_frontend_needs = set(needs_list('deploy-frontend'))
-if 'deploy-backend' in deploy_frontend_needs:
-    print("ERROR: deploy-frontend must NOT depend on deploy-backend (parallel swimlanes)", file=sys.stderr)
-    raise SystemExit(1)
-
-for required in ('migrate', 'test-frontend'):
-    if required not in deploy_frontend_needs:
-        print(f"ERROR: deploy-frontend must need {required}", file=sys.stderr)
+def assert_needs_exact(job: str, expected: set[str]):
+    got = needs_set(job)
+    if got != expected:
+        print(f"ERROR: {job}.needs must be exactly {sorted(expected)} (found {sorted(got)})", file=sys.stderr)
         raise SystemExit(1)
 
-if 'security-scan-frontend' not in deploy_frontend_needs:
-    print("ERROR: deploy-frontend must need security-scan-frontend", file=sys.stderr)
+# -----------------------------
+# Parallel swimlanes (topology)
+# -----------------------------
+# Build jobs start in parallel right after infra gate.
+assert_needs_exact('build-backend', {'check_infrastructure'})
+assert_needs_exact('build-frontend', {'check_infrastructure'})
+
+# Security scan and tests stay within their swimlane.
+assert_needs_exact('security-scan-backend', {'build-backend'})
+assert_needs_exact('test-backend', {'build-backend'})
+
+assert_needs_exact('security-scan-frontend', {'build-frontend'})
+assert_needs_exact('test-frontend', {'build-frontend'})
+
+# Backend preflight: check migrations after backend tests.
+assert_needs_exact('check-migrations', {'test-backend'})
+
+# Tests gating is re-enabled: migrations are gated on BOTH backend and frontend test tracks.
+assert_needs_exact('migrate', {'check-migrations', 'test-frontend'})
+
+# Deploy backend is gated on migrations + its own security scan.
+assert_needs_exact('deploy-backend', {'migrate', 'security-scan-backend'})
+
+# Deploy frontend must synchronize on migrations, but must not depend on deploy-backend.
+assert_needs_exact('deploy-frontend', {'migrate', 'test-frontend', 'security-scan-frontend'})
+
+# Explicitly forbid accidental cross-lane coupling (beyond the migrate barrier).
+deploy_frontend_needs = needs_set('deploy-frontend')
+for forbidden in ('deploy-backend', 'deploy-dev', 'deploy-uat', 'deploy-prod', 'check-migrations', 'test-backend', 'security-scan-backend', 'build-backend'):
+    if forbidden in deploy_frontend_needs:
+        print(f"ERROR: deploy-frontend must not depend on {forbidden} (swimlane independence)", file=sys.stderr)
+        raise SystemExit(1)
+
+# -----------------------------------------
+# Runner-driven migrations (implementation)
+# -----------------------------------------
+migrate_job = jobs.get('migrate') or {}
+if migrate_job.get('runs-on') != 'ubuntu-latest':
+    print(f"ERROR: migrate must be runner-based (runs-on: ubuntu-latest). Found: {migrate_job.get('runs-on')}", file=sys.stderr)
     raise SystemExit(1)
 
-deploy_backend_needs = set(needs_list('deploy-backend'))
-if 'migrate' not in deploy_backend_needs:
-    print("ERROR: deploy-backend must need migrate", file=sys.stderr)
+steps = migrate_job.get('steps') or []
+run_text = "\n".join([s.get('run','') for s in steps if isinstance(s, dict) and isinstance(s.get('run'), str)])
+
+# Must use SSH tunnel (bastion) and bind to local 5433
+if 'sshpass' not in run_text or '-L 5433:' not in run_text:
+    print("ERROR: migrate must establish an SSH tunnel (-L 5433:...) using sshpass", file=sys.stderr)
     raise SystemExit(1)
 
-print('✓ reusable-deploy.yml topology OK')
+# Must run migrations in Docker with host networking so container can reach localhost tunnel.
+if '--network host' not in run_text:
+    print("ERROR: migrate must run docker with --network host", file=sys.stderr)
+    raise SystemExit(1)
+
+# Must use --fake-initial (runner-driven migrations invariant)
+if 'python manage.py migrate --fake-initial --noinput' not in run_text:
+    print("ERROR: migrate must run: python manage.py migrate --fake-initial --noinput", file=sys.stderr)
+    raise SystemExit(1)
+
+print('✓ reusable-deploy.yml golden topology + migration contract OK')
 PY
         then
             ((failed++))
@@ -480,25 +562,47 @@ check_retry_logic() {
 
 # Check for migration safety
 check_migration_safety() {
-    log_info "Checking migration safety..."
+    log_info "Checking migration safety (golden runner-driven migrations + no dynamic generation)..."
 
-    local workflows=()
-    shopt -s nullglob
-    workflows=(.github/workflows/*-deployment.yml)
-    shopt -u nullglob
-
-    if [[ ${#workflows[@]} -eq 0 ]]; then
-        log_info "No *-deployment.yml workflows found (skipping migration-safety checks)"
+    if [[ ! -f .github/workflows/reusable-deploy.yml ]]; then
+        log_info "No reusable-deploy.yml found (skipping migration-safety checks)"
         return 0
     fi
 
-    # Check if makemigrations is still in CI (should be removed)
-    if grep -r "makemigrations" "${workflows[@]}" | grep -v "^#"; then
-        log_error "Found makemigrations in deployment workflows (should be removed)"
+    # 1) Allow ONLY "makemigrations --check --dry-run" (no dynamic migration generation in CI)
+    # 2) Require migrate uses --fake-initial (runner-driven contract)
+    if ! python - <<'PY'
+import sys
+from pathlib import Path
+
+wf = Path('.github/workflows/reusable-deploy.yml')
+lines = wf.read_text(encoding='utf-8', errors='ignore').splitlines()
+
+bad = []
+for i, line in enumerate(lines, start=1):
+    stripped = line.lstrip()
+    if stripped.startswith('echo '):
+        continue
+
+    if 'manage.py makemigrations' in line:
+        if '--check' not in line or '--dry-run' not in line:
+            bad.append(f"{wf}: {i}: makemigrations must be check-only (require --check --dry-run): {line.strip()}")
+
+text = "\n".join(lines)
+if 'python manage.py migrate --fake-initial --noinput' not in text:
+    bad.append("reusable-deploy.yml: migrate must run with --fake-initial --noinput")
+
+if bad:
+    for e in bad:
+        print(f"ERROR: {e}", file=sys.stderr)
+    raise SystemExit(1)
+
+print('✓ Migration safety checks passed')
+PY
+    then
         return 1
     fi
 
-    log_info "✓ No dynamic migration generation in CI"
     return 0
 }
 
