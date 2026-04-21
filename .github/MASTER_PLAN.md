@@ -1680,3 +1680,4 @@ Deliverables:
 - **2026-04-21** — CI: move archived workflows out of `.github/workflows/` so they cannot appear/run in GitHub Actions (reduces footguns + guardrail bypass). (PR: #4544)
 - **2026-04-21** — CI: stop pushing mutable `:latest` tags — build-dev-image now pushes only immutable sha tags; devcontainer builds locally to avoid `:latest` dependency; update workflow instructions to match no-latest policy. (PR: #4546)
 - **2026-04-21** — CI: digest-pin workflow service images (postgres + pgvector) to multi-arch manifest digests for deterministic runs. (PR: #4548)
+- **2026-04-21** — Docs: refresh discovery backlog pointers and update canonical `MASTER_PLAN.md` execution snapshot (no behavior changes). (PR: #4550)
