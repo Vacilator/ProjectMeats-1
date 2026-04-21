@@ -1668,3 +1668,5 @@ Deliverables:
 - **2026-04-21** — WorkForms editor: a11y nested children (keyboard expansion + aria labels + button types) + tests. (PR: #4522)
 - **2026-04-21** — Docs: append PR log (2026-04-21). (PR: #4523)
 - **2026-04-21** — CI: enforce pinned action SHAs (reject tag-based refs; disallow dynamic uses). (PR: #4524)
+- **2026-04-21** — Security: harden OAuth callbacks (state binding + nonce single-use; legacy callback tightened) + tests. (PR: #4526)
+- **2026-04-21** — CI: enforce RLS audit coverage (deterministic lint; include integrations.EmailLog) + test. (PR: #4527)
