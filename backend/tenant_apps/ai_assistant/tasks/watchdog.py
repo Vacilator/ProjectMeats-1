@@ -14,7 +14,7 @@ from datetime import timedelta
 from celery import shared_task
 from django.utils import timezone
 
-from apps.tenants.rls import set_current_tenant
+from apps.tenants.rls import reset_current_tenant, set_current_tenant
 
 logger = logging.getLogger(__name__)
 
@@ -52,47 +52,51 @@ def run_daily_watchdog(days_overdue: int = 3) -> dict:
             logger.warning('[Watchdog] Skipping tenant=%s (RLS set failed: %s)', tenant.id, rls.error)
             continue
 
-        overdue_qs = (
-            PurchaseOrder.objects.filter(
-                tenant=tenant,
-                is_deleted=False,
-                delivery_date__isnull=False,
-                delivery_date__lt=cutoff_date,
+        try:
+            overdue_qs = (
+                PurchaseOrder.objects.filter(
+                    tenant=tenant,
+                    is_deleted=False,
+                    delivery_date__isnull=False,
+                    delivery_date__lt=cutoff_date,
+                )
+                .exclude(status__in=[PurchaseOrderStatus.DELIVERED, PurchaseOrderStatus.CANCELLED])
+                .only('id', 'order_number', 'delivery_date', 'status')
+                .order_by('delivery_date')
             )
-            .exclude(status__in=[PurchaseOrderStatus.DELIVERED, PurchaseOrderStatus.CANCELLED])
-            .only('id', 'order_number', 'delivery_date', 'status')
-            .order_by('delivery_date')
-        )
 
-        overdue = list(overdue_qs[:25])
-        if not overdue:
-            continue
+            overdue = list(overdue_qs[:25])
+            if not overdue:
+                continue
 
-        summary['overdue_pos_found'] += len(overdue)
+            summary['overdue_pos_found'] += len(overdue)
 
-        admin_user_ids = list(
-            TenantUser.objects.filter(tenant=tenant, is_active=True, role__in=['owner', 'admin']).values_list('user_id', flat=True)
-        )
-        if not admin_user_ids:
-            continue
-
-        lines = [
-            f"PO {po.order_number} expected {po.delivery_date} (status={po.status})" for po in overdue
-        ]
-        title = f"Overdue Purchase Orders ({len(overdue)})"
-        message = "The following POs appear overdue:\n" + "\n".join(lines)
-
-        for uid in admin_user_ids:
-            UserNotification.objects.create(
-                user_id=uid,
-                tenant=tenant,
-                notification_type=NotificationType.SYSTEM,
-                title=title,
-                message=message,
-                priority=NotificationPriority.HIGH,
-                entity_type='purchase_order',
-                metadata={'watchdog': True, 'cutoff_date': cutoff_date.isoformat(), 'count': len(overdue)},
+            admin_user_ids = list(
+                TenantUser.objects.filter(tenant=tenant, is_active=True, role__in=['owner', 'admin']).values_list('user_id', flat=True)
             )
-            summary['notifications_created'] += 1
+            if not admin_user_ids:
+                continue
+
+            lines = [
+                f"PO {po.order_number} expected {po.delivery_date} (status={po.status})" for po in overdue
+            ]
+            title = f"Overdue Purchase Orders ({len(overdue)})"
+            message = "The following POs appear overdue:\n" + "\n".join(lines)
+
+            for uid in admin_user_ids:
+                UserNotification.objects.create(
+                    user_id=uid,
+                    tenant=tenant,
+                    notification_type=NotificationType.SYSTEM,
+                    title=title,
+                    message=message,
+                    priority=NotificationPriority.HIGH,
+                    entity_type='purchase_order',
+                    metadata={'watchdog': True, 'cutoff_date': cutoff_date.isoformat(), 'count': len(overdue)},
+                )
+                summary['notifications_created'] += 1
+
+        finally:
+            reset_current_tenant()
 
     return summary

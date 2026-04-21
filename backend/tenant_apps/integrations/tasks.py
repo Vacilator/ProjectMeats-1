@@ -42,73 +42,77 @@ def dispatch_webhook_payload(self, webhook_id: int, tenant_id: str, event_type: 
     - HTTP 5xx
     """
 
-    from apps.tenants.rls import set_current_tenant
+    from apps.tenants.rls import reset_current_tenant, set_current_tenant
 
     rls = set_current_tenant(str(tenant_id))
     if not rls.ok:
         logger.warning('[Webhooks] Skipping webhook=%s (RLS set failed: %s)', webhook_id, rls.error)
         return {'success': False, 'reason': 'rls_set_failed', 'error': rls.error}
 
-    webhook = (
-        TenantWebhook.objects.select_related('tenant')
-        .filter(id=webhook_id, tenant_id=tenant_id)
-        .first()
-    )
-    if not webhook:
-        return {'success': False, 'reason': 'webhook_not_found'}
-
-    if not webhook.is_active:
-        return {'success': True, 'skipped': True, 'reason': 'inactive'}
-
-    body = _stable_json(payload)
-    timestamp = str(int(time.time()))
-
-    headers = {
-        'Content-Type': 'application/json',
-        'User-Agent': 'ProjectMeats-Webhooks/1.0',
-        'X-PM-Event': event_type,
-        'X-PM-Tenant-ID': str(webhook.tenant_id),
-        'X-PM-Timestamp': timestamp,
-    }
-
-    if webhook.signing_secret:
-        headers['X-PM-Signature'] = _sign(webhook.signing_secret, timestamp, body)
-
     try:
-        resp = requests.post(webhook.target_url, data=body, headers=headers, timeout=10)
+        webhook = (
+            TenantWebhook.objects.select_related('tenant')
+            .filter(id=webhook_id, tenant_id=tenant_id)
+            .first()
+        )
+        if not webhook:
+            return {'success': False, 'reason': 'webhook_not_found'}
 
-        if resp.status_code == 429 or resp.status_code >= 500:
-            raise RuntimeError(f"retryable_status:{resp.status_code}")
+        if not webhook.is_active:
+            return {'success': True, 'skipped': True, 'reason': 'inactive'}
 
-        if 400 <= resp.status_code < 500:
-            logger.warning(
-                'Webhook delivery failed (non-retryable) webhook=%s status=%s body=%s',
-                webhook_id,
-                resp.status_code,
-                resp.text[:500],
-            )
+        body = _stable_json(payload)
+        timestamp = str(int(time.time()))
+
+        headers = {
+            'Content-Type': 'application/json',
+            'User-Agent': 'ProjectMeats-Webhooks/1.0',
+            'X-PM-Event': event_type,
+            'X-PM-Tenant-ID': str(webhook.tenant_id),
+            'X-PM-Timestamp': timestamp,
+        }
+
+        if webhook.signing_secret:
+            headers['X-PM-Signature'] = _sign(webhook.signing_secret, timestamp, body)
+
+        try:
+            resp = requests.post(webhook.target_url, data=body, headers=headers, timeout=10)
+
+            if resp.status_code == 429 or resp.status_code >= 500:
+                raise RuntimeError(f"retryable_status:{resp.status_code}")
+
+            if 400 <= resp.status_code < 500:
+                logger.warning(
+                    'Webhook delivery failed (non-retryable) webhook=%s status=%s body=%s',
+                    webhook_id,
+                    resp.status_code,
+                    resp.text[:500],
+                )
+                return {
+                    'success': False,
+                    'webhook_id': webhook_id,
+                    'status_code': resp.status_code,
+                }
+
             return {
-                'success': False,
+                'success': True,
                 'webhook_id': webhook_id,
                 'status_code': resp.status_code,
             }
 
-        return {
-            'success': True,
-            'webhook_id': webhook_id,
-            'status_code': resp.status_code,
-        }
+        except Exception as e:
+            # Exponential backoff with small jitter
+            retries = getattr(self.request, 'retries', 0)
+            countdown = min(60 * (2 ** retries), 60 * 30) + random.randint(0, 5)
+            logger.error(
+                'Webhook delivery error webhook=%s retries=%s countdown=%s err=%s',
+                webhook_id,
+                retries,
+                countdown,
+                str(e),
+                exc_info=True,
+            )
+            raise self.retry(exc=e, countdown=countdown)
 
-    except Exception as e:
-        # Exponential backoff with small jitter
-        retries = getattr(self.request, 'retries', 0)
-        countdown = min(60 * (2 ** retries), 60 * 30) + random.randint(0, 5)
-        logger.error(
-            'Webhook delivery error webhook=%s retries=%s countdown=%s err=%s',
-            webhook_id,
-            retries,
-            countdown,
-            str(e),
-            exc_info=True,
-        )
-        raise self.retry(exc=e, countdown=countdown)
+    finally:
+        reset_current_tenant()
