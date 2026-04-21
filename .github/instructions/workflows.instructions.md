@@ -136,14 +136,14 @@ jobs:
 
 ### Immutable Tagging Pattern
 ```yaml
-# ✅ CORRECT: Use SHA for deployments
+# ✅ CORRECT: Use immutable SHA tags for deployments
 tags: |
   ${{ env.REGISTRY }}/${{ env.IMAGE }}:${{ env.ENV }}-${{ github.sha }}
-  ${{ env.REGISTRY }}/${{ env.IMAGE }}:${{ env.ENV }}-latest
 
-# ❌ WRONG: Never use only -latest for production
+# ❌ WRONG: Never push/deploy mutable latest tags
 tags: |
   ${{ env.REGISTRY }}/${{ env.IMAGE }}:latest
+  ${{ env.REGISTRY }}/${{ env.IMAGE }}:${{ env.ENV }}-latest
 ```
 
 ### Environment Prefixes
