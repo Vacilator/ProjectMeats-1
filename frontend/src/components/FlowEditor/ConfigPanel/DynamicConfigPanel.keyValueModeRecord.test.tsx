@@ -95,7 +95,9 @@ describe('DynamicConfigPanel (keyValueMode=record)', () => {
       <DynamicConfigPanel node={node} nodes={nodes} edges={edges} onUpdateNode={onUpdateNode} />,
     );
 
+    // Adding a draft row should not persist an array shape into node.data.
     fireEvent.click(screen.getByText('+ Add Header'));
+    expect(onUpdateNode).not.toHaveBeenCalled();
 
     const keyInput = screen.getByPlaceholderText('Header name');
     const valueInput = screen.getByPlaceholderText('Header value');
@@ -103,11 +105,41 @@ describe('DynamicConfigPanel (keyValueMode=record)', () => {
     fireEvent.change(keyInput, { target: { value: 'X-Test' } });
     fireEvent.change(valueInput, { target: { value: '123' } });
 
-    expect(onUpdateNode).toHaveBeenCalledWith(
+    expect(onUpdateNode).toHaveBeenLastCalledWith(
       'n1',
       expect.objectContaining({
         headers: { 'X-Test': '123' },
       }),
     );
+  });
+
+  it('does not keep the old key when renaming a record-mode entry', () => {
+    const node: Node = {
+      id: 'n1',
+      type: 'action',
+      position: { x: 0, y: 0 },
+      data: { nodeType: 'actionHTTP', headers: { 'X-Test': '123' } },
+    };
+
+    const nodes: Node[] = [node];
+    const edges: Edge[] = [];
+    const onUpdateNode = vi.fn();
+
+    renderWithProviders(
+      <DynamicConfigPanel node={node} nodes={nodes} edges={edges} onUpdateNode={onUpdateNode} />,
+    );
+
+    const keyInput = screen.getByDisplayValue('X-Test');
+    fireEvent.change(keyInput, { target: { value: 'X-Renamed' } });
+
+    expect(onUpdateNode).toHaveBeenLastCalledWith(
+      'n1',
+      expect.objectContaining({
+        headers: { 'X-Renamed': '123' },
+      }),
+    );
+
+    const last = onUpdateNode.mock.calls.at(-1)?.[1] as any;
+    expect(last.headers).not.toHaveProperty('X-Test');
   });
 });
