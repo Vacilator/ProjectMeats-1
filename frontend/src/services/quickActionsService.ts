@@ -6,6 +6,7 @@
  */
 import axios, { CancelTokenSource } from 'axios';
 import { apiClient } from './apiService';
+import { logger } from '@/utils/logger';
 
 // Cancel token manager for request cancellation
 class CancelTokenManager {
@@ -238,27 +239,27 @@ export const formSubmissionService = {
     const source = cancelTokenManager.create(cancelKey);
     
     try {
-      console.log('[autoSave] Saving:', { submissionId, stepId, fieldKey, valueType: typeof value });
+      logger.debug('[autoSave] Saving:', { submissionId, stepId, fieldKey, valueType: typeof value });
       const response = await apiClient.post(
         `/workflows/form-submissions/${submissionId}/auto_save/`, 
         { step_id: stepId, field_key: fieldKey, value },
         { cancelToken: source.token }
       );
       cancelTokenManager.remove(cancelKey);
-      console.log('[autoSave] Success:', response.data);
+      logger.debug('[autoSave] Success:', response.data);
       return response.data;
     } catch (err: any) {
       cancelTokenManager.remove(cancelKey);
       
       if (axios.isCancel(err)) {
-        console.log('[autoSave] Cancelled:', { submissionId, stepId, fieldKey });
+        logger.debug('[autoSave] Cancelled:', { submissionId, stepId, fieldKey });
         // Mark error with __CANCEL__ for easier detection
         const cancelError = new Error('Request cancelled');
         (cancelError as any).__CANCEL__ = true;
         throw cancelError;
       }
       
-      console.error('[autoSave] Error:', {
+      logger.error('[autoSave] Error:', {
         submissionId,
         stepId,
         fieldKey,

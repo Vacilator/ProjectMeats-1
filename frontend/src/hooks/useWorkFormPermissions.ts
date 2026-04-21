@@ -15,6 +15,7 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { apiClient } from '../services/apiService';
+import { logger } from '@/utils/logger';
 
 export interface WorkFormPermissions {
   can_create: boolean;
@@ -37,29 +38,29 @@ export function useWorkFormPermissions() {
   const query = useQuery<WorkFormPermissions>({
     queryKey: ['workforms', 'permissions'],
     queryFn: async () => {
-      console.log('[useWorkFormPermissions] Fetching permissions...');
+      logger.debug('[useWorkFormPermissions] Fetching permissions...');
       try {
         const response = await apiClient.get('/workflows/permissions/');
-        console.log('[useWorkFormPermissions] SUCCESS - Response:', response.data);
+        logger.debug('[useWorkFormPermissions] SUCCESS - Response:', response.data);
         return response.data;
       } catch (error: any) {
-        console.error('[useWorkFormPermissions] FAILED - Error:', {
+        logger.error('[useWorkFormPermissions] FAILED - Error:', {
           status: error.response?.status,
           data: error.response?.data,
           message: error.message,
-          error
+          error,
         });
-        
+
         // If 401, let the axios interceptor handle it (token refresh or redirect to login)
         // Don't catch 401 errors - they need to propagate for proper auth handling
         if (error.response?.status === 401) {
-          console.warn('[useWorkFormPermissions] 401 Unauthorized - token expired or invalid');
+          logger.warn('[useWorkFormPermissions] 401 Unauthorized - token expired or invalid');
           throw error; // Let axios interceptor handle token refresh/redirect
         }
-        
+
         // For other errors (network, 500, etc), return default permissions
         const defaults = getDefaultPermissions();
-        console.warn('[useWorkFormPermissions] Returning default permissions:', defaults);
+        logger.warn('[useWorkFormPermissions] Returning default permissions:', defaults);
         return defaults;
       }
     },
@@ -76,11 +77,11 @@ export function useWorkFormPermissions() {
     placeholderData: getDefaultPermissions(),
   });
 
-  console.log('[useWorkFormPermissions] Query state:', {
+  logger.debug('[useWorkFormPermissions] Query state:', {
     isLoading: query.isLoading,
     isError: query.isError,
     data: query.data,
-    error: query.error
+    error: query.error,
   });
 
   return {
