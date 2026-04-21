@@ -39,17 +39,50 @@ class WorkflowCollaborationConsumer(AsyncJsonWebsocketConsumer):
     async def connect(self):
         self.workflow_id = str(self.scope.get("url_route", {}).get("kwargs", {}).get("workflow_id", ""))
 
-        query = parse_qs((self.scope.get("query_string") or b"").decode("utf-8"))
-        tenant_id = (query.get("tenant_id") or query.get("tenantId") or [""])[0]
+        user = self.scope.get("user")
+        if not user or not getattr(user, "is_authenticated", False):
+            await self.close(code=4401)
+            return
 
-        # Require tenant id to prevent cross-tenant broadcast leakage.
+        tenant = self.scope.get("tenant")
+        if not tenant:
+            await self.close(code=4403)
+            return
+
+        # Workflow IDs are UUIDs (TenantWorkForm IDs). Fail closed on invalid input.
         try:
-            self.tenant_id = str(uuid.UUID(tenant_id))
+            workflow_uuid = uuid.UUID(str(self.workflow_id))
         except Exception:
             await self.close(code=4400)
             return
 
-        workflow_component = _sanitize_group_component(self.workflow_id)
+        from channels.db import database_sync_to_async
+        from django.db import connection
+
+        @database_sync_to_async
+        def _workflow_exists_for_tenant() -> bool:
+            from apps.system.models import TenantWorkForm
+
+            if connection.vendor == 'postgresql':
+                from apps.tenants.rls import set_current_tenant
+
+                set_current_tenant(str(tenant.id))
+
+            try:
+                return TenantWorkForm.objects.filter(id=workflow_uuid, tenant_id=tenant.id).exists()
+            finally:
+                if connection.vendor == 'postgresql':
+                    with connection.cursor() as cursor:
+                        cursor.execute("RESET app.current_tenant_id")
+                        cursor.execute("RESET app.current_tenant")
+
+        if not await _workflow_exists_for_tenant():
+            await self.close(code=4404)
+            return
+
+        self.tenant_id = str(tenant.id)
+
+        workflow_component = _sanitize_group_component(str(workflow_uuid))
         tenant_component = _sanitize_group_component(self.tenant_id)
         self.group_name = f"workflow-collab__{tenant_component}__{workflow_component}"
 
