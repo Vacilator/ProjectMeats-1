@@ -10,6 +10,13 @@ describe('prepareWorkflowForSave (sanitization)', () => {
         id: 'n1',
         type: 'actionEmail',
         position: { x: 0, y: 0 },
+        // UI-only runtime fields should never be persisted
+        selected: true,
+        dragging: true,
+        positionAbsolute: { x: 123, y: 456 },
+        measured: { width: 999, height: 888 },
+        width: 999,
+        height: 888,
         data: {
           nodeType: 'actionEmail',
           subject: 'hello',
@@ -44,6 +51,15 @@ describe('prepareWorkflowForSave (sanitization)', () => {
     expect(preparedNodeData.config?.shadowConfig).toBeUndefined();
     expect(preparedNodeData.config?.configStatus).toBeUndefined();
     expect(preparedNodeData.config?._upstreamVariables).toBeUndefined();
+
+    // Top-level UI-only React Flow keys should not persist
+    const preparedNode = prepared.nodes[0] as any;
+    expect(preparedNode.selected).toBeUndefined();
+    expect(preparedNode.dragging).toBeUndefined();
+    expect(preparedNode.positionAbsolute).toBeUndefined();
+    expect(preparedNode.measured).toBeUndefined();
+    expect(preparedNode.width).toBeUndefined();
+    expect(preparedNode.height).toBeUndefined();
   });
 
   it('materializes non-empty schema defaults into persisted node.data', () => {

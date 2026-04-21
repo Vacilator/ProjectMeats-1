@@ -154,6 +154,25 @@ export const prepareWorkflowForSave = (
   const nodesCopy = JSON.parse(JSON.stringify(nodes)) as Node[];
   const edgesCopy = JSON.parse(JSON.stringify(edges)) as Edge[];
 
+  // Strip React Flow UI-only top-level fields before persistence.
+  // (Selected/dragging/measured/etc. are runtime artifacts and can create noisy diffs + bloated payloads.)
+  for (const node of nodesCopy as any[]) {
+    if (!node || typeof node !== 'object') continue;
+    delete node.selected;
+    delete node.dragging;
+    delete node.resizing;
+    delete node.positionAbsolute;
+    delete node.measured;
+    delete node.width;
+    delete node.height;
+    delete node.parentNode; // legacy React Flow key (v10)
+  }
+
+  for (const edge of edgesCopy as any[]) {
+    if (!edge || typeof edge !== 'object') continue;
+    delete edge.selected;
+  }
+
   // Ensure parents appear before children for React Flow subflows.
   // This also prevents "disappearing" nodes when reloading persisted workflows.
   const sortedNodes = sortNodesTopologically(nodesCopy);
