@@ -435,6 +435,82 @@ check_no_floating_action_refs() {
     return 0
 }
 
+# Enforce pinned action SHAs (supply chain)
+check_actions_pinned_to_sha() {
+    log_info "Checking GitHub Actions 'uses:' are pinned to commit SHAs (excluding archived)..."
+
+    if ! python - <<'PY'
+import re
+import sys
+from pathlib import Path
+
+try:
+    import yaml
+except Exception as e:
+    print(f"ERROR: pyyaml not available: {e}", file=sys.stderr)
+    raise SystemExit(1)
+
+sha_re = re.compile(r"^[0-9a-f]{40}$", re.IGNORECASE)
+
+def walk(obj):
+    if isinstance(obj, dict):
+        for k, v in obj.items():
+            yield k, v
+            yield from walk(v)
+    elif isinstance(obj, list):
+        for item in obj:
+            yield from walk(item)
+
+errors = []
+wf_dir = Path('.github/workflows')
+workflow_files = sorted([p for p in wf_dir.rglob('*.yml')] + [p for p in wf_dir.rglob('*.yaml')])
+workflow_files = [p for p in workflow_files if 'archived' not in p.parts]
+
+for wf_path in workflow_files:
+    text = wf_path.read_text(encoding='utf-8', errors='ignore')
+    try:
+        data = yaml.safe_load(text) or {}
+    except Exception as e:
+        errors.append(f"{wf_path.name}: failed to parse YAML: {e}")
+        continue
+
+    for k, v in walk(data):
+        if k != 'uses' or not isinstance(v, str):
+            continue
+
+        uses = v.strip()
+
+        # Local actions / reusable workflows are allowed.
+        if uses.startswith('./'):
+            continue
+
+        # Disallow dynamic uses (breaks governance + auditing).
+        if '${{' in uses:
+            errors.append(f"{wf_path.name}: dynamic uses not allowed: {uses}")
+            continue
+
+        if '@' not in uses:
+            errors.append(f"{wf_path.name}: uses missing @ref (must pin to SHA): {uses}")
+            continue
+
+        ref = uses.rsplit('@', 1)[-1]
+        if not sha_re.match(ref):
+            errors.append(f"{wf_path.name}: action ref must be a 40-char SHA (found '{ref}') for: {uses}")
+
+if errors:
+    for e in errors:
+        print(f"ERROR: {e}", file=sys.stderr)
+    raise SystemExit(1)
+
+print('✓ All actions are pinned to commit SHAs')
+PY
+    then
+        return 1
+    fi
+
+    return 0
+}
+
 # Check workflow_run targets exist (promotion reliability)
 check_workflow_run_targets_exist() {
     log_info "Checking workflow_run referenced workflow names exist..."
@@ -522,6 +598,7 @@ main() {
     check_retry_logic || ((failed++))
     check_migration_safety || ((failed++))
     check_concurrency || ((failed++))
+    check_actions_pinned_to_sha || ((failed++))
     check_no_floating_action_refs || ((failed++))
     check_workflow_run_targets_exist || ((failed++))
     check_env_separation || ((failed++))
