@@ -877,13 +877,13 @@ def split_form(request):
         }
         
         new_form = TenantForm.objects.create(
-            tenant=request.tenant,
+            tenant=tenant,
             name=validated_data['new_form_name'],
             description=validated_data.get('new_form_description', ''),
             type=FormTypeChoices.SINGLE_STEP,
             form_definition=single_step_definition,
             created_by=request.user,
-            updated_by=request.user
+            updated_by=request.user,
         )
         
         # Update source form (remove the split step)
