@@ -9,7 +9,7 @@ Created: 2026-02-06
 """
 import logging
 
-from django.db import transaction, models
+from django.db import connection, transaction, models
 from django.utils import timezone
 from rest_framework import viewsets, status
 from rest_framework.decorators import action, api_view, permission_classes
@@ -31,6 +31,28 @@ from apps.system.workform_serializers import (
 
 
 logger = logging.getLogger(__name__)
+
+
+def _assert_rls_tenant_for_write(tenant):
+    """Best-effort assert of Postgres RLS session vars before tenant-scoped writes.
+
+    For non-Postgres backends (e.g., SQLite in local tooling), this is a no-op.
+    """
+
+    if not tenant:
+        return Response({"error": "Tenant context required"}, status=status.HTTP_400_BAD_REQUEST)
+
+    if connection.vendor != 'postgresql':
+        return None
+
+    from apps.tenants.rls import set_current_tenant
+
+    rls = set_current_tenant(str(tenant.id))
+    if not rls.ok:
+        logger.warning('RLS: failed to set session vars for tenant=%s: %s', tenant.id, rls.error)
+        return Response({"error": "Tenant context unavailable"}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+
+    return None
 
 
 def _get_request_tenant(request):
@@ -147,13 +169,41 @@ class TenantFormViewSet(viewsets.ModelViewSet):
         if self.action == 'list':
             return TenantFormListSerializer
         return TenantFormSerializer
-    
+
+    def create(self, request, *args, **kwargs):
+        tenant = _get_request_tenant(request)
+        err = _assert_rls_tenant_for_write(tenant)
+        if err is not None:
+            return err
+        return super().create(request, *args, **kwargs)
+
+    def update(self, request, *args, **kwargs):
+        tenant = _get_request_tenant(request)
+        err = _assert_rls_tenant_for_write(tenant)
+        if err is not None:
+            return err
+        return super().update(request, *args, **kwargs)
+
+    def partial_update(self, request, *args, **kwargs):
+        tenant = _get_request_tenant(request)
+        err = _assert_rls_tenant_for_write(tenant)
+        if err is not None:
+            return err
+        return super().partial_update(request, *args, **kwargs)
+
+    def destroy(self, request, *args, **kwargs):
+        tenant = _get_request_tenant(request)
+        err = _assert_rls_tenant_for_write(tenant)
+        if err is not None:
+            return err
+        return super().destroy(request, *args, **kwargs)
+
     def perform_create(self, serializer):
         """Assign tenant and creator on creation."""
         serializer.save(
             tenant=_get_request_tenant(self.request),
             created_by=self.request.user,
-            updated_by=self.request.user
+            updated_by=self.request.user,
         )
     
     def perform_update(self, serializer):
@@ -220,8 +270,13 @@ class TenantFormViewSet(viewsets.ModelViewSet):
             "can_delete": false
         }
         """
+        tenant = _get_request_tenant(request)
+        err = _assert_rls_tenant_for_write(tenant)
+        if err is not None:
+            return err
+
         form = self.get_object()
-        
+
         if form.usage_count > 0:
             form.usage_count -= 1
             form.save(update_fields=['usage_count'])
@@ -304,8 +359,10 @@ class TenantWorkFormViewSet(viewsets.ModelViewSet):
         return TenantWorkFormSerializer
 
     def create(self, request, *args, **kwargs):
-        if not getattr(request, 'tenant', None):
-            return Response({'error': 'Tenant context missing'}, status=status.HTTP_400_BAD_REQUEST)
+        tenant = _get_request_tenant(request)
+        err = _assert_rls_tenant_for_write(tenant)
+        if err is not None:
+            return err
 
         requested_status = request.data.get('status') if isinstance(request.data, dict) else None
         requested_status = str(requested_status) if requested_status is not None else None
@@ -316,7 +373,7 @@ class TenantWorkFormViewSet(viewsets.ModelViewSet):
             serializer.is_valid(raise_exception=True)
 
             candidate = TenantWorkForm(**serializer.validated_data)
-            candidate.tenant = request.tenant
+            candidate.tenant = tenant
             candidate.created_by = request.user
             candidate.updated_by = request.user
 
@@ -424,6 +481,11 @@ class TenantWorkFormViewSet(viewsets.ModelViewSet):
         return None
 
     def update(self, request, *args, **kwargs):
+        tenant = _get_request_tenant(request)
+        err = _assert_rls_tenant_for_write(tenant)
+        if err is not None:
+            return err
+
         workform = self.get_object()
         if not self._can_manage_workform(workform):
             return Response({"error": "Permission denied"}, status=status.HTTP_403_FORBIDDEN)
@@ -436,6 +498,11 @@ class TenantWorkFormViewSet(viewsets.ModelViewSet):
         return super().update(request, *args, **kwargs)
 
     def partial_update(self, request, *args, **kwargs):
+        tenant = _get_request_tenant(request)
+        err = _assert_rls_tenant_for_write(tenant)
+        if err is not None:
+            return err
+
         workform = self.get_object()
         if not self._can_manage_workform(workform):
             return Response({"error": "Permission denied"}, status=status.HTTP_403_FORBIDDEN)
@@ -448,6 +515,11 @@ class TenantWorkFormViewSet(viewsets.ModelViewSet):
         return super().partial_update(request, *args, **kwargs)
 
     def destroy(self, request, *args, **kwargs):
+        tenant = _get_request_tenant(request)
+        err = _assert_rls_tenant_for_write(tenant)
+        if err is not None:
+            return err
+
         workform = self.get_object()
         if not self._can_manage_workform(workform):
             return Response({"error": "Permission denied"}, status=status.HTTP_403_FORBIDDEN)
@@ -522,6 +594,11 @@ class TenantWorkFormViewSet(viewsets.ModelViewSet):
             "include_form_references": true
         }
         """
+        tenant = _get_request_tenant(request)
+        err = _assert_rls_tenant_for_write(tenant)
+        if err is not None:
+            return err
+
         source_workform = self.get_object()
         serializer = WorkFormCloneSerializer(data=request.data)
         
@@ -532,7 +609,7 @@ class TenantWorkFormViewSet(viewsets.ModelViewSet):
         
         # Create cloned workflow
         cloned_workform = TenantWorkForm.objects.create(
-            tenant=request.tenant,
+            tenant=tenant,
             name=validated_data['new_name'],
             description=validated_data.get('new_description', source_workform.description),
             status='draft',  # Always start as draft
@@ -672,6 +749,11 @@ class TenantWorkFormViewSet(viewsets.ModelViewSet):
             "container_id": "node-container-1"
         }
         """
+        tenant = _get_request_tenant(request)
+        err = _assert_rls_tenant_for_write(tenant)
+        if err is not None:
+            return err
+
         workform = self.get_object()
         node_id = request.data.get('node_id')
         container_id = request.data.get('container_id')
@@ -707,6 +789,11 @@ class TenantWorkFormViewSet(viewsets.ModelViewSet):
             "node_id": "node-5"
         }
         """
+        tenant = _get_request_tenant(request)
+        err = _assert_rls_tenant_for_write(tenant)
+        if err is not None:
+            return err
+
         workform = self.get_object()
         node_id = request.data.get('node_id')
         
@@ -762,11 +849,11 @@ def merge_forms(request):
 
     validated_data = serializer.validated_data
 
+    err = _assert_rls_tenant_for_write(tenant)
+    if err is not None:
+        return err
+
     with transaction.atomic():
-        from apps.tenants.rls import set_current_tenant
-
-        set_current_tenant(str(tenant.id))
-
         # Fetch source forms
         source_forms = TenantForm.objects.filter(
             tenant=tenant,
@@ -847,11 +934,11 @@ def split_form(request):
 
     validated_data = serializer.validated_data
 
+    err = _assert_rls_tenant_for_write(tenant)
+    if err is not None:
+        return err
+
     with transaction.atomic():
-        from apps.tenants.rls import set_current_tenant
-
-        set_current_tenant(str(tenant.id))
-
         # Fetch source form
         source_form = TenantForm.objects.get(
             tenant=tenant,
