@@ -220,23 +220,31 @@ curl -L -s -o /dev/null -w "%{http_code}" https://domain.com/api/health/
 ```yaml
 - name: Create Backend .env File Locally
   run: |
+    umask 077
     cat <<- 'EOF' > backend.env
     	DJANGO_SECRET_KEY=${{ secrets.DJANGO_SECRET_KEY }}
     	DJANGO_SETTINGS_MODULE=${{ secrets.DJANGO_SETTINGS_MODULE }}
     	# ... all secrets from GitHub
+    	DB_PORT=${{ secrets.DB_PORT || '5432' }}
     	EOF
+
+    chmod 600 backend.env
 
 - name: Transfer .env to Server
   env:
     SSHPASS: ${{ secrets.SSH_PASSWORD }}
   run: |
     sshpass -e scp backend.env ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/root/projectmeats/backend/.env
+
+- name: Cleanup generated secret files (runner)
+  if: always()
+  run: rm -f backend.env || true
 ```
 
 ### Required Secrets Per Environment
 **Backend** (dev-backend, uat-backend, production-backend):
 - SSH_HOST, SSH_USER, SSH_PASSWORD
-- DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASSWORD
+- DB_HOST, DB_NAME, DB_USER, DB_PASSWORD (+ DB_PORT optional; defaults to 5432)
 - DJANGO_SECRET_KEY, DJANGO_SETTINGS_MODULE, ALLOWED_HOSTS, DEBUG
 
 **Frontend** (dev-frontend, uat-frontend, production-frontend):

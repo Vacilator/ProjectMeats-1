@@ -671,6 +671,7 @@ on:
 ```yaml
 - name: Create Backend .env File Locally
   run: |
+    umask 077
     cat <<- 'EOF' > backend.env
     DJANGO_SECRET_KEY=${{ secrets.DJANGO_SECRET_KEY }}
     DJANGO_SETTINGS_MODULE=${{ secrets.DJANGO_SETTINGS_MODULE }}
@@ -680,9 +681,11 @@ on:
     DB_USER=${{ secrets.DB_USER }}
     DB_PASSWORD=${{ secrets.DB_PASSWORD }}
     DB_HOST=${{ secrets.DB_HOST }}
-    DB_PORT=${{ secrets.DB_PORT }}
+    DB_PORT=${{ secrets.DB_PORT || '5432' }}
     DB_ENGINE=django.db.backends.postgresql
     EOF
+
+    chmod 600 backend.env
 
 - name: Transfer .env to Server
   env:
@@ -690,6 +693,10 @@ on:
   run: |
     sshpass -e ssh -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "mkdir -p /root/projectmeats/backend"
     sshpass -e scp -o StrictHostKeyChecking=no backend.env ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/root/projectmeats/backend/.env
+
+- name: Cleanup generated secret files (runner)
+  if: always()
+  run: rm -f backend.env || true
 ```
 
 ### File Permissions Pattern
