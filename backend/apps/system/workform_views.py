@@ -7,6 +7,8 @@ CRUD operations, merge/split, clone, and validation.
 Phase 1.4-1.7 of WF-ENH-2026-Q1
 Created: 2026-02-06
 """
+import logging
+
 from django.db import transaction, models
 from django.utils import timezone
 from rest_framework import viewsets, status
@@ -26,6 +28,9 @@ from apps.system.workform_serializers import (
     FormSplitSerializer,
     WorkFormCloneSerializer,
 )
+
+
+logger = logging.getLogger(__name__)
 
 
 def _get_request_tenant(request):
@@ -451,6 +456,10 @@ class TenantWorkFormViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['post'])
     def execute(self, request, pk=None):
         """Execute a TenantWorkForm and create a persisted execution record."""
+        tenant = _get_request_tenant(request)
+        if not tenant:
+            return Response({"error": "Tenant context required"}, status=status.HTTP_400_BAD_REQUEST)
+
         workform = self.get_object()
         if not self._can_execute_workform(workform):
             return Response({"error": "Permission denied"}, status=status.HTTP_403_FORBIDDEN)
@@ -458,20 +467,35 @@ class TenantWorkFormViewSet(viewsets.ModelViewSet):
         initial_data = request.data.get('initial_data') if isinstance(request.data, dict) else None
         initial_data = initial_data if isinstance(initial_data, dict) else {}
 
+        from apps.tenants.rls import set_current_tenant
         from tenant_apps.workflows.models import TenantWorkFormExecution, TenantWorkFormExecutionStatus
 
-        execution = TenantWorkFormExecution.objects.create(
-            tenant=request.tenant,
-            workform=workform,
-            status=TenantWorkFormExecutionStatus.IN_PROGRESS,
-            initial_data=initial_data,
-            started_by=request.user,
-            started_at=timezone.now(),
-        )
+        # Ensure RLS session vars are asserted for this connection before writing.
+        rls = set_current_tenant(str(tenant.id))
+        if not rls.ok:
+            logger.warning('RLS: failed to set session vars for tenant=%s: %s', tenant.id, rls.error)
+            return Response({"error": "Tenant context unavailable"}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
 
-        from apps.system.tasks import execute_workform_execution
+        try:
+            with transaction.atomic():
+                execution = TenantWorkFormExecution.objects.create(
+                    tenant=tenant,
+                    workform=workform,
+                    status=TenantWorkFormExecutionStatus.IN_PROGRESS,
+                    initial_data=initial_data,
+                    started_by=request.user,
+                    started_at=timezone.now(),
+                )
 
-        execute_workform_execution.delay(execution_id=str(execution.id), tenant_id=str(request.tenant.id))
+                from apps.system.tasks import execute_workform_execution
+
+                execute_workform_execution.delay(execution_id=str(execution.id), tenant_id=str(tenant.id))
+        except Exception as e:
+            logger.exception('Failed to enqueue workform execution: %s', e)
+            return Response(
+                {"error": "Execution service unavailable"},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
 
         return Response(
             {

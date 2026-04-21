@@ -327,22 +327,45 @@ class TenantWorkForm(models.Model):
         }
     
     def get_node_count(self):
-        """Get total number of nodes in this workflow."""
-        return len(self.workflow_definition.get('nodes', []))
+        """Get total number of nodes in this workflow.
+
+        Defensive: historical/legacy payloads may persist non-dict JSON values.
+        """
+        wf = self.workflow_definition
+        if not isinstance(wf, dict):
+            return 0
+        nodes = wf.get('nodes', [])
+        return len(nodes) if isinstance(nodes, list) else 0
     
     def get_edge_count(self):
-        """Get total number of edges in this workflow."""
-        return len(self.workflow_definition.get('edges', []))
+        """Get total number of edges in this workflow.
+
+        Defensive: historical/legacy payloads may persist non-dict JSON values.
+        """
+        wf = self.workflow_definition
+        if not isinstance(wf, dict):
+            return 0
+        edges = wf.get('edges', [])
+        return len(edges) if isinstance(edges, list) else 0
     
     def get_node_types_summary(self):
-        """
-        Get summary of node types used in this workflow.
-        
+        """Get summary of node types used in this workflow.
+
         Returns:
             dict: {"formStep": 3, "actionEmail": 1, "conditionIf": 2, ...}
         """
-        summary = {}
-        for node in self.workflow_definition.get('nodes', []):
+        wf = self.workflow_definition
+        if not isinstance(wf, dict):
+            return {}
+
+        nodes = wf.get('nodes', [])
+        if not isinstance(nodes, list):
+            return {}
+
+        summary: dict[str, int] = {}
+        for node in nodes:
+            if not isinstance(node, dict):
+                continue
             node_type = node.get('type', 'unknown')
             summary[node_type] = summary.get(node_type, 0) + 1
         return summary
