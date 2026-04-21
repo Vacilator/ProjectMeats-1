@@ -27,7 +27,11 @@
   --color-surface: 255, 255, 255;    /* white */
   --color-surface-hover: 243, 244, 246; /* gray-100 */
   --color-surface-foreground: 17, 24, 39; /* gray-900 */
-  --color-bg-tertiary: var(--color-surface-hover); /* back-compat alias */
+
+  /* Back-compat aliases (used by older components) */
+  --color-background-secondary: var(--color-surface);
+  --color-background-tertiary: var(--color-surface-hover);
+  --color-bg-tertiary: var(--color-surface-hover);
 
   /* Back-compat aliases (used by older components) */
   --color-bg-primary: var(--color-surface);
