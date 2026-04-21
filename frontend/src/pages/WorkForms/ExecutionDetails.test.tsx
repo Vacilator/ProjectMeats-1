@@ -24,17 +24,28 @@ describe('WorkFormExecutionDetails', () => {
       status: 'failed',
       initial_data: { entity_type: 'customer', entity_id: '1' },
       context_data: {},
-      audit_trail: [],
+      audit_trail: [
+        { event: 'execution_start', ts: '2026-01-01T00:00:00Z' },
+        { event: 'node_enter', node_id: 'n1', node_type: 'actionEmail', ts: '2026-01-01T00:00:01Z' },
+        {
+          event: 'action_error',
+          node_id: 'n1',
+          node_type: 'actionEmail',
+          error: 'Boom',
+          routed_to: 'n2',
+          ts: '2026-01-01T00:00:02Z',
+        },
+      ],
       node_statuses: {},
-      node_labels: { n1: 'Send Email' },
+      node_labels: { n1: 'Send Email', n2: 'Create Task' },
       current_node_id: 'n1',
       current_node_type: 'actionEmail',
       current_node_label: 'Send Email',
       last_event: 'action_error',
-      errors: [{ node_id: 'n1', node_label: 'Send Email', error: 'Boom' }],
+      errors: [{ node_id: 'n1', node_label: 'Send Email', error: 'Boom', routed_to: 'n2' }],
       started_by: null,
       started_by_name: null,
-      started_at: null,
+      started_at: '2026-01-01T00:00:00Z',
       completed_at: null,
       error_message: 'Boom',
       created_on: '2026-01-01T00:00:00Z',
@@ -60,17 +71,24 @@ describe('WorkFormExecutionDetails', () => {
     expect(await screen.findByText('My WorkForm')).toBeInTheDocument();
     expect(screen.getByText(/Status:/i)).toBeInTheDocument();
 
+    expect(await screen.findByRole('heading', { name: /execution story/i })).toBeInTheDocument();
+    expect(screen.getByRole('list', { name: /execution story/i })).toBeInTheDocument();
+    expect(screen.getAllByRole('listitem').length).toBeGreaterThan(0);
+    expect(screen.getByText(/Action failed/i)).toBeInTheDocument();
+    expect(screen.getByText(/Routed to: Create Task/i)).toBeInTheDocument();
+
     expect(await screen.findByText(/^Current step$/i)).toBeInTheDocument();
     expect(screen.getByText(/Node:/i)).toBeInTheDocument();
     expect(screen.getAllByText('Send Email').length).toBeGreaterThan(0);
     expect(screen.getAllByText(/n1/i).length).toBeGreaterThan(0);
 
+    expect(await screen.findByText(/^Errors$/i)).toBeInTheDocument();
+    expect(screen.getAllByText('Boom').length).toBeGreaterThan(0);
+
+    await userEvent.click(screen.getByText(/^Debug data$/i));
     expect(await screen.findByText(/^Inputs$/i)).toBeInTheDocument();
     await userEvent.click(screen.getByText(/View raw inputs/i));
     expect(await screen.findByText(/entity_type/i)).toBeInTheDocument();
-
-    expect(await screen.findByText(/^Errors$/i)).toBeInTheDocument();
-    expect(screen.getAllByText('Boom').length).toBeGreaterThan(0);
   });
 
   it('renders a helpful error panel when the run cannot be loaded', async () => {
