@@ -11,6 +11,7 @@ import TenantsScreen from './src/screens/TenantsScreen';
 import GuestLoginScreen from './src/screens/GuestLoginScreen';
 import InviteScreen from './src/screens/InviteScreen';
 import WorkFormsScreen from './src/screens/WorkFormsScreen';
+import WorkFormDetailScreen from './src/screens/WorkFormDetailScreen';
 
 // Services
 import { ApiService } from './src/services/ApiService';
@@ -235,6 +236,10 @@ export default function App() {
                     isGuest={isGuest}
                   />
                 )}
+              </Stack.Screen>
+
+              <Stack.Screen name="WorkFormDetail">
+                {(props) => <WorkFormDetailScreen {...props} />}
               </Stack.Screen>
             </>
           )}

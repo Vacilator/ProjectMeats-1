@@ -125,10 +125,12 @@ describe('RootStackParamList type', () => {
       'Home',
       'GuestHome',
       'WorkForms',
+      'WorkFormDetail',
     ];
-    expect(screens).toHaveLength(7);
+    expect(screens).toHaveLength(8);
     expect(screens).toContain('Guest');
     expect(screens).toContain('Invite');
     expect(screens).toContain('WorkForms');
+    expect(screens).toContain('WorkFormDetail');
   });
 });

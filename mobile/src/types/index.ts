@@ -80,6 +80,7 @@ export type RootStackParamList = {
   Home: undefined;
   GuestHome: undefined;
   WorkForms: undefined;
+  WorkFormDetail: { id: string };
 };
 
 // Authentication types
