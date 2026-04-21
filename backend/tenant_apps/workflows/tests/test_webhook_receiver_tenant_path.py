@@ -6,12 +6,14 @@ from unittest.mock import patch
 
 from django.contrib.auth.models import User
 from django.test import TestCase
+from django.test.utils import override_settings
 from rest_framework.test import APIClient
 
-from apps.tenants.models import Tenant, TenantUser
+from apps.tenants.models import Tenant, TenantDomain, TenantUser
 from tenant_apps.workflows.models import TenantWorkflow, TriggerType, WorkflowStatus
 
 
+@override_settings(ALLOWED_HOSTS=['*'])
 class WorkflowWebhookTenantPathTests(TestCase):
     def setUp(self):
         unique = uuid.uuid4().hex[:8]
@@ -35,6 +37,12 @@ class WorkflowWebhookTenantPathTests(TestCase):
         )
 
         TenantUser.objects.create(tenant=self.tenant, user=self.user, role='admin', is_active=True)
+
+        self.tenant_domain = TenantDomain.objects.create(
+            tenant=self.tenant,
+            domain=f'{self.tenant.slug}.example.com',
+            is_primary=True,
+        )
 
         self.webhook_token = 'tok_' + uuid.uuid4().hex
         self.webhook_secret = 'sec_' + uuid.uuid4().hex
@@ -150,6 +158,7 @@ class WorkflowWebhookTenantPathTests(TestCase):
             data={'hello': 'world'},
             format='json',
             HTTP_AUTHORIZATION=f'Bearer {self.webhook_secret}',
+            HTTP_HOST=self.tenant_domain.domain,
         )
 
         self.assertEqual(resp.status_code, 200)
