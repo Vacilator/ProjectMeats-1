@@ -339,7 +339,7 @@ export const FormPreviewModal: React.FC<FormPreviewModalProps> = ({ form, onClos
         <Content>
           <InfoGrid>
             <InfoCard>
-              <InfoLabel>Workflow Steps</InfoLabel>
+              <InfoLabel>Steps</InfoLabel>
               <InfoValue>{form.entity_count}</InfoValue>
               <InfoSubtext>{form.entity_count === 1 ? 'step' : 'steps'} configured</InfoSubtext>
             </InfoCard>

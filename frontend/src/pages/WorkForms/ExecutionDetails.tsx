@@ -51,12 +51,12 @@ export const WorkFormExecutionDetails: React.FC = () => {
   });
 
   return (
-    <PageContainer title="Workflow Execution">
+    <PageContainer title="WorkForm Run">
       <Card padding="lg">
         {query.isLoading ? (
-          <div>Loading execution…</div>
+          <div>Loading run…</div>
         ) : query.isError || !execution ? (
-          <div>Execution not found.</div>
+          <div>Run not found.</div>
         ) : (
           <div data-testid="workform-execution-details-page" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>

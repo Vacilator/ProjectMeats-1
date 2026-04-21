@@ -115,13 +115,13 @@ export const EntityWorkflowStatusPanel: React.FC<EntityWorkflowStatusPanelProps>
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-      <Card size="small" title="WorkForm executions">
+      <Card size="small" title="WorkForm runs">
         {query.isLoading ? (
           <div style={{ padding: 12 }}>
             <Spin />
           </div>
         ) : executions.length === 0 ? (
-          <div style={{ color: 'rgb(var(--color-text-tertiary))' }}>No workflow executions found for this record.</div>
+          <div style={{ color: 'rgb(var(--color-text-tertiary))' }}>No WorkForm runs found for this record.</div>
         ) : (
           <Collapse
             items={executions.map((ex) => ({

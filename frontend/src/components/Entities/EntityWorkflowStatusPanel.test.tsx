@@ -30,7 +30,7 @@ describe('EntityWorkflowStatusPanel', () => {
       </QueryClientProvider>
     );
 
-    expect(await screen.findByText(/No workflow executions found/i)).toBeInTheDocument();
+    expect(await screen.findByText(/No WorkForm runs found/i)).toBeInTheDocument();
   });
 
   it('renders an execution with audit events and details link', async () => {

@@ -1,6 +1,6 @@
 {
   "workflowEditor": {
-    "title": "Workflow Editor",
+    "title": "WorkForms Editor",
     "save": "Save",
     "cancel": "Cancel",
     "delete": "Delete",
@@ -26,7 +26,7 @@
       "decision": "Decision",
       "loop": "Loop",
       "conditional": "Conditional Branch",
-      "subworkflow": "Sub-Workflow"
+      "subworkflow": "Sub-WorkForm"
     },
     "properties": {
       "title": "Properties",
@@ -46,8 +46,8 @@
       "duplicateName": "Name already exists"
     },
     "notifications": {
-      "saved": "Workflow saved successfully",
-      "deleted": "Workflow deleted successfully",
+      "saved": "WorkForm saved successfully",
+      "deleted": "WorkForm deleted successfully",
       "error": "An error occurred",
       "validationFailed": "Validation failed",
       "connectionCreated": "Connection created",
@@ -85,7 +85,7 @@
         "nodeMoved": "Node {{name}} moved to position {{x}}, {{y}}",
         "connectionCreated": "Connection created from {{source}} to {{target}}",
         "connectionDeleted": "Connection from {{source}} to {{target}} deleted",
-        "workflowSaved": "Workflow saved successfully",
+        "workflowSaved": "WorkForm saved successfully",
         "validationError": "Validation error: {{error}}"
       },
       "hints": {

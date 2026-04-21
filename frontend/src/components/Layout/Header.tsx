@@ -262,7 +262,7 @@ const Header: React.FC<HeaderProps> = () => {
                     }}
                   >
                     <span>🗂️</span>
-                    <span>View All Workflows</span>
+                    <span>View Legacy Workflows</span>
                   </SubmenuItem>
                   
                   {availableForms.filter((f) => (f.type ?? 'form') === 'form').length > 0 && (
@@ -321,7 +321,7 @@ const Header: React.FC<HeaderProps> = () => {
                               setShowQuickMenu(false);
                               setShowFormsSubmenu(false);
                             }}
-                            title={`Execute ${wf.name}`}
+                            title={`Run ${wf.name}`}
                           >
                             <span>▶️</span>
                             <span>{wf.name}</span>
@@ -351,7 +351,7 @@ const Header: React.FC<HeaderProps> = () => {
                         $theme={theme}
                         style={{ fontSize: '12px', fontStyle: 'italic', cursor: 'default', opacity: 0.6 }}
                       >
-                        <span>No published forms or workforms yet</span>
+                        <span>No published Forms or WorkForms yet</span>
                       </SubmenuItem>
                     )}
                 </FormsSubmenu>
