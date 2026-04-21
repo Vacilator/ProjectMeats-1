@@ -62,9 +62,14 @@ const ChildHeader = styled.div`
   background: rgba(var(--color-primary), 0.03);
   cursor: pointer;
   user-select: none;
-  
+
   &:hover {
     background: rgba(var(--color-primary), 0.06);
+  }
+
+  &:focus {
+    outline: 2px solid rgba(var(--color-primary), 0.35);
+    outline-offset: 2px;
   }
 `;
 
@@ -110,7 +115,7 @@ const Actions = styled.div`
   gap: 4px;
 `;
 
-const IconButton = styled.button`
+const IconButton = styled.button.attrs({ type: 'button' })`
   display: flex;
   align-items: center;
   justify-content: center;
@@ -122,12 +127,12 @@ const IconButton = styled.button`
   border-radius: var(--radius-sm);
   cursor: pointer;
   transition: all 0.15s ease;
-  
+
   &:hover {
     background: rgba(var(--color-primary), 0.1);
     color: rgb(var(--color-primary));
   }
-  
+
   &:active {
     transform: scale(0.95);
   }
@@ -145,7 +150,7 @@ const ChildContent = styled.div`
   border-top: 1px solid rgb(var(--color-border));
 `;
 
-const AddButton = styled.button`
+const AddButton = styled.button.attrs({ type: 'button' })`
   display: flex;
   align-items: center;
   justify-content: center;
@@ -159,13 +164,13 @@ const AddButton = styled.button`
   font-weight: 500;
   cursor: pointer;
   transition: all 0.15s ease;
-  
+
   &:hover {
     border-color: rgb(var(--color-primary));
     background: rgba(var(--color-primary), 0.03);
     color: rgb(var(--color-primary));
   }
-  
+
   &:active {
     transform: scale(0.98);
   }
@@ -298,7 +303,19 @@ export const NestedChildrenRenderer: React.FC<NestedChildrenRendererProps> = ({
             
             return (
               <ChildItem key={index} $expanded={isExpanded}>
-                <ChildHeader onClick={() => toggleExpanded(index)}>
+                <ChildHeader
+                  role="button"
+                  tabIndex={0}
+                  aria-expanded={isExpanded}
+                  aria-label={`Toggle item ${index + 1}`}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      toggleExpanded(index);
+                    }
+                  }}
+                  onClick={() => toggleExpanded(index)}
+                >
                   <DragHandle onClick={(e) => e.stopPropagation()}>
                     <GripVertical size={16} />
                   </DragHandle>
@@ -313,7 +330,7 @@ export const NestedChildrenRenderer: React.FC<NestedChildrenRendererProps> = ({
                   </ChildTitle>
                   
                   <Actions>
-                    <DeleteButton onClick={(e) => handleRemoveChild(index, e)}>
+                    <DeleteButton aria-label={`Delete item ${index + 1}`} onClick={(e) => handleRemoveChild(index, e)}>
                       <Trash2 size={16} />
                     </DeleteButton>
                   </Actions>

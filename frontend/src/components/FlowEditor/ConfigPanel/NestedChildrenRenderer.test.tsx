@@ -34,4 +34,31 @@ describe('NestedChildrenRenderer', () => {
 
     expect(onChange).toHaveBeenCalledWith([{ label: 'A', disabled: true }]);
   });
+
+  it('allows keyboard toggle of child expansion', () => {
+    render(
+      <NestedChildrenRenderer
+        field={{
+          id: 'options',
+          label: 'Options',
+          type: 'nested-children',
+          itemSchema: {
+            fields: [
+              { id: 'label', label: 'Label', type: 'text' },
+              { id: 'disabled', label: 'Disabled', type: 'toggle' },
+            ],
+          },
+        } as any}
+        value={[{ label: 'A', disabled: false }, { label: 'B', disabled: false }]}
+        onChange={vi.fn()}
+      />
+    );
+
+    expect(screen.queryByLabelText('Disabled')).toBeNull();
+
+    const header = screen.getByLabelText('Toggle item 1');
+    fireEvent.keyDown(header, { key: 'Enter' });
+
+    expect(screen.getByLabelText('Disabled')).toBeInTheDocument();
+  });
 });
