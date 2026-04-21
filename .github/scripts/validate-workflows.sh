@@ -128,7 +128,7 @@ check_cache_config() {
     local failed=0
 
     for workflow in "${workflows[@]}"; do
-        if ! grep -q "actions/cache@v3" "$workflow"; then
+        if ! grep -q "actions/cache@" "$workflow"; then
             log_warn "No cache configuration in $workflow"
             ((failed++))
         fi
@@ -241,6 +241,47 @@ check_timeouts() {
 }
 
 # Check for retry logic
+check_docker_port_bindings() {
+    log_info "Checking docker port bindings (frontend must bind to 127.0.0.1:8080)..."
+
+    local workflows=(.github/workflows/*.yml)
+    local failed=0
+
+    for workflow in "${workflows[@]}"; do
+        # Skip archived workflows
+        if [[ "$workflow" == *"/archived/"* ]]; then
+            continue
+        fi
+
+        # Prohibit exposing frontend container on all interfaces
+        if grep -Eq -- "-p[[:space:]]+8080:80" "$workflow"; then
+            log_error "Prohibited port mapping found in $workflow: '-p 8080:80' (must be 127.0.0.1:8080:80)"
+            ((failed++))
+        fi
+
+        if grep -Eq -- "-p[[:space:]]+0\.0\.0\.0:8080:80" "$workflow"; then
+            log_error "Prohibited port mapping found in $workflow: '-p 0.0.0.0:8080:80' (must be 127.0.0.1:8080:80)"
+            ((failed++))
+        fi
+    done
+
+    # Require the golden binding in the canonical deploy workflow
+    if [[ -f .github/workflows/reusable-deploy.yml ]]; then
+        if ! grep -q "127.0.0.1:8080:80" .github/workflows/reusable-deploy.yml; then
+            log_error "reusable-deploy.yml must bind frontend to 127.0.0.1:8080:80"
+            ((failed++))
+        else
+            log_info "✓ reusable-deploy.yml binds frontend to 127.0.0.1:8080:80"
+        fi
+    fi
+
+    if [[ $failed -gt 0 ]]; then
+        return 1
+    fi
+
+    return 0
+}
+
 check_retry_logic() {
     log_info "Checking retry logic in health checks..."
 
@@ -428,6 +469,7 @@ main() {
     check_fetch_depth || ((failed++))
     check_error_handling || ((failed++))
     check_timeouts || ((failed++))
+    check_docker_port_bindings || ((failed++))
     check_retry_logic || ((failed++))
     check_migration_safety || ((failed++))
     check_concurrency || ((failed++))
