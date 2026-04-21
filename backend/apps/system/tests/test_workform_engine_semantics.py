@@ -173,6 +173,9 @@ class WorkFormEngineSemanticsTests(TestCase):
         self.assertTrue(result.success)
         self.assertEqual(mock_delay.call_count, 3)
 
+        for call in mock_delay.call_args_list:
+            self.assertEqual(call.kwargs.get('tenant_id'), str(self.tenant.id))
+
         trail = (result.context or {}).get('audit_trail') or []
         loop_events = [r for r in trail if isinstance(r, dict) and r.get('event') == 'loop_enqueued']
         self.assertTrue(loop_events)
@@ -207,6 +210,7 @@ class WorkFormEngineSemanticsTests(TestCase):
         ) as mock_execute:
             out = execute_workform_loop_item(
                 workform_id=str(workform.id),
+                tenant_id=str(self.tenant.id),
                 loop_node_id='l1',
                 loop_body_start_node_id='a1',
                 index=0,
