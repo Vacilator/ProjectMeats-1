@@ -11,6 +11,7 @@ import { PageContainer } from '@/components/ui/PageContainer';
 import { workformExecutionService } from '@/services/workformExecutionService';
 import { formSubmissionService } from '@/services/quickActionsService';
 import { getWorkformsErrorUi } from '@/features/workforms/workformsErrors';
+import { ExecutionStoryView } from '@/features/workforms/ExecutionStoryView';
 
 export const WorkFormExecutionDetails: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -111,7 +112,9 @@ export const WorkFormExecutionDetails: React.FC = () => {
               </div>
             ) : null}
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 12 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <ExecutionStoryView execution={execution} />
+
               <div data-testid="workform-execution-current-step">
                 <div style={{ fontWeight: 600, marginBottom: 6 }}>Current step</div>
                 {execution.current_node_id ? (
@@ -214,124 +217,132 @@ export const WorkFormExecutionDetails: React.FC = () => {
                 </div>
               ) : null}
 
-              <div>
-                <div style={{ fontWeight: 600, marginBottom: 6 }}>Inputs</div>
-                <div style={{ color: 'rgb(var(--color-text-secondary))', fontSize: 13 }}>
-                  {execution.initial_data && typeof execution.initial_data === 'object'
-                    ? `${Object.keys(execution.initial_data).length} key(s)`
-                    : 'No inputs captured.'}
-                </div>
-                <details style={{ marginTop: 8 }}>
-                  <summary style={{ cursor: 'pointer', color: 'rgb(var(--color-text-secondary))' }}>View raw inputs</summary>
-                  <pre
-                    style={{
-                      background: 'rgb(var(--color-surface))',
-                      border: '1px solid rgb(var(--color-border))',
-                      borderRadius: 8,
-                      padding: 12,
-                      overflow: 'auto',
-                      maxHeight: 240,
-                      marginTop: 8,
-                    }}
-                  >
-                    {JSON.stringify(execution.initial_data ?? {}, null, 2)}
-                  </pre>
-                </details>
-              </div>
+              <details data-testid="workform-execution-debug" style={{ border: '1px solid rgb(var(--color-border))', borderRadius: 12, padding: 12 }}>
+                <summary style={{ cursor: 'pointer', fontWeight: 600, color: 'rgb(var(--color-text-primary))' }}>
+                  Debug data
+                </summary>
 
-              {execution.node_statuses && Object.keys(execution.node_statuses).length > 0 ? (
-                <div>
-                  <div style={{ fontWeight: 600, marginBottom: 6 }}>Step status</div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                    {Object.entries(execution.node_statuses)
-                      .filter(([k, v]) => Boolean(k) && Boolean(v))
-                      .sort(([a], [b]) => {
-                        const la = execution.node_labels?.[a] ?? a;
-                        const lb = execution.node_labels?.[b] ?? b;
-                        return la.localeCompare(lb);
-                      })
-                      .map(([nodeId, status]) => (
-                        <div key={`${execution.id}:status:${nodeId}`} style={{ color: 'rgb(var(--color-text-secondary))' }}>
-                          <span style={{ fontWeight: 600 }}>{execution.node_labels?.[nodeId] ?? nodeId}</span>
-                          {execution.node_labels?.[nodeId] ? (
-                            <span style={{ color: 'rgb(var(--color-text-tertiary))' }}> ({nodeId})</span>
-                          ) : null}
-                          : <span style={{ fontWeight: 600 }}>{String(status)}</span>
-                        </div>
-                      ))}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginTop: 12 }}>
+                  <div>
+                    <div style={{ fontWeight: 600, marginBottom: 6 }}>Inputs</div>
+                    <div style={{ color: 'rgb(var(--color-text-secondary))', fontSize: 13 }}>
+                      {execution.initial_data && typeof execution.initial_data === 'object'
+                        ? `${Object.keys(execution.initial_data).length} key(s)`
+                        : 'No inputs captured.'}
+                    </div>
+                    <details style={{ marginTop: 8 }}>
+                      <summary style={{ cursor: 'pointer', color: 'rgb(var(--color-text-secondary))' }}>View raw inputs</summary>
+                      <pre
+                        style={{
+                          background: 'rgb(var(--color-surface))',
+                          border: '1px solid rgb(var(--color-border))',
+                          borderRadius: 8,
+                          padding: 12,
+                          overflow: 'auto',
+                          maxHeight: 240,
+                          marginTop: 8,
+                        }}
+                      >
+                        {JSON.stringify(execution.initial_data ?? {}, null, 2)}
+                      </pre>
+                    </details>
                   </div>
 
-                  <details style={{ marginTop: 8 }}>
-                    <summary style={{ cursor: 'pointer', color: 'rgb(var(--color-text-secondary))' }}>
-                      View raw status map
-                    </summary>
-                    <pre
-                      style={{
-                        background: 'rgb(var(--color-surface))',
-                        border: '1px solid rgb(var(--color-border))',
-                        borderRadius: 8,
-                        padding: 12,
-                        overflow: 'auto',
-                        maxHeight: 240,
-                        marginTop: 8,
-                      }}
-                    >
-                      {JSON.stringify(execution.node_statuses, null, 2)}
-                    </pre>
-                  </details>
-                </div>
-              ) : null}
+                  {execution.node_statuses && Object.keys(execution.node_statuses).length > 0 ? (
+                    <div>
+                      <div style={{ fontWeight: 600, marginBottom: 6 }}>Step status</div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                        {Object.entries(execution.node_statuses)
+                          .filter(([k, v]) => Boolean(k) && Boolean(v))
+                          .sort(([a], [b]) => {
+                            const la = execution.node_labels?.[a] ?? a;
+                            const lb = execution.node_labels?.[b] ?? b;
+                            return la.localeCompare(lb);
+                          })
+                          .map(([nodeId, status]) => (
+                            <div key={`${execution.id}:status:${nodeId}`} style={{ color: 'rgb(var(--color-text-secondary))' }}>
+                              <span style={{ fontWeight: 600 }}>{execution.node_labels?.[nodeId] ?? nodeId}</span>
+                              {execution.node_labels?.[nodeId] ? (
+                                <span style={{ color: 'rgb(var(--color-text-tertiary))' }}> ({nodeId})</span>
+                              ) : null}
+                              : <span style={{ fontWeight: 600 }}>{String(status)}</span>
+                            </div>
+                          ))}
+                      </div>
 
-              <div>
-                <div style={{ fontWeight: 600, marginBottom: 6 }}>Context</div>
-                <div style={{ color: 'rgb(var(--color-text-secondary))', fontSize: 13 }}>
-                  Use this for debugging; most UI panels should rely on derived fields (current step, errors, status).
-                </div>
-                <details style={{ marginTop: 8 }}>
-                  <summary style={{ cursor: 'pointer', color: 'rgb(var(--color-text-secondary))' }}>
-                    View raw context
-                  </summary>
-                  <pre
-                    style={{
-                      background: 'rgb(var(--color-surface))',
-                      border: '1px solid rgb(var(--color-border))',
-                      borderRadius: 8,
-                      padding: 12,
-                      overflow: 'auto',
-                      maxHeight: 360,
-                      marginTop: 8,
-                    }}
-                  >
-                    {JSON.stringify(execution.context_data ?? {}, null, 2)}
-                  </pre>
-                </details>
-              </div>
+                      <details style={{ marginTop: 8 }}>
+                        <summary style={{ cursor: 'pointer', color: 'rgb(var(--color-text-secondary))' }}>
+                          View raw status map
+                        </summary>
+                        <pre
+                          style={{
+                            background: 'rgb(var(--color-surface))',
+                            border: '1px solid rgb(var(--color-border))',
+                            borderRadius: 8,
+                            padding: 12,
+                            overflow: 'auto',
+                            maxHeight: 240,
+                            marginTop: 8,
+                          }}
+                        >
+                          {JSON.stringify(execution.node_statuses, null, 2)}
+                        </pre>
+                      </details>
+                    </div>
+                  ) : null}
 
-              <div>
-                <div style={{ fontWeight: 600, marginBottom: 6 }}>Audit Trail</div>
-                {Array.isArray(execution.audit_trail) && execution.audit_trail.length > 0 ? (
-                  <details>
-                    <summary style={{ cursor: 'pointer', color: 'rgb(var(--color-text-secondary))' }}>
-                      View raw audit trail ({execution.audit_trail.length} event(s))
-                    </summary>
-                    <pre
-                      style={{
-                        background: 'rgb(var(--color-surface))',
-                        border: '1px solid rgb(var(--color-border))',
-                        borderRadius: 8,
-                        padding: 12,
-                        overflow: 'auto',
-                        maxHeight: 360,
-                        marginTop: 8,
-                      }}
-                    >
-                      {JSON.stringify(execution.audit_trail, null, 2)}
-                    </pre>
-                  </details>
-                ) : (
-                  <div style={{ color: 'rgb(var(--color-text-secondary))' }}>No audit entries yet.</div>
-                )}
-              </div>
+                  <div>
+                    <div style={{ fontWeight: 600, marginBottom: 6 }}>Context</div>
+                    <div style={{ color: 'rgb(var(--color-text-secondary))', fontSize: 13 }}>
+                      Use this for debugging; most UI panels should rely on derived fields (current step, errors, status).
+                    </div>
+                    <details style={{ marginTop: 8 }}>
+                      <summary style={{ cursor: 'pointer', color: 'rgb(var(--color-text-secondary))' }}>
+                        View raw context
+                      </summary>
+                      <pre
+                        style={{
+                          background: 'rgb(var(--color-surface))',
+                          border: '1px solid rgb(var(--color-border))',
+                          borderRadius: 8,
+                          padding: 12,
+                          overflow: 'auto',
+                          maxHeight: 360,
+                          marginTop: 8,
+                        }}
+                      >
+                        {JSON.stringify(execution.context_data ?? {}, null, 2)}
+                      </pre>
+                    </details>
+                  </div>
+
+                  <div>
+                    <div style={{ fontWeight: 600, marginBottom: 6 }}>Audit Trail</div>
+                    {Array.isArray(execution.audit_trail) && execution.audit_trail.length > 0 ? (
+                      <details>
+                        <summary style={{ cursor: 'pointer', color: 'rgb(var(--color-text-secondary))' }}>
+                          View raw audit trail ({execution.audit_trail.length} event(s))
+                        </summary>
+                        <pre
+                          style={{
+                            background: 'rgb(var(--color-surface))',
+                            border: '1px solid rgb(var(--color-border))',
+                            borderRadius: 8,
+                            padding: 12,
+                            overflow: 'auto',
+                            maxHeight: 360,
+                            marginTop: 8,
+                          }}
+                        >
+                          {JSON.stringify(execution.audit_trail, null, 2)}
+                        </pre>
+                      </details>
+                    ) : (
+                      <div style={{ color: 'rgb(var(--color-text-secondary))' }}>No audit entries yet.</div>
+                    )}
+                  </div>
+                </div>
+              </details>
             </div>
           </div>
         )}
