@@ -210,6 +210,19 @@ def execute_workform_execution(execution_id: str, tenant_id: str) -> dict:
     rls = set_current_tenant(str(tenant_id))
     if not rls.ok:
         logger.warning('[WorkFormExecution] Skipping execution=%s (RLS set failed: %s)', execution_id, rls.error)
+
+        # Best-effort: mark the execution as failed so polling clients don't hang in perpetuity.
+        try:
+            from tenant_apps.workflows.models import TenantWorkFormExecution, TenantWorkFormExecutionStatus
+
+            TenantWorkFormExecution.objects.filter(id=execution_id, tenant_id=tenant_id).update(
+                status=TenantWorkFormExecutionStatus.FAILED,
+                error_message=f'RLS set failed: {rls.error}',
+                completed_at=timezone.now(),
+            )
+        except Exception:
+            logger.exception('[WorkFormExecution] Failed to mark execution=%s as failed after RLS error', execution_id)
+
         return {'success': False, 'error': rls.error}
 
     from tenant_apps.workflows.models import TenantWorkFormExecution, TenantWorkFormExecutionStatus
