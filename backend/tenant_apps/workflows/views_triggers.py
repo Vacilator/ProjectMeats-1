@@ -19,7 +19,7 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.tenants.models import TenantUser
+from apps.tenants.models import Tenant, TenantUser
 from apps.tenants.rls import set_current_tenant
 
 from .models import TenantWorkflow
@@ -56,12 +56,13 @@ def _webhook_not_found() -> Response:
 def _process_workflow_webhook(request, workflow: TenantWorkflow, webhook_token: str) -> Response:
     """Shared workflow webhook receiver logic (legacy + tenant-scoped endpoints)."""
 
-    # Set request tenant context + RLS session variables.
+    # Ensure request has tenant+RLS context before any tenant-scoped access.
     tenant = workflow.tenant
     if not tenant or not getattr(tenant, 'is_active', True):
         return _webhook_not_found()
 
-    _set_tenant_context(request, tenant)
+    if getattr(request, 'tenant', None) is None or str(getattr(request.tenant, 'id', '')) != str(tenant.id):
+        _set_tenant_context(request, tenant)
 
     membership_error = _enforce_membership_if_authenticated(request, tenant)
     if membership_error is not None:
@@ -283,6 +284,14 @@ class TenantScopedWebhookReceiverAPIView(APIView):
     authentication_classes = []
 
     def post(self, request, tenant_id, workflow_id, webhook_token):
+        try:
+            tenant = Tenant.objects.get(id=tenant_id, is_active=True)
+        except Tenant.DoesNotExist:
+            return _webhook_not_found()
+
+        # Set tenant/RLS context BEFORE touching tenant-scoped workflow tables (FORCE RLS).
+        _set_tenant_context(request, tenant)
+
         try:
             workflow = TenantWorkflow.objects.select_related('tenant').get(id=workflow_id, tenant_id=tenant_id)
         except TenantWorkflow.DoesNotExist:
