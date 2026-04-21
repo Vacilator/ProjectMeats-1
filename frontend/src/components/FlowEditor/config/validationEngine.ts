@@ -59,6 +59,16 @@ function validateRule(
       if (Array.isArray(value) && value.length === 0) {
         return rule.message;
       }
+      // Treat empty plain objects as empty (e.g., keyValueMode='record' fields).
+      if (
+        typeof value === 'object' &&
+        value !== null &&
+        !Array.isArray(value) &&
+        (value as any).constructor === Object &&
+        Object.keys(value as any).length === 0
+      ) {
+        return rule.message;
+      }
       return null;
 
     case 'minLength':

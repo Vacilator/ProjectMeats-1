@@ -45,4 +45,49 @@ describe('prepareWorkflowForSave (sanitization)', () => {
     expect(preparedNodeData.config?.configStatus).toBeUndefined();
     expect(preparedNodeData.config?._upstreamVariables).toBeUndefined();
   });
+
+  it('materializes non-empty schema defaults into persisted node.data', () => {
+    const nodes: Node[] = [
+      {
+        id: 't1',
+        type: 'trigger',
+        position: { x: 0, y: 0 },
+        data: {},
+      } as any,
+      {
+        id: 'a1',
+        type: 'action',
+        position: { x: 100, y: 0 },
+        data: {
+          actionType: 'http',
+        },
+      } as any,
+      {
+        id: 'a2',
+        type: 'action',
+        position: { x: 200, y: 0 },
+        data: {
+          actionType: 'http',
+          method: 'POST',
+        },
+      } as any,
+    ];
+
+    const edges: Edge[] = [];
+
+    const prepared = prepareWorkflowForSave(nodes, edges);
+    const triggerData = prepared.nodes.find((n) => n.id === 't1')!.data as any;
+    const actionData = prepared.nodes.find((n) => n.id === 'a1')!.data as any;
+    const action2Data = prepared.nodes.find((n) => n.id === 'a2')!.data as any;
+
+    // Trigger defaults are persisted so the saved payload reflects what the panel shows.
+    expect(triggerData.type).toBe('manual');
+
+    // actionHTTP defaults
+    expect(actionData.method).toBe('GET');
+    expect(actionData.headers).toEqual(expect.objectContaining({ 'Content-Type': 'application/json' }));
+
+    // Existing values must not be overwritten.
+    expect(action2Data.method).toBe('POST');
+  });
 });
