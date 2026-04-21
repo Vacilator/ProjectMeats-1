@@ -6,8 +6,11 @@ export interface User {
   email: string;
   first_name: string;
   last_name: string;
-  is_active: boolean;
-  date_joined: string;
+  // Auth endpoints include these; other endpoints may omit them.
+  is_active?: boolean;
+  is_staff?: boolean;
+  is_superuser?: boolean;
+  date_joined?: string;
 }
 
 export interface Tenant {
@@ -31,7 +34,15 @@ export interface TenantUser {
   id: number;
   tenant: Tenant;
   user: User;
-  role: 'owner' | 'admin' | 'manager' | 'user' | 'readonly';
+  role:
+    | 'owner'
+    | 'admin'
+    | 'manager'
+    | 'plant_manager'
+    | 'sales_rep'
+    | 'auditor'
+    | 'user'
+    | 'readonly';
   is_active: boolean;
   created_at: string;
   updated_at: string;
@@ -41,7 +52,7 @@ export interface UserTenant {
   tenant_id: string;
   tenant_name: string;
   tenant_slug: string;
-  role: 'owner' | 'admin' | 'manager' | 'user' | 'readonly';
+  role: TenantUser['role'];
   is_active: boolean;
   is_trial: boolean;
   created_at: string;
@@ -83,13 +94,18 @@ export interface LoginResponse {
 }
 
 // Guest mode types
+// Backend: POST /api/v1/auth/guest-login/
 export interface GuestSession {
-  guest_token: string;
-  tenant_id: string;
-  tenant_name: string;
-  tenant_slug: string;
-  expires_at: string;
-  permissions: string[];
+  token: string;
+  user: User;
+  tenant: {
+    id: string;
+    name: string;
+    slug: string;
+    role: TenantUser['role'];
+    is_guest: true;
+  };
+  message: string;
 }
 
 export interface GuestUser {
@@ -104,22 +120,32 @@ export interface GuestUser {
 }
 
 // Invite-only flow types
+// Backend:
+// - GET /api/v1/invitations/validate/?token=...
+// - POST /api/v1/auth/signup-with-invitation/
 export interface TenantInvite {
+  /** The invite token that was validated (not returned by backend; we add it client-side). */
   token: string;
-  tenant_id: string;
-  tenant_name: string;
-  tenant_slug: string;
-  invited_by: string;
-  invited_email: string;
-  role: 'admin' | 'manager' | 'user' | 'readonly';
+  valid: true;
+  email: string;
+  role: TenantUser['role'];
+  is_reusable: boolean;
+  uses_remaining: number;
+  tenant: {
+    name: string;
+    slug: string;
+  };
+  message?: string | null;
   expires_at: string;
-  is_expired: boolean;
-  is_accepted: boolean;
 }
 
 export interface InviteAcceptRequest {
+  /** Invite token */
   token: string;
+  /** Desired username */
   username: string;
+  /** Account email (must match invite email for non-reusable invites) */
+  email: string;
   password: string;
   first_name?: string;
   last_name?: string;
