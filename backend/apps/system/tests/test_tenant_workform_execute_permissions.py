@@ -37,9 +37,43 @@ class TenantWorkFormExecutePermissionsTests(APITestCase):
             is_active=True,
         )
 
+        other_unique = uuid.uuid4().hex[:8]
+        self.other_tenant = Tenant.objects.create(
+            name=f'Tenant Other {other_unique}',
+            slug=f'tenant-other-{other_unique}',
+            contact_email=f'{other_unique}@example.com',
+            is_active=True,
+            created_by=self.user,
+        )
+
+        TenantUser.objects.create(
+            tenant=self.other_tenant,
+            user=self.user,
+            role='user',
+            is_active=True,
+        )
+
         self.workform = TenantWorkForm.objects.create(
             tenant=self.tenant,
             name='WF',
+            description='',
+            status='active',
+            workflow_definition={
+                'nodes': [
+                    {'id': 't1', 'type': 'triggerManual', 'data': {}},
+                    {'id': 'end', 'type': 'end', 'data': {}},
+                ],
+                'edges': [
+                    {'id': 'e1', 'source': 't1', 'target': 'end', 'type': 'default'},
+                ],
+            },
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+        self.other_workform = TenantWorkForm.objects.create(
+            tenant=self.other_tenant,
+            name='Other WF',
             description='',
             status='active',
             workflow_definition={
@@ -86,5 +120,18 @@ class TenantWorkFormExecutePermissionsTests(APITestCase):
             )
 
         self.assertEqual(resp.status_code, status.HTTP_403_FORBIDDEN, resp.content)
+        self.assertEqual(TenantWorkFormExecution.objects.count(), 0)
+        mock_delay.assert_not_called()
+
+    def test_cannot_execute_workform_from_other_tenant(self):
+        with patch('apps.system.tasks.execute_workform_execution.delay') as mock_delay:
+            resp = self.client.post(
+                f'/api/v1/tenant-workforms/{self.other_workform.id}/execute/',
+                data={'initial_data': {}},
+                format='json',
+                HTTP_X_TENANT_ID=str(self.tenant.id),
+            )
+
+        self.assertEqual(resp.status_code, status.HTTP_404_NOT_FOUND, resp.content)
         self.assertEqual(TenantWorkFormExecution.objects.count(), 0)
         mock_delay.assert_not_called()
