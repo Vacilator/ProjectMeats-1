@@ -24,6 +24,7 @@ Golden template for workflow suggestion engine with meat industry context
 | Concern | Golden File | Authority |
 |---------|-------------|-----------|
 | **Environment Variables** | `/manifests/env.manifest.json` | AUTHORITATIVE |
+| **API Contract (OpenAPI baseline)** | `/manifests/openapi/openapi-schema.baseline.json` | ENFORCEMENT (CI) |
 | **Database Schema** | Django migrations | Applied state |
 | **RLS Policies** | `/manifests/RLS_POLICIES.md` | Audit log |
 | **CI/CD Standards** | `.github/workflows/reusable-deploy.yml` | Template |
