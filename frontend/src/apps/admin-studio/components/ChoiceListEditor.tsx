@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   configService,
-  SystemChoiceList,
+  type SystemChoiceList,
 } from '../../../services/configService';
 import { apiClient } from '../../../services/apiService';
 import { confirmDialog } from '@/utils/uiDialogs';
@@ -48,6 +48,11 @@ export const ChoiceListEditor: React.FC<ChoiceListEditorProps> = ({
   const [searchQuery, setSearchQuery] = useState('');
   const [hasChanges, setHasChanges] = useState(false);
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+
+  // Avoid stale closures in global keyboard listeners.
+  // (The keyboard shortcut effect intentionally does not depend on `items`.)
+  const handleSaveRef = useRef<(() => Promise<void>) | null>(null);
+  const handleAddItemRef = useRef<(() => void) | null>(null);
 
   // Load choice lists on mount
   const loadChoiceLists = useCallback(async () => {
@@ -117,14 +122,14 @@ export const ChoiceListEditor: React.FC<ChoiceListEditorProps> = ({
       if ((e.ctrlKey || e.metaKey) && e.key === 's') {
         e.preventDefault();
         if (selectedList && hasChanges && !saving) {
-          handleSave();
+          void handleSaveRef.current?.();
         }
       }
       // Ctrl/Cmd + N: Add new item
       else if ((e.ctrlKey || e.metaKey) && e.key === 'n') {
         e.preventDefault();
         if (selectedList) {
-          handleAddItem();
+          handleAddItemRef.current?.();
         }
       }
       // Escape: Close editor or deselect
@@ -167,16 +172,21 @@ export const ChoiceListEditor: React.FC<ChoiceListEditorProps> = ({
   };
 
   const handleAddItem = () => {
-    const newItem: EditingItem = {
-      value: '',
-      label: '',
-      is_active: true,
-      sort_order: items.length,
-      is_new: true,
-    };
-    setItems([...items, newItem]);
+    setItems((prevItems) => {
+      const newItem: EditingItem = {
+        value: '',
+        label: '',
+        is_active: true,
+        sort_order: prevItems.length,
+        is_new: true,
+      };
+      return [...prevItems, newItem];
+    });
     setHasChanges(true);
   };
+
+  // Keep ref pointing at the latest implementation for keyboard shortcuts.
+  handleAddItemRef.current = handleAddItem;
 
   const handleItemChange = (index: number, field: keyof EditingItem, value: string | boolean | number) => {
     const newItems = [...items];
@@ -287,7 +297,7 @@ export const ChoiceListEditor: React.FC<ChoiceListEditorProps> = ({
       // Clear cache and reload
       configService.clearCache();
       await loadItems(selectedList.slug);
-      
+
       setSuccessMessage('Changes saved successfully!');
       setTimeout(() => setSuccessMessage(null), 3000);
       setHasChanges(false);
@@ -299,6 +309,9 @@ export const ChoiceListEditor: React.FC<ChoiceListEditorProps> = ({
       setSaving(false);
     }
   };
+
+  // Keep ref pointing at the latest implementation for keyboard shortcuts.
+  handleSaveRef.current = handleSave;
 
   const handleExportJson = () => {
     if (!selectedList) return;
@@ -354,7 +367,7 @@ export const ChoiceListEditor: React.FC<ChoiceListEditorProps> = ({
         setHasChanges(true);
         setSuccessMessage(`Imported ${newItems.length} items`);
         setTimeout(() => setSuccessMessage(null), 3000);
-      } catch (err) {
+      } catch {
         setError('Failed to parse JSON file');
       }
     };
