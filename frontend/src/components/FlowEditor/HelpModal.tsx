@@ -261,26 +261,32 @@ const Footer = styled.div`
 // ============================================================================
 
 export const HelpModal: React.FC<HelpModalProps> = ({ isOpen, onClose }) => {
-  if (!isOpen) return null;
+  const handleOverlayClick = React.useCallback(
+    (e: React.MouseEvent) => {
+      if (e.target === e.currentTarget) {
+        onClose();
+      }
+    },
+    [onClose]
+  );
 
-  const handleOverlayClick = (e: React.MouseEvent) => {
-    if (e.target === e.currentTarget) {
-      onClose();
-    }
-  };
-
-  const handleKeyDown = (e: KeyboardEvent) => {
-    if (e.key === 'Escape') {
-      onClose();
-    }
-  };
+  const handleKeyDown = React.useCallback(
+    (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    },
+    [onClose]
+  );
 
   React.useEffect(() => {
-    if (isOpen) {
-      document.addEventListener('keydown', handleKeyDown as any);
-      return () => document.removeEventListener('keydown', handleKeyDown as any);
-    }
-  }, [isOpen]);
+    if (!isOpen) return;
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [handleKeyDown, isOpen]);
+
+  if (!isOpen) return null;
 
   return (
     <Overlay onClick={handleOverlayClick}>
