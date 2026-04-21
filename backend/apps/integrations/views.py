@@ -155,6 +155,12 @@ def oauth_callback(request, provider_type):
     # Validate signed state for CSRF protection + identity binding.
     state = request.GET.get('state')
 
+    expected_state = request.session.get(f'oauth_state_{provider_type}')
+    if not expected_state or state != expected_state:
+        request.session.pop(f'oauth_state_{provider_type}', None)
+        request.session.pop(f'oauth_tenant_{provider_type}', None)
+        return redirect('/settings?error=invalid_state')
+
     try:
         state_payload = signing.loads(state or '', salt='integrations.oauth.state', max_age=15 * 60)
     except Exception:
