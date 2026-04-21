@@ -16,6 +16,7 @@ from drf_spectacular.views import (
 from .health import health_check, health_detailed, ready_check, health_workforms
 from apps.core.admin_site import admin_site
 from tenant_apps.workflows.views import SuggestNodesView
+from tenant_apps.workflows.views_triggers import TenantScopedWebhookReceiverAPIView
 
 # Keep default admin for backwards compatibility, but use custom site as primary
 admin.site.site_header = '🥩 Meats Central Admin'
@@ -36,6 +37,14 @@ urlpatterns = [
     # API v1 endpoints
     path("api/v1/system/", include("apps.system.urls")),  # NEW: Centralized config system (v2.0 Wave 1)
     path("api/v1/", include("apps.tenants.urls")),  # Multi-tenancy endpoints (shared)
+
+    # Canonical public workflow webhook receiver (tenant selected via path).
+    path(
+        "api/v1/tenants/<uuid:tenant_id>/workflows/webhooks/<uuid:workflow_id>/<str:webhook_token>/",
+        TenantScopedWebhookReceiverAPIView.as_view(),
+        name="tenant-workflow-webhook-receiver",
+    ),
+
     path('api/v1/integrations/', include('integrations.urls')),
     path("api/v1/workflows/email/", include("apps.email_integration.urls")),  # Email integration & webhooks
     # NOTE: accounts_receivables DELETED in v2.0 Wave 1 (merged into invoices/accounting)
