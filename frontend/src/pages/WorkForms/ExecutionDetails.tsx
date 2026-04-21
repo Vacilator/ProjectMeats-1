@@ -24,7 +24,12 @@ export const WorkFormExecutionDetails: React.FC = () => {
       return workformExecutionService.getExecution(id);
     },
     enabled: !!id,
+    retry: false,
     refetchInterval: (q) => {
+      // Prevent error-loop polling: if the last fetch failed (including refetch failures),
+      // stop automatic refetching until the user explicitly retries.
+      if (q.state.error) return false;
+
       const status = (q.state.data as any)?.status as string | undefined;
       return status === 'pending' || status === 'in_progress' ? 2000 : false;
     },
@@ -32,6 +37,7 @@ export const WorkFormExecutionDetails: React.FC = () => {
   });
 
   const execution = query.data;
+  const isLoadError = query.isError || (query as any).isRefetchError;
 
   const submissionId = React.useMemo(() => {
     const initial = execution?.initial_data;
@@ -57,7 +63,7 @@ export const WorkFormExecutionDetails: React.FC = () => {
       <Card padding="lg">
         {query.isLoading ? (
           <div>Loading run…</div>
-        ) : query.isError || !execution ? (
+        ) : isLoadError || !execution ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             <div style={{ fontWeight: 700 }}>{getWorkformsErrorUi(query.error, 'executionDetails.load').title}</div>
             <div style={{ color: 'rgb(var(--color-text-secondary))' }}>
