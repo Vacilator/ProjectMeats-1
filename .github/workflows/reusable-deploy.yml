@@ -691,6 +691,52 @@ jobs:
         with:
           ref: ${{ inputs.ref }}
 
+      - name: Fail fast if required backend secrets are missing
+        env:
+          DO_ACCESS_TOKEN: ${{ secrets.DO_ACCESS_TOKEN }}
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          SSH_PASSWORD: ${{ secrets.SSH_PASSWORD }}
+          DB_HOST: ${{ secrets.DB_HOST }}
+          DB_PORT: ${{ secrets.DB_PORT }}
+          DB_NAME: ${{ secrets.DB_NAME }}
+          DB_USER: ${{ secrets.DB_USER }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          DJANGO_SECRET_KEY: ${{ secrets.DJANGO_SECRET_KEY }}
+          DJANGO_SETTINGS_MODULE: ${{ secrets.DJANGO_SETTINGS_MODULE }}
+          ALLOWED_HOSTS: ${{ secrets.ALLOWED_HOSTS }}
+        run: |
+          set -euo pipefail
+
+          missing=()
+          check() {
+            local name="$1"
+            local value="$2"
+            if [ -z "$value" ]; then
+              missing+=("$name")
+            fi
+          }
+
+          check DO_ACCESS_TOKEN "$DO_ACCESS_TOKEN"
+          check SSH_HOST "$SSH_HOST"
+          check SSH_USER "$SSH_USER"
+          check SSH_PASSWORD "$SSH_PASSWORD"
+          check DB_HOST "$DB_HOST"
+          check DB_PORT "$DB_PORT"
+          check DB_NAME "$DB_NAME"
+          check DB_USER "$DB_USER"
+          check DB_PASSWORD "$DB_PASSWORD"
+          check DJANGO_SECRET_KEY "$DJANGO_SECRET_KEY"
+          check DJANGO_SETTINGS_MODULE "$DJANGO_SETTINGS_MODULE"
+          check ALLOWED_HOSTS "$ALLOWED_HOSTS"
+
+          if [ ${#missing[@]} -gt 0 ]; then
+            echo "❌ Missing required backend secrets (non-empty required): ${missing[*]}"
+            exit 1
+          fi
+
+          echo "✅ Required backend secrets present"
+
       - name: Free up runner disk space
         run: |
           echo "Disk before cleanup:"
@@ -1097,6 +1143,52 @@ jobs:
     environment: ${{ inputs.backend_environment }}
     timeout-minutes: 15
     steps:
+      - name: Fail fast if required backend secrets are missing
+        env:
+          DO_ACCESS_TOKEN: ${{ secrets.DO_ACCESS_TOKEN }}
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          SSH_PASSWORD: ${{ secrets.SSH_PASSWORD }}
+          DB_HOST: ${{ secrets.DB_HOST }}
+          DB_PORT: ${{ secrets.DB_PORT }}
+          DB_NAME: ${{ secrets.DB_NAME }}
+          DB_USER: ${{ secrets.DB_USER }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          DJANGO_SECRET_KEY: ${{ secrets.DJANGO_SECRET_KEY }}
+          DJANGO_SETTINGS_MODULE: ${{ secrets.DJANGO_SETTINGS_MODULE }}
+          ALLOWED_HOSTS: ${{ secrets.ALLOWED_HOSTS }}
+        run: |
+          set -euo pipefail
+
+          missing=()
+          check() {
+            local name="$1"
+            local value="$2"
+            if [ -z "$value" ]; then
+              missing+=("$name")
+            fi
+          }
+
+          check DO_ACCESS_TOKEN "$DO_ACCESS_TOKEN"
+          check SSH_HOST "$SSH_HOST"
+          check SSH_USER "$SSH_USER"
+          check SSH_PASSWORD "$SSH_PASSWORD"
+          check DB_HOST "$DB_HOST"
+          check DB_PORT "$DB_PORT"
+          check DB_NAME "$DB_NAME"
+          check DB_USER "$DB_USER"
+          check DB_PASSWORD "$DB_PASSWORD"
+          check DJANGO_SECRET_KEY "$DJANGO_SECRET_KEY"
+          check DJANGO_SETTINGS_MODULE "$DJANGO_SETTINGS_MODULE"
+          check ALLOWED_HOSTS "$ALLOWED_HOSTS"
+
+          if [ ${#missing[@]} -gt 0 ]; then
+            echo "❌ Missing required backend secrets (non-empty required): ${missing[*]}"
+            exit 1
+          fi
+
+          echo "✅ Required backend secrets present"
+
       - name: Create Backend .env File Locally
         run: |
           cat <<- 'EOF' > backend.env
@@ -1334,6 +1426,42 @@ jobs:
     runs-on: ubuntu-latest
     environment: ${{ inputs.frontend_environment }}
     steps:
+      - name: Fail fast if required frontend secrets are missing
+        env:
+          DO_ACCESS_TOKEN: ${{ secrets.DO_ACCESS_TOKEN }}
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          SSH_PASSWORD: ${{ secrets.SSH_PASSWORD }}
+          BACKEND_HOST: ${{ secrets.BACKEND_HOST }}
+          REACT_APP_API_BASE_URL: ${{ secrets.REACT_APP_API_BASE_URL }}
+          DOMAIN_NAME: ${{ secrets.DOMAIN_NAME }}
+        run: |
+          set -euo pipefail
+
+          missing=()
+          check() {
+            local name="$1"
+            local value="$2"
+            if [ -z "$value" ]; then
+              missing+=("$name")
+            fi
+          }
+
+          check DO_ACCESS_TOKEN "$DO_ACCESS_TOKEN"
+          check SSH_HOST "$SSH_HOST"
+          check SSH_USER "$SSH_USER"
+          check SSH_PASSWORD "$SSH_PASSWORD"
+          check BACKEND_HOST "$BACKEND_HOST"
+          check REACT_APP_API_BASE_URL "$REACT_APP_API_BASE_URL"
+          check DOMAIN_NAME "$DOMAIN_NAME"
+
+          if [ ${#missing[@]} -gt 0 ]; then
+            echo "❌ Missing required frontend secrets (non-empty required): ${missing[*]}"
+            exit 1
+          fi
+
+          echo "✅ Required frontend secrets present"
+
       - name: Setup SSH
         run: |
           # Install sshpass for password-based SSH (same as backend)
