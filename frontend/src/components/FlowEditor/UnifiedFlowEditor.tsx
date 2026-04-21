@@ -8608,7 +8608,8 @@ function getDefaultNodeData(nodeTypeId: string): Record<string, any> {
     defaults.type = mappedType;
 
     // Used by the visual TriggerNode component (kept for backward compatibility)
-    defaults.triggerType = mappedType;
+    // Normalize legacy "formSubmit" into the TriggerNode's supported "form" trigger type.
+    defaults.triggerType = mappedType === 'formSubmit' ? 'form' : mappedType;
 
     // Triggers are entrypoints
     defaults.maxInputs = 0;

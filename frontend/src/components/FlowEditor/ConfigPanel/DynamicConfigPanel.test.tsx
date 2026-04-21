@@ -18,9 +18,9 @@ import { FormBuilderProvider } from '../../../contexts/FormBuilderContext';
 vi.mock('../config', () => ({
   schemaRegistry: {
     getSchema: vi.fn((type: string) => {
-      if (type === 'form') {
+      if (type === 'form' || type === 'formStep') {
         return {
-          displayName: 'Form',
+          displayName: type === 'formStep' ? 'Form Step' : 'Form',
           sections: [
             {
               id: 'basic',
@@ -194,6 +194,51 @@ describe('DynamicConfigPanel', () => {
       // Should render form fields
       expect(screen.getByTestId('field-name')).toBeInTheDocument();
       expect(screen.getByTestId('field-description')).toBeInTheDocument();
+    });
+
+    it('aliases form step name/description into label + stepTitle/stepDescription', async () => {
+      const formStepNode: Node = {
+        id: 'step-1',
+        type: 'formStep',
+        position: { x: 0, y: 0 },
+        data: {
+          nodeType: 'formStep',
+          name: 'Old',
+          description: 'Old desc',
+          label: 'Old',
+          stepTitle: 'Old',
+          stepDescription: 'Old desc',
+        },
+      };
+
+      renderWithProviders(
+        <DynamicConfigPanel
+          node={formStepNode}
+          nodes={mockNodes}
+          edges={mockEdges}
+          onUpdateNode={mockOnUpdateNode}
+        />
+      );
+
+      fireEvent.change(screen.getByTestId('field-name'), { target: { value: 'New Step' } });
+
+      await waitFor(() => {
+        expect(mockOnUpdateNode).toHaveBeenCalled();
+      });
+
+      const lastCall = mockOnUpdateNode.mock.calls.at(-1);
+      expect(lastCall?.[0]).toBe('step-1');
+      expect(lastCall?.[1]?.name).toBe('New Step');
+      expect(lastCall?.[1]?.label).toBe('New Step');
+      expect(lastCall?.[1]?.stepTitle).toBe('New Step');
+
+      fireEvent.change(screen.getByTestId('field-description'), { target: { value: 'New desc' } });
+
+      await waitFor(() => {
+        const call = mockOnUpdateNode.mock.calls.at(-1);
+        expect(call?.[1]?.description).toBe('New desc');
+        expect(call?.[1]?.stepDescription).toBe('New desc');
+      });
     });
 
     /**
