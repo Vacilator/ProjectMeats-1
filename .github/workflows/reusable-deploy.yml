@@ -703,7 +703,7 @@ jobs:
           SSH_USER: ${{ secrets.SSH_USER }}
           SSH_PASSWORD: ${{ secrets.SSH_PASSWORD }}
           DB_HOST: ${{ secrets.DB_HOST }}
-          DB_PORT: ${{ secrets.DB_PORT }}
+          DB_PORT: ${{ secrets.DB_PORT || '5432' }}
           DB_NAME: ${{ secrets.DB_NAME }}
           DB_USER: ${{ secrets.DB_USER }}
           DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
@@ -727,7 +727,6 @@ jobs:
           check SSH_USER "$SSH_USER"
           check SSH_PASSWORD "$SSH_PASSWORD"
           check DB_HOST "$DB_HOST"
-          check DB_PORT "$DB_PORT"
           check DB_NAME "$DB_NAME"
           check DB_USER "$DB_USER"
           check DB_PASSWORD "$DB_PASSWORD"
@@ -1217,7 +1216,7 @@ jobs:
           SSH_USER: ${{ secrets.SSH_USER }}
           SSH_PASSWORD: ${{ secrets.SSH_PASSWORD }}
           DB_HOST: ${{ secrets.DB_HOST }}
-          DB_PORT: ${{ secrets.DB_PORT }}
+          DB_PORT: ${{ secrets.DB_PORT || '5432' }}
           DB_NAME: ${{ secrets.DB_NAME }}
           DB_USER: ${{ secrets.DB_USER }}
           DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
@@ -1241,7 +1240,6 @@ jobs:
           check SSH_USER "$SSH_USER"
           check SSH_PASSWORD "$SSH_PASSWORD"
           check DB_HOST "$DB_HOST"
-          check DB_PORT "$DB_PORT"
           check DB_NAME "$DB_NAME"
           check DB_USER "$DB_USER"
           check DB_PASSWORD "$DB_PASSWORD"
@@ -1258,6 +1256,8 @@ jobs:
 
       - name: Create Backend .env File Locally
         run: |
+          # backend.env contains secrets; lock down permissions on the runner and ensure it is cleaned up.
+          umask 077
           cat <<- 'EOF' > backend.env
           	DJANGO_SECRET_KEY=${{ secrets.DJANGO_SECRET_KEY }}
           	DJANGO_SETTINGS_MODULE=${{ secrets.DJANGO_SETTINGS_MODULE }}
@@ -1267,7 +1267,7 @@ jobs:
           	DB_USER=${{ secrets.DB_USER }}
           	DB_PASSWORD=${{ secrets.DB_PASSWORD }}
           	DB_HOST=${{ secrets.DB_HOST }}
-          	DB_PORT=${{ secrets.DB_PORT }}
+          	DB_PORT=${{ secrets.DB_PORT || '5432' }}
           	DB_ENGINE=django.db.backends.postgresql
           	EMAIL_HOST_PASSWORD=${{ secrets.EMAIL_HOST_PASSWORD }}
           	DEFAULT_FROM_EMAIL=no-reply@meatscentral.com
@@ -1285,6 +1285,8 @@ jobs:
           	MICROSOFT_REDIRECT_URI=${{ secrets.MICROSOFT_REDIRECT_URI }}
           	OAUTH_ENCRYPTION_KEY=${{ secrets.OAUTH_ENCRYPTION_KEY }}
           	EOF
+
+          chmod 600 backend.env
           
           # Verify EMAIL_HOST_PASSWORD is set (show length only for security)
           if [ -n "${{ secrets.EMAIL_HOST_PASSWORD }}" ]; then
@@ -1302,6 +1304,12 @@ jobs:
           sshpass -e ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "mkdir -p /root/projectmeats/backend"
           sshpass -e scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null backend.env ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/root/projectmeats/backend/.env
           echo "✓ backend/.env transferred to server"
+
+      - name: Cleanup generated secret files (runner)
+        if: always()
+        run: |
+          # Ensure no secret material is left on disk if a prior step fails.
+          rm -f backend.env || true
       
       - name: Deploy backend container
         env:
@@ -1440,7 +1448,7 @@ jobs:
             -e DB_NAME="${{ secrets.DB_NAME }}" \
             -e DB_USER="${{ secrets.DB_USER }}" \
             -e DB_PASSWORD="${{ secrets.DB_PASSWORD }}" \
-            -e DB_PORT="${{ secrets.DB_PORT }}" \
+            -e DB_PORT="${{ secrets.DB_PORT || '5432' }}" \
             -e DJANGO_SUPERUSER_USERNAME="${{ secrets.DJANGO_SUPERUSER_USERNAME }}" \
             -e DJANGO_SUPERUSER_EMAIL="${{ secrets.DJANGO_SUPERUSER_EMAIL }}" \
             -e DJANGO_SUPERUSER_PASSWORD="${{ secrets.DJANGO_SUPERUSER_PASSWORD }}" \
@@ -1500,7 +1508,7 @@ jobs:
             -e DB_NAME="${{ secrets.DB_NAME }}" \
             -e DB_USER="${{ secrets.DB_USER }}" \
             -e DB_PASSWORD="${{ secrets.DB_PASSWORD }}" \
-            -e DB_PORT="${{ secrets.DB_PORT }}" \
+            -e DB_PORT="${{ secrets.DB_PORT || '5432' }}" \
             -e DJANGO_SUPERUSER_USERNAME="${{ secrets.DJANGO_SUPERUSER_USERNAME }}" \
             -e DJANGO_SUPERUSER_EMAIL="${{ secrets.DJANGO_SUPERUSER_EMAIL }}" \
             -e DJANGO_SUPERUSER_PASSWORD="${{ secrets.DJANGO_SUPERUSER_PASSWORD }}" \
