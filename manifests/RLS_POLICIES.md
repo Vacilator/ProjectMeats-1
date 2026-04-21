@@ -96,6 +96,21 @@ All workflow-related tables have Row-Level Security **ENABLED** and **FORCED**:
 
 ---
 
+## Email Integration Module (4 tables) - ✅ 100% COMPLIANT
+
+| Table Name | RLS Enabled | Policy Name | Session Variable |
+|------------|-------------|-------------|------------------|
+| `email_accounts` | ✅ | `email_accounts_tenant_isolation` | `app.current_tenant` |
+| `email_actions` | ✅ | `email_actions_tenant_isolation` | `app.current_tenant` |
+| `email_triggers` | ✅ | `email_triggers_tenant_isolation` | `app.current_tenant` |
+| `email_logs` | ✅ | `email_logs_tenant_isolation` | `app.current_tenant` |
+
+**Migrations**:
+- `email_integration/0004_enable_rls_email_integration`
+- `email_integration/0005_fix_email_rls_uuid_cast_safety`
+
+---
+
 ## Tenant Integrations Module (2 tables) - ✅ 100% COMPLIANT
 
 | Table Name | RLS Enabled | Policy Name | Session Variable |
