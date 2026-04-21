@@ -210,7 +210,30 @@ class TenantWorkFormViewSet(viewsets.ModelViewSet):
         if self.action == 'list':
             return TenantWorkFormListSerializer
         return TenantWorkFormSerializer
-    
+
+    def create(self, request, *args, **kwargs):
+        if not getattr(request, 'tenant', None):
+            return Response({'error': 'Tenant context missing'}, status=status.HTTP_400_BAD_REQUEST)
+
+        requested_status = request.data.get('status') if isinstance(request.data, dict) else None
+        requested_status = str(requested_status) if requested_status is not None else None
+
+        # Prevent bypass: creating with status=active must be validated the same as activation on update.
+        if requested_status == 'active':
+            serializer = self.get_serializer(data=request.data)
+            serializer.is_valid(raise_exception=True)
+
+            candidate = TenantWorkForm(**serializer.validated_data)
+            candidate.tenant = request.tenant
+            candidate.created_by = request.user
+            candidate.updated_by = request.user
+
+            gate = self._validate_before_activation(candidate, 'active', allow_already_active=False)
+            if gate is not None:
+                return gate
+
+        return super().create(request, *args, **kwargs)
+
     def perform_create(self, serializer):
         """Assign tenant and creator on creation."""
         serializer.save(
@@ -277,12 +300,19 @@ class TenantWorkFormViewSet(viewsets.ModelViewSet):
         except Exception:
             return False
 
-    def _validate_before_activation(self, workform: TenantWorkForm, requested_status: str | None):
+    def _validate_before_activation(
+        self,
+        workform: TenantWorkForm,
+        requested_status: str | None,
+        *,
+        allow_already_active: bool = True,
+    ):
         if requested_status != 'active':
             return None
 
         # Backward compatibility: do not block updates to already-active WorkForms.
-        if workform.status == 'active':
+        # (But allow callers like create() to force validation when status is requested as active.)
+        if allow_already_active and workform.status == 'active':
             return None
 
         refs = workform.validate_form_references()
