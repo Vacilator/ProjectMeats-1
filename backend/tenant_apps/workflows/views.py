@@ -1517,7 +1517,7 @@ class TenantFormEntityViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         qs = super().get_queryset()
-        tenant = getattr(self.request, "tenant", None)
+        tenant = _get_request_tenant(self.request)
         if not tenant:
             return qs.none()
 
@@ -1531,6 +1531,23 @@ class TenantFormEntityViewSet(viewsets.ModelViewSet):
         return qs.prefetch_related(Prefetch("fields", queryset=TenantFormField.objects.order_by("order"))).order_by(
             "order"
         )
+
+    def create(self, request, *args, **kwargs):
+        tenant, error = _require_tenant(request)
+        if error:
+            return error
+        return super().create(request, *args, **kwargs)
+
+    def perform_create(self, serializer):
+        tenant = _get_request_tenant(self.request)
+        if not tenant:
+            raise ValidationError({'tenant': 'Tenant context is required (X-Tenant-ID header).'})
+
+        form = serializer.validated_data.get('form')
+        if form is not None and getattr(form, 'tenant_id', None) != tenant.id:
+            raise ValidationError({'form': 'Form must belong to the current tenant.'})
+
+        serializer.save(tenant=tenant)
 
     @action(detail=True, methods=["post"])
     def reorder_fields(self, request, pk=None):
@@ -1555,7 +1572,7 @@ class TenantFormFieldViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         qs = super().get_queryset()
-        tenant = getattr(self.request, "tenant", None)
+        tenant = _get_request_tenant(self.request)
         if not tenant:
             return qs.none()
 
@@ -1567,7 +1584,25 @@ class TenantFormFieldViewSet(viewsets.ModelViewSet):
             qs = qs.filter(form_entity_id=entity_id)
 
         return qs.order_by("order")
-    
+
+    def create(self, request, *args, **kwargs):
+        tenant, error = _require_tenant(request)
+        if error:
+            return error
+        return super().create(request, *args, **kwargs)
+
+    def perform_create(self, serializer):
+        tenant = _get_request_tenant(self.request)
+        if not tenant:
+            raise ValidationError({'tenant': 'Tenant context is required (X-Tenant-ID header).'})
+
+        entity = serializer.validated_data.get('form_entity')
+        form = getattr(entity, 'form', None) if entity is not None else None
+        if form is not None and getattr(form, 'tenant_id', None) != tenant.id:
+            raise ValidationError({'form_entity': 'Form entity must belong to the current tenant.'})
+
+        serializer.save(tenant=tenant)
+
     @action(detail=True, methods=['get'], url_path='cascade-options')
     def cascade_options(self, request, pk=None):
         """
@@ -1588,7 +1623,7 @@ class TenantFormFieldViewSet(viewsets.ModelViewSet):
         """
         from tenant_apps.workflows.services.cascading import CascadingFieldService
 
-        tenant = getattr(request, 'tenant', None)
+        tenant = _get_request_tenant(request)
         if not tenant:
             return Response(
                 {"error": "Tenant context is required (X-Tenant-ID header)"},
@@ -1635,7 +1670,7 @@ class TenantFormRuleViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         qs = super().get_queryset()
-        tenant = getattr(self.request, "tenant", None)
+        tenant = _get_request_tenant(self.request)
         if not tenant:
             return qs.none()
 
@@ -1647,6 +1682,23 @@ class TenantFormRuleViewSet(viewsets.ModelViewSet):
             qs = qs.filter(form_id=form_id)
 
         return qs.order_by("order")
+
+    def create(self, request, *args, **kwargs):
+        tenant, error = _require_tenant(request)
+        if error:
+            return error
+        return super().create(request, *args, **kwargs)
+
+    def perform_create(self, serializer):
+        tenant = _get_request_tenant(self.request)
+        if not tenant:
+            raise ValidationError({'tenant': 'Tenant context is required (X-Tenant-ID header).'})
+
+        form = serializer.validated_data.get('form')
+        if form is not None and getattr(form, 'tenant_id', None) != tenant.id:
+            raise ValidationError({'form': 'Form must belong to the current tenant.'})
+
+        serializer.save(tenant=tenant)
 
 
 # =============================================================================
@@ -2024,7 +2076,7 @@ class TenantWorkflowConditionViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         qs = super().get_queryset()
-        tenant = getattr(self.request, "tenant", None)
+        tenant = _get_request_tenant(self.request)
         if not tenant:
             return qs.none()
 
@@ -2035,6 +2087,23 @@ class TenantWorkflowConditionViewSet(viewsets.ModelViewSet):
             qs = qs.filter(workflow_id=workflow_id)
 
         return qs.order_by("order")
+
+    def create(self, request, *args, **kwargs):
+        tenant, error = _require_tenant(request)
+        if error:
+            return error
+        return super().create(request, *args, **kwargs)
+
+    def perform_create(self, serializer):
+        tenant = _get_request_tenant(self.request)
+        if not tenant:
+            raise ValidationError({'tenant': 'Tenant context is required (X-Tenant-ID header).'})
+
+        workflow = serializer.validated_data.get('workflow')
+        if workflow is not None and getattr(workflow, 'tenant_id', None) != tenant.id:
+            raise ValidationError({'workflow': 'Workflow must belong to the current tenant.'})
+
+        serializer.save(tenant=tenant)
 
 
 class TenantWorkflowActionViewSet(viewsets.ModelViewSet):
@@ -2048,7 +2117,7 @@ class TenantWorkflowActionViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         qs = super().get_queryset()
-        tenant = getattr(self.request, "tenant", None)
+        tenant = _get_request_tenant(self.request)
         if not tenant:
             return qs.none()
 
@@ -2059,6 +2128,23 @@ class TenantWorkflowActionViewSet(viewsets.ModelViewSet):
             qs = qs.filter(workflow_id=workflow_id)
 
         return qs.order_by("order")
+
+    def create(self, request, *args, **kwargs):
+        tenant, error = _require_tenant(request)
+        if error:
+            return error
+        return super().create(request, *args, **kwargs)
+
+    def perform_create(self, serializer):
+        tenant = _get_request_tenant(self.request)
+        if not tenant:
+            raise ValidationError({'tenant': 'Tenant context is required (X-Tenant-ID header).'})
+
+        workflow = serializer.validated_data.get('workflow')
+        if workflow is not None and getattr(workflow, 'tenant_id', None) != tenant.id:
+            raise ValidationError({'workflow': 'Workflow must belong to the current tenant.'})
+
+        serializer.save(tenant=tenant)
 
 
 class WorkflowExecutionLogViewSet(viewsets.ReadOnlyModelViewSet):

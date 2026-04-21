@@ -16,6 +16,7 @@ import importlib
 
 from django.test import SimpleTestCase
 from rest_framework.generics import GenericAPIView
+from rest_framework.mixins import CreateModelMixin
 
 
 TENANT_APP_URL_MODULES = [
@@ -83,5 +84,60 @@ class TenantViewSetTenantFilterAuditTests(SimpleTestCase):
             joined = '\n'.join(offenders)
             raise AssertionError(
                 'Tenant-scoped ViewSets must override get_queryset (or inherit a tenant-filtered base).\n'
+                f'Offenders:\n{joined}'
+            )
+
+    def test_tenant_models_do_not_use_unsafe_default_perform_create(self):
+        """Guardrail: tenant-scoped ViewSets must assign tenant on create.
+
+        For shared-schema multi-tenancy, relying on DRF defaults (create + perform_create)
+        can allow cross-tenant writes if the serializer doesn't inject tenant.
+        """
+
+        offenders: list[str] = []
+
+        for mod_path in TENANT_APP_URL_MODULES:
+            mod = importlib.import_module(mod_path)
+
+            routers = []
+            if getattr(mod, 'router', None) is not None:
+                routers.append(getattr(mod, 'router'))
+            for name in dir(mod):
+                if not name.endswith('router'):
+                    continue
+                try:
+                    r = getattr(mod, name)
+                except Exception:
+                    continue
+                if r is not None and r not in routers and hasattr(r, 'registry'):
+                    routers.append(r)
+
+            for router in routers:
+                for prefix, viewset_cls, _basename in getattr(router, 'registry', []):
+                    queryset = getattr(viewset_cls, 'queryset', None)
+                    model = getattr(queryset, 'model', None) if queryset is not None else None
+                    if model is None:
+                        continue
+
+                    if not any(getattr(f, 'name', None) == 'tenant' for f in model._meta.get_fields()):
+                        continue
+
+                    http_methods = set(getattr(viewset_cls, 'http_method_names', []) or [])
+                    if 'post' not in http_methods:
+                        continue
+
+                    if not issubclass(viewset_cls, CreateModelMixin):
+                        continue
+
+                    if (
+                        viewset_cls.create is CreateModelMixin.create
+                        and viewset_cls.perform_create is CreateModelMixin.perform_create
+                    ):
+                        offenders.append(f'{mod_path}:{viewset_cls.__name__} (prefix={prefix}, model={model.__name__})')
+
+        if offenders:
+            joined = '\n'.join(offenders)
+            raise AssertionError(
+                'Tenant-scoped ViewSets must set tenant during create (override create or perform_create).\n'
                 f'Offenders:\n{joined}'
             )
