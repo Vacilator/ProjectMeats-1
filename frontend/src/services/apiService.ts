@@ -21,6 +21,7 @@ import {
   isUsingJwt,
 } from './jwtService';
 import { triggerGlobalSessionExpired } from '../contexts/SessionManagerContext';
+import { ApiServiceError, createCircuitBreakerError } from './apiErrors';
 
 // API Configuration
 const API_BASE_URL = config.API_BASE_URL;
@@ -231,7 +232,19 @@ apiClient.interceptors.response.use(
         // best-effort
       }
 
-      return Promise.reject(new Error(friendlyMessage));
+      return Promise.reject(
+        createCircuitBreakerError({
+          friendlyMessage,
+          status,
+          request: {
+            method: originalRequest?.method,
+            url: originalRequest?.url,
+            baseURL: (originalRequest as any)?.baseURL,
+          },
+          responseData: (error.response as any)?.data,
+          originalError: error,
+        })
+      );
     }
     
     // Log the error for debugging
@@ -343,7 +356,19 @@ adminClient.interceptors.response.use(
         method: originalRequest?.method,
       });
 
-      return Promise.reject(new Error(friendlyMessage));
+      return Promise.reject(
+        createCircuitBreakerError({
+          friendlyMessage,
+          status,
+          request: {
+            method: originalRequest?.method,
+            url: originalRequest?.url,
+            baseURL: (originalRequest as any)?.baseURL,
+          },
+          responseData: (error.response as any)?.data,
+          originalError: error,
+        })
+      );
     }
     
     // Log the error for debugging
@@ -416,6 +441,16 @@ interface AxiosError {
 
 function getErrorMessage(error: unknown): string {
   if (typeof error === 'string') return error;
+
+  if (error instanceof ApiServiceError) {
+    const data = error.responseData;
+    if (data && typeof data === 'object') {
+      const anyData = data as any;
+      const msg = anyData.message || anyData.error || anyData.detail || anyData.details;
+      if (msg && typeof msg === 'string') return msg;
+    }
+    return error.message;
+  }
   
   if (error && typeof error === 'object') {
     const axiosError = error as AxiosError;
