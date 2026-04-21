@@ -95,23 +95,9 @@ export default function WorkFormsScreen({ navigation, tenant, user, isGuest = fa
   }, [loadForms]);
 
   const handleFormPress = (form: WorkForm) => {
-    if (isGuest) {
-      Alert.alert(
-        'View Only',
-        `You are browsing "${form.name}" as a guest. Sign in to edit workforms.`,
-        [{ text: 'OK' }]
-      );
-    } else {
-      // Full editing is handled on the web Workform Editor.
-      // On mobile, show a read-only summary.
-      Alert.alert(
-        form.name,
-        form.description
-          ? `${form.description}\n\n${form.node_count} nodes`
-          : `${form.node_count} nodes`,
-        [{ text: 'Close' }]
-      );
-    }
+    // Full editing is handled on the web Workform Editor.
+    // On mobile, show a read-only summary (works for both guest + authed).
+    navigation.navigate('WorkFormDetail', { id: form.id });
   };
 
   if (loading) {
