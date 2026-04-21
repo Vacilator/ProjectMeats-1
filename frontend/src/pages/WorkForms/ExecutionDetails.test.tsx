@@ -72,4 +72,31 @@ describe('WorkFormExecutionDetails', () => {
     expect(await screen.findByText(/^Errors$/i)).toBeInTheDocument();
     expect(screen.getAllByText('Boom').length).toBeGreaterThan(0);
   });
+
+  it('renders a helpful error panel when the run cannot be loaded', async () => {
+    vi.mocked(workformExecutionService.getExecution).mockRejectedValueOnce({
+      response: { status: 404, data: { detail: 'Not found.' } },
+    });
+
+    const client = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false },
+      },
+    });
+
+    render(
+      <QueryClientProvider client={client}>
+        <MemoryRouter initialEntries={['/workforms/executions/ex-missing']}>
+          <Routes>
+            <Route path="/workforms/executions/:id" element={<WorkFormExecutionDetails />} />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>
+    );
+
+    expect(await screen.findByText('Not found')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /try again/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /view history/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /back to catalog/i })).toBeInTheDocument();
+  });
 });

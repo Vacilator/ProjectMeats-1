@@ -27,6 +27,7 @@ import {
 } from 'lucide-react';
 import { businessApi } from '../../services/businessApi';
 import { workformExecutionService, WorkFormExecution } from '@/services/workformExecutionService';
+import { getWorkformsErrorUi } from '@/features/workforms/workformsErrors';
 
 // ============================================================================
 // Types
@@ -494,10 +495,13 @@ const FormsFlowsHistory: React.FC = () => {
   const [workflowExecutions, setWorkflowExecutions] = useState<WorkFormExecution[]>([]);
   const [workflowsLoading, setWorkflowsLoading] = useState(false);
   const [expandedWorkflow, setExpandedWorkflow] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [runsLoadError, setRunsLoadError] = useState<string | null>(null);
   
   // Fetch completed/cancelled submissions
   const fetchSubmissions = async () => {
     setLoading(true);
+    setLoadError(null);
     try {
       const params: Record<string, string> = {
         status: 'completed,cancelled',
@@ -514,6 +518,7 @@ const FormsFlowsHistory: React.FC = () => {
     } catch (error) {
       console.error('Failed to fetch history:', error);
       setSubmissions([]);
+      setLoadError(getWorkformsErrorUi(error, 'history.load').message);
     } finally {
       setLoading(false);
     }
@@ -541,6 +546,7 @@ const FormsFlowsHistory: React.FC = () => {
   // Fetch workflow executions
   const fetchWorkflowExecutions = async () => {
     setWorkflowsLoading(true);
+    setRunsLoadError(null);
     try {
       const params: Record<string, string> = {
         status: 'completed,failed,cancelled',
@@ -557,6 +563,7 @@ const FormsFlowsHistory: React.FC = () => {
     } catch (error) {
       console.error('Failed to fetch workflow executions:', error);
       setWorkflowExecutions([]);
+      setRunsLoadError(getWorkformsErrorUi(error, 'history.load').message);
     } finally {
       setWorkflowsLoading(false);
     }
@@ -708,6 +715,17 @@ const FormsFlowsHistory: React.FC = () => {
       
       {currentLoading ? (
         <LoadingState role="status" aria-live="polite">Loading history...</LoadingState>
+      ) : currentData.length === 0 && ((activeTab === 'submissions' && loadError) || (activeTab === 'workflows' && runsLoadError)) ? (
+        <EmptyState role="status" aria-live="polite">
+          <EmptyIcon aria-hidden="true">
+            <FileText size={48} />
+          </EmptyIcon>
+          <EmptyTitle>Couldn't load history</EmptyTitle>
+          <EmptyMessage>{activeTab === 'submissions' ? loadError : runsLoadError}</EmptyMessage>
+          <ActionButton onClick={() => (activeTab === 'submissions' ? fetchSubmissions() : fetchWorkflowExecutions())}>
+            Try again
+          </ActionButton>
+        </EmptyState>
       ) : currentData.length === 0 ? (
         <EmptyState role="status" aria-live="polite">
           <EmptyIcon aria-hidden="true">

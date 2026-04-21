@@ -19,6 +19,7 @@
 import React, { useState } from 'react';
 import { logger } from '@/utils/logger';
 import { showAlert } from '@/utils/uiDialogs';
+import { getWorkformsErrorUi } from '@/features/workforms/workformsErrors';
 
 import { useNavigate } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -569,8 +570,8 @@ const FormsFlowsCatalog: React.FC = () => {
       showAlert({ type: 'success', title: 'Deleted', content: 'WorkForm deleted successfully.' });
     },
     onError: (error: any) => {
-      const msg = error?.message || 'Failed to delete WorkForm.';
-      showAlert({ type: 'error', title: 'Error', content: msg });
+      const ui = getWorkformsErrorUi(error, 'catalog.delete');
+      showAlert({ type: 'error', title: ui.title, content: ui.message });
     },
   });
 
@@ -581,6 +582,7 @@ const FormsFlowsCatalog: React.FC = () => {
     data: forms = [],
     isLoading,
     error,
+    refetch,
   } = useQuery<CatalogItem[]>({
     queryKey: ['workforms-catalog-items'],
     queryFn: async () => {
@@ -591,6 +593,8 @@ const FormsFlowsCatalog: React.FC = () => {
         quickActionsService.getAvailableForms(),
       ]);
 
+      const bothFailed = workformsResult.status === 'rejected' && targetsResult.status === 'rejected';
+
       const workforms = workformsResult.status === 'fulfilled' ? workformsResult.value : [];
       if (workformsResult.status === 'rejected') {
         logger.error('[Catalog] Error fetching workforms:', workformsResult.reason);
@@ -599,6 +603,10 @@ const FormsFlowsCatalog: React.FC = () => {
       const targets = targetsResult.status === 'fulfilled' ? targetsResult.value : [];
       if (targetsResult.status === 'rejected') {
         logger.error('[Catalog] Error fetching available targets:', targetsResult.reason);
+      }
+
+      if (bothFailed) {
+        throw (targetsResult.status === 'rejected' ? targetsResult.reason : workformsResult.reason) ?? new Error('Failed to load catalog');
       }
 
       const mappedWorkforms: CatalogItem[] = (workforms || []).map((wf) => {
@@ -797,10 +805,11 @@ const FormsFlowsCatalog: React.FC = () => {
       navigate(`/workforms/in-progress/${submission.id}`);
     } catch (error) {
       logger.error('[Catalog] Quick Run failed:', error);
+      const ui = getWorkformsErrorUi(error, 'catalog.start');
       showAlert({
         type: 'error',
-        title: 'Error',
-        content: 'Failed to start. Please try again.',
+        title: ui.title,
+        content: ui.message,
       });
     } finally {
       setIsQuickRunning(null);
@@ -830,10 +839,11 @@ const FormsFlowsCatalog: React.FC = () => {
       navigate(`/workforms/in-progress/${submission.id}`);
     } catch (error) {
       logger.error('[Catalog] Failed to start form submission', error);
+      const ui = getWorkformsErrorUi(error, 'catalog.start');
       showAlert({
         type: 'error',
-        title: 'Error',
-        content: 'Failed to start form. Please try again.',
+        title: ui.title,
+        content: ui.message,
       });
     }
   };
@@ -843,6 +853,8 @@ const FormsFlowsCatalog: React.FC = () => {
     const date = new Date(dateString);
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   };
+
+  const catalogErrorUi = error ? getWorkformsErrorUi(error, 'catalog.load') : null;
 
   return (
     <Container data-testid="workforms-catalog-page">
@@ -905,7 +917,16 @@ const FormsFlowsCatalog: React.FC = () => {
         </Tab>
       </TabsContainer>
 
-      {activeTab !== 'templates' && (
+      {catalogErrorUi && !isLoading && forms.length === 0 ? (
+        <EmptyState role="status" aria-live="polite">
+          <EmptyStateIcon aria-hidden="true">⚠️</EmptyStateIcon>
+          <EmptyStateTitle>{catalogErrorUi.title}</EmptyStateTitle>
+          <EmptyStateDescription>{catalogErrorUi.message}</EmptyStateDescription>
+          <Button variant="primary" onClick={() => void refetch()}>
+            Try again
+          </Button>
+        </EmptyState>
+      ) : activeTab !== 'templates' && (
         <>
           {/* NEW: Category Filters for Protein Type and Department */}
           <CategoryBar>
