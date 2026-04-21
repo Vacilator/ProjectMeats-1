@@ -14,6 +14,7 @@ import styled from 'styled-components';
 import { ConfigField, FieldRenderProps } from '../types';
 import EntityFieldPicker, { SelectedField } from '../../ConfigPanel/EntityFieldPicker';
 import FieldMappingPanel from '../../ConfigPanel/FieldMappingPanel';
+import { normalizeFieldMappings } from '../../utils/fieldMappingsAdapter';
 import { VariablePicker, type Variable as VariableOption } from '../../components/VariablePicker';
 import ValidationRuleBuilder from '../../ConfigPanel/ValidationRuleBuilder';
 
@@ -159,11 +160,14 @@ export function renderFieldMapping(props: FieldRenderProps): React.ReactElement 
   }));
 
   // Coerce mappings to the array shape expected by FieldMappingPanel.
-  const mappings = Array.isArray(value)
+  // Older nodes may store AutoMappingService suggestions directly; normalize them.
+  const rawMappings = Array.isArray(value)
     ? value
     : Array.isArray(field.defaultValue)
       ? (field.defaultValue as any)
       : [];
+
+  const mappings = normalizeFieldMappings(rawMappings);
 
   return (
     <FieldContainer>
