@@ -63,6 +63,28 @@ def _get_signed_oauth_cookie(request, *, name: str) -> str | None:
 def _clear_oauth_cookies(response, provider: str) -> None:
     response.delete_cookie(_oauth_cookie_name('state', provider), path=_OAUTH_COOKIE_PATH)
     response.delete_cookie(_oauth_cookie_name('tenant', provider), path=_OAUTH_COOKIE_PATH)
+    response.delete_cookie(_oauth_cookie_name('nonce', provider), path=_OAUTH_COOKIE_PATH)
+
+
+def _consume_oauth_nonce(request, provider: str, nonce: str) -> bool:
+    """Nonce replay protection without requiring a shared cache.
+
+    We bind nonce to the initiating browser via session and a signed httpOnly cookie.
+    Callback must present the same nonce exactly once.
+    """
+
+    if not nonce:
+        return False
+
+    expected = request.session.get(f'oauth_nonce_{provider}') or _get_signed_oauth_cookie(
+        request,
+        name=_oauth_cookie_name('nonce', provider),
+    )
+    if not expected or expected != nonce:
+        return False
+
+    request.session.pop(f'oauth_nonce_{provider}', None)
+    return True
 
 
 class OAuthAuthorizeView(APIView):
@@ -136,6 +158,8 @@ class OAuthAuthorizeView(APIView):
         # - Session cookie may be blocked on cross-site redirects.
         # - Signed state provides integrity and lets us enforce tenant membership.
         nonce = secrets.token_urlsafe(16)
+        request.session[f'oauth_nonce_{provider}'] = nonce
+
         state = signing.dumps(
             {
                 'tenant_id': str(tenant.id),
@@ -220,6 +244,12 @@ class OAuthAuthorizeView(APIView):
             value=str(tenant.id),
             request=request,
         )
+        _set_signed_oauth_cookie(
+            response,
+            name=_oauth_cookie_name('nonce', provider),
+            value=nonce,
+            request=request,
+        )
         return response
 
 
@@ -255,6 +285,8 @@ class OAuthCallbackView(APIView):
             name=_oauth_cookie_name('state', provider),
         )
         if not state or state != expected_state:
+            request.session.pop(f'oauth_state_{provider}', None)
+            request.session.pop(f'oauth_tenant_{provider}', None)
             response = redirect(f'/settings/email-integrations?error=invalid_state&provider={quote(provider)}')
             _clear_oauth_cookies(response, provider)
             return response
@@ -269,8 +301,35 @@ class OAuthCallbackView(APIView):
 
         tenant_id = str(state_payload.get('tenant_id') or '')
         user_id = str(state_payload.get('user_id') or '')
-        if not tenant_id or not user_id:
+        state_provider = str(state_payload.get('provider') or '')
+        nonce = str(state_payload.get('nonce') or '')
+
+        if not tenant_id or not user_id or not nonce:
+            request.session.pop(f'oauth_state_{provider}', None)
+            request.session.pop(f'oauth_tenant_{provider}', None)
             response = redirect(f'/settings/email-integrations?error=invalid_state&provider={quote(provider)}')
+            _clear_oauth_cookies(response, provider)
+            return response
+
+        if state_provider and state_provider != provider:
+            request.session.pop(f'oauth_state_{provider}', None)
+            request.session.pop(f'oauth_tenant_{provider}', None)
+            response = redirect(f'/settings/email-integrations?error=invalid_state&provider={quote(provider)}')
+            _clear_oauth_cookies(response, provider)
+            return response
+
+        header_tenant = request.headers.get('X-Tenant-ID')
+        if header_tenant and header_tenant != tenant_id:
+            request.session.pop(f'oauth_state_{provider}', None)
+            request.session.pop(f'oauth_tenant_{provider}', None)
+            response = redirect(f'/settings/email-integrations?error=tenant_mismatch&provider={quote(provider)}')
+            _clear_oauth_cookies(response, provider)
+            return response
+
+        if not _consume_oauth_nonce(request, provider, nonce):
+            request.session.pop(f'oauth_state_{provider}', None)
+            request.session.pop(f'oauth_tenant_{provider}', None)
+            response = redirect(f'/settings/email-integrations?error=replayed_state&provider={quote(provider)}')
             _clear_oauth_cookies(response, provider)
             return response
 
