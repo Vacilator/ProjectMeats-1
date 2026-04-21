@@ -222,8 +222,8 @@ const Root = styled.div<{ $selected: boolean }>`
   border: 1px solid rgb(var(--color-border));
   box-shadow: ${(p) =>
     p.$selected
-      ? '0 16px 40px rgb(0 0 0 / 0.16), 0 0 0 6px rgb(var(--color-primary) / 0.10)'
-      : '0 10px 26px rgb(0 0 0 / 0.12)'};
+      ? '0 16px 40px rgba(var(--color-overlay), 0.16), 0 0 0 6px rgba(var(--color-primary), 0.10)'
+      : '0 10px 26px rgba(var(--color-overlay), 0.12)'};
 `;
 
 const TopBar = styled.div`
@@ -286,7 +286,7 @@ const Button = styled.button<{ $primary?: boolean }>`
   border-radius: 10px;
   border: 1px solid rgb(var(--color-border));
   background: ${(p) => (p.$primary ? 'rgb(var(--color-primary))' : 'rgb(var(--color-surface))')};
-  color: ${(p) => (p.$primary ? 'white' : 'rgb(var(--color-text-primary))')};
+  color: ${(p) => (p.$primary ? 'rgb(var(--color-primary-foreground))' : 'rgb(var(--color-text-primary))')};
   cursor: pointer;
   font-size: 12px;
   font-weight: 900;
@@ -361,7 +361,7 @@ const StepCard = styled.div<{ $active?: boolean; $isDrop?: boolean }>`
   background: ${(p) => (p.$active ? 'rgba(var(--color-primary), 0.06)' : 'rgb(var(--color-background))')};
   padding: 12px;
   margin-bottom: 12px;
-  box-shadow: ${(p) => (p.$active ? '0 10px 22px rgb(0 0 0 / 0.10)' : 'none')};
+  box-shadow: ${(p) => (p.$active ? '0 10px 22px rgba(var(--color-overlay), 0.10)' : 'none')};
 
   ${(p) =>
     p.$isDrop

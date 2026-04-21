@@ -195,7 +195,7 @@ const LogicButton = styled.button<{ $active: boolean }>`
   padding: 6px 16px;
   border: none;
   background: ${props => props.$active ? 'rgb(var(--color-primary))' : 'rgb(var(--color-background))'};
-  color: ${props => props.$active ? 'white' : 'rgb(var(--color-text-primary))'};
+  color: ${props => props.$active ? 'rgb(var(--color-primary-foreground))' : 'rgb(var(--color-text-primary))'};
   font-size: 12px;
   font-weight: 600;
   cursor: pointer;

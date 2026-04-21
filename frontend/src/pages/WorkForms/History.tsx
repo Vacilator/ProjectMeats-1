@@ -260,10 +260,12 @@ const StatusBadge = styled.span<{ $status: string }>`
   font-weight: 500;
   border-radius: 12px;
   background: ${({ $status }) =>
-    $status === 'completed' ? 'rgb(34 197 94 / 0.10)' : 'rgb(239 68 68 / 0.10)'
+    $status === 'completed'
+      ? 'rgba(var(--color-success), 0.10)'
+      : 'rgba(var(--color-error), 0.10)'
   };
   color: ${({ $status }) =>
-    $status === 'completed' ? 'rgb(34, 197, 94)' : 'rgb(239, 68, 68)'
+    $status === 'completed' ? 'rgb(var(--color-success))' : 'rgb(var(--color-error))'
   };
 `;
 
@@ -421,10 +423,10 @@ const TimelineDot = styled.div<{ $status: string }>`
   border-radius: 50%;
   border: 2px solid ${({ $status }) => {
     switch ($status) {
-      case 'completed': return 'rgb(34, 197, 94)';
-      case 'failed': return 'rgb(239, 68, 68)';
-      case 'skipped': return 'rgb(127, 140, 141)';
-      default: return 'rgb(59, 130, 246)';
+      case 'completed': return 'rgb(var(--color-success))';
+      case 'failed': return 'rgb(var(--color-error))';
+      case 'skipped': return 'rgb(var(--color-text-secondary))';
+      default: return 'rgb(var(--color-info))';
     }
   }};
   background: rgb(var(--color-surface));

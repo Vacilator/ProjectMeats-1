@@ -109,7 +109,7 @@ const ViewportButton = styled.button<{ $active: boolean }>`
   background: ${props => props.$active ? 'rgb(var(--color-primary))' : 'transparent'};
   border: 1px solid ${props => props.$active ? 'rgb(var(--color-primary))' : 'rgb(var(--color-border))'};
   border-radius: var(--radius-sm);
-  color: ${props => props.$active ? 'white' : 'rgb(var(--color-text-secondary))'};
+  color: ${props => props.$active ? 'rgb(var(--color-primary-foreground))' : 'rgb(var(--color-text-secondary))'};
   font-size: 12px;
   font-weight: 500;
   cursor: pointer;
@@ -117,7 +117,7 @@ const ViewportButton = styled.button<{ $active: boolean }>`
   
   &:hover {
     background: ${props => props.$active ? 'rgb(var(--color-primary))' : 'rgb(var(--color-background))'};
-    color: ${props => props.$active ? 'white' : 'rgb(var(--color-text-primary))'};
+    color: ${props => props.$active ? 'rgb(var(--color-primary-foreground))' : 'rgb(var(--color-text-primary))'};
     border-color: ${props => props.$active ? 'rgb(var(--color-primary))' : 'rgb(var(--color-border))'};
   }
   

@@ -239,7 +239,7 @@ const Button = styled.button<{ $variant?: 'primary' | 'secondary' }>`
   padding: 10px 20px;
   font-size: 14px;
   font-weight: 600;
-  color: ${props => props.$variant === 'primary' ? 'white' : 'rgb(var(--color-text-primary))'};
+  color: ${props => props.$variant === 'primary' ? 'rgb(var(--color-primary-foreground))' : 'rgb(var(--color-text-primary))'};
   background: ${props => props.$variant === 'primary' ? 'rgb(var(--color-primary))' : 'transparent'};
   border: 1px solid ${props => props.$variant === 'primary' ? 'rgb(var(--color-primary))' : 'rgb(var(--color-border))'};
   border-radius: var(--radius-md);

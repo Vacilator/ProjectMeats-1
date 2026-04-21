@@ -236,17 +236,17 @@ const StatusBadge = styled.span<{ $status: string }>`
   border-radius: 12px;
   background: ${({ $status }) =>
     $status === 'in_progress'
-      ? 'rgb(59 130 246 / 0.10)'
+      ? 'rgba(var(--color-info), 0.10)'
       : $status === 'draft'
-        ? 'rgb(var(--color-text-tertiary) / 0.10)'
-        : 'rgb(234 179 8 / 0.10)'
+        ? 'rgba(var(--color-text-tertiary), 0.10)'
+        : 'rgba(var(--color-warning), 0.10)'
   };
   color: ${({ $status }) =>
     $status === 'in_progress'
-      ? 'rgb(59, 130, 246)'
+      ? 'rgb(var(--color-info))'
       : $status === 'draft'
         ? 'rgb(var(--color-text-secondary))'
-        : 'rgb(234, 179, 8)'
+        : 'rgb(var(--color-warning))'
   };
 `;
 
@@ -303,7 +303,7 @@ const ResumeButton = styled.button`
   border: none;
   border-radius: var(--radius-md, 8px);
   background: rgb(var(--color-primary));
-  color: white;
+  color: rgb(var(--color-primary-foreground));
   font-size: 14px;
   font-weight: 500;
   cursor: pointer;
@@ -379,8 +379,8 @@ const FilterSelect = styled.select`
 const CancelButton = styled.button`
   padding: 10px 16px;
   background: transparent;
-  color: rgb(239, 68, 68);
-  border: 1px solid rgb(239, 68, 68);
+  color: rgb(var(--color-error));
+  border: 1px solid rgb(var(--color-error));
   border-radius: var(--radius-md, 8px);
   font-size: 14px;
   font-weight: 500;
@@ -388,7 +388,7 @@ const CancelButton = styled.button`
   transition: all 0.15s ease;
   
   &:hover {
-    background: rgb(239 68 68 / 0.10);
+    background: rgba(var(--color-error), 0.10);
   }
   
   &:disabled {

@@ -62,6 +62,18 @@ const HEX_COLOR_REGEX = /#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{4}|[0-9a-fA-F]{6}|[0-9a-
 // NOTE: We scope enforcement to FlowEditor + WorkForms to avoid mass legacy churn.
 const RGB_COLOR_REGEX = /\brgba?\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*(?:,\s*[0-9.]+\s*)?\)/g;
 
+// CSS Color 4 space-separated functional notations (e.g. rgb(0 0 0 / 50%)).
+const RGB_COLOR4_REGEX = /\brgba?\(\s*\d+\s+\d+\s+\d+(?:\s*\/\s*[0-9.]+%?)?\s*\)/g;
+
+// hsl()/hsla() comma-based and CSS Color 4 space-separated variants.
+const HSL_COLOR_REGEX = /\bhsla?\(\s*\d+\s*,\s*\d+%\s*,\s*\d+%\s*(?:,\s*[0-9.]+\s*)?\)/g;
+const HSL_COLOR4_REGEX = /\bhsla?\(\s*\d+\s+\d+%\s+\d+%(?:\s*\/\s*[0-9.]+%?)?\s*\)/g;
+
+// Named colors we want to forbid in high-churn UI surfaces.
+// We intentionally do NOT include 'transparent' to avoid churn.
+// We match quoted values (JS objects / string-returning templates) to avoid mass legacy churn.
+const NAMED_COLOR_REGEX = /(['"`])(?:white|black|red|green|blue|gray|grey)\1/g;
+
 function isNumericOnlyShortHex(color) {
   // Heuristic: ignore short numeric-only tokens like "#405" in names (not actual colors).
   // We still catch #000000/#111111 etc.
@@ -80,7 +92,8 @@ function checkFile(filePath) {
   const relativePath = path.relative(repoRoot, filePath).replace(/\\/g, '/');
   const enforceRgb =
     relativePath.includes('src/components/FlowEditor/') ||
-    relativePath.includes('src/components/WorkForms/');
+    relativePath.includes('src/components/WorkForms/') ||
+    relativePath.includes('src/pages/WorkForms/');
 
   const content = fs.readFileSync(filePath, 'utf8');
   const lines = content.split('\n');
@@ -116,11 +129,7 @@ function checkFile(filePath) {
       return;
     }
 
-    const rgbRegex = new RegExp(RGB_COLOR_REGEX, 'g');
-    while ((match = rgbRegex.exec(line)) !== null) {
-      const color = match[0];
-      const columnIndex = match.index;
-
+    const pushTokenViolation = (color, columnIndex) => {
       violations.push({
         line: lineIndex + 1,
         column: columnIndex + 1,
@@ -129,6 +138,36 @@ function checkFile(filePath) {
           'Use theme tokens (e.g. rgb(var(--color-text-primary)) or rgba(var(--color-overlay), 0.5)).',
         lineContent: trimmed,
       });
+    };
+
+    const rgbRegex = new RegExp(RGB_COLOR_REGEX, 'g');
+    while ((match = rgbRegex.exec(line)) !== null) {
+      pushTokenViolation(match[0], match.index);
+    }
+
+    const rgb4Regex = new RegExp(RGB_COLOR4_REGEX, 'g');
+    while ((match = rgb4Regex.exec(line)) !== null) {
+      pushTokenViolation(match[0], match.index);
+    }
+
+    const hslRegex = new RegExp(HSL_COLOR_REGEX, 'g');
+    while ((match = hslRegex.exec(line)) !== null) {
+      pushTokenViolation(match[0], match.index);
+    }
+
+    const hsl4Regex = new RegExp(HSL_COLOR4_REGEX, 'g');
+    while ((match = hsl4Regex.exec(line)) !== null) {
+      pushTokenViolation(match[0], match.index);
+    }
+
+    const cssContext = /(^|[,{]\s*)(color|background(?:Color)?|border(?:Color)?|stroke|fill)\s*:/i.test(line) ||
+      /(\bcolor\b|\bbackground\b|\bborder\b|\bstroke\b|\bfill\b)\s*:/i.test(line);
+
+    if (cssContext) {
+      const namedRegex = new RegExp(NAMED_COLOR_REGEX, 'g');
+      while ((match = namedRegex.exec(line)) !== null) {
+        pushTokenViolation(match[0], match.index);
+      }
     }
   });
 

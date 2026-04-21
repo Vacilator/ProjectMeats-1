@@ -72,14 +72,11 @@ const Badge = styled.span<{ $variant?: 'warning' | 'info' }>`
   border-radius: var(--radius-sm, 4px);
   font-size: 11px;
   font-weight: 500;
-  background: ${props =>
-    props.$variant === 'warning'
-      ? 'rgb(234 179 8 / 0.1)'
-      : 'rgb(59 130 246 / 0.1)'};
-  color: ${props =>
-    props.$variant === 'warning'
-      ? 'rgb(234 179 8)'
-      : 'rgb(59 130 246)'};
+  background: ${(p) =>
+    p.$variant === 'warning'
+      ? 'rgba(var(--color-warning), 0.10)'
+      : 'rgba(var(--color-info), 0.10)'};
+  color: ${(p) => (p.$variant === 'warning' ? 'rgb(var(--color-warning))' : 'rgb(var(--color-info))')};
 `;
 
 // ============================================================================

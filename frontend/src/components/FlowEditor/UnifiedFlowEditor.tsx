@@ -1394,7 +1394,7 @@ const ConfirmButton = styled.button<{ $variant?: 'danger' | 'secondary' }>`
   padding: 8px 16px;
   font-size: 14px;
   font-weight: 600;
-  color: ${props => props.$variant === 'danger' ? 'white' : 'rgb(var(--color-text-primary))'};
+  color: ${props => props.$variant === 'danger' ? 'rgb(var(--color-primary-foreground))' : 'rgb(var(--color-text-primary))'};
   background: ${props => props.$variant === 'danger' ? 'rgb(var(--color-error))' : 'transparent'};
   border: 1px solid ${props => props.$variant === 'danger' ? 'rgb(var(--color-error))' : 'rgb(var(--color-border))'};
   border-radius: var(--radius-md);
@@ -1691,7 +1691,7 @@ const PatternButton = styled.button<{ $active: boolean }>`
   flex: 1;
   padding: 6px 10px;
   background: ${props => props.$active ? 'rgb(var(--color-primary))' : 'transparent'};
-  color: ${props => props.$active ? 'white' : 'rgb(var(--color-text-primary))'};
+  color: ${props => props.$active ? 'rgb(var(--color-primary-foreground))' : 'rgb(var(--color-text-primary))'};
   border: 1px solid ${props => props.$active ? 'rgb(var(--color-primary))' : 'rgb(var(--color-border))'};
   border-radius: var(--radius-sm);
   font-size: 11px;
@@ -1941,7 +1941,7 @@ class ConfigPanelErrorBoundary extends React.Component<
             style={{
               padding: '8px 16px',
               background: 'rgb(var(--color-primary))',
-              color: 'white',
+              color: 'rgb(var(--color-primary-foreground))',
               border: 'none',
               borderRadius: '4px',
               cursor: 'pointer'
@@ -7459,7 +7459,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
             disabled={isSaving}
             style={hasUnsavedChanges ? {
               background: 'rgb(var(--color-primary))',
-              color: 'white',
+              color: 'rgb(var(--color-primary-foreground))',
               borderColor: 'rgb(var(--color-primary))'
             } : {}}
           >
@@ -7571,7 +7571,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
               title={isPaletteVisible ? 'Hide Node Palette (Tab)' : 'Show Node Palette (Tab)'}
               style={isPaletteVisible ? {
                 background: 'rgb(var(--color-primary))',
-                color: 'white',
+                color: 'rgb(var(--color-primary-foreground))',
                 borderColor: 'rgb(var(--color-primary))'
               } : {}}
             >
@@ -7582,7 +7582,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
               title={isAISuggestionsVisible ? 'Hide AI Suggestions' : 'Show AI Suggestions'}
               style={isAISuggestionsVisible ? {
                 background: 'rgb(var(--color-primary))',
-                color: 'white',
+                color: 'rgb(var(--color-primary-foreground))',
                 borderColor: 'rgb(var(--color-primary))'
               } : {}}
             >
@@ -7596,7 +7596,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
           title="Canvas Settings (Grid, Background)"
           style={isSettingsPanelOpen ? {
             background: 'rgb(var(--color-primary))',
-            color: 'white',
+            color: 'rgb(var(--color-primary-foreground))',
             borderColor: 'rgb(var(--color-primary))'
           } : {}}
         >
@@ -7618,7 +7618,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
           title={isMinimapVisible ? 'Hide Minimap (M)' : 'Show Minimap (M)'}
           style={isMinimapVisible ? {
             background: 'rgb(var(--color-primary))',
-            color: 'white',
+            color: 'rgb(var(--color-primary-foreground))',
             borderColor: 'rgb(var(--color-primary))'
           } : {}}
         >

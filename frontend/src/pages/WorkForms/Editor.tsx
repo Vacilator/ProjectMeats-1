@@ -213,16 +213,16 @@ const StatusBadge = styled.span<{ $status: WorkFormStatus }>`
   border: 1px solid rgb(var(--color-border));
   background: ${p =>
     p.$status === 'active'
-      ? 'rgb(34 197 94 / 0.10)'
+      ? 'rgba(var(--color-success), 0.10)'
       : p.$status === 'draft'
-        ? 'rgb(234 179 8 / 0.10)'
-        : 'rgb(148 163 184 / 0.10)'};
+        ? 'rgba(var(--color-warning), 0.10)'
+        : 'rgba(var(--color-text-secondary), 0.10)'};
   color: ${p =>
     p.$status === 'active'
-      ? 'rgb(34, 197, 94)'
+      ? 'rgb(var(--color-success))'
       : p.$status === 'draft'
-        ? 'rgb(234, 179, 8)'
-        : 'rgb(148, 163, 184)'};
+        ? 'rgb(var(--color-warning))'
+        : 'rgb(var(--color-text-secondary))'};
 `;
 
 const EditorWrapper = styled.div`
