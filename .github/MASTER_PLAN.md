@@ -1675,3 +1675,4 @@ Deliverables:
 - **2026-04-21** — WorkForms editor: keyValueMode=record draft rows are local-only; always stage/persist record shape; supports key rename + tests. (PR: #4534)
 - **2026-04-21** — Security: add tenant-scoped workflow webhook receiver (tenant id in path), keep legacy receiver working, fix webhook URL generation, and avoid JWT auth interception on webhook Authorization header; add regression tests. (PR: #4536)
 - **2026-04-21** — Security: verify inbound email webhooks (Outlook subscriptionId+clientState hash; Gmail Pub/Sub token/OIDC verification), ensure webhook receivers bypass DRF auth interception, add tests, and document env knobs in env.manifest. (PR: #4538)
+- **2026-04-21** — Security: tenant-scope email integration models and webhooks — add tenant FKs + RLS policies for email_integration tables, add tenant-id-in-path email webhook receivers that set RLS context, and extend audit_rls_compliance allowlist + tests. (PR: #4540)
