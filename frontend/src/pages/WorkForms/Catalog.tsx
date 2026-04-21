@@ -787,6 +787,33 @@ const FormsFlowsCatalog: React.FC = () => {
     navigate('/workforms/editor');
   };
 
+  const tabOrder: TabOption[] = ['workflows', 'forms', 'templates'];
+
+  const handleTabKeyDown = (event: React.KeyboardEvent<HTMLButtonElement>, current: TabOption) => {
+    const idx = tabOrder.indexOf(current);
+    if (idx === -1) return;
+
+    if (event.key === 'ArrowRight') {
+      event.preventDefault();
+      setActiveTab(tabOrder[(idx + 1) % tabOrder.length]);
+    }
+
+    if (event.key === 'ArrowLeft') {
+      event.preventDefault();
+      setActiveTab(tabOrder[(idx - 1 + tabOrder.length) % tabOrder.length]);
+    }
+
+    if (event.key === 'Home') {
+      event.preventDefault();
+      setActiveTab(tabOrder[0]);
+    }
+
+    if (event.key === 'End') {
+      event.preventDefault();
+      setActiveTab(tabOrder[tabOrder.length - 1]);
+    }
+  };
+
   // NEW: Handle Quick Run (one-click execution)
   const handleQuickRun = async (item: CatalogItem, event: React.MouseEvent) => {
     event.stopPropagation(); // Prevent card click from triggering
@@ -891,25 +918,44 @@ const FormsFlowsCatalog: React.FC = () => {
       </Header>
 
       {/* Phase 5: Tabbed View - Logic vs Data + Templates (Phase 2.2) */}
-      <TabsContainer>
+      <TabsContainer role="tablist" aria-label="Catalog tabs">
         <Tab
+          type="button"
+          role="tab"
           data-testid="workforms-catalog-tab-workflows"
           $active={activeTab === 'workflows'}
+          aria-selected={activeTab === 'workflows'}
+          tabIndex={activeTab === 'workflows' ? 0 : -1}
           onClick={() => setActiveTab('workflows')}
+          onKeyDown={(e) => handleTabKeyDown(e, 'workflows')}
         >
           <Workflow size={18} />
           WorkForms (Automation)
           {workflowsCount > 0 && <TabBadge>{workflowsCount}</TabBadge>}
         </Tab>
-        <Tab data-testid="workforms-catalog-tab-forms" $active={activeTab === 'forms'} onClick={() => setActiveTab('forms')}>
+        <Tab
+          type="button"
+          role="tab"
+          data-testid="workforms-catalog-tab-forms"
+          $active={activeTab === 'forms'}
+          aria-selected={activeTab === 'forms'}
+          tabIndex={activeTab === 'forms' ? 0 : -1}
+          onClick={() => setActiveTab('forms')}
+          onKeyDown={(e) => handleTabKeyDown(e, 'forms')}
+        >
           <Database size={18} />
           Forms (Data)
           {formsCount > 0 && <TabBadge>{formsCount}</TabBadge>}
         </Tab>
         <Tab
+          type="button"
+          role="tab"
           data-testid="workforms-catalog-tab-templates"
           $active={activeTab === 'templates'}
+          aria-selected={activeTab === 'templates'}
+          tabIndex={activeTab === 'templates' ? 0 : -1}
           onClick={() => setActiveTab('templates')}
+          onKeyDown={(e) => handleTabKeyDown(e, 'templates')}
         >
           <Boxes size={18} />
           Industry Templates

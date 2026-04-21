@@ -498,6 +498,32 @@ const FormsFlowsHistory: React.FC = () => {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [runsLoadError, setRunsLoadError] = useState<string | null>(null);
   
+  const tabOrder: Array<'submissions' | 'workflows'> = ['submissions', 'workflows'];
+
+  const handleTabKeyDown = (
+    event: React.KeyboardEvent<HTMLButtonElement>,
+    current: 'submissions' | 'workflows'
+  ) => {
+    const idx = tabOrder.indexOf(current);
+    if (idx === -1) return;
+
+    if (event.key === 'ArrowRight' || event.key === 'ArrowLeft') {
+      event.preventDefault();
+      const next = current === 'submissions' ? 'workflows' : 'submissions';
+      setExpandedWorkflow(null);
+      setPage(1);
+      setActiveTab(next);
+    }
+
+    if (event.key === 'Home' || event.key === 'End') {
+      event.preventDefault();
+      const next = event.key === 'Home' ? 'submissions' : 'workflows';
+      setExpandedWorkflow(null);
+      setPage(1);
+      setActiveTab(next);
+    }
+  };
+
   // Fetch completed/cancelled submissions
   const fetchSubmissions = async () => {
     setLoading(true);
@@ -642,24 +668,34 @@ const FormsFlowsHistory: React.FC = () => {
     <ErrorBoundary>
       <Container role="region" aria-label="Form History">
       {/* Tabs */}
-      <TabsContainer>
+      <TabsContainer role="tablist" aria-label="History tabs">
         <Tab
+          type="button"
+          role="tab"
           $active={activeTab === 'submissions'}
+          aria-selected={activeTab === 'submissions'}
+          tabIndex={activeTab === 'submissions' ? 0 : -1}
           onClick={() => {
             setExpandedWorkflow(null);
             setPage(1);
             setActiveTab('submissions');
           }}
+          onKeyDown={(e) => handleTabKeyDown(e, 'submissions')}
         >
           Form Submissions
         </Tab>
         <Tab
+          type="button"
+          role="tab"
           $active={activeTab === 'workflows'}
+          aria-selected={activeTab === 'workflows'}
+          tabIndex={activeTab === 'workflows' ? 0 : -1}
           onClick={() => {
             setExpandedWorkflow(null);
             setPage(1);
             setActiveTab('workflows');
           }}
+          onKeyDown={(e) => handleTabKeyDown(e, 'workflows')}
         >
           WorkForm Runs
         </Tab>
