@@ -22,9 +22,10 @@ class EmailIntegrationPublicEndpointsTests(APITestCase):
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(resp.content, b'abc')
 
+    @override_settings(GMAIL_PUBSUB_VERIFICATION_TOKEN='test-token')
     def test_gmail_webhook_allows_anonymous(self):
         resp = self.client.post(
-            f'{self.EMAIL_PREFIX}/gmail/webhook/notifications/',
+            f'{self.EMAIL_PREFIX}/gmail/webhook/notifications/?token=test-token',
             data={},
             format='json',
         )
