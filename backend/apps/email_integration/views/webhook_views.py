@@ -7,22 +7,92 @@ Processes real-time email events for workflow triggers.
 Created: 2026-02-26 - Email Webhooks Implementation
 """
 
-import logging
-import json
 import base64
+import hashlib
+import json
+import logging
+import secrets
 from datetime import timedelta
+
 from django.conf import settings
 from django.http import HttpResponse
+from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 from rest_framework import status
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import api_view, authentication_classes, permission_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 
 from apps.email_integration.models import EmailAccount, EmailLog
 
 logger = logging.getLogger(__name__)
+
+
+def _sha256_hex(value: str) -> str:
+    return hashlib.sha256(value.encode('utf-8')).hexdigest()
+
+
+def _create_outlook_client_state() -> str:
+    """Create an unpredictable clientState for Microsoft Graph webhook subscriptions."""
+
+    return secrets.token_urlsafe(32)
+
+
+def _get_outlook_account_for_notification(*, subscription_id: str, client_state: str) -> EmailAccount | None:
+    """Verify Outlook notification authenticity and route to EmailAccount.
+
+    We bind notifications to an EmailAccount by subscriptionId (stored as webhook_id)
+    and verify clientState against the stored SHA256 hash.
+    """
+
+    if not subscription_id or not client_state:
+        return None
+
+    email_account = EmailAccount.objects.filter(provider='outlook', webhook_id=subscription_id).first()
+    if not email_account or not getattr(email_account, 'webhook_client_state_hash', ''):
+        return None
+
+    supplied_hash = _sha256_hex(client_state)
+    if not secrets.compare_digest(email_account.webhook_client_state_hash, supplied_hash):
+        return None
+
+    return email_account
+
+
+def _is_valid_gmail_pubsub_push(request) -> bool:
+    """Validate Pub/Sub push notification authenticity.
+
+    Supports either:
+    - Query-string token: GMAIL_PUBSUB_VERIFICATION_TOKEN (recommended for simple setups)
+    - Google-signed OIDC JWT in Authorization header: GOOGLE_PUBSUB_AUDIENCE
+
+    If neither is configured, processing is disabled (fail-closed).
+    """
+
+    expected_token = getattr(settings, 'GMAIL_PUBSUB_VERIFICATION_TOKEN', None)
+    if expected_token:
+        supplied = request.GET.get('token') or ''
+        return secrets.compare_digest(supplied, expected_token)
+
+    audience = getattr(settings, 'GOOGLE_PUBSUB_AUDIENCE', None)
+    if audience:
+        auth = request.META.get('HTTP_AUTHORIZATION', '')
+        if auth.startswith('Bearer '):
+            jwt = auth.split(' ', 1)[1].strip()
+            try:
+                from google.auth.transport import requests as google_requests
+                from google.oauth2 import id_token
+
+                id_info = id_token.verify_oauth2_token(jwt, google_requests.Request(), audience=audience)
+                issuer = id_info.get('iss')
+                return issuer in ('accounts.google.com', 'https://accounts.google.com')
+            except Exception:
+                return False
+        return False
+
+    logger.error('Gmail webhook verification not configured; set GMAIL_PUBSUB_VERIFICATION_TOKEN or GOOGLE_PUBSUB_AUDIENCE')
+    return False
 
 
 # ============================================================================
@@ -61,16 +131,18 @@ def outlook_webhook_subscribe(request, account_id):
             'Content-Type': 'application/json'
         }
         
+        client_state = _create_outlook_client_state()
+
         # Webhook notification URL (must be HTTPS with valid cert)
-        notification_url = f"{settings.BACKEND_URL}/api/v1/webhooks/outlook/notifications/"
-        
+        notification_url = request.build_absolute_uri(reverse('outlook-webhook-notifications'))
+
         # Subscribe to mailbox changes
         subscription_data = {
             'changeType': 'created,updated',
             'notificationUrl': notification_url,
             'resource': '/me/mailFolders/inbox/messages',
             'expirationDateTime': (timezone.now() + timedelta(days=3)).isoformat(),
-            'clientState': f'account_{account_id}_{email_account.user.id}'  # Verify authenticity
+            'clientState': client_state,
         }
         
         response = requests.post(
@@ -88,7 +160,8 @@ def outlook_webhook_subscribe(request, account_id):
             email_account.webhook_expires_at = timezone.datetime.fromisoformat(
                 subscription['expirationDateTime'].replace('Z', '+00:00')
             )
-            email_account.save(update_fields=['webhook_id', 'webhook_expires_at'])
+            email_account.webhook_client_state_hash = _sha256_hex(client_state)
+            email_account.save(update_fields=['webhook_id', 'webhook_expires_at', 'webhook_client_state_hash'])
             
             logger.info(f"Created Outlook webhook subscription: {subscription['id']}")
             
@@ -231,7 +304,8 @@ def outlook_webhook_unsubscribe(request, account_id):
             # Clear webhook fields
             email_account.webhook_id = ''
             email_account.webhook_expires_at = None
-            email_account.save(update_fields=['webhook_id', 'webhook_expires_at'])
+            email_account.webhook_client_state_hash = ''
+            email_account.save(update_fields=['webhook_id', 'webhook_expires_at', 'webhook_client_state_hash'])
             
             logger.info(f"Deleted Outlook webhook subscription for account {account_id}")
             
@@ -265,6 +339,7 @@ def outlook_webhook_unsubscribe(request, account_id):
 
 @csrf_exempt
 @api_view(['POST'])
+@authentication_classes([])
 @permission_classes([AllowAny])
 def outlook_webhook_notifications(request):
     """
@@ -290,34 +365,28 @@ def outlook_webhook_notifications(request):
         notifications = payload['value']
         
         for notification in notifications:
-            client_state = notification.get('clientState', '')
-            notification.get('subscriptionId')
+            client_state = (notification.get('clientState') or '').strip()
+            subscription_id = (notification.get('subscriptionId') or '').strip()
             resource = notification.get('resource')
             change_type = notification.get('changeType')
-            
+
             logger.info(f"Outlook notification: {change_type} on {resource}")
-            
-            # Verify client state matches our pattern
-            if not client_state.startswith('account_'):
-                logger.warning(f"Invalid client state: {client_state}")
+
+            email_account = _get_outlook_account_for_notification(
+                subscription_id=subscription_id,
+                client_state=client_state,
+            )
+            if not email_account:
+                logger.warning('Ignoring Outlook notification: invalid subscription/clientState')
                 continue
-            
-            # Extract account ID from client state
-            try:
-                _, account_id, user_id = client_state.split('_')
-                account_id = int(account_id)
-                user_id = int(user_id)
-            except (ValueError, IndexError):
-                logger.warning(f"Malformed client state: {client_state}")
-                continue
-            
+
             # Process the notification
             process_outlook_notification(
-                account_id=account_id,
-                user_id=user_id,
+                account_id=email_account.id,
+                user_id=email_account.user_id,
                 resource=resource,
                 change_type=change_type,
-                notification_data=notification
+                notification_data=notification,
             )
         
         return HttpResponse(status=202)  # Accepted
@@ -435,11 +504,21 @@ def gmail_webhook_subscribe(request, account_id):
         # Build Gmail API service
         service = build('gmail', 'v1', credentials=creds)
         
+        topic_name = getattr(settings, 'GMAIL_PUBSUB_TOPIC', None)
+        if not topic_name:
+            return Response(
+                {
+                    'error': 'not_configured',
+                    'detail': 'GMAIL_PUBSUB_TOPIC is required to enable Gmail watch subscriptions.',
+                },
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+
         # Create watch request
         request_body = {
-            'topicName': settings.GMAIL_PUBSUB_TOPIC,  # e.g., 'projects/my-project/topics/gmail-push'
+            'topicName': topic_name,  # e.g., 'projects/my-project/topics/gmail-push'
             'labelIds': ['INBOX'],  # Watch inbox only
-            'labelFilterAction': 'include'
+            'labelFilterAction': 'include',
         }
         
         watch_response = service.users().watch(
@@ -546,6 +625,7 @@ def gmail_webhook_unsubscribe(request, account_id):
 
 @csrf_exempt
 @api_view(['POST'])
+@authentication_classes([])
 @permission_classes([AllowAny])
 def gmail_webhook_notifications(request):
     """
@@ -553,6 +633,11 @@ def gmail_webhook_notifications(request):
     
     Format: Base64-encoded JSON with historyId and emailAddress.
     """
+
+    if not _is_valid_gmail_pubsub_push(request):
+        logger.warning('Ignoring Gmail webhook notification: invalid verification')
+        return HttpResponse(status=200)
+
     try:
         # Parse Pub/Sub message
         payload = json.loads(request.body)

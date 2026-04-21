@@ -69,6 +69,11 @@ class EmailAccount(models.Model):
     # Webhook configuration
     webhook_id = models.CharField(max_length=255, blank=True, help_text='Provider webhook/subscription ID')
     webhook_expires_at = models.DateTimeField(null=True, blank=True)
+    webhook_client_state_hash = models.CharField(
+        max_length=64,
+        blank=True,
+        help_text='SHA256 hash of Microsoft Graph webhook clientState',
+    )
     
     class Meta:
         db_table = 'email_accounts'
