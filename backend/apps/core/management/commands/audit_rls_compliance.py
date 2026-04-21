@@ -206,7 +206,7 @@ class Command(BaseCommand):
                     cursor.execute(f"""
                         CREATE POLICY {policy_name} ON {table_name}
                         FOR ALL
-                        USING (tenant_id = current_setting('app.current_tenant', true)::uuid)
+                        USING (tenant_id = NULLIF(current_setting('app.current_tenant', true), '')::uuid)
                     """)
                     self.stdout.write(
                         self.style.SUCCESS(f"  ✓ Created policy {policy_name}")
