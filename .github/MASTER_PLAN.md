@@ -1673,3 +1673,4 @@ Deliverables:
 - **2026-04-21** — Security: ignore X-Tenant-ID for anonymous requests in TenantMiddleware + regression test. (PR: #4530)
 - **2026-04-21** — WorkForms editor: enforce readOnly + a11y sections + keep validation errors stable under shadow updates. (PR: #4532)
 - **2026-04-21** — WorkForms editor: keyValueMode=record draft rows are local-only; always stage/persist record shape; supports key rename + tests. (PR: #4534)
+- **2026-04-21** — Security: add tenant-scoped workflow webhook receiver (tenant id in path), keep legacy receiver working, fix webhook URL generation, and avoid JWT auth interception on webhook Authorization header; add regression tests. (PR: #4536)
