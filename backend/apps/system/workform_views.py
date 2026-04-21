@@ -12,8 +12,11 @@ from django.utils import timezone
 from rest_framework import viewsets, status
 from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
+
+from apps.system.permissions import IsTenantEditorForTenantContext, IsActiveTenantMemberForTenantContext
 from rest_framework.response import Response
 from apps.system.models import TenantForm, TenantWorkForm, FormTypeChoices
+from apps.tenants.models import Tenant, TenantUser
 from apps.system.workform_serializers import (
     TenantFormSerializer,
     TenantFormListSerializer,
@@ -23,6 +26,54 @@ from apps.system.workform_serializers import (
     FormSplitSerializer,
     WorkFormCloneSerializer,
 )
+
+
+def _get_request_tenant(request):
+    """Return resolved tenant, supporting both middleware and DRF-auth flows.
+
+    TenantMiddleware resolves tenant early when request.user is already authenticated.
+    For DRF token auth (and tests using force_authenticate), authentication happens
+    after middleware, so we also support late resolution from the X-Tenant-ID header.
+    """
+
+    django_request = getattr(request, '_request', None)
+    tenant = getattr(request, 'tenant', None) or getattr(django_request, 'tenant', None)
+    if tenant:
+        return tenant
+
+    tenant_id = None
+    if hasattr(request, 'headers'):
+        tenant_id = request.headers.get('X-Tenant-ID')
+    if not tenant_id and django_request is not None and hasattr(django_request, 'headers'):
+        tenant_id = django_request.headers.get('X-Tenant-ID')
+
+    user = getattr(request, 'user', None) or getattr(django_request, 'user', None)
+    if not tenant_id or not user or not getattr(user, 'is_authenticated', False):
+        return None
+
+    try:
+        tenant = Tenant.objects.get(id=tenant_id, is_active=True)
+    except (Tenant.DoesNotExist, ValueError):
+        return None
+
+    is_global_admin = user.groups.filter(name='Global System Admins').exists()
+    if not (user.is_superuser or is_global_admin):
+        if not TenantUser.objects.filter(user=user, tenant=tenant, is_active=True).exists():
+            return None
+
+    # Cache for later uses during this request lifecycle.
+    try:
+        setattr(request, 'tenant', tenant)
+    except Exception:
+        pass
+    try:
+        if django_request is not None:
+            setattr(django_request, 'tenant', tenant)
+    except Exception:
+        pass
+
+    return tenant
+
 
 
 class TenantFormViewSet(viewsets.ModelViewSet):
@@ -41,11 +92,23 @@ class TenantFormViewSet(viewsets.ModelViewSet):
     - entity_type: supplier | customer | etc.
     """
     permission_classes = [IsAuthenticated]
+
+    def get_permissions(self):
+        # Allow any authenticated tenant member to read forms.
+        if self.action in {'list', 'retrieve', 'get_usage'}:
+            return [IsAuthenticated()]
+
+        # Form mutations are editor-only.
+        return [IsAuthenticated(), IsTenantEditorForTenantContext()]
     
     def get_queryset(self):
         """Filter forms by tenant."""
-        queryset = TenantForm.objects.filter(tenant=self.request.tenant)
-        
+        tenant = _get_request_tenant(self.request)
+        if not tenant:
+            return TenantForm.objects.none()
+
+        queryset = TenantForm.objects.filter(tenant=tenant)
+
         # Filter by type
         form_type = self.request.query_params.get('type')
         if form_type:
@@ -83,7 +146,7 @@ class TenantFormViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         """Assign tenant and creator on creation."""
         serializer.save(
-            tenant=self.request.tenant,
+            tenant=_get_request_tenant(self.request),
             created_by=self.request.user,
             updated_by=self.request.user
         )
@@ -183,11 +246,35 @@ class TenantWorkFormViewSet(viewsets.ModelViewSet):
     - status: draft | active | archived
     """
     permission_classes = [IsAuthenticated]
+
+    def get_permissions(self):
+        # Read-like operations are allowed for any authenticated tenant member.
+        if self.action in {
+            'list',
+            'retrieve',
+            'usage',
+            'validate',
+            'list_containers',
+            'container_detail',
+        }:
+            return [IsAuthenticated()]
+
+        # Execution is allowed for any active tenant member; additional checks are performed
+        # in _can_execute_workform().
+        if self.action in {'execute'}:
+            return [IsAuthenticated(), IsActiveTenantMemberForTenantContext()]
+
+        # Mutations are editor-only (creator/owner/admin logic is enforced in the view methods too).
+        return [IsAuthenticated(), IsTenantEditorForTenantContext()]
     
     def get_queryset(self):
         """Filter workflows by tenant."""
-        queryset = TenantWorkForm.objects.filter(tenant=self.request.tenant)
-        
+        tenant = _get_request_tenant(self.request)
+        if not tenant:
+            return TenantWorkForm.objects.none()
+
+        queryset = TenantWorkForm.objects.filter(tenant=tenant)
+
         # Filter by status (support comma-separated list)
         workflow_status = self.request.query_params.get('status')
         if workflow_status:
@@ -237,7 +324,7 @@ class TenantWorkFormViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         """Assign tenant and creator on creation."""
         serializer.save(
-            tenant=self.request.tenant,
+            tenant=_get_request_tenant(self.request),
             created_by=self.request.user,
             updated_by=self.request.user
         )
