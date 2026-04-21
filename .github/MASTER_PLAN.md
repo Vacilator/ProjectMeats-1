@@ -1666,3 +1666,5 @@ Deliverables:
 - **2026-04-21** — WorkForms editor: template-aware validation (allow {{vars}} in email/url/regex; allow comma-separated email lists) + tests. (PR: #4520)
 - **2026-04-21** — WorkForms editor: documentGenerate template field no longer stuck (templateId uses text until template API exists) + schema test. (PR: #4521)
 - **2026-04-21** — WorkForms editor: a11y nested children (keyboard expansion + aria labels + button types) + tests. (PR: #4522)
+- **2026-04-21** — Docs: append PR log (2026-04-21). (PR: #4523)
+- **2026-04-21** — CI: enforce pinned action SHAs (reject tag-based refs; disallow dynamic uses). (PR: #4524)
