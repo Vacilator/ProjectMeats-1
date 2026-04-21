@@ -8,6 +8,7 @@ Created: 2026-02-23 - Email Integrations Phase 1
 """
 
 from django.db import models
+from django.db.models import Q
 from django.contrib.auth import get_user_model
 from django.utils import timezone
 
@@ -33,7 +34,16 @@ class EmailAccount(models.Model):
         User,
         on_delete=models.CASCADE,
         related_name='email_accounts',
-        help_text='User who owns this email connection'
+        help_text='User who owns this email connection',
+    )
+
+    tenant = models.ForeignKey(
+        'tenants.Tenant',
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='email_integration_accounts',
+        help_text='Tenant that owns this email connection',
     )
     
     provider = models.CharField(
@@ -80,8 +90,17 @@ class EmailAccount(models.Model):
         ordering = ['-created_at']
         unique_together = [['user', 'provider', 'email_address']]
         indexes = [
+            models.Index(fields=['tenant', 'status']),
             models.Index(fields=['user', 'status']),
             models.Index(fields=['provider', 'email_address']),
+            models.Index(fields=['tenant', 'provider', 'email_address']),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=['tenant', 'provider', 'email_address'],
+                condition=Q(tenant__isnull=False),
+                name='uniq_emailaccount_tenant_provider_email',
+            ),
         ]
     
     def __str__(self):
@@ -117,7 +136,15 @@ class EmailTrigger(models.Model):
     email_account = models.ForeignKey(
         EmailAccount,
         on_delete=models.CASCADE,
-        related_name='triggers'
+        related_name='triggers',
+    )
+
+    tenant = models.ForeignKey(
+        'tenants.Tenant',
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='email_integration_triggers',
     )
     
     workflow_node_id = models.CharField(
@@ -145,6 +172,7 @@ class EmailTrigger(models.Model):
         db_table = 'email_triggers'
         ordering = ['-created_at']
         indexes = [
+            models.Index(fields=['tenant', 'is_active']),
             models.Index(fields=['email_account', 'is_active']),
             models.Index(fields=['workflow_node_id']),
         ]
@@ -165,7 +193,15 @@ class EmailAction(models.Model):
     email_account = models.ForeignKey(
         EmailAccount,
         on_delete=models.CASCADE,
-        related_name='actions'
+        related_name='actions',
+    )
+
+    tenant = models.ForeignKey(
+        'tenants.Tenant',
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='email_integration_actions',
     )
     
     workflow_node_id = models.CharField(
@@ -198,6 +234,7 @@ class EmailAction(models.Model):
         db_table = 'email_actions'
         ordering = ['-created_at']
         indexes = [
+            models.Index(fields=['tenant']),
             models.Index(fields=['email_account']),
             models.Index(fields=['workflow_node_id']),
         ]
@@ -219,9 +256,17 @@ class EmailLog(models.Model):
     email_account = models.ForeignKey(
         EmailAccount,
         on_delete=models.CASCADE,
-        related_name='logs'
+        related_name='logs',
     )
-    
+
+    tenant = models.ForeignKey(
+        'tenants.Tenant',
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='email_integration_logs',
+    )
+
     log_type = models.CharField(max_length=20, choices=LOG_TYPES)
     workflow_node_id = models.CharField(max_length=255, blank=True)
     
@@ -242,6 +287,7 @@ class EmailLog(models.Model):
         db_table = 'email_logs'
         ordering = ['-created_at']
         indexes = [
+            models.Index(fields=['tenant', '-created_at']),
             models.Index(fields=['email_account', '-created_at']),
             models.Index(fields=['workflow_node_id', '-created_at']),
             models.Index(fields=['success']),

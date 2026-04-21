@@ -268,6 +268,12 @@ def outlook_auth_callback(request):
             _clear_email_oauth_state(request, response, 'outlook')
             return response
 
+        from apps.tenants.rls import set_current_tenant
+
+        request.tenant = tenant
+        set_current_tenant(str(tenant.id))
+        request._rls_set = True
+
         # Imports below must only occur after state/membership gates so tests can run without
         # provider libraries installed.
         from msal import ConfidentialClientApplication
@@ -317,6 +323,7 @@ def outlook_auth_callback(request):
         provider_user_id = profile_data.get('id')
 
         EmailAccount.objects.update_or_create(
+            tenant=tenant,
             user=user,
             provider='outlook',
             email_address=email_address,
@@ -524,6 +531,12 @@ def gmail_auth_callback(request):
             _clear_email_oauth_state(request, response, 'gmail')
             return response
 
+        from apps.tenants.rls import set_current_tenant
+
+        request.tenant = tenant
+        set_current_tenant(str(tenant.id))
+        request._rls_set = True
+
         from google_auth_oauthlib.flow import Flow
         from googleapiclient.discovery import build
 
@@ -567,6 +580,7 @@ def gmail_auth_callback(request):
         expires_in = 3600
 
         EmailAccount.objects.update_or_create(
+            tenant=tenant,
             user=user,
             provider='gmail',
             email_address=email_address,
@@ -601,7 +615,10 @@ class EmailAccountViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
     
     def get_queryset(self):
-        return EmailAccount.objects.filter(user=self.request.user)
+        tenant = getattr(self.request, 'tenant', None)
+        if not tenant:
+            return EmailAccount.objects.none()
+        return EmailAccount.objects.filter(tenant=tenant, user=self.request.user)
     
     def list(self, request):
         """List all connected email accounts"""
@@ -629,9 +646,10 @@ class EmailAccountViewSet(viewsets.ModelViewSet):
             
             EmailLog.objects.create(
                 email_account=account,
+                tenant=account.tenant,
                 log_type='webhook',
                 subject='Account disconnected',
-                success=True
+                success=True,
             )
             
             return Response({

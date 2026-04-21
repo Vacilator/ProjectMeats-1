@@ -17,6 +17,10 @@ from .health import health_check, health_detailed, ready_check, health_workforms
 from apps.core.admin_site import admin_site
 from tenant_apps.workflows.views import SuggestNodesView
 from tenant_apps.workflows.views_triggers import TenantScopedWebhookReceiverAPIView
+from apps.email_integration.views.webhook_views import (
+    tenant_gmail_webhook_notifications,
+    tenant_outlook_webhook_notifications,
+)
 
 # Keep default admin for backwards compatibility, but use custom site as primary
 admin.site.site_header = '🥩 Meats Central Admin'
@@ -43,6 +47,18 @@ urlpatterns = [
         "api/v1/tenants/<uuid:tenant_id>/workflows/webhooks/<uuid:workflow_id>/<str:webhook_token>/",
         TenantScopedWebhookReceiverAPIView.as_view(),
         name="tenant-workflow-webhook-receiver",
+    ),
+
+    # Canonical public email webhook receivers (tenant selected via path).
+    path(
+        "api/v1/tenants/<uuid:tenant_id>/workflows/email/outlook/webhook/notifications/",
+        tenant_outlook_webhook_notifications,
+        name="tenant-outlook-email-webhook-notifications",
+    ),
+    path(
+        "api/v1/tenants/<uuid:tenant_id>/workflows/email/gmail/webhook/notifications/",
+        tenant_gmail_webhook_notifications,
+        name="tenant-gmail-email-webhook-notifications",
     ),
 
     path('api/v1/integrations/', include('integrations.urls')),

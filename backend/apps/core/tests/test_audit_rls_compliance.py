@@ -14,3 +14,8 @@ class AuditRlsComplianceCommandTest(SimpleTestCase):
         self.assertIn("system.TenantWorkForm", labels)
         self.assertIn("integrations.ExternalAuthProvider", labels)
         self.assertIn("integrations.EmailLog", labels)
+
+        self.assertIn("email_integration.EmailAccount", labels)
+        self.assertIn("email_integration.EmailAction", labels)
+        self.assertIn("email_integration.EmailLog", labels)
+        self.assertIn("email_integration.EmailTrigger", labels)
