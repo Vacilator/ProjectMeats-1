@@ -708,18 +708,17 @@ class TenantWorkFormViewSet(viewsets.ModelViewSet):
 
 
 @api_view(['POST'])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsAuthenticated, IsTenantEditorForTenantContext])
 def merge_forms(request):
-    """
-    Merge multiple single-step forms into one multi-step form.
-    
+    """Merge multiple single-step forms into one multi-step form.
+
     POST /api/v1/tenant-forms/merge/
     Body: {
         "container_name": "Multi-Step Form",
         "description": "Optional description",
         "source_form_ids": ["uuid-1", "uuid-2", "uuid-3"]
     }
-    
+
     Response: {
         "id": "new-multi-step-form-uuid",
         "name": "Multi-Step Form",
@@ -728,20 +727,28 @@ def merge_forms(request):
         "deleted_form_ids": ["uuid-1", "uuid-2", "uuid-3"]
     }
     """
+    tenant = _get_request_tenant(request)
+    if not tenant:
+        return Response({"error": "Tenant context required"}, status=status.HTTP_400_BAD_REQUEST)
+
     serializer = FormMergeSerializer(data=request.data, context={'request': request})
-    
+
     if not serializer.is_valid():
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-    
+
     validated_data = serializer.validated_data
-    
+
     with transaction.atomic():
+        from apps.tenants.rls import set_current_tenant
+
+        set_current_tenant(str(tenant.id))
+
         # Fetch source forms
         source_forms = TenantForm.objects.filter(
-            tenant=request.tenant,
+            tenant=tenant,
             id__in=validated_data['source_form_ids']
         ).order_by('created_at')
-        
+
         # Build multi-step form definition
         steps = []
         for form in source_forms:
@@ -751,7 +758,7 @@ def merge_forms(request):
                 "fields": form.form_definition.get('fields', [])
             }
             steps.append(step_data)
-        
+
         multi_step_definition = {
             "steps": steps,
             "navigation": {
@@ -759,16 +766,16 @@ def merge_forms(request):
                 "allow_back": True
             }
         }
-        
+
         # Create new multi-step form
         merged_form = TenantForm.objects.create(
-            tenant=request.tenant,
+            tenant=tenant,
             name=validated_data['container_name'],
             description=validated_data.get('description', ''),
             type=FormTypeChoices.MULTI_STEP,
             form_definition=multi_step_definition,
             created_by=request.user,
-            updated_by=request.user
+            updated_by=request.user,
         )
         
         # Delete source forms
@@ -786,11 +793,10 @@ def merge_forms(request):
 
 
 @api_view(['POST'])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsAuthenticated, IsTenantEditorForTenantContext])
 def split_form(request):
-    """
-    Split one step out of a multi-step form into a new single-step form.
-    
+    """Split one step out of a multi-step form into a new single-step form.
+
     POST /api/v1/tenant-forms/split/
     Body: {
         "source_form_id": "uuid-123",
@@ -798,7 +804,7 @@ def split_form(request):
         "new_form_name": "Step 2",
         "new_form_description": "Optional"
     }
-    
+
     Response: {
         "source_form_id": "uuid-123",
         "source_remaining_steps": 2,
@@ -806,17 +812,25 @@ def split_form(request):
         "created_form_name": "Step 2"
     }
     """
+    tenant = _get_request_tenant(request)
+    if not tenant:
+        return Response({"error": "Tenant context required"}, status=status.HTTP_400_BAD_REQUEST)
+
     serializer = FormSplitSerializer(data=request.data, context={'request': request})
-    
+
     if not serializer.is_valid():
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-    
+
     validated_data = serializer.validated_data
-    
+
     with transaction.atomic():
+        from apps.tenants.rls import set_current_tenant
+
+        set_current_tenant(str(tenant.id))
+
         # Fetch source form
         source_form = TenantForm.objects.get(
-            tenant=request.tenant,
+            tenant=tenant,
             id=validated_data['source_form_id']
         )
         

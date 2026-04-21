@@ -7,7 +7,7 @@ from django.test.utils import override_settings
 from rest_framework import status
 from rest_framework.test import APITestCase
 
-from apps.system.models import TenantWorkForm
+from apps.system.models import TenantForm, TenantWorkForm
 from apps.tenants.models import Tenant, TenantDomain, TenantUser
 
 
@@ -43,6 +43,40 @@ class WorkFormsRBACSystemViewSetsTests(APITestCase):
             description='',
             status='draft',
             workflow_definition={'nodes': [], 'edges': []},
+            created_by=self.editor,
+            updated_by=self.editor,
+        )
+
+        self.form_a = TenantForm.objects.create(
+            tenant=self.tenant,
+            name='Form A',
+            description='',
+            type='single_step',
+            form_definition={'entity_type': 'supplier', 'fields': []},
+            created_by=self.editor,
+            updated_by=self.editor,
+        )
+        self.form_b = TenantForm.objects.create(
+            tenant=self.tenant,
+            name='Form B',
+            description='',
+            type='single_step',
+            form_definition={'entity_type': 'supplier', 'fields': []},
+            created_by=self.editor,
+            updated_by=self.editor,
+        )
+        self.multi_form = TenantForm.objects.create(
+            tenant=self.tenant,
+            name='Multi Form',
+            description='',
+            type='multi_step',
+            form_definition={
+                'steps': [
+                    {'name': 'Step 1', 'entity_type': 'supplier', 'fields': []},
+                    {'name': 'Step 2', 'entity_type': 'supplier', 'fields': []},
+                ],
+                'navigation': {'show_progress': True, 'allow_back': True},
+            },
             created_by=self.editor,
             updated_by=self.editor,
         )
@@ -114,3 +148,61 @@ class WorkFormsRBACSystemViewSetsTests(APITestCase):
         )
         # Serializer may perform additional validation; this test only asserts we don't 403.
         self.assertNotEqual(resp.status_code, status.HTTP_403_FORBIDDEN, resp.content)
+
+    def test_viewer_cannot_merge_forms(self):
+        self.client.force_login(self.viewer)
+        resp = self.client.post(
+            '/api/v1/tenant-forms/merge/',
+            data={
+                'container_name': 'Merged',
+                'description': '',
+                'source_form_ids': [str(self.form_a.id), str(self.form_b.id)],
+            },
+            format='json',
+            HTTP_HOST=self.domain.domain,
+        )
+        self.assertEqual(resp.status_code, status.HTTP_403_FORBIDDEN, resp.content)
+
+    def test_viewer_cannot_split_form(self):
+        self.client.force_login(self.viewer)
+        resp = self.client.post(
+            '/api/v1/tenant-forms/split/',
+            data={
+                'source_form_id': str(self.multi_form.id),
+                'step_index': 0,
+                'new_form_name': 'Split Step',
+                'new_form_description': '',
+            },
+            format='json',
+            HTTP_HOST=self.domain.domain,
+        )
+        self.assertEqual(resp.status_code, status.HTTP_403_FORBIDDEN, resp.content)
+
+    def test_editor_can_merge_forms(self):
+        self.client.force_login(self.editor)
+        resp = self.client.post(
+            '/api/v1/tenant-forms/merge/',
+            data={
+                'container_name': 'Merged',
+                'description': '',
+                'source_form_ids': [str(self.form_a.id), str(self.form_b.id)],
+            },
+            format='json',
+            HTTP_HOST=self.domain.domain,
+        )
+        self.assertEqual(resp.status_code, status.HTTP_201_CREATED, resp.content)
+
+    def test_editor_can_split_form(self):
+        self.client.force_login(self.editor)
+        resp = self.client.post(
+            '/api/v1/tenant-forms/split/',
+            data={
+                'source_form_id': str(self.multi_form.id),
+                'step_index': 0,
+                'new_form_name': 'Split Step',
+                'new_form_description': '',
+            },
+            format='json',
+            HTTP_HOST=self.domain.domain,
+        )
+        self.assertEqual(resp.status_code, status.HTTP_201_CREATED, resp.content)
