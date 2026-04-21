@@ -285,7 +285,7 @@ const ToolbarButton = styled.button<{ $primary?: boolean }>`
   border-radius: 10px;
   border: 1px solid rgb(var(--color-border));
   background: ${(p) => (p.$primary ? 'rgb(var(--color-primary))' : 'rgb(var(--color-surface))')};
-  color: ${(p) => (p.$primary ? 'white' : 'rgb(var(--color-text-primary))')};
+  color: ${(p) => (p.$primary ? 'rgb(var(--color-primary-foreground))' : 'rgb(var(--color-text-primary))')};
   font-size: 12px;
   font-weight: 900;
   cursor: pointer;

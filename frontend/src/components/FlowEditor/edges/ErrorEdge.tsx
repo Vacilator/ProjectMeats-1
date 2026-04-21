@@ -47,13 +47,13 @@ const ErrorLabel = styled.div`
   pointer-events: all;
   cursor: pointer;
   transition: all 0.2s ease;
-  box-shadow: 0 2px 4px rgb(239 68 68 / 0.2);
+  box-shadow: 0 2px 4px rgba(var(--color-error), 0.2);
 
   &:hover {
     background: rgb(var(--color-error));
-    color: white;
+    color: rgb(var(--color-primary-foreground));
     transform: scale(1.05);
-    box-shadow: 0 4px 8px rgb(239 68 68 / 0.3);
+    box-shadow: 0 4px 8px rgba(var(--color-error), 0.3);
   }
 
   &::before {
@@ -98,7 +98,7 @@ const ToolbarBtn = styled.button`
 const ErrorBadge = styled.div`
   position: absolute;
   background: rgb(var(--color-danger));
-  border: 2px solid white;
+  border: 2px solid rgb(var(--color-surface));
   border-radius: 50%;
   min-width: 20px;
   height: 20px;
@@ -106,11 +106,11 @@ const ErrorBadge = styled.div`
   display: flex;
   align-items: center;
   justify-content: center;
-  color: white;
+  color: rgb(var(--color-primary-foreground));
   font-size: 10px;
   font-weight: 700;
   pointer-events: none;
-  box-shadow: 0 2px 4px rgb(0 0 0 / 0.2);
+  box-shadow: 0 2px 4px rgba(var(--color-overlay), 0.2);
   animation: shake 0.5s ease-in-out infinite;
 
   @keyframes shake {

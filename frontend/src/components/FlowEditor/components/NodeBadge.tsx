@@ -53,11 +53,11 @@ const pulse = keyframes`
 const celebrate = keyframes`
   0%, 100% { 
     transform: scale(1) rotate(0deg); 
-    box-shadow: 0 2px 4px rgb(0 0 0 / 0.2); 
+    box-shadow: 0 2px 4px rgba(var(--color-overlay), 0.2); 
   }
   50% { 
     transform: scale(1.15) rotate(5deg); 
-    box-shadow: 0 4px 12px rgb(34 197 94 / 0.4); 
+    box-shadow: 0 4px 12px rgba(var(--color-success), 0.4); 
   }
 `;
 
@@ -93,17 +93,17 @@ const BadgeContainer = styled.div<{
     }
   }};
   
-  border: 2px solid white;
+  border: 2px solid rgb(var(--color-surface));
   border-radius: 12px;
   padding: 4px 8px;
   min-width: 24px;
   height: 24px;
   
-  color: white;
+  color: rgb(var(--color-primary-foreground));
   font-size: 11px;
   font-weight: 700;
   
-  box-shadow: 0 2px 6px rgb(0 0 0 / 0.2);
+  box-shadow: 0 2px 6px rgba(var(--color-overlay), 0.2);
   pointer-events: all;
   cursor: ${props => props.title ? 'help' : 'default'};
   z-index: 10;
@@ -129,7 +129,7 @@ const BadgeContainer = styled.div<{
   
   &:hover {
     transform: scale(1.1);
-    box-shadow: 0 4px 12px rgb(0 0 0 / 0.3);
+    box-shadow: 0 4px 12px rgba(var(--color-overlay), 0.3);
   }
 `;
 

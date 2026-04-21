@@ -41,7 +41,7 @@ const EdgeLabel = styled.div`
   pointer-events: all;
   cursor: pointer;
   transition: all 0.2s ease;
-  box-shadow: 0 1px 2px rgb(0 0 0 / 0.05);
+  box-shadow: 0 1px 2px rgba(var(--color-overlay), 0.05);
 
   &:hover {
     background: rgb(var(--color-surface-hover));
@@ -60,7 +60,7 @@ const AddNodeButton = styled.button`
   display: flex;
   align-items: center;
   justify-content: center;
-  color: white;
+  color: rgb(var(--color-primary-foreground));
   font-size: 16px;
   font-weight: 600;
   cursor: pointer;

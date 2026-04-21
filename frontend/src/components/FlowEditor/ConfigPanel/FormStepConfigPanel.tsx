@@ -137,7 +137,7 @@ const ToggleButton = styled.button<{ $active: boolean }>`
   padding: 8px 16px;
   border: 1px solid rgb(var(--color-border));
   background: ${props => props.$active ? 'rgb(var(--color-primary))' : 'transparent'};
-  color: ${props => props.$active ? 'white' : 'rgb(var(--color-text-primary))'};
+  color: ${props => props.$active ? 'rgb(var(--color-primary-foreground))' : 'rgb(var(--color-text-primary))'};
   font-size: 13px;
   font-weight: 500;
   cursor: pointer;

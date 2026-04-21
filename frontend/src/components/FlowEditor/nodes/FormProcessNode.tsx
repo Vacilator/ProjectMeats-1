@@ -687,7 +687,7 @@ export const FormProcessNode = React.memo<FormProcessNodeProps>(({
                     border: '1px solid rgba(var(--color-header-background), 0.45)',
                     padding: '6px 8px',
                     background: 'rgba(var(--color-header-background), 0.16)',
-                    color: 'white',
+                    color: 'rgb(var(--color-primary-foreground))',
                   }}
                   onClick={(e) => e.stopPropagation()}
                 />
