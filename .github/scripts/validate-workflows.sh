@@ -733,6 +733,70 @@ PY
 }
 
 # Check workflow_run targets exist (promotion reliability)
+check_digest_pinned_workflow_images() {
+    log_info "Checking workflow service/container images are digest-pinned (@sha256:...)..."
+
+    if ! python - <<'PY'
+import sys
+from pathlib import Path
+
+try:
+    import yaml
+except Exception as e:
+    print(f"ERROR: pyyaml not available: {e}", file=sys.stderr)
+    raise SystemExit(1)
+
+wf_dir = Path('.github/workflows')
+workflow_files = sorted([p for p in wf_dir.rglob('*.yml')] + [p for p in wf_dir.rglob('*.yaml')])
+workflow_files = [p for p in workflow_files if 'archived' not in p.parts]
+
+errors = []
+
+for wf_path in workflow_files:
+    data = yaml.safe_load(wf_path.read_text(encoding='utf-8', errors='ignore')) or {}
+    jobs = data.get('jobs') or {}
+    if not isinstance(jobs, dict):
+        continue
+
+    for job_name, job in jobs.items():
+        if not isinstance(job, dict):
+            continue
+
+        # jobs.<job>.services.*.image
+        services = job.get('services')
+        if isinstance(services, dict):
+            for svc_name, svc in services.items():
+                if not isinstance(svc, dict):
+                    continue
+                image = svc.get('image')
+                if isinstance(image, str) and image.strip():
+                    img = image.strip()
+                    if '@sha256:' not in img:
+                        errors.append(f"{wf_path.name}: jobs.{job_name}.services.{svc_name}.image must be digest-pinned (found '{img}')")
+
+        # jobs.<job>.container.image
+        container = job.get('container')
+        if isinstance(container, dict):
+            image = container.get('image')
+            if isinstance(image, str) and image.strip():
+                img = image.strip()
+                if '@sha256:' not in img:
+                    errors.append(f"{wf_path.name}: jobs.{job_name}.container.image must be digest-pinned (found '{img}')")
+
+if errors:
+    for e in errors:
+        print(f"ERROR: {e}", file=sys.stderr)
+    raise SystemExit(1)
+
+print('✓ Workflow service/container images are digest-pinned')
+PY
+    then
+        return 1
+    fi
+
+    return 0
+}
+
 check_workflow_run_targets_exist() {
     log_info "Checking workflow_run referenced workflow names exist..."
 
@@ -962,6 +1026,7 @@ main() {
     check_concurrency || ((failed++))
     check_actions_pinned_to_sha || ((failed++))
     check_no_floating_action_refs || ((failed++))
+    check_digest_pinned_workflow_images || ((failed++))
     check_workflow_run_targets_exist || ((failed++))
     check_env_separation || ((failed++))
     
