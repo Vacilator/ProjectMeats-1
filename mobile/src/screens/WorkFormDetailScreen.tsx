@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   ScrollView,
   RefreshControl,
+  Alert,
 } from 'react-native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RouteProp } from '@react-navigation/native';
@@ -77,12 +78,13 @@ function getDefinitionPreview(definition?: WorkflowDefinition): { preview: strin
 }
 
 export default function WorkFormDetailScreen({ navigation, route }: Props) {
-  const { id } = route.params;
+  const { id, isGuest = false } = route.params;
 
   const [form, setForm] = useState<WorkForm | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [executing, setExecuting] = useState(false);
 
   const load = useCallback(
     async (isRefresh = false) => {
@@ -111,7 +113,30 @@ export default function WorkFormDetailScreen({ navigation, route }: Props) {
     load();
   }, [load]);
 
+  const handleExecute = useCallback(async () => {
+    if (isGuest) {
+      Alert.alert('Guest mode', 'WorkForm execution is disabled in guest mode.');
+      return;
+    }
+
+    if (executing) {
+      return;
+    }
+
+    setExecuting(true);
+    try {
+      const execution = await ApiService.executeWorkForm(id, {});
+      Alert.alert('Execution started', `Execution ID: ${execution.id}`);
+      await load(true);
+    } catch {
+      Alert.alert('Error', 'Unable to start WorkForm execution. Please try again.');
+    } finally {
+      setExecuting(false);
+    }
+  }, [executing, id, isGuest, load]);
+
   const statusLabel = form ? (form.is_active ? 'Active' : 'Inactive') : '—';
+  const headerSubtitle = isGuest ? 'Guest · View only' : 'Run and view details';
 
   const definitionCounts = useMemo(() => getDefinitionCounts(form?.workflow_definition), [form?.workflow_definition]);
   const definitionPreview = useMemo(() => getDefinitionPreview(form?.workflow_definition), [form?.workflow_definition]);
@@ -141,7 +166,7 @@ export default function WorkFormDetailScreen({ navigation, route }: Props) {
             {form?.name ?? 'WorkForm'}
           </Text>
           <Text style={styles.headerSubtitle} numberOfLines={1}>
-            Read-only summary
+            {headerSubtitle}
           </Text>
         </View>
         <View
@@ -211,6 +236,23 @@ export default function WorkFormDetailScreen({ navigation, route }: Props) {
               <Text style={styles.metaLabel}>Last executed</Text>
               <Text style={styles.metaValue}>{formatDate(form.last_executed_at)}</Text>
             </View>
+
+            <TouchableOpacity
+              style={[styles.executeBtn, (isGuest || executing) && styles.executeBtnDisabled]}
+              onPress={handleExecute}
+              disabled={isGuest || executing}
+              accessibilityLabel={isGuest ? 'Run WorkForm disabled' : 'Run WorkForm'}
+              accessibilityHint={
+                isGuest
+                  ? 'WorkForm execution is disabled in guest mode'
+                  : 'Starts a server-side WorkForm execution'
+              }
+              testID="workform-execute"
+            >
+              <Text style={styles.executeBtnText}>{executing ? 'Starting…' : 'Run WorkForm'}</Text>
+            </TouchableOpacity>
+
+            {isGuest ? <Text style={styles.executeHint}>Execution is disabled in guest mode.</Text> : null}
           </View>
         ) : null}
 
@@ -401,5 +443,24 @@ const styles = StyleSheet.create({
   retryBtnText: {
     color: '#fff',
     fontWeight: 'bold',
+  },
+  executeBtn: {
+    marginTop: 12,
+    backgroundColor: '#3498db',
+    paddingVertical: 10,
+    borderRadius: 10,
+    alignItems: 'center',
+  },
+  executeBtnDisabled: {
+    opacity: 0.5,
+  },
+  executeBtnText: {
+    color: '#fff',
+    fontWeight: 'bold',
+  },
+  executeHint: {
+    marginTop: 8,
+    color: '#7f8c8d',
+    fontSize: 12,
   },
 });

@@ -15,6 +15,7 @@ import {
   TenantInvite,
   InviteAcceptRequest,
   WorkForm,
+  WorkFormExecution,
 } from '../types';
 
 class ApiServiceClass {
@@ -332,6 +333,13 @@ class ApiServiceClass {
       workflow_definition: definition && typeof definition === 'object' ? definition : undefined,
       form_references: Array.isArray(row.form_references) ? row.form_references : undefined,
     };
+  }
+
+  async executeWorkForm(id: string, initialData: Record<string, unknown> = {}): Promise<WorkFormExecution> {
+    const response = await this.api.post(`/tenant-workforms/${id}/execute/`, {
+      initial_data: initialData,
+    });
+    return response.data;
   }
 }
 

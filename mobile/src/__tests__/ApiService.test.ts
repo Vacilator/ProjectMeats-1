@@ -208,4 +208,23 @@ describe('ApiService – workforms', () => {
     expect(result.workflow_definition?.nodes?.length).toBe(1);
     expect(internalApi.get).toHaveBeenCalledWith('/tenant-workforms/wf-1/');
   });
+
+  it('executeWorkForm POSTs to /tenant-workforms/{id}/execute/ with initial_data', async () => {
+    const mockExecution = {
+      id: 'exec-1',
+      workform_id: 'wf-1',
+      workform_name: 'Intake',
+      status: 'in_progress',
+      started_at: '2026-04-21T00:00:00Z',
+      completed_at: null,
+      error_message: '',
+    };
+    internalApi.post.mockResolvedValueOnce({ data: mockExecution });
+
+    const result = await ApiService.executeWorkForm('wf-1', { foo: 'bar' });
+    expect(result.id).toBe('exec-1');
+    expect(internalApi.post).toHaveBeenCalledWith('/tenant-workforms/wf-1/execute/', {
+      initial_data: { foo: 'bar' },
+    });
+  });
 });

@@ -80,7 +80,7 @@ export type RootStackParamList = {
   Home: undefined;
   GuestHome: undefined;
   WorkForms: undefined;
-  WorkFormDetail: { id: string };
+  WorkFormDetail: { id: string; isGuest?: boolean };
 };
 
 // Authentication types
@@ -182,6 +182,18 @@ export interface WorkForm {
   // Detail-only fields
   workflow_definition?: WorkflowDefinition;
   form_references?: string[];
+}
+
+export type WorkFormExecutionStatus = 'in_progress' | 'completed' | 'failed' | 'cancelled';
+
+export interface WorkFormExecution {
+  id: string;
+  workform_id: string;
+  workform_name: string;
+  status: WorkFormExecutionStatus | string;
+  started_at: string;
+  completed_at: string | null;
+  error_message: string;
 }
 
 // Common entity types (shared with backend)

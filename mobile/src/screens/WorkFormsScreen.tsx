@@ -97,7 +97,7 @@ export default function WorkFormsScreen({ navigation, tenant, user, isGuest = fa
   const handleFormPress = (form: WorkForm) => {
     // Full editing is handled on the web Workform Editor.
     // On mobile, show a read-only summary (works for both guest + authed).
-    navigation.navigate('WorkFormDetail', { id: form.id });
+    navigation.navigate('WorkFormDetail', { id: form.id, isGuest });
   };
 
   if (loading) {
