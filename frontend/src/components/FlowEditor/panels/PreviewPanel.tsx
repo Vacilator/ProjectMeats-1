@@ -15,6 +15,8 @@ import styled from 'styled-components';
 import { Node } from '@xyflow/react';
 import { X, Smartphone, Monitor, Tablet, RefreshCw, Eye, TestTube2, Eraser, AlertCircle } from 'lucide-react';
 
+import { logger } from '@/utils/logger';
+
 // ============================================================================
 // TypeScript Interfaces
 // ============================================================================
@@ -451,7 +453,7 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({
       testData[field.id] = generateTestDataForField(field);
     });
     setFormData(testData);
-    console.log('[PreviewPanel] Test data generated:', testData);
+    logger.debug('Test data generated', { component: 'PreviewPanel', metadata: { testData } });
   }, [formFields, generateTestDataForField]);
   
   /**
@@ -461,7 +463,7 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({
     setFormData({});
     setValidationErrors({});
     setTouched({});
-    console.log('[PreviewPanel] Form data cleared');
+    logger.debug('Form data cleared', { component: 'PreviewPanel' });
   }, []);
   
   /**
@@ -546,9 +548,12 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({
    */
   useEffect(() => {
     if (isVisible && nodes.length > 0) {
-      console.log('[PreviewPanel] Auto-update: nodes changed', {
-        nodeCount: nodes.length,
-        formNodes: nodes.filter(n => n.type === 'formStep' || n.type === 'formField').length,
+      logger.debug('Auto-update: nodes changed', {
+        component: 'PreviewPanel',
+        metadata: {
+          nodeCount: nodes.length,
+          formNodes: nodes.filter((n) => n.type === 'formStep' || n.type === 'formField').length,
+        },
       });
     }
   }, [nodes, isVisible]);

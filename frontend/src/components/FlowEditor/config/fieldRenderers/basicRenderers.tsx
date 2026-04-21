@@ -14,6 +14,8 @@ import styled from 'styled-components';
 import { ConfigField, FieldRendererProps } from '../types';
 import { useEntityList } from '../../../../services/schemaService';  // Fixed path
 
+import { logger } from '@/utils/logger';
+
 // Import shared styled components
 import {
   FormField,
@@ -189,14 +191,17 @@ export function renderEntityTypeSelect(
   // Fetch entity types from backend API (with fallback to hardcoded entities)
   const { data: entities = [], isLoading, error: fetchError } = useEntityList();
 
-  // Debug logging
+  // Debug logging (dev-only)
   React.useEffect(() => {
-    console.log('[EntityTypeSelect] Rendered with:', {
-      isLoading,
-      entityCount: entities.length,
-      entities: entities.map(e => e.label),
-      fetchError: fetchError ? String(fetchError) : null,
-      currentValue: value,
+    logger.debug('Rendered', {
+      component: 'EntityTypeSelect',
+      metadata: {
+        isLoading,
+        entityCount: entities.length,
+        entities: entities.map((e) => e.label),
+        fetchError: fetchError ? String(fetchError) : null,
+        currentValue: value,
+      },
     });
   }, [isLoading, entities, fetchError, value]);
 

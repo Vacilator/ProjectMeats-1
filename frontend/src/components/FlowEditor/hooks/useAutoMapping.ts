@@ -16,6 +16,8 @@ import {
 } from '../utils/autoMappingService';
 import { attachOutputSchemaToNode } from '../utils/outputSchemaInference';
 
+import { logger } from '@/utils/logger';
+
 /**
  * Hook return type
  */
@@ -60,8 +62,8 @@ export function useAutoMapping(): UseAutoMappingReturn {
       );
       
       setSuggestions(mappingSuggestions);
-      
-      console.log('[AutoMapping] Generated suggestions:', mappingSuggestions);
+
+      logger.debug('Generated suggestions', { component: 'AutoMapping', metadata: { mappingSuggestions } });
     } catch (err) {
       console.error('[AutoMapping] Failed to generate suggestions:', err);
       setError(err instanceof Error ? err.message : 'Failed to generate suggestions');
@@ -78,7 +80,7 @@ export function useAutoMapping(): UseAutoMappingReturn {
       return nodes.map(node => {
         if (node.id === nodeId) {
           const updatedNode = AutoMappingService.applySuggestion(node, suggestion);
-          console.log('[AutoMapping] Applied suggestion:', suggestion);
+          logger.debug('Applied suggestion', { component: 'AutoMapping', metadata: { suggestion } });
           return updatedNode;
         }
         return node;
@@ -98,7 +100,7 @@ export function useAutoMapping(): UseAutoMappingReturn {
       return nodes.map(node => {
         if (node.id === nodeId) {
           const updatedNode = AutoMappingService.applyAutoSuggestions(node, suggestions);
-          console.log('[AutoMapping] Applied all auto-suggestions');
+          logger.debug('Applied all auto-suggestions', { component: 'AutoMapping' });
           return updatedNode;
         }
         return node;

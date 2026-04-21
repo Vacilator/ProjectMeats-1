@@ -14,6 +14,8 @@ import styled from 'styled-components';
 import { X, ArrowLeft, Save, AlertCircle, Package, Settings, Navigation } from 'lucide-react';
 import { FormSelectionPanel } from '../ConfigPanel';
 
+import { logger } from '@/utils/logger';
+
 // ============================================================================
 // TypeScript Types
 // ============================================================================
@@ -483,7 +485,7 @@ export const FormProcessModal: React.FC<ContainerModalProps> = ({
     formId?: string;
     form?: any;
   }) => {
-    console.log('[FormProcessModal] Selection changed:', selection);
+    logger.debug('Selection changed', { component: 'FormProcessModal', metadata: { selection } });
     setState(prev => ({
       ...prev,
       mode: selection.mode,
@@ -494,10 +496,13 @@ export const FormProcessModal: React.FC<ContainerModalProps> = ({
   }, []);
 
   const handleProceedFromStep1 = useCallback(() => {
-    console.log('[FormProcessModal] Proceeding from step 1:', {
-      mode: state.mode,
-      containerName: state.containerName,
-      selectedWorkflowId: state.selectedWorkflowId
+    logger.debug('Proceeding from step 1', {
+      component: 'FormProcessModal',
+      metadata: {
+        mode: state.mode,
+        containerName: state.containerName,
+        selectedWorkflowId: state.selectedWorkflowId,
+      },
     });
     if (state.mode === 'new' && state.containerName) {
       setState(prev => ({ ...prev, currentStep: 2 }));
