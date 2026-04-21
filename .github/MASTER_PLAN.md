@@ -90,6 +90,8 @@ This file is the **append-only PR-referenceable execution log**.
 
 - **2026-04-21** — Mobile: align WorkForms API contract with backend serializers (status + workflow_definition) and add OpenAPI contract assertions for `/tenant-workforms/` list/detail. (PR: #4562)
 
+- **2026-04-21** — Mobile: add a real WorkForm detail screen (read-only) that calls `GET /api/v1/tenant-workforms/{id}/` and navigates from the WorkForms list. (PR: #4564)
+
 ### 2026-03-31 — Secret audit drift (manifest v5.1)
 - Command: `python config/manage_env.py audit --repo Meats-Central/ProjectMeats`
 - Stale/Zombie secrets found in GitHub but NOT in `manifests/env.manifest.json` (or legacy `DEV_`/`UAT_`/`PROD_` prefixed):
