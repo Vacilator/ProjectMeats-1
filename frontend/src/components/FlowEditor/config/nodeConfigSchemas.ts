@@ -4258,14 +4258,14 @@ export const parallelPathSchema: NodeConfigSchema = {
 };
 
 /**
- * Sub-Workflow Node Schema
+ * Sub-WorkForm Node Schema
  * 
- * Executes another workflow as a reusable sub-process.
+ * Runs another WorkForm as a reusable sub-process.
  */
 export const subWorkflowSchema: NodeConfigSchema = {
   nodeType: 'subWorkflow',
-  displayName: 'Sub-Workflow',
-  description: 'Execute another workflow as a sub-process',
+  displayName: 'Sub-WorkForm',
+  description: 'Run another WorkForm as a sub-process',
   icon: Package,
   version: '1.0.0',
   tags: ['logic', 'subflow', 'reusable'],
@@ -4273,21 +4273,21 @@ export const subWorkflowSchema: NodeConfigSchema = {
   sections: [
     {
       id: 'workflow',
-      title: 'Workflow Selection',
+      title: 'WorkForm Selection',
       icon: Package,
       defaultExpanded: true,
       fields: [
         {
           id: 'workflowId',
           type: 'text',
-          label: 'Workflow ID',
-          placeholder: 'Select workflow...',
+          label: 'WorkForm ID',
+          placeholder: 'Select WorkForm...',
           required: true,
         },
         {
           id: 'workflowName',
           type: 'text',
-          label: 'Workflow Name',
+          label: 'WorkForm Name',
           placeholder: 'Display name',
         },
         {
@@ -4336,9 +4336,9 @@ export const subWorkflowSchema: NodeConfigSchema = {
           type: 'select',
           label: 'On Error',
           options: [
-            { value: 'fail', label: 'Fail Parent Workflow' },
-            { value: 'continue', label: 'Continue Parent Workflow' },
-            { value: 'retry', label: 'Retry Sub-Workflow' },
+            { value: 'fail', label: 'Fail Parent WorkForm' },
+            { value: 'continue', label: 'Continue Parent WorkForm' },
+            { value: 'retry', label: 'Retry Sub-WorkForm' },
           ],
           defaultValue: 'fail',
           required: true,

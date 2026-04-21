@@ -622,7 +622,7 @@ const FormsFlowsInProgress: React.FC = () => {
             aria-selected={activeTab === 'executions'}
             onClick={() => setActiveTab('executions')}
           >
-            WorkForm Executions
+            WorkForm Runs
           </Tab>
         </TabsContainer>
 
@@ -630,19 +630,19 @@ const FormsFlowsInProgress: React.FC = () => {
           <ToolbarLeft>
             <SearchInput
               type="search"
-              placeholder={activeTab === 'executions' ? 'Search executions…' : 'Search in-progress forms…'}
+              placeholder={activeTab === 'executions' ? 'Search runs…' : 'Search in-progress forms…'}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              aria-label={activeTab === 'executions' ? 'Search executions' : 'Search in-progress forms'}
+              aria-label={activeTab === 'executions' ? 'Search runs' : 'Search in-progress forms'}
             />
             <FilterSelect
               value={filterMode}
               onChange={(e) => setFilterMode(e.target.value as any)}
-              aria-label="Filter workflows"
+              aria-label="Filter WorkForms"
             >
-              <option value="all">All Workflows</option>
-              <option value="my">My Workflows</option>
-              <option value="team">Team Workflows</option>
+              <option value="all">All WorkForms</option>
+              <option value="my">My WorkForms</option>
+              <option value="team">Team WorkForms</option>
             </FilterSelect>
           </ToolbarLeft>
           <div style={{ display: 'flex', alignItems: 'center' }}>
@@ -669,7 +669,7 @@ const FormsFlowsInProgress: React.FC = () => {
             );
 
             if (executionsQuery.isLoading) {
-              return <LoadingState role="status" aria-live="polite">Loading executions…</LoadingState>;
+              return <LoadingState role="status" aria-live="polite">Loading runs…</LoadingState>;
             }
 
             if (filtered.length === 0) {
@@ -678,18 +678,18 @@ const FormsFlowsInProgress: React.FC = () => {
                   <EmptyIcon aria-hidden="true">
                     <Clock size={48} />
                   </EmptyIcon>
-                  <EmptyTitle>No executions in progress</EmptyTitle>
+                  <EmptyTitle>No runs in progress</EmptyTitle>
                   <EmptyMessage>
                     {searchQuery
-                      ? 'No matching executions found. Try a different search term.'
-                      : 'You have no active WorkForm executions running right now. Start one from the Catalog.'}
+                      ? 'No matching runs found. Try a different search term.'
+                      : 'You have no active WorkForm runs right now. Start one from the Catalog.'}
                   </EmptyMessage>
                 </EmptyState>
               );
             }
 
             return (
-              <CardGrid role="list" aria-label={`${filtered.length} executions in progress`}>
+              <CardGrid role="list" aria-label={`${filtered.length} runs in progress`}>
                 {filtered.map((ex) => (
                   <Card
                     key={ex.id}
@@ -741,7 +741,7 @@ const FormsFlowsInProgress: React.FC = () => {
             <EmptyMessage>
               {searchQuery
                 ? 'No matching forms found. Try a different search term.'
-                : 'You have no active form submissions or workflow executions running right now. Start a new one from the Catalog.'}
+                : 'You have no active form submissions or WorkForm runs right now. Start a new one from the Catalog.'}
             </EmptyMessage>
           </EmptyState>
         ) : (

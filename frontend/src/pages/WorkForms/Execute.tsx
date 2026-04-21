@@ -75,14 +75,14 @@ export const ExecuteWorkForm: React.FC = () => {
         showAlert({
           type: 'error',
           title: 'Execution failed',
-          content: data.error_message || 'This workflow failed to execute.',
+          content: data.error_message || 'This WorkForm failed to run.',
         });
       }
 
       navigate(`/workforms/executions/${data.id}`, { replace: true });
     },
     onError: (err: any) => {
-      const msg = err?.response?.data?.error || err?.message || 'Failed to start workflow.';
+      const msg = err?.response?.data?.error || err?.message || 'Failed to start WorkForm.';
       showAlert({ type: 'error', title: 'Error', content: msg });
       navigate('/workforms/catalog', { replace: true });
     },

@@ -5,7 +5,7 @@
  * Implements Phase 1 of the Forms & Flows Enhancement Plan.
  * 
  * Created: 2026-02-03
- * Updated: Phase 5 - Added Workflow Executions tab
+ * Updated: Phase 5 - Added WorkForm Runs tab
  * 
  * Features:
  * - List of completed/cancelled submissions
@@ -654,7 +654,7 @@ const FormsFlowsHistory: React.FC = () => {
             setActiveTab('workflows');
           }}
         >
-          Workflow Executions
+          WorkForm Runs
         </Tab>
       </TabsContainer>
       
@@ -717,7 +717,7 @@ const FormsFlowsHistory: React.FC = () => {
           <EmptyMessage>
             {searchQuery || startDate || endDate
               ? 'No matching records found. Try adjusting your filters.'
-              : 'Completed and cancelled form submissions will appear here once a workflow finishes executing.'}
+              : 'Completed and cancelled form submissions will appear here once a WorkForm run completes.'}
           </EmptyMessage>
         </EmptyState>
       ) : (

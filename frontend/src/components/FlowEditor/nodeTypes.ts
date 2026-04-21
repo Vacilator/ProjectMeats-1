@@ -330,11 +330,11 @@ export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDefinition> = {
   
   subWorkflow: {
     id: 'subWorkflow',
-    name: 'Sub-Workflow',
+    name: 'Sub-WorkForm',
     category: 'logic',
     icon: '🔗',
     color: 'rgb(var(--color-info))', // indigo
-    description: 'Execute another workflow as a sub-process',
+    description: 'Run another WorkForm as a sub-process',
     maxInputs: 1,
     maxOutputs: 1,
     requiresConfig: true,
@@ -649,11 +649,11 @@ export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDefinition> = {
   
   groupSubflow: {
     id: 'groupSubflow',
-    name: 'Sub-Workflow',
+    name: 'Sub-WorkForm',
     category: 'utility',
     icon: '📦',
     color: 'rgb(var(--color-text-secondary))',
-    description: 'Encapsulate reusable sub-workflow',
+    description: 'Encapsulate reusable sub-workform',
     maxInputs: 1,
     maxOutputs: 1,
     requiresConfig: true,
@@ -666,7 +666,7 @@ export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDefinition> = {
     category: 'terminal',
     icon: '✅',
     color: 'rgb(var(--color-success))', // green
-    description: 'Successful completion of workflow',
+    description: 'Successful completion of WorkForm',
     maxInputs: 1,
     maxOutputs: 0,
   },
@@ -677,7 +677,7 @@ export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDefinition> = {
     category: 'terminal',
     icon: '❌',
     color: 'rgb(var(--color-error))', // red
-    description: 'Error termination of workflow',
+    description: 'Error termination of WorkForm',
     maxInputs: 1,
     maxOutputs: 0,
   },

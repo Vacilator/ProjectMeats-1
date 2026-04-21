@@ -286,7 +286,7 @@ export const HelpModal: React.FC<HelpModalProps> = ({ isOpen, onClose }) => {
     <Overlay onClick={handleOverlayClick}>
       <Modal role="dialog" aria-labelledby="help-modal-title" aria-modal="true">
         <Header>
-          <Title id="help-modal-title">Workflow Editor Help</Title>
+          <Title id="help-modal-title">WorkForms Editor Help</Title>
           <CloseButton 
             onClick={onClose}
             aria-label="Close help modal"

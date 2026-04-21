@@ -313,11 +313,11 @@ export const WorkflowManagementModal: React.FC<WorkflowManagementModalProps> = (
     const newErrors: { name?: string } = {};
 
     if (!name.trim()) {
-      newErrors.name = 'Workflow name is required';
+      newErrors.name = 'WorkForm name is required';
     } else if (name.trim().length < 3) {
-      newErrors.name = 'Workflow name must be at least 3 characters';
+      newErrors.name = 'WorkForm name must be at least 3 characters';
     } else if (name.trim().length > 100) {
-      newErrors.name = 'Workflow name must be less than 100 characters';
+      newErrors.name = 'WorkForm name must be less than 100 characters';
     }
 
     setErrors(newErrors);
@@ -357,7 +357,7 @@ export const WorkflowManagementModal: React.FC<WorkflowManagementModalProps> = (
       <ModalContent onClick={handleContentClick} onKeyDown={handleKeyDown}>
         <ModalHeader>
           <ModalTitle>
-            {mode === 'create' ? 'Create New Workflow' : 'Edit Workflow'}
+            {mode === 'create' ? 'Create New WorkForm' : 'Edit WorkForm'}
           </ModalTitle>
           <CloseButton onClick={onClose} title="Close (ESC)">
             <X size={18} />
@@ -365,10 +365,10 @@ export const WorkflowManagementModal: React.FC<WorkflowManagementModalProps> = (
         </ModalHeader>
 
         <ModalBody>
-          {/* Workflow Name */}
+          {/* WorkForm Name */}
           <FormGroup>
             <Label htmlFor="workflow-name">
-              Workflow Name
+              WorkForm Name
               <RequiredIndicator>*</RequiredIndicator>
             </Label>
             <Input
@@ -387,7 +387,7 @@ export const WorkflowManagementModal: React.FC<WorkflowManagementModalProps> = (
               </ErrorText>
             )}
             <HelpText>
-              Choose a descriptive name that identifies the workflow's purpose
+              Choose a descriptive name that identifies the WorkForm's purpose
             </HelpText>
           </FormGroup>
 
@@ -400,10 +400,10 @@ export const WorkflowManagementModal: React.FC<WorkflowManagementModalProps> = (
               id="workflow-description"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Describe what this workflow does and when to use it..."
+              placeholder="Describe what this WorkForm does and when to use it..."
             />
             <HelpText>
-              Optional. Add details to help team members understand this workflow.
+              Optional. Add details to help team members understand this WorkForm.
             </HelpText>
           </FormGroup>
 
@@ -433,7 +433,7 @@ export const WorkflowManagementModal: React.FC<WorkflowManagementModalProps> = (
           </Button>
           <Button $variant="primary" onClick={handleSave}>
             <Save size={16} />
-            {mode === 'create' ? 'Create Workflow' : 'Save Changes'}
+            {mode === 'create' ? 'Create WorkForm' : 'Save Changes'}
           </Button>
         </ModalFooter>
       </ModalContent>

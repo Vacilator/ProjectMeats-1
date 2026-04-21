@@ -800,7 +800,7 @@ const FormsFlowsCatalog: React.FC = () => {
       showAlert({
         type: 'error',
         title: 'Error',
-        content: 'Failed to start workflow. Please try again.',
+        content: 'Failed to start. Please try again.',
       });
     } finally {
       setIsQuickRunning(null);
@@ -847,7 +847,7 @@ const FormsFlowsCatalog: React.FC = () => {
   return (
     <Container data-testid="workforms-catalog-page">
       <Header>
-        <Title>Forms & Flows</Title>
+        <Title>WorkForms Catalog</Title>
         <HeaderActions>
           <SearchBar>
             <SearchIconWrapper>
@@ -856,7 +856,7 @@ const FormsFlowsCatalog: React.FC = () => {
             <SearchInput
               data-testid="workforms-catalog-search"
               type="text"
-              placeholder="Search forms..."
+              placeholder="Search WorkForms and forms..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
@@ -868,7 +868,7 @@ const FormsFlowsCatalog: React.FC = () => {
             title={
               !permissions.can_create
                 ? getUpgradeMessage('create', permissions.role)
-                : 'Create a new form or workflow'
+                : 'Create a new form or WorkForm'
             }
           >
             {!permissions.can_create && <Lock size={16} style={{ marginRight: '0.5rem' }} />}
@@ -886,7 +886,7 @@ const FormsFlowsCatalog: React.FC = () => {
           onClick={() => setActiveTab('workflows')}
         >
           <Workflow size={18} />
-          Workflows (Logic)
+          WorkForms (Automation)
           {workflowsCount > 0 && <TabBadge>{workflowsCount}</TabBadge>}
         </Tab>
         <Tab data-testid="workforms-catalog-tab-forms" $active={activeTab === 'forms'} onClick={() => setActiveTab('forms')}>
@@ -1093,7 +1093,7 @@ const FormsFlowsCatalog: React.FC = () => {
                         $isRunning={isQuickRunning === form.id}
                         onClick={(e) => handleQuickRun(form, e)}
                         disabled={isQuickRunning === form.id}
-                        title={isWorkform ? 'Execute this WorkForm' : 'Start this workflow with one click'}
+                        title={isWorkform ? 'Run this WorkForm' : 'Start this form'}
                       >
                         {isQuickRunning === form.id ? (
                           <>
@@ -1103,7 +1103,7 @@ const FormsFlowsCatalog: React.FC = () => {
                         ) : (
                           <>
                             <Play size={16} />
-                            {isWorkform ? 'Execute' : 'Quick Run'}
+                            {isWorkform ? 'Run' : 'Start'}
                           </>
                         )}
                       </QuickRunButton>
@@ -1190,7 +1190,7 @@ const FormsFlowsCatalog: React.FC = () => {
                         $isRunning={isQuickRunning === form.id}
                         onClick={(e) => handleQuickRun(form, e)}
                         disabled={isQuickRunning === form.id}
-                        title={isWorkform ? 'Execute this WorkForm' : 'Start this workflow with one click'}
+                        title={isWorkform ? 'Run this WorkForm' : 'Start this form'}
                       >
                         {isQuickRunning === form.id ? (
                           <>
@@ -1200,7 +1200,7 @@ const FormsFlowsCatalog: React.FC = () => {
                         ) : (
                           <>
                             <Play size={16} />
-                            {isWorkform ? 'Execute' : 'Quick Run'}
+                            {isWorkform ? 'Run' : 'Start'}
                           </>
                         )}
                       </QuickRunButton>
