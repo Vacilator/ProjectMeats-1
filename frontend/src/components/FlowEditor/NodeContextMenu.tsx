@@ -70,8 +70,8 @@ const MenuContainer = styled.div<{ x: number; y: number; flipX: boolean; flipY: 
   border: 1px solid rgb(var(--color-border));
   border-radius: 12px;
   box-shadow:
-    0 20px 25px -5px rgba(0, 0, 0, 0.12),
-    0 10px 10px -5px rgba(0, 0, 0, 0.08);
+    0 20px 25px -5px rgba(var(--color-overlay), 0.12),
+    0 10px 10px -5px rgba(var(--color-overlay), 0.08);
   padding: 6px;
   min-width: 220px;
   z-index: 9999;
@@ -104,7 +104,7 @@ const MenuItem = styled.button<{ danger?: boolean }>`
   border: none;
   background: transparent;
   color: ${props =>
-    props.danger ? 'rgb(239, 68, 68)' : 'rgb(var(--color-text-primary))'};
+    props.danger ? 'rgb(var(--color-error))' : 'rgb(var(--color-text-primary))'};
   font-size: 14px;
   font-family: inherit;
   text-align: left;
@@ -114,8 +114,8 @@ const MenuItem = styled.button<{ danger?: boolean }>`
 
   &:hover {
     background: ${props =>
-      props.danger ? 'rgba(239, 68, 68, 0.1)' : 'rgb(var(--color-primary) / 0.1)'};
-    color: ${props => (props.danger ? 'rgb(239, 68, 68)' : 'rgb(var(--color-primary))')};
+      props.danger ? 'rgba(var(--color-error), 0.1)' : 'rgb(var(--color-primary) / 0.1)'};
+    color: ${props => (props.danger ? 'rgb(var(--color-error))' : 'rgb(var(--color-primary))')};
     transform: translateX(2px);
   }
 
@@ -131,7 +131,7 @@ const MenuItem = styled.button<{ danger?: boolean }>`
   &:disabled:hover {
     background: transparent;
     color: ${props =>
-      props.danger ? 'rgb(239, 68, 68)' : 'rgb(var(--color-text-primary))'};
+      props.danger ? 'rgb(var(--color-error))' : 'rgb(var(--color-text-primary))'};
     transform: none;
   }
 

@@ -85,11 +85,11 @@ const BadgeContainer = styled.div<{
   
   background: ${props => {
     switch (props.$status) {
-      case 'error': return 'rgb(220, 38, 38)';
-      case 'warning': return 'rgb(245, 158, 11)';
-      case 'success': return 'rgb(22, 163, 74)';
-      case 'processing': return 'rgb(59, 130, 246)';
-      default: return 'rgb(100, 116, 139)';
+      case 'error': return 'rgb(var(--color-danger))';
+      case 'warning': return 'rgb(var(--color-warning))';
+      case 'success': return 'rgb(var(--color-success))';
+      case 'processing': return 'rgb(var(--color-info))';
+      default: return 'rgb(var(--color-text-tertiary))';
     }
   }};
   

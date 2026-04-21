@@ -96,7 +96,7 @@ const PanelOverlay = styled.div<{ $isOpen: boolean }>`
   right: 0;
   bottom: 0;
   left: 0;
-  background: rgba(0, 0, 0, 0.3);
+  background: rgba(var(--color-overlay), 0.3);
   z-index: 1000;
   display: ${props => props.$isOpen ? 'block' : 'none'};
   animation: fadeIn 0.2s ease;
@@ -228,11 +228,11 @@ const ValidationMessage = styled.div<{ $severity: 'error' | 'warning' }>`
   font-size: 12px;
   line-height: 1.5;
   background: ${props => props.$severity === 'error' 
-    ? 'rgba(239, 68, 68, 0.1)' 
-    : 'rgba(234, 179, 8, 0.1)'};
+    ? 'rgba(var(--color-error), 0.1)' 
+    : 'rgba(var(--color-warning), 0.1)'};
   color: ${props => props.$severity === 'error' 
-    ? 'rgb(239, 68, 68)' 
-    : 'rgb(234, 179, 8)'};
+    ? 'rgb(var(--color-error))' 
+    : 'rgb(var(--color-warning))'};
 `;
 
 
@@ -343,7 +343,7 @@ const IconButton = styled.button`
   }
   
   &:hover.delete {
-    background: rgb(239, 68, 68);
+    background: rgb(var(--color-error));
     color: white;
   }
 `;

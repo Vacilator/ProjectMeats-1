@@ -88,7 +88,7 @@ interface UsageInfo {
 const ModalOverlay = styled.div`
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.7);
+  background: rgba(var(--color-overlay), 0.7);
   backdrop-filter: blur(4px);
   display: flex;
   align-items: center;
@@ -100,7 +100,7 @@ const ModalOverlay = styled.div`
 const ModalContent = styled.div`
   background: rgb(var(--color-surface));
   border-radius: var(--radius-xl);
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 20px 60px rgba(var(--color-overlay), 0.3);
   max-width: 600px;
   width: 100%;
   overflow: hidden;

@@ -228,7 +228,7 @@ const ConditionItem = styled.div`
   
   &:hover {
     border-color: rgb(var(--color-primary));
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    box-shadow: 0 2px 8px rgba(var(--color-overlay), 0.05);
   }
 `;
 
@@ -282,8 +282,8 @@ const DeleteButton = styled.button`
   flex-shrink: 0;
   
   &:hover {
-    background: rgba(239, 68, 68, 0.1);
-    color: rgb(239, 68, 68);
+    background: rgba(var(--color-error), 0.1);
+    color: rgb(var(--color-error));
   }
 `;
 
@@ -313,8 +313,8 @@ const LogicLine = styled.div`
 
 const LogicBadge = styled.div<{ $logic: ConditionLogic }>`
   padding: 4px 12px;
-  background: ${props => props.$logic === 'and' ? 'rgba(59, 130, 246, 0.1)' : 'rgba(234, 179, 8, 0.1)'};
-  color: ${props => props.$logic === 'and' ? 'rgb(59, 130, 246)' : 'rgb(234, 179, 8)'};
+  background: ${props => props.$logic === 'and' ? 'rgba(var(--color-info), 0.1)' : 'rgba(var(--color-warning), 0.1)'};
+  color: ${props => props.$logic === 'and' ? 'rgb(var(--color-info))' : 'rgb(var(--color-warning))'};
   border-radius: var(--radius-sm);
   font-size: 11px;
   font-weight: 700;

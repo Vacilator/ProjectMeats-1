@@ -927,8 +927,8 @@ const SectionTitle = styled.h3`
 
 const DurationBadge = styled.span`
   padding: 2px 8px;
-  background: rgba(34, 197, 94, 0.1);
-  color: rgb(34, 197, 94);
+  background: rgba(var(--color-success), 0.1);
+  color: rgb(var(--color-success));
   border-radius: 4px;
   font-size: 11px;
   font-weight: 500;
@@ -1021,7 +1021,7 @@ const RunButton = styled.button`
   &:hover:not(:disabled) {
     background: rgba(var(--color-primary), 0.9);
     transform: translateY(-1px);
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 4px 8px rgba(var(--color-overlay), 0.1);
   }
   
   &:disabled {
@@ -1114,15 +1114,15 @@ const LoadingState = styled.div`
 const ErrorState = styled.div`
   h4 {
     margin: 0 0 12px 0;
-    color: rgb(239, 68, 68);
+    color: rgb(var(--color-error));
   }
   
   pre {
     margin: 0;
     padding: 12px;
-    background: rgba(239, 68, 68, 0.1);
+    background: rgba(var(--color-error), 0.1);
     border-radius: 4px;
-    color: rgb(239, 68, 68);
+    color: rgb(var(--color-error));
     font-size: 13px;
   }
 `;
@@ -1157,15 +1157,15 @@ const HistoryIcon = styled.div<{ $status: string }>`
   border-radius: 50%;
   background: ${props => {
     switch (props.$status) {
-      case 'success': return 'rgba(34, 197, 94, 0.1)';
-      case 'error': return 'rgba(239, 68, 68, 0.1)';
+      case 'success': return 'rgba(var(--color-success), 0.1)';
+      case 'error': return 'rgba(var(--color-error), 0.1)';
       default: return 'rgba(var(--color-primary), 0.1)';
     }
   }};
   color: ${props => {
     switch (props.$status) {
-      case 'success': return 'rgb(34, 197, 94)';
-      case 'error': return 'rgb(239, 68, 68)';
+      case 'success': return 'rgb(var(--color-success))';
+      case 'error': return 'rgb(var(--color-error))';
       default: return 'rgb(var(--color-primary))';
     }
   }};

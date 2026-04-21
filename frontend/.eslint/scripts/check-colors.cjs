@@ -58,6 +58,10 @@ const STANDARDIZED_COLORS = {
 // (Avoids false positives like order numbers "#12345".)
 const HEX_COLOR_REGEX = /#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})\b/g;
 
+// Match hardcoded comma-based rgb()/rgba() colors.
+// NOTE: We scope enforcement to FlowEditor + WorkForms to avoid mass legacy churn.
+const RGB_COLOR_REGEX = /\brgba?\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*(?:,\s*[0-9.]+\s*)?\)/g;
+
 function isNumericOnlyShortHex(color) {
   // Heuristic: ignore short numeric-only tokens like "#405" in names (not actual colors).
   // We still catch #000000/#111111 etc.
@@ -72,17 +76,29 @@ function getSuggestion(color) {
 }
 
 function checkFile(filePath) {
+  const repoRoot = path.join(__dirname, '../..');
+  const relativePath = path.relative(repoRoot, filePath).replace(/\\/g, '/');
+  const enforceRgb =
+    relativePath.includes('src/components/FlowEditor/') ||
+    relativePath.includes('src/components/WorkForms/');
+
   const content = fs.readFileSync(filePath, 'utf8');
   const lines = content.split('\n');
   const violations = [];
-  
+
   lines.forEach((line, lineIndex) => {
+    const trimmed = line.trim();
+    if (trimmed.startsWith('//') || trimmed.startsWith('/*') || trimmed.startsWith('*')) {
+      return;
+    }
+
     let match;
-    const regex = new RegExp(HEX_COLOR_REGEX, 'g');
-    while ((match = regex.exec(line)) !== null) {
+
+    const hexRegex = new RegExp(HEX_COLOR_REGEX, 'g');
+    while ((match = hexRegex.exec(line)) !== null) {
       const color = match[0];
       const columnIndex = match.index;
-      
+
       if (isNumericOnlyShortHex(color)) {
         continue;
       }
@@ -92,11 +108,30 @@ function checkFile(filePath) {
         column: columnIndex + 1,
         color,
         suggestion: getSuggestion(color),
-        lineContent: line.trim()
+        lineContent: trimmed,
+      });
+    }
+
+    if (!enforceRgb) {
+      return;
+    }
+
+    const rgbRegex = new RegExp(RGB_COLOR_REGEX, 'g');
+    while ((match = rgbRegex.exec(line)) !== null) {
+      const color = match[0];
+      const columnIndex = match.index;
+
+      violations.push({
+        line: lineIndex + 1,
+        column: columnIndex + 1,
+        color,
+        suggestion:
+          'Use theme tokens (e.g. rgb(var(--color-text-primary)) or rgba(var(--color-overlay), 0.5)).',
+        lineContent: trimmed,
       });
     }
   });
-  
+
   return violations;
 }
 
@@ -105,7 +140,7 @@ async function main() {
   const specificFile = args.find(arg => !arg.startsWith('--'));
   const showSuggestions = args.includes('--fix');
   
-  console.log('🔍 Checking for hardcoded hex colors...\n');
+  console.log('🔍 Checking for hardcoded colors...\n');
   
   let files;
   if (specificFile) {

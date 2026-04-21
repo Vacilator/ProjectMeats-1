@@ -1233,7 +1233,7 @@ const Button = styled.button<{ variant?: 'primary' | 'secondary' | 'danger'; ful
         background: rgb(var(--color-error));
         color: white;
         &:hover:not(:disabled) {
-          background: rgb(239, 68, 68);
+          background: rgb(var(--color-error));
         }
       `;
     } else {

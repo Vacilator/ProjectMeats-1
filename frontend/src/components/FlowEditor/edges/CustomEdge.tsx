@@ -92,19 +92,19 @@ const getEdgeStyle = (edgeType?: string, animated?: boolean) => {
     case 'conditional':
       return {
         ...baseStyle,
-        stroke: 'rgb(59, 130, 246)', // Blue
+        stroke: 'rgb(var(--color-info))',
         strokeDasharray: animated ? '5,5' : undefined,
       };
     case 'success':
       return {
         ...baseStyle,
-        stroke: 'rgb(34, 197, 94)', // Green
+        stroke: 'rgb(var(--color-success))',
         strokeWidth: 2.5,
       };
     case 'error':
       return {
         ...baseStyle,
-        stroke: 'rgb(239, 68, 68)', // Red
+        stroke: 'rgb(var(--color-error))',
         strokeDasharray: '4,4',
       };
     default:

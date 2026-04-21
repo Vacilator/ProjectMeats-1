@@ -141,11 +141,11 @@ const LoadingText = styled.div`
 
 const ErrorText = styled.div`
   font-size: 14px;
-  color: rgb(239, 68, 68); /* error color */
+  color: rgb(var(--color-error)); /* error color */
   padding: 12px;
-  background: rgba(239, 68, 68, 0.1);
+  background: rgba(var(--color-error), 0.1);
   border-radius: 6px;
-  border: 1px solid rgba(239, 68, 68, 0.3);
+  border: 1px solid rgba(var(--color-error), 0.3);
 `;
 
 const ButtonGroup = styled.div`

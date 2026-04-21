@@ -51,15 +51,15 @@ const SnapPreviewBox = styled.div<{
   width: ${props => props.width}px;
   height: ${props => props.height}px;
   
-  border: 2px dashed rgb(102, 126, 234);
+  border: 2px dashed rgb(var(--color-primary));
   border-radius: var(--radius-md);
-  background: rgba(102, 126, 234, 0.1);
+  background: rgba(var(--color-primary), 0.1);
   
   animation: ${pulse} 1.5s ease-in-out infinite;
   
   box-shadow: 
-    0 0 0 4px rgba(102, 126, 234, 0.1),
-    inset 0 0 20px rgba(102, 126, 234, 0.2);
+    0 0 0 4px rgba(var(--color-primary), 0.1),
+    inset 0 0 20px rgba(var(--color-primary), 0.2);
     
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 `;
@@ -70,7 +70,7 @@ const SnapLabel = styled.div<{ left: number; top: number }>`
   top: ${props => props.top - 30}px;
   
   padding: 4px 12px;
-  background: rgba(102, 126, 234, 0.95);
+  background: rgba(var(--color-primary), 0.95);
   color: white;
   font-size: 11px;
   font-weight: 600;
@@ -79,7 +79,7 @@ const SnapLabel = styled.div<{ left: number; top: number }>`
   border-radius: var(--radius-sm);
   white-space: nowrap;
   
-  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.4);
+  box-shadow: 0 2px 8px rgba(var(--color-primary), 0.4);
   animation: ${fadeIn} 0.2s ease-out;
   
   &::after {
@@ -92,7 +92,7 @@ const SnapLabel = styled.div<{ left: number; top: number }>`
     height: 0;
     border-left: 4px solid transparent;
     border-right: 4px solid transparent;
-    border-top: 4px solid rgba(102, 126, 234, 0.95);
+    border-top: 4px solid rgba(var(--color-primary), 0.95);
   }
 `;
 
@@ -104,7 +104,7 @@ const SnapLine = styled.div<{
   orientation: 'horizontal' | 'vertical';
 }>`
   position: absolute;
-  background: rgba(102, 126, 234, 0.4);
+  background: rgba(var(--color-primary), 0.4);
   
   ${props => props.orientation === 'horizontal' ? `
     left: ${Math.min(props.x1, props.x2)}px;
@@ -128,13 +128,13 @@ const SnapPoint = styled.div<{ left: number; top: number }>`
   width: 8px;
   height: 8px;
   
-  background: rgb(102, 126, 234);
+  background: rgb(var(--color-primary));
   border: 2px solid white;
   border-radius: 50%;
   
   box-shadow: 
-    0 0 0 2px rgba(102, 126, 234, 0.3),
-    0 2px 4px rgba(0, 0, 0, 0.2);
+    0 0 0 2px rgba(var(--color-primary), 0.3),
+    0 2px 4px rgba(var(--color-overlay), 0.2);
     
   animation: ${pulse} 1s ease-in-out infinite;
 `;

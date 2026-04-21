@@ -37,13 +37,13 @@ const dashMove = keyframes`
 
 const ErrorLabel = styled.div`
   position: absolute;
-  background: rgb(254, 226, 226);
+  background: rgba(var(--color-error), 0.12);
   border: 2px solid rgb(var(--color-error));
   border-radius: var(--radius-md, 6px);
   padding: 4px 12px;
   font-size: 12px;
   font-weight: 700;
-  color: rgb(153, 27, 27);
+  color: rgb(var(--color-danger));
   pointer-events: all;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -97,7 +97,7 @@ const ToolbarBtn = styled.button`
 `;
 const ErrorBadge = styled.div`
   position: absolute;
-  background: rgb(220, 38, 38);
+  background: rgb(var(--color-danger));
   border: 2px solid white;
   border-radius: 50%;
   min-width: 20px;
@@ -189,7 +189,7 @@ export const ErrorEdge = React.memo<EdgeProps<Edge<ErrorEdgeData>>>(({
     type: MarkerType.ArrowClosed,
     width: 24,
     height: 24,
-    color: 'rgb(239, 68, 68)',
+    color: 'rgb(var(--color-error))',
   };
 
   return (
@@ -207,7 +207,7 @@ export const ErrorEdge = React.memo<EdgeProps<Edge<ErrorEdgeData>>>(({
         >
           <path
             d="M 8,2 L 14,14 L 2,14 Z"
-            fill="rgb(239, 68, 68)"
+            fill="rgb(var(--color-error))"
             stroke="white"
             strokeWidth="1"
           />
@@ -239,10 +239,10 @@ export const ErrorEdge = React.memo<EdgeProps<Edge<ErrorEdgeData>>>(({
       {/* Animated pulsing dots for errors */}
       {animated && (
         <>
-          <circle r="4" fill="rgb(239, 68, 68)" opacity="0.8">
+          <circle r="4" fill="rgb(var(--color-error))" opacity="0.8">
             <animateMotion dur="2s" repeatCount="indefinite" path={edgePath} />
           </circle>
-          <circle r="4" fill="rgb(239, 68, 68)" opacity="0.6">
+          <circle r="4" fill="rgb(var(--color-error))" opacity="0.6">
             <animateMotion dur="2s" begin="0.5s" repeatCount="indefinite" path={edgePath} />
           </circle>
         </>

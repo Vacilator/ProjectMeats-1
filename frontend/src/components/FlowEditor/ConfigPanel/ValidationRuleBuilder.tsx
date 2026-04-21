@@ -172,7 +172,7 @@ const RuleItem = styled.div`
   
   &:hover {
     border-color: rgb(var(--color-primary));
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    box-shadow: 0 2px 8px rgba(var(--color-overlay), 0.05);
   }
 `;
 
@@ -272,7 +272,7 @@ const Modal = styled.div<{ $isOpen: boolean }>`
   display: ${props => props.$isOpen ? 'flex' : 'none'};
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(var(--color-overlay), 0.5);
   align-items: center;
   justify-content: center;
   z-index: 1000;
@@ -282,7 +282,7 @@ const Modal = styled.div<{ $isOpen: boolean }>`
 const ModalContent = styled.div`
   background: rgb(var(--color-surface));
   border-radius: var(--radius-lg);
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 20px 60px rgba(var(--color-overlay), 0.3);
   width: 100%;
   max-width: 500px;
   max-height: 90vh;

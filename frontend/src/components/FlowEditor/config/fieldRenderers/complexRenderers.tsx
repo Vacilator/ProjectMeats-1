@@ -291,7 +291,7 @@ const FieldContainer = styled.div`
 `;
 
 const ErrorMessage = styled.div`
-  color: rgb(239, 68, 68);
+  color: rgb(var(--color-error));
   font-size: 13px;
   margin-top: 4px;
 `;

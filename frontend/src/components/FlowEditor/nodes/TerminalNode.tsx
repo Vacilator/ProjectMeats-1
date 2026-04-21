@@ -101,25 +101,25 @@ const getTerminalTypeInfo = (terminalType: TerminalType) => {
       return {
         icon: CheckCircle2,
         label: 'Success',
-        color: 'rgb(34, 197, 94)', // Green
+        color: 'rgb(var(--color-success))', // Green
       };
     case 'error':
       return {
         icon: XCircle,
         label: 'Error',
-        color: 'rgb(239, 68, 68)', // Red
+        color: 'rgb(var(--color-error))', // Red
       };
     case 'cancel':
       return {
         icon: Ban,
         label: 'Cancelled',
-        color: 'rgb(156, 163, 175)', // Gray
+        color: 'rgb(var(--color-text-tertiary))',
       };
     default:
       return {
         icon: CheckCircle2,
         label: 'End',
-        color: 'rgb(156, 163, 175)', // Gray
+        color: 'rgb(var(--color-text-tertiary))',
       };
   }
 };

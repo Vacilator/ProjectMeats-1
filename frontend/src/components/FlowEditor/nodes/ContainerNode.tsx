@@ -226,7 +226,7 @@ const NodeCount = styled.div`
  *     label: 'Authentication Flow',
  *     description: 'User login and session management',
  *     childNodeIds: ['node-1', 'node-2', 'node-3'],
- *     backgroundColor: 'rgba(103, 126, 234, 0.05)',
+ *     backgroundColor: 'rgba(var(--color-primary), 0.05)',
  *     borderColor: 'rgb(var(--color-primary))',
  *   },
  * };

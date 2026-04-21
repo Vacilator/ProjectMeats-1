@@ -50,7 +50,7 @@ const MenuContainer = styled.div<{ x: number; y: number }>`
   background: rgb(var(--color-surface));
   border: 1px solid rgb(var(--color-border));
   border-radius: 8px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 8px 24px rgba(var(--color-overlay), 0.15);
   min-width: 200px;
   z-index: 10000;
   padding: 6px;
@@ -84,7 +84,7 @@ const MenuItem = styled.button<{ $danger?: boolean; $disabled?: boolean }>`
     props.$disabled
       ? 'rgb(var(--color-text-tertiary))'
       : props.$danger
-      ? 'rgb(239, 68, 68)'
+      ? 'rgb(var(--color-error))'
       : 'rgb(var(--color-text-primary))'};
   text-align: left;
   opacity: ${props => props.$disabled ? 0.5 : 1};
@@ -92,7 +92,7 @@ const MenuItem = styled.button<{ $danger?: boolean; $disabled?: boolean }>`
   &:hover:not(:disabled) {
     background: ${props =>
       props.$danger
-        ? 'rgba(239, 68, 68, 0.1)'
+        ? 'rgba(var(--color-error), 0.1)'
         : 'rgb(var(--color-surface-hover))'};
   }
 

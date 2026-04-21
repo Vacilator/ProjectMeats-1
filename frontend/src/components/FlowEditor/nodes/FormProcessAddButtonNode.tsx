@@ -26,7 +26,7 @@ const CircleButton = styled.button`
   color: white;
   box-shadow:
     0 12px 24px rgba(var(--color-primary), 0.25),
-    0 2px 8px rgba(0, 0, 0, 0.10);
+    0 2px 8px rgba(var(--color-overlay), 0.10);
   display: inline-flex;
   align-items: center;
   justify-content: center;

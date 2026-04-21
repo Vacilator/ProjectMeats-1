@@ -130,11 +130,11 @@ const Badge = styled.span<{ variant?: 'info' | 'warning' }>`
   font-weight: 500;
   border-radius: 3px;
   background: ${props => {
-    if (props.variant === 'warning') return 'rgba(234, 179, 8, 0.1)';
+    if (props.variant === 'warning') return 'rgba(var(--color-warning), 0.1)';
     return 'rgba(var(--color-primary), 0.1)';
   }};
   color: ${props => {
-    if (props.variant === 'warning') return 'rgb(234, 179, 8)';
+    if (props.variant === 'warning') return 'rgb(var(--color-warning))';
     return 'rgb(var(--color-primary))';
   }};
 `;
@@ -172,8 +172,8 @@ const RemoveButton = styled.button`
   transition: all 0.2s ease;
 
   &:hover {
-    background: rgba(239, 68, 68, 0.1);
-    color: rgb(239, 68, 68);
+    background: rgba(var(--color-error), 0.1);
+    color: rgb(var(--color-error));
   }
 `;
 
@@ -398,7 +398,7 @@ export const FieldConfigurationPanel: React.FC<FieldConfigurationPanelProps> = (
         <PreviewSection>
           <PreviewLabel>
             {displayLabel}
-            {field.required && <span style={{ color: 'rgb(239, 68, 68)' }}> *</span>}
+            {field.required && <span style={{ color: 'rgb(var(--color-error))' }}> *</span>}
           </PreviewLabel>
           {displayHelpText && (
             <HelpText style={{ marginBottom: '8px' }}>{displayHelpText}</HelpText>

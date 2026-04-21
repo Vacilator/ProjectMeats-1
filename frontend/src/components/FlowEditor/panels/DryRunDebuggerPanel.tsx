@@ -29,7 +29,7 @@ const PanelOverlay = styled.div<{ $isVisible: boolean }>`
   width: ${(props) => (props.$isVisible ? '520px' : '0')};
   background: rgb(var(--color-background));
   border-left: 1px solid rgb(var(--color-border));
-  box-shadow: -4px 0 12px rgba(0, 0, 0, 0.1);
+  box-shadow: -4px 0 12px rgba(var(--color-overlay), 0.1);
   z-index: 120;
   transition: width 0.25s ease;
   overflow: hidden;

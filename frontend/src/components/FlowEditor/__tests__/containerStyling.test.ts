@@ -23,29 +23,29 @@ describe('Container Styling Utilities', () => {
       
       expect(theme.background).toBe('rgb(var(--color-surface))');
       expect(theme.border).toBe('rgb(var(--color-border))');
-      expect(theme.shadow).toBe('0 2px 8px rgba(0, 0, 0, 0.1)');
+      expect(theme.shadow).toBe('0 2px 8px rgba(var(--color-overlay), 0.1)');
     });
 
     it('should return lighter theme for collapsed container', () => {
       const theme = getContainerTheme(false, false, false);
       
       expect(theme.background).toBe('rgb(var(--color-surface) / 0.95)');
-      expect(theme.shadow).toBe('0 1px 4px rgba(0, 0, 0, 0.08)');
+      expect(theme.shadow).toBe('0 1px 4px rgba(var(--color-overlay), 0.08)');
     });
 
     it('should emphasize shadow when dragging', () => {
       const theme = getContainerTheme(true, true, false);
       
-      expect(theme.shadow).toBe('0 8px 24px rgba(102, 126, 234, 0.3)');
-      expect(theme.border).toBe('rgb(102, 126, 234)');
+      expect(theme.shadow).toBe('0 8px 24px rgba(var(--color-primary), 0.3)');
+      expect(theme.border).toBe('rgb(var(--color-primary))');
     });
 
     it('should highlight as drop target', () => {
       const theme = getContainerTheme(true, false, true);
       
-      expect(theme.background).toBe('rgba(102, 126, 234, 0.05)');
-      expect(theme.border).toBe('rgb(34, 197, 94)');
-      expect(theme.shadow).toContain('rgba(34, 197, 94, 0.2)');
+      expect(theme.background).toBe('rgba(var(--color-primary), 0.05)');
+      expect(theme.border).toBe('rgb(var(--color-success))');
+      expect(theme.shadow).toContain('rgba(var(--color-success), 0.2)');
     });
   });
 

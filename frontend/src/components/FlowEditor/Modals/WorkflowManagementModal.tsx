@@ -40,7 +40,7 @@ const ModalOverlay = styled.div<{ $isOpen: boolean }>`
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(var(--color-overlay), 0.5);
   display: ${props => props.$isOpen ? 'flex' : 'none'};
   align-items: center;
   justify-content: center;
@@ -68,7 +68,7 @@ const ModalContent = styled.div`
   max-width: 500px;
   max-height: 90vh;
   overflow-y: auto;
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  box-shadow: 0 20px 25px -5px rgba(var(--color-overlay), 0.1), 0 10px 10px -5px rgba(var(--color-overlay), 0.04);
   
   /* Phase 8.4: Smooth scale-in animation */
   animation: scaleIn 0.2s cubic-bezier(0.4, 0, 0.2, 1);
@@ -140,7 +140,7 @@ const Label = styled.label`
 `;
 
 const RequiredIndicator = styled.span`
-  color: rgb(239, 68, 68);
+  color: rgb(var(--color-error));
   margin-left: 4px;
 `;
 
@@ -150,14 +150,14 @@ const Input = styled.input<{ $hasError?: boolean }>`
   font-size: 14px;
   color: rgb(var(--color-text-primary));
   background: rgb(var(--color-background));
-  border: 1px solid ${props => props.$hasError ? 'rgb(239, 68, 68)' : 'rgb(var(--color-border))'};
+  border: 1px solid ${props => props.$hasError ? 'rgb(var(--color-error))' : 'rgb(var(--color-border))'};
   border-radius: var(--radius-md);
   transition: all 0.15s ease;
   
   &:focus {
     outline: none;
-    border-color: ${props => props.$hasError ? 'rgb(239, 68, 68)' : 'rgb(var(--color-primary))'};
-    box-shadow: 0 0 0 3px ${props => props.$hasError ? 'rgba(239, 68, 68, 0.1)' : 'rgba(var(--color-primary-rgb), 0.1)'};
+    border-color: ${props => props.$hasError ? 'rgb(var(--color-error))' : 'rgb(var(--color-primary))'};
+    box-shadow: 0 0 0 3px ${props => props.$hasError ? 'rgba(var(--color-error), 0.1)' : 'rgba(var(--color-primary-rgb), 0.1)'};
   }
   
   &::placeholder {
@@ -218,7 +218,7 @@ const ErrorText = styled.div`
   align-items: center;
   gap: 6px;
   font-size: 12px;
-  color: rgb(239, 68, 68);
+  color: rgb(var(--color-error));
   margin-top: 6px;
   
   svg {
@@ -268,16 +268,16 @@ const StatusBadge = styled.div<{ $status: 'draft' | 'active' | 'archived' }>`
   border-radius: var(--radius-sm);
   background: ${props => {
     switch (props.$status) {
-      case 'draft': return 'rgba(234, 179, 8, 0.1)';
-      case 'active': return 'rgba(34, 197, 94, 0.1)';
-      case 'archived': return 'rgba(156, 163, 175, 0.1)';
+      case 'draft': return 'rgba(var(--color-warning), 0.1)';
+      case 'active': return 'rgba(var(--color-success), 0.1)';
+      case 'archived': return 'rgba(var(--color-border), 0.1)';
     }
   }};
   color: ${props => {
     switch (props.$status) {
-      case 'draft': return 'rgb(234, 179, 8)';
-      case 'active': return 'rgb(34, 197, 94)';
-      case 'archived': return 'rgb(107, 114, 128)';
+      case 'draft': return 'rgb(var(--color-warning))';
+      case 'active': return 'rgb(var(--color-success))';
+      case 'archived': return 'rgb(var(--color-text-tertiary))';
     }
   }};
 `;

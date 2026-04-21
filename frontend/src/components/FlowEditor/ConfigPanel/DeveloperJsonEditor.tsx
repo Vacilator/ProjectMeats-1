@@ -167,12 +167,12 @@ const PlainTextarea = styled.textarea`
   font-size: 12px;
   line-height: 1.5;
   color: rgb(var(--color-text-primary));
-  background: rgba(0, 0, 0, 0.02);
+  background: rgba(var(--color-overlay), 0.02);
 `;
 
 const ErrorText = styled.div`
   font-size: 12px;
-  color: rgb(239, 68, 68);
+  color: rgb(var(--color-error));
 `;
 
 export default DeveloperJsonEditor;

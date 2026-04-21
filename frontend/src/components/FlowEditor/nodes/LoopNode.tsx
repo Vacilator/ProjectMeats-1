@@ -100,9 +100,9 @@ const Badge = styled.div`
   border-radius: 999px;
   font-size: 11px;
   font-weight: 800;
-  background: rgba(234, 179, 8, 0.14);
-  border: 1px solid rgba(234, 179, 8, 0.28);
-  color: rgb(234, 179, 8);
+  background: rgba(var(--color-warning), 0.14);
+  border: 1px solid rgba(var(--color-warning), 0.28);
+  color: rgb(var(--color-warning));
 `;
 
 const HandleLabel = styled.div<{ $pos: 'top' | 'bottom'; $left: string }>`
@@ -121,8 +121,8 @@ const BodyHint = styled.div`
   margin-top: 10px;
   padding: 10px;
   border-radius: var(--radius-md);
-  border: 1px dashed rgba(234, 179, 8, 0.35);
-  background: rgba(234, 179, 8, 0.06);
+  border: 1px dashed rgba(var(--color-warning), 0.35);
+  background: rgba(var(--color-warning), 0.06);
   color: rgb(var(--color-text-secondary));
   font-size: 12px;
 `;
@@ -131,8 +131,8 @@ const IterationCounter = styled.div`
   margin-top: 10px;
   padding: 8px 10px;
   border-radius: var(--radius-md);
-  background: rgba(234, 179, 8, 0.1);
-  color: rgb(234, 179, 8);
+  background: rgba(var(--color-warning), 0.1);
+  color: rgb(var(--color-warning));
   font-size: 12px;
   font-weight: 700;
   text-align: center;

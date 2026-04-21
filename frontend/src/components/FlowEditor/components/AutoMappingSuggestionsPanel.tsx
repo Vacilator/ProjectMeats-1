@@ -61,12 +61,12 @@ const SuggestionCard = styled.div<{ $score: number }>`
   padding: 0.75rem;
   background: ${props => 
     props.$score >= 0.9 
-      ? 'rgba(34, 197, 94, 0.05)' 
+      ? 'rgba(var(--color-success), 0.05)' 
       : 'rgb(var(--color-background-secondary))'
   };
   border: 1px solid ${props => 
     props.$score >= 0.9 
-      ? 'rgba(34, 197, 94, 0.2)' 
+      ? 'rgba(var(--color-success), 0.2)' 
       : 'rgb(var(--color-border))'
   };
   border-radius: var(--radius-sm);
@@ -74,7 +74,7 @@ const SuggestionCard = styled.div<{ $score: number }>`
   
   &:hover {
     border-color: rgb(var(--color-primary));
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    box-shadow: 0 2px 8px rgba(var(--color-overlay), 0.05);
   }
 `;
 

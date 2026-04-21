@@ -308,7 +308,7 @@ export function getValidationBadgeColor(issues: ValidationIssue[]): string | nul
   const hasError = issues.some(i => i.severity === 'error');
   const hasWarning = issues.some(i => i.severity === 'warning');
   
-  if (hasError) return 'rgb(239, 68, 68)'; // Red
-  if (hasWarning) return 'rgb(234, 179, 8)'; // Yellow
-  return 'rgb(59, 130, 246)'; // Blue (info)
+  if (hasError) return 'rgb(var(--color-error))'; // Red
+  if (hasWarning) return 'rgb(var(--color-warning))'; // Yellow
+  return 'rgb(var(--color-info))'; // Blue (info)
 }

@@ -50,7 +50,7 @@ const ChildItem = styled.div<{ $expanded: boolean }>`
   
   &:hover {
     border-color: rgba(var(--color-primary), 0.5);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    box-shadow: 0 2px 8px rgba(var(--color-overlay), 0.05);
   }
 `;
 
@@ -135,8 +135,8 @@ const IconButton = styled.button`
 
 const DeleteButton = styled(IconButton)`
   &:hover {
-    background: rgba(239, 68, 68, 0.1);
-    color: rgb(239, 68, 68);
+    background: rgba(var(--color-error), 0.1);
+    color: rgb(var(--color-error));
   }
 `;
 
@@ -179,7 +179,7 @@ const EmptyState = styled.div`
 `;
 
 const ErrorMessage = styled.div`
-  color: rgb(239, 68, 68);
+  color: rgb(var(--color-error));
   font-size: 12px;
   margin-top: 4px;
 `;
@@ -328,7 +328,7 @@ export const NestedChildrenRenderer: React.FC<NestedChildrenRendererProps> = ({
                           <div key={childField.id} style={{ marginBottom: '12px' }}>
                             <label style={{ fontSize: '13px', fontWeight: 500, marginBottom: '4px', display: 'block' }}>
                               {childField.label}
-                              {childField.required && <span style={{ color: 'rgb(239, 68, 68)' }}> *</span>}
+                              {childField.required && <span style={{ color: 'rgb(var(--color-error))' }}> *</span>}
                             </label>
                             {/* Simple inline renderer for now */}
                             {childField.type === 'text' && (

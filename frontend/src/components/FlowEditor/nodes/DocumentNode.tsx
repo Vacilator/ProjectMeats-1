@@ -98,31 +98,31 @@ const getDocumentTypeInfo = (documentType: DocumentType) => {
       return {
         icon: FilePlus,
         label: 'Generate Document',
-        color: 'rgb(34, 197, 94)', // Green
+        color: 'rgb(var(--color-success))', // Green
       };
     case 'merge':
       return {
         icon: Layers,
         label: 'Merge Documents',
-        color: 'rgb(59, 130, 246)', // Blue
+        color: 'rgb(var(--color-info))', // Blue
       };
     case 'sign':
       return {
         icon: FileCheck,
         label: 'Request Signature',
-        color: 'rgb(147, 51, 234)', // Purple
+        color: 'rgb(var(--color-primary))',
       };
     case 'store':
       return {
         icon: FolderOpen,
         label: 'Store Document',
-        color: 'rgb(234, 179, 8)', // Yellow
+        color: 'rgb(var(--color-warning))', // Yellow
       };
     default:
       return {
         icon: FileText,
         label: 'Document',
-        color: 'rgb(156, 163, 175)', // Gray
+        color: 'rgb(var(--color-text-tertiary))',
       };
   }
 };

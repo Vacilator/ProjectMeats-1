@@ -141,7 +141,7 @@ const PickerContainer = styled.div<{ $position?: { top: number; left: number } }
   background: white;
   border: 1px solid rgb(var(--color-border));
   border-radius: 8px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 10px 30px rgba(var(--color-overlay), 0.15);
   z-index: 10000;
   display: flex;
   flex-direction: column;
