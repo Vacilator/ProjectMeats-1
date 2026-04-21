@@ -325,12 +325,29 @@ class EntityLookupTestCase(TestCase):
         """Lookup options should be tenant-filtered"""
         # This test assumes entities have tenant field
         response = self.client.get('/api/v1/entities/supplier/lookup/')
-        
+
         if response.status_code == status.HTTP_200_OK:
             data = response.json()
             # Should only show options for current tenant
             # Implementation depends on whether entity has tenant field
             self.assertIsInstance(data['options'], list)
+
+    def test_lookup_multi_tenant_requires_explicit_tenant(self):
+        """Multi-tenant users must explicitly select tenant (X-Tenant-ID)."""
+        tenant2 = Tenant.objects.create(
+            name='Another Tenant',
+            slug='another-tenant',
+            schema_name='another_tenant_lookup',
+        )
+        TenantUser.objects.create(user=self.user, tenant=tenant2, role='admin', is_active=True)
+
+        # Product lookup requires tenant context. With multiple memberships and no explicit tenant, fail closed.
+        response = self.client.get('/api/v1/entities/product/lookup/')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+        # With explicit tenant selection it should succeed.
+        response = self.client.get('/api/v1/entities/product/lookup/', HTTP_X_TENANT_ID=str(self.tenant.id))
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
 
 
 class EntityPermissionsTestCase(TestCase):
