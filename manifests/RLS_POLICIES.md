@@ -1,6 +1,6 @@
 # Security Compliance & RLS Audit Log
 
-**Last Updated**: April 20, 2026  
+**Last Updated**: April 21, 2026  
 **Status**: ✅ ALL SYSTEMS COMPLIANT (pending next deployment audit)
 
 ---
@@ -205,14 +205,14 @@ BEGIN
         ALTER TABLE app_table ENABLE ROW LEVEL SECURITY;
         ALTER TABLE app_table FORCE ROW LEVEL SECURITY;
         CREATE POLICY table_tenant_isolation ON app_table
-            USING (tenant_id = current_setting('app.current_tenant', true)::uuid);
+            USING (tenant_id = NULLIF(current_setting('app.current_tenant', true), '')::uuid);
     END IF;
 END $$;
 ```
 
 **Key Features**:
 - Idempotent (safe to retry)
-- Uses `current_setting('app.current_tenant', true)::uuid` for tenant matching
+- Uses `NULLIF(current_setting('app.current_tenant', true), '')::uuid` for tenant matching
 - `FORCE ROW LEVEL SECURITY` applies to superuser queries
 - Policy name format: `{tablename}_tenant_isolation`
 
