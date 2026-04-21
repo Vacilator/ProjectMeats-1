@@ -98,6 +98,8 @@ This file is the **append-only PR-referenceable execution log**.
 
 - **2026-04-21** — CI: harden workflow validator to scan `.github/scripts/` too (prevent compose/latest drift outside workflows) and tighten migration-safety checks without false positives. (PR: #4569)
 
+- **2026-04-21** — Security: enforce TenantUser membership when tenant is resolved via Host/domain/subdomain for session-auth requests (prevents cross-tenant host spoofing); return stable JSON 403 envelope on `/api/v1/*`; add regression tests. (PR: #4572)
+
 ### 2026-03-31 — Secret audit drift (manifest v5.1)
 - Command: `python config/manage_env.py audit --repo Meats-Central/ProjectMeats`
 - Stale/Zombie secrets found in GitHub but NOT in `manifests/env.manifest.json` (or legacy `DEV_`/`UAT_`/`PROD_` prefixed):
