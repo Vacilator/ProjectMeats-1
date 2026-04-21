@@ -128,7 +128,7 @@ def audit_form_usage():
             for form in TenantForm.objects.filter(tenant_id=tenant_id):
                 actual_count = TenantWorkForm.objects.filter(
                     tenant_id=tenant_id,
-                    workflow_definition__contains={"tenantFormId": str(form.id)},
+                    form_references__contains=[form.id],
                 ).count()
 
                 if actual_count != form.usage_count:

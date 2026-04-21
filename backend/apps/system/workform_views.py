@@ -245,8 +245,8 @@ class TenantFormViewSet(viewsets.ModelViewSet):
         
         # Find workflows using this form
         workflows = TenantWorkForm.objects.filter(
-            tenant=request.tenant,
-            workflow_definition__contains={"tenantFormId": str(form.id)}
+            tenant=form.tenant,
+            form_references__contains=[form.id],
         ).values('id', 'name', 'status')
         
         return Response({
