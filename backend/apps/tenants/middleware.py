@@ -41,7 +41,7 @@ If no tenant can be resolved, request.tenant is set to None.
 ViewSets should handle None tenant by returning empty querysets or raising validation errors.
 """
 
-from django.http import HttpRequest, HttpResponseForbidden
+from django.http import HttpRequest, HttpResponseForbidden, JsonResponse
 from django.db import connection
 from .models import Tenant, TenantUser, TenantDomain
 import logging
@@ -236,6 +236,31 @@ class TenantMiddleware:
                     logger.info(
                         f"{debug_prefix} No default tenant found for user: {request.user.username}"
                     )
+
+        # SECURITY: If tenant was resolved via host routing (domain/subdomain) and the user is
+        # authenticated (session-auth), require active TenantUser membership unless global admin.
+        if (
+            tenant
+            and request.user.is_authenticated
+            and resolution_method
+            and (resolution_method.startswith("domain") or resolution_method.startswith("subdomain"))
+        ):
+            is_global_admin = request.user.groups.filter(name='Global System Admins').exists()
+            if not (request.user.is_superuser or is_global_admin):
+                if not TenantUser.objects.filter(user=request.user, tenant=tenant, is_active=True).exists():
+                    logger.warning(
+                        "Unauthorized tenant host access attempt: user=%s tenant=%s method=%s path=%s",
+                        request.user.username,
+                        str(tenant.id),
+                        resolution_method,
+                        request.path,
+                    )
+                    if request.path.startswith('/api/v1/'):
+                        return JsonResponse(
+                            {"error": "You do not have access to this tenant.", "code": "TENANT_ACCESS_DENIED"},
+                            status=403,
+                        )
+                    return HttpResponseForbidden("You do not have access to this tenant")
 
         # Final tenant resolution result for debug hosts
         if is_debug_host:
