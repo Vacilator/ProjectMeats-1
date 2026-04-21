@@ -27,6 +27,79 @@ This file is the **canonical plan + current truth snapshot**.
 - **CI guardrails (never-miss-again)**: keep Golden Drift Gate green; follow-ups include re-enabling backend/frontend test gates in `reusable-deploy.yml`.
 - **Mobile parity**: align WorkForms mobile models with backend (`workflow_definition`), extend OpenAPI contract coverage for `/tenant-workforms/*`, and add a real WorkForm detail view.
 
+### Squad deep dive plan (as of 2026-04-21)
+
+This is a prioritized, PR-sized execution plan synthesized from squad deep dives (frontend/backend/devops/testing + lead synthesis). It is intentionally biased toward **guardrails first**, then **tenant/RLS correctness**, then **editor stability + standards**, then **mobile parity**.
+
+#### Guiding constraints
+- **Shared-schema multi-tenancy + RLS**: fail closed when tenant context is ambiguous; set `set_current_tenant()` **before** tenant-scoped ORM.
+- **Golden pipeline**: keep the Drift Gate as the entrypoint; enforce invariants via validators (don’t rely on tribal knowledge).
+- **Frontend standards**: no hardcoded colors; use CSS tokens. Avoid runtime `console.*` noise; use `logger`.
+- **Testing philosophy**: add unit/integration tests where they give high signal; keep E2E minimal and header/assertion-focused.
+
+#### Proposed PR-sized batches (next)
+
+1) **CI guardrails coverage fix (validators match current pipeline)**
+   - Update `.github/scripts/validate-workflows.sh` checks that currently no-op due to `*-deployment.yml` targeting.
+   - Add caller-side invariants for `main-pipeline.yml` reusable-workflow jobs (e.g., require `secrets: inherit`; forbid `environment:` on `uses:` jobs).
+   - Acceptance: `bash .github/scripts/check_infrastructure.sh` no longer reports “skipping … no *-deployment.yml”; intentional violations fail with clear errors.
+
+2) **CI supply chain hardening (digest pin enforcement)**
+   - Validator enforces `jobs.*.services.*.image` and `jobs.*.container.image` are digest-pinned (`@sha256:`).
+   - Acceptance: changing a service image from `postgres:15@sha256:...` → `postgres:15` fails the Drift Gate.
+
+3) **CI immutable deploy tag enforcement**
+   - Validator asserts remote deploy `docker pull/run` tags are derived from `github.sha` (prevents floating-but-not-latest tags).
+   - Acceptance: any deploy step pulling an environment-only tag fails validation.
+
+4) **Frontend theme-token compliance in high-churn surfaces**
+   - Remove hardcoded `rgb()/rgba()` from:
+     - `CommandPalette` (quick action colors, shadows/overlay)
+     - `QuickActionsWidget`
+     - `MyTasksWidget` + `MyTasks` page
+     - `frontend/src/theme/themeConfig.ts` status tokens
+   - Acceptance: `npm -C frontend run lint:colors` passes; no numeric `rgb/rgba` literals remain in those files.
+
+5) **Frontend canonical logging + hooks hygiene**
+   - Replace remaining runtime `console.*` in high-churn FlowEditor + contexts + service interceptors with `logger.*`.
+   - Remove `react-hooks/exhaustive-deps` suppression in `frontend/src/pages/WorkForms/Execute.tsx` without changing runtime behavior.
+   - Acceptance: lint clean for touched files; behavior unchanged for Execute.
+
+6) **WorkForms Editor stability: deterministic schema init + save sanitation**
+   - Deterministic schema/registry initialization (remove timer races).
+   - Sanitize persistence to strip UI-only shadow state (record-mode/key-value drafts, etc.).
+   - Acceptance: no intermittent empty config panel on first click; saved workflow JSON contains only supported node payload shapes.
+
+7) **Backend tenant ambiguity hardening (medium risk — stage carefully)**
+   - Make `entity_lookup` fail-closed for multi-tenant users unless tenant context is explicit (header/domain/subdomain).
+   - Add request metadata (tenant resolution source) to make behavior explainable.
+   - Acceptance: multi-tenant + no explicit tenant ⇒ 400 with stable code; explicit tenant ⇒ 200.
+   - Rollback: feature-flag strictness or revert check.
+
+8) **Backend: remove per-view “default tenant fallback” on creates (incremental rollout)**
+   - Stop “self-healing” missing tenant context inside `perform_create()` across selected tenant apps; return 400 instead.
+   - Acceptance: creates without tenant context fail closed; creates with tenant context succeed and set correct tenant.
+
+9) **Testing: high-signal additions (low flake)**
+   - Frontend unit: `extractFormReferences` (legacy + canonical) coverage.
+   - Frontend integration: WorkForms Editor init flows (existing vs clone vs template) by mocking the canvas.
+   - Backend: cross-tenant execute spoofing returns 404 and doesn’t enqueue.
+   - E2E (minimal): WorkForms Catalog requests include `X-Tenant-ID` matching localStorage.
+
+10) **Mobile parity: WorkForms contract + detail view**
+   - Align mobile types with OpenAPI artifact (`workflow_definition`, `/tenant-workforms/*`).
+   - Add a real WorkForm detail view (read/execute/observe) with deterministic error handling.
+
+#### Risk register (likelihood × impact)
+- **Tenant ambiguity changes** (entity_lookup + create fallbacks): Medium × High → mitigate with feature flags, staged rollout, and explicit 400 errors.
+- **Theme token cleanup**: Low × Medium → mitigate with targeted changes + `lint:colors` gate.
+- **CI validator tightening**: Low × High → mitigate with clear error messages and local reproduction steps.
+
+#### Testing + validation (definition of done)
+- CI/guardrails: `bash .github/scripts/check_infrastructure.sh` and `bash scripts/verify_golden_state.sh`
+- Frontend: `npm -C frontend run verify-standards` (and targeted `vitest run` files for new tests)
+- Backend: targeted `python manage.py test ...` suites for each change set
+
 ### Historical context (kept for traceability)
 
 ## Historical: Recovery Execution Plan (as of 2026-03-27T17:03Z)
