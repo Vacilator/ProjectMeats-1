@@ -1670,3 +1670,4 @@ Deliverables:
 - **2026-04-21** — CI: enforce pinned action SHAs (reject tag-based refs; disallow dynamic uses). (PR: #4524)
 - **2026-04-21** — Security: harden OAuth callbacks (state binding + nonce single-use; legacy callback tightened) + tests. (PR: #4526)
 - **2026-04-21** — CI: enforce RLS audit coverage (deterministic lint; include integrations.EmailLog) + test. (PR: #4527)
+- **2026-04-21** — Security: ignore X-Tenant-ID for anonymous requests in TenantMiddleware + regression test. (PR: #4530)
