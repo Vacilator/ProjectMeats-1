@@ -1679,3 +1679,4 @@ Deliverables:
 - **2026-04-21** — WorkForms editor: publish-time schema validation parity — enforce schema-driven required validation at publish time (incl. generic `action` nodes via `actionType` inference), materialize non-empty schema defaults on save so persisted config matches UI defaults, and treat empty objects as empty for required validators (keyValue record mode); add vitest coverage. (PR: #4542)
 - **2026-04-21** — CI: move archived workflows out of `.github/workflows/` so they cannot appear/run in GitHub Actions (reduces footguns + guardrail bypass). (PR: #4544)
 - **2026-04-21** — CI: stop pushing mutable `:latest` tags — build-dev-image now pushes only immutable sha tags; devcontainer builds locally to avoid `:latest` dependency; update workflow instructions to match no-latest policy. (PR: #4546)
+- **2026-04-21** — CI: digest-pin workflow service images (postgres + pgvector) to multi-arch manifest digests for deterministic runs. (PR: #4548)
