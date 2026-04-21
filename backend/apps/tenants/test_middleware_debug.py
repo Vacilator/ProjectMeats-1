@@ -8,7 +8,7 @@ and uat.meatscentral.com doesn't interfere with normal middleware operation.
 from django.test import TestCase, RequestFactory, override_settings
 from django.contrib.auth.models import User
 from apps.tenants.middleware import TenantMiddleware
-from apps.tenants.models import Tenant, TenantDomain
+from apps.tenants.models import Tenant, TenantDomain, TenantUser
 from unittest.mock import Mock
 
 
@@ -34,6 +34,8 @@ class TenantMiddlewareDebugLoggingTests(TestCase):
             email="test@example.com",
             password="testpass"
         )
+
+        TenantUser.objects.create(tenant=self.tenant, user=self.user, role='owner', is_active=True)
 
     @override_settings(ALLOWED_HOSTS=['example.com', 'testserver'])
     def test_middleware_works_without_debug_domains(self):

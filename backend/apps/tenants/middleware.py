@@ -41,12 +41,27 @@ If no tenant can be resolved, request.tenant is set to None.
 ViewSets should handle None tenant by returning empty querysets or raising validation errors.
 """
 
-from django.http import HttpRequest, HttpResponseForbidden
+from django.http import HttpRequest, HttpResponseForbidden, JsonResponse
 from django.db import connection
 from .models import Tenant, TenantUser, TenantDomain
 import logging
 
 logger = logging.getLogger(__name__)
+
+
+_TENANT_MEMBERSHIP_BYPASS_PATH_PREFIXES = (
+    '/api/v1/invitations/validate/',
+    '/api/v1/auth/signup-with-invitation/',
+    '/api/v1/integrations/oauth/callback/',
+    '/api/v1/workflows/email/email/outlook/auth/callback/',
+    '/api/v1/workflows/email/email/gmail/auth/callback/',
+    '/api/v1/workflows/email/email/outlook/webhook/notifications/',
+    '/api/v1/workflows/email/email/gmail/webhook/notifications/',
+)
+
+
+def _bypass_tenant_membership_enforcement(path: str) -> bool:
+    return any(path.startswith(prefix) for prefix in _TENANT_MEMBERSHIP_BYPASS_PATH_PREFIXES)
 
 
 class TenantMiddleware:
@@ -65,6 +80,25 @@ class TenantMiddleware:
 
     def __init__(self, get_response):
         self.get_response = get_response
+
+    def _reset_rls_session_vars(self) -> None:
+        """Best-effort RESET of RLS session vars (defense-in-depth for pooled connections)."""
+        try:
+            with connection.cursor() as cursor:
+                cursor.execute("RESET app.current_tenant_id")
+                cursor.execute("RESET app.current_tenant")
+        except Exception:
+            pass
+
+    def _forbidden(self, request: HttpRequest, message: str):
+        """Return a clear forbidden response (JSON for API routes)."""
+        self._reset_rls_session_vars()
+
+        if request.path.startswith('/api/v1/'):
+            # Use a stable error shape for frontend + tests.
+            return JsonResponse({'error': message, 'code': 'TENANT_ACCESS_DENIED'}, status=403)
+
+        return HttpResponseForbidden(message)
 
     def __call__(self, request: HttpRequest):
         """Process the request and set tenant context."""
@@ -111,7 +145,7 @@ class TenantMiddleware:
                             f"user={request.user.username}, tenant_id={tenant_id}, "
                             f"path={request.path}"
                         )
-                        return HttpResponseForbidden("You do not have access to this tenant")
+                        return self._forbidden(request, 'You do not have access to this tenant.')
                 elif is_global_admin:
                     logger.info(
                         f"Global System Admin explicit tenant selection: "
@@ -236,6 +270,27 @@ class TenantMiddleware:
                     logger.info(
                         f"{debug_prefix} No default tenant found for user: {request.user.username}"
                     )
+
+        # SECURITY: If tenant was resolved via host routing (domain/subdomain) and the user is
+        # authenticated (session-auth), require active TenantUser membership unless global admin.
+        if (
+            tenant
+            and request.user.is_authenticated
+            and resolution_method
+            and (resolution_method.startswith("domain") or resolution_method.startswith("subdomain"))
+            and not _bypass_tenant_membership_enforcement(request.path)
+        ):
+            is_global_admin = request.user.groups.filter(name='Global System Admins').exists()
+            if not (request.user.is_superuser or is_global_admin):
+                if not TenantUser.objects.filter(user=request.user, tenant=tenant, is_active=True).exists():
+                    logger.warning(
+                        "Unauthorized tenant host access attempt: user=%s tenant=%s method=%s path=%s",
+                        request.user.username,
+                        str(tenant.id),
+                        resolution_method,
+                        request.path,
+                    )
+                    return self._forbidden(request, 'You do not have access to this tenant.')
 
         # Final tenant resolution result for debug hosts
         if is_debug_host:
