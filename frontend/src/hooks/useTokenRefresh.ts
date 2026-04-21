@@ -30,6 +30,7 @@ import {
   needsRefresh,
   isUsingJwt 
 } from '../services/jwtService';
+import { logger } from '@/utils/logger';
 
 interface TokenRefreshOptions {
   /** Refresh token this many ms before expiry (default: 5 minutes) */
@@ -73,7 +74,7 @@ export function useTokenRefresh(options: TokenRefreshOptions = {}) {
   
   const log = useCallback((...args: any[]) => {
     if (opts.debug) {
-      console.log('[TokenRefresh]', ...args);
+      logger.debug('[TokenRefresh]', args);
     }
   }, [opts.debug]);
 
@@ -132,7 +133,7 @@ export function useTokenRefresh(options: TokenRefreshOptions = {}) {
         opts.onExpired();
       }
     } catch (error) {
-      console.error('[TokenRefresh] Refresh error:', error);
+      logger.error('[TokenRefresh] Refresh error:', error);
       opts.onExpired();
     }
   }, [log, opts, scheduleRefresh]);
