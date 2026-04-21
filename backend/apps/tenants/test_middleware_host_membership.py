@@ -75,3 +75,19 @@ class TenantMiddlewareHostMembershipTests(TestCase):
         get_response.assert_called_once()
         set_current_tenant.assert_called_once()
         self.assertEqual(get_response.call_args[0][0].tenant, self.tenant)
+
+    @override_settings(ALLOWED_HOSTS=['acme.example.com'])
+    def test_invitation_validate_path_bypasses_membership_enforcement(self):
+        get_response = Mock(return_value=HttpResponse('ok'))
+        middleware = TenantMiddleware(get_response)
+
+        request = self.factory.get('/api/v1/invitations/validate/', HTTP_HOST='acme.example.com')
+        request.user = self.non_member
+
+        with patch('apps.tenants.rls.set_current_tenant') as set_current_tenant:
+            resp = middleware(request)
+
+        self.assertEqual(resp.status_code, 200)
+        get_response.assert_called_once()
+        set_current_tenant.assert_called_once()
+        self.assertEqual(get_response.call_args[0][0].tenant, self.tenant)

@@ -49,6 +49,21 @@ import logging
 logger = logging.getLogger(__name__)
 
 
+_TENANT_MEMBERSHIP_BYPASS_PATH_PREFIXES = (
+    '/api/v1/invitations/validate/',
+    '/api/v1/auth/signup-with-invitation/',
+    '/api/v1/integrations/oauth/callback/',
+    '/api/v1/workflows/email/email/outlook/auth/callback/',
+    '/api/v1/workflows/email/email/gmail/auth/callback/',
+    '/api/v1/workflows/email/email/outlook/webhook/notifications/',
+    '/api/v1/workflows/email/email/gmail/webhook/notifications/',
+)
+
+
+def _bypass_tenant_membership_enforcement(path: str) -> bool:
+    return any(path.startswith(prefix) for prefix in _TENANT_MEMBERSHIP_BYPASS_PATH_PREFIXES)
+
+
 class TenantMiddleware:
     """
     Middleware to set the current tenant in the request context.
@@ -65,6 +80,25 @@ class TenantMiddleware:
 
     def __init__(self, get_response):
         self.get_response = get_response
+
+    def _reset_rls_session_vars(self) -> None:
+        """Best-effort RESET of RLS session vars (defense-in-depth for pooled connections)."""
+        try:
+            with connection.cursor() as cursor:
+                cursor.execute("RESET app.current_tenant_id")
+                cursor.execute("RESET app.current_tenant")
+        except Exception:
+            pass
+
+    def _forbidden(self, request: HttpRequest, message: str):
+        """Return a clear forbidden response (JSON for API routes)."""
+        self._reset_rls_session_vars()
+
+        if request.path.startswith('/api/v1/'):
+            # Use a stable error shape for frontend + tests.
+            return JsonResponse({'error': message, 'code': 'TENANT_ACCESS_DENIED'}, status=403)
+
+        return HttpResponseForbidden(message)
 
     def __call__(self, request: HttpRequest):
         """Process the request and set tenant context."""
@@ -111,7 +145,7 @@ class TenantMiddleware:
                             f"user={request.user.username}, tenant_id={tenant_id}, "
                             f"path={request.path}"
                         )
-                        return HttpResponseForbidden("You do not have access to this tenant")
+                        return self._forbidden(request, 'You do not have access to this tenant.')
                 elif is_global_admin:
                     logger.info(
                         f"Global System Admin explicit tenant selection: "
@@ -244,6 +278,7 @@ class TenantMiddleware:
             and request.user.is_authenticated
             and resolution_method
             and (resolution_method.startswith("domain") or resolution_method.startswith("subdomain"))
+            and not _bypass_tenant_membership_enforcement(request.path)
         ):
             is_global_admin = request.user.groups.filter(name='Global System Admins').exists()
             if not (request.user.is_superuser or is_global_admin):
@@ -255,12 +290,7 @@ class TenantMiddleware:
                         resolution_method,
                         request.path,
                     )
-                    if request.path.startswith('/api/v1/'):
-                        return JsonResponse(
-                            {"error": "You do not have access to this tenant.", "code": "TENANT_ACCESS_DENIED"},
-                            status=403,
-                        )
-                    return HttpResponseForbidden("You do not have access to this tenant")
+                    return self._forbidden(request, 'You do not have access to this tenant.')
 
         # Final tenant resolution result for debug hosts
         if is_debug_host:
