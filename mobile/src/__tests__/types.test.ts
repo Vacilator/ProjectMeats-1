@@ -4,7 +4,6 @@ import {
   TenantInvite,
   InviteAcceptRequest,
   WorkForm,
-  WorkFormNode,
   RootStackParamList,
 } from '../types';
 
@@ -84,38 +83,33 @@ describe('WorkForm type', () => {
     const form: WorkForm = {
       id: 'wf-1',
       name: 'Intake Form',
-      tenant: 'tenant-1',
+      status: 'active',
       is_active: true,
       node_count: 5,
-      created_at: '2026-01-01T00:00:00Z',
       updated_at: '2026-01-02T00:00:00Z',
     };
     expect(form.is_active).toBe(true);
+    expect(form.status).toBe('active');
     expect(form.node_count).toBe(5);
     expect(form.description).toBeUndefined();
-    expect(form.nodes).toBeUndefined();
+    expect(form.workflow_definition).toBeUndefined();
   });
 
-  it('should accept optional nodes array', () => {
-    const node: WorkFormNode = {
-      id: 'n-1',
-      type: 'text_field',
-      label: 'Name',
-      position: { x: 0, y: 0 },
-      data: {},
-    };
+  it('should accept optional workflow_definition on detail responses', () => {
     const form: WorkForm = {
       id: 'wf-2',
-      name: 'Form with Nodes',
-      tenant: 'tenant-1',
-      is_active: true,
+      name: 'Form with Definition',
+      status: 'draft',
+      is_active: false,
       node_count: 1,
-      nodes: [node],
-      created_at: '',
-      updated_at: '',
+      updated_at: '2026-01-02T00:00:00Z',
+      workflow_definition: {
+        nodes: [{ id: 'n-1' }],
+        edges: [],
+      },
     };
-    expect(form.nodes).toHaveLength(1);
-    expect(form.nodes![0].type).toBe('text_field');
+
+    expect(form.workflow_definition?.nodes).toHaveLength(1);
   });
 });
 

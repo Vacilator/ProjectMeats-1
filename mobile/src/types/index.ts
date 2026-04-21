@@ -151,26 +151,36 @@ export interface InviteAcceptRequest {
   last_name?: string;
 }
 
-// WorkForms types (mobile parity with web Workform Editor)
-export interface WorkFormNode {
-  id: string;
-  type: string;
-  label: string;
-  description?: string;
-  position: { x: number; y: number };
-  data: Record<string, any>;
+// WorkForms types (mobile contract aligned with backend serializers)
+export type WorkFormStatus = 'draft' | 'active' | 'archived' | string;
+
+export interface WorkflowDefinition {
+  nodes: any[];
+  edges: any[];
+  viewport?: {
+    x: number;
+    y: number;
+    zoom: number;
+  };
 }
 
 export interface WorkForm {
   id: string;
   name: string;
   description?: string;
-  tenant: string;
+  status: WorkFormStatus;
+  // Convenience field computed client-side
   is_active: boolean;
   node_count: number;
-  nodes?: WorkFormNode[];
-  created_at: string;
+  edge_count?: number;
+  version?: number;
+  execution_count?: number;
+  last_executed_at?: string | null;
+  created_at?: string;
   updated_at: string;
+  // Detail-only fields
+  workflow_definition?: WorkflowDefinition;
+  form_references?: string[];
 }
 
 // Common entity types (shared with backend)

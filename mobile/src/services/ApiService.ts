@@ -297,10 +297,14 @@ class ApiServiceClass {
         id: String(row.id),
         name: String(row.name ?? ''),
         description: row.description ?? undefined,
-        tenant: String(row.tenant ?? ''),
+        status: String(row.status ?? 'draft'),
         is_active: String(row.status ?? '').toLowerCase() === 'active',
         node_count: Number(row.node_count ?? 0),
-        created_at: String(row.created_at ?? ''),
+        edge_count: row.edge_count !== undefined ? Number(row.edge_count) : undefined,
+        version: row.version !== undefined ? Number(row.version) : undefined,
+        execution_count: row.execution_count !== undefined ? Number(row.execution_count) : undefined,
+        last_executed_at: row.last_executed_at ?? null,
+        created_at: row.created_at ?? undefined,
         updated_at: String(row.updated_at ?? ''),
       })),
     };
@@ -310,16 +314,23 @@ class ApiServiceClass {
     const response = await this.api.get(`/tenant-workforms/${id}/`);
     const row = response.data;
 
+    const definition = row.workflow_definition;
+
     return {
       id: String(row.id),
       name: String(row.name ?? ''),
       description: row.description ?? undefined,
-      tenant: String(row.tenant ?? ''),
+      status: String(row.status ?? 'draft'),
       is_active: String(row.status ?? '').toLowerCase() === 'active',
-      node_count: Number(row.node_count ?? 0),
-      nodes: Array.isArray(row.nodes) ? row.nodes : undefined,
-      created_at: String(row.created_at ?? ''),
+      node_count: Number(row.node_count ?? (Array.isArray(definition?.nodes) ? definition.nodes.length : 0)),
+      edge_count: row.edge_count !== undefined ? Number(row.edge_count) : undefined,
+      version: row.version !== undefined ? Number(row.version) : undefined,
+      execution_count: row.execution_count !== undefined ? Number(row.execution_count) : undefined,
+      last_executed_at: row.last_executed_at ?? null,
+      created_at: row.created_at ?? undefined,
       updated_at: String(row.updated_at ?? ''),
+      workflow_definition: definition && typeof definition === 'object' ? definition : undefined,
+      form_references: Array.isArray(row.form_references) ? row.form_references : undefined,
     };
   }
 }
