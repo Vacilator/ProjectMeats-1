@@ -120,11 +120,30 @@ We are re-validating and completing the last ~25 prompts with **evidence-based a
 - **Graceful degradation / feature flags:** missing secrets/infra (AI, email, Outlook, pgvector) must not crash UX; expose availability in health.
 - **Workforms Editor:** maintain hook safety, node config save UX, and layout predictability.
 
+### P0 — Security / tenant isolation (next)
+- **TenantMiddleware hardening:** ignore `X-Tenant-ID` for anonymous requests (prevent tenant context injection on `AllowAny` endpoints); add regression tests.
+- **Workflow webhooks tenant-safe:** add a new canonical webhook URL embedding `tenant_id` in the path and set RLS tenant explicitly in the receiver view; keep legacy URL temporarily.
+- **Email webhooks verification (critical):** Outlook requires unpredictable per-subscription `clientState`; Gmail requires request verification (JWT/secret) so forged requests cannot trigger upstream API calls.
+- **Tenant-scope email integration data:** phase in `tenant_id` for EmailAccount/EmailLog (and related tables), then add RLS policies once tenant-scoped.
+- **OAuth endpoint de-shadowing:** remove/lock down duplicate legacy OAuth callback routes to prevent accidental re-exposure.
+
+### P0 — WorkForms editor “industry leader” UX (next)
+- **Publish readiness preflight + support matrix UI:** block publish when unsupported nodes/missing required config; show actionable remediation.
+- **Validation parity:** unify `nodeValidationService` with schema `conditional` + `validationEngine` so hidden fields don’t error and rules match the config panel.
+- **Config safety:** keyValue record-mode must never persist arrays into node data (draft UI-only); add unit + Playwright coverage (actionHTTP headers).
+- **A11y + testability:** section headers keyboard-accessible (`aria-expanded`), labels wired to inputs (`htmlFor`/`id`), stable `data-testid` selectors.
+- **Performance:** lazy-mount heavy hidden fields; debounce text updates to shadow state; remove/gate debug logging.
+
 ### P0 — Business usability
 - **Cockpit Search relevance:** ranking + fuzzy match + recency; persistent favorites that are tenant-safe (RLS-backed).
 - **Mobile responsiveness:** Cockpit + core CRUD forms usable <768px; touch targets; FlowEditor mobile/tablet fallback.
 - **Email ingestion monitor:** correctness, diagnostics, reconnect CTA, progress reporting, attachment-aware detection.
 - **Admin workspace usability:** option lists/system lists visibility + custom list create/edit flows.
+
+### P1 — CI/CD determinism (next)
+- **Remove archived workflows from Actions:** move `.github/workflows/archived/**` out of `.github/workflows/` so they cannot run and bypass guardrails.
+- **Immutable CI inputs:** digest-pin workflow `services.*.image` containers (Postgres/pgvector) and stop pushing mutable `latest` tags.
+- **Deployment safety gate:** require PR Validation success for the same SHA for UAT/Prod deployments (even if deploy workflow test jobs are temporarily bypassed).
 
 ### P0 — WorkForms E2E completion (Workstream B)
 **Goal:** Make WorkForms publish + execute + monitor **end-to-end** with deterministic runtime behavior, explainable execution details, and tenant-safe notifications/connectors — while respecting **shared-schema multi-tenancy (Postgres RLS + `app.current_tenant`)** and **Golden Pipeline** constraints.
