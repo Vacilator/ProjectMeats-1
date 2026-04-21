@@ -1685,3 +1685,4 @@ Deliverables:
 - **2026-04-21** — Workflows: legacy webhook receiver now fails closed unless tenant context is resolvable; sets tenant/RLS before ORM lookup and scopes lookup by request.tenant. (PR: #4554)
 - **2026-04-21** — Integrations: OAuth callback sets tenant/RLS context before tenant-scoped writes (FORCE RLS safe) and adds regression test. (PR: #4556)
 - **2026-04-21** — WorkForms: creating a WorkForm with `status=active` now runs activation validation (references + runtime support), preventing invalid active WorkForms; adds integration test. (PR: #4558)
+- **2026-04-21** — Tests: add tenant scoping coverage for `/api/v1/tenant-workforms/*` (host-scoped list; cross-tenant retrieve/delete 404; missing tenant context returns empty list). (PR: #4560)
