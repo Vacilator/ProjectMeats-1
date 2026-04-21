@@ -2951,8 +2951,13 @@ class QuickActionsAPIView(APIView):
         """Update user's quick actions."""
         try:
             logger.info(f"Quick actions update request: {request.data}")
+
+            tenant, error = _require_tenant(request)
+            if error:
+                return error
+
             logger.info(
-                f"Request tenant: {request.tenant}, User: {request.user}, Is superuser: {request.user.is_superuser}"
+                f"Request tenant: {tenant}, User: {request.user}, Is superuser: {request.user.is_superuser}"
             )
 
             serializer = QuickActionsSerializer(data=request.data)
@@ -2969,15 +2974,11 @@ class QuickActionsAPIView(APIView):
 
             for item in items:
                 if item["type"] == "form" and item.get("form_id"):
-                    form = (
-                        TenantForm.objects.filter(
-                            tenant=request.tenant,
-                            id=item["form_id"],
-                            status__in=[FormStatus.DRAFT, FormStatus.ACTIVE],
-                        ).first()
-                        if request.tenant
-                        else None
-                    )
+                    form = TenantForm.objects.filter(
+                        tenant=tenant,
+                        id=item["form_id"],
+                        status__in=[FormStatus.DRAFT, FormStatus.ACTIVE],
+                    ).first()
 
                     if not form:
                         return Response(
@@ -2986,15 +2987,11 @@ class QuickActionsAPIView(APIView):
                         )
 
                 if item["type"] == "workflow" and item.get("workflow_id"):
-                    wf = (
-                        TenantWorkForm.objects.filter(
-                            tenant=request.tenant,
-                            id=item["workflow_id"],
-                            status__in=['draft', 'active'],
-                        ).first()
-                        if request.tenant
-                        else None
-                    )
+                    wf = TenantWorkForm.objects.filter(
+                        tenant=tenant,
+                        id=item["workflow_id"],
+                        status__in=['draft', 'active'],
+                    ).first()
 
                     if not wf:
                         return Response(
