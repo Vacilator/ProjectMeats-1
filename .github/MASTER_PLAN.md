@@ -1672,3 +1672,4 @@ Deliverables:
 - **2026-04-21** — CI: enforce RLS audit coverage (deterministic lint; include integrations.EmailLog) + test. (PR: #4527)
 - **2026-04-21** — Security: ignore X-Tenant-ID for anonymous requests in TenantMiddleware + regression test. (PR: #4530)
 - **2026-04-21** — WorkForms editor: enforce readOnly + a11y sections + keep validation errors stable under shadow updates. (PR: #4532)
+- **2026-04-21** — WorkForms editor: keyValueMode=record draft rows are local-only; always stage/persist record shape; supports key rename + tests. (PR: #4534)
