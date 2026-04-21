@@ -1656,3 +1656,13 @@ Deliverables:
 - **2026-04-20** — CI note: the earlier `PR: #pending` run-name placeholder corresponds to the Master Pipeline PR-context run-name work (PR #4408 / #4396), and is superseded by the later run-name hardening entry (PR #4404).
 
 - **2026-04-20** — Docs reality correction (append-only): prior entries claiming `docs/plans/*` were purged and that V4.0 sprint docs were "not created yet" are **historical** and superseded. V3.5/V4.0 planning docs exist under `docs/plans/` (e.g., `V4_0_IDEAL_STATE_GAP_ANALYSIS.md`, `V4_0_UX_EXCELLENCE.md`, `V4_0_FIELD_OPS_ARCHITECTURE.md`). Canonical plan/status remains `MASTER_PLAN.md`.
+
+- **2026-04-21** — Mobile: align guest/invite auth endpoints; persist guest sessions; update tests/types. (PR: #4514)
+- **2026-04-21** — Mobile: enforce OpenAPI contract (schema artifact + mobile Jest contract test). (PR: #4515)
+- **2026-04-21** — WorkForms editor: fix DynamicConfigPanel key aliases + triggerForm defaults/UX + regression tests. (PR: #4516)
+- **2026-04-21** — WorkForms editor: populate formReference metadata on selection (name/desc/fieldCount/sectionCount) + test. (PR: #4517)
+- **2026-04-21** — WorkForms editor: NestedChildrenRenderer supports toggle/number/select child fields + test. (PR: #4518)
+- **2026-04-21** — WorkForms editor: normalize legacy Auto-Mapping fieldMappings for FieldMappingPanel + fix createRecord validator + unit test. (PR: #4519)
+- **2026-04-21** — WorkForms editor: template-aware validation (allow {{vars}} in email/url/regex; allow comma-separated email lists) + tests. (PR: #4520)
+- **2026-04-21** — WorkForms editor: documentGenerate template field no longer stuck (templateId uses text until template API exists) + schema test. (PR: #4521)
+- **2026-04-21** — WorkForms editor: a11y nested children (keyboard expansion + aria labels + button types) + tests. (PR: #4522)
