@@ -15,7 +15,9 @@ describe('apiErrors', () => {
     expect(err).toBeInstanceOf(Error);
     expect(err).toBeInstanceOf(ApiServiceError);
     expect(err.message).toBe('Server error. Please try again shortly.');
+    expect(err.friendlyMessage).toBe('Server error. Please try again shortly.');
     expect(err.kind).toBe('circuit_breaker');
+    expect(err.code).toBe('CIRCUIT_BREAKER');
     expect(err.status).toBe(500);
     expect(err.request?.url).toBe('/workflows/available-forms/');
     expect(err.responseData).toEqual({ detail: 'boom' });

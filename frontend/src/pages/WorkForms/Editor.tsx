@@ -14,6 +14,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Wand2, Eye, Code2, Lock } from 'lucide-react';
 
 import { logger } from '@/utils/logger';
+import { toApiErrorText } from '@/services/apiErrorPresentation';
 import { UnifiedFlowEditor } from '../../components/FlowEditor';
 import { FLOW_TEMPLATES } from '../../components/FlowEditor/templates/flowTemplates';
 import {
@@ -355,15 +356,10 @@ export const WorkFormsEditor: React.FC = () => {
     ? cloneWorkFormQuery.error
     : existingWorkFormQuery.error;
 
-  const getLoadErrorDetail = useCallback((error: unknown): string => {
-    const e = error as any;
-    return (
-      e?.response?.data?.detail ||
-      e?.response?.data?.error ||
-      e?.message ||
-      'Unknown error'
-    );
-  }, []);
+  const getLoadErrorDetail = useCallback(
+    (error: unknown): string => toApiErrorText(error, { fallbackMessage: 'Unknown error' }),
+    []
+  );
 
   const handleRetryLoad = useCallback(async () => {
     setIsInitialized(false);

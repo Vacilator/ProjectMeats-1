@@ -20,6 +20,7 @@ import React, { useState } from 'react';
 import { logger } from '@/utils/logger';
 import { showAlert } from '@/utils/uiDialogs';
 import { getWorkformsErrorUi } from '@/features/workforms/workformsErrors';
+import { ApiErrorContent } from '@/components/errors/ApiErrorContent';
 
 import { useNavigate } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -571,7 +572,11 @@ const FormsFlowsCatalog: React.FC = () => {
     },
     onError: (error: any) => {
       const ui = getWorkformsErrorUi(error, 'catalog.delete');
-      showAlert({ type: 'error', title: ui.title, content: ui.message });
+      showAlert({
+        type: 'error',
+        title: ui.title,
+        content: <ApiErrorContent error={error} fallbackMessage={ui.message} />,
+      });
     },
   });
 
@@ -836,7 +841,7 @@ const FormsFlowsCatalog: React.FC = () => {
       showAlert({
         type: 'error',
         title: ui.title,
-        content: ui.message,
+        content: <ApiErrorContent error={error} fallbackMessage={ui.message} />,
       });
     } finally {
       setIsQuickRunning(null);
@@ -870,7 +875,7 @@ const FormsFlowsCatalog: React.FC = () => {
       showAlert({
         type: 'error',
         title: ui.title,
-        content: ui.message,
+        content: <ApiErrorContent error={error} fallbackMessage={ui.message} />,
       });
     }
   };
@@ -967,7 +972,9 @@ const FormsFlowsCatalog: React.FC = () => {
         <EmptyState role="status" aria-live="polite">
           <EmptyStateIcon aria-hidden="true">⚠️</EmptyStateIcon>
           <EmptyStateTitle>{catalogErrorUi.title}</EmptyStateTitle>
-          <EmptyStateDescription>{catalogErrorUi.message}</EmptyStateDescription>
+          <EmptyStateDescription>
+            <ApiErrorContent error={error} fallbackMessage={catalogErrorUi.message} variant="inline" />
+          </EmptyStateDescription>
           <Button variant="primary" onClick={() => void refetch()}>
             Try again
           </Button>

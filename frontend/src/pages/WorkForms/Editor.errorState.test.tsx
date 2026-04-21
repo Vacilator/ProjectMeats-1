@@ -6,6 +6,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 import { WorkFormsEditor } from './Editor';
 import { loadWorkflow } from '../../components/FlowEditor/utils/workflowPersistence';
+import { ApiServiceError } from '../../services/apiErrors';
 
 vi.mock('../../components/FlowEditor/utils/workflowPersistence', () => ({
   loadWorkflow: vi.fn(),
@@ -56,7 +57,8 @@ describe('WorkForms Editor load error state', () => {
     );
 
     expect(await screen.findByText("Couldn't load workform")).toBeInTheDocument();
-    expect(screen.getByText('Boom')).toBeInTheDocument();
+    expect(screen.getByText(/Boom/)).toBeInTheDocument();
+    expect(screen.getByText(/status 500/i)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /try again/i })).toBeInTheDocument();
 
     vi.mocked(loadWorkflow).mockRejectedValueOnce(err);
@@ -66,5 +68,35 @@ describe('WorkForms Editor load error state', () => {
     await waitFor(() => {
       expect(loadWorkflow).toHaveBeenCalledTimes(2);
     });
+  });
+
+  it('surfaces circuit-breaker friendly errors with status', async () => {
+    const err = new ApiServiceError('Server temporarily unreachable. Please try again shortly.', {
+      kind: 'circuit_breaker',
+      status: 502,
+      code: 'CIRCUIT_BREAKER',
+    });
+
+    vi.mocked(loadWorkflow).mockRejectedValueOnce(err);
+
+    const client = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false },
+      },
+    });
+
+    render(
+      <QueryClientProvider client={client}>
+        <MemoryRouter initialEntries={['/workforms/editor/123']}>
+          <Routes>
+            <Route path="/workforms/editor/:id" element={<WorkFormsEditor />} />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>
+    );
+
+    expect(await screen.findByText("Couldn't load workform")).toBeInTheDocument();
+    expect(screen.getByText(/Server temporarily unreachable\. Please try again shortly\./)).toBeInTheDocument();
+    expect(screen.getByText(/status 502/i)).toBeInTheDocument();
   });
 });

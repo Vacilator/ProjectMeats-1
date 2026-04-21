@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import { ApiServiceError } from '@/services/apiErrors';
 import { getWorkformsErrorMessage, getWorkformsErrorUi } from './workformsErrors';
 
 describe('workformsErrors', () => {
@@ -36,5 +37,16 @@ describe('workformsErrors', () => {
     const ui = getWorkformsErrorUi(err, 'catalog.load');
     expect(ui.title).toBe("Couldn't load catalog");
     expect(ui.message).toBe('Boom');
+  });
+
+  it('reads status/message from ApiServiceError (circuit breaker)', () => {
+    const err = new ApiServiceError('Server error. Please try again shortly.', {
+      kind: 'circuit_breaker',
+      status: 503,
+    });
+
+    const ui = getWorkformsErrorUi(err, 'catalog.load');
+    expect(ui.title).toBe("Couldn't load catalog");
+    expect(ui.message).toMatch(/server error/i);
   });
 });
