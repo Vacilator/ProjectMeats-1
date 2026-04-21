@@ -7,6 +7,7 @@ import { useCockpitNavigation } from '../../contexts/CockpitNavigationContext';
 import { useCockpitPinnedTools } from '../../contexts/CockpitPinnedToolsContext';
 import { useQuickActions } from '../../contexts/QuickActionsContext';
 import { notify } from '../../utils/notify';
+import { logger } from '@/utils/logger';
 import { businessApi } from '../../services/businessApi';
 import {
   ActionItemsWidget,
@@ -161,7 +162,7 @@ export const PinnedToolsBar: React.FC = () => {
       setRecordDetail(resp.data);
       return resp.data;
     } catch (e) {
-      console.warn('[PinnedToolsBar] Failed to load active record context:', e);
+      logger.warn('[PinnedToolsBar] Failed to load active record context:', e);
       setRecordDetail(null);
       return null;
     } finally {
@@ -191,7 +192,7 @@ export const PinnedToolsBar: React.FC = () => {
           })
         );
       } catch (e) {
-        console.warn('[PinnedToolsBar] Failed to persist active record context:', e);
+        logger.warn('[PinnedToolsBar] Failed to persist active record context:', e);
       }
 
       const desiredLabel = tool === 'email' ? 'Email Drafter' : 'Smart Quote';
