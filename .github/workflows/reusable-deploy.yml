@@ -29,6 +29,11 @@ on:
         type: string
         description: "API base URL for frontend (optional, for future Build Once Deploy Many pattern)"
         default: ""
+      deploy_by_digest:
+        required: false
+        type: boolean
+        description: "If true, resolve tag -> digest after pull and run containers by digest (optional; tag flow remains default)"
+        default: false
     secrets:
       DO_ACCESS_TOKEN:
         required: true
@@ -960,7 +965,69 @@ jobs:
           echo "Port status:"
           netstat -an | grep 5433 || echo "Port 5433 not in use"
           exit 1
-      
+
+      - name: Pre-migration DB backup (UAT/Prod only)
+        if: inputs.environment != 'development'
+        env:
+          SSHPASS: ${{ secrets.SSH_PASSWORD }}
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          DB_USER: ${{ secrets.DB_USER }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          DB_NAME: ${{ secrets.DB_NAME }}
+        run: |
+          set -euo pipefail
+
+          echo "================================"
+          echo "Pre-migration Backup (UAT/Prod)"
+          echo "================================"
+
+          TS="$(date -u +%Y%m%dT%H%M%SZ)"
+          ENVIRONMENT="${{ inputs.environment }}"
+          SHA="${{ github.sha }}"
+          RUN_ID="${{ github.run_id }}"
+
+          BACKUP_DIR="/root/projectmeats/db_backups/${ENVIRONMENT}"
+          BACKUP_FILE="pgdump_${ENVIRONMENT}_${TS}_${SHA}_${RUN_ID}.dump"
+          REMOTE_PATH="${BACKUP_DIR}/${BACKUP_FILE}"
+
+          # Retention policy: keep last N backups per environment
+          KEEP_COUNT=7
+          if [ "$ENVIRONMENT" = "production" ]; then
+            KEEP_COUNT=14
+          fi
+
+          echo "Creating remote backup directory (permissions locked down)..."
+          sshpass -e ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
+            "$SSH_USER@$SSH_HOST" \
+            "set -euo pipefail; umask 077; mkdir -p '$BACKUP_DIR'; chmod 700 '$BACKUP_DIR'"
+
+          echo "Streaming pg_dump through SSH (no local artifact; encrypted-in-transit)..."
+          export PGPASSWORD="$DB_PASSWORD"
+          pg_dump \
+            --format=custom \
+            --compress=9 \
+            --no-owner \
+            --no-acl \
+            -h 127.0.0.1 \
+            -p 5433 \
+            -U "$DB_USER" \
+            -d "$DB_NAME" \
+            | sshpass -e ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
+                "$SSH_USER@$SSH_HOST" \
+                "set -euo pipefail; umask 077; cat > '$REMOTE_PATH'"
+
+          echo "Verifying backup exists + has sane size, then enforcing retention..."
+          sshpass -e ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
+            "$SSH_USER@$SSH_HOST" \
+            "set -euo pipefail; \
+              test -s '$REMOTE_PATH'; \
+              BYTES=\$(stat -c%s '$REMOTE_PATH'); \
+              echo '✓ Backup created:' '$REMOTE_PATH' 'size='\"\$BYTES\"' bytes'; \
+              if [ \"\$BYTES\" -lt 10240 ]; then echo '✗ Backup too small (<10KB) - refusing to migrate'; exit 1; fi; \
+              ls -1t '$BACKUP_DIR'/pgdump_${ENVIRONMENT}_*.dump 2>/dev/null | tail -n +\$((KEEP_COUNT + 1)) | xargs -r rm -f; \
+              echo '✓ Retention enforced (kept last '"$KEEP_COUNT"')'"
+
       - name: Run migrations via Docker with tunnel
         env:
           DB_USER: ${{ secrets.DB_USER }}
@@ -1314,12 +1381,117 @@ jobs:
           }
 
           pull_with_retry "$REG/$IMG:$TAG"
-          
-          # Stop old containers (both old and new naming conventions)
-          docker stop projectmeats-backend pm-backend 2>/dev/null || true
-          docker rm -f projectmeats-backend pm-backend 2>/dev/null || true
-          
-          # Start new container with environment file
+
+          DEPLOY_BY_DIGEST="${{ inputs.deploy_by_digest }}"
+          TAG_REF="$REG/$IMG:$TAG"
+          RUN_REF="$TAG_REF"
+
+          # Optional: deploy by digest after pulling by immutable tag.
+          if [ "$DEPLOY_BY_DIGEST" = "true" ]; then
+            DIGEST_REF=$(docker image inspect --format='{{index .RepoDigests 0}}' "$TAG_REF" 2>/dev/null || true)
+            if echo "$DIGEST_REF" | grep -q '@sha256:'; then
+              echo "✓ Deploy-by-digest enabled: $DIGEST_REF"
+              RUN_REF="$DIGEST_REF"
+            else
+              echo "⚠ Deploy-by-digest enabled, but digest not found; falling back to tag"
+            fi
+          fi
+
+          # Atomic deploy + rollback (single host): canary on alternate port, then swap.
+          CAND_NAME="pm-backend-candidate"
+          CAND_PORT="18000"
+          PREV_NAME="pm-backend-prev"
+
+          rollback() {
+            echo "↩ Rolling back backend to previous container (best-effort)..."
+            docker logs pm-backend --tail 100 2>/dev/null || true
+            docker rm -f pm-backend 2>/dev/null || true
+
+            if docker inspect "$PREV_NAME" >/dev/null 2>&1; then
+              docker start "$PREV_NAME" >/dev/null 2>&1 || true
+              docker rename "$PREV_NAME" pm-backend >/dev/null 2>&1 || true
+              curl -L -s -o /dev/null -w "rollback_http=%{http_code}\n" http://127.0.0.1:8000/api/v1/health/ || true
+              echo "✓ Rollback attempted"
+            else
+              echo "⚠ No previous container found ($PREV_NAME)"
+            fi
+          }
+
+          # Cleanup stale canary/prev
+          docker rm -f "$CAND_NAME" 2>/dev/null || true
+          docker stop "$PREV_NAME" 2>/dev/null || true
+          docker rm -f "$PREV_NAME" 2>/dev/null || true
+
+          # Find existing container (supports legacy name)
+          OLD_NAME=""
+          for n in pm-backend projectmeats-backend; do
+            if docker inspect "$n" >/dev/null 2>&1; then
+              OLD_NAME="$n"
+              break
+            fi
+          done
+
+          echo "Starting backend canary on 127.0.0.1:${CAND_PORT}..."
+          docker run -d --name "$CAND_NAME" \
+            --restart unless-stopped \
+            -p 127.0.0.1:${CAND_PORT}:8000 \
+            --env-file /root/projectmeats/backend/.env \
+            -e DB_HOST="${{ secrets.DB_HOST }}" \
+            -e DB_NAME="${{ secrets.DB_NAME }}" \
+            -e DB_USER="${{ secrets.DB_USER }}" \
+            -e DB_PASSWORD="${{ secrets.DB_PASSWORD }}" \
+            -e DB_PORT="${{ secrets.DB_PORT }}" \
+            -e DJANGO_SUPERUSER_USERNAME="${{ secrets.DJANGO_SUPERUSER_USERNAME }}" \
+            -e DJANGO_SUPERUSER_EMAIL="${{ secrets.DJANGO_SUPERUSER_EMAIL }}" \
+            -e DJANGO_SUPERUSER_PASSWORD="${{ secrets.DJANGO_SUPERUSER_PASSWORD }}" \
+            -v /root/projectmeats/media:/app/media \
+            -v /root/projectmeats/staticfiles:/app/staticfiles \
+            "$RUN_REF"
+
+          echo "Waiting for canary to start..."
+          MAX_WAIT=30
+          ELAPSED=0
+          until docker ps | grep -q "$CAND_NAME"; do
+            if [ $ELAPSED -ge $MAX_WAIT ]; then
+              echo "✗ Canary failed to start within ${MAX_WAIT}s"
+              docker logs "$CAND_NAME" --tail 100 2>/dev/null || true
+              docker rm -f "$CAND_NAME" 2>/dev/null || true
+              exit 1
+            fi
+            sleep 2
+            ELAPSED=$((ELAPSED + 2))
+          done
+
+          echo "Health-checking backend canary..."
+          MAX_ATTEMPTS=15
+          ATTEMPT=1
+          while [ $ATTEMPT -le $MAX_ATTEMPTS ]; do
+            HTTP_CODE=$(curl -L -s -o /dev/null -w "%{http_code}" "http://127.0.0.1:${CAND_PORT}/api/v1/health/" || echo "000")
+            if [ "$HTTP_CODE" = "200" ]; then
+              echo "✓ Canary health check passed (HTTP $HTTP_CODE)"
+              break
+            fi
+            echo "Canary health attempt $ATTEMPT/$MAX_ATTEMPTS (HTTP $HTTP_CODE), retrying..."
+            sleep 4
+            ATTEMPT=$((ATTEMPT + 1))
+          done
+
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "✗ Canary health check failed; leaving existing backend untouched"
+            docker logs "$CAND_NAME" --tail 200 2>/dev/null || true
+            docker rm -f "$CAND_NAME" 2>/dev/null || true
+            exit 1
+          fi
+
+          echo "Canary healthy. Swapping into canonical port 8000..."
+
+          if [ -n "$OLD_NAME" ]; then
+            docker stop "$OLD_NAME" 2>/dev/null || true
+            docker rename "$OLD_NAME" "$PREV_NAME" 2>/dev/null || true
+          fi
+
+          docker rm -f pm-backend 2>/dev/null || true
+
           docker run -d --name pm-backend \
             --restart unless-stopped \
             -p 8000:8000 \
@@ -1334,69 +1506,59 @@ jobs:
             -e DJANGO_SUPERUSER_PASSWORD="${{ secrets.DJANGO_SUPERUSER_PASSWORD }}" \
             -v /root/projectmeats/media:/app/media \
             -v /root/projectmeats/staticfiles:/app/staticfiles \
-            "$REG/$IMG:$TAG"
-          
-          # Wait for container to be running
-          echo "Waiting for container to start..."
+            "$RUN_REF"
+
+          echo "Waiting for canonical backend to start..."
           MAX_WAIT=30
           ELAPSED=0
           until docker ps | grep -q pm-backend; do
             if [ $ELAPSED -ge $MAX_WAIT ]; then
-              echo "✗ Container failed to start within ${MAX_WAIT}s"
-              docker ps -a | grep pm-backend || echo "No container found"
-              docker logs pm-backend --tail 50 2>/dev/null || true
+              echo "✗ Backend failed to start within ${MAX_WAIT}s"
+              docker logs pm-backend --tail 100 2>/dev/null || true
+              rollback
               exit 1
             fi
-            echo "Waiting... (${ELAPSED}s/${MAX_WAIT}s)"
             sleep 2
             ELAPSED=$((ELAPSED + 2))
           done
-          echo "✓ Container is running"
-          
-          # Wait a bit for Django to initialize
+
           sleep 5
-          
-          # Collect static files for admin UI
-          echo "Collecting static files for Django admin..."
-          docker exec pm-backend python manage.py collectstatic --noinput || {
-            echo "⚠ Warning: collectstatic failed, but continuing"
-          }
-          echo "✓ Static files collected"
-          
+
+          echo "Collecting static files for Django admin (best-effort)..."
+          docker exec pm-backend python manage.py collectstatic --noinput || echo "⚠ collectstatic failed (continuing)"
+
           # Health check with self-healing retry
           MAX_ATTEMPTS=20
           ATTEMPT=1
           RETRY_WITH_HEALING=false
-          
+
           while [ $ATTEMPT -le $MAX_ATTEMPTS ]; do
-            HTTP_CODE=$(curl -L -s -o /dev/null -w "%{http_code}" http://localhost:8000/api/v1/health/ || echo "000")
+            HTTP_CODE=$(curl -L -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8000/api/v1/health/ || echo "000")
             if [ "$HTTP_CODE" = "200" ]; then
               echo "✓ Backend health check passed (HTTP $HTTP_CODE)"
               break
             fi
-            
-            # Self-healing logic: On first failure, try clearing cache and retry once
+
             if [ $ATTEMPT -eq 10 ] && [ "$RETRY_WITH_HEALING" = "false" ]; then
               echo "⚠️  Health check failing - attempting self-healing..."
-              echo "Running: docker exec pm-backend python manage.py clear_cache"
               docker exec pm-backend python manage.py clear_cache || echo "Cache clear failed (command may not exist)"
-              echo "Waiting 10 seconds after cache clear..."
               sleep 10
               RETRY_WITH_HEALING=true
-              echo "Retrying health check after self-healing attempt..."
             fi
-            
+
             echo "Health check attempt $ATTEMPT/$MAX_ATTEMPTS (HTTP $HTTP_CODE), retrying..."
             sleep 5
             ATTEMPT=$((ATTEMPT + 1))
           done
-          
+
           if [ "$HTTP_CODE" != "200" ]; then
             echo "✗ Backend health check failed after $MAX_ATTEMPTS attempts"
-            echo "Showing last 100 lines of logs..."
-            docker logs pm-backend --tail 100
+            rollback
             exit 1
           fi
+
+          echo "Cleaning up backend canary container..."
+          docker rm -f "$CAND_NAME" 2>/dev/null || true
 
           echo ""
           echo "=== Integration diagnostics (non-secret) ==="
@@ -1488,6 +1650,7 @@ jobs:
           export REG="${{ env.REGISTRY }}"
           export IMG="${{ env.FRONTEND_IMAGE }}"
           export DOMAIN_NAME="${{ secrets.DOMAIN_NAME }}"
+          export DEPLOY_BY_DIGEST="${{ inputs.deploy_by_digest }}"
           
           # Debug: Show what we're deploying
           echo "==================================="
@@ -1512,6 +1675,7 @@ jobs:
              REG='${REG}' \
              IMG='${IMG}' \
              DOMAIN_NAME='${DOMAIN_NAME}' \
+             DEPLOY_BY_DIGEST='${DEPLOY_BY_DIGEST}' \
              bash -s" << 'SSH'
           set -euo pipefail
           
@@ -1585,14 +1749,111 @@ jobs:
           echo "Pulling image: $REG/$IMG:$IMAGE_TAG"
           pull_with_retry "$REG/$IMG:$IMAGE_TAG"
           echo "✓ Image pulled successfully"
-          
-          # Stop old containers (both old and new naming conventions)
-          echo "Stopping old frontend containers..."
-          docker stop projectmeats-frontend pm-frontend 2>/dev/null || true
-          docker rm -f projectmeats-frontend pm-frontend 2>/dev/null || true
-          
-          # Start new container with docker run
-          echo "Starting frontend container..."
+
+          TAG_REF="$REG/$IMG:$IMAGE_TAG"
+          RUN_REF="$TAG_REF"
+
+          # Optional: deploy by digest after pulling by immutable tag.
+          if [ "${DEPLOY_BY_DIGEST:-false}" = "true" ]; then
+            DIGEST_REF=$(docker image inspect --format='{{index .RepoDigests 0}}' "$TAG_REF" 2>/dev/null || true)
+            if echo "$DIGEST_REF" | grep -q '@sha256:'; then
+              echo "✓ Deploy-by-digest enabled: $DIGEST_REF"
+              RUN_REF="$DIGEST_REF"
+            else
+              echo "⚠ Deploy-by-digest enabled, but digest not found; falling back to tag"
+            fi
+          fi
+
+          # Atomic deploy + rollback: canary on alternate port, then swap.
+          CAND_NAME="pm-frontend-candidate"
+          CAND_PORT="18080"
+          PREV_NAME="pm-frontend-prev"
+
+          rollback() {
+            echo "↩ Rolling back frontend to previous container (best-effort)..."
+            docker logs pm-frontend --tail 100 2>/dev/null || true
+            docker rm -f pm-frontend 2>/dev/null || true
+
+            if docker inspect "$PREV_NAME" >/dev/null 2>&1; then
+              docker start "$PREV_NAME" >/dev/null 2>&1 || true
+              docker rename "$PREV_NAME" pm-frontend >/dev/null 2>&1 || true
+              curl -L -s -o /dev/null -w "rollback_http=%{http_code}\n" http://127.0.0.1:8080/ || true
+              echo "✓ Rollback attempted"
+            else
+              echo "⚠ No previous frontend container found ($PREV_NAME)"
+            fi
+          }
+
+          # Cleanup stale canary/prev
+          docker rm -f "$CAND_NAME" 2>/dev/null || true
+          docker stop "$PREV_NAME" 2>/dev/null || true
+          docker rm -f "$PREV_NAME" 2>/dev/null || true
+
+          # Find existing container (supports legacy name)
+          OLD_NAME=""
+          for n in pm-frontend projectmeats-frontend; do
+            if docker inspect "$n" >/dev/null 2>&1; then
+              OLD_NAME="$n"
+              break
+            fi
+          done
+
+          echo "Starting frontend canary on 127.0.0.1:${CAND_PORT}..."
+          docker run -d --name "$CAND_NAME" \
+            --restart unless-stopped \
+            -p 127.0.0.1:${CAND_PORT}:80 \
+            -e REACT_APP_API_BASE_URL="${API_BASE_URL}" \
+            -e REACT_APP_SENTRY_DSN="${SENTRY_DSN:-}" \
+            -e BACKEND_HOST="${BACKEND_HOST}" \
+            -e DOMAIN_NAME="${DOMAIN_NAME}" \
+            -e ENVIRONMENT="${ENVIRONMENT}" \
+            -v /opt/pm/frontend/env/env-config.js:/usr/share/nginx/html/env-config.js:ro \
+            "$RUN_REF"
+
+          echo "Waiting for frontend canary to start..."
+          MAX_WAIT=30
+          ELAPSED=0
+          until docker ps | grep -q "$CAND_NAME"; do
+            if [ $ELAPSED -ge $MAX_WAIT ]; then
+              echo "✗ Canary failed to start within ${MAX_WAIT}s"
+              docker logs "$CAND_NAME" --tail 100 2>/dev/null || true
+              docker rm -f "$CAND_NAME" 2>/dev/null || true
+              exit 1
+            fi
+            sleep 2
+            ELAPSED=$((ELAPSED + 2))
+          done
+
+          echo "Health-checking frontend canary..."
+          MAX_ATTEMPTS=10
+          ATTEMPT=1
+          while [ $ATTEMPT -le $MAX_ATTEMPTS ]; do
+            HTTP_CODE=$(curl -L -s -o /dev/null -w "%{http_code}" "http://127.0.0.1:${CAND_PORT}/" || echo "000")
+            if [ "$HTTP_CODE" = "200" ]; then
+              echo "✓ Canary health check passed (HTTP $HTTP_CODE)"
+              break
+            fi
+            echo "Canary health attempt $ATTEMPT/$MAX_ATTEMPTS (HTTP $HTTP_CODE), retrying..."
+            sleep 4
+            ATTEMPT=$((ATTEMPT + 1))
+          done
+
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "✗ Canary health check failed; leaving existing frontend untouched"
+            docker logs "$CAND_NAME" --tail 200 2>/dev/null || true
+            docker rm -f "$CAND_NAME" 2>/dev/null || true
+            exit 1
+          fi
+
+          echo "Canary healthy. Swapping into canonical port 8080..."
+
+          if [ -n "$OLD_NAME" ]; then
+            docker stop "$OLD_NAME" 2>/dev/null || true
+            docker rename "$OLD_NAME" "$PREV_NAME" 2>/dev/null || true
+          fi
+
+          docker rm -f pm-frontend 2>/dev/null || true
+
           docker run -d --name pm-frontend \
             --restart unless-stopped \
             -p 127.0.0.1:8080:80 \
@@ -1602,36 +1863,23 @@ jobs:
             -e DOMAIN_NAME="${DOMAIN_NAME}" \
             -e ENVIRONMENT="${ENVIRONMENT}" \
             -v /opt/pm/frontend/env/env-config.js:/usr/share/nginx/html/env-config.js:ro \
-            "$REG/$IMG:$IMAGE_TAG"
-          
-          # Wait for container to be running
-          echo "Waiting for container to start..."
+            "$RUN_REF"
+
+          echo "Waiting for canonical frontend to start..."
           MAX_WAIT=30
           ELAPSED=0
           until docker ps | grep -q pm-frontend; do
             if [ $ELAPSED -ge $MAX_WAIT ]; then
-              echo "✗ Container failed to start within ${MAX_WAIT}s"
-              docker ps -a | grep pm-frontend || echo "No container found"
-              docker logs pm-frontend --tail 50 2>/dev/null || true
+              echo "✗ Frontend failed to start within ${MAX_WAIT}s"
+              docker logs pm-frontend --tail 100 2>/dev/null || true
+              rollback
               exit 1
             fi
-            echo "Waiting... (${ELAPSED}s/${MAX_WAIT}s)"
             sleep 2
             ELAPSED=$((ELAPSED + 2))
           done
-          echo "✓ Container is running"
-          
-          # Additional health check
-          sleep 3
-          if docker ps | grep 'pm-frontend' > /dev/null; then
-            echo "✓ Frontend container verified running"
-          else
-            echo "✗ Frontend container is not running"
-            docker ps -a | grep 'pm-frontend' || echo "No container found"
-            exit 1
-          fi
-          
-          # Health check - container serves on port 8080 (mapped from container port 80)
+
+          # Health check - container serves on port 8080
           echo "Checking frontend health on port 8080..."
           MAX_ATTEMPTS=10
           ATTEMPT=1
@@ -1645,12 +1893,15 @@ jobs:
             sleep 5
             ATTEMPT=$((ATTEMPT + 1))
           done
-          
+
           if [ "$HTTP_CODE" != "200" ]; then
             echo "✗ Frontend health check failed after $MAX_ATTEMPTS attempts"
-            docker logs pm-frontend --tail 50
+            rollback
             exit 1
           fi
+
+          echo "Cleaning up frontend canary container..."
+          docker rm -f "$CAND_NAME" 2>/dev/null || true
           
           echo ""
           echo "==================================="
