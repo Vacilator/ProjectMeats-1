@@ -310,8 +310,17 @@ class WebhookReceiverAPIView(APIView):
     authentication_classes = []
 
     def post(self, request, workflow_id, webhook_token):
+        # Legacy endpoint has no tenant_id in the path.
+        # Fail closed unless tenant context is resolvable by middleware/domain.
+        tenant = getattr(request, 'tenant', None)
+        if not tenant or not getattr(tenant, 'is_active', True):
+            return _webhook_not_found()
+
+        # Set tenant/RLS context BEFORE touching tenant-scoped workflow tables (FORCE RLS).
+        _set_tenant_context(request, tenant)
+
         try:
-            workflow = TenantWorkflow.objects.select_related('tenant').get(id=workflow_id)
+            workflow = TenantWorkflow.objects.select_related('tenant').get(id=workflow_id, tenant_id=tenant.id)
         except TenantWorkflow.DoesNotExist:
             return _webhook_not_found()
 
