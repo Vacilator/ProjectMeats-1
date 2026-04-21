@@ -90,38 +90,34 @@ class TenantMiddleware:
             )
 
         # 1. FIRST: Try to get tenant from X-Tenant-ID header (explicit tenant selection)
-        # This takes priority even for Global System Admins so they can switch tenants
+        # This takes priority even for Global System Admins so they can switch tenants.
+        #
+        # SECURITY: Never honor X-Tenant-ID for anonymous requests. For authenticated requests,
+        # membership validation is enforced in TenantAware authentication (JWT/Token) and is
+        # additionally checked here for session-auth flows.
         tenant_id = request.headers.get("X-Tenant-ID")
-        # IMPORTANT: Header-based tenant selection is validated post-auth for JWT/Token
-        # requests (see apps.tenants.authentication). Middleware may still resolve
-        # request.tenant for routing and view-layer filtering.
-        if tenant_id:
+        if tenant_id and request.user.is_authenticated:
             try:
                 tenant = Tenant.objects.get(id=tenant_id, is_active=True)
                 resolution_method = "X-Tenant-ID header"
-                
+
                 # Verify user has access to this tenant
-                if request.user.is_authenticated:
-                    # Superusers and Global System Admins can access any tenant
-                    is_global_admin = request.user.groups.filter(name='Global System Admins').exists()
-                    if not request.user.is_superuser and not is_global_admin:
-                        if not TenantUser.objects.filter(
-                            user=request.user, tenant=tenant, is_active=True
-                        ).exists():
-                            logger.warning(
-                                f"Unauthorized tenant access attempt: "
-                                f"user={request.user.username}, tenant_id={tenant_id}, "
-                                f"path={request.path}"
-                            )
-                            return HttpResponseForbidden(
-                                "You do not have access to this tenant"
-                            )
-                    elif is_global_admin:
-                        logger.info(
-                            f"Global System Admin explicit tenant selection: "
-                            f"user={request.user.username}, tenant={tenant.slug}, "
+                # Superusers and Global System Admins can access any tenant
+                is_global_admin = request.user.groups.filter(name='Global System Admins').exists()
+                if not request.user.is_superuser and not is_global_admin:
+                    if not TenantUser.objects.filter(user=request.user, tenant=tenant, is_active=True).exists():
+                        logger.warning(
+                            f"Unauthorized tenant access attempt: "
+                            f"user={request.user.username}, tenant_id={tenant_id}, "
                             f"path={request.path}"
                         )
+                        return HttpResponseForbidden("You do not have access to this tenant")
+                elif is_global_admin:
+                    logger.info(
+                        f"Global System Admin explicit tenant selection: "
+                        f"user={request.user.username}, tenant={tenant.slug}, "
+                        f"path={request.path}"
+                    )
             except Tenant.DoesNotExist:
                 logger.warning(
                     f"Invalid tenant ID in X-Tenant-ID header: {tenant_id}, "
@@ -132,6 +128,12 @@ class TenantMiddleware:
                     f"Invalid tenant ID format in X-Tenant-ID header: {tenant_id}, "
                     f"path={request.path}"
                 )
+        elif tenant_id and not request.user.is_authenticated:
+            logger.debug(
+                "Ignoring X-Tenant-ID for anonymous request: tenant_id=%s path=%s",
+                tenant_id,
+                request.path,
+            )
         
         # 2. SECOND: Global System Admins default to System Root if no explicit tenant
         if not tenant and hasattr(request, 'user') and request.user.is_authenticated:
