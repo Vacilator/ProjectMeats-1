@@ -1682,3 +1682,4 @@ Deliverables:
 - **2026-04-21** — CI: digest-pin workflow service images (postgres + pgvector) to multi-arch manifest digests for deterministic runs. (PR: #4548)
 - **2026-04-21** — Docs: refresh discovery backlog pointers and update canonical `MASTER_PLAN.md` execution snapshot (no behavior changes). (PR: #4550)
 - **2026-04-21** — Workflows: tenant-path webhook receiver sets tenant/RLS context before ORM lookup (FORCE RLS safe) and adds call-order regression coverage. (PR: #4552)
+- **2026-04-21** — Workflows: legacy webhook receiver now fails closed unless tenant context is resolvable; sets tenant/RLS before ORM lookup and scopes lookup by request.tenant. (PR: #4554)
