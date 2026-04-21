@@ -64,24 +64,24 @@ describe('TabbedConfigPanel a11y tabs', () => {
   it('renders ARIA tablist/tabs and a tabpanel with stable data-testids', async () => {
     await renderPanel('form');
 
-    const tablist = screen.getByRole('tablist', { name: 'Config tabs' });
-    expect(tablist).toHaveAttribute('data-testid', 'config-tabs');
+    const tablist = screen.getByRole('tablist', { name: 'Node configuration' });
+    expect(tablist).toHaveAttribute('data-testid', 'flow-config-tablist');
 
     const general = screen.getByRole('tab', { name: 'General' });
     const fields = screen.getByRole('tab', { name: 'Fields' });
     const advanced = screen.getByRole('tab', { name: 'Advanced' });
     const preview = screen.getByRole('tab', { name: 'Preview' });
 
-    expect(general).toHaveAttribute('data-testid', 'config-tab-general');
-    expect(fields).toHaveAttribute('data-testid', 'config-tab-fields');
-    expect(advanced).toHaveAttribute('data-testid', 'config-tab-advanced');
-    expect(preview).toHaveAttribute('data-testid', 'config-tab-preview');
+    expect(general).toHaveAttribute('data-testid', 'flow-config-tab-general');
+    expect(fields).toHaveAttribute('data-testid', 'flow-config-tab-fields');
+    expect(advanced).toHaveAttribute('data-testid', 'flow-config-tab-advanced');
+    expect(preview).toHaveAttribute('data-testid', 'flow-config-tab-preview');
 
     expect(general).toHaveAttribute('aria-selected', 'true');
     expect(fields).toHaveAttribute('aria-selected', 'false');
 
     const panel = screen.getByRole('tabpanel');
-    expect(panel).toHaveAttribute('data-testid', 'config-tabpanel-general');
+    expect(panel).toHaveAttribute('data-testid', 'flow-config-tabpanel-general');
 
     const panelId = panel.getAttribute('id');
     expect(panelId).toBeTruthy();
@@ -112,7 +112,7 @@ describe('TabbedConfigPanel a11y tabs', () => {
     fireEvent.keyDown(fields, { key: 'Enter' });
     expect(fields).toHaveAttribute('aria-selected', 'true');
 
-    expect(await screen.findByTestId('config-tabpanel-fields')).toBeInTheDocument();
+    expect(await screen.findByTestId('flow-config-tabpanel-fields')).toBeInTheDocument();
   });
 
   it('hides Fields/Preview for non-form nodes', async () => {

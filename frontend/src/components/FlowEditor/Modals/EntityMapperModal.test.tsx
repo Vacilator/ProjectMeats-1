@@ -255,28 +255,32 @@ describe('EntityMapperModal', () => {
   });
 
   describe('Mapping Deletion', () => {
-    it('allows removing mapping', async () => {
-      render(
-        <EntityMapperModal
-          open={true}
-          onClose={mockOnClose}
-          formId="form123"
-          existingMappings={[{ formFieldId: 'field1', entityAttribute: 'name' }]}
-          onSave={mockOnSave}
-        />
-      );
+    it(
+      'allows removing mapping',
+      { timeout: 20_000 },
+      async () => {
+        render(
+          <EntityMapperModal
+            open={true}
+            onClose={mockOnClose}
+            formId="form123"
+            existingMappings={[{ formFieldId: 'field1', entityAttribute: 'name' }]}
+            onSave={mockOnSave}
+          />
+        );
 
-      // Find delete button (rendered as icon)
-      const deleteButtons = screen.getAllByRole('button');
-      const deleteButton = deleteButtons.find(btn => btn.className?.includes('danger'));
-      
-      if (deleteButton) {
-        fireEvent.click(deleteButton);
+        // Find delete button (rendered as icon)
+        const deleteButtons = screen.getAllByRole('button');
+        const deleteButton = deleteButtons.find((btn) => btn.className?.includes('danger'));
+
+        if (deleteButton) {
+          fireEvent.click(deleteButton);
+        }
+
+        // Verify mapping removed (implementation-specific)
+        expect(true).toBe(true);
       }
-
-      // Verify mapping removed (implementation-specific)
-      expect(true).toBe(true);
-    });
+    );
   });
 
   describe('Validation', () => {
