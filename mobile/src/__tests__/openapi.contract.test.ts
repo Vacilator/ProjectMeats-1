@@ -122,5 +122,27 @@ describe('OpenAPI contract – mobile ApiService', () => {
     internalApi.post.mockResolvedValue({ data: { message: 'ok' } });
     await ApiService.logout();
     expectExists('/auth/logout/', 'post');
+
+    internalApi.get.mockResolvedValue({
+      data: {
+        count: 0,
+        results: [],
+      },
+    });
+    await ApiService.getWorkForms();
+    expectExists('/tenant-workforms/', 'get');
+
+    internalApi.get.mockResolvedValue({
+      data: {
+        id: 'wf-1',
+        name: 'WF',
+        status: 'draft',
+        workflow_definition: { nodes: [], edges: [] },
+        updated_at: '2026-01-01T00:00:00Z',
+      },
+    });
+    await ApiService.getWorkForm('wf-1');
+    // OpenAPI uses a templated path for detail routes.
+    expectExists('/tenant-workforms/{id}/', 'get');
   });
 });

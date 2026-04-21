@@ -166,7 +166,10 @@ describe('ApiService – workforms', () => {
           description: 'Desc',
           status: 'active',
           node_count: 3,
-          created_at: '2026-01-01T00:00:00Z',
+          edge_count: 2,
+          version: 1,
+          execution_count: 0,
+          last_executed_at: null,
           updated_at: '2026-01-02T00:00:00Z',
         },
       ],
@@ -176,7 +179,9 @@ describe('ApiService – workforms', () => {
     const result = await ApiService.getWorkForms();
     expect(result.count).toBe(2);
     expect(result.results[0].name).toBe('Intake');
+    expect(result.results[0].status).toBe('active');
     expect(result.results[0].is_active).toBe(true);
+    expect(result.results[0].edge_count).toBe(2);
     expect(internalApi.get).toHaveBeenCalledWith('/tenant-workforms/');
   });
 
@@ -186,15 +191,21 @@ describe('ApiService – workforms', () => {
       name: 'Intake',
       description: 'Desc',
       status: 'draft',
-      node_count: 3,
-      created_at: '2026-01-01T00:00:00Z',
+      workflow_definition: {
+        nodes: [{ id: 'n1' }],
+        edges: [],
+      },
+      form_references: [],
       updated_at: '2026-01-02T00:00:00Z',
     };
     internalApi.get.mockResolvedValueOnce({ data: mockForm });
 
     const result = await ApiService.getWorkForm('wf-1');
     expect(result.id).toBe('wf-1');
+    expect(result.status).toBe('draft');
     expect(result.is_active).toBe(false);
+    expect(result.node_count).toBe(1);
+    expect(result.workflow_definition?.nodes?.length).toBe(1);
     expect(internalApi.get).toHaveBeenCalledWith('/tenant-workforms/wf-1/');
   });
 });
