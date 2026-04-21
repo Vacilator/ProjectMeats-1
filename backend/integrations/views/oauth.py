@@ -19,6 +19,7 @@ from apps.integrations.models import ExternalAuthProvider
 from apps.integrations.providers import MicrosoftGraphProvider
 from apps.integrations.providers.base import EmailProviderError, AuthenticationError
 from apps.tenants.models import Tenant
+from apps.tenants.rls import set_current_tenant
 
 logger = logging.getLogger(__name__)
 
@@ -359,6 +360,17 @@ class OAuthCallbackView(APIView):
             response = redirect(f'/settings/email-integrations?error=permission_denied&provider={quote(provider)}')
             _clear_oauth_cookies(response, provider)
             return response
+
+        # Ensure tenant + RLS context is set before any tenant-scoped writes.
+        request.tenant = tenant
+        if hasattr(request, '_request') and getattr(request, '_request', None) is not None:
+            setattr(request._request, 'tenant', tenant)
+
+        rls_result = set_current_tenant(str(tenant.id))
+        if getattr(rls_result, 'ok', False):
+            setattr(request, '_rls_set', True)
+            if hasattr(request, '_request') and getattr(request, '_request', None) is not None:
+                setattr(request._request, '_rls_set', True)
 
         # Must exactly match what was used in the authorize redirect.
         callback_path = f'/api/v1/integrations/oauth/callback/{provider}/'
