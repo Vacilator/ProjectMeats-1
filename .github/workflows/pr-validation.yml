@@ -148,6 +148,38 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          fetch-depth: 1
+
+      - name: "Guardrail: no new runtime console.* in frontend/src"
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          BASE_SHA="${{ github.event.pull_request.base.sha }}"
+          if [ -z "$BASE_SHA" ]; then
+            echo "BASE_SHA missing (not a pull_request event?)" >&2
+            exit 1
+          fi
+
+          # Ensure the base commit exists locally for diff.
+          git fetch --no-tags --depth=1 origin "$BASE_SHA"
+
+          # Fail if this PR adds new runtime console.* calls in frontend/src.
+          # (Exclude tests and the canonical logger implementation.)
+          if git diff --unified=0 "$BASE_SHA"...HEAD -- \
+            'frontend/src/**/*.ts' \
+            'frontend/src/**/*.tsx' \
+            ':(exclude)frontend/src/**/*.test.*' \
+            ':(exclude)frontend/src/**/*.spec.*' \
+            ':(exclude)frontend/src/**/__tests__/**' \
+            ':(exclude)frontend/src/utils/logger.ts' \
+            | grep -nE '^\+[^+].*console\.(log|warn|error|debug)\b'; then
+            echo "❌ New console.* calls detected. Use logger.* instead." >&2
+            exit 1
+          fi
+
+          echo "✓ No new runtime console.* calls detected"
 
       - name: Set up Node
         uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
