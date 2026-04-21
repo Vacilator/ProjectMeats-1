@@ -21,6 +21,19 @@ log_error() {
     echo -e "${RED}[ERROR]${NC} $1"
 }
 
+# Fail if archived workflows directory exists (prevents bypassing guardrails)
+check_no_archived_workflows_dir() {
+    log_info "Checking no archived workflows directory exists..."
+
+    if [[ -d .github/workflows/archived ]]; then
+        log_error "Archived workflows directory detected at .github/workflows/archived"
+        log_error "Move archived workflows out of .github/workflows/ so they cannot be executed by GitHub Actions."
+        return 1
+    fi
+
+    return 0
+}
+
 # Check YAML syntax
 validate_yaml_syntax() {
     log_info "Validating YAML syntax..."
@@ -1064,6 +1077,7 @@ main() {
     
     local failed=0
     
+    check_no_archived_workflows_dir || ((failed++))
     validate_yaml_syntax || ((failed++))
     check_manifest_secrets_for_all_workflows || ((failed++))
     check_environment_lanes_match_manifest || ((failed++))
