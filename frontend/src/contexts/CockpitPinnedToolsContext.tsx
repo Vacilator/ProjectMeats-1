@@ -1,5 +1,6 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import type { WidgetConfig } from '../components/Widgets/WidgetGrid';
+import { logger } from '@/utils/logger';
 
 export type PinnedToolKind = 'widget' | 'tool';
 
@@ -46,7 +47,7 @@ export const CockpitPinnedToolsProvider: React.FC<{ children: React.ReactNode }>
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed)) setPinned(parsed);
     } catch (e) {
-      console.warn('[CockpitPinnedTools] Failed to load pinned tools:', e);
+      logger.warn('[CockpitPinnedTools] Failed to load pinned tools:', e);
     }
   }, []);
 
@@ -54,7 +55,7 @@ export const CockpitPinnedToolsProvider: React.FC<{ children: React.ReactNode }>
     try {
       localStorage.setItem(getStorageKey(), JSON.stringify(pinned));
     } catch (e) {
-      console.warn('[CockpitPinnedTools] Failed to persist pinned tools:', e);
+      logger.warn('[CockpitPinnedTools] Failed to persist pinned tools:', e);
     }
   }, [pinned]);
 

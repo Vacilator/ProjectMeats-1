@@ -82,7 +82,7 @@ class ConfigSchemaRegistry {
    */
   initialize(schemas: NodeConfigSchema[]): void {
     if (this.initialized) {
-      console.warn('ConfigSchemaRegistry already initialized, skipping');
+      logger.warn('ConfigSchemaRegistry already initialized, skipping');
       return;
     }
 
@@ -92,24 +92,24 @@ class ConfigSchemaRegistry {
         const normalizedSchema = this.normalizeRequiredValidators(schema);
         const validation = this.validateSchema(normalizedSchema);
         if (!validation.valid) {
-          console.error(`Invalid schema for ${schema.nodeType}:`, validation.errors);
+          logger.error(`Invalid schema for ${schema.nodeType}:`, validation.errors);
           continue;
         }
 
         if (validation.warnings && validation.warnings.length > 0) {
-          console.warn(`Warnings for schema ${schema.nodeType}:`, validation.warnings);
+          logger.warn(`Warnings for schema ${schema.nodeType}:`, validation.warnings);
         }
 
         this.schemas.set(normalizedSchema.nodeType, normalizedSchema);
       } catch (error) {
-        console.error(`[Schema Registry] Failed to register schema for ${schema?.nodeType || 'unknown'}:`, error);
+        logger.error(`[Schema Registry] Failed to register schema for ${schema?.nodeType || 'unknown'}:`, error);
         continue;
       }
     }
 
     this.initialized = true;
     if (this.shouldDebugLog()) {
-      console.debug(`ConfigSchemaRegistry initialized with ${this.schemas.size} schemas`);
+      logger.debug(`ConfigSchemaRegistry initialized with ${this.schemas.size} schemas`);
     }
   }
 
@@ -132,7 +132,7 @@ class ConfigSchemaRegistry {
 
     // Check for existing schema
     if (this.schemas.has(normalizedSchema.nodeType) && !overwrite) {
-      console.warn(
+      logger.warn(
         `Schema for ${normalizedSchema.nodeType} already registered. ` +
         `Use overwrite=true to replace existing schema.`
       );
@@ -141,7 +141,7 @@ class ConfigSchemaRegistry {
 
     this.schemas.set(normalizedSchema.nodeType, normalizedSchema);
     if (this.shouldDebugLog()) {
-      console.debug(`Registered schema for node type: ${normalizedSchema.nodeType}`);
+      logger.debug(`Registered schema for node type: ${normalizedSchema.nodeType}`);
     }
   }
 
@@ -154,7 +154,7 @@ class ConfigSchemaRegistry {
   getSchema(nodeType: string): NodeConfigSchema {
     const schema = this.schemas.get(nodeType);
     if (!schema) {
-      console.warn(`[Schema Registry] No schema found for node type: ${nodeType}, using fallback`);
+      logger.warn(`[Schema Registry] No schema found for node type: ${nodeType}, using fallback`);
       return this.createFallbackSchema(nodeType);
     }
     return schema;

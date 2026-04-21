@@ -52,12 +52,12 @@ export function sortNodesTopologically(nodes: Node[]): Node[] {
   const validNodes = nodes.filter(node => node != null && typeof node === 'object' && node.id);
   
   if (validNodes.length === 0) {
-    console.warn('[Node Sort] No valid nodes found after filtering null/undefined entries');
+    logger.warn('[Node Sort] No valid nodes found after filtering null/undefined entries');
     return [];
   }
   
   if (validNodes.length !== nodes.length) {
-    console.warn(`[Node Sort] Filtered out ${nodes.length - validNodes.length} null/undefined nodes`);
+    logger.warn(`[Node Sort] Filtered out ${nodes.length - validNodes.length} null/undefined nodes`);
   }
 
   // Build a map of node IDs for quick lookup
@@ -80,7 +80,7 @@ export function sortNodesTopologically(nodes: Node[]): Node[] {
 
     const node = nodeMap.get(nodeId);
     if (!node) {
-      console.warn(`[Node Sort] Node ${nodeId} not found in map (orphaned reference)`);
+      logger.warn(`[Node Sort] Node ${nodeId} not found in map (orphaned reference)`);
       return;
     }
 
@@ -133,12 +133,12 @@ function verifyNodeOrdering(nodes: Node[]): boolean {
       const parentIndex = nodeIndices.get(node.parentId);
       
       if (parentIndex === undefined) {
-        console.error(
+        logger.error(
           `[Node Sort] ❌ Parent ${node.parentId} of node ${node.id} not found in sorted array`
         );
         hasOrderingError = true;
       } else if (parentIndex >= index) {
-        console.error(
+        logger.error(
           `[Node Sort] ❌ Parent ${node.parentId} at index ${parentIndex} must come before child ${node.id} at index ${index}`
         );
         hasOrderingError = true;
@@ -147,7 +147,7 @@ function verifyNodeOrdering(nodes: Node[]): boolean {
   });
 
   if (hasOrderingError) {
-    console.error('[Node Sort] ❌ Sorting failed - parent-child ordering violated');
+    logger.error('[Node Sort] ❌ Sorting failed - parent-child ordering violated');
   } else {
     logger.debug(`✅ Successfully sorted ${nodes.length} nodes`, { component: 'NodeSorting' });
   }
@@ -232,7 +232,7 @@ export function getNodeDepth(nodes: Node[], nodeId: string): number {
   while (current.parentId) {
     const parent = nodeMap.get(current.parentId);
     if (!parent) {
-      console.warn(`[Node Depth] Orphaned node ${current.id} has parent ${current.parentId} that doesn't exist`);
+      logger.warn(`[Node Depth] Orphaned node ${current.id} has parent ${current.parentId} that doesn't exist`);
       break;
     }
     depth++;
@@ -240,7 +240,7 @@ export function getNodeDepth(nodes: Node[], nodeId: string): number {
     
     // Prevent infinite loop from cycles
     if (depth > nodes.length) {
-      console.error(`[Node Depth] Cycle detected in hierarchy for node ${nodeId}`);
+      logger.error(`[Node Depth] Cycle detected in hierarchy for node ${nodeId}`);
       return -1;
     }
   }
