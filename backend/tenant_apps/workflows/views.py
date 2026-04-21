@@ -24,6 +24,8 @@ from drf_spectacular.utils import OpenApiTypes, extend_schema
 
 logger = logging.getLogger(__name__)
 
+from apps.tenants.models import Tenant, TenantUser
+
 from .models import (
     FormStatus,
     FormStatusHistory,
@@ -78,8 +80,55 @@ from .services.form_process_persistence import FormProcessPersistenceService
 # =============================================================================
 
 
+def _get_request_tenant(request):
+    """Return resolved tenant, supporting both middleware and DRF-auth flows.
+
+    In normal requests, TenantAware authentication sets request.tenant and asserts
+    RLS session vars. For tests (force_authenticate) and edge cases, we also support
+    late resolution from the X-Tenant-ID header with membership validation.
+    """
+
+    django_request = getattr(request, '_request', None)
+    tenant = getattr(request, 'tenant', None) or getattr(django_request, 'tenant', None)
+    if tenant:
+        return tenant
+
+    tenant_id = None
+    if hasattr(request, 'headers'):
+        tenant_id = request.headers.get('X-Tenant-ID')
+    if not tenant_id and django_request is not None and hasattr(django_request, 'headers'):
+        tenant_id = django_request.headers.get('X-Tenant-ID')
+
+    user = getattr(request, 'user', None) or getattr(django_request, 'user', None)
+    if not tenant_id or not user or not getattr(user, 'is_authenticated', False):
+        return None
+
+    try:
+        tenant = Tenant.objects.get(id=tenant_id, is_active=True)
+    except (Tenant.DoesNotExist, ValueError):
+        return None
+
+    is_global_admin = user.groups.filter(name='Global System Admins').exists()
+    if not (user.is_superuser or is_global_admin):
+        if not TenantUser.objects.filter(user=user, tenant=tenant, is_active=True).exists():
+            return None
+
+    # Cache for later uses during this request lifecycle.
+    try:
+        setattr(request, 'tenant', tenant)
+    except Exception:
+        pass
+    try:
+        if django_request is not None:
+            setattr(django_request, 'tenant', tenant)
+    except Exception:
+        pass
+
+    return tenant
+
+
 def _require_tenant(request):
-    tenant = getattr(request, 'tenant', None)
+    tenant = _get_request_tenant(request)
     if not tenant:
         return None, Response(
             {'error': 'Tenant context is required (X-Tenant-ID header).'},
@@ -2730,7 +2779,7 @@ class AvailableFormsViewSet(viewsets.ReadOnlyModelViewSet):
         WorkForms (apps.system.TenantWorkForm) are added in `list()` as a second query
         to avoid cross-model unions.
         """
-        tenant = getattr(self.request, 'tenant', None)
+        tenant = _get_request_tenant(self.request)
         if not tenant:
             return TenantForm.objects.none()
 
@@ -2745,7 +2794,7 @@ class AvailableFormsViewSet(viewsets.ReadOnlyModelViewSet):
         """Tenant-scoped WorkForms for Quick Actions."""
         from apps.system.models import TenantWorkForm
 
-        tenant = getattr(request, 'tenant', None)
+        tenant = _get_request_tenant(request)
         if not tenant:
             return TenantWorkForm.objects.none()
 
