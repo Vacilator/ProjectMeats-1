@@ -206,3 +206,9 @@ class WorkFormsRBACSystemViewSetsTests(APITestCase):
             HTTP_HOST=self.domain.domain,
         )
         self.assertEqual(resp.status_code, status.HTTP_201_CREATED, resp.content)
+
+        created_form_id = resp.json().get('created_form_id')
+        self.assertTrue(created_form_id, resp.content)
+
+        created = TenantForm.objects.get(id=created_form_id)
+        self.assertEqual(created.tenant_id, self.tenant.id)
