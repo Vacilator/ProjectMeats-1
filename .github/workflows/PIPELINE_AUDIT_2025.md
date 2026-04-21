@@ -408,22 +408,22 @@ Shared (Repository-level):
 ### 8.1 Current Test Coverage
 
 **Backend**:
-- Unit tests: DISABLED (see notes below)
-- Integration tests: DISABLED
-- API tests: DISABLED
+- Unit tests: ENABLED (gated in PR Validation + deployment reusable workflow)
+- Integration tests: PARTIAL (some integration-style tests run under Django test runner)
+- API tests: PARTIAL (DRF tests run under Django test runner)
 
 **Frontend**:
-- Unit tests: DISABLED (awaiting Vite migration)
-- Integration tests: None
-- E2E tests: None
+- Unit tests: ENABLED (Vitest, gated in deployment reusable workflow)
+- Integration tests: PARTIAL (component integration tests under Vitest; specific hanging spec quarantined via Vitest exclude)
+- E2E tests: PRESENT (Playwright specs exist) but NOT gated in deploy pipeline by default
 
 **Mobile**:
-- Unit tests: None
-- Integration tests: None
+- Unit tests: PRESENT (gated in PR Validation)
+- Integration tests: PARTIAL (via mobile test suite)
 
-**Why Tests Are Disabled**:
-- Backend: Idempotency paradox with RLS policies
-- Frontend: Jest/CRA incompatibility with Vite migration
+**Notes / Known Gaps**:
+- E2E (Playwright) is not yet a required deployment gate; consider gating on UAT only once stable.
+- One Vitest spec is quarantined in vite.config.ts exclude list due to CI hang; track and remove quarantine when fixed.
 
 ### 8.2 Recommended Test Strategy
 
