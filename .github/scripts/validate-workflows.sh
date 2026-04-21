@@ -800,6 +800,75 @@ check_env_separation() {
     return 0
 }
 
+# Check workflow environment lanes match env manifest (prevents secret-scope typos)
+check_environment_lanes_match_manifest() {
+    log_info "Checking workflow environment lanes against manifests/env.manifest.json..."
+
+    if [[ ! -f .github/workflows/main-pipeline.yml ]]; then
+        log_info "No main-pipeline.yml found (skipping environment lane validation)"
+        return 0
+    fi
+
+    if ! python - <<'PY'
+import json
+import sys
+from pathlib import Path
+
+try:
+    import yaml
+except Exception as e:
+    print(f"ERROR: pyyaml not available: {e}", file=sys.stderr)
+    raise SystemExit(1)
+
+manifest_path = Path('manifests/env.manifest.json')
+if not manifest_path.exists():
+    manifest_path = Path('config/env.manifest.json')
+
+if not manifest_path.exists():
+    print('ERROR: env manifest not found at manifests/env.manifest.json (or legacy config/env.manifest.json)', file=sys.stderr)
+    raise SystemExit(1)
+
+manifest = json.loads(manifest_path.read_text(encoding='utf-8'))
+lanes = set((manifest.get('environments') or {}).keys())
+if not lanes:
+    print('ERROR: manifest has no environments.* lane keys to validate against', file=sys.stderr)
+    raise SystemExit(1)
+
+wf_path = Path('.github/workflows/main-pipeline.yml')
+data = yaml.safe_load(wf_path.read_text(encoding='utf-8', errors='ignore')) or {}
+jobs = data.get('jobs') or {}
+
+referenced = set()
+for _job_name, job in jobs.items():
+    if not isinstance(job, dict):
+        continue
+    with_section = job.get('with')
+    if not isinstance(with_section, dict):
+        continue
+
+    for k in ('backend_environment', 'frontend_environment'):
+        v = with_section.get(k)
+        if isinstance(v, str) and v.strip():
+            referenced.add(v.strip())
+
+if not referenced:
+    print('ERROR: main-pipeline.yml references no backend_environment/frontend_environment lanes (validator may be out of date)', file=sys.stderr)
+    raise SystemExit(1)
+
+missing = sorted(referenced - lanes)
+if missing:
+    print(f"ERROR: main-pipeline.yml references environment lanes missing from manifest: {', '.join(missing)}", file=sys.stderr)
+    raise SystemExit(1)
+
+print('✓ Workflow environment lanes are manifest-defined')
+PY
+    then
+        return 1
+    fi
+
+    return 0
+}
+
 # Main validation
 main() {
     log_info "========================================="
@@ -810,6 +879,7 @@ main() {
     
     validate_yaml_syntax || ((failed++))
     check_manifest_secrets_for_all_workflows || ((failed++))
+    check_environment_lanes_match_manifest || ((failed++))
     check_cache_config || ((failed++))
     check_health_checks || ((failed++))
     check_fetch_depth || ((failed++))
