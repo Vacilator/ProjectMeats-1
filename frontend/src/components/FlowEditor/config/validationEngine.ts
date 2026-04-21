@@ -94,6 +94,10 @@ function validateRule(
     case 'regex':
     case 'pattern':
       if (typeof value === 'string') {
+        // Template variables (e.g. {{customer.email}}) cannot be validated reliably client-side.
+        // Treat them as valid so panels remain usable.
+        if (value.includes('{{') && value.includes('}}')) return null;
+
         const regex = rule.value instanceof RegExp ? rule.value : new RegExp(rule.value);
         if (!regex.test(value)) {
           return rule.message;
@@ -103,8 +107,16 @@ function validateRule(
 
     case 'email':
       if (typeof value === 'string') {
+        if (value.includes('{{') && value.includes('}}')) return null;
+
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        if (!emailRegex.test(value)) {
+        const parts = value
+          .split(',')
+          .map((p) => p.trim())
+          .filter(Boolean);
+
+        const allValid = parts.length === 0 ? emailRegex.test(value.trim()) : parts.every((p) => emailRegex.test(p));
+        if (!allValid) {
           return rule.message;
         }
       }
@@ -112,6 +124,8 @@ function validateRule(
 
     case 'url':
       if (typeof value === 'string') {
+        if (value.includes('{{') && value.includes('}}')) return null;
+
         try {
           new URL(value);
           return null;
