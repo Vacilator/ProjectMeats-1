@@ -17,6 +17,14 @@
 
 import { Node, Edge } from '@xyflow/react';
 
+// Ensure schemas are registered before any publish-time validation runs.
+import '../config/nodeConfigSchemas';
+
+import { schemaRegistry } from '../config/schemaRegistry';
+import { evaluateCondition } from '../config/conditionalLogic';
+import { validateField } from '../config/validationEngine';
+import type { ConfigField } from '../config/types';
+
 export type ValidationSeverity = 'error' | 'warning' | 'info';
 
 export interface ValidationIssue {
@@ -141,11 +149,77 @@ export function validateWorkflow(nodes: Node[], edges: Edge[]): ValidationResult
 /**
  * Validates a single node's configuration
  */
+const _resolveSchemaNodeType = (node: Node): string => {
+  const data = (node.data || {}) as any;
+  if (typeof data.nodeType === 'string' && data.nodeType.trim()) return data.nodeType;
+
+  // Generic action nodes can be discriminated by actionType.
+  if (node.type === 'action' && typeof data.actionType === 'string' && data.actionType.trim()) {
+    const at = data.actionType.trim();
+    const map: Record<string, string> = {
+      email: 'actionEmail',
+      http: 'actionHTTP',
+      sms: 'actionSMS',
+      notify: 'actionNotify',
+      notification: 'actionNotify',
+      script: 'actionScript',
+      createRecord: 'actionCreateRecord',
+      updateRecord: 'actionUpdateRecord',
+      deleteRecord: 'actionDeleteRecord',
+    };
+    return map[at] || `action${at.charAt(0).toUpperCase()}${at.slice(1)}`;
+  }
+
+  // If the node.type already matches a schema nodeType, this will work.
+  return node.type || 'unknown';
+};
+
+const _checkIsVisible = (item: any, data: Record<string, any>): boolean => {
+  const cond = item?.conditional || item?.visibilityCondition || item?.showIf;
+  if (!cond) return true;
+
+  if (typeof cond === 'function') {
+    try {
+      return Boolean(cond(data));
+    } catch {
+      return true;
+    }
+  }
+
+  return evaluateCondition(cond, data);
+};
+
+const _materializeEffectiveValues = (
+  node: Node,
+  schemaFields: ConfigField[]
+): Record<string, any> => {
+  const raw = ((node.data as any) || {}) as Record<string, any>;
+  const out: Record<string, any> = { ...raw };
+
+  // Minimal alias/sync rules to match config panel behavior.
+  if (out.type === undefined && out.triggerType !== undefined) out.type = out.triggerType;
+  if (out.triggerType === undefined && out.type !== undefined) out.triggerType = out.type;
+
+  if (out.entityType === undefined && out.entity !== undefined) out.entityType = out.entity;
+  if (out.entity === undefined && out.entityType !== undefined) out.entity = out.entityType;
+
+  if (out.fieldMappings === undefined && out.fields !== undefined) out.fieldMappings = out.fields;
+  if (out.fields === undefined && out.fieldMappings !== undefined) out.fields = out.fieldMappings;
+
+  // Apply schema defaults for validation computation (only when truly missing).
+  for (const field of schemaFields) {
+    if (out[field.id] === undefined && (field as any).defaultValue !== undefined) {
+      out[field.id] = (field as any).defaultValue;
+    }
+  }
+
+  return out;
+};
+
 export function validateNodeConfig(node: Node): ValidationIssue[] {
   const issues: ValidationIssue[] = [];
-  
-  // Basic validation without schema dependency
-  // Type-specific validations
+
+  // Existing lightweight type-specific checks
   if (node.type === 'form' || node.type === 'formProcessGroup' || node.type === 'formBook') {
     const fields = Array.isArray((node.data as any)?.fields) ? (node.data as any).fields : [];
     if (fields.length === 0) {
@@ -159,7 +233,7 @@ export function validateNodeConfig(node: Node): ValidationIssue[] {
       });
     }
   }
-  
+
   if (node.type === 'conditionIf') {
     const rules = Array.isArray((node.data as any)?.rules) ? (node.data as any).rules : [];
     if (rules.length === 0) {
@@ -173,9 +247,9 @@ export function validateNodeConfig(node: Node): ValidationIssue[] {
       });
     }
   }
-  
+
   if (node.type?.startsWith('action')) {
-    const actionType = node.data.actionType;
+    const actionType = (node.data as any)?.actionType;
     if (!actionType) {
       issues.push({
         id: `no-action-type-${node.id}`,
@@ -187,7 +261,35 @@ export function validateNodeConfig(node: Node): ValidationIssue[] {
       });
     }
   }
-  
+
+  // Schema-driven validation (publish-time parity)
+  const schemaNodeType = _resolveSchemaNodeType(node);
+  const schema = schemaRegistry.getSchema(schemaNodeType);
+
+  const schemaFields: ConfigField[] = (schema.sections || []).flatMap((s: any) => (s?.fields || []) as ConfigField[]);
+  const effective = _materializeEffectiveValues(node, schemaFields);
+
+  for (const section of schema.sections || []) {
+    if (!_checkIsVisible(section, effective)) continue;
+
+    for (const field of (section.fields || []) as ConfigField[]) {
+      if (!_checkIsVisible(field, effective)) continue;
+
+      const value = effective[field.id];
+      const err = validateField(field, value, effective);
+      if (!err) continue;
+
+      issues.push({
+        id: `schema-${node.id}-${field.id}`,
+        nodeId: node.id,
+        severity: 'error',
+        message: err,
+        suggestion: `Open the config panel and fix “${field.label || field.id}”.`,
+        category: 'config',
+      });
+    }
+  }
+
   return issues;
 }
 

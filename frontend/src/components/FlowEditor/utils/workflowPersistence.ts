@@ -18,6 +18,12 @@ import { sortNodesTopologically } from './nodeSorting';
 import { sanitizeNodeDataForPersistence } from './nodeDataSanitization';
 import { apiClient } from '../../../services/apiService';
 
+// Ensure schemas are registered so defaults can be materialized.
+import '../config/nodeConfigSchemas';
+
+import { schemaRegistry } from '../config/schemaRegistry';
+import type { ConfigField } from '../config/types';
+
 // ============================================================================
 // TypeScript Interfaces
 // ============================================================================
@@ -151,11 +157,66 @@ export const prepareWorkflowForSave = (
   // This also prevents "disappearing" nodes when reloading persisted workflows.
   const sortedNodes = sortNodesTopologically(nodesCopy);
   
+  const resolveSchemaNodeType = (node: Node): string => {
+    const data = (node.data || {}) as any;
+    if (typeof data.nodeType === 'string' && data.nodeType.trim()) return data.nodeType;
+
+    if (node.type === 'action' && typeof data.actionType === 'string' && data.actionType.trim()) {
+      const at = data.actionType.trim();
+      const map: Record<string, string> = {
+        email: 'actionEmail',
+        http: 'actionHTTP',
+        sms: 'actionSMS',
+        notify: 'actionNotify',
+        notification: 'actionNotify',
+        script: 'actionScript',
+        createRecord: 'actionCreateRecord',
+        updateRecord: 'actionUpdateRecord',
+        deleteRecord: 'actionDeleteRecord',
+      };
+      return map[at] || `action${at.charAt(0).toUpperCase()}${at.slice(1)}`;
+    }
+
+    return node.type || 'unknown';
+  };
+
+  const materializeDefaultsForNode = (node: Node): void => {
+    const schemaNodeType = resolveSchemaNodeType(node);
+    const schema = schemaRegistry.getSchema(schemaNodeType);
+
+    const fields: ConfigField[] = (schema.sections || []).flatMap((s: any) => (s?.fields || []) as ConfigField[]);
+    const data = (node.data || {}) as any;
+
+    // Minimal sync rules for legacy compatibility.
+    if (data.type === undefined && data.triggerType !== undefined) data.type = data.triggerType;
+    if (data.triggerType === undefined && data.type !== undefined) data.triggerType = data.type;
+
+    if (data.entityType === undefined && data.entity !== undefined) data.entityType = data.entity;
+    if (data.entity === undefined && data.entityType !== undefined) data.entity = data.entityType;
+
+    if (data.fieldMappings === undefined && data.fields !== undefined) data.fieldMappings = data.fields;
+    if (data.fields === undefined && data.fieldMappings !== undefined) data.fields = data.fieldMappings;
+
+    for (const field of fields) {
+      const dv = (field as any).defaultValue;
+      if (dv === undefined) continue;
+      if (typeof dv === 'string' && dv.length === 0) continue;
+      if (data[field.id] === undefined) {
+        data[field.id] = dv;
+      }
+    }
+
+    node.data = data;
+  };
+
   // Ensure all nodes have proper parentId metadata (React Flow v11+)
   // (This is already set by React Flow, but we verify it's serialized)
   for (const node of sortedNodes) {
     // Strip UI-only keys before persistence (shadowConfig, dirty flags, debug flags, etc).
     node.data = sanitizeNodeDataForPersistence(node.data);
+
+    // Materialize schema defaults so "looks set" == "is persisted".
+    materializeDefaultsForNode(node);
 
     if (node.parentId) {
       // Ensure extent is serialized
