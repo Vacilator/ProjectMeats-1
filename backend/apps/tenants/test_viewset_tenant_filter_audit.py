@@ -37,6 +37,8 @@ TENANT_APP_URL_MODULES = [
     'tenant_apps.ai_assistant.urls',
     'tenant_apps.cockpit.urls',
     'tenant_apps.products.urls',
+    # Core router registrations (includes WorkForms system viewsets via workforms_router).
+    'apps.core.urls',
 ]
 
 
@@ -46,23 +48,36 @@ class TenantViewSetTenantFilterAuditTests(SimpleTestCase):
 
         for mod_path in TENANT_APP_URL_MODULES:
             mod = importlib.import_module(mod_path)
-            router = getattr(mod, 'router', None)
-            if router is None:
-                continue
 
-            for prefix, viewset_cls, _basename in getattr(router, 'registry', []):
-                queryset = getattr(viewset_cls, 'queryset', None)
-                model = getattr(queryset, 'model', None) if queryset is not None else None
-                if model is None:
+            routers = []
+            # Common convention
+            if getattr(mod, 'router', None) is not None:
+                routers.append(getattr(mod, 'router'))
+            # Also include any additional routers (e.g., workforms_router)
+            for name in dir(mod):
+                if not name.endswith('router'):
                     continue
-
-                # Only enforce tenant-scoped models.
-                if not any(getattr(f, 'name', None) == 'tenant' for f in model._meta.get_fields()):
+                try:
+                    r = getattr(mod, name)
+                except Exception:
                     continue
+                if r is not None and r not in routers and hasattr(r, 'registry'):
+                    routers.append(r)
 
-                # If a tenant-scoped model uses the DRF default get_queryset, it's almost certainly unsafe.
-                if viewset_cls.get_queryset is GenericAPIView.get_queryset:
-                    offenders.append(f'{mod_path}:{viewset_cls.__name__} (prefix={prefix}, model={model.__name__})')
+            for router in routers:
+                for prefix, viewset_cls, _basename in getattr(router, 'registry', []):
+                    queryset = getattr(viewset_cls, 'queryset', None)
+                    model = getattr(queryset, 'model', None) if queryset is not None else None
+                    if model is None:
+                        continue
+
+                    # Only enforce tenant-scoped models.
+                    if not any(getattr(f, 'name', None) == 'tenant' for f in model._meta.get_fields()):
+                        continue
+
+                    # If a tenant-scoped model uses the DRF default get_queryset, it's almost certainly unsafe.
+                    if viewset_cls.get_queryset is GenericAPIView.get_queryset:
+                        offenders.append(f'{mod_path}:{viewset_cls.__name__} (prefix={prefix}, model={model.__name__})')
 
         if offenders:
             joined = '\n'.join(offenders)
