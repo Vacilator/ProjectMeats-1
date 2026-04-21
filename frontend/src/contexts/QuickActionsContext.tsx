@@ -7,6 +7,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { getAvailableWorkForms } from '@/services/workformsApi';
 import { showAlert } from '@/utils/uiDialogs';
+import { logger } from '@/utils/logger';
 import {
   quickActionsService,
   formSubmissionService,
@@ -104,7 +105,7 @@ export const QuickActionsProvider: React.FC<QuickActionsProviderProps> = ({ chil
         // Don't treat auth errors here as "logged out" unless *all* sources failed auth.
         // This allows partial functionality when one endpoint is forbidden.
         const msg = actionsResult.reason?.message || 'Failed to load quick actions';
-        console.warn('[QuickActions] getQuickActions failed', actionsResult.reason);
+        logger.warn('[QuickActions] getQuickActions failed', actionsResult.reason);
         setError(isAuthError(actionsResult.reason) ? null : msg);
       }
 
@@ -124,7 +125,7 @@ export const QuickActionsProvider: React.FC<QuickActionsProviderProps> = ({ chil
         });
 
       if (formsResult.status === 'rejected') {
-        console.warn('[QuickActions] available-forms failed; continuing with WorkForms enrichment only', formsResult.reason);
+        logger.warn('[QuickActions] available-forms failed; continuing with WorkForms enrichment only', formsResult.reason);
       }
 
       // Optional enrichment from /tenant-workforms/ (may be permission-scoped differently).
@@ -155,7 +156,7 @@ export const QuickActionsProvider: React.FC<QuickActionsProviderProps> = ({ chil
         });
 
       if (workformsResult.status === 'rejected') {
-        console.warn('[QuickActions] WorkForms list failed; continuing with available-forms only', workformsResult.reason);
+        logger.warn('[QuickActions] WorkForms list failed; continuing with available-forms only', workformsResult.reason);
       }
 
       const byKey = new Map<string, AvailableForm>();
@@ -175,7 +176,7 @@ export const QuickActionsProvider: React.FC<QuickActionsProviderProps> = ({ chil
       const combined = Array.from(byKey.values()).sort((a, b) => (a.name ?? '').localeCompare(b.name ?? ''));
       setAvailableForms(combined);
     } catch (err: any) {
-      console.error('Failed to load quick actions:', err);
+      logger.error('Failed to load quick actions:', err);
       setError(err?.message || 'Failed to load quick actions');
     } finally {
       setIsLoading(false);
@@ -193,7 +194,7 @@ export const QuickActionsProvider: React.FC<QuickActionsProviderProps> = ({ chil
       const response = await quickActionsService.updateQuickActions(items);
       setQuickActions(response.items);
     } catch (err: any) {
-      console.error('Failed to update quick actions:', err);
+      logger.error('Failed to update quick actions:', err);
       setError(err.message || 'Failed to update quick actions');
       throw err;
     }
@@ -255,11 +256,11 @@ export const QuickActionsProvider: React.FC<QuickActionsProviderProps> = ({ chil
   const openFormModal = useCallback(async (formId: string) => {
     try {
       setError(null);
-      console.log('[QuickActions] Opening form modal for formId:', formId);
+      logger.debug('[QuickActions] Opening form modal for formId:', formId);
       const submission = await startFormSubmission(formId);
-      console.log('[QuickActions] Form submission created:', submission?.id);
+      logger.debug('[QuickActions] Form submission created:', submission?.id);
     } catch (err: any) {
-      console.error('[QuickActions] Failed to start form submission:', err);
+      logger.error('[QuickActions] Failed to start form submission:', err);
       const errorMsg = err?.response?.data?.error || err?.message || 'Failed to start form';
       setError(errorMsg);
       // Alert the user since the modal won't open
