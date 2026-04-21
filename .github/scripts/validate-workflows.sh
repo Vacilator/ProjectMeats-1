@@ -165,12 +165,12 @@ check_cache_config() {
     log_info "Checking Docker cache configuration..."
 
     local workflows=()
-    shopt -s nullglob
-    workflows=(.github/workflows/*-deployment.yml)
-    shopt -u nullglob
+    for wf in .github/workflows/reusable-deploy.yml .github/workflows/main-pipeline.yml; do
+        [[ -f "$wf" ]] && workflows+=("$wf")
+    done
 
     if [[ ${#workflows[@]} -eq 0 ]]; then
-        log_info "No *-deployment.yml workflows found (skipping cache checks)"
+        log_info "No deploy workflows found (skipping cache checks)"
         return 0
     fi
 
@@ -200,12 +200,12 @@ check_health_checks() {
     log_info "Checking for health check steps..."
 
     local workflows=()
-    shopt -s nullglob
-    workflows=(.github/workflows/*-deployment.yml)
-    shopt -u nullglob
+    for wf in .github/workflows/reusable-deploy.yml; do
+        [[ -f "$wf" ]] && workflows+=("$wf")
+    done
 
     if [[ ${#workflows[@]} -eq 0 ]]; then
-        log_info "No *-deployment.yml workflows found (skipping health check discovery)"
+        log_info "No deploy workflows found (skipping health check discovery)"
         return 0
     fi
 
@@ -269,12 +269,12 @@ check_timeouts() {
     log_info "Checking workflow timeouts..."
 
     local workflows=()
-    shopt -s nullglob
-    workflows=(.github/workflows/*-deployment.yml)
-    shopt -u nullglob
+    for wf in .github/workflows/reusable-deploy.yml .github/workflows/main-pipeline.yml .github/workflows/pr-validation.yml; do
+        [[ -f "$wf" ]] && workflows+=("$wf")
+    done
 
     if [[ ${#workflows[@]} -eq 0 ]]; then
-        log_info "No *-deployment.yml workflows found (skipping timeout checks)"
+        log_info "No target workflows found (skipping timeout checks)"
         return 0
     fi
 
@@ -534,12 +534,12 @@ check_retry_logic() {
     log_info "Checking retry logic in health checks..."
 
     local workflows=()
-    shopt -s nullglob
-    workflows=(.github/workflows/*-deployment.yml)
-    shopt -u nullglob
+    for wf in .github/workflows/reusable-deploy.yml; do
+        [[ -f "$wf" ]] && workflows+=("$wf")
+    done
 
     if [[ ${#workflows[@]} -eq 0 ]]; then
-        log_info "No *-deployment.yml workflows found (skipping retry checks)"
+        log_info "No deploy workflows found (skipping retry checks)"
         return 0
     fi
 
@@ -611,12 +611,12 @@ check_concurrency() {
     log_info "Checking concurrency control..."
 
     local workflows=()
-    shopt -s nullglob
-    workflows=(.github/workflows/*-deployment.yml)
-    shopt -u nullglob
+    for wf in .github/workflows/main-pipeline.yml; do
+        [[ -f "$wf" ]] && workflows+=("$wf")
+    done
 
     if [[ ${#workflows[@]} -eq 0 ]]; then
-        log_info "No *-deployment.yml workflows found (skipping concurrency checks)"
+        log_info "No target workflows found (skipping concurrency checks)"
         return 0
     fi
 
@@ -869,6 +869,75 @@ PY
     return 0
 }
 
+check_reusable_workflow_callers() {
+    log_info "Checking main-pipeline reusable workflow callers..."
+
+    if [[ ! -f .github/workflows/main-pipeline.yml ]]; then
+        log_info "No main-pipeline.yml found (skipping reusable workflow caller checks)"
+        return 0
+    fi
+
+    if ! python - <<'PY'
+import sys
+from pathlib import Path
+
+try:
+    import yaml
+except Exception as e:
+    print(f"ERROR: pyyaml not available: {e}", file=sys.stderr)
+    raise SystemExit(1)
+
+wf_path = Path('.github/workflows/main-pipeline.yml')
+data = yaml.safe_load(wf_path.read_text(encoding='utf-8', errors='ignore')) or {}
+jobs = data.get('jobs') or {}
+
+errors = []
+checked = 0
+
+for job_name, job in jobs.items():
+    if not isinstance(job, dict):
+        continue
+
+    uses = job.get('uses')
+    if not (isinstance(uses, str) and 'reusable-deploy.yml' in uses):
+        continue
+
+    checked += 1
+
+    if 'environment' in job:
+        errors.append(f"{wf_path.name}: jobs.{job_name} must not set environment when using reusable workflows")
+
+    secrets = job.get('secrets')
+    if secrets != 'inherit':
+        errors.append(f"{wf_path.name}: jobs.{job_name}.secrets must be 'inherit' for reusable workflow calls")
+
+    with_section = job.get('with')
+    if not isinstance(with_section, dict):
+        errors.append(f"{wf_path.name}: jobs.{job_name} missing with: block for reusable workflow call")
+        continue
+
+    for k in ('backend_environment', 'frontend_environment'):
+        v = with_section.get(k)
+        if not (isinstance(v, str) and v.strip()):
+            errors.append(f"{wf_path.name}: jobs.{job_name}.with.{k} must be set for reusable workflow call")
+
+if checked == 0:
+    errors.append(f"{wf_path.name}: no reusable workflow caller jobs found (validator may be out of date)")
+
+if errors:
+    for e in errors:
+        print(f"ERROR: {e}", file=sys.stderr)
+    raise SystemExit(1)
+
+print('✓ main-pipeline reusable workflow caller invariants OK')
+PY
+    then
+        return 1
+    fi
+
+    return 0
+}
+
 # Main validation
 main() {
     log_info "========================================="
@@ -880,6 +949,7 @@ main() {
     validate_yaml_syntax || ((failed++))
     check_manifest_secrets_for_all_workflows || ((failed++))
     check_environment_lanes_match_manifest || ((failed++))
+    check_reusable_workflow_callers || ((failed++))
     check_cache_config || ((failed++))
     check_health_checks || ((failed++))
     check_fetch_depth || ((failed++))
