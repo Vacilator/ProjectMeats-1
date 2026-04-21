@@ -25,6 +25,7 @@ vi.mock('../config', () => ({
             {
               id: 'basic',
               title: 'Basic Settings',
+              collapsible: true,
               fields: [
                 {
                   id: 'name',
@@ -58,11 +59,12 @@ vi.mock('../config/fieldRenderers/complexRenderers', () => ({
 
 // Mock basic renderers
 vi.mock('../config/fieldRenderers/basicRenderers', () => ({
-  renderTextField: vi.fn(({ field, value, onChange }) => (
+  renderTextField: vi.fn(({ field, value, onChange, disabled }) => (
     <input
       data-testid={`field-${field.id}`}
       value={value || ''}
       onChange={(e) => onChange(e.target.value)}
+      disabled={disabled}
     />
   )),
   renderSelectField: vi.fn(() => <select />),
@@ -77,7 +79,12 @@ vi.mock('../hooks/useUpstreamVariables', () => ({
 
 // Mock validation and conditional logic
 vi.mock('../config/validationEngine', () => ({
-  validateField: vi.fn(() => null),
+  validateField: vi.fn((field: any, value: any) => {
+    if (field?.required && (value === undefined || value === null || String(value).trim() === '')) {
+      return 'Required';
+    }
+    return null;
+  }),
 }));
 
 vi.mock('../config/conditionalLogic', () => ({
@@ -330,6 +337,110 @@ describe('DynamicConfigPanel', () => {
       // This would require triggering the Discard button
       // For now, verify handler exists
       expect(mockOnDiscard).toBeDefined();
+    });
+  });
+
+  describe('ReadOnly + Accessibility', () => {
+    it('disables inputs and blocks updates when readOnly=true', () => {
+      const validNode: Node = {
+        id: 'test-node',
+        type: 'form',
+        position: { x: 0, y: 0 },
+        data: {
+          name: 'Test Form',
+          description: 'Test Description',
+        },
+      };
+
+      renderWithProviders(
+        <DynamicConfigPanel
+          node={validNode}
+          nodes={mockNodes}
+          edges={mockEdges}
+          readOnly={true}
+          onUpdateNode={mockOnUpdateNode}
+        />
+      );
+
+      const nameInput = screen.getByTestId('field-name');
+      expect(nameInput).toBeDisabled();
+
+      fireEvent.change(nameInput, { target: { value: 'New Name' } });
+      expect(mockOnUpdateNode).not.toHaveBeenCalled();
+    });
+
+    it('does not clear validation errors on data updates within the same node', async () => {
+      const node: Node = {
+        id: 'test-node',
+        type: 'form',
+        position: { x: 0, y: 0 },
+        data: {
+          name: 'Test Form',
+          description: 'Test Description',
+        },
+      };
+
+      const { rerender } = renderWithProviders(
+        <DynamicConfigPanel node={node} nodes={mockNodes} edges={mockEdges} onUpdateNode={mockOnUpdateNode} />
+      );
+
+      // Trigger a validation error (required name field emptied)
+      fireEvent.change(screen.getByTestId('field-name'), { target: { value: '' } });
+
+      await waitFor(() => {
+        expect(screen.getByText(/1 errors/i)).toBeInTheDocument();
+      });
+
+      // Simulate an external shadow-state update with the same node id.
+      rerender(
+        <DynamicConfigPanel
+          node={{ ...node, data: { ...node.data, description: 'Updated externally' } }}
+          nodes={mockNodes}
+          edges={mockEdges}
+          onUpdateNode={mockOnUpdateNode}
+        />
+      );
+
+      expect(screen.getByText(/1 errors/i)).toBeInTheDocument();
+    });
+
+    it('renders collapsible section headers as buttons with aria attributes', () => {
+      const validNode: Node = {
+        id: 'test-node',
+        type: 'form',
+        position: { x: 0, y: 0 },
+        data: {
+          name: 'Test Form',
+          description: 'Test Description',
+        },
+      };
+
+      renderWithProviders(
+        <DynamicConfigPanel
+          node={validNode}
+          nodes={mockNodes}
+          edges={mockEdges}
+          onUpdateNode={mockOnUpdateNode}
+        />
+      );
+
+      const headerButton = screen.getByRole('button', { name: /Basic Settings/i });
+      expect(headerButton).toHaveAttribute('aria-expanded', 'true');
+      expect(headerButton).toHaveAttribute('aria-controls');
+
+      const regionId = headerButton.getAttribute('aria-controls');
+      expect(regionId).toBeTruthy();
+
+      const region = document.getElementById(String(regionId));
+      expect(region).toBeTruthy();
+      expect(region).toHaveAttribute('role', 'region');
+      expect(region).toHaveAttribute('aria-labelledby');
+
+      fireEvent.click(headerButton);
+      expect(headerButton).toHaveAttribute('aria-expanded', 'false');
+
+      const regionAfter = document.getElementById(String(regionId));
+      expect(regionAfter).toHaveAttribute('hidden');
     });
   });
 

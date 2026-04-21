@@ -32,6 +32,7 @@ export interface TabbedConfigPanelProps {
   node: Node | null;
   nodes: Node[];
   edges: Edge[];
+  readOnly?: boolean;
   onUpdateNode: (nodeId: string, data: Partial<Node['data']>) => void;
   onClose: () => void;
   onApply?: () => void;
@@ -62,6 +63,7 @@ export const TabbedConfigPanel: React.FC<TabbedConfigPanelProps> = ({
   node,
   nodes,
   edges,
+  readOnly = false,
   onUpdateNode,
   onClose,
   onApply,
@@ -172,6 +174,7 @@ export const TabbedConfigPanel: React.FC<TabbedConfigPanelProps> = ({
                   node={node}
                   nodes={nodes}
                   edges={edges}
+                  readOnly={readOnly}
                   onUpdateNode={onUpdateNode}
                   onApply={onApply}
                   onDiscard={onDiscard}
@@ -206,7 +209,9 @@ export const TabbedConfigPanel: React.FC<TabbedConfigPanelProps> = ({
               >
                 <VisualFormBuilderPanel
                   fields={getResolvedFormFields(node.data)}
+                  readOnly={readOnly}
                   onChange={(newFields) => {
+                    if (readOnly) return;
                     // Dual-model: persist form-builder fields separately from config-time entity picker selections.
                     onUpdateNode(node.id, { formFields: newFields });
                   }}
@@ -222,7 +227,7 @@ export const TabbedConfigPanel: React.FC<TabbedConfigPanelProps> = ({
                 exit={{ opacity: 0, y: -10 }}
                 transition={{ duration: 0.2 }}
               >
-                {showDevToolsToggle && (
+                {showDevToolsToggle && !readOnly && (
                   <DevToolsRow>
                     <DevToolsLabel>
                       <input
@@ -244,7 +249,7 @@ export const TabbedConfigPanel: React.FC<TabbedConfigPanelProps> = ({
                   </DevToolsRow>
                 )}
 
-                {IS_DEV_BUILD && developerMode && (
+                {IS_DEV_BUILD && developerMode && !readOnly && (
                   <DeveloperJsonEditor
                     value={node.data}
                     onApply={(newData) => onUpdateNode(node.id, newData)}
@@ -255,6 +260,7 @@ export const TabbedConfigPanel: React.FC<TabbedConfigPanelProps> = ({
                   node={node}
                   nodes={nodes}
                   edges={edges}
+                  readOnly={readOnly}
                   onUpdateNode={onUpdateNode}
                   onApply={onApply}
                   onDiscard={onDiscard}

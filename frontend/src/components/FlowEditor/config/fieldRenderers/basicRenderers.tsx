@@ -51,7 +51,7 @@ export function renderTextField(
           value={value ?? ''}
           onChange={(e) => onChange(e.target.value)}
           placeholder={placeholder}
-          disabled={field.disabled || props.disabled}
+          disabled={field.disabled || field.readOnly || props.disabled}
           rows={4}
         />
       ) : (
@@ -81,7 +81,7 @@ export function renderTextField(
             onChange(e.target.value);
           }}
           placeholder={placeholder}
-          disabled={field.disabled || props.disabled}
+          disabled={field.disabled || field.readOnly || props.disabled}
         />
       )}
       {field.helpText && !error && <HelpText>{field.helpText}</HelpText>}
@@ -126,7 +126,7 @@ export function renderSelectField(
             : String((value as any) ?? '')
         }
         onChange={handleChange}
-        disabled={field.disabled || props.disabled}
+        disabled={field.disabled || field.readOnly || props.disabled}
         multiple={isMulti}
       >
         {!field.required && !isMulti && (
@@ -162,7 +162,7 @@ export function renderToggleField(
         <ToggleSwitch
           checked={value || false}
           onChange={(e) => onChange(e.target.checked)}
-          disabled={field.disabled || props.disabled}
+          disabled={field.disabled || field.readOnly || props.disabled}
         />
       </ToggleRow>
       {field.helpText && !error && <HelpText>{field.helpText}</HelpText>}

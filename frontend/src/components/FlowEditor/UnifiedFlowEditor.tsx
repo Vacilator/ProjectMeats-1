@@ -8202,6 +8202,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
               edges={edges}
               setNodes={setNodes}
               setEdges={setEdges}
+              readOnly={readOnly}
               onClose={() => {
                 logger.debug('[Tabbed Config Panel] Closing panel for node:', selectedNode.id);
                 setSelectedNode(null);

@@ -88,6 +88,9 @@ export interface DynamicConfigPanelProps {
   
   /** All edges in the flow (for context) */
   edges: Edge[];
+
+  /** Read-only mode: prevent any edits/mutations */
+  readOnly?: boolean;
   
   /** Callback to update node data */
   onUpdateNode: (nodeId: string, data: Partial<Node['data']>) => void;
@@ -148,6 +151,7 @@ export const DynamicConfigPanel: React.FC<DynamicConfigPanelProps> = ({
   node,
   nodes,
   edges,
+  readOnly = false,
   onUpdateNode,
   onApply,
   onDiscard,
@@ -172,6 +176,7 @@ export const DynamicConfigPanel: React.FC<DynamicConfigPanelProps> = ({
   const [formData, setFormData] = useState<Record<string, any>>(node?.data || {});
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
+  const isReadOnly = Boolean(readOnly);
 
   // Tenant forms cache for schema fields like `formReference`
   const [tenantForms, setTenantForms] = useState<any[]>([]);
@@ -241,13 +246,17 @@ export const DynamicConfigPanel: React.FC<DynamicConfigPanelProps> = ({
       });
   }, [schemaNeedsTenantForms]);
 
-  // Reset form data when node changes
+  // Keep local form state in sync with external node.data changes (e.g., Apply/Discard in shadow state).
   useEffect(() => {
     if (node?.data) {
       setFormData(node.data);
-      setErrors({});
     }
   }, [node?.id, node?.data]);
+
+  // Reset validation errors when the selected node changes.
+  useEffect(() => {
+    setErrors({});
+  }, [node?.id]);
 
   // REMOVED: Error panel no longer needed - schemaRegistry always returns a schema
   // Fallback schemas are automatically generated for nodes without explicit schemas
@@ -406,6 +415,8 @@ export const DynamicConfigPanel: React.FC<DynamicConfigPanelProps> = ({
     if (!node?.id) return;
 
     const field = findFieldById(schema, fieldId);
+    if (isReadOnly) return;
+    if (field?.readOnly) return;
 
     setFormData((prev) => {
       const semanticNodeType = (((node?.data as any)?.nodeType as string | undefined) || node.type) as string;
@@ -635,6 +646,7 @@ export const DynamicConfigPanel: React.FC<DynamicConfigPanelProps> = ({
 
   const handleAcceptAutoMap = (suggestion: FieldMappingSuggestion) => {
     if (!node?.id) return;
+    if (isReadOnly) return;
 
     const updatedNode = AutoMappingService.applySuggestion(
       ({ ...node, data: formData } as any),
@@ -667,6 +679,7 @@ export const DynamicConfigPanel: React.FC<DynamicConfigPanelProps> = ({
 
   const handleApplyAllAutoMap = () => {
     if (!node?.id) return;
+    if (isReadOnly) return;
 
     const updatedNode = AutoMappingService.applyAutoSuggestions(
       ({ ...node, data: formData } as any),
@@ -723,7 +736,7 @@ export const DynamicConfigPanel: React.FC<DynamicConfigPanelProps> = ({
       onChange: (newValue: any) => handleFieldChange(field.id, newValue),
       onFieldChange: (fieldId: string, newValue: any) => handleFieldChange(fieldId, newValue),
       error,
-      disabled: field.disabled || false,
+      disabled: Boolean(isReadOnly || field.disabled || field.readOnly),
       allValues: formData
     };
 
@@ -1073,6 +1086,7 @@ export const DynamicConfigPanel: React.FC<DynamicConfigPanelProps> = ({
                 }
               }}
               availableFields={availableFields}
+              disabled={commonProps.disabled}
             />
             {error && <ErrorMessage>{error}</ErrorMessage>}
           </div>
@@ -1087,7 +1101,9 @@ export const DynamicConfigPanel: React.FC<DynamicConfigPanelProps> = ({
             <Button
               variant={(field as any).metadata?.variant || 'secondary'}
               fullWidth
+              disabled={commonProps.disabled}
               onClick={() => {
+                if (commonProps.disabled) return;
                 if (!node) {
                   console.warn('[DynamicConfigPanel] Cannot execute button action: node is null');
                   return;
@@ -1166,35 +1182,55 @@ export const DynamicConfigPanel: React.FC<DynamicConfigPanelProps> = ({
     const isCollapsed = collapsedSections.has(section.id);
     const isCollapsible = section.collapsible ?? false;
 
+    const sectionTitleId = `pm-config-section-${section.id}-title`;
+    const sectionRegionId = `pm-config-section-${section.id}-region`;
+
+    const headerContents = (
+      <>
+        {section.icon && (() => {
+          const Icon = section.icon as any;
+          return <Icon size={16} />;
+        })()}
+        <SectionTitle id={sectionTitleId}>{section.title}</SectionTitle>
+        {isCollapsible && (isCollapsed ? <ChevronDown size={16} /> : <ChevronUp size={16} />)}
+      </>
+    );
+
     return (
       <Section key={section.id}>
-        <SectionHeader 
-          onClick={isCollapsible ? () => toggleSection(section.id) : undefined}
-          style={{ cursor: isCollapsible ? 'pointer' : 'default' }}
-        >
-          {section.icon && (() => {
-            const Icon = section.icon as any;
-            return <Icon size={16} />;
-          })()}
-          <SectionTitle>{section.title}</SectionTitle>
-          {isCollapsible && (
-            isCollapsed ? <ChevronDown size={16} /> : <ChevronUp size={16} />
-          )}
-        </SectionHeader>
-        {!isCollapsed && (
-          <SectionContentWrapper>
-            {section.description && (
-              <SectionDescription>{section.description}</SectionDescription>
-            )}
-            {visibleFieldsInSection.length === 0 ? (
-              <SectionEmptyState>
-                No configuration fields are available yet. Adjust earlier selections to unlock additional options.
-              </SectionEmptyState>
-            ) : (
-              section.fields.map(renderField)
-            )}
-          </SectionContentWrapper>
+        {isCollapsible ? (
+          <SectionHeaderButton
+            type="button"
+            onClick={() => toggleSection(section.id)}
+            aria-expanded={!isCollapsed}
+            aria-controls={sectionRegionId}
+          >
+            {headerContents}
+          </SectionHeaderButton>
+        ) : (
+          <SectionHeader>{headerContents}</SectionHeader>
         )}
+
+        <SectionContentWrapper
+          id={sectionRegionId}
+          role="region"
+          aria-labelledby={sectionTitleId}
+          hidden={isCollapsed}
+        >
+          {!isCollapsed && (
+            <>
+              {section.description && <SectionDescription>{section.description}</SectionDescription>}
+
+              {visibleFieldsInSection.length === 0 ? (
+                <SectionEmptyState>
+                  No configuration fields are available yet. Adjust earlier selections to unlock additional options.
+                </SectionEmptyState>
+              ) : (
+                section.fields.map(renderField)
+              )}
+            </>
+          )}
+        </SectionContentWrapper>
       </Section>
     );
   };
@@ -1207,7 +1243,7 @@ export const DynamicConfigPanel: React.FC<DynamicConfigPanelProps> = ({
       </Header>
       
       <Content>
-        {visibleAutoMapSuggestions.length > 0 && (
+        {!isReadOnly && visibleAutoMapSuggestions.length > 0 && (
           <AutoMapBanner>
             <AutoMapBannerText>
               <AutoMapBannerTitle>Smart suggestions available</AutoMapBannerTitle>
@@ -1219,7 +1255,7 @@ export const DynamicConfigPanel: React.FC<DynamicConfigPanelProps> = ({
           </AutoMapBanner>
         )}
 
-        {visibleAutoMapSuggestions.length > 0 && (
+        {!isReadOnly && visibleAutoMapSuggestions.length > 0 && (
           <MemoAutoMappingSuggestionsPanel
             suggestions={visibleAutoMapSuggestions}
             onAccept={handleAcceptAutoMap}
@@ -1384,6 +1420,32 @@ const SectionDescription = styled.p`
   margin: 0 0 12px 0;
   font-size: 13px;
   color: rgb(var(--color-text-secondary));
+`;
+
+const SectionHeaderButton = styled.button`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+
+  width: 100%;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+
+  &:focus-visible {
+    outline: 2px solid rgba(var(--color-primary), 0.5);
+    outline-offset: 2px;
+    border-radius: var(--radius-sm);
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
 `;
 
 const SectionContentWrapper = styled.div`
