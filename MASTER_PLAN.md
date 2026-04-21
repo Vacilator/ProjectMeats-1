@@ -1313,7 +1313,7 @@ Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
 - Phase 3: `docs/PHASE3_QUICK_START.md`
 - Phase 5: `docs/PHASE5_IMPLEMENTATION_REPORT.md`, `docs/PHASE5_EXECUTION_SUMMARY.md`, `docs/PHASE5_API_CONTRACT.md`
 - Phase 7: `docs/PHASE7_RECOVERY_COMPLETE.md`
-- V3.5/V4 planning: `docs/plans/V3_5_ENTERPRISE_REFACTOR_ROADMAP.md`, `docs/plans/V4_0_IDEAL_STATE_GAP_ANALYSIS.md`, `docs/plans/V4_0_UX_EXCELLENCE.md`
+- V3.5/V4 planning (archived): `docs/plans/archive/V3_5_ENTERPRISE_REFACTOR_ROADMAP.md`, `docs/plans/archive/V4_0_IDEAL_STATE_GAP_ANALYSIS.md`, `docs/plans/archive/V4_0_UX_EXCELLENCE.md`
 
 ---
 
