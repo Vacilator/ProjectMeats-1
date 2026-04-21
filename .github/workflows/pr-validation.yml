@@ -82,6 +82,9 @@ jobs:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test_projectmeats
         run: python manage.py spectacular --format openapi-json --verbosity 0 > ../openapi-schema.json
 
+      - name: OpenAPI back-compat check
+        run: python scripts/check_openapi_backcompat.py --baseline manifests/openapi/openapi-schema.baseline.json --candidate openapi-schema.json
+
       - name: Upload OpenAPI schema artifact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
