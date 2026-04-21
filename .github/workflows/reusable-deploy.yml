@@ -349,7 +349,8 @@ jobs:
     runs-on: ubuntu-latest
     services:
       postgres:
-        image: pgvector/pgvector:pg15
+        # Digest-pinned (multi-arch manifest) for deterministic CI
+        image: pgvector/pgvector:pg15@sha256:7f5681e45237acdf546cf7cdc0dfc0ed7752ede857fda6e54f6ea21b936f8742
         env:
           POSTGRES_DB: projectmeats_test
           POSTGRES_PASSWORD: postgres
