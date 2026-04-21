@@ -19,6 +19,7 @@ import { apiClient } from '../../services/apiService';
 import { useNavigate } from 'react-router-dom';
 import { useCockpitNavigation } from '../../contexts/CockpitNavigationContext';
 import { EntityDetailModal } from '../Shared/EntityDetailModal';
+import { logger } from '@/utils/logger';
 
 // ============================================================================
 // TypeScript Interfaces
@@ -530,7 +531,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose 
       const response = await apiClient.get('search/recent/', { params: { limit: 5 } });
       setRecentItems(response.data.items || []);
     } catch (err) {
-      console.error('Failed to fetch recent items:', err);
+      logger.error('Failed to fetch recent items:', err);
     }
   };
 
@@ -556,7 +557,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose 
       setIsLoading(true);
       try {
         // Use ranked search API
-        console.log('[CommandPalette] API Request:', {
+        logger.debug('[CommandPalette] API Request:', {
           url: 'system/search/ranked/',
           params: { q: query, date_range: dateRange, limit: 8 },
         });
@@ -569,12 +570,11 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose 
           }
         });
         
-        console.log('[CommandPalette] API Response:', {
+        logger.debug('[CommandPalette] API Response:', {
           query: response.data.query,
           total: response.data.total,
           counts: response.data.counts,
           resultsCount: response.data.results?.length || 0,
-          results: response.data.results,
         });
         
         const fetchedResults = response.data.results;
@@ -586,14 +586,14 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose 
         setTotalCount(response.data.total || fetchedResults.length);
         setSelectedIndex(0);
         
-        console.log('[CommandPalette] Ranked search completed:', {
+        logger.debug('[CommandPalette] Ranked search completed:', {
           query,
           dateRange,
           resultsCount: fetchedResults.length,
           topScore: fetchedResults[0]?.score,
         });
       } catch (err) {
-        console.error('[CommandPalette] Search failed:', err);
+        logger.error('[CommandPalette] Search failed:', err);
         setResults([]);
         setTotalCount(0);
       } finally {
@@ -860,7 +860,10 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose 
           entityId={selectedEntity.id}
           onExpandEntity={(entity) => {
             // Keep modal open but load relational data for expanded view
-            console.log('[CommandPalette] Expanding entity:', entity);
+            logger.debug('[CommandPalette] Expanding entity:', {
+              id: entity?.id,
+              type: entity?.type,
+            });
             setSelectedEntity(null); // Close detail modal
             // Trigger search with entity context for mind-map view
             handleSelect({
