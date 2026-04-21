@@ -112,9 +112,13 @@ class Command(BaseCommand):
 
         # Non-TenantAwareModel tables that must still have RLS enabled.
         must_have = {
+            # System WorkForms (tenant-bearing tables in apps.system)
             "system.TenantForm",
             "system.TenantWorkForm",
+
+            # Integrations (tenant-bearing tables in apps.integrations)
             "integrations.ExternalAuthProvider",
+            "integrations.EmailLog",
         }
         for label in sorted(must_have):
             try:
