@@ -62,6 +62,7 @@ export interface ConditionBuilderProps {
   onChange: (conditions: ConditionRule[], logic: ConditionLogic) => void;
   availableFields?: Array<{ key: string; label: string; type: string }>;
   fieldPrefix?: string; // e.g., "step1." for referencing fields from other steps
+  disabled?: boolean;
 }
 
 // ============================================================================
@@ -200,8 +201,13 @@ const LogicButton = styled.button<{ $active: boolean }>`
   cursor: pointer;
   transition: all 0.15s ease;
   
-  &:hover {
+  &:hover:not(:disabled) {
     background: ${props => props.$active ? 'rgb(var(--color-primary))' : 'rgba(var(--color-primary), 0.1)'};
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
   }
   
   &:not(:last-child) {
@@ -281,9 +287,14 @@ const DeleteButton = styled.button`
   transition: all 0.15s ease;
   flex-shrink: 0;
   
-  &:hover {
+  &:hover:not(:disabled) {
     background: rgba(var(--color-error), 0.1);
     color: rgb(var(--color-error));
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
   }
 `;
 
@@ -338,10 +349,15 @@ const AddButton = styled.button`
   cursor: pointer;
   transition: all 0.15s ease;
   
-  &:hover {
+  &:hover:not(:disabled) {
     border-color: rgb(var(--color-primary));
     color: rgb(var(--color-primary));
     background: rgba(var(--color-primary), 0.05);
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
   }
 `;
 
@@ -359,14 +375,18 @@ export const ConditionBuilder: React.FC<ConditionBuilderProps> = ({
   onChange,
   availableFields = [],
   fieldPrefix = '',
+  disabled = false,
 }) => {
   const [editingConditionId, setEditingConditionId] = useState<string | null>(null);
 
   const handleLogicChange = (newLogic: ConditionLogic) => {
+    if (disabled) return;
     onChange(conditions, newLogic);
   };
 
   const handleAddCondition = () => {
+    if (disabled) return;
+
     const newCondition: ConditionRule = {
       id: `condition-${Date.now()}`,
       field: '',
@@ -378,6 +398,7 @@ export const ConditionBuilder: React.FC<ConditionBuilderProps> = ({
   };
 
   const handleUpdateCondition = (conditionId: string, updates: Partial<ConditionRule>) => {
+    if (disabled) return;
     onChange(
       conditions.map(c => c.id === conditionId ? { ...c, ...updates } : c),
       logic
@@ -385,6 +406,7 @@ export const ConditionBuilder: React.FC<ConditionBuilderProps> = ({
   };
 
   const handleDeleteCondition = (conditionId: string) => {
+    if (disabled) return;
     onChange(conditions.filter(c => c.id !== conditionId), logic);
   };
 
@@ -421,13 +443,17 @@ export const ConditionBuilder: React.FC<ConditionBuilderProps> = ({
           <LogicLabel>Match:</LogicLabel>
           <LogicToggle>
             <LogicButton
+              type="button"
               $active={logic === 'and'}
+              disabled={disabled}
               onClick={() => handleLogicChange('and')}
             >
               ALL (AND)
             </LogicButton>
             <LogicButton
+              type="button"
               $active={logic === 'or'}
+              disabled={disabled}
               onClick={() => handleLogicChange('or')}
             >
               ANY (OR)
@@ -475,6 +501,7 @@ export const ConditionBuilder: React.FC<ConditionBuilderProps> = ({
                           operator: 'equals', // Reset operator when field changes
                           value: '',
                         })}
+                        disabled={disabled}
                       >
                         <option value="">Select a field...</option>
                         {availableFields.map(field => (
@@ -492,7 +519,7 @@ export const ConditionBuilder: React.FC<ConditionBuilderProps> = ({
                         onChange={(e) => handleUpdateCondition(condition.id, { 
                           operator: e.target.value as ConditionOperator 
                         })}
-                        disabled={!condition.field}
+                        disabled={disabled || !condition.field}
                       >
                         {applicableOperators.map(operator => {
                           const def = OPERATOR_DEFINITIONS[operator];
@@ -515,13 +542,16 @@ export const ConditionBuilder: React.FC<ConditionBuilderProps> = ({
                             value: e.target.value 
                           })}
                           placeholder="Enter value..."
+                          disabled={disabled}
                         />
                       </FieldGroup>
                     )}
 
                     <DeleteButton
+                      type="button"
                       onClick={() => handleDeleteCondition(condition.id)}
                       title="Delete condition"
+                      disabled={disabled}
                     >
                       <Trash2 size={16} />
                     </DeleteButton>
@@ -539,7 +569,7 @@ export const ConditionBuilder: React.FC<ConditionBuilderProps> = ({
         </ConditionList>
       )}
 
-      <AddButton onClick={handleAddCondition}>
+      <AddButton type="button" onClick={handleAddCondition} disabled={disabled}>
         <Plus size={16} />
         Add Condition
       </AddButton>
