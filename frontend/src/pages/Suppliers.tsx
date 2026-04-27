@@ -158,7 +158,7 @@ const Suppliers: React.FC = () => {
             allowClear
           />
           <Button type="primary" onClick={() => setCreateOpen(true)}>
-            New Supplier Headquarters
+            New Supplier
           </Button>
         </Space>
       </div>

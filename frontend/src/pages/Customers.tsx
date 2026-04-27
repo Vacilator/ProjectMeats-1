@@ -85,7 +85,7 @@ const Customers: React.FC = () => {
   const columns: ColumnsType<CustomerListRow> = useMemo(
     () => [
       {
-        title: 'Company Name',
+        title: 'Name',
         key: 'name',
         render: (_: unknown, record) => {
           const displayName = String(record.name ?? '').trim() || 'Unnamed Customer';
@@ -158,7 +158,7 @@ const Customers: React.FC = () => {
             allowClear
           />
           <Button type="primary" onClick={() => setCreateOpen(true)}>
-            New Customer Headquarters
+            New Customer
           </Button>
         </Space>
       </div>
