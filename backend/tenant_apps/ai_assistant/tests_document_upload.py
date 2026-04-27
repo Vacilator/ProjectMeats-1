@@ -34,7 +34,10 @@ class AIDocumentUploadTests(APITestCase):
         )
         TenantUser.objects.create(tenant=self.tenant, user=self.user, role='owner', is_active=True)
 
-        self.client.force_authenticate(user=self.user)
+        # Use session auth (not DRF force_authenticate) so AuthenticationMiddleware marks
+        # request.user as authenticated before TenantMiddleware runs.
+        # TenantMiddleware intentionally ignores X-Tenant-ID for anonymous requests.
+        self.client.force_login(self.user)
 
     def _upload(self):
         file = SimpleUploadedFile('test.pdf', b'%PDF-1.4\n% test\n', content_type='application/pdf')
