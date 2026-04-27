@@ -280,7 +280,7 @@ jobs:
       # Trivy's SARIF mode may include all severities, which can incorrectly fail the job
       # even when CRITICAL/HIGH are 0. We enforce severity thresholds in a separate step.
       - name: Run Trivy vulnerability scanner (SARIF)
-        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # v0.35.0
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           image-ref: ${{ env.REGISTRY }}/${{ env.BACKEND_IMAGE }}:${{ inputs.environment }}-${{ github.sha }}
           format: 'sarif'
@@ -295,7 +295,7 @@ jobs:
           TRIVY_PASSWORD: ${{ secrets.DO_ACCESS_TOKEN }}
 
       - name: Enforce Trivy severity gate (CRITICAL,HIGH)
-        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # v0.35.0
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           image-ref: ${{ env.REGISTRY }}/${{ env.BACKEND_IMAGE }}:${{ inputs.environment }}-${{ github.sha }}
           format: 'table'
@@ -311,7 +311,7 @@ jobs:
 
       - name: Trivy summary (table)
         if: always()
-        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # v0.35.0
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           image-ref: ${{ env.REGISTRY }}/${{ env.BACKEND_IMAGE }}:${{ inputs.environment }}-${{ github.sha }}
           format: 'table'
@@ -327,7 +327,7 @@ jobs:
       - name: Generate SBOM (CycloneDX)
         if: always()
         continue-on-error: true
-        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # v0.35.0
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           image-ref: ${{ env.REGISTRY }}/${{ env.BACKEND_IMAGE }}:${{ inputs.environment }}-${{ github.sha }}
           format: 'cyclonedx'
@@ -518,7 +518,7 @@ jobs:
 
       # SARIF generation should not gate deployments (see backend scan notes).
       - name: Run Trivy vulnerability scanner (SARIF)
-        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # v0.35.0
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           image-ref: ${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE }}:${{ inputs.environment }}-${{ github.sha }}
           format: 'sarif'
@@ -533,7 +533,7 @@ jobs:
           TRIVY_PASSWORD: ${{ secrets.DO_ACCESS_TOKEN }}
 
       - name: Enforce Trivy severity gate (CRITICAL,HIGH)
-        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # v0.35.0
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           image-ref: ${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE }}:${{ inputs.environment }}-${{ github.sha }}
           format: 'table'
@@ -549,7 +549,7 @@ jobs:
 
       - name: Trivy summary (table)
         if: always()
-        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # v0.35.0
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           image-ref: ${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE }}:${{ inputs.environment }}-${{ github.sha }}
           format: 'table'
@@ -565,7 +565,7 @@ jobs:
       - name: Generate SBOM (CycloneDX)
         if: always()
         continue-on-error: true
-        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # v0.35.0
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           image-ref: ${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE }}:${{ inputs.environment }}-${{ github.sha }}
           format: 'cyclonedx'
