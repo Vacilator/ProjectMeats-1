@@ -25,6 +25,7 @@ jobs:
   infrastructure-check:
     name: Infrastructure Drift Gate
     runs-on: ubuntu-latest
+    timeout-minutes: 10
 
     steps:
       - name: Checkout
@@ -43,6 +44,7 @@ jobs:
   validate-migrations:
     name: Validate Migrations
     runs-on: ubuntu-latest
+    timeout-minutes: 20
 
     services:
       postgres:
@@ -102,6 +104,7 @@ jobs:
   backend-tests:
     name: Backend Tests
     runs-on: ubuntu-latest
+    timeout-minutes: 35
     needs: [validate-migrations]
 
     services:
@@ -147,6 +150,7 @@ jobs:
   frontend-typecheck:
     name: Frontend Type Check
     runs-on: ubuntu-latest
+    timeout-minutes: 20
 
     steps:
       - name: Checkout
@@ -202,6 +206,7 @@ jobs:
   frontend-tests:
     name: Frontend Unit Tests
     runs-on: ubuntu-latest
+    timeout-minutes: 20
 
     steps:
       - name: Checkout
@@ -225,6 +230,7 @@ jobs:
   mobile-checks:
     name: Mobile Lint/Test/Type Check
     runs-on: ubuntu-latest
+    timeout-minutes: 25
     needs: [validate-migrations]
 
     steps:
