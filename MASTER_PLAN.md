@@ -18,6 +18,7 @@ This file is the **canonical plan + current truth snapshot**.
 - Recently shipped hardening includes FlowEditor a11y tabs + HelpModal stability, back-compat theme token aliases, WorkForms RBAC regression coverage, and debug logging cleanup (see PR refs in `.github/MASTER_PLAN.md`).
 
 ### P0 priorities (next)
+- **Core API reliability**: fix `apps/core/views.py` legacy imports/`print()` that can cause runtime 500s in Ranked Search + Workspace Stats; add smoke tests.
 - **WorkForms Editor stability**: deterministic schema init (no timer races), resolve form "fields" model mismatch, sanitize UI-only shadow state on save; continue hardening remaining a11y + theme-token usage as needed.
 - **Security / tenant isolation** (RLS correctness):
   - Workflow webhook receiver must set `request.tenant` + `set_current_tenant()` **before** ORM lookup (FORCE RLS correctness).

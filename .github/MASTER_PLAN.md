@@ -1715,3 +1715,4 @@ Deliverables:
 - **2026-04-21** — Docs: append PR log entries (4582–4587). (PR: #4588)
 - **2026-04-21** — Frontend: route QuickActionsContext console logging through centralized logger. (PR: #4589)
 - **2026-04-21** — Docs: add squad deep dive execution plan to canonical `MASTER_PLAN.md` (next PR-sized batches, deps/risks/tests). (PR: #4590)
+- **2026-04-27** — Frontend: expand `lint:colors` guardrail to MyTasks surfaces and tokenized remaining hardcoded colors in MyTasks/QuickActions widgets, shared styles, and theme config. (PR: #4650)
