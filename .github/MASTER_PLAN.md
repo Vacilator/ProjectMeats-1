@@ -112,7 +112,7 @@ This file is the **append-only PR-referenceable execution log**.
 
 - **2026-04-27** — Mobile: switch deprecated `expo build:*` scripts to EAS Build (via `npx eas-cli`), add `eas.json` profiles and build metadata (`ios.buildNumber`, `android.versionCode`), and update mobile build docs. (PR: #4659)
 
-- **2026-04-27** — **Phase 10: Supplier/Customer Hierarchical UI Simplification**: flattened Suppliers/Customers sidebar navigation, made Supplier/Customer forms HQ-only (HQ labels + dynamic titles), simplified list views to Company Name + Actions with safe Aggregated Products rollups, and converged Supplier/Customer record view to Cockpit-style tabs (Plants/Locations, Dept. Contacts, Documents, Related, Recent Activity). (PR: pending)
+- **2026-04-27** — **Phase 10: Supplier/Customer Hierarchical UI Simplification**: flattened Suppliers/Customers sidebar navigation, made Supplier/Customer forms HQ-only (HQ labels + dynamic titles), simplified list views to Company Name + Actions with safe Aggregated Products rollups, and converged Supplier/Customer record view to Cockpit-style tabs (Plants/Locations, Dept. Contacts, Documents, Related, Recent Activity). (PR: #4705)
 
 ### 2026-03-31 — Secret audit drift (manifest v5.1)
 - Command: `python config/manage_env.py audit --repo Meats-Central/ProjectMeats`
