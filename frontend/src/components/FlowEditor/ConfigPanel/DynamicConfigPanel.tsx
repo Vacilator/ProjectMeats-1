@@ -133,7 +133,7 @@ const checkIsVisible = (item: any, data: any): boolean => {
     try {
       return cond(data);
     } catch (error) {
-      console.warn('[DynamicConfigPanel] Functional condition error:', error);
+      logger.warn('[DynamicConfigPanel] Functional condition error:', error);
       return true; // Default to visible on error
     }
   }
@@ -245,7 +245,7 @@ export const DynamicConfigPanel: React.FC<DynamicConfigPanelProps> = ({
         setTenantForms(Array.isArray(forms) ? forms : []);
       })
       .catch((err: any) => {
-        console.error('[DynamicConfigPanel] Failed to load tenant forms:', err);
+        logger.error('[DynamicConfigPanel] Failed to load tenant forms:', err);
         setTenantForms([]);
         setTenantFormsError('Failed to load forms');
       })
@@ -648,7 +648,7 @@ export const DynamicConfigPanel: React.FC<DynamicConfigPanelProps> = ({
         node.id
       );
     } catch (e) {
-      console.warn('[DynamicConfigPanel] Auto-mapping suggestion generation failed:', e);
+      logger.warn('[DynamicConfigPanel] Auto-mapping suggestion generation failed:', e);
       return { targetNodeId: node.id, suggestions: [], timestamp: Date.now() };
     }
   }, [nodesForAutoMap, edges, node.id]);
@@ -884,7 +884,7 @@ export const DynamicConfigPanel: React.FC<DynamicConfigPanelProps> = ({
                     sectionCount,
                   });
                 } catch (err) {
-                  console.warn('[DynamicConfigPanel] Failed to load selected form metadata:', err);
+                  logger.warn('[DynamicConfigPanel] Failed to load selected form metadata:', err);
                 }
               }}
               disabled={field.disabled || commonProps.disabled || tenantFormsLoading}
@@ -1218,7 +1218,7 @@ export const DynamicConfigPanel: React.FC<DynamicConfigPanelProps> = ({
               onClick={() => {
                 if (commonProps.disabled) return;
                 if (!node) {
-                  console.warn('[DynamicConfigPanel] Cannot execute button action: node is null');
+                  logger.warn('[DynamicConfigPanel] Cannot execute button action: node is null');
                   return;
                 }
                 // Check if button has FormBuilder action metadata
@@ -1237,7 +1237,7 @@ export const DynamicConfigPanel: React.FC<DynamicConfigPanelProps> = ({
                   // Custom onClick handler from schema
                   field.metadata.onClick(node, formData);
                 } else {
-                  console.warn('[DynamicConfigPanel] Button has no action:', field.id);
+                  logger.warn('[DynamicConfigPanel] Button has no action:', field.id);
                 }
               }}
             >

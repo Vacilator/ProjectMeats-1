@@ -47,6 +47,7 @@ import {
   PrimaryButton,
   SecondaryButton,
 } from './shared/StyledComponents';
+import { logger } from '@/utils/logger';
 
 // ============================================================================
 // TypeScript Interfaces
@@ -530,7 +531,7 @@ export const NodeConfigPanel: React.FC<NodeConfigPanelProps> = ({
           setAvailableForms(filtered);
         })
         .catch((error) => {
-          console.error('Failed to fetch forms:', error);
+          logger.error('Failed to fetch forms:', error);
           toast.error('Failed to load forms. Please refresh and try again.', {
             duration: 4000,
             icon: '⚠️',
@@ -560,7 +561,7 @@ export const NodeConfigPanel: React.FC<NodeConfigPanelProps> = ({
           setAvailableFormFields(fields);
         })
         .catch(error => {
-          console.error('Failed to fetch form fields:', error);
+          logger.error('Failed to fetch form fields:', error);
           toast.error('Failed to load form fields. Please try selecting the form again.', {
             duration: 4000,
             icon: '⚠️',

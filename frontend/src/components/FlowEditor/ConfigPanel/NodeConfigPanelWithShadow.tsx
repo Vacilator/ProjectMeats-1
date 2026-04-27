@@ -29,6 +29,7 @@ import {
   DangerButton,
 } from './shared/StyledComponents';
 import { ErrorBoundary } from '../ErrorBoundary';
+import { logger } from '@/utils/logger';
 
 // ============================================================================
 // TypeScript Interfaces
@@ -325,7 +326,7 @@ export const NodeConfigPanelWithShadow: React.FC<NodeConfigPanelWithShadowProps>
           <ErrorBoundary
             componentName="Configuration Panel"
             onError={(error) => {
-              console.error('[NodeConfigPanelWithShadow] DynamicConfigPanel error:', error);
+              logger.error('[NodeConfigPanelWithShadow] DynamicConfigPanel error:', error);
             }}
           >
             <DynamicConfigPanel

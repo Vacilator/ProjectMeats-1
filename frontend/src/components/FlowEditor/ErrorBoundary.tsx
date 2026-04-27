@@ -17,6 +17,7 @@
 import React, { Component, ReactNode, ErrorInfo } from 'react';
 import styled from 'styled-components';
 import { AlertTriangle, RefreshCw } from 'lucide-react';
+import { logger } from '@/utils/logger';
 
 // ============================================================================
 // TypeScript Interfaces
@@ -63,7 +64,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     const { componentName = 'Unknown', onError } = this.props;
     
-    console.error(`[ErrorBoundary] Error in ${componentName}:`, {
+    logger.error(`[ErrorBoundary] Error in ${componentName}:`, {
       error,
       errorInfo,
       componentStack: errorInfo.componentStack,

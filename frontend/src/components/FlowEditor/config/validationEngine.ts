@@ -9,6 +9,7 @@
  */
 
 import { ValidationRule, ConfigField } from './types';
+import { logger } from '@/utils/logger';
 
 /**
  * Validate a single field value against its validation rules
@@ -153,7 +154,7 @@ function validateRule(
       return null;
 
     default:
-      console.warn(`Unknown validation rule type: ${rule.type}`);
+      logger.warn(`Unknown validation rule type: ${rule.type}`);
       return null;
   }
 }

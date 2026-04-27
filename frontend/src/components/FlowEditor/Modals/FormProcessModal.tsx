@@ -509,7 +509,7 @@ export const FormProcessModal: React.FC<ContainerModalProps> = ({
     } else if (state.mode === 'existing' && state.selectedWorkflowId) {
       setState(prev => ({ ...prev, currentStep: 2 }));
     } else {
-      console.error('[FormProcessModal] Cannot proceed - invalid state');
+      logger.error('[FormProcessModal] Cannot proceed - invalid state');
     }
   }, [state.mode, state.containerName, state.selectedWorkflowId]);
 

@@ -25,6 +25,7 @@ import type { ColumnsType } from 'antd/es/table';
 import { PlusOutlined, DeleteOutlined, CheckCircleOutlined } from '@ant-design/icons';
 import { businessApi } from '@/services/businessApi';
 import styled from 'styled-components';
+import { logger } from '@/utils/logger';
 
 const { Title, Text } = Typography;
 const { Option } = Select;
@@ -150,7 +151,7 @@ export const EntityMapperModal: React.FC<EntityMapperModalProps> = ({
       const response = await businessApi.get(`/workflows/forms/${formId}/fields/`);
       setFormFields(response.data || []);
     } catch (error) {
-      console.error('Failed to fetch form fields:', error);
+      logger.error('Failed to fetch form fields:', error);
       message.error('Failed to load form fields');
     } finally {
       setLoading(false);
@@ -208,7 +209,7 @@ export const EntityMapperModal: React.FC<EntityMapperModalProps> = ({
       message.success('Entity mapping saved successfully');
       onClose();
     } catch (error) {
-      console.error('Failed to save mapping:', error);
+      logger.error('Failed to save mapping:', error);
       message.error('Failed to save entity mapping');
     } finally {
       setSaving(false);

@@ -8,6 +8,7 @@
  * Phase: 4 - Smart Algorithms
  */
 
+import { logger } from '@/utils/logger';
 export type TransformationType =
   | 'uppercase'
   | 'lowercase'
@@ -142,7 +143,7 @@ export function applyTransformation(
         return value;
     }
   } catch (error) {
-    console.error(`Transformation error (${transformation.type}):`, error);
+    logger.error(`Transformation error (${transformation.type}):`, error);
     return value;
   }
 }
