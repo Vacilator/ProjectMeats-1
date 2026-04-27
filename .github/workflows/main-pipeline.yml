@@ -14,15 +14,27 @@ run-name: >-
         github.actor,
         github.run_number
       )
-      || format(
-        '🚀 Deploy: {0} — {1} ({2}) (run#{3})',
-        github.ref_name == 'development' && 'Dev'
-          || github.ref_name == 'uat' && 'UAT'
-          || github.ref_name == 'main' && 'Prod'
-          || github.ref_name,
-        github.ref_name,
-        github.sha,
-        github.run_number
+      || (
+        !contains(github.event.head_commit.message, 'Co-authored-by:')
+          && format(
+            '🚀 Deploy: {0} — {1} (run#{2})',
+            github.ref_name == 'development' && 'Dev'
+              || github.ref_name == 'uat' && 'UAT'
+              || github.ref_name == 'main' && 'Prod'
+              || github.ref_name,
+            github.event.head_commit.message,
+            github.run_number
+          )
+          || format(
+            '🚀 Deploy: {0} — {1} ({2}) (run#{3})',
+            github.ref_name == 'development' && 'Dev'
+              || github.ref_name == 'uat' && 'UAT'
+              || github.ref_name == 'main' && 'Prod'
+              || github.ref_name,
+            github.ref_name,
+            github.sha,
+            github.run_number
+          )
       )
   }}
 
