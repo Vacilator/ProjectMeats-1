@@ -1870,11 +1870,38 @@ jobs:
           }
           NGINX
 
-          sudo ln -sf "$NGINX_SITE" /etc/nginx/sites-enabled/projectmeats-${ENVIRONMENT}
+          # Ensure this site wins for ${DOMAIN_NAME} by disabling any other enabled config that
+          # declares the same server_name, then enabling ours with a lexicographically-first link.
+          sudo mkdir -p /var/www/certbot 2>/dev/null || true
+
+          for f in /etc/nginx/sites-enabled/*; do
+            [ -e "$f" ] || continue
+            if sudo grep -q "server_name ${DOMAIN_NAME};" "$f" 2>/dev/null; then
+              echo "Disabling existing nginx site for ${DOMAIN_NAME}: $f"
+              sudo rm -f "$f"
+            fi
+          done
+
+          sudo ln -sf "$NGINX_SITE" "/etc/nginx/sites-enabled/000-projectmeats-${ENVIRONMENT}"
           sudo rm -f /etc/nginx/sites-enabled/default 2>/dev/null || true
           sudo nginx -t
           sudo systemctl reload nginx
-          echo "✓ Host nginx config synced and reloaded"
+
+          # Validate that the host proxy is active and API routing responds quickly.
+          HEALTH_TXT=$(curl -k -sS -m 5 -H "Host: ${DOMAIN_NAME}" https://127.0.0.1/health || true)
+          if ! echo "$HEALTH_TXT" | grep -q "^healthy"; then
+            echo "✗ Host nginx /health check failed (expected 'healthy')"
+            echo "Got: $HEALTH_TXT"
+            exit 1
+          fi
+
+          API_CODE=$(curl -k -s -o /dev/null -w "%{http_code}" -m 10 -H "Host: ${DOMAIN_NAME}" https://127.0.0.1/api/v1/health/ || echo "000")
+          if [ "$API_CODE" = "000" ]; then
+            echo "✗ Host nginx /api/v1/health/ did not respond (HTTP 000)"
+            exit 1
+          fi
+
+          echo "✓ Host nginx config synced and verified (api_http=${API_CODE})"
 
           echo "Cleaning up frontend canary container..."
           docker rm -f "$CAND_NAME" 2>/dev/null || true
