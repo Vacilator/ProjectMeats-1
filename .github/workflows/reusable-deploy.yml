@@ -1937,3 +1937,97 @@ jobs:
           username: ${{ secrets.SSH_USER }}
           password: ${{ secrets.SSH_PASSWORD }}
           script: sudo nginx -t && sudo systemctl reload nginx
+
+  # ==========================================
+  # Post-deploy smoke gates (Golden-compliant)
+  # ==========================================
+
+  smoke-backend-container:
+    name: "Smoke: Backend Container"
+    needs: [deploy-backend]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: ${{ inputs.backend_environment }}
+
+    steps:
+      - name: Setup SSH
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y sshpass
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          ssh-keyscan -H "${{ secrets.SSH_HOST }}" >> ~/.ssh/known_hosts 2>&1
+
+      - name: Verify backend health (direct-to-container)
+        env:
+          SSHPASS: ${{ secrets.SSH_PASSWORD }}
+        run: |
+          sshpass -e ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << 'SSH'
+          set -euo pipefail
+
+          URL="http://127.0.0.1:8000/api/v1/health/"
+          echo "Checking backend: ${URL}"
+
+          for attempt in 1 2 3 4 5; do
+            HTTP_CODE=$(curl -L -s -o /dev/null -w "%{http_code}" "$URL" || echo "000")
+            if [ "$HTTP_CODE" = "200" ]; then
+              echo "✓ Backend healthy (HTTP $HTTP_CODE)"
+              exit 0
+            fi
+            echo "Backend health attempt $attempt/5 failed (HTTP $HTTP_CODE), retrying..."
+            sleep 3
+          done
+
+          echo "✗ Backend health check failed after 5 attempts"
+          exit 1
+          SSH
+
+  smoke-frontend-container:
+    name: "Smoke: Frontend Container"
+    needs: [deploy-frontend]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: ${{ inputs.frontend_environment }}
+
+    steps:
+      - name: Setup SSH
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y sshpass
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          ssh-keyscan -H "${{ secrets.SSH_HOST }}" >> ~/.ssh/known_hosts 2>&1
+
+      - name: Verify frontend health (direct-to-container)
+        env:
+          SSHPASS: ${{ secrets.SSH_PASSWORD }}
+        run: |
+          sshpass -e ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << 'SSH'
+          set -euo pipefail
+
+          URL="http://127.0.0.1:8080/"
+          echo "Checking frontend: ${URL}"
+
+          for attempt in 1 2 3 4 5; do
+            HTTP_CODE=$(curl -L -s -o /dev/null -w "%{http_code}" "$URL" || echo "000")
+            if [ "$HTTP_CODE" = "200" ]; then
+              echo "✓ Frontend healthy (HTTP $HTTP_CODE)"
+              exit 0
+            fi
+            echo "Frontend health attempt $attempt/5 failed (HTTP $HTTP_CODE), retrying..."
+            sleep 3
+          done
+
+          echo "✗ Frontend health check failed after 5 attempts"
+          exit 1
+          SSH
+
+  post-deploy-validation:
+    name: "Post-Deploy Validation"
+    needs: [smoke-backend-container, smoke-frontend-container]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Report success
+        run: echo "✓ Post-deploy smoke gates passed"
