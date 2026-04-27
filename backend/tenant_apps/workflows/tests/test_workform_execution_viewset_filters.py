@@ -194,3 +194,21 @@ class TenantWorkFormExecutionViewSetFilterTests(TestCase):
         resp = TenantWorkFormExecutionViewSet.as_view({'get': 'list'})(req)
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(len(self._items(resp)), 0)
+
+    def test_retrieve_is_tenant_scoped(self):
+        view = TenantWorkFormExecutionViewSet.as_view({'get': 'retrieve'})
+
+        req_other = self._get(
+            f'/api/v1/workflows/workform-executions/{self.exec_b_1.id}/',
+            self.tenant_a,
+        )
+        resp_other = view(req_other, pk=str(self.exec_b_1.id))
+        self.assertEqual(resp_other.status_code, 404)
+
+        req_own = self._get(
+            f'/api/v1/workflows/workform-executions/{self.exec_a_1.id}/',
+            self.tenant_a,
+        )
+        resp_own = view(req_own, pk=str(self.exec_a_1.id))
+        self.assertEqual(resp_own.status_code, 200)
+        self.assertEqual(str(resp_own.data.get('id')), str(self.exec_a_1.id))
