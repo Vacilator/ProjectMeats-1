@@ -857,18 +857,17 @@ class WorkspaceStatsView(APIView):
         # Calculate stats
         try:
             po_today = PurchaseOrder.objects.filter(
-                tenant=tenant, 
-                created_at__date=today
+                tenant=tenant,
+                created_on__date=today,
             ).count()
-            
+
             so_today = SalesOrder.objects.filter(
                 tenant=tenant,
-                created_at__date=today
+                created_on__date=today,
             ).count()
             
-            active_suppliers = Supplier.objects.filter(
+            supplier_count = Supplier.objects.filter(
                 tenant=tenant,
-                is_active=True
             ).count()
             
             active_customers = Customer.objects.filter(
@@ -886,9 +885,9 @@ class WorkspaceStatsView(APIView):
                         'color': 'rgb(59, 130, 246)'
                     },
                     {
-                        'id': 'active_suppliers',
-                        'label': 'Active Suppliers',
-                        'value': active_suppliers,
+                        'id': 'suppliers',
+                        'label': 'Suppliers',
+                        'value': supplier_count,
                         'change': 0,
                         'changeLabel': 'total',
                         'color': 'rgb(34, 197, 94)'

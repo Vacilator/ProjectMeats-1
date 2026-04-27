@@ -130,10 +130,17 @@ describe('EntityMapperModal', () => {
       );
 
       await waitFor(() => {
-        expect(consoleError).toHaveBeenCalledWith(
-          'Failed to fetch form fields:',
-          expect.any(Error)
-        );
+        // AntD and our logger may emit additional console.error calls.
+        // We only care that the fetch failure was logged.
+        const matchingCall = consoleError.mock.calls.find(([firstArg, secondArg]) => {
+          return (
+            typeof firstArg === 'string' &&
+            firstArg.includes('Failed to fetch form fields:') &&
+            secondArg instanceof Error
+          );
+        });
+
+        expect(matchingCall).toBeTruthy();
       });
 
       consoleError.mockRestore();
