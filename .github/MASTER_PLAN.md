@@ -114,7 +114,7 @@ This file is the **append-only PR-referenceable execution log**.
 
 - **2026-04-27** — **Phase 10: Supplier/Customer Hierarchical UI Simplification**: flattened Suppliers/Customers sidebar navigation, made Supplier/Customer forms HQ-only (HQ labels + dynamic titles), simplified list views to Company Name + Actions with safe Aggregated Products rollups, and converged Supplier/Customer record view to Cockpit-style tabs (Plants/Locations, Dept. Contacts, Documents, Related, Recent Activity). (PR: #4705)
 
-- **2026-04-27** — Workflows/QuickActions stability: `/api/v1/workflows/available-forms/` now validates optional entity context and returns 400 (never 500) for bad params/IDs; frontend adds a circuit breaker to prevent remount loops on backend 5xx; Supplier form title rolled back to "New Supplier"/"Supplier" while keeping HQ field labels and phone input typing; Suppliers/Customers table rows now show pointer cursor on hover. (PR: pending)
+- **2026-04-27** — Workflows/QuickActions stability: `/api/v1/workflows/available-forms/` now validates optional entity context and returns 400 (never 500) for bad params/IDs; frontend adds a circuit breaker to prevent remount loops on backend 5xx; Supplier form title rolled back to "New Supplier"/"Supplier" while keeping HQ field labels and phone input typing; Suppliers/Customers table rows now show pointer cursor on hover. (PR: #4707)
 
 ### 2026-03-31 — Secret audit drift (manifest v5.1)
 - Command: `python config/manage_env.py audit --repo Meats-Central/ProjectMeats`
