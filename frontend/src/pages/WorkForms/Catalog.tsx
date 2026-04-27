@@ -1076,7 +1076,20 @@ const FormsFlowsCatalog: React.FC = () => {
             <GridContainer>
               {filteredTemplates.map((template) => (
                 <FormCard key={template.id}>
-                  <CardContent onClick={() => handleTemplateSelect(template)} style={{ cursor: 'pointer' }}>
+                  <CardContent
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => handleTemplateSelect(template)}
+                    onKeyDown={(e) => {
+                      if (e.target !== e.currentTarget) return;
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        handleTemplateSelect(template);
+                      }
+                    }}
+                    aria-label={`Use template: ${template.name}`}
+                    style={{ cursor: 'pointer' }}
+                  >
                     <FormCardHeader>
                       <FormIcon>{template.thumbnail || '📋'}</FormIcon>
                       <FormInfo>
@@ -1132,7 +1145,20 @@ const FormsFlowsCatalog: React.FC = () => {
                 data-item-id={form.id}
                 data-kind={form.kind ?? (isWorkform ? 'workform' : 'form')}
               >
-                <CardContent onClick={() => void handleEditForm(form)} style={{ cursor: 'pointer' }}>
+                <CardContent
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => void handleEditForm(form)}
+                  onKeyDown={(e) => {
+                    if (e.target !== e.currentTarget) return;
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      void handleEditForm(form);
+                    }
+                  }}
+                  aria-label={`Open ${form.name}`}
+                  style={{ cursor: 'pointer' }}
+                >
                   <FormCardHeader>
                     <FormIcon>{form.icon || '📋'}</FormIcon>
                     <FormInfo>
@@ -1225,9 +1251,19 @@ const FormsFlowsCatalog: React.FC = () => {
                 data-kind={form.kind ?? (isWorkform ? 'workform' : 'form')}
               >
                 <CardContent
+                  role="button"
+                  tabIndex={0}
                   onClick={() => {
                     void handleEditForm(form);
                   }}
+                  onKeyDown={(e) => {
+                    if (e.target !== e.currentTarget) return;
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      void handleEditForm(form);
+                    }
+                  }}
+                  aria-label={`Open ${form.name}`}
                   style={{ cursor: 'pointer' }}
                 >
                   <FormCardHeader>

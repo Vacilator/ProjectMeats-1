@@ -6,7 +6,7 @@
  * Created: 2026-02-04
  */
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import styled from 'styled-components';
 import { X, Search, Star, Clock, Zap } from 'lucide-react';
 import { 
@@ -164,6 +164,11 @@ const TemplateCard = styled.div`
     transform: translateY(-2px);
     box-shadow: 0 4px 12px rgba(var(--color-overlay), 0.1);
   }
+
+  &:focus-visible {
+    outline: 2px solid rgb(var(--color-primary));
+    outline-offset: 2px;
+  }
 `;
 
 const TemplateHeader = styled.div`
@@ -312,6 +317,23 @@ export const TemplateSelector: React.FC<TemplateSelectorProps> = ({
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
 
+  const modalRef = useRef<HTMLDivElement | null>(null);
+  const searchInputRef = useRef<HTMLInputElement | null>(null);
+  const previouslyFocusedRef = useRef<HTMLElement | null>(null);
+
+  useEffect(() => {
+    previouslyFocusedRef.current = document.activeElement as HTMLElement | null;
+
+    const t = window.setTimeout(() => {
+      searchInputRef.current?.focus();
+    }, 0);
+
+    return () => {
+      window.clearTimeout(t);
+      previouslyFocusedRef.current?.focus?.();
+    };
+  }, []);
+
   // Get templates
   const featuredTemplate = useMemo(() => getFeaturedTemplate(), []);
   const popularTemplates = useMemo(() => getPopularTemplates(5), []);
@@ -345,12 +367,66 @@ export const TemplateSelector: React.FC<TemplateSelectorProps> = ({
     onClose();
   };
 
+  const handleCardKeyDown = (e: React.KeyboardEvent, onActivate: () => void) => {
+    if (e.target !== e.currentTarget) return;
+
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      onActivate();
+    }
+  };
+
+  const handleModalKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Escape') {
+      e.stopPropagation();
+      onClose();
+      return;
+    }
+
+    if (e.key !== 'Tab') return;
+
+    const modal = modalRef.current;
+    if (!modal) return;
+
+    const focusable = Array.from(
+      modal.querySelectorAll<HTMLElement>(
+        'a[href], button:not([disabled]), textarea, input, select, [tabindex]:not([tabindex="-1"])'
+      )
+    ).filter((el) => el.offsetParent !== null);
+
+    if (focusable.length === 0) return;
+
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    const active = document.activeElement as HTMLElement | null;
+
+    if (e.shiftKey) {
+      if (!active || active === first || !modal.contains(active)) {
+        e.preventDefault();
+        last.focus();
+      }
+    } else {
+      if (active === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    }
+  };
+
   return (
     <Overlay onClick={onClose}>
-      <Modal onClick={(e) => e.stopPropagation()}>
+      <Modal
+        ref={modalRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="template-selector-title"
+        tabIndex={-1}
+        onKeyDown={handleModalKeyDown}
+        onClick={(e) => e.stopPropagation()}
+      >
         <Header>
-          <Title>Choose a Template</Title>
-          <CloseButton onClick={onClose}>
+          <Title id="template-selector-title">Choose a Template</Title>
+          <CloseButton onClick={onClose} aria-label="Close template selector">
             <X size={24} />
           </CloseButton>
         </Header>
@@ -359,8 +435,10 @@ export const TemplateSelector: React.FC<TemplateSelectorProps> = ({
           <SearchBar>
             <SearchIcon size={18} />
             <SearchInput
+              ref={searchInputRef}
               type="text"
               placeholder="Search templates..."
+              aria-label="Search templates"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
@@ -388,7 +466,14 @@ export const TemplateSelector: React.FC<TemplateSelectorProps> = ({
               {filteredTemplates.length > 0 ? (
                 <TemplateGrid>
                   {filteredTemplates.map((template) => (
-                    <TemplateCard key={template.id} onClick={() => handleTemplateClick(template)}>
+                    <TemplateCard
+                      key={template.id}
+                      role="button"
+                      tabIndex={0}
+                      aria-label={`Select template: ${template.name}`}
+                      onClick={() => handleTemplateClick(template)}
+                      onKeyDown={(e) => handleCardKeyDown(e, () => handleTemplateClick(template))}
+                    >
                       <TemplateHeader>
                         <TemplateThumbnail>{template.thumbnail}</TemplateThumbnail>
                         <DifficultyBadge $difficulty={template.difficulty}>
@@ -430,7 +515,13 @@ export const TemplateSelector: React.FC<TemplateSelectorProps> = ({
                   </SectionTitle>
                 </SectionHeader>
                 <TemplateGrid>
-                  <TemplateCard onClick={() => handleTemplateClick(featuredTemplate)}>
+                  <TemplateCard
+                    role="button"
+                    tabIndex={0}
+                    aria-label={`Select template: ${featuredTemplate.name}`}
+                    onClick={() => handleTemplateClick(featuredTemplate)}
+                    onKeyDown={(e) => handleCardKeyDown(e, () => handleTemplateClick(featuredTemplate))}
+                  >
                     <TemplateHeader>
                       <TemplateThumbnail>{featuredTemplate.thumbnail}</TemplateThumbnail>
                       <DifficultyBadge $difficulty={featuredTemplate.difficulty}>
@@ -465,7 +556,14 @@ export const TemplateSelector: React.FC<TemplateSelectorProps> = ({
                 </SectionHeader>
                 <TemplateGrid>
                   {popularTemplates.map((template) => (
-                    <TemplateCard key={template.id} onClick={() => handleTemplateClick(template)}>
+                    <TemplateCard
+                      key={template.id}
+                      role="button"
+                      tabIndex={0}
+                      aria-label={`Select template: ${template.name}`}
+                      onClick={() => handleTemplateClick(template)}
+                      onKeyDown={(e) => handleCardKeyDown(e, () => handleTemplateClick(template))}
+                    >
                       <TemplateHeader>
                         <TemplateThumbnail>{template.thumbnail}</TemplateThumbnail>
                         <DifficultyBadge $difficulty={template.difficulty}>
@@ -501,7 +599,14 @@ export const TemplateSelector: React.FC<TemplateSelectorProps> = ({
                   </SectionHeader>
                   <TemplateGrid>
                     {templates.map((template) => (
-                      <TemplateCard key={template.id} onClick={() => handleTemplateClick(template)}>
+                      <TemplateCard
+                        key={template.id}
+                        role="button"
+                        tabIndex={0}
+                        aria-label={`Select template: ${template.name}`}
+                        onClick={() => handleTemplateClick(template)}
+                        onKeyDown={(e) => handleCardKeyDown(e, () => handleTemplateClick(template))}
+                      >
                         <TemplateHeader>
                           <TemplateThumbnail>{template.thumbnail}</TemplateThumbnail>
                           <DifficultyBadge $difficulty={template.difficulty}>

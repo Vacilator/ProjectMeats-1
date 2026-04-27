@@ -196,16 +196,22 @@ const CardGrid = styled.div`
   }
 `;
 
-const Card = styled.div`
+const Card = styled.div<{ $clickable?: boolean }>`
   background: rgb(var(--color-surface));
   border: 1px solid rgb(var(--color-border));
   border-radius: var(--radius-lg, 12px);
   padding: 20px;
   transition: all 0.15s ease;
+  cursor: ${(p) => (p.$clickable ? 'pointer' : 'default')};
   
   &:hover {
     border-color: rgb(var(--color-primary));
     box-shadow: 0 4px 12px rgb(var(--color-text-primary) / 0.10);
+  }
+
+  &:focus-visible {
+    outline: 2px solid rgb(var(--color-primary));
+    outline-offset: 2px;
   }
 `;
 
@@ -684,9 +690,18 @@ const FormsFlowsInProgress: React.FC = () => {
                 {filtered.map((ex) => (
                   <Card
                     key={ex.id}
+                    $clickable
                     role="listitem"
-                    aria-label={`${ex.workform_name}, status ${ex.status}`}
+                    tabIndex={0}
+                    aria-label={`${ex.workform_name}, status ${ex.status}. Press Enter to view details.`}
                     onClick={() => navigate(`/workforms/executions/${ex.id}`)}
+                    onKeyDown={(e) => {
+                      if (e.target !== e.currentTarget) return;
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        navigate(`/workforms/executions/${ex.id}`);
+                      }
+                    }}
                   >
                     <CardHeader>
                       <CardIcon aria-hidden="true">
