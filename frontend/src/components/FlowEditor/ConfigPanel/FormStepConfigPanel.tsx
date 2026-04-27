@@ -417,6 +417,7 @@ export const FormStepConfigPanel: React.FC<FormStepConfigPanelProps> = ({
     generateSuggestions,
     applySuggestion,
     applyAllSuggestions,
+    dismissSuggestion,
     clearSuggestions,
   } = useAutoMapping();
   const [showAutoMapping, setShowAutoMapping] = useState<boolean>(false);
@@ -691,8 +692,7 @@ export const FormStepConfigPanel: React.FC<FormStepConfigPanelProps> = ({
                     // additional logic to convert mapping to form field
                   }}
                   onReject={(suggestionId) => {
-                    // Filter out rejected suggestion
-                    // This would need additional state management
+                    dismissSuggestion(suggestionId);
                   }}
                   onApplyAll={() => {
                     if (nodeId) {
