@@ -131,6 +131,7 @@ This file is the **append-only PR-referenceable execution log**.
 - **2026-04-27** — Forms: fixed Plant edit/create crash (minified React error #185) by stabilizing cascading option fetch (no more setState loop when dependencies are empty) and adding a short-lived cache for missing `/system/choices/?list=...` slugs to prevent repeated 404 spam. (PR: #4713)
 
 - **2026-04-27** — WorkForms reliability: added runtime support for `parallelPath` execution deferment (Celery group/chord fanout), added retry signaling for transient `actionHTTP` failures with exponential backoff, and introduced a tenant-scoped Workflow Dead Letter Queue (`WorkflowDeadLetter`) with RLS policies and `SUSPENDED` execution status for retry exhaustion. (PR: TBD)
+- **2026-04-27** — WorkForms reliability shipped: parallelPath fanout + retry/DLQ primitives merged. (PR: #25)
 
 ### 2026-03-31 — Secret audit drift (manifest v5.1)
 - Command: `python config/manage_env.py audit --repo Meats-Central/ProjectMeats`
