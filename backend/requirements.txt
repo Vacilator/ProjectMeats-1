@@ -34,7 +34,7 @@ factory-boy==3.3.3
 black==26.3.1
 flake8==7.3.0
 isort==8.0.1
-pre-commit==4.5.1
+pre-commit==4.6.0
 
 # Feature Flags (Wave 0)
 django-flags==5.2.0
