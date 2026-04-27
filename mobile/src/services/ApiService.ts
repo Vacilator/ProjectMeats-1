@@ -1,5 +1,6 @@
 import axios, { AxiosInstance } from 'axios';
 import Constants from 'expo-constants';
+import { Platform } from 'react-native';
 import {
   LoginRequest,
   LoginResponse,
@@ -18,6 +19,43 @@ import {
   WorkFormExecution,
 } from '../types';
 
+const PROD_DEFAULT_API_BASE_URL = 'https://dev.meatscentral.com/api/v1';
+
+function getExpoDevHost(): string | null {
+  const hostUri =
+    Constants.expoConfig?.hostUri ||
+    (Constants as any).manifest?.debuggerHost ||
+    (Constants as any).manifest2?.extra?.expoClient?.hostUri;
+
+  if (!hostUri || typeof hostUri !== 'string') return null;
+  return hostUri.split(':')[0] || null;
+}
+
+function getDeviceSafeDevApiBaseUrl(): string {
+  const host = getExpoDevHost();
+  if (host) return `http://${host}:8000/api/v1`;
+
+  if (Platform.OS === 'android') return 'http://10.0.2.2:8000/api/v1';
+  return 'http://localhost:8000/api/v1';
+}
+
+function resolveApiBaseUrl(envBaseUrl?: string, extraBaseUrl?: string): string {
+  const env = (envBaseUrl || '').trim();
+  if (env) return env;
+
+  const extra = (extraBaseUrl || '').trim();
+
+  if (extra && /(localhost|127\.0\.0\.1)/.test(extra)) {
+    return getDeviceSafeDevApiBaseUrl();
+  }
+
+  if (__DEV__) {
+    return extra || getDeviceSafeDevApiBaseUrl();
+  }
+
+  return extra || PROD_DEFAULT_API_BASE_URL;
+}
+
 class ApiServiceClass {
   private api: AxiosInstance;
   private baseURL: string;
@@ -26,11 +64,7 @@ class ApiServiceClass {
     const envBaseUrl = process.env.EXPO_PUBLIC_API_BASE_URL;
     const extraBaseUrl = (Constants.expoConfig?.extra as any)?.apiBaseUrl as string | undefined;
 
-    // Prefer environment-configured URL (build-time), then app.json extra, then sensible defaults.
-    const configured = (envBaseUrl || extraBaseUrl || '').trim();
-    this.baseURL = (
-      configured || (__DEV__ ? 'http://localhost:8000/api/v1' : 'https://dev.meatscentral.com/api/v1')
-    ).replace(/\/+$/, '');
+    this.baseURL = resolveApiBaseUrl(envBaseUrl, extraBaseUrl).replace(/\/+$/, '');
 
     this.api = axios.create({
       baseURL: this.baseURL,

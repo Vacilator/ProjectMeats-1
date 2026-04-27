@@ -28,6 +28,16 @@ jest.mock('axios', () => {
   };
 });
 
+jest.mock('expo-constants', () => ({
+  __esModule: true,
+  default: {
+    expoConfig: {
+      hostUri: '192.168.0.2:8081',
+      extra: { apiBaseUrl: 'http://localhost:8000/api/v1' },
+    },
+  },
+}));
+
 import { ApiService } from '../services/ApiService';
 
 type OpenApiSpec = {

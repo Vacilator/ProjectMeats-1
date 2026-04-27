@@ -116,8 +116,15 @@ npm run web
 
 The app automatically detects development vs production based on the `__DEV__` flag:
 
-- **Development**: Uses `http://localhost:8000/api/v1` (assumes backend running locally)
+- **Development**: Uses a **device-safe** URL derived from Expo's dev host when possible.
+  - Physical devices: `http://<your-dev-machine-lan-ip>:8000/api/v1`
+  - Android emulator fallback: `http://10.0.2.2:8000/api/v1`
+  - iOS simulator fallback: `http://localhost:8000/api/v1`
 - **Production**: Uses your production API URL (configure in `src/services/ApiService.ts`)
+
+To override explicitly (recommended for physical device testing), set:
+
+- `EXPO_PUBLIC_API_BASE_URL=http://<your-ip>:8000/api/v1`
 
 ### Adding New Features
 
