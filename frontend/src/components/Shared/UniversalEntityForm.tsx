@@ -14,6 +14,7 @@
  */
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useAuthState } from '@/contexts/AuthContext';
 import { Button, Modal, Spin, message, Select, Skeleton } from 'antd';
 import styled from 'styled-components';
 import { businessApi } from '../../services/businessApi';
@@ -877,7 +878,11 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
   keyFields,
   allowModeSwitch,
 }) => {
+  const { isAuthenticated, loading: authLoading } = useAuthState();
+  const stableEmptyInitialValues = useMemo(() => ({} as Record<string, unknown>), []);
+
   const [loading, setLoading] = useState(false);
+  const [loadError, setLoadError] = useState<unknown | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [schema, setSchema] = useState<BackendSchema | null>(null);
   const [recordValues, setRecordValues] = useState<Record<string, unknown> | null>(null);
@@ -1020,15 +1025,22 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
         setFkValues(sanitized);
       } catch (err: unknown) {
         if (!mounted) return;
+        setLoadError(err);
         setSchema(null);
         setRecordValues(null);
         setResolvedInitialValues(initialSnapshot);
+
+        const status = (err as any)?.response?.status;
         const errorMessage =
           typeof (err as { response?: { data?: { error?: string } } })?.response?.data?.error ===
           'string'
             ? (err as { response?: { data?: { error?: string } } }).response?.data?.error
             : 'Failed to load form';
-        message.error(errorMessage);
+
+        // Avoid toast spam for auth failures; the global interceptor will redirect.
+        if (status !== 401 && status !== 403) {
+          message.error(errorMessage);
+        }
       } finally {
         if (mounted) setLoading(false);
       }
@@ -1039,7 +1051,7 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
     return () => {
       mounted = false;
     };
-  }, [endpoint, entityId, inferredMode, isOpen, loadSchema, schemaEntityKey]);
+  }, [authLoading, endpoint, entityId, inferredMode, isAuthenticated, isOpen, loadSchema, schemaEntityKey, stableEmptyInitialValues]);
 
   // Load basic FK option lists (best-effort) for non-product references.
   useEffect(() => {
@@ -1757,6 +1769,12 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
       {loading ? (
         <div style={{ padding: 16 }}>
           <Skeleton active paragraph={{ rows: 6 }} />
+        </div>
+      ) : loadError ? (
+        <div style={{ padding: 12, color: 'rgb(var(--color-text-secondary))', fontSize: 13 }}>
+          {(loadError as any)?.response?.status === 401 || (loadError as any)?.response?.status === 403
+            ? 'Authentication required. Redirecting to login…'
+            : 'Unable to load form.'}
         </div>
       ) : !schema ? (
         <div style={{ padding: 12, color: 'rgb(var(--color-text-secondary))', fontSize: 13 }}>

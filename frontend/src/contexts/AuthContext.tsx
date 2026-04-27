@@ -176,3 +176,27 @@ export const useAuth = (): AuthContextType => {
   }
   return context;
 };
+
+/**
+ * Minimal auth state hook that does NOT require AuthProvider.
+ *
+ * Used for providers/hooks that can be mounted in isolation (tests, storybook, etc.)
+ * but still need to avoid firing authenticated queries when no credentials exist.
+ */
+export const useAuthState = (): { isAuthenticated: boolean; loading: boolean } => {
+  const context = useContext(AuthContext);
+  if (context !== undefined) {
+    return { isAuthenticated: context.isAuthenticated, loading: context.loading };
+  }
+
+  const hasStorageAuth =
+    typeof window !== 'undefined' &&
+    Boolean(
+      localStorage.getItem('accessToken') ||
+        localStorage.getItem('refreshToken') ||
+        localStorage.getItem('authToken') ||
+        localStorage.getItem('user')
+    );
+
+  return { isAuthenticated: hasStorageAuth, loading: false };
+};
