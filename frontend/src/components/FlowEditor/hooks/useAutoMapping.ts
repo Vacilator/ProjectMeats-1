@@ -28,6 +28,7 @@ export interface UseAutoMappingReturn {
   generateSuggestions: (nodeId: string) => void;
   applySuggestion: (nodeId: string, suggestion: FieldMappingSuggestion) => void;
   applyAllSuggestions: (nodeId: string) => void;
+  dismissSuggestion: (suggestionId: string) => void;
   clearSuggestions: () => void;
 }
 
@@ -77,7 +78,7 @@ export function useAutoMapping(): UseAutoMappingReturn {
    */
   const applySuggestion = useCallback((nodeId: string, suggestion: FieldMappingSuggestion) => {
     setNodes((nodes) => {
-      return nodes.map(node => {
+      return nodes.map((node) => {
         if (node.id === nodeId) {
           const updatedNode = AutoMappingService.applySuggestion(node, suggestion);
           logger.debug('Applied suggestion', { component: 'AutoMapping', metadata: { suggestion } });
@@ -85,6 +86,15 @@ export function useAutoMapping(): UseAutoMappingReturn {
         }
         return node;
       });
+    });
+
+    // UX: remove accepted suggestion immediately.
+    setSuggestions((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        suggestions: prev.suggestions.filter((s) => s.id !== suggestion.id),
+      };
     });
   }, [setNodes]);
   
@@ -114,6 +124,16 @@ export function useAutoMapping(): UseAutoMappingReturn {
   /**
    * Clear suggestions
    */
+  const dismissSuggestion = useCallback((suggestionId: string) => {
+    setSuggestions((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        suggestions: prev.suggestions.filter((s) => s.id !== suggestionId),
+      };
+    });
+  }, []);
+
   const clearSuggestions = useCallback(() => {
     setSuggestions(null);
     setError(null);
@@ -126,6 +146,7 @@ export function useAutoMapping(): UseAutoMappingReturn {
     generateSuggestions,
     applySuggestion,
     applyAllSuggestions,
+    dismissSuggestion,
     clearSuggestions,
   };
 }

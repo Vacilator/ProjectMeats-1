@@ -53,13 +53,53 @@ export const DryRunDebugger: React.FC<DryRunDebuggerProps> = ({
     markNodesExecuted,
   } = useFlowEditor();
 
-  // Generate mock input based on node schema
-  useEffect(() => {
-    if (selectedNode) {
-      const mock = generateMockInput(selectedNode);
-      setMockInput(mock);
-    }
+  const mockInputStorageKey = useMemo(() => {
+    if (!selectedNode) return null;
+    if (typeof window === 'undefined') return null;
+    return `dryrun_mock_input:${window.location.pathname}:${selectedNode.id}`;
   }, [selectedNode]);
+
+  // Generate (or restore) mock input when node changes.
+  useEffect(() => {
+    if (!selectedNode) return;
+
+    const fallback = generateMockInput(selectedNode);
+
+    if (!mockInputStorageKey) {
+      setMockInput(fallback);
+      return;
+    }
+
+    try {
+      const raw = localStorage.getItem(mockInputStorageKey);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+          setMockInput(parsed as Record<string, any>);
+          return;
+        }
+      }
+    } catch {
+      // best-effort
+    }
+
+    setMockInput(fallback);
+  }, [mockInputStorageKey, selectedNode]);
+
+  // Persist mock input edits for convenience.
+  useEffect(() => {
+    if (!mockInputStorageKey) return;
+
+    const t = window.setTimeout(() => {
+      try {
+        localStorage.setItem(mockInputStorageKey, JSON.stringify(mockInput));
+      } catch {
+        // best-effort
+      }
+    }, 250);
+
+    return () => window.clearTimeout(t);
+  }, [mockInput, mockInputStorageKey]);
 
   // Auto-start a debug session when opened (Phase 9.4)
   useEffect(() => {
@@ -435,7 +475,25 @@ export const DryRunDebugger: React.FC<DryRunDebuggerProps> = ({
       <DebuggerContent>
         {/* Mock Input Section */}
         <Section>
-          <SectionTitle>Mock Input Data</SectionTitle>
+          <SectionTitle>
+            Mock Input Data
+            <ResetMockButton
+              type="button"
+              onClick={() => {
+                const next = generateMockInput(selectedNode);
+                setMockInput(next);
+                if (mockInputStorageKey) {
+                  try {
+                    localStorage.setItem(mockInputStorageKey, JSON.stringify(next));
+                  } catch {
+                    // best-effort
+                  }
+                }
+              }}
+            >
+              Reset Input
+            </ResetMockButton>
+          </SectionTitle>
           <InputEditor>
             {viewMode === 'preview' ? (
               <InputPreview>
@@ -923,6 +981,28 @@ const SectionTitle = styled.h3`
   color: rgb(var(--color-text-primary));
   text-transform: uppercase;
   letter-spacing: 0.5px;
+`;
+
+const ResetMockButton = styled.button`
+  margin-left: auto;
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgb(var(--color-border));
+  background: rgb(var(--color-surface));
+  color: rgb(var(--color-text-primary));
+  cursor: pointer;
+  font-size: 12px;
+  text-transform: none;
+  letter-spacing: normal;
+
+  &:hover {
+    background: rgb(var(--color-background));
+  }
+
+  &:focus-visible {
+    outline: 2px solid rgba(var(--color-primary), 0.4);
+    outline-offset: 2px;
+  }
 `;
 
 const DurationBadge = styled.span`
