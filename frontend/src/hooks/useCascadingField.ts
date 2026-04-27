@@ -73,11 +73,13 @@ export interface CascadingFieldConfig {
 export const useCascadingField = ({
   fieldId,
   parentValue,
-  enabled = true
+  enabled = true,
+  fetchOptions: customFetchOptions,
 }: {
   fieldId: string;
   parentValue: any;
   enabled?: boolean;
+  fetchOptions?: (parentValue: any) => Promise<CascadingFieldOption[]>;
 }) => {
   const [options, setOptions] = useState<CascadingFieldOption[]>([]);
   const [loading, setLoading] = useState(false);
@@ -93,13 +95,16 @@ export const useCascadingField = ({
     setError(null);
 
     try {
-      const response = await businessApi.get(
-        `/form-fields/${fieldId}/cascade-options/`,
-        {
-          params: { parent_value: parentValue }
-        }
-      );
-      
+      if (customFetchOptions) {
+        const nextOptions = await customFetchOptions(parentValue);
+        setOptions(Array.isArray(nextOptions) ? nextOptions : []);
+        return;
+      }
+
+      const response = await businessApi.get(`/form-fields/${fieldId}/cascade-options/`, {
+        params: { parent_value: parentValue },
+      });
+
       setOptions(response.data || []);
     } catch (err: any) {
       const errorMsg = err.response?.data?.error || 'Failed to fetch cascaded options';
@@ -109,7 +114,7 @@ export const useCascadingField = ({
     } finally {
       setLoading(false);
     }
-  }, [fieldId, parentValue, enabled]);
+  }, [customFetchOptions, fieldId, parentValue, enabled]);
 
   useEffect(() => {
     fetchOptions();

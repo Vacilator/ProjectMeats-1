@@ -177,7 +177,7 @@ const DeleteButton = styled.button`
 
 const Contacts: React.FC = () => {
   const { supplierId, customerId } = useParams<{ supplierId?: string; customerId?: string }>();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const contactFilters = {
     supplier: supplierId ?? searchParams.get('supplier') ?? undefined,
@@ -202,6 +202,20 @@ const Contacts: React.FC = () => {
 
   const [showForm, setShowForm] = useState(false);
   const [editingContact, setEditingContact] = useState<Contact | null>(null);
+
+  useEffect(() => {
+    if (searchParams.get('create') !== '1') return;
+
+    setEditingContact(null);
+    setShowForm(true);
+  }, [searchParams]);
+
+  const clearCreateParam = () => {
+    if (searchParams.get('create') !== '1') return;
+    const next = new URLSearchParams(searchParams);
+    next.delete('create');
+    setSearchParams(next, { replace: true });
+  };
 
 
   const handleEdit = (contact: Contact) => {
@@ -313,6 +327,7 @@ const Contacts: React.FC = () => {
           onClose={() => {
             setShowForm(false);
             setEditingContact(null);
+            clearCreateParam();
           }}
           initialValues={{
             ...(contactFilters.supplier ? { supplier: String(contactFilters.supplier) } : {}),
@@ -323,6 +338,7 @@ const Contacts: React.FC = () => {
           onSuccess={() => {
             setShowForm(false);
             setEditingContact(null);
+            clearCreateParam();
             void contactsQuery.refetch();
           }}
         />

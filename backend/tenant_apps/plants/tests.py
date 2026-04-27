@@ -7,6 +7,8 @@ import uuid
 from django.test import TestCase
 from django.contrib.auth.models import User
 from rest_framework.test import APIRequestFactory
+from rest_framework.test import APITestCase
+from rest_framework import status
 
 from tenant_apps.plants.models import Plant
 from tenant_apps.plants.serializers import PlantSerializer
@@ -217,3 +219,93 @@ class PlantModelTest(TestCase):
         self.assertFalse(perm.has_object_permission(req, None, plant_denied))
         self.assertTrue(perm.has_object_permission(req, None, contact_allowed))
         self.assertFalse(perm.has_object_permission(req, None, contact_denied))
+
+
+class PlantNestedContactsAPITests(APITestCase):
+    def setUp(self):
+        unique_id = uuid.uuid4().hex[:8]
+        self.user = User.objects.create_user(
+            username=f"plant-api-{unique_id}",
+            email=f"plant-api-{unique_id}@example.com",
+            password="testpass123",
+        )
+        self.client.force_login(self.user)
+
+        self.tenant = Tenant.objects.create(
+            name=f"Plant Tenant {unique_id}",
+            slug=f"plant-tenant-{unique_id}",
+            contact_email=f"plant-{unique_id}@example.com",
+            created_by=self.user,
+        )
+        TenantUser.objects.create(tenant=self.tenant, user=self.user, role="owner", is_active=True)
+
+        self.supplier = Supplier.objects.create(
+            tenant=self.tenant,
+            name=f"Plant Supplier {unique_id}",
+        )
+        self.plant = Plant.objects.create(
+            tenant=self.tenant,
+            supplier=self.supplier,
+            name=f"Plant {unique_id}",
+        )
+        self.contact = Contact.objects.create(
+            tenant=self.tenant,
+            supplier=self.supplier,
+            plant=self.plant,
+            department="sales",
+            first_name="Initial",
+            last_name="Contact",
+            email=f"initial-{unique_id}@example.com",
+            title="Original Title",
+        )
+        self.tenant_header = {"HTTP_X_TENANT_ID": str(self.tenant.id)}
+
+    def test_patch_plant_with_nested_contacts_upserts_contacts(self):
+        response = self.client.patch(
+            f"/api/v1/plants/{self.plant.id}/",
+            {
+                "contacts": [
+                    {
+                        "id": self.contact.id,
+                        "department": "sales",
+                        "first_name": "Updated",
+                        "last_name": "Contact",
+                        "email": "updated@example.com",
+                        "title": "Sales Manager",
+                        "notes": "Updated via plant patch",
+                        "documents_responsible_for": ["BOL"],
+                    },
+                    {
+                        "department": "certification",
+                        "first_name": "Cert",
+                        "last_name": "Owner",
+                        "email": "cert@example.com",
+                        "title": "Certification Lead",
+                        "documents_responsible_for": ["COA", "Halal"],
+                    },
+                ],
+            },
+            format="json",
+            **self.tenant_header,
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        self.contact.refresh_from_db()
+        self.assertEqual(self.contact.first_name, "Updated")
+        self.assertEqual(self.contact.email, "updated@example.com")
+        self.assertEqual(self.contact.title, "Sales Manager")
+        self.assertEqual(self.contact.notes, "Updated via plant patch")
+        self.assertEqual(self.contact.documents_responsible_for, ["BOL"])
+
+        created_contact = Contact.objects.get(
+            tenant=self.tenant,
+            plant=self.plant,
+            email="cert@example.com",
+        )
+        self.assertEqual(created_contact.department, "certification")
+        self.assertEqual(created_contact.documents_responsible_for, ["COA", "Halal"])
+        self.assertEqual(
+            Contact.objects.filter(tenant=self.tenant, plant=self.plant).count(),
+            2,
+        )
