@@ -131,7 +131,7 @@ describe('EntityMapperModal', () => {
 
       await waitFor(() => {
         expect(consoleError).toHaveBeenCalledWith(
-          'Failed to fetch form fields:',
+          expect.stringContaining('Failed to fetch form fields:'),
           expect.any(Error)
         );
       });

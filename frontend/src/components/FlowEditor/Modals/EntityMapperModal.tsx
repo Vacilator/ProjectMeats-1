@@ -359,7 +359,7 @@ export const EntityMapperModal: React.FC<EntityMapperModalProps> = ({
         />
       )}
 
-      <Space direction="vertical" style={{ width: '100%' }}>
+      <Space orientation="vertical" style={{ width: '100%' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <Text strong>Field Mappings</Text>
           <Button

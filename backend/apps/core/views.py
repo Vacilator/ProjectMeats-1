@@ -857,13 +857,13 @@ class WorkspaceStatsView(APIView):
         # Calculate stats
         try:
             po_today = PurchaseOrder.objects.filter(
-                tenant=tenant, 
-                created_at__date=today
+                tenant=tenant,
+                created_on__date=today,
             ).count()
             
             so_today = SalesOrder.objects.filter(
                 tenant=tenant,
-                created_at__date=today
+                created_on__date=today,
             ).count()
             
             active_suppliers = Supplier.objects.filter(
