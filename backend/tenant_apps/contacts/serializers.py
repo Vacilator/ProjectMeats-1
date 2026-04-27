@@ -29,11 +29,14 @@ class ContactSerializer(serializers.ModelSerializer):
 
             # New department + phone slots
             "department",
+            "title",
+            "notes",
             "mobile_phone",
             "office_phone",
             "office_phone_ext",
             "protein_types_responsible",
             "items_responsible",
+            "documents_responsible_for",
 
             "company",
             "position",

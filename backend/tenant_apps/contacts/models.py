@@ -13,8 +13,13 @@ from apps.core.models import ContactTypeChoices, PhoneTypeChoices, StatusChoices
 class ContactDepartmentChoices(models.TextChoices):
     SALES = 'sales', 'Sales'
     QA = 'qa', 'Quality Assurance'
-    BOOKING = 'booking', 'Booking'
+    SHIPPING = 'shipping', 'Shipping / Loadout'
+    CERTIFICATION = 'certification', 'Certification'
     ACCOUNTING = 'accounting', 'Accounting'
+
+    # Back-compat alias: keep the legacy enum value to satisfy OpenAPI back-compat gates.
+    # Data is migrated to SHIPPING; UI should avoid offering BOOKING for new records.
+    BOOKING = 'booking', 'Booking (Deprecated)'
 
 
 class Contact(TenantAwareModel):
@@ -84,6 +89,12 @@ class Contact(TenantAwareModel):
     position = models.CharField(
         max_length=100, blank=True, null=True, help_text="Job position or title"
     )
+    title = models.CharField(
+        max_length=100,
+        blank=True,
+        null=True,
+        help_text="Specific job title/role",
+    )
     
     # Department-scoped contact fields (Grandparent→Parent→Child hierarchy)
     department = models.CharField(
@@ -92,7 +103,12 @@ class Contact(TenantAwareModel):
         blank=True,
         null=True,
         default='',
-        help_text='Department this contact belongs to (Sales, QA, Booking, Accounting)',
+        help_text='Department this contact belongs to (Sales, QA, Shipping / Loadout, Certification, Accounting)',
+    )
+    notes = models.TextField(
+        blank=True,
+        null=True,
+        help_text="Additional contact notes",
     )
 
     mobile_phone = models.CharField(
@@ -130,6 +146,13 @@ class Contact(TenantAwareModel):
         null=True,
         default=list,
         help_text='Items this contact is responsible for (Sales only)',
+    )
+    documents_responsible_for = ArrayField(
+        models.CharField(max_length=100),
+        blank=True,
+        null=True,
+        default=list,
+        help_text='Documents this contact is responsible for',
     )
 
     # =====================================================================

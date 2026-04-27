@@ -96,4 +96,30 @@ describe('EntityWorkflowStatusPanel', () => {
     expect(await screen.findByText(/execution_start/i)).toBeInTheDocument();
     expect(screen.getByText(/View execution details/i)).toBeInTheDocument();
   });
+
+  it('renders an error alert when the workflow request fails', async () => {
+    vi.mocked(workformExecutionService.getExecutions).mockRejectedValueOnce({
+      response: {
+        data: {
+          detail: 'Automation failed',
+        },
+      },
+    });
+
+    const client = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false },
+      },
+    });
+
+    render(
+      <QueryClientProvider client={client}>
+        <MemoryRouter>
+          <EntityWorkflowStatusPanel entityType="customer" entityId="1" />
+        </MemoryRouter>
+      </QueryClientProvider>
+    );
+
+    expect(await screen.findByText('Automation failed')).toBeInTheDocument();
+  });
 });

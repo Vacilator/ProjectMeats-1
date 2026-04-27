@@ -16,10 +16,10 @@
  *   <ActivityFeed entityType="customer" entityId={456} showCreateForm />
  */
 import React, { useState, useEffect } from 'react';
+import { Alert } from 'antd';
 import styled from 'styled-components';
-import { Card, CardHeader, CardContent } from '../ui/Card';
 import { formatToLocal } from '../../utils/formatters';
-import { apiClient } from '../../services/apiService';
+import { businessApi } from '../../services/businessApi';
 
 // ============================================================================
 // TypeScript Interfaces
@@ -29,7 +29,7 @@ interface ActivityLog {
   id: number;
   tenant: string;
   entity_type: string;
-  entity_id: number;
+  entity_id: string | number;
   title: string;
   content: string;
   created_by: number | null;
@@ -50,7 +50,7 @@ interface ActivityFeedProps {
     | 'product'
     | 'invoice'
     | 'contact';
-  entityId: number;
+  entityId: string | number;
   showCreateForm?: boolean;
   maxHeight?: string;
 }
@@ -80,7 +80,7 @@ const FeedTitle = styled.h3`
 const AddButton = styled.button`
   padding: 0.5rem 1rem;
   background: rgb(var(--color-primary));
-  color: white;
+  color: rgb(var(--color-primary-foreground));
   border: none;
   border-radius: var(--radius-md);
   font-size: 0.875rem;
@@ -235,7 +235,7 @@ const FormActions = styled.div`
 const SubmitButton = styled.button`
   padding: 0.5rem 1rem;
   background: rgb(var(--color-primary));
-  color: white;
+  color: rgb(var(--color-primary-foreground));
   border: none;
   border-radius: var(--radius-sm);
   font-size: 0.875rem;
@@ -284,15 +284,6 @@ const LoadingState = styled.div`
   font-size: 0.875rem;
 `;
 
-const ErrorState = styled.div`
-  padding: 1rem;
-  background: rgba(220, 38, 38, 0.1);
-  border: 1px solid rgba(220, 38, 38, 0.3);
-  border-radius: var(--radius-md);
-  color: rgb(220, 38, 38);
-  font-size: 0.875rem;
-`;
-
 // ============================================================================
 // Component
 // ============================================================================
@@ -324,7 +315,7 @@ export const ActivityFeed: React.FC<ActivityFeedProps> = ({
       setLoading(true);
       setError(null);
       
-      const response = await apiClient.get('workspace/activity-logs/', {
+      const response = await businessApi.get('workspace/activity-logs/', {
         params: {
           entity_type: entityType,
           entity_id: entityId,
@@ -350,7 +341,7 @@ export const ActivityFeed: React.FC<ActivityFeedProps> = ({
     try {
       setSubmitting(true);
       
-      const response = await apiClient.post('workspace/activity-logs/', {
+      const response = await businessApi.post('workspace/activity-logs/', {
         entity_type: entityType,
         entity_id: entityId,
         title: formData.title.trim() || 'Note',
@@ -395,7 +386,7 @@ export const ActivityFeed: React.FC<ActivityFeedProps> = ({
 
     try {
       setSavingEdit(true);
-      const response = await apiClient.patch(`workspace/activity-logs/${editingId}/`, {
+      const response = await businessApi.patch(`workspace/activity-logs/${editingId}/`, {
         title: editData.title.trim() || 'Note',
         content: editData.content.trim(),
       });
@@ -456,7 +447,7 @@ export const ActivityFeed: React.FC<ActivityFeedProps> = ({
 
       {/* Error State */}
       {error && (
-        <ErrorState>{error}</ErrorState>
+        <Alert type="error" showIcon title={error} style={{ marginBottom: 16 }} />
       )}
 
       {/* Timeline */}
