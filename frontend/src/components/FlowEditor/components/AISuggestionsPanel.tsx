@@ -255,7 +255,7 @@ const AddIcon = styled.div`
   
   ${SuggestionItem}:hover & {
     background: rgb(var(--color-primary));
-    color: white;
+    color: rgb(var(--color-text-inverse));
   }
 `;
 

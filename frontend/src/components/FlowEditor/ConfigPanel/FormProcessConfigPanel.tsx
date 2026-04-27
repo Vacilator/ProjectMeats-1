@@ -108,7 +108,7 @@ const Toggle = styled.label`
       width: 18px;
       left: 3px;
       bottom: 3px;
-      background: white;
+      background: rgb(var(--color-surface));
       transition: 0.2s;
       border-radius: 50%;
     }

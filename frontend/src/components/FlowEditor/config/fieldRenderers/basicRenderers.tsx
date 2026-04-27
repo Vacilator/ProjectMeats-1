@@ -290,7 +290,7 @@ const ToggleSwitch = styled.input.attrs({ type: 'checkbox' })`
     border-radius: 50%;
     top: 3px;
     left: 3px;
-    background: white;
+    background: rgb(var(--color-surface));
     transition: transform 0.2s;
   }
 

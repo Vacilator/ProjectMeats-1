@@ -143,7 +143,7 @@ const ContainerHeader = styled.div`
   border-radius: 10px 10px 0 0;
   cursor: grab;
   user-select: none;
-  color: white;
+  color: rgb(var(--color-text-inverse));
   overflow: hidden; /* Contain header styling within rounded corners */
   
   &:hover {
@@ -159,7 +159,7 @@ const ExpandIcon = styled.button`
   display: flex;
   align-items: center;
   justify-content: center;
-  color: white; /* White icon for solid header */
+  color: rgb(var(--color-text-inverse)); /* White icon for solid header */
   transition: transform 0.2s ease;
   border: none;
   background: transparent;
@@ -206,7 +206,7 @@ const StatusBadge = styled.div<{ type: 'configured' | 'draft' }>`
   background: ${props => props.type === 'configured' 
     ? 'rgba(var(--color-header-background), 0.3)' 
     : 'rgba(var(--color-header-background), 0.2)'};
-  color: white;
+  color: rgb(var(--color-text-inverse));
 `;
 
 const ContainerBody = styled.div<{ isExpanded: boolean }>`
@@ -326,7 +326,7 @@ const ConfigButton = styled.button`
   padding: 10px;
   margin-top: 12px;
   background: linear-gradient(135deg, rgb(var(--color-primary)), rgb(var(--color-primary-active)));
-  color: white;
+  color: rgb(var(--color-text-inverse));
   border: none;
   border-radius: 6px;
   font-size: 13px;

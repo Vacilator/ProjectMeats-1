@@ -8,7 +8,7 @@ import { Mail } from 'lucide-react';
 import styled from 'styled-components';
 
 const NodeContainer = styled.div`
-  background: white;
+  background: rgb(var(--color-surface));
   border: 2px solid rgb(var(--color-primary));
   border-radius: 8px;
   padding: 12px;
@@ -35,7 +35,7 @@ const NodeIcon = styled.div`
   width: 32px;
   height: 32px;
   background: rgb(var(--color-primary));
-  color: white;
+  color: rgb(var(--color-text-inverse));
   border-radius: 6px;
 `;
 

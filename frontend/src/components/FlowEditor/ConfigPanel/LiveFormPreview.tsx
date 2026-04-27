@@ -65,7 +65,7 @@ const PreviewTitle = styled.h3`
 `;
 
 const PreviewCard = styled.div`
-  background: white;
+  background: rgb(var(--color-surface));
   border-radius: 12px;
   padding: 24px;
   box-shadow: 0 4px 12px rgba(var(--color-overlay), 0.1);
@@ -126,7 +126,7 @@ const HelpText = styled.span`
 
 const Input = styled.input`
   padding: 10px 12px;
-  background: white;
+  background: rgb(var(--color-surface));
   border: 2px solid rgb(var(--color-border));
   border-radius: 8px;
   font-size: 14px;
@@ -146,7 +146,7 @@ const Input = styled.input`
 
 const Textarea = styled.textarea`
   padding: 10px 12px;
-  background: white;
+  background: rgb(var(--color-surface));
   border: 2px solid rgb(var(--color-border));
   border-radius: 8px;
   font-size: 14px;
@@ -169,7 +169,7 @@ const Textarea = styled.textarea`
 
 const Select = styled.select`
   padding: 10px 12px;
-  background: white;
+  background: rgb(var(--color-surface));
   border: 2px solid rgb(var(--color-border));
   border-radius: 8px;
   font-size: 14px;

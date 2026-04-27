@@ -123,7 +123,7 @@ const ContextButton = styled.button<{ $active: boolean }>`
     width: 16px;
     height: 16px;
     color: ${props => props.$active 
-      ? 'white' 
+      ? 'rgb(var(--color-text-inverse))' 
       : 'rgb(var(--color-text-tertiary))'
     };
   }

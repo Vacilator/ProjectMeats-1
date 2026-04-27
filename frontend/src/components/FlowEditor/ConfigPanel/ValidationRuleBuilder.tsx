@@ -380,7 +380,7 @@ const Button = styled.button<{ $variant?: 'primary' | 'secondary' }>`
   
   ${props => props.$variant === 'primary' ? `
     background: rgb(var(--color-primary));
-    color: white;
+    color: rgb(var(--color-text-inverse));
     
     &:hover {
       opacity: 0.9;

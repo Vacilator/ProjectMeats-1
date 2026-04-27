@@ -110,7 +110,7 @@ const Button = styled.button<{
       return `
         background: rgb(var(--color-primary));
         border-color: rgb(var(--color-primary));
-        color: white;
+        color: rgb(var(--color-text-inverse));
         
         &:hover:not(:disabled) {
           background: rgb(var(--color-primary-hover));

@@ -136,13 +136,13 @@ const Button = styled.button<{ variant?: 'primary' | 'ghost' | 'danger' }>`
     if (props.variant === 'primary') {
       return `
         background: rgb(var(--color-primary));
-        color: white;
+        color: rgb(var(--color-text-inverse));
         &:hover { opacity: 0.9; }
       `;
     } else if (props.variant === 'danger') {
       return `
         background: rgb(var(--color-error));
-        color: white;
+        color: rgb(var(--color-text-inverse));
         &:hover { opacity: 0.9; }
       `;
     } else {
@@ -303,7 +303,7 @@ const StatusBadge = styled.div<{ status: NodeExecutionState['status'] }>`
       default: return 'rgb(var(--color-border))';
     }
   }};
-  color: white;
+  color: rgb(var(--color-text-inverse));
 `;
 
 const NodeData = styled.pre`

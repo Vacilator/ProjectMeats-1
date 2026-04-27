@@ -464,14 +464,14 @@ export const Button = styled.button<{
       case 'primary':
         return `
           background: rgb(var(--color-primary));
-          color: white;
+          color: rgb(var(--color-text-inverse));
           &:hover { background: rgb(var(--color-primary-dark)); }
           &:active { transform: translateY(1px); }
         `;
       case 'danger':
         return `
           background: rgb(var(--color-error));
-          color: white;
+          color: rgb(var(--color-text-inverse));
           &:hover { background: rgb(var(--color-danger)); }
           &:active { transform: translateY(1px); }
         `;
@@ -547,7 +547,7 @@ export const AddButton = styled.button`
   gap: 6px;
   padding: 6px 12px;
   border: 1px solid rgb(var(--color-border));
-  background: white;
+  background: rgb(var(--color-surface));
   color: rgb(var(--color-text-primary));
   border-radius: var(--radius-md);
   font-size: 13px;

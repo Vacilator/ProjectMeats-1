@@ -202,7 +202,7 @@ const ActionButton = styled.button`
   cursor: pointer;
   transition: all 0.2s ease;
   background: rgb(var(--color-primary));
-  color: white;
+  color: rgb(var(--color-text-inverse));
 
   &:hover {
     background: rgba(var(--color-primary), 0.9);

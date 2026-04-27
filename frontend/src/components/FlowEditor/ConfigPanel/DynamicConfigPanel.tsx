@@ -1473,7 +1473,7 @@ const Button = styled.button<{ variant?: 'primary' | 'secondary' | 'danger'; ful
     if (variant === 'primary') {
       return `
         background: rgb(var(--color-primary));
-        color: white;
+        color: rgb(var(--color-text-inverse));
         &:hover:not(:disabled) {
           background: rgb(var(--color-primary-hover));
         }
@@ -1481,7 +1481,7 @@ const Button = styled.button<{ variant?: 'primary' | 'secondary' | 'danger'; ful
     } else if (variant === 'danger') {
       return `
         background: rgb(var(--color-error));
-        color: white;
+        color: rgb(var(--color-text-inverse));
         &:hover:not(:disabled) {
           background: rgb(var(--color-error));
         }

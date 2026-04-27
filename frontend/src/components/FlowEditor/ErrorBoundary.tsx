@@ -231,7 +231,7 @@ const ResetButton = styled.button`
   gap: 8px;
   padding: 10px 20px;
   background: rgb(var(--color-primary));
-  color: white;
+  color: rgb(var(--color-text-inverse));
   border: none;
   border-radius: 6px;
   font-size: 14px;

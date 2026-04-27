@@ -110,7 +110,7 @@ const StepBadge = styled.div`
   top: -12px;
   left: 12px;
   background: rgba(var(--color-primary), 0.9);
-  color: white;
+  color: rgb(var(--color-text-inverse));
   font-size: 11px;
   font-weight: 600;
   padding: 4px 10px;

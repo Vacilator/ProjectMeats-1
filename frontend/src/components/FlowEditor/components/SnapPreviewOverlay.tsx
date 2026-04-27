@@ -71,7 +71,7 @@ const SnapLabel = styled.div<{ left: number; top: number }>`
   
   padding: 4px 12px;
   background: rgba(var(--color-primary), 0.95);
-  color: white;
+  color: rgb(var(--color-text-inverse));
   font-size: 11px;
   font-weight: 600;
   text-transform: uppercase;

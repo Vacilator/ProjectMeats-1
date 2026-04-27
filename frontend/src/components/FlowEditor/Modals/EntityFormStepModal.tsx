@@ -171,7 +171,7 @@ const StepNumber = styled.span<{ $active: boolean; $completed: boolean }>`
       : 'rgb(var(--color-border))'};
   color: ${props =>
     props.$active || props.$completed
-      ? 'white'
+      ? 'rgb(var(--color-text-inverse))'
       : 'rgb(var(--color-text-tertiary))'};
   font-size: 12px;
   font-weight: 600;
@@ -303,7 +303,7 @@ const Button = styled.button<{ $variant?: 'primary' | 'secondary' | 'ghost' }>`
         return `
           background: rgb(var(--color-primary));
           border-color: rgb(var(--color-primary));
-          color: white;
+          color: rgb(var(--color-text-inverse));
           &:hover:not(:disabled) {
             background: rgb(var(--color-primary-hover));
             border-color: rgb(var(--color-primary-hover));

@@ -101,7 +101,7 @@ const Title = styled.h3`
 const AddFieldButton = styled.button`
   padding: 8px 16px;
   background: rgb(var(--color-primary));
-  color: white;
+  color: rgb(var(--color-text-inverse));
   border: none;
   border-radius: 6px;
   font-size: 14px;
@@ -202,7 +202,7 @@ const FieldLabel = styled.div`
 const RequiredBadge = styled.span`
   font-size: 10px;
   background: rgb(var(--color-error));
-  color: white;
+  color: rgb(var(--color-text-inverse));
   padding: 2px 6px;
   border-radius: 4px;
   font-weight: 600;

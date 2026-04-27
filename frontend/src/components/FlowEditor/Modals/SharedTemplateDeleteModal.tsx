@@ -297,7 +297,7 @@ const Button = styled.button<{ $variant?: 'primary' | 'danger' | 'ghost' }>`
 
   ${props => props.$variant === 'primary' && `
     background: rgb(var(--color-primary));
-    color: white;
+    color: rgb(var(--color-text-inverse));
 
     &:hover:not(:disabled) {
       background: rgb(var(--color-primary-hover));
@@ -306,7 +306,7 @@ const Button = styled.button<{ $variant?: 'primary' | 'danger' | 'ghost' }>`
 
   ${props => props.$variant === 'danger' && `
     background: rgb(var(--color-error));
-    color: white;
+    color: rgb(var(--color-text-inverse));
 
     &:hover:not(:disabled) {
       background: rgb(var(--color-error-hover));

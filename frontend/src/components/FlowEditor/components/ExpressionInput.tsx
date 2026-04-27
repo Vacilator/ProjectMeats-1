@@ -76,7 +76,7 @@ const ChipElement = styled.div<{ selected?: boolean }>`
     ? 'rgb(var(--color-primary))' 
     : 'rgba(var(--color-primary), 0.15)'};
   color: ${props => props.selected 
-    ? 'white' 
+    ? 'rgb(var(--color-text-inverse))' 
     : 'rgb(var(--color-primary))'};
   border-radius: 4px;
   font-size: 13px;
@@ -88,7 +88,7 @@ const ChipElement = styled.div<{ selected?: boolean }>`
   
   &:hover {
     background: rgb(var(--color-primary));
-    color: white;
+    color: rgb(var(--color-text-inverse));
   }
 `;
 

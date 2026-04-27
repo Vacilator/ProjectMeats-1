@@ -136,11 +136,11 @@ export const SuccessEdge = React.memo<EdgeProps<Edge<SuccessEdgeData>>>(({
           orient="auto"
           markerUnits="userSpaceOnUse"
         >
-          <circle cx="8" cy="8" r="7" fill="rgb(var(--color-success))" stroke="white" strokeWidth="1" />
+          <circle cx="8" cy="8" r="7" fill="rgb(var(--color-success))" stroke="rgb(var(--color-text-inverse))" strokeWidth="1" />
           <path
             d="M 5,8 L 7,10 L 11,6"
             fill="none"
-            stroke="white"
+            stroke="rgb(var(--color-text-inverse))"
             strokeWidth="2"
             strokeLinecap="round"
             strokeLinejoin="round"
