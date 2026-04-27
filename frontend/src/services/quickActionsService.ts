@@ -7,6 +7,7 @@
 import axios, { CancelTokenSource } from 'axios';
 import { apiClient } from './apiService';
 import { logger } from '@/utils/logger';
+import { getValidTenantId } from '@/utils/tenantId';
 
 // Cancel token manager for request cancellation
 class CancelTokenManager {
@@ -42,6 +43,13 @@ class CancelTokenManager {
 }
 
 export const cancelTokenManager = new CancelTokenManager();
+
+let warnedMissingTenant = false;
+const warnMissingTenantOnce = (endpoint: string) => {
+  if (warnedMissingTenant) return;
+  warnedMissingTenant = true;
+  logger.warn('[QuickActions] Skipping tenant-scoped request; missing/invalid tenantId', { endpoint });
+};
 
 // Types
 export interface QuickActionItem {
@@ -132,9 +140,13 @@ export const quickActionsService = {
    * @param cancelKey - Optional key for cancellation tracking
    */
   async getQuickActions(cancelKey?: string): Promise<{ items: QuickActionItem[] }> {
-    const config = cancelKey 
-      ? { cancelToken: cancelTokenManager.create(cancelKey).token }
-      : {};
+    const tenantId = getValidTenantId();
+    if (!tenantId) {
+      warnMissingTenantOnce('/workflows/quick-actions/');
+      return { items: [] };
+    }
+
+    const config = cancelKey ? { cancelToken: cancelTokenManager.create(cancelKey).token } : {};
     const response = await apiClient.get('/workflows/quick-actions/', config);
     if (cancelKey) cancelTokenManager.remove(cancelKey);
     return response.data;
@@ -144,6 +156,12 @@ export const quickActionsService = {
    * Update user's quick actions
    */
   async updateQuickActions(items: QuickActionItem[]): Promise<{ success: boolean; items: QuickActionItem[] }> {
+    const tenantId = getValidTenantId();
+    if (!tenantId) {
+      // Updating quick actions without a tenant will always fail server-side; surface a clear error.
+      throw new Error('Tenant not selected');
+    }
+
     const response = await apiClient.put('/workflows/quick-actions/', { items });
     return response.data;
   },
@@ -153,9 +171,13 @@ export const quickActionsService = {
    * @param cancelKey - Optional key for cancellation tracking
    */
   async getAvailableForms(cancelKey?: string): Promise<AvailableForm[]> {
-    const config = cancelKey 
-      ? { cancelToken: cancelTokenManager.create(cancelKey).token }
-      : {};
+    const tenantId = getValidTenantId();
+    if (!tenantId) {
+      warnMissingTenantOnce('/workflows/available-forms/');
+      return [];
+    }
+
+    const config = cancelKey ? { cancelToken: cancelTokenManager.create(cancelKey).token } : {};
     const response = await apiClient.get('/workflows/available-forms/', config);
     if (cancelKey) cancelTokenManager.remove(cancelKey);
     // Handle both paginated {results: []} and non-paginated [] responses

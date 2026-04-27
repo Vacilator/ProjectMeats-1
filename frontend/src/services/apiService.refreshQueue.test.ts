@@ -54,6 +54,15 @@ vi.mock('../utils/logger', () => ({
   },
 }));
 
+// tenantId utilities import logger via the @ alias; mock it too to avoid noisy output.
+vi.mock('@/utils/logger', () => ({
+  logger: {
+    error: vi.fn(),
+    warn: vi.fn(),
+    debug: vi.fn(),
+  },
+}));
+
 vi.mock('../contexts/SessionManagerContext', () => ({
   triggerGlobalSessionExpired: (...args: any[]) => mockTriggerGlobalSessionExpired(...args),
 }));

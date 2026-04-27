@@ -143,6 +143,9 @@ export default defineConfig({
       'src/components/FlowEditor/__tests__/UnifiedFlowEditor.integration.test.tsx',
     ],
     pool: 'forks', // Use forks instead of threads for stability
+    // Coverage + parallel file execution can intermittently miss V8 coverage shard files.
+    // Disable file-level parallelism for deterministic CI runs.
+    fileParallelism: false,
     passWithNoTests: true,
     bail: 1, // Stop on first failure for faster feedback
     coverage: {
