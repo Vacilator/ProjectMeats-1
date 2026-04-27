@@ -1888,14 +1888,14 @@ jobs:
           sudo systemctl reload nginx
 
           # Validate that the host proxy is active and API routing responds quickly.
-          HEALTH_TXT=$(curl -k -sS -m 5 -H "Host: ${DOMAIN_NAME}" https://127.0.0.1/health || true)
+          HEALTH_TXT=$(curl -k -sS -m 5 --resolve "${DOMAIN_NAME}:443:127.0.0.1" "https://${DOMAIN_NAME}/health" || true)
           if ! echo "$HEALTH_TXT" | grep -q "^healthy"; then
             echo "✗ Host nginx /health check failed (expected 'healthy')"
             echo "Got: $HEALTH_TXT"
             exit 1
           fi
 
-          API_CODE=$(curl -k -s -o /dev/null -w "%{http_code}" -m 10 -H "Host: ${DOMAIN_NAME}" https://127.0.0.1/api/v1/health/ || echo "000")
+          API_CODE=$(curl -k -s -o /dev/null -w "%{http_code}" -m 10 --resolve "${DOMAIN_NAME}:443:127.0.0.1" "https://${DOMAIN_NAME}/api/v1/health/" || echo "000")
           if [ "$API_CODE" = "000" ]; then
             echo "✗ Host nginx /api/v1/health/ did not respond (HTTP 000)"
             exit 1
