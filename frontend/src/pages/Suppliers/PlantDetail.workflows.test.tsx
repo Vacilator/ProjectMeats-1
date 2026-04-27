@@ -8,6 +8,7 @@ import { PlantDetail } from './PlantDetail';
 
 vi.mock('@/components/Cockpit', () => ({
   EntityProfileHeader: () => <div data-testid="entity-profile-header" />,
+  AIOverviewCard: () => <div data-testid="ai-overview-card" />,
 }));
 
 vi.mock('@/components/Entities/EntityWorkflowStatusPanel', () => ({
