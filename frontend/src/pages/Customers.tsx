@@ -170,6 +170,7 @@ const Customers: React.FC = () => {
         loading={customersQuery.isLoading}
         pagination={{ pageSize: 25 }}
         onRow={(record) => ({
+          style: { cursor: 'pointer' },
           onClick: () => {
             const id = String(record.id ?? '').trim();
             if (!id) return;

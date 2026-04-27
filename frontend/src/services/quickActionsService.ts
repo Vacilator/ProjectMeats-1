@@ -44,6 +44,9 @@ class CancelTokenManager {
 
 export const cancelTokenManager = new CancelTokenManager();
 
+const AVAILABLE_FORMS_CIRCUIT_OPEN_MS = 60_000;
+let availableFormsCircuitOpenUntilMs = 0;
+
 let warnedMissingTenant = false;
 const warnMissingTenantOnce = (endpoint: string) => {
   if (warnedMissingTenant) return;
@@ -177,12 +180,43 @@ export const quickActionsService = {
       return [];
     }
 
+    const now = Date.now();
+    if (availableFormsCircuitOpenUntilMs > now) {
+      logger.warn('[QuickActions] Circuit open; skipping available-forms fetch', {
+        until: new Date(availableFormsCircuitOpenUntilMs).toISOString(),
+      });
+      return [];
+    }
+
     const config = cancelKey ? { cancelToken: cancelTokenManager.create(cancelKey).token } : {};
-    const response = await apiClient.get('/workflows/available-forms/', config);
-    if (cancelKey) cancelTokenManager.remove(cancelKey);
-    // Handle both paginated {results: []} and non-paginated [] responses
-    const data = response.data;
-    return Array.isArray(data) ? data : (data.results || []);
+
+    try {
+      const response = await apiClient.get('/workflows/available-forms/', config);
+      // Handle both paginated {results: []} and non-paginated [] responses
+      const data = response.data;
+      return Array.isArray(data) ? data : (data.results || []);
+    } catch (err: any) {
+      const status = err?.response?.status;
+
+      // Circuit breaker: prevent app-wide remount loops on backend 5xx.
+      if (typeof status === 'number' && status >= 500) {
+        availableFormsCircuitOpenUntilMs = Date.now() + AVAILABLE_FORMS_CIRCUIT_OPEN_MS;
+        logger.error('[QuickActions] available-forms 5xx; opening circuit and degrading gracefully', {
+          status,
+        });
+        return [];
+      }
+
+      // Degrade gracefully for known bad-request and auth cases too.
+      if (status === 400 || status === 401 || status === 403) {
+        logger.warn('[QuickActions] available-forms request rejected; returning empty list', { status });
+        return [];
+      }
+
+      throw err;
+    } finally {
+      if (cancelKey) cancelTokenManager.remove(cancelKey);
+    }
   },
 };
 

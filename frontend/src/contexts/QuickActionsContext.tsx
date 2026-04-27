@@ -202,8 +202,13 @@ export const QuickActionsProvider: React.FC<QuickActionsProviderProps> = ({ chil
     }
   }, []);
 
+  const didInitialFetchRef = React.useRef(false);
+
   useEffect(() => {
     // Always attempt to load: supports cookie-auth sessions (no localStorage token).
+    // Guard against effect re-run (e.g., React dev strict-mode double-invoke) to avoid retry loops.
+    if (didInitialFetchRef.current) return;
+    didInitialFetchRef.current = true;
     refreshQuickActions();
   }, [refreshQuickActions]);
 
