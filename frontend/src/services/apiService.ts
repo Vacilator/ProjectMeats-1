@@ -103,14 +103,14 @@ apiClient.interceptors.request.use(
       stripJsonContentTypeForFormData(config);
 
       // Check if token needs refresh before making request
+      // IMPORTANT: do NOT block the request path on refresh.
+      // If refresh is slow/unreachable (common in dev), awaiting here can freeze app bootstraps (Quick Actions).
+      // The response interceptor will handle 401s and trigger a single refresh attempt with proper queuing.
       if (isUsingJwt() && needsRefresh() && !isRefreshing) {
-        logger.debug('[API] Token needs refresh, refreshing before request...');
-        try {
-          await refreshAccessToken();
-        } catch (error) {
+        logger.debug('[API] Token needs refresh, attempting refresh in background...');
+        refreshAccessToken().catch((error) => {
           logger.error('[API] Token refresh failed in request interceptor:', error);
-          // Don't block the request, let response interceptor handle it
-        }
+        });
       }
       
       // Get auth header (supports both JWT Bearer and legacy Token)
@@ -147,13 +147,12 @@ adminClient.interceptors.request.use(
       stripJsonContentTypeForFormData(config);
 
       // Check if token needs refresh before making request
+      // IMPORTANT: do NOT block the request path on refresh. (See apiClient interceptor note.)
       if (isUsingJwt() && needsRefresh() && !isRefreshing) {
-        logger.debug('[Admin API] Token needs refresh, refreshing before request...');
-        try {
-          await refreshAccessToken();
-        } catch (error) {
+        logger.debug('[Admin API] Token needs refresh, attempting refresh in background...');
+        refreshAccessToken().catch((error) => {
           logger.error('[Admin API] Token refresh failed in request interceptor:', error);
-        }
+        });
       }
       
       const authHeader = getAuthHeader();

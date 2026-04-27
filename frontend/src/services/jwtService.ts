@@ -181,7 +181,7 @@ export async function refreshAccessToken(): Promise<string | null> {
         { refresh: refreshToken },
         {
           headers: { 'Content-Type': 'application/json' },
-          timeout: 10000,
+          timeout: 5000,
         }
       );
       
