@@ -32,10 +32,16 @@ from .serializers import (
 )
 from .models import ActivityLog, ScheduledCall, UserWorkspaceLayout
 from tenant_apps.customers.models import Customer
-
-logger = logging.getLogger(__name__)
 from tenant_apps.suppliers.models import Supplier
 from tenant_apps.purchase_orders.models import PurchaseOrder
+from tenant_apps.plants.models import Plant
+from tenant_apps.locations.models import Location
+from tenant_apps.contacts.models import Contact
+from tenant_apps.sales_orders.models import SalesOrder
+from tenant_apps.invoices.models import Invoice
+from tenant_apps.inquiries.models import Inquiry
+
+logger = logging.getLogger(__name__)
 
 
 @extend_schema(tags=["Cockpit", "AI"])
@@ -76,11 +82,25 @@ class EntityAIOverviewView(APIView):
             'customers': Customer,
             'supplier': Supplier,
             'suppliers': Supplier,
+            'plant': Plant,
+            'plants': Plant,
+            'location': Location,
+            'locations': Location,
+            'contact': Contact,
+            'contacts': Contact,
             'purchase_order': PurchaseOrder,
             'purchase_orders': PurchaseOrder,
+            'purchase-orders': PurchaseOrder,
             'order': PurchaseOrder,
             'orders': PurchaseOrder,
             'po': PurchaseOrder,
+            'sales_order': SalesOrder,
+            'sales_orders': SalesOrder,
+            'sales-orders': SalesOrder,
+            'invoice': Invoice,
+            'invoices': Invoice,
+            'inquiry': Inquiry,
+            'inquiries': Inquiry,
         }
 
         Model = model_map.get(normalized_type)
@@ -127,15 +147,24 @@ class EntityAIOverviewView(APIView):
             entity_text += f" Created: {created_str}."
 
         # Most recent 3 activity logs
-        activity_entity_type = (
-            'customer'
-            if Model is Customer
-            else 'supplier'
-            if Model is Supplier
-            else 'purchase_order'
-            if Model is PurchaseOrder
-            else safe_entity_type
-        )
+        canonical_type = {
+            'customers': 'customer',
+            'suppliers': 'supplier',
+            'plants': 'plant',
+            'locations': 'location',
+            'contacts': 'contact',
+            'purchase_orders': 'purchase_order',
+            'purchase-orders': 'purchase_order',
+            'orders': 'purchase_order',
+            'order': 'purchase_order',
+            'po': 'purchase_order',
+            'sales_orders': 'sales_order',
+            'sales-orders': 'sales_order',
+            'invoices': 'invoice',
+            'inquiries': 'inquiry',
+        }.get(normalized_type, normalized_type)
+
+        activity_entity_type = canonical_type or safe_entity_type
 
         logs_qs = (
             ActivityLog.objects.filter(

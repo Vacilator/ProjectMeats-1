@@ -3,7 +3,7 @@ import { Alert, Breadcrumb, Button, Card, Empty, Spin, Table, Tabs } from 'antd'
 import type { ColumnsType } from 'antd/es/table';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 
-import { EntityProfileHeader } from '@/components/Cockpit';
+import { AIOverviewCard, EntityProfileHeader } from '@/components/Cockpit';
 import { EntityWorkflowStatusPanel } from '@/components/Entities/EntityWorkflowStatusPanel';
 import { ActivityFeed, EntityFormSurface } from '@/components/Shared';
 import { businessApi } from '@/services/businessApi';
@@ -260,13 +260,16 @@ export const PlantDetail: React.FC = () => {
             <Spin />
           </Card>
         ) : (
-          <EntityProfileHeader
-            key={`${pid}-${refreshKey}`}
-            entityType="plant"
-            entityId={pid}
-            variant="full"
-            onNavigateToEntity={handleNavigateToEntity}
-          />
+          <>
+            <AIOverviewCard entityType="plant" entityId={pid} />
+            <EntityProfileHeader
+              key={`${pid}-${refreshKey}`}
+              entityType="plant"
+              entityId={pid}
+              variant="full"
+              onNavigateToEntity={handleNavigateToEntity}
+            />
+          </>
         )}
       </div>
 

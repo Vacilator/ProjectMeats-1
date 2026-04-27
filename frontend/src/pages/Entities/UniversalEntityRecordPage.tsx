@@ -1,10 +1,10 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Button, Card, Spin, Tabs, Typography } from 'antd';
+import { Breadcrumb, Button, Card, Spin, Tabs } from 'antd';
 
 import { EntityWorkflowStatusPanel } from '@/components/Entities/EntityWorkflowStatusPanel';
 import { useNavigate, useParams } from 'react-router-dom';
 
-import { EntityProfileHeader } from '@/components/Cockpit';
+import { AIOverviewCard, EntityProfileHeader } from '@/components/Cockpit';
 import { ActivityFeed, EntityFormSurface, UnifiedEntityTable } from '@/components/Shared';
 import type { EntityFormMode } from '@/components/Shared/EntityFormSurface';
 import { apiClient } from '@/services/apiService';
@@ -73,7 +73,6 @@ export const UniversalEntityRecordPage: React.FC<UniversalEntityRecordPageProps>
   const [overviewLoading, setOverviewLoading] = useState(false);
   const [relationshipCounts, setRelationshipCounts] = useState<Record<string, number>>({});
   const [relationships, setRelationships] = useState<Record<string, unknown[]>>({});
-  const [summary, setSummary] = useState<string>('');
 
   const loadChildRows = useCallback(async () => {
     if (!entityId || !(isSupplier || isCustomer) || mode !== 'view') return;
@@ -127,21 +126,17 @@ export const UniversalEntityRecordPage: React.FC<UniversalEntityRecordPageProps>
 
     setOverviewLoading(true);
     try {
-      const relPromise = businessApi.get(`/system/entities/${normalizedEntityType}/${encodeURIComponent(entityId)}/relationships/`);
-      const summaryPromise = businessApi.get(`/system/entities/${normalizedEntityType}/${encodeURIComponent(entityId)}/summary/`);
+      const relRes = await businessApi.get(
+        `/system/entities/${normalizedEntityType}/${encodeURIComponent(entityId)}/relationships/`
+      );
 
-      const [relRes, summaryRes] = await Promise.allSettled([relPromise, summaryPromise]);
-
-      if (relRes.status === 'fulfilled') {
-        const payload = (relRes.value.data || {}) as RelationshipsPayload;
-        setRelationshipCounts(payload.counts || {});
-        setRelationships(payload.relationships || {});
-      }
-
-      if (summaryRes.status === 'fulfilled') {
-        const s = String((summaryRes.value.data as any)?.summary ?? '').trim();
-        setSummary(s);
-      }
+      const payload = (relRes.data || {}) as RelationshipsPayload;
+      setRelationshipCounts(payload.counts || {});
+      setRelationships(payload.relationships || {});
+    } catch {
+      // Degrade gracefully; related panels can render empty states.
+      setRelationshipCounts({});
+      setRelationships({});
     } finally {
       setOverviewLoading(false);
     }
@@ -165,11 +160,44 @@ export const UniversalEntityRecordPage: React.FC<UniversalEntityRecordPageProps>
     return 'view';
   }, [mode]);
 
+  const entityLabel = useMemo(() => {
+    const t = String(normalizedEntityType || '').trim().toLowerCase();
+    if (t === 'supplier') return 'Supplier';
+    if (t === 'customer') return 'Customer';
+    if (t === 'plant') return 'Plant';
+    if (t === 'location') return 'Location';
+    if (t === 'contact') return 'Contact';
+    if (t === 'purchase_order' || t === 'purchase-orders' || t === 'purchase_orders') return 'Purchase Order';
+    if (t === 'sales_order' || t === 'sales-orders' || t === 'sales_orders') return 'Sales Order';
+    if (t === 'inquiry' || t === 'inquiries') return 'Inquiry';
+    if (t === 'invoice' || t === 'invoices') return 'Invoice';
+    if (t === 'claim' || t === 'claims') return 'Claim';
+
+    const cleaned = t.replace(/[_-]+/g, ' ').trim();
+    return cleaned ? cleaned.replace(/\b\w/g, (c) => c.toUpperCase()) : 'Record';
+  }, [normalizedEntityType]);
+
+  const sectionLabel = useMemo(() => {
+    const p = String(basePath || '').toLowerCase();
+    if (p.startsWith('/suppliers')) return 'Suppliers';
+    if (p.startsWith('/customers')) return 'Customers';
+    if (p.startsWith('/contacts')) return 'Contacts';
+    if (p.includes('/plants')) return 'Plants';
+    if (p.includes('/locations')) return 'Locations';
+    if (p.includes('/purchase-orders')) return "P.O.'s";
+    if (p.includes('/sales-orders')) return "S.O.'s";
+    if (p.includes('/inquiries')) return 'Inquiries';
+    if (p.includes('/invoices')) return 'Invoices';
+
+    return `${entityLabel}s`;
+  }, [basePath, entityLabel]);
+
   const title = useMemo(() => {
-    if (mode === 'create') return `New ${entityType}`;
-    if (mode === 'edit') return `Edit ${entityType}`;
-    return `${entityType}`;
-  }, [entityType, mode]);
+    if (mode === 'create') return `New ${entityLabel}`;
+    if (mode === 'edit') return `Edit ${entityLabel}`;
+    if (mode === 'view' && entityId) return `${entityLabel} ${entityId}`;
+    return entityLabel;
+  }, [entityId, entityLabel, mode]);
 
   const numericEntityId = useMemo(() => {
     const n = Number(entityId);
@@ -237,10 +265,35 @@ export const UniversalEntityRecordPage: React.FC<UniversalEntityRecordPageProps>
           marginBottom: 12,
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <Button onClick={() => navigate(basePath)}>Back</Button>
-          <div style={{ fontSize: 16, fontWeight: 600, color: 'rgb(var(--color-text-primary))' }}>{title}</div>
-        </div>
+        <Breadcrumb
+          items={[
+            {
+              title: (
+                <button
+                  type="button"
+                  onClick={() => navigate(basePath)}
+                  style={{
+                    border: 'none',
+                    padding: 0,
+                    background: 'transparent',
+                    cursor: 'pointer',
+                    color: 'rgb(var(--color-primary))',
+                    fontWeight: 700,
+                  }}
+                >
+                  {sectionLabel}
+                </button>
+              ),
+            },
+            {
+              title: (
+                <span style={{ color: 'rgb(var(--color-text-primary))', fontWeight: 700 }}>
+                  {title}
+                </span>
+              ),
+            },
+          ]}
+        />
 
         {mode === 'view' && entityId && (
           <Button type="primary" onClick={() => setEditOpen(true)}>
@@ -405,30 +458,22 @@ export const UniversalEntityRecordPage: React.FC<UniversalEntityRecordPageProps>
                           <Spin />
                         </div>
                       ) : (
-                        <>
-                          <Card size="small" title="AI Summary" style={{ marginBottom: 12 }}>
-                            <Typography.Paragraph style={{ marginBottom: 0 }}>
-                              {summary || 'Summary unavailable.'}
-                            </Typography.Paragraph>
-                          </Card>
-
-                          <Card size="small" title="Counts">
-                            {Object.keys(relationshipCounts).length ? (
-                              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
-                                {Object.entries(relationshipCounts).map(([k, v]) => (
-                                  <div key={k} style={{ minWidth: 160 }}>
-                                    <div style={{ fontSize: 12, color: 'rgb(var(--color-text-tertiary))' }}>{k}</div>
-                                    <div style={{ fontSize: 16, fontWeight: 600, color: 'rgb(var(--color-text-primary))' }}>
-                                      {v}
-                                    </div>
+                        <Card size="small" title="Counts">
+                          {Object.keys(relationshipCounts).length ? (
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+                              {Object.entries(relationshipCounts).map(([k, v]) => (
+                                <div key={k} style={{ minWidth: 160 }}>
+                                  <div style={{ fontSize: 12, color: 'rgb(var(--color-text-tertiary))' }}>{k}</div>
+                                  <div style={{ fontSize: 16, fontWeight: 600, color: 'rgb(var(--color-text-primary))' }}>
+                                    {v}
                                   </div>
-                                ))}
-                              </div>
-                            ) : (
-                              <span style={{ color: 'rgb(var(--color-text-tertiary))' }}>No related counts available.</span>
-                            )}
-                          </Card>
-                        </>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <span style={{ color: 'rgb(var(--color-text-tertiary))' }}>No related counts available.</span>
+                          )}
+                        </Card>
                       ),
                     },
                     {
