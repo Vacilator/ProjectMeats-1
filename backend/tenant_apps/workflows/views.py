@@ -2966,48 +2966,67 @@ class AvailableFormsViewSet(viewsets.ReadOnlyModelViewSet):
                 )
 
         try:
-            forms_qs = self.filter_queryset(self.get_queryset())
-        except Exception as exc:
-            logger.warning('available-forms: invalid filters', extra={'error': str(exc)})
-            return Response(
-                {'error': 'Invalid query parameters.'},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        forms_data = AvailableFormSerializer(forms_qs, many=True).data
-        for row in forms_data:
-            row['type'] = 'form'
-            row['node_count'] = None
-
-        workforms_data = []
-        for wf in self._get_workforms(request):
             try:
-                node_count = wf.get_node_count() if hasattr(wf, 'get_node_count') else None
+                forms_qs = self.filter_queryset(self.get_queryset())
             except Exception as exc:
-                logger.warning(
-                    'available-forms: node_count failed; defaulting to 0',
-                    extra={'workform_id': str(getattr(wf, 'id', '')), 'error': str(exc)},
+                logger.warning('available-forms: invalid filters', extra={'error': str(exc)})
+                return Response(
+                    {'error': 'Invalid query parameters.'},
+                    status=status.HTTP_400_BAD_REQUEST,
                 )
-                node_count = 0
 
-            workforms_data.append(
-                {
-                    'id': str(wf.id),
-                    'type': 'workflow',
-                    'name': wf.name,
-                    'description': wf.description or '',
-                    'icon': 'workflow',
-                    'status': wf.status,
-                    'is_default': False,
-                    'is_quick_action_enabled': True,
-                    'step_count': None,
-                    'node_count': node_count,
-                }
-            )
+            forms_data = []
+            for form in forms_qs:
+                try:
+                    row = AvailableFormSerializer(form).data
+                    row['type'] = 'form'
+                    row['node_count'] = None
+                    forms_data.append(row)
+                except Exception as exc:
+                    logger.exception(
+                        'available-forms: form serialization failed; skipping',
+                        extra={'form_id': str(getattr(form, 'id', '')), 'error': str(exc)},
+                    )
 
-        data = forms_data + workforms_data
-        data.sort(key=lambda r: str(r.get('name') or '').lower())
-        return Response(data)
+            workforms_data = []
+            for wf in self._get_workforms(request):
+                try:
+                    try:
+                        node_count = wf.get_node_count() if hasattr(wf, 'get_node_count') else None
+                    except Exception as exc:
+                        logger.warning(
+                            'available-forms: node_count failed; defaulting to 0',
+                            extra={'workform_id': str(getattr(wf, 'id', '')), 'error': str(exc)},
+                        )
+                        node_count = 0
+
+                    workforms_data.append(
+                        {
+                            'id': str(wf.id),
+                            'type': 'workflow',
+                            'name': wf.name,
+                            'description': wf.description or '',
+                            'icon': 'workflow',
+                            'status': wf.status,
+                            'is_default': False,
+                            'is_quick_action_enabled': True,
+                            'step_count': None,
+                            'node_count': node_count,
+                        }
+                    )
+                except Exception as exc:
+                    logger.exception(
+                        'available-forms: workform serialization failed; skipping',
+                        extra={'workform_id': str(getattr(wf, 'id', '')), 'error': str(exc)},
+                    )
+
+            data = forms_data + workforms_data
+            data.sort(key=lambda r: str(r.get('name') or '').lower())
+            return Response(data)
+        except Exception as exc:
+            # Absolute safety net: UI surfaces expect this endpoint to be resilient.
+            logger.exception('available-forms: internal error; returning empty list', extra={'error': str(exc)})
+            return Response([])
 
 
 @extend_schema(tags=["Workflows", "Quick Actions"])

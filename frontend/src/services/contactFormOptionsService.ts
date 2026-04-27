@@ -112,35 +112,34 @@ export const contactFormOptionsService = {
       requestParams.protein_type = proteinTypes;
     }
 
-    const endpoints = ['/products/master/', '/master-products/'];
+    // Canonical endpoint. (Historical /products/master/ alias caused noisy 404s in some envs.)
+    const endpoint = '/master-products/';
 
-    for (const endpoint of endpoints) {
-      try {
-        const response = await businessApi.get(endpoint, { params: requestParams });
-        const payload = response.data as unknown;
-        const rows = Array.isArray(payload)
-          ? payload
-          : Array.isArray((payload as Record<string, unknown> | null)?.results)
-            ? ((payload as Record<string, unknown>).results as unknown[])
-            : [];
+    try {
+      const response = await businessApi.get(endpoint, { params: requestParams });
+      const payload = response.data as unknown;
+      const rows = Array.isArray(payload)
+        ? payload
+        : Array.isArray((payload as Record<string, unknown> | null)?.results)
+          ? ((payload as Record<string, unknown>).results as unknown[])
+          : [];
 
-        return rows
-          .map((item) => {
-            const row = item && typeof item === 'object' ? (item as Record<string, unknown>) : {};
-            const label =
-              row.display_name ??
-              row.effective_name ??
-              row.name ??
-              (row.product_code ? `${String(row.product_code)}${row.name ? ` - ${String(row.name)}` : ''}` : row.id);
-            return asOption(row.id ?? row.value ?? row.product_code ?? row.name, label);
-          })
-          .filter((item): item is ContactFormOption => Boolean(item));
-      } catch {
-        // Try fallback endpoint.
-      }
+      return rows
+        .map((item) => {
+          const row = item && typeof item === 'object' ? (item as Record<string, unknown>) : {};
+          const label =
+            row.display_name ??
+            row.effective_name ??
+            row.name ??
+            (row.product_code
+              ? `${String(row.product_code)}${row.name ? ` - ${String(row.name)}` : ''}`
+              : row.id);
+          return asOption(row.id ?? row.value ?? row.product_code ?? row.name, label);
+        })
+        .filter((item): item is ContactFormOption => Boolean(item));
+    } catch {
+      return [];
     }
-
-    return [];
   },
 };
 
