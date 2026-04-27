@@ -30,10 +30,10 @@ This mobile app provides core functionality for managing meat sales operations o
 ## Tech Stack
 
 - **React Native**: 0.74.5
-- **Expo**: ~51.0.0
+- **Expo**: ~55.0.15
 - **React Navigation**: ^6.1.0
 - **TypeScript**: ~5.3.3
-- **Axios**: ^1.6.0 (API communication)
+- **Axios**: ^1.15.0 (API communication)
 - **Styled Components**: ^6.1.0
 - **AsyncStorage**: For local data persistence
 
@@ -72,7 +72,7 @@ mobile/
 
 - Node.js (v18 or later)
 - npm or yarn
-- Expo CLI: `npm install -g expo-cli`
+- Expo CLI is provided via the local `expo` dependency (use `npx expo` if needed)
 - For iOS: Xcode and iOS Simulator
 - For Android: Android Studio and Android Emulator
 - Expo Go app on your physical device (for testing)
@@ -147,26 +147,32 @@ All shared utilities are centralized in the `/shared` directory at the repositor
 
 ## Building for Production
 
-### Android
+ProjectMeats Mobile uses **EAS Build** (Expo's modern build system). The legacy `expo build:*` commands are deprecated.
 
-1. Configure `app.json` with your app details
-2. Build APK:
+### One-time setup
+
 ```bash
-expo build:android
+# Creates/updates eas.json and links the project
+npm run eas:configure
 ```
 
-3. Build AAB (for Google Play):
+### Android / iOS builds
+
 ```bash
-expo build:android -t app-bundle
+# Android (production profile)
+npm run build:android
+
+# iOS (production profile)
+npm run build:ios
 ```
 
-### iOS
+### Environment variables for builds
 
-1. Configure `app.json` with your app details
-2. Build IPA:
-```bash
-expo build:ios
-```
+For production/preview builds, prefer configuring the API base URL via EAS environment variables:
+
+- `EXPO_PUBLIC_API_BASE_URL=https://<your-api-host>/api/v1`
+
+This keeps `app.json` safe for local dev (it may use localhost, which the app rewrites to device-safe values in development).
 
 ## Deployment
 
