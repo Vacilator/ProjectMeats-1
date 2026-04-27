@@ -22,12 +22,14 @@ import { DynamicConfigPanel } from './DynamicConfigPanel';
 import { FormProcessConfigPanel } from './FormProcessConfigPanel';
 import { FormNodeConfig } from './nodes/FormNodeConfig';
 import { useNodeShadowState } from '../hooks/useNodeShadowState';
+import { sanitizeNodeConfigForPersistence } from '../utils/nodeDataSanitization';
 import {
   PrimaryButton,
   SecondaryButton,
   DangerButton,
 } from './shared/StyledComponents';
 import { ErrorBoundary } from '../ErrorBoundary';
+import { logger } from '@/utils/logger';
 
 // ============================================================================
 // TypeScript Interfaces
@@ -82,7 +84,7 @@ const ActionBar = styled.div<{ $show: boolean }>`
   padding: 16px;
   border-top: 1px solid rgb(var(--color-border));
   background: rgb(var(--color-surface));
-  box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 -2px 8px rgba(var(--color-overlay), 0.05);
 `;
 
 const ConfirmationModal = styled.div<{ $show: boolean }>`
@@ -92,7 +94,7 @@ const ConfirmationModal = styled.div<{ $show: boolean }>`
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(var(--color-overlay), 0.5);
   align-items: center;
   justify-content: center;
   z-index: 2000;
@@ -109,7 +111,7 @@ const ConfirmationDialog = styled.div`
   border-radius: 12px;
   padding: 24px;
   max-width: 400px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 8px 32px rgba(var(--color-overlay), 0.3);
   animation: slideUp 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   
   @keyframes slideUp {
@@ -200,11 +202,13 @@ export const NodeConfigPanelWithShadow: React.FC<NodeConfigPanelWithShadowProps>
   const handleApply = useCallback(() => {
     if (!node) return;
     
+    const sanitized = (sanitizeNodeConfigForPersistence(shadowConfig) || {}) as Record<string, any>;
+
     // Commit shadow state
     commitShadow();
-    
+
     // Also call the original onUpdate to trigger history
-    onUpdate(node.id, shadowConfig);
+    onUpdate(node.id, sanitized);
   }, [node, commitShadow, onUpdate, shadowConfig]);
   
   // Callbacks for FormProcessConfigPanel
@@ -226,6 +230,7 @@ export const NodeConfigPanelWithShadow: React.FC<NodeConfigPanelWithShadowProps>
         name: `Step ${nodes.filter(n => n.parentId === node.id).length + 1}`,
         entityType: '',
         fields: [],
+        formFields: [],
       },
       parentId: node.id,
     };
@@ -321,7 +326,7 @@ export const NodeConfigPanelWithShadow: React.FC<NodeConfigPanelWithShadowProps>
           <ErrorBoundary
             componentName="Configuration Panel"
             onError={(error) => {
-              console.error('[NodeConfigPanelWithShadow] DynamicConfigPanel error:', error);
+              logger.error('[NodeConfigPanelWithShadow] DynamicConfigPanel error:', error);
             }}
           >
             <DynamicConfigPanel

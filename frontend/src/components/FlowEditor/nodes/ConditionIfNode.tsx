@@ -71,11 +71,11 @@ const RuleValue = styled.span`
 const LogicalOperatorBadge = styled.div`
   display: inline-block;
   padding: 2px 8px;
-  background: rgba(59, 130, 246, 0.2);
+  background: rgba(var(--color-info), 0.2);
   border-radius: var(--radius-sm);
   font-size: 10px;
   font-weight: 700;
-  color: rgb(59, 130, 246);
+  color: rgb(var(--color-info));
   margin-top: 6px;
 `;
 
@@ -92,8 +92,8 @@ const BranchHandle = styled(Handle)<{ $type: 'true' | 'false' }>`
   width: 12px;
   height: 12px;
   background: ${props => props.$type === 'true' 
-    ? 'rgb(34, 197, 94)' 
-    : 'rgb(239, 68, 68)'};
+    ? 'rgb(var(--color-success))' 
+    : 'rgb(var(--color-error))'};
   border: 2px solid rgb(var(--color-surface));
   position: relative !important;
   transform: none !important;
@@ -112,8 +112,8 @@ const BranchHandle = styled(Handle)<{ $type: 'true' | 'false' }>`
     font-size: 10px;
     font-weight: 700;
     color: ${props => props.$type === 'true' 
-      ? 'rgb(34, 197, 94)' 
-      : 'rgb(239, 68, 68)'};
+      ? 'rgb(var(--color-success))' 
+      : 'rgb(var(--color-error))'};
     white-space: nowrap;
   }
 `;

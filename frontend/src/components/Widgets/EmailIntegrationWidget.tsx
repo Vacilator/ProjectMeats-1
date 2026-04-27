@@ -11,6 +11,8 @@ import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { Mail, CheckCircle, AlertTriangle, XCircle, Plus, Trash2, RefreshCw } from 'lucide-react';
 import { apiClient } from '../../services/apiService';
+import { toApiErrorText } from '@/services/apiErrorPresentation';
+import { logger } from '@/utils/logger';
 import { confirmDialog, showAlert } from '@/utils/uiDialogs';
 
 // ============================================================================
@@ -316,11 +318,16 @@ export const EmailIntegrationWidget: React.FC<EmailIntegrationWidgetProps> = ({ 
     try {
       setLoading(true);
       setError(null);
-      const response = await apiClient.get('/workflows/email-accounts/');
+      const response = await apiClient.get('/workflows/email/email-accounts/');
       setAccounts(response.data);
     } catch (err: any) {
-      console.error('Failed to fetch email accounts:', err);
-      setError(err.response?.data?.message || 'Failed to load email accounts');
+      logger.error('[EmailIntegrationWidget] Failed to fetch email accounts', err);
+      setError(
+        toApiErrorText(err, {
+          fallbackMessage: 'Failed to load email accounts',
+          includeMeta: false,
+        })
+      );
     } finally {
       setLoading(false);
     }
@@ -337,13 +344,9 @@ export const EmailIntegrationWidget: React.FC<EmailIntegrationWidgetProps> = ({ 
 
   const handleConnect = async (provider: 'outlook' | 'gmail') => {
     try {
-      const backendProvider = provider === 'outlook' ? 'microsoft' : 'google';
-
       // Use secure apiClient to get the OAuth URL, preserving JWT and Tenant headers.
       // Backend returns JSON { auth_url } (not a redirect) so the SPA can do a top-level navigation.
-      const response = await apiClient.get('/integrations/oauth/authorize/', {
-        params: { provider: backendProvider },
-      });
+      const response = await apiClient.get(`/workflows/email/email/${provider}/auth/init/`);
 
       if (response.data?.auth_url) {
         window.location.href = response.data.auth_url;
@@ -351,11 +354,14 @@ export const EmailIntegrationWidget: React.FC<EmailIntegrationWidgetProps> = ({ 
         throw new Error('Authorization URL not received from server');
       }
     } catch (err: any) {
-      console.error('Failed to initiate OAuth connection:', err);
+      logger.error('[EmailIntegrationWidget] Failed to initiate OAuth connection', err);
       showAlert({
         type: 'error',
         title: 'Error',
-        content: err.response?.data?.error || 'Failed to initiate connection. Please try again.',
+        content: toApiErrorText(err, {
+          fallbackMessage: 'Failed to initiate connection. Please try again.',
+          includeMeta: false,
+        }),
       });
     }
   };
@@ -372,14 +378,17 @@ export const EmailIntegrationWidget: React.FC<EmailIntegrationWidgetProps> = ({ 
     if (!confirmed) return;
 
     try {
-      await apiClient.delete(`/workflows/email-accounts/${accountId}/`);
+      await apiClient.delete(`/workflows/email/email-accounts/${accountId}/`);
       setAccounts(accounts.filter(acc => acc.id !== accountId));
     } catch (err: any) {
-      console.error('Failed to disconnect account:', err);
+      logger.error('[EmailIntegrationWidget] Failed to disconnect account', err);
       showAlert({
         type: 'error',
         title: 'Error',
-        content: err.response?.data?.message || 'Failed to disconnect account',
+        content: toApiErrorText(err, {
+          fallbackMessage: 'Failed to disconnect account',
+          includeMeta: false,
+        }),
       });
     }
   };

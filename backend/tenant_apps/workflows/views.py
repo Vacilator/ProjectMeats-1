@@ -24,6 +24,8 @@ from drf_spectacular.utils import OpenApiTypes, extend_schema
 
 logger = logging.getLogger(__name__)
 
+from apps.tenants.models import Tenant, TenantUser
+
 from .models import (
     FormStatus,
     FormStatusHistory,
@@ -78,8 +80,55 @@ from .services.form_process_persistence import FormProcessPersistenceService
 # =============================================================================
 
 
+def _get_request_tenant(request):
+    """Return resolved tenant, supporting both middleware and DRF-auth flows.
+
+    In normal requests, TenantAware authentication sets request.tenant and asserts
+    RLS session vars. For tests (force_authenticate) and edge cases, we also support
+    late resolution from the X-Tenant-ID header with membership validation.
+    """
+
+    django_request = getattr(request, '_request', None)
+    tenant = getattr(request, 'tenant', None) or getattr(django_request, 'tenant', None)
+    if tenant:
+        return tenant
+
+    tenant_id = None
+    if hasattr(request, 'headers'):
+        tenant_id = request.headers.get('X-Tenant-ID')
+    if not tenant_id and django_request is not None and hasattr(django_request, 'headers'):
+        tenant_id = django_request.headers.get('X-Tenant-ID')
+
+    user = getattr(request, 'user', None) or getattr(django_request, 'user', None)
+    if not tenant_id or not user or not getattr(user, 'is_authenticated', False):
+        return None
+
+    try:
+        tenant = Tenant.objects.get(id=tenant_id, is_active=True)
+    except (Tenant.DoesNotExist, ValueError):
+        return None
+
+    is_global_admin = user.groups.filter(name='Global System Admins').exists()
+    if not (user.is_superuser or is_global_admin):
+        if not TenantUser.objects.filter(user=user, tenant=tenant, is_active=True).exists():
+            return None
+
+    # Cache for later uses during this request lifecycle.
+    try:
+        setattr(request, 'tenant', tenant)
+    except Exception:
+        pass
+    try:
+        if django_request is not None:
+            setattr(django_request, 'tenant', tenant)
+    except Exception:
+        pass
+
+    return tenant
+
+
 def _require_tenant(request):
-    tenant = getattr(request, 'tenant', None)
+    tenant = _get_request_tenant(request)
     if not tenant:
         return None, Response(
             {'error': 'Tenant context is required (X-Tenant-ID header).'},
@@ -1468,7 +1517,7 @@ class TenantFormEntityViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         qs = super().get_queryset()
-        tenant = getattr(self.request, "tenant", None)
+        tenant = _get_request_tenant(self.request)
         if not tenant:
             return qs.none()
 
@@ -1482,6 +1531,23 @@ class TenantFormEntityViewSet(viewsets.ModelViewSet):
         return qs.prefetch_related(Prefetch("fields", queryset=TenantFormField.objects.order_by("order"))).order_by(
             "order"
         )
+
+    def create(self, request, *args, **kwargs):
+        tenant, error = _require_tenant(request)
+        if error:
+            return error
+        return super().create(request, *args, **kwargs)
+
+    def perform_create(self, serializer):
+        tenant = _get_request_tenant(self.request)
+        if not tenant:
+            raise ValidationError({'tenant': 'Tenant context is required (X-Tenant-ID header).'})
+
+        form = serializer.validated_data.get('form')
+        if form is not None and getattr(form, 'tenant_id', None) != tenant.id:
+            raise ValidationError({'form': 'Form must belong to the current tenant.'})
+
+        serializer.save(tenant=tenant)
 
     @action(detail=True, methods=["post"])
     def reorder_fields(self, request, pk=None):
@@ -1506,7 +1572,7 @@ class TenantFormFieldViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         qs = super().get_queryset()
-        tenant = getattr(self.request, "tenant", None)
+        tenant = _get_request_tenant(self.request)
         if not tenant:
             return qs.none()
 
@@ -1518,7 +1584,25 @@ class TenantFormFieldViewSet(viewsets.ModelViewSet):
             qs = qs.filter(form_entity_id=entity_id)
 
         return qs.order_by("order")
-    
+
+    def create(self, request, *args, **kwargs):
+        tenant, error = _require_tenant(request)
+        if error:
+            return error
+        return super().create(request, *args, **kwargs)
+
+    def perform_create(self, serializer):
+        tenant = _get_request_tenant(self.request)
+        if not tenant:
+            raise ValidationError({'tenant': 'Tenant context is required (X-Tenant-ID header).'})
+
+        entity = serializer.validated_data.get('form_entity')
+        form = getattr(entity, 'form', None) if entity is not None else None
+        if form is not None and getattr(form, 'tenant_id', None) != tenant.id:
+            raise ValidationError({'form_entity': 'Form entity must belong to the current tenant.'})
+
+        serializer.save(tenant=tenant)
+
     @action(detail=True, methods=['get'], url_path='cascade-options')
     def cascade_options(self, request, pk=None):
         """
@@ -1539,7 +1623,7 @@ class TenantFormFieldViewSet(viewsets.ModelViewSet):
         """
         from tenant_apps.workflows.services.cascading import CascadingFieldService
 
-        tenant = getattr(request, 'tenant', None)
+        tenant = _get_request_tenant(request)
         if not tenant:
             return Response(
                 {"error": "Tenant context is required (X-Tenant-ID header)"},
@@ -1586,7 +1670,7 @@ class TenantFormRuleViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         qs = super().get_queryset()
-        tenant = getattr(self.request, "tenant", None)
+        tenant = _get_request_tenant(self.request)
         if not tenant:
             return qs.none()
 
@@ -1598,6 +1682,23 @@ class TenantFormRuleViewSet(viewsets.ModelViewSet):
             qs = qs.filter(form_id=form_id)
 
         return qs.order_by("order")
+
+    def create(self, request, *args, **kwargs):
+        tenant, error = _require_tenant(request)
+        if error:
+            return error
+        return super().create(request, *args, **kwargs)
+
+    def perform_create(self, serializer):
+        tenant = _get_request_tenant(self.request)
+        if not tenant:
+            raise ValidationError({'tenant': 'Tenant context is required (X-Tenant-ID header).'})
+
+        form = serializer.validated_data.get('form')
+        if form is not None and getattr(form, 'tenant_id', None) != tenant.id:
+            raise ValidationError({'form': 'Form must belong to the current tenant.'})
+
+        serializer.save(tenant=tenant)
 
 
 # =============================================================================
@@ -1975,7 +2076,7 @@ class TenantWorkflowConditionViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         qs = super().get_queryset()
-        tenant = getattr(self.request, "tenant", None)
+        tenant = _get_request_tenant(self.request)
         if not tenant:
             return qs.none()
 
@@ -1986,6 +2087,23 @@ class TenantWorkflowConditionViewSet(viewsets.ModelViewSet):
             qs = qs.filter(workflow_id=workflow_id)
 
         return qs.order_by("order")
+
+    def create(self, request, *args, **kwargs):
+        tenant, error = _require_tenant(request)
+        if error:
+            return error
+        return super().create(request, *args, **kwargs)
+
+    def perform_create(self, serializer):
+        tenant = _get_request_tenant(self.request)
+        if not tenant:
+            raise ValidationError({'tenant': 'Tenant context is required (X-Tenant-ID header).'})
+
+        workflow = serializer.validated_data.get('workflow')
+        if workflow is not None and getattr(workflow, 'tenant_id', None) != tenant.id:
+            raise ValidationError({'workflow': 'Workflow must belong to the current tenant.'})
+
+        serializer.save(tenant=tenant)
 
 
 class TenantWorkflowActionViewSet(viewsets.ModelViewSet):
@@ -1999,7 +2117,7 @@ class TenantWorkflowActionViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         qs = super().get_queryset()
-        tenant = getattr(self.request, "tenant", None)
+        tenant = _get_request_tenant(self.request)
         if not tenant:
             return qs.none()
 
@@ -2010,6 +2128,23 @@ class TenantWorkflowActionViewSet(viewsets.ModelViewSet):
             qs = qs.filter(workflow_id=workflow_id)
 
         return qs.order_by("order")
+
+    def create(self, request, *args, **kwargs):
+        tenant, error = _require_tenant(request)
+        if error:
+            return error
+        return super().create(request, *args, **kwargs)
+
+    def perform_create(self, serializer):
+        tenant = _get_request_tenant(self.request)
+        if not tenant:
+            raise ValidationError({'tenant': 'Tenant context is required (X-Tenant-ID header).'})
+
+        workflow = serializer.validated_data.get('workflow')
+        if workflow is not None and getattr(workflow, 'tenant_id', None) != tenant.id:
+            raise ValidationError({'workflow': 'Workflow must belong to the current tenant.'})
+
+        serializer.save(tenant=tenant)
 
 
 class WorkflowExecutionLogViewSet(viewsets.ReadOnlyModelViewSet):
@@ -2110,7 +2245,15 @@ class TenantWorkFormExecutionViewSet(viewsets.ReadOnlyModelViewSet):
 
         entity_id = (self.request.query_params.get('entity_id') or '').strip()
         if entity_id:
-            qs = qs.filter(initial_data__entity_id=str(entity_id))
+            # initial_data is a JSONField; entity_id may be persisted as either a JSON string
+            # ("1") or a JSON number (1) depending on the caller payload.
+            entity_id_str = str(entity_id)
+            entity_id_filter = Q(initial_data__entity_id=entity_id_str)
+            try:
+                entity_id_filter |= Q(initial_data__entity_id=int(entity_id_str))
+            except (TypeError, ValueError):
+                pass
+            qs = qs.filter(entity_id_filter)
 
         status_param = self.request.query_params.get('status')
         if status_param:
@@ -2722,7 +2865,7 @@ class AvailableFormsViewSet(viewsets.ReadOnlyModelViewSet):
         WorkForms (apps.system.TenantWorkForm) are added in `list()` as a second query
         to avoid cross-model unions.
         """
-        tenant = getattr(self.request, 'tenant', None)
+        tenant = _get_request_tenant(self.request)
         if not tenant:
             return TenantForm.objects.none()
 
@@ -2737,7 +2880,7 @@ class AvailableFormsViewSet(viewsets.ReadOnlyModelViewSet):
         """Tenant-scoped WorkForms for Quick Actions."""
         from apps.system.models import TenantWorkForm
 
-        tenant = getattr(request, 'tenant', None)
+        tenant = _get_request_tenant(request)
         if not tenant:
             return TenantWorkForm.objects.none()
 
@@ -2747,35 +2890,143 @@ class AvailableFormsViewSet(viewsets.ReadOnlyModelViewSet):
     def list(self, request, *args, **kwargs):
         """Return Quick Action targets (forms + workforms).
 
-        Response rows are normalized to the `AvailableQuickActionTargetSerializer` schema.
+        IMPORTANT: this endpoint is frequently called from globally-mounted UI surfaces.
+        It must never 500 on malformed query parameters or invalid entity context.
+
+        Supported optional query parameters:
+        - entity_type
+        - entity_id
+
+        If provided, we validate the entity exists in the current tenant. This prevents
+        the caller from accidentally passing cross-tenant IDs and triggering server errors.
         """
 
-        forms_qs = self.filter_queryset(self.get_queryset())
-        forms_data = AvailableFormSerializer(forms_qs, many=True).data
-        for row in forms_data:
-            row['type'] = 'form'
-            row['node_count'] = None
+        # Absolute safety net: UI surfaces expect this endpoint to be resilient.
+        try:
+            entity_type = (request.query_params.get('entity_type') or '').strip().lower()
+            entity_id_raw = (request.query_params.get('entity_id') or '').strip()
 
-        workforms_data = []
-        for wf in self._get_workforms(request):
-            workforms_data.append(
-                {
-                    'id': str(wf.id),
-                    'type': 'workflow',
-                    'name': wf.name,
-                    'description': wf.description or '',
-                    'icon': 'workflow',
-                    'status': wf.status,
-                    'is_default': False,
-                    'is_quick_action_enabled': True,
-                    'step_count': None,
-                    'node_count': wf.get_node_count() if hasattr(wf, 'get_node_count') else None,
-                }
-            )
+            if entity_type or entity_id_raw:
+                if not (entity_type and entity_id_raw):
+                    return Response(
+                        {'error': 'Both entity_type and entity_id are required when providing entity context.'},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
 
-        data = forms_data + workforms_data
-        data.sort(key=lambda r: str(r.get('name') or '').lower())
-        return Response(data)
+                allowed = {'supplier', 'customer', 'plant', 'location'}
+                if entity_type not in allowed:
+                    return Response(
+                        {'error': f'Unsupported entity_type: {entity_type}.'},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+
+                tenant = _get_request_tenant(request)
+                if not tenant:
+                    return Response(
+                        {'error': 'Tenant context is required (X-Tenant-ID header) when providing entity context.'},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+
+                try:
+                    entity_pk = int(entity_id_raw)
+                except (TypeError, ValueError):
+                    return Response(
+                        {'error': f'Invalid entity_id for {entity_type}: {entity_id_raw}.'},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+
+                try:
+                    if entity_type == 'supplier':
+                        from tenant_apps.suppliers.models import Supplier
+
+                        Supplier.objects.get(pk=entity_pk, tenant=tenant)
+                    elif entity_type == 'customer':
+                        from tenant_apps.customers.models import Customer
+
+                        Customer.objects.get(pk=entity_pk, tenant=tenant)
+                    elif entity_type == 'plant':
+                        from tenant_apps.plants.models import Plant
+
+                        Plant.objects.get(pk=entity_pk, tenant=tenant)
+                    elif entity_type == 'location':
+                        from tenant_apps.locations.models import Location
+
+                        Location.objects.get(pk=entity_pk, tenant=tenant)
+                except Exception as exc:
+                    logger.warning(
+                        'available-forms: invalid entity context',
+                        extra={
+                            'entity_type': entity_type,
+                            'entity_id': entity_id_raw,
+                            'tenant_id': str(getattr(tenant, 'id', '')),
+                            'error': str(exc),
+                        },
+                    )
+                    return Response(
+                        {'error': 'Invalid entity context.'},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+
+            try:
+                forms_qs = self.filter_queryset(self.get_queryset())
+            except Exception as exc:
+                logger.warning('available-forms: invalid filters', extra={'error': str(exc)})
+                return Response(
+                    {'error': 'Invalid query parameters.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            forms_data = []
+            for form in forms_qs:
+                try:
+                    row = AvailableFormSerializer(form).data
+                    row['type'] = 'form'
+                    row['node_count'] = None
+                    forms_data.append(row)
+                except Exception as exc:
+                    logger.exception(
+                        'available-forms: form serialization failed; skipping',
+                        extra={'form_id': str(getattr(form, 'id', '')), 'error': str(exc)},
+                    )
+
+            workforms_data = []
+            for wf in self._get_workforms(request):
+                try:
+                    try:
+                        node_count = wf.get_node_count() if hasattr(wf, 'get_node_count') else None
+                    except Exception as exc:
+                        logger.warning(
+                            'available-forms: node_count failed; defaulting to 0',
+                            extra={'workform_id': str(getattr(wf, 'id', '')), 'error': str(exc)},
+                        )
+                        node_count = 0
+
+                    workforms_data.append(
+                        {
+                            'id': str(wf.id),
+                            'type': 'workflow',
+                            'name': wf.name,
+                            'description': wf.description or '',
+                            'icon': 'workflow',
+                            'status': wf.status,
+                            'is_default': False,
+                            'is_quick_action_enabled': True,
+                            'step_count': None,
+                            'node_count': node_count,
+                        }
+                    )
+                except Exception as exc:
+                    logger.exception(
+                        'available-forms: workform serialization failed; skipping',
+                        extra={'workform_id': str(getattr(wf, 'id', '')), 'error': str(exc)},
+                    )
+
+            data = forms_data + workforms_data
+            data.sort(key=lambda r: str(r.get('name') or '').lower())
+            return Response(data)
+        except Exception as exc:
+            logger.exception('available-forms: internal error; returning empty list', extra={'error': str(exc)})
+            return Response([])
 
 
 @extend_schema(tags=["Workflows", "Quick Actions"])
@@ -2808,8 +3059,13 @@ class QuickActionsAPIView(APIView):
         """Update user's quick actions."""
         try:
             logger.info(f"Quick actions update request: {request.data}")
+
+            tenant, error = _require_tenant(request)
+            if error:
+                return error
+
             logger.info(
-                f"Request tenant: {request.tenant}, User: {request.user}, Is superuser: {request.user.is_superuser}"
+                f"Request tenant: {tenant}, User: {request.user}, Is superuser: {request.user.is_superuser}"
             )
 
             serializer = QuickActionsSerializer(data=request.data)
@@ -2826,15 +3082,11 @@ class QuickActionsAPIView(APIView):
 
             for item in items:
                 if item["type"] == "form" and item.get("form_id"):
-                    form = (
-                        TenantForm.objects.filter(
-                            tenant=request.tenant,
-                            id=item["form_id"],
-                            status__in=[FormStatus.DRAFT, FormStatus.ACTIVE],
-                        ).first()
-                        if request.tenant
-                        else None
-                    )
+                    form = TenantForm.objects.filter(
+                        tenant=tenant,
+                        id=item["form_id"],
+                        status__in=[FormStatus.DRAFT, FormStatus.ACTIVE],
+                    ).first()
 
                     if not form:
                         return Response(
@@ -2843,15 +3095,11 @@ class QuickActionsAPIView(APIView):
                         )
 
                 if item["type"] == "workflow" and item.get("workflow_id"):
-                    wf = (
-                        TenantWorkForm.objects.filter(
-                            tenant=request.tenant,
-                            id=item["workflow_id"],
-                            status__in=['draft', 'active'],
-                        ).first()
-                        if request.tenant
-                        else None
-                    )
+                    wf = TenantWorkForm.objects.filter(
+                        tenant=tenant,
+                        id=item["workflow_id"],
+                        status__in=['draft', 'active'],
+                    ).first()
 
                     if not wf:
                         return Response(
@@ -2923,15 +3171,44 @@ class EntityOptionsAPIView(APIView):
         try:
             if hasattr(model, "tenant"):
                 queryset = model.objects.filter(tenant=tenant)
+            elif entity_type == "product":
+                # system.Product is global (no tenant FK).
+                # Apply central visibility rules so we do not leak:
+                # - tenant-hidden system products
+                # - tenant-owned custom products (is_system=False)
+                from django.db.models import Prefetch
+
+                from apps.system.models import TenantProductPreference
+                from apps.system.services.product_visibility import visible_products_qs
+
+                queryset = visible_products_qs(tenant=tenant, qs=model.objects.all()).prefetch_related(
+                    Prefetch(
+                        "tenant_preferences",
+                        queryset=TenantProductPreference.objects.filter(tenant=tenant),
+                    )
+                )
             else:
-                queryset = model.objects.all()
+                # Fail closed for global/non-tenant models (unless explicitly allowlisted).
+                return Response(
+                    {"error": "Entity options are not available for this entity type."},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
 
             # Search functionality
             search_query = request.query_params.get("q", "").strip()
             if search_query:
                 # Build search filter based on common fields
                 search_filter = Q()
-                searchable_fields = ["name", "title", "code", "email", "first_name", "last_name", "company_name"]
+                searchable_fields = [
+                    "name",
+                    "title",
+                    "code",
+                    "product_code",
+                    "email",
+                    "first_name",
+                    "last_name",
+                    "company_name",
+                ]
                 for field_name in searchable_fields:
                     if hasattr(model, field_name):
                         search_filter |= Q(**{f"{field_name}__icontains": search_query})
@@ -2953,7 +3230,19 @@ class EntityOptionsAPIView(APIView):
             for obj in queryset:
                 # Try to get a display label
                 label = str(obj)
-                if hasattr(obj, "name"):
+
+                if entity_type == "product":
+                    # Prefer tenant override when present.
+                    pref = None
+                    try:
+                        pref = obj.tenant_preferences.all()[0] if hasattr(obj, "tenant_preferences") else None
+                    except Exception:
+                        pref = None
+
+                    effective_name = getattr(pref, "effective_name", "") or getattr(obj, "name", "") or str(obj)
+                    product_code = getattr(obj, "product_code", "")
+                    label = f"{product_code} - {effective_name}" if product_code else effective_name
+                elif hasattr(obj, "name"):
                     label = obj.name
                 elif hasattr(obj, "title"):
                     label = obj.title
@@ -2983,7 +3272,10 @@ class EntityOptionsAPIView(APIView):
 
             is_global_admin = request.user.groups.filter(name='Global System Admins').exists()
 
-            if entity_type in QUICK_CREATE_MEMBER_ENTITY_TYPES:
+            if entity_type == "product":
+                # Products are system-wide; only superusers/global admins should create them.
+                can_create = bool(getattr(request.user, "is_superuser", False)) or is_global_admin
+            elif entity_type in QUICK_CREATE_MEMBER_ENTITY_TYPES:
                 can_create = bool(getattr(request.user, "is_superuser", False)) or is_global_admin or _is_active_tenant_member()
             else:
                 can_create = request.user.has_perm(f"{model._meta.app_label}.add_{model._meta.model_name}")
@@ -3225,7 +3517,11 @@ class QuickCreateEntityAPIView(APIView):
 
         is_global_admin = request.user.groups.filter(name='Global System Admins').exists()
 
-        if entity_type in QUICK_CREATE_MEMBER_ENTITY_TYPES:
+        if entity_type == "product":
+            # Products are system-wide master data.
+            if not (getattr(request.user, "is_superuser", False) or is_global_admin):
+                return Response({"error": "Permission denied"}, status=status.HTTP_403_FORBIDDEN)
+        elif entity_type in QUICK_CREATE_MEMBER_ENTITY_TYPES:
             if not (getattr(request.user, "is_superuser", False) or is_global_admin or _is_active_tenant_member()):
                 return Response({"error": "Permission denied"}, status=status.HTTP_403_FORBIDDEN)
         else:

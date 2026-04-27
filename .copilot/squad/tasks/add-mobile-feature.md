@@ -14,6 +14,8 @@ Add a mobile screen/feature that is **type-safe**, reusable, and consistent with
 - Tests as appropriate
 
 ## Step-by-step execution
+0. **Relay → synthesize (Lead Engineer)**
+   - After fleet agents complete, run a Lead Engineer synthesis pass to unify findings into one patch plan.
 1. Read: `.github/instructions/mobile.instructions.md`
 2. Implement screen as functional component with typed navigation/route.
 3. Prefer shared utilities/types from `/shared` when applicable.

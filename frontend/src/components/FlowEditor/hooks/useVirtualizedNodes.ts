@@ -15,6 +15,7 @@
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import type { Node, Viewport } from '@xyflow/react';
+import { logger } from '@/utils/logger';
 
 /**
  * Configuration for virtualization behavior
@@ -380,7 +381,7 @@ export function useOptimisticUpdate<T>({
         pendingChangesRef.current = false;
         setHasConflict(false);
       } catch (error) {
-        console.error('Auto-save failed:', error);
+        logger.error('Auto-save failed:', error);
         
         // Conflict detection (simplified - can be enhanced)
         if ((error as any).status === 409) {
@@ -411,7 +412,7 @@ export function useOptimisticUpdate<T>({
       pendingChangesRef.current = false;
       setHasConflict(false);
     } catch (error) {
-      console.error('Force save failed:', error);
+      logger.error('Force save failed:', error);
       throw error;
     } finally {
       setIsSaving(false);

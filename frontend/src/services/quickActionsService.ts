@@ -6,6 +6,8 @@
  */
 import axios, { CancelTokenSource } from 'axios';
 import { apiClient } from './apiService';
+import { logger } from '@/utils/logger';
+import { getValidTenantId } from '@/utils/tenantId';
 
 // Cancel token manager for request cancellation
 class CancelTokenManager {
@@ -41,6 +43,16 @@ class CancelTokenManager {
 }
 
 export const cancelTokenManager = new CancelTokenManager();
+
+const AVAILABLE_FORMS_CIRCUIT_OPEN_MS = 60_000;
+let availableFormsCircuitOpenUntilMs = 0;
+
+let warnedMissingTenant = false;
+const warnMissingTenantOnce = (endpoint: string) => {
+  if (warnedMissingTenant) return;
+  warnedMissingTenant = true;
+  logger.warn('[QuickActions] Skipping tenant-scoped request; missing/invalid tenantId', { endpoint });
+};
 
 // Types
 export interface QuickActionItem {
@@ -131,9 +143,13 @@ export const quickActionsService = {
    * @param cancelKey - Optional key for cancellation tracking
    */
   async getQuickActions(cancelKey?: string): Promise<{ items: QuickActionItem[] }> {
-    const config = cancelKey 
-      ? { cancelToken: cancelTokenManager.create(cancelKey).token }
-      : {};
+    const tenantId = getValidTenantId();
+    if (!tenantId) {
+      warnMissingTenantOnce('/workflows/quick-actions/');
+      return { items: [] };
+    }
+
+    const config = cancelKey ? { cancelToken: cancelTokenManager.create(cancelKey).token } : {};
     const response = await apiClient.get('/workflows/quick-actions/', config);
     if (cancelKey) cancelTokenManager.remove(cancelKey);
     return response.data;
@@ -143,6 +159,12 @@ export const quickActionsService = {
    * Update user's quick actions
    */
   async updateQuickActions(items: QuickActionItem[]): Promise<{ success: boolean; items: QuickActionItem[] }> {
+    const tenantId = getValidTenantId();
+    if (!tenantId) {
+      // Updating quick actions without a tenant will always fail server-side; surface a clear error.
+      throw new Error('Tenant not selected');
+    }
+
     const response = await apiClient.put('/workflows/quick-actions/', { items });
     return response.data;
   },
@@ -152,14 +174,49 @@ export const quickActionsService = {
    * @param cancelKey - Optional key for cancellation tracking
    */
   async getAvailableForms(cancelKey?: string): Promise<AvailableForm[]> {
-    const config = cancelKey 
-      ? { cancelToken: cancelTokenManager.create(cancelKey).token }
-      : {};
-    const response = await apiClient.get('/workflows/available-forms/', config);
-    if (cancelKey) cancelTokenManager.remove(cancelKey);
-    // Handle both paginated {results: []} and non-paginated [] responses
-    const data = response.data;
-    return Array.isArray(data) ? data : (data.results || []);
+    const tenantId = getValidTenantId();
+    if (!tenantId) {
+      warnMissingTenantOnce('/workflows/available-forms/');
+      return [];
+    }
+
+    const now = Date.now();
+    if (availableFormsCircuitOpenUntilMs > now) {
+      logger.warn('[QuickActions] Circuit open; skipping available-forms fetch', {
+        until: new Date(availableFormsCircuitOpenUntilMs).toISOString(),
+      });
+      return [];
+    }
+
+    const config = cancelKey ? { cancelToken: cancelTokenManager.create(cancelKey).token } : {};
+
+    try {
+      const response = await apiClient.get('/workflows/available-forms/', config);
+      // Handle both paginated {results: []} and non-paginated [] responses
+      const data = response.data;
+      return Array.isArray(data) ? data : (data.results || []);
+    } catch (err: any) {
+      const status = err?.response?.status;
+
+      // Circuit breaker: prevent app-wide remount loops on backend 5xx.
+      if (typeof status === 'number' && status >= 500) {
+        availableFormsCircuitOpenUntilMs = Date.now() + AVAILABLE_FORMS_CIRCUIT_OPEN_MS;
+        logger.error('[QuickActions] available-forms 5xx; opening circuit and degrading gracefully', {
+          status,
+        });
+        return [];
+      }
+
+      // Degrade gracefully for known bad-request and auth cases too.
+      if (status === 400 || status === 401 || status === 403) {
+        logger.warn('[QuickActions] available-forms request rejected; returning empty list', { status });
+        return [];
+      }
+
+      throw err;
+    } finally {
+      if (cancelKey) cancelTokenManager.remove(cancelKey);
+    }
   },
 };
 
@@ -238,27 +295,27 @@ export const formSubmissionService = {
     const source = cancelTokenManager.create(cancelKey);
     
     try {
-      console.log('[autoSave] Saving:', { submissionId, stepId, fieldKey, valueType: typeof value });
+      logger.debug('[autoSave] Saving:', { submissionId, stepId, fieldKey, valueType: typeof value });
       const response = await apiClient.post(
         `/workflows/form-submissions/${submissionId}/auto_save/`, 
         { step_id: stepId, field_key: fieldKey, value },
         { cancelToken: source.token }
       );
       cancelTokenManager.remove(cancelKey);
-      console.log('[autoSave] Success:', response.data);
+      logger.debug('[autoSave] Success:', response.data);
       return response.data;
     } catch (err: any) {
       cancelTokenManager.remove(cancelKey);
       
       if (axios.isCancel(err)) {
-        console.log('[autoSave] Cancelled:', { submissionId, stepId, fieldKey });
+        logger.debug('[autoSave] Cancelled:', { submissionId, stepId, fieldKey });
         // Mark error with __CANCEL__ for easier detection
         const cancelError = new Error('Request cancelled');
         (cancelError as any).__CANCEL__ = true;
         throw cancelError;
       }
       
-      console.error('[autoSave] Error:', {
+      logger.error('[autoSave] Error:', {
         submissionId,
         stepId,
         fieldKey,

@@ -176,7 +176,7 @@ const StepNumber = styled.div`
   width: 28px;
   height: 28px;
   background: rgb(var(--color-primary));
-  color: white;
+  color: rgb(var(--color-text-inverse));
   border-radius: 50%;
   font-size: 14px;
   font-weight: 600;
@@ -218,11 +218,11 @@ const StepStatus = styled.div`
   }
 
   &.configured {
-    color: rgb(34, 197, 94); /* Success green */
+    color: rgb(var(--color-success)); /* Success green */
   }
 
   &.error {
-    color: rgb(239, 68, 68); /* Error red */
+    color: rgb(var(--color-error)); /* Error red */
   }
 `;
 
@@ -253,8 +253,8 @@ const ActionButton = styled.button`
   }
 
   &.delete:hover {
-    border-color: rgb(239, 68, 68);
-    color: rgb(239, 68, 68);
+    border-color: rgb(var(--color-error));
+    color: rgb(var(--color-error));
   }
 
   svg {

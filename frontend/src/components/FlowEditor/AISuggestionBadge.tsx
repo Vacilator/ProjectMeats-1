@@ -25,8 +25,8 @@ export const AISuggestionBadge: React.FC<AISuggestionBadgeProps> = ({ mode, reas
           alignItems: 'center', 
           gap: '4px',
           padding: '2px 8px',
-          backgroundColor: isAI ? 'rgb(34, 197, 94)' : 'rgb(234, 179, 8)',
-          color: 'white',
+          backgroundColor: isAI ? 'rgb(var(--color-success))' : 'rgb(var(--color-warning))',
+          color: 'rgb(var(--color-primary-foreground))',
           borderRadius: '12px',
           fontSize: '12px',
           fontWeight: 500

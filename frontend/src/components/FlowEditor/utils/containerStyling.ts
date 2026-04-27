@@ -35,10 +35,10 @@ export function getContainerTheme(
   const theme: ContainerTheme = {
     background: 'rgb(var(--color-surface))',
     border: 'rgb(var(--color-border))',
-    shadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
-    hoverShadow: '0 4px 16px rgba(0, 0, 0, 0.15)',
-    dragShadow: '0 8px 24px rgba(102, 126, 234, 0.3)',
-    headerBackground: 'rgba(102, 126, 234, 0.08)',
+    shadow: '0 2px 8px rgba(var(--color-overlay), 0.1)',
+    hoverShadow: '0 4px 16px rgba(var(--color-overlay), 0.15)',
+    dragShadow: '0 8px 24px rgba(var(--color-primary), 0.3)',
+    headerBackground: 'rgba(var(--color-primary), 0.08)',
     headerText: 'rgb(var(--color-text-primary))',
     iconColor: 'rgb(var(--color-primary))',
   };
@@ -48,21 +48,21 @@ export function getContainerTheme(
     // NOTE: theme RGB tokens are stored as "r g b" and must be wrapped with rgb(... / alpha)
     // (not rgba(var(--token), a)).
     theme.background = 'rgb(var(--color-surface) / 0.95)';
-    theme.shadow = '0 1px 4px rgba(0, 0, 0, 0.08)';
-    theme.headerBackground = 'rgba(102, 126, 234, 0.05)';
+    theme.shadow = '0 1px 4px rgba(var(--color-overlay), 0.08)';
+    theme.headerBackground = 'rgba(var(--color-primary), 0.05)';
   }
 
   // Dragging state - emphasized shadow
   if (isDragging) {
     theme.shadow = theme.dragShadow;
-    theme.border = 'rgb(102, 126, 234)'; // Primary color
+    theme.border = 'rgb(var(--color-primary))';
   }
 
   // Drop target state - visual indicator
   if (isDropTarget) {
-    theme.background = 'rgba(102, 126, 234, 0.05)';
-    theme.border = 'rgb(34, 197, 94)'; // Success color
-    theme.shadow = '0 0 0 2px rgba(34, 197, 94, 0.2)';
+    theme.background = 'rgba(var(--color-primary), 0.05)';
+    theme.border = 'rgb(var(--color-success))';
+    theme.shadow = '0 0 0 2px rgba(var(--color-success), 0.2)';
   }
 
   return theme;

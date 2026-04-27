@@ -8,6 +8,7 @@
 import React, { Suspense, useEffect, useMemo, useState } from 'react';
 import styled from 'styled-components';
 
+import { IS_DEV_BUILD } from '@/utils/buildFlags';
 import { Button } from './shared/StyledComponents';
 
 const MonacoEditor = React.lazy(() => import('@monaco-editor/react'));
@@ -38,6 +39,8 @@ export interface DeveloperJsonEditorProps {
 }
 
 export const DeveloperJsonEditor: React.FC<DeveloperJsonEditorProps> = ({ value, onApply }) => {
+  if (!IS_DEV_BUILD) return null;
+
   const initialText = useMemo(() => JSON.stringify(value ?? {}, null, 2), [value]);
   const [text, setText] = useState(initialText);
   const [parseError, setParseError] = useState<string | null>(null);
@@ -167,12 +170,12 @@ const PlainTextarea = styled.textarea`
   font-size: 12px;
   line-height: 1.5;
   color: rgb(var(--color-text-primary));
-  background: rgba(0, 0, 0, 0.02);
+  background: rgba(var(--color-overlay), 0.02);
 `;
 
 const ErrorText = styled.div`
   font-size: 12px;
-  color: rgb(239, 68, 68);
+  color: rgb(var(--color-error));
 `;
 
 export default DeveloperJsonEditor;

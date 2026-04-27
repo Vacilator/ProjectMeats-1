@@ -53,13 +53,53 @@ export const DryRunDebugger: React.FC<DryRunDebuggerProps> = ({
     markNodesExecuted,
   } = useFlowEditor();
 
-  // Generate mock input based on node schema
-  useEffect(() => {
-    if (selectedNode) {
-      const mock = generateMockInput(selectedNode);
-      setMockInput(mock);
-    }
+  const mockInputStorageKey = useMemo(() => {
+    if (!selectedNode) return null;
+    if (typeof window === 'undefined') return null;
+    return `dryrun_mock_input:${window.location.pathname}:${selectedNode.id}`;
   }, [selectedNode]);
+
+  // Generate (or restore) mock input when node changes.
+  useEffect(() => {
+    if (!selectedNode) return;
+
+    const fallback = generateMockInput(selectedNode);
+
+    if (!mockInputStorageKey) {
+      setMockInput(fallback);
+      return;
+    }
+
+    try {
+      const raw = localStorage.getItem(mockInputStorageKey);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+          setMockInput(parsed as Record<string, any>);
+          return;
+        }
+      }
+    } catch {
+      // best-effort
+    }
+
+    setMockInput(fallback);
+  }, [mockInputStorageKey, selectedNode]);
+
+  // Persist mock input edits for convenience.
+  useEffect(() => {
+    if (!mockInputStorageKey) return;
+
+    const t = window.setTimeout(() => {
+      try {
+        localStorage.setItem(mockInputStorageKey, JSON.stringify(mockInput));
+      } catch {
+        // best-effort
+      }
+    }, 250);
+
+    return () => window.clearTimeout(t);
+  }, [mockInput, mockInputStorageKey]);
 
   // Auto-start a debug session when opened (Phase 9.4)
   useEffect(() => {
@@ -435,7 +475,25 @@ export const DryRunDebugger: React.FC<DryRunDebuggerProps> = ({
       <DebuggerContent>
         {/* Mock Input Section */}
         <Section>
-          <SectionTitle>Mock Input Data</SectionTitle>
+          <SectionTitle>
+            Mock Input Data
+            <ResetMockButton
+              type="button"
+              onClick={() => {
+                const next = generateMockInput(selectedNode);
+                setMockInput(next);
+                if (mockInputStorageKey) {
+                  try {
+                    localStorage.setItem(mockInputStorageKey, JSON.stringify(next));
+                  } catch {
+                    // best-effort
+                  }
+                }
+              }}
+            >
+              Reset Input
+            </ResetMockButton>
+          </SectionTitle>
           <InputEditor>
             {viewMode === 'preview' ? (
               <InputPreview>
@@ -871,7 +929,7 @@ const ToggleButton = styled.button<{ $active: boolean }>`
   gap: 6px;
   padding: 6px 12px;
   background: ${props => props.$active ? 'rgb(var(--color-primary))' : 'transparent'};
-  color: ${props => props.$active ? 'white' : 'rgb(var(--color-text-secondary))'};
+  color: ${props => props.$active ? 'rgb(var(--color-primary-foreground))' : 'rgb(var(--color-text-secondary))'};
   border: none;
   border-radius: 4px;
   cursor: pointer;
@@ -925,10 +983,32 @@ const SectionTitle = styled.h3`
   letter-spacing: 0.5px;
 `;
 
+const ResetMockButton = styled.button`
+  margin-left: auto;
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgb(var(--color-border));
+  background: rgb(var(--color-surface));
+  color: rgb(var(--color-text-primary));
+  cursor: pointer;
+  font-size: 12px;
+  text-transform: none;
+  letter-spacing: normal;
+
+  &:hover {
+    background: rgb(var(--color-background));
+  }
+
+  &:focus-visible {
+    outline: 2px solid rgba(var(--color-primary), 0.4);
+    outline-offset: 2px;
+  }
+`;
+
 const DurationBadge = styled.span`
   padding: 2px 8px;
-  background: rgba(34, 197, 94, 0.1);
-  color: rgb(34, 197, 94);
+  background: rgba(var(--color-success), 0.1);
+  color: rgb(var(--color-success));
   border-radius: 4px;
   font-size: 11px;
   font-weight: 500;
@@ -1010,7 +1090,7 @@ const RunButton = styled.button`
   gap: 8px;
   padding: 12px 24px;
   background: rgb(var(--color-primary));
-  color: white;
+  color: rgb(var(--color-text-inverse));
   border: none;
   border-radius: 8px;
   font-size: 14px;
@@ -1021,7 +1101,7 @@ const RunButton = styled.button`
   &:hover:not(:disabled) {
     background: rgba(var(--color-primary), 0.9);
     transform: translateY(-1px);
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 4px 8px rgba(var(--color-overlay), 0.1);
   }
   
   &:disabled {
@@ -1114,15 +1194,15 @@ const LoadingState = styled.div`
 const ErrorState = styled.div`
   h4 {
     margin: 0 0 12px 0;
-    color: rgb(239, 68, 68);
+    color: rgb(var(--color-error));
   }
   
   pre {
     margin: 0;
     padding: 12px;
-    background: rgba(239, 68, 68, 0.1);
+    background: rgba(var(--color-error), 0.1);
     border-radius: 4px;
-    color: rgb(239, 68, 68);
+    color: rgb(var(--color-error));
     font-size: 13px;
   }
 `;
@@ -1157,15 +1237,15 @@ const HistoryIcon = styled.div<{ $status: string }>`
   border-radius: 50%;
   background: ${props => {
     switch (props.$status) {
-      case 'success': return 'rgba(34, 197, 94, 0.1)';
-      case 'error': return 'rgba(239, 68, 68, 0.1)';
+      case 'success': return 'rgba(var(--color-success), 0.1)';
+      case 'error': return 'rgba(var(--color-error), 0.1)';
       default: return 'rgba(var(--color-primary), 0.1)';
     }
   }};
   color: ${props => {
     switch (props.$status) {
-      case 'success': return 'rgb(34, 197, 94)';
-      case 'error': return 'rgb(239, 68, 68)';
+      case 'success': return 'rgb(var(--color-success))';
+      case 'error': return 'rgb(var(--color-error))';
       default: return 'rgb(var(--color-primary))';
     }
   }};

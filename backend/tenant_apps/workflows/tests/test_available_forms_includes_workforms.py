@@ -56,6 +56,16 @@ class AvailableFormsIncludesWorkformsTests(APITestCase):
             updated_by=self.user,
         )
 
+        # Regression: malformed JSON payloads should not 500 available-forms.
+        self.malformed_workform = TenantWorkForm.objects.create(
+            tenant=self.tenant,
+            name='Malformed WF',
+            status='active',
+            workflow_definition='oops',
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
         self.other_workform = TenantWorkForm.objects.create(
             tenant=self.other_tenant,
             name='Other Tenant WF',
@@ -77,4 +87,21 @@ class AvailableFormsIncludesWorkformsTests(APITestCase):
 
         self.assertIn(('form', str(self.form.id)), seen)
         self.assertIn(('workflow', str(self.workform.id)), seen)
+        self.assertIn(('workflow', str(self.malformed_workform.id)), seen)
         self.assertNotIn(('workflow', str(self.other_workform.id)), seen)
+
+        # Contract: rows must include stable keys needed by the WorkForms catalog.
+        for row in rows:
+            self.assertIn('id', row)
+            self.assertIn('type', row)
+            self.assertIn('name', row)
+            self.assertIn('status', row)
+
+            if row.get('type') == 'form':
+                # Forms do not have a node_count.
+                self.assertIsNone(row.get('node_count'))
+            elif row.get('type') == 'workflow':
+                self.assertIsInstance(row.get('node_count'), int)
+
+        malformed_row = next(r for r in rows if r.get('id') == str(self.malformed_workform.id))
+        self.assertEqual(malformed_row.get('node_count'), 0)

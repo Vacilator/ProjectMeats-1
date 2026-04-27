@@ -31,7 +31,25 @@ class GenerateAITemplateSuggestionsTaskTestCase(TestCase):
         from django.core.cache import cache
         cache.clear()
 
-    def _make_tenant(self, tenant_id=1, name="Test Meat Co", industry_type="processor"):
+        # Avoid touching the DB/RLS session vars in unit tests (cache + fallback logic only).
+        self._set_current_tenant_patcher = patch(
+            'apps.tenants.rls.set_current_tenant',
+            return_value=MagicMock(ok=True, error=None),
+        )
+        self._reset_current_tenant_patcher = patch('apps.tenants.rls.reset_current_tenant')
+
+        self._set_current_tenant_patcher.start()
+        self._reset_current_tenant_patcher.start()
+
+        self.addCleanup(self._set_current_tenant_patcher.stop)
+        self.addCleanup(self._reset_current_tenant_patcher.stop)
+
+    def _make_tenant(
+        self,
+        tenant_id="11111111-1111-1111-1111-111111111111",
+        name="Test Meat Co",
+        industry_type="processor",
+    ):
         tenant = MagicMock()
         tenant.id = tenant_id
         tenant.name = name
@@ -47,7 +65,7 @@ class GenerateAITemplateSuggestionsTaskTestCase(TestCase):
         from tenant_apps.workflows.tasks import generate_ai_template_suggestions
 
         result = generate_ai_template_suggestions(
-            tenant_id=1,
+            tenant_id="11111111-1111-1111-1111-111111111111",
             template_domain="not_a_real_domain",
         )
         self.assertFalse(result["success"])
@@ -69,7 +87,7 @@ class GenerateAITemplateSuggestionsTaskTestCase(TestCase):
         MockAIConfig.objects.filter.return_value.first.return_value = None
 
         result = generate_ai_template_suggestions(
-            tenant_id=1,
+            tenant_id="11111111-1111-1111-1111-111111111111",
             template_domain="cold_storage_monitoring",
         )
 
@@ -89,7 +107,7 @@ class GenerateAITemplateSuggestionsTaskTestCase(TestCase):
         from tenant_apps.workflows.tasks import generate_ai_template_suggestions
 
         result = generate_ai_template_suggestions(
-            tenant_id=1,
+            tenant_id="11111111-1111-1111-1111-111111111111",
             template_domain="quality_inspection",
         )
 
@@ -106,7 +124,7 @@ class GenerateAITemplateSuggestionsTaskTestCase(TestCase):
         from tenant_apps.workflows.tasks import generate_ai_template_suggestions
 
         result = generate_ai_template_suggestions(
-            tenant_id=1,
+            tenant_id="11111111-1111-1111-1111-111111111111",
             template_domain="carrier_compliance",
         )
 
@@ -129,14 +147,14 @@ class GenerateAITemplateSuggestionsTaskTestCase(TestCase):
 
         # First call — populates cache
         first_result = generate_ai_template_suggestions(
-            tenant_id=1,
+            tenant_id="11111111-1111-1111-1111-111111111111",
             template_domain="quality_inspection",
         )
         self.assertFalse(first_result["cached"])
 
         # Second call — should be served from cache
         second_result = generate_ai_template_suggestions(
-            tenant_id=1,
+            tenant_id="11111111-1111-1111-1111-111111111111",
             template_domain="quality_inspection",
         )
         self.assertTrue(second_result["cached"])
@@ -155,7 +173,7 @@ class GenerateAITemplateSuggestionsTaskTestCase(TestCase):
         from tenant_apps.workflows.tasks import generate_ai_template_suggestions
 
         result = generate_ai_template_suggestions(
-            tenant_id=9999,
+            tenant_id="99999999-9999-9999-9999-999999999999",
             template_domain="cold_storage_monitoring",
         )
         self.assertFalse(result["success"])

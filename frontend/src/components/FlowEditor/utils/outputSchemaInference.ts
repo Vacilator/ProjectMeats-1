@@ -8,6 +8,7 @@
  */
 
 import { Node } from '@xyflow/react';
+import { logger } from '@/utils/logger';
 
 /**
  * Output field schema for a node
@@ -91,7 +92,7 @@ export function inferOutputSchemaFromFormNode(node: Node): NodeOutputSchema | nu
       timestamp: Date.now(),
     };
   } catch (error) {
-    console.error('[OutputSchema] Failed to infer schema:', error);
+    logger.error('[OutputSchema] Failed to infer schema:', error);
     return null;
   }
 }

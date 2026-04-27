@@ -5,7 +5,7 @@
  * Implements Phase 1 of the Forms & Flows Enhancement Plan.
  * 
  * Created: 2026-02-03
- * Updated: Phase 5 - Added Workflow Executions tab
+ * Updated: Phase 5 - Added WorkForm Runs tab
  * 
  * Features:
  * - List of completed/cancelled submissions
@@ -27,6 +27,8 @@ import {
 } from 'lucide-react';
 import { businessApi } from '../../services/businessApi';
 import { workformExecutionService, WorkFormExecution } from '@/services/workformExecutionService';
+import { getWorkformsErrorUi } from '@/features/workforms/workformsErrors';
+import { logger } from '@/utils/logger';
 
 // ============================================================================
 // Types
@@ -259,10 +261,12 @@ const StatusBadge = styled.span<{ $status: string }>`
   font-weight: 500;
   border-radius: 12px;
   background: ${({ $status }) =>
-    $status === 'completed' ? 'rgb(34 197 94 / 0.10)' : 'rgb(239 68 68 / 0.10)'
+    $status === 'completed'
+      ? 'rgba(var(--color-success), 0.10)'
+      : 'rgba(var(--color-error), 0.10)'
   };
   color: ${({ $status }) =>
-    $status === 'completed' ? 'rgb(34, 197, 94)' : 'rgb(239, 68, 68)'
+    $status === 'completed' ? 'rgb(var(--color-success))' : 'rgb(var(--color-error))'
   };
 `;
 
@@ -356,7 +360,7 @@ const PageButton = styled.button<{ $active?: boolean }>`
     $active ? 'rgb(var(--color-primary))' : 'transparent'
   };
   color: ${({ $active }) => 
-    $active ? 'white' : 'rgb(var(--color-text-secondary))'
+    $active ? 'rgb(var(--color-text-inverse))' : 'rgb(var(--color-text-secondary))'
   };
   font-size: 14px;
   cursor: pointer;
@@ -420,10 +424,10 @@ const TimelineDot = styled.div<{ $status: string }>`
   border-radius: 50%;
   border: 2px solid ${({ $status }) => {
     switch ($status) {
-      case 'completed': return 'rgb(34, 197, 94)';
-      case 'failed': return 'rgb(239, 68, 68)';
-      case 'skipped': return 'rgb(127, 140, 141)';
-      default: return 'rgb(59, 130, 246)';
+      case 'completed': return 'rgb(var(--color-success))';
+      case 'failed': return 'rgb(var(--color-error))';
+      case 'skipped': return 'rgb(var(--color-text-secondary))';
+      default: return 'rgb(var(--color-info))';
     }
   }};
   background: rgb(var(--color-surface));
@@ -494,10 +498,39 @@ const FormsFlowsHistory: React.FC = () => {
   const [workflowExecutions, setWorkflowExecutions] = useState<WorkFormExecution[]>([]);
   const [workflowsLoading, setWorkflowsLoading] = useState(false);
   const [expandedWorkflow, setExpandedWorkflow] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [runsLoadError, setRunsLoadError] = useState<string | null>(null);
   
+  const tabOrder: Array<'submissions' | 'workflows'> = ['submissions', 'workflows'];
+
+  const handleTabKeyDown = (
+    event: React.KeyboardEvent<HTMLButtonElement>,
+    current: 'submissions' | 'workflows'
+  ) => {
+    const idx = tabOrder.indexOf(current);
+    if (idx === -1) return;
+
+    if (event.key === 'ArrowRight' || event.key === 'ArrowLeft') {
+      event.preventDefault();
+      const next = current === 'submissions' ? 'workflows' : 'submissions';
+      setExpandedWorkflow(null);
+      setPage(1);
+      setActiveTab(next);
+    }
+
+    if (event.key === 'Home' || event.key === 'End') {
+      event.preventDefault();
+      const next = event.key === 'Home' ? 'submissions' : 'workflows';
+      setExpandedWorkflow(null);
+      setPage(1);
+      setActiveTab(next);
+    }
+  };
+
   // Fetch completed/cancelled submissions
   const fetchSubmissions = async () => {
     setLoading(true);
+    setLoadError(null);
     try {
       const params: Record<string, string> = {
         status: 'completed,cancelled',
@@ -512,8 +545,9 @@ const FormsFlowsHistory: React.FC = () => {
       setSubmissions(response.data.results || response.data || []);
       setTotalCount(response.data.count || 0);
     } catch (error) {
-      console.error('Failed to fetch history:', error);
+      logger.error('[WorkFormsHistory] Failed to fetch history', error);
       setSubmissions([]);
+      setLoadError(getWorkformsErrorUi(error, 'history.load').message);
     } finally {
       setLoading(false);
     }
@@ -541,6 +575,7 @@ const FormsFlowsHistory: React.FC = () => {
   // Fetch workflow executions
   const fetchWorkflowExecutions = async () => {
     setWorkflowsLoading(true);
+    setRunsLoadError(null);
     try {
       const params: Record<string, string> = {
         status: 'completed,failed,cancelled',
@@ -555,8 +590,9 @@ const FormsFlowsHistory: React.FC = () => {
       setWorkflowExecutions(response.results);
       setTotalCount(response.count);
     } catch (error) {
-      console.error('Failed to fetch workflow executions:', error);
+      logger.error('[WorkFormsHistory] Failed to fetch workflow executions', error);
       setWorkflowExecutions([]);
+      setRunsLoadError(getWorkformsErrorUi(error, 'history.load').message);
     } finally {
       setWorkflowsLoading(false);
     }
@@ -635,26 +671,36 @@ const FormsFlowsHistory: React.FC = () => {
     <ErrorBoundary>
       <Container role="region" aria-label="Form History">
       {/* Tabs */}
-      <TabsContainer>
+      <TabsContainer role="tablist" aria-label="History tabs">
         <Tab
+          type="button"
+          role="tab"
           $active={activeTab === 'submissions'}
+          aria-selected={activeTab === 'submissions'}
+          tabIndex={activeTab === 'submissions' ? 0 : -1}
           onClick={() => {
             setExpandedWorkflow(null);
             setPage(1);
             setActiveTab('submissions');
           }}
+          onKeyDown={(e) => handleTabKeyDown(e, 'submissions')}
         >
           Form Submissions
         </Tab>
         <Tab
+          type="button"
+          role="tab"
           $active={activeTab === 'workflows'}
+          aria-selected={activeTab === 'workflows'}
+          tabIndex={activeTab === 'workflows' ? 0 : -1}
           onClick={() => {
             setExpandedWorkflow(null);
             setPage(1);
             setActiveTab('workflows');
           }}
+          onKeyDown={(e) => handleTabKeyDown(e, 'workflows')}
         >
-          Workflow Executions
+          WorkForm Runs
         </Tab>
       </TabsContainer>
       
@@ -708,6 +754,17 @@ const FormsFlowsHistory: React.FC = () => {
       
       {currentLoading ? (
         <LoadingState role="status" aria-live="polite">Loading history...</LoadingState>
+      ) : currentData.length === 0 && ((activeTab === 'submissions' && loadError) || (activeTab === 'workflows' && runsLoadError)) ? (
+        <EmptyState role="status" aria-live="polite">
+          <EmptyIcon aria-hidden="true">
+            <FileText size={48} />
+          </EmptyIcon>
+          <EmptyTitle>Couldn't load history</EmptyTitle>
+          <EmptyMessage>{activeTab === 'submissions' ? loadError : runsLoadError}</EmptyMessage>
+          <ActionButton onClick={() => (activeTab === 'submissions' ? fetchSubmissions() : fetchWorkflowExecutions())}>
+            Try again
+          </ActionButton>
+        </EmptyState>
       ) : currentData.length === 0 ? (
         <EmptyState role="status" aria-live="polite">
           <EmptyIcon aria-hidden="true">
@@ -717,7 +774,7 @@ const FormsFlowsHistory: React.FC = () => {
           <EmptyMessage>
             {searchQuery || startDate || endDate
               ? 'No matching records found. Try adjusting your filters.'
-              : 'Completed and cancelled form submissions will appear here once a workflow finishes executing.'}
+              : 'Completed and cancelled form submissions will appear here once a WorkForm run completes.'}
           </EmptyMessage>
         </EmptyState>
       ) : (

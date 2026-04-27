@@ -189,7 +189,7 @@ ${shortcuts
       })
       .join('\n\n');
 
-    const blob = new Blob([`# Workflow Editor Keyboard Shortcuts\n\n${content}`], {
+    const blob = new Blob([`# WorkForms Editor Keyboard Shortcuts\n\n${content}`], {
       type: 'text/markdown',
     });
     const url = URL.createObjectURL(blob);

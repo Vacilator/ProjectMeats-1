@@ -15,6 +15,8 @@ Add a new API endpoint in the backend that is **tenant-isolated**, permissioned,
 - If model changes: safe migrations + RLS policy where required
 
 ## Step-by-step execution
+0. **Relay → synthesize (Lead Engineer)**
+   - After fleet agents complete, run a Lead Engineer synthesis pass to unify findings into one patch plan.
 1. **Confirm canonical constraints**
    - Read: `docs/architecture/ARCHITECTURE.md`
    - Read: `.github/instructions/backend.instructions.md`

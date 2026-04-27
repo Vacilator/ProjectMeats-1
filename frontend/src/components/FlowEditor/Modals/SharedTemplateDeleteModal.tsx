@@ -31,6 +31,7 @@ import { createPortal } from 'react-dom';
 import styled from 'styled-components';
 import { AlertTriangle, Trash2, XCircle, Loader } from 'lucide-react';
 import { notify } from '../../../utils/notify';
+import { logger } from '@/utils/logger';
 import {
   decrementTenantFormUsage,
   getTenantFormUsageInfo,
@@ -88,7 +89,7 @@ interface UsageInfo {
 const ModalOverlay = styled.div`
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.7);
+  background: rgba(var(--color-overlay), 0.7);
   backdrop-filter: blur(4px);
   display: flex;
   align-items: center;
@@ -100,7 +101,7 @@ const ModalOverlay = styled.div`
 const ModalContent = styled.div`
   background: rgb(var(--color-surface));
   border-radius: var(--radius-xl);
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 20px 60px rgba(var(--color-overlay), 0.3);
   max-width: 600px;
   width: 100%;
   overflow: hidden;
@@ -296,7 +297,7 @@ const Button = styled.button<{ $variant?: 'primary' | 'danger' | 'ghost' }>`
 
   ${props => props.$variant === 'primary' && `
     background: rgb(var(--color-primary));
-    color: white;
+    color: rgb(var(--color-text-inverse));
 
     &:hover:not(:disabled) {
       background: rgb(var(--color-primary-hover));
@@ -305,7 +306,7 @@ const Button = styled.button<{ $variant?: 'primary' | 'danger' | 'ghost' }>`
 
   ${props => props.$variant === 'danger' && `
     background: rgb(var(--color-error));
-    color: white;
+    color: rgb(var(--color-text-inverse));
 
     &:hover:not(:disabled) {
       background: rgb(var(--color-error-hover));
@@ -363,7 +364,7 @@ export const SharedTemplateDeleteModal: React.FC<SharedTemplateDeleteModalProps>
       const data = await getTenantFormUsageInfo(template.formId);
       setUsageInfo(data);
     } catch (error) {
-      console.error('[SharedTemplateDeleteModal] Failed to fetch usage info:', error);
+      logger.error('[SharedTemplateDeleteModal] Failed to fetch usage info:', error);
       notify.error('Failed to load template usage information');
       setUsageInfo({
         form_id: template.formId,
@@ -387,7 +388,7 @@ export const SharedTemplateDeleteModal: React.FC<SharedTemplateDeleteModalProps>
       notify.success('Container removed from workflow');
       onClose();
     } catch (error) {
-      console.error('[SharedTemplateDeleteModal] Failed to remove container:', error);
+      logger.error('[SharedTemplateDeleteModal] Failed to remove container:', error);
       notify.error('Failed to remove container from workflow');
     }
   };
@@ -406,7 +407,7 @@ export const SharedTemplateDeleteModal: React.FC<SharedTemplateDeleteModalProps>
       notify.success('Template deleted from library');
       onClose();
     } catch (error) {
-      console.error('[SharedTemplateDeleteModal] Failed to delete template:', error);
+      logger.error('[SharedTemplateDeleteModal] Failed to delete template:', error);
       notify.error('Failed to delete template from library');
     } finally {
       setIsDeleting(false);

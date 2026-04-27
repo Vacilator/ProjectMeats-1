@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import SchemaEditor from '../components/SchemaEditorSimple';
 import { adminClient } from '@/services/apiService';
 import { confirmDialog, showAlert } from '@/utils/uiDialogs';
+import { logger } from '@/utils/logger';
 // Use UnifiedFlowEditor instead of WorkflowCanvas
 import { UnifiedFlowEditor } from '../../../components/FlowEditor';
 import { VersionHistory } from '../components/VersionHistory';
@@ -259,7 +260,7 @@ const Editor: React.FC<EditorProps> = () => {
             readOnly={false}
             editorMode="visual"
             onSave={(nodes, edges) => {
-              console.log('Workflow saved:', { nodes, edges });
+              logger.debug('Workflow saved:', { nodes, edges });
               // TODO: Integrate with backend persistence
             }}
           />

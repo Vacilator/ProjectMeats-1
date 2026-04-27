@@ -17,6 +17,7 @@
 import React, { Component, ReactNode, ErrorInfo } from 'react';
 import styled from 'styled-components';
 import { AlertTriangle, RefreshCw } from 'lucide-react';
+import { logger } from '@/utils/logger';
 
 // ============================================================================
 // TypeScript Interfaces
@@ -63,7 +64,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     const { componentName = 'Unknown', onError } = this.props;
     
-    console.error(`[ErrorBoundary] Error in ${componentName}:`, {
+    logger.error(`[ErrorBoundary] Error in ${componentName}:`, {
       error,
       errorInfo,
       componentStack: errorInfo.componentStack,
@@ -230,7 +231,7 @@ const ResetButton = styled.button`
   gap: 8px;
   padding: 10px 20px;
   background: rgb(var(--color-primary));
-  color: white;
+  color: rgb(var(--color-text-inverse));
   border: none;
   border-radius: 6px;
   font-size: 14px;

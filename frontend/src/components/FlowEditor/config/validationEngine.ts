@@ -9,6 +9,7 @@
  */
 
 import { ValidationRule, ConfigField } from './types';
+import { logger } from '@/utils/logger';
 
 /**
  * Validate a single field value against its validation rules
@@ -59,6 +60,16 @@ function validateRule(
       if (Array.isArray(value) && value.length === 0) {
         return rule.message;
       }
+      // Treat empty plain objects as empty (e.g., keyValueMode='record' fields).
+      if (
+        typeof value === 'object' &&
+        value !== null &&
+        !Array.isArray(value) &&
+        (value as any).constructor === Object &&
+        Object.keys(value as any).length === 0
+      ) {
+        return rule.message;
+      }
       return null;
 
     case 'minLength':
@@ -92,7 +103,12 @@ function validateRule(
       return null;
 
     case 'regex':
+    case 'pattern':
       if (typeof value === 'string') {
+        // Template variables (e.g. {{customer.email}}) cannot be validated reliably client-side.
+        // Treat them as valid so panels remain usable.
+        if (value.includes('{{') && value.includes('}}')) return null;
+
         const regex = rule.value instanceof RegExp ? rule.value : new RegExp(rule.value);
         if (!regex.test(value)) {
           return rule.message;
@@ -102,8 +118,16 @@ function validateRule(
 
     case 'email':
       if (typeof value === 'string') {
+        if (value.includes('{{') && value.includes('}}')) return null;
+
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        if (!emailRegex.test(value)) {
+        const parts = value
+          .split(',')
+          .map((p) => p.trim())
+          .filter(Boolean);
+
+        const allValid = parts.length === 0 ? emailRegex.test(value.trim()) : parts.every((p) => emailRegex.test(p));
+        if (!allValid) {
           return rule.message;
         }
       }
@@ -111,6 +135,8 @@ function validateRule(
 
     case 'url':
       if (typeof value === 'string') {
+        if (value.includes('{{') && value.includes('}}')) return null;
+
         try {
           new URL(value);
           return null;
@@ -128,7 +154,7 @@ function validateRule(
       return null;
 
     default:
-      console.warn(`Unknown validation rule type: ${rule.type}`);
+      logger.warn(`Unknown validation rule type: ${rule.type}`);
       return null;
   }
 }

@@ -10,6 +10,8 @@ import { Button } from '@/components/ui/Button';
 import { PageContainer } from '@/components/ui/PageContainer';
 import { workformExecutionService } from '@/services/workformExecutionService';
 import { formSubmissionService } from '@/services/quickActionsService';
+import { getWorkformsErrorUi } from '@/features/workforms/workformsErrors';
+import { ExecutionStoryView } from '@/features/workforms/ExecutionStoryView';
 
 export const WorkFormExecutionDetails: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -22,9 +24,20 @@ export const WorkFormExecutionDetails: React.FC = () => {
       return workformExecutionService.getExecution(id);
     },
     enabled: !!id,
+    retry: false,
+    refetchInterval: (q) => {
+      // Prevent error-loop polling: if the last fetch failed (including refetch failures),
+      // stop automatic refetching until the user explicitly retries.
+      if (q.state.error) return false;
+
+      const status = (q.state.data as any)?.status as string | undefined;
+      return status === 'pending' || status === 'in_progress' ? 2000 : false;
+    },
+    refetchIntervalInBackground: true,
   });
 
   const execution = query.data;
+  const isLoadError = query.isError || (query as any).isRefetchError;
 
   const submissionId = React.useMemo(() => {
     const initial = execution?.initial_data;
@@ -46,22 +59,50 @@ export const WorkFormExecutionDetails: React.FC = () => {
   });
 
   return (
-    <PageContainer title="Workflow Execution">
+    <PageContainer title="WorkForm Run">
       <Card padding="lg">
         {query.isLoading ? (
-          <div>Loading execution…</div>
-        ) : query.isError || !execution ? (
-          <div>Execution not found.</div>
+          <div>Loading run…</div>
+        ) : isLoadError || !execution ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <div style={{ fontWeight: 700 }}>{getWorkformsErrorUi(query.error, 'executionDetails.load').title}</div>
+            <div style={{ color: 'rgb(var(--color-text-secondary))' }}>
+              {getWorkformsErrorUi(query.error, 'executionDetails.load').message}
+            </div>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <Button variant="secondary" onClick={() => void query.refetch()}>
+                Try again
+              </Button>
+              <Button variant="secondary" onClick={() => navigate('/workforms/history')}>
+                View History
+              </Button>
+              <Button variant="secondary" onClick={() => navigate('/workforms/catalog')}>
+                Back to Catalog
+              </Button>
+            </div>
+          </div>
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div data-testid="workform-execution-details-page" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
               <div>
-                <div style={{ fontWeight: 700, fontSize: 16 }}>{execution.workform_name}</div>
+                <div data-testid="workform-execution-name" style={{ fontWeight: 700, fontSize: 16 }}>
+                  {execution.workform_name}
+                </div>
                 <div style={{ color: 'rgb(var(--color-text-secondary))', fontSize: 13 }}>
-                  Status: <span style={{ fontWeight: 600 }}>{execution.status}</span>
+                  Status:{' '}
+                  <span data-testid="workform-execution-status" style={{ fontWeight: 600 }}>
+                    {execution.status}
+                  </span>
                 </div>
               </div>
               <div style={{ display: 'flex', gap: 8 }}>
+                <Button
+                  data-testid="workform-execution-refresh"
+                  variant="secondary"
+                  onClick={() => void query.refetch()}
+                >
+                  Refresh
+                </Button>
                 <Button variant="secondary" onClick={() => navigate('/workforms/history')}>
                   View History
                 </Button>
@@ -72,11 +113,15 @@ export const WorkFormExecutionDetails: React.FC = () => {
             </div>
 
             {execution.error_message ? (
-              <div style={{ color: 'rgb(var(--color-error))' }}>{execution.error_message}</div>
+              <div data-testid="workform-execution-error-message" style={{ color: 'rgb(var(--color-error))' }}>
+                {execution.error_message}
+              </div>
             ) : null}
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 12 }}>
-              <div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <ExecutionStoryView execution={execution} />
+
+              <div data-testid="workform-execution-current-step">
                 <div style={{ fontWeight: 600, marginBottom: 6 }}>Current step</div>
                 {execution.current_node_id ? (
                   <div style={{ color: 'rgb(var(--color-text-secondary))' }}>
@@ -96,7 +141,7 @@ export const WorkFormExecutionDetails: React.FC = () => {
               </div>
 
               {execution.errors && execution.errors.length > 0 ? (
-                <div>
+                <div data-testid="workform-execution-errors">
                   <div style={{ fontWeight: 600, marginBottom: 6 }}>Errors</div>
                   <ul style={{ margin: 0, paddingLeft: 18 }}>
                     {execution.errors.map((e, idx) => (
@@ -178,124 +223,132 @@ export const WorkFormExecutionDetails: React.FC = () => {
                 </div>
               ) : null}
 
-              <div>
-                <div style={{ fontWeight: 600, marginBottom: 6 }}>Inputs</div>
-                <div style={{ color: 'rgb(var(--color-text-secondary))', fontSize: 13 }}>
-                  {execution.initial_data && typeof execution.initial_data === 'object'
-                    ? `${Object.keys(execution.initial_data).length} key(s)`
-                    : 'No inputs captured.'}
-                </div>
-                <details style={{ marginTop: 8 }}>
-                  <summary style={{ cursor: 'pointer', color: 'rgb(var(--color-text-secondary))' }}>View raw inputs</summary>
-                  <pre
-                    style={{
-                      background: 'rgb(var(--color-surface))',
-                      border: '1px solid rgb(var(--color-border))',
-                      borderRadius: 8,
-                      padding: 12,
-                      overflow: 'auto',
-                      maxHeight: 240,
-                      marginTop: 8,
-                    }}
-                  >
-                    {JSON.stringify(execution.initial_data ?? {}, null, 2)}
-                  </pre>
-                </details>
-              </div>
+              <details data-testid="workform-execution-debug" style={{ border: '1px solid rgb(var(--color-border))', borderRadius: 12, padding: 12 }}>
+                <summary style={{ cursor: 'pointer', fontWeight: 600, color: 'rgb(var(--color-text-primary))' }}>
+                  Debug data
+                </summary>
 
-              {execution.node_statuses && Object.keys(execution.node_statuses).length > 0 ? (
-                <div>
-                  <div style={{ fontWeight: 600, marginBottom: 6 }}>Step status</div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                    {Object.entries(execution.node_statuses)
-                      .filter(([k, v]) => Boolean(k) && Boolean(v))
-                      .sort(([a], [b]) => {
-                        const la = execution.node_labels?.[a] ?? a;
-                        const lb = execution.node_labels?.[b] ?? b;
-                        return la.localeCompare(lb);
-                      })
-                      .map(([nodeId, status]) => (
-                        <div key={`${execution.id}:status:${nodeId}`} style={{ color: 'rgb(var(--color-text-secondary))' }}>
-                          <span style={{ fontWeight: 600 }}>{execution.node_labels?.[nodeId] ?? nodeId}</span>
-                          {execution.node_labels?.[nodeId] ? (
-                            <span style={{ color: 'rgb(var(--color-text-tertiary))' }}> ({nodeId})</span>
-                          ) : null}
-                          : <span style={{ fontWeight: 600 }}>{String(status)}</span>
-                        </div>
-                      ))}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginTop: 12 }}>
+                  <div>
+                    <div style={{ fontWeight: 600, marginBottom: 6 }}>Inputs</div>
+                    <div style={{ color: 'rgb(var(--color-text-secondary))', fontSize: 13 }}>
+                      {execution.initial_data && typeof execution.initial_data === 'object'
+                        ? `${Object.keys(execution.initial_data).length} key(s)`
+                        : 'No inputs captured.'}
+                    </div>
+                    <details style={{ marginTop: 8 }}>
+                      <summary style={{ cursor: 'pointer', color: 'rgb(var(--color-text-secondary))' }}>View raw inputs</summary>
+                      <pre
+                        style={{
+                          background: 'rgb(var(--color-surface))',
+                          border: '1px solid rgb(var(--color-border))',
+                          borderRadius: 8,
+                          padding: 12,
+                          overflow: 'auto',
+                          maxHeight: 240,
+                          marginTop: 8,
+                        }}
+                      >
+                        {JSON.stringify(execution.initial_data ?? {}, null, 2)}
+                      </pre>
+                    </details>
                   </div>
 
-                  <details style={{ marginTop: 8 }}>
-                    <summary style={{ cursor: 'pointer', color: 'rgb(var(--color-text-secondary))' }}>
-                      View raw status map
-                    </summary>
-                    <pre
-                      style={{
-                        background: 'rgb(var(--color-surface))',
-                        border: '1px solid rgb(var(--color-border))',
-                        borderRadius: 8,
-                        padding: 12,
-                        overflow: 'auto',
-                        maxHeight: 240,
-                        marginTop: 8,
-                      }}
-                    >
-                      {JSON.stringify(execution.node_statuses, null, 2)}
-                    </pre>
-                  </details>
-                </div>
-              ) : null}
+                  {execution.node_statuses && Object.keys(execution.node_statuses).length > 0 ? (
+                    <div>
+                      <div style={{ fontWeight: 600, marginBottom: 6 }}>Step status</div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                        {Object.entries(execution.node_statuses)
+                          .filter(([k, v]) => Boolean(k) && Boolean(v))
+                          .sort(([a], [b]) => {
+                            const la = execution.node_labels?.[a] ?? a;
+                            const lb = execution.node_labels?.[b] ?? b;
+                            return la.localeCompare(lb);
+                          })
+                          .map(([nodeId, status]) => (
+                            <div key={`${execution.id}:status:${nodeId}`} style={{ color: 'rgb(var(--color-text-secondary))' }}>
+                              <span style={{ fontWeight: 600 }}>{execution.node_labels?.[nodeId] ?? nodeId}</span>
+                              {execution.node_labels?.[nodeId] ? (
+                                <span style={{ color: 'rgb(var(--color-text-tertiary))' }}> ({nodeId})</span>
+                              ) : null}
+                              : <span style={{ fontWeight: 600 }}>{String(status)}</span>
+                            </div>
+                          ))}
+                      </div>
 
-              <div>
-                <div style={{ fontWeight: 600, marginBottom: 6 }}>Context</div>
-                <div style={{ color: 'rgb(var(--color-text-secondary))', fontSize: 13 }}>
-                  Use this for debugging; most UI panels should rely on derived fields (current step, errors, status).
-                </div>
-                <details style={{ marginTop: 8 }}>
-                  <summary style={{ cursor: 'pointer', color: 'rgb(var(--color-text-secondary))' }}>
-                    View raw context
-                  </summary>
-                  <pre
-                    style={{
-                      background: 'rgb(var(--color-surface))',
-                      border: '1px solid rgb(var(--color-border))',
-                      borderRadius: 8,
-                      padding: 12,
-                      overflow: 'auto',
-                      maxHeight: 360,
-                      marginTop: 8,
-                    }}
-                  >
-                    {JSON.stringify(execution.context_data ?? {}, null, 2)}
-                  </pre>
-                </details>
-              </div>
+                      <details style={{ marginTop: 8 }}>
+                        <summary style={{ cursor: 'pointer', color: 'rgb(var(--color-text-secondary))' }}>
+                          View raw status map
+                        </summary>
+                        <pre
+                          style={{
+                            background: 'rgb(var(--color-surface))',
+                            border: '1px solid rgb(var(--color-border))',
+                            borderRadius: 8,
+                            padding: 12,
+                            overflow: 'auto',
+                            maxHeight: 240,
+                            marginTop: 8,
+                          }}
+                        >
+                          {JSON.stringify(execution.node_statuses, null, 2)}
+                        </pre>
+                      </details>
+                    </div>
+                  ) : null}
 
-              <div>
-                <div style={{ fontWeight: 600, marginBottom: 6 }}>Audit Trail</div>
-                {Array.isArray(execution.audit_trail) && execution.audit_trail.length > 0 ? (
-                  <details>
-                    <summary style={{ cursor: 'pointer', color: 'rgb(var(--color-text-secondary))' }}>
-                      View raw audit trail ({execution.audit_trail.length} event(s))
-                    </summary>
-                    <pre
-                      style={{
-                        background: 'rgb(var(--color-surface))',
-                        border: '1px solid rgb(var(--color-border))',
-                        borderRadius: 8,
-                        padding: 12,
-                        overflow: 'auto',
-                        maxHeight: 360,
-                        marginTop: 8,
-                      }}
-                    >
-                      {JSON.stringify(execution.audit_trail, null, 2)}
-                    </pre>
-                  </details>
-                ) : (
-                  <div style={{ color: 'rgb(var(--color-text-secondary))' }}>No audit entries yet.</div>
-                )}
-              </div>
+                  <div>
+                    <div style={{ fontWeight: 600, marginBottom: 6 }}>Context</div>
+                    <div style={{ color: 'rgb(var(--color-text-secondary))', fontSize: 13 }}>
+                      Use this for debugging; most UI panels should rely on derived fields (current step, errors, status).
+                    </div>
+                    <details style={{ marginTop: 8 }}>
+                      <summary style={{ cursor: 'pointer', color: 'rgb(var(--color-text-secondary))' }}>
+                        View raw context
+                      </summary>
+                      <pre
+                        style={{
+                          background: 'rgb(var(--color-surface))',
+                          border: '1px solid rgb(var(--color-border))',
+                          borderRadius: 8,
+                          padding: 12,
+                          overflow: 'auto',
+                          maxHeight: 360,
+                          marginTop: 8,
+                        }}
+                      >
+                        {JSON.stringify(execution.context_data ?? {}, null, 2)}
+                      </pre>
+                    </details>
+                  </div>
+
+                  <div>
+                    <div style={{ fontWeight: 600, marginBottom: 6 }}>Audit Trail</div>
+                    {Array.isArray(execution.audit_trail) && execution.audit_trail.length > 0 ? (
+                      <details>
+                        <summary style={{ cursor: 'pointer', color: 'rgb(var(--color-text-secondary))' }}>
+                          View raw audit trail ({execution.audit_trail.length} event(s))
+                        </summary>
+                        <pre
+                          style={{
+                            background: 'rgb(var(--color-surface))',
+                            border: '1px solid rgb(var(--color-border))',
+                            borderRadius: 8,
+                            padding: 12,
+                            overflow: 'auto',
+                            maxHeight: 360,
+                            marginTop: 8,
+                          }}
+                        >
+                          {JSON.stringify(execution.audit_trail, null, 2)}
+                        </pre>
+                      </details>
+                    ) : (
+                      <div style={{ color: 'rgb(var(--color-text-secondary))' }}>No audit entries yet.</div>
+                    )}
+                  </div>
+                </div>
+              </details>
             </div>
           </div>
         )}

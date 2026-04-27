@@ -99,7 +99,7 @@ class IsTenantAdminOrReadOnly(permissions.BasePermission):
         if not request.user.is_authenticated:
             return False
 
-        if request.user.is_superuser or request.user.is_staff:
+        if request.user.is_superuser:
             return True
 
         tenant = getattr(request, 'tenant', None)
@@ -275,6 +275,9 @@ class SystemChoiceListViewSet(viewsets.ReadOnlyModelViewSet):
         
         tenant = getattr(request, 'tenant', None)
 
+        if not request.user.is_superuser and not tenant:
+            return Response({'error': 'Tenant context required.'}, status=status.HTTP_400_BAD_REQUEST)
+
         if tenant:
             # RLS: ensure session vars are set on the active connection for this write.
             from apps.tenants.rls import set_current_tenant
@@ -287,7 +290,7 @@ class SystemChoiceListViewSet(viewsets.ReadOnlyModelViewSet):
 
             # Only allow updating tenant's own items or system items (if admin)
             item_filter = {'id': item_id, 'choice_list': choice_list}
-            if not request.user.is_staff:
+            if not request.user.is_superuser:
                 item_filter['tenant'] = tenant
 
             SystemChoiceItem.objects.filter(**item_filter).update(order=new_order)
@@ -355,7 +358,7 @@ class SystemChoiceItemViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         tenant = getattr(self.request, 'tenant', None)
         
-        if self.request.user.is_staff:
+        if self.request.user.is_superuser:
             return SystemChoiceItem.objects.all()
         
         if tenant:
@@ -413,7 +416,7 @@ class SystemChoiceItemViewSet(viewsets.ModelViewSet):
     def perform_update(self, serializer):
         """Only allow updating tenant-owned items (or if admin)."""
         instance = serializer.instance
-        if instance.tenant_id is None and not self.request.user.is_staff:
+        if instance.tenant_id is None and not self.request.user.is_superuser:
             from rest_framework.exceptions import PermissionDenied
 
             raise PermissionDenied("Cannot modify system-defined items.")
@@ -497,7 +500,7 @@ class TenantChoiceOverrideViewSet(viewsets.ModelViewSet):
         tenant = getattr(self.request, 'tenant', None)
         qs = TenantChoiceOverride.objects.all().select_related('tenant', 'choice_list', 'updated_by')
 
-        if self.request.user.is_staff or self.request.user.is_superuser:
+        if self.request.user.is_superuser:
             return qs
 
         if not tenant:
@@ -614,7 +617,7 @@ class TenantConfigViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         tenant = getattr(self.request, 'tenant', None)
         
-        if self.request.user.is_staff:
+        if self.request.user.is_superuser:
             return TenantConfig.objects.all()
         
         if tenant:
@@ -792,8 +795,8 @@ class ConfigAuditLogViewSet(viewsets.ReadOnlyModelViewSet):
         """Filter audit logs by tenant context."""
         tenant = getattr(self.request, 'tenant', None)
         
-        if self.request.user.is_staff:
-            # Staff can see all logs
+        if self.request.user.is_superuser:
+            # Superusers can see all logs
             qs = ConfigAuditLog.objects.all()
         elif tenant:
             # Tenant admins see their tenant's logs + system-level logs

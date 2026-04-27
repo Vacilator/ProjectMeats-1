@@ -99,7 +99,7 @@ const helpSections: HelpSection[] = [
 const Overlay = styled.div`
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(var(--color-overlay), 0.5);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -116,7 +116,7 @@ const Overlay = styled.div`
 const Modal = styled.div`
   background: rgb(var(--color-background));
   border-radius: var(--radius-lg, 8px);
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  box-shadow: 0 25px 50px -12px rgba(var(--color-overlay), 0.25);
   width: 100%;
   max-width: 900px;
   max-height: 90vh;
@@ -236,7 +236,7 @@ const KeyBadge = styled.div`
   min-width: 140px;
   text-align: center;
   white-space: nowrap;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  box-shadow: var(--shadow-sm);
 `;
 
 const Description = styled.div`
@@ -261,32 +261,38 @@ const Footer = styled.div`
 // ============================================================================
 
 export const HelpModal: React.FC<HelpModalProps> = ({ isOpen, onClose }) => {
-  if (!isOpen) return null;
+  const handleOverlayClick = React.useCallback(
+    (e: React.MouseEvent) => {
+      if (e.target === e.currentTarget) {
+        onClose();
+      }
+    },
+    [onClose]
+  );
 
-  const handleOverlayClick = (e: React.MouseEvent) => {
-    if (e.target === e.currentTarget) {
-      onClose();
-    }
-  };
-
-  const handleKeyDown = (e: KeyboardEvent) => {
-    if (e.key === 'Escape') {
-      onClose();
-    }
-  };
+  const handleKeyDown = React.useCallback(
+    (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    },
+    [onClose]
+  );
 
   React.useEffect(() => {
-    if (isOpen) {
-      document.addEventListener('keydown', handleKeyDown as any);
-      return () => document.removeEventListener('keydown', handleKeyDown as any);
-    }
-  }, [isOpen]);
+    if (!isOpen) return;
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [handleKeyDown, isOpen]);
+
+  if (!isOpen) return null;
 
   return (
     <Overlay onClick={handleOverlayClick}>
       <Modal role="dialog" aria-labelledby="help-modal-title" aria-modal="true">
         <Header>
-          <Title id="help-modal-title">Workflow Editor Help</Title>
+          <Title id="help-modal-title">WorkForms Editor Help</Title>
           <CloseButton 
             onClick={onClose}
             aria-label="Close help modal"

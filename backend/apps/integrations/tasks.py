@@ -9,6 +9,8 @@ import random
 from celery import group, shared_task
 
 from apps.integrations.models import ExternalAuthProvider
+from apps.tenants.models import Tenant
+from apps.tenants.rls import tenant_rls
 from tenant_apps.integrations.services.email_ingestion import EmailIngestionService
 
 logger = logging.getLogger(__name__)
@@ -26,22 +28,31 @@ def sync_tenant_emails(self):
 
     This task runs every 5 minutes via Celery Beat.
 
-    Previous behavior: sequential polling across all providers.
-    New behavior: enqueue one task per active provider so work can run in parallel
-    across Celery workers.
+    IMPORTANT: ExternalAuthProvider is RLS-protected. Celery workers must set
+    tenant context explicitly or queries will return 0 rows under FORCE RLS.
 
     Returns:
         dict: dispatch metadata (provider count + group id)
     """
     try:
-        provider_ids = list(
-            ExternalAuthProvider.objects.filter(
-                provider_type='microsoft',
-                is_active=True,
-            ).values_list('id', flat=True)
-        )
+        tenant_ids = list(Tenant.objects.filter(is_active=True).values_list('id', flat=True))
+        tasks = []
 
-        if not provider_ids:
+        for tenant_id in tenant_ids:
+            with tenant_rls(str(tenant_id)):
+                provider_ids = list(
+                    ExternalAuthProvider.objects.filter(
+                        tenant_id=tenant_id,
+                        provider_type='microsoft',
+                        is_active=True,
+                    ).values_list('id', flat=True)
+                )
+
+            for pid in provider_ids:
+                # Jitter dispatch slightly to avoid stampedes against Graph API.
+                tasks.append(sync_email_provider_inbox.s(pid, str(tenant_id)).set(countdown=random.randint(0, 15)))
+
+        if not tasks:
             logger.info('No active Microsoft providers found; skipping email sync dispatch')
             return {
                 'success': True,
@@ -49,23 +60,14 @@ def sync_tenant_emails(self):
                 'group_id': None,
             }
 
-        # Jitter dispatch slightly to avoid stampedes against Graph API.
-        tasks = [
-            sync_email_provider_inbox.s(pid).set(countdown=random.randint(0, 15))
-            for pid in provider_ids
-        ]
         job = group(tasks)
         async_result = job.apply_async(expires=240)  # if beat lags, drop stale work
 
-        logger.info(
-            'Dispatched email sync fan-out: %s providers (group=%s)',
-            len(provider_ids),
-            async_result.id,
-        )
+        logger.info('Dispatched email sync fan-out: %s providers (group=%s)', len(tasks), async_result.id)
 
         return {
             'success': True,
-            'providers_dispatched': len(provider_ids),
+            'providers_dispatched': len(tasks),
             'group_id': async_result.id,
         }
 
@@ -81,11 +83,12 @@ def sync_tenant_emails(self):
     soft_time_limit=300,  # 5 minutes
     time_limit=360,  # 6 minutes hard limit
 )
-def sync_email_provider_inbox(self, provider_id: int):
+def sync_email_provider_inbox(self, provider_id: int, tenant_id: str):
     """Poll inbox for a single ExternalAuthProvider (tenant-scoped)."""
     try:
-        service = EmailIngestionService()
-        stats = service.poll_provider_by_id(provider_id)
+        with tenant_rls(str(tenant_id)):
+            service = EmailIngestionService()
+            stats = service.poll_provider_by_id(provider_id, tenant_id=str(tenant_id))
 
         logger.info(
             'Email sync provider complete: provider_id=%s tenant=%s saved=%s fetched=%s errors=%s',
@@ -123,8 +126,9 @@ def sync_single_tenant(self, tenant_id: str):
     try:
         logger.info('Manual sync triggered for tenant %s', tenant_id)
 
-        service = EmailIngestionService()
-        stats = service.poll_tenant_by_id(tenant_id)
+        with tenant_rls(str(tenant_id)):
+            service = EmailIngestionService()
+            stats = service.poll_tenant_by_id(tenant_id)
 
         logger.info(
             'Manual sync completed for tenant %s: saved=%s fetched=%s errors=%s',

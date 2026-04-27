@@ -11,7 +11,7 @@ Complete environment variable registry with GitHub secret mappings (Version 5.1)
 Index of all authoritative sources for AI agents and developers
 
 ### `RLS_POLICIES.md`
-PostgreSQL Row-Level Security policy registry (38 tenant-aware models compliant; 45 tables with tenant isolation; 48 isolation policies)
+PostgreSQL Row-Level Security policy registry (audit log; see file for latest counts)
 
 ### `ai_standards/`
 AI prompt engineering standards and templates for consistent AI behavior
@@ -24,11 +24,19 @@ Golden template for workflow suggestion engine with meat industry context
 | Concern | Golden File | Authority |
 |---------|-------------|-----------|
 | **Environment Variables** | `/manifests/env.manifest.json` | AUTHORITATIVE |
+| **API Contract (OpenAPI baseline)** | `/manifests/openapi/openapi-schema.baseline.json` | ENFORCEMENT (CI) |
 | **Database Schema** | Django migrations | Applied state |
 | **RLS Policies** | `/manifests/RLS_POLICIES.md` | Audit log |
 | **CI/CD Standards** | `.github/workflows/reusable-deploy.yml` | Template |
-| **Architecture** | `docs/ARCHITECTURE.md` | Design doc |
-| **Phase Roadmap** | `ROADMAP.md` + `MASTER_PLAN.md` | Progress |
+| **Architecture** | `docs/architecture/ARCHITECTURE.md` | Design doc |
+| **Execution status / priorities** | `MASTER_PLAN.md` | CANONICAL |
+| **Roadmaps** | `ROADMAP.md`, `UI_ROADMAP.md` | Reference-only unless promoted in `MASTER_PLAN.md` |
+| **Incident response** | `docs/runbooks/INCIDENT_RESPONSE.md` | AUTHORITATIVE |
+| **Copilot Squad Governance** | `.copilot/squad/squad.json` | AUTHORITATIVE |
+| **Copilot Squad Roles** | `.copilot/squad/roles/*.md` | AUTHORITATIVE |
+| **Copilot Squad Tasks** | `.copilot/squad/tasks/*.md` | AUTHORITATIVE |
+| **Copilot Squad Validator** | `scripts/validate_copilot_squad.sh` | ENFORCEMENT |
+| **Copilot Squad Wrapper** | `scripts/gh-copilot` | TOOLING |
 | **Cockpit Continuous Browsing** | `frontend/src/components/Cockpit/SmartSearch.tsx` | Continuous search UX + navigation path updates |
 | **Cockpit Navigation State** | `frontend/src/contexts/CockpitNavigationContext.tsx` | Breadcrumb/path source of truth |
 | **FlowEditor Config Renderer** | `frontend/src/components/FlowEditor/ConfigPanel/DynamicConfigPanel.tsx` | Schema-driven node config UI (standard path) |

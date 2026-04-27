@@ -1,5 +1,5 @@
 import React from 'react';
-import { Card, Collapse, Spin } from 'antd';
+import { Alert, Card, Collapse, Spin } from 'antd';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 
@@ -20,6 +20,19 @@ const formatTimestamp = (raw?: string | null) => {
   return Number.isNaN(d.getTime()) ? raw : d.toLocaleString();
 };
 
+const getErrorMessage = (error: unknown) => {
+  const responseData = (error as { response?: { data?: unknown } })?.response?.data;
+  if (responseData && typeof responseData === 'object') {
+    const detail = (responseData as Record<string, unknown>).detail;
+    const errorMessage = (responseData as Record<string, unknown>).error;
+    if (typeof detail === 'string' && detail.trim()) return detail;
+    if (typeof errorMessage === 'string' && errorMessage.trim()) return errorMessage;
+  }
+
+  const message = (error as { message?: string })?.message;
+  return typeof message === 'string' && message.trim() ? message : 'Failed to load automation status.';
+};
+
 export const EntityWorkflowStatusPanel: React.FC<EntityWorkflowStatusPanelProps> = ({ entityType, entityId }) => {
   const navigate = useNavigate();
 
@@ -32,7 +45,8 @@ export const EntityWorkflowStatusPanel: React.FC<EntityWorkflowStatusPanelProps>
         page_size: 10,
       }),
     enabled: Boolean(entityType) && Boolean(entityId),
-    refetchInterval: 5000,
+    retry: false,
+    refetchInterval: (query) => (query.state.error ? false : 5000),
   });
 
   const executions = query.data?.results ?? [];
@@ -115,13 +129,19 @@ export const EntityWorkflowStatusPanel: React.FC<EntityWorkflowStatusPanelProps>
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-      <Card size="small" title="WorkForm executions">
+      <Card size="small" title="WorkForm runs">
         {query.isLoading ? (
           <div style={{ padding: 12 }}>
             <Spin />
           </div>
+        ) : query.isError ? (
+          <Alert
+            type="error"
+            showIcon
+            title={getErrorMessage(query.error)}
+          />
         ) : executions.length === 0 ? (
-          <div style={{ color: 'rgb(var(--color-text-tertiary))' }}>No workflow executions found for this record.</div>
+          <div style={{ color: 'rgb(var(--color-text-tertiary))' }}>No WorkForm runs found for this record.</div>
         ) : (
           <Collapse
             items={executions.map((ex) => ({

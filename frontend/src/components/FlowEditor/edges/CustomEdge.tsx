@@ -41,7 +41,7 @@ const EdgeLabel = styled.div`
   pointer-events: all;
   cursor: pointer;
   transition: all 0.2s ease;
-  box-shadow: 0 1px 2px rgb(0 0 0 / 0.05);
+  box-shadow: 0 1px 2px rgba(var(--color-overlay), 0.05);
 
   &:hover {
     background: rgb(var(--color-surface-hover));
@@ -60,7 +60,7 @@ const AddNodeButton = styled.button`
   display: flex;
   align-items: center;
   justify-content: center;
-  color: white;
+  color: rgb(var(--color-primary-foreground));
   font-size: 16px;
   font-weight: 600;
   cursor: pointer;
@@ -92,19 +92,19 @@ const getEdgeStyle = (edgeType?: string, animated?: boolean) => {
     case 'conditional':
       return {
         ...baseStyle,
-        stroke: 'rgb(59, 130, 246)', // Blue
+        stroke: 'rgb(var(--color-info))',
         strokeDasharray: animated ? '5,5' : undefined,
       };
     case 'success':
       return {
         ...baseStyle,
-        stroke: 'rgb(34, 197, 94)', // Green
+        stroke: 'rgb(var(--color-success))',
         strokeWidth: 2.5,
       };
     case 'error':
       return {
         ...baseStyle,
-        stroke: 'rgb(239, 68, 68)', // Red
+        stroke: 'rgb(var(--color-error))',
         strokeDasharray: '4,4',
       };
     default:

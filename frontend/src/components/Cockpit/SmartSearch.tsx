@@ -703,20 +703,43 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
    * Relational chunks are loaded by the navigation-path effect.
    */
   const handleSelectEntity = useCallback((entity: SearchEntity) => {
-    navigation.addStep({
-      id: entity.id,
-      type: entity.type,
-      label: entity.name,
-      subtitle: entity.subtitle,
-    });
-
     // If a caller provided a handler, defer to it (backwards compatible).
     if (onSelectEntity) {
       onSelectEntity(entity);
       return;
     }
 
-  }, [navigation, onSelectEntity]);
+    // Canonical entity pages: Cockpit should open the same record pages as the left nav.
+    // Keep Cockpit as the command center/search surface; record views live under /suppliers, /customers, and /records.
+    const rawType = String(entity.type || '').trim().toLowerCase();
+    const canonicalType =
+      rawType === 'customers' ? 'customer' :
+      rawType === 'suppliers' ? 'supplier' :
+      rawType === 'plants' ? 'plant' :
+      rawType === 'locations' ? 'location' :
+      rawType === 'contacts' ? 'contact' :
+      rawType;
+
+    const id = String(entity.id || '').trim();
+    if (!canonicalType || !id) return;
+
+    navigation.clearPath();
+
+    if (canonicalType === 'supplier') {
+      navigate(`/suppliers/${encodeURIComponent(id)}`);
+      onClose?.();
+      return;
+    }
+
+    if (canonicalType === 'customer') {
+      navigate(`/customers/${encodeURIComponent(id)}`);
+      onClose?.();
+      return;
+    }
+
+    navigate(`/records/${encodeURIComponent(canonicalType)}/${encodeURIComponent(id)}`);
+    onClose?.();
+  }, [navigate, navigation, onClose, onSelectEntity]);
 
 
   /**

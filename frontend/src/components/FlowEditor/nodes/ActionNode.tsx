@@ -87,7 +87,7 @@ const ConfigValue = styled.span<{ $empty?: boolean }>`
   font-style: ${(p) => (p.$empty ? 'italic' : 'normal')};
   font-family: monospace;
   font-size: 10px;
-  background: rgba(0, 0, 0, 0.05);
+  background: rgba(var(--color-overlay), 0.05);
   padding: 2px 4px;
   border-radius: 2px;
 `;
@@ -98,8 +98,8 @@ const ActionBadge = styled.span<{ $type: string }>`
   border-radius: var(--radius-sm);
   font-size: 10px;
   font-weight: 600;
-  background: rgba(139, 92, 246, 0.2);
-  color: rgb(139, 92, 246);
+  background: rgba(var(--color-primary), 0.2);
+  color: rgb(var(--color-primary));
   margin-bottom: 6px;
 `;
 
@@ -137,10 +137,18 @@ function getActionDetails(data: ActionNodeData): { mainItems: ActionDetailItem[]
     case 'createRecord':
     case 'updateRecord':
     case 'deleteRecord': {
+      const fieldsValue = (data.fields ?? (data as any).fieldMappings) as any;
+
+      const fieldSummary = Array.isArray(fieldsValue)
+        ? `${fieldsValue.length} mapping(s)`
+        : fieldsValue && typeof fieldsValue === 'object'
+          ? Object.keys(fieldsValue).join(', ')
+          : undefined;
+
       const mainItems = [
-        { label: 'Entity', value: data.entity },
+        { label: 'Entity', value: (data.entity ?? (data as any).entityType) as any },
         { label: 'Record ID', value: data.recordId },
-        { label: 'Fields', value: data.fields ? Object.keys(data.fields).join(', ') : undefined },
+        { label: 'Fields', value: fieldSummary },
       ];
       return { mainItems, extraItems: [] };
     }

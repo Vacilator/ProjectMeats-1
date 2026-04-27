@@ -27,6 +27,15 @@ class HealthCheckTests(TestCase):
         self.assertIsInstance(data['database_status'], dict)
         self.assertIn('service_summary', data)
 
+        # Observability/readiness fields (additive)
+        self.assertIn('integration_summary', data)
+        self.assertIsInstance(data['integration_summary'], dict)
+        self.assertIn('integration_warnings', data)
+        self.assertIsInstance(data['integration_warnings'], list)
+
+        # In test runs we do not have Redis configured, so redis readiness should be false.
+        self.assertIs(data['features'].get('redis'), False)
+
     @patch('projectmeats.health.check_all_services', side_effect=Exception('boom'))
     def test_health_survives_service_check_failure(self, _mock_check):
         resp = self.client.get('/api/v1/health/')
@@ -36,3 +45,13 @@ class HealthCheckTests(TestCase):
         self.assertIn('services', data)
         self.assertIn('error', data['services'])
         self.assertEqual(data['services']['error']['code'], 'service_checks_failed')
+
+    @patch('projectmeats.health.connection.cursor', side_effect=Exception('db down'))
+    def test_health_returns_503_when_db_unhealthy(self, _mock_cursor):
+        resp = self.client.get('/api/v1/health/')
+        self.assertEqual(resp.status_code, 503)
+
+        data = json.loads(resp.content.decode('utf-8'))
+        self.assertEqual(data['database_status']['status'], 'unhealthy')
+        self.assertEqual(data['database_status']['error']['code'], 'db_connection_failed')
+        self.assertIn('services', data)

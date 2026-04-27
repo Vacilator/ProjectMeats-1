@@ -29,7 +29,7 @@ export const PanelOverlay = styled.div<{ $isOpen?: boolean }>`
   right: 0;
   bottom: 0;
   left: 0;
-  background: rgba(0, 0, 0, 0.4);
+  background: rgba(var(--color-overlay), 0.4);
   z-index: 1000;
   display: ${props => props.$isOpen === false ? 'none' : 'block'};
   animation: fadeIn 0.2s ease-out;
@@ -55,7 +55,7 @@ export const Panel = styled.div<{ $width?: string }>`
   max-width: 900px;
   min-width: 480px;
   background: rgb(var(--color-surface));
-  box-shadow: -4px 0 24px rgba(0, 0, 0, 0.15);
+  box-shadow: -4px 0 24px rgba(var(--color-overlay), 0.15);
   display: flex;
   flex-direction: column;
   z-index: 1001;
@@ -156,7 +156,7 @@ export const PanelFooter = styled.div`
   justify-content: flex-end;
   gap: 12px;
   background: rgb(var(--color-surface));
-  box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 -2px 8px rgba(var(--color-overlay), 0.05);
 `;
 
 // ============================================================================
@@ -464,15 +464,15 @@ export const Button = styled.button<{
       case 'primary':
         return `
           background: rgb(var(--color-primary));
-          color: white;
+          color: rgb(var(--color-text-inverse));
           &:hover { background: rgb(var(--color-primary-dark)); }
           &:active { transform: translateY(1px); }
         `;
       case 'danger':
         return `
           background: rgb(var(--color-error));
-          color: white;
-          &:hover { background: rgb(239, 40, 40); }
+          color: rgb(var(--color-text-inverse));
+          &:hover { background: rgb(var(--color-danger)); }
           &:active { transform: translateY(1px); }
         `;
       case 'ghost':
@@ -547,7 +547,7 @@ export const AddButton = styled.button`
   gap: 6px;
   padding: 6px 12px;
   border: 1px solid rgb(var(--color-border));
-  background: white;
+  background: rgb(var(--color-surface));
   color: rgb(var(--color-text-primary));
   border-radius: var(--radius-md);
   font-size: 13px;

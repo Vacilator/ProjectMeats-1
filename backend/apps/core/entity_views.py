@@ -314,28 +314,70 @@ def entity_lookup(request, entity_type):
     page_size = min(int(request.query_params.get('page_size', 20)), 100)
     
     # Get tenant from request (set by TenantMiddleware)
-    tenant = getattr(request, 'tenant', None)
+    django_request = getattr(request, '_request', None)
+    tenant = getattr(request, 'tenant', None) or getattr(django_request, 'tenant', None)
 
-    # Fallback: DRF authentication can populate request.user after middleware.
-    # For API endpoints that require tenant filtering, resolve a default tenant
-    # association here if middleware couldn't.
-    if not tenant and getattr(request, 'user', None) and request.user.is_authenticated:
-        tenant_user = (
-            TenantUser.objects.filter(user=request.user, is_active=True)
-            .select_related('tenant')
-            .order_by('-role')
-            .first()
-        )
-        if tenant_user:
-            tenant = tenant_user.tenant
+    def _get_header_tenant_id() -> str | None:
+        if hasattr(request, 'headers'):
+            return request.headers.get('X-Tenant-ID')
+        if django_request is not None and hasattr(django_request, 'headers'):
+            return django_request.headers.get('X-Tenant-ID')
+        return None
+
+    # Fail-closed tenant resolution:
+    # - If tenant is explicitly selected (middleware / header), use it.
+    # - If the user belongs to exactly ONE tenant, we allow a safe default.
+    # - If the user belongs to MULTIPLE tenants, require explicit tenant selection.
+    if entity_type != 'user' and not tenant and getattr(request, 'user', None) and request.user.is_authenticated:
+        header_tenant_id = _get_header_tenant_id()
+        if header_tenant_id:
+            from apps.tenants.models import Tenant
+
+            try:
+                candidate = Tenant.objects.get(id=header_tenant_id, is_active=True)
+            except (Tenant.DoesNotExist, ValueError):
+                return Response({"error": "Invalid tenant selection", "code": "tenant_invalid"}, status=400)
+
+            is_global_admin = request.user.groups.filter(name='Global System Admins').exists()
+            if request.user.is_superuser or is_global_admin:
+                tenant = candidate
+            elif TenantUser.objects.filter(user=request.user, tenant=candidate, is_active=True).exists():
+                tenant = candidate
+            else:
+                return Response({"error": "Tenant access denied", "code": "tenant_forbidden"}, status=403)
+
+        if not tenant:
+            memberships = list(
+                TenantUser.objects.filter(user=request.user, is_active=True)
+                .values_list('tenant_id', flat=True)
+                .distinct()[:2]
+            )
+            if len(memberships) == 1:
+                from apps.tenants.models import Tenant
+
+                tenant = Tenant.objects.filter(id=memberships[0], is_active=True).first()
+            elif len(memberships) > 1:
+                return Response(
+                    {
+                        "error": "Explicit tenant selection required (X-Tenant-ID)",
+                        "code": "tenant_required_multi",
+                    },
+                    status=400,
+                )
 
     # Build base queryset with tenant filter where applicable.
-    # Some entities are system-wide (e.g., Product) or utility (e.g., User).
+    # Some entities are system-wide (e.g., system.Product) or utility (e.g., User).
     queryset = model.objects.all()
 
     if entity_type == 'user':
         # Safe default: only allow selecting the current user.
         queryset = queryset.filter(id=request.user.id)
+    elif entity_type == 'product':
+        # system.Product has no tenant FK; apply visibility rules so we don't leak
+        # tenant-owned custom products or tenant-hidden system products.
+        from apps.system.services.product_visibility import visible_products_qs
+
+        queryset = visible_products_qs(tenant=tenant, qs=queryset)
     else:
         if not tenant:
             return Response(
@@ -354,6 +396,8 @@ def entity_lookup(request, entity_type):
             search_fields.append('name')
         if hasattr(model, 'code'):
             search_fields.append('code')
+        if hasattr(model, 'product_code'):
+            search_fields.append('product_code')
         if hasattr(model, 'company_name'):
             search_fields.append('company_name')
         if hasattr(model, 'email'):
@@ -385,6 +429,9 @@ def entity_lookup(request, entity_type):
             # Add code if available
             if hasattr(obj, 'code') and obj.code:
                 label = f"{obj.name} ({obj.code})"
+            # Product uses product_code not code
+            if hasattr(obj, 'product_code') and getattr(obj, 'product_code', None):
+                label = f"{obj.product_code} - {obj.name}"
         elif hasattr(obj, 'company_name'):
             label = obj.company_name
         elif hasattr(obj, 'email'):

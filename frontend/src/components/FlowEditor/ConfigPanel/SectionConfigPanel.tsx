@@ -87,7 +87,7 @@ const Container = styled.div`
   height: 100vh;
   background: rgb(var(--color-surface));
   border-left: 1px solid rgb(var(--color-border));
-  box-shadow: -4px 0 12px rgba(0, 0, 0, 0.1);
+  box-shadow: -4px 0 12px rgba(var(--color-overlay), 0.1);
   display: flex;
   flex-direction: column;
   z-index: 1000;
@@ -209,7 +209,7 @@ const ToggleSlider = styled.span`
     width: 18px;
     left: 3px;
     bottom: 3px;
-    background-color: white;
+    background-color: rgb(var(--color-text-inverse));
     transition: 0.3s;
     border-radius: 50%;
   }
@@ -278,7 +278,7 @@ const Button = styled.button<{ variant?: 'primary' | 'secondary' }>`
 
   ${props => props.variant === 'primary' ? `
     background: rgb(var(--color-primary));
-    color: white;
+    color: rgb(var(--color-text-inverse));
 
     &:hover:not(:disabled) {
       opacity: 0.9;

@@ -1,5 +1,6 @@
 import axios, { AxiosInstance } from 'axios';
 import Constants from 'expo-constants';
+import { Platform } from 'react-native';
 import {
   LoginRequest,
   LoginResponse,
@@ -15,7 +16,45 @@ import {
   TenantInvite,
   InviteAcceptRequest,
   WorkForm,
+  WorkFormExecution,
 } from '../types';
+
+const PROD_DEFAULT_API_BASE_URL = 'https://dev.meatscentral.com/api/v1';
+
+function getExpoDevHost(): string | null {
+  const hostUri =
+    Constants.expoConfig?.hostUri ||
+    (Constants as any).manifest?.debuggerHost ||
+    (Constants as any).manifest2?.extra?.expoClient?.hostUri;
+
+  if (!hostUri || typeof hostUri !== 'string') return null;
+  return hostUri.split(':')[0] || null;
+}
+
+function getDeviceSafeDevApiBaseUrl(): string {
+  const host = getExpoDevHost();
+  if (host) return `http://${host}:8000/api/v1`;
+
+  if (Platform.OS === 'android') return 'http://10.0.2.2:8000/api/v1';
+  return 'http://localhost:8000/api/v1';
+}
+
+function resolveApiBaseUrl(envBaseUrl?: string, extraBaseUrl?: string): string {
+  const env = (envBaseUrl || '').trim();
+  if (env) return env;
+
+  const extra = (extraBaseUrl || '').trim();
+
+  if (extra && /(localhost|127\.0\.0\.1)/.test(extra)) {
+    return getDeviceSafeDevApiBaseUrl();
+  }
+
+  if (__DEV__) {
+    return extra || getDeviceSafeDevApiBaseUrl();
+  }
+
+  return extra || PROD_DEFAULT_API_BASE_URL;
+}
 
 class ApiServiceClass {
   private api: AxiosInstance;
@@ -25,11 +64,7 @@ class ApiServiceClass {
     const envBaseUrl = process.env.EXPO_PUBLIC_API_BASE_URL;
     const extraBaseUrl = (Constants.expoConfig?.extra as any)?.apiBaseUrl as string | undefined;
 
-    // Prefer environment-configured URL (build-time), then app.json extra, then sensible defaults.
-    const configured = (envBaseUrl || extraBaseUrl || '').trim();
-    this.baseURL = (
-      configured || (__DEV__ ? 'http://localhost:8000/api/v1' : 'https://dev.meatscentral.com/api/v1')
-    ).replace(/\/+$/, '');
+    this.baseURL = resolveApiBaseUrl(envBaseUrl, extraBaseUrl).replace(/\/+$/, '');
 
     this.api = axios.create({
       baseURL: this.baseURL,
@@ -244,27 +279,42 @@ class ApiServiceClass {
   }
 
   // Guest mode endpoints
-  async loginAsGuest(tenantSlug: string, accessCode?: string): Promise<GuestSession> {
-    const payload: Record<string, string> = { tenant_slug: tenantSlug };
-    if (accessCode) {
-      payload.access_code = accessCode;
-    }
-    const response = await this.api.post('/auth/guest-session/', payload);
+  // Backend implementation is a legacy guest user login (Token auth), not a per-tenant guest session.
+  async guestLogin(): Promise<GuestSession> {
+    const response = await this.api.post('/auth/guest-login/');
     return response.data;
   }
 
-  setGuestToken(guestToken: string) {
-    this.api.defaults.headers.common['Authorization'] = `GuestToken ${guestToken}`;
+  /**
+   * @deprecated Backend does not currently support the GuestToken auth scheme.
+   * Prefer `setAuthToken()` with the token returned from `guestLogin()`.
+   */
+  setGuestToken(_guestToken: string) {
+    // Intentionally no-op to avoid setting an unsupported Authorization scheme.
   }
 
   // Invite-only endpoints
   async validateInvite(token: string): Promise<TenantInvite> {
-    const response = await this.api.get(`/auth/invites/${token}/`);
-    return response.data;
+    // Backend route: GET /api/v1/invitations/validate/?token=...
+    const response = await this.api.get('/invitations/validate/', {
+      params: { token },
+    });
+
+    // Include the token in the returned object for UI convenience.
+    return { token, ...response.data };
   }
 
   async acceptInvite(inviteData: InviteAcceptRequest): Promise<LoginResponse> {
-    const response = await this.api.post('/auth/invites/accept/', inviteData);
+    // Backend route: POST /api/v1/auth/signup-with-invitation/
+    const payload = {
+      invitation_token: inviteData.token,
+      username: inviteData.username,
+      email: inviteData.email,
+      password: inviteData.password,
+      first_name: inviteData.first_name,
+      last_name: inviteData.last_name,
+    };
+    const response = await this.api.post('/auth/signup-with-invitation/', payload);
     return response.data;
   }
 
@@ -282,10 +332,14 @@ class ApiServiceClass {
         id: String(row.id),
         name: String(row.name ?? ''),
         description: row.description ?? undefined,
-        tenant: String(row.tenant ?? ''),
+        status: String(row.status ?? 'draft'),
         is_active: String(row.status ?? '').toLowerCase() === 'active',
         node_count: Number(row.node_count ?? 0),
-        created_at: String(row.created_at ?? ''),
+        edge_count: row.edge_count !== undefined ? Number(row.edge_count) : undefined,
+        version: row.version !== undefined ? Number(row.version) : undefined,
+        execution_count: row.execution_count !== undefined ? Number(row.execution_count) : undefined,
+        last_executed_at: row.last_executed_at ?? null,
+        created_at: row.created_at ?? undefined,
         updated_at: String(row.updated_at ?? ''),
       })),
     };
@@ -295,17 +349,31 @@ class ApiServiceClass {
     const response = await this.api.get(`/tenant-workforms/${id}/`);
     const row = response.data;
 
+    const definition = row.workflow_definition;
+
     return {
       id: String(row.id),
       name: String(row.name ?? ''),
       description: row.description ?? undefined,
-      tenant: String(row.tenant ?? ''),
+      status: String(row.status ?? 'draft'),
       is_active: String(row.status ?? '').toLowerCase() === 'active',
-      node_count: Number(row.node_count ?? 0),
-      nodes: Array.isArray(row.nodes) ? row.nodes : undefined,
-      created_at: String(row.created_at ?? ''),
+      node_count: Number(row.node_count ?? (Array.isArray(definition?.nodes) ? definition.nodes.length : 0)),
+      edge_count: row.edge_count !== undefined ? Number(row.edge_count) : undefined,
+      version: row.version !== undefined ? Number(row.version) : undefined,
+      execution_count: row.execution_count !== undefined ? Number(row.execution_count) : undefined,
+      last_executed_at: row.last_executed_at ?? null,
+      created_at: row.created_at ?? undefined,
       updated_at: String(row.updated_at ?? ''),
+      workflow_definition: definition && typeof definition === 'object' ? definition : undefined,
+      form_references: Array.isArray(row.form_references) ? row.form_references : undefined,
     };
+  }
+
+  async executeWorkForm(id: string, initialData: Record<string, unknown> = {}): Promise<WorkFormExecution> {
+    const response = await this.api.post(`/tenant-workforms/${id}/execute/`, {
+      initial_data: initialData,
+    });
+    return response.data;
   }
 }
 

@@ -4,9 +4,11 @@ Plants models for ProjectMeats.
 Implements tenant ForeignKey field for shared-schema multi-tenancy.
 """
 
-from django.db import models
-from apps.core.models import PhoneTypeChoices, TenantAwareModel
 from django.contrib.auth.models import User
+from django.contrib.postgres.fields import ArrayField
+from django.db import models
+
+from apps.core.models import PhoneTypeChoices, TenantAwareModel
 
 
 class Plant(TenantAwareModel):
@@ -47,6 +49,32 @@ class Plant(TenantAwareModel):
         blank=True,
         verbose_name='Known Master Products',
         help_text='Master products commonly sold/produced by this plant.',
+    )
+
+    export_approved = models.BooleanField(
+        default=False,
+        help_text='Whether this plant is export approved.',
+    )
+    export_documents_handled = ArrayField(
+        models.CharField(max_length=100),
+        blank=True,
+        default=list,
+        help_text='Export documents handled when export approved.',
+    )
+
+    proteins_offered = models.ManyToManyField(
+        'core.Protein',
+        through='PlantProteinOffered',
+        related_name='plants_offering',
+        blank=True,
+        help_text='Proteins offered by this plant (tenant-scoped link table).',
+    )
+    proteins_tested = models.ManyToManyField(
+        'core.Protein',
+        through='PlantProteinTested',
+        related_name='plants_testing',
+        blank=True,
+        help_text='Proteins tested (COA) by this plant (tenant-scoped link table).',
     )
 
     name = models.CharField(max_length=200)
@@ -167,4 +195,62 @@ class PlantAssociatedMasterProduct(TenantAwareModel):
         indexes = [
             models.Index(fields=['tenant', 'plant']),
             models.Index(fields=['tenant', 'master_product']),
+        ]
+
+
+class PlantProteinOffered(TenantAwareModel):
+    """Tenant-safe link table for Plant ↔ core.Protein offered."""
+
+    plant = models.ForeignKey(
+        Plant,
+        on_delete=models.CASCADE,
+        related_name='protein_offered_links',
+    )
+    protein = models.ForeignKey(
+        'core.Protein',
+        on_delete=models.CASCADE,
+        related_name='plant_offered_links',
+    )
+
+    class Meta:
+        verbose_name = 'Plant Protein Offered'
+        verbose_name_plural = 'Plant Proteins Offered'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['tenant', 'plant', 'protein'],
+                name='unique_plant_protein_offered_per_tenant',
+            )
+        ]
+        indexes = [
+            models.Index(fields=['tenant', 'plant']),
+            models.Index(fields=['tenant', 'protein']),
+        ]
+
+
+class PlantProteinTested(TenantAwareModel):
+    """Tenant-safe link table for Plant ↔ core.Protein tested (COA)."""
+
+    plant = models.ForeignKey(
+        Plant,
+        on_delete=models.CASCADE,
+        related_name='protein_tested_links',
+    )
+    protein = models.ForeignKey(
+        'core.Protein',
+        on_delete=models.CASCADE,
+        related_name='plant_tested_links',
+    )
+
+    class Meta:
+        verbose_name = 'Plant Protein Tested'
+        verbose_name_plural = 'Plant Proteins Tested'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['tenant', 'plant', 'protein'],
+                name='unique_plant_protein_tested_per_tenant',
+            )
+        ]
+        indexes = [
+            models.Index(fields=['tenant', 'plant']),
+            models.Index(fields=['tenant', 'protein']),
         ]

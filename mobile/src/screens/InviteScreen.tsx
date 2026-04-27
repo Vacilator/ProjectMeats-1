@@ -47,28 +47,18 @@ export default function InviteScreen({ navigation, route, onInviteAccepted }: Pr
     setValidating(true);
     try {
       const result = await ApiService.validateInvite(token.trim());
-      if (result.is_expired) {
-        Alert.alert(
-          'Invite Expired',
-          'This invitation has expired. Please ask the workspace admin to send a new invite.'
-        );
-        return;
-      }
-      if (result.is_accepted) {
-        Alert.alert(
-          'Already Accepted',
-          'This invite has already been used. Please sign in with your existing account.'
-        );
-        return;
-      }
       setInvite(result);
-      // Pre-fill email as username
-      setUsername(result.invited_email);
+      // Suggest a username derived from the invited email.
+      const suggestion = result.email.includes('@') ? result.email.split('@')[0] : result.email;
+      setUsername(suggestion);
     } catch (error: any) {
+      const apiMessage = error.response?.data?.error;
       Alert.alert(
         'Invalid Invite',
         error.response?.status === 404
           ? 'This invite token was not found. Please check the link or code and try again.'
+          : apiMessage
+          ? String(apiMessage)
           : 'Unable to validate invite. Please try again.'
       );
     } finally {
@@ -99,6 +89,7 @@ export default function InviteScreen({ navigation, route, onInviteAccepted }: Pr
       const response = await ApiService.acceptInvite({
         token: invite.token,
         username: username.trim(),
+        email: invite.email,
         password,
         first_name: firstName.trim() || undefined,
         last_name: lastName.trim() || undefined,
@@ -183,11 +174,10 @@ export default function InviteScreen({ navigation, route, onInviteAccepted }: Pr
           <View style={styles.inviteBanner}>
             <Text style={styles.inviteBannerTitle}>
               You've been invited to{' '}
-              <Text style={styles.tenantName}>{invite.tenant_name}</Text>
+              <Text style={styles.tenantName}>{invite.tenant.name}</Text>
             </Text>
             <Text style={styles.inviteBannerMeta}>
-              Role: <Text style={styles.roleText}>{invite.role}</Text>  •  Invited
-              by {invite.invited_by}
+              Role: <Text style={styles.roleText}>{invite.role}</Text>
             </Text>
           </View>
 

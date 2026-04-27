@@ -18,13 +18,14 @@ import { FormBuilderProvider } from '../../../contexts/FormBuilderContext';
 vi.mock('../config', () => ({
   schemaRegistry: {
     getSchema: vi.fn((type: string) => {
-      if (type === 'form') {
+      if (type === 'form' || type === 'formStep') {
         return {
-          displayName: 'Form',
+          displayName: type === 'formStep' ? 'Form Step' : 'Form',
           sections: [
             {
               id: 'basic',
               title: 'Basic Settings',
+              collapsible: true,
               fields: [
                 {
                   id: 'name',
@@ -58,11 +59,12 @@ vi.mock('../config/fieldRenderers/complexRenderers', () => ({
 
 // Mock basic renderers
 vi.mock('../config/fieldRenderers/basicRenderers', () => ({
-  renderTextField: vi.fn(({ field, value, onChange }) => (
+  renderTextField: vi.fn(({ field, value, onChange, disabled }) => (
     <input
       data-testid={`field-${field.id}`}
       value={value || ''}
       onChange={(e) => onChange(e.target.value)}
+      disabled={disabled}
     />
   )),
   renderSelectField: vi.fn(() => <select />),
@@ -77,7 +79,12 @@ vi.mock('../hooks/useUpstreamVariables', () => ({
 
 // Mock validation and conditional logic
 vi.mock('../config/validationEngine', () => ({
-  validateField: vi.fn(() => null),
+  validateField: vi.fn((field: any, value: any) => {
+    if (field?.required && (value === undefined || value === null || String(value).trim() === '')) {
+      return 'Required';
+    }
+    return null;
+  }),
 }));
 
 vi.mock('../config/conditionalLogic', () => ({
@@ -196,6 +203,51 @@ describe('DynamicConfigPanel', () => {
       expect(screen.getByTestId('field-description')).toBeInTheDocument();
     });
 
+    it('aliases form step name/description into label + stepTitle/stepDescription', async () => {
+      const formStepNode: Node = {
+        id: 'step-1',
+        type: 'formStep',
+        position: { x: 0, y: 0 },
+        data: {
+          nodeType: 'formStep',
+          name: 'Old',
+          description: 'Old desc',
+          label: 'Old',
+          stepTitle: 'Old',
+          stepDescription: 'Old desc',
+        },
+      };
+
+      renderWithProviders(
+        <DynamicConfigPanel
+          node={formStepNode}
+          nodes={mockNodes}
+          edges={mockEdges}
+          onUpdateNode={mockOnUpdateNode}
+        />
+      );
+
+      fireEvent.change(screen.getByTestId('field-name'), { target: { value: 'New Step' } });
+
+      await waitFor(() => {
+        expect(mockOnUpdateNode).toHaveBeenCalled();
+      });
+
+      const lastCall = mockOnUpdateNode.mock.calls.at(-1);
+      expect(lastCall?.[0]).toBe('step-1');
+      expect(lastCall?.[1]?.name).toBe('New Step');
+      expect(lastCall?.[1]?.label).toBe('New Step');
+      expect(lastCall?.[1]?.stepTitle).toBe('New Step');
+
+      fireEvent.change(screen.getByTestId('field-description'), { target: { value: 'New desc' } });
+
+      await waitFor(() => {
+        const call = mockOnUpdateNode.mock.calls.at(-1);
+        expect(call?.[1]?.description).toBe('New desc');
+        expect(call?.[1]?.stepDescription).toBe('New desc');
+      });
+    });
+
     /**
      * Test fallback schema for unknown types.
      * 
@@ -285,6 +337,110 @@ describe('DynamicConfigPanel', () => {
       // This would require triggering the Discard button
       // For now, verify handler exists
       expect(mockOnDiscard).toBeDefined();
+    });
+  });
+
+  describe('ReadOnly + Accessibility', () => {
+    it('disables inputs and blocks updates when readOnly=true', () => {
+      const validNode: Node = {
+        id: 'test-node',
+        type: 'form',
+        position: { x: 0, y: 0 },
+        data: {
+          name: 'Test Form',
+          description: 'Test Description',
+        },
+      };
+
+      renderWithProviders(
+        <DynamicConfigPanel
+          node={validNode}
+          nodes={mockNodes}
+          edges={mockEdges}
+          readOnly={true}
+          onUpdateNode={mockOnUpdateNode}
+        />
+      );
+
+      const nameInput = screen.getByTestId('field-name');
+      expect(nameInput).toBeDisabled();
+
+      fireEvent.change(nameInput, { target: { value: 'New Name' } });
+      expect(mockOnUpdateNode).not.toHaveBeenCalled();
+    });
+
+    it('does not clear validation errors on data updates within the same node', async () => {
+      const node: Node = {
+        id: 'test-node',
+        type: 'form',
+        position: { x: 0, y: 0 },
+        data: {
+          name: 'Test Form',
+          description: 'Test Description',
+        },
+      };
+
+      const { rerender } = renderWithProviders(
+        <DynamicConfigPanel node={node} nodes={mockNodes} edges={mockEdges} onUpdateNode={mockOnUpdateNode} />
+      );
+
+      // Trigger a validation error (required name field emptied)
+      fireEvent.change(screen.getByTestId('field-name'), { target: { value: '' } });
+
+      await waitFor(() => {
+        expect(screen.getByText(/1 errors/i)).toBeInTheDocument();
+      });
+
+      // Simulate an external shadow-state update with the same node id.
+      rerender(
+        <DynamicConfigPanel
+          node={{ ...node, data: { ...node.data, description: 'Updated externally' } }}
+          nodes={mockNodes}
+          edges={mockEdges}
+          onUpdateNode={mockOnUpdateNode}
+        />
+      );
+
+      expect(screen.getByText(/1 errors/i)).toBeInTheDocument();
+    });
+
+    it('renders collapsible section headers as buttons with aria attributes', () => {
+      const validNode: Node = {
+        id: 'test-node',
+        type: 'form',
+        position: { x: 0, y: 0 },
+        data: {
+          name: 'Test Form',
+          description: 'Test Description',
+        },
+      };
+
+      renderWithProviders(
+        <DynamicConfigPanel
+          node={validNode}
+          nodes={mockNodes}
+          edges={mockEdges}
+          onUpdateNode={mockOnUpdateNode}
+        />
+      );
+
+      const headerButton = screen.getByRole('button', { name: /Basic Settings/i });
+      expect(headerButton).toHaveAttribute('aria-expanded', 'true');
+      expect(headerButton).toHaveAttribute('aria-controls');
+
+      const regionId = headerButton.getAttribute('aria-controls');
+      expect(regionId).toBeTruthy();
+
+      const region = document.getElementById(String(regionId));
+      expect(region).toBeTruthy();
+      expect(region).toHaveAttribute('role', 'region');
+      expect(region).toHaveAttribute('aria-labelledby');
+
+      fireEvent.click(headerButton);
+      expect(headerButton).toHaveAttribute('aria-expanded', 'false');
+
+      const regionAfter = document.getElementById(String(regionId));
+      expect(regionAfter).toHaveAttribute('hidden');
     });
   });
 

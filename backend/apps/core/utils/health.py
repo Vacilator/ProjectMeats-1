@@ -14,43 +14,64 @@ logger = logging.getLogger(__name__)
 
 
 def check_redis() -> dict:
+    """Report Redis availability (not just cache availability).
+
+    In development/test we often use LocMemCache (which will pass set/get but is
+    *not* Redis). For UAT/Prod readiness we want `available=True` to mean:
+    - REDIS_URL is configured
+    - cache backend is Redis
+    - and Redis is reachable
+
+    Returns additive keys:
+    - configured: bool (REDIS_URL + Redis backend)
+    - is_redis: bool
+    - note: str (when falling back)
     """
-    Test Redis connection using cache ping.
-    
-    Returns:
-        dict: {
-            'available': bool,
-            'backend': str,
-            'error': str (if unavailable)
+
+    import os
+
+    backend = settings.CACHES['default']['BACKEND']
+    is_redis_backend = 'redis' in (backend or '').lower()
+    redis_url = getattr(settings, 'REDIS_URL', None) or os.environ.get('REDIS_URL')
+
+    if not redis_url or not is_redis_backend:
+        return {
+            'available': False,
+            'configured': False,
+            'backend': backend,
+            'is_redis': False,
+            'note': 'Redis not configured; using non-Redis cache backend fallback',
         }
-    """
+
     try:
-        # Attempt to set and get a test key
         cache.set('health_check', '1', timeout=5)
         value = cache.get('health_check')
         cache.delete('health_check')
-        
-        backend = settings.CACHES['default']['BACKEND']
-        is_redis = 'redis' in backend.lower()
-        
-        if value == '1':
+
+        ok = value == '1'
+        if ok:
             return {
                 'available': True,
+                'configured': True,
                 'backend': backend,
-                'is_redis': is_redis,
+                'is_redis': True,
             }
-        else:
-            return {
-                'available': False,
-                'backend': backend,
-                'error': 'Cache write/read mismatch'
-            }
+
+        return {
+            'available': False,
+            'configured': True,
+            'backend': backend,
+            'is_redis': True,
+            'error': 'Cache write/read mismatch',
+        }
     except Exception as e:
         logger.warning(f"Redis health check failed: {e}")
         return {
             'available': False,
-            'backend': settings.CACHES['default']['BACKEND'],
-            'error': str(e)
+            'configured': True,
+            'backend': backend,
+            'is_redis': True,
+            'error': str(e),
         }
 
 

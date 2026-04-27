@@ -221,7 +221,7 @@ export const workflowEditorTourSteps: Step[] = [
           <li>Add more nodes and connect them</li>
           <li>Click <strong>Save</strong> when done</li>
         </ol>
-        <p style={{ margin: '8px 0 0 0', fontSize: '14px', color: '#666' }}>
+        <p style={{ margin: '8px 0 0 0', fontSize: '14px', color: 'rgb(var(--color-text-secondary))' }}>
           💡 Press <code>Shift+?</code> anytime to see all keyboard shortcuts
         </p>
       </div>
@@ -309,7 +309,7 @@ export const tourOptions: Partial<Options> = {
   textColor: 'rgb(var(--color-text-primary))',
   backgroundColor: 'rgb(var(--color-background))',
   arrowColor: 'rgb(var(--color-background))',
-  overlayColor: 'rgba(0, 0, 0, 0.5)',
+  overlayColor: 'rgba(var(--color-overlay), 0.5)',
   // Keep the tour UI above fullscreen Workforms editor surfaces + portals.
   zIndex: 20000,
   showProgress: true,
@@ -325,7 +325,7 @@ export const tourStyles: PartialDeep<Styles> = {
     borderRadius: '8px',
     padding: '16px',
     fontSize: '14px',
-    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+    boxShadow: '0 4px 12px rgba(var(--color-overlay), 0.15)',
   },
   buttonClose: {
     zIndex: 20001,

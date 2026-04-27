@@ -5,6 +5,7 @@ Own cross-domain technical coherence (backend + frontend + mobile + devops), ens
 
 ## Responsibilities
 - Convert business intent into implementable technical scope.
+- Run the **orchestrator synthesis pass**: consolidate squad findings into one coherent plan (deliverables, acceptance criteria, risks, tests, rollback).
 - Ensure interfaces/contracts between layers are stable (API routes, types, auth, tenant context).
 - Ensure test strategy is appropriate and executed.
 - Ensure PRs are scoped, reviewable, and aligned to `MASTER_PLAN.md` priorities.

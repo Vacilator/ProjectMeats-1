@@ -13,6 +13,7 @@ import axios, { AxiosError as AxiosErrorType, InternalAxiosRequestConfig } from 
 import * as Sentry from '@sentry/react';
 import { config } from '../config/runtime';
 import { logger } from '../utils/logger';
+import { getValidTenantId } from '../utils/tenantId';
 import {
   getAuthHeader,
   needsRefresh,
@@ -21,6 +22,7 @@ import {
   isUsingJwt,
 } from './jwtService';
 import { triggerGlobalSessionExpired } from '../contexts/SessionManagerContext';
+import { ApiServiceError, createCircuitBreakerError } from './apiErrors';
 
 // API Configuration
 const API_BASE_URL = config.API_BASE_URL;
@@ -102,14 +104,14 @@ apiClient.interceptors.request.use(
       stripJsonContentTypeForFormData(config);
 
       // Check if token needs refresh before making request
+      // IMPORTANT: do NOT block the request path on refresh.
+      // If refresh is slow/unreachable (common in dev), awaiting here can freeze app bootstraps (Quick Actions).
+      // The response interceptor will handle 401s and trigger a single refresh attempt with proper queuing.
       if (isUsingJwt() && needsRefresh() && !isRefreshing) {
-        console.debug('[API] Token needs refresh, refreshing before request...');
-        try {
-          await refreshAccessToken();
-        } catch (error) {
-          console.error('[API] Token refresh failed in request interceptor:', error);
-          // Don't block the request, let response interceptor handle it
-        }
+        logger.debug('[API] Token needs refresh, attempting refresh in background...');
+        refreshAccessToken().catch((error) => {
+          logger.error('[API] Token refresh failed in request interceptor:', error);
+        });
       }
       
       // Get auth header (supports both JWT Bearer and legacy Token)
@@ -119,20 +121,31 @@ apiClient.interceptors.request.use(
       }
       // Note: Missing auth header is expected during login/public endpoints
       
-      // Add tenant ID header if available
-      const tenantId = localStorage.getItem('tenantId');
+      // Add tenant ID header if available (and valid).
+      // Backend expects a UUID; never send literal "undefined"/"null".
+      const tenantId = getValidTenantId();
+      const headersAny = config.headers as any;
       if (tenantId) {
-        config.headers['X-Tenant-ID'] = tenantId;
+        headersAny['X-Tenant-ID'] = tenantId;
+      } else if (headersAny) {
+        // Ensure we don't leak a stale/invalid header from previous config reuse.
+        if (typeof headersAny.delete === 'function') {
+          headersAny.delete('X-Tenant-ID');
+          headersAny.delete('x-tenant-id');
+        } else {
+          delete headersAny['X-Tenant-ID'];
+          delete headersAny['x-tenant-id'];
+        }
       }
       
       return config;
     } catch (error) {
-      console.error('[API] Request interceptor error:', error);
+      logger.error('[API] Request interceptor error:', error);
       return config;
     }
   },
   (error) => {
-    console.error('[API] Request interceptor rejected:', error);
+    logger.error('[API] Request interceptor rejected:', error);
     return Promise.reject(error);
   }
 );
@@ -146,36 +159,45 @@ adminClient.interceptors.request.use(
       stripJsonContentTypeForFormData(config);
 
       // Check if token needs refresh before making request
+      // IMPORTANT: do NOT block the request path on refresh. (See apiClient interceptor note.)
       if (isUsingJwt() && needsRefresh() && !isRefreshing) {
-        console.debug('[Admin API] Token needs refresh, refreshing before request...');
-        try {
-          await refreshAccessToken();
-        } catch (error) {
-          console.error('[Admin API] Token refresh failed in request interceptor:', error);
-        }
+        logger.debug('[Admin API] Token needs refresh, attempting refresh in background...');
+        refreshAccessToken().catch((error) => {
+          logger.error('[Admin API] Token refresh failed in request interceptor:', error);
+        });
       }
       
       const authHeader = getAuthHeader();
       if (authHeader) {
         config.headers.Authorization = authHeader;
       } else {
-        console.warn('[Admin API] No auth header available for request to:', config.url);
+        logger.warn('[Admin API] No auth header available for request to:', config.url);
       }
       
-      // Add tenant ID header if available
-      const tenantId = localStorage.getItem('tenantId');
+      // Add tenant ID header if available (and valid).
+      // Backend expects a UUID; never send literal "undefined"/"null".
+      const tenantId = getValidTenantId();
+      const headersAny = config.headers as any;
       if (tenantId) {
-        config.headers['X-Tenant-ID'] = tenantId;
+        headersAny['X-Tenant-ID'] = tenantId;
+      } else if (headersAny) {
+        if (typeof headersAny.delete === 'function') {
+          headersAny.delete('X-Tenant-ID');
+          headersAny.delete('x-tenant-id');
+        } else {
+          delete headersAny['X-Tenant-ID'];
+          delete headersAny['x-tenant-id'];
+        }
       }
       
       return config;
     } catch (error) {
-      console.error('[Admin API] Request interceptor error:', error);
+      logger.error('[Admin API] Request interceptor error:', error);
       return config;
     }
   },
   (error) => {
-    console.error('[Admin API] Request interceptor rejected:', error);
+    logger.error('[Admin API] Request interceptor rejected:', error);
     return Promise.reject(error);
   }
 );
@@ -208,7 +230,7 @@ apiClient.interceptors.response.use(
           scope.setTag('http.status_code', status);
           scope.setTag('http.method', originalRequest?.method || 'unknown');
           scope.setTag('http.url', originalRequest?.url || 'unknown');
-          scope.setTag('tenant.id', localStorage.getItem('tenantId') || 'unknown');
+          scope.setTag('tenant.id', getValidTenantId() || 'unknown');
           scope.setContext('http', {
             status,
             method: originalRequest?.method,
@@ -231,12 +253,24 @@ apiClient.interceptors.response.use(
         // best-effort
       }
 
-      return Promise.reject(new Error(friendlyMessage));
+      return Promise.reject(
+        createCircuitBreakerError({
+          friendlyMessage,
+          status,
+          request: {
+            method: originalRequest?.method,
+            url: originalRequest?.url,
+            baseURL: (originalRequest as any)?.baseURL,
+          },
+          responseData: (error.response as any)?.data,
+          originalError: error,
+        })
+      );
     }
     
     // Log the error for debugging
     if (status === 401) {
-      console.warn('[API] 401 Unauthorized:', {
+      logger.warn('[API] 401 Unauthorized:', {
         url: originalRequest?.url,
         method: originalRequest?.method,
         hasAuth: !!originalRequest?.headers?.Authorization,
@@ -251,7 +285,7 @@ apiClient.interceptors.response.use(
       // Prevent infinite retry loops
       const retryCount = (originalRequest._retryCount || 0) + 1;
       if (retryCount > 2) {
-        console.error('[API] Max retry attempts reached, showing session expired modal');
+        logger.error('[API] Max retry attempts reached, showing session expired modal');
         clearTokens();
         localStorage.removeItem('user');
         // KEEP tenant context for re-login - user should see same tenant after re-auth
@@ -285,14 +319,14 @@ apiClient.interceptors.response.use(
             // Retry original request with new token
             originalRequest.headers.Authorization = `Bearer ${newToken}`;
             processQueue(null);
-            console.debug('[API] Retrying request with refreshed token');
+            logger.debug('[API] Retrying request with refreshed token');
             return apiClient(originalRequest);
           } else {
             // Refresh returned null - tokens are invalid
             throw new Error('Token refresh returned null');
           }
         } catch (refreshError) {
-          console.error('[API] Token refresh failed:', refreshError);
+          logger.error('[API] Token refresh failed:', refreshError);
           processQueue(refreshError);
           // Refresh failed, show session expired modal
           clearTokens();
@@ -312,7 +346,7 @@ apiClient.interceptors.response.use(
       }
       
       // No JWT or refresh failed, clear auth and show modal
-      console.warn('[API] No JWT auth available, showing session expired modal');
+      logger.warn('[API] No JWT auth available, showing session expired modal');
       clearTokens();
       localStorage.removeItem('user');
       triggerGlobalSessionExpired('Your session has expired. Please log in to continue.');
@@ -343,12 +377,24 @@ adminClient.interceptors.response.use(
         method: originalRequest?.method,
       });
 
-      return Promise.reject(new Error(friendlyMessage));
+      return Promise.reject(
+        createCircuitBreakerError({
+          friendlyMessage,
+          status,
+          request: {
+            method: originalRequest?.method,
+            url: originalRequest?.url,
+            baseURL: (originalRequest as any)?.baseURL,
+          },
+          responseData: (error.response as any)?.data,
+          originalError: error,
+        })
+      );
     }
     
     // Log the error for debugging
     if (status === 401) {
-      console.warn('[Admin API] 401 Unauthorized:', {
+      logger.warn('[Admin API] 401 Unauthorized:', {
         url: originalRequest?.url,
         method: originalRequest?.method,
         hasAuth: !!originalRequest?.headers?.Authorization,
@@ -362,7 +408,7 @@ adminClient.interceptors.response.use(
       // Prevent infinite retry loops
       const retryCount = (originalRequest._retryCount || 0) + 1;
       if (retryCount > 2) {
-        console.error('[Admin API] Max retry attempts reached, showing session expired modal');
+        logger.error('[Admin API] Max retry attempts reached, showing session expired modal');
         clearTokens();
         localStorage.removeItem('user');
         triggerGlobalSessionExpired('Your session has expired.');
@@ -376,12 +422,12 @@ adminClient.interceptors.response.use(
         
         if (newToken) {
           originalRequest.headers.Authorization = `Bearer ${newToken}`;
-          console.debug('[Admin API] Retrying request with refreshed token');
+          logger.debug('[Admin API] Retrying request with refreshed token');
           return adminClient(originalRequest);
         }
       }
       
-      console.warn('[Admin API] No JWT auth available, showing session expired modal');
+      logger.warn('[Admin API] No JWT auth available, showing session expired modal');
       clearTokens();
       localStorage.removeItem('user');
       triggerGlobalSessionExpired('Your session has expired. Please log in to continue.');
@@ -416,6 +462,16 @@ interface AxiosError {
 
 function getErrorMessage(error: unknown): string {
   if (typeof error === 'string') return error;
+
+  if (error instanceof ApiServiceError) {
+    const data = error.responseData;
+    if (data && typeof data === 'object') {
+      const anyData = data as any;
+      const msg = anyData.message || anyData.error || anyData.detail || anyData.details;
+      if (msg && typeof msg === 'string') return msg;
+    }
+    return error.message;
+  }
   
   if (error && typeof error === 'object') {
     const axiosError = error as AxiosError;
@@ -668,7 +724,7 @@ export class ApiService {
         metadata: {
           endpoint: '/suppliers/',
           hasAuth: !!localStorage.getItem('authToken'),
-          hasTenant: !!localStorage.getItem('tenantId'),
+          hasTenant: Boolean(getValidTenantId()),
           baseURL: API_BASE_URL,
         },
       });
@@ -776,7 +832,7 @@ export class ApiService {
       const response = await apiClient.get('/purchase-orders/');
       return response.data.results || response.data;
     } catch (error) {
-      console.error('Error fetching purchase orders:', error);
+      logger.error('Error fetching purchase orders:', error);
       throw new Error(
         'Purchase orders data unavailable. Please check your connection and try again.'
       );
@@ -987,3 +1043,9 @@ export const apiService = new ApiService();
 
 // Export apiClient for direct axios usage in components
 export { apiClient, adminClient };
+
+// Test-only helper to reset module-scoped auth refresh state.
+export const __resetAuthRefreshStateForTests = () => {
+  isRefreshing = false;
+  failedQueue = [];
+};

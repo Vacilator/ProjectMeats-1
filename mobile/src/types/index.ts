@@ -6,8 +6,11 @@ export interface User {
   email: string;
   first_name: string;
   last_name: string;
-  is_active: boolean;
-  date_joined: string;
+  // Auth endpoints include these; other endpoints may omit them.
+  is_active?: boolean;
+  is_staff?: boolean;
+  is_superuser?: boolean;
+  date_joined?: string;
 }
 
 export interface Tenant {
@@ -31,7 +34,15 @@ export interface TenantUser {
   id: number;
   tenant: Tenant;
   user: User;
-  role: 'owner' | 'admin' | 'manager' | 'user' | 'readonly';
+  role:
+    | 'owner'
+    | 'admin'
+    | 'manager'
+    | 'plant_manager'
+    | 'sales_rep'
+    | 'auditor'
+    | 'user'
+    | 'readonly';
   is_active: boolean;
   created_at: string;
   updated_at: string;
@@ -41,7 +52,7 @@ export interface UserTenant {
   tenant_id: string;
   tenant_name: string;
   tenant_slug: string;
-  role: 'owner' | 'admin' | 'manager' | 'user' | 'readonly';
+  role: TenantUser['role'];
   is_active: boolean;
   is_trial: boolean;
   created_at: string;
@@ -69,6 +80,7 @@ export type RootStackParamList = {
   Home: undefined;
   GuestHome: undefined;
   WorkForms: undefined;
+  WorkFormDetail: { id: string; isGuest?: boolean };
 };
 
 // Authentication types
@@ -83,13 +95,18 @@ export interface LoginResponse {
 }
 
 // Guest mode types
+// Backend: POST /api/v1/auth/guest-login/
 export interface GuestSession {
-  guest_token: string;
-  tenant_id: string;
-  tenant_name: string;
-  tenant_slug: string;
-  expires_at: string;
-  permissions: string[];
+  token: string;
+  user: User;
+  tenant: {
+    id: string;
+    name: string;
+    slug: string;
+    role: TenantUser['role'];
+    is_guest: true;
+  };
+  message: string;
 }
 
 export interface GuestUser {
@@ -104,47 +121,79 @@ export interface GuestUser {
 }
 
 // Invite-only flow types
+// Backend:
+// - GET /api/v1/invitations/validate/?token=...
+// - POST /api/v1/auth/signup-with-invitation/
 export interface TenantInvite {
+  /** The invite token that was validated (not returned by backend; we add it client-side). */
   token: string;
-  tenant_id: string;
-  tenant_name: string;
-  tenant_slug: string;
-  invited_by: string;
-  invited_email: string;
-  role: 'admin' | 'manager' | 'user' | 'readonly';
+  valid: true;
+  email: string;
+  role: TenantUser['role'];
+  is_reusable: boolean;
+  uses_remaining: number;
+  tenant: {
+    name: string;
+    slug: string;
+  };
+  message?: string | null;
   expires_at: string;
-  is_expired: boolean;
-  is_accepted: boolean;
 }
 
 export interface InviteAcceptRequest {
+  /** Invite token */
   token: string;
+  /** Desired username */
   username: string;
+  /** Account email (must match invite email for non-reusable invites) */
+  email: string;
   password: string;
   first_name?: string;
   last_name?: string;
 }
 
-// WorkForms types (mobile parity with web Workform Editor)
-export interface WorkFormNode {
-  id: string;
-  type: string;
-  label: string;
-  description?: string;
-  position: { x: number; y: number };
-  data: Record<string, any>;
+// WorkForms types (mobile contract aligned with backend serializers)
+export type WorkFormStatus = 'draft' | 'active' | 'archived' | string;
+
+export interface WorkflowDefinition {
+  nodes: any[];
+  edges: any[];
+  viewport?: {
+    x: number;
+    y: number;
+    zoom: number;
+  };
 }
 
 export interface WorkForm {
   id: string;
   name: string;
   description?: string;
-  tenant: string;
+  status: WorkFormStatus;
+  // Convenience field computed client-side
   is_active: boolean;
   node_count: number;
-  nodes?: WorkFormNode[];
-  created_at: string;
+  edge_count?: number;
+  version?: number;
+  execution_count?: number;
+  last_executed_at?: string | null;
+  created_at?: string;
   updated_at: string;
+  // Detail-only fields
+  workflow_definition?: WorkflowDefinition;
+  form_references?: string[];
+}
+
+export type WorkFormExecutionStatus = 'in_progress' | 'completed' | 'failed' | 'cancelled';
+
+export interface WorkFormExecution {
+  id: string;
+  workform_id: string;
+  workform_name: string;
+  status: WorkFormExecutionStatus | string;
+  started_at: string;
+  completed_at: string | null;
+  error_message: string;
 }
 
 // Common entity types (shared with backend)

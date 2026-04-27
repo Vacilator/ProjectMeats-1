@@ -35,6 +35,7 @@ import {
   TextArea,
   RequiredIndicator,
 } from './shared/StyledComponents';
+import { logger } from '@/utils/logger';
 
 // ============================================================================
 // TypeScript Interfaces
@@ -122,7 +123,7 @@ const ContextButton = styled.button<{ $active: boolean }>`
     width: 16px;
     height: 16px;
     color: ${props => props.$active 
-      ? 'white' 
+      ? 'rgb(var(--color-text-inverse))' 
       : 'rgb(var(--color-text-tertiary))'
     };
   }
@@ -215,7 +216,7 @@ export const FieldWithContext: React.FC<FieldWithContextProps> = ({
         const resolved = context.resolve(value);
         setResolvedValue(resolved);
       } catch (error) {
-        console.error('[FieldWithContext] Error resolving template:', error);
+        logger.error('[FieldWithContext] Error resolving template:', error);
         setResolvedValue(null);
       }
     } else {

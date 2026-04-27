@@ -9,6 +9,7 @@
  */
 
 import { ConditionalRule, ConditionalOperator } from './types';
+import { logger } from '@/utils/logger';
 
 /**
  * Evaluate a conditional rule against form data
@@ -37,7 +38,7 @@ export function evaluateCondition(
 
   // Simple condition - must have field and operator
   if (!rule.field || !rule.operator) {
-    console.warn('Invalid conditional rule: missing field or operator', rule);
+    logger.warn('Invalid conditional rule: missing field or operator', rule);
     return true; // Show field by default if rule is invalid
   }
 
@@ -84,6 +85,22 @@ function evaluateOperator(
         return !fieldValue.includes(String(targetValue));
       }
       return true;
+
+    case 'in': {
+      const allowed = Array.isArray(targetValue) ? targetValue : [targetValue];
+      if (Array.isArray(fieldValue)) {
+        return fieldValue.some((v) => allowed.includes(v));
+      }
+      return allowed.includes(fieldValue);
+    }
+
+    case 'notIn': {
+      const blocked = Array.isArray(targetValue) ? targetValue : [targetValue];
+      if (Array.isArray(fieldValue)) {
+        return !fieldValue.some((v) => blocked.includes(v));
+      }
+      return !blocked.includes(fieldValue);
+    }
 
     case 'greaterThan':
       if (typeof fieldValue === 'number' && typeof targetValue === 'number') {
@@ -138,7 +155,7 @@ function evaluateOperator(
       );
 
     default:
-      console.warn(`Unknown operator: ${operator}`);
+      logger.warn(`Unknown operator: ${operator}`);
       return true;
   }
 }

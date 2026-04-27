@@ -280,7 +280,7 @@ export const FormReferenceNode = React.memo<NodeProps<Node<FormReferenceNodeData
         id: 'formReference',
         name: 'Form Reference',
         category: 'form',
-        color: 'rgb(99, 102, 241)', // Indigo
+        color: 'rgb(var(--color-primary))', // Indigo
         icon: '📋',
         description: 'Embed a reusable form inside the workflow',
         maxInputs: 1,

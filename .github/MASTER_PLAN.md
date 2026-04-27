@@ -83,6 +83,50 @@ This file is the **append-only PR-referenceable execution log**.
 - **2026-04-18** — Tests: cover AI document upload endpoint to guarantee 201/400 only (no 500s) + prevent raw exception leakage. (PR: #4460)
 - **2026-04-18** — Dependencies: merged grouped npm/yarn bumps (root + mobile) and closed superseded singles. (PR: #4439)
 - **2026-04-18** — Promotion: merged development → uat after checks green (merge commit). (PR: #4389)
+- **2026-04-20** — Docs: add WorkForms E2E completion workstream + runtime gap snapshot to canonical root `MASTER_PLAN.md` for execution tracking. (PR: #4480)
+- **2026-04-20** — WorkForms runtime: implement real in-app notifications (actionNotify -> send_notification) with tenant-safe persistence and preferences respect; add backend tests. (PR: #4481)
+- **2026-04-20** — Env manifest: add optional Gmail OAuth secret keys (GOOGLE_CLIENT_ID/SECRET/REDIRECT_URI) to canonical env manifest. (PR: #4482)
+- **2026-04-20** — WorkForms runtime: add runtime support validation (unsupported action nodes) + block activation when runtime validation fails; extend validate endpoint to return runtime validation details. (PR: #4483)
+
+- **2026-04-21** — Mobile: align WorkForms API contract with backend serializers (status + workflow_definition) and add OpenAPI contract assertions for `/tenant-workforms/` list/detail. (PR: #4562)
+
+- **2026-04-21** — Mobile: add a real WorkForm detail screen (read-only) that calls `GET /api/v1/tenant-workforms/{id}/` and navigates from the WorkForms list. (PR: #4564)
+
+- **2026-04-21** — CI: re-enable backend + frontend test gates in the reusable deploy workflow; gate migrations on both swimlanes to avoid partial deploys; align backend `.env` secret names with the env manifest. (PR: #4566)
+
+- **2026-04-21** — CI: enforce Golden Pipeline workflow topology (validator + reusable deploy alignment) to prevent drift (no compose/latest; correct job dependency invariants). (PR: #4568)
+
+- **2026-04-21** — CI: harden workflow validator to scan `.github/scripts/` too (prevent compose/latest drift outside workflows) and tighten migration-safety checks without false positives. (PR: #4569)
+
+- **2026-04-21** — Security: enforce TenantUser membership when tenant is resolved via Host/domain/subdomain for session-auth requests (prevents cross-tenant host spoofing); return stable JSON 403 envelope on `/api/v1/*`; add regression tests. (PR: #4572)
+
+- **2026-04-27** — Frontend: replace runtime `console.*` usage with centralized `logger.*` in high-churn WorkForms/MyTasks paths to reduce prod noise while preserving dev diagnostics. (PR: #4654)
+
+- **2026-04-27** — Backend tests: add stable regression coverage for invitation validation + signup-with-invitation flows (`/api/v1/invitations/validate/`, `/api/v1/auth/signup-with-invitation/`). (PR: #4655)
+
+- **2026-04-27** — Backend tenant safety: make tenant-specific `current`, `current_theme`, and `admin_permissions` actions fail-closed for multi-tenant users when tenant context is missing/ambiguous (stable 400 code), while allowing safe default if the user has exactly one membership; add tests. (PR: #4656)
+
+- **2026-04-27** — Backend RLS safety: wrap tenant-scoped Celery task ORM sections in `tenant_rls(..., strict=False)` to prevent cross-tenant leakage on pooled connections; add coverage. (PR: #4657)
+
+- **2026-04-27** — Mobile: resolve a device-safe API base URL (Expo hostUri/LAN IP and Android emulator fallback) and add unit coverage; document `EXPO_PUBLIC_API_BASE_URL`. (PR: #4658)
+
+- **2026-04-27** — Mobile: switch deprecated `expo build:*` scripts to EAS Build (via `npx eas-cli`), add `eas.json` profiles and build metadata (`ios.buildNumber`, `android.versionCode`), and update mobile build docs. (PR: #4659)
+
+- **2026-04-27** — **Phase 10: Supplier/Customer Hierarchical UI Simplification**: flattened Suppliers/Customers sidebar navigation, made Supplier/Customer forms HQ-only (HQ labels + dynamic titles), simplified list views to Company Name + Actions with safe Aggregated Products rollups, and converged Supplier/Customer record view to Cockpit-style tabs (Plants/Locations, Dept. Contacts, Documents, Related, Recent Activity). (PR: #4705)
+
+- **2026-04-27** — Workflows/QuickActions stability: `/api/v1/workflows/available-forms/` now validates optional entity context and returns 400 (never 500) for bad params/IDs; frontend adds a circuit breaker to prevent remount loops on backend 5xx; Supplier form title rolled back to "New Supplier"/"Supplier" while keeping HQ field labels and phone input typing; Suppliers/Customers table rows now show pointer cursor on hover. (PR: #4707)
+
+- **2026-04-27** — Workflows/QuickActions hardening: `/api/v1/workflows/available-forms/` now degrades safely even if form/workform serialization or node_count fails (skips bad rows; never 500) with regression coverage; frontend stops probing legacy `/api/v1/products/master/` and calls canonical `/api/v1/master-products/` only (avoids noisy 404 spam). (PR: #4709)
+
+- **2026-04-27** — Phase 10 Sprint 1 gate (in progress):
+  - Frontend: standardized API error presentation now recognizes backend `code`/`error_code` (e.g., `AI_NOT_CONFIGURED`, `EMAIL_SEND_NOT_CONFIGURED`) and surfaces user-safe guidance; Email Integration widget uses the shared presentation.
+  - CI: workflow validator now enforces that PR validation includes the frontend TypeScript gate (verify-standards/type-check), preventing silent removal.
+  - Docs: added canonical incident response runbook (`docs/runbooks/INCIDENT_RESPONSE.md`).
+  - Mobile: began hardening the Customers page table container for mobile E2E stability (`customers-table-container` selector) and continued mobile viewport work.
+
+- **2026-04-27** — Entities: fixed UniversalEntityForm React infinite loop (#185) in Plant create/edit by stabilizing initialValues and sanitizing array-like defaults; restored AI Overview on canonical Supplier/Customer record pages; renamed Suppliers/Customers list create buttons to "New Supplier"/"New Customer" and aligned Customer form titles to "New Customer"/"Customer". (PR: #4711)
+
+- **2026-04-27** — Forms: fixed Plant edit/create crash (minified React error #185) by stabilizing cascading option fetch (no more setState loop when dependencies are empty) and adding a short-lived cache for missing `/system/choices/?list=...` slugs to prevent repeated 404 spam. (PR: #4713)
 
 ### 2026-03-31 — Secret audit drift (manifest v5.1)
 - Command: `python config/manage_env.py audit --repo Meats-Central/ProjectMeats`
@@ -1615,7 +1659,7 @@ Deliverables:
 
 - 2026-04-01 — Docs: clarify historical checklists + fix roadmap duplication — PR: #4337.
 
-- 2026-04-01 — Docs: align README with canonical master plan (remove 100 laims) — PR: #4338.
+- 2026-04-01 — Docs: align README with canonical master plan (remove 100laims) — PR: #4338.
 
 - 2026-04-01 — CI/CD: fix Master Pipeline workflow file issue (run-name + md paths-ignore) — PR: #4339.
 
@@ -1645,3 +1689,74 @@ Deliverables:
 - **2026-04-16** — Mobile: Inquiries page usable at 375px; add E2E coverage; constrain Layout containers to prevent page-level horizontal overflow. (PR: #4399)
 - **2026-04-16** — Mobile: Sales Orders page + create modal usable at 375px; add E2E create-flow coverage (schema mocked). (PR: #4401)
 - **2026-04-16** — CI: Master Pipeline run-name now uses env/branch + SHA + actor (avoid commit message leakage). (PR: #4404)
+- **2026-04-20** — WorkForms E2E: added stable `data-testid` selectors for Catalog/Execute/Execution Details, added execution-details polling for async runs, and added Playwright smoke spec for runtime execute + in-app notification. (PR: #4484)
+- **2026-04-20** — Quick Actions: `/workflows/available-forms/` now treated as the canonical unified list (forms + WorkForms); WorkForms show in Customize Quick Actions and in the header submenu; WorkForms Catalog classifies by `type` and de-dupes to avoid broken execute flows. (PR: #4485)
+- **2026-04-20** — Entities: Plant + Location detail pages now include an **Automation** tab showing record-scoped WorkForm executions; backend entity execution filtering matches entity_id persisted as JSON string or number. (PR: #4486)
+- **2026-04-20** — Email integrations: started Gmail connector MVP — signed OAuth state (user_id + tenant_id), clear not_configured behavior, exposed `/api/v1/workflows/email/email-accounts/`, and wired EmailIntegrationWidget to email_integration endpoints; setup checklist documented. (PR: #4487)
+- **2026-04-20** — CI note: the earlier `PR: #pending` run-name placeholder corresponds to the Master Pipeline PR-context run-name work (PR #4408 / #4396), and is superseded by the later run-name hardening entry (PR #4404).
+
+- **2026-04-20** — Docs reality correction (append-only): prior entries claiming `docs/plans/*` were purged and that V4.0 sprint docs were "not created yet" are **historical** and superseded. V3.5/V4.0 planning docs exist under `docs/plans/` (e.g., `V4_0_IDEAL_STATE_GAP_ANALYSIS.md`, `V4_0_UX_EXCELLENCE.md`, `V4_0_FIELD_OPS_ARCHITECTURE.md`). Canonical plan/status remains `MASTER_PLAN.md`.
+
+- **2026-04-21** — Mobile: align guest/invite auth endpoints; persist guest sessions; update tests/types. (PR: #4514)
+- **2026-04-21** — Mobile: enforce OpenAPI contract (schema artifact + mobile Jest contract test). (PR: #4515)
+- **2026-04-21** — WorkForms editor: fix DynamicConfigPanel key aliases + triggerForm defaults/UX + regression tests. (PR: #4516)
+- **2026-04-21** — WorkForms editor: populate formReference metadata on selection (name/desc/fieldCount/sectionCount) + test. (PR: #4517)
+- **2026-04-21** — WorkForms editor: NestedChildrenRenderer supports toggle/number/select child fields + test. (PR: #4518)
+- **2026-04-21** — WorkForms editor: normalize legacy Auto-Mapping fieldMappings for FieldMappingPanel + fix createRecord validator + unit test. (PR: #4519)
+- **2026-04-21** — WorkForms editor: template-aware validation (allow {{vars}} in email/url/regex; allow comma-separated email lists) + tests. (PR: #4520)
+- **2026-04-21** — WorkForms editor: documentGenerate template field no longer stuck (templateId uses text until template API exists) + schema test. (PR: #4521)
+- **2026-04-21** — WorkForms editor: a11y nested children (keyboard expansion + aria labels + button types) + tests. (PR: #4522)
+- **2026-04-21** — Docs: append PR log (2026-04-21). (PR: #4523)
+- **2026-04-21** — CI: enforce pinned action SHAs (reject tag-based refs; disallow dynamic uses). (PR: #4524)
+- **2026-04-21** — Security: harden OAuth callbacks (state binding + nonce single-use; legacy callback tightened) + tests. (PR: #4526)
+- **2026-04-21** — CI: enforce RLS audit coverage (deterministic lint; include integrations.EmailLog) + test. (PR: #4527)
+- **2026-04-21** — Security: ignore X-Tenant-ID for anonymous requests in TenantMiddleware + regression test. (PR: #4530)
+- **2026-04-21** — WorkForms editor: enforce readOnly + a11y sections + keep validation errors stable under shadow updates. (PR: #4532)
+- **2026-04-21** — WorkForms editor: keyValueMode=record draft rows are local-only; always stage/persist record shape; supports key rename + tests. (PR: #4534)
+- **2026-04-21** — Security: add tenant-scoped workflow webhook receiver (tenant id in path), keep legacy receiver working, fix webhook URL generation, and avoid JWT auth interception on webhook Authorization header; add regression tests. (PR: #4536)
+- **2026-04-21** — Security: verify inbound email webhooks (Outlook subscriptionId+clientState hash; Gmail Pub/Sub token/OIDC verification), ensure webhook receivers bypass DRF auth interception, add tests, and document env knobs in env.manifest. (PR: #4538)
+- **2026-04-21** — Security: tenant-scope email integration models and webhooks — add tenant FKs + RLS policies for email_integration tables, add tenant-id-in-path email webhook receivers that set RLS context, and extend audit_rls_compliance allowlist + tests. (PR: #4540)
+- **2026-04-21** — WorkForms editor: publish-time schema validation parity — enforce schema-driven required validation at publish time (incl. generic `action` nodes via `actionType` inference), materialize non-empty schema defaults on save so persisted config matches UI defaults, and treat empty objects as empty for required validators (keyValue record mode); add vitest coverage. (PR: #4542)
+- **2026-04-21** — CI: move archived workflows out of `.github/workflows/` so they cannot appear/run in GitHub Actions (reduces footguns + guardrail bypass). (PR: #4544)
+- **2026-04-21** — CI: stop pushing mutable `:latest` tags — build-dev-image now pushes only immutable sha tags; devcontainer builds locally to avoid `:latest` dependency; update workflow instructions to match no-latest policy. (PR: #4546)
+- **2026-04-21** — CI: digest-pin workflow service images (postgres + pgvector) to multi-arch manifest digests for deterministic runs. (PR: #4548)
+- **2026-04-21** — Docs: refresh discovery backlog pointers and update canonical `MASTER_PLAN.md` execution snapshot (no behavior changes). (PR: #4550)
+- **2026-04-21** — Workflows: tenant-path webhook receiver sets tenant/RLS context before ORM lookup (FORCE RLS safe) and adds call-order regression coverage. (PR: #4552)
+- **2026-04-21** — Workflows: legacy webhook receiver now fails closed unless tenant context is resolvable; sets tenant/RLS before ORM lookup and scopes lookup by request.tenant. (PR: #4554)
+- **2026-04-21** — Integrations: OAuth callback sets tenant/RLS context before tenant-scoped writes (FORCE RLS safe) and adds regression test. (PR: #4556)
+- **2026-04-21** — WorkForms: creating a WorkForm with `status=active` now runs activation validation (references + runtime support), preventing invalid active WorkForms; adds integration test. (PR: #4558)
+- **2026-04-21** — Tests: add tenant scoping coverage for `/api/v1/tenant-workforms/*` (host-scoped list; cross-tenant retrieve/delete 404; missing tenant context returns empty list). (PR: #4560)
+- **2026-04-21** — WorkForms RBAC: harden system WorkForm/Form viewsets (viewer vs editor mutations), validate late tenant resolution for DRF auth flows, and add regression tests. (PR: #4574)
+- **2026-04-21** — FlowEditor: ConfigPanel tab a11y (ARIA tabs + keyboard nav) + stable testids; remove hardcoded colors; add unit tests. (PR: #4575)
+- **2026-04-21** — Theme: add back-compat CSS variable aliases for `--color-background-secondary/tertiary` (map to surface tokens). (PR: #4576)
+- **2026-04-21** — Logging: replace FlowEditor runtime `console.log` with dev-gated `logger.debug()` across editor modules. (PR: #4577)
+- **2026-04-21** — Logging: remove Sentry init `console.log` noise (use dev-gated `logger.debug()`). (PR: #4578)
+- **2026-04-21** — FlowEditor: HelpModal hook safety + typed Escape handling; add regression tests. (PR: #4579)
+- **2026-04-21** — CI: validate workflow environment lane names against `manifests/env.manifest.json` to prevent secret-scope typos. (PR: #4580)
+- **2026-04-21** — Docs: append PR log entries (4574–4580) and clarify theme back-compat aliases in Design System docs. (PR: #4581)
+- **2026-04-21** — Admin Studio: fix ChoiceListEditor keyboard shortcuts stale-closure bug; add unit test. (PR: #4582)
+- **2026-04-21** — Tests: cover schemaRegistry required-validator normalization (incl. nested childSchema). (PR: #4583)
+- **2026-04-21** — Tests: cover `_get_request_tenant()` late tenant resolution via `X-Tenant-ID` (fail-closed + caching). (PR: #4584)
+- **2026-04-21** — Frontend: replace `console.log` noise with centralized logger in CommandPalette, permissions hook, and Quick Actions autosave. (PR: #4585)
+- **2026-04-21** — Frontend: remove remaining `console.log` calls in token refresh debug + Admin Studio editor canvas onSave. (PR: #4586)
+- **2026-04-21** — Backend: harden tenant form merge/split endpoints (editor-only, tenant resolution, RLS set_current_tenant) + regression tests. (PR: #4587)
+- **2026-04-21** — Docs: append PR log entries (4582–4587). (PR: #4588)
+- **2026-04-21** — Frontend: route QuickActionsContext console logging through centralized logger. (PR: #4589)
+- **2026-04-21** — Docs: add squad deep dive execution plan to canonical `MASTER_PLAN.md` (next PR-sized batches, deps/risks/tests). (PR: #4590)
+- **2026-04-27** — Frontend: expand `lint:colors` guardrail to MyTasks surfaces and tokenized remaining hardcoded colors in MyTasks/QuickActions widgets, shared styles, and theme config. (PR: #4650)
+- **2026-04-27** — Docs: record backend audit P0s in canonical master plan + PR log. (PR: #4651)
+- **2026-04-27** — Backend: fix `apps/core/views.py` legacy imports/print() and add smoke tests for Ranked Search + Workspace Stats core endpoints. (PR: #4652)
+
+- **2026-04-27** — Ops note: .github/MASTER_PLAN.md had one or more NUL (\0) bytes; repaired by re-serializing as plain UTF-8 text while preserving content.
+
+- **2026-04-27** — Plants/Contacts: rename Booking→Shipping/Loadout + add Certification dept; add Contact title/notes/documents fields; enable tenant-safe nested dept contacts writes on Plant; improve PlantDetail contacts CTA and prevent Activity/Automation infinite spinners by rendering explicit error alerts. (PR: #4685)
+- **2026-04-27** — Dev: unblock dev.meatscentral.com login by hardening frontend deploy to deterministically enforce host nginx reverse-proxy routing (`/api/*` → backend, `/` → frontend), ensure nginx site precedence, fix local vhost verification to use TLS SNI (`curl --resolve`), restore nginx→backend reachability, and preserve original Host header to prevent Django `DisallowedHost` 400s. (PRs: #4692, #4693, #4694, #4697, #4698)
+
+- **2026-04-27** — Plants: Plant Profile backend — add Plant Profile fields + tenant-safe patterns/RLS where required. (PR: #4691)
+
+- **2026-04-27** — Plants: Plant Profile frontend — implement Plant Profile in metadata-driven UniversalEntityForm + DynamicFormEngine (conditional visibility + clear-on-hide, max_length validation, proteins subset validation, master product list source), with unit test coverage. (PR: #4699)
+- **2026-04-27** — WorkForms/Quick Actions: prevent tenant-scoped boot-time 400 spam by validating tenant context (`getValidTenantId`), gating tenant-scoped loads until tenant is a valid UUID, and ensuring `X-Tenant-ID` is never sent as 'undefined'/'null'. Adds regression tests and stabilizes Vitest coverage runs. (PR: #4701)
+
+- **2026-04-27** — WorkForms editor: polish trigger preview/test/debug UX — persist Dry Run Debugger mock inputs with Reset Input, and make Smart Auto-Map suggestions disappear on accept/reject; add unit coverage for schedule cron helpers + auto-map immutability. (PR: #4702)
+
+- **2026-04-27** — WorkForms UI: a11y hardening — keyboard-operable Catalog/In Progress cards and accessible TemplateSelector modal (dialog semantics, Escape close, focus trap + restore focus) with automated tests. (PR: #4703)

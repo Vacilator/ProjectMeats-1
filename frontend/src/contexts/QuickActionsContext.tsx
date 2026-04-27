@@ -7,6 +7,10 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { getAvailableWorkForms } from '@/services/workformsApi';
 import { showAlert } from '@/utils/uiDialogs';
+import { logger } from '@/utils/logger';
+import { getValidTenantId } from '@/utils/tenantId';
+import { ApiErrorContent } from '@/components/errors/ApiErrorContent';
+import { getApiErrorPresentation } from '@/services/apiErrorPresentation';
 import {
   quickActionsService,
   formSubmissionService,
@@ -64,10 +68,12 @@ export const QuickActionsProvider: React.FC<QuickActionsProviderProps> = ({ chil
   const [availableForms, setAvailableForms] = useState<AvailableForm[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  
+
   const [activeSubmission, setActiveSubmission] = useState<FormSubmission | null>(null);
   const [isEditorOpen, setIsEditorOpen] = useState(false);
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);
+
+  const warnedMissingTenantRef = React.useRef(false);
 
   // Load quick actions on mount
   const refreshQuickActions = useCallback(async () => {
@@ -79,6 +85,20 @@ export const QuickActionsProvider: React.FC<QuickActionsProviderProps> = ({ chil
     try {
       setIsLoading(true);
       setError(null);
+
+      // Tenant-scoped endpoints will 400 if tenant context is missing/invalid.
+      // Avoid noisy console errors and defer loading until tenant is selected.
+      const tenantId = getValidTenantId();
+      if (!tenantId) {
+        if (!warnedMissingTenantRef.current) {
+          warnedMissingTenantRef.current = true;
+          logger.warn('[QuickActions] Skipping initial load; missing/invalid tenantId');
+        }
+        setQuickActions([]);
+        setAvailableForms([]);
+        setError(null);
+        return;
+      }
 
       const [actionsResult, formsResult, workformsResult] = await Promise.allSettled([
         quickActionsService.getQuickActions(),
@@ -104,27 +124,32 @@ export const QuickActionsProvider: React.FC<QuickActionsProviderProps> = ({ chil
         // Don't treat auth errors here as "logged out" unless *all* sources failed auth.
         // This allows partial functionality when one endpoint is forbidden.
         const msg = actionsResult.reason?.message || 'Failed to load quick actions';
-        console.warn('[QuickActions] getQuickActions failed', actionsResult.reason);
+        logger.warn('[QuickActions] getQuickActions failed', actionsResult.reason);
         setError(isAuthError(actionsResult.reason) ? null : msg);
       }
 
       const actionsResponse = actionsResult.status === 'fulfilled' ? actionsResult.value : { items: [] };
       setQuickActions(actionsResponse.items || []);
 
-      const formsResponse = formsResult.status === 'fulfilled' ? formsResult.value : [];
-      const legacyForms = (Array.isArray(formsResponse) ? formsResponse : [])
-        .filter((item) => (item.type ?? 'form') === 'form')
-        .map((item) => ({
-          ...item,
-          type: 'form' as const,
-        }));
+      const availableResponse = formsResult.status === 'fulfilled' ? formsResult.value : [];
+      const availableTargets = (Array.isArray(availableResponse) ? availableResponse : [])
+        .filter((item) => (item.type ?? 'form') === 'form' || item.type === 'workflow')
+        .map((item) => {
+          const isWorkflow = item.type === 'workflow';
+          return {
+            ...item,
+            type: isWorkflow ? ('workflow' as const) : ('form' as const),
+            icon: item.icon || (isWorkflow ? 'layers' : 'file-text'),
+          } as AvailableForm;
+        });
 
       if (formsResult.status === 'rejected') {
-        console.warn('[QuickActions] Legacy available-forms failed; continuing with WorkForms only', formsResult.reason);
+        logger.warn('[QuickActions] available-forms failed; continuing with WorkForms enrichment only', formsResult.reason);
       }
 
+      // Optional enrichment from /tenant-workforms/ (may be permission-scoped differently).
       const workformsResponse = workformsResult.status === 'fulfilled' ? workformsResult.value : [];
-      const workforms = (Array.isArray(workformsResponse) ? workformsResponse : [])
+      const workformsEnrichment = (Array.isArray(workformsResponse) ? workformsResponse : [])
         .filter((wf) => wf.status === 'active' || wf.status === 'draft')
         .map((wf) => {
           const anyWf = wf as any;
@@ -133,7 +158,7 @@ export const QuickActionsProvider: React.FC<QuickActionsProviderProps> = ({ chil
               ? anyWf.node_count
               : typeof anyWf.step_count === 'number'
                 ? anyWf.step_count
-                : 0;
+                : null;
 
           return {
             id: wf.id,
@@ -146,31 +171,44 @@ export const QuickActionsProvider: React.FC<QuickActionsProviderProps> = ({ chil
             is_quick_action_enabled: true,
             step_count: typeof anyWf.step_count === 'number' ? anyWf.step_count : 0,
             node_count: nodeCount,
-          };
+          } as AvailableForm;
         });
 
       if (workformsResult.status === 'rejected') {
-        console.warn('[QuickActions] WorkForms list failed; continuing with legacy forms only', workformsResult.reason);
+        logger.warn('[QuickActions] WorkForms list failed; continuing with available-forms only', workformsResult.reason);
       }
 
       const byKey = new Map<string, AvailableForm>();
-      for (const item of [...legacyForms, ...workforms]) {
-        const key = `${item.type ?? 'form'}:${item.id}`;
-        byKey.set(key, item);
+
+      for (const item of availableTargets) {
+        byKey.set(`${item.type ?? 'form'}:${item.id}`, item);
+      }
+
+      // Enrich/override workflow rows with WorkForms list data when available.
+      for (const wf of workformsEnrichment) {
+        byKey.set(`workflow:${wf.id}`, {
+          ...byKey.get(`workflow:${wf.id}`),
+          ...wf,
+        });
       }
 
       const combined = Array.from(byKey.values()).sort((a, b) => (a.name ?? '').localeCompare(b.name ?? ''));
       setAvailableForms(combined);
     } catch (err: any) {
-      console.error('Failed to load quick actions:', err);
+      logger.error('Failed to load quick actions:', err);
       setError(err?.message || 'Failed to load quick actions');
     } finally {
       setIsLoading(false);
     }
   }, []);
 
+  const didInitialFetchRef = React.useRef(false);
+
   useEffect(() => {
     // Always attempt to load: supports cookie-auth sessions (no localStorage token).
+    // Guard against effect re-run (e.g., React dev strict-mode double-invoke) to avoid retry loops.
+    if (didInitialFetchRef.current) return;
+    didInitialFetchRef.current = true;
     refreshQuickActions();
   }, [refreshQuickActions]);
 
@@ -180,7 +218,7 @@ export const QuickActionsProvider: React.FC<QuickActionsProviderProps> = ({ chil
       const response = await quickActionsService.updateQuickActions(items);
       setQuickActions(response.items);
     } catch (err: any) {
-      console.error('Failed to update quick actions:', err);
+      logger.error('Failed to update quick actions:', err);
       setError(err.message || 'Failed to update quick actions');
       throw err;
     }
@@ -242,18 +280,19 @@ export const QuickActionsProvider: React.FC<QuickActionsProviderProps> = ({ chil
   const openFormModal = useCallback(async (formId: string) => {
     try {
       setError(null);
-      console.log('[QuickActions] Opening form modal for formId:', formId);
+      logger.debug('[QuickActions] Opening form modal for formId:', formId);
       const submission = await startFormSubmission(formId);
-      console.log('[QuickActions] Form submission created:', submission?.id);
+      logger.debug('[QuickActions] Form submission created:', submission?.id);
     } catch (err: any) {
-      console.error('[QuickActions] Failed to start form submission:', err);
-      const errorMsg = err?.response?.data?.error || err?.message || 'Failed to start form';
-      setError(errorMsg);
+      logger.error('[QuickActions] Failed to start form submission:', err);
+      const presentation = getApiErrorPresentation(err, { fallbackMessage: 'Failed to start form' });
+      setError(presentation.friendlyMessage);
+
       // Alert the user since the modal won't open
       showAlert({
         type: 'error',
         title: 'Error',
-        content: errorMsg,
+        content: <ApiErrorContent error={err} fallbackMessage={presentation.friendlyMessage} />,
       });
     }
   }, [startFormSubmission]);

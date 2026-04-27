@@ -83,7 +83,7 @@ const ModalOverlay = styled.div<{ $isOpen: boolean }>`
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: rgba(0, 0, 0, 0.7);
+  background-color: rgba(var(--color-overlay), 0.7);
   z-index: 9999;
   align-items: center;
   justify-content: center;
@@ -98,7 +98,7 @@ const ModalContainer = styled.div`
   max-width: 1800px;
   display: flex;
   flex-direction: column;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 20px 60px rgba(var(--color-overlay), 0.3);
   border: 1px solid rgb(var(--color-border));
 `;
 
@@ -171,7 +171,7 @@ const StepNumber = styled.span<{ $active: boolean; $completed: boolean }>`
       : 'rgb(var(--color-border))'};
   color: ${props =>
     props.$active || props.$completed
-      ? 'white'
+      ? 'rgb(var(--color-text-inverse))'
       : 'rgb(var(--color-text-tertiary))'};
   font-size: 12px;
   font-weight: 600;
@@ -303,7 +303,7 @@ const Button = styled.button<{ $variant?: 'primary' | 'secondary' | 'ghost' }>`
         return `
           background: rgb(var(--color-primary));
           border-color: rgb(var(--color-primary));
-          color: white;
+          color: rgb(var(--color-text-inverse));
           &:hover:not(:disabled) {
             background: rgb(var(--color-primary-hover));
             border-color: rgb(var(--color-primary-hover));

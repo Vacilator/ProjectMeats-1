@@ -267,6 +267,7 @@ class WorkFormEngine:
         for idx, item in enumerate(items):
             execute_workform_loop_item.delay(
                 workform_id=str(self.workform.id),
+                tenant_id=str(self.workform.tenant_id),
                 loop_node_id=str(node.get('id')),
                 loop_body_start_node_id=str(loop_body_start_node_id),
                 index=idx,
@@ -307,5 +308,7 @@ class WorkFormEngine:
             'actionCreateRecord': 'create_record',
             'actionUpdateRecord': 'update_record',
             'actionNotification': 'send_notification',
+            'actionNotify': 'send_notification',  # canonical FlowEditor node type
+            'notify': 'send_notification',  # legacy/alias
         }
         return mapping.get(node_type, node_type)

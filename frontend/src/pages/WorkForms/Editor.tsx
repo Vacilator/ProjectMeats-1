@@ -14,6 +14,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Wand2, Eye, Code2, Lock } from 'lucide-react';
 
 import { logger } from '@/utils/logger';
+import { toApiErrorText } from '@/services/apiErrorPresentation';
 import { UnifiedFlowEditor } from '../../components/FlowEditor';
 import { FLOW_TEMPLATES } from '../../components/FlowEditor/templates/flowTemplates';
 import {
@@ -213,16 +214,16 @@ const StatusBadge = styled.span<{ $status: WorkFormStatus }>`
   border: 1px solid rgb(var(--color-border));
   background: ${p =>
     p.$status === 'active'
-      ? 'rgb(34 197 94 / 0.10)'
+      ? 'rgba(var(--color-success), 0.10)'
       : p.$status === 'draft'
-        ? 'rgb(234 179 8 / 0.10)'
-        : 'rgb(148 163 184 / 0.10)'};
+        ? 'rgba(var(--color-warning), 0.10)'
+        : 'rgba(var(--color-text-secondary), 0.10)'};
   color: ${p =>
     p.$status === 'active'
-      ? 'rgb(34, 197, 94)'
+      ? 'rgb(var(--color-success))'
       : p.$status === 'draft'
-        ? 'rgb(234, 179, 8)'
-        : 'rgb(148, 163, 184)'};
+        ? 'rgb(var(--color-warning))'
+        : 'rgb(var(--color-text-secondary))'};
 `;
 
 const EditorWrapper = styled.div`
@@ -234,6 +235,61 @@ const EditorWrapper = styled.div`
   flex: 1;
   min-height: 0;
   overflow: hidden;
+`;
+
+const CenteredNotice = styled.div`
+  text-align: center;
+  padding: 4rem;
+  color: rgb(var(--color-text-secondary));
+`;
+
+const ErrorPanel = styled.div`
+  border: 1px solid rgb(var(--color-border));
+  border-radius: var(--radius-lg);
+  background: rgb(var(--color-surface));
+  padding: 18px;
+  max-width: 760px;
+  margin: 24px auto;
+`;
+
+const ErrorTitle = styled.h2`
+  margin: 0 0 8px 0;
+  font-size: 18px;
+  font-weight: 800;
+  color: rgb(var(--color-text-primary));
+`;
+
+const ErrorDetail = styled.pre`
+  margin: 0;
+  padding: 12px;
+  border-radius: var(--radius-md);
+  border: 1px solid rgb(var(--color-border));
+  background: rgb(var(--color-background));
+  color: rgb(var(--color-text-secondary));
+  font-size: 12px;
+  white-space: pre-wrap;
+  word-break: break-word;
+`;
+
+const ErrorActions = styled.div`
+  display: flex;
+  gap: 10px;
+  margin-top: 12px;
+  flex-wrap: wrap;
+`;
+
+const PrimaryButton = styled.button`
+  padding: 8px 12px;
+  background: rgb(var(--color-primary));
+  border: 1px solid rgb(var(--color-primary));
+  border-radius: var(--radius-md);
+  font-size: 13px;
+  color: rgb(var(--color-primary-foreground));
+  cursor: pointer;
+
+  &:hover {
+    filter: brightness(0.98);
+  }
 `;
 
 // ============================================================================
@@ -290,6 +346,31 @@ export const WorkFormsEditor: React.FC = () => {
   });
 
   const isLoading = existingWorkFormQuery.isLoading || cloneWorkFormQuery.isLoading;
+
+  const isLoadError = Boolean(
+    (id && existingWorkFormQuery.isError) ||
+    (cloneId && cloneWorkFormQuery.isError)
+  );
+
+  const activeLoadError = cloneId
+    ? cloneWorkFormQuery.error
+    : existingWorkFormQuery.error;
+
+  const getLoadErrorDetail = useCallback(
+    (error: unknown): string => toApiErrorText(error, { fallbackMessage: 'Unknown error' }),
+    []
+  );
+
+  const handleRetryLoad = useCallback(async () => {
+    setIsInitialized(false);
+    if (cloneId) {
+      await cloneWorkFormQuery.refetch();
+      return;
+    }
+    if (id) {
+      await existingWorkFormQuery.refetch();
+    }
+  }, [cloneId, id, cloneWorkFormQuery, existingWorkFormQuery]);
 
   // Initialize editor with: clone → existing → template → blank
   useEffect(() => {
@@ -405,15 +486,33 @@ export const WorkFormsEditor: React.FC = () => {
   if ((id || cloneId) && isLoading) {
     return (
       <PageContainer>
-        <div style={{ textAlign: 'center', padding: '4rem', color: 'rgb(var(--color-text-secondary))' }}>
-          Loading workform...
-        </div>
+        <CenteredNotice>Loading workform...</CenteredNotice>
       </PageContainer>
     );
   }
 
-  if (existingWorkFormQuery.isError) {
-    logger.error('[WorkFormsEditor] Failed to load workflow', existingWorkFormQuery.error);
+  if (isLoadError) {
+    logger.error('[WorkFormsEditor] Failed to load workflow', activeLoadError);
+
+    return (
+      <PageContainer>
+        <PageHeader>
+          <HeaderLeft>
+            <BackButton onClick={handleBack}>← Back</BackButton>
+            <PageTitle>WorkForms Editor</PageTitle>
+          </HeaderLeft>
+        </PageHeader>
+
+        <ErrorPanel role="alert">
+          <ErrorTitle>Couldn't load workform</ErrorTitle>
+          <ErrorDetail>{getLoadErrorDetail(activeLoadError)}</ErrorDetail>
+          <ErrorActions>
+            <PrimaryButton onClick={() => void handleRetryLoad()}>Try again</PrimaryButton>
+            <BackButton onClick={handleBack}>Back to Catalog</BackButton>
+          </ErrorActions>
+        </ErrorPanel>
+      </PageContainer>
+    );
   }
 
   return (

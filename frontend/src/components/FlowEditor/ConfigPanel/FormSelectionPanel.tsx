@@ -23,6 +23,7 @@ import {
   PrimaryButton,
   SecondaryButton,
 } from './shared/StyledComponents';
+import { logger } from '@/utils/logger';
 
 // ============================================================================
 // Types
@@ -141,11 +142,11 @@ const LoadingText = styled.div`
 
 const ErrorText = styled.div`
   font-size: 14px;
-  color: rgb(239, 68, 68); /* error color */
+  color: rgb(var(--color-error)); /* error color */
   padding: 12px;
-  background: rgba(239, 68, 68, 0.1);
+  background: rgba(var(--color-error), 0.1);
   border-radius: 6px;
-  border: 1px solid rgba(239, 68, 68, 0.3);
+  border: 1px solid rgba(var(--color-error), 0.3);
 `;
 
 const ButtonGroup = styled.div`
@@ -166,7 +167,7 @@ const Button = styled.button<{ variant?: 'primary' | 'secondary' }>`
 
   ${props => props.variant === 'primary' ? `
     background: rgb(var(--color-primary));
-    color: white;
+    color: rgb(var(--color-text-inverse));
 
     &:hover:not(:disabled) {
       background: rgba(var(--color-primary), 0.9);
@@ -227,7 +228,7 @@ export const FormSelectionPanel: React.FC<FormSelectionPanelProps> = ({
       });
       setExistingForms(forms);
     } catch (err: any) {
-      console.error('[FormSelectionPanel] Failed to load forms:', err);
+      logger.error('[FormSelectionPanel] Failed to load forms:', err);
       toast.error('Failed to load forms. Please refresh and try again.', {
         duration: 4000,
         icon: '⚠️',

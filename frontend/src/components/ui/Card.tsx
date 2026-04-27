@@ -65,23 +65,12 @@ export const CardHeader: React.FC<CardHeaderProps> = ({ title, description, acti
   </div>
 );
 
-export const CardContent: React.FC<{
+export type CardContentProps = React.HTMLAttributes<HTMLDivElement> & {
   children: React.ReactNode;
-  className?: string;
-  style?: React.CSSProperties;
-  onClick?: (e: React.MouseEvent) => void;
-  onMouseDown?: (e: React.MouseEvent) => void;
-  onMouseEnter?: (e: React.MouseEvent) => void;
-  onMouseMove?: (e: React.MouseEvent) => void;
-}> = ({ children, className, style, onClick, onMouseDown, onMouseEnter, onMouseMove }) => (
-  <div
-    className={className}
-    style={style}
-    onClick={onClick}
-    onMouseDown={onMouseDown}
-    onMouseEnter={onMouseEnter}
-    onMouseMove={onMouseMove}
-  >
+};
+
+export const CardContent: React.FC<CardContentProps> = ({ children, ...props }) => (
+  <div {...props}>
     {children}
   </div>
 );

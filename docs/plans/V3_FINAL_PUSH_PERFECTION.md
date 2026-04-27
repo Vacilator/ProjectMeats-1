@@ -1,3 +1,10 @@
+> [!IMPORTANT]
+> ARCHIVED (Historical)
+>
+> This document is retained for historical context only and is **not canonical**.
+> The canonical source of truth for priorities and definitions of done is **/MASTER_PLAN.md**.
+> Roadmaps in **/ROADMAP.md** and **/UI_ROADMAP.md** are reference-only unless promoted in MASTER_PLAN.
+
 # V3.0 Final Push — Enterprise-Grade Perfection
 
 **Authority:** This document is **REFERENCE ONLY**.

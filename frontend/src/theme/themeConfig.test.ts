@@ -45,10 +45,10 @@ describe('Theme Configuration', () => {
     it('light theme has correct tokens', () => {
       expect(lightTheme.token).toMatchObject({
         colorPrimary: 'rgb(var(--color-primary))',
-        colorSuccess: 'rgb(34, 197, 94)',
-        colorWarning: 'rgb(234, 179, 8)',
-        colorError: 'rgb(239, 68, 68)',
-        colorInfo: 'rgb(59, 130, 246)',
+        colorSuccess: 'rgb(var(--color-success))',
+        colorWarning: 'rgb(var(--color-warning))',
+        colorError: 'rgb(var(--color-error))',
+        colorInfo: 'rgb(var(--color-info))',
         fontSize: 14,
         borderRadius: 6,
       });
@@ -57,10 +57,10 @@ describe('Theme Configuration', () => {
     it('dark theme has correct tokens', () => {
       expect(darkTheme.token).toMatchObject({
         colorPrimary: 'rgb(var(--color-primary))',
-        colorSuccess: 'rgb(34, 197, 94)',
-        colorWarning: 'rgb(234, 179, 8)',
-        colorError: 'rgb(239, 68, 68)',
-        colorInfo: 'rgb(59, 130, 246)',
+        colorSuccess: 'rgb(var(--color-success))',
+        colorWarning: 'rgb(var(--color-warning))',
+        colorError: 'rgb(var(--color-error))',
+        colorInfo: 'rgb(var(--color-info))',
         fontSize: 14,
         borderRadius: 6,
       });
@@ -69,9 +69,9 @@ describe('Theme Configuration', () => {
     it('high contrast theme has accessibility-focused tokens', () => {
       expect(highContrastTheme.token).toMatchObject({
         colorPrimary: 'rgb(var(--color-primary))',
-        colorSuccess: 'rgb(0, 128, 0)',
-        colorWarning: 'rgb(255, 170, 0)',
-        colorError: 'rgb(204, 0, 0)',
+        colorSuccess: 'rgb(var(--color-success))',
+        colorWarning: 'rgb(var(--color-warning))',
+        colorError: 'rgb(var(--color-error))',
         fontSize: 16, // Larger for accessibility
         borderRadius: 2, // Sharper edges
         lineWidth: 2, // Thicker borders

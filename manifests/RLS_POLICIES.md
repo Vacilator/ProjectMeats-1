@@ -1,7 +1,7 @@
 # Security Compliance & RLS Audit Log
 
-**Last Updated**: March 31, 2026  
-**Status**: ✅ ALL SYSTEMS COMPLIANT
+**Last Updated**: April 21, 2026  
+**Status**: ✅ ALL SYSTEMS COMPLIANT (pending next deployment audit)
 
 ---
 
@@ -78,6 +78,39 @@ All workflow-related tables have Row-Level Security **ENABLED** and **FORCED**:
 
 ---
 
+## System WorkForms Module (2 tables) - ✅ 100% COMPLIANT (code)
+
+| Table Name | RLS Enabled | Policy Name | Session Variable |
+|------------|-------------|-------------|------------------|
+| `tenant_forms` | ✅ | `tenant_forms_tenant_isolation` | `app.current_tenant` |
+| `tenant_workforms` | ✅ | `tenant_workforms_tenant_isolation` | `app.current_tenant` |
+
+---
+
+## Integrations Module (2 tables) - ✅ 100% COMPLIANT (code)
+
+| Table Name | RLS Enabled | Policy Name | Session Variable |
+|------------|-------------|-------------|------------------|
+| `integrations_emaillog` | ✅ | `integrations_emaillog_tenant_isolation` | `app.current_tenant` |
+| `integrations_externalauthprovider` | ✅ | `integrations_externalauthprovider_tenant_isolation` | `app.current_tenant` |
+
+---
+
+## Email Integration Module (4 tables) - ✅ 100% COMPLIANT
+
+| Table Name | RLS Enabled | Policy Name | Session Variable |
+|------------|-------------|-------------|------------------|
+| `email_accounts` | ✅ | `email_accounts_tenant_isolation` | `app.current_tenant` |
+| `email_actions` | ✅ | `email_actions_tenant_isolation` | `app.current_tenant` |
+| `email_triggers` | ✅ | `email_triggers_tenant_isolation` | `app.current_tenant` |
+| `email_logs` | ✅ | `email_logs_tenant_isolation` | `app.current_tenant` |
+
+**Migrations**:
+- `email_integration/0004_enable_rls_email_integration`
+- `email_integration/0005_fix_email_rls_uuid_cast_safety`
+
+---
+
 ## Tenant Integrations Module (2 tables) - ✅ 100% COMPLIANT
 
 | Table Name | RLS Enabled | Policy Name | Session Variable |
@@ -118,6 +151,10 @@ All workflow-related tables have Row-Level Security **ENABLED** and **FORCED**:
 
 **Latest Audit (2026-03-22)**:
 - `python manage.py audit_rls_compliance` → **38/38 tenant-aware models compliant** ✅
+
+**Audit Scope Update (2026-04-20)**:
+- `audit_rls_compliance` now also includes an allowlist of tenant-scoped models that do **not** inherit `TenantAwareModel` (System WorkForms + Integrations).
+- Expected result after next deployment audit: **41/41 tenant-scoped models compliant** ✅
 
 **Tenant Isolation Policies** (from `pg_policies`):
 - Tables with at least one `*_tenant_isolation` policy: **47**
@@ -183,14 +220,14 @@ BEGIN
         ALTER TABLE app_table ENABLE ROW LEVEL SECURITY;
         ALTER TABLE app_table FORCE ROW LEVEL SECURITY;
         CREATE POLICY table_tenant_isolation ON app_table
-            USING (tenant_id = current_setting('app.current_tenant', true)::uuid);
+            USING (tenant_id = NULLIF(current_setting('app.current_tenant', true), '')::uuid);
     END IF;
 END $$;
 ```
 
 **Key Features**:
 - Idempotent (safe to retry)
-- Uses `current_setting('app.current_tenant', true)::uuid` for tenant matching
+- Uses `NULLIF(current_setting('app.current_tenant', true), '')::uuid` for tenant matching
 - `FORCE ROW LEVEL SECURITY` applies to superuser queries
 - Policy name format: `{tablename}_tenant_isolation`
 

@@ -10,6 +10,7 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import styled from 'styled-components';
 import { showAlert } from '@/utils/uiDialogs';
+import { logger } from '@/utils/logger';
 import { useNotifications, ActionItem } from '../../contexts/NotificationsContext';
 import { DelegateTaskModal, DelegationData, User } from '../../components/Delegation';
 import { DelegationHistory } from '../../components/Delegation';
@@ -37,8 +38,12 @@ const StatsBar = styled.div`
   gap: 16px;
   margin-bottom: 24px;
   padding: 16px;
-  background: linear-gradient(135deg, rgba(239, 68, 68, 0.05) 0%, rgba(234, 179, 8, 0.05) 100%);
-  border: 1px solid rgba(239, 68, 68, 0.2);
+  background: linear-gradient(
+    135deg,
+    rgba(var(--color-error), 0.05) 0%,
+    rgba(var(--color-warning), 0.05) 100%
+  );
+  border: 1px solid rgba(var(--color-error), 0.2);
   border-radius: 8px;
 `;
 
@@ -52,7 +57,7 @@ const Title = styled.h1`
 
 const CountBadge = styled.span`
   background: rgb(var(--color-primary, 102 126 234));
-  color: white;
+  color: rgb(var(--color-primary-foreground, 255 255 255));
   font-size: 14px;
   font-weight: 600;
   padding: 4px 12px;
@@ -68,7 +73,7 @@ const FiltersBar = styled.div`
   padding: 16px;
   background: rgb(var(--color-surface, 255 255 255));
   border-radius: 8px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow-sm);
 `;
 
 const FilterGroup = styled.div`
@@ -89,7 +94,7 @@ const FilterSelect = styled.select`
   border-radius: 6px;
   font-size: 14px;
   color: rgb(var(--color-text-primary, 44 62 80));
-  background: white;
+  background: rgb(var(--color-surface, 255 255 255));
   cursor: pointer;
 
   &:focus {
@@ -127,12 +132,12 @@ const StatCard = styled.div<{ $variant?: 'danger' | 'warning' | 'info' | 'defaul
   padding: 20px;
   background: rgb(var(--color-surface, 255 255 255));
   border-radius: 8px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow-sm);
   border-left: 4px solid ${props => {
     switch (props.$variant) {
-      case 'danger': return 'rgb(239, 68, 68)';
-      case 'warning': return 'rgb(234, 179, 8)';
-      case 'info': return 'rgb(59, 130, 246)';
+      case 'danger': return 'rgb(var(--color-error))';
+      case 'warning': return 'rgb(var(--color-warning))';
+      case 'info': return 'rgb(var(--color-info))';
       default: return 'rgb(var(--color-primary, 102 126 234))';
     }
   }};
@@ -161,21 +166,21 @@ const TaskCard = styled.div<{ $priority: string; $isOverdue: boolean; $isAtRisk?
   align-items: flex-start;
   padding: 16px 20px;
   background: ${props => props.$isAtRisk 
-    ? 'linear-gradient(135deg, rgba(239, 68, 68, 0.05) 0%, rgb(var(--color-surface, 255 255 255)) 100%)'
+    ? 'linear-gradient(135deg, rgba(var(--color-error), 0.05) 0%, rgb(var(--color-surface, 255 255 255)) 100%)'
     : 'rgb(var(--color-surface, 255 255 255))'
   };
   border-radius: 8px;
   box-shadow: ${props => props.$isAtRisk 
-    ? '0 2px 8px rgba(239, 68, 68, 0.2)'
-    : '0 1px 3px rgba(0, 0, 0, 0.1)'
+    ? '0 2px 8px rgba(var(--color-error), 0.2)'
+    : 'var(--shadow-sm)'
   };
   border-left: 4px solid ${props => {
-    if (props.$isAtRisk) return 'rgb(239, 68, 68)';
-    if (props.$isOverdue) return 'rgb(239, 68, 68)';
+    if (props.$isAtRisk) return 'rgb(var(--color-error))';
+    if (props.$isOverdue) return 'rgb(var(--color-error))';
     switch (props.$priority) {
-      case 'urgent': return 'rgb(239, 68, 68)';
-      case 'high': return 'rgb(234, 179, 8)';
-      case 'normal': return 'rgb(59, 130, 246)';
+      case 'urgent': return 'rgb(var(--color-error))';
+      case 'high': return 'rgb(var(--color-warning))';
+      case 'normal': return 'rgb(var(--color-info))';
       default: return 'rgb(var(--color-border, 224 224 224))';
     }
   }};
@@ -185,8 +190,8 @@ const TaskCard = styled.div<{ $priority: string; $isOverdue: boolean; $isAtRisk?
   &:hover {
     transform: translateX(4px);
     box-shadow: ${props => props.$isAtRisk
-      ? '0 4px 12px rgba(239, 68, 68, 0.3)'
-      : '0 4px 12px rgba(0, 0, 0, 0.1)'
+      ? '0 4px 12px rgba(var(--color-error), 0.3)'
+      : 'var(--shadow-md)'
     };
   }
 `;
@@ -232,18 +237,18 @@ const PriorityBadge = styled.span<{ $priority: string }>`
   text-transform: uppercase;
   background: ${props => {
     switch (props.$priority) {
-      case 'urgent': return 'rgba(239, 68, 68, 0.1)';
-      case 'high': return 'rgba(234, 179, 8, 0.1)';
-      case 'normal': return 'rgba(59, 130, 246, 0.1)';
-      default: return 'rgba(127, 140, 141, 0.1)';
+      case 'urgent': return 'rgba(var(--color-error), 0.1)';
+      case 'high': return 'rgba(var(--color-warning), 0.1)';
+      case 'normal': return 'rgba(var(--color-info), 0.1)';
+      default: return 'rgba(var(--color-text-secondary), 0.1)';
     }
   }};
   color: ${props => {
     switch (props.$priority) {
-      case 'urgent': return 'rgb(239, 68, 68)';
-      case 'high': return 'rgb(180, 140, 8)';
-      case 'normal': return 'rgb(59, 130, 246)';
-      default: return 'rgb(127, 140, 141)';
+      case 'urgent': return 'rgb(var(--color-error))';
+      case 'high': return 'rgb(var(--color-warning))';
+      case 'normal': return 'rgb(var(--color-info))';
+      default: return 'rgb(var(--color-text-secondary))';
     }
   }};
 `;
@@ -256,8 +261,8 @@ const OverdueBadge = styled.span`
   font-size: 11px;
   font-weight: 600;
   text-transform: uppercase;
-  background: rgba(239, 68, 68, 0.1);
-  color: rgb(239, 68, 68);
+  background: rgba(var(--color-error), 0.1);
+  color: rgb(var(--color-error));
 `;
 
 const AtRiskBadge = styled.span`
@@ -269,8 +274,8 @@ const AtRiskBadge = styled.span`
   font-size: 11px;
   font-weight: 600;
   text-transform: uppercase;
-  background: rgba(239, 68, 68, 0.15);
-  color: rgb(239, 68, 68);
+  background: rgba(var(--color-error), 0.15);
+  color: rgb(var(--color-error));
   animation: pulse 2s ease-in-out infinite;
 
   @keyframes pulse {
@@ -288,7 +293,7 @@ const TaskActions = styled.div`
 const ActionButton = styled.button`
   padding: 8px 16px;
   background: rgb(var(--color-primary, 102 126 234));
-  color: white;
+  color: rgb(var(--color-primary-foreground, 255 255 255));
   border: none;
   border-radius: 6px;
   font-size: 13px;
@@ -377,7 +382,7 @@ const WorkflowCard = styled.div`
   
   &:hover {
     border-color: rgb(var(--color-primary, 102 126 234));
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    box-shadow: var(--shadow-md);
   }
 `;
 
@@ -440,7 +445,7 @@ const ResumeButton = styled.button`
   gap: 6px;
   padding: 10px 16px;
   background: rgb(var(--color-primary, 102 126 234));
-  color: white;
+  color: rgb(var(--color-primary-foreground, 255 255 255));
   border: none;
   border-radius: 6px;
   font-size: 14px;
@@ -463,7 +468,7 @@ const EmptyState = styled.div`
   padding: 60px 20px;
   background: rgb(var(--color-surface, 255 255 255));
   border-radius: 8px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow-sm);
 `;
 
 const EmptyIcon = styled.div`
@@ -507,10 +512,10 @@ const LoadingSpinner = styled.div`
 
 const ErrorMessage = styled.div`
   padding: 16px 20px;
-  background: rgba(239, 68, 68, 0.1);
-  border: 1px solid rgba(239, 68, 68, 0.3);
+  background: rgba(var(--color-error), 0.1);
+  border: 1px solid rgba(var(--color-error), 0.3);
   border-radius: 8px;
-  color: rgb(239, 68, 68);
+  color: rgb(var(--color-error));
   margin-bottom: 24px;
 `;
 
@@ -592,7 +597,7 @@ export const MyTasks: React.FC = () => {
       });
       setWorkflowExecutions(response.results);
     } catch (err) {
-      console.error('Failed to fetch workflow executions:', err);
+      logger.error('Failed to fetch workflow executions', err);
       const status = (err as any)?.response?.status;
 
       // Degrade gracefully: prefer the normal empty-state UI over a scary error banner.
@@ -621,7 +626,7 @@ export const MyTasks: React.FC = () => {
       // Navigate to the workflow
       window.location.href = `/workflows/run/${execution.id}`;
     } catch (err) {
-      console.error('Failed to resume workflow:', err);
+      logger.error('Failed to resume workflow', err);
       showAlert({
         type: 'error',
         title: 'Error',
@@ -741,7 +746,7 @@ export const MyTasks: React.FC = () => {
     setIsDelegating(true);
     try {
       // In production, this would call the API
-      console.log('Delegating task:', selectedTask.id, 'to:', data.delegateUserId);
+      logger.debug('Delegating task', { taskId: selectedTask.id, delegateUserId: data.delegateUserId });
       
       // Simulate API call
       await new Promise(resolve => setTimeout(resolve, 1000));
@@ -751,7 +756,7 @@ export const MyTasks: React.FC = () => {
       setSelectedTask(null);
       fetchActionItems();
     } catch (err) {
-      console.error('Failed to delegate task:', err);
+      logger.error('Failed to delegate task', err);
     } finally {
       setIsDelegating(false);
     }
@@ -759,7 +764,7 @@ export const MyTasks: React.FC = () => {
   
   // Handle revoke delegation
   const handleRevokeDelegation = useCallback(async (delegationId: string) => {
-    console.log('Revoking delegation:', delegationId);
+    logger.debug('Revoking delegation', { delegationId });
     // In production, this would call the API
   }, []);
 

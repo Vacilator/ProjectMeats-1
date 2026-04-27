@@ -363,7 +363,7 @@ const PickerContainer = styled.div<{ $position?: { top: number; left: number } }
   background: rgb(var(--color-surface));
   border: 1px solid rgb(var(--color-border));
   border-radius: 8px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 8px 24px rgba(var(--color-overlay), 0.15);
   display: flex;
   flex-direction: column;
   z-index: 10000;
@@ -482,7 +482,7 @@ const VariableKey = styled.div`
 const ScopeWarning = styled.span`
   display: flex;
   align-items: center;
-  color: rgb(234, 179, 8);
+  color: rgb(var(--color-warning));
   opacity: 0.9;
 `;
 

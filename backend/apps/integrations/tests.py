@@ -1,6 +1,8 @@
 from datetime import timedelta
+from types import SimpleNamespace
 
 from django.contrib.auth.models import User
+from django.core import signing
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APITestCase
@@ -29,7 +31,9 @@ class EmailSyncTests(APITestCase):
             token_expiry=timezone.now() + timedelta(days=1),
         )
 
-        self.client.force_authenticate(user=self.user)
+        # Use session auth so AuthenticationMiddleware marks request.user as authenticated
+        # before TenantMiddleware runs.
+        self.client.force_login(self.user)
 
     @patch('tenant_apps.integrations.services.email_ingestion.EmailIngestionService.poll_tenant_by_id')
     def test_sync_emails_soft_fails_on_exception(self, poll_tenant_by_id):
@@ -95,3 +99,164 @@ class IntegrationsOAuthCallbackPublicTests(APITestCase):
     def test_oauth_callback_allows_anonymous(self):
         resp = self.client.get('/api/v1/integrations/oauth/callback/microsoft/?error=access_denied')
         self.assertEqual(resp.status_code, 302)
+
+
+class IntegrationsOAuthSecurityTests(APITestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username='oauth-user', password='pass123')
+        self.tenant = Tenant.objects.create(
+            name='OAuth Tenant',
+            slug='oauth-tenant',
+            contact_email='oauth@example.com',
+            created_by=self.user,
+        )
+
+    def test_oauth_authorize_requires_auth(self):
+        resp = self.client.get('/api/v1/integrations/oauth/authorize/?provider=microsoft')
+        self.assertIn(resp.status_code, {status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN})
+
+    def test_oauth_callback_denies_when_user_not_in_tenant(self):
+        state = signing.dumps(
+            {
+                'tenant_id': str(self.tenant.id),
+                'user_id': str(self.user.id),
+                'provider': 'microsoft',
+                'nonce': 'n',
+            },
+            salt='pm.integrations.oauth.state',
+        )
+
+        session = self.client.session
+        session['oauth_state_microsoft'] = state
+        session['oauth_tenant_microsoft'] = str(self.tenant.id)
+        session['oauth_nonce_microsoft'] = 'n'
+        session.save()
+
+        with patch('integrations.views.oauth.MicrosoftGraphProvider') as mocked_provider:
+            resp = self.client.get(
+                f'/api/v1/integrations/oauth/callback/microsoft/?code=abc&state={state}'
+            )
+
+        self.assertEqual(resp.status_code, 302)
+        self.assertIn('error=permission_denied', resp['Location'])
+        self.assertFalse(
+            ExternalAuthProvider.objects.filter(tenant=self.tenant, provider_type='microsoft').exists()
+        )
+        mocked_provider.assert_not_called()
+
+    def test_oauth_callback_rejects_tenant_header_mismatch(self):
+        TenantUser.objects.create(tenant=self.tenant, user=self.user, role='owner', is_active=True)
+
+        state = signing.dumps(
+            {
+                'tenant_id': str(self.tenant.id),
+                'user_id': str(self.user.id),
+                'provider': 'microsoft',
+                'nonce': 'n',
+            },
+            salt='pm.integrations.oauth.state',
+        )
+
+        session = self.client.session
+        session['oauth_state_microsoft'] = state
+        session['oauth_tenant_microsoft'] = str(self.tenant.id)
+        session['oauth_nonce_microsoft'] = 'n'
+        session.save()
+
+        with patch('integrations.views.oauth.MicrosoftGraphProvider') as mocked_provider:
+            resp = self.client.get(
+                f'/api/v1/integrations/oauth/callback/microsoft/?code=abc&state={state}',
+                HTTP_X_TENANT_ID='00000000-0000-0000-0000-000000000000',
+            )
+
+        self.assertEqual(resp.status_code, 302)
+        self.assertIn('error=tenant_mismatch', resp['Location'])
+        mocked_provider.assert_not_called()
+
+    def test_oauth_callback_rejects_replayed_state(self):
+        TenantUser.objects.create(tenant=self.tenant, user=self.user, role='owner', is_active=True)
+
+
+        state = signing.dumps(
+            {
+                'tenant_id': str(self.tenant.id),
+                'user_id': str(self.user.id),
+                'provider': 'microsoft',
+                'nonce': 'n',
+            },
+            salt='pm.integrations.oauth.state',
+        )
+
+        token_response = SimpleNamespace(access_token='access', refresh_token='refresh', expires_in=3600)
+        user_info = {'email': 'connected@example.com', 'name': 'Connected User'}
+        mocked_instance = SimpleNamespace(
+            exchange_code=lambda code, redirect_uri: token_response,
+            get_user_info=lambda access_token: user_info,
+        )
+
+        session = self.client.session
+        session['oauth_state_microsoft'] = state
+        session['oauth_tenant_microsoft'] = str(self.tenant.id)
+        session['oauth_nonce_microsoft'] = 'n'
+        session.save()
+
+        with patch('integrations.views.oauth.MicrosoftGraphProvider', return_value=mocked_instance):
+            resp1 = self.client.get(f'/api/v1/integrations/oauth/callback/microsoft/?code=abc&state={state}')
+
+        self.assertEqual(resp1.status_code, 302)
+        self.assertIn('success=connected', resp1['Location'])
+
+        # Simulate a second attempt where an attacker replays the same state but the browser/session
+        # still presents it (e.g., cookie re-send). Nonce consumption must fail closed.
+        session = self.client.session
+        session['oauth_state_microsoft'] = state
+        session['oauth_tenant_microsoft'] = str(self.tenant.id)
+        # Note: oauth_nonce_microsoft is intentionally NOT set. The nonce was already consumed
+        # by the first callback and must fail closed on replay.
+        session.save()
+
+        with patch('integrations.views.oauth.MicrosoftGraphProvider') as mocked_provider:
+            resp2 = self.client.get(f'/api/v1/integrations/oauth/callback/microsoft/?code=abc&state={state}')
+
+        self.assertEqual(resp2.status_code, 302)
+        self.assertIn('error=replayed_state', resp2['Location'])
+        mocked_provider.assert_not_called()
+
+    def test_oauth_callback_persists_tokens_for_member(self):
+        TenantUser.objects.create(tenant=self.tenant, user=self.user, role='owner', is_active=True)
+
+        state = signing.dumps(
+            {
+                'tenant_id': str(self.tenant.id),
+                'user_id': str(self.user.id),
+                'provider': 'microsoft',
+                'nonce': 'n',
+            },
+            salt='pm.integrations.oauth.state',
+        )
+
+        session = self.client.session
+        session['oauth_state_microsoft'] = state
+        session['oauth_tenant_microsoft'] = str(self.tenant.id)
+        session['oauth_nonce_microsoft'] = 'n'
+        session.save()
+
+        token_response = SimpleNamespace(access_token='access', refresh_token='refresh', expires_in=3600)
+        user_info = {'email': 'connected@example.com', 'name': 'Connected User'}
+
+        mocked_instance = SimpleNamespace(
+            exchange_code=lambda code, redirect_uri: token_response,
+            get_user_info=lambda access_token: user_info,
+        )
+
+        with patch('integrations.views.oauth.MicrosoftGraphProvider', return_value=mocked_instance):
+            resp = self.client.get(
+                f'/api/v1/integrations/oauth/callback/microsoft/?code=abc&state={state}'
+            )
+
+        self.assertEqual(resp.status_code, 302)
+        self.assertIn('success=connected', resp['Location'])
+
+        provider = ExternalAuthProvider.objects.get(tenant=self.tenant, provider_type='microsoft')
+        self.assertTrue(provider.is_active)
+        self.assertEqual(provider.connected_email, 'connected@example.com')

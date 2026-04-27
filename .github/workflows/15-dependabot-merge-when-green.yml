@@ -1,0 +1,110 @@
+name: "🤖 Dependabot: Merge when green"
+
+on:
+  workflow_run:
+    workflows: ["PR Validation"]
+    types: [completed]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  merge-dependabot:
+    name: Merge Dependabot PR
+    runs-on: ubuntu-latest
+
+    # Only act on successful PR Validation runs.
+    if: >-
+      github.event.workflow_run.event == 'pull_request' &&
+      github.event.workflow_run.conclusion == 'success'
+
+    steps:
+      - name: Resolve PR number
+        id: pr
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          RUN_HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          set -euo pipefail
+
+          # GitHub doesn't always populate workflow_run.pull_requests.
+          # Prefer it when present, but fall back to resolving PRs associated with the validated commit SHA.
+          PR_NUMBER="$(jq -r '.workflow_run.pull_requests[0].number // empty' "$GITHUB_EVENT_PATH")"
+
+          if [ -z "$PR_NUMBER" ]; then
+            PR_NUMBER="$(gh api -H "Accept: application/vnd.github+json" "repos/${REPO}/commits/${RUN_HEAD_SHA}/pulls" --jq '[.[] | select(.state=="open") | select(.base.ref=="development") | .number][0] // empty' || true)"
+          fi
+
+          if [ -z "$PR_NUMBER" ]; then
+            echo "No PR associated with this workflow_run; exiting."
+            echo "pr_number=" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "pr_number=$PR_NUMBER" >> "$GITHUB_OUTPUT"
+
+      - name: Merge if safe
+        if: steps.pr.outputs.pr_number != ''
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ steps.pr.outputs.pr_number }}
+          RUN_HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          set -euo pipefail
+
+          REPO="${GITHUB_REPOSITORY}"
+
+          AUTHOR="$(gh pr view "$PR_NUMBER" --repo "$REPO" --json author --jq '.author.login')"
+          STATE="$(gh pr view "$PR_NUMBER" --repo "$REPO" --json state --jq '.state')"
+          BASE_REF="$(gh pr view "$PR_NUMBER" --repo "$REPO" --json baseRefName --jq '.baseRefName')"
+          PR_HEAD_SHA="$(gh pr view "$PR_NUMBER" --repo "$REPO" --json headRefOid --jq '.headRefOid')"
+
+          if [ "$AUTHOR" != "dependabot[bot]" ]; then
+            echo "Not a Dependabot PR ($AUTHOR); skipping."
+            exit 0
+          fi
+
+          if [ "$STATE" != "OPEN" ]; then
+            echo "PR is not open ($STATE); skipping."
+            exit 0
+          fi
+
+          if [ "$BASE_REF" != "development" ]; then
+            echo "PR base is not development ($BASE_REF); skipping."
+            exit 0
+          fi
+
+          if [ "$PR_HEAD_SHA" != "$RUN_HEAD_SHA" ]; then
+            echo "PR head SHA changed since validation run; skipping."
+            echo "validated=$RUN_HEAD_SHA"
+            echo "current=$PR_HEAD_SHA"
+            exit 0
+          fi
+
+          # Guardrail: only auto-merge if the PR only touches dependency/automation files.
+          mapfile -t FILES < <(gh pr view "$PR_NUMBER" --repo "$REPO" --json files --jq '.files[].path')
+
+          for f in "${FILES[@]}"; do
+            case "$f" in
+              .github/dependabot.yml|.pre-commit-config.yaml) ;;
+              .github/workflows/*) ;;
+              */package.json|*/package-lock.json|*/yarn.lock|*/pnpm-lock.yaml) ;;
+              backend/requirements*.txt|backend/pyproject.toml|backend/poetry.lock) ;;
+              backend/Dockerfile|frontend/Dockerfile|mobile/Dockerfile|Dockerfile) ;;
+              *)
+                echo "Unexpected file in Dependabot PR: $f"
+                echo "Skipping auto-merge for safety."
+                exit 0
+                ;;
+            esac
+          done
+
+          # If branch protection requires an approval, approve as github-actions[bot].
+          gh pr review "$PR_NUMBER" --repo "$REPO" --approve --body "Auto-approving Dependabot PR after PR Validation passed." || true
+
+          # Merge now that all required checks have passed.
+          gh pr merge "$PR_NUMBER" --repo "$REPO" --squash --delete-branch

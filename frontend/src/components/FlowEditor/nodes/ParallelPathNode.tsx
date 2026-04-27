@@ -72,15 +72,15 @@ const PathIndicator = styled.div<{ $index: number }>`
   align-items: center;
   gap: 8px;
   padding: 4px 8px;
-  background: rgba(139, 92, 246, 0.1);
-  border-left: 3px solid rgb(139, 92, 246);
+  background: rgba(var(--color-primary), 0.1);
+  border-left: 3px solid rgb(var(--color-primary));
   border-radius: 4px;
   font-size: 11px;
 `;
 
 const PathNumber = styled.span`
   font-weight: 700;
-  color: rgb(139, 92, 246);
+  color: rgb(var(--color-primary));
   min-width: 24px;
 `;
 
@@ -99,11 +99,11 @@ const StrategyBadge = styled.span<{ $type: 'wait' | 'error' }>`
   font-size: 10px;
   font-weight: 600;
   background: ${props => props.$type === 'wait' 
-    ? 'rgba(59, 130, 246, 0.15)' 
-    : 'rgba(239, 68, 68, 0.15)'};
+    ? 'rgba(var(--color-info), 0.15)' 
+    : 'rgba(var(--color-error), 0.15)'};
   color: ${props => props.$type === 'wait' 
-    ? 'rgb(59, 130, 246)' 
-    : 'rgb(239, 68, 68)'};
+    ? 'rgb(var(--color-info))' 
+    : 'rgb(var(--color-error))'};
 `;
 
 const ConfigRow = styled.div`

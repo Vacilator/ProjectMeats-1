@@ -17,7 +17,6 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Button, Modal, Spin, message, Select, Skeleton } from 'antd';
 import styled from 'styled-components';
 import { businessApi } from '../../services/businessApi';
-import { apiClient } from '../../services/apiService';
 import DynamicFormEngine from '../../features/system/DynamicFormEngine';
 import EntityOptionsSelect from '../FormSubmission/SearchableSelect';
 import { isValidEmail } from '../../shared/utils';
@@ -75,6 +74,7 @@ type BackendField = {
   related_entity?: string | null;
   choices?: SchemaChoice[] | null;
   ui?: Record<string, unknown> | null;
+  dependencies?: string[];
 };
 
 type BackendSchema = {
@@ -82,6 +82,42 @@ type BackendSchema = {
   description?: string;
   fields?: BackendField[];
   key_fields?: string[];
+};
+
+const isArrayLikeField = (field: BackendField): boolean => {
+  const t = String(field.type ?? '').toLowerCase();
+  const ui = field.ui && typeof field.ui === 'object' ? (field.ui as Record<string, unknown>) : null;
+  const widget = typeof ui?.widget === 'string' ? String(ui.widget).toLowerCase() : '';
+
+  return (
+    t === 'inline_form_array' ||
+    widget === 'inline_form_array' ||
+    widget === 'multi_select' ||
+    widget === 'tags' ||
+    t === 'array' ||
+    t === 'list'
+  );
+};
+
+const sanitizeInitialValuesForSchema = (
+  schema: BackendSchema | null,
+  values: Record<string, unknown>
+): Record<string, unknown> => {
+  const next: Record<string, unknown> = { ...(values || {}) };
+  const fields = Array.isArray(schema?.fields) ? (schema?.fields as BackendField[]) : [];
+
+  for (const field of fields) {
+    const key = String(field?.key ?? '').trim();
+    if (!key) continue;
+    if (!isArrayLikeField(field)) continue;
+
+    const current = next[key];
+    if (current === undefined || current === null) {
+      next[key] = [];
+    }
+  }
+
+  return next;
 };
 
 const Container = styled.div<{ $variant: UniversalEntityFormVariant }>`
@@ -212,6 +248,623 @@ const mapDrfOptionsType = (t: string | undefined): string => {
   return 'text';
 };
 
+type ContactFormContext = 'default' | 'shipping_loadout' | 'certification';
+
+const CONTACT_DOCUMENT_OPTIONS: Record<string, SchemaChoice[]> = {
+  default: [],
+  sales: [
+    { value: 'BOLs', label: 'BOLs' },
+    { value: 'Sales Order Confirmation', label: 'Sales Order Confirmation' },
+    { value: 'Release Number', label: 'Release Number' },
+    { value: 'COAs', label: 'COAs' },
+    { value: 'Spec Sheets', label: 'Spec Sheets' },
+    { value: 'Picture of Label', label: 'Picture of Label' },
+    { value: 'Certification Documents', label: 'Certification Documents' },
+  ],
+  qa: [
+    { value: 'COAs', label: 'COAs' },
+    { value: 'Spec Sheets', label: 'Spec Sheets' },
+    { value: 'Picture of Label', label: 'Picture of Label' },
+    { value: 'Certification Documents', label: 'Certification Documents' },
+  ],
+  shipping_loadout: [
+    { value: 'Shipping Supervisor', label: 'Shipping Supervisor' },
+    { value: 'Load Coordinator', label: 'Load Coordinator' },
+    { value: 'Billing', label: 'Billing' },
+    { value: 'Fresh / Frozen Shipping', label: 'Fresh / Frozen Shipping' },
+    { value: 'DC Shipping', label: 'DC Shipping' },
+  ],
+  certification: [
+    { value: 'LOG (Letter of Guarantee)', label: 'LOG (Letter of Guarantee)' },
+    { value: 'Plant Type of Certification', label: 'Plant Type of Certification' },
+    { value: 'Audit Reports', label: 'Audit Reports' },
+    { value: 'Animal Welfare', label: 'Animal Welfare' },
+    { value: 'Spec Sheet', label: 'Spec Sheet' },
+    { value: 'Picture of Label', label: 'Picture of Label' },
+  ],
+  accounting: [
+    { value: 'Statements', label: 'Statements' },
+    { value: 'Claims', label: 'Claims' },
+    { value: 'Credits', label: 'Credits' },
+    { value: 'Credit Limit', label: 'Credit Limit' },
+    { value: 'BOLs', label: 'BOLs' },
+    { value: 'Sales Order Confirmation', label: 'Sales Order Confirmation' },
+    { value: 'Release Number', label: 'Release Number' },
+    { value: 'COAs', label: 'COAs' },
+  ],
+  // Legacy alias: keep `booking` mapping so older department values still render options.
+  booking: [
+    { value: 'Shipping Supervisor', label: 'Shipping Supervisor' },
+    { value: 'Load Coordinator', label: 'Load Coordinator' },
+    { value: 'Billing', label: 'Billing' },
+    { value: 'Fresh / Frozen Shipping', label: 'Fresh / Frozen Shipping' },
+    { value: 'DC Shipping', label: 'DC Shipping' },
+  ],
+};
+
+const asSchemaChoices = (value: unknown): SchemaChoice[] => {
+  if (!Array.isArray(value)) return [];
+
+  return value
+    .map<SchemaChoice | null>((item) => {
+      if (typeof item === 'string') {
+        const normalized = item.trim();
+        return normalized ? { value: normalized, label: normalized } : null;
+      }
+
+      const row = item && typeof item === 'object' ? (item as Record<string, unknown>) : null;
+      const optionValue = row?.value ?? row?.id ?? row?.key;
+      const optionLabel = row?.label ?? row?.name ?? optionValue;
+      const normalizedValue = optionValue == null ? '' : String(optionValue).trim();
+      if (!normalizedValue) return null;
+
+      return {
+        value: normalizedValue,
+        label: typeof optionLabel === 'string' && optionLabel.trim() ? optionLabel.trim() : normalizedValue,
+      };
+    })
+    .filter((item): item is SchemaChoice => item !== null);
+};
+
+const inferContactFormContext = (values?: Record<string, unknown> | null): ContactFormContext => {
+  const rawContext = String(values?.contact_context ?? values?.contactContext ?? '').trim().toLowerCase();
+  if (rawContext === 'shipping_loadout' || rawContext === 'shipping/loadout' || rawContext === 'loadout') {
+    return 'shipping_loadout';
+  }
+  if (rawContext === 'certification') return 'certification';
+
+  const department = String(values?.department ?? '').trim().toLowerCase();
+  if (department === 'booking') return 'shipping_loadout';
+  if (department === 'qa' && rawContext === 'certification') return 'certification';
+  return 'default';
+};
+
+const getContactCreateTitle = (context: ContactFormContext) => {
+  if (context === 'shipping_loadout') return 'Add Shipping / Loadout Contact';
+  if (context === 'certification') return 'Add Certification Contact';
+  return 'Add Contact';
+};
+
+const getShippingLoadoutTitleChoices = (values?: Record<string, unknown> | null): SchemaChoice[] => {
+  const provided = asSchemaChoices(
+    values?.shippingLoadoutTitleOptions ??
+      values?.shipping_loadout_title_options ??
+      values?.contactTitleOptions ??
+      values?.contact_title_options
+  );
+
+  if (provided.length > 0) return provided;
+
+  return [
+    { value: 'Shipping Supervisor', label: 'Shipping Supervisor' },
+    { value: 'Load Coordinator', label: 'Load Coordinator' },
+    { value: 'Billing', label: 'Billing' },
+    { value: 'Fresh / Frozen Shipping', label: 'Fresh / Frozen Shipping' },
+    { value: 'DC Shipping', label: 'DC Shipping' },
+  ];
+};
+
+const augmentSchemaForFrontend = (
+  entityKey: string,
+  schema: BackendSchema | null,
+  values?: Record<string, unknown> | null
+): BackendSchema | null => {
+  if (!schema) return schema;
+
+  const normalizedEntityKey = String(entityKey || '').trim().toLowerCase();
+  const fields = Array.isArray(schema.fields) ? [...schema.fields] : [];
+
+  if (normalizedEntityKey === 'location') {
+    const nextFields = fields.map((field) => {
+      if (String(field.key).toLowerCase() !== 'booking_contacts') return field;
+
+      const ui = field.ui && typeof field.ui === 'object' ? { ...(field.ui as Record<string, unknown>) } : {};
+      ui.add_button_label = 'Add Shipping / Loadout Contact';
+      ui.item_label = 'Shipping / Loadout Contact';
+
+      return {
+        ...field,
+        label: 'Shipping / Loadout',
+        ui,
+      };
+    });
+
+    return {
+      ...schema,
+      fields: nextFields,
+    };
+  }
+
+  if (normalizedEntityKey === 'plant') {
+    const withField = (
+      list: BackendField[],
+      key: string,
+      build: (existing?: BackendField) => BackendField
+    ) => {
+      const index = list.findIndex((field) => String(field.key).toLowerCase() === key.toLowerCase());
+      const existing = index >= 0 ? list[index] : undefined;
+      const nextField = build(existing);
+
+      if (index >= 0) {
+        list[index] = nextField;
+      } else {
+        list.push(nextField);
+      }
+    };
+
+    const locationSection = { title: 'Plant Location' };
+    const exportSection = { title: 'Export' };
+
+    const nextFields = fields.map((field) => {
+      const key = String(field.key || '').toLowerCase();
+
+      if (key === 'booking_contacts') {
+        const ui = field.ui && typeof field.ui === 'object' ? { ...(field.ui as Record<string, unknown>) } : {};
+        ui.add_button_label = 'Add Shipping / Loadout Contact';
+        ui.item_label = 'Shipping / Loadout Contact';
+
+        return {
+          ...field,
+          label: 'Shipping / Loadout',
+          ui,
+        };
+      }
+
+      if (key === 'name') {
+        const ui = field.ui && typeof field.ui === 'object' ? { ...(field.ui as Record<string, unknown>) } : {};
+        ui.max_length = 150;
+        return {
+          ...field,
+          label: 'Plant Name',
+          required: true,
+          placeholder: field.placeholder || 'Enter plant name',
+          ui,
+        };
+      }
+
+      if (key === 'plant_est_num') {
+        const ui = field.ui && typeof field.ui === 'object' ? { ...(field.ui as Record<string, unknown>) } : {};
+        ui.max_length = 50;
+        return {
+          ...field,
+          label: 'Establishment #',
+          required: true,
+          placeholder: field.placeholder || 'Enter establishment number',
+          ui,
+        };
+      }
+
+      if (key === 'plant_type') {
+        return {
+          ...field,
+          label: field.label || 'Plant Type',
+          required: true,
+          placeholder: field.placeholder || 'Select plant type',
+        };
+      }
+
+      if (['address', 'city', 'state', 'zip_code', 'country'].includes(key)) {
+        const ui = field.ui && typeof field.ui === 'object' ? { ...(field.ui as Record<string, unknown>) } : {};
+        ui.section = locationSection;
+        return {
+          ...field,
+          ui,
+        };
+      }
+
+      return field;
+    });
+
+    withField(nextFields, 'proteins_offered', (existing) => ({
+      ...(existing || { key: 'proteins_offered' }),
+      label: 'Protein Types Offered',
+      type: 'select',
+      required: Boolean(existing?.required),
+      placeholder: existing?.placeholder || 'Select protein types offered',
+      help_text: existing?.help_text || '',
+      choices: existing?.choices || [],
+      ui: {
+        ...((existing?.ui as Record<string, unknown> | null) || {}),
+        widget: 'multi_select',
+        data_source: {
+          type: 'choice_list',
+          list: 'protein_types',
+        },
+      },
+    }));
+
+    withField(nextFields, 'proteins_tested', (existing) => ({
+      ...(existing || { key: 'proteins_tested' }),
+      label: 'Protein Tested (COA)',
+      type: 'select',
+      required: Boolean(existing?.required),
+      placeholder: existing?.placeholder || 'Select protein types tested',
+      help_text: existing?.help_text || 'Warning: proteins tested should typically be a subset of proteins offered.',
+      choices: existing?.choices || [],
+      dependencies: ['proteins_offered'],
+      ui: {
+        ...((existing?.ui as Record<string, unknown> | null) || {}),
+        widget: 'multi_select',
+        data_source: {
+          type: 'choice_list',
+          list: 'protein_types',
+        },
+      },
+    }));
+
+    withField(nextFields, 'associated_master_product_ids', (existing) => ({
+      ...(existing || { key: 'associated_master_product_ids' }),
+      label: 'Product List',
+      type: 'select',
+      required: Boolean(existing?.required),
+      placeholder: existing?.placeholder || 'Search and select products',
+      help_text: existing?.help_text || 'Master products commonly sold/produced by this plant.',
+      choices: existing?.choices || [],
+      ui: {
+        ...((existing?.ui as Record<string, unknown> | null) || {}),
+        widget: 'multi_select',
+        data_source: {
+          type: 'master_products',
+        },
+      },
+    }));
+
+    withField(nextFields, 'export_approved', (existing) => ({
+      ...(existing || { key: 'export_approved' }),
+      label: 'Export Approved',
+      type: existing?.type || 'checkbox',
+      required: Boolean(existing?.required),
+      help_text: existing?.help_text || 'Whether this plant is export approved.',
+      ui: {
+        ...((existing?.ui as Record<string, unknown> | null) || {}),
+        section: exportSection,
+      },
+    }));
+
+    withField(nextFields, 'export_documents_handled', (existing) => ({
+      ...(existing || { key: 'export_documents_handled' }),
+      label: 'Export Documents Handled',
+      type: 'select',
+      required: Boolean(existing?.required),
+      placeholder: existing?.placeholder || 'Add export documents handled',
+      help_text: existing?.help_text || 'Shown only when Export Approved is enabled.',
+      choices: existing?.choices || [],
+      dependencies: ['export_approved'],
+      ui: {
+        ...((existing?.ui as Record<string, unknown> | null) || {}),
+        section: exportSection,
+        widget: 'tags',
+        visible_when: {
+          field: 'export_approved',
+          equals: true,
+        },
+      },
+    }));
+
+    const keyFieldsPlant = [
+      'name',
+      'plant_est_num',
+      'plant_type',
+      'address',
+      'city',
+      'state',
+      'zip_code',
+      'country',
+      'proteins_offered',
+      'proteins_tested',
+      'associated_master_product_ids',
+      'export_approved',
+      'export_documents_handled',
+    ];
+
+    return {
+      ...schema,
+      name: schema.name || 'Plant',
+      key_fields: schema.key_fields && schema.key_fields.length ? schema.key_fields : keyFieldsPlant,
+      fields: nextFields,
+    };
+  }
+
+  if (normalizedEntityKey === 'supplier' || normalizedEntityKey === 'customer') {
+    const fieldsByLowerKey = new Map<string, BackendField>();
+    fields.forEach((field) => {
+      const key = String(field?.key || '').trim().toLowerCase();
+      if (key) fieldsByLowerKey.set(key, field);
+    });
+
+    const pickFieldKey = (candidates: string[]): string | null => {
+      for (const raw of candidates) {
+        const key = String(raw || '').trim().toLowerCase();
+        if (key && fieldsByLowerKey.has(key)) return key;
+      }
+      return null;
+    };
+
+    const selectedKeys = [
+      pickFieldKey(['name', 'company_name']),
+      // Supplier/customer phone keys vary across environments. Prefer office phone when present.
+      pickFieldKey(['phone_office', 'phone', 'phone_number', 'office_phone', 'mobile_phone', 'phone_mobile']),
+      pickFieldKey(['address', 'street_address']),
+      pickFieldKey(['city']),
+      pickFieldKey(['state']),
+      pickFieldKey(['zip_code', 'postal_code']),
+      pickFieldKey(['country']),
+    ].filter((k): k is string => Boolean(k));
+
+    // Ensure HQ Phone Number is always present for Supplier/Customer HQ forms.
+    // Some environments may omit phone fields from the schema endpoint; we still want the UX to show it.
+    const ensuredKeys = [...selectedKeys];
+    const hasPhoneField = ensuredKeys.some((k) => {
+      const key = String(k || '').toLowerCase();
+      return [
+        'phone',
+        'phone_number',
+        'phone_office',
+        'office_phone',
+        'phone_mobile',
+        'mobile_phone',
+      ].includes(key);
+    });
+
+    if (!hasPhoneField) {
+      const syntheticKey = 'phone_office';
+      if (!fieldsByLowerKey.has(syntheticKey)) {
+        fieldsByLowerKey.set(syntheticKey, {
+          key: syntheticKey,
+          label: 'HQ Phone Number',
+          type: 'phone',
+          required: false,
+          help_text: '',
+        });
+      }
+      ensuredKeys.push(syntheticKey);
+    }
+
+    const labelByKey: Record<string, string> = {
+      phone: 'HQ Phone Number',
+      phone_number: 'HQ Phone Number',
+      phone_office: 'HQ Phone Number',
+      office_phone: 'HQ Phone Number',
+      phone_mobile: 'HQ Phone Number',
+      mobile_phone: 'HQ Phone Number',
+      address: 'HQ Address',
+      street_address: 'HQ Address',
+      city: 'HQ City',
+      state: 'HQ State',
+      zip_code: 'HQ Zip Code',
+      postal_code: 'HQ Zip Code',
+      country: 'HQ Country',
+    };
+
+    const uniqueSelectedKeys = ensuredKeys.filter((key, idx, arr) => arr.indexOf(key) === idx);
+
+    const nextFields: BackendField[] = [];
+    uniqueSelectedKeys.forEach((key) => {
+      const field = fieldsByLowerKey.get(key);
+      if (!field) return;
+
+      const label = labelByKey[key] || field.label;
+      const isHqPhone =
+        key === 'phone' ||
+        key === 'phone_number' ||
+        key === 'phone_office' ||
+        key === 'office_phone' ||
+        key === 'phone_mobile' ||
+        key === 'mobile_phone';
+
+      const placeholder =
+        field.placeholder ||
+        (isHqPhone
+          ? 'Enter HQ phone number'
+          : key === 'address' || key === 'street_address'
+            ? 'Enter HQ address'
+            : null);
+
+      const typeOverride =
+        isHqPhone
+          ? 'phone'
+          : key === 'address' || key === 'street_address'
+            ? 'text'
+            : field.type;
+
+      nextFields.push({
+        ...field,
+        label,
+        type: typeOverride,
+        required: key === 'name' ? true : field.required,
+        placeholder,
+      });
+    });
+
+    const keyFieldsHQ = uniqueSelectedKeys;
+
+    return {
+      ...schema,
+      key_fields: keyFieldsHQ,
+      fields: nextFields,
+    };
+  }
+
+  if (normalizedEntityKey !== 'contact') return schema;
+
+  const context = inferContactFormContext(values);
+  const shippingTitleChoices = getShippingLoadoutTitleChoices(values);
+  const providedDocumentChoices = asSchemaChoices(values?.documentsResponsibleOptions);
+  const documentChoices =
+    providedDocumentChoices.length > 0
+      ? providedDocumentChoices
+      : CONTACT_DOCUMENT_OPTIONS[
+          context === 'default' ? String(values?.department ?? '').trim().toLowerCase() || 'default' : context
+        ] || CONTACT_DOCUMENT_OPTIONS.default;
+
+  const withField = (
+    list: BackendField[],
+    key: string,
+    build: (existing?: BackendField) => BackendField
+  ) => {
+    const index = list.findIndex((field) => String(field.key).toLowerCase() === key.toLowerCase());
+    const existing = index >= 0 ? list[index] : undefined;
+    const nextField = build(existing);
+
+    if (index >= 0) {
+      list[index] = nextField;
+    } else {
+      list.push(nextField);
+    }
+  };
+
+  const nextFields = [...fields].map((field) => {
+    const key = String(field.key || '').toLowerCase();
+    if (key !== 'department') return field;
+
+    const currentDept = String(values?.department ?? '').trim().toLowerCase();
+
+    const filteredChoices = (field.choices || []).filter((choice) => {
+      const value = String(choice.value).toLowerCase();
+
+      // Hide legacy BOOKING unless the record already has it.
+      if (value === 'booking' && currentDept !== 'booking') return false;
+      return true;
+    });
+
+    const choices = filteredChoices.map((choice) => {
+      if (String(choice.value).toLowerCase() !== 'booking') return choice;
+      return {
+        ...choice,
+        label: 'Shipping / Loadout (Legacy)',
+      };
+    });
+
+    return {
+      ...field,
+      choices,
+    };
+  });
+
+  if (context === 'shipping_loadout') {
+    withField(nextFields, 'position', (existing) => ({
+      ...(existing || { key: 'position' }),
+      label: 'Title',
+      type: 'select',
+      required: Boolean(existing?.required),
+      placeholder: 'Select a title',
+      help_text:
+        shippingTitleChoices.length > 0
+          ? existing?.help_text || ''
+          : 'Title options can be provided via contactTitleOptions / shippingLoadoutTitleOptions.',
+      choices: shippingTitleChoices,
+      ui: {
+        ...((existing?.ui as Record<string, unknown> | null) || {}),
+        widget: 'select',
+      },
+    }));
+  }
+
+  withField(nextFields, 'protein_types_responsible', (existing) => ({
+    ...(existing || { key: 'protein_types_responsible' }),
+    label: 'Protein Types Responsible For',
+    type: 'select',
+    required: Boolean(existing?.required),
+    placeholder: 'Select protein types',
+    help_text: existing?.help_text || '',
+    choices: existing?.choices || [],
+    ui: {
+      ...((existing?.ui as Record<string, unknown> | null) || {}),
+      widget: 'multi_select',
+      data_source: {
+        type: 'choice_list',
+        list: 'protein_types',
+      },
+    },
+  }));
+
+  withField(nextFields, 'items_responsible', (existing) => ({
+    ...(existing || { key: 'items_responsible' }),
+    label: 'Items Responsible For',
+    type: 'select',
+    required: Boolean(existing?.required),
+    placeholder: 'Select items',
+    help_text: existing?.help_text || '',
+    choices: existing?.choices || [],
+    dependencies: ['protein_types_responsible'],
+    ui: {
+      ...((existing?.ui as Record<string, unknown> | null) || {}),
+      widget: 'multi_select',
+      data_source: {
+        type: 'master_products',
+      },
+    },
+  }));
+
+  withField(nextFields, 'documents_responsible_for', (existing) => ({
+    ...(existing || { key: 'documents_responsible_for' }),
+    label: 'Documents Responsible For',
+    type: 'select',
+    required: Boolean(existing?.required),
+    placeholder: 'Select documents',
+    help_text: existing?.help_text || '',
+    choices: [],
+    dependencies: ['department'],
+    ui: {
+      ...((existing?.ui as Record<string, unknown> | null) || {}),
+      widget: 'multi_select',
+      option_groups: {
+        default: context === 'certification' ? documentChoices : CONTACT_DOCUMENT_OPTIONS.default,
+        sales: CONTACT_DOCUMENT_OPTIONS.sales,
+        booking: CONTACT_DOCUMENT_OPTIONS.booking,
+        qa: context === 'certification' ? documentChoices : CONTACT_DOCUMENT_OPTIONS.qa,
+        accounting: CONTACT_DOCUMENT_OPTIONS.accounting,
+        shipping_loadout: CONTACT_DOCUMENT_OPTIONS.shipping_loadout,
+        certification: documentChoices.length > 0 ? documentChoices : CONTACT_DOCUMENT_OPTIONS.certification,
+      },
+    },
+  }));
+
+  withField(nextFields, 'notes', (existing) => ({
+    ...(existing || { key: 'notes' }),
+    label: 'Notes',
+    type: 'textarea',
+    required: Boolean(existing?.required),
+    placeholder: 'Add notes',
+    help_text: existing?.help_text || '',
+    ui: {
+      ...((existing?.ui as Record<string, unknown> | null) || {}),
+      widget: 'textarea',
+    },
+  }));
+
+  const prioritizedKeyFields = context === 'shipping_loadout'
+    ? ['position', 'first_name', 'last_name', 'email', 'mobile_phone', 'office_phone', 'office_phone_ext', 'department', 'protein_types_responsible', 'items_responsible', 'documents_responsible_for', 'notes']
+    : ['first_name', 'last_name', 'email', 'mobile_phone', 'office_phone', 'office_phone_ext', 'department', 'protein_types_responsible', 'items_responsible', 'documents_responsible_for', 'notes'];
+
+  return {
+    ...schema,
+    name: schema.name || 'Contact',
+    key_fields: prioritizedKeyFields,
+    fields: nextFields,
+  };
+};
+
 export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
   entityType,
   entityId,
@@ -228,6 +881,14 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
   const [submitting, setSubmitting] = useState(false);
   const [schema, setSchema] = useState<BackendSchema | null>(null);
   const [recordValues, setRecordValues] = useState<Record<string, unknown> | null>(null);
+
+  const initialValuesRef = useRef<Record<string, unknown> | undefined>(initialValues);
+  const [resolvedInitialValues, setResolvedInitialValues] = useState<Record<string, unknown>>({});
+
+  useEffect(() => {
+    if (!isOpen) return;
+    initialValuesRef.current = initialValues;
+  }, [initialValues, isOpen]);
 
   const inferredMode: UniversalEntityFormMode = useMemo(() => {
     const hasId = entityId != null && String(entityId).trim().length > 0;
@@ -270,7 +931,7 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
     } catch {
       // 2) Fallback: DRF OPTIONS on the resource endpoint
       try {
-        const resp = await apiClient.options(endpoint);
+        const resp = await businessApi.options(endpoint);
 
         const data = resp.data as unknown;
         const actions =
@@ -313,7 +974,7 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
         });
 
         return {
-          name: `Universal Form: ${entityType}`,
+          name: schemaEntityKey === 'contact' ? 'Contact' : `Universal Form: ${entityType}`,
           description: 'Auto-derived from OPTIONS.',
           fields,
         };
@@ -330,34 +991,38 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
     setActiveMode(inferredMode);
     setRecordValues(null);
 
+    const initialSnapshot = (initialValuesRef.current || {}) as Record<string, unknown>;
+    setResolvedInitialValues(initialSnapshot);
+
     let mounted = true;
 
     const load = async () => {
       setLoading(true);
       try {
         const nextSchema = await loadSchema();
-        if (!mounted) return;
-        setSchema(nextSchema);
 
         const shouldLoadRecord =
           inferredMode !== 'create' && entityId != null && String(entityId).trim().length > 0;
 
         let nextRecord: Record<string, unknown> | null = null;
         if (shouldLoadRecord) {
-          const resp = await apiClient.get(`${endpoint}${entityId}/`);
+          const resp = await businessApi.get(`${endpoint}${entityId}/`);
           const data = resp.data as unknown;
           nextRecord = data && typeof data === 'object' ? (data as Record<string, unknown>) : null;
         }
 
         if (!mounted) return;
+        const merged: Record<string, unknown> = { ...(nextRecord || {}), ...initialSnapshot };
+        const sanitized = sanitizeInitialValuesForSchema(nextSchema, merged);
+        setSchema(augmentSchemaForFrontend(schemaEntityKey, nextSchema, sanitized));
         setRecordValues(nextRecord);
-
-        const merged: Record<string, unknown> = { ...(nextRecord || {}), ...(initialValues || {}) };
-        setFkValues(merged);
+        setResolvedInitialValues(sanitized);
+        setFkValues(sanitized);
       } catch (err: unknown) {
         if (!mounted) return;
         setSchema(null);
         setRecordValues(null);
+        setResolvedInitialValues(initialSnapshot);
         const errorMessage =
           typeof (err as { response?: { data?: { error?: string } } })?.response?.data?.error ===
           'string'
@@ -374,7 +1039,7 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
     return () => {
       mounted = false;
     };
-  }, [endpoint, entityId, inferredMode, initialValues, isOpen, loadSchema]);
+  }, [endpoint, entityId, inferredMode, isOpen, loadSchema, schemaEntityKey]);
 
   // Load basic FK option lists (best-effort) for non-product references.
   useEffect(() => {
@@ -410,7 +1075,7 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
         if (!relatedEndpoint) continue;
 
         try {
-          const resp = await apiClient.get(relatedEndpoint, { params: { page_size: 200 } });
+          const resp = await businessApi.get(relatedEndpoint, { params: { page_size: 200 } });
           const payload = resp.data as unknown;
 
           const payloadObj =
@@ -590,6 +1255,11 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
                   placeholder: typeof sub.placeholder === 'string' ? sub.placeholder : undefined,
                   help_text: typeof sub.help_text === 'string' ? sub.help_text : undefined,
                   ui: subWidget ? { widget: subWidget } : undefined,
+                  dependencies: Array.isArray(sub.dependencies)
+                    ? sub.dependencies
+                        .map((item) => String(item || '').trim())
+                        .filter(Boolean)
+                    : undefined,
                 };
               })
               .filter((sf) => Boolean(sf.key))
@@ -614,7 +1284,16 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
           options,
           placeholder: f.placeholder || undefined,
           help_text: f.help_text,
-          ui: widget ? { widget } : undefined,
+          ui:
+            widget || f.ui
+              ? ({
+                  ...((f.ui as Record<string, unknown> | null) || {}),
+                  ...(widget ? { widget } : {}),
+                } as Record<string, unknown>)
+              : undefined,
+          dependencies: Array.isArray(f.dependencies)
+            ? f.dependencies.map((item) => String(item || '').trim()).filter(Boolean)
+            : undefined,
           item_fields,
           add_button_label,
           item_label,
@@ -640,17 +1319,57 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
   };
 
   const dynamicSchema: DynamicSchema = useMemo(() => {
+    const contactContext = inferContactFormContext(resolvedInitialValues);
+
+    const supplierTitle =
+      schemaEntityKey === 'supplier' ? (activeMode === 'create' ? 'New Supplier' : 'Supplier') : null;
+    const customerTitle =
+      schemaEntityKey === 'customer' ? (activeMode === 'create' ? 'New Customer' : 'Customer') : null;
+
+    const formName = supplierTitle
+      ? supplierTitle
+      : customerTitle
+        ? customerTitle
+        : schemaEntityKey === 'contact' && activeMode === 'create'
+          ? getContactCreateTitle(contactContext)
+          : schema?.name || `Universal Form: ${entityType}`;
+
     return {
       step_index: 0,
-      name: schema?.name || `Universal Form: ${entityType}`,
+      name: formName,
       description: schema?.description,
       fields: scalarFields,
     };
-  }, [entityType, scalarFields, schema?.description, schema?.name]);
+  }, [activeMode, entityType, resolvedInitialValues, scalarFields, schema?.description, schema?.name, schemaEntityKey]);
 
   const formInitialValues = useMemo(() => {
-    return { ...(recordValues || {}), ...(initialValues || {}) };
-  }, [initialValues, recordValues]);
+    return resolvedInitialValues;
+  }, [resolvedInitialValues]);
+
+  const modalTitle = useMemo(() => {
+    const contactContext = inferContactFormContext(formInitialValues);
+
+    const supplierTitle =
+      schemaEntityKey === 'supplier' ? (activeMode === 'create' ? 'New Supplier' : 'Supplier') : null;
+    const customerTitle =
+      schemaEntityKey === 'customer' ? (activeMode === 'create' ? 'New Customer' : 'Customer') : null;
+
+    if (activeMode === 'clone') return `Clone ${entityType}`;
+
+    if (supplierTitle) {
+      return supplierTitle;
+    }
+
+    if (customerTitle) {
+      return customerTitle;
+    }
+
+    if (schemaEntityKey === 'contact' && activeMode === 'create') {
+      return getContactCreateTitle(contactContext);
+    }
+
+    return schema?.name || (entityId ? `${entityType} ${entityId}` : `New ${entityType}`);
+  }, [activeMode, entityId, entityType, formInitialValues, schema?.name, schemaEntityKey]);
 
   const submit = useCallback(
     async (data: Record<string, unknown>) => {
@@ -686,6 +1405,18 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
           if (payload[k] === undefined && v !== undefined) payload[k] = v;
         });
       }
+
+      [
+        'contact_context',
+        'contactContext',
+        'shippingLoadoutTitleOptions',
+        'shipping_loadout_title_options',
+        'contactTitleOptions',
+        'contact_title_options',
+        'documentsResponsibleOptions',
+      ].forEach((key) => {
+        delete payload[key];
+      });
 
       // Normalize payload (avoid sending empty strings that cause DRF validation errors).
       const numberKeys = new Set(
@@ -745,7 +1476,21 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
             return;
           }
           if (zipKeySet.has(k)) {
-            payload[k] = trimmed.replace(/\D/g, '').slice(0, 5);
+            const country = typeof payload.country === 'string' ? payload.country.trim().toUpperCase() : '';
+            const isUs = country === 'USA' || country === 'UNITED STATES' || country === 'UNITED STATES OF AMERICA';
+
+            if (!isUs) {
+              payload[k] = trimmed;
+              return;
+            }
+
+            const digits = trimmed.replace(/\D/g, '');
+            if (digits.length >= 9) {
+              payload[k] = `${digits.slice(0, 5)}-${digits.slice(5, 9)}`;
+              return;
+            }
+
+            payload[k] = digits.slice(0, 5);
             return;
           }
           if (phoneKeySet.has(k)) {
@@ -760,6 +1505,13 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
           }
         }
       });
+
+      // Normalize integer array inputs (e.g., Plant.associated_master_product_ids).
+      if (Array.isArray(payload.associated_master_product_ids)) {
+        payload.associated_master_product_ids = payload.associated_master_product_ids
+          .map((v) => Number(String(v ?? '').trim()))
+          .filter((n) => Number.isFinite(n));
+      }
 
       // Normalize phone numbers in inline form arrays (digits-only for API payload).
       inlineArrayPhoneKeys.forEach((phoneKeys, arrayKey) => {
@@ -794,9 +1546,15 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
       // Validate ZIP code(s) before submit.
       for (const k of zipKeySet) {
         const v = payload[k];
-        if (typeof v === 'string' && v.trim() && !/^\d{5}$/.test(v.trim())) {
+        if (typeof v !== 'string' || !v.trim()) continue;
+
+        const country = typeof payload.country === 'string' ? payload.country.trim().toUpperCase() : '';
+        const isUs = country === 'USA' || country === 'UNITED STATES' || country === 'UNITED STATES OF AMERICA';
+        if (!isUs) continue;
+
+        if (!/^\d{5}(-\d{4})?$/.test(v.trim())) {
           const label = zipLabelByKey.get(k) || k;
-          message.error(`${label} must be exactly 5 digits`);
+          message.error(`${label} must be a valid US ZIP code`);
           return;
         }
       }
@@ -807,8 +1565,8 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
         const isEditSubmit = hasEntityId && activeMode === 'edit';
 
         const resp = isEditSubmit
-          ? await apiClient.patch(`${endpoint}${entityId}/`, payload)
-          : await apiClient.post(endpoint, payload);
+          ? await businessApi.patch(`${endpoint}${entityId}/`, payload)
+          : await businessApi.post(endpoint, payload);
 
         onSuccess?.(resp.data);
         onClose();
@@ -1243,12 +2001,7 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
       footer={null}
       width="min(720px, calc(100vw - 32px))"
       destroyOnClose
-      title={
-        activeMode === 'clone'
-          ? `Clone ${entityType}`
-          : schema?.name ||
-            (entityId ? `${entityType} ${entityId}` : `New ${entityType}`)
-      }
+      title={modalTitle}
     >
       {content}
     </Modal>

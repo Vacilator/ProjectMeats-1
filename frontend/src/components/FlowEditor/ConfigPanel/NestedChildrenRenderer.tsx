@@ -50,7 +50,7 @@ const ChildItem = styled.div<{ $expanded: boolean }>`
   
   &:hover {
     border-color: rgba(var(--color-primary), 0.5);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    box-shadow: 0 2px 8px rgba(var(--color-overlay), 0.05);
   }
 `;
 
@@ -62,9 +62,14 @@ const ChildHeader = styled.div`
   background: rgba(var(--color-primary), 0.03);
   cursor: pointer;
   user-select: none;
-  
+
   &:hover {
     background: rgba(var(--color-primary), 0.06);
+  }
+
+  &:focus {
+    outline: 2px solid rgba(var(--color-primary), 0.35);
+    outline-offset: 2px;
   }
 `;
 
@@ -110,7 +115,7 @@ const Actions = styled.div`
   gap: 4px;
 `;
 
-const IconButton = styled.button`
+const IconButton = styled.button.attrs({ type: 'button' })`
   display: flex;
   align-items: center;
   justify-content: center;
@@ -122,12 +127,12 @@ const IconButton = styled.button`
   border-radius: var(--radius-sm);
   cursor: pointer;
   transition: all 0.15s ease;
-  
+
   &:hover {
     background: rgba(var(--color-primary), 0.1);
     color: rgb(var(--color-primary));
   }
-  
+
   &:active {
     transform: scale(0.95);
   }
@@ -135,8 +140,8 @@ const IconButton = styled.button`
 
 const DeleteButton = styled(IconButton)`
   &:hover {
-    background: rgba(239, 68, 68, 0.1);
-    color: rgb(239, 68, 68);
+    background: rgba(var(--color-error), 0.1);
+    color: rgb(var(--color-error));
   }
 `;
 
@@ -145,7 +150,7 @@ const ChildContent = styled.div`
   border-top: 1px solid rgb(var(--color-border));
 `;
 
-const AddButton = styled.button`
+const AddButton = styled.button.attrs({ type: 'button' })`
   display: flex;
   align-items: center;
   justify-content: center;
@@ -159,13 +164,13 @@ const AddButton = styled.button`
   font-weight: 500;
   cursor: pointer;
   transition: all 0.15s ease;
-  
+
   &:hover {
     border-color: rgb(var(--color-primary));
     background: rgba(var(--color-primary), 0.03);
     color: rgb(var(--color-primary));
   }
-  
+
   &:active {
     transform: scale(0.98);
   }
@@ -179,7 +184,7 @@ const EmptyState = styled.div`
 `;
 
 const ErrorMessage = styled.div`
-  color: rgb(239, 68, 68);
+  color: rgb(var(--color-error));
   font-size: 12px;
   margin-top: 4px;
 `;
@@ -200,6 +205,20 @@ export const NestedChildrenRenderer: React.FC<NestedChildrenRendererProps> = ({
   onChange,
   error
 }) => {
+  const effectiveChildSchema: Omit<NodeConfigSchema, 'nodeType' | 'displayName'> | undefined =
+    field.childSchema ??
+    ((field as any).itemSchema && Array.isArray((field as any).itemSchema.fields)
+      ? {
+          sections: [
+            {
+              id: 'item',
+              title: 'Item',
+              fields: (field as any).itemSchema.fields,
+            },
+          ],
+        }
+      : undefined);
+
   const [expandedChildren, setExpandedChildren] = useState<Set<number>>(
     new Set(value.length === 1 ? [0] : []) // Auto-expand if only one child
   );
@@ -219,7 +238,7 @@ export const NestedChildrenRenderer: React.FC<NestedChildrenRendererProps> = ({
   
   // Add new child
   const handleAddChild = useCallback(() => {
-    const newChild = field.childSchema?.sections?.reduce((acc, section) => {
+    const newChild = effectiveChildSchema?.sections?.reduce((acc, section) => {
       section.fields.forEach(f => {
         if (f.defaultValue !== undefined) {
           acc[f.id] = f.defaultValue;
@@ -233,7 +252,7 @@ export const NestedChildrenRenderer: React.FC<NestedChildrenRendererProps> = ({
     
     // Auto-expand new child
     setExpandedChildren(prev => new Set([...prev, newValue.length - 1]));
-  }, [field, value, onChange]);
+  }, [effectiveChildSchema, value, onChange]);
   
   // Remove child
   const handleRemoveChild = useCallback((index: number, e: React.MouseEvent) => {
@@ -261,7 +280,7 @@ export const NestedChildrenRenderer: React.FC<NestedChildrenRendererProps> = ({
   // Get child title (from first text field or index)
   const getChildTitle = (child: any, index: number): string => {
     // Try to find a title/name/label field
-    const titleField = field.childSchema?.sections?.flatMap(s => s.fields)
+    const titleField = effectiveChildSchema?.sections?.flatMap(s => s.fields)
       .find(f => ['title', 'name', 'label', 'stepTitle'].includes(f.id));
     
     if (titleField && child[titleField.id]) {
@@ -284,7 +303,19 @@ export const NestedChildrenRenderer: React.FC<NestedChildrenRendererProps> = ({
             
             return (
               <ChildItem key={index} $expanded={isExpanded}>
-                <ChildHeader onClick={() => toggleExpanded(index)}>
+                <ChildHeader
+                  role="button"
+                  tabIndex={0}
+                  aria-expanded={isExpanded}
+                  aria-label={`Toggle item ${index + 1}`}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      toggleExpanded(index);
+                    }
+                  }}
+                  onClick={() => toggleExpanded(index)}
+                >
                   <DragHandle onClick={(e) => e.stopPropagation()}>
                     <GripVertical size={16} />
                   </DragHandle>
@@ -299,7 +330,7 @@ export const NestedChildrenRenderer: React.FC<NestedChildrenRendererProps> = ({
                   </ChildTitle>
                   
                   <Actions>
-                    <DeleteButton onClick={(e) => handleRemoveChild(index, e)}>
+                    <DeleteButton aria-label={`Delete item ${index + 1}`} onClick={(e) => handleRemoveChild(index, e)}>
                       <Trash2 size={16} />
                     </DeleteButton>
                   </Actions>
@@ -308,54 +339,147 @@ export const NestedChildrenRenderer: React.FC<NestedChildrenRendererProps> = ({
                 {isExpanded && (
                   <ChildContent>
                     {/* Render child fields inline without full DynamicConfigPanel */}
-                    {field.childSchema?.sections?.map(section => (
+                    {effectiveChildSchema?.sections?.map(section => (
                       <div key={section.id}>
                         {section.fields.map(childField => (
                           <div key={childField.id} style={{ marginBottom: '12px' }}>
-                            <label style={{ fontSize: '13px', fontWeight: 500, marginBottom: '4px', display: 'block' }}>
-                              {childField.label}
-                              {childField.required && <span style={{ color: 'rgb(239, 68, 68)' }}> *</span>}
-                            </label>
-                            {/* Simple inline renderer for now */}
-                            {childField.type === 'text' && (
-                              <input
-                                type="text"
-                                value={child[childField.id] || ''}
-                                onChange={(e) => handleUpdateChild(index, { ...child, [childField.id]: e.target.value })}
-                                placeholder={
-                                  typeof childField.placeholder === 'string'
-                                    ? childField.placeholder
-                                    : childField.placeholder?.value
-                                }
-                                style={{
-                                  width: '100%',
-                                  padding: '8px 12px',
-                                  fontSize: '14px',
-                                  border: '1px solid rgb(var(--color-border))',
-                                  borderRadius: '6px'
-                                }}
-                              />
-                            )}
-                            {childField.type === 'textarea' && (
-                              <textarea
-                                value={child[childField.id] || ''}
-                                onChange={(e) => handleUpdateChild(index, { ...child, [childField.id]: e.target.value })}
-                                placeholder={
-                                  typeof childField.placeholder === 'string'
-                                    ? childField.placeholder
-                                    : childField.placeholder?.value
-                                }
-                                rows={3}
-                                style={{
-                                  width: '100%',
-                                  padding: '8px 12px',
-                                  fontSize: '14px',
-                                  border: '1px solid rgb(var(--color-border))',
-                                  borderRadius: '6px',
-                                  resize: 'vertical'
-                                }}
-                              />
-                            )}
+                            {(() => {
+                              const inputId = `nested-${field.id}-${index}-${childField.id}`;
+                              const placeholder =
+                                typeof childField.placeholder === 'string'
+                                  ? childField.placeholder
+                                  : (childField.placeholder as any)?.value;
+
+                              return (
+                                <>
+                                  <label
+                                    htmlFor={inputId}
+                                    style={{
+                                      fontSize: '13px',
+                                      fontWeight: 500,
+                                      marginBottom: '4px',
+                                      display: 'block',
+                                    }}
+                                  >
+                                    {childField.label}
+                                    {childField.required && (
+                                      <span style={{ color: 'rgb(var(--color-error))' }}> *</span>
+                                    )}
+                                  </label>
+
+                                  {/* Simple inline renderer for now (supports key field types used by schemas). */}
+                                  {(childField.type === 'text' || childField.type === 'email' || childField.type === 'password') && (
+                                    <input
+                                      id={inputId}
+                                      type={childField.type === 'password' ? 'password' : 'text'}
+                                      value={child[childField.id] || ''}
+                                      onChange={(e) =>
+                                        handleUpdateChild(index, {
+                                          ...child,
+                                          [childField.id]: e.target.value,
+                                        })
+                                      }
+                                      placeholder={placeholder}
+                                      style={{
+                                        width: '100%',
+                                        padding: '8px 12px',
+                                        fontSize: '14px',
+                                        border: '1px solid rgb(var(--color-border))',
+                                        borderRadius: '6px',
+                                      }}
+                                    />
+                                  )}
+
+                                  {childField.type === 'textarea' && (
+                                    <textarea
+                                      id={inputId}
+                                      value={child[childField.id] || ''}
+                                      onChange={(e) =>
+                                        handleUpdateChild(index, {
+                                          ...child,
+                                          [childField.id]: e.target.value,
+                                        })
+                                      }
+                                      placeholder={placeholder}
+                                      rows={3}
+                                      style={{
+                                        width: '100%',
+                                        padding: '8px 12px',
+                                        fontSize: '14px',
+                                        border: '1px solid rgb(var(--color-border))',
+                                        borderRadius: '6px',
+                                        resize: 'vertical',
+                                      }}
+                                    />
+                                  )}
+
+                                  {(childField.type === 'toggle' || childField.type === 'boolean') && (
+                                    <input
+                                      id={inputId}
+                                      type="checkbox"
+                                      checked={Boolean(child[childField.id])}
+                                      onChange={(e) =>
+                                        handleUpdateChild(index, {
+                                          ...child,
+                                          [childField.id]: e.target.checked,
+                                        })
+                                      }
+                                    />
+                                  )}
+
+                                  {childField.type === 'number' && (
+                                    <input
+                                      id={inputId}
+                                      type="number"
+                                      value={child[childField.id] ?? ''}
+                                      onChange={(e) =>
+                                        handleUpdateChild(index, {
+                                          ...child,
+                                          [childField.id]: e.target.value === '' ? undefined : Number(e.target.value),
+                                        })
+                                      }
+                                      placeholder={placeholder}
+                                      style={{
+                                        width: '100%',
+                                        padding: '8px 12px',
+                                        fontSize: '14px',
+                                        border: '1px solid rgb(var(--color-border))',
+                                        borderRadius: '6px',
+                                      }}
+                                    />
+                                  )}
+
+                                  {(childField.type === 'select' || childField.type === 'multiselect') && (
+                                    <select
+                                      id={inputId}
+                                      value={child[childField.id] ?? ''}
+                                      onChange={(e) =>
+                                        handleUpdateChild(index, {
+                                          ...child,
+                                          [childField.id]: e.target.value,
+                                        })
+                                      }
+                                      style={{
+                                        width: '100%',
+                                        padding: '8px 12px',
+                                        fontSize: '14px',
+                                        border: '1px solid rgb(var(--color-border))',
+                                        borderRadius: '6px',
+                                      }}
+                                    >
+                                      <option value="">{placeholder || 'Select...'}</option>
+                                      {Array.isArray((childField as any).options)
+                                        ? (childField as any).options.map((opt: any) => (
+                                            <option key={String(opt.value)} value={opt.value}>
+                                              {opt.label ?? opt.value}
+                                            </option>
+                                          ))
+                                        : null}
+                                    </select>
+                                  )}
+                                </>
+                              );
+                            })()}
                             {childField.helpText && (
                               <div style={{ fontSize: '12px', color: 'rgb(var(--color-text-tertiary))', marginTop: '4px' }}>
                                 {childField.helpText}

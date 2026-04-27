@@ -883,9 +883,14 @@ class ConfigResolverAPITest(TestCase):
             tenant=None,
         )
         
-        # Set up client
+        # Associate user with tenant so TenantMiddleware will honor X-Tenant-ID
+        from apps.tenants.models import TenantUser
+
+        TenantUser.objects.create(tenant=self.tenant, user=self.user, role='admin', is_active=True)
+
+        # Set up client (session auth) so AuthenticationMiddleware runs before TenantMiddleware
         self.client = APIClient()
-        self.client.force_authenticate(user=self.user)
+        self.client.force_login(self.user)
     
     def test_list_choice_lists(self):
         """Test listing all choice lists."""

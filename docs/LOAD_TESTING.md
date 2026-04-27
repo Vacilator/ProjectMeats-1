@@ -66,21 +66,21 @@ locust -f locustfile.py \
   --users 50 \
   --spawn-rate 2 \
   --run-time 1m \
-  --host=https://api.meatscentral.com
+  --host=https://meatscentral.com
 
 # Gradually increase
 locust -f locustfile.py \
   --users 500 \
   --spawn-rate 10 \
   --run-time 5m \
-  --host=https://api.meatscentral.com
+  --host=https://meatscentral.com
 
 # Stress test (1000+ users)
 locust -f locustfile.py \
   --users 1000 \
   --spawn-rate 20 \
   --run-time 10m \
-  --host=https://api.meatscentral.com \
+  --host=https://meatscentral.com \
   --html=stress_test_report.html
 ```
 
@@ -303,8 +303,8 @@ docker logs pm-backend | grep "500"
 # Increase backend instances
 docker-compose up --scale backend=3
 
-# Verify load balancing
-curl http://localhost:8000/api/health/
+# Verify backend is reachable
+curl http://localhost:8000/api/v1/health/
 ```
 
 #### Connection Pooling
@@ -426,7 +426,7 @@ Max retries exceeded with url: /api/auth/login/
 ```
 
 **Solutions**:
-- Verify backend is running: `curl http://localhost:8000/api/health/`
+- Verify backend is running: `curl http://localhost:8000/api/v1/health/`
 - Check firewall rules
 - Ensure correct host/port in `--host` parameter
 

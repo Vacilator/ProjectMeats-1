@@ -10,7 +10,7 @@ set -e
 
 # Configuration
 BASE_URL="${BASE_URL:-http://localhost:8000}"
-API_URL="${BASE_URL}/api/workflows"
+API_URL="${BASE_URL}/api/v1/workflows"
 
 # Colors for output
 GREEN='\033[0;32m'
@@ -25,7 +25,7 @@ echo ""
 
 # Check if server is running
 echo -n "Checking if server is running... "
-if curl -s "${BASE_URL}/api/health/" > /dev/null 2>&1; then
+if curl -s "${BASE_URL}/api/v1/health/" > /dev/null 2>&1; then
     echo -e "${GREEN}✓${NC} Server is up"
 else
     echo -e "${RED}✗${NC} Server is not running at ${BASE_URL}"

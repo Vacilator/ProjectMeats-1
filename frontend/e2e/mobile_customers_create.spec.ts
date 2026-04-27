@@ -53,11 +53,17 @@ async function mockCustomersApis(page: Page) {
       body: JSON.stringify({
         name: 'New Customer',
         description: 'E2E schema for mobile Customers create test',
-        key_fields: ['name', 'email', 'phone'],
+        // UniversalEntityForm intentionally prioritizes HQ key fields for customers/suppliers.
+        // Keep this mock aligned with that UX (email is not part of the HQ key-field surface).
+        key_fields: ['name', 'phone_office', 'address', 'city', 'state', 'zip_code', 'country'],
         fields: [
           { key: 'name', label: 'Name', type: 'text', required: true },
-          { key: 'email', label: 'Email', type: 'email', required: false },
-          { key: 'phone', label: 'Phone', type: 'text', required: false },
+          { key: 'phone_office', label: 'Phone', type: 'phone', required: false },
+          { key: 'address', label: 'Address', type: 'text', required: false },
+          { key: 'city', label: 'City', type: 'text', required: false },
+          { key: 'state', label: 'State', type: 'text', required: false },
+          { key: 'zip_code', label: 'Zip Code', type: 'text', required: false },
+          { key: 'country', label: 'Country', type: 'text', required: false },
         ],
       }),
     });
@@ -83,10 +89,15 @@ async function mockCustomersApis(page: Page) {
         id: 999,
         name: payload.name,
         contact_person: payload.contact_person ?? '',
-        email: payload.email ?? 'e2e@example.com',
+        // Email is optional and not part of the HQ key-field surface.
+        email: payload.email ?? '',
+        phone_office: payload.phone_office ?? '',
         phone: payload.phone ?? '',
+        address: payload.address ?? '',
         city: payload.city ?? '',
         state: payload.state ?? '',
+        zip_code: payload.zip_code ?? '',
+        country: payload.country ?? '',
         created_at: now,
         updated_at: now,
       };
@@ -148,10 +159,13 @@ test.describe('Mobile: Customers create is usable at 375px', () => {
     await expect(dialog).toBeVisible({ timeout: 15000 });
 
     await expect(dialog.locator('input#name')).toBeVisible({ timeout: 15000 });
+    await expect(dialog.locator('input#phone_office')).toBeVisible({ timeout: 15000 });
 
     await dialog.locator('input#name').fill('E2E Customer');
-    await dialog.locator('input#email').fill('e2e@example.com');
-    await dialog.locator('input#phone').fill('5551112222');
+
+    // UniversalEntityForm customer create intentionally uses HQ key fields.
+    // `phone_office` is the most stable customer HQ phone key across environments.
+    await dialog.locator('input#phone_office').fill('5551112222');
 
     const submit = dialog.getByRole('button', { name: /^Create$/ });
     await submit.scrollIntoViewIfNeeded();

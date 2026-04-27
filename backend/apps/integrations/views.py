@@ -68,7 +68,12 @@ def get_auth_url(request):
     # Generate signed state token (fallback when session cookies are blocked).
     nonce = secrets.token_urlsafe(16)
     state = signing.dumps(
-        {"tenant_id": str(tenant.id), "provider": provider_type, "nonce": nonce},
+        {
+            "tenant_id": str(tenant.id),
+            "user_id": str(request.user.id),
+            "provider": provider_type,
+            "nonce": nonce,
+        },
         salt='integrations.oauth.state',
     )
 
@@ -147,34 +152,49 @@ def oauth_callback(request, provider_type):
     if not code:
         return redirect('/settings?error=no_code')
     
-    # Validate state for CSRF protection
+    # Validate signed state for CSRF protection + identity binding.
     state = request.GET.get('state')
+
     expected_state = request.session.get(f'oauth_state_{provider_type}')
+    if not expected_state or state != expected_state:
+        request.session.pop(f'oauth_state_{provider_type}', None)
+        request.session.pop(f'oauth_tenant_{provider_type}', None)
+        return redirect('/settings?error=invalid_state')
 
-    state_payload = None
-    if state and expected_state and state == expected_state:
-        # Session-based validation succeeded
+    try:
+        state_payload = signing.loads(state or '', salt='integrations.oauth.state', max_age=15 * 60)
+    except Exception:
         state_payload = None
-    else:
-        # Fallback: allow signed state when session cookies are not preserved
-        try:
-            state_payload = signing.loads(state or '', salt='integrations.oauth.state', max_age=15 * 60)
-        except Exception:
-            state_payload = None
 
-        if not state_payload or state_payload.get('provider') != provider_type:
-            return redirect('/settings?error=invalid_state')
+    if not state_payload or state_payload.get('provider') != provider_type:
+        return redirect('/settings?error=invalid_state')
 
-    # Get tenant from session or signed payload
+    # Get tenant + initiating user from session or signed payload
     tenant_id = request.session.get(f'oauth_tenant_{provider_type}') or (state_payload or {}).get('tenant_id')
-    if not tenant_id:
-        return redirect('/settings?error=no_tenant')
+    user_id = (state_payload or {}).get('user_id')
+    if not tenant_id or not user_id:
+        return redirect('/settings?error=invalid_state')
     
     try:
-        from apps.tenants.models import Tenant
+        from apps.tenants.models import Tenant, TenantUser
         tenant = Tenant.objects.get(id=tenant_id)
     except Tenant.DoesNotExist:
         return redirect('/settings?error=tenant_not_found')
+
+    # Enforce tenant membership for the initiating user.
+    from django.contrib.auth import get_user_model
+
+    User = get_user_model()
+    try:
+        initiating_user = User.objects.get(id=user_id)
+    except User.DoesNotExist:
+        return redirect('/settings?error=user_not_found')
+
+    if not (
+        getattr(initiating_user, 'is_superuser', False)
+        or TenantUser.objects.filter(tenant=tenant, user=initiating_user, is_active=True).exists()
+    ):
+        return redirect('/settings?error=permission_denied')
 
     # Build redirect URI (must match the one used in get_auth_url)
     callback_path = f'/api/v1/integrations/oauth/callback/{provider_type}/'

@@ -199,7 +199,7 @@ const WorkFormsLayout: React.FC = () => {
           </HeaderIcon>
           <div>
             <HeaderTitle>WorkForms</HeaderTitle>
-            <HeaderSubtitle>Manage your workflow tasks and form submissions</HeaderSubtitle>
+            <HeaderSubtitle>Manage your WorkForm tasks and form submissions</HeaderSubtitle>
           </div>
         </HeaderLeft>
       </Header>

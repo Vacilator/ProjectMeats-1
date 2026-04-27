@@ -1,7 +1,7 @@
 # MASTER_PLAN.md (Canonical)
 
 **Status**: 🔄 Living document (canonical source of truth)  
-**Last Updated**: 2026-04-13  
+**Last Updated**: 2026-04-27  
 **Primary Focus**: Phase 10 (DRY/Canonical Architecture Standardization) - Industry-leader compliance  
 
 This file is the **canonical plan + current truth snapshot**.
@@ -10,7 +10,116 @@ This file is the **canonical plan + current truth snapshot**.
 
 ---
 
-## Recovery Execution Plan (as of 2026-03-27T17:03Z)
+## Current Execution Snapshot (as of 2026-04-27)
+
+### What is true right now
+- **WorkForms E2E** is shipped end-to-end (execute + monitoring + notifications + Quick Actions + Gmail connector MVP).
+- **Primary execution focus (P0):** close remaining correctness + tenant isolation gaps surfaced by squad audits.
+- **Newly shipped since last snapshot (evidence; see `.github/MASTER_PLAN.md`)**:
+  - Core API reliability: fix `apps/core/views.py` legacy imports/`print()` landmines + add smoke tests (PR #4652).
+  - Frontend standards: expand `lint:colors` + remove remaining hardcoded colors in MyTasks surfaces (PR #4650); replace high-churn `console.*` with `logger.*` (PR #4654).
+  - Backend tenant safety: fail-closed `current/current_theme/admin_permissions` when tenant context is missing/ambiguous (PR #4656); wrap tenant-scoped Celery ORM in `tenant_rls(..., strict=False)` (PR #4657).
+  - Mobile: device-safe API base URL + tests (PR #4658); switch builds to EAS (PR #4659).
+
+### P0 priorities (next)
+- **Core API reliability**: ✅ shipped (PR #4652). Next: expand smoke coverage for always-on endpoints (health, tenant resolution, auth bootstrap) and keep them in PR gates.
+
+- **Phase 10 Sprint 1 stability gate (planned → in progress)**
+  - Mobile viewport hardening (make the existing mobile Playwright specs green; prevent page-level horizontal overflow on iPhone SE)
+  - Standardized API error presentation (map backend `code`/`error_code` into deterministic user-safe messages; graceful AI/email “not configured” UX)
+  - CI: enforce TypeScript type-check as a required PR gate + add a Drift Gate validator so the check can’t be removed silently
+  - Docs: incident response runbook (triage + rollback + tenant isolation/RLS guidance)
+
+- **Security / tenant isolation** (RLS correctness):
+  - **P0 data isolation**: remove `is_staff` global bypasses in `apps/system/views/choice_viewsets.py` (tenant admins are promoted to `is_staff=True` via signals; must not yield cross-tenant reads/writes).
+  - Make invitation email Celery task tenant/RLS safe (pass `tenant_id`; wrap task ORM in `tenant_rls` before querying invitation).
+  - Workflow webhook receiver must set `request.tenant` + `set_current_tenant()` **before** ORM lookup (FORCE RLS correctness).
+  - Legacy workflow webhook endpoint must fail closed unless tenant context is resolvable (migrate callers to tenant-path URL).
+  - Integrations OAuth callback must set tenant + RLS session vars before writing tenant-scoped rows.
+  - WorkForms create must not bypass activation validation when `status=active`.
+- **WorkForms Editor stability**: deterministic schema init (no timer races), resolve form "fields" model mismatch, sanitize UI-only shadow state on save; continue hardening remaining a11y + theme-token usage as needed.
+- **CI guardrails (never-miss-again)**:
+  - Deploy-by-digest default for UAT/Prod and digest-align the migration artifact.
+  - Manifest-driven required-secret enforcement per lane (remove hardcoded lists).
+  - Docs drift prevention: "CURRENT" docs must not recommend forbidden Golden patterns (runner-driven migrations only).
+- **Mobile parity**: ✅ shipped foundations (PRs #4658/#4659). Next: switch-tenant persistence, consistent error normalization, and auth expiry/401 behavior parity.
+
+### Squad deep dive plan (as of 2026-04-27)
+
+This is a prioritized, PR-sized execution plan synthesized from squad deep dives (frontend/backend/devops/testing + lead synthesis). It is intentionally biased toward **guardrails first**, then **tenant/RLS correctness**, then **editor stability + standards**, then **mobile parity**.
+
+#### Guiding constraints
+- **Shared-schema multi-tenancy + RLS**: fail closed when tenant context is ambiguous; set `set_current_tenant()` **before** tenant-scoped ORM.
+- **Golden pipeline**: keep the Drift Gate as the entrypoint; enforce invariants via validators (don’t rely on tribal knowledge).
+- **Frontend standards**: no hardcoded colors; use CSS tokens. Avoid runtime `console.*` noise; use `logger`.
+- **Testing philosophy**: add unit/integration tests where they give high signal; keep E2E minimal and header/assertion-focused.
+
+#### Proposed PR-sized batches (next)
+
+1) **CI guardrails coverage fix (validators match current pipeline)**
+   - Update `.github/scripts/validate-workflows.sh` checks that currently no-op due to `*-deployment.yml` targeting.
+   - Add caller-side invariants for `main-pipeline.yml` reusable-workflow jobs (e.g., require `secrets: inherit`; forbid `environment:` on `uses:` jobs).
+   - Acceptance: `bash .github/scripts/check_infrastructure.sh` no longer reports “skipping … no *-deployment.yml”; intentional violations fail with clear errors.
+
+2) **CI supply chain hardening (digest pin enforcement)**
+   - Validator enforces `jobs.*.services.*.image` and `jobs.*.container.image` are digest-pinned (`@sha256:`).
+   - Acceptance: changing a service image from `postgres:15@sha256:...` → `postgres:15` fails the Drift Gate.
+
+3) **CI immutable deploy tag enforcement**
+   - Validator asserts remote deploy `docker pull/run` tags are derived from `github.sha` (prevents floating-but-not-latest tags).
+   - Acceptance: any deploy step pulling an environment-only tag fails validation.
+
+4) **Frontend theme-token compliance in high-churn surfaces**
+   - Remove hardcoded `rgb()/rgba()` from:
+     - `CommandPalette` (quick action colors, shadows/overlay)
+     - `QuickActionsWidget`
+     - `MyTasksWidget` + `MyTasks` page
+     - `frontend/src/theme/themeConfig.ts` status tokens
+   - Acceptance: `npm -C frontend run lint:colors` passes; no numeric `rgb/rgba` literals remain in those files.
+
+5) **Frontend canonical logging + hooks hygiene**
+   - Replace remaining runtime `console.*` in high-churn FlowEditor + contexts + service interceptors with `logger.*`.
+   - Remove `react-hooks/exhaustive-deps` suppression in `frontend/src/pages/WorkForms/Execute.tsx` without changing runtime behavior.
+   - Acceptance: lint clean for touched files; behavior unchanged for Execute.
+
+6) **WorkForms Editor stability: deterministic schema init + save sanitation**
+   - Deterministic schema/registry initialization (remove timer races).
+   - Sanitize persistence to strip UI-only shadow state (record-mode/key-value drafts, etc.).
+   - Acceptance: no intermittent empty config panel on first click; saved workflow JSON contains only supported node payload shapes.
+
+7) **Backend tenant ambiguity hardening (medium risk — stage carefully)**
+   - Make `entity_lookup` fail-closed for multi-tenant users unless tenant context is explicit (header/domain/subdomain).
+   - Add request metadata (tenant resolution source) to make behavior explainable.
+   - Acceptance: multi-tenant + no explicit tenant ⇒ 400 with stable code; explicit tenant ⇒ 200.
+   - Rollback: feature-flag strictness or revert check.
+
+8) **Backend: remove per-view “default tenant fallback” on creates (incremental rollout)**
+   - Stop “self-healing” missing tenant context inside `perform_create()` across selected tenant apps; return 400 instead.
+   - Acceptance: creates without tenant context fail closed; creates with tenant context succeed and set correct tenant.
+
+9) **Testing: high-signal additions (low flake)**
+   - Frontend unit: `extractFormReferences` (legacy + canonical) coverage.
+   - Frontend integration: WorkForms Editor init flows (existing vs clone vs template) by mocking the canvas.
+   - Backend: cross-tenant execute spoofing returns 404 and doesn’t enqueue.
+   - E2E (minimal): WorkForms Catalog requests include `X-Tenant-ID` matching localStorage.
+
+10) **Mobile parity: WorkForms contract + detail view**
+   - Align mobile types with OpenAPI artifact (`workflow_definition`, `/tenant-workforms/*`).
+   - Add a real WorkForm detail view (read/execute/observe) with deterministic error handling.
+
+#### Risk register (likelihood × impact)
+- **Tenant ambiguity changes** (entity_lookup + create fallbacks): Medium × High → mitigate with feature flags, staged rollout, and explicit 400 errors.
+- **Theme token cleanup**: Low × Medium → mitigate with targeted changes + `lint:colors` gate.
+- **CI validator tightening**: Low × High → mitigate with clear error messages and local reproduction steps.
+
+#### Testing + validation (definition of done)
+- CI/guardrails: `bash .github/scripts/check_infrastructure.sh` and `bash scripts/verify_golden_state.sh`
+- Frontend: `npm -C frontend run verify-standards` (and targeted `vitest run` files for new tests)
+- Backend: targeted `python manage.py test ...` suites for each change set
+
+### Historical context (kept for traceability)
+
+## Historical: Recovery Execution Plan (as of 2026-03-27T17:03Z)
 
 We are re-validating and completing the last ~25 prompts with **evidence-based acceptance criteria** and strict shipping discipline.
 
@@ -20,6 +129,13 @@ We are re-validating and completing the last ~25 prompts with **evidence-based a
 - ✅ Workforms AI Suggestions route drift — **RESOLVED** (PR #3998): frontend calls `POST /api/v1/workflows/suggest-nodes/` and backend also exposes legacy alias `POST /api/v1/suggest-nodes/`.
 - AI Chat: lessons memory NameError fixed (PR #4045); remaining 400s should be treated as environment config issues (missing OPENAI_API_KEY) with graceful messaging.
 - ✅ Charts: Recharts `ResponsiveContainer` warnings (width/height -1) — **RESOLVED** (PR #4240): set non-zero `minWidth/minHeight` on chart containers to avoid zero-size renders.
+- ✅ WorkForms E2E runtime gaps (Workstream B) — **RESOLVED** (PRs #4480–#4487):
+  - Notifications persist end-to-end (`actionNotify` → `UserNotification`) + tests (PR #4481)
+  - Node runtime support validation + activation guardrails (PR #4483)
+  - Playwright execution smoke proving execute + notification (PR #4484)
+  - Quick Actions + Catalog reliably list/execute WorkForms (PR #4485)
+  - Entity pages show execution history; backend entity_id filter supports JSON string/int (PR #4486)
+  - Gmail connector MVP + OAuth hardening + frontend wiring + setup docs (PR #4487)
 
 ### Priority execution strategy
 1) Quick wins: ✅ suggest-nodes route drift (PR #3998); ✅ chart sizing warnings (PR #4240).
@@ -99,11 +215,80 @@ We are re-validating and completing the last ~25 prompts with **evidence-based a
 - **Graceful degradation / feature flags:** missing secrets/infra (AI, email, Outlook, pgvector) must not crash UX; expose availability in health.
 - **Workforms Editor:** maintain hook safety, node config save UX, and layout predictability.
 
+### P0 — Security / tenant isolation (next)
+- **TenantMiddleware hardening:** ignore `X-Tenant-ID` for anonymous requests (prevent tenant context injection on `AllowAny` endpoints); add regression tests.
+- **Workflow webhooks tenant-safe:** add a new canonical webhook URL embedding `tenant_id` in the path and set RLS tenant explicitly in the receiver view; keep legacy URL temporarily.
+- **Email webhooks verification (critical):** Outlook requires unpredictable per-subscription `clientState`; Gmail requires request verification (JWT/secret) so forged requests cannot trigger upstream API calls.
+- **Tenant-scope email integration data:** phase in `tenant_id` for EmailAccount/EmailLog (and related tables), then add RLS policies once tenant-scoped.
+- **OAuth endpoint de-shadowing:** remove/lock down duplicate legacy OAuth callback routes to prevent accidental re-exposure.
+
+### P0 — WorkForms editor “industry leader” UX (next)
+- **Publish readiness preflight + support matrix UI:** block publish when unsupported nodes/missing required config; show actionable remediation.
+- **Validation parity:** unify `nodeValidationService` with schema `conditional` + `validationEngine` so hidden fields don’t error and rules match the config panel.
+- **Config safety:** keyValue record-mode must never persist arrays into node data (draft UI-only); add unit + Playwright coverage (actionHTTP headers).
+- **A11y + testability:** section headers keyboard-accessible (`aria-expanded`), labels wired to inputs (`htmlFor`/`id`), stable `data-testid` selectors.
+- **Performance:** lazy-mount heavy hidden fields; debounce text updates to shadow state; remove/gate debug logging.
+
 ### P0 — Business usability
 - **Cockpit Search relevance:** ranking + fuzzy match + recency; persistent favorites that are tenant-safe (RLS-backed).
 - **Mobile responsiveness:** Cockpit + core CRUD forms usable <768px; touch targets; FlowEditor mobile/tablet fallback.
 - **Email ingestion monitor:** correctness, diagnostics, reconnect CTA, progress reporting, attachment-aware detection.
 - **Admin workspace usability:** option lists/system lists visibility + custom list create/edit flows.
+
+### P1 — CI/CD determinism (next)
+- **Remove archived workflows from Actions:** move `.github/workflows/archived/**` out of `.github/workflows/` so they cannot run and bypass guardrails.
+- **Immutable CI inputs:** digest-pin workflow `services.*.image` containers (Postgres/pgvector) and stop pushing mutable `latest` tags.
+- **Deployment safety gate:** require PR Validation success for the same SHA for UAT/Prod deployments (even if deploy workflow test jobs are temporarily bypassed).
+
+### P0 — WorkForms E2E completion (Workstream B)
+**Goal:** Make WorkForms publish + execute + monitor **end-to-end** with deterministic runtime behavior, explainable execution details, and tenant-safe notifications/connectors — while respecting **shared-schema multi-tenancy (Postgres RLS + `app.current_tenant`)** and **Golden Pipeline** constraints.
+
+**Status:** ✅ Completed (PRs #4480–#4487)
+
+**Evidence / shipped:**
+- Plan + backlog documented (PR #4480)
+- Notifications persisted end-to-end (PR #4481)
+- Gmail env manifest keys added (PR #4482)
+- Runtime validation + activation guardrails (PR #4483)
+- Playwright execution smoke (PR #4484)
+- Quick Actions + Catalog WorkForms reliability (PR #4485)
+- Entity execution visibility + robust entity_id filtering (PR #4486)
+- Gmail connector MVP + OAuth hardening + widget wiring + setup docs (PR #4487)
+
+**Deliverables (Workstream B):**
+1) **Node support matrix + publish-time guardrails**
+   - Define a canonical “supported nodes/actions” matrix for WorkForms runtime (what executes vs. what is editor-only/unsupported).
+   - Add publish-time (and/or “Quick Run” time) validation that blocks unsupported nodes/actions with actionable reasons.
+   - **Additive-only constraint:** do not break previously published workflows; guardrails apply to new publishes/edits, with clear compatibility messaging.
+
+2) **Structured validation + explainable errors (execution details)**
+   - Persist per-step validation failures and runtime errors into execution details (node id, error code, user-facing message, remediation).
+   - UI surfaces errors in WorkForms execution details without leaking raw exceptions; errors must be deterministic and debuggable.
+
+3) **Notifications end-to-end**
+   - Implement `ActionExecutor.send_notification` to create tenant-scoped notification records (so `/api/v1/workflows/notifications/*` reflects WorkForms events).
+   - Ensure notification creation and reads are **RLS-safe** in shared-schema multi-tenancy (no cross-tenant leakage).
+   - Minimal acceptance: a WorkForm run can reliably generate a notification visible to intended recipients.
+
+4) **Quick Actions completeness for WorkForms**
+   - Ensure WorkForms “Quick Run / Quick Actions” paths cover supported actions end-to-end (create/update/email/notification) with the same validation + error semantics.
+   - Confirm execution status + results are visible post-run (async Celery completion).
+
+5) **Entity workflow status panel**
+   - Add/complete an entity-facing status panel showing latest WorkForm execution(s): current step/node, last error (if any), and relevant notifications, with a link into full execution details.
+
+6) **Gmail connector (optional, hardened, explicit setup)**
+   - Add optional Google OAuth secrets to `manifests/env.manifest.json` (feature stays disabled when unset; must degrade gracefully).
+   - OAuth hardening: tenant binding + CSRF/state validation (and any required PKCE/redirect constraints) with explicit failure modes.
+   - Minimal sync stub: smallest “connectivity proof” that confirms auth works (without requiring full ingestion parity on day one).
+   - Document explicit user/admin setup steps (required env vars, redirect URLs, scopes, and how to verify connection).
+
+**Acceptance criteria (must meet Golden Pipeline + multi-tenant constraints):**
+- Publishing/running a WorkForm with unsupported nodes/actions fails fast with a structured, user-readable explanation (not a Celery log-only failure).
+- A WorkForm `actionNotification` produces an actual notification record retrievable via `/api/v1/workflows/notifications/*` and visible only within the correct tenant (RLS).
+- Execution details show per-step status + structured errors for async runs (Celery) with no raw exception leakage.
+- Gmail connector is explicitly “disabled until configured”; missing secrets never cause 500s; once configured, OAuth flow succeeds with hardened validation.
+- All changes remain compliant with shared-schema multi-tenancy and ship through Golden Pipeline gates (type-check, tests, and any required E2E coverage for the WorkForms critical path).
 
 ### P1 — Operational excellence
 - **Documentation hygiene:** demote/label duplicated roadmaps, remove contradictory “100% complete” claims.
@@ -315,7 +500,7 @@ Based on a deep architectural audit of the provided source files and error logs,
 >
 > **Strict Compliance:**
 > * Relocate `<div id="config-portal"></div>` to `frontend/index.html` within the `<body>` to eliminate mount race conditions.
-> * Update `.github/MASTER_PLAN.md` with the resolution of "Node Config Blackout & Registry Normalization."
+> * Append PR entry to `.github/MASTER_PLAN.md` (append-only PR log) and update canonical status in `MASTER_PLAN.md`.
 
 #### III. 📝 VERIFICATION TASKS
 
@@ -538,7 +723,7 @@ Based on the mandatory protocol, I have audited the current state of the Cockpit
 >
 > **Strict Compliance:**
 > * All data fetching must use `BusinessApi`.
-> * Update `.github/MASTER_PLAN.md` with PR references and increment progress to 98%.
+> * Append PR entry to `.github/MASTER_PLAN.md` (append-only PR log) and update canonical status in `MASTER_PLAN.md`.
 
 ### III. 📝 MY TASKS
 
@@ -788,7 +973,7 @@ Based on the mandatory protocol, I have audited the current state of the Cockpit
   - Graceful degradation to static suggestions
   - 8 unit tests for connectivity checks
   - **Files**: 
-    - `backend/scripts/infrastructure_diagnostics.py` (197 lines)
+    - `backend/apps/core/management/commands/check_infrastructure.py` (management command)
     - `backend/tenant_apps/workflows/views.py` (+89 lines)
     - `frontend/src/components/FlowEditor/components/AISuggestionsPanel.tsx` (+120 lines)
   - **Status**: Code complete, awaiting infrastructure audit
@@ -834,7 +1019,7 @@ Based on the mandatory protocol, I have audited the current state of the Cockpit
 **Key Files**:
 - `frontend/src/components/FlowEditor/UnifiedFlowEditor.tsx` (7,000+ lines)
 - `backend/tenant_apps/workflows/views.py` (3,600+ lines, 15 endpoints)
-- `backend/scripts/infrastructure_diagnostics.py` (197 lines)
+- `backend/apps/core/management/commands/check_infrastructure.py` (management command)
 
 **Development Principles**:
 - ✅ **Additive-Only Changes**: Never break existing workflows
@@ -1141,13 +1326,11 @@ Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
 - **Migration Standards**: `docs/workforms/MIGRATION_STANDARDS.md`
 - **Handoff Document**: `docs/HANDOFF.md`
 
-### Phase-Specific Docs
-- Phase 1: `docs/plans/archive/PHASE1_INTEGRATION_COMPLETE.md`
-- Phase 2: `docs/plans/archive/PHASE2_EXECUTION_COMPLETE.md`
-- Phase 3: `docs/plans/archive/PHASE3_DEPLOYMENT_CHECKLIST.md`
-- Phase 4: `docs/plans/archive/PHASE4_EXECUTION_SUMMARY.md`
-- Phase 5: `docs/plans/archive/PHASE5_IMPLEMENTATION_SUMMARY.md`
-- Phase 6: `docs/plans/archive/PHASE6_SUMMARY.md`, `docs/plans/archive/PHASE_6_*_COMPLETE.md`
+### Phase-Specific / Initiative Docs
+- Phase 3: `docs/PHASE3_QUICK_START.md`
+- Phase 5: `docs/PHASE5_IMPLEMENTATION_REPORT.md`, `docs/PHASE5_EXECUTION_SUMMARY.md`, `docs/PHASE5_API_CONTRACT.md`
+- Phase 7: `docs/PHASE7_RECOVERY_COMPLETE.md`
+- V3.5/V4 planning (archived): `docs/plans/archive/V3_5_ENTERPRISE_REFACTOR_ROADMAP.md`, `docs/plans/archive/V4_0_IDEAL_STATE_GAP_ANALYSIS.md`, `docs/plans/archive/V4_0_UX_EXCELLENCE.md`
 
 ---
 
@@ -2665,7 +2848,7 @@ F9 (AI) ────────────────────────
 
 | Document | Priority | Hours | Content |
 |----------|----------|-------|---------|
-| `docs/operations/INCIDENT_RESPONSE.md` | P0 | 4 | Decision trees for database, email, auth, deployment failures |
+| `docs/runbooks/INCIDENT_RESPONSE.md` | P0 | 4 | Decision trees for database, email, auth, deployment failures |
 | `docs/operations/TROUBLESHOOTING.md` | P0 | 3 | Common issues with diagnostic steps |
 | `docs/getting-started/YOUR_FIRST_FEATURE.md` | P0 | 2 | Model → API → Frontend → Deploy tutorial |
 | `docs/backend/WORKFLOW_ENGINE_GUIDE.md` | P1 | 4 | Architecture, action executors, extension patterns |

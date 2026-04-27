@@ -16,6 +16,8 @@ import {
 } from '../utils/autoMappingService';
 import { attachOutputSchemaToNode } from '../utils/outputSchemaInference';
 
+import { logger } from '@/utils/logger';
+
 /**
  * Hook return type
  */
@@ -26,6 +28,7 @@ export interface UseAutoMappingReturn {
   generateSuggestions: (nodeId: string) => void;
   applySuggestion: (nodeId: string, suggestion: FieldMappingSuggestion) => void;
   applyAllSuggestions: (nodeId: string) => void;
+  dismissSuggestion: (suggestionId: string) => void;
   clearSuggestions: () => void;
 }
 
@@ -60,10 +63,10 @@ export function useAutoMapping(): UseAutoMappingReturn {
       );
       
       setSuggestions(mappingSuggestions);
-      
-      console.log('[AutoMapping] Generated suggestions:', mappingSuggestions);
+
+      logger.debug('Generated suggestions', { component: 'AutoMapping', metadata: { mappingSuggestions } });
     } catch (err) {
-      console.error('[AutoMapping] Failed to generate suggestions:', err);
+      logger.error('[AutoMapping] Failed to generate suggestions:', err);
       setError(err instanceof Error ? err.message : 'Failed to generate suggestions');
     } finally {
       setLoading(false);
@@ -75,14 +78,23 @@ export function useAutoMapping(): UseAutoMappingReturn {
    */
   const applySuggestion = useCallback((nodeId: string, suggestion: FieldMappingSuggestion) => {
     setNodes((nodes) => {
-      return nodes.map(node => {
+      return nodes.map((node) => {
         if (node.id === nodeId) {
           const updatedNode = AutoMappingService.applySuggestion(node, suggestion);
-          console.log('[AutoMapping] Applied suggestion:', suggestion);
+          logger.debug('Applied suggestion', { component: 'AutoMapping', metadata: { suggestion } });
           return updatedNode;
         }
         return node;
       });
+    });
+
+    // UX: remove accepted suggestion immediately.
+    setSuggestions((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        suggestions: prev.suggestions.filter((s) => s.id !== suggestion.id),
+      };
     });
   }, [setNodes]);
   
@@ -98,7 +110,7 @@ export function useAutoMapping(): UseAutoMappingReturn {
       return nodes.map(node => {
         if (node.id === nodeId) {
           const updatedNode = AutoMappingService.applyAutoSuggestions(node, suggestions);
-          console.log('[AutoMapping] Applied all auto-suggestions');
+          logger.debug('Applied all auto-suggestions', { component: 'AutoMapping' });
           return updatedNode;
         }
         return node;
@@ -112,6 +124,16 @@ export function useAutoMapping(): UseAutoMappingReturn {
   /**
    * Clear suggestions
    */
+  const dismissSuggestion = useCallback((suggestionId: string) => {
+    setSuggestions((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        suggestions: prev.suggestions.filter((s) => s.id !== suggestionId),
+      };
+    });
+  }, []);
+
   const clearSuggestions = useCallback(() => {
     setSuggestions(null);
     setError(null);
@@ -124,6 +146,7 @@ export function useAutoMapping(): UseAutoMappingReturn {
     generateSuggestions,
     applySuggestion,
     applyAllSuggestions,
+    dismissSuggestion,
     clearSuggestions,
   };
 }

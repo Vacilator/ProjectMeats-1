@@ -72,17 +72,26 @@ echo ""
 echo "Step 5: Enforcing RLS policy for new tenant-aware tables..."
 
 # Only enforce on migrations changed in this branch to avoid failing legacy history.
+# Keep deterministic by resolving the PR base ref in CI (shallow checkouts often lack origin/<branch>).
 BASE_REF=${GITHUB_BASE_REF:-development}
 BASE_REV=""
 
-if git -C "$REPO_ROOT" rev-parse --verify "origin/$BASE_REF" >/dev/null 2>&1; then
-    BASE_REV="origin/$BASE_REF"
-elif git -C "$REPO_ROOT" rev-parse --verify "upstream/$BASE_REF" >/dev/null 2>&1; then
-    BASE_REV="upstream/$BASE_REF"
+if [ -n "${CI:-}" ]; then
+    # Prefer fetching the base branch explicitly (works with actions/checkout default depth).
+    if git -C "$REPO_ROOT" fetch --no-tags --depth=1 origin "$BASE_REF" >/dev/null 2>&1; then
+        BASE_REV=$(git -C "$REPO_ROOT" rev-parse FETCH_HEAD)
+    fi
+else
+    # Local/dev usage: fall back to existing remotes if present.
+    if git -C "$REPO_ROOT" rev-parse --verify "origin/$BASE_REF" >/dev/null 2>&1; then
+        BASE_REV="origin/$BASE_REF"
+    elif git -C "$REPO_ROOT" rev-parse --verify "upstream/$BASE_REF" >/dev/null 2>&1; then
+        BASE_REV="upstream/$BASE_REF"
+    fi
 fi
 
 if [ -z "$BASE_REV" ]; then
-    echo "⚠️  Skipping RLS enforcement (could not resolve base ref origin/$BASE_REF or upstream/$BASE_REF)"
+    echo "⚠️  Skipping RLS enforcement (could not resolve base ref '$BASE_REF')"
 else
     CHANGED_MIGRATIONS=$(git -C "$REPO_ROOT" diff --name-only "$BASE_REV"...HEAD | \
         grep -E '^backend/(apps|tenant_apps)/.+/migrations/.+\.py$' | \
@@ -100,9 +109,9 @@ else
             # Only require RLS when a tenant-aware table is created.
             # Heuristic: CreateModel + a tenant FK field tuple exists in the migration file.
             if grep -q "CreateModel(" "$REPO_ROOT/$file" && grep -q "('tenant'," "$REPO_ROOT/$file"; then
-                if ! grep -q "ENABLE ROW LEVEL SECURITY" "$REPO_ROOT/$file" || ! grep -q "CREATE POLICY" "$REPO_ROOT/$file"; then
+                if ! grep -q "ENABLE ROW LEVEL SECURITY" "$REPO_ROOT/$file" || ! grep -q "FORCE ROW LEVEL SECURITY" "$REPO_ROOT/$file" || ! grep -q "CREATE POLICY" "$REPO_ROOT/$file"; then
                     echo "❌ Missing RLS policy SQL in: $file"
-                    echo "   Expected to find both: 'ENABLE ROW LEVEL SECURITY' and 'CREATE POLICY'"
+                    echo "   Expected to find all of: 'ENABLE ROW LEVEL SECURITY', 'FORCE ROW LEVEL SECURITY', and 'CREATE POLICY'"
                     RLS_ERRORS=$((RLS_ERRORS + 1))
                 fi
             fi
@@ -143,6 +152,18 @@ if command -v psql &> /dev/null && [ -n "${CI:-}" ]; then
         echo "✅ Migrations applied successfully on fresh database"
     else
         echo "❌ ERROR: Migrations failed on fresh database"
+        PGPASSWORD=postgres psql -h localhost -U postgres -c "DROP DATABASE IF EXISTS test_migration_validation;" 2>/dev/null || true
+        export DATABASE_URL="$ORIGINAL_DB_URL"
+        exit 1
+    fi
+
+    echo ""
+    echo "Step 8: Auditing RLS compliance (fresh database)..."
+    if python manage.py audit_rls_compliance --strict; then
+        echo "✅ RLS compliance audit passed"
+    else
+        echo "❌ ERROR: RLS compliance audit failed"
+        PGPASSWORD=postgres psql -h localhost -U postgres -c "DROP DATABASE IF EXISTS test_migration_validation;" 2>/dev/null || true
         export DATABASE_URL="$ORIGINAL_DB_URL"
         exit 1
     fi

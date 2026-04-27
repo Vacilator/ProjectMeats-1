@@ -9,6 +9,7 @@
  */
 
 import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react';
+import { logger } from '@/utils/logger';
 
 // ============================================================================
 // Types
@@ -87,7 +88,7 @@ export const FormBuilderProvider: React.FC<FormBuilderProviderProps> = ({
     nodeType: 'form' | 'formProcessGroup' | string;
     formId?: string;
   }) => {
-    console.log('[FormBuilderContext] Opening FormBuilder:', params);
+    logger.debug('[FormBuilderContext] Opening FormBuilder', params);
     
     setState({
       isOpen: true,
@@ -99,7 +100,7 @@ export const FormBuilderProvider: React.FC<FormBuilderProviderProps> = ({
   }, []);
 
   const closeFormBuilder = useCallback(() => {
-    console.log('[FormBuilderContext] Closing FormBuilder');
+    logger.debug('[FormBuilderContext] Closing FormBuilder');
     
     setState({
       isOpen: false,
@@ -111,7 +112,7 @@ export const FormBuilderProvider: React.FC<FormBuilderProviderProps> = ({
   }, []);
 
   const updateNodeData = useCallback((nodeId: string, updates: any) => {
-    console.log('[FormBuilderContext] Updating node data:', { nodeId, updates });
+    logger.debug('[FormBuilderContext] Updating node data', { nodeId, updates });
     
     // Update internal state
     setState(prev => ({

@@ -4,22 +4,33 @@ import {
   TenantInvite,
   InviteAcceptRequest,
   WorkForm,
-  WorkFormNode,
   RootStackParamList,
 } from '../types';
 
 describe('GuestSession type', () => {
   it('should have the required fields', () => {
     const session: GuestSession = {
-      guest_token: 'gt_abc123',
-      tenant_id: 'uuid-1',
-      tenant_name: 'Test Tenant',
-      tenant_slug: 'test-tenant',
-      expires_at: '2026-03-19T00:00:00Z',
-      permissions: ['view_workforms'],
+      token: 'tok_guest',
+      user: {
+        id: 1,
+        username: 'guest',
+        email: '',
+        first_name: 'Guest',
+        last_name: '',
+        is_active: true,
+        date_joined: '2026-03-19T00:00:00Z',
+      },
+      tenant: {
+        id: 'uuid-1',
+        name: 'Guest Tenant',
+        slug: 'guest',
+        role: 'admin',
+        is_guest: true,
+      },
+      message: 'Welcome',
     };
-    expect(session.guest_token).toBe('gt_abc123');
-    expect(session.permissions).toContain('view_workforms');
+    expect(session.token).toBe('tok_guest');
+    expect(session.tenant.is_guest).toBe(true);
   });
 });
 
@@ -27,45 +38,26 @@ describe('TenantInvite type', () => {
   it('should have the required fields', () => {
     const invite: TenantInvite = {
       token: 'uuid-token',
-      tenant_id: 'uuid-1',
-      tenant_name: 'Test Tenant',
-      tenant_slug: 'test-tenant',
-      invited_by: 'admin',
-      invited_email: 'user@example.com',
+      valid: true,
+      email: 'user@example.com',
       role: 'user',
+      is_reusable: false,
+      uses_remaining: 1,
+      tenant: { name: 'Test Tenant', slug: 'test-tenant' },
+      message: null,
       expires_at: '2026-03-25T00:00:00Z',
-      is_expired: false,
-      is_accepted: false,
     };
-    expect(invite.is_expired).toBe(false);
+    expect(invite.valid).toBe(true);
     expect(invite.role).toBe('user');
-  });
-
-  it('should accept all valid role values', () => {
-    const roles: TenantInvite['role'][] = ['admin', 'manager', 'user', 'readonly'];
-    roles.forEach((role) => {
-      const invite: TenantInvite = {
-        token: 'tok',
-        tenant_id: '1',
-        tenant_name: 'T',
-        tenant_slug: 't',
-        invited_by: 'a',
-        invited_email: 'e@e.com',
-        role,
-        expires_at: '',
-        is_expired: false,
-        is_accepted: false,
-      };
-      expect(invite.role).toBe(role);
-    });
   });
 });
 
 describe('InviteAcceptRequest type', () => {
-  it('should require token, username, password', () => {
+  it('should require token, username, email, password', () => {
     const req: InviteAcceptRequest = {
       token: 'uuid-token',
       username: 'newuser',
+      email: 'user@example.com',
       password: 'password123',
     };
     expect(req.token).toBe('uuid-token');
@@ -76,6 +68,7 @@ describe('InviteAcceptRequest type', () => {
     const req: InviteAcceptRequest = {
       token: 'tok',
       username: 'u',
+      email: 'e@e.com',
       password: 'p',
       first_name: 'John',
       last_name: 'Doe',
@@ -90,38 +83,33 @@ describe('WorkForm type', () => {
     const form: WorkForm = {
       id: 'wf-1',
       name: 'Intake Form',
-      tenant: 'tenant-1',
+      status: 'active',
       is_active: true,
       node_count: 5,
-      created_at: '2026-01-01T00:00:00Z',
       updated_at: '2026-01-02T00:00:00Z',
     };
     expect(form.is_active).toBe(true);
+    expect(form.status).toBe('active');
     expect(form.node_count).toBe(5);
     expect(form.description).toBeUndefined();
-    expect(form.nodes).toBeUndefined();
+    expect(form.workflow_definition).toBeUndefined();
   });
 
-  it('should accept optional nodes array', () => {
-    const node: WorkFormNode = {
-      id: 'n-1',
-      type: 'text_field',
-      label: 'Name',
-      position: { x: 0, y: 0 },
-      data: {},
-    };
+  it('should accept optional workflow_definition on detail responses', () => {
     const form: WorkForm = {
       id: 'wf-2',
-      name: 'Form with Nodes',
-      tenant: 'tenant-1',
-      is_active: true,
+      name: 'Form with Definition',
+      status: 'draft',
+      is_active: false,
       node_count: 1,
-      nodes: [node],
-      created_at: '',
-      updated_at: '',
+      updated_at: '2026-01-02T00:00:00Z',
+      workflow_definition: {
+        nodes: [{ id: 'n-1' }],
+        edges: [],
+      },
     };
-    expect(form.nodes).toHaveLength(1);
-    expect(form.nodes![0].type).toBe('text_field');
+
+    expect(form.workflow_definition?.nodes).toHaveLength(1);
   });
 });
 
@@ -137,10 +125,12 @@ describe('RootStackParamList type', () => {
       'Home',
       'GuestHome',
       'WorkForms',
+      'WorkFormDetail',
     ];
-    expect(screens).toHaveLength(7);
+    expect(screens).toHaveLength(8);
     expect(screens).toContain('Guest');
     expect(screens).toContain('Invite');
     expect(screens).toContain('WorkForms');
+    expect(screens).toContain('WorkFormDetail');
   });
 });

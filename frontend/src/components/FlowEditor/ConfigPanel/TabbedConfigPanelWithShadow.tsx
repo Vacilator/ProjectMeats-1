@@ -20,6 +20,9 @@ import { Node, Edge } from '@xyflow/react';
 import { AlertCircle } from 'lucide-react';
 import { TabbedConfigPanel } from './TabbedConfigPanel';
 import { useNodeShadowState } from '../hooks/useNodeShadowState';
+import { sanitizeNodeConfigForPersistence } from '../utils/nodeDataSanitization';
+
+import { logger } from '@/utils/logger';
 import {
   PrimaryButton,
   SecondaryButton,
@@ -36,6 +39,7 @@ export interface TabbedConfigPanelWithShadowProps {
   edges: Edge[];
   setNodes: React.Dispatch<React.SetStateAction<Node[]>>;
   setEdges: React.Dispatch<React.SetStateAction<Edge[]>>;
+  readOnly?: boolean;
   onClose: () => void;
   onUpdate: (nodeId: string, data: Record<string, any>) => void;
   onTest?: (nodeId: string) => void;
@@ -87,7 +91,7 @@ const ActionBar = styled.div<{ $show: boolean }>`
   padding-bottom: calc(16px + env(safe-area-inset-bottom));
   border-top: 1px solid rgb(var(--color-border));
   background: rgb(var(--color-surface));
-  box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 -2px 8px rgba(var(--color-overlay), 0.05);
 
   @media (max-width: 600px) {
     width: 100vw;
@@ -101,7 +105,7 @@ const ConfirmationModal = styled.div<{ $show: boolean }>`
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(var(--color-overlay), 0.5);
   align-items: center;
   justify-content: center;
   z-index: 2000;
@@ -118,7 +122,7 @@ const DialogBox = styled.div`
   border-radius: var(--radius-lg);
   padding: 24px;
   min-width: 400px;
-  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 4px 24px rgba(var(--color-overlay), 0.15);
 `;
 
 const DialogHeader = styled.h3`
@@ -158,12 +162,14 @@ export const TabbedConfigPanelWithShadow: React.FC<TabbedConfigPanelWithShadowPr
   edges,
   setNodes,
   setEdges,
+  readOnly = false,
   onClose,
   onUpdate,
   onTest,
   onSelectNode,
 }) => {
   const [showCloseConfirmation, setShowCloseConfirmation] = useState(false);
+  const isReadOnly = Boolean(readOnly);
   
   // Use shadow state hook
   const {
@@ -182,36 +188,46 @@ export const TabbedConfigPanelWithShadow: React.FC<TabbedConfigPanelWithShadowPr
 
   // Handle update from inner panel - write to shadow state
   const handleShadowUpdate = useCallback((nodeId: string, data: Record<string, any>) => {
+    if (isReadOnly) return;
     updateShadow(data);
-  }, [updateShadow]);
+  }, [isReadOnly, updateShadow]);
 
   // Handle apply - commit shadow to real config
   const handleApply = useCallback(() => {
     if (!node) return;
+    if (isReadOnly) return;
     
+    const sanitized = (sanitizeNodeConfigForPersistence(shadowConfig) || {}) as Record<string, any>;
+
     // Commit shadow state
     commitShadow();
-    
+
     // Also call the original onUpdate to trigger history
-    onUpdate(node.id, shadowConfig);
+    onUpdate(node.id, sanitized);
     
-    console.log('[Shadow State] Applied changes to node:', node.id);
-  }, [node, commitShadow, onUpdate, shadowConfig]);
+    logger.debug('Applied changes to node', { component: 'ShadowState', metadata: { nodeId: node.id } });
+  }, [node, isReadOnly, commitShadow, onUpdate, shadowConfig]);
 
   // Handle discard
   const handleDiscard = useCallback(() => {
+    if (isReadOnly) return;
     discardShadow();
-    console.log('[Shadow State] Discarded changes');
-  }, [discardShadow]);
+    logger.debug('Discarded changes', { component: 'ShadowState' });
+  }, [isReadOnly, discardShadow]);
 
   // Handle close with confirmation if dirty
   const handleClose = useCallback(() => {
+    if (isReadOnly) {
+      onClose();
+      return;
+    }
+
     if (isDirty) {
       setShowCloseConfirmation(true);
     } else {
       onClose();
     }
-  }, [isDirty, onClose]);
+  }, [isReadOnly, isDirty, onClose]);
 
   // Confirm close without saving
   const confirmClose = useCallback(() => {
@@ -226,7 +242,7 @@ export const TabbedConfigPanelWithShadow: React.FC<TabbedConfigPanelWithShadowPr
     <>
       <ShadowWrapper data-tour="config-panel">
         {/* Dirty Indicator Banner */}
-        <DirtyIndicatorBanner $show={isDirty}>
+        <DirtyIndicatorBanner $show={isDirty && !isReadOnly}>
           <AlertCircle size={18} />
           <span>You have unsaved changes</span>
         </DirtyIndicatorBanner>
@@ -237,6 +253,7 @@ export const TabbedConfigPanelWithShadow: React.FC<TabbedConfigPanelWithShadowPr
             node={virtualNode}
             nodes={nodes}
             edges={edges}
+            readOnly={isReadOnly}
             onUpdateNode={handleShadowUpdate}
             onClose={handleClose}
             onApply={handleApply}
@@ -245,7 +262,7 @@ export const TabbedConfigPanelWithShadow: React.FC<TabbedConfigPanelWithShadowPr
         </PanelContent>
 
         {/* Action Bar (Apply/Discard) */}
-        <ActionBar $show={isDirty}>
+        <ActionBar $show={isDirty && !isReadOnly}>
           <SecondaryButton onClick={handleDiscard}>
             Discard Changes
           </SecondaryButton>
@@ -256,7 +273,7 @@ export const TabbedConfigPanelWithShadow: React.FC<TabbedConfigPanelWithShadowPr
       </ShadowWrapper>
 
       {/* Confirmation Modal */}
-      <ConfirmationModal $show={showCloseConfirmation}>
+      <ConfirmationModal $show={showCloseConfirmation && !isReadOnly}>
         <DialogBox>
           <DialogHeader>Unsaved Changes</DialogHeader>
           <DialogMessage>

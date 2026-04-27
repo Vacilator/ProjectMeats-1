@@ -10,7 +10,7 @@
  * - Error handling
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, waitFor, act } from '@testing-library/react';
+import { render, screen, waitFor, act, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QuickActionsProvider, useQuickActions } from './QuickActionsContext';
 import { getAvailableWorkForms } from '@/services/workformsApi';
@@ -104,7 +104,10 @@ describe('QuickActionsContext', () => {
     vi.clearAllMocks();
     
     // Mock localStorage
-    localStorageMock = { authToken: 'test-token' };
+    localStorageMock = {
+      authToken: 'test-token',
+      tenantId: '11111111-1111-4111-8111-111111111111',
+    };
     vi.spyOn(Storage.prototype, 'getItem').mockImplementation((key) => localStorageMock[key] || null);
     
     // Default mock responses
@@ -158,10 +161,35 @@ describe('QuickActionsContext', () => {
       expect(screen.getByTestId('forms-count')).toHaveTextContent('2');
     });
 
+    it('should not make requests when tenantId is missing', async () => {
+      localStorageMock = { authToken: 'test-token' };
+
+      render(
+        <QuickActionsProvider>
+          <TestConsumer />
+        </QuickActionsProvider>
+      );
+
+      await waitFor(() => {
+        expect(screen.getByTestId('loading')).toHaveTextContent('ready');
+      });
+
+      expect(quickActionsService.getQuickActions).not.toHaveBeenCalled();
+      expect(quickActionsService.getAvailableForms).not.toHaveBeenCalled();
+      expect(getAvailableWorkForms).not.toHaveBeenCalled();
+
+      expect(screen.getByTestId('actions-count')).toHaveTextContent('0');
+      expect(screen.getByTestId('forms-count')).toHaveTextContent('0');
+      expect(screen.getByTestId('error')).toHaveTextContent('none');
+    });
+
     it('should load quick actions on mount when authenticated via JWT accessToken', async () => {
       // Token must look like a non-expired JWT for jwtService.getAccessToken() to return it
       const exp = Math.floor(Date.now() / 1000) + 3600; // 1 hour from now
-      localStorageMock = { accessToken: `header.${btoa(JSON.stringify({ exp }))}.sig` };
+      localStorageMock = {
+        accessToken: `header.${btoa(JSON.stringify({ exp }))}.sig`,
+        tenantId: '11111111-1111-4111-8111-111111111111',
+      };
 
       render(
         <QuickActionsProvider>
@@ -178,7 +206,10 @@ describe('QuickActionsContext', () => {
     });
 
     it('should treat 401/403 as logged-out state (no error)', async () => {
-      localStorageMock = {}; // No JWT or legacy token (cookie-auth may still exist in real app)
+      localStorageMock = {
+        // No JWT or legacy token (cookie-auth may still exist in real app)
+        tenantId: '11111111-1111-4111-8111-111111111111',
+      };
 
       vi.mocked(quickActionsService.getQuickActions).mockRejectedValue({ response: { status: 401 } } as any);
       vi.mocked(quickActionsService.getAvailableForms).mockRejectedValue({ response: { status: 401 } } as any);
@@ -200,7 +231,7 @@ describe('QuickActionsContext', () => {
       expect(screen.getByTestId('forms-count')).toHaveTextContent('0');
     });
 
-    it('should merge legacy forms + workforms into availableForms with correct typing', async () => {
+    it('should include workflows from available-forms even if tenant-workforms is forbidden', async () => {
       let ctxRef: any;
 
       vi.mocked(quickActionsService.getQuickActions).mockResolvedValue({ items: [] } as any);
@@ -219,7 +250,7 @@ describe('QuickActionsContext', () => {
         {
           id: 'wf-1',
           type: 'workflow',
-          name: 'Should Be Ignored (workflow from legacy list)',
+          name: 'Beta WorkForm',
           description: '',
           icon: 'layers',
           status: 'active',
@@ -230,10 +261,7 @@ describe('QuickActionsContext', () => {
         },
       ] as any);
 
-      vi.mocked(getAvailableWorkForms).mockResolvedValue([
-        { id: 'wf-1', name: 'Beta WorkForm', description: '', status: 'active', node_count: 2, edge_count: 0, updated_at: '' },
-        { id: 'wf-2', name: 'Archived WorkForm', description: '', status: 'archived', node_count: 1, edge_count: 0, updated_at: '' },
-      ] as any);
+      vi.mocked(getAvailableWorkForms).mockRejectedValue({ response: { status: 403 } } as any);
 
       render(
         <QuickActionsProvider>
@@ -250,7 +278,6 @@ describe('QuickActionsContext', () => {
 
       expect(keys).toContain('form:form-a');
       expect(keys).toContain('workflow:wf-1');
-      expect(keys).not.toContain('workflow:wf-2');
     });
 
     it('should handle load error gracefully', async () => {
@@ -615,11 +642,13 @@ describe('QuickActionsContext', () => {
         expect(screen.getByTestId('error')).toHaveTextContent('Form not found');
       });
       
-      expect(vi.mocked(showAlert)).toHaveBeenCalledWith({
-        type: 'error',
-        title: 'Error',
-        content: 'Form not found',
-      });
+      expect(vi.mocked(showAlert)).toHaveBeenCalledTimes(1);
+      const alertArgs = vi.mocked(showAlert).mock.calls[0][0];
+      expect(alertArgs.type).toBe('error');
+      expect(alertArgs.title).toBe('Error');
+
+      const renderedAlert = render(<>{alertArgs.content}</>);
+      expect(within(renderedAlert.container).getByText('Form not found')).toBeInTheDocument();
       
       consoleSpy.mockRestore();
     });
