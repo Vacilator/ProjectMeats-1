@@ -136,7 +136,6 @@ jobs:
   # Route to Development
   # ==========================================
   deploy-dev:
-    timeout-minutes: 90
     if: |
       needs.check-latest.outputs.should_deploy == 'true' &&
       ((github.event_name == 'push' && github.ref == 'refs/heads/development') ||
@@ -157,7 +156,6 @@ jobs:
   # Route to UAT
   # ==========================================
   deploy-uat:
-    timeout-minutes: 90
     if: |
       needs.check-latest.outputs.should_deploy == 'true' &&
       ((github.event_name == 'push' && github.ref == 'refs/heads/uat') ||
@@ -178,7 +176,6 @@ jobs:
   # Route to Production
   # ==========================================
   deploy-prod:
-    timeout-minutes: 90
     if: |
       needs.check-latest.outputs.should_deploy == 'true' &&
       ((github.event_name == 'push' && github.ref == 'refs/heads/main') ||
