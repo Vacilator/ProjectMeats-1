@@ -124,6 +124,8 @@ This file is the **append-only PR-referenceable execution log**.
   - Docs: added canonical incident response runbook (`docs/runbooks/INCIDENT_RESPONSE.md`).
   - Mobile: began hardening the Customers page table container for mobile E2E stability (`customers-table-container` selector) and continued mobile viewport work.
 
+- **2026-04-27** — Phase 10 Sprint 1 gate: completed (mobile Playwright specs green on Mobile Chrome; Drift Gate + verify-standards passing). (PR: Vacilator/ProjectMeats-1#21)
+
 - **2026-04-27** — Entities: fixed UniversalEntityForm React infinite loop (#185) in Plant create/edit by stabilizing initialValues and sanitizing array-like defaults; restored AI Overview on canonical Supplier/Customer record pages; renamed Suppliers/Customers list create buttons to "New Supplier"/"New Customer" and aligned Customer form titles to "New Customer"/"Customer". (PR: #4711)
 
 - **2026-04-27** — Forms: fixed Plant edit/create crash (minified React error #185) by stabilizing cascading option fetch (no more setState loop when dependencies are empty) and adding a short-lived cache for missing `/system/choices/?list=...` slugs to prevent repeated 404 spam. (PR: #4713)
