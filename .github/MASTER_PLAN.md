@@ -1643,7 +1643,7 @@ Deliverables:
 
 - 2026-04-01 — Docs: clarify historical checklists + fix roadmap duplication — PR: #4337.
 
-- 2026-04-01 — Docs: align README with canonical master plan (remove 100 laims) — PR: #4338.
+- 2026-04-01 — Docs: align README with canonical master plan (remove 100laims) — PR: #4338.
 
 - 2026-04-01 — CI/CD: fix Master Pipeline workflow file issue (run-name + md paths-ignore) — PR: #4339.
 
@@ -1730,3 +1730,5 @@ Deliverables:
 - **2026-04-27** — Frontend: expand `lint:colors` guardrail to MyTasks surfaces and tokenized remaining hardcoded colors in MyTasks/QuickActions widgets, shared styles, and theme config. (PR: #4650)
 - **2026-04-27** — Docs: record backend audit P0s in canonical master plan + PR log. (PR: #4651)
 - **2026-04-27** — Backend: fix `apps/core/views.py` legacy imports/print() and add smoke tests for Ranked Search + Workspace Stats core endpoints. (PR: #4652)
+
+- **2026-04-27** — Ops note: .github/MASTER_PLAN.md had one or more NUL (\0) bytes; repaired by re-serializing as plain UTF-8 text while preserving content.
