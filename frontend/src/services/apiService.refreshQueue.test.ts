@@ -101,8 +101,12 @@ describe('apiService JWT refresh queue', () => {
   let apiClient: any;
   let rejected: (err: any) => Promise<any>;
   let resetState: (() => void) | undefined;
+  let mockClearTokens: any;
 
   beforeAll(async () => {
+    const jwt = (await import('./jwtService')) as any;
+    mockClearTokens = jwt.clearTokens;
+
     const mod = (await import('./apiService')) as any;
     apiClient = mod.apiClient;
     resetState = mod.__resetAuthRefreshStateForTests;
@@ -118,6 +122,7 @@ describe('apiService JWT refresh queue', () => {
     resetState?.();
     mockRefreshAccessToken.mockReset();
     mockTriggerGlobalSessionExpired.mockReset();
+    mockClearTokens?.mockClear?.();
     apiClient.mockClear();
   });
 
@@ -163,6 +168,6 @@ describe('apiService JWT refresh queue', () => {
     await expect(p2).rejects.toBe(err);
 
     expect(apiClient).toHaveBeenCalledTimes(0);
-    expect(mockTriggerGlobalSessionExpired).toHaveBeenCalledTimes(1);
+    expect(mockClearTokens).toHaveBeenCalledTimes(1);
   });
 });

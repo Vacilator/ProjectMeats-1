@@ -5,6 +5,7 @@
  * Handles loading, caching, and updating user's quick actions.
  */
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
+import { useAuthState } from '@/contexts/AuthContext';
 import { getAvailableWorkForms } from '@/services/workformsApi';
 import { showAlert } from '@/utils/uiDialogs';
 import { logger } from '@/utils/logger';
@@ -64,6 +65,8 @@ interface QuickActionsProviderProps {
 }
 
 export const QuickActionsProvider: React.FC<QuickActionsProviderProps> = ({ children }) => {
+  const { isAuthenticated, loading: authLoading } = useAuthState();
+
   const [quickActions, setQuickActions] = useState<QuickActionItem[]>([]);
   const [availableForms, setAvailableForms] = useState<AvailableForm[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -75,8 +78,18 @@ export const QuickActionsProvider: React.FC<QuickActionsProviderProps> = ({ chil
 
   const warnedMissingTenantRef = React.useRef(false);
 
-  // Load quick actions on mount
+  // Load quick actions when authenticated (and tenant is available)
   const refreshQuickActions = useCallback(async () => {
+    // Prevent noisy 401 spam during app bootstrap.
+    if (authLoading) return;
+    if (!isAuthenticated) {
+      setQuickActions([]);
+      setAvailableForms([]);
+      setError(null);
+      setIsLoading(false);
+      return;
+    }
+
     const isAuthError = (err: any) => {
       const status = err?.response?.status;
       return status === 401 || status === 403;
@@ -200,17 +213,27 @@ export const QuickActionsProvider: React.FC<QuickActionsProviderProps> = ({ chil
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [authLoading, isAuthenticated]);
 
-  const didInitialFetchRef = React.useRef(false);
+  const didFetchForAuthRef = React.useRef(false);
 
   useEffect(() => {
-    // Always attempt to load: supports cookie-auth sessions (no localStorage token).
-    // Guard against effect re-run (e.g., React dev strict-mode double-invoke) to avoid retry loops.
-    if (didInitialFetchRef.current) return;
-    didInitialFetchRef.current = true;
-    refreshQuickActions();
-  }, [refreshQuickActions]);
+    if (authLoading) return;
+
+    if (!isAuthenticated) {
+      // Allow a fresh load after the next successful login.
+      didFetchForAuthRef.current = false;
+      setQuickActions([]);
+      setAvailableForms([]);
+      setError(null);
+      setIsLoading(false);
+      return;
+    }
+
+    if (didFetchForAuthRef.current) return;
+    didFetchForAuthRef.current = true;
+    void refreshQuickActions();
+  }, [authLoading, isAuthenticated, refreshQuickActions]);
 
   const updateQuickActions = useCallback(async (items: QuickActionItem[]) => {
     try {
