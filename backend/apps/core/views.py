@@ -2,6 +2,7 @@ import logging
 
 from django.contrib.auth import authenticate
 from django.contrib.auth.models import User
+from drf_spectacular.utils import OpenApiTypes, extend_schema
 from rest_framework import status, viewsets
 from rest_framework.decorators import api_view, permission_classes, throttle_classes, action
 from rest_framework.permissions import AllowAny, IsAuthenticated
@@ -11,11 +12,16 @@ from rest_framework.serializers import ValidationError
 from apps.tenants.models import TenantUser
 from apps.core.throttling import AuthRateThrottle
 from apps.core.models import UserFavorite
-from apps.core.serializers import UserFavoriteSerializer
+from apps.core.serializers import LoginRequestSerializer, UserFavoriteSerializer
 
 logger = logging.getLogger(__name__)
 
 
+@extend_schema(
+    tags=["Auth"],
+    request=LoginRequestSerializer,
+    responses={200: OpenApiTypes.OBJECT, 400: OpenApiTypes.OBJECT, 401: OpenApiTypes.OBJECT},
+)
 @api_view(["POST"])
 @permission_classes([AllowAny])
 @throttle_classes([AuthRateThrottle])
