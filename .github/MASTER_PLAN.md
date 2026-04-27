@@ -116,6 +116,8 @@ This file is the **append-only PR-referenceable execution log**.
 
 - **2026-04-27** — Workflows/QuickActions stability: `/api/v1/workflows/available-forms/` now validates optional entity context and returns 400 (never 500) for bad params/IDs; frontend adds a circuit breaker to prevent remount loops on backend 5xx; Supplier form title rolled back to "New Supplier"/"Supplier" while keeping HQ field labels and phone input typing; Suppliers/Customers table rows now show pointer cursor on hover. (PR: #4707)
 
+- **2026-04-27** — Workflows/QuickActions hardening: `/api/v1/workflows/available-forms/` now degrades safely even if form/workform serialization or node_count fails (skips bad rows; never 500) with regression coverage; frontend stops probing legacy `/api/v1/products/master/` and calls canonical `/api/v1/master-products/` only (avoids noisy 404 spam). (PR: #4709)
+
 ### 2026-03-31 — Secret audit drift (manifest v5.1)
 - Command: `python config/manage_env.py audit --repo Meats-Central/ProjectMeats`
 - Stale/Zombie secrets found in GitHub but NOT in `manifests/env.manifest.json` (or legacy `DEV_`/`UAT_`/`PROD_` prefixed):

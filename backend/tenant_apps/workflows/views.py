@@ -2901,113 +2901,132 @@ class AvailableFormsViewSet(viewsets.ReadOnlyModelViewSet):
         the caller from accidentally passing cross-tenant IDs and triggering server errors.
         """
 
-        entity_type = (request.query_params.get('entity_type') or '').strip().lower()
-        entity_id_raw = (request.query_params.get('entity_id') or '').strip()
-
-        if entity_type or entity_id_raw:
-            if not (entity_type and entity_id_raw):
-                return Response(
-                    {'error': 'Both entity_type and entity_id are required when providing entity context.'},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-
-            allowed = {'supplier', 'customer', 'plant', 'location'}
-            if entity_type not in allowed:
-                return Response(
-                    {'error': f'Unsupported entity_type: {entity_type}.'},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-
-            tenant = _get_request_tenant(request)
-            if not tenant:
-                return Response(
-                    {'error': 'Tenant context is required (X-Tenant-ID header) when providing entity context.'},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-
-            try:
-                entity_pk = int(entity_id_raw)
-            except (TypeError, ValueError):
-                return Response(
-                    {'error': f'Invalid entity_id for {entity_type}: {entity_id_raw}.'},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-
-            try:
-                if entity_type == 'supplier':
-                    from tenant_apps.suppliers.models import Supplier
-
-                    Supplier.objects.get(pk=entity_pk, tenant=tenant)
-                elif entity_type == 'customer':
-                    from tenant_apps.customers.models import Customer
-
-                    Customer.objects.get(pk=entity_pk, tenant=tenant)
-                elif entity_type == 'plant':
-                    from tenant_apps.plants.models import Plant
-
-                    Plant.objects.get(pk=entity_pk, tenant=tenant)
-                elif entity_type == 'location':
-                    from tenant_apps.locations.models import Location
-
-                    Location.objects.get(pk=entity_pk, tenant=tenant)
-            except Exception as exc:
-                logger.warning(
-                    'available-forms: invalid entity context',
-                    extra={
-                        'entity_type': entity_type,
-                        'entity_id': entity_id_raw,
-                        'tenant_id': str(getattr(tenant, 'id', '')),
-                        'error': str(exc),
-                    },
-                )
-                return Response(
-                    {'error': 'Invalid entity context.'},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-
+        # Absolute safety net: UI surfaces expect this endpoint to be resilient.
         try:
-            forms_qs = self.filter_queryset(self.get_queryset())
-        except Exception as exc:
-            logger.warning('available-forms: invalid filters', extra={'error': str(exc)})
-            return Response(
-                {'error': 'Invalid query parameters.'},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+            entity_type = (request.query_params.get('entity_type') or '').strip().lower()
+            entity_id_raw = (request.query_params.get('entity_id') or '').strip()
 
-        forms_data = AvailableFormSerializer(forms_qs, many=True).data
-        for row in forms_data:
-            row['type'] = 'form'
-            row['node_count'] = None
+            if entity_type or entity_id_raw:
+                if not (entity_type and entity_id_raw):
+                    return Response(
+                        {'error': 'Both entity_type and entity_id are required when providing entity context.'},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
 
-        workforms_data = []
-        for wf in self._get_workforms(request):
+                allowed = {'supplier', 'customer', 'plant', 'location'}
+                if entity_type not in allowed:
+                    return Response(
+                        {'error': f'Unsupported entity_type: {entity_type}.'},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+
+                tenant = _get_request_tenant(request)
+                if not tenant:
+                    return Response(
+                        {'error': 'Tenant context is required (X-Tenant-ID header) when providing entity context.'},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+
+                try:
+                    entity_pk = int(entity_id_raw)
+                except (TypeError, ValueError):
+                    return Response(
+                        {'error': f'Invalid entity_id for {entity_type}: {entity_id_raw}.'},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+
+                try:
+                    if entity_type == 'supplier':
+                        from tenant_apps.suppliers.models import Supplier
+
+                        Supplier.objects.get(pk=entity_pk, tenant=tenant)
+                    elif entity_type == 'customer':
+                        from tenant_apps.customers.models import Customer
+
+                        Customer.objects.get(pk=entity_pk, tenant=tenant)
+                    elif entity_type == 'plant':
+                        from tenant_apps.plants.models import Plant
+
+                        Plant.objects.get(pk=entity_pk, tenant=tenant)
+                    elif entity_type == 'location':
+                        from tenant_apps.locations.models import Location
+
+                        Location.objects.get(pk=entity_pk, tenant=tenant)
+                except Exception as exc:
+                    logger.warning(
+                        'available-forms: invalid entity context',
+                        extra={
+                            'entity_type': entity_type,
+                            'entity_id': entity_id_raw,
+                            'tenant_id': str(getattr(tenant, 'id', '')),
+                            'error': str(exc),
+                        },
+                    )
+                    return Response(
+                        {'error': 'Invalid entity context.'},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+
             try:
-                node_count = wf.get_node_count() if hasattr(wf, 'get_node_count') else None
+                forms_qs = self.filter_queryset(self.get_queryset())
             except Exception as exc:
-                logger.warning(
-                    'available-forms: node_count failed; defaulting to 0',
-                    extra={'workform_id': str(getattr(wf, 'id', '')), 'error': str(exc)},
+                logger.warning('available-forms: invalid filters', extra={'error': str(exc)})
+                return Response(
+                    {'error': 'Invalid query parameters.'},
+                    status=status.HTTP_400_BAD_REQUEST,
                 )
-                node_count = 0
 
-            workforms_data.append(
-                {
-                    'id': str(wf.id),
-                    'type': 'workflow',
-                    'name': wf.name,
-                    'description': wf.description or '',
-                    'icon': 'workflow',
-                    'status': wf.status,
-                    'is_default': False,
-                    'is_quick_action_enabled': True,
-                    'step_count': None,
-                    'node_count': node_count,
-                }
-            )
+            forms_data = []
+            for form in forms_qs:
+                try:
+                    row = AvailableFormSerializer(form).data
+                    row['type'] = 'form'
+                    row['node_count'] = None
+                    forms_data.append(row)
+                except Exception as exc:
+                    logger.exception(
+                        'available-forms: form serialization failed; skipping',
+                        extra={'form_id': str(getattr(form, 'id', '')), 'error': str(exc)},
+                    )
 
-        data = forms_data + workforms_data
-        data.sort(key=lambda r: str(r.get('name') or '').lower())
-        return Response(data)
+            workforms_data = []
+            for wf in self._get_workforms(request):
+                try:
+                    try:
+                        node_count = wf.get_node_count() if hasattr(wf, 'get_node_count') else None
+                    except Exception as exc:
+                        logger.warning(
+                            'available-forms: node_count failed; defaulting to 0',
+                            extra={'workform_id': str(getattr(wf, 'id', '')), 'error': str(exc)},
+                        )
+                        node_count = 0
+
+                    workforms_data.append(
+                        {
+                            'id': str(wf.id),
+                            'type': 'workflow',
+                            'name': wf.name,
+                            'description': wf.description or '',
+                            'icon': 'workflow',
+                            'status': wf.status,
+                            'is_default': False,
+                            'is_quick_action_enabled': True,
+                            'step_count': None,
+                            'node_count': node_count,
+                        }
+                    )
+                except Exception as exc:
+                    logger.exception(
+                        'available-forms: workform serialization failed; skipping',
+                        extra={'workform_id': str(getattr(wf, 'id', '')), 'error': str(exc)},
+                    )
+
+            data = forms_data + workforms_data
+            data.sort(key=lambda r: str(r.get('name') or '').lower())
+            return Response(data)
+        except Exception as exc:
+            logger.exception('available-forms: internal error; returning empty list', extra={'error': str(exc)})
+            return Response([])
 
 
 @extend_schema(tags=["Workflows", "Quick Actions"])
