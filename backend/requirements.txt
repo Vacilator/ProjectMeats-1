@@ -52,7 +52,7 @@ psutil>=5.9.0  # For system health monitoring
 requests>=2.31.0  # For GitHub API integration in bug reports
 
 # OpenAI (Phase 6.5: AI Document Understanding)
-openai>=1.0.0
+openai>=2.32.0
 
 # Vector DB (Phase 8.0: Swarm Memory)
 pgvector>=0.2.7  # For PostgreSQL vector embeddings (RAG)
