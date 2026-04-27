@@ -13,6 +13,9 @@ from apps.tenants.models import Tenant, TenantUser
 from tenant_apps.customers.models import Customer
 from tenant_apps.suppliers.models import Supplier
 from tenant_apps.purchase_orders.models import PurchaseOrder
+from tenant_apps.plants.models import Plant
+from tenant_apps.locations.models import Location
+from tenant_apps.contacts.models import Contact
 
 
 class CockpitSearchTestCase(TestCase):
@@ -178,3 +181,58 @@ class CockpitSearchTestCase(TestCase):
         response = self.client.get('/api/v1/cockpit/slots/', {'q': 'test'}, **self.tenant_header)
         
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+
+class CockpitEntityAIOverviewTestCase(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+
+        unique_id = uuid.uuid4().hex[:8]
+        self.tenant = Tenant.objects.create(
+            name=f'Test AI Tenant {unique_id}',
+            slug=f'test-ai-{unique_id}',
+            contact_email=f'ai-{unique_id}@example.com',
+            is_active=True,
+        )
+
+        self.user = User.objects.create_user(
+            username=f'aiuser-{unique_id}',
+            password='testpass123',
+            email=f'aiuser-{unique_id}@example.com',
+        )
+
+        TenantUser.objects.create(user=self.user, tenant=self.tenant, role='admin', is_active=True)
+
+        self.client.force_login(self.user)
+        self.tenant_header = {'HTTP_X_TENANT_ID': str(self.tenant.id)}
+
+        self.supplier = Supplier.objects.create(tenant=self.tenant, name=f'Supplier {unique_id}')
+        self.customer = Customer.objects.create(tenant=self.tenant, name=f'Customer {unique_id}')
+        self.plant = Plant.objects.create(tenant=self.tenant, name=f'Plant {unique_id}')
+        self.location = Location.objects.create(tenant=self.tenant, name=f'Location {unique_id}')
+        self.contact = Contact.objects.create(
+            tenant=self.tenant,
+            first_name='HQ',
+            last_name=f'Contact {unique_id}',
+            supplier=self.supplier,
+        )
+
+    def test_ai_overview_returns_200_for_supported_entities(self):
+        # We only assert that the endpoint is stable and tenant-scoped; actual AI generation
+        # may be unavailable in CI when OPENAI_API_KEY is not configured.
+        for entity_type, entity_id in [
+            ('supplier', self.supplier.id),
+            ('customer', self.customer.id),
+            ('plant', self.plant.id),
+            ('location', self.location.id),
+            ('contact', self.contact.id),
+        ]:
+            resp = self.client.get(
+                f'/api/v1/cockpit/entities/{entity_type}/{entity_id}/ai-overview/',
+                **self.tenant_header,
+            )
+
+            self.assertEqual(resp.status_code, status.HTTP_200_OK)
+            payload = resp.json()
+            self.assertIn('status', payload)
+            self.assertIn('summary', payload)

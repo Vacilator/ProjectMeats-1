@@ -18,6 +18,7 @@ class EntityTypeChoices(models.TextChoices):
     SUPPLIER = "supplier", "Supplier"
     CUSTOMER = "customer", "Customer"
     PLANT = "plant", "Plant"
+    LOCATION = "location", "Location"
     PURCHASE_ORDER = "purchase_order", "Purchase Order"
     SALES_ORDER = "sales_order", "Sales Order"
     CARRIER = "carrier", "Carrier"

@@ -1,50 +1,47 @@
 import React, { useEffect } from 'react';
-import { useLocation, useNavigate, useParams } from 'react-router-dom';
-
-import { useCockpitNavigation } from '../../contexts/CockpitNavigationContext';
-
-type LocationState = {
-  initialLabel?: string;
-};
+import { useNavigate, useParams } from 'react-router-dom';
 
 /**
  * Legacy route handler.
  *
- * We no longer want Cockpit entity selection to navigate to /cockpit/entity/...
- * (the Cockpit UX is breadcrumb/state-driven on /cockpit), but we keep this
- * route as a redirect for old links/bookmarks.
+ * Cockpit entity links should land on the canonical record page so Cockpit and
+ * left-nav entity pages share the exact same UI/UX.
  */
 export const CockpitEntityRedirect: React.FC = () => {
   const { entityType = '', entityId = '' } = useParams();
   const navigate = useNavigate();
-  const location = useLocation();
-  const cockpitNavigation = useCockpitNavigation();
 
   useEffect(() => {
-    const rawType = String(entityType ?? '').toLowerCase();
+    const rawType = String(entityType ?? '').trim().toLowerCase();
     const canonicalType = rawType === 'customer' || rawType === 'customers'
       ? 'customer'
       : rawType === 'supplier' || rawType === 'suppliers'
         ? 'supplier'
-        : null;
+        : rawType === 'plant' || rawType === 'plants'
+          ? 'plant'
+          : rawType === 'location' || rawType === 'locations'
+            ? 'location'
+            : rawType === 'contact' || rawType === 'contacts'
+              ? 'contact'
+              : rawType === 'purchase_order' || rawType === 'purchase_orders' || rawType === 'purchase-orders'
+                ? 'purchase_order'
+                : rawType === 'sales_order' || rawType === 'sales_orders' || rawType === 'sales-orders'
+                  ? 'sales_order'
+                  : rawType === 'inquiry' || rawType === 'inquiries'
+                    ? 'inquiry'
+                    : rawType === 'invoice' || rawType === 'invoices'
+                      ? 'invoice'
+                      : null;
 
     if (!canonicalType || !entityId) {
       navigate('/cockpit', { replace: true });
       return;
     }
 
-    const state = (location.state ?? {}) as LocationState;
-    const label = state.initialLabel || `${canonicalType === 'customer' ? 'Customer' : 'Supplier'} ${entityId}`;
-
-    cockpitNavigation.clearPath();
-    cockpitNavigation.addStep({
-      id: String(entityId),
-      type: canonicalType,
-      label,
+    navigate(`/records/${encodeURIComponent(canonicalType)}/${encodeURIComponent(String(entityId))}`, {
+      replace: true,
     });
-
-    navigate('/cockpit', { replace: true });
-  }, [cockpitNavigation, entityId, entityType, location.state, navigate]);
+  }, [entityId, entityType, navigate]);
 
   return null;
 };

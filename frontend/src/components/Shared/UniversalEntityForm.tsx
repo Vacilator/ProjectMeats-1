@@ -566,7 +566,8 @@ const augmentSchemaForFrontend = (
 
     const selectedKeys = [
       pickFieldKey(['name', 'company_name']),
-      pickFieldKey(['phone', 'phone_number']),
+      // Supplier/customer phone keys vary across environments. Prefer office phone when present.
+      pickFieldKey(['phone_office', 'phone', 'phone_number', 'office_phone', 'mobile_phone', 'phone_mobile']),
       pickFieldKey(['address', 'street_address']),
       pickFieldKey(['city']),
       pickFieldKey(['state']),
@@ -577,6 +578,10 @@ const augmentSchemaForFrontend = (
     const labelByKey: Record<string, string> = {
       phone: 'HQ Phone Number',
       phone_number: 'HQ Phone Number',
+      phone_office: 'HQ Phone Number',
+      office_phone: 'HQ Phone Number',
+      phone_mobile: 'HQ Phone Number',
+      mobile_phone: 'HQ Phone Number',
       address: 'HQ Address',
       street_address: 'HQ Address',
       city: 'HQ City',
@@ -594,16 +599,24 @@ const augmentSchemaForFrontend = (
       if (!field) return;
 
       const label = labelByKey[key] || field.label;
+      const isHqPhone =
+        key === 'phone' ||
+        key === 'phone_number' ||
+        key === 'phone_office' ||
+        key === 'office_phone' ||
+        key === 'phone_mobile' ||
+        key === 'mobile_phone';
+
       const placeholder =
         field.placeholder ||
-        (key === 'phone' || key === 'phone_number'
+        (isHqPhone
           ? 'Enter HQ phone number'
           : key === 'address' || key === 'street_address'
             ? 'Enter HQ address'
             : null);
 
       const typeOverride =
-        key === 'phone' || key === 'phone_number'
+        isHqPhone
           ? 'phone'
           : key === 'address' || key === 'street_address'
             ? 'text'
