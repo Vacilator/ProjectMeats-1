@@ -487,7 +487,18 @@ assert_needs_exact('test-frontend', {'build-frontend'})
 assert_needs_exact('check-migrations', {'test-backend'})
 
 # Tests gating is re-enabled: migrations are gated on BOTH backend and frontend test tracks.
-assert_needs_exact('migrate', {'check-migrations', 'test-frontend'})
+# We also allow (and prefer) additionally gating mutations on security scans to avoid
+# "DB advanced but deploy blocked" failure modes.
+allowed_migrate_needs = [
+    {'check-migrations', 'test-frontend'},
+    {'check-migrations', 'test-frontend', 'security-scan-backend', 'security-scan-frontend'},
+]
+if needs_set('migrate') not in allowed_migrate_needs:
+    print(
+        f"ERROR: migrate.needs must be one of {sorted([sorted(s) for s in allowed_migrate_needs])} (found {sorted(needs_set('migrate'))})",
+        file=sys.stderr,
+    )
+    raise SystemExit(1)
 
 # Deploy backend is gated on migrations + its own security scan.
 assert_needs_exact('deploy-backend', {'migrate', 'security-scan-backend'})

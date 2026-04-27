@@ -685,8 +685,8 @@ jobs:
   
   migrate:
     name: "Run Database Migrations"
-    # Gate all mutation steps on both backend + frontend tests to avoid partial deploys.
-    needs: [check-migrations, test-frontend]
+    # Gate all mutation steps on tests + security scans to avoid "DB advanced but deploy blocked" failures.
+    needs: [check-migrations, test-frontend, security-scan-backend, security-scan-frontend]
     runs-on: ubuntu-latest
     environment: ${{ inputs.backend_environment }}
     timeout-minutes: 15
@@ -1502,7 +1502,7 @@ jobs:
 
           docker run -d --name pm-backend \
             --restart unless-stopped \
-            -p 8000:8000 \
+            -p 127.0.0.1:8000:8000 \
             --env-file /root/projectmeats/backend/.env \
             -e DB_HOST="${{ secrets.DB_HOST }}" \
             -e DB_NAME="${{ secrets.DB_NAME }}" \
