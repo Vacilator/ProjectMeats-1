@@ -31,12 +31,21 @@ const QuickActionsEditor: React.FC<QuickActionsEditorProps> = ({ isOpen, onClose
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (isOpen) {
-      setLocalActions([...quickActions]);
-      setError(null);
-      void refreshQuickActions();
-    }
-  }, [isOpen, quickActions, refreshQuickActions]);
+    if (!isOpen) return;
+
+    setLocalActions([...quickActions]);
+    setError(null);
+
+    // Fetch once per open; do not depend on quickActions to avoid refresh loops.
+    void refreshQuickActions();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, refreshQuickActions]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    // Keep local list in sync with global state while open, without triggering a refetch.
+    setLocalActions([...quickActions]);
+  }, [isOpen, quickActions]);
 
   if (!isOpen) return null;
 

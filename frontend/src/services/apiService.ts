@@ -153,21 +153,35 @@ apiClient.interceptors.request.use(
       // Axios will set the correct multipart boundary automatically.
       stripJsonContentTypeForFormData(config);
 
+      const isAuthEndpoint = isAuthEndpointRequest(config.url);
+
       // Check if token needs refresh before making request
       // IMPORTANT: do NOT block the request path on refresh.
       // If refresh is slow/unreachable (common in dev), awaiting here can freeze app bootstraps (Quick Actions).
       // The response interceptor will handle 401s and trigger a single refresh attempt with proper queuing.
-      if (isUsingJwt() && needsRefresh() && !isRefreshing) {
+      if (!isAuthEndpoint && isUsingJwt() && needsRefresh() && !isRefreshing) {
         logger.debug('[API] Token needs refresh, attempting refresh in background...');
         refreshAccessToken().catch((error) => {
           logger.error('[API] Token refresh failed in request interceptor:', error);
         });
       }
-      
+
       // Get auth header (supports both JWT Bearer and legacy Token)
-      const authHeader = getAuthHeader();
+      // Critical: never attach Authorization to auth endpoints.
+      const authHeader = !isAuthEndpoint ? getAuthHeader() : null;
       if (authHeader) {
         config.headers.Authorization = authHeader;
+      } else {
+        const headersAny = config.headers as any;
+        if (headersAny) {
+          if (typeof headersAny.delete === 'function') {
+            headersAny.delete('Authorization');
+            headersAny.delete('authorization');
+          } else {
+            delete headersAny.Authorization;
+            delete headersAny.authorization;
+          }
+        }
       }
       // Note: Missing auth header is expected during login/public endpoints
       
@@ -208,20 +222,31 @@ adminClient.interceptors.request.use(
       // Axios will set the correct multipart boundary automatically.
       stripJsonContentTypeForFormData(config);
 
+      const isAuthEndpoint = isAuthEndpointRequest(config.url);
+
       // Check if token needs refresh before making request
       // IMPORTANT: do NOT block the request path on refresh. (See apiClient interceptor note.)
-      if (isUsingJwt() && needsRefresh() && !isRefreshing) {
+      if (!isAuthEndpoint && isUsingJwt() && needsRefresh() && !isRefreshing) {
         logger.debug('[Admin API] Token needs refresh, attempting refresh in background...');
         refreshAccessToken().catch((error) => {
           logger.error('[Admin API] Token refresh failed in request interceptor:', error);
         });
       }
-      
-      const authHeader = getAuthHeader();
+
+      const authHeader = !isAuthEndpoint ? getAuthHeader() : null;
       if (authHeader) {
         config.headers.Authorization = authHeader;
       } else {
-        logger.warn('[Admin API] No auth header available for request to:', config.url);
+        const headersAny = config.headers as any;
+        if (headersAny) {
+          if (typeof headersAny.delete === 'function') {
+            headersAny.delete('Authorization');
+            headersAny.delete('authorization');
+          } else {
+            delete headersAny.Authorization;
+            delete headersAny.authorization;
+          }
+        }
       }
       
       // Add tenant ID header if available (and valid).
