@@ -391,11 +391,21 @@ const augmentSchemaForFrontend = (
     const key = String(field.key || '').toLowerCase();
     if (key !== 'department') return field;
 
-    const choices = (field.choices || []).map((choice) => {
+    const currentDept = String(values?.department ?? '').trim().toLowerCase();
+
+    const filteredChoices = (field.choices || []).filter((choice) => {
+      const value = String(choice.value).toLowerCase();
+
+      // Hide legacy BOOKING unless the record already has it.
+      if (value === 'booking' && currentDept !== 'booking') return false;
+      return true;
+    });
+
+    const choices = filteredChoices.map((choice) => {
       if (String(choice.value).toLowerCase() !== 'booking') return choice;
       return {
         ...choice,
-        label: 'Shipping / Loadout',
+        label: 'Shipping / Loadout (Legacy)',
       };
     });
 

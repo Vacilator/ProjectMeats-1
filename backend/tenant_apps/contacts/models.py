@@ -17,6 +17,10 @@ class ContactDepartmentChoices(models.TextChoices):
     CERTIFICATION = 'certification', 'Certification'
     ACCOUNTING = 'accounting', 'Accounting'
 
+    # Back-compat alias: keep the legacy enum value to satisfy OpenAPI back-compat gates.
+    # Data is migrated to SHIPPING; UI should avoid offering BOOKING for new records.
+    BOOKING = 'booking', 'Booking (Deprecated)'
+
 
 class Contact(TenantAwareModel):
     """Contact model for managing contact information."""
