@@ -26,6 +26,8 @@ import { businessApi } from '../../services/businessApi';
 import { useQuickActions } from '../../contexts/QuickActionsContext';
 import { workflowExecutionService } from '../../services/workflowExecutionService';
 import { workformExecutionService } from '@/services/workformExecutionService';
+import { getWorkformsErrorUi } from '@/features/workforms/workformsErrors';
+import { logger } from '@/utils/logger';
 
 // ============================================================================
 // Types
@@ -235,17 +237,17 @@ const StatusBadge = styled.span<{ $status: string }>`
   border-radius: 12px;
   background: ${({ $status }) =>
     $status === 'in_progress'
-      ? 'rgb(59 130 246 / 0.10)'
+      ? 'rgba(var(--color-info), 0.10)'
       : $status === 'draft'
-        ? 'rgb(var(--color-text-tertiary) / 0.10)'
-        : 'rgb(234 179 8 / 0.10)'
+        ? 'rgba(var(--color-text-tertiary), 0.10)'
+        : 'rgba(var(--color-warning), 0.10)'
   };
   color: ${({ $status }) =>
     $status === 'in_progress'
-      ? 'rgb(59, 130, 246)'
+      ? 'rgb(var(--color-info))'
       : $status === 'draft'
         ? 'rgb(var(--color-text-secondary))'
-        : 'rgb(234, 179, 8)'
+        : 'rgb(var(--color-warning))'
   };
 `;
 
@@ -302,7 +304,7 @@ const ResumeButton = styled.button`
   border: none;
   border-radius: var(--radius-md, 8px);
   background: rgb(var(--color-primary));
-  color: white;
+  color: rgb(var(--color-primary-foreground));
   font-size: 14px;
   font-weight: 500;
   cursor: pointer;
@@ -378,8 +380,8 @@ const FilterSelect = styled.select`
 const CancelButton = styled.button`
   padding: 10px 16px;
   background: transparent;
-  color: rgb(239, 68, 68);
-  border: 1px solid rgb(239, 68, 68);
+  color: rgb(var(--color-error));
+  border: 1px solid rgb(var(--color-error));
   border-radius: var(--radius-md, 8px);
   font-size: 14px;
   font-weight: 500;
@@ -387,7 +389,7 @@ const CancelButton = styled.button`
   transition: all 0.15s ease;
   
   &:hover {
-    background: rgb(239 68 68 / 0.10);
+    background: rgba(var(--color-error), 0.10);
   }
   
   &:disabled {
@@ -396,71 +398,6 @@ const CancelButton = styled.button`
   }
 `;
 
-const Modal = styled.div<{ $isOpen: boolean }>`
-  display: ${({ $isOpen }) => $isOpen ? 'flex' : 'none'};
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgb(var(--color-text-primary) / 0.50);
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-`;
-
-const ModalContent = styled.div`
-  background: rgb(var(--color-surface));
-  border-radius: var(--radius-lg, 12px);
-  padding: 24px;
-  max-width: 400px;
-  width: 90%;
-`;
-
-const ModalTitle = styled.h3`
-  font-size: 18px;
-  font-weight: 600;
-  color: rgb(var(--color-text-primary));
-  margin: 0 0 12px;
-`;
-
-const ModalText = styled.p`
-  font-size: 14px;
-  color: rgb(var(--color-text-secondary));
-  margin: 0 0 20px;
-`;
-
-const ModalActions = styled.div`
-  display: flex;
-  gap: 8px;
-  justify-content: flex-end;
-`;
-
-const ModalButton = styled.button<{ $variant?: 'danger' }>`
-  padding: 10px 20px;
-  border: none;
-  border-radius: var(--radius-md, 8px);
-  font-size: 14px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: opacity 0.15s ease;
-  
-  background: ${({ $variant }) => 
-    $variant === 'danger' ? 'rgb(239, 68, 68)' : 'rgb(var(--color-border))'
-  };
-  color: ${({ $variant }) => 
-    $variant === 'danger' ? 'white' : 'rgb(var(--color-text-primary))'
-  };
-  
-  &:hover {
-    opacity: 0.9;
-  }
-  
-  &:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-  }
-`;
 
 // ============================================================================
 // Component
@@ -474,8 +411,7 @@ const FormsFlowsInProgress: React.FC = () => {
   const [filterMode, setFilterMode] = useState<'all' | 'my' | 'team'>('all');
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
   const [cancelingId, setCancelingId] = useState<string | null>(null);
-  const [showCancelModal, setShowCancelModal] = useState(false);
-  const [selectedSubmission, setSelectedSubmission] = useState<FormSubmission | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const { id: submissionId } = useParams<{ id?: string }>();
   const navigate = useNavigate();
@@ -484,11 +420,12 @@ const FormsFlowsInProgress: React.FC = () => {
   useEffect(() => {
     if (!submissionId) return;
 
-    resumeSubmission(submissionId).catch(() => {
+    resumeSubmission(submissionId).catch((error) => {
+      const ui = getWorkformsErrorUi(error, 'inProgress.load');
       showAlert({
         type: 'error',
-        title: 'Error',
-        content: 'Failed to load the selected in-progress workflow. Please try again.',
+        title: ui.title,
+        content: ui.message,
       });
     });
   }, [resumeSubmission, submissionId]);
@@ -496,6 +433,7 @@ const FormsFlowsInProgress: React.FC = () => {
   // Fetch in-progress submissions
   const fetchSubmissions = async () => {
     setLoading(true);
+    setLoadError(null);
     try {
       const params: any = { status: 'in_progress,draft' };
       
@@ -508,8 +446,9 @@ const FormsFlowsInProgress: React.FC = () => {
       setSubmissions(response.data.results || response.data || []);
       setLastUpdated(new Date());
     } catch (error) {
-      console.error('Failed to fetch submissions:', error);
+      logger.error('[WorkFormsInProgress] Failed to fetch submissions', error);
       setSubmissions([]);
+      setLoadError(getWorkformsErrorUi(error, 'inProgress.load').message);
     } finally {
       setLoading(false);
     }
@@ -544,32 +483,31 @@ const FormsFlowsInProgress: React.FC = () => {
     refetchInterval: 10000,
   });
 
-  // Handle cancel confirmation
-  const handleCancelClick = (submission: FormSubmission) => {
-    setSelectedSubmission(submission);
-    setShowCancelModal(true);
-  };
-  
-  // Handle cancel workflow
-  const handleCancelConfirm = async () => {
-    if (!selectedSubmission) return;
-    
-    setCancelingId(selectedSubmission.id);
+  const handleCancelClick = async (submission: FormSubmission) => {
+    const ok = await confirmDialog({
+      title: 'Cancel submission?',
+      content: `Are you sure you want to cancel "${submission.form_name}"? This action cannot be undone.`,
+      okText: 'Yes, cancel',
+      cancelText: 'Keep working',
+      danger: true,
+    });
+
+    if (!ok) return;
+
+    setCancelingId(submission.id);
     try {
-      await workflowExecutionService.cancelExecution(selectedSubmission.id, {
+      await workflowExecutionService.cancelExecution(submission.id, {
         reason: 'Cancelled by user',
       });
-      
-      // Update UI immediately
-      setSubmissions(prev => prev.filter(s => s.id !== selectedSubmission.id));
-      setShowCancelModal(false);
-      setSelectedSubmission(null);
+
+      setSubmissions((prev) => prev.filter((s) => s.id !== submission.id));
     } catch (error) {
-      console.error('Failed to cancel workflow:', error);
+      logger.error('[WorkFormsInProgress] Failed to cancel workflow', error);
+      const ui = getWorkformsErrorUi(error, 'inProgress.cancel');
       showAlert({
         type: 'error',
-        title: 'Error',
-        content: 'Failed to cancel workflow. Please try again.',
+        title: ui.title,
+        content: ui.message,
       });
     } finally {
       setCancelingId(null);
@@ -622,27 +560,64 @@ const FormsFlowsInProgress: React.FC = () => {
             aria-selected={activeTab === 'executions'}
             onClick={() => setActiveTab('executions')}
           >
-            WorkForm Executions
+            WorkForm Runs
           </Tab>
         </TabsContainer>
+
+        {loadError && activeTab === 'submissions' ? (
+          <div
+            role="status"
+            aria-live="polite"
+            style={{
+              margin: '12px 0',
+              padding: '12px',
+              border: '1px solid rgb(var(--color-border))',
+              borderRadius: 12,
+              background: 'rgb(var(--color-primary) / 0.06)',
+              color: 'rgb(var(--color-text-primary))',
+              display: 'flex',
+              justifyContent: 'space-between',
+              gap: 12,
+              alignItems: 'center',
+              flexWrap: 'wrap',
+            }}
+          >
+            <span>{loadError}</span>
+            <button
+              type="button"
+              onClick={() => fetchSubmissions()}
+              style={{
+                border: '1px solid rgb(var(--color-border))',
+                background: 'rgb(var(--color-surface))',
+                color: 'rgb(var(--color-text-primary))',
+                padding: '6px 10px',
+                borderRadius: 10,
+                cursor: 'pointer',
+                fontWeight: 600,
+              }}
+            >
+              Try again
+            </button>
+          </div>
+        ) : null}
 
         <Toolbar>
           <ToolbarLeft>
             <SearchInput
               type="search"
-              placeholder={activeTab === 'executions' ? 'Search executions…' : 'Search in-progress forms…'}
+              placeholder={activeTab === 'executions' ? 'Search runs…' : 'Search in-progress forms…'}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              aria-label={activeTab === 'executions' ? 'Search executions' : 'Search in-progress forms'}
+              aria-label={activeTab === 'executions' ? 'Search runs' : 'Search in-progress forms'}
             />
             <FilterSelect
               value={filterMode}
               onChange={(e) => setFilterMode(e.target.value as any)}
-              aria-label="Filter workflows"
+              aria-label="Filter WorkForms"
             >
-              <option value="all">All Workflows</option>
-              <option value="my">My Workflows</option>
-              <option value="team">Team Workflows</option>
+              <option value="all">All WorkForms</option>
+              <option value="my">My WorkForms</option>
+              <option value="team">Team WorkForms</option>
             </FilterSelect>
           </ToolbarLeft>
           <div style={{ display: 'flex', alignItems: 'center' }}>
@@ -669,7 +644,23 @@ const FormsFlowsInProgress: React.FC = () => {
             );
 
             if (executionsQuery.isLoading) {
-              return <LoadingState role="status" aria-live="polite">Loading executions…</LoadingState>;
+              return <LoadingState role="status" aria-live="polite">Loading runs…</LoadingState>;
+            }
+
+            if (executionsQuery.isError) {
+              const ui = getWorkformsErrorUi(executionsQuery.error, 'inProgress.load');
+              return (
+                <EmptyState role="status" aria-live="polite">
+                  <EmptyIcon aria-hidden="true">
+                    <Clock size={48} />
+                  </EmptyIcon>
+                  <EmptyTitle>{ui.title}</EmptyTitle>
+                  <EmptyMessage>{ui.message}</EmptyMessage>
+                  <ResumeButton onClick={() => void executionsQuery.refetch()} aria-label="Try again">
+                    Try again
+                  </ResumeButton>
+                </EmptyState>
+              );
             }
 
             if (filtered.length === 0) {
@@ -678,18 +669,18 @@ const FormsFlowsInProgress: React.FC = () => {
                   <EmptyIcon aria-hidden="true">
                     <Clock size={48} />
                   </EmptyIcon>
-                  <EmptyTitle>No executions in progress</EmptyTitle>
+                  <EmptyTitle>No runs in progress</EmptyTitle>
                   <EmptyMessage>
                     {searchQuery
-                      ? 'No matching executions found. Try a different search term.'
-                      : 'You have no active WorkForm executions running right now. Start one from the Catalog.'}
+                      ? 'No matching runs found. Try a different search term.'
+                      : 'You have no active WorkForm runs right now. Start one from the Catalog.'}
                   </EmptyMessage>
                 </EmptyState>
               );
             }
 
             return (
-              <CardGrid role="list" aria-label={`${filtered.length} executions in progress`}>
+              <CardGrid role="list" aria-label={`${filtered.length} runs in progress`}>
                 {filtered.map((ex) => (
                   <Card
                     key={ex.id}
@@ -741,7 +732,7 @@ const FormsFlowsInProgress: React.FC = () => {
             <EmptyMessage>
               {searchQuery
                 ? 'No matching forms found. Try a different search term.'
-                : 'You have no active form submissions or workflow executions running right now. Start a new one from the Catalog.'}
+                : 'You have no active form submissions or WorkForm runs right now. Start a new one from the Catalog.'}
             </EmptyMessage>
           </EmptyState>
         ) : (
@@ -790,7 +781,11 @@ const FormsFlowsInProgress: React.FC = () => {
                       <Play size={16} aria-hidden="true" />
                       Resume
                     </ResumeButton>
-                    <CancelButton onClick={() => handleCancelClick(submission)} aria-label={`Cancel ${submission.form_name}`}>
+                    <CancelButton
+                      onClick={() => void handleCancelClick(submission)}
+                      disabled={cancelingId === submission.id}
+                      aria-label={`Cancel ${submission.form_name}`}
+                    >
                       <X size={16} />
                     </CancelButton>
                   </CardActions>
@@ -799,29 +794,6 @@ const FormsFlowsInProgress: React.FC = () => {
             })}
           </CardGrid>
         )}
-      
-      {/* Cancel Confirmation Modal */}
-      <Modal $isOpen={showCancelModal} onClick={() => setShowCancelModal(false)}>
-        <ModalContent onClick={(e) => e.stopPropagation()}>
-          <ModalTitle>Cancel Workflow?</ModalTitle>
-          <ModalText>
-            Are you sure you want to cancel "{selectedSubmission?.form_name}"? 
-            This action cannot be undone.
-          </ModalText>
-          <ModalActions>
-            <ModalButton onClick={() => setShowCancelModal(false)}>
-              Keep Working
-            </ModalButton>
-            <ModalButton
-              $variant="danger"
-              onClick={handleCancelConfirm}
-              disabled={!!cancelingId}
-            >
-              {cancelingId ? 'Cancelling...' : 'Yes, Cancel'}
-            </ModalButton>
-          </ModalActions>
-        </ModalContent>
-      </Modal>
       </Container>
     </ErrorBoundary>
   );

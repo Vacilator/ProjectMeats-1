@@ -17,7 +17,9 @@ router.register(r"configurations", TenantConfigurationViewSet, basename='tenant-
 app_name = "tenants"
 
 urlpatterns = [
+    # NOTE: Place validate route BEFORE router URLs so it does not get captured by the
+    # router's `invitations/<pk>/` detail route (where pk="validate" would 401).
+    path("invitations/validate/", validate_invitation, name="validate-invitation"),
+    path("auth/signup-with-invitation/", signup_with_invitation, name="signup-with-invitation"),
     path("", include(router.urls)),
-    path("invitations/validate/", validate_invitation, name='validate-invitation'),
-    path("auth/signup-with-invitation/", signup_with_invitation, name='signup-with-invitation'),
 ]

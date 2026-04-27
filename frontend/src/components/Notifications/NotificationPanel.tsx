@@ -400,7 +400,7 @@ const NotificationPanel: React.FC<NotificationPanelProps> = ({ onClose }) => {
   };
   
   return (
-    <Panel>
+    <Panel data-testid="notification-panel">
       <Header>
         <Title>
           <Bell size={18} />
@@ -441,6 +441,7 @@ const NotificationPanel: React.FC<NotificationPanelProps> = ({ onClose }) => {
                   return (
                     <NotificationItem
                       key={notification.id}
+                      data-testid={`notification-item-${notification.id}`}
                       $isUnread={!notification.is_read}
                       $priority={notification.priority}
                       onClick={() => handleNotificationClick(notification)}

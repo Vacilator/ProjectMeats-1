@@ -27,7 +27,7 @@
 ## 📚 Documentation
 
 ### Quick Links
-- **Architecture**: [docs/GOLDEN_PIPELINE.md](docs/GOLDEN_PIPELINE.md) - Authoritative deployment architecture
+- **Architecture**: [docs/architecture/ARCHITECTURE.md](docs/architecture/ARCHITECTURE.md) - System architecture overview
 - **Development**: [docs/getting-started/LOCAL_DEVELOPMENT.md](docs/getting-started/LOCAL_DEVELOPMENT.md) - Local setup guide
 - **API Reference**: [docs/reference/ENVIRONMENT_VARS.md](docs/reference/ENVIRONMENT_VARS.md) - Environment variables
 - **Contributing**: [docs/getting-started/CONTRIBUTING.md](docs/getting-started/CONTRIBUTING.md) - Contribution guidelines
@@ -87,7 +87,7 @@ cd frontend && npm start
 
 **Access Points:**
 - Frontend: http://localhost:3000
-- Backend API: http://localhost:8000/api/
+- Backend API: http://localhost:8000/api/v1/
 - Django Admin: http://localhost:8000/admin/
 
 ---
@@ -276,7 +276,7 @@ Proprietary - All rights reserved
 
 - **Issues**: [GitHub Issues](https://github.com/Meats-Central/ProjectMeats/issues)
 - **Docs**: [docs/](docs/)
-- **Architecture**: [docs/GOLDEN_PIPELINE.md](docs/GOLDEN_PIPELINE.md)
+- **Architecture**: [docs/architecture/ARCHITECTURE.md](docs/architecture/ARCHITECTURE.md)
 
 ---
 

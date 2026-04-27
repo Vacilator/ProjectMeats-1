@@ -262,7 +262,7 @@ const Header: React.FC<HeaderProps> = () => {
                     }}
                   >
                     <span>🗂️</span>
-                    <span>View All Workflows</span>
+                    <span>View Legacy Workflows</span>
                   </SubmenuItem>
                   
                   {availableForms.filter((f) => (f.type ?? 'form') === 'form').length > 0 && (
@@ -305,14 +305,55 @@ const Header: React.FC<HeaderProps> = () => {
                     </>
                   )}
                   
-                  {availableForms.filter((f) => (f.type ?? 'form') === 'form').length === 0 && (
-                    <SubmenuItem
-                      $theme={theme}
-                      style={{ fontSize: '12px', fontStyle: 'italic', cursor: 'default', opacity: 0.6 }}
-                    >
-                      <span>No published forms yet</span>
-                    </SubmenuItem>
+                  {availableForms.filter((f) => (f.type ?? 'form') === 'workflow').length > 0 && (
+                    <>
+                      <SubmenuDivider />
+                      <SubmenuHeader>Published WorkForms</SubmenuHeader>
+                      {availableForms
+                        .filter((f) => (f.type ?? 'form') === 'workflow')
+                        .slice(0, 5)
+                        .map((wf) => (
+                          <SubmenuItem
+                            key={wf.id}
+                            $theme={theme}
+                            onClick={() => {
+                              navigate(`/workforms/execute/${wf.id}`);
+                              setShowQuickMenu(false);
+                              setShowFormsSubmenu(false);
+                            }}
+                            title={`Run ${wf.name}`}
+                          >
+                            <span>▶️</span>
+                            <span>{wf.name}</span>
+                          </SubmenuItem>
+                        ))}
+                      {availableForms.filter((f) => (f.type ?? 'form') === 'workflow').length > 5 && (
+                        <SubmenuItem
+                          $theme={theme}
+                          style={{ fontSize: '11px', fontStyle: 'italic' }}
+                          onClick={() => {
+                            navigate('/workforms/catalog');
+                            setShowQuickMenu(false);
+                            setShowFormsSubmenu(false);
+                          }}
+                        >
+                          <span>
+                            +{availableForms.filter((f) => (f.type ?? 'form') === 'workflow').length - 5} more workforms...
+                          </span>
+                        </SubmenuItem>
+                      )}
+                    </>
                   )}
+
+                  {availableForms.filter((f) => (f.type ?? 'form') === 'form').length === 0 &&
+                    availableForms.filter((f) => (f.type ?? 'form') === 'workflow').length === 0 && (
+                      <SubmenuItem
+                        $theme={theme}
+                        style={{ fontSize: '12px', fontStyle: 'italic', cursor: 'default', opacity: 0.6 }}
+                      >
+                        <span>No published Forms or WorkForms yet</span>
+                      </SubmenuItem>
+                    )}
                 </FormsSubmenu>
               )}
               

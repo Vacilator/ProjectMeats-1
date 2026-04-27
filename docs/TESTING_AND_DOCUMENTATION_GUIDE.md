@@ -323,7 +323,7 @@ Response 200:
 
 **Frontend** (`.env`):
 ```bash
-VITE_API_BASE_URL=https://api.meatscentral.com/api/v1
+VITE_API_BASE_URL=https://meatscentral.com/api/v1
 VITE_ENVIRONMENT=production
 VITE_ENABLE_ANALYTICS=true
 ```
@@ -358,7 +358,7 @@ python manage.py migrate
 - [ ] Run `python manage.py check --deploy` (backend)
 - [ ] Run migrations: `python manage.py migrate`
 - [ ] Collect static files: `python manage.py collectstatic`
-- [ ] Test health endpoint: `curl https://api.meatscentral.com/health/`
+- [ ] Test health endpoint: `curl https://meatscentral.com/api/v1/health/`
 - [ ] Verify Cockpit search works
 - [ ] Test WorkForms editor loads
 - [ ] Check error logs for 24 hours

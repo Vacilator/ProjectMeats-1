@@ -54,20 +54,94 @@ def health_check(request):
             },
         }
 
+    integration_warnings = []
+
+    redis = services.get("redis", {}) if isinstance(services, dict) else {}
+    sentry = services.get("sentry", {}) if isinstance(services, dict) else {}
+    openai = services.get("openai", {}) if isinstance(services, dict) else {}
+    ms = services.get("microsoft_oauth", {}) if isinstance(services, dict) else {}
+
+    if redis.get("configured") and not redis.get("available"):
+        integration_warnings.append(
+            {
+                "code": "redis_unavailable",
+                "message": "REDIS_URL is set but Redis is not reachable; caching/channels may degrade.",
+            }
+        )
+    if not redis.get("configured"):
+        integration_warnings.append(
+            {
+                "code": "redis_not_configured",
+                "message": "Redis not configured (using in-memory fallback). Real-time/caching features are degraded.",
+            }
+        )
+
+    if not openai.get("api_key_set"):
+        integration_warnings.append(
+            {
+                "code": "openai_not_configured",
+                "message": "OpenAI not configured (missing OPENAI_API_KEY). AI features will return AI_NOT_CONFIGURED (503).",
+            }
+        )
+
+    if sentry.get("enabled") and not sentry.get("dsn_set"):
+        integration_warnings.append(
+            {
+                "code": "sentry_misconfigured",
+                "message": "SENTRY_ENABLED is true but SENTRY_DSN is not set; Sentry will not initialize.",
+            }
+        )
+    if sentry.get("dsn_set") and not sentry.get("enabled"):
+        integration_warnings.append(
+            {
+                "code": "sentry_disabled",
+                "message": "SENTRY_DSN is set but SENTRY_ENABLED is false; Sentry is currently disabled.",
+            }
+        )
+
+    if ms.get("client_id_set") and not ms.get("client_secret_set"):
+        integration_warnings.append(
+            {
+                "code": "microsoft_oauth_misconfigured",
+                "message": "MICROSOFT_CLIENT_ID is set but MICROSOFT_CLIENT_SECRET is missing; token exchange will fail.",
+            }
+        )
+
+    integration_summary = {
+        "redis": {
+            "configured": bool(redis.get("configured")),
+            "available": bool(redis.get("available")),
+            "is_redis": bool(redis.get("is_redis")),
+        },
+        "openai": {"configured": bool(openai.get("api_key_set")), "model": openai.get("model")},
+        "sentry": {
+            "enabled": bool(sentry.get("enabled")),
+            "dsn_set": bool(sentry.get("dsn_set")),
+            "sdk_installed": bool(sentry.get("sdk_installed", True)),
+            "environment": sentry.get("environment"),
+        },
+        "microsoft_oauth": {
+            "configured": bool(ms.get("configured")),
+            "tenant_id_set": bool(ms.get("tenant_id_set")),
+        },
+    }
+
     features = {
-        "ai": bool(services.get("openai", {}).get("api_key_set")),
-        "outlook_oauth": bool(services.get("microsoft_oauth", {}).get("configured")),
+        "ai": bool(openai.get("api_key_set")),
+        "outlook_oauth": bool(ms.get("configured")),
         "email_send": bool(services.get("sendgrid", {}).get("configured")),
-        "redis": bool(services.get("redis", {}).get("available")),
+        "redis": bool(redis.get("available")),
         "rag": bool(services.get("pgvector", {}).get("available")),
-        "sentry": bool(services.get("sentry", {}).get("dsn_set")),
+        "sentry": bool(sentry.get("dsn_set")),
     }
 
     service_summary = services.get("summary", {}) if isinstance(services, dict) else {}
 
+    http_status = status.HTTP_200_OK if db_status == "healthy" else status.HTTP_503_SERVICE_UNAVAILABLE
+
     return JsonResponse(
         {
-            "status": "healthy" if db_status == "healthy" else "degraded",
+            "status": "healthy" if db_status == "healthy" else "unhealthy",
             "timestamp": timezone.now().isoformat(),
             "version": "1.0.0",
             # Backward-compatible field
@@ -77,8 +151,11 @@ def health_check(request):
             "service_summary": service_summary,
             "debug": settings.DEBUG,
             "features": features,
+            "integration_summary": integration_summary,
+            "integration_warnings": integration_warnings,
             "services": services,
-        }
+        },
+        status=http_status,
     )
 
 

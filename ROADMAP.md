@@ -8,6 +8,25 @@ For current priorities, status, and evidence, see **`MASTER_PLAN.md` (canonical)
 
 ---
 
+## 🔎 Discovery Backlog (last refreshed 2026-04-27)
+
+This is a lightweight pointer list from squad discovery. **Execute via `MASTER_PLAN.md` (canonical) + `.github/MASTER_PLAN.md` (PR log)**.
+
+- P0 Security/RLS correctness:
+  - Fix cross-tenant exposure risk in `apps/system` config/choice endpoints (remove `is_staff` global bypass; tenant admins are `is_staff=True`).
+  - Make invitation email Celery task tenant/RLS safe (pass tenant_id; wrap task ORM in tenant_rls).
+  - Workflow webhooks RLS ordering + legacy endpoint fail-closed; integrations OAuth callback RLS ordering; prevent WorkForms activation bypass on create.
+- P0 CI hardening:
+  - Default deploy-by-digest for UAT/Prod and digest-align migrations.
+  - Manifest-driven required secrets gate per lane; docs drift lint for Golden migration rules.
+- P0 Frontend standards/a11y:
+  - Remove remaining FlowEditor/WorkForms named colors (white/black) and replace console.* with logger.*.
+  - Make WorkForms cards/modals keyboard accessible (semantic controls + dialog semantics/focus).
+- P1 Mobile parity:
+  - Fix switch-tenant persistence; normalize errors; define auth expiry/401 behavior.
+
+---
+
 ## 📊 Overall Progress (historical; non-canonical)
 
 This file previously displayed “100% complete” progress claims. Those claims are **not authoritative** and are intentionally not treated as current status.
@@ -483,11 +502,12 @@ When `OPENAI_API_KEY` is added: AI suggestions activate instantly, Badge: yellow
 
 ## 📚 Related Documentation
 
-- **Master Plan**: `.github/MASTER_PLAN.md` (detailed task breakdown)
-- **Architecture**: `docs/ARCHITECTURE.md` (system design decisions)
-- **AI Instructions**: `.github/copilot-instructions.md` (development standards)
-- **Golden Files**: `/manifests/GOLDEN_FILES.md` (source of truth index)
-- **Security Compliance**: `/manifests/RLS_POLICIES.md` (RLS audit results)
+- **Master Plan (canonical)**: `MASTER_PLAN.md`
+- **PR execution log (append-only)**: `.github/MASTER_PLAN.md`
+- **Architecture**: `docs/architecture/ARCHITECTURE.md`
+- **AI Instructions**: `.github/copilot-instructions.md`
+- **Golden Files**: `/manifests/GOLDEN_FILES.md`
+- **Security Compliance**: `/manifests/RLS_POLICIES.md`
 
 ---
 

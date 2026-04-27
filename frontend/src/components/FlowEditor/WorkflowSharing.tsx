@@ -32,6 +32,7 @@ import {
   XCircle
 } from 'lucide-react';
 import { businessApi } from '@/services/businessApi';
+import { logger } from '@/utils/logger';
 
 const { Title, Text, Paragraph } = Typography;
 const { TextArea } = Input;
@@ -91,7 +92,7 @@ export const WorkflowSharing: React.FC<WorkflowSharingProps> = ({
       setExportedTemplate(template);
       message.success('Workflow exported successfully');
     } catch (error) {
-      console.error('Failed to export workflow:', error);
+      logger.error('Failed to export workflow:', error);
       message.error('Failed to export workflow');
     } finally {
       setLoading(false);
@@ -154,7 +155,7 @@ export const WorkflowSharing: React.FC<WorkflowSharingProps> = ({
         window.location.href = `/workflows/${response.data.workflow.id}`;
       }
     } catch (error: any) {
-      console.error('Failed to import workflow:', error);
+      logger.error('Failed to import workflow:', error);
       
       if (error.response?.data?.error) {
         message.error(error.response.data.error);

@@ -19,29 +19,36 @@ import { apiClient } from '../../services/apiService';
 import { useNavigate } from 'react-router-dom';
 import { useCockpitNavigation } from '../../contexts/CockpitNavigationContext';
 import { EntityDetailModal } from '../Shared/EntityDetailModal';
+import { logger } from '@/utils/logger';
 
 // ============================================================================
 // TypeScript Interfaces
 // ============================================================================
 
-interface SearchResult {
+interface ApiSearchResult {
   id: number;
   type: string;
   title: string;
   subtitle?: string;
   icon: string;
-  color: string;
+  /** Legacy API-provided color; may be hex/rgb/var. Prefer using derived colorVar. */
+  color?: string;
   route: string;
   score: number;
-  labels?: string[];  // NEW: Smart labels
+  labels?: string[];
   metadata?: Record<string, any>;
+}
+
+interface SearchResult extends ApiSearchResult {
+  /** CSS var name holding RGB tuple (e.g. "--color-info"). */
+  colorVar: string;
 }
 
 interface SearchResponse {
   query: string;
   search_text: string;
   operator?: string;
-  results: SearchResult[];
+  results: ApiSearchResult[];
   counts: Record<string, number>;
   total: number;
 }
@@ -52,7 +59,8 @@ interface QuickAction {
   description: string;
   icon: React.ReactNode;
   route: string;
-  color: string;
+  /** CSS var name holding RGB tuple (e.g. "--color-info"). */
+  colorVar: string;
 }
 
 interface CommandPaletteProps {
@@ -71,7 +79,7 @@ const QUICK_ACTIONS: QuickAction[] = [
     description: 'Create a purchase order',
     icon: <Plus size={16} />,
     route: '/purchase-orders?action=create',
-    color: 'rgb(59, 130, 246)',
+    colorVar: '--color-info',
   },
   {
     id: 'new-so',
@@ -79,7 +87,7 @@ const QUICK_ACTIONS: QuickAction[] = [
     description: 'Create a sales order',
     icon: <FileText size={16} />,
     route: '/sales-orders?action=create',
-    color: 'rgb(34, 197, 94)',
+    colorVar: '--color-success',
   },
   {
     id: 'new-supplier',
@@ -87,7 +95,7 @@ const QUICK_ACTIONS: QuickAction[] = [
     description: 'Create a new supplier',
     icon: <Building2 size={16} />,
     route: '/suppliers?action=create',
-    color: 'rgb(168, 85, 247)',
+    colorVar: '--color-primary',
   },
   {
     id: 'new-customer',
@@ -95,7 +103,7 @@ const QUICK_ACTIONS: QuickAction[] = [
     description: 'Create a new customer',
     icon: <Users size={16} />,
     route: '/customers?action=create',
-    color: 'rgb(249, 115, 22)',
+    colorVar: '--color-warning',
   },
   // Removed: Products and Carriers (no dedicated pages with forms yet)
   // TODO: Re-add when standalone product/carrier management pages are implemented
@@ -108,7 +116,7 @@ const QUICK_ACTIONS: QuickAction[] = [
 const Overlay = styled.div<{ $isOpen: boolean }>`
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(var(--color-overlay), 0.5);
   backdrop-filter: blur(4px);
   z-index: 1000;
   display: ${props => props.$isOpen ? 'flex' : 'none'};
@@ -122,7 +130,7 @@ const PaletteContainer = styled.div`
   max-width: 640px;
   background: rgb(var(--color-surface));
   border-radius: var(--radius-lg);
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  box-shadow: 0 25px 50px -12px rgba(var(--color-overlay), 0.25);
   overflow: hidden;
   animation: slideDown 0.2s ease-out;
 
@@ -214,15 +222,15 @@ const ResultItem = styled.div<{ $isSelected: boolean }>`
   }
 `;
 
-const ResultIcon = styled.div<{ $color: string }>`
+const ResultIcon = styled.div<{ $colorVar: string }>`
   display: flex;
   align-items: center;
   justify-content: center;
   width: 36px;
   height: 36px;
   border-radius: var(--radius-md);
-  background: ${props => props.$color}20;
-  color: ${props => props.$color};
+  background: ${(p) => `rgba(var(${p.$colorVar}), 0.12)`};
+  color: ${(p) => `rgb(var(${p.$colorVar}))`};
   font-size: 1rem;
 `;
 
@@ -277,16 +285,18 @@ const ScoreBadge = styled.span<{ $score: number }>`
   font-weight: 600;
   padding: 0.15rem 0.35rem;
   border-radius: var(--radius-sm);
-  background: ${props => 
-    props.$score >= 80 ? 'rgb(34, 197, 94 / 0.15)' :
-    props.$score >= 60 ? 'rgb(234, 179, 8 / 0.15)' :
-    'rgb(var(--color-text-tertiary) / 0.1)'
-  };
-  color: ${props =>
-    props.$score >= 80 ? 'rgb(34, 197, 94)' :
-    props.$score >= 60 ? 'rgb(234, 179, 8)' :
-    'rgb(var(--color-text-tertiary))'
-  };
+  background: ${(p) =>
+    p.$score >= 80
+      ? 'rgba(var(--color-success), 0.15)'
+      : p.$score >= 60
+        ? 'rgba(var(--color-warning), 0.15)'
+        : 'rgba(var(--color-text-tertiary), 0.10)'};
+  color: ${(p) =>
+    p.$score >= 80
+      ? 'rgb(var(--color-success))'
+      : p.$score >= 60
+        ? 'rgb(var(--color-warning))'
+        : 'rgb(var(--color-text-tertiary))'};
 `;
 
 const SearchOptions = styled.div`
@@ -367,6 +377,11 @@ const EmptyState = styled.div`
   color: rgb(var(--color-text-tertiary));
 `;
 
+const EmptyStateHint = styled.div`
+  margin-top: 0.25rem;
+  font-size: 0.875rem;
+`;
+
 const LoadingSpinner = styled.div`
   display: flex;
   align-items: center;
@@ -400,15 +415,15 @@ const QuickActionItem = styled.button<{ $isSelected: boolean }>`
   }
 `;
 
-const QuickActionIcon = styled.div<{ $color: string }>`
+const QuickActionIcon = styled.div<{ $colorVar: string }>`
   display: flex;
   align-items: center;
   justify-content: center;
   width: 32px;
   height: 32px;
   border-radius: var(--radius-md);
-  background: ${props => props.$color}20;
-  color: ${props => props.$color};
+  background: ${(p) => `rgba(var(${p.$colorVar}), 0.12)`};
+  color: ${(p) => `rgb(var(${p.$colorVar}))`};
 `;
 
 const QuickActionContent = styled.div`
@@ -445,6 +460,65 @@ const getIconElement = (iconName: string): string => {
     File: '📁',
   };
   return icons[iconName] || '📁';
+};
+
+// ============================================================================
+// Search result normalization
+// ============================================================================
+
+const DEFAULT_RESULT_COLOR_VAR = '--color-primary';
+
+const extractColorVar = (value: unknown): string | null => {
+  if (typeof value !== 'string') return null;
+  const v = value.trim();
+
+  if (v.startsWith('--color-')) return v;
+
+  // Accept "primary" / "success" etc.
+  if (/^(primary|info|success|warning|error)$/.test(v)) return `--color-${v}`;
+
+  // Accept "rgb(var(--color-primary))" or "var(--color-primary)" etc.
+  const m = v.match(/var\(--(color-[a-z0-9-]+)\)/i);
+  if (m?.[1]) return `--${m[1]}`;
+
+  return null;
+};
+
+const getTypeColorVar = (type: unknown): string => {
+  const t = String(type ?? '').toLowerCase();
+
+  switch (t) {
+    case 'purchase_order':
+    case 'po':
+      return '--color-info';
+    case 'sales_order':
+    case 'so':
+      return '--color-success';
+    case 'customer':
+    case 'customers':
+      return '--color-warning';
+    case 'supplier':
+    case 'suppliers':
+      return '--color-primary';
+    default:
+      return DEFAULT_RESULT_COLOR_VAR;
+  }
+};
+
+const normalizeSearchResult = (item: ApiSearchResult): SearchResult => {
+  return {
+    ...item,
+    colorVar:
+      extractColorVar((item as unknown as { colorVar?: unknown }).colorVar) ??
+      extractColorVar(item.color) ??
+      extractColorVar(item.metadata?.color) ??
+      getTypeColorVar(item.type),
+  };
+};
+
+const normalizeSearchResults = (items: ApiSearchResult[] | null | undefined): SearchResult[] => {
+  if (!Array.isArray(items)) return [];
+  return items.map(normalizeSearchResult);
 };
 
 // ============================================================================
@@ -528,9 +602,10 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose 
   const fetchRecentItems = async () => {
     try {
       const response = await apiClient.get('search/recent/', { params: { limit: 5 } });
-      setRecentItems(response.data.items || []);
+      const rawItems = (response.data.items || []) as ApiSearchResult[];
+      setRecentItems(normalizeSearchResults(rawItems));
     } catch (err) {
-      console.error('Failed to fetch recent items:', err);
+      logger.error('Failed to fetch recent items:', err);
     }
   };
 
@@ -556,7 +631,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose 
       setIsLoading(true);
       try {
         // Use ranked search API
-        console.log('[CommandPalette] API Request:', {
+        logger.debug('[CommandPalette] API Request:', {
           url: 'system/search/ranked/',
           params: { q: query, date_range: dateRange, limit: 8 },
         });
@@ -569,15 +644,14 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose 
           }
         });
         
-        console.log('[CommandPalette] API Response:', {
+        logger.debug('[CommandPalette] API Response:', {
           query: response.data.query,
           total: response.data.total,
           counts: response.data.counts,
           resultsCount: response.data.results?.length || 0,
-          results: response.data.results,
         });
         
-        const fetchedResults = response.data.results;
+        const fetchedResults = normalizeSearchResults(response.data.results);
         
         // Cache the results
         setCachedResults(cacheKey, fetchedResults);
@@ -586,14 +660,14 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose 
         setTotalCount(response.data.total || fetchedResults.length);
         setSelectedIndex(0);
         
-        console.log('[CommandPalette] Ranked search completed:', {
+        logger.debug('[CommandPalette] Ranked search completed:', {
           query,
           dateRange,
           resultsCount: fetchedResults.length,
           topScore: fetchedResults[0]?.score,
         });
       } catch (err) {
-        console.error('[CommandPalette] Search failed:', err);
+        logger.error('[CommandPalette] Search failed:', err);
         setResults([]);
         setTotalCount(0);
       } finally {
@@ -743,7 +817,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose 
                     onClick={() => handleSelect(item)}
                     onMouseEnter={() => setSelectedIndex(index)}
                   >
-                    <ResultIcon $color={item.color}>
+                    <ResultIcon $colorVar={item.colorVar}>
                       {getIconElement(item.icon)}
                     </ResultIcon>
                     <ResultContent>
@@ -772,9 +846,9 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose 
               <EmptyState>
                 No results found for "{query}"
                 <br />
-                <span style={{ fontSize: '0.875rem', color: 'rgb(var(--color-text-tertiary))' }}>
+                <EmptyStateHint>
                   Try a broader query or check that data exists for your tenant
-                </span>
+                </EmptyStateHint>
               </EmptyState>
             )
           ) : (
@@ -790,7 +864,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose 
                       onClick={() => handleSelect(item)}
                       onMouseEnter={() => setSelectedIndex(index)}
                     >
-                      <ResultIcon $color={item.color}>
+                      <ResultIcon $colorVar={item.colorVar}>
                         {getIconElement(item.icon)}
                       </ResultIcon>
                       <ResultContent>
@@ -816,7 +890,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose 
                         onClick={() => handleQuickAction(action)}
                         onMouseEnter={() => setSelectedIndex(actionIndex)}
                       >
-                        <QuickActionIcon $color={action.color}>
+                        <QuickActionIcon $colorVar={action.colorVar}>
                           {action.icon}
                         </QuickActionIcon>
                         <QuickActionContent>
@@ -860,7 +934,10 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose 
           entityId={selectedEntity.id}
           onExpandEntity={(entity) => {
             // Keep modal open but load relational data for expanded view
-            console.log('[CommandPalette] Expanding entity:', entity);
+            logger.debug('[CommandPalette] Expanding entity:', {
+              id: entity?.id,
+              type: entity?.type,
+            });
             setSelectedEntity(null); // Close detail modal
             // Trigger search with entity context for mind-map view
             handleSelect({
@@ -869,7 +946,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose 
               title: entity.name || entity.title || '',
               subtitle: entity.subtitle || '',
               icon: entity.metadata?.icon || '',
-              color: entity.metadata?.color || 'rgb(var(--color-primary))',
+              colorVar: extractColorVar(entity.metadata?.color) ?? getTypeColorVar(entity.type),
               route: entity.metadata?.listRoute || `/${entity.type}s`,
               score: 1,
             });

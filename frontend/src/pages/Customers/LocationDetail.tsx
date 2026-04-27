@@ -4,6 +4,7 @@ import type { ColumnsType } from 'antd/es/table';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 
 import { EntityProfileHeader } from '@/components/Cockpit';
+import { EntityWorkflowStatusPanel } from '@/components/Entities/EntityWorkflowStatusPanel';
 import { ActivityFeed, EntityFormSurface } from '@/components/Shared';
 import { apiClient } from '@/services/apiService';
 
@@ -293,6 +294,11 @@ export const LocationDetail: React.FC = () => {
             ),
           },
           {
+            key: 'workflows',
+            label: 'Automation',
+            children: lid ? <EntityWorkflowStatusPanel entityType="location" entityId={lid} /> : <Empty description="Automation unavailable" />,
+          },
+          {
             key: 'activity',
             label: 'Activity',
             children:
@@ -302,6 +308,7 @@ export const LocationDetail: React.FC = () => {
                 <Empty description="Activity unavailable" />
               ),
           },
+
         ]}
       />
     </div>

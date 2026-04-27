@@ -215,16 +215,29 @@ class TenantViewSet(viewsets.ModelViewSet):
     def current(self, request):
         """Return the current active tenant.
 
-        Prefers `request.tenant` (TenantMiddleware) and falls back to the first
-        active tenant membership for the user.
+        Fail-closed tenant resolution:
+        - If tenant is explicitly selected (middleware/header/domain), use it.
+        - If the user belongs to exactly ONE tenant, we allow a safe default.
+        - If the user belongs to MULTIPLE tenants, require explicit selection.
         """
         tenant = getattr(request, 'tenant', None)
 
         if not tenant:
-            tenant_user = TenantUser.objects.filter(
-                user=request.user, is_active=True
-            ).select_related('tenant').first()
-            tenant = tenant_user.tenant if tenant_user else None
+            memberships = list(
+                TenantUser.objects.filter(user=request.user, is_active=True)
+                .select_related('tenant')[:2]
+            )
+
+            if len(memberships) == 1:
+                tenant = memberships[0].tenant
+            elif len(memberships) > 1:
+                return Response(
+                    {
+                        "error": "Explicit tenant selection required (X-Tenant-ID)",
+                        "code": "tenant_required_multi",
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
 
         if not tenant:
             return Response(
@@ -238,27 +251,39 @@ class TenantViewSet(viewsets.ModelViewSet):
     def current_theme(self, request):
         """Get theme settings for the current tenant.
 
-        Prefers `request.tenant` (TenantMiddleware) and falls back to the first
-        active tenant membership for the user.
+        Fail-closed tenant resolution:
+        - If tenant is explicitly selected (middleware/header/domain), use it.
+        - If the user belongs to exactly ONE tenant, we allow a safe default.
+        - If the user belongs to MULTIPLE tenants, require explicit selection.
 
         Returns tenant logo, name, and theme colors.
-        Used by frontend to apply tenant-specific branding.
         """
         tenant = getattr(request, 'tenant', None)
 
-        if request.user.is_superuser and tenant:
-            return Response(tenant.get_theme_settings())
+        if not tenant:
+            memberships = list(
+                TenantUser.objects.filter(user=request.user, is_active=True)
+                .select_related('tenant')[:2]
+            )
 
-        tenant_user_qs = TenantUser.objects.filter(user=request.user, is_active=True).select_related('tenant')
-        tenant_user = tenant_user_qs.filter(tenant=tenant).first() if tenant else tenant_user_qs.first()
+            if len(memberships) == 1:
+                tenant = memberships[0].tenant
+            elif len(memberships) > 1:
+                return Response(
+                    {
+                        "error": "Explicit tenant selection required (X-Tenant-ID)",
+                        "code": "tenant_required_multi",
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
 
-        if not tenant_user:
+        if not tenant:
             return Response(
                 {"error": "User not associated with any tenant"},
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-        return Response(tenant_user.tenant.get_theme_settings())
+        return Response(tenant.get_theme_settings())
 
     @action(detail=False, methods=["get"])
     def admin_permissions(self, request):
@@ -271,11 +296,6 @@ class TenantViewSet(viewsets.ModelViewSet):
         """
         if request.user.is_superuser:
             tenant = getattr(request, 'tenant', None)
-            tenant_user = None
-
-            if not tenant:
-                tenant_user = TenantUser.objects.filter(user=request.user, is_active=True).select_related('tenant').first()
-                tenant = tenant_user.tenant if tenant_user else None
 
             return Response({
                 'can_manage_users': True,
@@ -295,8 +315,26 @@ class TenantViewSet(viewsets.ModelViewSet):
             })
 
         tenant = getattr(request, 'tenant', None)
+
+        if not tenant:
+            memberships = list(
+                TenantUser.objects.filter(user=request.user, is_active=True)
+                .select_related('tenant')[:2]
+            )
+
+            if len(memberships) == 1:
+                tenant = memberships[0].tenant
+            elif len(memberships) > 1:
+                return Response(
+                    {
+                        "error": "Explicit tenant selection required (X-Tenant-ID)",
+                        "code": "tenant_required_multi",
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
         tenant_user_qs = TenantUser.objects.filter(user=request.user, is_active=True)
-        tenant_user = tenant_user_qs.filter(tenant=tenant).select_related('tenant').first() if tenant else tenant_user_qs.select_related('tenant').first()
+        tenant_user = tenant_user_qs.filter(tenant=tenant).select_related('tenant').first() if tenant else None
 
         if not tenant_user:
             return Response(

@@ -137,7 +137,7 @@ const ToggleButton = styled.button<{ $active: boolean }>`
   padding: 8px 16px;
   border: 1px solid rgb(var(--color-border));
   background: ${props => props.$active ? 'rgb(var(--color-primary))' : 'transparent'};
-  color: ${props => props.$active ? 'white' : 'rgb(var(--color-text-primary))'};
+  color: ${props => props.$active ? 'rgb(var(--color-primary-foreground))' : 'rgb(var(--color-text-primary))'};
   font-size: 13px;
   font-weight: 500;
   cursor: pointer;
@@ -168,7 +168,7 @@ const FieldItem = styled.div`
   
   &:hover {
     border-color: rgb(var(--color-primary));
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    box-shadow: 0 2px 8px rgba(var(--color-overlay), 0.05);
   }
 `;
 
@@ -220,10 +220,10 @@ const FieldMeta = styled.div`
 const FieldBadge = styled.span<{ $type?: 'required' | 'optional' }>`
   padding: 2px 6px;
   background: ${props => props.$type === 'required' 
-    ? 'rgba(239, 68, 68, 0.1)' 
+    ? 'rgba(var(--color-error), 0.1)' 
     : 'rgba(var(--color-border), 0.5)'};
   color: ${props => props.$type === 'required' 
-    ? 'rgb(239, 68, 68)' 
+    ? 'rgb(var(--color-error))' 
     : 'rgb(var(--color-text-tertiary))'};
   border-radius: var(--radius-sm);
   font-weight: 600;
@@ -595,7 +595,7 @@ export const FormStepConfigPanel: React.FC<FormStepConfigPanelProps> = ({
                   width: '100%',
                   padding: '10px 12px',
                   fontSize: '14px',
-                  border: entitiesError ? '1px solid rgb(239, 68, 68)' : '1px solid rgb(var(--color-border))',
+                  border: entitiesError ? '1px solid rgb(var(--color-error))' : '1px solid rgb(var(--color-border))',
                   borderRadius: '6px',
                   background: 'rgb(var(--color-background))',
                   color: 'rgb(var(--color-text-primary))',
@@ -618,7 +618,7 @@ export const FormStepConfigPanel: React.FC<FormStepConfigPanelProps> = ({
                   <option disabled>No entities available</option>
                 )}
               </select>
-              <HelpText style={{ color: entitiesError ? 'rgb(239, 68, 68)' : undefined }}>
+              <HelpText style={{ color: entitiesError ? 'rgb(var(--color-error))' : undefined }}>
                 {entitiesLoading ? (
                   '⏳ Loading entities...'
                 ) : entitiesError ? (
@@ -1086,7 +1086,7 @@ export const FormStepConfigPanel: React.FC<FormStepConfigPanelProps> = ({
             left: 0,
             right: 0,
             bottom: 0,
-            background: 'rgba(0, 0, 0, 0.5)',
+            background: 'rgba(var(--color-overlay), 0.5)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -1105,7 +1105,7 @@ export const FormStepConfigPanel: React.FC<FormStepConfigPanelProps> = ({
               overflow: 'hidden',
               display: 'flex',
               flexDirection: 'column',
-              boxShadow: '0 10px 40px rgba(0, 0, 0, 0.3)',
+              boxShadow: '0 10px 40px rgba(var(--color-overlay), 0.3)',
             }}
           >
             <div

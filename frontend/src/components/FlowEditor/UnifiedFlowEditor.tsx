@@ -134,6 +134,10 @@ import { AISuggestionsPanel } from './components/AISuggestionsPanel';
 import { validateWorkflow, type ValidationResult } from './utils/validationEngine';
 import { NODE_TYPE_REGISTRY, NodeCategory, CATEGORY_LABELS, CATEGORY_ORDER, getNodeTypeDefinition } from './nodeTypes';
 import type { FormStepData } from './Modals/EntityFormStepModal';
+// Ensure schemaRegistry is populated deterministically even when this component is imported directly.
+// (Some entrypoints bypass FlowEditor/index.ts.) Import is idempotent.
+import './config/nodeConfigSchemas';
+
 import { schemaRegistry } from './config/schemaRegistry';
 import { calculateContainerLayout, autoConnectSequentialSteps, LAYOUT_CONSTANTS } from './utils/containerLayout'; // Phase 3-4
 import { NodeContextMenu, useContextMenu } from './NodeContextMenu'; // Phase E.3
@@ -262,19 +266,19 @@ const EditorContainer = styled.div<{ $isFullscreen?: boolean }>`
     stroke-width: 3 !important;
     stroke-dasharray: 5, 5;
     animation: dash 0.5s linear infinite;
-    filter: drop-shadow(0 0 4px rgba(102, 126, 234, 0.4));
+    filter: drop-shadow(0 0 4px rgba(var(--color-primary), 0.4));
   }
   
   /* Phase 7.2: Enhanced snap feedback */
   .react-flow__node.dragging {
-    box-shadow: 0 8px 24px rgba(102, 126, 234, 0.3) !important;
+    box-shadow: 0 8px 24px rgba(var(--color-primary), 0.3) !important;
     transform: scale(1.02);
     transition: none !important; /* Override smooth animation during drag */
   }
   
   /* Phase 7.2: Grid alignment indicator */
   .react-flow__node.snapped {
-    box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.5) !important;
+    box-shadow: 0 0 0 2px rgba(var(--color-primary), 0.5) !important;
   }
   
   /* Phase 8.4: Smooth animations for node layout changes */
@@ -311,7 +315,7 @@ const RightSidebar = styled.div<{ $isOpen: boolean }>`
   width: 400px;
   background: rgb(var(--color-surface));
   border-left: 1px solid rgb(var(--color-border));
-  box-shadow: -2px 0 8px rgba(0, 0, 0, 0.1);
+  box-shadow: -2px 0 8px rgba(var(--color-overlay), 0.1);
   z-index: 10000;
   display: ${props => props.$isOpen ? 'flex' : 'none'} !important;
   opacity: ${props => props.$isOpen ? '1' : '0'} !important;
@@ -335,14 +339,14 @@ const DeprecationBanner = styled.div`
   z-index: 1000;
   width: calc(100% - 40px);
   max-width: 800px;
-  background: rgb(255, 243, 205);
-  border: 1px solid rgb(234, 179, 8);
+  background: rgba(var(--color-warning), 0.18);
+  border: 1px solid rgb(var(--color-warning));
   border-radius: var(--radius-md);
   padding: 12px 16px;
   display: flex;
   align-items: center;
   gap: 12px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 4px 12px rgba(var(--color-overlay), 0.15);
   animation: slideDown 0.3s ease-out;
   
   @keyframes slideDown {
@@ -359,7 +363,7 @@ const DeprecationBanner = styled.div`
 
 const BannerIcon = styled.div`
   flex-shrink: 0;
-  color: rgb(234, 179, 8);
+  color: rgb(var(--color-warning));
   display: flex;
   align-items: center;
 `;
@@ -371,13 +375,13 @@ const BannerContent = styled.div`
 const BannerTitle = styled.div`
   font-weight: 600;
   font-size: 14px;
-  color: rgb(120, 53, 15);
+  color: rgb(var(--color-text-primary));
   margin-bottom: 4px;
 `;
 
 const BannerMessage = styled.div`
   font-size: 13px;
-  color: rgb(146, 64, 14);
+  color: rgb(var(--color-text-secondary));
   line-height: 1.4;
 `;
 
@@ -389,8 +393,8 @@ const BannerActions = styled.div`
 
 const MigrateButton = styled.button`
   padding: 6px 12px;
-  background: rgb(234, 179, 8);
-  color: white;
+  background: rgb(var(--color-warning));
+  color: rgb(var(--color-text-inverse));
   border: none;
   border-radius: var(--radius-sm);
   font-size: 13px;
@@ -400,14 +404,14 @@ const MigrateButton = styled.button`
   white-space: nowrap;
   
   &:hover {
-    background: rgb(202, 138, 4);
+    opacity: 0.9;
   }
 `;
 
 const CloseButton = styled.button`
   padding: 4px;
   background: transparent;
-  color: rgb(146, 64, 14);
+  color: rgb(var(--color-text-secondary));
   border: none;
   cursor: pointer;
   display: flex;
@@ -439,7 +443,7 @@ const ModeSelectorContainer = styled.div`
   border: 1px solid rgb(var(--color-border));
   border-radius: var(--radius-md);
   padding: 4px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 8px rgba(var(--color-overlay), 0.1);
   z-index: 10;
 `;
 
@@ -567,7 +571,7 @@ const WizardCard = styled.div`
   background: rgb(var(--color-surface));
   border: 1px solid rgb(var(--color-border));
   border-radius: var(--radius-lg);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 8px 32px rgba(var(--color-overlay), 0.1);
   padding: 48px;
   text-align: center;
 `;
@@ -638,7 +642,7 @@ const FlowTypeCard = styled.button<{ $selected: boolean }>`
   &:hover {
     border-color: rgb(var(--color-primary));
     transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 4px 12px rgba(var(--color-overlay), 0.1);
   }
   
   &:active {
@@ -740,7 +744,7 @@ const WizardButton = styled.button<{ $variant?: 'primary' | 'secondary' | 'ghost
     if (props.$variant === 'primary') {
       return `
         background: rgb(var(--color-primary));
-        color: white;
+        color: rgb(var(--color-text-inverse));
         border: none;
         
         &:hover {
@@ -816,7 +820,7 @@ const NodePalette = styled.div`
   background: rgb(var(--color-surface));
   border: 1px solid rgb(var(--color-border));
   border-radius: var(--radius-lg);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 12px rgba(var(--color-overlay), 0.1);
   overflow-y: auto;
   z-index: 10;
 `;
@@ -979,7 +983,7 @@ const NodeItem = styled.div<{ $color: string }>`
   
   &:hover {
     background: rgb(var(--color-surface));
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 2px 6px rgba(var(--color-overlay), 0.1);
   }
   
   &:active {
@@ -1003,7 +1007,7 @@ const FavoriteButton = styled.button<{ $isFavorite?: boolean }>`
   background: transparent;
   border: none;
   cursor: pointer;
-  color: ${props => props.$isFavorite ? 'rgb(234, 179, 8)' : 'rgb(var(--color-text-tertiary))'};
+  color: ${props => props.$isFavorite ? 'rgb(var(--color-warning))' : 'rgb(var(--color-text-tertiary))'};
   opacity: ${props => props.$isFavorite ? '1' : '0'};
   transition: opacity 0.2s ease, color 0.2s ease;
   
@@ -1012,7 +1016,7 @@ const FavoriteButton = styled.button<{ $isFavorite?: boolean }>`
   }
   
   &:hover {
-    color: rgb(234, 179, 8);
+    color: rgb(var(--color-warning));
     transform: scale(1.1);
   }
 `;
@@ -1101,7 +1105,7 @@ const EmptyPrimaryButton = styled.button`
   border-radius: var(--radius-md);
   font-size: 12px;
   font-weight: 700;
-  color: white;
+  color: rgb(var(--color-text-inverse));
   cursor: pointer;
   transition: all 0.15s ease;
 
@@ -1168,7 +1172,7 @@ const ToolbarButton = styled.button`
   
   &:hover {
     background: rgb(var(--color-primary));
-    color: white;
+    color: rgb(var(--color-text-inverse));
     border-color: rgb(var(--color-primary));
   }
   
@@ -1194,7 +1198,7 @@ const LoadMenuDropdown = styled.div`
   background: rgb(var(--color-surface));
   border: 1px solid rgb(var(--color-border));
   border-radius: var(--radius-md);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 4px 12px rgba(var(--color-overlay), 0.15);
   z-index: 100;
   display: flex;
   flex-direction: column;
@@ -1302,9 +1306,9 @@ const DeleteButton = styled.button`
   justify-content: center;
   
   &:hover {
-    background: rgba(239, 68, 68, 0.1);
-    border-color: rgb(239, 68, 68);
-    color: rgb(239, 68, 68);
+    background: rgba(var(--color-error), 0.1);
+    border-color: rgb(var(--color-error));
+    color: rgb(var(--color-error));
   }
   
   svg {
@@ -1326,7 +1330,7 @@ const ConfirmModal = styled.div`
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(var(--color-overlay), 0.5);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1353,7 +1357,7 @@ const ConfirmContent = styled.div`
   width: 90%;
   max-width: 400px;
   padding: 24px;
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 20px 25px -5px rgba(var(--color-overlay), 0.1);
   
   /* Phase 8.4: Smooth scale-in animation */
   animation: scaleIn 0.2s cubic-bezier(0.4, 0, 0.2, 1);
@@ -1394,15 +1398,15 @@ const ConfirmButton = styled.button<{ $variant?: 'danger' | 'secondary' }>`
   padding: 8px 16px;
   font-size: 14px;
   font-weight: 600;
-  color: ${props => props.$variant === 'danger' ? 'white' : 'rgb(var(--color-text-primary))'};
-  background: ${props => props.$variant === 'danger' ? 'rgb(239, 68, 68)' : 'transparent'};
-  border: 1px solid ${props => props.$variant === 'danger' ? 'rgb(239, 68, 68)' : 'rgb(var(--color-border))'};
+  color: ${props => props.$variant === 'danger' ? 'rgb(var(--color-primary-foreground))' : 'rgb(var(--color-text-primary))'};
+  background: ${props => props.$variant === 'danger' ? 'rgb(var(--color-error))' : 'transparent'};
+  border: 1px solid ${props => props.$variant === 'danger' ? 'rgb(var(--color-error))' : 'rgb(var(--color-border))'};
   border-radius: var(--radius-md);
   cursor: pointer;
   transition: all 0.15s ease;
   
   &:hover {
-    background: ${props => props.$variant === 'danger' ? 'rgb(220, 38, 38)' : 'rgb(var(--color-background))'};
+    background: ${props => props.$variant === 'danger' ? 'rgb(var(--color-danger))' : 'rgb(var(--color-background))'};
   }
   
   &:disabled {
@@ -1421,7 +1425,7 @@ const KeyboardShortcutsModal = styled.div`
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(var(--color-overlay), 0.5);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1438,7 +1442,7 @@ const KeyboardShortcutsContent = styled.div`
   max-width: 600px;
   max-height: 80vh;
   overflow-y: auto;
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 20px 25px -5px rgba(var(--color-overlay), 0.1);
   animation: scaleIn 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 `;
 
@@ -1512,7 +1516,7 @@ const ShortcutKey = styled.kbd`
   background: rgb(var(--color-surface));
   border: 1px solid rgb(var(--color-border));
   border-radius: var(--radius-sm);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 1px 2px rgba(var(--color-overlay), 0.05);
 `;
 
 const ViewportToolbar = styled.div`
@@ -1564,7 +1568,7 @@ const AlignmentToolbar = styled.div`
   border: 1px solid rgb(var(--color-border));
   border-radius: var(--radius-lg);
   padding: 6px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 4px 12px rgba(var(--color-overlay), 0.15);
   z-index: 15;
   
   /* Hide when no nodes selected */
@@ -1598,7 +1602,7 @@ const AlignmentButton = styled.button`
   
   &:active {
     background: rgb(var(--color-primary));
-    color: white;
+    color: rgb(var(--color-text-inverse));
   }
   
   svg {
@@ -1614,11 +1618,11 @@ const DragGhost = styled.div<{ $color?: string }>`
   opacity: 0.6;
   padding: 12px 16px;
   background: ${props => props.$color || 'rgb(var(--color-primary))'};
-  color: white;
+  color: rgb(var(--color-text-inverse));
   border-radius: var(--radius-md);
   font-size: 14px;
   font-weight: 500;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 8px 24px rgba(var(--color-overlay), 0.2);
   transform: translate(-50%, -50%);
   white-space: nowrap;
   display: flex;
@@ -1659,7 +1663,7 @@ const SettingsPanel = styled.div`
   border: 1px solid rgb(var(--color-border));
   border-radius: var(--radius-md);
   padding: 12px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 12px rgba(var(--color-overlay), 0.1);
   z-index: 10;
   display: flex;
   flex-direction: column;
@@ -1691,7 +1695,7 @@ const PatternButton = styled.button<{ $active: boolean }>`
   flex: 1;
   padding: 6px 10px;
   background: ${props => props.$active ? 'rgb(var(--color-primary))' : 'transparent'};
-  color: ${props => props.$active ? 'white' : 'rgb(var(--color-text-primary))'};
+  color: ${props => props.$active ? 'rgb(var(--color-primary-foreground))' : 'rgb(var(--color-text-primary))'};
   border: 1px solid ${props => props.$active ? 'rgb(var(--color-primary))' : 'rgb(var(--color-border))'};
   border-radius: var(--radius-sm);
   font-size: 11px;
@@ -1737,7 +1741,7 @@ const ToggleSwitch = styled.button<{ $active: boolean }>`
     left: ${props => props.$active ? '22px' : '2px'};
     width: 16px;
     height: 16px;
-    background: white;
+    background: rgb(var(--color-surface));
     border-radius: 50%;
     transition: left 0.15s ease;
   }
@@ -1941,7 +1945,7 @@ class ConfigPanelErrorBoundary extends React.Component<
             style={{
               padding: '8px 16px',
               background: 'rgb(var(--color-primary))',
-              color: 'white',
+              color: 'rgb(var(--color-primary-foreground))',
               border: 'none',
               borderRadius: '4px',
               cursor: 'pointer'
@@ -2128,7 +2132,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     if (nodeCount > 1000) {
       logger.warn(`[Performance] Large workflow detected: ${nodeCount} nodes, ${edgeCount} edges`);
     } else if (nodeCount > 500) {
-      console.info(`[Performance] Medium workflow: ${nodeCount} nodes, ${edgeCount} edges`);
+      logger.debug(`[Performance] Medium workflow: ${nodeCount} nodes, ${edgeCount} edges`);
     }
     
     // Measure performance of large workflows
@@ -2226,7 +2230,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       background: rgb(var(--color-surface));
       /* Must sit above fullscreen canvas (EditorContainer uses z-index: 9990) */
       z-index: 10050;
-      box-shadow: -4px 0 12px rgba(0,0,0,0.1);
+      box-shadow: -4px 0 12px rgba(var(--color-overlay), 0.1);
       display: none;
       pointer-events: none;
     `;
@@ -2267,7 +2271,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
           background: rgb(var(--color-surface));
           /* Must sit above fullscreen canvas (EditorContainer uses z-index: 9990) */
           z-index: 10050;
-          box-shadow: -4px 0 12px rgba(0,0,0,0.1);
+          box-shadow: -4px 0 12px rgba(var(--color-overlay), 0.1);
           display: flex;
           pointer-events: auto;
         `;
@@ -3718,6 +3722,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
             label: `Page ${index + 1}`,
             status: 'draft',
             fields: [],
+            formFields: [],
             ...getDefaultNodeData('form'),
           },
           selected: index === 0,
@@ -4545,6 +4550,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
             label: `Page ${index + 1}`,
             status: 'draft',
             fields: [],
+            formFields: [],
             ...getDefaultNodeData('form'),
           },
         });
@@ -6820,6 +6826,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
             stepTitle: `Page ${newPageNumber}`,
             label: `Page ${newPageNumber}`,
             fields: [],
+            formFields: [],
             order: insertIndex,
           },
           parentId: containerId,
@@ -7456,7 +7463,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
             disabled={isSaving}
             style={hasUnsavedChanges ? {
               background: 'rgb(var(--color-primary))',
-              color: 'white',
+              color: 'rgb(var(--color-primary-foreground))',
               borderColor: 'rgb(var(--color-primary))'
             } : {}}
           >
@@ -7497,8 +7504,8 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
             title="Test Workflow Execution"
             style={{ 
               fontWeight: 600, 
-              color: 'rgb(34, 197, 94)', // Success green
-              borderColor: 'rgb(34, 197, 94, 0.3)'
+              color: 'rgb(var(--color-success))', // Success green
+              borderColor: 'rgba(var(--color-success), 0.3)'
             }}
             disabled={nodes.length === 0}
           >
@@ -7512,8 +7519,8 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
             title="Run Flow Preview"
             style={{ 
               fontWeight: 600, 
-              color: 'rgb(139, 92, 246)', // Purple accent
-              borderColor: 'rgb(139, 92, 246, 0.3)'
+              color: 'rgb(var(--color-primary))', // Purple accent
+              borderColor: 'rgb(var(--color-primary) / 0.3)'
             }}
             disabled={nodes.length === 0}
           >
@@ -7568,7 +7575,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
               title={isPaletteVisible ? 'Hide Node Palette (Tab)' : 'Show Node Palette (Tab)'}
               style={isPaletteVisible ? {
                 background: 'rgb(var(--color-primary))',
-                color: 'white',
+                color: 'rgb(var(--color-primary-foreground))',
                 borderColor: 'rgb(var(--color-primary))'
               } : {}}
             >
@@ -7579,7 +7586,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
               title={isAISuggestionsVisible ? 'Hide AI Suggestions' : 'Show AI Suggestions'}
               style={isAISuggestionsVisible ? {
                 background: 'rgb(var(--color-primary))',
-                color: 'white',
+                color: 'rgb(var(--color-primary-foreground))',
                 borderColor: 'rgb(var(--color-primary))'
               } : {}}
             >
@@ -7593,7 +7600,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
           title="Canvas Settings (Grid, Background)"
           style={isSettingsPanelOpen ? {
             background: 'rgb(var(--color-primary))',
-            color: 'white',
+            color: 'rgb(var(--color-primary-foreground))',
             borderColor: 'rgb(var(--color-primary))'
           } : {}}
         >
@@ -7615,7 +7622,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
           title={isMinimapVisible ? 'Hide Minimap (M)' : 'Show Minimap (M)'}
           style={isMinimapVisible ? {
             background: 'rgb(var(--color-primary))',
-            color: 'white',
+            color: 'rgb(var(--color-primary-foreground))',
             borderColor: 'rgb(var(--color-primary))'
           } : {}}
         >
@@ -7780,12 +7787,12 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
               const registry = type ? NODE_TYPE_REGISTRY[type] : undefined;
               return registry?.color || 'rgb(var(--color-text-tertiary))';
             }}
-            maskColor="rgba(0, 0, 0, 0.1)"
+            maskColor="rgba(var(--color-overlay), 0.1)"
             style={{
-              backgroundColor: 'rgba(255, 255, 255, 0.95)',
+              backgroundColor: 'rgba(var(--color-header-background), 0.95)',
               border: '1px solid rgb(var(--color-border))',
               borderRadius: 'var(--radius-md)',
-              boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
+              boxShadow: '0 4px 12px rgba(var(--color-overlay), 0.1)',
             }}
             pannable
             zoomable
@@ -8163,7 +8170,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
           style={{ 
             left: dragPosition.x, 
             top: dragPosition.y,
-            boxShadow: nearbyNode ? '0 0 0 3px rgba(var(--color-success), 0.5)' : '0 8px 24px rgba(0, 0, 0, 0.2)',
+            boxShadow: nearbyNode ? '0 0 0 3px rgba(var(--color-success), 0.5)' : '0 8px 24px rgba(var(--color-overlay), 0.2)',
           }}
           $color={NODE_TYPE_REGISTRY[dragNodeType]?.color}
         >
@@ -8199,6 +8206,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
               edges={edges}
               setNodes={setNodes}
               setEdges={setEdges}
+              readOnly={readOnly}
               onClose={() => {
                 logger.debug('[Tabbed Config Panel] Closing panel for node:', selectedNode.id);
                 setSelectedNode(null);
@@ -8326,20 +8334,20 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
           },
           success: {
             iconTheme: {
-              primary: 'rgb(34, 197, 94)', // green-500
-              secondary: 'white',
+              primary: 'rgb(var(--color-success))', // green-500
+              secondary: 'rgb(var(--color-text-inverse))',
             },
           },
           error: {
             iconTheme: {
-              primary: 'rgb(239, 68, 68)', // red-500
-              secondary: 'white',
+              primary: 'rgb(var(--color-error))', // red-500
+              secondary: 'rgb(var(--color-text-inverse))',
             },
           },
           loading: {
             iconTheme: {
               primary: 'rgb(var(--color-primary))',
-              secondary: 'white',
+              secondary: 'rgb(var(--color-text-inverse))',
             },
           },
         }}
@@ -8605,7 +8613,8 @@ function getDefaultNodeData(nodeTypeId: string): Record<string, any> {
     defaults.type = mappedType;
 
     // Used by the visual TriggerNode component (kept for backward compatibility)
-    defaults.triggerType = mappedType;
+    // Normalize legacy "formSubmit" into the TriggerNode's supported "form" trigger type.
+    defaults.triggerType = mappedType === 'formSubmit' ? 'form' : mappedType;
 
     // Triggers are entrypoints
     defaults.maxInputs = 0;

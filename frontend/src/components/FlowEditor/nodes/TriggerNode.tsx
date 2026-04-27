@@ -21,7 +21,8 @@ import { getNodeTypeDefinition } from '../nodeTypes';
 // ============================================================================
 
 export interface TriggerNodeData extends BaseNodeData {
-  triggerType: 'manual' | 'schedule' | 'webhook' | 'event' | 'form';
+  // `formSubmit` is legacy drift from earlier editor defaults; normalize it to `form` at runtime.
+  triggerType: 'manual' | 'schedule' | 'webhook' | 'event' | 'form' | 'formSubmit';
   schedule?: string; // cron expression
   webhookUrl?: string;
   eventEntity?: string;
@@ -64,7 +65,7 @@ const ConfigValue = styled.span`
   white-space: nowrap;
   font-family: monospace;
   font-size: 10px;
-  background: rgba(0, 0, 0, 0.05);
+  background: rgba(var(--color-overlay), 0.05);
   padding: 2px 4px;
   border-radius: 2px;
 `;
@@ -77,22 +78,22 @@ const TriggerBadge = styled.span<{ $type: string }>`
   font-weight: 600;
   background: ${props => {
     switch (props.$type) {
-      case 'manual': return 'rgba(34, 197, 94, 0.2)';
-      case 'schedule': return 'rgba(59, 130, 246, 0.2)';
-      case 'webhook': return 'rgba(168, 85, 247, 0.2)';
-      case 'event': return 'rgba(234, 179, 8, 0.2)';
-      case 'form': return 'rgba(236, 72, 153, 0.2)';
-      default: return 'rgba(148, 163, 184, 0.2)';
+      case 'manual': return 'rgba(var(--color-success), 0.2)';
+      case 'schedule': return 'rgba(var(--color-info), 0.2)';
+      case 'webhook': return 'rgba(var(--color-info), 0.2)';
+      case 'event': return 'rgba(var(--color-warning), 0.2)';
+      case 'form': return 'rgba(var(--color-primary), 0.2)';
+      default: return 'rgba(var(--color-border), 0.2)';
     }
   }};
   color: ${props => {
     switch (props.$type) {
-      case 'manual': return 'rgb(34, 197, 94)';
-      case 'schedule': return 'rgb(59, 130, 246)';
-      case 'webhook': return 'rgb(168, 85, 247)';
-      case 'event': return 'rgb(234, 179, 8)';
-      case 'form': return 'rgb(236, 72, 153)';
-      default: return 'rgb(148, 163, 184)';
+      case 'manual': return 'rgb(var(--color-success))';
+      case 'schedule': return 'rgb(var(--color-info))';
+      case 'webhook': return 'rgb(var(--color-info))';
+      case 'event': return 'rgb(var(--color-warning))';
+      case 'form': return 'rgb(var(--color-primary))';
+      default: return 'rgb(var(--color-text-tertiary))';
     }
   }};
 `;
@@ -104,13 +105,15 @@ const TriggerBadge = styled.span<{ $type: string }>`
 export const TriggerNode = React.memo<NodeProps<Node<TriggerNodeData>>>((props) => {
   const { data, selected, id } = props;
   const {
-    triggerType,
+    triggerType: rawTriggerType,
     schedule,
     webhookUrl,
     eventEntity,
     eventType,
     formId,
   } = data;
+
+  const triggerType = rawTriggerType === 'formSubmit' ? 'form' : rawTriggerType;
 
   const scheduleSummary = (data as any)?.scheduleSummary as string | undefined;
   
@@ -130,7 +133,7 @@ export const TriggerNode = React.memo<NodeProps<Node<TriggerNodeData>>>((props) 
     id: 'triggerManual',
     name: 'Manual Trigger',
     category: 'trigger' as const,
-    color: 'rgb(34, 197, 94)',
+    color: 'rgb(var(--color-success))',
     icon: '▶️',
     description: 'User starts the workflow manually',
     maxInputs: 0,

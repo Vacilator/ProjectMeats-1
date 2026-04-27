@@ -22,12 +22,17 @@ from channels.routing import ProtocolTypeRouter, URLRouter
 from channels.security.websocket import AllowedHostsOriginValidator
 
 import tenant_apps.workflows.routing
+from apps.tenants.channels_middleware import JwtAuthMiddleware, TenantContextMiddleware
 
 application = ProtocolTypeRouter(
     {
         "http": django_asgi_app,
         "websocket": AllowedHostsOriginValidator(
-            AuthMiddlewareStack(URLRouter(tenant_apps.workflows.routing.websocket_urlpatterns))
+            AuthMiddlewareStack(
+                JwtAuthMiddleware(
+                    TenantContextMiddleware(URLRouter(tenant_apps.workflows.routing.websocket_urlpatterns))
+                )
+            )
         ),
     }
 )

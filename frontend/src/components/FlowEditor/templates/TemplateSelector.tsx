@@ -32,7 +32,7 @@ const Overlay = styled.div`
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.7);
+  background: rgba(var(--color-overlay), 0.7);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -48,7 +48,7 @@ const Modal = styled.div`
   max-height: 90vh;
   display: flex;
   flex-direction: column;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 20px 60px rgba(var(--color-overlay), 0.3);
 `;
 
 const Header = styled.div`
@@ -162,7 +162,7 @@ const TemplateCard = styled.div`
   &:hover {
     border-color: rgb(var(--color-primary));
     transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 4px 12px rgba(var(--color-overlay), 0.1);
   }
 `;
 
@@ -184,18 +184,24 @@ const DifficultyBadge = styled.span<{ $difficulty: TemplateDifficulty }>`
   font-size: 11px;
   font-weight: 600;
   text-transform: uppercase;
-  background: ${props => {
-    switch (props.$difficulty) {
-      case 'beginner': return 'rgb(34 197 94 / 0.1)';
-      case 'intermediate': return 'rgb(234 179 8 / 0.1)';
-      case 'advanced': return 'rgb(239 68 68 / 0.1)';
+  background: ${(p) => {
+    switch (p.$difficulty) {
+      case 'beginner':
+        return 'rgba(var(--color-success), 0.10)';
+      case 'intermediate':
+        return 'rgba(var(--color-warning), 0.10)';
+      case 'advanced':
+        return 'rgba(var(--color-error), 0.10)';
     }
   }};
-  color: ${props => {
-    switch (props.$difficulty) {
-      case 'beginner': return 'rgb(34 197 94)';
-      case 'intermediate': return 'rgb(234 179 8)';
-      case 'advanced': return 'rgb(239 68 68)';
+  color: ${(p) => {
+    switch (p.$difficulty) {
+      case 'beginner':
+        return 'rgb(var(--color-success))';
+      case 'intermediate':
+        return 'rgb(var(--color-warning))';
+      case 'advanced':
+        return 'rgb(var(--color-error))';
     }
   }};
 `;

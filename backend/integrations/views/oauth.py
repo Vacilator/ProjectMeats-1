@@ -6,11 +6,12 @@ from datetime import timedelta
 from urllib.parse import urlencode, quote
 
 from django.conf import settings
+from django.core import signing
 from django.core.signing import BadSignature, SignatureExpired, TimestampSigner
 from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
 from django.shortcuts import redirect
 from django.utils import timezone
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.views import APIView
 
 from apps.integrations.microsoft.utils import get_microsoft_redirect_uri
@@ -18,6 +19,7 @@ from apps.integrations.models import ExternalAuthProvider
 from apps.integrations.providers import MicrosoftGraphProvider
 from apps.integrations.providers.base import EmailProviderError, AuthenticationError
 from apps.tenants.models import Tenant
+from apps.tenants.rls import set_current_tenant
 
 logger = logging.getLogger(__name__)
 
@@ -25,6 +27,7 @@ _OAUTH_COOKIE_PREFIX = 'pm_oauth'
 _OAUTH_COOKIE_MAX_AGE_SECONDS = 15 * 60
 _OAUTH_COOKIE_PATH = '/api/v1/integrations/oauth/'
 _SIGNER = TimestampSigner(salt='pm.integrations.oauth')
+_STATE_SALT = 'pm.integrations.oauth.state'
 
 
 def _oauth_cookie_name(key: str, provider: str) -> str:
@@ -61,18 +64,39 @@ def _get_signed_oauth_cookie(request, *, name: str) -> str | None:
 def _clear_oauth_cookies(response, provider: str) -> None:
     response.delete_cookie(_oauth_cookie_name('state', provider), path=_OAUTH_COOKIE_PATH)
     response.delete_cookie(_oauth_cookie_name('tenant', provider), path=_OAUTH_COOKIE_PATH)
+    response.delete_cookie(_oauth_cookie_name('nonce', provider), path=_OAUTH_COOKIE_PATH)
+
+
+def _consume_oauth_nonce(request, provider: str, nonce: str) -> bool:
+    """Nonce replay protection without requiring a shared cache.
+
+    We bind nonce to the initiating browser via session and a signed httpOnly cookie.
+    Callback must present the same nonce exactly once.
+    """
+
+    if not nonce:
+        return False
+
+    expected = request.session.get(f'oauth_nonce_{provider}') or _get_signed_oauth_cookie(
+        request,
+        name=_oauth_cookie_name('nonce', provider),
+    )
+    if not expected or expected != nonce:
+        return False
+
+    request.session.pop(f'oauth_nonce_{provider}', None)
+    return True
 
 
 class OAuthAuthorizeView(APIView):
-    """Redirect the user to the provider's OAuth2 authorization page.
+    """Return (or redirect to) the provider's OAuth2 authorization URL.
 
-    IMPORTANT:
-    - This endpoint must work via plain browser navigation (no Authorization header).
-    - We store `state` in the session for CSRF protection and validate it in the callback handler.
+    Security requirements:
+    - Initiation must be tied to an authenticated user.
+    - Callback must validate a signed state containing tenant_id + user_id and enforce membership.
     """
 
-    authentication_classes = []
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticated]
 
     def get(self, request):
         provider = request.query_params.get('provider', 'microsoft')
@@ -128,14 +152,26 @@ class OAuthAuthorizeView(APIView):
         if not tenant:
             return HttpResponse('Tenant not resolved for this request.', status=400, content_type='text/plain')
 
-        # Generate CSRF state.
-        state = secrets.token_urlsafe(32)
+        # Generate signed state tied to the authenticated user + tenant.
+        #
+        # Why signed?
+        # - Callback arrives without Authorization header.
+        # - Session cookie may be blocked on cross-site redirects.
+        # - Signed state provides integrity and lets us enforce tenant membership.
+        nonce = secrets.token_urlsafe(16)
+        request.session[f'oauth_nonce_{provider}'] = nonce
+
+        state = signing.dumps(
+            {
+                'tenant_id': str(tenant.id),
+                'user_id': str(request.user.id),
+                'provider': provider,
+                'nonce': nonce,
+            },
+            salt=_STATE_SALT,
+        )
 
         # Persist state/tenant for callback verification.
-        #
-        # Why cookies too?
-        # Production uses SESSION_COOKIE_SAMESITE=Strict, which prevents the session cookie
-        # from being sent on cross-site redirects back from Microsoft.
         request.session[f'oauth_state_{provider}'] = state
         request.session[f'oauth_tenant_{provider}'] = str(tenant.id)
 
@@ -209,6 +245,12 @@ class OAuthAuthorizeView(APIView):
             value=str(tenant.id),
             request=request,
         )
+        _set_signed_oauth_cookie(
+            response,
+            name=_oauth_cookie_name('nonce', provider),
+            value=nonce,
+            request=request,
+        )
         return response
 
 
@@ -244,19 +286,53 @@ class OAuthCallbackView(APIView):
             name=_oauth_cookie_name('state', provider),
         )
         if not state or state != expected_state:
+            request.session.pop(f'oauth_state_{provider}', None)
+            request.session.pop(f'oauth_tenant_{provider}', None)
             response = redirect(f'/settings/email-integrations?error=invalid_state&provider={quote(provider)}')
             _clear_oauth_cookies(response, provider)
             return response
 
-        tenant_id = request.session.get(f'oauth_tenant_{provider}') or _get_signed_oauth_cookie(
-            request,
-            name=_oauth_cookie_name('tenant', provider),
-        )
-        if not tenant_id:
-            response = redirect(f'/settings/email-integrations?error=no_tenant&provider={quote(provider)}')
+        # Decode signed state payload (must include tenant_id + user_id).
+        try:
+            state_payload = signing.loads(state, salt=_STATE_SALT, max_age=_OAUTH_COOKIE_MAX_AGE_SECONDS)
+        except Exception:
+            response = redirect(f'/settings/email-integrations?error=invalid_state&provider={quote(provider)}')
             _clear_oauth_cookies(response, provider)
             return response
-        tenant_id = str(tenant_id)
+
+        tenant_id = str(state_payload.get('tenant_id') or '')
+        user_id = str(state_payload.get('user_id') or '')
+        state_provider = str(state_payload.get('provider') or '')
+        nonce = str(state_payload.get('nonce') or '')
+
+        if not tenant_id or not user_id or not nonce:
+            request.session.pop(f'oauth_state_{provider}', None)
+            request.session.pop(f'oauth_tenant_{provider}', None)
+            response = redirect(f'/settings/email-integrations?error=invalid_state&provider={quote(provider)}')
+            _clear_oauth_cookies(response, provider)
+            return response
+
+        if state_provider and state_provider != provider:
+            request.session.pop(f'oauth_state_{provider}', None)
+            request.session.pop(f'oauth_tenant_{provider}', None)
+            response = redirect(f'/settings/email-integrations?error=invalid_state&provider={quote(provider)}')
+            _clear_oauth_cookies(response, provider)
+            return response
+
+        header_tenant = request.headers.get('X-Tenant-ID')
+        if header_tenant and header_tenant != tenant_id:
+            request.session.pop(f'oauth_state_{provider}', None)
+            request.session.pop(f'oauth_tenant_{provider}', None)
+            response = redirect(f'/settings/email-integrations?error=tenant_mismatch&provider={quote(provider)}')
+            _clear_oauth_cookies(response, provider)
+            return response
+
+        if not _consume_oauth_nonce(request, provider, nonce):
+            request.session.pop(f'oauth_state_{provider}', None)
+            request.session.pop(f'oauth_tenant_{provider}', None)
+            response = redirect(f'/settings/email-integrations?error=replayed_state&provider={quote(provider)}')
+            _clear_oauth_cookies(response, provider)
+            return response
 
         try:
             tenant = Tenant.objects.get(id=tenant_id)
@@ -264,6 +340,37 @@ class OAuthCallbackView(APIView):
             response = redirect(f'/settings/email-integrations?error=tenant_not_found&provider={quote(provider)}')
             _clear_oauth_cookies(response, provider)
             return response
+
+        # Enforce tenant membership for the initiating user.
+        from django.contrib.auth import get_user_model
+        from apps.tenants.models import TenantUser
+
+        User = get_user_model()
+        try:
+            initiating_user = User.objects.get(id=user_id)
+        except User.DoesNotExist:
+            response = redirect(f'/settings/email-integrations?error=user_not_found&provider={quote(provider)}')
+            _clear_oauth_cookies(response, provider)
+            return response
+
+        if not (
+            getattr(initiating_user, 'is_superuser', False)
+            or TenantUser.objects.filter(tenant=tenant, user=initiating_user, is_active=True).exists()
+        ):
+            response = redirect(f'/settings/email-integrations?error=permission_denied&provider={quote(provider)}')
+            _clear_oauth_cookies(response, provider)
+            return response
+
+        # Ensure tenant + RLS context is set before any tenant-scoped writes.
+        request.tenant = tenant
+        if hasattr(request, '_request') and getattr(request, '_request', None) is not None:
+            setattr(request._request, 'tenant', tenant)
+
+        rls_result = set_current_tenant(str(tenant.id))
+        if getattr(rls_result, 'ok', False):
+            setattr(request, '_rls_set', True)
+            if hasattr(request, '_request') and getattr(request, '_request', None) is not None:
+                setattr(request._request, '_rls_set', True)
 
         # Must exactly match what was used in the authorize redirect.
         callback_path = f'/api/v1/integrations/oauth/callback/{provider}/'

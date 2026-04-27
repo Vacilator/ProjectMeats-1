@@ -1,0 +1,36 @@
+name: "Nightly Golden Drift Gate"
+
+on:
+  schedule:
+    - cron: "37 3 * * *" # daily
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nightly-drift-gate
+  cancel-in-progress: true
+
+jobs:
+  drift-gate:
+    name: "Verify golden invariants"
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          fetch-depth: 1
+
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6
+        with:
+          python-version: '3.12'
+
+      - name: Infrastructure drift gate
+        run: bash .github/scripts/check_infrastructure.sh
+
+      - name: Golden state verification
+        run: bash scripts/verify_golden_state.sh

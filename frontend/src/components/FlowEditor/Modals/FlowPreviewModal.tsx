@@ -19,6 +19,7 @@ import styled from 'styled-components';
 import { X, Play, Pause, RotateCcw, FastForward, CheckCircle, AlertCircle, Clock } from 'lucide-react';
 import { Node, Edge, useReactFlow } from '@xyflow/react';
 import { FormField } from '@/components/form-builder/types';
+import { getResolvedFormFields } from '../utils/formFieldsDualModel';
 
 /**
  * Props for FlowPreviewModal
@@ -58,7 +59,7 @@ interface LogEntry {
 const Overlay = styled.div<{ isOpen: boolean }>`
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.7);
+  background: rgba(var(--color-overlay), 0.7);
   display: ${props => props.isOpen ? 'flex' : 'none'};
   align-items: center;
   justify-content: center;
@@ -74,7 +75,7 @@ const Overlay = styled.div<{ isOpen: boolean }>`
 const Modal = styled.div`
   background: rgb(var(--color-surface));
   border-radius: 12px;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 20px 60px rgba(var(--color-overlay), 0.4);
   width: 95vw;
   max-width: 1400px;
   height: 90vh;
@@ -135,13 +136,13 @@ const Button = styled.button<{ variant?: 'primary' | 'ghost' | 'danger' }>`
     if (props.variant === 'primary') {
       return `
         background: rgb(var(--color-primary));
-        color: white;
+        color: rgb(var(--color-text-inverse));
         &:hover { opacity: 0.9; }
       `;
     } else if (props.variant === 'danger') {
       return `
-        background: rgb(239, 68, 68);
-        color: white;
+        background: rgb(var(--color-error));
+        color: rgb(var(--color-text-inverse));
         &:hover { opacity: 0.9; }
       `;
     } else {
@@ -203,18 +204,18 @@ const LogItem = styled.div<{ level: 'info' | 'success' | 'warning' | 'error' }>`
   line-height: 1.5;
   background: ${props => {
     switch (props.level) {
-      case 'success': return 'rgba(34, 197, 94, 0.1)';
-      case 'warning': return 'rgba(234, 179, 8, 0.1)';
-      case 'error': return 'rgba(239, 68, 68, 0.1)';
-      default: return 'rgba(59, 130, 246, 0.1)';
+      case 'success': return 'rgba(var(--color-success), 0.1)';
+      case 'warning': return 'rgba(var(--color-warning), 0.1)';
+      case 'error': return 'rgba(var(--color-error), 0.1)';
+      default: return 'rgba(var(--color-info), 0.1)';
     }
   }};
   border-left: 3px solid ${props => {
     switch (props.level) {
-      case 'success': return 'rgb(34, 197, 94)';
-      case 'warning': return 'rgb(234, 179, 8)';
-      case 'error': return 'rgb(239, 68, 68)';
-      default: return 'rgb(59, 130, 246)';
+      case 'success': return 'rgb(var(--color-success))';
+      case 'warning': return 'rgb(var(--color-warning))';
+      case 'error': return 'rgb(var(--color-error))';
+      default: return 'rgb(var(--color-info))';
     }
   }};
 `;
@@ -246,18 +247,18 @@ const PreviewNode = styled.div<{ status: NodeExecutionState['status'] }>`
   border-radius: 8px;
   border: 2px solid ${props => {
     switch (props.status) {
-      case 'active': return 'rgb(59, 130, 246)';
-      case 'complete': return 'rgb(34, 197, 94)';
-      case 'error': return 'rgb(239, 68, 68)';
+      case 'active': return 'rgb(var(--color-info))';
+      case 'complete': return 'rgb(var(--color-success))';
+      case 'error': return 'rgb(var(--color-error))';
       case 'skipped': return 'rgb(var(--color-text-tertiary))';
       default: return 'rgb(var(--color-border))';
     }
   }};
   background: ${props => {
     switch (props.status) {
-      case 'active': return 'rgba(59, 130, 246, 0.1)';
-      case 'complete': return 'rgba(34, 197, 94, 0.1)';
-      case 'error': return 'rgba(239, 68, 68, 0.1)';
+      case 'active': return 'rgba(var(--color-info), 0.1)';
+      case 'complete': return 'rgba(var(--color-success), 0.1)';
+      case 'error': return 'rgba(var(--color-error), 0.1)';
       default: return 'rgb(var(--color-surface))';
     }
   }};
@@ -267,8 +268,8 @@ const PreviewNode = styled.div<{ status: NodeExecutionState['status'] }>`
   ${props => props.status === 'active' && `
     animation: pulse 2s ease-in-out infinite;
     @keyframes pulse {
-      0%, 100% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.4); }
-      50% { box-shadow: 0 0 0 8px rgba(59, 130, 246, 0); }
+      0%, 100% { box-shadow: 0 0 0 0 rgba(var(--color-info), 0.4); }
+      50% { box-shadow: 0 0 0 8px rgba(var(--color-info), 0); }
     }
   `}
 `;
@@ -295,20 +296,20 @@ const StatusBadge = styled.div<{ status: NodeExecutionState['status'] }>`
   letter-spacing: 0.5px;
   background: ${props => {
     switch (props.status) {
-      case 'active': return 'rgb(59, 130, 246)';
-      case 'complete': return 'rgb(34, 197, 94)';
-      case 'error': return 'rgb(239, 68, 68)';
+      case 'active': return 'rgb(var(--color-info))';
+      case 'complete': return 'rgb(var(--color-success))';
+      case 'error': return 'rgb(var(--color-error))';
       case 'skipped': return 'rgb(var(--color-text-tertiary))';
       default: return 'rgb(var(--color-border))';
     }
   }};
-  color: white;
+  color: rgb(var(--color-text-inverse));
 `;
 
 const NodeData = styled.pre`
   font-size: 12px;
   padding: 12px;
-  background: rgba(0, 0, 0, 0.05);
+  background: rgba(var(--color-overlay), 0.05);
   border-radius: 4px;
   overflow-x: auto;
   color: rgb(var(--color-text-secondary));
@@ -398,7 +399,7 @@ export const FlowPreviewModal: React.FC<FlowPreviewModalProps> = React.memo(({
     
     if (node.type?.includes('form')) {
       // Generate mock form data
-      const fields = ((node.data as any)?.fields as FormField[] | undefined) || [];
+      const fields = getResolvedFormFields(node.data);
       fields.forEach((field) => {
         mockData[field.id] = `Mock ${field.type} value`;
       });

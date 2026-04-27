@@ -12,6 +12,8 @@ from celery import shared_task
 from django.conf import settings
 from django.core.mail import send_mail
 
+from apps.tenants.rls import tenant_rls
+
 from .email_utils import is_sendgrid_quota_exceeded
 
 logger = logging.getLogger(__name__)
@@ -23,7 +25,7 @@ logger = logging.getLogger(__name__)
     max_retries=3,
     default_retry_delay=60,
 )
-def send_invitation_email_task(self, invitation_id: str) -> dict:
+def send_invitation_email_task(self, invitation_id: str, tenant_id: str) -> dict:
     """Send an invitation email in the background.
 
     Retries up to 3 times with exponential back-off for transient failures.
@@ -32,6 +34,7 @@ def send_invitation_email_task(self, invitation_id: str) -> dict:
 
     Args:
         invitation_id: Primary-key string of the ``TenantInvitation`` record.
+        tenant_id: Tenant UUID for RLS scoping.
 
     Returns:
         A dict with ``{"success": True}`` on success.
@@ -41,7 +44,8 @@ def send_invitation_email_task(self, invitation_id: str) -> dict:
     from .models import TenantInvitation  # noqa: PLC0415
 
     try:
-        invitation = TenantInvitation.objects.get(id=invitation_id)
+        with tenant_rls(str(tenant_id), strict=False):
+            invitation = TenantInvitation.objects.get(id=invitation_id, tenant_id=tenant_id)
     except TenantInvitation.DoesNotExist:
         logger.warning("send_invitation_email_task: invitation %s not found", invitation_id)
         return {"success": False, "error": "Invitation not found"}

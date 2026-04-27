@@ -4,6 +4,7 @@ import { Node, Edge } from '@xyflow/react';
 import EntityFieldPicker, { type SelectedField } from '../EntityFieldPicker';
 import { useEntityList } from '../../../../services/schemaService';
 import { useUpstreamVariables } from '../../hooks/useUpstreamVariables';
+import { getResolvedSelectedFields, toFormFieldsFromSelectedFields } from '../../utils/formFieldsDualModel';
 
 import styled from 'styled-components';
 
@@ -67,7 +68,7 @@ export const FormNodeConfig: React.FC<FormNodeConfigProps> = ({
   }, [node.id, node.data]);
 
   const entityType = (formData.entityType as string) || '';
-  const selectedFields = (formData.fields as SelectedField[]) || [];
+  const selectedFields = getResolvedSelectedFields(formData);
 
   const { data: entities = [] } = useEntityList();
 
@@ -122,7 +123,7 @@ export const FormNodeConfig: React.FC<FormNodeConfigProps> = ({
           onChange={(e) => {
             const nextEntityType = e.target.value;
             // Critical: reset selected fields when switching entity.
-            update({ entityType: nextEntityType, fields: [] });
+            update({ entityType: nextEntityType, fields: [], formFields: [] });
           }}
         >
           <option value="">Select an entity…</option>
@@ -139,7 +140,9 @@ export const FormNodeConfig: React.FC<FormNodeConfigProps> = ({
         <Label>Fields</Label>
         <EntityFieldPicker
           selectedFields={selectedFields}
-          onFieldsChange={(fields) => update({ fields })}
+          onFieldsChange={(fields) =>
+            update({ fields, formFields: toFormFieldsFromSelectedFields(fields) })
+          }
           upstreamVariables={upstreamVariables}
           entityType={entityType}
           hideEntitySelector

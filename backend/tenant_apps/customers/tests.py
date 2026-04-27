@@ -25,7 +25,8 @@ class CustomerAPITests(APITestCase):
             email=f"test-{unique_id}@example.com", 
             password="testpass123"
         )
-        self.client.force_authenticate(user=self.user)
+        # Use session auth so TenantMiddleware can resolve X-Tenant-ID.
+        self.client.force_login(self.user)
 
         self.tenant = Tenant.objects.create(
             name=f"Test Company {unique_id}",

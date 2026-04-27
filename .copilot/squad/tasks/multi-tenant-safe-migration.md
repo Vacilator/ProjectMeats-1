@@ -13,6 +13,8 @@ Make schema changes without breaking existing tenants and while preserving defen
 - Verified migration plan + rollback steps
 
 ## Step-by-step execution
+0. **Relay → synthesize (Lead Engineer)**
+   - After fleet agents complete, run a Lead Engineer synthesis pass to unify findings into one patch plan.
 1. Confirm constraints:
    - Shared schema ONLY (no django-tenants)
    - Additive-only when possible

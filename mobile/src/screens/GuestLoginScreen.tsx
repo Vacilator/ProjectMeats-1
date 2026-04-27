@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import {
   View,
   Text,
-  TextInput,
   TouchableOpacity,
   StyleSheet,
   Alert,
@@ -18,31 +17,25 @@ type GuestLoginNavigationProp = StackNavigationProp<RootStackParamList, 'Guest'>
 
 interface Props {
   navigation: GuestLoginNavigationProp;
-  onGuestLogin: (session: GuestSession) => void;
+  onGuestLogin: (session: GuestSession) => Promise<void>;
 }
 
 export default function GuestLoginScreen({ navigation, onGuestLogin }: Props) {
-  const [tenantSlug, setTenantSlug] = useState('');
-  const [accessCode, setAccessCode] = useState('');
+  // Backend guest mode logs into a pre-configured guest tenant.
   const [loading, setLoading] = useState(false);
 
   const handleGuestLogin = async () => {
-    if (!tenantSlug.trim()) {
-      Alert.alert('Error', 'Please enter a workspace name');
-      return;
-    }
-
     setLoading(true);
     try {
-      const session = await ApiService.loginAsGuest(tenantSlug.trim(), accessCode.trim() || undefined);
-      ApiService.setGuestToken(session.guest_token);
-      onGuestLogin(session);
+      // Backend endpoint does not accept tenant slug/access code; it logs into a configured guest tenant.
+      const session = await ApiService.guestLogin();
+      await onGuestLogin(session);
     } catch (error: any) {
       const message =
         error.response?.status === 404
-          ? 'Workspace not found. Please check the name and try again.'
-          : error.response?.status === 403
-          ? 'Guest access is not enabled for this workspace, or the access code is incorrect.'
+          ? 'Guest account is not configured on the server.'
+          : error.response?.status === 503
+          ? 'Guest access is temporarily unavailable.'
           : 'Unable to start guest session. Please try again.';
       Alert.alert('Access Denied', message);
     } finally {
@@ -70,28 +63,6 @@ export default function GuestLoginScreen({ navigation, onGuestLogin }: Props) {
           </View>
 
           <View style={styles.form}>
-            <Text style={styles.label}>Workspace Name</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="e.g. acme-meats"
-              value={tenantSlug}
-              onChangeText={setTenantSlug}
-              autoCapitalize="none"
-              autoCorrect={false}
-              editable={!loading}
-            />
-
-            <Text style={styles.label}>Access Code (optional)</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Enter access code if required"
-              value={accessCode}
-              onChangeText={setAccessCode}
-              autoCapitalize="none"
-              autoCorrect={false}
-              editable={!loading}
-            />
-
             <TouchableOpacity
               style={[styles.primaryButton, loading && styles.disabledButton]}
               onPress={handleGuestLogin}
@@ -160,22 +131,7 @@ const styles = StyleSheet.create({
     width: '100%',
     maxWidth: 320,
   },
-  label: {
-    fontSize: 13,
-    color: '#5d6d7e',
-    marginBottom: 6,
-    marginLeft: 2,
-    fontWeight: '500',
-  },
-  input: {
-    backgroundColor: '#fff',
-    borderRadius: 8,
-    padding: 14,
-    marginBottom: 16,
-    fontSize: 15,
-    borderWidth: 1,
-    borderColor: '#e1e5e9',
-  },
+
   primaryButton: {
     backgroundColor: '#27ae60',
     borderRadius: 8,

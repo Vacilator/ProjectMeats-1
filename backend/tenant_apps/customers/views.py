@@ -29,7 +29,6 @@ from apps.system.serializers import SystemProductSerializer
 
 from tenant_apps.customers.models import Customer
 from tenant_apps.customers.serializers import CustomerSerializer
-from apps.tenants.models import TenantUser
 import logging
 from django.utils import timezone
 
@@ -134,55 +133,24 @@ class CustomerViewSet(viewsets.ModelViewSet):
         return Customer.objects.none()
 
     def perform_create(self, serializer):
+        """Set the tenant when creating a new customer.
+
+        Tenant context must be explicitly resolved by middleware/auth.
+        We do not silently default to the user's first tenant on writes.
         """
-        Set the tenant when creating a new customer.
-        
-        Tenant Resolution:
-        1. Use request.tenant from TenantMiddleware
-        2. Fallback to user's TenantUser association if middleware didn't set tenant
-        3. Raise ValidationError if no tenant found
-        
-        Args:
-            serializer: Validated serializer instance
-            
-        Raises:
-            ValidationError: If no tenant context is available
-        """
-        tenant = None
-        
-        # Get tenant from middleware (request.tenant)
-        if hasattr(self.request, 'tenant') and self.request.tenant:
-            tenant = self.request.tenant
-        
-        # Fallback: Query user's TenantUser association if middleware didn't set tenant
-        elif self.request.user and self.request.user.is_authenticated:
-            tenant_user = (
-                TenantUser.objects.filter(user=self.request.user, is_active=True)
-                .select_related('tenant')
-                .order_by('-role')  # Prioritize owner/admin roles
-                .first()
-            )
-            if tenant_user:
-                tenant = tenant_user.tenant
-                logger.debug(
-                    f'Tenant resolved from user association: {tenant.slug} '
-                    f'for user {self.request.user.username}'
-                )
-        
-        # Require tenant - raise error if still not found
+
+        tenant = getattr(self.request, 'tenant', None)
         if not tenant:
-            error_message = 'Tenant context is required to create a customer. Please ensure you are associated with a tenant.'
             logger.error(
                 'Customer creation attempted without tenant context',
                 extra={
                     'user': self.request.user.username if self.request.user.is_authenticated else 'Anonymous',
                     'has_request_tenant': hasattr(self.request, 'tenant'),
                     'timestamp': timezone.now().isoformat(),
-                }
+                },
             )
-            raise ValidationError(error_message)
-        
-        # Save with tenant association
+            raise DRFValidationError('Tenant context is required to create a customer.')
+
         serializer.save(tenant=tenant)
         logger.info(f'Created customer: {serializer.data.get("name")} for tenant: {tenant.name}')
 

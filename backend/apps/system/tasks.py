@@ -7,12 +7,25 @@ Automated tasks for cleaning orphaned TenantForm records.
 Created: 2026-02-12
 """
 from celery import shared_task
-from django.utils import timezone
 from datetime import timedelta
-from apps.system.models import TenantForm
 import logging
 
+from django.db import connection
+from django.utils import timezone
+
+from apps.system.models import TenantForm
+from apps.tenants.models import Tenant
+
 logger = logging.getLogger(__name__)
+
+
+def _reset_rls_session_vars() -> None:
+    if connection.vendor != 'postgresql':
+        return
+
+    with connection.cursor() as cursor:
+        cursor.execute('RESET app.current_tenant_id')
+        cursor.execute('RESET app.current_tenant')
 
 
 @shared_task(name='system.cleanup_orphaned_forms')
@@ -33,36 +46,54 @@ def cleanup_orphaned_forms():
     """
     # Calculate cutoff date (30 days ago)
     cutoff_date = timezone.now() - timedelta(days=30)
-    
-    # Find orphaned forms
-    orphaned_forms = TenantForm.objects.filter(
-        usage_count=0,
-        is_template=False,
-        created_at__lt=cutoff_date
-    )
-    
-    # Count before deletion
-    count = orphaned_forms.count()
-    
-    if count == 0:
+
+    deleted_total = 0
+    deleted_form_ids: list[str] = []
+
+    # In Postgres with RLS, cross-tenant queries will be blocked unless session vars are set.
+    # We therefore loop tenants and assert RLS vars per tenant.
+    tenant_ids = list(Tenant.objects.filter(is_active=True).values_list('id', flat=True))
+
+    for tenant_id in tenant_ids:
+        try:
+            if connection.vendor == 'postgresql':
+                from apps.tenants.rls import set_current_tenant
+
+                rls = set_current_tenant(str(tenant_id))
+                if not rls.ok:
+                    logger.warning('[Cleanup] Skipping tenant=%s (RLS set failed: %s)', tenant_id, rls.error)
+                    continue
+
+            orphaned_forms = TenantForm.objects.filter(
+                tenant_id=tenant_id,
+                usage_count=0,
+                is_template=False,
+                created_at__lt=cutoff_date,
+            )
+
+            count = orphaned_forms.count()
+            if count == 0:
+                continue
+
+            deleted_form_ids.extend([str(fid) for fid in orphaned_forms.values_list('id', flat=True)])
+            deleted_count, _ = orphaned_forms.delete()
+            deleted_total += deleted_count
+        finally:
+            _reset_rls_session_vars()
+
+    if deleted_total == 0:
         logger.info('[Cleanup] No orphaned forms to delete')
         return {
             'deleted': 0,
-            'message': 'No orphaned forms found'
+            'message': 'No orphaned forms found',
         }
-    
-    # Get form IDs for logging
-    form_ids = list(orphaned_forms.values_list('id', flat=True))
-    
-    # Delete orphaned forms
-    deleted_count, _ = orphaned_forms.delete()
-    
-    logger.info(f'[Cleanup] Deleted {deleted_count} orphaned forms: {form_ids}')
-    
+
+    logger.info('[Cleanup] Deleted %s orphaned forms', deleted_total)
+
     return {
-        'deleted': deleted_count,
-        'form_ids': form_ids,
-        'message': f'Successfully deleted {deleted_count} orphaned form(s)'
+        'deleted': deleted_total,
+        'form_ids': deleted_form_ids,
+        'message': f'Successfully deleted {deleted_total} orphaned form(s)',
     }
 
 
@@ -78,31 +109,43 @@ def audit_form_usage():
         dict: Statistics about audit operation
     """
     from apps.system.models import TenantWorkForm
-    
+
     fixed_count = 0
     discrepancies = []
-    
-    # Check all forms
-    for form in TenantForm.objects.all():
-        # Count actual workflow references
-        actual_count = TenantWorkForm.objects.filter(
-            tenant=form.tenant,
-            workflow_definition__contains={"tenantFormId": str(form.id)}
-        ).count()
-        
-        # Compare with stored count
-        if actual_count != form.usage_count:
-            discrepancies.append({
-                'form_id': str(form.id),
-                'form_name': form.name,
-                'stored_count': form.usage_count,
-                'actual_count': actual_count
-            })
-            
-            # Fix the discrepancy
-            form.usage_count = actual_count
-            form.save(update_fields=['usage_count'])
-            fixed_count += 1
+
+    tenant_ids = list(Tenant.objects.filter(is_active=True).values_list('id', flat=True))
+
+    for tenant_id in tenant_ids:
+        try:
+            if connection.vendor == 'postgresql':
+                from apps.tenants.rls import set_current_tenant
+
+                rls = set_current_tenant(str(tenant_id))
+                if not rls.ok:
+                    logger.warning('[Audit] Skipping tenant=%s (RLS set failed: %s)', tenant_id, rls.error)
+                    continue
+
+            for form in TenantForm.objects.filter(tenant_id=tenant_id):
+                actual_count = TenantWorkForm.objects.filter(
+                    tenant_id=tenant_id,
+                    form_references__contains=[form.id],
+                ).count()
+
+                if actual_count != form.usage_count:
+                    discrepancies.append(
+                        {
+                            'form_id': str(form.id),
+                            'form_name': form.name,
+                            'stored_count': form.usage_count,
+                            'actual_count': actual_count,
+                        }
+                    )
+
+                    form.usage_count = actual_count
+                    form.save(update_fields=['usage_count'])
+                    fixed_count += 1
+        finally:
+            _reset_rls_session_vars()
     
     if fixed_count > 0:
         logger.warning(f'[Audit] Fixed {fixed_count} usage count discrepancies: {discrepancies}')
@@ -117,7 +160,7 @@ def audit_form_usage():
 
 
 @shared_task(name='system.pin_workflow_versions')
-def pin_workflow_versions(workflow_id):
+def pin_workflow_versions(workflow_id: str, tenant_id: str | None = None):
     """
     Pin all container versions when workflow becomes ACTIVE.
     
@@ -132,69 +175,85 @@ def pin_workflow_versions(workflow_id):
         dict: Pinning operation results
     """
     from apps.system.models import TenantWorkForm
-    
+
+    if connection.vendor == 'postgresql' and not tenant_id:
+        logger.error('[Pin] Missing tenant_id for workflow=%s (required for RLS-safe pinning)', workflow_id)
+        return {'success': False, 'error': 'tenant_id required'}
+
     try:
+        if connection.vendor == 'postgresql':
+            from apps.tenants.rls import set_current_tenant
+
+            rls = set_current_tenant(str(tenant_id))
+            if not rls.ok:
+                logger.warning('[Pin] Skipping workflow=%s (RLS set failed: %s)', workflow_id, rls.error)
+                return {'success': False, 'error': rls.error}
+
         workflow = TenantWorkForm.objects.get(id=workflow_id)
+
+        # Only pin if status is ACTIVE
+        if workflow.status != 'active':
+            return {
+                'success': False,
+                'error': f'Workflow status is {workflow.status}, not active',
+            }
+
+        # Extract all container nodes
+        nodes = workflow.workflow_definition.get('nodes', [])
+        pinned_forms = []
+
+        container_types = {
+            'formBook',
+            'formProcessGroup',
+            'formProcess',
+            'formMultiStepContainer',
+            'smartWorkForm',
+        }
+
+        for node in nodes:
+            if node.get('type') in container_types:
+                tenant_form_id = (node.get('data') or {}).get('tenantFormId')
+
+                if tenant_form_id:
+                    try:
+                        form = TenantForm.objects.get(id=tenant_form_id, tenant=workflow.tenant)
+                        pinned_forms.append(
+                            {
+                                'node_id': node.get('id'),
+                                'form_id': str(form.id),
+                                'form_name': form.name,
+                                'version': form.version,
+                            }
+                        )
+                    except TenantForm.DoesNotExist:
+                        logger.warning(f'[Pin] Form {tenant_form_id} not found for node {node.get("id")}')
+
+        # Store version snapshot in workflow metadata
+        if not workflow.metadata:
+            workflow.metadata = {}
+
+        workflow.metadata['pinned_versions'] = {
+            'pinned_at': timezone.now().isoformat(),
+            'forms': pinned_forms,
+        }
+        workflow.save(update_fields=['metadata'])
+
+        logger.info(f'[Pin] Pinned {len(pinned_forms)} form versions for workflow {workflow_id}')
+
+        return {
+            'success': True,
+            'workflow_id': str(workflow_id),
+            'pinned_count': len(pinned_forms),
+            'pinned_forms': pinned_forms,
+        }
     except TenantWorkForm.DoesNotExist:
         logger.error(f'[Pin] Workflow {workflow_id} not found')
         return {
             'success': False,
-            'error': 'Workflow not found'
+            'error': 'Workflow not found',
         }
-    
-    # Only pin if status is ACTIVE
-    if workflow.status != 'active':
-        return {
-            'success': False,
-            'error': f'Workflow status is {workflow.status}, not active'
-        }
-    
-    # Extract all container nodes
-    nodes = workflow.workflow_definition.get('nodes', [])
-    pinned_forms = []
-    
-    container_types = {
-        'formBook',
-        'formProcessGroup',
-        'formProcess',
-        'formMultiStepContainer',
-        'smartWorkForm',
-    }
-
-    for node in nodes:
-        if node.get('type') in container_types:
-            tenant_form_id = (node.get('data') or {}).get('tenantFormId')
-            
-            if tenant_form_id:
-                try:
-                    form = TenantForm.objects.get(id=tenant_form_id, tenant=workflow.tenant)
-                    pinned_forms.append({
-                        'node_id': node.get('id'),
-                        'form_id': str(form.id),
-                        'form_name': form.name,
-                        'version': form.version
-                    })
-                except TenantForm.DoesNotExist:
-                    logger.warning(f'[Pin] Form {tenant_form_id} not found for node {node.get("id")}')
-    
-    # Store version snapshot in workflow metadata
-    if not workflow.metadata:
-        workflow.metadata = {}
-    
-    workflow.metadata['pinned_versions'] = {
-        'pinned_at': timezone.now().isoformat(),
-        'forms': pinned_forms
-    }
-    workflow.save(update_fields=['metadata'])
-    
-    logger.info(f'[Pin] Pinned {len(pinned_forms)} form versions for workflow {workflow_id}')
-    
-    return {
-        'success': True,
-        'workflow_id': str(workflow_id),
-        'pinned_count': len(pinned_forms),
-        'pinned_forms': pinned_forms
-    }
+    finally:
+        _reset_rls_session_vars()
 
 
 @shared_task(name='system.execute_workform_execution')
@@ -210,23 +269,36 @@ def execute_workform_execution(execution_id: str, tenant_id: str) -> dict:
     rls = set_current_tenant(str(tenant_id))
     if not rls.ok:
         logger.warning('[WorkFormExecution] Skipping execution=%s (RLS set failed: %s)', execution_id, rls.error)
+
+        # Best-effort: mark the execution as failed so polling clients don't hang in perpetuity.
+        try:
+            from tenant_apps.workflows.models import TenantWorkFormExecution, TenantWorkFormExecutionStatus
+
+            TenantWorkFormExecution.objects.filter(id=execution_id, tenant_id=tenant_id).update(
+                status=TenantWorkFormExecutionStatus.FAILED,
+                error_message=f'RLS set failed: {rls.error}',
+                completed_at=timezone.now(),
+            )
+        except Exception:
+            logger.exception('[WorkFormExecution] Failed to mark execution=%s as failed after RLS error', execution_id)
+
         return {'success': False, 'error': rls.error}
 
     from tenant_apps.workflows.models import TenantWorkFormExecution, TenantWorkFormExecutionStatus
     from apps.system.services.workform_engine import WorkFormEngine
 
-    execution = (
-        TenantWorkFormExecution.objects.select_related('workform', 'tenant')
-        .filter(id=execution_id, tenant_id=tenant_id)
-        .first()
-    )
-    if not execution:
-        return {'success': False, 'error': 'Execution not found'}
-
-    workform = execution.workform
-    initial_data = execution.initial_data or {}
-
     try:
+        execution = (
+            TenantWorkFormExecution.objects.select_related('workform', 'tenant')
+            .filter(id=execution_id, tenant_id=tenant_id)
+            .first()
+        )
+        if not execution:
+            return {'success': False, 'error': 'Execution not found'}
+
+        workform = execution.workform
+        initial_data = execution.initial_data or {}
+
         engine = WorkFormEngine(
             workform,
             initial_context={
@@ -250,16 +322,20 @@ def execute_workform_execution(execution_id: str, tenant_id: str) -> dict:
 
         return {'success': result.success, 'execution_id': str(execution.id), 'error': result.error}
     except Exception as exc:  # noqa: BLE001
-        execution.status = TenantWorkFormExecutionStatus.FAILED
-        execution.error_message = str(exc)
-        execution.completed_at = timezone.now()
-        execution.save(update_fields=['status', 'error_message', 'completed_at'])
-        return {'success': False, 'execution_id': str(execution.id), 'error': str(exc)}
+        if 'execution' in locals() and execution is not None:
+            execution.status = TenantWorkFormExecutionStatus.FAILED
+            execution.error_message = str(exc)
+            execution.completed_at = timezone.now()
+            execution.save(update_fields=['status', 'error_message', 'completed_at'])
+        return {'success': False, 'execution_id': str(execution_id), 'error': str(exc)}
+    finally:
+        _reset_rls_session_vars()
 
 
 @shared_task(name='system.execute_workform_loop_item')
 def execute_workform_loop_item(
     workform_id: str,
+    tenant_id: str,
     loop_node_id: str,
     loop_body_start_node_id: str,
     index: int,
@@ -281,32 +357,43 @@ def execute_workform_loop_item(
 
     logger.info('[LoopItem] workform=%s loop_node=%s index=%s', workform_id, loop_node_id, index)
 
-    workform = TenantWorkForm.objects.get(id=workform_id)
+    if connection.vendor == 'postgresql':
+        from apps.tenants.rls import set_current_tenant
 
-    initial_context = dict(base_context or {})
-    initial_context.setdefault('trigger', {})
-    initial_context.setdefault('variables', {})
-    initial_context.setdefault('errors', [])
+        rls = set_current_tenant(str(tenant_id))
+        if not rls.ok:
+            logger.warning('[LoopItem] Skipping workform=%s (RLS set failed: %s)', workform_id, rls.error)
+            return {'success': False, 'workform_id': workform_id, 'error': rls.error}
 
-    # Per-iteration variables
-    initial_context['variables'] = {
-        **dict(initial_context.get('variables') or {}),
-        'item': item,
-        'index': index,
-    }
+    try:
+        workform = TenantWorkForm.objects.get(id=workform_id)
 
-    engine = WorkFormEngine(workform, initial_context=initial_context)
-    result = engine.execute(
-        trigger_payload=initial_context.get('trigger'),
-        start_node_id=loop_body_start_node_id,
-        stop_node_ids=[loop_node_id],
-    )
+        initial_context = dict(base_context or {})
+        initial_context.setdefault('trigger', {})
+        initial_context.setdefault('variables', {})
+        initial_context.setdefault('errors', [])
 
-    return {
-        'success': result.success,
-        'workform_id': workform_id,
-        'loop_node_id': loop_node_id,
-        'loop_body_start_node_id': loop_body_start_node_id,
-        'index': index,
-        'error': result.error,
-    }
+        # Per-iteration variables
+        initial_context['variables'] = {
+            **dict(initial_context.get('variables') or {}),
+            'item': item,
+            'index': index,
+        }
+
+        engine = WorkFormEngine(workform, initial_context=initial_context)
+        result = engine.execute(
+            trigger_payload=initial_context.get('trigger'),
+            start_node_id=loop_body_start_node_id,
+            stop_node_ids=[loop_node_id],
+        )
+
+        return {
+            'success': result.success,
+            'workform_id': workform_id,
+            'loop_node_id': loop_node_id,
+            'loop_body_start_node_id': loop_body_start_node_id,
+            'index': index,
+            'error': result.error,
+        }
+    finally:
+        _reset_rls_session_vars()

@@ -101,7 +101,7 @@ const Title = styled.h3`
 const AddFieldButton = styled.button`
   padding: 8px 16px;
   background: rgb(var(--color-primary));
-  color: white;
+  color: rgb(var(--color-text-inverse));
   border: none;
   border-radius: 6px;
   font-size: 14px;
@@ -157,7 +157,7 @@ const FieldCard = styled.div<{ isDragging?: boolean; isExpanded?: boolean }>`
   
   &:hover {
     border-color: rgb(var(--color-primary));
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 2px 8px rgba(var(--color-overlay), 0.1);
   }
 `;
 
@@ -201,8 +201,8 @@ const FieldLabel = styled.div`
 
 const RequiredBadge = styled.span`
   font-size: 10px;
-  background: rgb(239, 68, 68);
-  color: white;
+  background: rgb(var(--color-error));
+  color: rgb(var(--color-text-inverse));
   padding: 2px 6px;
   border-radius: 4px;
   font-weight: 600;
@@ -225,13 +225,13 @@ const IconButton = styled.button<{ variant?: 'danger' }>`
   border: none;
   border-radius: 4px;
   cursor: pointer;
-  color: ${props => props.variant === 'danger' ? 'rgb(239, 68, 68)' : 'rgb(var(--color-text-secondary))'};
+  color: ${props => props.variant === 'danger' ? 'rgb(var(--color-error))' : 'rgb(var(--color-text-secondary))'};
   display: flex;
   align-items: center;
   transition: all 0.2s;
   
   &:hover {
-    background: ${props => props.variant === 'danger' ? 'rgba(239, 68, 68, 0.1)' : 'rgb(var(--color-surface-hover))'};
+    background: ${props => props.variant === 'danger' ? 'rgba(var(--color-error), 0.1)' : 'rgb(var(--color-surface-hover))'};
   }
 `;
 

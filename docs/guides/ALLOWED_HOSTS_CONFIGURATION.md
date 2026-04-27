@@ -144,7 +144,7 @@ ALLOWED_HOSTS = list(set(_ext_hosts + _int_hosts + _COMMON_INTERNAL_HOSTS))
 **GitHub Secret Setup**:
 ```yaml
 Environment: prod-backend
-ALLOWED_HOSTS=meatscentral.com,www.meatscentral.com,api.meatscentral.com
+ALLOWED_HOSTS=meatscentral.com,www.meatscentral.com
 INTERNAL_ALLOWED_HOSTS=10.244.45.4,172.17.0.1
 ```
 
@@ -183,7 +183,7 @@ STAGING_SSH_PASSWORD=<password>
 
 #### Production Backend (`prod-backend`)
 ```yaml
-ALLOWED_HOSTS=meatscentral.com,www.meatscentral.com,api.meatscentral.com
+ALLOWED_HOSTS=meatscentral.com,www.meatscentral.com
 INTERNAL_ALLOWED_HOSTS=10.244.45.4,172.17.0.1
 PRODUCTION_HOST=<prod-backend-ip>
 PRODUCTION_USER=django
@@ -310,7 +310,7 @@ ALLOWED_HOSTS=dev.meatscentral.com,157.245.114.182
 
 ### 2. Use Wildcards for Subdomains
 ```bash
-# Allows dev.meatscentral.com, api.meatscentral.com, etc.
+# Allows dev.meatscentral.com, uat.meatscentral.com, etc.
 ALLOWED_HOSTS=.meatscentral.com
 ```
 
@@ -320,7 +320,7 @@ ALLOWED_HOSTS=.meatscentral.com
 ALLOWED_HOSTS=localhost,127.0.0.1,.meatscentral.com
 
 # Production - restrictive
-ALLOWED_HOSTS=meatscentral.com,www.meatscentral.com,api.meatscentral.com
+ALLOWED_HOSTS=meatscentral.com,www.meatscentral.com
 ```
 
 ### 4. Document Changes

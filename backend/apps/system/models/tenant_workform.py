@@ -268,24 +268,104 @@ class TenantWorkForm(models.Model):
             "missing_forms": missing_forms,
             "total_references": len(form_ids)
         }
+
+    def validate_runtime_support(self) -> dict:
+        """Validate whether this WorkForm is expected to execute reliably at runtime.
+
+        This is intentionally conservative:
+        - We fail activation when the graph contains action nodes the runtime engine cannot execute.
+        - Non-action nodes that are currently traversal-only (forms, notes, etc.) are treated as warnings.
+
+        Returns a JSON-serializable dict safe to return to the frontend.
+        """
+
+        nodes = self.workflow_definition.get('nodes', [])
+        if not isinstance(nodes, list):
+            return {
+                'valid': False,
+                'supported_action_node_types': [],
+                'unsupported_actions': [{'node_id': None, 'node_type': 'invalid_definition', 'label': 'Workflow definition is malformed'}],
+                'warnings': [],
+            }
+
+        supported_action_node_types = {
+            'actionEmail',
+            'actionCreateRecord',
+            'actionUpdateRecord',
+            'actionNotification',  # legacy/alias
+            'actionNotify',        # canonical FlowEditor notification node
+        }
+
+        unsupported_actions = []
+        warnings = []
+
+        for node in nodes:
+            if not isinstance(node, dict):
+                continue
+
+            node_id = node.get('id')
+            node_type = (node.get('type') or 'unknown')
+            label = ''
+            data = node.get('data')
+            if isinstance(data, dict):
+                label = str(data.get('label') or data.get('title') or '')
+
+            # Hard block: action nodes without runtime handlers.
+            if isinstance(node_type, str) and node_type.startswith('action') and node_type not in supported_action_node_types:
+                unsupported_actions.append({'node_id': node_id, 'node_type': node_type, 'label': label})
+                continue
+
+            # Soft warnings: nodes that currently traverse but do not execute/persist.
+            if node_type in {'form', 'formStep', 'formStepSingle', 'formReference', 'formProcess', 'formBook', 'formProcessGroup', 'formMultiStepContainer', 'smartWorkForm'}:
+                warnings.append({'node_id': node_id, 'node_type': node_type, 'label': label, 'warning': 'form_nodes_not_executed'})
+
+        return {
+            'valid': len(unsupported_actions) == 0,
+            'supported_action_node_types': sorted(supported_action_node_types),
+            'unsupported_actions': unsupported_actions,
+            'warnings': warnings,
+        }
     
     def get_node_count(self):
-        """Get total number of nodes in this workflow."""
-        return len(self.workflow_definition.get('nodes', []))
+        """Get total number of nodes in this workflow.
+
+        Defensive: historical/legacy payloads may persist non-dict JSON values.
+        """
+        wf = self.workflow_definition
+        if not isinstance(wf, dict):
+            return 0
+        nodes = wf.get('nodes', [])
+        return len(nodes) if isinstance(nodes, list) else 0
     
     def get_edge_count(self):
-        """Get total number of edges in this workflow."""
-        return len(self.workflow_definition.get('edges', []))
+        """Get total number of edges in this workflow.
+
+        Defensive: historical/legacy payloads may persist non-dict JSON values.
+        """
+        wf = self.workflow_definition
+        if not isinstance(wf, dict):
+            return 0
+        edges = wf.get('edges', [])
+        return len(edges) if isinstance(edges, list) else 0
     
     def get_node_types_summary(self):
-        """
-        Get summary of node types used in this workflow.
-        
+        """Get summary of node types used in this workflow.
+
         Returns:
             dict: {"formStep": 3, "actionEmail": 1, "conditionIf": 2, ...}
         """
-        summary = {}
-        for node in self.workflow_definition.get('nodes', []):
+        wf = self.workflow_definition
+        if not isinstance(wf, dict):
+            return {}
+
+        nodes = wf.get('nodes', [])
+        if not isinstance(nodes, list):
+            return {}
+
+        summary: dict[str, int] = {}
+        for node in nodes:
+            if not isinstance(node, dict):
+                continue
             node_type = node.get('type', 'unknown')
             summary[node_type] = summary.get(node_type, 0) + 1
         return summary

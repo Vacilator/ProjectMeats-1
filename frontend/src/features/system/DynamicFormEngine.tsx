@@ -8,7 +8,7 @@
  */
 import React, { useMemo, useState, useEffect } from 'react';
 import { Select as AntSelect } from 'antd';
-import { useForm, Controller, useFieldArray } from 'react-hook-form';
+import { useForm, Controller, useFieldArray, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import styled from 'styled-components';
@@ -17,6 +17,8 @@ import { Select } from '../../components/ui/Select';
 import StateSelect from '../../components/ui/StateSelect';
 import { CountrySelect } from '../../components/ui';
 import { DEFAULT_COUNTRY } from '../../utils/constants/countries';
+import { useCascadingField } from '../../hooks/useCascadingField';
+import { contactFormOptionsService } from '../../services/contactFormOptionsService';
 import { resolveConfig } from '../../services/configService';
 import { getChoicesForField, isStaticChoiceField } from '../../services/choicesService';
 import { formatUsPhone } from '../../utils/phone';
@@ -27,6 +29,11 @@ type SelectOption = string | { value: string; label: string };
 
 type FieldUi = {
   widget?: string;
+  data_source?: {
+    type?: 'choice_list' | 'master_products';
+    list?: string;
+  };
+  option_groups?: Record<string, SelectOption[]>;
 };
 
 interface FieldDefinition {
@@ -51,6 +58,7 @@ interface FieldDefinition {
   placeholder?: string;
   help_text?: string;
   ui?: FieldUi;
+  dependencies?: string[];
 
   // For inline arrays
   item_fields?: FieldDefinition[];
@@ -230,7 +238,14 @@ const FormActions = styled.div`
 const buildValidationSchema = (fields: FieldDefinition[]) => {
   const schemaShape: Record<string, any> = {};
 
+  const isArrayField = (field: FieldDefinition) =>
+    field.ui?.widget === 'tags' || field.ui?.widget === 'multi_select';
+
   const buildScalar = (field: FieldDefinition) => {
+    if (isArrayField(field)) {
+      return z.array(z.string());
+    }
+
     switch (field.type) {
       case 'email':
         return z.string().email('Invalid email address');
@@ -294,7 +309,7 @@ const buildValidationSchema = (fields: FieldDefinition[]) => {
 
     fieldSchema = buildScalar(field);
     if (!field.required) {
-      fieldSchema = fieldSchema.optional().or(z.literal(''));
+      fieldSchema = isArrayField(field) ? fieldSchema.optional() : fieldSchema.optional().or(z.literal(''));
     }
 
     schemaShape[field.key] = fieldSchema;
@@ -360,14 +375,23 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
   // Load dynamic options for select fields
   useEffect(() => {
     const loadOptions = async () => {
-      const selectFields = schema.fields.filter(f => f.type === 'select' && !f.options?.length);
+      const selectFields = schema.fields.filter((f) => {
+        if (f.options?.length) return false;
+        if (f.ui?.data_source?.type === 'choice_list' && f.ui?.data_source?.list) return true;
+        return f.type === 'select' && isStaticChoiceField(f.key);
+      });
       
       for (const field of selectFields) {
-        // Try to load from config system
+        if (field.ui?.data_source?.type === 'choice_list' && field.ui.data_source.list) {
+          const choices = await contactFormOptionsService.getSystemChoiceOptions(field.ui.data_source.list);
+          setDynamicOptions((prev) => ({ ...prev, [field.key]: choices }));
+          continue;
+        }
+
         if (isStaticChoiceField(field.key)) {
           const choices = await getChoicesForField(field.key);
           if (choices) {
-            setDynamicOptions(prev => ({ ...prev, [field.key]: choices }));
+            setDynamicOptions((prev) => ({ ...prev, [field.key]: choices }));
           }
         }
       }
@@ -385,6 +409,9 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
       if (f.type === 'inline_form_array' && !Array.isArray(next[f.key])) {
         next[f.key] = [];
       }
+      if ((f.ui?.widget === 'tags' || f.ui?.widget === 'multi_select') && !Array.isArray(next[f.key])) {
+        next[f.key] = [];
+      }
     }
     return next;
   }, [initialValues, schema.fields]);
@@ -400,6 +427,8 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
     defaultValues,
     mode: formConfig.validateOnChange ? 'onChange' : 'onSubmit',
   });
+
+  const watchedValues = useWatch({ control });
   
   const keySet = useMemo(() => {
     const keys = (keyFieldKeys || []).map((k) => String(k).toLowerCase());
@@ -618,11 +647,111 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
     );
   };
 
+  const MultiSelectField: React.FC<{
+    field: FieldDefinition;
+    showRequired: boolean;
+    errorMessage?: string;
+    options: { value: string; label: string }[];
+    cascading?: boolean;
+    dependencyValue?: unknown;
+  }> = ({ field, showRequired, errorMessage, options, cascading = false, dependencyValue }) => {
+    const currentValue = useWatch({ control, name: field.key }) as string[] | undefined;
+    const dependencyItems = Array.isArray(dependencyValue)
+      ? dependencyValue.map((item) => String(item || '').trim()).filter(Boolean)
+      : typeof dependencyValue === 'string'
+        ? [String(dependencyValue).trim()].filter(Boolean)
+        : [];
+
+    const {
+      options: cascadingOptions,
+      loading: cascadingLoading,
+      error: cascadingError,
+    } = useCascadingField({
+      fieldId: field.key,
+      parentValue: dependencyItems,
+      enabled: cascading && dependencyItems.length > 0,
+      fetchOptions: async (parentValue) => {
+        const proteinTypes = Array.isArray(parentValue)
+          ? parentValue.map((item) => String(item || '').trim()).filter(Boolean)
+          : [];
+
+        return contactFormOptionsService.getMasterProductOptions({ proteinTypes });
+      },
+    });
+
+    const resolvedOptions = cascading ? cascadingOptions : options;
+    const disabled = isSubmitting || (cascading && dependencyItems.length === 0);
+
+    useEffect(() => {
+      if (field.ui?.widget === 'tags') return;
+      if (resolvedOptions.length === 0) return;
+      if (!Array.isArray(currentValue) || currentValue.length === 0) return;
+
+      const allowedValues = new Set(resolvedOptions.map((item) => String(item.value)));
+      const nextValue = currentValue.filter((item) => allowedValues.has(String(item)));
+
+      if (nextValue.length !== currentValue.length) {
+        setValue(field.key as never, nextValue as never, {
+          shouldDirty: true,
+          shouldValidate: true,
+        });
+      }
+    }, [currentValue, field.key, field.ui?.widget, resolvedOptions, setValue]);
+
+    return (
+      <FieldGroup key={field.key}>
+        <Label htmlFor={field.key} required={showRequired}>
+          {field.label}
+        </Label>
+        <Controller
+          name={field.key}
+          control={control}
+          render={({ field: controllerField }) => (
+            <AntSelect
+              id={field.key}
+              mode={field.ui?.widget === 'tags' ? 'tags' : 'multiple'}
+              value={Array.isArray(controllerField.value) ? controllerField.value : []}
+              onChange={controllerField.onChange}
+              options={resolvedOptions}
+              placeholder={field.placeholder || 'Select one or more options'}
+              disabled={disabled}
+              loading={cascadingLoading}
+              allowClear
+              optionFilterProp="label"
+              getPopupContainer={getAntdPopupContainer}
+              style={{ width: '100%' }}
+            />
+          )}
+        />
+        {formConfig.showHelpText && field.help_text && <HelpText>{field.help_text}</HelpText>}
+        {cascadingError && <ErrorText>{cascadingError}</ErrorText>}
+        {errorMessage && <ErrorText>{errorMessage}</ErrorText>}
+      </FieldGroup>
+    );
+  };
+
   const renderField = (field: FieldDefinition) => {
     const error = errors[field.key];
     const hasError = !!error;
     // Use config for required indicator (Wave 4 - Task 4.12)
     const showRequired = formConfig.showRequiredIndicator && Boolean(field.required);
+    const dependencyValues = (field.dependencies || []).map(
+      (dependencyKey) => (watchedValues as Record<string, unknown> | undefined)?.[dependencyKey]
+    );
+    const primaryDependencyValue = dependencyValues[0];
+    const dependencyLookupKey =
+      typeof primaryDependencyValue === 'string'
+        ? primaryDependencyValue
+        : String(primaryDependencyValue || '');
+    const conditionalOptions =
+      field.ui?.option_groups?.[dependencyLookupKey] ||
+      field.ui?.option_groups?.[dependencyLookupKey.toLowerCase()] ||
+      field.ui?.option_groups?.default;
+    const resolvedOptions = conditionalOptions?.length
+      ? conditionalOptions.map((option) =>
+          typeof option === 'string' ? { value: option, label: option } : option
+        )
+      : getFieldOptions(field);
 
     if (field.type === 'inline_form_array') {
       return <InlineFormArrayField field={field} showRequired={showRequired} />;
@@ -684,7 +813,6 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
     const isIndustryField = normalizedKey === 'industry' || normalizedKey === 'industry_array';
 
     if (isIndustryField && field.type === 'select') {
-      const options = getFieldOptions(field);
       return (
         <FieldGroup key={field.key}>
           <Label htmlFor={field.key} required={showRequired}>
@@ -694,10 +822,10 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
             name={field.key}
             control={control}
             render={({ field: controllerField }) => (
-              <AntSelect
-                value={controllerField.value || undefined}
-                onChange={controllerField.onChange}
-                options={options}
+                <AntSelect
+                  value={controllerField.value || undefined}
+                  onChange={controllerField.onChange}
+                  options={resolvedOptions}
                 placeholder={field.placeholder || 'Search industry'}
                 disabled={isSubmitting}
                 showSearch
@@ -739,6 +867,19 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
         );
 
       case 'select':
+        if (field.ui?.widget === 'multi_select' || field.ui?.widget === 'tags') {
+          return (
+            <MultiSelectField
+              field={field}
+              showRequired={showRequired}
+              errorMessage={error?.message as string | undefined}
+              options={resolvedOptions}
+              cascading={field.ui?.data_source?.type === 'master_products'}
+              dependencyValue={primaryDependencyValue}
+            />
+          );
+        }
+
         return (
           <FieldGroup key={field.key}>
             <Label htmlFor={field.key} required={showRequired}>
@@ -752,7 +893,7 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
                   id={field.key}
                   value={controllerField.value || ''}
                   onChange={controllerField.onChange}
-                  options={getFieldOptions(field)}
+                  options={resolvedOptions}
                   placeholder={field.placeholder || 'Select an option'}
                   error={error?.message as string}
                   disabled={isSubmitting}

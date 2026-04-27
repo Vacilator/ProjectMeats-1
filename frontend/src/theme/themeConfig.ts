@@ -19,10 +19,10 @@ export type ThemeMode = 'light' | 'dark' | 'high-contrast';
 export const lightTheme: ThemeConfig = {
   token: {
     colorPrimary: 'rgb(var(--color-primary))',
-    colorSuccess: 'rgb(34, 197, 94)',
-    colorWarning: 'rgb(234, 179, 8)',
-    colorError: 'rgb(239, 68, 68)',
-    colorInfo: 'rgb(59, 130, 246)',
+    colorSuccess: 'rgb(var(--color-success))',
+    colorWarning: 'rgb(var(--color-warning))',
+    colorError: 'rgb(var(--color-error))',
+    colorInfo: 'rgb(var(--color-info))',
     colorTextBase: 'rgb(var(--color-text-primary))',
     colorBgBase: 'rgb(var(--color-background))',
     fontSize: 14,
@@ -39,7 +39,7 @@ export const lightTheme: ThemeConfig = {
     },
     Card: {
       borderRadius: 8,
-      boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
+      boxShadow: 'var(--shadow-sm)',
     },
   },
 };
@@ -50,10 +50,10 @@ export const lightTheme: ThemeConfig = {
 export const darkTheme: ThemeConfig = {
   token: {
     colorPrimary: 'rgb(var(--color-primary))',
-    colorSuccess: 'rgb(34, 197, 94)',
-    colorWarning: 'rgb(234, 179, 8)',
-    colorError: 'rgb(239, 68, 68)',
-    colorInfo: 'rgb(59, 130, 246)',
+    colorSuccess: 'rgb(var(--color-success))',
+    colorWarning: 'rgb(var(--color-warning))',
+    colorError: 'rgb(var(--color-error))',
+    colorInfo: 'rgb(var(--color-info))',
     colorTextBase: 'rgb(var(--color-text-primary))',
     colorBgBase: 'rgb(var(--color-background))',
     colorBgContainer: 'rgb(var(--color-surface))',
@@ -74,7 +74,7 @@ export const darkTheme: ThemeConfig = {
     Card: {
       borderRadius: 8,
       colorBgContainer: 'rgb(var(--color-surface))',
-      boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.3)',
+      boxShadow: 'var(--shadow-md)',
     },
   },
 };
@@ -86,10 +86,10 @@ export const darkTheme: ThemeConfig = {
 export const highContrastTheme: ThemeConfig = {
   token: {
     colorPrimary: 'rgb(var(--color-primary))',
-    colorSuccess: 'rgb(0, 128, 0)',
-    colorWarning: 'rgb(255, 170, 0)',
-    colorError: 'rgb(204, 0, 0)',
-    colorInfo: 'rgb(0, 102, 204)',
+    colorSuccess: 'rgb(var(--color-success))',
+    colorWarning: 'rgb(var(--color-warning))',
+    colorError: 'rgb(var(--color-error))',
+    colorInfo: 'rgb(var(--color-info))',
     colorTextBase: 'rgb(var(--color-text-primary))',
     colorBgBase: 'rgb(var(--color-background))',
     colorBorder: 'rgb(var(--color-border))',
@@ -138,7 +138,7 @@ export const canvasThemeVars = {
     '--canvas-grid': 'rgb(var(--color-border))',
     '--canvas-node-bg': 'rgb(var(--color-surface))',
     '--canvas-node-border': 'rgb(var(--color-border))',
-    '--canvas-node-shadow': 'rgba(0, 0, 0, 0.1)',
+    '--canvas-node-shadow': 'rgba(var(--color-overlay), 0.1)',
     '--canvas-connection': 'rgb(var(--color-primary))',
     '--canvas-selection': 'rgb(var(--color-primary))',
   },
@@ -147,7 +147,7 @@ export const canvasThemeVars = {
     '--canvas-grid': 'rgb(var(--color-border))',
     '--canvas-node-bg': 'rgb(var(--color-surface))',
     '--canvas-node-border': 'rgb(var(--color-border))',
-    '--canvas-node-shadow': 'rgba(0, 0, 0, 0.5)',
+    '--canvas-node-shadow': 'rgba(var(--color-overlay), 0.5)',
     '--canvas-connection': 'rgb(var(--color-primary))',
     '--canvas-selection': 'rgb(var(--color-primary))',
   },

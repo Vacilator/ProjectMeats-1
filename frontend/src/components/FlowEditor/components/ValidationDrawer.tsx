@@ -69,7 +69,7 @@ export const ValidationDrawer: React.FC<ValidationDrawerProps> = ({
               $isExpanded={expandedSections.has('errors')}
             >
               <SectionTitle>
-                <AlertCircle size={18} color="rgb(239, 68, 68)" />
+                <AlertCircle size={18} color="rgb(var(--color-error))" />
                 <span>Errors ({errorIssues.length})</span>
               </SectionTitle>
               {expandedSections.has('errors') ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
@@ -105,7 +105,7 @@ export const ValidationDrawer: React.FC<ValidationDrawerProps> = ({
               $isExpanded={expandedSections.has('warnings')}
             >
               <SectionTitle>
-                <AlertTriangle size={18} color="rgb(234, 179, 8)" />
+                <AlertTriangle size={18} color="rgb(var(--color-warning))" />
                 <span>Warnings ({warningIssues.length})</span>
               </SectionTitle>
               {expandedSections.has('warnings') ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
@@ -138,7 +138,7 @@ export const ValidationDrawer: React.FC<ValidationDrawerProps> = ({
               $isExpanded={expandedSections.has('info')}
             >
               <SectionTitle>
-                <Info size={18} color="rgb(59, 130, 246)" />
+                <Info size={18} color="rgb(var(--color-info))" />
                 <span>Info ({infoIssues.length})</span>
               </SectionTitle>
               {expandedSections.has('info') ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
@@ -161,7 +161,7 @@ export const ValidationDrawer: React.FC<ValidationDrawerProps> = ({
         {/* All Clear */}
         {validation.issues.length === 0 && (
           <AllClearMessage>
-            <AlertCircle size={48} color="rgb(34, 197, 94)" />
+            <AlertCircle size={48} color="rgb(var(--color-success))" />
             <h3>All Clear!</h3>
             <p>No validation issues found. Your workflow is ready to publish.</p>
           </AllClearMessage>
@@ -180,7 +180,7 @@ const DrawerContainer = styled.div`
   right: 0;
   background: rgb(var(--color-surface));
   border-top: 1px solid rgb(var(--color-border));
-  box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 -4px 12px rgba(var(--color-overlay), 0.1);
   z-index: 1000;
   max-height: 400px;
   display: flex;
@@ -225,11 +225,11 @@ const StatusBadge = styled.span<{ $isValid: boolean }>`
   font-size: 12px;
   font-weight: 500;
   background: ${props => props.$isValid 
-    ? 'rgba(34, 197, 94, 0.1)' 
-    : 'rgba(239, 68, 68, 0.1)'};
+    ? 'rgba(var(--color-success), 0.1)' 
+    : 'rgba(var(--color-error), 0.1)'};
   color: ${props => props.$isValid 
-    ? 'rgb(34, 197, 94)' 
-    : 'rgb(239, 68, 68)'};
+    ? 'rgb(var(--color-success))' 
+    : 'rgb(var(--color-error))'};
 `;
 
 const CloseButton = styled.button`
@@ -300,9 +300,9 @@ const IssueCard = styled.div<{ $severity: 'error' | 'warning' | 'info'; $isClick
   background: rgb(var(--color-surface));
   border-left: 3px solid ${props => {
     switch (props.$severity) {
-      case 'error': return 'rgb(239, 68, 68)';
-      case 'warning': return 'rgb(234, 179, 8)';
-      case 'info': return 'rgb(59, 130, 246)';
+      case 'error': return 'rgb(var(--color-error))';
+      case 'warning': return 'rgb(var(--color-warning))';
+      case 'info': return 'rgb(var(--color-info))';
     }
   }};
   border-radius: 4px;
@@ -350,7 +350,7 @@ const AllClearMessage = styled.div`
     margin: 16px 0 8px;
     font-size: 20px;
     font-weight: 600;
-    color: rgb(34, 197, 94);
+    color: rgb(var(--color-success));
   }
   
   p {

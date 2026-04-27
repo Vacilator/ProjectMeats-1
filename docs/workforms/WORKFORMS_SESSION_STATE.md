@@ -248,7 +248,7 @@ python manage.py check
 python manage.py test apps/workflows
 
 # Check deployed version
-curl https://dev.meatscentral.com/api/health/
+curl https://dev.meatscentral.com/api/v1/health/
 ```
 
 ### Workforms-Specific Testing

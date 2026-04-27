@@ -22,6 +22,8 @@
 import { useCallback, useMemo } from 'react';
 import { Node } from '@xyflow/react';
 
+import { sanitizeNodeConfigForPersistence } from '../utils/nodeDataSanitization';
+
 /**
  * Extended node data interface with shadow state support
  */
@@ -76,14 +78,20 @@ export function useNodeShadowState(
   const shadowConfig = useMemo(() => {
     if (!node) return {};
     const data = node.data as NodeDataWithShadow;
-    
+
     // If shadow config exists, use it (editing in progress)
     if (data.shadowConfig) {
-      return data.shadowConfig;
+      return (sanitizeNodeConfigForPersistence(data.shadowConfig) as Record<string, any>) || {};
     }
-    
-    // Otherwise, return committed config or all data
-    return data.config || { ...data };
+
+    // Otherwise, return the committed config baseline.
+    const { config, shadowConfig, configStatus, ...rest } = data;
+    return (
+      sanitizeNodeConfigForPersistence({
+        ...rest,
+        ...(config || {}),
+      }) as Record<string, any>
+    ) || {};
   }, [node]);
 
   const configStatus = useMemo(() => {
@@ -100,14 +108,17 @@ export function useNodeShadowState(
     const data = node.data as NodeDataWithShadow;
     if (!data.shadowConfig) return false;
 
-    const committedConfig = data.config || (() => {
-      // Avoid comparing against internal shadow bookkeeping keys.
-      const { shadowConfig, configStatus, config, ...rest } = data;
-      return rest;
-    })();
+    const { config, shadowConfig, configStatus, ...rest } = data;
+
+    const committedConfig = sanitizeNodeConfigForPersistence({
+      ...rest,
+      ...(config || {}),
+    });
+
+    const shadow = sanitizeNodeConfigForPersistence(shadowConfig);
 
     try {
-      return JSON.stringify(data.shadowConfig) !== JSON.stringify(committedConfig);
+      return JSON.stringify(shadow) !== JSON.stringify(committedConfig);
     } catch {
       // If serialization fails, fall back to showing Apply/Discard when shadowConfig exists.
       return true;
@@ -126,8 +137,16 @@ export function useNodeShadowState(
         if (n.id !== nodeId) return n;
 
         const currentData = n.data as NodeDataWithShadow;
-        const committedConfig = currentData.config || { ...currentData };
-        const currentShadow = currentData.shadowConfig || committedConfig;
+        const { config, shadowConfig, configStatus, ...rest } = currentData;
+
+        const committedConfig = (sanitizeNodeConfigForPersistence({
+          ...rest,
+          ...(config || {}),
+        }) || {}) as Record<string, any>;
+
+        const currentShadow = (sanitizeNodeConfigForPersistence(
+          shadowConfig || committedConfig,
+        ) || committedConfig) as Record<string, any>;
 
         // Merge changes into shadow config
         const newShadow = {
@@ -135,14 +154,16 @@ export function useNodeShadowState(
           ...changes,
         };
 
+        const sanitizedShadow = (sanitizeNodeConfigForPersistence(newShadow) || {}) as Record<string, any>;
+
         // Check if shadow differs from committed
-        const isDifferent = JSON.stringify(newShadow) !== JSON.stringify(committedConfig);
+        const isDifferent = JSON.stringify(sanitizedShadow) !== JSON.stringify(committedConfig);
 
         return {
           ...n,
           data: {
             ...currentData,
-            shadowConfig: newShadow,
+            shadowConfig: sanitizedShadow,
             configStatus: isDifferent ? ('dirty' as const) : ('pristine' as const),
           },
         };
@@ -166,13 +187,26 @@ export function useNodeShadowState(
 
         if (!shadow) return n; // Nothing to commit
 
-        // Merge shadow into main data and clear shadow
+        const { config, shadowConfig, configStatus, ...rest } = currentData;
+
+        const committedBase = (sanitizeNodeConfigForPersistence({
+          ...rest,
+          ...(config || {}),
+        }) || {}) as Record<string, any>;
+
+        const sanitizedShadow = (sanitizeNodeConfigForPersistence(shadow) || {}) as Record<string, any>;
+        const committed = {
+          ...committedBase,
+          ...sanitizedShadow,
+        };
+
+        // Merge shadow into main data and clear shadow.
+        // Keep top-level keys for compatibility, but never persist UI-only bookkeeping.
         return {
           ...n,
           data: {
-            ...currentData,
-            ...shadow,
-            config: shadow,
+            ...committed,
+            config: committed,
             shadowConfig: undefined,
             configStatus: 'pristine' as const,
           },

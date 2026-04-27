@@ -51,8 +51,8 @@ class CockpitSearchTestCase(TestCase):
             is_active=True
         )
         
-        # Authenticate
-        self.client.force_authenticate(user=self.user)
+        # Authenticate (session auth) so TenantMiddleware can resolve X-Tenant-ID.
+        self.client.force_login(self.user)
 
         # Tenant context (shared-schema): API tenant isolation is scoped by X-Tenant-ID.
         self.tenant_header = {'HTTP_X_TENANT_ID': str(self.tenant.id)}

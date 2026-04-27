@@ -294,7 +294,7 @@ export DEBUG=False  # CRITICAL (though hardcoded as backup)
 export DJANGO_SETTINGS_MODULE=projectmeats.settings.production
 export DATABASE_URL=postgresql://...
 export SECRET_KEY=<production-secret-key>
-export ALLOWED_HOSTS=api.meatscentral.com,meatscentral.com
+export ALLOWED_HOSTS=meatscentral.com,www.meatscentral.com
 ```
 
 ---

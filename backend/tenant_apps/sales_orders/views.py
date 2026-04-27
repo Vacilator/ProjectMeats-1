@@ -87,27 +87,13 @@ class SalesOrderViewSet(CsvExportMixin, viewsets.ModelViewSet):
         return Response(SalesOrderSerializer(so).data)
 
     def perform_create(self, serializer):
-        """Set the tenant and auto-generate our_sales_order_num when creating a new sales order."""
-        tenant = None
+        """Set the tenant and auto-generate our_sales_order_num when creating a new sales order.
 
-        # First, try to get tenant from middleware (request.tenant)
-        if hasattr(self.request, "tenant") and self.request.tenant:
-            tenant = self.request.tenant
+        Tenant context must be explicitly resolved by middleware/auth.
+        We do not silently default to the user's first tenant on writes.
+        """
 
-        # If middleware didn't set tenant, try to get user's default tenant
-        elif self.request.user and self.request.user.is_authenticated:
-            from apps.tenants.models import TenantUser
-
-            tenant_user = (
-                TenantUser.objects.filter(user=self.request.user, is_active=True)
-                .select_related("tenant")
-                .order_by("-role")  # Prioritize owner/admin roles
-                .first()
-            )
-            if tenant_user:
-                tenant = tenant_user.tenant
-
-        # If still no tenant, raise error
+        tenant = getattr(self.request, "tenant", None)
         if not tenant:
             logger.error(
                 "Sales order creation attempted without tenant context",
@@ -119,10 +105,8 @@ class SalesOrderViewSet(CsvExportMixin, viewsets.ModelViewSet):
                     "timestamp": timezone.now().isoformat(),
                 },
             )
-            raise ValidationError(
-                "Tenant context is required to create a sales order."
-            )
-        
+            raise DRFValidationError("Tenant context is required to create a sales order.")
+
         # Auto-generate our_sales_order_num if not provided (atomic to prevent duplicates)
         with transaction.atomic():
             if not serializer.validated_data.get('our_sales_order_num'):

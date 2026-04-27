@@ -17,14 +17,16 @@
     ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.projectmeats.mobile"
+      "bundleIdentifier": "com.projectmeats.mobile",
+      "buildNumber": "1"
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "com.projectmeats.mobile"
+      "package": "com.projectmeats.mobile",
+      "versionCode": 1
     },
     "web": {
       "favicon": "./assets/favicon.png"

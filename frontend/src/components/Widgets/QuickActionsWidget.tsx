@@ -15,9 +15,14 @@
 import React from 'react';
 import styled from 'styled-components';
 import { useNavigate } from 'react-router-dom';
-import { 
-  Zap, Plus, FileText, ShoppingCart, Package, 
-  Users, Truck, Calculator, Search, Settings 
+import {
+  Zap,
+  FileText,
+  ShoppingCart,
+  Package,
+  Users,
+  Truck,
+  Search,
 } from 'lucide-react';
 import { WidgetCard } from './WidgetCard';
 
@@ -32,7 +37,7 @@ interface QuickAction {
   path?: string;
   onClick?: () => void;
   shortcut?: string;
-  color: string;
+  colorVar: string;
 }
 
 export interface QuickActionsWidgetProps {
@@ -50,7 +55,7 @@ const ActionsGrid = styled.div`
   gap: 8px;
 `;
 
-const ActionButton = styled.button<{ $color: string }>`
+const ActionButton = styled.button<{ $colorVar: string }>`
   display: flex;
   align-items: center;
   gap: 10px;
@@ -63,9 +68,9 @@ const ActionButton = styled.button<{ $color: string }>`
   transition: all 0.15s ease;
 
   &:hover {
-    border-color: ${props => props.$color};
-    background: ${props => props.$color}08;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    border-color: rgb(var(${props => props.$colorVar}));
+    background: rgba(var(${props => props.$colorVar}), 0.08);
+    box-shadow: var(--shadow-sm);
   }
 
   &:active {
@@ -73,15 +78,15 @@ const ActionButton = styled.button<{ $color: string }>`
   }
 `;
 
-const ActionIcon = styled.div<{ $color: string }>`
+const ActionIcon = styled.div<{ $colorVar: string }>`
   display: flex;
   align-items: center;
   justify-content: center;
   width: 32px;
   height: 32px;
   border-radius: var(--radius-sm);
-  background: ${props => props.$color}15;
-  color: ${props => props.$color};
+  background: rgba(var(${props => props.$colorVar}), 0.15);
+  color: rgb(var(${props => props.$colorVar}));
   flex-shrink: 0;
 `;
 
@@ -113,7 +118,7 @@ const defaultActions: QuickAction[] = [
     icon: <ShoppingCart size={16} />,
     path: '/purchase-orders',
     shortcut: 'Alt + P',
-    color: 'rgb(59, 130, 246)',
+    colorVar: '--color-info',
   },
   {
     id: 'new_so',
@@ -121,7 +126,7 @@ const defaultActions: QuickAction[] = [
     icon: <Package size={16} />,
     path: '/sales-orders',
     shortcut: 'Alt + S',
-    color: 'rgb(34, 197, 94)',
+    colorVar: '--color-success',
   },
   {
     id: 'new_invoice',
@@ -129,7 +134,7 @@ const defaultActions: QuickAction[] = [
     icon: <FileText size={16} />,
     path: '/accounting/receivables/invoices',
     shortcut: 'Alt + I',
-    color: 'rgb(168, 85, 247)',
+    colorVar: '--color-secondary',
   },
   {
     id: 'new_customer',
@@ -137,21 +142,21 @@ const defaultActions: QuickAction[] = [
     icon: <Users size={16} />,
     path: '/customers',
     shortcut: 'Alt + C',
-    color: 'rgb(236, 72, 153)',
+    colorVar: '--color-primary',
   },
   {
     id: 'search',
     label: 'Universal Search',
     icon: <Search size={16} />,
     shortcut: 'Ctrl + K',
-    color: 'rgb(234, 179, 8)',
+    colorVar: '--color-warning',
   },
   {
     id: 'carriers',
     label: 'Manage Carriers',
     icon: <Truck size={16} />,
     path: '/carriers',
-    color: 'rgb(244, 114, 182)',
+    colorVar: '--color-primary',
   },
 ];
 
@@ -190,10 +195,10 @@ export const QuickActionsWidget: React.FC<QuickActionsWidgetProps> = ({
         {actions.map(action => (
           <ActionButton 
             key={action.id}
-            $color={action.color}
+            $colorVar={action.colorVar}
             onClick={() => handleAction(action)}
           >
-            <ActionIcon $color={action.color}>
+            <ActionIcon $colorVar={action.colorVar}>
               {action.icon}
             </ActionIcon>
             <ActionContent>

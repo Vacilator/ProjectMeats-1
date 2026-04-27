@@ -9,6 +9,8 @@
 import React, { createContext, useContext, useState, useCallback, useMemo, ReactNode } from 'react';
 import { Node, Edge } from '@xyflow/react';
 
+import { logger } from '@/utils/logger';
+
 // ============================================================================
 // TypeScript Interfaces
 // ============================================================================
@@ -78,7 +80,10 @@ export const ContainerContextProvider: React.FC<ContainerContextProviderProps> =
     nodes: Node[],
     edges: Edge[]
   ) => {
-    console.log(`[ContainerContext] Entering container: ${containerId} (${containerName})`);
+    logger.debug('Entering container', {
+      component: 'ContainerContext',
+      metadata: { containerId, containerName },
+    });
     setContainerStack(prev => [...prev, {
       containerId,
       containerName,
@@ -88,12 +93,12 @@ export const ContainerContextProvider: React.FC<ContainerContextProviderProps> =
   }, []);
   
   const exitContainer = useCallback(() => {
-    console.log('[ContainerContext] Exiting container');
+    logger.debug('Exiting container', { component: 'ContainerContext' });
     setContainerStack(prev => prev.slice(0, -1));
   }, []);
   
   const exitToMain = useCallback(() => {
-    console.log('[ContainerContext] Exiting to main canvas');
+    logger.debug('Exiting to main canvas', { component: 'ContainerContext' });
     setContainerStack([]);
   }, []);
   

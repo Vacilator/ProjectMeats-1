@@ -33,7 +33,8 @@ class QuickCreatePermissionsTestCase(TestCase):
             is_active=True,
         )
 
-        self.client.force_authenticate(user=self.user)
+        # Session auth so TenantMiddleware can resolve X-Tenant-ID.
+        self.client.force_login(self.user)
 
     def test_quick_create_supplier_allows_tenant_member_without_django_model_perm(self):
         resp = self.client.post(
@@ -57,7 +58,7 @@ class QuickCreatePermissionsTestCase(TestCase):
             password='testpass123',
         )
         client = APIClient()
-        client.force_authenticate(user=other_user)
+        client.force_login(other_user)
 
         resp = client.post(
             '/api/v1/workflows/quick-create/supplier/',

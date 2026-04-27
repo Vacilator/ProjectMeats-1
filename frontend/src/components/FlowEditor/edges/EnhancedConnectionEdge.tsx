@@ -79,13 +79,13 @@ const EdgeLabel = styled.div<{ $status: ConnectionStatus }>`
   color: ${(props) => {
     switch (props.$status) {
       case 'valid':
-        return 'rgb(34, 197, 94)'; // Success green
+        return 'rgb(var(--color-success))'; // Success green
       case 'invalid':
-        return 'rgb(239, 68, 68)'; // Error red
+        return 'rgb(var(--color-error))'; // Error red
       case 'warning':
-        return 'rgb(234, 179, 8)'; // Warning yellow
+        return 'rgb(var(--color-warning))'; // Warning yellow
       case 'info':
-        return 'rgb(59, 130, 246)'; // Info blue
+        return 'rgb(var(--color-info))'; // Info blue
       default:
         return 'rgb(var(--color-text-secondary))';
     }
@@ -104,7 +104,7 @@ const EdgeLabel = styled.div<{ $status: ConnectionStatus }>`
     opacity: 1;
     animation: none;
     transform: translate(-50%, -50%) scale(1.05);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    box-shadow: 0 2px 8px rgba(var(--color-overlay), 0.15);
   }
 
   svg {
@@ -125,7 +125,7 @@ const EdgeToolbarCard = styled.div`
   padding: 4px;
   border-radius: 8px;
   border: 1px solid rgb(var(--color-border));
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 4px 12px rgba(var(--color-overlay), 0.15);
   pointer-events: all;
   opacity: 0;
   transform: scale(0.9);
@@ -156,7 +156,7 @@ const EdgeEditCard = styled.div`
   padding: 8px;
   border-radius: 10px;
   border: 1px solid rgb(var(--color-border));
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 8px 20px rgba(var(--color-overlay), 0.2);
   pointer-events: all;
   min-width: 220px;
 `;
@@ -186,7 +186,7 @@ const EdgeEditActions = styled.div`
 const EdgeEditActionBtn = styled.button<{ $primary?: boolean }>`
   border: 1px solid rgb(var(--color-border));
   background: ${(p) => (p.$primary ? 'rgb(var(--color-primary))' : 'rgb(var(--color-surface))')};
-  color: ${(p) => (p.$primary ? 'white' : 'rgb(var(--color-text-secondary))')};
+  color: ${(p) => (p.$primary ? 'rgb(var(--color-primary-foreground))' : 'rgb(var(--color-text-secondary))')};
   font-size: 12px;
   font-weight: 700;
   padding: 6px 10px;
@@ -195,7 +195,7 @@ const EdgeEditActionBtn = styled.button<{ $primary?: boolean }>`
 
   &:hover {
     border-color: rgb(var(--color-primary));
-    color: ${(p) => (p.$primary ? 'white' : 'rgb(var(--color-primary))')};
+    color: ${(p) => (p.$primary ? 'rgb(var(--color-primary-foreground))' : 'rgb(var(--color-primary))')};
     background: ${(p) => (p.$primary ? 'rgb(var(--color-primary))' : 'rgba(var(--color-primary), 0.08)')};
   }
 `;
@@ -258,13 +258,13 @@ const DataKeyChip = styled.span`
 function getEdgeColor(status: ConnectionStatus): string {
   switch (status) {
     case 'valid':
-      return 'rgb(34, 197, 94)'; // Success
+      return 'rgb(var(--color-success))'; // Success
     case 'invalid':
-      return 'rgb(239, 68, 68)'; // Error
+      return 'rgb(var(--color-error))'; // Error
     case 'warning':
-      return 'rgb(234, 179, 8)'; // Warning
+      return 'rgb(var(--color-warning))'; // Warning
     case 'info':
-      return 'rgb(59, 130, 246)'; // Info
+      return 'rgb(var(--color-info))'; // Info
     default:
       return 'rgb(var(--color-border))';
   }

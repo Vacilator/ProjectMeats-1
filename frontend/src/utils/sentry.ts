@@ -12,6 +12,8 @@
  */
 
 import * as Sentry from '@sentry/react';
+
+import { logger } from '@/utils/logger';
 import { useEffect } from 'react';
 import {
   createRoutesFromChildren,
@@ -166,7 +168,10 @@ export const initSentry = (config?: SentryConfig): void => {
     debug: environment === 'development',
   });
   
-  console.log(`[Sentry] Initialized for ${environment} (release: ${release})`);
+  logger.debug('Initialized', {
+    component: 'Sentry',
+    metadata: { environment, release },
+  });
 };
 
 /**

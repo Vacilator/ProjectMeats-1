@@ -46,7 +46,7 @@ const TaskItem = styled.div<{ $isOverdue: boolean }>`
   padding: 12px;
   border-radius: var(--radius-md);
   background: rgb(var(--color-background));
-  border: 1px solid ${props => props.$isOverdue ? 'rgb(239, 68, 68)' : 'rgb(var(--color-border))'};
+  border: 1px solid ${props => props.$isOverdue ? 'rgb(var(--color-error))' : 'rgb(var(--color-border))'};
   cursor: pointer;
   transition: all 0.15s ease;
 
@@ -64,9 +64,9 @@ const TaskPriorityDot = styled.div<{ $priority: string }>`
   flex-shrink: 0;
   background: ${props => {
     switch (props.$priority) {
-      case 'urgent': return 'rgb(239, 68, 68)';
-      case 'high': return 'rgb(234, 179, 8)';
-      case 'normal': return 'rgb(59, 130, 246)';
+      case 'urgent': return 'rgb(var(--color-error))';
+      case 'high': return 'rgb(var(--color-warning))';
+      case 'normal': return 'rgb(var(--color-info))';
       default: return 'rgb(var(--color-text-tertiary))';
     }
   }};
@@ -99,7 +99,7 @@ const TaskDueDate = styled.span<{ $isOverdue: boolean }>`
   display: flex;
   align-items: center;
   gap: 4px;
-  color: ${props => props.$isOverdue ? 'rgb(239, 68, 68)' : 'inherit'};
+  color: ${props => props.$isOverdue ? 'rgb(var(--color-error))' : 'inherit'};
   font-weight: ${props => props.$isOverdue ? '500' : '400'};
 `;
 

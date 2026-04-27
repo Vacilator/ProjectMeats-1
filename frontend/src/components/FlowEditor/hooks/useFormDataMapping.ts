@@ -16,6 +16,7 @@
 import { useCallback, useMemo } from 'react';
 import { Node, Edge, useReactFlow } from '@xyflow/react';
 import { FormField } from '@/components/form-builder/types';
+import { getResolvedFormFields } from '../utils/formFieldsDualModel';
 
 /**
  * Data mapping between form field and workflow node
@@ -96,7 +97,7 @@ export const useFormDataMapping = (): UseFormDataMappingReturn => {
       // Get child nodes with form fields
       const childNodes = getNodes().filter(n => n.parentId === node.id);
       childNodes.forEach((child, stepIndex) => {
-        const fields = child.data?.fields as FormField[] || [];
+        const fields = getResolvedFormFields(child.data);
         fields.forEach((field: FormField, fieldIndex: number) => {
           outputs.push({
             id: field.id,
@@ -108,9 +109,9 @@ export const useFormDataMapping = (): UseFormDataMappingReturn => {
           });
         });
       });
-    } else if (node.type === 'formStepSingle') {
+    } else if (node.type === 'formStepSingle' || node.type === 'form' || node.type === 'formStep') {
       // Single step form - get fields directly
-      const fields = data?.fields as FormField[] || [];
+      const fields = getResolvedFormFields(data);
       fields.forEach((field: FormField, index: number) => {
         outputs.push({
           id: field.id,
@@ -201,7 +202,12 @@ export const useFormDataMapping = (): UseFormDataMappingReturn => {
 
       incomingEdges.forEach((edge) => {
         const sourceNode = nodes.find((n) => n.id === edge.source);
-        if (sourceNode && ['formBook', 'formProcessGroup', 'formReference', 'formStepSingle'].includes(sourceNode.type || '')) {
+        if (
+          sourceNode &&
+          ['formBook', 'formProcessGroup', 'formReference', 'formStepSingle', 'form', 'formStep'].includes(
+            sourceNode.type || ''
+          )
+        ) {
           const fields = generateFormOutputs(sourceNode);
           upstreamFields.push(...fields);
         }

@@ -39,6 +39,8 @@ import {
 } from './SkeletonLoaders';
 import { useTimeout } from '../hooks/useTimeout';
 
+import { logger } from '@/utils/logger';
+
 // ============================================================================
 // Types
 // ============================================================================
@@ -182,11 +184,11 @@ const FieldBadge = styled.span<{ variant?: 'required' | 'type' }>`
   font-weight: 500;
   border-radius: 3px;
   background: ${props => {
-    if (props.variant === 'required') return 'rgba(239, 68, 68, 0.1)';
+    if (props.variant === 'required') return 'rgba(var(--color-error), 0.1)';
     return 'rgba(var(--color-primary), 0.1)';
   }};
   color: ${props => {
-    if (props.variant === 'required') return 'rgb(239, 68, 68)';
+    if (props.variant === 'required') return 'rgb(var(--color-error))';
     return 'rgb(var(--color-primary))';
   }};
 `;
@@ -200,7 +202,7 @@ const ActionButton = styled.button`
   cursor: pointer;
   transition: all 0.2s ease;
   background: rgb(var(--color-primary));
-  color: white;
+  color: rgb(var(--color-text-inverse));
 
   &:hover {
     background: rgba(var(--color-primary), 0.9);
@@ -223,8 +225,8 @@ const RemoveButton = styled.button`
   transition: all 0.2s ease;
 
   &:hover {
-    background: rgba(239, 68, 68, 0.1);
-    color: rgb(239, 68, 68);
+    background: rgba(var(--color-error), 0.1);
+    color: rgb(var(--color-error));
   }
 `;
 
@@ -265,10 +267,10 @@ const LoadingText = styled.div`
 
 const ErrorText = styled.div`
   padding: 12px;
-  background: rgba(239, 68, 68, 0.1);
-  border: 1px solid rgba(239, 68, 68, 0.3);
+  background: rgba(var(--color-error), 0.1);
+  border: 1px solid rgba(var(--color-error), 0.3);
   border-radius: 6px;
-  color: rgb(239, 68, 68);
+  color: rgb(var(--color-error));
   font-size: 14px;
 `;
 
@@ -347,7 +349,7 @@ export const EntityFieldPicker: React.FC<EntityFieldPickerProps> = ({
     isLoading: fieldsLoading,
     timeout: 5000,
     onTimeout: () => {
-      console.warn('[EntityFieldPicker] Field loading timed out after 5s');
+      logger.warn('[EntityFieldPicker] Field loading timed out after 5s');
     }
   });
   
@@ -356,7 +358,7 @@ export const EntityFieldPicker: React.FC<EntityFieldPickerProps> = ({
     isLoading: entitiesLoading,
     timeout: 5000,
     onTimeout: () => {
-      console.warn('[EntityFieldPicker] Entity loading timed out after 5s');
+      logger.warn('[EntityFieldPicker] Entity loading timed out after 5s');
     }
   });
   
@@ -388,7 +390,10 @@ export const EntityFieldPicker: React.FC<EntityFieldPickerProps> = ({
   // Reactive cascade: watch initialEntityType prop changes (uncontrolled mode)
   useEffect(() => {
     if (initialEntityType && initialEntityType !== selectedEntityType) {
-      console.log('[EntityFieldPicker] initialEntityType changed, updating:', initialEntityType);
+      logger.debug('initialEntityType changed, updating', {
+        component: 'EntityFieldPicker',
+        metadata: { initialEntityType },
+      });
       setSelectedEntityType(initialEntityType);
       setSearchTerm('');
       setFieldTypeFilter('all');
@@ -418,7 +423,7 @@ export const EntityFieldPicker: React.FC<EntityFieldPickerProps> = ({
 
   const handleEntityChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const entityType = e.target.value;
-    console.log('[EntityFieldPicker] Entity selected:', entityType);
+    logger.debug('Entity selected', { component: 'EntityFieldPicker', metadata: { entityType } });
     setSelectedEntityType(entityType);
     setSearchTerm('');
     setFieldTypeFilter('all');
@@ -428,21 +433,21 @@ export const EntityFieldPicker: React.FC<EntityFieldPickerProps> = ({
     onFieldsChange([]);
     
     if (onEntityTypeChange) {
-      console.log('[EntityFieldPicker] Notifying parent of entity change');
+      logger.debug('Notifying parent of entity change', { component: 'EntityFieldPicker' });
       onEntityTypeChange(entityType);
     }
   };
   
   // Retry handlers
   const handleRetryEntities = () => {
-    console.log('[EntityFieldPicker] Retrying entity list fetch');
+    logger.debug('Retrying entity list fetch', { component: 'EntityFieldPicker' });
     setRetryCount(prev => prev + 1);
     resetEntitiesTimeout();
     refetchEntities();
   };
   
   const handleRetryFields = () => {
-    console.log('[EntityFieldPicker] Retrying fields fetch');
+    logger.debug('Retrying fields fetch', { component: 'EntityFieldPicker' });
     setRetryCount(prev => prev + 1);
     resetFieldsTimeout();
     refetchFields();

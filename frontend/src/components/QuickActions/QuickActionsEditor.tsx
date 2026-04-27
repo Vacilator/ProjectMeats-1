@@ -34,8 +34,9 @@ const QuickActionsEditor: React.FC<QuickActionsEditorProps> = ({ isOpen, onClose
     if (isOpen) {
       setLocalActions([...quickActions]);
       setError(null);
+      void refreshQuickActions();
     }
-  }, [isOpen, quickActions]);
+  }, [isOpen, quickActions, refreshQuickActions]);
 
   if (!isOpen) return null;
 

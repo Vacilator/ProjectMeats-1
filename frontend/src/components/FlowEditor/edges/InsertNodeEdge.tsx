@@ -20,11 +20,11 @@ const AddButton = styled.button`
   color: rgb(var(--color-text-secondary));
   cursor: pointer;
   transition: all 0.2s ease;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 2px 4px rgba(var(--color-overlay), 0.05);
 
   &:hover {
     background: rgb(var(--color-primary));
-    color: white;
+    color: rgb(var(--color-text-inverse));
     border-color: rgb(var(--color-primary));
     transform: scale(1.1);
   }

@@ -15,7 +15,23 @@ import { Node, Edge } from '@xyflow/react';
 import { logger } from '@/utils/logger';
 
 import { sortNodesTopologically } from './nodeSorting';
-import { apiClient } from '../../../services/apiService';
+import { sanitizeNodeDataForPersistence } from './nodeDataSanitization';
+import {
+  createTenantWorkForm,
+  deleteTenantWorkForm,
+  getTenantWorkForm,
+  listTenantWorkForms,
+  validateWorkForm,
+  listWorkFormContainers,
+  getContainerDetail,
+  updateTenantWorkForm,
+} from '@/services/workformsApi';
+
+// Ensure schemas are registered so defaults can be materialized.
+import '../config/nodeConfigSchemas';
+
+import { schemaRegistry } from '../config/schemaRegistry';
+import type { ConfigField } from '../config/types';
 
 // ============================================================================
 // TypeScript Interfaces
@@ -95,7 +111,8 @@ export const extractFormReferences = (nodes: Node[]): string[] => {
   const formIds = new Set<string>();
 
   for (const node of nodes) {
-    const nodeData = node.data as any;
+    const rawData = (node as any)?.data;
+    const nodeData = rawData && typeof rawData === 'object' ? (rawData as any) : {};
 
     // Form Step node (legacy)
     if (node.type === 'formStep' && nodeData.tenantFormId) {
@@ -146,26 +163,103 @@ export const prepareWorkflowForSave = (
   const nodesCopy = JSON.parse(JSON.stringify(nodes)) as Node[];
   const edgesCopy = JSON.parse(JSON.stringify(edges)) as Edge[];
 
+  // Strip React Flow UI-only top-level fields before persistence.
+  // (Selected/dragging/measured/etc. are runtime artifacts and can create noisy diffs + bloated payloads.)
+  for (const node of nodesCopy as any[]) {
+    if (!node || typeof node !== 'object') continue;
+    delete node.selected;
+    delete node.dragging;
+    delete node.resizing;
+    delete node.positionAbsolute;
+    delete node.measured;
+    delete node.width;
+    delete node.height;
+    delete node.parentNode; // legacy React Flow key (v10)
+  }
+
+  for (const edge of edgesCopy as any[]) {
+    if (!edge || typeof edge !== 'object') continue;
+    delete edge.selected;
+  }
+
   // Ensure parents appear before children for React Flow subflows.
   // This also prevents "disappearing" nodes when reloading persisted workflows.
   const sortedNodes = sortNodesTopologically(nodesCopy);
   
+  const resolveSchemaNodeType = (node: Node): string => {
+    const data = (node.data || {}) as any;
+    if (typeof data.nodeType === 'string' && data.nodeType.trim()) return data.nodeType;
+
+    if (node.type === 'action' && typeof data.actionType === 'string' && data.actionType.trim()) {
+      const at = data.actionType.trim();
+      const map: Record<string, string> = {
+        email: 'actionEmail',
+        http: 'actionHTTP',
+        sms: 'actionSMS',
+        notify: 'actionNotify',
+        notification: 'actionNotify',
+        script: 'actionScript',
+        createRecord: 'actionCreateRecord',
+        updateRecord: 'actionUpdateRecord',
+        deleteRecord: 'actionDeleteRecord',
+      };
+      return map[at] || `action${at.charAt(0).toUpperCase()}${at.slice(1)}`;
+    }
+
+    return node.type || 'unknown';
+  };
+
+  const materializeDefaultsForNode = (node: Node): void => {
+    const schemaNodeType = resolveSchemaNodeType(node);
+    const schema = schemaRegistry.getSchema(schemaNodeType);
+
+    const fields: ConfigField[] = (schema.sections || []).flatMap((s: any) => (s?.fields || []) as ConfigField[]);
+    const data = (node.data || {}) as any;
+
+    // Minimal sync rules for legacy compatibility.
+    if (data.type === undefined && data.triggerType !== undefined) data.type = data.triggerType;
+    if (data.triggerType === undefined && data.type !== undefined) data.triggerType = data.type;
+
+    if (data.entityType === undefined && data.entity !== undefined) data.entityType = data.entity;
+    if (data.entity === undefined && data.entityType !== undefined) data.entity = data.entityType;
+
+    if (data.fieldMappings === undefined && data.fields !== undefined) data.fieldMappings = data.fields;
+    if (data.fields === undefined && data.fieldMappings !== undefined) data.fields = data.fieldMappings;
+
+    for (const field of fields) {
+      const dv = (field as any).defaultValue;
+      if (dv === undefined) continue;
+      if (typeof dv === 'string' && dv.length === 0) continue;
+      if (data[field.id] === undefined) {
+        data[field.id] = dv;
+      }
+    }
+
+    node.data = data;
+  };
+
   // Ensure all nodes have proper parentId metadata (React Flow v11+)
   // (This is already set by React Flow, but we verify it's serialized)
   for (const node of sortedNodes) {
+    // Strip UI-only keys before persistence (shadowConfig, dirty flags, debug flags, etc).
+    node.data = sanitizeNodeDataForPersistence(node.data);
+
+    // Materialize schema defaults so "looks set" == "is persisted".
+    materializeDefaultsForNode(node);
+
     if (node.parentId) {
       // Ensure extent is serialized
       if (!node.extent) {
         node.extent = 'parent';
       }
-      
+
       // Ensure expandParent is set for child nodes
       if (node.expandParent === undefined) {
         node.expandParent = true;
       }
     }
   }
-  
+
   return {
     nodes: sortedNodes,
     edges: edgesCopy,
@@ -212,25 +306,15 @@ export const saveWorkflow = async (
       workflow_definition,
     };
     
-    let response;
-    
     if (existingWorkflowId) {
-      // Update existing workflow (PUT)
-      response = await apiClient.put(
-        `/tenant-workforms/${existingWorkflowId}/`,
-        payload
-      );
-      logger.debug('✅ Workflow updated:', response.data);
-    } else {
-      // Create new workflow (POST)
-      response = await apiClient.post(
-        `/tenant-workforms/`,
-        payload
-      );
-      logger.debug('✅ Workflow created:', response.data);
+      const data = await updateTenantWorkForm(existingWorkflowId, payload as any);
+      logger.debug('✅ Workflow updated:', data);
+      return data as any;
     }
-    
-    return response.data;
+
+    const data = await createTenantWorkForm(payload as any);
+    logger.debug('✅ Workflow created:', data);
+    return data as any;
   } catch (error: any) {
     logger.error('❌ Error saving workflow:', {
       message: error?.message,
@@ -313,18 +397,18 @@ export const loadWorkflow = async (
   // Removed getApiBaseUrl - using apiClient
   
   try {
-    const response = await apiClient.get(`/tenant-workforms/${workflowId}/`);
-    
-    logger.debug('✅ Workflow loaded:', response.data);
-    
+    const data = await getTenantWorkForm(workflowId);
+
+    logger.debug('✅ Workflow loaded:', data);
+
     // Reconstruct parent-child relationships
-    if (response.data.workflow_definition?.nodes) {
-      response.data.workflow_definition.nodes = reconstructParentChildRelationships(
-        response.data.workflow_definition.nodes
+    if ((data as any).workflow_definition?.nodes) {
+      (data as any).workflow_definition.nodes = reconstructParentChildRelationships(
+        (data as any).workflow_definition.nodes
       );
     }
-    
-    return response.data;
+
+    return data as any;
   } catch (error: any) {
     logger.error('❌ Error loading workflow:', error);
     
@@ -350,25 +434,10 @@ export const listWorkflows = async (
     search?: string;
   }
 ): Promise<WorkflowListItem[]> => {
-  // Removed getApiBaseUrl - using apiClient
-  
-  // Build query params
-  const params = new URLSearchParams();
-  if (filters?.status) params.append('status', filters.status);
-  if (filters?.search) params.append('search', filters.search);
-  
-  const queryString = params.toString();
-  const url = `/tenant-workforms/${queryString ? `?${queryString}` : ''}`;
-  
   try {
-    const response = await apiClient.get(url);
-    
-    // API returns paginated response: {count, next, previous, results: [...]}
-    // Extract results array from pagination wrapper
-    const workflows = response.data.results || response.data;
-    
+    const workflows = await listTenantWorkForms(filters);
     logger.debug(`✅ Loaded ${workflows.length} workflows`);
-    return workflows;
+    return workflows as any;
   } catch (error: any) {
     logger.error('❌ Error listing workflows:', error);
     
@@ -391,10 +460,7 @@ export const deleteWorkflow = async (workflowId: string): Promise<void> => {
   // Removed getApiBaseUrl - using apiClient
   
   try {
-    await apiClient.delete(
-      `/tenant-workforms/${workflowId}/`,
-      
-    );
+    await deleteTenantWorkForm(workflowId);
     logger.debug('✅ Workflow deleted:', workflowId);
   } catch (error: any) {
     logger.error('❌ Error deleting workflow:', error);
@@ -425,14 +491,9 @@ export const validateWorkflow = async (
   // Removed getApiBaseUrl - using apiClient
   
   try {
-    const response = await apiClient.post(
-      `/tenant-workforms/${workflowId}/validate/`,
-      {},
-      
-    );
-    
-    logger.debug('✅ Workflow validation:', response.data);
-    return response.data;
+    const data = await validateWorkForm(workflowId);
+    logger.debug('✅ Workflow validation:', data);
+    return data;
   } catch (error: any) {
     logger.error('❌ Error validating workflow:', error);
     throw error;
@@ -461,12 +522,8 @@ export const listContainers = async (
   // Removed getApiBaseUrl - using apiClient
   
   try {
-    const response = await apiClient.get(
-      `/tenant-workforms/${workflowId}/containers/`,
-      
-    );
-    
-    return response.data.containers || [];
+    const data = await listWorkFormContainers(workflowId);
+    return data.containers || [];
   } catch (error: any) {
     logger.error('❌ Error listing containers:', error);
     throw error;
@@ -494,12 +551,8 @@ export const getContainerDetails = async (
   // Removed getApiBaseUrl - using apiClient
   
   try {
-    const response = await apiClient.get(
-      `/tenant-workforms/${workflowId}/containers/${containerId}/`,
-      
-    );
-    
-    return response.data;
+    const data = await getContainerDetail(workflowId, containerId);
+    return data as any;
   } catch (error: any) {
     logger.error('❌ Error getting container details:', error);
     throw error;

@@ -57,9 +57,9 @@ const ChildContainer = styled.div<{ stepIndex: number; isFirst: boolean; isLast:
   margin-bottom: ${props => props.isLast ? '0' : '24px'};
   padding: 16px;
   background: rgb(var(--color-background-primary));
-  border: 2px solid rgba(139, 92, 246, 0.2);
+  border: 2px solid rgba(var(--color-primary), 0.2);
   border-radius: 8px;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 2px 6px rgba(var(--color-overlay), 0.05);
   transition: all 0.2s ease;
   
   /* Step indicator line */
@@ -72,14 +72,14 @@ const ChildContainer = styled.div<{ stepIndex: number; isFirst: boolean; isLast:
       transform: translateX(-50%);
       width: 2px;
       height: 24px;
-      background: rgba(139, 92, 246, 0.3);
+      background: rgba(var(--color-primary), 0.3);
       pointer-events: none;
     }
   `}
   
   &:hover {
-    border-color: rgba(139, 92, 246, 0.4);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    border-color: rgba(var(--color-primary), 0.4);
+    box-shadow: 0 4px 12px rgba(var(--color-overlay), 0.08);
   }
   
   /* Drag handle indicator */
@@ -90,7 +90,7 @@ const ChildContainer = styled.div<{ stepIndex: number; isFirst: boolean; isLast:
     top: 50%;
     transform: translateY(-50%);
     font-size: 14px;
-    color: rgba(139, 92, 246, 0.3);
+    color: rgba(var(--color-primary), 0.3);
     cursor: grab;
     user-select: none;
     opacity: 0;
@@ -109,13 +109,13 @@ const StepBadge = styled.div`
   position: absolute;
   top: -12px;
   left: 12px;
-  background: rgba(139, 92, 246, 0.9);
-  color: white;
+  background: rgba(var(--color-primary), 0.9);
+  color: rgb(var(--color-text-inverse));
   font-size: 11px;
   font-weight: 600;
   padding: 4px 10px;
   border-radius: 12px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 2px 4px rgba(var(--color-overlay), 0.15);
   z-index: 1;
   pointer-events: none;
   user-select: none;

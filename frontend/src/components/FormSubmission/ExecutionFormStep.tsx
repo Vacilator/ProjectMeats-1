@@ -35,7 +35,8 @@ type FormStepNodeData = {
   name?: string;
   entity_type?: string;
   entityType?: string;
-  fields?: SelectedFieldLike[];
+  fields?: Array<Record<string, any>>;
+  formFields?: Array<Record<string, any>>;
 };
 
 export interface ExecutionFormStepProps {
@@ -119,12 +120,16 @@ export const ExecutionFormStep: React.FC<ExecutionFormStepProps> = ({
   const entityType = nodeData.entity_type || nodeData.entityType;
 
   const fields: FieldConfig[] = useMemo(() => {
-    const selected = Array.isArray(nodeData.fields) ? nodeData.fields : [];
-    return selected.map((f) => {
+    const raw = Array.isArray((nodeData as any).formFields) ? (nodeData as any).formFields : nodeData.fields;
+    const selected = Array.isArray(raw) ? raw : [];
+
+    return selected.map((f: any) => {
       const autoPopulateSource = f.cascadeFrom;
+      const key = String(f.key ?? f.name ?? f.id ?? '');
+
       return {
-        key: String(f.key),
-        label: f.label || String(f.key),
+        key,
+        label: f.label || key,
         type: f.type || 'text',
         required: Boolean(f.required),
         placeholder: f.placeholder,

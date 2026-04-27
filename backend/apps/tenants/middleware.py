@@ -41,12 +41,27 @@ If no tenant can be resolved, request.tenant is set to None.
 ViewSets should handle None tenant by returning empty querysets or raising validation errors.
 """
 
-from django.http import HttpRequest, HttpResponseForbidden
+from django.http import HttpRequest, HttpResponseForbidden, JsonResponse
 from django.db import connection
 from .models import Tenant, TenantUser, TenantDomain
 import logging
 
 logger = logging.getLogger(__name__)
+
+
+_TENANT_MEMBERSHIP_BYPASS_PATH_PREFIXES = (
+    '/api/v1/invitations/validate/',
+    '/api/v1/auth/signup-with-invitation/',
+    '/api/v1/integrations/oauth/callback/',
+    '/api/v1/workflows/email/email/outlook/auth/callback/',
+    '/api/v1/workflows/email/email/gmail/auth/callback/',
+    '/api/v1/workflows/email/email/outlook/webhook/notifications/',
+    '/api/v1/workflows/email/email/gmail/webhook/notifications/',
+)
+
+
+def _bypass_tenant_membership_enforcement(path: str) -> bool:
+    return any(path.startswith(prefix) for prefix in _TENANT_MEMBERSHIP_BYPASS_PATH_PREFIXES)
 
 
 class TenantMiddleware:
@@ -66,13 +81,36 @@ class TenantMiddleware:
     def __init__(self, get_response):
         self.get_response = get_response
 
+    def _reset_rls_session_vars(self) -> None:
+        """Best-effort RESET of RLS session vars (defense-in-depth for pooled connections)."""
+        try:
+            with connection.cursor() as cursor:
+                cursor.execute("RESET app.current_tenant_id")
+                cursor.execute("RESET app.current_tenant")
+        except Exception:
+            pass
+
+    def _forbidden(self, request: HttpRequest, message: str):
+        """Return a clear forbidden response (JSON for API routes)."""
+        self._reset_rls_session_vars()
+
+        if request.path.startswith('/api/v1/'):
+            # Use a stable error shape for frontend + tests.
+            return JsonResponse({'error': message, 'code': 'TENANT_ACCESS_DENIED'}, status=403)
+
+        return HttpResponseForbidden(message)
+
     def __call__(self, request: HttpRequest):
         """Process the request and set tenant context."""
-        # Skip tenant resolution for health check and readiness endpoints
+        # Skip tenant resolution for health check and readiness endpoints.
+        # Still RESET session vars to prevent pooled-connection tenant leakage.
         if request.path.startswith('/api/v1/health/') or request.path.startswith('/api/v1/ready/'):
             request.tenant = None
             request.tenant_user = None
-            return self.get_response(request)
+            try:
+                return self.get_response(request)
+            finally:
+                self._reset_rls_session_vars()
         
         tenant = None
         resolution_method = None  # Track how tenant was resolved for logging
@@ -90,38 +128,39 @@ class TenantMiddleware:
             )
 
         # 1. FIRST: Try to get tenant from X-Tenant-ID header (explicit tenant selection)
-        # This takes priority even for Global System Admins so they can switch tenants
+        # This takes priority even for Global System Admins so they can switch tenants.
+        #
+        # SECURITY: Never honor X-Tenant-ID for truly-anonymous requests.
+        #
+        # NOTE: DRF's APIClient.force_authenticate() does not mark request.user authenticated
+        # at middleware time, but it *does* attach a private _force_auth_user on the request.
+        # We treat that as authenticated for tenant resolution in tests so CI doesn't regress.
+        forced_user = getattr(request, '_force_auth_user', None)
+        tenant_actor = request.user if request.user.is_authenticated else forced_user
+
         tenant_id = request.headers.get("X-Tenant-ID")
-        # IMPORTANT: Header-based tenant selection is validated post-auth for JWT/Token
-        # requests (see apps.tenants.authentication). Middleware may still resolve
-        # request.tenant for routing and view-layer filtering.
-        if tenant_id:
+        if tenant_id and tenant_actor:
             try:
                 tenant = Tenant.objects.get(id=tenant_id, is_active=True)
                 resolution_method = "X-Tenant-ID header"
-                
+
                 # Verify user has access to this tenant
-                if request.user.is_authenticated:
-                    # Superusers and Global System Admins can access any tenant
-                    is_global_admin = request.user.groups.filter(name='Global System Admins').exists()
-                    if not request.user.is_superuser and not is_global_admin:
-                        if not TenantUser.objects.filter(
-                            user=request.user, tenant=tenant, is_active=True
-                        ).exists():
-                            logger.warning(
-                                f"Unauthorized tenant access attempt: "
-                                f"user={request.user.username}, tenant_id={tenant_id}, "
-                                f"path={request.path}"
-                            )
-                            return HttpResponseForbidden(
-                                "You do not have access to this tenant"
-                            )
-                    elif is_global_admin:
-                        logger.info(
-                            f"Global System Admin explicit tenant selection: "
-                            f"user={request.user.username}, tenant={tenant.slug}, "
+                # Superusers and Global System Admins can access any tenant
+                is_global_admin = tenant_actor.groups.filter(name='Global System Admins').exists()
+                if not tenant_actor.is_superuser and not is_global_admin:
+                    if not TenantUser.objects.filter(user=tenant_actor, tenant=tenant, is_active=True).exists():
+                        logger.warning(
+                            f"Unauthorized tenant access attempt: "
+                            f"user={getattr(tenant_actor, 'username', 'unknown')}, tenant_id={tenant_id}, "
                             f"path={request.path}"
                         )
+                        return self._forbidden(request, 'You do not have access to this tenant.')
+                elif is_global_admin:
+                    logger.info(
+                        f"Global System Admin explicit tenant selection: "
+                        f"user={tenant_actor.username}, tenant={tenant.slug}, "
+                        f"path={request.path}"
+                    )
             except Tenant.DoesNotExist:
                 logger.warning(
                     f"Invalid tenant ID in X-Tenant-ID header: {tenant_id}, "
@@ -132,6 +171,12 @@ class TenantMiddleware:
                     f"Invalid tenant ID format in X-Tenant-ID header: {tenant_id}, "
                     f"path={request.path}"
                 )
+        elif tenant_id and not tenant_actor:
+            logger.debug(
+                "Ignoring X-Tenant-ID for anonymous request: tenant_id=%s path=%s",
+                tenant_id,
+                request.path,
+            )
         
         # 2. SECOND: Global System Admins default to System Root if no explicit tenant
         if not tenant and hasattr(request, 'user') and request.user.is_authenticated:
@@ -211,17 +256,22 @@ class TenantMiddleware:
                     )
 
         # 4. Get user's default tenant if authenticated
+        #
+        # SECURITY (fail-closed): Only allow an implicit default when the user belongs
+        # to exactly ONE active tenant. If multiple memberships exist, require explicit
+        # selection via X-Tenant-ID or host routing.
         if not tenant and hasattr(request, 'user') and request.user.is_authenticated:
             if is_debug_host:
                 logger.info(f"{debug_prefix} Attempting default tenant lookup for user: {request.user.username}")
-            
-            tenant_user = (
+
+            memberships = list(
                 TenantUser.objects.filter(user=request.user, is_active=True)
                 .select_related("tenant")
-                .order_by("-role")  # Prioritize owner/admin roles
-                .first()
+                .order_by("-role")[:2]
             )
-            if tenant_user:
+
+            if len(memberships) == 1:
+                tenant_user = memberships[0]
                 tenant = tenant_user.tenant
                 resolution_method = f"user default tenant (role={tenant_user.role})"
                 if is_debug_host:
@@ -229,11 +279,38 @@ class TenantMiddleware:
                         f"{debug_prefix} Tenant resolved via user default - "
                         f"tenant={tenant.slug}, tenant_id={tenant.id}, role={tenant_user.role}"
                     )
+            elif len(memberships) > 1:
+                if is_debug_host:
+                    logger.info(
+                        f"{debug_prefix} Multiple tenant memberships detected for user {request.user.username}; "
+                        "explicit selection required"
+                    )
             else:
                 if is_debug_host:
                     logger.info(
                         f"{debug_prefix} No default tenant found for user: {request.user.username}"
                     )
+
+        # SECURITY: If tenant was resolved via host routing (domain/subdomain) and the user is
+        # authenticated (session-auth), require active TenantUser membership unless global admin.
+        if (
+            tenant
+            and request.user.is_authenticated
+            and resolution_method
+            and (resolution_method.startswith("domain") or resolution_method.startswith("subdomain"))
+            and not _bypass_tenant_membership_enforcement(request.path)
+        ):
+            is_global_admin = request.user.groups.filter(name='Global System Admins').exists()
+            if not (request.user.is_superuser or is_global_admin):
+                if not TenantUser.objects.filter(user=request.user, tenant=tenant, is_active=True).exists():
+                    logger.warning(
+                        "Unauthorized tenant host access attempt: user=%s tenant=%s method=%s path=%s",
+                        request.user.username,
+                        str(tenant.id),
+                        resolution_method,
+                        request.path,
+                    )
+                    return self._forbidden(request, 'You do not have access to this tenant.')
 
         # Final tenant resolution result for debug hosts
         if is_debug_host:
@@ -300,11 +377,11 @@ class TenantMiddleware:
             except Exception:
                 pass  # Silently fail for RESET
 
-        # Set tenant_user if we have both tenant and authenticated user
-        if tenant and request.user.is_authenticated:
+        # Set tenant_user if we have both tenant and an authenticated actor (session-auth or force_authenticate)
+        if tenant and tenant_actor:
             try:
                 request.tenant_user = TenantUser.objects.get(
-                    user=request.user, tenant=tenant, is_active=True
+                    user=tenant_actor, tenant=tenant, is_active=True
                 )
             except TenantUser.DoesNotExist:
                 # User is superuser or accessing via header without association
@@ -344,12 +421,8 @@ class TenantMiddleware:
             raise
         finally:
             # Prevent cross-request tenant leakage on pooled DB connections.
-            if rls_set or getattr(request, '_rls_set', False):
-                try:
-                    with connection.cursor() as cursor:
-                        cursor.execute("RESET app.current_tenant_id")
-                        cursor.execute("RESET app.current_tenant")
-                except Exception:
-                    pass
+            # This is best-effort and intentionally unconditional: if SET fails (or a request
+            # never sets tenant context), we still must not carry a stale tenant into the next request.
+            self._reset_rls_session_vars()
 
         return response

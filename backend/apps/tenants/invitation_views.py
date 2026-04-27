@@ -2,6 +2,7 @@
 Views for tenant invitation system.
 """
 from rest_framework import viewsets, status
+from drf_spectacular.utils import OpenApiParameter, OpenApiTypes, extend_schema
 from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
@@ -192,6 +193,11 @@ class TenantInvitationViewSet(viewsets.ModelViewSet):
             )
 
 
+@extend_schema(
+    tags=["Auth"],
+    request=InvitationSignupSerializer,
+    responses={201: OpenApiTypes.OBJECT, 400: OpenApiTypes.OBJECT, 500: OpenApiTypes.OBJECT},
+)
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def signup_with_invitation(request):
@@ -251,6 +257,18 @@ def signup_with_invitation(request):
         )
 
 
+@extend_schema(
+    tags=["Invitations"],
+    parameters=[
+        OpenApiParameter(
+            name='token',
+            type=OpenApiTypes.STR,
+            location=OpenApiParameter.QUERY,
+            required=True,
+        )
+    ],
+    responses={200: OpenApiTypes.OBJECT, 400: OpenApiTypes.OBJECT, 404: OpenApiTypes.OBJECT},
+)
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def validate_invitation(request):

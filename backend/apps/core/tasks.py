@@ -25,15 +25,18 @@ def cache_workflow_data(tenant_id: str, workflow_id: str) -> Dict[str, Any]:
     cache_key = f"workflow:{tenant_id}:{workflow_id}"
     
     def fetch_workflow():
-        workflow = TenantForm.objects.get(
-            id=workflow_id,
-            tenant_id=tenant_id
-        )
-        return {
-            'id': str(workflow.id),
-            'name': workflow.name,
-            'fields_count': workflow.fields.count()
-        }
+        from apps.tenants.rls import tenant_rls
+
+        with tenant_rls(str(tenant_id), strict=False):
+            workflow = TenantForm.objects.get(
+                id=workflow_id,
+                tenant_id=tenant_id
+            )
+            return {
+                'id': str(workflow.id),
+                'name': workflow.name,
+                'fields_count': workflow.fields.count()
+            }
     
     CacheService.cache_query_result(cache_key, fetch_workflow)
     
@@ -68,9 +71,12 @@ def sync_single_tenant(tenant_id: str) -> Dict[str, Any]:
     try:
         tenant = Tenant.objects.get(id=tenant_id)
         
+        from apps.tenants.rls import tenant_rls
+
         # Example: Sync workflow counts, user counts, etc.
-        workflow_count = tenant.tenant_forms.count()
-        user_count = tenant.users.count()
+        with tenant_rls(str(tenant_id), strict=False):
+            workflow_count = tenant.tenant_forms.count()
+            user_count = tenant.users.count()
         
         return {
             'tenant_id': tenant_id,
@@ -124,19 +130,22 @@ def export_single_workflow(tenant_id: str, workflow_id: str) -> Dict[str, Any]:
     from tenant_apps.workflows.models import TenantForm
     from tenant_apps.workflows.serializers import TenantFormSerializer
     
+    from apps.tenants.rls import tenant_rls
+
     try:
-        workflow = TenantForm.objects.get(
-            id=workflow_id,
-            tenant_id=tenant_id
-        )
-        
-        serializer = TenantFormSerializer(workflow)
-        
-        return {
-            'workflow_id': workflow_id,
-            'status': 'success',
-            'data': serializer.data
-        }
+        with tenant_rls(str(tenant_id), strict=False):
+            workflow = TenantForm.objects.get(
+                id=workflow_id,
+                tenant_id=tenant_id
+            )
+
+            serializer = TenantFormSerializer(workflow)
+
+            return {
+                'workflow_id': workflow_id,
+                'status': 'success',
+                'data': serializer.data
+            }
     except Exception as e:
         return {
             'workflow_id': workflow_id,
@@ -179,10 +188,13 @@ def count_workflows_by_status(tenant_id: str, status: str) -> Dict[str, int]:
     """
     from tenant_apps.workflows.models import TenantForm
     
-    count = TenantForm.objects.filter(
-        tenant_id=tenant_id,
-        status=status
-    ).count()
+    from apps.tenants.rls import tenant_rls
+
+    with tenant_rls(str(tenant_id), strict=False):
+        count = TenantForm.objects.filter(
+            tenant_id=tenant_id,
+            status=status
+        ).count()
     
     return {status: count}
 

@@ -93,16 +93,19 @@ function extractNodeOutputs(node: Node): UpstreamOutput[] {
   const data = (node.data ?? {}) as Record<string, any>;
 
   // Handle form nodes (formStep, formStepSingle, formProcess)
-  if (
-    (node.type?.includes('form') || node.type?.includes('Form')) &&
-    Array.isArray(data.fields)
-  ) {
-    for (const field of data.fields as any[]) {
+  if (node.type?.includes('form') || node.type?.includes('Form')) {
+    const rawFields = Array.isArray((data as any).formFields)
+      ? (data as any).formFields
+      : Array.isArray((data as any).fields)
+        ? (data as any).fields
+        : [];
+
+    for (const field of rawFields as any[]) {
       outputs.push({
         nodeId: node.id,
         nodeLabel: data.label || data.stepTitle || 'Unnamed Form',
         nodeType: node.type,
-        fieldName: field.name || field.id,
+        fieldName: field.name || field.id || field.key,
         fieldLabel: field.label,
         fieldType: field.type,
         sampleValue: field.defaultValue || getSampleValue(field.type),

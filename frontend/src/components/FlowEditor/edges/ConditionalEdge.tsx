@@ -28,23 +28,23 @@ interface ConditionalEdgeData extends Record<string, unknown> {
 
 const ConditionLabel = styled.div`
   position: absolute;
-  background: rgb(251, 191, 36);
-  border: 2px solid rgb(245, 158, 11);
+  background: rgba(var(--color-warning), 0.18);
+  border: 2px solid rgb(var(--color-warning));
   border-radius: var(--radius-md, 6px);
   padding: 4px 12px;
   font-size: 12px;
   font-weight: 600;
-  color: rgb(120, 53, 15);
+  color: rgb(var(--color-text-primary));
   pointer-events: all;
   cursor: pointer;
   transition: all 0.2s ease;
-  box-shadow: 0 2px 4px rgb(245 158 11 / 0.2);
+  box-shadow: 0 2px 4px rgba(var(--color-warning), 0.2);
 
   &:hover {
-    background: rgb(245, 158, 11);
-    color: white;
+    background: rgb(var(--color-warning));
+    color: rgb(var(--color-primary-foreground));
     transform: scale(1.05);
-    box-shadow: 0 4px 8px rgb(245 158 11 / 0.3);
+    box-shadow: 0 4px 8px rgba(var(--color-warning), 0.3);
   }
 
   &::before {
@@ -57,15 +57,15 @@ const ConditionLabel = styled.div`
 
 const TrueFalseIndicator = styled.div<{ isTrue?: boolean }>`
   position: absolute;
-  background: ${props => props.isTrue ? 'rgb(34, 197, 94)' : 'rgb(239, 68, 68)'};
-  border: 2px solid white;
+  background: ${props => props.isTrue ? 'rgb(var(--color-success))' : 'rgb(var(--color-error))'};
+  border: 2px solid rgb(var(--color-surface));
   border-radius: 50%;
   width: 20px;
   height: 20px;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: white;
+  color: rgb(var(--color-primary-foreground));
   font-size: 10px;
   font-weight: 700;
   pointer-events: none;
@@ -106,7 +106,7 @@ export const ConditionalEdge = React.memo<EdgeProps<Edge<ConditionalEdgeData>>>(
   const isTrue = data?.isTrue;
 
   const edgeStyle: React.CSSProperties = {
-    stroke: 'rgb(245, 158, 11)', // Orange
+    stroke: 'rgb(var(--color-warning))', // Orange
     strokeWidth: 2.5,
     strokeDasharray: animated ? '8,4' : undefined,
     transition: 'all 0.3s ease',
@@ -118,7 +118,7 @@ export const ConditionalEdge = React.memo<EdgeProps<Edge<ConditionalEdgeData>>>(
     type: MarkerType.ArrowClosed,
     width: 24,
     height: 24,
-    color: 'rgb(245, 158, 11)',
+    color: 'rgb(var(--color-warning))',
   };
 
   return (
@@ -136,8 +136,8 @@ export const ConditionalEdge = React.memo<EdgeProps<Edge<ConditionalEdgeData>>>(
         >
           <path
             d="M 0,6 L 6,0 L 12,6 L 6,12 Z"
-            fill="rgb(245, 158, 11)"
-            stroke="rgb(245, 158, 11)"
+            fill="rgb(var(--color-warning))"
+            stroke="rgb(var(--color-warning))"
             strokeWidth="1"
           />
         </marker>
@@ -155,7 +155,7 @@ export const ConditionalEdge = React.memo<EdgeProps<Edge<ConditionalEdgeData>>>(
 
       {/* Animated flow indicator */}
       {animated && (
-        <circle r="4" fill="rgb(245, 158, 11)">
+        <circle r="4" fill="rgb(var(--color-warning))">
           <animateMotion dur="1.5s" repeatCount="indefinite" path={edgePath} />
         </circle>
       )}

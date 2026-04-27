@@ -136,14 +136,14 @@ jobs:
 
 ### Immutable Tagging Pattern
 ```yaml
-# ✅ CORRECT: Use SHA for deployments
+# ✅ CORRECT: Use immutable SHA tags for deployments
 tags: |
   ${{ env.REGISTRY }}/${{ env.IMAGE }}:${{ env.ENV }}-${{ github.sha }}
-  ${{ env.REGISTRY }}/${{ env.IMAGE }}:${{ env.ENV }}-latest
 
-# ❌ WRONG: Never use only -latest for production
+# ❌ WRONG: Never push/deploy mutable latest tags
 tags: |
   ${{ env.REGISTRY }}/${{ env.IMAGE }}:latest
+  ${{ env.REGISTRY }}/${{ env.IMAGE }}:${{ env.ENV }}-latest
 ```
 
 ### Environment Prefixes
@@ -671,6 +671,7 @@ on:
 ```yaml
 - name: Create Backend .env File Locally
   run: |
+    umask 077
     cat <<- 'EOF' > backend.env
     DJANGO_SECRET_KEY=${{ secrets.DJANGO_SECRET_KEY }}
     DJANGO_SETTINGS_MODULE=${{ secrets.DJANGO_SETTINGS_MODULE }}
@@ -680,9 +681,11 @@ on:
     DB_USER=${{ secrets.DB_USER }}
     DB_PASSWORD=${{ secrets.DB_PASSWORD }}
     DB_HOST=${{ secrets.DB_HOST }}
-    DB_PORT=${{ secrets.DB_PORT }}
+    DB_PORT=${{ secrets.DB_PORT || '5432' }}
     DB_ENGINE=django.db.backends.postgresql
     EOF
+
+    chmod 600 backend.env
 
 - name: Transfer .env to Server
   env:
@@ -690,6 +693,10 @@ on:
   run: |
     sshpass -e ssh -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "mkdir -p /root/projectmeats/backend"
     sshpass -e scp -o StrictHostKeyChecking=no backend.env ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/root/projectmeats/backend/.env
+
+- name: Cleanup generated secret files (runner)
+  if: always()
+  run: rm -f backend.env || true
 ```
 
 ### File Permissions Pattern
@@ -708,7 +715,7 @@ chmod -R 775 /root/projectmeats/staticfiles
 ```bash
 MAX_ATTEMPTS=15
 ATTEMPT=1
-HEALTH_URL="https://$DOMAIN/api/health/"
+HEALTH_URL="https://$DOMAIN/api/v1/health/"
 
 while [ $ATTEMPT -le $MAX_ATTEMPTS ]; do
   HTTP_CODE=$(curl -L -s -o /dev/null -w "%{http_code}" "$HEALTH_URL")

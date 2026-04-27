@@ -197,7 +197,7 @@ docker run -d --name pm-backend \
   registry.digitalocean.com/meatscentral/projectmeats-backend:dev-abc123
 
 # 4. Health check (15 retries, 5s intervals)
-curl -L -s -o /dev/null -w "%{http_code}" https://domain.com/api/health/
+curl -L -s -o /dev/null -w "%{http_code}" https://domain.com/api/v1/health/
 ```
 
 ### Frontend (Unchanged from V1.0)
@@ -220,23 +220,31 @@ curl -L -s -o /dev/null -w "%{http_code}" https://domain.com/api/health/
 ```yaml
 - name: Create Backend .env File Locally
   run: |
+    umask 077
     cat <<- 'EOF' > backend.env
     	DJANGO_SECRET_KEY=${{ secrets.DJANGO_SECRET_KEY }}
     	DJANGO_SETTINGS_MODULE=${{ secrets.DJANGO_SETTINGS_MODULE }}
     	# ... all secrets from GitHub
+    	DB_PORT=${{ secrets.DB_PORT || '5432' }}
     	EOF
+
+    chmod 600 backend.env
 
 - name: Transfer .env to Server
   env:
     SSHPASS: ${{ secrets.SSH_PASSWORD }}
   run: |
     sshpass -e scp backend.env ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/root/projectmeats/backend/.env
+
+- name: Cleanup generated secret files (runner)
+  if: always()
+  run: rm -f backend.env || true
 ```
 
 ### Required Secrets Per Environment
 **Backend** (dev-backend, uat-backend, production-backend):
 - SSH_HOST, SSH_USER, SSH_PASSWORD
-- DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASSWORD
+- DB_HOST, DB_NAME, DB_USER, DB_PASSWORD (+ DB_PORT optional; defaults to 5432)
 - DJANGO_SECRET_KEY, DJANGO_SETTINGS_MODULE, ALLOWED_HOSTS, DEBUG
 
 **Frontend** (dev-frontend, uat-frontend, production-frontend):
@@ -279,12 +287,12 @@ Feature Branch → Development (auto-deploy to dev)
 
 ```bash
 # V1.0 Pattern (still works)
-HTTP_CODE=$(curl -L -s -o /dev/null -w "%{http_code}" https://example.com/api/health/)
+HTTP_CODE=$(curl -L -s -o /dev/null -w "%{http_code}" https://example.com/api/v1/health/)
 
 # V2.0 Pattern (with retries and logging)
 MAX_ATTEMPTS=15
 ATTEMPT=1
-HEALTH_URL="https://example.com/api/health/"
+HEALTH_URL="https://example.com/api/v1/health/"
 
 while [ $ATTEMPT -le $MAX_ATTEMPTS ]; do
   HTTP_CODE=$(curl -L -s -o /dev/null -w "%{http_code}" "$HEALTH_URL")

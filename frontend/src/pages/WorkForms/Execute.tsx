@@ -10,6 +10,8 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Skeleton } from 'antd';
 import { showAlert } from '@/utils/uiDialogs';
+import { getWorkformsErrorUi } from '@/features/workforms/workformsErrors';
+import { ApiErrorContent } from '@/components/errors/ApiErrorContent';
 import {
   createFormSubmission,
   executeTenantWorkForm,
@@ -75,15 +77,19 @@ export const ExecuteWorkForm: React.FC = () => {
         showAlert({
           type: 'error',
           title: 'Execution failed',
-          content: data.error_message || 'This workflow failed to execute.',
+          content: data.error_message || 'This WorkForm failed to run.',
         });
       }
 
       navigate(`/workforms/executions/${data.id}`, { replace: true });
     },
     onError: (err: any) => {
-      const msg = err?.response?.data?.error || err?.message || 'Failed to start workflow.';
-      showAlert({ type: 'error', title: 'Error', content: msg });
+      const ui = getWorkformsErrorUi(err, 'execute.start');
+      showAlert({
+        type: 'error',
+        title: ui.title,
+        content: <ApiErrorContent error={err} fallbackMessage={ui.message} />,
+      });
       navigate('/workforms/catalog', { replace: true });
     },
   });
@@ -96,8 +102,10 @@ export const ExecuteWorkForm: React.FC = () => {
   }, [id]);
 
   return (
-    <div>
-      <Skeleton active paragraph={{ rows: 6 }} />
+    <div data-testid="workforms-execute-page">
+      <div data-testid="workforms-execute-loading">
+        <Skeleton active paragraph={{ rows: 6 }} />
+      </div>
     </div>
   );
 };

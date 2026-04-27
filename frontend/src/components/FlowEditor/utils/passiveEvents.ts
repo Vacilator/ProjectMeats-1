@@ -20,6 +20,8 @@
  * @module passiveEvents
  */
 
+import { logger } from '@/utils/logger';
+
 // ============================================================================
 // TypeScript Interfaces
 // ============================================================================
@@ -285,7 +287,7 @@ export const enablePassiveByDefault = (eventTypes: string[] = PASSIVE_EVENTS): v
     return originalAddEventListener.call(this, type, listener, options);
   };
 
-  console.info(
+  logger.debug(
     `[passiveEvents] Enabled passive by default for: ${eventTypes.join(', ')}`
   );
 };

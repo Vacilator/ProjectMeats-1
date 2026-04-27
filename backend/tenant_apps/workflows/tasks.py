@@ -26,220 +26,249 @@ AIConfiguration = None
 
 
 @shared_task(name='workflows.execute_scheduled_workflow')
-def execute_scheduled_workflow(workflow_id: int, tenant_id: int):
-    """
-    Execute a scheduled workflow via Celery beat.
-    
+def execute_scheduled_workflow(workflow_id: str, tenant_id: str):
+    """Execute a scheduled workflow via Celery beat.
+
+    Notes:
+    - ProjectMeats uses shared-schema multi-tenancy with PostgreSQL RLS.
+    - Celery workers MUST set/reset the RLS session variable because there is no
+      request middleware.
+
     Args:
-        workflow_id: ID of the workflow to execute
-        tenant_id: ID of the tenant (for multi-tenancy)
-    
+        workflow_id: UUID of the workflow to execute.
+        tenant_id: UUID of the tenant.
+
     Returns:
-        dict: Execution result with status and execution_id
+        dict: Execution result with status and execution_id.
     """
-    from .models import TenantWorkflow, WorkflowExecution
-    from .engine import WorkflowEngine
+
     from apps.tenants.models import Tenant
-    
+    from apps.tenants.rls import reset_current_tenant, set_current_tenant
+
+    from .models import TenantWorkflow
+    from .services.workflow_executor import execute_workflow
+
+    rls = set_current_tenant(str(tenant_id))
+    if not rls.ok:
+        logger.warning(
+            "[Celery] Skipping scheduled workflow=%s (RLS set failed: %s)",
+            workflow_id,
+            rls.error,
+        )
+        return {'success': False, 'reason': 'rls_set_failed', 'error': rls.error}
+
     try:
         tenant = Tenant.objects.get(id=tenant_id)
         workflow = TenantWorkflow.objects.get(id=workflow_id, tenant=tenant)
-        
-        logger.info(f"[Celery] Executing scheduled workflow: {workflow.name} (ID: {workflow_id})")
-        
-        # Create execution record
-        execution = WorkflowExecution.objects.create(
-            workflow=workflow,
-            tenant=tenant,
-            trigger_type='scheduled',
-            status='running',
-            started_at=timezone.now(),
+
+        logger.info(
+            "[Celery] Executing scheduled workflow: %s (workflow=%s tenant=%s)",
+            workflow.name,
+            workflow_id,
+            tenant_id,
         )
-        
-        # Execute workflow using the engine
-        engine = WorkflowEngine(workflow)
-        result = engine.execute(context={
-            'execution_id': execution.id,
+
+        trigger_data = {
             'trigger': 'scheduled',
             'scheduled_at': timezone.now().isoformat(),
-        })
-        
-        # Update execution record
-        execution.status = 'completed' if result.get('success') else 'failed'
-        execution.completed_at = timezone.now()
-        execution.result_data = result
-        execution.save()
-        
-        logger.info(f"[Celery] Workflow {workflow_id} completed with status: {execution.status}")
-        
-        return {
-            'success': True,
-            'execution_id': execution.id,
-            'status': execution.status,
-            'result': result,
         }
-        
+        log = execute_workflow(workflow, trigger_data)
+
+        return {
+            'success': log.status in {'success', 'partial'},
+            'execution_id': str(log.id),
+            'status': log.status,
+        }
+
     except Tenant.DoesNotExist:
-        logger.error(f"[Celery] Tenant {tenant_id} not found for workflow {workflow_id}")
+        logger.error("[Celery] Tenant %s not found for workflow %s", tenant_id, workflow_id)
         return {'success': False, 'error': 'Tenant not found'}
-        
+
     except TenantWorkflow.DoesNotExist:
-        logger.error(f"[Celery] Workflow {workflow_id} not found for tenant {tenant_id}")
+        logger.error("[Celery] Workflow %s not found for tenant %s", workflow_id, tenant_id)
         return {'success': False, 'error': 'Workflow not found'}
-        
-    except Exception as e:
-        logger.exception(f"[Celery] Error executing workflow {workflow_id}: {str(e)}")
-        
-        if 'execution' in locals():
-            execution.status = 'failed'
-            execution.completed_at = timezone.now()
-            execution.error_message = str(e)
-            execution.save()
-            
+
+    except Exception as e:  # noqa: BLE001
+        logger.exception("[Celery] Error executing scheduled workflow=%s: %s", workflow_id, str(e))
         return {'success': False, 'error': str(e)}
+
+    finally:
+        reset_current_tenant()
 
 
 @shared_task(name='workflows.execute_event_workflow')
-def execute_event_workflow(workflow_id: int, tenant_id: int, entity_type: str, entity_id: int, event_type: str):
-    """
-    Execute a workflow triggered by an entity event (create/update/delete).
-    
+def execute_event_workflow(
+    workflow_id: str,
+    tenant_id: str,
+    entity_type: str,
+    entity_id: int,
+    event_type: str,
+):
+    """Execute a workflow triggered by an entity event.
+
     Args:
-        workflow_id: ID of the workflow to execute
-        tenant_id: ID of the tenant
-        entity_type: Type of entity (e.g., 'customer', 'supplier')
-        entity_id: ID of the entity that triggered the event
-        event_type: Type of event ('created', 'updated', 'deleted')
-    
+        workflow_id: UUID of the workflow to execute.
+        tenant_id: UUID of the tenant.
+        entity_type: Type of entity (e.g., 'customer', 'supplier').
+        entity_id: Integer PK for the entity.
+        event_type: 'created' | 'updated' | 'deleted'.
+
     Returns:
-        dict: Execution result
+        dict: Execution result.
     """
-    from .models import TenantWorkflow, WorkflowExecution
-    from .engine import WorkflowEngine
+
     from apps.tenants.models import Tenant
-    
+    from apps.tenants.rls import reset_current_tenant, set_current_tenant
+
+    from .models import TenantWorkflow
+    from .services.workflow_executor import execute_workflow
+
+    rls = set_current_tenant(str(tenant_id))
+    if not rls.ok:
+        logger.warning(
+            "[Celery] Skipping event workflow=%s (RLS set failed: %s)",
+            workflow_id,
+            rls.error,
+        )
+        return {'success': False, 'reason': 'rls_set_failed', 'error': rls.error}
+
     try:
         tenant = Tenant.objects.get(id=tenant_id)
         workflow = TenantWorkflow.objects.get(id=workflow_id, tenant=tenant)
-        
-        logger.info(f"[Celery] Executing event workflow: {workflow.name} for {entity_type}:{entity_id} ({event_type})")
-        
-        # Create execution record
-        execution = WorkflowExecution.objects.create(
-            workflow=workflow,
-            tenant=tenant,
-            trigger_type='event',
-            status='running',
-            started_at=timezone.now(),
-            trigger_data={
-                'entity_type': entity_type,
-                'entity_id': entity_id,
-                'event_type': event_type,
-            }
+
+        logger.info(
+            "[Celery] Executing event workflow: %s for %s:%s (%s)",
+            workflow.name,
+            entity_type,
+            entity_id,
+            event_type,
         )
-        
-        # Fetch entity data for context
+
+        # Fetch entity data for richer context (best-effort).
         entity_data = _get_entity_data(entity_type, entity_id, tenant)
-        
-        # Execute workflow
-        engine = WorkflowEngine(workflow)
-        result = engine.execute(context={
-            'execution_id': execution.id,
+
+        trigger_data = {
             'trigger': 'event',
+            'entity_type': entity_type,
+            'entity_id': entity_id,
             'event_type': event_type,
             'entity': entity_data,
-        })
-        
-        # Update execution record
-        execution.status = 'completed' if result.get('success') else 'failed'
-        execution.completed_at = timezone.now()
-        execution.result_data = result
-        execution.save()
-        
-        logger.info(f"[Celery] Event workflow {workflow_id} completed: {execution.status}")
-        
-        return {
-            'success': True,
-            'execution_id': execution.id,
-            'status': execution.status,
         }
-        
-    except Exception as e:
-        logger.exception(f"[Celery] Error executing event workflow {workflow_id}: {str(e)}")
-        
-        if 'execution' in locals():
-            execution.status = 'failed'
-            execution.completed_at = timezone.now()
-            execution.error_message = str(e)
-            execution.save()
-            
+        log = execute_workflow(workflow, trigger_data)
+
+        return {
+            'success': log.status in {'success', 'partial'},
+            'execution_id': str(log.id),
+            'status': log.status,
+        }
+
+    except Tenant.DoesNotExist:
+        logger.error("[Celery] Tenant %s not found for workflow %s", tenant_id, workflow_id)
+        return {'success': False, 'error': 'Tenant not found'}
+
+    except TenantWorkflow.DoesNotExist:
+        logger.error("[Celery] Workflow %s not found for tenant %s", workflow_id, tenant_id)
+        return {'success': False, 'error': 'Workflow not found'}
+
+    except Exception as e:  # noqa: BLE001
+        logger.exception("[Celery] Error executing event workflow=%s: %s", workflow_id, str(e))
         return {'success': False, 'error': str(e)}
+
+    finally:
+        reset_current_tenant()
 
 
 @shared_task(name='workflows.execute_workflow_action')
-def execute_workflow_action(action_type: str, action_config: dict, context: dict, tenant_id: int):
-    """
-    Execute a single workflow action asynchronously.
-    
-    Args:
-        action_type: Type of action (email, create_record, etc.)
-        action_config: Action configuration from workflow node
-        context: Execution context with variables
-        tenant_id: Tenant ID for isolation
-    
-    Returns:
-        dict: Action result
-    """
-    from .services.action_executor import ActionExecutor
+def execute_workflow_action(action_type: str, action_config: dict, context: dict, tenant_id: str):
+    """Execute a single workflow action asynchronously."""
+
     from apps.tenants.models import Tenant
-    
+    from apps.tenants.rls import reset_current_tenant, set_current_tenant
+
+    from .services.action_executor import ActionExecutor
+
+    rls = set_current_tenant(str(tenant_id))
+    if not rls.ok:
+        logger.warning(
+            "[Celery] Skipping action=%s (RLS set failed: %s)",
+            action_type,
+            rls.error,
+        )
+        return {'success': False, 'reason': 'rls_set_failed', 'error': rls.error}
+
     try:
         tenant = Tenant.objects.get(id=tenant_id)
-        
-        logger.info(f"[Celery] Executing action: {action_type} for tenant {tenant_id}")
-        
+
+        logger.info("[Celery] Executing action=%s tenant=%s", action_type, tenant_id)
+
         executor = ActionExecutor(tenant=tenant, context=context)
         result = executor.execute(action_type, action_config)
-        
-        logger.info(f"[Celery] Action {action_type} completed: {result.get('success')}")
-        
+
+        logger.info("[Celery] Action %s completed: %s", action_type, result.get('success'))
         return result
-        
-    except Exception as e:
-        logger.exception(f"[Celery] Error executing action {action_type}: {str(e)}")
+
+    except Exception as e:  # noqa: BLE001
+        logger.exception("[Celery] Error executing action %s: %s", action_type, str(e))
         return {'success': False, 'error': str(e)}
+
+    finally:
+        reset_current_tenant()
 
 
 @shared_task(name='workflows.cleanup_old_executions')
-def cleanup_old_executions(days_to_keep: int = 90):
-    """
-    Clean up old workflow executions (maintenance task).
-    
+def cleanup_old_executions(days_to_keep: int = 90, tenant_id: str | None = None):
+    """Clean up old workflow execution logs.
+
+    With RLS enabled, cleanup must run *per tenant*.
+
     Args:
-        days_to_keep: Number of days to retain execution history
-    
+        days_to_keep: Number of days to retain execution history.
+        tenant_id: Optional tenant UUID. If omitted, iterates all tenants.
+
     Returns:
-        dict: Cleanup statistics
+        dict: Cleanup statistics.
     """
-    from .models import WorkflowExecution
-    
+
+    from apps.tenants.models import Tenant
+    from apps.tenants.rls import reset_current_tenant, set_current_tenant
+
+    from .models import WorkflowExecutionLog
+
+    cutoff_date = timezone.now() - timedelta(days=int(days_to_keep))
+
+    def _cleanup_for_tenant(t: Tenant) -> int:
+        rls = set_current_tenant(str(t.id))
+        if not rls.ok:
+            logger.warning('[Celery] Cleanup skip tenant=%s (RLS set failed: %s)', t.id, rls.error)
+            return 0
+
+        try:
+            deleted, _ = WorkflowExecutionLog.objects.filter(
+                tenant=t,
+                completed_at__lt=cutoff_date,
+            ).delete()
+            return int(deleted or 0)
+        finally:
+            reset_current_tenant()
+
     try:
-        cutoff_date = timezone.now() - timedelta(days=days_to_keep)
-        
-        deleted_count, _ = WorkflowExecution.objects.filter(
-            completed_at__lt=cutoff_date
-        ).delete()
-        
-        logger.info(f"[Celery] Cleaned up {deleted_count} old workflow executions")
-        
+        if tenant_id:
+            tenant = Tenant.objects.get(id=tenant_id)
+            deleted_count = _cleanup_for_tenant(tenant)
+        else:
+            deleted_count = 0
+            for t in Tenant.objects.all().only('id'):
+                deleted_count += _cleanup_for_tenant(t)
+
+        logger.info('[Celery] Cleaned up %s old workflow execution logs', deleted_count)
         return {
             'success': True,
             'deleted_count': deleted_count,
             'cutoff_date': cutoff_date.isoformat(),
         }
-        
-    except Exception as e:
-        logger.exception(f"[Celery] Error cleaning up executions: {str(e)}")
+
+    except Exception as e:  # noqa: BLE001
+        logger.exception('[Celery] Error cleaning up workflow execution logs: %s', str(e))
         return {'success': False, 'error': str(e)}
 
 
@@ -311,7 +340,7 @@ AI_TEMPLATE_CACHE_TTL = 60 * 60 * 24
     default_retry_delay=30,
 )
 def generate_ai_template_suggestions(
-    tenant_id: int,
+    tenant_id: str,
     template_domain: str,
     current_flow: dict = None,
 ) -> dict:
@@ -361,16 +390,10 @@ def generate_ai_template_suggestions(
             ),
         }
 
-    global Tenant, AIConfiguration
-    if Tenant is None:
-        from apps.tenants.models import Tenant as TenantModel
-
-        Tenant = TenantModel
-
     current_flow = current_flow or {"nodes": [], "edges": []}
     cache_key = f"ai_template_suggestions:{tenant_id}:{template_domain}"
 
-    # --- Cache hit ---
+    # --- Cache hit (no DB access needed) ---
     cached = cache.get(cache_key)
     if cached is not None:
         logger.info(
@@ -381,99 +404,120 @@ def generate_ai_template_suggestions(
         cached["cached"] = True
         return cached
 
-    from apps.tenants.models import Tenant as TenantModel
+    from apps.tenants.rls import reset_current_tenant, set_current_tenant
+
+    rls = set_current_tenant(str(tenant_id))
+    if not rls.ok:
+        logger.warning(
+            "[Celery] generate_ai_template_suggestions skipping tenant=%s (RLS set failed: %s)",
+            tenant_id,
+            rls.error,
+        )
+        return {'success': False, 'reason': 'rls_set_failed', 'error': rls.error}
 
     try:
-        tenant = Tenant.objects.get(id=tenant_id)
-    except TenantModel.DoesNotExist:
-        logger.error("[Celery] Tenant %s not found", tenant_id)
-        return {"success": False, "error": "Tenant not found"}
+        global Tenant, AIConfiguration
+        if Tenant is None:
+            from apps.tenants.models import Tenant as TenantModel
 
-    prompter = AIPrompter()
+            Tenant = TenantModel
 
-    if AIConfiguration is None:
+        from apps.tenants.models import Tenant as TenantModel
+
         try:
-            from tenant_apps.ai_assistant.models import AIConfiguration as AIConfigurationModel
+            tenant = Tenant.objects.get(id=tenant_id)
+        except TenantModel.DoesNotExist:
+            logger.error("[Celery] Tenant %s not found", tenant_id)
+            return {"success": False, "error": "Tenant not found"}
 
-            AIConfiguration = AIConfigurationModel
-        except Exception:
-            # ai_assistant may be disabled in some test settings; treat as no-config.
-            AIConfiguration = False
+        prompter = AIPrompter()
 
-    # --- Try OpenAI if a configuration is available ---
-    ai_config = None
-    if AIConfiguration:
-        ai_config = (
-            AIConfiguration.objects.filter(tenant=tenant, is_active=True, is_default=True)
-            .first()
+        if AIConfiguration is None:
+            try:
+                from tenant_apps.ai_assistant.models import AIConfiguration as AIConfigurationModel
+
+                AIConfiguration = AIConfigurationModel
+            except Exception:
+                # ai_assistant may be disabled in some test settings; treat as no-config.
+                AIConfiguration = False
+
+        # --- Try OpenAI if a configuration is available ---
+        ai_config = None
+        if AIConfiguration:
+            ai_config = (
+                AIConfiguration.objects.filter(tenant=tenant, is_active=True, is_default=True)
+                .first()
+            )
+
+        if ai_config:
+            try:
+                import openai  # Soft import — only required when a config exists
+
+                api_key = getattr(ai_config, "api_key", None)
+                if not api_key:
+                    raise ValueError("AIConfiguration has no api_key — skipping OpenAI call")
+
+                openai.api_key = api_key
+                model_name = getattr(ai_config, "model_name", "gpt-4o-mini")
+
+                prompt_text = prompter.build_supply_chain_template_prompt(
+                    tenant=tenant,
+                    template_domain=template_domain,
+                    current_flow=current_flow,
+                )
+
+                response = openai.chat.completions.create(
+                    model=model_name,
+                    messages=[{"role": "user", "content": prompt_text}],
+                    temperature=0.3,
+                    max_tokens=600,
+                )
+
+                raw_text = response.choices[0].message.content
+                result = prompter.parse_ai_response(raw_text)
+                result["mode"] = "ai"
+                result["template_domain"] = template_domain
+                result["cached"] = False
+
+                # Store in Redis for 24 hours
+                cache.set(cache_key, result, AI_TEMPLATE_CACHE_TTL)
+
+                logger.info(
+                    "[Celery] AI template suggestions generated for tenant %s / domain %s",
+                    tenant_id,
+                    template_domain,
+                )
+                return result
+
+            except Exception as exc:
+                _ai_error = str(exc)
+                logger.warning(
+                    "[Celery] OpenAI call failed for tenant %s / domain %s: %s — falling back to static",
+                    tenant_id,
+                    template_domain,
+                    _ai_error,
+                )
+        else:
+            _ai_error = "No active AIConfiguration found for tenant"
+
+        # --- Static fallback ---
+        result = prompter.get_fallback_suggestions(
+            tenant=tenant,
+            current_flow=current_flow,
+            template_domain=template_domain,
         )
+        result["cached"] = False
+        result["error_reason"] = _ai_error
 
-    if ai_config:
-        try:
-            import openai  # Soft import — only required when a config exists
+        # Cache static fallback for a shorter period (1 hour) to retry AI sooner
+        cache.set(cache_key, result, 60 * 60)
 
-            api_key = getattr(ai_config, "api_key", None)
-            if not api_key:
-                raise ValueError("AIConfiguration has no api_key — skipping OpenAI call")
+        logger.info(
+            "[Celery] Static fallback suggestions returned for tenant %s / domain %s",
+            tenant_id,
+            template_domain,
+        )
+        return result
 
-            openai.api_key = api_key
-            model_name = getattr(ai_config, "model_name", "gpt-4o-mini")
-
-            prompt_text = prompter.build_supply_chain_template_prompt(
-                tenant=tenant,
-                template_domain=template_domain,
-                current_flow=current_flow,
-            )
-
-            response = openai.chat.completions.create(
-                model=model_name,
-                messages=[{"role": "user", "content": prompt_text}],
-                temperature=0.3,
-                max_tokens=600,
-            )
-
-            raw_text = response.choices[0].message.content
-            result = prompter.parse_ai_response(raw_text)
-            result["mode"] = "ai"
-            result["template_domain"] = template_domain
-            result["cached"] = False
-
-            # Store in Redis for 24 hours
-            cache.set(cache_key, result, AI_TEMPLATE_CACHE_TTL)
-
-            logger.info(
-                "[Celery] AI template suggestions generated for tenant %s / domain %s",
-                tenant_id,
-                template_domain,
-            )
-            return result
-
-        except Exception as exc:
-            _ai_error = str(exc)
-            logger.warning(
-                "[Celery] OpenAI call failed for tenant %s / domain %s: %s — falling back to static",
-                tenant_id,
-                template_domain,
-                _ai_error,
-            )
-    else:
-        _ai_error = "No active AIConfiguration found for tenant"
-
-    # --- Static fallback ---
-    result = prompter.get_fallback_suggestions(
-        tenant=tenant,
-        current_flow=current_flow,
-        template_domain=template_domain,
-    )
-    result["cached"] = False
-    result["error_reason"] = _ai_error
-
-    # Cache static fallback for a shorter period (1 hour) to retry AI sooner
-    cache.set(cache_key, result, 60 * 60)
-
-    logger.info(
-        "[Celery] Static fallback suggestions returned for tenant %s / domain %s",
-        tenant_id,
-        template_domain,
-    )
-    return result
+    finally:
+        reset_current_tenant()

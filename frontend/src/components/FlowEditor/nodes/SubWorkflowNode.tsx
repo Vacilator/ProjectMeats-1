@@ -100,11 +100,11 @@ const WorkflowIcon = styled.div`
   width: 24px;
   height: 24px;
   border-radius: 4px;
-  background: linear-gradient(135deg, rgb(99, 102, 241) 0%, rgb(139, 92, 246) 100%);
+  background: linear-gradient(135deg, rgb(var(--color-primary)) 0%, rgb(var(--color-primary)) 100%);
   display: flex;
   align-items: center;
   justify-content: center;
-  color: white;
+  color: rgb(var(--color-text-inverse));
   font-size: 14px;
   font-weight: 700;
 `;
@@ -121,8 +121,8 @@ const WorkflowName = styled.div`
 
 const VersionBadge = styled.span`
   padding: 2px 6px;
-  background: rgba(99, 102, 241, 0.15);
-  color: rgb(99, 102, 241);
+  background: rgba(var(--color-primary), 0.15);
+  color: rgb(var(--color-primary));
   font-size: 9px;
   font-weight: 600;
   border-radius: var(--radius-sm);
@@ -153,7 +153,7 @@ const MappingItem = styled.div`
   gap: 6px;
   font-size: 10px;
   padding: 3px 6px;
-  background: rgba(99, 102, 241, 0.05);
+  background: rgba(var(--color-primary), 0.05);
   border-radius: 3px;
 `;
 
@@ -196,7 +196,7 @@ const ConfigOption = styled.div`
 
 const ConfigIcon = styled.span<{ $active: boolean }>`
   color: ${props => props.$active 
-    ? 'rgb(34, 197, 94)' 
+    ? 'rgb(var(--color-success))' 
     : 'rgb(var(--color-text-tertiary))'};
   font-size: 11px;
 `;
@@ -208,17 +208,17 @@ const ErrorStrategyBadge = styled.span<{ $strategy: string }>`
   font-weight: 600;
   background: ${props => {
     switch (props.$strategy) {
-      case 'fail': return 'rgba(239, 68, 68, 0.15)';
-      case 'continue': return 'rgba(234, 179, 8, 0.15)';
-      case 'retry': return 'rgba(59, 130, 246, 0.15)';
-      default: return 'rgba(0, 0, 0, 0.05)';
+      case 'fail': return 'rgba(var(--color-error), 0.15)';
+      case 'continue': return 'rgba(var(--color-warning), 0.15)';
+      case 'retry': return 'rgba(var(--color-info), 0.15)';
+      default: return 'rgba(var(--color-overlay), 0.05)';
     }
   }};
   color: ${props => {
     switch (props.$strategy) {
-      case 'fail': return 'rgb(239, 68, 68)';
-      case 'continue': return 'rgb(234, 179, 8)';
-      case 'retry': return 'rgb(59, 130, 246)';
+      case 'fail': return 'rgb(var(--color-error))';
+      case 'continue': return 'rgb(var(--color-warning))';
+      case 'retry': return 'rgb(var(--color-info))';
       default: return 'rgb(var(--color-text-secondary))';
     }
   }};

@@ -88,15 +88,15 @@ const NodeContainer = styled.div<{ isEvaluating?: boolean }>`
   background: rgb(var(--color-surface));
   border: 2px solid ${props => 
     props.isEvaluating 
-      ? 'rgb(59, 130, 246)' 
+      ? 'rgb(var(--color-info))' 
       : 'rgb(var(--color-border))'
   };
   border-radius: var(--radius-md);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 8px rgba(var(--color-overlay), 0.1);
   transition: all 0.2s ease;
   
   &:hover {
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+    box-shadow: 0 4px 16px rgba(var(--color-overlay), 0.15);
   }
 `;
 
@@ -105,14 +105,14 @@ const NodeHeader = styled.div`
   align-items: center;
   gap: 12px;
   padding: 12px 16px;
-  background: rgba(59, 130, 246, 0.08);
-  border-bottom: 1px solid rgba(59, 130, 246, 0.2);
+  background: rgba(var(--color-info), 0.08);
+  border-bottom: 1px solid rgba(var(--color-info), 0.2);
 `;
 
 const IconWrapper = styled.div`
   display: flex;
   align-items: center;
-  color: rgb(59, 130, 246);
+  color: rgb(var(--color-info));
 `;
 
 const NodeTitle = styled.div`
@@ -142,9 +142,9 @@ const ConditionSummary = styled.div`
   color: rgb(var(--color-text-secondary));
   margin-bottom: 12px;
   padding: 8px 12px;
-  background: rgba(59, 130, 246, 0.05);
+  background: rgba(var(--color-info), 0.05);
   border-radius: var(--radius-sm);
-  border-left: 3px solid rgb(59, 130, 246);
+  border-left: 3px solid rgb(var(--color-info));
 `;
 
 const BranchesContainer = styled.div`
@@ -160,14 +160,14 @@ const BranchRow = styled.div<{ branchType: 'true' | 'false' }>`
   padding: 8px 12px;
   background: ${props => 
     props.branchType === 'true' 
-      ? 'rgba(34, 197, 94, 0.08)' 
-      : 'rgba(239, 68, 68, 0.08)'
+      ? 'rgba(var(--color-success), 0.08)' 
+      : 'rgba(var(--color-error), 0.08)'
   };
   border-radius: var(--radius-sm);
   border: 1px solid ${props => 
     props.branchType === 'true' 
-      ? 'rgba(34, 197, 94, 0.2)' 
-      : 'rgba(239, 68, 68, 0.2)'
+      ? 'rgba(var(--color-success), 0.2)' 
+      : 'rgba(var(--color-error), 0.2)'
   };
 `;
 
@@ -177,8 +177,8 @@ const BranchLabel = styled.div<{ branchType: 'true' | 'false' }>`
   font-weight: 500;
   color: ${props => 
     props.branchType === 'true' 
-      ? 'rgb(34, 197, 94)' 
-      : 'rgb(239, 68, 68)'
+      ? 'rgb(var(--color-success))' 
+      : 'rgb(var(--color-error))'
   };
 `;
 
@@ -190,13 +190,13 @@ const BranchBadge = styled.div<{ branchType: 'true' | 'false' }>`
   border-radius: var(--radius-xs);
   background: ${props => 
     props.branchType === 'true' 
-      ? 'rgba(34, 197, 94, 0.15)' 
-      : 'rgba(239, 68, 68, 0.15)'
+      ? 'rgba(var(--color-success), 0.15)' 
+      : 'rgba(var(--color-error), 0.15)'
   };
   color: ${props => 
     props.branchType === 'true' 
-      ? 'rgb(34, 197, 94)' 
-      : 'rgb(239, 68, 68)'
+      ? 'rgb(var(--color-success))' 
+      : 'rgb(var(--color-error))'
   };
 `;
 
@@ -208,13 +208,13 @@ const EvaluationResult = styled.div<{ result: boolean }>`
   border-radius: var(--radius-sm);
   background: ${props => 
     props.result 
-      ? 'rgba(34, 197, 94, 0.1)' 
-      : 'rgba(239, 68, 68, 0.1)'
+      ? 'rgba(var(--color-success), 0.1)' 
+      : 'rgba(var(--color-error), 0.1)'
   };
   color: ${props => 
     props.result 
-      ? 'rgb(34, 197, 94)' 
-      : 'rgb(239, 68, 68)'
+      ? 'rgb(var(--color-success))' 
+      : 'rgb(var(--color-error))'
   };
   text-align: center;
 `;
@@ -224,8 +224,8 @@ const StyledHandle = styled(Handle)<{ handleType: 'true' | 'false' }>`
   height: 14px;
   border: 2px solid ${props => 
     props.handleType === 'true' 
-      ? 'rgb(34, 197, 94)' 
-      : 'rgb(239, 68, 68)'
+      ? 'rgb(var(--color-success))' 
+      : 'rgb(var(--color-error))'
   };
   background: rgb(var(--color-surface));
   border-radius: 6px;
@@ -245,8 +245,8 @@ const StyledHandle = styled(Handle)<{ handleType: 'true' | 'false' }>`
   &:hover {
     background: ${props => 
       props.handleType === 'true' 
-        ? 'rgba(34, 197, 94, 0.2)' 
-        : 'rgba(239, 68, 68, 0.2)'
+        ? 'rgba(var(--color-success), 0.2)' 
+        : 'rgba(var(--color-error), 0.2)'
     };
     transform: scale(1.08);
   }

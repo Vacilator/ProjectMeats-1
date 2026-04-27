@@ -12,6 +12,8 @@ Update GitHub Actions workflows without violating ProjectMeats’ **Golden Stand
 - Updated docs if behavior changes
 
 ## Step-by-step execution
+0. **Relay → synthesize (Lead Engineer)**
+   - After fleet agents complete, run a Lead Engineer synthesis pass to unify findings into one patch plan.
 1. Read constraints:
    - `docs/GOLDEN_PIPELINE.md`
    - `.github/instructions/workflows.instructions.md`

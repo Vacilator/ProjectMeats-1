@@ -39,7 +39,7 @@ const Overlay = styled.div`
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(var(--color-overlay), 0.5);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -60,7 +60,7 @@ const Modal = styled.div`
   max-height: 90vh;
   display: flex;
   flex-direction: column;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 20px 60px rgba(var(--color-overlay), 0.3);
   animation: slideUp 0.3s ease-out;
 
   @keyframes slideUp {
@@ -112,9 +112,9 @@ const StatusBadge = styled.span<{ $status: 'draft' | 'active' | 'inactive' }>`
   ${props => {
     switch (props.$status) {
       case 'active':
-        return 'background: rgb(34, 197, 94, 0.1); color: rgb(34, 197, 94);';
+        return 'background: rgba(var(--color-success), 0.1); color: rgb(var(--color-success));';
       case 'draft':
-        return 'background: rgb(234, 179, 8, 0.1); color: rgb(234, 179, 8);';
+        return 'background: rgba(var(--color-warning), 0.1); color: rgb(var(--color-warning));';
       case 'inactive':
         return 'background: rgb(var(--color-border)); color: rgb(var(--color-text-secondary));';
     }
@@ -339,7 +339,7 @@ export const FormPreviewModal: React.FC<FormPreviewModalProps> = ({ form, onClos
         <Content>
           <InfoGrid>
             <InfoCard>
-              <InfoLabel>Workflow Steps</InfoLabel>
+              <InfoLabel>Steps</InfoLabel>
               <InfoValue>{form.entity_count}</InfoValue>
               <InfoSubtext>{form.entity_count === 1 ? 'step' : 'steps'} configured</InfoSubtext>
             </InfoCard>

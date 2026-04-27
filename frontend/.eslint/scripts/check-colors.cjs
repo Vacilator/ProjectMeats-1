@@ -58,6 +58,23 @@ const STANDARDIZED_COLORS = {
 // (Avoids false positives like order numbers "#12345".)
 const HEX_COLOR_REGEX = /#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})\b/g;
 
+// Match hardcoded comma-based rgb()/rgba() colors.
+// NOTE: We scope enforcement to FlowEditor + WorkForms to avoid mass legacy churn.
+const RGB_COLOR_REGEX = /\brgba?\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*(?:,\s*[0-9.]+\s*)?\)/g;
+
+// CSS Color 4 space-separated functional notations (e.g. rgb(0 0 0 / 50%)).
+const RGB_COLOR4_REGEX = /\brgba?\(\s*\d+\s+\d+\s+\d+(?:\s*\/\s*[0-9.]+%?)?\s*\)/g;
+
+// hsl()/hsla() comma-based and CSS Color 4 space-separated variants.
+const HSL_COLOR_REGEX = /\bhsla?\(\s*\d+\s*,\s*\d+%\s*,\s*\d+%\s*(?:,\s*[0-9.]+\s*)?\)/g;
+const HSL_COLOR4_REGEX = /\bhsla?\(\s*\d+\s+\d+%\s+\d+%(?:\s*\/\s*[0-9.]+%?)?\s*\)/g;
+
+// Named colors we want to forbid in high-churn UI surfaces.
+// We intentionally do NOT include 'transparent' to avoid churn.
+// We support quoted (JS objects / string-returning templates) AND unquoted CSS values.
+const NAMED_COLOR_REGEX = /(['"`])(?:white|black|red|green|blue|gray|grey)\1/g;
+const UNQUOTED_NAMED_COLOR_REGEX = /:\s*(white|black|red|green|blue|gray|grey)\b/gi;
+
 function isNumericOnlyShortHex(color) {
   // Heuristic: ignore short numeric-only tokens like "#405" in names (not actual colors).
   // We still catch #000000/#111111 etc.
@@ -72,17 +89,43 @@ function getSuggestion(color) {
 }
 
 function checkFile(filePath) {
+  const repoRoot = path.join(__dirname, '../..');
+  const relativePath = path.relative(repoRoot, filePath).replace(/\\/g, '/');
+  const extraEnforceRgbFiles = new Set([
+    'src/components/Widgets/QuickActionsWidget.tsx',
+    'src/components/Widgets/MyTasksWidget.tsx',
+    'src/pages/MyTasks/MyTasks.tsx',
+    'src/styles/shared.ts',
+    'src/theme/themeConfig.ts',
+  ]);
+
+  const enforceRgb =
+    relativePath.includes('src/components/FlowEditor/') ||
+    relativePath.includes('src/components/WorkForms/') ||
+    relativePath.includes('src/pages/WorkForms/') ||
+    extraEnforceRgbFiles.has(relativePath);
+
+  // Unquoted named colors (e.g. "background: white;") are a common source of drift.
+  // Enforce them only in explicitly targeted high-churn surfaces to avoid mass legacy churn.
+  const enforceUnquotedNamed = extraEnforceRgbFiles.has(relativePath);
+
   const content = fs.readFileSync(filePath, 'utf8');
   const lines = content.split('\n');
   const violations = [];
-  
+
   lines.forEach((line, lineIndex) => {
+    const trimmed = line.trim();
+    if (trimmed.startsWith('//') || trimmed.startsWith('/*') || trimmed.startsWith('*')) {
+      return;
+    }
+
     let match;
-    const regex = new RegExp(HEX_COLOR_REGEX, 'g');
-    while ((match = regex.exec(line)) !== null) {
+
+    const hexRegex = new RegExp(HEX_COLOR_REGEX, 'g');
+    while ((match = hexRegex.exec(line)) !== null) {
       const color = match[0];
       const columnIndex = match.index;
-      
+
       if (isNumericOnlyShortHex(color)) {
         continue;
       }
@@ -92,11 +135,63 @@ function checkFile(filePath) {
         column: columnIndex + 1,
         color,
         suggestion: getSuggestion(color),
-        lineContent: line.trim()
+        lineContent: trimmed,
       });
     }
+
+    if (!enforceRgb) {
+      return;
+    }
+
+    const pushTokenViolation = (color, columnIndex) => {
+      violations.push({
+        line: lineIndex + 1,
+        column: columnIndex + 1,
+        color,
+        suggestion:
+          'Use theme tokens (e.g. rgb(var(--color-text-primary)) or rgba(var(--color-overlay), 0.5)).',
+        lineContent: trimmed,
+      });
+    };
+
+    const rgbRegex = new RegExp(RGB_COLOR_REGEX, 'g');
+    while ((match = rgbRegex.exec(line)) !== null) {
+      pushTokenViolation(match[0], match.index);
+    }
+
+    const rgb4Regex = new RegExp(RGB_COLOR4_REGEX, 'g');
+    while ((match = rgb4Regex.exec(line)) !== null) {
+      pushTokenViolation(match[0], match.index);
+    }
+
+    const hslRegex = new RegExp(HSL_COLOR_REGEX, 'g');
+    while ((match = hslRegex.exec(line)) !== null) {
+      pushTokenViolation(match[0], match.index);
+    }
+
+    const hsl4Regex = new RegExp(HSL_COLOR4_REGEX, 'g');
+    while ((match = hsl4Regex.exec(line)) !== null) {
+      pushTokenViolation(match[0], match.index);
+    }
+
+    const cssContext = /(^|[,{]\s*)(color|background(?:Color)?|border(?:Color)?|stroke|fill)\s*:/i.test(line) ||
+      /(\bcolor\b|\bbackground\b|\bborder\b|\bstroke\b|\bfill\b)\s*:/i.test(line);
+
+    if (cssContext) {
+      const namedRegex = new RegExp(NAMED_COLOR_REGEX, 'g');
+      while ((match = namedRegex.exec(line)) !== null) {
+        pushTokenViolation(match[0], match.index);
+      }
+
+      if (enforceUnquotedNamed) {
+        const unquotedNamedRegex = new RegExp(UNQUOTED_NAMED_COLOR_REGEX, 'g');
+        while ((match = unquotedNamedRegex.exec(line)) !== null) {
+          pushTokenViolation(match[1], match.index);
+        }
+      }
+    }
   });
-  
+
   return violations;
 }
 
@@ -105,7 +200,7 @@ async function main() {
   const specificFile = args.find(arg => !arg.startsWith('--'));
   const showSuggestions = args.includes('--fix');
   
-  console.log('🔍 Checking for hardcoded hex colors...\n');
+  console.log('🔍 Checking for hardcoded colors...\n');
   
   let files;
   if (specificFile) {

@@ -47,6 +47,7 @@ import {
   PrimaryButton,
   SecondaryButton,
 } from './shared/StyledComponents';
+import { logger } from '@/utils/logger';
 
 // ============================================================================
 // TypeScript Interfaces
@@ -96,7 +97,7 @@ const PanelOverlay = styled.div<{ $isOpen: boolean }>`
   right: 0;
   bottom: 0;
   left: 0;
-  background: rgba(0, 0, 0, 0.3);
+  background: rgba(var(--color-overlay), 0.3);
   z-index: 1000;
   display: ${props => props.$isOpen ? 'block' : 'none'};
   animation: fadeIn 0.2s ease;
@@ -228,11 +229,11 @@ const ValidationMessage = styled.div<{ $severity: 'error' | 'warning' }>`
   font-size: 12px;
   line-height: 1.5;
   background: ${props => props.$severity === 'error' 
-    ? 'rgba(239, 68, 68, 0.1)' 
-    : 'rgba(234, 179, 8, 0.1)'};
+    ? 'rgba(var(--color-error), 0.1)' 
+    : 'rgba(var(--color-warning), 0.1)'};
   color: ${props => props.$severity === 'error' 
-    ? 'rgb(239, 68, 68)' 
-    : 'rgb(234, 179, 8)'};
+    ? 'rgb(var(--color-error))' 
+    : 'rgb(var(--color-warning))'};
 `;
 
 
@@ -252,7 +253,7 @@ const Button = styled.button<{ $variant?: 'primary' | 'secondary' | 'ghost' }>`
     if (props.$variant === 'primary') {
       return `
         background: rgb(var(--color-primary));
-        color: white;
+        color: rgb(var(--color-text-inverse));
         border: none;
         
         &:hover {
@@ -343,8 +344,8 @@ const IconButton = styled.button`
   }
   
   &:hover.delete {
-    background: rgb(239, 68, 68);
-    color: white;
+    background: rgb(var(--color-error));
+    color: rgb(var(--color-text-inverse));
   }
 `;
 
@@ -530,7 +531,7 @@ export const NodeConfigPanel: React.FC<NodeConfigPanelProps> = ({
           setAvailableForms(filtered);
         })
         .catch((error) => {
-          console.error('Failed to fetch forms:', error);
+          logger.error('Failed to fetch forms:', error);
           toast.error('Failed to load forms. Please refresh and try again.', {
             duration: 4000,
             icon: '⚠️',
@@ -560,7 +561,7 @@ export const NodeConfigPanel: React.FC<NodeConfigPanelProps> = ({
           setAvailableFormFields(fields);
         })
         .catch(error => {
-          console.error('Failed to fetch form fields:', error);
+          logger.error('Failed to fetch form fields:', error);
           toast.error('Failed to load form fields. Please try selecting the form again.', {
             duration: 4000,
             icon: '⚠️',

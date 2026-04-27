@@ -37,23 +37,23 @@ const dashMove = keyframes`
 
 const ErrorLabel = styled.div`
   position: absolute;
-  background: rgb(254, 226, 226);
+  background: rgba(var(--color-error), 0.12);
   border: 2px solid rgb(var(--color-error));
   border-radius: var(--radius-md, 6px);
   padding: 4px 12px;
   font-size: 12px;
   font-weight: 700;
-  color: rgb(153, 27, 27);
+  color: rgb(var(--color-danger));
   pointer-events: all;
   cursor: pointer;
   transition: all 0.2s ease;
-  box-shadow: 0 2px 4px rgb(239 68 68 / 0.2);
+  box-shadow: 0 2px 4px rgba(var(--color-error), 0.2);
 
   &:hover {
     background: rgb(var(--color-error));
-    color: white;
+    color: rgb(var(--color-primary-foreground));
     transform: scale(1.05);
-    box-shadow: 0 4px 8px rgb(239 68 68 / 0.3);
+    box-shadow: 0 4px 8px rgba(var(--color-error), 0.3);
   }
 
   &::before {
@@ -97,8 +97,8 @@ const ToolbarBtn = styled.button`
 `;
 const ErrorBadge = styled.div`
   position: absolute;
-  background: rgb(220, 38, 38);
-  border: 2px solid white;
+  background: rgb(var(--color-danger));
+  border: 2px solid rgb(var(--color-surface));
   border-radius: 50%;
   min-width: 20px;
   height: 20px;
@@ -106,11 +106,11 @@ const ErrorBadge = styled.div`
   display: flex;
   align-items: center;
   justify-content: center;
-  color: white;
+  color: rgb(var(--color-primary-foreground));
   font-size: 10px;
   font-weight: 700;
   pointer-events: none;
-  box-shadow: 0 2px 4px rgb(0 0 0 / 0.2);
+  box-shadow: 0 2px 4px rgba(var(--color-overlay), 0.2);
   animation: shake 0.5s ease-in-out infinite;
 
   @keyframes shake {
@@ -189,7 +189,7 @@ export const ErrorEdge = React.memo<EdgeProps<Edge<ErrorEdgeData>>>(({
     type: MarkerType.ArrowClosed,
     width: 24,
     height: 24,
-    color: 'rgb(239, 68, 68)',
+    color: 'rgb(var(--color-error))',
   };
 
   return (
@@ -207,15 +207,15 @@ export const ErrorEdge = React.memo<EdgeProps<Edge<ErrorEdgeData>>>(({
         >
           <path
             d="M 8,2 L 14,14 L 2,14 Z"
-            fill="rgb(239, 68, 68)"
-            stroke="white"
+            fill="rgb(var(--color-error))"
+            stroke="rgb(var(--color-text-inverse))"
             strokeWidth="1"
           />
           <text
             x="8"
             y="12"
             textAnchor="middle"
-            fill="white"
+            fill="rgb(var(--color-text-inverse))"
             fontSize="8"
             fontWeight="700"
           >
@@ -239,10 +239,10 @@ export const ErrorEdge = React.memo<EdgeProps<Edge<ErrorEdgeData>>>(({
       {/* Animated pulsing dots for errors */}
       {animated && (
         <>
-          <circle r="4" fill="rgb(239, 68, 68)" opacity="0.8">
+          <circle r="4" fill="rgb(var(--color-error))" opacity="0.8">
             <animateMotion dur="2s" repeatCount="indefinite" path={edgePath} />
           </circle>
-          <circle r="4" fill="rgb(239, 68, 68)" opacity="0.6">
+          <circle r="4" fill="rgb(var(--color-error))" opacity="0.6">
             <animateMotion dur="2s" begin="0.5s" repeatCount="indefinite" path={edgePath} />
           </circle>
         </>

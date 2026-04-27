@@ -65,10 +65,10 @@ const PreviewTitle = styled.h3`
 `;
 
 const PreviewCard = styled.div`
-  background: white;
+  background: rgb(var(--color-surface));
   border-radius: 12px;
   padding: 24px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 12px rgba(var(--color-overlay), 0.1);
 `;
 
 const FormTitle = styled.h2`
@@ -126,7 +126,7 @@ const HelpText = styled.span`
 
 const Input = styled.input`
   padding: 10px 12px;
-  background: white;
+  background: rgb(var(--color-surface));
   border: 2px solid rgb(var(--color-border));
   border-radius: 8px;
   font-size: 14px;
@@ -136,7 +136,7 @@ const Input = styled.input`
   &:focus {
     outline: none;
     border-color: rgb(var(--color-info));
-    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+    box-shadow: 0 0 0 3px rgba(var(--color-primary), 0.1);
   }
   
   &::placeholder {
@@ -146,7 +146,7 @@ const Input = styled.input`
 
 const Textarea = styled.textarea`
   padding: 10px 12px;
-  background: white;
+  background: rgb(var(--color-surface));
   border: 2px solid rgb(var(--color-border));
   border-radius: 8px;
   font-size: 14px;
@@ -159,7 +159,7 @@ const Textarea = styled.textarea`
   &:focus {
     outline: none;
     border-color: rgb(var(--color-info));
-    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+    box-shadow: 0 0 0 3px rgba(var(--color-primary), 0.1);
   }
   
   &::placeholder {
@@ -169,7 +169,7 @@ const Textarea = styled.textarea`
 
 const Select = styled.select`
   padding: 10px 12px;
-  background: white;
+  background: rgb(var(--color-surface));
   border: 2px solid rgb(var(--color-border));
   border-radius: 8px;
   font-size: 14px;
@@ -180,7 +180,7 @@ const Select = styled.select`
   &:focus {
     outline: none;
     border-color: rgb(var(--color-info));
-    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+    box-shadow: 0 0 0 3px rgba(var(--color-primary), 0.1);
   }
 `;
 
@@ -236,7 +236,7 @@ const FileInput = styled.div`
   
   &:hover {
     border-color: rgb(var(--color-info));
-    background: rgba(99, 102, 241, 0.05);
+    background: rgba(var(--color-primary), 0.05);
   }
 `;
 

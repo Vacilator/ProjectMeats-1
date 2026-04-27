@@ -14,6 +14,8 @@ import styled from 'styled-components';
 import { ConfigField, FieldRendererProps } from '../types';
 import { useEntityList } from '../../../../services/schemaService';  // Fixed path
 
+import { logger } from '@/utils/logger';
+
 // Import shared styled components
 import {
   FormField,
@@ -29,7 +31,7 @@ import {
  * Render a text input field
  */
 export function renderTextField(
-  props: FieldRendererProps<string>
+  props: FieldRendererProps<string | number | undefined>
 ): React.ReactNode {
   const { field, value, onChange, error } = props;
 
@@ -48,10 +50,10 @@ export function renderTextField(
       </Label>
       {field.type === 'textarea' ? (
         <TextArea
-          value={value || ''}
+          value={value ?? ''}
           onChange={(e) => onChange(e.target.value)}
           placeholder={placeholder}
-          disabled={field.disabled || props.disabled}
+          disabled={field.disabled || field.readOnly || props.disabled}
           rows={4}
         />
       ) : (
@@ -63,10 +65,25 @@ export function renderTextField(
             : field.type === 'time' ? 'time'
             : 'text'
           }
-          value={value || ''}
-          onChange={(e) => onChange(e.target.value)}
+          value={value ?? ''}
+          onChange={(e) => {
+            if (field.type === 'number') {
+              const raw = e.target.value;
+              if (raw === '') {
+                onChange(undefined);
+                return;
+              }
+              const parsed = Number(raw);
+              if (!Number.isNaN(parsed)) {
+                onChange(parsed);
+              }
+              return;
+            }
+
+            onChange(e.target.value);
+          }}
           placeholder={placeholder}
-          disabled={field.disabled || props.disabled}
+          disabled={field.disabled || field.readOnly || props.disabled}
         />
       )}
       {field.helpText && !error && <HelpText>{field.helpText}</HelpText>}
@@ -83,9 +100,11 @@ export function renderSelectField(
 ): React.ReactNode {
   const { field, value, onChange, error } = props;
 
+  const isMulti = field.type === 'multiselect' || field.type === 'multiSelect' || field.multiple === true;
+
   const handleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    if (field.type === 'multiselect') {
-      const options = Array.from(e.target.selectedOptions, option => option.value);
+    if (isMulti) {
+      const options = Array.from(e.target.selectedOptions, (option) => option.value);
       onChange(options);
     } else {
       onChange(e.target.value);
@@ -99,12 +118,20 @@ export function renderSelectField(
         {field.required && <span style={{ color: 'rgb(var(--color-error))' }}> *</span>}
       </Label>
       <Select
-        value={value || (field.type === 'multiselect' ? [] : '')}
+        value={
+          isMulti
+            ? Array.isArray(value)
+              ? value
+              : value
+                ? [String(value)]
+                : []
+            : String((value as any) ?? '')
+        }
         onChange={handleChange}
-        disabled={field.disabled || props.disabled}
-        multiple={field.type === 'multiselect'}
+        disabled={field.disabled || field.readOnly || props.disabled}
+        multiple={isMulti}
       >
-        {!field.required && field.type !== 'multiselect' && (
+        {!field.required && !isMulti && (
           <option value="">-- Select --</option>
         )}
         {field.options?.map(option => (
@@ -137,7 +164,7 @@ export function renderToggleField(
         <ToggleSwitch
           checked={value || false}
           onChange={(e) => onChange(e.target.checked)}
-          disabled={field.disabled || props.disabled}
+          disabled={field.disabled || field.readOnly || props.disabled}
         />
       </ToggleRow>
       {field.helpText && !error && <HelpText>{field.helpText}</HelpText>}
@@ -164,14 +191,17 @@ export function renderEntityTypeSelect(
   // Fetch entity types from backend API (with fallback to hardcoded entities)
   const { data: entities = [], isLoading, error: fetchError } = useEntityList();
 
-  // Debug logging
+  // Debug logging (dev-only)
   React.useEffect(() => {
-    console.log('[EntityTypeSelect] Rendered with:', {
-      isLoading,
-      entityCount: entities.length,
-      entities: entities.map(e => e.label),
-      fetchError: fetchError ? String(fetchError) : null,
-      currentValue: value,
+    logger.debug('Rendered', {
+      component: 'EntityTypeSelect',
+      metadata: {
+        isLoading,
+        entityCount: entities.length,
+        entities: entities.map((e) => e.label),
+        fetchError: fetchError ? String(fetchError) : null,
+        currentValue: value,
+      },
     });
   }, [isLoading, entities, fetchError, value]);
 
@@ -260,7 +290,7 @@ const ToggleSwitch = styled.input.attrs({ type: 'checkbox' })`
     border-radius: 50%;
     top: 3px;
     left: 3px;
-    background: white;
+    background: rgb(var(--color-surface));
     transition: transform 0.2s;
   }
 

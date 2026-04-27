@@ -13,9 +13,19 @@ from drf_spectacular.views import (
     SpectacularRedocView,
     SpectacularSwaggerView,
 )
-from .health import health_check, health_detailed, ready_check, health_workforms
+from apps.core.health_api import (
+    HealthCheckAPIView,
+    HealthDetailedAPIView,
+    HealthWorkformsAPIView,
+    ReadyCheckAPIView,
+)
 from apps.core.admin_site import admin_site
 from tenant_apps.workflows.views import SuggestNodesView
+from tenant_apps.workflows.views_triggers import TenantScopedWebhookReceiverAPIView
+from apps.email_integration.views.webhook_views import (
+    tenant_gmail_webhook_notifications,
+    tenant_outlook_webhook_notifications,
+)
 
 # Keep default admin for backwards compatibility, but use custom site as primary
 admin.site.site_header = '🥩 Meats Central Admin'
@@ -24,10 +34,10 @@ admin.site.index_title = 'Admin Dashboard'
 
 urlpatterns = [
     # Health check endpoints
-    path("api/v1/health/", health_check, name="health-check"),
-    path("api/v1/health/detailed/", health_detailed, name="health-detailed"),
-    path("api/v1/health/workforms/", health_workforms, name="health-workforms"),
-    path("api/v1/ready/", ready_check, name="ready-check"),
+    path("api/v1/health/", HealthCheckAPIView.as_view(), name="health-check"),
+    path("api/v1/health/detailed/", HealthDetailedAPIView.as_view(), name="health-detailed"),
+    path("api/v1/health/workforms/", HealthWorkformsAPIView.as_view(), name="health-workforms"),
+    path("api/v1/ready/", ReadyCheckAPIView.as_view(), name="ready-check"),
     # NOTE: System Configuration Studio ARCHIVED 2026-02-14 (superseded by apps.system)
     # Admin interface (using custom three-tier admin site)
     path("admin/", admin_site.urls, name='admin'),  # Custom three-tier admin (primary)
@@ -36,6 +46,26 @@ urlpatterns = [
     # API v1 endpoints
     path("api/v1/system/", include("apps.system.urls")),  # NEW: Centralized config system (v2.0 Wave 1)
     path("api/v1/", include("apps.tenants.urls")),  # Multi-tenancy endpoints (shared)
+
+    # Canonical public workflow webhook receiver (tenant selected via path).
+    path(
+        "api/v1/tenants/<uuid:tenant_id>/workflows/webhooks/<uuid:workflow_id>/<str:webhook_token>/",
+        TenantScopedWebhookReceiverAPIView.as_view(),
+        name="tenant-workflow-webhook-receiver",
+    ),
+
+    # Canonical public email webhook receivers (tenant selected via path).
+    path(
+        "api/v1/tenants/<uuid:tenant_id>/workflows/email/outlook/webhook/notifications/",
+        tenant_outlook_webhook_notifications,
+        name="tenant-outlook-email-webhook-notifications",
+    ),
+    path(
+        "api/v1/tenants/<uuid:tenant_id>/workflows/email/gmail/webhook/notifications/",
+        tenant_gmail_webhook_notifications,
+        name="tenant-gmail-email-webhook-notifications",
+    ),
+
     path('api/v1/integrations/', include('integrations.urls')),
     path("api/v1/workflows/email/", include("apps.email_integration.urls")),  # Email integration & webhooks
     # NOTE: accounts_receivables DELETED in v2.0 Wave 1 (merged into invoices/accounting)

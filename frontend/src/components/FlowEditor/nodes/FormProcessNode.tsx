@@ -71,13 +71,13 @@ const ContainerWrapper = styled.div<{ isExpanded: boolean }>`
   border-width: 2px;
   border-style: ${props => props.isExpanded ? 'dashed' : 'solid'};
   border-color: ${props => props.isExpanded 
-    ? 'rgba(139, 92, 246, 0.4)' 
-    : 'rgba(139, 92, 246, 0.6)'};
+    ? 'rgba(var(--color-primary), 0.4)' 
+    : 'rgba(var(--color-primary), 0.6)'};
   
   border-radius: 12px;
   box-shadow: 
-    0 4px 12px rgba(0, 0, 0, 0.12),
-    0 0 0 4px rgba(139, 92, 246, 0.15);
+    0 4px 12px rgba(var(--color-overlay), 0.12),
+    0 0 0 4px rgba(var(--color-primary), 0.15);
   
   /* FIX: Smooth transition but preserve border */
   transition: 
@@ -100,7 +100,7 @@ const ContainerWrapper = styled.div<{ isExpanded: boolean }>`
       right: 12px;
       font-size: 10px;
       font-weight: 500;
-      color: rgba(139, 92, 246, 0.5);
+      color: rgba(var(--color-primary), 0.5);
       text-transform: uppercase;
       letter-spacing: 0.5px;
       pointer-events: none;
@@ -109,26 +109,26 @@ const ContainerWrapper = styled.div<{ isExpanded: boolean }>`
   
   &:hover {
     box-shadow: 
-      0 6px 16px rgba(0, 0, 0, 0.18),
-      0 0 0 4px rgba(139, 92, 246, 0.25);
+      0 6px 16px rgba(var(--color-overlay), 0.18),
+      0 0 0 4px rgba(var(--color-primary), 0.25);
   }
   
   &.selected {
     border-color: ${props => props.isExpanded 
-      ? 'rgba(139, 92, 246, 0.6)' 
-      : 'rgb(139, 92, 246)'};
+      ? 'rgba(var(--color-primary), 0.6)' 
+      : 'rgb(var(--color-primary))'};
     box-shadow: 
-      0 8px 20px rgba(0, 0, 0, 0.25),
-      0 0 0 4px rgba(139, 92, 246, 0.4);
+      0 8px 20px rgba(var(--color-overlay), 0.25),
+      0 0 0 4px rgba(var(--color-primary), 0.4);
   }
   
   &.drag-over {
-    border-color: rgb(34, 197, 94);
+    border-color: rgb(var(--color-success));
     border-style: ${props => props.isExpanded ? 'dashed' : 'solid'};
     box-shadow: 
-      0 8px 20px rgba(34, 197, 94, 0.3),
-      0 0 0 4px rgba(34, 197, 94, 0.4);
-    background: rgba(34, 197, 94, 0.08);
+      0 8px 20px rgba(var(--color-success), 0.3),
+      0 0 0 4px rgba(var(--color-success), 0.4);
+    background: rgba(var(--color-success), 0.08);
   }
 `;
 
@@ -138,16 +138,16 @@ const ContainerHeader = styled.div`
   gap: 10px;
   padding: 12px 16px;
   /* Solid color header like regular nodes */
-  background: rgb(139, 92, 246);
+  background: rgb(var(--color-primary));
   border-bottom: none;
   border-radius: 10px 10px 0 0;
   cursor: grab;
   user-select: none;
-  color: white;
+  color: rgb(var(--color-text-inverse));
   overflow: hidden; /* Contain header styling within rounded corners */
   
   &:hover {
-    background: rgb(124, 77, 235); /* Slightly darker on hover */
+    background: rgb(var(--color-primary-hover));
   }
 
   &:active {
@@ -159,7 +159,7 @@ const ExpandIcon = styled.button`
   display: flex;
   align-items: center;
   justify-content: center;
-  color: white; /* White icon for solid header */
+  color: rgb(var(--color-text-inverse)); /* White icon for solid header */
   transition: transform 0.2s ease;
   border: none;
   background: transparent;
@@ -168,7 +168,7 @@ const ExpandIcon = styled.button`
   cursor: pointer;
 
   &:hover {
-    background: rgba(255, 255, 255, 0.16);
+    background: rgba(var(--color-header-background), 0.16);
   }
 `;
 
@@ -184,14 +184,14 @@ const ContainerTitle = styled.div`
     margin: 0;
     font-size: 15px;
     font-weight: 700;
-    color: rgba(255, 255, 255, 0.98);
+    color: rgba(var(--color-header-background), 0.98);
     line-height: 1.3;
   }
   
   p {
     margin: 4px 0 0;
     font-size: 12px;
-    color: rgba(255, 255, 255, 0.85);
+    color: rgba(var(--color-header-background), 0.85);
     line-height: 1.2;
   }
 `;
@@ -204,9 +204,9 @@ const StatusBadge = styled.div<{ type: 'configured' | 'draft' }>`
   text-transform: uppercase;
   letter-spacing: 0.5px;
   background: ${props => props.type === 'configured' 
-    ? 'rgba(255, 255, 255, 0.3)' 
-    : 'rgba(255, 255, 255, 0.2)'};
-  color: white;
+    ? 'rgba(var(--color-header-background), 0.3)' 
+    : 'rgba(var(--color-header-background), 0.2)'};
+  color: rgb(var(--color-text-inverse));
 `;
 
 const ContainerBody = styled.div<{ isExpanded: boolean }>`
@@ -224,8 +224,8 @@ const ChildNodesArea = styled.div`
   position: relative;
   min-height: 300px;
   border-radius: 8px;
-  border: 1px dashed rgba(139, 92, 246, 0.2);
-  background: rgba(255, 255, 255, 0.02);
+  border: 1px dashed rgba(var(--color-primary), 0.2);
+  background: rgba(var(--color-header-background), 0.02);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -234,7 +234,7 @@ const ChildNodesArea = styled.div`
   
   &:empty::before {
     content: 'Drag nodes here to add steps to this form process';
-    color: rgba(139, 92, 246, 0.4);
+    color: rgba(var(--color-primary), 0.4);
     font-size: 13px;
     text-align: center;
     font-style: italic;
@@ -312,11 +312,11 @@ const EmptyState = styled.div`
   .drop-hint {
     margin-top: 12px;
     padding: 8px 12px;
-    background: rgba(139, 92, 246, 0.1);
-    border: 1px dashed rgba(139, 92, 246, 0.3);
+    background: rgba(var(--color-primary), 0.1);
+    border: 1px dashed rgba(var(--color-primary), 0.3);
     border-radius: 6px;
     font-size: 12px;
-    color: rgb(139, 92, 246);
+    color: rgb(var(--color-primary));
     font-weight: 500;
   }
 `;
@@ -325,8 +325,8 @@ const ConfigButton = styled.button`
   width: 100%;
   padding: 10px;
   margin-top: 12px;
-  background: linear-gradient(135deg, rgb(139, 92, 246), rgb(109, 40, 217));
-  color: white;
+  background: linear-gradient(135deg, rgb(var(--color-primary)), rgb(var(--color-primary-active)));
+  color: rgb(var(--color-text-inverse));
   border: none;
   border-radius: 6px;
   font-size: 13px;
@@ -338,7 +338,7 @@ const ConfigButton = styled.button`
   
   &:hover {
     transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
+    box-shadow: 0 4px 12px rgba(var(--color-primary), 0.3);
   }
   
   &:active {
@@ -353,7 +353,7 @@ const ToolbarCard = styled.div`
   padding: 6px;
   border-radius: 8px;
   border: 1px solid rgb(var(--color-border));
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 4px 12px rgba(var(--color-overlay), 0.15);
   z-index: 50;
 `;
 
@@ -363,13 +363,13 @@ const ToolbarBtn = styled.button<{ $danger?: boolean }>`
   border: none;
   background: transparent;
   cursor: pointer;
-  color: ${(props) => (props.$danger ? 'rgb(239, 68, 68)' : 'rgb(var(--color-text-secondary))')};
+  color: ${(props) => (props.$danger ? 'rgb(var(--color-error))' : 'rgb(var(--color-text-secondary))')};
   transition: all 0.15s ease;
 
   &:hover {
     background: ${(props) =>
-      props.$danger ? 'rgba(239, 68, 68, 0.1)' : 'rgba(var(--color-primary), 0.1)'};
-    color: ${(props) => (props.$danger ? 'rgb(239, 68, 68)' : 'rgb(var(--color-primary))')};
+      props.$danger ? 'rgba(var(--color-error), 0.1)' : 'rgba(var(--color-primary), 0.1)'};
+    color: ${(props) => (props.$danger ? 'rgb(var(--color-error))' : 'rgb(var(--color-primary))')};
   }
 `;
 
@@ -386,15 +386,15 @@ const StepItem = styled.div`
   align-items: center;
   gap: 10px;
   padding: 8px 12px;
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(var(--color-header-background), 0.05);
   border-radius: 6px;
-  border: 1px solid rgba(139, 92, 246, 0.2);
+  border: 1px solid rgba(var(--color-primary), 0.2);
   font-size: 12px;
   transition: all 0.2s ease;
   
   &:hover {
-    background: rgba(139, 92, 246, 0.08);
-    border-color: rgba(139, 92, 246, 0.3);
+    background: rgba(var(--color-primary), 0.08);
+    border-color: rgba(var(--color-primary), 0.3);
   }
 `;
 
@@ -402,8 +402,8 @@ const StepNumber = styled.div`
   min-width: 24px;
   height: 24px;
   border-radius: 50%;
-  background: rgba(139, 92, 246, 0.2);
-  color: rgb(139, 92, 246);
+  background: rgba(var(--color-primary), 0.2);
+  color: rgb(var(--color-primary));
   display: flex;
   align-items: center;
   justify-content: center;
@@ -433,9 +433,9 @@ const EnterButton = styled.button`
   width: 100%;
   padding: 10px;
   margin-top: 8px;
-  background: rgba(59, 130, 246, 0.15);
-  color: rgb(59, 130, 246);
-  border: 1px solid rgba(59, 130, 246, 0.3);
+  background: rgba(var(--color-info), 0.15);
+  color: rgb(var(--color-info));
+  border: 1px solid rgba(var(--color-info), 0.3);
   border-radius: 6px;
   font-size: 13px;
   font-weight: 600;
@@ -449,8 +449,8 @@ const EnterButton = styled.button`
   z-index: 20; 
   
   &:hover {
-    background: rgba(59, 130, 246, 0.25);
-    border-color: rgba(59, 130, 246, 0.5);
+    background: rgba(var(--color-info), 0.25);
+    border-color: rgba(var(--color-info), 0.5);
     transform: translateY(-1px);
   }
   
@@ -684,10 +684,10 @@ export const FormProcessNode = React.memo<FormProcessNodeProps>(({
                     fontWeight: 700,
                     fontSize: '16px',
                     borderRadius: 8,
-                    border: '1px solid rgba(255,255,255,0.45)',
+                    border: '1px solid rgba(var(--color-header-background), 0.45)',
                     padding: '6px 8px',
-                    background: 'rgba(255,255,255,0.16)',
-                    color: 'white',
+                    background: 'rgba(var(--color-header-background), 0.16)',
+                    color: 'rgb(var(--color-primary-foreground))',
                   }}
                   onClick={(e) => e.stopPropagation()}
                 />
@@ -784,7 +784,7 @@ export const FormProcessNode = React.memo<FormProcessNodeProps>(({
                       {stats.stepOrder.size > 5 && (
                         <div style={{ 
                           fontSize: '11px', 
-                          color: 'rgba(139, 92, 246, 0.6)',
+                          color: 'rgba(var(--color-primary), 0.6)',
                           textAlign: 'center',
                           marginTop: '4px',
                         }}>
@@ -798,10 +798,10 @@ export const FormProcessNode = React.memo<FormProcessNodeProps>(({
                     <div style={{
                       marginTop: '12px',
                       padding: '8px 12px',
-                      background: 'rgba(59, 130, 246, 0.1)',
+                      background: 'rgba(var(--color-info), 0.1)',
                       borderRadius: '6px',
                       fontSize: '12px',
-                      color: 'rgb(59, 130, 246)',
+                      color: 'rgb(var(--color-info))',
                     }}>
                       ℹ️ Child nodes are visible on the main canvas
                     </div>

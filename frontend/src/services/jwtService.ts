@@ -12,6 +12,7 @@
 
 import axios from 'axios';
 import { config } from '../config/runtime';
+import { logger } from '../utils/logger';
 
 const API_BASE_URL = config.API_BASE_URL;
 
@@ -99,7 +100,7 @@ export function getAccessToken(): string | null {
   if (accessToken) {
     // Check if token is valid
     if (isTokenExpired(accessToken)) {
-      console.debug('[JWT] Access token is expired');
+      logger.debug('[JWT] Access token is expired');
       // Don't return expired token - let refresh handle it
       return null;
     }
@@ -109,7 +110,7 @@ export function getAccessToken(): string | null {
   // Fall back to legacy token for backward compatibility
   const legacyToken = localStorage.getItem(LEGACY_TOKEN_KEY);
   if (legacyToken) {
-    console.debug('[JWT] Using legacy token');
+    logger.debug('[JWT] Using legacy token');
   }
   return legacyToken;
 }
@@ -151,19 +152,19 @@ export async function refreshAccessToken(): Promise<string | null> {
   // Rate limit refresh attempts
   const now = Date.now();
   if (now - lastRefreshAttempt < MIN_REFRESH_INTERVAL_MS) {
-    console.debug('[JWT] Skipping refresh - too soon since last attempt');
+    logger.debug('[JWT] Skipping refresh - too soon since last attempt');
     return getAccessToken();
   }
   
   const refreshToken = getRefreshToken();
   if (!refreshToken) {
-    console.debug('[JWT] No refresh token available');
+    logger.debug('[JWT] No refresh token available');
     return null;
   }
   
   // Check if refresh token itself is expired
   if (isTokenExpired(refreshToken)) {
-    console.debug('[JWT] Refresh token expired');
+    logger.debug('[JWT] Refresh token expired');
     clearTokens();
     return null;
   }
@@ -172,7 +173,7 @@ export async function refreshAccessToken(): Promise<string | null> {
   
   refreshPromise = (async () => {
     try {
-      console.debug('[JWT] Refreshing access token...');
+      logger.debug('[JWT] Refreshing access token...');
       
       // Use axios directly to avoid interceptor loops
       const response = await axios.post(
@@ -180,7 +181,7 @@ export async function refreshAccessToken(): Promise<string | null> {
         { refresh: refreshToken },
         {
           headers: { 'Content-Type': 'application/json' },
-          timeout: 10000,
+          timeout: 5000,
         }
       );
       
@@ -189,10 +190,10 @@ export async function refreshAccessToken(): Promise<string | null> {
       // Store new tokens (refresh token rotates)
       storeTokens(access, newRefresh || refreshToken);
       
-      console.debug('[JWT] Token refreshed successfully');
+      logger.debug('[JWT] Token refreshed successfully');
       return access;
     } catch (error) {
-      console.error('[JWT] Token refresh failed:', error);
+      logger.error('[JWT] Token refresh failed:', error);
       
       // If refresh fails with 401, tokens are invalid
       if (axios.isAxiosError(error) && error.response?.status === 401) {
@@ -229,14 +230,14 @@ export function getAuthHeader(): string | null {
     if (!isTokenExpired(accessToken)) {
       return `Bearer ${accessToken}`;
     }
-    console.debug('[JWT] Access token expired, needs refresh');
+    logger.debug('[JWT] Access token expired, needs refresh');
     return null;
   }
   
   // Fall back to legacy token
   const legacyToken = localStorage.getItem(LEGACY_TOKEN_KEY);
   if (legacyToken) {
-    console.debug('[JWT] Using legacy Token auth');
+    logger.debug('[JWT] Using legacy Token auth');
     return `Token ${legacyToken}`;
   }
   

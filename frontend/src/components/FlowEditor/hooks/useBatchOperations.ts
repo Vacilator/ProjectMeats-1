@@ -15,6 +15,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Node, Edge, useReactFlow } from '@xyflow/react';
 import { v4 as uuidv4 } from 'uuid';
+import { logger } from '@/utils/logger';
 
 // ============================================================================
 // Types
@@ -154,7 +155,7 @@ export function useBatchOperations(
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(clipboardData));
     } catch (error) {
-      console.warn('Failed to save clipboard to localStorage:', error);
+      logger.warn('Failed to save clipboard to localStorage:', error);
     }
 
     onCopy?.(selectedNodes.length);
@@ -200,7 +201,7 @@ export function useBatchOperations(
           return;
         }
       } catch (error) {
-        console.warn('Failed to restore clipboard from localStorage:', error);
+        logger.warn('Failed to restore clipboard from localStorage:', error);
       }
       return;
     }

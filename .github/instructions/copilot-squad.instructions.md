@@ -5,6 +5,16 @@ These instructions are loaded automatically by **GitHub Copilot CLI** from `.git
 ## Goal
 Use a reliable “Copilot Squad” workflow in this repo: **parallelize** investigation + validation, keep changes **surgical**, and always verify against our golden standards.
 
+## Canonical source-of-truth (must not contradict)
+- Execution status / priorities: `MASTER_PLAN.md` (canonical)
+- PR execution log: `.github/MASTER_PLAN.md` (append-only)
+- Golden pipeline rules: `docs/GOLDEN_PIPELINE.md`
+- Golden registry: `manifests/GOLDEN_FILES.md`
+- Roadmaps (`ROADMAP.md`, `UI_ROADMAP.md`) are reference-only unless explicitly promoted in `MASTER_PLAN.md`
+
+## Shipping discipline (mandatory)
+Ship every batch via: **new branch → PR → merge to `Meats-Central/ProjectMeats:development`**
+
 ## Squad Operating Mode (Fleet)
 - Prefer **Fleet mode** for non-trivial tasks.
   - In Copilot CLI: run `/fleet` to enable parallel subagents.

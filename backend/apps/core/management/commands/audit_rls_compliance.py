@@ -3,7 +3,7 @@ RLS Policy Audit Management Command (Phase 9.3)
 
 Verifies that all tenant-aware models have corresponding PostgreSQL RLS policies.
 """
-from django.core.management.base import BaseCommand
+from django.core.management.base import BaseCommand, CommandError
 from django.db import connection
 from django.apps import apps
 from apps.core.models import TenantAwareModel
@@ -17,6 +17,11 @@ class Command(BaseCommand):
             '--fix',
             action='store_true',
             help='Automatically create missing RLS policies'
+        )
+        parser.add_argument(
+            '--strict',
+            action='store_true',
+            help='Exit non-zero if any models are not RLS compliant'
         )
     
     def handle(self, *args, **options):
@@ -88,16 +93,56 @@ class Command(BaseCommand):
                 self.stdout.write('Run with --fix to automatically create missing policies')
         
         self.stdout.write(self.style.WARNING('=' * 80))
+
+        if options.get('strict') and compliant_count != len(results):
+            raise CommandError(f"{len(results) - compliant_count} models are not RLS compliant")
     
     def get_tenant_aware_models(self):
+        """Get models that MUST have RLS.
+
+        Historically we audited only TenantAwareModel subclasses.
+        For defense-in-depth we also include a small allowlist of non-TenantAwareModel
+        models that still carry a tenant FK and store sensitive tenant-scoped data.
         """
-        Get all models that inherit from TenantAwareModel.
-        """
+
         models = []
         for model in apps.get_models():
             if issubclass(model, TenantAwareModel) and model != TenantAwareModel:
                 models.append(model)
-        return models
+
+        # Non-TenantAwareModel tables that must still have RLS enabled.
+        must_have = {
+            # System WorkForms (tenant-bearing tables in apps.system)
+            "system.TenantForm",
+            "system.TenantWorkForm",
+
+            # Integrations (tenant-bearing tables in apps.integrations)
+            "integrations.ExternalAuthProvider",
+            "integrations.EmailLog",
+
+            # Email integration (tenant-bearing tables in apps.email_integration)
+            "email_integration.EmailAccount",
+            "email_integration.EmailAction",
+            "email_integration.EmailLog",
+            "email_integration.EmailTrigger",
+        }
+        for label in sorted(must_have):
+            try:
+                models.append(apps.get_model(label))
+            except Exception:
+                # If an app is not installed in the current environment, skip.
+                continue
+
+        # De-dupe while keeping stable output order.
+        seen = set()
+        out = []
+        for m in models:
+            key = f"{m._meta.app_label}.{m.__name__}"
+            if key in seen:
+                continue
+            seen.add(key)
+            out.append(m)
+        return out
     
     def check_rls_enabled(self, table_name):
         """
@@ -161,7 +206,7 @@ class Command(BaseCommand):
                     cursor.execute(f"""
                         CREATE POLICY {policy_name} ON {table_name}
                         FOR ALL
-                        USING (tenant_id = current_setting('app.current_tenant', true)::uuid)
+                        USING (tenant_id = NULLIF(current_setting('app.current_tenant', true), '')::uuid)
                     """)
                     self.stdout.write(
                         self.style.SUCCESS(f"  ✓ Created policy {policy_name}")

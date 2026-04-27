@@ -23,6 +23,16 @@ jest.mock('axios', () => {
   };
 });
 
+jest.mock('expo-constants', () => ({
+  __esModule: true,
+  default: {
+    expoConfig: {
+      hostUri: '192.168.0.2:8081',
+      extra: { apiBaseUrl: 'http://localhost:8000/api/v1' },
+    },
+  },
+}));
+
 import { ApiService } from '../services/ApiService';
 
 // Access the private internal axios instance via type cast
@@ -38,47 +48,32 @@ describe('ApiService – guest mode', () => {
     internalApi.defaults.headers.common = {};
   });
 
-  it('setGuestToken sets Authorization header with GuestToken scheme', () => {
-    ApiService.setGuestToken('gt_abc123');
-    expect(internalApi.defaults.headers.common['Authorization']).toBe(
-      'GuestToken gt_abc123'
-    );
-  });
-
-  it('loginAsGuest POSTs to /auth/guest-session/ with tenant_slug', async () => {
+  it('guestLogin POSTs to /auth/guest-login/', async () => {
     const mockSession = {
-      guest_token: 'gt_test',
-      tenant_id: 'uuid-1',
-      tenant_name: 'Test',
-      tenant_slug: 'test',
-      expires_at: '2026-03-19T00:00:00Z',
-      permissions: ['view_workforms'],
+      token: 'tok_guest',
+      user: {
+        id: 1,
+        username: 'guest',
+        email: '',
+        first_name: 'Guest',
+        last_name: '',
+        is_active: true,
+        date_joined: '2026-03-19T00:00:00Z',
+      },
+      tenant: {
+        id: 'uuid-1',
+        name: 'Guest Tenant',
+        slug: 'guest',
+        role: 'admin',
+        is_guest: true,
+      },
+      message: 'Welcome',
     };
     internalApi.post.mockResolvedValueOnce({ data: mockSession });
 
-    const result = await ApiService.loginAsGuest('test');
-    expect(result.guest_token).toBe('gt_test');
-    expect(internalApi.post).toHaveBeenCalledWith('/auth/guest-session/', {
-      tenant_slug: 'test',
-    });
-  });
-
-  it('loginAsGuest includes access_code when provided', async () => {
-    internalApi.post.mockResolvedValueOnce({ data: {} });
-
-    await ApiService.loginAsGuest('secure', 'SECRET');
-    expect(internalApi.post).toHaveBeenCalledWith('/auth/guest-session/', {
-      tenant_slug: 'secure',
-      access_code: 'SECRET',
-    });
-  });
-
-  it('loginAsGuest omits access_code when not provided', async () => {
-    internalApi.post.mockResolvedValueOnce({ data: {} });
-
-    await ApiService.loginAsGuest('no-code');
-    const callArgs = internalApi.post.mock.calls[0][1];
-    expect(callArgs).not.toHaveProperty('access_code');
+    const result = await ApiService.guestLogin();
+    expect(result.token).toBe('tok_guest');
+    expect(internalApi.post).toHaveBeenCalledWith('/auth/guest-login/');
   });
 });
 
@@ -87,28 +82,28 @@ describe('ApiService – invite flow', () => {
     jest.clearAllMocks();
   });
 
-  it('validateInvite calls GET /auth/invites/{token}/', async () => {
+  it('validateInvite calls GET /invitations/validate/?token=...', async () => {
     const mockInvite = {
-      token: 'tok-1',
-      tenant_id: 'uuid-1',
-      tenant_name: 'Acme',
-      tenant_slug: 'acme',
-      invited_by: 'admin',
-      invited_email: 'user@example.com',
+      valid: true,
+      email: 'user@example.com',
       role: 'user',
+      is_reusable: false,
+      uses_remaining: 1,
+      tenant: { name: 'Acme', slug: 'acme' },
+      message: null,
       expires_at: '2026-03-25T00:00:00Z',
-      is_expired: false,
-      is_accepted: false,
     };
     internalApi.get.mockResolvedValueOnce({ data: mockInvite });
 
     const result = await ApiService.validateInvite('tok-1');
     expect(result.token).toBe('tok-1');
-    expect(result.is_expired).toBe(false);
-    expect(internalApi.get).toHaveBeenCalledWith('/auth/invites/tok-1/');
+    expect(result.valid).toBe(true);
+    expect(internalApi.get).toHaveBeenCalledWith('/invitations/validate/', {
+      params: { token: 'tok-1' },
+    });
   });
 
-  it('acceptInvite POSTs to /auth/invites/accept/', async () => {
+  it('acceptInvite POSTs to /auth/signup-with-invitation/', async () => {
     const mockLoginResponse = {
       token: 'auth-token-abc',
       user: {
@@ -120,20 +115,30 @@ describe('ApiService – invite flow', () => {
         is_active: true,
         date_joined: '2026-03-18T00:00:00Z',
       },
+      tenant: {
+        id: 'uuid-1',
+        name: 'Acme',
+        slug: 'acme',
+      },
+      role: 'user',
     };
     internalApi.post.mockResolvedValueOnce({ data: mockLoginResponse });
 
     const result = await ApiService.acceptInvite({
       token: 'tok-1',
       username: 'newuser',
+      email: 'user@example.com',
       password: 'password123',
     });
     expect(result.token).toBe('auth-token-abc');
     expect(result.user.username).toBe('newuser');
-    expect(internalApi.post).toHaveBeenCalledWith('/auth/invites/accept/', {
-      token: 'tok-1',
+    expect(internalApi.post).toHaveBeenCalledWith('/auth/signup-with-invitation/', {
+      invitation_token: 'tok-1',
       username: 'newuser',
+      email: 'user@example.com',
       password: 'password123',
+      first_name: undefined,
+      last_name: undefined,
     });
   });
 });
@@ -171,7 +176,10 @@ describe('ApiService – workforms', () => {
           description: 'Desc',
           status: 'active',
           node_count: 3,
-          created_at: '2026-01-01T00:00:00Z',
+          edge_count: 2,
+          version: 1,
+          execution_count: 0,
+          last_executed_at: null,
           updated_at: '2026-01-02T00:00:00Z',
         },
       ],
@@ -181,7 +189,9 @@ describe('ApiService – workforms', () => {
     const result = await ApiService.getWorkForms();
     expect(result.count).toBe(2);
     expect(result.results[0].name).toBe('Intake');
+    expect(result.results[0].status).toBe('active');
     expect(result.results[0].is_active).toBe(true);
+    expect(result.results[0].edge_count).toBe(2);
     expect(internalApi.get).toHaveBeenCalledWith('/tenant-workforms/');
   });
 
@@ -191,15 +201,40 @@ describe('ApiService – workforms', () => {
       name: 'Intake',
       description: 'Desc',
       status: 'draft',
-      node_count: 3,
-      created_at: '2026-01-01T00:00:00Z',
+      workflow_definition: {
+        nodes: [{ id: 'n1' }],
+        edges: [],
+      },
+      form_references: [],
       updated_at: '2026-01-02T00:00:00Z',
     };
     internalApi.get.mockResolvedValueOnce({ data: mockForm });
 
     const result = await ApiService.getWorkForm('wf-1');
     expect(result.id).toBe('wf-1');
+    expect(result.status).toBe('draft');
     expect(result.is_active).toBe(false);
+    expect(result.node_count).toBe(1);
+    expect(result.workflow_definition?.nodes?.length).toBe(1);
     expect(internalApi.get).toHaveBeenCalledWith('/tenant-workforms/wf-1/');
+  });
+
+  it('executeWorkForm POSTs to /tenant-workforms/{id}/execute/ with initial_data', async () => {
+    const mockExecution = {
+      id: 'exec-1',
+      workform_id: 'wf-1',
+      workform_name: 'Intake',
+      status: 'in_progress',
+      started_at: '2026-04-21T00:00:00Z',
+      completed_at: null,
+      error_message: '',
+    };
+    internalApi.post.mockResolvedValueOnce({ data: mockExecution });
+
+    const result = await ApiService.executeWorkForm('wf-1', { foo: 'bar' });
+    expect(result.id).toBe('exec-1');
+    expect(internalApi.post).toHaveBeenCalledWith('/tenant-workforms/wf-1/execute/', {
+      initial_data: { foo: 'bar' },
+    });
   });
 });

@@ -56,26 +56,26 @@ const InfoRow = styled.div`
 
 const MessageBox = styled.div<{ $type: TerminalType }>`
   padding: 8px;
-  background: ${props =>
-    props.$type === 'success'
-      ? 'rgb(34 197 94 / 0.1)'
-      : props.$type === 'error'
-      ? 'rgb(239 68 68 / 0.1)'
-      : 'rgb(156 163 175 / 0.1)'};
-  border: 1px solid ${props =>
-    props.$type === 'success'
-      ? 'rgb(34 197 94 / 0.2)'
-      : props.$type === 'error'
-      ? 'rgb(239 68 68 / 0.2)'
-      : 'rgb(156 163 175 / 0.2)'};
+  background: ${(p) =>
+    p.$type === 'success'
+      ? 'rgba(var(--color-success), 0.10)'
+      : p.$type === 'error'
+        ? 'rgba(var(--color-error), 0.10)'
+        : 'rgba(var(--color-text-secondary), 0.10)'};
+  border: 1px solid ${(p) =>
+    p.$type === 'success'
+      ? 'rgba(var(--color-success), 0.20)'
+      : p.$type === 'error'
+        ? 'rgba(var(--color-error), 0.20)'
+        : 'rgba(var(--color-text-secondary), 0.20)'};
   border-radius: var(--radius-sm, 4px);
   font-size: 11px;
-  color: ${props =>
-    props.$type === 'success'
-      ? 'rgb(21 128 61)'
-      : props.$type === 'error'
-      ? 'rgb(185 28 28)'
-      : 'rgb(75 85 99)'};
+  color: ${(p) =>
+    p.$type === 'success'
+      ? 'rgb(var(--color-success))'
+      : p.$type === 'error'
+        ? 'rgb(var(--color-error))'
+        : 'rgb(var(--color-text-secondary))'};
   white-space: pre-wrap;
 `;
 
@@ -87,8 +87,8 @@ const Badge = styled.span`
   border-radius: var(--radius-sm, 4px);
   font-size: 10px;
   font-weight: 600;
-  background: rgb(59 130 246 / 0.1);
-  color: rgb(59 130 246);
+  background: rgba(var(--color-info), 0.10);
+  color: rgb(var(--color-info));
 `;
 
 // ============================================================================
@@ -101,25 +101,25 @@ const getTerminalTypeInfo = (terminalType: TerminalType) => {
       return {
         icon: CheckCircle2,
         label: 'Success',
-        color: 'rgb(34, 197, 94)', // Green
+        color: 'rgb(var(--color-success))', // Green
       };
     case 'error':
       return {
         icon: XCircle,
         label: 'Error',
-        color: 'rgb(239, 68, 68)', // Red
+        color: 'rgb(var(--color-error))', // Red
       };
     case 'cancel':
       return {
         icon: Ban,
         label: 'Cancelled',
-        color: 'rgb(156, 163, 175)', // Gray
+        color: 'rgb(var(--color-text-tertiary))',
       };
     default:
       return {
         icon: CheckCircle2,
         label: 'End',
-        color: 'rgb(156, 163, 175)', // Gray
+        color: 'rgb(var(--color-text-tertiary))',
       };
   }
 };

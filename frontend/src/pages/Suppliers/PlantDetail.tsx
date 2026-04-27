@@ -1,11 +1,12 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Breadcrumb, Button, Card, Empty, Spin, Table, Tabs } from 'antd';
+import { Alert, Breadcrumb, Button, Card, Empty, Spin, Table, Tabs } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 
 import { EntityProfileHeader } from '@/components/Cockpit';
+import { EntityWorkflowStatusPanel } from '@/components/Entities/EntityWorkflowStatusPanel';
 import { ActivityFeed, EntityFormSurface } from '@/components/Shared';
-import { apiClient } from '@/services/apiService';
+import { businessApi } from '@/services/businessApi';
 
 type RouteParams = { supplierId?: string; plantId?: string };
 
@@ -46,6 +47,7 @@ export const PlantDetail: React.FC = () => {
 
   const [loadingContacts, setLoadingContacts] = useState(false);
   const [contacts, setContacts] = useState<ContactRow[]>([]);
+  const [contactsError, setContactsError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!sid || !pid) return;
@@ -55,8 +57,8 @@ export const PlantDetail: React.FC = () => {
       setLoading(true);
       try {
         const [supplierResp, plantResp] = await Promise.all([
-          apiClient.get(`suppliers/${sid}/`),
-          apiClient.get(`plants/${pid}/`),
+          businessApi.get(`suppliers/${sid}/`),
+          businessApi.get(`plants/${pid}/`),
         ]);
 
         const s = supplierResp.data as unknown;
@@ -82,8 +84,9 @@ export const PlantDetail: React.FC = () => {
 
     const load = async () => {
       setLoadingContacts(true);
+      setContactsError(null);
       try {
-        const resp = await apiClient.get('contacts/', {
+        const resp = await businessApi.get('contacts/', {
           params: { plant: pid, page_size: 200, limit: 200 },
         });
 
@@ -92,6 +95,12 @@ export const PlantDetail: React.FC = () => {
           .map((r) => r as ContactRow);
 
         if (mounted) setContacts(next);
+      } catch (err: unknown) {
+        const detail =
+          (err as { response?: { data?: { detail?: string; error?: string } } })?.response?.data;
+        if (mounted) {
+          setContactsError(detail?.detail || detail?.error || 'Failed to load plant contacts.');
+        }
       } finally {
         if (mounted) setLoadingContacts(false);
       }
@@ -266,13 +275,31 @@ export const PlantDetail: React.FC = () => {
         items={[
           {
             key: 'contacts',
-            label: `Contacts (${contacts.length})`,
+            label: `Plant Dept. Contacts (${contacts.length})`,
             children: (
-              <Card size="small" title="Contacts">
+              <Card
+                size="small"
+                title="Plant Dept. Contacts"
+                extra={
+                  <Button
+                    type="primary"
+                    size="large"
+                    style={{ minHeight: 44 }}
+                    onClick={() =>
+                      navigate(`/contacts?plant=${encodeURIComponent(pid)}${sid ? `&supplier=${encodeURIComponent(sid)}` : ''}&create=1`)
+                    }
+                    disabled={!pid}
+                  >
+                    + Add Department Contact
+                  </Button>
+                }
+              >
                 {loadingContacts ? (
                   <div style={{ padding: 12 }}>
                     <Spin />
                   </div>
+                ) : contactsError ? (
+                  <Alert type="error" showIcon title={contactsError} />
                 ) : contacts.length === 0 ? (
                   <Empty description="No contacts for this plant" />
                 ) : (
@@ -293,15 +320,16 @@ export const PlantDetail: React.FC = () => {
             ),
           },
           {
+            key: 'workflows',
+            label: 'Automation',
+            children: pid ? <EntityWorkflowStatusPanel entityType="plant" entityId={pid} /> : <Empty description="Automation unavailable" />,
+          },
+          {
             key: 'activity',
             label: 'Activity',
-            children:
-              Number.isFinite(Number(pid)) && Number(pid) > 0 ? (
-                <ActivityFeed entityType="plant" entityId={Number(pid)} showCreateForm maxHeight="520px" />
-              ) : (
-                <Empty description="Activity unavailable" />
-              ),
+            children: pid ? <ActivityFeed entityType="plant" entityId={pid} showCreateForm maxHeight="520px" /> : <Empty description="Activity unavailable" />,
           },
+
         ]}
       />
     </div>

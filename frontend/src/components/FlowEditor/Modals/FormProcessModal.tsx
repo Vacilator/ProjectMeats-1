@@ -14,6 +14,8 @@ import styled from 'styled-components';
 import { X, ArrowLeft, Save, AlertCircle, Package, Settings, Navigation } from 'lucide-react';
 import { FormSelectionPanel } from '../ConfigPanel';
 
+import { logger } from '@/utils/logger';
+
 // ============================================================================
 // TypeScript Types
 // ============================================================================
@@ -88,7 +90,7 @@ const ModalOverlay = styled.div<{ $isOpen: boolean }>`
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: rgba(0, 0, 0, 0.7);
+  background-color: rgba(var(--color-overlay), 0.7);
   z-index: 9999;
   align-items: center;
   justify-content: center;
@@ -103,7 +105,7 @@ const ModalContainer = styled.div`
   max-width: 1200px;
   display: flex;
   flex-direction: column;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 20px 60px rgba(var(--color-overlay), 0.3);
   border: 1px solid rgb(var(--color-border));
 `;
 
@@ -113,7 +115,7 @@ const ModalHeader = styled.div`
   justify-content: space-between;
   padding: 20px 24px;
   border-bottom: 1px solid rgb(var(--color-border));
-  background: linear-gradient(135deg, rgba(139, 92, 246, 0.1), rgba(139, 92, 246, 0.05));
+  background: linear-gradient(135deg, rgba(var(--color-primary), 0.1), rgba(var(--color-primary), 0.05));
 `;
 
 const HeaderLeft = styled.div`
@@ -177,21 +179,21 @@ const StepBadge = styled.div<{ $active: boolean; $completed: boolean }>`
   border-radius: 8px;
   background: ${props =>
     props.$active
-      ? 'rgba(139, 92, 246, 0.15)'
+      ? 'rgba(var(--color-primary), 0.15)'
       : props.$completed
-      ? 'rgba(34, 197, 94, 0.15)'
+      ? 'rgba(var(--color-success), 0.15)'
       : 'transparent'};
   border: 1px solid ${props =>
     props.$active
-      ? 'rgb(139, 92, 246)'
+      ? 'rgb(var(--color-primary))'
       : props.$completed
-      ? 'rgb(34, 197, 94)'
+      ? 'rgb(var(--color-success))'
       : 'rgb(var(--color-border))'};
   color: ${props =>
     props.$active
-      ? 'rgb(139, 92, 246)'
+      ? 'rgb(var(--color-primary))'
       : props.$completed
-      ? 'rgb(34, 197, 94)'
+      ? 'rgb(var(--color-success))'
       : 'rgb(var(--color-text-secondary))'};
   font-size: 14px;
   font-weight: 600;
@@ -211,7 +213,7 @@ const SectionHeader = styled.div`
   margin-bottom: 16px;
   
   .icon {
-    color: rgb(139, 92, 246);
+    color: rgb(var(--color-primary));
   }
   
   h3 {
@@ -250,8 +252,8 @@ const Input = styled.input`
   
   &:focus {
     outline: none;
-    border-color: rgb(139, 92, 246);
-    box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.1);
+    border-color: rgb(var(--color-primary));
+    box-shadow: 0 0 0 3px rgba(var(--color-primary), 0.1);
   }
   
   &::placeholder {
@@ -274,8 +276,8 @@ const TextArea = styled.textarea`
   
   &:focus {
     outline: none;
-    border-color: rgb(139, 92, 246);
-    box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.1);
+    border-color: rgb(var(--color-primary));
+    box-shadow: 0 0 0 3px rgba(var(--color-primary), 0.1);
   }
   
   &::placeholder {
@@ -302,8 +304,8 @@ const CheckboxLabel = styled.label`
   transition: all 0.2s ease;
   
   &:hover {
-    border-color: rgb(139, 92, 246);
-    background: rgba(139, 92, 246, 0.05);
+    border-color: rgb(var(--color-primary));
+    background: rgba(var(--color-primary), 0.05);
   }
   
   input[type="checkbox"] {
@@ -370,12 +372,12 @@ const Button = styled.button<{ $variant?: 'primary' | 'secondary' | 'ghost' }>`
   ${props => {
     if (props.$variant === 'primary') {
       return `
-        background: linear-gradient(135deg, rgb(139, 92, 246), rgb(109, 40, 217));
-        color: white;
+        background: linear-gradient(135deg, rgb(var(--color-primary)), rgb(var(--color-primary-active)));
+        color: rgb(var(--color-text-inverse));
         
         &:hover:not(:disabled) {
           transform: translateY(-1px);
-          box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
+          box-shadow: 0 4px 12px rgba(var(--color-primary), 0.3);
         }
       `;
     } else if (props.$variant === 'secondary') {
@@ -483,7 +485,7 @@ export const FormProcessModal: React.FC<ContainerModalProps> = ({
     formId?: string;
     form?: any;
   }) => {
-    console.log('[FormProcessModal] Selection changed:', selection);
+    logger.debug('Selection changed', { component: 'FormProcessModal', metadata: { selection } });
     setState(prev => ({
       ...prev,
       mode: selection.mode,
@@ -494,17 +496,20 @@ export const FormProcessModal: React.FC<ContainerModalProps> = ({
   }, []);
 
   const handleProceedFromStep1 = useCallback(() => {
-    console.log('[FormProcessModal] Proceeding from step 1:', {
-      mode: state.mode,
-      containerName: state.containerName,
-      selectedWorkflowId: state.selectedWorkflowId
+    logger.debug('Proceeding from step 1', {
+      component: 'FormProcessModal',
+      metadata: {
+        mode: state.mode,
+        containerName: state.containerName,
+        selectedWorkflowId: state.selectedWorkflowId,
+      },
     });
     if (state.mode === 'new' && state.containerName) {
       setState(prev => ({ ...prev, currentStep: 2 }));
     } else if (state.mode === 'existing' && state.selectedWorkflowId) {
       setState(prev => ({ ...prev, currentStep: 2 }));
     } else {
-      console.error('[FormProcessModal] Cannot proceed - invalid state');
+      logger.error('[FormProcessModal] Cannot proceed - invalid state');
     }
   }, [state.mode, state.containerName, state.selectedWorkflowId]);
 

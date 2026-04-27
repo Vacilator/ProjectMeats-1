@@ -16,6 +16,8 @@ import styled from 'styled-components';
 import { Node, Edge } from '@xyflow/react';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 
+import { logger } from '@/utils/logger';
+
 // Smart Auto-Map (Phase 7 stabilization)
 import { AutoMappingService, FieldMappingSuggestion } from '../utils/autoMappingService';
 import { AutoMappingSuggestionsPanel } from '../components/AutoMappingSuggestionsPanel';
@@ -38,6 +40,7 @@ import {
 } from '../utils/scheduleCron';
 import { evaluateCondition } from '../config/conditionalLogic';
 import { validateField } from '../config/validationEngine';
+import { toFormFieldsFromSelectedFields } from '../utils/formFieldsDualModel';
 
 // Field renderers
 import { 
@@ -54,7 +57,7 @@ import {
   renderValidationBuilder,
 } from '../config/fieldRenderers/complexRenderers';
 import { NestedChildrenRenderer } from './NestedChildrenRenderer';
-import { listTenantForms } from '../../../services/workformsApi';
+import { listTenantForms, getTenantForm } from '../../../services/workformsApi';
 
 // Import shared styled components
 import {
@@ -87,6 +90,9 @@ export interface DynamicConfigPanelProps {
   
   /** All edges in the flow (for context) */
   edges: Edge[];
+
+  /** Read-only mode: prevent any edits/mutations */
+  readOnly?: boolean;
   
   /** Callback to update node data */
   onUpdateNode: (nodeId: string, data: Partial<Node['data']>) => void;
@@ -127,7 +133,7 @@ const checkIsVisible = (item: any, data: any): boolean => {
     try {
       return cond(data);
     } catch (error) {
-      console.warn('[DynamicConfigPanel] Functional condition error:', error);
+      logger.warn('[DynamicConfigPanel] Functional condition error:', error);
       return true; // Default to visible on error
     }
   }
@@ -147,6 +153,7 @@ export const DynamicConfigPanel: React.FC<DynamicConfigPanelProps> = ({
   node,
   nodes,
   edges,
+  readOnly = false,
   onUpdateNode,
   onApply,
   onDiscard,
@@ -171,6 +178,10 @@ export const DynamicConfigPanel: React.FC<DynamicConfigPanelProps> = ({
   const [formData, setFormData] = useState<Record<string, any>>(node?.data || {});
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
+  const isReadOnly = Boolean(readOnly);
+  const [keyValueDrafts, setKeyValueDrafts] = useState<
+    Record<string, Array<{ key: string; value: string }>>
+  >({});
 
   // Tenant forms cache for schema fields like `formReference`
   const [tenantForms, setTenantForms] = useState<any[]>([]);
@@ -200,15 +211,18 @@ export const DynamicConfigPanel: React.FC<DynamicConfigPanelProps> = ({
 
     // Debug logging for schema resolution
     const isFallback = resolvedSchema?.version?.includes('fallback');
-    console.log('[DynamicConfigPanel] Schema resolution:', {
-      nodeType: semanticNodeType,
-      runtimeType: node.type,
-      nodeId: node.id,
-      schemaDisplayName: resolvedSchema?.displayName,
-      isFallback,
-      sectionCount: resolvedSchema?.sections?.length || 0,
+    logger.debug('Schema resolution', {
+      component: 'DynamicConfigPanel',
+      metadata: {
+        nodeType: semanticNodeType,
+        runtimeType: node.type,
+        nodeId: node.id,
+        schemaDisplayName: resolvedSchema?.displayName,
+        isFallback,
+        sectionCount: resolvedSchema?.sections?.length || 0,
+      },
     });
-    
+
     return resolvedSchema;
   }, [node?.type, node?.id, node?.data]);
 
@@ -231,7 +245,7 @@ export const DynamicConfigPanel: React.FC<DynamicConfigPanelProps> = ({
         setTenantForms(Array.isArray(forms) ? forms : []);
       })
       .catch((err: any) => {
-        console.error('[DynamicConfigPanel] Failed to load tenant forms:', err);
+        logger.error('[DynamicConfigPanel] Failed to load tenant forms:', err);
         setTenantForms([]);
         setTenantFormsError('Failed to load forms');
       })
@@ -240,13 +254,22 @@ export const DynamicConfigPanel: React.FC<DynamicConfigPanelProps> = ({
       });
   }, [schemaNeedsTenantForms]);
 
-  // Reset form data when node changes
+  // Keep local form state in sync with external node.data changes (e.g., Apply/Discard in shadow state).
   useEffect(() => {
     if (node?.data) {
       setFormData(node.data);
-      setErrors({});
     }
   }, [node?.id, node?.data]);
+
+  // Reset validation errors when the selected node changes.
+  useEffect(() => {
+    setErrors({});
+  }, [node?.id]);
+
+  // Clear key-value draft rows when the selected node changes.
+  useEffect(() => {
+    setKeyValueDrafts({});
+  }, [node?.id]);
 
   // REMOVED: Error panel no longer needed - schemaRegistry always returns a schema
   // Fallback schemas are automatically generated for nodes without explicit schemas
@@ -267,28 +290,50 @@ export const DynamicConfigPanel: React.FC<DynamicConfigPanelProps> = ({
     );
   }
 
+  const effectiveFormData = useMemo(() => {
+    const next: any = { ...(formData as any) };
+
+    // Additive aliasing for legacy/workflow-safe interoperability.
+    if (next.entityType === undefined && next.entity !== undefined) next.entityType = next.entity;
+    if (next.entity === undefined && next.entityType !== undefined) next.entity = next.entityType;
+
+    if (next.fieldMappings === undefined && next.fields !== undefined) next.fieldMappings = next.fields;
+    if (next.fields === undefined && next.fieldMappings !== undefined) next.fields = next.fieldMappings;
+
+    // Materialize schema defaults for evaluation (visibility/validation).
+    schema.sections.forEach((section) => {
+      section.fields.forEach((field) => {
+        if (field.defaultValue !== undefined && next[field.id] === undefined) {
+          next[field.id] = field.defaultValue;
+        }
+      });
+    });
+
+    return next as Record<string, any>;
+  }, [schema, formData]);
+
   // Calculate which fields should be visible based on conditional rules
   const visibleFields = useMemo(() => {
     const visible = new Set<string>();
-    
-    schema.sections.forEach(section => {
+
+    schema.sections.forEach((section) => {
       // Check section-level conditional (using robust helper)
-      if (!checkIsVisible(section, formData)) {
+      if (!checkIsVisible(section, effectiveFormData)) {
         return; // Hide entire section
       }
 
-      section.fields.forEach(field => {
+      section.fields.forEach((field) => {
         // Check field-level conditional (using robust helper)
-        if (checkIsVisible(field, formData)) {
+        if (checkIsVisible(field, effectiveFormData)) {
           visible.add(field.id);
         }
       });
     });
-    
-    return visible;
-  }, [schema, formData]);
 
-  const entityType = (formData as any)?.entityType as string | undefined;
+    return visible;
+  }, [schema, effectiveFormData]);
+
+  const entityType = (effectiveFormData as any)?.entityType as string | undefined;
 
   const { data: entityFieldsResp } = useEntityFields(entityType, {
     enabled: Boolean(entityType) && (node?.type === 'form' || node?.type === 'formStep' || node?.type === 'formStepSingle'),
@@ -365,7 +410,11 @@ export const DynamicConfigPanel: React.FC<DynamicConfigPanelProps> = ({
     }
 
     const defaults = buildSmartDefaults(entityFieldsResp.fields);
-    const next = { ...(formData as any), fields: defaults };
+    const next = {
+      ...(formData as any),
+      fields: defaults,
+      formFields: toFormFieldsFromSelectedFields(defaults as any),
+    };
     setFormData(next);
     onUpdateNode(node.id, next);
     pendingAutoDefaultsRef.current = null;
@@ -379,6 +428,8 @@ export const DynamicConfigPanel: React.FC<DynamicConfigPanelProps> = ({
     if (!node?.id) return;
 
     const field = findFieldById(schema, fieldId);
+    if (isReadOnly) return;
+    if (field?.readOnly) return;
 
     setFormData((prev) => {
       const semanticNodeType = (((node?.data as any)?.nodeType as string | undefined) || node.type) as string;
@@ -389,7 +440,7 @@ export const DynamicConfigPanel: React.FC<DynamicConfigPanelProps> = ({
         (node.type === 'form' || node.type === 'formStep' || node.type === 'formStepSingle')
       ) {
         pendingAutoDefaultsRef.current = value as string;
-        const next = { ...prev, entityType: value, fields: [] };
+        const next = { ...prev, entityType: value, fields: [], formFields: [] };
         onUpdateNode(node.id, next);
         return next;
       }
@@ -470,6 +521,55 @@ export const DynamicConfigPanel: React.FC<DynamicConfigPanelProps> = ({
         return draft;
       }
 
+      const isFormStep =
+        semanticNodeType === 'formStep' ||
+        semanticNodeType === 'formStepSingle' ||
+        semanticNodeType === 'formStepSingleNode';
+
+      // Form steps historically used `name`/`description` in schemas but nodes display `stepTitle/stepDescription`.
+      // Keep these keys in sync so editing feels responsive and saved data remains backwards compatible.
+      if (isFormStep && fieldId === 'name') {
+        const next: any = {
+          ...prev,
+          name: value,
+          title: value,
+          label: value,
+          stepTitle: value,
+        };
+
+        onUpdateNode(node.id, next);
+
+        if (field) {
+          const error = validateField(field, value, next);
+          setErrors((errs) => ({
+            ...errs,
+            [fieldId]: error || '',
+          }));
+        }
+
+        return next;
+      }
+
+      if (isFormStep && fieldId === 'description') {
+        const next: any = {
+          ...prev,
+          description: value,
+          stepDescription: value,
+        };
+
+        onUpdateNode(node.id, next);
+
+        if (field) {
+          const error = validateField(field, value, next);
+          setErrors((errs) => ({
+            ...errs,
+            [fieldId]: error || '',
+          }));
+        }
+
+        return next;
+      }
+
       // Canonical node title: keep legacy keys in sync for backwards compatibility.
       if (fieldId === 'title') {
         const next: any = {
@@ -491,6 +591,16 @@ export const DynamicConfigPanel: React.FC<DynamicConfigPanelProps> = ({
           }));
         }
 
+        return next;
+      }
+
+      if (fieldId === 'fields' && field?.type === 'entity-field-picker') {
+        const next = {
+          ...prev,
+          fields: value,
+          formFields: Array.isArray(value) ? toFormFieldsFromSelectedFields(value as any) : [],
+        };
+        onUpdateNode(node.id, next);
         return next;
       }
 
@@ -538,7 +648,7 @@ export const DynamicConfigPanel: React.FC<DynamicConfigPanelProps> = ({
         node.id
       );
     } catch (e) {
-      console.warn('[DynamicConfigPanel] Auto-mapping suggestion generation failed:', e);
+      logger.warn('[DynamicConfigPanel] Auto-mapping suggestion generation failed:', e);
       return { targetNodeId: node.id, suggestions: [], timestamp: Date.now() };
     }
   }, [nodesForAutoMap, edges, node.id]);
@@ -549,6 +659,7 @@ export const DynamicConfigPanel: React.FC<DynamicConfigPanelProps> = ({
 
   const handleAcceptAutoMap = (suggestion: FieldMappingSuggestion) => {
     if (!node?.id) return;
+    if (isReadOnly) return;
 
     const updatedNode = AutoMappingService.applySuggestion(
       ({ ...node, data: formData } as any),
@@ -581,6 +692,7 @@ export const DynamicConfigPanel: React.FC<DynamicConfigPanelProps> = ({
 
   const handleApplyAllAutoMap = () => {
     if (!node?.id) return;
+    if (isReadOnly) return;
 
     const updatedNode = AutoMappingService.applyAutoSuggestions(
       ({ ...node, data: formData } as any),
@@ -618,7 +730,17 @@ export const DynamicConfigPanel: React.FC<DynamicConfigPanelProps> = ({
     const isVisible = visibleFields.has(field.id);
     
     // Always render but with conditional visibility for smooth transitions
-    const value = formData[field.id] ?? field.defaultValue;
+    const rawValue = (effectiveFormData as any)[field.id];
+
+    // Additive aliasing for legacy/workflow-safe interoperability.
+    // (Do not mutate formData here; just compute the displayed value.)
+    const value =
+      rawValue ??
+      (field.id === 'entityType' ? (formData as any).entity : undefined) ??
+      (field.id === 'fields' ? (formData as any).fieldMappings : undefined) ??
+      (field.id === 'fieldMappings' ? (formData as any).fields : undefined) ??
+      field.defaultValue;
+
     const error = errors[field.id];
 
     const commonProps = {
@@ -627,7 +749,7 @@ export const DynamicConfigPanel: React.FC<DynamicConfigPanelProps> = ({
       onChange: (newValue: any) => handleFieldChange(field.id, newValue),
       onFieldChange: (fieldId: string, newValue: any) => handleFieldChange(fieldId, newValue),
       error,
-      disabled: field.disabled || false,
+      disabled: Boolean(isReadOnly || field.disabled || field.readOnly),
       allValues: formData
     };
 
@@ -715,7 +837,56 @@ export const DynamicConfigPanel: React.FC<DynamicConfigPanelProps> = ({
             <Label>{field.label}</Label>
             <Select
               value={selected}
-              onChange={(e) => commonProps.onChange(e.target.value)}
+              onChange={async (e) => {
+                const selectedFormId = e.target.value;
+                commonProps.onChange(selectedFormId);
+
+                if (!node?.id) return;
+                if (!selectedFormId) return;
+
+                const nodeId = node.id;
+                const selectedFromList = forms.find((f: any) => String(f?.id) === String(selectedFormId));
+                const friendlyName =
+                  selectedFromList?.title ||
+                  selectedFromList?.display_name ||
+                  selectedFromList?.displayName ||
+                  selectedFromList?.name ||
+                  undefined;
+                const friendlyDescription = selectedFromList?.description || selectedFromList?.helpText || undefined;
+
+                try {
+                  const form = await getTenantForm(String(selectedFormId));
+                  const definition = (form as any).form_definition ?? (form as any).flow_data;
+
+                  let fieldCount = 0;
+                  let sectionCount = 0;
+
+                  if (definition?.fields && Array.isArray(definition.fields)) {
+                    fieldCount = definition.fields.length;
+                    sectionCount = 1;
+                  } else if (definition?.steps && Array.isArray(definition.steps)) {
+                    sectionCount = definition.steps.length;
+                    fieldCount = definition.steps.reduce((acc: number, step: any) => {
+                      const count = Array.isArray(step?.fields) ? step.fields.length : 0;
+                      return acc + count;
+                    }, 0);
+                  }
+
+                  if (!node?.id || node.id !== nodeId) return;
+
+                  onUpdateNode(nodeId, {
+                    // Keep common legacy keys in sync.
+                    formId: selectedFormId,
+                    tenantFormId: selectedFormId,
+                    formName: friendlyName ?? (form as any)?.name,
+                    formDescription: friendlyDescription ?? (form as any)?.description,
+                    fieldCount,
+                    sectionCount,
+                  });
+                } catch (err) {
+                  logger.warn('[DynamicConfigPanel] Failed to load selected form metadata:', err);
+                }
+              }}
               disabled={field.disabled || commonProps.disabled || tenantFormsLoading}
               $hasError={Boolean(error)}
             >
@@ -751,37 +922,182 @@ export const DynamicConfigPanel: React.FC<DynamicConfigPanelProps> = ({
       }
 
       case 'keyValue': {
-        const pairs: Array<{ key: string; value: string }> = Array.isArray(value)
-          ? value
-          : Array.isArray(field.defaultValue)
-            ? (field.defaultValue as any)
-            : [];
+        const mode = (field as any).keyValueMode === 'record' ? 'record' : 'array';
 
         const placeholderKey = (field.placeholder as any)?.key || 'Key';
         const placeholderValue = (field.placeholder as any)?.value || 'Value';
         const addText = (field as any).addButtonText || '+ Add';
 
+        if (mode === 'record') {
+          const coerceRecord = (input: unknown): Record<string, string> => {
+            if (Array.isArray(input)) {
+              const out: Record<string, string> = {};
+              (input as any[]).forEach((p: any) => {
+                const k = String(p?.key ?? '').trim();
+                if (!k) return;
+                out[k] = String(p?.value ?? '');
+              });
+              return out;
+            }
+
+            if (input && typeof input === 'object') {
+              const out: Record<string, string> = {};
+              Object.entries(input as Record<string, any>).forEach(([k, v]) => {
+                const key = String(k).trim();
+                if (!key) return;
+                out[key] = v === undefined || v === null ? '' : String(v);
+              });
+              return out;
+            }
+
+            return {};
+          };
+
+          const record = coerceRecord(value ?? field.defaultValue);
+          const persistedPairs = Object.entries(record).map(([k, v]) => ({ key: k, value: String(v ?? '') }));
+          const draftPairs = keyValueDrafts[field.id] ?? [];
+          const pairs = [...persistedPairs, ...draftPairs];
+
+          const setDraftPairs = (nextDraft: Array<{ key: string; value: string }>) => {
+            setKeyValueDrafts((prev) => ({
+              ...prev,
+              [field.id]: nextDraft,
+            }));
+          };
+
+          const emitRecord = (nextRecord: Record<string, string>) => {
+            commonProps.onChange(nextRecord);
+          };
+
+          const addPair = () => {
+            setDraftPairs([...(draftPairs || []), { key: '', value: '' }]);
+          };
+
+          const removePair = (idx: number) => {
+            if (idx < persistedPairs.length) {
+              const keyToRemove = String(persistedPairs[idx]?.key ?? '').trim();
+              if (!keyToRemove) return;
+              const next = { ...record };
+              delete next[keyToRemove];
+              emitRecord(next);
+              return;
+            }
+
+            const draftIdx = idx - persistedPairs.length;
+            const nextDraft = (draftPairs || []).filter((_, i) => i !== draftIdx);
+            setDraftPairs(nextDraft);
+          };
+
+          const updatePair = (idx: number, patch: Partial<{ key: string; value: string }>) => {
+            if (idx < persistedPairs.length) {
+              const prevKey = String(persistedPairs[idx]?.key ?? '').trim();
+              const prevVal = String(persistedPairs[idx]?.value ?? '');
+
+              const nextKeyRaw = patch.key !== undefined ? String(patch.key) : prevKey;
+              const nextValRaw = patch.value !== undefined ? String(patch.value) : prevVal;
+
+              const nextKey = String(nextKeyRaw ?? '').trim();
+              const nextVal = String(nextValRaw ?? '');
+
+              const nextRecord = { ...record };
+              if (prevKey) delete nextRecord[prevKey];
+              if (nextKey) nextRecord[nextKey] = nextVal;
+
+              emitRecord(nextRecord);
+              return;
+            }
+
+            const draftIdx = idx - persistedPairs.length;
+            const current = (draftPairs || [])[draftIdx] ?? { key: '', value: '' };
+            const nextRow = { ...current, ...patch };
+            const nextDraft = (draftPairs || []).map((p, i) => (i === draftIdx ? nextRow : p));
+
+            const promotedKey = String(nextRow.key ?? '').trim();
+            if (promotedKey) {
+              emitRecord({ ...record, [promotedKey]: String(nextRow.value ?? '') });
+              setDraftPairs(nextDraft.filter((_, i) => i !== draftIdx));
+              return;
+            }
+
+            setDraftPairs(nextDraft);
+          };
+
+          renderedField = (
+            <FormField key={field.id}>
+              <Label>{field.label}</Label>
+              <KeyValueList>
+                {pairs.length === 0 && <KeyValueEmpty>None configured yet.</KeyValueEmpty>}
+                {pairs.map((p, idx) => (
+                  <KeyValueRow key={`${field.id}-${idx}`}>
+                    <Input
+                      value={p?.key ?? ''}
+                      placeholder={placeholderKey}
+                      onChange={(e) => updatePair(idx, { key: e.target.value })}
+                      disabled={field.disabled || commonProps.disabled}
+                    />
+                    <Input
+                      value={p?.value ?? ''}
+                      placeholder={placeholderValue}
+                      onChange={(e) => updatePair(idx, { value: e.target.value })}
+                      disabled={field.disabled || commonProps.disabled}
+                    />
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      onClick={() => removePair(idx)}
+                      disabled={field.disabled || commonProps.disabled}
+                      style={{ padding: '6px 10px' }}
+                    >
+                      Remove
+                    </Button>
+                  </KeyValueRow>
+                ))}
+                <Button
+                  type="button"
+                  variant="primary"
+                  onClick={addPair}
+                  disabled={field.disabled || commonProps.disabled}
+                  style={{ alignSelf: 'flex-start' }}
+                >
+                  {addText}
+                </Button>
+              </KeyValueList>
+              {field.helpText && !error && <HelpText>{field.helpText}</HelpText>}
+              {error && <ErrorMessage>{error}</ErrorMessage>}
+            </FormField>
+          );
+
+          break;
+        }
+
+        // Array mode (persist pairs directly)
+        const pairs: Array<{ key: string; value: string }> = Array.isArray(value)
+          ? (value as any)
+          : Array.isArray(field.defaultValue)
+            ? (field.defaultValue as any)
+            : [];
+
+        const emit = (nextPairs: Array<{ key: string; value: string }>) => {
+          commonProps.onChange(nextPairs);
+        };
+
         const updatePair = (idx: number, patch: Partial<{ key: string; value: string }>) => {
-          const next = pairs.map((p, i) => (i === idx ? { ...p, ...patch } : p));
-          commonProps.onChange(next);
+          emit(pairs.map((p, i) => (i === idx ? { ...p, ...patch } : p)));
         };
 
         const removePair = (idx: number) => {
-          const next = pairs.filter((_, i) => i != idx);
-          commonProps.onChange(next);
+          emit(pairs.filter((_, i) => i !== idx));
         };
 
         const addPair = () => {
-          commonProps.onChange([...(pairs || []), { key: '', value: '' }]);
+          emit([...(pairs || []), { key: '', value: '' }]);
         };
 
         renderedField = (
           <FormField key={field.id}>
             <Label>{field.label}</Label>
             <KeyValueList>
-              {pairs.length === 0 && (
-                <KeyValueEmpty>None configured yet.</KeyValueEmpty>
-              )}
+              {pairs.length === 0 && <KeyValueEmpty>None configured yet.</KeyValueEmpty>}
               {pairs.map((p, idx) => (
                 <KeyValueRow key={`${field.id}-${idx}`}>
                   <Input
@@ -883,6 +1199,7 @@ export const DynamicConfigPanel: React.FC<DynamicConfigPanelProps> = ({
                 }
               }}
               availableFields={availableFields}
+              disabled={commonProps.disabled}
             />
             {error && <ErrorMessage>{error}</ErrorMessage>}
           </div>
@@ -897,14 +1214,19 @@ export const DynamicConfigPanel: React.FC<DynamicConfigPanelProps> = ({
             <Button
               variant={(field as any).metadata?.variant || 'secondary'}
               fullWidth
+              disabled={commonProps.disabled}
               onClick={() => {
+                if (commonProps.disabled) return;
                 if (!node) {
-                  console.warn('[DynamicConfigPanel] Cannot execute button action: node is null');
+                  logger.warn('[DynamicConfigPanel] Cannot execute button action: node is null');
                   return;
                 }
                 // Check if button has FormBuilder action metadata
                 if (field.metadata?.action === 'openFormBuilder') {
-                  console.log('[DynamicConfigPanel] Opening FormBuilder for node:', node.id);
+                  logger.debug('Opening FormBuilder', {
+                    component: 'DynamicConfigPanel',
+                    metadata: { nodeId: node.id },
+                  });
                   openFormBuilder({
                     nodeId: node.id,
                     nodeData: node.data,
@@ -915,7 +1237,7 @@ export const DynamicConfigPanel: React.FC<DynamicConfigPanelProps> = ({
                   // Custom onClick handler from schema
                   field.metadata.onClick(node, formData);
                 } else {
-                  console.warn('[DynamicConfigPanel] Button has no action:', field.id);
+                  logger.warn('[DynamicConfigPanel] Button has no action:', field.id);
                 }
               }}
             >
@@ -966,7 +1288,7 @@ export const DynamicConfigPanel: React.FC<DynamicConfigPanelProps> = ({
   // Render a section
   const renderSection = (section: ConfigSection) => {
     // Check section-level conditional (using robust helper)
-    if (!checkIsVisible(section, formData)) {
+    if (!checkIsVisible(section, effectiveFormData)) {
       return null;
     }
 
@@ -976,35 +1298,55 @@ export const DynamicConfigPanel: React.FC<DynamicConfigPanelProps> = ({
     const isCollapsed = collapsedSections.has(section.id);
     const isCollapsible = section.collapsible ?? false;
 
+    const sectionTitleId = `pm-config-section-${section.id}-title`;
+    const sectionRegionId = `pm-config-section-${section.id}-region`;
+
+    const headerContents = (
+      <>
+        {section.icon && (() => {
+          const Icon = section.icon as any;
+          return <Icon size={16} />;
+        })()}
+        <SectionTitle id={sectionTitleId}>{section.title}</SectionTitle>
+        {isCollapsible && (isCollapsed ? <ChevronDown size={16} /> : <ChevronUp size={16} />)}
+      </>
+    );
+
     return (
       <Section key={section.id}>
-        <SectionHeader 
-          onClick={isCollapsible ? () => toggleSection(section.id) : undefined}
-          style={{ cursor: isCollapsible ? 'pointer' : 'default' }}
-        >
-          {section.icon && (() => {
-            const Icon = section.icon as any;
-            return <Icon size={16} />;
-          })()}
-          <SectionTitle>{section.title}</SectionTitle>
-          {isCollapsible && (
-            isCollapsed ? <ChevronDown size={16} /> : <ChevronUp size={16} />
-          )}
-        </SectionHeader>
-        {!isCollapsed && (
-          <SectionContentWrapper>
-            {section.description && (
-              <SectionDescription>{section.description}</SectionDescription>
-            )}
-            {visibleFieldsInSection.length === 0 ? (
-              <SectionEmptyState>
-                No configuration fields are available yet. Adjust earlier selections to unlock additional options.
-              </SectionEmptyState>
-            ) : (
-              section.fields.map(renderField)
-            )}
-          </SectionContentWrapper>
+        {isCollapsible ? (
+          <SectionHeaderButton
+            type="button"
+            onClick={() => toggleSection(section.id)}
+            aria-expanded={!isCollapsed}
+            aria-controls={sectionRegionId}
+          >
+            {headerContents}
+          </SectionHeaderButton>
+        ) : (
+          <SectionHeader>{headerContents}</SectionHeader>
         )}
+
+        <SectionContentWrapper
+          id={sectionRegionId}
+          role="region"
+          aria-labelledby={sectionTitleId}
+          hidden={isCollapsed}
+        >
+          {!isCollapsed && (
+            <>
+              {section.description && <SectionDescription>{section.description}</SectionDescription>}
+
+              {visibleFieldsInSection.length === 0 ? (
+                <SectionEmptyState>
+                  No configuration fields are available yet. Adjust earlier selections to unlock additional options.
+                </SectionEmptyState>
+              ) : (
+                section.fields.map(renderField)
+              )}
+            </>
+          )}
+        </SectionContentWrapper>
       </Section>
     );
   };
@@ -1017,7 +1359,7 @@ export const DynamicConfigPanel: React.FC<DynamicConfigPanelProps> = ({
       </Header>
       
       <Content>
-        {visibleAutoMapSuggestions.length > 0 && (
+        {!isReadOnly && visibleAutoMapSuggestions.length > 0 && (
           <AutoMapBanner>
             <AutoMapBannerText>
               <AutoMapBannerTitle>Smart suggestions available</AutoMapBannerTitle>
@@ -1029,7 +1371,7 @@ export const DynamicConfigPanel: React.FC<DynamicConfigPanelProps> = ({
           </AutoMapBanner>
         )}
 
-        {visibleAutoMapSuggestions.length > 0 && (
+        {!isReadOnly && visibleAutoMapSuggestions.length > 0 && (
           <MemoAutoMappingSuggestionsPanel
             suggestions={visibleAutoMapSuggestions}
             onAccept={handleAcceptAutoMap}
@@ -1131,7 +1473,7 @@ const Button = styled.button<{ variant?: 'primary' | 'secondary' | 'danger'; ful
     if (variant === 'primary') {
       return `
         background: rgb(var(--color-primary));
-        color: white;
+        color: rgb(var(--color-text-inverse));
         &:hover:not(:disabled) {
           background: rgb(var(--color-primary-hover));
         }
@@ -1139,9 +1481,9 @@ const Button = styled.button<{ variant?: 'primary' | 'secondary' | 'danger'; ful
     } else if (variant === 'danger') {
       return `
         background: rgb(var(--color-error));
-        color: white;
+        color: rgb(var(--color-text-inverse));
         &:hover:not(:disabled) {
-          background: rgb(239, 68, 68);
+          background: rgb(var(--color-error));
         }
       `;
     } else {
@@ -1194,6 +1536,32 @@ const SectionDescription = styled.p`
   margin: 0 0 12px 0;
   font-size: 13px;
   color: rgb(var(--color-text-secondary));
+`;
+
+const SectionHeaderButton = styled.button`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+
+  width: 100%;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+
+  &:focus-visible {
+    outline: 2px solid rgba(var(--color-primary), 0.5);
+    outline-offset: 2px;
+    border-radius: var(--radius-sm);
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
 `;
 
 const SectionContentWrapper = styled.div`

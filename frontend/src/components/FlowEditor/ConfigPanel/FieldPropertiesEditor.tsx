@@ -87,7 +87,7 @@ const ModalOverlay = styled.div`
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(var(--color-overlay), 0.5);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -102,7 +102,7 @@ const EditorPanel = styled(Panel)`
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 10px 40px rgba(var(--color-overlay), 0.3);
 `;
 
 const ScrollableContent = styled(PanelContent)`
@@ -139,11 +139,11 @@ const Badge = styled.span<{ $variant?: 'type' | 'required' }>`
   font-weight: 500;
   border-radius: 3px;
   background: ${props => {
-    if (props.$variant === 'required') return 'rgba(239, 68, 68, 0.1)';
+    if (props.$variant === 'required') return 'rgba(var(--color-error), 0.1)';
     return 'rgba(var(--color-primary), 0.1)';
   }};
   color: ${props => {
-    if (props.$variant === 'required') return 'rgb(239, 68, 68)';
+    if (props.$variant === 'required') return 'rgb(var(--color-error))';
     return 'rgb(var(--color-primary))';
   }};
 `;
@@ -173,11 +173,11 @@ const OverrideNote = styled.div`
   align-items: flex-start;
   gap: 8px;
   padding: 8px 12px;
-  background: rgba(59, 130, 246, 0.1);
-  border: 1px solid rgba(59, 130, 246, 0.2);
+  background: rgba(var(--color-info), 0.1);
+  border: 1px solid rgba(var(--color-info), 0.2);
   border-radius: 6px;
   font-size: 12px;
-  color: rgb(59, 130, 246);
+  color: rgb(var(--color-info));
   margin-top: 8px;
 
   svg {
