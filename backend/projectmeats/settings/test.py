@@ -7,12 +7,6 @@ import dj_database_url
 
 from .base import *  # noqa
 
-# CI generates OpenAPI schema before running migrations. Third-party apps that may
-# touch DB tables during system checks can break that flow on a fresh database.
-# We don't need django-flags to be installed for schema generation or most tests,
-# so disable it in test settings to keep OpenAPI generation DB-independent.
-INSTALLED_APPS = [app for app in INSTALLED_APPS if app != "flags"]
-
 # Tests run in environments that may not have optional Postgres extensions installed.
 # AI Assistant storage now uses JSON-backed embeddings and does not require pgvector, so we keep it enabled
 # to allow regression coverage for document uploads and assistant models.

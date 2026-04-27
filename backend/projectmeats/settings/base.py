@@ -407,6 +407,13 @@ Paginated lists include `count`, `next`, `previous`, and `results` fields.
     "REDOC_UI_SETTINGS": {
         "hideDownloadButton": False,
     },
+
+    # Keep enum component names stable to avoid OpenAPI baseline churn.
+    "ENUM_NAME_OVERRIDES": {
+        # ActivityLog/ScheduledCall entity_type
+        # Use the Django TextChoices to match value/label pairs for the hash.
+        "EntityTypeC00Enum": "tenant_apps.cockpit.models.EntityTypeChoices",
+    },
 }
 
 # Ensure logs directory exists for file handlers
