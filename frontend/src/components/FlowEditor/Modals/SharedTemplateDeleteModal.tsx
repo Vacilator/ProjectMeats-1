@@ -31,6 +31,7 @@ import { createPortal } from 'react-dom';
 import styled from 'styled-components';
 import { AlertTriangle, Trash2, XCircle, Loader } from 'lucide-react';
 import { notify } from '../../../utils/notify';
+import { logger } from '@/utils/logger';
 import {
   decrementTenantFormUsage,
   getTenantFormUsageInfo,
@@ -363,7 +364,7 @@ export const SharedTemplateDeleteModal: React.FC<SharedTemplateDeleteModalProps>
       const data = await getTenantFormUsageInfo(template.formId);
       setUsageInfo(data);
     } catch (error) {
-      console.error('[SharedTemplateDeleteModal] Failed to fetch usage info:', error);
+      logger.error('[SharedTemplateDeleteModal] Failed to fetch usage info:', error);
       notify.error('Failed to load template usage information');
       setUsageInfo({
         form_id: template.formId,
@@ -387,7 +388,7 @@ export const SharedTemplateDeleteModal: React.FC<SharedTemplateDeleteModalProps>
       notify.success('Container removed from workflow');
       onClose();
     } catch (error) {
-      console.error('[SharedTemplateDeleteModal] Failed to remove container:', error);
+      logger.error('[SharedTemplateDeleteModal] Failed to remove container:', error);
       notify.error('Failed to remove container from workflow');
     }
   };
@@ -406,7 +407,7 @@ export const SharedTemplateDeleteModal: React.FC<SharedTemplateDeleteModalProps>
       notify.success('Template deleted from library');
       onClose();
     } catch (error) {
-      console.error('[SharedTemplateDeleteModal] Failed to delete template:', error);
+      logger.error('[SharedTemplateDeleteModal] Failed to delete template:', error);
       notify.error('Failed to delete template from library');
     } finally {
       setIsDeleting(false);

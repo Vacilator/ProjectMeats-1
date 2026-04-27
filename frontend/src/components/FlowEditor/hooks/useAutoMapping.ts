@@ -65,7 +65,7 @@ export function useAutoMapping(): UseAutoMappingReturn {
 
       logger.debug('Generated suggestions', { component: 'AutoMapping', metadata: { mappingSuggestions } });
     } catch (err) {
-      console.error('[AutoMapping] Failed to generate suggestions:', err);
+      logger.error('[AutoMapping] Failed to generate suggestions:', err);
       setError(err instanceof Error ? err.message : 'Failed to generate suggestions');
     } finally {
       setLoading(false);

@@ -349,7 +349,7 @@ export const EntityFieldPicker: React.FC<EntityFieldPickerProps> = ({
     isLoading: fieldsLoading,
     timeout: 5000,
     onTimeout: () => {
-      console.warn('[EntityFieldPicker] Field loading timed out after 5s');
+      logger.warn('[EntityFieldPicker] Field loading timed out after 5s');
     }
   });
   
@@ -358,7 +358,7 @@ export const EntityFieldPicker: React.FC<EntityFieldPickerProps> = ({
     isLoading: entitiesLoading,
     timeout: 5000,
     onTimeout: () => {
-      console.warn('[EntityFieldPicker] Entity loading timed out after 5s');
+      logger.warn('[EntityFieldPicker] Entity loading timed out after 5s');
     }
   });
   

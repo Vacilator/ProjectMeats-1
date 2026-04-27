@@ -48,6 +48,7 @@ import {
   Zap
 } from 'lucide-react';
 import { businessApi } from '../../../services/businessApi';
+import { logger } from '@/utils/logger';
 
 const { Title, Text } = Typography;
 const { RangePicker } = DatePicker;
@@ -124,7 +125,7 @@ export const WorkflowAnalyticsDashboard: React.FC<WorkflowAnalyticsDashboardProp
         const response = await businessApi.get(`/tenants/${tenantId}/workflows/`);
         setWorkflows(response.data.results || []);
       } catch (error) {
-        console.error('Failed to fetch workflows:', error);
+        logger.error('Failed to fetch workflows:', error);
       }
     };
 
@@ -158,7 +159,7 @@ export const WorkflowAnalyticsDashboard: React.FC<WorkflowAnalyticsDashboardProp
         
         setMetrics(response.data);
       } catch (error) {
-        console.error('Failed to fetch workflow metrics:', error);
+        logger.error('Failed to fetch workflow metrics:', error);
         setMetrics(null);
       } finally {
         setLoading(false);

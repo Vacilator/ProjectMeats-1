@@ -23,6 +23,7 @@ import {
   PrimaryButton,
   SecondaryButton,
 } from './shared/StyledComponents';
+import { logger } from '@/utils/logger';
 
 // ============================================================================
 // Types
@@ -227,7 +228,7 @@ export const FormSelectionPanel: React.FC<FormSelectionPanelProps> = ({
       });
       setExistingForms(forms);
     } catch (err: any) {
-      console.error('[FormSelectionPanel] Failed to load forms:', err);
+      logger.error('[FormSelectionPanel] Failed to load forms:', err);
       toast.error('Failed to load forms. Please refresh and try again.', {
         duration: 4000,
         icon: '⚠️',

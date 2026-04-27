@@ -19,6 +19,7 @@ import {
 import { Sparkles, Plus, TrendingUp, Zap, AlertCircle } from 'lucide-react';
 import { workformsApi } from '@/services/workformsApi';
 import { useTranslation } from '@/i18n';
+import { logger } from '@/utils/logger';
 
 // ============================================================================
 // TypeScript Interfaces
@@ -321,7 +322,7 @@ export const AISuggestionsPanel: React.FC<AISuggestionsPanelProps> = ({
         setError(null);
         
       } catch (err: any) {
-        console.error('Failed to fetch AI suggestions:', err);
+        logger.error('Failed to fetch AI suggestions:', err);
         
         // Graceful degradation: Use local AI service
         const fallbackSuggestions = AINodeSuggestionService.getSuggestions(nodes, edges, selectedNodeId);

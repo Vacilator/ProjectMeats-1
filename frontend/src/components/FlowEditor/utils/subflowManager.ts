@@ -10,6 +10,7 @@
  */
 
 import { Node, Edge } from '@xyflow/react';
+import { logger } from '@/utils/logger';
 
 // ============================================================================
 // TypeScript Interfaces
@@ -71,13 +72,13 @@ export function getSubFlowLibrary(): SubFlowLibrary {
     
     // Migrate if version mismatch (future-proofing)
     if (library.version !== STORAGE_VERSION) {
-      console.warn('[SubFlow] Library version mismatch, will auto-migrate');
+      logger.warn('[SubFlow] Library version mismatch, will auto-migrate');
       // Add migration logic here if needed
     }
     
     return library;
   } catch (error) {
-    console.error('[SubFlow] Failed to load library:', error);
+    logger.error('[SubFlow] Failed to load library:', error);
     return { templates: {}, version: STORAGE_VERSION };
   }
 }
@@ -89,7 +90,7 @@ export function saveSubFlowLibrary(library: SubFlowLibrary): void {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(library));
   } catch (error) {
-    console.error('[SubFlow] Failed to save library:', error);
+    logger.error('[SubFlow] Failed to save library:', error);
     throw new Error('Failed to save sub-flow library');
   }
 }
@@ -311,7 +312,7 @@ export function importTemplateFromFile(json: string): SubFlowTemplate {
     
     return template;
   } catch (error) {
-    console.error('[SubFlow] Failed to import template:', error);
+    logger.error('[SubFlow] Failed to import template:', error);
     throw new Error('Invalid template JSON');
   }
 }

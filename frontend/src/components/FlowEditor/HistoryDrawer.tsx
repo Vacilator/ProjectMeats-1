@@ -20,6 +20,7 @@ import { ClockCircleOutlined, UserOutlined, RollbackOutlined } from '@ant-design
 import { getErrorMessage } from '@/hooks/useToast';
 import { businessApi } from '@/services/businessApi';
 import styled from 'styled-components';
+import { logger } from '@/utils/logger';
 
 const { Title, Text, Paragraph } = Typography;
 
@@ -172,7 +173,7 @@ export const HistoryDrawer: React.FC<HistoryDrawerProps> = ({
       );
       setHistory(response.data || []);
     } catch (err: unknown) {
-      console.error('Failed to fetch history:', err);
+      logger.error('Failed to fetch history:', err);
       const errMsg = getErrorMessage(err, 'Failed to load history');
       setError(errMsg);
       message.error(errMsg);
