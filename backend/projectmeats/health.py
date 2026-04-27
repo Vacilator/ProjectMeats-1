@@ -137,9 +137,11 @@ def health_check(request):
 
     service_summary = services.get("summary", {}) if isinstance(services, dict) else {}
 
+    http_status = status.HTTP_200_OK if db_status == "healthy" else status.HTTP_503_SERVICE_UNAVAILABLE
+
     return JsonResponse(
         {
-            "status": "healthy" if db_status == "healthy" else "degraded",
+            "status": "healthy" if db_status == "healthy" else "unhealthy",
             "timestamp": timezone.now().isoformat(),
             "version": "1.0.0",
             # Backward-compatible field
@@ -152,7 +154,8 @@ def health_check(request):
             "integration_summary": integration_summary,
             "integration_warnings": integration_warnings,
             "services": services,
-        }
+        },
+        status=http_status,
     )
 
 
