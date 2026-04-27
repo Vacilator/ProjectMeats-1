@@ -281,23 +281,75 @@ check_error_handling() {
 check_timeouts() {
     log_info "Checking workflow timeouts..."
 
-    local workflows=()
-    for wf in .github/workflows/reusable-deploy.yml .github/workflows/main-pipeline.yml .github/workflows/pr-validation.yml; do
-        [[ -f "$wf" ]] && workflows+=("$wf")
-    done
+    local failed=0
 
-    if [[ ${#workflows[@]} -eq 0 ]]; then
-        log_info "No target workflows found (skipping timeout checks)"
-        return 0
+    # Enforce timeouts for critical jobs in the canonical deploy workflow.
+    if [[ -f .github/workflows/reusable-deploy.yml ]]; then
+        if python - <<'PY'
+import sys
+from pathlib import Path
+
+import yaml
+
+wf = Path('.github/workflows/reusable-deploy.yml')
+data = yaml.safe_load(wf.read_text(encoding='utf-8', errors='ignore')) or {}
+jobs = data.get('jobs') or {}
+
+required = [
+    'check_infrastructure',
+    'build-backend',
+    'security-scan-backend',
+    'test-backend',
+    'check-migrations',
+    'migrate',
+    'deploy-backend',
+    'build-frontend',
+    'security-scan-frontend',
+    'test-frontend',
+    'deploy-frontend',
+]
+
+missing_jobs = [j for j in required if j not in jobs]
+if missing_jobs:
+    print(f"ERROR: reusable-deploy.yml missing expected jobs for timeout enforcement: {', '.join(missing_jobs)}", file=sys.stderr)
+    raise SystemExit(1)
+
+missing_timeouts = []
+for j in required:
+    tm = (jobs.get(j) or {}).get('timeout-minutes')
+    if tm is None:
+        missing_timeouts.append(j)
+
+if missing_timeouts:
+    print(
+        "ERROR: reusable-deploy.yml missing timeout-minutes for critical jobs: " + ", ".join(missing_timeouts),
+        file=sys.stderr,
+    )
+    raise SystemExit(1)
+
+print('✓ reusable-deploy.yml has timeout-minutes for all critical jobs')
+PY
+        then
+            log_info "✓ Timeout enforcement passed for reusable-deploy.yml"
+        else
+            ((failed++))
+        fi
     fi
 
-    for workflow in "${workflows[@]}"; do
-        if ! grep -q "timeout-minutes" "$workflow"; then
-            log_warn "No timeout configured in $workflow"
-        else
-            log_info "✓ Timeout configured in $workflow"
+    # Soft-check that other key workflows have at least one timeout (informational only).
+    for wf in .github/workflows/main-pipeline.yml .github/workflows/pr-validation.yml; do
+        if [[ -f "$wf" ]]; then
+            if ! grep -q "timeout-minutes" "$wf"; then
+                log_warn "No timeout configured in $wf"
+            else
+                log_info "✓ Timeout configured in $wf"
+            fi
         fi
     done
+
+    if [[ $failed -gt 0 ]]; then
+        return 1
+    fi
 
     return 0
 }
