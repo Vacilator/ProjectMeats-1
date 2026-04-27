@@ -77,7 +77,10 @@ const make401 = (url: string) => ({
   config: {
     url,
     method: 'get',
-    headers: { Authorization: 'Bearer old-access' },
+    headers: {
+      Authorization: 'Bearer old-access',
+      'X-Tenant-ID': 'tenant-123',
+    },
   },
   response: {
     status: 401,
@@ -131,6 +134,10 @@ describe('apiService JWT refresh queue', () => {
 
     expect(firstCallConfig.headers.Authorization).toBe('Bearer new-access');
     expect(secondCallConfig.headers.Authorization).toBe('Bearer new-access');
+
+    // Critical: ensure tenant context is preserved on replay.
+    expect(firstCallConfig.headers['X-Tenant-ID']).toBe('tenant-123');
+    expect(secondCallConfig.headers['X-Tenant-ID']).toBe('tenant-123');
   });
 
   it('rejects queued requests when refresh fails', async () => {
