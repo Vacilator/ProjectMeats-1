@@ -388,16 +388,19 @@ class EmailIngestionService:
         )
         self.stats['emails_saved'] += 1
     
-    def poll_provider_by_id(self, provider_id: int) -> Dict[str, int]:
+    def poll_provider_by_id(self, provider_id: int, *, tenant_id: str | None = None) -> Dict[str, int]:
         """Poll inbox for a specific ExternalAuthProvider.
 
         This is the unit of work used by the Phase 8.3 Celery fan-out.
+
+        Note: Callers in Celery worker contexts must set tenant RLS session vars.
+        Passing tenant_id provides additional defense-in-depth filtering.
         """
-        provider = (
-            ExternalAuthProvider.objects.select_related('tenant')
-            .filter(id=provider_id, is_active=True)
-            .first()
-        )
+        qs = ExternalAuthProvider.objects.select_related('tenant').filter(id=provider_id, is_active=True)
+        if tenant_id:
+            qs = qs.filter(tenant_id=tenant_id)
+
+        provider = qs.first()
         if not provider:
             logger.error('No active provider found for id=%s', provider_id)
             return {'error': 'Provider not found or inactive'}

@@ -13,6 +13,7 @@ connection right before a write.
 
 from __future__ import annotations
 
+from contextlib import contextmanager
 from dataclasses import dataclass
 
 from django.db import connection
@@ -61,3 +62,27 @@ def reset_current_tenant() -> None:
     except Exception:  # pragma: no cover
         # Never break application logic due to cleanup failure.
         return
+
+
+@contextmanager
+def tenant_rls(tenant_id: str, *, strict: bool = True):
+    """Context manager to scope a block of ORM work to a tenant RLS context.
+
+    Celery workers / management commands do not run TenantMiddleware, so any ORM
+    access to RLS-protected tenant tables must explicitly set/reset the session
+    variables.
+
+    Args:
+        tenant_id: Tenant UUID.
+        strict: When True, raise if tenant context cannot be set.
+    """
+
+    result = set_current_tenant(str(tenant_id))
+    if strict and not result.ok:
+        reset_current_tenant()
+        raise RuntimeError(f"Failed to set tenant RLS context: {result.error}")
+
+    try:
+        yield result
+    finally:
+        reset_current_tenant()
