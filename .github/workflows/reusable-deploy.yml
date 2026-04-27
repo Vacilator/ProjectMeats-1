@@ -1286,6 +1286,7 @@ jobs:
           	MICROSOFT_TENANT_ID=${{ secrets.MICROSOFT_TENANT_ID }}
           	MICROSOFT_REDIRECT_URI=${{ secrets.MICROSOFT_REDIRECT_URI }}
           	OAUTH_ENCRYPTION_KEY=${{ secrets.OAUTH_ENCRYPTION_KEY }}
+          	GIT_COMMIT_SHA=${{ github.sha }}
           	EOF
 
           chmod 600 backend.env
