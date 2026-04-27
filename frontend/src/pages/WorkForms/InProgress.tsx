@@ -27,6 +27,7 @@ import { useQuickActions } from '../../contexts/QuickActionsContext';
 import { workflowExecutionService } from '../../services/workflowExecutionService';
 import { workformExecutionService } from '@/services/workformExecutionService';
 import { getWorkformsErrorUi } from '@/features/workforms/workformsErrors';
+import { logger } from '@/utils/logger';
 
 // ============================================================================
 // Types
@@ -445,7 +446,7 @@ const FormsFlowsInProgress: React.FC = () => {
       setSubmissions(response.data.results || response.data || []);
       setLastUpdated(new Date());
     } catch (error) {
-      console.error('Failed to fetch submissions:', error);
+      logger.error('[WorkFormsInProgress] Failed to fetch submissions', error);
       setSubmissions([]);
       setLoadError(getWorkformsErrorUi(error, 'inProgress.load').message);
     } finally {
@@ -501,7 +502,7 @@ const FormsFlowsInProgress: React.FC = () => {
 
       setSubmissions((prev) => prev.filter((s) => s.id !== submission.id));
     } catch (error) {
-      console.error('Failed to cancel workflow:', error);
+      logger.error('[WorkFormsInProgress] Failed to cancel workflow', error);
       const ui = getWorkformsErrorUi(error, 'inProgress.cancel');
       showAlert({
         type: 'error',
