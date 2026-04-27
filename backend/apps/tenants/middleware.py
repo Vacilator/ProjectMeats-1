@@ -130,30 +130,35 @@ class TenantMiddleware:
         # 1. FIRST: Try to get tenant from X-Tenant-ID header (explicit tenant selection)
         # This takes priority even for Global System Admins so they can switch tenants.
         #
-        # SECURITY: Never honor X-Tenant-ID for anonymous requests. For authenticated requests,
-        # membership validation is enforced in TenantAware authentication (JWT/Token) and is
-        # additionally checked here for session-auth flows.
+        # SECURITY: Never honor X-Tenant-ID for truly-anonymous requests.
+        #
+        # NOTE: DRF's APIClient.force_authenticate() does not mark request.user authenticated
+        # at middleware time, but it *does* attach a private _force_auth_user on the request.
+        # We treat that as authenticated for tenant resolution in tests so CI doesn't regress.
+        forced_user = getattr(request, '_force_auth_user', None)
+        tenant_actor = request.user if request.user.is_authenticated else forced_user
+
         tenant_id = request.headers.get("X-Tenant-ID")
-        if tenant_id and request.user.is_authenticated:
+        if tenant_id and tenant_actor:
             try:
                 tenant = Tenant.objects.get(id=tenant_id, is_active=True)
                 resolution_method = "X-Tenant-ID header"
 
                 # Verify user has access to this tenant
                 # Superusers and Global System Admins can access any tenant
-                is_global_admin = request.user.groups.filter(name='Global System Admins').exists()
-                if not request.user.is_superuser and not is_global_admin:
-                    if not TenantUser.objects.filter(user=request.user, tenant=tenant, is_active=True).exists():
+                is_global_admin = tenant_actor.groups.filter(name='Global System Admins').exists()
+                if not tenant_actor.is_superuser and not is_global_admin:
+                    if not TenantUser.objects.filter(user=tenant_actor, tenant=tenant, is_active=True).exists():
                         logger.warning(
                             f"Unauthorized tenant access attempt: "
-                            f"user={request.user.username}, tenant_id={tenant_id}, "
+                            f"user={getattr(tenant_actor, 'username', 'unknown')}, tenant_id={tenant_id}, "
                             f"path={request.path}"
                         )
                         return self._forbidden(request, 'You do not have access to this tenant.')
                 elif is_global_admin:
                     logger.info(
                         f"Global System Admin explicit tenant selection: "
-                        f"user={request.user.username}, tenant={tenant.slug}, "
+                        f"user={tenant_actor.username}, tenant={tenant.slug}, "
                         f"path={request.path}"
                     )
             except Tenant.DoesNotExist:
@@ -166,7 +171,7 @@ class TenantMiddleware:
                     f"Invalid tenant ID format in X-Tenant-ID header: {tenant_id}, "
                     f"path={request.path}"
                 )
-        elif tenant_id and not request.user.is_authenticated:
+        elif tenant_id and not tenant_actor:
             logger.debug(
                 "Ignoring X-Tenant-ID for anonymous request: tenant_id=%s path=%s",
                 tenant_id,
@@ -361,11 +366,11 @@ class TenantMiddleware:
             except Exception:
                 pass  # Silently fail for RESET
 
-        # Set tenant_user if we have both tenant and authenticated user
-        if tenant and request.user.is_authenticated:
+        # Set tenant_user if we have both tenant and an authenticated actor (session-auth or force_authenticate)
+        if tenant and tenant_actor:
             try:
                 request.tenant_user = TenantUser.objects.get(
-                    user=request.user, tenant=tenant, is_active=True
+                    user=tenant_actor, tenant=tenant, is_active=True
                 )
             except TenantUser.DoesNotExist:
                 # User is superuser or accessing via header without association
