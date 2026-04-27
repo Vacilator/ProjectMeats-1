@@ -115,6 +115,39 @@ class JWTEndpointsTestCase(TestCase):
         })
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertIn('access', response.data)
+
+    def test_refresh_rotation_blacklists_old_refresh_token(self):
+        """Regression: refresh rotation enabled -> old refresh token is rejected after use."""
+        obtain_response = self.client.post('/api/v1/auth/token/', {
+            'username': 'testuser',
+            'password': 'testpass123'
+        })
+        refresh1 = obtain_response.data['refresh']
+
+        rotated = self.client.post('/api/v1/auth/token/refresh/', {
+            'refresh': refresh1,
+        })
+        self.assertEqual(rotated.status_code, status.HTTP_200_OK)
+        self.assertIn('access', rotated.data)
+        self.assertIn('refresh', rotated.data)
+
+        refresh2 = rotated.data['refresh']
+        self.assertNotEqual(refresh1, refresh2)
+
+        reused = self.client.post('/api/v1/auth/token/refresh/', {
+            'refresh': refresh1,
+        })
+        self.assertEqual(reused.status_code, status.HTTP_401_UNAUTHORIZED)
+
+        rotated2 = self.client.post('/api/v1/auth/token/refresh/', {
+            'refresh': refresh2,
+        })
+        self.assertEqual(rotated2.status_code, status.HTTP_200_OK)
+        self.assertIn('access', rotated2.data)
+
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {rotated2.data['access']}")
+        resp = self.client.get('/api/v1/choices/')
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
     
     def test_token_verify_endpoint_exists(self):
         """Test token verify endpoint is accessible."""
