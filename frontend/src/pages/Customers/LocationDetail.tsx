@@ -3,7 +3,7 @@ import { Breadcrumb, Button, Card, Empty, Spin, Table, Tabs } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 
-import { EntityProfileHeader } from '@/components/Cockpit';
+import { AIOverviewCard, EntityProfileHeader } from '@/components/Cockpit';
 import { EntityWorkflowStatusPanel } from '@/components/Entities/EntityWorkflowStatusPanel';
 import { ActivityFeed, EntityFormSurface } from '@/components/Shared';
 import { apiClient } from '@/services/apiService';
@@ -252,13 +252,16 @@ export const LocationDetail: React.FC = () => {
             <Spin />
           </Card>
         ) : (
-          <EntityProfileHeader
-            key={`${lid}-${refreshKey}`}
-            entityType="location"
-            entityId={lid}
-            variant="full"
-            onNavigateToEntity={handleNavigateToEntity}
-          />
+          <>
+            <AIOverviewCard entityType="location" entityId={lid} />
+            <EntityProfileHeader
+              key={`${lid}-${refreshKey}`}
+              entityType="location"
+              entityId={lid}
+              variant="full"
+              onNavigateToEntity={handleNavigateToEntity}
+            />
+          </>
         )}
       </div>
 

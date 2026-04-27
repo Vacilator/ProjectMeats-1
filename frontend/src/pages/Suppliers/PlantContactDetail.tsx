@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Breadcrumb, Button, Card, Spin } from 'antd';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 
+import { AIOverviewCard } from '@/components/Cockpit';
 import { EntityFormSurface } from '@/components/Shared';
 import { apiClient } from '@/services/apiService';
 
@@ -98,14 +99,17 @@ export const PlantContactDetail: React.FC = () => {
             <Spin />
           </Card>
         ) : (
-          <EntityFormSurface
-            entityType="contact"
-            mode="view"
-            variant="inline"
-            isOpen={true}
-            entityId={cid}
-            onClose={() => navigate(`/suppliers/${sid}/plants/${pid}`)}
-          />
+          <>
+            <AIOverviewCard entityType="contact" entityId={cid} />
+            <EntityFormSurface
+              entityType="contact"
+              mode="view"
+              variant="inline"
+              isOpen={true}
+              entityId={cid}
+              onClose={() => navigate(`/suppliers/${sid}/plants/${pid}`)}
+            />
+          </>
         )}
       </div>
     </div>

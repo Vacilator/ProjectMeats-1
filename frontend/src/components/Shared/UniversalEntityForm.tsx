@@ -575,6 +575,35 @@ const augmentSchemaForFrontend = (
       pickFieldKey(['country']),
     ].filter((k): k is string => Boolean(k));
 
+    // Ensure HQ Phone Number is always present for Supplier/Customer HQ forms.
+    // Some environments may omit phone fields from the schema endpoint; we still want the UX to show it.
+    const ensuredKeys = [...selectedKeys];
+    const hasPhoneField = ensuredKeys.some((k) => {
+      const key = String(k || '').toLowerCase();
+      return [
+        'phone',
+        'phone_number',
+        'phone_office',
+        'office_phone',
+        'phone_mobile',
+        'mobile_phone',
+      ].includes(key);
+    });
+
+    if (!hasPhoneField) {
+      const syntheticKey = 'phone_office';
+      if (!fieldsByLowerKey.has(syntheticKey)) {
+        fieldsByLowerKey.set(syntheticKey, {
+          key: syntheticKey,
+          label: 'HQ Phone Number',
+          type: 'phone',
+          required: false,
+          help_text: '',
+        });
+      }
+      ensuredKeys.push(syntheticKey);
+    }
+
     const labelByKey: Record<string, string> = {
       phone: 'HQ Phone Number',
       phone_number: 'HQ Phone Number',
@@ -591,7 +620,7 @@ const augmentSchemaForFrontend = (
       country: 'HQ Country',
     };
 
-    const uniqueSelectedKeys = selectedKeys.filter((key, idx, arr) => arr.indexOf(key) === idx);
+    const uniqueSelectedKeys = ensuredKeys.filter((key, idx, arr) => arr.indexOf(key) === idx);
 
     const nextFields: BackendField[] = [];
     uniqueSelectedKeys.forEach((key) => {
