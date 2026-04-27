@@ -4,6 +4,8 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+import { clearPersistedTenantSelection } from './src/utils/tenantStorage';
+
 // Screens
 import LoginScreen from './src/screens/LoginScreen';
 import HomeScreen from './src/screens/HomeScreen';
@@ -218,10 +220,19 @@ export default function App() {
                       if (isGuest) {
                         // Guest: fully sign out and return to login
                         handleLogout();
-                      } else {
-                        setCurrentTenant(null);
-                        ApiService.clearTenantId();
+                        return;
                       }
+
+                      const run = async () => {
+                        try {
+                          await clearPersistedTenantSelection();
+                        } finally {
+                          setCurrentTenant(null);
+                          ApiService.clearTenantId();
+                        }
+                      };
+
+                      void run();
                     }}
                   />
                 )}
