@@ -2132,7 +2132,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     if (nodeCount > 1000) {
       logger.warn(`[Performance] Large workflow detected: ${nodeCount} nodes, ${edgeCount} edges`);
     } else if (nodeCount > 500) {
-      console.info(`[Performance] Medium workflow: ${nodeCount} nodes, ${edgeCount} edges`);
+      logger.debug(`[Performance] Medium workflow: ${nodeCount} nodes, ${edgeCount} edges`);
     }
     
     // Measure performance of large workflows

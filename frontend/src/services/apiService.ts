@@ -104,11 +104,11 @@ apiClient.interceptors.request.use(
 
       // Check if token needs refresh before making request
       if (isUsingJwt() && needsRefresh() && !isRefreshing) {
-        console.debug('[API] Token needs refresh, refreshing before request...');
+        logger.debug('[API] Token needs refresh, refreshing before request...');
         try {
           await refreshAccessToken();
         } catch (error) {
-          console.error('[API] Token refresh failed in request interceptor:', error);
+          logger.error('[API] Token refresh failed in request interceptor:', error);
           // Don't block the request, let response interceptor handle it
         }
       }
@@ -128,12 +128,12 @@ apiClient.interceptors.request.use(
       
       return config;
     } catch (error) {
-      console.error('[API] Request interceptor error:', error);
+      logger.error('[API] Request interceptor error:', error);
       return config;
     }
   },
   (error) => {
-    console.error('[API] Request interceptor rejected:', error);
+    logger.error('[API] Request interceptor rejected:', error);
     return Promise.reject(error);
   }
 );
@@ -148,11 +148,11 @@ adminClient.interceptors.request.use(
 
       // Check if token needs refresh before making request
       if (isUsingJwt() && needsRefresh() && !isRefreshing) {
-        console.debug('[Admin API] Token needs refresh, refreshing before request...');
+        logger.debug('[Admin API] Token needs refresh, refreshing before request...');
         try {
           await refreshAccessToken();
         } catch (error) {
-          console.error('[Admin API] Token refresh failed in request interceptor:', error);
+          logger.error('[Admin API] Token refresh failed in request interceptor:', error);
         }
       }
       
@@ -160,7 +160,7 @@ adminClient.interceptors.request.use(
       if (authHeader) {
         config.headers.Authorization = authHeader;
       } else {
-        console.warn('[Admin API] No auth header available for request to:', config.url);
+        logger.warn('[Admin API] No auth header available for request to:', config.url);
       }
       
       // Add tenant ID header if available
@@ -171,12 +171,12 @@ adminClient.interceptors.request.use(
       
       return config;
     } catch (error) {
-      console.error('[Admin API] Request interceptor error:', error);
+      logger.error('[Admin API] Request interceptor error:', error);
       return config;
     }
   },
   (error) => {
-    console.error('[Admin API] Request interceptor rejected:', error);
+    logger.error('[Admin API] Request interceptor rejected:', error);
     return Promise.reject(error);
   }
 );
@@ -249,7 +249,7 @@ apiClient.interceptors.response.use(
     
     // Log the error for debugging
     if (status === 401) {
-      console.warn('[API] 401 Unauthorized:', {
+      logger.warn('[API] 401 Unauthorized:', {
         url: originalRequest?.url,
         method: originalRequest?.method,
         hasAuth: !!originalRequest?.headers?.Authorization,
@@ -264,7 +264,7 @@ apiClient.interceptors.response.use(
       // Prevent infinite retry loops
       const retryCount = (originalRequest._retryCount || 0) + 1;
       if (retryCount > 2) {
-        console.error('[API] Max retry attempts reached, showing session expired modal');
+        logger.error('[API] Max retry attempts reached, showing session expired modal');
         clearTokens();
         localStorage.removeItem('user');
         // KEEP tenant context for re-login - user should see same tenant after re-auth
@@ -298,14 +298,14 @@ apiClient.interceptors.response.use(
             // Retry original request with new token
             originalRequest.headers.Authorization = `Bearer ${newToken}`;
             processQueue(null);
-            console.debug('[API] Retrying request with refreshed token');
+            logger.debug('[API] Retrying request with refreshed token');
             return apiClient(originalRequest);
           } else {
             // Refresh returned null - tokens are invalid
             throw new Error('Token refresh returned null');
           }
         } catch (refreshError) {
-          console.error('[API] Token refresh failed:', refreshError);
+          logger.error('[API] Token refresh failed:', refreshError);
           processQueue(refreshError);
           // Refresh failed, show session expired modal
           clearTokens();
@@ -325,7 +325,7 @@ apiClient.interceptors.response.use(
       }
       
       // No JWT or refresh failed, clear auth and show modal
-      console.warn('[API] No JWT auth available, showing session expired modal');
+      logger.warn('[API] No JWT auth available, showing session expired modal');
       clearTokens();
       localStorage.removeItem('user');
       triggerGlobalSessionExpired('Your session has expired. Please log in to continue.');
@@ -373,7 +373,7 @@ adminClient.interceptors.response.use(
     
     // Log the error for debugging
     if (status === 401) {
-      console.warn('[Admin API] 401 Unauthorized:', {
+      logger.warn('[Admin API] 401 Unauthorized:', {
         url: originalRequest?.url,
         method: originalRequest?.method,
         hasAuth: !!originalRequest?.headers?.Authorization,
@@ -387,7 +387,7 @@ adminClient.interceptors.response.use(
       // Prevent infinite retry loops
       const retryCount = (originalRequest._retryCount || 0) + 1;
       if (retryCount > 2) {
-        console.error('[Admin API] Max retry attempts reached, showing session expired modal');
+        logger.error('[Admin API] Max retry attempts reached, showing session expired modal');
         clearTokens();
         localStorage.removeItem('user');
         triggerGlobalSessionExpired('Your session has expired.');
@@ -401,12 +401,12 @@ adminClient.interceptors.response.use(
         
         if (newToken) {
           originalRequest.headers.Authorization = `Bearer ${newToken}`;
-          console.debug('[Admin API] Retrying request with refreshed token');
+          logger.debug('[Admin API] Retrying request with refreshed token');
           return adminClient(originalRequest);
         }
       }
       
-      console.warn('[Admin API] No JWT auth available, showing session expired modal');
+      logger.warn('[Admin API] No JWT auth available, showing session expired modal');
       clearTokens();
       localStorage.removeItem('user');
       triggerGlobalSessionExpired('Your session has expired. Please log in to continue.');
@@ -811,7 +811,7 @@ export class ApiService {
       const response = await apiClient.get('/purchase-orders/');
       return response.data.results || response.data;
     } catch (error) {
-      console.error('Error fetching purchase orders:', error);
+      logger.error('Error fetching purchase orders:', error);
       throw new Error(
         'Purchase orders data unavailable. Please check your connection and try again.'
       );

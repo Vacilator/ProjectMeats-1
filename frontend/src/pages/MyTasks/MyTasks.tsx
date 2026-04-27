@@ -10,6 +10,7 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import styled from 'styled-components';
 import { showAlert } from '@/utils/uiDialogs';
+import { logger } from '@/utils/logger';
 import { useNotifications, ActionItem } from '../../contexts/NotificationsContext';
 import { DelegateTaskModal, DelegationData, User } from '../../components/Delegation';
 import { DelegationHistory } from '../../components/Delegation';
@@ -596,7 +597,7 @@ export const MyTasks: React.FC = () => {
       });
       setWorkflowExecutions(response.results);
     } catch (err) {
-      console.error('Failed to fetch workflow executions:', err);
+      logger.error('Failed to fetch workflow executions', err);
       const status = (err as any)?.response?.status;
 
       // Degrade gracefully: prefer the normal empty-state UI over a scary error banner.
@@ -625,7 +626,7 @@ export const MyTasks: React.FC = () => {
       // Navigate to the workflow
       window.location.href = `/workflows/run/${execution.id}`;
     } catch (err) {
-      console.error('Failed to resume workflow:', err);
+      logger.error('Failed to resume workflow', err);
       showAlert({
         type: 'error',
         title: 'Error',
@@ -745,7 +746,7 @@ export const MyTasks: React.FC = () => {
     setIsDelegating(true);
     try {
       // In production, this would call the API
-      console.log('Delegating task:', selectedTask.id, 'to:', data.delegateUserId);
+      logger.debug('Delegating task', { taskId: selectedTask.id, delegateUserId: data.delegateUserId });
       
       // Simulate API call
       await new Promise(resolve => setTimeout(resolve, 1000));
@@ -755,7 +756,7 @@ export const MyTasks: React.FC = () => {
       setSelectedTask(null);
       fetchActionItems();
     } catch (err) {
-      console.error('Failed to delegate task:', err);
+      logger.error('Failed to delegate task', err);
     } finally {
       setIsDelegating(false);
     }
@@ -763,7 +764,7 @@ export const MyTasks: React.FC = () => {
   
   // Handle revoke delegation
   const handleRevokeDelegation = useCallback(async (delegationId: string) => {
-    console.log('Revoking delegation:', delegationId);
+    logger.debug('Revoking delegation', { delegationId });
     // In production, this would call the API
   }, []);
 
