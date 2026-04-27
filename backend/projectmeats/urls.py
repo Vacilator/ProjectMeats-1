@@ -13,7 +13,12 @@ from drf_spectacular.views import (
     SpectacularRedocView,
     SpectacularSwaggerView,
 )
-from .health import health_check, health_detailed, ready_check, health_workforms
+from apps.core.health_api import (
+    HealthCheckAPIView,
+    HealthDetailedAPIView,
+    HealthWorkformsAPIView,
+    ReadyCheckAPIView,
+)
 from apps.core.admin_site import admin_site
 from tenant_apps.workflows.views import SuggestNodesView
 from tenant_apps.workflows.views_triggers import TenantScopedWebhookReceiverAPIView
@@ -29,10 +34,10 @@ admin.site.index_title = 'Admin Dashboard'
 
 urlpatterns = [
     # Health check endpoints
-    path("api/v1/health/", health_check, name="health-check"),
-    path("api/v1/health/detailed/", health_detailed, name="health-detailed"),
-    path("api/v1/health/workforms/", health_workforms, name="health-workforms"),
-    path("api/v1/ready/", ready_check, name="ready-check"),
+    path("api/v1/health/", HealthCheckAPIView.as_view(), name="health-check"),
+    path("api/v1/health/detailed/", HealthDetailedAPIView.as_view(), name="health-detailed"),
+    path("api/v1/health/workforms/", HealthWorkformsAPIView.as_view(), name="health-workforms"),
+    path("api/v1/ready/", ReadyCheckAPIView.as_view(), name="ready-check"),
     # NOTE: System Configuration Studio ARCHIVED 2026-02-14 (superseded by apps.system)
     # Admin interface (using custom three-tier admin site)
     path("admin/", admin_site.urls, name='admin'),  # Custom three-tier admin (primary)

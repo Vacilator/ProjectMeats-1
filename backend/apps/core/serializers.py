@@ -36,3 +36,8 @@ class UserFavoriteSerializer(serializers.ModelSerializer):
         model = UserFavorite
         fields = ['id', 'tenant_id', 'entity_type', 'entity_id', 'entity_title', 'created_at']
         read_only_fields = ['id', 'tenant_id', 'created_at']
+
+
+class LoginRequestSerializer(serializers.Serializer):
+    username = serializers.CharField()
+    password = serializers.CharField(write_only=True)
