@@ -663,3 +663,50 @@ class TenantAuditEvent(models.Model):
 
     def __str__(self) -> str:
         return f"{self.tenant_id} {self.action} {self.entity_type}:{self.object_id}"
+
+
+class Comment(TenantAwareModel):
+    """Universal tenant-scoped comments attachable to supported entities."""
+
+    content_type = models.ForeignKey(
+        ContentType,
+        on_delete=models.CASCADE,
+        help_text='Type of entity this comment belongs to',
+    )
+    object_id = models.CharField(
+        max_length=255,
+        db_index=True,
+        help_text='Primary key of the related entity',
+    )
+    content_object = GenericForeignKey('content_type', 'object_id')
+
+    entity_type = models.CharField(
+        max_length=100,
+        db_index=True,
+        help_text='Canonical entity type slug',
+    )
+    body = models.TextField(help_text='Comment body')
+    created_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='core_comments',
+        help_text='User who authored this comment',
+    )
+    mentions = models.JSONField(
+        default=list,
+        blank=True,
+        help_text='Mentioned tenant user ids',
+    )
+
+    class Meta:
+        ordering = ['-created_on']
+        indexes = [
+            models.Index(fields=['tenant', 'entity_type', 'object_id']),
+            models.Index(fields=['tenant', '-created_on']),
+            models.Index(fields=['content_type', 'object_id']),
+        ]
+
+    def __str__(self):
+        return f'{self.entity_type}:{self.object_id} comment #{self.pk}'

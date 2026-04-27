@@ -487,8 +487,18 @@ class TenantUserViewSet(viewsets.ModelViewSet):
         if not tenant:
             return TenantUser.objects.none()
 
+        base_queryset = TenantUser.objects.filter(tenant=tenant).select_related('user', 'tenant')
+
         if user.is_superuser:
-            return TenantUser.objects.filter(tenant=tenant).select_related('user', 'tenant')
+            return base_queryset
+
+        is_member = TenantUser.objects.filter(
+            tenant=tenant,
+            user=user,
+            is_active=True,
+        ).exists()
+        if not is_member:
+            return TenantUser.objects.none()
 
         is_admin = TenantUser.objects.filter(
             tenant=tenant,
@@ -496,10 +506,10 @@ class TenantUserViewSet(viewsets.ModelViewSet):
             role__in=['owner', 'admin'],
             is_active=True,
         ).exists()
-        if not is_admin:
-            return TenantUser.objects.none()
+        if is_admin:
+            return base_queryset
 
-        return TenantUser.objects.filter(tenant=tenant).select_related('user', 'tenant')
+        return base_queryset.filter(is_active=True)
 
     def perform_create(self, serializer):
         """Ensure user has permission to create associations.
