@@ -82,6 +82,20 @@ export const QuickActionsProvider: React.FC<QuickActionsProviderProps> = ({ chil
   const refreshQuickActions = useCallback(async () => {
     // Prevent noisy 401 spam during app bootstrap.
     if (authLoading) return;
+
+    // Critical guard: never fire authenticated bootstrap requests on public auth routes.
+    // QuickActionsProvider is mounted globally (including /login).
+    if (typeof window !== 'undefined') {
+      const path = window.location.pathname || '';
+      if (path.startsWith('/login') || path.startsWith('/signup')) {
+        setQuickActions([]);
+        setAvailableForms([]);
+        setError(null);
+        setIsLoading(false);
+        return;
+      }
+    }
+
     if (!isAuthenticated) {
       setQuickActions([]);
       setAvailableForms([]);
@@ -141,8 +155,9 @@ export const QuickActionsProvider: React.FC<QuickActionsProviderProps> = ({ chil
         setError(isAuthError(actionsResult.reason) ? null : msg);
       }
 
-      const actionsResponse = actionsResult.status === 'fulfilled' ? actionsResult.value : { items: [] };
-      setQuickActions(actionsResponse.items || []);
+      if (actionsResult.status === 'fulfilled') {
+        setQuickActions(actionsResult.value.items || []);
+      }
 
       const availableResponse = formsResult.status === 'fulfilled' ? formsResult.value : [];
       const availableTargets = (Array.isArray(availableResponse) ? availableResponse : [])
@@ -206,7 +221,12 @@ export const QuickActionsProvider: React.FC<QuickActionsProviderProps> = ({ chil
       }
 
       const combined = Array.from(byKey.values()).sort((a, b) => (a.name ?? '').localeCompare(b.name ?? ''));
-      setAvailableForms(combined);
+
+      // Cache-first: only overwrite availableForms if at least one source succeeded.
+      const anySucceeded = formsResult.status === 'fulfilled' || workformsResult.status === 'fulfilled';
+      if (anySucceeded) {
+        setAvailableForms(combined);
+      }
     } catch (err: any) {
       logger.error('Failed to load quick actions:', err);
       setError(err?.message || 'Failed to load quick actions');
@@ -303,6 +323,18 @@ export const QuickActionsProvider: React.FC<QuickActionsProviderProps> = ({ chil
   const openFormModal = useCallback(async (formId: string) => {
     try {
       setError(null);
+
+      // Fail-closed: only allow execution if the form is currently available.
+      const allowed = availableForms.some((f) => (f.type ?? 'form') === 'form' && f.id === formId);
+      if (!allowed) {
+        showAlert({
+          type: 'warning',
+          title: 'Form not available',
+          content: 'This form is not currently available for Quick Actions.',
+        });
+        return;
+      }
+
       logger.debug('[QuickActions] Opening form modal for formId:', formId);
       const submission = await startFormSubmission(formId);
       logger.debug('[QuickActions] Form submission created:', submission?.id);
@@ -318,7 +350,7 @@ export const QuickActionsProvider: React.FC<QuickActionsProviderProps> = ({ chil
         content: <ApiErrorContent error={err} fallbackMessage={presentation.friendlyMessage} />,
       });
     }
-  }, [startFormSubmission]);
+  }, [availableForms, startFormSubmission]);
 
   const closeFormModal = useCallback(() => {
     setIsFormModalOpen(false);
