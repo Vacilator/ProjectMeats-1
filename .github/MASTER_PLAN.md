@@ -1732,3 +1732,5 @@ Deliverables:
 - **2026-04-27** — Backend: fix `apps/core/views.py` legacy imports/print() and add smoke tests for Ranked Search + Workspace Stats core endpoints. (PR: #4652)
 
 - **2026-04-27** — Ops note: .github/MASTER_PLAN.md had one or more NUL (\0) bytes; repaired by re-serializing as plain UTF-8 text while preserving content.
+
+- **2026-04-27** — Plants/Contacts: rename Booking→Shipping/Loadout + add Certification dept; add Contact title/notes/documents fields; enable tenant-safe nested dept contacts writes on Plant; improve PlantDetail contacts CTA and prevent Activity/Automation infinite spinners by rendering explicit error alerts. (PR: #4685)
