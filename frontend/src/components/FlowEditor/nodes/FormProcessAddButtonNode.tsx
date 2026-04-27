@@ -23,7 +23,7 @@ const CircleButton = styled.button`
   border-radius: 999px;
   border: 2px solid rgb(var(--color-surface));
   background: rgb(var(--color-primary));
-  color: white;
+  color: rgb(var(--color-text-inverse));
   box-shadow:
     0 12px 24px rgba(var(--color-primary), 0.25),
     0 2px 8px rgba(var(--color-overlay), 0.10);

@@ -1010,7 +1010,7 @@ const RunButton = styled.button`
   gap: 8px;
   padding: 12px 24px;
   background: rgb(var(--color-primary));
-  color: white;
+  color: rgb(var(--color-text-inverse));
   border: none;
   border-radius: 8px;
   font-size: 14px;

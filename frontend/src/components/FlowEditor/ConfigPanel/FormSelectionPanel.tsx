@@ -167,7 +167,7 @@ const Button = styled.button<{ variant?: 'primary' | 'secondary' }>`
 
   ${props => props.variant === 'primary' ? `
     background: rgb(var(--color-primary));
-    color: white;
+    color: rgb(var(--color-text-inverse));
 
     &:hover:not(:disabled) {
       background: rgba(var(--color-primary), 0.9);

@@ -147,7 +147,7 @@ const PreviewViewport = styled.div<{ $size: ViewportSize }>`
     }
   }};
   max-width: 100%;
-  background: white;
+  background: rgb(var(--color-surface));
   border-radius: var(--radius-lg);
   box-shadow: 0 4px 12px rgba(var(--color-overlay), 0.1);
   padding: 24px;

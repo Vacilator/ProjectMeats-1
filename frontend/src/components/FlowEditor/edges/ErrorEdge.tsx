@@ -208,14 +208,14 @@ export const ErrorEdge = React.memo<EdgeProps<Edge<ErrorEdgeData>>>(({
           <path
             d="M 8,2 L 14,14 L 2,14 Z"
             fill="rgb(var(--color-error))"
-            stroke="white"
+            stroke="rgb(var(--color-text-inverse))"
             strokeWidth="1"
           />
           <text
             x="8"
             y="12"
             textAnchor="middle"
-            fill="white"
+            fill="rgb(var(--color-text-inverse))"
             fontSize="8"
             fontWeight="700"
           >

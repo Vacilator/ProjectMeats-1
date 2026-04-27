@@ -176,7 +176,7 @@ const StepNumber = styled.div`
   width: 28px;
   height: 28px;
   background: rgb(var(--color-primary));
-  color: white;
+  color: rgb(var(--color-text-inverse));
   border-radius: 50%;
   font-size: 14px;
   font-weight: 600;

@@ -360,7 +360,7 @@ const PageButton = styled.button<{ $active?: boolean }>`
     $active ? 'rgb(var(--color-primary))' : 'transparent'
   };
   color: ${({ $active }) => 
-    $active ? 'white' : 'rgb(var(--color-text-secondary))'
+    $active ? 'rgb(var(--color-text-inverse))' : 'rgb(var(--color-text-secondary))'
   };
   font-size: 14px;
   cursor: pointer;

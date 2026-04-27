@@ -104,7 +104,7 @@ const WorkflowIcon = styled.div`
   display: flex;
   align-items: center;
   justify-content: center;
-  color: white;
+  color: rgb(var(--color-text-inverse));
   font-size: 14px;
   font-weight: 700;
 `;

@@ -394,7 +394,7 @@ const BannerActions = styled.div`
 const MigrateButton = styled.button`
   padding: 6px 12px;
   background: rgb(var(--color-warning));
-  color: white;
+  color: rgb(var(--color-text-inverse));
   border: none;
   border-radius: var(--radius-sm);
   font-size: 13px;
@@ -744,7 +744,7 @@ const WizardButton = styled.button<{ $variant?: 'primary' | 'secondary' | 'ghost
     if (props.$variant === 'primary') {
       return `
         background: rgb(var(--color-primary));
-        color: white;
+        color: rgb(var(--color-text-inverse));
         border: none;
         
         &:hover {
@@ -1105,7 +1105,7 @@ const EmptyPrimaryButton = styled.button`
   border-radius: var(--radius-md);
   font-size: 12px;
   font-weight: 700;
-  color: white;
+  color: rgb(var(--color-text-inverse));
   cursor: pointer;
   transition: all 0.15s ease;
 
@@ -1172,7 +1172,7 @@ const ToolbarButton = styled.button`
   
   &:hover {
     background: rgb(var(--color-primary));
-    color: white;
+    color: rgb(var(--color-text-inverse));
     border-color: rgb(var(--color-primary));
   }
   
@@ -1602,7 +1602,7 @@ const AlignmentButton = styled.button`
   
   &:active {
     background: rgb(var(--color-primary));
-    color: white;
+    color: rgb(var(--color-text-inverse));
   }
   
   svg {
@@ -1618,7 +1618,7 @@ const DragGhost = styled.div<{ $color?: string }>`
   opacity: 0.6;
   padding: 12px 16px;
   background: ${props => props.$color || 'rgb(var(--color-primary))'};
-  color: white;
+  color: rgb(var(--color-text-inverse));
   border-radius: var(--radius-md);
   font-size: 14px;
   font-weight: 500;
@@ -1741,7 +1741,7 @@ const ToggleSwitch = styled.button<{ $active: boolean }>`
     left: ${props => props.$active ? '22px' : '2px'};
     width: 16px;
     height: 16px;
-    background: white;
+    background: rgb(var(--color-surface));
     border-radius: 50%;
     transition: left 0.15s ease;
   }
@@ -8335,19 +8335,19 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
           success: {
             iconTheme: {
               primary: 'rgb(var(--color-success))', // green-500
-              secondary: 'white',
+              secondary: 'rgb(var(--color-text-inverse))',
             },
           },
           error: {
             iconTheme: {
               primary: 'rgb(var(--color-error))', // red-500
-              secondary: 'white',
+              secondary: 'rgb(var(--color-text-inverse))',
             },
           },
           loading: {
             iconTheme: {
               primary: 'rgb(var(--color-primary))',
-              secondary: 'white',
+              secondary: 'rgb(var(--color-text-inverse))',
             },
           },
         }}

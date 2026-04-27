@@ -51,7 +51,7 @@ const AddButton = styled.button`
   gap: 6px;
   padding: 6px 12px;
   border: 1px solid rgb(var(--color-border));
-  background: white;
+  background: rgb(var(--color-surface));
   color: rgb(var(--color-text-primary));
   border-radius: 6px;
   font-size: 13px;

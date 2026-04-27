@@ -53,7 +53,7 @@
   top: 10px;
   right: 10px;
   background: rgba(var(--color-overlay), 0.75);
-  color: white;
+  color: rgb(var(--color-text-inverse));
   padding: 8px 12px;
   border-radius: 6px;
   font-size: 12px;
@@ -86,7 +86,7 @@
   top: -40px;
   left: 0;
   background: rgb(var(--color-primary));
-  color: white;
+  color: rgb(var(--color-text-inverse));
   padding: 8px 16px;
   text-decoration: none;
   z-index: 10000;
@@ -97,7 +97,7 @@
 
 .skip-link:focus {
   top: 0;
-  outline: 3px solid white;
+  outline: 3px solid rgb(var(--color-text-inverse));
   outline-offset: 2px;
 }
 
@@ -369,11 +369,11 @@
 
   /* High contrast for printed diagrams */
   .react-flow__node {
-    border: 2px solid black !important;
+    border: 2px solid rgb(var(--color-text-primary)) !important;
   }
 
   .react-flow__edge path {
-    stroke: black !important;
+    stroke: rgb(var(--color-text-primary)) !important;
     stroke-width: 2px !important;
   }
 }

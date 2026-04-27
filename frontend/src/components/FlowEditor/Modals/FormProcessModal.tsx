@@ -373,7 +373,7 @@ const Button = styled.button<{ $variant?: 'primary' | 'secondary' | 'ghost' }>`
     if (props.$variant === 'primary') {
       return `
         background: linear-gradient(135deg, rgb(var(--color-primary)), rgb(var(--color-primary-active)));
-        color: white;
+        color: rgb(var(--color-text-inverse));
         
         &:hover:not(:disabled) {
           transform: translateY(-1px);

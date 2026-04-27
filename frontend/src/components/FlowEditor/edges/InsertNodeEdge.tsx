@@ -24,7 +24,7 @@ const AddButton = styled.button`
 
   &:hover {
     background: rgb(var(--color-primary));
-    color: white;
+    color: rgb(var(--color-text-inverse));
     border-color: rgb(var(--color-primary));
     transform: scale(1.1);
   }

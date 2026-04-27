@@ -64,7 +64,7 @@ const Title = styled.h3`
 const AddButton = styled.button`
   padding: 8px 12px;
   background: rgb(var(--color-primary));
-  color: white;
+  color: rgb(var(--color-text-inverse));
   border: none;
   border-radius: 6px;
   font-size: 14px;
@@ -178,7 +178,7 @@ const DeleteButton = styled.button`
 
   &:hover {
     background: rgb(var(--color-error));
-    color: white;
+    color: rgb(var(--color-text-inverse));
   }
 `;
 

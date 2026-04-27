@@ -253,7 +253,7 @@ const Button = styled.button<{ $variant?: 'primary' | 'secondary' | 'ghost' }>`
     if (props.$variant === 'primary') {
       return `
         background: rgb(var(--color-primary));
-        color: white;
+        color: rgb(var(--color-text-inverse));
         border: none;
         
         &:hover {
@@ -345,7 +345,7 @@ const IconButton = styled.button`
   
   &:hover.delete {
     background: rgb(var(--color-error));
-    color: white;
+    color: rgb(var(--color-text-inverse));
   }
 `;
 

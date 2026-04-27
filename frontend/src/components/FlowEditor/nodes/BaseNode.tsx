@@ -140,7 +140,7 @@ const NodeHeader = styled.div<{ $color: string }>`
   padding: 8px 12px;
   background: ${props => props.$color};
   border-radius: var(--radius-lg) var(--radius-lg) 0 0;
-  color: white;
+  color: rgb(var(--color-text-inverse));
   font-weight: 600;
   font-size: 13px;
 `;
@@ -176,14 +176,14 @@ const NodeTitleInput = styled.input`
   border: 1px solid rgba(var(--color-header-background), 0.5);
   border-radius: 4px;
   padding: 2px 6px;
-  color: white;
+  color: rgb(var(--color-text-inverse));
   font-size: 13px;
   font-weight: 600;
   outline: none;
   
   &:focus {
     background: rgba(var(--color-header-background), 0.3);
-    border-color: white;
+    border-color: rgb(var(--color-text-inverse));
   }
 `;
 
@@ -334,7 +334,7 @@ const ButtonHandle = styled(Handle)`
     background: rgb(var(--color-primary));
 
     &::after {
-      color: white;
+      color: rgb(var(--color-text-inverse));
     }
   }
 `;
@@ -345,7 +345,7 @@ const HeaderToggleButton = styled.button`
   border-radius: 8px;
   border: 1px solid rgba(var(--color-header-background), 0.45);
   background: rgba(var(--color-header-background), 0.16);
-  color: white;
+  color: rgb(var(--color-text-inverse));
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -581,7 +581,7 @@ export const BaseNode: React.FC<BaseNodeProps & { children?: React.ReactNode }> 
       <NodeHeader className={headerDragHandleClass} $color={nodeType.color}>
         <NodeIconWrapper>
           {iconType ? (
-            <NodeIcon type={iconType} size={16} color="white" />
+            <NodeIcon type={iconType} size={16} color="rgb(var(--color-text-inverse))" />
           ) : (
             nodeType.icon
           )}

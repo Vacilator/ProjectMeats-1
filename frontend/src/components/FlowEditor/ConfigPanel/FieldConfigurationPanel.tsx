@@ -212,7 +212,7 @@ const PreviewField = styled.div`
   padding: 10px 12px;
   border: 1px solid rgb(var(--color-border));
   border-radius: 6px;
-  background: white;
+  background: rgb(var(--color-surface));
   color: rgb(var(--color-text-tertiary));
   font-size: 14px;
 `;

@@ -138,7 +138,7 @@ const PickerContainer = styled.div<{ $position?: { top: number; left: number } }
   left: ${props => props.$position?.left ?? 200}px;
   width: 420px;
   max-height: 500px;
-  background: white;
+  background: rgb(var(--color-surface));
   border: 1px solid rgb(var(--color-border));
   border-radius: 8px;
   box-shadow: 0 10px 30px rgba(var(--color-overlay), 0.15);
@@ -175,7 +175,7 @@ const SearchContainer = styled.div`
   display: flex;
   align-items: center;
   gap: 8px;
-  background: white;
+  background: rgb(var(--color-surface));
   
   svg {
     color: rgb(var(--color-text-secondary));
