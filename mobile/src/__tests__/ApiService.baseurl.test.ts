@@ -39,11 +39,13 @@ describe('ApiService – baseURL resolution', () => {
     jest.resetModules();
 
     // NOTE: use require() (not dynamic import) to keep jest-expo + tsc happy.
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const axios = require('axios').default;
     const create = axios.create as jest.Mock;
     create.mockClear();
 
     jest.isolateModules(() => {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
       require('../services/ApiService');
     });
 
