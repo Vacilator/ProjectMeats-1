@@ -67,6 +67,9 @@ export const UniversalEntityRecordPage: React.FC<UniversalEntityRecordPageProps>
   const [childCreateOpen, setChildCreateOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
 
+  const [deptContactsRows, setDeptContactsRows] = useState<Record<string, unknown>[]>([]);
+  const [deptContactsLoading, setDeptContactsLoading] = useState(false);
+
   const [overviewLoading, setOverviewLoading] = useState(false);
   const [relationshipCounts, setRelationshipCounts] = useState<Record<string, number>>({});
   const [relationships, setRelationships] = useState<Record<string, unknown[]>>({});
@@ -96,6 +99,29 @@ export const UniversalEntityRecordPage: React.FC<UniversalEntityRecordPageProps>
     }
   }, [childEndpoint, childFilterKey, entityId, isCustomer, isSupplier, mode]);
 
+  const loadDeptContacts = useCallback(async () => {
+    if (!entityId || !(isSupplier || isCustomer) || mode !== 'view') return;
+    setDeptContactsLoading(true);
+    try {
+      const params: Record<string, unknown> = {
+        page_size: 50,
+        limit: 50,
+      };
+      params[childFilterKey] = entityId;
+
+      const resp = await apiClient.get('contacts/', { params });
+      const payload = resp.data as unknown;
+      const payloadObj = payload && typeof payload === 'object' ? (payload as Record<string, unknown>) : null;
+      const rows = Array.isArray(payloadObj?.results) ? (payloadObj?.results as unknown[]) : (payload as unknown[]);
+
+      setDeptContactsRows(
+        (Array.isArray(rows) ? rows : []).filter((r) => r && typeof r === 'object') as Record<string, unknown>[]
+      );
+    } finally {
+      setDeptContactsLoading(false);
+    }
+  }, [childFilterKey, entityId, isCustomer, isSupplier, mode]);
+
   const loadOverview = useCallback(async () => {
     if (!entityId || mode !== 'view') return;
 
@@ -124,6 +150,10 @@ export const UniversalEntityRecordPage: React.FC<UniversalEntityRecordPageProps>
   useEffect(() => {
     void loadChildRows();
   }, [loadChildRows]);
+
+  useEffect(() => {
+    void loadDeptContacts();
+  }, [loadDeptContacts]);
 
   useEffect(() => {
     void loadOverview();
@@ -262,6 +292,7 @@ export const UniversalEntityRecordPage: React.FC<UniversalEntityRecordPageProps>
               setEditOpen(false);
               void loadOverview();
               void loadChildRows();
+              void loadDeptContacts();
             }}
           />
 
@@ -277,110 +308,174 @@ export const UniversalEntityRecordPage: React.FC<UniversalEntityRecordPageProps>
 
           <Tabs
             style={{ marginTop: 12 }}
-            items={[
-              {
-                key: 'overview',
-                label: 'Overview',
-                children: overviewLoading ? (
-                  <div style={{ padding: 12 }}>
-                    <Spin />
-                  </div>
-                ) : (
-                  <>
-                    <Card size="small" title="AI Summary" style={{ marginBottom: 12 }}>
-                      <Typography.Paragraph style={{ marginBottom: 0 }}>
-                        {summary || 'Summary unavailable.'}
-                      </Typography.Paragraph>
-                    </Card>
-
-                    <Card size="small" title="Counts">
-                      {Object.keys(relationshipCounts).length ? (
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
-                          {Object.entries(relationshipCounts).map(([k, v]) => (
-                            <div key={k} style={{ minWidth: 160 }}>
-                              <div style={{ fontSize: 12, color: 'rgb(var(--color-text-tertiary))' }}>{k}</div>
-                              <div style={{ fontSize: 16, fontWeight: 600, color: 'rgb(var(--color-text-primary))' }}>
-                                {v}
-                              </div>
+            items={
+              isSupplier || isCustomer
+                ? [
+                    {
+                      key: 'children',
+                      label: childLabel,
+                      children: (
+                        <Card
+                          size="small"
+                          title={childLabel}
+                          extra={
+                            <Button type="primary" onClick={() => setChildCreateOpen(true)}>
+                              New {childEntityDisplayName}
+                            </Button>
+                          }
+                        >
+                          {childLoading ? (
+                            <div style={{ padding: 12 }}>
+                              <Spin />
                             </div>
-                          ))}
+                          ) : (
+                            <UnifiedEntityTable
+                              entityType={childEntityType}
+                              data={childRows as any}
+                              loading={childLoading}
+                              onReload={loadChildRows}
+                              recordPathForRow={(_t, row: Record<string, unknown>) => {
+                                const childId = String((row as { id?: unknown }).id ?? '').trim();
+                                if (!childId) return null;
+                                return isSupplier
+                                  ? `/suppliers/${encodeURIComponent(entityId)}/plants/${encodeURIComponent(childId)}`
+                                  : `/customers/${encodeURIComponent(entityId)}/locations/${encodeURIComponent(childId)}`;
+                              }}
+                            />
+                          )}
+                        </Card>
+                      ),
+                    },
+                    {
+                      key: 'dept_contacts',
+                      label: 'Dept. Contacts',
+                      children: (
+                        <Card size="small" title="Dept. Contacts">
+                          {deptContactsLoading ? (
+                            <div style={{ padding: 12 }}>
+                              <Spin />
+                            </div>
+                          ) : deptContactsRows.length ? (
+                            <UnifiedEntityTable entityType="contact" data={deptContactsRows as any} />
+                          ) : (
+                            <span style={{ color: 'rgb(var(--color-text-tertiary))' }}>No contacts found.</span>
+                          )}
+                        </Card>
+                      ),
+                    },
+                    {
+                      key: 'documents',
+                      label: 'Documents',
+                      children: (
+                        <Card size="small" title="Documents">
+                          <span style={{ color: 'rgb(var(--color-text-tertiary))' }}>
+                            Document management is coming soon.
+                          </span>
+                        </Card>
+                      ),
+                    },
+                    {
+                      key: 'related',
+                      label: 'Related',
+                      children: (
+                        <>
+                          {renderRelationshipTable('inquiries', 'Inquiries')}
+                          {renderRelationshipTable('recent_orders', 'Recent Orders')}
+                          {renderRelationshipTable('invoices', 'Invoices')}
+                          {renderRelationshipTable('related_products', 'Related Products')}
+                        </>
+                      ),
+                    },
+                    {
+                      key: 'recent_activity',
+                      label: 'Recent Activity',
+                      children: numericEntityId ? (
+                        <ActivityFeed entityType={normalizedEntityType as any} entityId={numericEntityId} showCreateForm />
+                      ) : (
+                        <span style={{ color: 'rgb(var(--color-text-tertiary))' }}>Recent activity unavailable.</span>
+                      ),
+                    },
+                  ]
+                : [
+                    {
+                      key: 'overview',
+                      label: 'Overview',
+                      children: overviewLoading ? (
+                        <div style={{ padding: 12 }}>
+                          <Spin />
                         </div>
                       ) : (
-                        <span style={{ color: 'rgb(var(--color-text-tertiary))' }}>No related counts available.</span>
-                      )}
-                    </Card>
-                  </>
-                ),
-              },
-              {
-                key: 'details',
-                label: 'Details',
-                children: (
-                  <EntityFormSurface
-                    entityType={entityType}
-                    mode="view"
-                    variant="inline"
-                    isOpen={true}
-                    entityId={entityId}
-                    onClose={() => navigate(basePath)}
-                  />
-                ),
-              },
-              {
-                key: 'related',
-                label: 'Related',
-                children: (
-                  <>
-                    {renderRelationshipTable('contacts', 'Contacts')}
-                    {renderRelationshipTable('inquiries', 'Inquiries')}
-                    {renderRelationshipTable('recent_orders', 'Recent Orders')}
-                    {renderRelationshipTable('invoices', 'Invoices')}
-                    {renderRelationshipTable('related_products', 'Related Products')}
+                        <>
+                          <Card size="small" title="AI Summary" style={{ marginBottom: 12 }}>
+                            <Typography.Paragraph style={{ marginBottom: 0 }}>
+                              {summary || 'Summary unavailable.'}
+                            </Typography.Paragraph>
+                          </Card>
 
-                    {(isSupplier || isCustomer) && (
-                      <Card
-                        size="small"
-                        title={childLabel}
-                        extra={
-                          <Button type="primary" onClick={() => setChildCreateOpen(true)}>
-                            New {childEntityDisplayName}
-                          </Button>
-                        }
-                      >
-                        {childLoading ? (
-                          <div style={{ padding: 12 }}>
-                            <Spin />
-                          </div>
-                        ) : (
-                          <UnifiedEntityTable
-                            entityType={childEntityType}
-                            data={childRows as any}
-                            loading={childLoading}
-                            onReload={loadChildRows}
-                          />
-                        )}
-                      </Card>
-                    )}
-                  </>
-                ),
-              },
-              {
-                key: 'workflows',
-                label: 'Workflows',
-                children: (
-                  <EntityWorkflowStatusPanel entityType={normalizedEntityType} entityId={String(entityId)} />
-                ),
-              },
-              {
-                key: 'timeline',
-                label: 'Timeline',
-                children: numericEntityId ? (
-                  <ActivityFeed entityType={normalizedEntityType as any} entityId={numericEntityId} showCreateForm />
-                ) : (
-                  <span style={{ color: 'rgb(var(--color-text-tertiary))' }}>Timeline unavailable.</span>
-                ),
-              },
-            ]}
+                          <Card size="small" title="Counts">
+                            {Object.keys(relationshipCounts).length ? (
+                              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+                                {Object.entries(relationshipCounts).map(([k, v]) => (
+                                  <div key={k} style={{ minWidth: 160 }}>
+                                    <div style={{ fontSize: 12, color: 'rgb(var(--color-text-tertiary))' }}>{k}</div>
+                                    <div style={{ fontSize: 16, fontWeight: 600, color: 'rgb(var(--color-text-primary))' }}>
+                                      {v}
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            ) : (
+                              <span style={{ color: 'rgb(var(--color-text-tertiary))' }}>No related counts available.</span>
+                            )}
+                          </Card>
+                        </>
+                      ),
+                    },
+                    {
+                      key: 'details',
+                      label: 'Details',
+                      children: (
+                        <EntityFormSurface
+                          entityType={entityType}
+                          mode="view"
+                          variant="inline"
+                          isOpen={true}
+                          entityId={entityId}
+                          onClose={() => navigate(basePath)}
+                        />
+                      ),
+                    },
+                    {
+                      key: 'related',
+                      label: 'Related',
+                      children: (
+                        <>
+                          {renderRelationshipTable('contacts', 'Contacts')}
+                          {renderRelationshipTable('inquiries', 'Inquiries')}
+                          {renderRelationshipTable('recent_orders', 'Recent Orders')}
+                          {renderRelationshipTable('invoices', 'Invoices')}
+                          {renderRelationshipTable('related_products', 'Related Products')}
+                        </>
+                      ),
+                    },
+                    {
+                      key: 'workflows',
+                      label: 'Workflows',
+                      children: (
+                        <EntityWorkflowStatusPanel entityType={normalizedEntityType} entityId={String(entityId)} />
+                      ),
+                    },
+                    {
+                      key: 'timeline',
+                      label: 'Timeline',
+                      children: numericEntityId ? (
+                        <ActivityFeed entityType={normalizedEntityType as any} entityId={numericEntityId} showCreateForm />
+                      ) : (
+                        <span style={{ color: 'rgb(var(--color-text-tertiary))' }}>Timeline unavailable.</span>
+                      ),
+                    },
+                  ]
+            }
           />
 
           {(isSupplier || isCustomer) && (

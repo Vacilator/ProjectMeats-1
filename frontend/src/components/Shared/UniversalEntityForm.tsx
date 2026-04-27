@@ -549,6 +549,76 @@ const augmentSchemaForFrontend = (
     };
   }
 
+  if (normalizedEntityKey === 'supplier' || normalizedEntityKey === 'customer') {
+    const fieldsByLowerKey = new Map<string, BackendField>();
+    fields.forEach((field) => {
+      const key = String(field?.key || '').trim().toLowerCase();
+      if (key) fieldsByLowerKey.set(key, field);
+    });
+
+    const pickFieldKey = (candidates: string[]): string | null => {
+      for (const raw of candidates) {
+        const key = String(raw || '').trim().toLowerCase();
+        if (key && fieldsByLowerKey.has(key)) return key;
+      }
+      return null;
+    };
+
+    const selectedKeys = [
+      pickFieldKey(['name', 'company_name']),
+      pickFieldKey(['phone', 'phone_number']),
+      pickFieldKey(['address', 'street_address']),
+      pickFieldKey(['city']),
+      pickFieldKey(['state']),
+      pickFieldKey(['zip_code', 'postal_code']),
+      pickFieldKey(['country']),
+    ].filter((k): k is string => Boolean(k));
+
+    const labelByKey: Record<string, string> = {
+      phone: 'HQ Phone Number',
+      phone_number: 'HQ Phone Number',
+      address: 'HQ Address',
+      street_address: 'HQ Address',
+      city: 'HQ City',
+      state: 'HQ State',
+      zip_code: 'HQ Zip Code',
+      postal_code: 'HQ Zip Code',
+      country: 'HQ Country',
+    };
+
+    const uniqueSelectedKeys = selectedKeys.filter((key, idx, arr) => arr.indexOf(key) === idx);
+
+    const nextFields: BackendField[] = [];
+    uniqueSelectedKeys.forEach((key) => {
+      const field = fieldsByLowerKey.get(key);
+      if (!field) return;
+
+      const label = labelByKey[key] || field.label;
+      const placeholder =
+        field.placeholder ||
+        (key === 'phone' || key === 'phone_number'
+          ? 'Enter HQ phone number'
+          : key === 'address' || key === 'street_address'
+            ? 'Enter HQ address'
+            : null);
+
+      nextFields.push({
+        ...field,
+        label,
+        required: key === 'name' ? true : field.required,
+        placeholder,
+      });
+    });
+
+    const keyFieldsHQ = uniqueSelectedKeys;
+
+    return {
+      ...schema,
+      key_fields: keyFieldsHQ,
+      fields: nextFields,
+    };
+  }
+
   if (normalizedEntityKey !== 'contact') return schema;
 
   const context = inferContactFormContext(values);
@@ -1153,8 +1223,14 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
       ...(recordValues || {}),
       ...(initialValues || {}),
     });
-    const formName =
-      schemaEntityKey === 'contact' && activeMode === 'create'
+
+    const hqEntity = schemaEntityKey === 'supplier' ? 'Supplier' : schemaEntityKey === 'customer' ? 'Customer' : null;
+
+    const formName = hqEntity
+      ? activeMode === 'create'
+        ? `New ${hqEntity} Headquarters`
+        : `${hqEntity} Headquarters Profile`
+      : schemaEntityKey === 'contact' && activeMode === 'create'
         ? getContactCreateTitle(contactContext)
         : schema?.name || `Universal Form: ${entityType}`;
 
@@ -1173,7 +1249,14 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
   const modalTitle = useMemo(() => {
     const contactContext = inferContactFormContext(formInitialValues);
 
+    const hqEntity = schemaEntityKey === 'supplier' ? 'Supplier' : schemaEntityKey === 'customer' ? 'Customer' : null;
+
     if (activeMode === 'clone') return `Clone ${entityType}`;
+
+    if (hqEntity) {
+      return activeMode === 'create' ? `New ${hqEntity} Headquarters` : `${hqEntity} Headquarters Profile`;
+    }
+
     if (schemaEntityKey === 'contact' && activeMode === 'create') {
       return getContactCreateTitle(contactContext);
     }
