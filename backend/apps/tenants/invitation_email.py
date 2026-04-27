@@ -118,7 +118,7 @@ def schedule_invitation_email(invitation: TenantInvitation) -> None:
         try:
             from .tasks import send_invitation_email_task  # noqa: PLC0415
 
-            send_invitation_email_task.delay(invitation_id)
+            send_invitation_email_task.delay(invitation_id, str(invitation.tenant_id))
             logger.info(
                 "📬 Invitation email queued for %s (invitation=%s)",
                 invitation.email,
