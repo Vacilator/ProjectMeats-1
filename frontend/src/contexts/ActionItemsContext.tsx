@@ -15,6 +15,7 @@
 import React, { createContext, useContext, ReactNode, useCallback, useRef, useEffect } from 'react';
 import { useActionItemCounts, ActionItemCounts, POLL_INTERVAL_BACKGROUND } from '../hooks/useActionItemCounts';
 import { useAuth } from './AuthContext';
+import { logger } from '@/utils/logger';
 
 // ============================================================================
 // Types
@@ -71,7 +72,7 @@ export const ActionItemsProvider: React.FC<ActionItemsProviderProps> = ({
       if (now >= circuitOpenUntil.current) {
         circuitState.current = 'half-open';
         consecutiveErrorCount.current = 0;
-        console.info('[ActionItems] Circuit breaker transitioning to half-open. Retrying...');
+        logger.info('[ActionItems] Circuit breaker transitioning to half-open. Retrying...');
         return false; // Allow retry
       }
       return true; // Still open, block requests
@@ -85,7 +86,7 @@ export const ActionItemsProvider: React.FC<ActionItemsProviderProps> = ({
       if (errorStatus === 401) {
         circuitState.current = 'open';
         circuitOpenUntil.current = now + CIRCUIT_OPEN_DURATION_MS;
-        console.error('[ActionItems] Circuit breaker OPEN: Authentication failed. Stopping all polling for 5 minutes.');
+        logger.error('[ActionItems] Circuit breaker OPEN: Authentication failed. Stopping all polling for 5 minutes.');
         return true;
       }
       
@@ -96,13 +97,13 @@ export const ActionItemsProvider: React.FC<ActionItemsProviderProps> = ({
         if (consecutiveErrorCount.current >= MAX_CONSECUTIVE_ERRORS) {
           circuitState.current = 'open';
           circuitOpenUntil.current = now + CIRCUIT_OPEN_DURATION_MS;
-          console.error(
+          logger.error(
             `[ActionItems] Circuit breaker OPEN: ${consecutiveErrorCount.current} consecutive 5xx errors. ` +
             `Stopping all polling for 5 minutes.`
           );
           return true;
         } else {
-          console.warn(
+          logger.warn(
             `[ActionItems] Server error (${consecutiveErrorCount.current}/${MAX_CONSECUTIVE_ERRORS}). ` +
             `Will open circuit breaker if this continues.`
           );
@@ -111,7 +112,7 @@ export const ActionItemsProvider: React.FC<ActionItemsProviderProps> = ({
     } else {
       // Success - reset error count
       if (consecutiveErrorCount.current > 0) {
-        console.info('[ActionItems] Backend recovered. Resetting circuit breaker.');
+        logger.info('[ActionItems] Backend recovered. Resetting circuit breaker.');
       }
       consecutiveErrorCount.current = 0;
       circuitState.current = 'closed';

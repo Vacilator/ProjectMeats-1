@@ -10,7 +10,7 @@ import { logger } from '@/utils/logger';
 
 
 export const searchDiagnostic = async (query: string = 'test') => {
-  console.group('🔍 Search Diagnostic');
+  logger.debug('[Search Diagnostic] Starting');
   
   try {
     logger.debug('1. Testing search endpoint...');
@@ -58,7 +58,7 @@ export const searchDiagnostic = async (query: string = 'test') => {
     }
   }
   
-  console.groupEnd();
+  logger.debug('[Search Diagnostic] Finished');
 };
 
 // Make available globally in browser console
