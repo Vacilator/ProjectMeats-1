@@ -102,11 +102,15 @@ class TenantMiddleware:
 
     def __call__(self, request: HttpRequest):
         """Process the request and set tenant context."""
-        # Skip tenant resolution for health check and readiness endpoints
+        # Skip tenant resolution for health check and readiness endpoints.
+        # Still RESET session vars to prevent pooled-connection tenant leakage.
         if request.path.startswith('/api/v1/health/') or request.path.startswith('/api/v1/ready/'):
             request.tenant = None
             request.tenant_user = None
-            return self.get_response(request)
+            try:
+                return self.get_response(request)
+            finally:
+                self._reset_rls_session_vars()
         
         tenant = None
         resolution_method = None  # Track how tenant was resolved for logging
@@ -401,12 +405,8 @@ class TenantMiddleware:
             raise
         finally:
             # Prevent cross-request tenant leakage on pooled DB connections.
-            if rls_set or getattr(request, '_rls_set', False):
-                try:
-                    with connection.cursor() as cursor:
-                        cursor.execute("RESET app.current_tenant_id")
-                        cursor.execute("RESET app.current_tenant")
-                except Exception:
-                    pass
+            # This is best-effort and intentionally unconditional: if SET fails (or a request
+            # never sets tenant context), we still must not carry a stale tenant into the next request.
+            self._reset_rls_session_vars()
 
         return response
