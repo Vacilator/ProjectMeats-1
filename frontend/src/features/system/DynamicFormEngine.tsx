@@ -34,6 +34,19 @@ type FieldUi = {
     list?: string;
   };
   option_groups?: Record<string, SelectOption[]>;
+
+  /** Max length for string inputs (aligned with backend max_length). */
+  max_length?: number;
+
+  /** Optional section grouping metadata (renders a section header). */
+  section?: string | { title: string; description?: string };
+
+  /** Conditional visibility (additive; ignored if not provided). */
+  visible_when?: {
+    field: string;
+    equals?: unknown;
+    truthy?: boolean;
+  };
 };
 
 interface FieldDefinition {
@@ -241,6 +254,21 @@ const buildValidationSchema = (fields: FieldDefinition[]) => {
   const isArrayField = (field: FieldDefinition) =>
     field.ui?.widget === 'tags' || field.ui?.widget === 'multi_select';
 
+  const isStringLikeField = (field: FieldDefinition) =>
+    field.type === 'text' ||
+    field.type === 'phone' ||
+    field.type === 'select' ||
+    field.type === 'date' ||
+    field.type === 'datetime' ||
+    field.type === 'textarea' ||
+    field.type === 'email' ||
+    field.type === 'url';
+
+  const getMaxLength = (field: FieldDefinition): number | null => {
+    const raw = field.ui?.max_length;
+    return typeof raw === 'number' && Number.isFinite(raw) && raw > 0 ? raw : null;
+  };
+
   const buildScalar = (field: FieldDefinition) => {
     if (isArrayField(field)) {
       return z.array(z.string());
@@ -267,21 +295,23 @@ const buildValidationSchema = (fields: FieldDefinition[]) => {
 
     let s: any = buildScalar(field);
 
+    const maxLength = getMaxLength(field);
+    if (maxLength && isStringLikeField(field) && typeof s?.max === 'function') {
+      s = s.max(maxLength, `Must be ${maxLength} characters or less`);
+    }
+
     // Inline arrays are primarily for nested child entities (e.g. contacts). For required string fields,
     // enforce a non-empty value client-side so we don't create blank child rows.
-    const isStringField =
-      field.type === 'text' ||
-      field.type === 'phone' ||
-      field.type === 'select' ||
-      field.type === 'date' ||
-      field.type === 'datetime' ||
-      field.type === 'textarea';
-    if (field.required && isStringField) {
+    if (field.required && isStringLikeField(field) && typeof s?.min === 'function') {
+      s = s.min(1, 'Required');
+    }
+
+    if (field.required && isArrayField(field) && typeof s?.min === 'function') {
       s = s.min(1, 'Required');
     }
 
     if (!field.required) {
-      s = s.optional().or(z.literal(''));
+      s = isArrayField(field) ? s.optional() : s.optional().or(z.literal(''));
     }
     return s;
   };
@@ -307,15 +337,63 @@ const buildValidationSchema = (fields: FieldDefinition[]) => {
       return;
     }
 
-    fieldSchema = buildScalar(field);
-    if (!field.required) {
-      fieldSchema = isArrayField(field) ? fieldSchema.optional() : fieldSchema.optional().or(z.literal(''));
-    }
-
+    fieldSchema = buildItemFieldSchema(field);
     schemaShape[field.key] = fieldSchema;
   });
 
-  return z.object(schemaShape);
+  let next = z.object(schemaShape);
+
+  // US ZIP code conditional validation (when country is USA).
+  const hasZip = fields.some((f) => String(f.key).toLowerCase() === 'zip_code');
+  const hasCountry = fields.some((f) => String(f.key).toLowerCase() === 'country');
+
+  if (hasZip && hasCountry) {
+    next = next.superRefine((data, ctx) => {
+      const country = String((data as any)?.country ?? '').trim().toUpperCase();
+      const zip = String((data as any)?.zip_code ?? '').trim();
+
+      if (!zip) return;
+      const isUs = country === 'USA' || country === 'UNITED STATES' || country === 'UNITED STATES OF AMERICA';
+      if (!isUs) return;
+
+      if (!/^\d{5}(-\d{4})?$/.test(zip)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['zip_code'],
+          message: 'Invalid US ZIP code',
+        });
+      }
+    });
+  }
+
+  // Plant profile: warn/error when proteins_tested includes values not listed in proteins_offered.
+  const hasProteinsOffered = fields.some((f) => String(f.key).toLowerCase() === 'proteins_offered');
+  const hasProteinsTested = fields.some((f) => String(f.key).toLowerCase() === 'proteins_tested');
+
+  if (hasProteinsOffered && hasProteinsTested) {
+    next = next.superRefine((data, ctx) => {
+      const offered = Array.isArray((data as any)?.proteins_offered)
+        ? ((data as any).proteins_offered as unknown[]).map((v) => String(v || '').trim()).filter(Boolean)
+        : [];
+      const tested = Array.isArray((data as any)?.proteins_tested)
+        ? ((data as any).proteins_tested as unknown[]).map((v) => String(v || '').trim()).filter(Boolean)
+        : [];
+
+      if (offered.length === 0 || tested.length === 0) return;
+
+      const offeredSet = new Set(offered.map((v) => v.toLowerCase()));
+      const invalid = tested.filter((v) => !offeredSet.has(v.toLowerCase()));
+      if (invalid.length === 0) return;
+
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['proteins_tested'],
+        message: 'This protein type is not listed as offered.',
+      });
+    });
+  }
+
+  return next;
 };
 
 export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
@@ -662,6 +740,8 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
         ? [String(dependencyValue).trim()].filter(Boolean)
         : [];
 
+    const hasDependencies = (field.dependencies || []).length > 0;
+
     const {
       options: cascadingOptions,
       loading: cascadingLoading,
@@ -669,7 +749,7 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
     } = useCascadingField({
       fieldId: field.key,
       parentValue: dependencyItems,
-      enabled: cascading && dependencyItems.length > 0,
+      enabled: cascading && (!hasDependencies || dependencyItems.length > 0),
       fetchOptions: async (parentValue) => {
         const proteinTypes = Array.isArray(parentValue)
           ? parentValue.map((item) => String(item || '').trim()).filter(Boolean)
@@ -680,7 +760,7 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
     });
 
     const resolvedOptions = cascading ? cascadingOptions : options;
-    const disabled = isSubmitting || (cascading && dependencyItems.length === 0);
+    const disabled = isSubmitting || (cascading && hasDependencies && dependencyItems.length === 0);
 
     useEffect(() => {
       if (field.ui?.widget === 'tags') return;
@@ -730,7 +810,59 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
     );
   };
 
+  const seenSections = new Set<string>();
+
+  const isFieldVisible = (field: FieldDefinition): boolean => {
+    const rule = field.ui?.visible_when;
+    if (!rule?.field) return true;
+
+    const raw = (watchedValues as Record<string, unknown> | undefined)?.[rule.field];
+
+    if (typeof rule.equals !== 'undefined') {
+      return raw === rule.equals;
+    }
+
+    if (rule.truthy) {
+      if (Array.isArray(raw)) return raw.length > 0;
+      return Boolean(raw);
+    }
+
+    return Boolean(raw);
+  };
+
+  // When a field becomes hidden, clear its value to avoid submitting stale data.
+  // This is critical for conditional fields like Plant.export_documents_handled.
+  useEffect(() => {
+    for (const field of schema.fields) {
+      if (!field.ui?.visible_when?.field) continue;
+
+      if (isFieldVisible(field)) continue;
+
+      const current = (watchedValues as Record<string, unknown> | undefined)?.[field.key];
+      const hasValue =
+        Array.isArray(current)
+          ? current.length > 0
+          : typeof current === 'string'
+            ? current.trim().length > 0
+            : Boolean(current);
+
+      if (!hasValue) continue;
+
+      const shouldClearToEmptyArray =
+        field.type === 'inline_form_array' ||
+        field.ui?.widget === 'multi_select' ||
+        field.ui?.widget === 'tags';
+
+      setValue(field.key as never, (shouldClearToEmptyArray ? [] : '') as never, {
+        shouldDirty: true,
+        shouldValidate: true,
+      });
+    }
+  }, [schema.fields, setValue, watchedValues]);
+
   const renderField = (field: FieldDefinition) => {
+    if (!isFieldVisible(field)) return null;
+
     const error = errors[field.key];
     const hasError = !!error;
     // Use config for required indicator (Wave 4 - Task 4.12)
@@ -752,6 +884,12 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
           typeof option === 'string' ? { value: option, label: option } : option
         )
       : getFieldOptions(field);
+
+    const section = field.ui?.section;
+    const sectionTitle = typeof section === 'string' ? section : section?.title;
+    const sectionDescription = typeof section === 'string' ? undefined : section?.description;
+    const shouldRenderSection = Boolean(sectionTitle) && !seenSections.has(String(sectionTitle));
+    if (sectionTitle) seenSections.add(String(sectionTitle));
 
     if (field.type === 'inline_form_array') {
       return <InlineFormArrayField field={field} showRequired={showRequired} />;

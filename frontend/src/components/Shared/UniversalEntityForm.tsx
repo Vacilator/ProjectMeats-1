@@ -338,7 +338,7 @@ const augmentSchemaForFrontend = (
   const normalizedEntityKey = String(entityKey || '').trim().toLowerCase();
   const fields = Array.isArray(schema.fields) ? [...schema.fields] : [];
 
-  if (normalizedEntityKey === 'plant' || normalizedEntityKey === 'location') {
+  if (normalizedEntityKey === 'location') {
     const nextFields = fields.map((field) => {
       if (String(field.key).toLowerCase() !== 'booking_contacts') return field;
 
@@ -355,6 +355,196 @@ const augmentSchemaForFrontend = (
 
     return {
       ...schema,
+      fields: nextFields,
+    };
+  }
+
+  if (normalizedEntityKey === 'plant') {
+    const withField = (
+      list: BackendField[],
+      key: string,
+      build: (existing?: BackendField) => BackendField
+    ) => {
+      const index = list.findIndex((field) => String(field.key).toLowerCase() === key.toLowerCase());
+      const existing = index >= 0 ? list[index] : undefined;
+      const nextField = build(existing);
+
+      if (index >= 0) {
+        list[index] = nextField;
+      } else {
+        list.push(nextField);
+      }
+    };
+
+    const locationSection = { title: 'Plant Location' };
+    const exportSection = { title: 'Export' };
+
+    const nextFields = fields.map((field) => {
+      const key = String(field.key || '').toLowerCase();
+
+      if (key === 'booking_contacts') {
+        const ui = field.ui && typeof field.ui === 'object' ? { ...(field.ui as Record<string, unknown>) } : {};
+        ui.add_button_label = 'Add Shipping / Loadout Contact';
+        ui.item_label = 'Shipping / Loadout Contact';
+
+        return {
+          ...field,
+          label: 'Shipping / Loadout',
+          ui,
+        };
+      }
+
+      if (key === 'name') {
+        const ui = field.ui && typeof field.ui === 'object' ? { ...(field.ui as Record<string, unknown>) } : {};
+        ui.max_length = 150;
+        return {
+          ...field,
+          label: 'Plant Name',
+          required: true,
+          placeholder: field.placeholder || 'Enter plant name',
+          ui,
+        };
+      }
+
+      if (key === 'plant_est_num') {
+        const ui = field.ui && typeof field.ui === 'object' ? { ...(field.ui as Record<string, unknown>) } : {};
+        ui.max_length = 50;
+        return {
+          ...field,
+          label: 'Establishment #',
+          required: true,
+          placeholder: field.placeholder || 'Enter establishment number',
+          ui,
+        };
+      }
+
+      if (key === 'plant_type') {
+        return {
+          ...field,
+          label: field.label || 'Plant Type',
+          required: true,
+          placeholder: field.placeholder || 'Select plant type',
+        };
+      }
+
+      if (['address', 'city', 'state', 'zip_code', 'country'].includes(key)) {
+        const ui = field.ui && typeof field.ui === 'object' ? { ...(field.ui as Record<string, unknown>) } : {};
+        ui.section = locationSection;
+        return {
+          ...field,
+          ui,
+        };
+      }
+
+      return field;
+    });
+
+    withField(nextFields, 'proteins_offered', (existing) => ({
+      ...(existing || { key: 'proteins_offered' }),
+      label: 'Protein Types Offered',
+      type: 'select',
+      required: Boolean(existing?.required),
+      placeholder: existing?.placeholder || 'Select protein types offered',
+      help_text: existing?.help_text || '',
+      choices: existing?.choices || [],
+      ui: {
+        ...((existing?.ui as Record<string, unknown> | null) || {}),
+        widget: 'multi_select',
+        data_source: {
+          type: 'choice_list',
+          list: 'protein_types',
+        },
+      },
+    }));
+
+    withField(nextFields, 'proteins_tested', (existing) => ({
+      ...(existing || { key: 'proteins_tested' }),
+      label: 'Protein Tested (COA)',
+      type: 'select',
+      required: Boolean(existing?.required),
+      placeholder: existing?.placeholder || 'Select protein types tested',
+      help_text: existing?.help_text || 'Warning: proteins tested should typically be a subset of proteins offered.',
+      choices: existing?.choices || [],
+      dependencies: ['proteins_offered'],
+      ui: {
+        ...((existing?.ui as Record<string, unknown> | null) || {}),
+        widget: 'multi_select',
+        data_source: {
+          type: 'choice_list',
+          list: 'protein_types',
+        },
+      },
+    }));
+
+    withField(nextFields, 'associated_master_product_ids', (existing) => ({
+      ...(existing || { key: 'associated_master_product_ids' }),
+      label: 'Product List',
+      type: 'select',
+      required: Boolean(existing?.required),
+      placeholder: existing?.placeholder || 'Search and select products',
+      help_text: existing?.help_text || 'Master products commonly sold/produced by this plant.',
+      choices: existing?.choices || [],
+      ui: {
+        ...((existing?.ui as Record<string, unknown> | null) || {}),
+        widget: 'multi_select',
+        data_source: {
+          type: 'master_products',
+        },
+      },
+    }));
+
+    withField(nextFields, 'export_approved', (existing) => ({
+      ...(existing || { key: 'export_approved' }),
+      label: 'Export Approved',
+      type: existing?.type || 'checkbox',
+      required: Boolean(existing?.required),
+      help_text: existing?.help_text || 'Whether this plant is export approved.',
+      ui: {
+        ...((existing?.ui as Record<string, unknown> | null) || {}),
+        section: exportSection,
+      },
+    }));
+
+    withField(nextFields, 'export_documents_handled', (existing) => ({
+      ...(existing || { key: 'export_documents_handled' }),
+      label: 'Export Documents Handled',
+      type: 'select',
+      required: Boolean(existing?.required),
+      placeholder: existing?.placeholder || 'Add export documents handled',
+      help_text: existing?.help_text || 'Shown only when Export Approved is enabled.',
+      choices: existing?.choices || [],
+      dependencies: ['export_approved'],
+      ui: {
+        ...((existing?.ui as Record<string, unknown> | null) || {}),
+        section: exportSection,
+        widget: 'tags',
+        visible_when: {
+          field: 'export_approved',
+          equals: true,
+        },
+      },
+    }));
+
+    const keyFieldsPlant = [
+      'name',
+      'plant_est_num',
+      'plant_type',
+      'address',
+      'city',
+      'state',
+      'zip_code',
+      'country',
+      'proteins_offered',
+      'proteins_tested',
+      'associated_master_product_ids',
+      'export_approved',
+      'export_documents_handled',
+    ];
+
+    return {
+      ...schema,
+      name: schema.name || 'Plant',
+      key_fields: schema.key_fields && schema.key_fields.length ? schema.key_fields : keyFieldsPlant,
       fields: nextFields,
     };
   }
@@ -1096,7 +1286,21 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
             return;
           }
           if (zipKeySet.has(k)) {
-            payload[k] = trimmed.replace(/\D/g, '').slice(0, 5);
+            const country = typeof payload.country === 'string' ? payload.country.trim().toUpperCase() : '';
+            const isUs = country === 'USA' || country === 'UNITED STATES' || country === 'UNITED STATES OF AMERICA';
+
+            if (!isUs) {
+              payload[k] = trimmed;
+              return;
+            }
+
+            const digits = trimmed.replace(/\D/g, '');
+            if (digits.length >= 9) {
+              payload[k] = `${digits.slice(0, 5)}-${digits.slice(5, 9)}`;
+              return;
+            }
+
+            payload[k] = digits.slice(0, 5);
             return;
           }
           if (phoneKeySet.has(k)) {
@@ -1111,6 +1315,13 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
           }
         }
       });
+
+      // Normalize integer array inputs (e.g., Plant.associated_master_product_ids).
+      if (Array.isArray(payload.associated_master_product_ids)) {
+        payload.associated_master_product_ids = payload.associated_master_product_ids
+          .map((v) => Number(String(v ?? '').trim()))
+          .filter((n) => Number.isFinite(n));
+      }
 
       // Normalize phone numbers in inline form arrays (digits-only for API payload).
       inlineArrayPhoneKeys.forEach((phoneKeys, arrayKey) => {
@@ -1145,9 +1356,15 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
       // Validate ZIP code(s) before submit.
       for (const k of zipKeySet) {
         const v = payload[k];
-        if (typeof v === 'string' && v.trim() && !/^\d{5}$/.test(v.trim())) {
+        if (typeof v !== 'string' || !v.trim()) continue;
+
+        const country = typeof payload.country === 'string' ? payload.country.trim().toUpperCase() : '';
+        const isUs = country === 'USA' || country === 'UNITED STATES' || country === 'UNITED STATES OF AMERICA';
+        if (!isUs) continue;
+
+        if (!/^\d{5}(-\d{4})?$/.test(v.trim())) {
           const label = zipLabelByKey.get(k) || k;
-          message.error(`${label} must be exactly 5 digits`);
+          message.error(`${label} must be a valid US ZIP code`);
           return;
         }
       }
