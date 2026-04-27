@@ -87,7 +87,7 @@ cd frontend && npm start
 
 **Access Points:**
 - Frontend: http://localhost:3000
-- Backend API: http://localhost:8000/api/
+- Backend API: http://localhost:8000/api/v1/
 - Django Admin: http://localhost:8000/admin/
 
 ---
