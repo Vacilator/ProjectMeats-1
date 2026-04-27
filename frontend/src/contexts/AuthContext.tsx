@@ -185,18 +185,23 @@ export const useAuth = (): AuthContextType => {
  */
 export const useAuthState = (): { isAuthenticated: boolean; loading: boolean } => {
   const context = useContext(AuthContext);
-  if (context !== undefined) {
-    return { isAuthenticated: context.isAuthenticated, loading: context.loading };
-  }
 
-  const hasStorageAuth =
+  // Treat cached user objects as *non-authoritative* for API gating.
+  // We only consider the session authenticated for network calls when token credentials exist.
+  const hasTokenCredentials =
     typeof window !== 'undefined' &&
     Boolean(
       localStorage.getItem('accessToken') ||
         localStorage.getItem('refreshToken') ||
-        localStorage.getItem('authToken') ||
-        localStorage.getItem('user')
+        localStorage.getItem('authToken')
     );
 
-  return { isAuthenticated: hasStorageAuth, loading: false };
+  if (context !== undefined) {
+    return {
+      isAuthenticated: context.isAuthenticated && hasTokenCredentials,
+      loading: context.loading,
+    };
+  }
+
+  return { isAuthenticated: hasTokenCredentials, loading: false };
 };
