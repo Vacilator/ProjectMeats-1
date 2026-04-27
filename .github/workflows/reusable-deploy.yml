@@ -148,6 +148,7 @@ jobs:
   check_infrastructure:
     name: "Check Infrastructure (Golden Drift Gate)"
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
@@ -177,6 +178,7 @@ jobs:
   build-backend:
     name: "Build & Push Backend Image"
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     needs: [check_infrastructure]
     permissions:
       contents: read
@@ -261,6 +263,7 @@ jobs:
     name: "Security Scan: Backend"
     needs: [build-backend]
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     permissions:
       contents: read
       security-events: write
@@ -415,6 +418,7 @@ jobs:
   build-frontend:
     name: "Build & Push Frontend Image"
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     needs: [check_infrastructure]
     permissions:
       contents: read
@@ -499,6 +503,7 @@ jobs:
     name: "Security Scan: Frontend"
     needs: [build-frontend]
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     permissions:
       contents: read
       security-events: write
@@ -1597,6 +1602,7 @@ jobs:
     # Frontend deploy must wait for migrations (but must NOT depend on deploy-backend).
     needs: [migrate, test-frontend, security-scan-frontend]
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     environment: ${{ inputs.frontend_environment }}
     steps:
       - name: Fail fast if required frontend secrets are missing
