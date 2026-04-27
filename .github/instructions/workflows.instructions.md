@@ -715,7 +715,7 @@ chmod -R 775 /root/projectmeats/staticfiles
 ```bash
 MAX_ATTEMPTS=15
 ATTEMPT=1
-HEALTH_URL="https://$DOMAIN/api/health/"
+HEALTH_URL="https://$DOMAIN/api/v1/health/"
 
 while [ $ATTEMPT -le $MAX_ATTEMPTS ]; do
   HTTP_CODE=$(curl -L -s -o /dev/null -w "%{http_code}" "$HEALTH_URL")

@@ -341,7 +341,7 @@ rf.getViewport();
 
 ```bash
 # Check backend health
-curl http://localhost:8000/api/health/
+curl http://localhost:8000/api/v1/health/
 
 # List workflows
 curl -H "Authorization: Bearer TOKEN" \

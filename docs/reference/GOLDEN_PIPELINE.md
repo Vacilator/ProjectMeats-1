@@ -197,7 +197,7 @@ docker run -d --name pm-backend \
   registry.digitalocean.com/meatscentral/projectmeats-backend:dev-abc123
 
 # 4. Health check (15 retries, 5s intervals)
-curl -L -s -o /dev/null -w "%{http_code}" https://domain.com/api/health/
+curl -L -s -o /dev/null -w "%{http_code}" https://domain.com/api/v1/health/
 ```
 
 ### Frontend (Unchanged from V1.0)
@@ -287,12 +287,12 @@ Feature Branch → Development (auto-deploy to dev)
 
 ```bash
 # V1.0 Pattern (still works)
-HTTP_CODE=$(curl -L -s -o /dev/null -w "%{http_code}" https://example.com/api/health/)
+HTTP_CODE=$(curl -L -s -o /dev/null -w "%{http_code}" https://example.com/api/v1/health/)
 
 # V2.0 Pattern (with retries and logging)
 MAX_ATTEMPTS=15
 ATTEMPT=1
-HEALTH_URL="https://example.com/api/health/"
+HEALTH_URL="https://example.com/api/v1/health/"
 
 while [ $ATTEMPT -le $MAX_ATTEMPTS ]; do
   HTTP_CODE=$(curl -L -s -o /dev/null -w "%{http_code}" "$HEALTH_URL")

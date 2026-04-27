@@ -1,7 +1,8 @@
 # ProjectMeats API Reference
 
 **Version**: 2.0.0  
-**Base URL**: `https://api.meatscentral.com/api/v1/`  
+**Base URL**: `https://meatscentral.com/api/v1/` (Production)  
+**Environments**: `https://dev.meatscentral.com/api/v1/` | `https://uat.meatscentral.com/api/v1/`  
 **Documentation**: `/api/docs/` (Swagger UI) | `/api/redoc/` (ReDoc)
 
 ---
@@ -13,7 +14,7 @@ All API requests require authentication via Token header:
 ```bash
 curl -H "Authorization: Token YOUR_AUTH_TOKEN" \
      -H "X-Tenant-ID: YOUR_TENANT_UUID" \
-     https://api.meatscentral.com/api/v1/customers/
+     https://meatscentral.com/api/v1/customers/
 ```
 
 ### Obtain Token
@@ -23,7 +24,7 @@ POST /api/v1/auth/login/
 Content-Type: application/json
 
 {
-  "email": "user@example.com",
+  "username": "user@example.com",
   "password": "your-password"
 }
 ```
@@ -230,7 +231,7 @@ List endpoints return paginated results:
 ```json
 {
   "count": 150,
-  "next": "https://api.meatscentral.com/api/v1/customers/?page=2",
+  "next": "https://meatscentral.com/api/v1/customers/?page=2",
   "previous": null,
   "results": [...]
 }
@@ -359,7 +360,7 @@ Webhook payload:
 
 Download the OpenAPI spec:
 ```bash
-curl https://api.meatscentral.com/api/schema/ > openapi.yaml
+curl https://meatscentral.com/api/schema/ > openapi.yaml
 ```
 
 ---
