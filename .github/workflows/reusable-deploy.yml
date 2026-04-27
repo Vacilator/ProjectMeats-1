@@ -1831,16 +1831,29 @@ jobs:
               location /api/ {
                   proxy_pass http://${BACKEND_HOST}:8000;
                   proxy_http_version 1.1;
+
+                  # Preserve original host for Django ALLOWED_HOSTS
+                  proxy_set_header Host \$host;
+                  proxy_set_header X-Forwarded-Host \$host;
+                  proxy_set_header X-Forwarded-Proto \$scheme;
+
                   proxy_set_header Upgrade \$http_upgrade;
                   proxy_set_header Connection "upgrade";
               }
 
               location /admin/ {
                   proxy_pass http://${BACKEND_HOST}:8000;
+                  proxy_set_header Host \$host;
+                  proxy_set_header X-Forwarded-Host \$host;
+                  proxy_set_header X-Forwarded-Proto \$scheme;
               }
 
               location /static/ {
                   proxy_pass http://${BACKEND_HOST}:8000;
+                  proxy_set_header Host \$host;
+                  proxy_set_header X-Forwarded-Host \$host;
+                  proxy_set_header X-Forwarded-Proto \$scheme;
+
                   add_header X-Content-Type-Options "nosniff" always;
                   expires 7d;
                   add_header Cache-Control "public, immutable";
@@ -1848,6 +1861,10 @@ jobs:
 
               location /media/ {
                   proxy_pass http://${BACKEND_HOST}:8000;
+                  proxy_set_header Host \$host;
+                  proxy_set_header X-Forwarded-Host \$host;
+                  proxy_set_header X-Forwarded-Proto \$scheme;
+
                   expires 7d;
                   add_header Cache-Control "public, immutable";
               }
@@ -1896,8 +1913,8 @@ jobs:
           fi
 
           API_CODE=$(curl -k -s -o /dev/null -w "%{http_code}" -m 10 --resolve "${DOMAIN_NAME}:443:127.0.0.1" "https://${DOMAIN_NAME}/api/v1/health/" || echo "000")
-          if [ "$API_CODE" = "000" ]; then
-            echo "✗ Host nginx /api/v1/health/ did not respond (HTTP 000)"
+          if [ "$API_CODE" != "200" ] && [ "$API_CODE" != "503" ]; then
+            echo "✗ Host nginx /api/v1/health/ unexpected HTTP ${API_CODE} (expected 200/503)"
             exit 1
           fi
 
