@@ -46,14 +46,21 @@ import {
 } from './quickActionsService';
 
 describe('QuickActionsService', () => {
+  const TENANT_ID = '11111111-1111-4111-8111-111111111111';
+
   beforeEach(() => {
     vi.clearAllMocks();
     localStorage.clear();
+
+    // Most QuickActions endpoints are tenant-scoped.
+    localStorage.setItem('tenantId', '11111111-1111-4111-8111-111111111111');
   });
 
   describe('quickActionsService', () => {
     describe('getQuickActions', () => {
       it('should fetch quick actions', async () => {
+        localStorage.setItem('tenantId', TENANT_ID);
+
         const mockResponse = {
           data: {
             items: [
@@ -70,7 +77,18 @@ describe('QuickActionsService', () => {
         expect(result.items[0].label).toBe('New Supplier');
       });
 
+      it('should skip request when tenant is missing/invalid', async () => {
+        localStorage.removeItem('tenantId');
+
+        const result = await quickActionsService.getQuickActions();
+
+        expect(mockApiClient.get).not.toHaveBeenCalled();
+        expect(result).toEqual({ items: [] });
+      });
+
       it('should support cancel key for request cancellation', async () => {
+        localStorage.setItem('tenantId', TENANT_ID);
+
         const mockResponse = { data: { items: [] } };
         mockApiClient.get.mockResolvedValue(mockResponse);
 
@@ -85,6 +103,8 @@ describe('QuickActionsService', () => {
 
     describe('updateQuickActions', () => {
       it('should update quick actions', async () => {
+        localStorage.setItem('tenantId', TENANT_ID);
+
         const items = [
           { id: 'qa_1', type: 'form' as const, form_id: 'f1', label: 'Updated', icon: 'truck', order: 0 },
         ];
@@ -96,10 +116,18 @@ describe('QuickActionsService', () => {
         expect(mockApiClient.put).toHaveBeenCalledWith('/workflows/quick-actions/', { items });
         expect(result.success).toBe(true);
       });
+
+      it('should throw when updating quick actions without tenant', async () => {
+        localStorage.removeItem('tenantId');
+
+        await expect(quickActionsService.updateQuickActions([] as any)).rejects.toThrow('Tenant not selected');
+      });
     });
 
     describe('getAvailableForms', () => {
       it('should fetch available forms as array', async () => {
+        localStorage.setItem('tenantId', TENANT_ID);
+
         const mockForms = [
           { id: 'f1', name: 'Supplier Form', description: 'Add supplier', icon: 'truck', status: 'active' },
         ];
@@ -111,7 +139,18 @@ describe('QuickActionsService', () => {
         expect(result).toEqual(mockForms);
       });
 
+      it('should skip available-forms request when tenant is missing/invalid', async () => {
+        localStorage.removeItem('tenantId');
+
+        const result = await quickActionsService.getAvailableForms();
+
+        expect(mockApiClient.get).not.toHaveBeenCalled();
+        expect(result).toEqual([]);
+      });
+
       it('should handle paginated response', async () => {
+        localStorage.setItem('tenantId', TENANT_ID);
+
         const mockForms = [{ id: 'f1', name: 'Form 1' }];
         mockApiClient.get.mockResolvedValue({ data: { results: mockForms } });
 

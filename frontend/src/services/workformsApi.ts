@@ -13,6 +13,24 @@
  */
 
 import { apiClient } from './apiService';
+import { logger } from '@/utils/logger';
+import { getValidTenantId } from '@/utils/tenantId';
+
+let warnedMissingTenant = false;
+const warnMissingTenantOnce = (endpoint: string) => {
+  if (warnedMissingTenant) return;
+  warnedMissingTenant = true;
+  logger.warn('[WorkForms] Skipping tenant-scoped request; missing/invalid tenantId', { endpoint });
+};
+
+const requireTenantId = (endpoint: string): string => {
+  const tenantId = getValidTenantId();
+  if (!tenantId) {
+    warnMissingTenantOnce(endpoint);
+    throw new Error('Tenant not selected');
+  }
+  return tenantId;
+};
 
 // ============================================================================
 // Types
@@ -153,6 +171,12 @@ export const getAvailableWorkForms = async (params?: {
   status?: 'draft' | 'active' | 'archived';
   search?: string;
 }): Promise<AvailableWorkForm[]> => {
+  const tenantId = getValidTenantId();
+  if (!tenantId) {
+    warnMissingTenantOnce('/tenant-workforms/');
+    return [];
+  }
+
   const response = await apiClient.get('/tenant-workforms/', { params });
   const data = response.data?.results || response.data || [];
   return Array.isArray(data) ? data : [];
@@ -181,6 +205,8 @@ export const executeTenantWorkForm = async (
   workformId: string,
   initialData?: Record<string, unknown>
 ): Promise<WorkFormExecuteResponse> => {
+  requireTenantId('/tenant-workforms/{id}/execute/');
+
   const response = await apiClient.post(`/tenant-workforms/${workformId}/execute/`, {
     initial_data: initialData ?? {},
   });
@@ -380,6 +406,12 @@ export const listTenantWorkForms = async (params?: {
   status?: 'draft' | 'active' | 'archived';
   search?: string;
 }): Promise<TenantWorkForm[]> => {
+  const tenantId = getValidTenantId();
+  if (!tenantId) {
+    warnMissingTenantOnce('/tenant-workforms/');
+    return [];
+  }
+
   const response = await apiClient.get('/tenant-workforms/', { params });
   return response.data.results || response.data || [];
 };
@@ -388,6 +420,8 @@ export const listTenantWorkForms = async (params?: {
  * Get a specific tenant workflow by ID
  */
 export const getTenantWorkForm = async (workformId: string): Promise<TenantWorkForm> => {
+  requireTenantId('/tenant-workforms/{id}/');
+
   const response = await apiClient.get(`/tenant-workforms/${workformId}/`);
   return response.data;
 };
@@ -401,6 +435,8 @@ export const createTenantWorkForm = async (data: {
   status?: 'draft' | 'active' | 'archived';
   workflow_definition: any;
 }): Promise<TenantWorkForm> => {
+  requireTenantId('/tenant-workforms/');
+
   const response = await apiClient.post('/tenant-workforms/', data);
   return response.data;
 };
@@ -412,6 +448,8 @@ export const updateTenantWorkForm = async (
   workformId: string,
   data: Partial<TenantWorkForm>
 ): Promise<TenantWorkForm> => {
+  requireTenantId('/tenant-workforms/{id}/');
+
   const response = await apiClient.put(`/tenant-workforms/${workformId}/`, data);
   return response.data;
 };
@@ -420,6 +458,8 @@ export const updateTenantWorkForm = async (
  * Delete a tenant workflow
  */
 export const deleteTenantWorkForm = async (workformId: string): Promise<void> => {
+  requireTenantId('/tenant-workforms/{id}/');
+
   await apiClient.delete(`/tenant-workforms/${workformId}/`);
 };
 
@@ -438,6 +478,8 @@ export const cloneWorkForm = async (
     include_form_references?: boolean;
   }
 ): Promise<TenantWorkForm> => {
+  requireTenantId('/tenant-workforms/{id}/clone/');
+
   const response = await apiClient.post(`/tenant-workforms/${workformId}/clone/`, data);
   return response.data;
 };
@@ -459,6 +501,8 @@ export const getWorkFormUsage = async (
   created_at: string;
   updated_at: string;
 }> => {
+  requireTenantId('/tenant-workforms/{id}/usage/');
+
   const response = await apiClient.get(`/tenant-workforms/${workformId}/usage/`);
   return response.data;
 };
@@ -473,6 +517,8 @@ export const validateWorkForm = async (
   missing_forms: string[];
   total_references: number;
 }> => {
+  requireTenantId('/tenant-workforms/{id}/validate/');
+
   const response = await apiClient.post(`/tenant-workforms/${workformId}/validate/`);
   return response.data;
 };
@@ -516,6 +562,8 @@ export interface ContainerDetail {
 export const listWorkFormContainers = async (
   workformId: string
 ): Promise<{ containers: ContainerSummary[] }> => {
+  requireTenantId('/tenant-workforms/{id}/containers/');
+
   const response = await apiClient.get(`/tenant-workforms/${workformId}/containers/`);
   return response.data;
 };
@@ -527,6 +575,8 @@ export const getContainerDetail = async (
   workformId: string,
   containerId: string
 ): Promise<ContainerDetail> => {
+  requireTenantId('/tenant-workforms/{id}/containers/{containerId}/');
+
   const response = await apiClient.get(`/tenant-workforms/${workformId}/containers/${containerId}/`);
   return response.data;
 };
@@ -539,6 +589,8 @@ export const addNodeToContainer = async (
   nodeId: string,
   containerId: string
 ): Promise<{ message: string; node_id: string; container_id: string }> => {
+  requireTenantId('/tenant-workforms/{id}/containers/add-node/');
+
   const response = await apiClient.post(`/tenant-workforms/${workformId}/containers/add-node/`, {
     node_id: nodeId,
     container_id: containerId
@@ -553,6 +605,8 @@ export const removeNodeFromContainer = async (
   workformId: string,
   nodeId: string
 ): Promise<{ message: string; node_id: string }> => {
+  requireTenantId('/tenant-workforms/{id}/containers/remove-node/');
+
   const response = await apiClient.post(`/tenant-workforms/${workformId}/containers/remove-node/`, {
     node_id: nodeId
   });

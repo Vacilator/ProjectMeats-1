@@ -13,6 +13,7 @@ import axios, { AxiosError as AxiosErrorType, InternalAxiosRequestConfig } from 
 import * as Sentry from '@sentry/react';
 import { config } from '../config/runtime';
 import { logger } from '../utils/logger';
+import { getValidTenantId } from '../utils/tenantId';
 import {
   getAuthHeader,
   needsRefresh,
@@ -120,10 +121,21 @@ apiClient.interceptors.request.use(
       }
       // Note: Missing auth header is expected during login/public endpoints
       
-      // Add tenant ID header if available
-      const tenantId = localStorage.getItem('tenantId');
+      // Add tenant ID header if available (and valid).
+      // Backend expects a UUID; never send literal "undefined"/"null".
+      const tenantId = getValidTenantId();
+      const headersAny = config.headers as any;
       if (tenantId) {
-        config.headers['X-Tenant-ID'] = tenantId;
+        headersAny['X-Tenant-ID'] = tenantId;
+      } else if (headersAny) {
+        // Ensure we don't leak a stale/invalid header from previous config reuse.
+        if (typeof headersAny.delete === 'function') {
+          headersAny.delete('X-Tenant-ID');
+          headersAny.delete('x-tenant-id');
+        } else {
+          delete headersAny['X-Tenant-ID'];
+          delete headersAny['x-tenant-id'];
+        }
       }
       
       return config;
@@ -162,10 +174,20 @@ adminClient.interceptors.request.use(
         logger.warn('[Admin API] No auth header available for request to:', config.url);
       }
       
-      // Add tenant ID header if available
-      const tenantId = localStorage.getItem('tenantId');
+      // Add tenant ID header if available (and valid).
+      // Backend expects a UUID; never send literal "undefined"/"null".
+      const tenantId = getValidTenantId();
+      const headersAny = config.headers as any;
       if (tenantId) {
-        config.headers['X-Tenant-ID'] = tenantId;
+        headersAny['X-Tenant-ID'] = tenantId;
+      } else if (headersAny) {
+        if (typeof headersAny.delete === 'function') {
+          headersAny.delete('X-Tenant-ID');
+          headersAny.delete('x-tenant-id');
+        } else {
+          delete headersAny['X-Tenant-ID'];
+          delete headersAny['x-tenant-id'];
+        }
       }
       
       return config;
