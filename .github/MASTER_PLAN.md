@@ -100,6 +100,18 @@ This file is the **append-only PR-referenceable execution log**.
 
 - **2026-04-21** — Security: enforce TenantUser membership when tenant is resolved via Host/domain/subdomain for session-auth requests (prevents cross-tenant host spoofing); return stable JSON 403 envelope on `/api/v1/*`; add regression tests. (PR: #4572)
 
+- **2026-04-27** — Frontend: replace runtime `console.*` usage with centralized `logger.*` in high-churn WorkForms/MyTasks paths to reduce prod noise while preserving dev diagnostics. (PR: #4654)
+
+- **2026-04-27** — Backend tests: add stable regression coverage for invitation validation + signup-with-invitation flows (`/api/v1/invitations/validate/`, `/api/v1/auth/signup-with-invitation/`). (PR: #4655)
+
+- **2026-04-27** — Backend tenant safety: make tenant-specific `current`, `current_theme`, and `admin_permissions` actions fail-closed for multi-tenant users when tenant context is missing/ambiguous (stable 400 code), while allowing safe default if the user has exactly one membership; add tests. (PR: #4656)
+
+- **2026-04-27** — Backend RLS safety: wrap tenant-scoped Celery task ORM sections in `tenant_rls(..., strict=False)` to prevent cross-tenant leakage on pooled connections; add coverage. (PR: #4657)
+
+- **2026-04-27** — Mobile: resolve a device-safe API base URL (Expo hostUri/LAN IP and Android emulator fallback) and add unit coverage; document `EXPO_PUBLIC_API_BASE_URL`. (PR: #4658)
+
+- **2026-04-27** — Mobile: switch deprecated `expo build:*` scripts to EAS Build (via `npx eas-cli`), add `eas.json` profiles and build metadata (`ios.buildNumber`, `android.versionCode`), and update mobile build docs. (PR: #4659)
+
 ### 2026-03-31 — Secret audit drift (manifest v5.1)
 - Command: `python config/manage_env.py audit --repo Meats-Central/ProjectMeats`
 - Stale/Zombie secrets found in GitHub but NOT in `manifests/env.manifest.json` (or legacy `DEV_`/`UAT_`/`PROD_` prefixed):
