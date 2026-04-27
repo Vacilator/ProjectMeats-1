@@ -84,6 +84,42 @@ type BackendSchema = {
   key_fields?: string[];
 };
 
+const isArrayLikeField = (field: BackendField): boolean => {
+  const t = String(field.type ?? '').toLowerCase();
+  const ui = field.ui && typeof field.ui === 'object' ? (field.ui as Record<string, unknown>) : null;
+  const widget = typeof ui?.widget === 'string' ? String(ui.widget).toLowerCase() : '';
+
+  return (
+    t === 'inline_form_array' ||
+    widget === 'inline_form_array' ||
+    widget === 'multi_select' ||
+    widget === 'tags' ||
+    t === 'array' ||
+    t === 'list'
+  );
+};
+
+const sanitizeInitialValuesForSchema = (
+  schema: BackendSchema | null,
+  values: Record<string, unknown>
+): Record<string, unknown> => {
+  const next: Record<string, unknown> = { ...(values || {}) };
+  const fields = Array.isArray(schema?.fields) ? (schema?.fields as BackendField[]) : [];
+
+  for (const field of fields) {
+    const key = String(field?.key ?? '').trim();
+    if (!key) continue;
+    if (!isArrayLikeField(field)) continue;
+
+    const current = next[key];
+    if (current === undefined || current === null) {
+      next[key] = [];
+    }
+  }
+
+  return next;
+};
+
 const Container = styled.div<{ $variant: UniversalEntityFormVariant }>`
   width: 100%;
   max-width: 100%;
@@ -846,6 +882,14 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
   const [schema, setSchema] = useState<BackendSchema | null>(null);
   const [recordValues, setRecordValues] = useState<Record<string, unknown> | null>(null);
 
+  const initialValuesRef = useRef<Record<string, unknown> | undefined>(initialValues);
+  const [resolvedInitialValues, setResolvedInitialValues] = useState<Record<string, unknown>>({});
+
+  useEffect(() => {
+    if (!isOpen) return;
+    initialValuesRef.current = initialValues;
+  }, [initialValues, isOpen]);
+
   const inferredMode: UniversalEntityFormMode = useMemo(() => {
     const hasId = entityId != null && String(entityId).trim().length > 0;
 
@@ -947,6 +991,9 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
     setActiveMode(inferredMode);
     setRecordValues(null);
 
+    const initialSnapshot = (initialValuesRef.current || {}) as Record<string, unknown>;
+    setResolvedInitialValues(initialSnapshot);
+
     let mounted = true;
 
     const load = async () => {
@@ -965,14 +1012,17 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
         }
 
         if (!mounted) return;
-        const merged: Record<string, unknown> = { ...(nextRecord || {}), ...(initialValues || {}) };
-        setSchema(augmentSchemaForFrontend(schemaEntityKey, nextSchema, merged));
+        const merged: Record<string, unknown> = { ...(nextRecord || {}), ...initialSnapshot };
+        const sanitized = sanitizeInitialValuesForSchema(nextSchema, merged);
+        setSchema(augmentSchemaForFrontend(schemaEntityKey, nextSchema, sanitized));
         setRecordValues(nextRecord);
-        setFkValues(merged);
+        setResolvedInitialValues(sanitized);
+        setFkValues(sanitized);
       } catch (err: unknown) {
         if (!mounted) return;
         setSchema(null);
         setRecordValues(null);
+        setResolvedInitialValues(initialSnapshot);
         const errorMessage =
           typeof (err as { response?: { data?: { error?: string } } })?.response?.data?.error ===
           'string'
@@ -989,7 +1039,7 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
     return () => {
       mounted = false;
     };
-  }, [endpoint, entityId, inferredMode, initialValues, isOpen, loadSchema, schemaEntityKey]);
+  }, [endpoint, entityId, inferredMode, isOpen, loadSchema, schemaEntityKey]);
 
   // Load basic FK option lists (best-effort) for non-product references.
   useEffect(() => {
@@ -1269,20 +1319,17 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
   };
 
   const dynamicSchema: DynamicSchema = useMemo(() => {
-    const contactContext = inferContactFormContext({
-      ...(recordValues || {}),
-      ...(initialValues || {}),
-    });
+    const contactContext = inferContactFormContext(resolvedInitialValues);
 
-    const supplierTitle = schemaEntityKey === 'supplier' ? (activeMode === 'create' ? 'New Supplier' : 'Supplier') : null;
-    const hqEntity = schemaEntityKey === 'customer' ? 'Customer' : null;
+    const supplierTitle =
+      schemaEntityKey === 'supplier' ? (activeMode === 'create' ? 'New Supplier' : 'Supplier') : null;
+    const customerTitle =
+      schemaEntityKey === 'customer' ? (activeMode === 'create' ? 'New Customer' : 'Customer') : null;
 
     const formName = supplierTitle
       ? supplierTitle
-      : hqEntity
-        ? activeMode === 'create'
-          ? `New ${hqEntity} Headquarters`
-          : `${hqEntity} Headquarters Profile`
+      : customerTitle
+        ? customerTitle
         : schemaEntityKey === 'contact' && activeMode === 'create'
           ? getContactCreateTitle(contactContext)
           : schema?.name || `Universal Form: ${entityType}`;
@@ -1293,17 +1340,19 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
       description: schema?.description,
       fields: scalarFields,
     };
-  }, [activeMode, entityType, initialValues, recordValues, scalarFields, schema?.description, schema?.name, schemaEntityKey]);
+  }, [activeMode, entityType, resolvedInitialValues, scalarFields, schema?.description, schema?.name, schemaEntityKey]);
 
   const formInitialValues = useMemo(() => {
-    return { ...(recordValues || {}), ...(initialValues || {}) };
-  }, [initialValues, recordValues]);
+    return resolvedInitialValues;
+  }, [resolvedInitialValues]);
 
   const modalTitle = useMemo(() => {
     const contactContext = inferContactFormContext(formInitialValues);
 
-    const supplierTitle = schemaEntityKey === 'supplier' ? (activeMode === 'create' ? 'New Supplier' : 'Supplier') : null;
-    const hqEntity = schemaEntityKey === 'customer' ? 'Customer' : null;
+    const supplierTitle =
+      schemaEntityKey === 'supplier' ? (activeMode === 'create' ? 'New Supplier' : 'Supplier') : null;
+    const customerTitle =
+      schemaEntityKey === 'customer' ? (activeMode === 'create' ? 'New Customer' : 'Customer') : null;
 
     if (activeMode === 'clone') return `Clone ${entityType}`;
 
@@ -1311,8 +1360,8 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
       return supplierTitle;
     }
 
-    if (hqEntity) {
-      return activeMode === 'create' ? `New ${hqEntity} Headquarters` : `${hqEntity} Headquarters Profile`;
+    if (customerTitle) {
+      return customerTitle;
     }
 
     if (schemaEntityKey === 'contact' && activeMode === 'create') {

@@ -349,6 +349,8 @@ export const UniversalEntityRecordPage: React.FC<UniversalEntityRecordPageProps>
             }}
           />
 
+          <AIOverviewCard entityType={normalizedEntityType} entityId={entityId} />
+
           <EntityProfileHeader
             entityType={normalizedEntityType}
             entityId={entityId}
