@@ -28,6 +28,7 @@ import {
 import { businessApi } from '../../services/businessApi';
 import { workformExecutionService, WorkFormExecution } from '@/services/workformExecutionService';
 import { getWorkformsErrorUi } from '@/features/workforms/workformsErrors';
+import { logger } from '@/utils/logger';
 
 // ============================================================================
 // Types
@@ -544,7 +545,7 @@ const FormsFlowsHistory: React.FC = () => {
       setSubmissions(response.data.results || response.data || []);
       setTotalCount(response.data.count || 0);
     } catch (error) {
-      console.error('Failed to fetch history:', error);
+      logger.error('[WorkFormsHistory] Failed to fetch history', error);
       setSubmissions([]);
       setLoadError(getWorkformsErrorUi(error, 'history.load').message);
     } finally {
@@ -589,7 +590,7 @@ const FormsFlowsHistory: React.FC = () => {
       setWorkflowExecutions(response.results);
       setTotalCount(response.count);
     } catch (error) {
-      console.error('Failed to fetch workflow executions:', error);
+      logger.error('[WorkFormsHistory] Failed to fetch workflow executions', error);
       setWorkflowExecutions([]);
       setRunsLoadError(getWorkformsErrorUi(error, 'history.load').message);
     } finally {
