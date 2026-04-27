@@ -2901,71 +2901,72 @@ class AvailableFormsViewSet(viewsets.ReadOnlyModelViewSet):
         the caller from accidentally passing cross-tenant IDs and triggering server errors.
         """
 
-        entity_type = (request.query_params.get('entity_type') or '').strip().lower()
-        entity_id_raw = (request.query_params.get('entity_id') or '').strip()
-
-        if entity_type or entity_id_raw:
-            if not (entity_type and entity_id_raw):
-                return Response(
-                    {'error': 'Both entity_type and entity_id are required when providing entity context.'},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-
-            allowed = {'supplier', 'customer', 'plant', 'location'}
-            if entity_type not in allowed:
-                return Response(
-                    {'error': f'Unsupported entity_type: {entity_type}.'},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-
-            tenant = _get_request_tenant(request)
-            if not tenant:
-                return Response(
-                    {'error': 'Tenant context is required (X-Tenant-ID header) when providing entity context.'},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-
-            try:
-                entity_pk = int(entity_id_raw)
-            except (TypeError, ValueError):
-                return Response(
-                    {'error': f'Invalid entity_id for {entity_type}: {entity_id_raw}.'},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-
-            try:
-                if entity_type == 'supplier':
-                    from tenant_apps.suppliers.models import Supplier
-
-                    Supplier.objects.get(pk=entity_pk, tenant=tenant)
-                elif entity_type == 'customer':
-                    from tenant_apps.customers.models import Customer
-
-                    Customer.objects.get(pk=entity_pk, tenant=tenant)
-                elif entity_type == 'plant':
-                    from tenant_apps.plants.models import Plant
-
-                    Plant.objects.get(pk=entity_pk, tenant=tenant)
-                elif entity_type == 'location':
-                    from tenant_apps.locations.models import Location
-
-                    Location.objects.get(pk=entity_pk, tenant=tenant)
-            except Exception as exc:
-                logger.warning(
-                    'available-forms: invalid entity context',
-                    extra={
-                        'entity_type': entity_type,
-                        'entity_id': entity_id_raw,
-                        'tenant_id': str(getattr(tenant, 'id', '')),
-                        'error': str(exc),
-                    },
-                )
-                return Response(
-                    {'error': 'Invalid entity context.'},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-
+        # Absolute safety net: UI surfaces expect this endpoint to be resilient.
         try:
+            entity_type = (request.query_params.get('entity_type') or '').strip().lower()
+            entity_id_raw = (request.query_params.get('entity_id') or '').strip()
+
+            if entity_type or entity_id_raw:
+                if not (entity_type and entity_id_raw):
+                    return Response(
+                        {'error': 'Both entity_type and entity_id are required when providing entity context.'},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+
+                allowed = {'supplier', 'customer', 'plant', 'location'}
+                if entity_type not in allowed:
+                    return Response(
+                        {'error': f'Unsupported entity_type: {entity_type}.'},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+
+                tenant = _get_request_tenant(request)
+                if not tenant:
+                    return Response(
+                        {'error': 'Tenant context is required (X-Tenant-ID header) when providing entity context.'},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+
+                try:
+                    entity_pk = int(entity_id_raw)
+                except (TypeError, ValueError):
+                    return Response(
+                        {'error': f'Invalid entity_id for {entity_type}: {entity_id_raw}.'},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+
+                try:
+                    if entity_type == 'supplier':
+                        from tenant_apps.suppliers.models import Supplier
+
+                        Supplier.objects.get(pk=entity_pk, tenant=tenant)
+                    elif entity_type == 'customer':
+                        from tenant_apps.customers.models import Customer
+
+                        Customer.objects.get(pk=entity_pk, tenant=tenant)
+                    elif entity_type == 'plant':
+                        from tenant_apps.plants.models import Plant
+
+                        Plant.objects.get(pk=entity_pk, tenant=tenant)
+                    elif entity_type == 'location':
+                        from tenant_apps.locations.models import Location
+
+                        Location.objects.get(pk=entity_pk, tenant=tenant)
+                except Exception as exc:
+                    logger.warning(
+                        'available-forms: invalid entity context',
+                        extra={
+                            'entity_type': entity_type,
+                            'entity_id': entity_id_raw,
+                            'tenant_id': str(getattr(tenant, 'id', '')),
+                            'error': str(exc),
+                        },
+                    )
+                    return Response(
+                        {'error': 'Invalid entity context.'},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+
             try:
                 forms_qs = self.filter_queryset(self.get_queryset())
             except Exception as exc:
@@ -3024,7 +3025,6 @@ class AvailableFormsViewSet(viewsets.ReadOnlyModelViewSet):
             data.sort(key=lambda r: str(r.get('name') or '').lower())
             return Response(data)
         except Exception as exc:
-            # Absolute safety net: UI surfaces expect this endpoint to be resilient.
             logger.exception('available-forms: internal error; returning empty list', extra={'error': str(exc)})
             return Response([])
 
