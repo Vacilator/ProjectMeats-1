@@ -71,8 +71,9 @@ const HSL_COLOR4_REGEX = /\bhsla?\(\s*\d+\s+\d+%\s+\d+%(?:\s*\/\s*[0-9.]+%?)?\s*
 
 // Named colors we want to forbid in high-churn UI surfaces.
 // We intentionally do NOT include 'transparent' to avoid churn.
-// We match quoted values (JS objects / string-returning templates) to avoid mass legacy churn.
+// We support quoted (JS objects / string-returning templates) AND unquoted CSS values.
 const NAMED_COLOR_REGEX = /(['"`])(?:white|black|red|green|blue|gray|grey)\1/g;
+const UNQUOTED_NAMED_COLOR_REGEX = /:\s*(white|black|red|green|blue|gray|grey)\b/gi;
 
 function isNumericOnlyShortHex(color) {
   // Heuristic: ignore short numeric-only tokens like "#405" in names (not actual colors).
@@ -90,10 +91,23 @@ function getSuggestion(color) {
 function checkFile(filePath) {
   const repoRoot = path.join(__dirname, '../..');
   const relativePath = path.relative(repoRoot, filePath).replace(/\\/g, '/');
+  const extraEnforceRgbFiles = new Set([
+    'src/components/Widgets/QuickActionsWidget.tsx',
+    'src/components/Widgets/MyTasksWidget.tsx',
+    'src/pages/MyTasks/MyTasks.tsx',
+    'src/styles/shared.ts',
+    'src/theme/themeConfig.ts',
+  ]);
+
   const enforceRgb =
     relativePath.includes('src/components/FlowEditor/') ||
     relativePath.includes('src/components/WorkForms/') ||
-    relativePath.includes('src/pages/WorkForms/');
+    relativePath.includes('src/pages/WorkForms/') ||
+    extraEnforceRgbFiles.has(relativePath);
+
+  // Unquoted named colors (e.g. "background: white;") are a common source of drift.
+  // Enforce them only in explicitly targeted high-churn surfaces to avoid mass legacy churn.
+  const enforceUnquotedNamed = extraEnforceRgbFiles.has(relativePath);
 
   const content = fs.readFileSync(filePath, 'utf8');
   const lines = content.split('\n');
@@ -167,6 +181,13 @@ function checkFile(filePath) {
       const namedRegex = new RegExp(NAMED_COLOR_REGEX, 'g');
       while ((match = namedRegex.exec(line)) !== null) {
         pushTokenViolation(match[0], match.index);
+      }
+
+      if (enforceUnquotedNamed) {
+        const unquotedNamedRegex = new RegExp(UNQUOTED_NAMED_COLOR_REGEX, 'g');
+        while ((match = unquotedNamedRegex.exec(line)) !== null) {
+          pushTokenViolation(match[1], match.index);
+        }
       }
     }
   });

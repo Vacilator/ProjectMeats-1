@@ -43,10 +43,10 @@ export const GridContainer = styled.div<{
 `;
 
 export const Card = styled.div<{ $padding?: string; $shadow?: boolean }>`
-  background: white;
+  background: rgb(var(--color-surface));
   border-radius: 8px;
   padding: ${props => props.$padding || '16px'};
-  box-shadow: ${props => props.$shadow ? '0 2px 8px rgba(0, 0, 0, 0.1)' : 'none'};
+  box-shadow: ${props => props.$shadow ? 'var(--shadow-md)' : 'none'};
 `;
 
 export const Panel = styled.div<{ $variant?: 'default' | 'primary' | 'secondary' }>`
@@ -54,7 +54,7 @@ export const Panel = styled.div<{ $variant?: 'default' | 'primary' | 'secondary'
     switch (props.$variant) {
       case 'primary': return 'rgb(var(--color-primary))';
       case 'secondary': return 'rgb(var(--color-secondary))';
-      default: return 'white';
+      default: return 'rgb(var(--color-surface))';
     }
   }};
   border: 1px solid rgb(var(--color-border));
@@ -87,13 +87,13 @@ export const Button = styled.button<{ $variant?: 'primary' | 'secondary' | 'ghos
   ${props => {
     switch (props.$variant) {
       case 'primary':
-        return css`background: rgb(var(--color-primary)); color: white; &:hover { opacity: 0.9; }`;
+        return css`background: rgb(var(--color-primary)); color: rgb(var(--color-primary-foreground, 255 255 255)); &:hover { opacity: 0.9; }`;
       case 'danger':
-        return css`background: rgb(239, 68, 68); color: white; &:hover { opacity: 0.9; }`;
+        return css`background: rgb(var(--color-error)); color: rgb(var(--color-primary-foreground, 255 255 255)); &:hover { opacity: 0.9; }`;
       case 'ghost':
-        return css`background: transparent; color: rgb(var(--color-text-primary)); &:hover { background: rgba(0, 0, 0, 0.05); }`;
+        return css`background: transparent; color: rgb(var(--color-text-primary)); &:hover { background: rgba(var(--color-overlay), 0.05); }`;
       default:
-        return css`background: white; color: rgb(var(--color-text-primary)); border: 1px solid rgb(var(--color-border)); &:hover { background: rgb(var(--color-background-hover)); }`;
+        return css`background: rgb(var(--color-surface)); color: rgb(var(--color-text-primary)); border: 1px solid rgb(var(--color-border)); &:hover { background: rgb(var(--color-background-hover)); }`;
     }
   }}
   
@@ -106,7 +106,7 @@ export const Button = styled.button<{ $variant?: 'primary' | 'secondary' | 'ghos
 export const Input = styled.input<{ $error?: boolean }>`
   width: 100%;
   padding: 8px 12px;
-  border: 1px solid ${props => props.$error ? 'rgb(239, 68, 68)' : 'rgb(var(--color-border))'};
+  border: 1px solid ${props => props.$error ? 'rgb(var(--color-error))' : 'rgb(var(--color-border))'};
   border-radius: 6px;
   font-size: 14px;
   transition: all 0.2s ease;
@@ -134,15 +134,15 @@ export const Badge = styled.span<{ $variant?: 'success' | 'warning' | 'error' | 
   ${props => {
     switch (props.$variant) {
       case 'success':
-        return css`background: rgba(34, 197, 94, 0.1); color: rgb(34, 197, 94);`;
+        return css`background: rgba(var(--color-success), 0.1); color: rgb(var(--color-success));`;
       case 'warning':
-        return css`background: rgba(234, 179, 8, 0.1); color: rgb(234, 179, 8);`;
+        return css`background: rgba(var(--color-warning), 0.1); color: rgb(var(--color-warning));`;
       case 'error':
-        return css`background: rgba(239, 68, 68, 0.1); color: rgb(239, 68, 68);`;
+        return css`background: rgba(var(--color-error), 0.1); color: rgb(var(--color-error));`;
       case 'info':
-        return css`background: rgba(59, 130, 246, 0.1); color: rgb(59, 130, 246);`;
+        return css`background: rgba(var(--color-info), 0.1); color: rgb(var(--color-info));`;
       default:
-        return css`background: rgba(0, 0, 0, 0.05); color: rgb(var(--color-text-secondary));`;
+        return css`background: rgba(var(--color-overlay), 0.05); color: rgb(var(--color-text-secondary));`;
     }
   }}
 `;
