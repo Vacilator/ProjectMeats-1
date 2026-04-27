@@ -1734,3 +1734,8 @@ Deliverables:
 - **2026-04-27** — Ops note: .github/MASTER_PLAN.md had one or more NUL (\0) bytes; repaired by re-serializing as plain UTF-8 text while preserving content.
 
 - **2026-04-27** — Plants/Contacts: rename Booking→Shipping/Loadout + add Certification dept; add Contact title/notes/documents fields; enable tenant-safe nested dept contacts writes on Plant; improve PlantDetail contacts CTA and prevent Activity/Automation infinite spinners by rendering explicit error alerts. (PR: #4685)
+- **2026-04-27** — Dev: unblock dev.meatscentral.com login by hardening frontend deploy to deterministically enforce host nginx reverse-proxy routing (`/api/*` → backend, `/` → frontend), ensure nginx site precedence, fix local vhost verification to use TLS SNI (`curl --resolve`), restore nginx→backend reachability, and preserve original Host header to prevent Django `DisallowedHost` 400s. (PRs: #4692, #4693, #4694, #4697, #4698)
+
+- **2026-04-27** — Plants: Plant Profile backend — add Plant Profile fields + tenant-safe patterns/RLS where required. (PR: #4691)
+
+- **2026-04-27** — Plants: Plant Profile frontend — implement Plant Profile in metadata-driven UniversalEntityForm + DynamicFormEngine (conditional visibility + clear-on-hide, max_length validation, proteins subset validation, master product list source), with unit test coverage. (PR: #4699)
