@@ -24,7 +24,7 @@ This file is the **canonical plan + current truth snapshot**.
 ### P0 priorities (next)
 - **Core API reliability**: ✅ shipped (PR #4652). Next: expand smoke coverage for always-on endpoints (health, tenant resolution, auth bootstrap) and keep them in PR gates.
 
-- **Phase 10 Sprint 1 stability gate (planned → in progress)**
+- **Phase 10 Sprint 1 stability gate (shipped)**
   - Mobile viewport hardening (make the existing mobile Playwright specs green; prevent page-level horizontal overflow on iPhone SE)
   - Standardized API error presentation (map backend `code`/`error_code` into deterministic user-safe messages; graceful AI/email “not configured” UX)
   - CI: enforce TypeScript type-check as a required PR gate + add a Drift Gate validator so the check can’t be removed silently
