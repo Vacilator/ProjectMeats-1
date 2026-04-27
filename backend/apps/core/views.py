@@ -489,29 +489,29 @@ class RankedSearchView(APIView):
         """
         try:
             if entity_type == 'customer':
-                from apps.sales.models import Customer
+                from tenant_apps.customers.models import Customer
                 return Customer.objects.filter(tenant=tenant, id=entity_id).first()
-            
-            elif entity_type == 'supplier':
-                from apps.procurement.models import Supplier
+
+            if entity_type == 'supplier':
+                from tenant_apps.suppliers.models import Supplier
                 return Supplier.objects.filter(tenant=tenant, id=entity_id).first()
-            
-            elif entity_type == 'product':
-                from apps.inventory.models import Product
-                return Product.objects.filter(tenant=tenant, id=entity_id).first()
-            
-            elif entity_type == 'sales_order':
-                from apps.sales.models import SalesOrder
+
+            if entity_type == 'product':
+                from apps.system.models import Product
+                return Product.objects.filter(id=entity_id).first()
+
+            if entity_type == 'sales_order':
+                from tenant_apps.sales_orders.models import SalesOrder
                 return SalesOrder.objects.filter(tenant=tenant, id=entity_id).first()
-            
-            elif entity_type == 'purchase_order':
-                from apps.procurement.models import PurchaseOrder
+
+            if entity_type == 'purchase_order':
+                from tenant_apps.purchase_orders.models import PurchaseOrder
                 return PurchaseOrder.objects.filter(tenant=tenant, id=entity_id).first()
-            
+
             return None
-            
-        except Exception as e:
-            print(f"[RankedSearchView] Error fetching {entity_type} {entity_id}: {e}")
+
+        except Exception:
+            logger.exception("[RankedSearchView] Error fetching %s %s", entity_type, entity_id)
             return None
 
 
@@ -845,16 +845,14 @@ class WorkspaceStatsView(APIView):
                 status=status.HTTP_403_FORBIDDEN
             )
         
-        from apps.tenant_apps.purchase_orders.models import PurchaseOrder
-        from apps.tenant_apps.sales_orders.models import SalesOrder
-        from apps.tenant_apps.suppliers.models import Supplier
-        from apps.tenant_apps.customers.models import Customer
+        from tenant_apps.purchase_orders.models import PurchaseOrder
+        from tenant_apps.sales_orders.models import SalesOrder
+        from tenant_apps.suppliers.models import Supplier
+        from tenant_apps.customers.models import Customer
         from django.utils import timezone
-        from datetime import timedelta
         
         tenant = request.tenant
         today = timezone.now().date()
-        today - timedelta(days=7)
         
         # Calculate stats
         try:
@@ -875,7 +873,6 @@ class WorkspaceStatsView(APIView):
             
             active_customers = Customer.objects.filter(
                 tenant=tenant,
-                is_active=True
             ).count()
             
             return Response({
