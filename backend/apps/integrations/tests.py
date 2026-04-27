@@ -31,7 +31,9 @@ class EmailSyncTests(APITestCase):
             token_expiry=timezone.now() + timedelta(days=1),
         )
 
-        self.client.force_authenticate(user=self.user)
+        # Use session auth so AuthenticationMiddleware marks request.user as authenticated
+        # before TenantMiddleware runs.
+        self.client.force_login(self.user)
 
     @patch('tenant_apps.integrations.services.email_ingestion.EmailIngestionService.poll_tenant_by_id')
     def test_sync_emails_soft_fails_on_exception(self, poll_tenant_by_id):

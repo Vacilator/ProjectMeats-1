@@ -60,7 +60,8 @@ class FormSubmissionAssignmentVisibilityTests(APITestCase):
         )
 
     def test_non_admin_sees_role_assigned_submission_by_default(self):
-        self.client.force_authenticate(self.assignee)
+        # Session auth so TenantMiddleware can resolve X-Tenant-ID.
+        self.client.force_login(self.assignee)
 
         resp = self.client.get(
             '/api/v1/workflows/form-submissions/',

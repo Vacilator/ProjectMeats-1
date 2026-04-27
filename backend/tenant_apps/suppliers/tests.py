@@ -24,7 +24,8 @@ class SupplierAPITests(APITestCase):
             email=f"test-{unique_id}@example.com", 
             password="testpass123"
         )
-        self.client.force_authenticate(user=self.user)
+        # Use session auth so TenantMiddleware can resolve X-Tenant-ID.
+        self.client.force_login(self.user)
 
         self.tenant = Tenant.objects.create(
             name=f"Test Company {unique_id}",
@@ -129,7 +130,8 @@ class SupplierAPITests(APITestCase):
             email=f"newuser-{unique_id}@example.com", 
             password="testpass123"
         )
-        self.client.force_authenticate(user=new_user)
+        # Use session auth so TenantMiddleware can resolve X-Tenant-ID.
+        self.client.force_login(new_user)
         
         url = reverse("suppliers:supplier-list")
         data = {

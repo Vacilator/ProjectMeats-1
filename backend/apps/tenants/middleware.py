@@ -256,23 +256,34 @@ class TenantMiddleware:
                     )
 
         # 4. Get user's default tenant if authenticated
+        #
+        # SECURITY (fail-closed): Only allow an implicit default when the user belongs
+        # to exactly ONE active tenant. If multiple memberships exist, require explicit
+        # selection via X-Tenant-ID or host routing.
         if not tenant and hasattr(request, 'user') and request.user.is_authenticated:
             if is_debug_host:
                 logger.info(f"{debug_prefix} Attempting default tenant lookup for user: {request.user.username}")
-            
-            tenant_user = (
+
+            memberships = list(
                 TenantUser.objects.filter(user=request.user, is_active=True)
                 .select_related("tenant")
-                .order_by("-role")  # Prioritize owner/admin roles
-                .first()
+                .order_by("-role")[:2]
             )
-            if tenant_user:
+
+            if len(memberships) == 1:
+                tenant_user = memberships[0]
                 tenant = tenant_user.tenant
                 resolution_method = f"user default tenant (role={tenant_user.role})"
                 if is_debug_host:
                     logger.info(
                         f"{debug_prefix} Tenant resolved via user default - "
                         f"tenant={tenant.slug}, tenant_id={tenant.id}, role={tenant_user.role}"
+                    )
+            elif len(memberships) > 1:
+                if is_debug_host:
+                    logger.info(
+                        f"{debug_prefix} Multiple tenant memberships detected for user {request.user.username}; "
+                        "explicit selection required"
                     )
             else:
                 if is_debug_host:

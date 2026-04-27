@@ -33,7 +33,9 @@ class ApiErrorContractTests(TestCase):
 
     def setUp(self):
         self.client = APIClient()
-        self.client.force_authenticate(user=self.user)
+        # Use session auth so AuthenticationMiddleware marks request.user as authenticated
+        # before TenantMiddleware runs.
+        self.client.force_login(self.user)
 
     def test_ai_chat_not_configured_returns_503_with_stable_shape(self):
         if 'tenant_apps.ai_assistant' not in settings.INSTALLED_APPS:

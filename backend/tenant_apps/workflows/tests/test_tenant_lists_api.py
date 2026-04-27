@@ -32,7 +32,8 @@ class TenantListApiTestCase(TestCase):
             is_active=True,
         )
 
-        self.client.force_authenticate(user=self.user)
+        # Session auth so TenantMiddleware can resolve X-Tenant-ID.
+        self.client.force_login(self.user)
 
     def test_create_tenant_list_success(self):
         resp = self.client.post(
