@@ -42,11 +42,30 @@ const internalApi = (ApiService as any).api as {
 function loadOpenApiSchema(): OpenApiSpec | null {
   const schemaPath = path.resolve(process.cwd(), 'openapi-schema.json');
   if (!fs.existsSync(schemaPath)) {
+    const isCI = process.env.CI === 'true' || process.env.GITHUB_ACTIONS === 'true';
+    if (isCI) {
+      throw new Error(
+        `Missing OpenAPI schema artifact at ${schemaPath}. ` +
+          `The PR-validation workflow should download the 'openapi-schema' artifact into the mobile/ directory.`
+      );
+    }
     return null;
   }
 
   const raw = fs.readFileSync(schemaPath, 'utf8');
-  return JSON.parse(raw) as OpenApiSpec;
+  let parsed: OpenApiSpec;
+  try {
+    parsed = JSON.parse(raw) as OpenApiSpec;
+  } catch (err: any) {
+    throw new Error(`Invalid OpenAPI schema JSON at ${schemaPath}: ${err?.message ?? String(err)}`);
+  }
+
+  const pathCount = Object.keys(parsed.paths ?? {}).length;
+  if (pathCount === 0) {
+    throw new Error(`OpenAPI schema at ${schemaPath} has no paths; artifact may be empty or invalid.`);
+  }
+
+  return parsed;
 }
 
 describe('OpenAPI contract – mobile ApiService', () => {
@@ -144,5 +163,23 @@ describe('OpenAPI contract – mobile ApiService', () => {
     await ApiService.getWorkForm('wf-1');
     // OpenAPI uses a templated path for detail routes.
     expectExists('/tenant-workforms/{id}/', 'get');
+
+    internalApi.post.mockResolvedValue({
+      data: {
+        id: 'exec-1',
+        workform_id: 'wf-1',
+        workform_name: 'WF',
+        status: 'in_progress',
+        started_at: '2026-01-01T00:00:00Z',
+        completed_at: null,
+        error_message: '',
+      },
+    });
+    await ApiService.executeWorkForm('wf-1', { foo: 'bar' });
+    expectExists('/tenant-workforms/{id}/execute/', 'post');
+
+    internalApi.get.mockResolvedValue({ data: { ok: true } });
+    await ApiService.healthCheck();
+    expectExists('/health/', 'get');
   });
 });
