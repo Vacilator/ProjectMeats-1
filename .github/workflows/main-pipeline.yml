@@ -5,10 +5,10 @@ run-name: >-
     github.event_name == 'workflow_dispatch'
       && format(
         '🛠️ Deploy: {0} — manual on {1} ({2}) by {3} (run#{4})',
-        inputs.environment == 'development' && 'Dev'
-          || inputs.environment == 'uat' && 'UAT'
-          || inputs.environment == 'production' && 'Prod'
-          || inputs.environment,
+        github.event.inputs.environment == 'development' && 'Dev'
+          || github.event.inputs.environment == 'uat' && 'UAT'
+          || github.event.inputs.environment == 'production' && 'Prod'
+          || github.event.inputs.environment,
         github.ref_name,
         github.sha,
         github.actor,
@@ -140,7 +140,7 @@ jobs:
     if: |
       needs.check-latest.outputs.should_deploy == 'true' &&
       ((github.event_name == 'push' && github.ref == 'refs/heads/development') ||
-      (github.event_name == 'workflow_dispatch' && inputs.environment == 'development'))
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'development'))
     needs: [check-latest]
     uses: ./.github/workflows/reusable-deploy.yml
     secrets: inherit  # Environment context set in reusable workflow jobs
@@ -151,7 +151,7 @@ jobs:
       backend_environment: 'dev-backend'
       frontend_environment: 'dev-frontend'
       api_base_url: 'https://dev.meatscentral.com'
-      deploy_by_digest: ${{ github.event_name == 'workflow_dispatch' && inputs.deploy_by_digest || false }}
+      deploy_by_digest: ${{ github.event_name == 'workflow_dispatch' && (github.event.inputs.deploy_by_digest == 'true' || github.event.inputs.deploy_by_digest == true) || false }}
 
   # ==========================================
   # Route to UAT
@@ -161,7 +161,7 @@ jobs:
     if: |
       needs.check-latest.outputs.should_deploy == 'true' &&
       ((github.event_name == 'push' && github.ref == 'refs/heads/uat') ||
-      (github.event_name == 'workflow_dispatch' && inputs.environment == 'uat'))
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'uat'))
     needs: [check-latest]
     uses: ./.github/workflows/reusable-deploy.yml
     secrets: inherit  # Environment context set in reusable workflow jobs
@@ -172,7 +172,7 @@ jobs:
       backend_environment: 'uat-backend'
       frontend_environment: 'uat-frontend'
       api_base_url: 'https://uat.meatscentral.com'
-      deploy_by_digest: ${{ github.event_name == 'workflow_dispatch' && inputs.deploy_by_digest || false }}
+      deploy_by_digest: ${{ github.event_name == 'workflow_dispatch' && (github.event.inputs.deploy_by_digest == 'true' || github.event.inputs.deploy_by_digest == true) || false }}
 
   # ==========================================
   # Route to Production
@@ -182,7 +182,7 @@ jobs:
     if: |
       needs.check-latest.outputs.should_deploy == 'true' &&
       ((github.event_name == 'push' && github.ref == 'refs/heads/main') ||
-      (github.event_name == 'workflow_dispatch' && inputs.environment == 'production'))
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'production'))
     needs: [check-latest]
     uses: ./.github/workflows/reusable-deploy.yml
     secrets: inherit  # Environment context set in reusable workflow jobs
@@ -193,5 +193,5 @@ jobs:
       backend_environment: 'production-backend'
       frontend_environment: 'production-frontend'
       api_base_url: 'https://meatscentral.com'
-      deploy_by_digest: ${{ github.event_name == 'workflow_dispatch' && inputs.deploy_by_digest || false }}
+      deploy_by_digest: ${{ github.event_name == 'workflow_dispatch' && (github.event.inputs.deploy_by_digest == 'true' || github.event.inputs.deploy_by_digest == true) || false }}
 
