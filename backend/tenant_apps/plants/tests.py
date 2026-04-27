@@ -10,11 +10,16 @@ from rest_framework.test import APIRequestFactory
 from rest_framework.test import APITestCase
 from rest_framework import status
 
-from tenant_apps.plants.models import Plant
+from tenant_apps.plants.models import (
+    Plant,
+    PlantProteinOffered,
+    PlantProteinTested,
+)
 from tenant_apps.plants.serializers import PlantSerializer
 from tenant_apps.suppliers.models import Supplier
 from tenant_apps.contacts.models import Contact
 from apps.tenants.models import Tenant, TenantUser
+from apps.core.models import Protein
 from apps.core.permissions import IsRoleAuthorized
 
 
@@ -219,6 +224,109 @@ class PlantModelTest(TestCase):
         self.assertFalse(perm.has_object_permission(req, None, plant_denied))
         self.assertTrue(perm.has_object_permission(req, None, contact_allowed))
         self.assertFalse(perm.has_object_permission(req, None, contact_denied))
+
+
+class PlantProteinsAPITests(APITestCase):
+    def setUp(self):
+        unique_id = uuid.uuid4().hex[:8]
+        self.user = User.objects.create_user(
+            username=f"plant-proteins-{unique_id}",
+            email=f"plant-proteins-{unique_id}@example.com",
+            password="testpass123",
+        )
+        self.client.force_login(self.user)
+
+        self.tenant = Tenant.objects.create(
+            name=f"Plant Proteins Tenant {unique_id}",
+            slug=f"plant-proteins-tenant-{unique_id}",
+            contact_email=f"plant-proteins-{unique_id}@example.com",
+            created_by=self.user,
+        )
+        TenantUser.objects.create(tenant=self.tenant, user=self.user, role="owner", is_active=True)
+
+        self.supplier = Supplier.objects.create(
+            tenant=self.tenant,
+            name=f"Plant Supplier {unique_id}",
+        )
+
+        # core.Protein is global (tenant-agnostic).
+        self.protein_a = Protein.objects.create(name=f"Beef-{unique_id}")
+        self.protein_b = Protein.objects.create(name=f"Pork-{unique_id}")
+
+        self.tenant_header = {"HTTP_X_TENANT_ID": str(self.tenant.id)}
+
+    def test_create_plant_with_export_and_proteins(self):
+        payload = {
+            "name": "Protein Plant",
+            "plant_type": "processing",
+            "supplier": self.supplier.id,
+            "export_approved": True,
+            "export_documents_handled": ["COA", "FSIS"],
+            # Serializer accepts protein names (UI uses choice values like "Beef").
+            "proteins_offered": [self.protein_a.name],
+            "proteins_tested": [self.protein_a.name, self.protein_b.name],
+        }
+
+        response = self.client.post(
+            "/api/v1/plants/",
+            payload,
+            format="json",
+            **self.tenant_header,
+        )
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED, response.data)
+
+        plant = Plant.objects.get(id=response.data["id"], tenant=self.tenant)
+        self.assertTrue(plant.export_approved)
+        self.assertEqual(plant.export_documents_handled, ["COA", "FSIS"])
+
+        offered_ids = list(
+            PlantProteinOffered.objects.filter(tenant=self.tenant, plant=plant).values_list("protein_id", flat=True)
+        )
+        tested_ids = list(
+            PlantProteinTested.objects.filter(tenant=self.tenant, plant=plant).values_list("protein_id", flat=True)
+        )
+        self.assertEqual(offered_ids, [self.protein_a.id])
+        self.assertEqual(set(tested_ids), {self.protein_a.id, self.protein_b.id})
+
+        # Serializer representation should return names.
+        self.assertEqual(response.data["proteins_offered"], [self.protein_a.name])
+        self.assertEqual(set(response.data["proteins_tested"]), {self.protein_a.name, self.protein_b.name})
+
+    def test_patch_plant_replaces_proteins(self):
+        plant = Plant.objects.create(
+            tenant=self.tenant,
+            supplier=self.supplier,
+            name="Patch Plant",
+            export_approved=True,
+            export_documents_handled=["COA"],
+        )
+        PlantProteinOffered.objects.create(tenant=self.tenant, plant=plant, protein=self.protein_a)
+        PlantProteinTested.objects.create(tenant=self.tenant, plant=plant, protein=self.protein_a)
+
+        response = self.client.patch(
+            f"/api/v1/plants/{plant.id}/",
+            {
+                "export_approved": False,
+                "proteins_offered": [],
+                "proteins_tested": [self.protein_b.name],
+            },
+            format="json",
+            **self.tenant_header,
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK, response.data)
+
+        plant.refresh_from_db()
+        self.assertFalse(plant.export_approved)
+        self.assertEqual(plant.export_documents_handled, [])
+
+        self.assertEqual(
+            PlantProteinOffered.objects.filter(tenant=self.tenant, plant=plant).count(),
+            0,
+        )
+        tested_ids = list(
+            PlantProteinTested.objects.filter(tenant=self.tenant, plant=plant).values_list("protein_id", flat=True)
+        )
+        self.assertEqual(tested_ids, [self.protein_b.id])
 
 
 class PlantNestedContactsAPITests(APITestCase):
