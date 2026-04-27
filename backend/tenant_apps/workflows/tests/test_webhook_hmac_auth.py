@@ -110,3 +110,90 @@ class WorkflowWebhookHmacAuthTests(APITestCase):
 
         self.assertEqual(resp.status_code, 404)
         execute_workflow.assert_not_called()
+
+    @patch('tenant_apps.workflows.views_triggers.execute_workflow')
+    def test_tenant_scoped_webhook_hmac_missing_signature_returns_404(self, execute_workflow):
+        unique = uuid.uuid4().hex[:8]
+        user = self._create_user(f'hmac-user3-{unique}@example.com')
+
+        tenant = Tenant.objects.create(
+            name=f'Tenant {unique}',
+            slug=f'tenant-{unique}',
+            contact_email=f'{unique}@example.com',
+            is_active=True,
+            created_by=user,
+        )
+
+        webhook_token = 'tok_missing_sig'
+        secret = 'sec_missing_sig'
+
+        workflow = TenantWorkflow.objects.create(
+            tenant=tenant,
+            name='HMAC WF',
+            status='active',
+            trigger_type='webhook',
+            trigger_config={
+                'webhook_token': webhook_token,
+                'webhook_auth': 'hmac',
+                'webhook_secret': secret,
+            },
+        )
+
+        body = b'{"hello":"world"}'
+
+        url = f'{self.API_PREFIX}/tenants/{tenant.id}/workflows/webhooks/{workflow.id}/{webhook_token}/'
+        resp = self.client.generic(
+            'POST',
+            url,
+            data=body,
+            content_type='application/json',
+        )
+
+        self.assertEqual(resp.status_code, 404)
+        execute_workflow.assert_not_called()
+
+    @patch('tenant_apps.workflows.views_triggers.execute_workflow')
+    def test_tenant_scoped_webhook_hmac_raw_body_exactness_returns_404(self, execute_workflow):
+        """Signature must be computed over the raw request body bytes."""
+        unique = uuid.uuid4().hex[:8]
+        user = self._create_user(f'hmac-user4-{unique}@example.com')
+
+        tenant = Tenant.objects.create(
+            name=f'Tenant {unique}',
+            slug=f'tenant-{unique}',
+            contact_email=f'{unique}@example.com',
+            is_active=True,
+            created_by=user,
+        )
+
+        webhook_token = 'tok_raw_body'
+        secret = 'sec_raw_body'
+
+        workflow = TenantWorkflow.objects.create(
+            tenant=tenant,
+            name='HMAC WF',
+            status='active',
+            trigger_type='webhook',
+            trigger_config={
+                'webhook_token': webhook_token,
+                'webhook_auth': 'hmac',
+                'webhook_secret': secret,
+            },
+        )
+
+        signed_body = b'{"hello":"world"}'
+        sent_body = b'{ "hello" : "world" }'  # semantically equal JSON but different raw bytes
+
+        signature = hmac.new(secret.encode(), signed_body, hashlib.sha256).hexdigest()
+
+        url = f'{self.API_PREFIX}/tenants/{tenant.id}/workflows/webhooks/{workflow.id}/{webhook_token}/'
+        resp = self.client.generic(
+            'POST',
+            url,
+            data=sent_body,
+            content_type='application/json',
+            HTTP_X_WEBHOOK_SIGNATURE=signature,
+        )
+
+        self.assertEqual(resp.status_code, 404)
+        execute_workflow.assert_not_called()
