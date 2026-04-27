@@ -134,6 +134,10 @@ import { AISuggestionsPanel } from './components/AISuggestionsPanel';
 import { validateWorkflow, type ValidationResult } from './utils/validationEngine';
 import { NODE_TYPE_REGISTRY, NodeCategory, CATEGORY_LABELS, CATEGORY_ORDER, getNodeTypeDefinition } from './nodeTypes';
 import type { FormStepData } from './Modals/EntityFormStepModal';
+// Ensure schemaRegistry is populated deterministically even when this component is imported directly.
+// (Some entrypoints bypass FlowEditor/index.ts.) Import is idempotent.
+import './config/nodeConfigSchemas';
+
 import { schemaRegistry } from './config/schemaRegistry';
 import { calculateContainerLayout, autoConnectSequentialSteps, LAYOUT_CONSTANTS } from './utils/containerLayout'; // Phase 3-4
 import { NodeContextMenu, useContextMenu } from './NodeContextMenu'; // Phase E.3
