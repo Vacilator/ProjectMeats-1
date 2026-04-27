@@ -7,7 +7,7 @@
  * - Uses Bearer tokens for JWT authentication
  * - Falls back to Token auth for legacy compatibility
  * - Automatic token refresh on 401 responses
- * - Session expired modal instead of hard redirects
+ * - Global 401 handling: clears local auth + hard-redirects to /login when refresh fails/missing
  */
 import axios, { AxiosError as AxiosErrorType, InternalAxiosRequestConfig } from 'axios';
 import * as Sentry from '@sentry/react';
@@ -21,7 +21,6 @@ import {
   clearTokens,
   isUsingJwt,
 } from './jwtService';
-import { triggerGlobalSessionExpired } from '../contexts/SessionManagerContext';
 import { ApiServiceError, createCircuitBreakerError } from './apiErrors';
 
 // API Configuration
@@ -52,6 +51,57 @@ const processQueue = (error: unknown | null) => {
     }
   });
   failedQueue = [];
+};
+
+const isAuthEndpointRequest = (url?: string | null): boolean => {
+  const u = String(url || '');
+  return (
+    u.includes('/auth/token/refresh/') ||
+    u.includes('/auth/token/verify/') ||
+    u.includes('/auth/token/') ||
+    u.includes('/auth/login/') ||
+    u.includes('/auth/guest-login/') ||
+    u.includes('/auth/signup')
+  );
+};
+
+const redirectToLogin = () => {
+  if (typeof window === 'undefined') return;
+
+  const currentPath = `${window.location.pathname}${window.location.search}`;
+
+  // Avoid redirect loops (and allow the login page to handle invalid credentials normally).
+  if (currentPath.startsWith('/login')) return;
+
+  try {
+    localStorage.setItem('redirectAfterLogin', currentPath);
+  } catch {
+    // best-effort
+  }
+
+  try {
+    window.location.assign('/login');
+  } catch {
+    // JSDOM (tests) and some restricted browser contexts may throw on navigation.
+    // Auth state is already cleared, so swallow and let the app router handle it.
+  }
+};
+
+const forceLogoutAndRedirect = () => {
+  try {
+    clearTokens();
+  } catch {
+    // best-effort
+  }
+
+  try {
+    localStorage.removeItem('user');
+  } catch {
+    // best-effort
+  }
+
+  // KEEP tenant context for re-login - user should see same tenant after re-auth.
+  redirectToLogin();
 };
 
 const stripJsonContentTypeForFormData = (config: InternalAxiosRequestConfig) => {
@@ -281,24 +331,20 @@ apiClient.interceptors.response.use(
     }
     
     // Handle 401 Unauthorized
+    // Never auto-logout/redirect for auth endpoints themselves (login failures should be handled by the caller).
+    if (status === 401 && originalRequest && isAuthEndpointRequest(originalRequest.url)) {
+      return Promise.reject(error);
+    }
+
     if (status === 401 && originalRequest && !originalRequest._retry) {
       // Prevent infinite retry loops
       const retryCount = (originalRequest._retryCount || 0) + 1;
       if (retryCount > 2) {
-        logger.error('[API] Max retry attempts reached, showing session expired modal');
-        clearTokens();
-        localStorage.removeItem('user');
-        // KEEP tenant context for re-login - user should see same tenant after re-auth
-        // This prevents unexpected tenant switching mid-session
-        // localStorage.removeItem('tenantId');
-        // localStorage.removeItem('tenantName');
-        // localStorage.removeItem('tenantSlug');
-        
-        // Show session expired modal instead of hard redirect
-        triggerGlobalSessionExpired('Your session has expired after multiple authentication attempts.');
+        logger.error('[API] Max retry attempts reached, forcing logout + redirect');
+        forceLogoutAndRedirect();
         return Promise.reject(error);
       }
-      
+
       // If using JWT and we have a refresh token, try to refresh
       if (isUsingJwt()) {
         if (isRefreshing) {
@@ -307,51 +353,43 @@ apiClient.interceptors.response.use(
             failedQueue.push({ resolve, reject, config: originalRequest });
           }).then((config) => apiClient(config as InternalAxiosRequestConfig));
         }
-        
+
         originalRequest._retry = true;
         originalRequest._retryCount = retryCount;
         isRefreshing = true;
-        
+
         try {
           const newToken = await refreshAccessToken();
-          
+
           if (newToken) {
             // Retry original request with new token
             originalRequest.headers.Authorization = `Bearer ${newToken}`;
             processQueue(null);
             logger.debug('[API] Retrying request with refreshed token');
             return apiClient(originalRequest);
-          } else {
-            // Refresh returned null - tokens are invalid
-            throw new Error('Token refresh returned null');
           }
+
+          // Refresh returned null - tokens are invalid
+          throw new Error('Token refresh returned null');
         } catch (refreshError) {
           logger.error('[API] Token refresh failed:', refreshError);
           processQueue(refreshError);
-          // Refresh failed, show session expired modal
-          clearTokens();
-          localStorage.removeItem('user');
-          // KEEP tenant context for re-login - user should see same tenant after re-auth
-          // This prevents unexpected tenant switching mid-session
-          // localStorage.removeItem('tenantId');
-          // localStorage.removeItem('tenantName');
-          // localStorage.removeItem('tenantSlug');
-          
-          triggerGlobalSessionExpired('Your session could not be refreshed. Please log in again.');
+
+          // Refresh failed: clear local auth immediately and hard-redirect to login.
+          forceLogoutAndRedirect();
           return Promise.reject(refreshError);
         } finally {
           // CRITICAL: Always reset isRefreshing flag
           isRefreshing = false;
         }
       }
-      
-      // No JWT or refresh failed, clear auth and show modal
-      logger.warn('[API] No JWT auth available, showing session expired modal');
-      clearTokens();
-      localStorage.removeItem('user');
-      triggerGlobalSessionExpired('Your session has expired. Please log in to continue.');
+
+      // No JWT or refresh token available: clear auth and hard-redirect to login.
+      logger.warn('[API] No JWT auth available, forcing logout + redirect');
+      forceLogoutAndRedirect();
+      return Promise.reject(error);
     }
-    
+
     return Promise.reject(error);
   }
 );
@@ -404,35 +442,37 @@ adminClient.interceptors.response.use(
       });
     }
     
-    if (error.response?.status === 401 && originalRequest && !originalRequest._retry) {
+    // Never auto-logout/redirect for auth endpoints themselves (login failures should be handled by the caller).
+    if (status === 401 && originalRequest && isAuthEndpointRequest(originalRequest.url)) {
+      return Promise.reject(error);
+    }
+
+    if (status === 401 && originalRequest && !originalRequest._retry) {
       // Prevent infinite retry loops
       const retryCount = (originalRequest._retryCount || 0) + 1;
       if (retryCount > 2) {
-        logger.error('[Admin API] Max retry attempts reached, showing session expired modal');
-        clearTokens();
-        localStorage.removeItem('user');
-        triggerGlobalSessionExpired('Your session has expired.');
+        logger.error('[Admin API] Max retry attempts reached, forcing logout + redirect');
+        forceLogoutAndRedirect();
         return Promise.reject(error);
       }
-      
+
       if (isUsingJwt()) {
         originalRequest._retry = true;
         originalRequest._retryCount = retryCount;
         const newToken = await refreshAccessToken();
-        
+
         if (newToken) {
           originalRequest.headers.Authorization = `Bearer ${newToken}`;
           logger.debug('[Admin API] Retrying request with refreshed token');
           return adminClient(originalRequest);
         }
       }
-      
-      logger.warn('[Admin API] No JWT auth available, showing session expired modal');
-      clearTokens();
-      localStorage.removeItem('user');
-      triggerGlobalSessionExpired('Your session has expired. Please log in to continue.');
+
+      logger.warn('[Admin API] No JWT auth available, forcing logout + redirect');
+      forceLogoutAndRedirect();
+      return Promise.reject(error);
     }
-    
+
     return Promise.reject(error);
   }
 );

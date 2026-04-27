@@ -207,7 +207,8 @@ describe('QuickActionsContext', () => {
 
     it('should treat 401/403 as logged-out state (no error)', async () => {
       localStorageMock = {
-        // No JWT or legacy token (cookie-auth may still exist in real app)
+        // Simulate an authenticated session (API gating requires token credentials).
+        authToken: 'legacy-token',
         tenantId: '11111111-1111-4111-8111-111111111111',
       };
 

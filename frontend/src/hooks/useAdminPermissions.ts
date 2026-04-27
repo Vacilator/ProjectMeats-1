@@ -15,6 +15,7 @@
  */
 
 import { useQuery } from '@tanstack/react-query';
+import { useAuthState } from '@/contexts/AuthContext';
 import { apiClient } from '../services/apiService';
 
 export interface AdminPermissions {
@@ -39,6 +40,7 @@ export interface AdminPermissions {
  * Hook to fetch and manage admin permissions for the current user.
  */
 export function useAdminPermissions() {
+  const { isAuthenticated, loading: authLoading } = useAuthState();
   const tenantId = typeof window !== 'undefined' ? localStorage.getItem('tenantId') : null;
 
   const query = useQuery<AdminPermissions>({
@@ -96,6 +98,7 @@ export function useAdminPermissions() {
         return getDefaultPermissions();
       }
     },
+    enabled: !authLoading && isAuthenticated,
     staleTime: 5 * 60 * 1000, // 5 minutes - permissions don't change often
     retry: (failureCount, error: any) => {
       if (error?.response?.status === 401) {
