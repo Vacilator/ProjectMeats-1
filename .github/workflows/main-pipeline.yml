@@ -59,6 +59,7 @@ jobs:
   check_infrastructure:
     name: "Check Infrastructure (Golden Drift Gate)"
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
@@ -96,6 +97,7 @@ jobs:
   # 3. All commits are eventually deployed (git history is cumulative)
   check-latest:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     needs: [check_infrastructure]
     outputs:
       should_deploy: ${{ steps.check.outputs.should_deploy }}
@@ -134,6 +136,7 @@ jobs:
   # Route to Development
   # ==========================================
   deploy-dev:
+    timeout-minutes: 90
     if: |
       needs.check-latest.outputs.should_deploy == 'true' &&
       ((github.event_name == 'push' && github.ref == 'refs/heads/development') ||
@@ -154,6 +157,7 @@ jobs:
   # Route to UAT
   # ==========================================
   deploy-uat:
+    timeout-minutes: 90
     if: |
       needs.check-latest.outputs.should_deploy == 'true' &&
       ((github.event_name == 'push' && github.ref == 'refs/heads/uat') ||
@@ -174,6 +178,7 @@ jobs:
   # Route to Production
   # ==========================================
   deploy-prod:
+    timeout-minutes: 90
     if: |
       needs.check-latest.outputs.should_deploy == 'true' &&
       ((github.event_name == 'push' && github.ref == 'refs/heads/main') ||
