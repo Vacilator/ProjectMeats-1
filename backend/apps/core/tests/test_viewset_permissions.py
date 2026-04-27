@@ -45,3 +45,8 @@ class ViewSetPermissionsTests(TestCase):
         client = APIClient()
         resp = client.get('/api/v1/workflows/notifications/', HTTP_X_TENANT_ID=str(self.tenant.id))
         self.assertEqual(resp.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_comments_requires_auth(self):
+        client = APIClient()
+        resp = client.get('/api/v1/comments/', HTTP_X_TENANT_ID=str(self.tenant.id))
+        self.assertEqual(resp.status_code, status.HTTP_401_UNAUTHORIZED)
