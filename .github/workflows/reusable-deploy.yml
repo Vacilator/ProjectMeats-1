@@ -1912,7 +1912,22 @@ jobs:
             exit 1
           fi
 
-          API_CODE=$(curl -k -s -o /dev/null -w "%{http_code}" -m 10 --resolve "${DOMAIN_NAME}:443:127.0.0.1" "https://${DOMAIN_NAME}/api/v1/health/" || echo "000")
+          API_MAX_ATTEMPTS=5
+          API_ATTEMPT=1
+          API_CODE="000"
+
+          while [ $API_ATTEMPT -le $API_MAX_ATTEMPTS ]; do
+            API_CODE=$(curl -k -s -o /dev/null -w "%{http_code}" -m 10 --resolve "${DOMAIN_NAME}:443:127.0.0.1" "https://${DOMAIN_NAME}/api/v1/health/" || echo "000")
+
+            if [ "$API_CODE" = "200" ] || [ "$API_CODE" = "503" ]; then
+              break
+            fi
+
+            echo "API routing check attempt $API_ATTEMPT/$API_MAX_ATTEMPTS (HTTP $API_CODE), retrying..."
+            sleep 15
+            API_ATTEMPT=$((API_ATTEMPT + 1))
+          done
+
           if [ "$API_CODE" != "200" ] && [ "$API_CODE" != "503" ]; then
             echo "✗ Host nginx /api/v1/health/ unexpected HTTP ${API_CODE} (expected 200/503)"
             exit 1
