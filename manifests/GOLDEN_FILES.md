@@ -31,6 +31,7 @@ Golden template for workflow suggestion engine with meat industry context
 | **Architecture** | `docs/architecture/ARCHITECTURE.md` | Design doc |
 | **Execution status / priorities** | `MASTER_PLAN.md` | CANONICAL |
 | **Roadmaps** | `ROADMAP.md`, `UI_ROADMAP.md` | Reference-only unless promoted in `MASTER_PLAN.md` |
+| **Incident response** | `docs/runbooks/INCIDENT_RESPONSE.md` | AUTHORITATIVE |
 | **Copilot Squad Governance** | `.copilot/squad/squad.json` | AUTHORITATIVE |
 | **Copilot Squad Roles** | `.copilot/squad/roles/*.md` | AUTHORITATIVE |
 | **Copilot Squad Tasks** | `.copilot/squad/tasks/*.md` | AUTHORITATIVE |

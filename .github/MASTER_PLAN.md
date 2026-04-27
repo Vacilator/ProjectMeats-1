@@ -118,6 +118,12 @@ This file is the **append-only PR-referenceable execution log**.
 
 - **2026-04-27** — Workflows/QuickActions hardening: `/api/v1/workflows/available-forms/` now degrades safely even if form/workform serialization or node_count fails (skips bad rows; never 500) with regression coverage; frontend stops probing legacy `/api/v1/products/master/` and calls canonical `/api/v1/master-products/` only (avoids noisy 404 spam). (PR: #4709)
 
+- **2026-04-27** — Phase 10 Sprint 1 gate (in progress):
+  - Frontend: standardized API error presentation now recognizes backend `code`/`error_code` (e.g., `AI_NOT_CONFIGURED`, `EMAIL_SEND_NOT_CONFIGURED`) and surfaces user-safe guidance; Email Integration widget uses the shared presentation.
+  - CI: workflow validator now enforces that PR validation includes the frontend TypeScript gate (verify-standards/type-check), preventing silent removal.
+  - Docs: added canonical incident response runbook (`docs/runbooks/INCIDENT_RESPONSE.md`).
+  - Mobile: began hardening the Customers page table container for mobile E2E stability (`customers-table-container` selector) and continued mobile viewport work.
+
 - **2026-04-27** — Entities: fixed UniversalEntityForm React infinite loop (#185) in Plant create/edit by stabilizing initialValues and sanitizing array-like defaults; restored AI Overview on canonical Supplier/Customer record pages; renamed Suppliers/Customers list create buttons to "New Supplier"/"New Customer" and aligned Customer form titles to "New Customer"/"Customer". (PR: #4711)
 
 - **2026-04-27** — Forms: fixed Plant edit/create crash (minified React error #185) by stabilizing cascading option fetch (no more setState loop when dependencies are empty) and adding a short-lived cache for missing `/system/choices/?list=...` slugs to prevent repeated 404 spam. (PR: #4713)
