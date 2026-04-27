@@ -910,6 +910,7 @@ class TenantWorkFormExecutionStatus(models.TextChoices):
     IN_PROGRESS = 'in_progress', 'In Progress'
     COMPLETED = 'completed', 'Completed'
     FAILED = 'failed', 'Failed'
+    SUSPENDED = 'suspended', 'Suspended'
     CANCELLED = 'cancelled', 'Cancelled'
 
 
@@ -961,6 +962,58 @@ class TenantWorkFormExecution(TenantAwareModel):
         indexes = [
             models.Index(fields=['tenant', 'status']),
             models.Index(fields=['tenant', 'workform']),
+        ]
+
+
+class WorkflowDeadLetterStatus(models.TextChoices):
+    PENDING = 'pending', 'Pending'
+    RESOLVED = 'resolved', 'Resolved'
+    DISCARDED = 'discarded', 'Discarded'
+
+
+class WorkflowDeadLetter(TenantAwareModel):
+    """Tenant-scoped dead letter queue for chronically failed WorkForm nodes."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
+    workform = models.ForeignKey(
+        'system.TenantWorkForm',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='dead_letters',
+    )
+
+    workform_execution = models.ForeignKey(
+        'workflows.TenantWorkFormExecution',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='dead_letters',
+    )
+
+    node_id = models.CharField(max_length=128, blank=True, default='', db_index=True)
+    node_type = models.CharField(max_length=128, blank=True, default='')
+
+    task_id = models.CharField(max_length=255, blank=True, default='')
+
+    status = models.CharField(max_length=20, choices=WorkflowDeadLetterStatus.choices, default=WorkflowDeadLetterStatus.PENDING)
+
+    trigger_data = models.JSONField(default=dict, blank=True)
+    execution_context = models.JSONField(default=dict, blank=True)
+
+    error_message = models.TextField(blank=True, default='')
+    retry_count = models.PositiveIntegerField(default=0)
+
+    last_failed_at = models.DateTimeField(default=timezone.now)
+    resolved_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['-last_failed_at']
+        indexes = [
+            models.Index(fields=['tenant', 'status'], name='wf_dlq_tenant_status'),
+            models.Index(fields=['tenant', 'workform_execution'], name='wf_dlq_t_wfexec'),
+            models.Index(fields=['tenant', 'node_id'], name='wf_dlq_t_node'),
         ]
 
 

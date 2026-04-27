@@ -40,6 +40,40 @@ class ExecutionResult:
     error: Optional[str] = None
 
 
+@dataclass
+class ParallelExecutionPlan:
+    node_id: str
+    branch_start_node_ids: List[str]
+    join_node_id: Optional[str]
+    wait_strategy: str
+    error_strategy: str
+    base_context: Dict[str, Any]
+
+
+class ParallelExecutionRequested(Exception):
+    def __init__(self, plan: ParallelExecutionPlan):
+        super().__init__(f'parallel_execution_requested:{plan.node_id}')
+        self.plan = plan
+
+
+class RetryableNodeError(Exception):
+    def __init__(
+        self,
+        *,
+        node_id: str,
+        node_type: str,
+        error: str,
+        max_retries: int = 0,
+        details: Optional[Dict[str, Any]] = None,
+    ):
+        super().__init__(error)
+        self.node_id = node_id
+        self.node_type = node_type
+        self.error = error
+        self.max_retries = int(max_retries or 0)
+        self.details = details or {}
+
+
 class WorkFormEngine:
     """Primary graph traversal loop for TenantWorkForm."""
 
@@ -116,6 +150,20 @@ class WorkFormEngine:
                 )
                 continue
 
+            # Parallel fanout: defer orchestration to Celery so branches can execute concurrently.
+            if node_type == 'parallelPath':
+                plan = self._plan_parallel_execution(node_id=current_id)
+                self._append_audit_event(
+                    'parallel_deferred',
+                    node_id=current_id,
+                    node_type=node_type,
+                    branches=len(plan.branch_start_node_ids),
+                    join_node_id=plan.join_node_id,
+                    wait_strategy=plan.wait_strategy,
+                    error_strategy=plan.error_strategy,
+                )
+                raise ParallelExecutionRequested(plan)
+
             # Action nodes: wrap with try/except and route to error edge if present
             if node_type.startswith('action'):
                 try:
@@ -124,6 +172,8 @@ class WorkFormEngine:
                     self._append_audit_event('action_success', node_id=current_id, node_type=node_type)
                     current_id = self._next_node_id(current_id, prefer_error=False)
                     continue
+                except RetryableNodeError:
+                    raise
                 except Exception as e:  # noqa: BLE001 - routing policy
                     error_target = self._next_node_id(current_id, prefer_error=True)
                     if error_target:
@@ -196,6 +246,95 @@ class WorkFormEngine:
                 return nid
         return None
 
+    def _plan_parallel_execution(self, *, node_id: str) -> ParallelExecutionPlan:
+        node = self.node_by_id.get(node_id) or {}
+        data = node.get('data') or {}
+        config = data.get('config') or {}
+
+        wait_strategy = str(config.get('waitStrategy') or 'all').strip() or 'all'
+        error_strategy = str(config.get('errorStrategy') or 'stop').strip() or 'stop'
+
+        branch_start_node_ids = self._outgoing_targets(node_id, exclude_error=True)
+
+        join_node_id = None
+        if branch_start_node_ids:
+            join_node_id = self._nearest_common_descendant(branch_start_node_ids)
+
+        base_context = dict(self.context or {})
+
+        return ParallelExecutionPlan(
+            node_id=str(node_id),
+            branch_start_node_ids=[str(x) for x in branch_start_node_ids],
+            join_node_id=str(join_node_id) if join_node_id else None,
+            wait_strategy=wait_strategy,
+            error_strategy=error_strategy,
+            base_context=base_context,
+        )
+
+    def _outgoing_edges(self, source_id: str, *, exclude_error: bool) -> List[Dict[str, Any]]:
+        edges = [e for e in self.edges if isinstance(e, dict) and e.get('source') == source_id]
+        if exclude_error:
+            edges = [e for e in edges if (e.get('type') or '') != 'error']
+        return edges
+
+    def _outgoing_targets(self, source_id: str, *, exclude_error: bool) -> List[str]:
+        targets: List[str] = []
+        for e in self._outgoing_edges(source_id, exclude_error=exclude_error):
+            t = e.get('target')
+            if t:
+                targets.append(str(t))
+        return targets
+
+    def _reachable_distances(self, start_id: str) -> Dict[str, int]:
+        # BFS over non-error edges
+        q: List[str] = [start_id]
+        dist: Dict[str, int] = {start_id: 0}
+
+        i = 0
+        while i < len(q):
+            cur = q[i]
+            i += 1
+
+            if dist[cur] > 2000:
+                # Safety: overly deep graphs are considered invalid.
+                break
+
+            for nxt in self._outgoing_targets(cur, exclude_error=True):
+                if nxt not in dist:
+                    dist[nxt] = dist[cur] + 1
+                    q.append(nxt)
+
+        return dist
+
+    def _nearest_common_descendant(self, branch_start_ids: List[str]) -> Optional[str]:
+        if not branch_start_ids:
+            return None
+
+        dists = [self._reachable_distances(s) for s in branch_start_ids]
+        common = set(dists[0].keys())
+        for d in dists[1:]:
+            common &= set(d.keys())
+
+        if not common:
+            return None
+
+        # Prefer a node that is not one of the branch starts.
+        common -= set(branch_start_ids)
+        if not common:
+            return None
+
+        best_node = None
+        best_score = None
+        for nid in common:
+            # Deterministic join: minimize max distance across branches; tie-break by sum.
+            distances = [d.get(nid, 10**9) for d in dists]
+            score = (max(distances), sum(distances), str(nid))
+            if best_score is None or score < best_score:
+                best_score = score
+                best_node = nid
+
+        return best_node
+
     def _next_node_id(
         self,
         source_id: str,
@@ -236,6 +375,23 @@ class WorkFormEngine:
         result = self.action_executor.execute(action_type, config)
 
         if not result.get('success', False):
+            error_handling = str(config.get('errorHandling') or config.get('error_handling') or 'none').strip()
+            max_retries = config.get('maxRetries') or config.get('max_retries')
+            try:
+                max_retries = int(max_retries) if max_retries is not None else 3
+            except (TypeError, ValueError):
+                max_retries = 3
+
+            transient = bool(result.get('transient'))
+            if transient and error_handling == 'retry':
+                raise RetryableNodeError(
+                    node_id=str(node.get('id') or ''),
+                    node_type=str(node_type or ''),
+                    error=str(result.get('error') or 'Action failed'),
+                    max_retries=max_retries,
+                    details=dict(result),
+                )
+
             raise RuntimeError(result.get('error') or 'Action failed')
 
         self.context['variables']['last_action_result'] = result
@@ -310,5 +466,6 @@ class WorkFormEngine:
             'actionNotification': 'send_notification',
             'actionNotify': 'send_notification',  # canonical FlowEditor node type
             'notify': 'send_notification',  # legacy/alias
+            'actionHTTP': 'http_request',
         }
         return mapping.get(node_type, node_type)
