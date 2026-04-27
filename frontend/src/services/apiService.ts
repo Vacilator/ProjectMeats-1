@@ -1022,3 +1022,9 @@ export const apiService = new ApiService();
 
 // Export apiClient for direct axios usage in components
 export { apiClient, adminClient };
+
+// Test-only helper to reset module-scoped auth refresh state.
+export const __resetAuthRefreshStateForTests = () => {
+  isRefreshing = false;
+  failedQueue = [];
+};
