@@ -24,7 +24,10 @@ This file is the **canonical plan + current truth snapshot**.
   - Legacy workflow webhook endpoint must fail closed unless tenant context is resolvable (migrate callers to tenant-path URL).
   - Integrations OAuth callback must set tenant + RLS session vars before writing tenant-scoped rows.
   - WorkForms create must not bypass activation validation when `status=active`.
-- **CI guardrails (never-miss-again)**: keep Golden Drift Gate green; follow-ups include re-enabling backend/frontend test gates in `reusable-deploy.yml`.
+- **CI guardrails (never-miss-again)**:
+  - Fix backend runtime `SECRET_KEY` injection (ensure `backend/.env` includes `SECRET_KEY` mapped from `DJANGO_SECRET_KEY`).
+  - Enforce job-level timeouts + add Golden-compliant post-deploy smoke gates (direct-to-container).
+  - Keep Golden Drift Gate green; follow-ups include re-enabling backend/frontend test gates in `reusable-deploy.yml`.
 - **Mobile parity**: align WorkForms mobile models with backend (`workflow_definition`), extend OpenAPI contract coverage for `/tenant-workforms/*`, and add a real WorkForm detail view.
 
 ### Squad deep dive plan (as of 2026-04-21)

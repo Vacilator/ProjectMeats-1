@@ -1259,6 +1259,8 @@ jobs:
           # backend.env contains secrets; lock down permissions on the runner and ensure it is cleaned up.
           umask 077
           cat <<- 'EOF' > backend.env
+          	# Django reads SECRET_KEY at runtime; keep DJANGO_SECRET_KEY for backward compatibility.
+          	SECRET_KEY=${{ secrets.DJANGO_SECRET_KEY }}
           	DJANGO_SECRET_KEY=${{ secrets.DJANGO_SECRET_KEY }}
           	DJANGO_SETTINGS_MODULE=${{ secrets.DJANGO_SETTINGS_MODULE }}
           	ALLOWED_HOSTS=${{ secrets.ALLOWED_HOSTS }}
