@@ -1,7 +1,7 @@
 # MASTER_PLAN.md (Canonical)
 
 **Status**: 🔄 Living document (canonical source of truth)  
-**Last Updated**: 2026-04-21  
+**Last Updated**: 2026-04-27  
 **Primary Focus**: Phase 10 (DRY/Canonical Architecture Standardization) - Industry-leader compliance  
 
 This file is the **canonical plan + current truth snapshot**.
@@ -10,28 +10,34 @@ This file is the **canonical plan + current truth snapshot**.
 
 ---
 
-## Current Execution Snapshot (as of 2026-04-20)
+## Current Execution Snapshot (as of 2026-04-27)
 
 ### What is true right now
 - **WorkForms E2E** is shipped end-to-end (execute + monitoring + notifications + Quick Actions + Gmail connector MVP).
-- **Primary execution focus (P0):** close remaining correctness + UX gaps surfaced by squad audits.
-- Recently shipped hardening includes FlowEditor a11y tabs + HelpModal stability, back-compat theme token aliases, WorkForms RBAC regression coverage, and debug logging cleanup (see PR refs in `.github/MASTER_PLAN.md`).
+- **Primary execution focus (P0):** close remaining correctness + tenant isolation gaps surfaced by squad audits.
+- **Newly shipped since last snapshot (evidence; see `.github/MASTER_PLAN.md`)**:
+  - Core API reliability: fix `apps/core/views.py` legacy imports/`print()` landmines + add smoke tests (PR #4652).
+  - Frontend standards: expand `lint:colors` + remove remaining hardcoded colors in MyTasks surfaces (PR #4650); replace high-churn `console.*` with `logger.*` (PR #4654).
+  - Backend tenant safety: fail-closed `current/current_theme/admin_permissions` when tenant context is missing/ambiguous (PR #4656); wrap tenant-scoped Celery ORM in `tenant_rls(..., strict=False)` (PR #4657).
+  - Mobile: device-safe API base URL + tests (PR #4658); switch builds to EAS (PR #4659).
 
 ### P0 priorities (next)
-- **Core API reliability**: fix `apps/core/views.py` legacy imports/`print()` that can cause runtime 500s in Ranked Search + Workspace Stats; add smoke tests.
-- **WorkForms Editor stability**: deterministic schema init (no timer races), resolve form "fields" model mismatch, sanitize UI-only shadow state on save; continue hardening remaining a11y + theme-token usage as needed.
+- **Core API reliability**: ✅ shipped (PR #4652). Next: expand smoke coverage for always-on endpoints (health, tenant resolution, auth bootstrap) and keep them in PR gates.
 - **Security / tenant isolation** (RLS correctness):
+  - **P0 data isolation**: remove `is_staff` global bypasses in `apps/system/views/choice_viewsets.py` (tenant admins are promoted to `is_staff=True` via signals; must not yield cross-tenant reads/writes).
+  - Make invitation email Celery task tenant/RLS safe (pass `tenant_id`; wrap task ORM in `tenant_rls` before querying invitation).
   - Workflow webhook receiver must set `request.tenant` + `set_current_tenant()` **before** ORM lookup (FORCE RLS correctness).
   - Legacy workflow webhook endpoint must fail closed unless tenant context is resolvable (migrate callers to tenant-path URL).
   - Integrations OAuth callback must set tenant + RLS session vars before writing tenant-scoped rows.
   - WorkForms create must not bypass activation validation when `status=active`.
+- **WorkForms Editor stability**: deterministic schema init (no timer races), resolve form "fields" model mismatch, sanitize UI-only shadow state on save; continue hardening remaining a11y + theme-token usage as needed.
 - **CI guardrails (never-miss-again)**:
-  - Fix backend runtime `SECRET_KEY` injection (ensure `backend/.env` includes `SECRET_KEY` mapped from `DJANGO_SECRET_KEY`).
-  - Enforce job-level timeouts + add Golden-compliant post-deploy smoke gates (direct-to-container).
-  - Keep Golden Drift Gate green; follow-ups include re-enabling backend/frontend test gates in `reusable-deploy.yml`.
-- **Mobile parity**: align WorkForms mobile models with backend (`workflow_definition`), extend OpenAPI contract coverage for `/tenant-workforms/*`, and add a real WorkForm detail view.
+  - Deploy-by-digest default for UAT/Prod and digest-align the migration artifact.
+  - Manifest-driven required-secret enforcement per lane (remove hardcoded lists).
+  - Docs drift prevention: "CURRENT" docs must not recommend forbidden Golden patterns (runner-driven migrations only).
+- **Mobile parity**: ✅ shipped foundations (PRs #4658/#4659). Next: switch-tenant persistence, consistent error normalization, and auth expiry/401 behavior parity.
 
-### Squad deep dive plan (as of 2026-04-21)
+### Squad deep dive plan (as of 2026-04-27)
 
 This is a prioritized, PR-sized execution plan synthesized from squad deep dives (frontend/backend/devops/testing + lead synthesis). It is intentionally biased toward **guardrails first**, then **tenant/RLS correctness**, then **editor stability + standards**, then **mobile parity**.
 
