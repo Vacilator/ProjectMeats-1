@@ -866,9 +866,9 @@ class WorkspaceStatsView(APIView):
                 created_on__date=today,
             ).count()
             
+            # Suppliers do not currently have an is_active flag; treat "active" as "exists for tenant".
             active_suppliers = Supplier.objects.filter(
                 tenant=tenant,
-                is_active=True
             ).count()
             
             active_customers = Customer.objects.filter(
