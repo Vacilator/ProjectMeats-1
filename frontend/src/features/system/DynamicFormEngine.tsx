@@ -734,11 +734,27 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
     dependencyValue?: unknown;
   }> = ({ field, showRequired, errorMessage, options, cascading = false, dependencyValue }) => {
     const currentValue = useWatch({ control, name: field.key }) as string[] | undefined;
-    const dependencyItems = Array.isArray(dependencyValue)
-      ? dependencyValue.map((item) => String(item || '').trim()).filter(Boolean)
+
+    const dependencySignature = Array.isArray(dependencyValue)
+      ? dependencyValue
+          .map((item) => String(item ?? '').trim())
+          .filter(Boolean)
+          .join('\u0001')
       : typeof dependencyValue === 'string'
-        ? [String(dependencyValue).trim()].filter(Boolean)
-        : [];
+        ? String(dependencyValue).trim()
+        : '';
+
+    const dependencyItems = useMemo(() => {
+      if (Array.isArray(dependencyValue)) {
+        return dependencyValue.map((item) => String(item ?? '').trim()).filter(Boolean);
+      }
+
+      if (typeof dependencyValue === 'string') {
+        return [String(dependencyValue).trim()].filter(Boolean);
+      }
+
+      return [] as string[];
+    }, [dependencySignature]);
 
     const hasDependencies = (field.dependencies || []).length > 0;
 

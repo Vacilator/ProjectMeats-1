@@ -59,9 +59,30 @@ const slugVariants = (slug: string): string[] => {
   return Array.from(variants);
 };
 
+const MISSING_CHOICE_LIST_TTL_MS = 5 * 60 * 1000;
+const missingChoiceLists = new Map<string, number>();
+
+const isKnownMissingChoiceList = (key: string): boolean => {
+  const ts = missingChoiceLists.get(key);
+  if (!ts) return false;
+  if (Date.now() - ts > MISSING_CHOICE_LIST_TTL_MS) {
+    missingChoiceLists.delete(key);
+    return false;
+  }
+  return true;
+};
+
 export const contactFormOptionsService = {
   async getSystemChoiceOptions(listSlug: string): Promise<ContactFormOption[]> {
-    const candidates = slugVariants(listSlug);
+    const key = String(listSlug || '').trim().toLowerCase();
+    if (!key) return [];
+
+    if (isKnownMissingChoiceList(key)) {
+      return [];
+    }
+
+    const candidates = slugVariants(key);
+    let sawNotFound = false;
 
     for (const candidate of candidates) {
       try {
@@ -70,8 +91,12 @@ export const contactFormOptionsService = {
         });
 
         const options = normalizeChoicePayload(response.data);
-        if (options.length > 0) return options;
-      } catch {
+        if (options.length > 0) {
+          missingChoiceLists.delete(key);
+          return options;
+        }
+      } catch (err: any) {
+        if (err?.response?.status === 404) sawNotFound = true;
         // Fall through to the next candidate / fallback.
       }
     }
@@ -80,6 +105,7 @@ export const contactFormOptionsService = {
       try {
         const options = await configService.getChoiceOptions(candidate);
         if (Array.isArray(options) && options.length > 0) {
+          missingChoiceLists.delete(key);
           return options
             .map((item) => asOption(item.value, item.label))
             .filter((item): item is ContactFormOption => Boolean(item));
@@ -87,6 +113,10 @@ export const contactFormOptionsService = {
       } catch {
         // Ignore fallback failures until all variants are exhausted.
       }
+    }
+
+    if (sawNotFound) {
+      missingChoiceLists.set(key, Date.now());
     }
 
     return [];
