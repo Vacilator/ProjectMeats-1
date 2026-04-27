@@ -18,7 +18,7 @@ django-filter>=23.3  # Ensure latest compatible with Django 5.x
 django-modal-actions==0.1.6  # Modal dialogs for Django Admin actions
 
 # Database
-psycopg[binary]>=3.2.0  # Modern PostgreSQL adapter (psycopg3)
+psycopg[binary]>=3.3.3  # Modern PostgreSQL adapter (psycopg3)
 dj-database-url==3.1.2
 
 # API Documentation
