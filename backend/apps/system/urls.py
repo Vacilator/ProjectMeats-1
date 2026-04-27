@@ -28,6 +28,7 @@ from apps.system.views import (
 from apps.system.views.search_viewset import RankedSearchViewSet
 from apps.system.views.entity_viewset import EntityViewSet
 from apps.system.views.forms_schema import SystemFormSchemaView
+from apps.system.views.workforms_metadata import WorkFormsMetadataView
 
 app_name = 'system'
 
@@ -59,6 +60,9 @@ urlpatterns = [
 
     # Metadata-driven UI schemas
     path('forms/schema/', SystemFormSchemaView.as_view(), name='forms-schema'),
+
+    # WorkForms node registry / editor metadata
+    path('workforms/metadata/', WorkFormsMetadataView.as_view(), name='workforms-metadata'),
 
     # Cockpit Entity Graph (typed URLs)
     # The DefaultRouter only supports /entities/<pk>/..., but Cockpit uses /entities/<type>/<id>/...
