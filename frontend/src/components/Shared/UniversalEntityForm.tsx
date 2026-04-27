@@ -602,9 +602,17 @@ const augmentSchemaForFrontend = (
             ? 'Enter HQ address'
             : null);
 
+      const typeOverride =
+        key === 'phone' || key === 'phone_number'
+          ? 'phone'
+          : key === 'address' || key === 'street_address'
+            ? 'text'
+            : field.type;
+
       nextFields.push({
         ...field,
         label,
+        type: typeOverride,
         required: key === 'name' ? true : field.required,
         placeholder,
       });
@@ -1224,15 +1232,18 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
       ...(initialValues || {}),
     });
 
-    const hqEntity = schemaEntityKey === 'supplier' ? 'Supplier' : schemaEntityKey === 'customer' ? 'Customer' : null;
+    const supplierTitle = schemaEntityKey === 'supplier' ? (activeMode === 'create' ? 'New Supplier' : 'Supplier') : null;
+    const hqEntity = schemaEntityKey === 'customer' ? 'Customer' : null;
 
-    const formName = hqEntity
-      ? activeMode === 'create'
-        ? `New ${hqEntity} Headquarters`
-        : `${hqEntity} Headquarters Profile`
-      : schemaEntityKey === 'contact' && activeMode === 'create'
-        ? getContactCreateTitle(contactContext)
-        : schema?.name || `Universal Form: ${entityType}`;
+    const formName = supplierTitle
+      ? supplierTitle
+      : hqEntity
+        ? activeMode === 'create'
+          ? `New ${hqEntity} Headquarters`
+          : `${hqEntity} Headquarters Profile`
+        : schemaEntityKey === 'contact' && activeMode === 'create'
+          ? getContactCreateTitle(contactContext)
+          : schema?.name || `Universal Form: ${entityType}`;
 
     return {
       step_index: 0,
@@ -1249,9 +1260,14 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
   const modalTitle = useMemo(() => {
     const contactContext = inferContactFormContext(formInitialValues);
 
-    const hqEntity = schemaEntityKey === 'supplier' ? 'Supplier' : schemaEntityKey === 'customer' ? 'Customer' : null;
+    const supplierTitle = schemaEntityKey === 'supplier' ? (activeMode === 'create' ? 'New Supplier' : 'Supplier') : null;
+    const hqEntity = schemaEntityKey === 'customer' ? 'Customer' : null;
 
     if (activeMode === 'clone') return `Clone ${entityType}`;
+
+    if (supplierTitle) {
+      return supplierTitle;
+    }
 
     if (hqEntity) {
       return activeMode === 'create' ? `New ${hqEntity} Headquarters` : `${hqEntity} Headquarters Profile`;
