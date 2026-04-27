@@ -228,11 +228,15 @@ export const getErrorMessage = (error: unknown): string => {
 };
 
 export const isNetworkError = (error: unknown): boolean => {
+  const isOnline =
+    typeof navigator !== 'undefined' && typeof (navigator as any).onLine === 'boolean'
+      ? Boolean((navigator as any).onLine)
+      : true;
+
   if (typeof error === 'object' && error !== null) {
     const err = error as { code?: string; message?: string };
-    return err.code === 'NETWORK_ERROR' || 
-           err.message === 'Network Error' ||
-           !navigator?.onLine;
+    return err.code === 'NETWORK_ERROR' || err.message === 'Network Error' || !isOnline;
   }
-  return !navigator?.onLine;
+
+  return !isOnline;
 };

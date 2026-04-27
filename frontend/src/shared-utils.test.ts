@@ -418,6 +418,16 @@ describe('shared/utils', () => {
       expect(isNetworkError({ message: 'Network Error' })).toBe(true);
     });
 
+    it('does not throw when navigator is undefined (React Native safety)', () => {
+      const originalNavigator = (globalThis as any).navigator;
+
+      vi.stubGlobal('navigator', undefined as any);
+      expect(() => isNetworkError({ code: 'OTHER_ERROR' })).not.toThrow();
+      expect(isNetworkError({ code: 'OTHER_ERROR' })).toBe(false);
+
+      vi.stubGlobal('navigator', originalNavigator);
+    });
+
     it('returns false for other errors', () => {
       expect(isNetworkError({ code: 'OTHER_ERROR' })).toBe(false);
       expect(isNetworkError({ message: 'Other error' })).toBe(false);
