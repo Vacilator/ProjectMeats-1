@@ -24,302 +24,558 @@ class Migration(migrations.Migration):
         migrations.RunSQL(
             sql=f"""
             -- Ensure RLS session var casts are safe even when app.current_tenant = ''
+            --
+            -- NOTE: This migration may be applied to long-lived environments where some
+            -- workflow tables existed before tenant_id was introduced (e.g. tables created
+            -- outside migrations, or initial migrations faked). In that case, policy creation
+            -- referencing tenant_id would fail with: "column tenant_id does not exist".
+            --
+            -- We therefore guard each policy block on (table exists AND tenant_id column exists)
+            -- to keep deployments unblocked while still applying RLS hardening wherever possible.
 
-            -- Core workflow tables (+ insert policies where used)
-            ALTER TABLE workflows_tenantlist ENABLE ROW LEVEL SECURITY;
-            ALTER TABLE workflows_tenantlist FORCE ROW LEVEL SECURITY;
-            DROP POLICY IF EXISTS tenantlist_tenant_isolation ON workflows_tenantlist;
-            CREATE POLICY tenantlist_tenant_isolation ON workflows_tenantlist
-                USING (tenant_id = {SAFE_TENANT_UUID});
-            DROP POLICY IF EXISTS tenantlist_tenant_insert ON workflows_tenantlist;
-            CREATE POLICY tenantlist_tenant_insert ON workflows_tenantlist
-                FOR INSERT WITH CHECK (tenant_id = {SAFE_TENANT_UUID});
+            DO $$
+            BEGIN
+              -- Core workflow tables (+ insert policies where used)
+              IF to_regclass('public.workflows_tenantlist') IS NOT NULL
+                 AND EXISTS (
+                   SELECT 1 FROM information_schema.columns
+                   WHERE table_schema = 'public' AND table_name = 'workflows_tenantlist' AND column_name = 'tenant_id'
+                 )
+              THEN
+                ALTER TABLE workflows_tenantlist ENABLE ROW LEVEL SECURITY;
+                ALTER TABLE workflows_tenantlist FORCE ROW LEVEL SECURITY;
+                DROP POLICY IF EXISTS tenantlist_tenant_isolation ON workflows_tenantlist;
+                CREATE POLICY tenantlist_tenant_isolation ON workflows_tenantlist
+                    USING (tenant_id = {SAFE_TENANT_UUID});
+                DROP POLICY IF EXISTS tenantlist_tenant_insert ON workflows_tenantlist;
+                CREATE POLICY tenantlist_tenant_insert ON workflows_tenantlist
+                    FOR INSERT WITH CHECK (tenant_id = {SAFE_TENANT_UUID});
+              END IF;
 
-            ALTER TABLE workflows_tenantform ENABLE ROW LEVEL SECURITY;
-            ALTER TABLE workflows_tenantform FORCE ROW LEVEL SECURITY;
-            DROP POLICY IF EXISTS tenantform_tenant_isolation ON workflows_tenantform;
-            CREATE POLICY tenantform_tenant_isolation ON workflows_tenantform
-                USING (tenant_id = {SAFE_TENANT_UUID});
-            DROP POLICY IF EXISTS tenantform_tenant_insert ON workflows_tenantform;
-            CREATE POLICY tenantform_tenant_insert ON workflows_tenantform
-                FOR INSERT WITH CHECK (tenant_id = {SAFE_TENANT_UUID});
+              IF to_regclass('public.workflows_tenantform') IS NOT NULL
+                 AND EXISTS (
+                   SELECT 1 FROM information_schema.columns
+                   WHERE table_schema = 'public' AND table_name = 'workflows_tenantform' AND column_name = 'tenant_id'
+                 )
+              THEN
+                ALTER TABLE workflows_tenantform ENABLE ROW LEVEL SECURITY;
+                ALTER TABLE workflows_tenantform FORCE ROW LEVEL SECURITY;
+                DROP POLICY IF EXISTS tenantform_tenant_isolation ON workflows_tenantform;
+                CREATE POLICY tenantform_tenant_isolation ON workflows_tenantform
+                    USING (tenant_id = {SAFE_TENANT_UUID});
+                DROP POLICY IF EXISTS tenantform_tenant_insert ON workflows_tenantform;
+                CREATE POLICY tenantform_tenant_insert ON workflows_tenantform
+                    FOR INSERT WITH CHECK (tenant_id = {SAFE_TENANT_UUID});
+              END IF;
 
-            ALTER TABLE workflows_tenantformentity ENABLE ROW LEVEL SECURITY;
-            ALTER TABLE workflows_tenantformentity FORCE ROW LEVEL SECURITY;
-            DROP POLICY IF EXISTS tenantformentity_tenant_isolation ON workflows_tenantformentity;
-            CREATE POLICY tenantformentity_tenant_isolation ON workflows_tenantformentity
-                USING (tenant_id = {SAFE_TENANT_UUID});
-            DROP POLICY IF EXISTS tenantformentity_tenant_insert ON workflows_tenantformentity;
-            CREATE POLICY tenantformentity_tenant_insert ON workflows_tenantformentity
-                FOR INSERT WITH CHECK (tenant_id = {SAFE_TENANT_UUID});
+              IF to_regclass('public.workflows_tenantformentity') IS NOT NULL
+                 AND EXISTS (
+                   SELECT 1 FROM information_schema.columns
+                   WHERE table_schema = 'public' AND table_name = 'workflows_tenantformentity' AND column_name = 'tenant_id'
+                 )
+              THEN
+                ALTER TABLE workflows_tenantformentity ENABLE ROW LEVEL SECURITY;
+                ALTER TABLE workflows_tenantformentity FORCE ROW LEVEL SECURITY;
+                DROP POLICY IF EXISTS tenantformentity_tenant_isolation ON workflows_tenantformentity;
+                CREATE POLICY tenantformentity_tenant_isolation ON workflows_tenantformentity
+                    USING (tenant_id = {SAFE_TENANT_UUID});
+                DROP POLICY IF EXISTS tenantformentity_tenant_insert ON workflows_tenantformentity;
+                CREATE POLICY tenantformentity_tenant_insert ON workflows_tenantformentity
+                    FOR INSERT WITH CHECK (tenant_id = {SAFE_TENANT_UUID});
+              END IF;
 
-            ALTER TABLE workflows_tenantformfield ENABLE ROW LEVEL SECURITY;
-            ALTER TABLE workflows_tenantformfield FORCE ROW LEVEL SECURITY;
-            DROP POLICY IF EXISTS tenantformfield_tenant_isolation ON workflows_tenantformfield;
-            CREATE POLICY tenantformfield_tenant_isolation ON workflows_tenantformfield
-                USING (tenant_id = {SAFE_TENANT_UUID});
-            DROP POLICY IF EXISTS tenantformfield_tenant_insert ON workflows_tenantformfield;
-            CREATE POLICY tenantformfield_tenant_insert ON workflows_tenantformfield
-                FOR INSERT WITH CHECK (tenant_id = {SAFE_TENANT_UUID});
+              IF to_regclass('public.workflows_tenantformfield') IS NOT NULL
+                 AND EXISTS (
+                   SELECT 1 FROM information_schema.columns
+                   WHERE table_schema = 'public' AND table_name = 'workflows_tenantformfield' AND column_name = 'tenant_id'
+                 )
+              THEN
+                ALTER TABLE workflows_tenantformfield ENABLE ROW LEVEL SECURITY;
+                ALTER TABLE workflows_tenantformfield FORCE ROW LEVEL SECURITY;
+                DROP POLICY IF EXISTS tenantformfield_tenant_isolation ON workflows_tenantformfield;
+                CREATE POLICY tenantformfield_tenant_isolation ON workflows_tenantformfield
+                    USING (tenant_id = {SAFE_TENANT_UUID});
+                DROP POLICY IF EXISTS tenantformfield_tenant_insert ON workflows_tenantformfield;
+                CREATE POLICY tenantformfield_tenant_insert ON workflows_tenantformfield
+                    FOR INSERT WITH CHECK (tenant_id = {SAFE_TENANT_UUID});
+              END IF;
 
-            ALTER TABLE workflows_tenantformrule ENABLE ROW LEVEL SECURITY;
-            ALTER TABLE workflows_tenantformrule FORCE ROW LEVEL SECURITY;
-            DROP POLICY IF EXISTS tenantformrule_tenant_isolation ON workflows_tenantformrule;
-            CREATE POLICY tenantformrule_tenant_isolation ON workflows_tenantformrule
-                USING (tenant_id = {SAFE_TENANT_UUID});
-            DROP POLICY IF EXISTS tenantformrule_tenant_insert ON workflows_tenantformrule;
-            CREATE POLICY tenantformrule_tenant_insert ON workflows_tenantformrule
-                FOR INSERT WITH CHECK (tenant_id = {SAFE_TENANT_UUID});
+              IF to_regclass('public.workflows_tenantformrule') IS NOT NULL
+                 AND EXISTS (
+                   SELECT 1 FROM information_schema.columns
+                   WHERE table_schema = 'public' AND table_name = 'workflows_tenantformrule' AND column_name = 'tenant_id'
+                 )
+              THEN
+                ALTER TABLE workflows_tenantformrule ENABLE ROW LEVEL SECURITY;
+                ALTER TABLE workflows_tenantformrule FORCE ROW LEVEL SECURITY;
+                DROP POLICY IF EXISTS tenantformrule_tenant_isolation ON workflows_tenantformrule;
+                CREATE POLICY tenantformrule_tenant_isolation ON workflows_tenantformrule
+                    USING (tenant_id = {SAFE_TENANT_UUID});
+                DROP POLICY IF EXISTS tenantformrule_tenant_insert ON workflows_tenantformrule;
+                CREATE POLICY tenantformrule_tenant_insert ON workflows_tenantformrule
+                    FOR INSERT WITH CHECK (tenant_id = {SAFE_TENANT_UUID});
+              END IF;
 
-            ALTER TABLE workflows_tenantworkflow ENABLE ROW LEVEL SECURITY;
-            ALTER TABLE workflows_tenantworkflow FORCE ROW LEVEL SECURITY;
-            DROP POLICY IF EXISTS tenantworkflow_tenant_isolation ON workflows_tenantworkflow;
-            CREATE POLICY tenantworkflow_tenant_isolation ON workflows_tenantworkflow
-                USING (tenant_id = {SAFE_TENANT_UUID});
-            DROP POLICY IF EXISTS tenantworkflow_tenant_insert ON workflows_tenantworkflow;
-            CREATE POLICY tenantworkflow_tenant_insert ON workflows_tenantworkflow
-                FOR INSERT WITH CHECK (tenant_id = {SAFE_TENANT_UUID});
+              IF to_regclass('public.workflows_tenantworkflow') IS NOT NULL
+                 AND EXISTS (
+                   SELECT 1 FROM information_schema.columns
+                   WHERE table_schema = 'public' AND table_name = 'workflows_tenantworkflow' AND column_name = 'tenant_id'
+                 )
+              THEN
+                ALTER TABLE workflows_tenantworkflow ENABLE ROW LEVEL SECURITY;
+                ALTER TABLE workflows_tenantworkflow FORCE ROW LEVEL SECURITY;
+                DROP POLICY IF EXISTS tenantworkflow_tenant_isolation ON workflows_tenantworkflow;
+                CREATE POLICY tenantworkflow_tenant_isolation ON workflows_tenantworkflow
+                    USING (tenant_id = {SAFE_TENANT_UUID});
+                DROP POLICY IF EXISTS tenantworkflow_tenant_insert ON workflows_tenantworkflow;
+                CREATE POLICY tenantworkflow_tenant_insert ON workflows_tenantworkflow
+                    FOR INSERT WITH CHECK (tenant_id = {SAFE_TENANT_UUID});
+              END IF;
 
-            ALTER TABLE workflows_tenantworkflowcondition ENABLE ROW LEVEL SECURITY;
-            ALTER TABLE workflows_tenantworkflowcondition FORCE ROW LEVEL SECURITY;
-            DROP POLICY IF EXISTS tenantworkflowcondition_tenant_isolation ON workflows_tenantworkflowcondition;
-            CREATE POLICY tenantworkflowcondition_tenant_isolation ON workflows_tenantworkflowcondition
-                USING (tenant_id = {SAFE_TENANT_UUID});
-            DROP POLICY IF EXISTS tenantworkflowcondition_tenant_insert ON workflows_tenantworkflowcondition;
-            CREATE POLICY tenantworkflowcondition_tenant_insert ON workflows_tenantworkflowcondition
-                FOR INSERT WITH CHECK (tenant_id = {SAFE_TENANT_UUID});
+              IF to_regclass('public.workflows_tenantworkflowcondition') IS NOT NULL
+                 AND EXISTS (
+                   SELECT 1 FROM information_schema.columns
+                   WHERE table_schema = 'public' AND table_name = 'workflows_tenantworkflowcondition' AND column_name = 'tenant_id'
+                 )
+              THEN
+                ALTER TABLE workflows_tenantworkflowcondition ENABLE ROW LEVEL SECURITY;
+                ALTER TABLE workflows_tenantworkflowcondition FORCE ROW LEVEL SECURITY;
+                DROP POLICY IF EXISTS tenantworkflowcondition_tenant_isolation ON workflows_tenantworkflowcondition;
+                CREATE POLICY tenantworkflowcondition_tenant_isolation ON workflows_tenantworkflowcondition
+                    USING (tenant_id = {SAFE_TENANT_UUID});
+                DROP POLICY IF EXISTS tenantworkflowcondition_tenant_insert ON workflows_tenantworkflowcondition;
+                CREATE POLICY tenantworkflowcondition_tenant_insert ON workflows_tenantworkflowcondition
+                    FOR INSERT WITH CHECK (tenant_id = {SAFE_TENANT_UUID});
+              END IF;
 
-            ALTER TABLE workflows_tenantworkflowaction ENABLE ROW LEVEL SECURITY;
-            ALTER TABLE workflows_tenantworkflowaction FORCE ROW LEVEL SECURITY;
-            DROP POLICY IF EXISTS tenantworkflowaction_tenant_isolation ON workflows_tenantworkflowaction;
-            CREATE POLICY tenantworkflowaction_tenant_isolation ON workflows_tenantworkflowaction
-                USING (tenant_id = {SAFE_TENANT_UUID});
-            DROP POLICY IF EXISTS tenantworkflowaction_tenant_insert ON workflows_tenantworkflowaction;
-            CREATE POLICY tenantworkflowaction_tenant_insert ON workflows_tenantworkflowaction
-                FOR INSERT WITH CHECK (tenant_id = {SAFE_TENANT_UUID});
+              IF to_regclass('public.workflows_tenantworkflowaction') IS NOT NULL
+                 AND EXISTS (
+                   SELECT 1 FROM information_schema.columns
+                   WHERE table_schema = 'public' AND table_name = 'workflows_tenantworkflowaction' AND column_name = 'tenant_id'
+                 )
+              THEN
+                ALTER TABLE workflows_tenantworkflowaction ENABLE ROW LEVEL SECURITY;
+                ALTER TABLE workflows_tenantworkflowaction FORCE ROW LEVEL SECURITY;
+                DROP POLICY IF EXISTS tenantworkflowaction_tenant_isolation ON workflows_tenantworkflowaction;
+                CREATE POLICY tenantworkflowaction_tenant_isolation ON workflows_tenantworkflowaction
+                    USING (tenant_id = {SAFE_TENANT_UUID});
+                DROP POLICY IF EXISTS tenantworkflowaction_tenant_insert ON workflows_tenantworkflowaction;
+                CREATE POLICY tenantworkflowaction_tenant_insert ON workflows_tenantworkflowaction
+                    FOR INSERT WITH CHECK (tenant_id = {SAFE_TENANT_UUID});
+              END IF;
 
-            ALTER TABLE workflows_workflowexecutionlog ENABLE ROW LEVEL SECURITY;
-            ALTER TABLE workflows_workflowexecutionlog FORCE ROW LEVEL SECURITY;
-            DROP POLICY IF EXISTS workflowexecutionlog_tenant_isolation ON workflows_workflowexecutionlog;
-            CREATE POLICY workflowexecutionlog_tenant_isolation ON workflows_workflowexecutionlog
-                USING (tenant_id = {SAFE_TENANT_UUID});
-            DROP POLICY IF EXISTS workflowexecutionlog_tenant_insert ON workflows_workflowexecutionlog;
-            CREATE POLICY workflowexecutionlog_tenant_insert ON workflows_workflowexecutionlog
-                FOR INSERT WITH CHECK (tenant_id = {SAFE_TENANT_UUID});
+              IF to_regclass('public.workflows_workflowexecutionlog') IS NOT NULL
+                 AND EXISTS (
+                   SELECT 1 FROM information_schema.columns
+                   WHERE table_schema = 'public' AND table_name = 'workflows_workflowexecutionlog' AND column_name = 'tenant_id'
+                 )
+              THEN
+                ALTER TABLE workflows_workflowexecutionlog ENABLE ROW LEVEL SECURITY;
+                ALTER TABLE workflows_workflowexecutionlog FORCE ROW LEVEL SECURITY;
+                DROP POLICY IF EXISTS workflowexecutionlog_tenant_isolation ON workflows_workflowexecutionlog;
+                CREATE POLICY workflowexecutionlog_tenant_isolation ON workflows_workflowexecutionlog
+                    USING (tenant_id = {SAFE_TENANT_UUID});
+                DROP POLICY IF EXISTS workflowexecutionlog_tenant_insert ON workflows_workflowexecutionlog;
+                CREATE POLICY workflowexecutionlog_tenant_insert ON workflows_workflowexecutionlog
+                    FOR INSERT WITH CHECK (tenant_id = {SAFE_TENANT_UUID});
+              END IF;
 
-            -- Form submissions
-            ALTER TABLE workflows_formsubmission ENABLE ROW LEVEL SECURITY;
-            ALTER TABLE workflows_formsubmission FORCE ROW LEVEL SECURITY;
-            DROP POLICY IF EXISTS formsubmission_tenant_isolation ON workflows_formsubmission;
-            CREATE POLICY formsubmission_tenant_isolation ON workflows_formsubmission
-                USING (tenant_id = {SAFE_TENANT_UUID});
+              -- Form submissions
+              IF to_regclass('public.workflows_formsubmission') IS NOT NULL
+                 AND EXISTS (
+                   SELECT 1 FROM information_schema.columns
+                   WHERE table_schema = 'public' AND table_name = 'workflows_formsubmission' AND column_name = 'tenant_id'
+                 )
+              THEN
+                ALTER TABLE workflows_formsubmission ENABLE ROW LEVEL SECURITY;
+                ALTER TABLE workflows_formsubmission FORCE ROW LEVEL SECURITY;
+                DROP POLICY IF EXISTS formsubmission_tenant_isolation ON workflows_formsubmission;
+                CREATE POLICY formsubmission_tenant_isolation ON workflows_formsubmission
+                    USING (tenant_id = {SAFE_TENANT_UUID});
+              END IF;
 
-            ALTER TABLE workflows_formsubmissionfile ENABLE ROW LEVEL SECURITY;
-            ALTER TABLE workflows_formsubmissionfile FORCE ROW LEVEL SECURITY;
-            DROP POLICY IF EXISTS formsubmissionfile_tenant_isolation ON workflows_formsubmissionfile;
-            CREATE POLICY formsubmissionfile_tenant_isolation ON workflows_formsubmissionfile
-                USING (
-                    submission_id IN (
-                        SELECT id FROM workflows_formsubmission
-                        WHERE tenant_id = {SAFE_TENANT_UUID}
-                    )
-                );
+              IF to_regclass('public.workflows_formsubmissionfile') IS NOT NULL
+                 AND to_regclass('public.workflows_formsubmission') IS NOT NULL
+                 AND EXISTS (
+                   SELECT 1 FROM information_schema.columns
+                   WHERE table_schema = 'public' AND table_name = 'workflows_formsubmission' AND column_name = 'tenant_id'
+                 )
+              THEN
+                ALTER TABLE workflows_formsubmissionfile ENABLE ROW LEVEL SECURITY;
+                ALTER TABLE workflows_formsubmissionfile FORCE ROW LEVEL SECURITY;
+                DROP POLICY IF EXISTS formsubmissionfile_tenant_isolation ON workflows_formsubmissionfile;
+                CREATE POLICY formsubmissionfile_tenant_isolation ON workflows_formsubmissionfile
+                    USING (
+                        submission_id IN (
+                            SELECT id FROM workflows_formsubmission
+                            WHERE tenant_id = {SAFE_TENANT_UUID}
+                        )
+                    );
+              END IF;
 
-            ALTER TABLE workflows_formsubmissionevent ENABLE ROW LEVEL SECURITY;
-            ALTER TABLE workflows_formsubmissionevent FORCE ROW LEVEL SECURITY;
-            DROP POLICY IF EXISTS formsubmissionevent_tenant_isolation ON workflows_formsubmissionevent;
-            CREATE POLICY formsubmissionevent_tenant_isolation ON workflows_formsubmissionevent
-                USING (
-                    submission_id IN (
-                        SELECT id FROM workflows_formsubmission
-                        WHERE tenant_id = {SAFE_TENANT_UUID}
-                    )
-                );
+              IF to_regclass('public.workflows_formsubmissionevent') IS NOT NULL
+                 AND to_regclass('public.workflows_formsubmission') IS NOT NULL
+                 AND EXISTS (
+                   SELECT 1 FROM information_schema.columns
+                   WHERE table_schema = 'public' AND table_name = 'workflows_formsubmission' AND column_name = 'tenant_id'
+                 )
+              THEN
+                ALTER TABLE workflows_formsubmissionevent ENABLE ROW LEVEL SECURITY;
+                ALTER TABLE workflows_formsubmissionevent FORCE ROW LEVEL SECURITY;
+                DROP POLICY IF EXISTS formsubmissionevent_tenant_isolation ON workflows_formsubmissionevent;
+                CREATE POLICY formsubmissionevent_tenant_isolation ON workflows_formsubmissionevent
+                    USING (
+                        submission_id IN (
+                            SELECT id FROM workflows_formsubmission
+                            WHERE tenant_id = {SAFE_TENANT_UUID}
+                        )
+                    );
+              END IF;
 
-            -- Assignments, notifications, and step submissions
-            ALTER TABLE workflows_stepassignment ENABLE ROW LEVEL SECURITY;
-            ALTER TABLE workflows_stepassignment FORCE ROW LEVEL SECURITY;
-            DROP POLICY IF EXISTS stepassignment_tenant_isolation ON workflows_stepassignment;
-            CREATE POLICY stepassignment_tenant_isolation ON workflows_stepassignment
-                USING (tenant_id = {SAFE_TENANT_UUID});
+              -- Assignments, notifications, and step submissions
+              IF to_regclass('public.workflows_stepassignment') IS NOT NULL
+                 AND EXISTS (
+                   SELECT 1 FROM information_schema.columns
+                   WHERE table_schema = 'public' AND table_name = 'workflows_stepassignment' AND column_name = 'tenant_id'
+                 )
+              THEN
+                ALTER TABLE workflows_stepassignment ENABLE ROW LEVEL SECURITY;
+                ALTER TABLE workflows_stepassignment FORCE ROW LEVEL SECURITY;
+                DROP POLICY IF EXISTS stepassignment_tenant_isolation ON workflows_stepassignment;
+                CREATE POLICY stepassignment_tenant_isolation ON workflows_stepassignment
+                    USING (tenant_id = {SAFE_TENANT_UUID});
+              END IF;
 
-            ALTER TABLE workflows_usernotification ENABLE ROW LEVEL SECURITY;
-            ALTER TABLE workflows_usernotification FORCE ROW LEVEL SECURITY;
-            DROP POLICY IF EXISTS usernotification_tenant_isolation ON workflows_usernotification;
-            CREATE POLICY usernotification_tenant_isolation ON workflows_usernotification
-                USING (tenant_id = {SAFE_TENANT_UUID});
+              IF to_regclass('public.workflows_usernotification') IS NOT NULL
+                 AND EXISTS (
+                   SELECT 1 FROM information_schema.columns
+                   WHERE table_schema = 'public' AND table_name = 'workflows_usernotification' AND column_name = 'tenant_id'
+                 )
+              THEN
+                ALTER TABLE workflows_usernotification ENABLE ROW LEVEL SECURITY;
+                ALTER TABLE workflows_usernotification FORCE ROW LEVEL SECURITY;
+                DROP POLICY IF EXISTS usernotification_tenant_isolation ON workflows_usernotification;
+                CREATE POLICY usernotification_tenant_isolation ON workflows_usernotification
+                    USING (tenant_id = {SAFE_TENANT_UUID});
+              END IF;
 
-            ALTER TABLE workflows_formstepsubmission ENABLE ROW LEVEL SECURITY;
-            ALTER TABLE workflows_formstepsubmission FORCE ROW LEVEL SECURITY;
-            DROP POLICY IF EXISTS formstepsubmission_tenant_isolation ON workflows_formstepsubmission;
-            CREATE POLICY formstepsubmission_tenant_isolation ON workflows_formstepsubmission
-                FOR ALL
-                USING (tenant_id = {SAFE_TENANT_UUID});
+              IF to_regclass('public.workflows_formstepsubmission') IS NOT NULL
+                 AND EXISTS (
+                   SELECT 1 FROM information_schema.columns
+                   WHERE table_schema = 'public' AND table_name = 'workflows_formstepsubmission' AND column_name = 'tenant_id'
+                 )
+              THEN
+                ALTER TABLE workflows_formstepsubmission ENABLE ROW LEVEL SECURITY;
+                ALTER TABLE workflows_formstepsubmission FORCE ROW LEVEL SECURITY;
+                DROP POLICY IF EXISTS formstepsubmission_tenant_isolation ON workflows_formstepsubmission;
+                CREATE POLICY formstepsubmission_tenant_isolation ON workflows_formstepsubmission
+                    FOR ALL
+                    USING (tenant_id = {SAFE_TENANT_UUID});
+              END IF;
 
-            -- TenantFormVersion
-            ALTER TABLE workflows_tenantformversion ENABLE ROW LEVEL SECURITY;
-            ALTER TABLE workflows_tenantformversion FORCE ROW LEVEL SECURITY;
-            DROP POLICY IF EXISTS workflows_tenantformversion_tenant_isolation ON workflows_tenantformversion;
-            CREATE POLICY workflows_tenantformversion_tenant_isolation ON workflows_tenantformversion
-                FOR ALL
-                USING (tenant_id = {SAFE_TENANT_UUID});
+              -- TenantFormVersion
+              IF to_regclass('public.workflows_tenantformversion') IS NOT NULL
+                 AND EXISTS (
+                   SELECT 1 FROM information_schema.columns
+                   WHERE table_schema = 'public' AND table_name = 'workflows_tenantformversion' AND column_name = 'tenant_id'
+                 )
+              THEN
+                ALTER TABLE workflows_tenantformversion ENABLE ROW LEVEL SECURITY;
+                ALTER TABLE workflows_tenantformversion FORCE ROW LEVEL SECURITY;
+                DROP POLICY IF EXISTS workflows_tenantformversion_tenant_isolation ON workflows_tenantformversion;
+                CREATE POLICY workflows_tenantformversion_tenant_isolation ON workflows_tenantformversion
+                    FOR ALL
+                    USING (tenant_id = {SAFE_TENANT_UUID});
+              END IF;
 
-            -- TenantWorkFormExecution
-            ALTER TABLE workflows_tenantworkformexecution ENABLE ROW LEVEL SECURITY;
-            ALTER TABLE workflows_tenantworkformexecution FORCE ROW LEVEL SECURITY;
-            DROP POLICY IF EXISTS tenantworkformexecution_tenant_isolation ON workflows_tenantworkformexecution;
-            CREATE POLICY tenantworkformexecution_tenant_isolation ON workflows_tenantworkformexecution
-                USING (tenant_id = {SAFE_TENANT_UUID});
-            DROP POLICY IF EXISTS tenantworkformexecution_tenant_insert ON workflows_tenantworkformexecution;
-            CREATE POLICY tenantworkformexecution_tenant_insert ON workflows_tenantworkformexecution
-                FOR INSERT WITH CHECK (tenant_id = {SAFE_TENANT_UUID});
+              -- TenantWorkFormExecution
+              IF to_regclass('public.workflows_tenantworkformexecution') IS NOT NULL
+                 AND EXISTS (
+                   SELECT 1 FROM information_schema.columns
+                   WHERE table_schema = 'public' AND table_name = 'workflows_tenantworkformexecution' AND column_name = 'tenant_id'
+                 )
+              THEN
+                ALTER TABLE workflows_tenantworkformexecution ENABLE ROW LEVEL SECURITY;
+                ALTER TABLE workflows_tenantworkformexecution FORCE ROW LEVEL SECURITY;
+                DROP POLICY IF EXISTS tenantworkformexecution_tenant_isolation ON workflows_tenantworkformexecution;
+                CREATE POLICY tenantworkformexecution_tenant_isolation ON workflows_tenantworkformexecution
+                    USING (tenant_id = {SAFE_TENANT_UUID});
+                DROP POLICY IF EXISTS tenantworkformexecution_tenant_insert ON workflows_tenantworkformexecution;
+                CREATE POLICY tenantworkformexecution_tenant_insert ON workflows_tenantworkformexecution
+                    FOR INSERT WITH CHECK (tenant_id = {SAFE_TENANT_UUID});
+              END IF;
+            END $$;
             """,
             reverse_sql=f"""
             -- Reverse: restore historical (unsafe) casts
 
-            ALTER TABLE workflows_tenantlist ENABLE ROW LEVEL SECURITY;
-            ALTER TABLE workflows_tenantlist FORCE ROW LEVEL SECURITY;
-            DROP POLICY IF EXISTS tenantlist_tenant_isolation ON workflows_tenantlist;
-            CREATE POLICY tenantlist_tenant_isolation ON workflows_tenantlist
-                USING (tenant_id = {UNSAFE_TENANT_UUID});
-            DROP POLICY IF EXISTS tenantlist_tenant_insert ON workflows_tenantlist;
-            CREATE POLICY tenantlist_tenant_insert ON workflows_tenantlist
-                FOR INSERT WITH CHECK (tenant_id = {UNSAFE_TENANT_UUID});
+            DO $$
+            BEGIN
+              IF to_regclass('public.workflows_tenantlist') IS NOT NULL
+                 AND EXISTS (
+                   SELECT 1 FROM information_schema.columns
+                   WHERE table_schema = 'public' AND table_name = 'workflows_tenantlist' AND column_name = 'tenant_id'
+                 )
+              THEN
+                ALTER TABLE workflows_tenantlist ENABLE ROW LEVEL SECURITY;
+                ALTER TABLE workflows_tenantlist FORCE ROW LEVEL SECURITY;
+                DROP POLICY IF EXISTS tenantlist_tenant_isolation ON workflows_tenantlist;
+                CREATE POLICY tenantlist_tenant_isolation ON workflows_tenantlist
+                    USING (tenant_id = {UNSAFE_TENANT_UUID});
+                DROP POLICY IF EXISTS tenantlist_tenant_insert ON workflows_tenantlist;
+                CREATE POLICY tenantlist_tenant_insert ON workflows_tenantlist
+                    FOR INSERT WITH CHECK (tenant_id = {UNSAFE_TENANT_UUID});
+              END IF;
 
-            ALTER TABLE workflows_tenantform ENABLE ROW LEVEL SECURITY;
-            ALTER TABLE workflows_tenantform FORCE ROW LEVEL SECURITY;
-            DROP POLICY IF EXISTS tenantform_tenant_isolation ON workflows_tenantform;
-            CREATE POLICY tenantform_tenant_isolation ON workflows_tenantform
-                USING (tenant_id = {UNSAFE_TENANT_UUID});
-            DROP POLICY IF EXISTS tenantform_tenant_insert ON workflows_tenantform;
-            CREATE POLICY tenantform_tenant_insert ON workflows_tenantform
-                FOR INSERT WITH CHECK (tenant_id = {UNSAFE_TENANT_UUID});
+              IF to_regclass('public.workflows_tenantform') IS NOT NULL
+                 AND EXISTS (
+                   SELECT 1 FROM information_schema.columns
+                   WHERE table_schema = 'public' AND table_name = 'workflows_tenantform' AND column_name = 'tenant_id'
+                 )
+              THEN
+                ALTER TABLE workflows_tenantform ENABLE ROW LEVEL SECURITY;
+                ALTER TABLE workflows_tenantform FORCE ROW LEVEL SECURITY;
+                DROP POLICY IF EXISTS tenantform_tenant_isolation ON workflows_tenantform;
+                CREATE POLICY tenantform_tenant_isolation ON workflows_tenantform
+                    USING (tenant_id = {UNSAFE_TENANT_UUID});
+                DROP POLICY IF EXISTS tenantform_tenant_insert ON workflows_tenantform;
+                CREATE POLICY tenantform_tenant_insert ON workflows_tenantform
+                    FOR INSERT WITH CHECK (tenant_id = {UNSAFE_TENANT_UUID});
+              END IF;
 
-            ALTER TABLE workflows_tenantformentity ENABLE ROW LEVEL SECURITY;
-            ALTER TABLE workflows_tenantformentity FORCE ROW LEVEL SECURITY;
-            DROP POLICY IF EXISTS tenantformentity_tenant_isolation ON workflows_tenantformentity;
-            CREATE POLICY tenantformentity_tenant_isolation ON workflows_tenantformentity
-                USING (tenant_id = {UNSAFE_TENANT_UUID});
-            DROP POLICY IF EXISTS tenantformentity_tenant_insert ON workflows_tenantformentity;
-            CREATE POLICY tenantformentity_tenant_insert ON workflows_tenantformentity
-                FOR INSERT WITH CHECK (tenant_id = {UNSAFE_TENANT_UUID});
+              IF to_regclass('public.workflows_tenantformentity') IS NOT NULL
+                 AND EXISTS (
+                   SELECT 1 FROM information_schema.columns
+                   WHERE table_schema = 'public' AND table_name = 'workflows_tenantformentity' AND column_name = 'tenant_id'
+                 )
+              THEN
+                ALTER TABLE workflows_tenantformentity ENABLE ROW LEVEL SECURITY;
+                ALTER TABLE workflows_tenantformentity FORCE ROW LEVEL SECURITY;
+                DROP POLICY IF EXISTS tenantformentity_tenant_isolation ON workflows_tenantformentity;
+                CREATE POLICY tenantformentity_tenant_isolation ON workflows_tenantformentity
+                    USING (tenant_id = {UNSAFE_TENANT_UUID});
+                DROP POLICY IF EXISTS tenantformentity_tenant_insert ON workflows_tenantformentity;
+                CREATE POLICY tenantformentity_tenant_insert ON workflows_tenantformentity
+                    FOR INSERT WITH CHECK (tenant_id = {UNSAFE_TENANT_UUID});
+              END IF;
 
-            ALTER TABLE workflows_tenantformfield ENABLE ROW LEVEL SECURITY;
-            ALTER TABLE workflows_tenantformfield FORCE ROW LEVEL SECURITY;
-            DROP POLICY IF EXISTS tenantformfield_tenant_isolation ON workflows_tenantformfield;
-            CREATE POLICY tenantformfield_tenant_isolation ON workflows_tenantformfield
-                USING (tenant_id = {UNSAFE_TENANT_UUID});
-            DROP POLICY IF EXISTS tenantformfield_tenant_insert ON workflows_tenantformfield;
-            CREATE POLICY tenantformfield_tenant_insert ON workflows_tenantformfield
-                FOR INSERT WITH CHECK (tenant_id = {UNSAFE_TENANT_UUID});
+              IF to_regclass('public.workflows_tenantformfield') IS NOT NULL
+                 AND EXISTS (
+                   SELECT 1 FROM information_schema.columns
+                   WHERE table_schema = 'public' AND table_name = 'workflows_tenantformfield' AND column_name = 'tenant_id'
+                 )
+              THEN
+                ALTER TABLE workflows_tenantformfield ENABLE ROW LEVEL SECURITY;
+                ALTER TABLE workflows_tenantformfield FORCE ROW LEVEL SECURITY;
+                DROP POLICY IF EXISTS tenantformfield_tenant_isolation ON workflows_tenantformfield;
+                CREATE POLICY tenantformfield_tenant_isolation ON workflows_tenantformfield
+                    USING (tenant_id = {UNSAFE_TENANT_UUID});
+                DROP POLICY IF EXISTS tenantformfield_tenant_insert ON workflows_tenantformfield;
+                CREATE POLICY tenantformfield_tenant_insert ON workflows_tenantformfield
+                    FOR INSERT WITH CHECK (tenant_id = {UNSAFE_TENANT_UUID});
+              END IF;
 
-            ALTER TABLE workflows_tenantformrule ENABLE ROW LEVEL SECURITY;
-            ALTER TABLE workflows_tenantformrule FORCE ROW LEVEL SECURITY;
-            DROP POLICY IF EXISTS tenantformrule_tenant_isolation ON workflows_tenantformrule;
-            CREATE POLICY tenantformrule_tenant_isolation ON workflows_tenantformrule
-                USING (tenant_id = {UNSAFE_TENANT_UUID});
-            DROP POLICY IF EXISTS tenantformrule_tenant_insert ON workflows_tenantformrule;
-            CREATE POLICY tenantformrule_tenant_insert ON workflows_tenantformrule
-                FOR INSERT WITH CHECK (tenant_id = {UNSAFE_TENANT_UUID});
+              IF to_regclass('public.workflows_tenantformrule') IS NOT NULL
+                 AND EXISTS (
+                   SELECT 1 FROM information_schema.columns
+                   WHERE table_schema = 'public' AND table_name = 'workflows_tenantformrule' AND column_name = 'tenant_id'
+                 )
+              THEN
+                ALTER TABLE workflows_tenantformrule ENABLE ROW LEVEL SECURITY;
+                ALTER TABLE workflows_tenantformrule FORCE ROW LEVEL SECURITY;
+                DROP POLICY IF EXISTS tenantformrule_tenant_isolation ON workflows_tenantformrule;
+                CREATE POLICY tenantformrule_tenant_isolation ON workflows_tenantformrule
+                    USING (tenant_id = {UNSAFE_TENANT_UUID});
+                DROP POLICY IF EXISTS tenantformrule_tenant_insert ON workflows_tenantformrule;
+                CREATE POLICY tenantformrule_tenant_insert ON workflows_tenantformrule
+                    FOR INSERT WITH CHECK (tenant_id = {UNSAFE_TENANT_UUID});
+              END IF;
 
-            ALTER TABLE workflows_tenantworkflow ENABLE ROW LEVEL SECURITY;
-            ALTER TABLE workflows_tenantworkflow FORCE ROW LEVEL SECURITY;
-            DROP POLICY IF EXISTS tenantworkflow_tenant_isolation ON workflows_tenantworkflow;
-            CREATE POLICY tenantworkflow_tenant_isolation ON workflows_tenantworkflow
-                USING (tenant_id = {UNSAFE_TENANT_UUID});
-            DROP POLICY IF EXISTS tenantworkflow_tenant_insert ON workflows_tenantworkflow;
-            CREATE POLICY tenantworkflow_tenant_insert ON workflows_tenantworkflow
-                FOR INSERT WITH CHECK (tenant_id = {UNSAFE_TENANT_UUID});
+              IF to_regclass('public.workflows_tenantworkflow') IS NOT NULL
+                 AND EXISTS (
+                   SELECT 1 FROM information_schema.columns
+                   WHERE table_schema = 'public' AND table_name = 'workflows_tenantworkflow' AND column_name = 'tenant_id'
+                 )
+              THEN
+                ALTER TABLE workflows_tenantworkflow ENABLE ROW LEVEL SECURITY;
+                ALTER TABLE workflows_tenantworkflow FORCE ROW LEVEL SECURITY;
+                DROP POLICY IF EXISTS tenantworkflow_tenant_isolation ON workflows_tenantworkflow;
+                CREATE POLICY tenantworkflow_tenant_isolation ON workflows_tenantworkflow
+                    USING (tenant_id = {UNSAFE_TENANT_UUID});
+                DROP POLICY IF EXISTS tenantworkflow_tenant_insert ON workflows_tenantworkflow;
+                CREATE POLICY tenantworkflow_tenant_insert ON workflows_tenantworkflow
+                    FOR INSERT WITH CHECK (tenant_id = {UNSAFE_TENANT_UUID});
+              END IF;
 
-            ALTER TABLE workflows_tenantworkflowcondition ENABLE ROW LEVEL SECURITY;
-            ALTER TABLE workflows_tenantworkflowcondition FORCE ROW LEVEL SECURITY;
-            DROP POLICY IF EXISTS tenantworkflowcondition_tenant_isolation ON workflows_tenantworkflowcondition;
-            CREATE POLICY tenantworkflowcondition_tenant_isolation ON workflows_tenantworkflowcondition
-                USING (tenant_id = {UNSAFE_TENANT_UUID});
-            DROP POLICY IF EXISTS tenantworkflowcondition_tenant_insert ON workflows_tenantworkflowcondition;
-            CREATE POLICY tenantworkflowcondition_tenant_insert ON workflows_tenantworkflowcondition
-                FOR INSERT WITH CHECK (tenant_id = {UNSAFE_TENANT_UUID});
+              IF to_regclass('public.workflows_tenantworkflowcondition') IS NOT NULL
+                 AND EXISTS (
+                   SELECT 1 FROM information_schema.columns
+                   WHERE table_schema = 'public' AND table_name = 'workflows_tenantworkflowcondition' AND column_name = 'tenant_id'
+                 )
+              THEN
+                ALTER TABLE workflows_tenantworkflowcondition ENABLE ROW LEVEL SECURITY;
+                ALTER TABLE workflows_tenantworkflowcondition FORCE ROW LEVEL SECURITY;
+                DROP POLICY IF EXISTS tenantworkflowcondition_tenant_isolation ON workflows_tenantworkflowcondition;
+                CREATE POLICY tenantworkflowcondition_tenant_isolation ON workflows_tenantworkflowcondition
+                    USING (tenant_id = {UNSAFE_TENANT_UUID});
+                DROP POLICY IF EXISTS tenantworkflowcondition_tenant_insert ON workflows_tenantworkflowcondition;
+                CREATE POLICY tenantworkflowcondition_tenant_insert ON workflows_tenantworkflowcondition
+                    FOR INSERT WITH CHECK (tenant_id = {UNSAFE_TENANT_UUID});
+              END IF;
 
-            ALTER TABLE workflows_tenantworkflowaction ENABLE ROW LEVEL SECURITY;
-            ALTER TABLE workflows_tenantworkflowaction FORCE ROW LEVEL SECURITY;
-            DROP POLICY IF EXISTS tenantworkflowaction_tenant_isolation ON workflows_tenantworkflowaction;
-            CREATE POLICY tenantworkflowaction_tenant_isolation ON workflows_tenantworkflowaction
-                USING (tenant_id = {UNSAFE_TENANT_UUID});
-            DROP POLICY IF EXISTS tenantworkflowaction_tenant_insert ON workflows_tenantworkflowaction;
-            CREATE POLICY tenantworkflowaction_tenant_insert ON workflows_tenantworkflowaction
-                FOR INSERT WITH CHECK (tenant_id = {UNSAFE_TENANT_UUID});
+              IF to_regclass('public.workflows_tenantworkflowaction') IS NOT NULL
+                 AND EXISTS (
+                   SELECT 1 FROM information_schema.columns
+                   WHERE table_schema = 'public' AND table_name = 'workflows_tenantworkflowaction' AND column_name = 'tenant_id'
+                 )
+              THEN
+                ALTER TABLE workflows_tenantworkflowaction ENABLE ROW LEVEL SECURITY;
+                ALTER TABLE workflows_tenantworkflowaction FORCE ROW LEVEL SECURITY;
+                DROP POLICY IF EXISTS tenantworkflowaction_tenant_isolation ON workflows_tenantworkflowaction;
+                CREATE POLICY tenantworkflowaction_tenant_isolation ON workflows_tenantworkflowaction
+                    USING (tenant_id = {UNSAFE_TENANT_UUID});
+                DROP POLICY IF EXISTS tenantworkflowaction_tenant_insert ON workflows_tenantworkflowaction;
+                CREATE POLICY tenantworkflowaction_tenant_insert ON workflows_tenantworkflowaction
+                    FOR INSERT WITH CHECK (tenant_id = {UNSAFE_TENANT_UUID});
+              END IF;
 
-            ALTER TABLE workflows_workflowexecutionlog ENABLE ROW LEVEL SECURITY;
-            ALTER TABLE workflows_workflowexecutionlog FORCE ROW LEVEL SECURITY;
-            DROP POLICY IF EXISTS workflowexecutionlog_tenant_isolation ON workflows_workflowexecutionlog;
-            CREATE POLICY workflowexecutionlog_tenant_isolation ON workflows_workflowexecutionlog
-                USING (tenant_id = {UNSAFE_TENANT_UUID});
-            DROP POLICY IF EXISTS workflowexecutionlog_tenant_insert ON workflows_workflowexecutionlog;
-            CREATE POLICY workflowexecutionlog_tenant_insert ON workflows_workflowexecutionlog
-                FOR INSERT WITH CHECK (tenant_id = {UNSAFE_TENANT_UUID});
+              IF to_regclass('public.workflows_workflowexecutionlog') IS NOT NULL
+                 AND EXISTS (
+                   SELECT 1 FROM information_schema.columns
+                   WHERE table_schema = 'public' AND table_name = 'workflows_workflowexecutionlog' AND column_name = 'tenant_id'
+                 )
+              THEN
+                ALTER TABLE workflows_workflowexecutionlog ENABLE ROW LEVEL SECURITY;
+                ALTER TABLE workflows_workflowexecutionlog FORCE ROW LEVEL SECURITY;
+                DROP POLICY IF EXISTS workflowexecutionlog_tenant_isolation ON workflows_workflowexecutionlog;
+                CREATE POLICY workflowexecutionlog_tenant_isolation ON workflows_workflowexecutionlog
+                    USING (tenant_id = {UNSAFE_TENANT_UUID});
+                DROP POLICY IF EXISTS workflowexecutionlog_tenant_insert ON workflows_workflowexecutionlog;
+                CREATE POLICY workflowexecutionlog_tenant_insert ON workflows_workflowexecutionlog
+                    FOR INSERT WITH CHECK (tenant_id = {UNSAFE_TENANT_UUID});
+              END IF;
 
-            ALTER TABLE workflows_formsubmission ENABLE ROW LEVEL SECURITY;
-            ALTER TABLE workflows_formsubmission FORCE ROW LEVEL SECURITY;
-            DROP POLICY IF EXISTS formsubmission_tenant_isolation ON workflows_formsubmission;
-            CREATE POLICY formsubmission_tenant_isolation ON workflows_formsubmission
-                USING (tenant_id = {UNSAFE_TENANT_UUID});
+              IF to_regclass('public.workflows_formsubmission') IS NOT NULL
+                 AND EXISTS (
+                   SELECT 1 FROM information_schema.columns
+                   WHERE table_schema = 'public' AND table_name = 'workflows_formsubmission' AND column_name = 'tenant_id'
+                 )
+              THEN
+                ALTER TABLE workflows_formsubmission ENABLE ROW LEVEL SECURITY;
+                ALTER TABLE workflows_formsubmission FORCE ROW LEVEL SECURITY;
+                DROP POLICY IF EXISTS formsubmission_tenant_isolation ON workflows_formsubmission;
+                CREATE POLICY formsubmission_tenant_isolation ON workflows_formsubmission
+                    USING (tenant_id = {UNSAFE_TENANT_UUID});
+              END IF;
 
-            ALTER TABLE workflows_formsubmissionfile ENABLE ROW LEVEL SECURITY;
-            ALTER TABLE workflows_formsubmissionfile FORCE ROW LEVEL SECURITY;
-            DROP POLICY IF EXISTS formsubmissionfile_tenant_isolation ON workflows_formsubmissionfile;
-            CREATE POLICY formsubmissionfile_tenant_isolation ON workflows_formsubmissionfile
-                USING (
-                    submission_id IN (
-                        SELECT id FROM workflows_formsubmission
-                        WHERE tenant_id = {UNSAFE_TENANT_UUID}
-                    )
-                );
+              IF to_regclass('public.workflows_formsubmissionfile') IS NOT NULL
+                 AND to_regclass('public.workflows_formsubmission') IS NOT NULL
+                 AND EXISTS (
+                   SELECT 1 FROM information_schema.columns
+                   WHERE table_schema = 'public' AND table_name = 'workflows_formsubmission' AND column_name = 'tenant_id'
+                 )
+              THEN
+                ALTER TABLE workflows_formsubmissionfile ENABLE ROW LEVEL SECURITY;
+                ALTER TABLE workflows_formsubmissionfile FORCE ROW LEVEL SECURITY;
+                DROP POLICY IF EXISTS formsubmissionfile_tenant_isolation ON workflows_formsubmissionfile;
+                CREATE POLICY formsubmissionfile_tenant_isolation ON workflows_formsubmissionfile
+                    USING (
+                        submission_id IN (
+                            SELECT id FROM workflows_formsubmission
+                            WHERE tenant_id = {UNSAFE_TENANT_UUID}
+                        )
+                    );
+              END IF;
 
-            ALTER TABLE workflows_formsubmissionevent ENABLE ROW LEVEL SECURITY;
-            ALTER TABLE workflows_formsubmissionevent FORCE ROW LEVEL SECURITY;
-            DROP POLICY IF EXISTS formsubmissionevent_tenant_isolation ON workflows_formsubmissionevent;
-            CREATE POLICY formsubmissionevent_tenant_isolation ON workflows_formsubmissionevent
-                USING (
-                    submission_id IN (
-                        SELECT id FROM workflows_formsubmission
-                        WHERE tenant_id = {UNSAFE_TENANT_UUID}
-                    )
-                );
+              IF to_regclass('public.workflows_formsubmissionevent') IS NOT NULL
+                 AND to_regclass('public.workflows_formsubmission') IS NOT NULL
+                 AND EXISTS (
+                   SELECT 1 FROM information_schema.columns
+                   WHERE table_schema = 'public' AND table_name = 'workflows_formsubmission' AND column_name = 'tenant_id'
+                 )
+              THEN
+                ALTER TABLE workflows_formsubmissionevent ENABLE ROW LEVEL SECURITY;
+                ALTER TABLE workflows_formsubmissionevent FORCE ROW LEVEL SECURITY;
+                DROP POLICY IF EXISTS formsubmissionevent_tenant_isolation ON workflows_formsubmissionevent;
+                CREATE POLICY formsubmissionevent_tenant_isolation ON workflows_formsubmissionevent
+                    USING (
+                        submission_id IN (
+                            SELECT id FROM workflows_formsubmission
+                            WHERE tenant_id = {UNSAFE_TENANT_UUID}
+                        )
+                    );
+              END IF;
 
-            ALTER TABLE workflows_stepassignment ENABLE ROW LEVEL SECURITY;
-            ALTER TABLE workflows_stepassignment FORCE ROW LEVEL SECURITY;
-            DROP POLICY IF EXISTS stepassignment_tenant_isolation ON workflows_stepassignment;
-            CREATE POLICY stepassignment_tenant_isolation ON workflows_stepassignment
-                USING (tenant_id = {UNSAFE_TENANT_UUID});
+              IF to_regclass('public.workflows_stepassignment') IS NOT NULL
+                 AND EXISTS (
+                   SELECT 1 FROM information_schema.columns
+                   WHERE table_schema = 'public' AND table_name = 'workflows_stepassignment' AND column_name = 'tenant_id'
+                 )
+              THEN
+                ALTER TABLE workflows_stepassignment ENABLE ROW LEVEL SECURITY;
+                ALTER TABLE workflows_stepassignment FORCE ROW LEVEL SECURITY;
+                DROP POLICY IF EXISTS stepassignment_tenant_isolation ON workflows_stepassignment;
+                CREATE POLICY stepassignment_tenant_isolation ON workflows_stepassignment
+                    USING (tenant_id = {UNSAFE_TENANT_UUID});
+              END IF;
 
-            ALTER TABLE workflows_usernotification ENABLE ROW LEVEL SECURITY;
-            ALTER TABLE workflows_usernotification FORCE ROW LEVEL SECURITY;
-            DROP POLICY IF EXISTS usernotification_tenant_isolation ON workflows_usernotification;
-            CREATE POLICY usernotification_tenant_isolation ON workflows_usernotification
-                USING (tenant_id = {UNSAFE_TENANT_UUID});
+              IF to_regclass('public.workflows_usernotification') IS NOT NULL
+                 AND EXISTS (
+                   SELECT 1 FROM information_schema.columns
+                   WHERE table_schema = 'public' AND table_name = 'workflows_usernotification' AND column_name = 'tenant_id'
+                 )
+              THEN
+                ALTER TABLE workflows_usernotification ENABLE ROW LEVEL SECURITY;
+                ALTER TABLE workflows_usernotification FORCE ROW LEVEL SECURITY;
+                DROP POLICY IF EXISTS usernotification_tenant_isolation ON workflows_usernotification;
+                CREATE POLICY usernotification_tenant_isolation ON workflows_usernotification
+                    USING (tenant_id = {UNSAFE_TENANT_UUID});
+              END IF;
 
-            ALTER TABLE workflows_formstepsubmission ENABLE ROW LEVEL SECURITY;
-            ALTER TABLE workflows_formstepsubmission FORCE ROW LEVEL SECURITY;
-            DROP POLICY IF EXISTS formstepsubmission_tenant_isolation ON workflows_formstepsubmission;
-            CREATE POLICY formstepsubmission_tenant_isolation ON workflows_formstepsubmission
-                FOR ALL
-                USING (tenant_id = {UNSAFE_TENANT_UUID});
+              IF to_regclass('public.workflows_formstepsubmission') IS NOT NULL
+                 AND EXISTS (
+                   SELECT 1 FROM information_schema.columns
+                   WHERE table_schema = 'public' AND table_name = 'workflows_formstepsubmission' AND column_name = 'tenant_id'
+                 )
+              THEN
+                ALTER TABLE workflows_formstepsubmission ENABLE ROW LEVEL SECURITY;
+                ALTER TABLE workflows_formstepsubmission FORCE ROW LEVEL SECURITY;
+                DROP POLICY IF EXISTS formstepsubmission_tenant_isolation ON workflows_formstepsubmission;
+                CREATE POLICY formstepsubmission_tenant_isolation ON workflows_formstepsubmission
+                    FOR ALL
+                    USING (tenant_id = {UNSAFE_TENANT_UUID});
+              END IF;
 
-            ALTER TABLE workflows_tenantformversion ENABLE ROW LEVEL SECURITY;
-            ALTER TABLE workflows_tenantformversion FORCE ROW LEVEL SECURITY;
-            DROP POLICY IF EXISTS workflows_tenantformversion_tenant_isolation ON workflows_tenantformversion;
-            CREATE POLICY workflows_tenantformversion_tenant_isolation ON workflows_tenantformversion
-                FOR ALL
-                USING (tenant_id = {UNSAFE_TENANT_UUID});
+              IF to_regclass('public.workflows_tenantformversion') IS NOT NULL
+                 AND EXISTS (
+                   SELECT 1 FROM information_schema.columns
+                   WHERE table_schema = 'public' AND table_name = 'workflows_tenantformversion' AND column_name = 'tenant_id'
+                 )
+              THEN
+                ALTER TABLE workflows_tenantformversion ENABLE ROW LEVEL SECURITY;
+                ALTER TABLE workflows_tenantformversion FORCE ROW LEVEL SECURITY;
+                DROP POLICY IF EXISTS workflows_tenantformversion_tenant_isolation ON workflows_tenantformversion;
+                CREATE POLICY workflows_tenantformversion_tenant_isolation ON workflows_tenantformversion
+                    FOR ALL
+                    USING (tenant_id = {UNSAFE_TENANT_UUID});
+              END IF;
 
-            ALTER TABLE workflows_tenantworkformexecution ENABLE ROW LEVEL SECURITY;
-            ALTER TABLE workflows_tenantworkformexecution FORCE ROW LEVEL SECURITY;
-            DROP POLICY IF EXISTS tenantworkformexecution_tenant_isolation ON workflows_tenantworkformexecution;
-            CREATE POLICY tenantworkformexecution_tenant_isolation ON workflows_tenantworkformexecution
-                USING (tenant_id = {UNSAFE_TENANT_UUID});
-            DROP POLICY IF EXISTS tenantworkformexecution_tenant_insert ON workflows_tenantworkformexecution;
-            CREATE POLICY tenantworkformexecution_tenant_insert ON workflows_tenantworkformexecution
-                FOR INSERT WITH CHECK (tenant_id = {UNSAFE_TENANT_UUID});
+              IF to_regclass('public.workflows_tenantworkformexecution') IS NOT NULL
+                 AND EXISTS (
+                   SELECT 1 FROM information_schema.columns
+                   WHERE table_schema = 'public' AND table_name = 'workflows_tenantworkformexecution' AND column_name = 'tenant_id'
+                 )
+              THEN
+                ALTER TABLE workflows_tenantworkformexecution ENABLE ROW LEVEL SECURITY;
+                ALTER TABLE workflows_tenantworkformexecution FORCE ROW LEVEL SECURITY;
+                DROP POLICY IF EXISTS tenantworkformexecution_tenant_isolation ON workflows_tenantworkformexecution;
+                CREATE POLICY tenantworkformexecution_tenant_isolation ON workflows_tenantworkformexecution
+                    USING (tenant_id = {UNSAFE_TENANT_UUID});
+                DROP POLICY IF EXISTS tenantworkformexecution_tenant_insert ON workflows_tenantworkformexecution;
+                CREATE POLICY tenantworkformexecution_tenant_insert ON workflows_tenantworkformexecution
+                    FOR INSERT WITH CHECK (tenant_id = {UNSAFE_TENANT_UUID});
+              END IF;
+            END $$;
             """,
         ),
     ]
