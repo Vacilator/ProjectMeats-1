@@ -230,7 +230,7 @@ apiClient.interceptors.response.use(
           scope.setTag('http.status_code', status);
           scope.setTag('http.method', originalRequest?.method || 'unknown');
           scope.setTag('http.url', originalRequest?.url || 'unknown');
-          scope.setTag('tenant.id', localStorage.getItem('tenantId') || 'unknown');
+          scope.setTag('tenant.id', getValidTenantId() || 'unknown');
           scope.setContext('http', {
             status,
             method: originalRequest?.method,
@@ -724,7 +724,7 @@ export class ApiService {
         metadata: {
           endpoint: '/suppliers/',
           hasAuth: !!localStorage.getItem('authToken'),
-          hasTenant: !!localStorage.getItem('tenantId'),
+          hasTenant: Boolean(getValidTenantId()),
           baseURL: API_BASE_URL,
         },
       });

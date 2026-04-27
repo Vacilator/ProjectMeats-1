@@ -8,6 +8,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback, Rea
 import { getAvailableWorkForms } from '@/services/workformsApi';
 import { showAlert } from '@/utils/uiDialogs';
 import { logger } from '@/utils/logger';
+import { getValidTenantId } from '@/utils/tenantId';
 import { ApiErrorContent } from '@/components/errors/ApiErrorContent';
 import { getApiErrorPresentation } from '@/services/apiErrorPresentation';
 import {
@@ -67,10 +68,12 @@ export const QuickActionsProvider: React.FC<QuickActionsProviderProps> = ({ chil
   const [availableForms, setAvailableForms] = useState<AvailableForm[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  
+
   const [activeSubmission, setActiveSubmission] = useState<FormSubmission | null>(null);
   const [isEditorOpen, setIsEditorOpen] = useState(false);
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);
+
+  const warnedMissingTenantRef = React.useRef(false);
 
   // Load quick actions on mount
   const refreshQuickActions = useCallback(async () => {
@@ -82,6 +85,20 @@ export const QuickActionsProvider: React.FC<QuickActionsProviderProps> = ({ chil
     try {
       setIsLoading(true);
       setError(null);
+
+      // Tenant-scoped endpoints will 400 if tenant context is missing/invalid.
+      // Avoid noisy console errors and defer loading until tenant is selected.
+      const tenantId = getValidTenantId();
+      if (!tenantId) {
+        if (!warnedMissingTenantRef.current) {
+          warnedMissingTenantRef.current = true;
+          logger.warn('[QuickActions] Skipping initial load; missing/invalid tenantId');
+        }
+        setQuickActions([]);
+        setAvailableForms([]);
+        setError(null);
+        return;
+      }
 
       const [actionsResult, formsResult, workformsResult] = await Promise.allSettled([
         quickActionsService.getQuickActions(),
