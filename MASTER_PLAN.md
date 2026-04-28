@@ -15,6 +15,7 @@ This file is the **canonical plan + current truth snapshot**.
 ### What is true right now
 - **WorkForms E2E** is shipped end-to-end (execute + monitoring + notifications + Quick Actions + Gmail connector MVP).
 - **Primary execution focus (P0):** close remaining correctness + tenant isolation gaps surfaced by squad audits.
+- **AI email/document lane** is now fail-closed through Graph attachment ingest: tabular uploads parse safely, Outlook attachments bridge into `AIDocument`, unsupported attachment kinds are rejected pre-download, repeated same-session ingests dedupe with provenance, AI sessions are tenant-bound, and attachment ingest now requires a session-staged allowlist from `fetch_emails`.
 - **Newly shipped since last snapshot (evidence; see `.github/MASTER_PLAN.md`)**:
   - Core API reliability: fix `apps/core/views.py` legacy imports/`print()` landmines + add smoke tests (PR #4652).
   - Frontend standards: expand `lint:colors` + remove remaining hardcoded colors in MyTasks surfaces (PR #4650); replace high-churn `console.*` with `logger.*` (PR #4654).
@@ -24,6 +25,7 @@ This file is the **canonical plan + current truth snapshot**.
   - WorkForms execution telemetry foundation: add a tenant-scoped `ExecutionEventLog` model with RLS, persist normalized execution/node/action events from `audit_trail`, and cover successful + failed action spans in backend tests (see `.github/MASTER_PLAN.md` for the shipped PR reference).
   - WorkForms runtime hydration: add persisted `runtime_state` snapshots on `TenantWorkFormExecution`, hydrate node status/current step/error projections from the telemetry stream, and keep execution serializers backward-compatible for legacy rows without runtime state.
   - WorkForms analytics dashboard: expose a tenant-safe execution analytics summary from the backend and upgrade the Monitoring page to show telemetry-backed KPIs, top failing steps, slowest actions, and busiest WorkForms.
+  - AI email/document hardening: bridge Outlook attachments into `AIDocument`, preflight attachment metadata, persist provenance + same-session dedupe, hard-bind AI sessions/messages/uploads to `request.tenant`, and enforce a session-scoped attachment allowlist before ingest (PRs #4733–#4737).
 
 ### P0 priorities (next)
 - **Core API reliability**: ✅ shipped (PR #4652). Next: expand smoke coverage for always-on endpoints (health, tenant resolution, auth bootstrap) and keep them in PR gates.
@@ -47,7 +49,7 @@ This file is the **canonical plan + current truth snapshot**.
   - Manifest-driven required-secret enforcement per lane (remove hardcoded lists).
   - Docs drift prevention: "CURRENT" docs must not recommend forbidden Golden patterns (runner-driven migrations only).
 - **Mobile parity**: ✅ shipped foundations (PRs #4658/#4659). Next: switch-tenant persistence, consistent error normalization, and auth expiry/401 behavior parity.
-- **AI email/document hardening**: Graph attachment ingest now persists provenance in `AIDocument.custom_data`, deduplicates repeated same-session ingests, and enforces tenant-bound AI sessions/messages/uploads. Next: require a session-scoped attachment allowlist staged by `fetch_emails` before `ingest_email_attachment` can download anything, so the email → document pipeline is policy-enforced instead of prompt-enforced.
+- **AI email/document hardening**: ✅ shipped through session-scoped Outlook attachment allowlisting (PRs #4733–#4737). Next: normalize `parse_document` failure envelopes + `AIDocument.processing_status` lifecycle so parser/auth/unreachable failures are explicit, retryable where appropriate, and operator-visible without log-diving.
 
 ### Squad deep dive plan (as of 2026-04-27)
 
