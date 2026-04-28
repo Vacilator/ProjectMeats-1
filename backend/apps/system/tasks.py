@@ -256,9 +256,13 @@ def pin_workflow_versions(workflow_id: str, tenant_id: str | None = None):
         _reset_rls_session_vars()
 
 
-@shared_task(name='system.execute_workform_execution')
-def execute_workform_execution(execution_id: str, tenant_id: str) -> dict:
+@shared_task(name='system.execute_workform_execution', bind=True, max_retries=10)
+def execute_workform_execution(self, execution_id: str, tenant_id: str) -> dict:
     """Execute a TenantWorkFormExecution asynchronously.
+
+    Supports:
+    - parallelPath fanout (Celery group/chord)
+    - retry + DLQ for retryable action nodes (currently actionHTTP)
 
     This is used by the UI runtime route (/tenant-workforms/{id}/execute/) so
     Quick Actions can *run* workflows without blocking the request thread.
@@ -284,8 +288,18 @@ def execute_workform_execution(execution_id: str, tenant_id: str) -> dict:
 
         return {'success': False, 'error': rls.error}
 
-    from tenant_apps.workflows.models import TenantWorkFormExecution, TenantWorkFormExecutionStatus
-    from apps.system.services.workform_engine import WorkFormEngine
+    from celery import chord, group
+
+    from tenant_apps.workflows.models import (
+        TenantWorkFormExecution,
+        TenantWorkFormExecutionStatus,
+        WorkflowDeadLetter,
+    )
+    from apps.system.services.workform_engine import (
+        ParallelExecutionRequested,
+        RetryableNodeError,
+        WorkFormEngine,
+    )
 
     try:
         execution = (
@@ -299,28 +313,126 @@ def execute_workform_execution(execution_id: str, tenant_id: str) -> dict:
         workform = execution.workform
         initial_data = execution.initial_data or {}
 
-        engine = WorkFormEngine(
-            workform,
-            initial_context={
-                'trigger': initial_data,
-                'variables': {},
-                'errors': [],
-                'execution_id': str(execution.id),
-            },
-        )
-        result = engine.execute(trigger_payload=initial_data)
+        ctx = dict(execution.context_data or {})
+        ctx.setdefault('trigger', initial_data)
+        ctx.setdefault('variables', {})
+        ctx.setdefault('errors', [])
+        ctx.setdefault('audit_trail', [])
+        ctx.setdefault('parallel', {})
+        ctx.setdefault('resume_node_id', None)
+        ctx['variables'] = dict(ctx.get('variables') or {})
+        ctx['variables'].setdefault('execution_id', str(execution.id))
+
+        start_node_id = ctx.get('resume_node_id') or None
+
+        execution.status = TenantWorkFormExecutionStatus.IN_PROGRESS
+        if not execution.started_at:
+            execution.started_at = timezone.now()
+        execution.save(update_fields=['status', 'started_at'])
+
+        engine = WorkFormEngine(workform, initial_context=ctx)
+
+        try:
+            result = engine.execute(trigger_payload=initial_data, start_node_id=start_node_id)
+        except RetryableNodeError as exc:
+            checkpoint = dict(engine.context or {})
+            checkpoint['resume_node_id'] = str(getattr(exc, 'node_id', '') or '')
+            execution.context_data = checkpoint
+            execution.audit_trail = (checkpoint or {}).get('audit_trail', [])
+            execution.save(update_fields=['context_data', 'audit_trail'])
+
+            retries_so_far = int(getattr(self.request, 'retries', 0) or 0)
+            max_retries = int(getattr(exc, 'max_retries', 0) or 0)
+            if retries_so_far < max_retries:
+                countdown = min(30 * (2 ** retries_so_far), 600)
+                raise self.retry(countdown=countdown, exc=exc)
+
+            WorkflowDeadLetter.objects.create(
+                tenant_id=str(tenant_id),
+                workform_id=str(workform.id),
+                workform_execution_id=str(execution.id),
+                node_id=str(getattr(exc, 'node_id', '') or ''),
+                node_type=str(getattr(exc, 'node_type', '') or ''),
+                task_id=str(getattr(self.request, 'id', '') or ''),
+                trigger_data=initial_data,
+                execution_context=checkpoint,
+                error_message=str(getattr(exc, 'error', '') or str(exc)),
+                retry_count=retries_so_far,
+            )
+
+            execution.status = TenantWorkFormExecutionStatus.SUSPENDED
+            execution.error_message = str(getattr(exc, 'error', '') or str(exc))
+            execution.completed_at = timezone.now()
+            execution.save(update_fields=['status', 'error_message', 'completed_at'])
+            return {'success': False, 'execution_id': str(execution.id), 'error': execution.error_message, 'suspended': True}
+        except ParallelExecutionRequested as exc:
+            plan = exc.plan
+
+            execution.context_data = engine.context
+            execution.audit_trail = (engine.context or {}).get('audit_trail', [])
+            execution.save(update_fields=['context_data', 'audit_trail'])
+
+            branch_sigs = [
+                execute_workform_parallel_branch.s(
+                    execution_id=str(execution.id),
+                    tenant_id=str(tenant_id),
+                    workform_id=str(workform.id),
+                    parallel_node_id=str(plan.node_id),
+                    branch_index=int(idx),
+                    start_node_id=str(start_id),
+                    join_node_id=str(plan.join_node_id) if plan.join_node_id else None,
+                    base_context=plan.base_context,
+                )
+                for idx, start_id in enumerate(plan.branch_start_node_ids)
+            ]
+
+            if plan.wait_strategy == 'none':
+                group(branch_sigs).delay()
+
+                if plan.join_node_id:
+                    resumed = WorkFormEngine(workform, initial_context=engine.context)
+                    result = resumed.execute(trigger_payload=initial_data, start_node_id=str(plan.join_node_id))
+                else:
+                    return {
+                        'success': True,
+                        'execution_id': str(execution.id),
+                        'status': TenantWorkFormExecutionStatus.IN_PROGRESS,
+                        'deferred': True,
+                        'parallel_node_id': str(plan.node_id),
+                    }
+            else:
+                cb = continue_workform_after_parallel.s(
+                    execution_id=str(execution.id),
+                    tenant_id=str(tenant_id),
+                    workform_id=str(workform.id),
+                    parallel_node_id=str(plan.node_id),
+                    join_node_id=str(plan.join_node_id) if plan.join_node_id else '',
+                    base_context=plan.base_context,
+                    wait_strategy=str(plan.wait_strategy),
+                    error_strategy=str(plan.error_strategy),
+                )
+                chord(group(branch_sigs))(cb)
+                return {
+                    'success': True,
+                    'execution_id': str(execution.id),
+                    'status': TenantWorkFormExecutionStatus.IN_PROGRESS,
+                    'deferred': True,
+                    'parallel_node_id': str(plan.node_id),
+                    'join_node_id': str(plan.join_node_id) if plan.join_node_id else None,
+                }
 
         execution.context_data = result.context
         execution.audit_trail = (result.context or {}).get('audit_trail', [])
+        execution.completed_at = timezone.now()
         if result.success:
             execution.status = TenantWorkFormExecutionStatus.COMPLETED
+            execution.error_message = ''
         else:
             execution.status = TenantWorkFormExecutionStatus.FAILED
             execution.error_message = str(result.error or '')
-        execution.completed_at = timezone.now()
         execution.save(update_fields=['status', 'context_data', 'audit_trail', 'error_message', 'completed_at'])
 
-        return {'success': result.success, 'execution_id': str(execution.id), 'error': result.error}
+        return {'success': bool(result.success), 'execution_id': str(execution.id), 'error': result.error}
     except Exception as exc:  # noqa: BLE001
         if 'execution' in locals() and execution is not None:
             execution.status = TenantWorkFormExecutionStatus.FAILED
@@ -328,6 +440,234 @@ def execute_workform_execution(execution_id: str, tenant_id: str) -> dict:
             execution.completed_at = timezone.now()
             execution.save(update_fields=['status', 'error_message', 'completed_at'])
         return {'success': False, 'execution_id': str(execution_id), 'error': str(exc)}
+    finally:
+        _reset_rls_session_vars()
+
+
+@shared_task(name='system.execute_workform_parallel_branch', bind=True, max_retries=10)
+def execute_workform_parallel_branch(
+    self,
+    *,
+    execution_id: str,
+    tenant_id: str,
+    workform_id: str,
+    parallel_node_id: str,
+    branch_index: int,
+    start_node_id: str,
+    join_node_id: str | None,
+    base_context: dict | None = None,
+) -> dict:
+    """Execute a single parallel branch as a bounded sub-traversal."""
+
+    from apps.tenants.rls import set_current_tenant
+
+    rls = set_current_tenant(str(tenant_id))
+    if not rls.ok:
+        return {'success': False, 'error': f'rls_set_failed:{rls.error}', 'branch_index': int(branch_index)}
+
+    from apps.system.models import TenantWorkForm
+    from apps.system.services.workform_engine import ParallelExecutionRequested, RetryableNodeError, WorkFormEngine
+    from tenant_apps.workflows.models import WorkflowDeadLetter
+
+    try:
+        workform = TenantWorkForm.objects.get(id=workform_id, tenant_id=tenant_id)
+
+        ctx = dict(base_context or {})
+        ctx.setdefault('trigger', {})
+        ctx.setdefault('variables', {})
+        ctx.setdefault('errors', [])
+        ctx.setdefault('audit_trail', [])
+        ctx.setdefault('parallel', {})
+
+        ctx['variables'] = {
+            **dict(ctx.get('variables') or {}),
+            'parallel_node_id': str(parallel_node_id),
+            'parallel_branch_index': int(branch_index),
+        }
+
+        engine = WorkFormEngine(workform, initial_context=ctx)
+
+        try:
+            result = engine.execute(
+                trigger_payload=ctx.get('trigger'),
+                start_node_id=str(start_node_id),
+                stop_node_ids=[str(join_node_id)] if join_node_id else None,
+            )
+        except RetryableNodeError as exc:
+            retries_so_far = int(getattr(self.request, 'retries', 0) or 0)
+            max_retries = int(getattr(exc, 'max_retries', 0) or 0)
+            if retries_so_far < max_retries:
+                countdown = min(30 * (2 ** retries_so_far), 600)
+                raise self.retry(countdown=countdown, exc=exc)
+
+            WorkflowDeadLetter.objects.create(
+                tenant_id=str(tenant_id),
+                workform_id=str(workform.id),
+                workform_execution_id=str(execution_id),
+                node_id=str(getattr(exc, 'node_id', '') or ''),
+                node_type=str(getattr(exc, 'node_type', '') or ''),
+                task_id=str(getattr(self.request, 'id', '') or ''),
+                trigger_data=dict(ctx.get('trigger') or {}),
+                execution_context=dict(engine.context or {}),
+                error_message=str(getattr(exc, 'error', '') or str(exc)),
+                retry_count=retries_so_far,
+            )
+
+            return {
+                'success': False,
+                'branch_index': int(branch_index),
+                'parallel_node_id': str(parallel_node_id),
+                'start_node_id': str(start_node_id),
+                'join_node_id': str(join_node_id) if join_node_id else None,
+                'error': str(getattr(exc, 'error', '') or str(exc)),
+                'errors': [
+                    {
+                        'code': 'retry_exhausted',
+                        'node_id': str(getattr(exc, 'node_id', '') or ''),
+                        'node_type': str(getattr(exc, 'node_type', '') or ''),
+                        'message': str(getattr(exc, 'error', '') or str(exc)),
+                    }
+                ],
+                'audit_tail': [],
+                'variables': dict(ctx.get('variables') or {}),
+            }
+        except ParallelExecutionRequested as exc:
+            return {
+                'success': False,
+                'error': f'nested_parallel_not_supported:{exc.plan.node_id}',
+                'branch_index': int(branch_index),
+            }
+
+        return {
+            'success': bool(result.success),
+            'branch_index': int(branch_index),
+            'parallel_node_id': str(parallel_node_id),
+            'start_node_id': str(start_node_id),
+            'join_node_id': str(join_node_id) if join_node_id else None,
+            'error': result.error,
+            'errors': list((result.context or {}).get('errors') or []),
+            'audit_tail': list((result.context or {}).get('audit_trail') or [])[-50:],
+            'variables': dict((result.context or {}).get('variables') or {}),
+        }
+    finally:
+        _reset_rls_session_vars()
+
+
+@shared_task(name='system.continue_workform_after_parallel')
+def continue_workform_after_parallel(
+    results: list,
+    *,
+    execution_id: str,
+    tenant_id: str,
+    workform_id: str,
+    parallel_node_id: str,
+    join_node_id: str,
+    base_context: dict,
+    wait_strategy: str,
+    error_strategy: str,
+) -> dict:
+    """Chord callback: merge branch results and continue from the join node."""
+
+    from apps.tenants.rls import set_current_tenant
+
+    rls = set_current_tenant(str(tenant_id))
+    if not rls.ok:
+        return {'success': False, 'error': f'rls_set_failed:{rls.error}'}
+
+    from apps.system.models import TenantWorkForm
+    from tenant_apps.workflows.models import TenantWorkFormExecution, TenantWorkFormExecutionStatus
+    from apps.system.services.workform_engine import WorkFormEngine
+
+    try:
+        execution = (
+            TenantWorkFormExecution.objects.select_related('workform', 'tenant')
+            .filter(id=execution_id, tenant_id=tenant_id)
+            .first()
+        )
+        if not execution:
+            return {'success': False, 'error': 'Execution not found'}
+
+        workform = TenantWorkForm.objects.get(id=workform_id, tenant_id=tenant_id)
+
+        ctx = dict(base_context or {})
+        ctx.setdefault('errors', [])
+        ctx.setdefault('audit_trail', [])
+        ctx.setdefault('variables', {})
+        ctx.setdefault('parallel', {})
+
+        branch_results = results if isinstance(results, list) else []
+
+        ctx['parallel'][str(parallel_node_id)] = {
+            'wait_strategy': str(wait_strategy),
+            'error_strategy': str(error_strategy),
+            'join_node_id': str(join_node_id) if join_node_id else None,
+            'branches': branch_results,
+        }
+
+        any_failed = any((not r.get('success')) for r in branch_results if isinstance(r, dict))
+        any_retry_exhausted = any(
+            any((e or {}).get('code') == 'retry_exhausted' for e in (r.get('errors') or []))
+            for r in branch_results
+            if isinstance(r, dict)
+        )
+
+        if any_retry_exhausted:
+            execution.status = TenantWorkFormExecutionStatus.SUSPENDED
+            execution.error_message = 'Parallel branch exhausted retries'
+            execution.context_data = ctx
+            execution.completed_at = timezone.now()
+            execution.save(update_fields=['status', 'error_message', 'context_data', 'completed_at'])
+            return {'success': False, 'execution_id': str(execution.id), 'error': execution.error_message, 'suspended': True}
+
+        if any_failed and str(error_strategy) == 'stop':
+            engine = WorkFormEngine(workform, initial_context=ctx)
+            error_target = engine._next_node_id(str(parallel_node_id), prefer_error=True)  # noqa: SLF001
+            if error_target:
+                result = engine.execute(
+                    trigger_payload=ctx.get('trigger') if isinstance(ctx, dict) else {},
+                    start_node_id=str(error_target),
+                )
+
+                execution.context_data = result.context
+                execution.audit_trail = (result.context or {}).get('audit_trail', [])
+                execution.status = TenantWorkFormExecutionStatus.FAILED if not result.success else TenantWorkFormExecutionStatus.COMPLETED
+                execution.error_message = str(result.error or '')
+                execution.completed_at = timezone.now()
+                execution.save(update_fields=['status', 'context_data', 'audit_trail', 'error_message', 'completed_at'])
+                return {'success': bool(result.success), 'execution_id': str(execution.id), 'error': result.error}
+
+            execution.status = TenantWorkFormExecutionStatus.FAILED
+            execution.error_message = 'Parallel branch failed (stop on error)'
+            execution.context_data = ctx
+            execution.completed_at = timezone.now()
+            execution.save(update_fields=['status', 'error_message', 'context_data', 'completed_at'])
+            return {'success': False, 'execution_id': str(execution.id), 'error': execution.error_message}
+
+        if join_node_id:
+            engine = WorkFormEngine(workform, initial_context=ctx)
+            result = engine.execute(
+                trigger_payload=ctx.get('trigger') if isinstance(ctx, dict) else {},
+                start_node_id=str(join_node_id),
+            )
+
+            execution.context_data = result.context
+            execution.audit_trail = (result.context or {}).get('audit_trail', [])
+            if result.success:
+                execution.status = TenantWorkFormExecutionStatus.COMPLETED
+                execution.error_message = ''
+            else:
+                execution.status = TenantWorkFormExecutionStatus.FAILED
+                execution.error_message = str(result.error or '')
+            execution.completed_at = timezone.now()
+            execution.save(update_fields=['status', 'context_data', 'audit_trail', 'error_message', 'completed_at'])
+            return {'success': bool(result.success), 'execution_id': str(execution.id), 'error': result.error}
+
+        execution.context_data = ctx
+        execution.completed_at = timezone.now()
+        execution.status = TenantWorkFormExecutionStatus.FAILED if any_failed else TenantWorkFormExecutionStatus.COMPLETED
+        execution.error_message = 'Parallel branch failed' if any_failed else ''
+        execution.save(update_fields=['status', 'context_data', 'error_message', 'completed_at'])
+        return {'success': not any_failed, 'execution_id': str(execution.id), 'error': execution.error_message}
     finally:
         _reset_rls_session_vars()
 
@@ -366,7 +706,7 @@ def execute_workform_loop_item(
             return {'success': False, 'workform_id': workform_id, 'error': rls.error}
 
     try:
-        workform = TenantWorkForm.objects.get(id=workform_id)
+        workform = TenantWorkForm.objects.get(id=workform_id, tenant_id=tenant_id)
 
         initial_context = dict(base_context or {})
         initial_context.setdefault('trigger', {})

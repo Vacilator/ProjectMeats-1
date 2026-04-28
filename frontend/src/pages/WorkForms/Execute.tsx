@@ -5,8 +5,8 @@
  * the execution details page.
  */
 
-import React, { useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import React, { useEffect, useMemo } from 'react';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Skeleton } from 'antd';
 import { showAlert } from '@/utils/uiDialogs';
@@ -24,8 +24,14 @@ type ExecuteResult =
 
 export const ExecuteWorkForm: React.FC = () => {
   const { id } = useParams<{ id: string }>();
+  const location = useLocation();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+
+  const allowLegacyFallback = useMemo(() => {
+    const sp = new URLSearchParams(location.search || '');
+    return sp.get('legacy') === '1';
+  }, [location.search]);
 
   const mutation = useMutation({
     mutationFn: async (): Promise<ExecuteResult> => {
@@ -52,9 +58,9 @@ export const ExecuteWorkForm: React.FC = () => {
         const execution = await executeTenantWorkForm(id, initialData);
         return { kind: 'workform', execution };
       } catch (err: any) {
-        // Backward compatibility: older QuickActions may still point at legacy form/workflow IDs.
-        // If the TenantWorkForm execute endpoint returns 404, fall back to legacy form submission runner.
-        if (err?.response?.status === 404) {
+        // Backward compatibility is explicit only: older links may point at legacy form IDs.
+        // Do NOT silently run legacy execution unless the caller opts in.
+        if (allowLegacyFallback && err?.response?.status === 404) {
           const submission = await createFormSubmission(id);
           return { kind: 'form', submissionId: submission.id };
         }

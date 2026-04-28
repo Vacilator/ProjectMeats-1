@@ -65,11 +65,11 @@ describe('ExecuteWorkForm', () => {
     });
   });
 
-  it('falls back to legacy form submission when the WorkForm execute endpoint returns 404', async () => {
+  it('falls back to legacy form submission only when legacy=1 and the WorkForm execute endpoint returns 404', async () => {
     vi.mocked(executeTenantWorkForm).mockRejectedValueOnce({ response: { status: 404 } });
     vi.mocked(createFormSubmission).mockResolvedValueOnce({ id: 'sub-1' } as any);
 
-    renderWithRoutes('/workforms/execute/legacy-form-1');
+    renderWithRoutes('/workforms/execute/legacy-form-1?legacy=1');
 
     expect(await screen.findByTestId('dest-in-progress')).toBeInTheDocument();
     expect(createFormSubmission).toHaveBeenCalledWith('legacy-form-1');
@@ -83,6 +83,16 @@ describe('ExecuteWorkForm', () => {
     renderWithRoutes('/workforms/execute/wf-bad');
 
     expect(await screen.findByTestId('dest-catalog')).toBeInTheDocument();
+    expect(showAlert).toHaveBeenCalled();
+  });
+
+  it('does not silently fall back to legacy runner on 404 without legacy=1', async () => {
+    vi.mocked(executeTenantWorkForm).mockRejectedValueOnce({ response: { status: 404 } });
+
+    renderWithRoutes('/workforms/execute/legacy-form-1');
+
+    expect(await screen.findByTestId('dest-catalog')).toBeInTheDocument();
+    expect(createFormSubmission).not.toHaveBeenCalled();
     expect(showAlert).toHaveBeenCalled();
   });
 

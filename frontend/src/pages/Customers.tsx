@@ -3,6 +3,7 @@ import { Button, Input, Space, Table, Tag, Typography } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import styled from 'styled-components';
 
 import EntityFormSurface from '../components/Shared/EntityFormSurface';
 import { apiClient, apiService, type Customer } from '../services/apiService';
@@ -17,6 +18,63 @@ type CustomerProduct = {
 type CustomerListRow = Customer & {
   associated_products?: CustomerProduct[];
 };
+
+const PageContainer = styled.div`
+  padding: 1rem;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+
+  @media (max-width: 520px) {
+    padding: 0.75rem;
+  }
+`;
+
+const HeaderRow = styled.div`
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+  flex-wrap: wrap;
+  min-width: 0;
+`;
+
+const HeaderActions = styled.div`
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  flex-wrap: wrap;
+  flex: 1 1 320px;
+  min-width: 0;
+
+  @media (max-width: 520px) {
+    width: 100%;
+  }
+`;
+
+const SearchInputContainer = styled.div`
+  flex: 1 1 220px;
+  min-width: 0;
+`;
+
+const TableContainer = styled.div`
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  border: 1px solid rgb(var(--color-border));
+  border-radius: var(--radius-lg);
+  background: rgb(var(--color-surface));
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+
+  .ant-table-wrapper,
+  .ant-spin-nested-loading,
+  .ant-spin-container {
+    min-width: 0;
+  }
+`;
 
 const Customers: React.FC = () => {
   const navigate = useNavigate();
@@ -139,8 +197,8 @@ const Customers: React.FC = () => {
   );
 
   return (
-    <div style={{ padding: 16 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, marginBottom: 12, flexWrap: 'wrap' }}>
+    <PageContainer>
+      <HeaderRow>
         <div>
           <Typography.Title level={3} style={{ margin: 0 }}>
             Customers
@@ -150,71 +208,77 @@ const Customers: React.FC = () => {
           </Typography.Text>
         </div>
 
-        <Space>
-          <Input
-            placeholder="Search customers"
-            value={searchText}
-            onChange={(e) => setSearchText(e.target.value)}
-            allowClear
-          />
+        <HeaderActions>
+          <SearchInputContainer>
+            <Input
+              placeholder="Search customers"
+              value={searchText}
+              onChange={(e) => setSearchText(e.target.value)}
+              allowClear
+              style={{ width: '100%' }}
+            />
+          </SearchInputContainer>
           <Button type="primary" onClick={() => setCreateOpen(true)}>
             New Customer
           </Button>
-        </Space>
-      </div>
+        </HeaderActions>
+      </HeaderRow>
 
-      <Table<CustomerListRow>
-        rowKey={(row) => String(row.id ?? '')}
-        columns={columns}
-        dataSource={filteredCustomers}
-        loading={customersQuery.isLoading}
-        pagination={{ pageSize: 25 }}
-        onRow={(record) => ({
-          style: { cursor: 'pointer' },
-          onClick: () => {
-            const id = String(record.id ?? '').trim();
-            if (!id) return;
-            navigate(`/customers/${encodeURIComponent(id)}`);
-          },
-        })}
-        expandable={{
-          onExpand: (expanded, record) => {
-            if (!expanded) return;
-            if (Array.isArray(record.associated_products) && record.associated_products.length) return;
-            void loadCustomerProducts(record.id ?? '');
-          },
-          expandedRowRender: (record) => {
-            const id = String(record.id ?? '').trim();
-            const loading = productsLoadingByCustomerId[id];
-            const products = productsByCustomerId[id] ?? [];
+      <TableContainer data-testid="customers-table-container">
+        <Table<CustomerListRow>
+          rowKey={(row) => String(row.id ?? '')}
+          columns={columns}
+          dataSource={filteredCustomers}
+          loading={customersQuery.isLoading}
+          pagination={{ pageSize: 25 }}
+          scroll={{ x: 'max-content' }}
+          onRow={(record) => ({
+            style: { cursor: 'pointer' },
+            onClick: () => {
+              const id = String(record.id ?? '').trim();
+              if (!id) return;
+              navigate(`/customers/${encodeURIComponent(id)}`);
+            },
+          })}
+          expandable={{
+            onExpand: (expanded, record) => {
+              if (!expanded) return;
+              if (Array.isArray(record.associated_products) && record.associated_products.length) return;
+              void loadCustomerProducts(record.id ?? '');
+            },
+            expandedRowRender: (record) => {
+              const id = String(record.id ?? '').trim();
+              const loading = productsLoadingByCustomerId[id];
+              const products = productsByCustomerId[id] ?? [];
 
-            if (Array.isArray(record.associated_products) && record.associated_products.length) {
-              return null;
-            }
+              if (Array.isArray(record.associated_products) && record.associated_products.length) {
+                return null;
+              }
 
-            return (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                <div style={{ color: 'rgb(var(--color-text-tertiary))' }}>Aggregated Products</div>
-                {loading ? (
-                  <span style={{ color: 'rgb(var(--color-text-tertiary))' }}>Loading…</span>
-                ) : products.length ? (
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-                    {products.map((p) => (
-                      <Tag key={String(p.id)}>{p.product_name || p.name || p.product_code || 'Product'}</Tag>
-                    ))}
-                  </div>
-                ) : (
-                  <span style={{ color: 'rgb(var(--color-text-tertiary))' }}>No products found.</span>
-                )}
-              </div>
-            );
-          },
-          rowExpandable: (record) => {
-            const hasInline = Array.isArray(record.associated_products) && record.associated_products.length > 0;
-            return !hasInline;
-          },
-        }}
-      />
+              return (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  <div style={{ color: 'rgb(var(--color-text-tertiary))' }}>Aggregated Products</div>
+                  {loading ? (
+                    <span style={{ color: 'rgb(var(--color-text-tertiary))' }}>Loading…</span>
+                  ) : products.length ? (
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                      {products.map((p) => (
+                        <Tag key={String(p.id)}>{p.product_name || p.name || p.product_code || 'Product'}</Tag>
+                      ))}
+                    </div>
+                  ) : (
+                    <span style={{ color: 'rgb(var(--color-text-tertiary))' }}>No products found.</span>
+                  )}
+                </div>
+              );
+            },
+            rowExpandable: (record) => {
+              const hasInline = Array.isArray(record.associated_products) && record.associated_products.length > 0;
+              return !hasInline;
+            },
+          }}
+        />
+      </TableContainer>
 
       <EntityFormSurface
         entityType="customer"
@@ -244,7 +308,7 @@ const Customers: React.FC = () => {
           void customersQuery.refetch();
         }}
       />
-    </div>
+    </PageContainer>
   );
 };
 

@@ -152,13 +152,37 @@ describe('QuickActionsContext', () => {
           <TestConsumer />
         </QuickActionsProvider>
       );
-      
+
       await waitFor(() => {
         expect(screen.getByTestId('loading')).toHaveTextContent('ready');
       });
-      
+
       expect(screen.getByTestId('actions-count')).toHaveTextContent('2');
       expect(screen.getByTestId('forms-count')).toHaveTextContent('2');
+    });
+
+    it('does not fire authenticated bootstrap requests on /login route', async () => {
+      const original = window.location;
+      // @ts-expect-error test-only override
+      delete window.location;
+      // @ts-expect-error test-only override
+      window.location = { ...original, pathname: '/login' };
+
+      render(
+        <QuickActionsProvider>
+          <TestConsumer />
+        </QuickActionsProvider>
+      );
+
+      await waitFor(() => {
+        expect(screen.getByTestId('loading')).toHaveTextContent('ready');
+      });
+
+      expect(quickActionsService.getQuickActions).not.toHaveBeenCalled();
+      expect(quickActionsService.getAvailableForms).not.toHaveBeenCalled();
+      expect(getAvailableWorkForms).not.toHaveBeenCalled();
+
+      window.location = original;
     });
 
     it('should not make requests when tenantId is missing', async () => {

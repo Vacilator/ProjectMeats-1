@@ -23,6 +23,13 @@ This file is the **canonical plan + current truth snapshot**.
 
 ### P0 priorities (next)
 - **Core API reliability**: ✅ shipped (PR #4652). Next: expand smoke coverage for always-on endpoints (health, tenant resolution, auth bootstrap) and keep them in PR gates.
+
+- **Phase 10 Sprint 1 stability gate (shipped)**
+  - Mobile viewport hardening (make the existing mobile Playwright specs green; prevent page-level horizontal overflow on iPhone SE)
+  - Standardized API error presentation (map backend `code`/`error_code` into deterministic user-safe messages; graceful AI/email “not configured” UX)
+  - CI: enforce TypeScript type-check as a required PR gate + add a Drift Gate validator so the check can’t be removed silently
+  - Docs: incident response runbook (triage + rollback + tenant isolation/RLS guidance)
+
 - **Security / tenant isolation** (RLS correctness):
   - **P0 data isolation**: remove `is_staff` global bypasses in `apps/system/views/choice_viewsets.py` (tenant admins are promoted to `is_staff=True` via signals; must not yield cross-tenant reads/writes).
   - Make invitation email Celery task tenant/RLS safe (pass `tenant_id`; wrap task ORM in `tenant_rls` before querying invitation).
@@ -2841,7 +2848,7 @@ F9 (AI) ────────────────────────
 
 | Document | Priority | Hours | Content |
 |----------|----------|-------|---------|
-| `docs/operations/INCIDENT_RESPONSE.md` | P0 | 4 | Decision trees for database, email, auth, deployment failures |
+| `docs/runbooks/INCIDENT_RESPONSE.md` | P0 | 4 | Decision trees for database, email, auth, deployment failures |
 | `docs/operations/TROUBLESHOOTING.md` | P0 | 3 | Common issues with diagnostic steps |
 | `docs/getting-started/YOUR_FIRST_FEATURE.md` | P0 | 2 | Model → API → Frontend → Deploy tutorial |
 | `docs/backend/WORKFLOW_ENGINE_GUIDE.md` | P1 | 4 | Architecture, action executors, extension patterns |

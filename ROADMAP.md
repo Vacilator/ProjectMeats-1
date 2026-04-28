@@ -24,6 +24,7 @@ This is a lightweight pointer list from squad discovery. **Execute via `MASTER_P
   - Make WorkForms cards/modals keyboard accessible (semantic controls + dialog semantics/focus).
 - P1 Mobile parity:
   - Fix switch-tenant persistence; normalize errors; define auth expiry/401 behavior.
+  - Sprint 1 gate: ensure mobile Playwright specs remain green (viewport + CRUD create flows).
 
 ---
 
