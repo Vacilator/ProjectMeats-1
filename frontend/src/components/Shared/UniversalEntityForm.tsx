@@ -879,7 +879,6 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
   allowModeSwitch,
 }) => {
   const { isAuthenticated, loading: authLoading } = useAuthState();
-  const stableEmptyInitialValues = useMemo(() => ({} as Record<string, unknown>), []);
 
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState<unknown | null>(null);
@@ -992,12 +991,49 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
   useEffect(() => {
     if (!isOpen) return;
 
+    setLoadError(null);
     setShowAdvanced(false);
     setActiveMode(inferredMode);
     setRecordValues(null);
 
     const initialSnapshot = (initialValuesRef.current || {}) as Record<string, unknown>;
     setResolvedInitialValues(initialSnapshot);
+    setFkValues(initialSnapshot);
+
+    // Wait for auth initialization to settle before attempting any protected calls.
+    if (authLoading) {
+      setLoading(true);
+      return;
+    }
+
+    // If no token credentials exist, do NOT attempt network calls. This prevents
+    // a 401→state update→re-render→retry loop that can trigger React error #185.
+    if (!isAuthenticated) {
+      setSchema(null);
+      setRecordValues(null);
+      setLoading(false);
+      setLoadError({ response: { status: 401 } });
+
+      // Best-effort redirect matching the global interceptor behavior.
+      if (typeof window !== 'undefined') {
+        const currentPath = `${window.location.pathname}${window.location.search}`;
+        if (!currentPath.startsWith('/login')) {
+          try {
+            localStorage.setItem('redirectAfterLogin', currentPath);
+          } catch {
+            // best-effort
+          }
+
+          try {
+            window.location.assign('/login');
+          } catch {
+            // JSDOM/tests may throw on navigation.
+          }
+        }
+      }
+
+      return;
+    }
 
     let mounted = true;
 
@@ -1029,6 +1065,7 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
         setSchema(null);
         setRecordValues(null);
         setResolvedInitialValues(initialSnapshot);
+        setFkValues(initialSnapshot);
 
         const status = (err as any)?.response?.status;
         const errorMessage =
@@ -1051,7 +1088,7 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
     return () => {
       mounted = false;
     };
-  }, [authLoading, endpoint, entityId, inferredMode, isAuthenticated, isOpen, loadSchema, schemaEntityKey, stableEmptyInitialValues]);
+  }, [authLoading, endpoint, entityId, inferredMode, isAuthenticated, isOpen, loadSchema, schemaEntityKey]);
 
   // Load basic FK option lists (best-effort) for non-product references.
   useEffect(() => {
