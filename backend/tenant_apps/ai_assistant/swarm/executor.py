@@ -946,6 +946,48 @@ class ToolExecutor:
                     'parse_document requires an uploaded document_id (UUID or integer). URL fetch is disabled for SSRF safety.'
                 ) from e
 
+        from tenant_apps.ai_assistant.models import AIDocument
+        from tenant_apps.ai_assistant.services.document_parser import is_tabular_document, parse_tabular_document
+
+        doc = AIDocument.objects.filter(id=(document_int or document_uuid), tenant=tenant, owner=user).first()
+        if not doc:
+            raise ValueError('Document not found for this tenant/user')
+
+        if not doc.file:
+            raise ValueError('Document record has no file attached')
+
+        filename = doc.original_filename or 'document'
+        content_type = doc.content_type or 'application/octet-stream'
+
+        if is_tabular_document(filename=filename, content_type=content_type):
+            from tenant_apps.ai_assistant.swarm.tools.microsoft_graph import ToolExecutionError
+
+            try:
+                with doc.file.open('rb') as f:
+                    parsed = parse_tabular_document(
+                        f,
+                        filename=filename,
+                        content_type=content_type,
+                    )
+            except Exception as exc:
+                raise ToolExecutionError(
+                    error_code='DOCUMENT_PARSE_FAILED',
+                    message='The spreadsheet file could not be parsed.',
+                    hint='Upload a valid CSV or Excel file, or resave the spreadsheet and try again.',
+                    retryable=False,
+                    details=f'{type(exc).__name__}: {exc}',
+                ) from exc
+            return {
+                'document_id': str(doc.id),
+                'filename': filename,
+                'content_type': content_type,
+                'text': parsed.text,
+                'elements_preview': list(parsed.preview),
+                'parser': 'tabular_markdown',
+                'truncated': parsed.truncated,
+                'warnings': list(parsed.warnings),
+            }
+
         from django.conf import settings
 
         base_url = (getattr(settings, 'UNSTRUCTURED_API_URL', '') or '').strip()
@@ -958,18 +1000,6 @@ class ToolExecutor:
         endpoint = base_url.rstrip('/')
         if '/general/' not in endpoint and not endpoint.endswith('/general/v0/general'):
             endpoint = f"{endpoint}/general/v0/general"
-
-        from tenant_apps.ai_assistant.models import AIDocument
-
-        doc = AIDocument.objects.filter(id=(document_int or document_uuid), tenant=tenant, owner=user).first()
-        if not doc:
-            raise ValueError('Document not found for this tenant/user')
-
-        if not doc.file:
-            raise ValueError('Document record has no file attached')
-
-        filename = doc.original_filename or 'document'
-        content_type = doc.content_type or 'application/octet-stream'
 
         import requests
 

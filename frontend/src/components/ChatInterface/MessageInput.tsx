@@ -10,6 +10,12 @@
 import React, { useState, useRef, useEffect, KeyboardEvent, useCallback } from 'react';
 import styled from 'styled-components';
 
+import {
+  CHAT_UPLOAD_ACCEPT_ATTR,
+  CHAT_UPLOAD_SUPPORTED_EXTENSIONS,
+  getChatUploadEmoji,
+} from './fileUploadConfig';
+
 interface MessageInputProps {
   onSendMessage: (message: string) => void;
   onFileUpload?: (file: File) => Promise<{ id: string; status: string }>;
@@ -19,7 +25,6 @@ interface MessageInputProps {
 }
 
 // Supported file extensions and constraints
-const SUPPORTED_EXTENSIONS = ['pdf', 'jpg', 'jpeg', 'png', 'txt', 'doc', 'docx', 'xls', 'xlsx'];
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 
 const MessageInput: React.FC<MessageInputProps> = ({
@@ -56,8 +61,8 @@ const MessageInput: React.FC<MessageInputProps> = ({
 
     // Check file type
     const fileExtension = file.name.split('.').pop()?.toLowerCase();
-    if (!fileExtension || !SUPPORTED_EXTENSIONS.includes(fileExtension)) {
-      return `File type not supported. Supported types: ${SUPPORTED_EXTENSIONS.join(', ')}`;
+    if (!fileExtension || !CHAT_UPLOAD_SUPPORTED_EXTENSIONS.includes(fileExtension as (typeof CHAT_UPLOAD_SUPPORTED_EXTENSIONS)[number])) {
+      return `File type not supported. Supported types: ${CHAT_UPLOAD_SUPPORTED_EXTENSIONS.join(', ')}`;
     }
 
     return null;
@@ -85,7 +90,7 @@ const MessageInput: React.FC<MessageInputProps> = ({
         await onFileUpload(file);
 
         // Add a message about the uploaded file
-        const fileMessage = `📄 I've uploaded "${file.name}" for processing.`;
+        const fileMessage = `${getChatUploadEmoji(file.name, file.type)} I've uploaded "${file.name}" for processing.`;
         setMessage(fileMessage);
         textareaRef.current?.focus();
       } catch (err) {
@@ -226,13 +231,13 @@ const MessageInput: React.FC<MessageInputProps> = ({
       $isDragOver={isDragOver}
     >
       {/* Hidden file input */}
-      <HiddenFileInput
-        ref={fileInputRef}
-        type="file"
-        accept={SUPPORTED_EXTENSIONS.map((ext) => `.${ext}`).join(',')}
-        onChange={handleFileInputChange}
-        disabled={disabled || uploading}
-      />
+        <HiddenFileInput
+          ref={fileInputRef}
+          type="file"
+          accept={CHAT_UPLOAD_ACCEPT_ATTR}
+          onChange={handleFileInputChange}
+          disabled={disabled || uploading}
+        />
 
       {/* Error display */}
       {error && (

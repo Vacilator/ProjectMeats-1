@@ -15,6 +15,7 @@ from django.utils import timezone
 
 
 from apps.core.models import OwnedModel, StatusModel, TenantAwareModel
+from tenant_apps.ai_assistant.services.document_parser import AI_DOCUMENT_ALLOWED_EXTENSIONS
 
 
 class ChatSessionStatusChoices(models.TextChoices):
@@ -367,7 +368,7 @@ class AIDocument(TenantAwareModel):
         upload_to=aidocument_upload_to,
         validators=[
             FileExtensionValidator(
-                allowed_extensions=['pdf', 'txt', 'csv', 'jpg', 'jpeg', 'png', 'doc', 'docx', 'xls', 'xlsx']
+                allowed_extensions=list(AI_DOCUMENT_ALLOWED_EXTENSIONS)
             )
         ],
     )
