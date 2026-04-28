@@ -47,6 +47,8 @@ whitenoise==6.12.0
 python-decouple==3.8
 Pillow>=10.2.0  # For ImageField support if needed - 10.2.0+ supports Python 3.13
 psutil>=5.9.0  # For system health monitoring
+openpyxl>=3.1.5  # XLSX parsing for bounded AI tabular document ingestion
+xlrd>=2.0.1  # Legacy XLS parsing for bounded AI tabular document ingestion
 
 # HTTP requests
 requests>=2.31.0  # For GitHub API integration in bug reports

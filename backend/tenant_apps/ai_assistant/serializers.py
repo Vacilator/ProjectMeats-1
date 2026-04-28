@@ -2,7 +2,9 @@
 Serializers for AI Assistant functionality.
 """
 from rest_framework import serializers
+
 from .models import AIDocument, AIFeedbackLog, AIConfiguration, ChatMessage, ChatSession
+from .services.document_parser import validate_ai_document_upload
 
 
 
@@ -153,6 +155,16 @@ class AIDocumentSerializer(serializers.ModelSerializer):
     def get_document_type(self, obj) -> str:
         # Classification may happen asynchronously; keep this additive and deterministic.
         return 'unknown'
+
+    def validate_file(self, value):
+        try:
+            validate_ai_document_upload(
+                filename=getattr(value, 'name', ''),
+                content_type=getattr(value, 'content_type', ''),
+            )
+        except ValueError as exc:
+            raise serializers.ValidationError(str(exc)) from exc
+        return value
 
     class Meta:
         model = AIDocument
