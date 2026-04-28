@@ -6,6 +6,7 @@
  */
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { businessApi } from '@/services/businessApi';
+import { EMPTY_CHOICES } from '@/services/choiceConstants';
 
 export interface CascadingFieldOption {
   value: string;
@@ -81,7 +82,9 @@ export const useCascadingField = ({
   enabled?: boolean;
   fetchOptions?: (parentValue: any) => Promise<CascadingFieldOption[]>;
 }) => {
-  const [options, setOptions] = useState<CascadingFieldOption[]>([]);
+  const [options, setOptions] = useState<CascadingFieldOption[]>(
+    () => EMPTY_CHOICES as CascadingFieldOption[]
+  );
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -115,7 +118,7 @@ export const useCascadingField = ({
     if (!enabled || !hasParentValue || !fieldId) {
       setError(null);
       setLoading(false);
-      setOptions((prev) => (prev.length ? [] : prev));
+      setOptions((prev) => (prev.length ? (EMPTY_CHOICES as CascadingFieldOption[]) : prev));
       return;
     }
 
@@ -125,7 +128,11 @@ export const useCascadingField = ({
     try {
       if (customFetchOptions) {
         const nextOptions = await customFetchOptions(normalizedParentValue);
-        setOptions(Array.isArray(nextOptions) ? nextOptions : []);
+        setOptions(
+          Array.isArray(nextOptions) && nextOptions.length > 0
+            ? nextOptions
+            : (EMPTY_CHOICES as CascadingFieldOption[])
+        );
         return;
       }
 
@@ -133,12 +140,16 @@ export const useCascadingField = ({
         params: { parent_value: normalizedParentValue },
       });
 
-      setOptions(Array.isArray(response.data) ? response.data : []);
+      setOptions(
+        Array.isArray(response.data) && response.data.length > 0
+          ? response.data
+          : (EMPTY_CHOICES as CascadingFieldOption[])
+      );
     } catch (err: any) {
       const errorMsg = err.response?.data?.error || 'Failed to fetch cascaded options';
       setError(errorMsg);
       console.error('[useCascadingField] Error fetching options:', err);
-      setOptions((prev) => (prev.length ? [] : prev));
+      setOptions((prev) => (prev.length ? (EMPTY_CHOICES as CascadingFieldOption[]) : prev));
     } finally {
       setLoading(false);
     }

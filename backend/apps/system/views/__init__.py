@@ -9,6 +9,7 @@ from apps.system.views.choice_viewsets import (
     ConfigResolverView,
     ConfigAuditLogViewSet,
     EntityIntrospectionViewSet,
+    SystemChoicesAPIView,
 )
 
 __all__ = [
@@ -22,4 +23,5 @@ __all__ = [
     'ConfigResolverView',
     'ConfigAuditLogViewSet',
     'EntityIntrospectionViewSet',
+    'SystemChoicesAPIView',
 ]

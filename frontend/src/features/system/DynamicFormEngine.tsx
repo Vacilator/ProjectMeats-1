@@ -19,6 +19,7 @@ import { CountrySelect } from '../../components/ui';
 import { DEFAULT_COUNTRY } from '../../utils/constants/countries';
 import { useCascadingField } from '../../hooks/useCascadingField';
 import { contactFormOptionsService } from '../../services/contactFormOptionsService';
+import { EMPTY_CHOICES } from '../../services/choiceConstants';
 import { resolveConfig } from '../../services/configService';
 import { getChoicesForField, isStaticChoiceField } from '../../services/choicesService';
 import { formatUsPhone } from '../../utils/phone';
@@ -511,8 +512,8 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
     a: { value: string; label: string }[] | undefined,
     b: { value: string; label: string }[] | undefined
   ): boolean => {
-    const aa = Array.isArray(a) ? a : [];
-    const bb = Array.isArray(b) ? b : [];
+    const aa = Array.isArray(a) ? a : (EMPTY_CHOICES as { value: string; label: string }[]);
+    const bb = Array.isArray(b) ? b : (EMPTY_CHOICES as { value: string; label: string }[]);
     if (aa.length !== bb.length) return false;
 
     for (let i = 0; i < aa.length; i += 1) {
@@ -632,7 +633,7 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
       return field.options.map((opt) => (typeof opt === 'string' ? { value: opt, label: opt } : opt));
     }
     // Fall back to dynamically loaded options
-    return dynamicOptions[field.key] || [];
+    return dynamicOptions[field.key] || (EMPTY_CHOICES as { value: string; label: string }[]);
   };
 
   const isStateLikeKey = (normalizedKey: string): boolean => {
