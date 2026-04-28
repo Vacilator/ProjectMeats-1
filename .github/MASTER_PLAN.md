@@ -141,6 +141,7 @@ This file is the **append-only PR-referenceable execution log**.
 - **2026-04-28** — WorkForms editor: keep config-panel shadow edits local until Apply/Discard so FlowEditor no longer rewrites the full node array on every keystroke; preserve sanitized commit/discard behavior and add regression coverage for pre-commit stability and dirty-state reconciliation. (PR: #4721)
 - **2026-04-28** — Docs: sync canonical root `MASTER_PLAN.md` snapshot so it reflects the shipped FlowEditor state-harmonization batches and the verified WorkForms create-time activation guard. (PR: #4722)
 - **2026-04-28** — WorkForms runtime: add tenant-scoped execution telemetry (`ExecutionEventLog`) with RLS, persist normalized audit-trail events for executions/node spans/action outcomes, and add backend regression coverage for successful and failed action events. (PR: #4723)
+- **2026-04-28** — WorkForms runtime: hydrate a persisted `runtime_state` snapshot on `TenantWorkFormExecution` from the telemetry stream so list/detail serializers can serve current node, node statuses, and errors without reparsing raw audit trails; retain fallback for legacy rows. (PR: TBD)
 
 ### 2026-03-31 — Secret audit drift (manifest v5.1)
 - Command: `python config/manage_env.py audit --repo Meats-Central/ProjectMeats`
