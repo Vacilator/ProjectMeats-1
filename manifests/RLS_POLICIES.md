@@ -1,6 +1,6 @@
 # Security Compliance & RLS Audit Log
 
-**Last Updated**: April 21, 2026  
+**Last Updated**: April 27, 2026  
 **Status**: ✅ ALL SYSTEMS COMPLIANT (pending next deployment audit)
 
 ---
@@ -18,7 +18,7 @@
 
 ---
 
-## Workflow Module (17 tables) - ✅ 100% COMPLIANT
+## Workflow Module (18 tables) - ✅ 100% COMPLIANT
 
 All workflow-related tables have Row-Level Security **ENABLED** and **FORCED**:
 
@@ -42,8 +42,9 @@ All workflow-related tables have Row-Level Security **ENABLED** and **FORCED**:
 | `workflows_usernotificationpreferences` | ✅ | `usernotificationpreferences_tenant_isolation` | `app.current_tenant` |
 | `workflows_workflowexecutionlog` | ✅ | `workflowexecutionlog_tenant_isolation` | `app.current_tenant` |
 | `workflows_tenantworkformexecution` | ✅ | `tenantworkformexecution_tenant_isolation` | `app.current_tenant` |
+| `workflows_workflowdeadletter` | ✅ | `workflowdeadletter_tenant_isolation` (+ `workflowdeadletter_tenant_insert`) | `app.current_tenant` |
 
-**Total Policies**: 17 tables × 1 policy each = **17 RLS policies**
+**Total Policies**: 18 tables (1 isolation policy each) + 1 insert policy for DLQ = **19 RLS policies**
 
 **Session Variable**: `app.current_tenant` (set by `TenantMiddleware`)
 

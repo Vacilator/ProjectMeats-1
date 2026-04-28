@@ -69,4 +69,52 @@ describe('DynamicFormEngine stability', () => {
       export_documents_handled: '',
     });
   });
+
+  it('applies async-loaded initial values once without looping when parent rebuilds objects', async () => {
+    const onSubmit = vi.fn();
+
+    const Parent: React.FC = () => {
+      const [loaded, setLoaded] = useState(false);
+      const [tick, setTick] = useState(0);
+
+      useEffect(() => {
+        setLoaded(true);
+      }, []);
+
+      useEffect(() => {
+        if (!loaded || tick >= 6) return;
+        setTick((prev) => prev + 1);
+      }, [loaded, tick]);
+
+      const schema = {
+        step_index: 0,
+        name: 'Plant Profile',
+        fields: [
+          {
+            key: 'name',
+            label: 'Plant Name',
+            type: 'text',
+            required: true,
+          },
+        ],
+      };
+
+      const initialValues = loaded ? { name: 'North Fabrication Plant' } : {};
+
+      return (
+        <DynamicFormEngine
+          schema={schema as any}
+          initialValues={initialValues}
+          onSubmit={onSubmit}
+          submitLabel="Save"
+        />
+      );
+    };
+
+    render(<Parent />);
+
+    await waitFor(() => {
+      expect(screen.getByDisplayValue('North Fabrication Plant')).toBeInTheDocument();
+    });
+  });
 });

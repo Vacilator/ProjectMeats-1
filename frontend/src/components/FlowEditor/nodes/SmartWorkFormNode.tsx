@@ -10,6 +10,7 @@ import {
   useUpdateNodeInternals,
 } from '@xyflow/react';
 import { Plus, Save, Trash2 } from 'lucide-react';
+import { useFlowEditorNodeActions } from '../context';
 
 // -----------------------------------------------------------------------------
 // Types
@@ -509,6 +510,7 @@ const CascadeSelect = styled.select`
 // -----------------------------------------------------------------------------
 
 export const SmartWorkFormNode = React.memo<NodeProps<SmartWorkFormFlowNode>>(({ id, data, selected }) => {
+  const nodeActions = useFlowEditorNodeActions();
   const { setNodes } = useReactFlow();
   const updateNodeInternals = useUpdateNodeInternals();
 
@@ -741,6 +743,8 @@ export const SmartWorkFormNode = React.memo<NodeProps<SmartWorkFormFlowNode>>(({
   }, []);
 
   const isSaving = Boolean(data.isSaving);
+  const handleSave = data.onSave ?? (() => nodeActions.saveWorkflow());
+  const handleDelete = data.onDelete ?? (() => nodeActions.deleteNode(id));
 
   return (
     <Root $selected={!!selected}>
@@ -748,10 +752,10 @@ export const SmartWorkFormNode = React.memo<NodeProps<SmartWorkFormFlowNode>>(({
         <Button type="button" onClick={addStep} disabled={isSaving}>
           <Plus size={14} /> Add Step
         </Button>
-        <Button type="button" onClick={data.onSave} disabled={isSaving || !data.onSave} $primary>
+        <Button type="button" onClick={() => void handleSave()} disabled={isSaving} $primary>
           <Save size={14} /> Save
         </Button>
-        <Button type="button" onClick={data.onDelete} disabled={isSaving || !data.onDelete}>
+        <Button type="button" onClick={() => void handleDelete()} disabled={isSaving}>
           <Trash2 size={14} /> Delete
         </Button>
       </NodeToolbar>
@@ -812,7 +816,7 @@ export const SmartWorkFormNode = React.memo<NodeProps<SmartWorkFormFlowNode>>(({
             <Plus size={14} /> Add Step
           </Button>
 
-          <Button type="button" onClick={data.onSave} disabled={isSaving || !data.onSave} $primary>
+          <Button type="button" onClick={() => void handleSave()} disabled={isSaving} $primary>
             <Save size={14} /> Save
           </Button>
         </BarActions>

@@ -5,7 +5,7 @@ import { EntityWorkflowStatusPanel } from '@/components/Entities/EntityWorkflowS
 import { useNavigate, useParams } from 'react-router-dom';
 
 import { AIOverviewCard, EntityProfileHeader } from '@/components/Cockpit';
-import { ActivityFeed, EntityFormSurface, UnifiedEntityTable } from '@/components/Shared';
+import { ActivityFeed, CommentsPanel, EntityFormSurface, UnifiedEntityTable } from '@/components/Shared';
 import type { EntityFormMode } from '@/components/Shared/EntityFormSurface';
 import { apiClient } from '@/services/apiService';
 import { businessApi } from '@/services/businessApi';
@@ -442,6 +442,11 @@ export const UniversalEntityRecordPage: React.FC<UniversalEntityRecordPageProps>
                       ),
                     },
                     {
+                      key: 'comments',
+                      label: 'Comments',
+                      children: <CommentsPanel entityType={normalizedEntityType} entityId={entityId} />,
+                    },
+                    {
                       key: 'recent_activity',
                       label: 'Recent Activity',
                       children: numericEntityId ? (
@@ -511,6 +516,11 @@ export const UniversalEntityRecordPage: React.FC<UniversalEntityRecordPageProps>
                       children: (
                         <EntityWorkflowStatusPanel entityType={normalizedEntityType} entityId={String(entityId)} />
                       ),
+                    },
+                    {
+                      key: 'comments',
+                      label: 'Comments',
+                      children: <CommentsPanel entityType={normalizedEntityType} entityId={entityId} />,
                     },
                     {
                       key: 'timeline',

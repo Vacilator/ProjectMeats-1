@@ -7,6 +7,7 @@
 export { LocationSelector } from './LocationSelector';
 export { MultiSelect } from './MultiSelect';
 export { ActivityFeed } from './ActivityFeed';
+export { CommentsPanel } from './CommentsPanel';
 export { RecordPaymentModal } from './RecordPaymentModal';
 export { PaymentHistoryList } from './PaymentHistoryList';
 export { ScheduleCallModal } from './ScheduleCallModal';

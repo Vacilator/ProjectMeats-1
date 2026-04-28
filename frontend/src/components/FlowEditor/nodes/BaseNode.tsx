@@ -17,6 +17,7 @@ import { NodeTypeDefinition } from '../nodeTypes';
 import { formatEntityTypeLabel } from '../utils/formatEntityTypeLabel';
 import type { NodeBadgeStatus } from '../components/NodeBadge';
 import { NodeIcon, NodeIconType } from '../components/NodeIcons';
+import { useFlowEditorNodeActions } from '../context';
 
 // ============================================================================
 // TypeScript Interfaces
@@ -387,6 +388,7 @@ export const BaseNode: React.FC<BaseNodeProps & { children?: React.ReactNode }> 
   dragHandleClassName,
   children,
 }) => {
+  const nodeActions = useFlowEditorNodeActions();
   const nodeType = nodeTypeProp ?? FALLBACK_NODE_TYPE;
   const {
     label,
@@ -425,11 +427,18 @@ export const BaseNode: React.FC<BaseNodeProps & { children?: React.ReactNode }> 
   const [isDragging, setIsDragging] = useState(false);
   
   const headerDragHandleClass = dragHandleClassName ?? 'custom-drag-handle';
+  const handleEditNode = onEdit ?? (() => nodeActions.editNode(id));
+  const handleDeleteNode = onDelete ?? (() => nodeActions.deleteNode(id));
+  const handleMoveUpNode = data.onMoveUp ?? (() => nodeActions.moveNode(id, -1));
+  const handleMoveDownNode = data.onMoveDown ?? (() => nodeActions.moveNode(id, 1));
+  const handleTitleUpdate = onTitleChange ?? ((newTitle: string) => nodeActions.changeNodeTitle(id, newTitle));
+  const canEditTitle = true;
 
   const showInputHandle = nodeType.maxInputs !== 0;
   const showOutputHandle = nodeType.maxOutputs !== 0;
 
-  const showButtonHandle = selected || connectionInProcess || Boolean((data as any)?.isLastInWorkflow);
+  const showButtonHandle =
+    selected || connectionInProcess || Boolean((data as any)?.isLastInWorkflow) || nodeActions.isLastInWorkflow(id);
   const showToolbar = selected;
 
   const handlePin = (e: React.MouseEvent) => {
@@ -444,7 +453,7 @@ export const BaseNode: React.FC<BaseNodeProps & { children?: React.ReactNode }> 
   
   // Batch 4: Title editing handlers
   const handleTitleDoubleClick = (e: React.MouseEvent) => {
-    if (!onTitleChange) return;
+    if (!canEditTitle) return;
     e.stopPropagation();
     setIsEditingTitle(true);
     setEditedTitle(resolvedTitle);
@@ -455,8 +464,8 @@ export const BaseNode: React.FC<BaseNodeProps & { children?: React.ReactNode }> 
   };
   
   const handleTitleBlur = () => {
-    if (onTitleChange && editedTitle !== resolvedTitle) {
-      onTitleChange(editedTitle);
+    if (handleTitleUpdate && editedTitle !== resolvedTitle) {
+      handleTitleUpdate(editedTitle);
     }
     setIsEditingTitle(false);
   };
@@ -518,51 +527,45 @@ export const BaseNode: React.FC<BaseNodeProps & { children?: React.ReactNode }> 
             transition: 'opacity 0.15s ease, transform 0.15s ease',
           }}
         >
-          {(data.onMoveUp || data.onMoveDown) && (
-            <>
-              <ToolbarBtn
-                onClick={(e) => {
-                  e.stopPropagation();
-                  data.onMoveUp?.();
-                }}
-                title="Move up"
-              >
-                <ArrowUp size={16} />
-              </ToolbarBtn>
-              <ToolbarBtn
-                onClick={(e) => {
-                  e.stopPropagation();
-                  data.onMoveDown?.();
-                }}
-                title="Move down"
-              >
-                <ArrowDown size={16} />
-              </ToolbarBtn>
-            </>
-          )}
-          {data.onEdit && (
+          <>
             <ToolbarBtn
               onClick={(e) => {
                 e.stopPropagation();
-                data.onEdit!();
+                handleMoveUpNode();
               }}
-              title="Edit Node"
+              title="Move up"
             >
-              <Edit2 size={16} />
+              <ArrowUp size={16} />
             </ToolbarBtn>
-          )}
-          {data.onDelete && (
             <ToolbarBtn
-              $danger
               onClick={(e) => {
                 e.stopPropagation();
-                data.onDelete!();
+                handleMoveDownNode();
               }}
-              title="Delete Node"
+              title="Move down"
             >
-              <Trash2 size={16} />
+              <ArrowDown size={16} />
             </ToolbarBtn>
-          )}
+          </>
+          <ToolbarBtn
+            onClick={(e) => {
+              e.stopPropagation();
+              handleEditNode();
+            }}
+            title="Edit Node"
+          >
+            <Edit2 size={16} />
+          </ToolbarBtn>
+          <ToolbarBtn
+            $danger
+            onClick={(e) => {
+              e.stopPropagation();
+              void handleDeleteNode();
+            }}
+            title="Delete Node"
+          >
+            <Trash2 size={16} />
+          </ToolbarBtn>
           {onPin && (
             <ToolbarBtn
               onClick={(e) => {
@@ -598,9 +601,9 @@ export const BaseNode: React.FC<BaseNodeProps & { children?: React.ReactNode }> 
           />
         ) : (
           <NodeTitle 
-            $editable={!!onTitleChange}
+            $editable={canEditTitle}
             onDoubleClick={handleTitleDoubleClick}
-            title={onTitleChange ? "Double-click to edit" : undefined}
+            title={canEditTitle ? "Double-click to edit" : undefined}
           >
             {resolvedTitle}
             {isDirty && <span style={{ marginLeft: '4px', fontSize: '16px' }} title="Unsaved changes">*</span>}

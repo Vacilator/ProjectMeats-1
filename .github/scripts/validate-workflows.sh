@@ -994,6 +994,102 @@ check_env_separation() {
     return 0
 }
 
+# Guardrail: PR validation must enforce frontend type-check (Sprint 1 CI gate)
+check_pr_validation_frontend_typecheck_gate() {
+    log_info "Checking PR validation includes frontend type-check gate..."
+
+    if [[ ! -f .github/workflows/pr-validation.yml ]]; then
+        log_info "No pr-validation.yml found (skipping PR frontend type-check gate)"
+        return 0
+    fi
+
+    if [[ ! -f frontend/package.json ]]; then
+        log_error "frontend/package.json missing (cannot validate verify-standards/type-check gate)"
+        return 1
+    fi
+
+    # Validate intent, not job naming. Pass if PR validation:
+    # - runs frontend type-check directly, OR
+    # - runs frontend verify-standards AND verify-standards includes type-check.
+    if ! python - <<'PY'
+import json
+import re
+import sys
+from pathlib import Path
+
+try:
+    import yaml
+except Exception as e:
+    print(f"ERROR: pyyaml not available: {e}", file=sys.stderr)
+    raise SystemExit(1)
+
+wf_path = Path('.github/workflows/pr-validation.yml')
+data = yaml.safe_load(wf_path.read_text(encoding='utf-8', errors='ignore')) or {}
+jobs = data.get('jobs') or {}
+
+run_blobs = []
+for _job_name, job in (jobs.items() if isinstance(jobs, dict) else []):
+    if not isinstance(job, dict):
+        continue
+    for step in (job.get('steps') or []):
+        if not isinstance(step, dict):
+            continue
+        run = step.get('run')
+        if not isinstance(run, str):
+            continue
+        wd = step.get('working-directory')
+        wd = wd.strip() if isinstance(wd, str) else ""
+        run_blobs.append((wd, run))
+
+
+def is_frontend_context(wd: str, run: str) -> bool:
+    if re.search(r"(^|/)\.?frontend$", wd) or wd in ("./frontend", "frontend"):
+        return True
+    if re.search(r"\bnpm\s+--prefix\s+frontend\b", run):
+        return True
+    return False
+
+
+has_direct_typecheck = any(
+    is_frontend_context(wd, run) and re.search(r"\bnpm\b.*\brun\b.*\btype-check\b", run)
+    for wd, run in run_blobs
+)
+
+has_verify_standards = any(
+    is_frontend_context(wd, run) and re.search(r"\bnpm\b.*\brun\b.*\bverify-standards\b", run)
+    for wd, run in run_blobs
+)
+
+pkg = json.loads(Path('frontend/package.json').read_text(encoding='utf-8'))
+vs = (((pkg.get('scripts') or {}).get('verify-standards')) or "")
+vs_has_typecheck = bool(re.search(r"\btype-check\b", vs))
+
+if has_direct_typecheck:
+    print("✓ PR validation runs frontend type-check directly")
+    raise SystemExit(0)
+
+if has_verify_standards and vs_has_typecheck:
+    print("✓ PR validation runs verify-standards and verify-standards includes type-check")
+    raise SystemExit(0)
+
+msg = []
+if not (has_direct_typecheck or has_verify_standards):
+    msg.append("missing frontend type-check/verify-standards invocation in pr-validation.yml")
+if has_verify_standards and not vs_has_typecheck:
+    msg.append("frontend/package.json scripts.verify-standards does not include type-check")
+print(
+    f"ERROR: PR validation frontend type-check gate not satisfied: {', '.join(msg)}",
+    file=sys.stderr,
+)
+raise SystemExit(1)
+PY
+    then
+        return 1
+    fi
+
+    return 0
+}
+
 # Check workflow environment lanes match env manifest (prevents secret-scope typos)
 check_environment_lanes_match_manifest() {
     log_info "Checking workflow environment lanes against manifests/env.manifest.json..."
@@ -1160,6 +1256,7 @@ main() {
     check_digest_pinned_workflow_images || ((failed++))
     check_immutable_deploy_tags || ((failed++))
     check_workflow_run_targets_exist || ((failed++))
+    check_pr_validation_frontend_typecheck_gate || ((failed++))
     check_env_separation || ((failed++))
     
     log_info "========================================="

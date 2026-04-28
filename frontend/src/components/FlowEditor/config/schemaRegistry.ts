@@ -20,6 +20,10 @@ class ConfigSchemaRegistry {
   private schemas: Map<string, NodeConfigSchema> = new Map();
   private initialized: boolean = false;
 
+  // Optional overlay from backend WorkForms node registry.
+  private serverAliases: Map<string, string> = new Map();
+  private serverNodes: Map<string, { label?: string; description?: string; category?: string }> = new Map();
+
   private shouldDebugLog(): boolean {
     if (typeof window === 'undefined') return false;
     return Boolean(import.meta.env.DEV && window.localStorage.getItem('pm:debug-schemas') === '1');
@@ -152,12 +156,59 @@ class ConfigSchemaRegistry {
    * @returns Schema (always returns a schema, using fallback if needed)
    */
   getSchema(nodeType: string): NodeConfigSchema {
-    const schema = this.schemas.get(nodeType);
+    const normalizedType = this.normalizeNodeType(nodeType);
+
+    const schema = this.schemas.get(normalizedType);
     if (!schema) {
-      logger.warn(`[Schema Registry] No schema found for node type: ${nodeType}, using fallback`);
-      return this.createFallbackSchema(nodeType);
+      logger.warn(`[Schema Registry] No schema found for node type: ${normalizedType}, using fallback`);
+      return this.createFallbackSchema(normalizedType);
     }
+
+    // Apply server-provided presentation overrides where safe.
+    const serverMeta = this.serverNodes.get(normalizedType);
+    if (serverMeta?.label || serverMeta?.description || serverMeta?.category) {
+      return {
+        ...schema,
+        displayName: serverMeta.label ?? schema.displayName,
+        description: serverMeta.description ?? schema.description,
+        category: serverMeta.category ?? schema.category,
+      };
+    }
+
     return schema;
+  }
+
+  /**
+   * Overlay server-provided WorkForms node registry metadata.
+   * This is additive and never removes local schemas.
+   */
+  setServerRegistry(payload: { aliases?: Record<string, string>; nodes?: Record<string, any> } | null | undefined) {
+    this.serverAliases.clear();
+    this.serverNodes.clear();
+
+    if (!payload) return;
+
+    const aliases = payload.aliases || {};
+    for (const [k, v] of Object.entries(aliases)) {
+      if (!k || !v) continue;
+      this.serverAliases.set(String(k), String(v));
+    }
+
+    const nodes = payload.nodes || {};
+    for (const [nodeType, def] of Object.entries(nodes)) {
+      const anyDef: any = def || {};
+      this.serverNodes.set(String(nodeType), {
+        label: typeof anyDef.label === 'string' ? anyDef.label : undefined,
+        description: typeof anyDef.description === 'string' ? anyDef.description : undefined,
+        category: typeof anyDef.category === 'string' ? anyDef.category : undefined,
+      });
+    }
+  }
+
+  normalizeNodeType(nodeType: string): string {
+    const t = String(nodeType || '').trim();
+    if (!t) return t;
+    return this.serverAliases.get(t) || t;
   }
   
   /**

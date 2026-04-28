@@ -118,10 +118,26 @@ This file is the **append-only PR-referenceable execution log**.
 
 - **2026-04-27** — Workflows/QuickActions hardening: `/api/v1/workflows/available-forms/` now degrades safely even if form/workform serialization or node_count fails (skips bad rows; never 500) with regression coverage; frontend stops probing legacy `/api/v1/products/master/` and calls canonical `/api/v1/master-products/` only (avoids noisy 404 spam). (PR: #4709)
 
+- **2026-04-27** — Phase 10 Sprint 1 gate (in progress):
+  - Frontend: standardized API error presentation now recognizes backend `code`/`error_code` (e.g., `AI_NOT_CONFIGURED`, `EMAIL_SEND_NOT_CONFIGURED`) and surfaces user-safe guidance; Email Integration widget uses the shared presentation.
+  - CI: workflow validator now enforces that PR validation includes the frontend TypeScript gate (verify-standards/type-check), preventing silent removal.
+  - Docs: added canonical incident response runbook (`docs/runbooks/INCIDENT_RESPONSE.md`).
+  - Mobile: began hardening the Customers page table container for mobile E2E stability (`customers-table-container` selector) and continued mobile viewport work.
+
+- **2026-04-27** — Phase 10 Sprint 1 gate: completed (mobile Playwright specs green on Mobile Chrome; Drift Gate + verify-standards passing). (PR: Vacilator/ProjectMeats-1#21)
+
 - **2026-04-27** — Entities: fixed UniversalEntityForm React infinite loop (#185) in Plant create/edit by stabilizing initialValues and sanitizing array-like defaults; restored AI Overview on canonical Supplier/Customer record pages; renamed Suppliers/Customers list create buttons to "New Supplier"/"New Customer" and aligned Customer form titles to "New Customer"/"Customer". (PR: #4711)
 
 - **2026-04-27** — Forms: fixed Plant edit/create crash (minified React error #185) by stabilizing cascading option fetch (no more setState loop when dependencies are empty) and adding a short-lived cache for missing `/system/choices/?list=...` slugs to prevent repeated 404 spam. (PR: #4713)
 - **2026-04-28** — **[HOTFIX]** Backend choices API hardened to return `200 []` for missing/unseeded `/api/v1/system/choices/?list=...` lookups, with `_`/`-` alias normalization and a canonical `protein_types` mapping. Frontend now uses a single canonical choices request, caches stable empty-array references, and removes permutation-fetch retries to permanently stop the React #185 loop. (PR: #4719)
+
+- **2026-04-27** — WorkForms reliability: added runtime support for `parallelPath` execution deferment (Celery group/chord fanout), added retry signaling for transient `actionHTTP` failures with exponential backoff, and introduced a tenant-scoped Workflow Dead Letter Queue (`WorkflowDeadLetter`) with RLS policies and `SUSPENDED` execution status for retry exhaustion. (PR: TBD)
+- **2026-04-27** — WorkForms reliability shipped: parallelPath fanout + retry/DLQ primitives merged. (PR: #25)
+- **2026-04-27** — WorkForms frontend: harden QuickActions context + Execute page legacy fallback gating (`?legacy=1`), and prevent auth headers being attached to auth endpoints. (PR: #27)
+- **2026-04-27** — WorkForms backend: add node registry + `GET /api/v1/system/workforms/metadata/` endpoint (v1) for canonical node type IDs + aliases. (PR: #28)
+- **2026-04-28** — WorkForms editor: FlowEditor overlays backend node registry metadata (aliases/labels) via `/api/v1/system/workforms/metadata/` while preserving local schema fallback. (PR: #29)
+- **2026-04-28** — WorkForms editor: derive validation from graph state, stabilize history snapshots with graph signatures, restore debounced `onChange`, and limit draft autosave to persisted draft workflows with dirty-state awareness. (PR: #32)
+- **2026-04-28** — WorkForms editor: remove `nodesWithHandlers` canvas cloning by routing edit/delete/save/reorder/title actions through a dedicated FlowEditor node-actions context; keep collapsed-edge virtualization on raw nodes and add context regression coverage. (PR: #4720)
 
 ### 2026-03-31 — Secret audit drift (manifest v5.1)
 - Command: `python config/manage_env.py audit --repo Meats-Central/ProjectMeats`

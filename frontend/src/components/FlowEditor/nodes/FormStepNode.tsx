@@ -10,6 +10,7 @@ import React, { useMemo } from 'react';
 import styled from 'styled-components';
 import { Handle, NodeToolbar, Position, type Node, type NodeProps } from '@xyflow/react';
 import { ArrowDown, ArrowUp, Edit2, Trash2 } from 'lucide-react';
+import { useFlowEditorNodeActions } from '../context';
 
 type PreviewField = {
   id: string;
@@ -26,7 +27,7 @@ export type FormStepNodeData = {
   entityType?: string;
   order?: number;
 
-  // Injected by UnifiedFlowEditor via nodesWithHandlers
+  // Optional overrides; FlowEditor node actions provide defaults
   onEdit?: () => void;
   onDelete?: () => void;
   onMoveUp?: () => void;
@@ -221,8 +222,13 @@ const PreviewMore = styled.div`
   margin-top: 2px;
 `;
 
-export const FormStepNode = React.memo<NodeProps<Node<FormStepNodeData>>>(({ data, selected }) => {
+export const FormStepNode = React.memo<NodeProps<Node<FormStepNodeData>>>(({ id, data, selected }) => {
+  const nodeActions = useFlowEditorNodeActions();
   const fields = Array.isArray(data.fields) ? data.fields : [];
+  const handleMoveUp = data.onMoveUp ?? (() => nodeActions.moveNode(id, -1));
+  const handleMoveDown = data.onMoveDown ?? (() => nodeActions.moveNode(id, 1));
+  const handleEdit = data.onEdit ?? (() => nodeActions.editNode(id));
+  const handleDelete = data.onDelete ?? (() => nodeActions.deleteNode(id));
 
   const title = data.stepTitle || data.label || 'Step';
   const entityType = data.entityType ? `Entity: ${data.entityType}` : undefined;
@@ -244,59 +250,51 @@ export const FormStepNode = React.memo<NodeProps<Node<FormStepNodeData>>>(({ dat
             transition: 'opacity 0.15s ease, transform 0.15s ease',
           }}
         >
-          {(data.onMoveUp || data.onMoveDown) && (
-            <>
-              <ToolbarBtn
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  data.onMoveUp?.();
-                }}
-                title="Move up"
-                disabled={!data.onMoveUp}
-              >
-                <ArrowUp size={16} />
-              </ToolbarBtn>
-              <ToolbarBtn
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  data.onMoveDown?.();
-                }}
-                title="Move down"
-                disabled={!data.onMoveDown}
-              >
-                <ArrowDown size={16} />
-              </ToolbarBtn>
-            </>
-          )}
-
-          {data.onEdit && (
+          <>
             <ToolbarBtn
               type="button"
               onClick={(e) => {
                 e.stopPropagation();
-                data.onEdit?.();
+                handleMoveUp();
               }}
-              title="Edit step"
+              title="Move up"
             >
-              <Edit2 size={16} />
+              <ArrowUp size={16} />
             </ToolbarBtn>
-          )}
-
-          {data.onDelete && (
             <ToolbarBtn
               type="button"
-              $danger
               onClick={(e) => {
                 e.stopPropagation();
-                data.onDelete?.();
+                handleMoveDown();
               }}
-              title="Delete step"
+              title="Move down"
             >
-              <Trash2 size={16} />
+              <ArrowDown size={16} />
             </ToolbarBtn>
-          )}
+          </>
+
+          <ToolbarBtn
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleEdit();
+            }}
+            title="Edit step"
+          >
+            <Edit2 size={16} />
+          </ToolbarBtn>
+
+          <ToolbarBtn
+            type="button"
+            $danger
+            onClick={(e) => {
+              e.stopPropagation();
+              void handleDelete();
+            }}
+            title="Delete step"
+          >
+            <Trash2 size={16} />
+          </ToolbarBtn>
         </ToolbarCard>
       </NodeToolbar>
 

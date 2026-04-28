@@ -6,10 +6,11 @@
  * 
  * Wave 4 - Task 4.12: Integrated with ConfigResolver for dynamic settings.
  */
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { Select as AntSelect } from 'antd';
 import { useForm, Controller, useFieldArray, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { isEqual } from 'lodash';
 import * as z from 'zod';
 import styled from 'styled-components';
 import { Button } from '../../components/ui/Button';
@@ -106,6 +107,18 @@ interface DynamicFormEngineProps {
 
   /** Override submit button label (e.g. "Create" vs "Save"). */
   submitLabel?: string;
+}
+
+const EMPTY_INITIAL_VALUES: Record<string, unknown> = {};
+
+function useDeepStableValue<T>(value: T): T {
+  const ref = useRef(value);
+
+  if (!isEqual(ref.current, value)) {
+    ref.current = value;
+  }
+
+  return ref.current;
 }
 
 const FormContainer = styled.form`
@@ -409,6 +422,7 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
   showAllFieldsToggle = true,
   submitLabel,
 }) => {
+  const stableInitialValues = useDeepStableValue(initialValues || EMPTY_INITIAL_VALUES);
   const fieldsSignature = useMemo(() => {
     return schema.fields
       .map((field) => {
@@ -580,7 +594,7 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
   }, [optionsSignature]);
 
   const defaultValues = useMemo(() => {
-    const next: Record<string, any> = { ...(initialValues || {}) };
+    const next: Record<string, any> = { ...(stableInitialValues || {}) };
     for (const f of stableFields) {
       if (String(f.key).toLowerCase() === 'country' && !next[f.key]) {
         next[f.key] = DEFAULT_COUNTRY;
@@ -593,12 +607,13 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
       }
     }
     return next;
-  }, [initialValues, stableFields]);
+  }, [stableInitialValues, stableFields]);
 
   const {
     register,
     handleSubmit,
     control,
+    reset,
     setValue,
     formState: { errors },
   } = useForm({
@@ -606,6 +621,17 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
     defaultValues,
     mode: formConfig.validateOnChange ? 'onChange' : 'onSubmit',
   });
+
+  const previousDefaultValuesRef = useRef(defaultValues);
+
+  useEffect(() => {
+    if (isEqual(previousDefaultValuesRef.current, defaultValues)) {
+      return;
+    }
+
+    previousDefaultValuesRef.current = defaultValues;
+    reset(defaultValues);
+  }, [defaultValues, reset]);
 
   const watchedValues = useWatch({ control });
   

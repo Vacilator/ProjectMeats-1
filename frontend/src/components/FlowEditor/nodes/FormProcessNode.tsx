@@ -20,6 +20,7 @@ import { BaseNode, BaseNodeData } from './BaseNode';
 import { getNodeTypeDefinition } from '../nodeTypes';
 import { ChevronDown, ChevronRight, LogIn, Edit2, Trash2, Plus, Copy } from 'lucide-react';
 import { calculateStepOrder, getStepLabel } from '../utils/stepOrderingUtils'; // Phase B.1
+import { useFlowEditorNodeActions } from '../context';
 // REMOVED: import { MiniReactFlow } from '../NestedContainer/MiniReactFlow';
 
 // ============================================================================
@@ -482,6 +483,7 @@ export const FormProcessNode = React.memo<FormProcessNodeProps>(({
   data,
   selected,
 }) => {
+  const nodeActions = useFlowEditorNodeActions();
   const [isExpanded, setIsExpanded] = useState(data.isExpanded ?? true);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [draftTitle, setDraftTitle] = useState('');
@@ -574,6 +576,13 @@ export const FormProcessNode = React.memo<FormProcessNodeProps>(({
       data.onEnterContainer(id);
     }
   }, [id, data]);
+  const handleAddStep = (data as any).onAddStepInsideForm ?? (() => nodeActions.addStepInsideForm(id));
+  const handleDuplicate = (data as any).onDuplicate ?? (() => nodeActions.duplicateNode(id));
+  const handleEdit = data.onEdit ?? (() => nodeActions.editNode(id));
+  const handleDelete = data.onDelete ?? (() => nodeActions.deleteNode(id));
+  const handleTitleChange =
+    ((data as any).onTitleChange as ((newTitle: string) => void) | undefined) ??
+    ((newTitle: string) => nodeActions.changeNodeTitle(id, newTitle));
   
   // Get node type statistics for display
   const nodeTypeEntries = Object.entries(stats.nodeTypes).sort((a, b) => b[1] - a[1]);
@@ -592,7 +601,7 @@ export const FormProcessNode = React.memo<FormProcessNodeProps>(({
                   current.map((n) => (n.parentId === id ? { ...n, hidden: false } : n))
                 );
               }
-              (data as any)?.onAddStepInsideForm?.();
+              handleAddStep();
             }}
             title="Add step"
           >
@@ -602,7 +611,7 @@ export const FormProcessNode = React.memo<FormProcessNodeProps>(({
             type="button"
             onClick={(e) => {
               e.stopPropagation();
-              (data as any)?.onDuplicate?.();
+              handleDuplicate();
             }}
             title="Duplicate"
           >
@@ -612,7 +621,7 @@ export const FormProcessNode = React.memo<FormProcessNodeProps>(({
             type="button"
             onClick={(e) => {
               e.stopPropagation();
-              if (data.onEdit) data.onEdit();
+              handleEdit();
             }}
             title="Edit"
           >
@@ -623,7 +632,7 @@ export const FormProcessNode = React.memo<FormProcessNodeProps>(({
             $danger
             onClick={(e) => {
               e.stopPropagation();
-              if (data.onDelete) data.onDelete();
+              void handleDelete();
             }}
             title="Delete"
           >
@@ -661,16 +670,15 @@ export const FormProcessNode = React.memo<FormProcessNodeProps>(({
             <ContainerTitle>
               {isEditingTitle ? (
                 <input
-                  className="nodrag"
-                  value={draftTitle}
-                  onChange={(e) => setDraftTitle(e.target.value)}
-                  onBlur={() => {
-                    const onTitleChange = (data as any).onTitleChange as ((newTitle: string) => void) | undefined;
-                    const currentTitle = String((data as any).title || data.containerName || data.label || '').trim();
-                    const next = draftTitle.trim();
-                    if (onTitleChange && next && next !== currentTitle) onTitleChange(next);
-                    setIsEditingTitle(false);
-                  }}
+                   className="nodrag"
+                   value={draftTitle}
+                   onChange={(e) => setDraftTitle(e.target.value)}
+                   onBlur={() => {
+                     const currentTitle = String((data as any).title || data.containerName || data.label || '').trim();
+                     const next = draftTitle.trim();
+                     if (next && next !== currentTitle) handleTitleChange(next);
+                     setIsEditingTitle(false);
+                   }}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter') {
                       (e.target as HTMLInputElement).blur();
@@ -691,17 +699,15 @@ export const FormProcessNode = React.memo<FormProcessNodeProps>(({
                   }}
                   onClick={(e) => e.stopPropagation()}
                 />
-              ) : (
-                <h3
-                  onDoubleClick={(e) => {
-                    const onTitleChange = (data as any).onTitleChange as ((newTitle: string) => void) | undefined;
-                    if (!onTitleChange) return;
-                    e.stopPropagation();
-                    setDraftTitle(String((data as any).title || data.containerName || data.label || ''));
-                    setIsEditingTitle(true);
-                  }}
-                  style={{ cursor: (data as any).onTitleChange ? 'text' : 'default' }}
-                >
+               ) : (
+                 <h3
+                   onDoubleClick={(e) => {
+                     e.stopPropagation();
+                     setDraftTitle(String((data as any).title || data.containerName || data.label || ''));
+                     setIsEditingTitle(true);
+                   }}
+                   style={{ cursor: 'text' }}
+                 >
                   {(data as any).title || data.containerName || data.label || 'Unnamed Container'}
                 </h3>
               )}

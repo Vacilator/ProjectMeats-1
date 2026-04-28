@@ -103,6 +103,15 @@ const Header: React.FC<HeaderProps> = () => {
     }
 
     if (action.type === 'workflow' && action.workflow_id) {
+      // Fail-closed + backward-compatible: if a saved quick action points at a legacy Form ID,
+      // run it as a form instead of silently hitting the workform execute route.
+      const match = availableForms.find((f) => f.id === action.workflow_id);
+      if (match && (match.type ?? 'form') === 'form') {
+        openFormModal(match.id);
+        setShowQuickMenu(false);
+        return;
+      }
+
       navigate(`/workforms/execute/${action.workflow_id}`);
       setShowQuickMenu(false);
     }

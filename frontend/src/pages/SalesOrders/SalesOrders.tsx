@@ -236,10 +236,12 @@ const SearchBar = styled.input`
 
 const TableContainer = styled.div`
   flex: 1;
+  width: 100%;
   overflow-y: auto;
   max-width: 100%;
   min-width: 0;
   -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
 
   /* Only enable horizontal scroll on small screens when truly needed */
   @media (max-width: 768px) {
