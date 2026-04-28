@@ -450,33 +450,91 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
     loadConfig();
   }, []);
   
-  // Load dynamic options for select fields
+  const optionsSignature = useMemo(() => {
+    return schema.fields
+      .map((f) => {
+        const dataSource = (f.ui as any)?.data_source;
+        const dsType =
+          dataSource && typeof dataSource === 'object' ? String(dataSource.type || '') : '';
+        const dsList =
+          dataSource && typeof dataSource === 'object' ? String(dataSource.list || '') : '';
+        const optionsLen = Array.isArray((f as any).options) ? (f as any).options.length : 0;
+
+        return `${String(f.key)}:${String(f.type)}:${dsType}:${dsList}:${optionsLen}`;
+      })
+      .join('|');
+  }, [schema.fields]);
+
+  const optionsEqual = (
+    a: { value: string; label: string }[] | undefined,
+    b: { value: string; label: string }[] | undefined
+  ): boolean => {
+    const aa = Array.isArray(a) ? a : [];
+    const bb = Array.isArray(b) ? b : [];
+    if (aa.length !== bb.length) return false;
+
+    for (let i = 0; i < aa.length; i += 1) {
+      if (String(aa[i].value) !== String(bb[i].value)) return false;
+      if (String(aa[i].label) !== String(bb[i].label)) return false;
+    }
+
+    return true;
+  };
+
+  // Load dynamic options for select fields.
+  // NOTE: Depend on a stable signature instead of schema.fields identity to avoid
+  // effect→setState→re-render loops when parent rebuilds field arrays.
   useEffect(() => {
+    let cancelled = false;
+
     const loadOptions = async () => {
       const selectFields = schema.fields.filter((f) => {
         if (f.options?.length) return false;
         if (f.ui?.data_source?.type === 'choice_list' && f.ui?.data_source?.list) return true;
         return f.type === 'select' && isStaticChoiceField(f.key);
       });
-      
+
+      const nextOptions: Record<string, { value: string; label: string }[]> = {};
+
       for (const field of selectFields) {
         if (field.ui?.data_source?.type === 'choice_list' && field.ui.data_source.list) {
-          const choices = await contactFormOptionsService.getSystemChoiceOptions(field.ui.data_source.list);
-          setDynamicOptions((prev) => ({ ...prev, [field.key]: choices }));
+          nextOptions[field.key] = await contactFormOptionsService.getSystemChoiceOptions(
+            field.ui.data_source.list
+          );
           continue;
         }
 
         if (isStaticChoiceField(field.key)) {
           const choices = await getChoicesForField(field.key);
           if (choices) {
-            setDynamicOptions((prev) => ({ ...prev, [field.key]: choices }));
+            nextOptions[field.key] = choices;
           }
         }
       }
+
+      if (cancelled) return;
+
+      setDynamicOptions((prev) => {
+        let changed = false;
+        const merged = { ...prev };
+
+        for (const [key, opts] of Object.entries(nextOptions)) {
+          if (!optionsEqual(prev[key], opts)) {
+            merged[key] = opts;
+            changed = true;
+          }
+        }
+
+        return changed ? merged : prev;
+      });
     };
-    
-    loadOptions();
-  }, [schema.fields]);
+
+    void loadOptions();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [optionsSignature]);
 
   const defaultValues = useMemo(() => {
     const next: Record<string, any> = { ...(initialValues || {}) };
