@@ -1,3 +1,4 @@
+import io
 import json
 import uuid
 from datetime import timedelta
@@ -941,6 +942,31 @@ class AIDocumentAuditSurfaceTests(TestCase):
         self.assertEqual(payload['source_metadata']['source'], 'microsoft_graph_attachment')
         self.assertEqual(payload['source_metadata']['message_id'], 'msg-123')
         self.assertEqual(payload['source_metadata']['attachment_id'], 'att-456')
+        self.assertEqual(payload['processing_metadata'], {})
+
+    def test_serializer_exposes_processing_metadata_from_custom_data(self):
+        from tenant_apps.ai_assistant.models import AIDocument
+
+        document = AIDocument(
+            original_filename='invoice.pdf',
+            content_type='application/pdf',
+            processing_status='failed',
+            custom_data={
+                'parser': 'unstructured',
+                'processing_started_at': '2026-04-28T22:00:00Z',
+                'failed_at': '2026-04-28T22:00:03Z',
+                'parse_error_code': 'UNSTRUCTURED_UNREACHABLE',
+                'parse_error_message': 'The document parsing service is currently unreachable.',
+                'warnings': ['retry later'],
+                'truncated': False,
+            },
+        )
+
+        payload = AIDocumentSerializer(instance=document).data
+
+        self.assertEqual(payload['processing_metadata']['parser'], 'unstructured')
+        self.assertEqual(payload['processing_metadata']['parse_error_code'], 'UNSTRUCTURED_UNREACHABLE')
+        self.assertEqual(payload['processing_metadata']['warnings'], ['retry later'])
 
     @patch('tenant_apps.ai_assistant.views.AIDocument.objects.all')
     def test_viewset_filters_documents_by_source_and_session(self, mock_all):
@@ -962,6 +988,7 @@ class AIDocumentAuditSurfaceTests(TestCase):
             query_params={
                 'source': 'microsoft_graph_attachment',
                 'session': str(session_id),
+                'processing_status': 'failed',
             },
         )
 
@@ -972,6 +999,7 @@ class AIDocumentAuditSurfaceTests(TestCase):
         queryset.filter.assert_any_call(tenant=tenant)
         queryset.filter.assert_any_call(custom_data__source='microsoft_graph_attachment')
         queryset.filter.assert_any_call(session_id=session_id)
+        queryset.filter.assert_any_call(processing_status='failed')
 
     @patch('apps.tenants.rls.set_current_tenant', return_value=SimpleNamespace(ok=True, error=None))
     def test_perform_create_tags_manual_upload_source_metadata(self, _mock_rls):
@@ -1058,3 +1086,184 @@ class SwarmToolsOpenAPIViewTests(TestCase):
         }
         self.assertNotIn('ingest_email_attachment', tool_names)
         self.assertNotIn('/tools/ingest_email_attachment', response.data['openapi']['paths'])
+
+
+class ParseDocumentLifecycleTests(SimpleTestCase):
+    class _FakeStoredFile:
+        def __init__(self, content: bytes):
+            self.content = content
+
+        def open(self, _mode='rb'):
+            return io.BytesIO(self.content)
+
+    class _FakeDocument:
+        def __init__(self, *, doc_id, filename, content_type, content):
+            self.id = doc_id
+            self.original_filename = filename
+            self.content_type = content_type
+            self.file = ParseDocumentLifecycleTests._FakeStoredFile(content)
+            self.processing_status = 'pending'
+            self.custom_data = {}
+            self.saved_update_fields = None
+
+        def save(self, *, update_fields=None):
+            self.saved_update_fields = update_fields
+
+    @staticmethod
+    def _queryset_for(document):
+        queryset = Mock()
+        queryset.first.return_value = document
+        return queryset
+
+    @staticmethod
+    def _unstructured_response(*, status=200, payload=None, text=''):
+        response = SimpleNamespace(status_code=status, text=text)
+        response.json = lambda: payload
+        return response
+
+    @patch('tenant_apps.ai_assistant.models.AIDocument.objects.filter')
+    @patch('tenant_apps.ai_assistant.services.document_parser.parse_tabular_document')
+    @patch('tenant_apps.ai_assistant.services.document_parser.is_tabular_document', return_value=True)
+    @patch('tenant_apps.ai_assistant.swarm.executor.set_current_tenant', return_value=SimpleNamespace(ok=True, error=None))
+    def test_execute_marks_tabular_document_completed(
+        self,
+        _mock_rls,
+        _mock_is_tabular,
+        mock_parse_tabular,
+        mock_filter,
+    ):
+        document = self._FakeDocument(
+            doc_id=uuid.uuid4(),
+            filename='parts.csv',
+            content_type='text/csv',
+            content=b'Part,Status\nRibeye,Available\n',
+        )
+        mock_filter.return_value = self._queryset_for(document)
+        mock_parse_tabular.return_value = SimpleNamespace(
+            text='| Part | Status |',
+            preview=['preview'],
+            truncated=False,
+            warnings=[],
+        )
+
+        payload = json.loads(
+            ToolExecutor().execute(
+                'parse_document',
+                {'file_id_or_url': str(document.id)},
+                SimpleNamespace(id=uuid.uuid4()),
+                SimpleNamespace(is_authenticated=True),
+            )
+        )
+
+        self.assertTrue(payload['ok'])
+        self.assertEqual(payload['data']['parser'], 'tabular_markdown')
+        self.assertEqual(document.processing_status, 'completed')
+        self.assertEqual(document.custom_data['parser'], 'tabular_markdown')
+        self.assertIn('parsed_at', document.custom_data)
+
+    @override_settings(UNSTRUCTURED_API_URL='https://unstructured.example.com', UNSTRUCTURED_API_KEY='secret')
+    @patch('tenant_apps.ai_assistant.models.AIDocument.objects.filter')
+    @patch('tenant_apps.ai_assistant.services.document_parser.is_tabular_document', return_value=False)
+    @patch('requests.post')
+    @patch('tenant_apps.ai_assistant.swarm.executor.set_current_tenant', return_value=SimpleNamespace(ok=True, error=None))
+    def test_execute_marks_unstructured_unreachable_failed(
+        self,
+        _mock_rls,
+        mock_post,
+        _mock_is_tabular,
+        mock_filter,
+    ):
+        document = self._FakeDocument(
+            doc_id=uuid.uuid4(),
+            filename='scan.pdf',
+            content_type='application/pdf',
+            content=b'%PDF-1.4',
+        )
+        mock_filter.return_value = self._queryset_for(document)
+        mock_post.return_value = self._unstructured_response(status=503, payload={'detail': 'down'})
+
+        payload = json.loads(
+            ToolExecutor().execute(
+                'parse_document',
+                {'file_id_or_url': str(document.id)},
+                SimpleNamespace(id=uuid.uuid4()),
+                SimpleNamespace(is_authenticated=True),
+            )
+        )
+
+        self.assertFalse(payload['ok'])
+        self.assertEqual(payload['error']['code'], 'UNSTRUCTURED_UNREACHABLE')
+        self.assertTrue(payload['error']['retryable'])
+        self.assertEqual(document.processing_status, 'failed')
+        self.assertEqual(document.custom_data['parse_error_code'], 'UNSTRUCTURED_UNREACHABLE')
+        self.assertEqual(document.custom_data['parser'], 'unstructured')
+
+    @override_settings(UNSTRUCTURED_API_URL='https://unstructured.example.com', UNSTRUCTURED_API_KEY='secret')
+    @patch('tenant_apps.ai_assistant.models.AIDocument.objects.filter')
+    @patch('tenant_apps.ai_assistant.services.document_parser.is_tabular_document', return_value=False)
+    @patch('requests.post')
+    @patch('tenant_apps.ai_assistant.swarm.executor.set_current_tenant', return_value=SimpleNamespace(ok=True, error=None))
+    def test_execute_marks_unstructured_auth_failed(
+        self,
+        _mock_rls,
+        mock_post,
+        _mock_is_tabular,
+        mock_filter,
+    ):
+        document = self._FakeDocument(
+            doc_id=uuid.uuid4(),
+            filename='scan.pdf',
+            content_type='application/pdf',
+            content=b'%PDF-1.4',
+        )
+        mock_filter.return_value = self._queryset_for(document)
+        mock_post.return_value = self._unstructured_response(status=401, payload={'detail': 'unauthorized'})
+
+        payload = json.loads(
+            ToolExecutor().execute(
+                'parse_document',
+                {'file_id_or_url': str(document.id)},
+                SimpleNamespace(id=uuid.uuid4()),
+                SimpleNamespace(is_authenticated=True),
+            )
+        )
+
+        self.assertFalse(payload['ok'])
+        self.assertEqual(payload['error']['code'], 'UNSTRUCTURED_AUTH_FAILED')
+        self.assertFalse(payload['error']['retryable'])
+        self.assertEqual(document.processing_status, 'failed')
+        self.assertEqual(document.custom_data['parse_error_code'], 'UNSTRUCTURED_AUTH_FAILED')
+
+    @override_settings(UNSTRUCTURED_API_URL='https://unstructured.example.com', UNSTRUCTURED_API_KEY='secret')
+    @patch('tenant_apps.ai_assistant.models.AIDocument.objects.filter')
+    @patch('tenant_apps.ai_assistant.services.document_parser.is_tabular_document', return_value=False)
+    @patch('requests.post')
+    def test_parse_document_marks_unstructured_success_completed(
+        self,
+        mock_post,
+        _mock_is_tabular,
+        mock_filter,
+    ):
+        document = self._FakeDocument(
+            doc_id=uuid.uuid4(),
+            filename='scan.pdf',
+            content_type='application/pdf',
+            content=b'%PDF-1.4',
+        )
+        mock_filter.return_value = self._queryset_for(document)
+        mock_post.return_value = self._unstructured_response(
+            status=200,
+            payload=[{'text': 'Line one'}, {'text': 'Line two'}],
+        )
+
+        parsed = ToolExecutor()._parse_document(
+            {'file_id_or_url': str(document.id)},
+            SimpleNamespace(id=uuid.uuid4()),
+            user=SimpleNamespace(is_authenticated=True),
+        )
+
+        self.assertEqual(parsed['parser'], 'unstructured')
+        self.assertIn('Line one', parsed['text'])
+        self.assertEqual(document.processing_status, 'completed')
+        self.assertEqual(document.custom_data['parser'], 'unstructured')
+        self.assertIn('parsed_at', document.custom_data)

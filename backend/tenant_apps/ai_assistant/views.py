@@ -479,6 +479,13 @@ class AIDocumentViewSet(viewsets.ModelViewSet):
                 return qs.none()
             qs = qs.filter(session_id=session_uuid)
 
+        processing_status = str(self.request.query_params.get('processing_status') or '').strip()
+        if processing_status:
+            allowed_statuses = {'pending', 'processing', 'completed', 'failed'}
+            if processing_status not in allowed_statuses:
+                return qs.none()
+            qs = qs.filter(processing_status=processing_status)
+
         return qs
 
     def perform_create(self, serializer):

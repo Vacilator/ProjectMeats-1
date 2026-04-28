@@ -15,6 +15,7 @@ import logging
 from typing import Any, Callable, Dict
 
 from apps.tenants.rls import set_current_tenant
+from django.utils import timezone
 
 logger = logging.getLogger(__name__)
 
@@ -972,11 +973,58 @@ class ToolExecutor:
 
         return getattr(resp, 'data', {})
 
+    @staticmethod
+    def _set_document_processing_state(
+        doc,
+        *,
+        status: str,
+        parser: str | None = None,
+        error_code: str | None = None,
+        error_message: str | None = None,
+        warnings: list[str] | None = None,
+        truncated: bool | None = None,
+    ) -> None:
+        metadata = dict(getattr(doc, 'custom_data', {}) or {})
+        now = timezone.now().isoformat()
+
+        if parser:
+            metadata['parser'] = parser
+
+        if status == 'processing':
+            metadata['processing_started_at'] = now
+            metadata.pop('parsed_at', None)
+            metadata.pop('failed_at', None)
+            metadata.pop('parse_error_code', None)
+            metadata.pop('parse_error_message', None)
+        elif status == 'completed':
+            metadata['parsed_at'] = now
+            metadata.pop('failed_at', None)
+            metadata.pop('parse_error_code', None)
+            metadata.pop('parse_error_message', None)
+            if truncated is not None:
+                metadata['truncated'] = bool(truncated)
+            if warnings:
+                metadata['warnings'] = list(warnings)
+            else:
+                metadata.pop('warnings', None)
+        elif status == 'failed':
+            metadata['failed_at'] = now
+            if error_code:
+                metadata['parse_error_code'] = error_code
+            if error_message:
+                metadata['parse_error_message'] = error_message
+
+        doc.processing_status = status
+        doc.custom_data = metadata
+        doc.save(update_fields=['processing_status', 'custom_data', 'modified_on'])
+
     def _parse_document(self, arguments: Dict[str, Any], tenant: Any, user: Any = None) -> Any:
         """Parse an uploaded AIDocument via Unstructured API.
 
         For safety (SSRF), this tool only accepts an AIDocument UUID.
         """
+        from tenant_apps.ai_assistant.swarm.tools.microsoft_graph import ToolExecutionError
+
         if not user or not getattr(user, 'is_authenticated', False):
             raise ValueError('Authenticated user is required to parse documents')
 
@@ -1011,14 +1059,24 @@ class ToolExecutor:
             raise ValueError('Document not found for this tenant/user')
 
         if not doc.file:
-            raise ValueError('Document record has no file attached')
+            self._set_document_processing_state(
+                doc,
+                status='failed',
+                error_code='DOCUMENT_FILE_MISSING',
+                error_message='Document record has no file attached.',
+            )
+            raise ToolExecutionError(
+                error_code='DOCUMENT_FILE_MISSING',
+                message='Document record has no file attached.',
+                hint='Upload the document again before attempting to parse it.',
+                retryable=False,
+            )
 
         filename = doc.original_filename or 'document'
         content_type = doc.content_type or 'application/octet-stream'
 
         if is_tabular_document(filename=filename, content_type=content_type):
-            from tenant_apps.ai_assistant.swarm.tools.microsoft_graph import ToolExecutionError
-
+            self._set_document_processing_state(doc, status='processing', parser='tabular_markdown')
             try:
                 with doc.file.open('rb') as f:
                     parsed = parse_tabular_document(
@@ -1027,6 +1085,13 @@ class ToolExecutor:
                         content_type=content_type,
                     )
             except Exception as exc:
+                self._set_document_processing_state(
+                    doc,
+                    status='failed',
+                    parser='tabular_markdown',
+                    error_code='DOCUMENT_PARSE_FAILED',
+                    error_message='The spreadsheet file could not be parsed.',
+                )
                 raise ToolExecutionError(
                     error_code='DOCUMENT_PARSE_FAILED',
                     message='The spreadsheet file could not be parsed.',
@@ -1034,6 +1099,13 @@ class ToolExecutor:
                     retryable=False,
                     details=f'{type(exc).__name__}: {exc}',
                 ) from exc
+            self._set_document_processing_state(
+                doc,
+                status='completed',
+                parser='tabular_markdown',
+                warnings=list(parsed.warnings),
+                truncated=parsed.truncated,
+            )
             return {
                 'document_id': str(doc.id),
                 'filename': filename,
@@ -1051,7 +1123,19 @@ class ToolExecutor:
         api_key = (getattr(settings, 'UNSTRUCTURED_API_KEY', '') or '').strip()
 
         if not base_url or not api_key:
-            raise ValueError('Unstructured API is not configured (missing UNSTRUCTURED_API_URL/UNSTRUCTURED_API_KEY)')
+            self._set_document_processing_state(
+                doc,
+                status='failed',
+                parser='unstructured',
+                error_code='UNSTRUCTURED_NOT_CONFIGURED',
+                error_message='Unstructured API is not configured.',
+            )
+            raise ToolExecutionError(
+                error_code='UNSTRUCTURED_NOT_CONFIGURED',
+                message='The document parsing service is not configured.',
+                hint='Configure UNSTRUCTURED_API_URL and UNSTRUCTURED_API_KEY before parsing non-tabular documents.',
+                retryable=False,
+            )
 
         # Default to the common hosted API path if a base host was provided.
         endpoint = base_url.rstrip('/')
@@ -1059,6 +1143,7 @@ class ToolExecutor:
             endpoint = f"{endpoint}/general/v0/general"
 
         import requests
+        self._set_document_processing_state(doc, status='processing', parser='unstructured')
 
         try:
             with doc.file.open('rb') as f:
@@ -1082,43 +1167,104 @@ class ToolExecutor:
                 )
         except requests.exceptions.RequestException as exc:
             logger.warning('[parse_document] Unstructured request failed (endpoint=%s): %s', endpoint, str(exc))
-            return {
-                'status': 'error',
-                'error_code': 'UNSTRUCTURED_UNREACHABLE',
-                'message': 'The document parsing service is currently unreachable. Please try again later.',
-                'endpoint': endpoint,
-            }
+            self._set_document_processing_state(
+                doc,
+                status='failed',
+                parser='unstructured',
+                error_code='UNSTRUCTURED_UNREACHABLE',
+                error_message='The document parsing service is currently unreachable.',
+            )
+            raise ToolExecutionError(
+                error_code='UNSTRUCTURED_UNREACHABLE',
+                message='The document parsing service is currently unreachable. Please try again later.',
+                hint='Retry the parse once the service is reachable again.',
+                retryable=True,
+                details=f'endpoint={endpoint}',
+            ) from exc
 
         if resp.status_code in (502, 503, 504):
-            return {
-                'status': 'error',
-                'error_code': 'UNSTRUCTURED_UNREACHABLE',
-                'message': f'The document parsing service is currently unreachable (HTTP {resp.status_code}).',
-                'endpoint': endpoint,
-            }
+            self._set_document_processing_state(
+                doc,
+                status='failed',
+                parser='unstructured',
+                error_code='UNSTRUCTURED_UNREACHABLE',
+                error_message=f'The document parsing service is currently unreachable (HTTP {resp.status_code}).',
+            )
+            raise ToolExecutionError(
+                error_code='UNSTRUCTURED_UNREACHABLE',
+                message=f'The document parsing service is currently unreachable (HTTP {resp.status_code}).',
+                hint='Retry the parse once the parsing service is healthy again.',
+                retryable=True,
+                details=f'endpoint={endpoint}',
+            )
 
         if resp.status_code in (401, 403):
             logger.error(
                 '[parse_document] Unstructured auth failed (HTTP %s). Check UNSTRUCTURED_API_KEY/header format.',
                 resp.status_code,
             )
-            return {
-                'status': 'error',
-                'error_code': 'UNSTRUCTURED_AUTH_FAILED',
-                'message': f'Document parsing service authentication failed (HTTP {resp.status_code}).',
-                'endpoint': endpoint,
-            }
+            self._set_document_processing_state(
+                doc,
+                status='failed',
+                parser='unstructured',
+                error_code='UNSTRUCTURED_AUTH_FAILED',
+                error_message=f'Document parsing service authentication failed (HTTP {resp.status_code}).',
+            )
+            raise ToolExecutionError(
+                error_code='UNSTRUCTURED_AUTH_FAILED',
+                message=f'Document parsing service authentication failed (HTTP {resp.status_code}).',
+                hint='Check the configured Unstructured API key and header format.',
+                retryable=False,
+                details=f'endpoint={endpoint}',
+            )
 
         if resp.status_code >= 400:
-            raise ValueError(f'Unstructured API error {resp.status_code}: {resp.text[:500]}')
+            self._set_document_processing_state(
+                doc,
+                status='failed',
+                parser='unstructured',
+                error_code='DOCUMENT_PARSE_FAILED',
+                error_message=f'Unstructured API error {resp.status_code}.',
+            )
+            raise ToolExecutionError(
+                error_code='DOCUMENT_PARSE_FAILED',
+                message=f'The document parsing service returned an unexpected error (HTTP {resp.status_code}).',
+                hint='Retry if the issue is transient; otherwise inspect the parser service logs.',
+                retryable=False,
+                details=resp.text[:500],
+            )
 
         try:
             elements = resp.json()
-        except Exception as e:
-            raise ValueError('Unstructured API returned non-JSON response') from e
+        except Exception as exc:
+            self._set_document_processing_state(
+                doc,
+                status='failed',
+                parser='unstructured',
+                error_code='DOCUMENT_PARSE_FAILED',
+                error_message='Unstructured API returned non-JSON response.',
+            )
+            raise ToolExecutionError(
+                error_code='DOCUMENT_PARSE_FAILED',
+                message='The document parsing service returned an unreadable response.',
+                hint='Retry the parse or inspect the parser service health.',
+                retryable=False,
+            ) from exc
 
         if not isinstance(elements, list):
-            raise ValueError('Unexpected Unstructured API response shape')
+            self._set_document_processing_state(
+                doc,
+                status='failed',
+                parser='unstructured',
+                error_code='DOCUMENT_PARSE_FAILED',
+                error_message='Unexpected Unstructured API response shape.',
+            )
+            raise ToolExecutionError(
+                error_code='DOCUMENT_PARSE_FAILED',
+                message='The document parsing service returned an unexpected response shape.',
+                hint='Retry the parse or inspect the parser service output format.',
+                retryable=False,
+            )
 
         texts: list[str] = []
         for el in elements[:500]:
@@ -1129,6 +1275,20 @@ class ToolExecutor:
                 texts.append(t.strip())
 
         combined_text = "\n".join(texts)
+        truncated = len(elements) > 500 or len(combined_text) > 20000
+        warnings: list[str] = []
+        if len(elements) > 500:
+            warnings.append('Elements truncated at 500 items to preserve context window.')
+        if len(combined_text) > 20000:
+            warnings.append('Combined extracted text truncated at 20000 characters.')
+
+        self._set_document_processing_state(
+            doc,
+            status='completed',
+            parser='unstructured',
+            warnings=warnings,
+            truncated=truncated,
+        )
 
         return {
             'document_id': str(doc.id),
@@ -1136,6 +1296,9 @@ class ToolExecutor:
             'content_type': content_type,
             'text': combined_text[:20000],
             'elements_preview': elements[:50],
+            'parser': 'unstructured',
+            'truncated': truncated,
+            'warnings': warnings,
         }
 
     def _extract_purchase_order_fields(self, arguments: Dict[str, Any], tenant: Any, user: Any = None) -> Any:
@@ -1345,16 +1508,17 @@ class ToolExecutor:
             raise ValueError('Missing required parameter: document_id')
 
         parsed = self._parse_document({'file_id_or_url': document_id}, tenant, user=user)
-        if isinstance(parsed, dict) and parsed.get('status') == 'error':
-            return parsed
 
         text = parsed.get('text') if isinstance(parsed, dict) else None
         if not isinstance(text, str) or not text.strip():
-            return {
-                'status': 'error',
-                'error_code': 'PARSE_EMPTY',
-                'message': 'Parsed document text was empty; cannot ingest PO.',
-            }
+            from tenant_apps.ai_assistant.swarm.tools.microsoft_graph import ToolExecutionError
+
+            raise ToolExecutionError(
+                error_code='PARSE_EMPTY',
+                message='Parsed document text was empty; cannot ingest the purchase order.',
+                hint='Retry with a clearer document or upload a different file.',
+                retryable=False,
+            )
 
         extracted = self._extract_purchase_order_fields({'text': text}, tenant, user=user)
         vendor_name = str(extracted.get('vendor_name') or '').strip()
