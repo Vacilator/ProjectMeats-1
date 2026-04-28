@@ -5,11 +5,23 @@ Polls inboxes for order-related emails and creates EmailLog entries for AI proce
 """
 import logging
 from datetime import timedelta
-from typing import List, Dict, Any
+from typing import Any, Dict, List
+
+import requests
 from django.utils import timezone
 from django.db import transaction
+
 from apps.integrations.models import ExternalAuthProvider, EmailLog
 from apps.tenants.models import Tenant
+from tenant_apps.ai_assistant.swarm.tools.microsoft_graph import (
+    MAX_MAIL_LIMIT,
+    ToolExecutionError,
+    build_mail_request,
+    decrypt_token_or_error,
+    decryption_failed_payload,
+    post_filter_messages,
+    serialize_graph_message,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -524,6 +536,106 @@ class EmailIngestionService:
 
         return results
 
+    def fetch_emails_for_ai(
+        self,
+        *,
+        folder: str | None = None,
+        is_read: bool | None = None,
+        has_attachments: bool | None = None,
+        search_query: str | None = None,
+        limit: int | None = None,
+    ) -> Dict[str, Any]:
+        """Fetch a bounded, LLM-safe mail slice for the active tenant."""
+        if not self.tenant:
+            raise ToolExecutionError(
+                error_code='TENANT_CONTEXT_MISSING',
+                message='Tenant context is required before searching Outlook email.',
+                hint='Retry from a tenant-scoped ProjectMeats session.',
+                retryable=False,
+            )
+
+        provider = (
+            ExternalAuthProvider.objects.filter(
+                tenant=self.tenant,
+                provider_type='microsoft',
+                is_active=True,
+            )
+            .select_related('tenant')
+            .first()
+        )
+        if not provider:
+            raise ToolExecutionError(
+                error_code='OUTLOOK_NOT_CONNECTED',
+                message='Outlook is not connected for this tenant.',
+                hint='Connect Outlook in Settings → Email Integrations before searching email.',
+                retryable=False,
+            )
+
+        try:
+            provider.refresh_if_needed()
+        except Exception:
+            logger.warning(
+                'Token refresh failed for AI email search tenant=%s provider_id=%s',
+                self.tenant.id,
+                provider.id,
+                exc_info=True,
+            )
+
+        if provider.is_token_expired():
+            raise ToolExecutionError(
+                error_code='OUTLOOK_CONNECTION_EXPIRED',
+                message='Your Outlook connection has expired.',
+                hint='Reconnect Outlook in Settings → Email Integrations.',
+                retryable=False,
+            )
+
+        access_token, err = decrypt_token_or_error(provider_row=provider, token_type='access')
+        if err:
+            raise ToolExecutionError(
+                error_code=err.get('error_code') or 'DECRYPTION_FAILED',
+                message=err.get('message') or decryption_failed_payload()['message'],
+                hint='Reconnect Outlook in Settings → Email Integrations.',
+                retryable=False,
+            )
+        if not access_token:
+            raise ToolExecutionError(
+                error_code='OUTLOOK_ACCESS_TOKEN_MISSING',
+                message='No Outlook access token is available for this tenant.',
+                hint='Reconnect Outlook in Settings → Email Integrations.',
+                retryable=False,
+            )
+
+        request_spec = build_mail_request(
+            folder=folder,
+            is_read=is_read,
+            has_attachments=has_attachments,
+            search_query=search_query,
+            limit=limit,
+        )
+
+        from apps.integrations.providers import MicrosoftGraphProvider
+
+        graph_provider = MicrosoftGraphProvider(self.tenant.id)
+        results = self._fetch_graph_messages_for_ai(
+            graph_provider=graph_provider,
+            access_token=access_token,
+            request_spec=request_spec,
+            is_read=is_read,
+            has_attachments=has_attachments,
+        )
+
+        return {
+            'folder': request_spec['folder'],
+            'limit': request_spec['limit'],
+            'count': len(results),
+            'filters': {
+                'is_read': is_read,
+                'has_attachments': has_attachments,
+                'search_query': (str(search_query or '').strip() or None),
+            },
+            'messages': results,
+        }
+
     def fetch_unread_emails(self, tenant: Tenant) -> List[Dict[str, Any]]:
         """Fetch unread emails (and attachments) for a tenant via Microsoft Graph.
 
@@ -592,6 +704,143 @@ class EmailIngestionService:
             results.append({'message': msg, 'attachments': attachments})
 
         return results
+
+    def _fetch_graph_messages_for_ai(
+        self,
+        *,
+        graph_provider,
+        access_token: str,
+        request_spec: Dict[str, Any],
+        is_read: bool | None,
+        has_attachments: bool | None,
+    ) -> List[Dict[str, Any]]:
+        url = f"{graph_provider.GRAPH_API_BASE}{request_spec['url_path']}"
+        headers = {
+            'Authorization': f'Bearer {access_token}',
+            'Accept': 'application/json',
+            **request_spec.get('headers', {}),
+        }
+        max_pages = 1
+
+        try:
+            messages = self._collect_graph_messages(
+                url=url,
+                headers=headers,
+                params=request_spec['params'],
+                limit=request_spec['limit'],
+                max_pages=max_pages,
+            )
+        except requests.HTTPError as exc:
+            status_code = exc.response.status_code if exc.response is not None else None
+            if status_code == 400 and request_spec.get('requires_filter_fallback'):
+                fallback_params = {
+                    key: value for key, value in request_spec['params'].items() if key != '$filter'
+                }
+                fallback_params['$top'] = 25
+                messages = self._collect_graph_messages(
+                    url=url,
+                    headers=headers,
+                    params=fallback_params,
+                    limit=MAX_MAIL_LIMIT,
+                    max_pages=max_pages,
+                )
+                messages = post_filter_messages(
+                    messages,
+                    is_read=is_read,
+                    has_attachments=has_attachments,
+                )
+            else:
+                raise self._map_graph_exception(exc) from exc
+        except requests.RequestException as exc:
+            raise self._map_graph_exception(exc) from exc
+
+        messages = sorted(
+            messages,
+            key=lambda row: str(row.get('receivedDateTime') or ''),
+            reverse=True,
+        )
+
+        return [
+            serialize_graph_message(message, folder=request_spec['folder'])
+            for message in messages[: request_spec['limit']]
+        ]
+
+    def _collect_graph_messages(
+        self,
+        *,
+        url: str,
+        headers: Dict[str, str],
+        params: Dict[str, Any] | None,
+        limit: int,
+        max_pages: int,
+    ) -> List[Dict[str, Any]]:
+        all_messages: List[Dict[str, Any]] = []
+        next_url = url
+        next_params = params
+        page = 0
+
+        while next_url and page < max_pages and len(all_messages) < limit:
+            response = requests.get(next_url, headers=headers, params=next_params, timeout=30)
+            response.raise_for_status()
+            data = response.json() or {}
+
+            batch = data.get('value', []) or []
+            all_messages.extend(batch)
+
+            next_url = data.get('@odata.nextLink')
+            next_params = None
+            page += 1
+
+        return all_messages[:limit]
+
+    def _map_graph_exception(self, exc: requests.RequestException) -> ToolExecutionError:
+        if isinstance(exc, requests.Timeout):
+            return ToolExecutionError(
+                error_code='GRAPH_TIMEOUT',
+                message='Microsoft Graph timed out while searching email.',
+                hint='Try a smaller search query or a narrower folder.',
+                retryable=True,
+            )
+
+        if isinstance(exc, requests.HTTPError):
+            response = exc.response
+            status_code = response.status_code if response is not None else None
+            response_text = ''
+            if response is not None:
+                response_text = (response.text or '').strip()[:400]
+
+            if status_code == 400:
+                return ToolExecutionError(
+                    error_code='GRAPH_QUERY_REJECTED',
+                    message='Microsoft Graph rejected the email search query format.',
+                    hint='Try simplifying your search terms or reducing the number of filters.',
+                    retryable=False,
+                    details=response_text or None,
+                )
+            if status_code in {401, 403}:
+                return ToolExecutionError(
+                    error_code='GRAPH_AUTH_FAILED',
+                    message='Microsoft Graph rejected the current Outlook credentials.',
+                    hint='Reconnect Outlook in Settings → Email Integrations.',
+                    retryable=False,
+                    details=response_text or None,
+                )
+
+            return ToolExecutionError(
+                error_code='GRAPH_HTTP_ERROR',
+                message='Microsoft Graph returned an unexpected email search error.',
+                hint='Try simplifying the email request or ask the user for clarification.',
+                retryable=False,
+                details=response_text or None,
+            )
+
+        return ToolExecutionError(
+            error_code='GRAPH_REQUEST_FAILED',
+            message='Microsoft Graph email search failed before returning results.',
+            hint='Try a simpler request or ask the user to reconnect Outlook if the problem persists.',
+            retryable=False,
+            details=str(exc),
+        )
 
     def _download_attachments(self, graph_provider, access_token: str, message_id: str | None) -> List[Dict[str, Any]]:
         """Download attachments for a Graph message.
