@@ -570,7 +570,7 @@ class ToolExecutor:
             safe_args = dict(arguments or {})
             if tool_name == 'get_recent_errors' and not safe_args.get('tenant_id'):
                 safe_args['tenant_id'] = tenant_id
-            if session_id and tool_name == 'ingest_email_attachment' and not safe_args.get('session_id'):
+            if session_id and tool_name in {'fetch_emails', 'ingest_email_attachment', 'check_unread_emails'} and not safe_args.get('session_id'):
                 safe_args['session_id'] = session_id
 
             result = fn(safe_args, tenant, user)
@@ -599,6 +599,7 @@ class ToolExecutor:
         has_attachments = arguments.get('has_attachments') if 'has_attachments' in arguments else None
         search_query = arguments.get('search_query')
         limit = arguments.get('limit')
+        session_id = str(arguments.get('session_id') or '').strip() or None
 
         return EmailIngestionService(tenant).fetch_emails_for_ai(
             folder=folder,
@@ -606,6 +607,8 @@ class ToolExecutor:
             has_attachments=has_attachments,
             search_query=search_query,
             limit=limit,
+            user=user,
+            session_id=session_id,
         )
 
     def _ingest_email_attachment(self, arguments: Dict[str, Any], tenant: Any, user: Any = None) -> Any:
@@ -619,8 +622,8 @@ class ToolExecutor:
         attachment_id = str(arguments.get('attachment_id') or '').strip()
         file_name = str(arguments.get('file_name') or '').strip()
         session_id = str(arguments.get('session_id') or '').strip() or None
-        if not message_id or not attachment_id or not file_name:
-            raise ValueError('Missing required parameters: message_id, attachment_id, file_name')
+        if not message_id or not attachment_id:
+            raise ValueError('Missing required parameters: message_id, attachment_id')
 
         return EmailIngestionService(tenant).ingest_email_attachment_for_ai(
             message_id=message_id,
@@ -636,6 +639,7 @@ class ToolExecutor:
             'is_read': False,
             'has_attachments': True,
             'limit': arguments.get('limit') if 'limit' in arguments else 10,
+            'session_id': arguments.get('session_id'),
         }
         return self._fetch_emails(alias_arguments, tenant, user)
 

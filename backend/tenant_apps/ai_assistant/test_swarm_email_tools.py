@@ -15,6 +15,7 @@ from apps.integrations.models import ExternalAuthProvider
 from apps.tenants.models import Tenant, TenantUser
 from tenant_apps.ai_assistant.models import ChatSession, MessageTypeChoices
 from tenant_apps.ai_assistant.serializers import AIDocumentSerializer
+from tenant_apps.ai_assistant.session_utils import SESSION_ATTACHMENT_ALLOWLIST_KEY
 from tenant_apps.ai_assistant.swarm.executor import ToolExecutor
 from tenant_apps.ai_assistant.swarm.router import (
     SwarmOrchestrator,
@@ -131,6 +132,35 @@ class EmailIngestionServiceEmailFetchTests(TestCase):
         else:
             response.raise_for_status.return_value = None
         return response
+
+    def _stage_attachment(
+        self,
+        session: ChatSession,
+        *,
+        message_id: str = 'msg-123',
+        attachment_id: str = 'att-456',
+        name: str = 'invoice.pdf',
+        content_type: str = 'application/pdf',
+        size: int = 2048,
+        attachment_type: str | None = None,
+        staged_at: str | None = None,
+    ) -> None:
+        staged_at_value = staged_at or timezone.now().isoformat()
+        session.context_data = {
+            **(session.context_data or {}),
+            SESSION_ATTACHMENT_ALLOWLIST_KEY: {
+                f'{message_id}::{attachment_id}': {
+                    'message_id': message_id,
+                    'attachment_id': attachment_id,
+                    'name': name,
+                    'content_type': content_type,
+                    'size': size,
+                    'attachment_type': attachment_type,
+                    'staged_at': staged_at_value,
+                }
+            },
+        }
+        session.save(update_fields=['context_data'])
 
     @patch('apps.integrations.providers.MicrosoftGraphProvider')
     @patch('requests.get')
@@ -252,6 +282,62 @@ class EmailIngestionServiceEmailFetchTests(TestCase):
             'attachments($select=id,name,contentType,size)',
         )
 
+    @patch('apps.integrations.providers.MicrosoftGraphProvider')
+    @patch('requests.get')
+    def test_fetch_emails_stages_attachment_allowlist_on_bound_session(
+        self,
+        mock_get,
+        mock_graph_provider,
+    ):
+        session = ChatSession.objects.create(
+            title='Attachment search',
+            context_data={'tenant_id': str(self.tenant.id)},
+            owner=self.user,
+            created_by=self.user,
+            modified_by=self.user,
+        )
+        mock_graph_provider.return_value = SimpleNamespace(
+            GRAPH_API_BASE='https://graph.microsoft.com/v1.0'
+        )
+        mock_get.return_value = self._response(
+            payload={
+                'value': [
+                    {
+                        'id': 'msg-1',
+                        'subject': 'Invoice attached',
+                        'receivedDateTime': '2026-04-28T11:00:00Z',
+                        'bodyPreview': 'Newest invoice preview',
+                        'hasAttachments': True,
+                        'isRead': True,
+                        'from': {'emailAddress': {'address': 'seller@example.com', 'name': 'Seller'}},
+                        'toRecipients': [{'emailAddress': {'address': 'buyer@example.com', 'name': 'Buyer'}}],
+                        'attachments': [
+                            {
+                                'id': 'att-1',
+                                'name': 'invoice.pdf',
+                                'contentType': 'application/pdf',
+                                'size': 2048,
+                            }
+                        ],
+                    }
+                ]
+            }
+        )
+
+        result = EmailIngestionService(self.tenant).fetch_emails_for_ai(
+            folder='inbox',
+            has_attachments=True,
+            limit=5,
+            user=self.user,
+            session_id=str(session.id),
+        )
+
+        self.assertEqual(result['count'], 1)
+        session.refresh_from_db()
+        allowlist = session.context_data[SESSION_ATTACHMENT_ALLOWLIST_KEY]
+        self.assertIn('msg-1::att-1', allowlist)
+        self.assertEqual(allowlist['msg-1::att-1']['name'], 'invoice.pdf')
+
 
 class ToolExecutorEmailToolTests(TestCase):
     def setUp(self):
@@ -291,6 +377,35 @@ class ToolExecutorEmailToolTests(TestCase):
             response.raise_for_status.return_value = None
         return response
 
+    def _stage_attachment(
+        self,
+        session: ChatSession,
+        *,
+        message_id: str = 'msg-123',
+        attachment_id: str = 'att-456',
+        name: str = 'invoice.pdf',
+        content_type: str = 'application/pdf',
+        size: int = 2048,
+        attachment_type: str | None = None,
+        staged_at: str | None = None,
+    ) -> None:
+        staged_at_value = staged_at or timezone.now().isoformat()
+        session.context_data = {
+            **(session.context_data or {}),
+            SESSION_ATTACHMENT_ALLOWLIST_KEY: {
+                f'{message_id}::{attachment_id}': {
+                    'message_id': message_id,
+                    'attachment_id': attachment_id,
+                    'name': name,
+                    'content_type': content_type,
+                    'size': size,
+                    'attachment_type': attachment_type,
+                    'staged_at': staged_at_value,
+                }
+            },
+        }
+        session.save(update_fields=['context_data'])
+
     @patch('tenant_apps.ai_assistant.swarm.executor.set_current_tenant', return_value=SimpleNamespace(ok=True, error=None))
     @patch('tenant_apps.integrations.services.email_ingestion.EmailIngestionService.fetch_emails_for_ai')
     def test_execute_returns_structured_graph_error_payload(self, mock_fetch, _mock_rls):
@@ -315,6 +430,57 @@ class ToolExecutorEmailToolTests(TestCase):
         self.assertEqual(payload['error']['hint'], 'Try simplifying your search terms.')
 
     @patch('tenant_apps.ai_assistant.swarm.executor.set_current_tenant', return_value=SimpleNamespace(ok=True, error=None))
+    @patch('tenant_apps.integrations.services.email_ingestion.EmailIngestionService.fetch_emails_for_ai')
+    def test_execute_injects_session_id_into_fetch_emails(self, mock_fetch, _mock_rls):
+        session = ChatSession.objects.create(
+            title='Attachment thread',
+            context_data={'tenant_id': str(self.tenant.id)},
+            owner=self.user,
+            created_by=self.user,
+            modified_by=self.user,
+        )
+        mock_fetch.return_value = {'messages': []}
+
+        payload = json.loads(
+            ToolExecutor().execute(
+                'fetch_emails',
+                {'folder': 'inbox', 'has_attachments': True},
+                self.tenant,
+                self.user,
+                session_id=str(session.id),
+            )
+        )
+
+        self.assertTrue(payload['ok'])
+        self.assertEqual(mock_fetch.call_args.kwargs['session_id'], str(session.id))
+        self.assertEqual(mock_fetch.call_args.kwargs['user'], self.user)
+
+    @patch('tenant_apps.ai_assistant.swarm.executor.set_current_tenant', return_value=SimpleNamespace(ok=True, error=None))
+    @patch('tenant_apps.integrations.services.email_ingestion.EmailIngestionService.fetch_emails_for_ai')
+    def test_check_unread_emails_forwards_session_id(self, mock_fetch, _mock_rls):
+        session = ChatSession.objects.create(
+            title='Unread attachment thread',
+            context_data={'tenant_id': str(self.tenant.id)},
+            owner=self.user,
+            created_by=self.user,
+            modified_by=self.user,
+        )
+        mock_fetch.return_value = {'messages': []}
+
+        payload = json.loads(
+            ToolExecutor().execute(
+                'check_unread_emails',
+                {'limit': 5},
+                self.tenant,
+                self.user,
+                session_id=str(session.id),
+            )
+        )
+
+        self.assertTrue(payload['ok'])
+        self.assertEqual(mock_fetch.call_args.kwargs['session_id'], str(session.id))
+
+    @patch('tenant_apps.ai_assistant.swarm.executor.set_current_tenant', return_value=SimpleNamespace(ok=True, error=None))
     @patch('tenant_apps.integrations.services.email_ingestion.EmailIngestionService._get_existing_attachment_document', return_value=None)
     @patch('tenant_apps.ai_assistant.models.ChatMessage.objects.create')
     @patch('tenant_apps.ai_assistant.models.AIDocument.objects.create')
@@ -336,6 +502,7 @@ class ToolExecutorEmailToolTests(TestCase):
             created_by=self.user,
             modified_by=self.user,
         )
+        self._stage_attachment(session)
         mock_graph_provider.return_value = SimpleNamespace(
             GRAPH_API_BASE='https://graph.microsoft.com/v1.0'
         )
@@ -378,7 +545,7 @@ class ToolExecutorEmailToolTests(TestCase):
                 {
                     'message_id': 'msg-123',
                     'attachment_id': 'att-456',
-                    'file_name': 'invoice.pdf',
+                    'file_name': 'wrong-name.txt',
                 },
                 self.tenant,
                 self.user,
@@ -390,8 +557,10 @@ class ToolExecutorEmailToolTests(TestCase):
         self.assertEqual(payload['tool'], 'ingest_email_attachment')
 
         self.assertEqual(payload['data']['document_id'], str(fake_document.id))
+        self.assertEqual(payload['data']['file_name'], 'invoice.pdf')
         self.assertEqual(payload['data']['session_id'], str(session.id))
         mock_aidocument_create.assert_called_once()
+        self.assertEqual(mock_aidocument_create.call_args.kwargs['original_filename'], 'invoice.pdf')
         mock_chat_message_create.assert_called_once()
         self.assertEqual(
             mock_chat_message_create.call_args.kwargs['message_type'],
@@ -426,6 +595,7 @@ class ToolExecutorEmailToolTests(TestCase):
             created_by=self.user,
             modified_by=self.user,
         )
+        self._stage_attachment(session)
         existing_document = SimpleNamespace(
             id=uuid.uuid4(),
             original_filename='invoice.pdf',
@@ -463,6 +633,68 @@ class ToolExecutorEmailToolTests(TestCase):
         mock_aidocument_create.assert_not_called()
 
     @patch('tenant_apps.ai_assistant.swarm.executor.set_current_tenant', return_value=SimpleNamespace(ok=True, error=None))
+    @patch('requests.get')
+    def test_execute_rejects_unstaged_attachment(self, mock_get, _mock_rls):
+        session = ChatSession.objects.create(
+            title='Attachment thread',
+            context_data={'tenant_id': str(self.tenant.id)},
+            owner=self.user,
+            created_by=self.user,
+            modified_by=self.user,
+        )
+
+        payload = json.loads(
+            ToolExecutor().execute(
+                'ingest_email_attachment',
+                {
+                    'message_id': 'msg-123',
+                    'attachment_id': 'att-456',
+                    'file_name': 'invoice.pdf',
+                },
+                self.tenant,
+                self.user,
+                session_id=str(session.id),
+            )
+        )
+
+        self.assertFalse(payload['ok'])
+        self.assertEqual(payload['error']['code'], 'ATTACHMENT_NOT_STAGED')
+        mock_get.assert_not_called()
+
+    @patch('tenant_apps.ai_assistant.swarm.executor.set_current_tenant', return_value=SimpleNamespace(ok=True, error=None))
+    @patch('requests.get')
+    def test_execute_rejects_expired_staged_attachment(self, mock_get, _mock_rls):
+        session = ChatSession.objects.create(
+            title='Attachment thread',
+            context_data={'tenant_id': str(self.tenant.id)},
+            owner=self.user,
+            created_by=self.user,
+            modified_by=self.user,
+        )
+        self._stage_attachment(
+            session,
+            staged_at=(timezone.now() - timedelta(hours=2)).isoformat(),
+        )
+
+        payload = json.loads(
+            ToolExecutor().execute(
+                'ingest_email_attachment',
+                {
+                    'message_id': 'msg-123',
+                    'attachment_id': 'att-456',
+                    'file_name': 'invoice.pdf',
+                },
+                self.tenant,
+                self.user,
+                session_id=str(session.id),
+            )
+        )
+
+        self.assertFalse(payload['ok'])
+        self.assertEqual(payload['error']['code'], 'ATTACHMENT_STAGE_EXPIRED')
+        mock_get.assert_not_called()
+
+    @patch('tenant_apps.ai_assistant.swarm.executor.set_current_tenant', return_value=SimpleNamespace(ok=True, error=None))
     @patch('tenant_apps.integrations.services.email_ingestion.EmailIngestionService._get_existing_attachment_document', return_value=None)
     @patch('tenant_apps.ai_assistant.models.AIDocument.objects.create')
     @patch('apps.integrations.providers.MicrosoftGraphProvider')
@@ -481,6 +713,11 @@ class ToolExecutorEmailToolTests(TestCase):
             owner=self.user,
             created_by=self.user,
             modified_by=self.user,
+        )
+        self._stage_attachment(
+            session,
+            name='forwarded.eml',
+            content_type='message/rfc822',
         )
         mock_graph_provider.return_value = SimpleNamespace(
             GRAPH_API_BASE='https://graph.microsoft.com/v1.0'
@@ -533,6 +770,11 @@ class ToolExecutorEmailToolTests(TestCase):
             owner=self.user,
             created_by=self.user,
             modified_by=self.user,
+        )
+        self._stage_attachment(
+            session,
+            name='sharepoint-link.url',
+            content_type='application/octet-stream',
         )
         mock_graph_provider.return_value = SimpleNamespace(
             GRAPH_API_BASE='https://graph.microsoft.com/v1.0'
@@ -777,3 +1019,42 @@ class AIDocumentAuditSurfaceTests(TestCase):
 
         with self.assertRaises(drf_serializers.ValidationError):
             serializer.validate_session(session)
+
+
+class SwarmToolsOpenAPIViewTests(TestCase):
+    def setUp(self):
+        from rest_framework.test import APIRequestFactory, force_authenticate
+
+        unique = uuid.uuid4().hex[:8]
+        user_model = get_user_model()
+        self.factory = APIRequestFactory()
+        self._force_authenticate = force_authenticate
+        self.user = user_model.objects.create_user(
+            username=f'tools-open-{unique}',
+            email=f'tools-open-{unique}@example.com',
+            password='pw',
+        )
+        self.tenant = Tenant.objects.create(
+            name=f'Tools Open Tenant {unique}',
+            slug=f'tools-open-tenant-{unique}',
+            contact_email=f'tools-open-{unique}@example.com',
+            created_by=self.user,
+        )
+        TenantUser.objects.create(tenant=self.tenant, user=self.user, role='owner')
+
+    def test_tools_open_hides_ingest_attachment_when_outlook_disconnected(self):
+        from tenant_apps.ai_assistant.views import SwarmToolsOpenAPIView
+
+        request = self.factory.get('/api/v1/ai-assistant/tools/openapi/')
+        self._force_authenticate(request, user=self.user)
+        request.tenant = self.tenant
+
+        response = SwarmToolsOpenAPIView.as_view()(request)
+
+        self.assertEqual(response.status_code, 200)
+        tool_names = {
+            tool.get('function', {}).get('name')
+            for tool in response.data['tools']
+        }
+        self.assertNotIn('ingest_email_attachment', tool_names)
+        self.assertNotIn('/tools/ingest_email_attachment', response.data['openapi']['paths'])

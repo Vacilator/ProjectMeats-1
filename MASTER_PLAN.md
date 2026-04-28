@@ -47,7 +47,7 @@ This file is the **canonical plan + current truth snapshot**.
   - Manifest-driven required-secret enforcement per lane (remove hardcoded lists).
   - Docs drift prevention: "CURRENT" docs must not recommend forbidden Golden patterns (runner-driven migrations only).
 - **Mobile parity**: ✅ shipped foundations (PRs #4658/#4659). Next: switch-tenant persistence, consistent error normalization, and auth expiry/401 behavior parity.
-- **AI email/document hardening**: Graph attachment ingest now persists provenance in `AIDocument.custom_data`, deduplicates repeated same-session ingests, and exposes source-aware document filtering. Next: hard-bind `ChatSession` / `ChatMessage` / manual `AIDocument` upload surfaces to `request.tenant` via session tenant context so AI session APIs fail closed across multi-tenant memberships.
+- **AI email/document hardening**: Graph attachment ingest now persists provenance in `AIDocument.custom_data`, deduplicates repeated same-session ingests, and enforces tenant-bound AI sessions/messages/uploads. Next: require a session-scoped attachment allowlist staged by `fetch_emails` before `ingest_email_attachment` can download anything, so the email → document pipeline is policy-enforced instead of prompt-enforced.
 
 ### Squad deep dive plan (as of 2026-04-27)
 
