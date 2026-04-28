@@ -151,16 +151,17 @@ All workflow-related tables have Row-Level Security **ENABLED** and **FORCED**:
 
 ## Compliance Summary
 
-**Latest Audit (2026-03-22)**:
-- `python manage.py audit_rls_compliance` → **38/38 tenant-aware models compliant** ✅
+**Latest Audit (2026-04-28, fresh-db CI validation target)**:
+- `python manage.py audit_rls_compliance --strict` should return **67/67 tenant-scoped models compliant** once `core/0007_enable_rls_comment` is applied. ✅
 
-**Audit Scope Update (2026-04-20)**:
+**Audit Scope Update (2026-04-28)**:
 - `audit_rls_compliance` now also includes an allowlist of tenant-scoped models that do **not** inherit `TenantAwareModel` (System WorkForms + Integrations).
-- Expected result after next deployment audit: **42/42 tenant-scoped models compliant** ✅
+- `core_comment` is now covered by an additive RLS migration so fresh databases and CI audits stay fully compliant.
+- Expected result after next deployment audit: **67/67 tenant-scoped models compliant** ✅
 
 **Tenant Isolation Policies** (from `pg_policies`):
-- Tables with at least one `*_tenant_isolation` policy: **48**
-- `*_tenant_isolation` policies total: **51**
+- Tables with at least one `*_tenant_isolation` policy: **49**
+- `*_tenant_isolation` policies total: **52**
 
 > Note: Some tables currently have both legacy and standardized `*_tenant_isolation` policy names during transition.
 
@@ -235,11 +236,12 @@ END $$;
 
 ---
 
-## Core Module (1 table) - ✅ 100% COMPLIANT
+## Core Module (2 tables) - ✅ 100% COMPLIANT
 
 | Table Name | RLS Enabled | Migration | Deployment Date |
 |------------|-------------|-----------|-----------------|
 | `core_tenantauditevent` | ✅ | `core/0004_tenantauditevent` | Mar 31, 2026 |
+| `core_comment` | ✅ | `core/0007_enable_rls_comment` | Apr 28, 2026 |
 
 ---
 
