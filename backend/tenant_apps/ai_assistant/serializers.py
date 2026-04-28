@@ -178,6 +178,7 @@ class AIDocumentSerializer(serializers.ModelSerializer):
     file_type = serializers.CharField(source='content_type', read_only=True)
     document_type = serializers.SerializerMethodField(read_only=True)
     source_metadata = serializers.SerializerMethodField(read_only=True)
+    processing_metadata = serializers.SerializerMethodField(read_only=True)
 
     def validate_session(self, value):
         return _validate_request_session(value, self.context.get('request'))
@@ -209,6 +210,29 @@ class AIDocumentSerializer(serializers.ModelSerializer):
             if metadata.get(key) not in (None, '')
         }
 
+    def get_processing_metadata(self, obj) -> dict:
+        metadata = getattr(obj, 'custom_data', None)
+        if not isinstance(metadata, dict):
+            return {}
+
+        allowed_keys = (
+            'parser',
+            'processing_started_at',
+            'parsed_at',
+            'failed_at',
+            'parse_error_code',
+            'parse_error_message',
+            'truncated',
+            'warnings',
+        )
+        result = {}
+        for key in allowed_keys:
+            value = metadata.get(key)
+            if value in (None, '', []):
+                continue
+            result[key] = value
+        return result
+
     def validate_file(self, value):
         try:
             validate_ai_document_upload(
@@ -234,6 +258,7 @@ class AIDocumentSerializer(serializers.ModelSerializer):
             'processing_status',
             'document_type',
             'source_metadata',
+            'processing_metadata',
             'created_on',
         ]
         read_only_fields = ['id', 'tenant', 'owner', 'content_type', 'file_type', 'file_size', 'document_type', 'created_on']
