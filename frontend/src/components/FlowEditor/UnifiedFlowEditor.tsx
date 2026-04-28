@@ -141,6 +141,7 @@ import './config/nodeConfigSchemas';
 
 import { schemaRegistry } from './config/schemaRegistry';
 import { calculateContainerLayout, autoConnectSequentialSteps, LAYOUT_CONSTANTS } from './utils/containerLayout'; // Phase 3-4
+import { buildFlowHistoryState, shouldAutoSaveWorkflow, type FlowHistoryState } from './utils/editorState';
 import { NodeContextMenu, useContextMenu } from './NodeContextMenu'; // Phase E.3
 import { EnhancedContextMenu, useEnhancedContextMenu } from './components/EnhancedContextMenu'; // Phase 2: UI/UX
 import { saveWorkflow, loadWorkflow, listWorkflows, deleteWorkflow, type WorkflowListItem } from './utils/workflowPersistence'; // Phase 7, 8.3
@@ -217,10 +218,7 @@ interface UnifiedFlowEditorProps {
   allowedNodeCategories?: string[]; // Phase 4.2: Filter nodes by permission
 }
 
-interface HistoryState {
-  nodes: Node[];
-  edges: Edge[];
-}
+type HistoryState = FlowHistoryState;
 
 interface FavoritesState {
   nodeTypeIds: string[];
@@ -1988,6 +1986,11 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   );
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge<any>>(initialEdges as unknown as Edge<any>[]);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const initialHistoryState = useMemo(
+    () => buildFlowHistoryState(normalizedInitialNodes as unknown as Node<any>[], initialEdges as unknown as Edge<any>[]),
+    [initialEdges, normalizedInitialNodes],
+  );
+  const graphState = useMemo(() => buildFlowHistoryState(nodes, edges), [edges, nodes]);
 
   const generateNodeId = useCallback(() => {
     return `node-${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 7)}`;
@@ -2019,6 +2022,29 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   useEffect(() => {
     edgesRef.current = edges;
   }, [edges]);
+
+  const debouncedChangeEmitter = useMemo(
+    () =>
+      debounce((nextNodes: Node[], nextEdges: Edge[]) => {
+        onChange?.(nextNodes, nextEdges);
+      }, 250),
+    [onChange],
+  );
+
+  useEffect(() => {
+    return () => {
+      debouncedChangeEmitter.cancel();
+    };
+  }, [debouncedChangeEmitter]);
+
+  const lastEmittedGraphSignatureRef = useRef(graphState.signature);
+  useEffect(() => {
+    if (!onChange) return;
+    if (lastEmittedGraphSignatureRef.current === graphState.signature) return;
+
+    lastEmittedGraphSignatureRef.current = graphState.signature;
+    debouncedChangeEmitter(nodes, edges);
+  }, [debouncedChangeEmitter, edges, graphState.signature, nodes, onChange]);
 
   // Initial Form Process alignment: force child steps to align horizontally on load
   const didInitialFormProcessLayoutRef = useRef(false);
@@ -2593,25 +2619,16 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   // Validation Engine (Phase 7)
   // ============================================================================
   
-  const [validationResult, setValidationResult] = useState<ValidationResult>({
-    isValid: true,
-    issues: [],
-    errorCount: 0,
-    warningCount: 0,
-    infoCount: 0,
-  });
+  const validationResult = useMemo<ValidationResult>(() => {
+    return validateWorkflow(nodes, edges);
+  }, [edges, nodes]);
   const [showValidationDrawer, setShowValidationDrawer] = useState(false);
-  
-  // Run validation whenever nodes or edges change
+
   useEffect(() => {
-    const result = validateWorkflow(nodes, edges);
-    setValidationResult(result);
-    
-    // Auto-show drawer if there are errors
-    if (result.errorCount > 0 && !showValidationDrawer) {
+    if (validationResult.errorCount > 0 && !showValidationDrawer) {
       setShowValidationDrawer(true);
     }
-  }, [nodes, edges]);
+  }, [showValidationDrawer, validationResult.errorCount]);
   
   const handleNavigateToNode = useCallback((nodeId: string) => {
     const node = nodes.find(n => n.id === nodeId);
@@ -2871,8 +2888,10 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(new Set());
   
   // Undo/Redo history
-  const [history, setHistory] = useState<HistoryState[]>([{ nodes: normalizedInitialNodes, edges: initialEdges }]);
+  const [history, setHistory] = useState<HistoryState[]>([initialHistoryState]);
   const [historyIndex, setHistoryIndex] = useState(0);
+  const historyRef = useRef<HistoryState[]>([initialHistoryState]);
+  const historyIndexRef = useRef(0);
 
   // Phase 9.5: Local clipboard (nodes only per spec)
   const [clipboardData, setClipboardData] = useState<Node[]>([]);
@@ -3068,6 +3087,38 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   const [showKeyboardShortcuts, setShowKeyboardShortcuts] = useState(false); // Phase 8.6
   const [isExecutionModalOpen, setIsExecutionModalOpen] = useState(false); // Task 1: Workflow Execution
   const [isFlowPreviewOpen, setIsFlowPreviewOpen] = useState(false); // Phase 1: Hybrid Functionality
+  const workflowSaveSignature = useMemo(
+    () =>
+      JSON.stringify({
+        workflowId: currentWorkflowId ?? '',
+        name: currentWorkflowName,
+        description: currentWorkflowDescription,
+        status: currentWorkflowStatus,
+        graphSignature: graphState.signature,
+      }),
+    [
+      currentWorkflowDescription,
+      currentWorkflowId,
+      currentWorkflowName,
+      currentWorkflowStatus,
+      graphState.signature,
+    ],
+  );
+  const lastPersistedSignatureRef = useRef(workflowSaveSignature);
+
+  useEffect(() => {
+    historyRef.current = history;
+  }, [history]);
+
+  useEffect(() => {
+    historyIndexRef.current = historyIndex;
+  }, [historyIndex]);
+
+  useEffect(() => {
+    if (!hasUnsavedChanges) {
+      lastPersistedSignatureRef.current = workflowSaveSignature;
+    }
+  }, [hasUnsavedChanges, workflowSaveSignature]);
 
   // ============================================================================
   // Phase 9.2: Collaboration & Presence
@@ -3319,36 +3370,14 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   // ============================================================================
   
   useEffect(() => {
-    const sanitizeForClone = (value: unknown): unknown => {
-      if (!value || typeof value !== 'object') return value;
-      if (Array.isArray(value)) return value.map(sanitizeForClone);
-
-      const out: Record<string, unknown> = {};
-      for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
-        if (typeof v === 'function') continue;
-        out[k] = sanitizeForClone(v);
-      }
-      return out;
-    };
-
-    // Debounce history tracking to avoid too many snapshots
     const timer = setTimeout(() => {
-      const sanitizedCurrentState = {
-        nodes: nodes.map((n) => ({
-          ...n,
-          data: sanitizeForClone(n.data) as any,
-        })),
-        edges: edges.map((e) => ({ ...e })),
-      };
+      const currentState = graphState;
+      const currentHistory = historyRef.current;
+      const currentHistoryIndex = historyIndexRef.current;
+      const lastState = currentHistory[currentHistoryIndex];
 
-      // Use structuredClone to avoid shallow-reference mutation bugs
-      // (deep changes inside node.data must produce stable history snapshots).
-      const currentState = structuredClone(sanitizedCurrentState) as HistoryState;
-      const lastState = history[historyIndex];
-
-      // Only add to history if state actually changed
-      if (JSON.stringify(currentState) !== JSON.stringify(lastState)) {
-        const newHistory = history.slice(0, historyIndex + 1);
+      if (lastState?.signature !== currentState.signature) {
+        const newHistory = currentHistory.slice(0, currentHistoryIndex + 1);
         newHistory.push(currentState);
 
         // Keep max 50 history states (strict cap)
@@ -3364,7 +3393,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     }, 500);
 
     return () => clearTimeout(timer);
-  }, [nodes, edges]); // Only track when nodes or edges change
+  }, [graphState]); // Only track when the graph meaningfully changes
 
   const undo = useCallback(() => {
     if (historyIndex > 0) {
@@ -3373,6 +3402,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       setNodes(state.nodes);
       setEdges(state.edges);
       setHistoryIndex(newIndex);
+      setHasUnsavedChanges(state.signature !== lastPersistedSignatureRef.current);
     }
   }, [historyIndex, history, setNodes, setEdges]);
 
@@ -3383,6 +3413,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       setNodes(state.nodes);
       setEdges(state.edges);
       setHistoryIndex(newIndex);
+      setHasUnsavedChanges(state.signature !== lastPersistedSignatureRef.current);
     }
   }, [historyIndex, history, setNodes, setEdges]);
 
@@ -5178,7 +5209,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   /**
    * Save workflow to backend
    */
-  const handleSaveWorkflow = useCallback(async (opts?: { status?: 'draft' | 'active' | 'archived' }) => {
+  const handleSaveWorkflow = useCallback(async (opts?: { status?: 'draft' | 'active' | 'archived'; silent?: boolean }) => {
     if (isSaving) return; // Prevent double-save
     
     // Phase 8.5: Validate containers before saving
@@ -5194,13 +5225,16 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     setIsSaving(true);
     
     const statusToSave = opts?.status ?? currentWorkflowStatus;
+    const silent = Boolean(opts?.silent);
 
     // Show loading toast
-    const loadingToast = toast.loading(
-      statusToSave === 'active'
-        ? (currentWorkflowId ? 'Publishing workflow...' : 'Publishing new workflow...')
-        : (currentWorkflowId ? 'Updating workflow...' : 'Creating workflow...')
-    );
+    const loadingToast = silent
+      ? undefined
+      : toast.loading(
+          statusToSave === 'active'
+            ? (currentWorkflowId ? 'Publishing workflow...' : 'Publishing new workflow...')
+            : (currentWorkflowId ? 'Updating workflow...' : 'Creating workflow...')
+        );
     
     try {
       // Get current viewport
@@ -5233,6 +5267,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       queryClient.invalidateQueries({ queryKey: ['tenant-forms'] });
       queryClient.invalidateQueries({ queryKey: ['tenant-workforms'] });
       
+      lastPersistedSignatureRef.current = workflowSaveSignature;
       setHasUnsavedChanges(false);
       logger.debug('✅ Workflow saved:', savedWorkflow.name);
       
@@ -5240,23 +5275,45 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         ? 'published'
         : (currentWorkflowId ? 'updated' : 'created');
 
-      // Show success toast
-      toast.success(
-        `Workflow "${savedWorkflow.name}" ${verb} successfully!`,
-        { id: loadingToast }
-      );
+      if (silent) {
+        logger.debug('[FlowEditor] Autosaved workflow draft', {
+          workflowId: savedWorkflow.id,
+          workflowName: savedWorkflow.name,
+        });
+      } else {
+        toast.success(
+          `Workflow "${savedWorkflow.name}" ${verb} successfully!`,
+          { id: loadingToast }
+        );
+      }
     } catch (error) {
       logger.error('❌ Failed to save workflow:', error);
       
-      // Show error toast
-      toast.error(
-        `Failed to save workflow: ${error instanceof Error ? error.message : 'Unknown error'}`,
-        { id: loadingToast }
-      );
+      if (silent) {
+        logger.error('[FlowEditor] Autosave failed', error);
+      } else {
+        toast.error(
+          `Failed to save workflow: ${error instanceof Error ? error.message : 'Unknown error'}`,
+          { id: loadingToast }
+        );
+      }
     } finally {
       setIsSaving(false);
     }
-  }, [nodes, edges, currentWorkflowId, currentWorkflowName, isSaving, reactFlowInstance, validateContainers, currentWorkflowDescription, currentWorkflowStatus, onWorkflowSaved, queryClient]);
+  }, [
+    nodes,
+    edges,
+    currentWorkflowId,
+    currentWorkflowName,
+    isSaving,
+    reactFlowInstance,
+    validateContainers,
+    currentWorkflowDescription,
+    currentWorkflowStatus,
+    onWorkflowSaved,
+    queryClient,
+    workflowSaveSignature,
+  ]);
 
   const handlePublishWorkflow = useCallback(async () => {
     if (validationResult.errorCount > 0) {
@@ -5272,6 +5329,62 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   handleSaveRef.current = () => {
     void handleSaveWorkflow();
   };
+
+  const autoSaveEnabled = useMemo(
+    () =>
+      shouldAutoSaveWorkflow({
+        currentWorkflowId,
+        currentWorkflowStatus,
+        hasUnsavedChanges,
+        readOnly,
+        isSaving,
+        validationErrorCount: validationResult.errorCount,
+      }),
+    [
+      currentWorkflowId,
+      currentWorkflowStatus,
+      hasUnsavedChanges,
+      isSaving,
+      readOnly,
+      validationResult.errorCount,
+    ],
+  );
+  const autoSaveHandlerRef = useRef(handleSaveWorkflow);
+  useEffect(() => {
+    autoSaveHandlerRef.current = handleSaveWorkflow;
+  }, [handleSaveWorkflow]);
+
+  const debouncedAutoSave = useMemo(
+    () =>
+      debounce(() => {
+        void autoSaveHandlerRef.current({ silent: true });
+      }, 1200),
+    [],
+  );
+
+  useEffect(() => {
+    return () => {
+      debouncedAutoSave.cancel();
+    };
+  }, [debouncedAutoSave]);
+
+  useEffect(() => {
+    if (!autoSaveEnabled) {
+      debouncedAutoSave.cancel();
+      return;
+    }
+
+    if (workflowSaveSignature === lastPersistedSignatureRef.current) {
+      debouncedAutoSave.cancel();
+      return;
+    }
+
+    debouncedAutoSave();
+
+    return () => {
+      debouncedAutoSave.cancel();
+    };
+  }, [autoSaveEnabled, debouncedAutoSave, workflowSaveSignature]);
   
   /**
    * Auto-layout: Apply dagre layout to all nodes
@@ -5485,22 +5598,8 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     onLayout: handleAutoLayout,
     onCopy: handleCopySelection,
     onPaste: handlePasteSelection,
-    onUndo: () => {
-      if (historyIndex > 0) {
-        const prevState = history[historyIndex - 1];
-        setNodes(prevState.nodes);
-        setEdges(prevState.edges);
-        setHistoryIndex(historyIndex - 1);
-      }
-    },
-    onRedo: () => {
-      if (historyIndex < history.length - 1) {
-        const nextState = history[historyIndex + 1];
-        setNodes(nextState.nodes);
-        setEdges(nextState.edges);
-        setHistoryIndex(historyIndex + 1);
-      }
-    },
+    onUndo: undo,
+    onRedo: redo,
   });
   
   /**
@@ -6666,10 +6765,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     setEdges(template.edges);
     
     // Reset history with template as initial state
-    const newHistory: HistoryState[] = [{
-      nodes: mappedNodes,
-      edges: template.edges
-    }];
+    const newHistory: HistoryState[] = [buildFlowHistoryState(mappedNodes, template.edges)];
     setHistory(newHistory);
     setHistoryIndex(0);
     
@@ -6692,7 +6788,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     setEdges([]);
     
     // Reset history
-    setHistory([{ nodes: [], edges: [] }]);
+    setHistory([buildFlowHistoryState([], [])]);
     setHistoryIndex(0);
     
     // Close modal
