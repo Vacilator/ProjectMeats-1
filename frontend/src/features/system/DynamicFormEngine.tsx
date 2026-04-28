@@ -408,12 +408,54 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
   showAllFieldsToggle = true,
   submitLabel,
 }) => {
-  const validationSchema = buildValidationSchema(schema.fields);
+  const fieldsSignature = useMemo(() => {
+    return schema.fields
+      .map((field) => {
+        const widget = String(field.ui?.widget || '');
+        const maxLen = (field.ui as any)?.max_length;
+        const maxLenSig = typeof maxLen === 'number' && Number.isFinite(maxLen) ? String(maxLen) : '';
+
+        const depsSig = Array.isArray(field.dependencies)
+          ? field.dependencies.map((d) => String(d)).join(',')
+          : '';
+
+        const visibleWhen = (field.ui as any)?.visible_when;
+        const visibleSig =
+          visibleWhen && typeof visibleWhen === 'object'
+            ? `${String((visibleWhen as any).field || '')}:${String((visibleWhen as any).equals ?? '')}:${(visibleWhen as any).truthy ? 1 : 0}`
+            : '';
+
+        const dataSource = (field.ui as any)?.data_source;
+        const dsSig =
+          dataSource && typeof dataSource === 'object'
+            ? `${String((dataSource as any).type || '')}:${String((dataSource as any).list || '')}`
+            : '';
+
+        const itemSig =
+          field.type === 'inline_form_array'
+            ? (field.item_fields || [])
+                .map((item) => {
+                  const itemWidget = String(item.ui?.widget || '');
+                  return `${String(item.key)}:${String(item.type)}:${item.required ? 1 : 0}:${itemWidget}`;
+                })
+                .join('~')
+            : '';
+
+        return `${String(field.key)}:${String(field.type)}:${field.required ? 1 : 0}:${widget}:${maxLenSig}:${depsSig}:${visibleSig}:${dsSig}:${itemSig}`;
+      })
+      .join('|');
+  }, [schema.fields]);
+
+  // Stabilize schema.fields identity when parents rebuild arrays on each render.
+  const stableFields = useMemo(() => schema.fields, [fieldsSignature]);
+
+  const validationSchema = useMemo(() => buildValidationSchema(stableFields), [fieldsSignature]);
+  const resolver = useMemo(() => zodResolver(validationSchema), [validationSchema]);
 
   const [internalShowAllFields, setInternalShowAllFields] = useState(false);
   const effectiveShowAllFields = showAllFields ?? internalShowAllFields;
   const setEffectiveShowAllFields = onShowAllFieldsChange ?? setInternalShowAllFields;
-  
+
   // Form-level config from ConfigResolver (Wave 4 - Task 4.12)
   const [formConfig, setFormConfig] = useState({
     showRequiredIndicator: true,
@@ -421,7 +463,7 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
     validateOnChange: false,
     submitButtonText: 'Submit',
   });
-  
+
   // Dynamic choice options from config system
   const [dynamicOptions, setDynamicOptions] = useState<Record<string, { value: string; label: string }[]>>({});
 
@@ -435,23 +477,23 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
           resolveConfig<boolean>('forms.validate_on_change', false),
           resolveConfig<string>('forms.submit_button_text', 'Submit'),
         ]);
-        
+
         setFormConfig({
           showRequiredIndicator: showRequired.value,
           showHelpText: showHelp.value,
           validateOnChange: validateChange.value,
           submitButtonText: submitText.value,
         });
-      } catch (error) {
+      } catch {
         console.debug('Using default form config');
       }
     };
-    
-    loadConfig();
+
+    void loadConfig();
   }, []);
-  
+
   const optionsSignature = useMemo(() => {
-    return schema.fields
+    return stableFields
       .map((f) => {
         const dataSource = (f.ui as any)?.data_source;
         const dsType =
@@ -463,7 +505,7 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
         return `${String(f.key)}:${String(f.type)}:${dsType}:${dsList}:${optionsLen}`;
       })
       .join('|');
-  }, [schema.fields]);
+  }, [stableFields]);
 
   const optionsEqual = (
     a: { value: string; label: string }[] | undefined,
@@ -488,7 +530,7 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
     let cancelled = false;
 
     const loadOptions = async () => {
-      const selectFields = schema.fields.filter((f) => {
+      const selectFields = stableFields.filter((f) => {
         if (f.options?.length) return false;
         if (f.ui?.data_source?.type === 'choice_list' && f.ui?.data_source?.list) return true;
         return f.type === 'select' && isStaticChoiceField(f.key);
@@ -538,7 +580,7 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
 
   const defaultValues = useMemo(() => {
     const next: Record<string, any> = { ...(initialValues || {}) };
-    for (const f of schema.fields) {
+    for (const f of stableFields) {
       if (String(f.key).toLowerCase() === 'country' && !next[f.key]) {
         next[f.key] = DEFAULT_COUNTRY;
       }
@@ -550,7 +592,7 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
       }
     }
     return next;
-  }, [initialValues, schema.fields]);
+  }, [initialValues, stableFields]);
 
   const {
     register,
@@ -559,7 +601,7 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
     setValue,
     formState: { errors },
   } = useForm({
-    resolver: zodResolver(validationSchema),
+    resolver,
     defaultValues,
     mode: formConfig.validateOnChange ? 'onChange' : 'onSubmit',
   });
@@ -574,14 +616,14 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
   const hasKeySplit = Boolean(keyFieldKeys && keyFieldKeys.length);
 
   const keyFields = useMemo(() => {
-    if (!hasKeySplit) return schema.fields;
-    return schema.fields.filter((f) => keySet.has(String(f.key).toLowerCase()));
-  }, [hasKeySplit, keySet, schema.fields]);
+    if (!hasKeySplit) return stableFields;
+    return stableFields.filter((f) => keySet.has(String(f.key).toLowerCase()));
+  }, [hasKeySplit, keySet, stableFields]);
 
   const otherFields = useMemo(() => {
     if (!hasKeySplit) return [] as FieldDefinition[];
-    return schema.fields.filter((f) => !keySet.has(String(f.key).toLowerCase()));
-  }, [hasKeySplit, keySet, schema.fields]);
+    return stableFields.filter((f) => !keySet.has(String(f.key).toLowerCase()));
+  }, [hasKeySplit, keySet, stableFields]);
 
   // Get options for a select field (static or dynamic)
   const getFieldOptions = (field: FieldDefinition): { value: string; label: string }[] => {
@@ -907,7 +949,7 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
   // When a field becomes hidden, clear its value to avoid submitting stale data.
   // This is critical for conditional fields like Plant.export_documents_handled.
   useEffect(() => {
-    for (const field of schema.fields) {
+    for (const field of stableFields) {
       if (!field.ui?.visible_when?.field) continue;
 
       if (isFieldVisible(field)) continue;
@@ -932,7 +974,7 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
         shouldValidate: true,
       });
     }
-  }, [schema.fields, setValue, watchedValues]);
+  }, [stableFields, setValue, watchedValues]);
 
   const renderField = (field: FieldDefinition) => {
     if (!isFieldVisible(field)) return null;
@@ -1227,7 +1269,7 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
         {schema.description && <FormDescription>{schema.description}</FormDescription>}
       </FormHeader>
 
-      {(hasKeySplit ? keyFields : schema.fields).map((field) => renderField(field))}
+      {(hasKeySplit ? keyFields : stableFields).map((field) => renderField(field))}
 
       {hasKeySplit && otherFields.length > 0 && showAllFieldsToggle && (
         <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8 }}>
