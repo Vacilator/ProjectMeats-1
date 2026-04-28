@@ -36,6 +36,7 @@ import { debounce } from 'lodash';
 import { showAlert } from '@/utils/uiDialogs';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { adminClient } from '../../services/apiService';
+import { workformsMetadataService } from '@/services/workformsMetadataService';
 import toast, { Toaster } from 'react-hot-toast'; // Phase 8.1
 import * as Sentry from '@sentry/react'; // Error tracking
 import { logger } from '../../utils/logger'; // Centralized logging
@@ -1993,6 +1994,19 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   }, []);
 
   const queryClient = useQueryClient();
+
+  // Backend-driven WorkForms node metadata (additive overlay; local schemas remain canonical for now).
+  const { data: workformsMetadata } = useQuery({
+    queryKey: ['system', 'workforms', 'metadata', 'v1'],
+    queryFn: () => workformsMetadataService.getMetadata('v1'),
+    staleTime: 5 * 60 * 1000,
+    retry: 1,
+  });
+
+  useEffect(() => {
+    if (!workformsMetadata) return;
+    schemaRegistry.setServerRegistry(workformsMetadata);
+  }, [workformsMetadata]);
   
   // Keep ref to current nodes for stable callbacks
   const nodesRef = useRef<Node[]>(nodes);
