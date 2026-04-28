@@ -63,6 +63,7 @@ import Claims from './pages/Accounting/Claims';
 import PayablePOs from './pages/Accounting/PayablePOs';
 import ReceivableSOs from './pages/Accounting/ReceivableSOs';
 import Invoices from './pages/Accounting/Invoices';
+import DealDesk from './pages/Deals/DealDesk';
 import Reports from './pages/Reports';
 import Login from './pages/Login';
 import SignUp from './pages/SignUp';
@@ -302,6 +303,7 @@ const App: React.FC = () => {
                 <Route path="purchase-orders/attachments" element={<ComingSoon title="Purchase Order Attachments" description="View and manage attachments for purchase orders." />} />
                 <Route path="sales-orders" element={<SalesOrders />} />
                 <Route path="sales-orders/attachments" element={<ComingSoon title="Sales Order Attachments" description="View and manage attachments for sales orders." />} />
+                <Route path="deals" element={<DealDesk />} />
                 
                 {/* Accounting */}
                 <Route path="accounts-receivables" element={<AccountsReceivables />} />

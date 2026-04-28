@@ -675,3 +675,4 @@ export interface CloneInquiryPayload {
 // ============================================================================
 
 export * from './workflows';
+export * from './deals';

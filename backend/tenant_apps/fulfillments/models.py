@@ -121,6 +121,21 @@ class Fulfillment(SoftDeleteModel, TenantAwareModel):
         default=list,
         help_text="Tracking numbers for this shipment"
     )
+
+    freight_cost = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=Decimal("0.00"),
+        help_text="Freight or carrier cost attributed to this load",
+    )
+    document_milestones = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text=(
+            "Document milestone flags such as proforma_requested, proforma_received, "
+            "bol_requested, bol_received, coa_received, and coa_sent."
+        ),
+    )
     
     # Notes
     notes = models.TextField(

@@ -1779,3 +1779,9 @@ Deliverables:
 - **2026-04-27** — WorkForms UI: a11y hardening — keyboard-operable Catalog/In Progress cards and accessible TemplateSelector modal (dialog semantics, Escape close, focus trap + restore focus) with automated tests. (PR: #4703)
 - **2026-04-28** — [COMPLETED] Hardened AI Swarm execution against tool-loop exhaustion and upgraded Microsoft Graph email search to support flexible folder/read/attachment querying with structured tool errors and regression coverage.
 - **2026-04-28** — [COMPLETED] Enhanced AI Chat Widget and Swarm ingestion pipeline to support CSV/XLS/XLSX tabular data parsing with markdown conversion, 500-row truncation safeguards, and upload validation for spreadsheet MIME types.
+
+### Phase 11: The Deal Desk (Trader Ledger Replacement)
+
+- **2026-04-28** — [COMPLETED] Unified Trade Abstraction: added tenant-safe `deals` APIs with `Deal` + `DealActionItem` models linking purchase orders, sales orders, and fulfillments while exposing live revenue/COGS/freight/net-margin calculations for trader dashboards.
+- **2026-04-28** — [COMPLETED] Document State Machine: extended fulfillments with `freight_cost` and `document_milestones`, then auto-created follow-up reminder items when a linked load transitions into shipped/in-transit status.
+- **2026-04-28** — [COMPLETED] Deal Desk Dashboard: added the `/deals` trader ledger page with spreadsheet-dense columns, next-action visibility, and past-due follow-up highlighting.
