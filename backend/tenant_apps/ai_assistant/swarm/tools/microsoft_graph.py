@@ -9,6 +9,7 @@ into stable, user-facing error payloads.
 
 from __future__ import annotations
 
+import mimetypes
 from dataclasses import dataclass
 from typing import Any
 
@@ -30,6 +31,7 @@ GRAPH_MAIL_SELECT_FIELDS = (
     'id,subject,from,toRecipients,ccRecipients,receivedDateTime,bodyPreview,'
     'hasAttachments,conversationId,isRead,webLink'
 )
+GRAPH_ATTACHMENT_SELECT_FIELDS = 'id,name,contentType,size'
 
 
 @dataclass(frozen=True)
@@ -184,6 +186,7 @@ def build_mail_request(
 
     params: dict[str, Any] = {
         '$select': GRAPH_MAIL_SELECT_FIELDS,
+        '$expand': f'attachments($select={GRAPH_ATTACHMENT_SELECT_FIELDS})',
         '$top': top,
     }
     headers: dict[str, str] = {}
@@ -247,6 +250,24 @@ def serialize_graph_message(message: dict[str, Any], *, folder: str) -> dict[str
         return recipients
 
     preview = str(message.get('bodyPreview') or '').strip()
+    attachments = message.get('attachments') or []
+    serialized_attachments: list[dict[str, Any]] = []
+    if isinstance(attachments, list):
+        for attachment in attachments[:20]:
+            if not isinstance(attachment, dict):
+                continue
+            attachment_id = str(attachment.get('id') or '').strip()
+            name = str(attachment.get('name') or '').strip()
+            if not attachment_id and not name:
+                continue
+            serialized_attachments.append(
+                {
+                    'attachment_id': attachment_id,
+                    'name': name,
+                    'content_type': str(attachment.get('contentType') or '').strip(),
+                    'size': attachment.get('size'),
+                }
+            )
 
     return {
         'id': message.get('id'),
@@ -264,4 +285,16 @@ def serialize_graph_message(message: dict[str, Any], *, folder: str) -> dict[str
         'preview': preview[:500],
         'web_link': message.get('webLink'),
         'conversation_id': message.get('conversationId'),
+        'attachments': serialized_attachments,
     }
+
+
+def infer_content_type(*, file_name: str | None, fallback: str | None = None) -> str:
+    guessed, _ = mimetypes.guess_type(str(file_name or '').strip())
+    fallback_type = str(fallback or '').split(';', 1)[0].strip()
+
+    if guessed:
+        return guessed
+    if fallback_type:
+        return fallback_type
+    return 'application/octet-stream'

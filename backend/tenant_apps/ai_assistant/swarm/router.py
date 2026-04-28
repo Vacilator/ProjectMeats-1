@@ -55,6 +55,7 @@ def build_swarm_system_prompt(
         "- get_entity_schema(entity_type) to discover required fields for record creation (same engine as the UI). "
         "- create_entity(entity_type, payload) to create tenant-scoped records. NEVER ask the user for tenant_id. "
         "- parse_document(file_id_or_url) to extract text from an uploaded AIDocument UUID (URL fetch disabled). "
+        "- ingest_email_attachment(message_id, attachment_id, file_name) to download a specific Outlook attachment into AIDocument storage before parsing it. "
         "- trigger_workform(workflow_id[, initial_data]) to run a TenantWorkForm end-to-end (creates an execution record). "
         "- draft_vendor_email(vendor_id, context[, vendor_type]) to stage an outbound email draft (human-in-the-loop send). "
         "- create_task(title, message[, entity_type, entity_id]) to create an in-app task notification for the current user. "
@@ -87,6 +88,12 @@ def build_swarm_system_prompt(
         "You can search both read and unread emails. "
         "When calling fetch_emails, you MUST map the user's request to the correct folder/is_read/has_attachments/search_query parameters. "
         "If the user asks for sent emails, set folder to 'sentitems'. "
+        "When the user asks you to parse or extract data from an email attachment, you MUST follow this order: "
+        "(1) call fetch_emails to find the target message, "
+        "(2) read the returned attachments array and pick the correct message_id + attachment_id + file_name, "
+        "(3) call ingest_email_attachment(message_id, attachment_id, file_name), "
+        "(4) pass the returned document_id into parse_document, "
+        "(5) continue with extraction or record creation from the parsed document. "
         "If a tool returns a structured error or loop warning, do NOT repeat the exact same tool call. "
         "Instead, simplify the query or ask the user for clarification."
     )
@@ -264,6 +271,7 @@ class SwarmOrchestrator:
         tenant: Any,
         user: Any = None,
         history: Optional[List[Dict[str, Any]]] = None,
+        session_id: str | None = None,
     ) -> Dict[str, Any]:
         """Run bounded tool loop and return final assistant response + trace.
 
@@ -340,7 +348,7 @@ class SwarmOrchestrator:
         outlook_connected = bool(provider and not outlook_expired)
 
         # Always allow safe internal tools; only advertise Outlook tools when connected.
-        email_tools = {'fetch_emails', 'check_unread_emails', 'draft_outlook_email'}
+        email_tools = {'fetch_emails', 'ingest_email_attachment', 'check_unread_emails', 'draft_outlook_email'}
         if outlook_connected:
             tools = DEFAULT_OPENAI_TOOLS
         else:
@@ -459,7 +467,7 @@ class SwarmOrchestrator:
                         max_rounds += 1
                         loop_warning_injected = True
                 else:
-                    result = executor.execute(tool_name, args, tenant, user)
+                    result = executor.execute(tool_name, args, tenant, user, session_id=session_id)
                     tool_signatures.append(signature)
 
                 messages.append(

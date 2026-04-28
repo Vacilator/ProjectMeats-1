@@ -249,6 +249,18 @@ def parse_document(file_id_or_url: str) -> Dict[str, Any]:
 
 
 @registry.register
+def ingest_email_attachment(message_id: str, attachment_id: str, file_name: str) -> Dict[str, Any]:
+    """Download an Outlook attachment into AIDocument storage for parsing."""
+
+    return {
+        "status": "available_via_chat",
+        "message_id": message_id,
+        "attachment_id": attachment_id,
+        "file_name": file_name,
+    }
+
+
+@registry.register
 def trigger_workform(workflow_id: str, initial_data: Dict[str, Any] | None = None) -> Dict[str, Any]:
     """Trigger a TenantWorkForm execution.
 
