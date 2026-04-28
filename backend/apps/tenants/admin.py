@@ -524,47 +524,49 @@ class TenantInvitationAdmin(TenantFilteredAdmin):
         
         if request.method == 'POST':
             form = InviteUserForm(request.POST)
+            selected_tenant_id = request.POST.get('tenant', '')
             if form.is_valid():
                 email = form.cleaned_data['email']
                 role = form.cleaned_data['role']
                 message = form.cleaned_data['message']
                 
-                # Get tenant from form or use default
-                tenant_id = request.POST.get('tenant')
+                tenant = None
+                tenant_id = selected_tenant_id
                 if tenant_id:
-                    tenant = Tenant.objects.get(id=tenant_id)
+                    tenant = tenants.filter(id=tenant_id).first()
+                    if tenant is None:
+                        form.add_error(None, "Please select a valid tenant.")
                 elif default_tenant:
                     tenant = default_tenant
                 else:
-                    messages.error(request, "Please select a tenant.")
-                    return redirect('.')
-                
-                # Create invitation
-                invitation = TenantInvitation.objects.create(
-                    tenant=tenant,
-                    email=email,
-                    role=role,
-                    invited_by=request.user,
-                    is_reusable=False,
-                    status='pending',
-                    message=message
-                )
-                
-                # Generate invite link
-                base_url = getattr(settings, 'FRONTEND_URL', 'https://meatscentral.com')
-                link = f"{base_url}/signup?token={invitation.token}"
-                
-                messages.success(
-                    request,
-                    format_html(
-                        '✅ Invitation sent to <strong>{}</strong> as <strong>{}</strong> for <strong>{}</strong><br>'
-                        'Invite link: <input type="text" value="{}" style="width: 100%; padding: 8px; margin-top: 8px;" readonly onclick="this.select();">',
-                        email, role, tenant.name, link
+                    form.add_error(None, "Please select a tenant.")
+
+                if tenant and not form.errors:
+                    invitation = TenantInvitation.objects.create(
+                        tenant=tenant,
+                        email=email,
+                        role=role,
+                        invited_by=request.user,
+                        is_reusable=False,
+                        status='pending',
+                        message=message
                     )
-                )
-                return redirect('..')
+
+                    base_url = getattr(settings, 'FRONTEND_URL', 'https://meatscentral.com')
+                    link = f"{base_url}/signup?token={invitation.token}"
+
+                    messages.success(
+                        request,
+                        format_html(
+                            '✅ Invitation sent to <strong>{}</strong> as <strong>{}</strong> for <strong>{}</strong><br>'
+                            'Invite link: <input type="text" value="{}" style="width: 100%; padding: 8px; margin-top: 8px;" readonly onclick="this.select();">',
+                            email, role, tenant.name, link
+                        )
+                    )
+                    return redirect('..')
         else:
             form = InviteUserForm()
+            selected_tenant_id = str(default_tenant.id) if default_tenant else ''
         
         context = {
             'title': '🚀 Invite New User',
@@ -576,6 +578,7 @@ class TenantInvitationAdmin(TenantFilteredAdmin):
             'tenants': tenants,
             'default_tenant': default_tenant,
             'is_superuser': request.user.is_superuser,
+            'selected_tenant_id': selected_tenant_id,
         }
         
         return render(request, 'admin/tenants/invite_user.html', context)
