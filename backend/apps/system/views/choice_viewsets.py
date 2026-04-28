@@ -8,10 +8,13 @@ Provides DRF ViewSets for:
 - TenantConfig (tenant admins can manage their configs)
 - ConfigAuditLog (read-only audit trail)
 """
-from rest_framework import viewsets, permissions, status
+from django.core.exceptions import ObjectDoesNotExist
+from django.http import Http404
+from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
+from rest_framework.views import APIView
 from django.db.models import Q
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.filters import SearchFilter, OrderingFilter
@@ -52,6 +55,48 @@ def _get_client_ip(request):
     if x_forwarded_for:
         return x_forwarded_for.split(',')[0].strip()
     return request.META.get('REMOTE_ADDR')
+
+
+CHOICE_LIST_ALIASES = {
+    'protein_type': ('protein_types', 'protein_type'),
+    'protein_types': ('protein_types', 'protein_type'),
+}
+
+
+def _normalize_choice_list_slug(raw_slug):
+    return str(raw_slug or '').strip().lower().replace('-', '_')
+
+
+def _iter_choice_list_slugs(raw_slug):
+    normalized = _normalize_choice_list_slug(raw_slug)
+    if not normalized:
+        return []
+
+    candidates = CHOICE_LIST_ALIASES.get(normalized, (normalized,))
+    seen = set()
+    ordered = []
+
+    for candidate in candidates:
+        normalized_candidate = _normalize_choice_list_slug(candidate)
+        if not normalized_candidate or normalized_candidate in seen:
+            continue
+        ordered.append(normalized_candidate)
+        seen.add(normalized_candidate)
+
+    return ordered
+
+
+def _resolve_choices_for_slug(resolver, raw_slug):
+    for candidate in _iter_choice_list_slugs(raw_slug):
+        try:
+            choices = resolver.get_choices(candidate)
+        except (ObjectDoesNotExist, Http404):
+            continue
+
+        if choices:
+            return choices
+
+    return []
 
 
 class SystemChoiceItemsPagination(PageNumberPagination):
@@ -748,15 +793,7 @@ class ConfigResolverView(viewsets.ViewSet):
         """Get choice items for a dropdown field."""
         tenant = getattr(request, 'tenant', None)
         resolver = ConfigResolver(tenant=tenant)
-        
-        try:
-            choices = resolver.get_choices(slug)
-            return Response(choices)
-        except Exception as e:
-            return Response(
-                {'error': str(e)},
-                status=status.HTTP_404_NOT_FOUND
-            )
+        return Response(_resolve_choices_for_slug(resolver, slug))
     
     @action(detail=False, methods=['get'], url_path='field-schema/(?P<field_path>.+)')
     def field_schema(self, request, field_path=None):
@@ -946,3 +983,31 @@ class EntityIntrospectionViewSet(viewsets.ViewSet):
             'entity_id': pk,
             'display_fields': display_fields
         })
+
+
+class SystemChoicesAPIView(APIView):
+    """
+    Canonical system choice-list endpoint used by schema-driven forms.
+
+    This endpoint never returns 404 for a missing or unseeded list. A missing list
+    degrades to an empty array so frontend callers can safely cache the result
+    without triggering retry/error loops.
+    """
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        list_slug = (
+            request.query_params.get('list')
+            or request.query_params.get('slug')
+            or request.query_params.get('choice_type')
+        )
+        if not list_slug:
+            return Response(
+                {'error': 'list parameter required'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        tenant = getattr(request, 'tenant', None)
+        resolver = ConfigResolver(tenant=tenant)
+        return Response(_resolve_choices_for_slug(resolver, list_slug), status=status.HTTP_200_OK)
