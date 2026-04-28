@@ -143,6 +143,7 @@ This file is the **append-only PR-referenceable execution log**.
 - **2026-04-28** — WorkForms runtime: add tenant-scoped execution telemetry (`ExecutionEventLog`) with RLS, persist normalized audit-trail events for executions/node spans/action outcomes, and add backend regression coverage for successful and failed action events. (PR: #4723)
 - **2026-04-28** — WorkForms runtime: hydrate a persisted `runtime_state` snapshot on `TenantWorkFormExecution` from the telemetry stream so list/detail serializers can serve current node, node statuses, and errors without reparsing raw audit trails; retain fallback for legacy rows. (PR: #4724)
 - **2026-04-28** — WorkForms monitoring: add a tenant-safe execution analytics endpoint and upgrade the Monitoring page with telemetry-backed KPIs, top failed steps, slowest actions, and busiest WorkForms. (PR: #4725)
+- **2026-04-28** — WorkForms maintenance: add `python manage.py upgrade_workform_schema` as a dry-run-first schema upgrade command that normalizes legacy node aliases, stamps `schemaVersion`, backfills `tenantFormId` from legacy `formId`, refreshes `form_references`, and remains idempotent under targeted backend tests. (PR: TBD)
 
 ### 2026-03-31 — Secret audit drift (manifest v5.1)
 - Command: `python config/manage_env.py audit --repo Meats-Central/ProjectMeats`
