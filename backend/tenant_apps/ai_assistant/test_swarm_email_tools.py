@@ -6,12 +6,14 @@ from unittest.mock import Mock, patch
 
 import requests
 from django.contrib.auth import get_user_model
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import SimpleTestCase, TestCase, override_settings
 from django.utils import timezone
 
 from apps.integrations.models import ExternalAuthProvider
 from apps.tenants.models import Tenant, TenantUser
 from tenant_apps.ai_assistant.models import ChatSession, MessageTypeChoices
+from tenant_apps.ai_assistant.serializers import AIDocumentSerializer
 from tenant_apps.ai_assistant.swarm.executor import ToolExecutor
 from tenant_apps.ai_assistant.swarm.router import (
     SwarmOrchestrator,
@@ -312,6 +314,7 @@ class ToolExecutorEmailToolTests(TestCase):
         self.assertEqual(payload['error']['hint'], 'Try simplifying your search terms.')
 
     @patch('tenant_apps.ai_assistant.swarm.executor.set_current_tenant', return_value=SimpleNamespace(ok=True, error=None))
+    @patch('tenant_apps.integrations.services.email_ingestion.EmailIngestionService._get_existing_attachment_document', return_value=None)
     @patch('tenant_apps.ai_assistant.models.ChatMessage.objects.create')
     @patch('tenant_apps.ai_assistant.models.AIDocument.objects.create')
     @patch('apps.integrations.providers.MicrosoftGraphProvider')
@@ -322,6 +325,7 @@ class ToolExecutorEmailToolTests(TestCase):
         mock_graph_provider,
         mock_aidocument_create,
         mock_chat_message_create,
+        _mock_get_existing_document,
         _mock_rls,
     ):
         session = ChatSession.objects.create(
@@ -404,6 +408,61 @@ class ToolExecutorEmailToolTests(TestCase):
         self.assertTrue(mock_get.call_args_list[1].kwargs['stream'])
 
     @patch('tenant_apps.ai_assistant.swarm.executor.set_current_tenant', return_value=SimpleNamespace(ok=True, error=None))
+    @patch('tenant_apps.integrations.services.email_ingestion.EmailIngestionService._get_existing_attachment_document')
+    @patch('tenant_apps.ai_assistant.models.AIDocument.objects.create')
+    @patch('requests.get')
+    def test_execute_returns_cached_document_for_duplicate_ingest_in_same_session(
+        self,
+        mock_get,
+        mock_aidocument_create,
+        mock_get_existing_document,
+        _mock_rls,
+    ):
+        session = ChatSession.objects.create(
+            title='Attachment thread',
+            context_data={'tenant_id': str(self.tenant.id)},
+            owner=self.user,
+            created_by=self.user,
+            modified_by=self.user,
+        )
+        existing_document = SimpleNamespace(
+            id=uuid.uuid4(),
+            original_filename='invoice.pdf',
+            content_type='application/pdf',
+            file_size=2048,
+            session_id=session.id,
+            custom_data={
+                'source': 'microsoft_graph_attachment',
+                'message_id': 'msg-123',
+                'attachment_id': 'att-456',
+                'ingested_at': '2026-04-28T21:00:00Z',
+            },
+        )
+        mock_get_existing_document.return_value = existing_document
+
+        payload = json.loads(
+            ToolExecutor().execute(
+                'ingest_email_attachment',
+                {
+                    'message_id': 'msg-123',
+                    'attachment_id': 'att-456',
+                    'file_name': 'invoice.pdf',
+                },
+                self.tenant,
+                self.user,
+                session_id=str(session.id),
+            )
+        )
+
+        self.assertTrue(payload['ok'])
+        self.assertEqual(payload['data']['status'], 'already_ingested')
+        self.assertTrue(payload['data']['cache_hit'])
+        self.assertEqual(payload['data']['document_id'], str(existing_document.id))
+        mock_get.assert_not_called()
+        mock_aidocument_create.assert_not_called()
+
+    @patch('tenant_apps.ai_assistant.swarm.executor.set_current_tenant', return_value=SimpleNamespace(ok=True, error=None))
+    @patch('tenant_apps.integrations.services.email_ingestion.EmailIngestionService._get_existing_attachment_document', return_value=None)
     @patch('tenant_apps.ai_assistant.models.AIDocument.objects.create')
     @patch('apps.integrations.providers.MicrosoftGraphProvider')
     @patch('requests.get')
@@ -412,6 +471,7 @@ class ToolExecutorEmailToolTests(TestCase):
         mock_get,
         mock_graph_provider,
         mock_aidocument_create,
+        _mock_get_existing_document,
         _mock_rls,
     ):
         session = ChatSession.objects.create(
@@ -454,6 +514,7 @@ class ToolExecutorEmailToolTests(TestCase):
         mock_aidocument_create.assert_not_called()
 
     @patch('tenant_apps.ai_assistant.swarm.executor.set_current_tenant', return_value=SimpleNamespace(ok=True, error=None))
+    @patch('tenant_apps.integrations.services.email_ingestion.EmailIngestionService._get_existing_attachment_document', return_value=None)
     @patch('tenant_apps.ai_assistant.models.AIDocument.objects.create')
     @patch('apps.integrations.providers.MicrosoftGraphProvider')
     @patch('requests.get')
@@ -462,6 +523,7 @@ class ToolExecutorEmailToolTests(TestCase):
         mock_get,
         mock_graph_provider,
         mock_aidocument_create,
+        _mock_get_existing_document,
         _mock_rls,
     ):
         session = ChatSession.objects.create(
@@ -612,3 +674,89 @@ class SwarmRouterLoopDetectionTests(TestCase):
                 for message in result['messages']
             )
         )
+
+
+class AIDocumentAuditSurfaceTests(TestCase):
+    def test_serializer_exposes_source_metadata_from_custom_data(self):
+        from tenant_apps.ai_assistant.models import AIDocument
+
+        document = AIDocument(
+            original_filename='invoice.pdf',
+            content_type='application/pdf',
+            custom_data={
+                'source': 'microsoft_graph_attachment',
+                'message_id': 'msg-123',
+                'attachment_id': 'att-456',
+                'ingested_at': '2026-04-28T21:00:00Z',
+                'graph_name': 'invoice.pdf',
+                'graph_content_type': 'application/pdf',
+            },
+        )
+
+        payload = AIDocumentSerializer(instance=document).data
+
+        self.assertEqual(payload['source_metadata']['source'], 'microsoft_graph_attachment')
+        self.assertEqual(payload['source_metadata']['message_id'], 'msg-123')
+        self.assertEqual(payload['source_metadata']['attachment_id'], 'att-456')
+
+    @patch('tenant_apps.ai_assistant.views.AIDocument.objects.all')
+    def test_viewset_filters_documents_by_source_and_session(self, mock_all):
+        from tenant_apps.ai_assistant.views import AIDocumentViewSet
+
+        queryset = Mock()
+        queryset.select_related.return_value = queryset
+        queryset.filter.return_value = queryset
+        mock_all.return_value = queryset
+
+        session_id = uuid.uuid4()
+        tenant = SimpleNamespace(id=uuid.uuid4())
+        user = SimpleNamespace(id=123)
+
+        view = AIDocumentViewSet()
+        view.request = SimpleNamespace(
+            tenant=tenant,
+            user=user,
+            query_params={
+                'source': 'microsoft_graph_attachment',
+                'session': str(session_id),
+            },
+        )
+
+        result = view.get_queryset()
+
+        self.assertIs(result, queryset)
+        queryset.filter.assert_any_call(owner=user)
+        queryset.filter.assert_any_call(tenant=tenant)
+        queryset.filter.assert_any_call(custom_data__source='microsoft_graph_attachment')
+        queryset.filter.assert_any_call(session_id=session_id)
+
+    @patch('apps.tenants.rls.set_current_tenant', return_value=SimpleNamespace(ok=True, error=None))
+    def test_perform_create_tags_manual_upload_source_metadata(self, _mock_rls):
+        from tenant_apps.ai_assistant.views import AIDocumentViewSet
+
+        user = SimpleNamespace(id=123)
+        tenant = SimpleNamespace(id=uuid.uuid4())
+        upload = SimpleUploadedFile('manual.pdf', b'%PDF-1.4', content_type='application/pdf')
+        serializer = Mock()
+        serializer.save.return_value = SimpleNamespace(
+            id=uuid.uuid4(),
+            session_id=None,
+            custom_data={'source': 'manual_upload'},
+            original_filename='manual.pdf',
+            file=SimpleNamespace(url=''),
+            content_type='application/pdf',
+            file_size=8,
+        )
+
+        view = AIDocumentViewSet()
+        view.request = SimpleNamespace(
+            tenant=tenant,
+            user=user,
+            FILES={'file': upload},
+        )
+
+        view.perform_create(serializer)
+
+        save_kwargs = serializer.save.call_args.kwargs
+        self.assertEqual(save_kwargs['custom_data']['source'], 'manual_upload')
+        self.assertIn('uploaded_at', save_kwargs['custom_data'])

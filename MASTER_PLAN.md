@@ -47,7 +47,7 @@ This file is the **canonical plan + current truth snapshot**.
   - Manifest-driven required-secret enforcement per lane (remove hardcoded lists).
   - Docs drift prevention: "CURRENT" docs must not recommend forbidden Golden patterns (runner-driven migrations only).
 - **Mobile parity**: ✅ shipped foundations (PRs #4658/#4659). Next: switch-tenant persistence, consistent error normalization, and auth expiry/401 behavior parity.
-- **AI email/document hardening**: reject non-file Microsoft Graph attachments (`itemAttachment`, `referenceAttachment`) before download, preflight attachment metadata/size for `ingest_email_attachment`, and keep structured tool failures deterministic for the email → AIDocument → parse flow.
+- **AI email/document hardening**: keep the Graph email → `AIDocument` → parse flow fail-closed, session-idempotent, and auditable by persisting attachment provenance in existing `AIDocument.custom_data`, deduplicating repeated ingests within a session, and exposing source-aware document filtering to operators.
 
 ### Squad deep dive plan (as of 2026-04-27)
 
