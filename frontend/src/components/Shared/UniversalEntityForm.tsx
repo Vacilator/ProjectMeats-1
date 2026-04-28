@@ -14,6 +14,7 @@
  */
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { useAuthState } from '@/contexts/AuthContext';
 import { Button, Modal, Spin, message, Select, Skeleton } from 'antd';
 import { isEqual } from 'lodash';
@@ -906,26 +907,18 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
     [stableInitialValues]
   );
 
-  const [loading, setLoading] = useState(false);
-  const [loadError, setLoadError] = useState<unknown | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const [schema, setSchema] = useState<BackendSchema | null>(null);
-  const [recordValues, setRecordValues] = useState<Record<string, unknown> | null>(null);
-
-  const initialValuesRef = useRef<Record<string, unknown> | undefined>(stableInitialValues);
-  const [resolvedInitialValues, setResolvedInitialValues] = useState<Record<string, unknown>>({});
-  const lastLoadSignatureRef = useRef<string | null>(null);
   const lastFkSignatureRef = useRef<string | null>(null);
-
-  useEffect(() => {
-    if (!isOpen) return;
-    initialValuesRef.current = stableInitialValues;
-  }, [isOpen, stableInitialValues]);
+  const lastLoadErrorSignatureRef = useRef<string | null>(null);
+  const initialSnapshot = useMemo(
+    () => ((stableInitialValues ?? EMPTY_FORM_VALUES) as Record<string, unknown>),
+    [stableInitialValues]
+  );
 
   useEffect(() => {
     if (!isOpen) {
-      lastLoadSignatureRef.current = null;
       lastFkSignatureRef.current = null;
+      lastLoadErrorSignatureRef.current = null;
     }
   }, [isOpen]);
 
@@ -955,22 +948,9 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
 
   const schemaEntityKey = useMemo(() => normalizeEntityKey(entityType), [entityType]);
   const endpoint = useMemo(() => normalizeEntityEndpoint(entityType), [entityType]);
-  const stableResolvedInitialValues = useDeepStableValue(resolvedInitialValues);
 
   const getSelectPopupContainer = useCallback((triggerNode: HTMLElement) => {
     return getDefaultSelectPopupContainer(triggerNode);
-  }, []);
-
-  const setSchemaIfChanged = useCallback((next: BackendSchema | null) => {
-    setSchema((prev) => (isEqual(prev, next) ? prev : next));
-  }, []);
-
-  const setRecordValuesIfChanged = useCallback((next: Record<string, unknown> | null) => {
-    setRecordValues((prev) => (isEqual(prev, next) ? prev : next));
-  }, []);
-
-  const setResolvedInitialValuesIfChanged = useCallback((next: Record<string, unknown>) => {
-    setResolvedInitialValues((prev) => (isEqual(prev, next) ? prev : next));
   }, []);
 
   const setFkValuesIfChanged = useCallback((next: Record<string, unknown>) => {
@@ -1052,127 +1032,100 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
     [endpoint, entityId, inferredMode, schemaEntityKey, stableInitialValuesSignature]
   );
 
+  const formLoadQuery = useQuery({
+    queryKey: ['universal-entity-form', loadSignature],
+    enabled: isOpen && !authLoading && isAuthenticated,
+    retry: (failureCount, error) => {
+      const status = (error as any)?.response?.status;
+      if (status === 401 || status === 403) return false;
+      return failureCount < 1;
+    },
+    refetchOnWindowFocus: false,
+    queryFn: async () => {
+      const nextSchema = await loadSchema();
+
+      const shouldLoadRecord =
+        inferredMode !== 'create' && entityId != null && String(entityId).trim().length > 0;
+
+      let nextRecord: Record<string, unknown> | null = null;
+      if (shouldLoadRecord) {
+        const resp = await businessApi.get(`${endpoint}${entityId}/`);
+        const data = resp.data as unknown;
+        nextRecord = data && typeof data === 'object' ? (data as Record<string, unknown>) : null;
+      }
+
+      const merged: Record<string, unknown> = { ...(nextRecord || {}), ...initialSnapshot };
+      const sanitized = sanitizeInitialValuesForSchema(nextSchema, merged);
+
+      return {
+        schema: augmentSchemaForFrontend(schemaEntityKey, nextSchema, sanitized),
+        resolvedInitialValues: sanitized,
+      };
+    },
+  });
+
   useEffect(() => {
     if (!isOpen) return;
-
-    setLoadError(null);
     setShowAdvanced(false);
     setActiveMode(inferredMode);
-    setRecordValuesIfChanged(null);
-
-    const initialSnapshot = (initialValuesRef.current || EMPTY_FORM_VALUES) as Record<string, unknown>;
-    setResolvedInitialValuesIfChanged(initialSnapshot);
     setFkValuesIfChanged(initialSnapshot);
+  }, [inferredMode, initialSnapshot, isOpen, setFkValuesIfChanged]);
 
-    // Wait for auth initialization to settle before attempting any protected calls.
-    if (authLoading) {
-      setLoading(true);
-      return;
-    }
+  useEffect(() => {
+    if (!isOpen || authLoading || isAuthenticated) return;
 
-    // If no token credentials exist, do NOT attempt network calls. This prevents
-    // a 401→state update→re-render→retry loop that can trigger React error #185.
-    if (!isAuthenticated) {
-      setSchemaIfChanged(null);
-      setRecordValuesIfChanged(null);
-      setLoading(false);
-      setLoadError({ response: { status: 401 } });
+    // Best-effort redirect matching the global interceptor behavior.
+    if (typeof window !== 'undefined') {
+      const currentPath = `${window.location.pathname}${window.location.search}`;
+      if (!currentPath.startsWith('/login')) {
+        try {
+          localStorage.setItem('redirectAfterLogin', currentPath);
+        } catch {
+          // best-effort
+        }
 
-      // Best-effort redirect matching the global interceptor behavior.
-      if (typeof window !== 'undefined') {
-        const currentPath = `${window.location.pathname}${window.location.search}`;
-        if (!currentPath.startsWith('/login')) {
-          try {
-            localStorage.setItem('redirectAfterLogin', currentPath);
-          } catch {
-            // best-effort
-          }
-
-          try {
-            window.location.assign('/login');
-          } catch {
-            // JSDOM/tests may throw on navigation.
-          }
+        try {
+          window.location.assign('/login');
+        } catch {
+          // JSDOM/tests may throw on navigation.
         }
       }
+    }
+  }, [authLoading, isAuthenticated, isOpen]);
 
+  useEffect(() => {
+    if (!isOpen || !formLoadQuery.data?.resolvedInitialValues) return;
+    setFkValuesIfChanged(formLoadQuery.data.resolvedInitialValues);
+  }, [formLoadQuery.data?.resolvedInitialValues, isOpen, setFkValuesIfChanged]);
+
+  useEffect(() => {
+    if (!isOpen || !formLoadQuery.error) return;
+
+    const status = (formLoadQuery.error as any)?.response?.status;
+    const errorMessage =
+      typeof (formLoadQuery.error as { response?: { data?: { error?: string } } })?.response?.data
+        ?.error === 'string'
+        ? (formLoadQuery.error as { response?: { data?: { error?: string } } }).response?.data?.error
+        : 'Failed to load form';
+    const errorSignature = `${status ?? 'unknown'}:${errorMessage}`;
+
+    if (lastLoadErrorSignatureRef.current === errorSignature) {
       return;
     }
+    lastLoadErrorSignatureRef.current = errorSignature;
 
-    if (lastLoadSignatureRef.current === loadSignature) {
-      return;
+    if (status !== 401 && status !== 403) {
+      message.error(errorMessage);
     }
+  }, [formLoadQuery.error, isOpen]);
 
-    lastLoadSignatureRef.current = loadSignature;
-
-    let mounted = true;
-
-    const load = async () => {
-      setLoading(true);
-      try {
-        const nextSchema = await loadSchema();
-
-        const shouldLoadRecord =
-          inferredMode !== 'create' && entityId != null && String(entityId).trim().length > 0;
-
-        let nextRecord: Record<string, unknown> | null = null;
-        if (shouldLoadRecord) {
-          const resp = await businessApi.get(`${endpoint}${entityId}/`);
-          const data = resp.data as unknown;
-          nextRecord = data && typeof data === 'object' ? (data as Record<string, unknown>) : null;
-        }
-
-        if (!mounted) return;
-        const merged: Record<string, unknown> = { ...(nextRecord || {}), ...initialSnapshot };
-        const sanitized = sanitizeInitialValuesForSchema(nextSchema, merged);
-        setSchemaIfChanged(augmentSchemaForFrontend(schemaEntityKey, nextSchema, sanitized));
-        setRecordValuesIfChanged(nextRecord);
-        setResolvedInitialValuesIfChanged(sanitized);
-        setFkValuesIfChanged(sanitized);
-      } catch (err: unknown) {
-        if (!mounted) return;
-        setLoadError(err);
-        setSchemaIfChanged(null);
-        setRecordValuesIfChanged(null);
-        setResolvedInitialValuesIfChanged(initialSnapshot);
-        setFkValuesIfChanged(initialSnapshot);
-
-        const status = (err as any)?.response?.status;
-        const errorMessage =
-          typeof (err as { response?: { data?: { error?: string } } })?.response?.data?.error ===
-          'string'
-            ? (err as { response?: { data?: { error?: string } } }).response?.data?.error
-            : 'Failed to load form';
-
-        // Avoid toast spam for auth failures; the global interceptor will redirect.
-        if (status !== 401 && status !== 403) {
-          message.error(errorMessage);
-        }
-      } finally {
-        if (mounted) setLoading(false);
-      }
-    };
-
-    void load();
-
-    return () => {
-      mounted = false;
-    };
-  }, [
-    authLoading,
-    endpoint,
-    entityId,
-    inferredMode,
-    isAuthenticated,
-    isOpen,
-    loadSignature,
-    loadSchema,
-    schemaEntityKey,
-    setFkValuesIfChanged,
-    setRecordValuesIfChanged,
-    setResolvedInitialValuesIfChanged,
-    setSchemaIfChanged,
-  ]);
+  const schema = formLoadQuery.data?.schema ?? null;
+  const loadError = !authLoading && !isAuthenticated
+    ? { response: { status: 401 } }
+    : formLoadQuery.error ?? null;
+  const loading = authLoading || (isOpen && isAuthenticated && formLoadQuery.isPending);
+  const resolvedInitialValues = formLoadQuery.data?.resolvedInitialValues ?? initialSnapshot;
+  const stableResolvedInitialValues = useDeepStableValue(resolvedInitialValues);
 
   const fkLoadSignature = useMemo(() => {
     const fkFields = (schema?.fields ?? [])

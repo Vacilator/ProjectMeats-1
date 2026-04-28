@@ -4,7 +4,8 @@
  * Handles dependent field filtering based on parent field selections.
  * Example: Selecting "Beef" in protein type automatically filters product cuts to beef-only.
  */
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { businessApi } from '@/services/businessApi';
 import { EMPTY_CHOICES } from '@/services/choiceConstants';
 
@@ -82,12 +83,6 @@ export const useCascadingField = ({
   enabled?: boolean;
   fetchOptions?: (parentValue: any) => Promise<CascadingFieldOption[]>;
 }) => {
-  const [options, setOptions] = useState<CascadingFieldOption[]>(
-    () => EMPTY_CHOICES as CascadingFieldOption[]
-  );
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
   const parentSignature = useMemo(() => {
     if (Array.isArray(parentValue)) {
       return parentValue
@@ -114,56 +109,47 @@ export const useCascadingField = ({
     ? normalizedParentValue.length > 0
     : Boolean(normalizedParentValue);
 
-  const fetchOptions = useCallback(async () => {
-    if (!enabled || !hasParentValue || !fieldId) {
-      setError(null);
-      setLoading(false);
-      setOptions((prev) => (prev.length ? (EMPTY_CHOICES as CascadingFieldOption[]) : prev));
-      return;
-    }
+  const queryEnabled = enabled && hasParentValue && Boolean(fieldId);
 
-    setLoading(true);
-    setError(null);
-
-    try {
+  const query = useQuery<CascadingFieldOption[]>({
+    queryKey: ['cascading-field-options', fieldId, parentSignature],
+    enabled: queryEnabled,
+    staleTime: Infinity,
+    gcTime: 30 * 60 * 1000,
+    queryFn: async () => {
       if (customFetchOptions) {
         const nextOptions = await customFetchOptions(normalizedParentValue);
-        setOptions(
-          Array.isArray(nextOptions) && nextOptions.length > 0
-            ? nextOptions
-            : (EMPTY_CHOICES as CascadingFieldOption[])
-        );
-        return;
+        return Array.isArray(nextOptions) && nextOptions.length > 0
+          ? nextOptions
+          : (EMPTY_CHOICES as CascadingFieldOption[]);
       }
 
       const response = await businessApi.get(`/form-fields/${fieldId}/cascade-options/`, {
         params: { parent_value: normalizedParentValue },
       });
 
-      setOptions(
-        Array.isArray(response.data) && response.data.length > 0
-          ? response.data
-          : (EMPTY_CHOICES as CascadingFieldOption[])
-      );
-    } catch (err: any) {
-      const errorMsg = err.response?.data?.error || 'Failed to fetch cascaded options';
-      setError(errorMsg);
-      console.error('[useCascadingField] Error fetching options:', err);
-      setOptions((prev) => (prev.length ? (EMPTY_CHOICES as CascadingFieldOption[]) : prev));
-    } finally {
-      setLoading(false);
-    }
-  }, [customFetchOptions, enabled, fieldId, hasParentValue, normalizedParentValue]);
+      return Array.isArray(response.data) && response.data.length > 0
+        ? response.data
+        : (EMPTY_CHOICES as CascadingFieldOption[]);
+    },
+  });
 
-  useEffect(() => {
-    void fetchOptions();
-  }, [fetchOptions]);
+  const errorMessage = query.error
+    ? ((query.error as any)?.response?.data?.error as string | undefined) ||
+      'Failed to fetch cascaded options'
+    : null;
+
+  const refresh = useCallback(() => {
+    void query.refetch();
+  }, [query]);
 
   return {
-    options,
-    loading,
-    error,
-    refresh: fetchOptions,
+    options: queryEnabled
+      ? query.data ?? (EMPTY_CHOICES as CascadingFieldOption[])
+      : (EMPTY_CHOICES as CascadingFieldOption[]),
+    loading: query.isFetching,
+    error: queryEnabled ? errorMessage : null,
+    refresh,
   };
 };
 

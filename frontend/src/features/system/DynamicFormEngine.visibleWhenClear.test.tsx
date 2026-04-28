@@ -1,4 +1,5 @@
 import React from 'react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -9,12 +10,24 @@ vi.mock('../../services/configService', () => ({
   resolveConfig: vi.fn(async (_key: string, fallback: unknown) => ({ value: fallback })),
 }));
 
+const renderWithQueryClient = (ui: React.ReactElement) => {
+  const client = new QueryClient({
+    defaultOptions: {
+      queries: {
+        retry: false,
+      },
+    },
+  });
+
+  return render(<QueryClientProvider client={client}>{ui}</QueryClientProvider>);
+};
+
 describe('DynamicFormEngine visible_when', () => {
   it('clears hidden field values when visible_when becomes false', async () => {
     const user = userEvent.setup();
     const onSubmit = vi.fn();
 
-    render(
+    renderWithQueryClient(
       <DynamicFormEngine
         schema={{
           step_index: 0,
