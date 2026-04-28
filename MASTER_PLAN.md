@@ -1,7 +1,7 @@
 # MASTER_PLAN.md (Canonical)
 
 **Status**: 🔄 Living document (canonical source of truth)  
-**Last Updated**: 2026-04-27  
+**Last Updated**: 2026-04-28  
 **Primary Focus**: Phase 10 (DRY/Canonical Architecture Standardization) - Industry-leader compliance  
 
 This file is the **canonical plan + current truth snapshot**.
@@ -10,7 +10,7 @@ This file is the **canonical plan + current truth snapshot**.
 
 ---
 
-## Current Execution Snapshot (as of 2026-04-27)
+## Current Execution Snapshot (as of 2026-04-28)
 
 ### What is true right now
 - **WorkForms E2E** is shipped end-to-end (execute + monitoring + notifications + Quick Actions + Gmail connector MVP).
@@ -20,6 +20,7 @@ This file is the **canonical plan + current truth snapshot**.
   - Frontend standards: expand `lint:colors` + remove remaining hardcoded colors in MyTasks surfaces (PR #4650); replace high-churn `console.*` with `logger.*` (PR #4654).
   - Backend tenant safety: fail-closed `current/current_theme/admin_permissions` when tenant context is missing/ambiguous (PR #4656); wrap tenant-scoped Celery ORM in `tenant_rls(..., strict=False)` (PR #4657).
   - Mobile: device-safe API base URL + tests (PR #4658); switch builds to EAS (PR #4659).
+  - WorkForms editor hot-path stability: derive validation/history/autosave from graph state (PR #32), move node actions out of `nodesWithHandlers` cloning and into editor context (PR #4720), and keep config-panel shadow edits local until Apply/Discard instead of rewriting the full node array on every keystroke (PR #4721).
 
 ### P0 priorities (next)
 - **Core API reliability**: ✅ shipped (PR #4652). Next: expand smoke coverage for always-on endpoints (health, tenant resolution, auth bootstrap) and keep them in PR gates.
@@ -36,8 +37,8 @@ This file is the **canonical plan + current truth snapshot**.
   - Workflow webhook receiver must set `request.tenant` + `set_current_tenant()` **before** ORM lookup (FORCE RLS correctness).
   - Legacy workflow webhook endpoint must fail closed unless tenant context is resolvable (migrate callers to tenant-path URL).
   - Integrations OAuth callback must set tenant + RLS session vars before writing tenant-scoped rows.
-  - WorkForms create must not bypass activation validation when `status=active`.
-- **WorkForms Editor stability**: deterministic schema init (no timer races), resolve form "fields" model mismatch, sanitize UI-only shadow state on save; continue hardening remaining a11y + theme-token usage as needed.
+  - WorkForms create must not bypass activation validation when `status=active`. ✅ shipped (runtime validation guardrails in PR #4483; verified by `apps.system.tests.test_workform_runtime_support_validation`).
+- **WorkForms Editor stability**: validation/history/autosave, node action routing, and local shadow-state staging are now hardened. Continue deterministic schema init / form "fields" model cleanup and any remaining a11y + theme-token hardening.
 - **CI guardrails (never-miss-again)**:
   - Deploy-by-digest default for UAT/Prod and digest-align the migration artifact.
   - Manifest-driven required-secret enforcement per lane (remove hardcoded lists).
@@ -82,9 +83,9 @@ This is a prioritized, PR-sized execution plan synthesized from squad deep dives
    - Remove `react-hooks/exhaustive-deps` suppression in `frontend/src/pages/WorkForms/Execute.tsx` without changing runtime behavior.
    - Acceptance: lint clean for touched files; behavior unchanged for Execute.
 
-6) **WorkForms Editor stability: deterministic schema init + save sanitation**
-   - Deterministic schema/registry initialization (remove timer races).
-   - Sanitize persistence to strip UI-only shadow state (record-mode/key-value drafts, etc.).
+6) **WorkForms Editor stability: finish remaining schema-init/model cleanup**
+   - Keep the shipped graph-derived validation/history/autosave + local shadow-state staging intact.
+   - Finish deterministic schema/registry initialization (remove timer races) and resolve the remaining form "fields" model mismatch.
    - Acceptance: no intermittent empty config panel on first click; saved workflow JSON contains only supported node payload shapes.
 
 7) **Backend tenant ambiguity hardening (medium risk — stage carefully)**
