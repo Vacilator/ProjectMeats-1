@@ -22,6 +22,7 @@ from tenant_apps.ai_assistant.swarm.tools.microsoft_graph import (
     infer_content_type,
     post_filter_messages,
     serialize_graph_message,
+    validate_graph_attachment_metadata,
 )
 
 logger = logging.getLogger(__name__)
@@ -732,26 +733,53 @@ class EmailIngestionService:
                 raise ValueError('Session is not valid for this tenant')
 
         graph_provider = MicrosoftGraphProvider(self.tenant.id)
+        metadata_url = (
+            f"{graph_provider.GRAPH_API_BASE}/me/messages/{message_id}/attachments/{attachment_id}"
+        )
         url = (
             f"{graph_provider.GRAPH_API_BASE}/me/messages/{message_id}/attachments/"
             f"{attachment_id}/$value"
         )
+        metadata_headers = {
+            'Authorization': f'Bearer {access_token}',
+            'Accept': 'application/json',
+        }
         headers = {
             'Authorization': f'Bearer {access_token}',
             'Accept': '*/*',
         }
 
         try:
+            metadata_response = requests.get(metadata_url, headers=metadata_headers, timeout=30)
+            metadata_response.raise_for_status()
+            attachment_metadata = metadata_response.json() or {}
+            validate_graph_attachment_metadata(attachment_metadata)
+        except requests.RequestException as exc:
+            raise self._map_graph_exception(exc) from exc
+
+        metadata_size = attachment_metadata.get('size')
+        try:
+            if metadata_size is not None and int(metadata_size) > MAX_AI_ATTACHMENT_BYTES:
+                raise ToolExecutionError(
+                    error_code='ATTACHMENT_TOO_LARGE',
+                    message='The selected email attachment is too large to ingest safely.',
+                    hint='Choose a smaller attachment or download it manually and upload it through the document UI.',
+                    retryable=False,
+                )
+        except (TypeError, ValueError):
+            metadata_size = None
+
+        content_type = infer_content_type(
+            file_name=file_name,
+            fallback=attachment_metadata.get('contentType'),
+        )
+        validate_ai_document_upload(filename=file_name, content_type=content_type)
+
+        try:
             response = requests.get(url, headers=headers, timeout=30, stream=True)
             response.raise_for_status()
         except requests.RequestException as exc:
             raise self._map_graph_exception(exc) from exc
-
-        content_type = infer_content_type(
-            file_name=file_name,
-            fallback=response.headers.get('Content-Type'),
-        )
-        validate_ai_document_upload(filename=file_name, content_type=content_type)
 
         header_size = response.headers.get('Content-Length')
         if header_size:
@@ -1025,6 +1053,14 @@ class EmailIngestionService:
                     error_code='GRAPH_QUERY_REJECTED',
                     message='Microsoft Graph rejected the email search query format.',
                     hint='Try simplifying your search terms or reducing the number of filters.',
+                    retryable=False,
+                    details=response_text or None,
+                )
+            if status_code == 404:
+                return ToolExecutionError(
+                    error_code='GRAPH_ATTACHMENT_NOT_FOUND',
+                    message='The selected Outlook attachment could not be found.',
+                    hint='Refresh the email search results and choose the attachment again.',
                     retryable=False,
                     details=response_text or None,
                 )
