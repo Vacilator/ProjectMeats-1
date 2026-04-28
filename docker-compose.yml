@@ -3,7 +3,7 @@ version: "3.9"
 services:
   # PostgreSQL database - shared for multi-tenant architecture
   db:
-    image: postgres:15
+    image: pgvector/pgvector:pg15
     container_name: projectmeats-db
     restart: always
     environment:

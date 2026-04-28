@@ -49,7 +49,7 @@ jobs:
     services:
       postgres:
         # Digest-pinned (multi-arch manifest) for deterministic CI
-        image: postgres:15@sha256:3e43515057e113ee741fca2f621f15300be34a6d4a8dfcf2e20651288c8272f3
+        image: pgvector/pgvector:pg15@sha256:7f5681e45237acdf546cf7cdc0dfc0ed7752ede857fda6e54f6ea21b936f8742
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
@@ -110,7 +110,7 @@ jobs:
     services:
       postgres:
         # Digest-pinned (multi-arch manifest) for deterministic CI
-        image: postgres:15@sha256:3e43515057e113ee741fca2f621f15300be34a6d4a8dfcf2e20651288c8272f3
+        image: pgvector/pgvector:pg15@sha256:7f5681e45237acdf546cf7cdc0dfc0ed7752ede857fda6e54f6ea21b936f8742
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres

@@ -43,6 +43,12 @@ class TenantInvitationViewSet(viewsets.ModelViewSet):
         Regular users see only their own invitations (if any).
         """
         user = self.request.user
+        tenant = getattr(self.request, 'tenant', None)
+
+        if user.is_superuser:
+            if tenant:
+                return TenantInvitation.objects.filter(tenant=tenant)
+            return TenantInvitation.objects.none()
         
         # Get user's tenants where they are admin or owner
         admin_tenants = TenantUser.objects.filter(
@@ -100,16 +106,13 @@ class TenantInvitationViewSet(viewsets.ModelViewSet):
                 {'error': 'Tenant context is required to invite users (X-Tenant-ID header or tenant domain).'},
                 status=status.HTTP_403_FORBIDDEN
             )
-        
-        # Verify user is admin/owner of this tenant
-        tenant_user = TenantUser.objects.filter(
+
+        if not request.user.is_superuser and not TenantUser.objects.filter(
             tenant=tenant,
             user=request.user,
             role__in=['admin', 'owner'],
-            is_active=True
-        ).first()
-        
-        if not tenant_user:
+            is_active=True,
+        ).exists():
             return Response(
                 {'error': 'You do not have permission to invite users to this tenant'},
                 status=status.HTTP_403_FORBIDDEN

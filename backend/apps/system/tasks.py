@@ -28,6 +28,12 @@ def _reset_rls_session_vars() -> None:
         cursor.execute('RESET app.current_tenant')
 
 
+def _sync_execution_telemetry(execution) -> None:
+    from tenant_apps.workflows.services.telemetry import sync_execution_telemetry
+
+    sync_execution_telemetry(execution)
+
+
 @shared_task(name='system.cleanup_orphaned_forms')
 def cleanup_orphaned_forms():
     """
@@ -340,6 +346,7 @@ def execute_workform_execution(self, execution_id: str, tenant_id: str) -> dict:
             execution.context_data = checkpoint
             execution.audit_trail = (checkpoint or {}).get('audit_trail', [])
             execution.save(update_fields=['context_data', 'audit_trail'])
+            _sync_execution_telemetry(execution)
 
             retries_so_far = int(getattr(self.request, 'retries', 0) or 0)
             max_retries = int(getattr(exc, 'max_retries', 0) or 0)
@@ -364,6 +371,7 @@ def execute_workform_execution(self, execution_id: str, tenant_id: str) -> dict:
             execution.error_message = str(getattr(exc, 'error', '') or str(exc))
             execution.completed_at = timezone.now()
             execution.save(update_fields=['status', 'error_message', 'completed_at'])
+            _sync_execution_telemetry(execution)
             return {'success': False, 'execution_id': str(execution.id), 'error': execution.error_message, 'suspended': True}
         except ParallelExecutionRequested as exc:
             plan = exc.plan
@@ -371,6 +379,7 @@ def execute_workform_execution(self, execution_id: str, tenant_id: str) -> dict:
             execution.context_data = engine.context
             execution.audit_trail = (engine.context or {}).get('audit_trail', [])
             execution.save(update_fields=['context_data', 'audit_trail'])
+            _sync_execution_telemetry(execution)
 
             branch_sigs = [
                 execute_workform_parallel_branch.s(
@@ -431,6 +440,7 @@ def execute_workform_execution(self, execution_id: str, tenant_id: str) -> dict:
             execution.status = TenantWorkFormExecutionStatus.FAILED
             execution.error_message = str(result.error or '')
         execution.save(update_fields=['status', 'context_data', 'audit_trail', 'error_message', 'completed_at'])
+        _sync_execution_telemetry(execution)
 
         return {'success': bool(result.success), 'execution_id': str(execution.id), 'error': result.error}
     except Exception as exc:  # noqa: BLE001
@@ -439,6 +449,7 @@ def execute_workform_execution(self, execution_id: str, tenant_id: str) -> dict:
             execution.error_message = str(exc)
             execution.completed_at = timezone.now()
             execution.save(update_fields=['status', 'error_message', 'completed_at'])
+            _sync_execution_telemetry(execution)
         return {'success': False, 'execution_id': str(execution_id), 'error': str(exc)}
     finally:
         _reset_rls_session_vars()
@@ -615,8 +626,10 @@ def continue_workform_after_parallel(
             execution.status = TenantWorkFormExecutionStatus.SUSPENDED
             execution.error_message = 'Parallel branch exhausted retries'
             execution.context_data = ctx
+            execution.audit_trail = (ctx or {}).get('audit_trail', [])
             execution.completed_at = timezone.now()
-            execution.save(update_fields=['status', 'error_message', 'context_data', 'completed_at'])
+            execution.save(update_fields=['status', 'error_message', 'context_data', 'audit_trail', 'completed_at'])
+            _sync_execution_telemetry(execution)
             return {'success': False, 'execution_id': str(execution.id), 'error': execution.error_message, 'suspended': True}
 
         if any_failed and str(error_strategy) == 'stop':
@@ -634,13 +647,16 @@ def continue_workform_after_parallel(
                 execution.error_message = str(result.error or '')
                 execution.completed_at = timezone.now()
                 execution.save(update_fields=['status', 'context_data', 'audit_trail', 'error_message', 'completed_at'])
+                _sync_execution_telemetry(execution)
                 return {'success': bool(result.success), 'execution_id': str(execution.id), 'error': result.error}
 
             execution.status = TenantWorkFormExecutionStatus.FAILED
             execution.error_message = 'Parallel branch failed (stop on error)'
             execution.context_data = ctx
+            execution.audit_trail = (ctx or {}).get('audit_trail', [])
             execution.completed_at = timezone.now()
-            execution.save(update_fields=['status', 'error_message', 'context_data', 'completed_at'])
+            execution.save(update_fields=['status', 'error_message', 'context_data', 'audit_trail', 'completed_at'])
+            _sync_execution_telemetry(execution)
             return {'success': False, 'execution_id': str(execution.id), 'error': execution.error_message}
 
         if join_node_id:
@@ -660,13 +676,16 @@ def continue_workform_after_parallel(
                 execution.error_message = str(result.error or '')
             execution.completed_at = timezone.now()
             execution.save(update_fields=['status', 'context_data', 'audit_trail', 'error_message', 'completed_at'])
+            _sync_execution_telemetry(execution)
             return {'success': bool(result.success), 'execution_id': str(execution.id), 'error': result.error}
 
         execution.context_data = ctx
+        execution.audit_trail = (ctx or {}).get('audit_trail', [])
         execution.completed_at = timezone.now()
         execution.status = TenantWorkFormExecutionStatus.FAILED if any_failed else TenantWorkFormExecutionStatus.COMPLETED
         execution.error_message = 'Parallel branch failed' if any_failed else ''
-        execution.save(update_fields=['status', 'context_data', 'error_message', 'completed_at'])
+        execution.save(update_fields=['status', 'context_data', 'audit_trail', 'error_message', 'completed_at'])
+        _sync_execution_telemetry(execution)
         return {'success': not any_failed, 'execution_id': str(execution.id), 'error': execution.error_message}
     finally:
         _reset_rls_session_vars()

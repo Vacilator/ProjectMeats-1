@@ -26,12 +26,13 @@ from apps.core.models import (
     Protein,
     ProteinTypeChoices,
     ShippingOfferedChoices,
+    SoftDeleteModel,
     TenantAwareModel,
 )
 from tenant_apps.locations.models import Location
 
 
-class Supplier(TenantAwareModel):
+class Supplier(SoftDeleteModel, TenantAwareModel):
     """Supplier model for managing supplier information."""
 
     # Basic information - keeping existing fields with same names

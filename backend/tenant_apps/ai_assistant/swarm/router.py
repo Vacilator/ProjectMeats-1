@@ -60,6 +60,7 @@ def build_swarm_system_prompt(
         "- create_task(title, message[, entity_type, entity_id]) to create an in-app task notification for the current user. "
         "- create_in_app_notification(title, message[, ...]) to notify other users (owners/admins only). "
         "- get_recent_errors() to fetch the most recent Sentry issues for the active tenant. "
+        "- fetch_emails([folder, is_read, has_attachments, search_query, limit]) to search Inbox, Sent Items, or Archive mail. "
         "\n\nTENANT MEMORY PROTOCOL (MANDATORY): "
         "If the user provides a standing rule or preference (e.g., 'Always route Acme through Chicago'), call save_memory(key, memory_text[, memory_json, tags]). "
         "When answering, apply the injected Tenant Memory block when relevant. "
@@ -81,6 +82,13 @@ def build_swarm_system_prompt(
         "\n\nEXTERNAL COMMS BROKER (DRAFT-ONLY): "
         "If the user wants to contact a supplier/customer (invoice mismatch, PO discrepancy, booking change), propose drafting an email. "
         "Use draft_vendor_email(vendor_id, context[, vendor_type]) to store a Draft and return the subject/body for human approval. "
+        "\n\nOUTLOOK EMAIL SEARCH PROTOCOL (MANDATORY): "
+        "You have full access to search the user's Inbox, Sent Items, and Archive. "
+        "You can search both read and unread emails. "
+        "When calling fetch_emails, you MUST map the user's request to the correct folder/is_read/has_attachments/search_query parameters. "
+        "If the user asks for sent emails, set folder to 'sentitems'. "
+        "If a tool returns a structured error or loop warning, do NOT repeat the exact same tool call. "
+        "Instead, simplify the query or ask the user for clarification."
     )
 
     if lessons_block:
@@ -98,6 +106,36 @@ def build_swarm_system_prompt(
         return base + "Outlook: CONNECTED but EXPIRED. Do not claim you can read email; instruct user to reconnect."
 
     return base + "Outlook: NOT CONNECTED. Do not claim you can read email; instruct user to connect Outlook."
+
+
+def _tool_call_signature(tool_name: str, raw_args: Any) -> str:
+    def _normalize(value: Any) -> Any:
+        if isinstance(value, dict):
+            return {
+                key: _normalize(item)
+                for key, item in value.items()
+                if item is not None
+            }
+        if isinstance(value, list):
+            return [_normalize(item) for item in value]
+        return value
+
+    if isinstance(raw_args, str):
+        try:
+            parsed = json.loads(raw_args)
+        except Exception:
+            parsed = raw_args
+    else:
+        parsed = raw_args or {}
+
+    parsed = _normalize(parsed)
+
+    try:
+        normalized_args = json.dumps(parsed, sort_keys=True, separators=(',', ':'), default=str)
+    except Exception:
+        normalized_args = str(parsed)
+
+    return f'{tool_name}:{normalized_args}'
 
 
 @dataclass(frozen=True)
@@ -302,7 +340,7 @@ class SwarmOrchestrator:
         outlook_connected = bool(provider and not outlook_expired)
 
         # Always allow safe internal tools; only advertise Outlook tools when connected.
-        email_tools = {'check_unread_emails', 'draft_outlook_email'}
+        email_tools = {'fetch_emails', 'check_unread_emails', 'draft_outlook_email'}
         if outlook_connected:
             tools = DEFAULT_OPENAI_TOOLS
         else:
@@ -338,6 +376,8 @@ class SwarmOrchestrator:
 
         max_rounds = int(getattr(settings, 'SWARM_TOOL_MAX_ROUNDS', 3) or 3)
         rounds = 0
+        tool_signatures: List[str] = []
+        loop_warning_injected = False
 
         while True:
             rounds += 1
@@ -388,7 +428,40 @@ class SwarmOrchestrator:
                 except Exception:
                     args = {}
 
-                result = executor.execute(tool_name, args, tenant, user)
+                signature = _tool_call_signature(tool_name, raw_args)
+                repeated_signature = (
+                    len(tool_signatures) >= 2
+                    and tool_signatures[-1] == signature
+                    and tool_signatures[-2] == signature
+                )
+
+                if repeated_signature:
+                    result = json.dumps(
+                        {
+                            'ok': False,
+                            'tool': tool_name,
+                            'tenant_id': str(getattr(tenant, 'id', '') or ''),
+                            'error': {
+                                'code': 'TOOL_LOOP_DETECTED',
+                                'message': 'You are stuck calling the same tool with the same parameters.',
+                                'hint': 'Stop retrying this tool and ask the user for clarification or adjust the query.',
+                                'retryable': False,
+                            },
+                        }
+                    )
+                    messages.append(
+                        {
+                            'role': 'system',
+                            'content': 'System: You are stuck in a loop. Stop calling this tool and ask the user for clarification.',
+                        }
+                    )
+                    if not loop_warning_injected:
+                        max_rounds += 1
+                        loop_warning_injected = True
+                else:
+                    result = executor.execute(tool_name, args, tenant, user)
+                    tool_signatures.append(signature)
+
                 messages.append(
                     {
                         'role': 'tool',

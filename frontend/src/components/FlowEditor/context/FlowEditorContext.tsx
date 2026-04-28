@@ -68,6 +68,18 @@ export interface DebugSessionState {
   executedNodeIds: string[];
 }
 
+export interface FlowEditorNodeActionsValue {
+  editNode: (nodeId: string) => void;
+  deleteNode: (nodeId: string) => void | Promise<void>;
+  duplicateNode: (nodeId: string) => void;
+  saveWorkflow: () => void | Promise<void>;
+  changeNodeTitle: (nodeId: string, newTitle: string) => void;
+  insertAfterNode: (nodeId: string) => void;
+  addStepInsideForm: (nodeId: string) => void;
+  moveNode: (nodeId: string, delta: -1 | 1) => void;
+  isLastInWorkflow: (nodeId: string) => boolean;
+}
+
 export interface FlowEditorContextValue {
   // Selected elements
   selectedNode: Node | null;
@@ -128,6 +140,20 @@ export interface FlowEditorContextValue {
 
 const FlowEditorContext = createContext<FlowEditorContextValue | undefined>(undefined);
 
+const DEFAULT_NODE_ACTIONS: FlowEditorNodeActionsValue = {
+  editNode: () => undefined,
+  deleteNode: () => undefined,
+  duplicateNode: () => undefined,
+  saveWorkflow: () => undefined,
+  changeNodeTitle: () => undefined,
+  insertAfterNode: () => undefined,
+  addStepInsideForm: () => undefined,
+  moveNode: () => undefined,
+  isLastInWorkflow: () => false,
+};
+
+const FlowEditorNodeActionsContext = createContext<FlowEditorNodeActionsValue>(DEFAULT_NODE_ACTIONS);
+
 // ============================================================================
 // PROVIDER PROPS
 // ============================================================================
@@ -137,6 +163,7 @@ export interface FlowEditorProviderProps {
   initialMode?: EditorMode;
   onModeChange?: (mode: EditorMode) => void;
   onSelectionChange?: (node: Node | null, edge: Edge | null) => void;
+  nodeActions?: FlowEditorNodeActionsValue;
 
   // Config panel context
   tenantLists?: Array<{ id: string; name: string }>;
@@ -154,6 +181,7 @@ export const FlowEditorProvider: React.FC<FlowEditorProviderProps> = ({
   initialMode = 'visual',
   onModeChange,
   onSelectionChange,
+  nodeActions = DEFAULT_NODE_ACTIONS,
   tenantLists = [],
   systemChoiceLists = [],
   availableFields = [],
@@ -462,7 +490,9 @@ export const FlowEditorProvider: React.FC<FlowEditorProviderProps> = ({
   
   return (
     <FlowEditorContext.Provider value={value}>
-      {children}
+      <FlowEditorNodeActionsContext.Provider value={nodeActions}>
+        {children}
+      </FlowEditorNodeActionsContext.Provider>
     </FlowEditorContext.Provider>
   );
 };
@@ -498,6 +528,10 @@ export function useFlowEditor(): FlowEditorContextValue {
   }
   
   return context;
+}
+
+export function useFlowEditorNodeActions(): FlowEditorNodeActionsValue {
+  return useContext(FlowEditorNodeActionsContext);
 }
 
 // ============================================================================

@@ -495,6 +495,18 @@ class AIDocumentViewSet(viewsets.ModelViewSet):
             logger.error('AIDocument upload: unexpected error: %s', str(e), exc_info=True)
             raise ValidationError('Upload failed: unexpected error. Please retry.')
 
+        try:
+            from tenant_apps.ai_assistant.services.semantic_indexing import index_document_for_semantic_search
+
+            index_document_for_semantic_search(instance)
+        except Exception as exc:
+            logger.warning(
+                'AIDocument upload: semantic indexing skipped for document=%s err=%s',
+                instance.id,
+                str(exc),
+                exc_info=True,
+            )
+
         # If the upload was tied to a session, also create a DOCUMENT message so UIs can show it inline.
         if instance.session_id:
             try:
@@ -560,7 +572,7 @@ class SwarmToolsOpenAPIView(APIView):
         except Exception:
             logger.warning('tools/openapi: failed to load outlook connection status', exc_info=True)
 
-        email_tools = {'check_unread_emails', 'draft_outlook_email'}
+        email_tools = {'fetch_emails', 'check_unread_emails', 'draft_outlook_email'}
 
         if outlook['connected']:
             tools = DEFAULT_OPENAI_TOOLS
@@ -840,7 +852,7 @@ class ToolsOpenAPIView(APIView):
         except Exception:
             outlook_connected = False
 
-        email_tools = {'check_unread_emails', 'draft_outlook_email'}
+        email_tools = {'fetch_emails', 'check_unread_emails', 'draft_outlook_email'}
 
         if outlook_connected:
             tools = DEFAULT_OPENAI_TOOLS

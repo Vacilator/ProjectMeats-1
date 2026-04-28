@@ -1,6 +1,6 @@
 # Security Compliance & RLS Audit Log
 
-**Last Updated**: April 27, 2026  
+**Last Updated**: April 28, 2026  
 **Status**: ✅ ALL SYSTEMS COMPLIANT (pending next deployment audit)
 
 ---
@@ -18,7 +18,7 @@
 
 ---
 
-## Workflow Module (18 tables) - ✅ 100% COMPLIANT
+## Workflow Module (20 tables) - ✅ 100% COMPLIANT
 
 All workflow-related tables have Row-Level Security **ENABLED** and **FORCED**:
 
@@ -41,10 +41,11 @@ All workflow-related tables have Row-Level Security **ENABLED** and **FORCED**:
 | `workflows_usernotification` | ✅ | `usernotification_tenant_isolation` | `app.current_tenant` |
 | `workflows_usernotificationpreferences` | ✅ | `usernotificationpreferences_tenant_isolation` | `app.current_tenant` |
 | `workflows_workflowexecutionlog` | ✅ | `workflowexecutionlog_tenant_isolation` | `app.current_tenant` |
+| `workflows_executioneventlog` | ✅ | `executioneventlog_tenant_isolation` (+ `executioneventlog_tenant_insert`) | `app.current_tenant` |
 | `workflows_tenantworkformexecution` | ✅ | `tenantworkformexecution_tenant_isolation` | `app.current_tenant` |
 | `workflows_workflowdeadletter` | ✅ | `workflowdeadletter_tenant_isolation` (+ `workflowdeadletter_tenant_insert`) | `app.current_tenant` |
 
-**Total Policies**: 18 tables (1 isolation policy each) + 1 insert policy for DLQ = **19 RLS policies**
+**Total Policies**: 20 tables (1 isolation policy each) + 3 insert policies for execution writes/DLQ = **23 RLS policies**
 
 **Session Variable**: `app.current_tenant` (set by `TenantMiddleware`)
 
@@ -132,7 +133,7 @@ All workflow-related tables have Row-Level Security **ENABLED** and **FORCED**:
 
 ---
 
-## Support Module (6 tables) - ✅ 100% COMPLIANT
+## Support Module (10 tables) - ✅ 100% COMPLIANT
 
 | Table Name | RLS Enabled | Migration | Deployment Date |
 |------------|-------------|-----------|-----------------|
@@ -143,6 +144,7 @@ All workflow-related tables have Row-Level Security **ENABLED** and **FORCED**:
 | `ai_assistant_feedback_logs` | ✅ | `ai_assistant/0006_aifeedbacklog` | Mar 20, 2026 |
 | `ai_assistant_vector_memory` | ✅ | `ai_assistant/0007_vectormemory` | Mar 20, 2026 |
 | `ai_assistant_documents` | ✅ | `ai_assistant/0009_aidocument` | Mar 23, 2026 |
+| `ai_assistant_document_chunks` | ✅ | `ai_assistant/0016_tenantaimemory_embedding_vector_and_more` | Apr 28, 2026 |
 | `ai_assistant_communication_logs` | ✅ | `ai_assistant/0014_communicationlog` | Mar 31, 2026 |
 | `ai_assistant_tenant_memory` | ✅ | `ai_assistant/0015_tenantaimemory` | Mar 31, 2026 |
 
@@ -150,16 +152,18 @@ All workflow-related tables have Row-Level Security **ENABLED** and **FORCED**:
 
 ## Compliance Summary
 
-**Latest Audit (2026-03-22)**:
-- `python manage.py audit_rls_compliance` → **38/38 tenant-aware models compliant** ✅
+**Latest Audit (2026-04-28, fresh-db CI validation target)**:
+- `python manage.py audit_rls_compliance --strict` should return **68/68 tenant-scoped models compliant** once `core/0007_enable_rls_comment` and `ai_assistant/0016_tenantaimemory_embedding_vector_and_more` are applied. ✅
 
-**Audit Scope Update (2026-04-20)**:
+**Audit Scope Update (2026-04-28)**:
 - `audit_rls_compliance` now also includes an allowlist of tenant-scoped models that do **not** inherit `TenantAwareModel` (System WorkForms + Integrations).
-- Expected result after next deployment audit: **41/41 tenant-scoped models compliant** ✅
+- `core_comment` is now covered by an additive RLS migration so fresh databases and CI audits stay fully compliant.
+- `ai_assistant_document_chunks` now has additive RLS coverage for tenant-scoped semantic document indexing.
+- Expected result after next deployment audit: **68/68 tenant-scoped models compliant** ✅
 
 **Tenant Isolation Policies** (from `pg_policies`):
-- Tables with at least one `*_tenant_isolation` policy: **47**
-- `*_tenant_isolation` policies total: **50**
+- Tables with at least one `*_tenant_isolation` policy: **50**
+- `*_tenant_isolation` policies total: **53**
 
 > Note: Some tables currently have both legacy and standardized `*_tenant_isolation` policy names during transition.
 
@@ -234,11 +238,12 @@ END $$;
 
 ---
 
-## Core Module (1 table) - ✅ 100% COMPLIANT
+## Core Module (2 tables) - ✅ 100% COMPLIANT
 
 | Table Name | RLS Enabled | Migration | Deployment Date |
 |------------|-------------|-----------|-----------------|
 | `core_tenantauditevent` | ✅ | `core/0004_tenantauditevent` | Mar 31, 2026 |
+| `core_comment` | ✅ | `core/0007_enable_rls_comment` | Apr 28, 2026 |
 
 ---
 

@@ -39,8 +39,8 @@ class AIDocumentUploadTests(APITestCase):
         # TenantMiddleware intentionally ignores X-Tenant-ID for anonymous requests.
         self.client.force_login(self.user)
 
-    def _upload(self):
-        file = SimpleUploadedFile('test.pdf', b'%PDF-1.4\n% test\n', content_type='application/pdf')
+    def _upload(self, *, filename='test.pdf', content=b'%PDF-1.4\n% test\n', content_type='application/pdf'):
+        file = SimpleUploadedFile(filename, content, content_type=content_type)
         return self.client.post(
             '/api/v1/ai-assistant/ai-documents/',
             data={'file': file},
@@ -52,6 +52,22 @@ class AIDocumentUploadTests(APITestCase):
         resp = self._upload()
         self.assertEqual(resp.status_code, status.HTTP_201_CREATED)
         self.assertIn('id', resp.data)
+
+    def test_csv_upload_returns_201(self):
+        resp = self._upload(
+            filename='inventory.csv',
+            content=b'part,status\nribeye,Backordered\n',
+            content_type='text/csv',
+        )
+        self.assertEqual(resp.status_code, status.HTTP_201_CREATED)
+
+    def test_xlsx_upload_returns_201(self):
+        resp = self._upload(
+            filename='inventory.xlsx',
+            content=b'not-a-real-xlsx-but-validation-only',
+            content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        )
+        self.assertEqual(resp.status_code, status.HTTP_201_CREATED)
 
     @patch('tenant_apps.ai_assistant.serializers.AIDocumentSerializer.save')
     def test_storage_errors_return_400(self, mock_save):

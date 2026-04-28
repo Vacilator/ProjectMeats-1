@@ -402,6 +402,7 @@ class WorkflowExecutionLogSerializer(serializers.ModelSerializer):
 # =============================================================================
 
 from .models import TenantWorkFormExecution
+from .services.telemetry import build_execution_runtime_state
 
 
 class TenantWorkFormExecutionSerializer(serializers.ModelSerializer):
@@ -515,16 +516,45 @@ class TenantWorkFormExecutionSerializer(serializers.ModelSerializer):
 
         return None
 
+    def _runtime_state(self, obj) -> Dict[str, Any]:
+        cached = getattr(self, '_runtime_state_cache', None)
+        if cached is None:
+            cached = {}
+            setattr(self, '_runtime_state_cache', cached)
+
+        key = str(getattr(obj, 'pk', '') or '')
+        if key in cached:
+            return cached[key]
+
+        state = obj.runtime_state if isinstance(getattr(obj, 'runtime_state', None), dict) else {}
+        if not state:
+            state = build_execution_runtime_state(obj)
+
+        cached[key] = state
+        return state
+
 
     def get_current_node_id(self, obj):
+        state = self._runtime_state(obj)
+        current_node_id = state.get('current_node_id')
+        if current_node_id:
+            return current_node_id
         row = self._last_node_event(obj)
         return row.get('node_id') if isinstance(row, dict) else None
 
     def get_current_node_type(self, obj):
+        state = self._runtime_state(obj)
+        current_node_type = state.get('current_node_type')
+        if current_node_type:
+            return current_node_type
         row = self._last_node_event(obj)
         return row.get('node_type') if isinstance(row, dict) else None
 
     def get_current_node_label(self, obj):
+        state = self._runtime_state(obj)
+        current_node_label = state.get('current_node_label')
+        if current_node_label:
+            return current_node_label
         node_id = self.get_current_node_id(obj)
         return self._node_label(obj, node_id)
 
@@ -533,6 +563,10 @@ class TenantWorkFormExecutionSerializer(serializers.ModelSerializer):
 
 
     def get_last_event(self, obj):
+        state = self._runtime_state(obj)
+        last_event = state.get('last_event')
+        if last_event:
+            return last_event
         row = self._last_node_event(obj)
         return row.get('event') if isinstance(row, dict) else None
 
@@ -546,6 +580,11 @@ class TenantWorkFormExecutionSerializer(serializers.ModelSerializer):
         Additive enrichment:
         - node_label from workform.workflow_definition.nodes[].data.*
         """
+        state = self._runtime_state(obj)
+        hydrated_errors = state.get('errors')
+        if isinstance(hydrated_errors, list):
+            return hydrated_errors
+
         errors: List[Dict[str, Any]] = []
 
         labels = self._node_labels_map(obj)
@@ -602,6 +641,11 @@ class TenantWorkFormExecutionSerializer(serializers.ModelSerializer):
 
         Frontend uses this to render per-step/per-node execution status.
         """
+        state = self._runtime_state(obj)
+        node_statuses = state.get('node_statuses')
+        if isinstance(node_statuses, dict):
+            return node_statuses
+
         trail = obj.audit_trail
         if not isinstance(trail, list):
             return {}

@@ -14,6 +14,7 @@ from typing import Any, Optional
 from django.conf import settings
 
 from tenant_apps.ai_assistant.models import TenantKnowledgeFact
+from tenant_apps.ai_assistant.services.semantic_indexing import generate_embedding
 
 logger = logging.getLogger(__name__)
 
@@ -38,36 +39,14 @@ def evaluate_and_extract(
     if not extracted_fact:
         return None
 
-    if not getattr(settings, 'OPENAI_API_KEY', None):
-        # Store the fact anyway; embedding can be backfilled later.
-        return TenantKnowledgeFact.objects.create(
-            tenant=tenant,
-            domain_category=domain,
-            fact_text=extracted_fact,
-            embedding=None,
-        )
-
     try:
-        from openai import OpenAI
-
-        client = OpenAI(
-            api_key=settings.OPENAI_API_KEY,
-            organization=getattr(settings, 'OPENAI_ORG_ID', None) or None,
-        )
-
-        # Generate mathematical embedding for the new fact
-        response = client.embeddings.create(
-            input=extracted_fact,
-            model='text-embedding-3-small',
-        )
-        vector = response.data[0].embedding
-
-        # Save fact with vector
+        vector = generate_embedding(extracted_fact)
         return TenantKnowledgeFact.objects.create(
             tenant=tenant,
             domain_category=domain,
             fact_text=extracted_fact,
             embedding=vector,
+            embedding_vector=vector,
         )
 
     except Exception as e:
@@ -77,4 +56,5 @@ def evaluate_and_extract(
             domain_category=domain,
             fact_text=extracted_fact,
             embedding=None,
+            embedding_vector=None,
         )

@@ -11,6 +11,7 @@
 export { 
   FlowEditorProvider, 
   useFlowEditor,
+  useFlowEditorNodeActions,
   default as FlowEditorContext 
 } from './FlowEditorContext';
 
@@ -20,5 +21,6 @@ export type {
   ModalState,
   UISettings,
   FlowEditorContextValue,
+  FlowEditorNodeActionsValue,
   FlowEditorProviderProps,
 } from './FlowEditorContext';

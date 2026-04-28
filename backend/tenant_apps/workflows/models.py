@@ -940,6 +940,11 @@ class TenantWorkFormExecution(TenantAwareModel):
     initial_data = models.JSONField(default=dict, blank=True, help_text='Trigger/initial payload used to start execution')
     context_data = models.JSONField(default=dict, blank=True, help_text='Execution context snapshot (variables, errors, outputs)')
     audit_trail = models.JSONField(default=list, blank=True, help_text='Chronological log of node transitions and actions')
+    runtime_state = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text='Hydrated runtime projection derived from execution telemetry',
+    )
 
     started_by = models.ForeignKey(
         User,
@@ -962,6 +967,59 @@ class TenantWorkFormExecution(TenantAwareModel):
         indexes = [
             models.Index(fields=['tenant', 'status']),
             models.Index(fields=['tenant', 'workform']),
+        ]
+
+
+class ExecutionEventLogStatus(models.TextChoices):
+    STARTED = 'started', 'Started'
+    SUCCESS = 'success', 'Success'
+    FAILED = 'failed', 'Failed'
+    INFO = 'info', 'Info'
+
+
+class ExecutionEventLog(TenantAwareModel):
+    """Normalized telemetry events derived from WorkForm execution audit trails."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
+    workform = models.ForeignKey(
+        'system.TenantWorkForm',
+        on_delete=models.CASCADE,
+        related_name='execution_event_logs',
+        help_text='TenantWorkForm associated with this telemetry event',
+    )
+    workform_execution = models.ForeignKey(
+        'workflows.TenantWorkFormExecution',
+        on_delete=models.CASCADE,
+        related_name='event_logs',
+        help_text='Execution that produced this telemetry event',
+    )
+
+    sequence = models.PositiveIntegerField(default=0, help_text='Monotonic order within a single execution')
+    event_type = models.CharField(max_length=64, db_index=True, help_text='Canonical event name')
+    status = models.CharField(
+        max_length=20,
+        choices=ExecutionEventLogStatus.choices,
+        default=ExecutionEventLogStatus.INFO,
+        db_index=True,
+        help_text='Normalized event status',
+    )
+
+    node_id = models.CharField(max_length=128, blank=True, default='', db_index=True)
+    node_type = models.CharField(max_length=128, blank=True, default='')
+
+    started_at = models.DateTimeField(default=timezone.now, help_text='When the event or node span started')
+    completed_at = models.DateTimeField(null=True, blank=True, help_text='When the event or node span completed')
+    duration_ms = models.PositiveIntegerField(null=True, blank=True, help_text='Observed duration in milliseconds')
+
+    payload = models.JSONField(default=dict, blank=True, help_text='Minimal event payload for analytics/debugging')
+
+    class Meta:
+        ordering = ['workform_execution', 'sequence', 'created_on']
+        indexes = [
+            models.Index(fields=['tenant', 'workform_execution', 'sequence'], name='wf_evt_t_exec_seq'),
+            models.Index(fields=['tenant', 'workform', 'status'], name='wf_evt_t_wf_status'),
+            models.Index(fields=['tenant', 'node_id'], name='wf_evt_t_node'),
         ]
 
 

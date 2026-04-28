@@ -17,6 +17,7 @@ import { useCockpitNavigation } from '@/contexts/CockpitNavigationContext';
 import { buildAIPageContext } from '@/services/aiContext';
 import {
   FileText,
+  FileSpreadsheet,
   GitBranch,
   History,
   LoaderCircle,
@@ -33,6 +34,11 @@ import { useToast } from '../../hooks/useToast';
 import { businessApi } from '../../services/businessApi';
 import { useHealth } from '@/hooks/useHealth';
 import { HITLReviewCard } from './HITLReviewCard';
+import {
+  CHAT_UPLOAD_ACCEPT_ATTR,
+  CHAT_UPLOAD_SUPPORTED_EXTENSIONS,
+  getChatUploadFileKind,
+} from '@/components/ChatInterface/fileUploadConfig';
 
 type AgentState = 'idle' | 'thinking' | 'action_required';
 
@@ -83,9 +89,28 @@ type UploadedAttachment = {
   content_type?: string;
 };
 
-const SUPPORTED_EXTENSIONS = ['pdf', 'jpg', 'jpeg', 'png'];
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 const LOCAL_STORAGE_SESSION_KEY = 'pm.ai.widget.sessionId';
+
+const getMetadataString = (
+  metadata: Record<string, unknown> | undefined,
+  key: string
+): string | undefined => {
+  const value = metadata?.[key];
+  return typeof value === 'string' ? value : undefined;
+};
+
+const renderAttachmentIcon = (
+  filename?: string,
+  contentType?: string,
+  size = 14
+) => {
+  return getChatUploadFileKind(filename, contentType) === 'spreadsheet' ? (
+    <FileSpreadsheet size={size} />
+  ) : (
+    <FileText size={size} />
+  );
+};
 
 const calmPulse = keyframes`
   0%, 100% { transform: translateY(0); box-shadow: 0 10px 28px rgb(var(--color-text-primary) / 0.10); }
@@ -726,8 +751,13 @@ export const AIAgentWidget: React.FC = () => {
       return `File size too large. Max ${(MAX_FILE_SIZE / (1024 * 1024)).toFixed(1)}MB.`;
     }
     const ext = file.name.split('.').pop()?.toLowerCase();
-    if (!ext || !SUPPORTED_EXTENSIONS.includes(ext)) {
-      return `Unsupported file type. Supported: ${SUPPORTED_EXTENSIONS.join(', ')}`;
+    if (
+      !ext ||
+      !CHAT_UPLOAD_SUPPORTED_EXTENSIONS.includes(
+        ext as (typeof CHAT_UPLOAD_SUPPORTED_EXTENSIONS)[number]
+      )
+    ) {
+      return `Unsupported file type. Supported: ${CHAT_UPLOAD_SUPPORTED_EXTENSIONS.join(', ')}`;
     }
     return null;
   };
@@ -1395,19 +1425,18 @@ export const AIAgentWidget: React.FC = () => {
                   <Bubble key={m.id} $role={m.role}>
                     {m.role === 'document' ? (
                       <DocumentRow>
-                        <FileText size={16} />
+                        {renderAttachmentIcon(
+                          getMetadataString(m.metadata, 'original_filename') ?? m.content,
+                          getMetadataString(m.metadata, 'content_type'),
+                          16
+                        )}
                         <DocumentMeta>
                           {(() => {
-                            const fileUrl =
-                              m.metadata && typeof m.metadata === 'object' && typeof (m.metadata as any).file_url === 'string'
-                                ? ((m.metadata as any).file_url as string)
-                                : undefined;
-                            const originalFilename =
-                              m.metadata &&
-                              typeof m.metadata === 'object' &&
-                              typeof (m.metadata as any).original_filename === 'string'
-                                ? ((m.metadata as any).original_filename as string)
-                                : undefined;
+                            const fileUrl = getMetadataString(m.metadata, 'file_url');
+                            const originalFilename = getMetadataString(
+                              m.metadata,
+                              'original_filename'
+                            );
 
                             const label = originalFilename ?? m.content;
 
@@ -1421,10 +1450,10 @@ export const AIAgentWidget: React.FC = () => {
                           })()}
                           <div>
                             {(() => {
-                              const ct =
-                                m.metadata && typeof m.metadata === 'object' && typeof (m.metadata as any).content_type === 'string'
-                                  ? ((m.metadata as any).content_type as string)
-                                  : undefined;
+                              const ct = getMetadataString(
+                                m.metadata,
+                                'content_type'
+                              );
                               return ct ?? 'Document';
                             })()}
                           </div>
@@ -1462,15 +1491,15 @@ export const AIAgentWidget: React.FC = () => {
                 void handleSend();
               }}
             >
-              <input
-                ref={fileInputRef}
-                type="file"
-                multiple
-                accept={SUPPORTED_EXTENSIONS.map((x) => `.${x}`).join(',')}
-                style={{ display: 'none' }}
-                onChange={(e) => {
-                  const list = e.target.files ? Array.from(e.target.files) : [];
-                  if (list.length) void addAttachments(list);
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  multiple
+                  accept={CHAT_UPLOAD_ACCEPT_ATTR}
+                  style={{ display: 'none' }}
+                  onChange={(e) => {
+                    const list = e.target.files ? Array.from(e.target.files) : [];
+                    if (list.length) void addAttachments(list);
                   e.target.value = '';
                 }}
               />
@@ -1479,7 +1508,7 @@ export const AIAgentWidget: React.FC = () => {
                 <AttachmentsBar>
                   {attachments.map((a, idx) => (
                     <AttachmentChip key={`${a.id}-${idx}`}>
-                      <FileText size={14} />
+                      {renderAttachmentIcon(a.original_filename, a.content_type)}
                       <span>{a.original_filename}</span>
                       <ChipRemove
                         type="button"

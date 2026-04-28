@@ -98,6 +98,14 @@ function useDeepStableValue<T>(value: T): T {
   return ref.current;
 }
 
+const getStableSignature = (value: unknown): string => {
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return String(value);
+  }
+};
+
 const isArrayLikeField = (field: BackendField): boolean => {
   const t = String(field.type ?? '').toLowerCase();
   const ui = field.ui && typeof field.ui === 'object' ? (field.ui as Record<string, unknown>) : null;
@@ -893,6 +901,10 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
 }) => {
   const { isAuthenticated, loading: authLoading } = useAuthState();
   const stableInitialValues = useDeepStableValue(initialValues);
+  const stableInitialValuesSignature = useMemo(
+    () => getStableSignature(stableInitialValues ?? EMPTY_FORM_VALUES),
+    [stableInitialValues]
+  );
 
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState<unknown | null>(null);
@@ -902,11 +914,20 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
 
   const initialValuesRef = useRef<Record<string, unknown> | undefined>(stableInitialValues);
   const [resolvedInitialValues, setResolvedInitialValues] = useState<Record<string, unknown>>({});
+  const lastLoadSignatureRef = useRef<string | null>(null);
+  const lastFkSignatureRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (!isOpen) return;
     initialValuesRef.current = stableInitialValues;
   }, [isOpen, stableInitialValues]);
+
+  useEffect(() => {
+    if (!isOpen) {
+      lastLoadSignatureRef.current = null;
+      lastFkSignatureRef.current = null;
+    }
+  }, [isOpen]);
 
   const inferredMode: UniversalEntityFormMode = useMemo(() => {
     const hasId = entityId != null && String(entityId).trim().length > 0;
@@ -1019,6 +1040,18 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
     }
   }, [endpoint, entityType, schemaEntityKey]);
 
+  const loadSignature = useMemo(
+    () =>
+      getStableSignature({
+        endpoint,
+        entityId: entityId == null ? '' : String(entityId),
+        inferredMode,
+        schemaEntityKey,
+        initialValues: stableInitialValuesSignature,
+      }),
+    [endpoint, entityId, inferredMode, schemaEntityKey, stableInitialValuesSignature]
+  );
+
   useEffect(() => {
     if (!isOpen) return;
 
@@ -1065,6 +1098,12 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
 
       return;
     }
+
+    if (lastLoadSignatureRef.current === loadSignature) {
+      return;
+    }
+
+    lastLoadSignatureRef.current = loadSignature;
 
     let mounted = true;
 
@@ -1126,6 +1165,7 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
     inferredMode,
     isAuthenticated,
     isOpen,
+    loadSignature,
     loadSchema,
     schemaEntityKey,
     setFkValuesIfChanged,
@@ -1134,9 +1174,26 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
     setSchemaIfChanged,
   ]);
 
+  const fkLoadSignature = useMemo(() => {
+    const fkFields = (schema?.fields ?? [])
+      .filter((field) => !shouldSkipField(field.key) && Boolean(field.related_entity))
+      .map((field) => ({
+        key: field.key,
+        related_entity: field.related_entity,
+      }));
+
+    return getStableSignature(fkFields);
+  }, [schema?.fields]);
+
   // Load basic FK option lists (best-effort) for non-product references.
   useEffect(() => {
     if (!isOpen || !schema?.fields?.length) return;
+
+    if (lastFkSignatureRef.current === fkLoadSignature) {
+      return;
+    }
+
+    lastFkSignatureRef.current = fkLoadSignature;
 
     const fkFields = schema.fields.filter(
       (f) => !shouldSkipField(f.key) && Boolean(f.related_entity)
@@ -1189,7 +1246,13 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
           });
 
           if (cancelled) return;
-          setFkOptions((prev) => ({ ...prev, [f.key]: options }));
+          setFkOptions((prev) => {
+            if (isEqual(prev[f.key], options)) {
+              return prev;
+            }
+
+            return { ...prev, [f.key]: options };
+          });
         } catch {
           // ignore
         }
@@ -1201,7 +1264,7 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
     return () => {
       cancelled = true;
     };
-  }, [isOpen, schema?.fields]);
+  }, [fkLoadSignature, isOpen, schema?.fields]);
 
   const preferredKeys = useMemo(() => {
     const normalized = schemaEntityKey.toLowerCase();

@@ -12,9 +12,13 @@ from django.conf import settings
 from django.core.validators import FileExtensionValidator
 from django.db import models
 from django.utils import timezone
+from pgvector.django import VectorField
 
 
 from apps.core.models import OwnedModel, StatusModel, TenantAwareModel
+from tenant_apps.ai_assistant.services.document_parser import AI_DOCUMENT_ALLOWED_EXTENSIONS
+
+OPENAI_EMBEDDING_DIMENSIONS = 1536
 
 
 class ChatSessionStatusChoices(models.TextChoices):
@@ -252,6 +256,12 @@ class VectorMemory(TenantAwareModel):
         blank=True,
         help_text='Embedding vector as JSON array (pgvector optional).',
     )
+    embedding_vector = VectorField(
+        dimensions=OPENAI_EMBEDDING_DIMENSIONS,
+        null=True,
+        blank=True,
+        help_text='Native pgvector embedding for semantic retrieval.',
+    )
 
     class Meta:
         db_table = 'ai_assistant_vector_memory'
@@ -282,6 +292,12 @@ class TenantKnowledgeFact(TenantAwareModel):
         blank=True,
         help_text='Embedding vector as JSON array (pgvector optional).',
     )
+    embedding_vector = VectorField(
+        dimensions=OPENAI_EMBEDDING_DIMENSIONS,
+        null=True,
+        blank=True,
+        help_text='Native pgvector embedding for semantic retrieval.',
+    )
     is_active = models.BooleanField(default=True)
 
     class Meta:
@@ -310,6 +326,12 @@ class TenantAIMemory(TenantAwareModel):
         default=list,
         blank=True,
         help_text='Embedding vector as JSON array (pgvector optional).',
+    )
+    embedding_vector = VectorField(
+        dimensions=OPENAI_EMBEDDING_DIMENSIONS,
+        null=True,
+        blank=True,
+        help_text='Native pgvector embedding for semantic retrieval.',
     )
     is_active = models.BooleanField(default=True)
 
@@ -367,7 +389,7 @@ class AIDocument(TenantAwareModel):
         upload_to=aidocument_upload_to,
         validators=[
             FileExtensionValidator(
-                allowed_extensions=['pdf', 'txt', 'csv', 'jpg', 'jpeg', 'png', 'doc', 'docx', 'xls', 'xlsx']
+                allowed_extensions=list(AI_DOCUMENT_ALLOWED_EXTENSIONS)
             )
         ],
     )
@@ -393,6 +415,44 @@ class AIDocument(TenantAwareModel):
         verbose_name_plural = 'AI Documents'
         indexes = [
             models.Index(fields=['tenant', 'owner', 'created_on'], name='aidoc_tnt_owner_created_idx'),
+        ]
+
+
+class AIDocumentChunk(TenantAwareModel):
+    """Tenant-safe semantic chunks derived from uploaded AI documents."""
+
+    document = models.ForeignKey(
+        AIDocument,
+        on_delete=models.CASCADE,
+        related_name='chunks',
+    )
+    chunk_index = models.PositiveIntegerField(default=0)
+    content = models.TextField(default='')
+    metadata = models.JSONField(default=dict, blank=True)
+    embedding = models.JSONField(
+        default=list,
+        blank=True,
+        help_text='Embedding vector as JSON array for back-compat.',
+    )
+    embedding_vector = VectorField(
+        dimensions=OPENAI_EMBEDDING_DIMENSIONS,
+        null=True,
+        blank=True,
+        help_text='Native pgvector embedding for semantic retrieval.',
+    )
+
+    class Meta:
+        db_table = 'ai_assistant_document_chunks'
+        verbose_name = 'AI Document Chunk'
+        verbose_name_plural = 'AI Document Chunks'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['tenant', 'document', 'chunk_index'],
+                name='unique_ai_document_chunk_per_tenant',
+            ),
+        ]
+        indexes = [
+            models.Index(fields=['tenant', 'document'], name='aidoc_chunk_tenant_doc_idx'),
         ]
 
 

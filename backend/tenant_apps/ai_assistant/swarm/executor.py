@@ -25,9 +25,38 @@ DEFAULT_OPENAI_TOOLS = [
     {
         'type': 'function',
         'function': {
-            'name': 'check_unread_emails',
-            'description': "Checks the user's connected Microsoft Outlook inbox for unread emails and document attachments.",
-            'parameters': {'type': 'object', 'properties': {}},
+            'name': 'fetch_emails',
+            'description': (
+                "Search the user's connected Microsoft Outlook mailbox with explicit folder/read/"
+                'attachment/search filters. Defaults to inbox when folder is omitted.'
+            ),
+            'parameters': {
+                'type': 'object',
+                'properties': {
+                    'folder': {
+                        'type': 'string',
+                        'enum': ['inbox', 'sentitems', 'archive'],
+                        'description': 'Mailbox folder to search. Defaults to inbox.',
+                    },
+                    'is_read': {
+                        'type': 'boolean',
+                        'description': 'Optional read-status filter. Omit to search both read and unread mail.',
+                    },
+                    'has_attachments': {
+                        'type': 'boolean',
+                        'description': 'Optional attachment filter. Omit to include both messages with and without attachments.',
+                    },
+                    'search_query': {
+                        'type': 'string',
+                        'description': 'Optional keyword query for Graph search, e.g. "invoice".',
+                    },
+                    'limit': {
+                        'type': 'integer',
+                        'description': 'Max results to return (default 10, maximum 25).',
+                    },
+                },
+                'additionalProperties': False,
+            },
         },
     },
     {
@@ -434,6 +463,7 @@ class ToolExecutor:
 
     def __init__(self):
         self._tools: Dict[str, Callable[[Dict[str, Any], Any, Any], Any]] = {
+            'fetch_emails': self._fetch_emails,
             'check_unread_emails': self._check_unread_emails,
             'draft_outlook_email': self._draft_outlook_email,
             'get_record_detail': self._get_record_detail,
@@ -471,6 +501,8 @@ class ToolExecutor:
         Returns:
             JSON string containing success data or an error payload.
         """
+        from tenant_apps.ai_assistant.swarm.tools.microsoft_graph import error_payload_from_exception
+
         try:
             fn = self._tools.get(tool_name)
             if not fn:
@@ -516,59 +548,49 @@ class ToolExecutor:
             tenant_id = str(getattr(tenant, 'id', '') or '')
             logger.warning('Tool execution failed tool=%s tenant=%s: %s', tool_name, tenant_id, str(e), exc_info=True)
             return json.dumps(
-                {
-                    'ok': False,
-                    'tool': tool_name,
-                    'tenant_id': tenant_id or None,
-                    'error': (
-                        f"Tool '{tool_name}' failed for tenant {tenant_id or 'UNKNOWN'}. "
-                        'This may be due to missing data, invalid arguments, or RLS constraints. '
-                        f"Details: {type(e).__name__}: {e}"
-                    ),
-                },
+                error_payload_from_exception(
+                    tool_name=tool_name,
+                    tenant_id=tenant_id or None,
+                    exc=e,
+                ),
                 default=str,
             )
 
-    def _check_unread_emails(self, arguments: Dict[str, Any], tenant: Any, user: Any = None) -> Any:
-        from apps.integrations.models import ExternalAuthProvider
-        from tenant_apps.ai_assistant.swarm.tools.microsoft_graph import decryption_failed_payload
+    def _fetch_emails(self, arguments: Dict[str, Any], tenant: Any, user: Any = None) -> Any:
         from tenant_apps.integrations.services.email_ingestion import EmailIngestionService
 
         tenant_id = getattr(tenant, 'id', None)
         if not tenant_id:
             raise ValueError('Tenant not resolved; cannot access email tools')
 
-        provider = (
-            ExternalAuthProvider.objects.filter(
-                tenant=tenant,
-                provider_type='microsoft',
-                is_active=True,
-            )
-            .select_related('tenant')
-            .first()
+        folder = arguments.get('folder') or 'inbox'
+        is_read = arguments.get('is_read') if 'is_read' in arguments else None
+        has_attachments = arguments.get('has_attachments') if 'has_attachments' in arguments else None
+        search_query = arguments.get('search_query')
+        limit = arguments.get('limit')
+
+        return EmailIngestionService(tenant).fetch_emails_for_ai(
+            folder=folder,
+            is_read=is_read,
+            has_attachments=has_attachments,
+            search_query=search_query,
+            limit=limit,
         )
-        if not provider:
-            raise ValueError('Outlook not connected. Connect it in Settings → Email Integrations.')
-        if provider.is_token_expired():
-            raise ValueError('Outlook connection expired. Reconnect in Settings → Email Integrations.')
 
-        # Decryption errors can occur when OAUTH_ENCRYPTION_KEY has changed.
-        # In that case, return a stable payload so the AI can instruct the user to reconnect.
-        try:
-            return EmailIngestionService(tenant).fetch_unread_actionable_emails()
-        except Exception as e:
-            # EmailIngestionService uses ExternalAuthProvider.get_decrypted_token under the hood.
-            # When the underlying Fernet decrypt fails, the model raises InvalidToken.
-            from cryptography.fernet import InvalidToken
-
-            if isinstance(e, InvalidToken):
-                return decryption_failed_payload()
-            raise
+    def _check_unread_emails(self, arguments: Dict[str, Any], tenant: Any, user: Any = None) -> Any:
+        alias_arguments = {
+            'folder': 'inbox',
+            'is_read': False,
+            'has_attachments': True,
+            'limit': arguments.get('limit') if 'limit' in arguments else 10,
+        }
+        return self._fetch_emails(alias_arguments, tenant, user)
 
     def _draft_outlook_email(self, arguments: Dict[str, Any], tenant: Any, user: Any = None) -> Any:
         """Send an email using the tenant's Microsoft Graph connection."""
         from apps.integrations.models import ExternalAuthProvider
         from apps.integrations.providers.microsoft import MicrosoftGraphProvider
+        from tenant_apps.ai_assistant.swarm.tools.microsoft_graph import ToolExecutionError
 
         tenant_id = getattr(tenant, 'id', None)
         if not tenant_id:
@@ -606,7 +628,12 @@ class ToolExecutor:
 
         access_token, err = decrypt_token_or_error(provider_row=provider_row, token_type='access')
         if err:
-            return err
+            raise ToolExecutionError(
+                error_code=err.get('error_code') or 'DECRYPTION_FAILED',
+                message=err.get('message') or 'Your Outlook connection needs to be refreshed for security reasons.',
+                hint='Reconnect Outlook in Settings → Email Integrations.',
+                retryable=False,
+            )
 
         graph = MicrosoftGraphProvider(tenant.id)
 
@@ -919,6 +946,48 @@ class ToolExecutor:
                     'parse_document requires an uploaded document_id (UUID or integer). URL fetch is disabled for SSRF safety.'
                 ) from e
 
+        from tenant_apps.ai_assistant.models import AIDocument
+        from tenant_apps.ai_assistant.services.document_parser import is_tabular_document, parse_tabular_document
+
+        doc = AIDocument.objects.filter(id=(document_int or document_uuid), tenant=tenant, owner=user).first()
+        if not doc:
+            raise ValueError('Document not found for this tenant/user')
+
+        if not doc.file:
+            raise ValueError('Document record has no file attached')
+
+        filename = doc.original_filename or 'document'
+        content_type = doc.content_type or 'application/octet-stream'
+
+        if is_tabular_document(filename=filename, content_type=content_type):
+            from tenant_apps.ai_assistant.swarm.tools.microsoft_graph import ToolExecutionError
+
+            try:
+                with doc.file.open('rb') as f:
+                    parsed = parse_tabular_document(
+                        f,
+                        filename=filename,
+                        content_type=content_type,
+                    )
+            except Exception as exc:
+                raise ToolExecutionError(
+                    error_code='DOCUMENT_PARSE_FAILED',
+                    message='The spreadsheet file could not be parsed.',
+                    hint='Upload a valid CSV or Excel file, or resave the spreadsheet and try again.',
+                    retryable=False,
+                    details=f'{type(exc).__name__}: {exc}',
+                ) from exc
+            return {
+                'document_id': str(doc.id),
+                'filename': filename,
+                'content_type': content_type,
+                'text': parsed.text,
+                'elements_preview': list(parsed.preview),
+                'parser': 'tabular_markdown',
+                'truncated': parsed.truncated,
+                'warnings': list(parsed.warnings),
+            }
+
         from django.conf import settings
 
         base_url = (getattr(settings, 'UNSTRUCTURED_API_URL', '') or '').strip()
@@ -931,18 +1000,6 @@ class ToolExecutor:
         endpoint = base_url.rstrip('/')
         if '/general/' not in endpoint and not endpoint.endswith('/general/v0/general'):
             endpoint = f"{endpoint}/general/v0/general"
-
-        from tenant_apps.ai_assistant.models import AIDocument
-
-        doc = AIDocument.objects.filter(id=(document_int or document_uuid), tenant=tenant, owner=user).first()
-        if not doc:
-            raise ValueError('Document not found for this tenant/user')
-
-        if not doc.file:
-            raise ValueError('Document record has no file attached')
-
-        filename = doc.original_filename or 'document'
-        content_type = doc.content_type or 'application/octet-stream'
 
         import requests
 
@@ -1754,6 +1811,7 @@ class ToolExecutor:
             is_active = True
 
         from tenant_apps.ai_assistant.models import TenantAIMemory
+        from tenant_apps.ai_assistant.services.semantic_indexing import sync_memory_embedding
 
         row, created = TenantAIMemory.objects.update_or_create(
             tenant=tenant,
@@ -1765,6 +1823,7 @@ class ToolExecutor:
                 'is_active': bool(is_active),
             },
         )
+        sync_memory_embedding(row)
 
         return {
             'id': str(row.id),

@@ -12,6 +12,7 @@ from django.contrib.auth.models import User
 
 from apps.core.models import (
     PhoneTypeChoices,
+    SoftDeleteModel,
     TenantAwareModel,
 )
 
@@ -34,7 +35,7 @@ class LocationTypeChoices(models.TextChoices):
     OTHER = 'other', 'Other'
 
 
-class Location(TenantAwareModel):
+class Location(SoftDeleteModel, TenantAwareModel):
     """
     Unified Location model for supplier/customer addresses and plant facilities.
     
@@ -214,7 +215,7 @@ class Location(TenantAwareModel):
             # Plant codes should be unique within a tenant
             models.UniqueConstraint(
                 fields=['tenant', 'code'],
-                condition=models.Q(code__gt=''),
+                condition=models.Q(code__gt='', is_deleted=False),
                 name='unique_location_code_per_tenant'
             ),
         ]
