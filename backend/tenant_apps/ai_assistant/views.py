@@ -611,7 +611,7 @@ class SwarmToolsOpenAPIView(APIView):
         except Exception:
             logger.warning('tools/openapi: failed to load outlook connection status', exc_info=True)
 
-        email_tools = {'fetch_emails', 'check_unread_emails', 'draft_outlook_email'}
+        email_tools = {'fetch_emails', 'ingest_email_attachment', 'check_unread_emails', 'draft_outlook_email'}
 
         if outlook['connected']:
             tools = DEFAULT_OPENAI_TOOLS
@@ -632,7 +632,14 @@ class SwarmToolsOpenAPIView(APIView):
             # Keep legacy OpenAPI-ish document for backward compatibility.
             from .swarm.tools.registry import registry
 
-            payload['openapi'] = registry.to_openapi()
+            openapi_doc = registry.to_openapi()
+            if not outlook['connected']:
+                openapi_doc['paths'] = {
+                    path: spec
+                    for path, spec in (openapi_doc.get('paths') or {}).items()
+                    if path.rsplit('/', 1)[-1] not in email_tools
+                }
+            payload['openapi'] = openapi_doc
         except Exception as e:
             logger.warning('tools/openapi fallback engaged: %s', str(e), exc_info=True)
 

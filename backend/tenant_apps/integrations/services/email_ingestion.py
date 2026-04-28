@@ -13,7 +13,11 @@ from django.db import transaction
 
 from apps.integrations.models import ExternalAuthProvider, EmailLog
 from apps.tenants.models import Tenant
-from tenant_apps.ai_assistant.session_utils import session_matches_tenant
+from tenant_apps.ai_assistant.session_utils import (
+    bind_attachment_allowlist,
+    get_staged_attachment_status,
+    session_matches_tenant,
+)
 from tenant_apps.ai_assistant.swarm.tools.microsoft_graph import (
     MAX_MAIL_LIMIT,
     ToolExecutionError,
@@ -600,6 +604,8 @@ class EmailIngestionService:
         has_attachments: bool | None = None,
         search_query: str | None = None,
         limit: int | None = None,
+        user: Any = None,
+        session_id: str | None = None,
     ) -> Dict[str, Any]:
         """Fetch a bounded, LLM-safe mail slice for the active tenant."""
         if not self.tenant:
@@ -679,6 +685,28 @@ class EmailIngestionService:
             is_read=is_read,
             has_attachments=has_attachments,
         )
+        if session_id:
+            session = self._get_valid_session(user=user, session_id=session_id)
+            staged_refs: list[dict[str, Any]] = []
+            for message in results:
+                message_id = str(message.get('id') or '').strip()
+                for attachment in message.get('attachments') or []:
+                    if not isinstance(attachment, dict):
+                        continue
+                    staged_refs.append(
+                        {
+                            'message_id': message_id,
+                            'attachment_id': attachment.get('attachment_id'),
+                            'name': attachment.get('name'),
+                            'content_type': attachment.get('content_type'),
+                            'size': attachment.get('size'),
+                            'attachment_type': attachment.get('attachment_type'),
+                        }
+                    )
+            updated_context = bind_attachment_allowlist(getattr(session, 'context_data', {}) or {}, staged_refs)
+            if updated_context != (getattr(session, 'context_data', {}) or {}):
+                session.context_data = updated_context
+                session.save(update_fields=['context_data', 'modified_on'])
 
         return {
             'folder': request_spec['folder'],
@@ -691,6 +719,19 @@ class EmailIngestionService:
             },
             'messages': results,
         }
+
+    def _get_valid_session(self, *, user: Any, session_id: str):
+        if user is None:
+            raise ValueError('Authenticated user context is required for session-bound email tools')
+
+        from tenant_apps.ai_assistant.models import ChatSession
+
+        session = ChatSession.objects.filter(id=session_id, owner=user).first()
+        if not session:
+            raise ValueError('Session not found')
+        if not session_matches_tenant(session, self.tenant):
+            raise ValueError('Session is not valid for this tenant')
+        return session
 
     def ingest_email_attachment_for_ai(
         self,
@@ -713,10 +754,17 @@ class EmailIngestionService:
         message_id = str(message_id or '').strip()
         attachment_id = str(attachment_id or '').strip()
         file_name = str(file_name or '').strip()
-        if not message_id or not attachment_id or not file_name:
-            raise ValueError('Missing required parameters: message_id, attachment_id, file_name')
+        if not message_id or not attachment_id:
+            raise ValueError('Missing required parameters: message_id, attachment_id')
         if user is None:
             raise ValueError('Authenticated user context is required for attachment ingestion')
+        if not session_id:
+            raise ToolExecutionError(
+                error_code='SESSION_CONTEXT_REQUIRED',
+                message='Outlook attachment ingest requires an active chat session.',
+                hint='Use fetch_emails in the current AI chat first, then choose one of the returned attachments.',
+                retryable=False,
+            )
 
         provider = (
             ExternalAuthProvider.objects.filter(
@@ -774,14 +822,26 @@ class EmailIngestionService:
         from tenant_apps.ai_assistant.models import AIDocument, ChatMessage, ChatSession, MessageTypeChoices
         from tenant_apps.ai_assistant.services.document_parser import validate_ai_document_upload
 
-        session = None
-        current_tenant_id = str(getattr(self.tenant, 'id', '') or '')
-        if session_id:
-            session = ChatSession.objects.filter(id=session_id, owner=user).first()
-            if not session:
-                raise ValueError('Session not found')
-            if not current_tenant_id or not session_matches_tenant(session, self.tenant):
-                raise ValueError('Session is not valid for this tenant')
+        session = self._get_valid_session(user=user, session_id=session_id)
+        stage_status, staged_attachment = get_staged_attachment_status(
+            session,
+            message_id=message_id,
+            attachment_id=attachment_id,
+        )
+        if stage_status == 'expired':
+            raise ToolExecutionError(
+                error_code='ATTACHMENT_STAGE_EXPIRED',
+                message='The selected Outlook attachment expired from the current AI session.',
+                hint='Run fetch_emails again in this chat, then choose the attachment from the refreshed results.',
+                retryable=False,
+            )
+        if stage_status != 'active' or staged_attachment is None:
+            raise ToolExecutionError(
+                error_code='ATTACHMENT_NOT_STAGED',
+                message='That Outlook attachment is not staged for the current AI session.',
+                hint='Use fetch_emails in this chat first, then ingest one of the returned attachments.',
+                retryable=False,
+            )
 
         existing_document = self._get_existing_attachment_document(
             user=user,
@@ -840,11 +900,12 @@ class EmailIngestionService:
         except (TypeError, ValueError):
             metadata_size = None
 
+        canonical_file_name = str(attachment_metadata.get('name') or staged_attachment.get('name') or file_name).strip()
         content_type = infer_content_type(
-            file_name=file_name,
-            fallback=attachment_metadata.get('contentType'),
+            file_name=canonical_file_name,
+            fallback=attachment_metadata.get('contentType') or staged_attachment.get('content_type'),
         )
-        validate_ai_document_upload(filename=file_name, content_type=content_type)
+        validate_ai_document_upload(filename=canonical_file_name, content_type=content_type)
 
         try:
             response = requests.get(url, headers=headers, timeout=30, stream=True)
@@ -879,7 +940,7 @@ class EmailIngestionService:
                 )
 
         upload = SimpleUploadedFile(
-            file_name,
+            canonical_file_name,
             bytes(content),
             content_type=content_type,
         )
@@ -896,7 +957,7 @@ class EmailIngestionService:
                 owner=user,
                 session=session,
                 file=upload,
-                original_filename=file_name,
+                original_filename=canonical_file_name,
                 content_type=content_type,
                 file_size=len(content),
                 custom_data=source_metadata,
