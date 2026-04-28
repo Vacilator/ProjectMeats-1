@@ -19,11 +19,14 @@ from tenant_apps.ai_assistant.swarm.tools.microsoft_graph import (
     build_mail_request,
     decrypt_token_or_error,
     decryption_failed_payload,
+    infer_content_type,
     post_filter_messages,
     serialize_graph_message,
 )
 
 logger = logging.getLogger(__name__)
+
+MAX_AI_ATTACHMENT_BYTES = 25 * 1024 * 1024
 
 
 class EmailIngestionService:
@@ -634,6 +637,214 @@ class EmailIngestionService:
                 'search_query': (str(search_query or '').strip() or None),
             },
             'messages': results,
+        }
+
+    def ingest_email_attachment_for_ai(
+        self,
+        *,
+        message_id: str,
+        attachment_id: str,
+        file_name: str,
+        user: Any,
+        session_id: str | None = None,
+    ) -> Dict[str, Any]:
+        """Download a Graph attachment and persist it as an AIDocument."""
+        if not self.tenant:
+            raise ToolExecutionError(
+                error_code='TENANT_CONTEXT_MISSING',
+                message='Tenant context is required before ingesting Outlook attachments.',
+                hint='Retry from a tenant-scoped ProjectMeats session.',
+                retryable=False,
+            )
+
+        message_id = str(message_id or '').strip()
+        attachment_id = str(attachment_id or '').strip()
+        file_name = str(file_name or '').strip()
+        if not message_id or not attachment_id or not file_name:
+            raise ValueError('Missing required parameters: message_id, attachment_id, file_name')
+        if user is None:
+            raise ValueError('Authenticated user context is required for attachment ingestion')
+
+        provider = (
+            ExternalAuthProvider.objects.filter(
+                tenant=self.tenant,
+                provider_type='microsoft',
+                is_active=True,
+            )
+            .select_related('tenant')
+            .first()
+        )
+        if not provider:
+            raise ToolExecutionError(
+                error_code='OUTLOOK_NOT_CONNECTED',
+                message='Outlook is not connected for this tenant.',
+                hint='Connect Outlook in Settings → Email Integrations before ingesting attachments.',
+                retryable=False,
+            )
+
+        try:
+            provider.refresh_if_needed()
+        except Exception:
+            logger.warning(
+                'Token refresh failed for AI attachment ingest tenant=%s provider_id=%s',
+                self.tenant.id,
+                provider.id,
+                exc_info=True,
+            )
+
+        if provider.is_token_expired():
+            raise ToolExecutionError(
+                error_code='OUTLOOK_CONNECTION_EXPIRED',
+                message='Your Outlook connection has expired.',
+                hint='Reconnect Outlook in Settings → Email Integrations.',
+                retryable=False,
+            )
+
+        access_token, err = decrypt_token_or_error(provider_row=provider, token_type='access')
+        if err:
+            raise ToolExecutionError(
+                error_code=err.get('error_code') or 'DECRYPTION_FAILED',
+                message=err.get('message') or decryption_failed_payload()['message'],
+                hint='Reconnect Outlook in Settings → Email Integrations.',
+                retryable=False,
+            )
+        if not access_token:
+            raise ToolExecutionError(
+                error_code='OUTLOOK_ACCESS_TOKEN_MISSING',
+                message='No Outlook access token is available for this tenant.',
+                hint='Reconnect Outlook in Settings → Email Integrations.',
+                retryable=False,
+            )
+
+        from apps.integrations.providers import MicrosoftGraphProvider
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        from tenant_apps.ai_assistant.models import AIDocument, ChatMessage, ChatSession, MessageTypeChoices
+        from tenant_apps.ai_assistant.services.document_parser import validate_ai_document_upload
+
+        session = None
+        current_tenant_id = str(getattr(self.tenant, 'id', '') or '')
+        if session_id:
+            session = ChatSession.objects.filter(id=session_id, owner=user).first()
+            if not session:
+                raise ValueError('Session not found')
+            session_tenant_id = str((session.context_data or {}).get('tenant_id') or '').strip()
+            if session_tenant_id != current_tenant_id:
+                raise ValueError('Session is not valid for this tenant')
+
+        graph_provider = MicrosoftGraphProvider(self.tenant.id)
+        url = (
+            f"{graph_provider.GRAPH_API_BASE}/me/messages/{message_id}/attachments/"
+            f"{attachment_id}/$value"
+        )
+        headers = {
+            'Authorization': f'Bearer {access_token}',
+            'Accept': '*/*',
+        }
+
+        try:
+            response = requests.get(url, headers=headers, timeout=30, stream=True)
+            response.raise_for_status()
+        except requests.RequestException as exc:
+            raise self._map_graph_exception(exc) from exc
+
+        content_type = infer_content_type(
+            file_name=file_name,
+            fallback=response.headers.get('Content-Type'),
+        )
+        validate_ai_document_upload(filename=file_name, content_type=content_type)
+
+        header_size = response.headers.get('Content-Length')
+        if header_size:
+            try:
+                if int(header_size) > MAX_AI_ATTACHMENT_BYTES:
+                    raise ToolExecutionError(
+                        error_code='ATTACHMENT_TOO_LARGE',
+                        message='The selected email attachment is too large to ingest safely.',
+                        hint='Choose a smaller attachment or download it manually and upload it through the document UI.',
+                        retryable=False,
+                    )
+            except ValueError:
+                pass
+
+        content = bytearray()
+        for chunk in response.iter_content(chunk_size=1024 * 1024):
+            if not chunk:
+                continue
+            content.extend(chunk)
+            if len(content) > MAX_AI_ATTACHMENT_BYTES:
+                raise ToolExecutionError(
+                    error_code='ATTACHMENT_TOO_LARGE',
+                    message='The selected email attachment is too large to ingest safely.',
+                    hint='Choose a smaller attachment or download it manually and upload it through the document UI.',
+                    retryable=False,
+                )
+
+        upload = SimpleUploadedFile(
+            file_name,
+            bytes(content),
+            content_type=content_type,
+        )
+
+        with transaction.atomic():
+            document = AIDocument.objects.create(
+                tenant=self.tenant,
+                owner=user,
+                session=session,
+                file=upload,
+                original_filename=file_name,
+                content_type=content_type,
+                file_size=len(content),
+            )
+
+        if session:
+            try:
+                ChatMessage.objects.create(
+                    session=session,
+                    message_type=MessageTypeChoices.DOCUMENT,
+                    content=document.original_filename or 'Document uploaded',
+                    metadata={
+                        'document_id': str(document.id),
+                        'original_filename': document.original_filename,
+                        'file_url': getattr(document.file, 'url', ''),
+                        'content_type': document.content_type,
+                        'file_size': document.file_size,
+                        'source': 'microsoft_graph_attachment',
+                        'message_id': message_id,
+                        'attachment_id': attachment_id,
+                    },
+                    owner=user,
+                    created_by=user,
+                    modified_by=user,
+                )
+            except Exception:
+                logger.warning(
+                    'Graph attachment ingest: failed to create session document message document=%s session=%s',
+                    document.id,
+                    session.id,
+                    exc_info=True,
+                )
+
+        try:
+            from tenant_apps.ai_assistant.services.semantic_indexing import index_document_for_semantic_search
+
+            index_document_for_semantic_search(document)
+        except Exception as exc:
+            logger.warning(
+                'AIDocument graph attachment ingest: semantic indexing skipped for document=%s err=%s',
+                document.id,
+                str(exc),
+                exc_info=True,
+            )
+
+        return {
+            'status': 'success',
+            'document_id': str(document.id),
+            'message_id': message_id,
+            'attachment_id': attachment_id,
+            'file_name': document.original_filename,
+            'content_type': document.content_type,
+            'file_size': document.file_size,
+            'session_id': str(document.session_id) if document.session_id else None,
         }
 
     def fetch_unread_emails(self, tenant: Tenant) -> List[Dict[str, Any]]:

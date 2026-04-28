@@ -28,7 +28,8 @@ DEFAULT_OPENAI_TOOLS = [
             'name': 'fetch_emails',
             'description': (
                 "Search the user's connected Microsoft Outlook mailbox with explicit folder/read/"
-                'attachment/search filters. Defaults to inbox when folder is omitted.'
+                'attachment/search filters. Returns attachment metadata when available. '
+                'Defaults to inbox when folder is omitted.'
             ),
             'parameters': {
                 'type': 'object',
@@ -55,6 +56,26 @@ DEFAULT_OPENAI_TOOLS = [
                         'description': 'Max results to return (default 10, maximum 25).',
                     },
                 },
+                'additionalProperties': False,
+            },
+        },
+    },
+    {
+        'type': 'function',
+        'function': {
+            'name': 'ingest_email_attachment',
+            'description': (
+                'Download a specific Microsoft Outlook attachment and save it as an internal '
+                'AIDocument so parse_document can read it safely.'
+            ),
+            'parameters': {
+                'type': 'object',
+                'properties': {
+                    'message_id': {'type': 'string', 'description': 'Microsoft Graph message id.'},
+                    'attachment_id': {'type': 'string', 'description': 'Attachment id from fetch_emails metadata.'},
+                    'file_name': {'type': 'string', 'description': 'Original attachment filename.'},
+                },
+                'required': ['message_id', 'attachment_id', 'file_name'],
                 'additionalProperties': False,
             },
         },
@@ -464,6 +485,7 @@ class ToolExecutor:
     def __init__(self):
         self._tools: Dict[str, Callable[[Dict[str, Any], Any, Any], Any]] = {
             'fetch_emails': self._fetch_emails,
+            'ingest_email_attachment': self._ingest_email_attachment,
             'check_unread_emails': self._check_unread_emails,
             'draft_outlook_email': self._draft_outlook_email,
             'get_record_detail': self._get_record_detail,
@@ -490,7 +512,14 @@ class ToolExecutor:
             'get_recent_activity': self._get_recent_activity,
         }
 
-    def execute(self, tool_name: str, arguments: Dict[str, Any] | None, tenant: Any, user: Any = None) -> str:
+    def execute(
+        self,
+        tool_name: str,
+        arguments: Dict[str, Any] | None,
+        tenant: Any,
+        user: Any = None,
+        session_id: str | None = None,
+    ) -> str:
         """Execute a tool and return a JSON string result.
 
         Args:
@@ -541,6 +570,8 @@ class ToolExecutor:
             safe_args = dict(arguments or {})
             if tool_name == 'get_recent_errors' and not safe_args.get('tenant_id'):
                 safe_args['tenant_id'] = tenant_id
+            if session_id and tool_name == 'ingest_email_attachment' and not safe_args.get('session_id'):
+                safe_args['session_id'] = session_id
 
             result = fn(safe_args, tenant, user)
             return json.dumps({'ok': True, 'tool': tool_name, 'tenant_id': tenant_id, 'data': result}, default=str)
@@ -575,6 +606,28 @@ class ToolExecutor:
             has_attachments=has_attachments,
             search_query=search_query,
             limit=limit,
+        )
+
+    def _ingest_email_attachment(self, arguments: Dict[str, Any], tenant: Any, user: Any = None) -> Any:
+        from tenant_apps.integrations.services.email_ingestion import EmailIngestionService
+
+        tenant_id = getattr(tenant, 'id', None)
+        if not tenant_id:
+            raise ValueError('Tenant not resolved; cannot access email tools')
+
+        message_id = str(arguments.get('message_id') or '').strip()
+        attachment_id = str(arguments.get('attachment_id') or '').strip()
+        file_name = str(arguments.get('file_name') or '').strip()
+        session_id = str(arguments.get('session_id') or '').strip() or None
+        if not message_id or not attachment_id or not file_name:
+            raise ValueError('Missing required parameters: message_id, attachment_id, file_name')
+
+        return EmailIngestionService(tenant).ingest_email_attachment_for_ai(
+            message_id=message_id,
+            attachment_id=attachment_id,
+            file_name=file_name,
+            user=user,
+            session_id=session_id,
         )
 
     def _check_unread_emails(self, arguments: Dict[str, Any], tenant: Any, user: Any = None) -> Any:

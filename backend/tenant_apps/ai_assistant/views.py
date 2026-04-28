@@ -183,6 +183,15 @@ class ChatBotAPIViewSet(viewsets.ViewSet):
             if not tenant_id:
                 return Response({'error': 'Tenant context missing'}, status=status.HTTP_400_BAD_REQUEST)
 
+            session_context = dict(getattr(session, 'context_data', {}) or {})
+            session_tenant_id = str(session_context.get('tenant_id') or '').strip()
+            if session_tenant_id and session_tenant_id != tenant_id:
+                return Response({'error': 'Session not found'}, status=status.HTTP_404_NOT_FOUND)
+            if session_tenant_id != tenant_id:
+                session_context['tenant_id'] = tenant_id
+                ChatSession.objects.filter(id=session.id, owner=request.user).update(context_data=session_context)
+                session.context_data = session_context
+
             # Defense-in-depth: ensure RLS session vars are asserted on this DB connection
             # before any Swarm tool executes queries.
             #
@@ -291,6 +300,7 @@ class ChatBotAPIViewSet(viewsets.ViewSet):
                     tenant=tenant,
                     user=request.user,
                     history=history,
+                    session_id=str(session.id),
                 )
 
                 response_text = str(result.get('response') or '').strip()
