@@ -6,6 +6,7 @@ and AI-powered business intelligence for meat market operations.
 """
 import logging
 import time
+import uuid
 from datetime import timedelta
 
 from django.conf import settings
@@ -443,7 +444,21 @@ class AIDocumentViewSet(viewsets.ModelViewSet):
         qs = qs.filter(owner=self.request.user)
         if not tenant:
             return qs.none()
-        return qs.filter(tenant=tenant)
+        qs = qs.filter(tenant=tenant)
+
+        source = str(self.request.query_params.get('source') or '').strip()
+        if source:
+            qs = qs.filter(custom_data__source=source)
+
+        session_id = str(self.request.query_params.get('session') or '').strip()
+        if session_id:
+            try:
+                session_uuid = uuid.UUID(session_id)
+            except ValueError:
+                return qs.none()
+            qs = qs.filter(session_id=session_uuid)
+
+        return qs
 
     def perform_create(self, serializer):
         from django.db import transaction
@@ -477,6 +492,10 @@ class AIDocumentViewSet(viewsets.ModelViewSet):
                     original_filename=getattr(self.request.FILES.get('file'), 'name', ''),
                     content_type=getattr(self.request.FILES.get('file'), 'content_type', '') or '',
                     file_size=getattr(self.request.FILES.get('file'), 'size', 0) or 0,
+                    custom_data={
+                        'source': 'manual_upload',
+                        'uploaded_at': timezone.now().isoformat(),
+                    },
                 )
         except ValidationError:
             raise
@@ -518,6 +537,7 @@ class AIDocumentViewSet(viewsets.ModelViewSet):
                         'file_url': getattr(instance.file, 'url', ''),
                         'content_type': instance.content_type,
                         'file_size': instance.file_size,
+                        'source_metadata': dict(getattr(instance, 'custom_data', {}) or {}),
                     },
                     owner=self.request.user,
                     created_by=self.request.user,

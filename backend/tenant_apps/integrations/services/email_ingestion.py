@@ -96,6 +96,57 @@ class EmailIngestionService:
             'errors_detail': [],
             'last_cutoff': None,
         }
+
+    @staticmethod
+    def _build_attachment_source_metadata(
+        *,
+        message_id: str,
+        attachment_id: str,
+        attachment_metadata: Dict[str, Any],
+        session: Any = None,
+    ) -> Dict[str, Any]:
+        metadata = {
+            'source': 'microsoft_graph_attachment',
+            'message_id': message_id,
+            'attachment_id': attachment_id,
+            'ingested_at': timezone.now().isoformat(),
+        }
+        if session is not None:
+            metadata['session_id'] = str(getattr(session, 'id', '') or '')
+        if attachment_metadata.get('name'):
+            metadata['graph_name'] = str(attachment_metadata.get('name') or '').strip()
+        if attachment_metadata.get('contentType'):
+            metadata['graph_content_type'] = str(attachment_metadata.get('contentType') or '').strip()
+        if attachment_metadata.get('size') is not None:
+            metadata['graph_size'] = attachment_metadata.get('size')
+        attachment_type = str(attachment_metadata.get('@odata.type') or '').strip()
+        if attachment_type:
+            metadata['graph_attachment_type'] = attachment_type
+        return metadata
+
+    def _get_existing_attachment_document(
+        self,
+        *,
+        user: Any,
+        session: Any = None,
+        message_id: str,
+        attachment_id: str,
+    ):
+        from tenant_apps.ai_assistant.models import AIDocument
+
+        filters = {
+            'tenant': self.tenant,
+            'owner': user,
+            'custom_data__source': 'microsoft_graph_attachment',
+            'custom_data__message_id': message_id,
+            'custom_data__attachment_id': attachment_id,
+        }
+        if session is None:
+            filters['session__isnull'] = True
+        else:
+            filters['session'] = session
+
+        return AIDocument.objects.filter(**filters).order_by('-created_on').first()
     
     def poll_all_tenants(self) -> Dict[str, int]:
         """
@@ -732,6 +783,26 @@ class EmailIngestionService:
             if session_tenant_id != current_tenant_id:
                 raise ValueError('Session is not valid for this tenant')
 
+        existing_document = self._get_existing_attachment_document(
+            user=user,
+            session=session,
+            message_id=message_id,
+            attachment_id=attachment_id,
+        )
+        if existing_document is not None:
+            return {
+                'status': 'already_ingested',
+                'document_id': str(existing_document.id),
+                'message_id': message_id,
+                'attachment_id': attachment_id,
+                'file_name': existing_document.original_filename,
+                'content_type': existing_document.content_type,
+                'file_size': existing_document.file_size,
+                'session_id': str(existing_document.session_id) if existing_document.session_id else None,
+                'cache_hit': True,
+                'source_metadata': dict(getattr(existing_document, 'custom_data', {}) or {}),
+            }
+
         graph_provider = MicrosoftGraphProvider(self.tenant.id)
         metadata_url = (
             f"{graph_provider.GRAPH_API_BASE}/me/messages/{message_id}/attachments/{attachment_id}"
@@ -812,6 +883,12 @@ class EmailIngestionService:
             bytes(content),
             content_type=content_type,
         )
+        source_metadata = self._build_attachment_source_metadata(
+            message_id=message_id,
+            attachment_id=attachment_id,
+            attachment_metadata=attachment_metadata,
+            session=session,
+        )
 
         with transaction.atomic():
             document = AIDocument.objects.create(
@@ -822,6 +899,7 @@ class EmailIngestionService:
                 original_filename=file_name,
                 content_type=content_type,
                 file_size=len(content),
+                custom_data=source_metadata,
             )
 
         if session:
@@ -839,6 +917,7 @@ class EmailIngestionService:
                         'source': 'microsoft_graph_attachment',
                         'message_id': message_id,
                         'attachment_id': attachment_id,
+                        'source_metadata': source_metadata,
                     },
                     owner=user,
                     created_by=user,
@@ -873,6 +952,8 @@ class EmailIngestionService:
             'content_type': document.content_type,
             'file_size': document.file_size,
             'session_id': str(document.session_id) if document.session_id else None,
+            'cache_hit': False,
+            'source_metadata': source_metadata,
         }
 
     def fetch_unread_emails(self, tenant: Tenant) -> List[Dict[str, Any]]:

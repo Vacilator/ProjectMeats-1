@@ -141,6 +141,7 @@ class AIDocumentSerializer(serializers.ModelSerializer):
 
     file_type = serializers.CharField(source='content_type', read_only=True)
     document_type = serializers.SerializerMethodField(read_only=True)
+    source_metadata = serializers.SerializerMethodField(read_only=True)
 
     def validate_session(self, value):
         request = self.context.get('request')
@@ -155,6 +156,29 @@ class AIDocumentSerializer(serializers.ModelSerializer):
     def get_document_type(self, obj) -> str:
         # Classification may happen asynchronously; keep this additive and deterministic.
         return 'unknown'
+
+    def get_source_metadata(self, obj) -> dict:
+        metadata = getattr(obj, 'custom_data', None)
+        if not isinstance(metadata, dict):
+            return {}
+
+        allowed_keys = (
+            'source',
+            'message_id',
+            'attachment_id',
+            'ingested_at',
+            'uploaded_at',
+            'session_id',
+            'graph_name',
+            'graph_content_type',
+            'graph_size',
+            'graph_attachment_type',
+        )
+        return {
+            key: metadata[key]
+            for key in allowed_keys
+            if metadata.get(key) not in (None, '')
+        }
 
     def validate_file(self, value):
         try:
@@ -180,6 +204,7 @@ class AIDocumentSerializer(serializers.ModelSerializer):
             'file_size',
             'processing_status',
             'document_type',
+            'source_metadata',
             'created_on',
         ]
         read_only_fields = ['id', 'tenant', 'owner', 'content_type', 'file_type', 'file_size', 'document_type', 'created_on']
