@@ -21,6 +21,7 @@ This file is the **canonical plan + current truth snapshot**.
   - Backend tenant safety: fail-closed `current/current_theme/admin_permissions` when tenant context is missing/ambiguous (PR #4656); wrap tenant-scoped Celery ORM in `tenant_rls(..., strict=False)` (PR #4657).
   - Mobile: device-safe API base URL + tests (PR #4658); switch builds to EAS (PR #4659).
   - WorkForms editor hot-path stability: derive validation/history/autosave from graph state (PR #32), move node actions out of `nodesWithHandlers` cloning and into editor context (PR #4720), and keep config-panel shadow edits local until Apply/Discard instead of rewriting the full node array on every keystroke (PR #4721).
+  - WorkForms execution telemetry foundation: add a tenant-scoped `ExecutionEventLog` model with RLS, persist normalized execution/node/action events from `audit_trail`, and cover successful + failed action spans in backend tests (see `.github/MASTER_PLAN.md` for the shipped PR reference).
 
 ### P0 priorities (next)
 - **Core API reliability**: ✅ shipped (PR #4652). Next: expand smoke coverage for always-on endpoints (health, tenant resolution, auth bootstrap) and keep them in PR gates.
@@ -38,7 +39,7 @@ This file is the **canonical plan + current truth snapshot**.
   - Legacy workflow webhook endpoint must fail closed unless tenant context is resolvable (migrate callers to tenant-path URL).
   - Integrations OAuth callback must set tenant + RLS session vars before writing tenant-scoped rows.
   - WorkForms create must not bypass activation validation when `status=active`. ✅ shipped (runtime validation guardrails in PR #4483; verified by `apps.system.tests.test_workform_runtime_support_validation`).
-- **WorkForms Editor stability**: validation/history/autosave, node action routing, and local shadow-state staging are now hardened. Continue deterministic schema init / form "fields" model cleanup and any remaining a11y + theme-token hardening.
+- **WorkForms runtime/observability**: editor validation/history/autosave, node action routing, local shadow-state staging, and execution telemetry are now hardened. Next: state-machine hydration + analytics surfaces that consume the telemetry stream, then deterministic schema init / form "fields" model cleanup and any remaining a11y + theme-token hardening.
 - **CI guardrails (never-miss-again)**:
   - Deploy-by-digest default for UAT/Prod and digest-align the migration artifact.
   - Manifest-driven required-secret enforcement per lane (remove hardcoded lists).
