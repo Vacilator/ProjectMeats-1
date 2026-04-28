@@ -1782,6 +1782,7 @@ Deliverables:
 - **2026-04-28** — [COMPLETED] Bridged Microsoft Graph attachments to internal AIDocument parser, enabling autonomous email-to-record workflows. (PR: #4733)
 - **2026-04-28** — [COMPLETED] Hardened Graph attachment ingestion to preflight Microsoft Graph attachment metadata, reject unsupported `itemAttachment`/`referenceAttachment` kinds before download, and keep the email → AIDocument path fail-closed with regression coverage. (PR: #4734)
 - **2026-04-28** — [COMPLETED] Hardened AI email/document auditability by persisting Microsoft Graph attachment provenance in `AIDocument.custom_data`, deduplicating repeated attachment ingests within the same tenant/user/session, and exposing source-aware `AIDocument` filtering + serializer metadata for operators. (PR: #4735)
+- **2026-04-28** — [COMPLETED] Hard-bound AI chat sessions, chat messages, manual document uploads, and Graph attachment session reuse to `request.tenant` via session tenant context, making the multi-tenant AI session APIs fail closed for ambiguous or cross-tenant access. (PR: #4736)
 
 ### Phase 11: The Deal Desk (Trader Ledger Replacement)
 
