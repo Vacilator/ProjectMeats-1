@@ -8,10 +8,10 @@ from django.contrib.auth.models import User
 from django.contrib.postgres.fields import ArrayField
 from django.db import models
 
-from apps.core.models import PhoneTypeChoices, TenantAwareModel
+from apps.core.models import PhoneTypeChoices, SoftDeleteModel, TenantAwareModel
 
 
-class Plant(TenantAwareModel):
+class Plant(SoftDeleteModel, TenantAwareModel):
     PLANT_TYPE_CHOICES = [
         ("vertical", "Vertical (Kill to Fabrication)"),
         ("processing", "Processing Plant"),

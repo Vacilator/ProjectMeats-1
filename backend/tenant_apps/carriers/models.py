@@ -15,12 +15,13 @@ from apps.core.models import (
     CarrierTypeChoices,
     CreditLimitChoices,
     PhoneTypeChoices,
+    SoftDeleteModel,
     TenantAwareModel,
 )
 from tenant_apps.contacts.models import Contact
 
 
-class Carrier(TenantAwareModel):
+class Carrier(SoftDeleteModel, TenantAwareModel):
     name = models.CharField(max_length=200)
     code = models.CharField(max_length=50)
     carrier_type = models.CharField(

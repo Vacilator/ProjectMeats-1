@@ -495,6 +495,18 @@ class AIDocumentViewSet(viewsets.ModelViewSet):
             logger.error('AIDocument upload: unexpected error: %s', str(e), exc_info=True)
             raise ValidationError('Upload failed: unexpected error. Please retry.')
 
+        try:
+            from tenant_apps.ai_assistant.services.semantic_indexing import index_document_for_semantic_search
+
+            index_document_for_semantic_search(instance)
+        except Exception as exc:
+            logger.warning(
+                'AIDocument upload: semantic indexing skipped for document=%s err=%s',
+                instance.id,
+                str(exc),
+                exc_info=True,
+            )
+
         # If the upload was tied to a session, also create a DOCUMENT message so UIs can show it inline.
         if instance.session_id:
             try:

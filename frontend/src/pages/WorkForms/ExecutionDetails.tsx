@@ -12,10 +12,16 @@ import { workformExecutionService } from '@/services/workformExecutionService';
 import { formSubmissionService } from '@/services/quickActionsService';
 import { getWorkformsErrorUi } from '@/features/workforms/workformsErrors';
 import { ExecutionStoryView } from '@/features/workforms/ExecutionStoryView';
+import { useRealTimeEntity } from '@/hooks/useRealTimeEntity';
 
 export const WorkFormExecutionDetails: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+
+  useRealTimeEntity('tenantworkformexecution', id, {
+    queryKeys: [['workform-execution', id ?? '']],
+    enabled: Boolean(id),
+  });
 
   const query = useQuery({
     queryKey: ['workform-execution', id],

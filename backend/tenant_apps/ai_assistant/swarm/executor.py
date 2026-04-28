@@ -1811,6 +1811,7 @@ class ToolExecutor:
             is_active = True
 
         from tenant_apps.ai_assistant.models import TenantAIMemory
+        from tenant_apps.ai_assistant.services.semantic_indexing import sync_memory_embedding
 
         row, created = TenantAIMemory.objects.update_or_create(
             tenant=tenant,
@@ -1822,6 +1823,7 @@ class ToolExecutor:
                 'is_active': bool(is_active),
             },
         )
+        sync_memory_embedding(row)
 
         return {
             'id': str(row.id),

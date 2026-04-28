@@ -8,6 +8,7 @@ import {
   type WorkFormExecution,
   type WorkFormExecutionAuditEvent,
 } from '@/services/workformExecutionService';
+import { useRealTimeEntity } from '@/hooks/useRealTimeEntity';
 
 export interface EntityWorkflowStatusPanelProps {
   entityType: string;
@@ -35,6 +36,11 @@ const getErrorMessage = (error: unknown) => {
 
 export const EntityWorkflowStatusPanel: React.FC<EntityWorkflowStatusPanelProps> = ({ entityType, entityId }) => {
   const navigate = useNavigate();
+
+  useRealTimeEntity(entityType, entityId, {
+    queryKeys: [['entity-workflow-status', entityType, entityId]],
+    enabled: Boolean(entityType) && Boolean(entityId),
+  });
 
   const query = useQuery({
     queryKey: ['entity-workflow-status', entityType, entityId],

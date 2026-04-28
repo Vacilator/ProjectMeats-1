@@ -453,6 +453,8 @@ class SoftDeleteModel(models.Model):
     def delete(self, using=None, keep_parents=False):  # pragma: no cover
         """Override default delete to avoid accidental hard deletes."""
         self.soft_delete(using=using)
+        opts = self._meta
+        return (1, {f'{opts.app_label}.{opts.object_name}': 1})
 
 
 class OwnedModel(TimestampModel):

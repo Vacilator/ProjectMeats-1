@@ -7,7 +7,7 @@ Implements tenant ForeignKey field for shared-schema multi-tenancy.
 """
 from django.contrib.postgres.fields import ArrayField
 from django.db import models
-from apps.core.models import ContactTypeChoices, PhoneTypeChoices, StatusChoices, TenantAwareModel
+from apps.core.models import ContactTypeChoices, PhoneTypeChoices, SoftDeleteModel, StatusChoices, TenantAwareModel
 
 
 class ContactDepartmentChoices(models.TextChoices):
@@ -22,7 +22,7 @@ class ContactDepartmentChoices(models.TextChoices):
     BOOKING = 'booking', 'Booking (Deprecated)'
 
 
-class Contact(TenantAwareModel):
+class Contact(SoftDeleteModel, TenantAwareModel):
     """Contact model for managing contact information."""
     
     # Parent entity relationships (optional - contact can belong to supplier or customer)

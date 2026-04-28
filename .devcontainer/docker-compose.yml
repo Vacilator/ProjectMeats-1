@@ -16,7 +16,7 @@ services:
       - "3000:3000"
 
   db:
-    image: postgres:15 # The actual server image from Docker Hub
+    image: pgvector/pgvector:pg15
     restart: unless-stopped
     environment:
       POSTGRES_DB: projectmeats_dev

@@ -9,3 +9,4 @@ class CoreConfig(AppConfig):
     def ready(self):
         # Register audit trail signals.
         from . import signals_audit  # noqa: F401
+        from . import signals_realtime  # noqa: F401

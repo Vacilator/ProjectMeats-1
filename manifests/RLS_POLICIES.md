@@ -133,7 +133,7 @@ All workflow-related tables have Row-Level Security **ENABLED** and **FORCED**:
 
 ---
 
-## Support Module (6 tables) - ✅ 100% COMPLIANT
+## Support Module (10 tables) - ✅ 100% COMPLIANT
 
 | Table Name | RLS Enabled | Migration | Deployment Date |
 |------------|-------------|-----------|-----------------|
@@ -144,6 +144,7 @@ All workflow-related tables have Row-Level Security **ENABLED** and **FORCED**:
 | `ai_assistant_feedback_logs` | ✅ | `ai_assistant/0006_aifeedbacklog` | Mar 20, 2026 |
 | `ai_assistant_vector_memory` | ✅ | `ai_assistant/0007_vectormemory` | Mar 20, 2026 |
 | `ai_assistant_documents` | ✅ | `ai_assistant/0009_aidocument` | Mar 23, 2026 |
+| `ai_assistant_document_chunks` | ✅ | `ai_assistant/0016_tenantaimemory_embedding_vector_and_more` | Apr 28, 2026 |
 | `ai_assistant_communication_logs` | ✅ | `ai_assistant/0014_communicationlog` | Mar 31, 2026 |
 | `ai_assistant_tenant_memory` | ✅ | `ai_assistant/0015_tenantaimemory` | Mar 31, 2026 |
 
@@ -152,16 +153,17 @@ All workflow-related tables have Row-Level Security **ENABLED** and **FORCED**:
 ## Compliance Summary
 
 **Latest Audit (2026-04-28, fresh-db CI validation target)**:
-- `python manage.py audit_rls_compliance --strict` should return **67/67 tenant-scoped models compliant** once `core/0007_enable_rls_comment` is applied. ✅
+- `python manage.py audit_rls_compliance --strict` should return **68/68 tenant-scoped models compliant** once `core/0007_enable_rls_comment` and `ai_assistant/0016_tenantaimemory_embedding_vector_and_more` are applied. ✅
 
 **Audit Scope Update (2026-04-28)**:
 - `audit_rls_compliance` now also includes an allowlist of tenant-scoped models that do **not** inherit `TenantAwareModel` (System WorkForms + Integrations).
 - `core_comment` is now covered by an additive RLS migration so fresh databases and CI audits stay fully compliant.
-- Expected result after next deployment audit: **67/67 tenant-scoped models compliant** ✅
+- `ai_assistant_document_chunks` now has additive RLS coverage for tenant-scoped semantic document indexing.
+- Expected result after next deployment audit: **68/68 tenant-scoped models compliant** ✅
 
 **Tenant Isolation Policies** (from `pg_policies`):
-- Tables with at least one `*_tenant_isolation` policy: **49**
-- `*_tenant_isolation` policies total: **52**
+- Tables with at least one `*_tenant_isolation` policy: **50**
+- `*_tenant_isolation` policies total: **53**
 
 > Note: Some tables currently have both legacy and standardized `*_tenant_isolation` policy names during transition.
 

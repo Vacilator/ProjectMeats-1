@@ -10,7 +10,7 @@ from decimal import Decimal
 from django.db import models
 from django.utils import timezone
 
-from apps.core.models import PhoneTypeChoices, TenantAwareModel
+from apps.core.models import PhoneTypeChoices, SoftDeleteModel, TenantAwareModel
 
 
 class InquiryStatusChoices(models.TextChoices):
@@ -58,7 +58,7 @@ class UOMChoices(models.TextChoices):
     BOX = "BOX", "Boxes"
 
 
-class Inquiry(TenantAwareModel):
+class Inquiry(SoftDeleteModel, TenantAwareModel):
     """
     Inquiry model for tracking product interest from calls.
     

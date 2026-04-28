@@ -20,12 +20,13 @@ from apps.core.models import (
     PhoneTypeChoices,
     Protein,
     ProteinTypeChoices,
+    SoftDeleteModel,
     TenantAwareModel,
 )
 from tenant_apps.locations.models import Location
 
 
-class Customer(TenantAwareModel):
+class Customer(SoftDeleteModel, TenantAwareModel):
     """Customer model for managing customer information."""
 
     # Basic information - keeping existing fields with same names
