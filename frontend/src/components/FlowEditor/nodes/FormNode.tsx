@@ -24,6 +24,7 @@ import {
   useUpdateNodeInternals,
 } from '@xyflow/react';
 import { Plus, Pencil, Trash2, Save } from 'lucide-react';
+import { useFlowEditorNodeActions } from '../context';
 
 type PreviewField = {
   id: string;
@@ -38,7 +39,7 @@ export type FormNodeData = {
   containerDescription?: string;
   steps?: Array<Record<string, unknown>>;
 
-  // injected by UnifiedFlowEditor
+  // Optional overrides; FlowEditor node actions provide defaults
   isSaving?: boolean;
   onAddStepInsideForm?: () => void;
   onEdit?: () => void;
@@ -299,6 +300,7 @@ const isFormBookStepType = (type?: string) =>
   type === 'form' || type === 'formStepSingle' || type === 'formStep' || type === 'formReference';
 
 export const FormNode = React.memo<NodeProps<Node<FormNodeData>>>(({ id, data, selected }) => {
+  const nodeActions = useFlowEditorNodeActions();
   const allNodes = useNodes();
   const allEdges = useEdges();
   const { setNodes, setEdges } = useReactFlow();
@@ -591,7 +593,13 @@ export const FormNode = React.memo<NodeProps<Node<FormNodeData>>>(({ id, data, s
     [draggingStepId, sortedSteps, repositionSteps]
   );
 
-  const onTitleChange = (data as any).onTitleChange as ((newTitle: string) => void) | undefined;
+  const onTitleChange =
+    ((data as any).onTitleChange as ((newTitle: string) => void) | undefined) ??
+    ((newTitle: string) => nodeActions.changeNodeTitle(id, newTitle));
+  const handleAddStep = data.onAddStepInsideForm ?? (() => nodeActions.addStepInsideForm(id));
+  const handleEdit = data.onEdit ?? (() => nodeActions.editNode(id));
+  const handleDelete = data.onDelete ?? (() => nodeActions.deleteNode(id));
+  const handleSave = data.onSave ?? (() => nodeActions.saveWorkflow());
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [draftTitle, setDraftTitle] = useState('');
 
@@ -683,19 +691,19 @@ export const FormNode = React.memo<NodeProps<Node<FormNodeData>>>(({ id, data, s
     <Container $selected={!!selected}>
       <NodeToolbar isVisible position={Position.Top}>
         <div style={{ display: 'flex', gap: 8 }}>
-          <ToolbarButton onClick={data.onAddStepInsideForm} title="Add step">
+          <ToolbarButton onClick={handleAddStep} title="Add step">
             <Plus size={14} />
             Step
           </ToolbarButton>
-          <ToolbarButton onClick={data.onEdit} title="Edit">
+          <ToolbarButton onClick={handleEdit} title="Edit">
             <Pencil size={14} />
             Edit
           </ToolbarButton>
-          <ToolbarButton onClick={data.onDelete} title="Delete">
+          <ToolbarButton onClick={() => void handleDelete()} title="Delete">
             <Trash2 size={14} />
             Delete
           </ToolbarButton>
-          <ToolbarButton $primary onClick={data.onSave} title="Save">
+          <ToolbarButton $primary onClick={() => void handleSave()} title="Save">
             <Save size={14} />
             {data.isSaving ? 'Saving…' : 'Save'}
           </ToolbarButton>
@@ -711,7 +719,7 @@ export const FormNode = React.memo<NodeProps<Node<FormNodeData>>>(({ id, data, s
               onChange={(e) => setDraftTitle(e.target.value)}
               onBlur={() => {
                 const next = draftTitle.trim();
-                if (onTitleChange && next && next !== title) onTitleChange(next);
+                if (next && next !== title) onTitleChange(next);
                 setIsEditingTitle(false);
               }}
               onKeyDown={(e) => {
@@ -736,12 +744,11 @@ export const FormNode = React.memo<NodeProps<Node<FormNodeData>>>(({ id, data, s
             <Title
               title={title}
               onDoubleClick={(e) => {
-                if (!onTitleChange) return;
                 e.stopPropagation();
                 setDraftTitle(String(title));
                 setIsEditingTitle(true);
               }}
-              style={{ cursor: onTitleChange ? 'text' : 'default' }}
+              style={{ cursor: 'text' }}
             >
               {title}
             </Title>

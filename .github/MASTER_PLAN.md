@@ -136,6 +136,8 @@ This file is the **append-only PR-referenceable execution log**.
 - **2026-04-27** — WorkForms frontend: harden QuickActions context + Execute page legacy fallback gating (`?legacy=1`), and prevent auth headers being attached to auth endpoints. (PR: #27)
 - **2026-04-27** — WorkForms backend: add node registry + `GET /api/v1/system/workforms/metadata/` endpoint (v1) for canonical node type IDs + aliases. (PR: #28)
 - **2026-04-28** — WorkForms editor: FlowEditor overlays backend node registry metadata (aliases/labels) via `/api/v1/system/workforms/metadata/` while preserving local schema fallback. (PR: #29)
+- **2026-04-28** — WorkForms editor: derive validation from graph state, stabilize history snapshots with graph signatures, restore debounced `onChange`, and limit draft autosave to persisted draft workflows with dirty-state awareness. (PR: #32)
+- **2026-04-28** — WorkForms editor: remove `nodesWithHandlers` canvas cloning by routing edit/delete/save/reorder/title actions through a dedicated FlowEditor node-actions context; keep collapsed-edge virtualization on raw nodes and add context regression coverage. (PR: TBD)
 
 ### 2026-03-31 — Secret audit drift (manifest v5.1)
 - Command: `python config/manage_env.py audit --repo Meats-Central/ProjectMeats`

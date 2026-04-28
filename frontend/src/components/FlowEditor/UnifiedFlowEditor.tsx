@@ -7099,98 +7099,112 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     [readOnly, nodes, setHasUnsavedChanges, setNodes, setEdges]
   );
 
-  // Batch 3: Inject edit/delete handlers into node data
-  // Batch 4: Also inject title change handler
-  const nodesWithHandlers = useMemo(() => {
+  const flowEditorNodeActions = useMemo(() => {
     const nodeById = new Map(nodes.map((n) => [n.id, n] as const));
 
     const isFormContainerNode = (n?: Node) =>
       !!n && isFormProcessContainerType(((n.data as any)?.nodeType as string | undefined) || n.type);
 
-    return nodes.map((node) => {
+    const insertAfterNode = (nodeId: string) => {
+      const node = nodeById.get(nodeId);
+      const data = node?.data ?? {};
+      if (typeof (data as any).onInsertAfter === 'function') {
+        (data as any).onInsertAfter();
+        return;
+      }
+      window.dispatchEvent(
+        new CustomEvent('pm:openNodePalette', {
+          detail: { anchorNodeId: nodeId },
+        })
+      );
+    };
+
+    const addStepInsideForm = (nodeId: string) => {
+      const node = nodeById.get(nodeId);
+      if (!node) {
+        return;
+      }
       const data = node.data ?? {};
-
-      const onEdit =
-        typeof (data as any).onEdit === 'function'
-          ? (data as any).onEdit
-          : () => handleNodeEdit(node.id);
-
-      const onDelete =
-        typeof (data as any).onDelete === 'function'
-          ? (data as any).onDelete
-          : () => handleNodeDelete(node.id);
-
-      const onDuplicate =
-        typeof (data as any).onDuplicate === 'function'
-          ? (data as any).onDuplicate
-          : () => duplicateNode(node.id);
-
-      const onSave =
-        typeof (data as any).onSave === 'function'
-          ? (data as any).onSave
-          : () => handleSaveWorkflow();
-
-      const onTitleChange =
-        typeof (data as any).onTitleChange === 'function'
-          ? (data as any).onTitleChange
-          : (newTitle: string) => handleNodeTitleChange(node.id, newTitle);
-
-      const onInsertAfter =
-        typeof (data as any).onInsertAfter === 'function'
-          ? (data as any).onInsertAfter
-          : () => {
-              window.dispatchEvent(
-                new CustomEvent('pm:openNodePalette', {
-                  detail: { anchorNodeId: node.id },
-                })
-              );
-            };
-
+      if (typeof (data as any).onAddStepInsideForm === 'function') {
+        (data as any).onAddStepInsideForm();
+        return;
+      }
       const parent = node.parentId ? nodeById.get(node.parentId) : undefined;
       const parentIsFormContainer = isFormContainerNode(parent);
       const nodeIsFormContainer = isFormContainerNode(node);
 
-      const onAddStepInsideForm =
-        typeof (data as any).onAddStepInsideForm === 'function'
-          ? (data as any).onAddStepInsideForm
-          : () => {
-              if (nodeIsFormContainer) {
-                addFormStepInsideContainer(node.id);
-                return;
-              }
-              if (parentIsFormContainer && node.parentId) {
-                addFormStepInsideContainer(node.parentId, node.id);
-                return;
-              }
-              onInsertAfter();
-            };
+      if (nodeIsFormContainer) {
+        addFormStepInsideContainer(node.id);
+        return;
+      }
+      if (parentIsFormContainer && node.parentId) {
+        addFormStepInsideContainer(node.parentId, node.id);
+        return;
+      }
+      insertAfterNode(nodeId);
+    };
 
-      return {
-        ...node,
-        data: {
-          ...data,
-          onEdit,
-          onDelete,
-          onDuplicate,
-          onSave,
-          onTitleChange,
-          onInsertAfter,
-          onAddStepInsideForm,
-          onMoveUp: () => handleMoveNode(node.id, -1),
-          onMoveDown: () => handleMoveNode(node.id, 1),
-          isLastInWorkflow: lastNodeIdSet.has(node.id),
-        },
-      };
-    });
-  }, [addFormStepInsideContainer, duplicateNode, handleNodeDelete, handleNodeEdit, handleNodeTitleChange, handleSaveWorkflow, lastNodeIdSet, nodes]);
+    return {
+      editNode: (nodeId: string) => {
+        const node = nodeById.get(nodeId);
+        const onEdit = (node?.data as any)?.onEdit;
+        if (typeof onEdit === 'function') {
+          onEdit();
+          return;
+        }
+        handleNodeEdit(nodeId);
+      },
+      deleteNode: (nodeId: string) => {
+        const node = nodeById.get(nodeId);
+        const onDelete = (node?.data as any)?.onDelete;
+        if (typeof onDelete === 'function') {
+          return onDelete();
+        }
+        return handleNodeDelete(nodeId);
+      },
+      duplicateNode: (nodeId: string) => {
+        const node = nodeById.get(nodeId);
+        const onDuplicate = (node?.data as any)?.onDuplicate;
+        if (typeof onDuplicate === 'function') {
+          onDuplicate();
+          return;
+        }
+        duplicateNode(nodeId);
+      },
+      saveWorkflow: () => handleSaveWorkflow(),
+      changeNodeTitle: (nodeId: string, newTitle: string) => {
+        const node = nodeById.get(nodeId);
+        const onTitleChange = (node?.data as any)?.onTitleChange;
+        if (typeof onTitleChange === 'function') {
+          onTitleChange(newTitle);
+          return;
+        }
+        handleNodeTitleChange(nodeId, newTitle);
+      },
+      insertAfterNode,
+      addStepInsideForm,
+      moveNode: (nodeId: string, delta: -1 | 1) => handleMoveNode(nodeId, delta),
+      isLastInWorkflow: (nodeId: string) => lastNodeIdSet.has(nodeId),
+    };
+  }, [
+    addFormStepInsideContainer,
+    duplicateNode,
+    handleMoveNode,
+    handleNodeDelete,
+    handleNodeEdit,
+    handleNodeTitleChange,
+    handleSaveWorkflow,
+    lastNodeIdSet,
+    nodes,
+  ]);
 
   // Render-time edge virtualization: when a form process group is collapsed, edges to hidden child nodes
   // are re-targeted to virtual handles on the container boundary so connectivity remains visible.
   const edgesForCanvas = useMemo(() => {
-    const nodeById = new Map(nodesWithHandlers.map((n) => [n.id, n] as const));
+    const nodeById = new Map(nodes.map((n) => [n.id, n] as const));
 
     const containerByHiddenChild = new Map<string, string>();
-    nodesWithHandlers.forEach((n) => {
+    nodes.forEach((n) => {
       if (!n.parentId) return;
       const parent = nodeById.get(n.parentId);
       const parentCollapsed = parent && (parent.data as any)?.isExpanded === false;
@@ -7245,14 +7259,15 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     });
 
     return derived;
-  }, [edges, nodesWithHandlers]);
+  }, [edges, nodes]);
 
   // Add-from-palette only: no in-canvas "+" nodes.
-  const nodesForCanvas = useMemo(() => nodesWithHandlers, [nodesWithHandlers]);
+  const nodesForCanvas = useMemo(() => nodes, [nodes]);
 
   return (
     <FormBuilderProvider onNodeDataUpdate={handleNodeDataUpdate}>
     <FlowEditorProvider
+      nodeActions={flowEditorNodeActions}
       tenantLists={tenantLists}
       systemChoiceLists={systemChoiceLists}
       availableFields={selectedFormStep?.data?.fields || []}
