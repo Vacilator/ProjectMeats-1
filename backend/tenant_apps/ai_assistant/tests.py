@@ -510,3 +510,161 @@ class AIDocumentViewSetTenantScopingTests(TestCase):
         self.assertEqual(resp2.status_code, 200)
         self.assertEqual(len(self._items(resp2)), 0)
 
+class ChatSessionTenantBindingTests(TestCase):
+    def setUp(self):
+        from rest_framework.test import APIRequestFactory, force_authenticate
+
+        unique = uuid.uuid4().hex[:8]
+        self.factory = APIRequestFactory()
+        self._force_authenticate = force_authenticate
+
+        self.user = User.objects.create_user(username=f"chatbind-{unique}", password="pw")
+        self.tenant_a = Tenant.objects.create(
+            name=f"Chat Tenant A {unique}",
+            slug=f"chat-tenant-a-{unique}",
+            contact_email=f"a-{unique}@example.com",
+            is_active=True,
+            created_by=self.user,
+        )
+        self.tenant_b = Tenant.objects.create(
+            name=f"Chat Tenant B {unique}",
+            slug=f"chat-tenant-b-{unique}",
+            contact_email=f"b-{unique}@example.com",
+            is_active=True,
+            created_by=self.user,
+        )
+
+        TenantUser.objects.create(tenant=self.tenant_a, user=self.user, role="admin", is_active=True)
+        TenantUser.objects.create(tenant=self.tenant_b, user=self.user, role="admin", is_active=True)
+
+        self.session_a = ChatSession.objects.create(
+            title="Tenant A Session",
+            context_data={"tenant_id": str(self.tenant_a.id)},
+            owner=self.user,
+            created_by=self.user,
+            modified_by=self.user,
+        )
+        self.session_b = ChatSession.objects.create(
+            title="Tenant B Session",
+            context_data={"tenant_id": str(self.tenant_b.id)},
+            owner=self.user,
+            created_by=self.user,
+            modified_by=self.user,
+        )
+        self.session_unbound = ChatSession.objects.create(
+            title="Legacy Session",
+            owner=self.user,
+            created_by=self.user,
+            modified_by=self.user,
+        )
+
+        ChatMessage.objects.create(
+            session=self.session_a,
+            owner=self.user,
+            created_by=self.user,
+            modified_by=self.user,
+            message_type=MessageTypeChoices.USER,
+            content="tenant-a",
+        )
+        ChatMessage.objects.create(
+            session=self.session_b,
+            owner=self.user,
+            created_by=self.user,
+            modified_by=self.user,
+            message_type=MessageTypeChoices.USER,
+            content="tenant-b",
+        )
+        ChatMessage.objects.create(
+            session=self.session_unbound,
+            owner=self.user,
+            created_by=self.user,
+            modified_by=self.user,
+            message_type=MessageTypeChoices.USER,
+            content="legacy",
+        )
+
+    def _request(self, method: str, path: str, tenant, data=None, format='json'):
+        request_factory = getattr(self.factory, method.lower())
+        request = request_factory(path, data or {}, format=format)
+        self._force_authenticate(request, user=self.user)
+        request.tenant = tenant
+        return request
+
+    def _items(self, response):
+        data = response.data
+        if isinstance(data, dict) and "results" in data:
+            return data["results"]
+        return data
+
+    def test_chat_sessions_are_tenant_scoped_and_fail_closed(self):
+        from tenant_apps.ai_assistant.views import ChatSessionViewSet
+
+        response = ChatSessionViewSet.as_view({"get": "list"})(
+            self._request("get", "/api/v1/ai-assistant/sessions/", self.tenant_a)
+        )
+        self.assertEqual(response.status_code, 200)
+        titles = str(self._items(response))
+        self.assertIn("Tenant A Session", titles)
+        self.assertNotIn("Tenant B Session", titles)
+        self.assertNotIn("Legacy Session", titles)
+
+        closed = ChatSessionViewSet.as_view({"get": "list"})(
+            self._request("get", "/api/v1/ai-assistant/sessions/", None)
+        )
+        self.assertEqual(closed.status_code, 200)
+        self.assertEqual(len(self._items(closed)), 0)
+
+    def test_chat_session_create_stamps_request_tenant_id(self):
+        from tenant_apps.ai_assistant.views import ChatSessionViewSet
+
+        response = ChatSessionViewSet.as_view({"post": "create"})(
+            self._request(
+                "post",
+                "/api/v1/ai-assistant/sessions/",
+                self.tenant_a,
+                {
+                    "title": "Created Session",
+                    "context_data": {
+                        "topic": "pricing",
+                        "tenant_id": str(self.tenant_b.id),
+                    },
+                },
+            )
+        )
+
+        self.assertEqual(response.status_code, 201)
+        session = ChatSession.objects.get(id=response.data["id"])
+        self.assertEqual(session.context_data["tenant_id"], str(self.tenant_a.id))
+        self.assertEqual(session.context_data["topic"], "pricing")
+
+    def test_chat_messages_are_tenant_scoped(self):
+        from tenant_apps.ai_assistant.views import ChatMessageViewSet
+
+        response = ChatMessageViewSet.as_view({"get": "list"})(
+            self._request("get", "/api/v1/ai-assistant/messages/", self.tenant_a)
+        )
+
+        self.assertEqual(response.status_code, 200)
+        payload = str(self._items(response))
+        self.assertIn("tenant-a", payload)
+        self.assertNotIn("tenant-b", payload)
+        self.assertNotIn("legacy", payload)
+
+    def test_chat_message_create_rejects_cross_tenant_session(self):
+        from tenant_apps.ai_assistant.views import ChatMessageViewSet
+
+        response = ChatMessageViewSet.as_view({"post": "create"})(
+            self._request(
+                "post",
+                "/api/v1/ai-assistant/messages/",
+                self.tenant_a,
+                {
+                    "session": str(self.session_b.id),
+                    "message_type": MessageTypeChoices.USER,
+                    "content": "hello",
+                },
+            )
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.data["session"][0], "Session not found")

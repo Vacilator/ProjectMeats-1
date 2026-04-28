@@ -17,6 +17,7 @@ from django.utils import timezone
 from rest_framework import filters, mixins, status, viewsets
 from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.decorators import action
+from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import IsAdminUser, IsAuthenticated
 from rest_framework.throttling import AnonRateThrottle, ScopedRateThrottle, UserRateThrottle
 from rest_framework.response import Response
@@ -38,6 +39,7 @@ from .serializers import (
     PendingReviewResolveRequestSerializer,
     SwarmInvokeRequestSerializer,
 )
+from .session_utils import bind_context_to_tenant, get_request_tenant_id, session_matches_tenant
 
 logger = logging.getLogger(__name__)
 
@@ -94,11 +96,21 @@ class ChatSessionViewSet(viewsets.ModelViewSet):
         """Filter sessions to current user only."""
         from django.db.models import Count
 
-        return self.queryset.filter(owner=self.request.user).annotate(message_count=Count('messages'))
+        tenant_id = get_request_tenant_id(self.request)
+        if not tenant_id:
+            return self.queryset.none()
+        return self.queryset.filter(
+            owner=self.request.user,
+            context_data__tenant_id=tenant_id,
+        ).annotate(message_count=Count('messages'))
 
     def perform_create(self, serializer):
         """Set the owner when creating a new session."""
+        tenant = getattr(self.request, 'tenant', None)
+        if not get_request_tenant_id(self.request):
+            raise ValidationError('Tenant context required')
         serializer.save(
+            context_data=bind_context_to_tenant(serializer.validated_data.get('context_data'), tenant),
             owner=self.request.user,
             created_by=self.request.user,
             modified_by=self.request.user,
@@ -122,7 +134,22 @@ class ChatMessageViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         """Filter messages to current user's sessions only."""
-        return self.queryset.filter(session__owner=self.request.user)
+        tenant_id = get_request_tenant_id(self.request)
+        if not tenant_id:
+            return self.queryset.none()
+        return self.queryset.filter(
+            session__owner=self.request.user,
+            session__context_data__tenant_id=tenant_id,
+        )
+
+    def perform_create(self, serializer):
+        if not get_request_tenant_id(self.request):
+            raise ValidationError('Tenant context required')
+        serializer.save(
+            owner=self.request.user,
+            created_by=self.request.user,
+            modified_by=self.request.user,
+        )
 
 
 class ChatBotAPIViewSet(viewsets.ViewSet):
@@ -145,11 +172,19 @@ class ChatBotAPIViewSet(viewsets.ViewSet):
         context = serializer.validated_data.get("context", {})
 
         try:
+            tenant = getattr(request, 'tenant', None)
+            tenant_id = get_request_tenant_id(request)
+            if not tenant_id:
+                return Response({'error': 'Tenant context missing'}, status=status.HTTP_400_BAD_REQUEST)
+
             # Get or create session
             if session_id:
-                try:
-                    session = ChatSession.objects.get(id=session_id, owner=request.user)
-                except ChatSession.DoesNotExist:
+                session = ChatSession.objects.filter(
+                    id=session_id,
+                    owner=request.user,
+                    context_data__tenant_id=tenant_id,
+                ).first()
+                if not session:
                     return Response(
                         {"error": "Session not found"}, status=status.HTTP_404_NOT_FOUND
                     )
@@ -157,7 +192,7 @@ class ChatBotAPIViewSet(viewsets.ViewSet):
                 # Create new session
                 session = ChatSession.objects.create(
                     title=f"Chat {timezone.now().strftime('%Y-%m-%d %H:%M')}",
-                    context_data=context,
+                    context_data=bind_context_to_tenant(context, tenant),
                     owner=request.user,
                     created_by=request.user,
                     modified_by=request.user,
@@ -176,22 +211,8 @@ class ChatBotAPIViewSet(viewsets.ViewSet):
             # Generate AI response (OpenAI via Swarm bounded tool loop)
             import os
 
-            tenant = getattr(request, 'tenant', None)
-            if not tenant:
-                return Response({'error': 'Tenant context missing'}, status=status.HTTP_400_BAD_REQUEST)
-
-            tenant_id = str(getattr(tenant, 'id', '') or '')
-            if not tenant_id:
-                return Response({'error': 'Tenant context missing'}, status=status.HTTP_400_BAD_REQUEST)
-
-            session_context = dict(getattr(session, 'context_data', {}) or {})
-            session_tenant_id = str(session_context.get('tenant_id') or '').strip()
-            if session_tenant_id and session_tenant_id != tenant_id:
+            if not session_matches_tenant(session, tenant):
                 return Response({'error': 'Session not found'}, status=status.HTTP_404_NOT_FOUND)
-            if session_tenant_id != tenant_id:
-                session_context['tenant_id'] = tenant_id
-                ChatSession.objects.filter(id=session.id, owner=request.user).update(context_data=session_context)
-                session.context_data = session_context
 
             # Defense-in-depth: ensure RLS session vars are asserted on this DB connection
             # before any Swarm tool executes queries.

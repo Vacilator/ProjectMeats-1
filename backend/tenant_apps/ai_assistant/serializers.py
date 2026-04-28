@@ -4,8 +4,26 @@ Serializers for AI Assistant functionality.
 from rest_framework import serializers
 
 from .models import AIDocument, AIFeedbackLog, AIConfiguration, ChatMessage, ChatSession
+from .session_utils import bind_context_to_tenant, get_request_tenant_id, session_matches_tenant
 from .services.document_parser import validate_ai_document_upload
 
+
+
+def _validate_request_session(value, request):
+    if not value or not request:
+        return value
+
+    if getattr(value, 'owner_id', None) != getattr(request.user, 'id', None):
+        raise serializers.ValidationError('Session not found')
+
+    tenant_id = get_request_tenant_id(request)
+    if not tenant_id:
+        raise serializers.ValidationError('Tenant context required')
+
+    if not session_matches_tenant(value, getattr(request, 'tenant', None)):
+        raise serializers.ValidationError('Session not found')
+
+    return value
 
 
 class PendingReviewResolveRequestSerializer(serializers.Serializer):
@@ -73,6 +91,21 @@ class ChatSessionDetailSerializer(serializers.ModelSerializer):
 
     message_count = serializers.ReadOnlyField()
 
+    def validate_context_data(self, value):
+        if value is None:
+            value = {}
+        if not isinstance(value, dict):
+            raise serializers.ValidationError('context_data must be an object')
+
+        request = self.context.get('request')
+        tenant_id = get_request_tenant_id(request)
+        if request and request.method in {'POST', 'PUT', 'PATCH'} and not tenant_id:
+            raise serializers.ValidationError('Tenant context required')
+
+        if tenant_id:
+            return bind_context_to_tenant(value, getattr(request, 'tenant', None))
+        return value
+
     class Meta:
         model = ChatSession
         fields = [
@@ -107,6 +140,9 @@ class ChatMessageSerializer(serializers.ModelSerializer):
 
 class ChatMessageCreateSerializer(serializers.ModelSerializer):
     """Serializer for creating chat messages."""
+
+    def validate_session(self, value):
+        return _validate_request_session(value, self.context.get('request'))
 
     class Meta:
         model = ChatMessage
@@ -144,14 +180,7 @@ class AIDocumentSerializer(serializers.ModelSerializer):
     source_metadata = serializers.SerializerMethodField(read_only=True)
 
     def validate_session(self, value):
-        request = self.context.get('request')
-        if not value or not request:
-            return value
-
-        if getattr(value, 'owner_id', None) != getattr(request.user, 'id', None):
-            raise serializers.ValidationError('Session not found')
-
-        return value
+        return _validate_request_session(value, self.context.get('request'))
 
     def get_document_type(self, obj) -> str:
         # Classification may happen asynchronously; keep this additive and deterministic.

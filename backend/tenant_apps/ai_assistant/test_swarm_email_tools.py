@@ -9,6 +9,7 @@ from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import SimpleTestCase, TestCase, override_settings
 from django.utils import timezone
+from rest_framework import serializers as drf_serializers
 
 from apps.integrations.models import ExternalAuthProvider
 from apps.tenants.models import Tenant, TenantUser
@@ -760,3 +761,19 @@ class AIDocumentAuditSurfaceTests(TestCase):
         save_kwargs = serializer.save.call_args.kwargs
         self.assertEqual(save_kwargs['custom_data']['source'], 'manual_upload')
         self.assertIn('uploaded_at', save_kwargs['custom_data'])
+
+    def test_aidocument_serializer_rejects_session_from_other_tenant(self):
+        request = SimpleNamespace(
+            user=SimpleNamespace(id=123),
+            tenant=SimpleNamespace(id=uuid.uuid4()),
+            method='POST',
+        )
+        session = SimpleNamespace(
+            owner_id=123,
+            context_data={'tenant_id': str(uuid.uuid4())},
+        )
+
+        serializer = AIDocumentSerializer(context={'request': request})
+
+        with self.assertRaises(drf_serializers.ValidationError):
+            serializer.validate_session(session)

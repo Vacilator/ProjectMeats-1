@@ -13,6 +13,7 @@ from django.db import transaction
 
 from apps.integrations.models import ExternalAuthProvider, EmailLog
 from apps.tenants.models import Tenant
+from tenant_apps.ai_assistant.session_utils import session_matches_tenant
 from tenant_apps.ai_assistant.swarm.tools.microsoft_graph import (
     MAX_MAIL_LIMIT,
     ToolExecutionError,
@@ -779,8 +780,7 @@ class EmailIngestionService:
             session = ChatSession.objects.filter(id=session_id, owner=user).first()
             if not session:
                 raise ValueError('Session not found')
-            session_tenant_id = str((session.context_data or {}).get('tenant_id') or '').strip()
-            if session_tenant_id != current_tenant_id:
+            if not current_tenant_id or not session_matches_tenant(session, self.tenant):
                 raise ValueError('Session is not valid for this tenant')
 
         existing_document = self._get_existing_attachment_document(
