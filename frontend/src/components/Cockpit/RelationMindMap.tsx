@@ -14,7 +14,7 @@
  * Created: 2026-02-24 - Cockpit Search Enhancement
  */
 
-import React, { useState, useCallback, useEffect, useMemo } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import styled from 'styled-components';
 import {
   ReactFlow,
@@ -29,14 +29,13 @@ import {
   Position,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { 
   Building2, Users, ShoppingCart, Receipt, Package, 
-  Truck, User, FileText, Phone, Loader, ChevronRight, 
+  Truck, User, FileText, Phone, Loader,
   Plus, X 
 } from 'lucide-react';
 import { businessApi } from '../../services/businessApi';
-import { useCockpitNavigation } from '../../contexts/CockpitNavigationContext';
 
 // ============================================================================
 // TypeScript Interfaces
@@ -62,6 +61,13 @@ interface MindMapNode {
   relationName?: string;
   depth: number;
   expanded: boolean;
+}
+
+interface MindMapEdge {
+  id: string;
+  source: string;
+  target: string;
+  relationship?: string;
 }
 
 
@@ -168,8 +174,8 @@ const ExpandButton = styled.button`
 
 const CustomNode: React.FC<{
   data: MindMapNode & {
-    onExpand: () => void;
-    onCollapse: () => void;
+    onExpand?: () => void;
+    onCollapse?: () => void;
   };
 }> = ({ data }) => {
   const Icon = getEntityIcon(data.entityType);
@@ -196,14 +202,14 @@ const CustomNode: React.FC<{
         <NodeCount>{data.count} items</NodeCount>
       )}
       
-      {data.count !== undefined && data.count > 0 && (
+      {data.count !== undefined && data.count > 0 && data.onExpand && data.onCollapse && (
         <ExpandButton
           onClick={(e) => {
             e.stopPropagation();
             if (data.expanded) {
-              data.onCollapse();
+              data.onCollapse?.();
             } else {
-              data.onExpand();
+              data.onExpand?.();
             }
           }}
         >
@@ -296,26 +302,75 @@ export const RelationMindMap: React.FC<RelationMindMapProps> = ({
   maxDepth = 2,
 }) => {
   const [mindMapNodes, setMindMapNodes] = useState<MindMapNode[]>([]);
+  const [mindMapEdges, setMindMapEdges] = useState<MindMapEdge[]>([]);
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
   const [loading, setLoading] = useState(false);
-  const { addStep } = useCockpitNavigation();
-  
-  // Initialize with root node
+
   useEffect(() => {
-    const rootNode: MindMapNode = {
-      id: `${entityType}-${entityId}`,
-      entityType,
-      entityId: String(entityId),
-      name: entityName,
-      depth: 0,
-      expanded: false,
+    let cancelled = false;
+
+    const loadGraph = async () => {
+      setLoading(true);
+      try {
+        const response = await businessApi.get(`/entities/${entityType}/${entityId}/graph/`, {
+          params: {
+            depth: Math.min(maxDepth, 3),
+            max_nodes: 60,
+          },
+        });
+
+        if (cancelled) return;
+
+        const payload = response.data ?? {};
+        const fetchedNodes = Array.isArray(payload.nodes) ? payload.nodes : [];
+        const fetchedEdges = Array.isArray(payload.edges) ? payload.edges : [];
+
+        setMindMapNodes(
+          fetchedNodes.map((node: any) => ({
+            id: String(node.id),
+            entityType: String(node.entity_type ?? entityType),
+            entityId: String(node.entity_id ?? entityId),
+            name: String(node.label ?? node.name ?? entityName),
+            depth: Number(node.level ?? 0),
+            expanded: true,
+          }))
+        );
+        setMindMapEdges(
+          fetchedEdges.map((edge: any) => ({
+            id: String(edge.id),
+            source: String(edge.source),
+            target: String(edge.target),
+            relationship: typeof edge.relationship === 'string' ? edge.relationship : undefined,
+          }))
+        );
+      } catch (error) {
+        if (cancelled) return;
+        setMindMapNodes([
+          {
+            id: `${entityType}:${entityId}`,
+            entityType,
+            entityId: String(entityId),
+            name: entityName,
+            depth: 0,
+            expanded: true,
+          },
+        ]);
+        setMindMapEdges([]);
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
     };
-    
-    setMindMapNodes([rootNode]);
-  }, [entityType, entityId, entityName]);
-  
-  // Convert mindMapNodes to React Flow nodes/edges
+
+    void loadGraph();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [entityType, entityId, entityName, maxDepth]);
+
   useEffect(() => {
     const positions = calculateTreeLayout(mindMapNodes);
     
@@ -325,115 +380,28 @@ export const RelationMindMap: React.FC<RelationMindMapProps> = ({
       position: positions[node.id] || { x: 0, y: 0 },
       data: {
         ...node,
-        onExpand: () => handleExpand(node),
-        onCollapse: () => handleCollapse(node),
       },
       sourcePosition: Position.Bottom,
       targetPosition: Position.Top,
     }));
     
-    const flowEdges: Edge[] = [];
-    mindMapNodes.forEach(node => {
-      if (node.depth > 0) {
-        // Find parent node
-        const parentDepth = node.depth - 1;
-        const parentNode = mindMapNodes.find(
-          n => n.depth === parentDepth && n.expanded
-        );
-        
-        if (parentNode) {
-          flowEdges.push({
-            id: `${parentNode.id}-${node.id}`,
-            source: parentNode.id,
-            target: node.id,
-            type: 'smoothstep',
-            animated: true,
-            style: { stroke: 'rgb(var(--color-primary))', strokeWidth: 2 },
-            markerEnd: {
-              type: MarkerType.ArrowClosed,
-              color: 'rgb(var(--color-primary))',
-            },
-          });
-        }
-      }
-    });
+    const flowEdges: Edge[] = mindMapEdges.map((edge) => ({
+      id: edge.id,
+      source: edge.source,
+      target: edge.target,
+      type: 'smoothstep',
+      animated: true,
+      label: edge.relationship ? edge.relationship.replace(/_/g, ' ') : undefined,
+      style: { stroke: 'rgb(var(--color-primary))', strokeWidth: 2 },
+      markerEnd: {
+        type: MarkerType.ArrowClosed,
+        color: 'rgb(var(--color-primary))',
+      },
+    }));
     
     setNodes(flowNodes);
     setEdges(flowEdges);
-  }, [mindMapNodes, setNodes, setEdges]);
-  
-  const handleExpand = useCallback(async (node: MindMapNode) => {
-    if (node.depth >= maxDepth) {
-      console.log('[MindMap] Max depth reached');
-      return;
-    }
-    
-    if (node.expanded) return;
-    
-    setLoading(true);
-    try {
-      // Fetch relationships (system entity graph supports UUID products)
-      const response = await businessApi.get(
-        `/system/entities/${node.entityType}/${node.entityId}/relationships/`
-      );
-
-      const relationships = response.data?.relationships ?? {};
-
-      // Create child nodes (take up to 5 items per relationship)
-      const childNodes: MindMapNode[] = Object.entries(relationships)
-        .filter(([, items]) => Array.isArray(items) && items.length > 0)
-        .flatMap(([relType, items]) =>
-          (items as any[]).slice(0, 5).map((item: any) => ({
-            id: `${String(item.type)}-${String(item.id)}-from-${node.id}`,
-            entityType: String(item.type ?? 'unknown'),
-            entityId: String(item.id ?? ''),
-            name: String(item.title || item.name || `${item.type} #${item.id}`),
-            relationName: relType,
-            depth: node.depth + 1,
-            expanded: false,
-            count: undefined,
-          }))
-        );
-      
-      // Mark node as expanded and add children
-      setMindMapNodes(prev => [
-        ...prev.map(n => n.id === node.id ? { ...n, expanded: true } : n),
-        ...childNodes,
-      ]);
-      
-      // Add to breadcrumb
-      addStep({
-        id: node.entityId,
-        type: node.entityType,
-        label: node.name,
-      });
-      
-    } catch (err) {
-      console.error('[MindMap] Failed to expand node:', err);
-    } finally {
-      setLoading(false);
-    }
-  }, [maxDepth, addStep]);
-  
-  const handleCollapse = useCallback((node: MindMapNode) => {
-    // Remove all descendant nodes
-    setMindMapNodes(prev => 
-      prev
-        .map(n => n.id === node.id ? { ...n, expanded: false } : n)
-        .filter(n => {
-          // Keep nodes that are not descendants of this node
-          if (n.depth <= node.depth) return true;
-          
-          // Check if this node is a descendant
-          let parent = prev.find(p => p.id === n.id.split('-from-')[1]);
-          while (parent && parent.depth > node.depth) {
-            parent = prev.find(p => p.id === parent!.id.split('-from-')[1]);
-          }
-          
-          return parent?.id !== node.id;
-        })
-    );
-  }, []);
+  }, [mindMapEdges, mindMapNodes, setEdges, setNodes]);
   
   const handleNodeClick = useCallback(
     (event: React.MouseEvent, node: Node) => {

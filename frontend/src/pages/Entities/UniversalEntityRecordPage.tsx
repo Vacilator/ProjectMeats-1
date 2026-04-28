@@ -4,7 +4,7 @@ import { Breadcrumb, Button, Card, Spin, Tabs } from 'antd';
 import { EntityWorkflowStatusPanel } from '@/components/Entities/EntityWorkflowStatusPanel';
 import { useNavigate, useParams } from 'react-router-dom';
 
-import { AIOverviewCard, EntityProfileHeader } from '@/components/Cockpit';
+import { AIOverviewCard, EntityProfileHeader, RelationMindMap } from '@/components/Cockpit';
 import { ActivityFeed, CommentsPanel, EntityFormSurface, UnifiedEntityTable } from '@/components/Shared';
 import type { EntityFormMode } from '@/components/Shared/EntityFormSurface';
 import { apiClient } from '@/services/apiService';
@@ -442,6 +442,21 @@ export const UniversalEntityRecordPage: React.FC<UniversalEntityRecordPageProps>
                       ),
                     },
                     {
+                      key: 'graph',
+                      label: 'Graph',
+                      children: (
+                        <Card size="small" title="Relationship Graph">
+                          <RelationMindMap
+                            entityType={normalizedEntityType}
+                            entityId={entityId}
+                            entityName={title}
+                            maxDepth={3}
+                            onEntityClick={(type, id) => navigate(getRecordPath(type, id))}
+                          />
+                        </Card>
+                      ),
+                    },
+                    {
                       key: 'comments',
                       label: 'Comments',
                       children: <CommentsPanel entityType={normalizedEntityType} entityId={entityId} />,
@@ -508,6 +523,21 @@ export const UniversalEntityRecordPage: React.FC<UniversalEntityRecordPageProps>
                           {renderRelationshipTable('invoices', 'Invoices')}
                           {renderRelationshipTable('related_products', 'Related Products')}
                         </>
+                      ),
+                    },
+                    {
+                      key: 'graph',
+                      label: 'Graph',
+                      children: (
+                        <Card size="small" title="Relationship Graph">
+                          <RelationMindMap
+                            entityType={normalizedEntityType}
+                            entityId={entityId}
+                            entityName={title}
+                            maxDepth={3}
+                            onEntityClick={(type, id) => navigate(getRecordPath(type, id))}
+                          />
+                        </Card>
                       ),
                     },
                     {

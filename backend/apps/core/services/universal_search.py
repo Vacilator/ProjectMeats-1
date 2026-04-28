@@ -17,6 +17,7 @@ from django.db.models import Q
 from django.core.cache import cache
 from django.contrib.auth.models import User
 
+from apps.core.cache_utils import build_versioned_cache_key
 from apps.core.caching import CacheService
 from apps.tenants.models import Tenant
 
@@ -485,13 +486,17 @@ class UniversalSearchService:
         normalized_query = " ".join(search_text.strip().lower().split())
         normalized_types = ",".join(sorted([t.strip() for t in types_to_search if t and t.strip()]))
 
-        cache_key = CacheService.generate_cache_key(
+        cache_key = build_versioned_cache_key(
             "universal_search",
             tenant_id=str(self.tenant.id),
-            q=normalized_query,
-            operator=operator_type or "",
-            types=normalized_types,
-            limit=limit_per_type,
+            query_items=[
+                ("q", normalized_query),
+                ("operator", operator_type or ""),
+                ("types", normalized_types),
+                ("limit", str(limit_per_type)),
+            ],
+            extra_items=[("service", "UniversalSearchService.search")],
+            include_shared_version=True,
         )
 
         def _compute() -> Dict[str, Any]:

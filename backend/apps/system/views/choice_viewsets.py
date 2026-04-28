@@ -19,6 +19,7 @@ from django.db.models import Q
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.filters import SearchFilter, OrderingFilter
 
+from apps.core.cache_utils import tenant_cache
 from apps.system.models import (
     SystemChoiceList,
     SystemChoiceItem,
@@ -181,7 +182,12 @@ class SystemChoiceListViewSet(viewsets.ReadOnlyModelViewSet):
     def get_serializer(self, *args, **kwargs):
         serializer_class = self.get_serializer_class()
         return serializer_class(*args, **kwargs)
+
+    @tenant_cache('system_choices', timeout=3600, include_shared_version=True)
+    def list(self, request, *args, **kwargs):
+        return super().list(request, *args, **kwargs)
     
+    @tenant_cache('system_choices', timeout=3600, include_shared_version=True)
     @action(detail=True, methods=['get', 'post'])
     def items(self, request, slug=None):
         """
@@ -658,6 +664,10 @@ class TenantConfigViewSet(viewsets.ModelViewSet):
     """
     serializer_class = TenantConfigSerializer
     permission_classes = [IsTenantAdminOrReadOnly]
+
+    @tenant_cache('tenant_configs', timeout=3600)
+    def list(self, request, *args, **kwargs):
+        return super().list(request, *args, **kwargs)
     
     def get_queryset(self):
         tenant = getattr(self.request, 'tenant', None)
@@ -740,6 +750,7 @@ class TenantConfigViewSet(viewsets.ModelViewSet):
         except Exception:
             pass
     
+    @tenant_cache('tenant_configs', timeout=3600)
     @action(detail=False, methods=['get'])
     def by_category(self, request):
         """Get configs grouped by category."""
@@ -770,6 +781,7 @@ class ConfigResolverView(viewsets.ViewSet):
     """
     permission_classes = [permissions.IsAuthenticated]
     
+    @tenant_cache('tenant_configs', timeout=3600)
     @action(detail=False, methods=['get'])
     def resolve(self, request):
         """Resolve a configuration value with cascading."""
@@ -788,6 +800,7 @@ class ConfigResolverView(viewsets.ViewSet):
         
         return Response({'key': key, 'value': value})
     
+    @tenant_cache('system_choices', timeout=3600, include_shared_version=True)
     @action(detail=False, methods=['get'], url_path='choices/(?P<slug>[^/.]+)')
     def choices(self, request, slug=None):
         """Get choice items for a dropdown field."""
@@ -996,6 +1009,7 @@ class SystemChoicesAPIView(APIView):
 
     permission_classes = [permissions.IsAuthenticated]
 
+    @tenant_cache('system_choices', timeout=3600, include_shared_version=True)
     def get(self, request):
         list_slug = (
             request.query_params.get('list')
