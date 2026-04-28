@@ -95,7 +95,6 @@ export const QuickActionsProvider: React.FC<QuickActionsProviderProps> = ({ chil
         return;
       }
     }
-
     if (!isAuthenticated) {
       setQuickActions([]);
       setAvailableForms([]);

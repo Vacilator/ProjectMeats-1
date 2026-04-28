@@ -16,6 +16,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useAuthState } from '@/contexts/AuthContext';
 import { Button, Modal, Spin, message, Select, Skeleton } from 'antd';
+import { isEqual } from 'lodash';
 import styled from 'styled-components';
 import { businessApi } from '../../services/businessApi';
 import DynamicFormEngine from '../../features/system/DynamicFormEngine';
@@ -84,6 +85,18 @@ type BackendSchema = {
   fields?: BackendField[];
   key_fields?: string[];
 };
+
+const EMPTY_FORM_VALUES: Record<string, unknown> = {};
+
+function useDeepStableValue<T>(value: T): T {
+  const ref = useRef(value);
+
+  if (!isEqual(ref.current, value)) {
+    ref.current = value;
+  }
+
+  return ref.current;
+}
 
 const isArrayLikeField = (field: BackendField): boolean => {
   const t = String(field.type ?? '').toLowerCase();
@@ -879,7 +892,7 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
   allowModeSwitch,
 }) => {
   const { isAuthenticated, loading: authLoading } = useAuthState();
-  const stableEmptyInitialValues = useMemo(() => ({} as Record<string, unknown>), []);
+  const stableInitialValues = useDeepStableValue(initialValues);
 
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState<unknown | null>(null);
@@ -887,13 +900,13 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
   const [schema, setSchema] = useState<BackendSchema | null>(null);
   const [recordValues, setRecordValues] = useState<Record<string, unknown> | null>(null);
 
-  const initialValuesRef = useRef<Record<string, unknown> | undefined>(initialValues);
+  const initialValuesRef = useRef<Record<string, unknown> | undefined>(stableInitialValues);
   const [resolvedInitialValues, setResolvedInitialValues] = useState<Record<string, unknown>>({});
 
   useEffect(() => {
     if (!isOpen) return;
-    initialValuesRef.current = initialValues;
-  }, [initialValues, isOpen]);
+    initialValuesRef.current = stableInitialValues;
+  }, [isOpen, stableInitialValues]);
 
   const inferredMode: UniversalEntityFormMode = useMemo(() => {
     const hasId = entityId != null && String(entityId).trim().length > 0;
@@ -921,9 +934,26 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
 
   const schemaEntityKey = useMemo(() => normalizeEntityKey(entityType), [entityType]);
   const endpoint = useMemo(() => normalizeEntityEndpoint(entityType), [entityType]);
+  const stableResolvedInitialValues = useDeepStableValue(resolvedInitialValues);
 
   const getSelectPopupContainer = useCallback((triggerNode: HTMLElement) => {
     return getDefaultSelectPopupContainer(triggerNode);
+  }, []);
+
+  const setSchemaIfChanged = useCallback((next: BackendSchema | null) => {
+    setSchema((prev) => (isEqual(prev, next) ? prev : next));
+  }, []);
+
+  const setRecordValuesIfChanged = useCallback((next: Record<string, unknown> | null) => {
+    setRecordValues((prev) => (isEqual(prev, next) ? prev : next));
+  }, []);
+
+  const setResolvedInitialValuesIfChanged = useCallback((next: Record<string, unknown>) => {
+    setResolvedInitialValues((prev) => (isEqual(prev, next) ? prev : next));
+  }, []);
+
+  const setFkValuesIfChanged = useCallback((next: Record<string, unknown>) => {
+    setFkValues((prev) => (isEqual(prev, next) ? prev : next));
   }, []);
 
   const loadSchema = useCallback(async () => {
@@ -992,12 +1022,49 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
   useEffect(() => {
     if (!isOpen) return;
 
+    setLoadError(null);
     setShowAdvanced(false);
     setActiveMode(inferredMode);
-    setRecordValues(null);
+    setRecordValuesIfChanged(null);
 
-    const initialSnapshot = (initialValuesRef.current || {}) as Record<string, unknown>;
-    setResolvedInitialValues(initialSnapshot);
+    const initialSnapshot = (initialValuesRef.current || EMPTY_FORM_VALUES) as Record<string, unknown>;
+    setResolvedInitialValuesIfChanged(initialSnapshot);
+    setFkValuesIfChanged(initialSnapshot);
+
+    // Wait for auth initialization to settle before attempting any protected calls.
+    if (authLoading) {
+      setLoading(true);
+      return;
+    }
+
+    // If no token credentials exist, do NOT attempt network calls. This prevents
+    // a 401→state update→re-render→retry loop that can trigger React error #185.
+    if (!isAuthenticated) {
+      setSchemaIfChanged(null);
+      setRecordValuesIfChanged(null);
+      setLoading(false);
+      setLoadError({ response: { status: 401 } });
+
+      // Best-effort redirect matching the global interceptor behavior.
+      if (typeof window !== 'undefined') {
+        const currentPath = `${window.location.pathname}${window.location.search}`;
+        if (!currentPath.startsWith('/login')) {
+          try {
+            localStorage.setItem('redirectAfterLogin', currentPath);
+          } catch {
+            // best-effort
+          }
+
+          try {
+            window.location.assign('/login');
+          } catch {
+            // JSDOM/tests may throw on navigation.
+          }
+        }
+      }
+
+      return;
+    }
 
     let mounted = true;
 
@@ -1019,16 +1086,17 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
         if (!mounted) return;
         const merged: Record<string, unknown> = { ...(nextRecord || {}), ...initialSnapshot };
         const sanitized = sanitizeInitialValuesForSchema(nextSchema, merged);
-        setSchema(augmentSchemaForFrontend(schemaEntityKey, nextSchema, sanitized));
-        setRecordValues(nextRecord);
-        setResolvedInitialValues(sanitized);
-        setFkValues(sanitized);
+        setSchemaIfChanged(augmentSchemaForFrontend(schemaEntityKey, nextSchema, sanitized));
+        setRecordValuesIfChanged(nextRecord);
+        setResolvedInitialValuesIfChanged(sanitized);
+        setFkValuesIfChanged(sanitized);
       } catch (err: unknown) {
         if (!mounted) return;
         setLoadError(err);
-        setSchema(null);
-        setRecordValues(null);
-        setResolvedInitialValues(initialSnapshot);
+        setSchemaIfChanged(null);
+        setRecordValuesIfChanged(null);
+        setResolvedInitialValuesIfChanged(initialSnapshot);
+        setFkValuesIfChanged(initialSnapshot);
 
         const status = (err as any)?.response?.status;
         const errorMessage =
@@ -1051,7 +1119,20 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
     return () => {
       mounted = false;
     };
-  }, [authLoading, endpoint, entityId, inferredMode, isAuthenticated, isOpen, loadSchema, schemaEntityKey, stableEmptyInitialValues]);
+  }, [
+    authLoading,
+    endpoint,
+    entityId,
+    inferredMode,
+    isAuthenticated,
+    isOpen,
+    loadSchema,
+    schemaEntityKey,
+    setFkValuesIfChanged,
+    setRecordValuesIfChanged,
+    setResolvedInitialValuesIfChanged,
+    setSchemaIfChanged,
+  ]);
 
   // Load basic FK option lists (best-effort) for non-product references.
   useEffect(() => {
@@ -1331,7 +1412,7 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
   };
 
   const dynamicSchema: DynamicSchema = useMemo(() => {
-    const contactContext = inferContactFormContext(resolvedInitialValues);
+    const contactContext = inferContactFormContext(stableResolvedInitialValues);
 
     const supplierTitle =
       schemaEntityKey === 'supplier' ? (activeMode === 'create' ? 'New Supplier' : 'Supplier') : null;
@@ -1352,11 +1433,18 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
       description: schema?.description,
       fields: scalarFields,
     };
-  }, [activeMode, entityType, resolvedInitialValues, scalarFields, schema?.description, schema?.name, schemaEntityKey]);
+  }, [
+    activeMode,
+    entityType,
+    scalarFields,
+    schema?.description,
+    schema?.name,
+    schemaEntityKey,
+    stableResolvedInitialValues,
+  ]);
 
-  const formInitialValues = useMemo(() => {
-    return resolvedInitialValues;
-  }, [resolvedInitialValues]);
+  const formInitialValues = useDeepStableValue(stableResolvedInitialValues);
+  const stableDynamicSchema = useDeepStableValue(dynamicSchema);
 
   const modalTitle = useMemo(() => {
     const contactContext = inferContactFormContext(formInitialValues);
@@ -1412,8 +1500,8 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
       });
 
       // Merge explicit initial values for fields not rendered by the schema.
-      if (initialValues) {
-        Object.entries(initialValues).forEach(([k, v]) => {
+      if (stableInitialValues) {
+        Object.entries(stableInitialValues).forEach(([k, v]) => {
           if (payload[k] === undefined && v !== undefined) payload[k] = v;
         });
       }
@@ -1626,12 +1714,12 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
       fkFields,
       fkValues,
       formInitialValues,
-      initialValues,
       onClose,
       onSuccess,
       preferredKeySet,
       scalarFields,
       showAdvanced,
+      stableInitialValues,
     ]
   );
 
@@ -1978,7 +2066,7 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
             </div>
           ) : (
             <DynamicFormEngine
-              schema={dynamicSchema as any}
+              schema={stableDynamicSchema as any}
               initialValues={formInitialValues}
               isSubmitting={submitting}
               submitLabel={entityId ? 'Save' : 'Create'}

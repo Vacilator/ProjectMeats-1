@@ -24,6 +24,7 @@ from apps.system.views import (
     EntityIntrospectionViewSet,
     SystemProductViewSet,
     TenantProductPreferenceViewSet,
+    SystemChoicesAPIView,
 )
 from apps.system.views.search_viewset import RankedSearchViewSet
 from apps.system.views.entity_viewset import EntityViewSet
@@ -52,6 +53,7 @@ router.register(r'product-preferences', TenantProductPreferenceViewSet, basename
 router.register(r'search/ranked', RankedSearchViewSet, basename='ranked-search')
 
 urlpatterns = [
+    path('choices/', SystemChoicesAPIView.as_view(), name='system-choices'),
     # IMPORTANT: include router first so Schema Bridge routes work:
     # - /api/v1/system/entities/<entity_id>/fields/
     # - /api/v1/system/entities/<entity_id>/display-fields/

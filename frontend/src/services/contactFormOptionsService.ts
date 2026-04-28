@@ -1,10 +1,28 @@
 import { businessApi } from './businessApi';
-import { configService } from './configService';
+import { EMPTY_CHOICES } from './choiceConstants';
 
 export interface ContactFormOption {
   value: string;
   label: string;
 }
+
+const CANONICAL_CHOICE_LIST_ALIASES: Record<string, string> = {
+  'protein-type': 'protein_types',
+  'protein_type': 'protein_types',
+  'protein_types': 'protein_types',
+};
+
+const systemChoiceCache = new Map<string, ContactFormOption[]>();
+const pendingSystemChoiceRequests = new Map<string, Promise<ContactFormOption[]>>();
+
+const normalizeChoiceListSlug = (slug: string): string => {
+  const normalized = String(slug || '').trim().toLowerCase();
+  if (!normalized) return '';
+
+  return CANONICAL_CHOICE_LIST_ALIASES[normalized] || normalized.replace(/-/g, '_');
+};
+
+const emptyChoices = (): ContactFormOption[] => EMPTY_CHOICES as ContactFormOption[];
 
 const asOption = (value: unknown, label?: unknown): ContactFormOption | null => {
   const normalizedValue = value == null ? '' : String(value).trim();
@@ -20,12 +38,14 @@ const asOption = (value: unknown, label?: unknown): ContactFormOption | null => 
 
 const normalizeChoicePayload = (payload: unknown): ContactFormOption[] => {
   if (Array.isArray(payload)) {
-    return payload
+    const options = payload
       .map((item) => {
         const row = item && typeof item === 'object' ? (item as Record<string, unknown>) : {};
         return asOption(row.value ?? row.id ?? row.key, row.label ?? row.name ?? row.display_name);
       })
       .filter((item): item is ContactFormOption => Boolean(item));
+
+    return options.length > 0 ? options : emptyChoices();
   }
 
   const obj = payload && typeof payload === 'object' ? (payload as Record<string, unknown>) : null;
@@ -40,86 +60,44 @@ const normalizeChoicePayload = (payload: unknown): ContactFormOption[] => {
   return normalizeChoicePayload(results);
 };
 
-const slugVariants = (slug: string): string[] => {
-  const normalized = String(slug || '').trim();
-  if (!normalized) return [];
-
-  const variants = new Set<string>([
-    normalized,
-    normalized.replace(/-/g, '_'),
-    normalized.replace(/_/g, '-'),
-  ]);
-
-  if (normalized.endsWith('s')) {
-    variants.add(normalized.slice(0, -1));
-  } else {
-    variants.add(`${normalized}s`);
-  }
-
-  return Array.from(variants);
-};
-
-const MISSING_CHOICE_LIST_TTL_MS = 5 * 60 * 1000;
-const missingChoiceLists = new Map<string, number>();
-
-const isKnownMissingChoiceList = (key: string): boolean => {
-  const ts = missingChoiceLists.get(key);
-  if (!ts) return false;
-  if (Date.now() - ts > MISSING_CHOICE_LIST_TTL_MS) {
-    missingChoiceLists.delete(key);
-    return false;
-  }
-  return true;
-};
-
 export const contactFormOptionsService = {
   async getSystemChoiceOptions(listSlug: string): Promise<ContactFormOption[]> {
-    const key = String(listSlug || '').trim().toLowerCase();
-    if (!key) return [];
-
-    if (isKnownMissingChoiceList(key)) {
-      return [];
+    const key = normalizeChoiceListSlug(listSlug);
+    if (!key) {
+      return emptyChoices();
     }
 
-    const candidates = slugVariants(key);
-    let sawNotFound = false;
+    const cached = systemChoiceCache.get(key);
+    if (cached) {
+      return cached;
+    }
 
-    for (const candidate of candidates) {
-      try {
-        const response = await businessApi.get('/system/choices/', {
-          params: { list: candidate },
-        });
+    const pending = pendingSystemChoiceRequests.get(key);
+    if (pending) {
+      return pending;
+    }
 
+    const request = businessApi
+      .get('/system/choices/', {
+        params: { list: key },
+      })
+      .then((response) => {
         const options = normalizeChoicePayload(response.data);
-        if (options.length > 0) {
-          missingChoiceLists.delete(key);
-          return options;
-        }
-      } catch (err: any) {
-        if (err?.response?.status === 404) sawNotFound = true;
-        // Fall through to the next candidate / fallback.
-      }
-    }
+        const stableOptions = options.length > 0 ? options : emptyChoices();
+        systemChoiceCache.set(key, stableOptions);
+        return stableOptions;
+      })
+      .catch(() => {
+        const stableEmpty = emptyChoices();
+        systemChoiceCache.set(key, stableEmpty);
+        return stableEmpty;
+      })
+      .finally(() => {
+        pendingSystemChoiceRequests.delete(key);
+      });
 
-    for (const candidate of candidates) {
-      try {
-        const options = await configService.getChoiceOptions(candidate);
-        if (Array.isArray(options) && options.length > 0) {
-          missingChoiceLists.delete(key);
-          return options
-            .map((item) => asOption(item.value, item.label))
-            .filter((item): item is ContactFormOption => Boolean(item));
-        }
-      } catch {
-        // Ignore fallback failures until all variants are exhausted.
-      }
-    }
-
-    if (sawNotFound) {
-      missingChoiceLists.set(key, Date.now());
-    }
-
-    return [];
+    pendingSystemChoiceRequests.set(key, request);
+    return request;
   },
 
   async getMasterProductOptions(params?: {
@@ -154,7 +132,7 @@ export const contactFormOptionsService = {
           ? ((payload as Record<string, unknown>).results as unknown[])
           : [];
 
-      return rows
+      const options = rows
         .map((item) => {
           const row = item && typeof item === 'object' ? (item as Record<string, unknown>) : {};
           const label =
@@ -167,9 +145,16 @@ export const contactFormOptionsService = {
           return asOption(row.id ?? row.value ?? row.product_code ?? row.name, label);
         })
         .filter((item): item is ContactFormOption => Boolean(item));
+
+      return options.length > 0 ? options : emptyChoices();
     } catch {
-      return [];
+      return emptyChoices();
     }
+  },
+
+  clearCache(): void {
+    systemChoiceCache.clear();
+    pendingSystemChoiceRequests.clear();
   },
 };
 
