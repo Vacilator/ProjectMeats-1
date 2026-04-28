@@ -1785,6 +1785,7 @@ Deliverables:
 - **2026-04-28** — [COMPLETED] Hard-bound AI chat sessions, chat messages, manual document uploads, and Graph attachment session reuse to `request.tenant` via session tenant context, making the multi-tenant AI session APIs fail closed for ambiguous or cross-tenant access. (PR: #4736)
 - **2026-04-28** — [COMPLETED] Enforced a session-scoped Outlook attachment allowlist so `fetch_emails` stages attachment refs in the active chat session, `ingest_email_attachment` rejects unstaged/expired IDs, unread-email aliases preserve session staging, and tools-open no longer advertises ingest when Outlook is unavailable. (PR: #4737)
 - **2026-04-28** — [COMPLETED] Synced the canonical `MASTER_PLAN.md` snapshot and reference `ROADMAP.md` / `UI_ROADMAP.md` so the AI email/document lane reflects shipped hardening through PR #4737 and points to parse failure/status lifecycle as the next follow-up without authority drift. (PR: #4738)
+- **2026-04-28** — [COMPLETED] Hardened `parse_document` to fail closed with structured tool errors, persisted `AIDocument.processing_status` + parser lifecycle metadata across success/failure paths, exposed processing metadata/filtering to operators, and added focused regression coverage for retryable parser-service failures. (PR: #4739)
 
 ### Phase 11: The Deal Desk (Trader Ledger Replacement)
 
