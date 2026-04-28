@@ -1780,6 +1780,7 @@ Deliverables:
 - **2026-04-28** — [COMPLETED] Hardened AI Swarm execution against tool-loop exhaustion and upgraded Microsoft Graph email search to support flexible folder/read/attachment querying with structured tool errors and regression coverage.
 - **2026-04-28** — [COMPLETED] Enhanced AI Chat Widget and Swarm ingestion pipeline to support CSV/XLS/XLSX tabular data parsing with markdown conversion, 500-row truncation safeguards, and upload validation for spreadsheet MIME types.
 - **2026-04-28** — [COMPLETED] Bridged Microsoft Graph attachments to internal AIDocument parser, enabling autonomous email-to-record workflows. (PR: #4733)
+- **2026-04-28** — [COMPLETED] Hardened Graph attachment ingestion to preflight Microsoft Graph attachment metadata, reject unsupported `itemAttachment`/`referenceAttachment` kinds before download, and keep the email → AIDocument path fail-closed with regression coverage. (PR: #4734)
 
 ### Phase 11: The Deal Desk (Trader Ledger Replacement)
 

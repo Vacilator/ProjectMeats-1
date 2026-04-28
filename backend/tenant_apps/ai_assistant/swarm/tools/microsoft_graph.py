@@ -32,6 +32,10 @@ GRAPH_MAIL_SELECT_FIELDS = (
     'hasAttachments,conversationId,isRead,webLink'
 )
 GRAPH_ATTACHMENT_SELECT_FIELDS = 'id,name,contentType,size'
+GRAPH_FILE_ATTACHMENT_TYPE = '#microsoft.graph.fileattachment'
+GRAPH_ITEM_ATTACHMENT_TYPE = '#microsoft.graph.itemattachment'
+GRAPH_REFERENCE_ATTACHMENT_TYPE = '#microsoft.graph.referenceattachment'
+SUPPORTED_GRAPH_ATTACHMENT_TYPES = frozenset({GRAPH_FILE_ATTACHMENT_TYPE})
 
 
 @dataclass(frozen=True)
@@ -170,6 +174,40 @@ def normalize_mail_limit(limit: Any) -> int:
     return parsed
 
 
+def normalize_graph_attachment_type(raw_type: Any) -> str:
+    return str(raw_type or '').strip().lower()
+
+
+def validate_graph_attachment_metadata(attachment: dict[str, Any]) -> None:
+    attachment_type = normalize_graph_attachment_type(attachment.get('@odata.type'))
+    if attachment_type in SUPPORTED_GRAPH_ATTACHMENT_TYPES:
+        return
+
+    if attachment_type == GRAPH_ITEM_ATTACHMENT_TYPE:
+        raise ToolExecutionError(
+            error_code='UNSUPPORTED_ATTACHMENT_TYPE',
+            message='Embedded Outlook item attachments are not supported for AI ingestion.',
+            hint='Download the embedded item locally and upload a supported document file instead.',
+            retryable=False,
+        )
+
+    if attachment_type == GRAPH_REFERENCE_ATTACHMENT_TYPE:
+        raise ToolExecutionError(
+            error_code='UNSUPPORTED_ATTACHMENT_TYPE',
+            message='Cloud-link Outlook attachments are not supported for AI ingestion.',
+            hint='Open the linked file in Outlook or SharePoint, then upload the document directly into ProjectMeats.',
+            retryable=False,
+        )
+
+    raise ToolExecutionError(
+        error_code='UNSUPPORTED_ATTACHMENT_TYPE',
+        message='This Outlook attachment type is not supported for AI ingestion.',
+        hint='Use a standard file attachment (PDF, image, Word, CSV, or Excel) or upload the file manually.',
+        retryable=False,
+        details=f'attachment_type={attachment_type or "unknown"}',
+    )
+
+
 def build_mail_request(
     *,
     folder: str | None = None,
@@ -266,6 +304,7 @@ def serialize_graph_message(message: dict[str, Any], *, folder: str) -> dict[str
                     'name': name,
                     'content_type': str(attachment.get('contentType') or '').strip(),
                     'size': attachment.get('size'),
+                    'attachment_type': normalize_graph_attachment_type(attachment.get('@odata.type')) or None,
                 }
             )
 

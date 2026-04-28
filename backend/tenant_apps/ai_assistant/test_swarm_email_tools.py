@@ -21,6 +21,7 @@ from tenant_apps.ai_assistant.swarm.router import (
 from tenant_apps.ai_assistant.swarm.tools.microsoft_graph import (
     ToolExecutionError,
     build_mail_request,
+    validate_graph_attachment_metadata,
 )
 from tenant_apps.integrations.services.email_ingestion import EmailIngestionService
 
@@ -68,6 +69,26 @@ class MicrosoftGraphToolHelperTests(SimpleTestCase):
 
         self.assertIn('ingest_email_attachment(message_id, attachment_id, file_name)', prompt)
         self.assertIn('pass the returned document_id into parse_document', prompt)
+
+    def test_validate_graph_attachment_metadata_rejects_item_attachments(self):
+        with self.assertRaises(ToolExecutionError) as exc:
+            validate_graph_attachment_metadata(
+                {
+                    '@odata.type': '#microsoft.graph.itemAttachment',
+                }
+            )
+
+        self.assertEqual(exc.exception.error_code, 'UNSUPPORTED_ATTACHMENT_TYPE')
+
+    def test_validate_graph_attachment_metadata_rejects_reference_attachments(self):
+        with self.assertRaises(ToolExecutionError) as exc:
+            validate_graph_attachment_metadata(
+                {
+                    '@odata.type': '#microsoft.graph.referenceAttachment',
+                }
+            )
+
+        self.assertEqual(exc.exception.error_code, 'UNSUPPORTED_ATTACHMENT_TYPE')
 
 
 class EmailIngestionServiceEmailFetchTests(TestCase):
@@ -219,6 +240,7 @@ class EmailIngestionServiceEmailFetchTests(TestCase):
                     'name': 'invoice.pdf',
                     'content_type': 'application/pdf',
                     'size': 2048,
+                    'attachment_type': None,
                 }
             ],
         )
@@ -255,6 +277,17 @@ class ToolExecutorEmailToolTests(TestCase):
         self.provider.set_encrypted_token('access', 'access-token')
         self.provider.save()
 
+    def _response(self, *, status: int = 200, payload: dict | None = None, text: str = '') -> Mock:
+        response = Mock()
+        response.status_code = status
+        response.json.return_value = payload or {}
+        response.text = text
+        if status >= 400:
+            response.raise_for_status.side_effect = requests.HTTPError(response=response)
+        else:
+            response.raise_for_status.return_value = None
+        return response
+
     @patch('tenant_apps.ai_assistant.swarm.executor.set_current_tenant', return_value=SimpleNamespace(ok=True, error=None))
     @patch('tenant_apps.integrations.services.email_ingestion.EmailIngestionService.fetch_emails_for_ai')
     def test_execute_returns_structured_graph_error_payload(self, mock_fetch, _mock_rls):
@@ -279,7 +312,6 @@ class ToolExecutorEmailToolTests(TestCase):
         self.assertEqual(payload['error']['hint'], 'Try simplifying your search terms.')
 
     @patch('tenant_apps.ai_assistant.swarm.executor.set_current_tenant', return_value=SimpleNamespace(ok=True, error=None))
-    @patch('tenant_apps.ai_assistant.services.semantic_indexing.index_document_for_semantic_search')
     @patch('tenant_apps.ai_assistant.models.ChatMessage.objects.create')
     @patch('tenant_apps.ai_assistant.models.AIDocument.objects.create')
     @patch('apps.integrations.providers.MicrosoftGraphProvider')
@@ -290,7 +322,6 @@ class ToolExecutorEmailToolTests(TestCase):
         mock_graph_provider,
         mock_aidocument_create,
         mock_chat_message_create,
-        _mock_index,
         _mock_rls,
     ):
         session = ChatSession.objects.create(
@@ -313,7 +344,16 @@ class ToolExecutorEmailToolTests(TestCase):
         }
         response.iter_content.return_value = [response.content]
         response.raise_for_status.return_value = None
-        mock_get.return_value = response
+        metadata_response = self._response(
+            payload={
+                '@odata.type': '#microsoft.graph.fileAttachment',
+                'id': 'att-456',
+                'name': 'invoice.pdf',
+                'contentType': 'application/pdf',
+                'size': len(response.content),
+            }
+        )
+        mock_get.side_effect = [metadata_response, response]
         fake_document = SimpleNamespace(
             id=uuid.uuid4(),
             tenant=self.tenant,
@@ -360,7 +400,108 @@ class ToolExecutorEmailToolTests(TestCase):
             mock_chat_message_create.call_args.kwargs['metadata']['source'],
             'microsoft_graph_attachment',
         )
-        self.assertTrue(mock_get.call_args.kwargs['stream'])
+        self.assertFalse(mock_get.call_args_list[0].kwargs.get('stream', False))
+        self.assertTrue(mock_get.call_args_list[1].kwargs['stream'])
+
+    @patch('tenant_apps.ai_assistant.swarm.executor.set_current_tenant', return_value=SimpleNamespace(ok=True, error=None))
+    @patch('tenant_apps.ai_assistant.models.AIDocument.objects.create')
+    @patch('apps.integrations.providers.MicrosoftGraphProvider')
+    @patch('requests.get')
+    def test_execute_rejects_item_attachment_before_download(
+        self,
+        mock_get,
+        mock_graph_provider,
+        mock_aidocument_create,
+        _mock_rls,
+    ):
+        session = ChatSession.objects.create(
+            title='Attachment thread',
+            context_data={'tenant_id': str(self.tenant.id)},
+            owner=self.user,
+            created_by=self.user,
+            modified_by=self.user,
+        )
+        mock_graph_provider.return_value = SimpleNamespace(
+            GRAPH_API_BASE='https://graph.microsoft.com/v1.0'
+        )
+        mock_get.return_value = self._response(
+            payload={
+                '@odata.type': '#microsoft.graph.itemAttachment',
+                'id': 'att-456',
+                'name': 'forwarded.eml',
+                'contentType': 'message/rfc822',
+                'size': 1024,
+            }
+        )
+
+        payload = json.loads(
+            ToolExecutor().execute(
+                'ingest_email_attachment',
+                {
+                    'message_id': 'msg-123',
+                    'attachment_id': 'att-456',
+                    'file_name': 'forwarded.eml',
+                },
+                self.tenant,
+                self.user,
+                session_id=str(session.id),
+            )
+        )
+
+        self.assertFalse(payload['ok'])
+        self.assertEqual(payload['error']['code'], 'UNSUPPORTED_ATTACHMENT_TYPE')
+        self.assertEqual(mock_get.call_count, 1)
+        mock_aidocument_create.assert_not_called()
+
+    @patch('tenant_apps.ai_assistant.swarm.executor.set_current_tenant', return_value=SimpleNamespace(ok=True, error=None))
+    @patch('tenant_apps.ai_assistant.models.AIDocument.objects.create')
+    @patch('apps.integrations.providers.MicrosoftGraphProvider')
+    @patch('requests.get')
+    def test_execute_rejects_reference_attachment_before_download(
+        self,
+        mock_get,
+        mock_graph_provider,
+        mock_aidocument_create,
+        _mock_rls,
+    ):
+        session = ChatSession.objects.create(
+            title='Attachment thread',
+            context_data={'tenant_id': str(self.tenant.id)},
+            owner=self.user,
+            created_by=self.user,
+            modified_by=self.user,
+        )
+        mock_graph_provider.return_value = SimpleNamespace(
+            GRAPH_API_BASE='https://graph.microsoft.com/v1.0'
+        )
+        mock_get.return_value = self._response(
+            payload={
+                '@odata.type': '#microsoft.graph.referenceAttachment',
+                'id': 'att-456',
+                'name': 'sharepoint-link.url',
+                'contentType': 'application/octet-stream',
+                'size': 1024,
+            }
+        )
+
+        payload = json.loads(
+            ToolExecutor().execute(
+                'ingest_email_attachment',
+                {
+                    'message_id': 'msg-123',
+                    'attachment_id': 'att-456',
+                    'file_name': 'sharepoint-link.url',
+                },
+                self.tenant,
+                self.user,
+                session_id=str(session.id),
+            )
+        )
+
+        self.assertFalse(payload['ok'])
+        self.assertEqual(payload['error']['code'], 'UNSUPPORTED_ATTACHMENT_TYPE')
+        self.assertEqual(mock_get.call_count, 1)
+        mock_aidocument_create.assert_not_called()
 
 
 class SwarmRouterLoopDetectionTests(TestCase):
