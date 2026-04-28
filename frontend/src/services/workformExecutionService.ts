@@ -64,6 +64,48 @@ export interface WorkFormExecutionListResponse {
   results: WorkFormExecution[];
 }
 
+export interface WorkFormExecutionAnalyticsSummary {
+  total_runs: number;
+  active_runs: number;
+  completed_runs: number;
+  failed_runs: number;
+  suspended_runs: number;
+  success_rate: number;
+  avg_duration_ms: number | null;
+}
+
+export interface WorkFormExecutionAnalyticsNodeRow {
+  workform_id: string;
+  workform_name: string;
+  node_id: string;
+  node_type: string;
+  node_label?: string | null;
+  failure_count?: number;
+  last_failed_at?: string | null;
+  avg_duration_ms?: number | null;
+  max_duration_ms?: number | null;
+  sample_count?: number;
+}
+
+export interface WorkFormExecutionAnalyticsWorkformRow {
+  workform_id: string;
+  workform_name: string;
+  total_runs: number;
+  completed_runs: number;
+  failed_runs: number;
+  success_rate: number;
+}
+
+export interface WorkFormExecutionAnalyticsResponse {
+  window_days: number;
+  generated_at: string;
+  summary: WorkFormExecutionAnalyticsSummary;
+  status_counts: Record<string, number>;
+  top_workforms: WorkFormExecutionAnalyticsWorkformRow[];
+  top_failed_nodes: WorkFormExecutionAnalyticsNodeRow[];
+  slowest_actions: WorkFormExecutionAnalyticsNodeRow[];
+}
+
 export class WorkFormExecutionService {
   private baseUrl = '/workflows/workform-executions/';
 
@@ -97,6 +139,11 @@ export class WorkFormExecutionService {
 
   async getExecution(id: string): Promise<WorkFormExecution> {
     const response = await businessApi.get(`${this.baseUrl}${id}/`);
+    return response.data;
+  }
+
+  async getAnalytics(params?: { days?: number; limit?: number }): Promise<WorkFormExecutionAnalyticsResponse> {
+    const response = await businessApi.get(`${this.baseUrl}analytics/`, { params });
     return response.data;
   }
 }

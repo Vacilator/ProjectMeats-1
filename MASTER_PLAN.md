@@ -23,6 +23,7 @@ This file is the **canonical plan + current truth snapshot**.
   - WorkForms editor hot-path stability: derive validation/history/autosave from graph state (PR #32), move node actions out of `nodesWithHandlers` cloning and into editor context (PR #4720), and keep config-panel shadow edits local until Apply/Discard instead of rewriting the full node array on every keystroke (PR #4721).
   - WorkForms execution telemetry foundation: add a tenant-scoped `ExecutionEventLog` model with RLS, persist normalized execution/node/action events from `audit_trail`, and cover successful + failed action spans in backend tests (see `.github/MASTER_PLAN.md` for the shipped PR reference).
   - WorkForms runtime hydration: add persisted `runtime_state` snapshots on `TenantWorkFormExecution`, hydrate node status/current step/error projections from the telemetry stream, and keep execution serializers backward-compatible for legacy rows without runtime state.
+  - WorkForms analytics dashboard: expose a tenant-safe execution analytics summary from the backend and upgrade the Monitoring page to show telemetry-backed KPIs, top failing steps, slowest actions, and busiest WorkForms.
 
 ### P0 priorities (next)
 - **Core API reliability**: ✅ shipped (PR #4652). Next: expand smoke coverage for always-on endpoints (health, tenant resolution, auth bootstrap) and keep them in PR gates.
@@ -40,7 +41,7 @@ This file is the **canonical plan + current truth snapshot**.
   - Legacy workflow webhook endpoint must fail closed unless tenant context is resolvable (migrate callers to tenant-path URL).
   - Integrations OAuth callback must set tenant + RLS session vars before writing tenant-scoped rows.
   - WorkForms create must not bypass activation validation when `status=active`. ✅ shipped (runtime validation guardrails in PR #4483; verified by `apps.system.tests.test_workform_runtime_support_validation`).
-- **WorkForms runtime/observability**: editor validation/history/autosave, node action routing, local shadow-state staging, execution telemetry, and persisted runtime hydration are now hardened. Next: analytics/dashboard surfaces that consume the telemetry + runtime-state stream, then the schema upgrade command, then deterministic schema init / form "fields" model cleanup and any remaining a11y + theme-token hardening.
+- **WorkForms runtime/observability**: editor validation/history/autosave, node action routing, local shadow-state staging, execution telemetry, persisted runtime hydration, and the first operator-facing analytics dashboard are now hardened. Next: the schema upgrade command, then deterministic schema init / form "fields" model cleanup and any remaining a11y + theme-token hardening.
 - **CI guardrails (never-miss-again)**:
   - Deploy-by-digest default for UAT/Prod and digest-align the migration artifact.
   - Manifest-driven required-secret enforcement per lane (remove hardcoded lists).

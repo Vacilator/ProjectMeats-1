@@ -2277,6 +2277,45 @@ class TenantWorkFormExecutionViewSet(viewsets.ReadOnlyModelViewSet):
 
         return qs.order_by('-created_on')
 
+    @action(detail=False, methods=['get'], url_path='analytics')
+    def analytics(self, request):
+        try:
+            days = max(int(request.query_params.get('days', 30) or 30), 1)
+        except (TypeError, ValueError):
+            days = 30
+
+        try:
+            limit = max(int(request.query_params.get('limit', 5) or 5), 1)
+        except (TypeError, ValueError):
+            limit = 5
+
+        tenant = getattr(request, 'tenant', None)
+        if not tenant:
+            return Response(
+                {
+                    'window_days': days,
+                    'generated_at': timezone.now().isoformat(),
+                    'summary': {
+                        'total_runs': 0,
+                        'active_runs': 0,
+                        'completed_runs': 0,
+                        'failed_runs': 0,
+                        'suspended_runs': 0,
+                        'success_rate': 0.0,
+                        'avg_duration_ms': None,
+                    },
+                    'status_counts': {},
+                    'top_workforms': [],
+                    'top_failed_nodes': [],
+                    'slowest_actions': [],
+                }
+            )
+
+        from .services.workform_execution_analytics import get_workform_execution_analytics
+
+        analytics = get_workform_execution_analytics(tenant=tenant, days=days, limit=limit)
+        return Response(analytics)
+
 
 class FormSubmissionViewSet(viewsets.ModelViewSet):
     """
