@@ -560,7 +560,7 @@ class SwarmToolsOpenAPIView(APIView):
         except Exception:
             logger.warning('tools/openapi: failed to load outlook connection status', exc_info=True)
 
-        email_tools = {'check_unread_emails', 'draft_outlook_email'}
+        email_tools = {'fetch_emails', 'check_unread_emails', 'draft_outlook_email'}
 
         if outlook['connected']:
             tools = DEFAULT_OPENAI_TOOLS
@@ -840,7 +840,7 @@ class ToolsOpenAPIView(APIView):
         except Exception:
             outlook_connected = False
 
-        email_tools = {'check_unread_emails', 'draft_outlook_email'}
+        email_tools = {'fetch_emails', 'check_unread_emails', 'draft_outlook_email'}
 
         if outlook_connected:
             tools = DEFAULT_OPENAI_TOOLS

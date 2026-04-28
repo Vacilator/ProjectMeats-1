@@ -1777,3 +1777,4 @@ Deliverables:
 - **2026-04-27** — WorkForms editor: polish trigger preview/test/debug UX — persist Dry Run Debugger mock inputs with Reset Input, and make Smart Auto-Map suggestions disappear on accept/reject; add unit coverage for schedule cron helpers + auto-map immutability. (PR: #4702)
 
 - **2026-04-27** — WorkForms UI: a11y hardening — keyboard-operable Catalog/In Progress cards and accessible TemplateSelector modal (dialog semantics, Escape close, focus trap + restore focus) with automated tests. (PR: #4703)
+- **2026-04-28** — [COMPLETED] Hardened AI Swarm execution against tool-loop exhaustion and upgraded Microsoft Graph email search to support flexible folder/read/attachment querying with structured tool errors and regression coverage.
