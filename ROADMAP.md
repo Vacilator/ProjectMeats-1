@@ -19,6 +19,9 @@ This is a lightweight pointer list from squad discovery. **Execute via `MASTER_P
 - P0 CI hardening:
   - Default deploy-by-digest for UAT/Prod and digest-align migrations.
   - Manifest-driven required secrets gate per lane; docs drift lint for Golden migration rules.
+- P0 AI email/document reliability:
+  - Keep the shipped Outlook attachment lane fail-closed by normalizing `parse_document` failures into structured tool errors and driving `AIDocument.processing_status` through parsing success/failure states.
+  - Preserve retryable semantics for transient Graph/parse-service failures so operators and the Swarm can distinguish retryable outages from bad inputs.
 - P0 Frontend standards/a11y:
   - Remove remaining FlowEditor/WorkForms named colors (white/black) and replace console.* with logger.*.
   - Make WorkForms cards/modals keyboard accessible (semantic controls + dialog semantics/focus).
