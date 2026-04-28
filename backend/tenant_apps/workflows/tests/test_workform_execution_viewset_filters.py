@@ -79,6 +79,16 @@ class TenantWorkFormExecutionViewSetFilterTests(TestCase):
             workform=self.workform_a,
             status='completed',
             initial_data={'entity_type': 'customer', 'entity_id': 1},
+            runtime_state={
+                'version': 1,
+                'execution_status': 'completed',
+                'node_statuses': {'n1': 'completed'},
+                'current_node_id': 'n1',
+                'current_node_type': 'actionEmail',
+                'current_node_label': 'Send Email',
+                'last_event': 'action_success',
+                'errors': [],
+            },
             started_by=self.user,
         )
         self.exec_a_2 = TenantWorkFormExecution.objects.create(
@@ -113,6 +123,27 @@ class TenantWorkFormExecutionViewSetFilterTests(TestCase):
                     {'node_id': 'n1', 'node_type': 'actionEmail', 'error': 'Boom'},
                 ]
             },
+            started_by=self.user,
+        )
+
+        self.exec_a_runtime_clean = TenantWorkFormExecution.objects.create(
+            tenant=self.tenant_a,
+            workform=self.workform_a,
+            status='completed',
+            initial_data={'entity_type': 'customer', 'entity_id': 'runtime-clean'},
+            runtime_state={
+                'version': 1,
+                'execution_status': 'completed',
+                'node_statuses': {'n1': 'completed'},
+                'current_node_id': 'n1',
+                'current_node_type': 'actionEmail',
+                'current_node_label': 'Send Email',
+                'last_event': 'action_success',
+                'errors': [],
+            },
+            audit_trail=[
+                {'event': 'action_error', 'node_id': 'n1', 'node_type': 'actionEmail', 'error': 'Stale error'},
+            ],
             started_by=self.user,
         )
 
@@ -156,6 +187,13 @@ class TenantWorkFormExecutionViewSetFilterTests(TestCase):
         self.assertEqual(row.get('last_event'), 'action_success')
         self.assertEqual(row.get('errors'), [])
 
+        row_runtime = next(r for r in rows if r.get('id') == str(self.exec_a_1_int.id))
+        self.assertEqual(row_runtime.get('node_statuses', {}).get('n1'), 'completed')
+        self.assertEqual(row_runtime.get('current_node_id'), 'n1')
+        self.assertEqual(row_runtime.get('current_node_type'), 'actionEmail')
+        self.assertEqual(row_runtime.get('current_node_label'), 'Send Email')
+        self.assertEqual(row_runtime.get('last_event'), 'action_success')
+
     def test_errors_include_node_label(self):
         req = self._get(
             '/api/v1/workflows/workform-executions/?entity_type=customer&entity_id=99',
@@ -173,6 +211,19 @@ class TenantWorkFormExecutionViewSetFilterTests(TestCase):
         row = next(r for r in rows if r.get('id') == str(self.exec_a_err.id))
         self.assertEqual(row.get('errors')[0].get('node_id'), 'n1')
         self.assertEqual(row.get('errors')[0].get('node_label'), 'Send Email')
+
+    def test_runtime_state_errors_take_precedence_over_stale_audit_trail(self):
+        req = self._get(
+            '/api/v1/workflows/workform-executions/?entity_type=customer&entity_id=runtime-clean',
+            self.tenant_a,
+        )
+        resp = TenantWorkFormExecutionViewSet.as_view({'get': 'list'})(req)
+        self.assertEqual(resp.status_code, 200)
+
+        rows = self._items(resp)
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0].get('id'), str(self.exec_a_runtime_clean.id))
+        self.assertEqual(rows[0].get('errors'), [])
 
     def test_filters_by_workform_id(self):
         req = self._get(

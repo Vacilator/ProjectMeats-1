@@ -940,6 +940,11 @@ class TenantWorkFormExecution(TenantAwareModel):
     initial_data = models.JSONField(default=dict, blank=True, help_text='Trigger/initial payload used to start execution')
     context_data = models.JSONField(default=dict, blank=True, help_text='Execution context snapshot (variables, errors, outputs)')
     audit_trail = models.JSONField(default=list, blank=True, help_text='Chronological log of node transitions and actions')
+    runtime_state = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text='Hydrated runtime projection derived from execution telemetry',
+    )
 
     started_by = models.ForeignKey(
         User,

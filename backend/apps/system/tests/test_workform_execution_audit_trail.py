@@ -64,7 +64,9 @@ class WorkFormExecutionAuditTrailTests(TestCase):
         execution.refresh_from_db()
         self.assertEqual(execution.status, TenantWorkFormExecutionStatus.COMPLETED)
         self.assertIsInstance(execution.audit_trail, list)
+        self.assertIsInstance(execution.runtime_state, dict)
         self.assertGreaterEqual(len(execution.audit_trail), 2)
+        self.assertEqual(execution.runtime_state.get('execution_status'), TenantWorkFormExecutionStatus.COMPLETED)
 
         events = [row.get('event') for row in execution.audit_trail if isinstance(row, dict)]
         self.assertIn('execution_start', events)
@@ -113,6 +115,10 @@ class WorkFormExecutionAuditTrailTests(TestCase):
         self.assertIsNotNone(success_event.duration_ms)
         self.assertGreaterEqual(success_event.duration_ms, 0)
         self.assertEqual(success_event.payload, {})
+        execution.refresh_from_db()
+        self.assertEqual(execution.runtime_state.get('node_statuses', {}).get('a1'), 'completed')
+        self.assertEqual(execution.runtime_state.get('current_node_id'), 'end')
+        self.assertEqual(execution.runtime_state.get('last_event'), 'execution_complete')
 
     def test_execute_task_persists_failed_action_event_logs(self):
         action_workform = TenantWorkForm.objects.create(
@@ -150,3 +156,6 @@ class WorkFormExecutionAuditTrailTests(TestCase):
         self.assertEqual(failure_event.node_type, 'actionEmail')
         self.assertEqual(failure_event.payload.get('error'), 'SMTP offline')
         self.assertIsNotNone(failure_event.completed_at)
+        self.assertEqual(execution.runtime_state.get('node_statuses', {}).get('a1'), 'failed')
+        self.assertEqual(execution.runtime_state.get('current_node_id'), 'a1')
+        self.assertEqual(execution.runtime_state.get('last_event'), 'action_error')

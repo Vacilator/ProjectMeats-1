@@ -29,9 +29,9 @@ def _reset_rls_session_vars() -> None:
 
 
 def _sync_execution_telemetry(execution) -> None:
-    from tenant_apps.workflows.services.telemetry import persist_execution_event_logs
+    from tenant_apps.workflows.services.telemetry import sync_execution_telemetry
 
-    persist_execution_event_logs(execution)
+    sync_execution_telemetry(execution)
 
 
 @shared_task(name='system.cleanup_orphaned_forms')
