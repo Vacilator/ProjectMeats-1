@@ -121,6 +121,14 @@ function useDeepStableValue<T>(value: T): T {
   return ref.current;
 }
 
+const getStableSignature = (value: unknown): string => {
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return String(value);
+  }
+};
+
 const FormContainer = styled.form`
   width: 100%;
   max-width: 800px;
@@ -608,6 +616,10 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
     }
     return next;
   }, [stableInitialValues, stableFields]);
+  const defaultValuesSignature = useMemo(
+    () => getStableSignature(defaultValues),
+    [defaultValues]
+  );
 
   const {
     register,
@@ -622,16 +634,16 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
     mode: formConfig.validateOnChange ? 'onChange' : 'onSubmit',
   });
 
-  const previousDefaultValuesRef = useRef(defaultValues);
+  const previousDefaultValuesSignatureRef = useRef(defaultValuesSignature);
 
   useEffect(() => {
-    if (isEqual(previousDefaultValuesRef.current, defaultValues)) {
+    if (previousDefaultValuesSignatureRef.current === defaultValuesSignature) {
       return;
     }
 
-    previousDefaultValuesRef.current = defaultValues;
+    previousDefaultValuesSignatureRef.current = defaultValuesSignature;
     reset(defaultValues);
-  }, [defaultValues, reset]);
+  }, [defaultValues, defaultValuesSignature, reset]);
 
   const watchedValues = useWatch({ control });
   
