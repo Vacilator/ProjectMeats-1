@@ -15,10 +15,8 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import styled from 'styled-components';
 import { Search, X, ArrowUp, ArrowDown, CornerDownLeft, Plus, FileText, Users, Building2, Package, Truck } from 'lucide-react';
-import { apiClient } from '../../services/apiService';
 import { useNavigate } from 'react-router-dom';
-import { useCockpitNavigation } from '../../contexts/CockpitNavigationContext';
-import { EntityDetailModal } from '../Shared/EntityDetailModal';
+import { businessApi } from '../../services/businessApi';
 import { logger } from '@/utils/logger';
 
 // ============================================================================
@@ -307,27 +305,6 @@ const SearchOptions = styled.div`
   border-bottom: 1px solid rgb(var(--color-border));
 `;
 
-const DateRangeSelect = styled.select`
-  padding: 0.4rem 0.75rem;
-  font-size: 0.8rem;
-  background: rgb(var(--color-background-secondary));
-  border: 1px solid rgb(var(--color-border));
-  border-radius: var(--radius-md);
-  color: rgb(var(--color-text-primary));
-  cursor: pointer;
-  transition: all 0.2s;
-
-  &:hover {
-    border-color: rgb(var(--color-primary));
-  }
-
-  &:focus {
-    outline: none;
-    border-color: rgb(var(--color-primary));
-    box-shadow: 0 0 0 3px rgb(var(--color-primary) / 0.1);
-  }
-`;
-
 const ResultsCount = styled.span`
   font-size: 0.8rem;
   color: rgb(var(--color-text-secondary));
@@ -521,6 +498,73 @@ const normalizeSearchResults = (items: ApiSearchResult[] | null | undefined): Se
   return items.map(normalizeSearchResult);
 };
 
+const normalizeEntityType = (raw: unknown): string => {
+  const type = String(raw ?? '').trim().toLowerCase();
+
+  switch (type) {
+    case 'customers':
+      return 'customer';
+    case 'suppliers':
+      return 'supplier';
+    case 'plants':
+      return 'plant';
+    case 'locations':
+      return 'location';
+    case 'contacts':
+      return 'contact';
+    case 'invoices':
+      return 'invoice';
+    case 'claims':
+      return 'claim';
+    case 'purchase-orders':
+    case 'purchase_orders':
+      return 'purchase_order';
+    case 'sales-orders':
+    case 'sales_orders':
+      return 'sales_order';
+    default:
+      return type;
+  }
+};
+
+const formatEntityTypeLabel = (type: string): string => {
+  const normalized = normalizeEntityType(type);
+  switch (normalized) {
+    case 'purchase_order':
+      return 'Purchase Orders';
+    case 'sales_order':
+      return 'Sales Orders';
+    case 'tenant_user':
+      return 'Users';
+    default:
+      return normalized
+        ? `${normalized.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())}s`
+        : 'Results';
+  }
+};
+
+const getRecordPath = (type: string, id: string | number): string =>
+  `/records/${encodeURIComponent(normalizeEntityType(type))}/${encodeURIComponent(String(id))}`;
+
+const groupResultsByType = (
+  items: SearchResult[]
+): Array<{ type: string; label: string; items: SearchResult[] }> => {
+  const groups = new Map<string, SearchResult[]>();
+
+  items.forEach((item) => {
+    const normalizedType = normalizeEntityType(item.type);
+    const existing = groups.get(normalizedType) ?? [];
+    existing.push(item);
+    groups.set(normalizedType, existing);
+  });
+
+  return Array.from(groups.entries()).map(([type, groupedItems]) => ({
+    type,
+    label: formatEntityTypeLabel(type),
+    items: groupedItems,
+  }));
+};
+
 // ============================================================================
 // Search Cache (in-memory with TTL)
 // ============================================================================
@@ -572,15 +616,10 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose 
   const [recentItems, setRecentItems] = useState<SearchResult[]>([]);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
-  const [dateRange, setDateRange] = useState('last_30_days');  // NEW: Date range filter
-  const [totalCount, setTotalCount] = useState(0);  // NEW: Total results count
-  
-  // Entity detail modal state
-  const [selectedEntity, setSelectedEntity] = useState<{ type: string; id: number } | null>(null);
+  const [totalCount, setTotalCount] = useState(0);
   
   const inputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
-  const cockpitNavigation = useCockpitNavigation();
 
   // Focus input when opened
   useEffect(() => {
@@ -601,7 +640,9 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose 
 
   const fetchRecentItems = async () => {
     try {
-      const response = await apiClient.get('search/recent/', { params: { limit: 5 } });
+      const response = await businessApi.get<{ items?: ApiSearchResult[] }>('/search/recent/', {
+        params: { limit: 5 },
+      });
       const rawItems = (response.data.items || []) as ApiSearchResult[];
       setRecentItems(normalizeSearchResults(rawItems));
     } catch (err) {
@@ -609,7 +650,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose 
     }
   };
 
-  // Debounced search with caching and ranked results
+  // Debounced search with caching
   useEffect(() => {
     if (query.length < 2) {
       setResults([]);
@@ -618,7 +659,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose 
     }
 
     // Check cache first
-    const cacheKey = `${query}-${dateRange}`;
+    const cacheKey = query;
     const cached = getCachedResults(cacheKey);
     if (cached) {
       setResults(cached);
@@ -630,18 +671,14 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose 
     const timer = setTimeout(async () => {
       setIsLoading(true);
       try {
-        // Use ranked search API
+        // Use canonical universal search API
         logger.debug('[CommandPalette] API Request:', {
-          url: 'system/search/ranked/',
-          params: { q: query, date_range: dateRange, limit: 8 },
+          url: '/search/universal/',
+          params: { q: query, limit: 8 },
         });
         
-        const response = await apiClient.get<SearchResponse>('system/search/ranked/', {
-          params: { 
-            q: query, 
-            date_range: dateRange,
-            limit: 8 
-          }
+        const response = await businessApi.get<SearchResponse>('/search/universal/', {
+          params: { q: query, limit: 8 },
         });
         
         logger.debug('[CommandPalette] API Response:', {
@@ -660,9 +697,8 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose 
         setTotalCount(response.data.total || fetchedResults.length);
         setSelectedIndex(0);
         
-        logger.debug('[CommandPalette] Ranked search completed:', {
+        logger.debug('[CommandPalette] Universal search completed:', {
           query,
-          dateRange,
           resultsCount: fetchedResults.length,
           topScore: fetchedResults[0]?.score,
         });
@@ -673,10 +709,10 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose 
       } finally {
         setIsLoading(false);
       }
-    }, 200);
+    }, 300);
 
     return () => clearTimeout(timer);
-  }, [query, dateRange]);  // Re-search when date range changes
+  }, [query]);
 
   // Keyboard navigation - now supports quick actions
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
@@ -721,7 +757,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose 
   const handleSelect = async (item: SearchResult) => {
     // Track item access
     try {
-      await apiClient.post('search/recent/', {
+      await businessApi.post('/search/recent/', {
         entity_type: item.type,
         entity_id: item.id,
         title: item.title,
@@ -730,30 +766,8 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose 
       // Ignore tracking errors
     }
 
-    const rawType = String(item.type ?? '').toLowerCase();
-    const canonicalType = rawType === 'customer' || rawType === 'customers'
-      ? 'customer'
-      : rawType === 'supplier' || rawType === 'suppliers'
-        ? 'supplier'
-        : null;
-
-    // Cockpit default: open the canonical breadcrumb-driven view on /cockpit.
-    if (canonicalType) {
-      cockpitNavigation.clearPath();
-      cockpitNavigation.addStep({
-        id: String(item.id),
-        type: canonicalType,
-        label: item.title,
-        subtitle: item.subtitle,
-      });
-
-      onClose();
-      navigate('/cockpit');
-      return;
-    }
-
-    // Preserve existing behavior for other entity types.
-    setSelectedEntity({ type: item.type, id: item.id });
+    onClose();
+    navigate(getRecordPath(item.type, item.id));
   };
 
   const handleQuickAction = (action: QuickAction) => {
@@ -762,8 +776,8 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose 
   };
 
   const displayItems = query.length >= 2 ? results : recentItems;
-  const showRecent = query.length < 2 && recentItems.length > 0;
   const showQuickActions = query.length < 2;
+  const groupedResults = groupResultsByType(displayItems);
 
   return (
     <Overlay $isOpen={isOpen} onClick={onClose}>
@@ -783,22 +797,9 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose 
           </CloseButton>
         </SearchInputContainer>
 
-        {/* Date Range Filter - Show only when searching */}
-        {query.length >= 2 && (
+        {query.length >= 2 && totalCount > 0 && (
           <SearchOptions>
-            <DateRangeSelect 
-              value={dateRange} 
-              onChange={(e) => setDateRange(e.target.value)}
-              aria-label="Filter by date range"
-            >
-              <option value="last_7_days">Last 7 days</option>
-              <option value="last_30_days">Last 30 days</option>
-              <option value="last_90_days">Last 90 days</option>
-              <option value="all_time">All time</option>
-            </DateRangeSelect>
-            {totalCount > 0 && (
-              <ResultsCount>{totalCount} results</ResultsCount>
-            )}
+            <ResultsCount>{totalCount} results</ResultsCount>
           </SearchOptions>
         )}
 
@@ -806,42 +807,44 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose 
           {isLoading ? (
             <LoadingSpinner>Searching...</LoadingSpinner>
           ) : query.length >= 2 ? (
-            // Search results with smart labels
             displayItems.length > 0 ? (
-              <ResultSection>
-                <SectionTitle>Results ({displayItems.length})</SectionTitle>
-                {displayItems.map((item, index) => (
-                  <ResultItem
-                    key={`${item.type}-${item.id}`}
-                    $isSelected={index === selectedIndex}
-                    onClick={() => handleSelect(item)}
-                    onMouseEnter={() => setSelectedIndex(index)}
-                  >
-                    <ResultIcon $colorVar={item.colorVar}>
-                      {getIconElement(item.icon)}
-                    </ResultIcon>
-                    <ResultContent>
-                      <ResultTitle>{item.title}</ResultTitle>
-                      {item.subtitle && (
-                        <ResultSubtitle>{item.subtitle}</ResultSubtitle>
-                      )}
-                      {/* Smart Labels */}
-                      {item.labels && item.labels.length > 0 && (
-                        <ResultLabels>
-                          {item.labels.map((label, idx) => (
-                            <Label key={idx}>{label}</Label>
-                          ))}
-                        </ResultLabels>
-                      )}
-                    </ResultContent>
-                    {/* Score Badge */}
-                    <ScoreBadge $score={item.score || 0}>
-                      {Math.round(item.score || 0)}
-                    </ScoreBadge>
-                    <ResultType>{item.type.replace('_', ' ')}</ResultType>
-                  </ResultItem>
-                ))}
-              </ResultSection>
+              groupedResults.map((group) => (
+                <ResultSection key={group.type}>
+                  <SectionTitle>{group.label}</SectionTitle>
+                  {group.items.map((item) => {
+                    const index = displayItems.findIndex(
+                      (candidate) => candidate.type === item.type && candidate.id === item.id
+                    );
+                    return (
+                      <ResultItem
+                        key={`${item.type}-${item.id}`}
+                        $isSelected={index === selectedIndex}
+                        onClick={() => handleSelect(item)}
+                        onMouseEnter={() => setSelectedIndex(index)}
+                      >
+                        <ResultIcon $colorVar={item.colorVar}>
+                          {getIconElement(item.icon)}
+                        </ResultIcon>
+                        <ResultContent>
+                          <ResultTitle>{item.title}</ResultTitle>
+                          {item.subtitle && <ResultSubtitle>{item.subtitle}</ResultSubtitle>}
+                          {item.labels && item.labels.length > 0 && (
+                            <ResultLabels>
+                              {item.labels.map((label, idx) => (
+                                <Label key={idx}>{label}</Label>
+                              ))}
+                            </ResultLabels>
+                          )}
+                        </ResultContent>
+                        <ScoreBadge $score={item.score || 0}>
+                          {Math.round(item.score || 0)}
+                        </ScoreBadge>
+                        <ResultType>{normalizeEntityType(item.type).replace(/_/g, ' ')}</ResultType>
+                      </ResultItem>
+                    );
+                  })}
+                </ResultSection>
+              ))
             ) : (
               <EmptyState>
                 No results found for "{query}"
@@ -924,35 +927,6 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose 
           </FooterHint>
         </Footer>
       </PaletteContainer>
-      
-      {/* Entity Detail Modal */}
-      {selectedEntity && (
-        <EntityDetailModal
-          isOpen={!!selectedEntity}
-          onClose={() => setSelectedEntity(null)}
-          entityType={selectedEntity.type}
-          entityId={selectedEntity.id}
-          onExpandEntity={(entity) => {
-            // Keep modal open but load relational data for expanded view
-            logger.debug('[CommandPalette] Expanding entity:', {
-              id: entity?.id,
-              type: entity?.type,
-            });
-            setSelectedEntity(null); // Close detail modal
-            // Trigger search with entity context for mind-map view
-            handleSelect({
-              id: entity.id,
-              type: entity.type,
-              title: entity.name || entity.title || '',
-              subtitle: entity.subtitle || '',
-              icon: entity.metadata?.icon || '',
-              colorVar: extractColorVar(entity.metadata?.color) ?? getTypeColorVar(entity.type),
-              route: entity.metadata?.listRoute || `/${entity.type}s`,
-              score: 1,
-            });
-          }}
-        />
-      )}
     </Overlay>
   );
 };

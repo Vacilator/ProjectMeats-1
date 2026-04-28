@@ -16,6 +16,7 @@ from rest_framework.response import Response
 from rest_framework.filters import SearchFilter, OrderingFilter
 from django_filters.rest_framework import DjangoFilterBackend
 
+from apps.core.cache_utils import tenant_cache
 from apps.system.models import Product, TenantProductPreference
 from apps.system.permissions import IsTenantAdminOrOwnerForTenantContext
 from apps.system.services.product_visibility import visible_products_qs
@@ -89,6 +90,10 @@ class SystemProductViewSet(viewsets.ModelViewSet):
         if self.request.method in permissions.SAFE_METHODS:
             return SystemProductSerializer
         return SystemProductWriteSerializer
+
+    @tenant_cache('system_products', timeout=3600, include_shared_version=True)
+    def list(self, request, *args, **kwargs):
+        return super().list(request, *args, **kwargs)
     
     def get_queryset(self):
         """Return products visible to the current tenant.
@@ -145,6 +150,7 @@ class SystemProductViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(queryset, many=True)
         return Response(serializer.data)
 
+    @tenant_cache('system_products', timeout=3600, include_shared_version=True)
     @action(detail=False, methods=['get'], url_path='my-products')
     def my_products(self, request):
         """

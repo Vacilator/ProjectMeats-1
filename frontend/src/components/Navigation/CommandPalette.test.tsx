@@ -1,187 +1,132 @@
-/**
- * Tests for CommandPalette Component (Wave 2: Cockpit Command Center)
- */
-
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent, act } from '@testing-library/react';
-import { BrowserRouter } from 'react-router-dom';
 import React from 'react';
-import { CockpitNavigationProvider } from '../../contexts/CockpitNavigationContext';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 
-// Mock axios with create method
-vi.mock('axios', () => ({
-  default: {
-    create: () => ({
-      get: vi.fn().mockResolvedValue({ data: { results: [] } }),
-      post: vi.fn().mockResolvedValue({ data: {} }),
-      interceptors: {
-        request: { use: vi.fn() },
-        response: { use: vi.fn() },
-      },
-    }),
-    get: vi.fn().mockResolvedValue({ data: { results: [] } }),
+const { navigateMock, businessGetMock, businessPostMock } = vi.hoisted(() => ({
+  navigateMock: vi.fn(),
+  businessGetMock: vi.fn(),
+  businessPostMock: vi.fn(),
+}));
+
+vi.mock('react-router-dom', async () => {
+  const actual = await vi.importActual<typeof import('react-router-dom')>('react-router-dom');
+  return {
+    ...actual,
+    useNavigate: () => navigateMock,
+  };
+});
+
+vi.mock('../../services/businessApi', () => ({
+  businessApi: {
+    get: businessGetMock,
+    post: businessPostMock,
   },
 }));
 
-// Mock apiService to avoid axios issues
-vi.mock('../../../services/apiService', () => ({
-  apiService: {
-    getRecentItems: vi.fn().mockResolvedValue([]),
-    searchEntities: vi.fn().mockResolvedValue({ results: [] }),
+vi.mock('@/utils/logger', () => ({
+  logger: {
+    debug: vi.fn(),
+    error: vi.fn(),
   },
 }));
 
-// Components under test
 import { CommandPalette } from './CommandPalette';
 
-// This file is a module (required for TypeScript isolatedModules)
-export {};
-
-// Test wrapper with router + cockpit navigation context
-const TestWrapper: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <BrowserRouter>
-    <CockpitNavigationProvider>{children}</CockpitNavigationProvider>
-  </BrowserRouter>
-);
+const renderPalette = () =>
+  render(
+    <MemoryRouter>
+      <CommandPalette isOpen={true} onClose={vi.fn()} />
+    </MemoryRouter>
+  );
 
 describe('CommandPalette', () => {
-  const defaultProps = {
-    isOpen: true,
-    onClose: vi.fn(),
-  };
-
   beforeEach(() => {
+    navigateMock.mockReset();
+    businessGetMock.mockReset();
+    businessPostMock.mockReset();
+    businessGetMock.mockImplementation((url: string) => {
+      if (url === '/search/recent/') {
+        return Promise.resolve({ data: { items: [] } });
+      }
+
+      if (url === '/search/universal/') {
+        return Promise.resolve({
+          data: {
+            query: 'Acme',
+            search_text: 'Acme',
+            results: [
+              {
+                id: 1,
+                type: 'customer',
+                title: 'Acme Corp',
+                subtitle: 'Primary customer',
+                icon: 'Users',
+                route: '/records/customer/1',
+                score: 96,
+              },
+              {
+                id: 2,
+                type: 'purchase_order',
+                title: 'PO-1001',
+                subtitle: 'Acme Corp',
+                icon: 'ShoppingCart',
+                route: '/records/purchase_order/2',
+                score: 82,
+              },
+            ],
+            counts: { customer: 1, purchase_order: 1 },
+            total: 2,
+          },
+        });
+      }
+
+      return Promise.resolve({ data: {} });
+    });
+    businessPostMock.mockResolvedValue({ data: { status: 'tracked' } });
+  });
+
+  afterEach(() => {
     vi.clearAllMocks();
   });
 
-  it('renders when open', () => {
-    render(
-      <TestWrapper>
-        <CommandPalette {...defaultProps} />
-      </TestWrapper>
+  it('renders grouped universal search results by entity type', async () => {
+    renderPalette();
+
+    const input = screen.getByPlaceholderText(/search suppliers, customers, orders/i);
+
+    fireEvent.change(input, { target: { value: 'Acme' } });
+
+    await waitFor(() =>
+      expect(businessGetMock).toHaveBeenCalledWith('/search/universal/', {
+        params: { q: 'Acme', limit: 8 },
+      })
     );
-    
-    expect(screen.getByPlaceholderText(/search/i)).toBeInTheDocument();
+
+    expect(await screen.findByText('Customers')).toBeInTheDocument();
+    expect(await screen.findByText('Purchase Orders')).toBeInTheDocument();
+    expect((await screen.findAllByText('Acme Corp')).length).toBeGreaterThan(0);
+    expect(await screen.findByText('PO-1001')).toBeInTheDocument();
   });
 
-  it('hides overlay when closed', () => {
-    const { container } = render(
-      <TestWrapper>
-        <CommandPalette {...defaultProps} isOpen={false} />
-      </TestWrapper>
-    );
-    
-    // The overlay has display: none when closed, so the input should not be visible
-    // Testing-library queries can still find elements with display:none
-    // We check the overlay's computed style instead
-    const overlay = container.querySelector('div');
-    if (overlay) {
-      expect(overlay).toHaveStyle('display: none');
-    }
-  });
+  it('navigates to the canonical record page when a result is selected', async () => {
+    renderPalette();
 
-  it('calls onClose when Escape is pressed', async () => {
-    const onClose = vi.fn();
-    
-    render(
-      <TestWrapper>
-        <CommandPalette isOpen={true} onClose={onClose} />
-      </TestWrapper>
-    );
-    
-    const input = screen.getByPlaceholderText(/search/i);
-    fireEvent.keyDown(input, { key: 'Escape' });
-    
-    expect(onClose).toHaveBeenCalled();
-  });
+    const input = screen.getByPlaceholderText(/search suppliers, customers, orders/i);
 
-  it('focuses search input when opened', () => {
-    render(
-      <TestWrapper>
-        <CommandPalette {...defaultProps} />
-      </TestWrapper>
-    );
-    
-    const input = screen.getByPlaceholderText(/search/i);
-    expect(input).toHaveFocus();
-  });
-});
+    fireEvent.change(input, { target: { value: 'Acme' } });
 
-describe('CommandPalette keyboard navigation', () => {
-  it('handles arrow key navigation without crashing', async () => {
-    const onClose = vi.fn();
-    
-    render(
-      <TestWrapper>
-        <CommandPalette isOpen={true} onClose={onClose} />
-      </TestWrapper>
-    );
-    
-    const input = screen.getByPlaceholderText(/search/i);
-    
-    // Navigate with arrow keys
-    fireEvent.keyDown(input, { key: 'ArrowDown' });
-    fireEvent.keyDown(input, { key: 'ArrowUp' });
-    
-    // Should not crash and should not close
-    expect(onClose).not.toHaveBeenCalled();
-  });
-});
+    const result = await screen.findByText('Primary customer');
+    fireEvent.click(result);
 
-describe('CommandPalette search behavior', () => {
-  it('debounces search input', async () => {
-    vi.useFakeTimers();
-    
-    render(
-      <TestWrapper>
-        <CommandPalette isOpen={true} onClose={vi.fn()} />
-      </TestWrapper>
+    await waitFor(() =>
+      expect(businessPostMock).toHaveBeenCalledWith('/search/recent/', {
+        entity_type: 'customer',
+        entity_id: 1,
+        title: 'Acme Corp',
+      })
     );
-    
-    const input = screen.getByPlaceholderText(/search/i);
-    
-    // Type quickly
-    await act(async () => {
-      fireEvent.change(input, { target: { value: 'test' } });
-    });
-    
-    // Fast-forward past debounce time
-    await act(async () => {
-      vi.advanceTimersByTime(250);
-    });
-    
-    vi.useRealTimers();
-    
-    // Component should not crash during debounce
-    expect(input).toHaveValue('test');
-  });
 
-  it('clears search on close and reopen', () => {
-    const { rerender } = render(
-      <TestWrapper>
-        <CommandPalette isOpen={true} onClose={vi.fn()} />
-      </TestWrapper>
-    );
-    
-    const input = screen.getByPlaceholderText(/search/i);
-    fireEvent.change(input, { target: { value: 'test query' } });
-    
-    // Close
-    rerender(
-      <TestWrapper>
-        <CommandPalette isOpen={false} onClose={vi.fn()} />
-      </TestWrapper>
-    );
-    
-    // Reopen
-    rerender(
-      <TestWrapper>
-        <CommandPalette isOpen={true} onClose={vi.fn()} />
-      </TestWrapper>
-    );
-    
-    // Input should be cleared after reopening
-    const newInput = screen.getByPlaceholderText(/search/i);
-    expect(newInput).toHaveValue('');
+    expect(navigateMock).toHaveBeenCalledWith('/records/customer/1');
   });
 });

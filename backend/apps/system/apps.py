@@ -7,4 +7,4 @@ class SystemConfig(AppConfig):
     verbose_name = '⚙️ System Configuration'
     
     def ready(self):
-        pass
+        from apps.system import signals  # noqa: F401

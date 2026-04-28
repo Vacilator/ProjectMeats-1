@@ -15,6 +15,7 @@ def _tenant_id_from_instance(instance) -> str | None:
 def _bump_suppliers(tenant_id: str | None) -> None:
     if tenant_id:
         bump_tenant_cache_version('suppliers', tenant_id)
+        bump_tenant_cache_version('universal_search', tenant_id)
 
 
 Supplier = django_apps.get_model('suppliers', 'Supplier')
