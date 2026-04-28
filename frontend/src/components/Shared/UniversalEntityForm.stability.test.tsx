@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -31,6 +32,18 @@ vi.mock('../../features/system/DynamicFormEngine', () => ({
 }));
 
 import { UniversalEntityForm } from './UniversalEntityForm';
+
+const renderWithQueryClient = (ui: React.ReactElement) => {
+  const client = new QueryClient({
+    defaultOptions: {
+      queries: {
+        retry: false,
+      },
+    },
+  });
+
+  return render(<QueryClientProvider client={client}>{ui}</QueryClientProvider>);
+};
 
 describe('UniversalEntityForm stability', () => {
   beforeEach(() => {
@@ -88,7 +101,7 @@ describe('UniversalEntityForm stability', () => {
       );
     };
 
-    render(<Parent />);
+    renderWithQueryClient(<Parent />);
 
     await waitFor(() => {
       expect(capturedDynamicFormProps.length).toBeGreaterThan(0);
@@ -154,7 +167,7 @@ describe('UniversalEntityForm stability', () => {
       );
     };
 
-    render(<Parent />);
+    renderWithQueryClient(<Parent />);
 
     await waitFor(() => {
       expect(capturedDynamicFormProps.length).toBeGreaterThan(0);

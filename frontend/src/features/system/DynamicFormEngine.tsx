@@ -8,6 +8,7 @@
  */
 import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { Select as AntSelect } from 'antd';
+import { useQueries, useQuery } from '@tanstack/react-query';
 import { useForm, Controller, useFieldArray, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { isEqual } from 'lodash';
@@ -110,6 +111,12 @@ interface DynamicFormEngineProps {
 }
 
 const EMPTY_INITIAL_VALUES: Record<string, unknown> = {};
+const DEFAULT_FORM_CONFIG = {
+  showRequiredIndicator: true,
+  showHelpText: true,
+  validateOnChange: false,
+  submitButtonText: 'Submit',
+};
 
 function useDeepStableValue<T>(value: T): T {
   const ref = useRef(value);
@@ -479,20 +486,11 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
   const effectiveShowAllFields = showAllFields ?? internalShowAllFields;
   const setEffectiveShowAllFields = onShowAllFieldsChange ?? setInternalShowAllFields;
 
-  // Form-level config from ConfigResolver (Wave 4 - Task 4.12)
-  const [formConfig, setFormConfig] = useState({
-    showRequiredIndicator: true,
-    showHelpText: true,
-    validateOnChange: false,
-    submitButtonText: 'Submit',
-  });
-
-  // Dynamic choice options from config system
-  const [dynamicOptions, setDynamicOptions] = useState<Record<string, { value: string; label: string }[]>>({});
-
-  // Load form-level configuration
-  useEffect(() => {
-    const loadConfig = async () => {
+  const formConfigQuery = useQuery({
+    queryKey: ['dynamic-form-config'],
+    staleTime: Infinity,
+    gcTime: 30 * 60 * 1000,
+    queryFn: async () => {
       try {
         const [showRequired, showHelp, validateChange, submitText] = await Promise.all([
           resolveConfig<boolean>('forms.show_required_indicator', true),
@@ -501,105 +499,69 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
           resolveConfig<string>('forms.submit_button_text', 'Submit'),
         ]);
 
-        setFormConfig({
+        return {
           showRequiredIndicator: showRequired.value,
           showHelpText: showHelp.value,
           validateOnChange: validateChange.value,
           submitButtonText: submitText.value,
-        });
+        };
       } catch {
-        console.debug('Using default form config');
+        return DEFAULT_FORM_CONFIG;
       }
-    };
+    },
+  });
+  const formConfig = formConfigQuery.data ?? DEFAULT_FORM_CONFIG;
 
-    void loadConfig();
-  }, []);
+  const dynamicOptionFields = useMemo(
+    () =>
+      stableFields.filter((field) => {
+        if (field.options?.length) return false;
+        if (field.ui?.data_source?.type === 'choice_list' && field.ui?.data_source?.list) return true;
+        return field.type === 'select' && isStaticChoiceField(field.key);
+      }),
+    [stableFields]
+  );
 
-  const optionsSignature = useMemo(() => {
-    return stableFields
-      .map((f) => {
-        const dataSource = (f.ui as any)?.data_source;
-        const dsType =
-          dataSource && typeof dataSource === 'object' ? String(dataSource.type || '') : '';
-        const dsList =
-          dataSource && typeof dataSource === 'object' ? String(dataSource.list || '') : '';
-        const optionsLen = Array.isArray((f as any).options) ? (f as any).options.length : 0;
+  const dynamicOptionQueries = useQueries({
+    queries: dynamicOptionFields.map((field) => {
+      const dataSource = field.ui?.data_source;
+      const sourceType = dataSource?.type ?? (isStaticChoiceField(field.key) ? 'static' : 'none');
+      const sourceList = dataSource?.list ?? '';
 
-        return `${String(f.key)}:${String(f.type)}:${dsType}:${dsList}:${optionsLen}`;
-      })
-      .join('|');
-  }, [stableFields]);
-
-  const optionsEqual = (
-    a: { value: string; label: string }[] | undefined,
-    b: { value: string; label: string }[] | undefined
-  ): boolean => {
-    const aa = Array.isArray(a) ? a : (EMPTY_CHOICES as { value: string; label: string }[]);
-    const bb = Array.isArray(b) ? b : (EMPTY_CHOICES as { value: string; label: string }[]);
-    if (aa.length !== bb.length) return false;
-
-    for (let i = 0; i < aa.length; i += 1) {
-      if (String(aa[i].value) !== String(bb[i].value)) return false;
-      if (String(aa[i].label) !== String(bb[i].label)) return false;
-    }
-
-    return true;
-  };
-
-  // Load dynamic options for select fields.
-  // NOTE: Depend on a stable signature instead of schema.fields identity to avoid
-  // effect→setState→re-render loops when parent rebuilds field arrays.
-  useEffect(() => {
-    let cancelled = false;
-
-    const loadOptions = async () => {
-      const selectFields = stableFields.filter((f) => {
-        if (f.options?.length) return false;
-        if (f.ui?.data_source?.type === 'choice_list' && f.ui?.data_source?.list) return true;
-        return f.type === 'select' && isStaticChoiceField(f.key);
-      });
-
-      const nextOptions: Record<string, { value: string; label: string }[]> = {};
-
-      for (const field of selectFields) {
-        if (field.ui?.data_source?.type === 'choice_list' && field.ui.data_source.list) {
-          nextOptions[field.key] = await contactFormOptionsService.getSystemChoiceOptions(
-            field.ui.data_source.list
-          );
-          continue;
-        }
-
-        if (isStaticChoiceField(field.key)) {
-          const choices = await getChoicesForField(field.key);
-          if (choices) {
-            nextOptions[field.key] = choices;
+      return {
+        queryKey: ['dynamic-form-options', field.key, sourceType, sourceList],
+        staleTime: Infinity,
+        gcTime: 30 * 60 * 1000,
+        queryFn: async (): Promise<{ value: string; label: string }[]> => {
+          if (dataSource?.type === 'choice_list' && dataSource.list) {
+            return contactFormOptionsService.getSystemChoiceOptions(dataSource.list);
           }
-        }
-      }
 
-      if (cancelled) return;
-
-      setDynamicOptions((prev) => {
-        let changed = false;
-        const merged = { ...prev };
-
-        for (const [key, opts] of Object.entries(nextOptions)) {
-          if (!optionsEqual(prev[key], opts)) {
-            merged[key] = opts;
-            changed = true;
+          if (field.type === 'select' && isStaticChoiceField(field.key)) {
+            const choices = await getChoicesForField(field.key);
+            return Array.isArray(choices) && choices.length > 0
+              ? choices
+              : (EMPTY_CHOICES as { value: string; label: string }[]);
           }
+
+          return EMPTY_CHOICES as { value: string; label: string }[];
+        },
+      };
+    }),
+  });
+
+  const dynamicOptions = useMemo(() => {
+    return dynamicOptionFields.reduce<Record<string, { value: string; label: string }[]>>(
+      (acc, field, index) => {
+        const nextOptions = dynamicOptionQueries[index]?.data;
+        if (Array.isArray(nextOptions)) {
+          acc[field.key] = nextOptions;
         }
-
-        return changed ? merged : prev;
-      });
-    };
-
-    void loadOptions();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [optionsSignature]);
+        return acc;
+      },
+      {}
+    );
+  }, [dynamicOptionFields, dynamicOptionQueries]);
 
   const defaultValues = useMemo(() => {
     const next: Record<string, any> = { ...(stableInitialValues || {}) };

@@ -1,4 +1,5 @@
 import React from 'react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -29,6 +30,18 @@ vi.mock('../../features/system/DynamicFormEngine', () => {
 
 import { UniversalEntityForm } from './UniversalEntityForm';
 
+const renderWithQueryClient = (ui: React.ReactElement) => {
+  const client = new QueryClient({
+    defaultOptions: {
+      queries: {
+        retry: false,
+      },
+    },
+  });
+
+  return render(<QueryClientProvider client={client}>{ui}</QueryClientProvider>);
+};
+
 describe('UniversalEntityForm (unauthenticated)', () => {
   beforeEach(() => {
     localStorage.clear();
@@ -37,7 +50,7 @@ describe('UniversalEntityForm (unauthenticated)', () => {
   });
 
   it('does not call businessApi when unauthenticated', async () => {
-    render(
+    renderWithQueryClient(
       <UniversalEntityForm
         entityType="plant"
         entityId="2769"
