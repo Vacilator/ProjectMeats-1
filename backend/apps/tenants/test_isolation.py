@@ -19,8 +19,12 @@ from apps.tenants.models import Tenant, TenantUser
 from tenant_apps.carriers.models import Carrier
 from tenant_apps.contacts.models import Contact
 from tenant_apps.customers.models import Customer
+from tenant_apps.deals.models import Deal, DealActionItem
+from tenant_apps.fulfillments.models import Fulfillment
 from tenant_apps.invoices.models import Invoice
+from tenant_apps.inquiries.models import Inquiry, InquiryEntityTypeChoices
 from tenant_apps.purchase_orders.models import PurchaseOrder
+from tenant_apps.sales_orders.models import SalesOrder
 from tenant_apps.suppliers.models import Supplier
 from tenant_apps.plants.models import Plant
 
@@ -117,6 +121,101 @@ class TenantIsolationTests(TestCase):
 
         self.assertEqual(Invoice.objects.filter(tenant=self.tenant_a).count(), 1)
         self.assertEqual(Invoice.objects.filter(tenant=self.tenant_b).count(), 1)
+
+    def test_deal_isolation(self):
+        supplier_a = Supplier.objects.create(tenant=self.tenant_a, name='Supplier A')
+        supplier_b = Supplier.objects.create(tenant=self.tenant_b, name='Supplier B')
+        customer_a = Customer.objects.create(tenant=self.tenant_a, name='Customer A')
+        customer_b = Customer.objects.create(tenant=self.tenant_b, name='Customer B')
+        inquiry_a = Inquiry.objects.create(
+            tenant=self.tenant_a,
+            entity_type=InquiryEntityTypeChoices.CUSTOMER,
+            customer=customer_a,
+        )
+        inquiry_b = Inquiry.objects.create(
+            tenant=self.tenant_b,
+            entity_type=InquiryEntityTypeChoices.CUSTOMER,
+            customer=customer_b,
+        )
+        po_a = PurchaseOrder.objects.create(
+            tenant=self.tenant_a,
+            supplier=supplier_a,
+            order_number='PO-A-1',
+            order_date=date.today(),
+        )
+        po_b = PurchaseOrder.objects.create(
+            tenant=self.tenant_b,
+            supplier=supplier_b,
+            order_number='PO-B-1',
+            order_date=date.today(),
+        )
+        so_a = SalesOrder.objects.create(
+            tenant=self.tenant_a,
+            supplier=supplier_a,
+            customer=customer_a,
+            our_sales_order_num='SO-A-1',
+        )
+        so_b = SalesOrder.objects.create(
+            tenant=self.tenant_b,
+            supplier=supplier_b,
+            customer=customer_b,
+            our_sales_order_num='SO-B-1',
+        )
+        fulfillment_a = Fulfillment.objects.create(tenant=self.tenant_a, inquiry=inquiry_a)
+        fulfillment_b = Fulfillment.objects.create(tenant=self.tenant_b, inquiry=inquiry_b)
+
+        Deal.objects.create(
+            tenant=self.tenant_a,
+            purchase_order=po_a,
+            sales_order=so_a,
+            fulfillment=fulfillment_a,
+        )
+        Deal.objects.create(
+            tenant=self.tenant_b,
+            purchase_order=po_b,
+            sales_order=so_b,
+            fulfillment=fulfillment_b,
+        )
+
+        self.assertEqual(Deal.objects.filter(tenant=self.tenant_a).count(), 1)
+        self.assertEqual(Deal.objects.filter(tenant=self.tenant_b).count(), 1)
+
+    def test_deal_action_item_isolation(self):
+        supplier = Supplier.objects.create(tenant=self.tenant_a, name='Supplier A')
+        customer = Customer.objects.create(tenant=self.tenant_a, name='Customer A')
+        inquiry = Inquiry.objects.create(
+            tenant=self.tenant_a,
+            entity_type=InquiryEntityTypeChoices.CUSTOMER,
+            customer=customer,
+        )
+        po = PurchaseOrder.objects.create(
+            tenant=self.tenant_a,
+            supplier=supplier,
+            order_number='PO-A-2',
+            order_date=date.today(),
+        )
+        so = SalesOrder.objects.create(
+            tenant=self.tenant_a,
+            supplier=supplier,
+            customer=customer,
+            our_sales_order_num='SO-A-2',
+        )
+        fulfillment = Fulfillment.objects.create(tenant=self.tenant_a, inquiry=inquiry)
+        deal = Deal.objects.create(
+            tenant=self.tenant_a,
+            purchase_order=po,
+            sales_order=so,
+            fulfillment=fulfillment,
+        )
+
+        DealActionItem.objects.create(
+            tenant=self.tenant_a,
+            deal=deal,
+            fulfillment=fulfillment,
+            title='Collect docs',
+        )
+
+        self.assertEqual(DealActionItem.objects.filter(tenant=self.tenant_a).count(), 1)
 
     def test_null_tenant_not_visible(self):
         with self.assertRaises(IntegrityError):

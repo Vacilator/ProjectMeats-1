@@ -80,6 +80,15 @@ All workflow-related tables have Row-Level Security **ENABLED** and **FORCED**:
 
 ---
 
+## Deal Desk Module (2 tables) - 🟡 Pending deployment audit
+
+| Table Name | RLS Enabled | Migration | Deployment Date |
+|------------|-------------|-----------|-----------------|
+| `deals_deal` | ✅ | `deals/0001_initial` | Pending next deployment |
+| `deals_dealactionitem` | ✅ | `deals/0001_initial` | Pending next deployment |
+
+---
+
 ## System WorkForms Module (2 tables) - ✅ 100% COMPLIANT (code)
 
 | Table Name | RLS Enabled | Policy Name | Session Variable |
@@ -152,12 +161,13 @@ All workflow-related tables have Row-Level Security **ENABLED** and **FORCED**:
 ## Compliance Summary
 
 **Latest Audit (2026-04-28, fresh-db CI validation target)**:
-- `python manage.py audit_rls_compliance --strict` should return **67/67 tenant-scoped models compliant** once `core/0007_enable_rls_comment` is applied. ✅
+- `python manage.py audit_rls_compliance --strict` should return **69/69 tenant-scoped models compliant** once `core/0007_enable_rls_comment` and `deals/0001_initial` are applied. ✅
 
 **Audit Scope Update (2026-04-28)**:
 - `audit_rls_compliance` now also includes an allowlist of tenant-scoped models that do **not** inherit `TenantAwareModel` (System WorkForms + Integrations).
 - `core_comment` is now covered by an additive RLS migration so fresh databases and CI audits stay fully compliant.
-- Expected result after next deployment audit: **67/67 tenant-scoped models compliant** ✅
+- `deals_deal` and `deals_dealactionitem` are now covered by additive RLS policies in `deals/0001_initial`.
+- Expected result after next deployment audit: **69/69 tenant-scoped models compliant** ✅
 
 **Tenant Isolation Policies** (from `pg_policies`):
 - Tables with at least one `*_tenant_isolation` policy: **49**

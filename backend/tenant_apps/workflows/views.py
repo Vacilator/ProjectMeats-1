@@ -4218,6 +4218,7 @@ class ActionItemsAPIView(APIView):
         from datetime import timedelta
 
         from django.utils import timezone
+        from tenant_apps.deals.models import DealActionItem, DealActionItemStatus
 
         user = request.user
         tenant = getattr(request, "tenant", None)
@@ -4240,62 +4241,89 @@ class ActionItemsAPIView(APIView):
                 ).select_related("form", "step")
             )
 
-            if not assignments:
-                return Response([])
+            if assignments:
+                assignment_by_step_id = {a.step_id: a for a in assignments}
+                step_ids = list(assignment_by_step_id.keys())
 
-            assignment_by_step_id = {a.step_id: a for a in assignments}
-            step_ids = list(assignment_by_step_id.keys())
-
-            # Bulk fetch step submissions in action_needed status.
-            # Both tenant= and submission__tenant= are set intentionally for defense-in-depth RLS.
-            step_submissions = (
-                FormStepSubmission.objects.filter(
-                    step_id__in=step_ids,
-                    tenant=tenant,
-                    status=StepSubmissionStatus.ACTION_NEEDED,
-                    submission__status="in_progress",
-                    submission__tenant=tenant,
+                # Bulk fetch step submissions in action_needed status.
+                # Both tenant= and submission__tenant= are set intentionally for defense-in-depth RLS.
+                step_submissions = (
+                    FormStepSubmission.objects.filter(
+                        step_id__in=step_ids,
+                        tenant=tenant,
+                        status=StepSubmissionStatus.ACTION_NEEDED,
+                        submission__status="in_progress",
+                        submission__tenant=tenant,
+                    )
+                    .select_related("submission", "submission__form", "step")
+                    .order_by("-created_at")
                 )
-                .select_related("submission", "submission__form", "step")
-                .order_by("-created_at")
+
+                for step_sub in step_submissions:
+                    assignment = assignment_by_step_id.get(step_sub.step_id)
+                    if not assignment:
+                        continue
+
+                    form = assignment.form or getattr(step_sub.submission, "form", None)
+                    form_name = form.name if form else ""
+                    form_description = getattr(form, "description", "") or ""
+
+                    step = assignment.step or step_sub.step
+                    step_name = (step.step_name if step else None) or (step.entity_type if step else "")
+
+                    due_date = None
+                    is_overdue = False
+                    if assignment.due_days:
+                        due_date = step_sub.created_at + timedelta(days=assignment.due_days)
+                        is_overdue = due_date < now
+
+                    action_items.append(
+                        {
+                            "id": step_sub.id,
+                            "type": "form_step",
+                            "title": f"{form_name}: {step_name}",
+                            "description": form_description,
+                            "form_name": form_name,
+                            "step_name": step_name,
+                            "submission_id": step_sub.submission_id,
+                            "priority": "urgent" if is_overdue else ("high" if assignment.is_required else "normal"),
+                            "status": step_sub.status,
+                            "due_date": due_date,
+                            "is_overdue": is_overdue,
+                            "assigned_at": step_sub.created_at,
+                            "entity_type": step.entity_type if step else "",
+                            "entity_id": step_sub.id,
+                            "related_po_value": None,
+                            "related_po_currency": None,
+                        }
+                    )
+
+            deal_items = (
+                DealActionItem.objects.filter(
+                    tenant=tenant,
+                    status=DealActionItemStatus.OPEN,
+                )
+                .filter(assigned_user=user)
+                .select_related("deal")
+                .order_by("due_date", "created_on")
             )
 
-            for step_sub in step_submissions:
-                assignment = assignment_by_step_id.get(step_sub.step_id)
-                if not assignment:
-                    continue
-
-                form = assignment.form or getattr(step_sub.submission, "form", None)
-                form_name = form.name if form else ""
-                form_description = getattr(form, "description", "") or ""
-
-                step = assignment.step or step_sub.step
-                step_name = (step.step_name if step else None) or (step.entity_type if step else "")
-
-                due_date = None
-                is_overdue = False
-                if assignment.due_days:
-                    due_date = step_sub.created_at + timedelta(days=assignment.due_days)
-                    is_overdue = due_date < now
-
+            for item in deal_items:
                 action_items.append(
                     {
-                        "id": step_sub.id,
-                        "type": "form_step",
-                        "title": f"{form_name}: {step_name}",
-                        "description": form_description,
-                        "form_name": form_name,
-                        "step_name": step_name,
-                        "submission_id": step_sub.submission_id,
-                        "priority": "urgent" if is_overdue else ("high" if assignment.is_required else "normal"),
-                        "status": step_sub.status,
-                        "due_date": due_date,
-                        "is_overdue": is_overdue,
-                        "assigned_at": step_sub.created_at,
-                        "entity_type": step.entity_type if step else "",
-                        "entity_id": step_sub.id,
-                        "related_po_value": None,
-                        "related_po_currency": None,
+                        "id": item.id,
+                        "type": "workflow_task",
+                        "title": item.title,
+                        "description": item.description,
+                        "priority": item.priority,
+                        "status": item.status,
+                        "due_date": item.due_date,
+                        "is_overdue": item.is_overdue,
+                        "assigned_at": item.created_on,
+                        "entity_type": "deal",
+                        "entity_id": item.deal_id,
+                        "related_po_value": float(item.deal.cogs),
+                        "related_po_currency": "USD",
                     }
                 )
 
@@ -4341,6 +4369,7 @@ class ActionItemCountsAPIView(APIView):
         from datetime import timedelta
 
         from django.utils import timezone
+        from tenant_apps.deals.models import DealActionItem, DealActionItemStatus
         user = request.user
         tenant = getattr(request, 'tenant', None)
 
@@ -4379,56 +4408,65 @@ class ActionItemCountsAPIView(APIView):
                 ).select_related("form", "step")
             )
 
-            if not assignments:
-                serializer = ActionItemCountsSerializer({
-                    **counts,
-                    "by_priority": {},
-                    "by_form": [],
-                })
-                return Response(serializer.data)
+            if assignments:
+                assignment_by_step_id = {a.step_id: a for a in assignments}
+                step_ids = list(assignment_by_step_id.keys())
 
-            assignment_by_step_id = {a.step_id: a for a in assignments}
-            step_ids = list(assignment_by_step_id.keys())
-
-            # Bulk fetch step submissions in action_needed status.
-            step_submissions = (
-                FormStepSubmission.objects.filter(
-                    step_id__in=step_ids,
-                    tenant=tenant,
-                    status=StepSubmissionStatus.ACTION_NEEDED,
-                    submission__status="in_progress",
-                    submission__tenant=tenant,
+                # Bulk fetch step submissions in action_needed status.
+                step_submissions = (
+                    FormStepSubmission.objects.filter(
+                        step_id__in=step_ids,
+                        tenant=tenant,
+                        status=StepSubmissionStatus.ACTION_NEEDED,
+                        submission__status="in_progress",
+                        submission__tenant=tenant,
+                    )
+                    .select_related("submission", "submission__form", "step")
+                    .order_by("-created_at")
                 )
-                .select_related("submission", "submission__form", "step")
-                .order_by("-created_at")
+
+                for step_sub in step_submissions:
+                    assignment = assignment_by_step_id.get(step_sub.step_id)
+                    if not assignment:
+                        continue
+
+                    counts["total"] += 1
+
+                    form = assignment.form or getattr(step_sub.submission, "form", None)
+                    if form:
+                        form_counts[form.name] += 1
+
+                    due_date = None
+                    is_overdue = False
+                    if assignment.due_days:
+                        due_date = step_sub.created_at + timedelta(days=assignment.due_days)
+                        is_overdue = due_date < now
+
+                        if is_overdue:
+                            counts["overdue"] += 1
+                        elif due_date.date() == today:
+                            counts["due_today"] += 1
+                        elif due_date.date() <= week_from_now:
+                            counts["due_this_week"] += 1
+
+                    priority = "urgent" if is_overdue else ("high" if assignment.is_required else "normal")
+                    counts["by_priority"][priority] += 1
+
+            deal_items = DealActionItem.objects.filter(
+                tenant=tenant,
+                assigned_user=user,
+                status=DealActionItemStatus.OPEN,
             )
-
-            for step_sub in step_submissions:
-                assignment = assignment_by_step_id.get(step_sub.step_id)
-                if not assignment:
-                    continue
-
+            for item in deal_items:
                 counts["total"] += 1
-
-                form = assignment.form or getattr(step_sub.submission, "form", None)
-                if form:
-                    form_counts[form.name] += 1
-
-                due_date = None
-                is_overdue = False
-                if assignment.due_days:
-                    due_date = step_sub.created_at + timedelta(days=assignment.due_days)
-                    is_overdue = due_date < now
-
-                    if is_overdue:
-                        counts["overdue"] += 1
-                    elif due_date.date() == today:
-                        counts["due_today"] += 1
-                    elif due_date.date() <= week_from_now:
-                        counts["due_this_week"] += 1
-
-                priority = "urgent" if is_overdue else ("high" if assignment.is_required else "normal")
-                counts["by_priority"][priority] += 1
+                if item.is_overdue:
+                    counts["overdue"] += 1
+                elif item.due_date and item.due_date.date() == today:
+                    counts["due_today"] += 1
+                elif item.due_date and item.due_date.date() <= week_from_now:
+                    counts["due_this_week"] += 1
+                counts["by_priority"][item.priority] += 1
+                form_counts["Deal Desk"] += 1
 
             counts["by_form"] = [
                 {"form_name": name, "count": count} for name, count in sorted(form_counts.items(), key=lambda x: -x[1])

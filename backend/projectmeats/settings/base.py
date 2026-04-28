@@ -152,6 +152,7 @@ _PROJECT_APPS = [
     "tenant_apps.cockpit",
     "tenant_apps.contacts",
     "tenant_apps.customers",
+    "tenant_apps.deals",
     "tenant_apps.fulfillments",  # Fulfillment tracking
     "tenant_apps.inquiries",  # Inquiry management
     "tenant_apps.invoices",

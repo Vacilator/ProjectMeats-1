@@ -48,6 +48,7 @@ class FulfillmentListSerializer(serializers.ModelSerializer):
             'shipping_type',
             'ship_date', 'expected_delivery', 'actual_delivery',
             'product_count', 'total_value', 'tracking_numbers',
+            'freight_cost', 'document_milestones',
             'created_on'
         ]
 
@@ -79,7 +80,7 @@ class FulfillmentDetailSerializer(serializers.ModelSerializer):
             'carrier', 'carrier_name',
             'shipping_type',
             'ship_date', 'expected_delivery', 'actual_delivery',
-            'tracking_numbers', 'notes',
+            'tracking_numbers', 'freight_cost', 'document_milestones', 'notes',
             'products', 'total_value', 'is_partial',
             'created_by', 'created_by_name', 'shipped_by', 'shipped_by_name',
             'created_on', 'modified_on'
@@ -101,7 +102,7 @@ class FulfillmentCreateSerializer(serializers.ModelSerializer):
             'inquiry', 'supplier', 'customer', 'carrier',
             'shipping_type',
             'ship_date', 'expected_delivery',
-            'tracking_numbers', 'notes', 'products'
+            'tracking_numbers', 'freight_cost', 'document_milestones', 'notes', 'products'
         ]
     
     def create(self, validated_data):
