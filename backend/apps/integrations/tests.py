@@ -5,13 +5,16 @@ from django.contrib.auth.models import User
 from django.core.cache import cache
 from django.core import signing
 from django.test import override_settings
+from django.urls import resolve
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APITestCase
 from unittest.mock import patch
 
+from apps.integrations import urls as app_integrations_urls
 from apps.tenants.models import Tenant, TenantUser
 from apps.integrations.models import ExternalAuthProvider
+from integrations.views.oauth import OAuthAuthorizeView, OAuthCallbackView
 
 
 class EmailSyncTests(APITestCase):
@@ -95,6 +98,49 @@ class EmailSyncTests(APITestCase):
         self.assertEqual(resp.data.get('error'), 'Token invalid/expired')
         self.assertEqual(resp.data.get('error_code'), 'token_invalid')
         self.assertEqual(resp.data.get('cta', {}).get('url'), '/settings/email-integrations')
+
+    def test_oauth_status_returns_active_connection(self):
+        resp = self.client.get(
+            '/api/v1/integrations/oauth/status/',
+            HTTP_X_TENANT_ID=str(self.tenant.id),
+        )
+
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+        self.assertEqual(resp.data.get('count'), 1)
+        self.assertEqual(resp.data.get('connections', [])[0].get('provider'), 'microsoft')
+
+    def test_oauth_disconnect_marks_provider_inactive(self):
+        resp = self.client.post(
+            '/api/v1/integrations/oauth/disconnect/',
+            {'provider': 'microsoft'},
+            format='json',
+            HTTP_X_TENANT_ID=str(self.tenant.id),
+        )
+
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+        self.assertEqual(resp.data.get('provider'), 'microsoft')
+
+        provider = ExternalAuthProvider.objects.get(tenant=self.tenant, provider_type='microsoft')
+        self.assertFalse(provider.is_active)
+
+
+class IntegrationsOAuthRouteTests(APITestCase):
+    def test_public_oauth_routes_resolve_to_canonical_views(self):
+        authorize_match = resolve('/api/v1/integrations/oauth/authorize/')
+        callback_match = resolve('/api/v1/integrations/oauth/callback/microsoft/')
+
+        self.assertIs(authorize_match.func.view_class, OAuthAuthorizeView)
+        self.assertIs(callback_match.func.view_class, OAuthCallbackView)
+
+    def test_app_integrations_urlconf_legacy_oauth_aliases_point_to_canonical_views(self):
+        oauth_patterns = {
+            str(pattern.pattern): getattr(getattr(pattern, 'callback', None), 'view_class', None)
+            for pattern in app_integrations_urls.urlpatterns
+            if str(pattern.pattern).startswith('oauth/')
+        }
+
+        self.assertIs(oauth_patterns.get('oauth/authorize/'), OAuthAuthorizeView)
+        self.assertIs(oauth_patterns.get('oauth/callback/<str:provider_type>/'), OAuthCallbackView)
 
 
 class IntegrationsOAuthCallbackPublicTests(APITestCase):
