@@ -115,8 +115,8 @@
 
 ### Epic EH-02 - Tenant isolation + data integrity
 
-- [ ] **EH-02.1 fail-closed-tenant-rls-runtime**
-  - **Status:** Ready
+- [x] **EH-02.1 fail-closed-tenant-rls-runtime**
+  - **Status:** Done
   - **Why now:** Fail-open tenant/RLS behavior is the most dangerous correctness gap left in backend runtime.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Security / tenant isolation + Phase 12
   - **Scope:** Make tenant-scoped HTTP and task paths fail closed when tenant or RLS session state cannot be asserted.
@@ -131,10 +131,10 @@
   - **Secrets/infra impact:** None
   - **Risk level:** High
   - **Rollback:** Gate stricter behavior behind a flag only if absolutely necessary; never revert to silent cross-tenant continuation.
-  - **Completion evidence destination:** `.github/MASTER_PLAN.md`
+  - **Completion evidence destination:** shipped in `.github/MASTER_PLAN.md` (PR: #4771)
 
 - [ ] **EH-02.2 platform-idempotency-keys**
-  - **Status:** Blocked
+  - **Status:** Ready
   - **Why now:** Duplicate POST/retry behavior remains ad hoc across uploads, executions, and integrations.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 12
   - **Scope:** Add a tenant-scoped idempotency layer and apply it to the first high-risk mutation endpoints.
@@ -142,7 +142,7 @@
   - **Primary domain:** backend
   - **Likely touched paths:** new middleware/store under `backend/apps/core/` or `backend/apps/system/`, `backend/tenant_apps/ai_assistant/views.py`, `backend/apps/system/workform_views.py`
   - **Dependencies:** EH-02.1
-  - **Blockers:** EH-02.1
+  - **Blockers:** None
   - **Acceptance criteria:** Replayed requests with the same idempotency key do not duplicate writes for the targeted endpoints.
   - **Validation commands:** `cd backend && python manage.py test apps.system.tests.test_tenant_workform_execute_permissions apps.system.tests.test_workform_execute_circuit_breaker tenant_apps.ai_assistant`
   - **Tenant/RLS impact:** Medium; store must be tenant-aware
