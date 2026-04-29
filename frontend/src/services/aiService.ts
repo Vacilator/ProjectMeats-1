@@ -8,20 +8,25 @@
 
 import { businessApi } from './businessApi';
 import type { ChatMessage, ChatSession, UploadedDocument } from '../types';
+import type {
+  ContractAiChatRequest,
+  ContractAiChatResponse,
+  ContractPendingReviewItem,
+  ContractPendingReviewListResponse,
+  ContractPendingReviewResolveRequest,
+  ContractPendingReviewResolveResponse,
+  ContractSwarmInvokeRequest,
+  ContractSwarmInvokeResponse,
+} from '../../../shared/types/openapi';
 
-export interface ChatRequest {
-  message: string;
-  session_id?: string;
-  context?: Record<string, unknown>;
-}
-
-export interface ChatResponse {
-  response: string;
-  session_id: string;
-  message_id: string;
-  processing_time: number;
-  metadata?: Record<string, unknown>;
-}
+export type ChatRequest = ContractAiChatRequest;
+export type ChatResponse = ContractAiChatResponse;
+export type PendingReviewItem = ContractPendingReviewItem;
+export type PendingReviewListResponse = ContractPendingReviewListResponse;
+export type PendingReviewResolveRequest = ContractPendingReviewResolveRequest;
+export type PendingReviewResolveResponse = ContractPendingReviewResolveResponse;
+export type SwarmInvokeRequest = ContractSwarmInvokeRequest;
+export type SwarmInvokeResponse = ContractSwarmInvokeResponse;
 
 export interface DocumentProcessingRequest {
   document_id: string;
@@ -44,6 +49,16 @@ const getDocumentIdFromMetadata = (metadata?: Record<string, unknown>): string |
   return typeof id === 'string' && id.trim() ? id : null;
 };
 
+export const extractPendingReviewItems = (
+  response: PendingReviewListResponse,
+): PendingReviewItem[] => {
+  if (Array.isArray(response.pending_reviews) && response.pending_reviews.length) {
+    return response.pending_reviews;
+  }
+
+  return Array.isArray(response.results) ? response.results : [];
+};
+
 // Chat API
 export const chatApi = {
   /**
@@ -61,6 +76,29 @@ export const chatApi = {
    */
   processDocument: async (data: DocumentProcessingRequest): Promise<DocumentProcessingResponse> => {
     const res = await businessApi.post<DocumentProcessingResponse>('/ai-assistant/ai-chat/process_document/', data);
+    return unwrap(res);
+  },
+};
+
+export const aiStaffApi = {
+  previewRoute: async (data: SwarmInvokeRequest): Promise<SwarmInvokeResponse> => {
+    const res = await businessApi.post<SwarmInvokeResponse>('/ai-assistant/swarm/invoke/', data);
+    return unwrap(res);
+  },
+
+  listPendingReviews: async (): Promise<PendingReviewItem[]> => {
+    const res = await businessApi.get<PendingReviewListResponse>('/ai-assistant/review/pending/');
+    return extractPendingReviewItems(unwrap(res));
+  },
+
+  resolvePendingReview: async (
+    feedbackId: string,
+    data: PendingReviewResolveRequest,
+  ): Promise<PendingReviewResolveResponse> => {
+    const res = await businessApi.post<PendingReviewResolveResponse>(
+      `/ai-assistant/review/${feedbackId}/resolve/`,
+      data,
+    );
     return unwrap(res);
   },
 };
