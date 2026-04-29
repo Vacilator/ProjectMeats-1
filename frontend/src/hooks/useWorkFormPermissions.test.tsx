@@ -6,6 +6,8 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { apiClient } from '../services/apiService';
 import { canUseEditorMode, canUseNodeCategory, useWorkFormPermissions } from './useWorkFormPermissions';
 
+const VALID_UUID = '11111111-1111-4111-8111-111111111111';
+
 vi.mock('../services/apiService', () => ({
   apiClient: {
     get: vi.fn(),
@@ -21,13 +23,16 @@ const createWrapper = () => {
     },
   });
 
-  return ({ children }: { children: React.ReactNode }) => (
+  const wrapper = ({ children }: { children: React.ReactNode }) => (
     <QueryClientProvider client={client}>{children}</QueryClientProvider>
   );
+
+  return { client, wrapper };
 };
 
 describe('useWorkFormPermissions', () => {
   beforeEach(() => {
+    localStorage.clear();
     vi.clearAllMocks();
   });
 
@@ -37,8 +42,9 @@ describe('useWorkFormPermissions', () => {
       message: 'Boom',
     });
 
+    const { wrapper } = createWrapper();
     const { result } = renderHook(() => useWorkFormPermissions(), {
-      wrapper: createWrapper(),
+      wrapper,
     });
 
     await waitFor(() => {
@@ -57,8 +63,9 @@ describe('useWorkFormPermissions', () => {
       message: 'Unauthorized',
     });
 
+    const { wrapper } = createWrapper();
     const { result } = renderHook(() => useWorkFormPermissions(), {
-      wrapper: createWrapper(),
+      wrapper,
     });
 
     await waitFor(() => {
@@ -67,6 +74,41 @@ describe('useWorkFormPermissions', () => {
 
     expect(apiClient.get).toHaveBeenCalledWith('/workflows/permissions/');
     expect(result.current.permissions.role).toBe('anonymous');
+  });
+
+  it('scopes the permissions query key by tenant id', async () => {
+    localStorage.setItem('tenantId', VALID_UUID);
+    vi.mocked(apiClient.get).mockResolvedValueOnce({
+      data: {
+        can_create: true,
+        can_edit: true,
+        can_publish: false,
+        can_archive: false,
+        can_delete: false,
+        allowed_modes: ['visual'],
+        allowed_node_categories: ['core'],
+        can_access_system_templates: false,
+        can_create_global_templates: false,
+        max_active_flows: 5,
+        role: 'admin',
+      },
+    });
+
+    const { client, wrapper } = createWrapper();
+    const { result } = renderHook(() => useWorkFormPermissions(), {
+      wrapper,
+    });
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    expect(client.getQueryCache().getAll().map((query) => query.queryKey)).toContainEqual([
+      'tenant',
+      VALID_UUID,
+      'workforms',
+      'permissions',
+    ]);
   });
 });
 

@@ -7,6 +7,7 @@ import styled from 'styled-components';
 
 import EntityFormSurface from '../components/Shared/EntityFormSurface';
 import { apiClient, apiService, type Customer } from '../services/apiService';
+import { withTenantQueryKey } from '../utils/queryKeys';
 
 type CustomerProduct = {
   id: string | number;
@@ -81,7 +82,7 @@ const Customers: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
 
   const customersQuery = useQuery({
-    queryKey: ['customers'],
+    queryKey: withTenantQueryKey('customers'),
     queryFn: apiService.getCustomers,
   });
 
