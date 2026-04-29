@@ -151,28 +151,28 @@
   - **Rollback:** Disable the middleware for the targeted routes and keep the persistence table additive.
   - **Completion evidence destination:** shipped in `.github/MASTER_PLAN.md` (PR: #4773)
 
-- [ ] **EH-02.3 chat-session-tenant-fk-rls**
-  - **Status:** Ready
+- [x] **EH-02.3 chat-session-tenant-fk-rls**
+  - **Status:** Done
   - **Why now:** AI chat persistence still relies on JSON-stamped tenant context instead of tenant-native storage.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 12 / Phase 13 dependency
-  - **Scope:** Add `tenant` FK + RLS to `ChatSession` and `ChatMessage`, backfill, migrate reads/writes, and update `manifests/RLS_POLICIES.md` so the new policies are governed by the same registry as the rest of the platform.
+  - **Scope:** Added tenant FKs + backfill + RLS to `ChatSession` and `ChatMessage`, migrated AI chat reads/writes to tenant-native filtering with legacy fallback, updated out-of-band chat writers, and extended the RLS registry.
   - **Non-goals:** No autonomy control plane yet.
   - **Primary domain:** backend
-  - **Likely touched paths:** `backend/tenant_apps/ai_assistant/models.py`, `backend/tenant_apps/ai_assistant/views.py`, new migrations, `manifests/RLS_POLICIES.md`
+  - **Likely touched paths:** `backend/tenant_apps/ai_assistant/models.py`, `backend/tenant_apps/ai_assistant/views.py`, `backend/tenant_apps/ai_assistant/session_utils.py`, `backend/tenant_apps/integrations/services/email_ingestion.py`, `backend/tenant_apps/ai_assistant/migrations/0016_chatmessage_tenant_chatsession_tenant_and_more.py`, `manifests/RLS_POLICIES.md`
   - **Dependencies:** EH-02.1
   - **Blockers:** None
-  - **Acceptance criteria:** Chat data is tenant-native, tenant-scoped, and covered by RLS regression tests.
-  - **Validation commands:** `cd backend && python manage.py test tenant_apps.ai_assistant apps.core.tests.test_audit_rls_compliance`; `cd backend && python manage.py showmigrations | grep ai_assistant`
+  - **Acceptance criteria:** Chat data is tenant-native, tenant-scoped, legacy chat rows backfill safely, and the new chat tables are covered by RLS regression + audit tests.
+  - **Validation commands:** `cd backend && python manage.py makemigrations --check`; `cd backend && python manage.py test tenant_apps.ai_assistant apps.core.tests.test_audit_rls_compliance`; `cd backend && python manage.py migrate --plan | sed -n '/ai_assistant\\.0016/,+8p'`
   - **Tenant/RLS impact:** High
   - **Secrets/infra impact:** None
   - **Risk level:** High
   - **Rollback:** Dual-read/write during rollout; revert readers before removing additive schema.
-  - **Completion evidence destination:** `.github/MASTER_PLAN.md`
+  - **Completion evidence destination:** shipped in `.github/MASTER_PLAN.md` (PR: #4774)
 
 ### Epic EH-03 - Contract-first platform
 
 - [ ] **EH-03.1 openapi-ai-and-high-churn-surface-coverage**
-  - **Status:** Blocked
+  - **Status:** Ready
   - **Why now:** AI and other high-churn endpoints still lack explicit schema annotations, which blocks safe client generation.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Type safety gate + Phase 12
   - **Scope:** Add OpenAPI coverage to AI/high-churn backend endpoints and align the baseline artifact.
@@ -180,7 +180,7 @@
   - **Primary domain:** backend/contracts
   - **Likely touched paths:** `backend/tenant_apps/ai_assistant/views.py`, `backend/tenant_apps/ai_assistant/urls.py`, relevant schema generation config/tests, `manifests/openapi/openapi-schema.baseline.json`
   - **Dependencies:** EH-02.1
-  - **Blockers:** EH-02.1
+  - **Blockers:** None
   - **Acceptance criteria:** Touched endpoints appear explicitly in the baseline schema with stable request/response shapes.
   - **Validation commands:** `cd backend && python manage.py spectacular --validate --file /tmp/projectmeats-openapi.yaml`; `cd backend && python manage.py test tenant_apps.ai_assistant apps.core.tests.test_api_error_contracts`
   - **Tenant/RLS impact:** Medium
