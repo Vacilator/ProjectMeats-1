@@ -92,7 +92,9 @@ describe('WorkflowRunner', () => {
     render(<WorkflowRunner />, { wrapper: createWrapper() });
 
     expect(await screen.findByTestId('initial-name')).toHaveTextContent('empty');
-    expect(formMountSpy).toHaveBeenCalledTimes(1);
+    await waitFor(() => {
+      expect(formMountSpy).toHaveBeenCalledTimes(1);
+    });
 
     fireEvent.click(screen.getByRole('button', { name: 'Submit step' }));
 
