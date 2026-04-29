@@ -74,6 +74,7 @@ from .serializers import (
 from .services import FieldRegistry, get_available_entities, get_entity_fields
 from .services.entity_persistence import persist_form_submission
 from .services.form_process_persistence import FormProcessPersistenceService
+from .services.locking import WorkflowLockManager
 
 # =============================================================================
 # ADMIN FORM BUILDER API VIEWS
@@ -1745,6 +1746,73 @@ class TenantWorkflowViewSet(TenantFilteredModelViewSet):
             qs = qs.filter(entity_type=entity_type)
 
         return qs.order_by("name")
+
+    def _require_node_id(self, node_id: str | None) -> str:
+        normalized_node_id = (node_id or "").strip()
+        if not normalized_node_id:
+            raise ValidationError({"node_id": "node_id is required."})
+        return normalized_node_id
+
+    @action(detail=True, methods=["post", "delete"], url_path=r"nodes/(?P<node_id>[^/.]+)/lock")
+    def node_lock(self, request, pk=None, node_id=None):
+        workflow = self.get_object()
+        normalized_node_id = self._require_node_id(node_id)
+        tenant = getattr(request, "tenant", None)
+        if not tenant:
+            return Response(
+                {"error": "Tenant context is required (X-Tenant-ID header)."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if request.method.lower() == "post":
+            user_name = request.user.get_full_name().strip() or request.user.get_username()
+            result = WorkflowLockManager.acquire_node_lock(
+                tenant_id=str(tenant.id),
+                workflow_id=str(workflow.id),
+                node_id=normalized_node_id,
+                user_id=str(request.user.id),
+                user_name=user_name,
+            )
+            return Response(result)
+
+        released = WorkflowLockManager.release_node_lock(
+            tenant_id=str(tenant.id),
+            workflow_id=str(workflow.id),
+            node_id=normalized_node_id,
+            user_id=str(request.user.id),
+        )
+        if released:
+            return Response({"released": True})
+
+        return Response(
+            {"released": False, "error": "Lock is owned by another user."},
+            status=status.HTTP_409_CONFLICT,
+        )
+
+    @action(detail=True, methods=["post"], url_path=r"nodes/(?P<node_id>[^/.]+)/lock/renew")
+    def renew_node_lock(self, request, pk=None, node_id=None):
+        workflow = self.get_object()
+        normalized_node_id = self._require_node_id(node_id)
+        tenant = getattr(request, "tenant", None)
+        if not tenant:
+            return Response(
+                {"error": "Tenant context is required (X-Tenant-ID header)."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        renewed = WorkflowLockManager.renew_lock(
+            tenant_id=str(tenant.id),
+            workflow_id=str(workflow.id),
+            node_id=normalized_node_id,
+            user_id=str(request.user.id),
+        )
+        if renewed:
+            return Response({"renewed": True})
+
+        return Response(
+            {"renewed": False, "error": "Lock is no longer owned by the current user."},
+            status=status.HTTP_409_CONFLICT,
+        )
 
     @action(detail=True, methods=["post"])
     def activate(self, request, pk=None):
