@@ -3,6 +3,8 @@ Core models for ProjectMeats.
 
 Provides base models and common functionality used across all apps.
 """
+import uuid
+
 from django.contrib.auth.models import User
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
@@ -710,3 +712,57 @@ class Comment(TenantAwareModel):
 
     def __str__(self):
         return f'{self.entity_type}:{self.object_id} comment #{self.pk}'
+
+
+class IdempotencyKey(TenantAwareModel):
+    """Tenant-scoped request deduplication records for write endpoints."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    idempotency_key = models.CharField(
+        max_length=255,
+        help_text='Caller-supplied Idempotency-Key header value',
+    )
+    request_method = models.CharField(
+        max_length=10,
+        help_text='HTTP method for the original mutation request',
+    )
+    request_path = models.CharField(
+        max_length=255,
+        help_text='Canonical request path used for idempotency scoping',
+    )
+    request_fingerprint = models.CharField(
+        max_length=64,
+        help_text='SHA-256 fingerprint of the request payload',
+    )
+    response_status = models.PositiveSmallIntegerField(
+        null=True,
+        blank=True,
+        help_text='Cached HTTP status for completed idempotent responses',
+    )
+    response_body = models.JSONField(
+        null=True,
+        blank=True,
+        help_text='Cached JSON response payload for completed requests',
+    )
+    locked_until = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text='Lease expiration for in-flight requests using this key',
+    )
+
+    class Meta:
+        ordering = ['-created_on']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['tenant', 'idempotency_key'],
+                name='core_idempotencykey_tenant_key_uniq',
+            ),
+        ]
+        indexes = [
+            models.Index(fields=['tenant', 'idempotency_key']),
+            models.Index(fields=['tenant', 'locked_until']),
+            models.Index(fields=['tenant', '-created_on']),
+        ]
+
+    def __str__(self):
+        return f'{self.tenant_id}:{self.idempotency_key}'

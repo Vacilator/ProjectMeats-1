@@ -133,26 +133,26 @@
   - **Rollback:** Gate stricter behavior behind a flag only if absolutely necessary; never revert to silent cross-tenant continuation.
   - **Completion evidence destination:** shipped in `.github/MASTER_PLAN.md` (PR: #4771)
 
-- [ ] **EH-02.2 platform-idempotency-keys**
-  - **Status:** Ready
+- [x] **EH-02.2 platform-idempotency-keys**
+  - **Status:** Done
   - **Why now:** Duplicate POST/retry behavior remains ad hoc across uploads, executions, and integrations.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 12
-  - **Scope:** Add a tenant-scoped idempotency layer and apply it to the first high-risk mutation endpoints.
+  - **Scope:** Added a tenant-scoped idempotency layer in `apps.core` and applied the first protected slice to `POST /api/v1/tenant-workforms/{id}/execute/`.
   - **Non-goals:** No attempt to retrofit every POST endpoint in one PR.
   - **Primary domain:** backend
-  - **Likely touched paths:** new middleware/store under `backend/apps/core/` or `backend/apps/system/`, `backend/tenant_apps/ai_assistant/views.py`, `backend/apps/system/workform_views.py`
+  - **Likely touched paths:** `backend/apps/core/models.py`, `backend/apps/core/services/idempotency.py`, `backend/apps/core/migrations/0008_idempotencykey.py`, `backend/apps/system/workform_views.py`, `backend/apps/system/tests/test_tenant_workform_execute_permissions.py`, `manifests/RLS_POLICIES.md`
   - **Dependencies:** EH-02.1
   - **Blockers:** None
-  - **Acceptance criteria:** Replayed requests with the same idempotency key do not duplicate writes for the targeted endpoints.
-  - **Validation commands:** `cd backend && python manage.py test apps.system.tests.test_tenant_workform_execute_permissions apps.system.tests.test_workform_execute_circuit_breaker tenant_apps.ai_assistant`
+  - **Acceptance criteria:** Replayed requests with the same idempotency key no longer duplicate `TenantWorkFormExecution` writes or Celery enqueue for the protected execute endpoint, and mismatched payload reuse returns a stable 409 conflict.
+  - **Validation commands:** `cd backend && python manage.py makemigrations --check`; `cd backend && python manage.py test apps.system.tests.test_tenant_workform_execute_permissions apps.system.tests.test_workform_execute_circuit_breaker apps.core.tests.test_audit_rls_compliance`
   - **Tenant/RLS impact:** Medium; store must be tenant-aware
   - **Secrets/infra impact:** None
   - **Risk level:** Medium
   - **Rollback:** Disable the middleware for the targeted routes and keep the persistence table additive.
-  - **Completion evidence destination:** `.github/MASTER_PLAN.md`
+  - **Completion evidence destination:** shipped in `.github/MASTER_PLAN.md` (PR: #4773)
 
 - [ ] **EH-02.3 chat-session-tenant-fk-rls**
-  - **Status:** Blocked
+  - **Status:** Ready
   - **Why now:** AI chat persistence still relies on JSON-stamped tenant context instead of tenant-native storage.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 12 / Phase 13 dependency
   - **Scope:** Add `tenant` FK + RLS to `ChatSession` and `ChatMessage`, backfill, migrate reads/writes, and update `manifests/RLS_POLICIES.md` so the new policies are governed by the same registry as the rest of the platform.
@@ -160,7 +160,7 @@
   - **Primary domain:** backend
   - **Likely touched paths:** `backend/tenant_apps/ai_assistant/models.py`, `backend/tenant_apps/ai_assistant/views.py`, new migrations, `manifests/RLS_POLICIES.md`
   - **Dependencies:** EH-02.1
-  - **Blockers:** EH-02.1
+  - **Blockers:** None
   - **Acceptance criteria:** Chat data is tenant-native, tenant-scoped, and covered by RLS regression tests.
   - **Validation commands:** `cd backend && python manage.py test tenant_apps.ai_assistant apps.core.tests.test_audit_rls_compliance`; `cd backend && python manage.py showmigrations | grep ai_assistant`
   - **Tenant/RLS impact:** High
