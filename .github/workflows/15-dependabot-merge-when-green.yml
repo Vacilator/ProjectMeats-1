@@ -85,19 +85,18 @@ jobs:
             exit 0
           fi
 
-          # Guardrail: only auto-merge if the PR only touches dependency/automation files.
+          # Guardrail: only auto-merge safe dependency manifest/lockfile PRs.
           mapfile -t FILES < <(gh pr view "$PR_NUMBER" --repo "$REPO" --json files --jq '.files[].path')
 
           for f in "${FILES[@]}"; do
             case "$f" in
-              .github/dependabot.yml|.pre-commit-config.yaml) ;;
-              .github/workflows/*) ;;
-              */package.json|*/package-lock.json|*/yarn.lock|*/pnpm-lock.yaml) ;;
+              package.json|package-lock.json|yarn.lock|pnpm-lock.yaml) ;;
+              frontend/package.json|frontend/package-lock.json|frontend/yarn.lock|frontend/pnpm-lock.yaml) ;;
+              mobile/package.json|mobile/package-lock.json|mobile/yarn.lock|mobile/pnpm-lock.yaml) ;;
               backend/requirements*.txt|backend/pyproject.toml|backend/poetry.lock) ;;
-              backend/Dockerfile|frontend/Dockerfile|mobile/Dockerfile|Dockerfile) ;;
               *)
                 echo "Unexpected file in Dependabot PR: $f"
-                echo "Skipping auto-merge for safety."
+                echo "Skipping auto-merge for safety; human review required."
                 exit 0
                 ;;
             esac
