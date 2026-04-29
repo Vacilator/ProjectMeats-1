@@ -180,6 +180,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     needs: [check_infrastructure]
+    outputs:
+      image_tag_ref: ${{ steps.backend_image_refs.outputs.tag_ref }}
+      image_digest_ref: ${{ steps.backend_image_refs.outputs.digest_ref }}
     permissions:
       contents: read
       packages: write
@@ -244,6 +247,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build and push backend
+        id: build_backend
         uses: docker/build-push-action@bcafcacb16a39f128d818304e6c9c0c18556b85f # v7
         with:
           context: .
@@ -258,6 +262,15 @@ jobs:
           cache-to: |
             type=registry,ref=${{ env.REGISTRY }}/${{ env.BACKEND_IMAGE }}:cache,mode=max
             type=gha,mode=max
+
+      - name: Export backend image refs
+        id: backend_image_refs
+        run: |
+          TAG_REF="${{ env.REGISTRY }}/${{ env.BACKEND_IMAGE }}:${{ inputs.environment }}-${{ github.sha }}"
+          DIGEST="${{ steps.build_backend.outputs.digest }}"
+
+          echo "tag_ref=$TAG_REF" >> "$GITHUB_OUTPUT"
+          echo "digest_ref=${{ env.REGISTRY }}/${{ env.BACKEND_IMAGE }}@$DIGEST" >> "$GITHUB_OUTPUT"
 
   security-scan-backend:
     name: "Security Scan: Backend"
@@ -420,6 +433,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     needs: [check_infrastructure]
+    outputs:
+      image_tag_ref: ${{ steps.frontend_image_refs.outputs.tag_ref }}
+      image_digest_ref: ${{ steps.frontend_image_refs.outputs.digest_ref }}
     permissions:
       contents: read
       packages: write
@@ -484,6 +500,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build and push frontend
+        id: build_frontend
         uses: docker/build-push-action@bcafcacb16a39f128d818304e6c9c0c18556b85f # v7
         with:
           context: .
@@ -498,6 +515,15 @@ jobs:
           cache-to: |
             type=registry,ref=${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE }}:cache,mode=max
             type=gha,mode=max
+
+      - name: Export frontend image refs
+        id: frontend_image_refs
+        run: |
+          TAG_REF="${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE }}:${{ inputs.environment }}-${{ github.sha }}"
+          DIGEST="${{ steps.build_frontend.outputs.digest }}"
+
+          echo "tag_ref=$TAG_REF" >> "$GITHUB_OUTPUT"
+          echo "digest_ref=${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE }}@$DIGEST" >> "$GITHUB_OUTPUT"
 
   security-scan-frontend:
     name: "Security Scan: Frontend"
@@ -691,7 +717,7 @@ jobs:
   migrate:
     name: "Run Database Migrations"
     # Gate all mutation steps on tests + security scans to avoid "DB advanced but deploy blocked" failures.
-    needs: [check-migrations, test-frontend, security-scan-backend, security-scan-frontend]
+    needs: [build-backend, check-migrations, test-frontend, security-scan-backend, security-scan-frontend]
     runs-on: ubuntu-latest
     environment: ${{ inputs.backend_environment }}
     timeout-minutes: 15
@@ -898,6 +924,8 @@ jobs:
 
       - name: Run migrations via Docker with tunnel
         env:
+          BACKEND_TAG_REF: ${{ needs.build-backend.outputs.image_tag_ref }}
+          BACKEND_DIGEST_REF: ${{ needs.build-backend.outputs.image_digest_ref }}
           DB_USER: ${{ secrets.DB_USER }}
           DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
           DB_NAME: ${{ secrets.DB_NAME }}
@@ -912,11 +940,7 @@ jobs:
           # Construct DATABASE_URL pointing to tunnel
           DATABASE_URL="postgresql://$DB_USER:$DB_PASSWORD@127.0.0.1:5433/$DB_NAME"
           
-          # Pull backend image
-          IMAGE_TAG="${{ inputs.environment }}-${{ github.sha }}"
-          BACKEND_TAG_REF="${{ env.REGISTRY }}/${{ env.BACKEND_IMAGE }}:${IMAGE_TAG}"
-
-          echo "Using image tag: $BACKEND_TAG_REF"
+          echo "Using backend image ref: $BACKEND_TAG_REF"
 
           pull_with_retry() {
             local image="$1"
@@ -943,24 +967,8 @@ jobs:
             return 1
           }
 
-          resolve_digest_ref() {
-            local tag_ref="$1"
-            local repo_ref="${tag_ref%%:*}"
-            local digest_ref=""
-
-            digest_ref=$(docker image inspect --format='{{range .RepoDigests}}{{println .}}{{end}}' "$tag_ref" 2>/dev/null | grep "^${repo_ref}@sha256:" | head -n1 || true)
-            if [ -z "$digest_ref" ]; then
-              digest_ref=$(docker image inspect --format='{{range .RepoDigests}}{{println .}}{{end}}' "$tag_ref" 2>/dev/null | grep '@sha256:' | head -n1 || true)
-            fi
-
-            printf '%s' "$digest_ref"
-          }
-
-          pull_with_retry "$BACKEND_TAG_REF"
-
           BACKEND_RUN_REF="$BACKEND_TAG_REF"
           if [ "$DEPLOY_BY_DIGEST" = "true" ]; then
-            BACKEND_DIGEST_REF=$(resolve_digest_ref "$BACKEND_TAG_REF")
             if echo "$BACKEND_DIGEST_REF" | grep -q '@sha256:'; then
               echo "✓ Using backend digest ref: $BACKEND_DIGEST_REF"
               BACKEND_RUN_REF="$BACKEND_DIGEST_REF"
@@ -969,6 +977,8 @@ jobs:
               exit 1
             fi
           fi
+
+          pull_with_retry "$BACKEND_RUN_REF"
 
           echo "BACKEND_RUN_REF=$BACKEND_RUN_REF" >> "$GITHUB_ENV"
           
@@ -1093,7 +1103,7 @@ jobs:
 
   deploy-backend:
     name: "Deploy Backend Container"
-    needs: [migrate, security-scan-backend]
+    needs: [build-backend, migrate, security-scan-backend]
     runs-on: ubuntu-latest
     environment: ${{ inputs.backend_environment }}
     timeout-minutes: 15
@@ -1221,9 +1231,19 @@ jobs:
       
       - name: Deploy backend container
         env:
+          BACKEND_TAG_REF: ${{ needs.build-backend.outputs.image_tag_ref }}
+          BACKEND_DIGEST_REF: ${{ needs.build-backend.outputs.image_digest_ref }}
           SSHPASS: ${{ secrets.SSH_PASSWORD }}
         run: |
-          sshpass -e ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ServerAliveInterval=60 -o ServerAliveCountMax=10 ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << 'SSH'
+          export DEPLOY_BY_DIGEST="${{ inputs.deploy_by_digest }}"
+          export BACKEND_TAG_REF
+          export BACKEND_DIGEST_REF
+
+          sshpass -e ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ServerAliveInterval=60 -o ServerAliveCountMax=10 ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} \
+            "DEPLOY_BY_DIGEST='${DEPLOY_BY_DIGEST}' \
+             BACKEND_TAG_REF='${BACKEND_TAG_REF}' \
+             BACKEND_DIGEST_REF='${BACKEND_DIGEST_REF}' \
+             bash -s" << 'SSH'
           set -euo pipefail
           
           REG="${{ env.REGISTRY }}"
@@ -1296,26 +1316,19 @@ jobs:
             return 1
           }
 
-          pull_with_retry "$REG/$IMG:$TAG"
-
-          DEPLOY_BY_DIGEST="${{ inputs.deploy_by_digest }}"
-          TAG_REF="$REG/$IMG:$TAG"
+          TAG_REF="${BACKEND_TAG_REF:-$REG/$IMG:$TAG}"
           RUN_REF="$TAG_REF"
-
-          # Optional: deploy by digest after pulling by immutable tag.
           if [ "$DEPLOY_BY_DIGEST" = "true" ]; then
-            DIGEST_REF=$(docker image inspect --format='{{range .RepoDigests}}{{println .}}{{end}}' "$TAG_REF" 2>/dev/null | grep "^${REG}/${IMG}@sha256:" | head -n1 || true)
-            if [ -z "$DIGEST_REF" ]; then
-              DIGEST_REF=$(docker image inspect --format='{{range .RepoDigests}}{{println .}}{{end}}' "$TAG_REF" 2>/dev/null | grep '@sha256:' | head -n1 || true)
-            fi
-            if echo "$DIGEST_REF" | grep -q '@sha256:'; then
-              echo "✓ Deploy-by-digest enabled: $DIGEST_REF"
-              RUN_REF="$DIGEST_REF"
+            if echo "${BACKEND_DIGEST_REF}" | grep -q '@sha256:'; then
+              echo "✓ Using backend build digest ref: ${BACKEND_DIGEST_REF}"
+              RUN_REF="${BACKEND_DIGEST_REF}"
             else
-              echo "✗ Deploy-by-digest enabled, but digest not found"
+              echo "✗ Deploy-by-digest enabled, but build-backend did not export a digest ref"
               exit 1
             fi
           fi
+
+          pull_with_retry "$RUN_REF"
 
           # Atomic deploy + rollback (single host): canary on alternate port, then swap.
           CAND_NAME="pm-backend-candidate"
@@ -1504,7 +1517,7 @@ jobs:
   deploy-frontend:
     name: "Deploy Frontend Container"
     # Frontend deploy must wait for migrations (but must NOT depend on deploy-backend).
-    needs: [migrate, test-frontend, security-scan-frontend]
+    needs: [build-frontend, migrate, test-frontend, security-scan-frontend]
     runs-on: ubuntu-latest
     timeout-minutes: 20
     environment: ${{ inputs.frontend_environment }}
@@ -1588,6 +1601,8 @@ jobs:
 
       - name: Deploy frontend container
         env:
+          FRONTEND_TAG_REF: ${{ needs.build-frontend.outputs.image_tag_ref }}
+          FRONTEND_DIGEST_REF: ${{ needs.build-frontend.outputs.image_digest_ref }}
           SSHPASS: ${{ secrets.SSH_PASSWORD }}
         run: |
           # Export variables that will be used in the SSH session
@@ -1602,6 +1617,8 @@ jobs:
           export IMG="${{ env.FRONTEND_IMAGE }}"
           export DOMAIN_NAME="${{ secrets.DOMAIN_NAME }}"
           export DEPLOY_BY_DIGEST="${{ inputs.deploy_by_digest }}"
+          export FRONTEND_TAG_REF
+          export FRONTEND_DIGEST_REF
           
           # Debug: Show what we're deploying
           echo "==================================="
@@ -1633,7 +1650,9 @@ jobs:
              IMG='${IMG}' \
              DOMAIN_NAME='${DOMAIN_NAME}' \
              DEPLOY_BY_DIGEST='${DEPLOY_BY_DIGEST}' \
-             bash -s" << 'SSH'
+             FRONTEND_TAG_REF='${FRONTEND_TAG_REF}' \
+             FRONTEND_DIGEST_REF='${FRONTEND_DIGEST_REF}' \
+              bash -s" << 'SSH'
           set -euo pipefail
           
           echo "==================================="
@@ -1703,27 +1722,22 @@ jobs:
             return 1
           }
 
-          echo "Pulling image: $REG/$IMG:$IMAGE_TAG"
-          pull_with_retry "$REG/$IMG:$IMAGE_TAG"
-          echo "✓ Image pulled successfully"
-
-          TAG_REF="$REG/$IMG:$IMAGE_TAG"
+          TAG_REF="${FRONTEND_TAG_REF:-$REG/$IMG:$IMAGE_TAG}"
           RUN_REF="$TAG_REF"
 
-          # Optional: deploy by digest after pulling by immutable tag.
           if [ "${DEPLOY_BY_DIGEST:-false}" = "true" ]; then
-            DIGEST_REF=$(docker image inspect --format='{{range .RepoDigests}}{{println .}}{{end}}' "$TAG_REF" 2>/dev/null | grep "^${REG}/${IMG}@sha256:" | head -n1 || true)
-            if [ -z "$DIGEST_REF" ]; then
-              DIGEST_REF=$(docker image inspect --format='{{range .RepoDigests}}{{println .}}{{end}}' "$TAG_REF" 2>/dev/null | grep '@sha256:' | head -n1 || true)
-            fi
-            if echo "$DIGEST_REF" | grep -q '@sha256:'; then
-              echo "✓ Deploy-by-digest enabled: $DIGEST_REF"
-              RUN_REF="$DIGEST_REF"
+            if echo "${FRONTEND_DIGEST_REF}" | grep -q '@sha256:'; then
+              echo "✓ Using frontend build digest ref: ${FRONTEND_DIGEST_REF}"
+              RUN_REF="${FRONTEND_DIGEST_REF}"
             else
-              echo "✗ Deploy-by-digest enabled, but digest not found"
+              echo "✗ Deploy-by-digest enabled, but build-frontend did not export a digest ref"
               exit 1
             fi
           fi
+
+          echo "Pulling image: $RUN_REF"
+          pull_with_retry "$RUN_REF"
+          echo "✓ Image pulled successfully"
 
           # Atomic deploy + rollback: canary on alternate port, then swap.
           CAND_NAME="pm-frontend-candidate"

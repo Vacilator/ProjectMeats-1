@@ -542,8 +542,8 @@ assert_needs_exact('check-migrations', {'test-backend'})
 # We also allow (and prefer) additionally gating mutations on security scans to avoid
 # "DB advanced but deploy blocked" failure modes.
 allowed_migrate_needs = [
-    {'check-migrations', 'test-frontend'},
-    {'check-migrations', 'test-frontend', 'security-scan-backend', 'security-scan-frontend'},
+    {'build-backend', 'check-migrations', 'test-frontend'},
+    {'build-backend', 'check-migrations', 'test-frontend', 'security-scan-backend', 'security-scan-frontend'},
 ]
 if needs_set('migrate') not in allowed_migrate_needs:
     print(
@@ -552,11 +552,11 @@ if needs_set('migrate') not in allowed_migrate_needs:
     )
     raise SystemExit(1)
 
-# Deploy backend is gated on migrations + its own security scan.
-assert_needs_exact('deploy-backend', {'migrate', 'security-scan-backend'})
+# Deploy backend is gated on migrations + its own security scan + the built backend artifact.
+assert_needs_exact('deploy-backend', {'build-backend', 'migrate', 'security-scan-backend'})
 
-# Deploy frontend must synchronize on migrations, but must not depend on deploy-backend.
-assert_needs_exact('deploy-frontend', {'migrate', 'test-frontend', 'security-scan-frontend'})
+# Deploy frontend must synchronize on migrations, its own test/security lane, and the built frontend artifact.
+assert_needs_exact('deploy-frontend', {'build-frontend', 'migrate', 'test-frontend', 'security-scan-frontend'})
 
 # Explicitly forbid accidental cross-lane coupling (beyond the migrate barrier).
 deploy_frontend_needs = needs_set('deploy-frontend')
@@ -917,7 +917,7 @@ env_only_tag_re = re.compile(r":\s*\$\{\{\s*inputs\.environment\s*\}\}(?!\s*-\s*
 if env_only_tag_re.search(text):
     errors.append(f"{wf_path.name}: env-only image tag detected (must include github.sha)")
 
-# 2) Require explicit SHA-derived tag variables in key locations.
+# 2) Require explicit SHA-derived tag variables or build-exported tag refs in key locations.
 sha_tag_expr = r"\$\{\{\s*inputs\.environment\s*\}\}\s*-\s*\$\{\{\s*github\.sha\s*\}\}"
 
 tag_pat = re.compile(r"\bTAG\s*=\s*['\"]" + sha_tag_expr + r"['\"]")
@@ -926,9 +926,9 @@ image_tag_pat = re.compile(r"\bIMAGE_TAG\s*=\s*['\"]" + sha_tag_expr + r"['\"]")
 if not tag_pat.search(text):
     errors.append(f"{wf_path.name}: missing SHA-derived TAG assignment (expected TAG=\"${{ inputs.environment }}-${{ github.sha }}\")")
 
-if len(image_tag_pat.findall(text)) < 2:
+if len(image_tag_pat.findall(text)) < 1:
     errors.append(
-        f"{wf_path.name}: missing SHA-derived IMAGE_TAG assignments (expected at least 2 occurrences for migrate+frontend)"
+        f"{wf_path.name}: missing SHA-derived IMAGE_TAG assignment for frontend deploy flow"
     )
 
 if errors:
@@ -1329,6 +1329,104 @@ PY
     return 0
 }
 
+check_digest_artifact_alignment() {
+    log_info "Checking digest deploy defaults and artifact alignment..."
+
+    if [[ ! -f .github/workflows/reusable-deploy.yml || ! -f .github/workflows/main-pipeline.yml ]]; then
+        log_info "Deploy workflows not found (skipping digest alignment checks)"
+        return 0
+    fi
+
+    if ! python - <<'PY'
+import sys
+from pathlib import Path
+
+try:
+    import yaml
+except Exception as e:
+    print(f"ERROR: pyyaml not available: {e}", file=sys.stderr)
+    raise SystemExit(1)
+
+main_path = Path('.github/workflows/main-pipeline.yml')
+reusable_path = Path('.github/workflows/reusable-deploy.yml')
+main_data = yaml.safe_load(main_path.read_text(encoding='utf-8', errors='ignore')) or {}
+reusable_data = yaml.safe_load(reusable_path.read_text(encoding='utf-8', errors='ignore')) or {}
+
+main_jobs = main_data.get('jobs') or {}
+reusable_jobs = reusable_data.get('jobs') or {}
+errors = []
+
+for job_name in ('deploy-uat', 'deploy-prod'):
+    job = main_jobs.get(job_name)
+    with_section = (job or {}).get('with') or {}
+    if with_section.get('deploy_by_digest') is not True:
+        errors.append(f"{main_path.name}: jobs.{job_name}.with.deploy_by_digest must be true")
+
+build_backend = reusable_jobs.get('build-backend') or {}
+build_frontend = reusable_jobs.get('build-frontend') or {}
+
+if (build_backend.get('outputs') or {}).get('image_digest_ref') != '${{ steps.backend_image_refs.outputs.digest_ref }}':
+    errors.append(f"{reusable_path.name}: jobs.build-backend.outputs.image_digest_ref must export steps.backend_image_refs.outputs.digest_ref")
+if (build_frontend.get('outputs') or {}).get('image_digest_ref') != '${{ steps.frontend_image_refs.outputs.digest_ref }}':
+    errors.append(f"{reusable_path.name}: jobs.build-frontend.outputs.image_digest_ref must export steps.frontend_image_refs.outputs.digest_ref")
+
+def ensure_need(job_name, need_name):
+    needs = (reusable_jobs.get(job_name) or {}).get('needs') or []
+    if need_name not in needs:
+        errors.append(f"{reusable_path.name}: jobs.{job_name} must depend on {need_name} for digest alignment")
+
+ensure_need('migrate', 'build-backend')
+ensure_need('deploy-backend', 'build-backend')
+ensure_need('deploy-frontend', 'build-frontend')
+
+def step(job_name, step_name):
+    steps = (reusable_jobs.get(job_name) or {}).get('steps') or []
+    return next((s for s in steps if isinstance(s, dict) and s.get('name') == step_name), None)
+
+migrate_step = step('migrate', 'Run migrations via Docker with tunnel')
+backend_deploy_step = step('deploy-backend', 'Deploy backend container')
+frontend_deploy_step = step('deploy-frontend', 'Deploy frontend container')
+
+expected_env_refs = [
+    (migrate_step, 'BACKEND_TAG_REF', '${{ needs.build-backend.outputs.image_tag_ref }}', 'jobs.migrate step Run migrations via Docker with tunnel'),
+    (migrate_step, 'BACKEND_DIGEST_REF', '${{ needs.build-backend.outputs.image_digest_ref }}', 'jobs.migrate step Run migrations via Docker with tunnel'),
+    (backend_deploy_step, 'BACKEND_TAG_REF', '${{ needs.build-backend.outputs.image_tag_ref }}', 'jobs.deploy-backend step Deploy backend container'),
+    (backend_deploy_step, 'BACKEND_DIGEST_REF', '${{ needs.build-backend.outputs.image_digest_ref }}', 'jobs.deploy-backend step Deploy backend container'),
+    (frontend_deploy_step, 'FRONTEND_TAG_REF', '${{ needs.build-frontend.outputs.image_tag_ref }}', 'jobs.deploy-frontend step Deploy frontend container'),
+    (frontend_deploy_step, 'FRONTEND_DIGEST_REF', '${{ needs.build-frontend.outputs.image_digest_ref }}', 'jobs.deploy-frontend step Deploy frontend container'),
+]
+
+for step_obj, env_key, expected_value, label in expected_env_refs:
+    if step_obj is None:
+        errors.append(f"{reusable_path.name}: missing {label}")
+        continue
+    env_map = step_obj.get('env') or {}
+    if env_map.get(env_key) != expected_value:
+        errors.append(f"{reusable_path.name}: {label} env.{env_key} must be {expected_value}")
+
+if migrate_step is not None and 'BACKEND_RUN_REF="$BACKEND_DIGEST_REF"' not in (migrate_step.get('run') or ''):
+    errors.append(f"{reusable_path.name}: migrate step must switch BACKEND_RUN_REF to BACKEND_DIGEST_REF when digest deploy is enabled")
+if migrate_step is not None and 'pull_with_retry "$BACKEND_RUN_REF"' not in (migrate_step.get('run') or ''):
+    errors.append(f"{reusable_path.name}: migrate step must pull BACKEND_RUN_REF after selecting tag vs digest")
+if backend_deploy_step is not None and 'RUN_REF="${BACKEND_DIGEST_REF}"' not in (backend_deploy_step.get('run') or ''):
+    errors.append(f"{reusable_path.name}: deploy-backend step must run the build-exported backend digest ref")
+if frontend_deploy_step is not None and 'RUN_REF="${FRONTEND_DIGEST_REF}"' not in (frontend_deploy_step.get('run') or ''):
+    errors.append(f"{reusable_path.name}: deploy-frontend step must run the build-exported frontend digest ref")
+
+if errors:
+    for error in errors:
+        print(f"ERROR: {error}", file=sys.stderr)
+    raise SystemExit(1)
+
+print('✓ Digest deploy defaults and artifact alignment are enforced')
+PY
+    then
+        return 1
+    fi
+
+    return 0
+}
+
 check_reusable_workflow_callers() {
     log_info "Checking main-pipeline reusable workflow callers..."
 
@@ -1454,6 +1552,7 @@ main() {
     check_environment_lanes_match_manifest || ((failed++))
     check_reusable_workflow_required_secret_contract || ((failed++))
     check_reusable_frontend_ssh_failfast || ((failed++))
+    check_digest_artifact_alignment || ((failed++))
     check_reusable_workflow_callers || ((failed++))
     check_current_docs_manifest_path_drift || ((failed++))
     check_cache_config || ((failed++))
