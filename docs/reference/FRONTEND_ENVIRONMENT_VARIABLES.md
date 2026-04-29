@@ -7,7 +7,7 @@
 ---
 
 **Applies To:** React Frontend (Vite/CRA)  
-**Source of Truth:** `config/env.manifest.json` v3.3
+**Source of Truth:** `manifests/env.manifest.json` v5.x
 
 ---
 
@@ -177,7 +177,7 @@ EOF
 
 # Mount into container
 docker run -v /opt/pm/frontend/env/env-config.js:/usr/share/nginx/html/env-config.js:ro \
-  frontend:latest
+  registry.digitalocean.com/meatscentral/projectmeats-frontend:dev-<sha>
 ```
 
 ---
@@ -261,7 +261,7 @@ This means you often **don't need** to set `REACT_APP_API_BASE_URL` explicitly!
 4. **Don't duplicate .env files**
    - Use `.env.local` (not committed)
    - Reference this doc for examples
-   - Use manifest system (`config/env.manifest.json`)
+   - Use manifest system (`manifests/env.manifest.json`)
 
 ---
 
@@ -325,7 +325,7 @@ const apiUrl = config.API_BASE_URL;  // Works with both systems
 
 ## Related Documentation
 
-- **Manifest System:** [`config/env.manifest.json`](../config/env.manifest.json)
+- **Manifest System:** [`manifests/env.manifest.json`](../../manifests/env.manifest.json)
 - **Configuration Guide:** [`docs/CONFIGURATION_AND_SECRETS.md`](./CONFIGURATION_AND_SECRETS.md)
 - **Golden Pipeline:** [`docs/GOLDEN_PIPELINE.md`](./GOLDEN_PIPELINE.md)
 - **Runtime Config:** [`frontend/src/config/runtime.ts`](../frontend/src/config/runtime.ts)
@@ -347,7 +347,7 @@ const apiUrl = config.API_BASE_URL;  // Works with both systems
 - Copy/paste configuration
 
 **New approach (current):**
-- Single source: `config/env.manifest.json`
+- Single source: `manifests/env.manifest.json`
 - Automated validation: `python config/manage_env.py audit`
 - Runtime configuration: `public/env-config.js`
 - Domain-based detection: `src/config/tenantContext.ts`

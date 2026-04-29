@@ -153,11 +153,31 @@ class EnvironmentManager:
             env_names |= set(category_vars.keys())
         return repo_names, env_names
 
-    def _required_repo_secrets_v5(self) -> Set[str]:
-        repo_defs = self.manifest.get('repository_secrets', {})
-        return {name for name, d in repo_defs.items() if d.get('required', False)}
+    @staticmethod
+    def _secret_applies_to_workflow(secret_def: Dict[str, Any], workflow_name: Optional[str]) -> bool:
+        if not workflow_name:
+            return True
 
-    def _required_env_secrets_for_env_v5(self, env_key: str, env_cfg: Dict[str, Any]) -> Set[str]:
+        used_by = secret_def.get('used_by')
+        if not used_by:
+            return True
+
+        return 'all workflows' in used_by or workflow_name in used_by
+
+    def _required_repo_secrets_v5(self, workflow_name: Optional[str] = None) -> Set[str]:
+        repo_defs = self.manifest.get('repository_secrets', {})
+        return {
+            name
+            for name, d in repo_defs.items()
+            if d.get('required', False) and self._secret_applies_to_workflow(d, workflow_name)
+        }
+
+    def _required_env_secrets_for_env_v5(
+        self,
+        env_key: str,
+        env_cfg: Dict[str, Any],
+        workflow_name: Optional[str] = None,
+    ) -> Set[str]:
         env_type = env_cfg.get('type')
         env_defs = self.manifest.get('environment_secrets', {})
 
@@ -165,6 +185,8 @@ class EnvironmentManager:
         for _category, vars_in_cat in env_defs.items():
             for secret_name, secret_def in vars_in_cat.items():
                 if not secret_def.get('required', False):
+                    continue
+                if not self._secret_applies_to_workflow(secret_def, workflow_name):
                     continue
 
                 applies_to = secret_def.get('applies_to')
@@ -188,6 +210,22 @@ class EnvironmentManager:
                     required.add(secret_name)
 
         return required
+
+    def required_secrets_for_environment(
+        self,
+        env_key: str,
+        workflow_name: Optional[str] = None,
+    ) -> Set[str]:
+        environments = self.manifest.get('environments', {})
+        env_cfg = environments.get(env_key)
+        if not env_cfg:
+            raise KeyError(f"Unknown environment: {env_key}")
+
+        return self._required_repo_secrets_v5(workflow_name) | self._required_env_secrets_for_env_v5(
+            env_key,
+            env_cfg,
+            workflow_name=workflow_name,
+        )
 
     def audit_secrets(self, exit_on_error: bool = True, verbose: bool = False):
         """Audit GitHub secrets against manifest requirements."""
@@ -366,7 +404,6 @@ def main():
         default=None,
         help='Optional path to a manifest JSON file (overrides default search).',
     )
-
     args = parser.parse_args()
 
     manifest_path = Path(args.manifest).resolve() if args.manifest else None
