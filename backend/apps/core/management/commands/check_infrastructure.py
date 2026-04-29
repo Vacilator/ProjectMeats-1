@@ -6,10 +6,16 @@ Checks connectivity for OpenAI, Redis, and Sentry services.
 from django.core.management.base import BaseCommand
 from django.conf import settings
 import sys
-import os
+from pathlib import Path
 
-# Add scripts directory to path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../../../../scripts'))
+# Add the repo/container scripts directory to path.
+for parent in Path(__file__).resolve().parents:
+    scripts_dir = parent / 'scripts'
+    if (scripts_dir / 'infrastructure_diagnostics.py').exists():
+        sys.path.insert(0, str(scripts_dir))
+        break
+else:
+    raise ImportError('Could not locate scripts/infrastructure_diagnostics.py')
 
 from infrastructure_diagnostics import run_full_diagnostic
 
