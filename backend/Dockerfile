@@ -73,6 +73,8 @@ COPY backend/ ./
 # Copy environment manifest for audit_secrets command
 RUN mkdir -p /app/manifests
 COPY manifests/env.manifest.json /app/manifests/env.manifest.json
+RUN mkdir -p /app/scripts
+COPY scripts/infrastructure_diagnostics.py /app/scripts/infrastructure_diagnostics.py
 
 RUN mkdir -p /app/staticfiles /app/media
 

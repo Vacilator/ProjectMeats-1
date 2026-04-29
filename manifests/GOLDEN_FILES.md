@@ -81,7 +81,7 @@ ProjectMeats uses **environment-scoped secrets** across 6 deployment lanes:
 
 ## Infrastructure Connectivity (Quad Services Stack)
 
-**Diagnostic Tool**: `backend/scripts/infrastructure_diagnostics.py`  
+**Diagnostic Tool**: `scripts/infrastructure_diagnostics.py`
 **Management Command**: `python manage.py check_infrastructure`  
 **Last Audit**: March 18, 2026
 
