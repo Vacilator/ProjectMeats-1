@@ -40,15 +40,16 @@ class _TenantContextMixin:
                     raise PermissionDenied('You do not have access to this tenant.')
             return tenant
 
-        # 3) Default tenant from membership
-        membership = (
+        # 3) Default tenant from membership, but only when unambiguous.
+        memberships = list(
             TenantUser.objects.filter(user=user, is_active=True)
             .select_related('tenant')
-            .order_by('-role')
-            .first()
+            .order_by('-role')[:2]
         )
-        if membership:
-            return membership.tenant
+        if len(memberships) == 1:
+            return memberships[0].tenant
+        if len(memberships) > 1:
+            return None
 
         # 4) Global admins default to system root (if present)
         if user.groups.filter(name='Global System Admins').exists():

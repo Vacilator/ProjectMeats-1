@@ -43,26 +43,13 @@ class CarrierViewSet(viewsets.ModelViewSet):
         return Carrier.objects.none()
 
     def perform_create(self, serializer):
-        """Set the tenant when creating a new carrier."""
-        tenant = None
-        
-        # First, try to get tenant from middleware (request.tenant)
-        if hasattr(self.request, 'tenant') and self.request.tenant:
-            tenant = self.request.tenant
-        
-        # If middleware didn't set tenant, try to get user's default tenant
-        elif self.request.user and self.request.user.is_authenticated:
-            from apps.tenants.models import TenantUser
-            tenant_user = (
-                TenantUser.objects.filter(user=self.request.user, is_active=True)
-                .select_related('tenant')
-                .order_by('-role')  # Prioritize owner/admin roles
-                .first()
-            )
-            if tenant_user:
-                tenant = tenant_user.tenant
-        
-        # If still no tenant, raise error
+        """Set the tenant when creating a new carrier.
+
+        Tenant context must already be resolved by middleware/auth. We do not
+        silently choose a membership when the request is ambiguous.
+        """
+
+        tenant = getattr(self.request, 'tenant', None)
         if not tenant:
             logger.error(
                 'Carrier creation attempted without tenant context',
@@ -72,8 +59,8 @@ class CarrierViewSet(viewsets.ModelViewSet):
                     'timestamp': timezone.now().isoformat()
                 }
             )
-            raise ValidationError('Tenant context is required to create a carrier.')
-        
+            raise DRFValidationError('Tenant context is required to create a carrier.')
+
         serializer.save(tenant=tenant)
 
     def create(self, request, *args, **kwargs):

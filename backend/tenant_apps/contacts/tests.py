@@ -9,12 +9,20 @@ from django.contrib.auth.models import User
 from django.urls import reverse
 from rest_framework.test import APITestCase
 from rest_framework import status
+from rest_framework.test import APIClient
+from rest_framework_simplejwt.tokens import RefreshToken
 from tenant_apps.contacts.models import Contact
 from apps.tenants.models import Tenant, TenantUser
 
 
 class ContactAPITests(APITestCase):
     """Test cases for Contact API endpoints."""
+
+    def _jwt_client_for(self, user):
+        client = APIClient()
+        access = RefreshToken.for_user(user).access_token
+        client.credentials(HTTP_AUTHORIZATION=f"Bearer {access}")
+        return client
 
     def setUp(self):
         """Set up test data."""
@@ -55,6 +63,22 @@ class ContactAPITests(APITestCase):
         self.assertEqual(contact.last_name, "Doe")
         self.assertEqual(contact.tenant, self.tenant)
 
+    def test_create_contact_uses_single_membership_tenant_for_jwt(self):
+        """JWT auth may rely on the user's only membership when no tenant is explicit."""
+        client = self._jwt_client_for(self.user)
+        url = reverse("contacts:contact-list")
+        data = {
+            "first_name": "Auto",
+            "last_name": "Resolved",
+            "email": "auto.resolved@example.com",
+        }
+
+        response = client.post(url, data, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED, response.content)
+        contact = Contact.objects.get(email="auto.resolved@example.com")
+        self.assertEqual(contact.tenant, self.tenant)
+
     def test_create_contact_without_first_name(self):
         """Test that creating a contact without first name fails."""
         url = reverse("contacts:contact-list")
@@ -93,4 +117,27 @@ class ContactAPITests(APITestCase):
         response = self.client.post(url, data, HTTP_X_TENANT_ID=str(self.tenant.id))
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(Contact.objects.count(), 0)
+
+    def test_create_contact_requires_explicit_tenant_when_membership_is_ambiguous(self):
+        """Multi-tenant users must select a tenant explicitly for writes."""
+        client = self._jwt_client_for(self.user)
+        other_tenant = Tenant.objects.create(
+            name=f"Other Company {uuid.uuid4().hex[:8]}",
+            slug=f"other-company-{uuid.uuid4().hex[:8]}",
+            contact_email=f"other-{uuid.uuid4().hex[:8]}@testcompany.com",
+            created_by=self.user,
+        )
+        TenantUser.objects.create(tenant=other_tenant, user=self.user, role="admin")
+
+        url = reverse("contacts:contact-list")
+        data = {
+            "first_name": "Jane",
+            "last_name": "Doe",
+            "email": "jane.doe@example.com",
+        }
+
+        response = client.post(url, data, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST, response.content)
         self.assertEqual(Contact.objects.count(), 0)
