@@ -125,15 +125,6 @@ class SystemChoiceItemsPagination(PageNumberPagination):
         return min(parsed, self.max_page_size)
 
 
-class IsAdminOrReadOnly(permissions.BasePermission):
-    """Allow read-only for authenticated users, write for admins."""
-    
-    def has_permission(self, request, view):
-        if request.method in permissions.SAFE_METHODS:
-            return request.user.is_authenticated
-        return request.user.is_staff
-
-
 class IsSuperuserOrReadOnly(permissions.BasePermission):
     """Allow read-only for authenticated users, write only for superusers."""
 

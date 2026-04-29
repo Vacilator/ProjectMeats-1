@@ -1,14 +1,16 @@
 from __future__ import annotations
 
+import inspect
 import uuid
 
 from django.contrib.auth import get_user_model
 from django.contrib.contenttypes.models import ContentType
 from django.test.utils import override_settings
-from rest_framework import status
+from rest_framework import status, viewsets
 from rest_framework.test import APITestCase
 
 from apps.system.models import ConfigAuditLog, SystemChoiceItem, SystemChoiceList, TenantChoiceOverride, TenantConfig
+from apps.system.views import choice_viewsets
 from apps.tenants.models import Tenant, TenantDomain, TenantUser
 
 
@@ -184,3 +186,29 @@ class SystemConfigChoiceViewSetsTenantIsolationTests(APITestCase):
 
         self.assertIn(str(self.system_log.id), ids)
         self.assertNotIn(str(self.tenant_b_log.id), ids)
+
+    def test_choice_viewsets_module_permissions_do_not_reference_is_staff(self):
+        self.assertFalse(
+            hasattr(choice_viewsets, 'IsAdminOrReadOnly'),
+            'choice_viewsets must not expose a permission class that grants writes based only on is_staff',
+        )
+
+        for name, obj in inspect.getmembers(choice_viewsets, inspect.isclass):
+            if obj.__module__ != choice_viewsets.__name__:
+                continue
+            if not issubclass(obj, viewsets.ViewSetMixin):
+                continue
+
+            for permission in getattr(obj, 'permission_classes', []):
+                try:
+                    permission_source = inspect.getsource(permission.has_permission)
+                except (AttributeError, OSError, TypeError) as exc:
+                    self.fail(
+                        f'{name} uses {permission.__name__}, but the regression guard could not inspect '
+                        f'its has_permission() implementation: {exc}'
+                    )
+                self.assertNotIn(
+                    'is_staff',
+                    permission_source,
+                    f'{name} must not use {permission.__name__} because it references is_staff',
+                )
