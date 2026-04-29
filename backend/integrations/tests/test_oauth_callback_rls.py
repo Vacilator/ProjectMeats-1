@@ -98,3 +98,39 @@ class OAuthCallbackRlsContextTests(TestCase):
         self.assertIn(resp.status_code, (301, 302))
         set_current_tenant.assert_called_with(str(self.tenant.id))
         self.assertIn('update_or_create', call_order)
+
+    @patch('integrations.views.oauth.set_current_tenant')
+    @patch('integrations.views.oauth.ExternalAuthProvider.objects.update_or_create')
+    def test_callback_redirects_to_error_when_rls_cannot_be_set(
+        self,
+        update_or_create,
+        set_current_tenant,
+    ):
+        provider = 'microsoft'
+        nonce = 'nonce123'
+
+        state = signing.dumps(
+            {
+                'tenant_id': str(self.tenant.id),
+                'user_id': str(self.user.id),
+                'provider': provider,
+                'nonce': nonce,
+            },
+            salt=oauth_views._STATE_SALT,
+        )
+
+        session = self.client.session
+        session[f'oauth_state_{provider}'] = state
+        session[f'oauth_tenant_{provider}'] = str(self.tenant.id)
+        session[f'oauth_nonce_{provider}'] = nonce
+        session.save()
+
+        set_current_tenant.return_value = SimpleNamespace(ok=False, error='db down')
+
+        url = f'/api/v1/integrations/oauth/callback/{provider}/'
+        resp = self.client.get(url, {'code': 'abc', 'state': state})
+
+        self.assertIn(resp.status_code, (301, 302))
+        self.assertIn('error=rls_enforcement_failed', resp.url)
+        set_current_tenant.assert_called_with(str(self.tenant.id))
+        update_or_create.assert_not_called()

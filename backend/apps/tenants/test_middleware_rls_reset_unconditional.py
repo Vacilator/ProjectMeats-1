@@ -26,11 +26,11 @@ class TenantMiddlewareRlsResetUnconditionalTests(TestCase):
         TenantUser.objects.create(tenant=self.tenant, user=self.user, role='owner', is_active=True)
 
     @override_settings(ALLOWED_HOSTS=['acme.example.com'])
-    def test_resets_rls_session_vars_even_when_set_current_tenant_fails(self):
+    def test_api_request_fails_closed_when_set_current_tenant_fails(self):
         get_response = Mock(return_value=HttpResponse('ok'))
         middleware = TenantMiddleware(get_response)
 
-        request = self.factory.get('/some/web/page/', HTTP_HOST='acme.example.com')
+        request = self.factory.get('/api/v1/tenants/current/', HTTP_HOST='acme.example.com')
         request.user = self.user
 
         with (
@@ -39,7 +39,15 @@ class TenantMiddlewareRlsResetUnconditionalTests(TestCase):
         ):
             resp = middleware(request)
 
-        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.status_code, 503)
+        self.assertJSONEqual(
+            resp.content.decode('utf-8'),
+            {
+                'error': 'Tenant isolation enforcement is temporarily unavailable.',
+                'code': 'TENANT_ISOLATION_UNAVAILABLE',
+            },
+        )
+        get_response.assert_not_called()
         reset.assert_called_once()
 
     @override_settings(ALLOWED_HOSTS=['testserver'])
