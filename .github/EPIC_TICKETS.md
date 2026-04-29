@@ -303,8 +303,8 @@
   - **Rollback:** Revert the guarded lock service + workflow lock actions to restore the prior passive lock behavior while keeping websocket collaboration isolated.
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
-- [ ] **EH-05.2 observability-and-rollback-drill**
-  - **Status:** Ready
+- [x] **EH-05.2 observability-and-rollback-drill**
+  - **Status:** Done (PR #4787)
   - **Why now:** Production observability and rollback readiness are not yet at enterprise baseline.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Operational excellence + Phase 12
   - **Scope:** Require lane-wide observability ownership and validate rollback procedures in UAT.
@@ -318,7 +318,7 @@
   - **Tenant/RLS impact:** None directly
   - **Secrets/infra impact:** Medium
   - **Risk level:** Medium
-  - **Rollback:** Revert docs/script changes if they diverge from validated rollout behavior.
+  - **Rollback:** Revert the rollback-script/doc/validator updates if they diverge from validated rollout behavior.
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
 ## Phase 13 - Next-Gen AI & Automation

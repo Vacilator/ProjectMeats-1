@@ -29,6 +29,8 @@ Golden template for workflow suggestion engine with meat industry context
 | **RLS Policies** | `/manifests/RLS_POLICIES.md` | Audit log |
 | **CI/CD Standards** | `.github/workflows/reusable-deploy.yml` | Template |
 | **Runtime Readiness Gate** | `backend/projectmeats/health.py`, `.github/workflows/reusable-deploy.yml` | ENFORCEMENT |
+| **Rollback automation** | `.github/scripts/deployment-rollback.sh`, `docs/runbooks/INCIDENT_RESPONSE.md` | AUTHORITATIVE |
+| **Non-dev observability ownership** | `docs/GOLDEN_PIPELINE.md`, `docs/runbooks/INCIDENT_RESPONSE.md`, `manifests/env.manifest.json` | AUTHORITATIVE |
 | **Architecture** | `docs/architecture/ARCHITECTURE.md` | Design doc |
 | **Execution status / priorities** | `MASTER_PLAN.md` | CANONICAL |
 | **Roadmaps** | `ROADMAP.md`, `UI_ROADMAP.md` | Reference-only unless promoted in `MASTER_PLAN.md` |
@@ -98,6 +100,12 @@ ProjectMeats uses **environment-scoped secrets** across 6 deployment lanes:
 - 🔒 **Not Configured**: Credentials not yet added to GitHub Secrets
 
 **Readiness Gate**: `/api/v1/health/` remains the broad liveness/integration surface, while backend deploy and smoke gates in non-dev must use `/api/v1/ready/`. For backend lanes, `/api/v1/ready/` now requires Redis/Valkey-backed cache and channels unless `REDIS_REQUIRED` is explicitly disabled for that lane.
+
+## Non-dev observability and rollback ownership
+
+- **Backend lane owner**: validates `REDIS_URL` / `VALKEY_URL` readiness, backend `SENTRY_ENABLED` / `SENTRY_DSN` expectations, and `/api/v1/health/` integration summaries before traffic is reopened.
+- **Frontend lane owner**: validates direct container health on `127.0.0.1:8080`, the deployed immutable frontend digest, and the `REACT_APP_SENTRY_DSN` / shared `SENTRY_DSN` pass-through contract.
+- **Rollback drill source of truth**: use `.github/scripts/deployment-rollback.sh` for development and explicit immutable `BACKEND_IMAGE_REF` / `FRONTEND_IMAGE_REF` inputs for UAT/production, following `docs/runbooks/INCIDENT_RESPONSE.md`.
 
 ### Dev Environment Verification Summary (March 3, 2026)
 
