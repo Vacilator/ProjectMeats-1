@@ -56,6 +56,15 @@ class ChatSession(OwnedModel, StatusModel):
         help_text="JSON field for storing session context",
     )
 
+    tenant = models.ForeignKey(
+        "tenants.Tenant",
+        on_delete=models.CASCADE,
+        related_name="ai_chat_sessions",
+        null=True,
+        blank=True,
+        help_text="Tenant this chat session belongs to",
+    )
+
     last_activity = models.DateTimeField(
         auto_now=True, help_text="Timestamp of last activity in this session"
     )
@@ -65,6 +74,9 @@ class ChatSession(OwnedModel, StatusModel):
         verbose_name = "Chat Session"
         verbose_name_plural = "Chat Sessions"
         ordering = ["-last_activity"]
+        indexes = [
+            models.Index(fields=["tenant", "owner", "-last_activity"]),
+        ]
 
     def __str__(self):
         return f"Chat Session: {self.title or f'Session {self.id.hex[:8]}'}"
@@ -96,6 +108,15 @@ class ChatMessage(OwnedModel):
         help_text="Chat session this message belongs to",
     )
 
+    tenant = models.ForeignKey(
+        "tenants.Tenant",
+        on_delete=models.CASCADE,
+        related_name="ai_chat_messages",
+        null=True,
+        blank=True,
+        help_text="Tenant this chat message belongs to",
+    )
+
     message_type = models.CharField(
         max_length=20,
         choices=MessageTypeChoices.choices,
@@ -119,6 +140,9 @@ class ChatMessage(OwnedModel):
         verbose_name = "Chat Message"
         verbose_name_plural = "Chat Messages"
         ordering = ["created_on"]
+        indexes = [
+            models.Index(fields=["tenant", "session", "created_on"]),
+        ]
 
     def __str__(self):
         preview = self.content[:50] + "..." if len(self.content) > 50 else self.content
