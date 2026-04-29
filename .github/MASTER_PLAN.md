@@ -1790,6 +1790,7 @@ Deliverables:
 - **2026-04-29** — CI: derive reusable deploy required-secret checks from `manifests/env.manifest.json`, enforce the contract in workflow validation, and fail CURRENT docs that still reference legacy env-manifest paths. (PR: #4751)
 - **2026-04-29** — Tests: expand backend smoke coverage for always-on API surfaces so PR validation now checks `/api/v1/health/`, `/api/v1/ready/`, auth bootstrap failure envelopes, and tenant-resolution fail-closed behavior in the dedicated smoke lane. (PR: #4752)
 - **2026-04-29** — Security: de-shadow duplicate OAuth authorize/callback wiring by locking the legacy `apps/integrations/urls.py` aliases to the hardened canonical OAuth views, preventing accidental re-exposure of the older function-based callback while preserving `oauth/status` + `oauth/disconnect` behavior with regression coverage. (PR: #4753)
+- **2026-04-29** — CI: harden `deploy-frontend` SSH setup to fail fast with bounded SSH preflight (instead of hanging on raw `ssh-keyscan`) and add workflow validation enforcing the new frontend SSH fail-fast contract; fixes the deployment hang seen in run `25094392591`. (PR: #4754)
 
 ### Phase 11: The Deal Desk (Trader Ledger Replacement)
 

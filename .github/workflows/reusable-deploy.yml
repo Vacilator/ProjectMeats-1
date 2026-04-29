@@ -1567,15 +1567,24 @@ jobs:
           echo "✅ Required frontend secrets present"
 
       - name: Setup SSH
+        env:
+          SSHPASS: ${{ secrets.SSH_PASSWORD }}
         run: |
+          set -euo pipefail
+
           # Install sshpass for password-based SSH (same as backend)
-          sudo apt-get update -qq
-          sudo apt-get install -y sshpass
-          
-          # Add SSH host to known_hosts
-          mkdir -p ~/.ssh
-          chmod 700 ~/.ssh
-          ssh-keyscan -H "${{ secrets.SSH_HOST }}" >> ~/.ssh/known_hosts 2>&1
+          timeout 120 sudo apt-get update -qq
+          timeout 120 sudo apt-get install -y sshpass
+
+          # Fail fast on SSH connectivity issues instead of hanging on ssh-keyscan.
+          timeout 30 sshpass -e ssh \
+            -o StrictHostKeyChecking=no \
+            -o UserKnownHostsFile=/dev/null \
+            -o ConnectTimeout=10 \
+            -o ServerAliveInterval=10 \
+            -o ServerAliveCountMax=3 \
+            "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}" \
+            "echo '✓ SSH preflight ok'"
 
       - name: Deploy frontend container
         env:
@@ -1606,7 +1615,13 @@ jobs:
           echo "Backend Host: $BACKEND_HOST"
           echo "==================================="
           
-          sshpass -e ssh -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} \
+          sshpass -e ssh \
+            -o StrictHostKeyChecking=no \
+            -o UserKnownHostsFile=/dev/null \
+            -o ConnectTimeout=10 \
+            -o ServerAliveInterval=60 \
+            -o ServerAliveCountMax=10 \
+            ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} \
             "BACKEND_HOST='${BACKEND_HOST}' \
              DO_TOKEN='${DO_TOKEN}' \
              API_BASE_URL='${API_BASE_URL}' \
