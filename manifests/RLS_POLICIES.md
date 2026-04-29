@@ -157,25 +157,30 @@ All workflow-related tables have Row-Level Security **ENABLED** and **FORCED**:
 | `ai_assistant_chat_messages` | ✅ | `ai_assistant/0016_chatmessage_tenant_chatsession_tenant_and_more` | Apr 29, 2026 |
 | `ai_assistant_communication_logs` | ✅ | `ai_assistant/0014_communicationlog` | Mar 31, 2026 |
 | `ai_assistant_tenant_memory` | ✅ | `ai_assistant/0015_tenantaimemory` | Mar 31, 2026 |
+| `ai_assistant_runs` | ✅ | `ai_assistant/0017_airun_aitask_aiapproval_and_more` | Apr 29, 2026 |
+| `ai_assistant_tasks` | ✅ | `ai_assistant/0017_airun_aitask_aiapproval_and_more` | Apr 29, 2026 |
+| `ai_assistant_approvals` | ✅ | `ai_assistant/0017_airun_aitask_aiapproval_and_more` | Apr 29, 2026 |
+| `ai_assistant_document_semantic_chunks` | ✅ | `ai_assistant/0018_aidocumentsemanticchunk_ailineageevent` | Apr 29, 2026 |
+| `ai_assistant_lineage_events` | ✅ | `ai_assistant/0018_aidocumentsemanticchunk_ailineageevent` | Apr 29, 2026 |
 
 ---
 
 ## Compliance Summary
 
-**Latest Audit (2026-04-29, fresh-db CI validation target)**:
-- `python manage.py audit_rls_compliance --strict` should return **72/72 tenant-scoped models compliant** once `ai_assistant/0016_chatmessage_tenant_chatsession_tenant_and_more`, `core/0008_idempotencykey`, and prior additive RLS migrations are applied. ✅
+**Latest Audit (2026-04-29, current shared dev database)**:
+- `python manage.py audit_rls_compliance --strict` currently reports **39/77 models compliant** on the shared database because multiple historical non-AI tenant tables still lack RLS policies.
+- EH-06.1 and EH-06.2 added additive RLS coverage for `ai_assistant_runs`, `ai_assistant_tasks`, `ai_assistant_approvals`, `ai_assistant_document_semantic_chunks`, and `ai_assistant_lineage_events`.
 
 **Audit Scope Update (2026-04-29)**:
 - `audit_rls_compliance` now also includes an allowlist of tenant-scoped models that do **not** inherit `TenantAwareModel` (System WorkForms + Integrations).
 - `core_comment` is now covered by an additive RLS migration so fresh databases and CI audits stay fully compliant.
 - `core_idempotencykey` is now covered by an additive RLS migration so idempotent mutation state remains tenant-isolated.
-- `ai_assistant.ChatSession` and `ai_assistant.ChatMessage` are now tenant-native and covered by additive RLS policies instead of relying on JSON-stamped tenant context.
+- `ai_assistant.ChatSession` and `ai_assistant.ChatMessage` were migrated to tenant-native tables in `0016`; verify policy rollout separately if upgrading an older shared database.
 - `deals_deal` and `deals_dealactionitem` are now covered by additive RLS policies in `deals/0001_initial`.
-- Expected result after next deployment audit: **72/72 tenant-scoped models compliant** ✅
+- Repo-wide strict-audit compliance remains a separate backlog item outside EH-06.2.
 
 **Tenant Isolation Policies** (from `pg_policies`):
-- Tables with at least one `*_tenant_isolation` policy: **52**
-- `*_tenant_isolation` policies total: **55**
+- Policy totals vary by environment state; use `python manage.py audit_rls_compliance --strict` on the target database for the live count.
 
 > Note: Some tables currently have both legacy and standardized `*_tenant_isolation` policy names during transition.
 

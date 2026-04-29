@@ -343,8 +343,8 @@
   - **Rollback:** Run in shadow mode first and keep autonomous execution denied by default.
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
-- [ ] **EH-06.2 semantic-index-lineage-and-durable-exports**
-  - **Status:** Blocked
+- [x] **EH-06.2 semantic-index-lineage-and-durable-exports**
+  - **Status:** Shipped (PR #4792)
   - **Why now:** Semantic retrieval, lineage, and export governance remain incomplete even after AI parser hardening.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 13
   - **Scope:** Add real semantic indexing, end-to-end lineage, Graph resilience improvements, and durable export storage.
@@ -352,7 +352,7 @@
   - **Primary domain:** backend/AI/frontend
   - **Likely touched paths:** `backend/tenant_apps/integrations/services/email_ingestion.py`, `backend/tenant_apps/ai_assistant/services/*`, `backend/tenant_apps/ai_assistant/models.py`, `frontend/src/components/AIAssistant/*`
   - **Dependencies:** EH-06.1, EH-05.1, EH-03.1
-  - **Blockers:** EH-06.1
+  - **Blockers:** None
   - **Acceptance criteria:** Semantic indexing is real and health-gated, lineage is end-to-end, and exports avoid local `/tmp`.
   - **Validation commands:** `cd backend && python manage.py test tenant_apps.integrations tenant_apps.ai_assistant apps.core.tests.test_viewset_permissions`; `npm -C frontend run verify-standards`; `npm -C frontend run test:ci`
   - **Tenant/RLS impact:** High

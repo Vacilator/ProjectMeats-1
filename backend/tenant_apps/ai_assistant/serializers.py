@@ -259,6 +259,7 @@ class AIDocumentSerializer(serializers.ModelSerializer):
             'parse_error_message',
             'truncated',
             'warnings',
+            'semantic_indexing',
         )
         result = {}
         for key in allowed_keys:

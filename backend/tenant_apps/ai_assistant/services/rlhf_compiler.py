@@ -10,12 +10,13 @@ commands and Celery tasks.
 from __future__ import annotations
 
 import json
-import os
 import re
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Any, Dict, Iterable, Optional, Tuple
 
+from django.core.files.base import ContentFile
+from django.core.files.storage import default_storage
 from django.utils import timezone
 
 
@@ -90,13 +91,13 @@ class CompileOptions:
 
 
 def _default_out_path(options: CompileOptions, prefix: str = 'projectmeats_rlhf_compiled') -> str:
-    # Deterministic name per day/window so repeated runs overwrite (idempotent).
+    # Deterministic path per day/window so repeated runs overwrite (idempotent).
     day = timezone.now().strftime('%Y%m%d')
     tenant_part = (options.tenant_id or 'all').replace('-', '')[:12]
     window_part = (
         f"since{options.since.strftime('%Y%m%dT%H%M%S')}" if options.since else f"{int(options.days)}d"
     )
-    return f"/tmp/{prefix}_{day}_{tenant_part}_{window_part}.jsonl"
+    return f"ai_assistant/rlhf_exports/{prefix}_{day}_{tenant_part}_{window_part}.jsonl"
 
 
 def compile_feedback_logs_to_jsonl_lines(*, options: CompileOptions) -> Tuple[int, Iterable[str]]:
@@ -146,23 +147,20 @@ def compile_feedback_logs_to_jsonl_lines(*, options: CompileOptions) -> Tuple[in
 
 
 def write_compiled_jsonl(*, options: CompileOptions) -> Dict[str, Any]:
-    """Write compiled JSONL to disk and return a small summary."""
+    """Write compiled JSONL to durable Django storage and return a summary."""
 
     out_path = options.out_path or _default_out_path(options)
-    os.makedirs(os.path.dirname(out_path), exist_ok=True)
-
     total_count, lines = compile_feedback_logs_to_jsonl_lines(options=options)
-
-    written = 0
-    with open(out_path, 'w', encoding='utf-8') as f:
-        for line in lines:
-            f.write(line + '\n')
-            written += 1
+    rendered_lines = [line + '\n' for line in lines]
+    payload = ''.join(rendered_lines).encode('utf-8')
+    if default_storage.exists(out_path):
+        default_storage.delete(out_path)
+    saved_path = default_storage.save(out_path, ContentFile(payload))
 
     return {
         'status': 'ok',
         'lookback_days': int(options.days),
         'total_feedback_logs': int(total_count),
-        'written': int(written),
-        'out_path': out_path,
+        'written': int(len(rendered_lines)),
+        'out_path': saved_path,
     }

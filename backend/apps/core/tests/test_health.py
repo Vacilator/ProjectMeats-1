@@ -32,6 +32,8 @@ class HealthCheckTests(TestCase):
         self.assertIsInstance(data['integration_summary'], dict)
         self.assertIn('integration_warnings', data)
         self.assertIsInstance(data['integration_warnings'], list)
+        self.assertIn('semantic_indexing', data['features'])
+        self.assertIn('semantic_indexing', data['integration_summary'])
 
         # In test runs we do not have Redis configured, so redis readiness should be false.
         self.assertIs(data['features'].get('redis'), False)
@@ -65,6 +67,7 @@ class HealthCheckTests(TestCase):
         self.assertIn('timestamp', data)
         self.assertIn('checks', data)
         self.assertFalse(data['requires_redis_readiness'])
+        self.assertFalse(data['requires_semantic_index_readiness'])
 
     @patch('projectmeats.health.connection.cursor', side_effect=Exception('db down'))
     def test_ready_returns_503_when_database_is_unhealthy(self, _mock_cursor):
@@ -92,3 +95,25 @@ class HealthCheckTests(TestCase):
         self.assertEqual(data['checks']['redis'], 'unhealthy')
         self.assertEqual(data['checks']['channel_layer'], 'unhealthy')
         self.assertEqual([error['code'] for error in data['errors']], ['redis_not_ready', 'channel_layer_not_ready'])
+
+    @override_settings(REQUIRE_SEMANTIC_INDEX_READINESS=True)
+    @patch('projectmeats.health.check_all_services')
+    def test_ready_returns_503_when_semantic_index_gate_fails(self, mock_services):
+        mock_services.return_value = {
+            'redis': {'available': True, 'configured': True},
+            'channel_layer': {'available': True, 'configured': True},
+            'semantic_indexing': {
+                'available': False,
+                'configured': False,
+                'required': True,
+                'note': 'Semantic indexing is unavailable.',
+            },
+        }
+
+        resp = self.client.get('/api/v1/ready/')
+        self.assertEqual(resp.status_code, 503)
+
+        data = json.loads(resp.content.decode('utf-8'))
+        self.assertTrue(data['requires_semantic_index_readiness'])
+        self.assertEqual(data['checks']['semantic_indexing'], 'unhealthy')
+        self.assertEqual([error['code'] for error in data['errors']], ['semantic_indexing_not_ready'])

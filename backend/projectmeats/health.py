@@ -14,7 +14,7 @@ from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 from rest_framework import status
-from apps.core.utils.health import check_all_services
+from apps.core.utils.health import check_all_services, semantic_index_readiness_required
 
 
 @require_http_methods(["GET"])
@@ -61,6 +61,7 @@ def health_check(request):
     sentry = services.get("sentry", {}) if isinstance(services, dict) else {}
     openai = services.get("openai", {}) if isinstance(services, dict) else {}
     ms = services.get("microsoft_oauth", {}) if isinstance(services, dict) else {}
+    semantic_indexing = services.get("semantic_indexing", {}) if isinstance(services, dict) else {}
 
     if redis.get("configured") and not redis.get("available"):
         integration_warnings.append(
@@ -96,6 +97,14 @@ def health_check(request):
             {
                 "code": "openai_not_configured",
                 "message": "OpenAI not configured (missing OPENAI_API_KEY). AI features will return AI_NOT_CONFIGURED (503).",
+            }
+        )
+    if semantic_indexing.get("required") and not semantic_indexing.get("available"):
+        integration_warnings.append(
+            {
+                "code": "semantic_indexing_not_ready",
+                "message": semantic_indexing.get("note")
+                or "Semantic indexing readiness is required for this environment.",
             }
         )
 
@@ -144,6 +153,12 @@ def health_check(request):
             "configured": bool(ms.get("configured")),
             "tenant_id_set": bool(ms.get("tenant_id_set")),
         },
+        "semantic_indexing": {
+            "configured": bool(semantic_indexing.get("configured")),
+            "available": bool(semantic_indexing.get("available")),
+            "required": bool(semantic_indexing.get("required")),
+            "mode": semantic_indexing.get("mode"),
+        },
     }
 
     features = {
@@ -153,6 +168,7 @@ def health_check(request):
         "redis": bool(redis.get("available")),
         "realtime": bool(channel_layer.get("available")),
         "rag": bool(services.get("pgvector", {}).get("available")),
+        "semantic_indexing": bool(semantic_indexing.get("available")),
         "sentry": bool(sentry.get("dsn_set")),
     }
 
@@ -277,6 +293,7 @@ def ready_check(request):
     checks = {}
     errors = []
     require_redis_readiness = bool(getattr(settings, "REQUIRE_REDIS_READINESS", False))
+    require_semantic_index_readiness = semantic_index_readiness_required()
 
     try:
         with connection.cursor() as cursor:
@@ -306,8 +323,10 @@ def ready_check(request):
         else:
             redis = services.get("redis", {}) if isinstance(services, dict) else {}
             channel_layer = services.get("channel_layer", {}) if isinstance(services, dict) else {}
+            semantic_indexing = services.get("semantic_indexing", {}) if isinstance(services, dict) else {}
             checks["redis"] = "healthy" if redis.get("available") else "unhealthy"
             checks["channel_layer"] = "healthy" if channel_layer.get("available") else "unhealthy"
+            checks["semantic_indexing"] = "healthy" if semantic_indexing.get("available") else "unhealthy"
 
             if require_redis_readiness:
                 if not redis.get("available"):
@@ -328,6 +347,14 @@ def ready_check(request):
                             or "Redis-backed channel layer readiness is required for this environment.",
                         }
                     )
+            if require_semantic_index_readiness and not semantic_indexing.get("available"):
+                errors.append(
+                    {
+                        "code": "semantic_indexing_not_ready",
+                        "message": semantic_indexing.get("note")
+                        or "Semantic indexing readiness is required for this environment.",
+                    }
+                )
 
     if errors:
         return JsonResponse(
@@ -336,6 +363,7 @@ def ready_check(request):
                 "timestamp": timezone.now().isoformat(),
                 "checks": checks,
                 "requires_redis_readiness": require_redis_readiness,
+                "requires_semantic_index_readiness": require_semantic_index_readiness,
                 "errors": errors,
                 "error": "; ".join(error["message"] for error in errors),
             },
@@ -348,6 +376,7 @@ def ready_check(request):
             "timestamp": timezone.now().isoformat(),
             "checks": checks,
             "requires_redis_readiness": require_redis_readiness,
+            "requires_semantic_index_readiness": require_semantic_index_readiness,
         }
     )
 
