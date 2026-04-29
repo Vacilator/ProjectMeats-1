@@ -167,6 +167,32 @@ class ChatBotResponseSerializer(serializers.Serializer):
     metadata = serializers.JSONField(default=dict)
 
 
+class ToolsOpenResponseSerializer(serializers.Serializer):
+    tools = serializers.ListField(child=serializers.JSONField())
+
+
+class RecentErrorIssueSerializer(serializers.Serializer):
+    id = serializers.CharField(allow_blank=True, allow_null=True, required=False)
+    shortId = serializers.CharField(allow_blank=True, allow_null=True, required=False)
+    title = serializers.CharField(allow_blank=True, allow_null=True, required=False)
+    permalink = serializers.CharField(allow_blank=True, allow_null=True, required=False)
+    culprit = serializers.CharField(allow_blank=True, allow_null=True, required=False)
+    level = serializers.CharField(allow_blank=True, allow_null=True, required=False)
+    status = serializers.CharField(allow_blank=True, allow_null=True, required=False)
+    firstSeen = serializers.CharField(allow_blank=True, allow_null=True, required=False)
+    lastSeen = serializers.CharField(allow_blank=True, allow_null=True, required=False)
+    count = serializers.CharField(allow_blank=True, allow_null=True, required=False)
+
+
+class RecentErrorsResponseSerializer(serializers.Serializer):
+    ok = serializers.BooleanField()
+    tenant_id = serializers.UUIDField(required=False)
+    error = serializers.CharField(required=False)
+    detail = serializers.CharField(required=False)
+    status = serializers.IntegerField(required=False)
+    issues = RecentErrorIssueSerializer(many=True)
+
+
 class AIDocumentSerializer(serializers.ModelSerializer):
     """Serializer for AI assistant document uploads.
 
@@ -303,6 +329,17 @@ class PendingReviewItemSerializer(serializers.Serializer):
     precision_delta = serializers.FloatField()
     created_on = serializers.DateTimeField()
     original_extracted_data = serializers.JSONField()
+
+
+class PendingReviewListResponseSerializer(serializers.Serializer):
+    pending_reviews = PendingReviewItemSerializer(many=True)
+    results = PendingReviewItemSerializer(many=True)
+
+
+class PendingReviewResolveResponseSerializer(serializers.Serializer):
+    id = serializers.UUIDField()
+    resolved_by = serializers.UUIDField()
+    precision_delta = serializers.FloatField()
 
 
 class AIFeedbackLogSerializer(serializers.ModelSerializer):
