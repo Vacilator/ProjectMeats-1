@@ -1233,8 +1233,8 @@ for job_name, step_name, manifest_env, input_ref in expectations:
         )
 
     run_script = step.get('run') or ''
-    if 'python config/manage_env.py required-secrets' not in run_script:
-        errors.append(f"{wf_path.name}: jobs.{job_name} fail-fast step must derive required secrets via config/manage_env.py")
+    if 'required_secrets_for_environment' not in run_script or 'EnvironmentManager' not in run_script:
+        errors.append(f"{wf_path.name}: jobs.{job_name} fail-fast step must derive required secrets via config/manage_env.py helpers")
     if input_ref not in run_script:
         errors.append(f"{wf_path.name}: jobs.{job_name} fail-fast step must query manifest requirements for {input_ref}")
 

@@ -383,7 +383,7 @@ class EnvironmentManager:
 
 def main():
     parser = argparse.ArgumentParser(description='Environment & Secret Manager')
-    parser.add_argument('command', choices=['audit', 'required-secrets'], help='Command to run')
+    parser.add_argument('command', choices=['audit'], help='Command to run')
     parser.add_argument(
         '--repo',
         help='GitHub repo to audit in OWNER/REPO form (defaults to autodetect; prefers git remote "upstream").',
@@ -404,25 +404,6 @@ def main():
         default=None,
         help='Optional path to a manifest JSON file (overrides default search).',
     )
-    parser.add_argument(
-        '--environment',
-        type=str,
-        default=None,
-        help='Environment key from manifests/env.manifest.json (required for required-secrets).',
-    )
-    parser.add_argument(
-        '--workflow',
-        type=str,
-        default=None,
-        help='Optional workflow filename to scope required secrets by used_by metadata.',
-    )
-    parser.add_argument(
-        '--format',
-        choices=['lines', 'json'],
-        default='lines',
-        help='Output format for required-secrets.',
-    )
-
     args = parser.parse_args()
 
     manifest_path = Path(args.manifest).resolve() if args.manifest else None
@@ -430,24 +411,6 @@ def main():
 
     if args.command == 'audit':
         manager.audit_secrets(exit_on_error=not args.no_exit, verbose=args.verbose)
-        return
-
-    if not args.environment:
-        parser.error('--environment is required for required-secrets')
-
-    required = sorted(
-        manager.required_secrets_for_environment(
-            args.environment,
-            workflow_name=args.workflow,
-        )
-    )
-
-    if args.format == 'json':
-        print(json.dumps(required))
-        return
-
-    for secret_name in required:
-        print(secret_name)
 
 
 if __name__ == '__main__':
