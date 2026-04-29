@@ -616,16 +616,11 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
     }
     return next;
   }, [stableInitialValues, stableFields]);
-  const defaultValuesSignature = useMemo(
-    () => getStableSignature(defaultValues),
-    [defaultValues]
-  );
 
   const {
     register,
     handleSubmit,
     control,
-    reset,
     setValue,
     formState: { errors },
   } = useForm({
@@ -633,17 +628,6 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
     defaultValues,
     mode: formConfig.validateOnChange ? 'onChange' : 'onSubmit',
   });
-
-  const previousDefaultValuesSignatureRef = useRef(defaultValuesSignature);
-
-  useEffect(() => {
-    if (previousDefaultValuesSignatureRef.current === defaultValuesSignature) {
-      return;
-    }
-
-    previousDefaultValuesSignatureRef.current = defaultValuesSignature;
-    reset(defaultValues);
-  }, [defaultValues, defaultValuesSignature, reset]);
 
   const watchedValues = useWatch({ control });
   
