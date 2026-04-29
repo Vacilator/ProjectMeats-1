@@ -227,8 +227,8 @@
   - **Rollback:** Keep the cache-clear fallback behind a temporary guard until migrated surfaces are verified.
   - **Completion evidence destination:** shipped in `.github/MASTER_PLAN.md` (PR: #4779)
 
-- [ ] **EH-04.2 search-contract-unification**
-  - **Status:** Ready
+- [x] **EH-04.2 search-contract-unification**
+  - **Status:** Done
   - **Why now:** Search surfaces still speak different contracts and ranking semantics.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Cockpit Search relevance + Phase 12
   - **Scope:** Create one search SDK/result taxonomy and move command/search surfaces onto it without changing user-facing entrypoints.
@@ -243,10 +243,10 @@
   - **Secrets/infra impact:** None
   - **Risk level:** Medium
   - **Rollback:** Keep existing UI shells and compatibility adapters until the unified service proves stable.
-  - **Completion evidence destination:** `.github/MASTER_PLAN.md`
+  - **Completion evidence destination:** shipped in `.github/MASTER_PLAN.md` (PR: #4780)
 
 - [ ] **EH-04.3 floweditor-decomposition-phase-1**
-  - **Status:** Blocked
+  - **Status:** Ready
   - **Why now:** `UnifiedFlowEditor.tsx` is too large and too risky to keep extending without module boundaries.
   - **Canonical source reference:** `MASTER_PLAN.md` -> WorkForms runtime/observability + Phase 12
   - **Scope:** Establish the first safe decomposition boundary and regression harness for FlowEditor.
@@ -254,7 +254,7 @@
   - **Primary domain:** frontend
   - **Likely touched paths:** `frontend/src/components/FlowEditor/UnifiedFlowEditor.tsx`, supporting FlowEditor modules/tests, `frontend/src/components/Workflow/PurchaseOrderWorkflow.tsx`, `frontend/src/components/EntityGraph/EntityGraph.tsx`
   - **Dependencies:** EH-04.1, EH-03.2
-  - **Blockers:** EH-04.2
+  - **Blockers:** None
   - **Acceptance criteria:** The first extracted module boundary lands with regression coverage and no dual-library expansion.
   - **Validation commands:** `npm -C frontend run verify-standards`; `npm -C frontend run test:ci -- src/components/FlowEditor`
   - **Tenant/RLS impact:** None directly
