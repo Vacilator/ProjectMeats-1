@@ -27950,6 +27950,16 @@
                         "type": "string",
                         "readOnly": true
                     },
+                    "source_metadata": {
+                        "type": "object",
+                        "additionalProperties": {},
+                        "readOnly": true
+                    },
+                    "processing_metadata": {
+                        "type": "object",
+                        "additionalProperties": {},
+                        "readOnly": true
+                    },
                     "created_on": {
                         "type": "string",
                         "format": "date-time",
@@ -27965,6 +27975,8 @@
                     "file_type",
                     "id",
                     "owner",
+                    "processing_metadata",
+                    "source_metadata",
                     "tenant"
                 ]
             },
