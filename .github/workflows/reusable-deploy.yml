@@ -194,6 +194,8 @@ jobs:
     outputs:
       image_tag_ref: ${{ steps.backend_image_refs.outputs.tag_ref }}
       image_digest_ref: ${{ steps.backend_image_refs.outputs.digest_ref }}
+      ghcr_image_tag_ref: ${{ steps.backend_image_refs.outputs.ghcr_tag_ref }}
+      ghcr_image_digest_ref: ${{ steps.backend_image_refs.outputs.ghcr_digest_ref }}
     permissions:
       contents: read
       packages: write
@@ -278,10 +280,13 @@ jobs:
         id: backend_image_refs
         run: |
           TAG_REF="${{ env.REGISTRY }}/${{ env.BACKEND_IMAGE }}:${{ inputs.environment }}-${{ github.sha }}"
+          GHCR_TAG_REF="${{ env.GHCR_REGISTRY }}/${{ env.BACKEND_IMAGE }}:${{ inputs.environment }}-${{ github.sha }}"
           DIGEST="${{ steps.build_backend.outputs.digest }}"
 
           echo "tag_ref=$TAG_REF" >> "$GITHUB_OUTPUT"
           echo "digest_ref=${{ env.REGISTRY }}/${{ env.BACKEND_IMAGE }}@$DIGEST" >> "$GITHUB_OUTPUT"
+          echo "ghcr_tag_ref=$GHCR_TAG_REF" >> "$GITHUB_OUTPUT"
+          echo "ghcr_digest_ref=${{ env.GHCR_REGISTRY }}/${{ env.BACKEND_IMAGE }}@$DIGEST" >> "$GITHUB_OUTPUT"
 
   security-scan-backend:
     name: "Security Scan: Backend"
@@ -447,6 +452,8 @@ jobs:
     outputs:
       image_tag_ref: ${{ steps.frontend_image_refs.outputs.tag_ref }}
       image_digest_ref: ${{ steps.frontend_image_refs.outputs.digest_ref }}
+      ghcr_image_tag_ref: ${{ steps.frontend_image_refs.outputs.ghcr_tag_ref }}
+      ghcr_image_digest_ref: ${{ steps.frontend_image_refs.outputs.ghcr_digest_ref }}
     permissions:
       contents: read
       packages: write
@@ -531,10 +538,13 @@ jobs:
         id: frontend_image_refs
         run: |
           TAG_REF="${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE }}:${{ inputs.environment }}-${{ github.sha }}"
+          GHCR_TAG_REF="${{ env.GHCR_REGISTRY }}/${{ env.FRONTEND_IMAGE }}:${{ inputs.environment }}-${{ github.sha }}"
           DIGEST="${{ steps.build_frontend.outputs.digest }}"
 
           echo "tag_ref=$TAG_REF" >> "$GITHUB_OUTPUT"
           echo "digest_ref=${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE }}@$DIGEST" >> "$GITHUB_OUTPUT"
+          echo "ghcr_tag_ref=$GHCR_TAG_REF" >> "$GITHUB_OUTPUT"
+          echo "ghcr_digest_ref=${{ env.GHCR_REGISTRY }}/${{ env.FRONTEND_IMAGE }}@$DIGEST" >> "$GITHUB_OUTPUT"
 
   security-scan-frontend:
     name: "Security Scan: Frontend"
@@ -732,6 +742,9 @@ jobs:
     runs-on: ubuntu-latest
     environment: ${{ inputs.backend_environment }}
     timeout-minutes: 15
+    permissions:
+      contents: read
+      packages: read
     steps:
       - name: Checkout code
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
@@ -769,12 +782,12 @@ jobs:
           echo "Disk after cleanup:"
           df -h
       
-      - name: Login to DigitalOcean Container Registry
+      - name: Login to GHCR
         uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121 # v4
         with:
-          registry: registry.digitalocean.com
-          username: ${{ secrets.DO_ACCESS_TOKEN }}
-          password: ${{ secrets.DO_ACCESS_TOKEN }}
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
       
       - name: Install SSH and PostgreSQL tools
         run: |
@@ -919,7 +932,14 @@ jobs:
           # Construct DATABASE_URL pointing to tunnel
           DATABASE_URL="postgresql://$DB_USER:$DB_PASSWORD@127.0.0.1:5433/$DB_NAME"
           
-          echo "Using backend image ref: $BACKEND_TAG_REF"
+          to_ghcr_ref() {
+            printf '%s' "$1" | sed "s#^${{ env.REGISTRY }}#${{ env.GHCR_REGISTRY }}#"
+          }
+
+          BACKEND_GHCR_TAG_REF="$(to_ghcr_ref "$BACKEND_TAG_REF")"
+          BACKEND_GHCR_DIGEST_REF="$(to_ghcr_ref "$BACKEND_DIGEST_REF")"
+
+          echo "Using backend image ref: $BACKEND_GHCR_TAG_REF"
 
           pull_with_retry() {
             local image="$1"
@@ -947,10 +967,12 @@ jobs:
           }
 
           BACKEND_RUN_REF="$BACKEND_TAG_REF"
+          BACKEND_RUN_REF="$(to_ghcr_ref "$BACKEND_RUN_REF")"
           if [ "$DEPLOY_BY_DIGEST" = "true" ]; then
-            if echo "$BACKEND_DIGEST_REF" | grep -q '@sha256:'; then
-              echo "✓ Using backend digest ref: $BACKEND_DIGEST_REF"
+            if echo "$BACKEND_GHCR_DIGEST_REF" | grep -q '@sha256:'; then
+              echo "✓ Using backend digest ref: $BACKEND_GHCR_DIGEST_REF"
               BACKEND_RUN_REF="$BACKEND_DIGEST_REF"
+              BACKEND_RUN_REF="$(to_ghcr_ref "$BACKEND_RUN_REF")"
             else
               echo "✗ Deploy-by-digest enabled, but backend digest could not be resolved"
               exit 1
@@ -1122,6 +1144,9 @@ jobs:
     runs-on: ubuntu-latest
     environment: ${{ inputs.backend_environment }}
     timeout-minutes: 15
+    permissions:
+      contents: read
+      packages: read
     steps:
       - name: Checkout code
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
@@ -1232,7 +1257,7 @@ jobs:
              bash -s" << 'SSH'
           set -euo pipefail
           
-          REG="${{ env.REGISTRY }}"
+          REG="${{ env.GHCR_REGISTRY }}"
           IMG="${{ env.BACKEND_IMAGE }}"
           TAG="${{ inputs.environment }}-${{ github.sha }}"
           
@@ -1257,8 +1282,8 @@ jobs:
           chmod -R 775 /root/projectmeats/media
           echo "✓ media permissions fixed"
           
-          # Login to registry
-          echo "${{ secrets.DO_ACCESS_TOKEN }}" | docker login registry.digitalocean.com -u "${{ secrets.DO_ACCESS_TOKEN }}" --password-stdin
+          # Login to registry using the workflow token so env-scoped DOCR overrides cannot break deploys.
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
           
           # Check disk space and cleanup if needed
           echo "Checking disk space..."
@@ -1302,16 +1327,23 @@ jobs:
             return 1
           }
 
-          TAG_REF="${BACKEND_TAG_REF:-$REG/$IMG:$TAG}"
+          to_ghcr_ref() {
+            printf '%s' "$1" | sed "s#^${{ env.REGISTRY }}#${{ env.GHCR_REGISTRY }}#"
+          }
+
+          TAG_REF="${BACKEND_TAG_REF:-${{ env.REGISTRY }}/$IMG:$TAG}"
           RUN_REF="$TAG_REF"
+          RUN_REF="$(to_ghcr_ref "$RUN_REF")"
           HEALTH_PATH="/api/v1/health/"
           if [ "${REQUIRE_REDIS_READINESS:-false}" = "true" ]; then
             HEALTH_PATH="/api/v1/ready/"
           fi
           if [ "$DEPLOY_BY_DIGEST" = "true" ]; then
-            if echo "${BACKEND_DIGEST_REF}" | grep -q '@sha256:'; then
-              echo "✓ Using backend build digest ref: ${BACKEND_DIGEST_REF}"
+            BACKEND_GHCR_DIGEST_REF="$(to_ghcr_ref "${BACKEND_DIGEST_REF}")"
+            if echo "${BACKEND_GHCR_DIGEST_REF}" | grep -q '@sha256:'; then
+              echo "✓ Using backend build digest ref: ${BACKEND_GHCR_DIGEST_REF}"
               RUN_REF="${BACKEND_DIGEST_REF}"
+              RUN_REF="$(to_ghcr_ref "$RUN_REF")"
             else
               echo "✗ Deploy-by-digest enabled, but build-backend did not export a digest ref"
               exit 1
@@ -1511,6 +1543,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     environment: ${{ inputs.frontend_environment }}
+    permissions:
+      contents: read
+      packages: read
     steps:
       - name: Checkout code
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
@@ -1568,13 +1603,12 @@ jobs:
           set -euo pipefail
 
           BACKEND_HOST="${{ secrets.BACKEND_HOST }}"
-          DO_TOKEN="${{ secrets.DO_ACCESS_TOKEN }}"
           API_BASE_URL="${{ secrets.REACT_APP_API_BASE_URL }}"
           SENTRY_DSN="${{ secrets.SENTRY_DSN }}"
           SENTRY_ENABLED="${{ secrets.SENTRY_ENABLED }}"
           ENVIRONMENT="${{ inputs.environment }}"
           IMAGE_TAG="${{ inputs.environment }}-${{ github.sha }}"
-          REG="${{ env.REGISTRY }}"
+          REG="${{ env.GHCR_REGISTRY }}"
           IMG="${{ env.FRONTEND_IMAGE }}"
           DOMAIN_NAME="${{ secrets.DOMAIN_NAME }}"
           DEPLOY_BY_DIGEST="${{ inputs.deploy_by_digest }}"
@@ -1612,8 +1646,8 @@ jobs:
           
           echo "✓ Runtime config created"
           
-          # Login to registry
-          echo "${DO_TOKEN}" | docker login registry.digitalocean.com -u "${DO_TOKEN}" --password-stdin
+          # Login to registry using the workflow token so env-scoped DOCR overrides cannot break deploys.
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
           echo "✓ Docker login successful"
           
           # Check disk space and cleanup if needed
@@ -1661,13 +1695,20 @@ jobs:
             return 1
           }
 
-          TAG_REF="${FRONTEND_TAG_REF:-$REG/$IMG:$IMAGE_TAG}"
+          to_ghcr_ref() {
+            printf '%s' "$1" | sed "s#^${{ env.REGISTRY }}#${{ env.GHCR_REGISTRY }}#"
+          }
+
+          TAG_REF="${FRONTEND_TAG_REF:-${{ env.REGISTRY }}/$IMG:$IMAGE_TAG}"
           RUN_REF="$TAG_REF"
+          RUN_REF="$(to_ghcr_ref "$RUN_REF")"
 
           if [ "${DEPLOY_BY_DIGEST:-false}" = "true" ]; then
-            if echo "${FRONTEND_DIGEST_REF}" | grep -q '@sha256:'; then
-              echo "✓ Using frontend build digest ref: ${FRONTEND_DIGEST_REF}"
+            FRONTEND_GHCR_DIGEST_REF="$(to_ghcr_ref "${FRONTEND_DIGEST_REF}")"
+            if echo "${FRONTEND_GHCR_DIGEST_REF}" | grep -q '@sha256:'; then
+              echo "✓ Using frontend build digest ref: ${FRONTEND_GHCR_DIGEST_REF}"
               RUN_REF="${FRONTEND_DIGEST_REF}"
+              RUN_REF="$(to_ghcr_ref "$RUN_REF")"
             else
               echo "✗ Deploy-by-digest enabled, but build-frontend did not export a digest ref"
               exit 1
