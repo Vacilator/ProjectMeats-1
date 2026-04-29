@@ -16,6 +16,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { apiClient } from '../services/apiService';
 import { logger } from '@/utils/logger';
+import { withTenantQueryKey } from '@/utils/queryKeys';
 
 export interface WorkFormPermissions {
   can_create: boolean;
@@ -36,7 +37,7 @@ export interface WorkFormPermissions {
  */
 export function useWorkFormPermissions() {
   const query = useQuery<WorkFormPermissions>({
-    queryKey: ['workforms', 'permissions'],
+    queryKey: withTenantQueryKey('workforms', 'permissions'),
     queryFn: async () => {
       logger.debug('[useWorkFormPermissions] Fetching permissions...');
       try {
