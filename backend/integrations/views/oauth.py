@@ -262,6 +262,7 @@ class OAuthCallbackView(APIView):
 
     authentication_classes = []
     permission_classes = [AllowAny]
+    throttle_classes = []
 
     def get(self, request, provider: str):
         # Provider errors come in as query params.

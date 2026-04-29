@@ -2,7 +2,9 @@ from datetime import timedelta
 from types import SimpleNamespace
 
 from django.contrib.auth.models import User
+from django.core.cache import cache
 from django.core import signing
+from django.test import override_settings
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APITestCase
@@ -96,13 +98,38 @@ class EmailSyncTests(APITestCase):
 
 
 class IntegrationsOAuthCallbackPublicTests(APITestCase):
+    def setUp(self):
+        cache.clear()
+
     def test_oauth_callback_allows_anonymous(self):
         resp = self.client.get('/api/v1/integrations/oauth/callback/microsoft/?error=access_denied')
         self.assertEqual(resp.status_code, 302)
 
+    @override_settings(
+        REST_FRAMEWORK={
+            "DEFAULT_THROTTLE_CLASSES": [
+                "rest_framework.throttling.AnonRateThrottle",
+                "rest_framework.throttling.UserRateThrottle",
+            ],
+            "DEFAULT_THROTTLE_RATES": {
+                "anon": "1/minute",
+                "user": "1/minute",
+            },
+        }
+    )
+    def test_oauth_callback_is_exempt_from_global_throttles(self):
+        first = self.client.get('/api/v1/integrations/oauth/callback/microsoft/?error=access_denied')
+        second = self.client.get('/api/v1/integrations/oauth/callback/microsoft/?error=access_denied')
+
+        self.assertEqual(first.status_code, 302)
+        self.assertEqual(second.status_code, 302)
+
 
 class IntegrationsOAuthSecurityTests(APITestCase):
+    OAUTH_STATE_SALT = 'pm.integrations.oauth.state'
+
     def setUp(self):
+        cache.clear()
         self.user = User.objects.create_user(username='oauth-user', password='pass123')
         self.tenant = Tenant.objects.create(
             name='OAuth Tenant',
@@ -123,7 +150,7 @@ class IntegrationsOAuthSecurityTests(APITestCase):
                 'provider': 'microsoft',
                 'nonce': 'n',
             },
-            salt='pm.integrations.oauth.state',
+            salt=self.OAUTH_STATE_SALT,
         )
 
         session = self.client.session
@@ -154,7 +181,7 @@ class IntegrationsOAuthSecurityTests(APITestCase):
                 'provider': 'microsoft',
                 'nonce': 'n',
             },
-            salt='pm.integrations.oauth.state',
+            salt=self.OAUTH_STATE_SALT,
         )
 
         session = self.client.session
@@ -184,7 +211,7 @@ class IntegrationsOAuthSecurityTests(APITestCase):
                 'provider': 'microsoft',
                 'nonce': 'n',
             },
-            salt='pm.integrations.oauth.state',
+            salt=self.OAUTH_STATE_SALT,
         )
 
         token_response = SimpleNamespace(access_token='access', refresh_token='refresh', expires_in=3600)
@@ -232,7 +259,7 @@ class IntegrationsOAuthSecurityTests(APITestCase):
                 'provider': 'microsoft',
                 'nonce': 'n',
             },
-            salt='pm.integrations.oauth.state',
+            salt=self.OAUTH_STATE_SALT,
         )
 
         session = self.client.session

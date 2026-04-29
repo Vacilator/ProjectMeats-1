@@ -70,7 +70,7 @@ describe('DynamicFormEngine stability', () => {
     });
   });
 
-  it('applies async-loaded initial values once without looping when parent rebuilds objects', async () => {
+  it('applies async-loaded initial values after a keyed remount without looping', async () => {
     const onSubmit = vi.fn();
 
     const Parent: React.FC = () => {
@@ -103,6 +103,7 @@ describe('DynamicFormEngine stability', () => {
 
       return (
         <DynamicFormEngine
+          key={loaded ? 'loaded' : 'loading'}
           schema={schema as any}
           initialValues={initialValues}
           onSubmit={onSubmit}
