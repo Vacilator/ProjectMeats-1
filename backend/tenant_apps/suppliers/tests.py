@@ -96,30 +96,59 @@ class SupplierAPITests(APITestCase):
 
     def test_create_supplier_without_tenant(self):
         """
-        Test that creating a supplier without X-Tenant-ID header succeeds when user has TenantUser.
-        
-        With fallback tenant resolution, supplier creation should work via:
-        - X-Tenant-ID header (explicit), OR
-        - Request going through middleware which sets it from user's tenant association, OR
-        - Direct TenantUser query fallback in perform_create
-        
-        In API testing without middleware, the fallback will query TenantUser and auto-assign tenant.
-        This provides a better user experience while maintaining security.
+        Test that a single-membership user still gets the middleware safe default.
+
+        TenantMiddleware may safely resolve the user's only active tenant when
+        there is no ambiguity, so the create should still succeed without an
+        explicit X-Tenant-ID header.
         """
         url = reverse("suppliers:supplier-list")
         data = {
             "name": "Test Supplier",
         }
 
-        # Don't send tenant header - fallback should use user's TenantUser association
+        # Don't send tenant header - middleware should resolve the user's only tenant.
         response = self.client.post(url, data)
 
-        # Should succeed with fallback tenant resolution
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(Supplier.objects.count(), 1)
         supplier = Supplier.objects.first()
         self.assertEqual(supplier.name, "Test Supplier")
-        self.assertEqual(supplier.tenant, self.tenant)  # Auto-assigned from user's TenantUser
+        self.assertEqual(supplier.tenant, self.tenant)
+
+    def test_create_supplier_requires_explicit_tenant_when_multi_membership(self):
+        """Test that ambiguous tenant context fails closed on create."""
+        unique_id = uuid.uuid4().hex[:8]
+        other_tenant = Tenant.objects.create(
+            name=f"Other Company {unique_id}",
+            slug=f"other-company-{unique_id}",
+            contact_email=f"other-{unique_id}@testcompany.com",
+            created_by=self.user,
+        )
+        TenantUser.objects.create(tenant=other_tenant, user=self.user, role="admin", is_active=True)
+
+        url = reverse("suppliers:supplier-list")
+
+        response = self.client.post(url, {"name": "Ambiguous Supplier"})
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(Supplier.objects.count(), 0)
+        self.assertEqual(response.data.get("error"), "Validation failed")
+        self.assertIn(
+            "Tenant context is required to create a supplier. Please ensure you are associated with a tenant.",
+            response.data.get("details", []),
+        )
+
+        response = self.client.post(
+            url,
+            {"name": "Explicit Supplier"},
+            HTTP_X_TENANT_ID=str(other_tenant.id),
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        supplier = Supplier.objects.get()
+        self.assertEqual(supplier.name, "Explicit Supplier")
+        self.assertEqual(supplier.tenant, other_tenant)
         
     def test_create_supplier_without_tenant_and_no_tenant_user(self):
         """Test that creating a supplier fails when user has no TenantUser association."""

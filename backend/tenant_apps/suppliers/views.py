@@ -26,7 +26,6 @@ from django.core.cache import cache
 from tenant_apps.suppliers.models import Supplier
 from tenant_apps.suppliers.serializers import SupplierSerializer
 from apps.core.cache_utils import get_tenant_cache_version, stable_query_hash
-from apps.tenants.models import TenantUser
 import logging
 from django.utils import timezone
 
@@ -126,40 +125,11 @@ class SupplierViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         """
         Set the tenant when creating a new supplier.
-        
-        Tenant Resolution:
-        1. Use request.tenant from TenantMiddleware
-        2. Fallback to user's TenantUser association if middleware didn't set tenant
-        3. Raise ValidationError if no tenant found
-        
-        Args:
-            serializer: Validated serializer instance
-            
-        Raises:
-            ValidationError: If no tenant context is available
+
+        Tenant context must already be resolved by middleware/auth. We do not
+        silently choose a membership when the request is ambiguous.
         """
-        tenant = None
-        
-        # Get tenant from middleware (request.tenant)
-        if hasattr(self.request, 'tenant') and self.request.tenant:
-            tenant = self.request.tenant
-        
-        # Fallback: Query user's TenantUser association if middleware didn't set tenant
-        elif self.request.user and self.request.user.is_authenticated:
-            tenant_user = (
-                TenantUser.objects.filter(user=self.request.user, is_active=True)
-                .select_related('tenant')
-                .order_by('-role')  # Prioritize owner/admin roles
-                .first()
-            )
-            if tenant_user:
-                tenant = tenant_user.tenant
-                logger.debug(
-                    f'Tenant resolved from user association: {tenant.slug} '
-                    f'for user {self.request.user.username}'
-                )
-        
-        # Require tenant - raise error if still not found
+        tenant = getattr(self.request, 'tenant', None)
         if not tenant:
             error_message = 'Tenant context is required to create a supplier. Please ensure you are associated with a tenant.'
             logger.error(
@@ -192,6 +162,13 @@ class SupplierViewSet(viewsets.ModelViewSet):
             # Re-raise DRF validation errors to return 400
             raise
         except ValidationError as e:
+            if hasattr(e, 'message_dict'):
+                details = e.message_dict
+            elif hasattr(e, 'messages'):
+                details = e.messages
+            else:
+                details = [str(e)]
+
             logger.error(
                 f'Validation error creating supplier: {str(e)}',
                 extra={
@@ -201,7 +178,7 @@ class SupplierViewSet(viewsets.ModelViewSet):
                 }
             )
             return Response(
-                {'error': 'Validation failed', 'details': str(e)},
+                {'error': 'Validation failed', 'details': details},
                 status=status.HTTP_400_BAD_REQUEST
             )
         except Exception as e:
