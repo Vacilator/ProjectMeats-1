@@ -1,7 +1,7 @@
 # MASTER_PLAN.md (Canonical)
 
 **Status**: 🔄 Living document (canonical source of truth)  
-**Last Updated**: 2026-04-28  
+**Last Updated**: 2026-04-29  
 **Primary Focus**: Phase 10 (DRY/Canonical Architecture Standardization) - Industry-leader compliance  
 
 This file is the **canonical plan + current truth snapshot**.
@@ -10,7 +10,7 @@ This file is the **canonical plan + current truth snapshot**.
 
 ---
 
-## Current Execution Snapshot (as of 2026-04-28)
+## Current Execution Snapshot (as of 2026-04-29)
 
 ### What is true right now
 - **WorkForms E2E** is shipped end-to-end (execute + monitoring + notifications + Quick Actions + Gmail connector MVP).
@@ -21,6 +21,7 @@ This file is the **canonical plan + current truth snapshot**.
   - Security / tenant isolation: de-shadow duplicate legacy OAuth authorize/callback wiring by locking the app URL aliases to the hardened canonical `/api/v1/integrations/oauth/*` views; preserve `oauth/status` + `oauth/disconnect` behavior with regression coverage (PR #4753).
   - Frontend standards: expand `lint:colors` + remove remaining hardcoded colors in MyTasks surfaces (PR #4650); replace high-churn `console.*` with `logger.*` (PR #4654).
   - Backend tenant safety: fail-closed `current/current_theme/admin_permissions` when tenant context is missing/ambiguous (PR #4656); wrap tenant-scoped Celery ORM in `tenant_rls(..., strict=False)` (PR #4657); remove the last supplier create-time `TenantUser` fallback so ambiguous multi-tenant writes fail closed while single-membership middleware defaults continue to work (PR #4755); and harden the remaining tenant-scoped create/query/restore paths in Locations, Master Products, Deals, Invoices, Claims, and Payment Transactions so they fail closed when tenant context is missing, backed by expanded guardrail coverage (PR #4756).
+  - CI guardrails: align reusable deploy build/migrate/runtime jobs to the exact build-exported image tag/digest refs, make migrations select the final tag-vs-digest ref before pulling, and enforce the topology/wiring/pull-order contract in `validate-workflows.sh` so UAT/Prod digest deploys cannot drift silently again (PR #4757).
   - Mobile: device-safe API base URL + tests (PR #4658); switch builds to EAS (PR #4659).
   - WorkForms editor hot-path stability: derive validation/history/autosave from graph state (PR #32), move node actions out of `nodesWithHandlers` cloning and into editor context (PR #4720), and keep config-panel shadow edits local until Apply/Discard instead of rewriting the full node array on every keystroke (PR #4721).
   - WorkForms execution telemetry foundation: add a tenant-scoped `ExecutionEventLog` model with RLS, persist normalized execution/node/action events from `audit_trail`, and cover successful + failed action spans in backend tests (see `.github/MASTER_PLAN.md` for the shipped PR reference).
@@ -46,7 +47,7 @@ This file is the **canonical plan + current truth snapshot**.
   - WorkForms create must not bypass activation validation when `status=active`. ✅ shipped (runtime validation guardrails in PR #4483; verified by `apps.system.tests.test_workform_runtime_support_validation`).
 - **WorkForms runtime/observability**: editor validation/history/autosave, node action routing, local shadow-state staging, execution telemetry, persisted runtime hydration, and the first operator-facing analytics dashboard are now hardened. This batch adds a dry-run-first schema upgrade command that canonicalizes legacy node aliases, stamps workflow schema version metadata, refreshes `form_references` safely, and closes the fresh-database RLS audit gap on `core_comment` before any deeper model cleanup. Next: deterministic schema init / form "fields" model cleanup and any remaining a11y + theme-token hardening.
 - **CI guardrails (never-miss-again)**:
-  - Deploy-by-digest default for UAT/Prod and digest-align the migration artifact.
+  - Deploy-by-digest default for UAT/Prod and digest-align the migration artifact. ✅ shipped in PR #4757.
   - Manifest-driven required-secret enforcement per lane (remove hardcoded lists).
   - Docs drift prevention: "CURRENT" docs must not recommend forbidden Golden patterns (runner-driven migrations only).
 - **Mobile parity**: ✅ shipped foundations (PRs #4658/#4659). Next: switch-tenant persistence, consistent error normalization, and auth expiry/401 behavior parity.
