@@ -1794,6 +1794,7 @@ Deliverables:
 - **2026-04-29** — Security: remove the last supplier create-time `TenantUser` fallback so ambiguous multi-tenant writes now fail closed unless tenant context is already resolved on the request, while preserving the single-membership middleware default and adding supplier API regression coverage for explicit vs ambiguous create flows. (PR: #4755)
 - **2026-04-29** — Backend tenant safety: harden remaining tenant-scoped create/query/restore paths that still assumed `request.tenant` existed by making Locations, Master Products, Deals, Invoices, Claims, and Payment Transactions fail closed when tenant context is missing, and extend the shared create-guardrail regression suite to cover those viewsets. (PR: #4756)
 - **2026-04-29** — CI: align reusable deploy build/migrate/runtime artifact selection around build-exported tag+digest refs, make migrations pull the final selected ref (tag vs digest) before running, and harden `validate-workflows.sh` so digest defaults, topology, env wiring, and migration pull order are enforced as the golden pipeline contract. (PR: #4757)
+- **2026-04-29** — Security: remove the latent `IsAdminOrReadOnly` permission from `apps/system/views/choice_viewsets.py` so no choice-viewset write path can be reintroduced through `is_staff`, and add a regression that inspects every permission wired into the module’s viewsets and fails if any of them reference `is_staff`. (PR: #4758)
 
 ### Phase 11: The Deal Desk (Trader Ledger Replacement)
 
