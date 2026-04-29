@@ -285,8 +285,8 @@
 
 ### Epic EH-02 - Deferred execution item with EH-05 dependency
 
-- [ ] **EH-02.4 atomic-workflow-collaboration-locks**
-  - **Status:** Ready
+- [x] **EH-02.4 atomic-workflow-collaboration-locks**
+  - **Status:** Done (PR #4785)
   - **Why now:** Current workflow lock semantics are not safe for concurrent multi-node execution.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 12
   - **Scope:** Replace `get` + `set` lock acquisition with an atomic distributed primitive and wire it into runtime/collaboration paths.
@@ -300,7 +300,7 @@
   - **Tenant/RLS impact:** Medium
   - **Secrets/infra impact:** Requires Redis in non-dev semantics
   - **Risk level:** High
-  - **Rollback:** Keep the new lock path behind a feature flag until race tests are stable.
+  - **Rollback:** Revert the guarded lock service + workflow lock actions to restore the prior passive lock behavior while keeping websocket collaboration isolated.
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
 - [ ] **EH-05.2 observability-and-rollback-drill**
