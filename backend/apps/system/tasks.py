@@ -14,6 +14,10 @@ from django.db import connection
 from django.utils import timezone
 
 from apps.system.models import TenantForm
+from apps.system.services.workform_circuit_breaker import (
+    record_workform_execution_failure,
+    record_workform_execution_success,
+)
 from apps.tenants.models import Tenant
 
 logger = logging.getLogger(__name__)
@@ -32,6 +36,13 @@ def _sync_execution_telemetry(execution) -> None:
     from tenant_apps.workflows.services.telemetry import sync_execution_telemetry
 
     sync_execution_telemetry(execution)
+
+
+def _record_execution_circuit_result(*, tenant_id: str, workform_id: str, success: bool | None) -> None:
+    if success is True:
+        record_workform_execution_success(tenant_id=str(tenant_id), workform_id=str(workform_id))
+    elif success is False:
+        record_workform_execution_failure(tenant_id=str(tenant_id), workform_id=str(workform_id))
 
 
 @shared_task(name='system.cleanup_orphaned_forms')
@@ -372,6 +383,11 @@ def execute_workform_execution(self, execution_id: str, tenant_id: str) -> dict:
             execution.completed_at = timezone.now()
             execution.save(update_fields=['status', 'error_message', 'completed_at'])
             _sync_execution_telemetry(execution)
+            _record_execution_circuit_result(
+                tenant_id=str(tenant_id),
+                workform_id=str(workform.id),
+                success=False,
+            )
             return {'success': False, 'execution_id': str(execution.id), 'error': execution.error_message, 'suspended': True}
         except ParallelExecutionRequested as exc:
             plan = exc.plan
@@ -441,6 +457,11 @@ def execute_workform_execution(self, execution_id: str, tenant_id: str) -> dict:
             execution.error_message = str(result.error or '')
         execution.save(update_fields=['status', 'context_data', 'audit_trail', 'error_message', 'completed_at'])
         _sync_execution_telemetry(execution)
+        _record_execution_circuit_result(
+            tenant_id=str(tenant_id),
+            workform_id=str(workform.id),
+            success=bool(result.success),
+        )
 
         return {'success': bool(result.success), 'execution_id': str(execution.id), 'error': result.error}
     except Exception as exc:  # noqa: BLE001
@@ -450,6 +471,11 @@ def execute_workform_execution(self, execution_id: str, tenant_id: str) -> dict:
             execution.completed_at = timezone.now()
             execution.save(update_fields=['status', 'error_message', 'completed_at'])
             _sync_execution_telemetry(execution)
+            _record_execution_circuit_result(
+                tenant_id=str(tenant_id),
+                workform_id=str(execution.workform_id),
+                success=False,
+            )
         return {'success': False, 'execution_id': str(execution_id), 'error': str(exc)}
     finally:
         _reset_rls_session_vars()
@@ -630,6 +656,11 @@ def continue_workform_after_parallel(
             execution.completed_at = timezone.now()
             execution.save(update_fields=['status', 'error_message', 'context_data', 'audit_trail', 'completed_at'])
             _sync_execution_telemetry(execution)
+            _record_execution_circuit_result(
+                tenant_id=str(tenant_id),
+                workform_id=str(workform.id),
+                success=False,
+            )
             return {'success': False, 'execution_id': str(execution.id), 'error': execution.error_message, 'suspended': True}
 
         if any_failed and str(error_strategy) == 'stop':
@@ -648,6 +679,11 @@ def continue_workform_after_parallel(
                 execution.completed_at = timezone.now()
                 execution.save(update_fields=['status', 'context_data', 'audit_trail', 'error_message', 'completed_at'])
                 _sync_execution_telemetry(execution)
+                _record_execution_circuit_result(
+                    tenant_id=str(tenant_id),
+                    workform_id=str(workform.id),
+                    success=bool(result.success),
+                )
                 return {'success': bool(result.success), 'execution_id': str(execution.id), 'error': result.error}
 
             execution.status = TenantWorkFormExecutionStatus.FAILED
@@ -657,6 +693,11 @@ def continue_workform_after_parallel(
             execution.completed_at = timezone.now()
             execution.save(update_fields=['status', 'error_message', 'context_data', 'audit_trail', 'completed_at'])
             _sync_execution_telemetry(execution)
+            _record_execution_circuit_result(
+                tenant_id=str(tenant_id),
+                workform_id=str(workform.id),
+                success=False,
+            )
             return {'success': False, 'execution_id': str(execution.id), 'error': execution.error_message}
 
         if join_node_id:
@@ -677,6 +718,11 @@ def continue_workform_after_parallel(
             execution.completed_at = timezone.now()
             execution.save(update_fields=['status', 'context_data', 'audit_trail', 'error_message', 'completed_at'])
             _sync_execution_telemetry(execution)
+            _record_execution_circuit_result(
+                tenant_id=str(tenant_id),
+                workform_id=str(workform.id),
+                success=bool(result.success),
+            )
             return {'success': bool(result.success), 'execution_id': str(execution.id), 'error': result.error}
 
         execution.context_data = ctx
@@ -686,6 +732,11 @@ def continue_workform_after_parallel(
         execution.error_message = 'Parallel branch failed' if any_failed else ''
         execution.save(update_fields=['status', 'context_data', 'audit_trail', 'error_message', 'completed_at'])
         _sync_execution_telemetry(execution)
+        _record_execution_circuit_result(
+            tenant_id=str(tenant_id),
+            workform_id=str(workform.id),
+            success=not any_failed,
+        )
         return {'success': not any_failed, 'execution_id': str(execution.id), 'error': execution.error_message}
     finally:
         _reset_rls_session_vars()

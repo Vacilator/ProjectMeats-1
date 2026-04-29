@@ -15,6 +15,7 @@ type ErrorWithResponse = {
     status?: number;
     data?: any;
   };
+  code?: string;
   message?: string;
 };
 
@@ -55,6 +56,27 @@ function getBackendMessage(error: unknown): string | undefined {
   return candidates[0];
 }
 
+function getBackendCode(error: unknown): string | undefined {
+  if (error instanceof ApiServiceError) {
+    const data = error.responseData as any;
+    const candidates = [
+      typeof data?.code === 'string' ? data.code : undefined,
+      typeof data?.error_code === 'string' ? data.error_code : undefined,
+    ].filter(Boolean) as string[];
+
+    return candidates[0];
+  }
+
+  const e = error as ErrorWithResponse | null;
+  const data = e?.response?.data;
+  const candidates = [
+    typeof data?.code === 'string' ? data.code : undefined,
+    typeof data?.error_code === 'string' ? data.error_code : undefined,
+  ].filter(Boolean) as string[];
+
+  return candidates[0];
+}
+
 function isOfflineLike(error: unknown): boolean {
   const msg = getBackendMessage(error);
   if (!msg) return false;
@@ -78,6 +100,7 @@ export function getWorkformsErrorUi(
   context: WorkformsErrorContext
 ): { title: string; message: string } {
   const status = getHttpStatus(error);
+  const code = getBackendCode(error);
 
   if (status === 401) {
     return { title: 'Please sign in', message: 'Your session has expired. Sign in to continue.' };
@@ -99,6 +122,22 @@ export function getWorkformsErrorUi(
     return {
       title: 'Not found',
       message: messageByContext[context] ?? 'This item could not be found. It may have been deleted or you may not have access.',
+    };
+  }
+
+  if (status === 503 && code === 'CIRCUIT_BREAKER') {
+    if (context === 'execute.start') {
+      return {
+        title: 'Workflow temporarily paused',
+        message:
+          'This workflow is currently paused due to recent failures. Our system is preventing further executions until the issue is resolved. Please try again shortly.',
+      };
+    }
+
+    return {
+      title: 'Service temporarily unavailable',
+      message:
+        'This workflow service is temporarily paused due to recent failures. Please try again shortly.',
     };
   }
 
