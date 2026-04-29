@@ -10,7 +10,7 @@ import uuid
 from datetime import timedelta
 
 from django.conf import settings
-from django.db import connection, models
+from django.db import DatabaseError, ProgrammingError, connection, models, transaction
 from django.db.models import Avg
 from django.db.models.functions import TruncDate
 from django.utils import timezone
@@ -24,6 +24,7 @@ from rest_framework.throttling import AnonRateThrottle, ScopedRateThrottle, User
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from apps.core.services.idempotency import get_idempotency_key, release_idempotency_key, reserve_idempotency_key, store_idempotency_response
 from .models import AIDocument, AIFeedbackLog, ChatMessage, ChatSession, MessageTypeChoices
 from .serializers import (
     AIDocumentSerializer,
@@ -514,11 +515,64 @@ class AIDocumentViewSet(viewsets.ModelViewSet):
 
         return qs
 
-    def perform_create(self, serializer):
-        from django.db import transaction
-        from django.db.utils import DatabaseError, ProgrammingError
-        from rest_framework.exceptions import ValidationError
+    def create(self, request, *args, **kwargs):
+        tenant = getattr(request, 'tenant', None)
+        if not tenant:
+            raise ValidationError('Tenant context required.')
 
+        tenant_id = str(getattr(tenant, 'id', '') or '')
+        if tenant_id and connection.vendor == 'postgresql':
+            from apps.tenants.rls import set_current_tenant
+
+            rls = set_current_tenant(tenant_id)
+            if not rls.ok:
+                logger.warning(
+                    'AIDocument upload: failed to assert RLS session vars tenant=%s err=%s',
+                    tenant_id,
+                    rls.error,
+                    exc_info=True,
+                )
+                raise ValidationError('Tenant context unavailable.')
+
+        reservation = None
+        idempotency_key = get_idempotency_key(request)
+        if idempotency_key:
+            reservation = reserve_idempotency_key(
+                tenant=tenant,
+                idempotency_key=idempotency_key,
+                method=request.method,
+                path=request.path,
+                payload=request.data,
+                actor=request.user,
+            )
+            if reservation.response is not None:
+                return reservation.response
+
+        serializer = self.get_serializer(data=request.data)
+        instance = None
+        try:
+            serializer.is_valid(raise_exception=True)
+            with transaction.atomic():
+                instance = self.perform_create(serializer)
+                response_data = self.get_serializer(instance).data
+                headers = self.get_success_headers(response_data)
+                if reservation and reservation.record is not None:
+                    store_idempotency_response(
+                        record=reservation.record,
+                        response=Response(response_data, status=status.HTTP_201_CREATED),
+                    )
+        except Exception:
+            if instance is not None and getattr(instance, 'file', None):
+                file_name = getattr(instance.file, 'name', '')
+                if file_name:
+                    instance.file.storage.delete(file_name)
+            if reservation and reservation.record is not None:
+                release_idempotency_key(record=reservation.record)
+            raise
+
+        return Response(response_data, status=status.HTTP_201_CREATED, headers=headers)
+
+    def perform_create(self, serializer):
         tenant = getattr(self.request, 'tenant', None)
         if not tenant:
             raise ValidationError('Tenant context required.')
@@ -528,29 +582,28 @@ class AIDocumentViewSet(viewsets.ModelViewSet):
         try:
             from apps.tenants.rls import set_current_tenant
 
-            with transaction.atomic():
-                # Defense-in-depth: assert RLS vars on the active connection inside the write transaction.
-                if tenant_id:
-                    rls = set_current_tenant(tenant_id)
-                    if not rls.ok:
-                        logger.warning(
-                            'AIDocument upload: failed to assert RLS session vars tenant=%s err=%s',
-                            tenant_id,
-                            rls.error,
-                            exc_info=True,
-                        )
+            # Defense-in-depth: assert RLS vars on the active connection inside the write transaction.
+            if tenant_id:
+                rls = set_current_tenant(tenant_id)
+                if not rls.ok:
+                    logger.warning(
+                        'AIDocument upload: failed to assert RLS session vars tenant=%s err=%s',
+                        tenant_id,
+                        rls.error,
+                        exc_info=True,
+                    )
 
-                instance = serializer.save(
-                    tenant=tenant,
-                    owner=self.request.user,
-                    original_filename=getattr(self.request.FILES.get('file'), 'name', ''),
-                    content_type=getattr(self.request.FILES.get('file'), 'content_type', '') or '',
-                    file_size=getattr(self.request.FILES.get('file'), 'size', 0) or 0,
-                    custom_data={
-                        'source': 'manual_upload',
-                        'uploaded_at': timezone.now().isoformat(),
-                    },
-                )
+            instance = serializer.save(
+                tenant=tenant,
+                owner=self.request.user,
+                original_filename=getattr(self.request.FILES.get('file'), 'name', ''),
+                content_type=getattr(self.request.FILES.get('file'), 'content_type', '') or '',
+                file_size=getattr(self.request.FILES.get('file'), 'size', 0) or 0,
+                custom_data={
+                    'source': 'manual_upload',
+                    'uploaded_at': timezone.now().isoformat(),
+                },
+            )
         except ValidationError:
             raise
         except OSError as e:
@@ -599,7 +652,12 @@ class AIDocumentViewSet(viewsets.ModelViewSet):
                     modified_by=self.request.user,
                 )
             except Exception:
-                pass
+                file_name = getattr(instance.file, 'name', '')
+                if file_name:
+                    instance.file.storage.delete(file_name)
+                raise
+
+        return instance
 
 
 class SwarmToolsOpenAPIView(APIView):

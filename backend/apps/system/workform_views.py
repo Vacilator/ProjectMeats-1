@@ -29,8 +29,9 @@ from apps.system.workform_serializers import (
     WorkFormCloneSerializer,
 )
 from apps.core.services.idempotency import (
-    release_idempotency_key,
+    get_idempotency_key,
     reserve_idempotency_key,
+    release_idempotency_key,
     store_idempotency_response,
 )
 from apps.system.services.workform_circuit_breaker import get_workform_circuit_state
@@ -565,9 +566,6 @@ class TenantWorkFormViewSet(viewsets.ModelViewSet):
 
         initial_data = request.data.get('initial_data') if isinstance(request.data, dict) else None
         initial_data = initial_data if isinstance(initial_data, dict) else {}
-        idempotency_key = ''
-        if hasattr(request, 'headers'):
-            idempotency_key = (request.headers.get('Idempotency-Key') or '').strip()
 
         from apps.tenants.rls import set_current_tenant
         from tenant_apps.workflows.models import TenantWorkFormExecution, TenantWorkFormExecutionStatus
@@ -578,7 +576,7 @@ class TenantWorkFormViewSet(viewsets.ModelViewSet):
             logger.warning('RLS: failed to set session vars for tenant=%s: %s', tenant.id, rls.error)
             return Response({"error": "Tenant context unavailable"}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
 
-        reservation = None
+        idempotency_key = get_idempotency_key(request)
         if idempotency_key:
             reservation = reserve_idempotency_key(
                 tenant=tenant,
@@ -586,9 +584,12 @@ class TenantWorkFormViewSet(viewsets.ModelViewSet):
                 method=request.method,
                 path=request.path,
                 payload={'initial_data': initial_data},
+                actor=request.user,
             )
             if reservation.response is not None:
                 return reservation.response
+        else:
+            reservation = None
 
         try:
             with transaction.atomic():
@@ -601,23 +602,54 @@ class TenantWorkFormViewSet(viewsets.ModelViewSet):
                     started_at=timezone.now(),
                 )
 
-                from apps.system.tasks import execute_workform_execution
+                response_data = {
+                    'id': str(execution.id),
+                    'workform_id': str(workform.id),
+                    'workform_name': workform.name,
+                    'status': execution.status,
+                    'started_at': execution.started_at.isoformat().replace('+00:00', 'Z') if execution.started_at else None,
+                    'completed_at': None,
+                    'error_message': '',
+                }
 
-                execute_workform_execution.delay(execution_id=str(execution.id), tenant_id=str(tenant.id))
+                from apps.system.tasks import execute_workform_execution
                 response = Response(
-                    {
-                        'id': str(execution.id),
-                        'workform_id': str(workform.id),
-                        'workform_name': workform.name,
-                        'status': execution.status,
-                        'started_at': execution.started_at,
-                        'completed_at': None,
-                        'error_message': '',
-                    },
+                    response_data,
                     status=status.HTTP_202_ACCEPTED,
                 )
-                if reservation and reservation.record is not None:
-                    store_idempotency_response(record=reservation.record, response=response)
+
+                def _enqueue_execution() -> None:
+                    try:
+                        execute_workform_execution.delay(execution_id=str(execution.id), tenant_id=str(tenant.id))
+                        if reservation and reservation.record is not None:
+                            rls = set_current_tenant(str(tenant.id))
+                            if not rls.ok:
+                                logger.warning(
+                                    'RLS: failed to restore session vars while storing idempotency response for tenant=%s: %s',
+                                    tenant.id,
+                                    rls.error,
+                                )
+                            else:
+                                store_idempotency_response(record=reservation.record, response=response)
+                    except Exception:
+                        logger.exception('Failed to publish workform execution task for %s', execution.id)
+                        rls = set_current_tenant(str(tenant.id))
+                        if not rls.ok:
+                            logger.warning(
+                                'RLS: failed to restore session vars while marking enqueue failure for tenant=%s: %s',
+                                tenant.id,
+                                rls.error,
+                            )
+                            return
+                        if reservation and reservation.record is not None:
+                            release_idempotency_key(record=reservation.record)
+                        TenantWorkFormExecution.objects.filter(id=execution.id).update(
+                            status=TenantWorkFormExecutionStatus.FAILED,
+                            completed_at=timezone.now(),
+                            error_message='Failed to enqueue workform execution task.',
+                        )
+
+                transaction.on_commit(_enqueue_execution)
         except Exception as e:
             if reservation and reservation.record is not None:
                 release_idempotency_key(record=reservation.record)
@@ -626,8 +658,7 @@ class TenantWorkFormViewSet(viewsets.ModelViewSet):
                 {"error": "Execution service unavailable"},
                 status=status.HTTP_503_SERVICE_UNAVAILABLE,
             )
-
-        return response
+        return Response(response_data, status=status.HTTP_202_ACCEPTED)
 
     @action(detail=True, methods=['post'])
     def clone(self, request, pk=None):
