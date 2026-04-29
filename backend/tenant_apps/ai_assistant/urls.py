@@ -10,10 +10,13 @@ from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 
 from .views import (
+    AIApprovalViewSet,
     AIDocumentViewSet,
     AIFeedbackViewSet,
     AIAgentChatView,
     AILearningMetricsAPIView,
+    AIRunViewSet,
+    AITaskViewSet,
     ChatBotAPIViewSet,
     ChatMessageViewSet,
     ChatSessionViewSet,
@@ -30,6 +33,9 @@ router = DefaultRouter()
 
 # Clean router resources
 router.register(r'feedback', AIFeedbackViewSet, basename='ai-feedback')
+router.register(r'runs', AIRunViewSet, basename='ai-run')
+router.register(r'tasks', AITaskViewSet, basename='ai-task')
+router.register(r'approvals', AIApprovalViewSet, basename='ai-approval')
 
 # Legacy router resources (keep existing clients working)
 router.register(r'ai-sessions', ChatSessionViewSet, basename='ai-session')

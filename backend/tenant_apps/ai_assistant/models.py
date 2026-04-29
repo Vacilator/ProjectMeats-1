@@ -469,3 +469,169 @@ class CommunicationLog(TenantAwareModel):
             models.Index(fields=['tenant', 'status', 'created_on'], name='ai_comms_tenant_status_idx'),
             models.Index(fields=['tenant', 'entity_type', 'created_on'], name='ai_comms_tenant_entity_idx'),
         ]
+
+
+class AIRunStatus(models.TextChoices):
+    PENDING = 'pending', 'Pending'
+    RUNNING = 'running', 'Running'
+    APPROVAL_REQUIRED = 'approval_required', 'Approval Required'
+    COMPLETED = 'completed', 'Completed'
+    FAILED = 'failed', 'Failed'
+    DENIED = 'denied', 'Denied'
+
+
+class AITaskStatus(models.TextChoices):
+    PENDING = 'pending', 'Pending'
+    RUNNING = 'running', 'Running'
+    APPROVAL_REQUIRED = 'approval_required', 'Approval Required'
+    COMPLETED = 'completed', 'Completed'
+    FAILED = 'failed', 'Failed'
+    DENIED = 'denied', 'Denied'
+
+
+class AIApprovalStatus(models.TextChoices):
+    PENDING = 'pending', 'Pending'
+    APPROVED = 'approved', 'Approved'
+    DENIED = 'denied', 'Denied'
+    EXPIRED = 'expired', 'Expired'
+
+
+class AIRun(TenantAwareModel):
+    """Persist one governed AI execution run for a tenant-scoped request."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    session = models.ForeignKey(
+        ChatSession,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='ai_runs',
+    )
+    requested_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='ai_runs_requested',
+    )
+    source = models.CharField(max_length=32, default='chat')
+    event_type = models.CharField(max_length=32, default='user_chat')
+    status = models.CharField(max_length=32, choices=AIRunStatus.choices, default=AIRunStatus.PENDING)
+    correlation_id = models.CharField(max_length=128, blank=True, default='')
+    intent = models.CharField(max_length=128, blank=True, default='')
+    user_message = models.TextField(blank=True, default='')
+    response_text = models.TextField(blank=True, default='')
+    request_payload = models.JSONField(default=dict, blank=True)
+    response_payload = models.JSONField(default=dict, blank=True)
+    error_message = models.TextField(blank=True, default='')
+    approval_required_at = models.DateTimeField(null=True, blank=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        db_table = 'ai_assistant_runs'
+        verbose_name = 'AI Run'
+        verbose_name_plural = 'AI Runs'
+        indexes = [
+            models.Index(fields=['tenant', 'status', 'created_on'], name='ai_run_tenant_status_idx'),
+            models.Index(fields=['tenant', 'requested_by', 'created_on'], name='ai_run_tenant_user_idx'),
+            models.Index(fields=['tenant', 'session', 'created_on'], name='ai_run_tenant_session_idx'),
+        ]
+
+    def __str__(self):
+        return f"AI Run {self.id} ({self.status})"
+
+
+class AITask(TenantAwareModel):
+    """Persist one tool step executed or staged within an AI run."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    run = models.ForeignKey(
+        AIRun,
+        on_delete=models.CASCADE,
+        related_name='tasks',
+    )
+    requested_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='ai_tasks_requested',
+    )
+    tool_name = models.CharField(max_length=128)
+    sequence = models.PositiveIntegerField(default=1)
+    status = models.CharField(max_length=32, choices=AITaskStatus.choices, default=AITaskStatus.PENDING)
+    requires_approval = models.BooleanField(default=False)
+    approval_requested_at = models.DateTimeField(null=True, blank=True)
+    executed_at = models.DateTimeField(null=True, blank=True)
+    resolved_at = models.DateTimeField(null=True, blank=True)
+    input_payload = models.JSONField(default=dict, blank=True)
+    output_payload = models.JSONField(default=dict, blank=True)
+    error_message = models.TextField(blank=True, default='')
+    target_entity_type = models.CharField(max_length=64, blank=True, default='')
+    target_entity_id = models.CharField(max_length=64, blank=True, default='')
+
+    class Meta:
+        db_table = 'ai_assistant_tasks'
+        verbose_name = 'AI Task'
+        verbose_name_plural = 'AI Tasks'
+        constraints = [
+            models.UniqueConstraint(fields=['run', 'sequence'], name='unique_ai_task_sequence_per_run'),
+        ]
+        indexes = [
+            models.Index(fields=['tenant', 'status', 'created_on'], name='ai_task_tenant_status_idx'),
+            models.Index(fields=['tenant', 'run', 'sequence'], name='ai_task_tenant_run_idx'),
+            models.Index(fields=['tenant', 'tool_name', 'created_on'], name='ai_task_tenant_tool_idx'),
+        ]
+
+    def __str__(self):
+        return f"{self.tool_name} ({self.status})"
+
+
+class AIApproval(TenantAwareModel):
+    """Persist a human approval record for a governed AI task."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    run = models.ForeignKey(
+        AIRun,
+        on_delete=models.CASCADE,
+        related_name='approvals',
+    )
+    task = models.OneToOneField(
+        AITask,
+        on_delete=models.CASCADE,
+        related_name='approval',
+    )
+    requested_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='ai_approvals_requested',
+    )
+    resolved_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='ai_approvals_resolved',
+    )
+    tool_name = models.CharField(max_length=128)
+    status = models.CharField(max_length=32, choices=AIApprovalStatus.choices, default=AIApprovalStatus.PENDING)
+    request_payload = models.JSONField(default=dict, blank=True)
+    response_payload = models.JSONField(default=dict, blank=True)
+    resolution_note = models.TextField(blank=True, default='')
+    expires_at = models.DateTimeField(null=True, blank=True)
+    resolved_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        db_table = 'ai_assistant_approvals'
+        verbose_name = 'AI Approval'
+        verbose_name_plural = 'AI Approvals'
+        indexes = [
+            models.Index(fields=['tenant', 'status', 'created_on'], name='ai_appr_tenant_status_idx'),
+            models.Index(fields=['tenant', 'requested_by', 'created_on'], name='ai_appr_tenant_user_idx'),
+            models.Index(fields=['tenant', 'tool_name', 'created_on'], name='ai_appr_tenant_tool_idx'),
+        ]
+
+    def __str__(self):
+        return f"{self.tool_name} approval ({self.status})"

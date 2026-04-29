@@ -325,18 +325,18 @@
 
 ### Epic EH-06 - AI autonomy platform
 
-- [ ] **EH-06.1 autonomous-control-plane-foundation**
-  - **Status:** Blocked
+- [x] **EH-06.1 autonomous-control-plane-foundation**
+  - **Status:** Done - merged via PR #4789
   - **Why now:** AI tooling is still scaffolded; autonomy must be persisted and governed before it can scale.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 13
-  - **Scope:** Add persisted AI run/task/approval models and the first governed execution flow.
-  - **Non-goals:** No autonomous write actions without approval.
+  - **Scope:** Add persisted AI run/task/approval models, tenant-scoped query/approval endpoints, and the first governed execution flow.
+  - **Non-goals:** Broad approval support for every mutating tool; this batch governs `draft_vendor_email` first.
   - **Primary domain:** backend/AI
-  - **Likely touched paths:** `backend/tenant_apps/ai_assistant/models.py`, `backend/tenant_apps/ai_assistant/views.py`, `backend/tenant_apps/ai_assistant/swarm/router.py`, new migrations/tests
+  - **Likely touched paths:** `backend/tenant_apps/ai_assistant/models.py`, `backend/tenant_apps/ai_assistant/serializers.py`, `backend/tenant_apps/ai_assistant/views.py`, `backend/tenant_apps/ai_assistant/urls.py`, `backend/tenant_apps/ai_assistant/swarm/router.py`, `backend/tenant_apps/ai_assistant/swarm/executor.py`, `backend/tenant_apps/ai_assistant/migrations/0017_airun_aitask_aiapproval_and_more.py`, `backend/tenant_apps/ai_assistant/tests.py`, `manifests/openapi/openapi-schema.baseline.json`
   - **Dependencies:** EH-02.3, EH-05.2
-  - **Blockers:** EH-02.3 and EH-05.2
-  - **Acceptance criteria:** AI runs are tenant-native, persisted, approval-aware, and queryable.
-  - **Validation commands:** `cd backend && python manage.py test tenant_apps.ai_assistant apps.core.tests.test_viewset_permissions apps.core.tests.test_audit_rls_compliance`
+  - **Blockers:** None
+  - **Acceptance criteria:** AI runs/tasks/approvals are tenant-native, persisted, approval-aware, queryable, and `draft_vendor_email` stays pending until an owner/admin approves it.
+  - **Validation commands:** `cd backend && python manage.py test tenant_apps.ai_assistant apps.core.tests.test_viewset_permissions apps.core.tests.test_audit_rls_compliance --noinput`; `cd backend && python manage.py makemigrations --check --noinput`; `cd backend && python manage.py migrate --plan`; `cd backend && python manage.py spectacular --validate --format openapi-json --file /tmp/projectmeats-eh06-openapi.json`; `python scripts/check_openapi_backcompat.py --baseline manifests/openapi/openapi-schema.baseline.json --candidate /tmp/projectmeats-eh06-openapi.json`
   - **Tenant/RLS impact:** High
   - **Secrets/infra impact:** Medium
   - **Risk level:** High
