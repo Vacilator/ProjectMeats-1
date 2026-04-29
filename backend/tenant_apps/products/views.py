@@ -16,6 +16,7 @@ using the same visibility rules as the canonical endpoint.
 import logging
 
 from rest_framework import permissions, viewsets
+from rest_framework.exceptions import ValidationError as DRFValidationError
 
 from apps.system.views.product_viewset import SystemProductViewSet
 
@@ -39,10 +40,18 @@ class MasterProductViewSet(viewsets.ModelViewSet):
     serializer_class = ProductSerializer
 
     def get_queryset(self):
-        return MasterProduct.objects.filter(tenant=self.request.tenant).order_by('display_name')
+        tenant = getattr(self.request, 'tenant', None)
+        if not tenant:
+            return MasterProduct.objects.none()
+
+        return MasterProduct.objects.filter(tenant=tenant).order_by('display_name')
 
     def perform_create(self, serializer):
-        serializer.save(tenant=self.request.tenant)
+        tenant = getattr(self.request, 'tenant', None)
+        if not tenant:
+            raise DRFValidationError('Tenant context is required to create a product.')
+
+        serializer.save(tenant=tenant)
 
 
 class ProductViewSet(SystemProductViewSet):
