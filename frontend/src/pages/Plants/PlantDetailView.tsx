@@ -1,9 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Button, Card, Empty, Spin, Tabs, Tag } from 'antd';
+import { Alert, Button, Card, Empty, Spin, Tabs, Tag } from 'antd';
 import { useNavigate, useParams } from 'react-router-dom';
 
 import { EntityFormSurface } from '@/components/Shared';
+import { useAuthState } from '@/contexts/AuthContext';
 import { apiClient } from '@/services/apiService';
+import { isAuthError } from '@/utils/isAuthError';
 
 type RouteParams = { id?: string };
 
@@ -86,18 +88,31 @@ const renderContact = (c: ContactRow) => {
 export const PlantDetailView: React.FC = () => {
   const navigate = useNavigate();
   const { id } = useParams<RouteParams>();
+  const { loading: authLoading, isAuthenticated } = useAuthState();
 
   const plantId = String(id || '').trim();
 
   const [loadingContacts, setLoadingContacts] = useState(false);
   const [contacts, setContacts] = useState<ContactRow[]>([]);
+  const [contactsError, setContactsError] = useState<string | null>(null);
+  const [authError, setAuthError] = useState(false);
 
   useEffect(() => {
+    if (authLoading) return;
     if (!plantId) return;
+    if (!isAuthenticated) {
+      setAuthError(true);
+      setLoadingContacts(false);
+      setContacts([]);
+      setContactsError(null);
+      return;
+    }
 
     let mounted = true;
     const load = async () => {
       setLoadingContacts(true);
+      setAuthError(false);
+      setContactsError(null);
       try {
         const resp = await apiClient.get('contacts/', {
           params: { plant: plantId, page_size: 200, limit: 200 },
@@ -109,6 +124,15 @@ export const PlantDetailView: React.FC = () => {
           .filter((r) => r && typeof r === 'object')
           .map((r) => r as ContactRow);
         if (mounted) setContacts(next);
+      } catch (error: unknown) {
+        if (!mounted) return;
+        if (isAuthError(error)) {
+          setAuthError(true);
+          setContacts([]);
+          setContactsError(null);
+          return;
+        }
+        setContactsError('Failed to load plant contacts.');
       } finally {
         if (mounted) setLoadingContacts(false);
       }
@@ -118,7 +142,7 @@ export const PlantDetailView: React.FC = () => {
     return () => {
       mounted = false;
     };
-  }, [plantId]);
+  }, [authLoading, isAuthenticated, plantId]);
 
   const grouped = useMemo(() => {
     const buckets: Record<string, ContactRow[]> = {
@@ -135,6 +159,8 @@ export const PlantDetailView: React.FC = () => {
     return buckets;
   }, [contacts]);
 
+  const showAuthFallback = !authLoading && (!isAuthenticated || authError);
+
   return (
     <div style={{ padding: 16 }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
@@ -145,21 +171,32 @@ export const PlantDetailView: React.FC = () => {
       </div>
 
       <div style={{ marginTop: 12 }}>
-        <EntityFormSurface
-          entityType="plant"
-          mode="view"
-          variant="inline"
-          isOpen={true}
-          entityId={plantId}
-          onClose={() => navigate('/suppliers')}
-        />
+        {!showAuthFallback && (
+          <EntityFormSurface
+            entityType="plant"
+            mode="view"
+            variant="inline"
+            isOpen={true}
+            entityId={plantId}
+            onClose={() => navigate('/suppliers')}
+          />
+        )}
       </div>
 
       <Card style={{ marginTop: 16 }} title="Contacts">
-        {loadingContacts ? (
+        {authLoading || loadingContacts ? (
           <div style={{ padding: 12 }}>
             <Spin />
           </div>
+        ) : showAuthFallback ? (
+          <Alert
+            type="warning"
+            showIcon
+            title="Authentication required"
+            description="Your session expired while loading this plant. Please sign in again."
+          />
+        ) : contactsError ? (
+          <Alert type="error" showIcon title={contactsError} />
         ) : (
           <Tabs
             items={[

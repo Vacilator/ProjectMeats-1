@@ -795,7 +795,7 @@ jobs:
           MAX_ATTEMPTS=3
           ATTEMPT=1
           
-          while [ $ATTEMPT -le $MAX_ATTEMPTS ]; do
+          while [ "$ATTEMPT" -le "$MAX_ATTEMPTS" ]; do
             echo "Connection attempt $ATTEMPT/$MAX_ATTEMPTS..."
             
             # Use connection timeout to fail fast (10 seconds)
@@ -818,7 +818,7 @@ jobs:
           echo ""
           echo "✗ Failed to connect to database after $MAX_ATTEMPTS attempts"
           echo "Tunnel status:"
-          ps aux | grep ssh | grep -v grep | grep 5433 || echo "No tunnel process found"
+          pgrep -af 'ssh.*5433' || echo "No tunnel process found"
           echo "Port status:"
           netstat -an | grep 5433 || echo "Port 5433 not in use"
           exit 1
@@ -880,10 +880,10 @@ jobs:
             "set -euo pipefail; \
               test -s '$REMOTE_PATH'; \
               BYTES=\$(stat -c%s '$REMOTE_PATH'); \
-              echo '✓ Backup created:' '$REMOTE_PATH' 'size='\"\$BYTES\"' bytes'; \
+              echo \"✓ Backup created: $REMOTE_PATH size=\$BYTES bytes\"; \
               if [ \"\$BYTES\" -lt 10240 ]; then echo '✗ Backup too small (<10KB) - refusing to migrate'; exit 1; fi; \
               ls -1t '$BACKUP_DIR'/pgdump_${ENVIRONMENT}_*.dump 2>/dev/null | tail -n +\$((KEEP_COUNT + 1)) | xargs -r rm -f; \
-              echo '✓ Retention enforced (kept last '"$KEEP_COUNT"')'"
+              echo \"✓ Retention enforced (kept last $KEEP_COUNT)\""
 
       - name: Run migrations via Docker with tunnel
         env:

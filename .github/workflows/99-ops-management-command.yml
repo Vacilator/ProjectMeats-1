@@ -89,7 +89,7 @@ jobs:
           echo "🌍 Environment: ${{ inputs.environment }}-backend"
 
           # SAFETY CHECK: Strip 'python manage.py' if user accidentally included it
-          CLEAN_CMD=$(echo "$CMD" | sed 's/^python manage.py //')
+          CLEAN_CMD="${CMD#python manage.py }"
 
           if [ "$CMD" != "$CLEAN_CMD" ]; then
             echo "⚠️  Auto-corrected command input (removed redundant prefix)"
@@ -139,14 +139,14 @@ jobs:
 
           echo "📦 Injecting environment variables into container..."
 
-          SSH_OPTS="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
+          SSH_OPTS=(-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null)
 
           if [ -n "${SSH_KEY:-}" ]; then
             KEY_FILE="$HOME/.ssh/ops_key"
             printf '%s\n' "$SSH_KEY" > "$KEY_FILE"
             chmod 600 "$KEY_FILE"
 
-            ssh -i "$KEY_FILE" -o IdentitiesOnly=yes $SSH_OPTS "$USER@$HOST" \
+            ssh -i "$KEY_FILE" -o IdentitiesOnly=yes "${SSH_OPTS[@]}" "$USER@$HOST" \
               "docker exec $ENV_VARS pm-backend python manage.py $CLEAN_CMD"
           else
             if [ -z "${SSHPASS:-}" ]; then
@@ -154,6 +154,6 @@ jobs:
               exit 1
             fi
 
-            sshpass -e ssh $SSH_OPTS "$USER@$HOST" \
+            sshpass -e ssh "${SSH_OPTS[@]}" "$USER@$HOST" \
               "docker exec $ENV_VARS pm-backend python manage.py $CLEAN_CMD"
           fi
