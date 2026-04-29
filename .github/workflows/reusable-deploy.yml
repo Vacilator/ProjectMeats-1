@@ -714,33 +714,21 @@ jobs:
           DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
           DJANGO_SECRET_KEY: ${{ secrets.DJANGO_SECRET_KEY }}
           DJANGO_SETTINGS_MODULE: ${{ secrets.DJANGO_SETTINGS_MODULE }}
-          ALLOWED_HOSTS: ${{ secrets.ALLOWED_HOSTS }}
         run: |
           set -euo pipefail
 
+          required_secrets="$(python config/manage_env.py required-secrets \
+            --workflow reusable-deploy.yml \
+            --environment "${{ inputs.backend_environment }}")"
           missing=()
-          check() {
-            local name="$1"
-            local value="$2"
-            if [ -z "$value" ]; then
+          while IFS= read -r name; do
+            if [ -n "$name" ] && [ -z "${!name:-}" ]; then
               missing+=("$name")
             fi
-          }
-
-          check DO_ACCESS_TOKEN "$DO_ACCESS_TOKEN"
-          check SSH_HOST "$SSH_HOST"
-          check SSH_USER "$SSH_USER"
-          check SSH_PASSWORD "$SSH_PASSWORD"
-          check DB_HOST "$DB_HOST"
-          check DB_NAME "$DB_NAME"
-          check DB_USER "$DB_USER"
-          check DB_PASSWORD "$DB_PASSWORD"
-          check DJANGO_SECRET_KEY "$DJANGO_SECRET_KEY"
-          check DJANGO_SETTINGS_MODULE "$DJANGO_SETTINGS_MODULE"
-          check ALLOWED_HOSTS "$ALLOWED_HOSTS"
+          done <<< "$required_secrets"
 
           if [ ${#missing[@]} -gt 0 ]; then
-            echo "❌ Missing required backend secrets (non-empty required): ${missing[*]}"
+            echo "❌ Missing required backend secrets (manifest-derived, non-empty required): ${missing[*]}"
             exit 1
           fi
 
@@ -1087,6 +1075,11 @@ jobs:
     environment: ${{ inputs.backend_environment }}
     timeout-minutes: 15
     steps:
+      - name: Checkout code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          ref: ${{ inputs.ref }}
+
       - name: Fail fast if required backend secrets are missing
         env:
           DO_ACCESS_TOKEN: ${{ secrets.DO_ACCESS_TOKEN }}
@@ -1100,33 +1093,21 @@ jobs:
           DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
           DJANGO_SECRET_KEY: ${{ secrets.DJANGO_SECRET_KEY }}
           DJANGO_SETTINGS_MODULE: ${{ secrets.DJANGO_SETTINGS_MODULE }}
-          ALLOWED_HOSTS: ${{ secrets.ALLOWED_HOSTS }}
         run: |
           set -euo pipefail
 
+          required_secrets="$(python config/manage_env.py required-secrets \
+            --workflow reusable-deploy.yml \
+            --environment "${{ inputs.backend_environment }}")"
           missing=()
-          check() {
-            local name="$1"
-            local value="$2"
-            if [ -z "$value" ]; then
+          while IFS= read -r name; do
+            if [ -n "$name" ] && [ -z "${!name:-}" ]; then
               missing+=("$name")
             fi
-          }
-
-          check DO_ACCESS_TOKEN "$DO_ACCESS_TOKEN"
-          check SSH_HOST "$SSH_HOST"
-          check SSH_USER "$SSH_USER"
-          check SSH_PASSWORD "$SSH_PASSWORD"
-          check DB_HOST "$DB_HOST"
-          check DB_NAME "$DB_NAME"
-          check DB_USER "$DB_USER"
-          check DB_PASSWORD "$DB_PASSWORD"
-          check DJANGO_SECRET_KEY "$DJANGO_SECRET_KEY"
-          check DJANGO_SETTINGS_MODULE "$DJANGO_SETTINGS_MODULE"
-          check ALLOWED_HOSTS "$ALLOWED_HOSTS"
+          done <<< "$required_secrets"
 
           if [ ${#missing[@]} -gt 0 ]; then
-            echo "❌ Missing required backend secrets (non-empty required): ${missing[*]}"
+            echo "❌ Missing required backend secrets (manifest-derived, non-empty required): ${missing[*]}"
             exit 1
           fi
 
@@ -1482,6 +1463,11 @@ jobs:
     timeout-minutes: 20
     environment: ${{ inputs.frontend_environment }}
     steps:
+      - name: Checkout code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          ref: ${{ inputs.ref }}
+
       - name: Fail fast if required frontend secrets are missing
         env:
           DO_ACCESS_TOKEN: ${{ secrets.DO_ACCESS_TOKEN }}
@@ -1494,25 +1480,18 @@ jobs:
         run: |
           set -euo pipefail
 
+          required_secrets="$(python config/manage_env.py required-secrets \
+            --workflow reusable-deploy.yml \
+            --environment "${{ inputs.frontend_environment }}")"
           missing=()
-          check() {
-            local name="$1"
-            local value="$2"
-            if [ -z "$value" ]; then
+          while IFS= read -r name; do
+            if [ -n "$name" ] && [ -z "${!name:-}" ]; then
               missing+=("$name")
             fi
-          }
-
-          check DO_ACCESS_TOKEN "$DO_ACCESS_TOKEN"
-          check SSH_HOST "$SSH_HOST"
-          check SSH_USER "$SSH_USER"
-          check SSH_PASSWORD "$SSH_PASSWORD"
-          check BACKEND_HOST "$BACKEND_HOST"
-          check REACT_APP_API_BASE_URL "$REACT_APP_API_BASE_URL"
-          check DOMAIN_NAME "$DOMAIN_NAME"
+          done <<< "$required_secrets"
 
           if [ ${#missing[@]} -gt 0 ]; then
-            echo "❌ Missing required frontend secrets (non-empty required): ${missing[*]}"
+            echo "❌ Missing required frontend secrets (manifest-derived, non-empty required): ${missing[*]}"
             exit 1
           fi
 

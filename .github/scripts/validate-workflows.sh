@@ -1179,6 +1179,79 @@ PY
     return 0
 }
 
+check_reusable_workflow_required_secret_contract() {
+    log_info "Checking reusable-deploy manifest-derived required secret contract..."
+
+    if [[ ! -f .github/workflows/reusable-deploy.yml ]]; then
+        log_info "No reusable-deploy.yml found (skipping required secret contract checks)"
+        return 0
+    fi
+
+    if ! python - <<'PY'
+import sys
+from pathlib import Path
+
+try:
+    import yaml
+except Exception as e:
+    print(f"ERROR: pyyaml not available: {e}", file=sys.stderr)
+    raise SystemExit(1)
+
+sys.path.insert(0, str(Path('.').resolve()))
+from config.manage_env import EnvironmentManager
+
+wf_path = Path('.github/workflows/reusable-deploy.yml')
+data = yaml.safe_load(wf_path.read_text(encoding='utf-8', errors='ignore')) or {}
+jobs = data.get('jobs') or {}
+manager = EnvironmentManager(repo='local/local')
+
+expectations = [
+    ('migrate', 'Fail fast if required backend secrets are missing', 'dev-backend', '${{ inputs.backend_environment }}'),
+    ('deploy-backend', 'Fail fast if required backend secrets are missing', 'dev-backend', '${{ inputs.backend_environment }}'),
+    ('deploy-frontend', 'Fail fast if required frontend secrets are missing', 'dev-frontend', '${{ inputs.frontend_environment }}'),
+]
+
+errors = []
+for job_name, step_name, manifest_env, input_ref in expectations:
+    job = jobs.get(job_name)
+    if not isinstance(job, dict):
+        errors.append(f"{wf_path.name}: jobs.{job_name} missing")
+        continue
+
+    steps = job.get('steps') or []
+    step = next((s for s in steps if isinstance(s, dict) and s.get('name') == step_name), None)
+    if step is None:
+        errors.append(f"{wf_path.name}: jobs.{job_name} missing step '{step_name}'")
+        continue
+
+    env_keys = set((step.get('env') or {}).keys())
+    expected = set(manager.required_secrets_for_environment(manifest_env, workflow_name='reusable-deploy.yml'))
+    missing_env = sorted(expected - env_keys)
+    if missing_env:
+        errors.append(
+            f"{wf_path.name}: jobs.{job_name} fail-fast env mapping missing manifest-required secrets: {', '.join(missing_env)}"
+        )
+
+    run_script = step.get('run') or ''
+    if 'python config/manage_env.py required-secrets' not in run_script:
+        errors.append(f"{wf_path.name}: jobs.{job_name} fail-fast step must derive required secrets via config/manage_env.py")
+    if input_ref not in run_script:
+        errors.append(f"{wf_path.name}: jobs.{job_name} fail-fast step must query manifest requirements for {input_ref}")
+
+if errors:
+    for error in errors:
+        print(f"ERROR: {error}", file=sys.stderr)
+    raise SystemExit(1)
+
+print('✓ reusable-deploy required secret contract is manifest-derived')
+PY
+    then
+        return 1
+    fi
+
+    return 0
+}
+
 check_reusable_workflow_callers() {
     log_info "Checking main-pipeline reusable workflow callers..."
 
@@ -1254,6 +1327,42 @@ PY
     return 0
 }
 
+check_current_docs_manifest_path_drift() {
+    log_info "Checking CURRENT docs use canonical env manifest path..."
+
+    if ! python - <<'PY'
+import sys
+from pathlib import Path
+
+bad_refs = []
+for doc_path in Path('docs').rglob('*.md'):
+    text = doc_path.read_text(encoding='utf-8', errors='ignore')
+    lines = text.splitlines()
+    header = '\n'.join(lines[:10])
+    if '**Status**: ✅ CURRENT' not in header:
+        continue
+
+    for line_number, line in enumerate(lines, start=1):
+        if 'config/env.manifest.json' in line:
+            bad_refs.append(f"{doc_path}:{line_number}")
+
+if bad_refs:
+    for ref in bad_refs:
+        print(
+            f"ERROR: CURRENT docs must reference manifests/env.manifest.json, not legacy config/env.manifest.json ({ref})",
+            file=sys.stderr,
+        )
+    raise SystemExit(1)
+
+print('✓ CURRENT docs reference the canonical env manifest path')
+PY
+    then
+        return 1
+    fi
+
+    return 0
+}
+
 # Main validation
 main() {
     log_info "========================================="
@@ -1266,7 +1375,9 @@ main() {
     validate_yaml_syntax || ((failed++))
     check_manifest_secrets_for_all_workflows || ((failed++))
     check_environment_lanes_match_manifest || ((failed++))
+    check_reusable_workflow_required_secret_contract || ((failed++))
     check_reusable_workflow_callers || ((failed++))
+    check_current_docs_manifest_path_drift || ((failed++))
     check_cache_config || ((failed++))
     check_health_checks || ((failed++))
     check_fetch_depth || ((failed++))

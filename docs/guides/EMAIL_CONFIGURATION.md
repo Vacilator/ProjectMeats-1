@@ -235,7 +235,7 @@ Set up SendGrid webhooks to receive alerts for:
 
 - SendGrid Docs: https://docs.sendgrid.com/
 - Django Email Docs: https://docs.djangoproject.com/en/stable/topics/email/
-- Manifest: `config/env.manifest.json` (EMAIL_* variables)
+- Manifest: `manifests/env.manifest.json` (EMAIL_* variables)
 - Signal Handler: `backend/apps/tenants/signals.py`
 - Settings: `backend/projectmeats/settings/production.py`
 
