@@ -43,12 +43,13 @@ import { logger } from '../../utils/logger'; // Centralized logging
 import { isTypingInInput } from './utils/keyboardUtils'; // Phase 4
 import { Joyride } from 'react-joyride'; // Gap Analysis Phase 1.1
 import { useRenderPerformance } from '../../utils/performance'; // Phase 7.5
-import { 
+import {
   useOnboardingTour,
   workflowEditorTourSteps,
   tourOptions,
   tourStyles,
 } from './hooks/useOnboardingTour'; // Gap Analysis Phase 1.1
+import { useFlowEditorNodeActions } from './hooks/useFlowEditorNodeActions';
 import {
   ReactFlow,
   MiniMap,
@@ -7099,104 +7100,18 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     [readOnly, nodes, setHasUnsavedChanges, setNodes, setEdges]
   );
 
-  const flowEditorNodeActions = useMemo(() => {
-    const nodeById = new Map(nodes.map((n) => [n.id, n] as const));
-
-    const isFormContainerNode = (n?: Node) =>
-      !!n && isFormProcessContainerType(((n.data as any)?.nodeType as string | undefined) || n.type);
-
-    const insertAfterNode = (nodeId: string) => {
-      const node = nodeById.get(nodeId);
-      const data = node?.data ?? {};
-      if (typeof (data as any).onInsertAfter === 'function') {
-        (data as any).onInsertAfter();
-        return;
-      }
-      window.dispatchEvent(
-        new CustomEvent('pm:openNodePalette', {
-          detail: { anchorNodeId: nodeId },
-        })
-      );
-    };
-
-    const addStepInsideForm = (nodeId: string) => {
-      const node = nodeById.get(nodeId);
-      if (!node) {
-        return;
-      }
-      const data = node.data ?? {};
-      if (typeof (data as any).onAddStepInsideForm === 'function') {
-        (data as any).onAddStepInsideForm();
-        return;
-      }
-      const parent = node.parentId ? nodeById.get(node.parentId) : undefined;
-      const parentIsFormContainer = isFormContainerNode(parent);
-      const nodeIsFormContainer = isFormContainerNode(node);
-
-      if (nodeIsFormContainer) {
-        addFormStepInsideContainer(node.id);
-        return;
-      }
-      if (parentIsFormContainer && node.parentId) {
-        addFormStepInsideContainer(node.parentId, node.id);
-        return;
-      }
-      insertAfterNode(nodeId);
-    };
-
-    return {
-      editNode: (nodeId: string) => {
-        const node = nodeById.get(nodeId);
-        const onEdit = (node?.data as any)?.onEdit;
-        if (typeof onEdit === 'function') {
-          onEdit();
-          return;
-        }
-        handleNodeEdit(nodeId);
-      },
-      deleteNode: (nodeId: string) => {
-        const node = nodeById.get(nodeId);
-        const onDelete = (node?.data as any)?.onDelete;
-        if (typeof onDelete === 'function') {
-          return onDelete();
-        }
-        return handleNodeDelete(nodeId);
-      },
-      duplicateNode: (nodeId: string) => {
-        const node = nodeById.get(nodeId);
-        const onDuplicate = (node?.data as any)?.onDuplicate;
-        if (typeof onDuplicate === 'function') {
-          onDuplicate();
-          return;
-        }
-        duplicateNode(nodeId);
-      },
-      saveWorkflow: () => handleSaveWorkflow(),
-      changeNodeTitle: (nodeId: string, newTitle: string) => {
-        const node = nodeById.get(nodeId);
-        const onTitleChange = (node?.data as any)?.onTitleChange;
-        if (typeof onTitleChange === 'function') {
-          onTitleChange(newTitle);
-          return;
-        }
-        handleNodeTitleChange(nodeId, newTitle);
-      },
-      insertAfterNode,
-      addStepInsideForm,
-      moveNode: (nodeId: string, delta: -1 | 1) => handleMoveNode(nodeId, delta),
-      isLastInWorkflow: (nodeId: string) => lastNodeIdSet.has(nodeId),
-    };
-  }, [
-    addFormStepInsideContainer,
-    duplicateNode,
-    handleMoveNode,
-    handleNodeDelete,
-    handleNodeEdit,
-    handleNodeTitleChange,
-    handleSaveWorkflow,
-    lastNodeIdSet,
+  const flowEditorNodeActions = useFlowEditorNodeActions({
     nodes,
-  ]);
+    editNode: handleNodeEdit,
+    deleteNode: handleNodeDelete,
+    duplicateNode,
+    saveWorkflow: () => handleSaveWorkflow(),
+    changeNodeTitle: handleNodeTitleChange,
+    moveNode: handleMoveNode,
+    addFormStepInsideContainer,
+    lastNodeIdSet,
+    isFormProcessContainerType,
+  });
 
   // Render-time edge virtualization: when a form process group is collapsed, edges to hidden child nodes
   // are re-targeted to virtual handles on the container boundary so connectivity remains visible.

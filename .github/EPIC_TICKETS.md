@@ -245,8 +245,8 @@
   - **Rollback:** Keep existing UI shells and compatibility adapters until the unified service proves stable.
   - **Completion evidence destination:** shipped in `.github/MASTER_PLAN.md` (PR: #4780)
 
-- [ ] **EH-04.3 floweditor-decomposition-phase-1**
-  - **Status:** Ready
+- [x] **EH-04.3 floweditor-decomposition-phase-1**
+  - **Status:** Done
   - **Why now:** `UnifiedFlowEditor.tsx` is too large and too risky to keep extending without module boundaries.
   - **Canonical source reference:** `MASTER_PLAN.md` -> WorkForms runtime/observability + Phase 12
   - **Scope:** Establish the first safe decomposition boundary and regression harness for FlowEditor.
@@ -261,12 +261,12 @@
   - **Secrets/infra impact:** None
   - **Risk level:** High
   - **Rollback:** Keep behavior behind additive extraction boundaries and revert the extraction if editor regressions appear.
-  - **Completion evidence destination:** `.github/MASTER_PLAN.md`
+  - **Completion evidence destination:** shipped in `.github/MASTER_PLAN.md` (PR: #4782)
 
 ### Epic EH-05 - Runtime / ops reliability
 
 - [ ] **EH-05.1 non-dev-redis-readiness-gate**
-  - **Status:** Blocked
+  - **Status:** Ready
   - **Why now:** Locks, channels, cache, and circuit breakers cannot be considered production-grade while non-dev can fall back to memory semantics.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Graceful degradation / feature flags + Phase 12
   - **Scope:** Require Redis/Valkey readiness for non-dev environments and document the gate.
@@ -274,7 +274,7 @@
   - **Primary domain:** backend/ops
   - **Likely touched paths:** `backend/projectmeats/settings/base.py`, `.github/workflows/reusable-deploy.yml`, `manifests/GOLDEN_FILES.md`, runtime health checks
   - **Dependencies:** EH-01.4
-  - **Blockers:** EH-01.4
+  - **Blockers:** None
   - **Acceptance criteria:** Non-dev deployments fail fast when Redis/channel readiness is absent, while dev keeps explicit local fallbacks.
   - **Validation commands:** `bash scripts/verify_golden_state.sh`; `bash .github/scripts/check_infrastructure.sh`
   - **Tenant/RLS impact:** Medium
