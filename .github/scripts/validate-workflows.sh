@@ -1233,10 +1233,14 @@ for job_name, step_name, manifest_env, input_ref in expectations:
         )
 
     run_script = step.get('run') or ''
-    if 'required_secrets_for_environment' not in run_script or 'EnvironmentManager' not in run_script:
-        errors.append(f"{wf_path.name}: jobs.{job_name} fail-fast step must derive required secrets via config/manage_env.py helpers")
+    if '.github/scripts/validate-environment.sh' not in run_script:
+        errors.append(f"{wf_path.name}: jobs.{job_name} fail-fast step must call .github/scripts/validate-environment.sh")
+    if '--workflow reusable-deploy.yml' not in run_script:
+        errors.append(f"{wf_path.name}: jobs.{job_name} fail-fast step must pass --workflow reusable-deploy.yml")
     if input_ref not in run_script:
-        errors.append(f"{wf_path.name}: jobs.{job_name} fail-fast step must query manifest requirements for {input_ref}")
+        errors.append(f"{wf_path.name}: jobs.{job_name} fail-fast step must validate manifest requirements for {input_ref}")
+    if 'EnvironmentManager' in run_script or 'required_secrets_for_environment' in run_script or 'required_secrets_file' in run_script:
+        errors.append(f"{wf_path.name}: jobs.{job_name} fail-fast step must not embed inline secret-derivation logic")
 
 if errors:
     for error in errors:
@@ -1250,6 +1254,39 @@ PY
     fi
 
     return 0
+}
+
+check_validate_environment_manifest_mode() {
+    log_info "Checking validate-environment.sh stays manifest-driven..."
+
+    if [[ ! -f .github/scripts/validate-environment.sh ]]; then
+        log_error "Missing .github/scripts/validate-environment.sh"
+        return 1
+    fi
+
+    local script_path=".github/scripts/validate-environment.sh"
+    local failed=0
+
+    if ! grep -q "config/manage_env.py validate-required" "$script_path"; then
+        log_error "validate-environment.sh must delegate required-secret checks to config/manage_env.py validate-required"
+        failed=1
+    fi
+
+    if grep -q 'check_var "SECRET_KEY"' "$script_path"; then
+        log_error "validate-environment.sh must not hardcode legacy required SECRET_KEY checks"
+        failed=1
+    fi
+
+    if grep -q 'check_var "ALLOWED_HOSTS"' "$script_path"; then
+        log_error "validate-environment.sh must not hardcode ALLOWED_HOSTS as required"
+        failed=1
+    fi
+
+    if [[ $failed -eq 0 ]]; then
+        log_info "✓ validate-environment.sh is manifest-driven"
+    fi
+
+    return $failed
 }
 
 check_reusable_frontend_ssh_failfast() {
@@ -1653,6 +1690,7 @@ main() {
     check_manifest_secrets_for_all_workflows || ((failed++))
     check_environment_lanes_match_manifest || ((failed++))
     check_reusable_workflow_required_secret_contract || ((failed++))
+    check_validate_environment_manifest_mode || ((failed++))
     check_reusable_frontend_ssh_failfast || ((failed++))
     check_digest_artifact_alignment || ((failed++))
     check_reusable_workflow_callers || ((failed++))

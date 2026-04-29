@@ -742,46 +742,9 @@ jobs:
           DJANGO_SETTINGS_MODULE: ${{ secrets.DJANGO_SETTINGS_MODULE }}
         run: |
           set -euo pipefail
-
-          required_secrets_file="$(mktemp)"
-          export REQUIRED_SECRETS_FILE="$required_secrets_file"
-          export REQUIRED_SECRETS_ENVIRONMENT="${{ inputs.backend_environment }}"
-          python - <<'PY'
-          import os
-          import sys
-          from pathlib import Path
-
-          sys.path.insert(0, str(Path('.').resolve()))
-          from config.manage_env import EnvironmentManager
-
-          manager = EnvironmentManager(repo='local/local')
-          required = sorted(
-              manager.required_secrets_for_environment(
-                  os.environ['REQUIRED_SECRETS_ENVIRONMENT'],
-                  workflow_name='reusable-deploy.yml',
-              )
-          )
-
-          with open(os.environ['REQUIRED_SECRETS_FILE'], 'w', encoding='utf-8') as handle:
-              handle.write('\n'.join(required))
-              handle.write('\n')
-          PY
-
-          missing=()
-          while IFS= read -r name; do
-            if [ -n "$name" ] && [ -z "${!name:-}" ]; then
-              missing+=("$name")
-            fi
-          done < "$required_secrets_file"
-
-          rm -f "$required_secrets_file"
-
-          if [ ${#missing[@]} -gt 0 ]; then
-            echo "❌ Missing required backend secrets (manifest-derived, non-empty required): ${missing[*]}"
-            exit 1
-          fi
-
-          echo "✅ Required backend secrets present"
+          bash .github/scripts/validate-environment.sh \
+            --environment "${{ inputs.backend_environment }}" \
+            --workflow reusable-deploy.yml
 
       - name: Free up runner disk space
         run: |
@@ -1128,46 +1091,9 @@ jobs:
           DJANGO_SETTINGS_MODULE: ${{ secrets.DJANGO_SETTINGS_MODULE }}
         run: |
           set -euo pipefail
-
-          required_secrets_file="$(mktemp)"
-          export REQUIRED_SECRETS_FILE="$required_secrets_file"
-          export REQUIRED_SECRETS_ENVIRONMENT="${{ inputs.backend_environment }}"
-          python - <<'PY'
-          import os
-          import sys
-          from pathlib import Path
-
-          sys.path.insert(0, str(Path('.').resolve()))
-          from config.manage_env import EnvironmentManager
-
-          manager = EnvironmentManager(repo='local/local')
-          required = sorted(
-              manager.required_secrets_for_environment(
-                  os.environ['REQUIRED_SECRETS_ENVIRONMENT'],
-                  workflow_name='reusable-deploy.yml',
-              )
-          )
-
-          with open(os.environ['REQUIRED_SECRETS_FILE'], 'w', encoding='utf-8') as handle:
-              handle.write('\n'.join(required))
-              handle.write('\n')
-          PY
-
-          missing=()
-          while IFS= read -r name; do
-            if [ -n "$name" ] && [ -z "${!name:-}" ]; then
-              missing+=("$name")
-            fi
-          done < "$required_secrets_file"
-
-          rm -f "$required_secrets_file"
-
-          if [ ${#missing[@]} -gt 0 ]; then
-            echo "❌ Missing required backend secrets (manifest-derived, non-empty required): ${missing[*]}"
-            exit 1
-          fi
-
-          echo "✅ Required backend secrets present"
+          bash .github/scripts/validate-environment.sh \
+            --environment "${{ inputs.backend_environment }}" \
+            --workflow reusable-deploy.yml
 
       - name: Create Backend .env File Locally
         run: |
@@ -1538,46 +1464,9 @@ jobs:
           DOMAIN_NAME: ${{ secrets.DOMAIN_NAME }}
         run: |
           set -euo pipefail
-
-          required_secrets_file="$(mktemp)"
-          export REQUIRED_SECRETS_FILE="$required_secrets_file"
-          export REQUIRED_SECRETS_ENVIRONMENT="${{ inputs.frontend_environment }}"
-          python - <<'PY'
-          import os
-          import sys
-          from pathlib import Path
-
-          sys.path.insert(0, str(Path('.').resolve()))
-          from config.manage_env import EnvironmentManager
-
-          manager = EnvironmentManager(repo='local/local')
-          required = sorted(
-              manager.required_secrets_for_environment(
-                  os.environ['REQUIRED_SECRETS_ENVIRONMENT'],
-                  workflow_name='reusable-deploy.yml',
-              )
-          )
-
-          with open(os.environ['REQUIRED_SECRETS_FILE'], 'w', encoding='utf-8') as handle:
-              handle.write('\n'.join(required))
-              handle.write('\n')
-          PY
-
-          missing=()
-          while IFS= read -r name; do
-            if [ -n "$name" ] && [ -z "${!name:-}" ]; then
-              missing+=("$name")
-            fi
-          done < "$required_secrets_file"
-
-          rm -f "$required_secrets_file"
-
-          if [ ${#missing[@]} -gt 0 ]; then
-            echo "❌ Missing required frontend secrets (manifest-derived, non-empty required): ${missing[*]}"
-            exit 1
-          fi
-
-          echo "✅ Required frontend secrets present"
+          bash .github/scripts/validate-environment.sh \
+            --environment "${{ inputs.frontend_environment }}" \
+            --workflow reusable-deploy.yml
 
       - name: Setup SSH
         env:

@@ -177,8 +177,9 @@ main branch
 1. **No Gate Bypassing**: Auto-promotion workflows create PRs that must pass all CI/CD gates
 2. **Manual Review**: All promotions require human review and approval
 3. **Environment Protection**: Production deployments require explicit approval
-4. **Test Enforcement**: All tests must pass before any deployment
-5. **Rollback Safety**: All deployments include health checks and can be rolled back
+4. **Manifest-Driven Secrets**: Required deploy secrets are derived from `manifests/env.manifest.json` per lane via `.github/scripts/validate-environment.sh`
+5. **Test Enforcement**: All tests must pass before any deployment
+6. **Rollback Safety**: All deployments include health checks and can be rolled back
 
 ## CODEOWNERS Integration
 
@@ -205,7 +206,7 @@ The enhanced PR template (`.github/PULL_REQUEST_TEMPLATE.md`) provides:
 
 ### Deployment Failed
 - Review job logs in GitHub Actions
-- Check environment secrets are configured
+- Check environment secrets are configured and match the lane's manifest-derived required set
 - Verify Docker image builds succeeded
 
 ### Branch Not Deleted
