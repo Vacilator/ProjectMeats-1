@@ -114,6 +114,7 @@ class AIDocumentUploadTests(APITestCase):
         self.assertEqual(second.status_code, status.HTTP_201_CREATED, second.content)
         self.assertEqual(first.json(), second.json())
         self.assertEqual(ChatMessage.objects.filter(session=self.session).count(), 1)
+        self.assertEqual(ChatMessage.objects.get(session=self.session).tenant_id, self.tenant.id)
         self.assertEqual(IdempotencyKey.objects.count(), 1)
 
     def test_same_key_with_different_file_returns_conflict(self):

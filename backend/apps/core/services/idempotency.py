@@ -196,6 +196,19 @@ def reserve_idempotency_key(
                 ),
             )
 
+        if actor_id is not None and existing_actor_id not in (None, actor_id):
+            return IdempotencyReservation(
+                state="actor_conflict",
+                record=record,
+                response=Response(
+                    {
+                        "error": "This Idempotency-Key is already reserved by another user in the tenant.",
+                        "code": "IDEMPOTENCY_ACTOR_CONFLICT",
+                    },
+                    status=status.HTTP_409_CONFLICT,
+                ),
+            )
+
         record.request_method = method.upper()
         record.request_path = path
         record.request_fingerprint = request_fingerprint

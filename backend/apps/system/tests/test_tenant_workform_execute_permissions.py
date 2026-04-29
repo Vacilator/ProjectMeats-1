@@ -234,12 +234,12 @@ class TenantWorkFormExecuteIdempotencyTests(APITestCase):
                 format='json',
                 **headers,
             )
-            second = self.client.post(
-                f'/api/v1/tenant-workforms/{self.workform.id}/execute/',
-                data=payload,
-                format='json',
-                **headers,
-            )
+        second = self.client.post(
+            f'/api/v1/tenant-workforms/{self.workform.id}/execute/',
+            data=payload,
+            format='json',
+            **headers,
+        )
 
         self.assertEqual(first.status_code, status.HTTP_202_ACCEPTED, first.content)
         self.assertEqual(second.status_code, status.HTTP_202_ACCEPTED, second.content)
@@ -337,6 +337,31 @@ class TenantWorkFormExecuteIdempotencyTests(APITestCase):
         self.assertEqual(TenantWorkFormExecution.objects.count(), 1)
         mock_delay.assert_called_once()
 
+    @patch('apps.system.tasks.execute_workform_execution.delay', side_effect=RuntimeError('broker down'))
+    def test_enqueue_failure_clears_cached_idempotency_response(self, mock_delay):
+        headers = {
+            'HTTP_X_TENANT_ID': str(self.tenant.id),
+            'HTTP_IDEMPOTENCY_KEY': 'enqueue-failure-key',
+        }
+
+        with self.captureOnCommitCallbacks(execute=True):
+            response = self.client.post(
+                f'/api/v1/tenant-workforms/{self.workform.id}/execute/',
+                data={'initial_data': {'entity_id': '123'}},
+                format='json',
+                **headers,
+            )
+
+        self.assertEqual(response.status_code, status.HTTP_202_ACCEPTED, response.content)
+        execution = TenantWorkFormExecution.objects.get(id=response.json()['id'])
+        execution.refresh_from_db()
+        self.assertEqual(execution.status, 'failed')
+        self.assertEqual(
+            IdempotencyKey.objects.filter(tenant=self.tenant, idempotency_key='enqueue-failure-key').count(),
+            0,
+        )
+        mock_delay.assert_called_once()
+
     def test_stale_processing_reservation_is_reclaimed_for_same_actor(self):
         payload = {'initial_data': {'entity_id': '123'}}
         fingerprint = build_request_fingerprint(
@@ -362,3 +387,33 @@ class TenantWorkFormExecuteIdempotencyTests(APITestCase):
             actor=self.user,
         )
         self.assertEqual(result.state, 'started')
+
+    def test_stale_processing_reservation_conflicts_for_different_actor(self):
+        payload = {'initial_data': {'entity_id': '123'}}
+        path = f'/api/v1/tenant-workforms/{self.workform.id}/execute/'
+        fingerprint = build_request_fingerprint(
+            method='POST',
+            path=path,
+            payload=payload,
+        )
+        IdempotencyKey.objects.create(
+            tenant=self.tenant,
+            idempotency_key='stale-other-actor',
+            request_method='POST',
+            request_path=path,
+            request_fingerprint=fingerprint,
+            locked_until=timezone.now() - timedelta(minutes=11),
+            custom_data={'actor_id': self.user.id},
+        )
+
+        result = reserve_idempotency_key(
+            tenant=self.tenant,
+            idempotency_key='stale-other-actor',
+            method='POST',
+            path=path,
+            payload=payload,
+            actor=self.other_user,
+        )
+
+        self.assertEqual(result.state, 'actor_conflict')
+        self.assertEqual(result.response.status_code, status.HTTP_409_CONFLICT)

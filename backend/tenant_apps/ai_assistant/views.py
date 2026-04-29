@@ -625,6 +625,7 @@ class AIDocumentViewSet(viewsets.ModelViewSet):
             try:
                 ChatMessage.objects.create(
                     session=instance.session,
+                    tenant=instance.tenant,
                     message_type=MessageTypeChoices.DOCUMENT,
                     content=instance.original_filename or 'Document uploaded',
                     metadata={
