@@ -47,8 +47,51 @@ If there is any hint of cross-tenant exposure:
   - Confirm no direct `fetch()` bypasses exist for authenticated endpoints.
 
 ## Rollback playbook (preferred over risky hotfixes)
-- Roll back frontend and/or backend using the last known-good immutable image tag.
-- If migrations ran and broke behavior, follow the rollback procedure in the deployment scripts and validate schema compatibility.
+- **Development / tag-retained hosts:** use `.github/scripts/deployment-rollback.sh` with the same registry/image names as the deploy workflow.
+- **UAT / Production:** prefer digest-based manual rollback using the previous successful deploy’s immutable image refs from GitHub Actions.
+- If migrations ran and broke behavior, restore the database backup before retrying traffic and validate schema compatibility.
+
+### Quick rollback command
+
+```bash
+# Script accepts development|uat|production (and dev/prod aliases)
+export REGISTRY=registry.digitalocean.com/meatscentral
+export FRONTEND_IMAGE=projectmeats-frontend
+export BACKEND_IMAGE=projectmeats-backend
+
+bash .github/scripts/deployment-rollback.sh development all
+```
+
+The rollback script expects the live deploy filesystem layout:
+- Backend env file: `/root/projectmeats/backend/.env`
+- Backend volumes: `/root/projectmeats/media`, `/root/projectmeats/staticfiles`
+- Frontend env config: `/opt/pm/frontend/env/env-config.js`
+- Frontend bind: `127.0.0.1:8080 -> 80`
+
+### Manual immutable rollback (required for UAT/Production if digest refs changed)
+
+1. Open the last known-good `main-pipeline.yml` / `reusable-deploy.yml` run in GitHub Actions.
+2. Copy the previous backend/frontend digest refs from the deploy logs.
+3. SSH to the target host and rerun the container with that digest:
+
+```bash
+docker run -d --name pm-backend \
+  --restart unless-stopped \
+  -p 8000:8000 \
+  --env-file /root/projectmeats/backend/.env \
+  -v /root/projectmeats/media:/app/media \
+  -v /root/projectmeats/staticfiles:/app/staticfiles \
+  registry.digitalocean.com/meatscentral/projectmeats-backend@sha256:<previous-digest>
+```
+
+4. Verify health directly on the container endpoints:
+   - Backend: `curl http://127.0.0.1:8000/api/v1/health/`
+   - Frontend: `curl -L http://127.0.0.1:8080/`
+
+### Database rollback note
+
+UAT/Production migrations create backups under `/root/projectmeats/db_backups/<environment>/`.
+If schema changes caused the incident, restore the matching backup before reintroducing traffic.
 
 ## Communication
 - S1/S2: notify stakeholders immediately with:
