@@ -13,6 +13,7 @@
  */
 import { configService } from './configService';
 import { apiClient as pmApiClient } from './apiService';
+import { logger } from '../utils/logger';
 
 // Types
 export interface ChoiceOption {
@@ -157,7 +158,7 @@ export async function getChoices(choiceType: ChoiceType): Promise<ChoiceOption[]
     });
     return response.data.options;
   } catch (error) {
-    console.error(`Failed to fetch choices for ${choiceType}:`, error);
+    logger.error(`Failed to fetch choices for ${choiceType}`, { component: 'ChoicesService' }, error);
     return [];
   }
 }
@@ -184,7 +185,7 @@ export async function getAllChoices(): Promise<Record<string, ChoiceOption[]>> {
       return response.data;
     })
     .catch(error => {
-      console.error('Failed to fetch all choices:', error);
+      logger.error('Failed to fetch all choices', { component: 'ChoicesService' }, error);
       cachePromise = null;
       return { choices: {}, choice_types: [] };
     });
@@ -212,7 +213,11 @@ export async function getChoicesForField(fieldName: string): Promise<ChoiceOptio
         return options;
       }
     } catch (error) {
-      console.debug(`No SystemChoiceList found for slug '${choiceListSlug}', falling back to legacy`);
+      logger.debug(
+        `No SystemChoiceList found for slug '${choiceListSlug}', falling back to legacy`,
+        { component: 'ChoicesService' },
+        error
+      );
     }
   }
   

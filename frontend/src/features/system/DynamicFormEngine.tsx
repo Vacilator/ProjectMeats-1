@@ -25,6 +25,7 @@ import { resolveConfig } from '../../services/configService';
 import { getChoicesForField, isStaticChoiceField } from '../../services/choicesService';
 import { formatUsPhone } from '../../utils/phone';
 import { getAntdPopupContainer } from '../../utils/antdPopupContainer';
+import { logger } from '../../utils/logger';
 
 // Field definition types
 type SelectOption = string | { value: string; label: string };
@@ -508,7 +509,7 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
           submitButtonText: submitText.value,
         });
       } catch {
-        console.debug('Using default form config');
+        logger.debug('Using default form config', { component: 'DynamicFormEngine' });
       }
     };
 

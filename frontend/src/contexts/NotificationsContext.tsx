@@ -10,6 +10,7 @@
 import React, { createContext, useContext, useEffect, useState, useCallback, ReactNode } from 'react';
 import { useAuth } from './AuthContext';
 import { notificationsService } from '../services/notificationsService';
+import { logger } from '../utils/logger';
 
 // ============================================================================
 // TYPES
@@ -154,7 +155,7 @@ async function fetchNotificationsAPI(): Promise<Notification[]> {
   try {
     return (await notificationsService.listNotifications()) as Notification[];
   } catch (error) {
-    console.warn('[NotificationsContext] Notifications API not available:', error);
+    logger.warn('Notifications API not available', { component: 'NotificationsContext' }, error);
     return [];
   }
 }
@@ -163,7 +164,7 @@ async function fetchUnreadCountAPI(): Promise<number> {
   try {
     return await notificationsService.getUnreadCount();
   } catch (error) {
-    console.warn('[NotificationsContext] Unread count API not available:', error);
+    logger.warn('Unread count API not available', { component: 'NotificationsContext' }, error);
     return 0;
   }
 }
@@ -184,7 +185,7 @@ async function fetchActionItemsAPI(): Promise<ActionItem[]> {
   try {
     return (await notificationsService.listActionItems()) as ActionItem[];
   } catch (error) {
-    console.warn('[NotificationsContext] Action items API not available:', error);
+    logger.warn('Action items API not available', { component: 'NotificationsContext' }, error);
     return [];
   }
 }
@@ -193,7 +194,7 @@ async function fetchActionItemCountsAPI(): Promise<ActionItemCounts> {
   try {
     return (await notificationsService.getActionItemCounts()) as ActionItemCounts;
   } catch (error) {
-    console.warn('[NotificationsContext] Action item counts API not available:', error);
+    logger.warn('Action item counts API not available', { component: 'NotificationsContext' }, error);
     return {
       total: 0,
       overdue: 0,
@@ -209,7 +210,7 @@ async function fetchPreferencesAPI(): Promise<NotificationPreferences> {
   try {
     return (await notificationsService.getPreferences()) as NotificationPreferences;
   } catch (error) {
-    console.warn('[NotificationsContext] Preferences API not available:', error);
+    logger.warn('Preferences API not available', { component: 'NotificationsContext' }, error);
     return {
       id: '',
       user: 0,
@@ -328,9 +329,9 @@ export const NotificationsProvider: React.FC<NotificationsProviderProps> = ({
       ]);
       setActionItems(items);
       setActionItemCounts(counts);
-    } catch (err) {
+    } catch {
       // Silently fail - action items are optional feature
-      console.warn('[NotificationsContext] Action items not available');
+      logger.warn('Action items not available', { component: 'NotificationsContext' });
     }
   }, [isAuthenticated]);
   
@@ -356,7 +357,7 @@ export const NotificationsProvider: React.FC<NotificationsProviderProps> = ({
       fetchActionItems();
       fetchPreferencesAPI().then(setPreferences).catch(() => {
         // Silently fail - preferences are optional
-        console.warn('[NotificationsContext] Preferences API not available');
+        logger.warn('Preferences API not available', { component: 'NotificationsContext' });
       });
       setPollingActive(true);
     } else {
