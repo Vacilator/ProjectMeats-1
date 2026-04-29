@@ -171,26 +171,26 @@
 
 ### Epic EH-03 - Contract-first platform
 
-- [ ] **EH-03.1 openapi-ai-and-high-churn-surface-coverage**
-  - **Status:** Ready
+- [x] **EH-03.1 openapi-ai-and-high-churn-surface-coverage**
+  - **Status:** Done
   - **Why now:** AI and other high-churn endpoints still lack explicit schema annotations, which blocks safe client generation.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Type safety gate + Phase 12
   - **Scope:** Add OpenAPI coverage to AI/high-churn backend endpoints and align the baseline artifact.
   - **Non-goals:** No frontend consumer refactor yet.
   - **Primary domain:** backend/contracts
-  - **Likely touched paths:** `backend/tenant_apps/ai_assistant/views.py`, `backend/tenant_apps/ai_assistant/urls.py`, relevant schema generation config/tests, `manifests/openapi/openapi-schema.baseline.json`
+  - **Likely touched paths:** `backend/projectmeats/settings/base.py`, `backend/tenant_apps/ai_assistant/serializers.py`, `backend/tenant_apps/ai_assistant/views.py`, relevant schema generation config/tests, `manifests/openapi/openapi-schema.baseline.json`
   - **Dependencies:** EH-02.1
   - **Blockers:** None
   - **Acceptance criteria:** Touched endpoints appear explicitly in the baseline schema with stable request/response shapes.
-  - **Validation commands:** `cd backend && python manage.py spectacular --validate --file /tmp/projectmeats-openapi.yaml`; `cd backend && python manage.py test tenant_apps.ai_assistant apps.core.tests.test_api_error_contracts`
+  - **Validation commands:** `cd backend && python manage.py spectacular --validate --file /tmp/projectmeats-openapi.yaml`; `cd backend && python manage.py spectacular --validate --format openapi-json --file /tmp/projectmeats-openapi.json`; `cd backend && python manage.py test tenant_apps.ai_assistant apps.core.tests.test_api_error_contracts --keepdb --noinput`; `python scripts/check_openapi_backcompat.py --baseline manifests/openapi/openapi-schema.baseline.json --candidate /tmp/projectmeats-openapi.json`
   - **Tenant/RLS impact:** Medium
   - **Secrets/infra impact:** None
   - **Risk level:** Medium
   - **Rollback:** Keep backward-compatible aliases until consumers are updated.
-  - **Completion evidence destination:** `.github/MASTER_PLAN.md`
+  - **Completion evidence destination:** shipped in `.github/MASTER_PLAN.md` (PR: #4775)
 
 - [ ] **EH-03.2 openapi-ts-mobile-typegen**
-  - **Status:** Blocked
+  - **Status:** Ready
   - **Why now:** Frontend/mobile type drift cannot be reduced until generated contract artifacts exist.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Type safety gate + Mobile parity + Phase 12
   - **Scope:** Generate and adopt TS/mobile types for the first covered domains.
@@ -198,7 +198,7 @@
   - **Primary domain:** frontend/mobile/contracts
   - **Likely touched paths:** `manifests/openapi/openapi-schema.baseline.json`, `frontend/src/services/*`, `mobile/src/*`, generation scripts/config
   - **Dependencies:** EH-03.1
-  - **Blockers:** EH-03.1
+  - **Blockers:** None
   - **Acceptance criteria:** Covered domains consume generated types and validation/build commands remain green.
   - **Validation commands:** `npm -C frontend run verify-standards`; `npm -C frontend run test:ci`; `npm -C mobile run type-check`; `npm -C mobile run test`
   - **Tenant/RLS impact:** None directly
