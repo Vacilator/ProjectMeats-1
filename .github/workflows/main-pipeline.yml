@@ -163,6 +163,7 @@ jobs:
       frontend_environment: 'dev-frontend'
       api_base_url: 'https://dev.meatscentral.com'
       deploy_by_digest: ${{ github.event_name == 'workflow_dispatch' && (github.event.inputs.deploy_by_digest == 'true' || github.event.inputs.deploy_by_digest == true) || false }}
+      require_redis_readiness: false
 
   # ==========================================
   # Route to UAT
@@ -183,6 +184,7 @@ jobs:
       frontend_environment: 'uat-frontend'
       api_base_url: 'https://uat.meatscentral.com'
       deploy_by_digest: true
+      require_redis_readiness: true
 
   # ==========================================
   # Route to Production
@@ -203,3 +205,4 @@ jobs:
       frontend_environment: 'production-frontend'
       api_base_url: 'https://meatscentral.com'
       deploy_by_digest: true
+      require_redis_readiness: true

@@ -28,6 +28,7 @@ Golden template for workflow suggestion engine with meat industry context
 | **Database Schema** | Django migrations | Applied state |
 | **RLS Policies** | `/manifests/RLS_POLICIES.md` | Audit log |
 | **CI/CD Standards** | `.github/workflows/reusable-deploy.yml` | Template |
+| **Runtime Readiness Gate** | `backend/projectmeats/health.py`, `.github/workflows/reusable-deploy.yml` | ENFORCEMENT |
 | **Architecture** | `docs/architecture/ARCHITECTURE.md` | Design doc |
 | **Execution status / priorities** | `MASTER_PLAN.md` | CANONICAL |
 | **Roadmaps** | `ROADMAP.md`, `UI_ROADMAP.md` | Reference-only unless promoted in `MASTER_PLAN.md` |

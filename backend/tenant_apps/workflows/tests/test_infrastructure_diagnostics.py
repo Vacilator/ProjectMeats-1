@@ -5,8 +5,12 @@ Validates the connectivity testing script for Redis, OpenAI, and Sentry.
 """
 
 import os
+import sys
+from pathlib import Path
 from unittest.mock import patch, MagicMock
 from django.test import TestCase
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[4] / 'scripts'))
 
 
 class InfrastructureDiagnosticsTestCase(TestCase):
@@ -14,34 +18,55 @@ class InfrastructureDiagnosticsTestCase(TestCase):
     
     def test_redis_connectivity_success(self):
         """Test Redis connectivity with successful connection"""
-        from scripts.infrastructure_diagnostics import test_redis_connectivity
-        
-        with patch('django.core.cache.cache') as mock_cache:
-            mock_cache.set.return_value = True
-            mock_cache.get.return_value = 'REDIS_OK'
-            
+        from infrastructure_diagnostics import test_redis_connectivity
+
+        with patch('infrastructure_diagnostics.check_redis') as mock_check_redis:
+            mock_check_redis.return_value = {'available': True, 'configured': True, 'backend': 'redis'}
+
             result = test_redis_connectivity()
-            
+
             self.assertEqual(result['service'], 'Redis')
             self.assertEqual(result['status'], 'CONNECTED')
             self.assertTrue(result['details']['test_passed'])
-    
-    def test_redis_connectivity_failure(self):
-        """Test Redis connectivity with failed connection"""
-        from scripts.infrastructure_diagnostics import test_redis_connectivity
-        
-        with patch('django.core.cache.cache') as mock_cache:
-            mock_cache.set.side_effect = Exception('Connection refused')
-            
+
+    def test_redis_connectivity_not_configured(self):
+        """Test Redis connectivity when Redis backend is not configured"""
+        from infrastructure_diagnostics import test_redis_connectivity
+
+        with patch('infrastructure_diagnostics.check_redis') as mock_check_redis:
+            mock_check_redis.return_value = {
+                'available': False,
+                'configured': False,
+                'backend': 'django.core.cache.backends.locmem.LocMemCache',
+                'note': 'Redis not configured',
+            }
+
             result = test_redis_connectivity()
-            
+
             self.assertEqual(result['service'], 'Redis')
+            self.assertEqual(result['status'], 'NOT_CONFIGURED')
+
+    def test_channel_layer_connectivity_failure(self):
+        """Test channel-layer connectivity when Redis-backed channels are unavailable"""
+        from infrastructure_diagnostics import test_channel_layer_connectivity
+
+        with patch('infrastructure_diagnostics.check_channel_layer') as mock_channel_layer:
+            mock_channel_layer.return_value = {
+                'available': False,
+                'configured': True,
+                'backend': 'channels_redis.core.RedisChannelLayer',
+                'error': 'Connection refused',
+            }
+
+            result = test_channel_layer_connectivity()
+
+            self.assertEqual(result['service'], 'Channel Layer')
             self.assertEqual(result['status'], 'FAILED')
             self.assertIn('Connection refused', result['message'])
     
     def test_openai_connectivity_not_configured(self):
         """Test OpenAI connectivity when API key is missing"""
-        from scripts.infrastructure_diagnostics import test_openai_connectivity
+        from infrastructure_diagnostics import test_openai_connectivity
         
         with patch.dict(os.environ, {'OPENAI_API_KEY': ''}, clear=True):
             result = test_openai_connectivity()
@@ -52,7 +77,7 @@ class InfrastructureDiagnosticsTestCase(TestCase):
     
     def test_openai_connectivity_success(self):
         """Test OpenAI connectivity with successful API call"""
-        from scripts.infrastructure_diagnostics import test_openai_connectivity
+        from infrastructure_diagnostics import test_openai_connectivity
         
         mock_client = MagicMock()
         mock_models = MagicMock()
@@ -76,7 +101,7 @@ class InfrastructureDiagnosticsTestCase(TestCase):
     
     def test_sentry_connectivity_not_configured(self):
         """Test Sentry connectivity when DSN is missing"""
-        from scripts.infrastructure_diagnostics import test_sentry_connectivity
+        from infrastructure_diagnostics import test_sentry_connectivity
         
         # Hub is imported inside the function via: from sentry_sdk import Hub
         # Patch sentry_sdk.Hub to a fake with a simple .current attribute.
@@ -91,7 +116,7 @@ class InfrastructureDiagnosticsTestCase(TestCase):
     
     def test_sentry_connectivity_success(self):
         """Test Sentry connectivity with valid DSN"""
-        from scripts.infrastructure_diagnostics import test_sentry_connectivity
+        from infrastructure_diagnostics import test_sentry_connectivity
         
         mock_dsn = MagicMock()
         mock_dsn.scheme = 'https'
@@ -113,16 +138,18 @@ class InfrastructureDiagnosticsTestCase(TestCase):
     
     def test_run_full_diagnostic(self):
         """Test full diagnostic runner"""
-        from scripts.infrastructure_diagnostics import run_full_diagnostic
-        
-        with patch('scripts.infrastructure_diagnostics.test_redis_connectivity') as mock_redis:
-            with patch('scripts.infrastructure_diagnostics.test_openai_connectivity') as mock_openai:
-                with patch('scripts.infrastructure_diagnostics.test_sentry_connectivity') as mock_sentry:
-                    mock_redis.return_value = {'service': 'Redis', 'status': 'CONNECTED', 'message': 'OK', 'details': {}}
-                    mock_openai.return_value = {'service': 'OpenAI', 'status': 'CONNECTED', 'message': 'OK', 'details': {}}
-                    mock_sentry.return_value = {'service': 'Sentry', 'status': 'CONNECTED', 'message': 'OK', 'details': {}}
-                    
-                    result = run_full_diagnostic()
-                    
-                    self.assertEqual(result['overall_status'], 'READY')
-                    self.assertEqual(len(result['services']), 3)
+        from infrastructure_diagnostics import run_full_diagnostic
+
+        with patch('infrastructure_diagnostics.test_redis_connectivity') as mock_redis:
+            with patch('infrastructure_diagnostics.test_openai_connectivity') as mock_openai:
+                with patch('infrastructure_diagnostics.test_sentry_connectivity') as mock_sentry:
+                    with patch('infrastructure_diagnostics.test_channel_layer_connectivity') as mock_channel_layer:
+                        mock_redis.return_value = {'service': 'Redis', 'status': 'CONNECTED', 'message': 'OK', 'details': {}}
+                        mock_channel_layer.return_value = {'service': 'Channel Layer', 'status': 'CONNECTED', 'message': 'OK', 'details': {}}
+                        mock_openai.return_value = {'service': 'OpenAI', 'status': 'CONNECTED', 'message': 'OK', 'details': {}}
+                        mock_sentry.return_value = {'service': 'Sentry', 'status': 'CONNECTED', 'message': 'OK', 'details': {}}
+
+                        result = run_full_diagnostic()
+
+                        self.assertEqual(result['overall_status'], 'READY')
+                        self.assertEqual(len(result['services']), 4)

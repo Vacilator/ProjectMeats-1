@@ -1358,7 +1358,9 @@ manager = EnvironmentManager(repo='local/local')
 
 expectations = [
     ('migrate', 'Fail fast if required backend secrets are missing', 'dev-backend', '${{ inputs.backend_environment }}'),
+    ('migrate', 'Fail fast if required backend secrets are missing', 'uat-backend', '${{ inputs.backend_environment }}'),
     ('deploy-backend', 'Fail fast if required backend secrets are missing', 'dev-backend', '${{ inputs.backend_environment }}'),
+    ('deploy-backend', 'Fail fast if required backend secrets are missing', 'uat-backend', '${{ inputs.backend_environment }}'),
     ('deploy-frontend', 'Fail fast if required frontend secrets are missing', 'dev-frontend', '${{ inputs.frontend_environment }}'),
 ]
 
@@ -1735,6 +1737,12 @@ for job_name, job in jobs.items():
 
     if job_name == 'deploy-dev' and with_section.get('deploy_by_digest') is True:
         errors.append(f"{wf_path.name}: jobs.deploy-dev must not default deploy_by_digest to true")
+    if 'require_redis_readiness' not in with_section:
+        errors.append(f"{wf_path.name}: jobs.{job_name}.with.require_redis_readiness must be set for reusable workflow call")
+    elif job_name == 'deploy-dev' and with_section.get('require_redis_readiness') is not False:
+        errors.append(f"{wf_path.name}: jobs.deploy-dev.with.require_redis_readiness must be false")
+    elif job_name in {'deploy-uat', 'deploy-prod'} and with_section.get('require_redis_readiness') is not True:
+        errors.append(f"{wf_path.name}: jobs.{job_name}.with.require_redis_readiness must be true")
 
     if job_name in {'deploy-uat', 'deploy-prod'} and with_section.get('deploy_by_digest') is not True:
         errors.append(f"{wf_path.name}: jobs.{job_name}.with.deploy_by_digest must be true")
@@ -1748,6 +1756,138 @@ if errors:
     raise SystemExit(1)
 
 print('✓ main-pipeline reusable workflow caller invariants OK')
+PY
+    then
+        return 1
+    fi
+
+    return 0
+}
+
+check_non_dev_redis_readiness_gate() {
+    log_info "Checking non-dev Redis readiness gate contract..."
+
+    if [[ ! -f .github/workflows/reusable-deploy.yml || ! -f .github/workflows/reusable-postdeploy-smoke.yml ]]; then
+        log_info "Reusable deploy workflows not found (skipping Redis readiness gate checks)"
+        return 0
+    fi
+
+    if ! python - <<'PY'
+import sys
+from pathlib import Path
+
+try:
+    import yaml
+except Exception as e:
+    print(f"ERROR: pyyaml not available: {e}", file=sys.stderr)
+    raise SystemExit(1)
+
+reusable_path = Path('.github/workflows/reusable-deploy.yml')
+smoke_path = Path('.github/workflows/reusable-postdeploy-smoke.yml')
+reusable = yaml.safe_load(reusable_path.read_text(encoding='utf-8', errors='ignore')) or {}
+smoke = yaml.safe_load(smoke_path.read_text(encoding='utf-8', errors='ignore')) or {}
+errors = []
+
+workflow_call = ((reusable.get('on') or reusable.get(True) or {}).get('workflow_call') or {})
+inputs = workflow_call.get('inputs') or {}
+secrets = workflow_call.get('secrets') or {}
+
+redis_input = inputs.get('require_redis_readiness') or {}
+if redis_input.get('type') != 'boolean':
+    errors.append(f"{reusable_path.name}: workflow_call input require_redis_readiness must be boolean")
+if redis_input.get('default') is not False:
+    errors.append(f"{reusable_path.name}: workflow_call input require_redis_readiness must default to false")
+if 'REDIS_URL' not in secrets:
+    errors.append(f"{reusable_path.name}: workflow_call secrets must declare REDIS_URL")
+
+jobs = reusable.get('jobs') or {}
+
+def find_step(job_name, step_name):
+    steps = (jobs.get(job_name) or {}).get('steps') or []
+    return next((step for step in steps if isinstance(step, dict) and step.get('name') == step_name), None)
+
+migrate_step = find_step('migrate', 'Run migrations via Docker with tunnel')
+envfile_step = find_step('deploy-backend', 'Create Backend .env File Locally')
+deploy_backend_step = find_step('deploy-backend', 'Deploy backend container')
+post_deploy_smoke = jobs.get('post-deploy-smoke') or {}
+
+for label, step_obj in (
+    ('jobs.migrate step Run migrations via Docker with tunnel', migrate_step),
+    ('jobs.deploy-backend step Create Backend .env File Locally', envfile_step),
+    ('jobs.deploy-backend step Deploy backend container', deploy_backend_step),
+):
+    if step_obj is None:
+        errors.append(f"{reusable_path.name}: missing {label}")
+
+if migrate_step is not None:
+    env_map = migrate_step.get('env') or {}
+    for key, expected in {
+        'REDIS_URL': '${{ secrets.REDIS_URL }}',
+        'REQUIRE_REDIS_READINESS': '${{ inputs.require_redis_readiness }}',
+    }.items():
+        if env_map.get(key) != expected:
+            errors.append(f"{reusable_path.name}: jobs.migrate step env.{key} must be {expected}")
+    run_script = migrate_step.get('run') or ''
+    required_tokens = [
+        'REDIS_GATE_ARGS="--require-redis-readiness"',
+        'python manage.py check_infrastructure $REDIS_GATE_ARGS',
+        '-e REDIS_URL="$REDIS_URL"',
+        '-e REQUIRE_REDIS_READINESS="$REQUIRE_REDIS_READINESS"',
+    ]
+    for token in required_tokens:
+        if token not in run_script:
+            errors.append(f"{reusable_path.name}: jobs.migrate step must include '{token}'")
+
+if envfile_step is not None:
+    run_script = envfile_step.get('run') or ''
+    required_tokens = [
+        'REDIS_URL=${{ secrets.REDIS_URL }}',
+        'REQUIRE_REDIS_READINESS=${{ inputs.require_redis_readiness }}',
+    ]
+    for token in required_tokens:
+        if token not in run_script:
+            errors.append(f"{reusable_path.name}: jobs.deploy-backend Create Backend .env File must include '{token}'")
+
+if deploy_backend_step is not None:
+    env_map = deploy_backend_step.get('env') or {}
+    if env_map.get('REQUIRE_REDIS_READINESS') != '${{ inputs.require_redis_readiness }}':
+        errors.append(
+            f"{reusable_path.name}: jobs.deploy-backend step Deploy backend container env.REQUIRE_REDIS_READINESS must be "
+            "${{ inputs.require_redis_readiness }}"
+        )
+    run_script = deploy_backend_step.get('run') or ''
+    for token in ('HEALTH_PATH="/api/v1/ready/"', 'REQUIRE_REDIS_READINESS'):
+        if token not in run_script:
+            errors.append(f"{reusable_path.name}: jobs.deploy-backend step must include '{token}'")
+
+with_section = post_deploy_smoke.get('with') or {}
+if with_section.get('require_redis_readiness') != '${{ inputs.require_redis_readiness }}':
+    errors.append(
+        f"{reusable_path.name}: jobs.post-deploy-smoke.with.require_redis_readiness must pass through "
+        "${{ inputs.require_redis_readiness }}"
+    )
+
+smoke_inputs = (((smoke.get('on') or smoke.get(True) or {}).get('workflow_call') or {}).get('inputs') or {})
+if (smoke_inputs.get('require_redis_readiness') or {}).get('type') != 'boolean':
+    errors.append(f"{smoke_path.name}: workflow_call input require_redis_readiness must be boolean")
+
+smoke_jobs = smoke.get('jobs') or {}
+smoke_backend_steps = (smoke_jobs.get('smoke-backend-container') or {}).get('steps') or []
+backend_step = next((step for step in smoke_backend_steps if isinstance(step, dict) and step.get('name') == 'Verify backend health (direct-to-container)'), None)
+if backend_step is None:
+    errors.append(f"{smoke_path.name}: missing smoke-backend-container backend verification step")
+else:
+    run_script = backend_step.get('run') or ''
+    for token in ('${{ inputs.require_redis_readiness }}', 'URL="http://127.0.0.1:8000/api/v1/ready/"'):
+        if token not in run_script:
+            errors.append(f"{smoke_path.name}: backend smoke step must include '{token}'")
+
+if errors:
+    for error in errors:
+        print(f"ERROR: {error}", file=sys.stderr)
+    raise SystemExit(1)
+
+print('✓ Non-dev Redis readiness gate contract is enforced')
 PY
     then
         return 1
@@ -1911,6 +2051,7 @@ main() {
     check_reusable_frontend_ssh_failfast || ((failed++))
     check_digest_artifact_alignment || ((failed++))
     check_reusable_workflow_callers || ((failed++))
+    check_non_dev_redis_readiness_gate || ((failed++))
     check_current_docs_manifest_path_drift || ((failed++))
     check_current_docs_golden_pipeline_drift || ((failed++))
     check_cache_config || ((failed++))

@@ -19,6 +19,7 @@ SECRET_KEY = config(
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
+REQUIRE_REDIS_READINESS = False
 
 # Read additional ALLOWED_HOSTS from environment variable (comma-separated)
 # This allows GitHub Secrets to override/extend the default list

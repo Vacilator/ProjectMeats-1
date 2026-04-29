@@ -4,8 +4,9 @@ Optimized for Droplet/App Platform/Traefik deployments with CI/CD.
 """
 
 import os
-from decouple import config
 import dj_database_url
+from django.core.exceptions import ImproperlyConfigured
+from decouple import config
 
 from .base import *  # noqa
 
@@ -300,6 +301,12 @@ LOGGING = {
 # Cache (Redis/Valkey if provided)
 # -----------------------------------------------------------------------------
 redis_url = config("REDIS_URL", default=None) or config("VALKEY_URL", default=None)
+REDIS_BACKEND_URL = redis_url
+REQUIRE_REDIS_READINESS = config("REQUIRE_REDIS_READINESS", default=True, cast=bool)
+if REQUIRE_REDIS_READINESS and not redis_url:
+    raise ImproperlyConfigured(
+        "REDIS_URL or VALKEY_URL must be configured when REQUIRE_REDIS_READINESS is enabled."
+    )
 if redis_url:
     CACHES = {
         "default": {
