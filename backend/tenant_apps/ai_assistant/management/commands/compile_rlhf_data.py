@@ -5,7 +5,7 @@ This is a safer successor to `export_rlhf_data`:
 - Recursively redacts obvious PII/secrets from extracted/corrected JSON.
 - Writes deterministic JSONL suitable for OpenAI chat fine-tuning.
 
-Output defaults to /tmp (or --out).
+Output defaults to Django storage (or --out storage path).
 """
 
 from __future__ import annotations

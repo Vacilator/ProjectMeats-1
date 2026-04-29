@@ -568,6 +568,24 @@ class AIApprovalViewSet(_TenantScopedAIControlPlaneViewSet):
                 'approved_at': approval.resolved_at.isoformat(),
             }
             approval.save(update_fields=['status', 'resolved_by', 'resolution_note', 'resolved_at', 'response_payload', 'modified_on'])
+            try:
+                from tenant_apps.ai_assistant.services.lineage import create_lineage_event
+
+                create_lineage_event(
+                    tenant=approval.tenant,
+                    run=run,
+                    task=task,
+                    approval=approval,
+                    event_type='approval_granted',
+                    source_type='approval',
+                    source_id=str(approval.id),
+                    target_type='task',
+                    target_id=str(task.id),
+                    summary='AI approval granted; task execution resumed.',
+                    metadata={'resolution_note': approval.resolution_note},
+                )
+            except Exception:
+                logger.warning('Failed to record approval-granted lineage approval=%s', approval.id, exc_info=True)
 
             task.status = AITaskStatus.RUNNING
             task.save(update_fields=['status', 'modified_on'])
@@ -677,6 +695,24 @@ class AIApprovalViewSet(_TenantScopedAIControlPlaneViewSet):
                     'modified_on',
                 ]
             )
+            try:
+                from tenant_apps.ai_assistant.services.lineage import create_lineage_event
+
+                create_lineage_event(
+                    tenant=approval.tenant,
+                    run=run,
+                    task=task,
+                    approval=approval,
+                    event_type='approval_denied',
+                    source_type='approval',
+                    source_id=str(approval.id),
+                    target_type='task',
+                    target_id=str(task.id),
+                    summary='AI approval denied; task execution was blocked.',
+                    metadata={'resolution_note': resolution_note},
+                )
+            except Exception:
+                logger.warning('Failed to record approval-denied lineage approval=%s', approval.id, exc_info=True)
 
         return Response(
             AIApprovalActionResponseSerializer(
@@ -862,6 +898,11 @@ class AIDocumentViewSet(viewsets.ModelViewSet):
                 custom_data={
                     'source': 'manual_upload',
                     'uploaded_at': timezone.now().isoformat(),
+                    'semantic_indexing': {
+                        'status': 'pending',
+                        'mode': 'awaiting_parse',
+                        'detail': 'Document uploaded; semantic indexing will run after parse.',
+                    },
                 },
             )
         except ValidationError:
@@ -890,6 +931,24 @@ class AIDocumentViewSet(viewsets.ModelViewSet):
         except Exception as e:
             logger.error('AIDocument upload: unexpected error: %s', str(e), exc_info=True)
             raise ValidationError('Upload failed: unexpected error. Please retry.')
+
+        # If the upload was tied to a session, also create a DOCUMENT message so UIs can show it inline.
+        try:
+            from tenant_apps.ai_assistant.services.lineage import create_lineage_event
+
+            create_lineage_event(
+                tenant=instance.tenant,
+                document=instance,
+                event_type='document_uploaded',
+                source_type='manual_upload',
+                source_id=str(instance.id),
+                target_type='document',
+                target_id=str(instance.id),
+                summary='Document uploaded for AI processing.',
+                metadata={'source': 'manual_upload'},
+            )
+        except Exception:
+            logger.warning('AIDocument upload: failed to record lineage for document=%s', instance.id, exc_info=True)
 
         # If the upload was tied to a session, also create a DOCUMENT message so UIs can show it inline.
         if instance.session_id:

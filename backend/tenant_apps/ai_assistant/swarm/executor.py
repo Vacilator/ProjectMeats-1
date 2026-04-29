@@ -564,6 +564,15 @@ class ToolExecutor:
         )
         return approval
 
+    @staticmethod
+    def _record_lineage_event(**kwargs) -> None:
+        try:
+            from tenant_apps.ai_assistant.services.lineage import create_lineage_event
+
+            create_lineage_event(**kwargs)
+        except Exception:
+            logger.warning('Failed to record AI lineage event', exc_info=True)
+
     def execute(
         self,
         tool_name: str,
@@ -673,6 +682,20 @@ class ToolExecutor:
                         ]
                     )
 
+                self._record_lineage_event(
+                    tenant=task.tenant,
+                    run=task.run,
+                    task=task,
+                    approval=approval_record,
+                    event_type='approval_requested',
+                    source_type='task',
+                    source_id=str(task.id),
+                    target_type='approval',
+                    target_id=str(approval_record.id),
+                    summary='AI task requires human approval before execution.',
+                    metadata={'tool_name': tool_name},
+                )
+
                 return json.dumps(
                     {
                         'ok': True,
@@ -717,6 +740,20 @@ class ToolExecutor:
                 approval_response_payload['execution_result'] = task.output_payload if task is not None else result
                 approval_record.response_payload = approval_response_payload
                 approval_record.save(update_fields=['response_payload', 'modified_on'])
+                if tool_name == 'draft_vendor_email' and isinstance(result, dict) and result.get('id'):
+                    self._record_lineage_event(
+                        tenant=tenant,
+                        run=run,
+                        task=task,
+                        approval=approval_record,
+                        event_type='approval_executed',
+                        source_type='approval',
+                        source_id=str(approval_record.id),
+                        target_type='communication_log',
+                        target_id=str(result.get('id')),
+                        summary='Approved AI draft created a communication log draft.',
+                        metadata={'tool_name': tool_name},
+                    )
             if run is not None and bypass_approval:
                 completed_at = timezone.now()
                 run.status = 'completed'
@@ -1292,12 +1329,36 @@ class ToolExecutor:
                     retryable=False,
                     details=f'{type(exc).__name__}: {exc}',
                 ) from exc
+
             self._set_document_processing_state(
                 doc,
                 status='completed',
                 parser='tabular_markdown',
                 warnings=list(parsed.warnings),
                 truncated=parsed.truncated,
+            )
+            from tenant_apps.ai_assistant.services.semantic_indexing import index_document_for_semantic_search
+
+            semantic_metadata = index_document_for_semantic_search(
+                document=doc,
+                text=parsed.text,
+                parser='tabular_markdown',
+            )
+            self._record_lineage_event(
+                tenant=tenant,
+                document=doc,
+                event_type='document_parsed',
+                source_type='document',
+                source_id=str(doc.id),
+                target_type='parsed_document',
+                target_id=str(doc.id),
+                summary='Document parsed successfully with the tabular parser.',
+                metadata={
+                    'parser': 'tabular_markdown',
+                    'truncated': parsed.truncated,
+                    'warnings': list(parsed.warnings),
+                    'semantic_indexing': semantic_metadata,
+                },
             )
             return {
                 'document_id': str(doc.id),
@@ -1308,6 +1369,7 @@ class ToolExecutor:
                 'parser': 'tabular_markdown',
                 'truncated': parsed.truncated,
                 'warnings': list(parsed.warnings),
+                'semantic_indexing': semantic_metadata,
             }
 
         from django.conf import settings
@@ -1482,6 +1544,29 @@ class ToolExecutor:
             warnings=warnings,
             truncated=truncated,
         )
+        from tenant_apps.ai_assistant.services.semantic_indexing import index_document_for_semantic_search
+
+        semantic_metadata = index_document_for_semantic_search(
+            document=doc,
+            text=combined_text[:20000],
+            parser='unstructured',
+        )
+        self._record_lineage_event(
+            tenant=tenant,
+            document=doc,
+            event_type='document_parsed',
+            source_type='document',
+            source_id=str(doc.id),
+            target_type='parsed_document',
+            target_id=str(doc.id),
+            summary='Document parsed successfully with the unstructured parser.',
+            metadata={
+                'parser': 'unstructured',
+                'truncated': truncated,
+                'warnings': warnings,
+                'semantic_indexing': semantic_metadata,
+            },
+        )
 
         return {
             'document_id': str(doc.id),
@@ -1492,6 +1577,7 @@ class ToolExecutor:
             'parser': 'unstructured',
             'truncated': truncated,
             'warnings': warnings,
+            'semantic_indexing': semantic_metadata,
         }
 
     def _extract_purchase_order_fields(self, arguments: Dict[str, Any], tenant: Any, user: Any = None) -> Any:

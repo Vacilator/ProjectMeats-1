@@ -421,6 +421,96 @@ class AIDocument(TenantAwareModel):
         ]
 
 
+class AIDocumentSemanticChunk(TenantAwareModel):
+    """Semantic retrieval chunks derived from a parsed AI document."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    document = models.ForeignKey(
+        AIDocument,
+        on_delete=models.CASCADE,
+        related_name='semantic_chunks',
+    )
+    chunk_index = models.PositiveIntegerField(default=0)
+    content = models.TextField(default='')
+    content_hash = models.CharField(max_length=64, blank=True, default='')
+    embedding = models.JSONField(
+        default=list,
+        blank=True,
+        help_text='Embedding vector as JSON array (pgvector optional).',
+    )
+    metadata = models.JSONField(default=dict, blank=True)
+
+    class Meta:
+        db_table = 'ai_assistant_document_semantic_chunks'
+        verbose_name = 'AI Document Semantic Chunk'
+        verbose_name_plural = 'AI Document Semantic Chunks'
+        constraints = [
+            models.UniqueConstraint(fields=['document', 'chunk_index'], name='unique_ai_document_chunk_index'),
+        ]
+        indexes = [
+            models.Index(fields=['tenant', 'document', 'chunk_index'], name='ai_doc_chunk_doc_idx'),
+            models.Index(fields=['tenant', 'created_on'], name='ai_doc_chunk_created_idx'),
+        ]
+
+    def __str__(self):
+        return f"Document chunk {self.chunk_index} for {self.document_id}"
+
+
+class AILineageEvent(TenantAwareModel):
+    """Tenant-scoped lineage events connecting source artifacts to AI outcomes."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    document = models.ForeignKey(
+        AIDocument,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='lineage_events',
+    )
+    run = models.ForeignKey(
+        'AIRun',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='lineage_events',
+    )
+    task = models.ForeignKey(
+        'AITask',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='lineage_events',
+    )
+    approval = models.ForeignKey(
+        'AIApproval',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='lineage_events',
+    )
+    event_type = models.CharField(max_length=64)
+    source_type = models.CharField(max_length=64, blank=True, default='')
+    source_id = models.CharField(max_length=128, blank=True, default='')
+    target_type = models.CharField(max_length=64, blank=True, default='')
+    target_id = models.CharField(max_length=128, blank=True, default='')
+    summary = models.CharField(max_length=255, blank=True, default='')
+    metadata = models.JSONField(default=dict, blank=True)
+
+    class Meta:
+        db_table = 'ai_assistant_lineage_events'
+        verbose_name = 'AI Lineage Event'
+        verbose_name_plural = 'AI Lineage Events'
+        indexes = [
+            models.Index(fields=['tenant', 'event_type', 'created_on'], name='ai_lineage_event_type_idx'),
+            models.Index(fields=['tenant', 'document', 'created_on'], name='ai_lineage_document_idx'),
+            models.Index(fields=['tenant', 'run', 'created_on'], name='ai_lineage_run_idx'),
+            models.Index(fields=['tenant', 'task', 'created_on'], name='ai_lineage_task_idx'),
+        ]
+
+    def __str__(self):
+        return f"{self.event_type} ({self.source_type}->{self.target_type})"
+
+
 class CommunicationStatus(models.TextChoices):
     DRAFT = 'draft', 'Draft'
     SENT = 'sent', 'Sent'

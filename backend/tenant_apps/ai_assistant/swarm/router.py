@@ -36,6 +36,7 @@ def build_swarm_system_prompt(
     outlook_expired: bool,
     lessons_block: str = '',
     memory_block: str = '',
+    document_context_block: str = '',
 ) -> str:
     base = (
         "You are the ProjectMeats Intelligent Architect. "
@@ -107,7 +108,9 @@ def build_swarm_system_prompt(
     if memory_block:
         base = base + str(memory_block)
 
-    
+    if document_context_block:
+        base = base + str(document_context_block)
+
 
     if outlook_connected:
         return base + f"Outlook: CONNECTED ({outlook_email or 'unknown'}). You may use email tools when relevant."
@@ -305,6 +308,18 @@ class SwarmOrchestrator:
         except Exception as e:
             logger.warning('[SwarmOrchestrator] Tenant memory lookup failed; continuing without memory: %s', str(e))
 
+        document_context_block = ''
+        try:
+            from tenant_apps.ai_assistant.services.semantic_indexing import (
+                find_relevant_document_context,
+                format_document_context_block,
+            )
+
+            semantic_matches = find_relevant_document_context(tenant=tenant, query=user_message, limit=4)
+            document_context_block = format_document_context_block(semantic_matches)
+        except Exception as e:
+            logger.warning('[SwarmOrchestrator] Semantic document lookup failed; continuing without document context: %s', str(e))
+
         # Phase 8.2: intent classification → delegate deep meat/logistics questions to MeatSME RAG.
         # IMPORTANT: never route record creation or document-driven flows to RAG; those must use the tool loop.
         # Reliability mandate: if RAG fails for any reason, fall back to the standard tool loop.
@@ -370,6 +385,7 @@ class SwarmOrchestrator:
                     outlook_expired=outlook_expired,
                     lessons_block=lessons_block,
                     memory_block=memory_block,
+                    document_context_block=document_context_block,
                 ),
             }
         ]
@@ -501,6 +517,8 @@ class SwarmOrchestrator:
                         loop_warning_injected = True
                 else:
                     if run is None:
+                        import uuid
+
                         from tenant_apps.ai_assistant.models import AIRun
 
                         run = AIRun.objects.create(
@@ -511,6 +529,7 @@ class SwarmOrchestrator:
                             event_type='user_chat',
                             status='running',
                             intent=intent,
+                            correlation_id=str(validated_session_id or uuid.uuid4()),
                             user_message=user_message,
                             request_payload={
                                 'session_id': validated_session_id,
