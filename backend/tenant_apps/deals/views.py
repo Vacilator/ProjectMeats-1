@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
+from rest_framework.exceptions import ValidationError as DRFValidationError
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
@@ -56,7 +57,11 @@ class DealViewSet(viewsets.ModelViewSet):
         return DealDetailSerializer
 
     def perform_create(self, serializer):
-        serializer.save(tenant=self.request.tenant)
+        tenant = getattr(self.request, "tenant", None)
+        if not tenant:
+            raise DRFValidationError("Tenant context is required to create a deal.")
+
+        serializer.save(tenant=tenant)
 
     def perform_destroy(self, instance):
         instance.soft_delete()
@@ -66,7 +71,11 @@ class DealViewSet(viewsets.ModelViewSet):
         if not (getattr(request.user, "is_superuser", False) or getattr(request.user, "is_staff", False)):
             return Response({"error": "Permission denied"}, status=status.HTTP_403_FORBIDDEN)
 
-        deal = Deal.all_objects.for_tenant(request.tenant).filter(pk=pk).first()
+        tenant = getattr(request, "tenant", None)
+        if not tenant:
+            return Response({"error": "Tenant not found"}, status=status.HTTP_400_BAD_REQUEST)
+
+        deal = Deal.all_objects.for_tenant(tenant).filter(pk=pk).first()
         if not deal:
             return Response({"error": "Not found"}, status=status.HTTP_404_NOT_FOUND)
 

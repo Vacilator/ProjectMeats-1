@@ -2,6 +2,7 @@
 
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
+from rest_framework.exceptions import ValidationError as DRFValidationError
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
@@ -27,7 +28,11 @@ class LocationViewSet(viewsets.ModelViewSet):
         - location_type=<value>
         """
 
-        qs = Location.objects.filter(tenant=self.request.tenant)
+        tenant = getattr(self.request, 'tenant', None)
+        if not tenant:
+            return Location.objects.none()
+
+        qs = Location.objects.filter(tenant=tenant)
 
         supplier_id = self.request.query_params.get('supplier')
         if supplier_id:
@@ -52,8 +57,11 @@ class LocationViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         """Assign tenant automatically on creation."""
+        tenant = getattr(self.request, 'tenant', None)
+        if not tenant:
+            raise DRFValidationError('Tenant context is required to create a location.')
 
-        serializer.save(tenant=self.request.tenant)
+        serializer.save(tenant=tenant)
 
     @action(detail=True, methods=['get'], url_path='available-products')
     def available_products(self, request, pk=None):

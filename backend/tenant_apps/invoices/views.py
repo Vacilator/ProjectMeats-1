@@ -5,6 +5,7 @@ Provides REST API endpoints for invoice and claim management with strict multi-t
 """
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
+from rest_framework.exceptions import ValidationError as DRFValidationError
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
@@ -58,7 +59,11 @@ class InvoiceViewSet(viewsets.ModelViewSet):
     
     def perform_create(self, serializer):
         """Auto-assign tenant on invoice creation."""
-        serializer.save(tenant=self.request.tenant)
+        tenant = getattr(self.request, 'tenant', None)
+        if not tenant:
+            raise DRFValidationError('Tenant context is required to create an invoice.')
+
+        serializer.save(tenant=tenant)
 
     def perform_destroy(self, instance):
         instance.soft_delete()
@@ -68,7 +73,11 @@ class InvoiceViewSet(viewsets.ModelViewSet):
         if not (getattr(request.user, 'is_superuser', False) or getattr(request.user, 'is_staff', False)):
             return Response({'error': 'Permission denied'}, status=status.HTTP_403_FORBIDDEN)
 
-        inv = Invoice.all_objects.filter(tenant=request.tenant, pk=pk).first()
+        tenant = getattr(request, 'tenant', None)
+        if not tenant:
+            return Response({'error': 'Tenant not found'}, status=status.HTTP_400_BAD_REQUEST)
+
+        inv = Invoice.all_objects.filter(tenant=tenant, pk=pk).first()
         if not inv:
             return Response({'error': 'Not found'}, status=status.HTTP_404_NOT_FOUND)
 
@@ -104,8 +113,12 @@ class ClaimViewSet(viewsets.ModelViewSet):
     
     def perform_create(self, serializer):
         """Auto-assign tenant and created_by on claim creation."""
+        tenant = getattr(self.request, 'tenant', None)
+        if not tenant:
+            raise DRFValidationError('Tenant context is required to create a claim.')
+
         serializer.save(
-            tenant=self.request.tenant,
+            tenant=tenant,
             created_by=self.request.user
         )
 
@@ -124,11 +137,19 @@ class PaymentTransactionViewSet(viewsets.ModelViewSet):
     
     def get_queryset(self):
         """Filter payments by tenant."""
-        return super().get_queryset().filter(tenant=self.request.tenant)
+        tenant = getattr(self.request, 'tenant', None)
+        if not tenant:
+            return PaymentTransaction.objects.none()
+
+        return super().get_queryset().filter(tenant=tenant)
     
     def perform_create(self, serializer):
         """Set tenant and created_by when creating payment."""
+        tenant = getattr(self.request, 'tenant', None)
+        if not tenant:
+            raise DRFValidationError('Tenant context is required to create a payment transaction.')
+
         serializer.save(
-            tenant=self.request.tenant,
+            tenant=tenant,
             created_by=self.request.user
         )
