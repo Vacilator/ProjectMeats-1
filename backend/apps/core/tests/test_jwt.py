@@ -6,6 +6,7 @@ Wave S1: Security Hardening - JWT Authentication
 
 from django.test import TestCase
 from django.contrib.auth.models import User
+from django.core.cache import cache
 from rest_framework.test import APIClient
 from rest_framework import status
 from apps.tenants.models import Tenant, TenantUser
@@ -213,6 +214,7 @@ class TenantAwareJWTTestCase(TestCase):
     
     def setUp(self):
         self.client = APIClient()
+        cache.clear()
         self.user = User.objects.create_user(
             username='testuser',
             email='test@example.com',
@@ -230,6 +232,9 @@ class TenantAwareJWTTestCase(TestCase):
             role='admin',
             is_active=True
         )
+
+    def tearDown(self):
+        cache.clear()
     
     def test_token_includes_tenant_info(self):
         """Test JWT includes tenant information."""

@@ -113,6 +113,21 @@ else
     echo "ℹ️  DATABASE_URL not set; skipping database URL format check"
 fi
 
+redis_required_value="${REQUIRE_REDIS_READINESS:-${REDIS_REQUIRED:-}}"
+redis_required_normalized="${redis_required_value,,}"
+if [[ "$ENVIRONMENT" == *"-backend" && "$ENVIRONMENT" != "dev-backend" ]]; then
+    if [[ -z "$redis_required_normalized" || "$redis_required_normalized" =~ ^(1|true|yes|on)$ ]]; then
+        if [[ -z "${REDIS_URL:-}" && -z "${VALKEY_URL:-}" ]]; then
+            echo "❌ ERROR: $ENVIRONMENT requires REDIS_URL or VALKEY_URL for non-dev readiness"
+            ERRORS=$((ERRORS + 1))
+        else
+            echo "✅ Non-dev Redis/Valkey URL configured"
+        fi
+    else
+        echo "ℹ️  Redis/Valkey readiness disabled for $ENVIRONMENT; allowing explicit fallback"
+    fi
+fi
+
 validate_url_list "CORS_ALLOWED_ORIGINS"
 validate_url_list "CSRF_TRUSTED_ORIGINS"
 

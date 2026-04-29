@@ -97,6 +97,8 @@ ProjectMeats uses **environment-scoped secrets** across 6 deployment lanes:
 - ❌ **Failed**: Connection failed or credentials invalid
 - 🔒 **Not Configured**: Credentials not yet added to GitHub Secrets
 
+**Readiness Gate**: `/api/v1/health/` remains the broad liveness/integration surface, while backend deploy and smoke gates in non-dev must use `/api/v1/ready/`. For backend lanes, `/api/v1/ready/` now requires Redis/Valkey-backed cache and channels unless `REDIS_REQUIRED` is explicitly disabled for that lane.
+
 ### Dev Environment Verification Summary (March 3, 2026)
 
 **Infrastructure Status**: 🎉 **100% VERIFIED** (4/4 services operational)
