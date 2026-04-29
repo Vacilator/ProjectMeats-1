@@ -132,11 +132,15 @@ class IntegrationsOAuthRouteTests(APITestCase):
         self.assertIs(authorize_match.func.view_class, OAuthAuthorizeView)
         self.assertIs(callback_match.func.view_class, OAuthCallbackView)
 
-    def test_app_integrations_urlconf_no_longer_declares_duplicate_oauth_routes(self):
-        route_patterns = [str(pattern.pattern) for pattern in app_integrations_urls.urlpatterns]
+    def test_app_integrations_urlconf_legacy_oauth_aliases_point_to_canonical_views(self):
+        oauth_patterns = {
+            str(pattern.pattern): getattr(getattr(pattern, 'callback', None), 'view_class', None)
+            for pattern in app_integrations_urls.urlpatterns
+            if str(pattern.pattern).startswith('oauth/')
+        }
 
-        self.assertNotIn('oauth/authorize/', route_patterns)
-        self.assertNotIn('oauth/callback/<str:provider_type>/', route_patterns)
+        self.assertIs(oauth_patterns.get('oauth/authorize/'), OAuthAuthorizeView)
+        self.assertIs(oauth_patterns.get('oauth/callback/<str:provider_type>/'), OAuthCallbackView)
 
 
 class IntegrationsOAuthCallbackPublicTests(APITestCase):

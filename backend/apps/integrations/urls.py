@@ -3,12 +3,15 @@ URL configuration for integrations app.
 """
 from django.urls import path, include
 from . import views
+from integrations.views.oauth import OAuthAuthorizeView, OAuthCallbackView
 
 app_name = 'integrations'
 
 urlpatterns = [
-    # OAuth authorize/callback routes are defined canonically in backend/integrations/urls.py.
-    # This app URLConf keeps only the non-OAuth integrations endpoints behind that shim.
+    # Keep legacy app URL aliases pointed at the hardened canonical views so include-order changes
+    # cannot re-expose the older function-based OAuth implementation.
+    path('oauth/authorize/', OAuthAuthorizeView.as_view(), name='oauth-authorize'),
+    path('oauth/callback/<str:provider_type>/', OAuthCallbackView.as_view(), name='oauth-callback'),
     path('oauth/status/', views.get_connection_status, name='oauth-status'),
     path('oauth/disconnect/', views.disconnect_provider, name='oauth-disconnect'),
     

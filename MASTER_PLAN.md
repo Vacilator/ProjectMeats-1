@@ -18,7 +18,7 @@ This file is the **canonical plan + current truth snapshot**.
 - **AI email/document lane** is now fail-closed through Graph attachment ingest and parser lifecycle hardening: tabular uploads parse safely, Outlook attachments bridge into `AIDocument`, unsupported attachment kinds are rejected pre-download, repeated same-session ingests dedupe with provenance, AI sessions are tenant-bound, attachment ingest requires a session-staged allowlist from `fetch_emails`, and `parse_document` now persists explicit processing/completed/failed metadata while raising structured parser/auth/unreachable errors.
 - **Newly shipped since last snapshot (evidence; see `.github/MASTER_PLAN.md`)**:
   - Core API reliability: fix `apps/core/views.py` legacy imports/`print()` landmines + add smoke tests (PR #4652); expand always-on backend smoke coverage for `/health/`, `/ready/`, auth bootstrap failure envelopes, and tenant-resolution fail-closed checks in PR validation (PR #4752).
-  - Security / tenant isolation: de-shadow duplicate legacy OAuth authorize/callback routes so only the hardened canonical `/api/v1/integrations/oauth/*` entrypoints remain public; preserve `oauth/status` + `oauth/disconnect` behavior with regression coverage (PR #4753).
+  - Security / tenant isolation: de-shadow duplicate legacy OAuth authorize/callback wiring by locking the app URL aliases to the hardened canonical `/api/v1/integrations/oauth/*` views; preserve `oauth/status` + `oauth/disconnect` behavior with regression coverage (PR #4753).
   - Frontend standards: expand `lint:colors` + remove remaining hardcoded colors in MyTasks surfaces (PR #4650); replace high-churn `console.*` with `logger.*` (PR #4654).
   - Backend tenant safety: fail-closed `current/current_theme/admin_permissions` when tenant context is missing/ambiguous (PR #4656); wrap tenant-scoped Celery ORM in `tenant_rls(..., strict=False)` (PR #4657).
   - Mobile: device-safe API base URL + tests (PR #4658); switch builds to EAS (PR #4659).
@@ -228,7 +228,7 @@ We are re-validating and completing the last ~25 prompts with **evidence-based a
 - **Workflow webhooks tenant-safe:** add a new canonical webhook URL embedding `tenant_id` in the path and set RLS tenant explicitly in the receiver view; keep legacy URL temporarily.
 - **Email webhooks verification (critical):** Outlook requires unpredictable per-subscription `clientState`; Gmail requires request verification (JWT/secret) so forged requests cannot trigger upstream API calls.
 - **Tenant-scope email integration data:** phase in `tenant_id` for EmailAccount/EmailLog (and related tables), then add RLS policies once tenant-scoped.
-- **OAuth endpoint de-shadowing:** ✅ shipped (PR #4753). Legacy duplicate authorize/callback routes were removed from `apps/integrations/urls.py`; canonical hardened OAuth entrypoints remain in `backend/integrations/urls.py`.
+- **OAuth endpoint de-shadowing:** ✅ shipped (PR #4753). Legacy authorize/callback aliases in `apps/integrations/urls.py` now point to the hardened canonical views, preventing the older function-based OAuth implementation from being re-exposed if include order changes.
 
 ### P0 — WorkForms editor “industry leader” UX (next)
 - **Publish readiness preflight + support matrix UI:** block publish when unsupported nodes/missing required config; show actionable remediation.
