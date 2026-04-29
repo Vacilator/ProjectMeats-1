@@ -82,6 +82,21 @@ README.md @Meats-Central/core-team
 # Production deployment workflow (require senior approval)
 /.github/workflows/13-prod-deployment.yml @Meats-Central/senior-team @Meats-Central/devops-team
 
+# Critical CI/CD governance (last match wins)
+/.github/workflows/pr-validation.yml @Meats-Central/devops-team @Meats-Central/security-team @Meats-Central/senior-team
+/.github/workflows/main-pipeline.yml @Meats-Central/devops-team @Meats-Central/security-team @Meats-Central/senior-team
+/.github/workflows/reusable-deploy.yml @Meats-Central/devops-team @Meats-Central/security-team @Meats-Central/senior-team
+/.github/workflows/15-dependabot-merge-when-green.yml @Meats-Central/devops-team @Meats-Central/security-team @Meats-Central/senior-team
+/.github/dependabot.yml @Meats-Central/devops-team @Meats-Central/security-team @Meats-Central/senior-team
+/.github/scripts/check_infrastructure.sh @Meats-Central/devops-team @Meats-Central/security-team @Meats-Central/senior-team
+/.github/scripts/validate-workflows.sh @Meats-Central/devops-team @Meats-Central/security-team @Meats-Central/senior-team
+/scripts/verify_golden_state.sh @Meats-Central/devops-team @Meats-Central/security-team @Meats-Central/senior-team
+/backend/Dockerfile @Meats-Central/devops-team @Meats-Central/security-team
+/frontend/Dockerfile @Meats-Central/devops-team @Meats-Central/security-team
+/deploy/ @Meats-Central/devops-team @Meats-Central/security-team @Meats-Central/senior-team
+/config/ @Meats-Central/devops-team @Meats-Central/security-team
+/manifests/env.manifest.json @Meats-Central/devops-team @Meats-Central/security-team
+
 # Critical configuration files
 /CODEOWNERS @Meats-Central/senior-team
 /.github/CODEOWNERS @Meats-Central/senior-team

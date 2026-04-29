@@ -70,6 +70,8 @@ python config/manage_env.py audit
 
 - Lint/test/build gates run on PRs.
 - Migration checks must fail if there are unapplied migrations.
+- Dependency review plus workflow/Dockerfile security linting must run in PR validation.
+- Workflow, Docker, deploy, and automation-governance changes require human Code Owner review and are never Dependabot auto-merged.
 
 ### Deploy pipeline (high level)
 

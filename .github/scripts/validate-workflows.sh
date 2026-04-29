@@ -1110,6 +1110,79 @@ PY
     return 0
 }
 
+check_pr_validation_security_gates() {
+    log_info "Checking PR validation includes supply-chain security gates..."
+
+    if [[ ! -f .github/workflows/pr-validation.yml ]]; then
+        log_info "No pr-validation.yml found (skipping PR security gate checks)"
+        return 0
+    fi
+
+    if ! python - <<'PY'
+import sys
+from pathlib import Path
+
+try:
+    import yaml
+except Exception as e:
+    print(f"ERROR: pyyaml not available: {e}", file=sys.stderr)
+    raise SystemExit(1)
+
+wf_path = Path('.github/workflows/pr-validation.yml')
+data = yaml.safe_load(wf_path.read_text(encoding='utf-8', errors='ignore')) or {}
+jobs = data.get('jobs') or {}
+
+has_dependency_review = False
+has_actionlint = False
+hadolint_targets = set()
+
+for _job_name, job in (jobs.items() if isinstance(jobs, dict) else []):
+    if not isinstance(job, dict):
+        continue
+    for step in (job.get('steps') or []):
+        if not isinstance(step, dict):
+            continue
+
+        uses = step.get('uses')
+        if isinstance(uses, str):
+            if 'actions/dependency-review-action@' in uses:
+                has_dependency_review = True
+            if 'hadolint/hadolint-action@' in uses:
+                dockerfile = ((step.get('with') or {}).get('dockerfile') or '').strip()
+                if dockerfile:
+                    hadolint_targets.add(dockerfile)
+
+        run = step.get('run')
+        if isinstance(run, str) and 'actionlint' in run:
+            has_actionlint = True
+
+errors = []
+if not has_dependency_review:
+    errors.append(f"{wf_path.name}: missing dependency-review-action PR gate")
+if not has_actionlint:
+    errors.append(f"{wf_path.name}: missing actionlint PR gate")
+
+required_hadolint_targets = {'backend/Dockerfile', 'frontend/Dockerfile'}
+missing_hadolint_targets = sorted(required_hadolint_targets - hadolint_targets)
+if missing_hadolint_targets:
+    errors.append(
+        f"{wf_path.name}: missing hadolint PR gates for: {', '.join(missing_hadolint_targets)}"
+    )
+
+if errors:
+    for error in errors:
+        print(f"ERROR: {error}", file=sys.stderr)
+    raise SystemExit(1)
+
+print('✓ PR validation includes dependency review, workflow lint, and Dockerfile lint gates')
+PY
+    then
+        return 1
+    fi
+
+    return 0
+}
+
 # Check workflow environment lanes match env manifest (prevents secret-scope typos)
 check_environment_lanes_match_manifest() {
     log_info "Checking workflow environment lanes against manifests/env.manifest.json..."
@@ -1171,6 +1244,84 @@ if missing:
     raise SystemExit(1)
 
 print('✓ Workflow environment lanes are manifest-defined')
+PY
+    then
+        return 1
+    fi
+
+    return 0
+}
+
+check_dependabot_auto_merge_scope() {
+    log_info "Checking Dependabot auto-merge stays dependency-only..."
+
+    if [[ ! -f .github/workflows/15-dependabot-merge-when-green.yml ]]; then
+        log_info "No Dependabot auto-merge workflow found (skipping scope checks)"
+        return 0
+    fi
+
+    if ! python - <<'PY'
+import sys
+from pathlib import Path
+
+try:
+    import yaml
+except Exception as e:
+    print(f"ERROR: pyyaml not available: {e}", file=sys.stderr)
+    raise SystemExit(1)
+
+wf_path = Path('.github/workflows/15-dependabot-merge-when-green.yml')
+data = yaml.safe_load(wf_path.read_text(encoding='utf-8', errors='ignore')) or {}
+job = (data.get('jobs') or {}).get('merge-dependabot') or {}
+steps = job.get('steps') or []
+step = next((s for s in steps if isinstance(s, dict) and s.get('name') == 'Merge if safe'), None)
+if step is None:
+    print(f"ERROR: {wf_path.name}: missing 'Merge if safe' step", file=sys.stderr)
+    raise SystemExit(1)
+
+run_script = step.get('run') or ''
+
+forbidden_tokens = [
+    '.github/workflows/*',
+    '.github/dependabot.yml',
+    '.pre-commit-config.yaml',
+    'backend/Dockerfile',
+    'frontend/Dockerfile',
+    'mobile/Dockerfile',
+    'Dockerfile)',
+    '.github/scripts/',
+    'deploy/',
+    'config/',
+    'manifests/',
+    'scripts/verify_golden_state.sh',
+    '*/package.json',
+    '*/package-lock.json',
+    '*/yarn.lock',
+    '*/pnpm-lock.yaml',
+]
+
+required_tokens = [
+    'package.json|package-lock.json|yarn.lock|pnpm-lock.yaml',
+    'frontend/package.json|frontend/package-lock.json|frontend/yarn.lock|frontend/pnpm-lock.yaml',
+    'mobile/package.json|mobile/package-lock.json|mobile/yarn.lock|mobile/pnpm-lock.yaml',
+    'backend/requirements*.txt|backend/pyproject.toml|backend/poetry.lock',
+]
+
+errors = []
+for token in forbidden_tokens:
+    if token in run_script:
+        errors.append(f"{wf_path.name}: Dependabot auto-merge allowlist must not include {token}")
+
+for token in required_tokens:
+    if token not in run_script:
+        errors.append(f"{wf_path.name}: Dependabot auto-merge allowlist missing expected dependency surface {token}")
+
+if errors:
+    for error in errors:
+        print(f"ERROR: {error}", file=sys.stderr)
+    raise SystemExit(1)
+
+print('✓ Dependabot auto-merge scope is limited to explicit dependency manifests and lockfiles')
 PY
     then
         return 1
@@ -1287,6 +1438,72 @@ check_validate_environment_manifest_mode() {
     fi
 
     return $failed
+}
+
+check_codeowners_security_overrides() {
+    log_info "Checking CODEOWNERS critical security overrides..."
+
+    if [[ ! -f .github/CODEOWNERS ]]; then
+        log_error "Missing .github/CODEOWNERS"
+        return 1
+    fi
+
+    if ! python - <<'PY'
+import sys
+from pathlib import Path
+
+codeowners_path = Path('.github/CODEOWNERS')
+entries = {}
+
+for raw_line in codeowners_path.read_text(encoding='utf-8', errors='ignore').splitlines():
+    line = raw_line.strip()
+    if not line or line.startswith('#'):
+        continue
+    parts = line.split()
+    if len(parts) < 2:
+        continue
+    entries[parts[0]] = set(parts[1:])
+
+required_entries = {
+    '/.github/workflows/pr-validation.yml': {'@Meats-Central/devops-team', '@Meats-Central/security-team', '@Meats-Central/senior-team'},
+    '/.github/workflows/main-pipeline.yml': {'@Meats-Central/devops-team', '@Meats-Central/security-team', '@Meats-Central/senior-team'},
+    '/.github/workflows/reusable-deploy.yml': {'@Meats-Central/devops-team', '@Meats-Central/security-team', '@Meats-Central/senior-team'},
+    '/.github/workflows/15-dependabot-merge-when-green.yml': {'@Meats-Central/devops-team', '@Meats-Central/security-team', '@Meats-Central/senior-team'},
+    '/.github/dependabot.yml': {'@Meats-Central/devops-team', '@Meats-Central/security-team', '@Meats-Central/senior-team'},
+    '/.github/scripts/check_infrastructure.sh': {'@Meats-Central/devops-team', '@Meats-Central/security-team', '@Meats-Central/senior-team'},
+    '/.github/scripts/validate-workflows.sh': {'@Meats-Central/devops-team', '@Meats-Central/security-team', '@Meats-Central/senior-team'},
+    '/scripts/verify_golden_state.sh': {'@Meats-Central/devops-team', '@Meats-Central/security-team', '@Meats-Central/senior-team'},
+    '/backend/Dockerfile': {'@Meats-Central/devops-team', '@Meats-Central/security-team'},
+    '/frontend/Dockerfile': {'@Meats-Central/devops-team', '@Meats-Central/security-team'},
+    '/deploy/': {'@Meats-Central/devops-team', '@Meats-Central/security-team', '@Meats-Central/senior-team'},
+    '/config/': {'@Meats-Central/devops-team', '@Meats-Central/security-team'},
+    '/manifests/env.manifest.json': {'@Meats-Central/devops-team', '@Meats-Central/security-team'},
+}
+
+errors = []
+for path, owners in required_entries.items():
+    present = entries.get(path)
+    if present is None:
+        errors.append(f"{codeowners_path.name}: missing critical CODEOWNERS entry for {path}")
+        continue
+    missing_owners = sorted(owners - present)
+    if missing_owners:
+        errors.append(
+            f"{codeowners_path.name}: {path} missing required owners: {', '.join(missing_owners)}"
+        )
+
+if errors:
+    for error in errors:
+        print(f"ERROR: {error}", file=sys.stderr)
+    raise SystemExit(1)
+
+print('✓ CODEOWNERS critical security overrides are present')
+PY
+    then
+        return 1
+    fi
+
+    return 0
 }
 
 check_reusable_frontend_ssh_failfast() {
@@ -1712,7 +1929,10 @@ main() {
     check_immutable_deploy_tags || ((failed++))
     check_workflow_run_targets_exist || ((failed++))
     check_pr_validation_frontend_typecheck_gate || ((failed++))
+    check_pr_validation_security_gates || ((failed++))
     check_env_separation || ((failed++))
+    check_dependabot_auto_merge_scope || ((failed++))
+    check_codeowners_security_overrides || ((failed++))
     
     log_info "========================================="
     
