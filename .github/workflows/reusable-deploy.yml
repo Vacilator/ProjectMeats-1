@@ -1494,22 +1494,31 @@ jobs:
           FRONTEND_DIGEST_REF: ${{ needs.build-frontend.outputs.image_digest_ref }}
           SSHPASS: ${{ secrets.SSH_PASSWORD }}
         run: |
-          # Export variables that will be used in the SSH session
-          export BACKEND_HOST="${{ secrets.BACKEND_HOST }}"
-          export DO_TOKEN="${{ secrets.DO_ACCESS_TOKEN }}"
-          export API_BASE_URL="${{ secrets.REACT_APP_API_BASE_URL }}"
-          export SENTRY_DSN="${{ secrets.SENTRY_DSN }}"
-          export SENTRY_ENABLED="${{ secrets.SENTRY_ENABLED }}"
-          export ENVIRONMENT="${{ inputs.environment }}"
-          export IMAGE_TAG="${{ inputs.environment }}-${{ github.sha }}"
-          export REG="${{ env.REGISTRY }}"
-          export IMG="${{ env.FRONTEND_IMAGE }}"
-          export DOMAIN_NAME="${{ secrets.DOMAIN_NAME }}"
-          export DEPLOY_BY_DIGEST="${{ inputs.deploy_by_digest }}"
-          export FRONTEND_TAG_REF
-          export FRONTEND_DIGEST_REF
-          
-          # Debug: Show what we're deploying
+          sshpass -e ssh \
+            -o StrictHostKeyChecking=no \
+            -o UserKnownHostsFile=/dev/null \
+            -o ConnectTimeout=10 \
+            -o ServerAliveInterval=60 \
+            -o ServerAliveCountMax=10 \
+            ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << 'SSH'
+          set -euo pipefail
+
+          BACKEND_HOST="${{ secrets.BACKEND_HOST }}"
+          DO_TOKEN="${{ secrets.DO_ACCESS_TOKEN }}"
+          API_BASE_URL="${{ secrets.REACT_APP_API_BASE_URL }}"
+          SENTRY_DSN="${{ secrets.SENTRY_DSN }}"
+          SENTRY_ENABLED="${{ secrets.SENTRY_ENABLED }}"
+          ENVIRONMENT="${{ inputs.environment }}"
+          IMAGE_TAG="${{ inputs.environment }}-${{ github.sha }}"
+          REG="${{ env.REGISTRY }}"
+          IMG="${{ env.FRONTEND_IMAGE }}"
+          DOMAIN_NAME="${{ secrets.DOMAIN_NAME }}"
+          DEPLOY_BY_DIGEST="${{ inputs.deploy_by_digest }}"
+          FRONTEND_TAG_REF="${{ needs.build-frontend.outputs.image_tag_ref }}"
+          FRONTEND_DIGEST_REF="${{ needs.build-frontend.outputs.image_digest_ref }}"
+
+          # Use the same heredoc-based secret delivery as the backend deploy job.
+          # Inline SSH env assignment can corrupt registry tokens that contain shell-significant characters.
           echo "==================================="
           echo "Frontend Deployment Debug Info"
           echo "==================================="
@@ -1520,29 +1529,6 @@ jobs:
           echo "Environment: $ENVIRONMENT"
           echo "Backend Host: $BACKEND_HOST"
           echo "==================================="
-          
-          sshpass -e ssh \
-            -o StrictHostKeyChecking=no \
-            -o UserKnownHostsFile=/dev/null \
-            -o ConnectTimeout=10 \
-            -o ServerAliveInterval=60 \
-            -o ServerAliveCountMax=10 \
-            ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} \
-            "BACKEND_HOST='${BACKEND_HOST}' \
-             DO_TOKEN='${DO_TOKEN}' \
-             API_BASE_URL='${API_BASE_URL}' \
-             SENTRY_DSN='${SENTRY_DSN}' \
-             SENTRY_ENABLED='${SENTRY_ENABLED}' \
-             ENVIRONMENT='${ENVIRONMENT}' \
-             IMAGE_TAG='${IMAGE_TAG}' \
-             REG='${REG}' \
-             IMG='${IMG}' \
-             DOMAIN_NAME='${DOMAIN_NAME}' \
-             DEPLOY_BY_DIGEST='${DEPLOY_BY_DIGEST}' \
-             FRONTEND_TAG_REF='${FRONTEND_TAG_REF}' \
-             FRONTEND_DIGEST_REF='${FRONTEND_DIGEST_REF}' \
-              bash -s" << 'SSH'
-          set -euo pipefail
           
           echo "==================================="
           echo "Remote Deployment Started"
