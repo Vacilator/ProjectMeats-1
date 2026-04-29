@@ -1789,6 +1789,7 @@ Deliverables:
 - **2026-04-29** — Frontend: replace remaining high-churn runtime `console.*` calls with centralized `logger.*` usage across auth/session/config/tenant and form-engine surfaces to reduce noisy production logging without changing behavior. (PR: #4750)
 - **2026-04-29** — CI: derive reusable deploy required-secret checks from `manifests/env.manifest.json`, enforce the contract in workflow validation, and fail CURRENT docs that still reference legacy env-manifest paths. (PR: #4751)
 - **2026-04-29** — Tests: expand backend smoke coverage for always-on API surfaces so PR validation now checks `/api/v1/health/`, `/api/v1/ready/`, auth bootstrap failure envelopes, and tenant-resolution fail-closed behavior in the dedicated smoke lane. (PR: #4752)
+- **2026-04-29** — Security: de-shadow duplicate OAuth authorize/callback routes by removing the legacy declarations from `apps/integrations/urls.py`, leaving `backend/integrations/urls.py` as the only public `/api/v1/integrations/oauth/*` route source while preserving `oauth/status` + `oauth/disconnect` behavior with regression coverage. (PR: #4753)
 
 ### Phase 11: The Deal Desk (Trader Ledger Replacement)
 
