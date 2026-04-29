@@ -1252,6 +1252,83 @@ PY
     return 0
 }
 
+check_reusable_frontend_ssh_failfast() {
+    log_info "Checking reusable-deploy frontend SSH setup fails fast..."
+
+    if [[ ! -f .github/workflows/reusable-deploy.yml ]]; then
+        log_info "No reusable-deploy.yml found (skipping frontend SSH fail-fast checks)"
+        return 0
+    fi
+
+    if ! python - <<'PY'
+import sys
+from pathlib import Path
+
+try:
+    import yaml
+except Exception as e:
+    print(f"ERROR: pyyaml not available: {e}", file=sys.stderr)
+    raise SystemExit(1)
+
+wf_path = Path('.github/workflows/reusable-deploy.yml')
+data = yaml.safe_load(wf_path.read_text(encoding='utf-8', errors='ignore')) or {}
+jobs = data.get('jobs') or {}
+job = jobs.get('deploy-frontend')
+errors = []
+
+if not isinstance(job, dict):
+    errors.append(f"{wf_path.name}: jobs.deploy-frontend missing")
+else:
+    steps = job.get('steps') or []
+    setup_step = next((s for s in steps if isinstance(s, dict) and s.get('name') == 'Setup SSH'), None)
+    deploy_step = next((s for s in steps if isinstance(s, dict) and s.get('name') == 'Deploy frontend container'), None)
+
+    if setup_step is None:
+        errors.append(f"{wf_path.name}: jobs.deploy-frontend missing step 'Setup SSH'")
+    else:
+        run_script = setup_step.get('run') or ''
+        required_tokens = [
+            'timeout 30 sshpass -e ssh',
+            'UserKnownHostsFile=/dev/null',
+            'ConnectTimeout=10',
+            'ServerAliveInterval=10',
+            'ServerAliveCountMax=3',
+        ]
+        for token in required_tokens:
+            if token not in run_script:
+                errors.append(f"{wf_path.name}: jobs.deploy-frontend Setup SSH must include '{token}'")
+        import re
+        if re.search(r'(^|\n)\s*ssh-keyscan\b', run_script):
+            errors.append(f"{wf_path.name}: jobs.deploy-frontend Setup SSH must not use raw ssh-keyscan")
+
+    if deploy_step is None:
+        errors.append(f"{wf_path.name}: jobs.deploy-frontend missing step 'Deploy frontend container'")
+    else:
+        run_script = deploy_step.get('run') or ''
+        required_tokens = [
+            'UserKnownHostsFile=/dev/null',
+            'ConnectTimeout=10',
+            'ServerAliveInterval=60',
+            'ServerAliveCountMax=10',
+        ]
+        for token in required_tokens:
+            if token not in run_script:
+                errors.append(f"{wf_path.name}: jobs.deploy-frontend Deploy frontend container must include '{token}'")
+
+if errors:
+    for error in errors:
+        print(f"ERROR: {error}", file=sys.stderr)
+    raise SystemExit(1)
+
+print('✓ reusable-deploy frontend SSH setup is fail-fast')
+PY
+    then
+        return 1
+    fi
+
+    return 0
+}
+
 check_reusable_workflow_callers() {
     log_info "Checking main-pipeline reusable workflow callers..."
 
@@ -1376,6 +1453,7 @@ main() {
     check_manifest_secrets_for_all_workflows || ((failed++))
     check_environment_lanes_match_manifest || ((failed++))
     check_reusable_workflow_required_secret_contract || ((failed++))
+    check_reusable_frontend_ssh_failfast || ((failed++))
     check_reusable_workflow_callers || ((failed++))
     check_current_docs_manifest_path_drift || ((failed++))
     check_cache_config || ((failed++))
