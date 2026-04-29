@@ -25,8 +25,23 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.core.services.idempotency import get_idempotency_key, release_idempotency_key, reserve_idempotency_key, store_idempotency_response
-from .models import AIDocument, AIFeedbackLog, ChatMessage, ChatSession, MessageTypeChoices
+from .models import (
+    AIApproval,
+    AIApprovalStatus,
+    AIDocument,
+    AIFeedbackLog,
+    AIRun,
+    AIRunStatus,
+    AITask,
+    AITaskStatus,
+    ChatMessage,
+    ChatSession,
+    MessageTypeChoices,
+)
 from .serializers import (
+    AIApprovalActionResponseSerializer,
+    AIApprovalResolutionRequestSerializer,
+    AIApprovalSerializer,
     AIDocumentSerializer,
     AIFeedbackLogSerializer,
     AIFeedbackSubmitSerializer,
@@ -37,6 +52,8 @@ from .serializers import (
     ChatMessageSerializer,
     ChatSessionDetailSerializer,
     ChatSessionListSerializer,
+    AIRunSerializer,
+    AITaskSerializer,
     PendingReviewItemSerializer,
     PendingReviewResolveRequestSerializer,
     PendingReviewListResponseSerializer,
@@ -74,6 +91,24 @@ def ai_not_configured_response() -> Response:
         },
         status=status.HTTP_503_SERVICE_UNAVAILABLE,
     )
+
+
+def _tenant_membership_role(*, user, tenant) -> str:
+    if not user or not getattr(user, 'is_authenticated', False) or tenant is None:
+        return ''
+
+    from apps.tenants.models import TenantUser
+
+    return (
+        TenantUser.objects.filter(tenant=tenant, user=user, is_active=True)
+        .values_list('role', flat=True)
+        .first()
+        or ''
+    )
+
+
+def _can_review_ai_approvals(*, user, tenant) -> bool:
+    return _tenant_membership_role(user=user, tenant=tenant) in {'owner', 'admin'}
 
 
 class ChatSessionViewSet(viewsets.ModelViewSet):
@@ -352,6 +387,7 @@ class ChatBotAPIViewSet(viewsets.ViewSet):
 
                 response_text = str(result.get('response') or '').strip()
                 tokens_used = None
+                control_plane = result.get('control_plane') or {}
 
                 tools_used = []
                 try:
@@ -388,6 +424,8 @@ class ChatBotAPIViewSet(viewsets.ViewSet):
                 'response_type': 'swarm_tool_loop',
                 'tools_used': sorted(list(set(tools_used))) if tools_used else [],
             }
+            if control_plane:
+                metadata['control_plane'] = control_plane
 
             # Create AI response message
             ai_msg = ChatMessage.objects.create(
@@ -428,6 +466,228 @@ class ChatBotAPIViewSet(viewsets.ViewSet):
                 },
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
+
+
+class _TenantScopedAIControlPlaneViewSet(viewsets.ReadOnlyModelViewSet):
+    permission_classes = [IsAuthenticated]
+    filter_backends = [filters.OrderingFilter]
+    ordering = ['-created_on']
+
+    def _tenant_queryset(self, queryset):
+        tenant = getattr(self.request, 'tenant', None)
+        tenant_id = get_request_tenant_id(self.request)
+        if not tenant_id or tenant is None:
+            return queryset.none()
+        return queryset.filter(tenant_id=tenant_id), tenant
+
+
+class AIRunViewSet(_TenantScopedAIControlPlaneViewSet):
+    queryset = AIRun.objects.select_related('tenant', 'session', 'requested_by')
+    serializer_class = AIRunSerializer
+    ordering_fields = ['created_on', 'modified_on', 'completed_at']
+
+    def get_queryset(self):
+        scoped = self._tenant_queryset(self.queryset)
+        if not isinstance(scoped, tuple):
+            return scoped
+        queryset, tenant = scoped
+        if _can_review_ai_approvals(user=self.request.user, tenant=tenant):
+            return queryset
+        return queryset.filter(requested_by=self.request.user)
+
+
+class AITaskViewSet(_TenantScopedAIControlPlaneViewSet):
+    queryset = AITask.objects.select_related('tenant', 'run', 'requested_by')
+    serializer_class = AITaskSerializer
+    ordering_fields = ['created_on', 'modified_on', 'executed_at', 'resolved_at', 'sequence']
+
+    def get_queryset(self):
+        scoped = self._tenant_queryset(self.queryset)
+        if not isinstance(scoped, tuple):
+            return scoped
+        queryset, tenant = scoped
+        if _can_review_ai_approvals(user=self.request.user, tenant=tenant):
+            return queryset
+        return queryset.filter(requested_by=self.request.user)
+
+
+class AIApprovalViewSet(_TenantScopedAIControlPlaneViewSet):
+    queryset = AIApproval.objects.select_related('tenant', 'run', 'task', 'requested_by', 'resolved_by')
+    serializer_class = AIApprovalSerializer
+    ordering_fields = ['created_on', 'modified_on', 'resolved_at', 'expires_at']
+
+    def get_queryset(self):
+        scoped = self._tenant_queryset(self.queryset)
+        if not isinstance(scoped, tuple):
+            return scoped
+        queryset, tenant = scoped
+        if _can_review_ai_approvals(user=self.request.user, tenant=tenant):
+            return queryset
+        return queryset.filter(requested_by=self.request.user)
+
+    @extend_schema(
+        request=AIApprovalResolutionRequestSerializer,
+        responses={200: AIApprovalActionResponseSerializer, 403: OpenApiTypes.OBJECT, 409: OpenApiTypes.OBJECT},
+    )
+    @action(detail=True, methods=['post'])
+    def approve(self, request, pk=None):
+        tenant = getattr(request, 'tenant', None)
+        if not _can_review_ai_approvals(user=request.user, tenant=tenant):
+            return Response({'error': 'Only tenant owners or admins can approve AI tasks'}, status=status.HTTP_403_FORBIDDEN)
+
+        serializer = AIApprovalResolutionRequestSerializer(data=request.data or {})
+        serializer.is_valid(raise_exception=True)
+
+        from tenant_apps.ai_assistant.swarm.executor import ToolExecutor
+
+        with transaction.atomic():
+            request_tenant_id = str(get_request_tenant_id(request) or '')
+            approval = AIApproval.objects.select_for_update().get(
+                pk=pk,
+                tenant_id=request_tenant_id,
+            )
+            if approval.status != AIApprovalStatus.PENDING:
+                return Response({'error': 'Approval already resolved'}, status=status.HTTP_409_CONFLICT)
+
+            task = AITask.objects.select_for_update().get(pk=approval.task_id, tenant_id=request_tenant_id)
+            run = AIRun.objects.select_for_update().get(pk=approval.run_id, tenant_id=request_tenant_id)
+            if (
+                str(approval.tenant_id) != request_tenant_id
+                or str(task.tenant_id) != str(approval.tenant_id)
+                or str(run.tenant_id) != str(approval.tenant_id)
+            ):
+                return Response({'error': 'Approval not found'}, status=status.HTTP_404_NOT_FOUND)
+
+            approval.status = AIApprovalStatus.APPROVED
+            approval.resolved_by = request.user
+            approval.resolution_note = serializer.validated_data.get('resolution_note', '')
+            approval.resolved_at = timezone.now()
+            approval.response_payload = {
+                'approved_by': request.user.id,
+                'resolution_note': approval.resolution_note,
+                'approved_at': approval.resolved_at.isoformat(),
+            }
+            approval.save(update_fields=['status', 'resolved_by', 'resolution_note', 'resolved_at', 'response_payload', 'modified_on'])
+
+            task.status = AITaskStatus.RUNNING
+            task.save(update_fields=['status', 'modified_on'])
+
+            run.status = AIRunStatus.RUNNING
+            run.error_message = ''
+            run.save(update_fields=['status', 'error_message', 'modified_on'])
+
+            ToolExecutor().execute(
+                approval.tool_name,
+                approval.request_payload,
+                approval.tenant,
+                approval.requested_by or request.user,
+                session_id=str(run.session_id) if run.session_id else None,
+                run=run,
+                existing_task=task,
+                approval=approval,
+                bypass_approval=True,
+            )
+
+        approval.refresh_from_db()
+        task.refresh_from_db()
+        run.refresh_from_db()
+        return Response(
+            AIApprovalActionResponseSerializer(
+                {
+                    'approval': approval,
+                    'task': task,
+                    'run': run,
+                }
+            ).data,
+            status=status.HTTP_200_OK,
+        )
+
+    @extend_schema(
+        request=AIApprovalResolutionRequestSerializer,
+        responses={200: AIApprovalActionResponseSerializer, 403: OpenApiTypes.OBJECT, 409: OpenApiTypes.OBJECT},
+    )
+    @action(detail=True, methods=['post'])
+    def deny(self, request, pk=None):
+        tenant = getattr(request, 'tenant', None)
+        if not _can_review_ai_approvals(user=request.user, tenant=tenant):
+            return Response({'error': 'Only tenant owners or admins can deny AI tasks'}, status=status.HTTP_403_FORBIDDEN)
+
+        serializer = AIApprovalResolutionRequestSerializer(data=request.data or {})
+        serializer.is_valid(raise_exception=True)
+
+        with transaction.atomic():
+            request_tenant_id = str(get_request_tenant_id(request) or '')
+            approval = AIApproval.objects.select_for_update().get(
+                pk=pk,
+                tenant_id=request_tenant_id,
+            )
+            if approval.status != AIApprovalStatus.PENDING:
+                return Response({'error': 'Approval already resolved'}, status=status.HTTP_409_CONFLICT)
+
+            task = AITask.objects.select_for_update().get(pk=approval.task_id, tenant_id=request_tenant_id)
+            run = AIRun.objects.select_for_update().get(pk=approval.run_id, tenant_id=request_tenant_id)
+            if (
+                str(approval.tenant_id) != request_tenant_id
+                or str(task.tenant_id) != str(approval.tenant_id)
+                or str(run.tenant_id) != str(approval.tenant_id)
+            ):
+                return Response({'error': 'Approval not found'}, status=status.HTTP_404_NOT_FOUND)
+
+            resolved_at = timezone.now()
+            resolution_note = serializer.validated_data.get('resolution_note', '')
+
+            approval.status = AIApprovalStatus.DENIED
+            approval.resolved_by = request.user
+            approval.resolution_note = resolution_note
+            approval.resolved_at = resolved_at
+            approval.response_payload = {
+                'denied_by': request.user.id,
+                'resolution_note': resolution_note,
+                'denied_at': resolved_at.isoformat(),
+            }
+            approval.save(update_fields=['status', 'resolved_by', 'resolution_note', 'resolved_at', 'response_payload', 'modified_on'])
+
+            task.status = AITaskStatus.DENIED
+            task.error_message = resolution_note or 'Denied by approver'
+            task.resolved_at = resolved_at
+            task.output_payload = {
+                'approval_id': str(approval.id),
+                'status': AIApprovalStatus.DENIED,
+                'resolution_note': resolution_note,
+            }
+            task.save(update_fields=['status', 'error_message', 'resolved_at', 'output_payload', 'modified_on'])
+
+            run.status = AIRunStatus.DENIED
+            run.error_message = task.error_message
+            run.response_text = 'This AI task was denied and was not executed.'
+            run.response_payload = {
+                'approval_id': str(approval.id),
+                'task_id': str(task.id),
+                'status': AIApprovalStatus.DENIED,
+                'resolution_note': resolution_note,
+            }
+            run.completed_at = resolved_at
+            run.save(
+                update_fields=[
+                    'status',
+                    'error_message',
+                    'response_text',
+                    'response_payload',
+                    'completed_at',
+                    'modified_on',
+                ]
+            )
+
+        return Response(
+            AIApprovalActionResponseSerializer(
+                {
+                    'approval': approval,
+                    'task': task,
+                    'run': run,
+                }
+            ).data,
+            status=status.HTTP_200_OK,
+        )
 
 
 class AILearningMetricsAPIView(APIView):

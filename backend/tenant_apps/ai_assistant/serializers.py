@@ -3,7 +3,16 @@ Serializers for AI Assistant functionality.
 """
 from rest_framework import serializers
 
-from .models import AIDocument, AIFeedbackLog, AIConfiguration, ChatMessage, ChatSession
+from .models import (
+    AIApproval,
+    AIDocument,
+    AIFeedbackLog,
+    AIConfiguration,
+    AIRun,
+    AITask,
+    ChatMessage,
+    ChatSession,
+)
 from .session_utils import bind_context_to_tenant, get_request_tenant_id, session_matches_tenant
 from .services.document_parser import validate_ai_document_upload
 
@@ -319,6 +328,91 @@ class SwarmInvokeResponseSerializer(serializers.Serializer):
     urgency = serializers.CharField()
     agent_chain = serializers.ListField(child=serializers.CharField())
     notes = serializers.CharField(required=False, allow_blank=True)
+
+
+class AIRunSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = AIRun
+        fields = [
+            'id',
+            'tenant',
+            'session',
+            'requested_by',
+            'source',
+            'event_type',
+            'status',
+            'correlation_id',
+            'intent',
+            'user_message',
+            'response_text',
+            'request_payload',
+            'response_payload',
+            'error_message',
+            'approval_required_at',
+            'completed_at',
+            'created_on',
+            'modified_on',
+        ]
+        read_only_fields = fields
+
+
+class AITaskSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = AITask
+        fields = [
+            'id',
+            'tenant',
+            'run',
+            'requested_by',
+            'tool_name',
+            'sequence',
+            'status',
+            'requires_approval',
+            'approval_requested_at',
+            'executed_at',
+            'resolved_at',
+            'input_payload',
+            'output_payload',
+            'error_message',
+            'target_entity_type',
+            'target_entity_id',
+            'created_on',
+            'modified_on',
+        ]
+        read_only_fields = fields
+
+
+class AIApprovalSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = AIApproval
+        fields = [
+            'id',
+            'tenant',
+            'run',
+            'task',
+            'requested_by',
+            'resolved_by',
+            'tool_name',
+            'status',
+            'request_payload',
+            'response_payload',
+            'resolution_note',
+            'expires_at',
+            'resolved_at',
+            'created_on',
+            'modified_on',
+        ]
+        read_only_fields = fields
+
+
+class AIApprovalResolutionRequestSerializer(serializers.Serializer):
+    resolution_note = serializers.CharField(required=False, allow_blank=True, max_length=2000)
+
+
+class AIApprovalActionResponseSerializer(serializers.Serializer):
+    approval = AIApprovalSerializer()
+    task = AITaskSerializer()
+    run = AIRunSerializer()
 
 
 class PendingReviewItemSerializer(serializers.Serializer):

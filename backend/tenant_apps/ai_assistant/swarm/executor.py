@@ -10,6 +10,7 @@ Reliability mandate:
 
 from __future__ import annotations
 
+from datetime import timedelta
 import json
 import logging
 from typing import Any, Callable, Dict
@@ -18,6 +19,8 @@ from apps.tenants.rls import set_current_tenant
 from django.utils import timezone
 
 logger = logging.getLogger(__name__)
+
+APPROVAL_GATED_TOOL_NAMES = {'draft_vendor_email'}
 
 
 # OpenAI tool schemas (ChatCompletions-compatible).
@@ -513,6 +516,54 @@ class ToolExecutor:
             'get_recent_activity': self._get_recent_activity,
         }
 
+    def _build_task_target(self, tool_name: str, arguments: Dict[str, Any]) -> tuple[str, str]:
+        if tool_name == 'draft_vendor_email':
+            return str(arguments.get('vendor_type') or 'supplier'), str(arguments.get('vendor_id') or '')
+        if tool_name in {'create_entity', 'create_record'}:
+            return str(arguments.get('entity_type') or arguments.get('entity') or ''), ''
+        if tool_name == 'trigger_workform':
+            return 'workflow', str(arguments.get('workflow_id') or '')
+        return '', ''
+
+    def _create_task_record(self, *, run: Any, tool_name: str, arguments: Dict[str, Any], user: Any = None) -> Any:
+        from tenant_apps.ai_assistant.models import AITask, AITaskStatus
+
+        next_sequence = (run.tasks.order_by('-sequence').values_list('sequence', flat=True).first() or 0) + 1
+        target_entity_type, target_entity_id = self._build_task_target(tool_name, arguments)
+        requires_approval = tool_name in APPROVAL_GATED_TOOL_NAMES
+        initial_status = AITaskStatus.APPROVAL_REQUIRED if requires_approval else AITaskStatus.RUNNING
+
+        return AITask.objects.create(
+            tenant=run.tenant,
+            run=run,
+            requested_by=user,
+            tool_name=tool_name,
+            sequence=next_sequence,
+            status=initial_status,
+            requires_approval=requires_approval,
+            approval_requested_at=timezone.now() if requires_approval else None,
+            input_payload=arguments,
+            target_entity_type=target_entity_type,
+            target_entity_id=target_entity_id,
+        )
+
+    def _create_pending_approval(self, *, task: Any, user: Any = None) -> Any:
+        from tenant_apps.ai_assistant.models import AIApproval, AIApprovalStatus
+
+        approval, _ = AIApproval.objects.get_or_create(
+            task=task,
+            defaults={
+                'tenant': task.tenant,
+                'run': task.run,
+                'requested_by': user,
+                'tool_name': task.tool_name,
+                'status': AIApprovalStatus.PENDING,
+                'request_payload': task.input_payload or {},
+                'expires_at': timezone.now() + timedelta(hours=24),
+            },
+        )
+        return approval
+
     def execute(
         self,
         tool_name: str,
@@ -520,6 +571,10 @@ class ToolExecutor:
         tenant: Any,
         user: Any = None,
         session_id: str | None = None,
+        run: Any = None,
+        existing_task: Any = None,
+        approval: Any = None,
+        bypass_approval: bool = False,
     ) -> str:
         """Execute a tool and return a JSON string result.
 
@@ -532,6 +587,9 @@ class ToolExecutor:
             JSON string containing success data or an error payload.
         """
         from tenant_apps.ai_assistant.swarm.tools.microsoft_graph import error_payload_from_exception
+
+        task = existing_task
+        approval_record = approval
 
         try:
             fn = self._tools.get(tool_name)
@@ -574,17 +632,152 @@ class ToolExecutor:
             if session_id and tool_name in {'fetch_emails', 'ingest_email_attachment', 'check_unread_emails'} and not safe_args.get('session_id'):
                 safe_args['session_id'] = session_id
 
+            if run is not None and task is None:
+                task = self._create_task_record(run=run, tool_name=tool_name, arguments=safe_args, user=user)
+
+            if task and tool_name in APPROVAL_GATED_TOOL_NAMES and not bypass_approval:
+                if approval_record is None:
+                    approval_record = self._create_pending_approval(task=task, user=user)
+
+                task.status = task.status or 'approval_required'
+                task.requires_approval = True
+                task.approval_requested_at = task.approval_requested_at or timezone.now()
+                task.output_payload = {
+                    'approval_required': True,
+                    'approval_id': str(approval_record.id),
+                    'run_id': str(task.run_id),
+                    'task_id': str(task.id),
+                }
+                task.save(
+                    update_fields=[
+                        'status',
+                        'requires_approval',
+                        'approval_requested_at',
+                        'output_payload',
+                        'modified_on',
+                    ]
+                )
+
+                if run is not None:
+                    run.status = 'approval_required'
+                    run.approval_required_at = task.approval_requested_at
+                    run.response_text = 'Approval is required before this AI task can execute.'
+                    run.response_payload = task.output_payload
+                    run.save(
+                        update_fields=[
+                            'status',
+                            'approval_required_at',
+                            'response_text',
+                            'response_payload',
+                            'modified_on',
+                        ]
+                    )
+
+                return json.dumps(
+                    {
+                        'ok': True,
+                        'tool': tool_name,
+                        'tenant_id': tenant_id,
+                        'data': {
+                            'approval_required': True,
+                            'approval_id': str(approval_record.id),
+                            'run_id': str(task.run_id),
+                            'task_id': str(task.id),
+                            'tool_name': tool_name,
+                            'message': 'Approval is required before this AI task can execute.',
+                        },
+                    },
+                    default=str,
+                )
+
+            if task is not None:
+                task.status = 'running'
+                task.save(update_fields=['status', 'modified_on'])
+
             result = fn(safe_args, tenant, user)
+            if task is not None:
+                executed_at = timezone.now()
+                task.status = 'completed'
+                task.executed_at = executed_at
+                task.resolved_at = executed_at
+                task.error_message = ''
+                task.output_payload = result if isinstance(result, dict) else {'result': result}
+                task.save(
+                    update_fields=[
+                        'status',
+                        'executed_at',
+                        'resolved_at',
+                        'error_message',
+                        'output_payload',
+                        'modified_on',
+                    ]
+                )
+            if approval_record is not None and bypass_approval:
+                approval_response_payload = dict(approval_record.response_payload or {})
+                approval_response_payload['execution_result'] = task.output_payload if task is not None else result
+                approval_record.response_payload = approval_response_payload
+                approval_record.save(update_fields=['response_payload', 'modified_on'])
+            if run is not None and bypass_approval:
+                completed_at = timezone.now()
+                run.status = 'completed'
+                run.completed_at = completed_at
+                run.response_text = 'Approved AI task executed successfully.'
+                run.response_payload = task.output_payload if task is not None else {'result': result}
+                run.error_message = ''
+                run.save(
+                    update_fields=[
+                        'status',
+                        'completed_at',
+                        'response_text',
+                        'response_payload',
+                        'error_message',
+                        'modified_on',
+                    ]
+                )
             return json.dumps({'ok': True, 'tool': tool_name, 'tenant_id': tenant_id, 'data': result}, default=str)
         except Exception as e:
             tenant_id = str(getattr(tenant, 'id', '') or '')
             logger.warning('Tool execution failed tool=%s tenant=%s: %s', tool_name, tenant_id, str(e), exc_info=True)
+            error_payload = error_payload_from_exception(
+                tool_name=tool_name,
+                tenant_id=tenant_id or None,
+                exc=e,
+            )
+            if task is not None:
+                resolved_at = timezone.now()
+                task.status = 'failed'
+                task.executed_at = task.executed_at or resolved_at
+                task.resolved_at = resolved_at
+                task.error_message = str(e)
+                task.output_payload = error_payload
+                task.save(
+                    update_fields=[
+                        'status',
+                        'executed_at',
+                        'resolved_at',
+                        'error_message',
+                        'output_payload',
+                        'modified_on',
+                    ]
+                )
+            if run is not None and bypass_approval:
+                run.status = 'failed'
+                run.completed_at = timezone.now()
+                run.error_message = str(e)
+                run.response_text = 'Approved AI task failed during execution.'
+                run.response_payload = error_payload
+                run.save(
+                    update_fields=[
+                        'status',
+                        'completed_at',
+                        'error_message',
+                        'response_text',
+                        'response_payload',
+                        'modified_on',
+                    ]
+                )
             return json.dumps(
-                error_payload_from_exception(
-                    tool_name=tool_name,
-                    tenant_id=tenant_id or None,
-                    exc=e,
-                ),
+                error_payload,
                 default=str,
             )
 

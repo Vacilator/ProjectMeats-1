@@ -19,6 +19,7 @@ from dataclasses import dataclass
 from typing import Any, Dict, List, Literal, Optional
 
 from django.conf import settings
+from django.utils import timezone
 
 from tenant_apps.ai_assistant.swarm.agents.base import AgentContext
 from tenant_apps.ai_assistant.swarm.executor import DEFAULT_OPENAI_TOOLS, ToolExecutor
@@ -83,6 +84,7 @@ def build_swarm_system_prompt(
         "\n\nEXTERNAL COMMS BROKER (DRAFT-ONLY): "
         "If the user wants to contact a supplier/customer (invoice mismatch, PO discrepancy, booking change), propose drafting an email. "
         "Use draft_vendor_email(vendor_id, context[, vendor_type]) to store a Draft and return the subject/body for human approval. "
+        "If a tool result says approval_required, stop calling tools, explain that approval is pending, and do not retry the tool automatically. "
         "\n\nOUTLOOK EMAIL SEARCH PROTOCOL (MANDATORY): "
         "You have full access to search the user's Inbox, Sent Items, and Archive. "
         "You can search both read and unread emails. "
@@ -387,6 +389,13 @@ class SwarmOrchestrator:
         rounds = 0
         tool_signatures: List[str] = []
         loop_warning_injected = False
+        run = None
+        validated_session_id = session_id
+        if session_id:
+            from tenant_apps.ai_assistant.models import ChatSession
+
+            if not ChatSession.objects.filter(id=session_id, tenant=tenant).exists():
+                validated_session_id = None
 
         while True:
             rounds += 1
@@ -410,7 +419,30 @@ class SwarmOrchestrator:
 
             if not tool_calls:
                 final_text = (msg.content or '').strip()
-                return {'response': final_text, 'messages': messages}
+                if run is not None:
+                    run.status = 'completed'
+                    run.completed_at = timezone.now()
+                    run.response_text = final_text
+                    run.response_payload = {
+                        'final_response': final_text,
+                        'tools_used': tool_signatures,
+                    }
+                    run.error_message = ''
+                    run.save(
+                        update_fields=[
+                            'status',
+                            'completed_at',
+                            'response_text',
+                            'response_payload',
+                            'error_message',
+                            'modified_on',
+                        ]
+                    )
+                return {
+                    'response': final_text,
+                    'messages': messages,
+                    'control_plane': {'run_id': str(run.id)} if run is not None else {},
+                }
 
             # a) Append assistant's tool call message to history
             assistant_payload: Dict[str, Any] = {'role': 'assistant', 'content': msg.content or ''}
@@ -468,7 +500,32 @@ class SwarmOrchestrator:
                         max_rounds += 1
                         loop_warning_injected = True
                 else:
-                    result = executor.execute(tool_name, args, tenant, user, session_id=session_id)
+                    if run is None:
+                        from tenant_apps.ai_assistant.models import AIRun
+
+                        run = AIRun.objects.create(
+                            tenant=tenant,
+                            session_id=validated_session_id,
+                            requested_by=user,
+                            source='chat',
+                            event_type='user_chat',
+                            status='running',
+                            intent=intent,
+                            user_message=user_message,
+                            request_payload={
+                                'session_id': validated_session_id,
+                                'history_length': len(history or []),
+                                'user_message': user_message,
+                            },
+                        )
+                    result = executor.execute(
+                        tool_name,
+                        args,
+                        tenant,
+                        user,
+                        session_id=validated_session_id,
+                        run=run,
+                    )
                     tool_signatures.append(signature)
 
                 messages.append(
@@ -479,9 +536,59 @@ class SwarmOrchestrator:
                     }
                 )
 
+                try:
+                    parsed_result = json.loads(result)
+                except Exception:
+                    parsed_result = {}
+                tool_data = parsed_result.get('data') if isinstance(parsed_result, dict) else {}
+                if isinstance(tool_data, dict) and tool_data.get('approval_required'):
+                    response_text = str(tool_data.get('message') or 'Approval is required before this AI task can execute.').strip()
+                    if run is not None:
+                        run.status = 'approval_required'
+                        run.approval_required_at = timezone.now()
+                        run.response_text = response_text
+                        run.response_payload = tool_data
+                        run.save(
+                            update_fields=[
+                                'status',
+                                'approval_required_at',
+                                'response_text',
+                                'response_payload',
+                                'modified_on',
+                            ]
+                        )
+                    return {
+                        'response': response_text,
+                        'messages': messages,
+                        'control_plane': {
+                            'run_id': str(run.id) if run is not None else '',
+                            'task_id': str(tool_data.get('task_id') or ''),
+                            'approval_id': str(tool_data.get('approval_id') or ''),
+                            'approval_required': True,
+                            'tool_name': tool_name,
+                        },
+                    }
+
             # d) Loop continues; next LLM call interprets tool results (and may call more tools)
 
+        if run is not None:
+            run.status = 'failed'
+            run.completed_at = timezone.now()
+            run.error_message = 'Tool loop exceeded max rounds'
+            run.response_text = 'Tool loop exceeded max rounds; please refine your request.'
+            run.response_payload = {'tools_used': tool_signatures}
+            run.save(
+                update_fields=[
+                    'status',
+                    'completed_at',
+                    'error_message',
+                    'response_text',
+                    'response_payload',
+                    'modified_on',
+                ]
+            )
         return {
             'response': 'Tool loop exceeded max rounds; please refine your request.',
             'messages': messages,
+            'control_plane': {'run_id': str(run.id)} if run is not None else {},
         }
