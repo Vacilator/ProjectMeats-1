@@ -189,8 +189,8 @@
   - **Rollback:** Keep backward-compatible aliases until consumers are updated.
   - **Completion evidence destination:** shipped in `.github/MASTER_PLAN.md` (PR: #4775)
 
-- [ ] **EH-03.2 openapi-ts-mobile-typegen**
-  - **Status:** Ready
+- [x] **EH-03.2 openapi-ts-mobile-typegen**
+  - **Status:** Done
   - **Why now:** Frontend/mobile type drift cannot be reduced until generated contract artifacts exist.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Type safety gate + Mobile parity + Phase 12
   - **Scope:** Generate and adopt TS/mobile types for the first covered domains.
@@ -205,12 +205,12 @@
   - **Secrets/infra impact:** None
   - **Risk level:** Medium
   - **Rollback:** Use compatibility wrappers and keep old handwritten DTOs until the generated path is stable.
-  - **Completion evidence destination:** `.github/MASTER_PLAN.md`
+  - **Completion evidence destination:** shipped in `.github/MASTER_PLAN.md` (PR: #4777)
 
 ### Epic EH-04 - Frontend enterprise compliance
 
 - [ ] **EH-04.1 tenant-aware-query-keys-and-cache-clear-removal**
-  - **Status:** Blocked
+  - **Status:** Ready
   - **Why now:** Frontend tenant safety still relies on a global query-cache clear workaround.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Type safety gate / Cockpit Search / Phase 12
   - **Scope:** Introduce tenant-aware query keys and remove the app-level cache clearing hack after migration.
@@ -218,7 +218,7 @@
   - **Primary domain:** frontend
   - **Likely touched paths:** `frontend/src/App.tsx`, `frontend/src/lib/` or `frontend/src/hooks/` query-key helper, `frontend/src/pages/Customers.tsx`, `frontend/src/pages/Suppliers.tsx`, `frontend/src/hooks/useHealth.ts`, `frontend/src/hooks/useWorkFormPermissions.ts`
   - **Dependencies:** EH-03.2
-  - **Blockers:** EH-03.2
+  - **Blockers:** None
   - **Acceptance criteria:** Touched tenant-scoped queries include tenant identity in the key, and tenant-switch behavior no longer depends on `queryClient.clear()`.
   - **Validation commands:** `npm -C frontend run verify-standards`; `npm -C frontend run test:ci`
   - **Tenant/RLS impact:** High on the client-side trust boundary
@@ -254,7 +254,7 @@
   - **Primary domain:** frontend
   - **Likely touched paths:** `frontend/src/components/FlowEditor/UnifiedFlowEditor.tsx`, supporting FlowEditor modules/tests, `frontend/src/components/Workflow/PurchaseOrderWorkflow.tsx`, `frontend/src/components/EntityGraph/EntityGraph.tsx`
   - **Dependencies:** EH-04.1, EH-03.2
-  - **Blockers:** EH-04.1 and EH-03.2
+  - **Blockers:** EH-04.1
   - **Acceptance criteria:** The first extracted module boundary lands with regression coverage and no dual-library expansion.
   - **Validation commands:** `npm -C frontend run verify-standards`; `npm -C frontend run test:ci -- src/components/FlowEditor`
   - **Tenant/RLS impact:** None directly
@@ -352,7 +352,7 @@
   - **Primary domain:** backend/AI/frontend
   - **Likely touched paths:** `backend/tenant_apps/integrations/services/email_ingestion.py`, `backend/tenant_apps/ai_assistant/services/*`, `backend/tenant_apps/ai_assistant/models.py`, `frontend/src/components/AIAssistant/*`
   - **Dependencies:** EH-06.1, EH-05.1, EH-03.1
-  - **Blockers:** EH-06.1, EH-05.1, and EH-03.1
+  - **Blockers:** EH-06.1 and EH-05.1
   - **Acceptance criteria:** Semantic indexing is real and health-gated, lineage is end-to-end, and exports avoid local `/tmp`.
   - **Validation commands:** `cd backend && python manage.py test tenant_apps.integrations tenant_apps.ai_assistant apps.core.tests.test_viewset_permissions`; `npm -C frontend run verify-standards`; `npm -C frontend run test:ci`
   - **Tenant/RLS impact:** High
