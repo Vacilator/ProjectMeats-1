@@ -5,13 +5,14 @@
  * the execution details page.
  */
 
-import React, { useEffect, useMemo } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { Skeleton } from 'antd';
+import { Alert, Button, Skeleton, Space } from 'antd';
 import { showAlert } from '@/utils/uiDialogs';
 import { getWorkformsErrorUi } from '@/features/workforms/workformsErrors';
 import { ApiErrorContent } from '@/components/errors/ApiErrorContent';
+import { ApiServiceError } from '@/services/apiErrors';
 import {
   createFormSubmission,
   executeTenantWorkForm,
@@ -22,11 +23,36 @@ type ExecuteResult =
   | { kind: 'workform'; execution: WorkFormExecuteResponse }
   | { kind: 'form'; submissionId: string };
 
+function isCircuitBreakerExecutionError(error: unknown): boolean {
+  if (error instanceof ApiServiceError) {
+    const data = error.responseData as Record<string, unknown> | null;
+    return error.status === 503 && (data?.code === 'CIRCUIT_BREAKER' || data?.error_code === 'CIRCUIT_BREAKER');
+  }
+
+  const e = error as { response?: { status?: number; data?: Record<string, unknown> } } | null;
+  return (
+    e?.response?.status === 503 &&
+    (e.response?.data?.code === 'CIRCUIT_BREAKER' || e.response?.data?.error_code === 'CIRCUIT_BREAKER')
+  );
+}
+
+function getCircuitBreakerRetryAfter(error: unknown): number | undefined {
+  if (error instanceof ApiServiceError) {
+    const retryAfter = Number((error.responseData as Record<string, unknown> | null)?.retry_after);
+    return Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter : undefined;
+  }
+
+  const retryAfter = Number((error as { response?: { data?: Record<string, unknown> } } | null)?.response?.data?.retry_after);
+  return Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter : undefined;
+}
+
 export const ExecuteWorkForm: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const location = useLocation();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const startedExecutionRef = useRef<string | null>(null);
+  const [executionError, setExecutionError] = useState<unknown>(null);
 
   const allowLegacyFallback = useMemo(() => {
     const sp = new URLSearchParams(location.search || '');
@@ -68,6 +94,7 @@ export const ExecuteWorkForm: React.FC = () => {
       }
     },
     onSuccess: async (result: ExecuteResult) => {
+      setExecutionError(null);
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['workforms-catalog-items'] }),
         queryClient.invalidateQueries({ queryKey: ['workform-executions', 'active'] }),
@@ -90,28 +117,72 @@ export const ExecuteWorkForm: React.FC = () => {
       navigate(`/workforms/executions/${data.id}`, { replace: true });
     },
     onError: (err: any) => {
-      const ui = getWorkformsErrorUi(err, 'execute.start');
-      showAlert({
-        type: 'error',
-        title: ui.title,
-        content: <ApiErrorContent error={err} fallbackMessage={ui.message} />,
-      });
-      navigate('/workforms/catalog', { replace: true });
+      setExecutionError(err);
     },
   });
 
-  useEffect(() => {
-    if (!mutation.isPending && !mutation.isSuccess) {
-      mutation.mutate();
+  const startExecution = useCallback(async () => {
+    if (!id) return;
+
+    setExecutionError(null);
+    try {
+      await mutation.mutateAsync();
+    } catch {
+      // onError handles local state; keep the rejection contained to this surface.
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id]);
+  }, [id, mutation]);
+
+  useEffect(() => {
+    if (!id || startedExecutionRef.current === id) {
+      return;
+    }
+
+    startedExecutionRef.current = id;
+    void startExecution();
+  }, [id, startExecution]);
+
+  const executionErrorUi = executionError ? getWorkformsErrorUi(executionError, 'execute.start') : null;
+  const isCircuitBreakerError = executionError ? isCircuitBreakerExecutionError(executionError) : false;
+  const retryAfterSeconds = executionError ? getCircuitBreakerRetryAfter(executionError) : undefined;
 
   return (
     <div data-testid="workforms-execute-page">
-      <div data-testid="workforms-execute-loading">
-        <Skeleton active paragraph={{ rows: 6 }} />
-      </div>
+      {executionError && executionErrorUi ? (
+        <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
+          <Alert
+            data-testid={isCircuitBreakerError ? 'workforms-execute-circuit-alert' : 'workforms-execute-error-alert'}
+            type={isCircuitBreakerError ? 'warning' : 'error'}
+            showIcon
+            title={executionErrorUi.title}
+            description={
+              isCircuitBreakerError ? (
+                <>
+                  {executionErrorUi.message}
+                  {retryAfterSeconds ? ` Please wait about ${retryAfterSeconds} seconds before retrying.` : ''}
+                </>
+              ) : (
+                <ApiErrorContent error={executionError} fallbackMessage={executionErrorUi.message} />
+              )
+            }
+          />
+          <Space>
+            <Button
+              type="primary"
+              onClick={() => {
+                mutation.reset();
+                void startExecution();
+              }}
+            >
+              Try again
+            </Button>
+            <Button onClick={() => navigate('/workforms/catalog', { replace: true })}>Back to catalog</Button>
+          </Space>
+        </Space>
+      ) : (
+        <div data-testid="workforms-execute-loading">
+          <Skeleton active paragraph={{ rows: 6 }} />
+        </div>
+      )}
     </div>
   );
 };

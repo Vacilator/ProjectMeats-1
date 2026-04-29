@@ -1,11 +1,13 @@
 import React from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 import ExecuteWorkForm from './Execute';
 import { createFormSubmission, executeTenantWorkForm } from '@/services/workformsApi';
+import { ApiServiceError } from '@/services/apiErrors';
 import { showAlert } from '@/utils/uiDialogs';
 
 vi.mock('@/services/workformsApi', () => ({
@@ -75,15 +77,16 @@ describe('ExecuteWorkForm', () => {
     expect(createFormSubmission).toHaveBeenCalledWith('legacy-form-1');
   });
 
-  it('shows an error and returns to catalog when execution fails unexpectedly', async () => {
+  it('shows an inline error when execution fails unexpectedly', async () => {
     vi.mocked(executeTenantWorkForm).mockRejectedValueOnce({
       response: { data: { error: 'Nope' } },
     });
 
     renderWithRoutes('/workforms/execute/wf-bad');
 
-    expect(await screen.findByTestId('dest-catalog')).toBeInTheDocument();
-    expect(showAlert).toHaveBeenCalled();
+    expect(await screen.findByTestId('workforms-execute-error-alert')).toBeInTheDocument();
+    expect(screen.queryByTestId('dest-catalog')).not.toBeInTheDocument();
+    expect(showAlert).not.toHaveBeenCalled();
   });
 
   it('does not silently fall back to legacy runner on 404 without legacy=1', async () => {
@@ -91,9 +94,10 @@ describe('ExecuteWorkForm', () => {
 
     renderWithRoutes('/workforms/execute/legacy-form-1');
 
-    expect(await screen.findByTestId('dest-catalog')).toBeInTheDocument();
+    expect(await screen.findByTestId('workforms-execute-error-alert')).toBeInTheDocument();
+    expect(screen.queryByTestId('dest-catalog')).not.toBeInTheDocument();
     expect(createFormSubmission).not.toHaveBeenCalled();
-    expect(showAlert).toHaveBeenCalled();
+    expect(showAlert).not.toHaveBeenCalled();
   });
 
   it('shows an execution-failed alert when the engine returns failed status', async () => {
@@ -113,5 +117,42 @@ describe('ExecuteWorkForm', () => {
         content: 'Boom',
       })
     );
+  });
+
+  it('renders a circuit-breaker warning inline for 503 execution pauses', async () => {
+    vi.mocked(executeTenantWorkForm).mockRejectedValueOnce(
+      new ApiServiceError('Server error. Please try again shortly.', {
+        kind: 'circuit_breaker',
+        status: 503,
+        responseData: {
+          code: 'CIRCUIT_BREAKER',
+          retry_after: 60,
+        },
+      })
+    );
+
+    renderWithRoutes('/workforms/execute/wf-circuit');
+
+    expect(await screen.findByTestId('workforms-execute-circuit-alert')).toBeInTheDocument();
+    expect(screen.getByText(/workflow temporarily paused/i)).toBeInTheDocument();
+    expect(screen.getByText(/please wait about 60 seconds before retrying/i)).toBeInTheDocument();
+  });
+
+  it('retries execution locally without navigating away after an inline error', async () => {
+    const user = userEvent.setup();
+    vi.mocked(executeTenantWorkForm)
+      .mockRejectedValueOnce({ response: { data: { error: 'Nope' } } })
+      .mockResolvedValueOnce({
+        id: 'ex-retry',
+        status: 'completed',
+      } as any);
+
+    renderWithRoutes('/workforms/execute/wf-retry');
+
+    expect(await screen.findByTestId('workforms-execute-error-alert')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /try again/i }));
+
+    expect(await screen.findByTestId('dest-execution')).toBeInTheDocument();
+    expect(executeTenantWorkForm).toHaveBeenCalledTimes(2);
   });
 });

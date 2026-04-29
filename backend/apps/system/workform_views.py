@@ -28,6 +28,7 @@ from apps.system.workform_serializers import (
     FormSplitSerializer,
     WorkFormCloneSerializer,
 )
+from apps.system.services.workform_circuit_breaker import get_workform_circuit_state
 
 
 logger = logging.getLogger(__name__)
@@ -535,6 +536,27 @@ class TenantWorkFormViewSet(viewsets.ModelViewSet):
         workform = self.get_object()
         if not self._can_execute_workform(workform):
             return Response({"error": "Permission denied"}, status=status.HTTP_403_FORBIDDEN)
+
+        circuit_state = get_workform_circuit_state(
+            tenant_id=str(tenant.id),
+            workform_id=str(workform.id),
+        )
+        if circuit_state.state == 'OPEN':
+            return Response(
+                {
+                    'error': 'Execution service unavailable',
+                    'code': 'CIRCUIT_BREAKER',
+                    'detail': (
+                        'This workflow is currently paused due to recent failures. '
+                        'Our system is preventing further executions until the issue is resolved. '
+                        'Please try again shortly.'
+                    ),
+                    'retry_after': circuit_state.retry_after or 0,
+                    'circuit_state': circuit_state.state,
+                    'failure_count': circuit_state.failure_count,
+                },
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
 
         initial_data = request.data.get('initial_data') if isinstance(request.data, dict) else None
         initial_data = initial_data if isinstance(initial_data, dict) else {}
