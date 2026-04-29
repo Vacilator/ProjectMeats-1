@@ -1792,6 +1792,7 @@ Deliverables:
 - **2026-04-29** — Security: de-shadow duplicate OAuth authorize/callback wiring by locking the legacy `apps/integrations/urls.py` aliases to the hardened canonical OAuth views, preventing accidental re-exposure of the older function-based callback while preserving `oauth/status` + `oauth/disconnect` behavior with regression coverage. (PR: #4753)
 - **2026-04-29** — CI: harden `deploy-frontend` SSH setup to fail fast with bounded SSH preflight (instead of hanging on raw `ssh-keyscan`) and add workflow validation enforcing the new frontend SSH fail-fast contract; fixes the deployment hang seen in run `25094392591`. (PR: #4754)
 - **2026-04-29** — Security: remove the last supplier create-time `TenantUser` fallback so ambiguous multi-tenant writes now fail closed unless tenant context is already resolved on the request, while preserving the single-membership middleware default and adding supplier API regression coverage for explicit vs ambiguous create flows. (PR: #4755)
+- **2026-04-29** — Backend tenant safety: harden remaining tenant-scoped create/query/restore paths that still assumed `request.tenant` existed by making Locations, Master Products, Deals, Invoices, Claims, and Payment Transactions fail closed when tenant context is missing, and extend the shared create-guardrail regression suite to cover those viewsets. (PR: #4756)
 
 ### Phase 11: The Deal Desk (Trader Ledger Replacement)
 
