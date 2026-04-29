@@ -1,4 +1,6 @@
-# Golden Pipeline V2.0.0 (Golden Standard)
+# Golden Pipeline V2.0.0 (Reference Companion)
+
+> **Reference-only companion.** For authoritative rules, use `docs/GOLDEN_PIPELINE.md`.
 
 ## Overview
 This document describes the **proven, production-ready** CI/CD pipeline for ProjectMeats after achieving **Golden Standard** status through systematic infrastructure hardening (January 3-4, 2026).
@@ -83,13 +85,13 @@ Synchronization Point: Both deploy jobs wait for migrate to complete
 - `push` to `development`, `uat`, `main` branches
 - `workflow_dispatch` for manual triggers
 
-### 2. `ops-release-automation.yml` - Auto-Promotion Manager
+### 2. `.github/workflows/41-auto-promote-dev-to-uat.yml` and `.github/workflows/42-auto-promote-uat-to-main.yml`
 **V2.0.0 Changes**:
-- ✅ Updated run names: `Auto-Promote: development to UAT`
+- ✅ Promotion is split into explicit Dev -> UAT and UAT -> Main workflows
 
 **Unchanged**:
-- Creates PRs: Development → UAT → Production
-- Runs: After successful deployments, daily sync checks
+- Creates PRs for promotion only
+- Does not bypass branch protection or PR Validation
 
 ### 3. `reusable-deploy.yml` - Deployment Logic Template
 **V2.0.0 Major Refactoring**:
@@ -111,10 +113,7 @@ build-frontend:
 
 **Universal Docker Run Pattern** (Reliability):
 ```yaml
-# OLD (V1.0.0) - compose-based deploy flow (archived; do not use on current stack)
-# See docs/archive/GOLDEN_PIPELINE_v1.0.0.md for the historical example.
-
-# NEW (V2.0.0) - docker run (universal)
+# Remote deployment authority uses docker run; compose is local-dev only.
 docker run -d --name pm-backend \
   --restart unless-stopped \
   -p 8000:8000 \
@@ -171,7 +170,7 @@ The following packages are **ABSOLUTELY FORBIDDEN** and must NEVER appear in `ba
 
 #### ✅ REQUIRED PATTERNS (V2.0.0 GOLDEN STANDARD)
 - **ALWAYS** use `docker run` for starting containers in production
-- **ALWAYS** use `docker pull`, `docker run`, `docker rm`, and `docker exec` for remote container lifecycle operations
+- **ALWAYS** use standard Docker CLI commands that match the canonical workflow implementation
 - **ALWAYS** name Dockerfiles as `Dockerfile` (PascalCase)
 - **ALWAYS** use SHA-tagged images: `${environment}-${github.sha}`
 - **ALWAYS** run migrations in CI before deployment (NOT via SSH post-deploy)
@@ -209,7 +208,7 @@ curl -L -s -o /dev/null -w "%{http_code}" https://domain.com/api/v1/health/
 
 ## Secret Management
 
-**Single Source of Truth**: `manifests/env.manifest.json`
+**Single Source of Truth**: `manifests/env.manifest.json` v5.1
 
 ### V2.0.0 Enhancement: Automated Secret Generation
 
@@ -430,11 +429,11 @@ python manage.py migrate --fake-initial --noinput
 - Main pipeline: `.github/workflows/main-pipeline.yml`
 - Reusable deployment: `.github/workflows/reusable-deploy.yml`
 - PR validation: `.github/workflows/pr-validation.yml`
-- Release automation: `.github/workflows/ops-release-automation.yml`
+- Promotion automation: `.github/workflows/41-auto-promote-dev-to-uat.yml` and `.github/workflows/42-auto-promote-uat-to-main.yml`
 
 ### Configuration
-- Secret manifest: `manifests/env.manifest.json`
-- Docker compose: `docker-compose.yml`
+- Secret manifest: `manifests/env.manifest.json` (v5.1)
+- Local development compose file: `docker-compose.yml`
 - Dockerfiles: `backend/Dockerfile`, `frontend/Dockerfile`
 
 ---

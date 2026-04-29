@@ -2,197 +2,135 @@
 
 **Status**: ✅ CURRENT  
 **Category**: Guides  
-**Last Updated**: 2026-02-01
+**Last Updated**: 2026-04-29
 
 ---
 
 ## Purpose
-Prevent future branch divergence by enforcing GitFlow: `development` → `UAT` → `main`
 
-## Problem Resolved
-Main was 25+ commits ahead of development due to hotfixes bypassing the proper flow.
+Prevent branch divergence and enforce the repo's shipping flow:
 
-**Related PRs:**
-- #620 - Production env-config.js fix
-- #621 - Sync main → development
+`development` -> `uat` -> `main`
 
----
-
-## Branch Protection Rules
-
-### 1. Protect `main` Branch
-
-**Settings → Branches → Add branch protection rule**
-
-**Branch name pattern:** `main`
-
-**Required settings:**
-- ✅ Require a pull request before merging
-  - Required approvals: 1
-  - Dismiss stale PR approvals when new commits are pushed
-- ✅ Require status checks to pass before merging
-  - Require branches to be up to date before merging
-  - Status checks: 
-    - `build-and-push`
-    - `test-frontend`
-    - `test-backend`
-- ✅ Require conversation resolution before merging
-- ✅ Do not allow bypassing the above settings
-- ✅ Restrict who can push to matching branches
-  - Allow: Only from `UAT` branch via PR
-
-**Why:** Ensures only UAT-tested code reaches production
+Use this guide together with:
+- `.github/workflows/pr-validation.yml`
+- `.github/workflows/main-pipeline.yml`
+- `.github/workflows/41-auto-promote-dev-to-uat.yml`
+- `.github/workflows/42-auto-promote-uat-to-main.yml`
 
 ---
 
-### 2. Protect `UAT` Branch
+## Required status checks
 
-**Branch name pattern:** `UAT`
+The current PR gate is `.github/workflows/pr-validation.yml`. Require these checks on protected branches:
 
-**Required settings:**
-- ✅ Require a pull request before merging
-  - Required approvals: 1
-- ✅ Require status checks to pass before merging
-  - Status checks:
-    - `build-and-push`
-    - `test-frontend`
-    - `test-backend`
-- ✅ Restrict who can push to matching branches
-  - Allow: Only from `development` branch via PR
+- `Infrastructure Drift Gate`
+- `Validate Migrations`
+- `Backend Tests`
+- `Frontend Type Check`
+- `Frontend Unit Tests`
+- `Mobile Checks`
+- `Validate Copilot Squad`
 
-**Why:** Ensures only dev-tested code reaches UAT
+If GitHub shows different check labels after a workflow rename, update this guide immediately and keep it aligned with `.github/workflows/pr-validation.yml`.
 
 ---
 
-### 3. Protect `development` Branch
+## Branch protection rules
 
-**Branch name pattern:** `development`
+### 1. Protect `main`
 
-**Required settings:**
-- ✅ Require a pull request before merging
-  - Required approvals: 1 (can be lower for dev)
-- ✅ Require status checks to pass before merging
-  - Status checks:
-    - `build-and-push`
-    - `test-frontend`
-    - `test-backend`
-- ✅ Allow force pushes (for cleanup only)
-  - Only for admins
+- **Branch name pattern:** `main`
+- Require a pull request before merging
+- Require status checks to pass before merging
+- Require branches to be up to date before merging
+- Require conversation resolution
+- Do not allow bypassing the rules
 
-**Why:** Maintains quality while allowing flexibility for active development
+**Why:** only UAT-validated changes should reach production.
 
----
+### 2. Protect `uat`
 
-## Hotfix Exception Process
+- **Branch name pattern:** `uat`
+- Require a pull request before merging
+- Require status checks to pass before merging
+- Restrict direct pushes
 
-**For critical production bugs:**
+**Why:** only development-validated changes should reach UAT.
 
-### Option 1: Proper Flow (Recommended)
-1. Create hotfix branch from `main`: `hotfix/description`
-2. Fix and test
-3. PR to `main` (emergency)
-4. **Immediately** create PR from `main` → `development` (sync)
-5. Let sync flow through: `development` → `UAT` → `main`
+### 3. Protect `development`
 
-### Option 2: Cherry-Pick (If Option 1 Not Feasible)
-1. Merge hotfix to `main`
-2. Cherry-pick commit to `development`
-3. Let it flow: `development` → `UAT` → `main`
+- **Branch name pattern:** `development`
+- Require a pull request before merging
+- Require status checks to pass before merging
+- Restrict direct pushes except documented admin intervention
 
-### ⚠️ Never Skip Backporting
-**Always** bring hotfixes back to development to prevent divergence.
+**Why:** active development still needs the same baseline CI gate.
 
 ---
 
-## Automation Workflows
+## Promotion automation
 
-Existing workflows that support this flow:
+- `.github/workflows/41-auto-promote-dev-to-uat.yml` creates PRs from `development` to `uat`
+- `.github/workflows/42-auto-promote-uat-to-main.yml` creates PRs from `uat` to `main`
 
-### Promotion Workflows
-- `.github/workflows/promote-dev-to-uat.yml` - Auto-create PR: dev → UAT
-- `.github/workflows/promote-uat-to-main.yml` - Auto-create PR: UAT → main
-
-### Deployment Workflows
-- `.github/workflows/11-dev-deployment.yml` - Deploy on push to `development`
-- `.github/workflows/12-uat-deployment.yml` - Deploy on push to `UAT`
-- `.github/workflows/13-prod-deployment.yml` - Deploy on push to `main`
-
-**Note:** Promotion workflows create PRs automatically but require manual approval/merge.
+These workflows create PRs only. They do **not** bypass reviews or branch protection.
 
 ---
 
-## Monitoring Branch Health
+## Hotfix exception process
 
-### Regular Checks
+### Preferred flow
+1. Branch from `main` using `hotfix/<description>`
+2. Fix and validate the issue
+3. Open the emergency PR to `main`
+4. Immediately backport through PRs so the change returns to `development`
+
+### Never skip backporting
+
+Any emergency production fix must return to `development` so the promotion chain stays linear.
+
+---
+
+## Monitoring branch health
+
 ```bash
-# Check if main is ahead of development (should be 0)
 git fetch origin
-git log development..main --oneline | wc -l
 
-# Check if UAT is ahead of development (should be 0 or very small)
-git log development..UAT --oneline | wc -l
+# main should not be ahead of development for long
+git log origin/development..origin/main --oneline | wc -l
 
-# Check if main is ahead of UAT (should be 0 or very small)
-git log UAT..main --oneline | wc -l
+# uat should not be ahead of development for long
+git log origin/development..origin/uat --oneline | wc -l
+
+# main should not be ahead of uat for long
+git log origin/uat..origin/main --oneline | wc -l
 ```
 
-### Expected State
-- `development` is always ahead or equal to `UAT`
-- `UAT` is always ahead or equal to `main`
-- Divergence = 0 commits or very small window during active PR
+Expected state:
+- `development` is ahead of or equal to `uat`
+- `uat` is ahead of or equal to `main`
+- Any divergence window should be temporary and PR-backed
 
 ---
 
-## Setup Instructions
+## Setup checklist
 
-1. **Navigate to Repository Settings**
-   - Go to: https://github.com/Meats-Central/ProjectMeats/settings/branches
-
-2. **Add Protection Rules** (follow sections 1-3 above)
-
-3. **Test the Protection**
-   ```bash
-   # This should fail (protected)
-   git push origin main
-   
-   # This should require PR
-   git push origin development
-   ```
-
-4. **Document Exceptions**
-   - Add admin bypass reasons to audit log
-   - Document all direct pushes in CHANGELOG.md
-
----
-
-## Benefits
-
-✅ **Prevents Divergence** - Enforces single flow direction  
-✅ **Quality Gates** - Tests must pass at each stage  
-✅ **Audit Trail** - All changes tracked through PRs  
-✅ **Team Alignment** - Clear promotion path for all contributors  
-✅ **Rollback Safety** - Each environment has tested state
+1. Go to repository branch protection settings
+2. Add rules for `development`, `uat`, and `main`
+3. Require the current PR Validation checks listed above
+4. Verify direct pushes are blocked
+5. Document any temporary admin bypass in the incident/audit trail
 
 ---
 
 ## Troubleshooting
 
 ### "Cannot push to protected branch"
-✅ **Expected behavior** - Create a PR instead
+Expected. Open a PR instead.
 
 ### "Status checks failed"
-Fix tests before merging. Don't bypass.
+Inspect `.github/workflows/pr-validation.yml`, fix the failing job, and rerun.
 
-### "Main is ahead of development again"
-1. Check audit log for direct pushes
-2. Create sync PR: `main` → `development`
-3. Review branch protection settings
-
-### "Emergency hotfix needed NOW"
-Use Option 1 from Hotfix Exception Process above.
-
----
-
-**Last Updated:** 2025-11-29  
-**Related Issues:** #620, #621  
-**Maintainer:** @Vacilator
+### "main is ahead of development"
+Create the missing backport PR immediately and inspect whether a hotfix bypassed the normal promotion flow.
