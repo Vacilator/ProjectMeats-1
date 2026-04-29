@@ -55,3 +55,20 @@ class HealthCheckTests(TestCase):
         self.assertEqual(data['database_status']['status'], 'unhealthy')
         self.assertEqual(data['database_status']['error']['code'], 'db_connection_failed')
         self.assertIn('services', data)
+
+    def test_ready_endpoint_returns_ready_shape_when_database_is_healthy(self):
+        resp = self.client.get('/api/v1/ready/')
+        self.assertEqual(resp.status_code, 200)
+
+        data = json.loads(resp.content.decode('utf-8'))
+        self.assertEqual(data['status'], 'ready')
+        self.assertIn('timestamp', data)
+
+    @patch('projectmeats.health.connection.cursor', side_effect=Exception('db down'))
+    def test_ready_returns_503_when_database_is_unhealthy(self, _mock_cursor):
+        resp = self.client.get('/api/v1/ready/')
+        self.assertEqual(resp.status_code, 503)
+
+        data = json.loads(resp.content.decode('utf-8'))
+        self.assertEqual(data['status'], 'not_ready')
+        self.assertIn('error', data)

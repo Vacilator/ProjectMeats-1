@@ -104,6 +104,38 @@ class ApiBootstrapSmokeTests(APITestCase):
         self.assertIn("user", response.data)
         self.assertEqual(response.data["user"]["username"], self.user.username)
 
+    def test_legacy_login_bootstrap_rejects_missing_credentials_with_error_shape(self):
+        response = self.client.post("/api/v1/auth/login/", {}, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST, response.content)
+        self.assertIn("error", response.data)
+
+    def test_legacy_login_bootstrap_rejects_invalid_credentials_with_error_shape(self):
+        response = self.client.post(
+            "/api/v1/auth/login/",
+            {
+                "username": self.user.username,
+                "password": "definitely-wrong",
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED, response.content)
+        self.assertIn("error", response.data)
+
+    def test_jwt_token_bootstrap_rejects_invalid_credentials_with_detail_shape(self):
+        response = self.client.post(
+            "/api/v1/auth/token/",
+            {
+                "username": self.user.username,
+                "password": "definitely-wrong",
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED, response.content)
+        self.assertIn("detail", response.data)
+
     def test_guest_login_bootstrap_returns_token_and_guest_tenant(self):
         response = self.client.post("/api/v1/auth/guest-login/", {}, format="json")
 
