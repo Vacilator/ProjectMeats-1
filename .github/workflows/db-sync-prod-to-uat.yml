@@ -61,7 +61,7 @@ jobs:
             "${SSH_USER}@${SSH_HOST}" &
 
           SSH_PID=$!
-          echo "PROD_SSH_PID=$SSH_PID" >> $GITHUB_ENV
+          echo "PROD_SSH_PID=$SSH_PID" >> "$GITHUB_ENV"
 
           echo "⏳ Waiting for Production tunnel (PID: $SSH_PID)..."
 
@@ -187,7 +187,7 @@ jobs:
             "${SSH_USER}@${SSH_HOST}" &
 
           SSH_PID=$!
-          echo "UAT_SSH_PID=$SSH_PID" >> $GITHUB_ENV
+          echo "UAT_SSH_PID=$SSH_PID" >> "$GITHUB_ENV"
 
           echo "⏳ Waiting for UAT tunnel (PID: $SSH_PID)..."
 
