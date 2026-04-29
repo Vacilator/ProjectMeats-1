@@ -8,8 +8,9 @@ from datetime import timedelta
 from typing import Any, Dict, List
 
 import requests
+from django.core.exceptions import SuspiciousFileOperation, ValidationError
+from django.db import DatabaseError, transaction
 from django.utils import timezone
-from django.db import transaction
 
 from apps.integrations.models import ExternalAuthProvider, EmailLog
 from apps.tenants.models import Tenant
@@ -22,6 +23,7 @@ from tenant_apps.ai_assistant.swarm.tools.microsoft_graph import (
     MAX_MAIL_LIMIT,
     ToolExecutionError,
     build_mail_request,
+    classify_attachment_for_ai_ingest,
     decrypt_token_or_error,
     decryption_failed_payload,
     infer_content_type,
@@ -843,6 +845,21 @@ class EmailIngestionService:
                 retryable=False,
             )
 
+        staged_name = str(staged_attachment.get('name') or file_name).strip()
+        staged_skip_reason = classify_attachment_for_ai_ingest(
+            file_name=staged_name,
+            content_type=staged_attachment.get('content_type'),
+            is_inline=staged_attachment.get('is_inline'),
+        )
+        if staged_skip_reason:
+            return {
+                'status': 'skipped',
+                'reason': staged_skip_reason,
+                'message_id': message_id,
+                'attachment_id': attachment_id,
+                'file_name': staged_name or file_name,
+            }
+
         existing_document = self._get_existing_attachment_document(
             user=user,
             session=session,
@@ -884,7 +901,18 @@ class EmailIngestionService:
             metadata_response = requests.get(metadata_url, headers=metadata_headers, timeout=30)
             metadata_response.raise_for_status()
             attachment_metadata = metadata_response.json() or {}
-            validate_graph_attachment_metadata(attachment_metadata)
+            try:
+                validate_graph_attachment_metadata(attachment_metadata)
+            except ToolExecutionError as exc:
+                if exc.error_code == 'UNSUPPORTED_ATTACHMENT_TYPE':
+                    return {
+                        'status': 'skipped',
+                        'reason': exc.message,
+                        'message_id': message_id,
+                        'attachment_id': attachment_id,
+                        'file_name': str(attachment_metadata.get('name') or staged_name or file_name).strip(),
+                    }
+                raise
         except requests.RequestException as exc:
             raise self._map_graph_exception(exc) from exc
 
@@ -905,7 +933,29 @@ class EmailIngestionService:
             file_name=canonical_file_name,
             fallback=attachment_metadata.get('contentType') or staged_attachment.get('content_type'),
         )
-        validate_ai_document_upload(filename=canonical_file_name, content_type=content_type)
+        metadata_skip_reason = classify_attachment_for_ai_ingest(
+            file_name=canonical_file_name,
+            content_type=attachment_metadata.get('contentType') or content_type,
+            is_inline=attachment_metadata.get('isInline'),
+        )
+        if metadata_skip_reason:
+            return {
+                'status': 'skipped',
+                'reason': metadata_skip_reason,
+                'message_id': message_id,
+                'attachment_id': attachment_id,
+                'file_name': canonical_file_name,
+            }
+        try:
+            validate_ai_document_upload(filename=canonical_file_name, content_type=content_type)
+        except ValueError as exc:
+            return {
+                'status': 'skipped',
+                'reason': str(exc),
+                'message_id': message_id,
+                'attachment_id': attachment_id,
+                'file_name': canonical_file_name,
+            }
 
         try:
             response = requests.get(url, headers=headers, timeout=30, stream=True)
@@ -951,17 +1001,35 @@ class EmailIngestionService:
             session=session,
         )
 
-        with transaction.atomic():
-            document = AIDocument.objects.create(
-                tenant=self.tenant,
-                owner=user,
-                session=session,
-                file=upload,
-                original_filename=canonical_file_name,
-                content_type=content_type,
-                file_size=len(content),
-                custom_data=source_metadata,
+        try:
+            with transaction.atomic():
+                document = AIDocument.objects.create(
+                    tenant=self.tenant,
+                    owner=user,
+                    session=session,
+                    file=upload,
+                    original_filename=canonical_file_name,
+                    content_type=content_type,
+                    file_size=len(content),
+                    custom_data=source_metadata,
+                )
+        except (DatabaseError, OSError, SuspiciousFileOperation, ValidationError, ValueError) as exc:
+            logger.warning(
+                'Graph attachment ingest: failed to persist attachment tenant=%s message=%s attachment=%s file=%s err=%s',
+                self.tenant.id,
+                message_id,
+                attachment_id,
+                canonical_file_name,
+                str(exc),
+                exc_info=True,
             )
+            return {
+                'status': 'failed',
+                'reason': str(exc),
+                'message_id': message_id,
+                'attachment_id': attachment_id,
+                'file_name': canonical_file_name,
+            }
 
         if session:
             try:

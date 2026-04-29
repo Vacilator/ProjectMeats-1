@@ -10,6 +10,7 @@ into stable, user-facing error payloads.
 from __future__ import annotations
 
 import mimetypes
+import os
 from dataclasses import dataclass
 from typing import Any
 
@@ -31,11 +32,24 @@ GRAPH_MAIL_SELECT_FIELDS = (
     'id,subject,from,toRecipients,ccRecipients,receivedDateTime,bodyPreview,'
     'hasAttachments,conversationId,isRead,webLink'
 )
-GRAPH_ATTACHMENT_SELECT_FIELDS = 'id,name,contentType,size'
+GRAPH_ATTACHMENT_SELECT_FIELDS = 'id,name,contentType,size,isInline'
 GRAPH_FILE_ATTACHMENT_TYPE = '#microsoft.graph.fileattachment'
 GRAPH_ITEM_ATTACHMENT_TYPE = '#microsoft.graph.itemattachment'
 GRAPH_REFERENCE_ATTACHMENT_TYPE = '#microsoft.graph.referenceattachment'
 SUPPORTED_GRAPH_ATTACHMENT_TYPES = frozenset({GRAPH_FILE_ATTACHMENT_TYPE})
+SUPPORTED_AI_ATTACHMENT_EXTENSIONS = frozenset({'.pdf', '.csv', '.xlsx', '.xls', '.docx', '.doc', '.txt'})
+SUPPORTED_AI_ATTACHMENT_CONTENT_TYPES = frozenset(
+    {
+        'application/msword',
+        'application/pdf',
+        'application/vnd.ms-excel',
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'text/csv',
+        'text/plain',
+    }
+)
+GENERIC_ATTACHMENT_CONTENT_TYPES = frozenset({'', 'application/octet-stream'})
 
 
 @dataclass(frozen=True)
@@ -298,11 +312,19 @@ def serialize_graph_message(message: dict[str, Any], *, folder: str) -> dict[str
             name = str(attachment.get('name') or '').strip()
             if not attachment_id and not name:
                 continue
+            content_type = str(attachment.get('contentType') or '').strip()
+            skip_reason = classify_attachment_for_ai_ingest(
+                file_name=name,
+                content_type=content_type,
+                is_inline=attachment.get('isInline'),
+            )
+            if skip_reason:
+                continue
             serialized_attachments.append(
                 {
                     'attachment_id': attachment_id,
                     'name': name,
-                    'content_type': str(attachment.get('contentType') or '').strip(),
+                    'content_type': content_type,
                     'size': attachment.get('size'),
                     'attachment_type': normalize_graph_attachment_type(attachment.get('@odata.type')) or None,
                 }
@@ -337,3 +359,37 @@ def infer_content_type(*, file_name: str | None, fallback: str | None = None) ->
     if fallback_type:
         return fallback_type
     return 'application/octet-stream'
+
+
+def get_attachment_extension(file_name: str | None) -> str:
+    return os.path.splitext(str(file_name or '').strip())[1].lower()
+
+
+def classify_attachment_for_ai_ingest(
+    *,
+    file_name: str | None,
+    content_type: str | None = None,
+    is_inline: Any = None,
+) -> str | None:
+    normalized_name = str(file_name or '').strip() or 'attachment'
+    normalized_content_type = str(content_type or '').split(';', 1)[0].strip().lower()
+    extension = get_attachment_extension(normalized_name)
+
+    if bool(is_inline):
+        return f'File type not supported for parsing: {normalized_name}. Ignored inline attachment.'
+
+    if normalized_content_type.startswith('image/'):
+        return f'File type not supported for parsing: {normalized_name}. Ignored image attachment.'
+
+    if extension:
+        if extension in SUPPORTED_AI_ATTACHMENT_EXTENSIONS:
+            return None
+        return f'File type not supported for parsing: {normalized_name}. Ignored.'
+
+    if normalized_content_type in SUPPORTED_AI_ATTACHMENT_CONTENT_TYPES:
+        return None
+
+    if normalized_content_type and normalized_content_type not in GENERIC_ATTACHMENT_CONTENT_TYPES:
+        return f'File type not supported for parsing: {normalized_name}. Ignored.'
+
+    return f'File type not supported for parsing: {normalized_name}. Ignored.'

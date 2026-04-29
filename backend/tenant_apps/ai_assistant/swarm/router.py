@@ -92,8 +92,9 @@ def build_swarm_system_prompt(
         "(1) call fetch_emails to find the target message and stage the returned attachment refs in the current chat session, "
         "(2) read the returned attachments array and pick the correct message_id + attachment_id + file_name, "
         "(3) call ingest_email_attachment(message_id, attachment_id, file_name) using one of those staged attachments, "
-        "(4) pass the returned document_id into parse_document, "
-        "(5) continue with extraction or record creation from the parsed document. "
+        "(4) if ingest_email_attachment returns status='skipped', ignore that file and continue immediately to the next attachment; if it returns status='failed', continue with the remaining attachments unless the user asks you to stop, "
+        "(5) only pass the returned document_id into parse_document when ingest_email_attachment returns status='success' or status='already_ingested', "
+        "(6) continue with extraction or record creation from the parsed document. "
         "If a tool returns a structured error or loop warning, do NOT repeat the exact same tool call. "
         "Instead, simplify the query or ask the user for clarification."
     )

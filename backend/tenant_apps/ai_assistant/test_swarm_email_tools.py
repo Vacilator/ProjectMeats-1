@@ -26,6 +26,7 @@ from tenant_apps.ai_assistant.swarm.router import (
 from tenant_apps.ai_assistant.swarm.tools.microsoft_graph import (
     ToolExecutionError,
     build_mail_request,
+    classify_attachment_for_ai_ingest,
     validate_graph_attachment_metadata,
 )
 from tenant_apps.integrations.services.email_ingestion import EmailIngestionService
@@ -48,7 +49,7 @@ class MicrosoftGraphToolHelperTests(SimpleTestCase):
         self.assertEqual(request_spec['params']['$top'], 12)
         self.assertEqual(
             request_spec['params']['$expand'],
-            'attachments($select=id,name,contentType,size)',
+            'attachments($select=id,name,contentType,size,isInline)',
         )
         self.assertEqual(request_spec['headers']['ConsistencyLevel'], 'eventual')
         self.assertTrue(request_spec['requires_filter_fallback'])
@@ -74,6 +75,7 @@ class MicrosoftGraphToolHelperTests(SimpleTestCase):
 
         self.assertIn('ingest_email_attachment(message_id, attachment_id, file_name)', prompt)
         self.assertIn('pass the returned document_id into parse_document', prompt)
+        self.assertIn("status='skipped'", prompt)
 
     def test_validate_graph_attachment_metadata_rejects_item_attachments(self):
         with self.assertRaises(ToolExecutionError) as exc:
@@ -94,6 +96,14 @@ class MicrosoftGraphToolHelperTests(SimpleTestCase):
             )
 
         self.assertEqual(exc.exception.error_code, 'UNSUPPORTED_ATTACHMENT_TYPE')
+
+    def test_classify_attachment_rejects_unknown_generic_binary_without_extension(self):
+        reason = classify_attachment_for_ai_ingest(
+            file_name='attachment',
+            content_type='application/octet-stream',
+        )
+
+        self.assertIn('File type not supported for parsing', reason)
 
 
 class EmailIngestionServiceEmailFetchTests(TestCase):
@@ -144,6 +154,7 @@ class EmailIngestionServiceEmailFetchTests(TestCase):
         content_type: str = 'application/pdf',
         size: int = 2048,
         attachment_type: str | None = None,
+        is_inline: bool | None = None,
         staged_at: str | None = None,
     ) -> None:
         staged_at_value = staged_at or timezone.now().isoformat()
@@ -157,6 +168,7 @@ class EmailIngestionServiceEmailFetchTests(TestCase):
                     'content_type': content_type,
                     'size': size,
                     'attachment_type': attachment_type,
+                    'is_inline': is_inline,
                     'staged_at': staged_at_value,
                 }
             },
@@ -252,6 +264,14 @@ class EmailIngestionServiceEmailFetchTests(TestCase):
                                 'name': 'invoice.pdf',
                                 'contentType': 'application/pdf',
                                 'size': 2048,
+                                'isInline': False,
+                            },
+                            {
+                                'id': 'att-inline',
+                                'name': 'image.png',
+                                'contentType': 'image/png',
+                                'size': 256,
+                                'isInline': True,
                             }
                         ],
                     }
@@ -280,7 +300,7 @@ class EmailIngestionServiceEmailFetchTests(TestCase):
         )
         self.assertEqual(
             mock_get.call_args.kwargs['params']['$expand'],
-            'attachments($select=id,name,contentType,size)',
+            'attachments($select=id,name,contentType,size,isInline)',
         )
 
     @patch('apps.integrations.providers.MicrosoftGraphProvider')
@@ -318,6 +338,14 @@ class EmailIngestionServiceEmailFetchTests(TestCase):
                                 'name': 'invoice.pdf',
                                 'contentType': 'application/pdf',
                                 'size': 2048,
+                                'isInline': False,
+                            },
+                            {
+                                'id': 'att-inline',
+                                'name': 'image.png',
+                                'contentType': 'image/png',
+                                'size': 256,
+                                'isInline': True,
                             }
                         ],
                     }
@@ -338,6 +366,7 @@ class EmailIngestionServiceEmailFetchTests(TestCase):
         allowlist = session.context_data[SESSION_ATTACHMENT_ALLOWLIST_KEY]
         self.assertIn('msg-1::att-1', allowlist)
         self.assertEqual(allowlist['msg-1::att-1']['name'], 'invoice.pdf')
+        self.assertNotIn('msg-1::att-inline', allowlist)
 
 
 class ToolExecutorEmailToolTests(TestCase):
@@ -388,6 +417,7 @@ class ToolExecutorEmailToolTests(TestCase):
         content_type: str = 'application/pdf',
         size: int = 2048,
         attachment_type: str | None = None,
+        is_inline: bool | None = None,
         staged_at: str | None = None,
     ) -> None:
         staged_at_value = staged_at or timezone.now().isoformat()
@@ -401,6 +431,7 @@ class ToolExecutorEmailToolTests(TestCase):
                     'content_type': content_type,
                     'size': size,
                     'attachment_type': attachment_type,
+                    'is_inline': is_inline,
                     'staged_at': staged_at_value,
                 }
             },
@@ -480,6 +511,42 @@ class ToolExecutorEmailToolTests(TestCase):
 
         self.assertTrue(payload['ok'])
         self.assertEqual(mock_fetch.call_args.kwargs['session_id'], str(session.id))
+
+    @patch('tenant_apps.ai_assistant.swarm.executor.set_current_tenant', return_value=SimpleNamespace(ok=True, error=None))
+    @patch('requests.get')
+    def test_execute_skips_unsupported_attachment_before_download(self, mock_get, _mock_rls):
+        session = ChatSession.objects.create(
+            title='Attachment thread',
+            context_data={'tenant_id': str(self.tenant.id)},
+            owner=self.user,
+            created_by=self.user,
+            modified_by=self.user,
+        )
+        self._stage_attachment(
+            session,
+            name='image.png',
+            content_type='image/png',
+            is_inline=False,
+        )
+
+        payload = json.loads(
+            ToolExecutor().execute(
+                'ingest_email_attachment',
+                {
+                    'message_id': 'msg-123',
+                    'attachment_id': 'att-456',
+                    'file_name': 'image.png',
+                },
+                self.tenant,
+                self.user,
+                session_id=str(session.id),
+            )
+        )
+
+        self.assertTrue(payload['ok'])
+        self.assertEqual(payload['data']['status'], 'skipped')
+        self.assertIn('image.png', payload['data']['reason'])
+        mock_get.assert_not_called()
 
     @patch('tenant_apps.ai_assistant.swarm.executor.set_current_tenant', return_value=SimpleNamespace(ok=True, error=None))
     @patch('tenant_apps.integrations.services.email_ingestion.EmailIngestionService._get_existing_attachment_document', return_value=None)
@@ -579,6 +646,66 @@ class ToolExecutorEmailToolTests(TestCase):
         self.assertTrue(mock_get.call_args_list[1].kwargs['stream'])
 
     @patch('tenant_apps.ai_assistant.swarm.executor.set_current_tenant', return_value=SimpleNamespace(ok=True, error=None))
+    @patch('tenant_apps.integrations.services.email_ingestion.EmailIngestionService._get_existing_attachment_document', return_value=None)
+    @patch('tenant_apps.ai_assistant.models.AIDocument.objects.create')
+    @patch('apps.integrations.providers.MicrosoftGraphProvider')
+    @patch('requests.get')
+    def test_execute_skips_inline_image_attachment_from_metadata(
+        self,
+        mock_get,
+        mock_graph_provider,
+        mock_aidocument_create,
+        _mock_get_existing_document,
+        _mock_rls,
+    ):
+        session = ChatSession.objects.create(
+            title='Attachment thread',
+            context_data={'tenant_id': str(self.tenant.id)},
+            owner=self.user,
+            created_by=self.user,
+            modified_by=self.user,
+        )
+        self._stage_attachment(
+            session,
+            name='invoice.pdf',
+            content_type='application/pdf',
+        )
+        mock_graph_provider.return_value = SimpleNamespace(
+            GRAPH_API_BASE='https://graph.microsoft.com/v1.0'
+        )
+        metadata_response = self._response(
+            payload={
+                '@odata.type': '#microsoft.graph.fileAttachment',
+                'id': 'att-456',
+                'name': 'image.png',
+                'contentType': 'image/png',
+                'size': 256,
+                'isInline': True,
+            }
+        )
+        mock_get.return_value = metadata_response
+
+        payload = json.loads(
+            ToolExecutor().execute(
+                'ingest_email_attachment',
+                {
+                    'message_id': 'msg-123',
+                    'attachment_id': 'att-456',
+                    'file_name': 'invoice.pdf',
+                },
+                self.tenant,
+                self.user,
+                session_id=str(session.id),
+            )
+        )
+
+        self.assertTrue(payload['ok'])
+        self.assertEqual(payload['data']['status'], 'skipped')
+        self.assertIn('inline attachment', payload['data']['reason'])
+        self.assertEqual(mock_get.call_count, 1)
+        mock_aidocument_create.assert_not_called()
+
+    @patch('tenant_apps.ai_assistant.swarm.executor.set_current_tenant', return_value=SimpleNamespace(ok=True, error=None))
     @patch('tenant_apps.integrations.services.email_ingestion.EmailIngestionService._get_existing_attachment_document')
     @patch('tenant_apps.ai_assistant.models.AIDocument.objects.create')
     @patch('requests.get')
@@ -632,6 +759,73 @@ class ToolExecutorEmailToolTests(TestCase):
         self.assertEqual(payload['data']['document_id'], str(existing_document.id))
         mock_get.assert_not_called()
         mock_aidocument_create.assert_not_called()
+
+    @patch('tenant_apps.ai_assistant.swarm.executor.set_current_tenant', return_value=SimpleNamespace(ok=True, error=None))
+    @patch('tenant_apps.integrations.services.email_ingestion.EmailIngestionService._get_existing_attachment_document', return_value=None)
+    @patch('tenant_apps.ai_assistant.models.ChatMessage.objects.create')
+    @patch('tenant_apps.ai_assistant.models.AIDocument.objects.create', side_effect=OSError('disk full'))
+    @patch('apps.integrations.providers.MicrosoftGraphProvider')
+    @patch('requests.get')
+    def test_execute_returns_failed_status_when_attachment_persist_rejected(
+        self,
+        mock_get,
+        mock_graph_provider,
+        _mock_aidocument_create,
+        mock_chat_message_create,
+        _mock_get_existing_document,
+        _mock_rls,
+    ):
+        session = ChatSession.objects.create(
+            title='Attachment thread',
+            context_data={'tenant_id': str(self.tenant.id)},
+            owner=self.user,
+            created_by=self.user,
+            modified_by=self.user,
+        )
+        self._stage_attachment(session)
+        mock_graph_provider.return_value = SimpleNamespace(
+            GRAPH_API_BASE='https://graph.microsoft.com/v1.0'
+        )
+        response = Mock()
+        response.status_code = 200
+        response.content = b'%PDF-1.4 test payload'
+        response.headers = {
+            'Content-Type': 'application/pdf',
+            'Content-Length': str(len(response.content)),
+        }
+        response.iter_content.return_value = [response.content]
+        response.raise_for_status.return_value = None
+        metadata_response = self._response(
+            payload={
+                '@odata.type': '#microsoft.graph.fileAttachment',
+                'id': 'att-456',
+                'name': 'invoice.pdf',
+                'contentType': 'application/pdf',
+                'size': len(response.content),
+                'isInline': False,
+            }
+        )
+        mock_get.side_effect = [metadata_response, response]
+
+        payload = json.loads(
+            ToolExecutor().execute(
+                'ingest_email_attachment',
+                {
+                    'message_id': 'msg-123',
+                    'attachment_id': 'att-456',
+                    'file_name': 'invoice.pdf',
+                },
+                self.tenant,
+                self.user,
+                session_id=str(session.id),
+            )
+        )
+
+        self.assertTrue(payload['ok'])
+        self.assertEqual(payload['data']['status'], 'failed')
+        self.assertEqual(payload['data']['file_name'], 'invoice.pdf')
+        self.assertIn('disk full', payload['data']['reason'])
+        mock_chat_message_create.assert_not_called()
 
     @patch('tenant_apps.ai_assistant.swarm.executor.set_current_tenant', return_value=SimpleNamespace(ok=True, error=None))
     @patch('requests.get')
@@ -747,9 +941,10 @@ class ToolExecutorEmailToolTests(TestCase):
             )
         )
 
-        self.assertFalse(payload['ok'])
-        self.assertEqual(payload['error']['code'], 'UNSUPPORTED_ATTACHMENT_TYPE')
-        self.assertEqual(mock_get.call_count, 1)
+        self.assertTrue(payload['ok'])
+        self.assertEqual(payload['data']['status'], 'skipped')
+        self.assertIn('forwarded.eml', payload['data']['reason'])
+        mock_get.assert_not_called()
         mock_aidocument_create.assert_not_called()
 
     @patch('tenant_apps.ai_assistant.swarm.executor.set_current_tenant', return_value=SimpleNamespace(ok=True, error=None))
@@ -804,9 +999,10 @@ class ToolExecutorEmailToolTests(TestCase):
             )
         )
 
-        self.assertFalse(payload['ok'])
-        self.assertEqual(payload['error']['code'], 'UNSUPPORTED_ATTACHMENT_TYPE')
-        self.assertEqual(mock_get.call_count, 1)
+        self.assertTrue(payload['ok'])
+        self.assertEqual(payload['data']['status'], 'skipped')
+        self.assertIn('sharepoint-link.url', payload['data']['reason'])
+        mock_get.assert_not_called()
         mock_aidocument_create.assert_not_called()
 
 
