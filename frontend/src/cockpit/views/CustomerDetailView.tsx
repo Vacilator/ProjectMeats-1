@@ -742,7 +742,7 @@ export const CustomerDetailView: React.FC<CustomerDetailViewProps> = ({
             <div style={{ fontWeight: 700 }}>{initialLabel || 'Authentication required'}</div>
           </HeaderInner>
         </StickyHeader>
-        <MainGrid>
+        <Layout>
           <Column $basis="100%">
             <Card>
               <CardBody>
@@ -750,7 +750,7 @@ export const CustomerDetailView: React.FC<CustomerDetailViewProps> = ({
               </CardBody>
             </Card>
           </Column>
-        </MainGrid>
+        </Layout>
       </Page>
     );
   }
