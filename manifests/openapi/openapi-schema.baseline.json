@@ -27692,6 +27692,26 @@
                 "tags": [
                     "v1"
                 ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ChatBotRequestRequest"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ChatBotRequestRequest"
+                            }
+                        },
+                        "*/*": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ChatBotRequestRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
                 "security": [
                     {
                         "tokenAuth": []
@@ -27702,7 +27722,36 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "No response body"
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ChatBotResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": {}
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "503": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": {}
+                                }
+                            }
+                        },
+                        "description": ""
                     }
                 }
             }
@@ -27714,6 +27763,26 @@
                 "tags": [
                     "v1"
                 ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ChatBotRequestRequest"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ChatBotRequestRequest"
+                            }
+                        },
+                        "*/*": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ChatBotRequestRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
                 "security": [
                     {
                         "tokenAuth": []
@@ -27724,7 +27793,36 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "No response body"
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ChatBotResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": {}
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "503": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": {}
+                                }
+                            }
+                        },
+                        "description": ""
                     }
                 }
             }
@@ -27746,7 +27844,25 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "No response body"
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/AILearningMetrics"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": {}
+                                }
+                            }
+                        },
+                        "description": ""
                     }
                 }
             }
@@ -27768,7 +27884,25 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "No response body"
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PendingReviewListResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": {}
+                                }
+                            }
+                        },
+                        "description": ""
                     }
                 }
             }
@@ -27790,7 +27924,14 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "No response body"
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ToolsOpenResponse"
+                                }
+                            }
+                        },
+                        "description": ""
                     }
                 }
             }
@@ -27799,6 +27940,17 @@
             "get": {
                 "operationId": "v1_ai_assistant_errors_recent_retrieve",
                 "description": "Admin-only diagnostics endpoint for tenant-scoped Sentry issues.\n\nThis mirrors the Swarm tool behavior (get_recent_errors) and is useful for\ndebugging the Sentry bridge without involving an LLM call.\n\nSafety:\n- Enforces active tenant context.\n- If a tenant_id is provided, it must match the active tenant.",
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "tenant_id",
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        },
+                        "description": "Optional tenant guard; when provided it must match the active tenant."
+                    }
+                ],
                 "tags": [
                     "v1"
                 ],
@@ -27812,7 +27964,24 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "No response body"
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/RecentErrorsResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/RecentErrorsResponse"
+                                }
+                            }
+                        },
+                        "description": ""
                     }
                 }
             }
@@ -27821,6 +27990,17 @@
             "get": {
                 "operationId": "v1_ai_assistant_diagnostics_recent_errors_retrieve",
                 "description": "Admin-only diagnostics endpoint for tenant-scoped Sentry issues.\n\nThis mirrors the Swarm tool behavior (get_recent_errors) and is useful for\ndebugging the Sentry bridge without involving an LLM call.\n\nSafety:\n- Enforces active tenant context.\n- If a tenant_id is provided, it must match the active tenant.",
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "tenant_id",
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        },
+                        "description": "Optional tenant guard; when provided it must match the active tenant."
+                    }
+                ],
                 "tags": [
                     "v1"
                 ],
@@ -27834,7 +28014,24 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "No response body"
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/RecentErrorsResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/RecentErrorsResponse"
+                                }
+                            }
+                        },
+                        "description": ""
                     }
                 }
             }
@@ -27857,6 +28054,25 @@
                 "tags": [
                     "v1"
                 ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PendingReviewResolveRequestRequest"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PendingReviewResolveRequestRequest"
+                            }
+                        },
+                        "*/*": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PendingReviewResolveRequestRequest"
+                            }
+                        }
+                    }
+                },
                 "security": [
                     {
                         "tokenAuth": []
@@ -27867,7 +28083,36 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "No response body"
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PendingReviewResolveResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": {}
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "404": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": {}
+                                }
+                            }
+                        },
+                        "description": ""
                     }
                 }
             }
@@ -27879,6 +28124,26 @@
                 "tags": [
                     "v1"
                 ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/SwarmInvokeRequestRequest"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/SwarmInvokeRequestRequest"
+                            }
+                        },
+                        "*/*": {
+                            "schema": {
+                                "$ref": "#/components/schemas/SwarmInvokeRequestRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
                 "security": [
                     {
                         "tokenAuth": []
@@ -27889,7 +28154,25 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "No response body"
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/SwarmInvokeResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": {}
+                                }
+                            }
+                        },
+                        "description": ""
                     }
                 }
             }
@@ -48236,6 +48519,326 @@
                     "version",
                     "widgets"
                 ]
+            },
+            "RecentErrorIssue": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "shortId": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "title": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "permalink": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "culprit": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "level": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "status": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "firstSeen": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "lastSeen": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "count": {
+                        "type": "string",
+                        "nullable": true
+                    }
+                }
+            },
+            "SwarmInvokeResponse": {
+                "type": "object",
+                "properties": {
+                    "tenant_id": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "correlation_id": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "event_type": {
+                        "type": "string"
+                    },
+                    "intent": {
+                        "type": "string"
+                    },
+                    "urgency": {
+                        "type": "string"
+                    },
+                    "agent_chain": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "notes": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "agent_chain",
+                    "event_type",
+                    "intent",
+                    "tenant_id",
+                    "urgency"
+                ]
+            },
+            "ChatBotResponse": {
+                "type": "object",
+                "description": "Serializer for chat bot API responses.",
+                "properties": {
+                    "response": {
+                        "type": "string"
+                    },
+                    "session_id": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "message_id": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "processing_time": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "metadata": {}
+                },
+                "required": [
+                    "message_id",
+                    "processing_time",
+                    "response",
+                    "session_id"
+                ]
+            },
+            "ToolsOpenResponse": {
+                "type": "object",
+                "properties": {
+                    "tools": {
+                        "type": "array",
+                        "items": {}
+                    }
+                },
+                "required": [
+                    "tools"
+                ]
+            },
+            "ChatBotRequestRequest": {
+                "type": "object",
+                "description": "Serializer for chat bot API requests.",
+                "properties": {
+                    "message": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 5000
+                    },
+                    "session_id": {
+                        "type": "string",
+                        "format": "uuid",
+                        "nullable": true
+                    },
+                    "context": {}
+                },
+                "required": [
+                    "message"
+                ]
+            },
+            "PendingReviewListResponse": {
+                "type": "object",
+                "properties": {
+                    "pending_reviews": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/PendingReviewItem"
+                        }
+                    },
+                    "results": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/PendingReviewItem"
+                        }
+                    }
+                },
+                "required": [
+                    "pending_reviews",
+                    "results"
+                ]
+            },
+            "RecentErrorsResponse": {
+                "type": "object",
+                "properties": {
+                    "ok": {
+                        "type": "boolean"
+                    },
+                    "tenant_id": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "error": {
+                        "type": "string"
+                    },
+                    "detail": {
+                        "type": "string"
+                    },
+                    "status": {
+                        "type": "integer"
+                    },
+                    "issues": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/RecentErrorIssue"
+                        }
+                    }
+                },
+                "required": [
+                    "issues",
+                    "ok"
+                ]
+            },
+            "PendingReviewResolveResponse": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "resolved_by": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "precision_delta": {
+                        "type": "number",
+                        "format": "double"
+                    }
+                },
+                "required": [
+                    "id",
+                    "precision_delta",
+                    "resolved_by"
+                ]
+            },
+            "SwarmInvokeRequestRequest": {
+                "type": "object",
+                "properties": {
+                    "event_type": {
+                        "$ref": "#/components/schemas/SwarmInvokeRequestEventTypeEnum"
+                    },
+                    "payload": {},
+                    "correlation_id": {
+                        "type": "string",
+                        "nullable": true
+                    }
+                },
+                "required": [
+                    "event_type",
+                    "payload"
+                ]
+            },
+            "PendingReviewItem": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "document_id": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "document_type": {
+                        "type": "string"
+                    },
+                    "confidence_score": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "precision_delta": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "created_on": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "original_extracted_data": {}
+                },
+                "required": [
+                    "confidence_score",
+                    "created_on",
+                    "document_id",
+                    "document_type",
+                    "id",
+                    "original_extracted_data",
+                    "precision_delta"
+                ]
+            },
+            "PendingReviewResolveRequestRequest": {
+                "type": "object",
+                "properties": {
+                    "user_corrected_data": {
+                        "nullable": true
+                    }
+                }
+            },
+            "AILearningMetrics": {
+                "type": "object",
+                "properties": {
+                    "totalDocumentsParsed": {
+                        "type": "integer",
+                        "minimum": 0
+                    },
+                    "correctionsLearned": {
+                        "type": "integer",
+                        "minimum": 0
+                    },
+                    "precisionScore": {
+                        "type": "number",
+                        "format": "double",
+                        "maximum": 1.0,
+                        "minimum": 0.0
+                    },
+                    "confidenceTrend": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "additionalProperties": {}
+                        }
+                    }
+                },
+                "required": [
+                    "correctionsLearned",
+                    "precisionScore",
+                    "totalDocumentsParsed"
+                ]
+            },
+            "SwarmInvokeRequestEventTypeEnum": {
+                "enum": [
+                    "email",
+                    "user_chat",
+                    "webhook"
+                ],
+                "type": "string",
+                "description": "* `email` - email\n* `user_chat` - user_chat\n* `webhook` - webhook"
             }
         },
         "securitySchemes": {

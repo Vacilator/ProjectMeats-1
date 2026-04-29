@@ -14,6 +14,7 @@ from django.db import connection, models
 from django.db.models import Avg
 from django.db.models.functions import TruncDate
 from django.utils import timezone
+from drf_spectacular.utils import OpenApiParameter, OpenApiTypes, extend_schema
 from rest_framework import filters, mixins, status, viewsets
 from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.decorators import action
@@ -37,7 +38,12 @@ from .serializers import (
     ChatSessionListSerializer,
     PendingReviewItemSerializer,
     PendingReviewResolveRequestSerializer,
+    PendingReviewListResponseSerializer,
+    PendingReviewResolveResponseSerializer,
+    RecentErrorsResponseSerializer,
     SwarmInvokeRequestSerializer,
+    SwarmInvokeResponseSerializer,
+    ToolsOpenResponseSerializer,
 )
 from .session_utils import bind_context_to_tenant, get_request_tenant_id, session_matches_tenant
 
@@ -166,6 +172,10 @@ class ChatBotAPIViewSet(viewsets.ViewSet):
     throttle_classes = [AnonRateThrottle, UserRateThrottle, ScopedRateThrottle]
     throttle_scope = 'ai_chat'
 
+    @extend_schema(
+        request=ChatBotRequestSerializer,
+        responses={200: ChatBotResponseSerializer, 400: OpenApiTypes.OBJECT, 503: OpenApiTypes.OBJECT},
+    )
     @action(detail=False, methods=["post"])
     def chat(self, request):
         """Send a message to the AI assistant and get a response."""
@@ -424,6 +434,7 @@ class AILearningMetricsAPIView(APIView):
 
     permission_classes = [IsAuthenticated]
 
+    @extend_schema(responses={200: AILearningMetricsSerializer, 400: OpenApiTypes.OBJECT})
     def get(self, request):
         tenant = getattr(request, 'tenant', None)
         tenant_id = getattr(tenant, 'id', None)
@@ -678,6 +689,10 @@ class SwarmInvokeAPIView(APIView):
 
     permission_classes = [IsAdminUser]
 
+    @extend_schema(
+        request=SwarmInvokeRequestSerializer,
+        responses={200: SwarmInvokeResponseSerializer, 400: OpenApiTypes.OBJECT},
+    )
     def post(self, request):
         serializer = SwarmInvokeRequestSerializer(data=request.data)
         if not serializer.is_valid():
@@ -855,6 +870,18 @@ class RecentErrorsAPIView(APIView):
 
     permission_classes = [IsAdminUser]
 
+    @extend_schema(
+        parameters=[
+            OpenApiParameter(
+                name='tenant_id',
+                required=False,
+                type=OpenApiTypes.UUID,
+                location=OpenApiParameter.QUERY,
+                description='Optional tenant guard; when provided it must match the active tenant.',
+            )
+        ],
+        responses={200: RecentErrorsResponseSerializer, 400: RecentErrorsResponseSerializer},
+    )
     def get(self, request):
         import os
 
@@ -899,6 +926,7 @@ class ToolsOpenAPIView(APIView):
 
     permission_classes = [IsAuthenticated]
 
+    @extend_schema(responses={200: ToolsOpenResponseSerializer})
     def get(self, request):
         tenant = getattr(request, 'tenant', None)
 
@@ -946,9 +974,10 @@ class PendingReviewView(APIView):
 
     permission_classes = [IsAuthenticated]
 
+    @extend_schema(responses={200: PendingReviewListResponseSerializer, 400: OpenApiTypes.OBJECT})
     def get(self, request):
         if not (request.user.is_staff or request.user.is_superuser):
-            return Response({'pending_reviews': []}, status=status.HTTP_200_OK)
+            return Response({'pending_reviews': [], 'results': []}, status=status.HTTP_200_OK)
 
         tenant = getattr(request, 'tenant', None)
         tenant_id = str(getattr(tenant, 'id', '') or '')
@@ -992,6 +1021,10 @@ class AIAgentChatView(APIView):
     throttle_classes = [AnonRateThrottle, UserRateThrottle, ScopedRateThrottle]
     throttle_scope = 'ai_chat'
 
+    @extend_schema(
+        request=ChatBotRequestSerializer,
+        responses={200: ChatBotResponseSerializer, 400: OpenApiTypes.OBJECT, 503: OpenApiTypes.OBJECT},
+    )
     def post(self, request):
         return ChatBotAPIViewSet().chat(request)
 
@@ -1006,6 +1039,10 @@ class PendingReviewResolveAPIView(APIView):
     throttle_classes = [UserRateThrottle, ScopedRateThrottle]
     throttle_scope = 'ai_feedback'
 
+    @extend_schema(
+        request=PendingReviewResolveRequestSerializer,
+        responses={200: PendingReviewResolveResponseSerializer, 400: OpenApiTypes.OBJECT, 404: OpenApiTypes.OBJECT},
+    )
     def post(self, request, feedback_id):
         serializer = PendingReviewResolveRequestSerializer(data=request.data)
         if not serializer.is_valid():

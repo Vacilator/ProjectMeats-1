@@ -416,6 +416,8 @@ Paginated lists include `count`, `next`, `previous`, and `results` fields.
         "EntityTypeC00Enum": "tenant_apps.cockpit.models.EntityTypeChoices",
         # Keep notification priority stable across serializer reuse.
         "UserNotificationPriorityEnum": "tenant_apps.workflows.models.NotificationPriority",
+        # Keep tenant webhook event_type stable across serializer reuse.
+        "EventTypeEnum": "tenant_apps.integrations.models.TenantWebhookEventType",
     },
 }
 
