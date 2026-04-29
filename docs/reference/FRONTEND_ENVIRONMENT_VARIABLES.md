@@ -60,19 +60,19 @@ The app will automatically use `localhost:8000` for API calls.
 ### Development (dev.meatscentral.com)
 
 **Frontend URL:** `https://dev.meatscentral.com`  
-**Backend URL:** `https://dev-backend.meatscentral.com/api/v1`
+**Backend URL:** `https://dev.meatscentral.com/api/v1`
 
 ```bash
 # For CI/CD or manual deployment
-REACT_APP_API_BASE_URL=https://dev-backend.meatscentral.com/api/v1
+REACT_APP_API_BASE_URL=https://dev.meatscentral.com/api/v1
 REACT_APP_ENVIRONMENT=development
 REACT_APP_AI_ASSISTANT_ENABLED=true
 ```
 
-**Why separate backend subdomain?**
-- Dev environment uses separate droplet for backend
-- Allows independent backend/frontend deployments
-- Mirrors production architecture (separate services)
+**Why same-origin API routing?**
+- The frontend serves `/api/v1/*` through the primary domain
+- Reverse proxying keeps browser traffic on one public origin
+- This matches the Golden pipeline and avoids stale API subdomain guidance
 
 ### UAT/Staging (uat.meatscentral.com)
 
@@ -85,7 +85,7 @@ REACT_APP_ENVIRONMENT=staging
 REACT_APP_AI_ASSISTANT_ENABLED=true
 ```
 
-**Note:** UAT uses same domain for frontend and backend (reverse proxy setup).
+**Note:** Hosted environments use the same-origin `/api/v1` route on the primary domain.
 
 ### Production (meatscentral.com)
 
@@ -153,7 +153,7 @@ The preferred method for deployments is to inject configuration at runtime:
 // Updated by deployment pipeline for each environment
 
 window.ENV = {
-  API_BASE_URL: "https://dev-backend.meatscentral.com/api/v1",
+  API_BASE_URL: "https://dev.meatscentral.com/api/v1",
   ENVIRONMENT: "development",
   AI_ASSISTANT_ENABLED: "true"
 };
@@ -170,7 +170,7 @@ window.ENV = {
 # On deployment server, update env-config.js
 cat > /opt/pm/frontend/env/env-config.js << 'EOF'
 window.ENV = {
-  API_BASE_URL: "https://dev-backend.meatscentral.com/api/v1",
+  API_BASE_URL: "https://dev.meatscentral.com/api/v1",
   ENVIRONMENT: "development"
 };
 EOF
@@ -189,7 +189,7 @@ The frontend **automatically detects** environment from domain:
 | Domain | Environment | API URL (auto-detected) |
 |--------|-------------|-------------------------|
 | `localhost:3000` | development | `http://localhost:8000/api/v1` |
-| `dev.meatscentral.com` | development | `https://dev-backend.meatscentral.com/api/v1` |
+| `dev.meatscentral.com` | development | `https://dev.meatscentral.com/api/v1` |
 | `uat.meatscentral.com` | uat | `https://uat.meatscentral.com/api/v1` |
 | `meatscentral.com` | production | `https://meatscentral.com/api/v1` |
 
@@ -242,7 +242,7 @@ This means you often **don't need** to set `REACT_APP_API_BASE_URL` explicitly!
 2. **Don't hardcode API URLs in code**
    ```typescript
    // ❌ Bad
-   const API_URL = "https://dev-backend.meatscentral.com";
+   const API_URL = "https://dev.meatscentral.com/api/v1";
    
    // ✅ Good
    import { config } from '@/config/runtime';
@@ -269,7 +269,7 @@ This means you often **don't need** to set `REACT_APP_API_BASE_URL` explicitly!
 
 ### API calls go to wrong URL
 
-**Problem:** Frontend is calling localhost instead of dev-backend.
+**Problem:** Frontend is calling localhost instead of the deployed `/api/v1` endpoint.
 
 **Solution:**
 1. Check browser console for detected config:

@@ -96,6 +96,7 @@ This file is the **append-only PR-referenceable execution log**.
 
 - **2026-04-21** — CI: enforce Golden Pipeline workflow topology (validator + reusable deploy alignment) to prevent drift (no compose/latest; correct job dependency invariants). (PR: #4568)
 - **2026-04-29** — Frontend tests: stabilize the `WorkflowRunner` remount assertion after the post-merge development deploy from PR #4759 exposed a timing race between the mocked form mount effect and the initial DOM assertion. (PR: #4761)
+- **2026-04-29** — CI/docs: guard CURRENT documentation against Golden drift by failing validation on forbidden dev-backend/compose/swarm/legacy-manifest guidance and aligning the drifted frontend env, environment vars, development workflow, and reference Golden pipeline docs to same-origin `/api/v1` + runner-driven `docker run` guidance. (PR: #4762)
 - **2026-04-29** — Dependencies: safely refreshed the mobile grouped npm/yarn transitive lockfile updates from Dependabot #4730 while preserving the Expo 55 / React Native 0.74.5 baseline; explicitly deferred the remaining `fast-xml-parser` removal until the planned mobile baseline uplift. (PR: #4759)
 
 - **2026-04-21** — CI: harden workflow validator to scan `.github/scripts/` too (prevent compose/latest drift outside workflows) and tighten migration-safety checks without false positives. (PR: #4569)
