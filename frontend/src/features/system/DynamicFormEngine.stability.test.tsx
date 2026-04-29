@@ -5,8 +5,17 @@ import userEvent from '@testing-library/user-event';
 
 import DynamicFormEngine from './DynamicFormEngine';
 
+const getMasterProductOptionsMock = vi.hoisted(() => vi.fn(async () => []));
+
 vi.mock('../../services/configService', () => ({
   resolveConfig: vi.fn(async (_key: string, fallback: unknown) => ({ value: fallback })),
+}));
+
+vi.mock('../../services/contactFormOptionsService', () => ({
+  contactFormOptionsService: {
+    getMasterProductOptions: getMasterProductOptionsMock,
+    getSystemChoiceOptions: vi.fn(async () => []),
+  },
 }));
 
 describe('DynamicFormEngine stability', () => {
@@ -117,5 +126,70 @@ describe('DynamicFormEngine stability', () => {
     await waitFor(() => {
       expect(screen.getByDisplayValue('North Fabrication Plant')).toBeInTheDocument();
     });
+  });
+
+  it('does not refetch cascading options on unrelated parent rerenders', async () => {
+    getMasterProductOptionsMock.mockClear();
+    getMasterProductOptionsMock.mockResolvedValue([{ value: '1', label: 'Brisket' }]);
+
+    const Parent: React.FC = () => {
+      const [tick, setTick] = useState(0);
+
+      useEffect(() => {
+        if (tick >= 5) return;
+        setTick((prev) => prev + 1);
+      }, [tick]);
+
+      return (
+        <>
+          <div data-testid="tick">{tick}</div>
+          <DynamicFormEngine
+            schema={{
+              step_index: 0,
+              name: 'Plant Profile',
+              fields: [
+                {
+                  key: 'protein_types',
+                  label: 'Protein Types',
+                  type: 'select',
+                  options: [{ value: 'Beef', label: 'Beef' }],
+                  ui: {
+                    widget: 'multi_select',
+                  },
+                },
+                {
+                  key: 'master_products',
+                  label: 'Master Products',
+                  type: 'select',
+                  dependencies: ['protein_types'],
+                  ui: {
+                    widget: 'multi_select',
+                    data_source: {
+                      type: 'master_products',
+                    },
+                  },
+                },
+              ],
+            }}
+            initialValues={{
+              protein_types: ['Beef'],
+              master_products: [],
+            }}
+            onSubmit={vi.fn()}
+          />
+        </>
+      );
+    };
+
+    render(<Parent />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('tick')).toHaveTextContent('5');
+    });
+
+    await waitFor(() => {
+      expect(getMasterProductOptionsMock).toHaveBeenCalledTimes(1);
+    });
+    expect(getMasterProductOptionsMock).toHaveBeenCalledWith({ proteinTypes: ['Beef'] });
   });
 });

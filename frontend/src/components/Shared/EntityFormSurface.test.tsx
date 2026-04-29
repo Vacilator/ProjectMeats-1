@@ -72,7 +72,7 @@ describe('EntityFormSurface', () => {
     return render(<QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>);
   };
 
-  it('preloads schema, record, and FK options once and remounts the keyed form when data arrives', async () => {
+  it('preloads schema, record, and FK options once without remounting the form on query readiness', async () => {
     businessApiMock.get.mockImplementation((url: string) => {
       if (url === '/system/forms/schema/') {
         return Promise.resolve({
@@ -157,7 +157,7 @@ describe('EntityFormSurface', () => {
     });
 
     expect(businessApiMock.get).toHaveBeenCalledTimes(3);
-    expect(formLifecycle.mounts).toBe(2);
-    expect(formLifecycle.unmounts).toBe(1);
+    expect(formLifecycle.mounts).toBe(1);
+    expect(formLifecycle.unmounts).toBe(0);
   });
 });

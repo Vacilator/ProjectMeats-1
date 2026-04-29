@@ -178,7 +178,7 @@ export const EntityFormSurface: React.FC<EntityFormSurfaceProps> = ({
     queryKey: ['entity-form-schema', normalizedEntityKey],
     queryFn: () => fetchUniversalEntitySchema(entityType),
     enabled: shouldHydrate,
-    staleTime: Number.POSITIVE_INFINITY,
+    staleTime: 5 * 60 * 1000,
   });
 
   const recordQuery = useQuery({
@@ -223,7 +223,7 @@ export const EntityFormSurface: React.FC<EntityFormSurfaceProps> = ({
       ],
       queryFn: () => fetchUniversalEntityFkOptions(field as BackendField),
       enabled: shouldHydrate && Boolean(augmentedSchema),
-      staleTime: Number.POSITIVE_INFINITY,
+      staleTime: 5 * 60 * 1000,
     })),
   });
 
@@ -259,16 +259,8 @@ export const EntityFormSurface: React.FC<EntityFormSurfaceProps> = ({
         mode,
         entityId: shouldLoadRecord ? String(entityId) : 'new',
         seed: derivedInitialValues,
-        ready: formReady ? 'ready' : 'loading',
       }),
-    [
-      derivedInitialValues,
-      entityId,
-      formReady,
-      mode,
-      normalizedEntityKey,
-      shouldLoadRecord,
-    ]
+    [derivedInitialValues, entityId, mode, normalizedEntityKey, shouldLoadRecord]
   );
 
   return (

@@ -1056,12 +1056,10 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
   );
 
   const [loading, setLoading] = useState(Boolean(externalLoading));
-  const [loadError, setLoadError] = useState<unknown | null>(externalLoadError ?? null);
+  const [loadError, setLoadError] = useState<unknown | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const [schema, setSchema] = useState<BackendSchema | null>(externalSchema ?? null);
-  const [, setRecordValues] = useState<Record<string, unknown> | null>(
-    externalRecordValues ?? null
-  );
+  const [schema, setSchema] = useState<BackendSchema | null>(null);
+  const [, setRecordValues] = useState<Record<string, unknown> | null>(null);
 
   const initialValuesRef = useRef<Record<string, unknown> | undefined>(stableInitialValues);
   const [resolvedInitialValues, setResolvedInitialValues] = useState<Record<string, unknown>>(
@@ -1095,10 +1093,10 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
   const canSwitchModes = allowModeSwitch ?? inferredMode === 'view';
   const [activeMode, setActiveMode] = useState<UniversalEntityFormMode>(inferredMode);
 
-  const [fkValues, setFkValues] = useState<Record<string, unknown>>(initialResolvedValues);
+  const [fkValues, setFkValues] = useState<Record<string, unknown>>({});
   const [fkOptions, setFkOptions] = useState<
     Record<string, Array<{ id: string | number; name: string }>>
-  >(externalFkOptions ?? {});
+  >({});
   const [productOptions, setProductOptions] = useState<
     Record<string, Array<{ value: string; label: string }>>
   >({});
@@ -1134,10 +1132,6 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
     setResolvedInitialValues((prev) => (isEqual(prev, next) ? prev : next));
   }, []);
 
-  const setFkValuesIfChanged = useCallback((next: Record<string, unknown>) => {
-    setFkValues((prev) => (isEqual(prev, next) ? prev : next));
-  }, []);
-
   const loadSchema = useCallback(() => {
     return fetchUniversalEntitySchema(entityType, endpoint, schemaEntityKey);
   }, [endpoint, entityType, schemaEntityKey]);
@@ -1165,7 +1159,7 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
 
     const initialSnapshot = (initialValuesRef.current || EMPTY_FORM_VALUES) as Record<string, unknown>;
     setResolvedInitialValuesIfChanged(initialSnapshot);
-    setFkValuesIfChanged(initialSnapshot);
+    setFkValues({});
 
     // Wait for auth initialization to settle before attempting any protected calls.
     if (authLoading) {
@@ -1229,14 +1223,14 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
         setSchemaIfChanged(augmentSchemaForFrontend(schemaEntityKey, nextSchema, sanitized));
         setRecordValuesIfChanged(nextRecord);
         setResolvedInitialValuesIfChanged(sanitized);
-        setFkValuesIfChanged(sanitized);
+        setFkValues({});
       } catch (err: unknown) {
         if (!mounted) return;
         setLoadError(err);
         setSchemaIfChanged(null);
         setRecordValuesIfChanged(null);
         setResolvedInitialValuesIfChanged(initialSnapshot);
-        setFkValuesIfChanged(initialSnapshot);
+        setFkValues({});
 
         const status = (err as any)?.response?.status;
         const errorMessage =
@@ -1271,7 +1265,6 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
     loadSignature,
     loadSchema,
     schemaEntityKey,
-    setFkValuesIfChanged,
     setRecordValuesIfChanged,
     setResolvedInitialValuesIfChanged,
     setSchemaIfChanged,
@@ -1577,16 +1570,9 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
 
   const formInitialValues = useDeepStableValue(resolvedFormInitialValues);
   const stableDynamicSchema = useDeepStableValue(dynamicSchema);
-  const dynamicFormKey = useMemo(
-    () =>
-      getStableSignature({
-        mode: activeMode,
-        entityId: entityId == null ? 'new' : String(entityId),
-        schemaEntityKey,
-        schema: stableDynamicSchema,
-        initialValues: formInitialValues,
-      }),
-    [activeMode, entityId, formInitialValues, schemaEntityKey, stableDynamicSchema]
+  const getCurrentFkValue = useCallback(
+    (fieldKey: string) => fkValues[fieldKey] ?? formInitialValues?.[fieldKey],
+    [fkValues, formInitialValues]
   );
 
   const modalTitle = useMemo(() => {
@@ -1622,7 +1608,7 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
       const missingFk = fkFields
         .filter((f) => Boolean(f.required))
         .filter((f) => {
-          const v = fkValues[f.key] ?? formInitialValues?.[f.key];
+          const v = getCurrentFkValue(f.key);
           return v === undefined || v === null || v === '';
         });
       if (missingFk.length) {
@@ -1637,8 +1623,9 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
 
       // Merge FK values into payload.
       fkFields.forEach((f) => {
-        if (fkValues[f.key] !== undefined) {
-          payload[f.key] = fkValues[f.key];
+        const currentFkValue = getCurrentFkValue(f.key);
+        if (currentFkValue !== undefined) {
+          payload[f.key] = currentFkValue;
         }
       });
 
@@ -1855,8 +1842,8 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
       entityId,
       activeMode,
       fkFields,
-      fkValues,
       formInitialValues,
+      getCurrentFkValue,
       onClose,
       onSuccess,
       preferredKeySet,
@@ -1905,7 +1892,7 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
 
         // Replace options for the current search (so results actually refresh on every keystroke),
         // but keep the currently-selected value so it doesn't disappear.
-        const selectedValue = String((fkValues[fieldKey] as string | number | undefined) ?? '');
+        const selectedValue = String(getCurrentFkValue(fieldKey) ?? '');
 
         setProductOptions((prev) => {
           const selected = selectedValue
@@ -1930,7 +1917,7 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
         }
       }
     },
-    [fkValues]
+    [getCurrentFkValue]
   );
 
   if (variant === 'inline' && !isOpen) return null;
@@ -2024,7 +2011,7 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
                   related.includes('system.product') ||
                   String(f.key).toLowerCase().includes('product');
 
-                const value = String((fkValues[f.key] as string | number | undefined) ?? '');
+                const value = String(getCurrentFkValue(f.key) ?? '');
 
                 if (activeMode === 'view') {
                   if (Boolean(f.is_advanced) && !hasDisplayValue(formInitialValues[f.key])) {
@@ -2210,7 +2197,6 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
             </div>
           ) : (
             <DynamicFormEngine
-              key={dynamicFormKey}
               schema={stableDynamicSchema as any}
               initialValues={formInitialValues}
               isSubmitting={submitting}

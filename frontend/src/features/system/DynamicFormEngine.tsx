@@ -6,7 +6,7 @@
  * 
  * Wave 4 - Task 4.12: Integrated with ConfigResolver for dynamic settings.
  */
-import React, { useMemo, useState, useEffect, useRef } from 'react';
+import React, { useCallback, useMemo, useState, useEffect, useRef } from 'react';
 import { Select as AntSelect } from 'antd';
 import { useForm, Controller, useFieldArray, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -18,7 +18,7 @@ import { Select } from '../../components/ui/Select';
 import StateSelect from '../../components/ui/StateSelect';
 import { CountrySelect } from '../../components/ui';
 import { DEFAULT_COUNTRY } from '../../utils/constants/countries';
-import { useCascadingField } from '../../hooks/useCascadingField';
+import { useCascadingField, type CascadingFieldOption } from '../../hooks/useCascadingField';
 import { contactFormOptionsService } from '../../services/contactFormOptionsService';
 import { EMPTY_CHOICES } from '../../services/choiceConstants';
 import { resolveConfig } from '../../services/configService';
@@ -490,6 +490,8 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
 
   // Dynamic choice options from config system
   const [dynamicOptions, setDynamicOptions] = useState<Record<string, { value: string; label: string }[]>>({});
+  const cascadingOptionsCacheRef = useRef<Record<string, CascadingFieldOption[]>>({});
+  const cascadingOptionsRequestRef = useRef<Record<string, Promise<CascadingFieldOption[]>>>({});
 
   // Load form-level configuration
   useEffect(() => {
@@ -882,6 +884,45 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
 
     const hasDependencies = (field.dependencies || []).length > 0;
 
+    const fetchCascadingOptions = useCallback(
+      async (parentValue: unknown) => {
+        const proteinTypes = Array.isArray(parentValue)
+          ? parentValue.map((item) => String(item || '').trim()).filter(Boolean)
+          : [];
+
+        const cacheKey = `${field.key}:${proteinTypes.join('\u0001')}`;
+        const cachedOptions = cascadingOptionsCacheRef.current[cacheKey];
+        if (cachedOptions) {
+          return cachedOptions;
+        }
+
+        const pendingRequest = cascadingOptionsRequestRef.current[cacheKey];
+        if (pendingRequest) {
+          return pendingRequest;
+        }
+
+        const request = contactFormOptionsService
+          .getMasterProductOptions({ proteinTypes })
+          .then((options) => {
+            const resolvedOptions = Array.isArray(options)
+              ? options.map((option) => ({
+                  value: String(option.value),
+                  label: String(option.label),
+                }))
+              : [...EMPTY_CHOICES];
+            cascadingOptionsCacheRef.current[cacheKey] = resolvedOptions;
+            return resolvedOptions;
+          })
+          .finally(() => {
+            delete cascadingOptionsRequestRef.current[cacheKey];
+          });
+
+        cascadingOptionsRequestRef.current[cacheKey] = request;
+        return request;
+      },
+      [field.key]
+    );
+
     const {
       options: cascadingOptions,
       loading: cascadingLoading,
@@ -890,13 +931,7 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
       fieldId: field.key,
       parentValue: dependencyItems,
       enabled: cascading && (!hasDependencies || dependencyItems.length > 0),
-      fetchOptions: async (parentValue) => {
-        const proteinTypes = Array.isArray(parentValue)
-          ? parentValue.map((item) => String(item || '').trim()).filter(Boolean)
-          : [];
-
-        return contactFormOptionsService.getMasterProductOptions({ proteinTypes });
-      },
+      fetchOptions: fetchCascadingOptions,
     });
 
     const resolvedOptions = cascading ? cascadingOptions : options;
