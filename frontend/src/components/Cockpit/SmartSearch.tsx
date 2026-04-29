@@ -37,6 +37,8 @@ import { EntityFormSurface } from '../Shared';
 import { EntityProfileHeader } from './EntityProfileHeader';
 import { AIOverviewCard } from './AIOverviewCard';
 import { useFavorites } from '../../hooks/useFavorites';
+import { groupSearchResultsByType, searchUniversal, type SearchItem } from '@/services/searchService';
+import { logger } from '@/utils/logger';
 
 // ============================================================================
 // TypeScript Interfaces
@@ -89,6 +91,14 @@ export interface SmartSearchProps {
   /** Request an inline create action */
   onOpenInlineCreate?: (targetType: string, currentRecord: SearchEntity) => void;
 }
+
+const mapSearchItemToEntity = (item: SearchItem): SearchEntity => ({
+  id: item.id,
+  type: item.type,
+  name: item.title || 'Unnamed',
+  subtitle: item.subtitle || '',
+  metadata: item.metadata,
+});
 
 // ============================================================================
 // Styled Components
@@ -528,48 +538,25 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
     setIsSearching(true);
 
     try {
-      
-      // Call universal search API (correct endpoint)
-      const response = await businessApi.get('/search/universal/', {
-        params: { q: searchQuery, limit: 5 },
+      const response = await searchUniversal({
+        query: searchQuery,
+        limit: 5,
       });
 
-
-      // The API returns flat results + counts per entity type.
-      // Format: { results: [{type, id, title, subtitle, metadata}], counts: {type: count}, total: N }
-      const grouped: Record<string, SearchEntity[]> = {};
-
-      if (response.data.results && Array.isArray(response.data.results)) {
-        response.data.results.forEach((item: any) => {
-          const type = String(item.type ?? 'unknown');
-          if (!grouped[type]) grouped[type] = [];
-          grouped[type].push({
-            id: String(item.id ?? ''),
-            type,
-            name: item.title || item.name || 'Unnamed',
-            subtitle: item.subtitle || '',
-            metadata: (item.metadata ?? {}) as Record<string, unknown>,
-          });
-        });
-      }
-
-      const countsObj = response.data?.counts && typeof response.data.counts === 'object'
-        ? (response.data.counts as Record<string, unknown>)
-        : {};
-      const normalizedCounts: Record<string, number> = {};
-      for (const [k, v] of Object.entries(countsObj)) {
-        const n = typeof v === 'number' ? v : Number(v ?? 0);
-        normalizedCounts[String(k)] = Number.isFinite(n) ? n : 0;
-      }
+      const grouped = Object.fromEntries(
+        Object.entries(groupSearchResultsByType(response.results)).map(([type, items]) => [
+          type,
+          items.map(mapSearchItemToEntity),
+        ])
+      ) as Record<string, SearchEntity[]>;
 
       setResults(grouped);
-      setResultCounts(normalizedCounts);
+      setResultCounts(response.counts);
     } catch (error: any) {
-      console.error('[SmartSearch] Search failed:', error);
-      console.error('[SmartSearch] Error details:', {
+      logger.error('[SmartSearch] Search failed', {
         message: error.message,
         response: error.response?.data,
-        status: error.response?.status
+        status: error.response?.status,
       });
       setResults({});
       setResultCounts({});
