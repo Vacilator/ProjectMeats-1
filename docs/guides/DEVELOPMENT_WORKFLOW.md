@@ -1013,8 +1013,9 @@ docker run -d --name pm-backend \
   --env-file <(vault kv get -format=json secret/prod/backend | jq -r '.data.data | to_entries[] | "\(.key)=\(.value)"') \
   registry.digitalocean.com/meatscentral/projectmeats-backend:prod-SHA
 
-# Option C: Docker Secrets (Swarm/Compose)
-docker stack deploy -c docker-compose.prod.yml projectmeats
+# Option C: Stay on the Golden pipeline baseline
+# Generate env files on the runner and keep production deploys on docker run.
+# Do not introduce Docker Swarm/stack deploy into the current deployment path.
 ```
 
 **Benefits:**
@@ -1042,28 +1043,12 @@ docker stack deploy -c docker-compose.prod.yml projectmeats
 
 **Proposed Change:**
 
-**Option A: Docker Compose with Rolling Updates**
-```yaml
-# docker-compose.prod.yml
-version: '3.8'
-services:
-  backend:
-    image: registry.digitalocean.com/meatscentral/projectmeats-backend:${TAG}
-    deploy:
-      replicas: 2
-      update_config:
-        parallelism: 1
-        delay: 10s
-        order: start-first
-      rollback_config:
-        parallelism: 1
-        delay: 10s
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/health/"]
-      interval: 10s
-      timeout: 5s
-      retries: 3
-      start_period: 30s
+**Option A: Orchestrator-managed rolling updates (future architecture decision)**
+```text
+- Preserve runner-driven migrations before any traffic shift
+- Preserve immutable image refs ({environment}-{sha} and digest where required)
+- Preserve direct-to-container health checks
+- Do not regress to Docker Compose/Swarm-based remote deployment
 ```
 
 **Option B: Dokku (Lightweight PaaS)**

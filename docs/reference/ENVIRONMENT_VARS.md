@@ -89,7 +89,7 @@ These variables are injected into the React application at runtime.
 
 | Variable | Description | Required By | Pattern | Example Value |
 |----------|-------------|-------------|---------|---------------|
-| `REACT_APP_API_BASE_URL` | Backend API base URL | Frontend environments | `REACT_APP_API_BASE_URL` | `https://dev-backend.meatscentral.com` |
+| `REACT_APP_API_BASE_URL` | Backend API base URL | Frontend environments | `REACT_APP_API_BASE_URL` | `https://dev.meatscentral.com/api/v1` |
 | `REACT_APP_ENVIRONMENT` | Current environment name | Frontend environments | `REACT_APP_ENVIRONMENT` | `development` |
 | `REACT_APP_AI_ASSISTANT_ENABLED` | Enable/disable AI assistant | Frontend environments | `REACT_APP_AI_ASSISTANT_ENABLED` | `true` or `false` |
 
@@ -102,7 +102,7 @@ Frontend variables are:
 
 **Example Access Pattern**:
 ```javascript
-const API_URL = window.ENV?.API_BASE_URL || 'http://localhost:8000';
+const API_URL = window.ENV?.API_BASE_URL || 'http://localhost:8000/api/v1';
 ```
 
 ---

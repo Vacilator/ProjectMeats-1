@@ -1538,6 +1538,108 @@ PY
     return 0
 }
 
+check_current_docs_golden_pipeline_drift() {
+    log_info "Checking CURRENT docs avoid forbidden Golden pipeline drift..."
+
+    if ! python - <<'PY'
+import sys
+from pathlib import Path
+
+rules = {
+    'docs/reference/FRONTEND_ENVIRONMENT_VARIABLES.md': {
+        'forbidden': [
+            (
+                'dev-backend.meatscentral.com',
+                'Development frontend docs must use same-origin API routing (https://dev.meatscentral.com/api/v1).',
+            ),
+            (
+                'frontend:latest',
+                'Frontend deployment examples must use immutable image refs, not :latest.',
+            ),
+        ],
+        'required': [
+            (
+                'https://dev.meatscentral.com/api/v1',
+                'Development frontend docs must show the same-origin /api/v1 endpoint.',
+            ),
+        ],
+    },
+    'docs/reference/ENVIRONMENT_VARS.md': {
+        'forbidden': [
+            (
+                'https://dev-backend.meatscentral.com',
+                'Environment variable reference must not point frontend API examples at a separate dev-backend host.',
+            ),
+        ],
+        'required': [
+            (
+                'https://dev.meatscentral.com/api/v1',
+                'Environment variable reference must show the same-origin dev API base URL.',
+            ),
+        ],
+    },
+    'docs/guides/DEVELOPMENT_WORKFLOW.md': {
+        'forbidden': [
+            (
+                'docker stack deploy -c docker-compose.prod.yml projectmeats',
+                'Current development workflow docs must not recommend Docker Swarm/stack deploy for the Golden pipeline.',
+            ),
+        ],
+    },
+    'docs/reference/GOLDEN_PIPELINE.md': {
+        'forbidden': [
+            (
+                'docker-compose up -d backend',
+                'Reference Golden pipeline docs must not include compose-based remote deploy commands.',
+            ),
+            (
+                'ALWAYS use `docker-compose` (hyphen) for other Docker management commands',
+                'Reference Golden pipeline docs must align remote lifecycle guidance to docker pull/run/rm/exec commands.',
+            ),
+        ],
+        'required': [
+            (
+                'manifests/env.manifest.json',
+                'Reference Golden pipeline docs must point to the canonical manifests/env.manifest.json path.',
+            ),
+        ],
+    },
+}
+
+errors = []
+for rel_path, expectations in rules.items():
+    path = Path(rel_path)
+    if not path.exists():
+        errors.append(f'{rel_path}: expected doc not found')
+        continue
+
+    text = path.read_text(encoding='utf-8', errors='ignore')
+    header = '\n'.join(text.splitlines()[:10])
+    if '**Status**: ✅ CURRENT' not in header and rel_path != 'docs/reference/GOLDEN_PIPELINE.md':
+        continue
+
+    for needle, message in expectations.get('forbidden', []):
+        if needle in text:
+            errors.append(f'{rel_path}: {message}')
+
+    for needle, message in expectations.get('required', []):
+        if needle not in text:
+            errors.append(f'{rel_path}: {message}')
+
+if errors:
+    for error in errors:
+        print(f'ERROR: {error}', file=sys.stderr)
+    raise SystemExit(1)
+
+print('✓ CURRENT docs avoid forbidden Golden pipeline drift')
+PY
+    then
+        return 1
+    fi
+
+    return 0
+}
+
 # Main validation
 main() {
     log_info "========================================="
@@ -1555,6 +1657,7 @@ main() {
     check_digest_artifact_alignment || ((failed++))
     check_reusable_workflow_callers || ((failed++))
     check_current_docs_manifest_path_drift || ((failed++))
+    check_current_docs_golden_pipeline_drift || ((failed++))
     check_cache_config || ((failed++))
     check_health_checks || ((failed++))
     check_fetch_depth || ((failed++))

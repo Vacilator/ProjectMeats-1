@@ -111,8 +111,8 @@ build-frontend:
 
 **Universal Docker Run Pattern** (Reliability):
 ```yaml
-# OLD (V1.0.0) - docker-compose (version-dependent)
-docker-compose up -d backend
+# OLD (V1.0.0) - compose-based deploy flow (archived; do not use on current stack)
+# See docs/archive/GOLDEN_PIPELINE_v1.0.0.md for the historical example.
 
 # NEW (V2.0.0) - docker run (universal)
 docker run -d --name pm-backend \
@@ -171,7 +171,7 @@ The following packages are **ABSOLUTELY FORBIDDEN** and must NEVER appear in `ba
 
 #### ✅ REQUIRED PATTERNS (V2.0.0 GOLDEN STANDARD)
 - **ALWAYS** use `docker run` for starting containers in production
-- **ALWAYS** use `docker-compose` (hyphen) for other Docker management commands
+- **ALWAYS** use `docker pull`, `docker run`, `docker rm`, and `docker exec` for remote container lifecycle operations
 - **ALWAYS** name Dockerfiles as `Dockerfile` (PascalCase)
 - **ALWAYS** use SHA-tagged images: `${environment}-${github.sha}`
 - **ALWAYS** run migrations in CI before deployment (NOT via SSH post-deploy)
@@ -209,7 +209,7 @@ curl -L -s -o /dev/null -w "%{http_code}" https://domain.com/api/v1/health/
 
 ## Secret Management
 
-**Single Source of Truth**: `config/env.manifest.json` v5.1 (updated from v3.3)
+**Single Source of Truth**: `manifests/env.manifest.json`
 
 ### V2.0.0 Enhancement: Automated Secret Generation
 
@@ -433,7 +433,7 @@ python manage.py migrate --fake-initial --noinput
 - Release automation: `.github/workflows/ops-release-automation.yml`
 
 ### Configuration
-- Secret manifest: `config/env.manifest.json` (v5.1)
+- Secret manifest: `manifests/env.manifest.json`
 - Docker compose: `docker-compose.yml`
 - Dockerfiles: `backend/Dockerfile`, `frontend/Dockerfile`
 
@@ -463,4 +463,3 @@ python manage.py migrate --fake-initial --noinput
 **Document Version**: 2.0.0 (Golden Standard)  
 **Last Updated**: 2026-01-04T07:52:00.000Z  
 **Status**: ✅ **LOCKED - GOLDEN STANDARD ACHIEVED**
-
