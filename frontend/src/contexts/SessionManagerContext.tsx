@@ -13,6 +13,7 @@
 import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { SessionExpiredModal } from '../components/Modal';
+import { logger } from '../utils/logger';
 
 interface SessionManagerContextType {
   showSessionExpired: (message?: string) => void;
@@ -56,7 +57,9 @@ export const SessionManagerProvider: React.FC<SessionManagerProviderProps> = ({ 
     return () => {
       // Clean up on unmount
       registerGlobalSessionExpiredHandler(() => {
-        console.warn('[SessionManager] Handler cleaned up, falling back to redirect');
+        logger.warn('Handler cleaned up, falling back to redirect', {
+          component: 'SessionManagerContext',
+        });
         window.location.href = '/login';
       });
     };
@@ -123,7 +126,9 @@ export const triggerGlobalSessionExpired = (message?: string) => {
     globalSessionExpiredHandler(message);
   } else {
     // Fallback to hard redirect if handler not registered yet
-    console.warn('[SessionManager] Handler not registered, falling back to redirect');
+    logger.warn('Handler not registered, falling back to redirect', {
+      component: 'SessionManagerContext',
+    });
     window.location.href = '/login';
   }
 };

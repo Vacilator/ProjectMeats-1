@@ -5,6 +5,7 @@ import React, { createContext, useContext, useEffect, useState, ReactNode, useCa
 import { UserProfile } from '../types';
 import { authService, LoginCredentials, SignUpCredentials } from '../services/authService';
 import { clearSentryUser, setSentryTenant, setSentryUser } from '../utils/sentry';
+import { logger } from '../utils/logger';
 
 interface AuthContextType {
   user: UserProfile | null;
@@ -42,7 +43,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           clearSentryUser();
         }
       } catch (error) {
-        console.error('Failed to initialize auth:', error);
+        logger.error('Failed to initialize auth', { component: 'AuthContext' }, error);
         setUser(null);
         clearSentryUser();
       } finally {
@@ -123,7 +124,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setUser(null);
       clearSentryUser();
     } catch (error) {
-      console.error('Logout error:', error);
+      logger.error('Logout failed during AuthContext cleanup', { component: 'AuthContext' }, error);
       setUser(null);
       clearSentryUser();
     } finally {
@@ -144,7 +145,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         clearSentryUser();
       }
     } catch (error) {
-      console.error('Failed to refresh user:', error);
+      logger.error('Failed to refresh user', { component: 'AuthContext' }, error);
       setUser(null);
       clearSentryUser();
     }
