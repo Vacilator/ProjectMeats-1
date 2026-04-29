@@ -57,5 +57,20 @@ class InvitationEmailTaskRlsTests(TestCase):
             result = send_invitation_email_task.apply(args=[str(self.invitation.id), str(self.tenant.id)])
 
         self.assertEqual(result.get().get('success'), True)
-        rls.assert_called_once()
+        rls.assert_called_once_with(str(self.tenant.id), strict=True)
         send_mail.assert_called_once()
+
+    def test_task_aborts_when_rls_cannot_be_asserted(self):
+        from apps.tenants.tasks import send_invitation_email_task
+
+        with patch(
+            'apps.tenants.tasks.tenant_rls',
+            side_effect=RuntimeError('Failed to set tenant RLS context: db down'),
+        ) as rls, patch('apps.tenants.tasks.send_mail') as send_mail:
+            result = send_invitation_email_task.apply(args=[str(self.invitation.id), str(self.tenant.id)])
+
+        with self.assertRaises(RuntimeError):
+            result.get()
+
+        rls.assert_called_once_with(str(self.tenant.id), strict=True)
+        send_mail.assert_not_called()

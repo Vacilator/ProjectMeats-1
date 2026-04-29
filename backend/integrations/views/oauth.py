@@ -369,10 +369,22 @@ class OAuthCallbackView(APIView):
             setattr(request._request, 'tenant', tenant)
 
         rls_result = set_current_tenant(str(tenant.id))
-        if getattr(rls_result, 'ok', False):
-            setattr(request, '_rls_set', True)
-            if hasattr(request, '_request') and getattr(request, '_request', None) is not None:
-                setattr(request._request, '_rls_set', True)
+        if not getattr(rls_result, 'ok', False):
+            logger.error(
+                '[OAuthCallbackView] RLS setup failed before provider write: tenant_id=%s provider=%s error=%s',
+                tenant.id,
+                provider,
+                getattr(rls_result, 'error', 'unknown'),
+            )
+            response = redirect(
+                f'/settings/email-integrations?error=rls_enforcement_failed&provider={quote(provider)}'
+            )
+            _clear_oauth_cookies(response, provider)
+            return response
+
+        setattr(request, '_rls_set', True)
+        if hasattr(request, '_request') and getattr(request, '_request', None) is not None:
+            setattr(request._request, '_rls_set', True)
 
         # Must exactly match what was used in the authorize redirect.
         callback_path = f'/api/v1/integrations/oauth/callback/{provider}/'

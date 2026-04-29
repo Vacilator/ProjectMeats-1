@@ -41,7 +41,7 @@ If no tenant can be resolved, request.tenant is set to None.
 ViewSets should handle None tenant by returning empty querysets or raising validation errors.
 """
 
-from django.http import HttpRequest, HttpResponseForbidden, JsonResponse
+from django.http import HttpRequest, HttpResponse, HttpResponseForbidden, JsonResponse
 from django.db import connection
 from .models import Tenant, TenantUser, TenantDomain
 import logging
@@ -99,6 +99,15 @@ class TenantMiddleware:
             return JsonResponse({'error': message, 'code': 'TENANT_ACCESS_DENIED'}, status=403)
 
         return HttpResponseForbidden(message)
+
+    def _service_unavailable(self, request: HttpRequest, message: str):
+        """Return a stable service-unavailable response for tenant isolation failures."""
+        self._reset_rls_session_vars()
+
+        if request.path.startswith('/api/v1/'):
+            return JsonResponse({'error': message, 'code': 'TENANT_ISOLATION_UNAVAILABLE'}, status=503)
+
+        return HttpResponse(message, status=503)
 
     def __call__(self, request: HttpRequest):
         """Process the request and set tenant context."""
@@ -363,10 +372,12 @@ class TenantMiddleware:
                     f"RLS: Set current_tenant_id/current_tenant={tenant.id} for tenant={tenant.slug}"
                 )
             else:
-                # Log but don't fail the request if RLS setup fails.
-                # Application-level filtering will still work, but DB-level RLS writes may fail.
-                logger.warning(
+                logger.error(
                     f"Failed to set RLS session variables for tenant={tenant.slug}: {result.error}"
+                )
+                return self._service_unavailable(
+                    request,
+                    'Tenant isolation enforcement is temporarily unavailable.',
                 )
         else:
             # Clear session variables if no tenant is resolved
