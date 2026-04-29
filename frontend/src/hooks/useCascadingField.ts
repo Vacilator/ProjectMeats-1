@@ -4,9 +4,20 @@
  * Handles dependent field filtering based on parent field selections.
  * Example: Selecting "Beef" in protein type automatically filters product cuts to beef-only.
  */
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { businessApi } from '@/services/businessApi';
 import { EMPTY_CHOICES } from '@/services/choiceConstants';
+
+const areOptionsEqual = (
+  currentOptions: CascadingFieldOption[],
+  nextOptions: CascadingFieldOption[]
+) =>
+  currentOptions.length === nextOptions.length &&
+  currentOptions.every(
+    (option, index) =>
+      String(option.value) === String(nextOptions[index]?.value) &&
+      String(option.label) === String(nextOptions[index]?.label)
+  );
 
 export interface CascadingFieldOption {
   value: string;
@@ -87,6 +98,11 @@ export const useCascadingField = ({
   );
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const customFetchOptionsRef = useRef(customFetchOptions);
+
+  useEffect(() => {
+    customFetchOptionsRef.current = customFetchOptions;
+  }, [customFetchOptions]);
 
   const parentSignature = useMemo(() => {
     if (Array.isArray(parentValue)) {
@@ -126,13 +142,14 @@ export const useCascadingField = ({
     setError(null);
 
     try {
-      if (customFetchOptions) {
-        const nextOptions = await customFetchOptions(normalizedParentValue);
-        setOptions(
+      if (customFetchOptionsRef.current) {
+        const nextOptions = await customFetchOptionsRef.current(normalizedParentValue);
+        const resolvedOptions =
           Array.isArray(nextOptions) && nextOptions.length > 0
             ? nextOptions
-            : (EMPTY_CHOICES as CascadingFieldOption[])
-        );
+            : (EMPTY_CHOICES as CascadingFieldOption[]);
+
+        setOptions((prev) => (areOptionsEqual(prev, resolvedOptions) ? prev : resolvedOptions));
         return;
       }
 
@@ -140,11 +157,12 @@ export const useCascadingField = ({
         params: { parent_value: normalizedParentValue },
       });
 
-      setOptions(
+      const resolvedOptions =
         Array.isArray(response.data) && response.data.length > 0
           ? response.data
-          : (EMPTY_CHOICES as CascadingFieldOption[])
-      );
+          : (EMPTY_CHOICES as CascadingFieldOption[]);
+
+      setOptions((prev) => (areOptionsEqual(prev, resolvedOptions) ? prev : resolvedOptions));
     } catch (err: any) {
       const errorMsg = err.response?.data?.error || 'Failed to fetch cascaded options';
       setError(errorMsg);
@@ -153,7 +171,7 @@ export const useCascadingField = ({
     } finally {
       setLoading(false);
     }
-  }, [customFetchOptions, enabled, fieldId, hasParentValue, normalizedParentValue]);
+  }, [enabled, fieldId, hasParentValue, normalizedParentValue]);
 
   useEffect(() => {
     void fetchOptions();
