@@ -414,6 +414,8 @@ Paginated lists include `count`, `next`, `previous`, and `results` fields.
         # ActivityLog/ScheduledCall entity_type
         # Use the Django TextChoices to match value/label pairs for the hash.
         "EntityTypeC00Enum": "tenant_apps.cockpit.models.EntityTypeChoices",
+        # Keep notification priority stable across serializer reuse.
+        "UserNotificationPriorityEnum": "tenant_apps.workflows.models.NotificationPriority",
     },
 }
 
