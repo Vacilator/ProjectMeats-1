@@ -44,18 +44,18 @@ DATABASE_URL=... ./.github/scripts/validate-migrations.sh
 ---
 
 ### validate-environment.sh
-**Purpose:** Validate environment variables and configuration before deployment
+**Purpose:** Validate manifest-derived required secrets for a deployment lane and sanity-check runtime config when values are present
 
 **When it runs:**
-- Can be run manually before deployment
-- Recommended in deployment workflows
+- Runs in `reusable-deploy.yml` fail-fast steps before deploy/migration jobs continue
+- Can be run manually before deployment for any lane
 
 **What it validates:**
-1. Required environment variables are set (SECRET_KEY, DATABASE_URL, etc.)
-2. CORS_ALLOWED_ORIGINS and CSRF_TRUSTED_ORIGINS match
-3. URL formats are valid (must start with http:// or https://)
-4. Security settings are appropriate for environment
-5. Database URL uses PostgreSQL (warns if SQLite)
+1. Required secrets are derived from `manifests/env.manifest.json` for the requested lane/workflow
+2. Missing required secrets fail with a clear lane + secret name list
+3. CORS_ALLOWED_ORIGINS and CSRF_TRUSTED_ORIGINS URL formats are checked when set
+4. Database URL format is checked when set
+5. Security toggles like `DEBUG`, `SESSION_COOKIE_SECURE`, and `CSRF_COOKIE_SECURE` emit warnings when present
 
 **Exit codes:**
 - 0: All required variables are valid
@@ -70,20 +70,35 @@ DATABASE_URL=... ./.github/scripts/validate-migrations.sh
 
 **Usage:**
 ```bash
-# Load environment variables first
-export SECRET_KEY=...
-export DATABASE_URL=...
-export CORS_ALLOWED_ORIGINS=...
+# Validate the reusable deploy contract for a backend lane
+export DO_ACCESS_TOKEN=...
+export SSH_HOST=...
+export SSH_USER=...
+export SSH_PASSWORD=...
+export DB_HOST=...
+export DB_NAME=...
+export DB_USER=...
+export DB_PASSWORD=...
+export DJANGO_SECRET_KEY=...
+export DJANGO_SETTINGS_MODULE=...
+./validate-environment.sh --environment dev-backend --workflow reusable-deploy.yml
 
-# Run validation
-./validate-environment.sh
+# Validate a frontend lane
+export DO_ACCESS_TOKEN=...
+export SSH_HOST=...
+export SSH_USER=...
+export SSH_PASSWORD=...
+export BACKEND_HOST=...
+export DOMAIN_NAME=dev.meatscentral.com
+export REACT_APP_API_BASE_URL=https://dev.meatscentral.com/api/v1
+./validate-environment.sh --environment dev-frontend --workflow reusable-deploy.yml
 ```
 
 **Benefits:**
-- Catches configuration issues before deployment
-- Prevents CORS/CSRF mismatch errors
-- Validates security settings
-- Provides clear error messages for missing variables
+- Keeps required-secret enforcement in sync with the manifest
+- Prevents lane-specific workflow drift (for example, optional `ALLOWED_HOSTS` being treated as required)
+- Provides clear lane-scoped error messages for missing secrets
+- Still surfaces common runtime config mistakes without inventing a second source of truth
 
 ---
 
@@ -196,11 +211,17 @@ DATABASE_URL=postgresql://... \
   ../.github/scripts/validate-migrations.sh
 
 # Test environment validation
-export SECRET_KEY=test
-export DATABASE_URL=postgresql://...
-export CORS_ALLOWED_ORIGINS=http://localhost
-export CSRF_TRUSTED_ORIGINS=http://localhost
-.github/scripts/validate-environment.sh
+export DO_ACCESS_TOKEN=test
+export SSH_HOST=example.com
+export SSH_USER=root
+export SSH_PASSWORD=test
+export DB_HOST=db.internal
+export DB_NAME=projectmeats
+export DB_USER=postgres
+export DB_PASSWORD=test
+export DJANGO_SECRET_KEY=test
+export DJANGO_SETTINGS_MODULE=projectmeats.settings.development
+.github/scripts/validate-environment.sh --environment dev-backend --workflow reusable-deploy.yml
 
 # Test backup (use test database!)
 DATABASE_URL=postgresql://user:pass@localhost/test_db \
