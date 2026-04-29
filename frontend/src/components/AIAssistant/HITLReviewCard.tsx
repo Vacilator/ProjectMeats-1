@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { Button, Card, Form, Input, message } from 'antd';
 import { ThunderboltOutlined } from '@ant-design/icons';
 
+import { aiStaffApi } from '@/services/aiService';
 import { businessApi } from '@/services/businessApi';
 
 type Primitive = string | number | boolean | null;
@@ -55,9 +56,8 @@ export const HITLReviewCard: React.FC<HITLReviewCardProps> = ({
     if (feedbackId) return feedbackId;
 
     try {
-      const res = await businessApi.get<any>('/ai-assistant/review/pending/');
-      const items = (res.data?.pending_reviews || res.data?.results || []) as any[];
-      const match = items.find((it) => String(it?.document_id || '') === String(documentId));
+      const items = await aiStaffApi.listPendingReviews();
+      const match = items.find((it) => String(it.document_id || '') === String(documentId));
       return match?.id ? String(match.id) : null;
     } catch {
       return null;
@@ -111,7 +111,7 @@ export const HITLReviewCard: React.FC<HITLReviewCardProps> = ({
         return;
       }
 
-      await businessApi.post(`/ai-assistant/review/${resolvedId}/resolve/`, {
+      await aiStaffApi.resolvePendingReview(resolvedId, {
         user_corrected_data: corrected,
       });
 

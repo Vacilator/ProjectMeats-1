@@ -175,7 +175,7 @@ describe('ApiService – workforms', () => {
           name: 'Intake',
           description: 'Desc',
           status: 'active',
-          node_count: 3,
+          node_count: '3',
           edge_count: 2,
           version: 1,
           execution_count: 0,
@@ -201,6 +201,7 @@ describe('ApiService – workforms', () => {
       name: 'Intake',
       description: 'Desc',
       status: 'draft',
+      node_count: '1',
       workflow_definition: {
         nodes: [{ id: 'n1' }],
         edges: [],

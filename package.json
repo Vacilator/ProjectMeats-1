@@ -1,12 +1,15 @@
 {
+  "name": "ProjectMeats",
   "dependencies": {
     "react-select": "^5.10.2"
   },
   "devDependencies": {
     "@playwright/test": "^1.58.2",
+    "openapi-typescript": "^7.13.0",
     "playwright": "^1.58.2"
   },
   "scripts": {
+    "generate:openapi-types": "openapi-typescript manifests/openapi/openapi-schema.baseline.json -o shared/types/generated/openapi.ts",
     "test:e2e": "npm --prefix frontend run test:e2e --"
   }
 }
