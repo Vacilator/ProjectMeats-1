@@ -1634,6 +1634,34 @@ jobs:
             fi
           }
 
+          wait_for_http_200() {
+            local url="$1"
+            local label="$2"
+            local max_attempts="$3"
+            local delay_seconds="$4"
+            local attempt=1
+            local http_code="000"
+
+            while [ "$attempt" -le "$max_attempts" ]; do
+              http_code=$(curl -L -s -o /dev/null -w "%{http_code}" "$url" || echo "000")
+              if [ "$http_code" = "200" ]; then
+                LAST_HTTP_CODE="$http_code"
+                echo "✓ ${label} passed (HTTP $http_code)"
+                return 0
+              fi
+
+              if [ "$attempt" -lt "$max_attempts" ]; then
+                echo "${label} attempt ${attempt}/${max_attempts} (HTTP $http_code), retrying..."
+                sleep "$delay_seconds"
+              fi
+
+              attempt=$((attempt + 1))
+            done
+
+            LAST_HTTP_CODE="$http_code"
+            return 1
+          }
+
           # Cleanup stale canary/prev
           docker rm -f "$CAND_NAME" 2>/dev/null || true
           docker stop "$PREV_NAME" 2>/dev/null || true
@@ -1675,21 +1703,8 @@ jobs:
           done
 
           echo "Health-checking frontend canary..."
-          MAX_ATTEMPTS=10
-          ATTEMPT=1
-          while [ $ATTEMPT -le $MAX_ATTEMPTS ]; do
-            HTTP_CODE=$(curl -L -s -o /dev/null -w "%{http_code}" "http://127.0.0.1:${CAND_PORT}/" || echo "000")
-            if [ "$HTTP_CODE" = "200" ]; then
-              echo "✓ Canary health check passed (HTTP $HTTP_CODE)"
-              break
-            fi
-            echo "Canary health attempt $ATTEMPT/$MAX_ATTEMPTS (HTTP $HTTP_CODE), retrying..."
-            sleep 4
-            ATTEMPT=$((ATTEMPT + 1))
-          done
-
-          if [ "$HTTP_CODE" != "200" ]; then
-            echo "✗ Canary health check failed; leaving existing frontend untouched"
+          if ! wait_for_http_200 "http://127.0.0.1:${CAND_PORT}/" "Canary health check" 10 4; then
+            echo "✗ Canary health check failed; leaving existing frontend untouched (HTTP ${LAST_HTTP_CODE})"
             docker logs "$CAND_NAME" --tail 200 2>/dev/null || true
             docker rm -f "$CAND_NAME" 2>/dev/null || true
             exit 1
@@ -1731,21 +1746,8 @@ jobs:
 
           # Health check - container serves on port 8080
           echo "Checking frontend health on port 8080..."
-          MAX_ATTEMPTS=10
-          ATTEMPT=1
-          while [ $ATTEMPT -le $MAX_ATTEMPTS ]; do
-            HTTP_CODE=$(curl -L -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8080/ || echo "000")
-            if [ "$HTTP_CODE" = "200" ]; then
-              echo "✓ Frontend container health check passed (HTTP $HTTP_CODE)"
-              break
-            fi
-            echo "Health check attempt $ATTEMPT/$MAX_ATTEMPTS (HTTP $HTTP_CODE), retrying..."
-            sleep 5
-            ATTEMPT=$((ATTEMPT + 1))
-          done
-
-          if [ "$HTTP_CODE" != "200" ]; then
-            echo "✗ Frontend health check failed after $MAX_ATTEMPTS attempts"
+          if ! wait_for_http_200 "http://127.0.0.1:8080/" "Frontend health check" 10 5; then
+            echo "✗ Frontend health check failed after 10 attempts (HTTP ${LAST_HTTP_CODE})"
             rollback
             exit 1
           fi
