@@ -283,10 +283,12 @@ jobs:
           GHCR_TAG_REF="${{ env.GHCR_REGISTRY }}/${{ env.BACKEND_IMAGE }}:${{ inputs.environment }}-${{ github.sha }}"
           DIGEST="${{ steps.build_backend.outputs.digest }}"
 
-          echo "tag_ref=$TAG_REF" >> "$GITHUB_OUTPUT"
-          echo "digest_ref=${{ env.REGISTRY }}/${{ env.BACKEND_IMAGE }}@$DIGEST" >> "$GITHUB_OUTPUT"
-          echo "ghcr_tag_ref=$GHCR_TAG_REF" >> "$GITHUB_OUTPUT"
-          echo "ghcr_digest_ref=${{ env.GHCR_REGISTRY }}/${{ env.BACKEND_IMAGE }}@$DIGEST" >> "$GITHUB_OUTPUT"
+          {
+            echo "tag_ref=$TAG_REF"
+            echo "digest_ref=${{ env.REGISTRY }}/${{ env.BACKEND_IMAGE }}@$DIGEST"
+            echo "ghcr_tag_ref=$GHCR_TAG_REF"
+            echo "ghcr_digest_ref=${{ env.GHCR_REGISTRY }}/${{ env.BACKEND_IMAGE }}@$DIGEST"
+          } >> "$GITHUB_OUTPUT"
 
   security-scan-backend:
     name: "Security Scan: Backend"
@@ -541,10 +543,12 @@ jobs:
           GHCR_TAG_REF="${{ env.GHCR_REGISTRY }}/${{ env.FRONTEND_IMAGE }}:${{ inputs.environment }}-${{ github.sha }}"
           DIGEST="${{ steps.build_frontend.outputs.digest }}"
 
-          echo "tag_ref=$TAG_REF" >> "$GITHUB_OUTPUT"
-          echo "digest_ref=${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE }}@$DIGEST" >> "$GITHUB_OUTPUT"
-          echo "ghcr_tag_ref=$GHCR_TAG_REF" >> "$GITHUB_OUTPUT"
-          echo "ghcr_digest_ref=${{ env.GHCR_REGISTRY }}/${{ env.FRONTEND_IMAGE }}@$DIGEST" >> "$GITHUB_OUTPUT"
+          {
+            echo "tag_ref=$TAG_REF"
+            echo "digest_ref=${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE }}@$DIGEST"
+            echo "ghcr_tag_ref=$GHCR_TAG_REF"
+            echo "ghcr_digest_ref=${{ env.GHCR_REGISTRY }}/${{ env.FRONTEND_IMAGE }}@$DIGEST"
+          } >> "$GITHUB_OUTPUT"
 
   security-scan-frontend:
     name: "Security Scan: Frontend"
