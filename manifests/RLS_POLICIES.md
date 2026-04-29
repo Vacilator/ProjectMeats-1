@@ -153,6 +153,8 @@ All workflow-related tables have Row-Level Security **ENABLED** and **FORCED**:
 | `ai_assistant_feedback_logs` | ✅ | `ai_assistant/0006_aifeedbacklog` | Mar 20, 2026 |
 | `ai_assistant_vector_memory` | ✅ | `ai_assistant/0007_vectormemory` | Mar 20, 2026 |
 | `ai_assistant_documents` | ✅ | `ai_assistant/0009_aidocument` | Mar 23, 2026 |
+| `ai_assistant_chat_sessions` | ✅ | `ai_assistant/0016_chatmessage_tenant_chatsession_tenant_and_more` | Apr 29, 2026 |
+| `ai_assistant_chat_messages` | ✅ | `ai_assistant/0016_chatmessage_tenant_chatsession_tenant_and_more` | Apr 29, 2026 |
 | `ai_assistant_communication_logs` | ✅ | `ai_assistant/0014_communicationlog` | Mar 31, 2026 |
 | `ai_assistant_tenant_memory` | ✅ | `ai_assistant/0015_tenantaimemory` | Mar 31, 2026 |
 
@@ -161,18 +163,19 @@ All workflow-related tables have Row-Level Security **ENABLED** and **FORCED**:
 ## Compliance Summary
 
 **Latest Audit (2026-04-29, fresh-db CI validation target)**:
-- `python manage.py audit_rls_compliance --strict` should return **70/70 tenant-scoped models compliant** once `core/0008_idempotencykey` and prior additive RLS migrations are applied. ✅
+- `python manage.py audit_rls_compliance --strict` should return **72/72 tenant-scoped models compliant** once `ai_assistant/0016_chatmessage_tenant_chatsession_tenant_and_more`, `core/0008_idempotencykey`, and prior additive RLS migrations are applied. ✅
 
 **Audit Scope Update (2026-04-29)**:
 - `audit_rls_compliance` now also includes an allowlist of tenant-scoped models that do **not** inherit `TenantAwareModel` (System WorkForms + Integrations).
 - `core_comment` is now covered by an additive RLS migration so fresh databases and CI audits stay fully compliant.
 - `core_idempotencykey` is now covered by an additive RLS migration so idempotent mutation state remains tenant-isolated.
+- `ai_assistant.ChatSession` and `ai_assistant.ChatMessage` are now tenant-native and covered by additive RLS policies instead of relying on JSON-stamped tenant context.
 - `deals_deal` and `deals_dealactionitem` are now covered by additive RLS policies in `deals/0001_initial`.
-- Expected result after next deployment audit: **70/70 tenant-scoped models compliant** ✅
+- Expected result after next deployment audit: **72/72 tenant-scoped models compliant** ✅
 
 **Tenant Isolation Policies** (from `pg_policies`):
-- Tables with at least one `*_tenant_isolation` policy: **50**
-- `*_tenant_isolation` policies total: **53**
+- Tables with at least one `*_tenant_isolation` policy: **52**
+- `*_tenant_isolation` policies total: **55**
 
 > Note: Some tables currently have both legacy and standardized `*_tenant_isolation` policy names during transition.
 

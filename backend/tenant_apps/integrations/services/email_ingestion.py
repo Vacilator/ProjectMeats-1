@@ -1035,6 +1035,7 @@ class EmailIngestionService:
             try:
                 ChatMessage.objects.create(
                     session=session,
+                    tenant=getattr(session, 'tenant', None) or document.tenant or self.tenant,
                     message_type=MessageTypeChoices.DOCUMENT,
                     content=document.original_filename or 'Document uploaded',
                     metadata={

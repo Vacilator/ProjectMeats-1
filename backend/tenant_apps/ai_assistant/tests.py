@@ -8,10 +8,12 @@ Note: The test settings (`projectmeats.settings.test`) may exclude `tenant_apps.
 
 import unittest
 import uuid
+from unittest.mock import patch
 
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.test import TestCase
+from rest_framework.response import Response
 
 if 'tenant_apps.ai_assistant' not in settings.INSTALLED_APPS:
     raise unittest.SkipTest('tenant_apps.ai_assistant is excluded from INSTALLED_APPS in test settings')
@@ -539,6 +541,7 @@ class ChatSessionTenantBindingTests(TestCase):
 
         self.session_a = ChatSession.objects.create(
             title="Tenant A Session",
+            tenant=self.tenant_a,
             context_data={"tenant_id": str(self.tenant_a.id)},
             owner=self.user,
             created_by=self.user,
@@ -546,6 +549,15 @@ class ChatSessionTenantBindingTests(TestCase):
         )
         self.session_b = ChatSession.objects.create(
             title="Tenant B Session",
+            tenant=self.tenant_b,
+            context_data={"tenant_id": str(self.tenant_b.id)},
+            owner=self.user,
+            created_by=self.user,
+            modified_by=self.user,
+        )
+        self.session_fk_drift = ChatSession.objects.create(
+            title="Tenant A FK Drift Session",
+            tenant=self.tenant_a,
             context_data={"tenant_id": str(self.tenant_b.id)},
             owner=self.user,
             created_by=self.user,
@@ -560,6 +572,7 @@ class ChatSessionTenantBindingTests(TestCase):
 
         ChatMessage.objects.create(
             session=self.session_a,
+            tenant=self.tenant_a,
             owner=self.user,
             created_by=self.user,
             modified_by=self.user,
@@ -568,11 +581,21 @@ class ChatSessionTenantBindingTests(TestCase):
         )
         ChatMessage.objects.create(
             session=self.session_b,
+            tenant=self.tenant_b,
             owner=self.user,
             created_by=self.user,
             modified_by=self.user,
             message_type=MessageTypeChoices.USER,
             content="tenant-b",
+        )
+        ChatMessage.objects.create(
+            session=self.session_fk_drift,
+            tenant=self.tenant_a,
+            owner=self.user,
+            created_by=self.user,
+            modified_by=self.user,
+            message_type=MessageTypeChoices.USER,
+            content="tenant-a-fk-drift",
         )
         ChatMessage.objects.create(
             session=self.session_unbound,
@@ -605,6 +628,7 @@ class ChatSessionTenantBindingTests(TestCase):
         self.assertEqual(response.status_code, 200)
         titles = str(self._items(response))
         self.assertIn("Tenant A Session", titles)
+        self.assertIn("Tenant A FK Drift Session", titles)
         self.assertNotIn("Tenant B Session", titles)
         self.assertNotIn("Legacy Session", titles)
 
@@ -634,6 +658,7 @@ class ChatSessionTenantBindingTests(TestCase):
 
         self.assertEqual(response.status_code, 201)
         session = ChatSession.objects.get(id=response.data["id"])
+        self.assertEqual(session.tenant_id, self.tenant_a.id)
         self.assertEqual(session.context_data["tenant_id"], str(self.tenant_a.id))
         self.assertEqual(session.context_data["topic"], "pricing")
 
@@ -647,6 +672,7 @@ class ChatSessionTenantBindingTests(TestCase):
         self.assertEqual(response.status_code, 200)
         payload = str(self._items(response))
         self.assertIn("tenant-a", payload)
+        self.assertIn("tenant-a-fk-drift", payload)
         self.assertNotIn("tenant-b", payload)
         self.assertNotIn("legacy", payload)
 
@@ -668,3 +694,59 @@ class ChatSessionTenantBindingTests(TestCase):
 
         self.assertEqual(response.status_code, 400)
         self.assertEqual(response.data["session"][0], "Session not found")
+
+    def test_chat_message_create_stamps_request_tenant(self):
+        from tenant_apps.ai_assistant.views import ChatMessageViewSet
+
+        response = ChatMessageViewSet.as_view({"post": "create"})(
+            self._request(
+                "post",
+                "/api/v1/ai-assistant/messages/",
+                self.tenant_a,
+                {
+                    "session": str(self.session_a.id),
+                    "message_type": MessageTypeChoices.USER,
+                    "content": "tenant-create",
+                },
+            )
+        )
+
+        self.assertEqual(response.status_code, 201)
+        message = ChatMessage.objects.get(
+            session=self.session_a,
+            content="tenant-create",
+            message_type=MessageTypeChoices.USER,
+        )
+        self.assertEqual(message.tenant_id, self.tenant_a.id)
+
+    @patch("tenant_apps.ai_assistant.views.ai_not_configured_response")
+    def test_chat_api_backfills_legacy_session_tenant_on_reuse(self, mock_not_configured):
+        from tenant_apps.ai_assistant.views import ChatBotAPIViewSet
+
+        legacy_session = ChatSession.objects.create(
+            title="Legacy Tenant A Session",
+            context_data={"tenant_id": str(self.tenant_a.id)},
+            owner=self.user,
+            created_by=self.user,
+            modified_by=self.user,
+        )
+        mock_not_configured.return_value = Response(
+            {"error": "AI disabled"},
+            status=503,
+        )
+
+        response = ChatBotAPIViewSet.as_view({"post": "chat"})(
+            self._request(
+                "post",
+                "/api/v1/ai-assistant/chat/chat/",
+                self.tenant_a,
+                {
+                    "message": "hello",
+                    "session_id": str(legacy_session.id),
+                },
+            )
+        )
+
+        self.assertEqual(response.status_code, 503)
+        legacy_session.refresh_from_db()
+        self.assertEqual(legacy_session.tenant_id, self.tenant_a.id)

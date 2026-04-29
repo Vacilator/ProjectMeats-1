@@ -125,6 +125,10 @@ class Command(BaseCommand):
             "email_integration.EmailAction",
             "email_integration.EmailLog",
             "email_integration.EmailTrigger",
+
+            # AI assistant chat persistence (tenant-bearing tables in tenant_apps.ai_assistant)
+            "ai_assistant.ChatSession",
+            "ai_assistant.ChatMessage",
         }
         for label in sorted(must_have):
             try:

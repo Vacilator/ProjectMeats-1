@@ -10,7 +10,7 @@ import uuid
 from datetime import timedelta
 
 from django.conf import settings
-from django.db import connection
+from django.db import connection, models
 from django.db.models import Avg
 from django.db.models.functions import TruncDate
 from django.utils import timezone
@@ -101,7 +101,9 @@ class ChatSessionViewSet(viewsets.ModelViewSet):
             return self.queryset.none()
         return self.queryset.filter(
             owner=self.request.user,
-            context_data__tenant_id=tenant_id,
+        ).filter(
+            models.Q(tenant_id=tenant_id)
+            | models.Q(tenant__isnull=True, context_data__tenant_id=tenant_id),
         ).annotate(message_count=Count('messages'))
 
     def perform_create(self, serializer):
@@ -110,6 +112,7 @@ class ChatSessionViewSet(viewsets.ModelViewSet):
         if not get_request_tenant_id(self.request):
             raise ValidationError('Tenant context required')
         serializer.save(
+            tenant=tenant,
             context_data=bind_context_to_tenant(serializer.validated_data.get('context_data'), tenant),
             owner=self.request.user,
             created_by=self.request.user,
@@ -139,13 +142,17 @@ class ChatMessageViewSet(viewsets.ModelViewSet):
             return self.queryset.none()
         return self.queryset.filter(
             session__owner=self.request.user,
-            session__context_data__tenant_id=tenant_id,
+        ).filter(
+            models.Q(tenant_id=tenant_id)
+            | models.Q(tenant__isnull=True, session__tenant__isnull=True, session__context_data__tenant_id=tenant_id),
         )
 
     def perform_create(self, serializer):
         if not get_request_tenant_id(self.request):
             raise ValidationError('Tenant context required')
+        tenant = getattr(self.request, 'tenant', None)
         serializer.save(
+            tenant=tenant,
             owner=self.request.user,
             created_by=self.request.user,
             modified_by=self.request.user,
@@ -182,16 +189,22 @@ class ChatBotAPIViewSet(viewsets.ViewSet):
                 session = ChatSession.objects.filter(
                     id=session_id,
                     owner=request.user,
-                    context_data__tenant_id=tenant_id,
+                ).filter(
+                    models.Q(tenant_id=tenant_id)
+                    | models.Q(tenant__isnull=True, context_data__tenant_id=tenant_id),
                 ).first()
                 if not session:
                     return Response(
                         {"error": "Session not found"}, status=status.HTTP_404_NOT_FOUND
                     )
+                if tenant and not session.tenant_id:
+                    session.tenant = tenant
+                    session.save(update_fields=['tenant'])
             else:
                 # Create new session
                 session = ChatSession.objects.create(
                     title=f"Chat {timezone.now().strftime('%Y-%m-%d %H:%M')}",
+                    tenant=tenant,
                     context_data=bind_context_to_tenant(context, tenant),
                     owner=request.user,
                     created_by=request.user,
@@ -201,6 +214,7 @@ class ChatBotAPIViewSet(viewsets.ViewSet):
             # Create user message
             user_msg = ChatMessage.objects.create(
                 session=session,
+                tenant=tenant,
                 message_type=MessageTypeChoices.USER,
                 content=user_message,
                 owner=request.user,
@@ -367,6 +381,7 @@ class ChatBotAPIViewSet(viewsets.ViewSet):
             # Create AI response message
             ai_msg = ChatMessage.objects.create(
                 session=session,
+                tenant=tenant,
                 message_type=MessageTypeChoices.ASSISTANT,
                 content=response_text,
                 metadata=metadata,
@@ -557,6 +572,7 @@ class AIDocumentViewSet(viewsets.ModelViewSet):
             try:
                 ChatMessage.objects.create(
                     session=instance.session,
+                    tenant=instance.tenant,
                     message_type=MessageTypeChoices.DOCUMENT,
                     content=instance.original_filename or 'Document uploaded',
                     metadata={
