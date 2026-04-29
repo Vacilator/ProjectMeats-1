@@ -506,17 +506,24 @@ LOGGING = {
 # Cache Configuration (Redis with Fallback)
 # ==============================================================================
 # REDIS_URL format: redis://[:password]@host:port/db
-# If REDIS_URL is not set, falls back to local memory cache (development)
+# If REDIS_URL/VALKEY_URL are not set, development/test may fall back to local memory.
+
+
+def _env_flag(name: str, default: bool = False) -> bool:
+    return os.environ.get(name, str(default)).strip().lower() in {"1", "true", "yes", "on"}
+
 
 REDIS_URL = os.environ.get("REDIS_URL")
 VALKEY_URL = os.environ.get("VALKEY_URL")
+REDIS_BACKEND_URL = REDIS_URL or VALKEY_URL
+REQUIRE_REDIS_READINESS = _env_flag("REQUIRE_REDIS_READINESS", False)
 
-if REDIS_URL:
+if REDIS_BACKEND_URL:
     # Redis cache for production (Phases 3, 8: Real-time search, parallelization)
     CACHES = {
         "default": {
             "BACKEND": "django_redis.cache.RedisCache",
-            "LOCATION": REDIS_URL,
+            "LOCATION": REDIS_BACKEND_URL,
             "OPTIONS": {
                 "CLIENT_CLASS": "django_redis.client.DefaultClient",
                 "CONNECTION_POOL_KWARGS": {
@@ -546,7 +553,7 @@ else:
 # IMPORTANT: Channel layer isolation is enforced at the application layer (tenant-scoped
 # groups). Any database access from consumers must still respect RLS.
 
-_CHANNEL_REDIS_URL = REDIS_URL or VALKEY_URL
+_CHANNEL_REDIS_URL = REDIS_BACKEND_URL
 if _CHANNEL_REDIS_URL:
     CHANNEL_LAYERS = {
         "default": {
@@ -773,8 +780,8 @@ FLAGS = {
 # ==============================================================================
 
 # Broker and result backend (Redis)
-CELERY_BROKER_URL = os.environ.get('REDIS_URL', 'redis://localhost:6379/0')
-CELERY_RESULT_BACKEND = os.environ.get('REDIS_URL', 'redis://localhost:6379/0')
+CELERY_BROKER_URL = os.environ.get('CELERY_BROKER_URL') or REDIS_BACKEND_URL or 'redis://localhost:6379/0'
+CELERY_RESULT_BACKEND = os.environ.get('CELERY_RESULT_BACKEND') or REDIS_BACKEND_URL or 'redis://localhost:6379/0'
 
 # Task serialization
 CELERY_TASK_SERIALIZER = 'json'

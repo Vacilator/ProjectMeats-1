@@ -9,6 +9,10 @@ on:
       frontend_environment:
         required: true
         type: string
+      require_redis_readiness:
+        required: false
+        type: boolean
+        default: false
 
 jobs:
   smoke-backend-container:
@@ -34,6 +38,9 @@ jobs:
           set -euo pipefail
 
           URL="http://127.0.0.1:8000/api/v1/health/"
+          if [ "${{ inputs.require_redis_readiness }}" = "true" ]; then
+            URL="http://127.0.0.1:8000/api/v1/ready/"
+          fi
           echo "Checking backend: ${URL}"
 
           for attempt in 1 2 3 4 5; do

@@ -13,6 +13,7 @@ from .base import *  # noqa
 
 # Secret key for tests
 SECRET_KEY = "test-secret-key-not-for-production-use-only-testing"
+REQUIRE_REDIS_READINESS = False
 
 # Reorder middleware for tests - AuthenticationMiddleware must run before TenantMiddleware
 # This ensures request.user is available when TenantMiddleware runs

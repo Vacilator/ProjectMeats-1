@@ -29,7 +29,7 @@ Authoritative reference: `docs/GOLDEN_PIPELINE.md`
 Common failure modes:
 - **Unapplied migrations detected:** run `python manage.py makemigrations` and commit generated files (CI blocks drift).
 - **"relation already exists" redeploy:** use idempotent migrations: `python manage.py migrate --fake-initial --noinput`.
-- **Health checks failing:** backend should be checked at `/api/v1/health/` and frontend via direct container port `127.0.0.1:8080/` (not reverse proxy).
+- **Health checks failing:** backend should be checked at `/api/v1/ready/` for UAT/production readiness, `/api/v1/health/` for diagnostics, and frontend via direct container port `127.0.0.1:8080/` (not reverse proxy).
 
 ## Tenant isolation / RLS triage (S1)
 If there is any hint of cross-tenant exposure:
@@ -85,7 +85,7 @@ docker run -d --name pm-backend \
 ```
 
 4. Verify health directly on the container endpoints:
-   - Backend: `curl http://127.0.0.1:8000/api/v1/health/`
+   - Backend: `curl http://127.0.0.1:8000/api/v1/ready/` (UAT/production), `curl http://127.0.0.1:8000/api/v1/health/` (diagnostics)
    - Frontend: `curl -L http://127.0.0.1:8080/`
 
 ### Database rollback note

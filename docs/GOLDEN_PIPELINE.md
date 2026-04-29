@@ -99,7 +99,9 @@ Notes:
 
 ### Health checks (golden pattern)
 
-- Backend: check container directly: `http://127.0.0.1:8000/api/v1/health/`
+- Backend: check container directly:
+  - development / diagnostics: `http://127.0.0.1:8000/api/v1/health/`
+  - UAT / production readiness gate: `http://127.0.0.1:8000/api/v1/ready/`
 - Frontend: check container directly: `http://127.0.0.1:8080/`
 
 Do **not** validate via reverse proxy ports as the primary health signal.
@@ -127,7 +129,7 @@ gh workflow run "🎮 Ops - Run Management Command" \
 ## Rollback and release governance
 
 - **Development / tag-retained hosts:** prefer `.github/scripts/deployment-rollback.sh` with `development|uat|production` environment inputs (plus `dev`/`prod` aliases).
-- **UAT / Production:** treat the previous successful `reusable-deploy.yml` digest refs as the rollback source of truth; rerun `docker run` with the prior immutable digest and validate direct container health endpoints before reopening traffic.
+- **UAT / Production:** treat the previous successful `reusable-deploy.yml` digest refs as the rollback source of truth; rerun `docker run` with the prior immutable digest and validate `http://127.0.0.1:8000/api/v1/ready/` plus direct frontend health before reopening traffic.
 - **Database safety:** migration backups live under `/root/projectmeats/db_backups/<environment>/`; restore the matching backup if schema drift, not just app code, caused the incident.
 - **Release path:** there is currently no dedicated release-tag workflow. Production release governance is: merge to `main` -> successful deploy -> optional manual GitHub Release from the deployed commit SHA using `gh release create <tag> --target <sha> --generate-notes`.
 - See `docs/runbooks/INCIDENT_RESPONSE.md` for the operator playbook.

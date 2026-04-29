@@ -196,7 +196,9 @@ docker run -d --name pm-backend \
   registry.digitalocean.com/meatscentral/projectmeats-backend:dev-abc123
 
 # 4. Health check (15 retries, 5s intervals)
-curl -L -s -o /dev/null -w "%{http_code}" https://domain.com/api/v1/health/
+# - development / diagnostics: /api/v1/health/
+# - UAT / production readiness gate: /api/v1/ready/
+curl -L -s -o /dev/null -w "%{http_code}" https://domain.com/api/v1/ready/
 ```
 
 ### Frontend (Unchanged from V1.0)
@@ -245,6 +247,7 @@ curl -L -s -o /dev/null -w "%{http_code}" https://domain.com/api/v1/health/
 - SSH_HOST, SSH_USER, SSH_PASSWORD
 - DB_HOST, DB_NAME, DB_USER, DB_PASSWORD (+ DB_PORT optional; defaults to 5432)
 - DJANGO_SECRET_KEY, DJANGO_SETTINGS_MODULE, ALLOWED_HOSTS, DEBUG
+- REDIS_URL is required for `uat-backend` and `production-backend`; development keeps explicit local fallback
 
 **Frontend** (dev-frontend, uat-frontend, production-frontend):
 - SSH_HOST, SSH_USER, SSH_PASSWORD
@@ -285,13 +288,13 @@ Feature Branch → Development (auto-deploy to dev)
 ## Health Check Pattern (Enhanced in V2.0.0)
 
 ```bash
-# V1.0 Pattern (still works)
+# V1.0 Pattern (still works for development diagnostics)
 HTTP_CODE=$(curl -L -s -o /dev/null -w "%{http_code}" https://example.com/api/v1/health/)
 
-# V2.0 Pattern (with retries and logging)
+# V2.0 Pattern (non-dev readiness gate with retries and logging)
 MAX_ATTEMPTS=15
 ATTEMPT=1
-HEALTH_URL="https://example.com/api/v1/health/"
+HEALTH_URL="https://example.com/api/v1/ready/"
 
 while [ $ATTEMPT -le $MAX_ATTEMPTS ]; do
   HTTP_CODE=$(curl -L -s -o /dev/null -w "%{http_code}" "$HEALTH_URL")

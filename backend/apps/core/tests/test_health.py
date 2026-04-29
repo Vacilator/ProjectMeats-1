@@ -7,7 +7,7 @@ optional external dependency checks fail.
 import json
 from unittest.mock import patch
 
-from django.test import TestCase
+from django.test import TestCase, override_settings
 
 
 class HealthCheckTests(TestCase):
@@ -63,6 +63,8 @@ class HealthCheckTests(TestCase):
         data = json.loads(resp.content.decode('utf-8'))
         self.assertEqual(data['status'], 'ready')
         self.assertIn('timestamp', data)
+        self.assertIn('checks', data)
+        self.assertFalse(data['requires_redis_readiness'])
 
     @patch('projectmeats.health.connection.cursor', side_effect=Exception('db down'))
     def test_ready_returns_503_when_database_is_unhealthy(self, _mock_cursor):
@@ -72,3 +74,21 @@ class HealthCheckTests(TestCase):
         data = json.loads(resp.content.decode('utf-8'))
         self.assertEqual(data['status'], 'not_ready')
         self.assertIn('error', data)
+
+    @override_settings(REQUIRE_REDIS_READINESS=True)
+    @patch('projectmeats.health.check_all_services')
+    def test_ready_returns_503_when_non_dev_redis_gate_fails(self, mock_services):
+        mock_services.return_value = {
+            'redis': {'available': False, 'configured': False, 'note': 'Redis fallback in use'},
+            'channel_layer': {'available': False, 'configured': False, 'note': 'In-memory channels in use'},
+        }
+
+        resp = self.client.get('/api/v1/ready/')
+        self.assertEqual(resp.status_code, 503)
+
+        data = json.loads(resp.content.decode('utf-8'))
+        self.assertEqual(data['status'], 'not_ready')
+        self.assertTrue(data['requires_redis_readiness'])
+        self.assertEqual(data['checks']['redis'], 'unhealthy')
+        self.assertEqual(data['checks']['channel_layer'], 'unhealthy')
+        self.assertEqual([error['code'] for error in data['errors']], ['redis_not_ready', 'channel_layer_not_ready'])

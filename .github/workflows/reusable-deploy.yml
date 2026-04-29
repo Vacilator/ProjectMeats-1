@@ -34,6 +34,11 @@ on:
         type: boolean
         description: "If true, resolve env-SHA tag -> digest after pull and reuse that immutable ref for runner/remote container runs"
         default: false
+      require_redis_readiness:
+        required: false
+        type: boolean
+        description: "If true, require Redis-backed cache and channels readiness for backend mutation/deploy checks"
+        default: false
     secrets:
       DO_ACCESS_TOKEN:
         required: true
@@ -71,6 +76,9 @@ on:
       DJANGO_SETTINGS_MODULE:
         required: false
         description: "Django settings module path (from job environment)"
+      REDIS_URL:
+        required: false
+        description: "Redis connection URL for non-dev backend readiness gate"
       ALLOWED_HOSTS:
         required: false
         description: "Django allowed hosts (from job environment)"
@@ -740,6 +748,7 @@ jobs:
           DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
           DJANGO_SECRET_KEY: ${{ secrets.DJANGO_SECRET_KEY }}
           DJANGO_SETTINGS_MODULE: ${{ secrets.DJANGO_SETTINGS_MODULE }}
+          REDIS_URL: ${{ secrets.REDIS_URL }}
         run: |
           set -euo pipefail
           bash .github/scripts/validate-environment.sh \
@@ -894,6 +903,8 @@ jobs:
           DB_NAME: ${{ secrets.DB_NAME }}
           DJANGO_SECRET_KEY: ${{ secrets.DJANGO_SECRET_KEY }}
           DJANGO_SETTINGS_MODULE: ${{ secrets.DJANGO_SETTINGS_MODULE }}
+          REDIS_URL: ${{ secrets.REDIS_URL }}
+          REQUIRE_REDIS_READINESS: ${{ inputs.require_redis_readiness }}
           DEPLOY_BY_DIGEST: ${{ inputs.deploy_by_digest }}
         run: |
           echo "================================"
@@ -944,6 +955,23 @@ jobs:
           pull_with_retry "$BACKEND_RUN_REF"
 
           echo "BACKEND_RUN_REF=$BACKEND_RUN_REF" >> "$GITHUB_ENV"
+          REDIS_GATE_ARGS=""
+          if [ "$REQUIRE_REDIS_READINESS" = "true" ]; then
+            REDIS_GATE_ARGS="--require-redis-readiness"
+          fi
+          
+          echo ""
+          echo "Checking backend infrastructure prerequisites..."
+          docker run --rm \
+            --network host \
+            -e DATABASE_URL="$DATABASE_URL" \
+            -e DJANGO_SETTINGS_MODULE="$DJANGO_SETTINGS_MODULE" \
+            -e SECRET_KEY="$DJANGO_SECRET_KEY" \
+            -e DB_ENGINE="django.db.backends.postgresql" \
+            -e REDIS_URL="$REDIS_URL" \
+            -e REQUIRE_REDIS_READINESS="$REQUIRE_REDIS_READINESS" \
+            "$BACKEND_RUN_REF" \
+            python manage.py check_infrastructure $REDIS_GATE_ARGS
           
           echo ""
           echo "Running migrations..."
@@ -956,6 +984,8 @@ jobs:
             -e DJANGO_SETTINGS_MODULE="$DJANGO_SETTINGS_MODULE" \
             -e SECRET_KEY="$DJANGO_SECRET_KEY" \
             -e DB_ENGINE="django.db.backends.postgresql" \
+            -e REDIS_URL="$REDIS_URL" \
+            -e REQUIRE_REDIS_READINESS="$REQUIRE_REDIS_READINESS" \
             "$BACKEND_RUN_REF" \
             python manage.py migrate --fake-initial --noinput
           
@@ -974,6 +1004,8 @@ jobs:
             -e DJANGO_SETTINGS_MODULE="$DJANGO_SETTINGS_MODULE" \
             -e SECRET_KEY="$DJANGO_SECRET_KEY" \
             -e DB_ENGINE="django.db.backends.postgresql" \
+            -e REDIS_URL="$REDIS_URL" \
+            -e REQUIRE_REDIS_READINESS="$REQUIRE_REDIS_READINESS" \
             "$BACKEND_RUN_REF" \
             python manage.py collectstatic --noinput --clear
           
@@ -989,6 +1021,8 @@ jobs:
           DJANGO_SUPERUSER_USERNAME: ${{ secrets.DJANGO_SUPERUSER_USERNAME }}
           DJANGO_SUPERUSER_PASSWORD: ${{ secrets.DJANGO_SUPERUSER_PASSWORD }}
           DJANGO_SUPERUSER_EMAIL: ${{ secrets.DJANGO_SUPERUSER_EMAIL }}
+          REDIS_URL: ${{ secrets.REDIS_URL }}
+          REQUIRE_REDIS_READINESS: ${{ inputs.require_redis_readiness }}
         run: |
           echo "================================"
           echo "Setting up Django Superuser"
@@ -1011,6 +1045,8 @@ jobs:
             -e DJANGO_SUPERUSER_USERNAME="$DJANGO_SUPERUSER_USERNAME" \
             -e DJANGO_SUPERUSER_PASSWORD="$DJANGO_SUPERUSER_PASSWORD" \
             -e DJANGO_SUPERUSER_EMAIL="$DJANGO_SUPERUSER_EMAIL" \
+            -e REDIS_URL="$REDIS_URL" \
+            -e REQUIRE_REDIS_READINESS="$REQUIRE_REDIS_READINESS" \
             "$BACKEND_RUN_REF" \
             python manage.py setup_superuser
           
@@ -1024,6 +1060,8 @@ jobs:
           DB_NAME: ${{ secrets.DB_NAME }}
           DJANGO_SECRET_KEY: ${{ secrets.DJANGO_SECRET_KEY }}
           DJANGO_SETTINGS_MODULE: ${{ secrets.DJANGO_SETTINGS_MODULE }}
+          REDIS_URL: ${{ secrets.REDIS_URL }}
+          REQUIRE_REDIS_READINESS: ${{ inputs.require_redis_readiness }}
         run: |
           echo "================================"
           echo "Seeding Products"
@@ -1043,6 +1081,8 @@ jobs:
             -e DJANGO_SETTINGS_MODULE="$DJANGO_SETTINGS_MODULE" \
             -e SECRET_KEY="$DJANGO_SECRET_KEY" \
             -e DB_ENGINE="django.db.backends.postgresql" \
+            -e REDIS_URL="$REDIS_URL" \
+            -e REQUIRE_REDIS_READINESS="$REQUIRE_REDIS_READINESS" \
             "$BACKEND_RUN_REF" \
             python manage.py seed_system_products
           
@@ -1089,6 +1129,7 @@ jobs:
           DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
           DJANGO_SECRET_KEY: ${{ secrets.DJANGO_SECRET_KEY }}
           DJANGO_SETTINGS_MODULE: ${{ secrets.DJANGO_SETTINGS_MODULE }}
+          REDIS_URL: ${{ secrets.REDIS_URL }}
         run: |
           set -euo pipefail
           bash .github/scripts/validate-environment.sh \
@@ -1111,9 +1152,11 @@ jobs:
           	DB_PASSWORD=${{ secrets.DB_PASSWORD }}
           	DB_HOST=${{ secrets.DB_HOST }}
           	DB_PORT=${{ secrets.DB_PORT || '5432' }}
-          	DB_ENGINE=django.db.backends.postgresql
-          	EMAIL_HOST_PASSWORD=${{ secrets.EMAIL_HOST_PASSWORD }}
-          	DEFAULT_FROM_EMAIL=no-reply@meatscentral.com
+           	DB_ENGINE=django.db.backends.postgresql
+           	REDIS_URL=${{ secrets.REDIS_URL }}
+           	REQUIRE_REDIS_READINESS=${{ inputs.require_redis_readiness }}
+           	EMAIL_HOST_PASSWORD=${{ secrets.EMAIL_HOST_PASSWORD }}
+           	DEFAULT_FROM_EMAIL=no-reply@meatscentral.com
           	SENTRY_DSN=${{ secrets.SENTRY_DSN }}
           	SENTRY_ENABLED=${{ secrets.SENTRY_ENABLED }}
           	SENTRY_AUTH_TOKEN=${{ secrets.SENTRY_AUTH_TOKEN }}
@@ -1160,15 +1203,18 @@ jobs:
           BACKEND_TAG_REF: ${{ needs.build-backend.outputs.image_tag_ref }}
           BACKEND_DIGEST_REF: ${{ needs.build-backend.outputs.image_digest_ref }}
           SSHPASS: ${{ secrets.SSH_PASSWORD }}
+          REQUIRE_REDIS_READINESS: ${{ inputs.require_redis_readiness }}
         run: |
           export DEPLOY_BY_DIGEST="${{ inputs.deploy_by_digest }}"
           export BACKEND_TAG_REF
           export BACKEND_DIGEST_REF
+          export REQUIRE_REDIS_READINESS
 
           sshpass -e ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ServerAliveInterval=60 -o ServerAliveCountMax=10 ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} \
             "DEPLOY_BY_DIGEST='${DEPLOY_BY_DIGEST}' \
              BACKEND_TAG_REF='${BACKEND_TAG_REF}' \
              BACKEND_DIGEST_REF='${BACKEND_DIGEST_REF}' \
+             REQUIRE_REDIS_READINESS='${REQUIRE_REDIS_READINESS}' \
              bash -s" << 'SSH'
           set -euo pipefail
           
@@ -1244,6 +1290,10 @@ jobs:
 
           TAG_REF="${BACKEND_TAG_REF:-$REG/$IMG:$TAG}"
           RUN_REF="$TAG_REF"
+          HEALTH_PATH="/api/v1/health/"
+          if [ "${REQUIRE_REDIS_READINESS:-false}" = "true" ]; then
+            HEALTH_PATH="/api/v1/ready/"
+          fi
           if [ "$DEPLOY_BY_DIGEST" = "true" ]; then
             if echo "${BACKEND_DIGEST_REF}" | grep -q '@sha256:'; then
               echo "✓ Using backend build digest ref: ${BACKEND_DIGEST_REF}"
@@ -1269,7 +1319,7 @@ jobs:
             if docker inspect "$PREV_NAME" >/dev/null 2>&1; then
               docker start "$PREV_NAME" >/dev/null 2>&1 || true
               docker rename "$PREV_NAME" pm-backend >/dev/null 2>&1 || true
-              curl -L -s -o /dev/null -w "rollback_http=%{http_code}\n" http://127.0.0.1:8000/api/v1/health/ || true
+              curl -L -s -o /dev/null -w "rollback_http=%{http_code}\n" "http://127.0.0.1:8000${HEALTH_PATH}" || true
               echo "✓ Rollback attempted"
             else
               echo "⚠ No previous container found ($PREV_NAME)"
@@ -1325,7 +1375,7 @@ jobs:
           MAX_ATTEMPTS=15
           ATTEMPT=1
           while [ $ATTEMPT -le $MAX_ATTEMPTS ]; do
-            HTTP_CODE=$(curl -L -s -o /dev/null -w "%{http_code}" "http://127.0.0.1:${CAND_PORT}/api/v1/health/" || echo "000")
+            HTTP_CODE=$(curl -L -s -o /dev/null -w "%{http_code}" "http://127.0.0.1:${CAND_PORT}${HEALTH_PATH}" || echo "000")
             if [ "$HTTP_CODE" = "200" ]; then
               echo "✓ Canary health check passed (HTTP $HTTP_CODE)"
               break
@@ -1392,7 +1442,7 @@ jobs:
           RETRY_WITH_HEALING=false
 
           while [ $ATTEMPT -le $MAX_ATTEMPTS ]; do
-            HTTP_CODE=$(curl -L -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8000/api/v1/health/ || echo "000")
+            HTTP_CODE=$(curl -L -s -o /dev/null -w "%{http_code}" "http://127.0.0.1:8000${HEALTH_PATH}" || echo "000")
             if [ "$HTTP_CODE" = "200" ]; then
               echo "✓ Backend health check passed (HTTP $HTTP_CODE)"
               break
@@ -1950,3 +2000,4 @@ jobs:
     with:
       backend_environment: ${{ inputs.backend_environment }}
       frontend_environment: ${{ inputs.frontend_environment }}
+      require_redis_readiness: ${{ inputs.require_redis_readiness }}

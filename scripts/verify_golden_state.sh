@@ -103,6 +103,20 @@ else
     fail "reusable-deploy.yml frontend check incorrect"
 fi
 
+# 5b. Check non-dev backend readiness gate
+if grep -q "require_redis_readiness" .github/workflows/reusable-deploy.yml 2>/dev/null && \
+   grep -q "/api/v1/ready/" .github/workflows/reusable-deploy.yml 2>/dev/null; then
+    pass "reusable-deploy.yml enforces non-dev backend readiness via /api/v1/ready/"
+else
+    fail "reusable-deploy.yml missing non-dev backend readiness gate"
+fi
+
+if grep -q "REDIS_URL=" .github/workflows/reusable-deploy.yml 2>/dev/null; then
+    pass "reusable-deploy.yml propagates REDIS_URL into backend runtime env"
+else
+    fail "reusable-deploy.yml missing REDIS_URL backend propagation"
+fi
+
 # 6. Check for prohibited dependencies
 if grep -Eq '^[[:space:]]*django-tenants([<=>[:space:]]|$)' backend/requirements.txt 2>/dev/null; then
     fail "CRITICAL: django-tenants found in requirements.txt"
