@@ -15,43 +15,19 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import styled from 'styled-components';
 import { Search, X, ArrowUp, ArrowDown, CornerDownLeft, Plus, FileText, Users, Building2, Package, Truck } from 'lucide-react';
-import { apiClient } from '../../services/apiService';
 import { useNavigate } from 'react-router-dom';
 import { useCockpitNavigation } from '../../contexts/CockpitNavigationContext';
 import { EntityDetailModal } from '../Shared/EntityDetailModal';
 import { logger } from '@/utils/logger';
+import {
+  getRecentItems,
+  getSearchColorVar,
+  searchRanked,
+  trackRecentItem,
+  type SearchItem,
+} from '@/services/searchService';
 
-// ============================================================================
-// TypeScript Interfaces
-// ============================================================================
-
-interface ApiSearchResult {
-  id: number;
-  type: string;
-  title: string;
-  subtitle?: string;
-  icon: string;
-  /** Legacy API-provided color; may be hex/rgb/var. Prefer using derived colorVar. */
-  color?: string;
-  route: string;
-  score: number;
-  labels?: string[];
-  metadata?: Record<string, any>;
-}
-
-interface SearchResult extends ApiSearchResult {
-  /** CSS var name holding RGB tuple (e.g. "--color-info"). */
-  colorVar: string;
-}
-
-interface SearchResponse {
-  query: string;
-  search_text: string;
-  operator?: string;
-  results: ApiSearchResult[];
-  counts: Record<string, number>;
-  total: number;
-}
+type SearchResult = SearchItem;
 
 interface QuickAction {
   id: string;
@@ -463,65 +439,6 @@ const getIconElement = (iconName: string): string => {
 };
 
 // ============================================================================
-// Search result normalization
-// ============================================================================
-
-const DEFAULT_RESULT_COLOR_VAR = '--color-primary';
-
-const extractColorVar = (value: unknown): string | null => {
-  if (typeof value !== 'string') return null;
-  const v = value.trim();
-
-  if (v.startsWith('--color-')) return v;
-
-  // Accept "primary" / "success" etc.
-  if (/^(primary|info|success|warning|error)$/.test(v)) return `--color-${v}`;
-
-  // Accept "rgb(var(--color-primary))" or "var(--color-primary)" etc.
-  const m = v.match(/var\(--(color-[a-z0-9-]+)\)/i);
-  if (m?.[1]) return `--${m[1]}`;
-
-  return null;
-};
-
-const getTypeColorVar = (type: unknown): string => {
-  const t = String(type ?? '').toLowerCase();
-
-  switch (t) {
-    case 'purchase_order':
-    case 'po':
-      return '--color-info';
-    case 'sales_order':
-    case 'so':
-      return '--color-success';
-    case 'customer':
-    case 'customers':
-      return '--color-warning';
-    case 'supplier':
-    case 'suppliers':
-      return '--color-primary';
-    default:
-      return DEFAULT_RESULT_COLOR_VAR;
-  }
-};
-
-const normalizeSearchResult = (item: ApiSearchResult): SearchResult => {
-  return {
-    ...item,
-    colorVar:
-      extractColorVar((item as unknown as { colorVar?: unknown }).colorVar) ??
-      extractColorVar(item.color) ??
-      extractColorVar(item.metadata?.color) ??
-      getTypeColorVar(item.type),
-  };
-};
-
-const normalizeSearchResults = (items: ApiSearchResult[] | null | undefined): SearchResult[] => {
-  if (!Array.isArray(items)) return [];
-  return items.map(normalizeSearchResult);
-};
-
-// ============================================================================
 // Search Cache (in-memory with TTL)
 // ============================================================================
 
@@ -576,7 +493,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose 
   const [totalCount, setTotalCount] = useState(0);  // NEW: Total results count
   
   // Entity detail modal state
-  const [selectedEntity, setSelectedEntity] = useState<{ type: string; id: number } | null>(null);
+  const [selectedEntity, setSelectedEntity] = useState<{ type: string; id: string | number } | null>(null);
   
   const inputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
@@ -601,9 +518,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose 
 
   const fetchRecentItems = async () => {
     try {
-      const response = await apiClient.get('search/recent/', { params: { limit: 5 } });
-      const rawItems = (response.data.items || []) as ApiSearchResult[];
-      setRecentItems(normalizeSearchResults(rawItems));
+      setRecentItems(await getRecentItems(5));
     } catch (err) {
       logger.error('Failed to fetch recent items:', err);
     }
@@ -636,28 +551,26 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose 
           params: { q: query, date_range: dateRange, limit: 8 },
         });
         
-        const response = await apiClient.get<SearchResponse>('system/search/ranked/', {
-          params: { 
-            q: query, 
-            date_range: dateRange,
-            limit: 8 
-          }
+        const response = await searchRanked({
+          query,
+          dateRange,
+          limit: 8,
         });
         
         logger.debug('[CommandPalette] API Response:', {
-          query: response.data.query,
-          total: response.data.total,
-          counts: response.data.counts,
-          resultsCount: response.data.results?.length || 0,
+          query: response.query,
+          total: response.total,
+          counts: response.counts,
+          resultsCount: response.results.length,
         });
         
-        const fetchedResults = normalizeSearchResults(response.data.results);
+        const fetchedResults = response.results;
         
         // Cache the results
         setCachedResults(cacheKey, fetchedResults);
         
         setResults(fetchedResults);
-        setTotalCount(response.data.total || fetchedResults.length);
+        setTotalCount(response.total || fetchedResults.length);
         setSelectedIndex(0);
         
         logger.debug('[CommandPalette] Ranked search completed:', {
@@ -721,11 +634,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose 
   const handleSelect = async (item: SearchResult) => {
     // Track item access
     try {
-      await apiClient.post('search/recent/', {
-        entity_type: item.type,
-        entity_id: item.id,
-        title: item.title,
-      });
+      await trackRecentItem({ type: item.type, id: item.id, title: item.title });
     } catch {
       // Ignore tracking errors
     }
@@ -753,7 +662,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose 
     }
 
     // Preserve existing behavior for other entity types.
-    setSelectedEntity({ type: item.type, id: item.id });
+      setSelectedEntity({ type: item.type, id: item.id });
   };
 
   const handleQuickAction = (action: QuickAction) => {
@@ -818,7 +727,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose 
                     onMouseEnter={() => setSelectedIndex(index)}
                   >
                     <ResultIcon $colorVar={item.colorVar}>
-                      {getIconElement(item.icon)}
+                      {getIconElement(item.icon ?? '')}
                     </ResultIcon>
                     <ResultContent>
                       <ResultTitle>{item.title}</ResultTitle>
@@ -865,7 +774,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose 
                       onMouseEnter={() => setSelectedIndex(index)}
                     >
                       <ResultIcon $colorVar={item.colorVar}>
-                        {getIconElement(item.icon)}
+                        {getIconElement(item.icon ?? '')}
                       </ResultIcon>
                       <ResultContent>
                         <ResultTitle>{item.title}</ResultTitle>
@@ -940,18 +849,20 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose 
             });
             setSelectedEntity(null); // Close detail modal
             // Trigger search with entity context for mind-map view
-            handleSelect({
-              id: entity.id,
-              type: entity.type,
-              title: entity.name || entity.title || '',
-              subtitle: entity.subtitle || '',
-              icon: entity.metadata?.icon || '',
-              colorVar: extractColorVar(entity.metadata?.color) ?? getTypeColorVar(entity.type),
-              route: entity.metadata?.listRoute || `/${entity.type}s`,
-              score: 1,
-            });
-          }}
-        />
+              handleSelect({
+                id: entity.id,
+                type: entity.type,
+                title: entity.name || entity.title || '',
+                subtitle: entity.subtitle || '',
+                icon: entity.metadata?.icon || '',
+                colorVar: getSearchColorVar({ type: entity.type, metadata: entity.metadata }),
+                route: entity.metadata?.listRoute || `/${entity.type}s`,
+                score: 1,
+                labels: [],
+                metadata: entity.metadata ?? {},
+              });
+            }}
+          />
       )}
     </Overlay>
   );
