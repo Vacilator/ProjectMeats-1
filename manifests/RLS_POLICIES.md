@@ -160,18 +160,19 @@ All workflow-related tables have Row-Level Security **ENABLED** and **FORCED**:
 
 ## Compliance Summary
 
-**Latest Audit (2026-04-28, fresh-db CI validation target)**:
-- `python manage.py audit_rls_compliance --strict` should return **69/69 tenant-scoped models compliant** once `core/0007_enable_rls_comment` and `deals/0001_initial` are applied. ✅
+**Latest Audit (2026-04-29, fresh-db CI validation target)**:
+- `python manage.py audit_rls_compliance --strict` should return **70/70 tenant-scoped models compliant** once `core/0008_idempotencykey` and prior additive RLS migrations are applied. ✅
 
-**Audit Scope Update (2026-04-28)**:
+**Audit Scope Update (2026-04-29)**:
 - `audit_rls_compliance` now also includes an allowlist of tenant-scoped models that do **not** inherit `TenantAwareModel` (System WorkForms + Integrations).
 - `core_comment` is now covered by an additive RLS migration so fresh databases and CI audits stay fully compliant.
+- `core_idempotencykey` is now covered by an additive RLS migration so idempotent mutation state remains tenant-isolated.
 - `deals_deal` and `deals_dealactionitem` are now covered by additive RLS policies in `deals/0001_initial`.
-- Expected result after next deployment audit: **69/69 tenant-scoped models compliant** ✅
+- Expected result after next deployment audit: **70/70 tenant-scoped models compliant** ✅
 
 **Tenant Isolation Policies** (from `pg_policies`):
-- Tables with at least one `*_tenant_isolation` policy: **49**
-- `*_tenant_isolation` policies total: **52**
+- Tables with at least one `*_tenant_isolation` policy: **50**
+- `*_tenant_isolation` policies total: **53**
 
 > Note: Some tables currently have both legacy and standardized `*_tenant_isolation` policy names during transition.
 
@@ -246,12 +247,13 @@ END $$;
 
 ---
 
-## Core Module (2 tables) - ✅ 100% COMPLIANT
+## Core Module (3 tables) - ✅ 100% COMPLIANT
 
 | Table Name | RLS Enabled | Migration | Deployment Date |
 |------------|-------------|-----------|-----------------|
 | `core_tenantauditevent` | ✅ | `core/0004_tenantauditevent` | Mar 31, 2026 |
 | `core_comment` | ✅ | `core/0007_enable_rls_comment` | Apr 28, 2026 |
+| `core_idempotencykey` | ✅ | `core/0008_idempotencykey` | Apr 29, 2026 |
 
 ---
 

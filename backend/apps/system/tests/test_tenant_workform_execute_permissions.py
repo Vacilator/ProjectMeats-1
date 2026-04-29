@@ -8,6 +8,7 @@ from rest_framework import status
 from rest_framework.test import APITestCase
 
 from apps.system.models import TenantWorkForm
+from apps.core.models import IdempotencyKey
 from apps.tenants.models import Tenant, TenantUser
 from tenant_apps.workflows.models import TenantWorkFormExecution
 
@@ -135,3 +136,60 @@ class TenantWorkFormExecutePermissionsTests(APITestCase):
         self.assertEqual(resp.status_code, status.HTTP_404_NOT_FOUND, resp.content)
         self.assertEqual(TenantWorkFormExecution.objects.count(), 0)
         mock_delay.assert_not_called()
+
+    def test_execute_replays_cached_response_for_same_idempotency_key(self):
+        headers = {
+            'HTTP_X_TENANT_ID': str(self.tenant.id),
+            'HTTP_IDEMPOTENCY_KEY': 'workform-execute-001',
+        }
+        payload = {'initial_data': {'entity_type': 'customer', 'entity_id': '123'}}
+
+        with patch('apps.system.tasks.execute_workform_execution.delay') as mock_delay:
+            first_response = self.client.post(
+                f'/api/v1/tenant-workforms/{self.workform.id}/execute/',
+                data=payload,
+                format='json',
+                **headers,
+            )
+            second_response = self.client.post(
+                f'/api/v1/tenant-workforms/{self.workform.id}/execute/',
+                data=payload,
+                format='json',
+                **headers,
+            )
+
+        self.assertEqual(first_response.status_code, status.HTTP_202_ACCEPTED, first_response.content)
+        self.assertEqual(second_response.status_code, status.HTTP_202_ACCEPTED, second_response.content)
+        self.assertEqual(first_response.json(), second_response.json())
+        self.assertEqual(TenantWorkFormExecution.objects.count(), 1)
+        self.assertEqual(
+            IdempotencyKey.objects.filter(tenant=self.tenant, idempotency_key='workform-execute-001').count(),
+            1,
+        )
+        mock_delay.assert_called_once()
+
+    def test_execute_rejects_key_reuse_for_different_payload(self):
+        headers = {
+            'HTTP_X_TENANT_ID': str(self.tenant.id),
+            'HTTP_IDEMPOTENCY_KEY': 'workform-execute-002',
+        }
+
+        with patch('apps.system.tasks.execute_workform_execution.delay') as mock_delay:
+            first_response = self.client.post(
+                f'/api/v1/tenant-workforms/{self.workform.id}/execute/',
+                data={'initial_data': {'entity_type': 'customer', 'entity_id': '123'}},
+                format='json',
+                **headers,
+            )
+            second_response = self.client.post(
+                f'/api/v1/tenant-workforms/{self.workform.id}/execute/',
+                data={'initial_data': {'entity_type': 'customer', 'entity_id': '456'}},
+                format='json',
+                **headers,
+            )
+
+        self.assertEqual(first_response.status_code, status.HTTP_202_ACCEPTED, first_response.content)
+        self.assertEqual(second_response.status_code, status.HTTP_409_CONFLICT, second_response.content)
+        self.assertEqual(second_response.data['code'], 'IDEMPOTENCY_KEY_REUSED')
+        self.assertEqual(TenantWorkFormExecution.objects.count(), 1)
+        mock_delay.assert_called_once()
