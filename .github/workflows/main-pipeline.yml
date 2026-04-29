@@ -58,7 +58,7 @@ on:
           - uat
           - production
       deploy_by_digest:
-        description: 'Optional: after pulling immutable env-SHA tag, run docker containers by resolved digest'
+        description: 'Development-only override: run by resolved digest after pulling the env-SHA tag (UAT/Prod always use digest)'
         required: false
         type: boolean
         default: false
@@ -182,7 +182,7 @@ jobs:
       backend_environment: 'uat-backend'
       frontend_environment: 'uat-frontend'
       api_base_url: 'https://uat.meatscentral.com'
-      deploy_by_digest: ${{ github.event_name == 'workflow_dispatch' && (github.event.inputs.deploy_by_digest == 'true' || github.event.inputs.deploy_by_digest == true) || false }}
+      deploy_by_digest: true
 
   # ==========================================
   # Route to Production
@@ -202,5 +202,4 @@ jobs:
       backend_environment: 'production-backend'
       frontend_environment: 'production-frontend'
       api_base_url: 'https://meatscentral.com'
-      deploy_by_digest: ${{ github.event_name == 'workflow_dispatch' && (github.event.inputs.deploy_by_digest == 'true' || github.event.inputs.deploy_by_digest == true) || false }}
-
+      deploy_by_digest: true

@@ -36,6 +36,8 @@ Why: docker-compose version drift causes metadata failures (e.g. `KeyError: 'Con
 ### 2) Immutable image tags
 
 - ✅ Must deploy SHA-tagged images: `${environment}-${github.sha}`
+- ✅ UAT/Prod must resolve the pulled `${environment}-${github.sha}` tag to a digest and run by that immutable digest
+- ✅ Development may remain tag-default unless digest mode is explicitly enabled for validation
 - ❌ Never deploy `:latest` in production
 
 ### 3) Parallel swimlane architecture
@@ -91,6 +93,7 @@ python manage.py migrate --fake-initial --noinput
 Notes:
 - `--fake-initial` prevents “relation already exists” issues on redeploys
 - ProjectMeats uses **shared-schema** multi-tenancy (no django-tenants)
+- Runner-side backend mutation commands (`migrate`, `collectstatic`, `setup_superuser`, `seed_system_products`) must reuse the same resolved backend image ref as the deploy path
 
 ### Health checks (golden pattern)
 

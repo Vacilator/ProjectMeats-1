@@ -647,6 +647,7 @@ check_migration_safety() {
 
     # 1) Allow ONLY "makemigrations --check --dry-run" (no dynamic migration generation in CI)
     # 2) Require migrate uses --fake-initial (runner-driven contract)
+    # 3) Require backend mutation commands to reuse one resolved backend ref
     if ! python - <<'PY'
 import sys
 from pathlib import Path
@@ -667,6 +668,25 @@ for i, line in enumerate(lines, start=1):
 text = "\n".join(lines)
 if 'python manage.py migrate --fake-initial --noinput' not in text:
     bad.append("reusable-deploy.yml: migrate must run with --fake-initial --noinput")
+
+if 'BACKEND_RUN_REF' not in text:
+    bad.append("reusable-deploy.yml: backend mutation steps must resolve and reuse BACKEND_RUN_REF")
+
+required_backend_commands = [
+    'python manage.py migrate --fake-initial --noinput',
+    'python manage.py collectstatic --noinput --clear',
+    'python manage.py setup_superuser',
+    'python manage.py seed_system_products',
+]
+for command in required_backend_commands:
+    idx = text.find(command)
+    if idx == -1:
+        bad.append(f"reusable-deploy.yml: missing expected backend mutation command: {command}")
+        continue
+
+    window = text[max(0, idx - 500):idx]
+    if '"$BACKEND_RUN_REF"' not in window:
+        bad.append(f"reusable-deploy.yml: backend mutation command must use BACKEND_RUN_REF: {command}")
 
 if bad:
     for e in bad:
@@ -1210,6 +1230,12 @@ for job_name, job in jobs.items():
         v = with_section.get(k)
         if not (isinstance(v, str) and v.strip()):
             errors.append(f"{wf_path.name}: jobs.{job_name}.with.{k} must be set for reusable workflow call")
+
+    if job_name == 'deploy-dev' and with_section.get('deploy_by_digest') is True:
+        errors.append(f"{wf_path.name}: jobs.deploy-dev must not default deploy_by_digest to true")
+
+    if job_name in {'deploy-uat', 'deploy-prod'} and with_section.get('deploy_by_digest') is not True:
+        errors.append(f"{wf_path.name}: jobs.{job_name}.with.deploy_by_digest must be true")
 
 if checked == 0:
     errors.append(f"{wf_path.name}: no reusable workflow caller jobs found (validator may be out of date)")

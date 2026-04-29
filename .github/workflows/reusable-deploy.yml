@@ -32,7 +32,7 @@ on:
       deploy_by_digest:
         required: false
         type: boolean
-        description: "If true, resolve tag -> digest after pull and run containers by digest (optional; tag flow remains default)"
+        description: "If true, resolve env-SHA tag -> digest after pull and reuse that immutable ref for runner/remote container runs"
         default: false
     secrets:
       DO_ACCESS_TOKEN:
@@ -892,6 +892,7 @@ jobs:
           DB_NAME: ${{ secrets.DB_NAME }}
           DJANGO_SECRET_KEY: ${{ secrets.DJANGO_SECRET_KEY }}
           DJANGO_SETTINGS_MODULE: ${{ secrets.DJANGO_SETTINGS_MODULE }}
+          DEPLOY_BY_DIGEST: ${{ inputs.deploy_by_digest }}
         run: |
           echo "================================"
           echo "Running Django Migrations"
@@ -902,9 +903,9 @@ jobs:
           
           # Pull backend image
           IMAGE_TAG="${{ inputs.environment }}-${{ github.sha }}"
-          FULL_IMAGE="${{ env.REGISTRY }}/${{ env.BACKEND_IMAGE }}:${IMAGE_TAG}"
-          
-          echo "Using image: $FULL_IMAGE"
+          BACKEND_TAG_REF="${{ env.REGISTRY }}/${{ env.BACKEND_IMAGE }}:${IMAGE_TAG}"
+
+          echo "Using image tag: $BACKEND_TAG_REF"
 
           pull_with_retry() {
             local image="$1"
@@ -931,7 +932,34 @@ jobs:
             return 1
           }
 
-          pull_with_retry "$FULL_IMAGE"
+          resolve_digest_ref() {
+            local tag_ref="$1"
+            local repo_ref="${tag_ref%%:*}"
+            local digest_ref=""
+
+            digest_ref=$(docker image inspect --format='{{range .RepoDigests}}{{println .}}{{end}}' "$tag_ref" 2>/dev/null | grep "^${repo_ref}@sha256:" | head -n1 || true)
+            if [ -z "$digest_ref" ]; then
+              digest_ref=$(docker image inspect --format='{{range .RepoDigests}}{{println .}}{{end}}' "$tag_ref" 2>/dev/null | grep '@sha256:' | head -n1 || true)
+            fi
+
+            printf '%s' "$digest_ref"
+          }
+
+          pull_with_retry "$BACKEND_TAG_REF"
+
+          BACKEND_RUN_REF="$BACKEND_TAG_REF"
+          if [ "$DEPLOY_BY_DIGEST" = "true" ]; then
+            BACKEND_DIGEST_REF=$(resolve_digest_ref "$BACKEND_TAG_REF")
+            if echo "$BACKEND_DIGEST_REF" | grep -q '@sha256:'; then
+              echo "✓ Using backend digest ref: $BACKEND_DIGEST_REF"
+              BACKEND_RUN_REF="$BACKEND_DIGEST_REF"
+            else
+              echo "✗ Deploy-by-digest enabled, but backend digest could not be resolved"
+              exit 1
+            fi
+          fi
+
+          echo "BACKEND_RUN_REF=$BACKEND_RUN_REF" >> "$GITHUB_ENV"
           
           echo ""
           echo "Running migrations..."
@@ -944,7 +972,7 @@ jobs:
             -e DJANGO_SETTINGS_MODULE="$DJANGO_SETTINGS_MODULE" \
             -e SECRET_KEY="$DJANGO_SECRET_KEY" \
             -e DB_ENGINE="django.db.backends.postgresql" \
-            "$FULL_IMAGE" \
+            "$BACKEND_RUN_REF" \
             python manage.py migrate --fake-initial --noinput
           
           echo ""
@@ -962,7 +990,7 @@ jobs:
             -e DJANGO_SETTINGS_MODULE="$DJANGO_SETTINGS_MODULE" \
             -e SECRET_KEY="$DJANGO_SECRET_KEY" \
             -e DB_ENGINE="django.db.backends.postgresql" \
-            "$FULL_IMAGE" \
+            "$BACKEND_RUN_REF" \
             python manage.py collectstatic --noinput --clear
           
           echo "✓ Static files collected"
@@ -985,11 +1013,7 @@ jobs:
           # Construct DATABASE_URL pointing to tunnel
           DATABASE_URL="postgresql://$DB_USER:$DB_PASSWORD@127.0.0.1:5433/$DB_NAME"
           
-          # Use same image as migrations
-          IMAGE_TAG="${{ inputs.environment }}-${{ github.sha }}"
-          FULL_IMAGE="${{ env.REGISTRY }}/${{ env.BACKEND_IMAGE }}:${IMAGE_TAG}"
-          
-          echo "Using image: $FULL_IMAGE"
+          echo "Using image ref: $BACKEND_RUN_REF"
           echo ""
           echo "Creating/updating superuser..."
           
@@ -1003,7 +1027,7 @@ jobs:
             -e DJANGO_SUPERUSER_USERNAME="$DJANGO_SUPERUSER_USERNAME" \
             -e DJANGO_SUPERUSER_PASSWORD="$DJANGO_SUPERUSER_PASSWORD" \
             -e DJANGO_SUPERUSER_EMAIL="$DJANGO_SUPERUSER_EMAIL" \
-            "$FULL_IMAGE" \
+            "$BACKEND_RUN_REF" \
             python manage.py setup_superuser
           
           echo ""
@@ -1024,11 +1048,7 @@ jobs:
           # Construct DATABASE_URL pointing to tunnel
           DATABASE_URL="postgresql://$DB_USER:$DB_PASSWORD@127.0.0.1:5433/$DB_NAME"
           
-          # Use same image as migrations
-          IMAGE_TAG="${{ inputs.environment }}-${{ github.sha }}"
-          FULL_IMAGE="${{ env.REGISTRY }}/${{ env.BACKEND_IMAGE }}:${IMAGE_TAG}"
-          
-          echo "Using image: $FULL_IMAGE"
+          echo "Using image ref: $BACKEND_RUN_REF"
           echo ""
           echo "Seeding products for all active tenants..."
           
@@ -1039,7 +1059,7 @@ jobs:
             -e DJANGO_SETTINGS_MODULE="$DJANGO_SETTINGS_MODULE" \
             -e SECRET_KEY="$DJANGO_SECRET_KEY" \
             -e DB_ENGINE="django.db.backends.postgresql" \
-            "$FULL_IMAGE" \
+            "$BACKEND_RUN_REF" \
             python manage.py seed_system_products
           
           echo ""
@@ -1257,12 +1277,16 @@ jobs:
 
           # Optional: deploy by digest after pulling by immutable tag.
           if [ "$DEPLOY_BY_DIGEST" = "true" ]; then
-            DIGEST_REF=$(docker image inspect --format='{{index .RepoDigests 0}}' "$TAG_REF" 2>/dev/null || true)
+            DIGEST_REF=$(docker image inspect --format='{{range .RepoDigests}}{{println .}}{{end}}' "$TAG_REF" 2>/dev/null | grep "^${REG}/${IMG}@sha256:" | head -n1 || true)
+            if [ -z "$DIGEST_REF" ]; then
+              DIGEST_REF=$(docker image inspect --format='{{range .RepoDigests}}{{println .}}{{end}}' "$TAG_REF" 2>/dev/null | grep '@sha256:' | head -n1 || true)
+            fi
             if echo "$DIGEST_REF" | grep -q '@sha256:'; then
               echo "✓ Deploy-by-digest enabled: $DIGEST_REF"
               RUN_REF="$DIGEST_REF"
             else
-              echo "⚠ Deploy-by-digest enabled, but digest not found; falling back to tag"
+              echo "✗ Deploy-by-digest enabled, but digest not found"
+              exit 1
             fi
           fi
 
@@ -1625,12 +1649,16 @@ jobs:
 
           # Optional: deploy by digest after pulling by immutable tag.
           if [ "${DEPLOY_BY_DIGEST:-false}" = "true" ]; then
-            DIGEST_REF=$(docker image inspect --format='{{index .RepoDigests 0}}' "$TAG_REF" 2>/dev/null || true)
+            DIGEST_REF=$(docker image inspect --format='{{range .RepoDigests}}{{println .}}{{end}}' "$TAG_REF" 2>/dev/null | grep "^${REG}/${IMG}@sha256:" | head -n1 || true)
+            if [ -z "$DIGEST_REF" ]; then
+              DIGEST_REF=$(docker image inspect --format='{{range .RepoDigests}}{{println .}}{{end}}' "$TAG_REF" 2>/dev/null | grep '@sha256:' | head -n1 || true)
+            fi
             if echo "$DIGEST_REF" | grep -q '@sha256:'; then
               echo "✓ Deploy-by-digest enabled: $DIGEST_REF"
               RUN_REF="$DIGEST_REF"
             else
-              echo "⚠ Deploy-by-digest enabled, but digest not found; falling back to tag"
+              echo "✗ Deploy-by-digest enabled, but digest not found"
+              exit 1
             fi
           fi
 
