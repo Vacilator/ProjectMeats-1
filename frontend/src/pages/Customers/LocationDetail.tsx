@@ -1,12 +1,14 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Breadcrumb, Button, Card, Empty, Spin, Table, Tabs } from 'antd';
+import { Alert, Breadcrumb, Button, Card, Empty, Spin, Table, Tabs } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 
 import { AIOverviewCard, EntityProfileHeader } from '@/components/Cockpit';
 import { EntityWorkflowStatusPanel } from '@/components/Entities/EntityWorkflowStatusPanel';
 import { ActivityFeed, EntityFormSurface } from '@/components/Shared';
+import { useAuthState } from '@/contexts/AuthContext';
 import { apiClient } from '@/services/apiService';
+import { isAuthError } from '@/utils/isAuthError';
 
 type RouteParams = { customerId?: string; locationId?: string };
 
@@ -37,6 +39,7 @@ export const LocationDetail: React.FC = () => {
 
   const cid = String(customerId || '').trim();
   const lid = String(locationId || '').trim();
+  const { loading: authLoading, isAuthenticated } = useAuthState();
 
   const [refreshKey, setRefreshKey] = useState(0);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -44,16 +47,31 @@ export const LocationDetail: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [customer, setCustomer] = useState<CustomerRow | null>(null);
   const [location, setLocation] = useState<LocationRow | null>(null);
+  const [authError, setAuthError] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const [loadingContacts, setLoadingContacts] = useState(false);
   const [contacts, setContacts] = useState<ContactRow[]>([]);
+  const [contactsError, setContactsError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (authLoading) return;
     if (!cid || !lid) return;
+    if (!isAuthenticated) {
+      setAuthError(true);
+      setLoading(false);
+      setCustomer(null);
+      setLocation(null);
+      setLoadError(null);
+      return;
+    }
+
     let mounted = true;
 
     const load = async () => {
       setLoading(true);
+      setAuthError(false);
+      setLoadError(null);
       try {
         const [customerResp, locationResp] = await Promise.all([
           apiClient.get(`customers/${cid}/`),
@@ -66,6 +84,17 @@ export const LocationDetail: React.FC = () => {
         if (!mounted) return;
         setCustomer((c && typeof c === 'object' ? (c as CustomerRow) : null) || null);
         setLocation((l && typeof l === 'object' ? (l as LocationRow) : null) || null);
+      } catch (error: unknown) {
+        if (!mounted) return;
+        if (isAuthError(error)) {
+          setAuthError(true);
+          setCustomer(null);
+          setLocation(null);
+          setContacts([]);
+          setContactsError(null);
+          return;
+        }
+        setLoadError('Failed to load location details.');
       } finally {
         if (mounted) setLoading(false);
       }
@@ -75,14 +104,23 @@ export const LocationDetail: React.FC = () => {
     return () => {
       mounted = false;
     };
-  }, [cid, lid, refreshKey]);
+  }, [authLoading, cid, isAuthenticated, lid, refreshKey]);
 
   useEffect(() => {
+    if (authLoading) return;
     if (!lid) return;
+    if (!isAuthenticated || authError) {
+      setLoadingContacts(false);
+      setContacts([]);
+      setContactsError(null);
+      return;
+    }
+
     let mounted = true;
 
     const load = async () => {
       setLoadingContacts(true);
+      setContactsError(null);
       try {
         const resp = await apiClient.get('contacts/', {
           params: { location: lid, page_size: 200, limit: 200 },
@@ -93,6 +131,17 @@ export const LocationDetail: React.FC = () => {
           .map((r) => r as ContactRow);
 
         if (mounted) setContacts(next);
+      } catch (error: unknown) {
+        if (!mounted) return;
+        if (isAuthError(error)) {
+          setAuthError(true);
+          setContacts([]);
+          setContactsError(null);
+          return;
+        }
+        const detail =
+          (error as { response?: { data?: { detail?: string; error?: string } } })?.response?.data;
+        setContactsError(detail?.detail || detail?.error || 'Failed to load location contacts.');
       } finally {
         if (mounted) setLoadingContacts(false);
       }
@@ -102,7 +151,7 @@ export const LocationDetail: React.FC = () => {
     return () => {
       mounted = false;
     };
-  }, [lid]);
+  }, [authError, authLoading, isAuthenticated, lid]);
 
   const title = useMemo(() => {
     const name = String(location?.name || '').trim();
@@ -189,6 +238,8 @@ export const LocationDetail: React.FC = () => {
     []
   );
 
+  const showAuthFallback = !authLoading && (!isAuthenticated || authError);
+
   return (
     <div style={{ padding: 16 }}>
       <div
@@ -226,13 +277,13 @@ export const LocationDetail: React.FC = () => {
         </div>
 
         <div style={{ display: 'flex', gap: 8 }}>
-          <Button type="primary" onClick={() => setShowEditModal(true)} disabled={!lid || loading}>
+          <Button type="primary" onClick={() => setShowEditModal(true)} disabled={!lid || loading || showAuthFallback}>
             Edit Location
           </Button>
         </div>
       </div>
 
-      {showEditModal && lid && (
+      {showEditModal && lid && !showAuthFallback && (
         <EntityFormSurface
           entityType="location"
           mode="edit"
@@ -247,10 +298,19 @@ export const LocationDetail: React.FC = () => {
       )}
 
       <div style={{ marginTop: 12 }}>
-        {loading ? (
+        {authLoading || loading ? (
           <Card>
             <Spin />
           </Card>
+        ) : showAuthFallback ? (
+          <Alert
+            type="warning"
+            showIcon
+            title="Authentication required"
+            description="Your session expired while loading this location. Please sign in again."
+          />
+        ) : loadError ? (
+          <Alert type="error" showIcon title={loadError} />
         ) : (
           <>
             <AIOverviewCard entityType="location" entityId={lid} />
@@ -265,7 +325,7 @@ export const LocationDetail: React.FC = () => {
         )}
       </div>
 
-      <Tabs
+      {!showAuthFallback && <Tabs
         style={{ marginTop: 12 }}
         items={[
           {
@@ -277,6 +337,8 @@ export const LocationDetail: React.FC = () => {
                   <div style={{ padding: 12 }}>
                     <Spin />
                   </div>
+                ) : contactsError ? (
+                  <Alert type="error" showIcon title={contactsError} />
                 ) : contacts.length === 0 ? (
                   <Empty description="No contacts for this location" />
                 ) : (
@@ -313,7 +375,7 @@ export const LocationDetail: React.FC = () => {
           },
 
         ]}
-      />
+      />}
     </div>
   );
 };

@@ -1,10 +1,16 @@
 import React from 'react';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 
 import { PlantDetail } from './PlantDetail';
+
+const useAuthStateMock = vi.fn(() => ({ loading: false, isAuthenticated: true }));
+
+vi.mock('@/contexts/AuthContext', () => ({
+  useAuthState: () => useAuthStateMock(),
+}));
 
 vi.mock('@/components/Cockpit', () => ({
   EntityProfileHeader: () => <div data-testid="entity-profile-header" />,
@@ -42,6 +48,16 @@ vi.mock('@/services/businessApi', () => ({
 }));
 
 describe('PlantDetail workflows tab', () => {
+  beforeEach(() => {
+    useAuthStateMock.mockReturnValue({ loading: false, isAuthenticated: true });
+    apiGet.mockImplementation(async (url: string) => {
+      if (url.startsWith('suppliers/')) return { data: { id: 1, name: 'Supplier' } };
+      if (url.startsWith('plants/')) return { data: { id: 2, name: 'Plant' } };
+      if (url === 'contacts/') return { data: { results: [] } };
+      return { data: {} };
+    });
+  });
+
   it('renders an Automation tab that shows the entity workflow status panel', async () => {
     const user = userEvent.setup();
 
@@ -90,5 +106,30 @@ describe('PlantDetail workflows tab', () => {
 
     await user.click(await screen.findByRole('tab', { name: /activity/i }));
     expect(await screen.findByTestId('activity-feed')).toHaveTextContent('plant:2');
+  });
+
+  it('fails closed on unauthorized detail loads instead of rendering the heavy detail tree', async () => {
+    const unauthorized = new Error('Unauthorized') as Error & {
+      response: { status: number; data: { detail: string } };
+    };
+    unauthorized.response = { status: 401, data: { detail: 'Unauthorized' } };
+
+    apiGet.mockImplementation(async (url: string) => {
+      if (url.startsWith('suppliers/') || url.startsWith('plants/')) throw unauthorized;
+      if (url === 'contacts/') throw unauthorized;
+      return { data: {} };
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/suppliers/1/plants/2']}>
+        <Routes>
+          <Route path="/suppliers/:supplierId/plants/:plantId" element={<PlantDetail />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByText(/authentication required/i)).toBeInTheDocument();
+    expect(screen.queryByTestId('ai-overview-card')).not.toBeInTheDocument();
+    expect(screen.queryByRole('tab', { name: /automation/i })).not.toBeInTheDocument();
   });
 });

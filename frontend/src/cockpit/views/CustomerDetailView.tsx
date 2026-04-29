@@ -7,7 +7,9 @@ import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { Building2, Mail, MapPin, Phone, Plus, Sparkles, StickyNote } from 'lucide-react';
 
+import { useAuthState } from '@/contexts/AuthContext';
 import { businessApi } from '@/services/businessApi';
+import { isAuthError } from '@/utils/isAuthError';
 import { useToast } from '@/hooks/useToast';
 
 type CanonicalEntityType = 'customer' | 'supplier';
@@ -487,6 +489,7 @@ export const CustomerDetailView: React.FC<CustomerDetailViewProps> = ({
 }) => {
   const navigate = useNavigate();
   const toast = useToast();
+  const { loading: authLoading, isAuthenticated } = useAuthState();
 
   const canonicalType = useMemo(() => normalizeEntityType(entityType), [entityType]);
   const [leftFilter, setLeftFilter] = useState('');
@@ -501,13 +504,16 @@ export const CustomerDetailView: React.FC<CustomerDetailViewProps> = ({
 
   const queryRetry = useCallback((failureCount: number, err: any) => {
     const status = err?.response?.status;
+    if (status === 401 || status === 403) return false;
     if (typeof status === 'number' && status >= 500) return false;
     return failureCount < 1;
   }, []);
 
+  const queryEnabled = !authLoading && isAuthenticated && Boolean(canonicalType && entityId);
+
   const entityQuery = useQuery({
     queryKey: ['cockpit-entity', canonicalType, entityId],
-    enabled: Boolean(canonicalType && entityId),
+    enabled: queryEnabled,
     queryFn: async () => {
       if (!canonicalType) throw new Error('Unknown entity type');
       const path = getEntityApiPath(canonicalType);
@@ -520,7 +526,7 @@ export const CustomerDetailView: React.FC<CustomerDetailViewProps> = ({
 
   const countsQuery = useQuery({
     queryKey: ['cockpit-entity-counts', canonicalType, entityId],
-    enabled: Boolean(canonicalType && entityId),
+    enabled: queryEnabled,
     queryFn: async () => {
       if (!canonicalType) throw new Error('Unknown entity type');
       const res = await businessApi.get(`/entities/${canonicalType}/${entityId}/relationships/?counts=true`);
@@ -532,7 +538,7 @@ export const CustomerDetailView: React.FC<CustomerDetailViewProps> = ({
 
   const locationsQuery = useQuery({
     queryKey: ['cockpit-entity-locations', canonicalType, entityId],
-    enabled: Boolean(canonicalType && entityId),
+    enabled: queryEnabled,
     queryFn: async () => {
       if (!canonicalType) throw new Error('Unknown entity type');
       const res = await businessApi.get(
@@ -546,7 +552,7 @@ export const CustomerDetailView: React.FC<CustomerDetailViewProps> = ({
 
   const productsQuery = useQuery({
     queryKey: ['cockpit-entity-products', canonicalType, entityId],
-    enabled: Boolean(canonicalType && entityId),
+    enabled: queryEnabled,
     queryFn: async () => {
       if (!canonicalType) throw new Error('Unknown entity type');
       const res = await businessApi.get(`/entities/${canonicalType}/${entityId}/relationships/products/?limit=25`);
@@ -558,7 +564,7 @@ export const CustomerDetailView: React.FC<CustomerDetailViewProps> = ({
 
   const masterProductsQuery = useQuery({
     queryKey: ['cockpit-master-products'],
-    enabled: Boolean(canonicalType === 'customer' && activeTab === 'products' && productInsightsTab === 'aggregatedPreferences'),
+    enabled: Boolean(queryEnabled && canonicalType === 'customer' && activeTab === 'products' && productInsightsTab === 'aggregatedPreferences'),
     queryFn: async () => {
       const res = await businessApi.get('/master-products/', { params: { page_size: 5000 } });
       const raw = res.data as any;
@@ -571,7 +577,7 @@ export const CustomerDetailView: React.FC<CustomerDetailViewProps> = ({
 
   const tabItemsQuery = useQuery({
     queryKey: ['cockpit-entity-tab', canonicalType, entityId, activeTab],
-    enabled: Boolean(canonicalType && entityId),
+    enabled: queryEnabled,
     queryFn: async () => {
       if (!canonicalType) throw new Error('Unknown entity type');
       const rel = getTabRelationship(canonicalType, activeTab);
@@ -585,6 +591,14 @@ export const CustomerDetailView: React.FC<CustomerDetailViewProps> = ({
   const entity = entityQuery.data;
   const title = getBreadcrumbTitle(entity, initialLabel);
   const counts = countsQuery.data;
+  const hasAuthQueryError = [
+    entityQuery.error,
+    countsQuery.error,
+    locationsQuery.error,
+    productsQuery.error,
+    masterProductsQuery.error,
+    tabItemsQuery.error,
+  ].some((error) => isAuthError(error));
 
   const aggregatedPreferenceIds = useMemo(() => {
     if (canonicalType !== 'customer') return [] as number[];
@@ -608,26 +622,25 @@ export const CustomerDetailView: React.FC<CustomerDetailViewProps> = ({
       .filter((v): v is { id: number | string; title: string } => Boolean(v));
   }, [aggregatedPreferenceIds, masterProductsQuery.data]);
 
-  const locations = locationsQuery.data ?? [];
-  const products = productsQuery.data ?? [];
-
   const filteredLocations = useMemo(() => {
+    const locations = locationsQuery.data ?? [];
     const q = leftFilter.trim().toLowerCase();
     if (!q) return locations;
     return locations.filter((loc) => {
       const label = safeText(loc.name) || safeText(loc.title) || safeText(loc.label);
       return label.toLowerCase().includes(q);
     });
-  }, [leftFilter, locations]);
+  }, [leftFilter, locationsQuery.data]);
 
   const filteredProducts = useMemo(() => {
+    const products = productsQuery.data ?? [];
     const q = leftFilter.trim().toLowerCase();
     if (!q) return products;
     return products.filter((p) => {
       const label = safeText(p.name) || safeText(p.title) || safeText(p.label);
       return label.toLowerCase().includes(q);
     });
-  }, [leftFilter, products]);
+  }, [leftFilter, productsQuery.data]);
 
   const tabCounts = useMemo(() => {
     if (!canonicalType) {
@@ -705,6 +718,39 @@ export const CustomerDetailView: React.FC<CustomerDetailViewProps> = ({
             </CardBody>
           </Card>
         </Layout>
+      </Page>
+    );
+  }
+
+  if (authLoading) {
+    return (
+      <Page>
+        <StickyHeader>
+          <HeaderInner>
+            <div style={{ fontWeight: 700 }}>Loading…</div>
+          </HeaderInner>
+        </StickyHeader>
+      </Page>
+    );
+  }
+
+  if (!isAuthenticated || hasAuthQueryError) {
+    return (
+      <Page>
+        <StickyHeader>
+          <HeaderInner>
+            <div style={{ fontWeight: 700 }}>{initialLabel || 'Authentication required'}</div>
+          </HeaderInner>
+        </StickyHeader>
+        <MainGrid>
+          <Column $basis="100%">
+            <Card>
+              <CardBody>
+                <EmptyHint>Your session expired while loading this record. Please sign in again.</EmptyHint>
+              </CardBody>
+            </Card>
+          </Column>
+        </MainGrid>
       </Page>
     );
   }
