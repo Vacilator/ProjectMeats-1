@@ -34,11 +34,14 @@ import { useToast } from '../../hooks/useToast';
 import { businessApi } from '../../services/businessApi';
 import { useHealth } from '@/hooks/useHealth';
 import { HITLReviewCard } from './HITLReviewCard';
+import DocumentAuditBadges from './DocumentAuditBadges';
 import {
   CHAT_UPLOAD_ACCEPT_ATTR,
   CHAT_UPLOAD_SUPPORTED_EXTENSIONS,
   getChatUploadFileKind,
 } from '@/components/ChatInterface/fileUploadConfig';
+import { hydrateDocumentMessageMetadata } from '@/services/aiService';
+import type { DocumentProcessingMetadata, DocumentSourceMetadata } from '@/types';
 
 type AgentState = 'idle' | 'thinking' | 'action_required';
 
@@ -98,6 +101,14 @@ const getMetadataString = (
 ): string | undefined => {
   const value = metadata?.[key];
   return typeof value === 'string' ? value : undefined;
+};
+
+const getMetadataObject = <T extends object>(
+  metadata: Record<string, unknown> | undefined,
+  key: string
+): T | undefined => {
+  const value = metadata?.[key];
+  return value && typeof value === 'object' && !Array.isArray(value) ? (value as T) : undefined;
 };
 
 const renderAttachmentIcon = (
@@ -876,7 +887,7 @@ export const AIAgentWidget: React.FC = () => {
   const loadSessionMessages = async (id: string) => {
     const res = await businessApi.get(`/ai-assistant/ai-sessions/${id}/messages/`);
     const serverMsgs = normalizeServerMessages(res.data);
-    const ui = toUiMessages(serverMsgs);
+    const ui = await hydrateDocumentMessageMetadata(toUiMessages(serverMsgs));
     setMessages(
       ui.length
         ? ui
@@ -1457,6 +1468,17 @@ export const AIAgentWidget: React.FC = () => {
                               return ct ?? 'Document';
                             })()}
                           </div>
+                          <DocumentAuditBadges
+                            processingStatus={getMetadataString(m.metadata, 'processing_status')}
+                            sourceMetadata={getMetadataObject<DocumentSourceMetadata>(
+                              m.metadata,
+                              'source_metadata'
+                            )}
+                            processingMetadata={getMetadataObject<DocumentProcessingMetadata>(
+                              m.metadata,
+                              'processing_metadata'
+                            )}
+                          />
                         </DocumentMeta>
                       </DocumentRow>
                     ) : (

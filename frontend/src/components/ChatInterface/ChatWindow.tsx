@@ -8,7 +8,12 @@ import React, { useMemo, useState, useEffect, useRef, useCallback } from 'react'
 import styled from 'styled-components';
 import { useLocation } from 'react-router-dom';
 import { ChatSession, ChatMessage } from '../../types';
-import { chatApi, chatSessionsApi, documentsApi } from '../../services/aiService';
+import {
+  chatApi,
+  chatSessionsApi,
+  documentsApi,
+  hydrateDocumentMessageMetadata,
+} from '../../services/aiService';
 import { useCockpitNavigation } from '@/contexts/CockpitNavigationContext';
 import { buildAIPageContext } from '@/services/aiContext';
 import { logger } from '../../utils/logger';
@@ -51,7 +56,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ sessionId, onSessionChange }) =
         ]);
 
         setSession(sessionData);
-        setMessages(messagesData);
+        setMessages(await hydrateDocumentMessageMetadata(messagesData));
         onSessionChange?.(sessionData);
       } catch (err) {
         logger.error('[ChatWindow] Error loading session:', err);
@@ -105,7 +110,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ sessionId, onSessionChange }) =
       // Reload messages to get the latest
       if (response.session_id) {
         const updatedMessages = await chatSessionsApi.getMessages(response.session_id);
-        setMessages(updatedMessages);
+        setMessages(await hydrateDocumentMessageMetadata(updatedMessages));
       }
     } catch (err) {
       logger.error('[ChatWindow] Error sending message:', err);

@@ -79,13 +79,42 @@ export interface FileUploadProps {
 }
 
 // Document Processing Types
+export interface DocumentSourceMetadata {
+  source?: string;
+  message_id?: string;
+  attachment_id?: string;
+  ingested_at?: string;
+  uploaded_at?: string;
+  session_id?: string;
+  graph_name?: string;
+  graph_content_type?: string;
+  graph_size?: number;
+  graph_attachment_type?: string;
+}
+
+export interface DocumentProcessingMetadata {
+  parser?: string;
+  processing_started_at?: string;
+  parsed_at?: string;
+  failed_at?: string;
+  parse_error_code?: string;
+  parse_error_message?: string;
+  truncated?: boolean;
+  warnings?: string[];
+}
+
 export interface UploadedDocument {
   id: string;
   original_filename: string;
   file_size: number;
   file_type: string;
+  content_type?: string;
+  file?: string;
+  file_url?: string;
   document_type: string;
   processing_status: 'pending' | 'processing' | 'completed' | 'failed';
+  source_metadata?: DocumentSourceMetadata;
+  processing_metadata?: DocumentProcessingMetadata;
   extracted_text?: string;
   extracted_data?: Record<string, unknown>;
   created_on: string;

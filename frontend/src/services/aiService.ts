@@ -39,6 +39,10 @@ export interface DocumentProcessingResponse {
 export type DocumentUploadResponse = UploadedDocument;
 
 const unwrap = <T,>(res: { data: T }): T => res.data;
+const getDocumentIdFromMetadata = (metadata?: Record<string, unknown>): string | null => {
+  const id = metadata?.document_id ?? metadata?.documentId;
+  return typeof id === 'string' && id.trim() ? id : null;
+};
 
 // Chat API
 export const chatApi = {
@@ -115,4 +119,70 @@ export const documentsApi = {
     const res = await businessApi.get<DocumentUploadResponse>(`/ai-assistant/ai-documents/${documentId}/`);
     return unwrap(res);
   },
+};
+
+export const hydrateDocumentMessageMetadata = async <
+  T extends { metadata?: Record<string, unknown> }
+>(
+  messages: T[]
+): Promise<T[]> => {
+  const documentIds = [...new Set(messages.map((message) => getDocumentIdFromMetadata(message.metadata)).filter(Boolean))] as string[];
+  if (!documentIds.length) {
+    return messages;
+  }
+
+  const documents = await Promise.all(
+    documentIds.map(async (documentId) => {
+      try {
+        const document = await documentsApi.get(documentId);
+        return [documentId, document] as const;
+      } catch {
+        return null;
+      }
+    })
+  );
+
+  const documentsById = new Map(
+    documents.filter((entry): entry is readonly [string, DocumentUploadResponse] => Boolean(entry))
+  );
+
+  return messages.map((message) => {
+    const documentId = getDocumentIdFromMetadata(message.metadata);
+    if (!documentId) {
+      return message;
+    }
+
+    const document = documentsById.get(documentId);
+    if (!document) {
+      return message;
+    }
+
+    const currentMetadata = message.metadata || {};
+
+    return {
+      ...message,
+      metadata: {
+        ...currentMetadata,
+        document_id: documentId,
+        original_filename:
+          typeof currentMetadata.original_filename === 'string' && currentMetadata.original_filename
+            ? currentMetadata.original_filename
+            : document.original_filename,
+        content_type:
+          typeof currentMetadata.content_type === 'string' && currentMetadata.content_type
+            ? currentMetadata.content_type
+            : document.content_type || document.file_type,
+        file_url:
+          typeof currentMetadata.file_url === 'string' && currentMetadata.file_url
+            ? currentMetadata.file_url
+            : document.file_url || document.file || '',
+        // Intentionally show the latest parser state so operators can see async progress resolve
+        // without waiting for the original chat message payload to be regenerated.
+        processing_status: document.processing_status,
+        // Preserve existing provenance details only when the hydrated document payload omits them.
+        source_metadata: document.source_metadata ?? currentMetadata.source_metadata,
+        processing_metadata: document.processing_metadata ?? currentMetadata.processing_metadata,
+      },
+    };
+  });
 };
