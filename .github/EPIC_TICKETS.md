@@ -149,7 +149,7 @@
   - **Secrets/infra impact:** None
   - **Risk level:** Medium
   - **Rollback:** Disable the middleware for the targeted routes and keep the persistence table additive.
-  - **Completion evidence destination:** `.github/MASTER_PLAN.md`
+  - **Completion evidence destination:** shipped in `.github/MASTER_PLAN.md` (PR: #4773)
 
 - [ ] **EH-02.3 chat-session-tenant-fk-rls**
   - **Status:** Ready
