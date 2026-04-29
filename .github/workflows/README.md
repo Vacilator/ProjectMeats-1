@@ -72,6 +72,19 @@ main push
 3. **Auto-promotion creates PRs only**; it does not bypass required reviews or status checks.
 4. **Secrets are manifest-defined** in `manifests/env.manifest.json`.
 5. **Golden drift checks must stay green** for PRs and deploys.
+6. **Release governance is explicit**: production deploys still flow from `main`, and GitHub Releases are created manually until a dedicated release workflow exists.
+
+## Release and rollback governance
+
+- There is **no standalone release workflow** today; production release boundaries are still the successful deploys triggered from `main`.
+- If a GitHub Release is needed, create it manually from the deployed commit SHA:
+
+```bash
+gh release create <tag> --target <deployed-sha> --generate-notes
+```
+
+- Auto-promotion workflows create reviewable PRs only; they do not create tags or releases.
+- Operational rollback uses `.github/scripts/deployment-rollback.sh` for development/tag-retained hosts, while UAT/Production use the previous successful deploy digest refs from GitHub Actions logs.
 
 ## Related docs
 

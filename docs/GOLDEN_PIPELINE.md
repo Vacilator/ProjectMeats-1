@@ -123,3 +123,11 @@ gh workflow run "🎮 Ops - Run Management Command" \
   -f environment=dev \
   -f command=audit_rls_compliance
 ```
+
+## Rollback and release governance
+
+- **Development / tag-retained hosts:** prefer `.github/scripts/deployment-rollback.sh` with `development|uat|production` environment inputs (plus `dev`/`prod` aliases).
+- **UAT / Production:** treat the previous successful `reusable-deploy.yml` digest refs as the rollback source of truth; rerun `docker run` with the prior immutable digest and validate direct container health endpoints before reopening traffic.
+- **Database safety:** migration backups live under `/root/projectmeats/db_backups/<environment>/`; restore the matching backup if schema drift, not just app code, caused the incident.
+- **Release path:** there is currently no dedicated release-tag workflow. Production release governance is: merge to `main` -> successful deploy -> optional manual GitHub Release from the deployed commit SHA using `gh release create <tag> --target <sha> --generate-notes`.
+- See `docs/runbooks/INCIDENT_RESPONSE.md` for the operator playbook.
