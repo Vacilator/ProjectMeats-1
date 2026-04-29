@@ -23,6 +23,18 @@ This runbook standardizes how we triage, mitigate, and recover from incidents in
 - **GitHub Actions:** last deployment run, migration job logs, health-check failures
 - **Backend container logs:** startup errors, migration mismatches, 5xx loops
 
+## Lane-wide observability ownership
+
+- **Backend lane owner**
+  - Verify `/api/v1/ready/` before reopening traffic in UAT/production.
+  - Review `/api/v1/health/` for `integration_summary` and `integration_warnings`.
+  - Run `python manage.py check_infrastructure --require-redis-readiness` (typically via `99-ops-management-command.yml`) for UAT/production rollback drills.
+  - Confirm the manifest-defined backend Sentry contract (`SENTRY_ENABLED=true` for `uat-backend` / `production-backend`; `SENTRY_DSN` set when backend error tracking is expected).
+- **Frontend lane owner**
+  - Verify `http://127.0.0.1:8080/` directly after rollback/deploy.
+  - Confirm the frontend Sentry contract uses `REACT_APP_SENTRY_DSN` or the shared `SENTRY_DSN` pass-through from the deploy pipeline.
+  - Record the exact immutable frontend digest restored during a rollback drill.
+
 ## Golden Pipeline triage (deployment/migrations)
 Authoritative reference: `docs/GOLDEN_PIPELINE.md`
 
@@ -48,7 +60,7 @@ If there is any hint of cross-tenant exposure:
 
 ## Rollback playbook (preferred over risky hotfixes)
 - **Development / tag-retained hosts:** use `.github/scripts/deployment-rollback.sh` with the same registry/image names as the deploy workflow.
-- **UAT / Production:** prefer digest-based manual rollback using the previous successful deploy’s immutable image refs from GitHub Actions.
+- **UAT / Production:** use digest-based rollback driven by the previous successful deploy’s immutable image refs from GitHub Actions.
 - If migrations ran and broke behavior, restore the database backup before retrying traffic and validate schema compatibility.
 
 ### Quick rollback command
@@ -68,11 +80,23 @@ The rollback script expects the live deploy filesystem layout:
 - Frontend env config: `/opt/pm/frontend/env/env-config.js`
 - Frontend bind: `127.0.0.1:8080 -> 80`
 
-### Manual immutable rollback (required for UAT/Production if digest refs changed)
+### UAT / Production rollback drill (immutable refs required)
 
 1. Open the last known-good `main-pipeline.yml` / `reusable-deploy.yml` run in GitHub Actions.
-2. Copy the previous backend/frontend digest refs from the deploy logs.
-3. SSH to the target host and rerun the container with that digest:
+2. Copy the previous backend/frontend digest refs from the deploy logs and export them on the target host:
+
+```bash
+export BACKEND_IMAGE_REF=registry.digitalocean.com/meatscentral/projectmeats-backend@sha256:<previous-digest>
+export FRONTEND_IMAGE_REF=registry.digitalocean.com/meatscentral/projectmeats-frontend@sha256:<previous-digest>
+```
+
+3. Run the guarded rollback script:
+
+```bash
+bash .github/scripts/deployment-rollback.sh uat all
+```
+
+4. If you must rerun only a single container manually, use the same immutable digest:
 
 ```bash
 docker run -d --name pm-backend \
@@ -84,9 +108,18 @@ docker run -d --name pm-backend \
   registry.digitalocean.com/meatscentral/projectmeats-backend@sha256:<previous-digest>
 ```
 
-4. Verify health directly on the container endpoints:
+5. Verify health directly on the container endpoints:
    - Backend: `curl http://127.0.0.1:8000/api/v1/ready/` (UAT/production), `curl http://127.0.0.1:8000/api/v1/health/` (diagnostics)
    - Frontend: `curl -L http://127.0.0.1:8080/`
+   - Diagnostics: `gh workflow run 99-ops-management-command.yml --repo Meats-Central/ProjectMeats -f environment=uat -f command='check_infrastructure --require-redis-readiness'`
+   - Observability: review `integration_summary` / `integration_warnings` from `/api/v1/health/` and confirm the expected Sentry DSN/enabled state for that lane.
+
+6. Record evidence in the incident log:
+   - previous backend/frontend digest refs
+   - rollback timestamp and operator
+   - `/api/v1/ready/` / `/api/v1/health/` / frontend health results
+   - `check_infrastructure --require-redis-readiness` result
+   - any remaining warnings to monitor
 
 ### Database rollback note
 

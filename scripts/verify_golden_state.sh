@@ -39,6 +39,17 @@ check_no_pattern() {
     fi
 }
 
+check_pattern() {
+    local path="$1"
+    local pattern="$2"
+    local message="$3"
+    if grep -Eq "$pattern" "$path" 2>/dev/null; then
+        pass "$message"
+    else
+        fail "$message"
+    fi
+}
+
 check_doc_workflow_refs() {
     local path="$1"
     if [[ ! -f "$path" ]]; then
@@ -173,6 +184,26 @@ check_no_pattern "docs/reference/GOLDEN_PIPELINE.md" 'ALWAYS[[:space:]]+use[[:sp
     "docs/reference/GOLDEN_PIPELINE.md does not prescribe docker-compose"
 check_no_pattern "docs/reference/GOLDEN_PIPELINE.md" '`config/env\.manifest\.json`' \
     "docs/reference/GOLDEN_PIPELINE.md avoids legacy config/env.manifest.json references"
+
+# 13. Check rollback script and docs align with non-dev immutable rollback governance
+check_pattern ".github/scripts/deployment-rollback.sh" 'BACKEND_IMAGE_REF' \
+    "deployment-rollback.sh requires explicit backend immutable refs for non-dev rollback"
+check_pattern ".github/scripts/deployment-rollback.sh" 'FRONTEND_IMAGE_REF' \
+    "deployment-rollback.sh requires explicit frontend immutable refs for non-dev rollback"
+check_pattern ".github/scripts/deployment-rollback.sh" '/api/v1/ready/' \
+    "deployment-rollback.sh verifies non-dev backend rollback via /api/v1/ready/"
+check_pattern "docs/GOLDEN_PIPELINE.md" 'BACKEND_IMAGE_REF.*FRONTEND_IMAGE_REF|FRONTEND_IMAGE_REF.*BACKEND_IMAGE_REF' \
+    "docs/GOLDEN_PIPELINE.md documents explicit immutable rollback refs for non-dev"
+check_pattern "docs/GOLDEN_PIPELINE.md" 'check_infrastructure --require-redis-readiness' \
+    "docs/GOLDEN_PIPELINE.md documents the non-dev rollback observability drill"
+check_pattern "docs/runbooks/INCIDENT_RESPONSE.md" 'integration_summary.*integration_warnings|integration_warnings.*integration_summary' \
+    "INCIDENT_RESPONSE.md documents backend observability review fields"
+check_pattern "docs/runbooks/INCIDENT_RESPONSE.md" 'check_infrastructure --require-redis-readiness' \
+    "INCIDENT_RESPONSE.md includes the non-dev rollback diagnostics command"
+check_pattern "manifests/GOLDEN_FILES.md" 'Rollback automation' \
+    "GOLDEN_FILES.md registers rollback automation as an authoritative source"
+check_pattern "manifests/GOLDEN_FILES.md" 'Non-dev observability ownership' \
+    "GOLDEN_FILES.md registers non-dev observability ownership"
 
 echo ""
 echo "────────────────────────────────────"

@@ -128,8 +128,43 @@ gh workflow run "🎮 Ops - Run Management Command" \
 
 ## Rollback and release governance
 
-- **Development / tag-retained hosts:** prefer `.github/scripts/deployment-rollback.sh` with `development|uat|production` environment inputs (plus `dev`/`prod` aliases).
-- **UAT / Production:** treat the previous successful `reusable-deploy.yml` digest refs as the rollback source of truth; rerun `docker run` with the prior immutable digest and validate `http://127.0.0.1:8000/api/v1/ready/` plus direct frontend health before reopening traffic.
+- **Development / tag-retained hosts:** prefer `.github/scripts/deployment-rollback.sh development <frontend|backend|all>` and let the script fall back to the previous locally retained environment tag.
+- **UAT / Production:** treat the previous successful `reusable-deploy.yml` backend/frontend digest refs as the rollback source of truth. Export `BACKEND_IMAGE_REF` / `FRONTEND_IMAGE_REF` using those immutable refs, then run `.github/scripts/deployment-rollback.sh uat|production <frontend|backend|all>`.
 - **Database safety:** migration backups live under `/root/projectmeats/db_backups/<environment>/`; restore the matching backup if schema drift, not just app code, caused the incident.
 - **Release path:** there is currently no dedicated release-tag workflow. Production release governance is: merge to `main` -> successful deploy -> optional manual GitHub Release from the deployed commit SHA using `gh release create <tag> --target <sha> --generate-notes`.
 - See `docs/runbooks/INCIDENT_RESPONSE.md` for the operator playbook.
+
+### Non-dev observability ownership
+
+- **Backend lane owner**
+  - Confirm `REDIS_URL` / `VALKEY_URL` readiness via `python manage.py check_infrastructure --require-redis-readiness`.
+  - Confirm backend Sentry contract from `manifests/env.manifest.json`: `SENTRY_ENABLED=true` for `uat-backend` and `production-backend`, with `SENTRY_DSN` set when backend error tracking is expected.
+  - Review `/api/v1/health/` for `integration_summary` / `integration_warnings` after rollback or deploy, and gate traffic reopen on `/api/v1/ready/`.
+- **Frontend lane owner**
+  - Confirm direct container health on `http://127.0.0.1:8080/`.
+  - Confirm frontend Sentry wiring uses `REACT_APP_SENTRY_DSN` or the shared `SENTRY_DSN` pass-through defined in the manifest/workflows.
+  - Capture the exact immutable frontend digest used for rollback evidence.
+
+### UAT rollback drill
+
+1. Open the previous successful `reusable-deploy.yml` / `main-pipeline.yml` run for the target UAT deploy.
+2. Copy the last known-good backend and frontend immutable refs and export them:
+
+```bash
+export BACKEND_IMAGE_REF=registry.digitalocean.com/meatscentral/projectmeats-backend@sha256:<digest>
+export FRONTEND_IMAGE_REF=registry.digitalocean.com/meatscentral/projectmeats-frontend@sha256:<digest>
+```
+
+3. Run the rollback script on the host:
+
+```bash
+bash .github/scripts/deployment-rollback.sh uat all
+```
+
+4. Validate:
+   - Backend readiness: `curl http://127.0.0.1:8000/api/v1/ready/`
+   - Backend observability: `curl http://127.0.0.1:8000/api/v1/health/`
+   - Frontend container health: `curl -L http://127.0.0.1:8080/`
+   - Lane diagnostics: `gh workflow run 99-ops-management-command.yml --repo Meats-Central/ProjectMeats -f environment=uat -f command='check_infrastructure --require-redis-readiness'`
+
+5. Record the digests, verification output, and any `integration_warnings` in the incident log before reopening traffic.
