@@ -17,7 +17,7 @@ This file is the **canonical plan + current truth snapshot**.
 - **Primary execution focus (P0):** close remaining correctness + tenant isolation gaps surfaced by squad audits.
 - **AI email/document lane** is now fail-closed through Graph attachment ingest and parser lifecycle hardening: tabular uploads parse safely, Outlook attachments bridge into `AIDocument`, unsupported attachment kinds are rejected pre-download, repeated same-session ingests dedupe with provenance, AI sessions are tenant-bound, attachment ingest requires a session-staged allowlist from `fetch_emails`, and `parse_document` now persists explicit processing/completed/failed metadata while raising structured parser/auth/unreachable errors.
 - **Newly shipped since last snapshot (evidence; see `.github/MASTER_PLAN.md`)**:
-  - Core API reliability: fix `apps/core/views.py` legacy imports/`print()` landmines + add smoke tests (PR #4652).
+  - Core API reliability: fix `apps/core/views.py` legacy imports/`print()` landmines + add smoke tests (PR #4652); expand always-on backend smoke coverage for `/health/`, `/ready/`, auth bootstrap failure envelopes, and tenant-resolution fail-closed checks in PR validation (PR #4752).
   - Frontend standards: expand `lint:colors` + remove remaining hardcoded colors in MyTasks surfaces (PR #4650); replace high-churn `console.*` with `logger.*` (PR #4654).
   - Backend tenant safety: fail-closed `current/current_theme/admin_permissions` when tenant context is missing/ambiguous (PR #4656); wrap tenant-scoped Celery ORM in `tenant_rls(..., strict=False)` (PR #4657).
   - Mobile: device-safe API base URL + tests (PR #4658); switch builds to EAS (PR #4659).
@@ -28,7 +28,7 @@ This file is the **canonical plan + current truth snapshot**.
   - AI email/document hardening: bridge Outlook attachments into `AIDocument`, preflight attachment metadata, persist provenance + same-session dedupe, hard-bind AI sessions/messages/uploads to `request.tenant`, enforce a session-scoped attachment allowlist before ingest, and normalize `parse_document` lifecycle/error handling for operator-visible status metadata (PRs #4733–#4739).
 
 ### P0 priorities (next)
-- **Core API reliability**: ✅ shipped (PR #4652). Next: expand smoke coverage for always-on endpoints (health, tenant resolution, auth bootstrap) and keep them in PR gates.
+- **Core API reliability**: ✅ shipped (PRs #4652, #4752). PR validation now smoke-tests always-on health/readiness, auth bootstrap success + failure envelopes, and tenant-resolution fail-closed behavior.
 
 - **Phase 10 Sprint 1 stability gate (shipped)**
   - Mobile viewport hardening (make the existing mobile Playwright specs green; prevent page-level horizontal overflow on iPhone SE)

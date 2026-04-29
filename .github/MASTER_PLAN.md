@@ -1786,6 +1786,9 @@ Deliverables:
 - **2026-04-28** — [COMPLETED] Enforced a session-scoped Outlook attachment allowlist so `fetch_emails` stages attachment refs in the active chat session, `ingest_email_attachment` rejects unstaged/expired IDs, unread-email aliases preserve session staging, and tools-open no longer advertises ingest when Outlook is unavailable. (PR: #4737)
 - **2026-04-28** — [COMPLETED] Synced the canonical `MASTER_PLAN.md` snapshot and reference `ROADMAP.md` / `UI_ROADMAP.md` so the AI email/document lane reflects shipped hardening through PR #4737 and points to parse failure/status lifecycle as the next follow-up without authority drift. (PR: #4738)
 - **2026-04-28** — [COMPLETED] Hardened `parse_document` to fail closed with structured tool errors, persisted `AIDocument.processing_status` + parser lifecycle metadata across success/failure paths, exposed processing metadata/filtering to operators, and added focused regression coverage for retryable parser-service failures. (PR: #4739)
+- **2026-04-29** — Frontend: replace remaining high-churn runtime `console.*` calls with centralized `logger.*` usage across auth/session/config/tenant and form-engine surfaces to reduce noisy production logging without changing behavior. (PR: #4750)
+- **2026-04-29** — CI: derive reusable deploy required-secret checks from `manifests/env.manifest.json`, enforce the contract in workflow validation, and fail CURRENT docs that still reference legacy env-manifest paths. (PR: #4751)
+- **2026-04-29** — Tests: expand backend smoke coverage for always-on API surfaces so PR validation now checks `/api/v1/health/`, `/api/v1/ready/`, auth bootstrap failure envelopes, and tenant-resolution fail-closed behavior in the dedicated smoke lane. (PR: #4752)
 
 ### Phase 11: The Deal Desk (Trader Ledger Replacement)
 
