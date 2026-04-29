@@ -95,6 +95,7 @@ This file is the **append-only PR-referenceable execution log**.
 - **2026-04-21** — CI: re-enable backend + frontend test gates in the reusable deploy workflow; gate migrations on both swimlanes to avoid partial deploys; align backend `.env` secret names with the env manifest. (PR: #4566)
 
 - **2026-04-21** — CI: enforce Golden Pipeline workflow topology (validator + reusable deploy alignment) to prevent drift (no compose/latest; correct job dependency invariants). (PR: #4568)
+- **2026-04-29** — Dependencies: safely refreshed the mobile grouped npm/yarn transitive lockfile updates from Dependabot #4730 while preserving the Expo 55 / React Native 0.74.5 baseline; explicitly deferred the remaining `fast-xml-parser` removal until the planned mobile baseline uplift. (PR: #4759)
 
 - **2026-04-21** — CI: harden workflow validator to scan `.github/scripts/` too (prevent compose/latest drift outside workflows) and tighten migration-safety checks without false positives. (PR: #4569)
 
