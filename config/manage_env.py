@@ -153,11 +153,31 @@ class EnvironmentManager:
             env_names |= set(category_vars.keys())
         return repo_names, env_names
 
-    def _required_repo_secrets_v5(self) -> Set[str]:
-        repo_defs = self.manifest.get('repository_secrets', {})
-        return {name for name, d in repo_defs.items() if d.get('required', False)}
+    @staticmethod
+    def _secret_applies_to_workflow(secret_def: Dict[str, Any], workflow_name: Optional[str]) -> bool:
+        if not workflow_name:
+            return True
 
-    def _required_env_secrets_for_env_v5(self, env_key: str, env_cfg: Dict[str, Any]) -> Set[str]:
+        used_by = secret_def.get('used_by')
+        if not used_by:
+            return True
+
+        return 'all workflows' in used_by or workflow_name in used_by
+
+    def _required_repo_secrets_v5(self, workflow_name: Optional[str] = None) -> Set[str]:
+        repo_defs = self.manifest.get('repository_secrets', {})
+        return {
+            name
+            for name, d in repo_defs.items()
+            if d.get('required', False) and self._secret_applies_to_workflow(d, workflow_name)
+        }
+
+    def _required_env_secrets_for_env_v5(
+        self,
+        env_key: str,
+        env_cfg: Dict[str, Any],
+        workflow_name: Optional[str] = None,
+    ) -> Set[str]:
         env_type = env_cfg.get('type')
         env_defs = self.manifest.get('environment_secrets', {})
 
@@ -165,6 +185,8 @@ class EnvironmentManager:
         for _category, vars_in_cat in env_defs.items():
             for secret_name, secret_def in vars_in_cat.items():
                 if not secret_def.get('required', False):
+                    continue
+                if not self._secret_applies_to_workflow(secret_def, workflow_name):
                     continue
 
                 applies_to = secret_def.get('applies_to')
@@ -188,6 +210,49 @@ class EnvironmentManager:
                     required.add(secret_name)
 
         return required
+
+    def required_secrets_for_environment(
+        self,
+        env_key: str,
+        workflow_name: Optional[str] = None,
+    ) -> Set[str]:
+        environments = self.manifest.get('environments', {})
+        env_cfg = environments.get(env_key)
+        if not env_cfg:
+            raise KeyError(f"Unknown environment: {env_key}")
+
+        return self._required_repo_secrets_v5(workflow_name) | self._required_env_secrets_for_env_v5(
+            env_key,
+            env_cfg,
+            workflow_name=workflow_name,
+        )
+
+    def required_secret_names_for_environment(
+        self,
+        env_key: str,
+        workflow_name: Optional[str] = None,
+    ) -> list[str]:
+        """Return sorted required secret names for an environment/workflow pair."""
+        return sorted(self.required_secrets_for_environment(env_key, workflow_name=workflow_name))
+
+    def validate_required_environment_variables(
+        self,
+        env_key: str,
+        workflow_name: Optional[str] = None,
+        values: Optional[Dict[str, str]] = None,
+    ) -> Dict[str, Any]:
+        """Validate that required manifest-derived secrets are present in a mapping."""
+        source_values = values or os.environ
+        required = self.required_secret_names_for_environment(env_key, workflow_name=workflow_name)
+        missing = [name for name in required if not source_values.get(name)]
+
+        return {
+            'environment': env_key,
+            'workflow_name': workflow_name,
+            'required': required,
+            'missing': missing,
+            'passed': not missing,
+        }
 
     def audit_secrets(self, exit_on_error: bool = True, verbose: bool = False):
         """Audit GitHub secrets against manifest requirements."""
@@ -345,7 +410,11 @@ class EnvironmentManager:
 
 def main():
     parser = argparse.ArgumentParser(description='Environment & Secret Manager')
-    parser.add_argument('command', choices=['audit'], help='Command to run')
+    parser.add_argument(
+        'command',
+        choices=['audit', 'required-secrets', 'validate-required'],
+        help='Command to run',
+    )
     parser.add_argument(
         '--repo',
         help='GitHub repo to audit in OWNER/REPO form (defaults to autodetect; prefers git remote "upstream").',
@@ -366,14 +435,58 @@ def main():
         default=None,
         help='Optional path to a manifest JSON file (overrides default search).',
     )
-
+    parser.add_argument(
+        '--environment',
+        help='Environment key from manifests/env.manifest.json (e.g., dev-backend).',
+    )
+    parser.add_argument(
+        '--workflow',
+        default=None,
+        help='Optional workflow name used to filter secrets by used_by metadata (e.g., reusable-deploy.yml).',
+    )
     args = parser.parse_args()
 
     manifest_path = Path(args.manifest).resolve() if args.manifest else None
-    manager = EnvironmentManager(manifest_path=manifest_path, repo=args.repo)
+    repo = args.repo
+    if args.command in {'required-secrets', 'validate-required'} and repo is None:
+        repo = 'local/local'
+    manager = EnvironmentManager(manifest_path=manifest_path, repo=repo)
 
     if args.command == 'audit':
         manager.audit_secrets(exit_on_error=not args.no_exit, verbose=args.verbose)
+        return
+
+    if not args.environment:
+        parser.error(f'--environment is required for {args.command}')
+
+    if args.command == 'required-secrets':
+        for name in manager.required_secret_names_for_environment(
+            args.environment,
+            workflow_name=args.workflow,
+        ):
+            print(name)
+        return
+
+    if args.command == 'validate-required':
+        result = manager.validate_required_environment_variables(
+            args.environment,
+            workflow_name=args.workflow,
+        )
+        workflow_label = args.workflow or 'all workflows'
+        print(
+            f"{Colors.BOLD}Validating manifest-derived required secrets for "
+            f"{args.environment} ({workflow_label}){Colors.END}"
+        )
+        if result['missing']:
+            print(
+                f"{Colors.RED}❌ Missing required secrets for {args.environment}:{Colors.END}"
+            )
+            for secret_name in result['missing']:
+                print(f"  • {Colors.BOLD}{secret_name}{Colors.END}")
+            sys.exit(1)
+
+        print(f"{Colors.GREEN}✅ All manifest-derived required secrets present{Colors.END}")
+        return
 
 
 if __name__ == '__main__':

@@ -8,20 +8,25 @@
 
 import { businessApi } from './businessApi';
 import type { ChatMessage, ChatSession, UploadedDocument } from '../types';
+import type {
+  ContractAiChatRequest,
+  ContractAiChatResponse,
+  ContractPendingReviewItem,
+  ContractPendingReviewListResponse,
+  ContractPendingReviewResolveRequest,
+  ContractPendingReviewResolveResponse,
+  ContractSwarmInvokeRequest,
+  ContractSwarmInvokeResponse,
+} from '../../../shared/types/openapi';
 
-export interface ChatRequest {
-  message: string;
-  session_id?: string;
-  context?: Record<string, unknown>;
-}
-
-export interface ChatResponse {
-  response: string;
-  session_id: string;
-  message_id: string;
-  processing_time: number;
-  metadata?: Record<string, unknown>;
-}
+export type ChatRequest = ContractAiChatRequest;
+export type ChatResponse = ContractAiChatResponse;
+export type PendingReviewItem = ContractPendingReviewItem;
+export type PendingReviewListResponse = ContractPendingReviewListResponse;
+export type PendingReviewResolveRequest = ContractPendingReviewResolveRequest;
+export type PendingReviewResolveResponse = ContractPendingReviewResolveResponse;
+export type SwarmInvokeRequest = ContractSwarmInvokeRequest;
+export type SwarmInvokeResponse = ContractSwarmInvokeResponse;
 
 export interface DocumentProcessingRequest {
   document_id: string;
@@ -38,7 +43,36 @@ export interface DocumentProcessingResponse {
 
 export type DocumentUploadResponse = UploadedDocument;
 
+export interface ExtractToSchemaRequest {
+  document_id: string;
+  entity_type: string;
+}
+
+export interface ExtractToSchemaResponse {
+  document_id: string;
+  entity_type: string;
+  serializer_name: string;
+  parser: string;
+  model_name: string;
+  warnings: string[];
+  extracted_data: Record<string, unknown>;
+}
+
 const unwrap = <T,>(res: { data: T }): T => res.data;
+const getDocumentIdFromMetadata = (metadata?: Record<string, unknown>): string | null => {
+  const id = metadata?.document_id ?? metadata?.documentId;
+  return typeof id === 'string' && id.trim() ? id : null;
+};
+
+export const extractPendingReviewItems = (
+  response: PendingReviewListResponse,
+): PendingReviewItem[] => {
+  if (Array.isArray(response.pending_reviews) && response.pending_reviews.length) {
+    return response.pending_reviews;
+  }
+
+  return Array.isArray(response.results) ? response.results : [];
+};
 
 // Chat API
 export const chatApi = {
@@ -57,6 +91,29 @@ export const chatApi = {
    */
   processDocument: async (data: DocumentProcessingRequest): Promise<DocumentProcessingResponse> => {
     const res = await businessApi.post<DocumentProcessingResponse>('/ai-assistant/ai-chat/process_document/', data);
+    return unwrap(res);
+  },
+};
+
+export const aiStaffApi = {
+  previewRoute: async (data: SwarmInvokeRequest): Promise<SwarmInvokeResponse> => {
+    const res = await businessApi.post<SwarmInvokeResponse>('/ai-assistant/swarm/invoke/', data);
+    return unwrap(res);
+  },
+
+  listPendingReviews: async (): Promise<PendingReviewItem[]> => {
+    const res = await businessApi.get<PendingReviewListResponse>('/ai-assistant/review/pending/');
+    return extractPendingReviewItems(unwrap(res));
+  },
+
+  resolvePendingReview: async (
+    feedbackId: string,
+    data: PendingReviewResolveRequest,
+  ): Promise<PendingReviewResolveResponse> => {
+    const res = await businessApi.post<PendingReviewResolveResponse>(
+      `/ai-assistant/review/${feedbackId}/resolve/`,
+      data,
+    );
     return unwrap(res);
   },
 };
@@ -115,4 +172,77 @@ export const documentsApi = {
     const res = await businessApi.get<DocumentUploadResponse>(`/ai-assistant/ai-documents/${documentId}/`);
     return unwrap(res);
   },
+};
+
+export const schemaExtractionApi = {
+  extractToSchema: async (data: ExtractToSchemaRequest): Promise<ExtractToSchemaResponse> => {
+    const res = await businessApi.post<ExtractToSchemaResponse>('/ai-assistant/extract-to-schema/', data);
+    return unwrap(res);
+  },
+};
+
+export const hydrateDocumentMessageMetadata = async <
+  T extends { metadata?: Record<string, unknown> }
+>(
+  messages: T[]
+): Promise<T[]> => {
+  const documentIds = [...new Set(messages.map((message) => getDocumentIdFromMetadata(message.metadata)).filter(Boolean))] as string[];
+  if (!documentIds.length) {
+    return messages;
+  }
+
+  const documents = await Promise.all(
+    documentIds.map(async (documentId) => {
+      try {
+        const document = await documentsApi.get(documentId);
+        return [documentId, document] as const;
+      } catch {
+        return null;
+      }
+    })
+  );
+
+  const documentsById = new Map(
+    documents.filter((entry): entry is readonly [string, DocumentUploadResponse] => Boolean(entry))
+  );
+
+  return messages.map((message) => {
+    const documentId = getDocumentIdFromMetadata(message.metadata);
+    if (!documentId) {
+      return message;
+    }
+
+    const document = documentsById.get(documentId);
+    if (!document) {
+      return message;
+    }
+
+    const currentMetadata = message.metadata || {};
+
+    return {
+      ...message,
+      metadata: {
+        ...currentMetadata,
+        document_id: documentId,
+        original_filename:
+          typeof currentMetadata.original_filename === 'string' && currentMetadata.original_filename
+            ? currentMetadata.original_filename
+            : document.original_filename,
+        content_type:
+          typeof currentMetadata.content_type === 'string' && currentMetadata.content_type
+            ? currentMetadata.content_type
+            : document.content_type || document.file_type,
+        file_url:
+          typeof currentMetadata.file_url === 'string' && currentMetadata.file_url
+            ? currentMetadata.file_url
+            : document.file_url || document.file || '',
+        // Intentionally show the latest parser state so operators can see async progress resolve
+        // without waiting for the original chat message payload to be regenerated.
+        processing_status: document.processing_status,
+        // Preserve existing provenance details only when the hydrated document payload omits them.
+        source_metadata: document.source_metadata ?? currentMetadata.source_metadata,
+        processing_metadata: document.processing_metadata ?? currentMetadata.processing_metadata,
+      },
+    };
+  });
 };

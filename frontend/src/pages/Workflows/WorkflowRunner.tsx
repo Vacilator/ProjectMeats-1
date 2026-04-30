@@ -234,6 +234,7 @@ export const WorkflowRunner: React.FC = () => {
   const progress = currentSchema
     ? ((currentSchema.step_index + 1) / (currentSchema.step_index + 2)) * 100
     : 0;
+  const formInstanceKey = `${runId ?? 'workflow'}:${currentSchema?.step_index ?? 'pending'}`;
 
   return (
     <PageContainer title={`Workflow: ${workflowRun.workflow_slug}`}>
@@ -258,6 +259,7 @@ export const WorkflowRunner: React.FC = () => {
         {currentSchema && (
           <Card padding="lg">
             <DynamicFormEngine
+              key={formInstanceKey}
               schema={currentSchema}
               initialValues={initialValues}
               onSubmit={handleSubmit}

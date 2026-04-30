@@ -1,10 +1,11 @@
 /**
  * Mind-Map & Continuous Search (Phase 3.1 + 3.4)
  */
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Input, Spin } from 'antd';
-import { businessApi } from '@/services/businessApi';
 import debounce from 'lodash/debounce';
+import { searchContinuous } from '@/services/searchService';
+import { logger } from '@/utils/logger';
 
 interface SearchResult {
   id: string;
@@ -21,8 +22,8 @@ export const useContinuousSearch = (entityType: string) => {
   const [results, setResults] = useState<SearchResult[]>([]);
   const [loading, setLoading] = useState(false);
 
-  const performSearch = useCallback(
-    debounce(async (searchQuery: string) => {
+  const performSearch = useMemo(
+    () => debounce(async (searchQuery: string) => {
       if (!searchQuery || searchQuery.length < 2) {
         setResults([]);
         return;
@@ -30,12 +31,16 @@ export const useContinuousSearch = (entityType: string) => {
 
       setLoading(true);
       try {
-        const response = await businessApi.get('/search/continuous/', {
-          params: { q: searchQuery, entity_type: entityType }
-        });
-        setResults(response.data);
+        const results = await searchContinuous({ query: searchQuery, entityType });
+        setResults(
+          results.map((result) => ({
+            id: result.id,
+            label: result.title,
+            entity_type: result.type,
+          }))
+        );
       } catch (err) {
-        console.error('Search error:', err);
+        logger.error('[ContinuousSearch] Search failed', err);
       } finally {
         setLoading(false);
       }
@@ -45,6 +50,7 @@ export const useContinuousSearch = (entityType: string) => {
 
   useEffect(() => {
     performSearch(query);
+    return () => performSearch.cancel();
   }, [query, performSearch]);
 
   return { query, setQuery, results, loading };

@@ -75,6 +75,7 @@ import ApiTestComponent from './components/ApiTestComponent';
 import { WorkflowRunner, PerfHarness } from './pages/Workflows';
 import { WorkflowMonitor } from './pages/Workflows/WorkflowMonitor';
 import { WorkflowExecutionDetails } from './pages/Workflows/WorkflowExecutionDetails';
+import EntityFormSurfaceSmoke from './pages/Diagnostics/EntityFormSurfaceSmoke';
 import { FormSubmissionModal } from './components/FormSubmission';
 import { useQuickActions } from './contexts/QuickActionsContext';
 import MySubmissions from './pages/MySubmissions';
@@ -93,6 +94,8 @@ import AdminWorkspaceHome from './pages/Admin/Home';
 import AdminErrorBoundary from './components/Admin/AdminErrorBoundary';
 import { ErrorBoundary as ProductionErrorBoundary } from './components/common/ErrorBoundary';
 import { logger } from './utils/logger';
+import { isTenantScopedQueryKey } from './utils/queryKeys';
+import { getValidTenantId } from './utils/tenantId';
 const CockpitPage = lazy(() => import('./pages/Cockpit'));
 import CockpitDashboard from './pages/Cockpit/CockpitDashboard';
 import ProcessMonitor from './pages/Cockpit/ProcessMonitor';
@@ -129,33 +132,27 @@ const FormSubmissionWrapper: React.FC = () => {
 };
 
 const App: React.FC = () => {
-  // Handle hard refresh - clear React Query cache to ensure fresh data with correct tenant
+  const enableEntityFormSmokeRoute = import.meta.env.VITE_ENABLE_E2E_SMOKE === '1';
+
   useEffect(() => {
-    const storedTenantId = localStorage.getItem('tenantId');
-    
-    // Check if this is a hard refresh (performance.navigation.type === 1)
-    // Or if sessionStorage was cleared (hard refresh clears sessionStorage)
-    const isHardRefresh = !sessionStorage.getItem('appInitialized');
-    
-    if (isHardRefresh) {
-      logger.debug('[App] Hard refresh detected - clearing React Query cache', { component: 'App' });
-      queryClient.clear();
-      // Mark app as initialized in session
-      sessionStorage.setItem('appInitialized', 'true');
-      
-      // Store current tenant to detect changes
-      if (storedTenantId) {
-        sessionStorage.setItem('currentTenantId', storedTenantId);
-      }
+    const currentTenantId = getValidTenantId();
+    const previousTenantId = sessionStorage.getItem('currentTenantId');
+
+    if (currentTenantId !== previousTenantId) {
+      logger.debug('[App] Tenant changed - removing legacy non-tenant query cache', {
+        component: 'App',
+        previousTenantId,
+        currentTenantId,
+      });
+      queryClient.removeQueries({
+        predicate: (query) => !isTenantScopedQueryKey(query.queryKey),
+      });
+    }
+
+    if (currentTenantId) {
+      sessionStorage.setItem('currentTenantId', currentTenantId);
     } else {
-      // Not a hard refresh - check if tenant changed
-      const lastTenantId = sessionStorage.getItem('currentTenantId');
-      
-      if (storedTenantId && lastTenantId && storedTenantId !== lastTenantId) {
-        logger.debug('[App] Tenant changed - clearing React Query cache', { component: 'App' });
-        queryClient.clear();
-        sessionStorage.setItem('currentTenantId', storedTenantId);
-      }
+      sessionStorage.removeItem('currentTenantId');
     }
   }, []);
 
@@ -240,6 +237,12 @@ const App: React.FC = () => {
                     <Routes>
                 <Route path="/login" element={<Login />} />
                 <Route path="/signup" element={<SignUp />} />
+                {enableEntityFormSmokeRoute && (
+                  <Route
+                    path="/diagnostics/entity-form-surface-smoke"
+                    element={<EntityFormSurfaceSmoke />}
+                  />
+                )}
               <Route path="/" element={<Layout />}>
                 <Route index element={<Navigate to="/cockpit" replace />} />
 

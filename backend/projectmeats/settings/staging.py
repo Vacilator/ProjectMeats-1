@@ -79,14 +79,7 @@ SENDGRID_SANDBOX_MODE_IN_DEBUG = False
 DEFAULT_FROM_EMAIL = config("DEFAULT_FROM_EMAIL", default="no-reply@meatscentral.com")
 SERVER_EMAIL = config("SERVER_EMAIL", default="no-reply@meatscentral.com")
 # ⚠️  NEVER ADD: EMAIL_HOST, EMAIL_PORT, EMAIL_USE_TLS, EMAIL_USE_SSL
-
-# Staging-specific cache (can be less robust)
-CACHES = {
-    "default": {
-        "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
-        "LOCATION": "staging-cache",
-    }
-}
+REQUIRE_REDIS_READINESS = config("REQUIRE_REDIS_READINESS", default=True, cast=bool)
 
 # Allow less secure cookies for staging testing
 # Security headers / browser hardening

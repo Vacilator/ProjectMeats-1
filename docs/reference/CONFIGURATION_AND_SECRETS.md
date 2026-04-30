@@ -154,7 +154,7 @@ This compares GitHub Secrets (repo + environment) to `manifests/env.manifest.jso
 Set these as **Environment Secrets** (not repo secrets), typically in `uat-backend` and `production-backend`:
 
 - `OPENAI_API_KEY` → AI suggestions + embeddings/RAG
-- `REDIS_URL` → caching, Celery workers, real-time features
+- `REDIS_URL` → required for non-dev readiness gating, caching, Celery workers, and real-time features
 - `SENTRY_DSN` + `SENTRY_ENABLED=true` → error tracking/APM
 - `MICROSOFT_CLIENT_ID` / `MICROSOFT_CLIENT_SECRET` / `MICROSOFT_TENANT_ID` → Outlook/365 integration
 
@@ -176,9 +176,10 @@ python config/manage_env.py audit
 
 ### 4) Verify integration readiness (non-secret signals)
 
-After deployment, check the backend health payload:
+After deployment, check the backend readiness/health payloads:
 
-- `GET /api/v1/health/`
+- `GET /api/v1/ready/` for UAT / production deploy gating
+- `GET /api/v1/health/` for diagnostics
   - `integration_summary` (booleans + models/environments only)
   - `integration_warnings` (machine-readable codes, safe messages)
 

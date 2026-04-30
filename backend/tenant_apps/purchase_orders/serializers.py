@@ -165,6 +165,19 @@ class CarrierPOItemSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ["id"]
 
+    def create(self, validated_data):
+        items_data = validated_data.pop("items", [])
+        instance = super().create(validated_data)
+        self._replace_items(instance, items_data)
+        return instance
+
+    def update(self, instance, validated_data):
+        items_data = validated_data.pop("items", None)
+        instance = super().update(instance, validated_data)
+        if items_data is not None:
+            self._replace_items(instance, items_data)
+        return instance
+
 
 class CarrierPurchaseOrderSerializer(DocumentStatusValidationMixin, serializers.ModelSerializer):
     """Serializer for CarrierPurchaseOrder model."""

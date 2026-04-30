@@ -550,6 +550,7 @@ class ToolExecutorEmailToolTests(TestCase):
 
     @patch('tenant_apps.ai_assistant.swarm.executor.set_current_tenant', return_value=SimpleNamespace(ok=True, error=None))
     @patch('tenant_apps.integrations.services.email_ingestion.EmailIngestionService._get_existing_attachment_document', return_value=None)
+    @patch('tenant_apps.ai_assistant.services.lineage.create_lineage_event')
     @patch('tenant_apps.ai_assistant.models.ChatMessage.objects.create')
     @patch('tenant_apps.ai_assistant.models.AIDocument.objects.create')
     @patch('apps.integrations.providers.MicrosoftGraphProvider')
@@ -560,6 +561,7 @@ class ToolExecutorEmailToolTests(TestCase):
         mock_graph_provider,
         mock_aidocument_create,
         mock_chat_message_create,
+        mock_create_lineage_event,
         _mock_get_existing_document,
         _mock_rls,
     ):
@@ -629,7 +631,12 @@ class ToolExecutorEmailToolTests(TestCase):
         self.assertEqual(payload['data']['session_id'], str(session.id))
         mock_aidocument_create.assert_called_once()
         self.assertEqual(mock_aidocument_create.call_args.kwargs['original_filename'], 'invoice.pdf')
+        self.assertEqual(
+            mock_aidocument_create.call_args.kwargs['custom_data']['semantic_indexing']['status'],
+            'pending',
+        )
         mock_chat_message_create.assert_called_once()
+        mock_create_lineage_event.assert_called_once()
         self.assertEqual(
             mock_chat_message_create.call_args.kwargs['message_type'],
             MessageTypeChoices.DOCUMENT,
@@ -1164,6 +1171,43 @@ class AIDocumentAuditSurfaceTests(TestCase):
         self.assertEqual(payload['processing_metadata']['parse_error_code'], 'UNSTRUCTURED_UNREACHABLE')
         self.assertEqual(payload['processing_metadata']['warnings'], ['retry later'])
 
+    def test_serializer_exposes_semantic_processing_metadata(self):
+        from tenant_apps.ai_assistant.models import AIDocument
+
+        unique = uuid.uuid4().hex[:8]
+        user_model = get_user_model()
+        user = user_model.objects.create_user(
+            username=f'doc-audit-{unique}',
+            email=f'doc-audit-{unique}@example.com',
+            password='pw',
+        )
+        tenant = Tenant.objects.create(
+            name=f'Doc Audit Tenant {unique}',
+            slug=f'doc-audit-tenant-{unique}',
+            contact_email=f'doc-audit-{unique}@example.com',
+            created_by=user,
+        )
+        TenantUser.objects.create(tenant=tenant, user=user, role='owner')
+        document = AIDocument.objects.create(
+            tenant=tenant,
+            owner=user,
+            file=SimpleUploadedFile('invoice.pdf', b'%PDF-1.4', content_type='application/pdf'),
+            original_filename='invoice.pdf',
+            content_type='application/pdf',
+            file_size=8,
+            custom_data={
+                'semantic_indexing': {
+                    'status': 'indexed',
+                    'mode': 'semantic',
+                    'chunk_count': 3,
+                },
+            },
+        )
+        payload = AIDocumentSerializer(instance=document).data
+
+        self.assertEqual(payload['processing_metadata']['semantic_indexing']['status'], 'indexed')
+        self.assertEqual(payload['processing_metadata']['semantic_indexing']['chunk_count'], 3)
+
     @patch('tenant_apps.ai_assistant.views.AIDocument.objects.all')
     def test_viewset_filters_documents_by_source_and_session(self, mock_all):
         from tenant_apps.ai_assistant.views import AIDocumentViewSet
@@ -1320,10 +1364,14 @@ class ParseDocumentLifecycleTests(SimpleTestCase):
     @patch('tenant_apps.ai_assistant.models.AIDocument.objects.filter')
     @patch('tenant_apps.ai_assistant.services.document_parser.parse_tabular_document')
     @patch('tenant_apps.ai_assistant.services.document_parser.is_tabular_document', return_value=True)
+    @patch('tenant_apps.ai_assistant.services.semantic_indexing.index_document_for_semantic_search')
+    @patch('tenant_apps.ai_assistant.swarm.executor.ToolExecutor._record_lineage_event')
     @patch('tenant_apps.ai_assistant.swarm.executor.set_current_tenant', return_value=SimpleNamespace(ok=True, error=None))
     def test_execute_marks_tabular_document_completed(
         self,
         _mock_rls,
+        mock_record_lineage,
+        mock_index_document,
         _mock_is_tabular,
         mock_parse_tabular,
         mock_filter,
@@ -1341,6 +1389,7 @@ class ParseDocumentLifecycleTests(SimpleTestCase):
             truncated=False,
             warnings=[],
         )
+        mock_index_document.return_value = {'status': 'indexed', 'chunk_count': 1}
 
         payload = json.loads(
             ToolExecutor().execute(
@@ -1356,6 +1405,9 @@ class ParseDocumentLifecycleTests(SimpleTestCase):
         self.assertEqual(document.processing_status, 'completed')
         self.assertEqual(document.custom_data['parser'], 'tabular_markdown')
         self.assertIn('parsed_at', document.custom_data)
+        self.assertEqual(payload['data']['semantic_indexing']['status'], 'indexed')
+        mock_index_document.assert_called_once()
+        mock_record_lineage.assert_called_once()
 
     @override_settings(UNSTRUCTURED_API_URL='https://unstructured.example.com', UNSTRUCTURED_API_KEY='secret')
     @patch('tenant_apps.ai_assistant.models.AIDocument.objects.filter')
@@ -1434,8 +1486,12 @@ class ParseDocumentLifecycleTests(SimpleTestCase):
     @patch('tenant_apps.ai_assistant.models.AIDocument.objects.filter')
     @patch('tenant_apps.ai_assistant.services.document_parser.is_tabular_document', return_value=False)
     @patch('requests.post')
+    @patch('tenant_apps.ai_assistant.services.semantic_indexing.index_document_for_semantic_search')
+    @patch('tenant_apps.ai_assistant.swarm.executor.ToolExecutor._record_lineage_event')
     def test_parse_document_marks_unstructured_success_completed(
         self,
+        mock_record_lineage,
+        mock_index_document,
         mock_post,
         _mock_is_tabular,
         mock_filter,
@@ -1451,6 +1507,7 @@ class ParseDocumentLifecycleTests(SimpleTestCase):
             status=200,
             payload=[{'text': 'Line one'}, {'text': 'Line two'}],
         )
+        mock_index_document.return_value = {'status': 'indexed', 'chunk_count': 2}
 
         parsed = ToolExecutor()._parse_document(
             {'file_id_or_url': str(document.id)},
@@ -1463,3 +1520,6 @@ class ParseDocumentLifecycleTests(SimpleTestCase):
         self.assertEqual(document.processing_status, 'completed')
         self.assertEqual(document.custom_data['parser'], 'unstructured')
         self.assertIn('parsed_at', document.custom_data)
+        self.assertEqual(parsed['semantic_indexing']['status'], 'indexed')
+        mock_index_document.assert_called_once()
+        mock_record_lineage.assert_called_once()

@@ -1,126 +1,160 @@
 #!/bin/bash
 # Environment validation script for deployments
-# Validates required environment variables and configuration
+# Validates manifest-derived required secrets for a lane and optionally
+# performs advisory runtime configuration checks for values that are present.
 
 set -euo pipefail
 
-echo "=== Environment Validation Script ==="
-
-# Function to check if a variable is set
-check_var() {
-    local var_name="$1"
-    local var_value="${!var_name:-}"
-    
-    if [ -z "$var_value" ]; then
-        echo "❌ ERROR: Required environment variable $var_name is not set"
-        return 1
-    else
-        echo "✅ $var_name is set"
-        return 0
-    fi
-}
-
-# Function to validate URL format
-validate_url() {
-    local var_name="$1"
-    local var_value="${!var_name:-}"
-    
-    if [[ "$var_value" =~ ^https?:// ]]; then
-        echo "✅ $var_name has valid URL format"
-        return 0
-    else
-        echo "❌ ERROR: $var_name does not have valid URL format (must start with http:// or https://)"
-        return 1
-    fi
-}
-
+ENVIRONMENT=""
+WORKFLOW_NAME=""
+SHOW_USAGE=0
 ERRORS=0
 
-# Required environment variables for Django
-echo ""
-echo "Checking required Django environment variables..."
+usage() {
+    cat <<'EOF'
+Usage: .github/scripts/validate-environment.sh --environment <lane> [--workflow <workflow-name>]
 
-check_var "SECRET_KEY" || ERRORS=$((ERRORS + 1))
-check_var "DATABASE_URL" || ERRORS=$((ERRORS + 1))
-check_var "ALLOWED_HOSTS" || ERRORS=$((ERRORS + 1))
+Examples:
+  .github/scripts/validate-environment.sh --environment dev-backend --workflow reusable-deploy.yml
+  .github/scripts/validate-environment.sh --environment dev-frontend --workflow reusable-deploy.yml
 
-# Check CORS configuration
-echo ""
-echo "Checking CORS configuration..."
-if check_var "CORS_ALLOWED_ORIGINS"; then
-    # Validate CORS URLs
-    IFS=',' read -ra ORIGINS <<< "$CORS_ALLOWED_ORIGINS"
-    for origin in "${ORIGINS[@]}"; do
-        origin=$(echo "$origin" | xargs) # trim whitespace
-        if [[ ! "$origin" =~ ^https?:// ]]; then
-            echo "❌ ERROR: Invalid CORS origin format: $origin"
-            ERRORS=$((ERRORS + 1))
-        fi
-    done
+This script validates manifest-derived required secrets for the provided lane
+using config/manage_env.py. Runtime config checks are advisory and only run for
+ variables already present in the environment.
+EOF
+}
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --environment)
+            ENVIRONMENT="${2:-}"
+            shift 2
+            ;;
+        --workflow)
+            WORKFLOW_NAME="${2:-}"
+            shift 2
+            ;;
+        -h|--help)
+            SHOW_USAGE=1
+            shift
+            ;;
+        *)
+            echo "❌ ERROR: Unknown argument: $1"
+            usage
+            exit 1
+            ;;
+    esac
+done
+
+if [[ "$SHOW_USAGE" == "1" ]]; then
+    usage
+    exit 0
 fi
 
-# Check CSRF configuration (should match CORS for consistency)
+if [[ -z "$ENVIRONMENT" ]]; then
+    echo "❌ ERROR: --environment is required"
+    usage
+    exit 1
+fi
+
+echo "=== Environment Validation Script ==="
+echo "Lane: $ENVIRONMENT"
+if [[ -n "$WORKFLOW_NAME" ]]; then
+    echo "Workflow: $WORKFLOW_NAME"
+fi
 echo ""
-echo "Checking CSRF configuration..."
-if check_var "CSRF_TRUSTED_ORIGINS"; then
-    # Validate CSRF URLs
-    IFS=',' read -ra CSRF_ORIGINS <<< "$CSRF_TRUSTED_ORIGINS"
-    for origin in "${CSRF_ORIGINS[@]}"; do
-        origin=$(echo "$origin" | xargs) # trim whitespace
-        if [[ ! "$origin" =~ ^https?:// ]]; then
-            echo "❌ ERROR: Invalid CSRF origin format: $origin"
-            ERRORS=$((ERRORS + 1))
-        fi
-    done
-    
-    # Warn if CORS and CSRF don't match
-    if [ "${CORS_ALLOWED_ORIGINS:-}" != "${CSRF_TRUSTED_ORIGINS:-}" ]; then
-        echo "⚠️  WARNING: CORS_ALLOWED_ORIGINS and CSRF_TRUSTED_ORIGINS don't match"
-        echo "   CORS: $CORS_ALLOWED_ORIGINS"
-        echo "   CSRF: $CSRF_TRUSTED_ORIGINS"
-        echo "   This may cause issues with cross-origin requests"
+
+python_args=(config/manage_env.py validate-required --environment "$ENVIRONMENT")
+if [[ -n "$WORKFLOW_NAME" ]]; then
+    python_args+=(--workflow "$WORKFLOW_NAME")
+fi
+
+python "${python_args[@]}"
+
+validate_url_list() {
+    local var_name="$1"
+    local var_value="${!var_name:-}"
+    local local_errors=0
+
+    if [[ -z "$var_value" ]]; then
+        echo "ℹ️  $var_name not set; skipping URL format check"
+        return 0
     fi
-else
-    echo "⚠️  WARNING: CSRF_TRUSTED_ORIGINS not set (may cause 403 errors)"
-fi
 
-# Check database configuration
+    IFS=',' read -ra URLS <<< "$var_value"
+    for url in "${URLS[@]}"; do
+        local trimmed
+        trimmed="$(echo "$url" | xargs)"
+        if [[ ! "$trimmed" =~ ^https?:// ]]; then
+            echo "❌ ERROR: Invalid URL in $var_name: $trimmed"
+            ERRORS=$((ERRORS + 1))
+            local_errors=$((local_errors + 1))
+        fi
+    done
+
+    if [[ $local_errors -eq 0 ]]; then
+        echo "✅ $var_name has valid URL format"
+    fi
+}
+
 echo ""
-echo "Checking database configuration..."
-if [ -n "${DATABASE_URL:-}" ]; then
+echo "Checking optional runtime configuration..."
+
+if [[ -n "${DATABASE_URL:-}" ]]; then
     if [[ "$DATABASE_URL" =~ ^postgresql:// ]]; then
-        echo "✅ DATABASE_URL uses PostgreSQL (recommended for production)"
+        echo "✅ DATABASE_URL uses PostgreSQL"
     elif [[ "$DATABASE_URL" =~ ^sqlite:// ]]; then
-        echo "⚠️  WARNING: DATABASE_URL uses SQLite (not recommended for production)"
+        echo "⚠️  WARNING: DATABASE_URL uses SQLite (not recommended for deploy lanes)"
     else
         echo "❌ ERROR: DATABASE_URL has unexpected format"
         ERRORS=$((ERRORS + 1))
     fi
+else
+    echo "ℹ️  DATABASE_URL not set; skipping database URL format check"
 fi
 
-# Check security settings for production
-echo ""
-echo "Checking security settings..."
-
-if [ "${DEBUG:-False}" = "True" ]; then
-    echo "⚠️  WARNING: DEBUG is enabled (should be False in production)"
+redis_required_value="${REQUIRE_REDIS_READINESS:-${REDIS_REQUIRED:-}}"
+redis_required_normalized="${redis_required_value,,}"
+if [[ "$ENVIRONMENT" == *"-backend" && "$ENVIRONMENT" != "dev-backend" ]]; then
+    if [[ -z "$redis_required_normalized" || "$redis_required_normalized" =~ ^(1|true|yes|on)$ ]]; then
+        if [[ -z "${REDIS_URL:-}" && -z "${VALKEY_URL:-}" ]]; then
+            echo "❌ ERROR: $ENVIRONMENT requires REDIS_URL or VALKEY_URL for non-dev readiness"
+            ERRORS=$((ERRORS + 1))
+        else
+            echo "✅ Non-dev Redis/Valkey URL configured"
+        fi
+    else
+        echo "ℹ️  Redis/Valkey readiness disabled for $ENVIRONMENT; allowing explicit fallback"
+    fi
 fi
 
-if [ "${SESSION_COOKIE_SECURE:-False}" = "False" ]; then
-    echo "⚠️  WARNING: SESSION_COOKIE_SECURE is False (should be True in production with HTTPS)"
+validate_url_list "CORS_ALLOWED_ORIGINS"
+validate_url_list "CSRF_TRUSTED_ORIGINS"
+
+if [[ -n "${CORS_ALLOWED_ORIGINS:-}" && -n "${CSRF_TRUSTED_ORIGINS:-}" && "${CORS_ALLOWED_ORIGINS}" != "${CSRF_TRUSTED_ORIGINS}" ]]; then
+    echo "⚠️  WARNING: CORS_ALLOWED_ORIGINS and CSRF_TRUSTED_ORIGINS differ"
+    echo "   CORS: $CORS_ALLOWED_ORIGINS"
+    echo "   CSRF: $CSRF_TRUSTED_ORIGINS"
 fi
 
-if [ "${CSRF_COOKIE_SECURE:-False}" = "False" ]; then
-    echo "⚠️  WARNING: CSRF_COOKIE_SECURE is False (should be True in production with HTTPS)"
+if [[ "${DEBUG:-False}" == "True" ]]; then
+    echo "⚠️  WARNING: DEBUG is enabled"
 fi
 
-# Summary
+if [[ -n "${SESSION_COOKIE_SECURE:-}" && "${SESSION_COOKIE_SECURE}" == "False" ]]; then
+    echo "⚠️  WARNING: SESSION_COOKIE_SECURE is False"
+fi
+
+if [[ -n "${CSRF_COOKIE_SECURE:-}" && "${CSRF_COOKIE_SECURE}" == "False" ]]; then
+    echo "⚠️  WARNING: CSRF_COOKIE_SECURE is False"
+fi
+
 echo ""
 echo "=== Validation Summary ==="
-if [ $ERRORS -eq 0 ]; then
-    echo "✅ All required environment variables are set and valid"
+if [[ $ERRORS -eq 0 ]]; then
+    echo "✅ Environment validation passed"
     exit 0
-else
-    echo "❌ Found $ERRORS error(s) in environment configuration"
-    exit 1
 fi
+
+echo "❌ Found $ERRORS runtime configuration validation error(s)"
+exit 1

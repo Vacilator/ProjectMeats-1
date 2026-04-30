@@ -1,11 +1,15 @@
 """
-Tests for Carriers app models.
+Tests for Carriers app models and API behavior.
 
 Uses shared-schema multi-tenancy with tenant ForeignKey isolation.
 """
 import uuid
+from django.urls import reverse
 from django.test import TestCase
 from django.contrib.auth.models import User
+from rest_framework import status
+from rest_framework.test import APIClient, APITestCase
+from rest_framework_simplejwt.tokens import RefreshToken
 from tenant_apps.carriers.models import Carrier
 from apps.tenants.models import Tenant, TenantUser
 from apps.core.models import CarrierTypeChoices
@@ -196,3 +200,67 @@ class CarrierModelTest(TestCase):
         self.assertEqual(carrier.city, "Dallas")
         self.assertEqual(carrier.state, "TX")
         self.assertEqual(carrier.country, "USA")
+
+
+class CarrierAPITests(APITestCase):
+    """High-signal carrier API coverage for tenant resolution on writes."""
+
+    def _jwt_client_for(self, user):
+        client = APIClient()
+        access = RefreshToken.for_user(user).access_token
+        client.credentials(HTTP_AUTHORIZATION=f"Bearer {access}")
+        return client
+
+    def setUp(self):
+        unique_id = uuid.uuid4().hex[:8]
+        self.user = User.objects.create_user(
+            username=f"carrieruser-{unique_id}",
+            email=f"carrier-{unique_id}@example.com",
+            password="testpass123",
+        )
+        self.client.force_authenticate(user=self.user)
+
+        self.tenant = Tenant.objects.create(
+            name=f"Carrier Tenant {unique_id}",
+            slug=f"carrier-tenant-{unique_id}",
+            contact_email=f"carrier-admin-{unique_id}@testcompany.com",
+            created_by=self.user,
+        )
+        TenantUser.objects.create(tenant=self.tenant, user=self.user, role="owner")
+
+    def test_create_carrier_success_with_explicit_tenant(self):
+        url = reverse("carrier-list")
+        data = {
+            "name": "Fast Trucking",
+            "code": "FAST-1",
+            "carrier_type": CarrierTypeChoices.TRUCK,
+        }
+
+        response = self.client.post(url, data, HTTP_X_TENANT_ID=str(self.tenant.id))
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED, response.content)
+        carrier = Carrier.objects.get()
+        self.assertEqual(carrier.tenant, self.tenant)
+        self.assertEqual(carrier.created_by, self.user)
+
+    def test_create_carrier_requires_explicit_tenant_when_membership_is_ambiguous(self):
+        client = self._jwt_client_for(self.user)
+        other_tenant = Tenant.objects.create(
+            name=f"Other Carrier Tenant {uuid.uuid4().hex[:8]}",
+            slug=f"other-carrier-tenant-{uuid.uuid4().hex[:8]}",
+            contact_email=f"other-carrier-{uuid.uuid4().hex[:8]}@testcompany.com",
+            created_by=self.user,
+        )
+        TenantUser.objects.create(tenant=other_tenant, user=self.user, role="admin")
+
+        url = reverse("carrier-list")
+        data = {
+            "name": "Ambiguous Trucking",
+            "code": "AMBIG-1",
+            "carrier_type": CarrierTypeChoices.TRUCK,
+        }
+
+        response = client.post(url, data, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST, response.content)
+        self.assertEqual(Carrier.objects.count(), 0)

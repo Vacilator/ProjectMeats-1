@@ -32,6 +32,7 @@
 
 import { useMemo } from 'react';
 import { Node, Edge } from '@xyflow/react';
+import { getResolvedFormFields } from '../utils/formFieldsDualModel';
 
 // ============================================================================
 // TypeScript Interfaces
@@ -188,27 +189,20 @@ function extractFieldsFromFormStep(node: Node): Array<{
   
   // Extract fields from node data
   const nodeData = node.data || {};
-  const selectedFields = nodeData.selectedFields || nodeData.fields || [];
+  const selectedFields = getResolvedFormFields(nodeData);
   
   // Handle both array of objects and array of strings
   if (Array.isArray(selectedFields)) {
     for (const field of selectedFields) {
-      if (typeof field === 'string') {
-        // Simple string field name
-        fields.push({
-          fieldName: field,
-          fieldLabel: field,
-          fieldType: 'string',
-        });
-      } else if (typeof field === 'object' && field !== null) {
-        // Object with field metadata
-        fields.push({
-          fieldName: field.name || field.key || field.id || 'unknown',
-          fieldLabel: field.label || field.display_name || field.name || 'Unknown Field',
-          fieldType: field.type || field.field_type || 'string',
-          required: field.required || false,
-        });
-      }
+        if (typeof field === 'object' && field !== null) {
+          // Object with field metadata
+          fields.push({
+            fieldName: field.id || 'unknown',
+            fieldLabel: field.label || field.id || 'Unknown Field',
+            fieldType: field.type || 'string',
+            required: field.required || false,
+          });
+        }
     }
   }
   

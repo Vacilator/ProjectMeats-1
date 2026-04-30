@@ -143,3 +143,66 @@ class CollaborationWebsocketSecurityTests(TransactionTestCase):
             await comm.disconnect()
 
         async_to_sync(run)()
+
+    def test_broadcasts_only_within_same_tenant_and_workflow_group(self):
+        other_tenant = Tenant.objects.create(
+            name='Other',
+            slug=f'other-{uuid.uuid4().hex[:6]}',
+            contact_email='other@example.com',
+            is_active=True,
+        )
+        TenantUser.objects.create(tenant=other_tenant, user=self.user, role='admin', is_active=True)
+        other_workform = TenantWorkForm.objects.create(
+            tenant=other_tenant,
+            name='Other WF',
+            description='',
+            status='draft',
+            workflow_definition={'nodes': [], 'edges': []},
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+        async def run():
+            token = str(AccessToken.for_user(self.user))
+            primary_sender = self._communicator(
+                access_token=token,
+                tenant_id=str(self.tenant.id),
+                workflow_id=str(self.workform.id),
+            )
+            primary_listener = self._communicator(
+                access_token=token,
+                tenant_id=str(self.tenant.id),
+                workflow_id=str(self.workform.id),
+            )
+            isolated_listener = self._communicator(
+                access_token=token,
+                tenant_id=str(other_tenant.id),
+                workflow_id=str(other_workform.id),
+            )
+
+            connected_sender, _ = await primary_sender.connect(timeout=1)
+            connected_listener, _ = await primary_listener.connect(timeout=1)
+            connected_isolated, _ = await isolated_listener.connect(timeout=1)
+            self.assertTrue(connected_sender)
+            self.assertTrue(connected_listener)
+            self.assertTrue(connected_isolated)
+
+            await primary_sender.receive_json_from(timeout=1)
+            await primary_listener.receive_json_from(timeout=1)
+            await isolated_listener.receive_json_from(timeout=1)
+
+            payload = {'type': 'cursor.move', 'node_id': 'node-1'}
+            await primary_sender.send_json_to(payload)
+
+            sender_echo = await primary_sender.receive_json_from(timeout=1)
+            listener_message = await primary_listener.receive_json_from(timeout=1)
+            self.assertEqual(sender_echo.get('type'), 'collab.message')
+            self.assertEqual(listener_message.get('type'), 'collab.message')
+            self.assertEqual(listener_message.get('payload'), payload)
+            self.assertTrue(await isolated_listener.receive_nothing(timeout=0.2))
+
+            await primary_sender.disconnect()
+            await primary_listener.disconnect()
+            await isolated_listener.disconnect()
+
+        async_to_sync(run)()

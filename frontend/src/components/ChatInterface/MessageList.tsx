@@ -5,7 +5,12 @@
  */
 import React from 'react';
 import styled from 'styled-components';
-import { ChatMessage } from '../../types';
+import {
+  ChatMessage,
+  DocumentProcessingMetadata,
+  DocumentSourceMetadata,
+} from '../../types';
+import DocumentAuditBadges from '@/components/AIAssistant/DocumentAuditBadges';
 
 interface MessageListProps {
   messages: ChatMessage[];
@@ -15,6 +20,12 @@ interface MessageMetadataType {
   model?: string;
   processing_time?: number;
   tokens_used?: number;
+  content_type?: string;
+  processing_status?: string;
+  source_metadata?: DocumentSourceMetadata;
+  processing_metadata?: DocumentProcessingMetadata;
+  original_filename?: string;
+  file_url?: string;
 }
 
 const MessageList: React.FC<MessageListProps> = ({ messages }) => {
@@ -51,7 +62,7 @@ const MessageList: React.FC<MessageListProps> = ({ messages }) => {
   return (
     <MessageContainer>
       {messages.map((message) => (
-        <MessageItem key={message.id} messageType={message.message_type}>
+        <MessageItem key={message.id} $messageType={message.message_type}>
           <MessageHeader>
             <MessageTypeIcon>{getMessageIcon(message.message_type)}</MessageTypeIcon>
             <MessageInfo>
@@ -68,7 +79,23 @@ const MessageList: React.FC<MessageListProps> = ({ messages }) => {
             </MessageInfo>
           </MessageHeader>
 
-          <MessageContent>{message.content}</MessageContent>
+          {message.message_type === 'document' ? (
+            <>
+              <MessageContent>
+                {(message.metadata as MessageMetadataType | undefined)?.original_filename || message.content}
+              </MessageContent>
+              <DocumentDetail>
+                {(message.metadata as MessageMetadataType | undefined)?.content_type || 'Document'}
+              </DocumentDetail>
+              <DocumentAuditBadges
+                processingStatus={(message.metadata as MessageMetadataType | undefined)?.processing_status}
+                sourceMetadata={(message.metadata as MessageMetadataType | undefined)?.source_metadata}
+                processingMetadata={(message.metadata as MessageMetadataType | undefined)?.processing_metadata}
+              />
+            </>
+          ) : (
+            <MessageContent>{message.content}</MessageContent>
+          )}
 
           {message.metadata && Object.keys(message.metadata).length > 0 && (
             <MessageMetadata>
@@ -102,31 +129,31 @@ const MessageContainer = styled.div`
   gap: 16px;
 `;
 
-const MessageItem = styled.div<{ messageType: string }>`
+const MessageItem = styled.div<{ $messageType: string }>`
   padding: 16px;
   border-radius: 12px;
   background: ${(props) =>
-    props.messageType === 'user'
+    props.$messageType === 'user'
       ? 'rgba(var(--color-info), 0.12)'
-      : props.messageType === 'assistant'
+      : props.$messageType === 'assistant'
         ? 'rgb(var(--color-surface))'
         : 'rgb(var(--color-surface))7ed'};
   border: 1px solid
     ${(props) =>
-      props.messageType === 'user'
+      props.$messageType === 'user'
         ? 'rgba(var(--color-info), 0.14)'
-        : props.messageType === 'assistant'
+        : props.$messageType === 'assistant'
           ? 'rgb(var(--color-border))'
           : 'rgba(var(--color-warning), 0.18)'};
 
   ${(props) =>
-    props.messageType === 'user' &&
+    props.$messageType === 'user' &&
     `
     margin-left: 20%;
   `}
 
   ${(props) =>
-    props.messageType === 'assistant' &&
+    props.$messageType === 'assistant' &&
     `
     margin-right: 20%;
   `}
@@ -176,6 +203,12 @@ const MessageMetadata = styled.div`
   display: flex;
   flex-wrap: wrap;
   gap: 12px;
+`;
+
+const DocumentDetail = styled.div`
+  margin-top: 6px;
+  font-size: 11px;
+  color: rgb(var(--color-text-secondary));
 `;
 
 const MetadataItem = styled.span`

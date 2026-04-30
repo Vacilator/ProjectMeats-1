@@ -4,6 +4,7 @@
  * Handles tenant-related API calls including branding and logo management.
  */
 import { apiClient } from './apiService';
+import { logger } from '../utils/logger';
 
 export interface Tenant {
   id: string;
@@ -170,11 +171,18 @@ export class TenantService {
         // Check if response is HTML instead of JSON (common issue)
         const contentType = error.response.headers['content-type'];
         if (contentType && contentType.includes('text/html')) {
-          console.error('Received HTML response instead of JSON:', {
-            status,
-            url: error.config?.url,
-            method: error.config?.method,
-          });
+          logger.error(
+            'Received HTML response instead of JSON',
+            {
+              component: 'TenantService',
+              metadata: {
+                status,
+                url: error.config?.url,
+                method: error.config?.method,
+              },
+            },
+            error
+          );
           throw new Error('Server returned HTML instead of JSON. Check server configuration and CORS settings.');
         }
         

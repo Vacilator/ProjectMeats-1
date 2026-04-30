@@ -19,6 +19,7 @@ SECRET_KEY = config(
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
+REQUIRE_REDIS_READINESS = False
 
 # Read additional ALLOWED_HOSTS from environment variable (comma-separated)
 # This allows GitHub Secrets to override/extend the default list
@@ -102,6 +103,8 @@ else:
             f"or configure it in config/environments/development.env. "
             f"See Django docs: https://docs.djangoproject.com/en/stable/ref/settings/#databases"
         )
+
+DATABASES["default"].setdefault("ATOMIC_REQUESTS", False)
 
 # ==============================================================================
 # CODESPACES AUTO-CONFIGURATION
@@ -220,12 +223,8 @@ if "django_extensions" in INSTALLED_APPS:
         "localhost",
     ]
 
-# Cache for development (dummy cache)
-CACHES = {
-    "default": {
-        "BACKEND": "django.core.cache.backends.dummy.DummyCache",
-    }
-}
+# Keep cache-backed reliability primitives enabled in development. Base settings
+# already use Redis when configured and LocMem as the local fallback.
 
 # Disable secure cookies for development
 SESSION_COOKIE_SECURE = False

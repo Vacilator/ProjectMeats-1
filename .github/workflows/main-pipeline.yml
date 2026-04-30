@@ -4,37 +4,20 @@ run-name: >-
   ${{
     github.event_name == 'workflow_dispatch'
       && format(
-        '🛠️ Deploy: {0} — manual on {1} ({2}) by {3} (run#{4})',
+        '🛠️ {0} deploy · manual · {1}',
         github.event.inputs.environment == 'development' && 'Dev'
           || github.event.inputs.environment == 'uat' && 'UAT'
           || github.event.inputs.environment == 'production' && 'Prod'
           || github.event.inputs.environment,
-        github.ref_name,
-        github.sha,
-        github.actor,
-        github.run_number
+        github.ref_name
       )
-      || (
-        !contains(github.event.head_commit.message, 'Co-authored-by:')
-          && format(
-            '🚀 Deploy: {0} — {1} (run#{2})',
-            github.ref_name == 'development' && 'Dev'
-              || github.ref_name == 'uat' && 'UAT'
-              || github.ref_name == 'main' && 'Prod'
-              || github.ref_name,
-            github.event.head_commit.message,
-            github.run_number
-          )
-          || format(
-            '🚀 Deploy: {0} — {1} ({2}) (run#{3})',
-            github.ref_name == 'development' && 'Dev'
-              || github.ref_name == 'uat' && 'UAT'
-              || github.ref_name == 'main' && 'Prod'
-              || github.ref_name,
-            github.ref_name,
-            github.sha,
-            github.run_number
-          )
+      || format(
+        '🚀 {0} deploy · {1}',
+        github.ref_name == 'development' && 'Dev'
+          || github.ref_name == 'uat' && 'UAT'
+          || github.ref_name == 'main' && 'Prod'
+          || github.ref_name,
+        github.ref_name
       )
   }}
 
@@ -58,7 +41,7 @@ on:
           - uat
           - production
       deploy_by_digest:
-        description: 'Optional: after pulling immutable env-SHA tag, run docker containers by resolved digest'
+        description: 'Development-only override: run by resolved digest after pulling the env-SHA tag (UAT/Prod always use digest)'
         required: false
         type: boolean
         default: false
@@ -163,6 +146,7 @@ jobs:
       frontend_environment: 'dev-frontend'
       api_base_url: 'https://dev.meatscentral.com'
       deploy_by_digest: ${{ github.event_name == 'workflow_dispatch' && (github.event.inputs.deploy_by_digest == 'true' || github.event.inputs.deploy_by_digest == true) || false }}
+      require_redis_readiness: false
 
   # ==========================================
   # Route to UAT
@@ -182,7 +166,8 @@ jobs:
       backend_environment: 'uat-backend'
       frontend_environment: 'uat-frontend'
       api_base_url: 'https://uat.meatscentral.com'
-      deploy_by_digest: ${{ github.event_name == 'workflow_dispatch' && (github.event.inputs.deploy_by_digest == 'true' || github.event.inputs.deploy_by_digest == true) || false }}
+      deploy_by_digest: true
+      require_redis_readiness: true
 
   # ==========================================
   # Route to Production
@@ -202,5 +187,5 @@ jobs:
       backend_environment: 'production-backend'
       frontend_environment: 'production-frontend'
       api_base_url: 'https://meatscentral.com'
-      deploy_by_digest: ${{ github.event_name == 'workflow_dispatch' && (github.event.inputs.deploy_by_digest == 'true' || github.event.inputs.deploy_by_digest == true) || false }}
-
+      deploy_by_digest: true
+      require_redis_readiness: true

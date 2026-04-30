@@ -10,10 +10,11 @@ import uuid
 from datetime import timedelta
 
 from django.conf import settings
-from django.db import connection
+from django.db import DatabaseError, ProgrammingError, connection, models, transaction
 from django.db.models import Avg
 from django.db.models.functions import TruncDate
 from django.utils import timezone
+from drf_spectacular.utils import OpenApiParameter, OpenApiTypes, extend_schema
 from rest_framework import filters, mixins, status, viewsets
 from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.decorators import action
@@ -23,23 +24,49 @@ from rest_framework.throttling import AnonRateThrottle, ScopedRateThrottle, User
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .models import AIDocument, AIFeedbackLog, ChatMessage, ChatSession, MessageTypeChoices
+from apps.core.services.idempotency import get_idempotency_key, release_idempotency_key, reserve_idempotency_key, store_idempotency_response
+from .models import (
+    AIApproval,
+    AIApprovalStatus,
+    AIDocument,
+    AIFeedbackLog,
+    AIRun,
+    AIRunStatus,
+    AITask,
+    AITaskStatus,
+    ChatMessage,
+    ChatSession,
+    MessageTypeChoices,
+)
 from .serializers import (
+    AIApprovalActionResponseSerializer,
+    AIApprovalResolutionRequestSerializer,
+    AIApprovalSerializer,
     AIDocumentSerializer,
     AIFeedbackLogSerializer,
     AIFeedbackSubmitSerializer,
     AILearningMetricsSerializer,
+    ExtractToSchemaRequestSerializer,
+    ExtractToSchemaResponseSerializer,
     ChatBotRequestSerializer,
     ChatBotResponseSerializer,
     ChatMessageCreateSerializer,
     ChatMessageSerializer,
     ChatSessionDetailSerializer,
     ChatSessionListSerializer,
+    AIRunSerializer,
+    AITaskSerializer,
     PendingReviewItemSerializer,
     PendingReviewResolveRequestSerializer,
+    PendingReviewListResponseSerializer,
+    PendingReviewResolveResponseSerializer,
+    RecentErrorsResponseSerializer,
     SwarmInvokeRequestSerializer,
+    SwarmInvokeResponseSerializer,
+    ToolsOpenResponseSerializer,
 )
 from .session_utils import bind_context_to_tenant, get_request_tenant_id, session_matches_tenant
+from .services.extract_to_schema import ExtractToSchemaError, extract_document_to_schema, get_extract_document
 
 logger = logging.getLogger(__name__)
 
@@ -67,6 +94,24 @@ def ai_not_configured_response() -> Response:
         },
         status=status.HTTP_503_SERVICE_UNAVAILABLE,
     )
+
+
+def _tenant_membership_role(*, user, tenant) -> str:
+    if not user or not getattr(user, 'is_authenticated', False) or tenant is None:
+        return ''
+
+    from apps.tenants.models import TenantUser
+
+    return (
+        TenantUser.objects.filter(tenant=tenant, user=user, is_active=True)
+        .values_list('role', flat=True)
+        .first()
+        or ''
+    )
+
+
+def _can_review_ai_approvals(*, user, tenant) -> bool:
+    return _tenant_membership_role(user=user, tenant=tenant) in {'owner', 'admin'}
 
 
 class ChatSessionViewSet(viewsets.ModelViewSet):
@@ -101,7 +146,9 @@ class ChatSessionViewSet(viewsets.ModelViewSet):
             return self.queryset.none()
         return self.queryset.filter(
             owner=self.request.user,
-            context_data__tenant_id=tenant_id,
+        ).filter(
+            models.Q(tenant_id=tenant_id)
+            | models.Q(tenant__isnull=True, context_data__tenant_id=tenant_id),
         ).annotate(message_count=Count('messages'))
 
     def perform_create(self, serializer):
@@ -110,6 +157,7 @@ class ChatSessionViewSet(viewsets.ModelViewSet):
         if not get_request_tenant_id(self.request):
             raise ValidationError('Tenant context required')
         serializer.save(
+            tenant=tenant,
             context_data=bind_context_to_tenant(serializer.validated_data.get('context_data'), tenant),
             owner=self.request.user,
             created_by=self.request.user,
@@ -139,13 +187,17 @@ class ChatMessageViewSet(viewsets.ModelViewSet):
             return self.queryset.none()
         return self.queryset.filter(
             session__owner=self.request.user,
-            session__context_data__tenant_id=tenant_id,
+        ).filter(
+            models.Q(tenant_id=tenant_id)
+            | models.Q(tenant__isnull=True, session__tenant__isnull=True, session__context_data__tenant_id=tenant_id),
         )
 
     def perform_create(self, serializer):
         if not get_request_tenant_id(self.request):
             raise ValidationError('Tenant context required')
+        tenant = getattr(self.request, 'tenant', None)
         serializer.save(
+            tenant=tenant,
             owner=self.request.user,
             created_by=self.request.user,
             modified_by=self.request.user,
@@ -159,6 +211,10 @@ class ChatBotAPIViewSet(viewsets.ViewSet):
     throttle_classes = [AnonRateThrottle, UserRateThrottle, ScopedRateThrottle]
     throttle_scope = 'ai_chat'
 
+    @extend_schema(
+        request=ChatBotRequestSerializer,
+        responses={200: ChatBotResponseSerializer, 400: OpenApiTypes.OBJECT, 503: OpenApiTypes.OBJECT},
+    )
     @action(detail=False, methods=["post"])
     def chat(self, request):
         """Send a message to the AI assistant and get a response."""
@@ -182,16 +238,22 @@ class ChatBotAPIViewSet(viewsets.ViewSet):
                 session = ChatSession.objects.filter(
                     id=session_id,
                     owner=request.user,
-                    context_data__tenant_id=tenant_id,
+                ).filter(
+                    models.Q(tenant_id=tenant_id)
+                    | models.Q(tenant__isnull=True, context_data__tenant_id=tenant_id),
                 ).first()
                 if not session:
                     return Response(
                         {"error": "Session not found"}, status=status.HTTP_404_NOT_FOUND
                     )
+                if tenant and not session.tenant_id:
+                    session.tenant = tenant
+                    session.save(update_fields=['tenant'])
             else:
                 # Create new session
                 session = ChatSession.objects.create(
                     title=f"Chat {timezone.now().strftime('%Y-%m-%d %H:%M')}",
+                    tenant=tenant,
                     context_data=bind_context_to_tenant(context, tenant),
                     owner=request.user,
                     created_by=request.user,
@@ -201,6 +263,7 @@ class ChatBotAPIViewSet(viewsets.ViewSet):
             # Create user message
             user_msg = ChatMessage.objects.create(
                 session=session,
+                tenant=tenant,
                 message_type=MessageTypeChoices.USER,
                 content=user_message,
                 owner=request.user,
@@ -327,6 +390,7 @@ class ChatBotAPIViewSet(viewsets.ViewSet):
 
                 response_text = str(result.get('response') or '').strip()
                 tokens_used = None
+                control_plane = result.get('control_plane') or {}
 
                 tools_used = []
                 try:
@@ -363,10 +427,13 @@ class ChatBotAPIViewSet(viewsets.ViewSet):
                 'response_type': 'swarm_tool_loop',
                 'tools_used': sorted(list(set(tools_used))) if tools_used else [],
             }
+            if control_plane:
+                metadata['control_plane'] = control_plane
 
             # Create AI response message
             ai_msg = ChatMessage.objects.create(
                 session=session,
+                tenant=tenant,
                 message_type=MessageTypeChoices.ASSISTANT,
                 content=response_text,
                 metadata=metadata,
@@ -404,11 +471,270 @@ class ChatBotAPIViewSet(viewsets.ViewSet):
             )
 
 
+class _TenantScopedAIControlPlaneViewSet(viewsets.ReadOnlyModelViewSet):
+    permission_classes = [IsAuthenticated]
+    filter_backends = [filters.OrderingFilter]
+    ordering = ['-created_on']
+
+    def _tenant_queryset(self, queryset):
+        tenant = getattr(self.request, 'tenant', None)
+        tenant_id = get_request_tenant_id(self.request)
+        if not tenant_id or tenant is None:
+            return queryset.none()
+        return queryset.filter(tenant_id=tenant_id), tenant
+
+
+class AIRunViewSet(_TenantScopedAIControlPlaneViewSet):
+    queryset = AIRun.objects.select_related('tenant', 'session', 'requested_by')
+    serializer_class = AIRunSerializer
+    ordering_fields = ['created_on', 'modified_on', 'completed_at']
+
+    def get_queryset(self):
+        scoped = self._tenant_queryset(self.queryset)
+        if not isinstance(scoped, tuple):
+            return scoped
+        queryset, tenant = scoped
+        if _can_review_ai_approvals(user=self.request.user, tenant=tenant):
+            return queryset
+        return queryset.filter(requested_by=self.request.user)
+
+
+class AITaskViewSet(_TenantScopedAIControlPlaneViewSet):
+    queryset = AITask.objects.select_related('tenant', 'run', 'requested_by')
+    serializer_class = AITaskSerializer
+    ordering_fields = ['created_on', 'modified_on', 'executed_at', 'resolved_at', 'sequence']
+
+    def get_queryset(self):
+        scoped = self._tenant_queryset(self.queryset)
+        if not isinstance(scoped, tuple):
+            return scoped
+        queryset, tenant = scoped
+        if _can_review_ai_approvals(user=self.request.user, tenant=tenant):
+            return queryset
+        return queryset.filter(requested_by=self.request.user)
+
+
+class AIApprovalViewSet(_TenantScopedAIControlPlaneViewSet):
+    queryset = AIApproval.objects.select_related('tenant', 'run', 'task', 'requested_by', 'resolved_by')
+    serializer_class = AIApprovalSerializer
+    ordering_fields = ['created_on', 'modified_on', 'resolved_at', 'expires_at']
+
+    def get_queryset(self):
+        scoped = self._tenant_queryset(self.queryset)
+        if not isinstance(scoped, tuple):
+            return scoped
+        queryset, tenant = scoped
+        if _can_review_ai_approvals(user=self.request.user, tenant=tenant):
+            return queryset
+        return queryset.filter(requested_by=self.request.user)
+
+    @extend_schema(
+        request=AIApprovalResolutionRequestSerializer,
+        responses={200: AIApprovalActionResponseSerializer, 403: OpenApiTypes.OBJECT, 409: OpenApiTypes.OBJECT},
+    )
+    @action(detail=True, methods=['post'])
+    def approve(self, request, pk=None):
+        tenant = getattr(request, 'tenant', None)
+        if not _can_review_ai_approvals(user=request.user, tenant=tenant):
+            return Response({'error': 'Only tenant owners or admins can approve AI tasks'}, status=status.HTTP_403_FORBIDDEN)
+
+        serializer = AIApprovalResolutionRequestSerializer(data=request.data or {})
+        serializer.is_valid(raise_exception=True)
+
+        from tenant_apps.ai_assistant.swarm.executor import ToolExecutor
+
+        with transaction.atomic():
+            request_tenant_id = str(get_request_tenant_id(request) or '')
+            approval = AIApproval.objects.select_for_update().get(
+                pk=pk,
+                tenant_id=request_tenant_id,
+            )
+            if approval.status != AIApprovalStatus.PENDING:
+                return Response({'error': 'Approval already resolved'}, status=status.HTTP_409_CONFLICT)
+
+            task = AITask.objects.select_for_update().get(pk=approval.task_id, tenant_id=request_tenant_id)
+            run = AIRun.objects.select_for_update().get(pk=approval.run_id, tenant_id=request_tenant_id)
+            if (
+                str(approval.tenant_id) != request_tenant_id
+                or str(task.tenant_id) != str(approval.tenant_id)
+                or str(run.tenant_id) != str(approval.tenant_id)
+            ):
+                return Response({'error': 'Approval not found'}, status=status.HTTP_404_NOT_FOUND)
+
+            approval.status = AIApprovalStatus.APPROVED
+            approval.resolved_by = request.user
+            approval.resolution_note = serializer.validated_data.get('resolution_note', '')
+            approval.resolved_at = timezone.now()
+            approval.response_payload = {
+                'approved_by': request.user.id,
+                'resolution_note': approval.resolution_note,
+                'approved_at': approval.resolved_at.isoformat(),
+            }
+            approval.save(update_fields=['status', 'resolved_by', 'resolution_note', 'resolved_at', 'response_payload', 'modified_on'])
+            try:
+                from tenant_apps.ai_assistant.services.lineage import create_lineage_event
+
+                create_lineage_event(
+                    tenant=approval.tenant,
+                    run=run,
+                    task=task,
+                    approval=approval,
+                    event_type='approval_granted',
+                    source_type='approval',
+                    source_id=str(approval.id),
+                    target_type='task',
+                    target_id=str(task.id),
+                    summary='AI approval granted; task execution resumed.',
+                    metadata={'resolution_note': approval.resolution_note},
+                )
+            except Exception:
+                logger.warning('Failed to record approval-granted lineage approval=%s', approval.id, exc_info=True)
+
+            task.status = AITaskStatus.RUNNING
+            task.save(update_fields=['status', 'modified_on'])
+
+            run.status = AIRunStatus.RUNNING
+            run.error_message = ''
+            run.save(update_fields=['status', 'error_message', 'modified_on'])
+
+            ToolExecutor().execute(
+                approval.tool_name,
+                approval.request_payload,
+                approval.tenant,
+                approval.requested_by or request.user,
+                session_id=str(run.session_id) if run.session_id else None,
+                run=run,
+                existing_task=task,
+                approval=approval,
+                bypass_approval=True,
+            )
+
+        approval.refresh_from_db()
+        task.refresh_from_db()
+        run.refresh_from_db()
+        return Response(
+            AIApprovalActionResponseSerializer(
+                {
+                    'approval': approval,
+                    'task': task,
+                    'run': run,
+                }
+            ).data,
+            status=status.HTTP_200_OK,
+        )
+
+    @extend_schema(
+        request=AIApprovalResolutionRequestSerializer,
+        responses={200: AIApprovalActionResponseSerializer, 403: OpenApiTypes.OBJECT, 409: OpenApiTypes.OBJECT},
+    )
+    @action(detail=True, methods=['post'])
+    def deny(self, request, pk=None):
+        tenant = getattr(request, 'tenant', None)
+        if not _can_review_ai_approvals(user=request.user, tenant=tenant):
+            return Response({'error': 'Only tenant owners or admins can deny AI tasks'}, status=status.HTTP_403_FORBIDDEN)
+
+        serializer = AIApprovalResolutionRequestSerializer(data=request.data or {})
+        serializer.is_valid(raise_exception=True)
+
+        with transaction.atomic():
+            request_tenant_id = str(get_request_tenant_id(request) or '')
+            approval = AIApproval.objects.select_for_update().get(
+                pk=pk,
+                tenant_id=request_tenant_id,
+            )
+            if approval.status != AIApprovalStatus.PENDING:
+                return Response({'error': 'Approval already resolved'}, status=status.HTTP_409_CONFLICT)
+
+            task = AITask.objects.select_for_update().get(pk=approval.task_id, tenant_id=request_tenant_id)
+            run = AIRun.objects.select_for_update().get(pk=approval.run_id, tenant_id=request_tenant_id)
+            if (
+                str(approval.tenant_id) != request_tenant_id
+                or str(task.tenant_id) != str(approval.tenant_id)
+                or str(run.tenant_id) != str(approval.tenant_id)
+            ):
+                return Response({'error': 'Approval not found'}, status=status.HTTP_404_NOT_FOUND)
+
+            resolved_at = timezone.now()
+            resolution_note = serializer.validated_data.get('resolution_note', '')
+
+            approval.status = AIApprovalStatus.DENIED
+            approval.resolved_by = request.user
+            approval.resolution_note = resolution_note
+            approval.resolved_at = resolved_at
+            approval.response_payload = {
+                'denied_by': request.user.id,
+                'resolution_note': resolution_note,
+                'denied_at': resolved_at.isoformat(),
+            }
+            approval.save(update_fields=['status', 'resolved_by', 'resolution_note', 'resolved_at', 'response_payload', 'modified_on'])
+
+            task.status = AITaskStatus.DENIED
+            task.error_message = resolution_note or 'Denied by approver'
+            task.resolved_at = resolved_at
+            task.output_payload = {
+                'approval_id': str(approval.id),
+                'status': AIApprovalStatus.DENIED,
+                'resolution_note': resolution_note,
+            }
+            task.save(update_fields=['status', 'error_message', 'resolved_at', 'output_payload', 'modified_on'])
+
+            run.status = AIRunStatus.DENIED
+            run.error_message = task.error_message
+            run.response_text = 'This AI task was denied and was not executed.'
+            run.response_payload = {
+                'approval_id': str(approval.id),
+                'task_id': str(task.id),
+                'status': AIApprovalStatus.DENIED,
+                'resolution_note': resolution_note,
+            }
+            run.completed_at = resolved_at
+            run.save(
+                update_fields=[
+                    'status',
+                    'error_message',
+                    'response_text',
+                    'response_payload',
+                    'completed_at',
+                    'modified_on',
+                ]
+            )
+            try:
+                from tenant_apps.ai_assistant.services.lineage import create_lineage_event
+
+                create_lineage_event(
+                    tenant=approval.tenant,
+                    run=run,
+                    task=task,
+                    approval=approval,
+                    event_type='approval_denied',
+                    source_type='approval',
+                    source_id=str(approval.id),
+                    target_type='task',
+                    target_id=str(task.id),
+                    summary='AI approval denied; task execution was blocked.',
+                    metadata={'resolution_note': resolution_note},
+                )
+            except Exception:
+                logger.warning('Failed to record approval-denied lineage approval=%s', approval.id, exc_info=True)
+
+        return Response(
+            AIApprovalActionResponseSerializer(
+                {
+                    'approval': approval,
+                    'task': task,
+                    'run': run,
+                }
+            ).data,
+            status=status.HTTP_200_OK,
+        )
+
+
 class AILearningMetricsAPIView(APIView):
     """Tenant-scoped learning metrics for the Cockpit dashboard."""
 
     permission_classes = [IsAuthenticated]
 
+    @extend_schema(responses={200: AILearningMetricsSerializer, 400: OpenApiTypes.OBJECT})
     def get(self, request):
         tenant = getattr(request, 'tenant', None)
         tenant_id = getattr(tenant, 'id', None)
@@ -488,11 +814,64 @@ class AIDocumentViewSet(viewsets.ModelViewSet):
 
         return qs
 
-    def perform_create(self, serializer):
-        from django.db import transaction
-        from django.db.utils import DatabaseError, ProgrammingError
-        from rest_framework.exceptions import ValidationError
+    def create(self, request, *args, **kwargs):
+        tenant = getattr(request, 'tenant', None)
+        if not tenant:
+            raise ValidationError('Tenant context required.')
 
+        tenant_id = str(getattr(tenant, 'id', '') or '')
+        if tenant_id and connection.vendor == 'postgresql':
+            from apps.tenants.rls import set_current_tenant
+
+            rls = set_current_tenant(tenant_id)
+            if not rls.ok:
+                logger.warning(
+                    'AIDocument upload: failed to assert RLS session vars tenant=%s err=%s',
+                    tenant_id,
+                    rls.error,
+                    exc_info=True,
+                )
+                raise ValidationError('Tenant context unavailable.')
+
+        reservation = None
+        idempotency_key = get_idempotency_key(request)
+        if idempotency_key:
+            reservation = reserve_idempotency_key(
+                tenant=tenant,
+                idempotency_key=idempotency_key,
+                method=request.method,
+                path=request.path,
+                payload=request.data,
+                actor=request.user,
+            )
+            if reservation.response is not None:
+                return reservation.response
+
+        serializer = self.get_serializer(data=request.data)
+        instance = None
+        try:
+            serializer.is_valid(raise_exception=True)
+            with transaction.atomic():
+                instance = self.perform_create(serializer)
+                response_data = self.get_serializer(instance).data
+                headers = self.get_success_headers(response_data)
+                if reservation and reservation.record is not None:
+                    store_idempotency_response(
+                        record=reservation.record,
+                        response=Response(response_data, status=status.HTTP_201_CREATED),
+                    )
+        except Exception:
+            if instance is not None and getattr(instance, 'file', None):
+                file_name = getattr(instance.file, 'name', '')
+                if file_name:
+                    instance.file.storage.delete(file_name)
+            if reservation and reservation.record is not None:
+                release_idempotency_key(record=reservation.record)
+            raise
+
+        return Response(response_data, status=status.HTTP_201_CREATED, headers=headers)
+
+    def perform_create(self, serializer):
         tenant = getattr(self.request, 'tenant', None)
         if not tenant:
             raise ValidationError('Tenant context required.')
@@ -502,29 +881,33 @@ class AIDocumentViewSet(viewsets.ModelViewSet):
         try:
             from apps.tenants.rls import set_current_tenant
 
-            with transaction.atomic():
-                # Defense-in-depth: assert RLS vars on the active connection inside the write transaction.
-                if tenant_id:
-                    rls = set_current_tenant(tenant_id)
-                    if not rls.ok:
-                        logger.warning(
-                            'AIDocument upload: failed to assert RLS session vars tenant=%s err=%s',
-                            tenant_id,
-                            rls.error,
-                            exc_info=True,
-                        )
+            # Defense-in-depth: assert RLS vars on the active connection inside the write transaction.
+            if tenant_id:
+                rls = set_current_tenant(tenant_id)
+                if not rls.ok:
+                    logger.warning(
+                        'AIDocument upload: failed to assert RLS session vars tenant=%s err=%s',
+                        tenant_id,
+                        rls.error,
+                        exc_info=True,
+                    )
 
-                instance = serializer.save(
-                    tenant=tenant,
-                    owner=self.request.user,
-                    original_filename=getattr(self.request.FILES.get('file'), 'name', ''),
-                    content_type=getattr(self.request.FILES.get('file'), 'content_type', '') or '',
-                    file_size=getattr(self.request.FILES.get('file'), 'size', 0) or 0,
-                    custom_data={
-                        'source': 'manual_upload',
-                        'uploaded_at': timezone.now().isoformat(),
+            instance = serializer.save(
+                tenant=tenant,
+                owner=self.request.user,
+                original_filename=getattr(self.request.FILES.get('file'), 'name', ''),
+                content_type=getattr(self.request.FILES.get('file'), 'content_type', '') or '',
+                file_size=getattr(self.request.FILES.get('file'), 'size', 0) or 0,
+                custom_data={
+                    'source': 'manual_upload',
+                    'uploaded_at': timezone.now().isoformat(),
+                    'semantic_indexing': {
+                        'status': 'pending',
+                        'mode': 'awaiting_parse',
+                        'detail': 'Document uploaded; semantic indexing will run after parse.',
                     },
-                )
+                },
+            )
         except ValidationError:
             raise
         except OSError as e:
@@ -553,10 +936,29 @@ class AIDocumentViewSet(viewsets.ModelViewSet):
             raise ValidationError('Upload failed: unexpected error. Please retry.')
 
         # If the upload was tied to a session, also create a DOCUMENT message so UIs can show it inline.
+        try:
+            from tenant_apps.ai_assistant.services.lineage import create_lineage_event
+
+            create_lineage_event(
+                tenant=instance.tenant,
+                document=instance,
+                event_type='document_uploaded',
+                source_type='manual_upload',
+                source_id=str(instance.id),
+                target_type='document',
+                target_id=str(instance.id),
+                summary='Document uploaded for AI processing.',
+                metadata={'source': 'manual_upload'},
+            )
+        except Exception:
+            logger.warning('AIDocument upload: failed to record lineage for document=%s', instance.id, exc_info=True)
+
+        # If the upload was tied to a session, also create a DOCUMENT message so UIs can show it inline.
         if instance.session_id:
             try:
                 ChatMessage.objects.create(
                     session=instance.session,
+                    tenant=instance.tenant,
                     message_type=MessageTypeChoices.DOCUMENT,
                     content=instance.original_filename or 'Document uploaded',
                     metadata={
@@ -572,7 +974,66 @@ class AIDocumentViewSet(viewsets.ModelViewSet):
                     modified_by=self.request.user,
                 )
             except Exception:
-                pass
+                file_name = getattr(instance.file, 'name', '')
+                if file_name:
+                    instance.file.storage.delete(file_name)
+                raise
+
+        return instance
+
+
+class ExtractToSchemaAPIView(APIView):
+    """Extract a strict serializer-backed draft payload from an uploaded AI document."""
+
+    permission_classes = [IsAuthenticated]
+    throttle_classes = [AnonRateThrottle, UserRateThrottle, ScopedRateThrottle]
+    throttle_scope = 'ai_chat'
+
+    @extend_schema(
+        request=ExtractToSchemaRequestSerializer,
+        responses={
+            200: ExtractToSchemaResponseSerializer,
+            400: OpenApiTypes.OBJECT,
+            404: OpenApiTypes.OBJECT,
+            503: OpenApiTypes.OBJECT,
+        },
+    )
+    def post(self, request):
+        serializer = ExtractToSchemaRequestSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        tenant = getattr(request, 'tenant', None)
+        if not tenant:
+            raise ValidationError('Tenant context required')
+
+        document_id = serializer.validated_data['document_id']
+        entity_type = serializer.validated_data['entity_type']
+
+        try:
+            document = get_extract_document(document_id=document_id, tenant=tenant, user=request.user)
+            extracted = extract_document_to_schema(
+                document=document,
+                entity_type=entity_type,
+                tenant=tenant,
+                user=request.user,
+            )
+        except LookupError:
+            return Response({'error': 'Document not found'}, status=status.HTTP_404_NOT_FOUND)
+        except ExtractToSchemaError as exc:
+            if exc.code == 'AI_NOT_CONFIGURED':
+                return ai_not_configured_response()
+            return Response({'error': str(exc), 'code': exc.code}, status=status.HTTP_400_BAD_REQUEST)
+
+        payload = {
+            'document_id': extracted.document.id,
+            'entity_type': extracted.entity_type,
+            'serializer_name': extracted.serializer_name,
+            'parser': extracted.parser,
+            'model_name': extracted.model_name,
+            'warnings': extracted.warnings,
+            'extracted_data': extracted.data,
+        }
+        return Response(ExtractToSchemaResponseSerializer(payload).data, status=status.HTTP_200_OK)
 
 
 class SwarmToolsOpenAPIView(APIView):
@@ -662,6 +1123,10 @@ class SwarmInvokeAPIView(APIView):
 
     permission_classes = [IsAdminUser]
 
+    @extend_schema(
+        request=SwarmInvokeRequestSerializer,
+        responses={200: SwarmInvokeResponseSerializer, 400: OpenApiTypes.OBJECT},
+    )
     def post(self, request):
         serializer = SwarmInvokeRequestSerializer(data=request.data)
         if not serializer.is_valid():
@@ -839,6 +1304,18 @@ class RecentErrorsAPIView(APIView):
 
     permission_classes = [IsAdminUser]
 
+    @extend_schema(
+        parameters=[
+            OpenApiParameter(
+                name='tenant_id',
+                required=False,
+                type=OpenApiTypes.UUID,
+                location=OpenApiParameter.QUERY,
+                description='Optional tenant guard; when provided it must match the active tenant.',
+            )
+        ],
+        responses={200: RecentErrorsResponseSerializer, 400: RecentErrorsResponseSerializer},
+    )
     def get(self, request):
         import os
 
@@ -883,6 +1360,7 @@ class ToolsOpenAPIView(APIView):
 
     permission_classes = [IsAuthenticated]
 
+    @extend_schema(responses={200: ToolsOpenResponseSerializer})
     def get(self, request):
         tenant = getattr(request, 'tenant', None)
 
@@ -930,9 +1408,10 @@ class PendingReviewView(APIView):
 
     permission_classes = [IsAuthenticated]
 
+    @extend_schema(responses={200: PendingReviewListResponseSerializer, 400: OpenApiTypes.OBJECT})
     def get(self, request):
         if not (request.user.is_staff or request.user.is_superuser):
-            return Response({'pending_reviews': []}, status=status.HTTP_200_OK)
+            return Response({'pending_reviews': [], 'results': []}, status=status.HTTP_200_OK)
 
         tenant = getattr(request, 'tenant', None)
         tenant_id = str(getattr(tenant, 'id', '') or '')
@@ -976,6 +1455,10 @@ class AIAgentChatView(APIView):
     throttle_classes = [AnonRateThrottle, UserRateThrottle, ScopedRateThrottle]
     throttle_scope = 'ai_chat'
 
+    @extend_schema(
+        request=ChatBotRequestSerializer,
+        responses={200: ChatBotResponseSerializer, 400: OpenApiTypes.OBJECT, 503: OpenApiTypes.OBJECT},
+    )
     def post(self, request):
         return ChatBotAPIViewSet().chat(request)
 
@@ -990,6 +1473,10 @@ class PendingReviewResolveAPIView(APIView):
     throttle_classes = [UserRateThrottle, ScopedRateThrottle]
     throttle_scope = 'ai_feedback'
 
+    @extend_schema(
+        request=PendingReviewResolveRequestSerializer,
+        responses={200: PendingReviewResolveResponseSerializer, 400: OpenApiTypes.OBJECT, 404: OpenApiTypes.OBJECT},
+    )
     def post(self, request, feedback_id):
         serializer = PendingReviewResolveRequestSerializer(data=request.data)
         if not serializer.is_valid():

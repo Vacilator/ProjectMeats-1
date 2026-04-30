@@ -1,7 +1,7 @@
 # MASTER_PLAN.md (Canonical)
 
 **Status**: 🔄 Living document (canonical source of truth)  
-**Last Updated**: 2026-04-28  
+**Last Updated**: 2026-04-29  
 **Primary Focus**: Phase 10 (DRY/Canonical Architecture Standardization) - Industry-leader compliance  
 
 This file is the **canonical plan + current truth snapshot**.
@@ -10,17 +10,21 @@ This file is the **canonical plan + current truth snapshot**.
 
 ---
 
-## Current Execution Snapshot (as of 2026-04-28)
+## Current Execution Snapshot (as of 2026-04-29)
 
 ### What is true right now
 - **WorkForms E2E** is shipped end-to-end (execute + monitoring + notifications + Quick Actions + Gmail connector MVP).
 - **Primary execution focus (P0):** close remaining correctness + tenant isolation gaps surfaced by squad audits.
 - **AI email/document lane** is now fail-closed through Graph attachment ingest and parser lifecycle hardening: tabular uploads parse safely, Outlook attachments bridge into `AIDocument`, unsupported attachment kinds are rejected pre-download, repeated same-session ingests dedupe with provenance, AI sessions are tenant-bound, attachment ingest requires a session-staged allowlist from `fetch_emails`, and `parse_document` now persists explicit processing/completed/failed metadata while raising structured parser/auth/unreachable errors.
 - **Newly shipped since last snapshot (evidence; see `.github/MASTER_PLAN.md`)**:
-  - Core API reliability: fix `apps/core/views.py` legacy imports/`print()` landmines + add smoke tests (PR #4652).
+  - Core API reliability: fix `apps/core/views.py` legacy imports/`print()` landmines + add smoke tests (PR #4652); expand always-on backend smoke coverage for `/health/`, `/ready/`, auth bootstrap failure envelopes, and tenant-resolution fail-closed checks in PR validation (PR #4752).
+  - Security / tenant isolation: de-shadow duplicate legacy OAuth authorize/callback wiring by locking the app URL aliases to the hardened canonical `/api/v1/integrations/oauth/*` views; preserve `oauth/status` + `oauth/disconnect` behavior with regression coverage (PR #4753).
   - Frontend standards: expand `lint:colors` + remove remaining hardcoded colors in MyTasks surfaces (PR #4650); replace high-churn `console.*` with `logger.*` (PR #4654).
-  - Backend tenant safety: fail-closed `current/current_theme/admin_permissions` when tenant context is missing/ambiguous (PR #4656); wrap tenant-scoped Celery ORM in `tenant_rls(..., strict=False)` (PR #4657).
+  - Frontend test reliability: stabilize the `WorkflowRunner` keyed-remount assertion so development deploys do not fail on a race between the mocked form mount effect and the first DOM assertion (PR #4761).
+  - Backend tenant safety: fail-closed `current/current_theme/admin_permissions` when tenant context is missing/ambiguous (PR #4656); wrap tenant-scoped Celery ORM in `tenant_rls(..., strict=False)` (PR #4657); remove the last supplier create-time `TenantUser` fallback so ambiguous multi-tenant writes fail closed while single-membership middleware defaults continue to work (PR #4755); harden the remaining tenant-scoped create/query/restore paths in Locations, Master Products, Deals, Invoices, Claims, and Payment Transactions so they fail closed when tenant context is missing, backed by expanded guardrail coverage (PR #4756); and remove the latent staff-based write permission footgun from system choice viewsets with a regression that blocks `is_staff`-based permission logic from being wired back into that module (PR #4758).
+  - CI guardrails: align reusable deploy build/migrate/runtime jobs to the exact build-exported image tag/digest refs, make migrations select the final tag-vs-digest ref before pulling, enforce the topology/wiring/pull-order contract in `validate-workflows.sh` so UAT/Prod digest deploys cannot drift silently again (PR #4757), derive deploy-lane required-secret enforcement directly from `manifests/env.manifest.json` via the shared environment validator so optional secrets like `ALLOWED_HOSTS` cannot drift back to hardcoded required lists (PR #4764), and block `CURRENT` docs from drifting back to forbidden Golden patterns like separate dev API subdomains, compose/swarm deployment commands, or legacy manifest paths (PR #4762).
   - Mobile: device-safe API base URL + tests (PR #4658); switch builds to EAS (PR #4659).
+  - Dependencies: safely refresh the mobile grouped npm/yarn transitive lockfile updates from Dependabot #4730 without accepting the incompatible `react-native@0.85.2` rewrite; keep the Expo 55 / React Native 0.74.5 baseline intact and defer the remaining `fast-xml-parser` removal until the planned mobile baseline uplift (PR #4759).
   - WorkForms editor hot-path stability: derive validation/history/autosave from graph state (PR #32), move node actions out of `nodesWithHandlers` cloning and into editor context (PR #4720), and keep config-panel shadow edits local until Apply/Discard instead of rewriting the full node array on every keystroke (PR #4721).
   - WorkForms execution telemetry foundation: add a tenant-scoped `ExecutionEventLog` model with RLS, persist normalized execution/node/action events from `audit_trail`, and cover successful + failed action spans in backend tests (see `.github/MASTER_PLAN.md` for the shipped PR reference).
   - WorkForms runtime hydration: add persisted `runtime_state` snapshots on `TenantWorkFormExecution`, hydrate node status/current step/error projections from the telemetry stream, and keep execution serializers backward-compatible for legacy rows without runtime state.
@@ -28,7 +32,7 @@ This file is the **canonical plan + current truth snapshot**.
   - AI email/document hardening: bridge Outlook attachments into `AIDocument`, preflight attachment metadata, persist provenance + same-session dedupe, hard-bind AI sessions/messages/uploads to `request.tenant`, enforce a session-scoped attachment allowlist before ingest, and normalize `parse_document` lifecycle/error handling for operator-visible status metadata (PRs #4733–#4739).
 
 ### P0 priorities (next)
-- **Core API reliability**: ✅ shipped (PR #4652). Next: expand smoke coverage for always-on endpoints (health, tenant resolution, auth bootstrap) and keep them in PR gates.
+- **Core API reliability**: ✅ shipped (PRs #4652, #4752). PR validation now smoke-tests always-on health/readiness, auth bootstrap success + failure envelopes, and tenant-resolution fail-closed behavior.
 
 - **Phase 10 Sprint 1 stability gate (shipped)**
   - Mobile viewport hardening (make the existing mobile Playwright specs green; prevent page-level horizontal overflow on iPhone SE)
@@ -37,18 +41,18 @@ This file is the **canonical plan + current truth snapshot**.
   - Docs: incident response runbook (triage + rollback + tenant isolation/RLS guidance)
 
 - **Security / tenant isolation** (RLS correctness):
-  - **P0 data isolation**: remove `is_staff` global bypasses in `apps/system/views/choice_viewsets.py` (tenant admins are promoted to `is_staff=True` via signals; must not yield cross-tenant reads/writes).
+  - **P0 data isolation**: remove `is_staff` global bypasses in `apps/system/views/choice_viewsets.py` (tenant admins are promoted to `is_staff=True` via signals; must not yield cross-tenant reads/writes). ✅ shipped in PR #4758.
   - Make invitation email Celery task tenant/RLS safe (pass `tenant_id`; wrap task ORM in `tenant_rls` before querying invitation).
   - Workflow webhook receiver must set `request.tenant` + `set_current_tenant()` **before** ORM lookup (FORCE RLS correctness).
   - Legacy workflow webhook endpoint must fail closed unless tenant context is resolvable (migrate callers to tenant-path URL).
   - Integrations OAuth callback must set tenant + RLS session vars before writing tenant-scoped rows.
   - WorkForms create must not bypass activation validation when `status=active`. ✅ shipped (runtime validation guardrails in PR #4483; verified by `apps.system.tests.test_workform_runtime_support_validation`).
-- **WorkForms runtime/observability**: editor validation/history/autosave, node action routing, local shadow-state staging, execution telemetry, persisted runtime hydration, and the first operator-facing analytics dashboard are now hardened. This batch adds a dry-run-first schema upgrade command that canonicalizes legacy node aliases, stamps workflow schema version metadata, refreshes `form_references` safely, and closes the fresh-database RLS audit gap on `core_comment` before any deeper model cleanup. Next: deterministic schema init / form "fields" model cleanup and any remaining a11y + theme-token hardening.
+- **WorkForms runtime/observability**: editor validation/history/autosave, node action routing, local shadow-state staging, execution telemetry, persisted runtime hydration, and the first operator-facing analytics dashboard are now hardened. This batch adds a dry-run-first schema upgrade command that canonicalizes legacy node aliases, stamps workflow schema version metadata, refreshes `form_references` safely, closes the fresh-database RLS audit gap on `core_comment`, and finishes the form `fields` → `formFields` model cleanup. Next: any remaining a11y + theme-token hardening.
 - **CI guardrails (never-miss-again)**:
-  - Deploy-by-digest default for UAT/Prod and digest-align the migration artifact.
-  - Manifest-driven required-secret enforcement per lane (remove hardcoded lists).
-  - Docs drift prevention: "CURRENT" docs must not recommend forbidden Golden patterns (runner-driven migrations only).
-- **Mobile parity**: ✅ shipped foundations (PRs #4658/#4659). Next: switch-tenant persistence, consistent error normalization, and auth expiry/401 behavior parity.
+  - Deploy-by-digest default for UAT/Prod and digest-align the migration artifact. ✅ shipped in PR #4757.
+  - Manifest-driven required-secret enforcement per lane (remove hardcoded lists). ✅ shipped in PR #4764.
+  - Docs drift prevention: "CURRENT" docs must not recommend forbidden Golden patterns (runner-driven migrations only). ✅ shipped in PR #4762.
+- **Mobile parity**: ✅ shipped foundations + auth/tenant parity hardening (PRs #4658/#4659/#4804).
 - **AI email/document hardening**: ✅ shipped through fail-closed parser lifecycle/status metadata (PRs #4733–#4739). Next: expose compact provenance + parse-status/retryability badges in the AI widget/document surfaces so operators can distinguish Outlook/manual sources and retryable parser failures without log-diving.
 
 ### Squad deep dive plan (as of 2026-04-27)
@@ -196,6 +200,7 @@ We are re-validating and completing the last ~25 prompts with **evidence-based a
 - CI: master deploy pipeline workflow display name clarified for Actions feed: PR #4458 (tested: workflow validator)
 - AI Assistant: document upload “no 500s” regression coverage (uploads return 201/400 only): PR #4460 (tested: backend)
 - Dependencies: merged grouped npm/yarn bumps (root + mobile): PR #4439 (tested: CI)
+- Dependencies: safely refreshed the mobile grouped transitive lockfile bumps while preserving the Expo 55 / React Native 0.74.5 baseline; explicitly deferred the remaining `fast-xml-parser` removal until a compatible mobile baseline upgrade: PR #4759 (tested: mobile lint/test/type-check)
 - Promotion: merged development → uat: PR #4389 (tested: CI + deploy)
 
 ### Current blockers / external dependencies
@@ -227,7 +232,7 @@ We are re-validating and completing the last ~25 prompts with **evidence-based a
 - **Workflow webhooks tenant-safe:** add a new canonical webhook URL embedding `tenant_id` in the path and set RLS tenant explicitly in the receiver view; keep legacy URL temporarily.
 - **Email webhooks verification (critical):** Outlook requires unpredictable per-subscription `clientState`; Gmail requires request verification (JWT/secret) so forged requests cannot trigger upstream API calls.
 - **Tenant-scope email integration data:** phase in `tenant_id` for EmailAccount/EmailLog (and related tables), then add RLS policies once tenant-scoped.
-- **OAuth endpoint de-shadowing:** remove/lock down duplicate legacy OAuth callback routes to prevent accidental re-exposure.
+- **OAuth endpoint de-shadowing:** ✅ shipped (PR #4753). Legacy authorize/callback aliases in `apps/integrations/urls.py` now point to the hardened canonical views, preventing the older function-based OAuth implementation from being re-exposed if include order changes.
 
 ### P0 — WorkForms editor “industry leader” UX (next)
 - **Publish readiness preflight + support matrix UI:** block publish when unsupported nodes/missing required config; show actionable remediation.

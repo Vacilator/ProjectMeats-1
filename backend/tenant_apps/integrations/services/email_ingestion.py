@@ -4,6 +4,7 @@ Email Order Ingestion Engine for Microsoft Graph.
 Polls inboxes for order-related emails and creates EmailLog entries for AI processing.
 """
 import logging
+import time
 from datetime import timedelta
 from typing import Any, Dict, List
 
@@ -130,6 +131,59 @@ class EmailIngestionService:
         if attachment_type:
             metadata['graph_attachment_type'] = attachment_type
         return metadata
+
+    @staticmethod
+    def _parse_retry_after_seconds(value: str | None) -> float | None:
+        if not value:
+            return None
+        try:
+            parsed = float(value)
+        except (TypeError, ValueError):
+            return None
+        return min(parsed, 300.0) if parsed > 0 else None
+
+    def _graph_get_with_retry(
+        self,
+        url: str,
+        *,
+        headers: Dict[str, str],
+        params: Dict[str, Any] | None = None,
+        timeout: int = 30,
+        stream: bool = False,
+        max_attempts: int = 3,
+    ) -> requests.Response:
+        last_exc: requests.RequestException | None = None
+
+        for attempt in range(max_attempts):
+            try:
+                response = requests.get(url, headers=headers, params=params, timeout=timeout, stream=stream)
+                if response.status_code in {429, 500, 502, 503, 504} and attempt < max_attempts - 1:
+                    delay = self._parse_retry_after_seconds(response.headers.get('Retry-After')) or float(2 ** attempt)
+                    time.sleep(delay)
+                    continue
+                response.raise_for_status()
+                return response
+            except requests.Timeout as exc:
+                last_exc = exc
+                if attempt >= max_attempts - 1:
+                    raise
+                time.sleep(float(2 ** attempt))
+            except requests.HTTPError as exc:
+                last_exc = exc
+                status_code = exc.response.status_code if exc.response is not None else None
+                if status_code not in {429, 500, 502, 503, 504} or attempt >= max_attempts - 1:
+                    raise
+                delay = self._parse_retry_after_seconds(exc.response.headers.get('Retry-After')) or float(2 ** attempt)
+                time.sleep(delay)
+            except requests.RequestException as exc:
+                last_exc = exc
+                if attempt >= max_attempts - 1:
+                    raise
+                time.sleep(float(2 ** attempt))
+
+        if last_exc is not None:
+            raise last_exc
+        raise requests.RequestException('Graph request failed without an exception payload')
 
     def _get_existing_attachment_document(
         self,
@@ -340,8 +394,7 @@ class EmailIngestionService:
                 page = 0
 
                 while next_url and page < max_pages and len(all_messages) < self.max_messages:
-                    response = requests.get(next_url, headers=headers, params=next_params, timeout=30)
-                    response.raise_for_status()
+                    response = self._graph_get_with_retry(next_url, headers=headers, params=next_params, timeout=30)
                     data = response.json() or {}
 
                     batch = data.get('value', []) or []
@@ -583,8 +636,7 @@ class EmailIngestionService:
         }
 
         try:
-            resp = requests.get(url, headers=headers, params=params, timeout=30)
-            resp.raise_for_status()
+            resp = self._graph_get_with_retry(url, headers=headers, params=params, timeout=30)
             messages = (resp.json() or {}).get('value', [])
         except Exception:
             logger.error('Graph actionable unread fetch failed tenant=%s', self.tenant.id, exc_info=True)
@@ -898,8 +950,7 @@ class EmailIngestionService:
         }
 
         try:
-            metadata_response = requests.get(metadata_url, headers=metadata_headers, timeout=30)
-            metadata_response.raise_for_status()
+            metadata_response = self._graph_get_with_retry(metadata_url, headers=metadata_headers, timeout=30)
             attachment_metadata = metadata_response.json() or {}
             try:
                 validate_graph_attachment_metadata(attachment_metadata)
@@ -958,8 +1009,7 @@ class EmailIngestionService:
             }
 
         try:
-            response = requests.get(url, headers=headers, timeout=30, stream=True)
-            response.raise_for_status()
+            response = self._graph_get_with_retry(url, headers=headers, timeout=30, stream=True)
         except requests.RequestException as exc:
             raise self._map_graph_exception(exc) from exc
 
@@ -1000,6 +1050,11 @@ class EmailIngestionService:
             attachment_metadata=attachment_metadata,
             session=session,
         )
+        source_metadata['semantic_indexing'] = {
+            'status': 'pending',
+            'mode': 'awaiting_parse',
+            'detail': 'Attachment stored; semantic indexing will run after parse.',
+        }
 
         try:
             with transaction.atomic():
@@ -1031,10 +1086,38 @@ class EmailIngestionService:
                 'file_name': canonical_file_name,
             }
 
+        try:
+            from tenant_apps.ai_assistant.services.lineage import create_lineage_event
+
+            create_lineage_event(
+                tenant=self.tenant,
+                document=document,
+                event_type='attachment_ingested',
+                source_type='microsoft_graph_attachment',
+                source_id=f'{message_id}:{attachment_id}',
+                target_type='document',
+                target_id=str(document.id),
+                summary='Microsoft Graph attachment stored as an AI document.',
+                metadata={
+                    'message_id': message_id,
+                    'attachment_id': attachment_id,
+                    'file_name': canonical_file_name,
+                },
+            )
+        except Exception:
+            logger.warning(
+                'Graph attachment ingest: failed to record lineage document=%s message=%s attachment=%s',
+                document.id,
+                message_id,
+                attachment_id,
+                exc_info=True,
+            )
+
         if session:
             try:
                 ChatMessage.objects.create(
                     session=session,
+                    tenant=getattr(session, 'tenant', None) or document.tenant or self.tenant,
                     message_type=MessageTypeChoices.DOCUMENT,
                     content=document.original_filename or 'Document uploaded',
                     metadata={
@@ -1059,18 +1142,6 @@ class EmailIngestionService:
                     session.id,
                     exc_info=True,
                 )
-
-        try:
-            from tenant_apps.ai_assistant.services.semantic_indexing import index_document_for_semantic_search
-
-            index_document_for_semantic_search(document)
-        except Exception as exc:
-            logger.warning(
-                'AIDocument graph attachment ingest: semantic indexing skipped for document=%s err=%s',
-                document.id,
-                str(exc),
-                exc_info=True,
-            )
 
         return {
             'status': 'success',
@@ -1138,8 +1209,7 @@ class EmailIngestionService:
         }
 
         try:
-            resp = requests.get(url, headers=headers, params=params, timeout=30)
-            resp.raise_for_status()
+            resp = self._graph_get_with_retry(url, headers=headers, params=params, timeout=30)
             messages = (resp.json() or {}).get('value', [])
         except Exception:
             logger.error('Graph unread fetch failed tenant=%s', tenant.id, exc_info=True)
@@ -1229,8 +1299,7 @@ class EmailIngestionService:
         page = 0
 
         while next_url and page < max_pages and len(all_messages) < limit:
-            response = requests.get(next_url, headers=headers, params=next_params, timeout=30)
-            response.raise_for_status()
+            response = self._graph_get_with_retry(next_url, headers=headers, params=next_params, timeout=30)
             data = response.json() or {}
 
             batch = data.get('value', []) or []
@@ -1310,7 +1379,6 @@ class EmailIngestionService:
             return []
 
         import base64
-        import requests
 
         url = f"{graph_provider.GRAPH_API_BASE}/me/messages/{message_id}/attachments"
         headers = {
@@ -1319,8 +1387,7 @@ class EmailIngestionService:
         }
 
         try:
-            resp = requests.get(url, headers=headers, timeout=30)
-            resp.raise_for_status()
+            resp = self._graph_get_with_retry(url, headers=headers, timeout=30)
             items = (resp.json() or {}).get('value', [])
         except Exception:
             logger.warning('Graph attachments fetch failed message_id=%s', message_id, exc_info=True)

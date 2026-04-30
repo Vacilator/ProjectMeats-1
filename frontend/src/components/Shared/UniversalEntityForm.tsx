@@ -4,26 +4,20 @@
  * Schema-driven create/edit form surface.
  *
  * Responsibilities:
- * - Fetch entity schema + existing values (edit)
- * - Render fields via DynamicFormEngine
- * - Provide tenant-safe, service-layer-backed persistence
- *
- * Notes:
- * - All requests must go through businessApi/apiClient (service layer)
- * - Foreign keys should use SearchableSelect to avoid massive dropdowns
+ * - Render preloaded schema/data via DynamicFormEngine
+ * - Stay pure and prop-driven
+ * - Normalize payloads before delegating persistence to the smart loader
  */
 
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useAuthState } from '@/contexts/AuthContext';
-import { Button, Modal, Spin, message, Select, Skeleton } from 'antd';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
+import { Button, Modal, message, Select, Skeleton } from 'antd';
 import { isEqual } from 'lodash';
 import styled from 'styled-components';
-import { businessApi } from '../../services/businessApi';
 import DynamicFormEngine from '../../features/system/DynamicFormEngine';
-import EntityOptionsSelect from '../FormSubmission/SearchableSelect';
 import { isValidEmail } from '../../shared/utils';
 import { normalizeUsPhone } from '../../utils/phone';
 import { getSelectPopupContainer as getDefaultSelectPopupContainer } from '../../utils/antd';
+import type { DynamicFormConfig } from '../../features/system/DynamicFormEngine';
 
 export type UniversalEntityFormMode = 'create' | 'edit' | 'view' | 'clone';
 export type UniversalEntityFormVariant = 'modal' | 'inline';
@@ -50,7 +44,16 @@ export interface UniversalEntityFormProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess?: (result: unknown) => void;
-  initialValues?: Record<string, unknown>;
+  initialData?: Record<string, unknown>;
+  schema: BackendSchema | null;
+  dropdownOptions?: Record<
+    string,
+    Array<{ value: string; label: string; metadata?: Record<string, unknown> }>
+  >;
+  formConfig?: Partial<DynamicFormConfig>;
+  loading?: boolean;
+  loadError?: unknown | null;
+  onSubmit: (payload: Record<string, unknown>) => Promise<unknown> | unknown;
 
   /** Optional override for prioritizing key fields first. */
   keyFields?: string[];
@@ -58,18 +61,24 @@ export interface UniversalEntityFormProps {
   /** When true, allows switching view → edit within the same surface. */
   allowModeSwitch?: boolean;
 
-  /** Preloaded resources supplied by an outer data loader to avoid in-component fetch loops. */
-  externalSchema?: BackendSchema | null;
-  externalRecordValues?: Record<string, unknown> | null;
-  externalLoading?: boolean;
-  externalLoadError?: unknown | null;
-  externalFkOptions?: Record<string, Array<{ id: string | number; name: string }>>;
+  /** Optional AI-assisted autofill controls owned by the smart loader. */
+  autofill?: {
+    documents: Array<{ id: string; original_filename: string }>;
+    selectedDocumentId: string;
+    loadingDocuments?: boolean;
+    extracting?: boolean;
+    disabled?: boolean;
+    onDocumentChange: (documentId: string) => void;
+    onExtract: () => void;
+    onUpload: (file: File) => void;
+  } | null;
 }
 
 type SchemaChoice = { value: unknown; label: string };
 
 export type BackendField = {
   key: string;
+  api_key?: string;
   label?: string;
   type?: string;
   required?: boolean;
@@ -84,6 +93,9 @@ export type BackendField = {
   choices?: SchemaChoice[] | null;
   ui?: Record<string, unknown> | null;
   dependencies?: string[];
+  item_fields?: BackendField[];
+  add_button_label?: string;
+  item_label?: string;
 };
 
 export type BackendSchema = {
@@ -94,6 +106,87 @@ export type BackendSchema = {
 };
 
 const EMPTY_FORM_VALUES: Record<string, unknown> = {};
+const EXTRACTABLE_ENTITY_KEYS = new Set(['purchase_order', 'sales_order', 'invoice', 'carrier_po']);
+
+const splitPath = (path: string): string[] =>
+  String(path || '')
+    .split('.')
+    .map((segment) => segment.trim())
+    .filter(Boolean);
+
+const getValueAtPath = (obj: unknown, path: string): any => {
+  const segments = splitPath(path);
+  let current = obj;
+  for (const segment of segments) {
+    if (current == null || typeof current !== 'object') {
+      return undefined;
+    }
+    current = (current as Record<string, unknown>)[segment];
+  }
+  return current;
+};
+
+const setValueAtPath = (target: Record<string, unknown>, path: string, value: unknown): void => {
+  const segments = splitPath(path);
+  if (!segments.length) return;
+
+  let current = target;
+  for (let index = 0; index < segments.length - 1; index += 1) {
+    const segment = segments[index];
+    const next = current[segment];
+    if (!next || typeof next !== 'object' || Array.isArray(next)) {
+      current[segment] = {};
+    }
+    current = current[segment] as Record<string, unknown>;
+  }
+  current[segments[segments.length - 1]] = value;
+};
+
+const SNAPSHOT_FIELD_TO_FORM_PATH: Record<
+  string,
+  { path: string; label: string; section: string }
+> = {
+  billing_contact_name: { path: 'billing_contact.name', label: 'Name', section: 'Billing Contact' },
+  billing_contact_phone: { path: 'billing_contact.phone', label: 'Phone', section: 'Billing Contact' },
+  billing_contact_email: { path: 'billing_contact.email', label: 'Email', section: 'Billing Contact' },
+  billing_contact_title: { path: 'billing_contact.title', label: 'Title', section: 'Billing Contact' },
+  billing_address_street: { path: 'billing_address.street', label: 'Street', section: 'Billing Address' },
+  billing_address_city: { path: 'billing_address.city', label: 'City', section: 'Billing Address' },
+  billing_address_state_zip: { path: 'billing_address.state_zip', label: 'State / Zip', section: 'Billing Address' },
+  billing_building_name: { path: 'billing_address.building_name', label: 'Building Name', section: 'Billing Address' },
+  shipping_contact_name: { path: 'shipping_contact.name', label: 'Name', section: 'Shipping Contact' },
+  shipping_contact_phone: { path: 'shipping_contact.phone', label: 'Phone', section: 'Shipping Contact' },
+  shipping_contact_email: { path: 'shipping_contact.email', label: 'Email', section: 'Shipping Contact' },
+  shipping_contact_title: { path: 'shipping_contact.title', label: 'Title', section: 'Shipping Contact' },
+  shipping_address_street: { path: 'shipping_address.street', label: 'Street', section: 'Shipping Address' },
+  shipping_address_city: { path: 'shipping_address.city', label: 'City', section: 'Shipping Address' },
+  shipping_address_state_zip: { path: 'shipping_address.state_zip', label: 'State / Zip', section: 'Shipping Address' },
+  shipping_building_name: { path: 'shipping_address.building_name', label: 'Building Name', section: 'Shipping Address' },
+  accounting_payable_contact_name: {
+    path: 'accounting_payable_contact.name',
+    label: 'Name',
+    section: 'Accounts Payable Contact',
+  },
+  accounting_payable_contact_phone: {
+    path: 'accounting_payable_contact.phone',
+    label: 'Phone',
+    section: 'Accounts Payable Contact',
+  },
+  accounting_payable_contact_email: {
+    path: 'accounting_payable_contact.email',
+    label: 'Email',
+    section: 'Accounts Payable Contact',
+  },
+  accounting_payable_contact_title: {
+    path: 'accounting_payable_contact.title',
+    label: 'Title',
+    section: 'Accounts Payable Contact',
+  },
+};
+
+const FORM_PATH_TO_SNAPSHOT_FIELD = Object.fromEntries(
+  Object.entries(SNAPSHOT_FIELD_TO_FORM_PATH).map(([apiKey, value]) => [value.path, apiKey])
+) as Record<string, string>;
 
 function useDeepStableValue<T>(value: T): T {
   const ref = useRef(value);
@@ -140,9 +233,9 @@ export const sanitizeInitialValuesForSchema = (
     if (!key) continue;
     if (!isArrayLikeField(field)) continue;
 
-    const current = next[key];
+    const current = getValueAtPath(next, key);
     if (current === undefined || current === null) {
-      next[key] = [];
+      setValueAtPath(next, key, []);
     }
   }
 
@@ -167,12 +260,12 @@ export const normalizeEntityKey = (entityType: string): string => {
   if (
     lower === 'carrier-pos' ||
     lower === 'carrier_pos' ||
-    lower === 'carrier_po' ||
-    lower === 'carrier_purchase_order' ||
+    lower === 'carrier-po' ||
     lower === 'freight-orders' ||
+    lower === 'freight-order' ||
     lower === 'freight_order'
   ) {
-    return 'carrier_purchase_order';
+    return 'carrier_po';
   }
 
   // Plural resources commonly used in UI routes.
@@ -201,12 +294,12 @@ export const normalizeEntityEndpoint = (entityType: string): string => {
     lower === 'carrier-pos' ||
     lower === 'carrier_pos' ||
     lower === 'carrier_po' ||
-    lower === 'carrier_purchase_order' ||
+    lower === 'carrier-po' ||
     lower === 'freight-orders' ||
-    lower === 'freight_order'
-  ) {
+    lower === 'freight_order' ||
+    lower === 'freight-order'
+  )
     return 'carrier-pos/';
-  }
   if (lower === 'inquiries' || lower === 'inquiry') return 'inquiries/';
 
   // Accounting canonical paths (legacy aliases still exist server-side).
@@ -224,24 +317,6 @@ export const normalizeEntityEndpoint = (entityType: string): string => {
   return `${lower.replace(/^\/+/, '').replace(/\/+$/, '')}/`;
 };
 
-const relatedEntityToEntityOptionsType = (relatedEntity: string | null | undefined, fieldKey: string): string | null => {
-  const related = String(relatedEntity || '').toLowerCase();
-  const key = String(fieldKey || '').toLowerCase();
-
-  if (!related && !key) return null;
-
-  if (related.includes('customers.') || key === 'customer') return 'customer';
-  if (related.includes('suppliers.') || key === 'supplier') return 'supplier';
-  if (related.includes('contacts.') || key === 'contact') return 'contact';
-  if (related.includes('purchase_orders.') || key === 'purchase_order') return 'purchase_order';
-  if (related.includes('sales_orders.') || key === 'sales_order') return 'sales_order';
-  if (related.includes('inquiries.') || key === 'inquiry') return 'inquiry';
-  if (related.includes('invoices.') || key === 'invoice') return 'invoice';
-  if (key.includes('product') || related.includes('system.product')) return 'product';
-
-  return null;
-};
-
 const shouldSkipField = (key: string): boolean => {
   const k = String(key || '').toLowerCase();
   return [
@@ -256,6 +331,105 @@ const shouldSkipField = (key: string): boolean => {
     'modified_on',
     'created_by',
   ].includes(k);
+};
+
+const mapBackendFieldKeyToFormPath = (entityKey: string, fieldKey: string): string => {
+  if (!EXTRACTABLE_ENTITY_KEYS.has(String(entityKey || '').toLowerCase())) {
+    return fieldKey;
+  }
+  return SNAPSHOT_FIELD_TO_FORM_PATH[fieldKey]?.path || fieldKey;
+};
+
+const mapFormPathToBackendFieldKey = (entityKey: string, fieldKey: string): string => {
+  if (!EXTRACTABLE_ENTITY_KEYS.has(String(entityKey || '').toLowerCase())) {
+    return fieldKey;
+  }
+  return FORM_PATH_TO_SNAPSHOT_FIELD[fieldKey] || fieldKey;
+};
+
+const normalizeValuesForForm = (
+  entityKey: string,
+  values: Record<string, unknown> | null | undefined
+): Record<string, unknown> => {
+  const next: Record<string, unknown> = {};
+  Object.entries(values || {}).forEach(([key, value]) => {
+    setValueAtPath(next, mapBackendFieldKeyToFormPath(entityKey, key), value);
+  });
+  return next;
+};
+
+const buildTransactionalLineItemField = (entityKey: string): BackendField | null => {
+  if (!EXTRACTABLE_ENTITY_KEYS.has(entityKey)) return null;
+
+  const baseItemFields: BackendField[] = [
+    {
+      key: 'protein_type',
+      label: 'Protein Type',
+      type: 'select',
+    },
+    {
+      key: 'product_description',
+      label: 'Product Description',
+      type: 'select',
+      required: false,
+      related_entity: 'system.product',
+      dependencies: ['protein_type'],
+      ui: { data_source: { type: 'master_products' } },
+    },
+    {
+      key: 'fresh_or_frozen',
+      label: 'Fresh / Frozen',
+      type: 'select',
+    },
+    {
+      key: 'package_type',
+      label: 'Package Type',
+      type: 'select',
+    },
+    { key: 'quantity', label: 'Quantity', type: 'number' },
+    {
+      key: 'uom',
+      label: 'UOM',
+      type: 'select',
+    },
+    {
+      key: 'net_or_catch',
+      label: 'Net / Catch',
+      type: 'select',
+    },
+    {
+      key: 'edible_or_inedible',
+      label: 'Edible / Inedible',
+      type: 'select',
+    },
+    { key: 'tested_product', label: 'Tested Product', type: 'checkbox' },
+    { key: 'total_net_weight', label: 'Total Net Weight', type: 'number' },
+  ];
+
+  if (entityKey === 'invoice') {
+    baseItemFields.push(
+      { key: 'unit_price', label: 'Unit Price', type: 'number' },
+      { key: 'line_total', label: 'Line Total', type: 'number' }
+    );
+  }
+
+  baseItemFields.push({ key: 'notes', label: 'Notes', type: 'textarea', required: false });
+
+  return {
+    key: 'items',
+    label: 'Line Items',
+    type: 'inline_form_array',
+    required: false,
+    ui: {
+      widget: 'inline_form_array',
+      add_button_label: 'Add Item',
+      item_label: 'Item',
+      section: { title: 'Line Items' },
+    },
+    item_fields: baseItemFields,
+    add_button_label: 'Add Item',
+    item_label: 'Item',
+  };
 };
 
 export const isPhoneNumberFieldKey = (key: string): boolean => {
@@ -421,7 +595,49 @@ export const augmentSchemaForFrontend = (
   if (!schema) return schema;
 
   const normalizedEntityKey = String(entityKey || '').trim().toLowerCase();
-  const fields = Array.isArray(schema.fields) ? [...schema.fields] : [];
+  const fields = (Array.isArray(schema.fields) ? [...schema.fields] : []).map((field) => {
+    const backendKey = String(field.key || '');
+    const mapped = SNAPSHOT_FIELD_TO_FORM_PATH[backendKey];
+
+    if (!mapped || !EXTRACTABLE_ENTITY_KEYS.has(normalizedEntityKey)) {
+      return field;
+    }
+
+    const ui = field.ui && typeof field.ui === 'object' ? { ...(field.ui as Record<string, unknown>) } : {};
+    ui.section = { title: mapped.section };
+
+    return {
+      ...field,
+      api_key: backendKey,
+      key: mapped.path,
+      label: mapped.label,
+      ui,
+    };
+  });
+
+  const ensureField = (
+    list: BackendField[],
+    key: string,
+    build: (existing?: BackendField) => BackendField
+  ) => {
+    const index = list.findIndex((field) => String(field.key).toLowerCase() === key.toLowerCase());
+    const existing = index >= 0 ? list[index] : undefined;
+    const nextField = build(existing);
+
+    if (index >= 0) {
+      list[index] = nextField;
+    } else {
+      list.push(nextField);
+    }
+  };
+
+  const transactionalItemsField = buildTransactionalLineItemField(normalizedEntityKey);
+  if (transactionalItemsField) {
+    ensureField(fields, transactionalItemsField.key, (existing) => ({
+      ...(existing || transactionalItemsField),
+      ...transactionalItemsField,
+    }));
+  }
 
   if (normalizedEntityKey === 'location') {
     const nextFields = fields.map((field) => {
@@ -914,128 +1130,78 @@ export const augmentSchemaForFrontend = (
   };
 };
 
-export const fetchUniversalEntitySchema = async (
-  entityType: string,
-  endpoint = normalizeEntityEndpoint(entityType),
-  schemaEntityKey = normalizeEntityKey(entityType)
-): Promise<BackendSchema | null> => {
-  try {
-    const resp = await businessApi.get('/system/forms/schema/', {
-      params: { entity_type: schemaEntityKey },
-    });
-    return (resp.data ?? null) as BackendSchema | null;
-  } catch {
-    const resp = await businessApi.options(endpoint);
-    const data = resp.data as unknown;
-    const actions =
-      data && typeof data === 'object' && 'actions' in data
-        ? ((data as Record<string, unknown>).actions as Record<string, unknown> | undefined)
-        : undefined;
-    const postFields =
-      (actions && 'POST' in actions ? (actions.POST as Record<string, unknown>) : {}) || {};
-
-    const fields: BackendField[] = Object.entries(postFields).map(([key, meta]) => {
-      const metaObj =
-        (meta && typeof meta === 'object' ? (meta as Record<string, unknown>) : {}) || {};
-      const choicesRaw = metaObj.choices;
-      const choices = Array.isArray(choicesRaw)
-        ? choicesRaw.map((choiceItem: unknown) => {
-            const choice =
-              (choiceItem && typeof choiceItem === 'object'
-                ? (choiceItem as Record<string, unknown>)
-                : {}) || {};
-            const value = choice.value;
-            const label =
-              (typeof choice.display_name === 'string' && choice.display_name) ||
-              (value != null ? String(value) : '');
-
-            return { value, label };
-          })
-        : null;
-
-      const rawType = typeof metaObj.type === 'string' ? metaObj.type : undefined;
-      const lowerKey = String(key || '').toLowerCase();
-      const inferredType = isPhoneNumberFieldKey(lowerKey)
-        ? 'phone'
-        : lowerKey.includes('email')
-          ? 'email'
-          : mapDrfOptionsType(rawType);
-
-      return {
-        key,
-        label: (typeof metaObj.label === 'string' && metaObj.label) || key,
-        type: inferredType,
-        required: Boolean(metaObj.required),
-        help_text: (typeof metaObj.help_text === 'string' && metaObj.help_text) || '',
-        choices,
-      };
-    });
-
-    return {
-      name: schemaEntityKey === 'contact' ? 'Contact' : `Universal Form: ${entityType}`,
-      description: 'Auto-derived from OPTIONS.',
-      fields,
-    };
-  }
+const prepareFormResources = (
+  entityKey: string,
+  schema: BackendSchema | null,
+  values: Record<string, unknown> | null | undefined
+): { schema: BackendSchema | null; values: Record<string, unknown> } => {
+  const normalizedValues = normalizeValuesForForm(entityKey, values);
+  const preparedSchema = augmentSchemaForFrontend(entityKey, schema, normalizedValues);
+  return {
+    schema: preparedSchema,
+    values: sanitizeInitialValuesForSchema(preparedSchema, normalizedValues),
+  };
 };
 
-export const fetchUniversalEntityRecord = async (
-  entityType: string,
-  entityId: string | number
-): Promise<Record<string, unknown> | null> => {
-  const endpoint = normalizeEntityEndpoint(entityType);
-  const resp = await businessApi.get(`${endpoint}${entityId}/`);
-  const data = resp.data as unknown;
+const AutofillToolbar: React.FC<NonNullable<UniversalEntityFormProps['autofill']>> = ({
+  documents,
+  selectedDocumentId,
+  loadingDocuments = false,
+  extracting = false,
+  disabled = false,
+  onDocumentChange,
+  onExtract,
+  onUpload,
+}) => {
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-  return data && typeof data === 'object' ? (data as Record<string, unknown>) : null;
-};
-
-export const fetchUniversalEntityFkOptions = async (
-  field: BackendField
-): Promise<Array<{ id: string | number; name: string }>> => {
-  const related = String(field.related_entity || '').toLowerCase();
-  if (
-    !related ||
-    related.includes('system.product') ||
-    String(field.key).toLowerCase().includes('product')
-  ) {
-    return [];
-  }
-
-  const relatedEndpoint = related.includes('customers.')
-    ? 'customers/'
-    : related.includes('suppliers.')
-      ? 'suppliers/'
-      : related.includes('contacts.')
-        ? 'contacts/'
-        : null;
-
-  if (!relatedEndpoint) {
-    return [];
-  }
-
-  const resp = await businessApi.get(relatedEndpoint, { params: { page_size: 200 } });
-  const payload = resp.data as unknown;
-  const payloadObj =
-    typeof payload === 'object' && payload ? (payload as Record<string, unknown>) : null;
-  const rows = Array.isArray(payloadObj?.results) ? payloadObj.results : payload;
-
-  return (Array.isArray(rows) ? rows : []).map((rowValue: unknown) => {
-    const row =
-      (rowValue && typeof rowValue === 'object'
-        ? (rowValue as Record<string, unknown>)
-        : {}) || {};
-
-    return {
-      id: (row.id as string | number | undefined) ?? '',
-      name:
-        (typeof row.name === 'string' && row.name) ||
-        (typeof row.company_name === 'string' && row.company_name) ||
-        (typeof row.full_name === 'string' && row.full_name) ||
-        (typeof row.email === 'string' && row.email) ||
-        String(row.id ?? ''),
-    };
-  });
+  return (
+    <div
+      style={{
+        display: 'flex',
+        flexWrap: 'wrap',
+        alignItems: 'center',
+        gap: 8,
+        marginBottom: 16,
+        padding: 12,
+        border: '1px solid rgb(var(--color-border))',
+        borderRadius: 8,
+        background: 'rgb(var(--color-surface))',
+      }}
+    >
+      <Select
+        style={{ minWidth: 260, flex: '1 1 260px' }}
+        placeholder="Select AI document"
+        value={selectedDocumentId || undefined}
+        onChange={(value) => onDocumentChange(String(value))}
+        options={documents.map((document) => ({
+          value: document.id,
+          label: document.original_filename,
+        }))}
+        loading={loadingDocuments}
+        disabled={disabled || extracting}
+      />
+      <Button onClick={() => onExtract()} disabled={disabled || extracting || !selectedDocumentId}>
+        {extracting ? 'Autofilling…' : 'Autofill from document'}
+      </Button>
+      <Button onClick={() => fileInputRef.current?.click()} disabled={disabled || extracting}>
+        Upload & Autofill
+      </Button>
+      <input
+        ref={fileInputRef}
+        type="file"
+        hidden
+        accept=".pdf,.txt,.csv,.jpg,.jpeg,.png,.doc,.docx,.xls,.xlsx"
+        onChange={(event) => {
+          const file = event.target.files?.[0];
+          if (file) {
+            onUpload(file);
+          }
+          event.target.value = '';
+        }}
+      />
+    </div>
+  );
 };
 
 export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
@@ -1046,60 +1212,26 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
   isOpen,
   onClose,
   onSuccess,
-  initialValues,
+  initialData,
+  schema,
+  dropdownOptions = {},
+  formConfig,
+  loading = false,
+  loadError = null,
+  onSubmit,
   keyFields,
   allowModeSwitch,
-  externalSchema,
-  externalRecordValues,
-  externalLoading,
-  externalLoadError,
-  externalFkOptions,
+  autofill,
 }) => {
-  const { isAuthenticated, loading: authLoading } = useAuthState();
-  const stableInitialValues = useDeepStableValue(initialValues);
-  const stableInitialValuesSignature = useMemo(
-    () => getStableSignature(stableInitialValues ?? EMPTY_FORM_VALUES),
-    [stableInitialValues]
+  const schemaEntityKey = useMemo(() => normalizeEntityKey(entityType), [entityType]);
+  const stableInitialValues = useDeepStableValue(initialData);
+  const preparedResources = useMemo(
+    () => prepareFormResources(schemaEntityKey, schema, initialData ?? EMPTY_FORM_VALUES),
+    [initialData, schema, schemaEntityKey]
   );
-  const hasExternalFormResources =
-    externalSchema !== undefined ||
-    externalRecordValues !== undefined ||
-    externalLoading !== undefined ||
-    externalLoadError !== undefined;
-  const initialResolvedValues = useMemo(
-    () =>
-      sanitizeInitialValuesForSchema(externalSchema ?? null, {
-        ...(externalRecordValues || {}),
-        ...((stableInitialValues as Record<string, unknown> | undefined) || {}),
-      }),
-    [externalRecordValues, externalSchema, stableInitialValues]
-  );
-
-  const [loading, setLoading] = useState(Boolean(externalLoading));
-  const [loadError, setLoadError] = useState<unknown | null>(null);
+  const preparedSchema = preparedResources.schema;
+  const formInitialValues = useDeepStableValue(preparedResources.values);
   const [submitting, setSubmitting] = useState(false);
-  const [schema, setSchema] = useState<BackendSchema | null>(null);
-  const [, setRecordValues] = useState<Record<string, unknown> | null>(null);
-
-  const initialValuesRef = useRef<Record<string, unknown> | undefined>(stableInitialValues);
-  const [resolvedInitialValues, setResolvedInitialValues] = useState<Record<string, unknown>>(
-    initialResolvedValues
-  );
-  const lastLoadSignatureRef = useRef<string | null>(null);
-  const lastFkSignatureRef = useRef<string | null>(null);
-
-  useEffect(() => {
-    if (hasExternalFormResources) return;
-    if (!isOpen) return;
-    initialValuesRef.current = stableInitialValues;
-  }, [hasExternalFormResources, isOpen, stableInitialValues]);
-
-  useEffect(() => {
-    if (!isOpen) {
-      lastLoadSignatureRef.current = null;
-      lastFkSignatureRef.current = null;
-    }
-  }, [isOpen]);
 
   const inferredMode: UniversalEntityFormMode = useMemo(() => {
     const hasId = entityId != null && String(entityId).trim().length > 0;
@@ -1114,237 +1246,11 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
   const [activeMode, setActiveMode] = useState<UniversalEntityFormMode>(inferredMode);
 
   const [fkValues, setFkValues] = useState<Record<string, unknown>>({});
-  const [fkOptions, setFkOptions] = useState<
-    Record<string, Array<{ id: string | number; name: string }>>
-  >({});
-  const [productOptions, setProductOptions] = useState<
-    Record<string, Array<{ value: string; label: string }>>
-  >({});
-  const [loadingProducts, setLoadingProducts] = useState<Record<string, boolean>>({});
   const [showAdvanced, setShowAdvanced] = useState(false);
-
-  const productSearchSeqRef = useRef<Record<string, number>>({});
-
-  const schemaEntityKey = useMemo(() => normalizeEntityKey(entityType), [entityType]);
-  const endpoint = useMemo(() => normalizeEntityEndpoint(entityType), [entityType]);
-  const stableResolvedInitialValues = useDeepStableValue(resolvedInitialValues);
-  const resolvedSchema = hasExternalFormResources ? externalSchema ?? null : schema;
-  const resolvedLoading = hasExternalFormResources ? Boolean(externalLoading) : loading;
-  const resolvedLoadError = hasExternalFormResources ? externalLoadError ?? null : loadError;
-  const resolvedFormInitialValues = hasExternalFormResources
-    ? initialResolvedValues
-    : stableResolvedInitialValues;
-  const resolvedFkOptions = externalFkOptions ?? fkOptions;
 
   const getSelectPopupContainer = useCallback((triggerNode: HTMLElement) => {
     return getDefaultSelectPopupContainer(triggerNode);
   }, []);
-
-  const setSchemaIfChanged = useCallback((next: BackendSchema | null) => {
-    setSchema((prev) => (isEqual(prev, next) ? prev : next));
-  }, []);
-
-  const setRecordValuesIfChanged = useCallback((next: Record<string, unknown> | null) => {
-    setRecordValues((prev) => (isEqual(prev, next) ? prev : next));
-  }, []);
-
-  const setResolvedInitialValuesIfChanged = useCallback((next: Record<string, unknown>) => {
-    setResolvedInitialValues((prev) => (isEqual(prev, next) ? prev : next));
-  }, []);
-
-  const loadSchema = useCallback(() => {
-    return fetchUniversalEntitySchema(entityType, endpoint, schemaEntityKey);
-  }, [endpoint, entityType, schemaEntityKey]);
-
-  const loadSignature = useMemo(
-    () =>
-      getStableSignature({
-        endpoint,
-        entityId: entityId == null ? '' : String(entityId),
-        inferredMode,
-        schemaEntityKey,
-        initialValues: stableInitialValuesSignature,
-      }),
-    [endpoint, entityId, inferredMode, schemaEntityKey, stableInitialValuesSignature]
-  );
-
-  useEffect(() => {
-    if (hasExternalFormResources) return;
-    if (!isOpen) return;
-
-    setLoadError(null);
-    setShowAdvanced(false);
-    setActiveMode(inferredMode);
-    setRecordValuesIfChanged(null);
-
-    const initialSnapshot = (initialValuesRef.current || EMPTY_FORM_VALUES) as Record<string, unknown>;
-    setResolvedInitialValuesIfChanged(initialSnapshot);
-    setFkValues({});
-
-    // Wait for auth initialization to settle before attempting any protected calls.
-    if (authLoading) {
-      setLoading(true);
-      return;
-    }
-
-    // If no token credentials exist, do NOT attempt network calls. This prevents
-    // a 401→state update→re-render→retry loop that can trigger React error #185.
-    if (!isAuthenticated) {
-      setSchemaIfChanged(null);
-      setRecordValuesIfChanged(null);
-      setLoading(false);
-      setLoadError({ response: { status: 401 } });
-
-      // Best-effort redirect matching the global interceptor behavior.
-      if (typeof window !== 'undefined') {
-        const currentPath = `${window.location.pathname}${window.location.search}`;
-        if (!currentPath.startsWith('/login')) {
-          try {
-            localStorage.setItem('redirectAfterLogin', currentPath);
-          } catch {
-            // best-effort
-          }
-
-          try {
-            window.location.assign('/login');
-          } catch {
-            // JSDOM/tests may throw on navigation.
-          }
-        }
-      }
-
-      return;
-    }
-
-    if (lastLoadSignatureRef.current === loadSignature) {
-      return;
-    }
-
-    lastLoadSignatureRef.current = loadSignature;
-
-    let mounted = true;
-
-    const load = async () => {
-      setLoading(true);
-      try {
-        const nextSchema = await loadSchema();
-
-        const shouldLoadRecord =
-          inferredMode !== 'create' && entityId != null && String(entityId).trim().length > 0;
-
-        let nextRecord: Record<string, unknown> | null = null;
-        if (shouldLoadRecord) {
-          nextRecord = await fetchUniversalEntityRecord(entityType, entityId);
-        }
-
-        if (!mounted) return;
-        const merged: Record<string, unknown> = { ...(nextRecord || {}), ...initialSnapshot };
-        const sanitized = sanitizeInitialValuesForSchema(nextSchema, merged);
-        setSchemaIfChanged(augmentSchemaForFrontend(schemaEntityKey, nextSchema, sanitized));
-        setRecordValuesIfChanged(nextRecord);
-        setResolvedInitialValuesIfChanged(sanitized);
-        setFkValues({});
-      } catch (err: unknown) {
-        if (!mounted) return;
-        setLoadError(err);
-        setSchemaIfChanged(null);
-        setRecordValuesIfChanged(null);
-        setResolvedInitialValuesIfChanged(initialSnapshot);
-        setFkValues({});
-
-        const status = (err as any)?.response?.status;
-        const errorMessage =
-          typeof (err as { response?: { data?: { error?: string } } })?.response?.data?.error ===
-          'string'
-            ? (err as { response?: { data?: { error?: string } } }).response?.data?.error
-            : 'Failed to load form';
-
-        // Avoid toast spam for auth failures; the global interceptor will redirect.
-        if (status !== 401 && status !== 403) {
-          message.error(errorMessage);
-        }
-      } finally {
-        if (mounted) setLoading(false);
-      }
-    };
-
-    void load();
-
-    return () => {
-      mounted = false;
-    };
-  }, [
-    authLoading,
-    hasExternalFormResources,
-    endpoint,
-    entityId,
-    entityType,
-    inferredMode,
-    isAuthenticated,
-    isOpen,
-    loadSignature,
-    loadSchema,
-    schemaEntityKey,
-    setRecordValuesIfChanged,
-    setResolvedInitialValuesIfChanged,
-    setSchemaIfChanged,
-  ]);
-
-  const fkLoadSignature = useMemo(() => {
-    const fkFields = (resolvedSchema?.fields ?? [])
-      .filter((field) => !shouldSkipField(field.key) && Boolean(field.related_entity))
-      .map((field) => ({
-        key: field.key,
-        related_entity: field.related_entity,
-      }));
-
-    return getStableSignature(fkFields);
-  }, [resolvedSchema?.fields]);
-
-  // Load basic FK option lists (best-effort) for non-product references.
-  useEffect(() => {
-    if (externalFkOptions !== undefined) return;
-    if (!isOpen || !resolvedSchema?.fields?.length) return;
-
-    if (lastFkSignatureRef.current === fkLoadSignature) {
-      return;
-    }
-
-    lastFkSignatureRef.current = fkLoadSignature;
-
-    const fkFields = resolvedSchema.fields.filter(
-      (f) => !shouldSkipField(f.key) && Boolean(f.related_entity)
-    );
-    if (!fkFields.length) return;
-
-    let cancelled = false;
-
-    const loadFk = async () => {
-      for (const f of fkFields) {
-        try {
-          const options = await fetchUniversalEntityFkOptions(f);
-          if (!options.length) continue;
-
-          if (cancelled) return;
-          setFkOptions((prev) => {
-            if (isEqual(prev[f.key], options)) {
-              return prev;
-            }
-
-            return { ...prev, [f.key]: options };
-          });
-        } catch {
-          // ignore
-        }
-      }
-    };
-
-    void loadFk();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [externalFkOptions, fkLoadSignature, isOpen, resolvedSchema?.fields]);
 
   const preferredKeys = useMemo(() => {
     const normalized = schemaEntityKey.toLowerCase();
@@ -1401,12 +1307,12 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
     return (
       (keyFields && keyFields.length
         ? keyFields
-        : resolvedSchema?.key_fields && resolvedSchema.key_fields.length
-          ? resolvedSchema.key_fields
+        : preparedSchema?.key_fields && preparedSchema.key_fields.length
+          ? preparedSchema.key_fields
           : defaultKeyFields[normalized]) ||
       []
     );
-  }, [keyFields, resolvedSchema?.key_fields, schemaEntityKey]);
+  }, [keyFields, preparedSchema?.key_fields, schemaEntityKey]);
 
   const preferredKeySet = useMemo(() => {
     return new Set(preferredKeys.map((k) => String(k).toLowerCase()));
@@ -1417,10 +1323,10 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
   }, [preferredKeys]);
 
   const fkFields = useMemo(() => {
-    return (resolvedSchema?.fields ?? []).filter(
+    return (preparedSchema?.fields ?? []).filter(
       (f) => !shouldSkipField(f.key) && Boolean(f.related_entity)
     );
-  }, [resolvedSchema?.fields]);
+  }, [preparedSchema?.fields]);
 
   const keyFkFields = useMemo(() => {
     const keyOnes = fkFields.filter((f) => preferredKeySet.has(String(f.key).toLowerCase()));
@@ -1441,7 +1347,7 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
   }, [fkFields, preferredKeySet]);
 
   const scalarFields = useMemo(() => {
-    const raw = (resolvedSchema?.fields ?? [])
+    const raw = (preparedSchema?.fields ?? [])
       .filter((f) => !shouldSkipField(f.key))
       .filter((f) => !f.related_entity)
       .map((f) => {
@@ -1486,13 +1392,22 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
 
                 return {
                   key: String(sub.key || ''),
+                  api_key: typeof sub.api_key === 'string' ? sub.api_key : undefined,
                   label: typeof sub.label === 'string' ? sub.label : String(sub.key || ''),
                   type: subChoices?.length ? 'select' : String(sub.type ?? 'text'),
                   required: Boolean(sub.required),
+                  related_entity:
+                    typeof sub.related_entity === 'string' ? sub.related_entity : undefined,
                   options: subChoices as Array<{ value: string; label: string }> | undefined,
                   placeholder: typeof sub.placeholder === 'string' ? sub.placeholder : undefined,
                   help_text: typeof sub.help_text === 'string' ? sub.help_text : undefined,
-                  ui: subWidget ? { widget: subWidget } : undefined,
+                  ui:
+                    subUi || subWidget
+                      ? ({
+                          ...(subUi || {}),
+                          ...(subWidget ? { widget: subWidget } : {}),
+                        } as Record<string, unknown>)
+                      : undefined,
                   dependencies: Array.isArray(sub.dependencies)
                     ? sub.dependencies
                         .map((item) => String(item || '').trim())
@@ -1515,10 +1430,12 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
 
         return {
           key: f.key,
+          api_key: f.api_key,
           label: f.label || f.key,
           type: isInlineArray ? 'inline_form_array' : f.choices?.length ? 'select' : String(f.type ?? 'text'),
           required: Boolean(f.required),
           is_advanced: Boolean(f.is_advanced),
+          related_entity: f.related_entity || undefined,
           options,
           placeholder: f.placeholder || undefined,
           help_text: f.help_text,
@@ -1547,7 +1464,7 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
       if (ra !== rb) return ra - rb;
       return a.label.localeCompare(b.label);
     });
-  }, [preferredKeys, resolvedSchema?.fields]);
+  }, [preferredKeys, preparedSchema?.fields]);
 
   type DynamicSchema = {
     step_index: number;
@@ -1557,7 +1474,7 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
   };
 
   const dynamicSchema: DynamicSchema = useMemo(() => {
-    const contactContext = inferContactFormContext(resolvedFormInitialValues);
+    const contactContext = inferContactFormContext(formInitialValues);
 
     const supplierTitle =
       schemaEntityKey === 'supplier' ? (activeMode === 'create' ? 'New Supplier' : 'Supplier') : null;
@@ -1570,29 +1487,50 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
           ? customerTitle
           : schemaEntityKey === 'contact' && activeMode === 'create'
             ? getContactCreateTitle(contactContext)
-          : resolvedSchema?.name || `Universal Form: ${entityType}`;
+          : preparedSchema?.name || `Universal Form: ${entityType}`;
 
     return {
       step_index: 0,
       name: formName,
-      description: resolvedSchema?.description,
+      description: preparedSchema?.description,
       fields: scalarFields,
     };
   }, [
     activeMode,
     entityType,
     scalarFields,
-    resolvedFormInitialValues,
-    resolvedSchema?.description,
-    resolvedSchema?.name,
+    formInitialValues,
+    preparedSchema?.description,
+    preparedSchema?.name,
     schemaEntityKey,
   ]);
 
-  const formInitialValues = useDeepStableValue(resolvedFormInitialValues);
   const stableDynamicSchema = useDeepStableValue(dynamicSchema);
+  const dynamicFormKey = useMemo(
+    () =>
+      getStableSignature({
+        entityType: schemaEntityKey,
+        mode: activeMode,
+        entityId: entityId == null ? 'new' : String(entityId),
+        initialValues: formInitialValues,
+      }),
+    [activeMode, entityId, formInitialValues, schemaEntityKey]
+  );
   const getCurrentFkValue = useCallback(
-    (fieldKey: string) => fkValues[fieldKey] ?? formInitialValues?.[fieldKey],
+    (fieldKey: string) => fkValues[fieldKey] ?? getValueAtPath(formInitialValues, fieldKey),
     [fkValues, formInitialValues]
+  );
+  const getFieldSelectOptions = useCallback(
+    (fieldKey: string) => dropdownOptions[fieldKey] || [],
+    [dropdownOptions]
+  );
+  const getFieldDisplayValue = useCallback(
+    (fieldKey: string, rawValue: unknown) => {
+      const stringValue = String(rawValue ?? '');
+      const option = getFieldSelectOptions(fieldKey).find((entry) => String(entry.value) === stringValue);
+      return option?.label || stringValue;
+    },
+    [getFieldSelectOptions]
   );
 
   const modalTitle = useMemo(() => {
@@ -1617,12 +1555,19 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
       return getContactCreateTitle(contactContext);
     }
 
-    return resolvedSchema?.name || (entityId ? `${entityType} ${entityId}` : `New ${entityType}`);
-  }, [activeMode, entityId, entityType, formInitialValues, resolvedSchema?.name, schemaEntityKey]);
+    return preparedSchema?.name || (entityId ? `${entityType} ${entityId}` : `New ${entityType}`);
+  }, [activeMode, entityId, entityType, formInitialValues, preparedSchema?.name, schemaEntityKey]);
 
   const submit = useCallback(
     async (data: Record<string, unknown>) => {
-      const payload: Record<string, unknown> = { ...data };
+      const payload: Record<string, unknown> = {};
+
+      (scalarFields || []).forEach((field) => {
+        const value = getValueAtPath(data, field.key);
+        if (value === undefined) return;
+        const backendKey = field.api_key || mapFormPathToBackendFieldKey(schemaEntityKey, field.key);
+        payload[backendKey] = value;
+      });
 
       // Enforce required FK fields (they are rendered outside DynamicFormEngine).
       const missingFk = fkFields
@@ -1645,14 +1590,16 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
       fkFields.forEach((f) => {
         const currentFkValue = getCurrentFkValue(f.key);
         if (currentFkValue !== undefined) {
-          payload[f.key] = currentFkValue;
+          payload[f.api_key || f.key] = currentFkValue;
         }
       });
 
       // Merge explicit initial values for fields not rendered by the schema.
       if (stableInitialValues) {
         Object.entries(stableInitialValues).forEach(([k, v]) => {
-          if (payload[k] === undefined && v !== undefined) payload[k] = v;
+          if (payload[k] !== undefined || v === undefined) return;
+          if (Array.isArray(v) || (typeof v === 'object' && v !== null)) return;
+          payload[k] = v;
         });
       }
 
@@ -1670,7 +1617,9 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
 
       // Normalize payload (avoid sending empty strings that cause DRF validation errors).
       const numberKeys = new Set(
-        (scalarFields || []).filter((f) => String(f.type).toLowerCase() === 'number').map((f) => f.key)
+        (scalarFields || [])
+          .filter((f) => String(f.type).toLowerCase() === 'number')
+          .map((f) => f.api_key || mapFormPathToBackendFieldKey(schemaEntityKey, f.key))
       );
       const emailKeySet = new Set(
         (scalarFields || [])
@@ -1679,28 +1628,38 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
             const type = String(f.type || '').toLowerCase();
             return key.includes('email') || type.includes('email');
           })
-          .map((f) => f.key)
+          .map((f) => f.api_key || mapFormPathToBackendFieldKey(schemaEntityKey, f.key))
       );
       const emailLabelByKey = new Map(
         (scalarFields || [])
-          .filter((f) => emailKeySet.has(f.key))
-          .map((f) => [f.key, f.label || f.key] as const)
+          .filter((f) =>
+            emailKeySet.has(f.api_key || mapFormPathToBackendFieldKey(schemaEntityKey, f.key))
+          )
+          .map((f) => [
+            f.api_key || mapFormPathToBackendFieldKey(schemaEntityKey, f.key),
+            f.label || f.key,
+          ] as const)
       );
       const zipKeySet = new Set(
         (scalarFields || [])
           .filter((f) => String(f.key || '').toLowerCase().includes('zip_code'))
-          .map((f) => f.key)
+          .map((f) => f.api_key || mapFormPathToBackendFieldKey(schemaEntityKey, f.key))
       );
       const zipLabelByKey = new Map(
         (scalarFields || [])
-          .filter((f) => zipKeySet.has(f.key))
-          .map((f) => [f.key, f.label || f.key] as const)
+          .filter((f) =>
+            zipKeySet.has(f.api_key || mapFormPathToBackendFieldKey(schemaEntityKey, f.key))
+          )
+          .map((f) => [
+            f.api_key || mapFormPathToBackendFieldKey(schemaEntityKey, f.key),
+            f.label || f.key,
+          ] as const)
       );
 
       const phoneKeySet = new Set(
         (scalarFields || [])
           .filter((f) => isPhoneNumberFieldKey(String(f.key || '')))
-          .map((f) => f.key)
+          .map((f) => f.api_key || mapFormPathToBackendFieldKey(schemaEntityKey, f.key))
       );
 
       const inlineArrayPhoneKeys = new Map<string, string[]>();
@@ -1811,17 +1770,10 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
 
       try {
         setSubmitting(true);
-        const hasEntityId = entityId != null && String(entityId).trim().length > 0;
-        const isEditSubmit = hasEntityId && activeMode === 'edit';
-
-        const resp = isEditSubmit
-          ? await businessApi.patch(`${endpoint}${entityId}/`, payload)
-          : await businessApi.post(endpoint, payload);
-
-        onSuccess?.(resp.data);
+        const result = await onSubmit(payload);
+        onSuccess?.(result);
         onClose();
       } catch (err: unknown) {
-        console.error('[UniversalEntityForm] Submit failed:', err);
         const typed = err as {
           response?: {
             data?: unknown;
@@ -1858,86 +1810,16 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
       }
     },
     [
-      endpoint,
-      entityId,
-      activeMode,
       fkFields,
-      formInitialValues,
       getCurrentFkValue,
       onClose,
+      onSubmit,
       onSuccess,
-      preferredKeySet,
       scalarFields,
+      schemaEntityKey,
       showAdvanced,
       stableInitialValues,
     ]
-  );
-
-  const fetchProducts = useCallback(
-    async (fieldKey: string, q: string) => {
-      const nextSeq = (productSearchSeqRef.current[fieldKey] ?? 0) + 1;
-      productSearchSeqRef.current[fieldKey] = nextSeq;
-
-      setLoadingProducts((prev) => ({ ...prev, [fieldKey]: true }));
-      try {
-        const resp = await businessApi.get('/system/products/', {
-          params: { search: q || undefined, page_size: 50, limit: 50, is_active: true },
-        });
-
-        // Ignore out-of-order responses.
-        if (productSearchSeqRef.current[fieldKey] !== nextSeq) return;
-
-        const payload = resp.data as unknown;
-        const payloadObj =
-          typeof payload === 'object' && payload ? (payload as Record<string, unknown>) : null;
-        const rows = Array.isArray(payload)
-          ? payload
-          : Array.isArray(payloadObj?.results)
-            ? payloadObj?.results
-            : [];
-
-        const opts = rows.map((p: unknown) => {
-          const row = (p && typeof p === 'object' ? (p as Record<string, unknown>) : {}) || {};
-          const id = row.id;
-          const code = typeof row.product_code === 'string' ? row.product_code : '';
-          const name =
-            typeof row.name === 'string'
-              ? row.name
-              : typeof row.effective_name === 'string'
-                ? row.effective_name
-                : '';
-          const label = `${code ? `${code} - ` : ''}${name}`.trim() || String(id ?? '');
-          return { value: String(id ?? ''), label };
-        });
-
-        // Replace options for the current search (so results actually refresh on every keystroke),
-        // but keep the currently-selected value so it doesn't disappear.
-        const selectedValue = String(getCurrentFkValue(fieldKey) ?? '');
-
-        setProductOptions((prev) => {
-          const selected = selectedValue
-            ? (prev[fieldKey] || []).find((o) => String(o.value) === selectedValue)
-            : undefined;
-
-          const merged = [...opts];
-          if (selected && !merged.some((o) => String(o.value) === String(selected.value))) {
-            merged.unshift(selected);
-          }
-
-          return {
-            ...prev,
-            [fieldKey]: merged,
-          };
-        });
-      } catch (err) {
-        console.error('[UniversalEntityForm] Failed to search products:', err);
-      } finally {
-        if (productSearchSeqRef.current[fieldKey] === nextSeq) {
-          setLoadingProducts((prev) => ({ ...prev, [fieldKey]: false }));
-        }
-      }
-    },
-    [getCurrentFkValue]
   );
 
   if (variant === 'inline' && !isOpen) return null;
@@ -2004,18 +1886,18 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
 
   const content = (
     <Container $variant={variant}>
-      {resolvedLoading ? (
+      {loading ? (
         <div style={{ padding: 16 }}>
           <Skeleton active paragraph={{ rows: 6 }} />
         </div>
-      ) : resolvedLoadError ? (
+      ) : loadError ? (
         <div style={{ padding: 12, color: 'rgb(var(--color-text-secondary))', fontSize: 13 }}>
-          {(resolvedLoadError as any)?.response?.status === 401 ||
-          (resolvedLoadError as any)?.response?.status === 403
+          {(loadError as any)?.response?.status === 401 ||
+          (loadError as any)?.response?.status === 403
             ? 'Authentication required. Redirecting to login…'
             : 'Unable to load form.'}
         </div>
-      ) : !resolvedSchema ? (
+      ) : !preparedSchema ? (
         <div style={{ padding: 12, color: 'rgb(var(--color-text-secondary))', fontSize: 13 }}>
           Unable to load form.
         </div>
@@ -2023,18 +1905,21 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
         <>
           {modeSwitchControls}
 
+          {activeMode !== 'view' && autofill && (
+            <AutofillToolbar
+              {...autofill}
+              disabled={Boolean(autofill.disabled) || submitting || loading}
+            />
+          )}
+
           {(keyFkFields.length > 0 || otherFkFields.length > 0) && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 10 }}>
               {[...keyFkFields, ...otherFkFields.filter((f) => !f.is_advanced), ...(showAdvanced ? otherFkFields.filter((f) => Boolean(f.is_advanced)) : [])].map((f) => {
-                const related = String(f.related_entity || '').toLowerCase();
-                const isProduct =
-                  related.includes('system.product') ||
-                  String(f.key).toLowerCase().includes('product');
-
                 const value = String(getCurrentFkValue(f.key) ?? '');
+                const options = getFieldSelectOptions(f.key);
 
                 if (activeMode === 'view') {
-                  if (Boolean(f.is_advanced) && !hasDisplayValue(formInitialValues[f.key])) {
+                  if (Boolean(f.is_advanced) && !hasDisplayValue(getValueAtPath(formInitialValues, f.key))) {
                     return null;
                   }
 
@@ -2060,74 +1945,12 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
                           fontSize: 13,
                         }}
                       >
-                        {formatValue(formInitialValues[f.key]) || '—'}
+                        {getFieldDisplayValue(f.key, getValueAtPath(formInitialValues, f.key)) || '—'}
                       </div>
                     </div>
                   );
                 }
 
-                if (isProduct) {
-                  return (
-                    <div key={f.key}>
-                      <div
-                        style={{
-                          fontSize: 12,
-                          fontWeight: 600,
-                          color: 'rgb(var(--color-text-secondary))',
-                          marginBottom: 6,
-                        }}
-                      >
-                        {f.label || f.key}
-                      </div>
-                      <Select
-                        showSearch
-                        filterOption={false}
-                        onDropdownVisibleChange={(open) => {
-                          if (open && (productOptions[f.key] || []).length === 0) {
-                            void fetchProducts(f.key, '');
-                          }
-                        }}
-                        onSearch={(q) => void fetchProducts(f.key, q)}
-                        options={productOptions[f.key] || []}
-                        value={value || undefined}
-                        onChange={(next) => setFkValues((prev) => ({ ...prev, [f.key]: String(next) }))}
-                        notFoundContent={loadingProducts[f.key] ? <Spin size="small" /> : null}
-                        getPopupContainer={getSelectPopupContainer}
-                        style={{ width: '100%' }}
-                        placeholder="Search products…"
-                      />
-                    </div>
-                  );
-                }
-
-                const mapped = relatedEntityToEntityOptionsType(f.related_entity, f.key);
-
-                if (mapped && mapped !== 'product') {
-                  return (
-                    <div key={f.key}>
-                      <div
-                        style={{
-                          fontSize: 12,
-                          fontWeight: 600,
-                          color: 'rgb(var(--color-text-secondary))',
-                          marginBottom: 6,
-                        }}
-                      >
-                        {f.label || f.key}
-                      </div>
-                      <EntityOptionsSelect
-                        entityType={mapped}
-                        value={value}
-                        onChange={(next) => setFkValues((prev) => ({ ...prev, [f.key]: next }))}
-                        placeholder={`Search ${f.label || f.key}…`}
-                        forceSearch
-                        debounceMs={0}
-                      />
-                    </div>
-                  );
-                }
-
-                const options = resolvedFkOptions[f.key] || [];
                 return (
                   <div key={f.key}>
                     <div
@@ -2142,7 +1965,7 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
                     </div>
                     <Select
                       showSearch
-                      options={options.map((o) => ({ value: String(o.id), label: o.name }))}
+                      options={options}
                       value={value || undefined}
                       onChange={(next) => setFkValues((prev) => ({ ...prev, [f.key]: String(next) }))}
                       getPopupContainer={getSelectPopupContainer}
@@ -2172,7 +1995,7 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
           {activeMode === 'view' ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               {visibleScalarFields.map((f) => {
-                if (Boolean(f.is_advanced) && !hasDisplayValue(formInitialValues[f.key])) {
+                if (Boolean(f.is_advanced) && !hasDisplayValue(getValueAtPath(formInitialValues, f.key))) {
                   return null;
                 }
 
@@ -2198,7 +2021,7 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
                       fontSize: 13,
                     }}
                   >
-                    {formatValue(formInitialValues[f.key]) || '—'}
+                    {formatValue(getValueAtPath(formInitialValues, f.key)) || '—'}
                   </div>
                   </div>
                 );
@@ -2217,6 +2040,7 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
             </div>
           ) : (
             <DynamicFormEngine
+              key={dynamicFormKey}
               schema={stableDynamicSchema as any}
               initialValues={formInitialValues}
               isSubmitting={submitting}
@@ -2225,6 +2049,8 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
               showAllFields={showAdvanced}
               onShowAllFieldsChange={setShowAdvanced}
               showAllFieldsToggle={false}
+              dropdownOptions={dropdownOptions}
+              formConfig={formConfig}
               onSubmit={(data) => {
                 void submit(data);
               }}

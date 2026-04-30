@@ -8,6 +8,7 @@
  */
 
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import { logger } from '../utils/logger';
 
 // ============================================================================
 // TypeScript Interfaces
@@ -74,7 +75,7 @@ export const CockpitNavigationProvider: React.FC<{ children: React.ReactNode }> 
         setRecentPaths(normalized);
       }
     } catch (error) {
-      console.error('[CockpitNavigation] Failed to load recent paths:', error);
+      logger.error('Failed to load recent paths', { component: 'CockpitNavigationContext' }, error);
     }
   }, []);
 
@@ -83,7 +84,7 @@ export const CockpitNavigationProvider: React.FC<{ children: React.ReactNode }> 
     try {
       sessionStorage.setItem('cockpit_recent_paths', JSON.stringify(recentPaths));
     } catch (error) {
-      console.error('[CockpitNavigation] Failed to save recent paths:', error);
+      logger.error('Failed to save recent paths', { component: 'CockpitNavigationContext' }, error);
     }
   }, [recentPaths]);
 

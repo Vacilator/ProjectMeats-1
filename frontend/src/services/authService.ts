@@ -9,6 +9,7 @@
 import { apiClient } from './apiService';
 import { config } from '../config/runtime';
 import { UserProfile } from '../types';
+import { logger } from '../utils/logger';
 
 const normalizeUserProfile = (raw: any): UserProfile => {
   const isActive =
@@ -82,7 +83,7 @@ export class AuthService {
       try {
         this.user = normalizeUserProfile(JSON.parse(storedUser));
       } catch (error) {
-        console.error('Error parsing stored user data:', error);
+        logger.error('Error parsing stored user data', { component: 'AuthService' }, error);
         localStorage.removeItem('user');
       }
     }
@@ -113,7 +114,7 @@ export class AuthService {
           localStorage.setItem('tenantSlug', primaryTenant.tenant__slug);
         }
 
-        console.debug('[Auth] JWT login successful');
+        logger.debug('JWT login successful', { component: 'AuthService' });
         return normalizedUser;
       }
       
@@ -121,7 +122,7 @@ export class AuthService {
     } catch (jwtError: any) {
       // If JWT fails with 404 (endpoint not available), fall back to legacy
       if (jwtError.response?.status === 404) {
-        console.debug('[Auth] JWT endpoint not available, using legacy login');
+        logger.debug('JWT endpoint not available, using legacy login', { component: 'AuthService' });
         return this.legacyLogin(credentials);
       }
       
@@ -266,7 +267,7 @@ export class AuthService {
         await apiClient.post('/auth/logout/', {});
       }
     } catch (error) {
-      console.error('Logout error:', error);
+      logger.error('Logout request failed', { component: 'AuthService' }, error);
     } finally {
       // Clear all tokens and local state
       clearTokens();
@@ -296,13 +297,15 @@ export class AuthService {
         this.user = normalizeUserProfile(JSON.parse(storedUser));
         return this.user;
       } catch (error) {
-        console.error('Error parsing stored user data:', error);
+        logger.error('Error parsing stored user data', { component: 'AuthService' }, error);
         localStorage.removeItem('user');
       }
     }
 
     // If we have a token but no user data, something went wrong - clear auth state
-    console.warn('Token exists but no user data found - clearing auth state');
+    logger.warn('Token exists but no user data found - clearing auth state', {
+      component: 'AuthService',
+    });
     await this.logout();
     return null;
   }

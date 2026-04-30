@@ -27,7 +27,7 @@ def cache_workflow_data(tenant_id: str, workflow_id: str) -> Dict[str, Any]:
     def fetch_workflow():
         from apps.tenants.rls import tenant_rls
 
-        with tenant_rls(str(tenant_id), strict=False):
+        with tenant_rls(str(tenant_id), strict=True):
             workflow = TenantForm.objects.get(
                 id=workflow_id,
                 tenant_id=tenant_id
@@ -74,7 +74,7 @@ def sync_single_tenant(tenant_id: str) -> Dict[str, Any]:
         from apps.tenants.rls import tenant_rls
 
         # Example: Sync workflow counts, user counts, etc.
-        with tenant_rls(str(tenant_id), strict=False):
+        with tenant_rls(str(tenant_id), strict=True):
             workflow_count = tenant.tenant_forms.count()
             user_count = tenant.users.count()
         
@@ -133,7 +133,7 @@ def export_single_workflow(tenant_id: str, workflow_id: str) -> Dict[str, Any]:
     from apps.tenants.rls import tenant_rls
 
     try:
-        with tenant_rls(str(tenant_id), strict=False):
+        with tenant_rls(str(tenant_id), strict=True):
             workflow = TenantForm.objects.get(
                 id=workflow_id,
                 tenant_id=tenant_id
@@ -190,7 +190,7 @@ def count_workflows_by_status(tenant_id: str, status: str) -> Dict[str, int]:
     
     from apps.tenants.rls import tenant_rls
 
-    with tenant_rls(str(tenant_id), strict=False):
+    with tenant_rls(str(tenant_id), strict=True):
         count = TenantForm.objects.filter(
             tenant_id=tenant_id,
             status=status

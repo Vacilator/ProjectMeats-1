@@ -7,6 +7,7 @@ from django.test import TestCase
 from rest_framework.test import APIRequestFactory, force_authenticate
 
 from apps.tenants.models import Tenant, TenantUser
+from tenant_apps.workflows.services.locking import WorkflowLockManager
 from tenant_apps.workflows.models import (
     FormStatusHistory,
     FormSubmission,
@@ -15,12 +16,16 @@ from tenant_apps.workflows.models import (
     StepAssignment,
     TenantForm,
     TenantFormEntity,
+    TenantWorkflow,
     UserNotification,
+    WorkflowStatus,
+    TriggerType,
 )
 from tenant_apps.workflows.views import (
     FormStatusHistoryViewSet,
     StepAssignmentViewSet,
     TenantFormEntityViewSet,
+    TenantWorkflowViewSet,
     UserNotificationViewSet,
 )
 
@@ -103,9 +108,30 @@ class WorkflowViewSetTenantFailClosedTests(TestCase):
             message='Tenant B notification',
         )
 
+        self.workflow_a = TenantWorkflow.objects.create(
+            tenant=self.tenant_a,
+            name='Workflow A',
+            status=WorkflowStatus.DRAFT,
+            trigger_type=TriggerType.MANUAL,
+            created_by=self.user,
+        )
+        self.workflow_b = TenantWorkflow.objects.create(
+            tenant=self.tenant_b,
+            name='Workflow B',
+            status=WorkflowStatus.DRAFT,
+            trigger_type=TriggerType.MANUAL,
+            created_by=self.user,
+        )
+
     def _get(self, path: str, tenant):
         request = self.factory.get(path)
         force_authenticate(request, user=self.user)
+        request.tenant = tenant
+        return request
+
+    def _post(self, path: str, tenant, data: dict | None = None, user=None):
+        request = self.factory.post(path, data=data or {}, format='json')
+        force_authenticate(request, user=user or self.user)
         request.tenant = tenant
         return request
 
@@ -184,3 +210,83 @@ class WorkflowViewSetTenantFailClosedTests(TestCase):
         resp3 = FormStatusHistoryViewSet.as_view({'get': 'list'})(req3, submission_id=str(self.submission_a.id))
         self.assertEqual(resp3.status_code, 200)
         self.assertEqual(len(self._items(resp3)), 0)
+
+    def test_workflow_node_lock_action_is_scoped_and_fails_closed(self):
+        lock_view = TenantWorkflowViewSet.as_view({'post': 'node_lock'})
+
+        scoped_response = lock_view(
+            self._post(f'/api/v1/workflows/workflows/{self.workflow_a.id}/nodes/node-1/lock/', self.tenant_a),
+            pk=str(self.workflow_a.id),
+            node_id='node-1',
+        )
+        self.assertEqual(scoped_response.status_code, 200)
+        self.assertTrue(scoped_response.data['locked'])
+        self.assertEqual(scoped_response.data['owner'], str(self.user.id))
+
+        wrong_tenant_response = lock_view(
+            self._post(f'/api/v1/workflows/workflows/{self.workflow_a.id}/nodes/node-1/lock/', self.tenant_b),
+            pk=str(self.workflow_a.id),
+            node_id='node-1',
+        )
+        self.assertEqual(wrong_tenant_response.status_code, 404)
+
+        missing_tenant_response = lock_view(
+            self._post(f'/api/v1/workflows/workflows/{self.workflow_a.id}/nodes/node-1/lock/', None),
+            pk=str(self.workflow_a.id),
+            node_id='node-1',
+        )
+        self.assertEqual(missing_tenant_response.status_code, 404)
+
+    def test_workflow_node_lock_renew_action_is_scoped_and_rejects_non_owner(self):
+        lock_view = TenantWorkflowViewSet.as_view({'post': 'node_lock'})
+        renew_view = TenantWorkflowViewSet.as_view({'post': 'renew_node_lock'})
+
+        acquire_response = lock_view(
+            self._post(f'/api/v1/workflows/workflows/{self.workflow_a.id}/nodes/node-1/lock/', self.tenant_a),
+            pk=str(self.workflow_a.id),
+            node_id='node-1',
+        )
+        self.assertEqual(acquire_response.status_code, 200)
+        self.assertTrue(acquire_response.data['locked'])
+
+        renew_response = renew_view(
+            self._post(
+                f'/api/v1/workflows/workflows/{self.workflow_a.id}/nodes/node-1/lock/renew/',
+                self.tenant_a,
+            ),
+            pk=str(self.workflow_a.id),
+            node_id='node-1',
+        )
+        self.assertEqual(renew_response.status_code, 200)
+        self.assertTrue(renew_response.data['renewed'])
+
+        wrong_tenant_response = renew_view(
+            self._post(
+                f'/api/v1/workflows/workflows/{self.workflow_a.id}/nodes/node-1/lock/renew/',
+                self.tenant_b,
+            ),
+            pk=str(self.workflow_a.id),
+            node_id='node-1',
+        )
+        self.assertEqual(wrong_tenant_response.status_code, 404)
+
+        other_user = User.objects.create_user(username=f'other-{uuid.uuid4().hex[:8]}', password='pw')
+        TenantUser.objects.create(tenant=self.tenant_a, user=other_user, role='member', is_active=True)
+        non_owner_response = renew_view(
+            self._post(
+                f'/api/v1/workflows/workflows/{self.workflow_a.id}/nodes/node-1/lock/renew/',
+                self.tenant_a,
+                user=other_user,
+            ),
+            pk=str(self.workflow_a.id),
+            node_id='node-1',
+        )
+        self.assertEqual(non_owner_response.status_code, 409)
+        self.assertFalse(non_owner_response.data['renewed'])
+
+        WorkflowLockManager.release_node_lock(
+            tenant_id=str(self.tenant_a.id),
+            workflow_id=str(self.workflow_a.id),
+            node_id='node-1',
+            user_id=str(self.user.id),
+        )

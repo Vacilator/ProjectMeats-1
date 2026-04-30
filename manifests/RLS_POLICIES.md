@@ -157,26 +157,35 @@ All workflow-related tables have Row-Level Security **ENABLED** and **FORCED**:
 | `ai_assistant_feedback_logs` | ✅ | `ai_assistant/0006_aifeedbacklog` | Mar 20, 2026 |
 | `ai_assistant_vector_memory` | ✅ | `ai_assistant/0007_vectormemory` | Mar 20, 2026 |
 | `ai_assistant_documents` | ✅ | `ai_assistant/0009_aidocument` | Mar 23, 2026 |
+| `ai_assistant_chat_sessions` | ✅ | `ai_assistant/0016_chatmessage_tenant_chatsession_tenant_and_more` | Apr 29, 2026 |
+| `ai_assistant_chat_messages` | ✅ | `ai_assistant/0016_chatmessage_tenant_chatsession_tenant_and_more` | Apr 29, 2026 |
 | `ai_assistant_communication_logs` | ✅ | `ai_assistant/0014_communicationlog` | Mar 31, 2026 |
 | `ai_assistant_tenant_memory` | ✅ | `ai_assistant/0015_tenantaimemory` | Mar 31, 2026 |
+| `ai_assistant_runs` | ✅ | `ai_assistant/0017_airun_aitask_aiapproval_and_more` | Apr 29, 2026 |
+| `ai_assistant_tasks` | ✅ | `ai_assistant/0017_airun_aitask_aiapproval_and_more` | Apr 29, 2026 |
+| `ai_assistant_approvals` | ✅ | `ai_assistant/0017_airun_aitask_aiapproval_and_more` | Apr 29, 2026 |
+| `ai_assistant_document_semantic_chunks` | ✅ | `ai_assistant/0018_aidocumentsemanticchunk_ailineageevent` | Apr 29, 2026 |
+| `ai_assistant_lineage_events` | ✅ | `ai_assistant/0018_aidocumentsemanticchunk_ailineageevent` | Apr 29, 2026 |
 
 ---
 
 ## Compliance Summary
 
-**Latest Audit (2026-04-28, fresh-db CI validation target)**:
-- `python manage.py audit_rls_compliance --strict` should return **73/73 tenant-scoped models compliant** once `core/0007_enable_rls_comment`, `deals/0001_initial`, and the golden-schema-refactor migrations are applied. ✅
+**Latest Audit (2026-04-29, current shared dev database)**:
+- `python manage.py audit_rls_compliance --strict` currently reports **39/77 models compliant** on the shared database because multiple historical non-AI tenant tables still lack RLS policies.
+- EH-06.1 and EH-06.2 added additive RLS coverage for `ai_assistant_runs`, `ai_assistant_tasks`, `ai_assistant_approvals`, `ai_assistant_document_semantic_chunks`, and `ai_assistant_lineage_events`.
 
-**Audit Scope Update (2026-04-28)**:
+**Audit Scope Update (2026-04-29)**:
 - `audit_rls_compliance` now also includes an allowlist of tenant-scoped models that do **not** inherit `TenantAwareModel` (System WorkForms + Integrations).
 - `core_comment` is now covered by an additive RLS migration so fresh databases and CI audits stay fully compliant.
+- `core_idempotencykey` is now covered by an additive RLS migration so idempotent mutation state remains tenant-isolated.
+- `ai_assistant.ChatSession` and `ai_assistant.ChatMessage` were migrated to tenant-native tables in `0016`; verify policy rollout separately if upgrading an older shared database.
 - `deals_deal` and `deals_dealactionitem` are now covered by additive RLS policies in `deals/0001_initial`.
+- Repo-wide strict-audit compliance remains a separate backlog item outside EH-06.2.
 - New line-item tables `purchase_orders_purchaseorderitem`, `purchase_orders_carrierpoitem`, `sales_orders_salesorderitem`, and `invoices_invoiceitem` are covered by additive RLS policies in `purchase_orders/0018_golden_schema_refactor`, `sales_orders/0016_golden_schema_refactor`, and `invoices/0015_golden_schema_refactor`.
-- Expected result after next deployment audit: **73/73 tenant-scoped models compliant** ✅
 
 **Tenant Isolation Policies** (from `pg_policies`):
-- Tables with at least one `*_tenant_isolation` policy: **49**
-- `*_tenant_isolation` policies total: **52**
+- Policy totals vary by environment state; use `python manage.py audit_rls_compliance --strict` on the target database for the live count.
 
 > Note: Some tables currently have both legacy and standardized `*_tenant_isolation` policy names during transition.
 
@@ -251,12 +260,13 @@ END $$;
 
 ---
 
-## Core Module (2 tables) - ✅ 100% COMPLIANT
+## Core Module (3 tables) - ✅ 100% COMPLIANT
 
 | Table Name | RLS Enabled | Migration | Deployment Date |
 |------------|-------------|-----------|-----------------|
 | `core_tenantauditevent` | ✅ | `core/0004_tenantauditevent` | Mar 31, 2026 |
 | `core_comment` | ✅ | `core/0007_enable_rls_comment` | Apr 28, 2026 |
+| `core_idempotencykey` | ✅ | `core/0008_idempotencykey` | Apr 29, 2026 |
 
 ---
 

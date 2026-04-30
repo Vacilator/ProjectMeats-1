@@ -13,6 +13,7 @@ from .base import *  # noqa
 
 # Secret key for tests
 SECRET_KEY = "test-secret-key-not-for-production-use-only-testing"
+REQUIRE_REDIS_READINESS = False
 
 # Reorder middleware for tests - AuthenticationMiddleware must run before TenantMiddleware
 # This ensures request.user is available when TenantMiddleware runs
@@ -60,6 +61,8 @@ else:
         }
     }
 
+DATABASES["default"].setdefault("ATOMIC_REQUESTS", False)
+
 # Faster password hashing for tests
 PASSWORD_HASHERS = [
     "django.contrib.auth.hashers.MD5PasswordHasher",
@@ -68,9 +71,11 @@ PASSWORD_HASHERS = [
 # Allow all hosts for testing (including tenant domain tests)
 ALLOWED_HOSTS = ["*"]
 
-# Disable caching during tests
+# Use an isolated in-memory cache so cache-backed reliability primitives can be tested
+# deterministically without requiring Redis.
 CACHES = {
     "default": {
-        "BACKEND": "django.core.cache.backends.dummy.DummyCache",
+        "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+        "LOCATION": "projectmeats-test-cache",
     }
 }

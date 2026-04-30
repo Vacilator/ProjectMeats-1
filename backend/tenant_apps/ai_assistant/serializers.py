@@ -3,9 +3,19 @@ Serializers for AI Assistant functionality.
 """
 from rest_framework import serializers
 
-from .models import AIDocument, AIFeedbackLog, AIConfiguration, ChatMessage, ChatSession
+from .models import (
+    AIApproval,
+    AIDocument,
+    AIFeedbackLog,
+    AIConfiguration,
+    AIRun,
+    AITask,
+    ChatMessage,
+    ChatSession,
+)
 from .session_utils import bind_context_to_tenant, get_request_tenant_id, session_matches_tenant
 from .services.document_parser import validate_ai_document_upload
+from .services.extract_to_schema import EXTRACT_TO_SCHEMA_CHOICES
 
 
 
@@ -167,6 +177,32 @@ class ChatBotResponseSerializer(serializers.Serializer):
     metadata = serializers.JSONField(default=dict)
 
 
+class ToolsOpenResponseSerializer(serializers.Serializer):
+    tools = serializers.ListField(child=serializers.JSONField())
+
+
+class RecentErrorIssueSerializer(serializers.Serializer):
+    id = serializers.CharField(allow_blank=True, allow_null=True, required=False)
+    shortId = serializers.CharField(allow_blank=True, allow_null=True, required=False)
+    title = serializers.CharField(allow_blank=True, allow_null=True, required=False)
+    permalink = serializers.CharField(allow_blank=True, allow_null=True, required=False)
+    culprit = serializers.CharField(allow_blank=True, allow_null=True, required=False)
+    level = serializers.CharField(allow_blank=True, allow_null=True, required=False)
+    status = serializers.CharField(allow_blank=True, allow_null=True, required=False)
+    firstSeen = serializers.CharField(allow_blank=True, allow_null=True, required=False)
+    lastSeen = serializers.CharField(allow_blank=True, allow_null=True, required=False)
+    count = serializers.CharField(allow_blank=True, allow_null=True, required=False)
+
+
+class RecentErrorsResponseSerializer(serializers.Serializer):
+    ok = serializers.BooleanField()
+    tenant_id = serializers.UUIDField(required=False)
+    error = serializers.CharField(required=False)
+    detail = serializers.CharField(required=False)
+    status = serializers.IntegerField(required=False)
+    issues = RecentErrorIssueSerializer(many=True)
+
+
 class AIDocumentSerializer(serializers.ModelSerializer):
     """Serializer for AI assistant document uploads.
 
@@ -224,6 +260,7 @@ class AIDocumentSerializer(serializers.ModelSerializer):
             'parse_error_message',
             'truncated',
             'warnings',
+            'semantic_indexing',
         )
         result = {}
         for key in allowed_keys:
@@ -264,6 +301,25 @@ class AIDocumentSerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'tenant', 'owner', 'content_type', 'file_type', 'file_size', 'document_type', 'created_on']
 
 
+class ExtractToSchemaRequestSerializer(serializers.Serializer):
+    """Request payload for serializer-backed document extraction."""
+
+    document_id = serializers.CharField()
+    entity_type = serializers.ChoiceField(choices=EXTRACT_TO_SCHEMA_CHOICES)
+
+
+class ExtractToSchemaResponseSerializer(serializers.Serializer):
+    """Validated extraction draft returned to the frontend."""
+
+    document_id = serializers.CharField()
+    entity_type = serializers.CharField()
+    serializer_name = serializers.CharField()
+    parser = serializers.CharField(allow_blank=True)
+    model_name = serializers.CharField()
+    warnings = serializers.ListField(child=serializers.CharField(), required=False)
+    extracted_data = serializers.JSONField()
+
+
 class AIConfigurationSerializer(serializers.ModelSerializer):
     """Serializer for AI configurations."""
 
@@ -295,6 +351,91 @@ class SwarmInvokeResponseSerializer(serializers.Serializer):
     notes = serializers.CharField(required=False, allow_blank=True)
 
 
+class AIRunSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = AIRun
+        fields = [
+            'id',
+            'tenant',
+            'session',
+            'requested_by',
+            'source',
+            'event_type',
+            'status',
+            'correlation_id',
+            'intent',
+            'user_message',
+            'response_text',
+            'request_payload',
+            'response_payload',
+            'error_message',
+            'approval_required_at',
+            'completed_at',
+            'created_on',
+            'modified_on',
+        ]
+        read_only_fields = fields
+
+
+class AITaskSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = AITask
+        fields = [
+            'id',
+            'tenant',
+            'run',
+            'requested_by',
+            'tool_name',
+            'sequence',
+            'status',
+            'requires_approval',
+            'approval_requested_at',
+            'executed_at',
+            'resolved_at',
+            'input_payload',
+            'output_payload',
+            'error_message',
+            'target_entity_type',
+            'target_entity_id',
+            'created_on',
+            'modified_on',
+        ]
+        read_only_fields = fields
+
+
+class AIApprovalSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = AIApproval
+        fields = [
+            'id',
+            'tenant',
+            'run',
+            'task',
+            'requested_by',
+            'resolved_by',
+            'tool_name',
+            'status',
+            'request_payload',
+            'response_payload',
+            'resolution_note',
+            'expires_at',
+            'resolved_at',
+            'created_on',
+            'modified_on',
+        ]
+        read_only_fields = fields
+
+
+class AIApprovalResolutionRequestSerializer(serializers.Serializer):
+    resolution_note = serializers.CharField(required=False, allow_blank=True, max_length=2000)
+
+
+class AIApprovalActionResponseSerializer(serializers.Serializer):
+    approval = AIApprovalSerializer()
+    task = AITaskSerializer()
+    run = AIRunSerializer()
+
+
 class PendingReviewItemSerializer(serializers.Serializer):
     id = serializers.UUIDField()
     document_id = serializers.UUIDField()
@@ -303,6 +444,17 @@ class PendingReviewItemSerializer(serializers.Serializer):
     precision_delta = serializers.FloatField()
     created_on = serializers.DateTimeField()
     original_extracted_data = serializers.JSONField()
+
+
+class PendingReviewListResponseSerializer(serializers.Serializer):
+    pending_reviews = PendingReviewItemSerializer(many=True)
+    results = PendingReviewItemSerializer(many=True)
+
+
+class PendingReviewResolveResponseSerializer(serializers.Serializer):
+    id = serializers.UUIDField()
+    resolved_by = serializers.UUIDField()
+    precision_delta = serializers.FloatField()
 
 
 class AIFeedbackLogSerializer(serializers.ModelSerializer):

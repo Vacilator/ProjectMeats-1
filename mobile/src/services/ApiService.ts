@@ -2,6 +2,10 @@ import axios, { AxiosInstance } from 'axios';
 import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 import {
+  ApiErrorPresentation,
+  getApiErrorPresentation,
+} from './apiErrorPresentation';
+import {
   LoginRequest,
   LoginResponse,
   Tenant,
@@ -17,7 +21,13 @@ import {
   InviteAcceptRequest,
   WorkForm,
   WorkFormExecution,
+  WorkflowDefinition,
 } from '../types';
+import type {
+  ContractTenantWorkFormDetailResponse,
+  ContractTenantWorkFormListItem,
+  ContractTenantWorkFormsListResponse,
+} from '../../../shared/types/openapi';
 
 const PROD_DEFAULT_API_BASE_URL = 'https://dev.meatscentral.com/api/v1';
 
@@ -56,9 +66,21 @@ function resolveApiBaseUrl(envBaseUrl?: string, extraBaseUrl?: string): string {
   return extra || PROD_DEFAULT_API_BASE_URL;
 }
 
+function isWorkflowDefinition(value: unknown): value is WorkflowDefinition {
+  if (!value || typeof value !== 'object') {
+    return false;
+  }
+
+  const candidate = value as Partial<WorkflowDefinition>;
+  return Array.isArray(candidate.nodes) && Array.isArray(candidate.edges);
+}
+
 class ApiServiceClass {
   private api: AxiosInstance;
   private baseURL: string;
+  private authFailureHandler: ((presentation: ApiErrorPresentation) => void | Promise<void>) | null =
+    null;
+  private isHandlingAuthFailure = false;
 
   constructor() {
     const envBaseUrl = process.env.EXPO_PUBLIC_API_BASE_URL;
@@ -87,11 +109,40 @@ class ApiServiceClass {
     // Response interceptor for error handling
     this.api.interceptors.response.use(
       (response) => response,
-      (error) => {
-        console.error('API Error:', error.response?.data || error.message);
+      async (error) => {
+        const presentation = getApiErrorPresentation(error);
+        const requestUrl =
+          typeof error?.config?.url === 'string' ? error.config.url : undefined;
+
+        if (
+          presentation.status === 401 &&
+          !this.isAuthEndpoint(requestUrl) &&
+          this.authFailureHandler &&
+          !this.isHandlingAuthFailure
+        ) {
+          this.isHandlingAuthFailure = true;
+          try {
+            await this.authFailureHandler(presentation);
+          } finally {
+            this.isHandlingAuthFailure = false;
+          }
+        }
+
         return Promise.reject(error);
       }
     );
+  }
+
+  private isAuthEndpoint(url?: string): boolean {
+    if (!url) return false;
+
+    return [
+      '/auth/login/',
+      '/auth/logout/',
+      '/auth/guest-login/',
+      '/auth/signup-with-invitation/',
+      '/invitations/validate/',
+    ].some((authPath) => url.includes(authPath));
   }
 
   setAuthToken(token: string) {
@@ -109,6 +160,12 @@ class ApiServiceClass {
 
   clearTenantId() {
     delete this.api.defaults.headers.common['X-Tenant-ID'];
+  }
+
+  setAuthFailureHandler(
+    handler: ((presentation: ApiErrorPresentation) => void | Promise<void>) | null
+  ) {
+    this.authFailureHandler = handler;
   }
 
   // Authentication endpoints
@@ -320,21 +377,21 @@ class ApiServiceClass {
 
   // WorkForms endpoints
   async getWorkForms(): Promise<ApiResponse<WorkForm>> {
-    const response = await this.api.get('/tenant-workforms/');
+    const response = await this.api.get<ContractTenantWorkFormsListResponse>('/tenant-workforms/');
     const data = response.data;
 
-    const results = Array.isArray(data?.results) ? data.results : [];
+    const results: ContractTenantWorkFormListItem[] = Array.isArray(data?.results) ? data.results : [];
     return {
       count: data?.count ?? results.length,
-      next: data?.next,
-      previous: data?.previous,
-      results: results.map((row: any) => ({
+      next: data?.next ?? undefined,
+      previous: data?.previous ?? undefined,
+      results: results.map((row) => ({
         id: String(row.id),
         name: String(row.name ?? ''),
         description: row.description ?? undefined,
         status: String(row.status ?? 'draft'),
         is_active: String(row.status ?? '').toLowerCase() === 'active',
-        node_count: Number(row.node_count ?? 0),
+        node_count: Number(row.node_count),
         edge_count: row.edge_count !== undefined ? Number(row.edge_count) : undefined,
         version: row.version !== undefined ? Number(row.version) : undefined,
         execution_count: row.execution_count !== undefined ? Number(row.execution_count) : undefined,
@@ -346,10 +403,10 @@ class ApiServiceClass {
   }
 
   async getWorkForm(id: string): Promise<WorkForm> {
-    const response = await this.api.get(`/tenant-workforms/${id}/`);
+    const response = await this.api.get<ContractTenantWorkFormDetailResponse>(`/tenant-workforms/${id}/`);
     const row = response.data;
 
-    const definition = row.workflow_definition;
+    const definition = isWorkflowDefinition(row.workflow_definition) ? row.workflow_definition : undefined;
 
     return {
       id: String(row.id),
@@ -357,15 +414,17 @@ class ApiServiceClass {
       description: row.description ?? undefined,
       status: String(row.status ?? 'draft'),
       is_active: String(row.status ?? '').toLowerCase() === 'active',
-      node_count: Number(row.node_count ?? (Array.isArray(definition?.nodes) ? definition.nodes.length : 0)),
+      node_count: Number(row.node_count),
       edge_count: row.edge_count !== undefined ? Number(row.edge_count) : undefined,
       version: row.version !== undefined ? Number(row.version) : undefined,
       execution_count: row.execution_count !== undefined ? Number(row.execution_count) : undefined,
       last_executed_at: row.last_executed_at ?? null,
       created_at: row.created_at ?? undefined,
       updated_at: String(row.updated_at ?? ''),
-      workflow_definition: definition && typeof definition === 'object' ? definition : undefined,
-      form_references: Array.isArray(row.form_references) ? row.form_references : undefined,
+      workflow_definition: definition as WorkForm['workflow_definition'],
+      form_references: Array.isArray(row.form_references)
+        ? row.form_references.map((item) => String(item))
+        : undefined,
     };
   }
 

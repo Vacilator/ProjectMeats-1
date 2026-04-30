@@ -19,3 +19,6 @@ class AuditRlsComplianceCommandTest(SimpleTestCase):
         self.assertIn("email_integration.EmailAction", labels)
         self.assertIn("email_integration.EmailLog", labels)
         self.assertIn("email_integration.EmailTrigger", labels)
+        self.assertIn("core.IdempotencyKey", labels)
+        self.assertIn("ai_assistant.ChatSession", labels)
+        self.assertIn("ai_assistant.ChatMessage", labels)

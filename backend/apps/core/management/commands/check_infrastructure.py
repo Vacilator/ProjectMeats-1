@@ -4,17 +4,31 @@ Management command to run infrastructure diagnostics.
 Checks connectivity for OpenAI, Redis, and Sentry services.
 """
 from django.core.management.base import BaseCommand
+from django.conf import settings
 import sys
-import os
+from pathlib import Path
 
-# Add scripts directory to path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../../../../scripts'))
+# Add the repo/container scripts directory to path.
+for parent in Path(__file__).resolve().parents:
+    scripts_dir = parent / 'scripts'
+    if (scripts_dir / 'infrastructure_diagnostics.py').exists():
+        sys.path.insert(0, str(scripts_dir))
+        break
+else:
+    raise ImportError('Could not locate scripts/infrastructure_diagnostics.py')
 
 from infrastructure_diagnostics import run_full_diagnostic
 
 
 class Command(BaseCommand):
     help = 'Run infrastructure connectivity diagnostics (OpenAI, Redis, Sentry)'
+
+    def add_arguments(self, parser):
+        parser.add_argument(
+            '--require-redis-readiness',
+            action='store_true',
+            help='Exit non-zero unless Redis-backed cache and channel layer are both connected.',
+        )
 
     def handle(self, *args, **options):
         """Execute the infrastructure audit."""
@@ -47,6 +61,10 @@ class Command(BaseCommand):
                 for key, value in service_result.get('details', {}).items():
                     self.stdout.write(f"   • {key}: {value}")
             
+            require_redis_readiness = bool(
+                options.get('require_redis_readiness') or getattr(settings, 'REQUIRE_REDIS_READINESS', False)
+            )
+
             # Overall status
             overall = result.get('overall_status')
             self.stdout.write('\n' + '=' * 60)
@@ -59,7 +77,23 @@ class Command(BaseCommand):
                     '⚠️  INCOMPLETE - Some services need configuration'
                 ))
             self.stdout.write('=' * 60 + '\n')
-            
+
+            if require_redis_readiness:
+                strict_failures = []
+                for service_name in ('Redis', 'Channel Layer'):
+                    service_result = services.get(service_name, {})
+                    if service_result.get('status') != 'CONNECTED':
+                        strict_failures.append(service_name)
+
+                if strict_failures:
+                    self.stdout.write(
+                        self.style.ERROR(
+                            '❌ Redis readiness required, but these services are not connected: '
+                            + ', '.join(strict_failures)
+                        )
+                    )
+                    return 1
+
             return 0
             
         except Exception as e:

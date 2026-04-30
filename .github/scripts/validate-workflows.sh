@@ -542,8 +542,8 @@ assert_needs_exact('check-migrations', {'test-backend'})
 # We also allow (and prefer) additionally gating mutations on security scans to avoid
 # "DB advanced but deploy blocked" failure modes.
 allowed_migrate_needs = [
-    {'check-migrations', 'test-frontend'},
-    {'check-migrations', 'test-frontend', 'security-scan-backend', 'security-scan-frontend'},
+    {'build-backend', 'check-migrations', 'test-frontend'},
+    {'build-backend', 'check-migrations', 'test-frontend', 'security-scan-backend', 'security-scan-frontend'},
 ]
 if needs_set('migrate') not in allowed_migrate_needs:
     print(
@@ -552,11 +552,11 @@ if needs_set('migrate') not in allowed_migrate_needs:
     )
     raise SystemExit(1)
 
-# Deploy backend is gated on migrations + its own security scan.
-assert_needs_exact('deploy-backend', {'migrate', 'security-scan-backend'})
+# Deploy backend is gated on migrations + its own security scan + the built backend artifact.
+assert_needs_exact('deploy-backend', {'build-backend', 'migrate', 'security-scan-backend'})
 
-# Deploy frontend must synchronize on migrations, but must not depend on deploy-backend.
-assert_needs_exact('deploy-frontend', {'migrate', 'test-frontend', 'security-scan-frontend'})
+# Deploy frontend must synchronize on migrations, its own test/security lane, and the built frontend artifact.
+assert_needs_exact('deploy-frontend', {'build-frontend', 'migrate', 'test-frontend', 'security-scan-frontend'})
 
 # Explicitly forbid accidental cross-lane coupling (beyond the migrate barrier).
 deploy_frontend_needs = needs_set('deploy-frontend')
@@ -647,6 +647,7 @@ check_migration_safety() {
 
     # 1) Allow ONLY "makemigrations --check --dry-run" (no dynamic migration generation in CI)
     # 2) Require migrate uses --fake-initial (runner-driven contract)
+    # 3) Require backend mutation commands to reuse one resolved backend ref
     if ! python - <<'PY'
 import sys
 from pathlib import Path
@@ -667,6 +668,25 @@ for i, line in enumerate(lines, start=1):
 text = "\n".join(lines)
 if 'python manage.py migrate --fake-initial --noinput' not in text:
     bad.append("reusable-deploy.yml: migrate must run with --fake-initial --noinput")
+
+if 'BACKEND_RUN_REF' not in text:
+    bad.append("reusable-deploy.yml: backend mutation steps must resolve and reuse BACKEND_RUN_REF")
+
+required_backend_commands = [
+    'python manage.py migrate --fake-initial --noinput',
+    'python manage.py collectstatic --noinput --clear',
+    'python manage.py setup_superuser',
+    'python manage.py seed_system_products',
+]
+for command in required_backend_commands:
+    idx = text.find(command)
+    if idx == -1:
+        bad.append(f"reusable-deploy.yml: missing expected backend mutation command: {command}")
+        continue
+
+    window = text[max(0, idx - 500):idx]
+    if '"$BACKEND_RUN_REF"' not in window:
+        bad.append(f"reusable-deploy.yml: backend mutation command must use BACKEND_RUN_REF: {command}")
 
 if bad:
     for e in bad:
@@ -897,7 +917,7 @@ env_only_tag_re = re.compile(r":\s*\$\{\{\s*inputs\.environment\s*\}\}(?!\s*-\s*
 if env_only_tag_re.search(text):
     errors.append(f"{wf_path.name}: env-only image tag detected (must include github.sha)")
 
-# 2) Require explicit SHA-derived tag variables in key locations.
+# 2) Require explicit SHA-derived tag variables or build-exported tag refs in key locations.
 sha_tag_expr = r"\$\{\{\s*inputs\.environment\s*\}\}\s*-\s*\$\{\{\s*github\.sha\s*\}\}"
 
 tag_pat = re.compile(r"\bTAG\s*=\s*['\"]" + sha_tag_expr + r"['\"]")
@@ -906,9 +926,9 @@ image_tag_pat = re.compile(r"\bIMAGE_TAG\s*=\s*['\"]" + sha_tag_expr + r"['\"]")
 if not tag_pat.search(text):
     errors.append(f"{wf_path.name}: missing SHA-derived TAG assignment (expected TAG=\"${{ inputs.environment }}-${{ github.sha }}\")")
 
-if len(image_tag_pat.findall(text)) < 2:
+if len(image_tag_pat.findall(text)) < 1:
     errors.append(
-        f"{wf_path.name}: missing SHA-derived IMAGE_TAG assignments (expected at least 2 occurrences for migrate+frontend)"
+        f"{wf_path.name}: missing SHA-derived IMAGE_TAG assignment for frontend deploy flow"
     )
 
 if errors:
@@ -1090,6 +1110,79 @@ PY
     return 0
 }
 
+check_pr_validation_security_gates() {
+    log_info "Checking PR validation includes supply-chain security gates..."
+
+    if [[ ! -f .github/workflows/pr-validation.yml ]]; then
+        log_info "No pr-validation.yml found (skipping PR security gate checks)"
+        return 0
+    fi
+
+    if ! python - <<'PY'
+import sys
+from pathlib import Path
+
+try:
+    import yaml
+except Exception as e:
+    print(f"ERROR: pyyaml not available: {e}", file=sys.stderr)
+    raise SystemExit(1)
+
+wf_path = Path('.github/workflows/pr-validation.yml')
+data = yaml.safe_load(wf_path.read_text(encoding='utf-8', errors='ignore')) or {}
+jobs = data.get('jobs') or {}
+
+has_dependency_review = False
+has_actionlint = False
+hadolint_targets = set()
+
+for _job_name, job in (jobs.items() if isinstance(jobs, dict) else []):
+    if not isinstance(job, dict):
+        continue
+    for step in (job.get('steps') or []):
+        if not isinstance(step, dict):
+            continue
+
+        uses = step.get('uses')
+        if isinstance(uses, str):
+            if 'actions/dependency-review-action@' in uses:
+                has_dependency_review = True
+            if 'hadolint/hadolint-action@' in uses:
+                dockerfile = ((step.get('with') or {}).get('dockerfile') or '').strip()
+                if dockerfile:
+                    hadolint_targets.add(dockerfile)
+
+        run = step.get('run')
+        if isinstance(run, str) and 'actionlint' in run:
+            has_actionlint = True
+
+errors = []
+if not has_dependency_review:
+    errors.append(f"{wf_path.name}: missing dependency-review-action PR gate")
+if not has_actionlint:
+    errors.append(f"{wf_path.name}: missing actionlint PR gate")
+
+required_hadolint_targets = {'backend/Dockerfile', 'frontend/Dockerfile'}
+missing_hadolint_targets = sorted(required_hadolint_targets - hadolint_targets)
+if missing_hadolint_targets:
+    errors.append(
+        f"{wf_path.name}: missing hadolint PR gates for: {', '.join(missing_hadolint_targets)}"
+    )
+
+if errors:
+    for error in errors:
+        print(f"ERROR: {error}", file=sys.stderr)
+    raise SystemExit(1)
+
+print('✓ PR validation includes dependency review, workflow lint, and Dockerfile lint gates')
+PY
+    then
+        return 1
+    fi
+
+    return 0
+}
+
 # Check workflow environment lanes match env manifest (prevents secret-scope typos)
 check_environment_lanes_match_manifest() {
     log_info "Checking workflow environment lanes against manifests/env.manifest.json..."
@@ -1159,6 +1252,437 @@ PY
     return 0
 }
 
+check_dependabot_auto_merge_scope() {
+    log_info "Checking Dependabot auto-merge stays dependency-only..."
+
+    if [[ ! -f .github/workflows/15-dependabot-merge-when-green.yml ]]; then
+        log_info "No Dependabot auto-merge workflow found (skipping scope checks)"
+        return 0
+    fi
+
+    if ! python - <<'PY'
+import sys
+from pathlib import Path
+
+try:
+    import yaml
+except Exception as e:
+    print(f"ERROR: pyyaml not available: {e}", file=sys.stderr)
+    raise SystemExit(1)
+
+wf_path = Path('.github/workflows/15-dependabot-merge-when-green.yml')
+data = yaml.safe_load(wf_path.read_text(encoding='utf-8', errors='ignore')) or {}
+job = (data.get('jobs') or {}).get('merge-dependabot') or {}
+steps = job.get('steps') or []
+step = next((s for s in steps if isinstance(s, dict) and s.get('name') == 'Merge if safe'), None)
+if step is None:
+    print(f"ERROR: {wf_path.name}: missing 'Merge if safe' step", file=sys.stderr)
+    raise SystemExit(1)
+
+run_script = step.get('run') or ''
+
+forbidden_tokens = [
+    '.github/workflows/*',
+    '.github/dependabot.yml',
+    '.pre-commit-config.yaml',
+    'backend/Dockerfile',
+    'frontend/Dockerfile',
+    'mobile/Dockerfile',
+    'Dockerfile)',
+    '.github/scripts/',
+    'deploy/',
+    'config/',
+    'manifests/',
+    'scripts/verify_golden_state.sh',
+    '*/package.json',
+    '*/package-lock.json',
+    '*/yarn.lock',
+    '*/pnpm-lock.yaml',
+]
+
+required_tokens = [
+    'package.json|package-lock.json|yarn.lock|pnpm-lock.yaml',
+    'frontend/package.json|frontend/package-lock.json|frontend/yarn.lock|frontend/pnpm-lock.yaml',
+    'mobile/package.json|mobile/package-lock.json|mobile/yarn.lock|mobile/pnpm-lock.yaml',
+    'backend/requirements*.txt|backend/pyproject.toml|backend/poetry.lock',
+]
+
+errors = []
+for token in forbidden_tokens:
+    if token in run_script:
+        errors.append(f"{wf_path.name}: Dependabot auto-merge allowlist must not include {token}")
+
+for token in required_tokens:
+    if token not in run_script:
+        errors.append(f"{wf_path.name}: Dependabot auto-merge allowlist missing expected dependency surface {token}")
+
+if errors:
+    for error in errors:
+        print(f"ERROR: {error}", file=sys.stderr)
+    raise SystemExit(1)
+
+print('✓ Dependabot auto-merge scope is limited to explicit dependency manifests and lockfiles')
+PY
+    then
+        return 1
+    fi
+
+    return 0
+}
+
+check_reusable_workflow_required_secret_contract() {
+    log_info "Checking reusable-deploy manifest-derived required secret contract..."
+
+    if [[ ! -f .github/workflows/reusable-deploy.yml ]]; then
+        log_info "No reusable-deploy.yml found (skipping required secret contract checks)"
+        return 0
+    fi
+
+    if ! python - <<'PY'
+import sys
+from pathlib import Path
+
+try:
+    import yaml
+except Exception as e:
+    print(f"ERROR: pyyaml not available: {e}", file=sys.stderr)
+    raise SystemExit(1)
+
+sys.path.insert(0, str(Path('.').resolve()))
+from config.manage_env import EnvironmentManager
+
+wf_path = Path('.github/workflows/reusable-deploy.yml')
+data = yaml.safe_load(wf_path.read_text(encoding='utf-8', errors='ignore')) or {}
+jobs = data.get('jobs') or {}
+manager = EnvironmentManager(repo='local/local')
+
+expectations = [
+    ('migrate', 'Fail fast if required backend secrets are missing', 'dev-backend', '${{ inputs.backend_environment }}'),
+    ('migrate', 'Fail fast if required backend secrets are missing', 'uat-backend', '${{ inputs.backend_environment }}'),
+    ('deploy-backend', 'Fail fast if required backend secrets are missing', 'dev-backend', '${{ inputs.backend_environment }}'),
+    ('deploy-backend', 'Fail fast if required backend secrets are missing', 'uat-backend', '${{ inputs.backend_environment }}'),
+    ('deploy-frontend', 'Fail fast if required frontend secrets are missing', 'dev-frontend', '${{ inputs.frontend_environment }}'),
+]
+
+errors = []
+for job_name, step_name, manifest_env, input_ref in expectations:
+    job = jobs.get(job_name)
+    if not isinstance(job, dict):
+        errors.append(f"{wf_path.name}: jobs.{job_name} missing")
+        continue
+
+    steps = job.get('steps') or []
+    step = next((s for s in steps if isinstance(s, dict) and s.get('name') == step_name), None)
+    if step is None:
+        errors.append(f"{wf_path.name}: jobs.{job_name} missing step '{step_name}'")
+        continue
+
+    env_keys = set((step.get('env') or {}).keys())
+    expected = set(manager.required_secrets_for_environment(manifest_env, workflow_name='reusable-deploy.yml'))
+    missing_env = sorted(expected - env_keys)
+    if missing_env:
+        errors.append(
+            f"{wf_path.name}: jobs.{job_name} fail-fast env mapping missing manifest-required secrets: {', '.join(missing_env)}"
+        )
+
+    run_script = step.get('run') or ''
+    if '.github/scripts/validate-environment.sh' not in run_script:
+        errors.append(f"{wf_path.name}: jobs.{job_name} fail-fast step must call .github/scripts/validate-environment.sh")
+    if '--workflow reusable-deploy.yml' not in run_script:
+        errors.append(f"{wf_path.name}: jobs.{job_name} fail-fast step must pass --workflow reusable-deploy.yml")
+    if input_ref not in run_script:
+        errors.append(f"{wf_path.name}: jobs.{job_name} fail-fast step must validate manifest requirements for {input_ref}")
+    if 'EnvironmentManager' in run_script or 'required_secrets_for_environment' in run_script or 'required_secrets_file' in run_script:
+        errors.append(f"{wf_path.name}: jobs.{job_name} fail-fast step must not embed inline secret-derivation logic")
+
+if errors:
+    for error in errors:
+        print(f"ERROR: {error}", file=sys.stderr)
+    raise SystemExit(1)
+
+print('✓ reusable-deploy required secret contract is manifest-derived')
+PY
+    then
+        return 1
+    fi
+
+    return 0
+}
+
+check_validate_environment_manifest_mode() {
+    log_info "Checking validate-environment.sh stays manifest-driven..."
+
+    if [[ ! -f .github/scripts/validate-environment.sh ]]; then
+        log_error "Missing .github/scripts/validate-environment.sh"
+        return 1
+    fi
+
+    local script_path=".github/scripts/validate-environment.sh"
+    local failed=0
+
+    if ! grep -q "config/manage_env.py validate-required" "$script_path"; then
+        log_error "validate-environment.sh must delegate required-secret checks to config/manage_env.py validate-required"
+        failed=1
+    fi
+
+    if grep -q 'check_var "SECRET_KEY"' "$script_path"; then
+        log_error "validate-environment.sh must not hardcode legacy required SECRET_KEY checks"
+        failed=1
+    fi
+
+    if grep -q 'check_var "ALLOWED_HOSTS"' "$script_path"; then
+        log_error "validate-environment.sh must not hardcode ALLOWED_HOSTS as required"
+        failed=1
+    fi
+
+    if [[ $failed -eq 0 ]]; then
+        log_info "✓ validate-environment.sh is manifest-driven"
+    fi
+
+    return $failed
+}
+
+check_codeowners_security_overrides() {
+    log_info "Checking CODEOWNERS critical security overrides..."
+
+    if [[ ! -f .github/CODEOWNERS ]]; then
+        log_error "Missing .github/CODEOWNERS"
+        return 1
+    fi
+
+    if ! python - <<'PY'
+import sys
+from pathlib import Path
+
+codeowners_path = Path('.github/CODEOWNERS')
+entries = {}
+
+for raw_line in codeowners_path.read_text(encoding='utf-8', errors='ignore').splitlines():
+    line = raw_line.strip()
+    if not line or line.startswith('#'):
+        continue
+    parts = line.split()
+    if len(parts) < 2:
+        continue
+    entries[parts[0]] = set(parts[1:])
+
+required_entries = {
+    '/.github/workflows/pr-validation.yml': {'@Meats-Central/devops-team', '@Meats-Central/security-team', '@Meats-Central/senior-team'},
+    '/.github/workflows/main-pipeline.yml': {'@Meats-Central/devops-team', '@Meats-Central/security-team', '@Meats-Central/senior-team'},
+    '/.github/workflows/reusable-deploy.yml': {'@Meats-Central/devops-team', '@Meats-Central/security-team', '@Meats-Central/senior-team'},
+    '/.github/workflows/15-dependabot-merge-when-green.yml': {'@Meats-Central/devops-team', '@Meats-Central/security-team', '@Meats-Central/senior-team'},
+    '/.github/dependabot.yml': {'@Meats-Central/devops-team', '@Meats-Central/security-team', '@Meats-Central/senior-team'},
+    '/.github/scripts/check_infrastructure.sh': {'@Meats-Central/devops-team', '@Meats-Central/security-team', '@Meats-Central/senior-team'},
+    '/.github/scripts/validate-workflows.sh': {'@Meats-Central/devops-team', '@Meats-Central/security-team', '@Meats-Central/senior-team'},
+    '/scripts/verify_golden_state.sh': {'@Meats-Central/devops-team', '@Meats-Central/security-team', '@Meats-Central/senior-team'},
+    '/backend/Dockerfile': {'@Meats-Central/devops-team', '@Meats-Central/security-team'},
+    '/frontend/Dockerfile': {'@Meats-Central/devops-team', '@Meats-Central/security-team'},
+    '/deploy/': {'@Meats-Central/devops-team', '@Meats-Central/security-team', '@Meats-Central/senior-team'},
+    '/config/': {'@Meats-Central/devops-team', '@Meats-Central/security-team'},
+    '/manifests/env.manifest.json': {'@Meats-Central/devops-team', '@Meats-Central/security-team'},
+}
+
+errors = []
+for path, owners in required_entries.items():
+    present = entries.get(path)
+    if present is None:
+        errors.append(f"{codeowners_path.name}: missing critical CODEOWNERS entry for {path}")
+        continue
+    missing_owners = sorted(owners - present)
+    if missing_owners:
+        errors.append(
+            f"{codeowners_path.name}: {path} missing required owners: {', '.join(missing_owners)}"
+        )
+
+if errors:
+    for error in errors:
+        print(f"ERROR: {error}", file=sys.stderr)
+    raise SystemExit(1)
+
+print('✓ CODEOWNERS critical security overrides are present')
+PY
+    then
+        return 1
+    fi
+
+    return 0
+}
+
+check_reusable_frontend_ssh_failfast() {
+    log_info "Checking reusable-deploy frontend SSH setup fails fast..."
+
+    if [[ ! -f .github/workflows/reusable-deploy.yml ]]; then
+        log_info "No reusable-deploy.yml found (skipping frontend SSH fail-fast checks)"
+        return 0
+    fi
+
+    if ! python - <<'PY'
+import sys
+from pathlib import Path
+
+try:
+    import yaml
+except Exception as e:
+    print(f"ERROR: pyyaml not available: {e}", file=sys.stderr)
+    raise SystemExit(1)
+
+wf_path = Path('.github/workflows/reusable-deploy.yml')
+data = yaml.safe_load(wf_path.read_text(encoding='utf-8', errors='ignore')) or {}
+jobs = data.get('jobs') or {}
+job = jobs.get('deploy-frontend')
+errors = []
+
+if not isinstance(job, dict):
+    errors.append(f"{wf_path.name}: jobs.deploy-frontend missing")
+else:
+    steps = job.get('steps') or []
+    setup_step = next((s for s in steps if isinstance(s, dict) and s.get('name') == 'Setup SSH'), None)
+    deploy_step = next((s for s in steps if isinstance(s, dict) and s.get('name') == 'Deploy frontend container'), None)
+
+    if setup_step is None:
+        errors.append(f"{wf_path.name}: jobs.deploy-frontend missing step 'Setup SSH'")
+    else:
+        run_script = setup_step.get('run') or ''
+        required_tokens = [
+            'timeout 30 sshpass -e ssh',
+            'UserKnownHostsFile=/dev/null',
+            'ConnectTimeout=10',
+            'ServerAliveInterval=10',
+            'ServerAliveCountMax=3',
+        ]
+        for token in required_tokens:
+            if token not in run_script:
+                errors.append(f"{wf_path.name}: jobs.deploy-frontend Setup SSH must include '{token}'")
+        import re
+        if re.search(r'(^|\n)\s*ssh-keyscan\b', run_script):
+            errors.append(f"{wf_path.name}: jobs.deploy-frontend Setup SSH must not use raw ssh-keyscan")
+
+    if deploy_step is None:
+        errors.append(f"{wf_path.name}: jobs.deploy-frontend missing step 'Deploy frontend container'")
+    else:
+        run_script = deploy_step.get('run') or ''
+        required_tokens = [
+            'UserKnownHostsFile=/dev/null',
+            'ConnectTimeout=10',
+            'ServerAliveInterval=60',
+            'ServerAliveCountMax=10',
+        ]
+        for token in required_tokens:
+            if token not in run_script:
+                errors.append(f"{wf_path.name}: jobs.deploy-frontend Deploy frontend container must include '{token}'")
+
+if errors:
+    for error in errors:
+        print(f"ERROR: {error}", file=sys.stderr)
+    raise SystemExit(1)
+
+print('✓ reusable-deploy frontend SSH setup is fail-fast')
+PY
+    then
+        return 1
+    fi
+
+    return 0
+}
+
+check_digest_artifact_alignment() {
+    log_info "Checking digest deploy defaults and artifact alignment..."
+
+    if [[ ! -f .github/workflows/reusable-deploy.yml || ! -f .github/workflows/main-pipeline.yml ]]; then
+        log_info "Deploy workflows not found (skipping digest alignment checks)"
+        return 0
+    fi
+
+    if ! python - <<'PY'
+import sys
+from pathlib import Path
+
+try:
+    import yaml
+except Exception as e:
+    print(f"ERROR: pyyaml not available: {e}", file=sys.stderr)
+    raise SystemExit(1)
+
+main_path = Path('.github/workflows/main-pipeline.yml')
+reusable_path = Path('.github/workflows/reusable-deploy.yml')
+main_data = yaml.safe_load(main_path.read_text(encoding='utf-8', errors='ignore')) or {}
+reusable_data = yaml.safe_load(reusable_path.read_text(encoding='utf-8', errors='ignore')) or {}
+
+main_jobs = main_data.get('jobs') or {}
+reusable_jobs = reusable_data.get('jobs') or {}
+errors = []
+
+for job_name in ('deploy-uat', 'deploy-prod'):
+    job = main_jobs.get(job_name)
+    with_section = (job or {}).get('with') or {}
+    if with_section.get('deploy_by_digest') is not True:
+        errors.append(f"{main_path.name}: jobs.{job_name}.with.deploy_by_digest must be true")
+
+build_backend = reusable_jobs.get('build-backend') or {}
+build_frontend = reusable_jobs.get('build-frontend') or {}
+
+if (build_backend.get('outputs') or {}).get('image_digest_ref') != '${{ steps.backend_image_refs.outputs.digest_ref }}':
+    errors.append(f"{reusable_path.name}: jobs.build-backend.outputs.image_digest_ref must export steps.backend_image_refs.outputs.digest_ref")
+if (build_frontend.get('outputs') or {}).get('image_digest_ref') != '${{ steps.frontend_image_refs.outputs.digest_ref }}':
+    errors.append(f"{reusable_path.name}: jobs.build-frontend.outputs.image_digest_ref must export steps.frontend_image_refs.outputs.digest_ref")
+
+def ensure_need(job_name, need_name):
+    needs = (reusable_jobs.get(job_name) or {}).get('needs') or []
+    if need_name not in needs:
+        errors.append(f"{reusable_path.name}: jobs.{job_name} must depend on {need_name} for digest alignment")
+
+ensure_need('migrate', 'build-backend')
+ensure_need('deploy-backend', 'build-backend')
+ensure_need('deploy-frontend', 'build-frontend')
+
+def step(job_name, step_name):
+    steps = (reusable_jobs.get(job_name) or {}).get('steps') or []
+    return next((s for s in steps if isinstance(s, dict) and s.get('name') == step_name), None)
+
+migrate_step = step('migrate', 'Run migrations via Docker with tunnel')
+backend_deploy_step = step('deploy-backend', 'Deploy backend container')
+frontend_deploy_step = step('deploy-frontend', 'Deploy frontend container')
+
+expected_env_refs = [
+    (migrate_step, 'BACKEND_TAG_REF', '${{ needs.build-backend.outputs.image_tag_ref }}', 'jobs.migrate step Run migrations via Docker with tunnel'),
+    (migrate_step, 'BACKEND_DIGEST_REF', '${{ needs.build-backend.outputs.image_digest_ref }}', 'jobs.migrate step Run migrations via Docker with tunnel'),
+    (backend_deploy_step, 'BACKEND_TAG_REF', '${{ needs.build-backend.outputs.image_tag_ref }}', 'jobs.deploy-backend step Deploy backend container'),
+    (backend_deploy_step, 'BACKEND_DIGEST_REF', '${{ needs.build-backend.outputs.image_digest_ref }}', 'jobs.deploy-backend step Deploy backend container'),
+    (frontend_deploy_step, 'FRONTEND_TAG_REF', '${{ needs.build-frontend.outputs.image_tag_ref }}', 'jobs.deploy-frontend step Deploy frontend container'),
+    (frontend_deploy_step, 'FRONTEND_DIGEST_REF', '${{ needs.build-frontend.outputs.image_digest_ref }}', 'jobs.deploy-frontend step Deploy frontend container'),
+]
+
+for step_obj, env_key, expected_value, label in expected_env_refs:
+    if step_obj is None:
+        errors.append(f"{reusable_path.name}: missing {label}")
+        continue
+    env_map = step_obj.get('env') or {}
+    if env_map.get(env_key) != expected_value:
+        errors.append(f"{reusable_path.name}: {label} env.{env_key} must be {expected_value}")
+
+if migrate_step is not None and 'BACKEND_RUN_REF="$BACKEND_DIGEST_REF"' not in (migrate_step.get('run') or ''):
+    errors.append(f"{reusable_path.name}: migrate step must switch BACKEND_RUN_REF to BACKEND_DIGEST_REF when digest deploy is enabled")
+if migrate_step is not None and 'pull_with_retry "$BACKEND_RUN_REF"' not in (migrate_step.get('run') or ''):
+    errors.append(f"{reusable_path.name}: migrate step must pull BACKEND_RUN_REF after selecting tag vs digest")
+if backend_deploy_step is not None and 'RUN_REF="${BACKEND_DIGEST_REF}"' not in (backend_deploy_step.get('run') or ''):
+    errors.append(f"{reusable_path.name}: deploy-backend step must run the build-exported backend digest ref")
+if frontend_deploy_step is not None and 'RUN_REF="${FRONTEND_DIGEST_REF}"' not in (frontend_deploy_step.get('run') or ''):
+    errors.append(f"{reusable_path.name}: deploy-frontend step must run the build-exported frontend digest ref")
+
+if errors:
+    for error in errors:
+        print(f"ERROR: {error}", file=sys.stderr)
+    raise SystemExit(1)
+
+print('✓ Digest deploy defaults and artifact alignment are enforced')
+PY
+    then
+        return 1
+    fi
+
+    return 0
+}
+
 check_reusable_workflow_callers() {
     log_info "Checking main-pipeline reusable workflow callers..."
 
@@ -1211,6 +1735,18 @@ for job_name, job in jobs.items():
         if not (isinstance(v, str) and v.strip()):
             errors.append(f"{wf_path.name}: jobs.{job_name}.with.{k} must be set for reusable workflow call")
 
+    if job_name == 'deploy-dev' and with_section.get('deploy_by_digest') is True:
+        errors.append(f"{wf_path.name}: jobs.deploy-dev must not default deploy_by_digest to true")
+    if 'require_redis_readiness' not in with_section:
+        errors.append(f"{wf_path.name}: jobs.{job_name}.with.require_redis_readiness must be set for reusable workflow call")
+    elif job_name == 'deploy-dev' and with_section.get('require_redis_readiness') is not False:
+        errors.append(f"{wf_path.name}: jobs.deploy-dev.with.require_redis_readiness must be false")
+    elif job_name in {'deploy-uat', 'deploy-prod'} and with_section.get('require_redis_readiness') is not True:
+        errors.append(f"{wf_path.name}: jobs.{job_name}.with.require_redis_readiness must be true")
+
+    if job_name in {'deploy-uat', 'deploy-prod'} and with_section.get('deploy_by_digest') is not True:
+        errors.append(f"{wf_path.name}: jobs.{job_name}.with.deploy_by_digest must be true")
+
 if checked == 0:
     errors.append(f"{wf_path.name}: no reusable workflow caller jobs found (validator may be out of date)")
 
@@ -1220,6 +1756,276 @@ if errors:
     raise SystemExit(1)
 
 print('✓ main-pipeline reusable workflow caller invariants OK')
+PY
+    then
+        return 1
+    fi
+
+    return 0
+}
+
+check_non_dev_redis_readiness_gate() {
+    log_info "Checking non-dev Redis readiness gate contract..."
+
+    if [[ ! -f .github/workflows/reusable-deploy.yml || ! -f .github/workflows/reusable-postdeploy-smoke.yml ]]; then
+        log_info "Reusable deploy workflows not found (skipping Redis readiness gate checks)"
+        return 0
+    fi
+
+    if ! python - <<'PY'
+import sys
+from pathlib import Path
+
+try:
+    import yaml
+except Exception as e:
+    print(f"ERROR: pyyaml not available: {e}", file=sys.stderr)
+    raise SystemExit(1)
+
+reusable_path = Path('.github/workflows/reusable-deploy.yml')
+smoke_path = Path('.github/workflows/reusable-postdeploy-smoke.yml')
+reusable = yaml.safe_load(reusable_path.read_text(encoding='utf-8', errors='ignore')) or {}
+smoke = yaml.safe_load(smoke_path.read_text(encoding='utf-8', errors='ignore')) or {}
+errors = []
+
+workflow_call = ((reusable.get('on') or reusable.get(True) or {}).get('workflow_call') or {})
+inputs = workflow_call.get('inputs') or {}
+secrets = workflow_call.get('secrets') or {}
+
+redis_input = inputs.get('require_redis_readiness') or {}
+if redis_input.get('type') != 'boolean':
+    errors.append(f"{reusable_path.name}: workflow_call input require_redis_readiness must be boolean")
+if redis_input.get('default') is not False:
+    errors.append(f"{reusable_path.name}: workflow_call input require_redis_readiness must default to false")
+if 'REDIS_URL' not in secrets:
+    errors.append(f"{reusable_path.name}: workflow_call secrets must declare REDIS_URL")
+
+jobs = reusable.get('jobs') or {}
+
+def find_step(job_name, step_name):
+    steps = (jobs.get(job_name) or {}).get('steps') or []
+    return next((step for step in steps if isinstance(step, dict) and step.get('name') == step_name), None)
+
+migrate_step = find_step('migrate', 'Run migrations via Docker with tunnel')
+envfile_step = find_step('deploy-backend', 'Create Backend .env File Locally')
+deploy_backend_step = find_step('deploy-backend', 'Deploy backend container')
+post_deploy_smoke = jobs.get('post-deploy-smoke') or {}
+
+for label, step_obj in (
+    ('jobs.migrate step Run migrations via Docker with tunnel', migrate_step),
+    ('jobs.deploy-backend step Create Backend .env File Locally', envfile_step),
+    ('jobs.deploy-backend step Deploy backend container', deploy_backend_step),
+):
+    if step_obj is None:
+        errors.append(f"{reusable_path.name}: missing {label}")
+
+if migrate_step is not None:
+    env_map = migrate_step.get('env') or {}
+    for key, expected in {
+        'REDIS_URL': '${{ secrets.REDIS_URL }}',
+        'REQUIRE_REDIS_READINESS': '${{ inputs.require_redis_readiness }}',
+    }.items():
+        if env_map.get(key) != expected:
+            errors.append(f"{reusable_path.name}: jobs.migrate step env.{key} must be {expected}")
+    run_script = migrate_step.get('run') or ''
+    required_tokens = [
+        'REDIS_GATE_ARGS="--require-redis-readiness"',
+        'python manage.py check_infrastructure $REDIS_GATE_ARGS',
+        '-e REDIS_URL="$REDIS_URL"',
+        '-e REQUIRE_REDIS_READINESS="$REQUIRE_REDIS_READINESS"',
+    ]
+    for token in required_tokens:
+        if token not in run_script:
+            errors.append(f"{reusable_path.name}: jobs.migrate step must include '{token}'")
+
+if envfile_step is not None:
+    run_script = envfile_step.get('run') or ''
+    required_tokens = [
+        'REDIS_URL=${{ secrets.REDIS_URL }}',
+        'REQUIRE_REDIS_READINESS=${{ inputs.require_redis_readiness }}',
+    ]
+    for token in required_tokens:
+        if token not in run_script:
+            errors.append(f"{reusable_path.name}: jobs.deploy-backend Create Backend .env File must include '{token}'")
+
+if deploy_backend_step is not None:
+    env_map = deploy_backend_step.get('env') or {}
+    if env_map.get('REQUIRE_REDIS_READINESS') != '${{ inputs.require_redis_readiness }}':
+        errors.append(
+            f"{reusable_path.name}: jobs.deploy-backend step Deploy backend container env.REQUIRE_REDIS_READINESS must be "
+            "${{ inputs.require_redis_readiness }}"
+        )
+    run_script = deploy_backend_step.get('run') or ''
+    for token in ('HEALTH_PATH="/api/v1/ready/"', 'REQUIRE_REDIS_READINESS'):
+        if token not in run_script:
+            errors.append(f"{reusable_path.name}: jobs.deploy-backend step must include '{token}'")
+
+with_section = post_deploy_smoke.get('with') or {}
+if with_section.get('require_redis_readiness') != '${{ inputs.require_redis_readiness }}':
+    errors.append(
+        f"{reusable_path.name}: jobs.post-deploy-smoke.with.require_redis_readiness must pass through "
+        "${{ inputs.require_redis_readiness }}"
+    )
+
+smoke_inputs = (((smoke.get('on') or smoke.get(True) or {}).get('workflow_call') or {}).get('inputs') or {})
+if (smoke_inputs.get('require_redis_readiness') or {}).get('type') != 'boolean':
+    errors.append(f"{smoke_path.name}: workflow_call input require_redis_readiness must be boolean")
+
+smoke_jobs = smoke.get('jobs') or {}
+smoke_backend_steps = (smoke_jobs.get('smoke-backend-container') or {}).get('steps') or []
+backend_step = next((step for step in smoke_backend_steps if isinstance(step, dict) and step.get('name') == 'Verify backend health (direct-to-container)'), None)
+if backend_step is None:
+    errors.append(f"{smoke_path.name}: missing smoke-backend-container backend verification step")
+else:
+    run_script = backend_step.get('run') or ''
+    for token in ('${{ inputs.require_redis_readiness }}', 'URL="http://127.0.0.1:8000/api/v1/ready/"'):
+        if token not in run_script:
+            errors.append(f"{smoke_path.name}: backend smoke step must include '{token}'")
+
+if errors:
+    for error in errors:
+        print(f"ERROR: {error}", file=sys.stderr)
+    raise SystemExit(1)
+
+print('✓ Non-dev Redis readiness gate contract is enforced')
+PY
+    then
+        return 1
+    fi
+
+    return 0
+}
+
+check_current_docs_manifest_path_drift() {
+    log_info "Checking CURRENT docs use canonical env manifest path..."
+
+    if ! python - <<'PY'
+import sys
+from pathlib import Path
+
+bad_refs = []
+for doc_path in Path('docs').rglob('*.md'):
+    text = doc_path.read_text(encoding='utf-8', errors='ignore')
+    lines = text.splitlines()
+    header = '\n'.join(lines[:10])
+    if '**Status**: ✅ CURRENT' not in header:
+        continue
+
+    for line_number, line in enumerate(lines, start=1):
+        if 'config/env.manifest.json' in line:
+            bad_refs.append(f"{doc_path}:{line_number}")
+
+if bad_refs:
+    for ref in bad_refs:
+        print(
+            f"ERROR: CURRENT docs must reference manifests/env.manifest.json, not legacy config/env.manifest.json ({ref})",
+            file=sys.stderr,
+        )
+    raise SystemExit(1)
+
+print('✓ CURRENT docs reference the canonical env manifest path')
+PY
+    then
+        return 1
+    fi
+
+    return 0
+}
+
+check_current_docs_golden_pipeline_drift() {
+    log_info "Checking CURRENT docs avoid forbidden Golden pipeline drift..."
+
+    if ! python - <<'PY'
+import sys
+from pathlib import Path
+
+rules = {
+    'docs/reference/FRONTEND_ENVIRONMENT_VARIABLES.md': {
+        'forbidden': [
+            (
+                'dev-backend.meatscentral.com',
+                'Development frontend docs must use same-origin API routing (https://dev.meatscentral.com/api/v1).',
+            ),
+            (
+                'frontend:latest',
+                'Frontend deployment examples must use immutable image refs, not :latest.',
+            ),
+        ],
+        'required': [
+            (
+                'https://dev.meatscentral.com/api/v1',
+                'Development frontend docs must show the same-origin /api/v1 endpoint.',
+            ),
+        ],
+    },
+    'docs/reference/ENVIRONMENT_VARS.md': {
+        'forbidden': [
+            (
+                'https://dev-backend.meatscentral.com',
+                'Environment variable reference must not point frontend API examples at a separate dev-backend host.',
+            ),
+        ],
+        'required': [
+            (
+                'https://dev.meatscentral.com/api/v1',
+                'Environment variable reference must show the same-origin dev API base URL.',
+            ),
+        ],
+    },
+    'docs/guides/DEVELOPMENT_WORKFLOW.md': {
+        'forbidden': [
+            (
+                'docker stack deploy -c docker-compose.prod.yml projectmeats',
+                'Current development workflow docs must not recommend Docker Swarm/stack deploy for the Golden pipeline.',
+            ),
+        ],
+    },
+    'docs/reference/GOLDEN_PIPELINE.md': {
+        'forbidden': [
+            (
+                'docker-compose up -d backend',
+                'Reference Golden pipeline docs must not include compose-based remote deploy commands.',
+            ),
+            (
+                'ALWAYS use `docker-compose` (hyphen) for other Docker management commands',
+                'Reference Golden pipeline docs must align remote lifecycle guidance to docker pull/run/rm/exec commands.',
+            ),
+        ],
+        'required': [
+            (
+                'manifests/env.manifest.json',
+                'Reference Golden pipeline docs must point to the canonical manifests/env.manifest.json path.',
+            ),
+        ],
+    },
+}
+
+errors = []
+for rel_path, expectations in rules.items():
+    path = Path(rel_path)
+    if not path.exists():
+        errors.append(f'{rel_path}: expected doc not found')
+        continue
+
+    text = path.read_text(encoding='utf-8', errors='ignore')
+    header = '\n'.join(text.splitlines()[:10])
+    if '**Status**: ✅ CURRENT' not in header and rel_path != 'docs/reference/GOLDEN_PIPELINE.md':
+        continue
+
+    for needle, message in expectations.get('forbidden', []):
+        if needle in text:
+            errors.append(f'{rel_path}: {message}')
+
+    for needle, message in expectations.get('required', []):
+        if needle not in text:
+            errors.append(f'{rel_path}: {message}')
+
+if errors:
+    for error in errors:
+        print(f'ERROR: {error}', file=sys.stderr)
+    raise SystemExit(1)
+
+print('✓ CURRENT docs avoid forbidden Golden pipeline drift')
 PY
     then
         return 1
@@ -1240,7 +2046,14 @@ main() {
     validate_yaml_syntax || ((failed++))
     check_manifest_secrets_for_all_workflows || ((failed++))
     check_environment_lanes_match_manifest || ((failed++))
+    check_reusable_workflow_required_secret_contract || ((failed++))
+    check_validate_environment_manifest_mode || ((failed++))
+    check_reusable_frontend_ssh_failfast || ((failed++))
+    check_digest_artifact_alignment || ((failed++))
     check_reusable_workflow_callers || ((failed++))
+    check_non_dev_redis_readiness_gate || ((failed++))
+    check_current_docs_manifest_path_drift || ((failed++))
+    check_current_docs_golden_pipeline_drift || ((failed++))
     check_cache_config || ((failed++))
     check_health_checks || ((failed++))
     check_fetch_depth || ((failed++))
@@ -1257,7 +2070,10 @@ main() {
     check_immutable_deploy_tags || ((failed++))
     check_workflow_run_targets_exist || ((failed++))
     check_pr_validation_frontend_typecheck_gate || ((failed++))
+    check_pr_validation_security_gates || ((failed++))
     check_env_separation || ((failed++))
+    check_dependabot_auto_merge_scope || ((failed++))
+    check_codeowners_security_overrides || ((failed++))
     
     log_info "========================================="
     

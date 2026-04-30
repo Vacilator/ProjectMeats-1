@@ -9,6 +9,7 @@
  * @module services/configService
  */
 import { apiClient } from './apiService';
+import { logger } from '../utils/logger';
 
 // =============================================================================
 // Types
@@ -179,7 +180,7 @@ function restoreCacheFromStorage(): void {
       // Only restore if within persistent TTL AND not invalidated.
       if (parsed.timestamp && Date.now() - parsed.timestamp < PERSIST_CACHE_TTL && parsed.timestamp > cacheBustTs) {
         memoryCache = parsed.cache || {};
-        console.debug('[configService] Cache restored from localStorage');
+        logger.debug('Cache restored from localStorage', { component: 'ConfigService' });
       }
     }
   } catch {
@@ -250,9 +251,9 @@ export async function preloadConfigCache(): Promise<void> {
       getTenantConfigs(),
     ]);
     persistCacheToStorage();
-    console.debug('[configService] Config cache preloaded');
+    logger.debug('Config cache preloaded', { component: 'ConfigService' });
   } catch (error) {
-    console.warn('[configService] Failed to preload cache:', error);
+    logger.warn('Failed to preload config cache', { component: 'ConfigService' }, error);
   }
 }
 

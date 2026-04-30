@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { ApiService } from '../services/ApiService';
+import { toApiErrorText } from '../services/apiErrorPresentation';
 import { RootStackParamList, User } from '../types';
 import { useMobileTranslation } from '../i18n';
 
@@ -43,11 +44,10 @@ export default function LoginScreen({ navigation, onLogin }: Props) {
       
       await onLogin(response.token, response.user);
       
-    } catch (error: any) {
-      console.error('Login error:', error);
+    } catch (error) {
       Alert.alert(
         t.login.loginFailed,
-        error.response?.data?.detail || t.login.invalidCredentials
+        toApiErrorText(error, { fallbackMessage: t.login.invalidCredentials })
       );
     } finally {
       setLoading(false);

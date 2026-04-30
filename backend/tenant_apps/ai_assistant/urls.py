@@ -10,18 +10,22 @@ from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 
 from .views import (
+    AIApprovalViewSet,
     AIDocumentViewSet,
     AIFeedbackViewSet,
     AIAgentChatView,
     AILearningMetricsAPIView,
+    AIRunViewSet,
+    AITaskViewSet,
     ChatBotAPIViewSet,
     ChatMessageViewSet,
     ChatSessionViewSet,
+    ExtractToSchemaAPIView,
     PendingReviewResolveAPIView,
     PendingReviewView,
+    RecentErrorsAPIView,
     SwarmInvokeAPIView,
     ToolsOpenAPIView,
-    RecentErrorsAPIView,
 )
 
 app_name = 'ai_assistant'
@@ -30,6 +34,9 @@ router = DefaultRouter()
 
 # Clean router resources
 router.register(r'feedback', AIFeedbackViewSet, basename='ai-feedback')
+router.register(r'runs', AIRunViewSet, basename='ai-run')
+router.register(r'tasks', AITaskViewSet, basename='ai-task')
+router.register(r'approvals', AIApprovalViewSet, basename='ai-approval')
 
 # Legacy router resources (keep existing clients working)
 router.register(r'ai-sessions', ChatSessionViewSet, basename='ai-session')
@@ -43,6 +50,7 @@ urlpatterns = [
     # Clean endpoints
     path('chat/', AIAgentChatView.as_view(), name='ai-chat'),
     path('metrics/', AILearningMetricsAPIView.as_view(), name='ai-metrics'),
+    path('extract-to-schema/', ExtractToSchemaAPIView.as_view(), name='ai-extract-to-schema'),
     path('review/pending/', PendingReviewView.as_view(), name='pending-review'),
     path('tools/openapi/', ToolsOpenAPIView.as_view(), name='tools-openapi'),
     path('errors/recent/', RecentErrorsAPIView.as_view(), name='ai-recent-errors'),

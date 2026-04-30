@@ -125,13 +125,13 @@ class SystemChoiceItemsPagination(PageNumberPagination):
         return min(parsed, self.max_page_size)
 
 
-class IsAdminOrReadOnly(permissions.BasePermission):
-    """Allow read-only for authenticated users, write for admins."""
-    
+class IsSuperuserOrReadOnly(permissions.BasePermission):
+    """Allow read-only for authenticated users, write only for superusers."""
+
     def has_permission(self, request, view):
         if request.method in permissions.SAFE_METHODS:
             return request.user.is_authenticated
-        return request.user.is_staff
+        return bool(request.user and request.user.is_authenticated and request.user.is_superuser)
 
 
 class IsTenantAdminOrReadOnly(permissions.BasePermission):
@@ -518,11 +518,14 @@ class SystemFieldSchemaViewSet(viewsets.ModelViewSet):
     """
     ViewSet for SystemFieldSchema.
     
-    Admin-only for modifications.
+    Global system schema metadata.
+
+    Read access is available to authenticated users, but modifications are restricted
+    to superusers because these rows affect all tenants.
     """
     queryset = SystemFieldSchema.objects.all()
     serializer_class = SystemFieldSchemaSerializer
-    permission_classes = [IsAdminOrReadOnly]
+    permission_classes = [IsSuperuserOrReadOnly]
     lookup_field = 'field_path'
     
     def get_object(self):

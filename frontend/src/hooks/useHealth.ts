@@ -1,7 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 
 import { apiClient } from '@/services/apiService';
-
 export interface HealthResponse {
   status: string;
   timestamp: string;

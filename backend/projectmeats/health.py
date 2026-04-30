@@ -14,7 +14,7 @@ from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 from rest_framework import status
-from apps.core.utils.health import check_all_services
+from apps.core.utils.health import check_all_services, semantic_index_readiness_required
 
 
 @require_http_methods(["GET"])
@@ -57,9 +57,11 @@ def health_check(request):
     integration_warnings = []
 
     redis = services.get("redis", {}) if isinstance(services, dict) else {}
+    channel_layer = services.get("channel_layer", {}) if isinstance(services, dict) else {}
     sentry = services.get("sentry", {}) if isinstance(services, dict) else {}
     openai = services.get("openai", {}) if isinstance(services, dict) else {}
     ms = services.get("microsoft_oauth", {}) if isinstance(services, dict) else {}
+    semantic_indexing = services.get("semantic_indexing", {}) if isinstance(services, dict) else {}
 
     if redis.get("configured") and not redis.get("available"):
         integration_warnings.append(
@@ -75,12 +77,34 @@ def health_check(request):
                 "message": "Redis not configured (using in-memory fallback). Real-time/caching features are degraded.",
             }
         )
+    if channel_layer.get("configured") and not channel_layer.get("available"):
+        integration_warnings.append(
+            {
+                "code": "channel_layer_unavailable",
+                "message": "Redis-backed channels are configured but not reachable; collaboration and websocket features are degraded.",
+            }
+        )
+    if not channel_layer.get("configured"):
+        integration_warnings.append(
+            {
+                "code": "channel_layer_not_configured",
+                "message": "Channel layer is using in-memory fallback. Cross-process realtime features are degraded.",
+            }
+        )
 
     if not openai.get("api_key_set"):
         integration_warnings.append(
             {
                 "code": "openai_not_configured",
                 "message": "OpenAI not configured (missing OPENAI_API_KEY). AI features will return AI_NOT_CONFIGURED (503).",
+            }
+        )
+    if semantic_indexing.get("required") and not semantic_indexing.get("available"):
+        integration_warnings.append(
+            {
+                "code": "semantic_indexing_not_ready",
+                "message": semantic_indexing.get("note")
+                or "Semantic indexing readiness is required for this environment.",
             }
         )
 
@@ -113,6 +137,11 @@ def health_check(request):
             "available": bool(redis.get("available")),
             "is_redis": bool(redis.get("is_redis")),
         },
+        "channel_layer": {
+            "configured": bool(channel_layer.get("configured")),
+            "available": bool(channel_layer.get("available")),
+            "is_redis": bool(channel_layer.get("is_redis")),
+        },
         "openai": {"configured": bool(openai.get("api_key_set")), "model": openai.get("model")},
         "sentry": {
             "enabled": bool(sentry.get("enabled")),
@@ -124,6 +153,12 @@ def health_check(request):
             "configured": bool(ms.get("configured")),
             "tenant_id_set": bool(ms.get("tenant_id_set")),
         },
+        "semantic_indexing": {
+            "configured": bool(semantic_indexing.get("configured")),
+            "available": bool(semantic_indexing.get("available")),
+            "required": bool(semantic_indexing.get("required")),
+            "mode": semantic_indexing.get("mode"),
+        },
     }
 
     features = {
@@ -131,7 +166,9 @@ def health_check(request):
         "outlook_oauth": bool(ms.get("configured")),
         "email_send": bool(services.get("sendgrid", {}).get("configured")),
         "redis": bool(redis.get("available")),
+        "realtime": bool(channel_layer.get("available")),
         "rag": bool(services.get("pgvector", {}).get("available")),
+        "semantic_indexing": bool(semantic_indexing.get("available")),
         "sentry": bool(sentry.get("dsn_set")),
     }
 
@@ -253,27 +290,95 @@ def ready_check(request):
     Readiness check endpoint.
     Returns whether the application is ready to serve traffic.
     """
+    checks = {}
+    errors = []
+    require_redis_readiness = bool(getattr(settings, "REQUIRE_REDIS_READINESS", False))
+    require_semantic_index_readiness = semantic_index_readiness_required()
+
     try:
-        # Test database connection
         with connection.cursor() as cursor:
             cursor.execute("SELECT 1")
-
-        return JsonResponse(
+        checks["database"] = "healthy"
+    except Exception as e:
+        checks["database"] = "unhealthy"
+        errors.append(
             {
-                "status": "ready",
-                "timestamp": timezone.now().isoformat(),
+                "code": "db_connection_failed",
+                "message": str(e),
             }
         )
 
-    except Exception as e:
+    if checks["database"] == "healthy":
+        try:
+            services = check_all_services()
+        except Exception as e:
+            services = None
+            if require_redis_readiness:
+                errors.append(
+                    {
+                        "code": "service_checks_failed",
+                        "message": str(e),
+                    }
+                )
+        else:
+            redis = services.get("redis", {}) if isinstance(services, dict) else {}
+            channel_layer = services.get("channel_layer", {}) if isinstance(services, dict) else {}
+            semantic_indexing = services.get("semantic_indexing", {}) if isinstance(services, dict) else {}
+            checks["redis"] = "healthy" if redis.get("available") else "unhealthy"
+            checks["channel_layer"] = "healthy" if channel_layer.get("available") else "unhealthy"
+            checks["semantic_indexing"] = "healthy" if semantic_indexing.get("available") else "unhealthy"
+
+            if require_redis_readiness:
+                if not redis.get("available"):
+                    errors.append(
+                        {
+                            "code": "redis_not_ready",
+                            "message": redis.get("error")
+                            or redis.get("note")
+                            or "Redis cache readiness is required for this environment.",
+                        }
+                    )
+                if not channel_layer.get("available"):
+                    errors.append(
+                        {
+                            "code": "channel_layer_not_ready",
+                            "message": channel_layer.get("error")
+                            or channel_layer.get("note")
+                            or "Redis-backed channel layer readiness is required for this environment.",
+                        }
+                    )
+            if require_semantic_index_readiness and not semantic_indexing.get("available"):
+                errors.append(
+                    {
+                        "code": "semantic_indexing_not_ready",
+                        "message": semantic_indexing.get("note")
+                        or "Semantic indexing readiness is required for this environment.",
+                    }
+                )
+
+    if errors:
         return JsonResponse(
             {
                 "status": "not_ready",
                 "timestamp": timezone.now().isoformat(),
-                "error": str(e),
+                "checks": checks,
+                "requires_redis_readiness": require_redis_readiness,
+                "requires_semantic_index_readiness": require_semantic_index_readiness,
+                "errors": errors,
+                "error": "; ".join(error["message"] for error in errors),
             },
             status=status.HTTP_503_SERVICE_UNAVAILABLE,
         )
+
+    return JsonResponse(
+        {
+            "status": "ready",
+            "timestamp": timezone.now().isoformat(),
+            "checks": checks,
+            "requires_redis_readiness": require_redis_readiness,
+            "requires_semantic_index_readiness": require_semantic_index_readiness,
+        }
+    )
 
 
 @require_http_methods(["GET"])

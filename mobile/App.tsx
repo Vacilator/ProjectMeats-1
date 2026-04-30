@@ -1,10 +1,15 @@
 import { StatusBar } from 'expo-status-bar';
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
+import { Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-import { clearPersistedTenantSelection } from './src/utils/tenantStorage';
+import {
+  clearPersistedTenantSelection,
+  getPersistedTenantSelection,
+  persistTenantSelection,
+} from './src/utils/tenantStorage';
 
 // Screens
 import LoginScreen from './src/screens/LoginScreen';
@@ -37,11 +42,39 @@ export default function App() {
     checkAuthStatus();
   }, []);
 
+  const handleSessionExpired = useCallback(async () => {
+    if (!isAuthenticated) {
+      return;
+    }
+
+    try {
+      await AsyncStorage.multiRemove(['authToken', 'userData', 'isGuest']);
+      await clearPersistedTenantSelection();
+    } catch {
+      // Best-effort local cleanup for session expiry.
+    } finally {
+      setIsAuthenticated(false);
+      setIsGuest(false);
+      setUser(null);
+      setCurrentTenant(null);
+      ApiService.removeAuthToken();
+      ApiService.clearTenantId();
+      Alert.alert('Session expired', 'Your session has expired. Please sign in again.');
+    }
+  }, [isAuthenticated]);
+
+  useEffect(() => {
+    ApiService.setAuthFailureHandler(handleSessionExpired);
+
+    return () => {
+      ApiService.setAuthFailureHandler(null);
+    };
+  }, [handleSessionExpired]);
+
   const checkAuthStatus = async () => {
     try {
       const token = await AsyncStorage.getItem('authToken');
       const userData = await AsyncStorage.getItem('userData');
-      const tenantData = await AsyncStorage.getItem('currentTenant');
       const isGuestFlag = await AsyncStorage.getItem('isGuest');
 
       if (token && userData) {
@@ -50,16 +83,18 @@ export default function App() {
         setUser(JSON.parse(userData));
         ApiService.setAuthToken(token);
 
-        if (tenantData) {
-          const parsed = JSON.parse(tenantData);
-          setCurrentTenant(parsed);
-          if (parsed?.id) {
-            ApiService.setTenantId(String(parsed.id));
-          }
+        const persistedTenant = await getPersistedTenantSelection();
+        if (persistedTenant?.id) {
+          setCurrentTenant(persistedTenant);
+          ApiService.setTenantId(String(persistedTenant.id));
+        } else {
+          setCurrentTenant(null);
+          ApiService.clearTenantId();
         }
       }
-    } catch (error) {
-      console.error('Error checking auth status:', error);
+    } catch {
+      setCurrentTenant(null);
+      ApiService.clearTenantId();
     } finally {
       setIsLoading(false);
     }
@@ -75,18 +110,28 @@ export default function App() {
       setIsGuest(false);
       setUser(userData);
       ApiService.setAuthToken(token);
-    } catch (error) {
-      console.error('Error saving auth data:', error);
+
+      const persistedTenant = await getPersistedTenantSelection();
+      if (persistedTenant?.id) {
+        setCurrentTenant(persistedTenant);
+        ApiService.setTenantId(String(persistedTenant.id));
+      } else {
+        setCurrentTenant(null);
+        ApiService.clearTenantId();
+      }
+    } catch {
+      setCurrentTenant(null);
+      ApiService.clearTenantId();
     }
   };
 
   const handleTenantSelect = async (tenant: Tenant) => {
     try {
-      await AsyncStorage.setItem('currentTenant', JSON.stringify(tenant));
+      await persistTenantSelection(tenant);
       setCurrentTenant(tenant);
       ApiService.setTenantId(String(tenant.id));
-    } catch (error) {
-      console.error('Error saving tenant data:', error);
+    } catch {
+      Alert.alert('Error', 'Unable to switch tenants. Please try again.');
     }
   };
 
@@ -99,15 +144,16 @@ export default function App() {
         // Ignore network/auth errors during logout; local logout still proceeds.
       }
 
-      await AsyncStorage.multiRemove(['authToken', 'userData', 'currentTenant', 'isGuest']);
+      await AsyncStorage.multiRemove(['authToken', 'userData', 'isGuest']);
+      await clearPersistedTenantSelection();
       setIsAuthenticated(false);
       setIsGuest(false);
       setUser(null);
       setCurrentTenant(null);
       ApiService.removeAuthToken();
       ApiService.clearTenantId();
-    } catch (error) {
-      console.error('Error during logout:', error);
+    } catch {
+      Alert.alert('Error', 'Unable to complete logout. Please try again.');
     }
   };
 
@@ -131,8 +177,8 @@ export default function App() {
     try {
       await AsyncStorage.setItem('authToken', session.token);
       await AsyncStorage.setItem('userData', JSON.stringify(session.user));
-      await AsyncStorage.setItem('currentTenant', JSON.stringify(guestTenant));
       await AsyncStorage.setItem('isGuest', '1');
+      await persistTenantSelection(guestTenant);
 
       ApiService.setAuthToken(session.token);
       ApiService.setTenantId(String(session.tenant.id));
@@ -141,8 +187,8 @@ export default function App() {
       setCurrentTenant(guestTenant);
       setIsGuest(true);
       setIsAuthenticated(true);
-    } catch (error) {
-      console.error('Error saving guest session:', error);
+    } catch {
+      Alert.alert('Error', 'Unable to start the guest session. Please try again.');
     }
   };
 

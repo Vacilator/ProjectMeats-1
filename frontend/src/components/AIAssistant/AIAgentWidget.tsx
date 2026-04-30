@@ -34,11 +34,14 @@ import { useToast } from '../../hooks/useToast';
 import { businessApi } from '../../services/businessApi';
 import { useHealth } from '@/hooks/useHealth';
 import { HITLReviewCard } from './HITLReviewCard';
+import DocumentAuditBadges from './DocumentAuditBadges';
 import {
   CHAT_UPLOAD_ACCEPT_ATTR,
   CHAT_UPLOAD_SUPPORTED_EXTENSIONS,
   getChatUploadFileKind,
 } from '@/components/ChatInterface/fileUploadConfig';
+import { aiStaffApi, chatApi, hydrateDocumentMessageMetadata } from '@/services/aiService';
+import type { DocumentProcessingMetadata, DocumentSourceMetadata } from '@/types';
 
 type AgentState = 'idle' | 'thinking' | 'action_required';
 
@@ -98,6 +101,14 @@ const getMetadataString = (
 ): string | undefined => {
   const value = metadata?.[key];
   return typeof value === 'string' ? value : undefined;
+};
+
+const getMetadataObject = <T extends object>(
+  metadata: Record<string, unknown> | undefined,
+  key: string
+): T | undefined => {
+  const value = metadata?.[key];
+  return value && typeof value === 'object' && !Array.isArray(value) ? (value as T) : undefined;
 };
 
 const renderAttachmentIcon = (
@@ -876,7 +887,7 @@ export const AIAgentWidget: React.FC = () => {
   const loadSessionMessages = async (id: string) => {
     const res = await businessApi.get(`/ai-assistant/ai-sessions/${id}/messages/`);
     const serverMsgs = normalizeServerMessages(res.data);
-    const ui = toUiMessages(serverMsgs);
+    const ui = await hydrateDocumentMessageMetadata(toUiMessages(serverMsgs));
     setMessages(
       ui.length
         ? ui
@@ -1031,7 +1042,7 @@ export const AIAgentWidget: React.FC = () => {
 
     setState('thinking');
     try {
-      const res = await businessApi.post<unknown>('/ai-assistant/swarm/invoke/', {
+      const routePreview = await aiStaffApi.previewRoute({
         event_type: 'user_chat',
         payload: {
           message,
@@ -1041,11 +1052,13 @@ export const AIAgentWidget: React.FC = () => {
         correlation_id: sessionId ?? undefined,
       });
 
-      const dataObj = res.data && typeof res.data === 'object' ? (res.data as Record<string, unknown>) : null;
-      const chain = Array.isArray(dataObj?.agent_chain) ? (dataObj.agent_chain as unknown[]).join(' → ') : '—';
-      const intent = typeof dataObj?.intent === 'string' ? dataObj.intent : '—';
-      const urgency = typeof dataObj?.urgency === 'string' ? dataObj.urgency : '—';
-      const notes = typeof dataObj?.notes === 'string' && dataObj.notes.length ? `\nNotes: ${dataObj.notes}` : '';
+      const chain = Array.isArray(routePreview.agent_chain) ? routePreview.agent_chain.join(' → ') : '—';
+      const intent = typeof routePreview.intent === 'string' ? routePreview.intent : '—';
+      const urgency = typeof routePreview.urgency === 'string' ? routePreview.urgency : '—';
+      const notes =
+        typeof routePreview.notes === 'string' && routePreview.notes.length
+          ? `\nNotes: ${routePreview.notes}`
+          : '';
 
       setMessages((m) => [
         ...m,
@@ -1093,8 +1106,7 @@ export const AIAgentWidget: React.FC = () => {
       setState('thinking');
       try {
         const sid = await ensureSession();
-
-        const res = await businessApi.post<{ response: string; session_id: string }>('/ai-assistant/chat/', {
+        const chatResponse = await chatApi.sendMessage({
           message: text,
           session_id: sid,
           context: {
@@ -1104,7 +1116,7 @@ export const AIAgentWidget: React.FC = () => {
           },
         });
 
-        const responseText = res.data?.response ?? '—';
+        const responseText = chatResponse.response ?? '—';
         setMessages((m) => [...m, { id: newId(), role: 'assistant', content: responseText, createdAt: Date.now() }]);
 
         await reloadSessions();
@@ -1189,11 +1201,7 @@ export const AIAgentWidget: React.FC = () => {
     if (text === '/pending') {
       setState('thinking');
       try {
-        const res = await businessApi.get<unknown>('/ai-assistant/review/pending/');
-        const dataObj = res.data && typeof res.data === 'object' ? (res.data as Record<string, unknown>) : null;
-        const pending = Array.isArray(dataObj?.pending_reviews) ? dataObj.pending_reviews : null;
-        const results = Array.isArray(dataObj?.results) ? dataObj.results : null;
-        const items = (pending ?? results ?? []) as unknown[];
+        const items = await aiStaffApi.listPendingReviews();
 
         if (!items.length) {
           appendAssistant('No pending review items (or you are not staff).');
@@ -1202,11 +1210,10 @@ export const AIAgentWidget: React.FC = () => {
         }
 
         const lines = items.slice(0, 10).map((it) => {
-          const obj = it && typeof it === 'object' ? (it as Record<string, unknown>) : {};
-          const id = String(obj.id || '');
+          const id = String(it.id || '');
           const prefix = id ? `${id.slice(0, 8)}…` : '—';
-          const docType = typeof obj.document_type === 'string' ? obj.document_type : 'unknown';
-          const conf = typeof obj.confidence_score === 'number' ? obj.confidence_score.toFixed(2) : '—';
+          const docType = typeof it.document_type === 'string' ? it.document_type : 'unknown';
+          const conf = typeof it.confidence_score === 'number' ? it.confidence_score.toFixed(2) : '—';
           return `- ${prefix} ${docType} (confidence=${conf})`;
         });
 
@@ -1226,12 +1233,7 @@ export const AIAgentWidget: React.FC = () => {
         const prefix = rest ? rest.split(/\s+/)[0] : '';
         const jsonStr = rest ? rest.slice(prefix.length).trim() : '';
 
-        const pendingRes = await businessApi.get<unknown>('/ai-assistant/review/pending/');
-        const pendingObj =
-          pendingRes.data && typeof pendingRes.data === 'object' ? (pendingRes.data as Record<string, unknown>) : null;
-        const pending = Array.isArray(pendingObj?.pending_reviews) ? pendingObj.pending_reviews : null;
-        const results = Array.isArray(pendingObj?.results) ? pendingObj.results : null;
-        const items = (pending ?? results ?? []) as unknown[];
+        const items = await aiStaffApi.listPendingReviews();
 
         if (!items.length) {
           appendAssistant('No pending review items (or you are not staff).');
@@ -1240,10 +1242,7 @@ export const AIAgentWidget: React.FC = () => {
         }
 
         const target = prefix
-          ? items.find((it) => {
-              const obj = it && typeof it === 'object' ? (it as Record<string, unknown>) : {};
-              return String(obj.id || '').startsWith(prefix);
-            })
+          ? items.find((it) => String(it.id || '').startsWith(prefix))
           : items[0];
 
         if (!target) {
@@ -1263,14 +1262,13 @@ export const AIAgentWidget: React.FC = () => {
           }
         }
 
-        const targetObj = target && typeof target === 'object' ? (target as Record<string, unknown>) : {};
-        const feedbackId = String(targetObj.id ?? '');
+        const feedbackId = String(target.id ?? '');
         if (!feedbackId) {
           appendAssistant('Resolve failed: review item did not have an id.');
           setState('idle');
           return;
         }
-        await businessApi.post(`/ai-assistant/review/${feedbackId}/resolve/`, {
+        await aiStaffApi.resolvePendingReview(feedbackId, {
           user_corrected_data: corrected ?? null,
         });
 
@@ -1457,6 +1455,17 @@ export const AIAgentWidget: React.FC = () => {
                               return ct ?? 'Document';
                             })()}
                           </div>
+                          <DocumentAuditBadges
+                            processingStatus={getMetadataString(m.metadata, 'processing_status')}
+                            sourceMetadata={getMetadataObject<DocumentSourceMetadata>(
+                              m.metadata,
+                              'source_metadata'
+                            )}
+                            processingMetadata={getMetadataObject<DocumentProcessingMetadata>(
+                              m.metadata,
+                              'processing_metadata'
+                            )}
+                          />
                         </DocumentMeta>
                       </DocumentRow>
                     ) : (

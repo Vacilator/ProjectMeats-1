@@ -87,7 +87,11 @@ export const FormNodeConfig: React.FC<FormNodeConfigProps> = ({
   );
 
   const update = (patch: Record<string, any>) => {
-    const next = { ...formData, ...patch };
+    const nextBase = { ...formData, ...patch };
+    const next =
+      Object.prototype.hasOwnProperty.call(patch, 'formFields')
+        ? (({ fields, ...rest }) => rest)(nextBase)
+        : nextBase;
     setFormData(next);
     onUpdateNode(node.id, next);
   };
@@ -123,7 +127,7 @@ export const FormNodeConfig: React.FC<FormNodeConfigProps> = ({
           onChange={(e) => {
             const nextEntityType = e.target.value;
             // Critical: reset selected fields when switching entity.
-            update({ entityType: nextEntityType, fields: [], formFields: [] });
+            update({ entityType: nextEntityType, formFields: [] });
           }}
         >
           <option value="">Select an entity…</option>
@@ -140,9 +144,7 @@ export const FormNodeConfig: React.FC<FormNodeConfigProps> = ({
         <Label>Fields</Label>
         <EntityFieldPicker
           selectedFields={selectedFields}
-          onFieldsChange={(fields) =>
-            update({ fields, formFields: toFormFieldsFromSelectedFields(fields) })
-          }
+          onFieldsChange={(fields) => update({ formFields: toFormFieldsFromSelectedFields(fields) })}
           upstreamVariables={upstreamVariables}
           entityType={entityType}
           hideEntitySelector

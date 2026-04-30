@@ -15,30 +15,63 @@ from __future__ import annotations
 import os
 from typing import Any, Dict
 
+from apps.core.utils.health import check_channel_layer, check_redis
+
 
 def test_redis_connectivity() -> Dict[str, Any]:
-    """Verify Django cache can round-trip a key."""
+    """Verify Redis-backed cache is configured and reachable."""
 
-    try:
-        from django.core.cache import cache
-
-        cache.set('infrastructure:redis:test', 'REDIS_OK', timeout=5)
-        value = cache.get('infrastructure:redis:test')
-
-        ok = value == 'REDIS_OK'
+    status = check_redis()
+    if status.get('available'):
         return {
             'service': 'Redis',
-            'status': 'CONNECTED' if ok else 'FAILED',
-            'message': 'Cache round-trip succeeded' if ok else 'Cache round-trip failed',
-            'details': {'test_passed': ok},
+            'status': 'CONNECTED',
+            'message': 'Redis-backed cache is reachable',
+            'details': {'test_passed': True, 'backend': status.get('backend')},
         }
-    except Exception as exc:  # pragma: no cover
+
+    if not status.get('configured'):
         return {
             'service': 'Redis',
-            'status': 'FAILED',
-            'message': str(exc),
-            'details': {'test_passed': False},
+            'status': 'NOT_CONFIGURED',
+            'message': status.get('note', 'Redis is not configured'),
+            'details': {'test_passed': False, 'backend': status.get('backend')},
         }
+
+    return {
+        'service': 'Redis',
+        'status': 'FAILED',
+        'message': status.get('error') or 'Redis-backed cache is not reachable',
+        'details': {'test_passed': False, 'backend': status.get('backend')},
+    }
+
+
+def test_channel_layer_connectivity() -> Dict[str, Any]:
+    """Verify Redis-backed channel layer is configured and reachable."""
+
+    status = check_channel_layer()
+    if status.get('available'):
+        return {
+            'service': 'Channel Layer',
+            'status': 'CONNECTED',
+            'message': 'Redis-backed channel layer is reachable',
+            'details': {'test_passed': True, 'backend': status.get('backend')},
+        }
+
+    if not status.get('configured'):
+        return {
+            'service': 'Channel Layer',
+            'status': 'NOT_CONFIGURED',
+            'message': status.get('note', 'Channel layer is not configured for Redis-backed messaging'),
+            'details': {'test_passed': False, 'backend': status.get('backend')},
+        }
+
+    return {
+        'service': 'Channel Layer',
+        'status': 'FAILED',
+        'message': status.get('error') or 'Redis-backed channel layer is not reachable',
+        'details': {'test_passed': False, 'backend': status.get('backend')},
+    }
 
 
 def test_openai_connectivity() -> Dict[str, Any]:
@@ -119,6 +152,7 @@ def run_full_diagnostic() -> Dict[str, Any]:
 
     results = [
         test_redis_connectivity(),
+        test_channel_layer_connectivity(),
         test_openai_connectivity(),
         test_sentry_connectivity(),
     ]

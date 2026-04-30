@@ -6,7 +6,9 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { AIOverviewCard, EntityProfileHeader } from '@/components/Cockpit';
 import { EntityWorkflowStatusPanel } from '@/components/Entities/EntityWorkflowStatusPanel';
 import { ActivityFeed, EntityFormSurface } from '@/components/Shared';
+import { useAuthState } from '@/contexts/AuthContext';
 import { businessApi } from '@/services/businessApi';
+import { isAuthError } from '@/utils/isAuthError';
 
 type RouteParams = { supplierId?: string; plantId?: string };
 
@@ -37,6 +39,7 @@ export const PlantDetail: React.FC = () => {
 
   const sid = String(supplierId || '').trim();
   const pid = String(plantId || '').trim();
+  const { loading: authLoading, isAuthenticated } = useAuthState();
 
   const [refreshKey, setRefreshKey] = useState(0);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -44,17 +47,31 @@ export const PlantDetail: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [supplier, setSupplier] = useState<SupplierRow | null>(null);
   const [plant, setPlant] = useState<PlantRow | null>(null);
+  const [authError, setAuthError] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const [loadingContacts, setLoadingContacts] = useState(false);
   const [contacts, setContacts] = useState<ContactRow[]>([]);
   const [contactsError, setContactsError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (authLoading) return;
     if (!sid || !pid) return;
+    if (!isAuthenticated) {
+      setAuthError(true);
+      setLoading(false);
+      setSupplier(null);
+      setPlant(null);
+      setLoadError(null);
+      return;
+    }
+
     let mounted = true;
 
     const load = async () => {
       setLoading(true);
+      setAuthError(false);
+      setLoadError(null);
       try {
         const [supplierResp, plantResp] = await Promise.all([
           businessApi.get(`suppliers/${sid}/`),
@@ -67,6 +84,17 @@ export const PlantDetail: React.FC = () => {
         if (!mounted) return;
         setSupplier((s && typeof s === 'object' ? (s as SupplierRow) : null) || null);
         setPlant((p && typeof p === 'object' ? (p as PlantRow) : null) || null);
+      } catch (error: unknown) {
+        if (!mounted) return;
+        if (isAuthError(error)) {
+          setAuthError(true);
+          setSupplier(null);
+          setPlant(null);
+          setContacts([]);
+          setContactsError(null);
+          return;
+        }
+        setLoadError('Failed to load plant details.');
       } finally {
         if (mounted) setLoading(false);
       }
@@ -76,10 +104,18 @@ export const PlantDetail: React.FC = () => {
     return () => {
       mounted = false;
     };
-  }, [pid, refreshKey, sid]);
+  }, [authLoading, isAuthenticated, pid, refreshKey, sid]);
 
   useEffect(() => {
+    if (authLoading) return;
     if (!pid) return;
+    if (!isAuthenticated || authError) {
+      setLoadingContacts(false);
+      setContacts([]);
+      setContactsError(null);
+      return;
+    }
+
     let mounted = true;
 
     const load = async () => {
@@ -96,9 +132,15 @@ export const PlantDetail: React.FC = () => {
 
         if (mounted) setContacts(next);
       } catch (err: unknown) {
-        const detail =
-          (err as { response?: { data?: { detail?: string; error?: string } } })?.response?.data;
         if (mounted) {
+          if (isAuthError(err)) {
+            setAuthError(true);
+            setContacts([]);
+            setContactsError(null);
+            return;
+          }
+          const detail =
+            (err as { response?: { data?: { detail?: string; error?: string } } })?.response?.data;
           setContactsError(detail?.detail || detail?.error || 'Failed to load plant contacts.');
         }
       } finally {
@@ -110,7 +152,7 @@ export const PlantDetail: React.FC = () => {
     return () => {
       mounted = false;
     };
-  }, [pid]);
+  }, [authError, authLoading, isAuthenticated, pid]);
 
   const title = useMemo(() => {
     const name = String(plant?.name || '').trim();
@@ -197,6 +239,8 @@ export const PlantDetail: React.FC = () => {
     []
   );
 
+  const showAuthFallback = !authLoading && (!isAuthenticated || authError);
+
   return (
     <div style={{ padding: 16 }}>
       <div
@@ -234,13 +278,13 @@ export const PlantDetail: React.FC = () => {
         </div>
 
         <div style={{ display: 'flex', gap: 8 }}>
-          <Button type="primary" onClick={() => setShowEditModal(true)} disabled={!pid || loading}>
+          <Button type="primary" onClick={() => setShowEditModal(true)} disabled={!pid || loading || showAuthFallback}>
             Edit Plant
           </Button>
         </div>
       </div>
 
-      {showEditModal && pid && (
+      {showEditModal && pid && !showAuthFallback && (
         <EntityFormSurface
           entityType="plant"
           mode="edit"
@@ -255,10 +299,19 @@ export const PlantDetail: React.FC = () => {
       )}
 
       <div style={{ marginTop: 12 }}>
-        {loading ? (
+        {authLoading || loading ? (
           <Card>
             <Spin />
           </Card>
+        ) : showAuthFallback ? (
+          <Alert
+            type="warning"
+            showIcon
+            title="Authentication required"
+            description="Your session expired while loading this plant. Please sign in again."
+          />
+        ) : loadError ? (
+          <Alert type="error" showIcon title={loadError} />
         ) : (
           <>
             <AIOverviewCard entityType="plant" entityId={pid} />
@@ -273,7 +326,7 @@ export const PlantDetail: React.FC = () => {
         )}
       </div>
 
-      <Tabs
+      {!showAuthFallback && <Tabs
         style={{ marginTop: 12 }}
         items={[
           {
@@ -334,7 +387,7 @@ export const PlantDetail: React.FC = () => {
           },
 
         ]}
-      />
+      />}
     </div>
   );
 };

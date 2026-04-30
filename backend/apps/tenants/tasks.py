@@ -44,8 +44,15 @@ def send_invitation_email_task(self, invitation_id: str, tenant_id: str) -> dict
     from .models import TenantInvitation  # noqa: PLC0415
 
     try:
-        with tenant_rls(str(tenant_id), strict=False):
+        with tenant_rls(str(tenant_id), strict=True):
             invitation = TenantInvitation.objects.get(id=invitation_id, tenant_id=tenant_id)
+    except RuntimeError:
+        logger.error(
+            "send_invitation_email_task: failed to assert tenant RLS context invitation=%s tenant=%s",
+            invitation_id,
+            tenant_id,
+        )
+        raise
     except TenantInvitation.DoesNotExist:
         logger.warning("send_invitation_email_task: invitation %s not found", invitation_id)
         return {"success": False, "error": "Invitation not found"}

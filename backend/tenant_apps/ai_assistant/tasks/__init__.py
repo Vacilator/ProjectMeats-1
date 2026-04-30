@@ -87,7 +87,7 @@ def process_rlhf_flywheel(days: int = 7) -> Dict[str, Any]:
 def compile_rlhf_data(days: int = 7, limit: int = 5000, out: str | None = None, tenant_id: str | None = None) -> Dict[str, Any]:
     """Compile a redacted OpenAI JSONL dataset from AIFeedbackLog.
 
-    This task writes to local disk (defaults to /tmp) and returns a summary.
+    This task writes to durable Django storage and returns a summary.
     """
 
     try:

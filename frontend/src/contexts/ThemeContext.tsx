@@ -19,6 +19,7 @@ import { applyCanvasTheme } from '../theme/themeConfig';
 import { getRuntimeConfig } from '../config/runtime';
 import { apiClient } from '../services/apiService';
 import { useAuth } from './AuthContext';
+import { logger } from '../utils/logger';
 
 type ThemeName = 'light' | 'dark' | 'high-contrast';
 
@@ -90,7 +91,7 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
       try {
         await apiClient.patch('/preferences/me/', { theme: themeName });
       } catch (error) {
-        console.error('Failed to sync theme to backend:', error);
+        logger.error('Failed to sync theme to backend', { component: 'ThemeContext' }, error);
       }
     };
 
@@ -140,7 +141,7 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
 
         setTenantBranding(branding);
       } catch (error) {
-        console.error('Failed to load tenant branding:', error);
+        logger.error('Failed to load tenant branding', { component: 'ThemeContext' }, error);
       }
     },
     [isAuthenticated]
@@ -193,7 +194,7 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
           localStorage.setItem('theme', backendTheme);
         }
       } catch (error) {
-        console.error('Failed to load theme from backend:', error);
+        logger.error('Failed to load theme from backend', { component: 'ThemeContext' }, error);
       }
     };
 

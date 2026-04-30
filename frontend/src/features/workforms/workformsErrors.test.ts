@@ -43,10 +43,15 @@ describe('workformsErrors', () => {
     const err = new ApiServiceError('Server error. Please try again shortly.', {
       kind: 'circuit_breaker',
       status: 503,
+      responseData: { code: 'CIRCUIT_BREAKER' },
     });
 
-    const ui = getWorkformsErrorUi(err, 'catalog.load');
-    expect(ui.title).toBe("Couldn't load catalog");
-    expect(ui.message).toMatch(/server error/i);
+    const executeUi = getWorkformsErrorUi(err, 'execute.start');
+    expect(executeUi.title).toMatch(/temporarily paused/i);
+    expect(executeUi.message).toMatch(/preventing further executions/i);
+
+    const catalogUi = getWorkformsErrorUi(err, 'catalog.load');
+    expect(catalogUi.title).toMatch(/temporarily unavailable/i);
+    expect(catalogUi.message).toMatch(/temporarily paused/i);
   });
 });

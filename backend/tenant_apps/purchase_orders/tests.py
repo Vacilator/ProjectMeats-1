@@ -244,7 +244,6 @@ class CarrierPurchaseOrderAPITests(APITestCase):
         self.assertEqual(CarrierPurchaseOrder.objects.count(), 1)
         self.assertEqual(CarrierPOItem.objects.count(), 1)
 
-
 class DocumentOperationsAPITests(APITestCase):
     """Regression coverage for workflow, PDF, email, and audit endpoints."""
 
@@ -381,7 +380,6 @@ class DocumentOperationsAPITests(APITestCase):
         self.assertTrue(
             any(event.get("entity_type") == "CarrierPurchaseOrder" for event in results)
         )
-
 
 class ColdStorageEntryModelTest(TestCase):
     """Test cases for ColdStorageEntry model."""

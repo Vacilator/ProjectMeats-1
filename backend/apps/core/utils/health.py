@@ -5,12 +5,32 @@ Provides lightweight connection testing for Redis, OpenAI, and Sentry
 without triggering actual API calls or consuming quota.
 """
 
+import logging
+import os
+
 from django.conf import settings
 from django.core.cache import cache
 from django.db import connection
-import logging
 
 logger = logging.getLogger(__name__)
+
+
+def redis_readiness_required() -> bool:
+    return bool(getattr(settings, 'REQUIRE_REDIS_READINESS', False))
+
+
+def semantic_index_readiness_required() -> bool:
+    return bool(getattr(settings, 'REQUIRE_SEMANTIC_INDEX_READINESS', False))
+
+
+def get_redis_backend_url() -> str | None:
+    return (
+        getattr(settings, 'REDIS_BACKEND_URL', None)
+        or getattr(settings, 'REDIS_URL', None)
+        or getattr(settings, 'VALKEY_URL', None)
+        or os.environ.get('REDIS_URL')
+        or os.environ.get('VALKEY_URL')
+    )
 
 
 def check_redis() -> dict:
@@ -28,11 +48,9 @@ def check_redis() -> dict:
     - note: str (when falling back)
     """
 
-    import os
-
     backend = settings.CACHES['default']['BACKEND']
     is_redis_backend = 'redis' in (backend or '').lower()
-    redis_url = getattr(settings, 'REDIS_URL', None) or os.environ.get('REDIS_URL')
+    redis_url = get_redis_backend_url()
 
     if not redis_url or not is_redis_backend:
         return {
@@ -40,6 +58,7 @@ def check_redis() -> dict:
             'configured': False,
             'backend': backend,
             'is_redis': False,
+            'required': redis_readiness_required(),
             'note': 'Redis not configured; using non-Redis cache backend fallback',
         }
 
@@ -55,6 +74,7 @@ def check_redis() -> dict:
                 'configured': True,
                 'backend': backend,
                 'is_redis': True,
+                'required': redis_readiness_required(),
             }
 
         return {
@@ -62,6 +82,7 @@ def check_redis() -> dict:
             'configured': True,
             'backend': backend,
             'is_redis': True,
+            'required': redis_readiness_required(),
             'error': 'Cache write/read mismatch',
         }
     except Exception as e:
@@ -71,8 +92,48 @@ def check_redis() -> dict:
             'configured': True,
             'backend': backend,
             'is_redis': True,
+            'required': redis_readiness_required(),
             'error': str(e),
         }
+
+
+def check_channel_layer() -> dict:
+    channel_layers = getattr(settings, 'CHANNEL_LAYERS', {}) or {}
+    default_layer = channel_layers.get('default', {}) or {}
+    backend = default_layer.get('BACKEND', '')
+    hosts = ((default_layer.get('CONFIG') or {}).get('hosts') or [])
+    is_redis_backend = 'redis' in (backend or '').lower()
+    redis_status = check_redis()
+
+    if not is_redis_backend or not hosts:
+        return {
+            'available': False,
+            'configured': False,
+            'backend': backend,
+            'is_redis': False,
+            'required': redis_readiness_required(),
+            'note': 'Channel layer not configured for Redis-backed runtime messaging',
+        }
+
+    if redis_status.get('available'):
+        return {
+            'available': True,
+            'configured': True,
+            'backend': backend,
+            'is_redis': True,
+            'required': redis_readiness_required(),
+            'hosts_configured': len(hosts),
+        }
+
+    return {
+        'available': False,
+        'configured': True,
+        'backend': backend,
+        'is_redis': True,
+        'required': redis_readiness_required(),
+        'hosts_configured': len(hosts),
+        'error': redis_status.get('error') or 'Underlying Redis connectivity is not ready',
+    }
 
 
 def check_openai() -> dict:
@@ -195,6 +256,21 @@ def check_microsoft_oauth() -> dict:
     }
 
 
+def check_semantic_indexing() -> dict:
+    openai_status = check_openai()
+    return {
+        'available': bool(openai_status.get('api_key_set')),
+        'configured': bool(openai_status.get('api_key_set')),
+        'required': semantic_index_readiness_required(),
+        'mode': 'semantic' if openai_status.get('api_key_set') else 'lexical_fallback',
+        'note': (
+            'Semantic indexing is configured and embeddings can be generated.'
+            if openai_status.get('api_key_set')
+            else 'Semantic embeddings are unavailable; lexical chunk fallback remains active.'
+        ),
+    }
+
+
 def check_all_services() -> dict:
     """
     Run all health checks and return comprehensive status.
@@ -213,30 +289,44 @@ def check_all_services() -> dict:
         }
     """
     redis_status = check_redis()
+    channel_layer_status = check_channel_layer()
     openai_status = check_openai()
     sentry_status = check_sentry()
     ms_oauth_status = check_microsoft_oauth()
     sendgrid_status = check_sendgrid()
     pgvector_status = check_pgvector()
+    semantic_indexing_status = check_semantic_indexing()
 
     # Calculate summary
-    services = [redis_status, openai_status, sentry_status, ms_oauth_status, sendgrid_status, pgvector_status]
+    services = [
+        redis_status,
+        channel_layer_status,
+        openai_status,
+        sentry_status,
+        ms_oauth_status,
+        sendgrid_status,
+        pgvector_status,
+        semantic_indexing_status,
+    ]
     available_count = sum(1 for s in services if s.get('available', False))
     configured_count = sum(1 for s in services if s.get('configured', False))
 
     return {
         'redis': redis_status,
+        'channel_layer': channel_layer_status,
         'openai': openai_status,
         'sentry': sentry_status,
         'microsoft_oauth': ms_oauth_status,
         'sendgrid': sendgrid_status,
         'pgvector': pgvector_status,
+        'semantic_indexing': semantic_indexing_status,
         'summary': {
             'total_services': len(services),
             'available': available_count,
             'configured': configured_count,
             'ready_for_phase_2': openai_status.get('configured', False),  # AI features
             'ready_for_phase_3': redis_status.get('available', False),  # Real-time search
+            'ready_for_phase_7_3': channel_layer_status.get('available', False),  # WebSockets/collaboration
             'ready_for_phase_5': ms_oauth_status.get('configured', False),  # Microsoft integration
             'ready_for_phase_6_4': sentry_status.get('configured', False),  # APM monitoring
         },

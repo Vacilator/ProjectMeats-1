@@ -32,7 +32,12 @@ on:
       deploy_by_digest:
         required: false
         type: boolean
-        description: "If true, resolve tag -> digest after pull and run containers by digest (optional; tag flow remains default)"
+        description: "If true, resolve env-SHA tag -> digest after pull and reuse that immutable ref for runner/remote container runs"
+        default: false
+      require_redis_readiness:
+        required: false
+        type: boolean
+        description: "If true, require Redis-backed cache and channels readiness for backend mutation/deploy checks"
         default: false
     secrets:
       DO_ACCESS_TOKEN:
@@ -71,6 +76,12 @@ on:
       DJANGO_SETTINGS_MODULE:
         required: false
         description: "Django settings module path (from job environment)"
+      REDIS_URL:
+        required: false
+        description: "Redis connection URL for non-dev backend readiness gate"
+      VALKEY_URL:
+        required: false
+        description: "Valkey connection URL for non-dev backend readiness gate"
       ALLOWED_HOSTS:
         required: false
         description: "Django allowed hosts (from job environment)"
@@ -180,6 +191,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     needs: [check_infrastructure]
+    outputs:
+      image_tag_ref: ${{ steps.backend_image_refs.outputs.tag_ref }}
+      image_digest_ref: ${{ steps.backend_image_refs.outputs.digest_ref }}
+      ghcr_image_tag_ref: ${{ steps.backend_image_refs.outputs.ghcr_tag_ref }}
+      ghcr_image_digest_ref: ${{ steps.backend_image_refs.outputs.ghcr_digest_ref }}
     permissions:
       contents: read
       packages: write
@@ -244,6 +260,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build and push backend
+        id: build_backend
         uses: docker/build-push-action@bcafcacb16a39f128d818304e6c9c0c18556b85f # v7
         with:
           context: .
@@ -258,6 +275,20 @@ jobs:
           cache-to: |
             type=registry,ref=${{ env.REGISTRY }}/${{ env.BACKEND_IMAGE }}:cache,mode=max
             type=gha,mode=max
+
+      - name: Export backend image refs
+        id: backend_image_refs
+        run: |
+          TAG_REF="${{ env.REGISTRY }}/${{ env.BACKEND_IMAGE }}:${{ inputs.environment }}-${{ github.sha }}"
+          GHCR_TAG_REF="${{ env.GHCR_REGISTRY }}/${{ env.BACKEND_IMAGE }}:${{ inputs.environment }}-${{ github.sha }}"
+          DIGEST="${{ steps.build_backend.outputs.digest }}"
+
+          {
+            echo "tag_ref=$TAG_REF"
+            echo "digest_ref=${{ env.REGISTRY }}/${{ env.BACKEND_IMAGE }}@$DIGEST"
+            echo "ghcr_tag_ref=$GHCR_TAG_REF"
+            echo "ghcr_digest_ref=${{ env.GHCR_REGISTRY }}/${{ env.BACKEND_IMAGE }}@$DIGEST"
+          } >> "$GITHUB_OUTPUT"
 
   security-scan-backend:
     name: "Security Scan: Backend"
@@ -420,6 +451,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     needs: [check_infrastructure]
+    outputs:
+      image_tag_ref: ${{ steps.frontend_image_refs.outputs.tag_ref }}
+      image_digest_ref: ${{ steps.frontend_image_refs.outputs.digest_ref }}
+      ghcr_image_tag_ref: ${{ steps.frontend_image_refs.outputs.ghcr_tag_ref }}
+      ghcr_image_digest_ref: ${{ steps.frontend_image_refs.outputs.ghcr_digest_ref }}
     permissions:
       contents: read
       packages: write
@@ -484,6 +520,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build and push frontend
+        id: build_frontend
         uses: docker/build-push-action@bcafcacb16a39f128d818304e6c9c0c18556b85f # v7
         with:
           context: .
@@ -498,6 +535,20 @@ jobs:
           cache-to: |
             type=registry,ref=${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE }}:cache,mode=max
             type=gha,mode=max
+
+      - name: Export frontend image refs
+        id: frontend_image_refs
+        run: |
+          TAG_REF="${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE }}:${{ inputs.environment }}-${{ github.sha }}"
+          GHCR_TAG_REF="${{ env.GHCR_REGISTRY }}/${{ env.FRONTEND_IMAGE }}:${{ inputs.environment }}-${{ github.sha }}"
+          DIGEST="${{ steps.build_frontend.outputs.digest }}"
+
+          {
+            echo "tag_ref=$TAG_REF"
+            echo "digest_ref=${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE }}@$DIGEST"
+            echo "ghcr_tag_ref=$GHCR_TAG_REF"
+            echo "ghcr_digest_ref=${{ env.GHCR_REGISTRY }}/${{ env.FRONTEND_IMAGE }}@$DIGEST"
+          } >> "$GITHUB_OUTPUT"
 
   security-scan-frontend:
     name: "Security Scan: Frontend"
@@ -691,10 +742,13 @@ jobs:
   migrate:
     name: "Run Database Migrations"
     # Gate all mutation steps on tests + security scans to avoid "DB advanced but deploy blocked" failures.
-    needs: [check-migrations, test-frontend, security-scan-backend, security-scan-frontend]
+    needs: [build-backend, check-migrations, test-frontend, security-scan-backend, security-scan-frontend]
     runs-on: ubuntu-latest
     environment: ${{ inputs.backend_environment }}
     timeout-minutes: 15
+    permissions:
+      contents: read
+      packages: read
     steps:
       - name: Checkout code
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
@@ -714,37 +768,13 @@ jobs:
           DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
           DJANGO_SECRET_KEY: ${{ secrets.DJANGO_SECRET_KEY }}
           DJANGO_SETTINGS_MODULE: ${{ secrets.DJANGO_SETTINGS_MODULE }}
-          ALLOWED_HOSTS: ${{ secrets.ALLOWED_HOSTS }}
+          REDIS_URL: ${{ secrets.REDIS_URL }}
+          VALKEY_URL: ${{ secrets.VALKEY_URL }}
         run: |
           set -euo pipefail
-
-          missing=()
-          check() {
-            local name="$1"
-            local value="$2"
-            if [ -z "$value" ]; then
-              missing+=("$name")
-            fi
-          }
-
-          check DO_ACCESS_TOKEN "$DO_ACCESS_TOKEN"
-          check SSH_HOST "$SSH_HOST"
-          check SSH_USER "$SSH_USER"
-          check SSH_PASSWORD "$SSH_PASSWORD"
-          check DB_HOST "$DB_HOST"
-          check DB_NAME "$DB_NAME"
-          check DB_USER "$DB_USER"
-          check DB_PASSWORD "$DB_PASSWORD"
-          check DJANGO_SECRET_KEY "$DJANGO_SECRET_KEY"
-          check DJANGO_SETTINGS_MODULE "$DJANGO_SETTINGS_MODULE"
-          check ALLOWED_HOSTS "$ALLOWED_HOSTS"
-
-          if [ ${#missing[@]} -gt 0 ]; then
-            echo "❌ Missing required backend secrets (non-empty required): ${missing[*]}"
-            exit 1
-          fi
-
-          echo "✅ Required backend secrets present"
+          bash .github/scripts/validate-environment.sh \
+            --environment "${{ inputs.backend_environment }}" \
+            --workflow reusable-deploy.yml
 
       - name: Free up runner disk space
         run: |
@@ -756,12 +786,12 @@ jobs:
           echo "Disk after cleanup:"
           df -h
       
-      - name: Login to DigitalOcean Container Registry
+      - name: Login to GHCR
         uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121 # v4
         with:
-          registry: registry.digitalocean.com
-          username: ${{ secrets.DO_ACCESS_TOKEN }}
-          password: ${{ secrets.DO_ACCESS_TOKEN }}
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
       
       - name: Install SSH and PostgreSQL tools
         run: |
@@ -795,7 +825,7 @@ jobs:
           MAX_ATTEMPTS=3
           ATTEMPT=1
           
-          while [ $ATTEMPT -le $MAX_ATTEMPTS ]; do
+          while [ "$ATTEMPT" -le "$MAX_ATTEMPTS" ]; do
             echo "Connection attempt $ATTEMPT/$MAX_ATTEMPTS..."
             
             # Use connection timeout to fail fast (10 seconds)
@@ -818,7 +848,7 @@ jobs:
           echo ""
           echo "✗ Failed to connect to database after $MAX_ATTEMPTS attempts"
           echo "Tunnel status:"
-          ps aux | grep ssh | grep -v grep | grep 5433 || echo "No tunnel process found"
+          pgrep -af 'ssh.*5433' || echo "No tunnel process found"
           echo "Port status:"
           netstat -an | grep 5433 || echo "Port 5433 not in use"
           exit 1
@@ -880,18 +910,24 @@ jobs:
             "set -euo pipefail; \
               test -s '$REMOTE_PATH'; \
               BYTES=\$(stat -c%s '$REMOTE_PATH'); \
-              echo '✓ Backup created:' '$REMOTE_PATH' 'size='\"\$BYTES\"' bytes'; \
+              echo \"✓ Backup created: $REMOTE_PATH size=\$BYTES bytes\"; \
               if [ \"\$BYTES\" -lt 10240 ]; then echo '✗ Backup too small (<10KB) - refusing to migrate'; exit 1; fi; \
               ls -1t '$BACKUP_DIR'/pgdump_${ENVIRONMENT}_*.dump 2>/dev/null | tail -n +\$((KEEP_COUNT + 1)) | xargs -r rm -f; \
-              echo '✓ Retention enforced (kept last '"$KEEP_COUNT"')'"
+              echo \"✓ Retention enforced (kept last $KEEP_COUNT)\""
 
       - name: Run migrations via Docker with tunnel
         env:
+          BACKEND_TAG_REF: ${{ needs.build-backend.outputs.image_tag_ref }}
+          BACKEND_DIGEST_REF: ${{ needs.build-backend.outputs.image_digest_ref }}
           DB_USER: ${{ secrets.DB_USER }}
           DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
           DB_NAME: ${{ secrets.DB_NAME }}
           DJANGO_SECRET_KEY: ${{ secrets.DJANGO_SECRET_KEY }}
           DJANGO_SETTINGS_MODULE: ${{ secrets.DJANGO_SETTINGS_MODULE }}
+          REDIS_URL: ${{ secrets.REDIS_URL }}
+          VALKEY_URL: ${{ secrets.VALKEY_URL }}
+          REQUIRE_REDIS_READINESS: ${{ inputs.require_redis_readiness }}
+          DEPLOY_BY_DIGEST: ${{ inputs.deploy_by_digest }}
         run: |
           echo "================================"
           echo "Running Django Migrations"
@@ -900,11 +936,14 @@ jobs:
           # Construct DATABASE_URL pointing to tunnel
           DATABASE_URL="postgresql://$DB_USER:$DB_PASSWORD@127.0.0.1:5433/$DB_NAME"
           
-          # Pull backend image
-          IMAGE_TAG="${{ inputs.environment }}-${{ github.sha }}"
-          FULL_IMAGE="${{ env.REGISTRY }}/${{ env.BACKEND_IMAGE }}:${IMAGE_TAG}"
-          
-          echo "Using image: $FULL_IMAGE"
+          to_ghcr_ref() {
+            printf '%s' "$1" | sed "s#^${{ env.REGISTRY }}#${{ env.GHCR_REGISTRY }}#"
+          }
+
+          BACKEND_GHCR_TAG_REF="$(to_ghcr_ref "$BACKEND_TAG_REF")"
+          BACKEND_GHCR_DIGEST_REF="$(to_ghcr_ref "$BACKEND_DIGEST_REF")"
+
+          echo "Using backend image ref: $BACKEND_GHCR_TAG_REF"
 
           pull_with_retry() {
             local image="$1"
@@ -931,7 +970,40 @@ jobs:
             return 1
           }
 
-          pull_with_retry "$FULL_IMAGE"
+          BACKEND_RUN_REF="$BACKEND_TAG_REF"
+          BACKEND_RUN_REF="$(to_ghcr_ref "$BACKEND_RUN_REF")"
+          if [ "$DEPLOY_BY_DIGEST" = "true" ]; then
+            if echo "$BACKEND_GHCR_DIGEST_REF" | grep -q '@sha256:'; then
+              echo "✓ Using backend digest ref: $BACKEND_GHCR_DIGEST_REF"
+              BACKEND_RUN_REF="$BACKEND_DIGEST_REF"
+              BACKEND_RUN_REF="$(to_ghcr_ref "$BACKEND_RUN_REF")"
+            else
+              echo "✗ Deploy-by-digest enabled, but backend digest could not be resolved"
+              exit 1
+            fi
+          fi
+
+          pull_with_retry "$BACKEND_RUN_REF"
+
+          echo "BACKEND_RUN_REF=$BACKEND_RUN_REF" >> "$GITHUB_ENV"
+          REDIS_GATE_ARGS=""
+          if [ "$REQUIRE_REDIS_READINESS" = "true" ]; then
+            REDIS_GATE_ARGS="--require-redis-readiness"
+          fi
+          
+          echo ""
+          echo "Checking backend infrastructure prerequisites..."
+          docker run --rm \
+            --network host \
+            -e DATABASE_URL="$DATABASE_URL" \
+            -e DJANGO_SETTINGS_MODULE="$DJANGO_SETTINGS_MODULE" \
+            -e SECRET_KEY="$DJANGO_SECRET_KEY" \
+            -e DB_ENGINE="django.db.backends.postgresql" \
+            -e REDIS_URL="$REDIS_URL" \
+            -e VALKEY_URL="$VALKEY_URL" \
+            -e REQUIRE_REDIS_READINESS="$REQUIRE_REDIS_READINESS" \
+            "$BACKEND_RUN_REF" \
+            python manage.py check_infrastructure $REDIS_GATE_ARGS
           
           echo ""
           echo "Running migrations..."
@@ -944,7 +1016,10 @@ jobs:
             -e DJANGO_SETTINGS_MODULE="$DJANGO_SETTINGS_MODULE" \
             -e SECRET_KEY="$DJANGO_SECRET_KEY" \
             -e DB_ENGINE="django.db.backends.postgresql" \
-            "$FULL_IMAGE" \
+            -e REDIS_URL="$REDIS_URL" \
+            -e VALKEY_URL="$VALKEY_URL" \
+            -e REQUIRE_REDIS_READINESS="$REQUIRE_REDIS_READINESS" \
+            "$BACKEND_RUN_REF" \
             python manage.py migrate --fake-initial --noinput
           
           echo ""
@@ -962,7 +1037,10 @@ jobs:
             -e DJANGO_SETTINGS_MODULE="$DJANGO_SETTINGS_MODULE" \
             -e SECRET_KEY="$DJANGO_SECRET_KEY" \
             -e DB_ENGINE="django.db.backends.postgresql" \
-            "$FULL_IMAGE" \
+            -e REDIS_URL="$REDIS_URL" \
+            -e VALKEY_URL="$VALKEY_URL" \
+            -e REQUIRE_REDIS_READINESS="$REQUIRE_REDIS_READINESS" \
+            "$BACKEND_RUN_REF" \
             python manage.py collectstatic --noinput --clear
           
           echo "✓ Static files collected"
@@ -977,6 +1055,9 @@ jobs:
           DJANGO_SUPERUSER_USERNAME: ${{ secrets.DJANGO_SUPERUSER_USERNAME }}
           DJANGO_SUPERUSER_PASSWORD: ${{ secrets.DJANGO_SUPERUSER_PASSWORD }}
           DJANGO_SUPERUSER_EMAIL: ${{ secrets.DJANGO_SUPERUSER_EMAIL }}
+          REDIS_URL: ${{ secrets.REDIS_URL }}
+          VALKEY_URL: ${{ secrets.VALKEY_URL }}
+          REQUIRE_REDIS_READINESS: ${{ inputs.require_redis_readiness }}
         run: |
           echo "================================"
           echo "Setting up Django Superuser"
@@ -985,11 +1066,7 @@ jobs:
           # Construct DATABASE_URL pointing to tunnel
           DATABASE_URL="postgresql://$DB_USER:$DB_PASSWORD@127.0.0.1:5433/$DB_NAME"
           
-          # Use same image as migrations
-          IMAGE_TAG="${{ inputs.environment }}-${{ github.sha }}"
-          FULL_IMAGE="${{ env.REGISTRY }}/${{ env.BACKEND_IMAGE }}:${IMAGE_TAG}"
-          
-          echo "Using image: $FULL_IMAGE"
+          echo "Using image ref: $BACKEND_RUN_REF"
           echo ""
           echo "Creating/updating superuser..."
           
@@ -1003,7 +1080,10 @@ jobs:
             -e DJANGO_SUPERUSER_USERNAME="$DJANGO_SUPERUSER_USERNAME" \
             -e DJANGO_SUPERUSER_PASSWORD="$DJANGO_SUPERUSER_PASSWORD" \
             -e DJANGO_SUPERUSER_EMAIL="$DJANGO_SUPERUSER_EMAIL" \
-            "$FULL_IMAGE" \
+            -e REDIS_URL="$REDIS_URL" \
+            -e VALKEY_URL="$VALKEY_URL" \
+            -e REQUIRE_REDIS_READINESS="$REQUIRE_REDIS_READINESS" \
+            "$BACKEND_RUN_REF" \
             python manage.py setup_superuser
           
           echo ""
@@ -1016,6 +1096,9 @@ jobs:
           DB_NAME: ${{ secrets.DB_NAME }}
           DJANGO_SECRET_KEY: ${{ secrets.DJANGO_SECRET_KEY }}
           DJANGO_SETTINGS_MODULE: ${{ secrets.DJANGO_SETTINGS_MODULE }}
+          REDIS_URL: ${{ secrets.REDIS_URL }}
+          VALKEY_URL: ${{ secrets.VALKEY_URL }}
+          REQUIRE_REDIS_READINESS: ${{ inputs.require_redis_readiness }}
         run: |
           echo "================================"
           echo "Seeding Products"
@@ -1024,11 +1107,7 @@ jobs:
           # Construct DATABASE_URL pointing to tunnel
           DATABASE_URL="postgresql://$DB_USER:$DB_PASSWORD@127.0.0.1:5433/$DB_NAME"
           
-          # Use same image as migrations
-          IMAGE_TAG="${{ inputs.environment }}-${{ github.sha }}"
-          FULL_IMAGE="${{ env.REGISTRY }}/${{ env.BACKEND_IMAGE }}:${IMAGE_TAG}"
-          
-          echo "Using image: $FULL_IMAGE"
+          echo "Using image ref: $BACKEND_RUN_REF"
           echo ""
           echo "Seeding products for all active tenants..."
           
@@ -1039,7 +1118,10 @@ jobs:
             -e DJANGO_SETTINGS_MODULE="$DJANGO_SETTINGS_MODULE" \
             -e SECRET_KEY="$DJANGO_SECRET_KEY" \
             -e DB_ENGINE="django.db.backends.postgresql" \
-            "$FULL_IMAGE" \
+            -e REDIS_URL="$REDIS_URL" \
+            -e VALKEY_URL="$VALKEY_URL" \
+            -e REQUIRE_REDIS_READINESS="$REQUIRE_REDIS_READINESS" \
+            "$BACKEND_RUN_REF" \
             python manage.py seed_system_products
           
           echo ""
@@ -1062,11 +1144,19 @@ jobs:
 
   deploy-backend:
     name: "Deploy Backend Container"
-    needs: [migrate, security-scan-backend]
+    needs: [build-backend, migrate, security-scan-backend]
     runs-on: ubuntu-latest
     environment: ${{ inputs.backend_environment }}
     timeout-minutes: 15
+    permissions:
+      contents: read
+      packages: read
     steps:
+      - name: Checkout code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          ref: ${{ inputs.ref }}
+
       - name: Fail fast if required backend secrets are missing
         env:
           DO_ACCESS_TOKEN: ${{ secrets.DO_ACCESS_TOKEN }}
@@ -1080,37 +1170,13 @@ jobs:
           DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
           DJANGO_SECRET_KEY: ${{ secrets.DJANGO_SECRET_KEY }}
           DJANGO_SETTINGS_MODULE: ${{ secrets.DJANGO_SETTINGS_MODULE }}
-          ALLOWED_HOSTS: ${{ secrets.ALLOWED_HOSTS }}
+          REDIS_URL: ${{ secrets.REDIS_URL }}
+          VALKEY_URL: ${{ secrets.VALKEY_URL }}
         run: |
           set -euo pipefail
-
-          missing=()
-          check() {
-            local name="$1"
-            local value="$2"
-            if [ -z "$value" ]; then
-              missing+=("$name")
-            fi
-          }
-
-          check DO_ACCESS_TOKEN "$DO_ACCESS_TOKEN"
-          check SSH_HOST "$SSH_HOST"
-          check SSH_USER "$SSH_USER"
-          check SSH_PASSWORD "$SSH_PASSWORD"
-          check DB_HOST "$DB_HOST"
-          check DB_NAME "$DB_NAME"
-          check DB_USER "$DB_USER"
-          check DB_PASSWORD "$DB_PASSWORD"
-          check DJANGO_SECRET_KEY "$DJANGO_SECRET_KEY"
-          check DJANGO_SETTINGS_MODULE "$DJANGO_SETTINGS_MODULE"
-          check ALLOWED_HOSTS "$ALLOWED_HOSTS"
-
-          if [ ${#missing[@]} -gt 0 ]; then
-            echo "❌ Missing required backend secrets (non-empty required): ${missing[*]}"
-            exit 1
-          fi
-
-          echo "✅ Required backend secrets present"
+          bash .github/scripts/validate-environment.sh \
+            --environment "${{ inputs.backend_environment }}" \
+            --workflow reusable-deploy.yml
 
       - name: Create Backend .env File Locally
         run: |
@@ -1126,11 +1192,14 @@ jobs:
           	DB_NAME=${{ secrets.DB_NAME }}
           	DB_USER=${{ secrets.DB_USER }}
           	DB_PASSWORD=${{ secrets.DB_PASSWORD }}
-          	DB_HOST=${{ secrets.DB_HOST }}
-          	DB_PORT=${{ secrets.DB_PORT || '5432' }}
-          	DB_ENGINE=django.db.backends.postgresql
-          	EMAIL_HOST_PASSWORD=${{ secrets.EMAIL_HOST_PASSWORD }}
-          	DEFAULT_FROM_EMAIL=no-reply@meatscentral.com
+           	DB_HOST=${{ secrets.DB_HOST }}
+           	DB_PORT=${{ secrets.DB_PORT || '5432' }}
+            	DB_ENGINE=django.db.backends.postgresql
+            	REDIS_URL=${{ secrets.REDIS_URL }}
+            	VALKEY_URL=${{ secrets.VALKEY_URL }}
+            	REQUIRE_REDIS_READINESS=${{ inputs.require_redis_readiness }}
+            	EMAIL_HOST_PASSWORD=${{ secrets.EMAIL_HOST_PASSWORD }}
+           	DEFAULT_FROM_EMAIL=no-reply@meatscentral.com
           	SENTRY_DSN=${{ secrets.SENTRY_DSN }}
           	SENTRY_ENABLED=${{ secrets.SENTRY_ENABLED }}
           	SENTRY_AUTH_TOKEN=${{ secrets.SENTRY_AUTH_TOKEN }}
@@ -1174,12 +1243,25 @@ jobs:
       
       - name: Deploy backend container
         env:
+          BACKEND_TAG_REF: ${{ needs.build-backend.outputs.image_tag_ref }}
+          BACKEND_DIGEST_REF: ${{ needs.build-backend.outputs.image_digest_ref }}
           SSHPASS: ${{ secrets.SSH_PASSWORD }}
+          REQUIRE_REDIS_READINESS: ${{ inputs.require_redis_readiness }}
         run: |
-          sshpass -e ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ServerAliveInterval=60 -o ServerAliveCountMax=10 ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << 'SSH'
+          export DEPLOY_BY_DIGEST="${{ inputs.deploy_by_digest }}"
+          export BACKEND_TAG_REF
+          export BACKEND_DIGEST_REF
+          export REQUIRE_REDIS_READINESS
+
+          sshpass -e ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ServerAliveInterval=60 -o ServerAliveCountMax=10 ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} \
+            "DEPLOY_BY_DIGEST='${DEPLOY_BY_DIGEST}' \
+             BACKEND_TAG_REF='${BACKEND_TAG_REF}' \
+             BACKEND_DIGEST_REF='${BACKEND_DIGEST_REF}' \
+             REQUIRE_REDIS_READINESS='${REQUIRE_REDIS_READINESS}' \
+             bash -s" << 'SSH'
           set -euo pipefail
           
-          REG="${{ env.REGISTRY }}"
+          REG="${{ env.GHCR_REGISTRY }}"
           IMG="${{ env.BACKEND_IMAGE }}"
           TAG="${{ inputs.environment }}-${{ github.sha }}"
           
@@ -1204,8 +1286,8 @@ jobs:
           chmod -R 775 /root/projectmeats/media
           echo "✓ media permissions fixed"
           
-          # Login to registry
-          echo "${{ secrets.DO_ACCESS_TOKEN }}" | docker login registry.digitalocean.com -u "${{ secrets.DO_ACCESS_TOKEN }}" --password-stdin
+          # Login to registry using the workflow token so env-scoped DOCR overrides cannot break deploys.
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
           
           # Check disk space and cleanup if needed
           echo "Checking disk space..."
@@ -1249,22 +1331,30 @@ jobs:
             return 1
           }
 
-          pull_with_retry "$REG/$IMG:$TAG"
+          to_ghcr_ref() {
+            printf '%s' "$1" | sed "s#^${{ env.REGISTRY }}#${{ env.GHCR_REGISTRY }}#"
+          }
 
-          DEPLOY_BY_DIGEST="${{ inputs.deploy_by_digest }}"
-          TAG_REF="$REG/$IMG:$TAG"
+          TAG_REF="${BACKEND_TAG_REF:-${{ env.REGISTRY }}/$IMG:$TAG}"
           RUN_REF="$TAG_REF"
-
-          # Optional: deploy by digest after pulling by immutable tag.
+          RUN_REF="$(to_ghcr_ref "$RUN_REF")"
+          HEALTH_PATH="/api/v1/health/"
+          if [ "${REQUIRE_REDIS_READINESS:-false}" = "true" ]; then
+            HEALTH_PATH="/api/v1/ready/"
+          fi
           if [ "$DEPLOY_BY_DIGEST" = "true" ]; then
-            DIGEST_REF=$(docker image inspect --format='{{index .RepoDigests 0}}' "$TAG_REF" 2>/dev/null || true)
-            if echo "$DIGEST_REF" | grep -q '@sha256:'; then
-              echo "✓ Deploy-by-digest enabled: $DIGEST_REF"
-              RUN_REF="$DIGEST_REF"
+            BACKEND_GHCR_DIGEST_REF="$(to_ghcr_ref "${BACKEND_DIGEST_REF}")"
+            if echo "${BACKEND_GHCR_DIGEST_REF}" | grep -q '@sha256:'; then
+              echo "✓ Using backend build digest ref: ${BACKEND_GHCR_DIGEST_REF}"
+              RUN_REF="${BACKEND_DIGEST_REF}"
+              RUN_REF="$(to_ghcr_ref "$RUN_REF")"
             else
-              echo "⚠ Deploy-by-digest enabled, but digest not found; falling back to tag"
+              echo "✗ Deploy-by-digest enabled, but build-backend did not export a digest ref"
+              exit 1
             fi
           fi
+
+          pull_with_retry "$RUN_REF"
 
           # Atomic deploy + rollback (single host): canary on alternate port, then swap.
           CAND_NAME="pm-backend-candidate"
@@ -1279,7 +1369,7 @@ jobs:
             if docker inspect "$PREV_NAME" >/dev/null 2>&1; then
               docker start "$PREV_NAME" >/dev/null 2>&1 || true
               docker rename "$PREV_NAME" pm-backend >/dev/null 2>&1 || true
-              curl -L -s -o /dev/null -w "rollback_http=%{http_code}\n" http://127.0.0.1:8000/api/v1/health/ || true
+              curl -L -s -o /dev/null -w "rollback_http=%{http_code}\n" "http://127.0.0.1:8000${HEALTH_PATH}" || true
               echo "✓ Rollback attempted"
             else
               echo "⚠ No previous container found ($PREV_NAME)"
@@ -1335,7 +1425,7 @@ jobs:
           MAX_ATTEMPTS=15
           ATTEMPT=1
           while [ $ATTEMPT -le $MAX_ATTEMPTS ]; do
-            HTTP_CODE=$(curl -L -s -o /dev/null -w "%{http_code}" "http://127.0.0.1:${CAND_PORT}/api/v1/health/" || echo "000")
+            HTTP_CODE=$(curl -L -s -o /dev/null -w "%{http_code}" "http://127.0.0.1:${CAND_PORT}${HEALTH_PATH}" || echo "000")
             if [ "$HTTP_CODE" = "200" ]; then
               echo "✓ Canary health check passed (HTTP $HTTP_CODE)"
               break
@@ -1402,7 +1492,7 @@ jobs:
           RETRY_WITH_HEALING=false
 
           while [ $ATTEMPT -le $MAX_ATTEMPTS ]; do
-            HTTP_CODE=$(curl -L -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8000/api/v1/health/ || echo "000")
+            HTTP_CODE=$(curl -L -s -o /dev/null -w "%{http_code}" "http://127.0.0.1:8000${HEALTH_PATH}" || echo "000")
             if [ "$HTTP_CODE" = "200" ]; then
               echo "✓ Backend health check passed (HTTP $HTTP_CODE)"
               break
@@ -1453,11 +1543,19 @@ jobs:
   deploy-frontend:
     name: "Deploy Frontend Container"
     # Frontend deploy must wait for migrations (but must NOT depend on deploy-backend).
-    needs: [migrate, test-frontend, security-scan-frontend]
+    needs: [build-frontend, migrate, test-frontend, security-scan-frontend]
     runs-on: ubuntu-latest
     timeout-minutes: 20
     environment: ${{ inputs.frontend_environment }}
+    permissions:
+      contents: read
+      packages: read
     steps:
+      - name: Checkout code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          ref: ${{ inputs.ref }}
+
       - name: Fail fast if required frontend secrets are missing
         env:
           DO_ACCESS_TOKEN: ${{ secrets.DO_ACCESS_TOKEN }}
@@ -1469,60 +1567,60 @@ jobs:
           DOMAIN_NAME: ${{ secrets.DOMAIN_NAME }}
         run: |
           set -euo pipefail
-
-          missing=()
-          check() {
-            local name="$1"
-            local value="$2"
-            if [ -z "$value" ]; then
-              missing+=("$name")
-            fi
-          }
-
-          check DO_ACCESS_TOKEN "$DO_ACCESS_TOKEN"
-          check SSH_HOST "$SSH_HOST"
-          check SSH_USER "$SSH_USER"
-          check SSH_PASSWORD "$SSH_PASSWORD"
-          check BACKEND_HOST "$BACKEND_HOST"
-          check REACT_APP_API_BASE_URL "$REACT_APP_API_BASE_URL"
-          check DOMAIN_NAME "$DOMAIN_NAME"
-
-          if [ ${#missing[@]} -gt 0 ]; then
-            echo "❌ Missing required frontend secrets (non-empty required): ${missing[*]}"
-            exit 1
-          fi
-
-          echo "✅ Required frontend secrets present"
+          bash .github/scripts/validate-environment.sh \
+            --environment "${{ inputs.frontend_environment }}" \
+            --workflow reusable-deploy.yml
 
       - name: Setup SSH
-        run: |
-          # Install sshpass for password-based SSH (same as backend)
-          sudo apt-get update -qq
-          sudo apt-get install -y sshpass
-          
-          # Add SSH host to known_hosts
-          mkdir -p ~/.ssh
-          chmod 700 ~/.ssh
-          ssh-keyscan -H "${{ secrets.SSH_HOST }}" >> ~/.ssh/known_hosts 2>&1
-
-      - name: Deploy frontend container
         env:
           SSHPASS: ${{ secrets.SSH_PASSWORD }}
         run: |
-          # Export variables that will be used in the SSH session
-          export BACKEND_HOST="${{ secrets.BACKEND_HOST }}"
-          export DO_TOKEN="${{ secrets.DO_ACCESS_TOKEN }}"
-          export API_BASE_URL="${{ secrets.REACT_APP_API_BASE_URL }}"
-          export SENTRY_DSN="${{ secrets.SENTRY_DSN }}"
-          export SENTRY_ENABLED="${{ secrets.SENTRY_ENABLED }}"
-          export ENVIRONMENT="${{ inputs.environment }}"
-          export IMAGE_TAG="${{ inputs.environment }}-${{ github.sha }}"
-          export REG="${{ env.REGISTRY }}"
-          export IMG="${{ env.FRONTEND_IMAGE }}"
-          export DOMAIN_NAME="${{ secrets.DOMAIN_NAME }}"
-          export DEPLOY_BY_DIGEST="${{ inputs.deploy_by_digest }}"
-          
-          # Debug: Show what we're deploying
+          set -euo pipefail
+
+          # Install sshpass for password-based SSH (same as backend)
+          timeout 120 sudo apt-get update -qq
+          timeout 120 sudo apt-get install -y sshpass
+
+          # Fail fast on SSH connectivity issues instead of hanging on ssh-keyscan.
+          timeout 30 sshpass -e ssh \
+            -o StrictHostKeyChecking=no \
+            -o UserKnownHostsFile=/dev/null \
+            -o ConnectTimeout=10 \
+            -o ServerAliveInterval=10 \
+            -o ServerAliveCountMax=3 \
+            "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}" \
+            "echo '✓ SSH preflight ok'"
+
+      - name: Deploy frontend container
+        env:
+          FRONTEND_TAG_REF: ${{ needs.build-frontend.outputs.image_tag_ref }}
+          FRONTEND_DIGEST_REF: ${{ needs.build-frontend.outputs.image_digest_ref }}
+          SSHPASS: ${{ secrets.SSH_PASSWORD }}
+        run: |
+          sshpass -e ssh \
+            -o StrictHostKeyChecking=no \
+            -o UserKnownHostsFile=/dev/null \
+            -o ConnectTimeout=10 \
+            -o ServerAliveInterval=60 \
+            -o ServerAliveCountMax=10 \
+            ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << 'SSH'
+          set -euo pipefail
+
+          BACKEND_HOST="${{ secrets.BACKEND_HOST }}"
+          API_BASE_URL="${{ secrets.REACT_APP_API_BASE_URL }}"
+          SENTRY_DSN="${{ secrets.SENTRY_DSN }}"
+          SENTRY_ENABLED="${{ secrets.SENTRY_ENABLED }}"
+          ENVIRONMENT="${{ inputs.environment }}"
+          IMAGE_TAG="${{ inputs.environment }}-${{ github.sha }}"
+          REG="${{ env.GHCR_REGISTRY }}"
+          IMG="${{ env.FRONTEND_IMAGE }}"
+          DOMAIN_NAME="${{ secrets.DOMAIN_NAME }}"
+          DEPLOY_BY_DIGEST="${{ inputs.deploy_by_digest }}"
+          FRONTEND_TAG_REF="${{ needs.build-frontend.outputs.image_tag_ref }}"
+          FRONTEND_DIGEST_REF="${{ needs.build-frontend.outputs.image_digest_ref }}"
+
+          # Use the same heredoc-based secret delivery as the backend deploy job.
+          # Inline SSH env assignment can corrupt registry tokens that contain shell-significant characters.
           echo "==================================="
           echo "Frontend Deployment Debug Info"
           echo "==================================="
@@ -1533,21 +1631,6 @@ jobs:
           echo "Environment: $ENVIRONMENT"
           echo "Backend Host: $BACKEND_HOST"
           echo "==================================="
-          
-          sshpass -e ssh -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} \
-            "BACKEND_HOST='${BACKEND_HOST}' \
-             DO_TOKEN='${DO_TOKEN}' \
-             API_BASE_URL='${API_BASE_URL}' \
-             SENTRY_DSN='${SENTRY_DSN}' \
-             SENTRY_ENABLED='${SENTRY_ENABLED}' \
-             ENVIRONMENT='${ENVIRONMENT}' \
-             IMAGE_TAG='${IMAGE_TAG}' \
-             REG='${REG}' \
-             IMG='${IMG}' \
-             DOMAIN_NAME='${DOMAIN_NAME}' \
-             DEPLOY_BY_DIGEST='${DEPLOY_BY_DIGEST}' \
-             bash -s" << 'SSH'
-          set -euo pipefail
           
           echo "==================================="
           echo "Remote Deployment Started"
@@ -1567,8 +1650,8 @@ jobs:
           
           echo "✓ Runtime config created"
           
-          # Login to registry
-          echo "${DO_TOKEN}" | docker login registry.digitalocean.com -u "${DO_TOKEN}" --password-stdin
+          # Login to registry using the workflow token so env-scoped DOCR overrides cannot break deploys.
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
           echo "✓ Docker login successful"
           
           # Check disk space and cleanup if needed
@@ -1616,23 +1699,29 @@ jobs:
             return 1
           }
 
-          echo "Pulling image: $REG/$IMG:$IMAGE_TAG"
-          pull_with_retry "$REG/$IMG:$IMAGE_TAG"
-          echo "✓ Image pulled successfully"
+          to_ghcr_ref() {
+            printf '%s' "$1" | sed "s#^${{ env.REGISTRY }}#${{ env.GHCR_REGISTRY }}#"
+          }
 
-          TAG_REF="$REG/$IMG:$IMAGE_TAG"
+          TAG_REF="${FRONTEND_TAG_REF:-${{ env.REGISTRY }}/$IMG:$IMAGE_TAG}"
           RUN_REF="$TAG_REF"
+          RUN_REF="$(to_ghcr_ref "$RUN_REF")"
 
-          # Optional: deploy by digest after pulling by immutable tag.
           if [ "${DEPLOY_BY_DIGEST:-false}" = "true" ]; then
-            DIGEST_REF=$(docker image inspect --format='{{index .RepoDigests 0}}' "$TAG_REF" 2>/dev/null || true)
-            if echo "$DIGEST_REF" | grep -q '@sha256:'; then
-              echo "✓ Deploy-by-digest enabled: $DIGEST_REF"
-              RUN_REF="$DIGEST_REF"
+            FRONTEND_GHCR_DIGEST_REF="$(to_ghcr_ref "${FRONTEND_DIGEST_REF}")"
+            if echo "${FRONTEND_GHCR_DIGEST_REF}" | grep -q '@sha256:'; then
+              echo "✓ Using frontend build digest ref: ${FRONTEND_GHCR_DIGEST_REF}"
+              RUN_REF="${FRONTEND_DIGEST_REF}"
+              RUN_REF="$(to_ghcr_ref "$RUN_REF")"
             else
-              echo "⚠ Deploy-by-digest enabled, but digest not found; falling back to tag"
+              echo "✗ Deploy-by-digest enabled, but build-frontend did not export a digest ref"
+              exit 1
             fi
           fi
+
+          echo "Pulling image: $RUN_REF"
+          pull_with_retry "$RUN_REF"
+          echo "✓ Image pulled successfully"
 
           # Atomic deploy + rollback: canary on alternate port, then swap.
           CAND_NAME="pm-frontend-candidate"
@@ -1652,6 +1741,34 @@ jobs:
             else
               echo "⚠ No previous frontend container found ($PREV_NAME)"
             fi
+          }
+
+          wait_for_http_200() {
+            local url="$1"
+            local label="$2"
+            local max_attempts="$3"
+            local delay_seconds="$4"
+            local attempt=1
+            local http_code="000"
+
+            while [ "$attempt" -le "$max_attempts" ]; do
+              http_code=$(curl -L -s -o /dev/null -w "%{http_code}" "$url" || echo "000")
+              if [ "$http_code" = "200" ]; then
+                LAST_HTTP_CODE="$http_code"
+                echo "✓ ${label} passed (HTTP $http_code)"
+                return 0
+              fi
+
+              if [ "$attempt" -lt "$max_attempts" ]; then
+                echo "${label} attempt ${attempt}/${max_attempts} (HTTP $http_code), retrying..."
+                sleep "$delay_seconds"
+              fi
+
+              attempt=$((attempt + 1))
+            done
+
+            LAST_HTTP_CODE="$http_code"
+            return 1
           }
 
           # Cleanup stale canary/prev
@@ -1695,21 +1812,8 @@ jobs:
           done
 
           echo "Health-checking frontend canary..."
-          MAX_ATTEMPTS=10
-          ATTEMPT=1
-          while [ $ATTEMPT -le $MAX_ATTEMPTS ]; do
-            HTTP_CODE=$(curl -L -s -o /dev/null -w "%{http_code}" "http://127.0.0.1:${CAND_PORT}/" || echo "000")
-            if [ "$HTTP_CODE" = "200" ]; then
-              echo "✓ Canary health check passed (HTTP $HTTP_CODE)"
-              break
-            fi
-            echo "Canary health attempt $ATTEMPT/$MAX_ATTEMPTS (HTTP $HTTP_CODE), retrying..."
-            sleep 4
-            ATTEMPT=$((ATTEMPT + 1))
-          done
-
-          if [ "$HTTP_CODE" != "200" ]; then
-            echo "✗ Canary health check failed; leaving existing frontend untouched"
+          if ! wait_for_http_200 "http://127.0.0.1:${CAND_PORT}/" "Canary health check" 10 4; then
+            echo "✗ Canary health check failed; leaving existing frontend untouched (HTTP ${LAST_HTTP_CODE})"
             docker logs "$CAND_NAME" --tail 200 2>/dev/null || true
             docker rm -f "$CAND_NAME" 2>/dev/null || true
             exit 1
@@ -1751,21 +1855,8 @@ jobs:
 
           # Health check - container serves on port 8080
           echo "Checking frontend health on port 8080..."
-          MAX_ATTEMPTS=10
-          ATTEMPT=1
-          while [ $ATTEMPT -le $MAX_ATTEMPTS ]; do
-            HTTP_CODE=$(curl -L -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8080/ || echo "000")
-            if [ "$HTTP_CODE" = "200" ]; then
-              echo "✓ Frontend container health check passed (HTTP $HTTP_CODE)"
-              break
-            fi
-            echo "Health check attempt $ATTEMPT/$MAX_ATTEMPTS (HTTP $HTTP_CODE), retrying..."
-            sleep 5
-            ATTEMPT=$((ATTEMPT + 1))
-          done
-
-          if [ "$HTTP_CODE" != "200" ]; then
-            echo "✗ Frontend health check failed after $MAX_ATTEMPTS attempts"
+          if ! wait_for_http_200 "http://127.0.0.1:8080/" "Frontend health check" 10 5; then
+            echo "✗ Frontend health check failed after 10 attempts (HTTP ${LAST_HTTP_CODE})"
             rollback
             exit 1
           fi
@@ -1968,3 +2059,4 @@ jobs:
     with:
       backend_environment: ${{ inputs.backend_environment }}
       frontend_environment: ${{ inputs.frontend_environment }}
+      require_redis_readiness: ${{ inputs.require_redis_readiness }}
