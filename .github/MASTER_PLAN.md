@@ -11,6 +11,8 @@ This file is the **append-only PR-referenceable execution log**.
 
 ## Operational Notes
 
+- **2026-04-30** — CI/docs: deepened the Golden drift gate so `scripts/verify_golden_state.sh` now reports file/rule-specific failures for current/reference doc drift, enforces canonical branch/deploy guidance in `.github/workflows/README.md`, and forces `docs/reference/GOLDEN_PIPELINE.md` to remain a pointer-only companion to `docs/GOLDEN_PIPELINE.md` rather than an independent operational authority. (PR: #4799)
+
 - **2026-04-30** — **HOTFIX**: locked entity create/edit flows behind a smart-loader boundary to eliminate React Error #185 refetch cascades. `EntityFormSurface` now preloads schema, record data, dropdown dictionaries, form config, and AI document inputs before mounting the pure `UniversalEntityForm`; `DynamicFormEngine` now resolves dependent options in memory from preloaded dictionaries. Added focused frontend regression coverage and documented the release in `VERIFICATION_AUDIT.md`. (PR: #4797)
 
 - **2026-04-30** — Golden schema refactor: added shared backend schema primitives (`FinancialTermsMixin`, `LogisticsMixin`, snapshot mixins, `BaseLineItem`), normalized Carrier/Customer/Supplier plus PurchaseOrder/SalesOrder/Invoice/Carrier PO additively, introduced tenant-aware line-item tables with RLS, routed Carrier POs at `/api/v1/carrier-pos/`, and documented the implemented contract in `SCHEMA_VERIFICATION.md`. (PR: #4793)
