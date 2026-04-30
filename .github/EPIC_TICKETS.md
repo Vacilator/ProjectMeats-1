@@ -74,8 +74,8 @@
   - **Rollback:** Revert importer code and use journal output to delete or reconcile any seeded test rows before reattempting.
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
-- [ ] **GA-01.4 etl-transactional-import-and-reconciliation**
-  - **Status:** Ready
+- [x] **GA-01.4 etl-transactional-import-and-reconciliation**
+  - **Status:** Shipped (PR #4817)
   - **Why now:** The final launch blocker is migrating historical purchase orders, sales orders, freight orders, invoices, and their line items with reconciliation output.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 14 / Epic 1
   - **Scope:** Import transactional headers, line items, and snapshot fields in dependency order; add reconciliation reports and operator runbooks for rollback/restart.
@@ -95,7 +95,7 @@
 ### Epic GA-02 - Infrastructure & disaster recovery
 
 - [ ] **GA-02.1 infra-desired-state-and-iac-scaffold**
-  - **Status:** Blocked
+  - **Status:** Ready
   - **Why now:** Launch operations currently rely on workflow/runtime knowledge that needs a codified desired state before DR and autoscaling changes can be trusted.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 14 / Epic 2
   - **Scope:** Inventory the current deploy/runtime topology and create the first IaC scaffold for launch-critical resources (droplets, workers, Redis, backup storage, alerting assumptions) without contradicting the Golden Pipeline.
@@ -103,7 +103,7 @@
   - **Primary domain:** ops/docs
   - **Likely touched paths:** `deploy/`, new `deploy/terraform/`, `.github/workflows/reusable-deploy.yml`, `docs/architecture/INFRASTRUCTURE_ARCHITECTURE.md`, `docs/runbooks/INCIDENT_RESPONSE.md`
   - **Dependencies:** GA-01.4
-  - **Blockers:** GA-01.4 keeps launch-critical data migration as the first execution lane.
+  - **Blockers:** None
   - **Acceptance criteria:** One deterministic desired-state document/scaffold exists, maps to current workflow reality, and names what is still manually managed versus codified.
   - **Validation commands:** `bash scripts/verify_golden_state.sh`; `bash .github/scripts/check_infrastructure.sh`
   - **Tenant/RLS impact:** None

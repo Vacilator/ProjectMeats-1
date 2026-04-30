@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections import Counter, defaultdict
 from dataclasses import dataclass
+from decimal import Decimal, InvalidOperation
 import hashlib
 import json
 from pathlib import Path
@@ -12,9 +13,11 @@ from typing import Any, Callable
 from django.contrib.auth import get_user_model
 from django.db import transaction
 from django.db.models import Q
+from django.utils.dateparse import parse_date, parse_datetime
 
 from apps.core.models import (
     AccountingPaymentTermsChoices,
+    CarrierDepartmentChoices,
     CreditLimitChoices,
     ETLImportBatch,
     ETLImportRowJournal,
@@ -22,6 +25,7 @@ from apps.core.models import (
     ProteinTypeChoices,
     StatusChoices,
 )
+from tenant_apps.carriers.models import Carrier
 from tenant_apps.contacts.models import Contact, ContactDepartmentChoices
 from tenant_apps.customers.models import Customer, IndustryChoices
 from tenant_apps.locations.models import Location, LocationTypeChoices
@@ -45,6 +49,7 @@ MASTER_DATA_APPLY_ORDER = (
     'products',
     'suppliers',
     'customers',
+    'carriers',
     'plants',
     'locations',
     'contacts',
@@ -96,6 +101,7 @@ def execute_master_data_import(
         limit=limit,
         output_format=output_format,
         apply=True,
+        execution_mode=ETLImportBatch.Mode.APPLY_MASTER_DATA,
         actor_user_id=actor_user_id,
         actor_email=effective_actor_email,
     )
@@ -105,6 +111,7 @@ def execute_master_data_import(
         manifest_payload=manifest_payload,
         manifest_checksum=manifest_checksum,
         command_options=command_options,
+        mode=ETLImportBatch.Mode.APPLY_MASTER_DATA,
     )
     preview = build_contract_preview(manifest, resolved_tenant=resolved_tenant)
 
@@ -148,7 +155,7 @@ def execute_master_data_import(
                 'created': created,
                 'status': batch.status,
                 'mode': batch.mode,
-                'execution_mode': 'apply_master_data',
+                'execution_mode': ETLImportBatch.Mode.APPLY_MASTER_DATA,
                 'manifest_checksum': manifest_checksum,
                 'command_options': command_options,
                 'summary': summary,
@@ -326,6 +333,7 @@ def _prepare_row(loaded_row: LoadedSourceRow, *, tenant, actor, normalized_paylo
         'products': _prepare_product,
         'suppliers': _prepare_supplier,
         'customers': _prepare_customer,
+        'carriers': _prepare_carrier,
         'plants': _prepare_plant,
         'locations': _prepare_location,
         'contacts': _prepare_contact,
@@ -476,6 +484,83 @@ def _prepare_customer(payload: dict[str, Any], *, tenant, actor) -> PreparedRow:
     return PreparedRow(
         entity='customers',
         target_model=ENTITY_CONTRACTS['customers'].target_model,
+        source_identifier=identifier,
+        lookup_key=identifier,
+        matched_instance=matched,
+        defaults=defaults,
+        warnings=[],
+    )
+
+
+def _prepare_carrier(payload: dict[str, Any], *, tenant, actor) -> PreparedRow:
+    name = _required(payload, 'name', 'carrier_name')
+    code = _value(payload, 'code', 'carrier_code')
+    defaults = {
+        'name': name,
+        'code': code or name[:50],
+        'carrier_type': _normalize_choice(
+            _value(payload, 'carrier_type') or Carrier._meta.get_field('carrier_type').default,
+            Carrier._meta.get_field('carrier_type').choices,
+            'carrier_type',
+        ),
+        'contact_person': _value(payload, 'contact_person'),
+        'phone': _value(payload, 'phone'),
+        'phone_type': _normalize_choice(
+            _value(payload, 'phone_type') or PhoneTypeChoices.OFFICE,
+            PhoneTypeChoices.choices,
+            'phone_type',
+        ),
+        'email': _value(payload, 'email'),
+        'address': _value(payload, 'address', 'street_address'),
+        'city': _value(payload, 'city'),
+        'state': _value(payload, 'state'),
+        'zip_code': _value(payload, 'zip_code', 'state_zip'),
+        'country': _value(payload, 'country') or 'USA',
+        'mc_number': _value(payload, 'mc_number'),
+        'dot_number': _value(payload, 'dot_number'),
+        'my_customer_num_from_carrier': _value(payload, 'my_customer_num_from_carrier'),
+        'accounting_payable_contact_name': _value(payload, 'accounting_payable_contact_name'),
+        'accounting_payable_contact_phone': _value(payload, 'accounting_payable_contact_phone'),
+        'accounting_payable_contact_email': _value(payload, 'accounting_payable_contact_email'),
+        'sales_contact_name': _value(payload, 'sales_contact_name'),
+        'sales_contact_phone': _value(payload, 'sales_contact_phone'),
+        'sales_contact_email': _value(payload, 'sales_contact_email'),
+        'payment_terms': _normalize_optional_choice(
+            payload.get('payment_terms', payload.get('accounting_payment_terms')),
+            AccountingPaymentTermsChoices.choices,
+            'payment_terms',
+        ),
+        'credit_limit': _normalize_optional_choice(
+            payload.get('credit_limit', payload.get('credit_limits')),
+            CreditLimitChoices.choices,
+            'credit_limit',
+        ),
+        'account_line_of_credit': _value(payload, 'account_line_of_credit', 'accounting_line_of_credit'),
+        'departments_array': _normalize_choice_list(
+            payload.get('departments_array', payload.get('departments')),
+            CarrierDepartmentChoices.choices,
+            'departments_array',
+        ),
+        'is_active': _normalize_bool(payload.get('is_active', True), default=True),
+    }
+    defaults['departments'] = ', '.join(defaults['departments_array'])
+    defaults['how_carrier_make_appointment'] = _normalize_optional_choice(
+        payload.get('how_carrier_make_appointment', payload.get('how_to_make_appointment')),
+        Carrier._meta.get_field('how_carrier_make_appointment').choices,
+        'how_carrier_make_appointment',
+    )
+    if actor is not None and _model_has_field(Carrier, 'created_by'):
+        defaults['created_by'] = actor
+    queryset = Carrier.objects.filter(tenant=tenant)
+    if code:
+        queryset = queryset.filter(code=code)
+    else:
+        queryset = queryset.filter(name=name)
+    matched = queryset.order_by('pk').first()
+    identifier = f"code={defaults['code']}" if code else f"name={name}"
+    return PreparedRow(
+        entity='carriers',
+        target_model=ENTITY_CONTRACTS['carriers'].target_model,
         source_identifier=identifier,
         lookup_key=identifier,
         matched_instance=matched,
@@ -729,6 +814,7 @@ def _resolve_model_class(entity: str):
         'products': MasterProduct,
         'suppliers': Supplier,
         'customers': Customer,
+        'carriers': Carrier,
         'plants': Plant,
         'locations': Location,
         'contacts': Contact,
@@ -801,6 +887,31 @@ def _resolve_customer(payload: dict[str, Any], *, tenant, required: bool = True)
             f"Customer reference could not be resolved for name='{customer_name}' email='{customer_email}'.",
         )
     return customer
+
+
+def _resolve_carrier(payload: dict[str, Any], *, tenant, required: bool = True):
+    carrier_code = _value(payload, 'carrier_code')
+    carrier_name = _value(payload, 'carrier_name', 'carrier')
+    has_reference = bool(carrier_code or carrier_name)
+    if not has_reference:
+        if required:
+            raise RowPreparationError(
+                'missing_parent_reference',
+                'Row is missing the carrier_code/carrier_name reference required for import.',
+            )
+        return None
+    queryset = Carrier.objects.filter(tenant=tenant)
+    if carrier_code:
+        queryset = queryset.filter(code=carrier_code)
+    if carrier_name:
+        queryset = queryset.filter(name=carrier_name)
+    carrier = queryset.order_by('pk').first()
+    if carrier is None and (required or has_reference):
+        raise RowPreparationError(
+            'parent_not_found',
+            f"Carrier reference could not be resolved for code='{carrier_code}' name='{carrier_name}'.",
+        )
+    return carrier
 
 
 def _resolve_plant(payload: dict[str, Any], *, tenant, required: bool = True):
@@ -983,6 +1094,57 @@ def _normalize_bool(value: Any, *, default: bool = False) -> bool:
     if lowered in FALSE_VALUES:
         return False
     raise RowPreparationError('invalid_boolean', f"Invalid boolean value '{normalized}'.")
+
+
+def _normalize_date(value: Any, field_name: str, *, required: bool = False):
+    normalized = _normalize_value(value)
+    if normalized in ('', None):
+        if required:
+            raise RowPreparationError('missing_required_field', f"Row is missing required date field '{field_name}'.")
+        return None
+    parsed = parse_date(str(normalized))
+    if parsed is not None:
+        return parsed
+    parsed_dt = parse_datetime(str(normalized))
+    if parsed_dt is not None:
+        return parsed_dt.date()
+    raise RowPreparationError('invalid_date', f"Invalid date value '{normalized}' for field '{field_name}'.")
+
+
+def _normalize_decimal(value: Any, field_name: str, *, required: bool = False):
+    normalized = _normalize_value(value)
+    if normalized in ('', None):
+        if required:
+            raise RowPreparationError(
+                'missing_required_field',
+                f"Row is missing required decimal field '{field_name}'.",
+            )
+        return None
+    try:
+        return Decimal(str(normalized))
+    except (ArithmeticError, InvalidOperation, ValueError) as exc:
+        raise RowPreparationError(
+            'invalid_decimal',
+            f"Invalid decimal value '{normalized}' for field '{field_name}'.",
+        ) from exc
+
+
+def _normalize_int(value: Any, field_name: str, *, required: bool = False):
+    normalized = _normalize_value(value)
+    if normalized in ('', None):
+        if required:
+            raise RowPreparationError(
+                'missing_required_field',
+                f"Row is missing required integer field '{field_name}'.",
+            )
+        return None
+    try:
+        return int(Decimal(str(normalized)))
+    except (ArithmeticError, InvalidOperation, ValueError) as exc:
+        raise RowPreparationError(
+            'invalid_integer',
+            f"Invalid integer value '{normalized}' for field '{field_name}'.",
+        ) from exc
 
 
 def _iter_choices(choices):

@@ -1,0 +1,47 @@
+{
+  "batch_name": "acme-transactional-import",
+  "source_system": "legacy_json_bundle",
+  "tenant_slug": "acme-meats",
+  "sources": [
+    {
+      "entity": "purchase_orders",
+      "format": "json",
+      "path": "purchase_order_rows.json"
+    },
+    {
+      "entity": "purchase_order_items",
+      "format": "json",
+      "path": "purchase_order_item_rows.json"
+    },
+    {
+      "entity": "sales_orders",
+      "format": "json",
+      "path": "sales_order_rows.json"
+    },
+    {
+      "entity": "sales_order_items",
+      "format": "json",
+      "path": "sales_order_item_rows.json"
+    },
+    {
+      "entity": "carrier_purchase_orders",
+      "format": "json",
+      "path": "carrier_purchase_order_rows.json"
+    },
+    {
+      "entity": "carrier_po_items",
+      "format": "json",
+      "path": "carrier_po_item_rows.json"
+    },
+    {
+      "entity": "invoices",
+      "format": "json",
+      "path": "invoice_rows.json"
+    },
+    {
+      "entity": "invoice_items",
+      "format": "json",
+      "path": "invoice_item_rows.json"
+    }
+  ]
+}

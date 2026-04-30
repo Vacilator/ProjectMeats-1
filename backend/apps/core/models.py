@@ -672,6 +672,8 @@ class ETLImportBatch(TenantAwareModel):
 
     class Mode(models.TextChoices):
         DRY_RUN = 'dry_run', 'Dry Run'
+        APPLY_MASTER_DATA = 'apply_master_data', 'Apply Master Data'
+        APPLY_TRANSACTIONS = 'apply_transactions', 'Apply Transactions'
 
     class Status(models.TextChoices):
         PENDING = 'pending', 'Pending'

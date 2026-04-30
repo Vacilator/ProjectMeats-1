@@ -21,6 +21,7 @@ from .contracts import (
 )
 from .engine import execute_dry_run
 from .master_data_import import MASTER_DATA_APPLY_ORDER, execute_master_data_import
+from .transactional_import import TRANSACTION_APPLY_ORDER, execute_transaction_import
 from .journal import build_command_options, build_run_key, checksum_manifest_payload
 from .runtime import LoadedSourceRow, load_source_rows
 
@@ -40,12 +41,14 @@ __all__ = [
     "LoadedSourceRow",
     "SourceBinding",
     "MASTER_DATA_APPLY_ORDER",
+    "TRANSACTION_APPLY_ORDER",
     "build_command_options",
     "build_contract_preview",
     "build_run_key",
     "checksum_manifest_payload",
     "execute_dry_run",
     "execute_master_data_import",
+    "execute_transaction_import",
     "load_source_rows",
     "load_batch_manifest",
     "resolve_manifest_tenant",

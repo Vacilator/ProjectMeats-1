@@ -15,8 +15,11 @@ from django.core.management.base import BaseCommand, CommandError
 from apps.core.services.etl import (
     BATCH_JOURNAL_FIELDS,
     ERROR_REPORT_FIELDS,
+    MASTER_DATA_APPLY_ORDER,
+    TRANSACTION_APPLY_ORDER,
     execute_dry_run,
     execute_master_data_import,
+    execute_transaction_import,
     load_batch_manifest,
     resolve_manifest_tenant,
     validate_batch_manifest,
@@ -69,19 +72,42 @@ class Command(BaseCommand):
             payload = load_batch_manifest(options["manifest"])
             manifest = validate_batch_manifest(payload)
             tenant = resolve_manifest_tenant(manifest)
+            selected_entities = {options["entity"]} if options.get("entity") else {
+                source.entity for source in manifest.sources
+            }
+            master_apply_entities = selected_entities & set(MASTER_DATA_APPLY_ORDER)
+            transaction_apply_entities = selected_entities & set(TRANSACTION_APPLY_ORDER)
             with tenant_rls(str(tenant.id), strict=True):
                 if options["apply"]:
-                    preview = execute_master_data_import(
-                        manifest,
-                        manifest_payload=payload,
-                        manifest_path=options["manifest"],
-                        resolved_tenant=tenant,
-                        entity=options.get("entity"),
-                        limit=options.get("limit"),
-                        output_format=options["format"],
-                        actor_user_id=options.get("actor_user_id"),
-                        actor_email=options.get("actor_email"),
-                    )
+                    if master_apply_entities and transaction_apply_entities:
+                        raise CommandError(
+                            "Apply mode does not support mixed master-data and transactional entities in one batch. "
+                            "Run separate manifests or scope the execution with --entity."
+                        )
+                    if transaction_apply_entities:
+                        preview = execute_transaction_import(
+                            manifest,
+                            manifest_payload=payload,
+                            manifest_path=options["manifest"],
+                            resolved_tenant=tenant,
+                            entity=options.get("entity"),
+                            limit=options.get("limit"),
+                            output_format=options["format"],
+                            actor_user_id=options.get("actor_user_id"),
+                            actor_email=options.get("actor_email"),
+                        )
+                    else:
+                        preview = execute_master_data_import(
+                            manifest,
+                            manifest_payload=payload,
+                            manifest_path=options["manifest"],
+                            resolved_tenant=tenant,
+                            entity=options.get("entity"),
+                            limit=options.get("limit"),
+                            output_format=options["format"],
+                            actor_user_id=options.get("actor_user_id"),
+                            actor_email=options.get("actor_email"),
+                        )
                 else:
                     preview = execute_dry_run(
                         manifest,
@@ -101,7 +127,14 @@ class Command(BaseCommand):
 
         batch_run = preview["batch_run"]
 
-        title = "Golden Schema ETL Master Data Import" if options["apply"] else "Golden Schema ETL Dry Run"
+        if options["apply"]:
+            title = (
+                "Golden Schema ETL Transaction Import"
+                if preview["batch_run"]["execution_mode"] == "apply_transactions"
+                else "Golden Schema ETL Master Data Import"
+            )
+        else:
+            title = "Golden Schema ETL Dry Run"
         self.stdout.write(self.style.MIGRATE_HEADING(title))
         self.stdout.write(f"Batch: {preview['batch_name']}")
         self.stdout.write(f"Tenant: {preview['tenant_slug']} ({preview['tenant_id']})")
@@ -110,7 +143,10 @@ class Command(BaseCommand):
         self.stdout.write(f"Run key: {batch_run['run_key']}")
         self.stdout.write("")
         if options["apply"]:
-            heading = "Execution order (deterministic; master-data writes enabled):"
+            if preview["batch_run"]["execution_mode"] == "apply_transactions":
+                heading = "Execution order (deterministic; transactional writes enabled):"
+            else:
+                heading = "Execution order (deterministic; master-data writes enabled):"
         else:
             heading = "Execution order (deterministic; no writes enabled):"
         self.stdout.write(self.style.WARNING(heading))
@@ -136,7 +172,10 @@ class Command(BaseCommand):
         self.stdout.write(f"  - {', '.join(ERROR_REPORT_FIELDS)}")
         self.stdout.write("")
         if options["apply"]:
-            summary_heading = "Apply summary (master-data writes only; transactional imports still disabled):"
+            if preview["batch_run"]["execution_mode"] == "apply_transactions":
+                summary_heading = "Apply summary (transactional headers/line items enabled with reconciliation output):"
+            else:
+                summary_heading = "Apply summary (master-data writes only; transactional imports still disabled):"
         else:
             summary_heading = "Dry-run summary (journal rows only; no business writes):"
         self.stdout.write(self.style.WARNING(summary_heading))
@@ -150,3 +189,11 @@ class Command(BaseCommand):
             self.stdout.write(f"  - created_count: {summary['created_count']}")
             self.stdout.write(f"  - updated_count: {summary['updated_count']}")
             self.stdout.write(f"  - skipped_count: {summary['skipped_count']}")
+            if preview.get("error_report"):
+                self.stdout.write("")
+                self.stdout.write(self.style.WARNING("Reconciliation errors:"))
+                for error in preview["error_report"]:
+                    self.stdout.write(
+                        f"  - {error['entity']} row {error['source_row_number']}: "
+                        f"{error['error_code']} :: {error['error_message']}"
+                    )
