@@ -2,7 +2,7 @@
 
 **Status**: ✅ CURRENT  
 **Category**: Guides  
-**Last Updated**: 2026-02-01
+**Last Updated**: 2026-04-30
 
 ---
 
@@ -108,8 +108,8 @@ exit 1
 ```bash
 pg_dump \
   -h localhost -p 5433 \
-  -U "$PROD_DB_USER" \
-  -d "$PROD_DB_NAME" \
+  -U "$DB_USER" \
+  -d "$DB_NAME" \
   --no-owner \
   --no-privileges \
   --data-only \
@@ -144,8 +144,8 @@ grep -v "^INSERT INTO.*apps_tenants_tenant.*'test_" /tmp/prod_data.sql > /tmp/fi
 ```bash
 pg_dump \
   -h localhost -p 5434 \
-  -U "$UAT_DB_USER" \
-  -d "$UAT_DB_NAME" \
+  -U "$DB_USER" \
+  -d "$DB_NAME" \
   --format=custom \
   > /tmp/uat_backup_$(date +%Y%m%d_%H%M%S).dump
 ```
@@ -181,8 +181,8 @@ SET session_replication_role = 'origin';  -- Re-enable triggers
 ```bash
 psql \
   -h localhost -p 5434 \
-  -U "$UAT_DB_USER" \
-  -d "$UAT_DB_NAME" \
+  -U "$DB_USER" \
+  -d "$DB_NAME" \
   -v ON_ERROR_STOP=1 \
   -f /tmp/filtered_data.sql
 ```
@@ -236,42 +236,30 @@ UPDATE apps_customers_customer SET owner_id = <UAT_SUPERUSER_ID> WHERE owner_id 
 
 ## Required Secrets
 
-### Production Database Secrets
+### Database Secrets
 
-**Environment:** `prod-backend` (or repository-level)
+This workflow uses the same manifest-defined secret names in two different environment lanes:
 
-| Secret | Purpose | Example |
-|--------|---------|---------|
-| `PROD_DB_HOST` | Production database hostname | `localhost` |
-| `PROD_DB_PORT` | Production database port | `5432` |
-| `PROD_DB_USER` | Database username | `projectmeats_user` |
-| `PROD_DB_PASSWORD` | Database password | `***` |
-| `PROD_DB_NAME` | Database name | `projectmeats_prod` |
-
-### UAT Database Secrets
-
-**Environment:** `uat-backend` (or repository-level)
+- `production-backend` for the export job
+- `uat-backend` for the import job
 
 | Secret | Purpose | Example |
 |--------|---------|---------|
-| `UAT_DB_HOST` | UAT database hostname | `localhost` |
-| `UAT_DB_PORT` | UAT database port | `5432` |
-| `UAT_DB_USER` | Database username | `projectmeats_user` |
-| `UAT_DB_PASSWORD` | Database password | `***` |
-| `UAT_DB_NAME` | Database name | `projectmeats_uat` |
+| `DB_HOST` | Database hostname for the active lane | `localhost` |
+| `DB_PORT` | Database port | `5432` |
+| `DB_USER` | Database username | `projectmeats_user` |
+| `DB_PASSWORD` | Database password | `***` |
+| `DB_NAME` | Database name for the active lane | `projectmeats_prod` / `projectmeats_uat` |
 
 ### SSH Secrets
 
 | Secret | Purpose | Example |
 |--------|---------|---------|
-| `SSH_USER` | Production SSH username | `root` |
-| `SSH_HOST` | Production SSH hostname | `prod.meatscentral.com` |
-| `SSH_PASSWORD` | Production SSH password | `***` |
-| `UAT_SSH_USER` | UAT SSH username | `root` |
-| `UAT_SSH_HOST` | UAT SSH hostname | `uat.meatscentral.com` |
-| `UAT_SSH_PASSWORD` | UAT SSH password | `***` |
+| `SSH_USER` | SSH username for the active lane | `root` |
+| `SSH_HOST` | SSH hostname for the active lane | `prod.meatscentral.com` / `uat.meatscentral.com` |
+| `SSH_PASSWORD` | SSH password for the active lane | `***` |
 
-**Note:** If production and UAT use the same SSH host, `UAT_SSH_*` can reuse `SSH_*` values.
+**Note:** The same secret names are scoped by GitHub Environment, so the export and import jobs receive different values without renaming the secrets.
 
 ---
 
@@ -341,7 +329,7 @@ gh run view <RUN_ID> --log
    ```
 4. Test port forwarding manually:
    ```bash
-   ssh -L 5433:$PROD_DB_HOST:5432 $SSH_USER@$SSH_HOST
+    ssh -L 5433:$DB_HOST:5432 $SSH_USER@$SSH_HOST
    nc -zv localhost 5433
    ```
 
@@ -402,7 +390,7 @@ ERROR: duplicate key value violates unique constraint
 **Recovery:**
 1. Restore from backup:
    ```bash
-   pg_restore -h $UAT_DB_HOST -U $UAT_DB_USER -d $UAT_DB_NAME /tmp/uat_backup_*.dump
+   pg_restore -h $DB_HOST -U $DB_USER -d $DB_NAME /tmp/uat_backup_*.dump
    ```
 2. Manually recreate test tenants via Django admin
 
@@ -523,11 +511,11 @@ ls -lt /tmp/uat_backup_*.dump | head -1
 
 **Via SSH:**
 ```bash
-ssh $UAT_SSH_USER@$UAT_SSH_HOST
+ssh $SSH_USER@$SSH_HOST
 pg_restore \
-  -h $UAT_DB_HOST \
-  -U $UAT_DB_USER \
-  -d $UAT_DB_NAME \
+  -h $DB_HOST \
+  -U $DB_USER \
+  -d $DB_NAME \
   --clean \
   --if-exists \
   /tmp/uat_backup_YYYYMMDD_HHMMSS.dump

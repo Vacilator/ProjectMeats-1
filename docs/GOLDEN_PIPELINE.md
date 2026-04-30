@@ -111,6 +111,7 @@ Do **not** validate via reverse proxy ports as the primary health signal.
 - Detailed CI/CD reference: `docs/reference/GOLDEN_PIPELINE.md`
 - Deployment failure prevention: `docs/PIPELINE_FAILURE_PREVENTION.md`
 - Final verification checklist: `docs/PIPELINE_FINAL_VERIFICATION.md`
+- Disaster recovery drill: `docs/runbooks/DISASTER_RECOVERY.md`
 - Golden state verification script: `scripts/verify_golden_state.sh`
 
 ## Quick commands
@@ -130,9 +131,9 @@ gh workflow run "🎮 Ops - Run Management Command" \
 
 - **Development / tag-retained hosts:** prefer `.github/scripts/deployment-rollback.sh development <frontend|backend|all>` and let the script fall back to the previous locally retained environment tag.
 - **UAT / Production:** treat the previous successful `reusable-deploy.yml` backend/frontend digest refs as the rollback source of truth. Export `BACKEND_IMAGE_REF` / `FRONTEND_IMAGE_REF` using those immutable refs, then run `.github/scripts/deployment-rollback.sh uat|production <frontend|backend|all>`.
-- **Database safety:** migration backups live under `/root/projectmeats/db_backups/<environment>/`; restore the matching backup if schema drift, not just app code, caused the incident.
+- **Database safety:** migration backups live under `/root/projectmeats/db_backups/<environment>/`, and non-dev deploys verify those archives with `pg_restore --list` before migrations continue. Restore the matching backup if schema drift, not just app code, caused the incident.
 - **Release path:** there is currently no dedicated release-tag workflow. Production release governance is: merge to `main` -> successful deploy -> optional manual GitHub Release from the deployed commit SHA using `gh release create <tag> --target <sha> --generate-notes`.
-- See `docs/runbooks/INCIDENT_RESPONSE.md` for the operator playbook.
+- See `docs/runbooks/INCIDENT_RESPONSE.md` for incident triage and `docs/runbooks/DISASTER_RECOVERY.md` for restore drills / PITR verification.
 
 ### Non-dev observability ownership
 

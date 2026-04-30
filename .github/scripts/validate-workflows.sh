@@ -2034,6 +2034,44 @@ PY
     return 0
 }
 
+check_ops_dr_workflow_alignment() {
+    log_info "Checking ops workflow environment mapping and DR backup verification..."
+
+    local failed=0
+
+    if grep -Eq 'environment:[[:space:]]+\$\{\{ inputs\.environment \}\}-backend' .github/workflows/99-ops-management-command.yml; then
+        log_error "99-ops-management-command.yml must map prod to production-backend explicitly"
+        ((failed++))
+    fi
+
+    if grep -Eq 'environment:[[:space:]]+\$\{\{ inputs\.environment \}\}-backend' .github/workflows/98-ops-db-surgery.yml; then
+        log_error "98-ops-db-surgery.yml must map prod to production-backend explicitly"
+        ((failed++))
+    fi
+
+    if ! grep -q 'pg_restore --list' .github/workflows/reusable-deploy.yml; then
+        log_error "reusable-deploy.yml must verify backup archives with pg_restore --list"
+        ((failed++))
+    fi
+
+    if grep -Eq 'PROD_DB_|UAT_DB_|prod-backend' docs/guides/DATABASE_SYNC_GUIDE.md; then
+        log_error "DATABASE_SYNC_GUIDE.md still contains stale secret names or non-canonical environment references"
+        ((failed++))
+    fi
+
+    if [[ ! -f docs/runbooks/DISASTER_RECOVERY.md ]]; then
+        log_error "docs/runbooks/DISASTER_RECOVERY.md is required for DR guidance"
+        ((failed++))
+    fi
+
+    if [[ $failed -gt 0 ]]; then
+        return 1
+    fi
+
+    log_info "✓ Ops workflows and DR docs are aligned"
+    return 0
+}
+
 # Main validation
 main() {
     log_info "========================================="
@@ -2054,6 +2092,7 @@ main() {
     check_non_dev_redis_readiness_gate || ((failed++))
     check_current_docs_manifest_path_drift || ((failed++))
     check_current_docs_golden_pipeline_drift || ((failed++))
+    check_ops_dr_workflow_alignment || ((failed++))
     check_cache_config || ((failed++))
     check_health_checks || ((failed++))
     check_fetch_depth || ((failed++))

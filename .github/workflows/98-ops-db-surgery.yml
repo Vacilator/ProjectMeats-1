@@ -47,7 +47,7 @@ jobs:
     name: "${{ inputs.type }} on ${{ inputs.environment }}"
     runs-on: ubuntu-latest
     needs: [check_infrastructure]
-    environment: ${{ inputs.environment }}-backend
+    environment: ${{ inputs.environment == 'prod' && 'production-backend' || format('{0}-backend', inputs.environment) }}
     timeout-minutes: 10
     
     steps:

@@ -904,14 +904,26 @@ jobs:
                 "$SSH_USER@$SSH_HOST" \
                 "set -euo pipefail; umask 077; cat > '$REMOTE_PATH'"
 
-          echo "Verifying backup exists + has sane size, then enforcing retention..."
+          echo "Verifying backup exists + has sane size..."
           sshpass -e ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
             "$SSH_USER@$SSH_HOST" \
             "set -euo pipefail; \
               test -s '$REMOTE_PATH'; \
               BYTES=\$(stat -c%s '$REMOTE_PATH'); \
               echo \"✓ Backup created: $REMOTE_PATH size=\$BYTES bytes\"; \
-              if [ \"\$BYTES\" -lt 10240 ]; then echo '✗ Backup too small (<10KB) - refusing to migrate'; exit 1; fi; \
+              if [ \"\$BYTES\" -lt 10240 ]; then echo '✗ Backup too small (<10KB) - refusing to migrate'; exit 1; fi"
+
+          echo "Verifying backup archive readability with pg_restore --list..."
+          sshpass -e ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
+            "$SSH_USER@$SSH_HOST" \
+            "set -euo pipefail; cat '$REMOTE_PATH'" \
+            | pg_restore --list >/dev/null
+          echo "✓ Backup archive verified via pg_restore --list"
+
+          echo "Enforcing backup retention..."
+          sshpass -e ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
+            "$SSH_USER@$SSH_HOST" \
+            "set -euo pipefail; \
               ls -1t '$BACKUP_DIR'/pgdump_${ENVIRONMENT}_*.dump 2>/dev/null | tail -n +\$((KEEP_COUNT + 1)) | xargs -r rm -f; \
               echo \"✓ Retention enforced (kept last $KEEP_COUNT)\""
 
