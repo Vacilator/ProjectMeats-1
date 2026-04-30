@@ -56,8 +56,8 @@
   - **Rollback:** Leave additive journal schema in place if needed, but disable the command path and revert service wiring.
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
-- [ ] **GA-01.3 etl-master-data-import-pass**
-  - **Status:** Ready
+- [x] **GA-01.3 etl-master-data-import-pass**
+  - **Status:** Shipped (PR #4816)
   - **Why now:** Transactional imports will fail or duplicate data unless carriers, suppliers, customers, contacts, products, plants, and locations import first.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 14 / Epic 1
   - **Scope:** Implement the first write-capable ETL pass for master/reference entities with tenant-aware matching, dedupe keys, audit-safe attribution, and fixture-backed regression coverage.
@@ -75,7 +75,7 @@
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
 - [ ] **GA-01.4 etl-transactional-import-and-reconciliation**
-  - **Status:** Blocked
+  - **Status:** Ready
   - **Why now:** The final launch blocker is migrating historical purchase orders, sales orders, freight orders, invoices, and their line items with reconciliation output.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 14 / Epic 1
   - **Scope:** Import transactional headers, line items, and snapshot fields in dependency order; add reconciliation reports and operator runbooks for rollback/restart.
@@ -83,7 +83,7 @@
   - **Primary domain:** backend/data
   - **Likely touched paths:** `backend/apps/core/services/etl/`, `backend/tenant_apps/{purchase_orders,sales_orders,invoices}/`, `backend/apps/system/services/entity_introspection.py`, `backend/apps/core/tests/fixtures/etl/`, `docs/runbooks/GOLDEN_SCHEMA_ETL.md`
   - **Dependencies:** GA-01.3
-  - **Blockers:** GA-01.3
+  - **Blockers:** None
   - **Acceptance criteria:** Historical transactions import in a deterministic order, snapshot fields remain immutable, reconciliation output exposes row-level failures, and reruns do not duplicate successful records.
   - **Validation commands:** `cd backend && python manage.py test tenant_apps.purchase_orders tenant_apps.sales_orders tenant_apps.invoices`; `cd backend && python manage.py makemigrations --check`
   - **Tenant/RLS impact:** High

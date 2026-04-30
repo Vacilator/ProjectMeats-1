@@ -1,0 +1,37 @@
+{
+  "batch_name": "acme-master-data-import",
+  "source_system": "legacy_json_bundle",
+  "tenant_slug": "acme-meats",
+  "sources": [
+    {
+      "entity": "products",
+      "format": "json",
+      "path": "master_product_rows.json"
+    },
+    {
+      "entity": "suppliers",
+      "format": "json",
+      "path": "supplier_master_rows.json"
+    },
+    {
+      "entity": "customers",
+      "format": "json",
+      "path": "customer_master_rows.json"
+    },
+    {
+      "entity": "plants",
+      "format": "json",
+      "path": "plant_master_rows.json"
+    },
+    {
+      "entity": "locations",
+      "format": "json",
+      "path": "location_master_rows.json"
+    },
+    {
+      "entity": "contacts",
+      "format": "json",
+      "path": "contact_master_rows.json"
+    }
+  ]
+}

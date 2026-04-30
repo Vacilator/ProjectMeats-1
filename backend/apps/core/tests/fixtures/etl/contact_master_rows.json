@@ -1,0 +1,23 @@
+[
+  {
+    "first_name": "Alice",
+    "last_name": "Sales",
+    "email": "sales@alpha-supplier.example",
+    "phone": "5551112000",
+    "department": "sales",
+    "supplier_name": "Alpha Supplier",
+    "supplier_email": "alpha-supplier@example.com",
+    "title": "Sales Manager"
+  },
+  {
+    "first_name": "Carol",
+    "last_name": "Receiver",
+    "email": "receiving@beta-customer.example",
+    "phone": "5552222000",
+    "department": "shipping",
+    "customer_name": "Beta Customer",
+    "customer_email": "beta-customer@example.com",
+    "location_code": "BETA-WH-1",
+    "title": "Receiving Lead"
+  }
+]

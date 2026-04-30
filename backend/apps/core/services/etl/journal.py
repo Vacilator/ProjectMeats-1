@@ -18,13 +18,24 @@ def checksum_manifest_payload(payload: dict[str, Any]) -> str:
     return hashlib.sha256(encoded).hexdigest()
 
 
-def build_command_options(*, entity: str | None = None, limit: int | None = None, output_format: str = 'text') -> dict[str, Any]:
-    """Return the dry-run-relevant command options stored with the batch."""
+def build_command_options(
+    *,
+    entity: str | None = None,
+    limit: int | None = None,
+    output_format: str = 'text',
+    apply: bool = False,
+    actor_user_id: int | None = None,
+    actor_email: str = '',
+) -> dict[str, Any]:
+    """Return the ETL-relevant command options stored with the batch."""
 
     return {
         'entity': entity,
         'limit': limit,
         'format': output_format,
+        'apply': apply,
+        'actor_user_id': actor_user_id,
+        'actor_email': actor_email,
     }
 
 
@@ -51,7 +62,7 @@ def get_or_start_batch(
     manifest_checksum: str,
     command_options: dict[str, Any],
 ):
-    """Create or reuse a restart-safe ETL dry-run batch."""
+    """Create or reuse a restart-safe ETL batch."""
 
     run_key = build_run_key(
         tenant_id=str(tenant.id),

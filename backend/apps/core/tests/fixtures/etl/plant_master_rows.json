@@ -1,0 +1,16 @@
+[
+  {
+    "name": "Alpha Processing",
+    "plant_est_num": "EST-100",
+    "plant_type": "processing",
+    "supplier_name": "Alpha Supplier",
+    "supplier_email": "alpha-supplier@example.com",
+    "address": "100 Plant Road",
+    "city": "Greeley",
+    "state": "CO",
+    "zip_code": "80631",
+    "country": "USA",
+    "booking_contact_email": "dock@alpha-processing.example",
+    "booking_contact_phone": "5551111000"
+  }
+]

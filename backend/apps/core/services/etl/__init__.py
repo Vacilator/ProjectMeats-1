@@ -20,6 +20,7 @@ from .contracts import (
     validate_batch_manifest,
 )
 from .engine import execute_dry_run
+from .master_data_import import MASTER_DATA_APPLY_ORDER, execute_master_data_import
 from .journal import build_command_options, build_run_key, checksum_manifest_payload
 from .runtime import LoadedSourceRow, load_source_rows
 
@@ -38,11 +39,13 @@ __all__ = [
     "EntityContract",
     "LoadedSourceRow",
     "SourceBinding",
+    "MASTER_DATA_APPLY_ORDER",
     "build_command_options",
     "build_contract_preview",
     "build_run_key",
     "checksum_manifest_payload",
     "execute_dry_run",
+    "execute_master_data_import",
     "load_source_rows",
     "load_batch_manifest",
     "resolve_manifest_tenant",
