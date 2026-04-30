@@ -329,27 +329,27 @@
   - **Rollback:** Revert the rollback-script/doc/validator updates if they diverge from validated rollout behavior.
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
-### Epic EH-02 - P0 tenant isolation continuation
+### Epic EH-07 - Core API reliability continuation
 
-- [ ] **EH-02.5 choice-viewset-tenant-admin-fail-closed**
+- [ ] **EH-07.1 always-on-endpoint-smoke-gates**
   - **Status:** Ready
-  - **Why now:** `MASTER_PLAN.md` still lists the `is_staff` global bypasses in `apps/system/views/choice_viewsets.py` as a P0 data-isolation gap, and tenant admins being promoted to `is_staff=True` must not create cross-tenant read/write exposure.
-  - **Canonical source reference:** `MASTER_PLAN.md` -> Security / tenant isolation (P0 data isolation) + Phase 12
-  - **Scope:** Remove the tenant-unsafe `is_staff` bypasses from `choice_viewsets.py`, preserve intentional superuser behavior if any exists, and add regression coverage proving tenant admins remain tenant-scoped.
-  - **Non-goals:** No broad auth/permission redesign and no unrelated choice-list UX changes.
-  - **Primary domain:** backend
-  - **Likely touched paths:** `backend/apps/system/views/choice_viewsets.py`, `backend/apps/system/tests/test_choice_viewsets_tenant_isolation.py`, any directly related permission helpers
-  - **Dependencies:** EH-02.1
+  - **Why now:** `MASTER_PLAN.md` still calls out always-on endpoint smoke coverage as the next Core API reliability step, and the PR gate should prove health, tenant resolution, and auth-bootstrap surfaces stay alive as the platform hardening work continues.
+  - **Canonical source reference:** `MASTER_PLAN.md` -> Core API reliability (next) + Phase 12
+  - **Scope:** Expand backend smoke/regression coverage for always-on endpoints (health, tenant resolution, auth bootstrap/session bootstrap) and wire the resulting signal into the existing PR validation path if it is not already covered.
+  - **Non-goals:** No broad auth rewrite, no frontend changes, and no unrelated API contract expansion.
+  - **Primary domain:** backend/tests
+  - **Likely touched paths:** `backend/apps/core/tests/test_health.py`, `backend/apps/system/tests/test_get_request_tenant_resolution.py`, `backend/apps/tenants/test_session_auth_host_membership_enforcement.py`, any new focused smoke test module, and the existing PR validation workflow only if a gate needs to be tightened
+  - **Dependencies:** EH-00.1
   - **Blockers:** None
   - **Acceptance criteria:**
-    1. Tenant-admin/staff users can no longer read or mutate cross-tenant choice data through the affected viewsets.
-    2. Explicit regression tests cover the previously fail-open path and the expected fail-closed behavior.
-    3. Intentional superuser-only access, if present, remains explicit and tested.
-  - **Validation commands:** `cd backend && python manage.py test apps.system.tests.test_choice_viewsets_tenant_isolation`; `bash scripts/verify_golden_state.sh`
-  - **Tenant/RLS impact:** High; this ticket closes a P0 client-visible tenant isolation gap.
+    1. Health and tenant-resolution smoke coverage explicitly protects the always-on backend surfaces named in `MASTER_PLAN.md`.
+    2. Auth/session bootstrap behavior has a focused regression assertion in the touched smoke suite.
+    3. The validation path that guards these checks in PRs is explicit and documented by the ticket changes.
+  - **Validation commands:** `cd backend && python manage.py test apps.core.tests.test_health apps.system.tests.test_get_request_tenant_resolution apps.tenants.test_session_auth_host_membership_enforcement`; `bash scripts/verify_golden_state.sh`
+  - **Tenant/RLS impact:** Medium; tenant resolution is part of the guarded always-on path.
   - **Secrets/infra impact:** None
-  - **Risk level:** High
-  - **Rollback:** Revert the viewset permission/queryset changes and their paired tests together if a legitimate superuser path is accidentally constrained.
+  - **Risk level:** Medium
+  - **Rollback:** Revert the focused smoke tests and any PR-gate tightening together if the new coverage proves noisy or targets the wrong bootstrap surface.
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
 ## Phase 13 - Next-Gen AI & Automation
