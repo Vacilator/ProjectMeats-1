@@ -329,6 +329,29 @@
   - **Rollback:** Revert the rollback-script/doc/validator updates if they diverge from validated rollout behavior.
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
+### Epic EH-02 - P0 tenant isolation continuation
+
+- [ ] **EH-02.5 choice-viewset-tenant-admin-fail-closed**
+  - **Status:** Ready
+  - **Why now:** `MASTER_PLAN.md` still lists the `is_staff` global bypasses in `apps/system/views/choice_viewsets.py` as a P0 data-isolation gap, and tenant admins being promoted to `is_staff=True` must not create cross-tenant read/write exposure.
+  - **Canonical source reference:** `MASTER_PLAN.md` -> Security / tenant isolation (P0 data isolation) + Phase 12
+  - **Scope:** Remove the tenant-unsafe `is_staff` bypasses from `choice_viewsets.py`, preserve intentional superuser behavior if any exists, and add regression coverage proving tenant admins remain tenant-scoped.
+  - **Non-goals:** No broad auth/permission redesign and no unrelated choice-list UX changes.
+  - **Primary domain:** backend
+  - **Likely touched paths:** `backend/apps/system/views/choice_viewsets.py`, `backend/apps/system/tests/test_choice_viewsets_tenant_isolation.py`, any directly related permission helpers
+  - **Dependencies:** EH-02.1
+  - **Blockers:** None
+  - **Acceptance criteria:**
+    1. Tenant-admin/staff users can no longer read or mutate cross-tenant choice data through the affected viewsets.
+    2. Explicit regression tests cover the previously fail-open path and the expected fail-closed behavior.
+    3. Intentional superuser-only access, if present, remains explicit and tested.
+  - **Validation commands:** `cd backend && python manage.py test apps.system.tests.test_choice_viewsets_tenant_isolation`; `bash scripts/verify_golden_state.sh`
+  - **Tenant/RLS impact:** High; this ticket closes a P0 client-visible tenant isolation gap.
+  - **Secrets/infra impact:** None
+  - **Risk level:** High
+  - **Rollback:** Revert the viewset permission/queryset changes and their paired tests together if a legitimate superuser path is accidentally constrained.
+  - **Completion evidence destination:** `.github/MASTER_PLAN.md`
+
 ## Phase 13 - Next-Gen AI & Automation
 
 ### Epic EH-06 - AI autonomy platform
