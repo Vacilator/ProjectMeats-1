@@ -65,7 +65,7 @@
   - **Secrets/infra impact:** Reads manifest/workflow metadata only
   - **Risk level:** Medium
   - **Rollback:** Revert validator changes and documentation edits together if false positives block legitimate work.
-  - **Completion evidence destination:** shipped in `.github/MASTER_PLAN.md` (PR: #4765)
+  - **Completion evidence destination:** shipped in `.github/MASTER_PLAN.md` (PR: #4799)
 
 - [x] **EH-01.2 manifest-required-secret-parity**
   - **Status:** Done
