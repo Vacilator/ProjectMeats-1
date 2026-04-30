@@ -11,7 +11,6 @@ from django.db import models
 from tenant_apps.contacts.models import Contact
 from apps.core.models import (
     AccountingPaymentTermsChoices,
-    AccountLineOfCreditChoices,
     CertificateTypeChoices,
     CountryOriginChoices,
     CreditLimitChoices,
@@ -28,10 +27,11 @@ from apps.core.models import (
     ShippingOfferedChoices,
     TenantAwareModel,
 )
+from apps.core.model_mixins import FinancialTermsMixin
 from tenant_apps.locations.models import Location
 
 
-class Supplier(TenantAwareModel):
+class Supplier(FinancialTermsMixin, TenantAwareModel):
     """Supplier model for managing supplier information."""
 
     # Basic information - keeping existing fields with same names
@@ -203,14 +203,6 @@ class Supplier(TenantAwareModel):
         null=True,
         default='',
         help_text="Credit limits/terms (e.g., Net 30, Wire 1 day prior)",
-    )
-    account_line_of_credit = models.CharField(
-        max_length=50,
-        choices=AccountLineOfCreditChoices.choices,
-        blank=True,
-        null=True,
-        default='',
-        help_text="Line of credit amount range",
     )
     fresh_or_frozen = models.CharField(
         max_length=20,

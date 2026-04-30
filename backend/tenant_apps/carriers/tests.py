@@ -167,6 +167,22 @@ class CarrierModelTest(TestCase):
         self.assertEqual(carrier.my_customer_num_from_carrier, f"CUST-{unique_id}")
         self.assertEqual(carrier.accounting_payment_terms, AccountingPaymentTermsChoices.WIRE)
 
+    def test_canonical_financial_terms_sync_to_legacy_fields(self):
+        """Canonical financial fields remain compatible with legacy aliases."""
+        from apps.core.models import AccountingPaymentTermsChoices, CreditLimitChoices
+
+        unique_id = uuid.uuid4().hex[:8]
+        carrier = Carrier.objects.create(
+            name=f"Canon Carrier {unique_id}",
+            code=f"CAN-{unique_id}",
+            payment_terms=AccountingPaymentTermsChoices.ACH,
+            credit_limit=CreditLimitChoices.NET_15,
+            tenant=self.tenant,
+        )
+
+        self.assertEqual(carrier.accounting_payment_terms, AccountingPaymentTermsChoices.ACH)
+        self.assertEqual(carrier.credit_limits, CreditLimitChoices.NET_15)
+
     def test_carrier_address(self):
         """Test carrier with full address."""
         unique_id = uuid.uuid4().hex[:8]

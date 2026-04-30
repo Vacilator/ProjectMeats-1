@@ -30,6 +30,15 @@ from apps.core.models import (
     WeightUnitChoices,
     TenantManager,
 )
+from apps.core.model_mixins import (
+    BaseLineItem,
+    BillingAddressSnapshotMixin,
+    BillingContactSnapshotMixin,
+    LogisticsMixin,
+    ShippingAddressSnapshotMixin,
+    ShippingContactSnapshotMixin,
+    sync_alias_pair,
+)
 from tenant_apps.orders.models import OrderMethodsMixin, PaymentStatus
 
 
@@ -58,7 +67,16 @@ class LogisticsScenarioChoices(models.TextChoices):
     WE_PICKUP = "we_pickup", "Tenant - Pickup (We Handle Logistics)"
 
 
-class PurchaseOrder(OrderMethodsMixin, SoftDeleteModel, TenantAwareModel):
+class PurchaseOrder(
+    BillingContactSnapshotMixin,
+    BillingAddressSnapshotMixin,
+    ShippingContactSnapshotMixin,
+    ShippingAddressSnapshotMixin,
+    LogisticsMixin,
+    OrderMethodsMixin,
+    SoftDeleteModel,
+    TenantAwareModel,
+):
     """
     Purchase Order model for managing purchase orders.
     
@@ -125,22 +143,35 @@ class PurchaseOrder(OrderMethodsMixin, SoftDeleteModel, TenantAwareModel):
         blank=True,
         help_text="Date and time when PO was created",
     )
-    pick_up_date = models.DateField(
-        blank=True,
-        null=True,
-        help_text="Scheduled pick up date",
-    )
     our_purchase_order_num = models.CharField(
         max_length=100,
         blank=True,
         default="",
         help_text="Our internal purchase order number",
     )
+    our_purchase_order_number_to_supplier = models.CharField(
+        max_length=100,
+        blank=True,
+        default="",
+        help_text="Canonical purchase order number shown to the supplier.",
+    )
+    my_customer_number_from_supplier = models.CharField(
+        max_length=100,
+        blank=True,
+        default="",
+        help_text="Our customer number from the supplier master profile.",
+    )
     supplier_confirmation_order_num = models.CharField(
         max_length=100,
         blank=True,
         default="",
         help_text="Supplier's confirmation order number",
+    )
+    supplier_confirmation_order_number = models.CharField(
+        max_length=100,
+        blank=True,
+        default="",
+        help_text="Canonical supplier confirmation order number.",
     )
     
     # Supplier Auto-Populated Fields (from Supplier model on selection)
@@ -174,13 +205,6 @@ class PurchaseOrder(OrderMethodsMixin, SoftDeleteModel, TenantAwareModel):
         null=True,
         blank=True,
         help_text="Carrier for this purchase order",
-    )
-    carrier_release_format = models.CharField(
-        max_length=100,
-        choices=CarrierReleaseFormatChoices.choices,
-        blank=True,
-        default="",
-        help_text="Carrier release format",
     )
     carrier_release_num = models.CharField(
         max_length=100,
@@ -383,13 +407,49 @@ class PurchaseOrder(OrderMethodsMixin, SoftDeleteModel, TenantAwareModel):
         from django.db import transaction
 
         with transaction.atomic():
+            sync_alias_pair(self, "our_purchase_order_number_to_supplier", "our_purchase_order_num")
+            sync_alias_pair(
+                self,
+                "supplier_confirmation_order_number",
+                "supplier_confirmation_order_num",
+            )
             if not self.order_number and self.tenant_id:
                 self.order_number = PurchaseOrder.generate_next_order_number(self.tenant)
 
             super().save(*args, **kwargs)
 
 
-class CarrierPurchaseOrder(TenantAwareModel):
+class PurchaseOrderItem(BaseLineItem):
+    """Tenant-aware purchase order line item."""
+
+    purchase_order = models.ForeignKey(
+        PurchaseOrder,
+        on_delete=models.CASCADE,
+        related_name="items",
+    )
+    line_number = models.PositiveIntegerField(default=1)
+    notes = models.TextField(blank=True, default="")
+
+    class Meta:
+        ordering = ["purchase_order_id", "line_number", "created_on"]
+        indexes = [
+            models.Index(fields=["tenant", "purchase_order"]),
+        ]
+
+    def save(self, *args, **kwargs):
+        if self.purchase_order_id and not self.tenant_id:
+            self.tenant = self.purchase_order.tenant
+        super().save(*args, **kwargs)
+
+
+class CarrierPurchaseOrder(
+    BillingContactSnapshotMixin,
+    BillingAddressSnapshotMixin,
+    ShippingContactSnapshotMixin,
+    ShippingAddressSnapshotMixin,
+    LogisticsMixin,
+    TenantAwareModel,
+):
     """
     Carrier Purchase Order model for managing carrier-specific purchase orders.
     
@@ -467,18 +527,6 @@ class CarrierPurchaseOrder(TenantAwareModel):
         help_text="Link to the associated Sales Order for logistics tracking via Sales Order Number (spreadsheet #7)."
     )
 
-    # Dates
-    pick_up_date = models.DateField(
-        blank=True,
-        null=True,
-        help_text="Scheduled pick up date",
-    )
-    delivery_date = models.DateField(
-        blank=True,
-        null=True,
-        help_text="Scheduled delivery date",
-    )
-
     # Order details
     our_carrier_po_num = models.CharField(
         max_length=100,
@@ -492,14 +540,6 @@ class CarrierPurchaseOrder(TenantAwareModel):
         default="",
         help_text="Carrier company name",
     )
-    carrier_release_format = models.CharField(
-        max_length=100,
-        choices=CarrierReleaseFormatChoices.choices,
-        blank=True,
-        default="",
-        help_text="Carrier release format",
-    )
-
     # Payment and credit information
     payment_terms = models.CharField(
         max_length=50,
@@ -600,6 +640,29 @@ class CarrierPurchaseOrder(TenantAwareModel):
 
     def __str__(self):
         return f"Carrier PO-{self.our_carrier_po_num or self.id}"
+
+
+class CarrierPOItem(BaseLineItem):
+    """Tenant-aware carrier PO line item."""
+
+    carrier_purchase_order = models.ForeignKey(
+        CarrierPurchaseOrder,
+        on_delete=models.CASCADE,
+        related_name="items",
+    )
+    line_number = models.PositiveIntegerField(default=1)
+    notes = models.TextField(blank=True, default="")
+
+    class Meta:
+        ordering = ["carrier_purchase_order_id", "line_number", "created_on"]
+        indexes = [
+            models.Index(fields=["tenant", "carrier_purchase_order"]),
+        ]
+
+    def save(self, *args, **kwargs):
+        if self.carrier_purchase_order_id and not self.tenant_id:
+            self.tenant = self.carrier_purchase_order.tenant
+        super().save(*args, **kwargs)
 
 
 class ColdStorageEntry(TenantAwareModel):
@@ -793,6 +856,26 @@ def auto_populate_supplier_fields(sender, instance, **kwargs):
         
         if not instance.supplier_contact_email and supplier.email:
             instance.supplier_contact_email = supplier.email
+
+        if not instance.billing_contact_name and instance.supplier_contact_name:
+            instance.billing_contact_name = instance.supplier_contact_name
+
+        if not instance.billing_contact_phone and instance.supplier_contact_phone:
+            instance.billing_contact_phone = instance.supplier_contact_phone
+
+        if not instance.billing_contact_email and instance.supplier_contact_email:
+            instance.billing_contact_email = instance.supplier_contact_email
+
+        if not instance.billing_address_street:
+            instance.billing_address_street = supplier.street_address or supplier.address or ""
+
+        if not instance.billing_address_city and supplier.city:
+            instance.billing_address_city = supplier.city
+
+        if not instance.billing_address_state_zip and (supplier.state or supplier.zip_code):
+            instance.billing_address_state_zip = " ".join(
+                part for part in [supplier.state or "", supplier.zip_code or ""] if part
+            )
 
 
 @receiver(post_save, sender=PurchaseOrder)

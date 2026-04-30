@@ -11,7 +11,6 @@ from django.db import models
 from tenant_apps.contacts.models import Contact
 from apps.core.models import (
     AccountingPaymentTermsChoices,
-    AccountLineOfCreditChoices,
     CertificateTypeChoices,
     CreditLimitChoices,
     EdibleInedibleChoices,
@@ -22,10 +21,11 @@ from apps.core.models import (
     ProteinTypeChoices,
     TenantAwareModel,
 )
+from apps.core.model_mixins import FinancialTermsMixin
 from tenant_apps.locations.models import Location
 
 
-class Customer(TenantAwareModel):
+class Customer(FinancialTermsMixin, TenantAwareModel):
     """Customer model for managing customer information."""
 
     # Basic information - keeping existing fields with same names
@@ -180,15 +180,6 @@ class Customer(TenantAwareModel):
         default='',
         help_text="Credit limits/terms (e.g., Net 30, Wire 1 day prior)",
     )
-    account_line_of_credit = models.CharField(
-        max_length=50,
-        choices=AccountLineOfCreditChoices.choices,
-        blank=True,
-        null=True,
-        default='',
-        help_text="Line of credit amount range",
-    )
-    
     # Additional buyer contact fields
     buyer_contact_name = models.CharField(
         max_length=255,

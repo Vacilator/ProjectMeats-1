@@ -7,9 +7,13 @@ import uuid
 from decimal import Decimal
 from django.test import TestCase
 from django.contrib.auth.models import User
+from rest_framework import status
+from rest_framework.test import APITestCase
 from django.utils import timezone
 from tenant_apps.purchase_orders.models import (
+    CarrierPOItem,
     PurchaseOrder,
+    PurchaseOrderItem,
     CarrierPurchaseOrder,
     ColdStorageEntry,
 )
@@ -133,6 +137,111 @@ class CarrierPurchaseOrderModelTest(TestCase):
         )
         
         self.assertIn(f"CPO-{unique_id}", str(carrier_po))
+
+    def test_carrier_purchase_order_item_inherits_tenant(self):
+        """Carrier PO items inherit tenant and line-item schema."""
+        unique_id = uuid.uuid4().hex[:8]
+        carrier_po = CarrierPurchaseOrder.objects.create(
+            carrier=self.carrier,
+            supplier=self.supplier,
+            our_carrier_po_num=f"CPO-{unique_id}",
+            tenant=self.tenant,
+        )
+
+        item = CarrierPOItem.objects.create(
+            carrier_purchase_order=carrier_po,
+            protein_type=ProteinTypeChoices.BEEF,
+            quantity=12,
+        )
+
+        self.assertEqual(item.tenant, self.tenant)
+        self.assertEqual(item.carrier_purchase_order, carrier_po)
+        self.assertEqual(item.protein_type, ProteinTypeChoices.BEEF)
+
+
+class PurchaseOrderItemModelTest(TestCase):
+    """Test cases for PurchaseOrderItem model."""
+
+    def setUp(self):
+        unique_id = uuid.uuid4().hex[:8]
+        self.user = User.objects.create_user(
+            username=f"poitem-user-{unique_id}",
+            email=f"poitem-{unique_id}@example.com",
+            password="testpass123",
+        )
+        self.tenant = Tenant.objects.create(
+            name=f"PO Tenant {unique_id}",
+            slug=f"po-tenant-{unique_id}",
+            contact_email=f"po-{unique_id}@example.com",
+            created_by=self.user,
+        )
+        TenantUser.objects.create(tenant=self.tenant, user=self.user, role="owner")
+        self.supplier = Supplier.objects.create(
+            name=f"PO Supplier {unique_id}",
+            tenant=self.tenant,
+        )
+        self.purchase_order = PurchaseOrder.objects.create(
+            order_number=f"PO-{unique_id}",
+            supplier=self.supplier,
+            total_amount=Decimal("1000.00"),
+            order_date=timezone.now().date(),
+            tenant=self.tenant,
+        )
+
+    def test_purchase_order_item_inherits_tenant(self):
+        item = PurchaseOrderItem.objects.create(
+            purchase_order=self.purchase_order,
+            protein_type=ProteinTypeChoices.BEEF,
+            quantity=10,
+        )
+
+        self.assertEqual(item.tenant, self.tenant)
+        self.assertEqual(item.purchase_order, self.purchase_order)
+        self.assertEqual(item.quantity, 10)
+
+
+class CarrierPurchaseOrderAPITests(APITestCase):
+    """API smoke coverage for the routed Carrier PO endpoint."""
+
+    def setUp(self):
+        unique_id = uuid.uuid4().hex[:8]
+        self.user = User.objects.create_user(
+            username=f"carrier-po-api-{unique_id}",
+            email=f"carrier-po-api-{unique_id}@example.com",
+            password="testpass123",
+        )
+        self.client.force_login(self.user)
+        self.tenant = Tenant.objects.create(
+            name=f"Carrier PO API Tenant {unique_id}",
+            slug=f"carrier-po-api-tenant-{unique_id}",
+            contact_email=f"carrier-po-api-{unique_id}@example.com",
+            created_by=self.user,
+        )
+        TenantUser.objects.create(tenant=self.tenant, user=self.user, role="owner")
+        self.carrier = Carrier.objects.create(name=f"Carrier {unique_id}", code=f"C-{unique_id}", tenant=self.tenant)
+        self.supplier = Supplier.objects.create(name=f"Supplier {unique_id}", tenant=self.tenant)
+
+    def test_create_carrier_po_via_api(self):
+        response = self.client.post(
+            "/api/v1/carrier-pos/",
+            {
+                "carrier": self.carrier.id,
+                "supplier": self.supplier.id,
+                "our_carrier_po_num": "CPO-API-1",
+                "items": [
+                    {
+                        "protein_type": ProteinTypeChoices.BEEF,
+                        "quantity": 5,
+                    }
+                ],
+            },
+            format="json",
+            HTTP_X_TENANT_ID=str(self.tenant.id),
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(CarrierPurchaseOrder.objects.count(), 1)
+        self.assertEqual(CarrierPOItem.objects.count(), 1)
 
 
 class ColdStorageEntryModelTest(TestCase):

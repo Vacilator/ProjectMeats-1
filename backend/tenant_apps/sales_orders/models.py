@@ -8,10 +8,18 @@ Uses OrderMethodsMixin for shared order behavior (payment calculations, status c
 """
 from django.db import models
 from apps.core.models import (
-    CarrierReleaseFormatChoices,
     SoftDeleteModel,
     TenantAwareModel,
     WeightUnitChoices,
+)
+from apps.core.model_mixins import (
+    BaseLineItem,
+    BillingAddressSnapshotMixin,
+    BillingContactSnapshotMixin,
+    LogisticsMixin,
+    ShippingAddressSnapshotMixin,
+    ShippingContactSnapshotMixin,
+    sync_alias_pair,
 )
 from tenant_apps.orders.models import OrderMethodsMixin, PaymentStatus
 
@@ -34,7 +42,16 @@ class SalesOrderStatus(models.TextChoices):
 #     PAID = "paid", "Paid"
 
 
-class SalesOrder(OrderMethodsMixin, SoftDeleteModel, TenantAwareModel):
+class SalesOrder(
+    BillingContactSnapshotMixin,
+    BillingAddressSnapshotMixin,
+    ShippingContactSnapshotMixin,
+    ShippingAddressSnapshotMixin,
+    LogisticsMixin,
+    OrderMethodsMixin,
+    SoftDeleteModel,
+    TenantAwareModel,
+):
     """
     Sales Order model for managing customer sales orders.
     
@@ -47,6 +64,12 @@ class SalesOrder(OrderMethodsMixin, SoftDeleteModel, TenantAwareModel):
     our_sales_order_num = models.CharField(
         max_length=100,
         help_text="Our sales order number (unique per tenant)",
+    )
+    our_sales_order_number_for_customer = models.CharField(
+        max_length=100,
+        blank=True,
+        default="",
+        help_text="Canonical sales order number shown to the customer.",
     )
     date_time_stamp = models.DateTimeField(
         auto_now_add=True,
@@ -110,18 +133,6 @@ class SalesOrder(OrderMethodsMixin, SoftDeleteModel, TenantAwareModel):
         help_text="Primary contact for this order",
     )
     
-    # Dates
-    pick_up_date = models.DateField(
-        blank=True,
-        null=True,
-        help_text="Scheduled pick up date",
-    )
-    delivery_date = models.DateField(
-        blank=True,
-        null=True,
-        help_text="Scheduled delivery date",
-    )
-    
     # Order details
     delivery_po_num = models.CharField(
         max_length=100,
@@ -129,18 +140,17 @@ class SalesOrder(OrderMethodsMixin, SoftDeleteModel, TenantAwareModel):
         default='',
         help_text="Delivery PO number",
     )
+    delivery_po_number = models.CharField(
+        max_length=100,
+        blank=True,
+        default="",
+        help_text="Canonical delivery PO number.",
+    )
     carrier_release_num = models.CharField(
         max_length=100,
         blank=True,
         default='',
         help_text="Carrier release number",
-    )
-    carrier_release_format = models.CharField(
-        max_length=100,
-        choices=CarrierReleaseFormatChoices.choices,
-        blank=True,
-        default='',
-        help_text="Carrier release format",
     )
     plant_est_number = models.CharField(
         max_length=50,
@@ -216,3 +226,30 @@ class SalesOrder(OrderMethodsMixin, SoftDeleteModel, TenantAwareModel):
     def __str__(self):
         return f"SO-{self.our_sales_order_num}"
 
+    def save(self, *args, **kwargs):
+        sync_alias_pair(self, "our_sales_order_number_for_customer", "our_sales_order_num")
+        sync_alias_pair(self, "delivery_po_number", "delivery_po_num")
+        super().save(*args, **kwargs)
+
+
+class SalesOrderItem(BaseLineItem):
+    """Tenant-aware sales order line item."""
+
+    sales_order = models.ForeignKey(
+        SalesOrder,
+        on_delete=models.CASCADE,
+        related_name="items",
+    )
+    line_number = models.PositiveIntegerField(default=1)
+    notes = models.TextField(blank=True, default="")
+
+    class Meta:
+        ordering = ["sales_order_id", "line_number", "created_on"]
+        indexes = [
+            models.Index(fields=["tenant", "sales_order"]),
+        ]
+
+    def save(self, *args, **kwargs):
+        if self.sales_order_id and not self.tenant_id:
+            self.tenant = self.sales_order.tenant
+        super().save(*args, **kwargs)
