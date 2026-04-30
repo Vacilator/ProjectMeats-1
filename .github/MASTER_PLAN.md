@@ -9,6 +9,8 @@ This file is the **append-only PR-referenceable execution log**.
 
 ## Operational Notes
 
+- **2026-04-30** — Documentation governance: persisted the canonical Phase 14 / Phase 15 backlog state onto `development`, promoted explicit Smart Loader + referential-stability rules into `.github/copilot-instructions.md`, and added formal Smart Loader + Squad orchestration protocols to `.github/SDLC_PROTOCOLS.md`. (PR: #4812)
+
 - **2026-04-29** — Planning governance: refreshed the enterprise hardening audit surfaces (`GAP_ANALYSIS_REPORT.md`, `STRATEGIC_BLUEPRINT.md`, `.github/TECH_DEBT_REGISTER.md`, `.github/SDLC_PROTOCOLS.md`, `.github/EPIC_TICKETS.md`) so autonomous continuation starts from one ordered backlog and one normative protocol set. This is an execution scaffold note for the current branch; append shipped PR evidence after merge.
 
 - **2026-04-30** — Planning governance: integrated the Phase 14 General Availability roadmap into the canonical root `MASTER_PLAN.md` and moved the ordered autonomous backlog in `.github/EPIC_TICKETS.md` to start with `GA-01.1 day-0-etl-source-contracts`. This is a planning-state note only; append shipped PR evidence after actual execution merges.
