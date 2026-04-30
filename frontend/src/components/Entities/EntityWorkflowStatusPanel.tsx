@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Alert, Card, Collapse, Spin } from 'antd';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
@@ -35,19 +35,23 @@ const getErrorMessage = (error: unknown) => {
 
 export const EntityWorkflowStatusPanel: React.FC<EntityWorkflowStatusPanelProps> = ({ entityType, entityId }) => {
   const navigate = useNavigate();
+  const queryOptions = useMemo(
+    () => ({
+      queryKey: ['entity-workflow-status', entityType, entityId],
+      queryFn: async () =>
+        workformExecutionService.getExecutions({
+          entity_type: entityType,
+          entity_id: entityId,
+          page_size: 10,
+        }),
+      enabled: Boolean(entityType) && Boolean(entityId),
+      retry: false,
+      refetchInterval: (query: { state: { error: unknown } }) => (query.state.error ? false : 5000),
+    }),
+    [entityId, entityType]
+  );
 
-  const query = useQuery({
-    queryKey: ['entity-workflow-status', entityType, entityId],
-    queryFn: async () =>
-      workformExecutionService.getExecutions({
-        entity_type: entityType,
-        entity_id: entityId,
-        page_size: 10,
-      }),
-    enabled: Boolean(entityType) && Boolean(entityId),
-    retry: false,
-    refetchInterval: (query) => (query.state.error ? false : 5000),
-  });
+  const query = useQuery(queryOptions);
 
   const executions = query.data?.results ?? [];
 

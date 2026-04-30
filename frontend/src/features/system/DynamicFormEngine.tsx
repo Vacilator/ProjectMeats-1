@@ -577,6 +577,7 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
     register,
     handleSubmit,
     control,
+    getValues,
     reset,
     setValue,
     formState: { errors },
@@ -597,6 +598,38 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
   }, [defaultValues, defaultValuesSignature, reset]);
 
   const watchedValues = useWatch({ control });
+  const dependencyFieldKeys = useMemo(() => {
+    const keys = new Set<string>();
+
+    stableFields.forEach((field) => {
+      const visibleWhenField = field.ui?.visible_when?.field;
+      if (visibleWhenField) {
+        keys.add(String(visibleWhenField));
+      }
+
+      (field.dependencies || []).forEach((dependency) => {
+        keys.add(String(dependency));
+      });
+    });
+
+    return Array.from(keys);
+  }, [stableFields]);
+  const watchedDependencyValues = useWatch({
+    control,
+    name: dependencyFieldKeys as never[],
+  });
+  const dependencyValues = useMemo<Record<string, unknown>>(() => {
+    const watchedArray = Array.isArray(watchedDependencyValues)
+      ? watchedDependencyValues
+      : dependencyFieldKeys.length === 1
+        ? [watchedDependencyValues]
+        : [];
+
+    return dependencyFieldKeys.reduce<Record<string, unknown>>((acc, key, index) => {
+      acc[key] = watchedArray[index];
+      return acc;
+    }, {});
+  }, [dependencyFieldKeys, watchedDependencyValues]);
   
   const keySet = useMemo(() => {
     const keys = (keyFieldKeys || []).map((k) => String(k).toLowerCase());
@@ -933,14 +966,17 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
 
       const allowedValues = new Set(resolvedOptions.map((item) => String(item.value)));
       const nextValue = currentValue.filter((item) => allowedValues.has(String(item)));
+      const hasSameValues =
+        nextValue.length === currentValue.length &&
+        nextValue.every((item, index) => String(item) === String(currentValue[index]));
 
-      if (nextValue.length !== currentValue.length) {
+      if (!hasSameValues) {
         setValue(field.key as never, nextValue as never, {
           shouldDirty: true,
           shouldValidate: true,
         });
       }
-    }, [currentValue, field.key, field.ui?.widget, resolvedOptions]);
+    }, [currentValue, field.key, field.ui?.widget, resolvedOptions, setValue]);
 
     return (
       <FieldGroup key={field.key}>
@@ -978,7 +1014,7 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
     const rule = field.ui?.visible_when;
     if (!rule?.field) return true;
 
-    const raw = getValueAtPath(watchedValues, rule.field);
+    const raw = dependencyValues[rule.field];
 
     if (typeof rule.equals !== 'undefined') {
       return raw === rule.equals;
@@ -990,17 +1026,19 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
     }
 
     return Boolean(raw);
-  }, [watchedValues]);
+  }, [dependencyValues]);
 
   // When a field becomes hidden, clear its value to avoid submitting stale data.
   // This is critical for conditional fields like Plant.export_documents_handled.
   useEffect(() => {
+    const currentValues = getValues() as Record<string, unknown>;
+
     for (const field of stableFields) {
       if (!field.ui?.visible_when?.field) continue;
 
       if (isFieldVisible(field)) continue;
 
-      const current = getValueAtPath(watchedValues, field.key);
+      const current = getValueAtPath(currentValues, field.key);
       const hasValue =
         Array.isArray(current)
           ? current.length > 0
@@ -1020,19 +1058,19 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
         shouldValidate: true,
       });
     }
-  }, [isFieldVisible, setValue, stableFields, watchedValues]);
+  }, [getValues, isFieldVisible, setValue, stableFields]);
 
   const renderField = (field: FieldDefinition) => {
     if (!isFieldVisible(field)) return null;
 
-      const error = getValueAtPath(errors, field.key);
+    const error = getValueAtPath(errors, field.key);
     const hasError = !!error;
     // Use config for required indicator (Wave 4 - Task 4.12)
-      const showRequired = formConfig.showRequiredIndicator && Boolean(field.required);
-      const dependencyValues = (field.dependencies || []).map(
-      (dependencyKey) => getValueAtPath(watchedValues, dependencyKey)
-      );
-    const primaryDependencyValue = dependencyValues[0];
+    const showRequired = formConfig.showRequiredIndicator && Boolean(field.required);
+    const dependencyFieldValues = (field.dependencies || []).map(
+      (dependencyKey) => dependencyValues[dependencyKey]
+    );
+    const primaryDependencyValue = dependencyFieldValues[0];
     const dependencyLookupKey =
       typeof primaryDependencyValue === 'string'
         ? primaryDependencyValue
