@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, waitFor } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const businessApiMock = vi.hoisted(() => ({
@@ -60,19 +60,20 @@ describe('EntityFormSurface', () => {
     formLifecycle.props.length = 0;
   });
 
-  const renderWithQueryClient = (ui: React.ReactElement) => {
-    const queryClient = new QueryClient({
+  const createQueryClient = () =>
+    new QueryClient({
       defaultOptions: {
         queries: {
           retry: false,
         },
       },
     });
+  const renderWithQueryClient = (ui: React.ReactElement, queryClient = createQueryClient()) => {
 
     return render(<QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>);
   };
 
-  it('preloads schema, record, and FK options once without remounting the form on query readiness', async () => {
+  it('waits for schema, record, and FK options before mounting the form once', async () => {
     businessApiMock.get.mockImplementation((url: string) => {
       if (url === '/system/forms/schema/') {
         return Promise.resolve({
@@ -136,28 +137,96 @@ describe('EntityFormSurface', () => {
 
     renderWithQueryClient(<Parent />);
 
-    await waitFor(() => {
-      expect(formLifecycle.props.length).toBeGreaterThan(0);
-    });
+    expect(screen.queryByTestId('universal-entity-form')).not.toBeInTheDocument();
+    expect(formLifecycle.mounts).toBe(0);
 
     await waitFor(() => {
-      const latest = formLifecycle.props.at(-1) as Record<string, unknown> | undefined;
-      expect(latest?.externalLoading).toBe(false);
-      expect((latest?.externalSchema as { name?: string } | undefined)?.name).toBe('Plant');
-      expect((latest?.externalRecordValues as { name?: string } | undefined)?.name).toBe(
-        'North Plant'
-      );
-      expect(
-        (
-          latest?.externalFkOptions as
-            | Record<string, Array<{ id: string; name: string }>>
-            | undefined
-        )?.customer?.[0]?.name
-      ).toBe('Acme Foods');
+      expect(screen.getByTestId('universal-entity-form')).toBeInTheDocument();
     });
+
+    const latest = formLifecycle.props.at(-1) as Record<string, unknown> | undefined;
+    expect(latest?.externalLoading).toBe(false);
+    expect((latest?.externalSchema as { name?: string } | undefined)?.name).toBe('Plant');
+    expect((latest?.externalRecordValues as { name?: string } | undefined)?.name).toBe(
+      'North Plant'
+    );
+    expect(
+      (
+        latest?.externalFkOptions as
+          | Record<string, Array<{ id: string; name: string }>>
+          | undefined
+      )?.customer?.[0]?.name
+    ).toBe('Acme Foods');
 
     expect(businessApiMock.get).toHaveBeenCalledTimes(3);
     expect(formLifecycle.mounts).toBe(1);
     expect(formLifecycle.unmounts).toBe(0);
+  });
+
+  it('does not churn cached FK query observers when parent rebuilds identical seed objects', async () => {
+    const queryClient = createQueryClient();
+
+    queryClient.setQueryData(['entity-form-schema', 'plant'], {
+      name: 'Plant',
+      description: 'Plant schema',
+      fields: [
+        { key: 'name', label: 'Plant Name', type: 'text', required: true },
+        {
+          key: 'customer',
+          label: 'Customer',
+          type: 'foreign_key',
+          related_entity: 'customers.Customer',
+        },
+      ],
+    });
+    queryClient.setQueryData(['entity-form-record', 'plant', '2769'], {
+      id: 2769,
+      name: 'North Plant',
+      customer: '123',
+    });
+    queryClient.setQueryData(
+      ['entity-form-fk-options', 'plant', 'customer', 'customers.Customer'],
+      [{ id: '123', name: 'Acme Foods' }]
+    );
+
+    const Parent: React.FC = () => {
+      const [tick, setTick] = useState(0);
+
+      useEffect(() => {
+        if (tick >= 6) return;
+        setTick((prev) => prev + 1);
+      }, [tick]);
+
+      return (
+        <EntityFormSurface
+          entityType="plant"
+          entityId="2769"
+          mode="edit"
+          variant="inline"
+          isOpen
+          onClose={() => {}}
+          initialValues={{ export_approved: false }}
+        />
+      );
+    };
+
+    renderWithQueryClient(<Parent />, queryClient);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('universal-entity-form')).toBeInTheDocument();
+    });
+
+    expect(businessApiMock.get).not.toHaveBeenCalled();
+    expect(formLifecycle.mounts).toBe(1);
+    expect(formLifecycle.unmounts).toBe(0);
+
+    const latest = formLifecycle.props.at(-1) as Record<string, unknown> | undefined;
+    expect(
+      (
+        latest?.externalFkOptions as
+          | Record<string, Array<{ id: string; name: string }>>
+          | undefined
+      )?.customer?.[0]?.name
+    ).toBe('Acme Foods');
   });
 });

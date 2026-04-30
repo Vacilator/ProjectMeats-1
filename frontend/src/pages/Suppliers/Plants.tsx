@@ -9,7 +9,7 @@
  * - Theme-compliant styling with antd Table
  * - Multi-tenancy support
  */
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import styled from 'styled-components';
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Table, Input, Button, message, Tag, Space } from 'antd';
@@ -196,6 +196,14 @@ const Plants: React.FC = () => {
   const [editingPlant, setEditingPlant] = useState<Plant | null>(null);
   const [contextSupplierId, setContextSupplierId] = useState<number | null>(null);
   const [searchText, setSearchText] = useState('');
+  const plantFormInitialValues = useMemo(
+    () => ({
+      ...(contextSupplierId ? { supplier: String(contextSupplierId) } : {}),
+      plant_type: 'processing',
+      country: 'USA',
+    }),
+    [contextSupplierId]
+  );
 
   // Detect context from URL (preferred) or navigation state (fallback)
   useEffect(() => {
@@ -510,11 +518,7 @@ const Plants: React.FC = () => {
             setShowModal(false);
             setEditingPlant(null);
           }}
-          initialValues={{
-            ...(contextSupplierId ? { supplier: String(contextSupplierId) } : {}),
-            plant_type: 'processing',
-            country: 'USA',
-          }}
+          initialValues={plantFormInitialValues}
           onSuccess={() => {
             setShowModal(false);
             setEditingPlant(null);

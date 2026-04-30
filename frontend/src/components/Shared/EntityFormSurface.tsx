@@ -11,9 +11,11 @@
  * duplicating per-entry-point logic.
  */
 
-import React, { useCallback, useEffect, useMemo } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef } from 'react';
 
+import { Skeleton } from 'antd';
 import { useQueries, useQuery } from '@tanstack/react-query';
+import { isEqual } from 'lodash';
 
 import { getRuntimeConfigBoolean } from '@/config/runtime';
 import { useAuthState } from '@/contexts/AuthContext';
@@ -85,6 +87,17 @@ const normalizeEntityType = (raw: string): string => {
 };
 
 const buildUnauthorizedLoadError = () => ({ response: { status: 401 } });
+const EMPTY_INITIAL_VALUES: Record<string, unknown> = {};
+
+function useDeepStableValue<T>(value: T): T {
+  const ref = useRef(value);
+
+  if (!isEqual(ref.current, value)) {
+    ref.current = value;
+  }
+
+  return ref.current;
+}
 
 export const EntityFormSurface: React.FC<EntityFormSurfaceProps> = ({
   entityType,
@@ -101,6 +114,7 @@ export const EntityFormSurface: React.FC<EntityFormSurfaceProps> = ({
   const normalized = useMemo(() => normalizeEntityType(entityType), [entityType]);
   const normalizedEntityKey = useMemo(() => normalizeEntityKey(entityType), [entityType]);
   const { isAuthenticated, loading: authLoading } = useAuthState();
+  const stableInitialValues = useDeepStableValue(initialValues ?? EMPTY_INITIAL_VALUES);
 
   const useUniversalInquiryCreate = getRuntimeConfigBoolean('USE_UNIVERSAL_INQUIRY_CREATE', false);
   const handleClose = useCallback(() => {
@@ -137,12 +151,12 @@ export const EntityFormSurface: React.FC<EntityFormSurfaceProps> = ({
   // Default: Universal schema-driven form.
   const derivedInitialValues = useMemo<Record<string, unknown>>(
     () => ({
-      ...(initialValues || {}),
+      ...stableInitialValues,
       ...(context?.customerId != null ? { customer: String(context.customerId) } : {}),
       ...(context?.supplierId != null ? { supplier: String(context.supplierId) } : {}),
       ...(context?.contactId != null ? { contact: String(context.contactId) } : {}),
     }),
-    [context?.contactId, context?.customerId, context?.supplierId, initialValues]
+    [context?.contactId, context?.customerId, context?.supplierId, stableInitialValues]
   );
   const shouldHydrate = isOpen && !authLoading && isAuthenticated;
   const shouldLoadRecord =
@@ -174,19 +188,27 @@ export const EntityFormSurface: React.FC<EntityFormSurfaceProps> = ({
     }
   }, [authLoading, isAuthenticated, isOpen]);
 
-  const schemaQuery = useQuery({
-    queryKey: ['entity-form-schema', normalizedEntityKey],
-    queryFn: () => fetchUniversalEntitySchema(entityType),
-    enabled: shouldHydrate,
-    staleTime: 5 * 60 * 1000,
-  });
+  const schemaQueryOptions = useMemo(
+    () => ({
+      queryKey: ['entity-form-schema', normalizedEntityKey],
+      queryFn: () => fetchUniversalEntitySchema(entityType),
+      enabled: shouldHydrate,
+      staleTime: 5 * 60 * 1000,
+    }),
+    [entityType, normalizedEntityKey, shouldHydrate]
+  );
+  const schemaQuery = useQuery(schemaQueryOptions);
 
-  const recordQuery = useQuery({
-    queryKey: ['entity-form-record', normalizedEntityKey, entityId == null ? 'new' : String(entityId)],
-    queryFn: () => fetchUniversalEntityRecord(entityType, entityId as string | number),
-    enabled: shouldLoadRecord,
-    staleTime: Number.POSITIVE_INFINITY,
-  });
+  const recordQueryOptions = useMemo(
+    () => ({
+      queryKey: ['entity-form-record', normalizedEntityKey, entityId == null ? 'new' : String(entityId)],
+      queryFn: () => fetchUniversalEntityRecord(entityType, entityId as string | number),
+      enabled: shouldLoadRecord,
+      staleTime: Number.POSITIVE_INFINITY,
+    }),
+    [entityId, entityType, normalizedEntityKey, shouldLoadRecord]
+  );
+  const recordQuery = useQuery(recordQueryOptions);
 
   const mergedInitialValues = useMemo(
     () =>
@@ -212,19 +234,52 @@ export const EntityFormSurface: React.FC<EntityFormSurfaceProps> = ({
       ),
     [augmentedSchema?.fields]
   );
+  const fkFieldSignature = useMemo(
+    () =>
+      getStableSignature(
+        fkFields.map((field) => ({
+          key: String(field.key),
+          relatedEntity: String(field.related_entity || ''),
+        }))
+      ),
+    [fkFields]
+  );
+  const stableFkDescriptorsRef = useRef<
+    Array<{ fieldKey: string; relatedEntity: string }>
+  >([]);
+  const stableFkSignatureRef = useRef('');
+
+  if (stableFkSignatureRef.current !== fkFieldSignature) {
+    stableFkSignatureRef.current = fkFieldSignature;
+    stableFkDescriptorsRef.current = fkFields.map((field) => ({
+      fieldKey: String(field.key),
+      relatedEntity: String(field.related_entity || ''),
+    }));
+  }
+
+  const hasAugmentedSchema = Boolean(augmentedSchema);
+  const fkQueryOptions = useMemo(
+    () =>
+      stableFkDescriptorsRef.current.map((descriptor) => ({
+        queryKey: [
+          'entity-form-fk-options',
+          normalizedEntityKey,
+          descriptor.fieldKey,
+          descriptor.relatedEntity,
+        ],
+        queryFn: () =>
+          fetchUniversalEntityFkOptions({
+            key: descriptor.fieldKey,
+            related_entity: descriptor.relatedEntity,
+          } as BackendField),
+        enabled: shouldHydrate && hasAugmentedSchema,
+        staleTime: 5 * 60 * 1000,
+      })),
+    [fkFieldSignature, hasAugmentedSchema, normalizedEntityKey, shouldHydrate]
+  );
 
   const fkQueries = useQueries({
-    queries: fkFields.map((field) => ({
-      queryKey: [
-        'entity-form-fk-options',
-        normalizedEntityKey,
-        field.key,
-        String(field.related_entity || ''),
-      ],
-      queryFn: () => fetchUniversalEntityFkOptions(field as BackendField),
-      enabled: shouldHydrate && Boolean(augmentedSchema),
-      staleTime: 5 * 60 * 1000,
-    })),
+    queries: fkQueryOptions,
   });
 
   const fkOptions = useMemo(() => {
@@ -240,14 +295,21 @@ export const EntityFormSurface: React.FC<EntityFormSurfaceProps> = ({
     return next;
   }, [fkFields, fkQueries]);
 
+  const fkQueriesLoading =
+    shouldHydrate &&
+    fkQueryOptions.length > 0 &&
+    fkQueries.some((query) => query.isLoading);
   const formLoading =
     (isOpen && authLoading) ||
     (shouldHydrate &&
       (schemaQuery.isLoading ||
         schemaQuery.isPending ||
-        (shouldLoadRecord && (recordQuery.isLoading || recordQuery.isPending))));
+        (shouldLoadRecord && (recordQuery.isLoading || recordQuery.isPending)) ||
+        fkQueriesLoading));
   const formReady =
-    Boolean(augmentedSchema) && (!shouldLoadRecord || Boolean(recordQuery.data || recordQuery.error));
+    hasAugmentedSchema &&
+    (!shouldLoadRecord || Boolean(recordQuery.data || recordQuery.error)) &&
+    (!shouldHydrate || !fkQueryOptions.length || fkQueries.every((query) => !query.isLoading));
   const formLoadError =
     !authLoading && !isAuthenticated && isOpen
       ? buildUnauthorizedLoadError()
@@ -262,6 +324,27 @@ export const EntityFormSurface: React.FC<EntityFormSurfaceProps> = ({
       }),
     [derivedInitialValues, entityId, mode, normalizedEntityKey, shouldLoadRecord]
   );
+  const loaderBody = (
+    <div style={{ padding: 16 }}>
+      <Skeleton active paragraph={{ rows: 6 }} />
+    </div>
+  );
+  const errorBody = (
+    <div style={{ padding: 12, color: 'rgb(var(--color-text-secondary))', fontSize: 13 }}>
+      {(formLoadError as any)?.response?.status === 401 ||
+      (formLoadError as any)?.response?.status === 403
+        ? 'Authentication required. Redirecting to login…'
+        : 'Unable to load form.'}
+    </div>
+  );
+
+  if (!formReady || formLoading || formLoadError) {
+    const fallbackContent = formLoadError ? errorBody : loaderBody;
+
+    if (variant === 'inline') {
+      return fallbackContent;
+    }
+  }
 
   return (
     <UniversalEntityForm
