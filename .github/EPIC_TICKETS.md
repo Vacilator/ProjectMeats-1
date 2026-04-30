@@ -292,6 +292,28 @@
   - **Rollback:** Keep the parity changes isolated to the mobile service/session layer so the app can revert to the previous tenant/error handling path if a release regression appears.
   - **Completion evidence destination:** shipped in `.github/MASTER_PLAN.md` (PR: #4804)
 
+- [ ] **EH-04.5 workforms-fields-model-cleanup**
+  - **Status:** Ready
+  - **Why now:** `MASTER_PLAN.md` still lists WorkForms form "fields" model cleanup as the remaining concrete editor correctness follow-up after the shipped deterministic schema bootstrap and recent stabilization passes.
+  - **Canonical source reference:** `MASTER_PLAN.md` -> WorkForms runtime/observability (next) + Phase 12
+  - **Scope:** Canonicalize WorkForms form-node payloads to one supported `formFields` model while preserving backward-compatible reads, move remaining readers/writers off the legacy mixed `fields` shape, and add focused regression coverage for save/load, inference, and config-panel flows.
+  - **Non-goals:** No new node types, no WorkForms UX redesign, no collaboration/runtime feature expansion, and no bundling of separate a11y/theme-token polish into this ticket.
+  - **Primary domain:** frontend
+  - **Likely touched paths:** `frontend/src/components/FlowEditor/utils/formFieldsDualModel.ts`, `frontend/src/components/FlowEditor/utils/workflowPersistence.ts`, `frontend/src/components/FlowEditor/utils/outputSchemaInference.ts`, `frontend/src/components/FlowEditor/hooks/useUpstreamVariables.ts`, `frontend/src/components/FlowEditor/ConfigPanel/NodeConfigPanel.tsx`, `frontend/src/components/FlowEditor/ConfigPanel/DynamicConfigPanel.tsx`, related FlowEditor tests, and optionally `backend/apps/system/workform_serializers.py` only if persistence normalization needs a backend backstop
+  - **Dependencies:** EH-04.3
+  - **Blockers:** None
+  - **Acceptance criteria:**
+    1. Saving edited WorkForms emits only the supported canonical form-node payload shape.
+    2. Existing legacy workflows that still contain the older `fields` shape continue to load and remain editable through backward-compatible normalization.
+    3. Config/inference/mapping paths read one resolved form-fields model instead of mixing direct `fields` and `formFields` access.
+    4. Focused regression tests cover save/load normalization and at least one inference/config-panel path.
+  - **Validation commands:** `npm -C frontend run verify-standards`; `npm -C frontend run test:ci -- src/components/FlowEditor`
+  - **Tenant/RLS impact:** None directly
+  - **Secrets/infra impact:** None
+  - **Risk level:** High
+  - **Rollback:** Revert the FlowEditor persistence canonicalization as one unit while keeping backward-compatible dual-model readers intact if downstream compatibility regressions appear.
+  - **Completion evidence destination:** `.github/MASTER_PLAN.md`
+
 ### Epic EH-05 - Runtime / ops reliability
 
 - [x] **EH-05.1 non-dev-redis-readiness-gate**
