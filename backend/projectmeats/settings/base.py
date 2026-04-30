@@ -424,6 +424,8 @@ Paginated lists include `count`, `next`, `previous`, and `results` fields.
         "EventTypeEnum": "tenant_apps.integrations.models.TenantWebhookEventType",
         # Preserve the shipped OpenAPI contract name for transactional protein enums.
         "TypeOfProteinEnum": "apps.core.models.ProteinTypeChoices",
+        # Preserve the shipped purchase-order status enum name as statuses evolve additively.
+        "Status940Enum": "tenant_apps.purchase_orders.models.PurchaseOrderStatus",
     },
 }
 
