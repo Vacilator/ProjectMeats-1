@@ -10,7 +10,7 @@ import React, { useCallback, useMemo, useState, useEffect, useRef } from 'react'
 import { Select as AntSelect } from 'antd';
 import { useForm, Controller, useFieldArray, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { isEqual } from 'lodash';
+import { cloneDeep, isEqual } from 'lodash';
 import * as z from 'zod';
 import styled from 'styled-components';
 import { Button } from '../../components/ui/Button';
@@ -75,6 +75,7 @@ interface FieldDefinition {
   help_text?: string;
   ui?: FieldUi;
   dependencies?: string[];
+  related_entity?: string | null;
 
   // For inline arrays
   item_fields?: FieldDefinition[];
@@ -128,6 +129,90 @@ const getStableSignature = (value: unknown): string => {
   } catch {
     return String(value);
   }
+};
+
+const splitPath = (path: string): string[] =>
+  String(path || '')
+    .split('.')
+    .map((segment) => segment.trim())
+    .filter(Boolean);
+
+const getValueAtPath = (obj: unknown, path: string): any => {
+  const segments = splitPath(path);
+  let current = obj;
+
+  for (const segment of segments) {
+    if (current == null || typeof current !== 'object') {
+      return undefined;
+    }
+    current = (current as Record<string, unknown>)[segment];
+  }
+
+  return current;
+};
+
+const setValueAtPath = (target: Record<string, unknown>, path: string, value: unknown): void => {
+  const segments = splitPath(path);
+  if (!segments.length) return;
+
+  let current: Record<string, unknown> = target;
+  for (let index = 0; index < segments.length - 1; index += 1) {
+    const segment = segments[index];
+    const next = current[segment];
+    if (!next || typeof next !== 'object' || Array.isArray(next)) {
+      current[segment] = {};
+    }
+    current = current[segment] as Record<string, unknown>;
+  }
+
+  current[segments[segments.length - 1]] = value;
+};
+
+const collectErrorPaths = (value: unknown, currentPath = ''): string[] => {
+  if (!value || typeof value !== 'object') return [];
+
+  if ('message' in (value as Record<string, unknown>)) {
+    return currentPath ? [currentPath] : [];
+  }
+
+  return Object.entries(value as Record<string, unknown>).flatMap(([key, nested]) => {
+    const nextPath = currentPath ? `${currentPath}.${key}` : key;
+    return collectErrorPaths(nested, nextPath);
+  });
+};
+
+const isZodSchema = (value: unknown): value is z.ZodTypeAny =>
+  Boolean(value) && typeof (value as z.ZodTypeAny).safeParse === 'function';
+
+const assignSchemaAtPath = (
+  tree: Record<string, unknown>,
+  path: string,
+  schema: z.ZodTypeAny
+): void => {
+  const segments = splitPath(path);
+  if (!segments.length) return;
+
+  let current = tree;
+  for (let index = 0; index < segments.length - 1; index += 1) {
+    const segment = segments[index];
+    const next = current[segment];
+    if (!next || typeof next !== 'object' || isZodSchema(next)) {
+      current[segment] = {};
+    }
+    current = current[segment] as Record<string, unknown>;
+  }
+
+  current[segments[segments.length - 1]] = schema;
+};
+
+const materializeSchemaTree = (tree: Record<string, unknown>): z.ZodObject<Record<string, z.ZodTypeAny>> => {
+  const shape: Record<string, z.ZodTypeAny> = {};
+  Object.entries(tree).forEach(([key, value]) => {
+    shape[key] = isZodSchema(value)
+      ? value
+      : materializeSchemaTree(value as Record<string, unknown>);
+  });
+  return z.object(shape);
 };
 
 const FormContainer = styled.form`
@@ -272,7 +357,7 @@ const FormActions = styled.div`
 
 // Build Zod schema dynamically from field definitions
 const buildValidationSchema = (fields: FieldDefinition[]) => {
-  const schemaShape: Record<string, any> = {};
+  const schemaTree: Record<string, unknown> = {};
 
   const isArrayField = (field: FieldDefinition) =>
     field.ui?.widget === 'tags' || field.ui?.widget === 'multi_select';
@@ -356,15 +441,15 @@ const buildValidationSchema = (fields: FieldDefinition[]) => {
         fieldSchema = fieldSchema.min(1, 'Please add at least one item');
       }
 
-      schemaShape[field.key] = fieldSchema;
+      assignSchemaAtPath(schemaTree, field.key, fieldSchema);
       return;
     }
 
     fieldSchema = buildItemFieldSchema(field);
-    schemaShape[field.key] = fieldSchema;
+    assignSchemaAtPath(schemaTree, field.key, fieldSchema);
   });
 
-  let next = z.object(schemaShape);
+  let next = materializeSchemaTree(schemaTree);
 
   // US ZIP code conditional validation (when country is USA).
   const hasZip = fields.some((f) => String(f.key).toLowerCase() === 'zip_code');
@@ -519,7 +604,12 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
   }, []);
 
   const optionsSignature = useMemo(() => {
-    return stableFields
+    const candidateFields = stableFields.flatMap((field) => [
+      field,
+      ...((field.type === 'inline_form_array' ? field.item_fields || [] : []) as FieldDefinition[]),
+    ]);
+
+    return candidateFields
       .map((f) => {
         const dataSource = (f.ui as any)?.data_source;
         const dsType =
@@ -556,7 +646,9 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
     let cancelled = false;
 
     const loadOptions = async () => {
-      const selectFields = stableFields.filter((f) => {
+      const selectFields = stableFields.flatMap((field) =>
+        field.type === 'inline_form_array' ? (field.item_fields || []) : [field]
+      ).filter((f) => {
         if (f.options?.length) return false;
         if (f.ui?.data_source?.type === 'choice_list' && f.ui?.data_source?.list) return true;
         return f.type === 'select' && isStaticChoiceField(f.key);
@@ -605,25 +697,28 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
   }, [optionsSignature]);
 
   const defaultValues = useMemo(() => {
-    const next: Record<string, any> = { ...(stableInitialValues || {}) };
+    const next: Record<string, unknown> = cloneDeep(stableInitialValues || EMPTY_INITIAL_VALUES);
     for (const f of stableFields) {
-      if (String(f.key).toLowerCase() === 'country' && !next[f.key]) {
-        next[f.key] = DEFAULT_COUNTRY;
+      const current = getValueAtPath(next, f.key);
+      if (String(f.key).toLowerCase() === 'country' && !current) {
+        setValueAtPath(next, f.key, DEFAULT_COUNTRY);
       }
-      if (f.type === 'inline_form_array' && !Array.isArray(next[f.key])) {
-        next[f.key] = [];
+      if (f.type === 'inline_form_array' && !Array.isArray(current)) {
+        setValueAtPath(next, f.key, []);
       }
-      if ((f.ui?.widget === 'tags' || f.ui?.widget === 'multi_select') && !Array.isArray(next[f.key])) {
-        next[f.key] = [];
+      if ((f.ui?.widget === 'tags' || f.ui?.widget === 'multi_select') && !Array.isArray(current)) {
+        setValueAtPath(next, f.key, []);
       }
     }
-    return next;
+    return next as Record<string, any>;
   }, [stableInitialValues, stableFields]);
+  const defaultValuesSignature = useMemo(() => getStableSignature(defaultValues), [defaultValues]);
 
   const {
     register,
     handleSubmit,
     control,
+    reset,
     setValue,
     formState: { errors },
   } = useForm({
@@ -631,6 +726,16 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
     defaultValues,
     mode: formConfig.validateOnChange ? 'onChange' : 'onSubmit',
   });
+
+  const lastResetSignatureRef = useRef(defaultValuesSignature);
+
+  useEffect(() => {
+    if (lastResetSignatureRef.current === defaultValuesSignature) {
+      return;
+    }
+    lastResetSignatureRef.current = defaultValuesSignature;
+    reset(defaultValues);
+  }, [defaultValues, defaultValuesSignature, reset]);
 
   const watchedValues = useWatch({ control });
   
@@ -663,12 +768,16 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
 
   const isStateLikeKey = (normalizedKey: string): boolean => {
     if (!normalizedKey) return false;
+    if (normalizedKey.includes('zip')) return false;
+    if (normalizedKey.includes('state_zip')) return false;
     if (normalizedKey === 'state') return true;
+    if (normalizedKey.endsWith('.state')) return true;
     if (normalizedKey.endsWith('_state')) return true;
     if (normalizedKey === 'province') return true;
+    if (normalizedKey.endsWith('.province')) return true;
     if (normalizedKey.endsWith('_province')) return true;
     if (normalizedKey.includes('province')) return true;
-    if (normalizedKey.includes('state')) return true;
+    if (normalizedKey.includes('.state_')) return true;
     return false;
   };
 
@@ -681,12 +790,43 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
       control,
       name: field.key as never,
     });
+    const [inlineProductOptions, setInlineProductOptions] = useState<
+      Record<string, { value: string; label: string }[]>
+    >({});
+    const [inlineProductLoading, setInlineProductLoading] = useState<Record<string, boolean>>({});
 
-    const arrayError = errors[field.key] as unknown;
+    const arrayError = getValueAtPath(errors, field.key);
+
+    const loadInlineProductOptions = useCallback(
+      async (namePath: string, productTypes: string[], search = '') => {
+        setInlineProductLoading((prev) => ({ ...prev, [namePath]: true }));
+        try {
+          const options = await contactFormOptionsService.getMasterProductOptions({
+            proteinTypes: productTypes,
+            search,
+          });
+          setInlineProductOptions((prev) => ({
+            ...prev,
+            [namePath]: options,
+          }));
+        } finally {
+          setInlineProductLoading((prev) => ({ ...prev, [namePath]: false }));
+        }
+      },
+      []
+    );
 
     const renderItemField = (itemField: FieldDefinition, namePath: string, idx: number) => {
-      const itemErr = (errors as any)?.[field.key]?.[idx]?.[itemField.key];
+      const itemErr = getValueAtPath(errors, namePath);
       const hasItemError = Boolean(itemErr);
+      const dependencyItems = (itemField.dependencies || []).flatMap((dependencyKey) => {
+        const dependencyValue = getValueAtPath(watchedValues, `${field.key}.${idx}.${dependencyKey}`);
+        if (Array.isArray(dependencyValue)) {
+          return dependencyValue.map((item) => String(item ?? '').trim()).filter(Boolean);
+        }
+        const single = String(dependencyValue ?? '').trim();
+        return single ? [single] : [];
+      });
 
       const itemNormalizedKey = String(itemField.key).toLowerCase();
       if (isStateLikeKey(itemNormalizedKey) || itemField.ui?.widget === 'state_select') {
@@ -731,6 +871,43 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
               )}
             />
             {hasItemError && <ErrorText>{String(itemErr?.message || 'Invalid value')}</ErrorText>}
+          </FieldGroup>
+        );
+      }
+
+      if (itemField.ui?.data_source?.type === 'master_products') {
+        return (
+          <FieldGroup key={namePath} style={{ marginBottom: 12 }}>
+            <Label required={formConfig.showRequiredIndicator && itemField.required}>{itemField.label}</Label>
+            <Controller
+              name={namePath as never}
+              control={control}
+              render={({ field: controllerField }) => (
+                <AntSelect
+                  showSearch
+                  filterOption={false}
+                  value={controllerField.value || undefined}
+                  onChange={controllerField.onChange}
+                  onDropdownVisibleChange={(open) => {
+                    if (open && !(inlineProductOptions[namePath] || []).length) {
+                      void loadInlineProductOptions(namePath, dependencyItems);
+                    }
+                  }}
+                  onSearch={(query) => {
+                    void loadInlineProductOptions(namePath, dependencyItems, query);
+                  }}
+                  options={inlineProductOptions[namePath] || EMPTY_CHOICES}
+                  placeholder={itemField.placeholder || 'Search products'}
+                  loading={Boolean(inlineProductLoading[namePath])}
+                  disabled={isSubmitting}
+                  allowClear
+                  optionFilterProp="label"
+                  getPopupContainer={getAntdPopupContainer}
+                  style={{ width: '100%' }}
+                />
+              )}
+            />
+            {hasItemError && <ErrorText>{String((itemErr as any)?.message || 'Invalid value')}</ErrorText>}
           </FieldGroup>
         );
       }
@@ -991,7 +1168,7 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
     const rule = field.ui?.visible_when;
     if (!rule?.field) return true;
 
-    const raw = (watchedValues as Record<string, unknown> | undefined)?.[rule.field];
+    const raw = getValueAtPath(watchedValues, rule.field);
 
     if (typeof rule.equals !== 'undefined') {
       return raw === rule.equals;
@@ -1013,7 +1190,7 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
 
       if (isFieldVisible(field)) continue;
 
-      const current = (watchedValues as Record<string, unknown> | undefined)?.[field.key];
+      const current = getValueAtPath(watchedValues, field.key);
       const hasValue =
         Array.isArray(current)
           ? current.length > 0
@@ -1038,13 +1215,13 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
   const renderField = (field: FieldDefinition) => {
     if (!isFieldVisible(field)) return null;
 
-    const error = errors[field.key];
+      const error = getValueAtPath(errors, field.key);
     const hasError = !!error;
     // Use config for required indicator (Wave 4 - Task 4.12)
-    const showRequired = formConfig.showRequiredIndicator && Boolean(field.required);
-    const dependencyValues = (field.dependencies || []).map(
-      (dependencyKey) => (watchedValues as Record<string, unknown> | undefined)?.[dependencyKey]
-    );
+      const showRequired = formConfig.showRequiredIndicator && Boolean(field.required);
+      const dependencyValues = (field.dependencies || []).map(
+      (dependencyKey) => getValueAtPath(watchedValues, dependencyKey)
+      );
     const primaryDependencyValue = dependencyValues[0];
     const dependencyLookupKey =
       typeof primaryDependencyValue === 'string'
@@ -1062,8 +1239,6 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
 
     const section = field.ui?.section;
     const sectionTitle = typeof section === 'string' ? section : section?.title;
-    const sectionDescription = typeof section === 'string' ? undefined : section?.description;
-    const shouldRenderSection = Boolean(sectionTitle) && !seenSections.has(String(sectionTitle));
     if (sectionTitle) seenSections.add(String(sectionTitle));
 
     if (field.type === 'inline_form_array') {
@@ -1314,7 +1489,7 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
 
   const onInvalid = (errs: Record<string, any>) => {
     if (!hasKeySplit) return;
-    const errorKeys = Object.keys(errs || {});
+    const errorKeys = collectErrorPaths(errs || {});
     const hasHiddenError = errorKeys.some((k) => !keySet.has(String(k).toLowerCase()));
     if (hasHiddenError) {
       setEffectiveShowAllFields(true);

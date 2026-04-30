@@ -43,6 +43,21 @@ export interface DocumentProcessingResponse {
 
 export type DocumentUploadResponse = UploadedDocument;
 
+export interface ExtractToSchemaRequest {
+  document_id: string;
+  entity_type: string;
+}
+
+export interface ExtractToSchemaResponse {
+  document_id: string;
+  entity_type: string;
+  serializer_name: string;
+  parser: string;
+  model_name: string;
+  warnings: string[];
+  extracted_data: Record<string, unknown>;
+}
+
 const unwrap = <T,>(res: { data: T }): T => res.data;
 const getDocumentIdFromMetadata = (metadata?: Record<string, unknown>): string | null => {
   const id = metadata?.document_id ?? metadata?.documentId;
@@ -155,6 +170,13 @@ export const documentsApi = {
 
   get: async (documentId: string): Promise<DocumentUploadResponse> => {
     const res = await businessApi.get<DocumentUploadResponse>(`/ai-assistant/ai-documents/${documentId}/`);
+    return unwrap(res);
+  },
+};
+
+export const schemaExtractionApi = {
+  extractToSchema: async (data: ExtractToSchemaRequest): Promise<ExtractToSchemaResponse> => {
+    const res = await businessApi.post<ExtractToSchemaResponse>('/ai-assistant/extract-to-schema/', data);
     return unwrap(res);
   },
 };

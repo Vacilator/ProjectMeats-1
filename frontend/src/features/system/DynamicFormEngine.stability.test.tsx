@@ -128,6 +128,56 @@ describe('DynamicFormEngine stability', () => {
     });
   });
 
+  it('hydrates dotted-path initial values and submits nested objects without looping', async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn();
+
+    render(
+      <DynamicFormEngine
+        schema={{
+          step_index: 0,
+          name: 'Sales Order',
+          fields: [
+            {
+              key: 'billing_address.city',
+              label: 'Billing City',
+              type: 'text',
+              required: false,
+            },
+            {
+              key: 'billing_address.state_zip',
+              label: 'Billing State / ZIP',
+              type: 'text',
+              required: false,
+            },
+          ],
+        }}
+        initialValues={{
+          billing_address: {
+            city: 'Chicago',
+            state_zip: 'IL 60601',
+          },
+        }}
+        onSubmit={onSubmit}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByDisplayValue('Chicago')).toBeInTheDocument();
+      expect(screen.getByDisplayValue('IL 60601')).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByRole('button', { name: /submit|save/i }));
+
+    await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
+    expect(onSubmit.mock.calls[0]?.[0]).toMatchObject({
+      billing_address: {
+        city: 'Chicago',
+        state_zip: 'IL 60601',
+      },
+    });
+  });
+
   it('does not refetch cascading options on unrelated parent rerenders', async () => {
     getMasterProductOptionsMock.mockClear();
     getMasterProductOptionsMock.mockResolvedValue([{ value: '1', label: 'Brisket' }]);

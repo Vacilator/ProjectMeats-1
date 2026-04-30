@@ -15,6 +15,7 @@ from .models import (
 )
 from .session_utils import bind_context_to_tenant, get_request_tenant_id, session_matches_tenant
 from .services.document_parser import validate_ai_document_upload
+from .services.extract_to_schema import EXTRACT_TO_SCHEMA_CHOICES
 
 
 
@@ -298,6 +299,25 @@ class AIDocumentSerializer(serializers.ModelSerializer):
             'created_on',
         ]
         read_only_fields = ['id', 'tenant', 'owner', 'content_type', 'file_type', 'file_size', 'document_type', 'created_on']
+
+
+class ExtractToSchemaRequestSerializer(serializers.Serializer):
+    """Request payload for serializer-backed document extraction."""
+
+    document_id = serializers.CharField()
+    entity_type = serializers.ChoiceField(choices=EXTRACT_TO_SCHEMA_CHOICES)
+
+
+class ExtractToSchemaResponseSerializer(serializers.Serializer):
+    """Validated extraction draft returned to the frontend."""
+
+    document_id = serializers.CharField()
+    entity_type = serializers.CharField()
+    serializer_name = serializers.CharField()
+    parser = serializers.CharField(allow_blank=True)
+    model_name = serializers.CharField()
+    warnings = serializers.ListField(child=serializers.CharField(), required=False)
+    extracted_data = serializers.JSONField()
 
 
 class AIConfigurationSerializer(serializers.ModelSerializer):

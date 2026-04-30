@@ -46,6 +46,8 @@ from .serializers import (
     AIFeedbackLogSerializer,
     AIFeedbackSubmitSerializer,
     AILearningMetricsSerializer,
+    ExtractToSchemaRequestSerializer,
+    ExtractToSchemaResponseSerializer,
     ChatBotRequestSerializer,
     ChatBotResponseSerializer,
     ChatMessageCreateSerializer,
@@ -64,6 +66,7 @@ from .serializers import (
     ToolsOpenResponseSerializer,
 )
 from .session_utils import bind_context_to_tenant, get_request_tenant_id, session_matches_tenant
+from .services.extract_to_schema import ExtractToSchemaError, extract_document_to_schema, get_extract_document
 
 logger = logging.getLogger(__name__)
 
@@ -977,6 +980,60 @@ class AIDocumentViewSet(viewsets.ModelViewSet):
                 raise
 
         return instance
+
+
+class ExtractToSchemaAPIView(APIView):
+    """Extract a strict serializer-backed draft payload from an uploaded AI document."""
+
+    permission_classes = [IsAuthenticated]
+    throttle_classes = [AnonRateThrottle, UserRateThrottle, ScopedRateThrottle]
+    throttle_scope = 'ai_chat'
+
+    @extend_schema(
+        request=ExtractToSchemaRequestSerializer,
+        responses={
+            200: ExtractToSchemaResponseSerializer,
+            400: OpenApiTypes.OBJECT,
+            404: OpenApiTypes.OBJECT,
+            503: OpenApiTypes.OBJECT,
+        },
+    )
+    def post(self, request):
+        serializer = ExtractToSchemaRequestSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        tenant = getattr(request, 'tenant', None)
+        if not tenant:
+            raise ValidationError('Tenant context required')
+
+        document_id = serializer.validated_data['document_id']
+        entity_type = serializer.validated_data['entity_type']
+
+        try:
+            document = get_extract_document(document_id=document_id, tenant=tenant, user=request.user)
+            extracted = extract_document_to_schema(
+                document=document,
+                entity_type=entity_type,
+                tenant=tenant,
+                user=request.user,
+            )
+        except LookupError:
+            return Response({'error': 'Document not found'}, status=status.HTTP_404_NOT_FOUND)
+        except ExtractToSchemaError as exc:
+            if exc.code == 'AI_NOT_CONFIGURED':
+                return ai_not_configured_response()
+            return Response({'error': str(exc), 'code': exc.code}, status=status.HTTP_400_BAD_REQUEST)
+
+        payload = {
+            'document_id': extracted.document.id,
+            'entity_type': extracted.entity_type,
+            'serializer_name': extracted.serializer_name,
+            'parser': extracted.parser,
+            'model_name': extracted.model_name,
+            'warnings': extracted.warnings,
+            'extracted_data': extracted.data,
+        }
+        return Response(ExtractToSchemaResponseSerializer(payload).data, status=status.HTTP_200_OK)
 
 
 class SwarmToolsOpenAPIView(APIView):
