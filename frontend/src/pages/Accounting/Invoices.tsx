@@ -13,6 +13,7 @@
  * Pattern: Follows Claims.tsx/SalesOrders.tsx architecture for consistency
  */
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
 import { Skeleton } from 'antd';
 
@@ -395,6 +396,7 @@ const EmptyMessage = styled.div`
 // ============================================================================
 
 const Invoices: React.FC = () => {
+  const navigate = useNavigate();
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -562,6 +564,13 @@ const Invoices: React.FC = () => {
             <SidePanelHeader>
               <SidePanelTitle>{selectedInvoice.invoice_number}</SidePanelTitle>
               <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                <RecordPaymentButton
+                  onClick={() =>
+                    navigate(`/records/invoice/${encodeURIComponent(String(selectedInvoice.id))}`)
+                  }
+                >
+                  Open Record
+                </RecordPaymentButton>
                 {selectedInvoice.status !== 'paid' && selectedInvoice.status !== 'cancelled' && (
                   <RecordPaymentButton onClick={() => setShowPaymentModal(true)}>
                     💰 Record Payment

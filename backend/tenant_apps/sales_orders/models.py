@@ -27,10 +27,15 @@ from tenant_apps.orders.models import OrderMethodsMixin, PaymentStatus
 class SalesOrderStatus(models.TextChoices):
     """Status choices for sales orders."""
 
+    DRAFT = "draft", "Draft"
     PENDING = "pending", "Pending"
+    PENDING_APPROVAL = "pending_approval", "Pending Approval"
+    APPROVED = "approved", "Approved"
     CONFIRMED = "confirmed", "Confirmed"
+    SENT = "sent", "Sent"
     IN_TRANSIT = "in_transit", "In Transit"
     DELIVERED = "delivered", "Delivered"
+    INVOICED = "invoiced", "Invoiced"
     CANCELLED = "cancelled", "Cancelled"
 
 

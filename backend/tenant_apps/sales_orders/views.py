@@ -14,12 +14,13 @@ from django.utils import timezone
 from tenant_apps.sales_orders.models import SalesOrder
 from tenant_apps.sales_orders.serializers import SalesOrderSerializer
 from apps.core.exporting import CsvExportMixin
+from apps.core.viewsets_documents import OperationalDocumentActionsMixin
 import logging
 
 logger = logging.getLogger(__name__)
 
 
-class SalesOrderViewSet(CsvExportMixin, viewsets.ModelViewSet):
+class SalesOrderViewSet(OperationalDocumentActionsMixin, CsvExportMixin, viewsets.ModelViewSet):
     """ViewSet for managing sales orders."""
 
     queryset = SalesOrder.objects.all()

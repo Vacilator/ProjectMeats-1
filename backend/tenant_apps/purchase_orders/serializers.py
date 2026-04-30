@@ -4,6 +4,7 @@ Purchase Orders serializers for ProjectMeats.
 Provides serialization for purchase order API endpoints.
 """
 from rest_framework import serializers
+from apps.core.serializers_documents import DocumentStatusValidationMixin
 from tenant_apps.purchase_orders.models import (
     CarrierPOItem,
     CarrierPurchaseOrder,
@@ -38,7 +39,7 @@ class PurchaseOrderItemSerializer(serializers.ModelSerializer):
         read_only_fields = ["id"]
 
 
-class PurchaseOrderSerializer(serializers.ModelSerializer):
+class PurchaseOrderSerializer(DocumentStatusValidationMixin, serializers.ModelSerializer):
     """Serializer for PurchaseOrder model."""
     
     # Nested location serializers (read-only)
@@ -164,8 +165,21 @@ class CarrierPOItemSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ["id"]
 
+    def create(self, validated_data):
+        items_data = validated_data.pop("items", [])
+        instance = super().create(validated_data)
+        self._replace_items(instance, items_data)
+        return instance
 
-class CarrierPurchaseOrderSerializer(serializers.ModelSerializer):
+    def update(self, instance, validated_data):
+        items_data = validated_data.pop("items", None)
+        instance = super().update(instance, validated_data)
+        if items_data is not None:
+            self._replace_items(instance, items_data)
+        return instance
+
+
+class CarrierPurchaseOrderSerializer(DocumentStatusValidationMixin, serializers.ModelSerializer):
     """Serializer for CarrierPurchaseOrder model."""
     
     # Nested location serializers (read-only)
@@ -184,6 +198,7 @@ class CarrierPurchaseOrderSerializer(serializers.ModelSerializer):
         fields = [
             "id",
             "date_time_stamp_created",
+            "status",
             "carrier",
             "supplier",
             "plant",

@@ -13,7 +13,7 @@
  * Pattern: Follows Claims.tsx architecture for consistency
  */
 import React, { useState, useEffect, useMemo } from 'react';
-import { useLocation, useSearchParams } from 'react-router-dom';
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import styled from 'styled-components';
 import { Skeleton } from 'antd';
 
@@ -522,6 +522,7 @@ const DetailAmount = styled.div`
 // ============================================================================
 
 export const SalesOrdersPage: React.FC = () => {
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const location = useLocation();
 
@@ -788,6 +789,21 @@ export const SalesOrdersPage: React.FC = () => {
               <CloseButton onClick={handleClosePanel} aria-label="Close order details">×</CloseButton>
               <SidePanelTitle>Order Details</SidePanelTitle>
               <SidePanelSubtitle>{selectedOrder.order_number}</SidePanelSubtitle>
+              <button
+                type="button"
+                onClick={() => navigate(`/records/sales_order/${encodeURIComponent(String(selectedOrder.id))}`)}
+                style={{
+                  marginTop: '0.5rem',
+                  border: '1px solid rgb(var(--color-border))',
+                  borderRadius: 8,
+                  background: 'rgb(var(--color-surface))',
+                  color: 'rgb(var(--color-text-primary))',
+                  padding: '0.4rem 0.75rem',
+                  cursor: 'pointer',
+                }}
+              >
+                Open Record
+              </button>
             </SidePanelHeader>
 
             <SidePanelContent>

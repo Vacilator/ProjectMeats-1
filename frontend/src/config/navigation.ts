@@ -194,7 +194,18 @@ export const navigation: NavigationItem[] = [
   {
     label: 'Logistics',
     icon: '🚛',
-    path: '/carriers',
+    children: [
+      {
+        label: 'Carriers',
+        icon: '🚛',
+        path: '/carriers',
+      },
+      {
+        label: 'Freight Orders',
+        icon: '🧾',
+        path: '/freight-orders',
+      },
+    ],
   },
 ];
 
@@ -246,4 +257,3 @@ export const adminWorkspaceNavigation: NavigationItem[] = [
     ],
   },
 ];
-
