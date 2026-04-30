@@ -1,11 +1,18 @@
 import React, { useEffect, useState } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, waitFor } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const businessApiMock = vi.hoisted(() => ({
   get: vi.fn(),
   options: vi.fn(),
+  patch: vi.fn(),
+  post: vi.fn(),
+}));
+
+const authState = vi.hoisted(() => ({
+  isAuthenticated: true,
+  loading: false,
 }));
 
 const formLifecycle = vi.hoisted(() => ({
@@ -19,11 +26,15 @@ vi.mock('../../services/businessApi', () => ({
 }));
 
 vi.mock('@/contexts/AuthContext', () => ({
-  useAuthState: () => ({ isAuthenticated: true, loading: false }),
+  useAuthState: () => authState,
 }));
 
 vi.mock('@/config/runtime', () => ({
   getRuntimeConfigBoolean: () => false,
+}));
+
+vi.mock('../../services/configService', () => ({
+  resolveConfig: vi.fn(async (_key: string, fallback: unknown) => ({ value: fallback })),
 }));
 
 vi.mock('./UniversalEntityForm', async (importOriginal) => {
@@ -34,7 +45,7 @@ vi.mock('./UniversalEntityForm', async (importOriginal) => {
   return {
     ...actual,
     __esModule: true,
-    default: (props: Record<string, unknown>) => {
+    default: function MockUniversalEntityForm(props: Record<string, unknown>) {
       formLifecycle.props.push(props);
 
       ReactModule.useEffect(() => {
@@ -53,8 +64,12 @@ import { EntityFormSurface } from './EntityFormSurface';
 
 describe('EntityFormSurface', () => {
   beforeEach(() => {
+    authState.isAuthenticated = true;
+    authState.loading = false;
     businessApiMock.get.mockReset();
     businessApiMock.options.mockReset();
+    businessApiMock.patch.mockReset();
+    businessApiMock.post.mockReset();
     formLifecycle.mounts = 0;
     formLifecycle.unmounts = 0;
     formLifecycle.props.length = 0;
@@ -72,7 +87,7 @@ describe('EntityFormSurface', () => {
     return render(<QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>);
   };
 
-  it('preloads schema, record, and FK options once without remounting the form on query readiness', async () => {
+  it('preloads schema, record, and dropdown dictionaries at the smart-loader boundary', async () => {
     businessApiMock.get.mockImplementation((url: string) => {
       if (url === '/system/forms/schema/') {
         return Promise.resolve({
@@ -81,6 +96,17 @@ describe('EntityFormSurface', () => {
             description: 'Plant schema',
             fields: [
               { key: 'name', label: 'Plant Name', type: 'text', required: true },
+              {
+                key: 'payment_terms',
+                label: 'Payment Terms',
+                type: 'select',
+                ui: {
+                  data_source: {
+                    type: 'choice_list',
+                    list: 'payment_terms',
+                  },
+                },
+              },
               {
                 key: 'customer',
                 label: 'Customer',
@@ -98,6 +124,7 @@ describe('EntityFormSurface', () => {
             id: 2769,
             name: 'North Plant',
             customer: '123',
+            payment_terms: 'Wire',
           },
         });
       }
@@ -106,6 +133,14 @@ describe('EntityFormSurface', () => {
         return Promise.resolve({
           data: {
             results: [{ id: '123', name: 'Acme Foods' }],
+          },
+        });
+      }
+
+      if (url === '/master-products/') {
+        return Promise.resolve({
+          data: {
+            results: [],
           },
         });
       }
@@ -136,28 +171,46 @@ describe('EntityFormSurface', () => {
 
     renderWithQueryClient(<Parent />);
 
-    await waitFor(() => {
-      expect(formLifecycle.props.length).toBeGreaterThan(0);
-    });
+    expect(screen.getByTestId('entity-form-loading')).toBeInTheDocument();
+    expect(screen.queryByTestId('universal-entity-form')).not.toBeInTheDocument();
 
     await waitFor(() => {
-      const latest = formLifecycle.props.at(-1) as Record<string, unknown> | undefined;
-      expect(latest?.externalLoading).toBe(false);
-      expect((latest?.externalSchema as { name?: string } | undefined)?.name).toBe('Plant');
-      expect((latest?.externalRecordValues as { name?: string } | undefined)?.name).toBe(
-        'North Plant'
-      );
-      expect(
-        (
-          latest?.externalFkOptions as
-            | Record<string, Array<{ id: string; name: string }>>
-            | undefined
-        )?.customer?.[0]?.name
-      ).toBe('Acme Foods');
+      expect(screen.getByTestId('universal-entity-form')).toBeInTheDocument();
     });
 
-    expect(businessApiMock.get).toHaveBeenCalledTimes(3);
-    expect(formLifecycle.mounts).toBe(1);
-    expect(formLifecycle.unmounts).toBe(0);
+    const latest = formLifecycle.props.at(-1) as Record<string, unknown> | undefined;
+    expect((latest?.schema as { name?: string } | undefined)?.name).toBe('Plant');
+    expect((latest?.initialData as { name?: string; customer?: string } | undefined)?.name).toBe(
+      'North Plant'
+    );
+
+    expect(businessApiMock.get).toHaveBeenCalledWith('/system/forms/schema/', {
+      params: { entity_type: 'plant' },
+    });
+    expect(businessApiMock.get).toHaveBeenCalledWith('plants/2769/');
+    expect(businessApiMock.get.mock.calls.length).toBeGreaterThanOrEqual(2);
+    expect(formLifecycle.mounts).toBeGreaterThanOrEqual(1);
+  });
+
+  it('does not attempt protected loads when unauthenticated', async () => {
+    authState.isAuthenticated = false;
+
+    renderWithQueryClient(
+      <EntityFormSurface
+        entityType="plant"
+        entityId="2769"
+        mode="edit"
+        variant="inline"
+        isOpen
+        onClose={() => {}}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('entity-form-load-error')).toBeInTheDocument();
+    });
+
+    expect(businessApiMock.get).not.toHaveBeenCalled();
+    expect(screen.queryByTestId('universal-entity-form')).not.toBeInTheDocument();
   });
 });

@@ -6,7 +6,7 @@
  * 
  * Wave 4 - Task 4.12: Integrated with ConfigResolver for dynamic settings.
  */
-import React, { useCallback, useMemo, useState, useEffect, useRef } from 'react';
+import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { Select as AntSelect } from 'antd';
 import { useForm, Controller, useFieldArray, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -18,17 +18,12 @@ import { Select } from '../../components/ui/Select';
 import StateSelect from '../../components/ui/StateSelect';
 import { CountrySelect } from '../../components/ui';
 import { DEFAULT_COUNTRY } from '../../utils/constants/countries';
-import { useCascadingField, type CascadingFieldOption } from '../../hooks/useCascadingField';
-import { contactFormOptionsService } from '../../services/contactFormOptionsService';
-import { EMPTY_CHOICES } from '../../services/choiceConstants';
-import { resolveConfig } from '../../services/configService';
-import { getChoicesForField, isStaticChoiceField } from '../../services/choicesService';
 import { formatUsPhone } from '../../utils/phone';
 import { getAntdPopupContainer } from '../../utils/antdPopupContainer';
-import { logger } from '../../utils/logger';
 
 // Field definition types
 type SelectOption = string | { value: string; label: string };
+type PreloadedOption = { value: string; label: string; metadata?: Record<string, unknown> };
 
 type FieldUi = {
   widget?: string;
@@ -109,9 +104,32 @@ interface DynamicFormEngineProps {
 
   /** Override submit button label (e.g. "Create" vs "Save"). */
   submitLabel?: string;
+
+  /** Preloaded dropdown dictionaries keyed by field key. */
+  dropdownOptions?: Record<
+    string,
+    Array<PreloadedOption>
+  >;
+
+  /** Preloaded form config to keep the renderer prop-driven. */
+  formConfig?: Partial<DynamicFormConfig>;
+}
+
+export interface DynamicFormConfig {
+  showRequiredIndicator: boolean;
+  showHelpText: boolean;
+  validateOnChange: boolean;
+  submitButtonText: string;
 }
 
 const EMPTY_INITIAL_VALUES: Record<string, unknown> = {};
+const EMPTY_OPTIONS: PreloadedOption[] = [];
+const DEFAULT_FORM_CONFIG: DynamicFormConfig = {
+  showRequiredIndicator: true,
+  showHelpText: true,
+  validateOnChange: false,
+  submitButtonText: 'Submit',
+};
 
 function useDeepStableValue<T>(value: T): T {
   const ref = useRef(value);
@@ -256,14 +274,14 @@ const Label = styled.label<{ required?: boolean }>`
   `}
 `;
 
-const Input = styled.input<{ hasError?: boolean }>`
+const Input = styled.input<{ $hasError?: boolean }>`
   width: 100%;
   padding: 0.625rem 0.75rem;
   font-size: 0.875rem;
   font-family: var(--font-sans);
   color: rgb(var(--color-text-primary));
   background-color: rgb(var(--color-surface));
-  border: 1px solid ${props => props.hasError ? 'rgb(var(--color-danger))' : 'rgb(var(--color-border))'};
+  border: 1px solid ${props => props.$hasError ? 'rgb(var(--color-danger))' : 'rgb(var(--color-border))'};
   border-radius: var(--radius-md);
   transition: all 0.2s ease;
 
@@ -284,7 +302,7 @@ const Input = styled.input<{ hasError?: boolean }>`
   }
 `;
 
-const TextArea = styled.textarea<{ hasError?: boolean }>`
+const TextArea = styled.textarea<{ $hasError?: boolean }>`
   width: 100%;
   min-height: 100px;
   padding: 0.625rem 0.75rem;
@@ -292,7 +310,7 @@ const TextArea = styled.textarea<{ hasError?: boolean }>`
   font-family: var(--font-sans);
   color: rgb(var(--color-text-primary));
   background-color: rgb(var(--color-surface));
-  border: 1px solid ${props => props.hasError ? 'rgb(var(--color-danger))' : 'rgb(var(--color-border))'};
+  border: 1px solid ${props => props.$hasError ? 'rgb(var(--color-danger))' : 'rgb(var(--color-border))'};
   border-radius: var(--radius-md);
   transition: all 0.2s ease;
   resize: vertical;
@@ -515,186 +533,27 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
   onShowAllFieldsChange,
   showAllFieldsToggle = true,
   submitLabel,
+  dropdownOptions = {},
+  formConfig: preloadedFormConfig,
 }) => {
   const stableInitialValues = useDeepStableValue(initialValues || EMPTY_INITIAL_VALUES);
-  const fieldsSignature = useMemo(() => {
-    return schema.fields
-      .map((field) => {
-        const widget = String(field.ui?.widget || '');
-        const maxLen = (field.ui as any)?.max_length;
-        const maxLenSig = typeof maxLen === 'number' && Number.isFinite(maxLen) ? String(maxLen) : '';
-
-        const depsSig = Array.isArray(field.dependencies)
-          ? field.dependencies.map((d) => String(d)).join(',')
-          : '';
-
-        const visibleWhen = (field.ui as any)?.visible_when;
-        const visibleSig =
-          visibleWhen && typeof visibleWhen === 'object'
-            ? `${String((visibleWhen as any).field || '')}:${String((visibleWhen as any).equals ?? '')}:${(visibleWhen as any).truthy ? 1 : 0}`
-            : '';
-
-        const dataSource = (field.ui as any)?.data_source;
-        const dsSig =
-          dataSource && typeof dataSource === 'object'
-            ? `${String((dataSource as any).type || '')}:${String((dataSource as any).list || '')}`
-            : '';
-
-        const itemSig =
-          field.type === 'inline_form_array'
-            ? (field.item_fields || [])
-                .map((item) => {
-                  const itemWidget = String(item.ui?.widget || '');
-                  return `${String(item.key)}:${String(item.type)}:${item.required ? 1 : 0}:${itemWidget}`;
-                })
-                .join('~')
-            : '';
-
-        return `${String(field.key)}:${String(field.type)}:${field.required ? 1 : 0}:${widget}:${maxLenSig}:${depsSig}:${visibleSig}:${dsSig}:${itemSig}`;
-      })
-      .join('|');
-  }, [schema.fields]);
-
   // Stabilize schema.fields identity when parents rebuild arrays on each render.
-  const stableFields = useMemo(() => schema.fields, [fieldsSignature]);
+  const stableFields = useMemo(() => schema.fields, [schema.fields]);
 
-  const validationSchema = useMemo(() => buildValidationSchema(stableFields), [fieldsSignature]);
+  const validationSchema = useMemo(() => buildValidationSchema(stableFields), [stableFields]);
   const resolver = useMemo(() => zodResolver(validationSchema), [validationSchema]);
 
   const [internalShowAllFields, setInternalShowAllFields] = useState(false);
   const effectiveShowAllFields = showAllFields ?? internalShowAllFields;
   const setEffectiveShowAllFields = onShowAllFieldsChange ?? setInternalShowAllFields;
 
-  // Form-level config from ConfigResolver (Wave 4 - Task 4.12)
-  const [formConfig, setFormConfig] = useState({
-    showRequiredIndicator: true,
-    showHelpText: true,
-    validateOnChange: false,
-    submitButtonText: 'Submit',
-  });
-
-  // Dynamic choice options from config system
-  const [dynamicOptions, setDynamicOptions] = useState<Record<string, { value: string; label: string }[]>>({});
-  const cascadingOptionsCacheRef = useRef<Record<string, CascadingFieldOption[]>>({});
-  const cascadingOptionsRequestRef = useRef<Record<string, Promise<CascadingFieldOption[]>>>({});
-
-  // Load form-level configuration
-  useEffect(() => {
-    const loadConfig = async () => {
-      try {
-        const [showRequired, showHelp, validateChange, submitText] = await Promise.all([
-          resolveConfig<boolean>('forms.show_required_indicator', true),
-          resolveConfig<boolean>('forms.show_help_text', true),
-          resolveConfig<boolean>('forms.validate_on_change', false),
-          resolveConfig<string>('forms.submit_button_text', 'Submit'),
-        ]);
-
-        setFormConfig({
-          showRequiredIndicator: showRequired.value,
-          showHelpText: showHelp.value,
-          validateOnChange: validateChange.value,
-          submitButtonText: submitText.value,
-        });
-      } catch {
-        logger.debug('Using default form config', { component: 'DynamicFormEngine' });
-      }
-    };
-
-    void loadConfig();
-  }, []);
-
-  const optionsSignature = useMemo(() => {
-    const candidateFields = stableFields.flatMap((field) => [
-      field,
-      ...((field.type === 'inline_form_array' ? field.item_fields || [] : []) as FieldDefinition[]),
-    ]);
-
-    return candidateFields
-      .map((f) => {
-        const dataSource = (f.ui as any)?.data_source;
-        const dsType =
-          dataSource && typeof dataSource === 'object' ? String(dataSource.type || '') : '';
-        const dsList =
-          dataSource && typeof dataSource === 'object' ? String(dataSource.list || '') : '';
-        const optionsLen = Array.isArray((f as any).options) ? (f as any).options.length : 0;
-
-        return `${String(f.key)}:${String(f.type)}:${dsType}:${dsList}:${optionsLen}`;
-      })
-      .join('|');
-  }, [stableFields]);
-
-  const optionsEqual = (
-    a: { value: string; label: string }[] | undefined,
-    b: { value: string; label: string }[] | undefined
-  ): boolean => {
-    const aa = Array.isArray(a) ? a : (EMPTY_CHOICES as { value: string; label: string }[]);
-    const bb = Array.isArray(b) ? b : (EMPTY_CHOICES as { value: string; label: string }[]);
-    if (aa.length !== bb.length) return false;
-
-    for (let i = 0; i < aa.length; i += 1) {
-      if (String(aa[i].value) !== String(bb[i].value)) return false;
-      if (String(aa[i].label) !== String(bb[i].label)) return false;
-    }
-
-    return true;
-  };
-
-  // Load dynamic options for select fields.
-  // NOTE: Depend on a stable signature instead of schema.fields identity to avoid
-  // effect→setState→re-render loops when parent rebuilds field arrays.
-  useEffect(() => {
-    let cancelled = false;
-
-    const loadOptions = async () => {
-      const selectFields = stableFields.flatMap((field) =>
-        field.type === 'inline_form_array' ? (field.item_fields || []) : [field]
-      ).filter((f) => {
-        if (f.options?.length) return false;
-        if (f.ui?.data_source?.type === 'choice_list' && f.ui?.data_source?.list) return true;
-        return f.type === 'select' && isStaticChoiceField(f.key);
-      });
-
-      const nextOptions: Record<string, { value: string; label: string }[]> = {};
-
-      for (const field of selectFields) {
-        if (field.ui?.data_source?.type === 'choice_list' && field.ui.data_source.list) {
-          nextOptions[field.key] = await contactFormOptionsService.getSystemChoiceOptions(
-            field.ui.data_source.list
-          );
-          continue;
-        }
-
-        if (isStaticChoiceField(field.key)) {
-          const choices = await getChoicesForField(field.key);
-          if (choices) {
-            nextOptions[field.key] = choices;
-          }
-        }
-      }
-
-      if (cancelled) return;
-
-      setDynamicOptions((prev) => {
-        let changed = false;
-        const merged = { ...prev };
-
-        for (const [key, opts] of Object.entries(nextOptions)) {
-          if (!optionsEqual(prev[key], opts)) {
-            merged[key] = opts;
-            changed = true;
-          }
-        }
-
-        return changed ? merged : prev;
-      });
-    };
-
-    void loadOptions();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [optionsSignature]);
+  const formConfig = useMemo<DynamicFormConfig>(
+    () => ({
+      ...DEFAULT_FORM_CONFIG,
+      ...(preloadedFormConfig || {}),
+    }),
+    [preloadedFormConfig]
+  );
 
   const defaultValues = useMemo(() => {
     const next: Record<string, unknown> = cloneDeep(stableInitialValues || EMPTY_INITIAL_VALUES);
@@ -757,13 +616,50 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
   }, [hasKeySplit, keySet, stableFields]);
 
   // Get options for a select field (static or dynamic)
-  const getFieldOptions = (field: FieldDefinition): { value: string; label: string }[] => {
+  const getFieldOptions = (field: FieldDefinition): PreloadedOption[] => {
     // Use provided options first
     if (field.options?.length) {
       return field.options.map((opt) => (typeof opt === 'string' ? { value: opt, label: opt } : opt));
     }
-    // Fall back to dynamically loaded options
-    return dynamicOptions[field.key] || (EMPTY_CHOICES as { value: string; label: string }[]);
+    return dropdownOptions[field.key] || EMPTY_OPTIONS;
+  };
+
+  const getMetadataItems = (
+    option: PreloadedOption,
+    keys: string[]
+  ): string[] => {
+    for (const key of keys) {
+      const raw = option.metadata?.[key];
+      if (Array.isArray(raw)) {
+        return raw.map((item) => String(item ?? '').trim()).filter(Boolean);
+      }
+
+      if (typeof raw === 'string' && raw.trim()) {
+        return [raw.trim()];
+      }
+    }
+
+    return [];
+  };
+
+  const filterOptionsByDependencies = (
+    options: PreloadedOption[],
+    dependencyItems: string[]
+  ): PreloadedOption[] => {
+    if (!dependencyItems.length) {
+      return options;
+    }
+
+    const normalizedDependencies = dependencyItems.map((item) => item.toLowerCase());
+
+    return options.filter((option) => {
+      const allowed = getMetadataItems(option, ['protein_types', 'proteinTypes', 'dependency_values']);
+      if (!allowed.length) {
+        return true;
+      }
+
+      return allowed.some((item) => normalizedDependencies.includes(String(item).toLowerCase()));
+    });
   };
 
   const isStateLikeKey = (normalizedKey: string): boolean => {
@@ -790,31 +686,7 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
       control,
       name: field.key as never,
     });
-    const [inlineProductOptions, setInlineProductOptions] = useState<
-      Record<string, { value: string; label: string }[]>
-    >({});
-    const [inlineProductLoading, setInlineProductLoading] = useState<Record<string, boolean>>({});
-
     const arrayError = getValueAtPath(errors, field.key);
-
-    const loadInlineProductOptions = useCallback(
-      async (namePath: string, productTypes: string[], search = '') => {
-        setInlineProductLoading((prev) => ({ ...prev, [namePath]: true }));
-        try {
-          const options = await contactFormOptionsService.getMasterProductOptions({
-            proteinTypes: productTypes,
-            search,
-          });
-          setInlineProductOptions((prev) => ({
-            ...prev,
-            [namePath]: options,
-          }));
-        } finally {
-          setInlineProductLoading((prev) => ({ ...prev, [namePath]: false }));
-        }
-      },
-      []
-    );
 
     const renderItemField = (itemField: FieldDefinition, namePath: string, idx: number) => {
       const itemErr = getValueAtPath(errors, namePath);
@@ -876,6 +748,13 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
       }
 
       if (itemField.ui?.data_source?.type === 'master_products') {
+        const resolvedProductOptions = filterOptionsByDependencies(
+          dropdownOptions[itemField.key] || EMPTY_OPTIONS,
+          dependencyItems
+        );
+        const disableProductSelect =
+          isSubmitting || ((itemField.dependencies || []).length > 0 && dependencyItems.length === 0);
+
         return (
           <FieldGroup key={namePath} style={{ marginBottom: 12 }}>
             <Label required={formConfig.showRequiredIndicator && itemField.required}>{itemField.label}</Label>
@@ -885,21 +764,11 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
               render={({ field: controllerField }) => (
                 <AntSelect
                   showSearch
-                  filterOption={false}
                   value={controllerField.value || undefined}
                   onChange={controllerField.onChange}
-                  onDropdownVisibleChange={(open) => {
-                    if (open && !(inlineProductOptions[namePath] || []).length) {
-                      void loadInlineProductOptions(namePath, dependencyItems);
-                    }
-                  }}
-                  onSearch={(query) => {
-                    void loadInlineProductOptions(namePath, dependencyItems, query);
-                  }}
-                  options={inlineProductOptions[namePath] || EMPTY_CHOICES}
+                  options={resolvedProductOptions}
                   placeholder={itemField.placeholder || 'Search products'}
-                  loading={Boolean(inlineProductLoading[namePath])}
-                  disabled={isSubmitting}
+                  disabled={disableProductSelect}
                   allowClear
                   optionFilterProp="label"
                   getPopupContainer={getAntdPopupContainer}
@@ -958,7 +827,7 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
               },
             })}
             placeholder={itemField.placeholder}
-            hasError={hasItemError}
+            $hasError={hasItemError}
             disabled={isSubmitting}
           />
           {hasItemError && <ErrorText>{String(itemErr?.message || 'Invalid value')}</ErrorText>}
@@ -1032,20 +901,11 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
     field: FieldDefinition;
     showRequired: boolean;
     errorMessage?: string;
-    options: { value: string; label: string }[];
+    options: PreloadedOption[];
     cascading?: boolean;
     dependencyValue?: unknown;
   }> = ({ field, showRequired, errorMessage, options, cascading = false, dependencyValue }) => {
     const currentValue = useWatch({ control, name: field.key }) as string[] | undefined;
-
-    const dependencySignature = Array.isArray(dependencyValue)
-      ? dependencyValue
-          .map((item) => String(item ?? '').trim())
-          .filter(Boolean)
-          .join('\u0001')
-      : typeof dependencyValue === 'string'
-        ? String(dependencyValue).trim()
-        : '';
 
     const dependencyItems = useMemo(() => {
       if (Array.isArray(dependencyValue)) {
@@ -1057,61 +917,13 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
       }
 
       return [] as string[];
-    }, [dependencySignature]);
+    }, [dependencyValue]);
 
     const hasDependencies = (field.dependencies || []).length > 0;
-
-    const fetchCascadingOptions = useCallback(
-      async (parentValue: unknown) => {
-        const proteinTypes = Array.isArray(parentValue)
-          ? parentValue.map((item) => String(item || '').trim()).filter(Boolean)
-          : [];
-
-        const cacheKey = `${field.key}:${proteinTypes.join('\u0001')}`;
-        const cachedOptions = cascadingOptionsCacheRef.current[cacheKey];
-        if (cachedOptions) {
-          return cachedOptions;
-        }
-
-        const pendingRequest = cascadingOptionsRequestRef.current[cacheKey];
-        if (pendingRequest) {
-          return pendingRequest;
-        }
-
-        const request = contactFormOptionsService
-          .getMasterProductOptions({ proteinTypes })
-          .then((options) => {
-            const resolvedOptions = Array.isArray(options)
-              ? options.map((option) => ({
-                  value: String(option.value),
-                  label: String(option.label),
-                }))
-              : [...EMPTY_CHOICES];
-            cascadingOptionsCacheRef.current[cacheKey] = resolvedOptions;
-            return resolvedOptions;
-          })
-          .finally(() => {
-            delete cascadingOptionsRequestRef.current[cacheKey];
-          });
-
-        cascadingOptionsRequestRef.current[cacheKey] = request;
-        return request;
-      },
-      [field.key]
+    const resolvedOptions = useMemo(
+      () => (cascading ? filterOptionsByDependencies(options, dependencyItems) : options),
+      [cascading, dependencyItems, options]
     );
-
-    const {
-      options: cascadingOptions,
-      loading: cascadingLoading,
-      error: cascadingError,
-    } = useCascadingField({
-      fieldId: field.key,
-      parentValue: dependencyItems,
-      enabled: cascading && (!hasDependencies || dependencyItems.length > 0),
-      fetchOptions: fetchCascadingOptions,
-    });
-
-    const resolvedOptions = cascading ? cascadingOptions : options;
     const disabled = isSubmitting || (cascading && hasDependencies && dependencyItems.length === 0);
 
     useEffect(() => {
@@ -1128,7 +940,7 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
           shouldValidate: true,
         });
       }
-    }, [currentValue, field.key, field.ui?.widget, resolvedOptions, setValue]);
+    }, [currentValue, field.key, field.ui?.widget, resolvedOptions]);
 
     return (
       <FieldGroup key={field.key}>
@@ -1147,7 +959,6 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
               options={resolvedOptions}
               placeholder={field.placeholder || 'Select one or more options'}
               disabled={disabled}
-              loading={cascadingLoading}
               allowClear
               optionFilterProp="label"
               getPopupContainer={getAntdPopupContainer}
@@ -1156,7 +967,6 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
           )}
         />
         {formConfig.showHelpText && field.help_text && <HelpText>{field.help_text}</HelpText>}
-        {cascadingError && <ErrorText>{cascadingError}</ErrorText>}
         {errorMessage && <ErrorText>{errorMessage}</ErrorText>}
       </FieldGroup>
     );
@@ -1164,7 +974,7 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
 
   const seenSections = new Set<string>();
 
-  const isFieldVisible = (field: FieldDefinition): boolean => {
+  const isFieldVisible = React.useCallback((field: FieldDefinition): boolean => {
     const rule = field.ui?.visible_when;
     if (!rule?.field) return true;
 
@@ -1180,7 +990,7 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
     }
 
     return Boolean(raw);
-  };
+  }, [watchedValues]);
 
   // When a field becomes hidden, clear its value to avoid submitting stale data.
   // This is critical for conditional fields like Plant.export_documents_handled.
@@ -1210,7 +1020,7 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
         shouldValidate: true,
       });
     }
-  }, [stableFields, setValue, watchedValues]);
+  }, [isFieldVisible, setValue, stableFields, watchedValues]);
 
   const renderField = (field: FieldDefinition) => {
     if (!isFieldVisible(field)) return null;
@@ -1242,7 +1052,7 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
     if (sectionTitle) seenSections.add(String(sectionTitle));
 
     if (field.type === 'inline_form_array') {
-      return <InlineFormArrayField field={field} showRequired={showRequired} />;
+      return <InlineFormArrayField key={field.key} field={field} showRequired={showRequired} />;
     }
 
     if (String(field.key).toLowerCase() === 'country') {
@@ -1346,7 +1156,7 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
               id={field.key}
               {...register(field.key)}
               placeholder={field.placeholder}
-              hasError={hasError}
+              $hasError={hasError}
               disabled={isSubmitting}
             />
             {formConfig.showHelpText && field.help_text && <HelpText>{field.help_text}</HelpText>}
@@ -1449,7 +1259,7 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
                   onChange={(e) => controllerField.onChange(e.target.value)}
                   onBlur={(e) => controllerField.onChange(formatUsPhone(e.target.value))}
                   placeholder={field.placeholder || '(555) 123-4567'}
-                  hasError={hasError}
+                  $hasError={hasError}
                   disabled={isSubmitting}
                   autoComplete="tel"
                 />
@@ -1472,7 +1282,7 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
               id={field.key}
               {...register(field.key)}
               placeholder={field.placeholder}
-              hasError={hasError}
+              $hasError={hasError}
               disabled={isSubmitting}
             />
             {formConfig.showHelpText && field.help_text && <HelpText>{field.help_text}</HelpText>}
