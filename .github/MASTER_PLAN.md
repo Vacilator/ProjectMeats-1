@@ -11,6 +11,8 @@ This file is the **append-only PR-referenceable execution log**.
 
 ## Operational Notes
 
+- **2026-04-30** — CI/frontend: hardened the production-preview React Error #185 guard so the Plant edit smoke traps both `console.error` and `pageerror` minified-runtime failures, exercises the hydrated Customer dropdown after mount, retains Playwright traces on failure, and uploads smoke artifacts from PR validation for post-failure diagnosis. (PR: #4810)
+
 - **2026-04-30** — Frontend/CI: stabilized the Plant edit smart-loader against React Error #185 by memoizing `EntityFormSurface` query options/keys, preserving single-mount loader hydration, and adding a production-preview Playwright smoke (`frontend/e2e/entity-form-surface-smoke.spec.ts`) plus PR-validation gate so the minified Plant edit path is exercised before merge/deploy. (PR: #4809)
 
 - **2026-04-30** — Docs/backlog: refreshed `.github/EPIC_TICKETS.md` after the enterprise hardening queue was exhausted and restored a single first-ready item from `MASTER_PLAN.md` priorities: **EH-02.5 choice-viewset-tenant-admin-fail-closed** (P0 tenant isolation). (PR: #4801)
