@@ -408,6 +408,10 @@ Paginated lists include `count`, `next`, `previous`, and `results` fields.
     "REDOC_UI_SETTINGS": {
         "hideDownloadButton": False,
     },
+    "POSTPROCESSING_HOOKS": [
+        "drf_spectacular.hooks.postprocess_schema_enums",
+        "projectmeats.schema_hooks.add_openapi_compat_aliases",
+    ],
 
     # Keep enum component names stable to avoid OpenAPI baseline churn.
     "ENUM_NAME_OVERRIDES": {
@@ -418,6 +422,8 @@ Paginated lists include `count`, `next`, `previous`, and `results` fields.
         "UserNotificationPriorityEnum": "tenant_apps.workflows.models.NotificationPriority",
         # Keep tenant webhook event_type stable across serializer reuse.
         "EventTypeEnum": "tenant_apps.integrations.models.TenantWebhookEventType",
+        # Preserve the shipped OpenAPI contract name for transactional protein enums.
+        "TypeOfProteinEnum": "apps.core.models.ProteinTypeChoices",
     },
 }
 
