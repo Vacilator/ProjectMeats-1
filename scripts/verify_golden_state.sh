@@ -33,9 +33,9 @@ check_no_pattern() {
     local pattern="$2"
     local message="$3"
     if grep -Eq "$pattern" "$path" 2>/dev/null; then
-        fail "$message"
+        fail "$path: $message"
     else
-        pass "$message"
+        pass "$path: $message"
     fi
 }
 
@@ -44,10 +44,14 @@ check_pattern() {
     local pattern="$2"
     local message="$3"
     if grep -Eq "$pattern" "$path" 2>/dev/null; then
-        pass "$message"
+        pass "$path: $message"
     else
-        fail "$message"
+        fail "$path: $message"
     fi
+}
+
+check_required_pattern() {
+    check_pattern "$@"
 }
 
 check_doc_workflow_refs() {
@@ -77,6 +81,30 @@ check_doc_workflow_refs() {
     if [[ $missing -eq 0 ]]; then
         pass "$path workflow references resolve"
     fi
+}
+
+check_reference_golden_pipeline_pointer_mode() {
+    local path="docs/reference/GOLDEN_PIPELINE.md"
+
+    if [[ ! -f "$path" ]]; then
+        fail "$path missing while validating reference-doc pointer mode"
+        return
+    fi
+
+    check_required_pattern "$path" '^> \*\*Reference-only companion\.\*\* For authoritative rules, use `docs/GOLDEN_PIPELINE\.md`\.$' \
+        "must declare docs/GOLDEN_PIPELINE.md as the sole authority"
+    check_required_pattern "$path" '^> \*\*Guarded sections\*\* such as deploy method, health-check targets, and secret source-of-truth must stay in parity with `docs/GOLDEN_PIPELINE\.md`, `scripts/verify_golden_state\.sh`, and `\.github/scripts/check_infrastructure\.sh`\.$' \
+        "must declare guarded-section parity with the canonical doc and validators"
+    check_required_pattern "$path" '`docs/GOLDEN_PIPELINE\.md`' \
+        "must link to the canonical Golden Pipeline doc"
+    check_required_pattern "$path" '`scripts/verify_golden_state\.sh`' \
+        "must link to the golden-state validator"
+    check_required_pattern "$path" '`\.github/scripts/check_infrastructure\.sh`' \
+        "must link to the infrastructure drift gate"
+    check_no_pattern "$path" '^## (🏆 What Changed in V2\.0\.0 \(Golden Standard\)|Architecture|Workflow Files \(Source of Truth\)|Critical Guardrails|Secret Management)' \
+        "must stay pointer-only and avoid independent operational sections"
+    check_no_pattern "$path" 'Lint Documentation|Security Scan Documentation|Check Deployment Configs|Validate Environment Variables' \
+        "must not define its own PR-validation job inventory"
 }
 
 # 1. Check canonical manifest exists
@@ -167,25 +195,34 @@ check_doc_workflow_refs ".github/workflows/README.md"
 check_doc_workflow_refs "docs/guides/BRANCH_PROTECTION_SETUP.md"
 check_doc_workflow_refs "docs/reference/GOLDEN_PIPELINE.md"
 
-# 11. Check branch protection guide for obsolete branch names and checks
+# 11. Check CURRENT workflow docs for canonical branch/deploy guidance
+check_required_pattern ".github/workflows/README.md" '^- Branches: `development`, `uat`, `main`$' \
+    "must document the canonical protected branch set"
+check_no_pattern ".github/workflows/README.md" 'docker-compose|docker compose|:latest|https://[^[:space:]]+/api/v1/(health|ready)/' \
+    "must avoid forbidden deployment-pattern guidance"
+
+# 12. Check branch protection guide for obsolete branch names and checks
 check_no_pattern "docs/guides/BRANCH_PROTECTION_SETUP.md" 'Branch name pattern:[[:space:]]*`UAT`|development\.\.UAT|UAT\.\.main' \
     "BRANCH_PROTECTION_SETUP.md uses canonical lowercase uat branch references"
 check_no_pattern "docs/guides/BRANCH_PROTECTION_SETUP.md" '`build-and-push`|`test-frontend`|`test-backend`' \
     "BRANCH_PROTECTION_SETUP.md avoids obsolete status check names"
 
-# 12. Check reference Golden Pipeline companion for canonical secret path and no docker-compose guidance
+# 13. Check reference Golden Pipeline companion for canonical secret path + pointer-only parity
 if grep -q '`manifests/env.manifest.json`' docs/reference/GOLDEN_PIPELINE.md 2>/dev/null; then
     pass "docs/reference/GOLDEN_PIPELINE.md uses manifests/env.manifest.json"
 else
     fail "docs/reference/GOLDEN_PIPELINE.md must reference manifests/env.manifest.json"
 fi
 
+check_reference_golden_pipeline_pointer_mode
 check_no_pattern "docs/reference/GOLDEN_PIPELINE.md" 'ALWAYS[[:space:]]+use[[:space:]]+`docker-compose`[[:space:]]+\(hyphen\)[[:space:]]+for[[:space:]]+other[[:space:]]+Docker[[:space:]]+management[[:space:]]+commands' \
     "docs/reference/GOLDEN_PIPELINE.md does not prescribe docker-compose"
 check_no_pattern "docs/reference/GOLDEN_PIPELINE.md" '`config/env\.manifest\.json`' \
     "docs/reference/GOLDEN_PIPELINE.md avoids legacy config/env.manifest.json references"
+check_no_pattern "docs/reference/GOLDEN_PIPELINE.md" 'https://domain\.com/api/v1/(health|ready)/|Health check \(15 retries, 5s intervals\)' \
+    "docs/reference/GOLDEN_PIPELINE.md avoids non-canonical reverse-proxy health-check guidance"
 
-# 13. Check rollback script and docs align with non-dev immutable rollback governance
+# 14. Check rollback script and docs align with non-dev immutable rollback governance
 check_pattern ".github/scripts/deployment-rollback.sh" 'BACKEND_IMAGE_REF' \
     "deployment-rollback.sh requires explicit backend immutable refs for non-dev rollback"
 check_pattern ".github/scripts/deployment-rollback.sh" 'FRONTEND_IMAGE_REF' \
