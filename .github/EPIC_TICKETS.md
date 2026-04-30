@@ -17,8 +17,8 @@
 
 ### Epic GA-01 - Day 0 ETL pipeline
 
-- [ ] **GA-01.1 day-0-etl-source-contracts**
-  - **Status:** Ready
+- [x] **GA-01.1 day-0-etl-source-contracts**
+  - **Status:** Shipped (PR #4813)
   - **Why now:** GA is blocked until historical ERP data can enter the Golden Schema without manual re-keying or production side effects.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 14 / Epic 1
   - **Scope:** Inventory the actual legacy source shapes (XLSX/CSV/export files), define the canonical field mapping into Golden Schema headers, mixins, and line items, and create the dry-run/reporting contract for the import path.
@@ -39,7 +39,7 @@
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
 - [ ] **GA-01.2 etl-journal-and-dry-run-engine**
-  - **Status:** Blocked
+  - **Status:** Ready
   - **Why now:** Historical imports need restart-safe journaling and dry-run output before any write-capable importer is safe.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 14 / Epic 1
   - **Scope:** Add the import journal/payload recording layer plus dry-run transformation engine that validates rows, normalizes identifiers, and reports create/update/skip/error counts without firing signals or side effects.
@@ -47,7 +47,7 @@
   - **Primary domain:** backend/data
   - **Likely touched paths:** `backend/apps/core/models.py`, `backend/apps/core/services/etl/`, `backend/apps/core/management/commands/import_golden_legacy_data.py`, new migrations, `backend/apps/core/tests/`
   - **Dependencies:** GA-01.1
-  - **Blockers:** GA-01.1 must define the source-to-schema contract first.
+  - **Blockers:** None
   - **Acceptance criteria:** Dry-run mode produces deterministic journals/reports, does not emit emails/webhooks, and can be rerun safely on the same input set.
   - **Validation commands:** `cd backend && python manage.py test apps.core`; `cd backend && python manage.py makemigrations --check`
   - **Tenant/RLS impact:** High
