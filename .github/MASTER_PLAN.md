@@ -13,6 +13,8 @@ This file is the **append-only PR-referenceable execution log**.
 
 - **2026-04-30** — Golden schema refactor: added shared backend schema primitives (`FinancialTermsMixin`, `LogisticsMixin`, snapshot mixins, `BaseLineItem`), normalized Carrier/Customer/Supplier plus PurchaseOrder/SalesOrder/Invoice/Carrier PO additively, introduced tenant-aware line-item tables with RLS, routed Carrier POs at `/api/v1/carrier-pos/`, and documented the implemented contract in `SCHEMA_VERIFICATION.md`. (PR: #4793)
 
+- **2026-04-30** — Golden AI/UI synchronization: upgraded `DynamicFormEngine` + `UniversalEntityForm` for nested snapshot draft state, transactional autofill resets, and document-driven line-item hydration; added tenant-safe serializer-backed `POST /api/v1/ai-assistant/extract-to-schema/` with strict enum/schema validation plus focused frontend/backend regression coverage; documented the work in `RESEARCH_REPORT.md`, `TECHNICAL_BLUEPRINT.md`, and `VERIFICATION_AUDIT.md`. (PR: #4795)
+
 - **2026-03-31** — WorkForms runtime: Quick Actions workflow items now execute via `/workforms/execute/:id` (not editor). Backend adds `POST /api/v1/tenant-workforms/:id/execute/` to create `TenantWorkFormExecution` and run async via Celery; adds `/api/v1/workflows/workform-executions/` and surfaces active executions in WorkForms Monitoring; Catalog supports deleting draft/archived WorkForms with confirmation. (PR: #4320)
 
 - **2026-03-31** — UniversalEntityForm: purged legacy Plant create/edit forms. Suppliers “+ New Plant” and Plants table “Add/Edit” now route through `EntityFormSurface` → `UniversalEntityForm` (supplier prefill via context). Suppliers can still optionally assign plant products post-create. (PR: #4321)
