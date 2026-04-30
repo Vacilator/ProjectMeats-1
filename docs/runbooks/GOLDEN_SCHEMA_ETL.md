@@ -11,10 +11,16 @@
 3. Example batch manifest fixture for a legacy Excel/CSV bundle.
 4. This runbook, which is the operator/design reference for the next ETL tickets.
 
+## What ships in GA-01.2
+1. Restart-safe ETL journal tables in `backend/apps/core/models.py`.
+2. A dry-run engine that journals row decisions (`would_create`, `would_update`, `would_skip`, `error`) without writing business rows.
+3. Deterministic rerun behavior keyed by tenant + manifest checksum + dry-run options.
+4. Command output that persists batch summaries and row journals for operator review before GA-01.3 introduces write-capable passes.
+
 ## Non-goals
-- No row transforms yet.
-- No bulk writes into business tables yet.
-- No import journal model or reconciliation persistence yet.
+- No write-capable master-data or transactional imports yet.
+- No webhook/email/signal-driven runtime side effects.
+- No Phase 15 partner portal, conversion, or settlement work.
 
 ## Deliverables + expected results
 1. **Deterministic entity order**
@@ -23,9 +29,11 @@
 2. **Canonical Golden field groups**
    - Reusable mapping groups for financial terms, logistics, snapshot fields, and line items mirror the Golden Schema mixins.
 3. **Tenant-explicit batch manifests**
-   - Every ETL batch declares a tenant selector before any future write mode can run.
+    - Every ETL batch declares a tenant selector before any future write mode can run.
 4. **Side-effect suppression contract**
-   - Execute-mode ETL must suppress runtime emails, partner webhooks, notification fan-out, and async sync dispatch.
+    - Execute-mode ETL must suppress runtime emails, partner webhooks, notification fan-out, and async sync dispatch.
+5. **Restart-safe dry-run journals**
+   - Batch-level and row-level journals persist deterministic dry-run classifications so operators can rerun the same manifest safely.
 
 ## Deterministic import order
 ### Master data
@@ -82,6 +90,8 @@ Each legacy import batch must provide a JSON manifest before execute mode is all
 - optional `sheet`
 - optional `notes`
 
+Rows for GA-01.2 dry runs must already use canonical field names that match the Golden Schema ETL contract. Richer source-to-canonical transforms are deferred to GA-01.3/GA-01.4.
+
 ### Example
 ```json
 {
@@ -120,7 +130,38 @@ When execute mode is added, the ETL path must suppress:
 
 The import path should rely on an explicit ETL journal/reconciliation surface instead of normal runtime side effects.
 
-## Planned journal + error report contract (GA-01.2)
+## Dry-run journal contract (GA-01.2)
+### Batch journal model
+- `ETLImportBatch`
+- tenant-aware, restart-safe run header keyed by manifest checksum + dry-run options
+- stores:
+  - manifest payload/checksum
+  - command options
+  - counters (`would_create`, `would_update`, `would_skip`, `error`)
+  - summary payload
+  - resume cursor / checkpoint metadata
+
+### Row journal model
+- `ETLImportRowJournal`
+- one row per source-path + source-sheet + source-row-number within a batch
+- stores:
+  - `source_identifier`
+  - `normalized_lookup_key`
+  - `planned_action`
+  - `target_model`
+  - `target_identifier`
+  - `error_code`
+  - `error_message`
+  - `raw_payload`
+  - `normalized_payload`
+  - `warnings`
+
+### Dry-run execution rules
+1. Resolve the tenant from the manifest, then run all tenant-aware ORM under `tenant_rls(...)`.
+2. Persist only ETL journal tables; do not create or update supplier/customer/order/invoice rows.
+3. Re-running the same manifest for the same tenant must reuse the existing batch and upsert the same row journals instead of duplicating them.
+
+## Planned journal + error report contract
 ### Import journal fields
 - `batch_id`
 - `batch_name`
@@ -153,7 +194,7 @@ The import path should rely on an explicit ETL journal/reconciliation surface in
 
 ## Dependencies
 1. GA-01.1 defines the contract only.
-2. GA-01.2 should add journal storage + dry-run transforms.
+2. GA-01.2 adds journal storage + dry-run transforms.
 3. GA-01.3 should add write-capable master-data import.
 4. GA-01.4 should add transactional import + reconciliation output.
 
@@ -168,7 +209,7 @@ The import path should rely on an explicit ETL journal/reconciliation surface in
 ## Testing strategy
 1. `bash scripts/verify_golden_state.sh`
 2. `bash .github/scripts/check_infrastructure.sh`
-3. `cd backend && python manage.py test apps.core apps.tenants`
+3. `cd backend && python manage.py test apps.core.tests.test_golden_schema_etl_contracts apps.core.tests.test_golden_schema_etl_journal apps.core.tests.test_import_golden_legacy_data_command --verbosity 2`
 4. `cd backend && python manage.py makemigrations --check`
 
 ## Rollback / safe-change approach

@@ -1,0 +1,17 @@
+[
+  {
+    "name": "Existing Supplier",
+    "email": "existing-supplier@example.com",
+    "phone": "5551112222"
+  },
+  {
+    "name": "Update Supplier",
+    "email": "update-supplier@example.com",
+    "phone": "5559990000"
+  },
+  {
+    "name": "New Supplier",
+    "email": "new-supplier@example.com",
+    "phone": "5552223333"
+  }
+]

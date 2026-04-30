@@ -86,10 +86,10 @@ ERROR_REPORT_FIELDS = (
 
 NEXT_PHASE_FILES = (
     "backend/apps/core/services/etl/journal.py",
-    "backend/apps/core/services/etl/transformers.py",
-    "backend/apps/core/services/etl/importers.py",
+    "backend/apps/core/services/etl/runtime.py",
+    "backend/apps/core/services/etl/engine.py",
     "backend/apps/core/management/commands/import_golden_legacy_data.py",
-    "backend/apps/core/tests/test_golden_schema_etl_contracts.py",
+    "backend/apps/core/tests/test_golden_schema_etl_journal.py",
 )
 
 CANONICAL_FIELD_GROUPS: dict[str, tuple[str, ...]] = {
@@ -308,7 +308,7 @@ ENTITY_CONTRACTS: dict[str, EntityContract] = {
     "products": EntityContract(
         entity="products",
         phase="master_data",
-        target_model="apps.system.models.Product",
+        target_model="tenant_apps.products.models.MasterProduct",
         canonical_fields=(
             "product_code",
             "name",

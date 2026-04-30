@@ -1,0 +1,17 @@
+{
+  "batch_name": "acme-dry-run",
+  "source_system": "legacy_json_bundle",
+  "tenant_slug": "acme-meats",
+  "sources": [
+    {
+      "entity": "suppliers",
+      "format": "json",
+      "path": "supplier_rows.json"
+    },
+    {
+      "entity": "customers",
+      "format": "json",
+      "path": "customer_rows.json"
+    }
+  ]
+}

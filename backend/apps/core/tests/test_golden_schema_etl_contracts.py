@@ -23,6 +23,9 @@ from apps.tenants.models import Tenant
 FIXTURE_PATH = (
     Path(__file__).resolve().parent / "fixtures" / "etl" / "legacy_batch_manifest.json"
 )
+DRY_RUN_FIXTURE_PATH = (
+    Path(__file__).resolve().parent / "fixtures" / "etl" / "dry_run_manifest.json"
+)
 
 
 class GoldenSchemaETLContractTests(TestCase):
@@ -90,12 +93,13 @@ class GoldenSchemaETLContractTests(TestCase):
         call_command(
             "import_golden_legacy_data",
             "--manifest",
-            str(FIXTURE_PATH),
+            str(DRY_RUN_FIXTURE_PATH),
             stdout=out,
         )
 
         rendered = out.getvalue()
-        self.assertIn("Golden Schema ETL Contract Preview", rendered)
+        self.assertIn("Golden Schema ETL Dry Run", rendered)
         self.assertIn("Tenant: acme-meats", rendered)
-        self.assertIn("1. locations -> tenant_apps.locations.models.Location", rendered)
+        self.assertIn("1. suppliers -> tenant_apps.suppliers.models.Supplier", rendered)
         self.assertIn("Side effects to suppress", rendered)
+        self.assertIn("Dry-run summary", rendered)
