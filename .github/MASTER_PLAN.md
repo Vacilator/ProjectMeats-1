@@ -11,6 +11,8 @@ This file is the **append-only PR-referenceable execution log**.
 
 ## Operational Notes
 
+- **2026-04-30** — **HOTFIX**: locked entity create/edit flows behind a smart-loader boundary to eliminate React Error #185 refetch cascades. `EntityFormSurface` now preloads schema, record data, dropdown dictionaries, form config, and AI document inputs before mounting the pure `UniversalEntityForm`; `DynamicFormEngine` now resolves dependent options in memory from preloaded dictionaries. Added focused frontend regression coverage and documented the release in `VERIFICATION_AUDIT.md`. (PR: #4797)
+
 - **2026-04-30** — Golden schema refactor: added shared backend schema primitives (`FinancialTermsMixin`, `LogisticsMixin`, snapshot mixins, `BaseLineItem`), normalized Carrier/Customer/Supplier plus PurchaseOrder/SalesOrder/Invoice/Carrier PO additively, introduced tenant-aware line-item tables with RLS, routed Carrier POs at `/api/v1/carrier-pos/`, and documented the implemented contract in `SCHEMA_VERIFICATION.md`. (PR: #4793)
 
 - **2026-04-30** — Golden AI/UI synchronization: upgraded `DynamicFormEngine` + `UniversalEntityForm` for nested snapshot draft state, transactional autofill resets, and document-driven line-item hydration; added tenant-safe serializer-backed `POST /api/v1/ai-assistant/extract-to-schema/` with strict enum/schema validation plus focused frontend/backend regression coverage; documented the work in `RESEARCH_REPORT.md`, `TECHNICAL_BLUEPRINT.md`, and `VERIFICATION_AUDIT.md`. (PR: #4795)
