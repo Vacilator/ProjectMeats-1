@@ -1,11 +1,6 @@
 name: Auto Promote UAT → Main
 
-run-name: >-
-  ${{
-    github.event_name == 'workflow_run'
-      && format('Auto-Promote: uat → main ({0})', github.event.workflow_run.head_sha)
-      || 'Auto-Promote: uat → main'
-  }}
+run-name: "🔁 Promote uat → main"
 
 on:
   workflow_run:
