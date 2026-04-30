@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { ApiService } from '../services/ApiService';
+import { getApiErrorPresentation } from '../services/apiErrorPresentation';
 import { RootStackParamList, GuestSession } from '../types';
 
 type GuestLoginNavigationProp = StackNavigationProp<RootStackParamList, 'Guest'>;
@@ -30,13 +31,16 @@ export default function GuestLoginScreen({ navigation, onGuestLogin }: Props) {
       // Backend endpoint does not accept tenant slug/access code; it logs into a configured guest tenant.
       const session = await ApiService.guestLogin();
       await onGuestLogin(session);
-    } catch (error: any) {
+    } catch (error) {
+      const presentation = getApiErrorPresentation(error, {
+        fallbackMessage: 'Unable to start guest session. Please try again.',
+      });
       const message =
-        error.response?.status === 404
+        presentation.status === 404
           ? 'Guest account is not configured on the server.'
-          : error.response?.status === 503
+          : presentation.status === 503
           ? 'Guest access is temporarily unavailable.'
-          : 'Unable to start guest session. Please try again.';
+          : presentation.friendlyMessage;
       Alert.alert('Access Denied', message);
     } finally {
       setLoading(false);

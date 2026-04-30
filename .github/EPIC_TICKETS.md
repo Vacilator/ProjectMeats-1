@@ -271,8 +271,8 @@
   - **Rollback:** Keep behavior behind additive extraction boundaries and revert the extraction if editor regressions appear.
   - **Completion evidence destination:** shipped in `.github/MASTER_PLAN.md` (PR: #4782)
 
-- [ ] **EH-04.4 mobile-auth-and-tenant-parity**
-  - **Status:** Ready
+- [x] **EH-04.4 mobile-auth-and-tenant-parity**
+  - **Status:** Done
   - **Why now:** `MASTER_PLAN.md` still lists mobile parity as the next active follow-up after the shipped foundations, specifically calling out switch-tenant persistence, consistent error normalization, and auth-expiry/401 behavior parity.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Mobile parity (next) + Phase 12
   - **Scope:** Bring the mobile client onto the same tenant-persistence and auth/error-handling expectations as the web client by tightening tenant storage/application, normalizing API error handling, and making auth-expiry behavior explicit and test-covered.
@@ -290,7 +290,7 @@
   - **Secrets/infra impact:** None
   - **Risk level:** Medium
   - **Rollback:** Keep the parity changes isolated to the mobile service/session layer so the app can revert to the previous tenant/error handling path if a release regression appears.
-  - **Completion evidence destination:** `.github/MASTER_PLAN.md`
+  - **Completion evidence destination:** shipped in `.github/MASTER_PLAN.md` (PR: #4804)
 
 ### Epic EH-05 - Runtime / ops reliability
 

@@ -13,6 +13,7 @@ import { StackNavigationProp } from '@react-navigation/stack';
 import { RouteProp } from '@react-navigation/native';
 
 import { ApiService } from '../services/ApiService';
+import { toApiErrorText } from '../services/apiErrorPresentation';
 import { RootStackParamList, WorkForm, WorkflowDefinition } from '../types';
 
 type WorkFormDetailNavigationProp = StackNavigationProp<RootStackParamList, 'WorkFormDetail'>;
@@ -99,8 +100,12 @@ export default function WorkFormDetailScreen({ navigation, route }: Props) {
       try {
         const detail = await ApiService.getWorkForm(id);
         setForm(detail);
-      } catch {
-        setError('Unable to load workform details.');
+      } catch (error) {
+        setError(
+          toApiErrorText(error, {
+            fallbackMessage: 'Unable to load workform details.',
+          })
+        );
       } finally {
         setLoading(false);
         setRefreshing(false);
@@ -128,8 +133,13 @@ export default function WorkFormDetailScreen({ navigation, route }: Props) {
       const execution = await ApiService.executeWorkForm(id, {});
       Alert.alert('Execution started', `Execution ID: ${execution.id}`);
       await load(true);
-    } catch {
-      Alert.alert('Error', 'Unable to start WorkForm execution. Please try again.');
+    } catch (error) {
+      Alert.alert(
+        'Error',
+        toApiErrorText(error, {
+          fallbackMessage: 'Unable to start WorkForm execution. Please try again.',
+        })
+      );
     } finally {
       setExecuting(false);
     }

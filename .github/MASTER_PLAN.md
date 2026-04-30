@@ -1837,3 +1837,4 @@ Deliverables:
 - **2026-04-28** — [COMPLETED] Deal Desk Dashboard: added the `/deals` trader ledger page with spreadsheet-dense columns, next-action visibility, and past-due follow-up highlighting.
 
 - **2026-04-30** — Docs/backlog reconciliation: removed stale “next-ready” backlog placeholders that were already covered by shipped evidence (`always-on endpoint smoke coverage` in PR #4752 and choice-viewset `is_staff` hardening in PR #4758) and set `EH-04.4 mobile-auth-and-tenant-parity` as the first real ready continuation ticket under Mobile parity.
+- **2026-04-30** — Mobile parity: hardened mobile auth and tenant parity by validating persisted tenant rehydration, centralizing mobile API error presentation, adding non-auth 401 session-expiry handling in the app shell, and updating auth/tenant/workform screens plus tests to use the normalized path. (PR: #4804)

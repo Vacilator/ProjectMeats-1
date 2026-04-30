@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { ApiService } from '../services/ApiService';
+import { toApiErrorText } from '../services/apiErrorPresentation';
 import { RootStackParamList, User, UserTenant, Tenant } from '../types';
 
 type TenantsScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Tenants'>;
@@ -54,9 +55,11 @@ export default function TenantsScreen({ navigation, user, onTenantSelect, onLogo
     try {
       const userTenants = await ApiService.getMyTenants();
       setTenants(userTenants);
-    } catch (error: any) {
-      console.error('Error loading tenants:', error);
-      Alert.alert('Error', 'Failed to load tenants');
+    } catch (error) {
+      Alert.alert(
+        'Error',
+        toApiErrorText(error, { fallbackMessage: 'Failed to load tenants' })
+      );
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -68,9 +71,13 @@ export default function TenantsScreen({ navigation, user, onTenantSelect, onLogo
       // Get full tenant details
       const tenant = await ApiService.getTenant(userTenant.tenant_id);
       onTenantSelect(tenant);
-    } catch (error: any) {
-      console.error('Error loading tenant details:', error);
-      Alert.alert('Error', 'Failed to load tenant details');
+    } catch (error) {
+      Alert.alert(
+        'Error',
+        toApiErrorText(error, {
+          fallbackMessage: 'Failed to load tenant details',
+        })
+      );
     }
   };
 

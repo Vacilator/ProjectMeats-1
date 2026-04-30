@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { ApiService } from '../services/ApiService';
+import { toApiErrorText } from '../services/apiErrorPresentation';
 import { RootStackParamList, WorkForm, Tenant, User, GuestUser } from '../types';
 
 type WorkFormsScreenNavigationProp = StackNavigationProp<RootStackParamList, 'WorkForms'>;
@@ -80,9 +81,14 @@ export default function WorkFormsScreen({ navigation, tenant, user, isGuest = fa
     try {
       const response = await ApiService.getWorkForms();
       setForms(response.results);
-    } catch {
+    } catch (error) {
       if (!isRefresh) {
-        Alert.alert('Error', 'Unable to load workforms. Please try again.');
+        Alert.alert(
+          'Error',
+          toApiErrorText(error, {
+            fallbackMessage: 'Unable to load workforms. Please try again.',
+          })
+        );
       }
     } finally {
       setLoading(false);
