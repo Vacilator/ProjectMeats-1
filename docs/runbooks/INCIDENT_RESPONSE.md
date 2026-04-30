@@ -125,6 +125,7 @@ docker run -d --name pm-backend \
 
 UAT/Production migrations create backups under `/root/projectmeats/db_backups/<environment>/`.
 If schema changes caused the incident, restore the matching backup before reintroducing traffic.
+Use `docs/runbooks/DISASTER_RECOVERY.md` for the full restore drill and provider PITR verification checklist.
 
 ## Communication
 - S1/S2: notify stakeholders immediately with:

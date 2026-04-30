@@ -241,6 +241,21 @@ check_pattern "manifests/GOLDEN_FILES.md" 'Rollback automation' \
     "GOLDEN_FILES.md registers rollback automation as an authoritative source"
 check_pattern "manifests/GOLDEN_FILES.md" 'Non-dev observability ownership' \
     "GOLDEN_FILES.md registers non-dev observability ownership"
+check_file_exists "docs/runbooks/DISASTER_RECOVERY.md" "docs/runbooks/DISASTER_RECOVERY.md exists"
+check_pattern "manifests/GOLDEN_FILES.md" 'Disaster recovery' \
+    "GOLDEN_FILES.md registers disaster recovery as an authoritative source"
+check_pattern "docs/GOLDEN_PIPELINE.md" 'DISASTER_RECOVERY\.md' \
+    "docs/GOLDEN_PIPELINE.md links to the disaster recovery runbook"
+check_pattern "docs/runbooks/INCIDENT_RESPONSE.md" 'DISASTER_RECOVERY\.md' \
+    "INCIDENT_RESPONSE.md links to the disaster recovery runbook"
+check_pattern ".github/workflows/reusable-deploy.yml" 'pg_restore --list' \
+    "reusable-deploy.yml verifies backup archives with pg_restore --list"
+check_no_pattern "docs/guides/DATABASE_SYNC_GUIDE.md" 'PROD_DB_|UAT_DB_|prod-backend' \
+    "DATABASE_SYNC_GUIDE.md uses manifest-defined DB_* secrets and canonical environment lanes"
+check_no_pattern ".github/workflows/99-ops-management-command.yml" 'environment:[[:space:]]+\$\{\{ inputs\.environment \}\}-backend' \
+    "99-ops-management-command.yml must map prod to production-backend explicitly"
+check_no_pattern ".github/workflows/98-ops-db-surgery.yml" 'environment:[[:space:]]+\$\{\{ inputs\.environment \}\}-backend' \
+    "98-ops-db-surgery.yml must map prod to production-backend explicitly"
 
 # 15. Check GA-02.1 desired-state scaffold exists and is registered
 check_file_exists "deploy/terraform/README.md" "deploy/terraform/README.md exists"

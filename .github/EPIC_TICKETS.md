@@ -112,8 +112,8 @@
   - **Rollback:** Revert IaC/docs scaffolding only; do not change live infrastructure until follow-up tickets land.
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
-- [ ] **GA-02.2 postgres-pitr-verification-and-restore-drill**
-  - **Status:** Ready
+- [x] **GA-02.2 postgres-pitr-verification-and-restore-drill**
+  - **Status:** Shipped (PR #4819)
   - **Why now:** Pre-migration backups exist, but GA needs provable PITR/restore capability rather than ad hoc dump retention.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 14 / Epic 2
   - **Scope:** Add PITR validation and a restore-drill runbook/workflow that verifies backups can be restored safely and documents RPO/RTO expectations.
@@ -131,15 +131,15 @@
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
 - [ ] **GA-02.3 celery-worker-scaling-envelope**
-  - **Status:** Blocked
+  - **Status:** Ready
   - **Why now:** Launch traffic and new async workloads need bounded worker concurrency/autoscaling guidance before queues back up under real tenants.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 14 / Epic 2
   - **Scope:** Define and enforce Celery worker scaling envelopes, queue priorities, and saturation guardrails for email ingestion, workform execution, AI processing, and future ETL/import jobs.
   - **Non-goals:** No new async product features.
   - **Primary domain:** backend/ops
   - **Likely touched paths:** `backend/projectmeats/settings/base.py`, `backend/projectmeats/celery.py`, `backend/apps/{integrations,system,core}/tasks.py`, `docs/runbooks/DISASTER_RECOVERY.md`, `deploy/terraform/`
-  - **Dependencies:** GA-02.1
-  - **Blockers:** GA-02.1
+  - **Dependencies:** GA-02.2
+  - **Blockers:** None
   - **Acceptance criteria:** Worker concurrency/autoscale settings are explicit per workload class, queue backlog thresholds are documented, and task execution stays tenant-safe under worker reuse.
   - **Validation commands:** `cd backend && python manage.py test apps.integrations apps.system`; `bash .github/scripts/check_infrastructure.sh`
   - **Tenant/RLS impact:** High in worker contexts
