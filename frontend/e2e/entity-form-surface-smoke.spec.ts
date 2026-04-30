@@ -2,6 +2,17 @@ import { expect, test } from '@playwright/test';
 
 const TENANT_ID = '11111111-1111-1111-1111-111111111111';
 
+const isFatalReactRuntimeMessage = (message: string): boolean => {
+  const normalized = message.toLowerCase();
+
+  return (
+    normalized.includes('minified react error') ||
+    normalized.includes('maximum update depth exceeded') ||
+    normalized.includes('react error #185') ||
+    normalized.includes('error #185')
+  );
+};
+
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(({ tenantId }) => {
     window.localStorage.setItem('authToken', 'playwright-legacy-token');
@@ -131,9 +142,23 @@ test.beforeEach(async ({ page }) => {
 test('renders the plant edit form in production preview without hitting max update depth', async ({
   page,
 }) => {
-  const pageErrors: string[] = [];
+  const fatalBrowserErrors: string[] = [];
+
+  page.on('console', (msg) => {
+    if (msg.type() !== 'error') {
+      return;
+    }
+
+    const message = msg.text();
+    if (isFatalReactRuntimeMessage(message)) {
+      fatalBrowserErrors.push(`console.error: ${message}`);
+    }
+  });
+
   page.on('pageerror', (error) => {
-    pageErrors.push(error.message);
+    if (isFatalReactRuntimeMessage(error.message)) {
+      fatalBrowserErrors.push(`pageerror: ${error.message}`);
+    }
   });
 
   await page.goto('/diagnostics/entity-form-surface-smoke');
@@ -144,9 +169,15 @@ test('renders the plant edit form in production preview without hitting max upda
   await expect(page.getByText('Customer')).toBeVisible();
   await expect(page.getByTestId('entity-form-loading')).toHaveCount(0);
 
-  await page.waitForTimeout(1000);
+  const customerSelect = page.locator('.ant-select').first();
+  await customerSelect.click();
+  const customerOption = page
+    .locator('.ant-select-dropdown .ant-select-item-option-content')
+    .filter({ hasText: 'Acme Foods' });
+  await expect(customerOption).toBeVisible();
+  await customerOption.click();
 
-  expect(
-    pageErrors.filter((message) => message.toLowerCase().includes('maximum update depth exceeded'))
-  ).toEqual([]);
+  await page.waitForTimeout(3000);
+
+  expect(fatalBrowserErrors).toEqual([]);
 });

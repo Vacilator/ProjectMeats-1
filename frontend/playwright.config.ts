@@ -43,8 +43,8 @@ export default defineConfig({
     /* Base URL to use in actions like `await page.goto('/')`. */
     baseURL,
     
-    /* Collect trace when retrying the failed test. */
-    trace: 'on-first-retry',
+    /* Preserve trace artifacts whenever a test fails in CI or local repro. */
+    trace: 'retain-on-failure',
     
     /* Screenshot on failure */
     screenshot: 'only-on-failure',
