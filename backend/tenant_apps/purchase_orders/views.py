@@ -9,8 +9,9 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.exceptions import ValidationError as DRFValidationError
 from django.core.exceptions import ValidationError
-from tenant_apps.purchase_orders.models import PurchaseOrder, PurchaseOrderHistory
+from tenant_apps.purchase_orders.models import CarrierPurchaseOrder, PurchaseOrder, PurchaseOrderHistory
 from tenant_apps.purchase_orders.serializers import (
+    CarrierPurchaseOrderSerializer,
     PurchaseOrderSerializer,
     PurchaseOrderHistorySerializer,
 )
@@ -170,3 +171,31 @@ class PurchaseOrderViewSet(CsvExportMixin, viewsets.ModelViewSet):
 
         serializer = PurchaseOrderHistorySerializer(history_entries, many=True)
         return Response(serializer.data)
+
+
+class CarrierPurchaseOrderViewSet(viewsets.ModelViewSet):
+    """ViewSet for managing canonical Carrier PO / freight orders."""
+
+    queryset = CarrierPurchaseOrder.objects.all()
+    serializer_class = CarrierPurchaseOrderSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        tenant = getattr(self.request, "tenant", None)
+        if not tenant:
+            return CarrierPurchaseOrder.objects.none()
+        return CarrierPurchaseOrder.objects.for_tenant(tenant).select_related(
+            "carrier",
+            "supplier",
+            "linked_order",
+            "sales_order",
+            "pick_up_location",
+            "delivery_location",
+            "product",
+        )
+
+    def perform_create(self, serializer):
+        tenant = getattr(self.request, "tenant", None)
+        if not tenant:
+            raise DRFValidationError("Tenant context is required to create a carrier PO.")
+        serializer.save(tenant=tenant)

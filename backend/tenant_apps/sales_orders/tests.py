@@ -6,7 +6,7 @@ Uses shared-schema multi-tenancy with tenant ForeignKey isolation.
 import uuid
 from django.test import TestCase
 from django.contrib.auth.models import User
-from tenant_apps.sales_orders.models import SalesOrder, SalesOrderStatus
+from tenant_apps.sales_orders.models import SalesOrder, SalesOrderItem, SalesOrderStatus
 from tenant_apps.suppliers.models import Supplier
 from tenant_apps.customers.models import Customer
 from apps.tenants.models import Tenant, TenantUser
@@ -125,3 +125,34 @@ class SalesOrderModelTest(TestCase):
         self.assertIn(so1, tenant1_orders)
         self.assertNotIn(so2, tenant1_orders)
 
+    def test_sales_order_alias_fields_sync(self):
+        """Canonical customer-facing aliases sync with legacy fields."""
+        unique_id = uuid.uuid4().hex[:8]
+        sales_order = SalesOrder.objects.create(
+            our_sales_order_number_for_customer=f"SO-CANON-{unique_id}",
+            delivery_po_number=f"DPO-{unique_id}",
+            supplier=self.supplier,
+            customer=self.customer,
+            tenant=self.tenant,
+        )
+
+        self.assertEqual(sales_order.our_sales_order_num, f"SO-CANON-{unique_id}")
+        self.assertEqual(sales_order.delivery_po_num, f"DPO-{unique_id}")
+
+    def test_sales_order_item_inherits_tenant(self):
+        """Sales order items inherit their parent tenant."""
+        unique_id = uuid.uuid4().hex[:8]
+        sales_order = SalesOrder.objects.create(
+            our_sales_order_num=f"SO-{unique_id}",
+            supplier=self.supplier,
+            customer=self.customer,
+            tenant=self.tenant,
+        )
+
+        item = SalesOrderItem.objects.create(
+            sales_order=sales_order,
+            quantity=4,
+        )
+
+        self.assertEqual(item.tenant, self.tenant)
+        self.assertEqual(item.sales_order, sales_order)

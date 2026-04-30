@@ -15,6 +15,16 @@ from apps.core.models import (
     TenantAwareModel,
     WeightUnitChoices,
 )
+from apps.core.model_mixins import (
+    AccountsPayableContactSnapshotMixin,
+    BaseLineItem,
+    BillingAddressSnapshotMixin,
+    BillingContactSnapshotMixin,
+    LogisticsMixin,
+    ShippingAddressSnapshotMixin,
+    ShippingContactSnapshotMixin,
+    sync_alias_pair,
+)
 
 
 class InvoiceStatus(models.TextChoices):
@@ -35,7 +45,16 @@ class PaymentStatus(models.TextChoices):
     PAID = "paid", "Paid"
 
 
-class Invoice(SoftDeleteModel, TenantAwareModel):
+class Invoice(
+    AccountsPayableContactSnapshotMixin,
+    BillingContactSnapshotMixin,
+    BillingAddressSnapshotMixin,
+    ShippingContactSnapshotMixin,
+    ShippingAddressSnapshotMixin,
+    LogisticsMixin,
+    SoftDeleteModel,
+    TenantAwareModel,
+):
     """Invoice model for customer invoices."""
 
     # Invoice identification
@@ -75,17 +94,6 @@ class Invoice(SoftDeleteModel, TenantAwareModel):
         help_text="Product being invoiced",
     )
     
-    # Dates
-    pick_up_date = models.DateField(
-        blank=True,
-        null=True,
-        help_text="Pick up date",
-    )
-    delivery_date = models.DateField(
-        blank=True,
-        null=True,
-        help_text="Delivery date",
-    )
     due_date = models.DateField(
         blank=True,
         null=True,
@@ -99,11 +107,23 @@ class Invoice(SoftDeleteModel, TenantAwareModel):
         default='',
         help_text="Our sales order number",
     )
+    our_sales_order_number_for_customer = models.CharField(
+        max_length=100,
+        blank=True,
+        default="",
+        help_text="Canonical customer-facing sales order number.",
+    )
     delivery_po_num = models.CharField(
         max_length=100,
         blank=True,
         default='',
         help_text="Delivery PO number",
+    )
+    delivery_po_number = models.CharField(
+        max_length=100,
+        blank=True,
+        default="",
+        help_text="Canonical delivery PO number.",
     )
     payment_terms = models.CharField(
         max_length=50,
@@ -111,25 +131,6 @@ class Invoice(SoftDeleteModel, TenantAwareModel):
         blank=True,
         default='',
         help_text="Payment terms (e.g., Wire, ACH, Check)",
-    )
-    
-    # Contact information
-    accounting_payable_contact_name = models.CharField(
-        max_length=255,
-        blank=True,
-        default='',
-        help_text="Accounting payable contact name",
-    )
-    accounting_payable_contact_phone = models.CharField(
-        max_length=20,
-        blank=True,
-        default='',
-        help_text="Accounting payable contact phone",
-    )
-    accounting_payable_contact_email = models.EmailField(
-        blank=True,
-        default='',
-        help_text="Accounting payable contact email",
     )
     
     # Product details
@@ -239,6 +240,36 @@ class Invoice(SoftDeleteModel, TenantAwareModel):
 
     def __str__(self):
         return f"INV-{self.invoice_number}"
+
+    def save(self, *args, **kwargs):
+        sync_alias_pair(self, "our_sales_order_number_for_customer", "our_sales_order_num")
+        sync_alias_pair(self, "delivery_po_number", "delivery_po_num")
+        super().save(*args, **kwargs)
+
+
+class InvoiceItem(BaseLineItem):
+    """Tenant-aware invoice line item."""
+
+    invoice = models.ForeignKey(
+        Invoice,
+        on_delete=models.CASCADE,
+        related_name="items",
+    )
+    line_number = models.PositiveIntegerField(default=1)
+    unit_price = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
+    line_total = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
+    notes = models.TextField(blank=True, default="")
+
+    class Meta:
+        ordering = ["invoice_id", "line_number", "created_on"]
+        indexes = [
+            models.Index(fields=["tenant", "invoice"]),
+        ]
+
+    def save(self, *args, **kwargs):
+        if self.invoice_id and not self.tenant_id:
+            self.tenant = self.invoice.tenant
+        super().save(*args, **kwargs)
 
 
 class ClaimType(models.TextChoices):
