@@ -271,6 +271,27 @@
   - **Rollback:** Keep behavior behind additive extraction boundaries and revert the extraction if editor regressions appear.
   - **Completion evidence destination:** shipped in `.github/MASTER_PLAN.md` (PR: #4782)
 
+- [ ] **EH-04.4 mobile-auth-and-tenant-parity**
+  - **Status:** Ready
+  - **Why now:** `MASTER_PLAN.md` still lists mobile parity as the next active follow-up after the shipped foundations, specifically calling out switch-tenant persistence, consistent error normalization, and auth-expiry/401 behavior parity.
+  - **Canonical source reference:** `MASTER_PLAN.md` -> Mobile parity (next) + Phase 12
+  - **Scope:** Bring the mobile client onto the same tenant-persistence and auth/error-handling expectations as the web client by tightening tenant storage/application, normalizing API error handling, and making auth-expiry behavior explicit and test-covered.
+  - **Non-goals:** No mobile UI redesign, no backend contract changes, and no unrelated navigation refactor.
+  - **Primary domain:** mobile
+  - **Likely touched paths:** `mobile/src/services/ApiService.ts`, `mobile/src/utils/tenantStorage.ts`, `mobile/src/screens/TenantsScreen.tsx`, `mobile/src/screens/LoginScreen.tsx`, `mobile/src/__tests__/ApiService.test.ts`, `mobile/src/__tests__/tenantStorage.test.ts`
+  - **Dependencies:** EH-03.2
+  - **Blockers:** None
+  - **Acceptance criteria:**
+    1. Switching tenants persists and reapplies the active tenant context for subsequent mobile API requests.
+    2. Mobile error handling normalizes backend auth/API failure envelopes into one deterministic client path instead of ad hoc console-only handling.
+    3. Expired-auth/401 behavior is explicit, consistent, and covered by automated mobile tests.
+  - **Validation commands:** `npm -C mobile run type-check`; `npm -C mobile run test`
+  - **Tenant/RLS impact:** Medium; the tenant header/application path is part of the client trust boundary.
+  - **Secrets/infra impact:** None
+  - **Risk level:** Medium
+  - **Rollback:** Keep the parity changes isolated to the mobile service/session layer so the app can revert to the previous tenant/error handling path if a release regression appears.
+  - **Completion evidence destination:** `.github/MASTER_PLAN.md`
+
 ### Epic EH-05 - Runtime / ops reliability
 
 - [x] **EH-05.1 non-dev-redis-readiness-gate**
@@ -327,29 +348,6 @@
   - **Secrets/infra impact:** Medium
   - **Risk level:** Medium
   - **Rollback:** Revert the rollback-script/doc/validator updates if they diverge from validated rollout behavior.
-  - **Completion evidence destination:** `.github/MASTER_PLAN.md`
-
-### Epic EH-07 - Core API reliability continuation
-
-- [ ] **EH-07.1 always-on-endpoint-smoke-gates**
-  - **Status:** Ready
-  - **Why now:** `MASTER_PLAN.md` still calls out always-on endpoint smoke coverage as the next Core API reliability step, and the PR gate should prove health, tenant resolution, and auth-bootstrap surfaces stay alive as the platform hardening work continues.
-  - **Canonical source reference:** `MASTER_PLAN.md` -> Core API reliability (next) + Phase 12
-  - **Scope:** Expand backend smoke/regression coverage for always-on endpoints (health, tenant resolution, auth bootstrap/session bootstrap) and wire the resulting signal into the existing PR validation path if it is not already covered.
-  - **Non-goals:** No broad auth rewrite, no frontend changes, and no unrelated API contract expansion.
-  - **Primary domain:** backend/tests
-  - **Likely touched paths:** `backend/apps/core/tests/test_health.py`, `backend/apps/system/tests/test_get_request_tenant_resolution.py`, `backend/apps/tenants/test_session_auth_host_membership_enforcement.py`, any new focused smoke test module, and the existing PR validation workflow only if a gate needs to be tightened
-  - **Dependencies:** EH-00.1
-  - **Blockers:** None
-  - **Acceptance criteria:**
-    1. Health and tenant-resolution smoke coverage explicitly protects the always-on backend surfaces named in `MASTER_PLAN.md`.
-    2. Auth/session bootstrap behavior has a focused regression assertion in the touched smoke suite.
-    3. The validation path that guards these checks in PRs is explicit and documented by the ticket changes.
-  - **Validation commands:** `cd backend && python manage.py test apps.core.tests.test_health apps.system.tests.test_get_request_tenant_resolution apps.tenants.test_session_auth_host_membership_enforcement`; `bash scripts/verify_golden_state.sh`
-  - **Tenant/RLS impact:** Medium; tenant resolution is part of the guarded always-on path.
-  - **Secrets/infra impact:** None
-  - **Risk level:** Medium
-  - **Rollback:** Revert the focused smoke tests and any PR-gate tightening together if the new coverage proves noisy or targets the wrong bootstrap surface.
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
 ## Phase 13 - Next-Gen AI & Automation

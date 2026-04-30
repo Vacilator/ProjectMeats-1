@@ -1835,3 +1835,5 @@ Deliverables:
 - **2026-04-28** — [COMPLETED] Unified Trade Abstraction: added tenant-safe `deals` APIs with `Deal` + `DealActionItem` models linking purchase orders, sales orders, and fulfillments while exposing live revenue/COGS/freight/net-margin calculations for trader dashboards.
 - **2026-04-28** — [COMPLETED] Document State Machine: extended fulfillments with `freight_cost` and `document_milestones`, then auto-created follow-up reminder items when a linked load transitions into shipped/in-transit status.
 - **2026-04-28** — [COMPLETED] Deal Desk Dashboard: added the `/deals` trader ledger page with spreadsheet-dense columns, next-action visibility, and past-due follow-up highlighting.
+
+- **2026-04-30** — Docs/backlog reconciliation: removed stale “next-ready” backlog placeholders that were already covered by shipped evidence (`always-on endpoint smoke coverage` in PR #4752 and choice-viewset `is_staff` hardening in PR #4758) and set `EH-04.4 mobile-auth-and-tenant-parity` as the first real ready continuation ticket under Mobile parity.
