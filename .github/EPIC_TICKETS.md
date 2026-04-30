@@ -312,7 +312,7 @@
   - **Secrets/infra impact:** None
   - **Risk level:** High
   - **Rollback:** Revert the FlowEditor persistence canonicalization as one unit while keeping backward-compatible dual-model readers intact if downstream compatibility regressions appear.
-  - **Completion evidence destination:** shipped in `.github/MASTER_PLAN.md`
+  - **Completion evidence destination:** shipped in `.github/MASTER_PLAN.md` (PR: #4806)
 
 ### Epic EH-05 - Runtime / ops reliability
 
