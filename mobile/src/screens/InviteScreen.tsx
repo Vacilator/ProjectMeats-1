@@ -14,6 +14,7 @@ import {
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RouteProp } from '@react-navigation/native';
 import { ApiService } from '../services/ApiService';
+import { getApiErrorPresentation, toApiErrorText } from '../services/apiErrorPresentation';
 import { RootStackParamList, TenantInvite, User } from '../types';
 
 type InviteScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Invite'>;
@@ -51,15 +52,15 @@ export default function InviteScreen({ navigation, route, onInviteAccepted }: Pr
       // Suggest a username derived from the invited email.
       const suggestion = result.email.includes('@') ? result.email.split('@')[0] : result.email;
       setUsername(suggestion);
-    } catch (error: any) {
-      const apiMessage = error.response?.data?.error;
+    } catch (error) {
+      const presentation = getApiErrorPresentation(error, {
+        fallbackMessage: 'Unable to validate invite. Please try again.',
+      });
       Alert.alert(
         'Invalid Invite',
-        error.response?.status === 404
+        presentation.status === 404
           ? 'This invite token was not found. Please check the link or code and try again.'
-          : apiMessage
-          ? String(apiMessage)
-          : 'Unable to validate invite. Please try again.'
+          : presentation.friendlyMessage
       );
     } finally {
       setValidating(false);
@@ -95,14 +96,13 @@ export default function InviteScreen({ navigation, route, onInviteAccepted }: Pr
         last_name: lastName.trim() || undefined,
       });
       onInviteAccepted(response.token, response.user);
-    } catch (error: any) {
-      const data = error.response?.data;
-      const message =
-        data?.username?.join(' ') ||
-        data?.password?.join(' ') ||
-        data?.detail ||
-        'Unable to accept the invite. Please try again.';
-      Alert.alert('Error', message);
+    } catch (error) {
+      Alert.alert(
+        'Error',
+        toApiErrorText(error, {
+          fallbackMessage: 'Unable to accept the invite. Please try again.',
+        })
+      );
     } finally {
       setAccepting(false);
     }

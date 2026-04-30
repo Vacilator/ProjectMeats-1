@@ -34,12 +34,21 @@ jest.mock('expo-constants', () => ({
 }));
 
 import { ApiService } from '../services/ApiService';
+import {
+  getApiErrorPresentation,
+  toApiErrorText,
+} from '../services/apiErrorPresentation';
 
 // Access the private internal axios instance via type cast
 const internalApi = (ApiService as any).api as {
   get: jest.Mock;
   post: jest.Mock;
   defaults: { headers: { common: Record<string, string> } };
+  interceptors: {
+    response: {
+      use: jest.Mock;
+    };
+  };
 };
 
 describe('ApiService – guest mode', () => {
@@ -237,5 +246,80 @@ describe('ApiService – workforms', () => {
     expect(internalApi.post).toHaveBeenCalledWith('/tenant-workforms/wf-1/execute/', {
       initial_data: { foo: 'bar' },
     });
+  });
+});
+
+describe('ApiService – auth expiry handling', () => {
+  const responseErrorHandler = internalApi.interceptors.response.use.mock.calls[0][1] as (
+    error: unknown
+  ) => Promise<never>;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    ApiService.setAuthFailureHandler(null);
+  });
+
+  it('invokes the registered auth failure handler for non-auth 401 responses', async () => {
+    const handler = jest.fn().mockResolvedValue(undefined);
+    ApiService.setAuthFailureHandler(handler);
+
+    const error = {
+      response: { status: 401, data: { detail: 'Unauthorized' } },
+      config: { url: '/customers/' },
+      message: 'Request failed with status code 401',
+    };
+
+    await expect(responseErrorHandler(error)).rejects.toEqual(error);
+    expect(handler).toHaveBeenCalledWith(
+      expect.objectContaining({
+        status: 401,
+        kind: 'auth',
+        friendlyMessage: 'Your session has expired. Please sign in again.',
+      })
+    );
+  });
+
+  it('does not invoke the auth failure handler for auth endpoint 401 responses', async () => {
+    const handler = jest.fn().mockResolvedValue(undefined);
+    ApiService.setAuthFailureHandler(handler);
+
+    const error = {
+      response: { status: 401, data: { detail: 'Invalid credentials' } },
+      config: { url: '/auth/login/' },
+      message: 'Request failed with status code 401',
+    };
+
+    await expect(responseErrorHandler(error)).rejects.toEqual(error);
+    expect(handler).not.toHaveBeenCalled();
+  });
+});
+
+describe('apiErrorPresentation', () => {
+  it('normalizes backend error codes into user-safe text', () => {
+    const presentation = getApiErrorPresentation({
+      response: {
+        status: 503,
+        data: { error_code: 'AI_NOT_CONFIGURED' },
+      },
+      message: 'Request failed with status code 503',
+    });
+
+    expect(presentation.kind).toBe('not_configured');
+    expect(presentation.friendlyMessage).toContain('AI is not enabled');
+  });
+
+  it('uses field-array validation messages before falling back', () => {
+    const message = toApiErrorText(
+      {
+        response: {
+          status: 400,
+          data: { username: ['This username is already taken.'] },
+        },
+        message: 'Request failed with status code 400',
+      },
+      { fallbackMessage: 'Unable to accept invite.' }
+    );
+
+    expect(message).toBe('This username is already taken.');
   });
 });

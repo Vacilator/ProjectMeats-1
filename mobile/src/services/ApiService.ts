@@ -2,6 +2,10 @@ import axios, { AxiosInstance } from 'axios';
 import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 import {
+  ApiErrorPresentation,
+  getApiErrorPresentation,
+} from './apiErrorPresentation';
+import {
   LoginRequest,
   LoginResponse,
   Tenant,
@@ -74,6 +78,9 @@ function isWorkflowDefinition(value: unknown): value is WorkflowDefinition {
 class ApiServiceClass {
   private api: AxiosInstance;
   private baseURL: string;
+  private authFailureHandler: ((presentation: ApiErrorPresentation) => void | Promise<void>) | null =
+    null;
+  private isHandlingAuthFailure = false;
 
   constructor() {
     const envBaseUrl = process.env.EXPO_PUBLIC_API_BASE_URL;
@@ -102,11 +109,40 @@ class ApiServiceClass {
     // Response interceptor for error handling
     this.api.interceptors.response.use(
       (response) => response,
-      (error) => {
-        console.error('API Error:', error.response?.data || error.message);
+      async (error) => {
+        const presentation = getApiErrorPresentation(error);
+        const requestUrl =
+          typeof error?.config?.url === 'string' ? error.config.url : undefined;
+
+        if (
+          presentation.status === 401 &&
+          !this.isAuthEndpoint(requestUrl) &&
+          this.authFailureHandler &&
+          !this.isHandlingAuthFailure
+        ) {
+          this.isHandlingAuthFailure = true;
+          try {
+            await this.authFailureHandler(presentation);
+          } finally {
+            this.isHandlingAuthFailure = false;
+          }
+        }
+
         return Promise.reject(error);
       }
     );
+  }
+
+  private isAuthEndpoint(url?: string): boolean {
+    if (!url) return false;
+
+    return [
+      '/auth/login/',
+      '/auth/logout/',
+      '/auth/guest-login/',
+      '/auth/signup-with-invitation/',
+      '/invitations/validate/',
+    ].some((authPath) => url.includes(authPath));
   }
 
   setAuthToken(token: string) {
@@ -124,6 +160,12 @@ class ApiServiceClass {
 
   clearTenantId() {
     delete this.api.defaults.headers.common['X-Tenant-ID'];
+  }
+
+  setAuthFailureHandler(
+    handler: ((presentation: ApiErrorPresentation) => void | Promise<void>) | null
+  ) {
+    this.authFailureHandler = handler;
   }
 
   // Authentication endpoints
