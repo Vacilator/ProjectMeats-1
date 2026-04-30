@@ -271,6 +271,27 @@
   - **Rollback:** Keep behavior behind additive extraction boundaries and revert the extraction if editor regressions appear.
   - **Completion evidence destination:** shipped in `.github/MASTER_PLAN.md` (PR: #4782)
 
+- [ ] **EH-04.4 mobile-auth-and-tenant-parity**
+  - **Status:** Ready
+  - **Why now:** `MASTER_PLAN.md` still lists mobile parity as the next active follow-up after the shipped foundations, specifically calling out switch-tenant persistence, consistent error normalization, and auth-expiry/401 behavior parity.
+  - **Canonical source reference:** `MASTER_PLAN.md` -> Mobile parity (next) + Phase 12
+  - **Scope:** Bring the mobile client onto the same tenant-persistence and auth/error-handling expectations as the web client by tightening tenant storage/application, normalizing API error handling, and making auth-expiry behavior explicit and test-covered.
+  - **Non-goals:** No mobile UI redesign, no backend contract changes, and no unrelated navigation refactor.
+  - **Primary domain:** mobile
+  - **Likely touched paths:** `mobile/src/services/ApiService.ts`, `mobile/src/utils/tenantStorage.ts`, `mobile/src/screens/TenantsScreen.tsx`, `mobile/src/screens/LoginScreen.tsx`, `mobile/src/__tests__/ApiService.test.ts`, `mobile/src/__tests__/tenantStorage.test.ts`
+  - **Dependencies:** EH-03.2
+  - **Blockers:** None
+  - **Acceptance criteria:**
+    1. Switching tenants persists and reapplies the active tenant context for subsequent mobile API requests.
+    2. Mobile error handling normalizes backend auth/API failure envelopes into one deterministic client path instead of ad hoc console-only handling.
+    3. Expired-auth/401 behavior is explicit, consistent, and covered by automated mobile tests.
+  - **Validation commands:** `npm -C mobile run type-check`; `npm -C mobile run test`
+  - **Tenant/RLS impact:** Medium; the tenant header/application path is part of the client trust boundary.
+  - **Secrets/infra impact:** None
+  - **Risk level:** Medium
+  - **Rollback:** Keep the parity changes isolated to the mobile service/session layer so the app can revert to the previous tenant/error handling path if a release regression appears.
+  - **Completion evidence destination:** `.github/MASTER_PLAN.md`
+
 ### Epic EH-05 - Runtime / ops reliability
 
 - [x] **EH-05.1 non-dev-redis-readiness-gate**
@@ -327,29 +348,6 @@
   - **Secrets/infra impact:** Medium
   - **Risk level:** Medium
   - **Rollback:** Revert the rollback-script/doc/validator updates if they diverge from validated rollout behavior.
-  - **Completion evidence destination:** `.github/MASTER_PLAN.md`
-
-### Epic EH-02 - P0 tenant isolation continuation
-
-- [ ] **EH-02.5 choice-viewset-tenant-admin-fail-closed**
-  - **Status:** Ready
-  - **Why now:** `MASTER_PLAN.md` still lists the `is_staff` global bypasses in `apps/system/views/choice_viewsets.py` as a P0 data-isolation gap, and tenant admins being promoted to `is_staff=True` must not create cross-tenant read/write exposure.
-  - **Canonical source reference:** `MASTER_PLAN.md` -> Security / tenant isolation (P0 data isolation) + Phase 12
-  - **Scope:** Remove the tenant-unsafe `is_staff` bypasses from `choice_viewsets.py`, preserve intentional superuser behavior if any exists, and add regression coverage proving tenant admins remain tenant-scoped.
-  - **Non-goals:** No broad auth/permission redesign and no unrelated choice-list UX changes.
-  - **Primary domain:** backend
-  - **Likely touched paths:** `backend/apps/system/views/choice_viewsets.py`, `backend/apps/system/tests/test_choice_viewsets_tenant_isolation.py`, any directly related permission helpers
-  - **Dependencies:** EH-02.1
-  - **Blockers:** None
-  - **Acceptance criteria:**
-    1. Tenant-admin/staff users can no longer read or mutate cross-tenant choice data through the affected viewsets.
-    2. Explicit regression tests cover the previously fail-open path and the expected fail-closed behavior.
-    3. Intentional superuser-only access, if present, remains explicit and tested.
-  - **Validation commands:** `cd backend && python manage.py test apps.system.tests.test_choice_viewsets_tenant_isolation`; `bash scripts/verify_golden_state.sh`
-  - **Tenant/RLS impact:** High; this ticket closes a P0 client-visible tenant isolation gap.
-  - **Secrets/infra impact:** None
-  - **Risk level:** High
-  - **Rollback:** Revert the viewset permission/queryset changes and their paired tests together if a legitimate superuser path is accidentally constrained.
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
 ## Phase 13 - Next-Gen AI & Automation
