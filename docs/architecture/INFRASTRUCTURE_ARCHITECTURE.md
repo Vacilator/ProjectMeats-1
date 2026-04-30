@@ -2,7 +2,45 @@
 
 **Status**: ✅ CURRENT  
 **Category**: Architecture  
-**Last Updated**: 2026-02-01
+**Last Updated**: 2026-04-30
+
+---
+
+## GA-02.1 runtime reality snapshot
+
+The current deployment topology is governed operationally by:
+
+- `.github/workflows/main-pipeline.yml`
+- `.github/workflows/reusable-deploy.yml`
+
+Those workflows are the live source of truth for the Golden Pipeline deployment method:
+
+- backend/frontend are deployed as Docker containers on the target host
+- migrations run from the GitHub runner over the bastion tunnel with `--fake-initial`
+- host nginx config is rendered and reloaded during deployment
+- backend env is written to `/root/projectmeats/backend/.env`
+- frontend runtime config is written to `/opt/pm/frontend/env/env-config.js`
+- pre-migration backups are retained at `/root/projectmeats/db_backups/<environment>/`
+
+GA-02.1 adds a non-applying desired-state scaffold under `deploy/terraform/` so this runtime shape is captured as code structure without changing live infrastructure yet.
+
+## Current deployment reality
+
+| Concern | Current reality |
+| --- | --- |
+| Deploy control plane | GitHub Actions reusable deploy workflow |
+| Public edge | Host-level nginx |
+| Backend service | `pm-backend` on `127.0.0.1:8000` |
+| Frontend service | `pm-frontend` on `127.0.0.1:8080` |
+| Backend env contract | `/root/projectmeats/backend/.env` |
+| Frontend runtime contract | `/opt/pm/frontend/env/env-config.js` |
+| Host proxy template | `deploy/nginx/host-reverse-proxy.conf.template` |
+| Backup retention root | `/root/projectmeats/db_backups/<environment>/` |
+
+## Deferred in later GA tickets
+
+- **GA-02.2** owns PITR validation, restore drills, and disaster-recovery automation.
+- **GA-02.3** owns worker scaling envelopes, queue topology, and cache/runtime capacity guardrails.
 
 ---
 

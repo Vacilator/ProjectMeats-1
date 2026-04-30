@@ -242,6 +242,17 @@ check_pattern "manifests/GOLDEN_FILES.md" 'Rollback automation' \
 check_pattern "manifests/GOLDEN_FILES.md" 'Non-dev observability ownership' \
     "GOLDEN_FILES.md registers non-dev observability ownership"
 
+# 15. Check GA-02.1 desired-state scaffold exists and is registered
+check_file_exists "deploy/terraform/README.md" "deploy/terraform/README.md exists"
+check_file_exists "deploy/terraform/versions.tf" "deploy/terraform/versions.tf exists"
+check_file_exists "deploy/terraform/main.tf" "deploy/terraform/main.tf exists"
+check_file_exists "deploy/terraform/variables.tf" "deploy/terraform/variables.tf exists"
+check_file_exists "deploy/terraform/outputs.tf" "deploy/terraform/outputs.tf exists"
+check_pattern "deploy/terraform/README.md" '^## Manual vs\. codified ownership$' \
+    "deploy/terraform/README.md defines manual vs. codified ownership"
+check_pattern "manifests/GOLDEN_FILES.md" 'Infrastructure desired state / IaC scaffold' \
+    "GOLDEN_FILES.md registers the infrastructure desired-state scaffold"
+
 echo ""
 echo "────────────────────────────────────"
 if [[ $ERRORS -eq 0 ]]; then

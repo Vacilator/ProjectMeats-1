@@ -30,6 +30,7 @@ Golden template for workflow suggestion engine with meat industry context
 | **CI/CD Standards** | `.github/workflows/reusable-deploy.yml` | Template |
 | **Runtime Readiness Gate** | `backend/projectmeats/health.py`, `.github/workflows/reusable-deploy.yml` | ENFORCEMENT |
 | **Rollback automation** | `.github/scripts/deployment-rollback.sh`, `docs/runbooks/INCIDENT_RESPONSE.md` | AUTHORITATIVE |
+| **Infrastructure desired state / IaC scaffold** | `deploy/terraform/README.md`, `deploy/terraform/*.tf` | AUTHORITATIVE scaffold |
 | **Non-dev observability ownership** | `docs/GOLDEN_PIPELINE.md`, `docs/runbooks/INCIDENT_RESPONSE.md`, `manifests/env.manifest.json` | AUTHORITATIVE |
 | **Architecture** | `docs/architecture/ARCHITECTURE.md` | Design doc |
 | **Execution status / priorities** | `MASTER_PLAN.md` | CANONICAL |
