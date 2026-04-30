@@ -5,6 +5,9 @@ import { EntityWorkflowStatusPanel } from '@/components/Entities/EntityWorkflowS
 import { useNavigate, useParams } from 'react-router-dom';
 
 import { AIOverviewCard, EntityProfileHeader } from '@/components/Cockpit';
+import { AuditHistoryTimeline } from '@/components/Operations/AuditHistoryTimeline';
+import { OperationalDocumentActions } from '@/components/Operations/OperationalDocumentActions';
+import { supportsAuditHistory, supportsOperationalActions } from '@/components/Operations/documentOperations';
 import { ActivityFeed, CommentsPanel, EntityFormSurface, UnifiedEntityTable } from '@/components/Shared';
 import type { EntityFormMode } from '@/components/Shared/EntityFormSurface';
 import { apiClient } from '@/services/apiService';
@@ -55,6 +58,8 @@ export const UniversalEntityRecordPage: React.FC<UniversalEntityRecordPageProps>
   const isCustomer = normalizedEntityType === 'customer';
 
   const showTabs = mode === 'view' && Boolean(entityId);
+  const canShowOperationalActions = supportsOperationalActions(normalizedEntityType);
+  const canShowAuditHistory = supportsAuditHistory(normalizedEntityType);
 
   const childEntityType = isSupplier ? 'plant' : 'location';
   const childEntityDisplayName = isSupplier ? 'Plant' : 'Location';
@@ -296,9 +301,22 @@ export const UniversalEntityRecordPage: React.FC<UniversalEntityRecordPageProps>
         />
 
         {mode === 'view' && entityId && (
-          <Button type="primary" onClick={() => setEditOpen(true)}>
-            Edit
-          </Button>
+          <SpaceWrap>
+            {canShowOperationalActions ? (
+              <OperationalDocumentActions
+                entityType={normalizedEntityType}
+                entityId={entityId}
+                recordLabel={title}
+                compact
+                onChanged={() => {
+                  void loadOverview();
+                }}
+              />
+            ) : null}
+            <Button type="primary" onClick={() => setEditOpen(true)}>
+              Edit
+            </Button>
+          </SpaceWrap>
         )}
 
         {mode === 'edit' && entityId && (
@@ -518,6 +536,19 @@ export const UniversalEntityRecordPage: React.FC<UniversalEntityRecordPageProps>
                       ),
                     },
                     {
+                      key: 'audit_history',
+                      label: 'Audit History',
+                      children: canShowAuditHistory ? (
+                        <Card size="small" title="Audit History">
+                          <AuditHistoryTimeline entityType={normalizedEntityType} entityId={entityId} />
+                        </Card>
+                      ) : (
+                        <span style={{ color: 'rgb(var(--color-text-tertiary))' }}>
+                          Audit history unavailable.
+                        </span>
+                      ),
+                    },
+                    {
                       key: 'comments',
                       label: 'Comments',
                       children: <CommentsPanel entityType={normalizedEntityType} entityId={entityId} />,
@@ -556,3 +587,7 @@ export const UniversalEntityRecordPage: React.FC<UniversalEntityRecordPageProps>
 };
 
 export default UniversalEntityRecordPage;
+
+const SpaceWrap: React.FC<React.PropsWithChildren> = ({ children }) => (
+  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, justifyContent: 'flex-end' }}>{children}</div>
+);

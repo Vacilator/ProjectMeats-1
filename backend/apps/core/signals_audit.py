@@ -13,8 +13,11 @@ from apps.core.utils.audit_context import get_audit_context
 
 
 _TRACKED_MODELS = [
+    ('carriers', 'Carrier'),
     ('purchase_orders', 'PurchaseOrder'),
+    ('purchase_orders', 'CarrierPurchaseOrder'),
     ('sales_orders', 'SalesOrder'),
+    ('invoices', 'Invoice'),
     ('suppliers', 'Supplier'),
     ('plants', 'Plant'),
     ('products', 'MasterProduct'),
@@ -78,7 +81,14 @@ def audit_post_save(sender, instance, created, **kwargs):
     content_type = ContentType.objects.get_for_model(sender)
 
     entity_name = ''
-    for attr in ('name', 'order_number', 'our_purchase_order_num', 'our_sales_order_num'):
+    for attr in (
+        'name',
+        'order_number',
+        'our_purchase_order_num',
+        'our_sales_order_num',
+        'invoice_number',
+        'our_carrier_po_num',
+    ):
         value = getattr(instance, attr, None)
         if value:
             entity_name = str(value)[:255]

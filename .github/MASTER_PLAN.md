@@ -11,6 +11,8 @@ This file is the **append-only PR-referenceable execution log**.
 
 ## Operational Notes
 
+- **2026-04-30** — Operational readiness for Golden Schema transactional documents: added workflow-validated status transitions, transactional PDF generation, email-send endpoints with PDF attachments, broader audit coverage (Carrier / Invoice / CarrierPurchaseOrder), reusable frontend operational actions + audit timeline, and a new Freight Orders surface for Carrier POs. Additive migrations shipped for purchase orders, sales orders, and invoices. (PR: #4811)
+
 - **2026-04-30** — CI/frontend: hardened the production-preview React Error #185 guard so the Plant edit smoke traps both `console.error` and `pageerror` minified-runtime failures, exercises the hydrated Customer dropdown after mount, retains Playwright traces on failure, and uploads smoke artifacts from PR validation for post-failure diagnosis. (PR: #4810)
 
 - **2026-04-30** — Frontend/CI: stabilized the Plant edit smart-loader against React Error #185 by memoizing `EntityFormSurface` query options/keys, preserving single-mount loader hydration, and adding a production-preview Playwright smoke (`frontend/e2e/entity-form-surface-smoke.spec.ts`) plus PR-validation gate so the minified Plant edit path is exercised before merge/deploy. (PR: #4809)

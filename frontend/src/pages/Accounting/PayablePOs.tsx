@@ -14,6 +14,7 @@
  * Pattern: Follows Invoices.tsx architecture with side panel integration
  */
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
 import { Skeleton } from 'antd';
 
@@ -333,6 +334,7 @@ const EmptyMessage = styled.div`
 // ============================================================================
 
 const PayablePOs: React.FC = () => {
+  const navigate = useNavigate();
   const [orders, setOrders] = useState<PurchaseOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -457,6 +459,13 @@ const PayablePOs: React.FC = () => {
             <SidePanelHeader>
               <SidePanelTitle>{selectedOrder.order_number}</SidePanelTitle>
               <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                <RecordPaymentButton
+                  onClick={() =>
+                    navigate(`/records/purchase_order/${encodeURIComponent(String(selectedOrder.id))}`)
+                  }
+                >
+                  Open Record
+                </RecordPaymentButton>
                 {selectedOrder.payment_status !== 'paid' && (
                   <RecordPaymentButton onClick={() => setShowPaymentModal(true)}>
                     💰 Record Payment

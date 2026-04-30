@@ -45,9 +45,28 @@ from tenant_apps.orders.models import OrderMethodsMixin, PaymentStatus
 class PurchaseOrderStatus(models.TextChoices):
     """Status choices for purchase orders."""
 
+    DRAFT = "draft", "Draft"
     PENDING = "pending", "Pending"
+    PENDING_APPROVAL = "pending_approval", "Pending Approval"
     APPROVED = "approved", "Approved"
+    SENT = "sent", "Sent"
+    CARRIER_ASSIGNED = "carrier_assigned", "Carrier Assigned"
+    IN_TRANSIT = "in_transit", "In Transit"
     DELIVERED = "delivered", "Delivered"
+    INVOICED = "invoiced", "Invoiced"
+    CANCELLED = "cancelled", "Cancelled"
+
+
+class CarrierPurchaseOrderStatus(models.TextChoices):
+    """Status choices for freight orders / carrier POs."""
+
+    DRAFT = "draft", "Draft"
+    PENDING_APPROVAL = "pending_approval", "Pending Approval"
+    APPROVED = "approved", "Approved"
+    DISPATCHED = "dispatched", "Dispatched"
+    IN_TRANSIT = "in_transit", "In Transit"
+    DELIVERED = "delivered", "Delivered"
+    COMPLETED = "completed", "Completed"
     CANCELLED = "cancelled", "Cancelled"
 
 
@@ -533,6 +552,12 @@ class CarrierPurchaseOrder(
         blank=True,
         default="",
         help_text="Our carrier purchase order number",
+    )
+    status = models.CharField(
+        max_length=32,
+        choices=CarrierPurchaseOrderStatus.choices,
+        default=CarrierPurchaseOrderStatus.DRAFT,
+        help_text="Current freight order workflow status.",
     )
     carrier_name = models.CharField(
         max_length=255,

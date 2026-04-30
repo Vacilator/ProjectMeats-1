@@ -16,13 +16,14 @@ from tenant_apps.purchase_orders.serializers import (
     PurchaseOrderHistorySerializer,
 )
 from apps.core.exporting import CsvExportMixin
+from apps.core.viewsets_documents import OperationalDocumentActionsMixin
 import logging
 from django.utils import timezone
 
 logger = logging.getLogger(__name__)
 
 
-class PurchaseOrderViewSet(CsvExportMixin, viewsets.ModelViewSet):
+class PurchaseOrderViewSet(OperationalDocumentActionsMixin, CsvExportMixin, viewsets.ModelViewSet):
     """ViewSet for managing purchase orders."""
 
     queryset = PurchaseOrder.objects.all()
@@ -173,7 +174,7 @@ class PurchaseOrderViewSet(CsvExportMixin, viewsets.ModelViewSet):
         return Response(serializer.data)
 
 
-class CarrierPurchaseOrderViewSet(viewsets.ModelViewSet):
+class CarrierPurchaseOrderViewSet(OperationalDocumentActionsMixin, viewsets.ModelViewSet):
     """ViewSet for managing canonical Carrier PO / freight orders."""
 
     queryset = CarrierPurchaseOrder.objects.all()

@@ -2,6 +2,7 @@
 Serializers for Sales Orders app.
 """
 from rest_framework import serializers
+from apps.core.serializers_documents import DocumentStatusValidationMixin
 from .models import SalesOrder, SalesOrderItem
 from tenant_apps.locations.serializers import LocationListSerializer
 
@@ -29,7 +30,7 @@ class SalesOrderItemSerializer(serializers.ModelSerializer):
         read_only_fields = ["id"]
 
 
-class SalesOrderSerializer(serializers.ModelSerializer):
+class SalesOrderSerializer(DocumentStatusValidationMixin, serializers.ModelSerializer):
     """Serializer for SalesOrder model."""
     
     supplier_name = serializers.CharField(source="supplier.name", read_only=True)

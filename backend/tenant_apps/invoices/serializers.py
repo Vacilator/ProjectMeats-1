@@ -2,6 +2,7 @@
 Serializers for Invoices app.
 """
 from rest_framework import serializers
+from apps.core.serializers_documents import DocumentStatusValidationMixin
 from .models import Claim, Invoice, InvoiceItem, PaymentTransaction
 
 
@@ -30,7 +31,7 @@ class InvoiceItemSerializer(serializers.ModelSerializer):
         read_only_fields = ["id"]
 
 
-class InvoiceSerializer(serializers.ModelSerializer):
+class InvoiceSerializer(DocumentStatusValidationMixin, serializers.ModelSerializer):
     """Serializer for Invoice model."""
     
     customer_name = serializers.CharField(source="customer.name", read_only=True)
