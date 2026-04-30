@@ -1,8 +1,8 @@
 # MASTER_PLAN.md (Canonical)
 
 **Status**: 🔄 Living document (canonical source of truth)  
-**Last Updated**: 2026-04-29  
-**Primary Focus**: Phase 10 (DRY/Canonical Architecture Standardization) - Industry-leader compliance  
+**Last Updated**: 2026-04-30  
+**Primary Focus**: Phase 14 execution remains active; Phase 15 B2B Network planning is now sealed  
 
 This file is the **canonical plan + current truth snapshot**.
 - **PR execution log (append-only):** `.github/MASTER_PLAN.md`
@@ -10,21 +10,20 @@ This file is the **canonical plan + current truth snapshot**.
 
 ---
 
-## Current Execution Snapshot (as of 2026-04-29)
+## Current Execution Snapshot (as of 2026-04-30)
 
 ### What is true right now
 - **WorkForms E2E** is shipped end-to-end (execute + monitoring + notifications + Quick Actions + Gmail connector MVP).
-- **Primary execution focus (P0):** close remaining correctness + tenant isolation gaps surfaced by squad audits.
+- **Primary execution focus (P0):** execute the new Phase 14 GA lane from the top of `.github/EPIC_TICKETS.md`, while keeping the Phase 12 hardening backlog queued immediately behind it.
+- **Strategic enterprise audit is now complete:** the repo has a fresh baseline in `GAP_ANALYSIS_REPORT.md`, `STRATEGIC_BLUEPRINT.md`, `.github/TECH_DEBT_REGISTER.md`, `.github/SDLC_PROTOCOLS.md`, and `.github/EPIC_TICKETS.md`. Those files translate the current gap analysis into execution-ordered, machine-readable work without replacing this canonical plan.
+- **Phase 14 planning is now complete:** the GA backlog is integrated into `.github/EPIC_TICKETS.md` with execution-ready tickets for Day 0 ETL, disaster recovery/IaC, SOC 2 governance, onboarding, and edge resilience. The first autonomous execution ticket is `GA-01.1 day-0-etl-source-contracts`.
+- **Phase 15 planning is now complete:** the B2B Network epics are appended to the bottom of `.github/EPIC_TICKETS.md` and documented below as the sealed next-layer architecture for partner portals, trade invariants, and settlement automation. This is planning-only; Phase 14 remains the active execution lane.
 - **AI email/document lane** is now fail-closed through Graph attachment ingest and parser lifecycle hardening: tabular uploads parse safely, Outlook attachments bridge into `AIDocument`, unsupported attachment kinds are rejected pre-download, repeated same-session ingests dedupe with provenance, AI sessions are tenant-bound, attachment ingest requires a session-staged allowlist from `fetch_emails`, and `parse_document` now persists explicit processing/completed/failed metadata while raising structured parser/auth/unreachable errors.
 - **Newly shipped since last snapshot (evidence; see `.github/MASTER_PLAN.md`)**:
-  - Core API reliability: fix `apps/core/views.py` legacy imports/`print()` landmines + add smoke tests (PR #4652); expand always-on backend smoke coverage for `/health/`, `/ready/`, auth bootstrap failure envelopes, and tenant-resolution fail-closed checks in PR validation (PR #4752).
-  - Security / tenant isolation: de-shadow duplicate legacy OAuth authorize/callback wiring by locking the app URL aliases to the hardened canonical `/api/v1/integrations/oauth/*` views; preserve `oauth/status` + `oauth/disconnect` behavior with regression coverage (PR #4753).
+  - Core API reliability: fix `apps/core/views.py` legacy imports/`print()` landmines + add smoke tests (PR #4652).
   - Frontend standards: expand `lint:colors` + remove remaining hardcoded colors in MyTasks surfaces (PR #4650); replace high-churn `console.*` with `logger.*` (PR #4654).
-  - Frontend test reliability: stabilize the `WorkflowRunner` keyed-remount assertion so development deploys do not fail on a race between the mocked form mount effect and the first DOM assertion (PR #4761).
-  - Backend tenant safety: fail-closed `current/current_theme/admin_permissions` when tenant context is missing/ambiguous (PR #4656); wrap tenant-scoped Celery ORM in `tenant_rls(..., strict=False)` (PR #4657); remove the last supplier create-time `TenantUser` fallback so ambiguous multi-tenant writes fail closed while single-membership middleware defaults continue to work (PR #4755); harden the remaining tenant-scoped create/query/restore paths in Locations, Master Products, Deals, Invoices, Claims, and Payment Transactions so they fail closed when tenant context is missing, backed by expanded guardrail coverage (PR #4756); and remove the latent staff-based write permission footgun from system choice viewsets with a regression that blocks `is_staff`-based permission logic from being wired back into that module (PR #4758).
-  - CI guardrails: align reusable deploy build/migrate/runtime jobs to the exact build-exported image tag/digest refs, make migrations select the final tag-vs-digest ref before pulling, enforce the topology/wiring/pull-order contract in `validate-workflows.sh` so UAT/Prod digest deploys cannot drift silently again (PR #4757), derive deploy-lane required-secret enforcement directly from `manifests/env.manifest.json` via the shared environment validator so optional secrets like `ALLOWED_HOSTS` cannot drift back to hardcoded required lists (PR #4764), and block `CURRENT` docs from drifting back to forbidden Golden patterns like separate dev API subdomains, compose/swarm deployment commands, or legacy manifest paths (PR #4762).
+  - Backend tenant safety: fail-closed `current/current_theme/admin_permissions` when tenant context is missing/ambiguous (PR #4656); wrap tenant-scoped Celery ORM in `tenant_rls(..., strict=False)` (PR #4657).
   - Mobile: device-safe API base URL + tests (PR #4658); switch builds to EAS (PR #4659).
-  - Dependencies: safely refresh the mobile grouped npm/yarn transitive lockfile updates from Dependabot #4730 without accepting the incompatible `react-native@0.85.2` rewrite; keep the Expo 55 / React Native 0.74.5 baseline intact and defer the remaining `fast-xml-parser` removal until the planned mobile baseline uplift (PR #4759).
   - WorkForms editor hot-path stability: derive validation/history/autosave from graph state (PR #32), move node actions out of `nodesWithHandlers` cloning and into editor context (PR #4720), and keep config-panel shadow edits local until Apply/Discard instead of rewriting the full node array on every keystroke (PR #4721).
   - WorkForms execution telemetry foundation: add a tenant-scoped `ExecutionEventLog` model with RLS, persist normalized execution/node/action events from `audit_trail`, and cover successful + failed action spans in backend tests (see `.github/MASTER_PLAN.md` for the shipped PR reference).
   - WorkForms runtime hydration: add persisted `runtime_state` snapshots on `TenantWorkFormExecution`, hydrate node status/current step/error projections from the telemetry stream, and keep execution serializers backward-compatible for legacy rows without runtime state.
@@ -32,7 +31,16 @@ This file is the **canonical plan + current truth snapshot**.
   - AI email/document hardening: bridge Outlook attachments into `AIDocument`, preflight attachment metadata, persist provenance + same-session dedupe, hard-bind AI sessions/messages/uploads to `request.tenant`, enforce a session-scoped attachment allowlist before ingest, and normalize `parse_document` lifecycle/error handling for operator-visible status metadata (PRs #4733–#4739).
 
 ### P0 priorities (next)
-- **Core API reliability**: ✅ shipped (PRs #4652, #4752). PR validation now smoke-tests always-on health/readiness, auth bootstrap success + failure envelopes, and tenant-resolution fail-closed behavior.
+- **Phase 14 - General Availability (GA) & Enterprise Hardening (planning complete; next execution lane)**
+  - **Epic 1: Day 0 ETL Pipeline** — import historical Excel/CSV/legacy rows into the Golden Schema via dry-run-first, tenant-safe management commands that suppress webhooks/emails and produce reconciliation output.
+  - **Epic 2: Infrastructure & Disaster Recovery** — codify launch-critical infrastructure controls (PITR validation, restore drills, Celery worker scaling envelopes, Redis eviction policies, queue health guardrails) without violating the Golden Pipeline.
+  - **Epic 3: SOC 2 Data Governance** — implement retention/archival workflows plus structured log/Sentry/telemetry PII scrubbing so financial and contact data do not leak into observability pipelines.
+  - **Epic 4: In-App User Onboarding** — reuse existing `react-joyride`, `CockpitTour`, and `UserPreferences` surfaces to eliminate the blank-slate problem for new tenants and first-time users.
+  - **Epic 5: Edge Resilience** — add PWA/offline shell, connectivity awareness, and optimistic/replay-safe mutation handling for warehouse and logistics users on unstable networks.
+  - **Execution ordering:** `GA-01` (ETL contracts and import path) → `GA-02` (infra/DR guardrails) → `GA-03` (governance and scrubbing) → `GA-04` (guided onboarding) → `GA-05` (offline/optimistic resilience).
+  - **Definition of planning done:** root `MASTER_PLAN.md` contains the Phase 14 strategy, `.github/MASTER_PLAN.md` records the planning note, and `.github/EPIC_TICKETS.md` exposes a single top-most `Ready` ticket that autonomous continuation can execute deterministically.
+
+- **Core API reliability**: ✅ shipped (PR #4652). Next: expand smoke coverage for always-on endpoints (health, tenant resolution, auth bootstrap) and keep them in PR gates.
 
 - **Phase 10 Sprint 1 stability gate (shipped)**
   - Mobile viewport hardening (make the existing mobile Playwright specs green; prevent page-level horizontal overflow on iPhone SE)
@@ -41,18 +49,18 @@ This file is the **canonical plan + current truth snapshot**.
   - Docs: incident response runbook (triage + rollback + tenant isolation/RLS guidance)
 
 - **Security / tenant isolation** (RLS correctness):
-  - **P0 data isolation**: remove `is_staff` global bypasses in `apps/system/views/choice_viewsets.py` (tenant admins are promoted to `is_staff=True` via signals; must not yield cross-tenant reads/writes). ✅ shipped in PR #4758.
+  - **P0 data isolation**: remove `is_staff` global bypasses in `apps/system/views/choice_viewsets.py` (tenant admins are promoted to `is_staff=True` via signals; must not yield cross-tenant reads/writes).
   - Make invitation email Celery task tenant/RLS safe (pass `tenant_id`; wrap task ORM in `tenant_rls` before querying invitation).
   - Workflow webhook receiver must set `request.tenant` + `set_current_tenant()` **before** ORM lookup (FORCE RLS correctness).
   - Legacy workflow webhook endpoint must fail closed unless tenant context is resolvable (migrate callers to tenant-path URL).
   - Integrations OAuth callback must set tenant + RLS session vars before writing tenant-scoped rows.
   - WorkForms create must not bypass activation validation when `status=active`. ✅ shipped (runtime validation guardrails in PR #4483; verified by `apps.system.tests.test_workform_runtime_support_validation`).
-- **WorkForms runtime/observability**: editor validation/history/autosave, node action routing, local shadow-state staging, execution telemetry, persisted runtime hydration, and the first operator-facing analytics dashboard are now hardened. This batch adds a dry-run-first schema upgrade command that canonicalizes legacy node aliases, stamps workflow schema version metadata, refreshes `form_references` safely, closes the fresh-database RLS audit gap on `core_comment`, and finishes the form `fields` → `formFields` model cleanup. Next: any remaining a11y + theme-token hardening.
+- **WorkForms runtime/observability**: editor validation/history/autosave, node action routing, local shadow-state staging, execution telemetry, persisted runtime hydration, and the first operator-facing analytics dashboard are now hardened. This batch adds a dry-run-first schema upgrade command that canonicalizes legacy node aliases, stamps workflow schema version metadata, refreshes `form_references` safely, and closes the fresh-database RLS audit gap on `core_comment` before any deeper model cleanup. Next: deterministic schema init / form "fields" model cleanup and any remaining a11y + theme-token hardening.
 - **CI guardrails (never-miss-again)**:
-  - Deploy-by-digest default for UAT/Prod and digest-align the migration artifact. ✅ shipped in PR #4757.
-  - Manifest-driven required-secret enforcement per lane (remove hardcoded lists). ✅ shipped in PR #4764.
-  - Docs drift prevention: "CURRENT" docs must not recommend forbidden Golden patterns (runner-driven migrations only). ✅ shipped in PR #4762.
-- **Mobile parity**: ✅ shipped foundations + auth/tenant parity hardening (PRs #4658/#4659/#4804).
+  - Deploy-by-digest default for UAT/Prod and digest-align the migration artifact.
+  - Manifest-driven required-secret enforcement per lane (remove hardcoded lists).
+  - Docs drift prevention: "CURRENT" docs must not recommend forbidden Golden patterns (runner-driven migrations only).
+- **Mobile parity**: ✅ shipped foundations (PRs #4658/#4659). Next: switch-tenant persistence, consistent error normalization, and auth expiry/401 behavior parity.
 - **AI email/document hardening**: ✅ shipped through fail-closed parser lifecycle/status metadata (PRs #4733–#4739). Next: expose compact provenance + parse-status/retryability badges in the AI widget/document surfaces so operators can distinguish Outlook/manual sources and retryable parser failures without log-diving.
 
 ### Squad deep dive plan (as of 2026-04-27)
@@ -128,6 +136,158 @@ This is a prioritized, PR-sized execution plan synthesized from squad deep dives
 - Frontend: `npm -C frontend run verify-standards` (and targeted `vitest run` files for new tests)
 - Backend: targeted `python manage.py test ...` suites for each change set
 
+## Phase 14: General Availability (GA) & Enterprise Hardening
+
+### Goal
+Translate the now-functional ERP into a launch-ready platform with historical-data migration, recoverability, governance, guided adoption, and offline-tolerant field operations.
+
+### Deliverables + expected results
+1. **Day 0 ETL pipeline**
+   - Dry-run-first management commands and ETL services that transform historical flat-file data into the Golden Schema without triggering runtime side effects.
+   - Import journals, reconciliation reports, and restart-safe batching so operators can migrate large datasets with evidence.
+2. **Infrastructure + disaster recovery**
+   - Codified desired state for Celery workers, Redis memory policy, backup retention, PITR verification, and restore drills.
+   - Runbooks and workflow hooks that prove the platform can recover without tribal knowledge.
+3. **SOC 2 governance**
+   - Automated archival/retention behavior for aged business records plus explicit legal-hold/restore paths.
+   - Logging and telemetry redaction so email addresses, phone numbers, and similar PII do not leak to logs/APM.
+4. **In-app onboarding**
+   - Guided tours and reusable empty-state CTAs so new tenants land in a product experience that teaches itself.
+   - Persistent completion state using existing user-preference infrastructure instead of scattered local-only flags.
+5. **Edge resilience**
+   - App-shell caching, connectivity state, optimistic mutations, and replay-safe queues for delivery/status flows in weak-network environments.
+
+### Epic breakdown
+
+#### Epic 1: Day 0 ETL Pipeline
+- **Business value:** unlocks customer onboarding by importing legacy history instead of forcing manual re-entry.
+- **Technical scope:** mapping contracts for legacy CSV/XLSX/database exports; Golden Schema row transformers; dry-run reports; import journals; side-effect suppression; tenant-safe batching; reconciliation docs.
+
+#### Epic 2: Infrastructure & Disaster Recovery
+- **Business value:** raises confidence that the platform can survive deploy failures, database incidents, and queue backlogs at launch.
+- **Technical scope:** PITR validation, restore-drill automation, Celery worker scaling envelopes, Redis eviction policy hardening, queue health visibility, and IaC scaffolding rooted in current `deploy/` + workflow reality.
+
+#### Epic 3: SOC 2 Data Governance
+- **Business value:** reduces compliance risk around financial retention and observability leakage.
+- **Technical scope:** archive/restore commands, retention manifests, PII redaction filters for Django logging and Sentry payloads, and scheduled enforcement that respects tenant and audit boundaries.
+
+#### Epic 4: In-App User Onboarding
+- **Business value:** shortens time-to-value for newly provisioned tenants and reduces support load.
+- **Technical scope:** standard tour provider, first-run preference persistence, dashboard/order/record empty states with direct CTAs, and onboarding telemetry to measure completion.
+
+#### Epic 5: Edge Resilience
+- **Business value:** keeps warehouse/logistics workflows usable during transient connectivity loss.
+- **Technical scope:** Vite PWA/service worker setup, connectivity awareness, offline-safe mutation queuing, optimistic UI for high-frequency field actions, and replay/rollback handling.
+
+### Acceptance criteria
+1. Phase 14 is represented consistently across `MASTER_PLAN.md`, `.github/MASTER_PLAN.md`, and `.github/EPIC_TICKETS.md`.
+2. `.github/EPIC_TICKETS.md` begins with a single `Ready` GA ticket and every later unchecked ticket is explicitly blocked by dependencies.
+3. Each Phase 14 ticket names concrete files, validation commands, and rollback guidance so autonomous continuation can execute without guesswork.
+4. No Phase 14 planning text contradicts the Golden Pipeline, manifest authority, or the append-only role of `.github/MASTER_PLAN.md`.
+
+### Dependencies
+1. ETL import contracts (`GA-01`) should land before archival/governance automation (`GA-03`) so migrated data is shaped correctly before retention rules run.
+2. Disaster-recovery and infra verification (`GA-02`) should land before GA cutover and before edge/offline work depends on stable worker/Redis behavior.
+3. Guided onboarding (`GA-04`) should reuse existing `UserPreferences`, `CockpitTour`, and app-shell navigation rather than inventing a second preference system.
+4. Edge resilience (`GA-05`) depends on canonical mutation/service surfaces from the shipped operational workflows and must not bypass the existing service layer.
+
+### Risk register + mitigations
+1. **Historical import corrupts tenant boundaries** (High x High)
+   - Mitigation: require tenant-explicit import manifests, `tenant_rls(...)` in worker/management-command contexts, dry-run-first output, and import journals before write mode.
+2. **Disaster-recovery docs drift from live workflows** (Medium x High)
+   - Mitigation: root DR work in `.github/workflows/reusable-deploy.yml`, existing backup hooks, and manifest-defined env vars.
+3. **PII leaks into logs/APM while observability expands** (High x High)
+   - Mitigation: centralize redaction filters in Django logging + Sentry hooks and cover them with tests before enabling broader telemetry.
+4. **Onboarding/offline work reintroduces frontend instability** (Medium x Medium)
+   - Mitigation: reuse existing Joyride and optimistic React Query patterns, keep loaders page-level, and gate offline queues to a narrow set of business-critical mutations first.
+
+### Testing strategy
+1. **Docs/planning validation:** `bash scripts/verify_golden_state.sh` and `bash .github/scripts/check_infrastructure.sh`
+2. **Backend execution tickets:** focused `python manage.py test ...` suites plus `python manage.py makemigrations --check` whenever schema/preferences/retention models change.
+3. **Frontend execution tickets:** `npm -C frontend run verify-standards`, targeted Vitest coverage, and Playwright only where onboarding/offline behavior materially changes.
+4. **Infra/config tickets:** `python config/manage_env.py audit` whenever new secrets, observability variables, or DR workflow inputs are introduced.
+
+### Rollback / safe-change approach
+1. Keep Phase 14 rollout additive and epic-scoped; each ticket must be reversible without unwinding unrelated ERP work.
+2. Prefer dry-run/reporting modes first for ETL, archival, backup, and restore flows before enabling mutating behavior.
+3. Gate user-visible onboarding and offline behavior behind reusable providers/feature flags if rollout risk increases.
+
+## Phase 15: The B2B Network & Financial Settlement
+
+### Goal
+Extend ProjectMeats from an internal ERP into a partner-facing B2B network with secure extranet access, deterministic trade math, and automated settlement/reconciliation planning.
+
+### Architecture status
+- **Execution status:** planned only, not started.
+- **Backlog placement:** appended to the bottom of `.github/EPIC_TICKETS.md` so Phase 14 and earlier hardening work keep priority.
+- **Execution order once unblocked:** trade invariants first, then guest portals, then settlement reconciliation.
+
+### Deliverables + expected results
+1. **B2B Extranet (guest portals)**
+   - Passwordless, signed, read-only portal access for counterparties to view approved invoice/order state, curated documents, and tracking without consuming paid seats.
+   - Strict guest-safe serializers and portal-only frontend routes so internal pricing/margin data never leaks.
+2. **Global Trade Engine (determinism)**
+   - One canonical weight-conversion contract and one canonical timezone contract across backend, frontend, PDFs, exports, and alerts.
+   - Trade/financial calculations remain stable even when counterparties operate in different units or timezones.
+3. **Financial Settlement & Reconciliation**
+   - Settlement ingest and reconciliation architecture layered on top of the existing invoice/payment foundation, with idempotent event handling and accountant-facing exception review.
+   - Invoice/payment state can progress from sent to paid through auditable automated flows instead of manual spreadsheet matching.
+
+### Epic breakdown
+
+#### Epic 1: The B2B Extranet (Guest Portals)
+- **Business value:** turns PDF/email handoffs into a secure partner collaboration layer.
+- **Technical scope:** signed magic-link grants, tenant-scoped public read APIs, curated document exposure from the document vault, guest-safe read-only serializers, and portal-specific React pages/routes.
+- **Guardrail:** do not reuse internal authenticated surfaces or legacy guest-login flows as the B2B portal.
+
+#### Epic 2: The Global Trade Engine (Determinism)
+- **Business value:** prevents unit-conversion and timezone drift from breaking margin, alerting, tracking, and customer-facing documents.
+- **Technical scope:** centralized conversion service, canonical base-unit storage/display rules, UTC storage plus plant-local rendering rules, and adoption across transactional APIs/PDFs/frontend formatters.
+- **Guardrail:** math must use deterministic decimal conversion contracts, not scattered frontend floats or ad hoc timezone rendering.
+
+#### Epic 3: Financial Settlement & Reconciliation
+- **Business value:** closes the loop from invoice issued to invoice paid with explainable, auditable matching.
+- **Technical scope:** webhook-first settlement ingestion, provider/event journal, idempotent reconciliation engine into the existing `PaymentTransaction` ledger, review queue UI, and optional future bank-feed adapter.
+- **Guardrail:** no execute-mode settlement automation without replay-safe identifiers, tenant scoping, and reversal/audit paths.
+
+### Acceptance criteria
+1. Phase 15 is represented consistently across `MASTER_PLAN.md`, `.github/MASTER_PLAN.md`, and `.github/EPIC_TICKETS.md`.
+2. Phase 15 is clearly marked as **planned only**; no wording implies the partner network or settlement automation is already shipped.
+3. The backlog continues to have exactly one first unchecked `Ready` ticket above Phase 15, and every Phase 15 ticket is explicitly blocked.
+4. Each Phase 15 ticket identifies concrete repo paths, validation commands, dependencies, and rollback guidance.
+
+### Dependencies
+1. **Phase 14 remains first:** B2B execution must wait behind the active GA lane.
+2. **Hard blockers from earlier backlog:** fail-closed tenant/RLS runtime, contract-first API coverage, and governance/redaction work must land before external guest access or settlement ingestion become safe.
+3. **Execution order within Phase 15:** trade invariants (`B2B-02`) precede portal and settlement execution so displayed weights/dates and reconciliation math share one canonical contract.
+4. **Reuse expectations:** partner access should build on existing invitation/auth/notification/document foundations where safe, but must not expose internal-only components or data models directly.
+
+### Risk register + mitigations
+1. **Cross-tenant or guest-data leakage** (High x High)
+   - Mitigation: tenant-path + signed grant only, guest-safe allowlist serializers, ignore anonymous `X-Tenant-ID`, and audit every portal access.
+2. **Unit/timezone drift corrupts customer-visible math** (High x High)
+   - Mitigation: land one canonical conversion/time contract first, require deterministic decimal math, and test DST/date-only boundaries explicitly.
+3. **Duplicate settlement events create duplicate payments** (High x High)
+   - Mitigation: provider event journals, idempotent external keys, transactional reconciliation, and reversal-safe source linkage.
+4. **Planning language overstates readiness** (Medium x Medium)
+   - Mitigation: mark Phase 15 as sealed in planning only and keep Phase 14 as the active execution focus.
+
+### Testing strategy
+1. **Docs/planning validation:** `bash scripts/verify_golden_state.sh` and `bash .github/scripts/check_infrastructure.sh`
+2. **Portal execution tickets:** targeted backend tenant/public-endpoint tests, frontend service-layer tests, and Playwright guest-link smoke coverage when routes ship.
+3. **Trade engine execution tickets:** deterministic backend decimal/timezone tests plus frontend formatter/conversion coverage.
+4. **Settlement execution tickets:** backend idempotency/reconciliation tests, `python manage.py makemigrations --check`, and infrastructure checks whenever provider secrets/workflows change.
+
+### Rollback / safe-change approach
+1. Keep each Phase 15 epic additive and independently reversible.
+2. Revoke/disable guest portal grants before reverting portal routes or serializers.
+3. Revert display/derived conversion behavior before touching any stored source values.
+4. Disable settlement execute-mode first, preserving raw event journals and audit evidence for rollback.
+
+## ARCHITECTURE SEALED
+
+**Planning conclusion only:** the target Phase 15 B2B Network architecture is now frozen for planning and backlog decomposition. This seals the intended seams for partner access, deterministic trade conversion/time handling, and settlement automation. It does **not** mean Phase 15 is implemented, shipped, or execution-complete. Current execution priority remains Phase 14 and its named prerequisites.
+
 ### Historical context (kept for traceability)
 
 ## Historical: Recovery Execution Plan (as of 2026-03-27T17:03Z)
@@ -200,7 +360,6 @@ We are re-validating and completing the last ~25 prompts with **evidence-based a
 - CI: master deploy pipeline workflow display name clarified for Actions feed: PR #4458 (tested: workflow validator)
 - AI Assistant: document upload “no 500s” regression coverage (uploads return 201/400 only): PR #4460 (tested: backend)
 - Dependencies: merged grouped npm/yarn bumps (root + mobile): PR #4439 (tested: CI)
-- Dependencies: safely refreshed the mobile grouped transitive lockfile bumps while preserving the Expo 55 / React Native 0.74.5 baseline; explicitly deferred the remaining `fast-xml-parser` removal until a compatible mobile baseline upgrade: PR #4759 (tested: mobile lint/test/type-check)
 - Promotion: merged development → uat: PR #4389 (tested: CI + deploy)
 
 ### Current blockers / external dependencies
@@ -232,7 +391,7 @@ We are re-validating and completing the last ~25 prompts with **evidence-based a
 - **Workflow webhooks tenant-safe:** add a new canonical webhook URL embedding `tenant_id` in the path and set RLS tenant explicitly in the receiver view; keep legacy URL temporarily.
 - **Email webhooks verification (critical):** Outlook requires unpredictable per-subscription `clientState`; Gmail requires request verification (JWT/secret) so forged requests cannot trigger upstream API calls.
 - **Tenant-scope email integration data:** phase in `tenant_id` for EmailAccount/EmailLog (and related tables), then add RLS policies once tenant-scoped.
-- **OAuth endpoint de-shadowing:** ✅ shipped (PR #4753). Legacy authorize/callback aliases in `apps/integrations/urls.py` now point to the hardened canonical views, preventing the older function-based OAuth implementation from being re-exposed if include order changes.
+- **OAuth endpoint de-shadowing:** remove/lock down duplicate legacy OAuth callback routes to prevent accidental re-exposure.
 
 ### P0 — WorkForms editor “industry leader” UX (next)
 - **Publish readiness preflight + support matrix UI:** block publish when unsupported nodes/missing required config; show actionable remediation.
@@ -307,10 +466,105 @@ We are re-validating and completing the last ~25 prompts with **evidence-based a
 - **CI automation:** promotion PRs dev→uat and uat→prod/main remain green and observable.
 - **Copilot Squad governance:** repo-local squad roles/tasks/agents/skills under `.copilot/squad/` + `.github/agents/` + `.github/skills/` with validator `bash scripts/validate_copilot_squad.sh`.
 
+## Phase 12 — Enterprise Hardening & Tech Debt Eradication
+
+**Goal:** convert the current platform from feature-reactive execution into an enterprise-hardened, contract-first, fail-closed system with enforceable SDLC guardrails.
+
+**Primary deliverables**
+- Canonical execution artifacts: `.github/TECH_DEBT_REGISTER.md`, `.github/SDLC_PROTOCOLS.md`, `.github/EPIC_TICKETS.md`
+- Guardrail epics covering drift detection, secret governance, PR-time security, rollback/release automation, tenant/RLS safety, idempotency, contracts, frontend standards, and non-dev reliability
+- Execution ordering that a fresh AI session can follow without relying on tribal knowledge
+
+**Expected results**
+- Drift, secret, and documentation mismatches fail early in CI instead of after deploy
+- Tenant-scoped reads/writes fail closed when tenant or RLS state is ambiguous
+- Frontend/mobile consume generated contracts through approved service layers
+- Runtime reliability depends on explicit, production-grade infrastructure rather than dev fallbacks
+
+**Acceptance criteria**
+- The first unchecked ticket in `.github/EPIC_TICKETS.md` is executable from docs alone
+- `.github/SDLC_PROTOCOLS.md` lists the mandatory reads, commands, and guardrails for every major change type
+- High-risk enterprise gaps are mapped to discrete epics with dependencies, tests, and rollback notes
+- This file remains the only canonical priority snapshot
+
+**Dependencies**
+- `manifests/GOLDEN_FILES.md` for authority mapping
+- `docs/GOLDEN_PIPELINE.md` for CI/CD and deployment rules
+- `.github/EPIC_TICKETS.md` for execution order
+- `.github/TECH_DEBT_REGISTER.md` for gap inventory
+
+**Risk register**
+- **Gate tightening causes short-term friction** -> phase in with clear remediation commands and explicit evidence requirements
+- **Fail-closed tenant changes expose latent client bugs** -> stage by endpoint family and emit stable error codes
+- **Contract-first migration surfaces type drift** -> roll out domain by domain with compatibility wrappers
+
+**Testing strategy**
+- Docs/gates: `bash scripts/verify_golden_state.sh`, `bash .github/scripts/check_infrastructure.sh`, `bash scripts/validate_copilot_squad.sh`
+- Frontend: `npm -C frontend run verify-standards`
+- Backend: targeted `python manage.py test ...` suites per ticket from `backend/`
+- Env/secrets when relevant: `python config/manage_env.py audit`
+
+**Rollback / safe-change approach**
+- Prefer additive changes, warn-only gates before blocking, and feature-flagged fail-closed rollouts
+- Use `.github/MASTER_PLAN.md` only for shipped evidence after merge; correct any docs drift by reverting the affected docs batch and re-deriving order from this file
+
+**Phase 12 epics**
+- **EH-00** Canonical docs/governance layer
+- **EH-01** SDLC + supply-chain hardening
+- **EH-02** Tenant isolation + data integrity
+- **EH-03** Contract-first platform
+- **EH-04** Frontend enterprise compliance
+- **EH-05** Runtime/ops reliability
+
+## Phase 13 — Next-Gen AI & Automation
+
+**Goal:** evolve AI capabilities from hardened chat/document tooling into a governed autonomy platform with durable lineage, semantic retrieval, and operator-grade approvals/telemetry.
+
+**Primary deliverables**
+- Persisted autonomy control-plane design and execution backlog
+- Canonical AI safety rules in `.github/SDLC_PROTOCOLS.md`
+- Sequenced tickets for semantic indexing, Graph resilience, lineage, HITL, telemetry, and export governance
+
+**Expected results**
+- AI runs are traceable by tenant, run, tool, and approval state
+- Semantic retrieval is real, tenant-safe, and health-gated
+- Operator dashboards show explicit empty/degraded states rather than synthetic production metrics
+
+**Acceptance criteria**
+- AI/autonomy tickets in `.github/EPIC_TICKETS.md` are blocked on the required Phase 12 safety foundations
+- AI persistence and exports are documented as tenant-native and durable-storage-only
+- HITL, lineage, and telemetry requirements are explicit enough for independent execution
+
+**Dependencies**
+- Phase 12 tenant/RLS, contract, and reliability epics
+- Non-dev Redis/observability readiness
+- Manifest-defined secrets and external service setup
+
+**Risk register**
+- **Unsafe autonomy rollout** -> shadow mode, approval-required mode, then scoped autonomy
+- **Vector/RAG platform drift** -> choose one canonical storage strategy and document fallback behavior explicitly
+- **External API throttling** -> shared HTTP client with retry budget, jitter, and metrics before broader rollout
+
+**Testing strategy**
+- AI lineage, approval, and retry suites
+- Graph throttling and parser lifecycle regression tests
+- Pgvector-present/absent retrieval tests
+
+**Rollback / safe-change approach**
+- Keep autonomy deny-by-default until lineage, approvals, and telemetry exist
+- Roll back AI execution changes by disabling the feature flag/control-plane entrypoint, not by bypassing tenant-safe storage rules
+
+**Phase 13 epics**
+- **EH-06** AI autonomy platform
+
 ---
 
 ## Evidence Index (where to look)
 - `.github/MASTER_PLAN.md` (append-only PR log)
+- `.github/EPIC_TICKETS.md` (execution-ordered backlog)
+- `.github/SDLC_PROTOCOLS.md` (normative delivery rules)
+- `.github/TECH_DEBT_REGISTER.md` (machine-readable debt inventory)
+- `GAP_ANALYSIS_REPORT.md` / `STRATEGIC_BLUEPRINT.md` (non-canonical synthesis snapshots)
 - `docs/prompts/last-25-prompts-2026-03-24.md` (prompt backlog inputs)
 - Verification artifacts: `PHASE_VERIFICATION_COMPLETE.md`, `EXECUTION_SUMMARY.txt`
 
