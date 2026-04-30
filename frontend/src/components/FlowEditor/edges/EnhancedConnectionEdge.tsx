@@ -24,6 +24,7 @@ import {
 } from '@xyflow/react';
 import styled, { keyframes } from 'styled-components';
 import { CheckCircle, AlertCircle, XCircle, Info, Pencil, Trash2, Plus, AlertTriangle } from 'lucide-react';
+import { getResolvedFormFields } from '../utils/formFieldsDualModel';
 
 // ============================================================================
 // Types
@@ -470,10 +471,10 @@ export const EnhancedConnectionEdge: React.FC<EdgeProps<Edge<EnhancedEdgeData>>>
       }
 
       if (keys.length === 0) {
-        const fields = sourceNode?.data?.fields || sourceNode?.data?.selectedFields;
+        const fields = sourceNode ? getResolvedFormFields(sourceNode.data) : [];
         if (Array.isArray(fields)) {
           for (const f of fields) {
-            const key = typeof f === 'string' ? f : (f?.name || f?.id || f?.key);
+            const key = f?.id;
             if (typeof key === 'string' && key.trim()) keys.push(key);
           }
         }

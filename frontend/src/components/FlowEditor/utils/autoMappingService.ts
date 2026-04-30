@@ -15,6 +15,7 @@ import {
   getUpstreamNodes,
   getUpstreamOutputFields,
 } from './outputSchemaInference';
+import { getResolvedFormFields } from './formFieldsDualModel';
 import {
   FieldMatch,
   findFieldMatches,
@@ -137,12 +138,14 @@ export class AutoMappingService {
   private static extractTargetFieldNames(node: Node): string[] {
     const fieldNames: string[] = [];
     const { data } = node;
+    const resolvedFields = getResolvedFormFields(data);
     
     // From fields array
-    if (data.fields && Array.isArray(data.fields)) {
-      data.fields.forEach((field: any) => {
-        if (field.name) {
-          fieldNames.push(field.name);
+    if (resolvedFields.length > 0) {
+      resolvedFields.forEach((field: any) => {
+        const fieldName = field.id || field.name;
+        if (fieldName) {
+          fieldNames.push(fieldName);
         }
       });
     }
@@ -169,12 +172,14 @@ export class AutoMappingService {
   private static extractTargetFieldTypes(node: Node): Record<string, string> {
     const fieldTypes: Record<string, string> = {};
     const { data } = node;
+    const resolvedFields = getResolvedFormFields(data);
     
     // From fields array
-    if (data.fields && Array.isArray(data.fields)) {
-      data.fields.forEach((field: any) => {
-        if (field.name && field.type) {
-          fieldTypes[field.name] = field.type;
+    if (resolvedFields.length > 0) {
+      resolvedFields.forEach((field: any) => {
+        const fieldName = field.id || field.name;
+        if (fieldName && field.type) {
+          fieldTypes[fieldName] = field.type;
         }
       });
     }

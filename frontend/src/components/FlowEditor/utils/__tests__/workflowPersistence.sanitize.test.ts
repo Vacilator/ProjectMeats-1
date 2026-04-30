@@ -106,4 +106,39 @@ describe('prepareWorkflowForSave (sanitization)', () => {
     // Existing values must not be overwritten.
     expect(action2Data.method).toBe('POST');
   });
+
+  it('canonicalizes form nodes to formFields-only payloads during save', () => {
+    const nodes: Node[] = [
+      {
+        id: 'form-1',
+        type: 'form',
+        position: { x: 0, y: 0 },
+        data: {
+          entityType: 'supplier',
+          fields: [
+            {
+              name: 'email',
+              label: 'Email',
+              type: 'EmailField',
+              required: true,
+              fieldId: 'sf-123',
+            },
+          ],
+        },
+      } as any,
+    ];
+
+    const prepared = prepareWorkflowForSave(nodes, []);
+    const preparedNodeData = prepared.nodes[0]!.data as any;
+
+    expect(preparedNodeData.formFields).toHaveLength(1);
+    expect(preparedNodeData.formFields[0]).toMatchObject({
+      id: 'email',
+      label: 'Email',
+      type: 'email',
+      required: true,
+    });
+    expect(preparedNodeData.fields).toBeUndefined();
+    expect(preparedNodeData.fieldMappings).toBeUndefined();
+  });
 });

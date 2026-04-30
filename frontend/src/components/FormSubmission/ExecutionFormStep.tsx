@@ -12,6 +12,7 @@ import styled from 'styled-components';
 
 import FormField, { FieldConfig } from './FormField';
 import type { WorkflowContext } from './hooks/useWorkflowContext';
+import { getResolvedFormFields } from '../FlowEditor/utils/formFieldsDualModel';
 
 type SelectedFieldLike = {
   key: string;
@@ -120,8 +121,7 @@ export const ExecutionFormStep: React.FC<ExecutionFormStepProps> = ({
   const entityType = nodeData.entity_type || nodeData.entityType;
 
   const fields: FieldConfig[] = useMemo(() => {
-    const raw = Array.isArray((nodeData as any).formFields) ? (nodeData as any).formFields : nodeData.fields;
-    const selected = Array.isArray(raw) ? raw : [];
+    const selected = getResolvedFormFields(nodeData);
 
     return selected.map((f: any) => {
       const autoPopulateSource = f.cascadeFrom;
@@ -144,7 +144,7 @@ export const ExecutionFormStep: React.FC<ExecutionFormStepProps> = ({
         autoPopulateSource,
       };
     });
-  }, [nodeData.fields]);
+  }, [(nodeData as any).formFields, nodeData.fields]);
 
   const [values, setValues] = useState<Record<string, any>>({});
 

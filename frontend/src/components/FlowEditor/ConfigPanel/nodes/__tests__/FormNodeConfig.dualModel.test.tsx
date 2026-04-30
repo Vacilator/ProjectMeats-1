@@ -67,7 +67,7 @@ describe('FormNodeConfig dual-model', () => {
     expect(screen.getByTestId('selected-count')).toHaveTextContent('1');
   });
 
-  it('writes formFields when picker changes selection', () => {
+  it('writes canonical formFields only when picker changes selection', () => {
     const onUpdateNode = vi.fn();
 
     render(
@@ -93,8 +93,8 @@ describe('FormNodeConfig dual-model', () => {
     expect(last?.[0]).toBe('n1');
 
     const nextData = last?.[1];
-    expect(nextData.fields).toHaveLength(1);
     expect(nextData.formFields).toHaveLength(1);
     expect(nextData.formFields[0]).toMatchObject({ id: 'email', type: 'email' });
+    expect(nextData.fields).toBeUndefined();
   });
 });

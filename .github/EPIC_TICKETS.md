@@ -292,8 +292,8 @@
   - **Rollback:** Keep the parity changes isolated to the mobile service/session layer so the app can revert to the previous tenant/error handling path if a release regression appears.
   - **Completion evidence destination:** shipped in `.github/MASTER_PLAN.md` (PR: #4804)
 
-- [ ] **EH-04.5 workforms-fields-model-cleanup**
-  - **Status:** Ready
+- [x] **EH-04.5 workforms-fields-model-cleanup**
+  - **Status:** Done
   - **Why now:** `MASTER_PLAN.md` still lists WorkForms form "fields" model cleanup as the remaining concrete editor correctness follow-up after the shipped deterministic schema bootstrap and recent stabilization passes.
   - **Canonical source reference:** `MASTER_PLAN.md` -> WorkForms runtime/observability (next) + Phase 12
   - **Scope:** Canonicalize WorkForms form-node payloads to one supported `formFields` model while preserving backward-compatible reads, move remaining readers/writers off the legacy mixed `fields` shape, and add focused regression coverage for save/load, inference, and config-panel flows.
@@ -312,7 +312,7 @@
   - **Secrets/infra impact:** None
   - **Risk level:** High
   - **Rollback:** Revert the FlowEditor persistence canonicalization as one unit while keeping backward-compatible dual-model readers intact if downstream compatibility regressions appear.
-  - **Completion evidence destination:** `.github/MASTER_PLAN.md`
+  - **Completion evidence destination:** shipped in `.github/MASTER_PLAN.md`
 
 ### Epic EH-05 - Runtime / ops reliability
 

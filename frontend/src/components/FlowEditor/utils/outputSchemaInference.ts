@@ -9,6 +9,7 @@
 
 import { Node } from '@xyflow/react';
 import { logger } from '@/utils/logger';
+import { getResolvedFormFields } from './formFieldsDualModel';
 
 /**
  * Output field schema for a node
@@ -42,15 +43,16 @@ export function inferOutputSchemaFromFormNode(node: Node): NodeOutputSchema | nu
     const { data } = node;
     const dataAny = data as any;
     const fields: OutputFieldSchema[] = [];
+    const resolvedFields = getResolvedFormFields(dataAny);
 
     // Check if node has form fields
-    if (data.fields && Array.isArray(data.fields)) {
-      data.fields.forEach((field: any) => {
+    if (resolvedFields.length > 0) {
+      resolvedFields.forEach((field: any) => {
         fields.push({
           fieldId: field.id || field.name,
-          fieldName: field.name || field.id,
+          fieldName: field.id || field.name,
           fieldType: field.type || 'text',
-          label: field.label || field.name,
+          label: field.label || field.id,
           entityType: typeof dataAny.entityType === 'string' ? dataAny.entityType : undefined,
           required: field.required || false,
           defaultValue: field.defaultValue,

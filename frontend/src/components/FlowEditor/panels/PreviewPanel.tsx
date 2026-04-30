@@ -16,6 +16,7 @@ import { Node } from '@xyflow/react';
 import { X, Smartphone, Monitor, Tablet, RefreshCw, Eye, TestTube2, Eraser, AlertCircle } from 'lucide-react';
 
 import { logger } from '@/utils/logger';
+import { getResolvedFormFields } from '../utils/formFieldsDualModel';
 
 // ============================================================================
 // TypeScript Interfaces
@@ -405,8 +406,8 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({
     
     // Find all form-related nodes
     nodes.forEach(node => {
-      const nodeFields = (node.data as any)?.fields;
-      if (node.type === 'formStep' && Array.isArray(nodeFields)) {
+      const nodeFields = getResolvedFormFields(node.data);
+      if ((node.type === 'formStep' || node.type === 'form') && nodeFields.length > 0) {
         // FormStep node with multiple fields
         nodeFields.forEach((field: any) => {
           fields.push({
