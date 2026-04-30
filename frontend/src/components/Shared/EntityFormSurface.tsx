@@ -9,7 +9,8 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Modal, Skeleton, message } from 'antd';
+import { Skeleton, message } from 'antd';
+import { isEqual } from 'lodash';
 
 import { getRuntimeConfigBoolean } from '@/config/runtime';
 import { useAuthState } from '@/contexts/AuthContext';
@@ -83,6 +84,17 @@ const normalizeEntityType = (raw: string): string => {
 };
 
 const buildUnauthorizedLoadError = () => ({ response: { status: 401 } });
+const EMPTY_INITIAL_VALUES: Record<string, unknown> = {};
+
+function useDeepStableValue<T>(value: T): T {
+  const ref = useRef(value);
+
+  if (!isEqual(ref.current, value)) {
+    ref.current = value;
+  }
+
+  return ref.current;
+}
 
 const flattenSchemaFields = (schema: BackendSchema | null): BackendField[] => {
   const directFields = Array.isArray(schema?.fields) ? (schema?.fields as BackendField[]) : [];
@@ -246,6 +258,7 @@ export const EntityFormSurface: React.FC<EntityFormSurfaceProps> = ({
   const endpoint = useMemo(() => normalizeEntityEndpoint(entityType), [entityType]);
   const { isAuthenticated, loading: authLoading } = useAuthState();
   const queryClient = useQueryClient();
+  const stableInitialValues = useDeepStableValue(initialValues ?? EMPTY_INITIAL_VALUES);
 
   const useUniversalInquiryCreate = getRuntimeConfigBoolean('USE_UNIVERSAL_INQUIRY_CREATE', false);
   const shouldRenderInquiryCreate =
@@ -260,29 +273,14 @@ export const EntityFormSurface: React.FC<EntityFormSurfaceProps> = ({
     [onSuccess]
   );
 
-  const renderLoaderBoundary = useCallback(
-    (content: React.ReactNode) => {
-      if (variant === 'modal') {
-        return (
-          <Modal open={isOpen} onCancel={handleClose} footer={null} destroyOnClose>
-            {content}
-          </Modal>
-        );
-      }
-
-      return <div>{content}</div>;
-    },
-    [handleClose, isOpen, variant]
-  );
-
   const derivedInitialValues = useMemo<Record<string, unknown>>(
     () => ({
-      ...(initialValues || {}),
+      ...stableInitialValues,
       ...(context?.customerId != null ? { customer: String(context.customerId) } : {}),
       ...(context?.supplierId != null ? { supplier: String(context.supplierId) } : {}),
       ...(context?.contactId != null ? { contact: String(context.contactId) } : {}),
     }),
-    [context?.contactId, context?.customerId, context?.supplierId, initialValues]
+    [context?.contactId, context?.customerId, context?.supplierId, stableInitialValues]
   );
 
   const [draftValues, setDraftValues] = useState<Record<string, unknown> | null>(null);
@@ -567,16 +565,16 @@ export const EntityFormSurface: React.FC<EntityFormSurfaceProps> = ({
     );
   }
 
-  if (formLoading) {
-    return renderLoaderBoundary(
+  if (variant === 'inline' && formLoading) {
+    return (
       <div data-testid="entity-form-loading" style={{ padding: 16 }}>
         <Skeleton active paragraph={{ rows: 6 }} />
       </div>
     );
   }
 
-  if (formLoadError || !augmentedSchema) {
-    return renderLoaderBoundary(
+  if (variant === 'inline' && (formLoadError || !augmentedSchema)) {
+    return (
       <div
         data-testid="entity-form-load-error"
         style={{ padding: 12, color: 'rgb(var(--color-text-secondary))', fontSize: 13 }}
@@ -603,6 +601,8 @@ export const EntityFormSurface: React.FC<EntityFormSurfaceProps> = ({
       schema={augmentedSchema}
       dropdownOptions={resourcesQuery.data?.dropdownOptions || {}}
       formConfig={resourcesQuery.data?.formConfig || DEFAULT_FORM_CONFIG}
+      loading={formLoading}
+      loadError={formLoadError}
       onSubmit={handleSubmit}
       autofill={
         supportsAutofill

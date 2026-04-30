@@ -75,14 +75,15 @@ describe('EntityFormSurface', () => {
     formLifecycle.props.length = 0;
   });
 
-  const renderWithQueryClient = (ui: React.ReactElement) => {
-    const queryClient = new QueryClient({
+  const createQueryClient = () =>
+    new QueryClient({
       defaultOptions: {
         queries: {
           retry: false,
         },
       },
     });
+  const renderWithQueryClient = (ui: React.ReactElement, queryClient = createQueryClient()) => {
 
     return render(<QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>);
   };
@@ -191,6 +192,90 @@ describe('EntityFormSurface', () => {
     expect(businessApiMock.get.mock.calls.length).toBeGreaterThanOrEqual(2);
     expect(formLifecycle.mounts).toBe(1);
     expect(formLifecycle.unmounts).toBe(0);
+  });
+
+  it('does not churn cached resource queries when parent rebuilds identical seed objects', async () => {
+    const queryClient = createQueryClient();
+    const schema = {
+      name: 'Plant',
+      description: 'Plant schema',
+      fields: [
+        { key: 'name', label: 'Plant Name', type: 'text', required: true },
+        {
+          key: 'customer',
+          label: 'Customer',
+          type: 'foreign_key',
+          related_entity: 'customers.Customer',
+        },
+      ],
+    };
+
+    queryClient.setQueryData(['entity-form-schema', 'plant'], schema);
+    queryClient.setQueryData(['entity-form-record', 'plant', '2769'], {
+      id: 2769,
+      name: 'North Plant',
+      customer: '123',
+    });
+    businessApiMock.get.mockImplementation((url: string) => {
+      if (url === 'customers/') {
+        return Promise.resolve({
+          data: {
+            results: [{ id: '123', name: 'Acme Foods' }],
+          },
+        });
+      }
+
+      if (url === '/master-products/') {
+        return Promise.resolve({
+          data: {
+            results: [],
+          },
+        });
+      }
+
+      return Promise.reject(new Error(`Unexpected GET ${url}`));
+    });
+
+    const Parent: React.FC = () => {
+      const [tick, setTick] = useState(0);
+
+      useEffect(() => {
+        if (tick >= 6) return;
+        setTick((prev) => prev + 1);
+      }, [tick]);
+
+      return (
+        <EntityFormSurface
+          entityType="plant"
+          entityId="2769"
+          mode="edit"
+          variant="inline"
+          isOpen
+          onClose={() => {}}
+          initialValues={{ export_approved: false }}
+        />
+      );
+    };
+
+    renderWithQueryClient(<Parent />, queryClient);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('universal-entity-form')).toBeInTheDocument();
+    });
+
+    expect(businessApiMock.get).toHaveBeenCalledTimes(2);
+    expect(formLifecycle.mounts).toBe(1);
+    expect(formLifecycle.unmounts).toBe(0);
+
+    const latest = formLifecycle.props.at(-1) as Record<string, unknown> | undefined;
+    expect((latest?.schema as { name?: string } | undefined)?.name).toBe('Plant');
+    expect(
+      (
+        latest?.dropdownOptions as
+          | Record<string, Array<{ value: string; label: string }>>
+          | undefined
+      )?.customer?.[0]?.label
+    ).toBe('Acme Foods');
   });
 
   it('does not attempt protected loads when unauthenticated', async () => {

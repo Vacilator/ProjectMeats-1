@@ -11,7 +11,7 @@
  * - Clone existing inquiries
  * - Create from templates
  */
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Skeleton } from 'antd';
 import styled from 'styled-components';
@@ -469,25 +469,29 @@ const Inquiries: React.FC = () => {
   const [page, setPage] = useState(1);
   const pageSize = 20;
 
-  const inquiriesQuery = useQuery({
-    queryKey: ['inquiries', { page, pageSize, search, statusFilter, entityTypeFilter }],
-    queryFn: async () => {
-      const params: Record<string, any> = {
-        page,
-        page_size: pageSize,
-      };
+  const inquiriesQueryOptions = useMemo(
+    () => ({
+      queryKey: ['inquiries', page, pageSize, search, statusFilter, entityTypeFilter],
+      queryFn: async () => {
+        const params: Record<string, any> = {
+          page,
+          page_size: pageSize,
+        };
 
-      if (search) params.search = search;
-      if (statusFilter) params.status = statusFilter;
-      if (entityTypeFilter) params.entity_type = entityTypeFilter;
+        if (search) params.search = search;
+        if (statusFilter) params.status = statusFilter;
+        if (entityTypeFilter) params.entity_type = entityTypeFilter;
 
-      const response = await apiClient.get('inquiries/', { params });
-      const data = response.data;
-      const items: InquiryListItem[] = data.results || data;
-      const count: number = data.count || (Array.isArray(items) ? items.length : 0);
-      return { items, count };
-    },
-  });
+        const response = await apiClient.get('inquiries/', { params });
+        const data = response.data;
+        const items: InquiryListItem[] = data.results || data;
+        const count: number = data.count || (Array.isArray(items) ? items.length : 0);
+        return { items, count };
+      },
+    }),
+    [entityTypeFilter, page, pageSize, search, statusFilter]
+  );
+  const inquiriesQuery = useQuery(inquiriesQueryOptions);
 
   const inquiries = inquiriesQuery.data?.items ?? [];
   const totalCount = inquiriesQuery.data?.count ?? 0;
