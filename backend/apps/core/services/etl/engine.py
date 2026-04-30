@@ -40,13 +40,19 @@ def execute_dry_run(
     """Execute the restart-safe dry-run ETL journal flow."""
 
     manifest_dir = Path(manifest_path).resolve().parent
-    command_options = build_command_options(entity=entity, limit=limit, output_format=output_format)
+    command_options = build_command_options(
+        entity=entity,
+        limit=limit,
+        output_format=output_format,
+        execution_mode=ETLImportBatch.Mode.DRY_RUN,
+    )
     manifest_checksum = checksum_manifest_payload(manifest_payload)
     batch, created = get_or_start_batch(
         tenant=resolved_tenant,
         manifest_payload=manifest_payload,
         manifest_checksum=manifest_checksum,
         command_options=command_options,
+        mode=ETLImportBatch.Mode.DRY_RUN,
     )
     preview = build_contract_preview(manifest, resolved_tenant=resolved_tenant)
 

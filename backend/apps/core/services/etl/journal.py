@@ -24,6 +24,7 @@ def build_command_options(
     limit: int | None = None,
     output_format: str = 'text',
     apply: bool = False,
+    execution_mode: str = 'dry_run',
     actor_user_id: int | None = None,
     actor_email: str = '',
 ) -> dict[str, Any]:
@@ -34,12 +35,19 @@ def build_command_options(
         'limit': limit,
         'format': output_format,
         'apply': apply,
+        'execution_mode': execution_mode,
         'actor_user_id': actor_user_id,
         'actor_email': actor_email,
     }
 
 
-def build_run_key(*, tenant_id: str, manifest_checksum: str, command_options: dict[str, Any]) -> str:
+def build_run_key(
+    *,
+    tenant_id: str,
+    manifest_checksum: str,
+    command_options: dict[str, Any],
+    mode: str = ETLImportBatch.Mode.DRY_RUN,
+) -> str:
     """Build a deterministic tenant-scoped ETL run key."""
 
     encoded = json.dumps(
@@ -47,7 +55,7 @@ def build_run_key(*, tenant_id: str, manifest_checksum: str, command_options: di
             'tenant_id': str(tenant_id),
             'manifest_checksum': manifest_checksum,
             'command_options': command_options,
-            'mode': ETLImportBatch.Mode.DRY_RUN,
+            'mode': mode,
         },
         sort_keys=True,
         separators=(',', ':'),
@@ -61,6 +69,7 @@ def get_or_start_batch(
     manifest_payload: dict[str, Any],
     manifest_checksum: str,
     command_options: dict[str, Any],
+    mode: str = ETLImportBatch.Mode.DRY_RUN,
 ):
     """Create or reuse a restart-safe ETL batch."""
 
@@ -68,13 +77,14 @@ def get_or_start_batch(
         tenant_id=str(tenant.id),
         manifest_checksum=manifest_checksum,
         command_options=command_options,
+        mode=mode,
     )
     now = timezone.now()
     batch, created = ETLImportBatch.objects.get_or_create(
         tenant=tenant,
         run_key=run_key,
         defaults={
-            'mode': ETLImportBatch.Mode.DRY_RUN,
+            'mode': mode,
             'status': ETLImportBatch.Status.RUNNING,
             'source_manifest': manifest_payload,
             'manifest_checksum': manifest_checksum,
@@ -84,7 +94,7 @@ def get_or_start_batch(
         },
     )
     if not created:
-        batch.mode = ETLImportBatch.Mode.DRY_RUN
+        batch.mode = mode
         batch.status = ETLImportBatch.Status.RUNNING
         batch.source_manifest = manifest_payload
         batch.manifest_checksum = manifest_checksum

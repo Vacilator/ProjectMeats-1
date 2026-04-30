@@ -1,0 +1,22 @@
+[
+  {
+    "name": "Rapid Freight",
+    "code": "RAPID",
+    "carrier_type": "truck",
+    "contact_person": "Rita Route",
+    "phone": "5553330000",
+    "email": "dispatch@rapid-freight.example",
+    "address": "300 Transit Road",
+    "city": "Kansas City",
+    "state": "MO",
+    "zip_code": "64105",
+    "country": "USA",
+    "mc_number": "MC-778899",
+    "dot_number": "DOT-998877",
+    "payment_terms": "ACH",
+    "credit_limit": "Net 15",
+    "account_line_of_credit": "$50,000 - $100,000",
+    "departments_array": ["BOL", "POD"],
+    "how_carrier_make_appointment": "Email"
+  }
+]

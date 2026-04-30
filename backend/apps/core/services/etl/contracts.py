@@ -25,13 +25,13 @@ BATCH_MANIFEST_REQUIRED_FIELDS = ("batch_name", "source_system", "sources")
 TENANT_SELECTOR_FIELDS = ("tenant_slug", "tenant_id")
 
 MASTER_DATA_IMPORT_ORDER = (
-    "locations",
-    "plants",
+    "products",
     "suppliers",
     "customers",
     "carriers",
+    "plants",
+    "locations",
     "contacts",
-    "products",
 )
 
 TRANSACTION_IMPORT_ORDER = (

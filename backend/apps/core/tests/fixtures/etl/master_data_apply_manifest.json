@@ -19,6 +19,11 @@
       "path": "customer_master_rows.json"
     },
     {
+      "entity": "carriers",
+      "format": "json",
+      "path": "carrier_master_rows.json"
+    },
+    {
       "entity": "plants",
       "format": "json",
       "path": "plant_master_rows.json"

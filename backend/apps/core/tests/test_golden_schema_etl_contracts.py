@@ -66,7 +66,7 @@ class GoldenSchemaETLContractTests(TestCase):
         manifest = validate_batch_manifest(payload)
         self.assertEqual(
             manifest.ordered_entities(),
-            ("suppliers", "products", "purchase_orders", "invoice_items"),
+            ("products", "suppliers", "purchase_orders", "invoice_items"),
         )
 
     def test_preview_exposes_side_effect_suppression_and_journal_shape(self) -> None:

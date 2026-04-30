@@ -23,11 +23,26 @@
    - `tenant_apps.products.models.MasterProduct`
    - `tenant_apps.suppliers.models.Supplier`
    - `tenant_apps.customers.models.Customer`
+   - `tenant_apps.carriers.models.Carrier`
    - `tenant_apps.plants.models.Plant`
    - `tenant_apps.locations.models.Location`
    - `tenant_apps.contacts.models.Contact`
 3. ETL execution context guards that suppress workflow-trigger fan-out while import writes are running.
 4. Journal summaries that expose actual `created_count`, `updated_count`, and `skipped_count` for master-data apply mode.
+
+## What ships in GA-01.4
+1. `import_golden_legacy_data --apply` now supports transactional batches for:
+   - `purchase_orders`
+   - `purchase_order_items`
+   - `sales_orders`
+   - `sales_order_items`
+   - `carrier_purchase_orders`
+   - `carrier_po_items`
+   - `invoices`
+   - `invoice_items`
+2. Transactional rows import in deterministic dependency order with tenant-scoped header and line-item matching.
+3. Reconciliation output now returns row-level error reports without aborting the whole batch when one source row fails.
+4. Apply-mode batches now persist explicit ETL batch modes: `dry_run`, `apply_master_data`, and `apply_transactions`.
 
 ## Non-goals
 - No transactional header or line-item imports yet.
@@ -49,13 +64,13 @@
 
 ## Deterministic import order
 ### Master data
-1. `locations`
-2. `plants`
-3. `suppliers`
-4. `customers`
-5. `carriers`
-6. `contacts`
-7. `products`
+1. `products`
+2. `suppliers`
+3. `customers`
+4. `carriers`
+5. `plants`
+6. `locations`
+7. `contacts`
 
 ### Transactional data
 1. `purchase_orders`
@@ -179,12 +194,28 @@ The import path should rely on an explicit ETL journal/reconciliation surface in
    - `products`
    - `suppliers`
    - `customers`
+   - `carriers`
    - `plants`
    - `locations`
    - `contacts`
 3. The same manifest + options reuse the same batch/run key and upsert the same journal rows on rerun.
 4. Workflow-trigger side effects remain suppressed during ETL-managed saves; operator reconciliation must rely on journal output, not normal runtime fan-out.
 5. Transactional entities remain blocked until GA-01.4.
+
+## Transactional apply rules (GA-01.4)
+1. Transactional apply mode is explicit: `python manage.py import_golden_legacy_data --manifest ... --apply`.
+2. Transactional batches must be separate from master-data batches unless the operator scopes a single entity with `--entity`.
+3. Transactional apply mode supports:
+   - `purchase_orders`
+   - `purchase_order_items`
+   - `sales_orders`
+   - `sales_order_items`
+   - `carrier_purchase_orders`
+   - `carrier_po_items`
+   - `invoices`
+   - `invoice_items`
+4. Re-running the same manifest + options reuses the same transaction batch/run key and upserts the same journal rows instead of duplicating imported history.
+5. Row-level reconciliation errors surface in `error_report` while successful rows in the same batch continue to import.
 
 ## Planned journal + error report contract
 ### Import journal fields

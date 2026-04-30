@@ -1,0 +1,19 @@
+[
+  {
+    "invoice_number": "INV-4001",
+    "line_number": 1,
+    "product_code": "BEEF-BRISKET-001",
+    "protein_type": "Beef",
+    "fresh_or_frozen": "Fresh",
+    "package_type": "Combo bins",
+    "quantity": 20,
+    "uom": "LBS",
+    "net_or_catch": "Net",
+    "edible_or_inedible": "Edible",
+    "tested_product": true,
+    "total_net_weight": "4000.25",
+    "unit_price": "4.25",
+    "line_total": "8500.00",
+    "notes": "Invoice line item"
+  }
+]
