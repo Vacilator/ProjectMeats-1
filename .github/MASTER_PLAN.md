@@ -11,6 +11,8 @@ This file is the **append-only PR-referenceable execution log**.
 
 ## Operational Notes
 
+- **2026-04-30** — Frontend/CI: stabilized the Plant edit smart-loader against React Error #185 by memoizing `EntityFormSurface` query options/keys, preserving single-mount loader hydration, and adding a production-preview Playwright smoke (`frontend/e2e/entity-form-surface-smoke.spec.ts`) plus PR-validation gate so the minified Plant edit path is exercised before merge/deploy. (PR: #4809)
+
 - **2026-04-30** — Docs/backlog: refreshed `.github/EPIC_TICKETS.md` after the enterprise hardening queue was exhausted and restored a single first-ready item from `MASTER_PLAN.md` priorities: **EH-02.5 choice-viewset-tenant-admin-fail-closed** (P0 tenant isolation). (PR: #4801)
 
 - **2026-04-30** — CI/docs: deepened the Golden drift gate so `scripts/verify_golden_state.sh` now reports file/rule-specific failures for current/reference doc drift, enforces canonical branch/deploy guidance in `.github/workflows/README.md`, and forces `docs/reference/GOLDEN_PIPELINE.md` to remain a pointer-only companion to `docs/GOLDEN_PIPELINE.md` rather than an independent operational authority. (PR: #4799)
