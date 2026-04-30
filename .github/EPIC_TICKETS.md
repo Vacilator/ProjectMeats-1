@@ -94,8 +94,8 @@
 
 ### Epic GA-02 - Infrastructure & disaster recovery
 
-- [ ] **GA-02.1 infra-desired-state-and-iac-scaffold**
-  - **Status:** Ready
+- [x] **GA-02.1 infra-desired-state-and-iac-scaffold**
+  - **Status:** Shipped (PR #4818)
   - **Why now:** Launch operations currently rely on workflow/runtime knowledge that needs a codified desired state before DR and autoscaling changes can be trusted.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 14 / Epic 2
   - **Scope:** Inventory the current deploy/runtime topology and create the first IaC scaffold for launch-critical resources (droplets, workers, Redis, backup storage, alerting assumptions) without contradicting the Golden Pipeline.
@@ -113,7 +113,7 @@
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
 - [ ] **GA-02.2 postgres-pitr-verification-and-restore-drill**
-  - **Status:** Blocked
+  - **Status:** Ready
   - **Why now:** Pre-migration backups exist, but GA needs provable PITR/restore capability rather than ad hoc dump retention.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 14 / Epic 2
   - **Scope:** Add PITR validation and a restore-drill runbook/workflow that verifies backups can be restored safely and documents RPO/RTO expectations.
@@ -121,7 +121,7 @@
   - **Primary domain:** ops/backend
   - **Likely touched paths:** `.github/workflows/reusable-deploy.yml`, `.github/workflows/99-ops-management-command.yml`, `docs/guides/DATABASE_SYNC_GUIDE.md`, `docs/runbooks/DISASTER_RECOVERY.md`, `manifests/env.manifest.json`
   - **Dependencies:** GA-02.1
-  - **Blockers:** GA-02.1
+  - **Blockers:** None
   - **Acceptance criteria:** PITR/restore steps are executable from repo docs/workflows, backup retention rules are explicit, and operators can prove a restore path before GA.
   - **Validation commands:** `bash scripts/verify_golden_state.sh`; `bash .github/scripts/check_infrastructure.sh`; `python config/manage_env.py audit`
   - **Tenant/RLS impact:** Medium; restored environments must preserve tenant isolation guarantees.
