@@ -74,6 +74,7 @@ import ApiTestComponent from './components/ApiTestComponent';
 import { WorkflowRunner, PerfHarness } from './pages/Workflows';
 import { WorkflowMonitor } from './pages/Workflows/WorkflowMonitor';
 import { WorkflowExecutionDetails } from './pages/Workflows/WorkflowExecutionDetails';
+import EntityFormSurfaceSmoke from './pages/Diagnostics/EntityFormSurfaceSmoke';
 import { FormSubmissionModal } from './components/FormSubmission';
 import { useQuickActions } from './contexts/QuickActionsContext';
 import MySubmissions from './pages/MySubmissions';
@@ -130,6 +131,8 @@ const FormSubmissionWrapper: React.FC = () => {
 };
 
 const App: React.FC = () => {
+  const enableEntityFormSmokeRoute = import.meta.env.VITE_ENABLE_E2E_SMOKE === '1';
+
   useEffect(() => {
     const currentTenantId = getValidTenantId();
     const previousTenantId = sessionStorage.getItem('currentTenantId');
@@ -233,6 +236,12 @@ const App: React.FC = () => {
                     <Routes>
                 <Route path="/login" element={<Login />} />
                 <Route path="/signup" element={<SignUp />} />
+                {enableEntityFormSmokeRoute && (
+                  <Route
+                    path="/diagnostics/entity-form-surface-smoke"
+                    element={<EntityFormSurfaceSmoke />}
+                  />
+                )}
               <Route path="/" element={<Layout />}>
                 <Route index element={<Navigate to="/cockpit" replace />} />
 

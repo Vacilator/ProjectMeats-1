@@ -6,7 +6,7 @@
  * before mounting the pure UniversalEntityForm renderer.
  */
 
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Modal, Skeleton, message } from 'antd';
@@ -296,6 +296,27 @@ export const EntityFormSurface: React.FC<EntityFormSurfaceProps> = ({
     entityId != null &&
     String(entityId).trim().length > 0;
   const supportsAutofill = EXTRACTABLE_ENTITY_KEYS.has(String(normalizedEntityKey || '').toLowerCase());
+  const schemaQueryKey = useMemo(
+    () => ['entity-form-schema', normalizedEntityKey] as const,
+    [normalizedEntityKey]
+  );
+  const recordQueryKey = useMemo(
+    () =>
+      [
+        'entity-form-record',
+        normalizedEntityKey,
+        entityId == null ? 'new' : String(entityId),
+      ] as const,
+    [entityId, normalizedEntityKey]
+  );
+  const recordQueryPrefix = useMemo(
+    () => ['entity-form-record', normalizedEntityKey] as const,
+    [normalizedEntityKey]
+  );
+  const documentsQueryKey = useMemo(
+    () => ['entity-form-documents', normalizedEntityKey] as const,
+    [normalizedEntityKey]
+  );
 
   useEffect(() => {
     if (!isOpen || authLoading || isAuthenticated || typeof window === 'undefined') {
@@ -328,19 +349,27 @@ export const EntityFormSurface: React.FC<EntityFormSurfaceProps> = ({
     }
   }, [isOpen, entityId, entityType, mode]);
 
-  const schemaQuery = useQuery({
-    queryKey: ['entity-form-schema', normalizedEntityKey],
-    queryFn: () => fetchUniversalEntitySchema(entityType),
-    enabled: shouldHydrate,
-    staleTime: 5 * 60 * 1000,
-  });
+  const schemaQueryOptions = useMemo(
+    () => ({
+      queryKey: schemaQueryKey,
+      queryFn: () => fetchUniversalEntitySchema(entityType),
+      enabled: shouldHydrate,
+      staleTime: 5 * 60 * 1000,
+    }),
+    [entityType, schemaQueryKey, shouldHydrate]
+  );
+  const schemaQuery = useQuery(schemaQueryOptions);
 
-  const recordQuery = useQuery({
-    queryKey: ['entity-form-record', normalizedEntityKey, entityId == null ? 'new' : String(entityId)],
-    queryFn: () => fetchUniversalEntityRecord(entityType, entityId as string | number),
-    enabled: shouldLoadRecord,
-    staleTime: Number.POSITIVE_INFINITY,
-  });
+  const recordQueryOptions = useMemo(
+    () => ({
+      queryKey: recordQueryKey,
+      queryFn: () => fetchUniversalEntityRecord(entityType, entityId as string | number),
+      enabled: shouldLoadRecord,
+      staleTime: Number.POSITIVE_INFINITY,
+    }),
+    [entityId, entityType, recordQueryKey, shouldLoadRecord]
+  );
+  const recordQuery = useQuery(recordQueryOptions);
 
   const mergedInitialValues = useMemo(
     () =>
@@ -356,6 +385,7 @@ export const EntityFormSurface: React.FC<EntityFormSurfaceProps> = ({
     () => augmentSchemaForFrontend(normalizedEntityKey, schemaQuery.data ?? null, mergedInitialValues),
     [mergedInitialValues, normalizedEntityKey, schemaQuery.data]
   );
+  const hasAugmentedSchema = Boolean(augmentedSchema);
 
   const schemaResourcesSignature = useMemo(() => {
     return getStableSignature(
@@ -370,20 +400,35 @@ export const EntityFormSurface: React.FC<EntityFormSurfaceProps> = ({
       }))
     );
   }, [augmentedSchema]);
+  const stableResourceSchemaRef = useRef<BackendSchema | null>(null);
+  const stableResourceSignatureRef = useRef('');
 
-  const resourcesQuery = useQuery({
-    queryKey: ['entity-form-resources', normalizedEntityKey, schemaResourcesSignature],
-    queryFn: () => loadDropdownResources(augmentedSchema),
-    enabled: shouldHydrate && Boolean(augmentedSchema),
-    staleTime: 5 * 60 * 1000,
-  });
+  if (stableResourceSignatureRef.current !== schemaResourcesSignature) {
+    stableResourceSignatureRef.current = schemaResourcesSignature;
+    stableResourceSchemaRef.current = augmentedSchema;
+  }
 
-  const documentsQuery = useQuery({
-    queryKey: ['entity-form-documents'],
-    queryFn: documentsApi.list,
-    enabled: shouldHydrate && supportsAutofill,
-    staleTime: 60 * 1000,
-  });
+  const resourcesQueryOptions = useMemo(
+    () => ({
+      queryKey: ['entity-form-resources', normalizedEntityKey, schemaResourcesSignature] as const,
+      queryFn: () => loadDropdownResources(stableResourceSchemaRef.current),
+      enabled: shouldHydrate && hasAugmentedSchema,
+      staleTime: 5 * 60 * 1000,
+    }),
+    [hasAugmentedSchema, normalizedEntityKey, schemaResourcesSignature, shouldHydrate]
+  );
+  const resourcesQuery = useQuery(resourcesQueryOptions);
+
+  const documentsQueryOptions = useMemo(
+    () => ({
+      queryKey: documentsQueryKey,
+      queryFn: documentsApi.list,
+      enabled: shouldHydrate && supportsAutofill,
+      staleTime: 60 * 1000,
+    }),
+    [documentsQueryKey, shouldHydrate, supportsAutofill]
+  );
+  const documentsQuery = useQuery(documentsQueryOptions);
 
   const normalizedDocuments = useMemo(
     () =>
@@ -437,12 +482,12 @@ export const EntityFormSurface: React.FC<EntityFormSurfaceProps> = ({
         : await businessApi.post(endpoint, payload);
 
       await queryClient.invalidateQueries({
-        queryKey: ['entity-form-record', normalizedEntityKey],
+        queryKey: recordQueryPrefix,
       });
 
       return response.data;
     },
-    [endpoint, entityId, mode, normalizedEntityKey, queryClient]
+    [endpoint, entityId, mode, queryClient, recordQueryPrefix]
   );
 
   const runExtraction = useCallback(
@@ -480,7 +525,7 @@ export const EntityFormSurface: React.FC<EntityFormSurfaceProps> = ({
           original_filename: uploaded.original_filename,
         };
 
-        queryClient.setQueryData(['entity-form-documents'], (current: unknown) => {
+        queryClient.setQueryData(documentsQueryKey, (current: unknown) => {
           const existing = Array.isArray(current) ? current : [];
           return [
             uploaded,
@@ -495,7 +540,7 @@ export const EntityFormSurface: React.FC<EntityFormSurfaceProps> = ({
         setExtracting(false);
       }
     },
-    [queryClient, runExtraction]
+    [documentsQueryKey, queryClient, runExtraction]
   );
 
   if (!isOpen) {

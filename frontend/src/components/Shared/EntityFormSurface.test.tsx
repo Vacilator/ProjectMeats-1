@@ -189,7 +189,8 @@ describe('EntityFormSurface', () => {
     });
     expect(businessApiMock.get).toHaveBeenCalledWith('plants/2769/');
     expect(businessApiMock.get.mock.calls.length).toBeGreaterThanOrEqual(2);
-    expect(formLifecycle.mounts).toBeGreaterThanOrEqual(1);
+    expect(formLifecycle.mounts).toBe(1);
+    expect(formLifecycle.unmounts).toBe(0);
   });
 
   it('does not attempt protected loads when unauthenticated', async () => {
