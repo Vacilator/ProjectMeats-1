@@ -13,6 +13,14 @@
 5. If a prerequisite is incomplete, the next ticket must be **Status: Blocked** with an explicit blocker.
 6. After merge, append shipped evidence to `.github/MASTER_PLAN.md` and then check the ticket.
 
+## 2026-04-30 residual polish notes
+
+1. Golden AI/UI sync shipped the nested form + serializer-backed autofill path.
+2. Remaining minor polish identified during verification:
+   - remove the `hasError` DOM prop warning from DynamicFormEngine field wrappers
+   - normalize missing React list keys in DynamicFormEngine render paths
+   - add external-schema parity for transactional line-item synthesis if more callers bypass `/system/forms/schema/`
+
 ## Phase 12 - Enterprise Hardening & Tech Debt Eradication
 
 ### Epic EH-00 - Canonical docs/governance layer

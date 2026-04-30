@@ -19,6 +19,7 @@ import { Button, Modal, Spin, message, Select, Skeleton } from 'antd';
 import { isEqual } from 'lodash';
 import styled from 'styled-components';
 import { businessApi } from '../../services/businessApi';
+import { documentsApi, schemaExtractionApi, type ExtractToSchemaResponse } from '../../services/aiService';
 import DynamicFormEngine from '../../features/system/DynamicFormEngine';
 import EntityOptionsSelect from '../FormSubmission/SearchableSelect';
 import { isValidEmail } from '../../shared/utils';
@@ -70,6 +71,7 @@ type SchemaChoice = { value: unknown; label: string };
 
 export type BackendField = {
   key: string;
+  api_key?: string;
   label?: string;
   type?: string;
   required?: boolean;
@@ -84,6 +86,9 @@ export type BackendField = {
   choices?: SchemaChoice[] | null;
   ui?: Record<string, unknown> | null;
   dependencies?: string[];
+  item_fields?: BackendField[];
+  add_button_label?: string;
+  item_label?: string;
 };
 
 export type BackendSchema = {
@@ -94,6 +99,87 @@ export type BackendSchema = {
 };
 
 const EMPTY_FORM_VALUES: Record<string, unknown> = {};
+const EXTRACTABLE_ENTITY_KEYS = new Set(['purchase_order', 'sales_order', 'invoice', 'carrier_po']);
+
+const splitPath = (path: string): string[] =>
+  String(path || '')
+    .split('.')
+    .map((segment) => segment.trim())
+    .filter(Boolean);
+
+const getValueAtPath = (obj: unknown, path: string): any => {
+  const segments = splitPath(path);
+  let current = obj;
+  for (const segment of segments) {
+    if (current == null || typeof current !== 'object') {
+      return undefined;
+    }
+    current = (current as Record<string, unknown>)[segment];
+  }
+  return current;
+};
+
+const setValueAtPath = (target: Record<string, unknown>, path: string, value: unknown): void => {
+  const segments = splitPath(path);
+  if (!segments.length) return;
+
+  let current = target;
+  for (let index = 0; index < segments.length - 1; index += 1) {
+    const segment = segments[index];
+    const next = current[segment];
+    if (!next || typeof next !== 'object' || Array.isArray(next)) {
+      current[segment] = {};
+    }
+    current = current[segment] as Record<string, unknown>;
+  }
+  current[segments[segments.length - 1]] = value;
+};
+
+const SNAPSHOT_FIELD_TO_FORM_PATH: Record<
+  string,
+  { path: string; label: string; section: string }
+> = {
+  billing_contact_name: { path: 'billing_contact.name', label: 'Name', section: 'Billing Contact' },
+  billing_contact_phone: { path: 'billing_contact.phone', label: 'Phone', section: 'Billing Contact' },
+  billing_contact_email: { path: 'billing_contact.email', label: 'Email', section: 'Billing Contact' },
+  billing_contact_title: { path: 'billing_contact.title', label: 'Title', section: 'Billing Contact' },
+  billing_address_street: { path: 'billing_address.street', label: 'Street', section: 'Billing Address' },
+  billing_address_city: { path: 'billing_address.city', label: 'City', section: 'Billing Address' },
+  billing_address_state_zip: { path: 'billing_address.state_zip', label: 'State / Zip', section: 'Billing Address' },
+  billing_building_name: { path: 'billing_address.building_name', label: 'Building Name', section: 'Billing Address' },
+  shipping_contact_name: { path: 'shipping_contact.name', label: 'Name', section: 'Shipping Contact' },
+  shipping_contact_phone: { path: 'shipping_contact.phone', label: 'Phone', section: 'Shipping Contact' },
+  shipping_contact_email: { path: 'shipping_contact.email', label: 'Email', section: 'Shipping Contact' },
+  shipping_contact_title: { path: 'shipping_contact.title', label: 'Title', section: 'Shipping Contact' },
+  shipping_address_street: { path: 'shipping_address.street', label: 'Street', section: 'Shipping Address' },
+  shipping_address_city: { path: 'shipping_address.city', label: 'City', section: 'Shipping Address' },
+  shipping_address_state_zip: { path: 'shipping_address.state_zip', label: 'State / Zip', section: 'Shipping Address' },
+  shipping_building_name: { path: 'shipping_address.building_name', label: 'Building Name', section: 'Shipping Address' },
+  accounting_payable_contact_name: {
+    path: 'accounting_payable_contact.name',
+    label: 'Name',
+    section: 'Accounts Payable Contact',
+  },
+  accounting_payable_contact_phone: {
+    path: 'accounting_payable_contact.phone',
+    label: 'Phone',
+    section: 'Accounts Payable Contact',
+  },
+  accounting_payable_contact_email: {
+    path: 'accounting_payable_contact.email',
+    label: 'Email',
+    section: 'Accounts Payable Contact',
+  },
+  accounting_payable_contact_title: {
+    path: 'accounting_payable_contact.title',
+    label: 'Title',
+    section: 'Accounts Payable Contact',
+  },
+};
+
+const FORM_PATH_TO_SNAPSHOT_FIELD = Object.fromEntries(
+  Object.entries(SNAPSHOT_FIELD_TO_FORM_PATH).map(([apiKey, value]) => [value.path, apiKey])
+) as Record<string, string>;
 
 function useDeepStableValue<T>(value: T): T {
   const ref = useRef(value);
@@ -140,9 +226,9 @@ export const sanitizeInitialValuesForSchema = (
     if (!key) continue;
     if (!isArrayLikeField(field)) continue;
 
-    const current = next[key];
+    const current = getValueAtPath(next, key);
     if (current === undefined || current === null) {
-      next[key] = [];
+      setValueAtPath(next, key, []);
     }
   }
 
@@ -164,6 +250,7 @@ export const normalizeEntityKey = (entityType: string): string => {
   // Common UI paths → introspection aliases.
   if (lower === 'sales-orders' || lower === 'sales_orders') return 'sales_order';
   if (lower === 'purchase-orders' || lower === 'purchase_orders') return 'purchase_order';
+  if (lower === 'carrier-pos' || lower === 'carrier_pos' || lower === 'carrier-po') return 'carrier_po';
 
   // Plural resources commonly used in UI routes.
   if (lower === 'customers' || lower === 'customer') return 'customer';
@@ -187,6 +274,8 @@ export const normalizeEntityEndpoint = (entityType: string): string => {
     return 'sales-orders/';
   if (lower === 'purchase-orders' || lower === 'purchase_orders' || lower === 'purchase_order')
     return 'purchase-orders/';
+  if (lower === 'carrier-pos' || lower === 'carrier_pos' || lower === 'carrier_po' || lower === 'carrier-po')
+    return 'carrier-pos/';
   if (lower === 'inquiries' || lower === 'inquiry') return 'inquiries/';
 
   // Accounting canonical paths (legacy aliases still exist server-side).
@@ -236,6 +325,105 @@ const shouldSkipField = (key: string): boolean => {
     'modified_on',
     'created_by',
   ].includes(k);
+};
+
+const mapBackendFieldKeyToFormPath = (entityKey: string, fieldKey: string): string => {
+  if (!EXTRACTABLE_ENTITY_KEYS.has(String(entityKey || '').toLowerCase())) {
+    return fieldKey;
+  }
+  return SNAPSHOT_FIELD_TO_FORM_PATH[fieldKey]?.path || fieldKey;
+};
+
+const mapFormPathToBackendFieldKey = (entityKey: string, fieldKey: string): string => {
+  if (!EXTRACTABLE_ENTITY_KEYS.has(String(entityKey || '').toLowerCase())) {
+    return fieldKey;
+  }
+  return FORM_PATH_TO_SNAPSHOT_FIELD[fieldKey] || fieldKey;
+};
+
+const normalizeValuesForForm = (
+  entityKey: string,
+  values: Record<string, unknown> | null | undefined
+): Record<string, unknown> => {
+  const next: Record<string, unknown> = {};
+  Object.entries(values || {}).forEach(([key, value]) => {
+    setValueAtPath(next, mapBackendFieldKeyToFormPath(entityKey, key), value);
+  });
+  return next;
+};
+
+const buildTransactionalLineItemField = (entityKey: string): BackendField | null => {
+  if (!EXTRACTABLE_ENTITY_KEYS.has(entityKey)) return null;
+
+  const baseItemFields: BackendField[] = [
+    {
+      key: 'protein_type',
+      label: 'Protein Type',
+      type: 'select',
+    },
+    {
+      key: 'product_description',
+      label: 'Product Description',
+      type: 'select',
+      required: false,
+      related_entity: 'system.product',
+      dependencies: ['protein_type'],
+      ui: { data_source: { type: 'master_products' } },
+    },
+    {
+      key: 'fresh_or_frozen',
+      label: 'Fresh / Frozen',
+      type: 'select',
+    },
+    {
+      key: 'package_type',
+      label: 'Package Type',
+      type: 'select',
+    },
+    { key: 'quantity', label: 'Quantity', type: 'number' },
+    {
+      key: 'uom',
+      label: 'UOM',
+      type: 'select',
+    },
+    {
+      key: 'net_or_catch',
+      label: 'Net / Catch',
+      type: 'select',
+    },
+    {
+      key: 'edible_or_inedible',
+      label: 'Edible / Inedible',
+      type: 'select',
+    },
+    { key: 'tested_product', label: 'Tested Product', type: 'checkbox' },
+    { key: 'total_net_weight', label: 'Total Net Weight', type: 'number' },
+  ];
+
+  if (entityKey === 'invoice') {
+    baseItemFields.push(
+      { key: 'unit_price', label: 'Unit Price', type: 'number' },
+      { key: 'line_total', label: 'Line Total', type: 'number' }
+    );
+  }
+
+  baseItemFields.push({ key: 'notes', label: 'Notes', type: 'textarea', required: false });
+
+  return {
+    key: 'items',
+    label: 'Line Items',
+    type: 'inline_form_array',
+    required: false,
+    ui: {
+      widget: 'inline_form_array',
+      add_button_label: 'Add Item',
+      item_label: 'Item',
+      section: { title: 'Line Items' },
+    },
+    item_fields: baseItemFields,
+    add_button_label: 'Add Item',
+    item_label: 'Item',
+  };
 };
 
 export const isPhoneNumberFieldKey = (key: string): boolean => {
@@ -401,7 +589,49 @@ export const augmentSchemaForFrontend = (
   if (!schema) return schema;
 
   const normalizedEntityKey = String(entityKey || '').trim().toLowerCase();
-  const fields = Array.isArray(schema.fields) ? [...schema.fields] : [];
+  const fields = (Array.isArray(schema.fields) ? [...schema.fields] : []).map((field) => {
+    const backendKey = String(field.key || '');
+    const mapped = SNAPSHOT_FIELD_TO_FORM_PATH[backendKey];
+
+    if (!mapped || !EXTRACTABLE_ENTITY_KEYS.has(normalizedEntityKey)) {
+      return field;
+    }
+
+    const ui = field.ui && typeof field.ui === 'object' ? { ...(field.ui as Record<string, unknown>) } : {};
+    ui.section = { title: mapped.section };
+
+    return {
+      ...field,
+      api_key: backendKey,
+      key: mapped.path,
+      label: mapped.label,
+      ui,
+    };
+  });
+
+  const ensureField = (
+    list: BackendField[],
+    key: string,
+    build: (existing?: BackendField) => BackendField
+  ) => {
+    const index = list.findIndex((field) => String(field.key).toLowerCase() === key.toLowerCase());
+    const existing = index >= 0 ? list[index] : undefined;
+    const nextField = build(existing);
+
+    if (index >= 0) {
+      list[index] = nextField;
+    } else {
+      list.push(nextField);
+    }
+  };
+
+  const transactionalItemsField = buildTransactionalLineItemField(normalizedEntityKey);
+  if (transactionalItemsField) {
+    ensureField(fields, transactionalItemsField.key, (existing) => ({
+      ...(existing || transactionalItemsField),
+      ...transactionalItemsField,
+    }));
+  }
 
   if (normalizedEntityKey === 'location') {
     const nextFields = fields.map((field) => {
@@ -894,6 +1124,176 @@ export const augmentSchemaForFrontend = (
   };
 };
 
+const prepareFormResources = (
+  entityKey: string,
+  schema: BackendSchema | null,
+  values: Record<string, unknown> | null | undefined
+): { schema: BackendSchema | null; values: Record<string, unknown> } => {
+  const normalizedValues = normalizeValuesForForm(entityKey, values);
+  const preparedSchema = augmentSchemaForFrontend(entityKey, schema, normalizedValues);
+  return {
+    schema: preparedSchema,
+    values: sanitizeInitialValuesForSchema(preparedSchema, normalizedValues),
+  };
+};
+
+interface AutofillFromDocumentProps {
+  entityType: string;
+  isOpen: boolean;
+  disabled?: boolean;
+  onExtract: (response: ExtractToSchemaResponse) => void;
+}
+
+const AutofillFromDocument: React.FC<AutofillFromDocumentProps> = ({
+  entityType,
+  isOpen,
+  disabled = false,
+  onExtract,
+}) => {
+  const normalizedEntityType = useMemo(() => normalizeEntityKey(entityType), [entityType]);
+  const [documents, setDocuments] = useState<Array<{ id: string; original_filename: string }>>([]);
+  const [selectedDocumentId, setSelectedDocumentId] = useState<string>('');
+  const [loadingDocuments, setLoadingDocuments] = useState(false);
+  const [extracting, setExtracting] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  useEffect(() => {
+    if (!isOpen || !EXTRACTABLE_ENTITY_KEYS.has(normalizedEntityType)) {
+      return;
+    }
+
+    let cancelled = false;
+
+    const loadDocuments = async () => {
+      setLoadingDocuments(true);
+      try {
+        const nextDocuments = await documentsApi.list();
+        if (cancelled) return;
+        const next = nextDocuments.map((document) => ({
+          id: String(document.id),
+          original_filename: document.original_filename,
+        }));
+        setDocuments(next);
+        setSelectedDocumentId((prev) => prev || next[0]?.id || '');
+      } catch {
+        if (!cancelled) {
+          message.error('Unable to load AI documents');
+        }
+      } finally {
+        if (!cancelled) {
+          setLoadingDocuments(false);
+        }
+      }
+    };
+
+    void loadDocuments();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen, normalizedEntityType]);
+
+  if (!EXTRACTABLE_ENTITY_KEYS.has(normalizedEntityType)) {
+    return null;
+  }
+
+  const runExtraction = async (documentId: string) => {
+    if (!documentId) {
+      message.error('Select a document first');
+      return;
+    }
+
+    setExtracting(true);
+    try {
+      const response = await schemaExtractionApi.extractToSchema({
+        document_id: documentId,
+        entity_type: normalizedEntityType,
+      });
+      onExtract(response);
+      message.success('Draft autofilled from document');
+    } catch (error) {
+      const typed = error as { response?: { data?: { error?: string } }; message?: string };
+      message.error(typed.response?.data?.error || typed.message || 'Unable to extract document');
+    } finally {
+      setExtracting(false);
+    }
+  };
+
+  const onUploadFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setExtracting(true);
+    try {
+      const uploaded = await documentsApi.upload(file);
+      setDocuments((prev) => [
+        { id: String(uploaded.id), original_filename: uploaded.original_filename },
+        ...prev.filter((entry) => entry.id !== String(uploaded.id)),
+      ]);
+      setSelectedDocumentId(String(uploaded.id));
+      await runExtraction(String(uploaded.id));
+    } catch (error) {
+      const typed = error as { response?: { data?: { error?: string } }; message?: string };
+      message.error(typed.response?.data?.error || typed.message || 'Unable to upload document');
+    } finally {
+      setExtracting(false);
+      if (event.target) {
+        event.target.value = '';
+      }
+    }
+  };
+
+  return (
+    <div
+      style={{
+        display: 'flex',
+        flexWrap: 'wrap',
+        alignItems: 'center',
+        gap: 8,
+        marginBottom: 16,
+        padding: 12,
+        border: '1px solid rgb(var(--color-border))',
+        borderRadius: 8,
+        background: 'rgb(var(--color-surface))',
+      }}
+    >
+      <Select
+        style={{ minWidth: 260, flex: '1 1 260px' }}
+        placeholder="Select AI document"
+        value={selectedDocumentId || undefined}
+        onChange={(value) => setSelectedDocumentId(String(value))}
+        options={documents.map((document) => ({
+          value: document.id,
+          label: document.original_filename,
+        }))}
+        loading={loadingDocuments}
+        disabled={disabled || extracting}
+      />
+      <Button
+        onClick={() => void runExtraction(selectedDocumentId)}
+        disabled={disabled || extracting || !selectedDocumentId}
+      >
+        {extracting ? 'Autofilling…' : 'Autofill from document'}
+      </Button>
+      <Button
+        onClick={() => fileInputRef.current?.click()}
+        disabled={disabled || extracting}
+      >
+        Upload & Autofill
+      </Button>
+      <input
+        ref={fileInputRef}
+        type="file"
+        hidden
+        accept=".pdf,.txt,.csv,.jpg,.jpeg,.png,.doc,.docx,.xls,.xlsx"
+        onChange={(event) => {
+          void onUploadFileChange(event);
+        }}
+      />
+    </div>
+  );
+};
+
 export const fetchUniversalEntitySchema = async (
   entityType: string,
   endpoint = normalizeEntityEndpoint(entityType),
@@ -1036,6 +1436,8 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
   externalFkOptions,
 }) => {
   const { isAuthenticated, loading: authLoading } = useAuthState();
+  const schemaEntityKey = useMemo(() => normalizeEntityKey(entityType), [entityType]);
+  const endpoint = useMemo(() => normalizeEntityEndpoint(entityType), [entityType]);
   const stableInitialValues = useDeepStableValue(initialValues);
   const stableInitialValuesSignature = useMemo(
     () => getStableSignature(stableInitialValues ?? EMPTY_FORM_VALUES),
@@ -1046,13 +1448,17 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
     externalRecordValues !== undefined ||
     externalLoading !== undefined ||
     externalLoadError !== undefined;
-  const initialResolvedValues = useMemo(
+  const externalPreparedResources = useMemo(
     () =>
-      sanitizeInitialValuesForSchema(externalSchema ?? null, {
+      prepareFormResources(schemaEntityKey, externalSchema ?? null, {
         ...(externalRecordValues || {}),
         ...((stableInitialValues as Record<string, unknown> | undefined) || {}),
       }),
-    [externalRecordValues, externalSchema, stableInitialValues]
+    [externalRecordValues, externalSchema, schemaEntityKey, stableInitialValues]
+  );
+  const initialResolvedValues = useMemo(
+    () => externalPreparedResources.values,
+    [externalPreparedResources.values]
   );
 
   const [loading, setLoading] = useState(Boolean(externalLoading));
@@ -1105,15 +1511,11 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
 
   const productSearchSeqRef = useRef<Record<string, number>>({});
 
-  const schemaEntityKey = useMemo(() => normalizeEntityKey(entityType), [entityType]);
-  const endpoint = useMemo(() => normalizeEntityEndpoint(entityType), [entityType]);
   const stableResolvedInitialValues = useDeepStableValue(resolvedInitialValues);
-  const resolvedSchema = hasExternalFormResources ? externalSchema ?? null : schema;
+  const resolvedSchema = hasExternalFormResources ? externalPreparedResources.schema : schema;
   const resolvedLoading = hasExternalFormResources ? Boolean(externalLoading) : loading;
   const resolvedLoadError = hasExternalFormResources ? externalLoadError ?? null : loadError;
-  const resolvedFormInitialValues = hasExternalFormResources
-    ? initialResolvedValues
-    : stableResolvedInitialValues;
+  const resolvedFormInitialValues = stableResolvedInitialValues;
   const resolvedFkOptions = externalFkOptions ?? fkOptions;
 
   const getSelectPopupContainer = useCallback((triggerNode: HTMLElement) => {
@@ -1131,6 +1533,11 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
   const setResolvedInitialValuesIfChanged = useCallback((next: Record<string, unknown>) => {
     setResolvedInitialValues((prev) => (isEqual(prev, next) ? prev : next));
   }, []);
+
+  useEffect(() => {
+    if (!hasExternalFormResources || !isOpen) return;
+    setResolvedInitialValuesIfChanged(initialResolvedValues);
+  }, [hasExternalFormResources, initialResolvedValues, isOpen, setResolvedInitialValuesIfChanged]);
 
   const loadSchema = useCallback(() => {
     return fetchUniversalEntitySchema(entityType, endpoint, schemaEntityKey);
@@ -1219,10 +1626,10 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
 
         if (!mounted) return;
         const merged: Record<string, unknown> = { ...(nextRecord || {}), ...initialSnapshot };
-        const sanitized = sanitizeInitialValuesForSchema(nextSchema, merged);
-        setSchemaIfChanged(augmentSchemaForFrontend(schemaEntityKey, nextSchema, sanitized));
+        const prepared = prepareFormResources(schemaEntityKey, nextSchema, merged);
+        setSchemaIfChanged(prepared.schema);
         setRecordValuesIfChanged(nextRecord);
-        setResolvedInitialValuesIfChanged(sanitized);
+        setResolvedInitialValuesIfChanged(prepared.values);
         setFkValues({});
       } catch (err: unknown) {
         if (!mounted) return;
@@ -1466,13 +1873,22 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
 
                 return {
                   key: String(sub.key || ''),
+                  api_key: typeof sub.api_key === 'string' ? sub.api_key : undefined,
                   label: typeof sub.label === 'string' ? sub.label : String(sub.key || ''),
                   type: subChoices?.length ? 'select' : String(sub.type ?? 'text'),
                   required: Boolean(sub.required),
+                  related_entity:
+                    typeof sub.related_entity === 'string' ? sub.related_entity : undefined,
                   options: subChoices as Array<{ value: string; label: string }> | undefined,
                   placeholder: typeof sub.placeholder === 'string' ? sub.placeholder : undefined,
                   help_text: typeof sub.help_text === 'string' ? sub.help_text : undefined,
-                  ui: subWidget ? { widget: subWidget } : undefined,
+                  ui:
+                    subUi || subWidget
+                      ? ({
+                          ...(subUi || {}),
+                          ...(subWidget ? { widget: subWidget } : {}),
+                        } as Record<string, unknown>)
+                      : undefined,
                   dependencies: Array.isArray(sub.dependencies)
                     ? sub.dependencies
                         .map((item) => String(item || '').trim())
@@ -1495,10 +1911,12 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
 
         return {
           key: f.key,
+          api_key: f.api_key,
           label: f.label || f.key,
           type: isInlineArray ? 'inline_form_array' : f.choices?.length ? 'select' : String(f.type ?? 'text'),
           required: Boolean(f.required),
           is_advanced: Boolean(f.is_advanced),
+          related_entity: f.related_entity || undefined,
           options,
           placeholder: f.placeholder || undefined,
           help_text: f.help_text,
@@ -1571,7 +1989,7 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
   const formInitialValues = useDeepStableValue(resolvedFormInitialValues);
   const stableDynamicSchema = useDeepStableValue(dynamicSchema);
   const getCurrentFkValue = useCallback(
-    (fieldKey: string) => fkValues[fieldKey] ?? formInitialValues?.[fieldKey],
+    (fieldKey: string) => fkValues[fieldKey] ?? getValueAtPath(formInitialValues, fieldKey),
     [fkValues, formInitialValues]
   );
 
@@ -1602,7 +2020,14 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
 
   const submit = useCallback(
     async (data: Record<string, unknown>) => {
-      const payload: Record<string, unknown> = { ...data };
+      const payload: Record<string, unknown> = {};
+
+      (scalarFields || []).forEach((field) => {
+        const value = getValueAtPath(data, field.key);
+        if (value === undefined) return;
+        const backendKey = field.api_key || mapFormPathToBackendFieldKey(schemaEntityKey, field.key);
+        payload[backendKey] = value;
+      });
 
       // Enforce required FK fields (they are rendered outside DynamicFormEngine).
       const missingFk = fkFields
@@ -1625,14 +2050,16 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
       fkFields.forEach((f) => {
         const currentFkValue = getCurrentFkValue(f.key);
         if (currentFkValue !== undefined) {
-          payload[f.key] = currentFkValue;
+          payload[f.api_key || f.key] = currentFkValue;
         }
       });
 
       // Merge explicit initial values for fields not rendered by the schema.
       if (stableInitialValues) {
         Object.entries(stableInitialValues).forEach(([k, v]) => {
-          if (payload[k] === undefined && v !== undefined) payload[k] = v;
+          if (payload[k] !== undefined || v === undefined) return;
+          if (Array.isArray(v) || (typeof v === 'object' && v !== null)) return;
+          payload[k] = v;
         });
       }
 
@@ -1650,7 +2077,9 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
 
       // Normalize payload (avoid sending empty strings that cause DRF validation errors).
       const numberKeys = new Set(
-        (scalarFields || []).filter((f) => String(f.type).toLowerCase() === 'number').map((f) => f.key)
+        (scalarFields || [])
+          .filter((f) => String(f.type).toLowerCase() === 'number')
+          .map((f) => f.api_key || mapFormPathToBackendFieldKey(schemaEntityKey, f.key))
       );
       const emailKeySet = new Set(
         (scalarFields || [])
@@ -1659,28 +2088,38 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
             const type = String(f.type || '').toLowerCase();
             return key.includes('email') || type.includes('email');
           })
-          .map((f) => f.key)
+          .map((f) => f.api_key || mapFormPathToBackendFieldKey(schemaEntityKey, f.key))
       );
       const emailLabelByKey = new Map(
         (scalarFields || [])
-          .filter((f) => emailKeySet.has(f.key))
-          .map((f) => [f.key, f.label || f.key] as const)
+          .filter((f) =>
+            emailKeySet.has(f.api_key || mapFormPathToBackendFieldKey(schemaEntityKey, f.key))
+          )
+          .map((f) => [
+            f.api_key || mapFormPathToBackendFieldKey(schemaEntityKey, f.key),
+            f.label || f.key,
+          ] as const)
       );
       const zipKeySet = new Set(
         (scalarFields || [])
           .filter((f) => String(f.key || '').toLowerCase().includes('zip_code'))
-          .map((f) => f.key)
+          .map((f) => f.api_key || mapFormPathToBackendFieldKey(schemaEntityKey, f.key))
       );
       const zipLabelByKey = new Map(
         (scalarFields || [])
-          .filter((f) => zipKeySet.has(f.key))
-          .map((f) => [f.key, f.label || f.key] as const)
+          .filter((f) =>
+            zipKeySet.has(f.api_key || mapFormPathToBackendFieldKey(schemaEntityKey, f.key))
+          )
+          .map((f) => [
+            f.api_key || mapFormPathToBackendFieldKey(schemaEntityKey, f.key),
+            f.label || f.key,
+          ] as const)
       );
 
       const phoneKeySet = new Set(
         (scalarFields || [])
           .filter((f) => isPhoneNumberFieldKey(String(f.key || '')))
-          .map((f) => f.key)
+          .map((f) => f.api_key || mapFormPathToBackendFieldKey(schemaEntityKey, f.key))
       );
 
       const inlineArrayPhoneKeys = new Map<string, string[]>();
@@ -1842,12 +2281,11 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
       entityId,
       activeMode,
       fkFields,
-      formInitialValues,
       getCurrentFkValue,
       onClose,
       onSuccess,
-      preferredKeySet,
       scalarFields,
+      schemaEntityKey,
       showAdvanced,
       stableInitialValues,
     ]
@@ -1918,6 +2356,14 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
       }
     },
     [getCurrentFkValue]
+  );
+
+  const handleExtractedDraft = useCallback(
+    (response: ExtractToSchemaResponse) => {
+      const prepared = prepareFormResources(schemaEntityKey, resolvedSchema, response.extracted_data);
+      setResolvedInitialValuesIfChanged(prepared.values);
+    },
+    [resolvedSchema, schemaEntityKey, setResolvedInitialValuesIfChanged]
   );
 
   if (variant === 'inline' && !isOpen) return null;
@@ -2003,6 +2449,15 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
         <>
           {modeSwitchControls}
 
+          {activeMode !== 'view' && (
+            <AutofillFromDocument
+              entityType={schemaEntityKey}
+              isOpen={isOpen}
+              disabled={submitting || resolvedLoading}
+              onExtract={handleExtractedDraft}
+            />
+          )}
+
           {(keyFkFields.length > 0 || otherFkFields.length > 0) && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 10 }}>
               {[...keyFkFields, ...otherFkFields.filter((f) => !f.is_advanced), ...(showAdvanced ? otherFkFields.filter((f) => Boolean(f.is_advanced)) : [])].map((f) => {
@@ -2014,7 +2469,7 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
                 const value = String(getCurrentFkValue(f.key) ?? '');
 
                 if (activeMode === 'view') {
-                  if (Boolean(f.is_advanced) && !hasDisplayValue(formInitialValues[f.key])) {
+                  if (Boolean(f.is_advanced) && !hasDisplayValue(getValueAtPath(formInitialValues, f.key))) {
                     return null;
                   }
 
@@ -2040,7 +2495,7 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
                           fontSize: 13,
                         }}
                       >
-                        {formatValue(formInitialValues[f.key]) || '—'}
+                        {formatValue(getValueAtPath(formInitialValues, f.key)) || '—'}
                       </div>
                     </div>
                   );
@@ -2152,7 +2607,7 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
           {activeMode === 'view' ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               {visibleScalarFields.map((f) => {
-                if (Boolean(f.is_advanced) && !hasDisplayValue(formInitialValues[f.key])) {
+                if (Boolean(f.is_advanced) && !hasDisplayValue(getValueAtPath(formInitialValues, f.key))) {
                   return null;
                 }
 
@@ -2178,7 +2633,7 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
                       fontSize: 13,
                     }}
                   >
-                    {formatValue(formInitialValues[f.key]) || '—'}
+                    {formatValue(getValueAtPath(formInitialValues, f.key)) || '—'}
                   </div>
                   </div>
                 );

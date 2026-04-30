@@ -58,4 +58,57 @@ describe('DynamicFormEngine visible_when', () => {
       export_documents_handled: '',
     });
   });
+
+  it('clears nested hidden field values when dotted visible_when paths become false', async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn();
+
+    render(
+      <DynamicFormEngine
+        schema={{
+          step_index: 0,
+          name: 'Sales Order',
+          fields: [
+            {
+              key: 'billing_contact.use_override',
+              label: 'Override Billing Contact',
+              type: 'checkbox',
+              required: false,
+            },
+            {
+              key: 'billing_contact.email',
+              label: 'Billing Contact Email',
+              type: 'text',
+              required: false,
+              ui: {
+                visible_when: {
+                  field: 'billing_contact.use_override',
+                  equals: true,
+                },
+              },
+            },
+          ],
+        }}
+        initialValues={{
+          billing_contact: {
+            use_override: true,
+            email: 'ap@example.com',
+          },
+        }}
+        onSubmit={onSubmit}
+      />
+    );
+
+    await user.click(screen.getByRole('checkbox', { name: 'Override Billing Contact' }));
+    await user.click(screen.getByRole('button', { name: /submit|save/i }));
+
+    await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
+
+    expect(onSubmit.mock.calls[0]?.[0]).toMatchObject({
+      billing_contact: {
+        use_override: false,
+        email: '',
+      },
+    });
+  });
 });

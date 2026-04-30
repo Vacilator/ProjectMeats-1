@@ -20,11 +20,12 @@ from .views import (
     ChatBotAPIViewSet,
     ChatMessageViewSet,
     ChatSessionViewSet,
+    ExtractToSchemaAPIView,
     PendingReviewResolveAPIView,
     PendingReviewView,
+    RecentErrorsAPIView,
     SwarmInvokeAPIView,
     ToolsOpenAPIView,
-    RecentErrorsAPIView,
 )
 
 app_name = 'ai_assistant'
@@ -49,6 +50,7 @@ urlpatterns = [
     # Clean endpoints
     path('chat/', AIAgentChatView.as_view(), name='ai-chat'),
     path('metrics/', AILearningMetricsAPIView.as_view(), name='ai-metrics'),
+    path('extract-to-schema/', ExtractToSchemaAPIView.as_view(), name='ai-extract-to-schema'),
     path('review/pending/', PendingReviewView.as_view(), name='pending-review'),
     path('tools/openapi/', ToolsOpenAPIView.as_view(), name='tools-openapi'),
     path('errors/recent/', RecentErrorsAPIView.as_view(), name='ai-recent-errors'),
