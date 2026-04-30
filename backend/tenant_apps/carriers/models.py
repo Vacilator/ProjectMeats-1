@@ -9,7 +9,6 @@ from django.db import models
 from django.contrib.auth.models import User
 from apps.core.models import (
     AccountingPaymentTermsChoices,
-    AccountLineOfCreditChoices,
     AppointmentMethodChoices,
     CarrierDepartmentChoices,
     CarrierTypeChoices,
@@ -17,10 +16,11 @@ from apps.core.models import (
     PhoneTypeChoices,
     TenantAwareModel,
 )
+from apps.core.model_mixins import FinancialTermsMixin
 from tenant_apps.contacts.models import Contact
 
 
-class Carrier(TenantAwareModel):
+class Carrier(FinancialTermsMixin, TenantAwareModel):
     name = models.CharField(max_length=200)
     code = models.CharField(max_length=50)
     carrier_type = models.CharField(
@@ -107,13 +107,6 @@ class Carrier(TenantAwareModel):
         blank=True,
         default='',
         help_text="Credit limits/terms (e.g., Net 30, Wire 1 day prior)",
-    )
-    account_line_of_credit = models.CharField(
-        max_length=50,
-        choices=AccountLineOfCreditChoices.choices,
-        blank=True,
-        default='',
-        help_text="Line of credit amount range",
     )
     departments = models.CharField(
         max_length=255,

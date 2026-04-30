@@ -7,7 +7,7 @@ import uuid
 from django.test import TestCase
 from django.contrib.auth.models import User
 from decimal import Decimal
-from tenant_apps.invoices.models import Invoice, InvoiceStatus
+from tenant_apps.invoices.models import Invoice, InvoiceItem, InvoiceStatus
 from tenant_apps.customers.models import Customer
 from apps.tenants.models import Tenant, TenantUser
 
@@ -112,3 +112,33 @@ class InvoiceModelTest(TestCase):
         self.assertIn(inv1, tenant1_invoices)
         self.assertNotIn(inv2, tenant1_invoices)
 
+    def test_invoice_alias_fields_sync(self):
+        """Canonical aliases sync to legacy invoice references."""
+        unique_id = uuid.uuid4().hex[:8]
+        invoice = Invoice.objects.create(
+            invoice_number=f"INV-{unique_id}",
+            customer=self.customer,
+            our_sales_order_number_for_customer=f"SO-{unique_id}",
+            delivery_po_number=f"DPO-{unique_id}",
+            tenant=self.tenant,
+        )
+
+        self.assertEqual(invoice.our_sales_order_num, f"SO-{unique_id}")
+        self.assertEqual(invoice.delivery_po_num, f"DPO-{unique_id}")
+
+    def test_invoice_item_inherits_tenant(self):
+        """Invoice items inherit their parent tenant."""
+        unique_id = uuid.uuid4().hex[:8]
+        invoice = Invoice.objects.create(
+            invoice_number=f"INV-{unique_id}",
+            customer=self.customer,
+            tenant=self.tenant,
+        )
+
+        item = InvoiceItem.objects.create(
+            invoice=invoice,
+            quantity=3,
+        )
+
+        self.assertEqual(item.tenant, self.tenant)
+        self.assertEqual(item.invoice, invoice)

@@ -51,11 +51,12 @@ All workflow-related tables have Row-Level Security **ENABLED** and **FORCED**:
 
 ---
 
-## Financial Module (7 tables) - ✅ 100% COMPLIANT
+## Financial Module (8 tables) - ✅ 100% COMPLIANT (code)
 
 | Table Name | RLS Enabled | Migration | Deployment Date |
 |------------|-------------|-----------|-----------------|
 | `invoices_invoice` | ✅ | `invoices/0011_refactor_invoices_to_tenantaware` | Feb 27, 2026 00:36 UTC |
+| `invoices_invoiceitem` | ✅ | `invoices/0015_golden_schema_refactor` | Pending next deployment audit |
 | `invoices_claim` | ✅ | `invoices/0011_refactor_invoices_to_tenantaware` | Feb 27, 2026 00:36 UTC |
 | `invoices_paymenttransaction` | ✅ | `invoices/0011_refactor_invoices_to_tenantaware` | Feb 27, 2026 00:36 UTC |
 | `contacts_contact` | ✅ | `contacts/0004_refactor_contact_to_tenantaware` | Feb 27, 2026 00:36 UTC |
@@ -65,18 +66,21 @@ All workflow-related tables have Row-Level Security **ENABLED** and **FORCED**:
 
 ---
 
-## Logistics Module (8 tables) - ✅ 100% COMPLIANT
+## Logistics Module (11 tables) - ✅ 100% COMPLIANT (code)
 
 | Table Name | RLS Enabled | Migration | Deployment Date |
 |------------|-------------|-----------|-----------------|
 | `purchase_orders_purchaseorder` | ✅ | `purchase_orders/0013_refactor_to_tenantaware` | Feb 27, 2026 00:45 UTC |
+| `purchase_orders_purchaseorderitem` | ✅ | `purchase_orders/0018_golden_schema_refactor` | Pending next deployment audit |
 | `purchase_orders_carrierpurchaseorder` | ✅ | `purchase_orders/0013_refactor_to_tenantaware` | Feb 27, 2026 00:45 UTC |
+| `purchase_orders_carrierpoitem` | ✅ | `purchase_orders/0018_golden_schema_refactor` | Pending next deployment audit |
 | `purchase_orders_coldstorageentry` | ✅ | `purchase_orders/0013_refactor_to_tenantaware` | Feb 27, 2026 00:45 UTC |
 | `locations_location` | ✅ | `locations/0002_enable_rls_locations` | Feb 27, 2026 00:45 UTC |
 | `locations_locationassociatedproduct` | ✅ | `locations/0008_locationassociatedproduct_and_more` | Mar 15, 2026 18:21 UTC |
 | `plants_plantassociatedproduct` | ✅ | `plants/0008_plantassociatedproduct_plant_associated_products_and_more` | Mar 15, 2026 18:21 UTC |
 | `fulfillments_fulfillment` | ✅ | `fulfillments/0003_add_rls_policies_batch` | Mar 18, 2026 (Issue #3) |
 | `sales_orders_salesorder` | ✅ | `sales_orders/0013_add_rls_policies_batch` | Mar 18, 2026 (Issue #3) |
+| `sales_orders_salesorderitem` | ✅ | `sales_orders/0016_golden_schema_refactor` | Pending next deployment audit |
 
 ---
 
@@ -161,13 +165,14 @@ All workflow-related tables have Row-Level Security **ENABLED** and **FORCED**:
 ## Compliance Summary
 
 **Latest Audit (2026-04-28, fresh-db CI validation target)**:
-- `python manage.py audit_rls_compliance --strict` should return **69/69 tenant-scoped models compliant** once `core/0007_enable_rls_comment` and `deals/0001_initial` are applied. ✅
+- `python manage.py audit_rls_compliance --strict` should return **73/73 tenant-scoped models compliant** once `core/0007_enable_rls_comment`, `deals/0001_initial`, and the golden-schema-refactor migrations are applied. ✅
 
 **Audit Scope Update (2026-04-28)**:
 - `audit_rls_compliance` now also includes an allowlist of tenant-scoped models that do **not** inherit `TenantAwareModel` (System WorkForms + Integrations).
 - `core_comment` is now covered by an additive RLS migration so fresh databases and CI audits stay fully compliant.
 - `deals_deal` and `deals_dealactionitem` are now covered by additive RLS policies in `deals/0001_initial`.
-- Expected result after next deployment audit: **69/69 tenant-scoped models compliant** ✅
+- New line-item tables `purchase_orders_purchaseorderitem`, `purchase_orders_carrierpoitem`, `sales_orders_salesorderitem`, and `invoices_invoiceitem` are covered by additive RLS policies in `purchase_orders/0018_golden_schema_refactor`, `sales_orders/0016_golden_schema_refactor`, and `invoices/0015_golden_schema_refactor`.
+- Expected result after next deployment audit: **73/73 tenant-scoped models compliant** ✅
 
 **Tenant Isolation Policies** (from `pg_policies`):
 - Tables with at least one `*_tenant_isolation` policy: **49**

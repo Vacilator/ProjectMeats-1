@@ -2,7 +2,32 @@
 Serializers for Invoices app.
 """
 from rest_framework import serializers
-from .models import Invoice, Claim, PaymentTransaction
+from .models import Claim, Invoice, InvoiceItem, PaymentTransaction
+
+
+class InvoiceItemSerializer(serializers.ModelSerializer):
+    """Serializer for invoice line items."""
+
+    class Meta:
+        model = InvoiceItem
+        fields = [
+            "id",
+            "line_number",
+            "protein_type",
+            "product_description",
+            "fresh_or_frozen",
+            "package_type",
+            "quantity",
+            "uom",
+            "net_or_catch",
+            "edible_or_inedible",
+            "tested_product",
+            "total_net_weight",
+            "unit_price",
+            "line_total",
+            "notes",
+        ]
+        read_only_fields = ["id"]
 
 
 class InvoiceSerializer(serializers.ModelSerializer):
@@ -11,6 +36,7 @@ class InvoiceSerializer(serializers.ModelSerializer):
     customer_name = serializers.CharField(source="customer.name", read_only=True)
     sales_order_num = serializers.CharField(source="sales_order.our_sales_order_num", read_only=True, allow_null=True)
     product_code = serializers.CharField(source="product.product_code", read_only=True, allow_null=True)
+    items = InvoiceItemSerializer(many=True, required=False)
 
     class Meta:
         model = Invoice
@@ -30,10 +56,33 @@ class InvoiceSerializer(serializers.ModelSerializer):
             "delivery_date",
             "due_date",
             "our_sales_order_num",
+            "our_sales_order_number_for_customer",
             "delivery_po_num",
+            "delivery_po_number",
+            "payment_terms",
+            "carrier_release_format",
+            "carrier_release_number",
+            "how_to_make_appointment",
             "accounting_payable_contact_name",
             "accounting_payable_contact_phone",
             "accounting_payable_contact_email",
+            "accounting_payable_contact_title",
+            "billing_contact_name",
+            "billing_contact_phone",
+            "billing_contact_email",
+            "billing_contact_title",
+            "billing_address_street",
+            "billing_address_city",
+            "billing_address_state_zip",
+            "billing_building_name",
+            "shipping_contact_name",
+            "shipping_contact_phone",
+            "shipping_contact_email",
+            "shipping_contact_title",
+            "shipping_address_street",
+            "shipping_address_city",
+            "shipping_address_state_zip",
+            "shipping_building_name",
             "type_of_protein",
             "description_of_product_item",
             "quantity",
@@ -48,10 +97,35 @@ class InvoiceSerializer(serializers.ModelSerializer):
             "payment_status",
             "outstanding_amount",
             "notes",
+            "items",
             "created_on",
             "modified_on",
         ]
         read_only_fields = ["id", "date_time_stamp", "created_on", "modified_on"]
+
+    def _replace_items(self, instance: Invoice, items_data: list[dict]) -> None:
+        instance.items.all().delete()
+        for index, item_data in enumerate(items_data, start=1):
+            payload = dict(item_data)
+            InvoiceItem.objects.create(
+                invoice=instance,
+                tenant=instance.tenant,
+                line_number=payload.pop("line_number", None) or index,
+                **payload,
+            )
+
+    def create(self, validated_data):
+        items_data = validated_data.pop("items", [])
+        instance = super().create(validated_data)
+        self._replace_items(instance, items_data)
+        return instance
+
+    def update(self, instance, validated_data):
+        items_data = validated_data.pop("items", None)
+        instance = super().update(instance, validated_data)
+        if items_data is not None:
+            self._replace_items(instance, items_data)
+        return instance
 
 
 class ClaimSerializer(serializers.ModelSerializer):
