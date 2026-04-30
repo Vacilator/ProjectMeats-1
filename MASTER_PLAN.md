@@ -52,7 +52,7 @@ This file is the **canonical plan + current truth snapshot**.
   - Deploy-by-digest default for UAT/Prod and digest-align the migration artifact. ✅ shipped in PR #4757.
   - Manifest-driven required-secret enforcement per lane (remove hardcoded lists). ✅ shipped in PR #4764.
   - Docs drift prevention: "CURRENT" docs must not recommend forbidden Golden patterns (runner-driven migrations only). ✅ shipped in PR #4762.
-- **Mobile parity**: ✅ shipped foundations (PRs #4658/#4659). Next: switch-tenant persistence, consistent error normalization, and auth expiry/401 behavior parity.
+- **Mobile parity**: ✅ shipped foundations + auth/tenant parity hardening (PRs #4658/#4659/#4804).
 - **AI email/document hardening**: ✅ shipped through fail-closed parser lifecycle/status metadata (PRs #4733–#4739). Next: expose compact provenance + parse-status/retryability badges in the AI widget/document surfaces so operators can distinguish Outlook/manual sources and retryable parser failures without log-diving.
 
 ### Squad deep dive plan (as of 2026-04-27)
