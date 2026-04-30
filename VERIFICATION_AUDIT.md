@@ -2,64 +2,66 @@
 
 ## Outcome
 
-The Golden AI-UI synchronization batch is **approved with minor follow-up polish only**. The shipped code now supports nested transactional draft state in the universal form flow and exposes a tenant-safe serializer-backed AI extraction endpoint for document-to-draft autofill.
+The Error #185 emergency lockdown is **approved for release**. `DynamicFormEngine` and `UniversalEntityForm` are now dumb, prop-driven renderers, and `EntityFormSurface` is the smart loader boundary that preloads schema, record data, dropdown dictionaries, form config, and AI document inputs before the form mounts.
 
 ## Deliverables shipped
 
-1. `RESEARCH_REPORT.md`
-2. `TECHNICAL_BLUEPRINT.md`
-3. Frontend nested-path + autofill upgrades in:
+1. Dumb-form refactor in:
    - `frontend/src/features/system/DynamicFormEngine.tsx`
    - `frontend/src/components/Shared/UniversalEntityForm.tsx`
-   - `frontend/src/services/aiService.ts`
-4. Backend extraction flow in:
-   - `backend/tenant_apps/ai_assistant/services/extract_to_schema.py`
-   - `backend/tenant_apps/ai_assistant/serializers.py`
-   - `backend/tenant_apps/ai_assistant/views.py`
-   - `backend/tenant_apps/ai_assistant/urls.py`
-5. Focused regression coverage in frontend and backend tests
+2. Smart-loader orchestration in:
+   - `frontend/src/components/Shared/EntityFormSurface.tsx`
+   - `frontend/src/components/Shared/entityFormData.ts`
+3. Focused regression coverage in:
+   - `frontend/src/components/Shared/EntityFormSurface.test.tsx`
+   - `frontend/src/components/Shared/UniversalEntityForm.stability.test.tsx`
+   - `frontend/src/features/system/DynamicFormEngine.stability.test.tsx`
+   - `frontend/src/features/system/DynamicFormEngine.visibleWhenClear.test.tsx`
 
 ## Expected results achieved
 
-1. Dotted nested fields now resolve consistently through defaults, validation, visible-when logic, view rendering, and submit payload normalization.
-2. Transactional forms can accept extracted `items` arrays and grouped snapshot fields without reintroducing the prior max-depth loop.
-3. `POST /api/v1/ai-assistant/extract-to-schema/` returns serializer-validated structured drafts and appears in generated OpenAPI.
+1. Form-level React Query and remote option/schema loading were removed from the leaf form components.
+2. The form stack now mounts only after the smart loader finishes preloading required resources.
+3. Cascading field dependencies now resolve from preloaded in-memory dictionaries instead of triggering network activity during form interaction.
+4. The prior fetch -> state update -> query-key mutation loop is structurally blocked on the affected entity form surfaces.
 
 ## Acceptance criteria check
 
 | Criterion | Status | Evidence |
 |---|---|---|
-| `DynamicFormEngine` supports nested paths and line-item arrays safely | Pass | Nested defaults + nested visible-when clearing covered in Vitest |
-| `UniversalEntityForm` accepts extracted nested payloads without loop regressions | Pass | Autofill reset path covered in `UniversalEntityForm.stability.test.tsx` |
-| `extract-to-schema` exists and is tenant-safe | Pass | New route + owner-scoped API test |
-| Enum choices are restricted and validated server-side | Pass | JSON-schema enum generation + invalid-enum backend test |
-| Targeted frontend/backend validation passes | Pass | Vitest, TypeScript check, Django tests all green |
-| OpenAPI includes the new endpoint | Pass | `/api/v1/ai-assistant/extract-to-schema/` present in generated schema |
+| `DynamicFormEngine.tsx` contains no React Query or form-owned remote option fetching | Pass | Choice/config/master-product loading moved to `EntityFormSurface` helpers |
+| `UniversalEntityForm.tsx` is prop-driven and does not own schema/record/FK loading | Pass | Fetch helpers moved to `entityFormData.ts`; submit delegated through `onSubmit` |
+| Parent loader gates form mounting behind loading/error boundaries | Pass | `EntityFormSurface` renders loader/error shells and does not mount `UniversalEntityForm` until ready |
+| Cascading options are resolved in memory from preloaded dictionaries | Pass | Product dependency filtering now uses `dropdownOptions[field.key].metadata.protein_types` |
+| Focused regression coverage proves the dumb-form/smart-loader contract | Pass | `EntityFormSurface.test.tsx` asserts no form mount during loading; stability suites remain green |
+| Existing frontend checks pass on touched code | Pass | Vitest, TypeScript, and touched-file ESLint complete successfully |
 
-## Risks reviewed
+## Dependencies reviewed
+
+1. The dumb-form contract had to land before smart-loader orchestration could be simplified.
+2. Loader gating depended on schema augmentation and dropdown preloading being stable under repeated parent renders.
+3. The final approval depended on targeted regression tests for both the loader boundary and in-memory cascading behavior.
+
+## Risk register
 
 | Risk | Status | Mitigation result |
 |---|---|---|
-| React #185 regression from reset/mirroring | Mitigated | External and internal flows now share one stable resolved-initial-values path |
-| Nested path drift across validation/errors/visibility | Mitigated | Shared path helpers applied in the form engine |
-| AI hallucinated enums or extra keys | Mitigated | Strict serializer-derived JSON schema + serializer validation |
-| Tenant data leakage on extraction | Mitigated | Endpoint resolves documents by tenant + owner scope |
+| Error #185 persists through hidden loader-side state churn | Mitigated | Loader fetches are isolated from the mounted form, and the form no longer owns live query state |
+| Cascading dropdowns trigger new remote work from inside the form | Mitigated | Dependent select behavior uses preloaded option dictionaries only |
+| Universal form callers regress because the prop contract changed | Mitigated | `EntityFormSurface` centralizes compatibility and submit orchestration |
+| Autofill/document flows reintroduce async resets in the leaf form | Mitigated | Document list/upload/extract live in the smart loader; the form receives only stable draft values and callbacks |
 
 ## Validation commands executed
 
-1. `cd /tmp/pm-golden-ai-ui-sync/frontend && ./node_modules/.bin/vitest run src/features/system/DynamicFormEngine.stability.test.tsx src/features/system/DynamicFormEngine.visibleWhenClear.test.tsx src/components/Shared/UniversalEntityForm.stability.test.tsx`
-2. `cd /tmp/pm-golden-ai-ui-sync/frontend && ./node_modules/.bin/tsc --noEmit`
-3. `cd /tmp/pm-golden-ai-ui-sync/backend && python manage.py test tenant_apps.ai_assistant.tests.test_extract_to_schema --verbosity=2 --keepdb --noinput`
-4. `cd /tmp/pm-golden-ai-ui-sync/backend && python manage.py spectacular --file /tmp/pm-golden-ai-ui-sync/openapi-extract-to-schema.yaml`
+1. `cd /tmp/pm-error185-lockdown/frontend && [ -e node_modules ] || ln -s /workspaces/ProjectMeats/frontend/node_modules node_modules && ./node_modules/.bin/vitest run src/components/Shared/EntityFormSurface.test.tsx src/components/Shared/UniversalEntityForm.stability.test.tsx src/features/system/DynamicFormEngine.stability.test.tsx src/features/system/DynamicFormEngine.visibleWhenClear.test.tsx && ./node_modules/.bin/tsc --noEmit && ./node_modules/.bin/eslint src/components/Shared/EntityFormSurface.tsx src/components/Shared/UniversalEntityForm.tsx src/components/Shared/entityFormData.ts src/features/system/DynamicFormEngine.tsx src/components/Shared/EntityFormSurface.test.tsx src/components/Shared/UniversalEntityForm.stability.test.tsx src/features/system/DynamicFormEngine.stability.test.tsx src/features/system/DynamicFormEngine.visibleWhenClear.test.tsx; status=$?; rm -f node_modules; exit $status`
 
-## Residual minor polish
+## Residual follow-up
 
-1. Remove the `hasError` DOM prop leak warning in `DynamicFormEngine` input wrappers.
-2. Add/normalize missing React keys in DynamicFormEngine section rendering to eliminate warning noise.
-3. Extend transactional line-item schema synthesis to external-schema-only callers if those surfaces start bypassing `/system/forms/schema/`.
+1. One React test warning remains in `DynamicFormEngine.stability.test.tsx` about a missing list key during the cascading-options scenario; it does not block the hotfix, but it should be cleaned up in the next UI polish batch.
+2. JSDOM still logs a non-blocking navigation warning when unauthenticated redirect behavior is exercised in `EntityFormSurface.test.tsx`.
 
 ## Rollback plan
 
-1. Disable or remove the autofill control first if UI instability appears; keep backend extraction additive.
-2. Narrow the extraction entity allowlist before relaxing any serializer validation.
-3. Revert frontend nested normalization separately from the backend endpoint if only one side regresses.
+1. Revert `EntityFormSurface.tsx` first if loader gating blocks a critical entity page.
+2. Keep the dumb-form refactor intact if possible and temporarily narrow usage to the highest-risk edit surfaces.
+3. If necessary, revert the smart-loader resource preload helpers in `entityFormData.ts` and restore the previous surface while retaining the new focused tests for future re-application.

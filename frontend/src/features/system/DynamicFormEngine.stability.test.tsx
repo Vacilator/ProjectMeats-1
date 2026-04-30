@@ -5,21 +5,8 @@ import userEvent from '@testing-library/user-event';
 
 import DynamicFormEngine from './DynamicFormEngine';
 
-const getMasterProductOptionsMock = vi.hoisted(() => vi.fn(async () => []));
-
-vi.mock('../../services/configService', () => ({
-  resolveConfig: vi.fn(async (_key: string, fallback: unknown) => ({ value: fallback })),
-}));
-
-vi.mock('../../services/contactFormOptionsService', () => ({
-  contactFormOptionsService: {
-    getMasterProductOptions: getMasterProductOptionsMock,
-    getSystemChoiceOptions: vi.fn(async () => []),
-  },
-}));
-
 describe('DynamicFormEngine stability', () => {
-  it('does not hit maximum update depth when schema/initialValues objects are rebuilt', async () => {
+  it('does not hit maximum update depth when schema and initialValues objects are rebuilt', async () => {
     const user = userEvent.setup();
     const onSubmit = vi.fn();
 
@@ -31,7 +18,6 @@ describe('DynamicFormEngine stability', () => {
         setTick((prev) => prev + 1);
       }, [tick]);
 
-      // Recreate objects each render to simulate parent rebuilds.
       const schema = {
         step_index: 0,
         name: 'Plant Profile',
@@ -67,9 +53,7 @@ describe('DynamicFormEngine stability', () => {
 
     render(<Parent />);
 
-    // Ensure the form is interactive and can be submitted.
     expect(screen.getByRole('checkbox', { name: 'Export Approved' })).toBeInTheDocument();
-
     await user.click(screen.getByRole('button', { name: /submit|save/i }));
 
     await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
@@ -79,7 +63,7 @@ describe('DynamicFormEngine stability', () => {
     });
   });
 
-  it('applies async-loaded initial values after a keyed remount without looping', async () => {
+  it('applies keyed remount initial values without looping', async () => {
     const onSubmit = vi.fn();
 
     const Parent: React.FC = () => {
@@ -108,13 +92,11 @@ describe('DynamicFormEngine stability', () => {
         ],
       };
 
-      const initialValues = loaded ? { name: 'North Fabrication Plant' } : {};
-
       return (
         <DynamicFormEngine
           key={loaded ? 'loaded' : 'loading'}
           schema={schema as any}
-          initialValues={initialValues}
+          initialValues={loaded ? { name: 'North Fabrication Plant' } : {}}
           onSubmit={onSubmit}
           submitLabel="Save"
         />
@@ -128,7 +110,7 @@ describe('DynamicFormEngine stability', () => {
     });
   });
 
-  it('hydrates dotted-path initial values and submits nested objects without looping', async () => {
+  it('hydrates dotted-path initial values and submits nested objects', async () => {
     const user = userEvent.setup();
     const onSubmit = vi.fn();
 
@@ -178,68 +160,67 @@ describe('DynamicFormEngine stability', () => {
     });
   });
 
-  it('does not refetch cascading options on unrelated parent rerenders', async () => {
-    getMasterProductOptionsMock.mockClear();
-    getMasterProductOptionsMock.mockResolvedValue([{ value: '1', label: 'Brisket' }]);
+  it('filters cascading options in memory from preloaded dropdown dictionaries', async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn();
 
-    const Parent: React.FC = () => {
-      const [tick, setTick] = useState(0);
-
-      useEffect(() => {
-        if (tick >= 5) return;
-        setTick((prev) => prev + 1);
-      }, [tick]);
-
-      return (
-        <>
-          <div data-testid="tick">{tick}</div>
-          <DynamicFormEngine
-            schema={{
-              step_index: 0,
-              name: 'Plant Profile',
-              fields: [
-                {
-                  key: 'protein_types',
-                  label: 'Protein Types',
-                  type: 'select',
-                  options: [{ value: 'Beef', label: 'Beef' }],
-                  ui: {
-                    widget: 'multi_select',
-                  },
+    render(
+      <DynamicFormEngine
+        schema={{
+          step_index: 0,
+          name: 'Plant Profile',
+          fields: [
+            {
+              key: 'protein_types',
+              label: 'Protein Types',
+              type: 'select',
+              options: [{ value: 'Beef', label: 'Beef' }],
+              ui: {
+                widget: 'multi_select',
+              },
+            },
+            {
+              key: 'master_products',
+              label: 'Master Products',
+              type: 'select',
+              dependencies: ['protein_types'],
+              ui: {
+                widget: 'multi_select',
+                data_source: {
+                  type: 'master_products',
                 },
-                {
-                  key: 'master_products',
-                  label: 'Master Products',
-                  type: 'select',
-                  dependencies: ['protein_types'],
-                  ui: {
-                    widget: 'multi_select',
-                    data_source: {
-                      type: 'master_products',
-                    },
-                  },
-                },
-              ],
-            }}
-            initialValues={{
-              protein_types: ['Beef'],
-              master_products: [],
-            }}
-            onSubmit={vi.fn()}
-          />
-        </>
-      );
-    };
+              },
+            },
+          ],
+        }}
+        initialValues={{
+          protein_types: ['Beef'],
+          master_products: ['1', '2'],
+        }}
+        dropdownOptions={{
+          master_products: [
+            {
+              value: '1',
+              label: 'Beef Brisket',
+              metadata: { protein_types: ['Beef'] },
+            },
+            {
+              value: '2',
+              label: 'Chicken Breast',
+              metadata: { protein_types: ['Chicken'] },
+            },
+          ],
+        }}
+        onSubmit={onSubmit}
+      />
+    );
 
-    render(<Parent />);
+    await user.click(screen.getByRole('button', { name: /submit|save/i }));
 
-    await waitFor(() => {
-      expect(screen.getByTestId('tick')).toHaveTextContent('5');
+    await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
+    expect(onSubmit.mock.calls[0]?.[0]).toMatchObject({
+      protein_types: ['Beef'],
+      master_products: ['1'],
     });
-
-    await waitFor(() => {
-      expect(getMasterProductOptionsMock).toHaveBeenCalledTimes(1);
-    });
-    expect(getMasterProductOptionsMock).toHaveBeenCalledWith({ proteinTypes: ['Beef'] });
   });
 });
