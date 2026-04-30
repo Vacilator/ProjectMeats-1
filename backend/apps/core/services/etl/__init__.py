@@ -19,6 +19,9 @@ from .contracts import (
     resolve_manifest_tenant,
     validate_batch_manifest,
 )
+from .engine import execute_dry_run
+from .journal import build_command_options, build_run_key, checksum_manifest_payload
+from .runtime import LoadedSourceRow, load_source_rows
 
 __all__ = [
     "BATCH_JOURNAL_FIELDS",
@@ -33,8 +36,14 @@ __all__ = [
     "TRANSACTION_IMPORT_ORDER",
     "BatchManifest",
     "EntityContract",
+    "LoadedSourceRow",
     "SourceBinding",
+    "build_command_options",
     "build_contract_preview",
+    "build_run_key",
+    "checksum_manifest_payload",
+    "execute_dry_run",
+    "load_source_rows",
     "load_batch_manifest",
     "resolve_manifest_tenant",
     "validate_batch_manifest",

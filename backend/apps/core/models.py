@@ -667,6 +667,116 @@ class TenantAuditEvent(models.Model):
         return f"{self.tenant_id} {self.action} {self.entity_type}:{self.object_id}"
 
 
+class ETLImportBatch(TenantAwareModel):
+    """Restart-safe tenant-scoped ETL dry-run batches."""
+
+    class Mode(models.TextChoices):
+        DRY_RUN = 'dry_run', 'Dry Run'
+
+    class Status(models.TextChoices):
+        PENDING = 'pending', 'Pending'
+        RUNNING = 'running', 'Running'
+        COMPLETED = 'completed', 'Completed'
+        FAILED = 'failed', 'Failed'
+        CANCELLED = 'cancelled', 'Cancelled'
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    run_key = models.CharField(
+        max_length=64,
+        db_index=True,
+        help_text='Deterministic batch key derived from tenant + manifest checksum + dry-run options.',
+    )
+    mode = models.CharField(max_length=20, choices=Mode.choices, default=Mode.DRY_RUN)
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.PENDING, db_index=True)
+    source_manifest = models.JSONField(default=dict, blank=True)
+    manifest_checksum = models.CharField(max_length=64, blank=True, default='')
+    command_options = models.JSONField(default=dict, blank=True)
+    resume_cursor = models.JSONField(default=dict, blank=True)
+    summary = models.JSONField(default=dict, blank=True)
+    failure_message = models.TextField(blank=True, default='')
+    started_at = models.DateTimeField(null=True, blank=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
+    last_checkpoint_at = models.DateTimeField(null=True, blank=True)
+    total_rows = models.PositiveIntegerField(default=0)
+    processed_rows = models.PositiveIntegerField(default=0)
+    would_create_count = models.PositiveIntegerField(default=0)
+    would_update_count = models.PositiveIntegerField(default=0)
+    would_skip_count = models.PositiveIntegerField(default=0)
+    error_count = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        ordering = ['-created_on']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['tenant', 'run_key'],
+                name='core_etlb_tenant_run_uniq',
+            ),
+        ]
+        indexes = [
+            models.Index(fields=['tenant', 'status', '-created_on'], name='core_etlb_tenant_status_idx'),
+            models.Index(fields=['tenant', 'manifest_checksum'], name='core_etlb_manifest_idx'),
+        ]
+
+    def __str__(self) -> str:
+        return f'{self.tenant_id} {self.mode} {self.run_key}'
+
+
+class ETLImportRowJournal(TenantAwareModel):
+    """Row-level dry-run journal entries for a single ETL batch."""
+
+    class PlannedAction(models.TextChoices):
+        WOULD_CREATE = 'would_create', 'Would Create'
+        WOULD_UPDATE = 'would_update', 'Would Update'
+        WOULD_SKIP = 'would_skip', 'Would Skip'
+        ERROR = 'error', 'Error'
+
+    class Status(models.TextChoices):
+        PLANNED = 'planned', 'Planned'
+        ERROR = 'error', 'Error'
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    batch = models.ForeignKey(
+        ETLImportBatch,
+        on_delete=models.CASCADE,
+        related_name='row_journals',
+        help_text='Owning ETL dry-run batch.',
+    )
+    entity = models.CharField(max_length=100, db_index=True)
+    source_path = models.CharField(max_length=500)
+    source_sheet = models.CharField(max_length=255, blank=True, default='')
+    source_row_number = models.PositiveIntegerField()
+    source_identifier = models.CharField(max_length=255, blank=True, default='')
+    normalized_lookup_key = models.CharField(max_length=255, blank=True, default='')
+    row_fingerprint = models.CharField(max_length=64, blank=True, default='', db_index=True)
+    planned_action = models.CharField(max_length=20, choices=PlannedAction.choices, db_index=True)
+    target_model = models.CharField(max_length=255, blank=True, default='')
+    target_identifier = models.CharField(max_length=255, blank=True, default='')
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.PLANNED)
+    error_code = models.CharField(max_length=100, blank=True, default='')
+    error_message = models.TextField(blank=True, default='')
+    side_effects_suppressed = models.JSONField(default=list, blank=True)
+    raw_payload = models.JSONField(default=dict, blank=True)
+    normalized_payload = models.JSONField(default=dict, blank=True)
+    warnings = models.JSONField(default=list, blank=True)
+    processed_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['batch_id', 'entity', 'source_row_number']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['batch', 'entity', 'source_path', 'source_sheet', 'source_row_number'],
+                name='core_etlr_batch_source_uniq',
+            ),
+        ]
+        indexes = [
+            models.Index(fields=['tenant', 'batch', 'planned_action'], name='core_etlr_batch_action_idx'),
+            models.Index(fields=['tenant', 'entity', 'row_fingerprint'], name='core_etlr_entity_fp_idx'),
+        ]
+
+    def __str__(self) -> str:
+        return f'{self.batch_id} {self.entity} row {self.source_row_number}'
+
+
 class Comment(TenantAwareModel):
     """Universal tenant-scoped comments attachable to supported entities."""
 

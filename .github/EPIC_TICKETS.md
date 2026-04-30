@@ -38,8 +38,8 @@
   - **Rollback:** Revert the ETL contract/runbook scaffolding only; no imported rows should exist from this ticket.
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
-- [ ] **GA-01.2 etl-journal-and-dry-run-engine**
-  - **Status:** Ready
+- [x] **GA-01.2 etl-journal-and-dry-run-engine**
+  - **Status:** Shipped (PR #4814)
   - **Why now:** Historical imports need restart-safe journaling and dry-run output before any write-capable importer is safe.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 14 / Epic 1
   - **Scope:** Add the import journal/payload recording layer plus dry-run transformation engine that validates rows, normalizes identifiers, and reports create/update/skip/error counts without firing signals or side effects.
@@ -57,7 +57,7 @@
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
 - [ ] **GA-01.3 etl-master-data-import-pass**
-  - **Status:** Blocked
+  - **Status:** Ready
   - **Why now:** Transactional imports will fail or duplicate data unless carriers, suppliers, customers, contacts, products, plants, and locations import first.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 14 / Epic 1
   - **Scope:** Implement the first write-capable ETL pass for master/reference entities with tenant-aware matching, dedupe keys, audit-safe attribution, and fixture-backed regression coverage.
@@ -65,7 +65,7 @@
   - **Primary domain:** backend/data
   - **Likely touched paths:** `backend/apps/core/services/etl/`, `backend/tenant_apps/{suppliers,customers,contacts,products,locations,plants}/`, `backend/apps/core/tests/fixtures/etl/`, `docs/runbooks/GOLDEN_SCHEMA_ETL.md`
   - **Dependencies:** GA-01.2
-  - **Blockers:** GA-01.2
+  - **Blockers:** None
   - **Acceptance criteria:** Master data imports are idempotent per tenant, import journals show matched/created/skipped counts, and no cross-tenant linking is possible.
   - **Validation commands:** `cd backend && python manage.py test apps.core apps.tenants`; `cd backend && python manage.py test tenant_apps.contacts`
   - **Tenant/RLS impact:** High
