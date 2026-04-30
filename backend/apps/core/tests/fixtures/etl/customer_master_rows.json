@@ -1,0 +1,20 @@
+[
+  {
+    "name": "Beta Customer",
+    "contact_person": "Bob Buyer",
+    "email": "beta-customer@example.com",
+    "phone": "5552220000",
+    "street_address": "99 Market Street",
+    "city": "Chicago",
+    "state": "IL",
+    "zip_code": "60606",
+    "country": "USA",
+    "buyer_contact_name": "Bob Buyer",
+    "buyer_contact_phone": "5552220001",
+    "buyer_contact_email": "buyers@beta-customer.example",
+    "preferred_protein_types": ["Beef"],
+    "payment_terms": "ACH",
+    "credit_limit": "Net 30",
+    "account_line_of_credit": "$50,000 - $100,000"
+  }
+]

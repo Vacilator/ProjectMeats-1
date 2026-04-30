@@ -3,7 +3,7 @@
 ## Goal
 - Import historical Excel/CSV/database-export data into the Golden Schema without manual re-entry.
 - Keep ETL tenant-explicit, dry-run-first, and side-effect-free until operators choose to execute.
-- Give GA-01.2 a deterministic contract for journal storage, row transforms, and reconciliation.
+- Give GA-01.2 and GA-01.3 a deterministic contract for journal storage, row transforms, reconciliation, and the first write-capable master-data pass.
 
 ## What ships in GA-01.1
 1. Contract-only backend scaffolding in `backend/apps/core/services/etl/`.
@@ -17,8 +17,20 @@
 3. Deterministic rerun behavior keyed by tenant + manifest checksum + dry-run options.
 4. Command output that persists batch summaries and row journals for operator review before GA-01.3 introduces write-capable passes.
 
+## What ships in GA-01.3
+1. `import_golden_legacy_data --apply` for the first write-capable master-data pass.
+2. Idempotent tenant-scoped upserts for:
+   - `tenant_apps.products.models.MasterProduct`
+   - `tenant_apps.suppliers.models.Supplier`
+   - `tenant_apps.customers.models.Customer`
+   - `tenant_apps.plants.models.Plant`
+   - `tenant_apps.locations.models.Location`
+   - `tenant_apps.contacts.models.Contact`
+3. ETL execution context guards that suppress workflow-trigger fan-out while import writes are running.
+4. Journal summaries that expose actual `created_count`, `updated_count`, and `skipped_count` for master-data apply mode.
+
 ## Non-goals
-- No write-capable master-data or transactional imports yet.
+- No transactional header or line-item imports yet.
 - No webhook/email/signal-driven runtime side effects.
 - No Phase 15 partner portal, conversion, or settlement work.
 
@@ -58,13 +70,13 @@
 ## Mapping contract by entity
 | Entity | Target model | Identity / dedupe keys | Canonical field groups |
 | --- | --- | --- | --- |
-| `locations` | `tenant_apps.locations.models.Location` | `name`, `city`, `state_zip` | `contact_snapshot` |
-| `plants` | `tenant_apps.locations.models.Location` (plant-typed rows) | `name`, `plant_est_number` | `contact_snapshot` |
+| `locations` | `tenant_apps.locations.models.Location` | `code`, fallback `name` + `city` + `state` | `contact_snapshot` |
+| `plants` | `tenant_apps.plants.models.Plant` | `plant_est_num`, fallback `name` | `contact_snapshot` |
 | `suppliers` | `tenant_apps.suppliers.models.Supplier` | `name`, `email` | `financial_terms` |
 | `customers` | `tenant_apps.customers.models.Customer` | `name`, `email` | `financial_terms` |
 | `carriers` | `tenant_apps.carriers.models.Carrier` | `code`, `name` | `financial_terms` |
-| `contacts` | `tenant_apps.contacts.models.Contact` | `email`, `phone`, `name` | none |
-| `products` | `apps.system.models.Product` | `product_code` | none |
+| `contacts` | `tenant_apps.contacts.models.Contact` | `first_name`, `last_name`, plus parent reference and `email`/`phone` when present | none |
+| `products` | `tenant_apps.products.models.MasterProduct` | `protein`, `item_name`, `type`, `trim` | none |
 | `purchase_orders` | `tenant_apps.purchase_orders.models.PurchaseOrder` | `order_number` | `logistics`, `billing_*`, `shipping_*` |
 | `purchase_order_items` | `tenant_apps.purchase_orders.models.PurchaseOrderItem` | `purchase_order`, `line_number` | `base_line_item` |
 | `sales_orders` | `tenant_apps.sales_orders.models.SalesOrder` | `our_sales_order_number_for_customer` | `logistics`, `billing_*`, `shipping_*` |
@@ -161,6 +173,19 @@ The import path should rely on an explicit ETL journal/reconciliation surface in
 2. Persist only ETL journal tables; do not create or update supplier/customer/order/invoice rows.
 3. Re-running the same manifest for the same tenant must reuse the existing batch and upsert the same row journals instead of duplicating them.
 
+## Master-data apply rules (GA-01.3)
+1. Apply mode is explicit: `python manage.py import_golden_legacy_data --manifest ... --apply`.
+2. Apply mode is limited to master-data entities only:
+   - `products`
+   - `suppliers`
+   - `customers`
+   - `plants`
+   - `locations`
+   - `contacts`
+3. The same manifest + options reuse the same batch/run key and upsert the same journal rows on rerun.
+4. Workflow-trigger side effects remain suppressed during ETL-managed saves; operator reconciliation must rely on journal output, not normal runtime fan-out.
+5. Transactional entities remain blocked until GA-01.4.
+
 ## Planned journal + error report contract
 ### Import journal fields
 - `batch_id`
@@ -195,7 +220,7 @@ The import path should rely on an explicit ETL journal/reconciliation surface in
 ## Dependencies
 1. GA-01.1 defines the contract only.
 2. GA-01.2 adds journal storage + dry-run transforms.
-3. GA-01.3 should add write-capable master-data import.
+3. GA-01.3 adds write-capable master-data import.
 4. GA-01.4 should add transactional import + reconciliation output.
 
 ## Risk register + mitigations

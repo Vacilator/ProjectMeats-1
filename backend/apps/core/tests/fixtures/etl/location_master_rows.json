@@ -1,0 +1,17 @@
+[
+  {
+    "name": "Beta Warehouse",
+    "code": "BETA-WH-1",
+    "location_type": "warehouse",
+    "customer_name": "Beta Customer",
+    "customer_email": "beta-customer@example.com",
+    "address": "200 Warehouse Ave",
+    "city": "Chicago",
+    "state": "IL",
+    "zip_code": "60607",
+    "country": "USA",
+    "contact_name": "Dock Desk",
+    "phone": "5552221000",
+    "email": "dock@beta-warehouse.example"
+  }
+]

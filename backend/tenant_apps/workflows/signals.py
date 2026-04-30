@@ -285,6 +285,12 @@ def trigger_event_workflows(sender, instance, created=False, **kwargs):
         created: True if this is a new record
         **kwargs: Additional signal data
     """
+    from apps.core.services.etl.context import etl_side_effects_suppressed
+
+    if etl_side_effects_suppressed():
+        logger.info("[Event] Skipping workflow triggers during ETL-managed import execution")
+        return
+
     from .models import TenantWorkflow, TriggerType, WorkflowStatus
     from .tasks import execute_event_workflow
     
