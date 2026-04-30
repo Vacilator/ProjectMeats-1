@@ -11,6 +11,8 @@ This file is the **append-only PR-referenceable execution log**.
 
 ## Operational Notes
 
+- **2026-04-30** — Operational readiness for Golden Schema transactional documents: added workflow-validated status transitions, transactional PDF generation, email-send endpoints with PDF attachments, broader audit coverage (Carrier / Invoice / CarrierPurchaseOrder), reusable frontend operational actions + audit timeline, and a new Freight Orders surface for Carrier POs. Additive migrations shipped for purchase orders, sales orders, and invoices. (PR: #4811)
+
 - **2026-03-31** — WorkForms runtime: Quick Actions workflow items now execute via `/workforms/execute/:id` (not editor). Backend adds `POST /api/v1/tenant-workforms/:id/execute/` to create `TenantWorkFormExecution` and run async via Celery; adds `/api/v1/workflows/workform-executions/` and surfaces active executions in WorkForms Monitoring; Catalog supports deleting draft/archived WorkForms with confirmation. (PR: #4320)
 
 - **2026-03-31** — UniversalEntityForm: purged legacy Plant create/edit forms. Suppliers “+ New Plant” and Plants table “Add/Edit” now route through `EntityFormSurface` → `UniversalEntityForm` (supplier prefill via context). Suppliers can still optionally assign plant products post-create. (PR: #4321)
