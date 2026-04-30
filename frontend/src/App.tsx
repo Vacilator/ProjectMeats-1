@@ -63,6 +63,7 @@ import Claims from './pages/Accounting/Claims';
 import PayablePOs from './pages/Accounting/PayablePOs';
 import ReceivableSOs from './pages/Accounting/ReceivableSOs';
 import Invoices from './pages/Accounting/Invoices';
+import FreightOrders from './pages/FreightOrders';
 import DealDesk from './pages/Deals/DealDesk';
 import Reports from './pages/Reports';
 import Login from './pages/Login';
@@ -318,6 +319,7 @@ const App: React.FC = () => {
                 {/* Other Pages */}
                 <Route path="cold-storage" element={<ColdStorage />} />
                 <Route path="carriers" element={<Carriers />} />
+                <Route path="freight-orders" element={<FreightOrders />} />
                 <Route path="contacts" element={<Contacts />} />
                 <Route path="ai-assistant" element={<AIAssistant />} />
                 <Route path="calls" element={<Navigate to="/cockpit/calls" replace />} />

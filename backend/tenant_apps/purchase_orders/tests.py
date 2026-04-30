@@ -8,7 +8,7 @@ from decimal import Decimal
 from django.test import TestCase
 from django.contrib.auth.models import User
 from rest_framework import status
-from rest_framework.test import APITestCase
+from rest_framework.test import APIClient, APITestCase
 from django.utils import timezone
 from tenant_apps.purchase_orders.models import (
     CarrierPOItem,
@@ -22,6 +22,7 @@ from tenant_apps.carriers.models import Carrier
 from tenant_apps.customers.models import Customer
 from apps.system.models import Product
 from tenant_apps.locations.models import Location
+from tenant_apps.sales_orders.models import SalesOrder
 from apps.tenants.models import Tenant, TenantUser
 from apps.core.models import (
     AccountingPaymentTermsChoices,
@@ -242,6 +243,144 @@ class CarrierPurchaseOrderAPITests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(CarrierPurchaseOrder.objects.count(), 1)
         self.assertEqual(CarrierPOItem.objects.count(), 1)
+
+
+class DocumentOperationsAPITests(APITestCase):
+    """Regression coverage for workflow, PDF, email, and audit endpoints."""
+
+    def setUp(self):
+        unique_id = uuid.uuid4().hex[:8]
+        self.user = User.objects.create_user(
+            username=f"doc-ops-{unique_id}",
+            email=f"doc-ops-{unique_id}@example.com",
+            password="testpass123",
+        )
+        self.member_user = User.objects.create_user(
+            username=f"doc-member-{unique_id}",
+            email=f"doc-member-{unique_id}@example.com",
+            password="testpass123",
+        )
+        self.tenant = Tenant.objects.create(
+            name=f"Doc Ops Tenant {unique_id}",
+            slug=f"doc-ops-tenant-{unique_id}",
+            contact_email=f"doc-ops-{unique_id}@example.com",
+            created_by=self.user,
+        )
+        TenantUser.objects.create(tenant=self.tenant, user=self.user, role="owner", is_active=True)
+        TenantUser.objects.create(tenant=self.tenant, user=self.member_user, role="user", is_active=True)
+
+        self.client.force_login(self.user)
+        self.tenant_header = {"HTTP_X_TENANT_ID": str(self.tenant.id)}
+
+        self.carrier = Carrier.objects.create(
+            name=f"Carrier {unique_id}",
+            email=f"carrier-{unique_id}@example.com",
+            tenant=self.tenant,
+        )
+        self.supplier = Supplier.objects.create(
+            name=f"Supplier {unique_id}",
+            email=f"supplier-{unique_id}@example.com",
+            tenant=self.tenant,
+        )
+        self.customer = Customer.objects.create(
+            name=f"Customer {unique_id}",
+            email=f"customer-{unique_id}@example.com",
+            tenant=self.tenant,
+        )
+        self.location = Location.objects.create(
+            name=f"Location {unique_id}",
+            city="Chicago",
+            location_type="warehouse",
+            tenant=self.tenant,
+        )
+        self.product = Product.objects.create(
+            product_code=f"DOC-{unique_id}",
+            name="Doc Test Product",
+        )
+        self.purchase_order = PurchaseOrder.objects.create(
+            tenant=self.tenant,
+            supplier=self.supplier,
+            carrier=self.carrier,
+            order_number=f"PO-{unique_id}",
+            order_date=timezone.now().date(),
+            total_amount=Decimal("1200.00"),
+            status="pending",
+            product=self.product,
+            pick_up_location=self.location,
+            delivery_location=self.location,
+        )
+        self.sales_order = SalesOrder.objects.create(
+            tenant=self.tenant,
+            supplier=self.supplier,
+            customer=self.customer,
+            carrier=self.carrier,
+            product=self.product,
+            our_sales_order_num=f"SO-{unique_id}",
+            status="approved",
+            total_amount=Decimal("1400.00"),
+            pick_up_location=self.location,
+            delivery_location=self.location,
+        )
+        self.carrier_po = CarrierPurchaseOrder.objects.create(
+            tenant=self.tenant,
+            carrier=self.carrier,
+            supplier=self.supplier,
+            linked_order=self.purchase_order,
+            sales_order=self.sales_order,
+            our_carrier_po_num=f"CPO-{unique_id}",
+            status="draft",
+            pick_up_location=self.location,
+            delivery_location=self.location,
+        )
+
+    def test_purchase_order_transition_endpoint_blocks_invalid_jump(self):
+        response = self.client.post(
+            f"/api/v1/purchase-orders/{self.purchase_order.id}/transition-status/",
+            {"status": "delivered"},
+            format="json",
+            **self.tenant_header,
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("status", response.data)
+
+    def test_purchase_order_pdf_endpoint_returns_pdf_attachment(self):
+        response = self.client.get(
+            f"/api/v1/purchase-orders/{self.purchase_order.id}/pdf/",
+            **self.tenant_header,
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response["Content-Type"], "application/pdf")
+        self.assertIn(".pdf", response["Content-Disposition"])
+        self.assertTrue(response.content.startswith(b"%PDF"))
+
+    def test_carrier_po_audit_feed_is_visible_to_active_member(self):
+        transition_response = self.client.post(
+            f"/api/v1/carrier-pos/{self.carrier_po.id}/transition-status/",
+            {"status": "approved"},
+            format="json",
+            **self.tenant_header,
+        )
+        self.assertEqual(transition_response.status_code, status.HTTP_200_OK)
+
+        member_client = APIClient()
+        member_client.force_login(self.member_user)
+        response = member_client.get(
+            "/api/v1/audit-events/",
+            {
+                "entity_type": "CarrierPurchaseOrder",
+                "object_id": str(self.carrier_po.id),
+            },
+            **self.tenant_header,
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        results = response.data.get("results", response.data)
+        self.assertGreaterEqual(len(results), 1)
+        self.assertTrue(
+            any(event.get("entity_type") == "CarrierPurchaseOrder" for event in results)
+        )
 
 
 class ColdStorageEntryModelTest(TestCase):

@@ -10,9 +10,10 @@ from rest_framework.response import Response
 
 from tenant_apps.invoices.models import Invoice, Claim, PaymentTransaction
 from tenant_apps.invoices.serializers import InvoiceSerializer, ClaimSerializer, PaymentTransactionSerializer
+from apps.core.viewsets_documents import OperationalDocumentActionsMixin
 
 
-class InvoiceViewSet(viewsets.ModelViewSet):
+class InvoiceViewSet(OperationalDocumentActionsMixin, viewsets.ModelViewSet):
     """ViewSet for managing invoices with strict tenant isolation."""
     
     queryset = Invoice.objects.all()

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Skeleton } from 'antd';
-import { useLocation, useSearchParams } from 'react-router-dom';
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import styled from 'styled-components';
 import { confirmDialog, showAlert } from '@/utils/uiDialogs';
 import { apiClient, apiService, PurchaseOrder, Supplier } from '../services/apiService';
@@ -455,6 +455,7 @@ const SubmitButton = styled.button`
 `;
 
 const PurchaseOrders: React.FC = () => {
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const location = useLocation();
 
@@ -1063,6 +1064,14 @@ const PurchaseOrders: React.FC = () => {
                       : 'Not set'}
                   </TableCell>
                   <TableCell>
+                    <ActionButton
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigate(`/records/purchase_order/${encodeURIComponent(String(purchaseOrder.id))}`);
+                      }}
+                    >
+                      View
+                    </ActionButton>
                     <ActionButton
                       onClick={(e) => {
                         e.stopPropagation();

@@ -12,7 +12,7 @@ from apps.tenants.models import TenantUser
 class TenantAuditEventViewSet(viewsets.ReadOnlyModelViewSet):
     """Read-only audit event feed.
 
-    Restricted to tenant owners/admins (and staff/superusers).
+    Restricted to authenticated members of the active tenant (and staff/superusers).
     """
 
     serializer_class = TenantAuditEventSerializer
@@ -38,13 +38,12 @@ class TenantAuditEventViewSet(viewsets.ReadOnlyModelViewSet):
         if user.is_superuser or user.is_staff:
             return TenantAuditEvent.objects.select_related('tenant', 'actor', 'content_type').all()
 
-        is_admin = TenantUser.objects.filter(
+        is_member = TenantUser.objects.filter(
             tenant=tenant,
             user=user,
-            role__in=['owner', 'admin'],
             is_active=True,
         ).exists()
-        if not is_admin:
+        if not is_member:
             return TenantAuditEvent.objects.none()
 
         return TenantAuditEvent.objects.filter(tenant=tenant).select_related('tenant', 'actor', 'content_type')

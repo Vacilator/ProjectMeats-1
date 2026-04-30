@@ -4,9 +4,12 @@ Tests for Invoices app models.
 Uses shared-schema multi-tenancy with tenant ForeignKey isolation.
 """
 import uuid
-from django.test import TestCase
+from django.core import mail
+from django.test import TestCase, override_settings
 from django.contrib.auth.models import User
 from decimal import Decimal
+from rest_framework import status
+from rest_framework.test import APITestCase
 from tenant_apps.invoices.models import Invoice, InvoiceItem, InvoiceStatus
 from tenant_apps.customers.models import Customer
 from apps.tenants.models import Tenant, TenantUser
@@ -142,3 +145,65 @@ class InvoiceModelTest(TestCase):
 
         self.assertEqual(item.tenant, self.tenant)
         self.assertEqual(item.invoice, invoice)
+
+
+@override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend")
+class InvoiceDocumentOperationsAPITests(APITestCase):
+    """API coverage for invoice workflow and document actions."""
+
+    def setUp(self):
+        unique_id = uuid.uuid4().hex[:8]
+        self.user = User.objects.create_user(
+            username=f"invoice-doc-{unique_id}",
+            email=f"invoice-doc-{unique_id}@example.com",
+            password="testpass123",
+        )
+        self.client.force_login(self.user)
+        self.tenant = Tenant.objects.create(
+            name=f"Invoice Tenant {unique_id}",
+            slug=f"invoice-tenant-{unique_id}",
+            contact_email=f"invoice-doc-{unique_id}@example.com",
+            created_by=self.user,
+        )
+        TenantUser.objects.create(tenant=self.tenant, user=self.user, role="owner", is_active=True)
+        self.customer = Customer.objects.create(
+            name=f"Invoice Customer {unique_id}",
+            email=f"customer-{unique_id}@example.com",
+            tenant=self.tenant,
+        )
+        self.invoice = Invoice.objects.create(
+            tenant=self.tenant,
+            customer=self.customer,
+            invoice_number=f"INV-{unique_id}",
+            total_amount=Decimal("900.00"),
+            status=InvoiceStatus.DRAFT,
+        )
+        self.tenant_header = {"HTTP_X_TENANT_ID": str(self.tenant.id)}
+
+    def test_invoice_patch_rejects_invalid_status_transition(self):
+        response = self.client.patch(
+            f"/api/v1/accounting/invoices/{self.invoice.id}/",
+            {"status": InvoiceStatus.PAID},
+            format="json",
+            **self.tenant_header,
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("status", response.data)
+
+    def test_invoice_email_endpoint_sends_pdf_attachment(self):
+        response = self.client.post(
+            f"/api/v1/accounting/invoices/{self.invoice.id}/email/",
+            {
+                "to": ["ap@example.com"],
+                "subject": "Invoice package",
+                "body": "Attached is your invoice.",
+            },
+            format="json",
+            **self.tenant_header,
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(mail.outbox[0].to, ["ap@example.com"])
+        self.assertEqual(mail.outbox[0].attachments[0][2], "application/pdf")

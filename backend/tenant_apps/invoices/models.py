@@ -31,7 +31,10 @@ class InvoiceStatus(models.TextChoices):
     """Status choices for invoices."""
 
     DRAFT = "draft", "Draft"
+    PENDING_APPROVAL = "pending_approval", "Pending Approval"
+    APPROVED = "approved", "Approved"
     SENT = "sent", "Sent"
+    PARTIAL_PAID = "partial_paid", "Partially Paid"
     PAID = "paid", "Paid"
     OVERDUE = "overdue", "Overdue"
     CANCELLED = "cancelled", "Cancelled"

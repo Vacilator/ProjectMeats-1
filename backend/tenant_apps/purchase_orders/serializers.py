@@ -4,6 +4,7 @@ Purchase Orders serializers for ProjectMeats.
 Provides serialization for purchase order API endpoints.
 """
 from rest_framework import serializers
+from apps.core.serializers_documents import DocumentStatusValidationMixin
 from tenant_apps.purchase_orders.models import (
     CarrierPOItem,
     CarrierPurchaseOrder,
@@ -38,7 +39,7 @@ class PurchaseOrderItemSerializer(serializers.ModelSerializer):
         read_only_fields = ["id"]
 
 
-class PurchaseOrderSerializer(serializers.ModelSerializer):
+class PurchaseOrderSerializer(DocumentStatusValidationMixin, serializers.ModelSerializer):
     """Serializer for PurchaseOrder model."""
     
     # Nested location serializers (read-only)
@@ -165,7 +166,7 @@ class CarrierPOItemSerializer(serializers.ModelSerializer):
         read_only_fields = ["id"]
 
 
-class CarrierPurchaseOrderSerializer(serializers.ModelSerializer):
+class CarrierPurchaseOrderSerializer(DocumentStatusValidationMixin, serializers.ModelSerializer):
     """Serializer for CarrierPurchaseOrder model."""
     
     # Nested location serializers (read-only)
@@ -184,6 +185,7 @@ class CarrierPurchaseOrderSerializer(serializers.ModelSerializer):
         fields = [
             "id",
             "date_time_stamp_created",
+            "status",
             "carrier",
             "supplier",
             "plant",
