@@ -2,11 +2,7 @@ name: PR Validation
 
 run-name: >-
   ${{
-    format(
-      '🔍 PR Check: {0} (PR#{1})',
-      github.event.pull_request.title,
-      github.event.pull_request.number
-    )
+    format('🔍 {0}', github.event.pull_request.title)
   }}
 
 on:
