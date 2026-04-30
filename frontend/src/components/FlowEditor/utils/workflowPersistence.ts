@@ -16,6 +16,7 @@ import { logger } from '@/utils/logger';
 
 import { sortNodesTopologically } from './nodeSorting';
 import { sanitizeNodeDataForPersistence } from './nodeDataSanitization';
+import { getResolvedFormFields } from './formFieldsDualModel';
 import {
   createTenantWorkForm,
   deleteTenantWorkForm,
@@ -223,8 +224,13 @@ export const prepareWorkflowForSave = (
     if (data.entityType === undefined && data.entity !== undefined) data.entityType = data.entity;
     if (data.entity === undefined && data.entityType !== undefined) data.entity = data.entityType;
 
-    if (data.fieldMappings === undefined && data.fields !== undefined) data.fieldMappings = data.fields;
-    if (data.fields === undefined && data.fieldMappings !== undefined) data.fields = data.fieldMappings;
+    const isCanonicalFormNode = schemaNodeType === 'form' || node.type === 'form';
+    const resolvedFormFields = isCanonicalFormNode ? getResolvedFormFields(data) : [];
+
+    if (!isCanonicalFormNode) {
+      if (data.fieldMappings === undefined && data.fields !== undefined) data.fieldMappings = data.fields;
+      if (data.fields === undefined && data.fieldMappings !== undefined) data.fields = data.fieldMappings;
+    }
 
     for (const field of fields) {
       const dv = (field as any).defaultValue;
@@ -233,6 +239,11 @@ export const prepareWorkflowForSave = (
       if (data[field.id] === undefined) {
         data[field.id] = dv;
       }
+    }
+
+    if (isCanonicalFormNode) {
+      data.formFields = resolvedFormFields;
+      delete data.fields;
     }
 
     node.data = data;

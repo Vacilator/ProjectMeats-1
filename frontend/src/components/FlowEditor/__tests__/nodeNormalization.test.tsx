@@ -187,6 +187,36 @@ describe('Node Normalization', () => {
       expect(normalized.extent).toBe('parent');
       expect(normalized.expandParent).toBe(true);
     });
+
+    it('hydrates formFields from legacy form-node fields during normalization', () => {
+      const node: Node = {
+        id: 'form-1',
+        type: 'formStep',
+        position: { x: 0, y: 0 },
+        data: {
+          fields: [
+            {
+              name: 'email',
+              label: 'Email',
+              type: 'EmailField',
+              required: true,
+              fieldId: 'sf-1',
+            },
+          ],
+        },
+      } as Node;
+
+      const normalized = normalizeNodeData(node);
+
+      expect(normalized.type).toBe('form');
+      expect((normalized.data as any).formFields).toHaveLength(1);
+      expect((normalized.data as any).formFields[0]).toMatchObject({
+        id: 'email',
+        label: 'Email',
+        type: 'email',
+        required: true,
+      });
+    });
   });
   
   describe('normalizeNodes', () => {
