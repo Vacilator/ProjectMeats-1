@@ -129,3 +129,31 @@
 - **Guardrails / prohibited actions:** do not let optional synthesis docs outrank canonical docs
 - **Exit criteria:** one deterministic next ticket remains and all authorities agree
 - **Rollback / correction:** if needed, revert the offending docs batch and rebuild order from canonical sources
+
+## Protocol P-09: Smart Loader and referential stability
+
+- **Trigger:** any frontend form, record page, config panel, or React Query refactor
+- **Required reads:** `.github/instructions/frontend.instructions.md`, `.github/copilot-instructions.md`, relevant ticket paths in `.github/EPIC_TICKETS.md`
+- **Preconditions:** the loader boundary, presentational surface, and mutation ownership are identified before code changes
+- **Exact steps:**
+  1. Keep data fetching in a Smart Loader route/container; pass resolved data downward as stable props.
+  2. Do not put direct `useQuery` / `useMutation` calls inside `*Form.tsx` or other dumb-form surfaces unless the component is explicitly the loader boundary.
+  3. Memoize query keys, option objects, dependency arrays, and callbacks so referential equality is stable across renders.
+  4. Avoid inline object/array literals in `queryKey`, `useMemo`, `useEffect`, and `useQueries` inputs when those values can be built once from primitive dependencies.
+  5. Mount heavy editing surfaces only after schema, record data, and option sets are ready.
+- **Guardrails / prohibited actions:** no mount-before-ready form hydration, no inline query-option builders that churn each render, no render-loop fixes without a regression test or production-style browser smoke when runtime churn was user-visible
+- **Exit criteria:** the loader boundary is explicit, render inputs are referentially stable, and the touched flow has regression coverage proportionate to the risk
+- **Rollback / correction:** move fetching back to the nearest stable route/container boundary and restore memoized identities before adding new behavior
+
+## Protocol P-10: Squad orchestration
+
+- **Trigger:** any multi-domain feature, incident, roadmap, or repo-wide audit
+- **Required reads:** `.github/copilot-instructions.md`, `.copilot/squad/squad.json`, `MASTER_PLAN.md`, `.github/EPIC_TICKETS.md`
+- **Exact steps:**
+  1. Use Fleet/Squad mode for multi-domain work instead of single-threaded implementation.
+  2. Split work into at least discovery, implementation, validation, and release/documentation responsibilities.
+  3. Keep canonical planning in `MASTER_PLAN.md`, shipped evidence in `.github/MASTER_PLAN.md`, and execution order in `.github/EPIC_TICKETS.md`.
+  4. If scope changes midstream, stop or block stale delegated work instead of letting parallel agents continue on an obsolete plan.
+- **Guardrails / prohibited actions:** do not invent parallel work outside canonical priorities, do not let subagents contradict canonical docs, and do not leave delegated scopes untracked
+- **Exit criteria:** delegated work is either shipped, blocked with a reason, or reflected in the ordered backlog
+- **Rollback / correction:** cancel stale agents, restore canonical ordering, and re-seed todos/backlog items before resuming execution

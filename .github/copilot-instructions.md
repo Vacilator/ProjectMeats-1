@@ -69,6 +69,14 @@ When working in **GitHub Copilot CLI** for this repo, default to a “squad” a
 **Prompt template:**
 “Enable fleet. Spin up parallel agents to (1) find the relevant files/entrypoints, (2) run the smallest test suite that covers the change, and (3) scan docs/golden files for constraints. Report back with a concrete patch plan and risks.”
 
+### Frontend Smart Loader + Referential Stability (MANDATORY)
+- **Smart Loader boundary:** page/route/container components own data fetching, schema loading, and mutation orchestration for high-churn CRUD and editor flows.
+- **Dumb form boundary:** `*Form.tsx`, config panels, and other presentational editing surfaces must receive stable props (`initialValues`, resolved options, callbacks) instead of creating their own `useQuery` / `useMutation` loops.
+- **No inline query identities:** never pass fresh object/array literals into `queryKey`, query options, dependency arrays, or memoized loader inputs when the values can be stabilized first.
+- **Strict referential equality:** memoize derived arrays/objects/functions that feed React Query, `useEffect`, `useMemo`, or `useQueries`; if a closure must stay stable across renders, back it with a signature/ref instead of rebuilding it inline.
+- **Mount-after-ready:** do not mount `UniversalEntityForm`, `DynamicFormEngine`, or similar heavy editing surfaces until the Smart Loader has finished resolving schema, record data, and option sets.
+- **Never-miss-again guardrail:** when fixing render loops or hydration churn, add or keep a production-style browser/runtime regression so minified React errors (including max update depth / #185) fail before merge.
+
 ### Decision-Making
 - Default to action and completeness. Only ask questions for true design forks.
 - Optimize for: tenant safety, correctness, user outcomes, and long-term maintainability.
