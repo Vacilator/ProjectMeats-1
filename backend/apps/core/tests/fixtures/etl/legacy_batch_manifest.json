@@ -1,0 +1,92 @@
+{
+  "batch_name": "acme-q1-history",
+  "source_system": "legacy_excel_bundle",
+  "tenant_slug": "acme-meats",
+  "sources": [
+    {
+      "entity": "locations",
+      "format": "xlsx",
+      "path": "imports/acme/locations.xlsx",
+      "sheet": "Locations"
+    },
+    {
+      "entity": "plants",
+      "format": "xlsx",
+      "path": "imports/acme/plants.xlsx",
+      "sheet": "Plants"
+    },
+    {
+      "entity": "suppliers",
+      "format": "xlsx",
+      "path": "imports/acme/suppliers.xlsx",
+      "sheet": "Suppliers"
+    },
+    {
+      "entity": "customers",
+      "format": "xlsx",
+      "path": "imports/acme/customers.xlsx",
+      "sheet": "Customers"
+    },
+    {
+      "entity": "carriers",
+      "format": "xlsx",
+      "path": "imports/acme/carriers.xlsx",
+      "sheet": "Carriers"
+    },
+    {
+      "entity": "contacts",
+      "format": "xlsx",
+      "path": "imports/acme/contacts.xlsx",
+      "sheet": "Contacts"
+    },
+    {
+      "entity": "products",
+      "format": "csv",
+      "path": "imports/acme/products.csv"
+    },
+    {
+      "entity": "purchase_orders",
+      "format": "xlsx",
+      "path": "imports/acme/purchase_orders.xlsx",
+      "sheet": "Purchase Orders"
+    },
+    {
+      "entity": "purchase_order_items",
+      "format": "xlsx",
+      "path": "imports/acme/purchase_orders.xlsx",
+      "sheet": "PO Line Items"
+    },
+    {
+      "entity": "sales_orders",
+      "format": "csv",
+      "path": "imports/acme/sales_orders.csv"
+    },
+    {
+      "entity": "sales_order_items",
+      "format": "csv",
+      "path": "imports/acme/sales_order_items.csv"
+    },
+    {
+      "entity": "carrier_purchase_orders",
+      "format": "xlsx",
+      "path": "imports/acme/freight_orders.xlsx",
+      "sheet": "Carrier PO"
+    },
+    {
+      "entity": "carrier_po_items",
+      "format": "xlsx",
+      "path": "imports/acme/freight_orders.xlsx",
+      "sheet": "Carrier PO Items"
+    },
+    {
+      "entity": "invoices",
+      "format": "csv",
+      "path": "imports/acme/invoices.csv"
+    },
+    {
+      "entity": "invoice_items",
+      "format": "csv",
+      "path": "imports/acme/invoice_items.csv"
+    }
+  ]
+}
