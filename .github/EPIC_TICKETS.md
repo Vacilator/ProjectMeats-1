@@ -130,8 +130,8 @@
   - **Rollback:** Revert workflow/doc changes if the restore drill introduces unsafe or contradictory operational guidance.
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
-- [ ] **GA-02.3 celery-worker-scaling-envelope**
-  - **Status:** Ready
+- [x] **GA-02.3 celery-worker-scaling-envelope**
+  - **Status:** Shipped (PR #4820)
   - **Why now:** Launch traffic and new async workloads need bounded worker concurrency/autoscaling guidance before queues back up under real tenants.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 14 / Epic 2
   - **Scope:** Define and enforce Celery worker scaling envelopes, queue priorities, and saturation guardrails for email ingestion, workform execution, AI processing, and future ETL/import jobs.
@@ -149,7 +149,7 @@
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
 - [ ] **GA-02.4 redis-eviction-and-queue-health-guardrails**
-  - **Status:** Blocked
+  - **Status:** Ready
   - **Why now:** Redis underpins Celery and caching, so GA needs explicit memory policy and queue health guardrails before offline queues and ETL bursts arrive.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 14 / Epic 2
   - **Scope:** Define Redis eviction policy, queue-health checks, and operator guidance for broker saturation or stale task buildup.
@@ -157,7 +157,7 @@
   - **Primary domain:** ops/backend
   - **Likely touched paths:** `deploy/`, `docs/runbooks/DISASTER_RECOVERY.md`, `docs/guides/DEVELOPMENT_WORKFLOW.md`, `manifests/env.manifest.json`, backend health/diagnostic scripts
   - **Dependencies:** GA-02.3
-  - **Blockers:** GA-02.3
+  - **Blockers:** None
   - **Acceptance criteria:** Redis memory/eviction policy is documented and validated, queue-health alarms/diagnostics exist, and operator steps for broker distress are explicit.
   - **Validation commands:** `bash scripts/verify_golden_state.sh`; `bash .github/scripts/check_infrastructure.sh`; `python config/manage_env.py audit`
   - **Tenant/RLS impact:** None directly
