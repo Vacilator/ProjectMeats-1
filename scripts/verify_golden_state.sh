@@ -311,12 +311,16 @@ check_pattern "docs/runbooks/DISASTER_RECOVERY.md" 'noeviction|check_infrastruct
     "DISASTER_RECOVERY.md includes the broker-distress playbook"
 check_pattern "backend/apps/core/services/data_governance.py" 'RETENTION_YEARS: Final\[int\] = 7' \
     "data_governance.py pins the 7-year retention contract"
-check_pattern "backend/apps/core/services/data_governance.py" 'LEGAL_HOLD_CONTRACT|RESTORE_CONTRACT' \
-    "data_governance.py defines legal-hold and restore contracts"
-check_pattern "docs/runbooks/DATA_RETENTION.md" '7-year|legal-hold|operator-only|GA-03\.2' \
+check_pattern "backend/apps/core/services/data_governance.py" 'LEGAL_HOLD_CONTRACT|RESTORE_CONTRACT|execute_archive_run' \
+    "data_governance.py defines legal-hold, restore, and archive-execution contracts"
+check_pattern "backend/apps/core/management/commands/archive_historical_records.py" 'tenant-slug|approved-email|Execute mode requires' \
+    "archive_historical_records.py keeps the operator-gated archive command contract"
+check_pattern "docs/runbooks/DATA_RETENTION.md" 'ArchiveBatch|ArchiveRecordSnapshot|ArchiveLegalHold|GA-03\.2' \
     "DATA_RETENTION.md defines retention scope, legal hold, and restore boundaries"
-check_pattern "manifests/GOLDEN_FILES.md" 'Business record retention.*DATA_RETENTION\.md.*data_governance\.py' \
+check_pattern "manifests/GOLDEN_FILES.md" 'Business record retention.*DATA_RETENTION\.md.*data_governance\.py.*archive_historical_records\.py' \
     "GOLDEN_FILES.md registers the business record retention contract"
+check_pattern "manifests/RLS_POLICIES.md" 'core_archivebatch|core_archivelegalhold|core_archiverecordsnapshot' \
+    "RLS_POLICIES.md registers the archive evidence tables"
 
 echo ""
 echo "────────────────────────────────────"

@@ -2,7 +2,7 @@
 
 ## Goal
 
-- Define the canonical 7-year archive inventory for high-value transactional records before any archive command ships.
+- Define the canonical 7-year archive inventory for high-value transactional records and the first additive archive command.
 - Keep retention, legal-hold, and restore expectations tenant-explicit in the shared-schema + RLS architecture.
 - Separate business-record retention from infrastructure disaster recovery and from future PII-redaction work.
 
@@ -12,10 +12,20 @@
 2. This runbook as the authoritative operator/design reference for record-retention scope.
 3. Focused regression coverage that locks the archive targets, exemptions, legal-hold fields, and restore expectations.
 
+## What ships in GA-03.2
+
+1. `python manage.py archive_historical_records` as the dry-run-first operator entrypoint.
+2. Additive tenant-aware evidence tables:
+   - `ArchiveBatch`
+   - `ArchiveRecordSnapshot`
+   - `ArchiveLegalHold`
+3. Execute mode that writes archive snapshot evidence only. It does **not** purge live rows.
+4. Active legal holds enforced before any snapshot is written.
+
 ## Non-goals
 
-- No archive command, migration, Celery schedule, or object-storage configuration.
-- No destructive data movement.
+- No Celery schedule or object-storage configuration yet.
+- No destructive data movement or live-row purge in GA-03.2.
 - No centralized logging/Sentry redaction implementation yet; that belongs to GA-03.3.
 - No attempt to reuse soft-delete restore endpoints as archive restore.
 
@@ -49,7 +59,7 @@ These records are intentionally out of scope for the first archive contract:
 
 ## Legal-hold contract
 
-GA-03.1 does **not** create a `LegalHold` model yet, but future archive execution must honor this minimum shape:
+GA-03.2 now ships `ArchiveLegalHold`, and archive execution honors this minimum shape:
 
 - `tenant_id`
 - `scope_model`
@@ -60,7 +70,7 @@ GA-03.1 does **not** create a `LegalHold` model yet, but future archive executio
 - `released_by`
 - `released_at`
 
-Future archive commands must skip any record or batch selected by an active legal hold and record that skip in operator evidence.
+Archive execution must skip any record or batch selected by an active legal hold and record that skip in operator evidence.
 
 ## Restore expectations
 
@@ -75,7 +85,7 @@ GA-03.1 sets the following restore contract for later tickets:
 2. restore is **tenant-explicit**
 3. restore is **batch-based**, using archive manifests/evidence rather than ad-hoc row edits
 4. restore must preserve tenant/RLS boundaries throughout the rehydration flow
-5. restore implementation is deferred to GA-03.2+
+5. restore implementation is deferred beyond GA-03.2
 
 ## Operator evidence requirements
 
@@ -97,7 +107,7 @@ Every future archive or restore action must produce evidence containing:
 | Ticket | Scope |
 | --- | --- |
 | `GA-03.1` | define inventory, exemptions, legal-hold fields, restore expectations |
-| `GA-03.2` | implement dry-run-first archive command and evidence output |
+| `GA-03.2` | implement dry-run-first archive command, RLS-backed evidence tables, and legal-hold enforcement |
 | `GA-03.3` | centralize PII redaction for logging, Celery, and Sentry |
 | `GA-03.4` | formalize schedules, evidence operations, and workflow/telemetry governance |
 

@@ -187,7 +187,7 @@
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
 - [ ] **GA-03.2 seven-year-archive-command**
-  - **Status:** Ready
+  - **Status:** In PR (#4823)
   - **Why now:** The retention contract is not enforceable until a dry-run-first archival command exists.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 14 / Epic 3
   - **Scope:** Build the management command/service that archives or snapshots aged transactional records after 7 years, supports legal holds, and writes audit evidence.

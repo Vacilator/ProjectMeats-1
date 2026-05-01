@@ -1,15 +1,20 @@
 """Regression coverage for the GA-03.1 retention contract."""
 
 from django.test import SimpleTestCase
+from django.utils import timezone
 
 from apps.core.services.data_governance import (
     ARCHIVE_TARGETS,
+    ARCHIVE_TARGET_DETAILS,
     EXEMPTION_RULES,
     LEGAL_HOLD_CONTRACT,
     OPERATOR_EVIDENCE_FIELDS,
     RETENTION_YEARS,
     RESTORE_CONTRACT,
+    build_eligibility_q,
+    default_retention_cutoff,
     get_retention_contract,
+    subtract_years,
 )
 
 
@@ -53,3 +58,20 @@ class DataGovernanceContractTest(SimpleTestCase):
 
         self.assertEqual(scopes["AI documents, communications, and observability payloads"], "GA-03.3")
         self.assertEqual(scopes["workflow definitions and execution telemetry"], "GA-03.4")
+
+    def test_every_archive_target_has_execution_details(self):
+        labels = {target.model_label for target in ARCHIVE_TARGETS}
+
+        self.assertTrue(labels.issubset(set(ARCHIVE_TARGET_DETAILS)))
+        self.assertIn("purchase_order__order_date", ARCHIVE_TARGET_DETAILS["tenant_apps.purchase_orders.models.PurchaseOrderItem"]["eligibility_fields"])
+
+    def test_cutoff_defaults_to_seven_year_window(self):
+        cutoff = default_retention_cutoff()
+
+        self.assertEqual(cutoff, subtract_years(timezone.now().date()))
+
+    def test_eligibility_q_uses_first_non_null_precedence(self):
+        query = build_eligibility_q(("resolution_date", "claim_date"), default_retention_cutoff())
+
+        self.assertIn("resolution_date__isnull", repr(query))
+        self.assertIn("claim_date__lte", repr(query))

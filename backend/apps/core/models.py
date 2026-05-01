@@ -779,6 +779,138 @@ class ETLImportRowJournal(TenantAwareModel):
         return f'{self.batch_id} {self.entity} row {self.source_row_number}'
 
 
+class ArchiveLegalHold(TenantAwareModel):
+    """Tenant-scoped legal holds that block archive processing for selected records."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    scope_model = models.CharField(max_length=255, db_index=True)
+    scope_selector = models.JSONField(default=dict, blank=True)
+    reason_code = models.CharField(max_length=100)
+    notes = models.TextField(blank=True, default="")
+    placed_by = models.ForeignKey(
+        User,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="archive_legal_holds_placed",
+    )
+    placed_by_email = models.EmailField(blank=True, default="")
+    placed_at = models.DateTimeField(default=timezone.now, db_index=True)
+    released_by = models.ForeignKey(
+        User,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="archive_legal_holds_released",
+    )
+    released_by_email = models.EmailField(blank=True, default="")
+    released_at = models.DateTimeField(null=True, blank=True, db_index=True)
+
+    class Meta:
+        ordering = ["-placed_at", "-created_on"]
+        indexes = [
+            models.Index(fields=["tenant", "scope_model", "released_at"], name="core_archhold_scope_idx"),
+            models.Index(fields=["tenant", "-placed_at"], name="core_archhold_tenant_idx"),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.tenant_id} hold {self.scope_model}"
+
+
+class ArchiveBatch(TenantAwareModel):
+    """Tenant-scoped archive execution batches."""
+
+    class Mode(models.TextChoices):
+        DRY_RUN = "dry_run", "Dry Run"
+        EXECUTE = "execute", "Execute"
+
+    class Status(models.TextChoices):
+        PENDING = "pending", "Pending"
+        RUNNING = "running", "Running"
+        COMPLETED = "completed", "Completed"
+        FAILED = "failed", "Failed"
+        CANCELLED = "cancelled", "Cancelled"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    run_key = models.CharField(max_length=64, db_index=True)
+    mode = models.CharField(max_length=20, choices=Mode.choices, default=Mode.DRY_RUN)
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.PENDING, db_index=True)
+    cutoff_date = models.DateField(db_index=True)
+    command_options = models.JSONField(default=dict, blank=True)
+    summary = models.JSONField(default=dict, blank=True)
+    failure_message = models.TextField(blank=True, default="")
+    started_at = models.DateTimeField(null=True, blank=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
+    requested_by = models.ForeignKey(
+        User,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="archive_batches_requested",
+    )
+    requested_by_email = models.EmailField(blank=True, default="")
+    approved_by = models.ForeignKey(
+        User,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="archive_batches_approved",
+    )
+    approved_by_email = models.EmailField(blank=True, default="")
+    dry_run_record_count = models.PositiveIntegerField(default=0)
+    archived_record_count = models.PositiveIntegerField(default=0)
+    legal_hold_skip_count = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        ordering = ["-created_on"]
+        constraints = [
+            models.UniqueConstraint(fields=["tenant", "run_key"], name="core_archbatch_tenant_run_uniq"),
+        ]
+        indexes = [
+            models.Index(fields=["tenant", "status", "-created_on"], name="core_archbatch_status_idx"),
+            models.Index(fields=["tenant", "cutoff_date"], name="core_archbatch_cutoff_idx"),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.tenant_id} {self.mode} {self.cutoff_date}"
+
+
+class ArchiveRecordSnapshot(TenantAwareModel):
+    """Snapshot evidence for one archived record within an archive batch."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    batch = models.ForeignKey(
+        ArchiveBatch,
+        on_delete=models.CASCADE,
+        related_name="snapshots",
+        help_text="Owning archive batch.",
+    )
+    model_label = models.CharField(max_length=255, db_index=True)
+    archive_class = models.CharField(max_length=100, db_index=True)
+    object_pk = models.CharField(max_length=255, db_index=True)
+    parent_model_label = models.CharField(max_length=255, blank=True, default="")
+    parent_object_pk = models.CharField(max_length=255, blank=True, default="")
+    retention_basis_date = models.DateField(null=True, blank=True)
+    snapshot_payload = models.JSONField(default=dict, blank=True)
+    payload_checksum = models.CharField(max_length=64, blank=True, default="", db_index=True)
+
+    class Meta:
+        ordering = ["batch_id", "model_label", "object_pk"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["batch", "model_label", "object_pk"],
+                name="core_archsnap_batch_model_obj_uniq",
+            ),
+        ]
+        indexes = [
+            models.Index(fields=["tenant", "batch", "model_label"], name="core_archsnap_batch_model_idx"),
+            models.Index(fields=["tenant", "retention_basis_date"], name="core_archsnap_retention_idx"),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.batch_id} {self.model_label}:{self.object_pk}"
+
+
 class Comment(TenantAwareModel):
     """Universal tenant-scoped comments attachable to supported entities."""
 
