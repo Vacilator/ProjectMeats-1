@@ -146,6 +146,16 @@ All workflow-related tables have Row-Level Security **ENABLED** and **FORCED**:
 
 ---
 
+## Governance Module (3 tables) - 🟡 Pending next deployment audit
+
+| Table Name | RLS Enabled | Migration | Deployment Date |
+|------------|-------------|-----------|-----------------|
+| `core_archivebatch` | ✅ | `core/0011_archive_historical_records` | Pending next deployment audit |
+| `core_archivelegalhold` | ✅ | `core/0011_archive_historical_records` | Pending next deployment audit |
+| `core_archiverecordsnapshot` | ✅ | `core/0011_archive_historical_records` | Pending next deployment audit |
+
+---
+
 ## Support Module (6 tables) - ✅ 100% COMPLIANT
 
 | Table Name | RLS Enabled | Migration | Deployment Date |
@@ -179,6 +189,7 @@ All workflow-related tables have Row-Level Security **ENABLED** and **FORCED**:
 - `audit_rls_compliance` now also includes an allowlist of tenant-scoped models that do **not** inherit `TenantAwareModel` (System WorkForms + Integrations).
 - `core_comment` is now covered by an additive RLS migration so fresh databases and CI audits stay fully compliant.
 - `core_idempotencykey` is now covered by an additive RLS migration so idempotent mutation state remains tenant-isolated.
+- `core_archivebatch`, `core_archivelegalhold`, and `core_archiverecordsnapshot` are covered by additive RLS policies in `core/0011_archive_historical_records`.
 - `ai_assistant.ChatSession` and `ai_assistant.ChatMessage` were migrated to tenant-native tables in `0016`; verify policy rollout separately if upgrading an older shared database.
 - `deals_deal` and `deals_dealactionitem` are now covered by additive RLS policies in `deals/0001_initial`.
 - Repo-wide strict-audit compliance remains a separate backlog item outside EH-06.2.
