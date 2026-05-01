@@ -148,8 +148,8 @@
   - **Rollback:** Revert scaling config/docs and restore previous Celery settings if queue health regresses.
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
-- [ ] **GA-02.4 redis-eviction-and-queue-health-guardrails**
-  - **Status:** Ready
+- [x] **GA-02.4 redis-eviction-and-queue-health-guardrails**
+  - **Status:** Shipped (PR #4821)
   - **Why now:** Redis underpins Celery and caching, so GA needs explicit memory policy and queue health guardrails before offline queues and ETL bursts arrive.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 14 / Epic 2
   - **Scope:** Define Redis eviction policy, queue-health checks, and operator guidance for broker saturation or stale task buildup.
@@ -169,7 +169,7 @@
 ### Epic GA-03 - SOC 2 data governance
 
 - [ ] **GA-03.1 retention-inventory-and-archive-contract**
-  - **Status:** Blocked
+  - **Status:** Ready
   - **Why now:** GA needs a defensible retention strategy before operators start migrating or scaling historical data.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 14 / Epic 3
   - **Scope:** Inventory which records must be retained, archived, masked, or exempted via legal hold, then define the archival contract and restore path.
@@ -177,7 +177,7 @@
   - **Primary domain:** backend/docs
   - **Likely touched paths:** `backend/apps/core/services/data_governance.py`, `backend/apps/core/management/commands/`, `docs/runbooks/DATA_RETENTION.md`, `MASTER_PLAN.md`
   - **Dependencies:** GA-02.4
-  - **Blockers:** GA-02.4
+  - **Blockers:** None
   - **Acceptance criteria:** The repo names the 7-year archive targets, exemptions, legal-hold model, and restore expectations without conflicting with current runtime behavior.
   - **Validation commands:** `bash scripts/verify_golden_state.sh`; `cd backend && python manage.py test apps.core`
   - **Tenant/RLS impact:** High for archived tenant data
