@@ -176,6 +176,8 @@ else
     fail "CONFIGURATION_AND_SECRETS documentation NOT FOUND"
 fi
 
+check_file_exists "docs/runbooks/DATA_RETENTION.md" "DATA_RETENTION runbook exists"
+
 # 8. Check for archived documentation references
 if grep -rq "docs/archive/" .github/workflows/*.yml 2>/dev/null; then
     fail "Workflows reference archived documentation"
@@ -307,6 +309,14 @@ check_pattern "docs/architecture/INFRASTRUCTURE_ARCHITECTURE.md" 'noeviction|che
     "INFRASTRUCTURE_ARCHITECTURE.md documents Redis eviction guardrails"
 check_pattern "docs/runbooks/DISASTER_RECOVERY.md" 'noeviction|check_infrastructure --require-redis-readiness' \
     "DISASTER_RECOVERY.md includes the broker-distress playbook"
+check_pattern "backend/apps/core/services/data_governance.py" 'RETENTION_YEARS: Final\[int\] = 7' \
+    "data_governance.py pins the 7-year retention contract"
+check_pattern "backend/apps/core/services/data_governance.py" 'LEGAL_HOLD_CONTRACT|RESTORE_CONTRACT' \
+    "data_governance.py defines legal-hold and restore contracts"
+check_pattern "docs/runbooks/DATA_RETENTION.md" '7-year|legal-hold|operator-only|GA-03\.2' \
+    "DATA_RETENTION.md defines retention scope, legal hold, and restore boundaries"
+check_pattern "manifests/GOLDEN_FILES.md" 'Business record retention.*DATA_RETENTION\.md.*data_governance\.py' \
+    "GOLDEN_FILES.md registers the business record retention contract"
 
 echo ""
 echo "────────────────────────────────────"

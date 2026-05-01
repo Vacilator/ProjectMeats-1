@@ -168,8 +168,8 @@
 
 ### Epic GA-03 - SOC 2 data governance
 
-- [ ] **GA-03.1 retention-inventory-and-archive-contract**
-  - **Status:** Ready
+- [x] **GA-03.1 retention-inventory-and-archive-contract**
+  - **Status:** Shipped (PR #4822)
   - **Why now:** GA needs a defensible retention strategy before operators start migrating or scaling historical data.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 14 / Epic 3
   - **Scope:** Inventory which records must be retained, archived, masked, or exempted via legal hold, then define the archival contract and restore path.
@@ -187,7 +187,7 @@
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
 - [ ] **GA-03.2 seven-year-archive-command**
-  - **Status:** Blocked
+  - **Status:** Ready
   - **Why now:** The retention contract is not enforceable until a dry-run-first archival command exists.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 14 / Epic 3
   - **Scope:** Build the management command/service that archives or snapshots aged transactional records after 7 years, supports legal holds, and writes audit evidence.
@@ -195,7 +195,7 @@
   - **Primary domain:** backend
   - **Likely touched paths:** `backend/apps/core/services/data_governance.py`, `backend/apps/core/management/commands/archive_historical_records.py`, `backend/apps/core/tests/`, new migrations, `docs/runbooks/DATA_RETENTION.md`
   - **Dependencies:** GA-03.1
-  - **Blockers:** GA-03.1
+  - **Blockers:** None
   - **Acceptance criteria:** Archive mode supports dry-run and execute paths, legal-hold records are skipped safely, and audit evidence records what moved when and why.
   - **Validation commands:** `cd backend && python manage.py test apps.core`; `cd backend && python manage.py archive_historical_records --dry-run`; `cd backend && python manage.py makemigrations --check`
   - **Tenant/RLS impact:** High
@@ -213,7 +213,7 @@
   - **Primary domain:** backend/frontend observability
   - **Likely touched paths:** `backend/projectmeats/settings/base.py`, `backend/projectmeats/settings/production.py`, `frontend/src/utils/sentry.ts`, `frontend/src/utils/logger.ts`, `docs/runbooks/DATA_RETENTION.md`
   - **Dependencies:** GA-03.1
-  - **Blockers:** GA-03.1
+  - **Blockers:** GA-03.2
   - **Acceptance criteria:** Sensitive patterns are redacted centrally, regression tests prove redaction, and Sentry/log output remains diagnostically useful.
   - **Validation commands:** `cd backend && python manage.py test apps.core`; `npm -C frontend run verify-standards`
   - **Tenant/RLS impact:** Medium
