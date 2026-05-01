@@ -2,7 +2,7 @@
 
 **Status:** ✅ CURRENT  
 **Category:** Runbooks  
-**Last Updated:** 2026-04-30
+**Last Updated:** 2026-05-01
 
 ---
 
@@ -53,6 +53,24 @@ Non-dev deploys already create and verify a backup before migrations:
 - validation: `pg_restore --list` against the retained dump archive
 
 Use the deployment logs to capture the exact backup path before beginning a restore drill.
+
+## Async queue saturation guardrails
+
+GA-02.3 codifies the queue ownership and worker envelope that operators should treat as the current incident-response baseline:
+
+| Queue | Worker lane | Warn | Critical |
+| --- | --- | --- | --- |
+| `pm.workforms` | `pm-worker-workforms` | backlog `>20` | backlog `>50` or oldest task `>5m` |
+| `pm.email` | `pm-worker-realtime` | backlog `>50` | backlog `>100` or oldest task `>10m` |
+| `pm.ai` | `pm-worker-ai` | backlog `>5` | backlog `>10` or oldest task `>15m` |
+| `pm.etl` | `pm-worker-etl` | backlog `>0` outside an ETL window | any backlog outside a controlled import window |
+
+When a lane breaches critical thresholds:
+
+1. Confirm which queue family is saturating before scaling anything.
+2. Preserve `pm.workforms` latency first; do not let AI or ETL work steal workform capacity.
+3. Keep ETL isolated to `pm.etl` and stop the ETL worker entirely if live tenant traffic is impacted.
+4. Record the queue depth, oldest-task age, and active worker envelope alongside the restore / incident evidence.
 
 ## Recommended restore drill lane
 

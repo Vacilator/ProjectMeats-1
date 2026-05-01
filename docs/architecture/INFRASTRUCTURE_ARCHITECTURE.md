@@ -2,7 +2,7 @@
 
 **Status**: ✅ CURRENT  
 **Category**: Architecture  
-**Last Updated**: 2026-04-30
+**Last Updated**: 2026-05-01
 
 ---
 
@@ -30,17 +30,44 @@ GA-02.1 adds a non-applying desired-state scaffold under `deploy/terraform/` so 
 | --- | --- |
 | Deploy control plane | GitHub Actions reusable deploy workflow |
 | Public edge | Host-level nginx |
-| Backend service | `pm-backend` on `127.0.0.1:8000` |
+| Backend service | `pm-backend` on `0.0.0.0:8000` |
 | Frontend service | `pm-frontend` on `127.0.0.1:8080` |
 | Backend env contract | `/root/projectmeats/backend/.env` |
 | Frontend runtime contract | `/opt/pm/frontend/env/env-config.js` |
 | Host proxy template | `deploy/nginx/host-reverse-proxy.conf.template` |
 | Backup retention root | `/root/projectmeats/db_backups/<environment>/` |
 
+## GA-02.3 async runtime contract
+
+### Queue topology
+
+| Queue | Workload family | Threshold |
+| --- | --- | --- |
+| `pm.ops` | beat fan-out, maintenance tasks, future lightweight operational jobs | monitor alongside realtime worker saturation |
+| `pm.email` | inbox sync, invitation email, outbound tenant webhooks | warn `>50`, critical `>100`, or oldest task `>10m` |
+| `pm.workforms` | WorkForm execution, workflow actions, workflow-trigger fan-out | warn `>20`, critical `>50`, or oldest task `>5m` |
+| `pm.ai` | AI suggestions, RLHF compilation, watchdog jobs | warn `>5`, critical `>10`, or oldest task `>15m` |
+| `pm.etl` | reserved for controlled ETL/import windows | any backlog outside an ETL window is abnormal |
+
+### Worker envelope
+
+| Worker | Queues | Envelope | Why |
+| --- | --- | --- | --- |
+| `pm-worker-realtime` | `pm.email`, `pm.ops` | `--autoscale=4,1` | isolates fan-out / email chatter from interactive workflow execution |
+| `pm-worker-workforms` | `pm.workforms` | `--autoscale=4,2` | preserves tenant-facing WorkForm responsiveness under parallel branches |
+| `pm-worker-ai` | `pm.ai` | `--autoscale=2,1` | keeps expensive AI jobs bounded and predictable |
+| `pm-worker-etl` | `pm.etl` | `--concurrency=1` | only enabled during controlled import windows so ETL cannot starve live traffic |
+| `pm-celery-beat` | dispatches to `pm.ops` and `pm.ai` | single beat process | scheduled jobs land in explicit queues instead of the default broker bucket |
+
+### Tenant-safety notes
+
+1. Worker reuse is safe only because tenant-scoped tasks explicitly assert and reset `app.current_tenant` / `app.current_tenant_id`.
+2. `CELERY_TASK_CREATE_MISSING_QUEUES = False` prevents typo-created queues from silently bypassing the documented topology.
+3. `CELERY_WORKER_PREFETCH_MULTIPLIER = 1` keeps noisy-neighbor jobs from hoarding work across long-lived worker processes.
+
 ## Deferred in later GA tickets
 
-- **GA-02.2** owns PITR validation, restore drills, and disaster-recovery automation.
-- **GA-02.3** owns worker scaling envelopes, queue topology, and cache/runtime capacity guardrails.
+- **GA-02.4** owns Redis eviction policy, queue-health alarms, and broker distress playbooks.
 
 ---
 

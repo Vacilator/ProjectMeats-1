@@ -87,8 +87,10 @@ ProjectMeats uses a **shared-schema multi-tenancy** approach exclusively:
 ================================================================================
 """
 
-from pathlib import Path
 import os
+from pathlib import Path
+
+from kombu import Queue
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
@@ -804,8 +806,70 @@ CELERY_TASK_SOFT_TIME_LIMIT = 25 * 60  # 25 minutes soft limit
 # Task result expiration
 CELERY_RESULT_EXPIRES = 3600  # 1 hour
 
+# Queue contract
+CELERY_TASK_DEFAULT_QUEUE = 'pm.ops'
+CELERY_TASK_DEFAULT_ROUTING_KEY = 'pm.ops'
+CELERY_TASK_CREATE_MISSING_QUEUES = False
+CELERY_TASK_QUEUES = (
+    Queue('pm.ops'),
+    Queue('pm.email'),
+    Queue('pm.workforms'),
+    Queue('pm.ai'),
+    Queue('pm.etl'),
+)
+CELERY_TASK_ROUTES = {
+    'integrations.sync_tenant_emails': {'queue': 'pm.ops', 'routing_key': 'pm.ops'},
+    'integrations.sync_email_provider_inbox': {'queue': 'pm.email', 'routing_key': 'pm.email'},
+    'integrations.sync_single_tenant': {'queue': 'pm.email', 'routing_key': 'pm.email'},
+    'tenants.send_invitation_email': {'queue': 'pm.email', 'routing_key': 'pm.email'},
+    'tenant_integrations.dispatch_webhook_payload': {'queue': 'pm.email', 'routing_key': 'pm.email'},
+    'system.execute_workform_*': {'queue': 'pm.workforms', 'routing_key': 'pm.workforms'},
+    'system.continue_workform_after_parallel': {'queue': 'pm.workforms', 'routing_key': 'pm.workforms'},
+    'workflows.execute_*': {'queue': 'pm.workforms', 'routing_key': 'pm.workforms'},
+    'workflows.generate_ai_template_suggestions': {'queue': 'pm.ai', 'routing_key': 'pm.ai'},
+    'ai_assistant.*': {'queue': 'pm.ai', 'routing_key': 'pm.ai'},
+    'system.cleanup_orphaned_forms': {'queue': 'pm.ops', 'routing_key': 'pm.ops'},
+    'system.audit_form_usage': {'queue': 'pm.ops', 'routing_key': 'pm.ops'},
+    'system.pin_workflow_versions': {'queue': 'pm.ops', 'routing_key': 'pm.ops'},
+    'workflows.cleanup_old_executions': {'queue': 'pm.ops', 'routing_key': 'pm.ops'},
+    'core.*': {'queue': 'pm.ops', 'routing_key': 'pm.ops'},
+}
+
+# Worker envelope contract
+CELERY_WORKER_ENVELOPES = {
+    'pm-worker-realtime': {
+        'queues': ('pm.email', 'pm.ops'),
+        'autoscale_min': 1,
+        'autoscale_max': 4,
+        'purpose': 'Email ingestion, outbound notifications/webhooks, and lightweight ops fan-out.',
+    },
+    'pm-worker-workforms': {
+        'queues': ('pm.workforms',),
+        'autoscale_min': 2,
+        'autoscale_max': 4,
+        'purpose': 'Interactive WorkForms execution, workflow actions, and workflow-trigger fan-out.',
+    },
+    'pm-worker-ai': {
+        'queues': ('pm.ai',),
+        'autoscale_min': 1,
+        'autoscale_max': 2,
+        'purpose': 'AI suggestion, RLHF compilation, and watchdog workloads.',
+    },
+    'pm-worker-etl': {
+        'queues': ('pm.etl',),
+        'concurrency': 1,
+        'purpose': 'Reserved for controlled GA import windows so bulk ETL cannot starve tenant traffic.',
+    },
+}
+CELERY_QUEUE_SATURATION_THRESHOLDS = {
+    'pm.workforms': {'warn_backlog': 20, 'critical_backlog': 50, 'critical_oldest_seconds': 300},
+    'pm.email': {'warn_backlog': 50, 'critical_backlog': 100, 'critical_oldest_seconds': 600},
+    'pm.ai': {'warn_backlog': 5, 'critical_backlog': 10, 'critical_oldest_seconds': 900},
+    'pm.etl': {'warn_backlog': 1, 'critical_backlog': 1, 'critical_oldest_seconds': 60},
+}
+
 # Worker configuration
-CELERY_WORKER_PREFETCH_MULTIPLIER = 4
+CELERY_WORKER_PREFETCH_MULTIPLIER = 1
 CELERY_WORKER_MAX_TASKS_PER_CHILD = 1000
 
 # Beat scheduler (for periodic tasks)
