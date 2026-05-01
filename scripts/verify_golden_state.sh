@@ -268,6 +268,34 @@ check_pattern "deploy/terraform/README.md" '^## Manual vs\. codified ownership$'
 check_pattern "manifests/GOLDEN_FILES.md" 'Infrastructure desired state / IaC scaffold' \
     "GOLDEN_FILES.md registers the infrastructure desired-state scaffold"
 
+# 16. Check GA-02.3 queue contract + worker envelope are explicit
+check_pattern "backend/projectmeats/settings/base.py" "CELERY_TASK_DEFAULT_QUEUE = 'pm\\.ops'" \
+    "base.py defines pm.ops as the explicit default Celery queue"
+check_pattern "backend/projectmeats/settings/base.py" "CELERY_TASK_CREATE_MISSING_QUEUES = False" \
+    "base.py disables implicit Celery queue creation"
+check_pattern "backend/projectmeats/settings/base.py" "Queue\\('pm\\.ops'\\)" \
+    "base.py declares the pm.ops queue"
+check_pattern "backend/projectmeats/settings/base.py" "Queue\\('pm\\.email'\\)" \
+    "base.py declares the pm.email queue"
+check_pattern "backend/projectmeats/settings/base.py" "Queue\\('pm\\.workforms'\\)" \
+    "base.py declares the pm.workforms queue"
+check_pattern "backend/projectmeats/settings/base.py" "Queue\\('pm\\.ai'\\)" \
+    "base.py declares the pm.ai queue"
+check_pattern "backend/projectmeats/settings/base.py" "Queue\\('pm\\.etl'\\)" \
+    "base.py declares the pm.etl queue"
+check_pattern "backend/projectmeats/settings/base.py" "CELERY_WORKER_PREFETCH_MULTIPLIER = 1" \
+    "base.py lowers Celery prefetch to 1 for worker fairness"
+check_pattern "backend/projectmeats/celery.py" "'queue': 'pm\\.ops'" \
+    "celery.py routes beat fan-out into the pm.ops queue"
+check_pattern "backend/projectmeats/celery.py" "'queue': 'pm\\.ai'" \
+    "celery.py routes AI beat tasks into the pm.ai queue"
+check_pattern "deploy/terraform/README.md" 'pm-worker-workforms|pm-worker-realtime|pm-worker-ai|pm-worker-etl' \
+    "deploy/terraform/README.md documents the worker envelope lanes"
+check_pattern "docs/architecture/INFRASTRUCTURE_ARCHITECTURE.md" 'pm\.workforms|pm\.email|pm\.ai|pm\.etl' \
+    "INFRASTRUCTURE_ARCHITECTURE.md documents the async queue topology"
+check_pattern "docs/runbooks/DISASTER_RECOVERY.md" 'pm\.workforms|pm\.email|pm\.ai|pm\.etl' \
+    "DISASTER_RECOVERY.md documents queue saturation guardrails"
+
 echo ""
 echo "────────────────────────────────────"
 if [[ $ERRORS -eq 0 ]]; then

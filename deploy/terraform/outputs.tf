@@ -12,3 +12,13 @@ output "deferred_workstreams" {
   description = "Follow-on GA tickets that expand this scaffold into PITR and worker-scaling automation."
   value       = local.deferred_workstreams
 }
+
+output "worker_envelopes" {
+  description = "Codified Celery worker envelopes and queue ownership captured by GA-02.3."
+  value       = local.worker_envelopes
+}
+
+output "queue_saturation_thresholds" {
+  description = "Queue backlog and oldest-message thresholds used for GA-02.3 operator guardrails."
+  value       = local.queue_saturation_thresholds
+}

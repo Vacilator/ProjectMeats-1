@@ -29,6 +29,8 @@ app.conf.beat_schedule = {
         'schedule': 300.0,  # 5 minutes in seconds
         'options': {
             'expires': 240.0,  # Task expires if not run within 4 minutes
+            'queue': 'pm.ops',
+            'routing_key': 'pm.ops',
         },
     },
     'compile-rlhf-data-weekly': {
@@ -37,6 +39,8 @@ app.conf.beat_schedule = {
         'args': (7, 5000),
         'options': {
             'expires': 3600.0,
+            'queue': 'pm.ai',
+            'routing_key': 'pm.ai',
         },
     },
     'ai-watchdog-daily': {
@@ -45,6 +49,8 @@ app.conf.beat_schedule = {
         'args': (3,),
         'options': {
             'expires': 3600.0,
+            'queue': 'pm.ai',
+            'routing_key': 'pm.ai',
         },
     },
 }
