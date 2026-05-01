@@ -63,6 +63,44 @@ class InfrastructureDiagnosticsTestCase(TestCase):
             self.assertEqual(result['service'], 'Channel Layer')
             self.assertEqual(result['status'], 'FAILED')
             self.assertIn('Connection refused', result['message'])
+
+    def test_redis_guardrails_warning(self):
+        from infrastructure_diagnostics import test_redis_guardrails
+
+        with patch('infrastructure_diagnostics.check_redis_guardrails') as mock_guardrails:
+            mock_guardrails.return_value = {
+                'configured': True,
+                'available': True,
+                'expected_policy': 'noeviction',
+                'actual_policy': 'allkeys-lru',
+                'memory_status': 'warning',
+                'warnings': ['eviction_policy_mismatch'],
+                'overall_status': 'warning',
+            }
+
+            result = test_redis_guardrails()
+
+            self.assertEqual(result['service'], 'Redis Guardrails')
+            self.assertEqual(result['status'], 'WARNING')
+            self.assertEqual(result['details']['actual_policy'], 'allkeys-lru')
+
+    def test_queue_health_warning(self):
+        from infrastructure_diagnostics import test_queue_health
+
+        with patch('infrastructure_diagnostics.check_celery_queue_health') as mock_queue_health:
+            mock_queue_health.return_value = {
+                'configured': True,
+                'available': True,
+                'overall_status': 'critical',
+                'warning_queues': ['pm.email'],
+                'critical_queues': ['pm.workforms'],
+            }
+
+            result = test_queue_health()
+
+            self.assertEqual(result['service'], 'Queue Health')
+            self.assertEqual(result['status'], 'WARNING')
+            self.assertEqual(result['details']['critical_queues'], ['pm.workforms'])
     
     def test_openai_connectivity_not_configured(self):
         """Test OpenAI connectivity when API key is missing"""
@@ -144,12 +182,16 @@ class InfrastructureDiagnosticsTestCase(TestCase):
             with patch('infrastructure_diagnostics.test_openai_connectivity') as mock_openai:
                 with patch('infrastructure_diagnostics.test_sentry_connectivity') as mock_sentry:
                     with patch('infrastructure_diagnostics.test_channel_layer_connectivity') as mock_channel_layer:
-                        mock_redis.return_value = {'service': 'Redis', 'status': 'CONNECTED', 'message': 'OK', 'details': {}}
-                        mock_channel_layer.return_value = {'service': 'Channel Layer', 'status': 'CONNECTED', 'message': 'OK', 'details': {}}
-                        mock_openai.return_value = {'service': 'OpenAI', 'status': 'CONNECTED', 'message': 'OK', 'details': {}}
-                        mock_sentry.return_value = {'service': 'Sentry', 'status': 'CONNECTED', 'message': 'OK', 'details': {}}
+                        with patch('infrastructure_diagnostics.test_redis_guardrails') as mock_guardrails:
+                            with patch('infrastructure_diagnostics.test_queue_health') as mock_queue_health:
+                                mock_redis.return_value = {'service': 'Redis', 'status': 'CONNECTED', 'message': 'OK', 'details': {}}
+                                mock_channel_layer.return_value = {'service': 'Channel Layer', 'status': 'CONNECTED', 'message': 'OK', 'details': {}}
+                                mock_guardrails.return_value = {'service': 'Redis Guardrails', 'status': 'CONNECTED', 'message': 'OK', 'details': {}}
+                                mock_queue_health.return_value = {'service': 'Queue Health', 'status': 'CONNECTED', 'message': 'OK', 'details': {}}
+                                mock_openai.return_value = {'service': 'OpenAI', 'status': 'CONNECTED', 'message': 'OK', 'details': {}}
+                                mock_sentry.return_value = {'service': 'Sentry', 'status': 'CONNECTED', 'message': 'OK', 'details': {}}
 
-                        result = run_full_diagnostic()
+                                result = run_full_diagnostic()
 
-                        self.assertEqual(result['overall_status'], 'READY')
-                        self.assertEqual(len(result['services']), 4)
+                                self.assertEqual(result['overall_status'], 'READY')
+                                self.assertEqual(len(result['services']), 6)

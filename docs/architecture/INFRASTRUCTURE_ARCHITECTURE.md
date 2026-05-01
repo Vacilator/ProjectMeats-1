@@ -65,9 +65,22 @@ GA-02.1 adds a non-applying desired-state scaffold under `deploy/terraform/` so 
 2. `CELERY_TASK_CREATE_MISSING_QUEUES = False` prevents typo-created queues from silently bypassing the documented topology.
 3. `CELERY_WORKER_PREFETCH_MULTIPLIER = 1` keeps noisy-neighbor jobs from hoarding work across long-lived worker processes.
 
+## GA-02.4 Redis / broker guardrails
+
+| Concern | Contract |
+| --- | --- |
+| Cache + broker backend | Redis/Valkey via `REDIS_URL` / `VALKEY_URL` |
+| Expected eviction policy | `noeviction` |
+| Memory warning threshold | `70%` of configured `maxmemory` |
+| Memory critical threshold | `85%` of configured `maxmemory` |
+| Operator diagnostic | `python manage.py check_infrastructure --require-redis-readiness` |
+| Safety rule | shed `pm.ai` and pause `pm.etl` before interactive `pm.workforms` traffic is impacted |
+
+These guardrails are diagnostic and operational; they do not authorize destructive actions such as `FLUSHALL`, blanket queue purges, or fail-open broker policy changes.
+
 ## Deferred in later GA tickets
 
-- **GA-02.4** owns Redis eviction policy, queue-health alarms, and broker distress playbooks.
+- **GA-02.5+** owns alarm delivery / escalation once the GA-02.4 broker contract is stable.
 
 ---
 

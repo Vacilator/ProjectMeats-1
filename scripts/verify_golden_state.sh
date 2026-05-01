@@ -295,6 +295,18 @@ check_pattern "docs/architecture/INFRASTRUCTURE_ARCHITECTURE.md" 'pm\.workforms|
     "INFRASTRUCTURE_ARCHITECTURE.md documents the async queue topology"
 check_pattern "docs/runbooks/DISASTER_RECOVERY.md" 'pm\.workforms|pm\.email|pm\.ai|pm\.etl' \
     "DISASTER_RECOVERY.md documents queue saturation guardrails"
+check_pattern "backend/projectmeats/settings/base.py" 'REDIS_EXPECTED_MAXMEMORY_POLICY = "noeviction"' \
+    "base.py pins the Redis noeviction guardrail"
+check_pattern "backend/projectmeats/settings/base.py" 'REDIS_MEMORY_WARN_RATIO = 0\.70' \
+    "base.py defines the Redis memory warning threshold"
+check_pattern "backend/projectmeats/settings/base.py" 'REDIS_MEMORY_CRITICAL_RATIO = 0\.85' \
+    "base.py defines the Redis memory critical threshold"
+check_pattern "deploy/terraform/README.md" 'noeviction|check_infrastructure --require-redis-readiness' \
+    "deploy/terraform/README.md documents the Redis/queue-health contract"
+check_pattern "docs/architecture/INFRASTRUCTURE_ARCHITECTURE.md" 'noeviction|check_infrastructure --require-redis-readiness' \
+    "INFRASTRUCTURE_ARCHITECTURE.md documents Redis eviction guardrails"
+check_pattern "docs/runbooks/DISASTER_RECOVERY.md" 'noeviction|check_infrastructure --require-redis-readiness' \
+    "DISASTER_RECOVERY.md includes the broker-distress playbook"
 
 echo ""
 echo "────────────────────────────────────"

@@ -72,6 +72,25 @@ When a lane breaches critical thresholds:
 3. Keep ETL isolated to `pm.etl` and stop the ETL worker entirely if live tenant traffic is impacted.
 4. Record the queue depth, oldest-task age, and active worker envelope alongside the restore / incident evidence.
 
+## Broker distress playbook
+
+Treat these as the minimum Redis/Valkey runtime guardrails for non-dev lanes:
+
+1. expected eviction policy: `noeviction`
+2. memory warning threshold: `70%`
+3. memory critical threshold: `85%`
+4. diagnostic command: `python manage.py check_infrastructure --require-redis-readiness`
+
+Do **not** respond to memory pressure by changing the eviction policy to an evicting mode or by blanket-purging queues. In a shared broker, that risks cross-tenant task loss.
+
+Preferred sequence under pressure:
+
+1. run the diagnostic command and capture the reported policy / queue-health summary
+2. shed `pm.ai` work first if AI backlog is the main contributor
+3. stop the `pm-worker-etl` lane if ETL work is active and live traffic is affected
+4. keep `pm.workforms` capacity reserved for tenant-facing execution traffic
+5. record every manual action in the drill / incident evidence log
+
 ## Recommended restore drill lane
 
 Run restore drills against:

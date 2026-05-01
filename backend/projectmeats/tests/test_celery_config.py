@@ -42,6 +42,9 @@ class CeleryQueueContractTests(SimpleTestCase):
         self.assertEqual(settings.CELERY_WORKER_ENVELOPES['pm-worker-etl']['concurrency'], 1)
         self.assertEqual(settings.CELERY_QUEUE_SATURATION_THRESHOLDS['pm.workforms']['warn_backlog'], 20)
         self.assertEqual(settings.CELERY_QUEUE_SATURATION_THRESHOLDS['pm.ai']['critical_backlog'], 10)
+        self.assertEqual(settings.REDIS_EXPECTED_MAXMEMORY_POLICY, 'noeviction')
+        self.assertEqual(settings.REDIS_MEMORY_WARN_RATIO, 0.70)
+        self.assertEqual(settings.REDIS_MEMORY_CRITICAL_RATIO, 0.85)
 
     def test_beat_schedule_dispatches_to_explicit_queues(self):
         beat_schedule = app.conf.beat_schedule
