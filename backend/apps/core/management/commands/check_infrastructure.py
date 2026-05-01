@@ -47,7 +47,7 @@ class Command(BaseCommand):
                     self.stdout.write(self.style.SUCCESS(
                         f"✅ {service_result['service']}: {status}"
                     ))
-                elif status == 'NOT_CONFIGURED':
+                elif status in {'NOT_CONFIGURED', 'WARNING'}:
                     self.stdout.write(self.style.WARNING(
                         f"🔒 {service_result['service']}: {status}"
                     ))

@@ -22,3 +22,8 @@ output "queue_saturation_thresholds" {
   description = "Queue backlog and oldest-message thresholds used for GA-02.3 operator guardrails."
   value       = local.queue_saturation_thresholds
 }
+
+output "redis_guardrails" {
+  description = "Desired-state Redis/Valkey eviction policy and operator diagnostic contract."
+  value       = local.redis_guardrails
+}

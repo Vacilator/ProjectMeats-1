@@ -15,7 +15,12 @@ from __future__ import annotations
 import os
 from typing import Any, Dict
 
-from apps.core.utils.health import check_channel_layer, check_redis
+from apps.core.utils.health import (
+    check_celery_queue_health,
+    check_channel_layer,
+    check_redis,
+    check_redis_guardrails,
+)
 
 
 def test_redis_connectivity() -> Dict[str, Any]:
@@ -71,6 +76,99 @@ def test_channel_layer_connectivity() -> Dict[str, Any]:
         'status': 'FAILED',
         'message': status.get('error') or 'Redis-backed channel layer is not reachable',
         'details': {'test_passed': False, 'backend': status.get('backend')},
+    }
+
+
+def test_redis_guardrails() -> Dict[str, Any]:
+    """Verify Redis eviction-policy and memory-pressure guardrails."""
+
+    status = check_redis_guardrails()
+    if not status.get('configured'):
+        return {
+            'service': 'Redis Guardrails',
+            'status': 'NOT_CONFIGURED',
+            'message': status.get('note', 'Redis guardrails are not configured'),
+            'details': {'test_passed': False},
+        }
+
+    if not status.get('available'):
+        return {
+            'service': 'Redis Guardrails',
+            'status': 'FAILED',
+            'message': status.get('error') or status.get('note') or 'Redis guardrail inspection failed',
+            'details': {'test_passed': False},
+        }
+
+    guardrail_status = status.get('overall_status')
+    if guardrail_status in {'warning', 'critical'}:
+        return {
+            'service': 'Redis Guardrails',
+            'status': 'WARNING',
+            'message': 'Redis guardrails report pressure or policy drift',
+            'details': {
+                'test_passed': True,
+                'expected_policy': status.get('expected_policy'),
+                'actual_policy': status.get('actual_policy'),
+                'memory_status': status.get('memory_status'),
+                'warnings': status.get('warnings'),
+            },
+        }
+
+    return {
+        'service': 'Redis Guardrails',
+        'status': 'CONNECTED',
+        'message': 'Redis eviction policy and memory guardrails are healthy',
+        'details': {
+            'test_passed': True,
+            'expected_policy': status.get('expected_policy'),
+            'actual_policy': status.get('actual_policy'),
+            'memory_status': status.get('memory_status'),
+        },
+    }
+
+
+def test_queue_health() -> Dict[str, Any]:
+    """Verify Redis-backed Celery queue backlog guardrails."""
+
+    status = check_celery_queue_health()
+    if not status.get('configured'):
+        return {
+            'service': 'Queue Health',
+            'status': 'NOT_CONFIGURED',
+            'message': status.get('note', 'Queue guardrails are not configured'),
+            'details': {'test_passed': False},
+        }
+
+    if not status.get('available'):
+        return {
+            'service': 'Queue Health',
+            'status': 'FAILED',
+            'message': status.get('error') or status.get('note') or 'Queue-health inspection failed',
+            'details': {'test_passed': False},
+        }
+
+    overall_status = status.get('overall_status')
+    if overall_status in {'warning', 'critical'}:
+        return {
+            'service': 'Queue Health',
+            'status': 'WARNING',
+            'message': 'One or more queues are above the documented backlog threshold',
+            'details': {
+                'test_passed': True,
+                'warning_queues': status.get('warning_queues', []),
+                'critical_queues': status.get('critical_queues', []),
+            },
+        }
+
+    return {
+        'service': 'Queue Health',
+        'status': 'CONNECTED',
+        'message': 'All documented queue backlogs are within guardrails',
+        'details': {
+            'test_passed': True,
+            'warning_queues': [],
+            'critical_queues': [],
+        },
     }
 
 
@@ -153,6 +251,8 @@ def run_full_diagnostic() -> Dict[str, Any]:
     results = [
         test_redis_connectivity(),
         test_channel_layer_connectivity(),
+        test_redis_guardrails(),
+        test_queue_health(),
         test_openai_connectivity(),
         test_sentry_connectivity(),
     ]

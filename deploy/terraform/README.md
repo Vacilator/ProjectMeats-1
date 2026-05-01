@@ -66,6 +66,21 @@ Worker envelopes remain a documented contract in this scaffold:
 | `pm-worker-etl` | `pm.etl` | `--concurrency=1` | only started during controlled import windows |
 | `pm-celery-beat` | `pm.ops`, `pm.ai` | single beat process | dispatches scheduled ops and AI jobs into explicit queues |
 
+## GA-02.4 Redis / queue-health contract
+
+Redis/Valkey remains the shared cache + Celery broker runtime for non-dev lanes, and GA-02.4 pins the minimum operating contract:
+
+- eviction policy: `noeviction`
+- memory pressure warning: `70%`
+- memory pressure critical: `85%`
+- queue diagnostics command: `python manage.py check_infrastructure --require-redis-readiness`
+
+The broker/cache contract is intentionally conservative:
+
+1. do **not** switch to `allkeys-lru` / `volatile-*` under load, because silent evictions can drop queued work
+2. shed `pm.ai` or pause `pm.etl` before interactive `pm.workforms` traffic is impacted
+3. treat any `pm.etl` backlog outside a controlled import window as abnormal
+
 ## Manual vs. codified ownership
 
 | Concern | Current reality | Ownership in this scaffold |
@@ -78,6 +93,7 @@ Worker envelopes remain a documented contract in this scaffold:
 | Backup directory convention | Codified in workflow shell steps | Referenced |
 | PITR / restore procedure | Codified in `docs/runbooks/DISASTER_RECOVERY.md` and backup verification hooks | Referenced |
 | Redis/Valkey queue topology | Explicit queue names / saturation thresholds are codified in Django settings + this scaffold | Referenced |
+| Redis/Valkey eviction policy | Desired-state contract is codified here and in Django settings; runtime inspection stays diagnostic-only | Referenced |
 | Worker autoscaling envelope | Codified as desired-state only; live worker rollout is still manual | Documented only |
 | Alerting / telemetry routing | Partially implicit via env + Sentry | Deferred to later GA-02 follow-ups |
 
@@ -101,7 +117,7 @@ GA-02.1 does **not**:
 
 ## Follow-on tickets
 
-- **GA-02.4**: codify Redis eviction policy, queue-health alarms, and broker distress handling
+- **GA-02.5+**: add queue-health alarm delivery and any runtime automation once the broker contract proves stable
 
 ## Validation
 

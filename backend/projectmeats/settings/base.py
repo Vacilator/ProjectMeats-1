@@ -527,6 +527,9 @@ REDIS_URL = os.environ.get("REDIS_URL")
 VALKEY_URL = os.environ.get("VALKEY_URL")
 REDIS_BACKEND_URL = REDIS_URL or VALKEY_URL
 REQUIRE_REDIS_READINESS = _env_flag("REQUIRE_REDIS_READINESS", False)
+REDIS_EXPECTED_MAXMEMORY_POLICY = "noeviction"
+REDIS_MEMORY_WARN_RATIO = 0.70
+REDIS_MEMORY_CRITICAL_RATIO = 0.85
 
 if REDIS_BACKEND_URL:
     # Redis cache for production (Phases 3, 8: Real-time search, parallelization)

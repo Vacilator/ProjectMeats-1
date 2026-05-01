@@ -62,6 +62,8 @@ def health_check(request):
     openai = services.get("openai", {}) if isinstance(services, dict) else {}
     ms = services.get("microsoft_oauth", {}) if isinstance(services, dict) else {}
     semantic_indexing = services.get("semantic_indexing", {}) if isinstance(services, dict) else {}
+    redis_guardrails = services.get("redis_guardrails", {}) if isinstance(services, dict) else {}
+    queue_health = services.get("queue_health", {}) if isinstance(services, dict) else {}
 
     if redis.get("configured") and not redis.get("available"):
         integration_warnings.append(
@@ -91,6 +93,38 @@ def health_check(request):
                 "message": "Channel layer is using in-memory fallback. Cross-process realtime features are degraded.",
             }
         )
+    if redis_guardrails.get("configured") and redis_guardrails.get("available") and not redis_guardrails.get("policy_ok"):
+        integration_warnings.append(
+            {
+                "code": "redis_policy_mismatch",
+                "message": (
+                    "Redis eviction policy differs from the expected noeviction contract; "
+                    "silent task loss risk is higher under pressure."
+                ),
+            }
+        )
+    if redis_guardrails.get("memory_status") in {"warning", "critical"}:
+        integration_warnings.append(
+            {
+                "code": f"redis_memory_{redis_guardrails.get('memory_status')}",
+                "message": "Redis memory pressure is above the documented GA guardrail.",
+            }
+        )
+    if queue_health.get("overall_status") in {"warning", "critical"}:
+        for queue_name in queue_health.get("warning_queues", []):
+            integration_warnings.append(
+                {
+                    "code": "queue_backlog_warning",
+                    "message": f"Queue {queue_name} is above its warning backlog threshold.",
+                }
+            )
+        for queue_name in queue_health.get("critical_queues", []):
+            integration_warnings.append(
+                {
+                    "code": "queue_backlog_critical",
+                    "message": f"Queue {queue_name} is above its critical backlog threshold.",
+                }
+            )
 
     if not openai.get("api_key_set"):
         integration_warnings.append(
@@ -142,6 +176,20 @@ def health_check(request):
             "available": bool(channel_layer.get("available")),
             "is_redis": bool(channel_layer.get("is_redis")),
         },
+        "redis_guardrails": {
+            "configured": bool(redis_guardrails.get("configured")),
+            "available": bool(redis_guardrails.get("available")),
+            "policy_ok": bool(redis_guardrails.get("policy_ok")),
+            "memory_status": redis_guardrails.get("memory_status"),
+            "overall_status": redis_guardrails.get("overall_status"),
+        },
+        "queue_health": {
+            "configured": bool(queue_health.get("configured")),
+            "available": bool(queue_health.get("available")),
+            "overall_status": queue_health.get("overall_status"),
+            "warning_queues": list(queue_health.get("warning_queues", [])),
+            "critical_queues": list(queue_health.get("critical_queues", [])),
+        },
         "openai": {"configured": bool(openai.get("api_key_set")), "model": openai.get("model")},
         "sentry": {
             "enabled": bool(sentry.get("enabled")),
@@ -169,6 +217,7 @@ def health_check(request):
         "realtime": bool(channel_layer.get("available")),
         "rag": bool(services.get("pgvector", {}).get("available")),
         "semantic_indexing": bool(semantic_indexing.get("available")),
+        "queue_health": queue_health.get("overall_status") == "healthy",
         "sentry": bool(sentry.get("dsn_set")),
     }
 

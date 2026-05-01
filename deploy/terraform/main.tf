@@ -102,6 +102,13 @@ locals {
     }
   }
 
+  redis_guardrails = {
+    expected_eviction_policy = "noeviction"
+    memory_warn_ratio        = 0.70
+    memory_critical_ratio    = 0.85
+    operator_diagnostic      = "python manage.py check_infrastructure --require-redis-readiness"
+  }
+
   deferred_workstreams = {
     ga_02_4 = "Redis eviction policy, queue-depth alarms, and broker distress playbooks"
   }

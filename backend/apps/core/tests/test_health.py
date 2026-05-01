@@ -34,6 +34,8 @@ class HealthCheckTests(TestCase):
         self.assertIsInstance(data['integration_warnings'], list)
         self.assertIn('semantic_indexing', data['features'])
         self.assertIn('semantic_indexing', data['integration_summary'])
+        self.assertIn('redis_guardrails', data['integration_summary'])
+        self.assertIn('queue_health', data['integration_summary'])
 
         # In test runs we do not have Redis configured, so redis readiness should be false.
         self.assertIs(data['features'].get('redis'), False)
@@ -47,6 +49,46 @@ class HealthCheckTests(TestCase):
         self.assertIn('services', data)
         self.assertIn('error', data['services'])
         self.assertEqual(data['services']['error']['code'], 'service_checks_failed')
+
+    @patch('projectmeats.health.check_all_services')
+    def test_health_surfaces_guardrail_and_queue_warnings_additively(self, mock_services):
+        mock_services.return_value = {
+            'redis': {'available': True, 'configured': True, 'is_redis': True},
+            'channel_layer': {'available': True, 'configured': True, 'is_redis': True},
+            'openai': {'api_key_set': False, 'model': 'not-configured'},
+            'sentry': {'enabled': False, 'dsn_set': False, 'sdk_installed': True, 'environment': 'test'},
+            'microsoft_oauth': {'configured': False, 'tenant_id_set': False},
+            'semantic_indexing': {'available': False, 'configured': False, 'required': False, 'mode': 'lexical_fallback'},
+            'sendgrid': {'configured': False},
+            'pgvector': {'available': False},
+            'redis_guardrails': {
+                'configured': True,
+                'available': True,
+                'policy_ok': False,
+                'memory_status': 'critical',
+                'overall_status': 'critical',
+            },
+            'queue_health': {
+                'configured': True,
+                'available': True,
+                'overall_status': 'critical',
+                'warning_queues': ['pm.email'],
+                'critical_queues': ['pm.workforms'],
+            },
+            'summary': {'total_services': 10, 'available': 4, 'configured': 5},
+        }
+
+        resp = self.client.get('/api/v1/health/')
+        self.assertEqual(resp.status_code, 200)
+
+        data = json.loads(resp.content.decode('utf-8'))
+        self.assertEqual(data['integration_summary']['redis_guardrails']['policy_ok'], False)
+        self.assertEqual(data['integration_summary']['queue_health']['critical_queues'], ['pm.workforms'])
+        codes = {warning['code'] for warning in data['integration_warnings']}
+        self.assertIn('redis_policy_mismatch', codes)
+        self.assertIn('redis_memory_critical', codes)
+        self.assertIn('queue_backlog_warning', codes)
+        self.assertIn('queue_backlog_critical', codes)
 
     @patch('projectmeats.health.connection.cursor', side_effect=Exception('db down'))
     def test_health_returns_503_when_db_unhealthy(self, _mock_cursor):
