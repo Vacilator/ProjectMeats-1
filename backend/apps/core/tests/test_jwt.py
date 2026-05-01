@@ -158,7 +158,10 @@ class JWTEndpointsTestCase(TestCase):
             'password': 'testpass123'
         })
         access_token = obtain_response.data['access']
-        
+
+        # Reset shared throttle state so this assertion isolates endpoint behavior.
+        cache.clear()
+
         # Then verify
         response = self.client.post('/api/v1/auth/token/verify/', {
             'token': access_token
