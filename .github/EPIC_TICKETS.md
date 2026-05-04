@@ -526,8 +526,8 @@
   - **Rollback:** Revert the gating workflow and bot policy together if CI becomes unusable.
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
-- [ ] **EH-01.4 rollback-release-automation-alignment**
-  - **Status:** Ready
+- [x] **EH-01.4 rollback-release-automation-alignment**
+  - **Status:** Shipped (PR #4769)
   - **Why now:** Rollback scripts/docs are stale and release automation is missing, which weakens every higher-risk change.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 12 / Operational excellence
   - **Scope:** Align rollback assets with reusable deploy reality and add explicit release workflow/governance.
@@ -547,7 +547,7 @@
 ### Epic EH-02 - Tenant isolation + data integrity
 
 - [ ] **EH-02.1 fail-closed-tenant-rls-runtime**
-  - **Status:** Blocked
+  - **Status:** Ready
   - **Why now:** Fail-open tenant/RLS behavior is the most dangerous correctness gap left in backend runtime.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Security / tenant isolation + Phase 12
   - **Scope:** Make tenant-scoped HTTP and task paths fail closed when tenant or RLS session state cannot be asserted.
@@ -555,7 +555,7 @@
   - **Primary domain:** backend
   - **Likely touched paths:** `backend/apps/tenants/middleware.py`, `backend/apps/tenants/rls.py`, `backend/apps/core/tasks.py`, `backend/apps/tenants/tasks.py`, relevant regression tests
   - **Dependencies:** EH-01.2
-  - **Blockers:** EH-01.2
+  - **Blockers:** None
   - **Acceptance criteria:** Tenant-scoped requests/tasks abort safely when RLS cannot be set, and regression tests cover the failure path.
   - **Validation commands:** `cd backend && python manage.py test apps.tenants apps.core.tests.test_audit_rls_compliance apps.system.tests.test_get_request_tenant_resolution tenant_apps.workflows.tests.test_viewset_tenant_fail_closed`; `bash scripts/verify_golden_state.sh`
   - **Tenant/RLS impact:** High; fail-closed behavior is the core objective
@@ -705,7 +705,7 @@
   - **Primary domain:** backend/ops
   - **Likely touched paths:** `backend/projectmeats/settings/base.py`, `.github/workflows/reusable-deploy.yml`, `manifests/GOLDEN_FILES.md`, runtime health checks
   - **Dependencies:** EH-01.4
-  - **Blockers:** EH-01.4
+  - **Blockers:** EH-02.1
   - **Acceptance criteria:** Non-dev deployments fail fast when Redis/channel readiness is absent, while dev keeps explicit local fallbacks.
   - **Validation commands:** `bash scripts/verify_golden_state.sh`; `bash .github/scripts/check_infrastructure.sh`
   - **Tenant/RLS impact:** Medium
