@@ -18,6 +18,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { businessApi } from '@/services/businessApi';
+import { withTenantQueryKey } from '@/utils/queryKeys';
 
 // Types
 export interface Product {
@@ -76,7 +77,7 @@ export function useCustomerProducts(
   const [customerId, setCustomerId] = useState<string | number | undefined>(initialCustomerId);
 
   const allProductsQuery = useQuery({
-    queryKey: ['system', 'products', { is_active: true }],
+    queryKey: withTenantQueryKey('system', 'products', { is_active: true }),
     queryFn: async () => {
       const response = await businessApi.get('system/products/', {
         params: { is_active: true, page_size: 500 },
@@ -87,7 +88,7 @@ export function useCustomerProducts(
   });
 
   const customerQuery = useQuery({
-    queryKey: ['customers', customerId],
+    queryKey: withTenantQueryKey('customers', customerId),
     enabled: Boolean(customerId),
     queryFn: async () => {
       const response = await businessApi.get<Customer>(`customers/${customerId}/`);
@@ -96,7 +97,7 @@ export function useCustomerProducts(
   });
 
   const associatedProductsQuery = useQuery({
-    queryKey: ['customers', customerId, 'products'],
+    queryKey: withTenantQueryKey('customers', customerId, 'products'),
     enabled: Boolean(customerId),
     queryFn: async () => {
       const response = await businessApi.get<{ results?: Product[] } | Product[]>(`customers/${customerId}/products/`);
@@ -108,7 +109,7 @@ export function useCustomerProducts(
   const customerPreferences = customerQuery.data?.preferred_protein_types ?? [];
 
   const suggestedProductsQuery = useQuery({
-    queryKey: ['system', 'products', { is_active: true, protein: customerPreferences }],
+    queryKey: withTenantQueryKey('system', 'products', { is_active: true, protein: customerPreferences }),
     enabled: customerPreferences.length > 0,
     queryFn: async () => {
       const normalizedProteins = customerPreferences
@@ -153,8 +154,8 @@ export function useCustomerProducts(
   const fetchProductsForCustomer = useCallback(async (custId: string | number) => {
     setCustomerId(custId);
     await Promise.all([
-      queryClient.invalidateQueries({ queryKey: ['customers', custId] }),
-      queryClient.invalidateQueries({ queryKey: ['customers', custId, 'products'] }),
+      queryClient.invalidateQueries({ queryKey: withTenantQueryKey('customers', custId) }),
+      queryClient.invalidateQueries({ queryKey: withTenantQueryKey('customers', custId, 'products') }),
     ]);
   }, [queryClient]);
 
@@ -204,10 +205,10 @@ export function useCustomerProducts(
 
   // Refresh data
   const refresh = useCallback(async () => {
-    await queryClient.invalidateQueries({ queryKey: ['system', 'products'] });
+    await queryClient.invalidateQueries({ queryKey: withTenantQueryKey('system', 'products') });
     if (customerId) {
-      await queryClient.invalidateQueries({ queryKey: ['customers', customerId] });
-      await queryClient.invalidateQueries({ queryKey: ['customers', customerId, 'products'] });
+      await queryClient.invalidateQueries({ queryKey: withTenantQueryKey('customers', customerId) });
+      await queryClient.invalidateQueries({ queryKey: withTenantQueryKey('customers', customerId, 'products') });
     }
   }, [customerId, queryClient]);
 

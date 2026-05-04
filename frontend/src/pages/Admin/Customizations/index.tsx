@@ -4,6 +4,7 @@ import { Palette } from 'lucide-react';
 import { apiClient } from '@/services/apiService';
 import { AdminGuard, AdminPage, EmptyState, LoadingSkeleton } from '@/components/Admin';
 import { TenantChoiceOverride } from '@/components/Admin/TenantChoiceOverride';
+import { withTenantQueryKey } from '@/utils/queryKeys';
 
 interface TenantCurrent {
   id: string;
@@ -12,7 +13,7 @@ interface TenantCurrent {
 
 const CustomizationsPage: React.FC = () => {
   const currentTenantQuery = useQuery<TenantCurrent>({
-    queryKey: ['tenants', 'current'],
+    queryKey: withTenantQueryKey('tenants', 'current'),
     queryFn: async () => {
       const res = await apiClient.get('/tenants/current/');
       return res.data;

@@ -11,6 +11,7 @@ import {
 } from 'recharts';
 
 import { businessApi } from '@/services/businessApi';
+import { withTenantQueryKey } from '@/utils/queryKeys';
 
 const { Text } = Typography;
 
@@ -37,7 +38,7 @@ export const AILearningMetricsWidget: React.FC<AILearningMetricsWidgetProps> = (
   }, []);
 
   const { data, isLoading } = useQuery({
-    queryKey: ['ai-learning-metrics'],
+    queryKey: withTenantQueryKey('ai-learning-metrics'),
     queryFn: async () => {
       const res = await businessApi.get<NonNullable<AILearningMetricsWidgetProps['metrics']>>(
         '/ai-assistant/metrics/',

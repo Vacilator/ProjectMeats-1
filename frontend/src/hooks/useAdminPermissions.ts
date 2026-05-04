@@ -17,6 +17,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { useAuthState } from '@/contexts/AuthContext';
 import { apiClient } from '../services/apiService';
+import { withTenantQueryKey } from '../utils/queryKeys';
 
 export interface AdminPermissions {
   can_manage_users: boolean;
@@ -41,10 +42,9 @@ export interface AdminPermissions {
  */
 export function useAdminPermissions() {
   const { isAuthenticated, loading: authLoading } = useAuthState();
-  const tenantId = typeof window !== 'undefined' ? localStorage.getItem('tenantId') : null;
 
   const query = useQuery<AdminPermissions>({
-    queryKey: ['admin', 'permissions', tenantId ?? 'none'],
+    queryKey: withTenantQueryKey('admin', 'permissions'),
     queryFn: async () => {
       try {
         // NOTE: TenantViewSet is registered at /api/v1/tenants/

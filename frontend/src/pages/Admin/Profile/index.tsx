@@ -11,6 +11,7 @@ import { getRuntimeConfig } from '@/config/runtime';
 import { extractBrandColors } from '@/utils/themeUtils';
 import { injectTenantColors } from '@/config/theme';
 import { formatUsPhone } from '@/utils/phone';
+import { withTenantQueryKey } from '@/utils/queryKeys';
 
 interface Tenant {
   id: string;
@@ -127,7 +128,7 @@ const AdminProfilePage: React.FC = () => {
     isLoading,
     isError: tenantIsError,
   } = useQuery<Tenant>({
-    queryKey: ['tenant'],
+    queryKey: withTenantQueryKey('tenant'),
     enabled: canManage,
     queryFn: async () => {
       const response = await apiClient.get('/tenants/current/');
@@ -187,7 +188,7 @@ const AdminProfilePage: React.FC = () => {
       return response.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['tenant'] });
+      queryClient.invalidateQueries({ queryKey: withTenantQueryKey('tenant') });
       toast.success('Profile updated successfully');
       setLogoFile(null);
       window.dispatchEvent(new Event('tenant-branding-updated'));

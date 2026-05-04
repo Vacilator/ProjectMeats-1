@@ -19,6 +19,7 @@ import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { PageContainer } from '@/components/ui/PageContainer';
 import { workformExecutionService } from '@/services/workformExecutionService';
+import { withTenantQueryKey } from '@/utils/queryKeys';
 import ProcessMonitor from '../Cockpit/ProcessMonitor';
 
 const formatDuration = (value: number | null | undefined) => {
@@ -29,13 +30,13 @@ const formatDuration = (value: number | null | undefined) => {
 
 export const Monitoring: React.FC = () => {
   const analyticsQuery = useQuery({
-    queryKey: ['workform-executions', 'analytics'],
+    queryKey: withTenantQueryKey('workform-executions', 'analytics'),
     queryFn: async () => workformExecutionService.getAnalytics({ days: 30, limit: 5 }),
     refetchInterval: 15000,
   });
 
   const activeExecutionsQuery = useQuery({
-    queryKey: ['workform-executions', 'active'],
+    queryKey: withTenantQueryKey('workform-executions', 'active'),
     queryFn: async () => workformExecutionService.getExecutions({ status: 'pending,in_progress', page_size: 25 }),
     refetchInterval: 5000,
   });

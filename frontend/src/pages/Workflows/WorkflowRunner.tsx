@@ -13,6 +13,7 @@ import styled from 'styled-components';
 import { DynamicFormEngine } from '../../features/system/DynamicFormEngine';
 import { Card } from '../../components/ui/Card';
 import { PageContainer } from '../../components/ui/PageContainer';
+import { withTenantQueryKey } from '../../utils/queryKeys';
 
 interface WorkflowRunResponse {
   id: string;
@@ -122,7 +123,7 @@ export const WorkflowRunner: React.FC = () => {
 
   // Fetch workflow run details
   const { data: workflowRun, isLoading, refetch } = useQuery({
-    queryKey: ['workflowRun', runId],
+    queryKey: withTenantQueryKey('workflowRun', runId),
     queryFn: async () => {
       const response = await adminClient.get<WorkflowRunResponse>(
         `/admin/system-config/api/runs/${runId}/`

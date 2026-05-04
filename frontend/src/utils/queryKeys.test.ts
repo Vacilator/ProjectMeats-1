@@ -29,6 +29,19 @@ describe('query key utilities', () => {
 
   it('detects tenant-scoped query keys', () => {
     expect(isTenantScopedQueryKey([TENANT_QUERY_NAMESPACE, VALID_UUID, 'suppliers'])).toBe(true);
+    expect(isTenantScopedQueryKey(withTenantQueryKey('health'))).toBe(true);
     expect(isTenantScopedQueryKey(['health'])).toBe(false);
+  });
+
+  it('builds stable composite tenant query keys', () => {
+    localStorage.setItem('tenantId', VALID_UUID);
+
+    expect(withTenantQueryKey('customers', 42, 'products')).toEqual([
+      TENANT_QUERY_NAMESPACE,
+      VALID_UUID,
+      'customers',
+      42,
+      'products',
+    ]);
   });
 });

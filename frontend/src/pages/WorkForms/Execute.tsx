@@ -18,6 +18,7 @@ import {
   executeTenantWorkForm,
   type WorkFormExecuteResponse,
 } from '@/services/workformsApi';
+import { withTenantQueryKey } from '@/utils/queryKeys';
 
 type ExecuteResult =
   | { kind: 'workform'; execution: WorkFormExecuteResponse }
@@ -96,8 +97,8 @@ export const ExecuteWorkForm: React.FC = () => {
     onSuccess: async (result: ExecuteResult) => {
       setExecutionError(null);
       await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['workforms-catalog-items'] }),
-        queryClient.invalidateQueries({ queryKey: ['workform-executions', 'active'] }),
+        queryClient.invalidateQueries({ queryKey: withTenantQueryKey('workforms-catalog-items') }),
+        queryClient.invalidateQueries({ queryKey: withTenantQueryKey('workform-executions', 'active') }),
       ]);
 
       if (result.kind === 'form') {

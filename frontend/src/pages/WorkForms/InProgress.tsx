@@ -23,6 +23,7 @@ import { ErrorBoundary } from '@/components/common/ErrorBoundary';
 import { confirmDialog, showAlert } from '@/utils/uiDialogs';
 import { Play, Clock, Filter, RefreshCw, FileText, X, Eye } from 'lucide-react';
 import { businessApi } from '../../services/businessApi';
+import { withTenantQueryKey } from '../../utils/queryKeys';
 import { useQuickActions } from '../../contexts/QuickActionsContext';
 import { workflowExecutionService } from '../../services/workflowExecutionService';
 import { workformExecutionService } from '@/services/workformExecutionService';
@@ -478,7 +479,7 @@ const FormsFlowsInProgress: React.FC = () => {
   }, [activeTab, filterMode]);
   
   const executionsQuery = useQuery({
-    queryKey: ['workform-executions', 'in-progress', filterMode],
+    queryKey: withTenantQueryKey('workform-executions', 'in-progress', filterMode),
     queryFn: async () =>
       workformExecutionService.getExecutions({
         status: 'pending,in_progress',

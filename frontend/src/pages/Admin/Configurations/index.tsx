@@ -13,6 +13,7 @@ import { AdminGuard, AdminPage, AdminSection, ConfirmDialog, EmptyState, Loading
 import { Button } from '@/components/ui/Button';
 import { useToast } from '@/hooks/useToast';
 import { useAdminPermissions } from '@/hooks/useAdminPermissions';
+import { withTenantQueryKey } from '@/utils/queryKeys';
 import { captureSentryException } from '@/utils/sentry';
 import { confirmDialog } from '@/utils/uiDialogs';
 
@@ -54,7 +55,7 @@ const ConfigurationsPage: React.FC = () => {
   const canManage = permissions.can_manage_configurations;
 
   const currentTenantQuery = useQuery<TenantCurrent>({
-    queryKey: ['tenants', 'current', 'configurations'],
+    queryKey: withTenantQueryKey('tenants', 'current', 'configurations'),
     queryFn: async () => {
       const res = await apiClient.get('/tenants/current/');
       return res.data;

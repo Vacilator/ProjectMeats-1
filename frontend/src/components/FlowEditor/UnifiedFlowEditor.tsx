@@ -37,6 +37,7 @@ import { showAlert } from '@/utils/uiDialogs';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { adminClient } from '../../services/apiService';
 import { workformsMetadataService } from '@/services/workformsMetadataService';
+import { withTenantQueryKey } from '@/utils/queryKeys';
 import toast, { Toaster } from 'react-hot-toast'; // Phase 8.1
 import * as Sentry from '@sentry/react'; // Error tracking
 import { logger } from '../../utils/logger'; // Centralized logging
@@ -2001,7 +2002,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
 
   // Backend-driven WorkForms node metadata (additive overlay; local schemas remain canonical for now).
   const { data: workformsMetadata } = useQuery({
-    queryKey: ['system', 'workforms', 'metadata', 'v1'],
+    queryKey: withTenantQueryKey('system', 'workforms', 'metadata', 'v1'),
     queryFn: () => workformsMetadataService.getMetadata('v1'),
     staleTime: 5 * 60 * 1000,
     retry: 1,
@@ -2972,7 +2973,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   
   // Fetch tenant lists for dropdown options (Phase 4.2.B Integration)
   const { data: tenantLists = [] } = useQuery({
-    queryKey: ['workflows', 'tenant-lists'],
+    queryKey: withTenantQueryKey('workflows', 'tenant-lists'),
     queryFn: async () => {
       const response = await adminClient.get('/workflows/lists/');
       return response.data.results || response.data || [];
@@ -2983,7 +2984,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
 
   // Fetch system choice lists for dropdown options (SystemChoiceList)
   const { data: systemChoiceLists = [] } = useQuery({
-    queryKey: ['system', 'choice-lists'],
+    queryKey: withTenantQueryKey('system', 'choice-lists'),
     queryFn: async () => {
       const response = await adminClient.get('/system/choice-lists/');
       const raw = response.data as unknown;
@@ -5265,8 +5266,8 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       });
 
       // Refresh any UI surfaces that list available forms/workforms.
-      queryClient.invalidateQueries({ queryKey: ['tenant-forms'] });
-      queryClient.invalidateQueries({ queryKey: ['tenant-workforms'] });
+      queryClient.invalidateQueries({ queryKey: withTenantQueryKey('tenant-forms') });
+      queryClient.invalidateQueries({ queryKey: withTenantQueryKey('tenant-workforms') });
       
       lastPersistedSignatureRef.current = workflowSaveSignature;
       setHasUnsavedChanges(false);

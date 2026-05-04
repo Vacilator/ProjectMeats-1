@@ -17,6 +17,7 @@ import { Skeleton } from 'antd';
 import styled from 'styled-components';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { logger } from '@/utils/logger';
+import { withTenantQueryKey } from '@/utils/queryKeys';
 import { showAlert } from '@/utils/uiDialogs';
 import { apiClient } from '../services/apiService';
 import { InquiryListItem, InquiryStatus, InquiryTemplateListItem } from '../types';
@@ -471,7 +472,7 @@ const Inquiries: React.FC = () => {
 
   const inquiriesQueryOptions = useMemo(
     () => ({
-      queryKey: ['inquiries', page, pageSize, search, statusFilter, entityTypeFilter],
+      queryKey: withTenantQueryKey('inquiries', page, pageSize, search, statusFilter, entityTypeFilter),
       queryFn: async () => {
         const params: Record<string, any> = {
           page,

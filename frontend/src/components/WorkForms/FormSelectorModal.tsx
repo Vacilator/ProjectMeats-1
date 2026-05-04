@@ -12,6 +12,7 @@ import styled from 'styled-components';
 import { useQuery } from '@tanstack/react-query';
 import { X, Search, Check, FileText, Calendar, Users } from 'lucide-react';
 import { listTenantForms } from '@/services/workformsApi';
+import { withTenantQueryKey } from '@/utils/queryKeys';
 import type { FormDefinition } from '../form-builder';
 import { useTranslation } from '../../i18n';
 
@@ -314,7 +315,7 @@ export const FormSelectorModal: React.FC<FormSelectorModalProps> = ({
   
   // Fetch forms from API
   const { data: forms = [], isLoading } = useQuery({
-    queryKey: ['forms', 'library'],
+    queryKey: withTenantQueryKey('forms', 'library'),
     queryFn: async () => {
       const rows = await listTenantForms({ page_size: 200 });
       return rows.map((row: any) => ({

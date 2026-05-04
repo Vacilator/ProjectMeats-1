@@ -18,6 +18,7 @@
  */
 import React, { useState } from 'react';
 import { logger } from '@/utils/logger';
+import { withTenantQueryKey } from '@/utils/queryKeys';
 import { showAlert } from '@/utils/uiDialogs';
 import { getWorkformsErrorUi } from '@/features/workforms/workformsErrors';
 import { ApiErrorContent } from '@/components/errors/ApiErrorContent';
@@ -566,7 +567,7 @@ const FormsFlowsCatalog: React.FC = () => {
       await deleteWorkflow(workformId);
     },
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ['workforms-catalog-items'] });
+      await queryClient.invalidateQueries({ queryKey: withTenantQueryKey('workforms-catalog-items') });
       await refreshQuickActions();
       showAlert({ type: 'success', title: 'Deleted', content: 'WorkForm deleted successfully.' });
     },
@@ -589,7 +590,7 @@ const FormsFlowsCatalog: React.FC = () => {
     error,
     refetch,
   } = useQuery<CatalogItem[]>({
-    queryKey: ['workforms-catalog-items'],
+    queryKey: withTenantQueryKey('workforms-catalog-items'),
     queryFn: async () => {
       const nowIso = new Date().toISOString();
 

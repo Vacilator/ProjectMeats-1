@@ -5,6 +5,7 @@ import { useParams, useSearchParams } from 'react-router-dom';
 import { logger } from '@/utils/logger';
 import { apiService, Contact } from '../services/apiService';
 import EntityFormSurface from '../components/Shared/EntityFormSurface';
+import { withTenantQueryKey } from '../utils/queryKeys';
 
 // Styled Components
 const Container = styled.div`
@@ -187,7 +188,13 @@ const Contacts: React.FC = () => {
   };
 
   const contactsQuery = useQuery({
-    queryKey: ['contacts', contactFilters.supplier, contactFilters.customer, contactFilters.plant, contactFilters.location],
+    queryKey: withTenantQueryKey(
+      'contacts',
+      contactFilters.supplier,
+      contactFilters.customer,
+      contactFilters.plant,
+      contactFilters.location
+    ),
     queryFn: () => apiService.getContacts(contactFilters),
   });
 

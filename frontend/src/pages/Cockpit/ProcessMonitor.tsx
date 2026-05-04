@@ -7,6 +7,7 @@ import { businessApi } from '../../services/businessApi';
 import { useAuth } from '../../contexts/AuthContext';
 import { UnifiedFlowEditor } from '../../components/FlowEditor/UnifiedFlowEditor';
 import { logger } from '../../utils/logger';
+import { withTenantQueryKey } from '../../utils/queryKeys';
 
 // ============================================================================
 // Types
@@ -389,7 +390,7 @@ const ProcessMonitor: React.FC = () => {
   }, [isStaff]);
 
   const listQuery = useQuery({
-    queryKey: ['process-monitor', { mine: showMineOnly }],
+    queryKey: withTenantQueryKey('process-monitor', { mine: showMineOnly }),
     queryFn: async (): Promise<PaginatedResponse<ProcessMonitorItem>> => {
       const params = showMineOnly ? { assigned_to: 'me' } : undefined;
       const res = await businessApi.get<PaginatedResponse<ProcessMonitorItem>>(
@@ -408,7 +409,7 @@ const ProcessMonitor: React.FC = () => {
   });
 
   const formQuery = useQuery({
-    queryKey: ['process-monitor-form', selected?.form_id],
+    queryKey: withTenantQueryKey('process-monitor-form', selected?.form_id),
     enabled: !!selected?.form_id,
     queryFn: async (): Promise<TenantFormResponse> => {
       const res = await businessApi.get<TenantFormResponse>(`/workflows/forms/${selected!.form_id}/`);
