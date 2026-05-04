@@ -316,8 +316,8 @@
   - **Rollback:** Revert provider/preference changes together and fall back to the existing Cockpit-local tour behavior.
   - **Completion evidence destination:** `.github/MASTER_PLAN.md` (PR #4844)
 
-- [ ] **GA-04.2 cockpit-empty-state-system**
-  - **Status:** Ready
+- [x] **GA-04.2 cockpit-empty-state-system**
+  - **Status:** Shipped (PR #4846)
   - **Why now:** The first tenant experience should teach actions immediately on the dashboard instead of showing inert whitespace.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 14 / Epic 4
   - **Scope:** Create a reusable empty-state pattern for dashboard/cockpit surfaces with direct CTA buttons and help text tailored to first-run workflows.
@@ -332,10 +332,10 @@
   - **Secrets/infra impact:** None
   - **Risk level:** Low
   - **Rollback:** Revert the cockpit empty-state components without affecting existing data-fetch logic.
-  - **Completion evidence destination:** `.github/MASTER_PLAN.md`
+  - **Completion evidence destination:** `.github/MASTER_PLAN.md` (PR #4846)
 
 - [ ] **GA-04.3 transactional-surface-empty-states**
-  - **Status:** Blocked
+  - **Status:** Ready
   - **Why now:** Orders, freight, and document-heavy surfaces still need “create your first X” guidance to prevent first-run abandonment.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 14 / Epic 4
   - **Scope:** Roll the empty-state CTA system through priority transaction/list surfaces (purchase orders, sales orders, freight orders, invoices, document vault-adjacent pages).
@@ -343,7 +343,7 @@
   - **Primary domain:** frontend
   - **Likely touched paths:** `frontend/src/pages/{PurchaseOrders.tsx,FreightOrders.tsx}`, `frontend/src/pages/SalesOrders/SalesOrders.tsx`, `frontend/src/pages/Accounting/Invoices.tsx`, `frontend/src/pages/Entities/UniversalEntityRecordPage.tsx`, shared empty-state components/tests
   - **Dependencies:** GA-04.2
-  - **Blockers:** GA-04.2
+  - **Blockers:** None
   - **Acceptance criteria:** Priority transactional list/record surfaces show actionable first-run CTAs with no broken navigation paths.
   - **Validation commands:** `npm -C frontend run verify-standards`; `npm -C frontend run test:ci`
   - **Tenant/RLS impact:** None directly
