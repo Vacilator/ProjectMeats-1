@@ -186,8 +186,8 @@
   - **Rollback:** Revert the retention contract/docs only; no records should move during this ticket.
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
-- [ ] **GA-03.2 seven-year-archive-command**
-  - **Status:** In PR (#4823)
+- [x] **GA-03.2 seven-year-archive-command**
+  - **Status:** Shipped (PR #4823)
   - **Why now:** The retention contract is not enforceable until a dry-run-first archival command exists.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 14 / Epic 3
   - **Scope:** Build the management command/service that archives or snapshots aged transactional records after 7 years, supports legal holds, and writes audit evidence.
@@ -205,7 +205,7 @@
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
 - [ ] **GA-03.3 pii-redaction-for-logging-and-sentry**
-  - **Status:** Blocked
+  - **Status:** Ready
   - **Why now:** GA observability cannot expand while logs/APM still risk emitting raw emails, phone numbers, or payload fragments.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 14 / Epic 3
   - **Scope:** Add central redaction filters for Django logging, Celery task logs, and Sentry events/spans; ensure sensitive fields are scrubbed before transport.
@@ -213,7 +213,7 @@
   - **Primary domain:** backend/frontend observability
   - **Likely touched paths:** `backend/projectmeats/settings/base.py`, `backend/projectmeats/settings/production.py`, `frontend/src/utils/sentry.ts`, `frontend/src/utils/logger.ts`, `docs/runbooks/DATA_RETENTION.md`
   - **Dependencies:** GA-03.1
-  - **Blockers:** GA-03.2
+  - **Blockers:** None
   - **Acceptance criteria:** Sensitive patterns are redacted centrally, regression tests prove redaction, and Sentry/log output remains diagnostically useful.
   - **Validation commands:** `cd backend && python manage.py test apps.core`; `npm -C frontend run verify-standards`
   - **Tenant/RLS impact:** Medium

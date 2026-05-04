@@ -10,13 +10,13 @@ This file is the **canonical plan + current truth snapshot**.
 
 ---
 
-## Current Execution Snapshot (as of 2026-05-01)
+## Current Execution Snapshot (as of 2026-05-04)
 
 ### What is true right now
 - **WorkForms E2E** is shipped end-to-end (execute + monitoring + notifications + Quick Actions + Gmail connector MVP).
 - **Primary execution focus (P0):** execute the new Phase 14 GA lane from the top of `.github/EPIC_TICKETS.md`, while keeping the Phase 12 hardening backlog queued immediately behind it.
 - **Strategic enterprise audit is now complete:** the repo has a fresh baseline in `GAP_ANALYSIS_REPORT.md`, `STRATEGIC_BLUEPRINT.md`, `.github/TECH_DEBT_REGISTER.md`, `.github/SDLC_PROTOCOLS.md`, and `.github/EPIC_TICKETS.md`. Those files translate the current gap analysis into execution-ordered, machine-readable work without replacing this canonical plan.
-- **Phase 14 execution is advancing:** `GA-03.2 seven-year-archive-command` is now implemented in PR #4823, adding the dry-run-first archive command, tenant-safe archive evidence tables with RLS, active legal-hold enforcement, and the refreshed retention runbook/guardrails; `GA-03.3 pii-redaction-for-logging-and-sentry` remains blocked until that PR merges to `development`.
+- **Phase 14 execution is advancing:** `GA-03.2 seven-year-archive-command` is now shipped in PR #4823, adding the dry-run-first archive command, tenant-safe archive evidence tables with RLS, active legal-hold enforcement, and the refreshed retention runbook/guardrails. `GA-03.3 pii-redaction-for-logging-and-sentry` is the next ready execution ticket in the Phase 14 governance lane.
 - **Phase 15 planning is now complete:** the B2B Network epics are appended to the bottom of `.github/EPIC_TICKETS.md` and documented below as the sealed next-layer architecture for partner portals, trade invariants, and settlement automation. This is planning-only; Phase 14 remains the active execution lane.
 - **Phase 16 planning is now complete:** the Core Trading Engine happy-path state machine plus distributed hardening epics are documented below and translated into atomic blocked tickets at the bottom of `.github/EPIC_TICKETS.md`. This is planning-only; Phase 14 remains the active execution lane and Phase 15/16 both stay blocked behind higher-priority unchecked work.
 - **AI email/document lane** is now fail-closed through Graph attachment ingest and parser lifecycle hardening: tabular uploads parse safely, Outlook attachments bridge into `AIDocument`, unsupported attachment kinds are rejected pre-download, repeated same-session ingests dedupe with provenance, AI sessions are tenant-bound, attachment ingest requires a session-staged allowlist from `fetch_emails`, and `parse_document` now persists explicit processing/completed/failed metadata while raising structured parser/auth/unreachable errors.
