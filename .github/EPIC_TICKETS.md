@@ -602,8 +602,8 @@
 
 ### Epic EH-03 - Contract-first platform
 
-- [ ] **EH-03.1 openapi-ai-and-high-churn-surface-coverage**
-  - **Status:** Ready
+- [x] **EH-03.1 openapi-ai-and-high-churn-surface-coverage**
+  - **Status:** Shipped (PR #4775)
   - **Why now:** AI and other high-churn endpoints still lack explicit schema annotations, which blocks safe client generation.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Type safety gate + Phase 12
   - **Scope:** Add OpenAPI coverage to AI/high-churn backend endpoints and align the baseline artifact.
@@ -621,7 +621,7 @@
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
 - [ ] **EH-03.2 openapi-ts-mobile-typegen**
-  - **Status:** Blocked
+  - **Status:** Ready
   - **Why now:** Frontend/mobile type drift cannot be reduced until generated contract artifacts exist.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Type safety gate + Mobile parity + Phase 12
   - **Scope:** Generate and adopt TS/mobile types for the first covered domains.
@@ -629,7 +629,7 @@
   - **Primary domain:** frontend/mobile/contracts
   - **Likely touched paths:** `manifests/openapi/openapi-schema.baseline.json`, `frontend/src/services/*`, `mobile/src/*`, generation scripts/config
   - **Dependencies:** EH-03.1
-  - **Blockers:** EH-03.1
+  - **Blockers:** None
   - **Acceptance criteria:** Covered domains consume generated types and validation/build commands remain green.
   - **Validation commands:** `npm -C frontend run verify-standards`; `npm -C frontend run test:ci`; `npm -C mobile run type-check`; `npm -C mobile run test`
   - **Tenant/RLS impact:** None directly
@@ -783,7 +783,7 @@
   - **Primary domain:** backend/AI/frontend
   - **Likely touched paths:** `backend/tenant_apps/integrations/services/email_ingestion.py`, `backend/tenant_apps/ai_assistant/services/*`, `backend/tenant_apps/ai_assistant/models.py`, `frontend/src/components/AIAssistant/*`
   - **Dependencies:** EH-06.1, EH-05.1, EH-03.1
-  - **Blockers:** EH-06.1, EH-05.1, and EH-03.1
+  - **Blockers:** EH-06.1 and EH-05.1
   - **Acceptance criteria:** Semantic indexing is real and health-gated, lineage is end-to-end, and exports avoid local `/tmp`.
   - **Validation commands:** `cd backend && python manage.py test tenant_apps.integrations tenant_apps.ai_assistant apps.core.tests.test_viewset_permissions`; `npm -C frontend run verify-standards`; `npm -C frontend run test:ci`
   - **Tenant/RLS impact:** High
