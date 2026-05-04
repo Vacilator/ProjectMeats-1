@@ -564,8 +564,8 @@
   - **Rollback:** Gate stricter behavior behind a flag only if absolutely necessary; never revert to silent cross-tenant continuation.
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
-- [ ] **EH-02.2 platform-idempotency-keys**
-  - **Status:** Ready
+- [x] **EH-02.2 platform-idempotency-keys**
+  - **Status:** Shipped (PRs #4773, #4776)
   - **Why now:** Duplicate POST/retry behavior remains ad hoc across uploads, executions, and integrations.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 12
   - **Scope:** Add a tenant-scoped idempotency layer and apply it to the first high-risk mutation endpoints.
@@ -583,7 +583,7 @@
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
 - [ ] **EH-02.3 chat-session-tenant-fk-rls**
-  - **Status:** Blocked
+  - **Status:** Ready
   - **Why now:** AI chat persistence still relies on JSON-stamped tenant context instead of tenant-native storage.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 12 / Phase 13 dependency
   - **Scope:** Add `tenant` FK + RLS to `ChatSession` and `ChatMessage`, backfill, migrate reads/writes, and update `manifests/RLS_POLICIES.md` so the new policies are governed by the same registry as the rest of the platform.
@@ -591,7 +591,7 @@
   - **Primary domain:** backend
   - **Likely touched paths:** `backend/tenant_apps/ai_assistant/models.py`, `backend/tenant_apps/ai_assistant/views.py`, new migrations, `manifests/RLS_POLICIES.md`
   - **Dependencies:** EH-02.1
-  - **Blockers:** EH-02.2
+  - **Blockers:** None
   - **Acceptance criteria:** Chat data is tenant-native, tenant-scoped, and covered by RLS regression tests.
   - **Validation commands:** `cd backend && python manage.py test tenant_apps.ai_assistant apps.core.tests.test_audit_rls_compliance`; `cd backend && python manage.py showmigrations | grep ai_assistant`
   - **Tenant/RLS impact:** High
@@ -611,7 +611,7 @@
   - **Primary domain:** backend/contracts
   - **Likely touched paths:** `backend/tenant_apps/ai_assistant/views.py`, `backend/tenant_apps/ai_assistant/urls.py`, relevant schema generation config/tests, `manifests/openapi/openapi-schema.baseline.json`
   - **Dependencies:** EH-02.1
-  - **Blockers:** EH-02.2
+  - **Blockers:** EH-02.3
   - **Acceptance criteria:** Touched endpoints appear explicitly in the baseline schema with stable request/response shapes.
   - **Validation commands:** `cd backend && python manage.py spectacular --validate --file /tmp/projectmeats-openapi.yaml`; `cd backend && python manage.py test tenant_apps.ai_assistant apps.core.tests.test_api_error_contracts`
   - **Tenant/RLS impact:** Medium
@@ -705,7 +705,7 @@
   - **Primary domain:** backend/ops
   - **Likely touched paths:** `backend/projectmeats/settings/base.py`, `.github/workflows/reusable-deploy.yml`, `manifests/GOLDEN_FILES.md`, runtime health checks
   - **Dependencies:** EH-01.4
-  - **Blockers:** EH-02.2
+  - **Blockers:** EH-02.3
   - **Acceptance criteria:** Non-dev deployments fail fast when Redis/channel readiness is absent, while dev keeps explicit local fallbacks.
   - **Validation commands:** `bash scripts/verify_golden_state.sh`; `bash .github/scripts/check_infrastructure.sh`
   - **Tenant/RLS impact:** Medium
@@ -725,7 +725,7 @@
   - **Primary domain:** backend
   - **Likely touched paths:** `backend/tenant_apps/workflows/services/locking.py`, collaboration endpoints/tests
   - **Dependencies:** EH-02.1, EH-05.1
-  - **Blockers:** EH-02.2 and EH-05.1
+  - **Blockers:** EH-02.3 and EH-05.1
   - **Acceptance criteria:** Concurrent lock acquisition is deterministic and covered by race/concurrency tests.
   - **Validation commands:** `cd backend && python manage.py test tenant_apps.workflows.tests.test_collaboration_websocket_security tenant_apps.workflows.tests.test_workflow_tasks_rls_context tenant_apps.workflows.services.tests.test_workflow_executor`
   - **Tenant/RLS impact:** Medium
