@@ -995,3 +995,474 @@
   - **Risk level:** Medium
   - **Rollback:** Revert provider/workflow/manifest changes together and keep the webhook-first settlement path intact.
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
+
+## Phase 16 - The Core Trading Engine (End-to-End Automation)
+
+### Epic CTE-01 - Inquiry ingestion & routing
+
+- [ ] **CTE-01.1 inquiry-happy-path-contract-and-routing-fields**
+  - **Status:** Blocked
+  - **Why now:** The hardcoded happy path cannot exist until `Inquiry` explicitly carries the route decision, source-email lineage, requested master product/protein anchors, and downstream document/state references.
+  - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 16 / Epic 1
+  - **Scope:** Audit and extend the existing `tenant_apps.inquiries.models.Inquiry` contract so it can anchor the trading engine, including route flags (`FULFILL`/`BROKER`), source-email references, requested product/protein fields, and linkage to downstream supplier/sales/carrier documents.
+  - **Non-goals:** No automated email parsing, routing execution, or outbound side effects yet.
+  - **Primary domain:** backend/contracts
+  - **Likely touched paths:** `backend/tenant_apps/inquiries/{models.py,serializers.py,views.py,tests.py}`, `backend/apps/integrations/{models.py,signals.py}`, additive migrations, `MASTER_PLAN.md`
+  - **Dependencies:** B2B-02.1 and any remaining higher-priority unchecked tickets above Phase 16
+  - **Blockers:** Phase 14 remains active; Phase 15 trade-invariants planning/work stays ahead of this execution lane
+  - **Acceptance criteria:**
+    1. The inquiry contract names the fields required to drive the happy path without guessing.
+    2. Inquiry-to-document linkage is defined for supplier PO, sales order, and carrier PO relationships.
+    3. The ticket leaves the current backlog ordering intact and does not imply execution has started.
+  - **Validation commands:** `bash scripts/verify_golden_state.sh`; `cd backend && python manage.py test tenant_apps.inquiries apps.integrations`; `cd backend && python manage.py makemigrations --check`
+  - **Tenant/RLS impact:** High
+  - **Secrets/infra impact:** None
+  - **Risk level:** High
+  - **Rollback:** Revert additive inquiry-contract changes only; no runtime automation should be active from this ticket.
+  - **Completion evidence destination:** `.github/MASTER_PLAN.md`
+
+- [ ] **CTE-01.2 ai-email-extractor-to-inquiry-draft**
+  - **Status:** Blocked
+  - **Why now:** The trading engine starts with inbound demand, and the current email ingestion stack stops short of creating a first-class inquiry.
+  - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 16 / Epic 1
+  - **Scope:** Hook AI email ingestion to the `Inquiry` model so qualifying inbound customer-demand emails create or update draft inquiries using OpenAI structured outputs, explicit source-email lineage, and fail-closed parsing.
+  - **Non-goals:** No automatic supplier/customer/carrier document generation yet.
+  - **Primary domain:** backend/ai/integrations
+  - **Likely touched paths:** `backend/apps/integrations/{signals.py,models.py}`, `backend/tenant_apps/integrations/services/email_ingestion.py`, `backend/tenant_apps/ai_assistant/`, `backend/tenant_apps/inquiries/`, related tests
+  - **Dependencies:** CTE-01.1
+  - **Blockers:** CTE-01.1
+  - **Acceptance criteria:**
+    1. Structured extraction can create a draft inquiry with source-email traceability.
+    2. Failed or ambiguous parses stay fail-closed and operator-visible instead of silently creating bad demand records.
+    3. The created inquiry preserves tenant isolation and source provenance.
+  - **Validation commands:** `cd backend && python manage.py test apps.integrations tenant_apps.integrations tenant_apps.ai_assistant tenant_apps.inquiries`; `cd backend && python manage.py makemigrations --check`
+  - **Tenant/RLS impact:** High
+  - **Secrets/infra impact:** Medium
+  - **Risk level:** High
+  - **Rollback:** Disable the inquiry-creation hook and preserve source-email audit rows for replay before reverting parser wiring.
+  - **Completion evidence destination:** `.github/MASTER_PLAN.md`
+
+- [ ] **CTE-01.3 inventory-availability-contract-and-routing-service**
+  - **Status:** Blocked
+  - **Why now:** `FULFILL` vs `BROKER` routing is impossible to automate safely because the repo does not yet contain a dedicated inventory source-of-truth model.
+  - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 16 / Epic 1
+  - **Scope:** Define and implement the authoritative inventory availability contract/service, then use it to flag inquiries as `FULFILL` or `BROKER` based on requested product/protein and available stock/reservation rules.
+  - **Non-goals:** No RFQ fan-out or supplier/customer email yet.
+  - **Primary domain:** backend/inventory
+  - **Likely touched paths:** new `backend/apps/core/services/inventory_availability.py` or equivalent domain service, `backend/tenant_apps/inquiries/`, `backend/apps/system/models/product.py`, additive schema/tests, `MASTER_PLAN.md`
+  - **Dependencies:** CTE-01.2
+  - **Blockers:** CTE-01.2
+  - **Acceptance criteria:**
+    1. One explicit availability source and routing rule exists; the route does not rely on ad hoc product metadata.
+    2. `Inquiry` can be flagged deterministically as `FULFILL` or `BROKER`.
+    3. Reservation/availability semantics are documented well enough for future order allocation work.
+  - **Validation commands:** `cd backend && python manage.py test tenant_apps.inquiries apps.system apps.core`; `cd backend && python manage.py makemigrations --check`
+  - **Tenant/RLS impact:** High
+  - **Secrets/infra impact:** None
+  - **Risk level:** High
+  - **Rollback:** Revert routing service and additive schema together, leaving inquiries in manual-triage mode.
+  - **Completion evidence destination:** `.github/MASTER_PLAN.md`
+
+- [ ] **CTE-01.4 live-inquiry-alerting-and-operator-review-queue**
+  - **Status:** Blocked
+  - **Why now:** Operators need immediate visibility into new inquiries and route decisions before the automated cascade becomes trustworthy.
+  - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 16 / Epic 1
+  - **Scope:** Add real-time or near-real-time operator alerting for new inquiries and route outcomes using existing notification/live-update patterns, plus an inquiry review queue surface for action-required demand.
+  - **Non-goals:** No supplier/customer/carrier approvals yet.
+  - **Primary domain:** frontend/backend notifications
+  - **Likely touched paths:** `backend/tenant_apps/workflows/models.py`, `backend/tenant_apps/inquiries/`, `frontend/src/pages/Inquiries.tsx`, notification services/components, related tests
+  - **Dependencies:** CTE-01.3
+  - **Blockers:** CTE-01.3
+  - **Acceptance criteria:** New inquiries surface an operator-visible “Action Required” alert and a linked review surface without cross-tenant leakage.
+  - **Validation commands:** `cd backend && python manage.py test tenant_apps.inquiries tenant_apps.workflows`; `npm -C frontend run verify-standards`; `npm -C frontend run test:ci`
+  - **Tenant/RLS impact:** High
+  - **Secrets/infra impact:** None
+  - **Risk level:** Medium
+  - **Rollback:** Revert alerting/UI changes and keep inquiry creation/routing intact.
+  - **Completion evidence destination:** `.github/MASTER_PLAN.md`
+
+### Epic CTE-02 - Brokerage / RFQ Engine (Branch A)
+
+- [ ] **CTE-02.1 supplier-match-engine-for-broker-route**
+  - **Status:** Blocked
+  - **Why now:** Brokered inquiries need a deterministic supplier target list before any outbound RFQ can be generated.
+  - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 16 / Epic 2
+  - **Scope:** Build the supplier-match service that takes a broker-routed inquiry and returns eligible suppliers based on master product/protein, tenant-safe supplier data, and any required commercial filters.
+  - **Non-goals:** No outbound email yet.
+  - **Primary domain:** backend/matching
+  - **Likely touched paths:** `backend/tenant_apps/inquiries/`, `backend/tenant_apps/suppliers/`, `backend/apps/system/models/product.py`, new matching service/tests
+  - **Dependencies:** CTE-01.4
+  - **Blockers:** CTE-01.4
+  - **Acceptance criteria:** Broker-routed inquiries can produce a deterministic supplier candidate list keyed to the master product/protein contract.
+  - **Validation commands:** `cd backend && python manage.py test tenant_apps.inquiries tenant_apps.suppliers apps.system`
+  - **Tenant/RLS impact:** High
+  - **Secrets/infra impact:** None
+  - **Risk level:** Medium
+  - **Rollback:** Revert supplier matching service only; broker inquiries remain manually sourced.
+  - **Completion evidence destination:** `.github/MASTER_PLAN.md`
+
+- [ ] **CTE-02.2 outbound-supplier-rfq-email-service-and-audit-log**
+  - **Status:** Blocked
+  - **Why now:** Once suppliers are matched, the engine needs a canonical outbound RFQ send path and audit trail rather than ad hoc emails.
+  - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 16 / Epic 2
+  - **Scope:** Implement the outbound supplier RFQ email service for brokered inquiries, persist send/audit records, and tie outbound messages to the inquiry/state machine.
+  - **Non-goals:** No reply parsing yet.
+  - **Primary domain:** backend/integrations
+  - **Likely touched paths:** `backend/tenant_apps/ai_assistant/swarm/executor.py`, `backend/apps/email_integration/`, `backend/apps/integrations/`, `backend/tenant_apps/inquiries/`, related tests
+  - **Dependencies:** CTE-02.1
+  - **Blockers:** CTE-02.1
+  - **Acceptance criteria:** The engine can send RFQs to matched suppliers and persist enough audit metadata to correlate future replies back to the inquiry.
+  - **Validation commands:** `cd backend && python manage.py test apps.integrations apps.email_integration tenant_apps.inquiries tenant_apps.ai_assistant`
+  - **Tenant/RLS impact:** High
+  - **Secrets/infra impact:** Medium
+  - **Risk level:** High
+  - **Rollback:** Disable RFQ send path and retain the audit log for operator replay before reverting integration code.
+  - **Completion evidence destination:** `.github/MASTER_PLAN.md`
+
+- [ ] **CTE-02.3 structured-supplier-reply-parser-and-quote-normalization**
+  - **Status:** Blocked
+  - **Why now:** Supplier replies need deterministic quote extraction before any draft purchase order can be created safely.
+  - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 16 / Epic 2
+  - **Scope:** Enhance inbound reply parsing to use OpenAI structured outputs for supplier quote replies, normalize affirmative/price/quantity/lead-time data, and tie parsed quotes back to the originating inquiry/RFQ.
+  - **Non-goals:** No auto-approval or outbound PO send.
+  - **Primary domain:** backend/ai/integrations
+  - **Likely touched paths:** `backend/apps/integrations/{signals.py,models.py}`, `backend/tenant_apps/integrations/services/email_ingestion.py`, `backend/tenant_apps/ai_assistant/`, `backend/tenant_apps/inquiries/`, tests
+  - **Dependencies:** CTE-02.2
+  - **Blockers:** CTE-02.2
+  - **Acceptance criteria:** Supplier replies can be normalized into quote payloads with explicit confidence/error states and no freeform draft-order guessing.
+  - **Validation commands:** `cd backend && python manage.py test apps.integrations tenant_apps.integrations tenant_apps.ai_assistant tenant_apps.inquiries`
+  - **Tenant/RLS impact:** High
+  - **Secrets/infra impact:** Medium
+  - **Risk level:** High
+  - **Rollback:** Disable supplier-reply automation and preserve normalized quote journals/source-email lineage for manual review.
+  - **Completion evidence destination:** `.github/MASTER_PLAN.md`
+
+- [ ] **CTE-02.4 draft-supplier-purchase-order-generation-from-quotes**
+  - **Status:** Blocked
+  - **Why now:** Normalized quotes should create trader-reviewable supplier POs instead of forcing manual re-entry.
+  - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 16 / Epic 2
+  - **Scope:** Generate draft `PurchaseOrder` records from accepted/qualifying supplier quote replies, persist linkage back to the originating inquiry and quote payload, and move the new order into the approval flow rather than sending it externally.
+  - **Non-goals:** No automatic supplier send; no sales-order generation yet.
+  - **Primary domain:** backend/orders
+  - **Likely touched paths:** `backend/tenant_apps/purchase_orders/`, `backend/tenant_apps/inquiries/`, `backend/apps/integrations/`, additive tests/migrations if needed
+  - **Dependencies:** CTE-02.3
+  - **Blockers:** CTE-02.3
+  - **Acceptance criteria:** Supplier quote replies can create draft `PurchaseOrder` rows with exact inquiry/source linkage and explicit pending-review state.
+  - **Validation commands:** `cd backend && python manage.py test tenant_apps.purchase_orders tenant_apps.inquiries apps.integrations`; `cd backend && python manage.py makemigrations --check`
+  - **Tenant/RLS impact:** High
+  - **Secrets/infra impact:** None
+  - **Risk level:** High
+  - **Rollback:** Revert draft-order generation and preserve quote journals for manual PO creation.
+  - **Completion evidence destination:** `.github/MASTER_PLAN.md`
+
+### Epic CTE-03 - Human-in-the-loop approval flow
+
+- [ ] **CTE-03.1 generic-order-approval-state-machine-contract**
+  - **Status:** Blocked
+  - **Why now:** Supplier, sales, and carrier documents need one explicit approval lifecycle before PDF generation and outbound sends can be safely automated.
+  - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 16 / Epic 3
+  - **Scope:** Design and implement the generic approval-state contract that maps `PurchaseOrder`, `SalesOrder`, and `CarrierPurchaseOrder` onto `draft` -> `pending_review` -> `approved`, including transition auditability and compatibility with existing status enums.
+  - **Non-goals:** No review UI yet.
+  - **Primary domain:** backend/state machine
+  - **Likely touched paths:** `backend/tenant_apps/{purchase_orders,sales_orders}/models.py`, shared approval service/state module, serializers/tests, additive migrations if needed
+  - **Dependencies:** CTE-02.4
+  - **Blockers:** CTE-02.4
+  - **Acceptance criteria:** One shared approval contract exists for all three commercial document types without breaking existing order APIs.
+  - **Validation commands:** `cd backend && python manage.py test tenant_apps.purchase_orders tenant_apps.sales_orders`; `cd backend && python manage.py makemigrations --check`
+  - **Tenant/RLS impact:** High
+  - **Secrets/infra impact:** None
+  - **Risk level:** High
+  - **Rollback:** Revert approval contract/service and keep document creation in draft/manual status.
+  - **Completion evidence destination:** `.github/MASTER_PLAN.md`
+
+- [ ] **CTE-03.2 supplier-po-review-and-approve-screen**
+  - **Status:** Blocked
+  - **Why now:** Traders need a purpose-built review surface to inspect draft supplier POs before the engine commits externally.
+  - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 16 / Epic 3
+  - **Scope:** Build the supplier-PO review/approve UI and API flow that surfaces draft source data, inquiry lineage, parsed quote details, and approval actions on top of the generic approval contract.
+  - **Non-goals:** No sales-order or carrier approval screens yet.
+  - **Primary domain:** frontend/backend
+  - **Likely touched paths:** `frontend/src/pages/` trading/order review surfaces, `frontend/src/services/`, `backend/tenant_apps/purchase_orders/{views.py,serializers.py,tests.py}`, related navigation/tests
+  - **Dependencies:** CTE-03.1
+  - **Blockers:** CTE-03.1
+  - **Acceptance criteria:** Operators can review and approve a draft supplier PO from a dedicated screen without touching generic editor/workflow builder UI.
+  - **Validation commands:** `cd backend && python manage.py test tenant_apps.purchase_orders`; `npm -C frontend run verify-standards`; `npm -C frontend run test:ci`
+  - **Tenant/RLS impact:** High
+  - **Secrets/infra impact:** None
+  - **Risk level:** Medium
+  - **Rollback:** Revert the review UI/API and preserve draft orders plus approval metadata.
+  - **Completion evidence destination:** `.github/MASTER_PLAN.md`
+
+- [ ] **CTE-03.3 supplier-po-approved-pdf-generation-and-email-send**
+  - **Status:** Blocked
+  - **Why now:** Supplier PO approval should eliminate document busywork and send the approved commitment immediately through a deterministic side-effect path.
+  - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 16 / Epic 3
+  - **Scope:** Tie `PurchaseOrder` approval transitions to PDF generation and supplier outbound email, making both side effects idempotent, auditable, and driven by explicit approved-state changes rather than ad hoc UI actions.
+  - **Non-goals:** No customer/carrier sends yet.
+  - **Primary domain:** backend/documents/integrations
+  - **Likely touched paths:** `backend/tenant_apps/purchase_orders/`, `backend/tenant_apps/workflows/services/action_executor.py`, document-generation services, email send services, related tests
+  - **Dependencies:** CTE-03.2
+  - **Blockers:** CTE-03.2
+  - **Acceptance criteria:**
+    1. Approving a supplier PO generates the approved PDF exactly once.
+    2. The supplier email send is tied to the same approval transition and persists audit/send evidence.
+    3. Repeated approval clicks or retries do not duplicate sends/documents.
+  - **Validation commands:** `cd backend && python manage.py test tenant_apps.purchase_orders tenant_apps.workflows apps.integrations`; `cd backend && python manage.py makemigrations --check`
+  - **Tenant/RLS impact:** High
+  - **Secrets/infra impact:** Medium
+  - **Risk level:** High
+  - **Rollback:** Disable approval side effects first, preserving approved-state data and audit logs before reverting PDF/email code.
+  - **Completion evidence destination:** `.github/MASTER_PLAN.md`
+
+### Epic CTE-04 - Sales & logistics cascade
+
+- [ ] **CTE-04.1 draft-sales-order-generation-from-fulfill-or-approved-source**
+  - **Status:** Blocked
+  - **Why now:** The engine needs one deterministic way to create draft sales orders either directly from `FULFILL` inquiries or from approved supplier sourcing.
+  - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 16 / Epic 4
+  - **Scope:** Auto-generate draft `SalesOrder` rows from either (a) direct `FULFILL` inquiry routing or (b) approved supplier POs, persisting route/source lineage and avoiding duplicate sales-order creation.
+  - **Non-goals:** No customer send yet.
+  - **Primary domain:** backend/orders
+  - **Likely touched paths:** `backend/tenant_apps/inquiries/`, `backend/tenant_apps/sales_orders/`, `backend/tenant_apps/purchase_orders/`, related tests
+  - **Dependencies:** CTE-03.3
+  - **Blockers:** CTE-03.3
+  - **Acceptance criteria:** A single draft `SalesOrder` creation path exists for both happy-path branches, with explicit source linkage back to inquiry and/or supplier PO.
+  - **Validation commands:** `cd backend && python manage.py test tenant_apps.sales_orders tenant_apps.purchase_orders tenant_apps.inquiries`; `cd backend && python manage.py makemigrations --check`
+  - **Tenant/RLS impact:** High
+  - **Secrets/infra impact:** None
+  - **Risk level:** High
+  - **Rollback:** Revert draft sales-order generation and preserve upstream inquiry/supplier-PO approvals.
+  - **Completion evidence destination:** `.github/MASTER_PLAN.md`
+
+- [ ] **CTE-04.2 sales-order-approval-pdf-and-customer-email**
+  - **Status:** Blocked
+  - **Why now:** Customer-facing commitments need the same approval/PDF/email rigor as supplier POs before the engine can claim end-to-end automation.
+  - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 16 / Epic 4
+  - **Scope:** Extend the generic approval flow to `SalesOrder`, build the customer review/approve/send path, and tie customer-facing PDF generation plus outbound email to the approved sales-order transition.
+  - **Non-goals:** No carrier RFQ yet.
+  - **Primary domain:** frontend/backend/documents
+  - **Likely touched paths:** `backend/tenant_apps/sales_orders/`, document-generation/email services, customer-facing review UI/services/tests
+  - **Dependencies:** CTE-04.1
+  - **Blockers:** CTE-04.1
+  - **Acceptance criteria:** Sales-order approval generates the customer PDF/email exactly once and keeps explicit audit/send history tied to the approved order.
+  - **Validation commands:** `cd backend && python manage.py test tenant_apps.sales_orders apps.integrations tenant_apps.workflows`; `npm -C frontend run verify-standards`; `npm -C frontend run test:ci`
+  - **Tenant/RLS impact:** High
+  - **Secrets/infra impact:** Medium
+  - **Risk level:** High
+  - **Rollback:** Disable sales-order approval side effects before reverting state/UI changes.
+  - **Completion evidence destination:** `.github/MASTER_PLAN.md`
+
+- [ ] **CTE-04.3 carrier-rfq-match-and-outbound-freight-inquiry**
+  - **Status:** Blocked
+  - **Why now:** Once the commercial trade is approved, logistics procurement needs the same deterministic RFQ fan-out for carriers.
+  - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 16 / Epic 4
+  - **Scope:** Match carriers/logistics providers for approved sales/order lanes and send outbound freight inquiry RFQs tied to the source sales order and/or supplier PO.
+  - **Non-goals:** No carrier reply parsing yet.
+  - **Primary domain:** backend/logistics/integrations
+  - **Likely touched paths:** `backend/tenant_apps/carriers/`, `backend/tenant_apps/purchase_orders/`, `backend/tenant_apps/sales_orders/`, outbound email services/tests
+  - **Dependencies:** CTE-04.2
+  - **Blockers:** CTE-04.2
+  - **Acceptance criteria:** Approved trades can generate auditable outbound carrier RFQs with explicit source-order linkage and recipient selection rules.
+  - **Validation commands:** `cd backend && python manage.py test tenant_apps.purchase_orders tenant_apps.sales_orders tenant_apps.carriers apps.integrations`
+  - **Tenant/RLS impact:** High
+  - **Secrets/infra impact:** Medium
+  - **Risk level:** Medium
+  - **Rollback:** Disable carrier RFQ send path and retain source-order linkage for manual logistics handling.
+  - **Completion evidence destination:** `.github/MASTER_PLAN.md`
+
+- [ ] **CTE-04.4 structured-carrier-reply-parser-and-draft-carrier-po**
+  - **Status:** Blocked
+  - **Why now:** Carrier responses need to become draft logistics commitments instead of staying trapped in unstructured inbox replies.
+  - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 16 / Epic 4
+  - **Scope:** Parse carrier replies with OpenAI structured outputs, normalize freight quote/acceptance data, and generate draft `CarrierPurchaseOrder` rows linked to the originating trade documents.
+  - **Non-goals:** No auto-approval or auto-dispatch.
+  - **Primary domain:** backend/ai/logistics
+  - **Likely touched paths:** `backend/apps/integrations/`, `backend/tenant_apps/purchase_orders/`, `backend/tenant_apps/ai_assistant/`, `backend/tenant_apps/carriers/`, tests
+  - **Dependencies:** CTE-04.3
+  - **Blockers:** CTE-04.3
+  - **Acceptance criteria:** Positive carrier replies can create draft `CarrierPurchaseOrder` rows with source-order lineage and explicit confidence/error handling.
+  - **Validation commands:** `cd backend && python manage.py test tenant_apps.purchase_orders tenant_apps.carriers tenant_apps.ai_assistant apps.integrations`; `cd backend && python manage.py makemigrations --check`
+  - **Tenant/RLS impact:** High
+  - **Secrets/infra impact:** Medium
+  - **Risk level:** High
+  - **Rollback:** Disable carrier-reply automation and preserve normalized freight quotes/source-email journals for manual carrier PO creation.
+  - **Completion evidence destination:** `.github/MASTER_PLAN.md`
+
+- [ ] **CTE-04.5 hardcoded-happy-path-orchestrator-and-end-to-end-regressions**
+  - **Status:** Blocked
+  - **Why now:** The final value of Phase 16 is the deterministic end-to-end happy path, not a collection of isolated document generators.
+  - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 16 / Epic 4
+  - **Scope:** Wire the hardcoded state-machine orchestrator across inquiry routing, sourcing, approval, sales, and logistics; add end-to-end regression coverage and operator audit surfaces proving the happy path is traceable from source inquiry to downstream commercial documents.
+  - **Non-goals:** No visual editor mapping yet.
+  - **Primary domain:** backend/frontend integration
+  - **Likely touched paths:** orchestration services across `tenant_apps/inquiries`, `tenant_apps/purchase_orders`, `tenant_apps/sales_orders`, notification/review UI surfaces, end-to-end tests, `MASTER_PLAN.md`
+  - **Dependencies:** CTE-04.4
+  - **Blockers:** CTE-04.4
+  - **Acceptance criteria:**
+    1. The hardcoded happy path runs deterministically for both `FULFILL` and `BROKER` branches.
+    2. Operators can trace the inquiry -> supplier PO -> sales order -> carrier PO chain in one coherent audit path.
+    3. The system is ready for a later visual editor to map onto the same state machine instead of inventing separate runtime logic.
+  - **Validation commands:** `bash scripts/verify_golden_state.sh`; `cd backend && python manage.py test tenant_apps.inquiries tenant_apps.purchase_orders tenant_apps.sales_orders apps.integrations tenant_apps.ai_assistant`; `npm -C frontend run verify-standards`; `npm -C frontend run test:ci`
+  - **Tenant/RLS impact:** High
+  - **Secrets/infra impact:** Medium
+  - **Risk level:** High
+  - **Rollback:** Disable orchestration entrypoints first and keep all existing document models/audit history intact while reverting the hardcoded engine wiring.
+  - **Completion evidence destination:** `.github/MASTER_PLAN.md`
+
+### Epic CTE-05 - Trade lineage & traceability
+
+- [ ] **CTE-05.1 trade-session-lineage-contract-and-schema**
+  - **Status:** Blocked
+  - **Why now:** Without a durable lineage identifier, operators cannot prove which inquiry or inbound email spawned a downstream supplier/sales/carrier document.
+  - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 16 / 16b / Epic 5
+  - **Scope:** Design and add the canonical `trade_id` / `TradeSession` lineage contract generated at inquiry creation and cascaded into `PurchaseOrder`, `SalesOrder`, and `CarrierPurchaseOrder`, including source-email linkage fields and additive schema rules.
+  - **Non-goals:** No lineage UI yet.
+  - **Primary domain:** backend/contracts
+  - **Likely touched paths:** `backend/tenant_apps/inquiries/`, `backend/tenant_apps/purchase_orders/`, `backend/tenant_apps/sales_orders/`, `backend/apps/integrations/`, additive migrations/tests, `manifests/RLS_POLICIES.md`
+  - **Dependencies:** CTE-04.5
+  - **Blockers:** CTE-04.5
+  - **Acceptance criteria:**
+    1. A durable lineage key exists at the inquiry root and can be followed across downstream commercial documents.
+    2. Lineage preserves enough source-email provenance to answer which inbound message initiated the trade.
+    3. The schema is additive and tenant-safe.
+  - **Validation commands:** `cd backend && python manage.py test tenant_apps.inquiries tenant_apps.purchase_orders tenant_apps.sales_orders apps.integrations`; `cd backend && python manage.py makemigrations --check`
+  - **Tenant/RLS impact:** High
+  - **Secrets/infra impact:** None
+  - **Risk level:** High
+  - **Rollback:** Revert additive lineage schema together and preserve existing inquiry/order links.
+  - **Completion evidence destination:** `.github/MASTER_PLAN.md`
+
+- [ ] **CTE-05.2 trade-lineage-visualization-on-detail-surfaces**
+  - **Status:** Blocked
+  - **Why now:** A lineage key only creates operator value when users can see the trade path and current state directly on detail pages.
+  - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 16 / 16b / Epic 5
+  - **Scope:** Build a lineage visualization component for relevant detail screens that renders inquiry -> supplier PO -> sales order -> carrier PO progression plus current state and exception markers.
+  - **Non-goals:** No new orchestration logic.
+  - **Primary domain:** frontend
+  - **Likely touched paths:** `frontend/src/pages/**/Detail*.tsx`, new lineage component(s), `frontend/src/services/`, supporting backend serializers/tests
+  - **Dependencies:** CTE-05.1
+  - **Blockers:** CTE-05.1
+  - **Acceptance criteria:** Operators can open a downstream document and see the complete trade lineage and current workflow state without log-diving.
+  - **Validation commands:** `npm -C frontend run verify-standards`; `npm -C frontend run test:ci`; `cd backend && python manage.py test tenant_apps.purchase_orders tenant_apps.sales_orders`
+  - **Tenant/RLS impact:** Medium
+  - **Secrets/infra impact:** None
+  - **Risk level:** Medium
+  - **Rollback:** Revert lineage UI/serializer additions while preserving the backend lineage data.
+  - **Completion evidence destination:** `.github/MASTER_PLAN.md`
+
+### Epic CTE-06 - Event-driven state transitions (Saga Pattern)
+
+- [ ] **CTE-06.1 domain-event-contract-for-approved-trade-transitions**
+  - **Status:** Blocked
+  - **Why now:** The happy path is currently planned as deterministic, but downstream state changes will timeout or partially fail if approval side effects stay synchronous.
+  - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 16 / 16b / Epic 6
+  - **Scope:** Define the domain-event contract for trade-state transitions (e.g. `supplier_po_approved`, `sales_order_approved`, `carrier_po_drafted`) with event payload shape, replay/idempotency semantics, and routing rules.
+  - **Non-goals:** No Celery consumers yet.
+  - **Primary domain:** backend/contracts
+  - **Likely touched paths:** new event contract module/service under `backend/apps/core/` or `backend/tenant_apps/`, order/inquiry services/tests, `MASTER_PLAN.md`
+  - **Dependencies:** CTE-05.2
+  - **Blockers:** CTE-05.2
+  - **Acceptance criteria:** A single explicit event contract exists for approval-driven downstream state transitions, including payload lineage and retry expectations.
+  - **Validation commands:** `cd backend && python manage.py test tenant_apps.purchase_orders tenant_apps.sales_orders apps.core`
+  - **Tenant/RLS impact:** High
+  - **Secrets/infra impact:** None
+  - **Risk level:** High
+  - **Rollback:** Revert event-contract scaffolding only; synchronous/manual behavior remains intact.
+  - **Completion evidence destination:** `.github/MASTER_PLAN.md`
+
+- [ ] **CTE-06.2 celery-saga-consumers-for-trade-side-effects**
+  - **Status:** Blocked
+  - **Why now:** PDF generation, outbound email, and downstream entity creation must move off the request thread into reliable asynchronous consumers.
+  - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 16 / 16b / Epic 6
+  - **Scope:** Implement Celery/Saga consumers that react to approved-state domain events and perform downstream work such as generating sales orders, blasting PDFs/emails, and progressing logistics state.
+  - **Non-goals:** No exception dashboard yet.
+  - **Primary domain:** backend/async
+  - **Likely touched paths:** `backend/projectmeats/celery.py`, `backend/tenant_apps/**/tasks.py`, order/inquiry transition services, document/email services, tests
+  - **Dependencies:** CTE-06.1
+  - **Blockers:** CTE-06.1
+  - **Acceptance criteria:**
+    1. Approved trade transitions publish events that Celery workers consume asynchronously.
+    2. Downstream PDF/email/entity-creation work no longer depends on one HTTP request finishing end-to-end.
+    3. Retry behavior is explicit and replay-safe.
+  - **Validation commands:** `cd backend && python manage.py test tenant_apps.purchase_orders tenant_apps.sales_orders apps.integrations tenant_apps.workflows`; `bash scripts/verify_golden_state.sh`
+  - **Tenant/RLS impact:** High
+  - **Secrets/infra impact:** Medium
+  - **Risk level:** High
+  - **Rollback:** Disable Celery event consumers first and preserve published event/audit records before reverting saga wiring.
+  - **Completion evidence destination:** `.github/MASTER_PLAN.md`
+
+### Epic CTE-07 - Concurrency locks & idempotency
+
+- [ ] **CTE-07.1 select-for-update-transition-locking**
+  - **Status:** Blocked
+  - **Why now:** Double-click approvals and concurrent workers can create duplicate downstream transitions unless state mutations take row-level locks.
+  - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 16 / 16b / Epic 7
+  - **Scope:** Move order/inquiry approval and transition mutations into transactional services that use `select_for_update()` and explicit guard clauses before emitting events or creating downstream documents.
+  - **Non-goals:** No idempotency-key API contract yet.
+  - **Primary domain:** backend/concurrency
+  - **Likely touched paths:** `backend/tenant_apps/{purchase_orders,sales_orders,inquiries}/views.py`, shared transition services, tests
+  - **Dependencies:** CTE-06.2
+  - **Blockers:** CTE-06.2
+  - **Acceptance criteria:** Trade-state mutation paths explicitly use `select_for_update()` and cannot create duplicate downstream transitions under concurrent calls.
+  - **Validation commands:** `cd backend && python manage.py test tenant_apps.purchase_orders tenant_apps.sales_orders tenant_apps.inquiries`
+  - **Tenant/RLS impact:** High
+  - **Secrets/infra impact:** None
+  - **Risk level:** High
+  - **Rollback:** Revert locking/service-layer changes while preserving additive event contracts and lineage data.
+  - **Completion evidence destination:** `.github/MASTER_PLAN.md`
+
+- [ ] **CTE-07.2 idempotency-key-enforcement-on-ai-and-webhook-creators**
+  - **Status:** Blocked
+  - **Why now:** AI retries, supplier/carrier email replays, and webhook duplication must not create multiple sales orders, carrier POs, or repeated sends.
+  - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 16 / 16b / Epic 7
+  - **Scope:** Add `idempotency_key` requirements/enforcement to AI-to-database creation endpoints, inbound automation hooks, and event-consumer create paths for downstream trade artifacts.
+  - **Non-goals:** No operator intervention queue yet.
+  - **Primary domain:** backend/idempotency
+  - **Likely touched paths:** `backend/apps/integrations/`, `backend/tenant_apps/ai_assistant/`, `backend/tenant_apps/{inquiries,purchase_orders,sales_orders}/`, additive schema/tests if needed
+  - **Dependencies:** CTE-07.1
+  - **Blockers:** CTE-07.1
+  - **Acceptance criteria:** All AI/webhook-driven trade-creation paths enforce `idempotency_key` semantics and safely treat retries as replays rather than new creations.
+  - **Validation commands:** `cd backend && python manage.py test apps.integrations tenant_apps.ai_assistant tenant_apps.inquiries tenant_apps.purchase_orders tenant_apps.sales_orders`; `cd backend && python manage.py makemigrations --check`
+  - **Tenant/RLS impact:** High
+  - **Secrets/infra impact:** None
+  - **Risk level:** High
+  - **Rollback:** Disable idempotent create-path enforcement only after preserving replay keys/audit data needed to reconcile duplicates.
+  - **Completion evidence destination:** `.github/MASTER_PLAN.md`
+
+### Epic CTE-08 - Exception control tower (Dead Letter Queue)
+
+- [ ] **CTE-08.1 exception-queue-model-and-trade-halt-contract**
+  - **Status:** Blocked
+  - **Why now:** Failed async steps currently risk stalling the trade silently unless the engine has a first-class dead-letter model and halt semantics.
+  - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 16 / 16b / Epic 8
+  - **Scope:** Add an `ExceptionQueue`/dead-letter model with trade-lineage linkage, failure reason codes, halt state, retry metadata, and ownership semantics for automated trade-step failures.
+  - **Non-goals:** No dashboard UI yet.
+  - **Primary domain:** backend/ops
+  - **Likely touched paths:** new model/service under `backend/tenant_apps/` or `backend/apps/core/`, additive migrations, order/inquiry async services/tests, `manifests/RLS_POLICIES.md`
+  - **Dependencies:** CTE-07.2
+  - **Blockers:** CTE-07.2
+  - **Acceptance criteria:** Any failed automated trade step can create an exception-queue row, halt the affected trade/session, and preserve lineage plus recovery context.
+  - **Validation commands:** `cd backend && python manage.py test apps.core tenant_apps.inquiries tenant_apps.purchase_orders tenant_apps.sales_orders`; `cd backend && python manage.py makemigrations --check`
+  - **Tenant/RLS impact:** High
+  - **Secrets/infra impact:** None
+  - **Risk level:** High
+  - **Rollback:** Revert additive exception-queue schema and leave failed trades in manual investigation mode.
+  - **Completion evidence destination:** `.github/MASTER_PLAN.md`
+
+- [ ] **CTE-08.2 trades-requiring-intervention-dashboard**
+  - **Status:** Blocked
+  - **Why now:** Operators need a dedicated control tower to see halted trades, understand failure causes, and recover them without database spelunking.
+  - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 16 / 16b / Epic 8
+  - **Scope:** Build the “Trades Requiring Intervention” dashboard and supporting APIs, surfacing exception-queue entries, lineage context, current trade state, and operator recovery affordances.
+  - **Non-goals:** No automated self-healing beyond explicit retry/requeue controls.
+  - **Primary domain:** frontend/backend operations
+  - **Likely touched paths:** new frontend dashboard page/components, supporting backend serializers/views/services, notification hooks, tests
+  - **Dependencies:** CTE-08.1
+  - **Blockers:** CTE-08.1
+  - **Acceptance criteria:** Failed automated trade steps become visible in a dedicated operator dashboard with actionable lineage and intervention context.
+  - **Validation commands:** `cd backend && python manage.py test apps.core tenant_apps.inquiries tenant_apps.purchase_orders tenant_apps.sales_orders`; `npm -C frontend run verify-standards`; `npm -C frontend run test:ci`
+  - **Tenant/RLS impact:** High
+  - **Secrets/infra impact:** None
+  - **Risk level:** Medium
+  - **Rollback:** Revert the dashboard/UI/API while preserving exception-queue data for manual recovery.
+  - **Completion evidence destination:** `.github/MASTER_PLAN.md`

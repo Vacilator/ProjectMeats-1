@@ -1,8 +1,8 @@
 # MASTER_PLAN.md (Canonical)
 
 **Status**: 🔄 Living document (canonical source of truth)  
-**Last Updated**: 2026-05-01  
-**Primary Focus**: Phase 14 execution remains active; Phase 15 B2B Network planning is now sealed  
+**Last Updated**: 2026-05-04  
+**Primary Focus**: Phase 14 execution remains active; Phase 15 B2B Network planning and Phase 16 Core Trading Engine planning are sealed  
 
 This file is the **canonical plan + current truth snapshot**.
 - **PR execution log (append-only):** `.github/MASTER_PLAN.md`
@@ -18,6 +18,7 @@ This file is the **canonical plan + current truth snapshot**.
 - **Strategic enterprise audit is now complete:** the repo has a fresh baseline in `GAP_ANALYSIS_REPORT.md`, `STRATEGIC_BLUEPRINT.md`, `.github/TECH_DEBT_REGISTER.md`, `.github/SDLC_PROTOCOLS.md`, and `.github/EPIC_TICKETS.md`. Those files translate the current gap analysis into execution-ordered, machine-readable work without replacing this canonical plan.
 - **Phase 14 execution is advancing:** `GA-03.2 seven-year-archive-command` is now implemented in PR #4823, adding the dry-run-first archive command, tenant-safe archive evidence tables with RLS, active legal-hold enforcement, and the refreshed retention runbook/guardrails; `GA-03.3 pii-redaction-for-logging-and-sentry` remains blocked until that PR merges to `development`.
 - **Phase 15 planning is now complete:** the B2B Network epics are appended to the bottom of `.github/EPIC_TICKETS.md` and documented below as the sealed next-layer architecture for partner portals, trade invariants, and settlement automation. This is planning-only; Phase 14 remains the active execution lane.
+- **Phase 16 planning is now complete:** the Core Trading Engine happy-path state machine plus distributed hardening epics are documented below and translated into atomic blocked tickets at the bottom of `.github/EPIC_TICKETS.md`. This is planning-only; Phase 14 remains the active execution lane and Phase 15/16 both stay blocked behind higher-priority unchecked work.
 - **AI email/document lane** is now fail-closed through Graph attachment ingest and parser lifecycle hardening: tabular uploads parse safely, Outlook attachments bridge into `AIDocument`, unsupported attachment kinds are rejected pre-download, repeated same-session ingests dedupe with provenance, AI sessions are tenant-bound, attachment ingest requires a session-staged allowlist from `fetch_emails`, and `parse_document` now persists explicit processing/completed/failed metadata while raising structured parser/auth/unreachable errors.
 - **Newly shipped since last snapshot (evidence; see `.github/MASTER_PLAN.md`)**:
   - Phase 14 governance contract: added the authoritative `docs/runbooks/DATA_RETENTION.md` runbook and `backend/apps/core/services/data_governance.py` policy module, defining the 7-year transactional archive inventory, explicit exemptions, future legal-hold shape, archive-restore expectations, and operator evidence contract without shipping archive automation; registered the retention contract in `manifests/GOLDEN_FILES.md` and enforced it through the golden-state validator plus focused backend tests (PR #4822).
@@ -296,6 +297,120 @@ Extend ProjectMeats from an internal ERP into a partner-facing B2B network with 
 ## ARCHITECTURE SEALED
 
 **Planning conclusion only:** the target Phase 15 B2B Network architecture is now frozen for planning and backlog decomposition. This seals the intended seams for partner access, deterministic trade conversion/time handling, and settlement automation. It does **not** mean Phase 15 is implemented, shipped, or execution-complete. Current execution priority remains Phase 14 and its named prerequisites.
+
+## Phase 16: The Core Trading Engine (End-to-End Automation)
+
+### Goal
+Hardcode the exact happy-path B2B trading pipeline around Inquiry intake, routing, sourcing, approval, sales, and logistics so the core trading engine works deterministically before any future visual editor is mapped onto it.
+
+### Architecture status
+- **Execution status:** planned only, not started.
+- **Backlog placement:** appended to the bottom of `.github/EPIC_TICKETS.md` after existing higher-priority phases so the current GA lane keeps priority.
+- **Execution order once unblocked:** inquiry intake/routing first, then supplier RFQ brokerage, then approval/PDF/email side effects, then sales/logistics cascade, then distributed hardening/lineage.
+- **Current repo reality:** `Inquiry`, `PurchaseOrder`, `SalesOrder`, and `CarrierPurchaseOrder` already exist; AI email ingestion and outbound/PDF seams exist in partial form; there is no true inventory source-of-truth model yet.
+
+### Deliverables + expected results
+1. **Ingestion & decision node**
+   - AI email extraction creates or updates a tenant-safe `Inquiry` and classifies the route as `FULFILL` or `BROKER`.
+   - Operators get an immediate action-required alert when a new inquiry enters the pipeline.
+2. **Brokerage / RFQ engine**
+   - `BROKER` inquiries fan out into supplier RFQs matched by master product/protein, and supplier replies are parsed into normalized quote payloads.
+   - Positive quote replies produce draft supplier purchase orders instead of manual re-keying.
+3. **Human-in-the-loop approvals**
+   - Purchase orders, sales orders, and carrier purchase orders share one explicit approval lifecycle (`draft` -> `pending_review` -> `approved`) even if their storage/status fields differ internally.
+   - Approval transitions trigger PDF generation and outbound email exactly once, with audit-safe linkage to the approved document.
+4. **Sales & logistics cascade**
+   - `FULFILL` inquiries skip supplier brokerage and go straight to draft sales order creation.
+   - Approved supplier sourcing or direct fulfillment cascades into sales-order approval, customer send, carrier RFQ, and draft carrier PO generation.
+
+### Epic breakdown
+
+#### Epic 1: The Ingestion & Decision Node
+- **Business value:** turns inbound customer demand into a deterministic trade path immediately instead of leaving operators to triage email manually.
+- **Technical scope:** connect AI email ingestion to `Inquiry`, define inventory availability/routing as a first-class service, and surface live operator alerts.
+- **Guardrail:** do not pretend an inventory source-of-truth exists; define the availability contract explicitly before automating `FULFILL`.
+
+#### Epic 2: The Brokerage / RFQ Engine (Branch A)
+- **Business value:** automates the supplier-quote loop for brokered trades while keeping AI output in draft/human-review states.
+- **Technical scope:** supplier matching by master product/protein, outbound RFQ email service, structured supplier-reply parsing, and draft `PurchaseOrder` creation.
+- **Guardrail:** use AI structured outputs and draft-only order creation; no auto-approved supplier commitments.
+
+#### Epic 3: The Human-in-the-Loop Approval Flow
+- **Business value:** keeps traders in control of commitments while removing document-generation and send busywork.
+- **Technical scope:** generic approval state machine, review/approve UI, and state-transition side effects for PDF generation and outbound email.
+- **Guardrail:** approval side effects must be transition-driven and idempotent; repeated clicks must not send duplicate documents.
+
+#### Epic 4: The Sales & Logistics Cascade
+- **Business value:** closes the happy path from inquiry to supplier/customer/carrier documents without manual orchestration.
+- **Technical scope:** draft `SalesOrder` generation, customer approval/send, carrier RFQ fan-out, carrier-reply parsing, and draft `CarrierPurchaseOrder` creation.
+- **Guardrail:** route-dependent branching must be explicit (`FULFILL` skips supplier branch; `BROKER` requires approved supplier sourcing first).
+
+### 16b: Distributed Hardening & Trade Lineage
+
+#### Epic 5: Trade Lineage & Traceability
+- **Business value:** every downstream commercial document can be traced back to the exact inbound demand and source-email origin, which is essential for trader trust, exception handling, and later analytics.
+- **Technical scope:** introduce a durable `trade_id` / `TradeSession` concept generated at inquiry creation, cascade it through `PurchaseOrder`, `SalesOrder`, and `CarrierPurchaseOrder`, and expose a lineage visualization on detail screens.
+- **Guardrail:** lineage must be additive and audit-safe; do not overload ad hoc `custom_data` blobs as the only source of truth.
+
+#### Epic 6: Event-Driven State Transitions (Saga Pattern)
+- **Business value:** removes brittle synchronous chaining so approvals and document-generation side effects can complete reliably without HTTP timeouts.
+- **Technical scope:** transition-driven event publishing (e.g. `supplier_po_approved`), Celery consumers for downstream state changes, and replay-safe saga orchestration across supplier/customer/carrier branches.
+- **Guardrail:** no approval click should synchronously block on PDF generation, outbound email, and downstream entity creation in one request/response cycle.
+
+#### Epic 7: Concurrency Locks & Idempotency
+- **Business value:** prevents double-clicks, webhook retries, or concurrent workers from creating duplicate sales orders, carrier POs, or sends.
+- **Technical scope:** transactional state-transition services using `select_for_update()`, explicit `idempotency_key` enforcement on AI/webhook creation paths, and uniqueness/replay guarantees for downstream artifacts.
+- **Guardrail:** locking and idempotency must be applied at the domain-transition boundary, not only in UI affordances.
+
+#### Epic 8: The Exception Control Tower (Dead Letter Queue)
+- **Business value:** failed automation becomes operator-visible instead of silently stalling trades in the background.
+- **Technical scope:** `ExceptionQueue`/dead-letter model, halt semantics on failed trade steps, and a “Trades Requiring Intervention” dashboard with reason codes and recovery context.
+- **Guardrail:** automation failures must fail loud with preserved lineage and recovery hints; no silent drop paths.
+
+### Acceptance criteria
+1. Phase 16 is represented consistently across `MASTER_PLAN.md`, `.github/MASTER_PLAN.md`, and `.github/EPIC_TICKETS.md`.
+2. Phase 16 is clearly marked as **planned only**; no wording implies the core trading engine is already shipped.
+3. The backlog continues to have exactly one first unchecked `Ready` ticket above Phase 16, and every Phase 16 ticket is explicitly blocked.
+4. Phase 16 tickets explicitly tie AI structured outputs, outbound email, and PDF generation to `PurchaseOrder`, `SalesOrder`, and `CarrierPurchaseOrder` state transitions.
+5. Phase 16 hardening tickets explicitly name Celery-driven saga transitions, `select_for_update()` locking, `idempotency_key` enforcement, and trade-lineage propagation.
+
+### Dependencies
+1. **Phase 14 remains first:** the active GA lane still owns execution priority.
+2. **Phase 15 trade invariants precede execution:** the deterministic trade/time contract from `B2B-02` should exist before the hardcoded trading engine starts mutating live order flows.
+3. **Existing model reuse is mandatory:** `Inquiry`, `PurchaseOrder`, `SalesOrder`, `CarrierPurchaseOrder`, `EmailLog`, and current AI/document/email seams should be extended, not replaced with parallel abstractions.
+4. **Inventory availability must be formalized:** because the repo lacks a dedicated inventory model, execution must first define the authoritative availability source and reservation semantics.
+5. **Distributed hardening follows happy-path definition:** lineage, eventing, idempotency, and exception-queue work must layer on the hardcoded state machine rather than introducing a second orchestration model.
+
+### Risk register + mitigations
+1. **No real inventory source-of-truth exists yet** (High x High)
+   - Mitigation: make availability contract design the first execution ticket; do not let routing logic infer inventory from ad hoc product hints.
+2. **AI misreads supplier/customer/carrier emails and creates wrong drafts** (High x High)
+   - Mitigation: use structured outputs, require draft-only creation, persist source-email lineage, and keep human approval before any external commitment.
+3. **Approval side effects send duplicate PDFs/emails** (High x High)
+   - Mitigation: tie side effects to idempotent state transitions and audit-safe send/document records instead of button-click handlers alone.
+4. **Planning language overstates readiness** (Medium x Medium)
+   - Mitigation: keep Phase 16 blocked beneath the active backlog and mark it planned-only everywhere.
+5. **Distributed race conditions create duplicate downstream documents** (High x High)
+   - Mitigation: use event-driven Celery consumers, transactional `select_for_update()` locks, and explicit `idempotency_key` enforcement at creation boundaries.
+6. **Failed async steps stall trades invisibly** (High x High)
+   - Mitigation: add an exception/dead-letter queue with trade-lineage references and operator-facing intervention surfaces.
+
+### Testing strategy
+1. **Docs/planning validation:** `bash scripts/verify_golden_state.sh` and `bash .github/scripts/check_infrastructure.sh`
+2. **Execution tickets for ingestion/routing:** targeted backend tests around `tenant_apps.inquiries`, `apps.integrations`, and `tenant_apps.ai_assistant`
+3. **Execution tickets for orders/logistics:** targeted tests for `tenant_apps.purchase_orders`, `tenant_apps.sales_orders`, `tenant_apps.carriers`, and associated API/UI surfaces
+4. **Execution tickets touching PDFs/email/notifications:** existing backend/frontend suites plus `python manage.py makemigrations --check` for additive schema work
+5. **Distributed hardening tickets:** targeted saga/event tests, concurrency/idempotency tests, and UI queue/lineage regressions proving failed async steps are surfaced.
+
+### Rollback / safe-change approach
+1. Keep each Phase 16 epic additive and independently reversible.
+2. Keep AI-created commercial documents in draft/pending-review states until explicit operator approval.
+3. Disable outbound email/PDF side effects before reverting order-state logic if an execution batch regresses.
+4. Preserve source-email lineage and approval audit history so failed automation batches can be replayed or cleaned up safely.
+
+## ARCHITECTURE SEALED
+
+**Planning conclusion only:** the target Phase 16 Core Trading Engine architecture is now frozen for planning and backlog decomposition. This seals the intended happy-path seams from inquiry intake through supplier/customer/carrier document generation. It does **not** mean Phase 16 is implemented, shipped, or execution-complete. Current execution priority remains Phase 14 and its named prerequisites.
 
 ### Historical context (kept for traceability)
 

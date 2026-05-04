@@ -1811,3 +1811,74 @@ Deliverables:
 - **2026-04-28** — [COMPLETED] Unified Trade Abstraction: added tenant-safe `deals` APIs with `Deal` + `DealActionItem` models linking purchase orders, sales orders, and fulfillments while exposing live revenue/COGS/freight/net-margin calculations for trader dashboards.
 - **2026-04-28** — [COMPLETED] Document State Machine: extended fulfillments with `freight_cost` and `document_milestones`, then auto-created follow-up reminder items when a linked load transitions into shipped/in-transit status.
 - **2026-04-28** — [COMPLETED] Deal Desk Dashboard: added the `/deals` trader ledger page with spreadsheet-dense columns, next-action visibility, and past-due follow-up highlighting.
+
+## Phase 16: The Core Trading Engine (End-to-End Automation)
+
+**Date Added:** 2026-05-04  
+**Priority:** Planned-only follow-on architecture  
+**Status:** PLANNING ONLY — translated into blocked tickets in `.github/EPIC_TICKETS.md`; execution remains blocked behind the active higher-priority backlog.
+
+### Happy-path state machine
+1. **Ingestion & Decision Node**
+   - AI email extraction lands in `Inquiry`.
+   - An inventory availability service decides `route = FULFILL` or `route = BROKER`.
+   - Operators receive a live “New Inquiry Received / Action Required” alert.
+2. **Brokerage / RFQ Engine (Branch A)**
+   - `BROKER` inquiries match suppliers by master product/protein.
+   - The system sends outbound RFQs.
+   - Structured supplier-reply parsing creates draft supplier purchase orders from positive replies.
+3. **Human-in-the-Loop Approval Flow**
+   - Orders use a generic approval progression: `draft` -> `pending_review` -> `approved`.
+   - Supplier PO approval triggers PDF generation plus outbound supplier email.
+4. **Sales & Logistics Cascade**
+   - Approved supplier sourcing, or direct `FULFILL`, generates the draft sales order.
+   - Sales-order approval triggers PDF generation plus outbound customer email.
+   - Carrier RFQs, reply parsing, and draft carrier purchase order generation complete the logistics branch.
+
+### 16b: Distributed Hardening & Trade Lineage
+1. **Trade Lineage & Traceability**
+   - Generate a durable `trade_id` / `TradeSession` UUID at the inquiry node.
+   - Cascade that lineage key into `PurchaseOrder`, `SalesOrder`, and `CarrierPurchaseOrder`.
+   - Expose a lineage visualization in detail views so operators can answer “which inbound email created this carrier PO?” directly from the UI.
+2. **Event-Driven State Transitions (Saga Pattern)**
+   - Replace synchronous side-effect chaining with event-driven transitions.
+   - Example: when a supplier PO transitions to approved, publish a `supplier_po_approved` event; Celery consumers create downstream sales/logistics artifacts and trigger PDF/email work.
+3. **Concurrency Locks & Idempotency**
+   - Use `select_for_update()` in transition services/views that mutate order state.
+   - Enforce `idempotency_key` on AI/webhook/document-creation endpoints so retries never duplicate downstream artifacts.
+4. **Exception Control Tower**
+   - Introduce an `ExceptionQueue`/dead-letter queue for failed automated trade steps.
+   - Halt the affected trade/session and route it to a “Trades Requiring Intervention” dashboard instead of silently dropping the failure.
+
+### Deliverables + expected results
+- A deterministic hardcoded trading engine built on the existing `Inquiry`, `PurchaseOrder`, `SalesOrder`, and `CarrierPurchaseOrder` models
+- Explicit AI structured-output parsing tied to draft commercial documents instead of freeform operator interpretation
+- Transition-driven PDF/email side effects instead of ad hoc UI-only actions
+- A future-ready state machine that a later visual editor can map onto, rather than inventing behavior from scratch
+
+### Acceptance criteria
+1. Phase 16 is represented consistently across `MASTER_PLAN.md`, `.github/MASTER_PLAN.md`, and `.github/EPIC_TICKETS.md`.
+2. Every Phase 16 ticket is blocked so the backlog still has one active `Ready` ticket above it.
+3. The backlog explicitly ties OpenAI structured outputs, outbound email, and PDF generation to `PurchaseOrder`, `SalesOrder`, and `CarrierPurchaseOrder` state transitions.
+4. Phase 16 hardening explicitly names Celery/Saga execution, trade-lineage propagation, `select_for_update()`, and `idempotency_key` enforcement.
+
+### Dependencies
+- Phase 14 remains the active execution lane.
+- Phase 15 trade-invariants work should land before Phase 16 executes against live order documents.
+- Inventory availability must be formalized first because the repo has no dedicated inventory source-of-truth model yet.
+- Distributed hardening must layer onto the same hardcoded happy-path state machine, not bypass it with a parallel orchestration surface.
+
+### Risk register + mitigations
+1. **Inventory routing guesses from weak data** -> define an explicit availability contract before automating `FULFILL`.
+2. **AI-generated commercial commitments are wrong** -> keep AI outputs draft-only and human-approved.
+3. **Duplicate send/PDF side effects** -> make approval transitions idempotent and audit-backed.
+4. **Async/event failures become invisible** -> add exception-queue lineage and intervention UI.
+5. **Concurrent transitions duplicate downstream records** -> require `select_for_update()` and `idempotency_key` safeguards.
+
+### Testing strategy
+- Planning/docs: `bash scripts/verify_golden_state.sh` and `bash .github/scripts/check_infrastructure.sh`
+- Execution tickets: targeted backend/frontend suites for inquiries, orders, AI ingestion, notifications, and document send flows
+- Distributed hardening tickets: targeted Celery/event, concurrency, idempotency, lineage, and operator-intervention queue tests
+
+### Rollback
+- Revert this planning batch if Phase 16 wording or backlog ordering proves contradictory.
