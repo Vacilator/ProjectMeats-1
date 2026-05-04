@@ -1,6 +1,13 @@
 """Golden Schema ETL scaffolding for GA-01.* tickets."""
 
-from .context import EtlRuntimePolicy, etl_side_effect_guard, get_current_etl_policy
+from .context import (
+    EtlRuntimePolicy,
+    etl_execution_context,
+    etl_side_effect_guard,
+    etl_side_effects_suppressed,
+    get_current_etl_policy,
+    get_etl_execution_context,
+)
 from .contracts import (
     ALL_ETL_ENTITIES,
     ERROR_CODES,
@@ -35,7 +42,10 @@ __all__ = [
     "ValidatedSourceManifest",
     "ValidatedSourceManifestFile",
     "ValidatedTenantAssertion",
+    "etl_execution_context",
     "etl_side_effect_guard",
+    "etl_side_effects_suppressed",
+    "get_etl_execution_context",
     "get_current_etl_policy",
     "validate_source_manifest",
 ]
