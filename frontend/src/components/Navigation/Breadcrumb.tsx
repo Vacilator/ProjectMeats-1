@@ -1,6 +1,9 @@
-import React from 'react';
+import React, { useMemo } from 'react';
+import { useQueries } from '@tanstack/react-query';
 import { Link, useLocation } from 'react-router-dom';
 import styled from 'styled-components';
+
+import { businessApi } from '@/services/businessApi';
 
 /**
  * Context-aware Breadcrumb Component
@@ -12,78 +15,209 @@ import styled from 'styled-components';
  * - Uses design system colors
  */
 
+type BreadcrumbResolver = {
+  singularLabel: string;
+  apiPath: string;
+  getDisplayName: (payload: Record<string, unknown>, id: string) => string | null;
+};
+
+const breadcrumbNameMap: { [key: string]: string } = {
+  // Workspace section
+  cockpit: 'Cockpit',
+  workspace: 'Cockpit', // Legacy redirect
+  calls: 'Calls',
+  'call-log': 'Calls',
+  reports: 'Reports',
+
+  // WorkForms section
+  workforms: 'WorkForms',
+  'forms-flows': 'WorkForms', // Legacy redirect
+  tasks: 'My Tasks',
+  'in-progress': 'In Progress',
+  catalog: 'Catalog',
+  history: 'History',
+
+  // Core entities
+  suppliers: 'Suppliers',
+  customers: 'Customers',
+  'purchase-orders': 'Purchase Orders',
+  'sales-orders': 'Sales Orders',
+  'accounts-receivables': 'Accounts Receivables',
+  contacts: 'Contacts',
+  plants: 'Plants',
+  products: 'Products',
+  locations: 'Locations',
+  carriers: 'Carriers',
+  'cold-storage': 'Cold Storage',
+
+  // Orders section
+  inquiries: 'Inquiries',
+  fulfillments: 'Fulfillments',
+  templates: 'Templates',
+  analytics: 'Analytics',
+  attachments: 'Attachments',
+
+  // Accounting section
+  accounting: 'Accounting',
+  payables: 'Payables',
+  receivables: 'Receivables',
+  claims: 'Claims',
+  pos: "P.O.'s",
+  sos: "S.O.'s",
+  invoices: 'Invoices',
+
+  // Admin & Settings
+  admin: 'Admin',
+  'option-lists': 'Option Lists',
+  settings: 'Settings',
+  notifications: 'Notifications',
+  profile: 'Profile',
+
+  // AI & Tools
+  'ai-assistant': 'AI Assistant',
+
+  // Workflows (legacy)
+  workflows: 'Workflows',
+  monitor: 'Monitor',
+  run: 'Run',
+  details: 'Details',
+
+  // My items
+  'my-submissions': 'My Submissions',
+  'my-tasks': 'My Tasks',
+};
+
+const resolverMap: Record<string, BreadcrumbResolver> = {
+  suppliers: {
+    singularLabel: 'Supplier',
+    apiPath: 'suppliers',
+    getDisplayName: (payload) => readString(payload.name),
+  },
+  customers: {
+    singularLabel: 'Customer',
+    apiPath: 'customers',
+    getDisplayName: (payload) => readString(payload.name),
+  },
+  plants: {
+    singularLabel: 'Plant',
+    apiPath: 'plants',
+    getDisplayName: (payload) => readString(payload.name) || readString(payload.plant_est_num),
+  },
+  locations: {
+    singularLabel: 'Location',
+    apiPath: 'locations',
+    getDisplayName: (payload) => readString(payload.name),
+  },
+  contacts: {
+    singularLabel: 'Contact',
+    apiPath: 'contacts',
+    getDisplayName: (payload) => {
+      const fullName = [readString(payload.first_name), readString(payload.last_name)]
+        .filter(Boolean)
+        .join(' ')
+        .trim();
+      return fullName || readString(payload.name) || readString(payload.email);
+    },
+  },
+  carriers: {
+    singularLabel: 'Carrier',
+    apiPath: 'carriers',
+    getDisplayName: (payload) => readString(payload.name),
+  },
+  products: {
+    singularLabel: 'Product',
+    apiPath: 'products',
+    getDisplayName: (payload) =>
+      readString(payload.name) || readString(payload.product_code) || readString(payload.description),
+  },
+  'purchase-orders': {
+    singularLabel: 'Purchase Order',
+    apiPath: 'purchase-orders',
+    getDisplayName: (payload, id) =>
+      readString(payload.order_number) || readString(payload.po_number) || fallbackEntityLabel('Purchase Order', id),
+  },
+  'sales-orders': {
+    singularLabel: 'Sales Order',
+    apiPath: 'sales-orders',
+    getDisplayName: (payload, id) =>
+      readString(payload.order_number) || readString(payload.sales_order_number) || fallbackEntityLabel('Sales Order', id),
+  },
+  invoices: {
+    singularLabel: 'Invoice',
+    apiPath: 'accounting/invoices',
+    getDisplayName: (payload, id) =>
+      readString(payload.invoice_number) || fallbackEntityLabel('Invoice', id),
+  },
+};
+
 const Breadcrumb: React.FC = () => {
   const location = useLocation();
 
   // Create breadcrumb items from current path
   const pathnames = location.pathname.split('/').filter((x) => x);
 
-  // Comprehensive breadcrumb name mapping
-  const breadcrumbNameMap: { [key: string]: string } = {
-    // Workspace section
-    cockpit: 'Cockpit',
-    workspace: 'Cockpit', // Legacy redirect
-    calls: 'Calls',
-    'call-log': 'Calls',
-    reports: 'Reports',
-    
-    // WorkForms section
-    workforms: 'WorkForms',
-    'forms-flows': 'WorkForms', // Legacy redirect
-    tasks: 'My Tasks',
-    'in-progress': 'In Progress',
-    catalog: 'Catalog',
-    history: 'History',
-    
-    // Core entities
-    suppliers: 'Suppliers',
-    customers: 'Customers',
-    'purchase-orders': 'Purchase Orders',
-    'sales-orders': 'Sales Orders',
-    'accounts-receivables': 'Accounts Receivables',
-    contacts: 'Contacts',
-    plants: 'Plants',
-    products: 'Products',
-    locations: 'Locations',
-    carriers: 'Carriers',
-    'cold-storage': 'Cold Storage',
-    
-    // Orders section
-    inquiries: 'Inquiries',
-    fulfillments: 'Fulfillments',
-    templates: 'Templates',
-    analytics: 'Analytics',
-    attachments: 'Attachments',
-    
-    // Accounting section
-    accounting: 'Accounting',
-    payables: 'Payables',
-    receivables: 'Receivables',
-    claims: 'Claims',
-    pos: "P.O.'s",
-    sos: "S.O.'s",
-    invoices: 'Invoices',
-    
-    // Admin & Settings
-    admin: 'Admin',
-    'option-lists': 'Option Lists',
-    settings: 'Settings',
-    notifications: 'Notifications',
-    profile: 'Profile',
-    
-    // AI & Tools
-    'ai-assistant': 'AI Assistant',
-    
-    // Workflows (legacy)
-    workflows: 'Workflows',
-    monitor: 'Monitor',
-    run: 'Run',
-    details: 'Details',
-    
-    // My items
-    'my-submissions': 'My Submissions',
-    'my-tasks': 'My Tasks',
-  };
+  const breadcrumbItems = useMemo(
+    () =>
+      pathnames.map((pathname, index) => {
+        const routeTo = `/${pathnames.slice(0, index + 1).join('/')}`;
+        const previousSegment = index > 0 ? pathnames[index - 1] : null;
+        const resolver =
+          previousSegment && !breadcrumbNameMap[pathname] && isLikelyEntityIdentifier(pathname)
+            ? resolverMap[previousSegment]
+            : undefined;
+
+        return {
+          pathname,
+          routeTo,
+          isLast: index === pathnames.length - 1,
+          resolver,
+          staticDisplayName:
+            breadcrumbNameMap[pathname] ||
+            pathname.charAt(0).toUpperCase() + pathname.slice(1).replace(/-/g, ' '),
+        };
+      }),
+    [pathnames]
+  );
+
+  const resolvableItems = breadcrumbItems.filter((item) => item.resolver);
+
+  const resolvedNames = useQueries({
+    queries: resolvableItems.map((item) => ({
+      queryKey: ['breadcrumb-name', item.resolver?.apiPath, item.pathname],
+      queryFn: async () => {
+        if (!item.resolver) return null;
+        const response = await businessApi.get(`${item.resolver.apiPath}/${item.pathname}/`);
+        const payload =
+          response?.data && typeof response.data === 'object'
+            ? (response.data as Record<string, unknown>)
+            : null;
+
+        if (!payload) {
+          return fallbackEntityLabel(item.resolver.singularLabel, item.pathname);
+        }
+
+        return (
+          item.resolver.getDisplayName(payload, item.pathname) ||
+          fallbackEntityLabel(item.resolver.singularLabel, item.pathname)
+        );
+      },
+      staleTime: 5 * 60 * 1000,
+      retry: 1,
+    })),
+  });
+
+  const resolvedNameMap = useMemo(() => {
+    const next = new Map<string, string>();
+
+    resolvableItems.forEach((item, index) => {
+      const query = resolvedNames[index];
+      if (query?.data) {
+        next.set(item.routeTo, query.data);
+      }
+    });
+
+    return next;
+  }, [resolvableItems, resolvedNames]);
 
   // If at root, show nothing (user knows where they are)
   if (pathnames.length === 0) {
@@ -92,13 +226,10 @@ const Breadcrumb: React.FC = () => {
 
   return (
     <BreadcrumbContainer aria-label="Breadcrumb navigation">
-      {pathnames.map((pathname, index) => {
-        const routeTo = `/${pathnames.slice(0, index + 1).join('/')}`;
-        const isLast = index === pathnames.length - 1;
-        
-        // Get display name - capitalize if not in map
-        const displayName = breadcrumbNameMap[pathname] || 
-          pathname.charAt(0).toUpperCase() + pathname.slice(1).replace(/-/g, ' ');
+      {breadcrumbItems.map(({ routeTo, isLast, staticDisplayName, resolver, pathname }) => {
+        const displayName =
+          resolvedNameMap.get(routeTo) ||
+          (resolver ? fallbackEntityLabel(resolver.singularLabel, pathname) : staticDisplayName);
 
         return (
           <BreadcrumbItem key={routeTo}>
@@ -115,6 +246,29 @@ const Breadcrumb: React.FC = () => {
       })}
     </BreadcrumbContainer>
   );
+};
+
+const readString = (value: unknown): string | null => {
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim();
+  return trimmed ? trimmed : null;
+};
+
+const fallbackEntityLabel = (entityLabel: string, id: string): string => {
+  const normalizedId = String(id || '').trim();
+  if (!normalizedId) return entityLabel;
+
+  const compactId =
+    normalizedId.length > 12 ? normalizedId.slice(0, 8) : normalizedId;
+
+  return `${entityLabel} ${compactId}`;
+};
+
+const isLikelyEntityIdentifier = (segment: string): boolean => {
+  const normalized = String(segment || '').trim();
+  if (!normalized) return false;
+
+  return /^\d+$/.test(normalized) || /[0-9]/.test(normalized);
 };
 
 const BreadcrumbContainer = styled.nav`
