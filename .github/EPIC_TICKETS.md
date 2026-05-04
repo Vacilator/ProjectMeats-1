@@ -508,8 +508,8 @@
   - **Rollback:** Revert to last known good workflow/validator pair and rerun secret audit before retrying.
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
-- [ ] **EH-01.3 pr-security-gates-and-dependabot-scope**
-  - **Status:** Ready
+- [x] **EH-01.3 pr-security-gates-and-dependabot-scope**
+  - **Status:** Shipped (PR #4766)
   - **Why now:** PR validation lacks supply-chain/security depth and Dependabot can still auto-merge sensitive workflow/Docker changes.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 12
   - **Scope:** Add PR-time security gates and restrict bot auto-merge to safe dependency surfaces.
@@ -527,7 +527,7 @@
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
 - [ ] **EH-01.4 rollback-release-automation-alignment**
-  - **Status:** Blocked
+  - **Status:** Ready
   - **Why now:** Rollback scripts/docs are stale and release automation is missing, which weakens every higher-risk change.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 12 / Operational excellence
   - **Scope:** Align rollback assets with reusable deploy reality and add explicit release workflow/governance.
@@ -535,7 +535,7 @@
   - **Primary domain:** ops/docs
   - **Likely touched paths:** `.github/scripts/deployment-rollback.sh`, `docs/runbooks/INCIDENT_RESPONSE.md`, `.github/workflows/*release*.yml`, `.github/workflows/README.md`
   - **Dependencies:** EH-01.3
-  - **Blockers:** EH-01.3
+  - **Blockers:** None
   - **Acceptance criteria:** Rollback instructions match live deploy paths/ports and one release creation path is documented or automated.
   - **Validation commands:** `bash scripts/verify_golden_state.sh`; `bash .github/scripts/check_infrastructure.sh`
   - **Tenant/RLS impact:** None
