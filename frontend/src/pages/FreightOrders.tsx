@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { Button, Card, Skeleton, Space, Table, Tag, Typography } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { Truck } from 'lucide-react';
 
@@ -42,6 +42,7 @@ const formatStatus = (value?: string): string =>
 
 const FreightOrders: React.FC = () => {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [selectedOrder, setSelectedOrder] = useState<FreightOrder | null>(null);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [editingOrderId, setEditingOrderId] = useState<string | null>(null);
@@ -193,6 +194,18 @@ const FreightOrders: React.FC = () => {
                 entityId={selectedOrder.id}
                 recordLabel={selectedOrder.our_carrier_po_num || `Carrier PO #${selectedOrder.id}`}
                 compact
+                onOptimisticStatusChange={(nextStatus) => {
+                  setSelectedOrder((current) => (current ? { ...current, status: nextStatus } : current));
+                  queryClient.setQueryData<FreightOrder[] | undefined>(
+                    ['freight-orders'],
+                    (current) =>
+                      Array.isArray(current)
+                        ? current.map((order) =>
+                            order.id === selectedOrder.id ? { ...order, status: nextStatus } : order
+                          )
+                        : current
+                  );
+                }}
                 onChanged={() => {
                   void freightOrdersQuery.refetch();
                 }}

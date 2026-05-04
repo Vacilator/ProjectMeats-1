@@ -14,9 +14,21 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { DownloadOutlined, MailOutlined } from '@ant-design/icons';
 
+import { useConnectivity } from '@/contexts/ConnectivityContext';
 import { businessApi } from '@/services/businessApi';
 
-import { getDocumentEntityConfig } from './documentOperations';
+import {
+  getDocumentEntityConfig,
+  supportsOptimisticOperationalStatus,
+} from './documentOperations';
+import {
+  flushOperationalStatusQueue,
+  getQueuedOperationalStatus,
+  OPERATIONAL_STATUS_QUEUE_EVENT,
+  readOperationalStatusQueue,
+  upsertOperationalStatusQueueItem,
+  type OperationalStatusQueueItem,
+} from './operationalStatusQueue';
 
 const { Text } = Typography;
 const { TextArea } = Input;
@@ -33,6 +45,7 @@ interface OperationalDocumentActionsProps {
   recordLabel?: string;
   compact?: boolean;
   onChanged?: () => void;
+  onOptimisticStatusChange?: (nextStatus: string) => void;
 }
 
 const getErrorMessage = (error: unknown): string => {
@@ -47,6 +60,24 @@ const getErrorMessage = (error: unknown): string => {
   return typeof messageText === 'string' && messageText.trim()
     ? messageText
     : 'The action failed.';
+};
+
+const isOfflineLikeError = (error: unknown): boolean =>
+  /network\s*error|failed\s*to\s*fetch|networkerror|offline/i.test(getErrorMessage(error));
+
+const buildOptimisticWorkflow = (
+  workflow: WorkflowResponse | undefined,
+  nextStatus: string
+): WorkflowResponse | undefined => {
+  if (!workflow) {
+    return workflow;
+  }
+
+  return {
+    ...workflow,
+    current_status: nextStatus,
+    allowed_transitions: [],
+  };
 };
 
 const triggerBlobDownload = (blob: Blob, filename: string) => {
@@ -66,18 +97,33 @@ export const OperationalDocumentActions: React.FC<OperationalDocumentActionsProp
   recordLabel,
   compact = false,
   onChanged,
+  onOptimisticStatusChange,
 }) => {
   const [selectedStatus, setSelectedStatus] = useState<string>('');
   const [isEmailOpen, setIsEmailOpen] = useState(false);
+  const [queuedTransition, setQueuedTransition] = useState<OperationalStatusQueueItem | null>(null);
+  const [isQueueSyncing, setIsQueueSyncing] = useState(false);
   const [emailForm] = Form.useForm<{ to: string; subject: string; body: string }>();
   const queryClient = useQueryClient();
+  const { isOnline, lastChangedAt } = useConnectivity();
   const config = useMemo(() => getDocumentEntityConfig(entityType), [entityType]);
+  const normalizedEntityType = config?.entityType ?? entityType;
+  const normalizedEntityId = String(entityId);
+  const tenantId = window.localStorage.getItem('tenantId') ?? 'unknown-tenant';
+  const supportsOptimisticStatus = useMemo(
+    () => supportsOptimisticOperationalStatus(normalizedEntityType),
+    [normalizedEntityType]
+  );
+  const workflowQueryKey = useMemo(
+    () => ['document-status-workflow', normalizedEntityType, normalizedEntityId] as const,
+    [normalizedEntityId, normalizedEntityType]
+  );
 
   const workflowQuery = useQuery({
-    queryKey: ['document-status-workflow', config?.entityType ?? entityType, String(entityId)],
+    queryKey: workflowQueryKey,
     queryFn: async () => {
       const response = await businessApi.get<WorkflowResponse>(
-        `/${config?.endpoint}/${encodeURIComponent(String(entityId))}/status-workflow/`
+        `/${config?.endpoint}/${encodeURIComponent(normalizedEntityId)}/status-workflow/`
       );
       return response.data;
     },
@@ -86,27 +132,151 @@ export const OperationalDocumentActions: React.FC<OperationalDocumentActionsProp
   });
 
   useEffect(() => {
-    const next = workflowQuery.data?.allowed_transitions?.[0] ?? '';
+    const refreshQueuedTransition = () => {
+      setQueuedTransition(getQueuedOperationalStatus(tenantId, normalizedEntityType, normalizedEntityId));
+    };
+
+    refreshQueuedTransition();
+
+    const handleQueueEvent = (event: Event) => {
+      const detail = (event as CustomEvent<{ tenantId?: string }>).detail;
+      if (detail?.tenantId && detail.tenantId !== tenantId) {
+        return;
+      }
+      refreshQueuedTransition();
+    };
+
+    window.addEventListener(OPERATIONAL_STATUS_QUEUE_EVENT, handleQueueEvent);
+    window.addEventListener('storage', handleQueueEvent);
+
+    return () => {
+      window.removeEventListener(OPERATIONAL_STATUS_QUEUE_EVENT, handleQueueEvent);
+      window.removeEventListener('storage', handleQueueEvent);
+    };
+  }, [normalizedEntityId, normalizedEntityType, tenantId]);
+
+  useEffect(() => {
+    if (!isOnline) {
+      return;
+    }
+
+    const hasQueuedItems = readOperationalStatusQueue(tenantId).length > 0;
+    if (!hasQueuedItems) {
+      return;
+    }
+
+    let cancelled = false;
+    setIsQueueSyncing(true);
+
+    void flushOperationalStatusQueue({
+      tenantId,
+      processItem: async (item) => {
+        const itemConfig = getDocumentEntityConfig(item.entityType);
+        if (!itemConfig) {
+          return;
+        }
+
+        await businessApi.post(
+          `/${itemConfig.endpoint}/${encodeURIComponent(item.entityId)}/transition-status/`,
+          { status: item.nextStatus }
+        );
+
+        await queryClient.invalidateQueries({
+          queryKey: ['document-status-workflow', item.entityType, item.entityId],
+        });
+
+        if (item.entityType === normalizedEntityType && item.entityId === normalizedEntityId) {
+          onChanged?.();
+        }
+      },
+      isRetriableError: isOfflineLikeError,
+    }).finally(() => {
+      if (!cancelled) {
+        setIsQueueSyncing(false);
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    isOnline,
+    lastChangedAt,
+    normalizedEntityId,
+    normalizedEntityType,
+    onChanged,
+    queryClient,
+    tenantId,
+  ]);
+
+  const effectiveWorkflow = queuedTransition
+    ? buildOptimisticWorkflow(workflowQuery.data, queuedTransition.nextStatus)
+    : workflowQuery.data;
+
+  useEffect(() => {
+    const next = effectiveWorkflow?.allowed_transitions?.[0] ?? '';
     setSelectedStatus(next);
-  }, [workflowQuery.data?.allowed_transitions]);
+  }, [effectiveWorkflow?.allowed_transitions]);
 
   const transitionMutation = useMutation({
     mutationFn: async (statusValue: string) => {
       const response = await businessApi.post(
-        `/${config?.endpoint}/${encodeURIComponent(String(entityId))}/transition-status/`,
+        `/${config?.endpoint}/${encodeURIComponent(normalizedEntityId)}/transition-status/`,
         { status: statusValue }
       );
       return response.data;
     },
+    onMutate: async (statusValue) => {
+      if (!supportsOptimisticStatus) {
+        return { previousWorkflow: undefined as WorkflowResponse | undefined };
+      }
+
+      await queryClient.cancelQueries({ queryKey: workflowQueryKey });
+      const previousWorkflow = queryClient.getQueryData<WorkflowResponse>(workflowQueryKey);
+      const optimisticWorkflow = buildOptimisticWorkflow(previousWorkflow, statusValue);
+
+      if (optimisticWorkflow) {
+        queryClient.setQueryData(workflowQueryKey, optimisticWorkflow);
+      }
+
+      onOptimisticStatusChange?.(statusValue);
+      return { previousWorkflow };
+    },
     onSuccess: () => {
+      setQueuedTransition(null);
       message.success('Status updated.');
       void queryClient.invalidateQueries({
-        queryKey: ['document-status-workflow', config?.entityType ?? entityType, String(entityId)],
+        queryKey: workflowQueryKey,
       });
       onChanged?.();
     },
-    onError: (error) => {
+    onError: (error, statusValue, context) => {
+      if (supportsOptimisticStatus && isOfflineLikeError(error)) {
+        const queueItem: OperationalStatusQueueItem = {
+          tenantId,
+          entityType: normalizedEntityType,
+          entityId: normalizedEntityId,
+          nextStatus: statusValue,
+          queuedAt: new Date().toISOString(),
+        };
+
+        upsertOperationalStatusQueueItem(queueItem);
+        setQueuedTransition(queueItem);
+        message.warning('Connection lost. Status update queued and will retry automatically.');
+        return;
+      }
+
+      if (context?.previousWorkflow) {
+        queryClient.setQueryData(workflowQueryKey, context.previousWorkflow);
+        onOptimisticStatusChange?.(context.previousWorkflow.current_status);
+      }
+
       message.error(getErrorMessage(error));
+    },
+    onSettled: (_data, error) => {
+      if (!(supportsOptimisticStatus && isOfflineLikeError(error))) {
+        void queryClient.invalidateQueries({ queryKey: workflowQueryKey });
+      }
     },
   });
 
@@ -182,9 +352,10 @@ export const OperationalDocumentActions: React.FC<OperationalDocumentActionsProp
               style={{ minWidth: compact ? 180 : 220 }}
               value={selectedStatus || undefined}
               placeholder="Select next status"
+              disabled={transitionMutation.isPending || Boolean(queuedTransition)}
               onChange={setSelectedStatus}
-              options={(workflowQuery.data?.allowed_transitions ?? []).map((value) => {
-                const match = workflowQuery.data?.statuses?.find((status) => status.value === value);
+              options={(effectiveWorkflow?.allowed_transitions ?? []).map((value) => {
+                const match = effectiveWorkflow?.statuses?.find((status) => status.value === value);
                 return {
                   value,
                   label: match?.label ?? value,
@@ -195,7 +366,7 @@ export const OperationalDocumentActions: React.FC<OperationalDocumentActionsProp
               size={compact ? 'small' : 'middle'}
               type="primary"
               disabled={!selectedStatus}
-              loading={transitionMutation.isPending}
+              loading={transitionMutation.isPending || (Boolean(queuedTransition) && isQueueSyncing)}
               onClick={() => {
                 if (selectedStatus) {
                   transitionMutation.mutate(selectedStatus);
@@ -206,6 +377,8 @@ export const OperationalDocumentActions: React.FC<OperationalDocumentActionsProp
             </Button>
           </Space>
         )}
+
+        {queuedTransition ? <Text type="secondary">Queued offline: {queuedTransition.nextStatus}</Text> : null}
 
         <Space wrap>
           <Button
@@ -231,9 +404,9 @@ export const OperationalDocumentActions: React.FC<OperationalDocumentActionsProp
           </Button>
         </Space>
 
-        {!compact && workflowQuery.data?.current_status ? (
+        {!compact && effectiveWorkflow?.current_status ? (
           <Text type="secondary">
-            Current status: {workflowQuery.data.current_status}
+            Current status: {effectiveWorkflow.current_status}
           </Text>
         ) : null}
       </Space>
