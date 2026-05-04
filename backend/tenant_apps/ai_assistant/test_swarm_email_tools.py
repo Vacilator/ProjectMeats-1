@@ -20,6 +20,7 @@ from tenant_apps.ai_assistant.session_utils import SESSION_ATTACHMENT_ALLOWLIST_
 from tenant_apps.ai_assistant.swarm.executor import ToolExecutor
 from tenant_apps.ai_assistant.swarm.router import (
     SwarmOrchestrator,
+    _sanitize_history_for_openai,
     _tool_call_signature,
     build_swarm_system_prompt,
 )
@@ -1056,6 +1057,16 @@ class SwarmRouterLoopDetectionTests(TestCase):
         message = SimpleNamespace(content=content, tool_calls=None)
         return SimpleNamespace(choices=[SimpleNamespace(message=message)])
 
+    def test_sanitize_history_for_openai_strips_trailing_unanswered_tool_calls(self):
+        sanitized = _sanitize_history_for_openai(
+            [
+                {'role': 'system', 'content': 'base'},
+                {'role': 'assistant', 'content': '', 'tool_calls': [{'id': 'tc-missing', 'type': 'function'}]},
+            ]
+        )
+
+        self.assertEqual(sanitized, [{'role': 'system', 'content': 'base'}])
+
     @override_settings(OPENAI_API_KEY='test-key', SWARM_TOOL_MAX_ROUNDS=3)
     @patch('tenant_apps.ai_assistant.services.memory_service.get_relevant_lessons', return_value=[])
     @patch('tenant_apps.ai_assistant.services.memory_service.format_lessons_block', return_value='')
@@ -1119,6 +1130,126 @@ class SwarmRouterLoopDetectionTests(TestCase):
                 message.get('role') == 'system'
                 and 'You are stuck in a loop' in str(message.get('content') or '')
                 for message in result['messages']
+            )
+        )
+        loop_warning_index = next(
+            index
+            for index, message in enumerate(result['messages'])
+            if message.get('role') == 'system' and 'You are stuck in a loop' in str(message.get('content') or '')
+        )
+        last_assistant_with_tool_calls_index = max(
+            index
+            for index, message in enumerate(result['messages'][:loop_warning_index])
+            if message.get('role') == 'assistant' and isinstance(message.get('tool_calls'), list)
+        )
+        roles_between = [
+            message.get('role')
+            for message in result['messages'][last_assistant_with_tool_calls_index + 1 : loop_warning_index]
+        ]
+        self.assertTrue(roles_between)
+        self.assertTrue(all(role == 'tool' for role in roles_between))
+
+    @override_settings(OPENAI_API_KEY='test-key', SWARM_TOOL_MAX_ROUNDS=3)
+    @patch('tenant_apps.ai_assistant.services.memory_service.get_relevant_lessons', return_value=[])
+    @patch('tenant_apps.ai_assistant.services.memory_service.format_lessons_block', return_value='')
+    @patch('tenant_apps.ai_assistant.services.tenant_memory_service.get_relevant_memories', return_value=[])
+    @patch('tenant_apps.ai_assistant.services.tenant_memory_service.format_memory_block', return_value='')
+    @patch('apps.system.services.ai_model_resolver.get_active_openai_model_id', return_value='gpt-4o-mini')
+    @patch('tenant_apps.ai_assistant.swarm.router.ToolExecutor.execute')
+    @patch('openai.OpenAI')
+    def test_run_tool_loop_appends_failure_tool_message_when_execute_raises(
+        self,
+        mock_openai,
+        mock_execute,
+        _mock_model,
+        _mock_format_memory,
+        _mock_memories,
+        _mock_format_lessons,
+        _mock_lessons,
+    ):
+        mock_execute.side_effect = Exception('Simulated Outlook Crash')
+        fake_client = SimpleNamespace(
+            chat=SimpleNamespace(
+                completions=SimpleNamespace(
+                    create=Mock(
+                        side_effect=[
+                            self._completion_with_tool_call(json.dumps({'folder': 'inbox'})),
+                            self._completion_with_text(
+                                'I attempted to fetch your emails, but the Outlook integration encountered an error: Simulated Outlook Crash.'
+                            ),
+                        ]
+                    )
+                )
+            )
+        )
+        mock_openai.return_value = fake_client
+
+        result = SwarmOrchestrator(tenant_id=str(self.tenant.id)).run_tool_loop(
+            user_message='Check my inbox.',
+            tenant=self.tenant,
+            user=self.user,
+        )
+
+        self.assertEqual(
+            result['response'],
+            'I attempted to fetch your emails, but the Outlook integration encountered an error: Simulated Outlook Crash.',
+        )
+        tool_messages = [message for message in result['messages'] if message.get('role') == 'tool']
+        self.assertEqual(len(tool_messages), 1)
+        self.assertEqual(tool_messages[0]['tool_call_id'], 'tc-1')
+        self.assertIn('TOOL EXECUTION FAILED: Simulated Outlook Crash.', tool_messages[0]['content'])
+
+        second_call_messages = fake_client.chat.completions.create.call_args_list[1].kwargs['messages']
+        self.assertTrue(
+            any(
+                message.get('role') == 'tool'
+                and message.get('tool_call_id') == 'tc-1'
+                and 'Simulated Outlook Crash' in str(message.get('content') or '')
+                for message in second_call_messages
+            )
+        )
+
+    @override_settings(OPENAI_API_KEY='test-key', SWARM_TOOL_MAX_ROUNDS=3)
+    @patch('tenant_apps.ai_assistant.services.memory_service.get_relevant_lessons', return_value=[])
+    @patch('tenant_apps.ai_assistant.services.memory_service.format_lessons_block', return_value='')
+    @patch('tenant_apps.ai_assistant.services.tenant_memory_service.get_relevant_memories', return_value=[])
+    @patch('tenant_apps.ai_assistant.services.tenant_memory_service.format_memory_block', return_value='')
+    @patch('apps.system.services.ai_model_resolver.get_active_openai_model_id', return_value='gpt-4o-mini')
+    @patch('openai.OpenAI')
+    def test_run_tool_loop_sanitizes_trailing_unanswered_tool_calls_before_openai_request(
+        self,
+        mock_openai,
+        _mock_model,
+        _mock_format_memory,
+        _mock_memories,
+        _mock_format_lessons,
+        _mock_lessons,
+    ):
+        fake_client = SimpleNamespace(
+            chat=SimpleNamespace(
+                completions=SimpleNamespace(
+                    create=Mock(side_effect=[self._completion_with_text('Recovered from interrupted history.')])
+                )
+            )
+        )
+        mock_openai.return_value = fake_client
+        interrupted_history = [
+            {'role': 'assistant', 'content': '', 'tool_calls': [{'id': 'tc-interrupted', 'type': 'function'}]},
+        ]
+
+        result = SwarmOrchestrator(tenant_id=str(self.tenant.id)).run_tool_loop(
+            user_message='Continue the conversation.',
+            tenant=self.tenant,
+            user=self.user,
+            history=interrupted_history,
+        )
+
+        self.assertEqual(result['response'], 'Recovered from interrupted history.')
+        first_call_messages = fake_client.chat.completions.create.call_args_list[0].kwargs['messages']
+        self.assertFalse(
+            any(
+                message.get('role') == 'assistant' and isinstance(message.get('tool_calls'), list)
+                for message in first_call_messages
             )
         )
 

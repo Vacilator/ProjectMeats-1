@@ -162,6 +162,104 @@ def _tool_call_signature(tool_name: str, raw_args: Any) -> str:
     return f'{tool_name}:{normalized_args}'
 
 
+def _sanitize_history_for_openai(history: Optional[List[Dict[str, Any]]]) -> List[Dict[str, Any]]:
+    """Strip unresolved tool-call state before replaying history to OpenAI."""
+    if not history:
+        return []
+
+    sanitized: List[Dict[str, Any]] = []
+    index = 0
+
+    while index < len(history):
+        message = history[index]
+        if not isinstance(message, dict):
+            index += 1
+            continue
+
+        role = message.get('role')
+        if role == 'tool':
+            logger.warning('[SwarmOrchestrator] Dropping orphaned tool message from replay history')
+            index += 1
+            continue
+
+        if role != 'assistant':
+            sanitized.append(dict(message))
+            index += 1
+            continue
+
+        tool_calls = message.get('tool_calls')
+        if not isinstance(tool_calls, list) or not tool_calls:
+            sanitized.append(dict(message))
+            index += 1
+            continue
+
+        expected_tool_ids = [
+            str(tool_call.get('id'))
+            for tool_call in tool_calls
+            if isinstance(tool_call, dict) and tool_call.get('id')
+        ]
+
+        if not expected_tool_ids:
+            repaired_message = dict(message)
+            repaired_message.pop('tool_calls', None)
+            if (repaired_message.get('content') or '').strip():
+                sanitized.append(repaired_message)
+            index += 1
+            continue
+
+        answered_ids: set[str] = set()
+        tool_messages: List[Dict[str, Any]] = []
+        cursor = index + 1
+
+        while cursor < len(history):
+            follower = history[cursor]
+            if not isinstance(follower, dict) or follower.get('role') != 'tool':
+                break
+
+            tool_call_id = str(follower.get('tool_call_id') or '')
+            if tool_call_id in expected_tool_ids and tool_call_id not in answered_ids:
+                tool_messages.append(dict(follower))
+                answered_ids.add(tool_call_id)
+            else:
+                logger.warning(
+                    '[SwarmOrchestrator] Dropping orphaned or duplicate tool reply for tool_call_id=%s',
+                    tool_call_id or '<missing>',
+                )
+            cursor += 1
+
+        if len(answered_ids) == len(expected_tool_ids):
+            sanitized.append(dict(message))
+            sanitized.extend(tool_messages)
+            index = cursor
+            continue
+
+        logger.warning(
+            '[SwarmOrchestrator] Stripping unanswered tool_calls from replay history: %s',
+            expected_tool_ids,
+        )
+        repaired_message = dict(message)
+        repaired_message.pop('tool_calls', None)
+        if (repaired_message.get('content') or '').strip():
+            sanitized.append(repaired_message)
+        index += 1
+
+    return sanitized
+
+
+def _coerce_tool_message_content(result: Any) -> str:
+    if isinstance(result, str):
+        return result
+
+    try:
+        return json.dumps(result, default=str)
+    except Exception as exc:  # pragma: no cover - defensive fallback
+        logger.warning('[SwarmOrchestrator] Failed to serialize tool result: %s', str(exc), exc_info=True)
+        return (
+            f'TOOL EXECUTION FAILED: Unable to serialize tool result ({str(exc)}). '
+            'Instruct the user about this failure.'
+        )
+
+
 @dataclass(frozen=True)
 class SwarmDecision:
     event_type: EventType
@@ -401,7 +499,7 @@ class SwarmOrchestrator:
             }
         ]
         if history:
-            messages.extend(history)
+            messages.extend(_sanitize_history_for_openai(history))
         messages.append({'role': 'user', 'content': user_message})
 
         executor = ToolExecutor()
@@ -432,10 +530,11 @@ class SwarmOrchestrator:
 
             create_kwargs: Dict[str, Any] = {
                 'model': model_name,
-                'messages': messages,
+                'messages': _sanitize_history_for_openai(messages),
                 'temperature': temperature,
                 'max_tokens': max_tokens,
             }
+            messages = create_kwargs['messages']
             if tools:
                 create_kwargs['tools'] = tools
                 create_kwargs['tool_choice'] = 'auto'
@@ -489,6 +588,7 @@ class SwarmOrchestrator:
             messages.append(assistant_payload)
 
             # b/c) Execute each tool call, append tool results
+            deferred_system_messages: List[str] = []
             for tc in tool_calls:
                 tool_name = tc.function.name
                 raw_args = tc.function.arguments or '{}'
@@ -518,14 +618,9 @@ class SwarmOrchestrator:
                             },
                         }
                     )
-                    messages.append(
-                        {
-                            'role': 'system',
-                            'content': (
-                                f'System: Tool "{tool_name}" is blocked for the rest of this run because '
-                                'it already failed with a non-retryable error. Ask the user for clarification.'
-                            ),
-                        }
+                    deferred_system_messages.append(
+                        f'System: Tool "{tool_name}" is blocked for the rest of this run because '
+                        'it already failed with a non-retryable error. Ask the user for clarification.'
                     )
                     if not loop_warning_injected:
                         max_rounds += 1
@@ -544,11 +639,8 @@ class SwarmOrchestrator:
                             },
                         }
                     )
-                    messages.append(
-                        {
-                            'role': 'system',
-                            'content': 'System: You are stuck in a loop. Stop calling this tool and ask the user for clarification.',
-                        }
+                    deferred_system_messages.append(
+                        'System: You are stuck in a loop. Stop calling this tool and ask the user for clarification.'
                     )
                     if not loop_warning_injected:
                         max_rounds += 1
@@ -575,38 +667,46 @@ class SwarmOrchestrator:
                                 'user_message': user_message,
                             },
                         )
-                    result = executor.execute(
-                        tool_name,
-                        args,
-                        tenant,
-                        user,
-                        session_id=validated_session_id,
-                        run=run,
-                    )
+                    try:
+                        result = executor.execute(
+                            tool_name,
+                            args,
+                            tenant,
+                            user,
+                            session_id=validated_session_id,
+                            run=run,
+                        )
+                    except Exception as exc:
+                        logger.warning(
+                            '[SwarmOrchestrator] Tool %s raised before returning a contract-safe tool message: %s',
+                            tool_name,
+                            str(exc),
+                            exc_info=True,
+                        )
+                        result = (
+                            f'TOOL EXECUTION FAILED: {str(exc)}. '
+                            'Instruct the user about this failure.'
+                        )
                     tool_signatures.append(signature)
 
+                tool_content = _coerce_tool_message_content(result)
                 messages.append(
                     {
                         'role': 'tool',
                         'tool_call_id': tc.id,
-                        'content': result,
+                        'content': tool_content,
                     }
                 )
 
                 try:
-                    parsed_result = json.loads(result)
+                    parsed_result = json.loads(tool_content)
                 except Exception:
                     parsed_result = {}
                 tool_data = parsed_result.get('data') if isinstance(parsed_result, dict) else {}
                 tool_error = parsed_result.get('error') if isinstance(parsed_result, dict) else None
                 if isinstance(tool_error, dict) and tool_error.get('retryable') is False:
                     blocked_tools.add(tool_name)
-                    messages.append(
-                        {
-                            'role': 'system',
-                            'content': _build_non_retryable_tool_message(tool_name, tool_error),
-                        }
-                    )
+                    deferred_system_messages.append(_build_non_retryable_tool_message(tool_name, tool_error))
                     if not loop_warning_injected:
                         max_rounds += 1
                         loop_warning_injected = True
@@ -635,8 +735,11 @@ class SwarmOrchestrator:
                             'approval_id': str(tool_data.get('approval_id') or ''),
                             'approval_required': True,
                             'tool_name': tool_name,
-                        },
-                    }
+                            },
+                        }
+
+            for deferred_message in deferred_system_messages:
+                messages.append({'role': 'system', 'content': deferred_message})
 
             # d) Loop continues; next LLM call interprets tool results (and may call more tools)
 
