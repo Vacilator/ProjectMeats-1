@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "batch_key": "sample-day-0-batch",
+  "unexpected": true,
+  "tenant": {
+    "tenant_id": null,
+    "tenant_slug": null,
+    "asserted_by": "command"
+  },
+  "files": [
+    {
+      "entity": "suppliers",
+      "format": "csv",
+      "relative_path": "suppliers.csv",
+      "sheet_name": null,
+      "header_row": 1,
+      "line_item_entity": null,
+      "source_document_key_column": null,
+      "source_line_number_column": null
+    }
+  ]
+}

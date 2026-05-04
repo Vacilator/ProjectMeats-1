@@ -17,6 +17,7 @@ import { debounce } from 'lodash';
 import { businessApi } from '../../services/businessApi';
 import { Product } from '../../types';
 import { Search as SearchIcon, Star, Package, DollarSign, X } from 'lucide-react';
+import { coerceFiniteNumber, formatFixedWithFallback } from './numberFormatting';
 
 // ============================================================================
 // TypeScript Interfaces
@@ -511,12 +512,12 @@ export const SmartProductAutocomplete: React.FC<SmartProductAutocompleteProps> =
                       Suggested
                     </SuggestedBadge>
                   </ProductCode>
-                  {product.avg_price && (
-                    <PriceTag>
-                      <DollarSign size={14} />
-                      {product.avg_price.toFixed(2)}/lb
-                    </PriceTag>
-                  )}
+                   {coerceFiniteNumber(product.avg_price) !== null && (
+                     <PriceTag>
+                       <DollarSign size={14} />
+                        {formatFixedWithFallback(product.avg_price, 2)}/lb
+                     </PriceTag>
+                   )}
                 </ResultHeader>
                 <ProductDescription>
                   {product.description_of_product_item ?? product.description ?? product.name ?? ''}
@@ -547,12 +548,12 @@ export const SmartProductAutocomplete: React.FC<SmartProductAutocompleteProps> =
                       <Package size={16} />
                       {product.product_code}
                     </ProductCode>
-                    {product.avg_price && (
-                      <PriceTag>
-                        <DollarSign size={14} />
-                        {product.avg_price.toFixed(2)}/lb
-                      </PriceTag>
-                    )}
+                     {coerceFiniteNumber(product.avg_price) !== null && (
+                       <PriceTag>
+                         <DollarSign size={14} />
+                          {formatFixedWithFallback(product.avg_price, 2)}/lb
+                       </PriceTag>
+                     )}
                   </ResultHeader>
                   <ProductDescription>
                     {product.description_of_product_item ?? product.description ?? product.name ?? ''}

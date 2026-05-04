@@ -779,13 +779,15 @@ const Inquiries: React.FC = () => {
       />
 
       {/* Inquiry Detail Modal */}
-      <InquiryDetailModal
-        isOpen={showDetailModal}
-        onClose={() => setShowDetailModal(false)}
-        inquiry={selectedInquiry}
-        onUpdate={handleUpdateInquiry}
-        onClone={handleClone}
-      />
+      {showDetailModal && selectedInquiry ? (
+        <InquiryDetailModal
+          isOpen={showDetailModal}
+          onClose={() => setShowDetailModal(false)}
+          inquiry={selectedInquiry}
+          onUpdate={handleUpdateInquiry}
+          onClone={handleClone}
+        />
+      ) : null}
       
       {/* Clone Inquiry Modal */}
       {selectedInquiry && (
