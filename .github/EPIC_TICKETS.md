@@ -408,8 +408,8 @@
   - **Rollback:** Revert the connectivity provider/banner and keep the app shell changes isolated.
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
-- [ ] **GA-05.3 warehouse-critical-optimistic-mutations**
-  - **Status:** Ready
+- [x] **GA-05.3 warehouse-critical-optimistic-mutations**
+  - **Status:** Shipped (PR #4856)
   - **Why now:** Offline readiness matters most on status/delivery actions where field users expect instant feedback despite weak connectivity.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 14 / Epic 5
   - **Scope:** Apply optimistic React Query mutations and replay-safe local queuing to the narrow set of warehouse/logistics-critical actions (for example delivered/arrived/status transitions).
@@ -427,7 +427,7 @@
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
 - [ ] **GA-05.4 offline-replay-and-warehouse-e2e**
-  - **Status:** Blocked
+  - **Status:** Ready
   - **Why now:** GA needs proof that optimistic/offline behavior survives reconnects and does not silently desync.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 14 / Epic 5
   - **Scope:** Add replay/recovery tests plus a rollout guard for offline mode on warehouse/logistics-critical surfaces.
@@ -435,7 +435,7 @@
   - **Primary domain:** frontend/testing
   - **Likely touched paths:** `frontend/e2e/`, `frontend/src/contexts/ConnectivityContext.tsx`, `frontend/src/components/Operations/`, `frontend/src/pages/FreightOrders.tsx`, `frontend/src/pages/SalesOrders/`
   - **Dependencies:** GA-05.3
-  - **Blockers:** GA-05.3
+  - **Blockers:** None
   - **Acceptance criteria:** Replay/reconnect paths are covered by automated tests, offline mode can be disabled safely if regressions appear, and docs explain the operator behavior.
   - **Validation commands:** `npm -C frontend run verify-standards`; `npm -C frontend run test:e2e`
   - **Tenant/RLS impact:** Low
