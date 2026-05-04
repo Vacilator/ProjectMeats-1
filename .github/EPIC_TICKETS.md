@@ -546,8 +546,8 @@
 
 ### Epic EH-02 - Tenant isolation + data integrity
 
-- [ ] **EH-02.1 fail-closed-tenant-rls-runtime**
-  - **Status:** Ready
+- [x] **EH-02.1 fail-closed-tenant-rls-runtime**
+  - **Status:** Shipped (PR #4771)
   - **Why now:** Fail-open tenant/RLS behavior is the most dangerous correctness gap left in backend runtime.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Security / tenant isolation + Phase 12
   - **Scope:** Make tenant-scoped HTTP and task paths fail closed when tenant or RLS session state cannot be asserted.
@@ -565,7 +565,7 @@
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
 - [ ] **EH-02.2 platform-idempotency-keys**
-  - **Status:** Blocked
+  - **Status:** Ready
   - **Why now:** Duplicate POST/retry behavior remains ad hoc across uploads, executions, and integrations.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 12
   - **Scope:** Add a tenant-scoped idempotency layer and apply it to the first high-risk mutation endpoints.
@@ -573,7 +573,7 @@
   - **Primary domain:** backend
   - **Likely touched paths:** new middleware/store under `backend/apps/core/` or `backend/apps/system/`, `backend/tenant_apps/ai_assistant/views.py`, `backend/apps/system/workform_views.py`
   - **Dependencies:** EH-02.1
-  - **Blockers:** EH-02.1
+  - **Blockers:** None
   - **Acceptance criteria:** Replayed requests with the same idempotency key do not duplicate writes for the targeted endpoints.
   - **Validation commands:** `cd backend && python manage.py test apps.system.tests.test_tenant_workform_execute_permissions apps.system.tests.test_workform_execute_circuit_breaker tenant_apps.ai_assistant`
   - **Tenant/RLS impact:** Medium; store must be tenant-aware
@@ -591,7 +591,7 @@
   - **Primary domain:** backend
   - **Likely touched paths:** `backend/tenant_apps/ai_assistant/models.py`, `backend/tenant_apps/ai_assistant/views.py`, new migrations, `manifests/RLS_POLICIES.md`
   - **Dependencies:** EH-02.1
-  - **Blockers:** EH-02.1
+  - **Blockers:** EH-02.2
   - **Acceptance criteria:** Chat data is tenant-native, tenant-scoped, and covered by RLS regression tests.
   - **Validation commands:** `cd backend && python manage.py test tenant_apps.ai_assistant apps.core.tests.test_audit_rls_compliance`; `cd backend && python manage.py showmigrations | grep ai_assistant`
   - **Tenant/RLS impact:** High
@@ -611,7 +611,7 @@
   - **Primary domain:** backend/contracts
   - **Likely touched paths:** `backend/tenant_apps/ai_assistant/views.py`, `backend/tenant_apps/ai_assistant/urls.py`, relevant schema generation config/tests, `manifests/openapi/openapi-schema.baseline.json`
   - **Dependencies:** EH-02.1
-  - **Blockers:** EH-02.1
+  - **Blockers:** EH-02.2
   - **Acceptance criteria:** Touched endpoints appear explicitly in the baseline schema with stable request/response shapes.
   - **Validation commands:** `cd backend && python manage.py spectacular --validate --file /tmp/projectmeats-openapi.yaml`; `cd backend && python manage.py test tenant_apps.ai_assistant apps.core.tests.test_api_error_contracts`
   - **Tenant/RLS impact:** Medium
@@ -705,7 +705,7 @@
   - **Primary domain:** backend/ops
   - **Likely touched paths:** `backend/projectmeats/settings/base.py`, `.github/workflows/reusable-deploy.yml`, `manifests/GOLDEN_FILES.md`, runtime health checks
   - **Dependencies:** EH-01.4
-  - **Blockers:** EH-02.1
+  - **Blockers:** EH-02.2
   - **Acceptance criteria:** Non-dev deployments fail fast when Redis/channel readiness is absent, while dev keeps explicit local fallbacks.
   - **Validation commands:** `bash scripts/verify_golden_state.sh`; `bash .github/scripts/check_infrastructure.sh`
   - **Tenant/RLS impact:** Medium
@@ -725,7 +725,7 @@
   - **Primary domain:** backend
   - **Likely touched paths:** `backend/tenant_apps/workflows/services/locking.py`, collaboration endpoints/tests
   - **Dependencies:** EH-02.1, EH-05.1
-  - **Blockers:** EH-02.1 and EH-05.1
+  - **Blockers:** EH-02.2 and EH-05.1
   - **Acceptance criteria:** Concurrent lock acquisition is deterministic and covered by race/concurrency tests.
   - **Validation commands:** `cd backend && python manage.py test tenant_apps.workflows.tests.test_collaboration_websocket_security tenant_apps.workflows.tests.test_workflow_tasks_rls_context tenant_apps.workflows.services.tests.test_workflow_executor`
   - **Tenant/RLS impact:** Medium
