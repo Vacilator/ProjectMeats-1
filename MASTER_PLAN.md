@@ -2,7 +2,7 @@
 
 **Status**: 🔄 Living document (canonical source of truth)  
 **Last Updated**: 2026-05-04  
-**Primary Focus**: Phase 12 execution has resumed with `EH-01.1 drift-gate-depth` as the single top-most ready ticket, now that the full Phase 14 / Phase 14.5 delivery lane is sealed through `GA-05.4 offline-replay-and-warehouse-e2e`; Phase 15 B2B Network planning and Phase 16 Core Trading Engine planning remain sealed  
+**Primary Focus**: Phase 12 execution remains active with `EH-01.2 manifest-required-secret-parity` now promoted as the single top-most ready ticket after `EH-01.1 drift-gate-depth` shipped on `development`; Phase 15 B2B Network planning and Phase 16 Core Trading Engine planning remain sealed  
 
 This file is the **canonical plan + current truth snapshot**.
 - **PR execution log (append-only):** `.github/MASTER_PLAN.md`
@@ -14,9 +14,9 @@ This file is the **canonical plan + current truth snapshot**.
 
 ### What is true right now
 - **WorkForms E2E** is shipped end-to-end (execute + monitoring + notifications + Quick Actions + Gmail connector MVP).
-- **Primary execution focus (P0):** resume the Phase 12 enterprise hardening lane from the top of `.github/EPIC_TICKETS.md`, starting with `EH-01.1 drift-gate-depth`, now that the full Phase 14 / Phase 14.5 lane is shipped on `development`.
+- **Primary execution focus (P0):** continue the Phase 12 enterprise hardening lane from the top of `.github/EPIC_TICKETS.md`, starting with `EH-01.2 manifest-required-secret-parity`, now that `EH-01.1 drift-gate-depth` is shipped on `development`.
 - **Strategic enterprise audit is now complete:** the repo has a fresh baseline in `GAP_ANALYSIS_REPORT.md`, `STRATEGIC_BLUEPRINT.md`, `.github/TECH_DEBT_REGISTER.md`, `.github/SDLC_PROTOCOLS.md`, and `.github/EPIC_TICKETS.md`. Those files translate the current gap analysis into execution-ordered, machine-readable work without replacing this canonical plan.
-- **Phase 14 execution is sealed:** the full GA / UX stabilization lane is now shipped on `development` across `GA-01` ETL (PRs #4813, #4814, #4816, #4817), `GA-02` infrastructure + DR guardrails (PRs #4818-#4821), `GA-03` governance (PRs #4822, #4823, #4832, #4842), `Phase 14.5 / UI-01` stabilization (PRs #4836, #4838, #4840), `GA-04` onboarding (PRs #4844, #4846, #4848, #4850), and `GA-05` edge resilience (PRs #4852, #4854, #4856, #4858). Autonomous continuation therefore moves back to the next safety foundation in Phase 12: `EH-01.1 drift-gate-depth`.
+- **Phase 14 execution is sealed:** the full GA / UX stabilization lane is now shipped on `development` across `GA-01` ETL (PRs #4813, #4814, #4816, #4817), `GA-02` infrastructure + DR guardrails (PRs #4818-#4821), `GA-03` governance (PRs #4822, #4823, #4832, #4842), `Phase 14.5 / UI-01` stabilization (PRs #4836, #4838, #4840), `GA-04` onboarding (PRs #4844, #4846, #4848, #4850), and `GA-05` edge resilience (PRs #4852, #4854, #4856, #4858). Phase 12 has now restarted with `EH-01.1 drift-gate-depth` shipped in PR #4863, promoting `EH-01.2 manifest-required-secret-parity` as the next safety foundation.
 - **Phase 15 planning is now complete:** the B2B Network epics are appended to the bottom of `.github/EPIC_TICKETS.md` and documented below as the sealed next-layer architecture for partner portals, trade invariants, and settlement automation. This is planning-only; Phase 12 is now the active execution lane.
 - **Phase 16 planning is now complete:** the Core Trading Engine happy-path state machine plus distributed hardening epics are documented below and translated into atomic blocked tickets at the bottom of `.github/EPIC_TICKETS.md`. This is planning-only; Phase 12 is now the active execution lane and Phase 15/16 both stay blocked behind higher-priority unchecked work.
 - **AI email/document lane** is now fail-closed through Graph attachment ingest and parser lifecycle hardening: tabular uploads parse safely, Outlook attachments bridge into `AIDocument`, unsupported attachment kinds are rejected pre-download, repeated same-session ingests dedupe with provenance, AI sessions are tenant-bound, attachment ingest requires a session-staged allowlist from `fetch_emails`, and `parse_document` now persists explicit processing/completed/failed metadata while raising structured parser/auth/unreachable errors.
@@ -53,10 +53,10 @@ This file is the **canonical plan + current truth snapshot**.
 
 ### P0 priorities (next)
 - **Phase 12 - Enterprise Hardening & Tech Debt Eradication (active execution lane)**
-  - **Next ready ticket:** `EH-01.1 drift-gate-depth`
-  - **Why now:** the full Phase 14 / Phase 14.5 delivery lane is now shipped, so the backlog returns to the CI/docs/workflow drift guardrails that harden every later supply-chain, tenant/RLS, and platform contract change.
-  - **Near-term execution ordering:** `EH-01.1` → `EH-01.2` → `EH-01.3` → `EH-01.4`, then continue through the remaining `EH-02.*` through `EH-06.*` foundations in backlog order.
-  - **Definition of ready:** `.github/EPIC_TICKETS.md` exposes exactly one first unchecked `Ready` ticket (`EH-01.1`) and keeps later hardening / planning tickets blocked or queued behind it.
+  - **Next ready ticket:** `EH-01.2 manifest-required-secret-parity`
+  - **Why now:** the backlog has already landed the first CI/docs drift guardrail in `EH-01.1`, so the next hardening step is to remove duplicated workflow secret expectations and derive them from `manifests/env.manifest.json`.
+  - **Near-term execution ordering:** `EH-01.2` → `EH-01.3` → `EH-01.4`, then continue through the remaining `EH-02.*` through `EH-06.*` foundations in backlog order.
+  - **Definition of ready:** `.github/EPIC_TICKETS.md` exposes exactly one first unchecked `Ready` ticket (`EH-01.2`) and keeps later hardening / planning tickets blocked or queued behind it.
 
 - **Core API reliability**: ✅ shipped (PR #4652). Next: expand smoke coverage for always-on endpoints (health, tenant resolution, auth bootstrap) and keep them in PR gates.
 

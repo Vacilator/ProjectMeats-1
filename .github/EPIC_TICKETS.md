@@ -468,8 +468,8 @@
 
 ### Epic EH-01 - SDLC + supply-chain hardening
 
-- [ ] **EH-01.1 drift-gate-depth**
-  - **Status:** Ready
+- [x] **EH-01.1 drift-gate-depth**
+  - **Status:** Shipped (PR #4863)
   - **Why now:** The current golden verification is false-green for stale authority docs and workflow reality drift, which undermines every later ticket.
   - **Canonical source reference:** `MASTER_PLAN.md` -> P0/P1 CI guardrails + Phase 12
   - **Scope:** Expand repo drift validation so authoritative/current docs and workflow reality are checked together, and force `docs/reference/GOLDEN_PIPELINE.md` to act as a pointer or parity-checked reference to `docs/GOLDEN_PIPELINE.md` instead of an independent authority.
@@ -491,7 +491,7 @@
   - **Completion evidence destination:** append shipped PR evidence to `.github/MASTER_PLAN.md`
 
 - [ ] **EH-01.2 manifest-required-secret-parity**
-  - **Status:** Blocked
+  - **Status:** Ready
   - **Why now:** Secret requirements are still duplicated in workflow logic instead of being generated from the manifest.
   - **Canonical source reference:** `MASTER_PLAN.md` -> CI guardrails + Phase 12
   - **Scope:** Make required-secret behavior per lane derive from `manifests/env.manifest.json`.
@@ -499,7 +499,7 @@
   - **Primary domain:** CI/config
   - **Likely touched paths:** `manifests/env.manifest.json`, `.github/workflows/reusable-deploy.yml`, `.github/scripts/validate-environment.sh`, `config/manage_env.py`
   - **Dependencies:** EH-01.1
-  - **Blockers:** EH-01.1 must land first so docs/workflow parity checks exist
+  - **Blockers:** None
   - **Acceptance criteria:** Workflow-required vs optional secrets match the manifest exactly and validation fails on divergence.
   - **Validation commands:** `python config/manage_env.py audit`; `bash scripts/verify_golden_state.sh`; `bash .github/scripts/check_infrastructure.sh`
   - **Tenant/RLS impact:** None
