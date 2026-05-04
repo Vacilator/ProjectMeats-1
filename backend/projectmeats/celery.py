@@ -49,6 +49,16 @@ app.conf.beat_schedule = {
             'routing_key': 'pm.ai',
         },
     },
+    'audit-data-governance-daily': {
+        'task': 'system.audit_data_governance_posture',
+        'schedule': crontab(minute=30, hour=5),
+        'args': (30,),
+        'options': {
+            'expires': 3600.0,
+            'queue': 'pm.ops',
+            'routing_key': 'pm.ops',
+        },
+    },
 }
 
 # Set timezone for scheduled tasks

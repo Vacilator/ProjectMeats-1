@@ -25,6 +25,7 @@ class CeleryQueueContractTests(SimpleTestCase):
         self.assertEqual(routes['workflows.execute_*']['queue'], 'pm.workforms')
         self.assertEqual(routes['workflows.generate_ai_template_suggestions']['queue'], 'pm.ai')
         self.assertEqual(routes['ai_assistant.*']['queue'], 'pm.ai')
+        self.assertEqual(routes['system.audit_data_governance_posture']['queue'], 'pm.ops')
 
     def test_worker_envelopes_and_thresholds_are_documented_in_settings(self):
         self.assertEqual(
@@ -60,4 +61,8 @@ class CeleryQueueContractTests(SimpleTestCase):
         self.assertEqual(
             beat_schedule['ai-watchdog-daily']['options']['queue'],
             'pm.ai',
+        )
+        self.assertEqual(
+            beat_schedule['audit-data-governance-daily']['options']['queue'],
+            'pm.ops',
         )

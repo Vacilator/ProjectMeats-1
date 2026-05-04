@@ -22,6 +22,7 @@ This runbook standardizes how we triage, mitigate, and recover from incidents in
 - **Sentry:** error spikes, auth failures (401/403), DB errors (RLS), request URLs
 - **GitHub Actions:** last deployment run, migration job logs, health-check failures
 - **Backend container logs:** startup errors, migration mismatches, 5xx loops
+- **Governance audit output:** `python manage.py audit_data_governance --format json --strict` for archive batch failures, stale archive work, and redaction drift
 
 ## Lane-wide observability ownership
 
@@ -62,6 +63,21 @@ If there is any hint of cross-tenant exposure:
 - **Development / tag-retained hosts:** use `.github/scripts/deployment-rollback.sh` with the same registry/image names as the deploy workflow.
 - **UAT / Production:** use digest-based rollback driven by the previous successful deploy’s immutable image refs from GitHub Actions.
 - If migrations ran and broke behavior, restore the database backup before retrying traffic and validate schema compatibility.
+
+## Governance / retention incidents
+
+Use this path for archive-evidence drift, legal-hold misses, or observability redaction regressions:
+
+1. Run the environment audit:
+   - `python manage.py audit_data_governance --format json --strict`
+2. If the audit reports failed or stale archive batches:
+   - capture the `failed_batch_ids` / `stale_inflight_batch_ids`
+   - verify no execute-mode archive batch is missing approval evidence
+3. If the audit reports redaction drift:
+   - confirm Django logging still uses `RedactingFormatter` + `RedactingLogFilter`
+   - confirm Sentry remains configured with `send_default_pii=False`
+4. If production evidence is needed without SSH, use the ops workflow:
+   - `gh workflow run "🎮 Ops - Run Management Command" --repo Meats-Central/ProjectMeats -f environment=prod -f command="audit_data_governance --format json --strict"`
 
 ### Quick rollback command
 

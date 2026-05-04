@@ -6,15 +6,28 @@ import hashlib
 import importlib
 import json
 from dataclasses import asdict, dataclass
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from decimal import Decimal
 from typing import Any, Final
 from uuid import UUID
 
+from django.conf import settings
 from django.db.models import Model, Q
 from django.utils import timezone
 
+from apps.core.utils.redaction import (
+    sanitize_data,
+    sentry_before_breadcrumb,
+    sentry_before_send,
+    sentry_before_send_transaction,
+)
+
 RETENTION_YEARS: Final[int] = 7
+GOVERNANCE_STATUS_ORDER: Final[dict[str, int]] = {
+    "healthy": 0,
+    "warning": 1,
+    "critical": 2,
+}
 
 
 @dataclass(frozen=True)
@@ -248,6 +261,146 @@ def get_retention_contract() -> dict[str, object]:
         "legal_hold_contract": LEGAL_HOLD_CONTRACT,
         "restore_contract": RESTORE_CONTRACT,
         "operator_evidence_fields": OPERATOR_EVIDENCE_FIELDS,
+    }
+
+
+def get_retention_contract_checksum() -> str:
+    """Return a stable checksum for the retention contract payload."""
+
+    encoded = json.dumps(get_retention_contract(), sort_keys=True, separators=(",", ":")).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest()
+
+
+def merge_governance_status(current: str, next_status: str) -> str:
+    """Return the higher-severity governance status."""
+
+    current_rank = GOVERNANCE_STATUS_ORDER.get(current, 0)
+    next_rank = GOVERNANCE_STATUS_ORDER.get(next_status, 0)
+    return next_status if next_rank > current_rank else current
+
+
+def summarize_governance_reports(tenant_reports: list[dict[str, Any]], *, lookback_days: int) -> dict[str, Any]:
+    """Aggregate tenant-scoped governance reports into one operator summary."""
+
+    overall_status = "healthy"
+    tenants_with_warnings = 0
+    tenants_with_critical = 0
+
+    for report in tenant_reports:
+        status = str(report.get("overall_status", "healthy"))
+        overall_status = merge_governance_status(overall_status, status)
+        if status == "warning":
+            tenants_with_warnings += 1
+        elif status == "critical":
+            tenants_with_critical += 1
+
+    return {
+        "lookback_days": lookback_days,
+        "overall_status": overall_status,
+        "tenant_count": len(tenant_reports),
+        "tenants_with_warnings": tenants_with_warnings,
+        "tenants_with_critical": tenants_with_critical,
+        "tenant_reports": tenant_reports,
+    }
+
+
+def build_governance_posture_report(*, tenant, lookback_days: int = 30) -> dict[str, Any]:
+    """Build one tenant-scoped governance evidence snapshot."""
+
+    from apps.core.models import ArchiveBatch, ArchiveLegalHold, ArchiveRecordSnapshot
+
+    lookback_days = max(int(lookback_days or 1), 1)
+    now = timezone.now()
+    window_start = now - timedelta(days=lookback_days)
+    stale_threshold = now - timedelta(hours=24)
+
+    recent_batches = ArchiveBatch.objects.filter(tenant=tenant, created_on__gte=window_start)
+    recent_execute_batches = recent_batches.filter(mode=ArchiveBatch.Mode.EXECUTE)
+    recent_failed_batches = recent_batches.filter(status=ArchiveBatch.Status.FAILED)
+    stale_inflight_batches = recent_batches.filter(
+        status__in=(ArchiveBatch.Status.PENDING, ArchiveBatch.Status.RUNNING),
+        created_on__lte=stale_threshold,
+    )
+    execute_batches_missing_approval = recent_execute_batches.filter(
+        approved_by__isnull=True,
+        approved_by_email="",
+    )
+    active_legal_holds = ArchiveLegalHold.objects.filter(tenant=tenant, released_at__isnull=True)
+    recent_snapshots = ArchiveRecordSnapshot.objects.filter(
+        tenant=tenant,
+        batch__created_on__gte=window_start,
+    )
+    last_completed_batch_at = (
+        recent_batches.exclude(completed_at__isnull=True)
+        .order_by("-completed_at")
+        .values_list("completed_at", flat=True)
+        .first()
+    )
+
+    warnings: list[str] = []
+    overall_status = "healthy"
+
+    logging_configured = _logging_redaction_configured()
+    sentry_enabled = bool(getattr(settings, "SENTRY_ENABLED", False) and getattr(settings, "SENTRY_DSN", ""))
+    sentry_send_default_pii_disabled = not bool(getattr(settings, "SENTRY_SEND_DEFAULT_PII", False))
+    redaction_probe = _run_redaction_probe()
+
+    if not logging_configured:
+        warnings.append("Logging handlers/formatters are not consistently wired through the redaction filter.")
+        overall_status = merge_governance_status(overall_status, "critical")
+
+    if sentry_enabled and not sentry_send_default_pii_disabled:
+        warnings.append("Sentry send_default_pii must remain disabled for governance posture.")
+        overall_status = merge_governance_status(overall_status, "critical")
+
+    if not redaction_probe["all_checks_passed"]:
+        warnings.append("Sample observability payloads are not fully redacted by the configured processors.")
+        overall_status = merge_governance_status(overall_status, "critical")
+
+    if recent_failed_batches.exists():
+        warnings.append("Recent archive batches include failures that require operator review.")
+        overall_status = merge_governance_status(overall_status, "warning")
+
+    if stale_inflight_batches.exists():
+        warnings.append("Recent archive batches include stale pending/running work older than 24 hours.")
+        overall_status = merge_governance_status(overall_status, "warning")
+
+    if execute_batches_missing_approval.exists():
+        warnings.append("Execute-mode archive batches are missing recorded approval evidence.")
+        overall_status = merge_governance_status(overall_status, "critical")
+
+    return {
+        "tenant_id": str(tenant.id),
+        "tenant_slug": tenant.slug,
+        "generated_at": now.isoformat(),
+        "overall_status": overall_status,
+        "warnings": warnings,
+        "retention_contract": {
+            "checksum": get_retention_contract_checksum(),
+            "retention_years": RETENTION_YEARS,
+            "archive_target_count": len(ARCHIVE_TARGETS),
+            "operator_evidence_fields": list(OPERATOR_EVIDENCE_FIELDS),
+        },
+        "archive_evidence": {
+            "lookback_days": lookback_days,
+            "window_start": window_start.isoformat(),
+            "recent_batch_count": recent_batches.count(),
+            "recent_execute_batch_count": recent_execute_batches.count(),
+            "recent_failed_batch_count": recent_failed_batches.count(),
+            "stale_inflight_batch_count": stale_inflight_batches.count(),
+            "execute_batches_missing_approval_count": execute_batches_missing_approval.count(),
+            "recent_snapshot_count": recent_snapshots.count(),
+            "active_legal_hold_count": active_legal_holds.count(),
+            "last_completed_batch_at": _serialize_temporal_value(last_completed_batch_at),
+            "failed_batch_ids": [str(value) for value in recent_failed_batches.values_list("id", flat=True)[:10]],
+            "stale_inflight_batch_ids": [str(value) for value in stale_inflight_batches.values_list("id", flat=True)[:10]],
+        },
+        "observability": {
+            "logging_redaction_configured": logging_configured,
+            "sentry_enabled": sentry_enabled,
+            "sentry_send_default_pii_disabled": sentry_send_default_pii_disabled,
+            "redaction_probe": redaction_probe,
+        },
     }
 
 
@@ -518,6 +671,86 @@ def checksum_snapshot_payload(payload: dict[str, Any]) -> str:
 
     encoded = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
     return hashlib.sha256(encoded).hexdigest()
+
+
+def _serialize_temporal_value(value: date | datetime | None) -> str | None:
+    if value is None:
+        return None
+    return value.isoformat()
+
+
+def _logging_redaction_configured() -> bool:
+    logging_config = getattr(settings, "LOGGING", {}) or {}
+    formatters = logging_config.get("formatters", {})
+    handlers = logging_config.get("handlers", {})
+    filters = logging_config.get("filters", {})
+    expected_formatters = {"verbose", "simple"}
+    required_handlers = {"console"}
+    optional_handlers = {"file", "debug_file"}
+
+    formatter_ok = expected_formatters.issubset(formatters.keys()) and all(
+        formatters.get(name, {}).get("()") == "apps.core.utils.redaction.RedactingFormatter"
+        for name in expected_formatters
+    )
+    filter_ok = filters.get("redact_sensitive_data", {}).get("()") == "apps.core.utils.redaction.RedactingLogFilter"
+    required_handler_ok = required_handlers.issubset(handlers.keys()) and all(
+        "redact_sensitive_data" in handlers.get(name, {}).get("filters", [])
+        for name in required_handlers
+    )
+    optional_handler_ok = all(
+        "redact_sensitive_data" in handlers.get(name, {}).get("filters", [])
+        for name in optional_handlers
+        if name in handlers
+    )
+    return formatter_ok and filter_ok and required_handler_ok and optional_handler_ok
+
+
+def _run_redaction_probe() -> dict[str, Any]:
+    sample_payload = {
+        "email": "audit@example.com",
+        "phone": "+1 415-555-2671",
+        "authorization": "Bearer secret-token",
+    }
+    sanitized_payload = sanitize_data(sample_payload)
+    sanitized_event = sentry_before_send(
+        {
+            "message": "Failure for audit@example.com",
+            "request": {"headers": {"Authorization": "Bearer secret-token"}},
+            "user": {"email": "audit@example.com"},
+        },
+        None,
+    )
+    sanitized_breadcrumb = sentry_before_breadcrumb(
+        {
+            "message": "Authorization=Bearer secret-token",
+            "data": {"email": "audit@example.com"},
+        },
+        None,
+    )
+    sanitized_transaction = sentry_before_send_transaction(
+        {
+            "transaction": "POST /api/v1/example?token=secret-token",
+            "contexts": {"request": {"headers": {"Cookie": "sessionid=abc123"}}},
+        },
+        None,
+    )
+
+    payload_ok = (
+        sanitized_payload.get("email") == "[REDACTED:EMAIL]"
+        and sanitized_payload.get("phone") == "[REDACTED:PHONE]"
+        and sanitized_payload.get("authorization") == "[REDACTED:TOKEN]"
+    )
+    event_ok = sanitized_event is not None and "audit@example.com" not in str(sanitized_event) and "secret-token" not in str(sanitized_event)
+    breadcrumb_ok = "audit@example.com" not in str(sanitized_breadcrumb) and "secret-token" not in str(sanitized_breadcrumb)
+    transaction_ok = "secret-token" not in str(sanitized_transaction)
+
+    return {
+        "payload_redaction_ok": payload_ok,
+        "sentry_event_redaction_ok": event_ok,
+        "sentry_breadcrumb_redaction_ok": breadcrumb_ok,
+        "sentry_transaction_redaction_ok": transaction_ok,
+        "all_checks_passed": payload_ok and event_ok and breadcrumb_ok and transaction_ok,
+    }
 
 
 def upsert_archive_snapshot(

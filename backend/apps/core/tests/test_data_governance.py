@@ -1,6 +1,6 @@
 """Regression coverage for the GA-03.1 retention contract."""
 
-from django.test import SimpleTestCase
+from django.test import SimpleTestCase, override_settings
 from django.utils import timezone
 
 from apps.core.services.data_governance import (
@@ -11,8 +11,10 @@ from apps.core.services.data_governance import (
     OPERATOR_EVIDENCE_FIELDS,
     RETENTION_YEARS,
     RESTORE_CONTRACT,
+    _logging_redaction_configured,
     build_eligibility_q,
     default_retention_cutoff,
+    get_retention_contract_checksum,
     get_retention_contract,
     subtract_years,
 )
@@ -53,6 +55,12 @@ class DataGovernanceContractTest(SimpleTestCase):
         self.assertTrue(payload["archive_targets"][0]["legal_hold_required"])
         self.assertTrue(any(rule["scope"] == "tenant master data" for rule in payload["exemptions"]))
 
+    def test_retention_contract_checksum_is_stable(self):
+        checksum = get_retention_contract_checksum()
+
+        self.assertEqual(len(checksum), 64)
+        self.assertEqual(checksum, get_retention_contract_checksum())
+
     def test_exemptions_keep_redaction_and_workflow_scope_out_of_ga_03_1(self):
         scopes = {rule.scope: rule.deferred_to for rule in EXEMPTION_RULES}
 
@@ -75,3 +83,7 @@ class DataGovernanceContractTest(SimpleTestCase):
 
         self.assertIn("resolution_date__isnull", repr(query))
         self.assertIn("claim_date__lte", repr(query))
+
+    @override_settings(LOGGING={"formatters": {}, "handlers": {}, "filters": {}})
+    def test_logging_redaction_check_fails_when_expected_handlers_are_missing(self):
+        self.assertFalse(_logging_redaction_configured())

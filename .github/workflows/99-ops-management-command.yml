@@ -13,7 +13,7 @@ on:
           - uat
           - prod
       command:
-        description: 'Django Command (ONLY the subcommand, e.g., "seed_tenants" NOT "python manage.py ...")'
+        description: 'Django command only (for example: "check_infrastructure", "audit_data_governance --format json --strict", or "archive_historical_records --tenant-slug acme --format json")'
         required: true
         default: 'check'
 
