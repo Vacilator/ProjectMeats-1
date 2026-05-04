@@ -7,23 +7,46 @@
  * - Returns null for root path
  */
 
-import { describe, it, expect, vi } from 'vitest';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { beforeEach, describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import { BrowserRouter, MemoryRouter } from 'react-router-dom';
+import { MemoryRouter } from 'react-router-dom';
+
+import { businessApi } from '@/services/businessApi';
 import Breadcrumb from './Breadcrumb';
 
 export {};
 
+vi.mock('@/services/businessApi', () => ({
+  businessApi: {
+    get: vi.fn(),
+  },
+}));
+
 // Test wrapper
 const renderWithRouter = (initialPath: string = '/') => {
+  const queryClient = new QueryClient({
+    defaultOptions: {
+      queries: {
+        retry: false,
+      },
+    },
+  });
+
   return render(
-    <MemoryRouter initialEntries={[initialPath]}>
-      <Breadcrumb />
-    </MemoryRouter>
+    <QueryClientProvider client={queryClient}>
+      <MemoryRouter initialEntries={[initialPath]}>
+        <Breadcrumb />
+      </MemoryRouter>
+    </QueryClientProvider>
   );
 };
 
 describe('Breadcrumb', () => {
+  beforeEach(() => {
+    vi.mocked(businessApi.get).mockReset();
+  });
+
   describe('root path', () => {
     it('returns null for root path (no breadcrumb)', () => {
       const { container } = renderWithRouter('/');
@@ -141,6 +164,27 @@ describe('Breadcrumb', () => {
       
       const separators = screen.getAllByText('/');
       expect(separators.length).toBeGreaterThanOrEqual(1); // Changed from 2 to 1
+    });
+
+    it('resolves supplier and plant breadcrumb ids into display names', async () => {
+      vi.mocked(businessApi.get).mockImplementation((url: string) => {
+        if (url === 'suppliers/supplier-uuid-1234/') {
+          return Promise.resolve({ data: { name: 'Acme Meats' } } as never);
+        }
+
+        if (url === 'plants/plant-uuid-5678/') {
+          return Promise.resolve({ data: { name: 'North Plant' } } as never);
+        }
+
+        return Promise.reject(new Error(`Unexpected GET ${url}`));
+      });
+
+      renderWithRouter('/suppliers/supplier-uuid-1234/plants/plant-uuid-5678');
+
+      expect(await screen.findByText('Acme Meats')).toBeInTheDocument();
+      expect(await screen.findByText('North Plant')).toBeInTheDocument();
+      expect(screen.queryByText('supplier-uuid-1234')).not.toBeInTheDocument();
+      expect(screen.queryByText('plant-uuid-5678')).not.toBeInTheDocument();
     });
   });
 
