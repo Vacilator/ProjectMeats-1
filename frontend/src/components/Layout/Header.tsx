@@ -6,6 +6,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { Theme } from '../../config/theme';
 import { useQuickActions } from '../../contexts/QuickActionsContext';
 import QuickActionsEditor from '../QuickActions/QuickActionsEditor';
+import { useOnboarding } from '../Onboarding';
 import { Icon } from '../ui';
 import TenantSelector from './TenantSelector';
 import { authService } from '../../services/authService';
@@ -23,11 +24,14 @@ const Header: React.FC<HeaderProps> = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [showQuickMenu, setShowQuickMenu] = useState(false);
+  const [showOnboardingMenu, setShowOnboardingMenu] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const searchInputRef = useRef<HTMLInputElement>(null);
   const [isEditMode, setIsEditMode] = useState(false);
   const [showFormsSubmenu, setShowFormsSubmenu] = useState(false);
   const quickMenuRef = useRef<HTMLDivElement>(null);
+  const onboardingMenuRef = useRef<HTMLDivElement>(null);
+  const { getTourStatus, hasCompletedTour, launchTour } = useOnboarding();
   
   // Get current user info
   const [user, setUser] = useState<UserProfile | null>(null);
@@ -66,15 +70,21 @@ const Header: React.FC<HeaderProps> = () => {
       if (quickMenuRef.current && !quickMenuRef.current.contains(event.target as Node)) {
         setShowQuickMenu(false);
       }
+      if (
+        onboardingMenuRef.current &&
+        !onboardingMenuRef.current.contains(event.target as Node)
+      ) {
+        setShowOnboardingMenu(false);
+      }
     };
     
-    if (showQuickMenu) {
+    if (showQuickMenu || showOnboardingMenu) {
       document.addEventListener('mousedown', handleClickOutside);
     }
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, [showQuickMenu]);
+  }, [showOnboardingMenu, showQuickMenu]);
 
   // Global Ctrl+K / ⌘K focuses search input
   useEffect(() => {
@@ -154,6 +164,47 @@ const Header: React.FC<HeaderProps> = () => {
     openEditor();
   };
 
+  const cockpitTourStatus = getTourStatus('cockpit');
+  const workflowEditorTourStatus = getTourStatus('workflow-editor');
+  const onCockpitRoute = location.pathname.startsWith('/cockpit') || location.pathname === '/';
+  const onWorkflowRoute =
+    location.pathname.startsWith('/workflows') || location.pathname.startsWith('/workforms');
+
+  const getTourActionLabel = (
+    tourName: 'cockpit' | 'workflow-editor',
+    fallback: string,
+  ) => {
+    if (hasCompletedTour(tourName)) {
+      return `Replay ${fallback}`;
+    }
+
+    const tourStatus = tourName === 'cockpit' ? cockpitTourStatus : workflowEditorTourStatus;
+    if (tourStatus.status === 'skipped' || tourStatus.status === 'in_progress') {
+      return `Resume ${fallback}`;
+    }
+
+    return `Start ${fallback}`;
+  };
+
+  const handleCockpitTourClick = () => {
+    setShowOnboardingMenu(false);
+
+    if (!onCockpitRoute) {
+      navigate('/cockpit?tour=cockpit');
+      return;
+    }
+
+    void launchTour('cockpit', hasCompletedTour('cockpit') ? 'restart' : 'resume');
+  };
+
+  const handleWorkflowTourClick = () => {
+    setShowOnboardingMenu(false);
+    void launchTour(
+      'workflow-editor',
+      hasCompletedTour('workflow-editor') ? 'restart' : 'resume',
+    );
+  };
+
   // Use custom quick actions if available, otherwise default items
   const hasCustomActions = quickActions.length > 0;
 
@@ -187,10 +238,55 @@ const Header: React.FC<HeaderProps> = () => {
       </SearchForm>
       
       <HeaderActions>
+        <QuickMenuContainer ref={onboardingMenuRef}>
+          <QuickMenuButton
+            onClick={() => {
+              setShowQuickMenu(false);
+              setShowOnboardingMenu(!showOnboardingMenu);
+            }}
+            $theme={theme}
+            title="Onboarding Help"
+            aria-label="Onboarding Help"
+          >
+            ?
+          </QuickMenuButton>
+          {showOnboardingMenu && (
+            <QuickMenuDropdown $theme={theme}>
+              <QuickMenuHeader $theme={theme}>
+                <span>Guided Tours</span>
+              </QuickMenuHeader>
+              <QuickMenuItem onClick={handleCockpitTourClick} $theme={theme}>
+                <IconWrapper>🧭</IconWrapper>
+                <span>{getTourActionLabel('cockpit', 'Cockpit Tour')}</span>
+              </QuickMenuItem>
+              {onWorkflowRoute && (
+                <QuickMenuItem onClick={handleWorkflowTourClick} $theme={theme}>
+                  <IconWrapper>🛠️</IconWrapper>
+                  <span>{getTourActionLabel('workflow-editor', 'Workforms Tour')}</span>
+                </QuickMenuItem>
+              )}
+              <QuickMenuDivider />
+              <QuickMenuItem
+                $theme={theme}
+                onClick={() => {
+                  setShowOnboardingMenu(false);
+                  navigate('/cockpit');
+                }}
+              >
+                <IconWrapper>🏠</IconWrapper>
+                <span>Open Cockpit</span>
+              </QuickMenuItem>
+            </QuickMenuDropdown>
+          )}
+        </QuickMenuContainer>
+
         {/* Quick Menu */}
         <QuickMenuContainer ref={quickMenuRef}>
           <QuickMenuButton
-            onClick={() => setShowQuickMenu(!showQuickMenu)}
+            onClick={() => {
+              setShowOnboardingMenu(false);
+              setShowQuickMenu(!showQuickMenu);
+            }}
             $theme={theme}
             title="Quick Actions"
             aria-label="Quick Actions Menu"

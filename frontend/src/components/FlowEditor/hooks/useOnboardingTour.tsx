@@ -36,19 +36,54 @@ export interface TourConfig {
  * Custom hook for managing onboarding tours
  */
 export const useOnboardingTour = (tourConfig: TourConfig) => {
-  const { isReady, hasCompletedTour, markTourCompleted, resetTourCompletion } = useOnboarding();
+  const {
+    isReady,
+    getLaunchNonce,
+    getTourStatus,
+    hasCompletedTour,
+    markTourCompleted,
+    markTourSkipped,
+    markTourStarted,
+    resetTourCompletion,
+  } = useOnboarding();
   const [run, setRun] = useState(false);
   const [stepIndex, setStepIndex] = useState(0);
+  const launchNonce = getLaunchNonce(tourConfig.name);
+  const tourStatus = getTourStatus(tourConfig.name);
 
   // Check if user has completed this tour
   useEffect(() => {
-    if (!tourConfig.autoStart || !isReady || hasCompletedTour(tourConfig.name)) {
+    if (
+      !tourConfig.autoStart ||
+      !isReady ||
+      hasCompletedTour(tourConfig.name) ||
+      tourStatus.status === 'skipped'
+    ) {
       return;
     }
 
-    const timer = window.setTimeout(() => setRun(true), 1000);
+    const timer = window.setTimeout(() => {
+      void markTourStarted(tourConfig.name, 'auto');
+      setRun(true);
+    }, 1000);
     return () => window.clearTimeout(timer);
-  }, [hasCompletedTour, isReady, tourConfig.autoStart, tourConfig.name]);
+  }, [
+    hasCompletedTour,
+    isReady,
+    markTourStarted,
+    tourConfig.autoStart,
+    tourConfig.name,
+    tourStatus.status,
+  ]);
+
+  useEffect(() => {
+    if (launchNonce === 0) {
+      return;
+    }
+
+    setStepIndex(0);
+    setRun(true);
+  }, [launchNonce]);
 
   const handleJoyrideCallback = useCallback(
     (data: EventData) => {
@@ -64,18 +99,20 @@ export const useOnboardingTour = (tourConfig: TourConfig) => {
       };
 
       // Finished or explicitly skipped.
-      if (status === STATUS.FINISHED || status === STATUS.SKIPPED) {
+      if (status === STATUS.FINISHED) {
         completeTour(true);
         return;
       }
 
       // Emergency escape hatch: clicking the overlay, close button, or ESC should never lock the UI.
       if (
+        status === STATUS.SKIPPED ||
         action === ACTIONS.CLOSE ||
         action === ACTIONS.SKIP ||
         origin === ORIGIN.OVERLAY ||
         type === EVENTS.ERROR
       ) {
+        void markTourSkipped(tourConfig.name);
         completeTour(false);
         return;
       }
@@ -89,13 +126,14 @@ export const useOnboardingTour = (tourConfig: TourConfig) => {
         setStepIndex(nextIndex);
       }
     },
-    [markTourCompleted, tourConfig.name, tourConfig.steps.length]
+    [markTourCompleted, markTourSkipped, tourConfig.name, tourConfig.steps.length]
   );
 
   const startTour = useCallback(() => {
+    void markTourStarted(tourConfig.name, 'resume');
     setStepIndex(0);
     setRun(true);
-  }, []);
+  }, [markTourStarted, tourConfig.name]);
 
   const resetTour = useCallback(() => {
     void resetTourCompletion(tourConfig.name);

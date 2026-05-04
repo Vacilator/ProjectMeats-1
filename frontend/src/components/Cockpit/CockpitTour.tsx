@@ -13,7 +13,10 @@
 
 import React, { useCallback, useEffect, useState } from 'react';
 import {
+  ACTIONS,
+  EVENTS,
   Joyride,
+  ORIGIN,
   STATUS,
   type EventData,
   type Options,
@@ -150,32 +153,68 @@ export const CockpitTour: React.FC<CockpitTourProps> = ({
   enabled = true, 
   onComplete 
 }) => {
-  const { isReady, hasCompletedTour, markTourCompleted, resetTourCompletion } = useOnboarding();
+  const {
+    isReady,
+    hasCompletedTour,
+    getTourStatus,
+    getLaunchNonce,
+    launchTour,
+    markTourCompleted,
+    markTourSkipped,
+    markTourStarted,
+  } = useOnboarding();
   const [runTour, setRunTour] = useState(false);
+  const cockpitTourStatus = getTourStatus('cockpit');
+  const cockpitLaunchNonce = getLaunchNonce('cockpit');
 
   useEffect(() => {
-    if (!enabled || !isReady || hasCompletedTour('cockpit')) {
+    if (
+      !enabled ||
+      !isReady ||
+      hasCompletedTour('cockpit') ||
+      cockpitTourStatus.status === 'skipped'
+    ) {
       return;
     }
 
     const timer = window.setTimeout(() => {
+      void markTourStarted('cockpit', 'auto');
       setRunTour(true);
     }, 1000);
 
     return () => window.clearTimeout(timer);
-  }, [enabled, hasCompletedTour, isReady]);
+  }, [cockpitTourStatus.status, enabled, hasCompletedTour, isReady, markTourStarted]);
+
+  useEffect(() => {
+    if (!enabled || cockpitLaunchNonce === 0) {
+      return;
+    }
+
+    setRunTour(true);
+  }, [cockpitLaunchNonce, enabled]);
 
   const handleJoyrideCallback = (data: EventData) => {
-    const { status } = data;
+    const { action, origin, status, type } = data;
 
-    // Tour finished or skipped
-    if ([STATUS.FINISHED, STATUS.SKIPPED].includes(status as any)) {
+    if (status === STATUS.FINISHED) {
       setRunTour(false);
       void markTourCompleted('cockpit');
 
       if (onComplete) {
         onComplete();
       }
+      return;
+    }
+
+    if (
+      status === STATUS.SKIPPED ||
+      action === ACTIONS.CLOSE ||
+      action === ACTIONS.SKIP ||
+      origin === ORIGIN.OVERLAY ||
+      type === EVENTS.ERROR
+    ) {
+      setRunTour(false);
+      void markTourSkipped('cockpit');
     }
   };
 
@@ -183,9 +222,8 @@ export const CockpitTour: React.FC<CockpitTourProps> = ({
    * Manually restart the tour (can be called from help menu)
    */
   const restartTour = useCallback(() => {
-    void resetTourCompletion('cockpit');
-    setRunTour(true);
-  }, [resetTourCompletion]);
+    void launchTour('cockpit', 'restart');
+  }, [launchTour]);
 
   // Expose restart function to parent
   useEffect(() => {

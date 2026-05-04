@@ -75,7 +75,10 @@ class UserPreferencesSerializerTest(TestCase):
 
         serializer = UserPreferencesSerializer(preferences)
 
-        self.assertEqual(serializer.data['onboarding_state'], {'completed_tours': []})
+        self.assertEqual(
+            serializer.data['onboarding_state'],
+            {'completed_tours': [], 'tour_statuses': {}}
+        )
 
     def test_serializer_merges_onboarding_state_without_clobbering_widget_preferences(self):
         preferences = UserPreferences.objects.create(
@@ -88,6 +91,18 @@ class UserPreferencesSerializerTest(TestCase):
             data={
                 'onboarding_state': {
                     'completed_tours': [' cockpit ', 'workflow-editor', 'cockpit'],
+                    'tour_statuses': {
+                        'cockpit': {
+                            'status': 'completed',
+                            'last_event': 'completed',
+                            'last_event_at': '2026-05-04T12:00:00Z',
+                            'completed_at': '2026-05-04T12:00:00Z',
+                            'start_count': 1,
+                            'complete_count': 1,
+                            'skip_count': 0,
+                            'resume_count': 0,
+                        }
+                    },
                 }
             },
             partial=True
@@ -99,7 +114,23 @@ class UserPreferencesSerializerTest(TestCase):
         self.assertEqual(updated_preferences.widget_preferences['sales'], {'collapsed': False})
         self.assertEqual(
             updated_preferences.widget_preferences['onboarding'],
-            {'completed_tours': ['cockpit', 'workflow-editor']}
+            {
+                'completed_tours': ['cockpit', 'workflow-editor'],
+                'tour_statuses': {
+                    'cockpit': {
+                        'status': 'completed',
+                        'last_event': 'completed',
+                        'last_event_at': '2026-05-04T12:00:00Z',
+                        'started_at': None,
+                        'completed_at': '2026-05-04T12:00:00Z',
+                        'skipped_at': None,
+                        'start_count': 1,
+                        'complete_count': 1,
+                        'skip_count': 0,
+                        'resume_count': 0,
+                    }
+                },
+            }
         )
 
     def test_serializer_rejects_invalid_onboarding_state(self):
@@ -108,6 +139,27 @@ class UserPreferencesSerializerTest(TestCase):
         serializer = UserPreferencesSerializer(
             preferences,
             data={'onboarding_state': {'completed_tours': 'cockpit'}},
+            partial=True
+        )
+
+        self.assertFalse(serializer.is_valid())
+        self.assertIn('onboarding_state', serializer.errors)
+
+    def test_serializer_rejects_invalid_tour_status_payload(self):
+        preferences = UserPreferences.objects.create(user=self.user)
+
+        serializer = UserPreferencesSerializer(
+            preferences,
+            data={
+                'onboarding_state': {
+                    'completed_tours': [],
+                    'tour_statuses': {
+                        'cockpit': {
+                            'status': 'invalid',
+                        }
+                    },
+                }
+            },
             partial=True
         )
 
