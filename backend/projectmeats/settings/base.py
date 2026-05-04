@@ -617,6 +617,7 @@ OPENAI_TEMPERATURE = float(os.environ.get("OPENAI_TEMPERATURE", "0.7"))
 
 SENTRY_ENABLED = os.environ.get("SENTRY_ENABLED", "").lower() in ("true", "1", "yes")
 SENTRY_DSN = os.environ.get("SENTRY_DSN")
+SENTRY_SEND_DEFAULT_PII = False
 
 # Prefer explicit SENTRY_ENVIRONMENT, otherwise mirror the deployment environment.
 # (Supports the requested DJANGO_ENV input without requiring it.)
@@ -675,7 +676,7 @@ if SENTRY_ENABLED and SENTRY_DSN:
 
         # Additional Options
         # Required for Seer (user-impact analysis) + richer debugging context.
-        send_default_pii=False,
+        send_default_pii=SENTRY_SEND_DEFAULT_PII,
         in_app_include=["backend", "tenant_apps"],
         attach_stacktrace=True,   # Always include stacktraces
         max_breadcrumbs=50,       # Keep more breadcrumbs for context
@@ -847,6 +848,7 @@ CELERY_TASK_ROUTES = {
     'ai_assistant.*': {'queue': 'pm.ai', 'routing_key': 'pm.ai'},
     'system.cleanup_orphaned_forms': {'queue': 'pm.ops', 'routing_key': 'pm.ops'},
     'system.audit_form_usage': {'queue': 'pm.ops', 'routing_key': 'pm.ops'},
+    'system.audit_data_governance_posture': {'queue': 'pm.ops', 'routing_key': 'pm.ops'},
     'system.pin_workflow_versions': {'queue': 'pm.ops', 'routing_key': 'pm.ops'},
     'workflows.cleanup_old_executions': {'queue': 'pm.ops', 'routing_key': 'pm.ops'},
     'core.*': {'queue': 'pm.ops', 'routing_key': 'pm.ops'},

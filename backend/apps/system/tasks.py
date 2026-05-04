@@ -176,6 +176,73 @@ def audit_form_usage():
     }
 
 
+@shared_task(name='system.audit_data_governance_posture')
+def audit_data_governance_posture(lookback_days: int = 30):
+    """Audit archive-evidence and observability-redaction posture across active tenants."""
+
+    from apps.core.services.data_governance import (
+        build_governance_posture_report,
+        summarize_governance_reports,
+    )
+
+    tenant_reports: list[dict] = []
+
+    tenant_ids = list(Tenant.objects.filter(is_active=True).values_list('id', flat=True))
+
+    for tenant_id in tenant_ids:
+        try:
+            if connection.vendor == 'postgresql':
+                from apps.tenants.rls import set_current_tenant
+
+                rls = set_current_tenant(str(tenant_id))
+                if not rls.ok:
+                    logger.warning('[GovernanceAudit] Skipping tenant=%s (RLS set failed: %s)', tenant_id, rls.error)
+                    tenant_reports.append(
+                        {
+                            'tenant_id': str(tenant_id),
+                            'tenant_slug': None,
+                            'overall_status': 'warning',
+                            'warnings': [f'RLS set failed: {rls.error}'],
+                        }
+                    )
+                    continue
+
+            try:
+                tenant = Tenant.objects.get(id=tenant_id)
+                report = build_governance_posture_report(tenant=tenant, lookback_days=lookback_days)
+                tenant_reports.append(report)
+
+                log_method = logger.warning if report['overall_status'] != 'healthy' else logger.info
+                log_method(
+                    '[GovernanceAudit] tenant=%s status=%s warnings=%s',
+                    tenant.slug,
+                    report['overall_status'],
+                    report['warnings'],
+                )
+            except Exception as exc:
+                logger.exception('[GovernanceAudit] tenant=%s audit failed: %s', tenant_id, exc)
+                tenant_reports.append(
+                    {
+                        'tenant_id': str(tenant_id),
+                        'tenant_slug': None,
+                        'overall_status': 'warning',
+                        'warnings': [f'Governance audit failed: {exc}'],
+                    }
+                )
+        finally:
+            _reset_rls_session_vars()
+
+    summary = summarize_governance_reports(tenant_reports, lookback_days=lookback_days)
+    logger.info(
+        '[GovernanceAudit] overall_status=%s tenants=%s warnings=%s critical=%s',
+        summary['overall_status'],
+        summary['tenant_count'],
+        summary['tenants_with_warnings'],
+        summary['tenants_with_critical'],
+    )
+    return summary
+
+
 @shared_task(name='system.pin_workflow_versions')
 def pin_workflow_versions(workflow_id: str, tenant_id: str | None = None):
     """

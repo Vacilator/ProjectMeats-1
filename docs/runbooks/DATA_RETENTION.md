@@ -28,11 +28,18 @@
 2. Backend Sentry event, breadcrumb, and transaction redaction hooks with default PII transport disabled.
 3. Frontend logger/Sentry telemetry scrubbing so raw emails, phone numbers, tokens, cookies, and password-like fields do not leave the browser logs unredacted.
 
+## What ships in GA-03.4
+
+1. `python manage.py audit_data_governance` as the operator evidence command for archive posture + observability redaction wiring.
+2. A daily Celery beat audit (`system.audit_data_governance_posture`) on the `pm.ops` queue to surface governance drift without running destructive archive actions.
+3. Workflow guidance for executing governance audits through `.github/workflows/99-ops-management-command.yml`.
+4. Runbook-level evidence expectations for failed archive batches, stale in-flight archive work, legal holds, and redaction configuration drift.
+
 ## Non-goals
 
-- No Celery schedule or object-storage configuration yet.
+- No automatic execute-mode archive schedule or object-storage export yet.
 - No destructive data movement or live-row purge in GA-03.2.
-- No centralized logging/Sentry redaction implementation yet; that belongs to GA-03.3.
+- No new observability sink/export beyond the centralized GA-03.3 redaction hooks.
 - No attempt to reuse soft-delete restore endpoints as archive restore.
 
 ## Archive inventory (7-year retained classes)
@@ -107,6 +114,44 @@ Every future archive or restore action must produce evidence containing:
 - `approved_by`
 - `restored_by`
 - `restored_at`
+
+## GA-03.4 operator audit loop
+
+### Scheduled posture check
+
+- Celery beat runs `system.audit_data_governance_posture` daily at **05:30 UTC** on the `pm.ops` queue.
+- The scheduled audit is evidence-only: it does **not** execute archive snapshots or purge live rows.
+
+### Manual audit commands
+
+```bash
+# Environment-wide governance posture audit
+python manage.py audit_data_governance --format json --strict
+
+# Tenant-scoped governance posture audit
+python manage.py audit_data_governance --tenant-slug acme-meats --format json --strict
+
+# Archive preview evidence for one tenant
+python manage.py archive_historical_records --tenant-slug acme-meats --format json
+```
+
+### GitHub Actions operator path
+
+```bash
+gh workflow run "🎮 Ops - Run Management Command" \
+  --repo Meats-Central/ProjectMeats \
+  -f environment=dev \
+  -f command="audit_data_governance --format json --strict"
+```
+
+### Minimum evidence to capture when the audit warns/fails
+
+1. Audit timestamp and environment lane (`dev`, `uat`, or `prod`)
+2. Retention contract checksum from `audit_data_governance`
+3. Recent failed archive batch IDs (if any)
+4. Stale in-flight archive batch IDs (if any)
+5. Active legal-hold count for the affected tenant(s)
+6. Confirmation that logging redaction is configured and that `send_default_pii` remains disabled
 
 ## Delivery boundaries across GA governance tickets
 
