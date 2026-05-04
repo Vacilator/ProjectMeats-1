@@ -13,6 +13,7 @@ from unittest.mock import patch
 
 from django.conf import settings
 from django.contrib.auth.models import User
+from django.db import connection
 from django.test import TestCase
 from rest_framework.response import Response
 
@@ -572,7 +573,8 @@ class ChatSessionTenantBindingTests(TestCase):
             modified_by=self.user,
         )
         self.session_unbound = ChatSession.objects.create(
-            title="Legacy Session",
+            title="Legacy Context Session",
+            context_data={"tenant_id": str(self.tenant_a.id)},
             owner=self.user,
             created_by=self.user,
             modified_by=self.user,
@@ -638,7 +640,7 @@ class ChatSessionTenantBindingTests(TestCase):
         self.assertIn("Tenant A Session", titles)
         self.assertIn("Tenant A FK Drift Session", titles)
         self.assertNotIn("Tenant B Session", titles)
-        self.assertNotIn("Legacy Session", titles)
+        self.assertNotIn("Legacy Context Session", titles)
 
         closed = ChatSessionViewSet.as_view({"get": "list"})(
             self._request("get", "/api/v1/ai-assistant/sessions/", None)
@@ -728,7 +730,7 @@ class ChatSessionTenantBindingTests(TestCase):
         self.assertEqual(message.tenant_id, self.tenant_a.id)
 
     @patch("tenant_apps.ai_assistant.views.ai_not_configured_response")
-    def test_chat_api_backfills_legacy_session_tenant_on_reuse(self, mock_not_configured):
+    def test_chat_api_rejects_legacy_context_only_session_reuse(self, mock_not_configured):
         from tenant_apps.ai_assistant.views import ChatBotAPIViewSet
 
         legacy_session = ChatSession.objects.create(
@@ -755,9 +757,117 @@ class ChatSessionTenantBindingTests(TestCase):
             )
         )
 
-        self.assertEqual(response.status_code, 503)
+        self.assertEqual(response.status_code, 404)
         legacy_session.refresh_from_db()
-        self.assertEqual(legacy_session.tenant_id, self.tenant_a.id)
+        self.assertIsNone(legacy_session.tenant_id)
+
+
+class ChatSessionRlsRegressionTests(TestCase):
+    def setUp(self):
+        unique = uuid.uuid4().hex[:8]
+        self.user = User.objects.create_user(username=f"chat-rls-{unique}", password="pw")
+        self.tenant_a = Tenant.objects.create(
+            name=f"RLS Tenant A {unique}",
+            slug=f"rls-tenant-a-{unique}",
+            contact_email=f"rls-a-{unique}@example.com",
+            is_active=True,
+            created_by=self.user,
+        )
+        self.tenant_b = Tenant.objects.create(
+            name=f"RLS Tenant B {unique}",
+            slug=f"rls-tenant-b-{unique}",
+            contact_email=f"rls-b-{unique}@example.com",
+            is_active=True,
+            created_by=self.user,
+        )
+
+        self.session_a = ChatSession.objects.create(
+            title="RLS Tenant A Session",
+            tenant=self.tenant_a,
+            context_data={"tenant_id": str(self.tenant_a.id)},
+            owner=self.user,
+            created_by=self.user,
+            modified_by=self.user,
+        )
+        self.session_b = ChatSession.objects.create(
+            title="RLS Tenant B Session",
+            tenant=self.tenant_b,
+            context_data={"tenant_id": str(self.tenant_b.id)},
+            owner=self.user,
+            created_by=self.user,
+            modified_by=self.user,
+        )
+        self.message_a = ChatMessage.objects.create(
+            session=self.session_a,
+            tenant=self.tenant_a,
+            owner=self.user,
+            created_by=self.user,
+            modified_by=self.user,
+            message_type=MessageTypeChoices.USER,
+            content="tenant-a-visible",
+        )
+        self.message_b = ChatMessage.objects.create(
+            session=self.session_b,
+            tenant=self.tenant_b,
+            owner=self.user,
+            created_by=self.user,
+            modified_by=self.user,
+            message_type=MessageTypeChoices.USER,
+            content="tenant-b-hidden",
+        )
+
+    def tearDown(self):
+        if getattr(connection, "needs_rollback", False):
+            connection.rollback()
+        with connection.cursor() as cursor:
+            cursor.execute("RESET app.current_tenant_id")
+            cursor.execute("RESET app.current_tenant")
+
+    def test_chat_tables_register_forced_tenant_rls_policies(self):
+        if connection.vendor != "postgresql":
+            self.skipTest("RLS enforcement requires PostgreSQL")
+
+        expected_tables = {
+            "ai_assistant_chat_sessions": "ai_assistant_chat_sessions_tenant_isolation",
+            "ai_assistant_chat_messages": "ai_assistant_chat_messages_tenant_isolation",
+        }
+
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT relname, relrowsecurity, relforcerowsecurity
+                FROM pg_class
+                WHERE relname = ANY(%s)
+                """,
+                [list(expected_tables.keys())],
+            )
+            relation_rows = {
+                row[0]: {"rls_enabled": row[1], "rls_forced": row[2]}
+                for row in cursor.fetchall()
+            }
+
+            cursor.execute(
+                """
+                SELECT tablename, policyname, qual, with_check
+                FROM pg_policies
+                WHERE tablename = ANY(%s)
+                """,
+                [list(expected_tables.keys())],
+            )
+            policy_rows = {row[0]: row[1:] for row in cursor.fetchall()}
+
+        for table_name, policy_name in expected_tables.items():
+            self.assertIn(table_name, relation_rows)
+            self.assertTrue(relation_rows[table_name]["rls_enabled"])
+            self.assertTrue(relation_rows[table_name]["rls_forced"])
+
+            self.assertIn(table_name, policy_rows)
+            actual_policy_name, qual, with_check = policy_rows[table_name]
+            self.assertEqual(actual_policy_name, policy_name)
+            self.assertIn("tenant_id =", qual)
+            self.assertIn("current_setting('app.current_tenant'", qual)
+            self.assertIn("tenant_id =", with_check)
+            self.assertIn("current_setting('app.current_tenant'", with_check)
 
 
 class AIControlPlaneFlowTest(TestCase):

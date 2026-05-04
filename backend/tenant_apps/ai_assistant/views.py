@@ -146,10 +146,7 @@ class ChatSessionViewSet(viewsets.ModelViewSet):
             return self.queryset.none()
         return self.queryset.filter(
             owner=self.request.user,
-        ).filter(
-            models.Q(tenant_id=tenant_id)
-            | models.Q(tenant__isnull=True, context_data__tenant_id=tenant_id),
-        ).annotate(message_count=Count('messages'))
+        ).filter(tenant_id=tenant_id).annotate(message_count=Count('messages'))
 
     def perform_create(self, serializer):
         """Set the owner when creating a new session."""
@@ -187,10 +184,7 @@ class ChatMessageViewSet(viewsets.ModelViewSet):
             return self.queryset.none()
         return self.queryset.filter(
             session__owner=self.request.user,
-        ).filter(
-            models.Q(tenant_id=tenant_id)
-            | models.Q(tenant__isnull=True, session__tenant__isnull=True, session__context_data__tenant_id=tenant_id),
-        )
+        ).filter(tenant_id=tenant_id)
 
     def perform_create(self, serializer):
         if not get_request_tenant_id(self.request):
@@ -238,17 +232,11 @@ class ChatBotAPIViewSet(viewsets.ViewSet):
                 session = ChatSession.objects.filter(
                     id=session_id,
                     owner=request.user,
-                ).filter(
-                    models.Q(tenant_id=tenant_id)
-                    | models.Q(tenant__isnull=True, context_data__tenant_id=tenant_id),
-                ).first()
+                ).filter(tenant_id=tenant_id).first()
                 if not session:
                     return Response(
                         {"error": "Session not found"}, status=status.HTTP_404_NOT_FOUND
                     )
-                if tenant and not session.tenant_id:
-                    session.tenant = tenant
-                    session.save(update_fields=['tenant'])
             else:
                 # Create new session
                 session = ChatSession.objects.create(

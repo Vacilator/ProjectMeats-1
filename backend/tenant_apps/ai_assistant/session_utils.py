@@ -25,15 +25,8 @@ def get_request_tenant_id(request: Any) -> str:
 
 
 def get_session_tenant_id(session: Any) -> str:
-    """Return the canonical tenant ID for a session or empty string."""
-    direct_tenant_id = str(getattr(session, 'tenant_id', '') or '').strip()
-    if direct_tenant_id:
-        return direct_tenant_id
-
-    context_data = getattr(session, 'context_data', None)
-    if not isinstance(context_data, dict):
-        return ''
-    return str(context_data.get('tenant_id') or '').strip()
+    """Return the canonical tenant FK for a session or empty string."""
+    return str(getattr(session, 'tenant_id', '') or '').strip()
 
 
 def bind_context_to_tenant(context_data: Any, tenant: Any) -> dict:
