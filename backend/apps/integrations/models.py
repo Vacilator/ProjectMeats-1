@@ -12,6 +12,7 @@ attempt decryption with both keys.
 
 import logging
 import os
+import uuid
 from base64 import urlsafe_b64encode
 from datetime import timedelta
 
@@ -261,6 +262,7 @@ class EmailLog(models.Model):
     STATUS_CHOICES = [
         ('logged', 'Logged'),
         ('ai_parsing', 'AI Parsing'),
+        ('draft_created', 'Draft Created'),
         ('order_created', 'Order Created'),
         ('failed', 'Failed'),
         ('ignored', 'Ignored'),
@@ -363,6 +365,13 @@ class EmailLog(models.Model):
         self.related_order_id = order_id
         self.processed_at = timezone.now()
         self.save(update_fields=['status', 'extracted_data', 'related_order_id', 'processed_at', 'updated_at'])
+
+    def mark_as_draft_created(self, extracted_data: dict | None = None):
+        """Mark email processing as actionable and awaiting operator review."""
+        self.status = 'draft_created'
+        self.extracted_data = extracted_data
+        self.processed_at = timezone.now()
+        self.save(update_fields=['status', 'extracted_data', 'processed_at', 'updated_at'])
     
     def mark_as_failed(self, error_message: str):
         """Mark email processing as failed."""
@@ -370,3 +379,54 @@ class EmailLog(models.Model):
         self.processing_error = error_message
         self.processed_at = timezone.now()
         self.save(update_fields=['status', 'processing_error', 'processed_at', 'updated_at'])
+
+
+class EmailReviewDraft(models.Model):
+    """Actionable email review queue item created by the ingestion classifier."""
+
+    DRAFT_TYPE_CHOICES = [
+        ('purchase_order', 'Purchase Order'),
+        ('bill_of_lading', 'Bill of Lading'),
+        ('new_customer', 'New Customer'),
+    ]
+
+    STATUS_CHOICES = [
+        ('pending_review', 'Pending Review'),
+        ('reviewed', 'Reviewed'),
+        ('dismissed', 'Dismissed'),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(
+        'tenants.Tenant',
+        on_delete=models.CASCADE,
+        related_name='email_review_drafts',
+    )
+    email_log = models.OneToOneField(
+        EmailLog,
+        on_delete=models.CASCADE,
+        related_name='review_draft',
+    )
+    draft_type = models.CharField(max_length=32, choices=DRAFT_TYPE_CHOICES)
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default='pending_review',
+        db_index=True,
+    )
+    summary = models.CharField(max_length=500, blank=True, default='')
+    extracted_payload = models.JSONField(default=dict, blank=True)
+    classification_confidence = models.FloatField(default=0.0)
+    notification_sent_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['tenant', 'status', 'created_at']),
+            models.Index(fields=['tenant', 'draft_type', 'created_at']),
+        ]
+
+    def __str__(self):
+        return f'{self.get_draft_type_display()} draft for {self.email_log.subject}'

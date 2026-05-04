@@ -1,0 +1,120 @@
+"""AI-powered email ingestion classification helpers."""
+
+from __future__ import annotations
+
+import json
+import os
+from typing import Any
+
+from django.conf import settings
+
+from apps.system.services.ai_model_resolver import get_active_openai_model_id
+
+ACTIONABLE_EMAIL_CATEGORIES: dict[str, str] = {
+    'Purchase Order': 'purchase_order',
+    'BOL': 'bill_of_lading',
+    'New Customer': 'new_customer',
+}
+SUPPORTED_EMAIL_CATEGORIES = tuple([*ACTIONABLE_EMAIL_CATEGORIES.keys(), 'Spam/Other'])
+
+
+def classify_ingested_email(
+    *,
+    subject: str,
+    sender_email: str,
+    body_text: str,
+    has_attachments: bool,
+) -> dict[str, Any]:
+    """Classify an ingested email into a lightweight operator review bucket."""
+
+    openai_api_key = getattr(settings, 'OPENAI_API_KEY', None) or os.environ.get('OPENAI_API_KEY')
+    if not openai_api_key:
+        raise RuntimeError('OpenAI is not configured on the server.')
+
+    from openai import OpenAI
+
+    client = OpenAI(
+        api_key=openai_api_key,
+        organization=getattr(settings, 'OPENAI_ORG_ID', None) or os.environ.get('OPENAI_ORG_ID') or None,
+    )
+    prompt = (
+        'Classify this email into exactly one category: Purchase Order, BOL, New Customer, Spam/Other.\n'
+        'Return JSON only.\n'
+        'Rules:\n'
+        '1. Use Spam/Other when the message is not actionable for ProjectMeats operators.\n'
+        '2. Keep summary under 160 characters.\n'
+        '3. Confidence must be a number between 0 and 1.\n'
+        '4. actionable must be true only for Purchase Order, BOL, or New Customer.\n\n'
+        f'Subject: {subject}\n'
+        f'Sender: {sender_email}\n'
+        f'Has attachments: {has_attachments}\n'
+        f'Body:\n{body_text[:6000]}'
+    )
+    response_schema = {
+        'type': 'json_schema',
+        'json_schema': {
+            'name': 'email_ingestion_classification',
+            'strict': True,
+            'schema': {
+                'type': 'object',
+                'properties': {
+                    'category': {
+                        'type': 'string',
+                        'enum': list(SUPPORTED_EMAIL_CATEGORIES),
+                    },
+                    'confidence': {
+                        'type': 'number',
+                        'minimum': 0,
+                        'maximum': 1,
+                    },
+                    'summary': {'type': 'string'},
+                    'rationale': {'type': 'string'},
+                    'actionable': {'type': 'boolean'},
+                },
+                'required': ['category', 'confidence', 'summary', 'rationale', 'actionable'],
+                'additionalProperties': False,
+            },
+        },
+    }
+    completion = client.chat.completions.create(
+        model=get_active_openai_model_id(fallback='gpt-4o-mini'),
+        temperature=0,
+        response_format=response_schema,
+        messages=[
+            {
+                'role': 'system',
+                'content': 'You classify operational inbox mail for a meat logistics business.',
+            },
+            {'role': 'user', 'content': prompt},
+        ],
+    )
+    message = completion.choices[0].message if completion.choices else None
+    content = str(getattr(message, 'content', '') or '').strip()
+    if not content:
+        raise RuntimeError('The email classification service returned an empty response.')
+
+    parsed = json.loads(content)
+    if not isinstance(parsed, dict):
+        raise RuntimeError('The email classification service returned an invalid response shape.')
+
+    category = str(parsed.get('category') or 'Spam/Other').strip()
+    if category not in SUPPORTED_EMAIL_CATEGORIES:
+        category = 'Spam/Other'
+
+    try:
+        confidence = float(parsed.get('confidence') or 0.0)
+    except (TypeError, ValueError):
+        confidence = 0.0
+
+    summary = str(parsed.get('summary') or '').strip()
+    rationale = str(parsed.get('rationale') or '').strip()
+    actionable = category in ACTIONABLE_EMAIL_CATEGORIES
+
+    return {
+        'category': category,
+        'draft_type': ACTIONABLE_EMAIL_CATEGORIES.get(category, ''),
+        'confidence': max(0.0, min(confidence, 1.0)),
+        'summary': summary,
+        'rationale': rationale,
+        'actionable': actionable,
+    }

@@ -266,6 +266,16 @@ def get_connection_status(request):
     
     connections = []
     for provider in providers:
+        try:
+            provider.refresh_if_needed()
+        except Exception:
+            logger.warning(
+                'OAuth status refresh failed tenant=%s provider=%s',
+                getattr(request.tenant, 'id', None),
+                provider.provider_type,
+                exc_info=True,
+            )
+
         connections.append({
             "provider": provider.provider_type,
             "provider_name": provider.get_provider_type_display(),
@@ -555,7 +565,7 @@ def get_email_logs(request):
         queryset = queryset.filter(status=status_filter)
 
     # Get recent emails
-    emails = queryset.order_by('-created_at')[:limit]
+    emails = queryset.select_related('provider', 'review_draft').order_by('-created_at')[:limit]
 
     # Serialize (contract expected by frontend IngestionMonitor.tsx)
     email_data = []
@@ -575,6 +585,17 @@ def get_email_logs(request):
                 "has_attachments": email.has_attachments,
                 "extracted_data": email.extracted_data,
                 "related_order_id": email.related_order_id,
+                "draft": (
+                    {
+                        "id": str(email.review_draft.id),
+                        "draft_type": email.review_draft.draft_type,
+                        "status": email.review_draft.status,
+                        "summary": email.review_draft.summary,
+                        "classification_confidence": email.review_draft.classification_confidence,
+                    }
+                    if getattr(email, 'review_draft', None) is not None
+                    else None
+                ),
                 "error_message": email.processing_error,
                 "created_at": email.created_at.isoformat(),
                 "processed_at": email.processed_at.isoformat() if email.processed_at else None,
@@ -582,4 +603,3 @@ def get_email_logs(request):
         )
 
     return Response({"emails": email_data, "count": len(email_data)})
-

@@ -14,6 +14,7 @@ from datetime import timedelta
 from django.conf import settings
 from django.core import signing
 from django.core.signing import BadSignature, SignatureExpired, TimestampSigner
+from django.db import transaction
 from django.shortcuts import redirect
 from django.utils import timezone
 from django.http import JsonResponse
@@ -296,6 +297,7 @@ def outlook_auth_callback(request):
             'https://graph.microsoft.com/Mail.Read',
             'https://graph.microsoft.com/Mail.Send',
             'https://graph.microsoft.com/User.Read',
+            'offline_access',
         ]
 
         result = msal_app.acquire_token_by_authorization_code(
@@ -322,21 +324,34 @@ def outlook_auth_callback(request):
         display_name = profile_data.get('displayName', '')
         provider_user_id = profile_data.get('id')
 
-        EmailAccount.objects.update_or_create(
+        staged_account = EmailAccount(
             tenant=tenant,
             user=user,
             provider='outlook',
             email_address=email_address,
-            defaults={
-                'access_token': access_token,
-                'refresh_token': refresh_token,
-                'token_expires_at': timezone.now() + timedelta(seconds=expires_in),
-                'provider_user_id': provider_user_id,
-                'display_name': display_name,
-                'status': 'active',
-                'last_synced_at': timezone.now(),
-            },
         )
+        if access_token:
+            staged_account.set_encrypted_token('access', access_token)
+        if refresh_token:
+            staged_account.set_encrypted_token('refresh', refresh_token)
+
+        with transaction.atomic():
+            email_account, _ = EmailAccount.objects.select_for_update().update_or_create(
+                tenant=tenant,
+                user=user,
+                provider='outlook',
+                email_address=email_address,
+                defaults={
+                    'access_token': staged_account.access_token,
+                    'refresh_token': staged_account.refresh_token,
+                    'token_expires_at': timezone.now() + timedelta(seconds=expires_in),
+                    'provider_user_id': provider_user_id,
+                    'display_name': display_name,
+                    'status': 'active',
+                    'last_synced_at': timezone.now(),
+                },
+            )
+        email_account.sync_external_provider_credentials()
 
         logger.info(f"Outlook account updated: {email_address}")
 
@@ -579,21 +594,34 @@ def gmail_auth_callback(request):
 
         expires_in = 3600
 
-        EmailAccount.objects.update_or_create(
+        staged_account = EmailAccount(
             tenant=tenant,
             user=user,
             provider='gmail',
             email_address=email_address,
-            defaults={
-                'access_token': credentials.token,
-                'refresh_token': credentials.refresh_token or '',
-                'token_expires_at': timezone.now() + timedelta(seconds=expires_in),
-                'provider_user_id': email_address,
-                'display_name': email_address.split('@')[0],
-                'status': 'active',
-                'last_synced_at': timezone.now(),
-            },
         )
+        if credentials.token:
+            staged_account.set_encrypted_token('access', credentials.token)
+        if credentials.refresh_token:
+            staged_account.set_encrypted_token('refresh', credentials.refresh_token)
+
+        with transaction.atomic():
+            email_account, _ = EmailAccount.objects.select_for_update().update_or_create(
+                tenant=tenant,
+                user=user,
+                provider='gmail',
+                email_address=email_address,
+                defaults={
+                    'access_token': staged_account.access_token,
+                    'refresh_token': staged_account.refresh_token,
+                    'token_expires_at': timezone.now() + timedelta(seconds=expires_in),
+                    'provider_user_id': email_address,
+                    'display_name': email_address.split('@')[0],
+                    'status': 'active',
+                    'last_synced_at': timezone.now(),
+                },
+            )
+        email_account.sync_external_provider_credentials()
 
         response = redirect(f"{settings.FRONTEND_URL}/cockpit?oauth_success=gmail&email={email_address}")
         _clear_email_oauth_state(request, response, 'gmail')
@@ -667,6 +695,11 @@ class EmailAccountViewSet(viewsets.ModelViewSet):
         try:
             account = self.get_queryset().get(pk=pk)
             
+            try:
+                account.refresh_if_needed()
+            except Exception:
+                logger.warning('Email account refresh failed account_id=%s', account.id, exc_info=True)
+
             if account.is_token_expired:
                 return Response({
                     'success': False,

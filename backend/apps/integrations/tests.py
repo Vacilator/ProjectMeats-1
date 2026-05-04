@@ -109,6 +109,29 @@ class EmailSyncTests(APITestCase):
         self.assertEqual(resp.data.get('count'), 1)
         self.assertEqual(resp.data.get('connections', [])[0].get('provider'), 'microsoft')
 
+    def test_oauth_status_refreshes_expired_connection_before_reporting(self):
+        provider = ExternalAuthProvider.objects.get(tenant=self.tenant, provider_type='microsoft')
+        provider.token_expiry = timezone.now() - timedelta(minutes=1)
+        provider.set_encrypted_token('access', 'stale-access')
+        provider.set_encrypted_token('refresh', 'refresh-token')
+        provider.save()
+
+        def _refresh(provider_row):
+            provider_row.token_expiry = timezone.now() + timedelta(hours=1)
+            provider_row.set_encrypted_token('access', 'fresh-access')
+            provider_row.save()
+            return True
+
+        with patch.object(ExternalAuthProvider, 'refresh_if_needed', autospec=True, side_effect=_refresh) as refresh_mock:
+            resp = self.client.get(
+                '/api/v1/integrations/oauth/status/',
+                HTTP_X_TENANT_ID=str(self.tenant.id),
+            )
+
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+        self.assertFalse(resp.data.get('connections', [])[0].get('is_expired'))
+        refresh_mock.assert_called_once()
+
     def test_oauth_disconnect_marks_provider_inactive(self):
         resp = self.client.post(
             '/api/v1/integrations/oauth/disconnect/',
