@@ -38,6 +38,8 @@ import {
 } from '../../components/Widgets';
 import { CockpitTour, SmartSearch, BreadcrumbBar } from '../../components/Cockpit';
 import { AILearningMetricsWidget } from '../../components/Cockpit/AILearningMetricsWidget';
+import { EmptyState } from '../../components/Admin';
+import { CockpitWelcomeEmptyState, useOnboarding } from '../../components/Onboarding';
 import { useCockpitNavigation } from '../../contexts/CockpitNavigationContext';
 import { businessApi } from '../../services/businessApi';
 import { useCockpitPinnedTools } from '../../contexts/CockpitPinnedToolsContext';
@@ -271,32 +273,6 @@ const HeroSearchInner = styled.div`
   gap: 12px;
 `;
 
-const EmptyState = styled.div`
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  min-height: 400px;
-  text-align: center;
-  color: rgb(var(--color-text-tertiary));
-
-  svg {
-    margin-bottom: 16px;
-    opacity: 0.5;
-  }
-
-  h3 {
-    font-size: 18px;
-    font-weight: 600;
-    color: rgb(var(--color-text-primary));
-    margin: 0 0 8px;
-  }
-
-  p {
-    margin: 0 0 16px;
-  }
-`;
-
 // Widget catalog modal
 const ModalOverlay = styled.div<{ $isOpen: boolean }>`
   position: fixed;
@@ -437,6 +413,7 @@ type InlineActionState = {
 
 export const CockpitDashboard: React.FC = () => {
   const containerRef = useRef<HTMLDivElement>(null);
+  const { hasCompletedTour, resetTourCompletion } = useOnboarding();
   const [widgets, setWidgets] = useState<WidgetConfig[]>(DEFAULT_WIDGETS);
   const [inlineAction, setInlineAction] = useState<InlineActionState>(null);
   const [layout, setLayout] = useState<WidgetLayout[]>(DEFAULT_LAYOUT);
@@ -473,6 +450,7 @@ export const CockpitDashboard: React.FC = () => {
   const isSearchActive = cockpitQuery.trim().length > 0;
   const isRecordActive = navigation.path.length > 0;
   const showDashboardWidgets = !isSearchActive && !isRecordActive;
+  const showWelcomeEmptyState = showDashboardWidgets && !hasCompletedTour('cockpit');
 
   // If the user edits the search input, we should exit any selected record context
   // so results refresh immediately on every keystroke.
@@ -661,6 +639,13 @@ export const CockpitDashboard: React.FC = () => {
     setLayout(prev => prev.filter(l => l.i !== widget.id));
   }, [pinnedTools]);
 
+  const handleStartCockpitTour = useCallback(() => {
+    void resetTourCompletion('cockpit');
+    if (typeof window !== 'undefined' && typeof (window as any).restartCockpitTour === 'function') {
+      (window as any).restartCockpitTour();
+    }
+  }, [resetTourCompletion]);
+
   // Render widget based on type
   const renderWidget = useCallback((widget: WidgetConfig) => {
     // Handle both old format (widget id as type) and new format (widget type)
@@ -771,14 +756,23 @@ export const CockpitDashboard: React.FC = () => {
       </HeroSearchSection>
 
       {/* Phase 3: AI Learning Metrics */}
-      {showDashboardWidgets && (
+      {showDashboardWidgets && showWelcomeEmptyState && (
+        <div style={{ padding: '16px 24px 0' }}>
+          <CockpitWelcomeEmptyState
+            onCustomizeDashboard={() => setIsEditing(true)}
+            onStartTour={handleStartCockpitTour}
+          />
+        </div>
+      )}
+
+      {showDashboardWidgets && !showWelcomeEmptyState && (
         <div style={{ padding: '16px 24px 0' }}>
           <AILearningMetricsWidget />
         </div>
       )}
 
       {/* Widget layout toolbar (applies to widgets only) */}
-      {showDashboardWidgets && (
+      {showDashboardWidgets && !showWelcomeEmptyState && (
         <ToolbarWrapper>
           <ToolbarLeft>
             {isEditing && <EditBadge>Editing Layout</EditBadge>}
@@ -811,18 +805,26 @@ export const CockpitDashboard: React.FC = () => {
       )}
 
       {/* Widget Grid (hidden when searching or a record is active) */}
-      {showDashboardWidgets && (
+      {showDashboardWidgets && !showWelcomeEmptyState && (
         <GridWrapper ref={containerRef} data-tour="search-results">
           {widgets.length === 0 ? (
-            <EmptyState>
-              <LayoutGrid size={48} />
-              <h3>No widgets configured</h3>
-              <p>Add widgets to build your personalized dashboard</p>
-              <ActionButton $variant="primary" onClick={() => setIsEditing(true)}>
-                <Plus size={16} />
-                Get Started
-              </ActionButton>
-            </EmptyState>
+            <EmptyState
+              icon={<LayoutGrid size={48} />}
+              title="No widgets configured"
+              message="Add widgets to build your personalized dashboard."
+              actions={[
+                {
+                  label: 'Customize Dashboard',
+                  onClick: () => setIsEditing(true),
+                  variant: 'primary',
+                },
+                {
+                  label: 'Restart Cockpit Tour',
+                  onClick: handleStartCockpitTour,
+                  variant: 'secondary',
+                },
+              ]}
+            />
           ) : (
             <WidgetGrid
               widgets={widgets}

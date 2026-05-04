@@ -21,14 +21,19 @@
 import React from 'react';
 import styled from 'styled-components';
 
+interface EmptyStateAction {
+  label: string;
+  onClick: () => void;
+  variant?: 'primary' | 'secondary';
+}
+
 interface EmptyStateProps {
-  icon: string;
+  icon: React.ReactNode;
   title: string;
   message: string;
-  action?: {
-    label: string;
-    onClick: () => void;
-  };
+  action?: EmptyStateAction;
+  actions?: EmptyStateAction[];
+  children?: React.ReactNode;
 }
 
 export const EmptyState: React.FC<EmptyStateProps> = ({
@@ -36,16 +41,30 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
   title,
   message,
   action,
+  actions,
+  children,
 }) => {
+  const resolvedActions = actions ?? (action ? [action] : []);
+
   return (
     <Container>
       <Icon>{icon}</Icon>
       <Title>{title}</Title>
       <Message>{message}</Message>
-      {action && (
-        <ActionButton onClick={action.onClick}>
-          {action.label}
-        </ActionButton>
+      {children}
+      {resolvedActions.length > 0 && (
+        <ActionGroup>
+          {resolvedActions.map((item) => (
+            <ActionButton
+              key={item.label}
+              type="button"
+              $variant={item.variant ?? 'primary'}
+              onClick={item.onClick}
+            >
+              {item.label}
+            </ActionButton>
+          ))}
+        </ActionGroup>
       )}
     </Container>
   );
@@ -64,6 +83,9 @@ const Icon = styled.div`
   font-size: 64px;
   margin-bottom: 24px;
   opacity: 0.6;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 `;
 
 const Title = styled.h3`
@@ -81,18 +103,33 @@ const Message = styled.p`
   line-height: 1.6;
 `;
 
-const ActionButton = styled.button`
+const ActionGroup = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 12px;
+`;
+
+const ActionButton = styled.button<{ $variant: 'primary' | 'secondary' }>`
   padding: 12px 24px;
-  background: rgb(var(--color-primary));
-  color: white;
-  border: none;
+  background: ${({ $variant }) =>
+    $variant === 'primary' ? 'rgb(var(--color-primary))' : 'rgb(var(--color-surface))'};
+  color: ${({ $variant }) =>
+    $variant === 'primary' ? 'rgb(var(--color-surface))' : 'rgb(var(--color-text-primary))'};
+  border: ${({ $variant }) =>
+    $variant === 'primary' ? 'none' : '1px solid rgb(var(--color-border))'};
   border-radius: var(--radius-md);
   font-size: 14px;
   font-weight: 500;
   cursor: pointer;
-  transition: opacity 0.2s;
-  
+  transition: opacity 0.2s, transform 0.2s ease, box-shadow 0.2s ease;
+
   &:hover {
-    opacity: 0.9;
+    opacity: 0.95;
+    box-shadow: var(--shadow-sm);
+  }
+
+  &:active {
+    transform: translateY(1px);
   }
 `;
