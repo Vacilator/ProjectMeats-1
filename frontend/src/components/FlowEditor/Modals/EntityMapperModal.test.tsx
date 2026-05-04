@@ -132,7 +132,7 @@ describe('EntityMapperModal', () => {
       await waitFor(() => {
         expect(consoleError).toHaveBeenCalledWith(
           expect.stringContaining('Failed to fetch form fields:'),
-          expect.any(Error)
+          expect.objectContaining({ message: 'Network error' })
         );
       });
 
