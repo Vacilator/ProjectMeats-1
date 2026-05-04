@@ -372,8 +372,8 @@
 
 ### Epic GA-05 - Edge resilience (PWA + optimistic UI)
 
-- [ ] **GA-05.1 vite-pwa-app-shell-foundation**
-  - **Status:** Ready
+- [x] **GA-05.1 vite-pwa-app-shell-foundation**
+  - **Status:** Shipped (PR #4852)
   - **Why now:** Warehouse-mode resilience starts with a cacheable app shell and offline-safe bootstrap.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 14 / Epic 5
   - **Scope:** Add the PWA/service-worker foundation to the Vite frontend, define offline cache boundaries, and ensure the app shell can render safely when the network drops temporarily.
@@ -391,7 +391,7 @@
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
 - [ ] **GA-05.2 connectivity-state-and-offline-banner**
-  - **Status:** Blocked
+  - **Status:** Ready
   - **Why now:** Users need immediate feedback when the network drops before we optimistically queue mutations.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 14 / Epic 5
   - **Scope:** Add connectivity detection and a shared offline/reconnecting banner tied into the app shell and priority operational surfaces.
@@ -399,7 +399,7 @@
   - **Primary domain:** frontend
   - **Likely touched paths:** `frontend/src/App.tsx`, `frontend/src/components/Layout/Header.tsx`, new `frontend/src/contexts/ConnectivityContext.tsx`, `frontend/src/components/common/`
   - **Dependencies:** GA-05.1
-  - **Blockers:** GA-05.1
+  - **Blockers:** None
   - **Acceptance criteria:** The app announces offline/reconnecting state clearly, does not spam re-renders, and remains accessible.
   - **Validation commands:** `npm -C frontend run verify-standards`; `npm -C frontend run test:ci`
   - **Tenant/RLS impact:** None directly
