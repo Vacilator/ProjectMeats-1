@@ -87,6 +87,9 @@ const breadcrumbNameMap: { [key: string]: string } = {
   'my-tasks': 'My Tasks',
 };
 
+const UUID_SEGMENT_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
 const resolverMap: Record<string, BreadcrumbResolver> = {
   suppliers: {
     singularLabel: 'Supplier',
@@ -154,7 +157,7 @@ const Breadcrumb: React.FC = () => {
   const location = useLocation();
 
   // Create breadcrumb items from current path
-  const pathnames = location.pathname.split('/').filter((x) => x);
+  const pathnames = useMemo(() => location.pathname.split('/').filter((x) => x), [location.pathname]);
 
   const breadcrumbItems = useMemo(
     () =>
@@ -179,31 +182,40 @@ const Breadcrumb: React.FC = () => {
     [pathnames]
   );
 
-  const resolvableItems = breadcrumbItems.filter((item) => item.resolver);
+  const resolvableItems = useMemo(
+    () => breadcrumbItems.filter((item) => item.resolver),
+    [breadcrumbItems]
+  );
+
+  const resolvedNameQueries = useMemo(
+    () =>
+      resolvableItems.map((item) => ({
+        queryKey: ['breadcrumb-name', item.resolver?.apiPath, item.pathname],
+        queryFn: async () => {
+          if (!item.resolver) return null;
+          const response = await businessApi.get(`${item.resolver.apiPath}/${item.pathname}/`);
+          const payload =
+            response?.data && typeof response.data === 'object'
+              ? (response.data as Record<string, unknown>)
+              : null;
+
+          if (!payload) {
+            return fallbackEntityLabel(item.resolver.singularLabel, item.pathname);
+          }
+
+          return (
+            item.resolver.getDisplayName(payload, item.pathname) ||
+            fallbackEntityLabel(item.resolver.singularLabel, item.pathname)
+          );
+        },
+        staleTime: 5 * 60 * 1000,
+        retry: 1,
+      })),
+    [resolvableItems]
+  );
 
   const resolvedNames = useQueries({
-    queries: resolvableItems.map((item) => ({
-      queryKey: ['breadcrumb-name', item.resolver?.apiPath, item.pathname],
-      queryFn: async () => {
-        if (!item.resolver) return null;
-        const response = await businessApi.get(`${item.resolver.apiPath}/${item.pathname}/`);
-        const payload =
-          response?.data && typeof response.data === 'object'
-            ? (response.data as Record<string, unknown>)
-            : null;
-
-        if (!payload) {
-          return fallbackEntityLabel(item.resolver.singularLabel, item.pathname);
-        }
-
-        return (
-          item.resolver.getDisplayName(payload, item.pathname) ||
-          fallbackEntityLabel(item.resolver.singularLabel, item.pathname)
-        );
-      },
-      staleTime: 5 * 60 * 1000,
-      retry: 1,
-    })),
+    queries: resolvedNameQueries,
   });
 
   const resolvedNameMap = useMemo(() => {
@@ -256,19 +268,20 @@ const readString = (value: unknown): string | null => {
 
 const fallbackEntityLabel = (entityLabel: string, id: string): string => {
   const normalizedId = String(id || '').trim();
-  if (!normalizedId) return entityLabel;
+  if (!normalizedId) return `${entityLabel} Details`;
 
-  const compactId =
-    normalizedId.length > 12 ? normalizedId.slice(0, 8) : normalizedId;
+  if (/^\d+$/.test(normalizedId) && normalizedId.length <= 6) {
+    return `${entityLabel} ${normalizedId}`;
+  }
 
-  return `${entityLabel} ${compactId}`;
+  return `${entityLabel} Details`;
 };
 
 const isLikelyEntityIdentifier = (segment: string): boolean => {
   const normalized = String(segment || '').trim();
   if (!normalized) return false;
 
-  return /^\d+$/.test(normalized) || /[0-9]/.test(normalized);
+  return /^\d+$/.test(normalized) || UUID_SEGMENT_PATTERN.test(normalized) || normalized.toLowerCase().includes('uuid');
 };
 
 const BreadcrumbContainer = styled.nav`

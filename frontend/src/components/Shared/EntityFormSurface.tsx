@@ -415,6 +415,7 @@ export const EntityFormSurface: React.FC<EntityFormSurfaceProps> = ({
       keyboard={!formSubmitting}
       footer={null}
       width="min(720px, calc(100vw - 32px))"
+      destroyOnClose
       destroyOnHidden
       title={modalTitle}
     >

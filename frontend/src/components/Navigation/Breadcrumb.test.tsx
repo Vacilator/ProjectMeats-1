@@ -186,6 +186,19 @@ describe('Breadcrumb', () => {
       expect(screen.queryByText('supplier-uuid-1234')).not.toBeInTheDocument();
       expect(screen.queryByText('plant-uuid-5678')).not.toBeInTheDocument();
     });
+
+    it('falls back to contextual details labels when entity lookup fails', async () => {
+      vi.mocked(businessApi.get).mockRejectedValue(new Error('lookup failed'));
+
+      renderWithRouter(
+        '/suppliers/123e4567-e89b-12d3-a456-426614174000/plants/987e6543-e21b-12d3-a456-426614174000'
+      );
+
+      expect(await screen.findByText('Supplier Details')).toBeInTheDocument();
+      expect(await screen.findByText('Plant Details')).toBeInTheDocument();
+      expect(screen.queryByText('123e4567-e89b-12d3-a456-426614174000')).not.toBeInTheDocument();
+      expect(screen.queryByText('987e6543-e21b-12d3-a456-426614174000')).not.toBeInTheDocument();
+    });
   });
 
   describe('unknown paths', () => {
