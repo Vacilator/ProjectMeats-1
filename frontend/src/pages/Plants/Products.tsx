@@ -204,7 +204,7 @@ const PlantProducts: React.FC = () => {
     if (addModalVisible) {
       void fetchSystemProducts(productSearchText);
     }
-  }, [addModalVisible, fetchSystemProducts, productSearchText, proteinFilter.join('|')]);
+  }, [addModalVisible, fetchSystemProducts]);
 
   const handleAddProducts = async () => {
     if (!selectedProductIds.length) {
@@ -401,6 +401,7 @@ const PlantProducts: React.FC = () => {
         okText="Add Selected"
         confirmLoading={addingProducts}
         width={700}
+        destroyOnHidden
       >
         <div style={{ display: 'flex', gap: 12, marginBottom: 16, alignItems: 'center' }}>
           <Input

@@ -790,14 +790,14 @@ const Inquiries: React.FC = () => {
       ) : null}
       
       {/* Clone Inquiry Modal */}
-      {selectedInquiry && (
+      {showCloneModal && selectedInquiry ? (
         <CloneInquiryModal
           isOpen={showCloneModal}
           onClose={() => setShowCloneModal(false)}
           onCloned={handleCloned}
           inquiry={selectedInquiry}
         />
-      )}
+      ) : null}
     </Container>
   );
 };
