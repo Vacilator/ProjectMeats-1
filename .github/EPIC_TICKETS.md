@@ -242,8 +242,8 @@
   - **Rollback:** Revert touched modal lifecycle changes together for the affected surfaces and restore the prior open/close behavior only if the new contract regresses stable forms.
   - **Completion evidence destination:** `.github/MASTER_PLAN.md` (PR #4836)
 
-- [ ] **UI-01.2 null-safety-formatters**
-  - **Status:** Ready
+- [x] **UI-01.2 null-safety-formatters**
+  - **Status:** Done
   - **Why now:** Detail views still crash when legacy or partially populated rows feed `null` into `.toFixed()` or other numeric/currency formatters.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 14.5 / Null-safe numeric formatting
   - **Scope:** Audit shared formatter utilities and high-frequency read-only views, then centralize null-coalescing numeric/currency formatting so legacy blank values render safely instead of throwing.
@@ -258,10 +258,10 @@
   - **Secrets/infra impact:** None
   - **Risk level:** Medium
   - **Rollback:** Revert the formatter consolidation and leaf-view patches together if the new boundary distorts displayed values.
-  - **Completion evidence destination:** `.github/MASTER_PLAN.md`
+  - **Completion evidence destination:** `.github/MASTER_PLAN.md` (PR #4838)
 
 - [ ] **UI-01.3 breadcrumb-uuid-resolution-engine**
-  - **Status:** Blocked
+  - **Status:** Ready
   - **Why now:** Operators are still navigating through raw UUID breadcrumb segments, which makes nested supplier/customer/plant paths look broken and slows navigation.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 14.5 / Breadcrumb UUID resolution
   - **Scope:** Upgrade breadcrumb rendering to resolve entity UUID/path params into display names via one canonical route-loader or shared dictionary strategy, while preserving stable fallback labels when lookup data is unavailable.
@@ -269,7 +269,7 @@
   - **Primary domain:** frontend
   - **Likely touched paths:** `frontend/src/components/Layout/BreadcrumbBar.tsx`, route config/loaders, entity service-layer helpers, shared record/detail pages, frontend regression tests
   - **Dependencies:** UI-01.2
-  - **Blockers:** UI-01.2
+  - **Blockers:** None
   - **Acceptance criteria:** Breadcrumbs resolve human-readable labels for supported entity routes, UUID segments no longer dominate nested navigation on key record paths, and fallback behavior remains stable when resolution fails.
   - **Validation commands:** `npm -C frontend run verify-standards`; `npm -C frontend run test:ci`
   - **Tenant/RLS impact:** Low through entity lookup scope
