@@ -284,12 +284,28 @@ LOGGING = {
     "disable_existing_loggers": False,
     "formatters": {
         "verbose": {
+            "()": "apps.core.utils.redaction.RedactingFormatter",
             "format": "{levelname} {asctime} {module} {process:d} {thread:d} {message}",
             "style": "{",
         },
-        "simple": {"format": "{levelname} {message}", "style": "{"},
+        "simple": {
+            "()": "apps.core.utils.redaction.RedactingFormatter",
+            "format": "{levelname} {message}",
+            "style": "{",
+        },
     },
-    "handlers": {"console": {"class": "logging.StreamHandler", "formatter": "verbose"}},
+    "filters": {
+        "redact_sensitive_data": {
+            "()": "apps.core.utils.redaction.RedactingLogFilter",
+        }
+    },
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+            "formatter": "verbose",
+            "filters": ["redact_sensitive_data"],
+        }
+    },
     "root": {"handlers": ["console"], "level": "INFO"},
     "loggers": {
         "django": {"handlers": ["console"], "level": "INFO", "propagate": False},

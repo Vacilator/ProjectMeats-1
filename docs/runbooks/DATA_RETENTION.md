@@ -22,6 +22,12 @@
 3. Execute mode that writes archive snapshot evidence only. It does **not** purge live rows.
 4. Active legal holds enforced before any snapshot is written.
 
+## What ships in GA-03.3
+
+1. Centralized redaction filters for Django logging and Celery task logs.
+2. Backend Sentry event, breadcrumb, and transaction redaction hooks with default PII transport disabled.
+3. Frontend logger/Sentry telemetry scrubbing so raw emails, phone numbers, tokens, cookies, and password-like fields do not leave the browser logs unredacted.
+
 ## Non-goals
 
 - No Celery schedule or object-storage configuration yet.
@@ -51,8 +57,8 @@ These records are intentionally out of scope for the first archive contract:
    - operational retention needs a different policy from the financial 7-year window
    - deferred to the GA-03.4 governance/evidence lane
 3. **AI documents, communications, and observability payloads**
-   - they need centralized redaction rules first
-   - deferred to GA-03.3
+   - they now depend on centralized GA-03.3 redaction rules
+   - they remain outside the archive inventory and lifecycle in this governance lane
 4. **Soft-deleted rows**
    - soft-delete restore is not archive restore
    - do not treat existing `/restore/` endpoints as archive recovery
@@ -108,7 +114,7 @@ Every future archive or restore action must produce evidence containing:
 | --- | --- |
 | `GA-03.1` | define inventory, exemptions, legal-hold fields, restore expectations |
 | `GA-03.2` | implement dry-run-first archive command, RLS-backed evidence tables, and legal-hold enforcement |
-| `GA-03.3` | centralize PII redaction for logging, Celery, and Sentry |
+| `GA-03.3` | centralize PII redaction for logging, Celery, and Sentry across backend and frontend observability seams |
 | `GA-03.4` | formalize schedules, evidence operations, and workflow/telemetry governance |
 
 ## Relationship to other canonical sources

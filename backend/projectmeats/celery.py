@@ -1,12 +1,8 @@
-"""
-Celery application configuration for ProjectMeats.
+"""Celery application configuration for ProjectMeats."""
 
-This module sets up the Celery task queue for background jobs like:
-- Email polling (every 5 minutes)
-- Scheduled workflow execution
-- Async notification delivery
-"""
 import os
+import logging
+
 from celery import Celery
 from celery.schedules import crontab
 
@@ -58,8 +54,18 @@ app.conf.beat_schedule = {
 # Set timezone for scheduled tasks
 app.conf.timezone = 'UTC'
 
+logger = logging.getLogger(__name__)
+
 
 @app.task(bind=True, ignore_result=True)
 def debug_task(self):
     """Debug task to verify Celery is working."""
-    print(f'Request: {self.request!r}')
+    logger.info(
+        'Celery debug task invoked',
+        extra={
+            'task_name': getattr(self, 'name', 'unknown'),
+            'task_id': getattr(self.request, 'id', None),
+            'retries': getattr(self.request, 'retries', None),
+            'delivery_info': getattr(self.request, 'delivery_info', None),
+        },
+    )

@@ -14,6 +14,7 @@
 import * as Sentry from '@sentry/react';
 
 import { logger } from '@/utils/logger';
+import { sanitizeTelemetryData, sanitizeTelemetryString } from '@/utils/telemetrySanitizer';
 import { useEffect } from 'react';
 import {
   createRoutesFromChildren,
@@ -101,7 +102,7 @@ export const initSentry = (config?: SentryConfig): void => {
     replaysOnErrorSampleRate,
     
     // Error Filtering
-    beforeSend(event, hint) {
+      beforeSend(event, hint) {
       // Filter out non-actionable errors
       const error = hint.originalException;
       
@@ -147,12 +148,18 @@ export const initSentry = (config?: SentryConfig): void => {
         // best-effort
       }
 
-      return event;
-    },
+      return sanitizeTelemetryData(event) as typeof event;
+      },
+      beforeBreadcrumb(breadcrumb) {
+        return sanitizeTelemetryData(breadcrumb) as typeof breadcrumb;
+      },
+      beforeSendTransaction(event) {
+        return sanitizeTelemetryData(event) as typeof event;
+      },
     
     // Privacy
     // Required for Seer (user-impact analysis) + richer debugging context.
-    sendDefaultPii: true,
+    sendDefaultPii: false,
     
     // Context
     initialScope: {
@@ -177,13 +184,19 @@ export const initSentry = (config?: SentryConfig): void => {
 /**
  * Set user context for error tracking
  */
-export const setSentryUser = (userId: string, email?: string, tenant?: string, username?: string): void => {
+export const setSentryUser = (
+  userId: string,
+  _email?: string,
+  tenant?: string,
+  _username?: string
+): void => {
   Sentry.setUser({
     id: userId,
-    email,
-    tenant,
-    username,
   });
+
+  if (tenant) {
+    Sentry.setTag('tenant.id', sanitizeTelemetryString(tenant));
+  }
 };
 
 /**
@@ -197,11 +210,10 @@ export const clearSentryUser = (): void => {
  * Set tenant context
  */
 export const setSentryTenant = (tenantId: string, tenantName?: string): void => {
-  Sentry.setTag('tenant.id', tenantId);
-  Sentry.setTag('tenant.name', tenantName || 'unknown');
+  Sentry.setTag('tenant.id', sanitizeTelemetryString(tenantId));
   Sentry.setContext('tenant', {
-    id: tenantId,
-    name: tenantName,
+    id: sanitizeTelemetryString(tenantId),
+    ...(tenantName ? { name: sanitizeTelemetryString(tenantName) } : {}),
   });
 };
 
@@ -216,9 +228,9 @@ export const addSentryBreadcrumb = (
 ): void => {
   Sentry.addBreadcrumb({
     category,
-    message,
+    message: sanitizeTelemetryString(message),
     level,
-    data,
+    data: sanitizeTelemetryData(data) as Record<string, unknown> | undefined,
     timestamp: Date.now() / 1000,
   });
 };
@@ -245,10 +257,10 @@ export const captureSentryException = (
 ): void => {
   Sentry.captureException(error, {
     tags: {
-      component: context?.component,
-      tenant: context?.tenant,
+      component: context?.component ? sanitizeTelemetryString(context.component) : undefined,
+      tenant: context?.tenant ? sanitizeTelemetryString(context.tenant) : undefined,
     },
-    extra: context?.metadata,
+    extra: sanitizeTelemetryData(context?.metadata) as Record<string, unknown> | undefined,
   });
 };
 
@@ -264,13 +276,13 @@ export const captureSentryMessage = (
     metadata?: Record<string, any>;
   }
 ): void => {
-  Sentry.captureMessage(message, {
+  Sentry.captureMessage(sanitizeTelemetryString(message), {
     level,
     tags: {
-      component: context?.component,
-      tenant: context?.tenant,
+      component: context?.component ? sanitizeTelemetryString(context.component) : undefined,
+      tenant: context?.tenant ? sanitizeTelemetryString(context.tenant) : undefined,
     },
-    extra: context?.metadata,
+    extra: sanitizeTelemetryData(context?.metadata) as Record<string, unknown> | undefined,
   });
 };
 

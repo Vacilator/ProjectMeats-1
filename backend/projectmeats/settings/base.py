@@ -443,29 +443,39 @@ LOGGING = {
     "disable_existing_loggers": False,
     "formatters": {
         "verbose": {
+            "()": "apps.core.utils.redaction.RedactingFormatter",
             "format": "{levelname} {asctime} {module} {process:d} {thread:d} {message}",
             "style": "{",
         },
         "simple": {
+            "()": "apps.core.utils.redaction.RedactingFormatter",
             "format": "{levelname} {message}",
             "style": "{",
         },
+    },
+    "filters": {
+        "redact_sensitive_data": {
+            "()": "apps.core.utils.redaction.RedactingLogFilter",
+        }
     },
     "handlers": {
         "console": {
             "class": "logging.StreamHandler",
             "formatter": "verbose",
+            "filters": ["redact_sensitive_data"],
         },
         "file": {
             "class": "logging.FileHandler",
             "filename": BASE_DIR / "logs" / "django.log",
             "formatter": "verbose",
+            "filters": ["redact_sensitive_data"],
         },
         "debug_file": {
             "class": "logging.FileHandler",
             "filename": BASE_DIR / "logs" / "debug.log",
             "formatter": "verbose",
             "level": "DEBUG",
+            "filters": ["redact_sensitive_data"],
         },
     },
     "root": {
@@ -624,6 +634,11 @@ SENTRY_BASE_URL = os.environ.get("SENTRY_BASE_URL", "https://sentry.io")
 
 if SENTRY_ENABLED and SENTRY_DSN:
     import sentry_sdk
+    from apps.core.utils.redaction import (
+        sentry_before_breadcrumb,
+        sentry_before_send,
+        sentry_before_send_transaction,
+    )
     from sentry_sdk.integrations.celery import CeleryIntegration
     from sentry_sdk.integrations.django import DjangoIntegration
 
@@ -651,17 +666,16 @@ if SENTRY_ENABLED and SENTRY_DSN:
         profiles_sample_rate=0.0,  # Disabled until needed (can enable later)
 
         # Error Filtering
-        before_send=lambda event, hint: (
-            # Filter out 404 errors to keep signal-to-noise ratio high
-            None if event.get("exception", {}).get("values", [{}])[0].get("type") == "Http404" else event
-        ),
+        before_send=sentry_before_send,
+        before_breadcrumb=sentry_before_breadcrumb,
+        before_send_transaction=sentry_before_send_transaction,
 
         # Release Tracking
         release=os.environ.get("GIT_COMMIT_SHA", "unknown"),  # Set by CI/CD
 
         # Additional Options
         # Required for Seer (user-impact analysis) + richer debugging context.
-        send_default_pii=True,
+        send_default_pii=False,
         in_app_include=["backend", "tenant_apps"],
         attach_stacktrace=True,   # Always include stacktraces
         max_breadcrumbs=50,       # Keep more breadcrumbs for context

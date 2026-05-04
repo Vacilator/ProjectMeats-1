@@ -14,6 +14,8 @@ from typing import Any, Iterator
 
 from django.conf import settings
 
+from apps.core.utils.redaction import sanitize_data
+
 
 @contextmanager
 def sentry_scope(*, request: Any | None = None, extra: dict[str, Any] | None = None) -> Iterator[None]:
@@ -44,8 +46,6 @@ def sentry_scope(*, request: Any | None = None, extra: dict[str, Any] | None = N
                     scope.set_user(
                         {
                             "id": str(getattr(user, "id", "")) or "",
-                            "username": getattr(user, "username", None) or "",
-                            "email": getattr(user, "email", None) or "",
                         }
                     )
 
@@ -55,7 +55,7 @@ def sentry_scope(*, request: Any | None = None, extra: dict[str, Any] | None = N
 
                 if extra:
                     for k, v in extra.items():
-                        scope.set_extra(str(k), v)
+                        scope.set_extra(str(k), sanitize_data(v))
             except Exception:
                 # Never fail during exception handling.
                 pass

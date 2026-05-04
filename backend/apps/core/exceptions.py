@@ -53,7 +53,7 @@ def _capture_exception(exc, context, response_status: int | None = None) -> None
             try:
                 user = getattr(request, "user", None)
                 if user and getattr(user, "is_authenticated", False):
-                    scope.set_user({"id": str(user.id), "username": getattr(user, "username", None)})
+                    scope.set_user({"id": str(user.id)})
             except Exception:
                 pass
 
