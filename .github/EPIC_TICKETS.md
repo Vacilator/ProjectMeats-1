@@ -490,8 +490,8 @@
   - **Rollback:** Revert validator changes and documentation edits together if false positives block legitimate work.
   - **Completion evidence destination:** append shipped PR evidence to `.github/MASTER_PLAN.md`
 
-- [ ] **EH-01.2 manifest-required-secret-parity**
-  - **Status:** Ready
+- [x] **EH-01.2 manifest-required-secret-parity**
+  - **Status:** Shipped (PR #4764)
   - **Why now:** Secret requirements are still duplicated in workflow logic instead of being generated from the manifest.
   - **Canonical source reference:** `MASTER_PLAN.md` -> CI guardrails + Phase 12
   - **Scope:** Make required-secret behavior per lane derive from `manifests/env.manifest.json`.
@@ -509,7 +509,7 @@
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
 - [ ] **EH-01.3 pr-security-gates-and-dependabot-scope**
-  - **Status:** Blocked
+  - **Status:** Ready
   - **Why now:** PR validation lacks supply-chain/security depth and Dependabot can still auto-merge sensitive workflow/Docker changes.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 12
   - **Scope:** Add PR-time security gates and restrict bot auto-merge to safe dependency surfaces.
@@ -517,7 +517,7 @@
   - **Primary domain:** CI/security
   - **Likely touched paths:** `.github/workflows/pr-validation.yml`, `.github/workflows/15-dependabot-merge-when-green.yml`, `.github/CODEOWNERS`
   - **Dependencies:** EH-01.2
-  - **Blockers:** EH-01.2 should define manifest-driven expectations before stricter PR enforcement
+  - **Blockers:** None
   - **Acceptance criteria:** Critical workflow/Docker changes require human review and PR validation includes explicit security scanning.
   - **Validation commands:** `bash scripts/verify_golden_state.sh`; `bash .github/scripts/check_infrastructure.sh`
   - **Tenant/RLS impact:** None
