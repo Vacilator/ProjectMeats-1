@@ -29,6 +29,7 @@ import {
   upsertOperationalStatusQueueItem,
   type OperationalStatusQueueItem,
 } from './operationalStatusQueue';
+import { isOperationalOfflineQueueEnabled } from './operationalOfflineMode';
 
 const { Text } = Typography;
 const { TextArea } = Input;
@@ -110,10 +111,12 @@ export const OperationalDocumentActions: React.FC<OperationalDocumentActionsProp
   const normalizedEntityType = config?.entityType ?? entityType;
   const normalizedEntityId = String(entityId);
   const tenantId = window.localStorage.getItem('tenantId') ?? 'unknown-tenant';
+  const offlineQueueEnabled = useMemo(() => isOperationalOfflineQueueEnabled(), []);
   const supportsOptimisticStatus = useMemo(
-    () => supportsOptimisticOperationalStatus(normalizedEntityType),
-    [normalizedEntityType]
+    () => offlineQueueEnabled && supportsOptimisticOperationalStatus(normalizedEntityType),
+    [normalizedEntityType, offlineQueueEnabled]
   );
+  const hasQueuedTransition = offlineQueueEnabled && Boolean(queuedTransition);
   const workflowQueryKey = useMemo(
     () => ['document-status-workflow', normalizedEntityType, normalizedEntityId] as const,
     [normalizedEntityId, normalizedEntityType]
@@ -132,6 +135,11 @@ export const OperationalDocumentActions: React.FC<OperationalDocumentActionsProp
   });
 
   useEffect(() => {
+    if (!offlineQueueEnabled) {
+      setQueuedTransition(null);
+      return;
+    }
+
     const refreshQueuedTransition = () => {
       setQueuedTransition(getQueuedOperationalStatus(tenantId, normalizedEntityType, normalizedEntityId));
     };
@@ -153,10 +161,10 @@ export const OperationalDocumentActions: React.FC<OperationalDocumentActionsProp
       window.removeEventListener(OPERATIONAL_STATUS_QUEUE_EVENT, handleQueueEvent);
       window.removeEventListener('storage', handleQueueEvent);
     };
-  }, [normalizedEntityId, normalizedEntityType, tenantId]);
+  }, [normalizedEntityId, normalizedEntityType, offlineQueueEnabled, tenantId]);
 
   useEffect(() => {
-    if (!isOnline) {
+    if (!offlineQueueEnabled || !isOnline) {
       return;
     }
 
@@ -204,12 +212,13 @@ export const OperationalDocumentActions: React.FC<OperationalDocumentActionsProp
     lastChangedAt,
     normalizedEntityId,
     normalizedEntityType,
+    offlineQueueEnabled,
     onChanged,
     queryClient,
     tenantId,
   ]);
 
-  const effectiveWorkflow = queuedTransition
+  const effectiveWorkflow = hasQueuedTransition && queuedTransition
     ? buildOptimisticWorkflow(workflowQuery.data, queuedTransition.nextStatus)
     : workflowQuery.data;
 
@@ -352,7 +361,7 @@ export const OperationalDocumentActions: React.FC<OperationalDocumentActionsProp
               style={{ minWidth: compact ? 180 : 220 }}
               value={selectedStatus || undefined}
               placeholder="Select next status"
-              disabled={transitionMutation.isPending || Boolean(queuedTransition)}
+              disabled={transitionMutation.isPending || hasQueuedTransition}
               onChange={setSelectedStatus}
               options={(effectiveWorkflow?.allowed_transitions ?? []).map((value) => {
                 const match = effectiveWorkflow?.statuses?.find((status) => status.value === value);
@@ -366,7 +375,7 @@ export const OperationalDocumentActions: React.FC<OperationalDocumentActionsProp
               size={compact ? 'small' : 'middle'}
               type="primary"
               disabled={!selectedStatus}
-              loading={transitionMutation.isPending || (Boolean(queuedTransition) && isQueueSyncing)}
+              loading={transitionMutation.isPending || (hasQueuedTransition && isQueueSyncing)}
               onClick={() => {
                 if (selectedStatus) {
                   transitionMutation.mutate(selectedStatus);
@@ -378,7 +387,9 @@ export const OperationalDocumentActions: React.FC<OperationalDocumentActionsProp
           </Space>
         )}
 
-        {queuedTransition ? <Text type="secondary">Queued offline: {queuedTransition.nextStatus}</Text> : null}
+        {hasQueuedTransition ? (
+          <Text type="secondary">Queued offline: {queuedTransition?.nextStatus}</Text>
+        ) : null}
 
         <Space wrap>
           <Button

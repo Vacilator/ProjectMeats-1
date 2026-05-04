@@ -3,12 +3,14 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+const connectivityState = vi.hoisted(() => ({
+  isOnline: true,
+  status: 'online',
+  lastChangedAt: null as number | null,
+}));
+
 const connectivityMock = vi.hoisted(() => ({
-  useConnectivity: vi.fn(() => ({
-    isOnline: true,
-    status: 'online',
-    lastChangedAt: null,
-  })),
+  useConnectivity: vi.fn(() => connectivityState),
 }));
 
 const businessApiMock = vi.hoisted(() => ({
@@ -39,8 +41,11 @@ vi.mock('antd', async () => {
 });
 
 import { OperationalDocumentActions } from './OperationalDocumentActions';
+import { OPERATIONAL_OFFLINE_QUEUE_DISABLE_KEY } from './operationalOfflineMode';
 
-const renderActions = () => {
+const renderActions = (
+  props: Partial<React.ComponentProps<typeof OperationalDocumentActions>> = {},
+) => {
   const queryClient = new QueryClient({
     defaultOptions: {
       queries: { retry: false },
@@ -48,17 +53,26 @@ const renderActions = () => {
     },
   });
 
-  return render(
+  const view = render(
     <QueryClientProvider client={queryClient}>
-      <OperationalDocumentActions entityType="carrier_purchase_order" entityId="42" />
+      <OperationalDocumentActions entityType="carrier_purchase_order" entityId="42" {...props} />
     </QueryClientProvider>
   );
+
+  return {
+    queryClient,
+    ...view,
+  };
 };
 
 describe('OperationalDocumentActions', () => {
   beforeEach(() => {
     window.localStorage.clear();
+    delete window.ENV;
     window.localStorage.setItem('tenantId', 'tenant-123');
+    connectivityState.isOnline = true;
+    connectivityState.status = 'online';
+    connectivityState.lastChangedAt = null;
     businessApiMock.get.mockReset();
     businessApiMock.post.mockReset();
     messageMock.success.mockReset();
@@ -117,5 +131,87 @@ describe('OperationalDocumentActions', () => {
     expect(screen.queryByText(/queued offline/i)).not.toBeInTheDocument();
     expect(messageMock.error).toHaveBeenCalledWith('Server exploded');
     expect(window.localStorage.getItem('projectmeats.operational-status-queue.v1:tenant-123')).toBeNull();
+  });
+
+  it('disables offline queueing when the rollout guard is set', async () => {
+    window.localStorage.setItem(OPERATIONAL_OFFLINE_QUEUE_DISABLE_KEY, '1');
+    businessApiMock.post.mockRejectedValueOnce(new Error('Network error'));
+
+    renderActions();
+
+    expect(await screen.findByText('Current status: processing')).toBeInTheDocument();
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /update status/i }));
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText('Current status: processing')).toBeInTheDocument();
+    });
+
+    expect(screen.queryByText(/queued offline/i)).not.toBeInTheDocument();
+    expect(messageMock.error).toHaveBeenCalledWith('Network error');
+    expect(window.localStorage.getItem('projectmeats.operational-status-queue.v1:tenant-123')).toBeNull();
+  });
+
+  it('replays queued transitions when connectivity returns', async () => {
+    connectivityState.isOnline = false;
+    connectivityState.status = 'offline';
+    connectivityState.lastChangedAt = 1;
+
+    window.localStorage.setItem(
+      'projectmeats.operational-status-queue.v1:tenant-123',
+      JSON.stringify([
+        {
+          tenantId: 'tenant-123',
+          entityType: 'carrier_purchase_order',
+          entityId: '42',
+          nextStatus: 'delivered',
+          queuedAt: '2026-05-04T00:00:00.000Z',
+        },
+      ]),
+    );
+
+    let currentStatus = 'processing';
+    businessApiMock.get.mockImplementation(async () => ({
+      data: {
+        current_status: currentStatus,
+        allowed_transitions: currentStatus === 'processing' ? ['delivered'] : [],
+        statuses: [
+          { value: 'processing', label: 'Processing' },
+          { value: 'delivered', label: 'Delivered' },
+        ],
+      },
+    }));
+    businessApiMock.post.mockImplementation(async () => {
+      currentStatus = 'delivered';
+      return { data: { status: 'delivered' } };
+    });
+
+    const onChanged = vi.fn();
+    const view = renderActions({ onChanged });
+
+    expect(await screen.findByText('Queued offline: delivered')).toBeInTheDocument();
+
+    connectivityState.isOnline = true;
+    connectivityState.status = 'online';
+    connectivityState.lastChangedAt = 2;
+
+    view.rerender(
+      <QueryClientProvider client={view.queryClient}>
+        <OperationalDocumentActions
+          entityType="carrier_purchase_order"
+          entityId="42"
+          onChanged={onChanged}
+        />
+      </QueryClientProvider>,
+    );
+
+    await waitFor(() => {
+      expect(window.localStorage.getItem('projectmeats.operational-status-queue.v1:tenant-123')).toBeNull();
+    });
+    await waitFor(() => {
+      expect(onChanged).toHaveBeenCalled();
+    });
   });
 });

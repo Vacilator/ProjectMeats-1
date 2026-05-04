@@ -234,10 +234,17 @@ For production deployments, you can override configuration at runtime:
 window.ENV = {
   API_BASE_URL: 'https://api.example.com/api/v1',
   ENVIRONMENT: 'production',
+  ENABLE_OPERATIONAL_OFFLINE_QUEUE: '1',
 };
 ```
 
 **Priority**: `window.ENV` → Tenant context → `import.meta.env.VITE_*` → defaults
+
+**Operational offline queue guard**
+
+- Default behavior keeps the warehouse/logistics replay queue enabled.
+- Set `window.ENV.ENABLE_OPERATIONAL_OFFLINE_QUEUE = '0'` to disable the optimistic offline queue at runtime.
+- For browser-local emergency mitigation, set `localStorage['pm:disableOperationalOfflineQueue'] = '1'` and reload.
 
 See [RUNTIME_CONFIG.md](./RUNTIME_CONFIG.md) for detailed configuration guide.
 
