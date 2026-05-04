@@ -224,8 +224,8 @@
 
 ### Epic UI-01 - Core UX Stabilization
 
-- [ ] **UI-01.1 modal-lifecycle-lockdown**
-  - **Status:** Ready
+- [x] **UI-01.1 modal-lifecycle-lockdown**
+  - **Status:** Done
   - **Why now:** Hidden modal bodies are still one of the fastest ways to crash record-edit flows through stale hydration loops and React Error #185 regressions.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 14.5 / Modal lifecycle lockdown
   - **Scope:** Audit Plants, Inquiries, and shared modal/drawer surfaces; enforce `destroyOnClose={true}` where hidden AntD state can linger; and conditionally mount heavy form/query bodies only while open so edit flows always start from a fresh React tree.
@@ -240,10 +240,10 @@
   - **Secrets/infra impact:** None
   - **Risk level:** High
   - **Rollback:** Revert touched modal lifecycle changes together for the affected surfaces and restore the prior open/close behavior only if the new contract regresses stable forms.
-  - **Completion evidence destination:** `.github/MASTER_PLAN.md`
+  - **Completion evidence destination:** `.github/MASTER_PLAN.md` (PR #4836)
 
 - [ ] **UI-01.2 null-safety-formatters**
-  - **Status:** Blocked
+  - **Status:** Ready
   - **Why now:** Detail views still crash when legacy or partially populated rows feed `null` into `.toFixed()` or other numeric/currency formatters.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 14.5 / Null-safe numeric formatting
   - **Scope:** Audit shared formatter utilities and high-frequency read-only views, then centralize null-coalescing numeric/currency formatting so legacy blank values render safely instead of throwing.
@@ -251,7 +251,7 @@
   - **Primary domain:** frontend
   - **Likely touched paths:** `frontend/src/utils/formatters.ts`, inquiry/invoice/detail components, related shared display helpers, frontend regression tests
   - **Dependencies:** UI-01.1
-  - **Blockers:** UI-01.1
+  - **Blockers:** None
   - **Acceptance criteria:** Shared numeric/currency formatting paths tolerate `null`/`undefined`, known inquiry/invoice crash paths render stable fallback values, and duplicated inline `.toFixed()` risk is reduced or eliminated in touched surfaces.
   - **Validation commands:** `npm -C frontend run verify-standards`; `npm -C frontend run test:ci`
   - **Tenant/RLS impact:** None
