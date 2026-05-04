@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   getDocumentEntityConfig,
   supportsAuditHistory,
+  supportsOptimisticOperationalStatus,
   supportsOperationalActions,
 } from './documentOperations';
 
@@ -26,5 +27,12 @@ describe('documentOperations', () => {
     expect(supportsAuditHistory('carrier')).toBe(true);
     expect(supportsAuditHistory('sales-orders')).toBe(true);
     expect(supportsAuditHistory('unknown')).toBe(false);
+  });
+
+  it('limits optimistic status updates to warehouse-critical documents', () => {
+    expect(supportsOptimisticOperationalStatus('purchase_order')).toBe(true);
+    expect(supportsOptimisticOperationalStatus('sales-orders')).toBe(true);
+    expect(supportsOptimisticOperationalStatus('freight-orders')).toBe(true);
+    expect(supportsOptimisticOperationalStatus('invoice')).toBe(false);
   });
 });
