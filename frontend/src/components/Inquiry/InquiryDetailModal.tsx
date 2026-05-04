@@ -19,6 +19,11 @@ import {
 } from '../../types';
 import { CreateFulfillmentModal } from '../Fulfillment';
 import { InquiryModalContainer, InquiryModalOverlay } from './InquiryModalFrame';
+import {
+  formatCurrencyValue,
+  formatFixedWithFallback,
+  formatIntegerValue,
+} from './numberFormatting';
 
 // ============================================================================
 // TypeScript Interfaces
@@ -227,10 +232,10 @@ const PriceCell = styled.div<{ variant?: 'desired' | 'actual' }>`
   font-weight: 500;
 `;
 
-const MarginCell = styled.div<{ positive?: boolean }>`
+const MarginCell = styled.div<{ $positive?: boolean }>`
   font-size: 0.875rem;
   font-weight: 600;
-  color: ${props => props.positive ? 'rgb(22, 163, 74)' : 'rgb(220, 38, 38)'};
+  color: ${props => props.$positive ? 'rgb(22, 163, 74)' : 'rgb(220, 38, 38)'};
 `;
 
 const TotalsRow = styled.div`
@@ -397,11 +402,6 @@ export const InquiryDetailModal: React.FC<InquiryDetailModalProps> = ({
     return new Date(dateStr).toLocaleDateString();
   };
 
-  const formatCurrency = (value: number | undefined) => {
-    if (value === undefined || value === null) return '-';
-    return `$${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-  };
-
   return (
     <>
       <InquiryModalOverlay $open={isOpen} onClick={onClose}>
@@ -530,17 +530,20 @@ export const InquiryDetailModal: React.FC<InquiryDetailModalProps> = ({
                         <div className="code">{product.product_code}</div>
                         <div className="description">{product.product_description}</div>
                       </ProductInfo>
-                      <div>{product.quantity}</div>
+                      <div>{formatIntegerValue(product.quantity)}</div>
                       <PriceCell variant="desired">
-                        {formatCurrency(product.desired_price_per_unit)}
+                        {formatCurrencyValue(product.desired_price_per_unit)}
                       </PriceCell>
                       <PriceCell variant="actual">
-                        {formatCurrency(product.actual_price_per_unit)}
+                        {formatCurrencyValue(product.actual_price_per_unit)}
                       </PriceCell>
-                      <div>{formatCurrency(product.actual_total || product.desired_total)}</div>
-                      <MarginCell positive={(product.margin || 0) >= 0}>
-                        {product.margin !== undefined ? `${product.margin >= 0 ? '+' : ''}${formatCurrency(product.margin)}` : '-'}
-                        {product.margin_percent !== undefined && ` (${product.margin_percent.toFixed(1)}%)`}
+                      <div>{formatCurrencyValue(product.actual_total ?? product.desired_total)}</div>
+                      <MarginCell $positive={(product.margin || 0) >= 0}>
+                        {product.margin !== undefined
+                          ? `${product.margin >= 0 ? '+' : ''}${formatCurrencyValue(product.margin)}`
+                          : '-'}
+                        {product.margin_percent !== undefined &&
+                          ` (${formatFixedWithFallback(product.margin_percent, 1)}%)`}
                       </MarginCell>
                     </ProductRow>
                   ))}
@@ -548,11 +551,13 @@ export const InquiryDetailModal: React.FC<InquiryDetailModalProps> = ({
                   <TotalsRow>
                     <div>Total</div>
                     <div />
-                    <PriceCell variant="desired">{formatCurrency(inquiry.total_desired)}</PriceCell>
-                    <PriceCell variant="actual">{formatCurrency(inquiry.total_actual)}</PriceCell>
-                    <div>{formatCurrency(inquiry.total_actual || inquiry.total_desired)}</div>
-                    <MarginCell positive={(inquiry.total_margin || 0) >= 0}>
-                      {inquiry.total_margin !== undefined ? `${inquiry.total_margin >= 0 ? '+' : ''}${formatCurrency(inquiry.total_margin)}` : '-'}
+                    <PriceCell variant="desired">{formatCurrencyValue(inquiry.total_desired)}</PriceCell>
+                    <PriceCell variant="actual">{formatCurrencyValue(inquiry.total_actual)}</PriceCell>
+                    <div>{formatCurrencyValue(inquiry.total_actual ?? inquiry.total_desired)}</div>
+                    <MarginCell $positive={(inquiry.total_margin || 0) >= 0}>
+                      {inquiry.total_margin !== undefined
+                        ? `${inquiry.total_margin >= 0 ? '+' : ''}${formatCurrencyValue(inquiry.total_margin)}`
+                        : '-'}
                     </MarginCell>
                   </TotalsRow>
                 </ProductsTable>

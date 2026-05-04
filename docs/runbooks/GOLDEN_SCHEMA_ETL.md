@@ -1,273 +1,176 @@
 # Golden Schema ETL Runbook
 
-## Goal
-- Import historical Excel/CSV/database-export data into the Golden Schema without manual re-entry.
-- Keep ETL tenant-explicit, dry-run-first, and side-effect-free until operators choose to execute.
-- Give GA-01.2 and GA-01.3 a deterministic contract for journal storage, row transforms, reconciliation, and the first write-capable master-data pass.
+**Status:** GA-01.1 scaffold only  
+**Contract version:** `ga01.1.v1`
 
-## What ships in GA-01.1
-1. Contract-only backend scaffolding in `backend/apps/core/services/etl/`.
-2. `import_golden_legacy_data` management command that validates a batch manifest and prints the deterministic import plan.
-3. Example batch manifest fixture for a legacy Excel/CSV bundle.
-4. This runbook, which is the operator/design reference for the next ETL tickets.
+This runbook defines the **normalized import contract** for the Day 0 ETL lane. It does **not** execute writes yet. GA-01.1 establishes the manifest shape, entity ordering, tenant-assertion rules, side-effect suppression rules, and the journal/error-report shapes that GA-01.2 will persist.
 
-## What ships in GA-01.2
-1. Restart-safe ETL journal tables in `backend/apps/core/models.py`.
-2. A dry-run engine that journals row decisions (`would_create`, `would_update`, `would_skip`, `error`) without writing business rows.
-3. Deterministic rerun behavior keyed by tenant + manifest checksum + dry-run options.
-4. Command output that persists batch summaries and row journals for operator review before GA-01.3 introduces write-capable passes.
+## Scope and current constraint
 
-## What ships in GA-01.3
-1. `import_golden_legacy_data --apply` for the first write-capable master-data pass.
-2. Idempotent tenant-scoped upserts for:
-   - `tenant_apps.products.models.MasterProduct`
-   - `tenant_apps.suppliers.models.Supplier`
-   - `tenant_apps.customers.models.Customer`
-   - `tenant_apps.carriers.models.Carrier`
-   - `tenant_apps.plants.models.Plant`
-   - `tenant_apps.locations.models.Location`
-   - `tenant_apps.contacts.models.Contact`
-3. ETL execution context guards that suppress workflow-trigger fan-out while import writes are running.
-4. Journal summaries that expose actual `created_count`, `updated_count`, and `skipped_count` for master-data apply mode.
+- The repository does **not** currently contain the real customer ERP workbooks or exports.
+- GA-01.1 therefore standardizes a **normalized source contract** that adapters must produce before import execution.
+- Raw workbook headers can vary, but the normalized keys and model targets below are the canonical import surface.
 
-## What ships in GA-01.4
-1. `import_golden_legacy_data --apply` now supports transactional batches for:
-   - `purchase_orders`
-   - `purchase_order_items`
-   - `sales_orders`
-   - `sales_order_items`
-   - `carrier_purchase_orders`
-   - `carrier_po_items`
-   - `invoices`
-   - `invoice_items`
-2. Transactional rows import in deterministic dependency order with tenant-scoped header and line-item matching.
-3. Reconciliation output now returns row-level error reports without aborting the whole batch when one source row fails.
-4. Apply-mode batches now persist explicit ETL batch modes: `dry_run`, `apply_master_data`, and `apply_transactions`.
+## Command entrypoint
 
-## Non-goals
-- No transactional header or line-item imports yet.
-- No webhook/email/signal-driven runtime side effects.
-- No Phase 15 partner portal, conversion, or settlement work.
+```bash
+cd backend
+python manage.py import_golden_legacy_data \
+  --tenant-id <tenant-uuid> \
+  --source-manifest apps/core/tests/fixtures/etl/source_manifest.json
+```
 
-## Deliverables + expected results
-1. **Deterministic entity order**
-   - Master data loads before transactional headers.
-   - Transactional headers load before line items.
-2. **Canonical Golden field groups**
-   - Reusable mapping groups for financial terms, logistics, snapshot fields, and line items mirror the Golden Schema mixins.
-3. **Tenant-explicit batch manifests**
-    - Every ETL batch declares a tenant selector before any future write mode can run.
-4. **Side-effect suppression contract**
-    - Execute-mode ETL must suppress runtime emails, partner webhooks, notification fan-out, and async sync dispatch.
-5. **Restart-safe dry-run journals**
-   - Batch-level and row-level journals persist deterministic dry-run classifications so operators can rerun the same manifest safely.
+Current behavior:
+- validates the JSON source manifest
+- requires explicit tenant assertion
+- asserts tenant RLS context
+- prints the dry-run contract summary
+- writes **no** business rows, history rows, or ETL journal rows
 
-## Deterministic import order
-### Master data
-1. `products`
-2. `suppliers`
-3. `customers`
-4. `carriers`
-5. `plants`
-6. `locations`
-7. `contacts`
+## Tenant assertion and fail-closed rules
 
-### Transactional data
-1. `purchase_orders`
-2. `purchase_order_items`
-3. `sales_orders`
-4. `sales_order_items`
-5. `carrier_purchase_orders`
-6. `carrier_po_items`
-7. `invoices`
-8. `invoice_items`
+1. The operator must provide `--tenant-id` or `--tenant-slug`.
+2. The manifest may also assert `tenant_id` and/or `tenant_slug`.
+3. If the manifest tenant and command tenant differ, the command fails closed.
+4. Any future tenant-scoped ORM must run inside `with tenant_rls(str(tenant.id), strict=True):`
+5. Every resolved tenant-aware FK must still be filtered with `tenant=tenant`.
 
-## Mapping contract by entity
-| Entity | Target model | Identity / dedupe keys | Canonical field groups |
-| --- | --- | --- | --- |
-| `locations` | `tenant_apps.locations.models.Location` | `code`, fallback `name` + `city` + `state` | `contact_snapshot` |
-| `plants` | `tenant_apps.plants.models.Plant` | `plant_est_num`, fallback `name` | `contact_snapshot` |
-| `suppliers` | `tenant_apps.suppliers.models.Supplier` | `name`, `email` | `financial_terms` |
-| `customers` | `tenant_apps.customers.models.Customer` | `name`, `email` | `financial_terms` |
-| `carriers` | `tenant_apps.carriers.models.Carrier` | `code`, `name` | `financial_terms` |
-| `contacts` | `tenant_apps.contacts.models.Contact` | `first_name`, `last_name`, plus parent reference and `email`/`phone` when present | none |
-| `products` | `tenant_apps.products.models.MasterProduct` | `protein`, `item_name`, `type`, `trim` | none |
-| `purchase_orders` | `tenant_apps.purchase_orders.models.PurchaseOrder` | `order_number` | `logistics`, `billing_*`, `shipping_*` |
-| `purchase_order_items` | `tenant_apps.purchase_orders.models.PurchaseOrderItem` | `purchase_order`, `line_number` | `base_line_item` |
-| `sales_orders` | `tenant_apps.sales_orders.models.SalesOrder` | `our_sales_order_number_for_customer` | `logistics`, `billing_*`, `shipping_*` |
-| `sales_order_items` | `tenant_apps.sales_orders.models.SalesOrderItem` | `sales_order`, `line_number` | `base_line_item` |
-| `carrier_purchase_orders` | `tenant_apps.purchase_orders.models.CarrierPurchaseOrder` | `our_carrier_po_num` | `logistics`, `billing_*`, `shipping_*` |
-| `carrier_po_items` | `tenant_apps.purchase_orders.models.CarrierPOItem` | `carrier_purchase_order`, `line_number` | `base_line_item` |
-| `invoices` | `tenant_apps.invoices.models.Invoice` | `invoice_number` | `logistics`, `accounts_payable_*`, `billing_*`, `shipping_*` |
-| `invoice_items` | `tenant_apps.invoices.models.InvoiceItem` | `invoice`, `line_number` | `base_line_item` |
+## Required side-effect suppression
 
-## Batch manifest contract
-Each legacy import batch must provide a JSON manifest before execute mode is allowed.
+Future ETL passes must suppress all of the following during dry-run and initial write modes:
 
-### Required top-level fields
-- `batch_name`
-- `source_system`
-- `sources`
-- one of `tenant_slug` or `tenant_id`
+- `model_signals`
+- `purchase_order_history`
+- `tenant_cache_bumps`
+- `emails`
+- `webhooks`
+- `celery_tasks`
 
-### Source entry fields
-- `entity`
-- `format` (`csv`, `xlsx`, `json`, `database_export`)
-- `path`
-- optional `sheet`
-- optional `notes`
+This is necessary because current business models already have save-time behavior that is correct for interactive app usage but unsafe for bulk ETL.
 
-Rows for GA-01.2 dry runs must already use canonical field names that match the Golden Schema ETL contract. Richer source-to-canonical transforms are deferred to GA-01.3/GA-01.4.
+## Source manifest shape
 
-### Example
 ```json
 {
-  "batch_name": "acme-q1-history",
-  "source_system": "legacy_excel_bundle",
-  "tenant_slug": "acme-meats",
-  "sources": [
+  "version": 1,
+  "batch_key": "sample-day-0-batch",
+  "tenant": {
+    "tenant_id": null,
+    "tenant_slug": null,
+    "asserted_by": "command"
+  },
+  "files": [
     {
       "entity": "suppliers",
-      "format": "xlsx",
-      "path": "imports/acme/suppliers.xlsx",
-      "sheet": "Suppliers"
-    },
-    {
-      "entity": "purchase_orders",
-      "format": "xlsx",
-      "path": "imports/acme/purchase_orders.xlsx",
-      "sheet": "Purchase Orders"
+      "format": "csv",
+      "relative_path": "suppliers.csv",
+      "sheet_name": null,
+      "header_row": 1,
+      "line_item_entity": null,
+      "source_document_key_column": null,
+      "source_line_number_column": null
     }
   ]
 }
 ```
 
-## Tenant ownership assertion
-1. Every batch manifest must declare `tenant_slug` or `tenant_id`.
-2. The management command must resolve that selector to a real `Tenant` before preview/execute work continues.
-3. When GA-01.2 adds row transforms and journals, all tenant-scoped ORM in management commands or background work must run inside `tenant_rls(...)`.
-4. The ETL engine must never infer tenant ownership from spreadsheet contents alone.
+Supported formats: `csv`, `xls`, `xlsx`
 
-## Side-effect suppression rules
-When execute mode is added, the ETL path must suppress:
-1. outbound emails
-2. integration webhooks
-3. notification fan-out
-4. background sync dispatch
+## Deterministic entity order
 
-The import path should rely on an explicit ETL journal/reconciliation surface instead of normal runtime side effects.
+### Master-data order
 
-## Dry-run journal contract (GA-01.2)
-### Batch journal model
-- `ETLImportBatch`
-- tenant-aware, restart-safe run header keyed by manifest checksum + dry-run options
-- stores:
-  - manifest payload/checksum
-  - command options
-  - counters (`would_create`, `would_update`, `would_skip`, `error`)
-  - summary payload
-  - resume cursor / checkpoint metadata
+`products -> plants -> locations -> suppliers -> customers -> carriers -> contacts`
 
-### Row journal model
-- `ETLImportRowJournal`
-- one row per source-path + source-sheet + source-row-number within a batch
-- stores:
-  - `source_identifier`
-  - `normalized_lookup_key`
-  - `planned_action`
-  - `target_model`
-  - `target_identifier`
-  - `error_code`
-  - `error_message`
-  - `raw_payload`
-  - `normalized_payload`
-  - `warnings`
+### Transaction-header order
 
-### Dry-run execution rules
-1. Resolve the tenant from the manifest, then run all tenant-aware ORM under `tenant_rls(...)`.
-2. Persist only ETL journal tables; do not create or update supplier/customer/order/invoice rows.
-3. Re-running the same manifest for the same tenant must reuse the existing batch and upsert the same row journals instead of duplicating them.
+`purchase_orders -> sales_orders -> invoices -> carrier_pos`
 
-## Master-data apply rules (GA-01.3)
-1. Apply mode is explicit: `python manage.py import_golden_legacy_data --manifest ... --apply`.
-2. Apply mode is limited to master-data entities only:
-   - `products`
-   - `suppliers`
-   - `customers`
-   - `carriers`
-   - `plants`
-   - `locations`
-   - `contacts`
-3. The same manifest + options reuse the same batch/run key and upsert the same journal rows on rerun.
-4. Workflow-trigger side effects remain suppressed during ETL-managed saves; operator reconciliation must rely on journal output, not normal runtime fan-out.
-5. Transactional entities remain blocked until GA-01.4.
+### Line-item linkage
 
-## Transactional apply rules (GA-01.4)
-1. Transactional apply mode is explicit: `python manage.py import_golden_legacy_data --manifest ... --apply`.
-2. Transactional batches must be separate from master-data batches unless the operator scopes a single entity with `--entity`.
-3. Transactional apply mode supports:
-   - `purchase_orders`
-   - `purchase_order_items`
-   - `sales_orders`
-   - `sales_order_items`
-   - `carrier_purchase_orders`
-   - `carrier_po_items`
-   - `invoices`
-   - `invoice_items`
-4. Re-running the same manifest + options reuses the same transaction batch/run key and upserts the same journal rows instead of duplicating imported history.
-5. Row-level reconciliation errors surface in `error_report` while successful rows in the same batch continue to import.
+| Header entity | Line-item entity | Parent FK |
+| --- | --- | --- |
+| purchase_orders | purchase_order_items | purchase_order |
+| sales_orders | sales_order_items | sales_order |
+| invoices | invoice_items | invoice |
+| carrier_pos | carrier_po_items | carrier_purchase_order |
 
-## Planned journal + error report contract
-### Import journal fields
-- `batch_id`
-- `batch_name`
-- `tenant_id`
-- `tenant_slug`
-- `source_system`
-- `entity`
-- `source_path`
-- `source_sheet`
-- `source_row_number`
-- `source_identifier`
-- `normalized_lookup_key`
-- `planned_action`
-- `target_model`
-- `target_identifier`
-- `status`
-- `error_code`
-- `error_message`
-- `side_effects_suppressed`
+## Normalized entity contracts
 
-### Error report fields
-- `entity`
-- `source_path`
-- `source_sheet`
-- `source_row_number`
-- `source_identifier`
-- `error_code`
-- `error_message`
-- `canonical_field`
+The following entities are part of the GA-01.1 contract surface:
 
-## Dependencies
-1. GA-01.1 defines the contract only.
-2. GA-01.2 adds journal storage + dry-run transforms.
-3. GA-01.3 adds write-capable master-data import.
-4. GA-01.4 should add transactional import + reconciliation output.
+### Master data
 
-## Risk register + mitigations
-1. **Cross-tenant import risk** (High x High)
-   - Mitigation: tenant selector required in every manifest and tenant resolution before any future write mode.
-2. **Legacy spreadsheet drift** (High x Medium)
-   - Mitigation: keep manifest-driven source declarations and explicit field-group contracts instead of hard-coding one spreadsheet shape.
-3. **ETL accidentally triggers runtime side effects** (High x High)
-   - Mitigation: side-effect suppression rules are part of the contract before execute mode exists.
+| Entity | Target model | Primary match keys | Key normalized fields |
+| --- | --- | --- | --- |
+| products | `apps.system.models.product.Product` | `product_code` | `product_code`, `name`, `description`, `category`, `protein_type`, `fresh_or_frozen`, `package_type`, `carton_type`, `unit_weight`, `uom`, `pcs_per_carton`, `namp_code`, `usda_code`, `ub_code`, `edible_or_inedible`, `net_or_catch`, `tested_product`, `is_active` |
+| plants | `tenant_apps.plants.models.Plant` | `plant_est_num`, `(supplier_source_key, name)` | `supplier_source_key`, `name`, `plant_est_num`, `plant_type`, `address`, `city`, `state`, `zip_code`, `country`, `booking_contact_email`, `booking_contact_phone`, `capacity`, `is_active` |
+| locations | `tenant_apps.locations.models.Location` | `code`, `plant_est_num`, `(name, city, state)` | `code`, `name`, `location_type`, `address`, `city`, `state`, `zip_code`, `country`, `phone`, `email`, `contact_name`, `supplier_source_key`, `customer_source_key`, `plant_est_num`, `is_active` |
+| suppliers | `tenant_apps.suppliers.models.Supplier` | `name`, `email`, `phone` | `name`, `contact_person`, `email`, `phone`, `street_address`, `city`, `state`, `zip_code`, `country`, `payment_terms`, `credit_limit`, `account_line_of_credit`, `shipping_offered`, `how_to_book_pickup`, `offer_contracts`, `offers_export_documents`, `plant_location_source_key` |
+| customers | `tenant_apps.customers.models.Customer` | `name`, `email`, `phone` | `name`, `contact_person`, `email`, `phone`, `street_address`, `city`, `state`, `zip_code`, `country`, `payment_terms`, `credit_limit`, `account_line_of_credit`, `industry`, `type_of_certificate`, `will_pickup_load`, `plant_location_source_key` |
+| carriers | `tenant_apps.carriers.models.Carrier` | `code`, `mc_number`, `dot_number`, `name` | `code`, `name`, `carrier_type`, `contact_person`, `phone`, `email`, `address`, `city`, `state`, `zip_code`, `country`, `mc_number`, `dot_number`, `payment_terms`, `credit_limit`, `how_to_make_appointment`, `my_customer_num_from_carrier` |
+| contacts | `tenant_apps.contacts.models.Contact` | `email`, `(first_name, last_name, company)`, `(first_name, last_name, phone)` | `first_name`, `last_name`, `email`, `phone`, `phone_type`, `company`, `title`, `department`, `notes`, `supplier_source_key`, `customer_source_key`, `plant_source_key`, `location_source_key` |
 
-## Testing strategy
-1. `bash scripts/verify_golden_state.sh`
-2. `bash .github/scripts/check_infrastructure.sh`
-3. `cd backend && python manage.py test apps.core.tests.test_golden_schema_etl_contracts apps.core.tests.test_golden_schema_etl_journal apps.core.tests.test_import_golden_legacy_data_command --verbosity 2`
-4. `cd backend && python manage.py makemigrations --check`
+### Transaction headers
 
-## Rollback / safe-change approach
-1. Revert the ETL contract module, management command, tests, and this runbook together.
-2. No data rollback is required in GA-01.1 because no import writes occur.
+| Entity | Target model | Primary match keys | Key normalized fields |
+| --- | --- | --- | --- |
+| purchase_orders | `tenant_apps.purchase_orders.models.PurchaseOrder` | `order_number`, `our_purchase_order_number_to_supplier` | `order_number`, `supplier_source_key`, `product_code`, `status`, `payment_status`, `order_date`, `delivery_date`, `total_amount`, `outstanding_amount`, `our_purchase_order_number_to_supplier`, `my_customer_number_from_supplier`, `supplier_confirmation_order_number`, `carrier_source_key`, `carrier_release_number`, `how_to_make_appointment`, billing/shipping snapshot fields, `notes` |
+| sales_orders | `tenant_apps.sales_orders.models.SalesOrder` | `our_sales_order_num`, `our_sales_order_number_for_customer` | `our_sales_order_num`, `our_sales_order_number_for_customer`, `supplier_source_key`, `customer_source_key`, `carrier_source_key`, `product_code`, `plant_location_source_key`, `pickup_location_source_key`, `delivery_location_source_key`, `contact_source_key`, `delivery_po_number`, `carrier_release_number`, `how_to_make_appointment`, `quantity`, `total_weight`, `weight_unit`, `status`, `payment_status`, `outstanding_amount`, `total_amount`, billing/shipping snapshot fields, `notes` |
+| invoices | `tenant_apps.invoices.models.Invoice` | `invoice_number` | `invoice_number`, `customer_source_key`, `sales_order_source_key`, `product_code`, `due_date`, `our_sales_order_number_for_customer`, `delivery_po_number`, `payment_terms`, `carrier_release_number`, `how_to_make_appointment`, `type_of_protein`, `description_of_product_item`, `quantity`, `total_weight`, `weight_unit`, `edible_or_inedible`, `tested_product`, `unit_price`, `total_amount`, `tax_amount`, `status`, `payment_status`, `outstanding_amount`, AP/billing/shipping snapshot fields |
+| carrier_pos | `tenant_apps.purchase_orders.models.CarrierPurchaseOrder` | `our_carrier_po_num` | `our_carrier_po_num`, `carrier_source_key`, `supplier_source_key`, `plant_location_source_key`, `pickup_location_source_key`, `delivery_location_source_key`, `product_code`, `purchase_order_source_key`, `sales_order_source_key`, `carrier_name`, `payment_terms`, `credit_limits`, `carrier_release_number`, `how_to_make_appointment`, `type_of_protein`, `fresh_or_frozen`, `package_type`, `net_or_catch`, `edible_or_inedible`, `total_weight`, `weight_unit`, `quantity`, `departments_of_carrier` |
+
+### Transaction line items
+
+| Entity | Target model | Header linkage | Key normalized fields |
+| --- | --- | --- | --- |
+| purchase_order_items | `tenant_apps.purchase_orders.models.PurchaseOrderItem` | `document_number -> purchase_orders.order_number` | `document_number`, `line_number`, `product_code`, `protein_type`, `fresh_or_frozen`, `package_type`, `quantity`, `uom`, `net_or_catch`, `edible_or_inedible`, `tested_product`, `total_net_weight`, `notes` |
+| sales_order_items | `tenant_apps.sales_orders.models.SalesOrderItem` | `document_number -> sales_orders.our_sales_order_num` | `document_number`, `line_number`, `product_code`, `protein_type`, `fresh_or_frozen`, `package_type`, `quantity`, `uom`, `net_or_catch`, `edible_or_inedible`, `tested_product`, `total_net_weight`, `notes` |
+| invoice_items | `tenant_apps.invoices.models.InvoiceItem` | `document_number -> invoices.invoice_number` | `document_number`, `line_number`, `product_code`, `protein_type`, `fresh_or_frozen`, `package_type`, `quantity`, `uom`, `net_or_catch`, `edible_or_inedible`, `tested_product`, `total_net_weight`, `unit_price`, `line_total` |
+| carrier_po_items | `tenant_apps.purchase_orders.models.CarrierPOItem` | `document_number -> carrier_pos.our_carrier_po_num` | `document_number`, `line_number`, `product_code`, `protein_type`, `fresh_or_frozen`, `package_type`, `quantity`, `uom`, `net_or_catch`, `edible_or_inedible`, `tested_product`, `total_net_weight`, `notes` |
+
+## Canonical targeting rules
+
+- Suppliers, customers, and carriers target canonical financial fields such as `payment_terms` and `credit_limit`, not legacy aliases like `accounting_payment_terms` or `credit_limits`.
+- Purchase orders, sales orders, and invoices target canonical logistics aliases such as `carrier_release_number`, `how_to_make_appointment`, `our_purchase_order_number_to_supplier`, and `delivery_po_number`.
+- `carrier_pos` currently keeps the existing `credit_limits` field because that model does not yet expose a canonical `credit_limit` alias.
+- Product lookups use `system.Product` by `product_code`. Unknown products should be treated as match failures until a later ticket defines a safe create path.
+- `carrier_pos` uses the existing `CarrierPurchaseOrder` model. Do not introduce a second freight-order header.
+
+## Journal and error-report shapes
+
+GA-01.2 will persist journals, but the shape is already fixed now:
+
+- **Batch journal**: `batch_key`, tenant identity, mode, contract version, manifest checksum, suppressed side effects, ownership assertion source, status, aggregate counts
+- **Row journal**: entity, source file, sheet name, source row number, source document key, source line number, dedupe key, action, target model, target pk, error code, error message
+
+Stable error codes:
+
+- `missing_tenant`
+- `tenant_mismatch`
+- `foreign_tenant_reference`
+- `missing_required_field`
+- `unknown_choice`
+- `ambiguous_match`
+- `not_found`
+- `duplicate_source_key`
+- `orphan_line_item`
+- `header_without_items`
+- `global_product_create_disallowed`
+
+## Safe rollout and rollback
+
+- GA-01.1 introduces **no migrations** and **no imported rows**.
+- Rollback is a straight revert of the ETL scaffold, tests, and this runbook.
+- Future journal persistence must be additive, tenant-aware, and include PostgreSQL RLS policy updates.
+
+## Next files for GA-01.2+
+
+GA-01.1 establishes the first deterministic implementation surfaces:
+
+- `backend/apps/core/services/etl/contracts.py`
+- `backend/apps/core/services/etl/mapping_registry.py`
+- `backend/apps/core/services/etl/context.py`
+- `backend/apps/core/management/commands/import_golden_legacy_data.py`
+- `backend/apps/core/tests/test_etl_contracts.py`
+- `backend/apps/core/tests/test_import_golden_legacy_data_command.py`

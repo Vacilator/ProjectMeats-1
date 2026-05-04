@@ -1,199 +1,158 @@
-"""Run the Golden Schema ETL preview, dry-run journal flow, or master apply pass.
-
-This command remains non-mutating for business rows. In GA-01.2 it persists only
-ETL journal tables so operators can inspect deterministic dry-run output before
-GA-01.3 introduces write-capable master-data import passes.
-"""
+"""Dry-run-only Golden Schema ETL command scaffold for GA-01.1."""
 
 from __future__ import annotations
 
+import hashlib
 import json
+import uuid
+from pathlib import Path
 from typing import Any
 
 from django.core.management.base import BaseCommand, CommandError
 
 from apps.core.services.etl import (
-    BATCH_JOURNAL_FIELDS,
-    ERROR_REPORT_FIELDS,
-    MASTER_DATA_APPLY_ORDER,
-    TRANSACTION_APPLY_ORDER,
-    execute_dry_run,
-    execute_master_data_import,
-    execute_transaction_import,
-    load_batch_manifest,
-    resolve_manifest_tenant,
-    validate_batch_manifest,
+    ENTITY_CONTRACTS,
+    GOLDEN_ETL_CONTRACT_VERSION,
+    LINE_ITEM_PARENT_MAP,
+    MASTER_ENTITY_ORDER,
+    REQUIRED_SUPPRESSED_SIDE_EFFECTS,
+    TRANSACTION_ENTITY_ORDER,
+    etl_side_effect_guard,
+    validate_source_manifest,
 )
+from apps.core.services.etl.contracts import ManifestValidationError, ValidatedSourceManifest
+from apps.tenants.models import Tenant
 from apps.tenants.rls import tenant_rls
 
 
 class Command(BaseCommand):
-    help = "Preview, dry-run, or apply the Golden Schema ETL contract."
+    help = "Validate a Golden Schema ETL source manifest and print the dry-run contract summary."
 
     def add_arguments(self, parser) -> None:
         parser.add_argument(
-            "--manifest",
+            "--source-manifest",
             required=True,
-            help="Path to the ETL batch manifest JSON file.",
+            help="Path to the JSON source manifest describing the incoming ETL batch.",
         )
         parser.add_argument(
-            "--format",
-            choices=("text", "json"),
-            default="text",
-            help="Render the contract preview as human-readable text or JSON.",
+            "--tenant-id",
+            type=str,
+            help="Tenant UUID for the batch. Required when --tenant-slug is omitted.",
         )
         parser.add_argument(
-            "--entity",
-            help="Optional entity slug to dry-run a single contract entity.",
-        )
-        parser.add_argument(
-            "--limit",
-            type=int,
-            help="Optional maximum number of source rows to journal in this dry run.",
-        )
-        parser.add_argument(
-            "--apply",
-            action="store_true",
-            help="Apply the GA-01.3 master-data import pass instead of the default dry-run journal mode.",
-        )
-        parser.add_argument(
-            "--actor-user-id",
-            type=int,
-            help="Optional user ID recorded as the ETL actor for audit-safe attribution.",
-        )
-        parser.add_argument(
-            "--actor-email",
-            default="",
-            help="Optional operator email recorded with the ETL batch command options.",
+            "--tenant-slug",
+            type=str,
+            help="Tenant slug for the batch. Required when --tenant-id is omitted.",
         )
 
     def handle(self, *args: Any, **options: Any) -> None:
-        try:
-            payload = load_batch_manifest(options["manifest"])
-            manifest = validate_batch_manifest(payload)
-            tenant = resolve_manifest_tenant(manifest)
-            selected_entities = {options["entity"]} if options.get("entity") else {
-                source.entity for source in manifest.sources
-            }
-            master_apply_entities = selected_entities & set(MASTER_DATA_APPLY_ORDER)
-            transaction_apply_entities = selected_entities & set(TRANSACTION_APPLY_ORDER)
-            with tenant_rls(str(tenant.id), strict=True):
-                if options["apply"]:
-                    if master_apply_entities and transaction_apply_entities:
-                        raise CommandError(
-                            "Apply mode does not support mixed master-data and transactional entities in one batch. "
-                            "Run separate manifests or scope the execution with --entity."
-                        )
-                    if transaction_apply_entities:
-                        preview = execute_transaction_import(
-                            manifest,
-                            manifest_payload=payload,
-                            manifest_path=options["manifest"],
-                            resolved_tenant=tenant,
-                            entity=options.get("entity"),
-                            limit=options.get("limit"),
-                            output_format=options["format"],
-                            actor_user_id=options.get("actor_user_id"),
-                            actor_email=options.get("actor_email"),
-                        )
-                    else:
-                        preview = execute_master_data_import(
-                            manifest,
-                            manifest_payload=payload,
-                            manifest_path=options["manifest"],
-                            resolved_tenant=tenant,
-                            entity=options.get("entity"),
-                            limit=options.get("limit"),
-                            output_format=options["format"],
-                            actor_user_id=options.get("actor_user_id"),
-                            actor_email=options.get("actor_email"),
-                        )
-                else:
-                    preview = execute_dry_run(
-                        manifest,
-                        manifest_payload=payload,
-                        manifest_path=options["manifest"],
-                        resolved_tenant=tenant,
-                        entity=options.get("entity"),
-                        limit=options.get("limit"),
-                        output_format=options["format"],
+        manifest_path = Path(options["source_manifest"]).expanduser().resolve()
+        manifest = self._load_manifest(manifest_path)
+        tenant = self._resolve_tenant(
+            tenant_id=options.get("tenant_id"),
+            tenant_slug=options.get("tenant_slug"),
+        )
+        self._assert_manifest_matches_tenant(manifest, tenant)
+
+        with tenant_rls(str(tenant.id), strict=True):
+            with etl_side_effect_guard(mode="dry_run") as policy:
+                self.stdout.write("Golden Schema ETL dry-run contract summary")
+                self.stdout.write(f"Contract version: {GOLDEN_ETL_CONTRACT_VERSION}")
+                self.stdout.write(f"Mode: {policy.mode}")
+                self.stdout.write(f"Tenant: {tenant.slug} ({tenant.id})")
+                self.stdout.write(f"Batch key: {manifest.batch_key}")
+                self.stdout.write(
+                    f"Manifest checksum: {hashlib.sha256(manifest_path.read_bytes()).hexdigest()}"
+                )
+                self.stdout.write(
+                    f"Suppressed side effects: {', '.join(policy.suppressed_side_effects)}"
+                )
+                self.stdout.write(f"Manifest files: {len(manifest.files)}")
+
+                for source_file in manifest.files:
+                    contract = ENTITY_CONTRACTS[source_file.entity]
+                    descriptor = f"- {source_file.entity} -> {contract.model_label}"
+                    if source_file.sheet_name:
+                        descriptor += f" [sheet={source_file.sheet_name}]"
+                    if source_file.line_item_entity:
+                        descriptor += f" [line_items={source_file.line_item_entity}]"
+                    self.stdout.write(descriptor)
+
+                self.stdout.write(
+                    "Master entity order: " + " -> ".join(MASTER_ENTITY_ORDER)
+                )
+                self.stdout.write(
+                    "Transaction header order: " + " -> ".join(TRANSACTION_ENTITY_ORDER)
+                )
+
+                for header_entity, line_item_details in LINE_ITEM_PARENT_MAP.items():
+                    self.stdout.write(
+                        f"Line-item link: {header_entity} uses {line_item_details['item_entity']} "
+                        f"via {line_item_details['item_fk']}"
                     )
-        except (OSError, ValueError, json.JSONDecodeError) as exc:
+
+                self.stdout.write("No business rows were written.")
+                self.stdout.write("GA-01.1 is dry-run only; write-capable ETL begins in GA-01.2.")
+
+    def _load_manifest(self, manifest_path: Path) -> ValidatedSourceManifest:
+        if not manifest_path.exists():
+            raise CommandError(f"Source manifest does not exist: {manifest_path}")
+
+        try:
+            raw_manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        except json.JSONDecodeError as exc:
+            raise CommandError(f"Source manifest is not valid JSON: {exc}") from exc
+
+        try:
+            return validate_source_manifest(raw_manifest)
+        except ManifestValidationError as exc:
             raise CommandError(str(exc)) from exc
 
-        if options["format"] == "json":
-            self.stdout.write(json.dumps(preview, indent=2, sort_keys=True))
-            return
+    def _resolve_tenant(self, *, tenant_id: str | None, tenant_slug: str | None) -> Tenant:
+        tenant_id = (tenant_id or "").strip()
+        tenant_slug = (tenant_slug or "").strip()
 
-        batch_run = preview["batch_run"]
+        if not tenant_id and not tenant_slug:
+            raise CommandError("You must specify --tenant-id or --tenant-slug.")
 
-        if options["apply"]:
-            title = (
-                "Golden Schema ETL Transaction Import"
-                if preview["batch_run"]["execution_mode"] == "apply_transactions"
-                else "Golden Schema ETL Master Data Import"
+        tenant = None
+        if tenant_id:
+            tenant = Tenant.objects.filter(id=tenant_id).first()
+            if tenant is None:
+                raise CommandError(f"Tenant not found for --tenant-id={tenant_id}.")
+
+        if tenant_slug:
+            slug_match = Tenant.objects.filter(slug=tenant_slug).first()
+            if slug_match is None:
+                raise CommandError(f"Tenant not found for --tenant-slug={tenant_slug}.")
+            if tenant is not None and slug_match.id != tenant.id:
+                raise CommandError("The provided --tenant-id and --tenant-slug resolve to different tenants.")
+            tenant = slug_match
+
+        if tenant is None:
+            raise CommandError("Failed to resolve tenant.")
+
+        return tenant
+
+    def _assert_manifest_matches_tenant(
+        self,
+        manifest: ValidatedSourceManifest,
+        tenant: Tenant,
+    ) -> None:
+        manifest_tenant_id = manifest.tenant.tenant_id
+        manifest_tenant_slug = manifest.tenant.tenant_slug
+
+        if manifest_tenant_id:
+            try:
+                manifest_tenant_uuid = uuid.UUID(manifest_tenant_id)
+            except ValueError as exc:
+                raise CommandError("Manifest tenant_id is not a valid UUID.") from exc
+
+            if tenant.id.hex != manifest_tenant_uuid.hex:
+                raise CommandError(
+                    "Manifest tenant_id does not match the explicitly requested tenant."
+                )
+        if manifest_tenant_slug and tenant.slug != manifest_tenant_slug:
+            raise CommandError(
+                "Manifest tenant_slug does not match the explicitly requested tenant."
             )
-        else:
-            title = "Golden Schema ETL Dry Run"
-        self.stdout.write(self.style.MIGRATE_HEADING(title))
-        self.stdout.write(f"Batch: {preview['batch_name']}")
-        self.stdout.write(f"Tenant: {preview['tenant_slug']} ({preview['tenant_id']})")
-        self.stdout.write(f"Source system: {preview['source_system']}")
-        self.stdout.write(f"Batch run id: {batch_run['batch_id']}")
-        self.stdout.write(f"Run key: {batch_run['run_key']}")
-        self.stdout.write("")
-        if options["apply"]:
-            if preview["batch_run"]["execution_mode"] == "apply_transactions":
-                heading = "Execution order (deterministic; transactional writes enabled):"
-            else:
-                heading = "Execution order (deterministic; master-data writes enabled):"
-        else:
-            heading = "Execution order (deterministic; no writes enabled):"
-        self.stdout.write(self.style.WARNING(heading))
-        for position, entity_summary in enumerate(preview["entity_summaries"], start=1):
-            source_descriptions = []
-            for source in entity_summary["sources"]:
-                sheet_suffix = f"#{source['sheet']}" if source["sheet"] else ""
-                source_descriptions.append(f"{source['path']} ({source['format']}{sheet_suffix})")
-            joined_sources = ", ".join(source_descriptions) or "no source declared"
-            self.stdout.write(
-                f"  {position}. {entity_summary['entity']} -> {entity_summary['target_model']} :: {joined_sources}"
-            )
-
-        self.stdout.write("")
-        self.stdout.write(self.style.WARNING("Side effects to suppress when execute mode lands:"))
-        for rule in preview["side_effects_suppressed"]:
-            self.stdout.write(f"  - {rule}")
-
-        self.stdout.write("")
-        self.stdout.write(self.style.WARNING("Import journal contract (GA-01.2):"))
-        self.stdout.write(f"  - {', '.join(BATCH_JOURNAL_FIELDS)}")
-        self.stdout.write(self.style.WARNING("Error report contract (GA-01.2):"))
-        self.stdout.write(f"  - {', '.join(ERROR_REPORT_FIELDS)}")
-        self.stdout.write("")
-        if options["apply"]:
-            if preview["batch_run"]["execution_mode"] == "apply_transactions":
-                summary_heading = "Apply summary (transactional headers/line items enabled with reconciliation output):"
-            else:
-                summary_heading = "Apply summary (master-data writes only; transactional imports still disabled):"
-        else:
-            summary_heading = "Dry-run summary (journal rows only; no business writes):"
-        self.stdout.write(self.style.WARNING(summary_heading))
-        summary = batch_run["summary"]
-        self.stdout.write(f"  - processed_rows: {summary['processed_rows']}")
-        self.stdout.write(f"  - would_create_count: {summary['would_create_count']}")
-        self.stdout.write(f"  - would_update_count: {summary['would_update_count']}")
-        self.stdout.write(f"  - would_skip_count: {summary['would_skip_count']}")
-        self.stdout.write(f"  - error_count: {summary['error_count']}")
-        if options["apply"]:
-            self.stdout.write(f"  - created_count: {summary['created_count']}")
-            self.stdout.write(f"  - updated_count: {summary['updated_count']}")
-            self.stdout.write(f"  - skipped_count: {summary['skipped_count']}")
-            if preview.get("error_report"):
-                self.stdout.write("")
-                self.stdout.write(self.style.WARNING("Reconciliation errors:"))
-                for error in preview["error_report"]:
-                    self.stdout.write(
-                        f"  - {error['entity']} row {error['source_row_number']}: "
-                        f"{error['error_code']} :: {error['error_message']}"
-                    )

@@ -1,604 +1,377 @@
-"""Contract-only Golden Schema ETL scaffolding for GA-01.1.
-
-This module intentionally stops at deterministic contract definition:
-
-* entity execution order
-* canonical field groups derived from Golden Schema mixins
-* batch-manifest validation
-* side-effect suppression requirements
-* planned journal/error-report shapes for GA-01.2
-
-No write-capable import logic is enabled here.
-"""
+"""Contract types for Golden Schema ETL scaffolding."""
 
 from __future__ import annotations
 
 from dataclasses import dataclass
-import json
-from pathlib import Path
-from typing import Any
-from uuid import UUID
+from enum import StrEnum
+from typing import Any, TypedDict
+
+GOLDEN_ETL_CONTRACT_VERSION = "ga01.1.v1"
+SOURCE_MANIFEST_VERSION = 1
 
 
-SUPPORTED_SOURCE_FORMATS = ("csv", "xlsx", "json", "database_export")
-BATCH_MANIFEST_REQUIRED_FIELDS = ("batch_name", "source_system", "sources")
-TENANT_SELECTOR_FIELDS = ("tenant_slug", "tenant_id")
+class SourceFormat(StrEnum):
+    CSV = "csv"
+    XLS = "xls"
+    XLSX = "xlsx"
 
-MASTER_DATA_IMPORT_ORDER = (
+
+SUPPORTED_SOURCE_FORMATS = tuple(source_format.value for source_format in SourceFormat)
+
+
+class SourceShape(StrEnum):
+    MASTER_ROWS = "master_rows"
+    TRANSACTION_HEADERS = "transaction_headers"
+    TRANSACTION_LINE_ITEMS = "transaction_line_items"
+
+
+class SideEffect(StrEnum):
+    MODEL_SIGNALS = "model_signals"
+    PURCHASE_ORDER_HISTORY = "purchase_order_history"
+    TENANT_CACHE_BUMPS = "tenant_cache_bumps"
+    EMAILS = "emails"
+    WEBHOOKS = "webhooks"
+    CELERY_TASKS = "celery_tasks"
+
+
+REQUIRED_SUPPRESSED_SIDE_EFFECTS = tuple(side_effect.value for side_effect in SideEffect)
+
+
+class ErrorCode(StrEnum):
+    MISSING_TENANT = "missing_tenant"
+    TENANT_MISMATCH = "tenant_mismatch"
+    FOREIGN_TENANT_REFERENCE = "foreign_tenant_reference"
+    MISSING_REQUIRED_FIELD = "missing_required_field"
+    UNKNOWN_CHOICE = "unknown_choice"
+    AMBIGUOUS_MATCH = "ambiguous_match"
+    NOT_FOUND = "not_found"
+    DUPLICATE_SOURCE_KEY = "duplicate_source_key"
+    ORPHAN_LINE_ITEM = "orphan_line_item"
+    HEADER_WITHOUT_ITEMS = "header_without_items"
+    GLOBAL_PRODUCT_CREATE_DISALLOWED = "global_product_create_disallowed"
+
+
+ERROR_CODES = tuple(error_code.value for error_code in ErrorCode)
+
+MASTER_ENTITY_ORDER = (
     "products",
+    "plants",
+    "locations",
     "suppliers",
     "customers",
     "carriers",
-    "plants",
-    "locations",
     "contacts",
 )
 
-TRANSACTION_IMPORT_ORDER = (
+TRANSACTION_ENTITY_ORDER = (
     "purchase_orders",
-    "purchase_order_items",
     "sales_orders",
-    "sales_order_items",
-    "carrier_purchase_orders",
-    "carrier_po_items",
     "invoices",
+    "carrier_pos",
+)
+
+LINE_ITEM_ENTITY_ORDER = (
+    "purchase_order_items",
+    "sales_order_items",
     "invoice_items",
+    "carrier_po_items",
 )
 
-SIDE_EFFECT_SUPPRESSION_RULES = (
-    "outbound_email",
-    "integration_webhook",
-    "notification_fanout",
-    "background_sync_dispatch",
-)
+ALL_ETL_ENTITIES = MASTER_ENTITY_ORDER + TRANSACTION_ENTITY_ORDER + LINE_ITEM_ENTITY_ORDER
 
-BATCH_JOURNAL_FIELDS = (
-    "batch_id",
-    "batch_name",
-    "tenant_id",
-    "tenant_slug",
-    "source_system",
-    "entity",
-    "source_path",
-    "source_sheet",
-    "source_row_number",
-    "source_identifier",
-    "normalized_lookup_key",
-    "planned_action",
-    "target_model",
-    "target_identifier",
-    "status",
-    "error_code",
-    "error_message",
-    "side_effects_suppressed",
-)
+LINE_ITEM_PARENT_MAP = {
+    "purchase_orders": {
+        "item_entity": "purchase_order_items",
+        "header_model": "tenant_apps.purchase_orders.models.PurchaseOrder",
+        "item_model": "tenant_apps.purchase_orders.models.PurchaseOrderItem",
+        "item_fk": "purchase_order",
+        "related_name": "items",
+    },
+    "sales_orders": {
+        "item_entity": "sales_order_items",
+        "header_model": "tenant_apps.sales_orders.models.SalesOrder",
+        "item_model": "tenant_apps.sales_orders.models.SalesOrderItem",
+        "item_fk": "sales_order",
+        "related_name": "items",
+    },
+    "invoices": {
+        "item_entity": "invoice_items",
+        "header_model": "tenant_apps.invoices.models.Invoice",
+        "item_model": "tenant_apps.invoices.models.InvoiceItem",
+        "item_fk": "invoice",
+        "related_name": "items",
+    },
+    "carrier_pos": {
+        "item_entity": "carrier_po_items",
+        "header_model": "tenant_apps.purchase_orders.models.CarrierPurchaseOrder",
+        "item_model": "tenant_apps.purchase_orders.models.CarrierPOItem",
+        "item_fk": "carrier_purchase_order",
+        "related_name": "items",
+    },
+}
 
-ERROR_REPORT_FIELDS = (
-    "entity",
-    "source_path",
-    "source_sheet",
-    "source_row_number",
-    "source_identifier",
-    "error_code",
-    "error_message",
-    "canonical_field",
-)
-
-NEXT_PHASE_FILES = (
-    "backend/apps/core/services/etl/journal.py",
-    "backend/apps/core/services/etl/runtime.py",
-    "backend/apps/core/services/etl/engine.py",
-    "backend/apps/core/services/etl/context.py",
-    "backend/apps/core/services/etl/master_data_import.py",
-    "backend/apps/core/management/commands/import_golden_legacy_data.py",
-    "backend/apps/core/tests/test_golden_schema_etl_journal.py",
-)
-
-CANONICAL_FIELD_GROUPS: dict[str, tuple[str, ...]] = {
-    "financial_terms": (
-        "payment_terms",
-        "credit_limit",
-        "account_line_of_credit",
-    ),
-    "logistics": (
-        "pick_up_date",
-        "delivery_date",
-        "carrier_release_format",
+CANONICAL_ALIAS_TARGETS = {
+    "suppliers": ("payment_terms", "credit_limit", "account_line_of_credit"),
+    "customers": ("payment_terms", "credit_limit", "account_line_of_credit"),
+    "carriers": ("payment_terms", "credit_limit"),
+    "purchase_orders": (
+        "our_purchase_order_number_to_supplier",
+        "supplier_confirmation_order_number",
         "carrier_release_number",
         "how_to_make_appointment",
     ),
-    "contact_snapshot": (
-        "contact_name",
-        "contact_phone",
-        "contact_email",
-        "contact_title",
+    "sales_orders": (
+        "our_sales_order_number_for_customer",
+        "delivery_po_number",
+        "carrier_release_number",
+        "how_to_make_appointment",
     ),
-    "billing_contact_snapshot": (
-        "billing_contact_name",
-        "billing_contact_phone",
-        "billing_contact_email",
-        "billing_contact_title",
+    "invoices": (
+        "our_sales_order_number_for_customer",
+        "delivery_po_number",
+        "carrier_release_number",
+        "how_to_make_appointment",
     ),
-    "billing_address_snapshot": (
-        "billing_address_street",
-        "billing_address_city",
-        "billing_address_state_zip",
-        "billing_building_name",
-    ),
-    "shipping_contact_snapshot": (
-        "shipping_contact_name",
-        "shipping_contact_phone",
-        "shipping_contact_email",
-        "shipping_contact_title",
-    ),
-    "shipping_address_snapshot": (
-        "shipping_address_street",
-        "shipping_address_city",
-        "shipping_address_state_zip",
-        "shipping_building_name",
-    ),
-    "accounts_payable_contact_snapshot": (
-        "accounting_payable_contact_name",
-        "accounting_payable_contact_phone",
-        "accounting_payable_contact_email",
-        "accounting_payable_contact_title",
-    ),
-    "base_line_item": (
-        "protein_type",
-        "product_description",
-        "fresh_or_frozen",
-        "package_type",
-        "quantity",
-        "uom",
-        "net_or_catch",
-        "edible_or_inedible",
-        "tested_product",
-        "total_net_weight",
-    ),
+    "carrier_pos": ("carrier_release_number", "how_to_make_appointment"),
 }
 
 
-@dataclass(frozen=True)
-class EntityContract:
-    """Deterministic import contract for one Golden Schema entity."""
-
-    entity: str
-    phase: str
-    target_model: str
-    canonical_fields: tuple[str, ...]
-    field_groups: tuple[str, ...] = ()
-    depends_on: tuple[str, ...] = ()
-    natural_keys: tuple[str, ...] = ()
-    notes: tuple[str, ...] = ()
-
-    @property
-    def expanded_fields(self) -> tuple[str, ...]:
-        ordered_fields = list(self.canonical_fields)
-        for group_name in self.field_groups:
-            ordered_fields.extend(CANONICAL_FIELD_GROUPS[group_name])
-        return tuple(ordered_fields)
-
-
-@dataclass(frozen=True)
-class SourceBinding:
-    """One declared legacy source file/tab inside an ETL batch manifest."""
-
+class SourceFileSpec(TypedDict):
     entity: str
     format: str
-    path: str
-    sheet: str | None = None
-    notes: str = ""
+    relative_path: str
+    sheet_name: str | None
+    header_row: int
+    line_item_entity: str | None
+    source_document_key_column: str | None
+    source_line_number_column: str | None
+
+
+class TenantAssertionSpec(TypedDict):
+    tenant_id: str | None
+    tenant_slug: str | None
+    asserted_by: str
+
+
+class SourceManifest(TypedDict):
+    version: int
+    batch_key: str
+    tenant: TenantAssertionSpec
+    files: list[SourceFileSpec]
 
 
 @dataclass(frozen=True)
-class BatchManifest:
-    """Validated contract-only ETL batch manifest."""
+class ValidatedSourceManifestFile:
+    entity: str
+    format: str
+    relative_path: str
+    sheet_name: str | None
+    header_row: int
+    line_item_entity: str | None
+    source_document_key_column: str | None
+    source_line_number_column: str | None
 
-    batch_name: str
-    source_system: str
-    tenant_slug: str | None
+
+@dataclass(frozen=True)
+class ValidatedTenantAssertion:
     tenant_id: str | None
-    sources: tuple[SourceBinding, ...]
-
-    def ordered_entities(self) -> tuple[str, ...]:
-        declared = {source.entity for source in self.sources}
-        ordered = [
-            entity
-            for entity in MASTER_DATA_IMPORT_ORDER + TRANSACTION_IMPORT_ORDER
-            if entity in declared
-        ]
-        return tuple(ordered)
+    tenant_slug: str | None
+    asserted_by: str
 
 
-ENTITY_CONTRACTS: dict[str, EntityContract] = {
-    "locations": EntityContract(
-        entity="locations",
-        phase="master_data",
-        target_model="tenant_apps.locations.models.Location",
-        canonical_fields=("name", "code", "location_type", "address", "city", "state", "zip_code", "country"),
-        field_groups=("contact_snapshot",),
-        natural_keys=("code", "name", "city", "state"),
-        notes=("Legacy warehouse, delivery, and pickup rows normalize into Location.",),
-    ),
-    "plants": EntityContract(
-        entity="plants",
-        phase="master_data",
-        target_model="tenant_apps.plants.models.Plant",
-        canonical_fields=("name", "plant_est_num", "plant_type", "supplier_name", "supplier_email"),
-        field_groups=("contact_snapshot",),
-        depends_on=("suppliers",),
-        natural_keys=("plant_est_num", "name"),
-        notes=(
-            "GA-01.3 imports write into the dedicated plants.Plant model used by current tenant workflows.",
-            "Supplier-linked plant relationships must resolve within the same tenant before contacts import.",
-        ),
-    ),
-    "suppliers": EntityContract(
-        entity="suppliers",
-        phase="master_data",
-        target_model="tenant_apps.suppliers.models.Supplier",
-        canonical_fields=(
-            "name",
-            "contact_person",
-            "email",
-            "phone",
-            "street_address",
-            "city",
-            "state",
-            "zip_code",
-            "country",
-            "departments_array",
-            "preferred_protein_types",
-        ),
-        field_groups=("financial_terms",),
-        depends_on=("plants", "locations"),
-        natural_keys=("name", "email"),
-    ),
-    "customers": EntityContract(
-        entity="customers",
-        phase="master_data",
-        target_model="tenant_apps.customers.models.Customer",
-        canonical_fields=(
-            "name",
-            "contact_person",
-            "email",
-            "phone",
-            "street_address",
-            "city",
-            "state",
-            "zip_code",
-            "country",
-            "buyer_contact_name",
-            "buyer_contact_phone",
-            "buyer_contact_email",
-            "preferred_protein_types",
-        ),
-        field_groups=("financial_terms",),
-        depends_on=("plants", "locations"),
-        natural_keys=("name", "email"),
-    ),
-    "carriers": EntityContract(
-        entity="carriers",
-        phase="master_data",
-        target_model="tenant_apps.carriers.models.Carrier",
-        canonical_fields=(
-            "name",
-            "code",
-            "mc_number",
-            "dot_number",
-            "email",
-            "phone",
-            "address",
-            "city",
-            "state",
-            "zip_code",
-            "departments_array",
-            "how_carrier_make_appointment",
-        ),
-        field_groups=("financial_terms",),
-        natural_keys=("code", "name"),
-    ),
-    "contacts": EntityContract(
-        entity="contacts",
-        phase="master_data",
-        target_model="tenant_apps.contacts.models.Contact",
-        canonical_fields=("first_name", "last_name", "email", "phone", "title", "department"),
-        depends_on=("suppliers", "customers", "plants", "locations"),
-        natural_keys=("first_name", "last_name", "email", "phone"),
-        notes=("Link contacts to parents only after the owning master record exists.",),
-    ),
-    "products": EntityContract(
-        entity="products",
-        phase="master_data",
-        target_model="tenant_apps.products.models.MasterProduct",
-        canonical_fields=(
-            "protein",
-            "item_name",
-            "type",
-            "trim",
-        ),
-        natural_keys=("protein", "item_name", "type", "trim"),
-    ),
-    "purchase_orders": EntityContract(
-        entity="purchase_orders",
-        phase="transaction_header",
-        target_model="tenant_apps.purchase_orders.models.PurchaseOrder",
-        canonical_fields=(
-            "order_number",
-            "our_purchase_order_number_to_supplier",
-            "my_customer_number_from_supplier",
-            "supplier_confirmation_order_number",
-            "supplier",
-            "carrier",
-            "pick_up_location",
-            "delivery_location",
-            "order_date",
-            "status",
-            "payment_status",
-            "total_amount",
-        ),
-        field_groups=(
-            "logistics",
-            "billing_contact_snapshot",
-            "billing_address_snapshot",
-            "shipping_contact_snapshot",
-            "shipping_address_snapshot",
-        ),
-        depends_on=("suppliers", "carriers", "locations", "contacts", "products"),
-        natural_keys=("order_number",),
-    ),
-    "purchase_order_items": EntityContract(
-        entity="purchase_order_items",
-        phase="transaction_line_item",
-        target_model="tenant_apps.purchase_orders.models.PurchaseOrderItem",
-        canonical_fields=("purchase_order", "line_number", "notes"),
-        field_groups=("base_line_item",),
-        depends_on=("purchase_orders", "products"),
-        natural_keys=("purchase_order", "line_number"),
-    ),
-    "sales_orders": EntityContract(
-        entity="sales_orders",
-        phase="transaction_header",
-        target_model="tenant_apps.sales_orders.models.SalesOrder",
-        canonical_fields=(
-            "our_sales_order_number_for_customer",
-            "delivery_po_number",
-            "supplier",
-            "customer",
-            "carrier",
-            "product",
-            "pick_up_location",
-            "delivery_location",
-            "status",
-            "payment_status",
-            "total_amount",
-        ),
-        field_groups=(
-            "logistics",
-            "billing_contact_snapshot",
-            "billing_address_snapshot",
-            "shipping_contact_snapshot",
-            "shipping_address_snapshot",
-        ),
-        depends_on=("suppliers", "customers", "carriers", "locations", "products"),
-        natural_keys=("our_sales_order_number_for_customer",),
-    ),
-    "sales_order_items": EntityContract(
-        entity="sales_order_items",
-        phase="transaction_line_item",
-        target_model="tenant_apps.sales_orders.models.SalesOrderItem",
-        canonical_fields=("sales_order", "line_number", "notes"),
-        field_groups=("base_line_item",),
-        depends_on=("sales_orders", "products"),
-        natural_keys=("sales_order", "line_number"),
-    ),
-    "carrier_purchase_orders": EntityContract(
-        entity="carrier_purchase_orders",
-        phase="transaction_header",
-        target_model="tenant_apps.purchase_orders.models.CarrierPurchaseOrder",
-        canonical_fields=(
-            "our_carrier_po_num",
-            "carrier",
-            "supplier",
-            "linked_order",
-            "sales_order",
-            "pick_up_location",
-            "delivery_location",
-            "product",
-            "departments_of_carrier",
-        ),
-        field_groups=(
-            "logistics",
-            "billing_contact_snapshot",
-            "billing_address_snapshot",
-            "shipping_contact_snapshot",
-            "shipping_address_snapshot",
-        ),
-        depends_on=("purchase_orders", "sales_orders", "carriers", "suppliers", "locations", "products"),
-        natural_keys=("our_carrier_po_num",),
-        notes=("This is the Golden Schema freight-order / Carrier PO header.",),
-    ),
-    "carrier_po_items": EntityContract(
-        entity="carrier_po_items",
-        phase="transaction_line_item",
-        target_model="tenant_apps.purchase_orders.models.CarrierPOItem",
-        canonical_fields=("carrier_purchase_order", "line_number", "notes"),
-        field_groups=("base_line_item",),
-        depends_on=("carrier_purchase_orders", "products"),
-        natural_keys=("carrier_purchase_order", "line_number"),
-    ),
-    "invoices": EntityContract(
-        entity="invoices",
-        phase="transaction_header",
-        target_model="tenant_apps.invoices.models.Invoice",
-        canonical_fields=(
-            "invoice_number",
-            "customer",
-            "sales_order",
-            "due_date",
-            "our_sales_order_number_for_customer",
-            "delivery_po_number",
-            "status",
-            "payment_status",
-            "total_amount",
-            "tax_amount",
-        ),
-        field_groups=(
-            "logistics",
-            "accounts_payable_contact_snapshot",
-            "billing_contact_snapshot",
-            "billing_address_snapshot",
-            "shipping_contact_snapshot",
-            "shipping_address_snapshot",
-        ),
-        depends_on=("customers", "sales_orders", "products"),
-        natural_keys=("invoice_number",),
-    ),
-    "invoice_items": EntityContract(
-        entity="invoice_items",
-        phase="transaction_line_item",
-        target_model="tenant_apps.invoices.models.InvoiceItem",
-        canonical_fields=("invoice", "line_number", "unit_price", "line_total"),
-        field_groups=("base_line_item",),
-        depends_on=("invoices", "products"),
-        natural_keys=("invoice", "line_number"),
-    ),
-}
+@dataclass(frozen=True)
+class ValidatedSourceManifest:
+    version: int
+    batch_key: str
+    tenant: ValidatedTenantAssertion
+    files: tuple[ValidatedSourceManifestFile, ...]
 
 
-def load_batch_manifest(path: str | Path) -> dict[str, Any]:
-    """Load a JSON batch manifest from disk."""
+@dataclass(frozen=True)
+class ImportBatchJournal:
+    batch_key: str
+    tenant_id: str
+    tenant_slug: str
+    mode: str
+    contract_version: str
+    source_manifest_checksum: str
+    side_effects_suppressed: tuple[str, ...]
+    ownership_asserted: bool
+    ownership_source: str
+    started_at: str | None
+    finished_at: str | None
+    status: str
+    counts: dict[str, int]
 
-    manifest_path = Path(path)
-    with manifest_path.open("r", encoding="utf-8") as handle:
-        return json.load(handle)
+
+@dataclass(frozen=True)
+class ImportRowJournal:
+    batch_key: str
+    entity: str
+    source_file: str
+    sheet_name: str | None
+    source_row_number: int
+    source_document_key: str | None
+    source_line_number: int | None
+    dedupe_key: str
+    action: str
+    target_model: str
+    target_pk: str | None
+    error_code: str | None
+    error_message: str | None
 
 
-def validate_batch_manifest(payload: dict[str, Any]) -> BatchManifest:
-    """Validate the GA-01.1 batch manifest shape.
+class ManifestValidationError(ValueError):
+    """Raised when a source manifest does not satisfy the GA-01.1 contract."""
 
-    The manifest is contract-only at this phase. It declares ownership and source
-    bindings without enabling row transformation or writes.
-    """
 
-    missing = [field for field in BATCH_MANIFEST_REQUIRED_FIELDS if not payload.get(field)]
-    if missing:
-        raise ValueError(f"Batch manifest missing required fields: {', '.join(missing)}")
+_TOP_LEVEL_KEYS = frozenset({"version", "batch_key", "tenant", "files"})
+_TENANT_KEYS = frozenset({"tenant_id", "tenant_slug", "asserted_by"})
+_FILE_KEYS = frozenset(
+    {
+        "entity",
+        "format",
+        "relative_path",
+        "sheet_name",
+        "header_row",
+        "line_item_entity",
+        "source_document_key_column",
+        "source_line_number_column",
+    }
+)
 
-    tenant_slug = payload.get("tenant_slug")
-    tenant_id = payload.get("tenant_id")
-    if not tenant_slug and not tenant_id:
-        raise ValueError("Batch manifest must declare tenant_slug or tenant_id.")
 
-    if tenant_id:
-        try:
-            UUID(str(tenant_id))
-        except ValueError as exc:
-            raise ValueError("tenant_id must be a valid UUID string.") from exc
+def validate_source_manifest(raw_manifest: Any) -> ValidatedSourceManifest:
+    """Validate and normalize the GA-01.1 source manifest shape."""
 
-    sources: list[SourceBinding] = []
-    for index, source in enumerate(payload.get("sources", []), start=1):
-        entity = source.get("entity")
-        if entity not in ENTITY_CONTRACTS:
-            raise ValueError(f"Source #{index} declares unknown entity '{entity}'.")
+    if not isinstance(raw_manifest, dict):
+        raise ManifestValidationError("Source manifest must be a JSON object.")
 
-        source_format = str(source.get("format", "")).lower()
-        if source_format not in SUPPORTED_SOURCE_FORMATS:
-            raise ValueError(
-                f"Source #{index} for '{entity}' uses unsupported format '{source_format}'."
-            )
+    _reject_unknown_keys(raw_manifest, _TOP_LEVEL_KEYS, "manifest")
+    _require_keys(raw_manifest, ("version", "batch_key", "tenant", "files"), "manifest")
 
-        path_value = str(source.get("path", "")).strip()
-        if not path_value:
-            raise ValueError(f"Source #{index} for '{entity}' is missing a path.")
-
-        sources.append(
-            SourceBinding(
-                entity=entity,
-                format=source_format,
-                path=path_value,
-                sheet=source.get("sheet"),
-                notes=str(source.get("notes", "")),
-            )
+    version = raw_manifest["version"]
+    if version != SOURCE_MANIFEST_VERSION:
+        raise ManifestValidationError(
+            f"Unsupported manifest version {version!r}; expected {SOURCE_MANIFEST_VERSION}."
         )
 
-    if not sources:
-        raise ValueError("Batch manifest must declare at least one source binding.")
+    batch_key = raw_manifest["batch_key"]
+    if not isinstance(batch_key, str) or not batch_key.strip():
+        raise ManifestValidationError("Manifest batch_key must be a non-empty string.")
 
-    return BatchManifest(
-        batch_name=str(payload["batch_name"]),
-        source_system=str(payload["source_system"]),
-        tenant_slug=str(tenant_slug) if tenant_slug else None,
-        tenant_id=str(tenant_id) if tenant_id else None,
-        sources=tuple(sources),
+    tenant = _validate_tenant_assertion(raw_manifest["tenant"])
+    files = _validate_files(raw_manifest["files"])
+
+    return ValidatedSourceManifest(
+        version=version,
+        batch_key=batch_key.strip(),
+        tenant=tenant,
+        files=tuple(files),
     )
 
 
-def resolve_manifest_tenant(manifest: BatchManifest):
-    """Resolve and verify the tenant selector declared in the manifest."""
+def _validate_tenant_assertion(raw_tenant: Any) -> ValidatedTenantAssertion:
+    if not isinstance(raw_tenant, dict):
+        raise ManifestValidationError("Manifest tenant assertion must be an object.")
 
-    from apps.tenants.models import Tenant
+    _reject_unknown_keys(raw_tenant, _TENANT_KEYS, "tenant")
+    _require_keys(raw_tenant, ("tenant_id", "tenant_slug", "asserted_by"), "tenant")
 
-    tenant = None
-    if manifest.tenant_id:
-        tenant = Tenant.objects.filter(id=manifest.tenant_id).first()
-        if tenant is None:
-            raise ValueError(f"No tenant found for tenant_id={manifest.tenant_id}.")
+    asserted_by = raw_tenant["asserted_by"]
+    if asserted_by not in {"command", "manifest"}:
+        raise ManifestValidationError("tenant.asserted_by must be 'command' or 'manifest'.")
 
-    if manifest.tenant_slug:
-        slug_match = Tenant.objects.filter(slug=manifest.tenant_slug).first()
-        if slug_match is None:
-            raise ValueError(f"No tenant found for tenant_slug={manifest.tenant_slug}.")
-        if tenant and slug_match.id != tenant.id:
-            raise ValueError("tenant_id and tenant_slug resolve to different tenants.")
-        tenant = slug_match
+    tenant_id = _normalize_optional_string(raw_tenant["tenant_id"])
+    tenant_slug = _normalize_optional_string(raw_tenant["tenant_slug"])
 
-    if tenant is None:
-        raise ValueError("Unable to resolve tenant selector from batch manifest.")
-
-    return tenant
+    return ValidatedTenantAssertion(
+        tenant_id=tenant_id,
+        tenant_slug=tenant_slug,
+        asserted_by=asserted_by,
+    )
 
 
-def build_contract_preview(manifest: BatchManifest, *, resolved_tenant: Any | None = None) -> dict[str, Any]:
-    """Build a stable contract preview payload for the management command/tests."""
+def _validate_files(raw_files: Any) -> list[ValidatedSourceManifestFile]:
+    if not isinstance(raw_files, list) or not raw_files:
+        raise ManifestValidationError("Manifest files must be a non-empty list.")
 
-    ordered_entities = manifest.ordered_entities()
-    entity_summaries = []
-    sources_by_entity: dict[str, list[SourceBinding]] = {}
-    for source in manifest.sources:
-        sources_by_entity.setdefault(source.entity, []).append(source)
+    validated_files: list[ValidatedSourceManifestFile] = []
+    for index, raw_file in enumerate(raw_files):
+        if not isinstance(raw_file, dict):
+            raise ManifestValidationError(f"files[{index}] must be an object.")
 
-    for entity in ordered_entities:
-        contract = ENTITY_CONTRACTS[entity]
-        entity_summaries.append(
-            {
-                "entity": entity,
-                "phase": contract.phase,
-                "target_model": contract.target_model,
-                "depends_on": list(contract.depends_on),
-                "natural_keys": list(contract.natural_keys),
-                "field_groups": list(contract.field_groups),
-                "expanded_fields": list(contract.expanded_fields),
-                "sources": [
-                    {
-                        "format": source.format,
-                        "path": source.path,
-                        "sheet": source.sheet,
-                    }
-                    for source in sources_by_entity.get(entity, [])
-                ],
-            }
+        _reject_unknown_keys(raw_file, _FILE_KEYS, f"files[{index}]")
+        _require_keys(
+            raw_file,
+            ("entity", "format", "relative_path", "sheet_name", "header_row", "line_item_entity"),
+            f"files[{index}]",
         )
 
-    return {
-        "batch_name": manifest.batch_name,
-        "source_system": manifest.source_system,
-        "tenant_slug": manifest.tenant_slug or getattr(resolved_tenant, "slug", None),
-        "tenant_id": manifest.tenant_id or str(getattr(resolved_tenant, "id", "")),
-        "ordered_entities": list(ordered_entities),
-        "entity_summaries": entity_summaries,
-        "side_effects_suppressed": list(SIDE_EFFECT_SUPPRESSION_RULES),
-        "journal_fields": list(BATCH_JOURNAL_FIELDS),
-        "error_report_fields": list(ERROR_REPORT_FIELDS),
-        "next_phase_files": list(NEXT_PHASE_FILES),
-    }
+        entity = raw_file["entity"]
+        if entity not in ALL_ETL_ENTITIES:
+            raise ManifestValidationError(f"files[{index}].entity {entity!r} is not supported.")
+
+        file_format = raw_file["format"]
+        if file_format not in SUPPORTED_SOURCE_FORMATS:
+            raise ManifestValidationError(
+                f"files[{index}].format {file_format!r} is not supported."
+            )
+
+        relative_path = raw_file["relative_path"]
+        if not isinstance(relative_path, str) or not relative_path.strip():
+            raise ManifestValidationError(f"files[{index}].relative_path must be a non-empty string.")
+
+        header_row = raw_file["header_row"]
+        if not isinstance(header_row, int) or header_row < 1:
+            raise ManifestValidationError(f"files[{index}].header_row must be an integer >= 1.")
+
+        line_item_entity = _normalize_optional_string(raw_file.get("line_item_entity"))
+        if line_item_entity is not None and line_item_entity not in LINE_ITEM_ENTITY_ORDER:
+            raise ManifestValidationError(
+                f"files[{index}].line_item_entity {line_item_entity!r} is not supported."
+            )
+
+        validated_files.append(
+            ValidatedSourceManifestFile(
+                entity=entity,
+                format=file_format,
+                relative_path=relative_path.strip(),
+                sheet_name=_normalize_optional_string(raw_file.get("sheet_name")),
+                header_row=header_row,
+                line_item_entity=line_item_entity,
+                source_document_key_column=_normalize_optional_string(
+                    raw_file.get("source_document_key_column")
+                ),
+                source_line_number_column=_normalize_optional_string(
+                    raw_file.get("source_line_number_column")
+                ),
+            )
+        )
+
+    return validated_files
+
+
+def _reject_unknown_keys(payload: dict[str, Any], allowed_keys: frozenset[str], context: str) -> None:
+    unknown_keys = sorted(set(payload) - allowed_keys)
+    if unknown_keys:
+        raise ManifestValidationError(
+            f"Unknown keys in {context}: {', '.join(unknown_keys)}."
+        )
+
+
+def _require_keys(payload: dict[str, Any], required_keys: tuple[str, ...], context: str) -> None:
+    missing_keys = [key for key in required_keys if key not in payload]
+    if missing_keys:
+        raise ManifestValidationError(
+            f"Missing required keys in {context}: {', '.join(missing_keys)}."
+        )
+
+
+def _normalize_optional_string(value: Any) -> str | None:
+    if value is None:
+        return None
+    if not isinstance(value, str):
+        raise ManifestValidationError("Optional string values must be strings or null.")
+    normalized = value.strip()
+    return normalized or None

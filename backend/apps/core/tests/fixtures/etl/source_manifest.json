@@ -1,0 +1,41 @@
+{
+  "version": 1,
+  "batch_key": "sample-day-0-batch",
+  "tenant": {
+    "tenant_id": null,
+    "tenant_slug": null,
+    "asserted_by": "command"
+  },
+  "files": [
+    {
+      "entity": "suppliers",
+      "format": "csv",
+      "relative_path": "suppliers.csv",
+      "sheet_name": null,
+      "header_row": 1,
+      "line_item_entity": null,
+      "source_document_key_column": null,
+      "source_line_number_column": null
+    },
+    {
+      "entity": "purchase_orders",
+      "format": "xlsx",
+      "relative_path": "orders.xlsx",
+      "sheet_name": "PO Headers",
+      "header_row": 1,
+      "line_item_entity": "purchase_order_items",
+      "source_document_key_column": "order_number",
+      "source_line_number_column": null
+    },
+    {
+      "entity": "purchase_order_items",
+      "format": "xlsx",
+      "relative_path": "orders.xlsx",
+      "sheet_name": "PO Items",
+      "header_row": 1,
+      "line_item_entity": null,
+      "source_document_key_column": "order_number",
+      "source_line_number_column": "line_number"
+    }
+  ]
+}
