@@ -278,8 +278,8 @@
   - **Rollback:** Revert breadcrumb resolution logic while preserving existing route behavior if the shared lookup path introduces incorrect labels or expensive fetch churn.
   - **Completion evidence destination:** `.github/MASTER_PLAN.md` (PR #4840)
 
-- [ ] **GA-03.4 governance-schedules-and-evidence-runbook**
-  - **Status:** Ready
+- [x] **GA-03.4 governance-schedules-and-evidence-runbook**
+  - **Status:** Done
   - **Why now:** Governance work is incomplete until archival/redaction have scheduled enforcement and operator evidence collection.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 14 / Epic 3
   - **Scope:** Add scheduled enforcement hooks, evidence checklist/runbooks, and operational verification paths for retention/redaction posture.
@@ -294,12 +294,12 @@
   - **Secrets/infra impact:** Medium
   - **Risk level:** Medium
   - **Rollback:** Revert scheduling/runbook changes together if they create noisy or unsafe operational loops.
-  - **Completion evidence destination:** `.github/MASTER_PLAN.md`
+  - **Completion evidence destination:** `.github/MASTER_PLAN.md` (PR #4842)
 
 ### Epic GA-04 - In-app user onboarding
 
 - [ ] **GA-04.1 tour-provider-and-user-preference-contract**
-  - **Status:** Blocked
+  - **Status:** Ready
   - **Why now:** New tenants currently land in a blank-feeling experience and tour state is scattered across local-only onboarding hooks.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 14 / Epic 4
   - **Scope:** Standardize guided-tour orchestration by reusing `react-joyride`, `CockpitTour`, FlowEditor onboarding hooks, and `UserPreferences` so first-run state is durable per user.
@@ -307,7 +307,7 @@
   - **Primary domain:** frontend/backend
   - **Likely touched paths:** `frontend/src/App.tsx`, `frontend/src/components/Cockpit/CockpitTour.tsx`, `frontend/src/components/Onboarding/`, `frontend/src/components/FlowEditor/hooks/useOnboardingTour.tsx`, `backend/apps/core/{models,serializers,views}.py`, new migrations/tests
   - **Dependencies:** GA-03.4
-  - **Blockers:** GA-03.4
+  - **Blockers:** None
   - **Acceptance criteria:** Tour completion state uses one canonical storage shape, can be reset/replayed safely, and does not rely on page-specific localStorage flags alone.
   - **Validation commands:** `cd backend && python manage.py test apps.core`; `npm -C frontend run verify-standards`
   - **Tenant/RLS impact:** Low on shared user-preference data
