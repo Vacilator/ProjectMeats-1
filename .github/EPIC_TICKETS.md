@@ -352,8 +352,8 @@
   - **Rollback:** Revert touched page-level empty-state branches only.
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
-- [ ] **GA-04.4 onboarding-telemetry-and-resume-controls**
-  - **Status:** Ready
+- [x] **GA-04.4 onboarding-telemetry-and-resume-controls**
+  - **Status:** Shipped (PR #4850)
   - **Why now:** GA needs evidence that onboarding works and lets users skip/resume without getting trapped.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 14 / Epic 4
   - **Scope:** Track onboarding completion/skip/resume events and add a simple help/restart surface in the app shell.
@@ -373,7 +373,7 @@
 ### Epic GA-05 - Edge resilience (PWA + optimistic UI)
 
 - [ ] **GA-05.1 vite-pwa-app-shell-foundation**
-  - **Status:** Blocked
+  - **Status:** Ready
   - **Why now:** Warehouse-mode resilience starts with a cacheable app shell and offline-safe bootstrap.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 14 / Epic 5
   - **Scope:** Add the PWA/service-worker foundation to the Vite frontend, define offline cache boundaries, and ensure the app shell can render safely when the network drops temporarily.
@@ -381,7 +381,7 @@
   - **Primary domain:** frontend
   - **Likely touched paths:** `frontend/vite.config.ts`, `frontend/package.json`, `frontend/src/index.tsx`, `frontend/public/`, new `frontend/src/pwa/`
   - **Dependencies:** GA-04.4
-  - **Blockers:** GA-04.4
+  - **Blockers:** None
   - **Acceptance criteria:** The frontend has one canonical service-worker/PWA registration path, the app shell caches without breaking authenticated boot, and build/test docs are updated.
   - **Validation commands:** `npm -C frontend run build`; `npm -C frontend run verify-standards`
   - **Tenant/RLS impact:** None directly
