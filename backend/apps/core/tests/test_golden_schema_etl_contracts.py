@@ -1,8 +1,9 @@
-"""Tests for the GA-01.1 Golden Schema ETL contract scaffold."""
+"""Regression coverage for the current Golden Schema ETL contract surface."""
 
 from __future__ import annotations
 
 import json
+import tempfile
 from io import StringIO
 from pathlib import Path
 
@@ -10,26 +11,21 @@ from django.core.management import call_command
 from django.test import TestCase
 
 from apps.core.services.etl import (
-    BATCH_JOURNAL_FIELDS,
     ENTITY_CONTRACTS,
-    SIDE_EFFECT_SUPPRESSION_RULES,
-    build_contract_preview,
-    resolve_manifest_tenant,
-    validate_batch_manifest,
+    LINE_ITEM_ENTITY_ORDER,
+    LINE_ITEM_PARENT_MAP,
+    REQUIRED_SUPPRESSED_SIDE_EFFECTS,
+    SOURCE_MANIFEST_VERSION,
+    validate_source_manifest,
 )
 from apps.tenants.models import Tenant
 
 
-FIXTURE_PATH = (
-    Path(__file__).resolve().parent / "fixtures" / "etl" / "legacy_batch_manifest.json"
-)
-DRY_RUN_FIXTURE_PATH = (
-    Path(__file__).resolve().parent / "fixtures" / "etl" / "dry_run_manifest.json"
-)
+FIXTURE_DIR = Path(__file__).resolve().parent / "fixtures" / "etl"
 
 
 class GoldenSchemaETLContractTests(TestCase):
-    """High-signal coverage for the contract-only ETL batch."""
+    """Keep the ETL regression suite aligned to the current contract-only API."""
 
     def setUp(self) -> None:
         self.tenant = Tenant.objects.create(
@@ -40,66 +36,52 @@ class GoldenSchemaETLContractTests(TestCase):
             is_active=True,
         )
 
-    def test_manifest_requires_explicit_tenant_selector(self) -> None:
-        payload = {
-            "batch_name": "missing-tenant",
-            "source_system": "legacy_excel_bundle",
-            "sources": [{"entity": "suppliers", "format": "xlsx", "path": "suppliers.xlsx"}],
-        }
+    def test_source_manifest_validates_against_current_contract(self) -> None:
+        manifest_payload = json.loads((FIXTURE_DIR / "source_manifest.json").read_text(encoding="utf-8"))
+        manifest_payload["tenant"]["tenant_id"] = str(self.tenant.id)
+        manifest_payload["tenant"]["tenant_slug"] = self.tenant.slug
 
-        with self.assertRaisesMessage(ValueError, "tenant_slug or tenant_id"):
-            validate_batch_manifest(payload)
+        manifest = validate_source_manifest(manifest_payload)
 
-    def test_manifest_orders_entities_deterministically(self) -> None:
-        payload = {
-            "batch_name": "out-of-order",
-            "source_system": "legacy_excel_bundle",
-            "tenant_slug": self.tenant.slug,
-            "sources": [
-                {"entity": "invoice_items", "format": "csv", "path": "invoice_items.csv"},
-                {"entity": "suppliers", "format": "xlsx", "path": "suppliers.xlsx"},
-                {"entity": "purchase_orders", "format": "xlsx", "path": "purchase_orders.xlsx"},
-                {"entity": "products", "format": "csv", "path": "products.csv"},
-            ],
-        }
+        self.assertEqual(manifest.version, SOURCE_MANIFEST_VERSION)
+        self.assertEqual(manifest.batch_key, "sample-day-0-batch")
+        self.assertEqual(len(manifest.files), 3)
+        self.assertEqual(manifest.files[1].line_item_entity, "purchase_order_items")
 
-        manifest = validate_batch_manifest(payload)
-        self.assertEqual(
-            manifest.ordered_entities(),
-            ("products", "suppliers", "purchase_orders", "invoice_items"),
-        )
+    def test_line_item_parent_map_points_to_registered_contracts(self) -> None:
+        self.assertIn("webhooks", REQUIRED_SUPPRESSED_SIDE_EFFECTS)
+        self.assertIn("purchase_order_history", REQUIRED_SUPPRESSED_SIDE_EFFECTS)
 
-    def test_preview_exposes_side_effect_suppression_and_journal_shape(self) -> None:
-        payload = json.loads(FIXTURE_PATH.read_text(encoding="utf-8"))
-        manifest = validate_batch_manifest(payload)
-        preview = build_contract_preview(manifest, resolved_tenant=resolve_manifest_tenant(manifest))
+        for header_entity, details in LINE_ITEM_PARENT_MAP.items():
+            self.assertIn(header_entity, ENTITY_CONTRACTS)
+            self.assertIn(details["item_entity"], LINE_ITEM_ENTITY_ORDER)
+            self.assertIn(details["item_entity"], ENTITY_CONTRACTS)
+            self.assertEqual(details["related_name"], "items")
 
-        self.assertEqual(preview["side_effects_suppressed"], list(SIDE_EFFECT_SUPPRESSION_RULES))
-        self.assertEqual(preview["journal_fields"], list(BATCH_JOURNAL_FIELDS))
-        self.assertIn("carrier_purchase_orders", preview["ordered_entities"])
-
-    def test_transaction_contracts_expand_mixin_fields(self) -> None:
-        purchase_order_contract = ENTITY_CONTRACTS["purchase_orders"]
-        invoice_contract = ENTITY_CONTRACTS["invoices"]
-        line_item_contract = ENTITY_CONTRACTS["invoice_items"]
-
-        self.assertIn("carrier_release_number", purchase_order_contract.expanded_fields)
-        self.assertIn("accounting_payable_contact_email", invoice_contract.expanded_fields)
-        self.assertIn("total_net_weight", line_item_contract.expanded_fields)
-
-    def test_command_renders_stable_text_preview(self) -> None:
-        out = StringIO()
+    def test_command_renders_current_dry_run_summary(self) -> None:
+        stdout = StringIO()
+        manifest_path = self._write_manifest("source_manifest.json")
 
         call_command(
             "import_golden_legacy_data",
-            "--manifest",
-            str(DRY_RUN_FIXTURE_PATH),
-            stdout=out,
+            source_manifest=str(manifest_path),
+            tenant_id=str(self.tenant.id),
+            stdout=stdout,
         )
 
-        rendered = out.getvalue()
-        self.assertIn("Golden Schema ETL Dry Run", rendered)
-        self.assertIn("Tenant: acme-meats", rendered)
-        self.assertIn("1. suppliers -> tenant_apps.suppliers.models.Supplier", rendered)
-        self.assertIn("Side effects to suppress", rendered)
-        self.assertIn("Dry-run summary", rendered)
+        rendered = stdout.getvalue()
+        self.assertIn("Golden Schema ETL dry-run contract summary", rendered)
+        self.assertIn(f"Tenant: {self.tenant.slug} ({self.tenant.id})", rendered)
+        self.assertIn("- suppliers -> tenant_apps.suppliers.models.Supplier", rendered)
+        self.assertIn("Suppressed side effects:", rendered)
+        self.assertIn("No business rows were written.", rendered)
+
+    def _write_manifest(self, fixture_name: str) -> Path:
+        payload = json.loads((FIXTURE_DIR / fixture_name).read_text(encoding="utf-8"))
+        payload["tenant"]["tenant_id"] = str(self.tenant.id)
+        payload["tenant"]["tenant_slug"] = self.tenant.slug
+
+        with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False, encoding="utf-8") as handle:
+            json.dump(payload, handle)
+            path = handle.name
+        return Path(path)
