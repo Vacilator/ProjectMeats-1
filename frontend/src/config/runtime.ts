@@ -24,6 +24,7 @@ declare global {
       AI_ASSISTANT_ENABLED?: string;
       ENABLE_DOCUMENT_UPLOAD?: string;
       ENABLE_CHAT_EXPORT?: string;
+      ENABLE_OPERATIONAL_OFFLINE_QUEUE?: string;
       MAX_FILE_SIZE?: string;
       SUPPORTED_FILE_TYPES?: string;
       ENABLE_DEBUG?: string;
@@ -122,6 +123,7 @@ export const config = {
   AI_ASSISTANT_ENABLED: getRuntimeConfigBoolean('AI_ASSISTANT_ENABLED', true),
   ENABLE_DOCUMENT_UPLOAD: getRuntimeConfigBoolean('ENABLE_DOCUMENT_UPLOAD', true),
   ENABLE_CHAT_EXPORT: getRuntimeConfigBoolean('ENABLE_CHAT_EXPORT', true),
+  ENABLE_OPERATIONAL_OFFLINE_QUEUE: getRuntimeConfigBoolean('ENABLE_OPERATIONAL_OFFLINE_QUEUE', true),
   ENABLE_DEBUG: getRuntimeConfigBoolean('ENABLE_DEBUG', isDevelopment),
   ENABLE_DEVTOOLS: getRuntimeConfigBoolean('ENABLE_DEVTOOLS', isDevelopment),
   

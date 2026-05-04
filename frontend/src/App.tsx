@@ -77,6 +77,7 @@ import { WorkflowRunner, PerfHarness } from './pages/Workflows';
 import { WorkflowMonitor } from './pages/Workflows/WorkflowMonitor';
 import { WorkflowExecutionDetails } from './pages/Workflows/WorkflowExecutionDetails';
 import EntityFormSurfaceSmoke from './pages/Diagnostics/EntityFormSurfaceSmoke';
+import OperationalStatusReplaySmoke from './pages/Diagnostics/OperationalStatusReplaySmoke';
 import { FormSubmissionModal } from './components/FormSubmission';
 import { useQuickActions } from './contexts/QuickActionsContext';
 import MySubmissions from './pages/MySubmissions';
@@ -243,6 +244,12 @@ const App: React.FC = () => {
                   <Route
                     path="/diagnostics/entity-form-surface-smoke"
                     element={<EntityFormSurfaceSmoke />}
+                  />
+                )}
+                {enableEntityFormSmokeRoute && (
+                  <Route
+                    path="/diagnostics/operational-status-replay-smoke"
+                    element={<OperationalStatusReplaySmoke />}
                   />
                 )}
               <Route path="/" element={<Layout />}>

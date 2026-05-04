@@ -113,6 +113,7 @@ describe('Runtime Configuration', () => {
       expect(config).toHaveProperty('AI_ASSISTANT_ENABLED');
       expect(config).toHaveProperty('ENABLE_DOCUMENT_UPLOAD');
       expect(config).toHaveProperty('ENABLE_CHAT_EXPORT');
+      expect(config).toHaveProperty('ENABLE_OPERATIONAL_OFFLINE_QUEUE');
     });
   });
 
@@ -177,4 +178,3 @@ describe('Runtime Configuration', () => {
     });
   });
 });
-

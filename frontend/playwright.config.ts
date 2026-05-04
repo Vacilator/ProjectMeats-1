@@ -87,8 +87,8 @@ export default defineConfig({
   /* Run your local dev server before starting the tests */
   webServer: {
     command: usePreviewServer
-      ? 'npm run build && npm run preview -- --host 127.0.0.1 --port 3000'
-      : 'npm run dev -- --host 127.0.0.1 --port 3000',
+      ? 'VITE_ENABLE_E2E_SMOKE=1 npm run build && npm run preview -- --host 127.0.0.1 --port 3000'
+      : 'VITE_ENABLE_E2E_SMOKE=1 npm run dev -- --host 127.0.0.1 --port 3000',
     cwd: __dirname,
     url: baseURL,
     reuseExistingServer: !process.env.CI,

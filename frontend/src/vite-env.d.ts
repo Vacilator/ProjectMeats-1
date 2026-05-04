@@ -7,6 +7,7 @@ interface ImportMetaEnv {
   readonly VITE_AI_ASSISTANT_ENABLED?: string;
   readonly VITE_ENABLE_DOCUMENT_UPLOAD?: string;
   readonly VITE_ENABLE_CHAT_EXPORT?: string;
+  readonly VITE_ENABLE_OPERATIONAL_OFFLINE_QUEUE?: string;
   readonly VITE_MAX_FILE_SIZE?: string;
   readonly VITE_SUPPORTED_FILE_TYPES?: string;
   readonly VITE_ENABLE_DEBUG?: string;
