@@ -204,8 +204,8 @@
   - **Rollback:** Leave additive archive metadata in place, disable execute mode, and restore from archive manifests if needed.
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
-- [ ] **GA-03.3 pii-redaction-for-logging-and-sentry**
-  - **Status:** Ready
+- [x] **GA-03.3 pii-redaction-for-logging-and-sentry**
+  - **Status:** Shipped (PR #4832)
   - **Why now:** GA observability cannot expand while logs/APM still risk emitting raw emails, phone numbers, or payload fragments.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 14 / Epic 3
   - **Scope:** Add central redaction filters for Django logging, Celery task logs, and Sentry events/spans; ensure sensitive fields are scrubbed before transport.
@@ -225,7 +225,7 @@
 ### Epic UI-01 - Core UX Stabilization
 
 - [ ] **UI-01.1 modal-lifecycle-lockdown**
-  - **Status:** Blocked
+  - **Status:** Ready
   - **Why now:** Hidden modal bodies are still one of the fastest ways to crash record-edit flows through stale hydration loops and React Error #185 regressions.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 14.5 / Modal lifecycle lockdown
   - **Scope:** Audit Plants, Inquiries, and shared modal/drawer surfaces; enforce `destroyOnClose={true}` where hidden AntD state can linger; and conditionally mount heavy form/query bodies only while open so edit flows always start from a fresh React tree.
@@ -233,7 +233,7 @@
   - **Primary domain:** frontend
   - **Likely touched paths:** `frontend/src/pages/Plants/`, `frontend/src/pages/Inquiries/`, `frontend/src/components/EntityFormSurface.tsx`, `frontend/src/components/UniversalEntityForm/`, shared modal components, frontend regression tests
   - **Dependencies:** GA-03.3
-  - **Blockers:** `GA-03.3 pii-redaction-for-logging-and-sentry` is the current in-flight merge; promote this ticket to `Ready` immediately after that ship completes.
+  - **Blockers:** None
   - **Acceptance criteria:** Hidden modal/drawer flows unmount stale form content on close, shared edit surfaces stop retaining prior-record state across reopen cycles, and regression coverage protects the known Plant/Inquiry crash paths.
   - **Validation commands:** `npm -C frontend run verify-standards`; `npm -C frontend run test:ci`
   - **Tenant/RLS impact:** None directly
@@ -286,8 +286,8 @@
   - **Non-goals:** No new customer-facing features.
   - **Primary domain:** ops/docs
   - **Likely touched paths:** `backend/projectmeats/celery.py`, `backend/apps/system/tasks.py`, `.github/workflows/99-ops-management-command.yml`, `docs/runbooks/DATA_RETENTION.md`, `docs/runbooks/INCIDENT_RESPONSE.md`
-  - **Dependencies:** GA-03.2, GA-03.3
-  - **Blockers:** GA-03.2 and GA-03.3
+  - **Dependencies:** GA-03.2, GA-03.3, UI-01.3
+  - **Blockers:** UI-01.3
   - **Acceptance criteria:** Scheduled jobs and operator runbooks exist for archive/redaction checks, and evidence paths are explicit for audits.
   - **Validation commands:** `bash scripts/verify_golden_state.sh`; `cd backend && python manage.py test apps.system apps.core`
   - **Tenant/RLS impact:** Medium
