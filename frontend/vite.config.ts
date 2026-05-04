@@ -1,6 +1,7 @@
 import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
 import svgr from 'vite-plugin-svgr';
+import { VitePWA } from 'vite-plugin-pwa';
 import tsconfigPaths from 'vite-tsconfig-paths';
 import path from 'path';
 
@@ -12,14 +13,79 @@ export default defineConfig({
     svgr(),
     // Enable tsconfig path mapping
     tsconfigPaths(),
+    VitePWA({
+      registerType: 'autoUpdate',
+      injectRegister: false,
+      includeAssets: [
+        'favicon.svg',
+        'favicon.ico',
+        'favicon-dev.svg',
+        'favicon-prod.svg',
+        'favicon-uat.svg',
+      ],
+      manifest: {
+        id: '/',
+        name: 'Meats Central',
+        short_name: 'Meats Central',
+        description: 'AI-powered meat market operations management',
+        theme_color: '#DC2626',
+        background_color: '#FFFFFF',
+        display: 'standalone',
+        scope: '/',
+        start_url: '/',
+        icons: [
+          {
+            src: 'favicon.svg',
+            sizes: 'any',
+            type: 'image/svg+xml',
+            purpose: 'any',
+          },
+          {
+            src: 'favicon-prod.svg',
+            sizes: 'any',
+            type: 'image/svg+xml',
+            purpose: 'any maskable',
+          },
+        ],
+      },
+      workbox: {
+        cleanupOutdatedCaches: true,
+        clientsClaim: true,
+        skipWaiting: true,
+        navigateFallback: 'index.html',
+        navigateFallbackDenylist: [/^\/api\//, /^\/admin\//, /^\/media\//, /^\/static\//],
+        globPatterns: ['**/*.{js,css,html,ico,png,svg,json}'],
+        globIgnores: ['env-config.js', 'js/UnifiedFlowEditor-*.js'],
+        runtimeCaching: [
+          {
+            urlPattern: ({ url }) => url.pathname === '/env-config.js',
+            handler: 'NetworkFirst',
+            options: {
+              cacheName: 'runtime-config',
+              networkTimeoutSeconds: 2,
+              expiration: {
+                maxEntries: 1,
+                maxAgeSeconds: 24 * 60 * 60,
+              },
+              cacheableResponse: {
+                statuses: [200],
+              },
+            },
+          },
+        ],
+      },
+      devOptions: {
+        enabled: false,
+      },
+    }),
   ],
-  
+
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
     },
   },
-  
+
   // Server configuration for development
   server: {
     port: 3000,
@@ -48,7 +114,7 @@ export default defineConfig({
       },
     },
   },
-  
+
   // Build configuration
   build: {
     outDir: 'build',
@@ -93,7 +159,10 @@ export default defineConfig({
           if (id.includes('/node_modules/antd/') || id.includes('/node_modules/@ant-design/')) {
             return 'vendor-antd';
           }
-          if (id.includes('/node_modules/axios/') || id.includes('/node_modules/styled-components/')) {
+          if (
+            id.includes('/node_modules/axios/') ||
+            id.includes('/node_modules/styled-components/')
+          ) {
             return 'vendor-utils';
           }
 
@@ -102,10 +171,10 @@ export default defineConfig({
       },
     },
   },
-  
+
   // Define environment variable prefix
   envPrefix: 'VITE_',
-  
+
   // Optimize dependencies
   optimizeDeps: {
     include: [
@@ -118,13 +187,13 @@ export default defineConfig({
       'styled-components',
     ],
   },
-  
+
   // Preview server configuration (for production build preview)
   preview: {
     port: 3000,
     open: true,
   },
-  
+
   // Test configuration for Vitest
   test: {
     globals: true,

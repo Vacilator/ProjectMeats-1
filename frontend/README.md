@@ -38,15 +38,15 @@ The application automatically detects the tenant and environment from `window.lo
 
 #### Domain Patterns
 
-| Domain | Tenant | Environment | API Endpoint |
-|--------|--------|-------------|--------------|
-| `localhost:3000` | `null` | development | `http://localhost:8000/api/v1` |
-| `dev.projectmeats.com` | `null` | development | `http://localhost:8000/api/v1` |
-| `uat.projectmeats.com` | `null` | uat | `https://uat-api.projectmeats.com/api/v1` |
-| `projectmeats.com` | `null` | production | `https://api.projectmeats.com/api/v1` |
-| `acme-dev.projectmeats.com` | `acme` | development | `http://acme-dev-api.projectmeats.com/api/v1` |
-| `acme-uat.projectmeats.com` | `acme` | uat | `https://acme-uat-api.projectmeats.com/api/v1` |
-| `acme.projectmeats.com` | `acme` | production | `https://acme-api.projectmeats.com/api/v1` |
+| Domain                      | Tenant | Environment | API Endpoint                                   |
+| --------------------------- | ------ | ----------- | ---------------------------------------------- |
+| `localhost:3000`            | `null` | development | `http://localhost:8000/api/v1`                 |
+| `dev.projectmeats.com`      | `null` | development | `http://localhost:8000/api/v1`                 |
+| `uat.projectmeats.com`      | `null` | uat         | `https://uat-api.projectmeats.com/api/v1`      |
+| `projectmeats.com`          | `null` | production  | `https://api.projectmeats.com/api/v1`          |
+| `acme-dev.projectmeats.com` | `acme` | development | `http://acme-dev-api.projectmeats.com/api/v1`  |
+| `acme-uat.projectmeats.com` | `acme` | uat         | `https://acme-uat-api.projectmeats.com/api/v1` |
+| `acme.projectmeats.com`     | `acme` | production  | `https://acme-api.projectmeats.com/api/v1`     |
 
 ### Key Features
 
@@ -54,7 +54,7 @@ The application automatically detects the tenant and environment from `window.lo
 ✅ **Environment-aware** API URL configuration  
 ✅ **Override support** via `window.ENV` for custom deployments  
 ✅ **Type-safe** TypeScript implementation  
-✅ **Fully tested** with comprehensive unit tests  
+✅ **Fully tested** with comprehensive unit tests
 
 ### Tenant Context API
 
@@ -63,9 +63,9 @@ import { getTenantContext, getCurrentTenant } from './config/tenantContext';
 
 // Get full tenant context
 const context = getTenantContext();
-console.log(context.tenant);       // 'acme' or null
-console.log(context.environment);  // 'development' | 'uat' | 'production'
-console.log(context.apiBaseUrl);   // Tenant-specific API endpoint
+console.log(context.tenant); // 'acme' or null
+console.log(context.environment); // 'development' | 'uat' | 'production'
+console.log(context.apiBaseUrl); // Tenant-specific API endpoint
 
 // Get just the tenant identifier
 const tenant = getCurrentTenant(); // 'acme' or null
@@ -93,6 +93,7 @@ npm start
 ```
 
 The app will detect `localhost` and use:
+
 - Tenant: `null` (no tenant)
 - Environment: `development`
 - API URL: `http://localhost:8000/api/v1`
@@ -108,6 +109,7 @@ To test tenant-specific behavior locally, you can modify your `/etc/hosts`:
 ```
 
 Then access:
+
 - `http://acme-dev.localhost:3000` - Tenant: `acme`
 - `http://tenant2-dev.localhost:3000` - Tenant: `tenant2`
 
@@ -217,6 +219,7 @@ VITE_ENABLE_DOCUMENT_UPLOAD=true
 ```
 
 Access in code:
+
 ```typescript
 // Vite environment variables
 const apiUrl = import.meta.env.VITE_API_BASE_URL;
@@ -229,8 +232,8 @@ For production deployments, you can override configuration at runtime:
 
 ```javascript
 window.ENV = {
-  API_BASE_URL: "https://api.example.com/api/v1",
-  ENVIRONMENT: "production"
+  API_BASE_URL: 'https://api.example.com/api/v1',
+  ENVIRONMENT: 'production',
 };
 ```
 
@@ -289,6 +292,16 @@ npm run build
 
 This creates an optimized production build in the `build/` directory.
 
+The Vite build now emits a PWA app shell alongside the normal bundles:
+
+- `manifest.webmanifest` for install metadata
+- `sw.js` for the cached app shell
+- precached frontend assets plus a network-first runtime cache for `env-config.js`
+
+The service worker intentionally does **not** cache `/api`, `/admin`, `/media`, or `/static`
+requests. That keeps authenticated bootstrap and backend-backed data fetches online-only while
+still allowing the React shell and last-known runtime config to load when connectivity drops.
+
 ### Deployment Options
 
 #### Option 1: Static Hosting with Runtime Config
@@ -310,6 +323,7 @@ JS
 #### Option 2: Docker Deployment
 
 See deployment workflows in `.github/workflows/`:
+
 - `11-dev-deployment.yml` - Development environment
 - `12-uat-deployment.yml` - UAT/Staging environment
 - `13-prod-deployment.yml` - Production environment
@@ -439,12 +453,14 @@ The frontend has been migrated from **Create React App (CRA)** to **Vite** for i
    - ⚡ Faster production builds
 
 2. **Environment Variables**: `REACT_APP_*` → `VITE_*`
+
    ```diff
    - REACT_APP_API_BASE_URL=http://localhost:8000/api/v1
    + VITE_API_BASE_URL=http://localhost:8000/api/v1
    ```
 
 3. **Environment Access**: `process.env` → `import.meta.env`
+
    ```diff
    - const apiUrl = process.env.REACT_APP_API_BASE_URL;
    + const apiUrl = import.meta.env.VITE_API_BASE_URL;
@@ -462,6 +478,7 @@ The frontend has been migrated from **Create React App (CRA)** to **Vite** for i
 #### Backward Compatibility
 
 The migration maintains **full backward compatibility**:
+
 - Runtime configuration (`window.ENV`) still works
 - Tenant detection unchanged
 - API services unchanged
@@ -479,19 +496,21 @@ The migration maintains **full backward compatibility**:
 If you have local environment variables:
 
 1. Rename `.env` variables:
+
    ```bash
    # Old .env
    REACT_APP_MY_VAR=value
-   
+
    # New .env
    VITE_MY_VAR=value
    ```
 
 2. Update code references:
+
    ```typescript
    // Old
    const myVar = process.env.REACT_APP_MY_VAR;
-   
+
    // New
    const myVar = import.meta.env.VITE_MY_VAR;
    ```
