@@ -1,10 +1,16 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Breadcrumb, Button, Card, Spin, Tabs } from 'antd';
+import { Building2, ClipboardList, MessageSquarePlus, UsersRound } from 'lucide-react';
 
 import { EntityWorkflowStatusPanel } from '@/components/Entities/EntityWorkflowStatusPanel';
 import { useNavigate, useParams } from 'react-router-dom';
 
 import { AIOverviewCard, EntityProfileHeader } from '@/components/Cockpit';
+import {
+  TransactionalEmptyState,
+  TransactionalEmptyStateGuidance,
+  TransactionalEmptyStateGuidanceItem,
+} from '@/components/Onboarding';
 import { AuditHistoryTimeline } from '@/components/Operations/AuditHistoryTimeline';
 import { OperationalDocumentActions } from '@/components/Operations/OperationalDocumentActions';
 import { supportsAuditHistory, supportsOperationalActions } from '@/components/Operations/documentOperations';
@@ -209,6 +215,45 @@ export const UniversalEntityRecordPage: React.FC<UniversalEntityRecordPageProps>
     return Number.isFinite(n) ? n : null;
   }, [entityId]);
 
+  const openRelatedContactCreate = useCallback(() => {
+    if (!(isSupplier || isCustomer) || !entityId) {
+      return;
+    }
+
+    const params = new URLSearchParams({ create: '1' });
+    params.set(childFilterKey, entityId);
+    navigate(`/contacts?${params.toString()}`);
+  }, [childFilterKey, entityId, isCustomer, isSupplier, navigate]);
+
+  const openRelatedInquiryCreate = useCallback(() => {
+    if (!entityId) {
+      return;
+    }
+
+    navigate('/inquiries', {
+      state: {
+        openCreateModal: true,
+        entityType: normalizedEntityType,
+        entityId,
+      },
+    });
+  }, [entityId, navigate, normalizedEntityType]);
+
+  const openContextualOrderCreate = useCallback(() => {
+    if (!entityId) {
+      return;
+    }
+
+    if (isSupplier) {
+      navigate(`/purchase-orders?action=create&supplier_id=${encodeURIComponent(entityId)}`);
+      return;
+    }
+
+    if (isCustomer) {
+      navigate(`/sales-orders?action=create&customer_id=${encodeURIComponent(entityId)}`);
+    }
+  }, [entityId, isCustomer, isSupplier, navigate]);
+
   const renderRelationshipTable = useCallback(
     (relKey: string, label: string) => {
       const rows = relationships[relKey] || [];
@@ -257,6 +302,29 @@ export const UniversalEntityRecordPage: React.FC<UniversalEntityRecordPageProps>
       );
     },
     [relationshipCounts, relationships]
+  );
+
+  const supplierCustomerRelatedSections = useMemo(
+    () =>
+      [
+        renderRelationshipTable('inquiries', 'Inquiries'),
+        renderRelationshipTable('recent_orders', 'Recent Orders'),
+        renderRelationshipTable('invoices', 'Invoices'),
+        renderRelationshipTable('related_products', 'Related Products'),
+      ].filter(Boolean),
+    [renderRelationshipTable]
+  );
+
+  const genericRelatedSections = useMemo(
+    () =>
+      [
+        renderRelationshipTable('contacts', 'Contacts'),
+        renderRelationshipTable('inquiries', 'Inquiries'),
+        renderRelationshipTable('recent_orders', 'Recent Orders'),
+        renderRelationshipTable('invoices', 'Invoices'),
+        renderRelationshipTable('related_products', 'Related Products'),
+      ].filter(Boolean),
+    [renderRelationshipTable]
   );
 
   return (
@@ -402,19 +470,45 @@ export const UniversalEntityRecordPage: React.FC<UniversalEntityRecordPageProps>
                               <Spin />
                             </div>
                           ) : (
-                            <UnifiedEntityTable
-                              entityType={childEntityType}
-                              data={childRows as any}
-                              loading={childLoading}
-                              onReload={loadChildRows}
-                              recordPathForRow={(_t, row: Record<string, unknown>) => {
-                                const childId = String((row as { id?: unknown }).id ?? '').trim();
-                                if (!childId) return null;
-                                return isSupplier
-                                  ? `/suppliers/${encodeURIComponent(entityId)}/plants/${encodeURIComponent(childId)}`
-                                  : `/customers/${encodeURIComponent(entityId)}/locations/${encodeURIComponent(childId)}`;
-                              }}
-                            />
+                            childRows.length ? (
+                              <UnifiedEntityTable
+                                entityType={childEntityType}
+                                data={childRows as any}
+                                loading={childLoading}
+                                onReload={loadChildRows}
+                                recordPathForRow={(_t, row: Record<string, unknown>) => {
+                                  const childId = String((row as { id?: unknown }).id ?? '').trim();
+                                  if (!childId) return null;
+                                  return isSupplier
+                                    ? `/suppliers/${encodeURIComponent(entityId)}/plants/${encodeURIComponent(childId)}`
+                                    : `/customers/${encodeURIComponent(entityId)}/locations/${encodeURIComponent(childId)}`;
+                                }}
+                              />
+                            ) : (
+                              <TransactionalEmptyState
+                                icon={<Building2 size={36} />}
+                                title={`No ${childLabel.toLowerCase()} yet`}
+                                message={`Create the first ${childEntityDisplayName.toLowerCase()} to anchor departments, logistics, and related transactional activity for this record.`}
+                                actions={[
+                                  {
+                                    label: `Create ${childEntityDisplayName}`,
+                                    onClick: () => setChildCreateOpen(true),
+                                    variant: 'primary',
+                                  },
+                                  {
+                                    label: 'Create Contact',
+                                    onClick: openRelatedContactCreate,
+                                    variant: 'secondary',
+                                  },
+                                ]}
+                              >
+                                <TransactionalEmptyStateGuidance>
+                                  <TransactionalEmptyStateGuidanceItem>
+                                    {childEntityDisplayName}s help organize downstream contacts, receiving, shipping, and operational notes.
+                                  </TransactionalEmptyStateGuidanceItem>
+                                </TransactionalEmptyStateGuidance>
+                              </TransactionalEmptyState>
+                            )
                           )}
                         </Card>
                       ),
@@ -431,7 +525,23 @@ export const UniversalEntityRecordPage: React.FC<UniversalEntityRecordPageProps>
                           ) : deptContactsRows.length ? (
                             <UnifiedEntityTable entityType="contact" data={deptContactsRows as any} />
                           ) : (
-                            <span style={{ color: 'rgb(var(--color-text-tertiary))' }}>No contacts found.</span>
+                            <TransactionalEmptyState
+                              icon={<UsersRound size={36} />}
+                              title="No contacts yet"
+                              message="Add the first department contact so purchasing, sales, and logistics teams have a real person to work with."
+                              actions={[
+                                {
+                                  label: 'Create Contact',
+                                  onClick: openRelatedContactCreate,
+                                  variant: 'primary',
+                                },
+                                {
+                                  label: `Create ${childEntityDisplayName}`,
+                                  onClick: () => setChildCreateOpen(true),
+                                  variant: 'secondary',
+                                },
+                              ]}
+                            />
                           )}
                         </Card>
                       ),
@@ -451,12 +561,33 @@ export const UniversalEntityRecordPage: React.FC<UniversalEntityRecordPageProps>
                       key: 'related',
                       label: 'Related',
                       children: (
-                        <>
-                          {renderRelationshipTable('inquiries', 'Inquiries')}
-                          {renderRelationshipTable('recent_orders', 'Recent Orders')}
-                          {renderRelationshipTable('invoices', 'Invoices')}
-                          {renderRelationshipTable('related_products', 'Related Products')}
-                        </>
+                        supplierCustomerRelatedSections.length ? (
+                          <>{supplierCustomerRelatedSections}</>
+                        ) : (
+                          <TransactionalEmptyState
+                            icon={<ClipboardList size={36} />}
+                            title={`No related ${isSupplier ? 'supplier' : 'customer'} activity yet`}
+                            message={`Create the first ${isSupplier ? 'purchase order' : 'sales order'} or inquiry tied to this record so the related tab has real commercial context.`}
+                            actions={[
+                              {
+                                label: isSupplier ? 'Create Purchase Order' : 'Create Sales Order',
+                                onClick: openContextualOrderCreate,
+                                variant: 'primary',
+                              },
+                              {
+                                label: 'Create Inquiry',
+                                onClick: openRelatedInquiryCreate,
+                                variant: 'secondary',
+                              },
+                            ]}
+                          >
+                            <TransactionalEmptyStateGuidance>
+                              <TransactionalEmptyStateGuidanceItem>
+                                Related activity fills in automatically once this account starts participating in inquiries and orders.
+                              </TransactionalEmptyStateGuidanceItem>
+                            </TransactionalEmptyStateGuidance>
+                          </TransactionalEmptyState>
+                        )
                       ),
                     },
                     {
@@ -496,7 +627,37 @@ export const UniversalEntityRecordPage: React.FC<UniversalEntityRecordPageProps>
                               ))}
                             </div>
                           ) : (
-                            <span style={{ color: 'rgb(var(--color-text-tertiary))' }}>No related counts available.</span>
+                            <TransactionalEmptyState
+                              icon={<MessageSquarePlus size={36} />}
+                              title="No related counts yet"
+                              message={
+                                isSupplier || isCustomer
+                                  ? 'This record does not have downstream activity yet. Start with an inquiry or order to populate counts and related tabs.'
+                                  : 'This record does not have downstream activity yet. Update it with operational details so related activity has a complete source record.'
+                              }
+                              actions={
+                                isSupplier || isCustomer
+                                  ? [
+                                      {
+                                        label: 'Create Inquiry',
+                                        onClick: openRelatedInquiryCreate,
+                                        variant: 'primary' as const,
+                                      },
+                                      {
+                                        label: isSupplier ? 'Create Purchase Order' : 'Create Sales Order',
+                                        onClick: openContextualOrderCreate,
+                                        variant: 'secondary' as const,
+                                      },
+                                    ]
+                                  : [
+                                      {
+                                        label: 'Edit Record',
+                                        onClick: () => setEditOpen(true),
+                                        variant: 'primary' as const,
+                                      },
+                                    ]
+                              }
+                            />
                           )}
                         </Card>
                       ),
@@ -519,13 +680,32 @@ export const UniversalEntityRecordPage: React.FC<UniversalEntityRecordPageProps>
                       key: 'related',
                       label: 'Related',
                       children: (
-                        <>
-                          {renderRelationshipTable('contacts', 'Contacts')}
-                          {renderRelationshipTable('inquiries', 'Inquiries')}
-                          {renderRelationshipTable('recent_orders', 'Recent Orders')}
-                          {renderRelationshipTable('invoices', 'Invoices')}
-                          {renderRelationshipTable('related_products', 'Related Products')}
-                        </>
+                        genericRelatedSections.length ? (
+                          <>{genericRelatedSections}</>
+                        ) : (
+                          <TransactionalEmptyState
+                            icon={<ClipboardList size={36} />}
+                            title="No related records yet"
+                            message="This record has not been tied to contacts, inquiries, orders, or invoices yet."
+                            actions={
+                              isSupplier || isCustomer
+                                ? [
+                                    {
+                                      label: 'Create Inquiry',
+                                      onClick: openRelatedInquiryCreate,
+                                      variant: 'primary' as const,
+                                    },
+                                  ]
+                                : [
+                                    {
+                                      label: 'Edit Record',
+                                      onClick: () => setEditOpen(true),
+                                      variant: 'primary' as const,
+                                    },
+                                  ]
+                            }
+                          />
+                        )
                       ),
                     },
                     {

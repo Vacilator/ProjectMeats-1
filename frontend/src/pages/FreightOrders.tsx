@@ -1,8 +1,15 @@
 import React, { useMemo, useState } from 'react';
-import { Button, Card, Empty, Skeleton, Space, Table, Tag, Typography } from 'antd';
+import { Button, Card, Skeleton, Space, Table, Tag, Typography } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { useQuery } from '@tanstack/react-query';
+import { useNavigate } from 'react-router-dom';
+import { Truck } from 'lucide-react';
 
+import {
+  TransactionalEmptyState,
+  TransactionalEmptyStateGuidance,
+  TransactionalEmptyStateGuidanceItem,
+} from '@/components/Onboarding';
 import { AuditHistoryTimeline } from '@/components/Operations/AuditHistoryTimeline';
 import { OperationalDocumentActions } from '@/components/Operations/OperationalDocumentActions';
 import { EntityFormSurface } from '@/components/Shared';
@@ -34,6 +41,7 @@ const formatStatus = (value?: string): string =>
     .replace(/\b\w/g, (char) => char.toUpperCase());
 
 const FreightOrders: React.FC = () => {
+  const navigate = useNavigate();
   const [selectedOrder, setSelectedOrder] = useState<FreightOrder | null>(null);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [editingOrderId, setEditingOrderId] = useState<string | null>(null);
@@ -144,7 +152,32 @@ const FreightOrders: React.FC = () => {
             })}
           />
         ) : (
-          <Empty description="No freight orders found." image={Empty.PRESENTED_IMAGE_SIMPLE} />
+          <TransactionalEmptyState
+            icon={<Truck size={36} />}
+            title="No freight orders yet"
+            message="Create your first freight order to coordinate carriers, pickup windows, and delivery commitments."
+            actions={[
+              {
+                label: 'Create Freight Order',
+                onClick: () => setIsCreateOpen(true),
+                variant: 'primary',
+              },
+              {
+                label: 'Manage Carriers',
+                onClick: () => navigate('/carriers'),
+                variant: 'secondary',
+              },
+            ]}
+          >
+            <TransactionalEmptyStateGuidance>
+              <TransactionalEmptyStateGuidanceItem>
+                Add or review carriers first so dispatch teams have the right transportation options available.
+              </TransactionalEmptyStateGuidanceItem>
+              <TransactionalEmptyStateGuidanceItem>
+                Freight orders tie delivery planning, documents, and audit history together in one place.
+              </TransactionalEmptyStateGuidanceItem>
+            </TransactionalEmptyStateGuidance>
+          </TransactionalEmptyState>
         )}
       </Card>
 

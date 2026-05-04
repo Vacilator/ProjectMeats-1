@@ -1,9 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { Skeleton } from 'antd';
+import { ClipboardList } from 'lucide-react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import styled from 'styled-components';
 import { confirmDialog, showAlert } from '@/utils/uiDialogs';
 import { apiClient, apiService, PurchaseOrder, Supplier } from '../services/apiService';
+import {
+  TransactionalEmptyState,
+  TransactionalEmptyStateGuidance,
+  TransactionalEmptyStateGuidanceItem,
+} from '../components/Onboarding';
 import { LocationSelector } from '../components/Shared';
 import PurchaseOrderWorkflow from '../components/Workflow/PurchaseOrderWorkflow';
 import { SmartProductAutocomplete } from '../components/Inquiry/SmartProductAutocomplete';
@@ -125,28 +131,6 @@ const LoadingMessage = styled.div`
   padding: 60px 20px;
   font-size: 18px;
   color: rgb(var(--color-text-secondary));
-`;
-
-const EmptyState = styled.div`
-  text-align: center;
-  padding: 60px 20px;
-`;
-
-const EmptyIcon = styled.div`
-  font-size: 64px;
-  margin-bottom: 20px;
-`;
-
-const EmptyTitle = styled.h3`
-  font-size: 20px;
-  font-weight: 600;
-  color: rgb(var(--color-text-primary));
-  margin-bottom: 10px;
-`;
-
-const EmptyDescription = styled.p`
-  color: rgb(var(--color-text-secondary));
-  font-size: 16px;
 `;
 
 const TableWrapper = styled.div`
@@ -896,6 +880,32 @@ const PurchaseOrders: React.FC = () => {
     }
   };
 
+  const openCreatePurchaseOrder = () => {
+    setFormData({
+      order_number: getNextOrderNumber(),
+      supplier: '',
+      product: '',
+      item_description: '',
+      fresh_or_frozen: '',
+      package_type: '',
+      quantity: '',
+      weight_per_unit: '',
+      price_per_unit: '',
+      total_weight: '',
+      weight_unit: 'LBS',
+      total_amount: '',
+      status: 'pending',
+      order_date: '',
+      delivery_date: '',
+      notes: '',
+      logistics_scenario: 'supplier_delivery',
+      pick_up_location: null,
+      delivery_location: null,
+    });
+    setEditingPurchaseOrder(null);
+    setShowForm(true);
+  };
+
   if (loading) {
     return (
       <div style={{ padding: 16 }}>
@@ -912,35 +922,7 @@ const PurchaseOrders: React.FC = () => {
           <SecondaryButton onClick={exportToCsv} disabled={exporting}>
             {exporting ? 'Exporting...' : 'Export CSV'}
           </SecondaryButton>
-          <AddButton
-          onClick={() => {
-            setFormData({
-              order_number: getNextOrderNumber(),
-              supplier: '',
-
-              product: '',
-              item_description: '',
-              fresh_or_frozen: '',
-              package_type: '',
-              quantity: '',
-              weight_per_unit: '',
-              price_per_unit: '',
-
-              total_weight: '',
-              weight_unit: 'LBS',
-
-              total_amount: '',
-              status: 'pending',
-              order_date: '',
-              delivery_date: '',
-              notes: '',
-              logistics_scenario: 'supplier_delivery',
-              pick_up_location: null, // Phase 4: Reset location
-              delivery_location: null, // Phase 4: Reset location
-            });
-            setShowForm(true);
-          }}
-        >
+          <AddButton onClick={openCreatePurchaseOrder}>
           + Add Purchase Order
           </AddButton>
         </HeaderActions>
@@ -1009,11 +991,32 @@ const PurchaseOrders: React.FC = () => {
       />
 
       {purchaseOrders.length === 0 ? (
-        <EmptyState>
-          <EmptyIcon>📋</EmptyIcon>
-          <EmptyTitle>No Purchase Orders</EmptyTitle>
-          <EmptyDescription>Get started by creating your first purchase order</EmptyDescription>
-        </EmptyState>
+        <TransactionalEmptyState
+          icon={<ClipboardList size={36} />}
+          title="No purchase orders yet"
+          message="Create your first purchase order to start tracking supplier commitments, receiving plans, and order value."
+          actions={[
+            {
+              label: 'Create Purchase Order',
+              onClick: openCreatePurchaseOrder,
+              variant: 'primary',
+            },
+            {
+              label: 'Add First Supplier',
+              onClick: () => navigate('/suppliers/new'),
+              variant: 'secondary',
+            },
+          ]}
+        >
+          <TransactionalEmptyStateGuidance>
+            <TransactionalEmptyStateGuidanceItem>
+              Add a supplier first if you do not yet have one to purchase from.
+            </TransactionalEmptyStateGuidanceItem>
+            <TransactionalEmptyStateGuidanceItem>
+              Use purchase orders to lock in cost, quantity, and delivery expectations before fulfillment starts.
+            </TransactionalEmptyStateGuidanceItem>
+          </TransactionalEmptyStateGuidance>
+        </TransactionalEmptyState>
       ) : (
         <TableWrapper>
           <Table>

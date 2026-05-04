@@ -13,10 +13,16 @@
  * Pattern: Follows Claims.tsx/SalesOrders.tsx architecture for consistency
  */
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import styled from 'styled-components';
 import { Skeleton } from 'antd';
+import { FileText } from 'lucide-react';
 
+import {
+  TransactionalEmptyState,
+  TransactionalEmptyStateGuidance,
+  TransactionalEmptyStateGuidanceItem,
+} from '../../components/Onboarding';
 import { ActivityFeed, RecordPaymentModal, PaymentHistoryList, EntityFormSurface } from '../../components/Shared';
 import { apiClient } from '../../services/apiService';
 import { coerceFiniteNumber, formatCurrency } from '../../shared/utils';
@@ -397,6 +403,8 @@ const EmptyMessage = styled.div`
 
 const Invoices: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -440,6 +448,27 @@ const Invoices: React.FC = () => {
     fetchInvoices();
   }, [statusFilter]);
 
+  useEffect(() => {
+    if (searchParams.get('action') !== 'create') {
+      return;
+    }
+
+    setIsModalOpen(true);
+    const next = new URLSearchParams(searchParams);
+    next.delete('action');
+    setSearchParams(next, { replace: true });
+  }, [searchParams, setSearchParams]);
+
+  useEffect(() => {
+    const state = (location.state ?? {}) as { openCreateModal?: boolean };
+    if (!state.openCreateModal) {
+      return;
+    }
+
+    setIsModalOpen(true);
+    navigate(location.pathname, { replace: true, state: {} });
+  }, [location.pathname, location.state, navigate]);
+
   // Filter invoices by search query
   const filteredInvoices = invoices.filter(invoice => {
     if (!searchQuery) return true;
@@ -462,12 +491,16 @@ const Invoices: React.FC = () => {
     cancelled: invoices.filter(i => i.status === 'cancelled').length,
   };
 
+  const openCreateInvoice = () => {
+    setIsModalOpen(true);
+  };
+
   return (
     <PageContainer>
       <PageHeader>
         <PageTitle>Receivables - Invoices</PageTitle>
         <HeaderActions>
-          <PrimaryButton onClick={() => setIsModalOpen(true)}>
+          <PrimaryButton onClick={openCreateInvoice}>
             + Create Invoice
           </PrimaryButton>
         </HeaderActions>
@@ -510,9 +543,36 @@ const Invoices: React.FC = () => {
             ) : error ? (
               <ErrorMessage>{error}</ErrorMessage>
             ) : filteredInvoices.length === 0 ? (
-              <EmptyMessage>
-                {searchQuery ? 'No invoices match your search' : 'No invoices found'}
-              </EmptyMessage>
+              searchQuery || statusFilter !== 'all' ? (
+                <EmptyMessage>No invoices match your current filters</EmptyMessage>
+              ) : (
+                <TransactionalEmptyState
+                  icon={<FileText size={36} />}
+                  title="No invoices yet"
+                  message="Create your first invoice to track what is owed, due dates, and payment progress for receivables."
+                  actions={[
+                    {
+                      label: 'Create Invoice',
+                      onClick: openCreateInvoice,
+                      variant: 'primary',
+                    },
+                    {
+                      label: 'Create Sales Order',
+                      onClick: () => navigate('/sales-orders?action=create'),
+                      variant: 'secondary',
+                    },
+                  ]}
+                >
+                  <TransactionalEmptyStateGuidance>
+                    <TransactionalEmptyStateGuidanceItem>
+                      Invoices are easiest to manage once the related sales order already exists.
+                    </TransactionalEmptyStateGuidanceItem>
+                    <TransactionalEmptyStateGuidanceItem>
+                      Use invoices to track outstanding balances, payment history, and overdue follow-up.
+                    </TransactionalEmptyStateGuidanceItem>
+                  </TransactionalEmptyStateGuidance>
+                </TransactionalEmptyState>
+              )
             ) : (
               <TableWrapper>
                 <Table>

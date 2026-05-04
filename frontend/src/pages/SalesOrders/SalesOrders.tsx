@@ -16,7 +16,13 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import styled from 'styled-components';
 import { Skeleton } from 'antd';
+import { PackagePlus } from 'lucide-react';
 
+import {
+  TransactionalEmptyState,
+  TransactionalEmptyStateGuidance,
+  TransactionalEmptyStateGuidanceItem,
+} from '../../components/Onboarding';
 import { ActivityFeed, EntityFormSurface } from '../../components/Shared';
 import { apiClient } from '../../services/apiService';
 import { formatCurrency } from '../../shared/utils';
@@ -400,6 +406,16 @@ const LoadingState = styled.div`
   font-size: 0.875rem;
 `;
 
+const EmptyResultsState = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4rem 1rem;
+  text-align: center;
+  color: rgb(var(--color-text-secondary));
+  font-size: 0.875rem;
+`;
+
 const ErrorState = styled.div`
   padding: 1rem 1.5rem;
   background: rgba(var(--color-danger), 0.12);
@@ -408,17 +424,6 @@ const ErrorState = styled.div`
   color: rgb(var(--color-danger));
   font-size: 0.875rem;
   margin: 1rem 1.5rem;
-`;
-
-const EmptyState = styled.div`
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 4rem 1rem;
-  text-align: center;
-  color: rgb(var(--color-text-secondary));
-  font-size: 0.875rem;
 `;
 
 // Side Panel Styles
@@ -638,6 +643,11 @@ export const SalesOrdersPage: React.FC = () => {
     setSelectedOrder(null);
   };
 
+  const openCreateSalesOrder = () => {
+    setCreatePrefill(null);
+    setIsModalOpen(true);
+  };
+
   // Filter and search logic
   const filteredOrders = orders.filter(order => {
     // Status filter
@@ -676,7 +686,7 @@ export const SalesOrdersPage: React.FC = () => {
           <SecondaryButton onClick={exportToCsv} disabled={exporting}>
             {exporting ? 'Exporting...' : 'Export CSV'}
           </SecondaryButton>
-          <PrimaryButton onClick={() => { setCreatePrefill(null); setIsModalOpen(true); }}>
+          <PrimaryButton onClick={openCreateSalesOrder}>
             + New Sales Order
           </PrimaryButton>
         </HeaderActions>
@@ -740,10 +750,36 @@ export const SalesOrdersPage: React.FC = () => {
                 <Skeleton active paragraph={{ rows: 8 }} />
               </LoadingState>
             ) : filteredOrders.length === 0 ? (
-              <EmptyState>
-                <p>No sales orders found.</p>
-                <p>Click "New Sales Order" to create your first order.</p>
-              </EmptyState>
+              statusFilter !== 'all' || searchQuery ? (
+                <EmptyResultsState>No sales orders match your current filters.</EmptyResultsState>
+              ) : (
+                <TransactionalEmptyState
+                  icon={<PackagePlus size={36} />}
+                  title="No sales orders yet"
+                  message="Create your first sales order to move a customer request into pricing, fulfillment, and invoice-ready workflow."
+                  actions={[
+                    {
+                      label: 'Create Sales Order',
+                      onClick: openCreateSalesOrder,
+                      variant: 'primary',
+                    },
+                    {
+                      label: 'Add First Customer',
+                      onClick: () => navigate('/customers/new'),
+                      variant: 'secondary',
+                    },
+                  ]}
+                >
+                  <TransactionalEmptyStateGuidance>
+                    <TransactionalEmptyStateGuidanceItem>
+                      Add a customer first if you do not yet have an account to sell against.
+                    </TransactionalEmptyStateGuidanceItem>
+                    <TransactionalEmptyStateGuidanceItem>
+                      Sales orders become the backbone for invoices, freight coordination, and order activity history.
+                    </TransactionalEmptyStateGuidanceItem>
+                  </TransactionalEmptyStateGuidance>
+                </TransactionalEmptyState>
+              )
             ) : (
               <Table>
                 <TableHeader>
