@@ -582,8 +582,8 @@
   - **Rollback:** Disable the middleware for the targeted routes and keep the persistence table additive.
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
-- [ ] **EH-02.3 chat-session-tenant-fk-rls**
-  - **Status:** Ready
+- [x] **EH-02.3 chat-session-tenant-fk-rls**
+  - **Status:** Shipped (PR #4871)
   - **Why now:** AI chat persistence still relies on JSON-stamped tenant context instead of tenant-native storage.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 12 / Phase 13 dependency
   - **Scope:** Add `tenant` FK + RLS to `ChatSession` and `ChatMessage`, backfill, migrate reads/writes, and update `manifests/RLS_POLICIES.md` so the new policies are governed by the same registry as the rest of the platform.
@@ -603,7 +603,7 @@
 ### Epic EH-03 - Contract-first platform
 
 - [ ] **EH-03.1 openapi-ai-and-high-churn-surface-coverage**
-  - **Status:** Blocked
+  - **Status:** Ready
   - **Why now:** AI and other high-churn endpoints still lack explicit schema annotations, which blocks safe client generation.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Type safety gate + Phase 12
   - **Scope:** Add OpenAPI coverage to AI/high-churn backend endpoints and align the baseline artifact.
@@ -611,7 +611,7 @@
   - **Primary domain:** backend/contracts
   - **Likely touched paths:** `backend/tenant_apps/ai_assistant/views.py`, `backend/tenant_apps/ai_assistant/urls.py`, relevant schema generation config/tests, `manifests/openapi/openapi-schema.baseline.json`
   - **Dependencies:** EH-02.1
-  - **Blockers:** EH-02.3
+  - **Blockers:** None
   - **Acceptance criteria:** Touched endpoints appear explicitly in the baseline schema with stable request/response shapes.
   - **Validation commands:** `cd backend && python manage.py spectacular --validate --file /tmp/projectmeats-openapi.yaml`; `cd backend && python manage.py test tenant_apps.ai_assistant apps.core.tests.test_api_error_contracts`
   - **Tenant/RLS impact:** Medium
@@ -705,7 +705,7 @@
   - **Primary domain:** backend/ops
   - **Likely touched paths:** `backend/projectmeats/settings/base.py`, `.github/workflows/reusable-deploy.yml`, `manifests/GOLDEN_FILES.md`, runtime health checks
   - **Dependencies:** EH-01.4
-  - **Blockers:** EH-02.3
+  - **Blockers:** None
   - **Acceptance criteria:** Non-dev deployments fail fast when Redis/channel readiness is absent, while dev keeps explicit local fallbacks.
   - **Validation commands:** `bash scripts/verify_golden_state.sh`; `bash .github/scripts/check_infrastructure.sh`
   - **Tenant/RLS impact:** Medium
@@ -725,7 +725,7 @@
   - **Primary domain:** backend
   - **Likely touched paths:** `backend/tenant_apps/workflows/services/locking.py`, collaboration endpoints/tests
   - **Dependencies:** EH-02.1, EH-05.1
-  - **Blockers:** EH-02.3 and EH-05.1
+  - **Blockers:** EH-05.1
   - **Acceptance criteria:** Concurrent lock acquisition is deterministic and covered by race/concurrency tests.
   - **Validation commands:** `cd backend && python manage.py test tenant_apps.workflows.tests.test_collaboration_websocket_security tenant_apps.workflows.tests.test_workflow_tasks_rls_context tenant_apps.workflows.services.tests.test_workflow_executor`
   - **Tenant/RLS impact:** Medium
@@ -764,8 +764,8 @@
   - **Non-goals:** No autonomous write actions without approval.
   - **Primary domain:** backend/AI
   - **Likely touched paths:** `backend/tenant_apps/ai_assistant/models.py`, `backend/tenant_apps/ai_assistant/views.py`, `backend/tenant_apps/ai_assistant/swarm/router.py`, new migrations/tests
-  - **Dependencies:** EH-02.3, EH-05.2
-  - **Blockers:** EH-02.3 and EH-05.2
+  - **Dependencies:** EH-05.2
+  - **Blockers:** EH-05.2
   - **Acceptance criteria:** AI runs are tenant-native, persisted, approval-aware, and queryable.
   - **Validation commands:** `cd backend && python manage.py test tenant_apps.ai_assistant apps.core.tests.test_viewset_permissions apps.core.tests.test_audit_rls_compliance`
   - **Tenant/RLS impact:** High
