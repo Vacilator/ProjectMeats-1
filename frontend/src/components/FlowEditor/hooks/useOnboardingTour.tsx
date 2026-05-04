@@ -6,7 +6,7 @@
  * 
  * Features:
  * - Step-by-step workflow creation guide
- * - Persistent tour state (localStorage)
+ * - Persistent tour state via the shared onboarding preferences contract
  * - Skip/restart functionality
  * - Contextual hints
  * 
@@ -24,6 +24,7 @@ import {
   type Step,
   type Styles,
 } from 'react-joyride';
+import { useOnboarding } from '../../Onboarding';
 
 export interface TourConfig {
   name: string;
@@ -31,34 +32,23 @@ export interface TourConfig {
   autoStart?: boolean;
 }
 
-const TOUR_STORAGE_KEY = 'projectmeats_tours_completed';
-
-export const resetTourCompletion = (tourName: string) => {
-  const completedTours = JSON.parse(localStorage.getItem(TOUR_STORAGE_KEY) || '[]');
-  const next = Array.isArray(completedTours)
-    ? completedTours.filter((name: string) => name !== tourName)
-    : [];
-  localStorage.setItem(TOUR_STORAGE_KEY, JSON.stringify(next));
-};
-
 /**
  * Custom hook for managing onboarding tours
  */
 export const useOnboardingTour = (tourConfig: TourConfig) => {
+  const { isReady, hasCompletedTour, markTourCompleted, resetTourCompletion } = useOnboarding();
   const [run, setRun] = useState(false);
   const [stepIndex, setStepIndex] = useState(0);
 
   // Check if user has completed this tour
   useEffect(() => {
-    const completedTours = JSON.parse(
-      localStorage.getItem(TOUR_STORAGE_KEY) || '[]'
-    );
-
-    if (!completedTours.includes(tourConfig.name) && tourConfig.autoStart) {
-      // Delay start to ensure DOM elements are rendered
-      setTimeout(() => setRun(true), 1000);
+    if (!tourConfig.autoStart || !isReady || hasCompletedTour(tourConfig.name)) {
+      return;
     }
-  }, [tourConfig.name, tourConfig.autoStart]);
+
+    const timer = window.setTimeout(() => setRun(true), 1000);
+    return () => window.clearTimeout(timer);
+  }, [hasCompletedTour, isReady, tourConfig.autoStart, tourConfig.name]);
 
   const handleJoyrideCallback = useCallback(
     (data: EventData) => {
@@ -66,11 +56,7 @@ export const useOnboardingTour = (tourConfig: TourConfig) => {
 
       const completeTour = (markCompleted: boolean) => {
         if (markCompleted) {
-          const completedTours = JSON.parse(localStorage.getItem(TOUR_STORAGE_KEY) || '[]');
-          if (!completedTours.includes(tourConfig.name)) {
-            completedTours.push(tourConfig.name);
-            localStorage.setItem(TOUR_STORAGE_KEY, JSON.stringify(completedTours));
-          }
+          void markTourCompleted(tourConfig.name);
         }
 
         setRun(false);
@@ -103,7 +89,7 @@ export const useOnboardingTour = (tourConfig: TourConfig) => {
         setStepIndex(nextIndex);
       }
     },
-    [tourConfig.name, tourConfig.steps.length]
+    [markTourCompleted, tourConfig.name, tourConfig.steps.length]
   );
 
   const startTour = useCallback(() => {
@@ -112,18 +98,10 @@ export const useOnboardingTour = (tourConfig: TourConfig) => {
   }, []);
 
   const resetTour = useCallback(() => {
-    const completedTours = JSON.parse(
-      localStorage.getItem(TOUR_STORAGE_KEY) || '[]'
-    );
-
-    const updatedTours = completedTours.filter(
-      (name: string) => name !== tourConfig.name
-    );
-
-    localStorage.setItem(TOUR_STORAGE_KEY, JSON.stringify(updatedTours));
+    void resetTourCompletion(tourConfig.name);
     setStepIndex(0);
     setRun(true);
-  }, [tourConfig.name]);
+  }, [resetTourCompletion, tourConfig.name]);
 
   return {
     run,

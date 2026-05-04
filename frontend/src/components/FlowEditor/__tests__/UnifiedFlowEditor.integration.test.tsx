@@ -4,11 +4,12 @@
  * Tests the complete workflow from node creation to persistence
  */
 
-import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import UnifiedFlowEditor from '../UnifiedFlowEditor';
+import { OnboardingProvider } from '../../Onboarding';
 
 // UnifiedFlowEditor imports apiService via a relative specifier.
 // Mock BOTH the relative and alias specifiers to ensure the real axios client never loads in tests.
@@ -67,7 +68,7 @@ vi.mock('react-joyride', () => ({
 
 // Mock React Flow
 vi.mock('@xyflow/react', () => ({
-  ReactFlow: ({ children, nodes, edges, onNodesChange, onEdgesChange }: any) => (
+  ReactFlow: ({ children, nodes, edges }: any) => (
     <div data-testid="react-flow" data-nodes={nodes?.length || 0} data-edges={edges?.length || 0}>
       {children}
     </div>
@@ -153,9 +154,11 @@ describe('UnifiedFlowEditor - E2E Integration Tests', () => {
   // Helper to render with QueryClientProvider
   const renderWithQuery = (ui: React.ReactElement) => {
     return render(
-      <QueryClientProvider client={queryClient}>
-        {ui}
-      </QueryClientProvider>
+      <OnboardingProvider>
+        <QueryClientProvider client={queryClient}>
+          {ui}
+        </QueryClientProvider>
+      </OnboardingProvider>
     );
   };
 
@@ -250,7 +253,7 @@ describe('UnifiedFlowEditor - E2E Integration Tests', () => {
 
   describe('3. Form Persistence', () => {
     it('should save new form to backend', async () => {
-      const { container } = render(
+      render(
         
           <UnifiedFlowEditor onSave={mockOnSave} />
         
@@ -371,8 +374,6 @@ describe('UnifiedFlowEditor - E2E Integration Tests', () => {
         
       );
 
-      const importButton = screen.getByRole('button', { name: /import/i });
-      
       const mockFile = new File(
         [JSON.stringify({ nodes: [], edges: [] })],
         'workflow.json',
