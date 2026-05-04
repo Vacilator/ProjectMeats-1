@@ -390,8 +390,8 @@
   - **Rollback:** Remove PWA registration and revert Vite/package changes together.
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
-- [ ] **GA-05.2 connectivity-state-and-offline-banner**
-  - **Status:** Ready
+- [x] **GA-05.2 connectivity-state-and-offline-banner**
+  - **Status:** Shipped (PR #4854)
   - **Why now:** Users need immediate feedback when the network drops before we optimistically queue mutations.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 14 / Epic 5
   - **Scope:** Add connectivity detection and a shared offline/reconnecting banner tied into the app shell and priority operational surfaces.
@@ -409,7 +409,7 @@
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
 - [ ] **GA-05.3 warehouse-critical-optimistic-mutations**
-  - **Status:** Blocked
+  - **Status:** Ready
   - **Why now:** Offline readiness matters most on status/delivery actions where field users expect instant feedback despite weak connectivity.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 14 / Epic 5
   - **Scope:** Apply optimistic React Query mutations and replay-safe local queuing to the narrow set of warehouse/logistics-critical actions (for example delivered/arrived/status transitions).
@@ -417,7 +417,7 @@
   - **Primary domain:** frontend
   - **Likely touched paths:** `frontend/src/components/Operations/documentOperations.ts`, `frontend/src/components/Operations/OperationalDocumentActions.tsx`, `frontend/src/hooks/useFavorites.ts`, new offline queue utilities/hooks, related tests
   - **Dependencies:** GA-05.2
-  - **Blockers:** GA-05.2
+  - **Blockers:** None
   - **Acceptance criteria:** Priority mutations update the UI immediately, roll back cleanly on hard failure, and queue/replay safely through brief connectivity gaps.
   - **Validation commands:** `npm -C frontend run verify-standards`; `npm -C frontend run test:ci`
   - **Tenant/RLS impact:** Medium on client cache scoping
