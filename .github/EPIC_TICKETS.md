@@ -426,8 +426,8 @@
   - **Rollback:** Revert optimistic queueing on the targeted actions and fall back to current mutation/invalidation flow.
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
-- [ ] **GA-05.4 offline-replay-and-warehouse-e2e**
-  - **Status:** Ready
+- [x] **GA-05.4 offline-replay-and-warehouse-e2e**
+  - **Status:** Shipped (PR #4858)
   - **Why now:** GA needs proof that optimistic/offline behavior survives reconnects and does not silently desync.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 14 / Epic 5
   - **Scope:** Add replay/recovery tests plus a rollout guard for offline mode on warehouse/logistics-critical surfaces.
