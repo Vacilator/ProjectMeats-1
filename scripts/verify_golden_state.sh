@@ -54,6 +54,14 @@ check_required_pattern() {
     check_pattern "$@"
 }
 
+format_file_list() {
+    local path="$1"
+    if [[ ! -s "$path" ]]; then
+        return 0
+    fi
+    sed ':a;N;$!ba;s/\n/, /g' "$path"
+}
+
 check_doc_workflow_refs() {
     local path="$1"
     if [[ ! -f "$path" ]]; then
@@ -81,6 +89,78 @@ check_doc_workflow_refs() {
     if [[ $missing -eq 0 ]]; then
         pass "$path workflow references resolve"
     fi
+}
+
+check_branch_protection_status_check_parity() {
+    local workflow=".github/workflows/pr-validation.yml"
+    local guide="docs/guides/BRANCH_PROTECTION_SETUP.md"
+    local workflow_checks
+    local guide_checks
+    workflow_checks=$(mktemp)
+    guide_checks=$(mktemp)
+
+    if [[ ! -f "$workflow" ]]; then
+        fail "$workflow missing while validating branch-protection status checks"
+        rm -f "$workflow_checks" "$guide_checks"
+        return
+    fi
+
+    if [[ ! -f "$guide" ]]; then
+        fail "$guide missing while validating branch-protection status checks"
+        rm -f "$workflow_checks" "$guide_checks"
+        return
+    fi
+
+    grep '^    name:' "$workflow" | sed -E 's/^    name:[[:space:]]*//' | sort -u > "$workflow_checks"
+    awk '
+        /^## Required status checks$/ { in_section=1; next }
+        /^---$/ && in_section { exit }
+        in_section && /^- / && match($0, /`([^`]+)`/) {
+            entry = substr($0, RSTART + 1, RLENGTH - 2)
+            if (entry != "") {
+                print entry
+            }
+        }
+    ' "$guide" | sort -u > "$guide_checks"
+
+    if [[ ! -s "$workflow_checks" ]]; then
+        fail "$workflow missing job-level status check names for branch-protection parity"
+        rm -f "$workflow_checks" "$guide_checks"
+        return
+    fi
+
+    if [[ ! -s "$guide_checks" ]]; then
+        fail "$guide missing required status check inventory"
+        rm -f "$workflow_checks" "$guide_checks"
+        return
+    fi
+
+    local missing_in_guide
+    local stale_in_guide
+    local missing_file
+    local stale_file
+    missing_file=$(mktemp)
+    stale_file=$(mktemp)
+
+    comm -23 "$workflow_checks" "$guide_checks" > "$missing_file"
+    comm -13 "$workflow_checks" "$guide_checks" > "$stale_file"
+    missing_in_guide=$(format_file_list "$missing_file")
+    stale_in_guide=$(format_file_list "$stale_file")
+
+    if [[ -n "$missing_in_guide" || -n "$stale_in_guide" ]]; then
+        local message="$guide required status checks drift from $workflow"
+        if [[ -n "$missing_in_guide" ]]; then
+            message="$message (missing in guide: $missing_in_guide)"
+        fi
+        if [[ -n "$stale_in_guide" ]]; then
+            message="$message (stale in guide: $stale_in_guide)"
+        fi
+        fail "$message"
+    else
+        pass "$guide required status checks match $workflow"
+    fi
+
+    rm -f "$workflow_checks" "$guide_checks" "$missing_file" "$stale_file"
 }
 
 check_reference_golden_pipeline_pointer_mode() {
@@ -204,6 +284,7 @@ check_no_pattern ".github/workflows/README.md" 'docker-compose|docker compose|:l
     "must avoid forbidden deployment-pattern guidance"
 
 # 12. Check branch protection guide for obsolete branch names and checks
+check_branch_protection_status_check_parity
 check_no_pattern "docs/guides/BRANCH_PROTECTION_SETUP.md" 'Branch name pattern:[[:space:]]*`UAT`|development\.\.UAT|UAT\.\.main' \
     "BRANCH_PROTECTION_SETUP.md uses canonical lowercase uat branch references"
 check_no_pattern "docs/guides/BRANCH_PROTECTION_SETUP.md" '`build-and-push`|`test-frontend`|`test-backend`' \

@@ -25,11 +25,15 @@ Use this guide together with:
 The current PR gate is `.github/workflows/pr-validation.yml`. Require these checks on protected branches:
 
 - `Infrastructure Drift Gate`
+- `Dependency Review`
+- `Automation Security`
 - `Validate Migrations`
+- `Backend Smoke Tests`
 - `Backend Tests`
 - `Frontend Type Check`
 - `Frontend Unit Tests`
-- `Mobile Checks`
+- `Frontend Prod Smoke`
+- `Mobile Lint/Test/Type Check`
 - `Validate Copilot Squad`
 
 If GitHub shows different check labels after a workflow rename, update this guide immediately and keep it aligned with `.github/workflows/pr-validation.yml`.
