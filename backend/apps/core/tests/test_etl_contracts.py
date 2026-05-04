@@ -14,6 +14,8 @@ from apps.core.services.etl import (
     REQUIRED_SUPPRESSED_SIDE_EFFECTS,
     SOURCE_MANIFEST_VERSION,
     SUPPORTED_SOURCE_FORMATS,
+    etl_side_effect_guard,
+    etl_side_effects_suppressed,
     validate_source_manifest,
 )
 
@@ -67,3 +69,9 @@ class EtlContractsTests(SimpleTestCase):
         self.assertEqual(manifest.batch_key, "sample-day-0-batch")
         self.assertEqual(len(manifest.files), 3)
         self.assertEqual(manifest.files[1].line_item_entity, "purchase_order_items")
+
+    def test_side_effect_guard_preserves_compatibility_flag(self):
+        self.assertFalse(etl_side_effects_suppressed())
+
+        with etl_side_effect_guard():
+            self.assertTrue(etl_side_effects_suppressed())
