@@ -7,6 +7,28 @@ import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
+
+const onboardingMock = vi.hoisted(() => ({
+  getTourStatus: vi.fn(() => ({
+    status: 'not_started',
+    last_event: null,
+    last_event_at: null,
+    started_at: null,
+    completed_at: null,
+    skipped_at: null,
+    start_count: 0,
+    complete_count: 0,
+    skip_count: 0,
+    resume_count: 0,
+  })),
+  hasCompletedTour: vi.fn(() => false),
+  launchTour: vi.fn(),
+}));
+
+vi.mock('../Onboarding', () => ({
+  useOnboarding: () => onboardingMock,
+}));
+
 import Header from './Header';
 
 // Mock navigate function
@@ -132,6 +154,19 @@ vi.mock('../Notifications', () => ({
 describe('Header', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    onboardingMock.getTourStatus.mockImplementation(() => ({
+      status: 'not_started',
+      last_event: null,
+      last_event_at: null,
+      started_at: null,
+      completed_at: null,
+      skipped_at: null,
+      start_count: 0,
+      complete_count: 0,
+      skip_count: 0,
+      resume_count: 0,
+    }));
+    onboardingMock.hasCompletedTour.mockImplementation(() => false);
     localStorage.clear();
     localStorage.setItem('tenantName', 'Test Company');
   });
@@ -169,6 +204,16 @@ describe('Header', () => {
       );
 
       expect(screen.getByRole('button', { name: /quick actions/i })).toBeInTheDocument();
+    });
+
+    it('renders onboarding help button', () => {
+      render(
+        <MemoryRouter>
+          <Header />
+        </MemoryRouter>
+      );
+
+      expect(screen.getByRole('button', { name: /onboarding help/i })).toBeInTheDocument();
     });
 
     it('renders theme toggle button', () => {
@@ -267,6 +312,49 @@ describe('Header', () => {
       );
 
       expect(screen.getByRole('textbox', { name: /global search/i })).toBeInTheDocument();
+    });
+  });
+
+  describe('Onboarding Help', () => {
+    it('routes to cockpit tour launcher when opened outside cockpit', () => {
+      onboardingMock.getTourStatus.mockImplementation((tourName: string) =>
+        tourName === 'cockpit'
+          ? {
+              status: 'skipped',
+              last_event: 'skipped',
+              last_event_at: null,
+              started_at: null,
+              completed_at: null,
+              skipped_at: null,
+              start_count: 0,
+              complete_count: 0,
+              skip_count: 1,
+              resume_count: 0,
+            }
+          : {
+              status: 'not_started',
+              last_event: null,
+              last_event_at: null,
+              started_at: null,
+              completed_at: null,
+              skipped_at: null,
+              start_count: 0,
+              complete_count: 0,
+              skip_count: 0,
+              resume_count: 0,
+            }
+      );
+
+      render(
+        <MemoryRouter initialEntries={['/sales-orders']}>
+          <Header />
+        </MemoryRouter>
+      );
+
+      fireEvent.click(screen.getByRole('button', { name: /onboarding help/i }));
+      fireEvent.click(screen.getByText('Resume Cockpit Tour'));
+
+      expect(mockNavigate).toHaveBeenCalledWith('/cockpit?tour=cockpit');
     });
   });
 

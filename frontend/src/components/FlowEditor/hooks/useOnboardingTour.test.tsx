@@ -45,7 +45,7 @@ describe('useOnboardingTour', () => {
     localStorage.clear();
     localStorage.setItem('accessToken', 'token');
     (apiClient.get as ReturnType<typeof vi.fn>).mockResolvedValue({
-      data: { onboarding_state: { completed_tours: [] } },
+      data: { onboarding_state: { completed_tours: [], tour_statuses: {} } },
     });
     (apiClient.patch as ReturnType<typeof vi.fn>).mockResolvedValue({ data: {} });
   });
@@ -75,9 +75,37 @@ describe('useOnboardingTour', () => {
     expect(result.current.run).toBe(true);
   });
 
+  it('does not auto-start a tour that the user intentionally skipped earlier', async () => {
+    (apiClient.get as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      data: {
+        onboarding_state: {
+          completed_tours: [],
+          tour_statuses: { 'workflow-editor': { status: 'skipped', skip_count: 1 } },
+        },
+      },
+    });
+
+    const { result } = renderHook(
+      () => useOnboardingTour({ name: 'workflow-editor', steps: [], autoStart: true }),
+      { wrapper },
+    );
+
+    await act(async () => {
+      await Promise.resolve();
+      vi.advanceTimersByTime(1000);
+    });
+
+    expect(result.current.run).toBe(false);
+  });
+
   it('resets a completed tour through the shared onboarding provider', async () => {
     (apiClient.get as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
-      data: { onboarding_state: { completed_tours: ['workflow-editor'] } },
+      data: {
+        onboarding_state: {
+          completed_tours: ['workflow-editor'],
+          tour_statuses: { 'workflow-editor': { status: 'completed', complete_count: 1 } },
+        },
+      },
     });
 
     const { result } = renderHook(
@@ -98,7 +126,23 @@ describe('useOnboardingTour', () => {
 
     expect(result.current.run).toBe(true);
     expect(apiClient.patch).toHaveBeenCalledWith('/preferences/me/', {
-      onboarding_state: { completed_tours: [] },
+      onboarding_state: {
+        completed_tours: [],
+        tour_statuses: {
+          'workflow-editor': {
+            status: 'not_started',
+            last_event: 'reset',
+            last_event_at: expect.any(String),
+            started_at: null,
+            completed_at: null,
+            skipped_at: null,
+            start_count: 0,
+            complete_count: 1,
+            skip_count: 0,
+            resume_count: 0,
+          },
+        },
+      },
     });
   });
 });

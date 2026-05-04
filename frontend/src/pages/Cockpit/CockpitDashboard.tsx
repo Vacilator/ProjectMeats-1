@@ -413,7 +413,7 @@ type InlineActionState = {
 
 export const CockpitDashboard: React.FC = () => {
   const containerRef = useRef<HTMLDivElement>(null);
-  const { hasCompletedTour, resetTourCompletion } = useOnboarding();
+  const { hasCompletedTour, launchTour } = useOnboarding();
   const [widgets, setWidgets] = useState<WidgetConfig[]>(DEFAULT_WIDGETS);
   const [inlineAction, setInlineAction] = useState<InlineActionState>(null);
   const [layout, setLayout] = useState<WidgetLayout[]>(DEFAULT_LAYOUT);
@@ -425,6 +425,17 @@ export const CockpitDashboard: React.FC = () => {
   // Header owns global Ctrl+K search. Cockpit reads query from URL.
   const [searchParams, setSearchParams] = useSearchParams();
   const cockpitQuery = searchParams.get('q') ?? '';
+
+  useEffect(() => {
+    if (searchParams.get('tour') !== 'cockpit') {
+      return;
+    }
+
+    const next = new URLSearchParams(searchParams);
+    next.delete('tour');
+    setSearchParams(next, { replace: true });
+    void launchTour('cockpit', hasCompletedTour('cockpit') ? 'restart' : 'resume');
+  }, [hasCompletedTour, launchTour, searchParams, setSearchParams]);
   
   // Handle search query changes from SmartSearch component
   // NOTE: use replace=true so typing doesn't spam browser history.
@@ -640,11 +651,8 @@ export const CockpitDashboard: React.FC = () => {
   }, [pinnedTools]);
 
   const handleStartCockpitTour = useCallback(() => {
-    void resetTourCompletion('cockpit');
-    if (typeof window !== 'undefined' && typeof (window as any).restartCockpitTour === 'function') {
-      (window as any).restartCockpitTour();
-    }
-  }, [resetTourCompletion]);
+    void launchTour('cockpit', hasCompletedTour('cockpit') ? 'restart' : 'resume');
+  }, [hasCompletedTour, launchTour]);
 
   // Render widget based on type
   const renderWidget = useCallback((widget: WidgetConfig) => {
