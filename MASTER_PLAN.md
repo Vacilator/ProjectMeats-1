@@ -2,7 +2,7 @@
 
 **Status**: 🔄 Living document (canonical source of truth)  
 **Last Updated**: 2026-05-04  
-**Primary Focus**: Phase 14 execution remains active; Phase 15 B2B Network planning and Phase 16 Core Trading Engine planning are sealed  
+**Primary Focus**: Phase 14 execution remains active, with Phase 14.5 UI/UX stabilization queued immediately behind the in-flight GA-03.3 governance batch; Phase 15 B2B Network planning and Phase 16 Core Trading Engine planning are sealed  
 
 This file is the **canonical plan + current truth snapshot**.
 - **PR execution log (append-only):** `.github/MASTER_PLAN.md`
@@ -16,7 +16,7 @@ This file is the **canonical plan + current truth snapshot**.
 - **WorkForms E2E** is shipped end-to-end (execute + monitoring + notifications + Quick Actions + Gmail connector MVP).
 - **Primary execution focus (P0):** execute the new Phase 14 GA lane from the top of `.github/EPIC_TICKETS.md`, while keeping the Phase 12 hardening backlog queued immediately behind it.
 - **Strategic enterprise audit is now complete:** the repo has a fresh baseline in `GAP_ANALYSIS_REPORT.md`, `STRATEGIC_BLUEPRINT.md`, `.github/TECH_DEBT_REGISTER.md`, `.github/SDLC_PROTOCOLS.md`, and `.github/EPIC_TICKETS.md`. Those files translate the current gap analysis into execution-ordered, machine-readable work without replacing this canonical plan.
-- **Phase 14 execution is advancing:** `GA-03.2 seven-year-archive-command` is now shipped in PR #4823, adding the dry-run-first archive command, tenant-safe archive evidence tables with RLS, active legal-hold enforcement, and the refreshed retention runbook/guardrails. `GA-03.3 pii-redaction-for-logging-and-sentry` is the next ready execution ticket in the Phase 14 governance lane.
+- **Phase 14 execution is advancing:** `GA-03.2 seven-year-archive-command` is now shipped in PR #4823, adding the dry-run-first archive command, tenant-safe archive evidence tables with RLS, active legal-hold enforcement, and the refreshed retention runbook/guardrails. `GA-03.3 pii-redaction-for-logging-and-sentry` is the current in-flight governance ticket, and the new Phase 14.5 UI/UX stabilization lane is queued to execute immediately after that merge.
 - **Phase 15 planning is now complete:** the B2B Network epics are appended to the bottom of `.github/EPIC_TICKETS.md` and documented below as the sealed next-layer architecture for partner portals, trade invariants, and settlement automation. This is planning-only; Phase 14 remains the active execution lane.
 - **Phase 16 planning is now complete:** the Core Trading Engine happy-path state machine plus distributed hardening epics are documented below and translated into atomic blocked tickets at the bottom of `.github/EPIC_TICKETS.md`. This is planning-only; Phase 14 remains the active execution lane and Phase 15/16 both stay blocked behind higher-priority unchecked work.
 - **AI email/document lane** is now fail-closed through Graph attachment ingest and parser lifecycle hardening: tabular uploads parse safely, Outlook attachments bridge into `AIDocument`, unsupported attachment kinds are rejected pre-download, repeated same-session ingests dedupe with provenance, AI sessions are tenant-bound, attachment ingest requires a session-staged allowlist from `fetch_emails`, and `parse_document` now persists explicit processing/completed/failed metadata while raising structured parser/auth/unreachable errors.
@@ -45,9 +45,10 @@ This file is the **canonical plan + current truth snapshot**.
   - **Epic 1: Day 0 ETL Pipeline** — import historical Excel/CSV/legacy rows into the Golden Schema via dry-run-first, tenant-safe management commands that suppress webhooks/emails and produce reconciliation output.
   - **Epic 2: Infrastructure & Disaster Recovery** — codify launch-critical infrastructure controls (PITR validation, restore drills, Celery worker scaling envelopes, Redis eviction policies, queue health guardrails) without violating the Golden Pipeline.
   - **Epic 3: SOC 2 Data Governance** — implement retention/archival workflows plus structured log/Sentry/telemetry PII scrubbing so financial and contact data do not leak into observability pipelines.
+  - **Phase 14.5: Zero-Defect UI/UX Eradication** — stabilize hidden modal lifecycles, enforce null-safe numeric formatting, and resolve breadcrumb UUIDs into human-readable entity names before additional feature expansion.
   - **Epic 4: In-App User Onboarding** — reuse existing `react-joyride`, `CockpitTour`, and `UserPreferences` surfaces to eliminate the blank-slate problem for new tenants and first-time users.
   - **Epic 5: Edge Resilience** — add PWA/offline shell, connectivity awareness, and optimistic/replay-safe mutation handling for warehouse and logistics users on unstable networks.
-  - **Execution ordering:** `GA-01` (ETL contracts and import path) → `GA-02` (infra/DR guardrails) → `GA-03` (governance and scrubbing) → `GA-04` (guided onboarding) → `GA-05` (offline/optimistic resilience).
+  - **Execution ordering:** `GA-01` (ETL contracts and import path) → `GA-02` (infra/DR guardrails) → `GA-03` (governance and scrubbing) → `Phase 14.5 / UI-01` (core UX stabilization) → `GA-04` (guided onboarding) → `GA-05` (offline/optimistic resilience).
   - **Definition of planning done:** root `MASTER_PLAN.md` contains the Phase 14 strategy, `.github/MASTER_PLAN.md` records the planning note, and `.github/EPIC_TICKETS.md` exposes a single top-most `Ready` ticket that autonomous continuation can execute deterministically.
 
 - **Core API reliability**: ✅ shipped (PR #4652). Next: expand smoke coverage for always-on endpoints (health, tenant resolution, auth bootstrap) and keep them in PR gates.
@@ -180,6 +181,50 @@ Translate the now-functional ERP into a launch-ready platform with historical-da
 #### Epic 3: SOC 2 Data Governance
 - **Business value:** reduces compliance risk around financial retention and observability leakage.
 - **Technical scope:** archive/restore commands, retention manifests, PII redaction filters for Django logging and Sentry payloads, and scheduled enforcement that respects tenant and audit boundaries.
+
+### Phase 14.5: Zero-Defect UI/UX Eradication
+
+#### Goal
+Eliminate the recurring modal-crash, null-formatting, and breadcrumb-clarity defects that are eroding trust in the frontend before more guided onboarding or network-resilience work ships.
+
+#### Deliverables + expected results
+1. **Modal lifecycle lockdown**
+   - Shared modal and drawer surfaces unmount heavy form/query content when closed and explicitly destroy hidden AntD state where needed.
+   - Editing flows stop rehydrating stale forms across close/reopen cycles, removing the class of React Error #185 regressions tied to hidden modal state.
+2. **Null-safe numeric formatting**
+   - Shared formatters and detail views normalize `null`/`undefined` numeric values before `.toFixed()` or currency rendering.
+   - Inquiry, invoice, and related record surfaces remain readable even when legacy data contains blank numeric fields.
+3. **Breadcrumb UUID resolution**
+   - Breadcrumbs resolve entity UUID segments into display names using one canonical route/service-layer lookup strategy.
+   - Operators see readable navigation context instead of raw IDs when traversing nested supplier/customer/plant record paths.
+
+#### Acceptance criteria
+1. Plants, Inquiries, and shared modal primitives have one documented lifecycle contract: hidden forms do not stay mounted with live hydration loops.
+2. Shared numeric/currency formatting paths fail closed to stable values instead of throwing on null-backed fields.
+3. Breadcrumbs show human-readable entity labels wherever the route has enough information to resolve them.
+4. The new UI/UX block is ordered ahead of remaining GA-04/GA-05 and later B2B feature work.
+
+#### Dependencies
+1. `GA-03.3 pii-redaction-for-logging-and-sentry` remains the current in-flight governance ticket and must land before Phase 14.5 becomes the next executable block on `development`.
+2. Existing frontend loader/service-layer boundaries (`EntityFormSurface`, route loaders, approved API services) remain the ownership seams; this phase should not invent a parallel data-fetch stack.
+
+#### Risk register + mitigations
+1. **Modal refactors reopen render-loop churn elsewhere** (Medium x High)
+   - Mitigation: keep Smart Loader ownership at route/container boundaries, gate heavy form mounting on ready/open state, and extend regression coverage around known edit flows.
+2. **Formatter centralization misses scattered callsites** (Medium x Medium)
+   - Mitigation: audit shared formatter utilities first, then patch remaining leaf views only where no shared path exists.
+3. **Breadcrumb resolution adds chatty per-segment fetching** (Medium x Medium)
+   - Mitigation: prefer existing route match data or a shared entity-name dictionary/context over bespoke breadcrumb fetches.
+
+#### Testing strategy
+1. `npm -C frontend run verify-standards`
+2. Targeted Vitest coverage for modal lifecycle and formatter helpers
+3. Playwright or route/component regression coverage for the breadcrumb-resolution path when route-loader behavior changes materially
+
+#### Rollback / safe-change approach
+1. Ship modal, formatter, and breadcrumb work as separate PR-sized tickets under one epic.
+2. If a shared modal contract proves too broad, revert the specific surface and keep the rest of the epic additive.
+3. Prefer compatibility fallbacks in breadcrumb rendering over blocking navigation while name resolution matures.
 
 #### Epic 4: In-App User Onboarding
 - **Business value:** shortens time-to-value for newly provisioned tenants and reduces support load.

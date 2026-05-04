@@ -8,6 +8,8 @@
  * - Formatted consistently
  */
 
+import { sanitizeTelemetryData, sanitizeTelemetryString } from './telemetrySanitizer';
+
 type LogLevel = 'debug' | 'info' | 'warn' | 'error';
 
 interface LogContext {
@@ -43,12 +45,13 @@ class Logger {
   private formatMessage(level: LogLevel, message: string, context?: LogContext): string {
     const timestamp = new Date().toISOString();
     const prefix = `[${timestamp}] [${level.toUpperCase()}]`;
+    const sanitizedMessage = sanitizeTelemetryString(message);
     
     if (context?.component) {
-      return `${prefix} [${context.component}] ${message}`;
+      return `${prefix} [${sanitizeTelemetryString(context.component)}] ${sanitizedMessage}`;
     }
     
-    return `${prefix} ${message}`;
+    return `${prefix} ${sanitizedMessage}`;
   }
 
   private logToConsole(
@@ -57,7 +60,18 @@ class Logger {
     context?: LogContext,
     data?: unknown
   ): void {
-    const formattedMessage = this.formatMessage(level, message, context);
+    const sanitizedContext = context
+      ? {
+          ...context,
+          user: context.user ? sanitizeTelemetryString(context.user) : context.user,
+          tenant: context.tenant ? sanitizeTelemetryString(context.tenant) : context.tenant,
+          metadata:
+            context.metadata &&
+            (sanitizeTelemetryData(context.metadata) as Record<string, unknown>),
+        }
+      : undefined;
+    const sanitizedData = data === undefined ? undefined : sanitizeTelemetryData(data);
+    const formattedMessage = this.formatMessage(level, message, sanitizedContext);
     
     const consoleMethod =
       level === 'debug'
@@ -68,14 +82,14 @@ class Logger {
             ? console.warn
             : console.error;
 
-    if (data !== undefined) {
-      if (context?.metadata) {
-        consoleMethod(formattedMessage, { ...context.metadata, data });
+    if (sanitizedData !== undefined) {
+      if (sanitizedContext?.metadata) {
+        consoleMethod(formattedMessage, { ...sanitizedContext.metadata, data: sanitizedData });
       } else {
-        consoleMethod(formattedMessage, data);
+        consoleMethod(formattedMessage, sanitizedData);
       }
-    } else if (context?.metadata) {
-      consoleMethod(formattedMessage, context.metadata);
+    } else if (sanitizedContext?.metadata) {
+      consoleMethod(formattedMessage, sanitizedContext.metadata);
     } else {
       consoleMethod(formattedMessage);
     }
@@ -135,21 +149,23 @@ class Logger {
         : undefined;
     const hasAnyContextKey =
       !!ctx && ('component' in ctx || 'user' in ctx || 'tenant' in ctx || 'metadata' in ctx);
+    const rawSentryData = hasAnyContextKey ? data : contextOrData;
+    const sentryData = sanitizeTelemetryData(rawSentryData);
 
     this.logToConsole('warn', message, hasAnyContextKey ? ctx : undefined, hasAnyContextKey ? data : contextOrData);
 
-    const sentryData = hasAnyContextKey ? data : contextOrData;
-
     // Send to Sentry in production
     if (!this.isDevelopment && typeof window !== 'undefined' && (window as any).Sentry) {
-      (window as any).Sentry.captureMessage(message, {
+      (window as any).Sentry.captureMessage(sanitizeTelemetryString(message), {
         level: 'warning',
         tags: {
-          component: hasAnyContextKey ? ctx?.component : undefined,
-          tenant: hasAnyContextKey ? ctx?.tenant : undefined,
+          component: hasAnyContextKey ? sanitizeTelemetryString(ctx?.component || '') : undefined,
+          tenant: hasAnyContextKey ? sanitizeTelemetryString(ctx?.tenant || '') : undefined,
         },
         extra: {
-          ...(hasAnyContextKey ? ctx?.metadata : undefined),
+          ...(hasAnyContextKey
+            ? (sanitizeTelemetryData(ctx?.metadata) as Record<string, unknown> | undefined)
+            : undefined),
           data: sentryData,
         },
       });
@@ -170,33 +186,37 @@ class Logger {
         : undefined;
     const hasAnyContextKey =
       !!ctx && ('component' in ctx || 'user' in ctx || 'tenant' in ctx || 'metadata' in ctx);
+    const rawSentryData = hasAnyContextKey ? data : contextOrData;
+    const sentryData = sanitizeTelemetryData(rawSentryData);
 
     this.logToConsole('error', message, hasAnyContextKey ? ctx : undefined, hasAnyContextKey ? data : contextOrData);
 
-    const sentryData = hasAnyContextKey ? data : contextOrData;
-
     // Send to Sentry in production
     if (!this.isDevelopment && typeof window !== 'undefined' && (window as any).Sentry) {
-      if (sentryData instanceof Error) {
-        (window as any).Sentry.captureException(sentryData, {
+      if (rawSentryData instanceof Error) {
+        (window as any).Sentry.captureException(rawSentryData, {
           tags: {
-            component: hasAnyContextKey ? ctx?.component : undefined,
-            tenant: hasAnyContextKey ? ctx?.tenant : undefined,
+            component: hasAnyContextKey ? sanitizeTelemetryString(ctx?.component || '') : undefined,
+            tenant: hasAnyContextKey ? sanitizeTelemetryString(ctx?.tenant || '') : undefined,
           },
           extra: {
-            message,
-            ...(hasAnyContextKey ? ctx?.metadata : undefined),
+            message: sanitizeTelemetryString(message),
+            ...(hasAnyContextKey
+              ? (sanitizeTelemetryData(ctx?.metadata) as Record<string, unknown> | undefined)
+              : undefined),
           },
         });
       } else {
-        (window as any).Sentry.captureMessage(message, {
+        (window as any).Sentry.captureMessage(sanitizeTelemetryString(message), {
           level: 'error',
           tags: {
-            component: hasAnyContextKey ? ctx?.component : undefined,
-            tenant: hasAnyContextKey ? ctx?.tenant : undefined,
+            component: hasAnyContextKey ? sanitizeTelemetryString(ctx?.component || '') : undefined,
+            tenant: hasAnyContextKey ? sanitizeTelemetryString(ctx?.tenant || '') : undefined,
           },
           extra: {
-            ...(hasAnyContextKey ? ctx?.metadata : undefined),
+            ...(hasAnyContextKey
+              ? (sanitizeTelemetryData(ctx?.metadata) as Record<string, unknown> | undefined)
+              : undefined),
             data: sentryData,
           },
         });
@@ -239,7 +259,7 @@ class Logger {
    */
   table(data: any, columns?: string[]): void {
     if (!this.shouldLog('debug')) return;
-    console.table(data, columns);
+    console.table(sanitizeTelemetryData(data), columns);
   }
 }
 

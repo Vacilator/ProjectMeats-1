@@ -13,6 +13,7 @@ import axios, { AxiosError as AxiosErrorType, InternalAxiosRequestConfig } from 
 import * as Sentry from '@sentry/react';
 import { config } from '../config/runtime';
 import { logger } from '../utils/logger';
+import { sanitizeTelemetryData } from '../utils/telemetrySanitizer';
 import { getValidTenantId } from '../utils/tenantId';
 import {
   getAuthHeader,
@@ -319,7 +320,7 @@ apiClient.interceptors.response.use(
 
           const data = (error.response as any)?.data;
           if (data !== undefined) {
-            scope.setExtra('response.data', typeof data === 'string' ? data.slice(0, 2000) : data);
+            scope.setExtra('response.data', sanitizeTelemetryData(data));
           }
 
           Sentry.captureException(error);

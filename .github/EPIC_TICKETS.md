@@ -222,6 +222,62 @@
   - **Rollback:** Revert filters atomically if they break observability, but never leave partially scrubbed paths in place.
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
+### Epic UI-01 - Core UX Stabilization
+
+- [ ] **UI-01.1 modal-lifecycle-lockdown**
+  - **Status:** Blocked
+  - **Why now:** Hidden modal bodies are still one of the fastest ways to crash record-edit flows through stale hydration loops and React Error #185 regressions.
+  - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 14.5 / Modal lifecycle lockdown
+  - **Scope:** Audit Plants, Inquiries, and shared modal/drawer surfaces; enforce `destroyOnClose={true}` where hidden AntD state can linger; and conditionally mount heavy form/query bodies only while open so edit flows always start from a fresh React tree.
+  - **Non-goals:** No redesign of form schemas, record layouts, or unrelated entity pages.
+  - **Primary domain:** frontend
+  - **Likely touched paths:** `frontend/src/pages/Plants/`, `frontend/src/pages/Inquiries/`, `frontend/src/components/EntityFormSurface.tsx`, `frontend/src/components/UniversalEntityForm/`, shared modal components, frontend regression tests
+  - **Dependencies:** GA-03.3
+  - **Blockers:** `GA-03.3 pii-redaction-for-logging-and-sentry` is the current in-flight merge; promote this ticket to `Ready` immediately after that ship completes.
+  - **Acceptance criteria:** Hidden modal/drawer flows unmount stale form content on close, shared edit surfaces stop retaining prior-record state across reopen cycles, and regression coverage protects the known Plant/Inquiry crash paths.
+  - **Validation commands:** `npm -C frontend run verify-standards`; `npm -C frontend run test:ci`
+  - **Tenant/RLS impact:** None directly
+  - **Secrets/infra impact:** None
+  - **Risk level:** High
+  - **Rollback:** Revert touched modal lifecycle changes together for the affected surfaces and restore the prior open/close behavior only if the new contract regresses stable forms.
+  - **Completion evidence destination:** `.github/MASTER_PLAN.md`
+
+- [ ] **UI-01.2 null-safety-formatters**
+  - **Status:** Blocked
+  - **Why now:** Detail views still crash when legacy or partially populated rows feed `null` into `.toFixed()` or other numeric/currency formatters.
+  - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 14.5 / Null-safe numeric formatting
+  - **Scope:** Audit shared formatter utilities and high-frequency read-only views, then centralize null-coalescing numeric/currency formatting so legacy blank values render safely instead of throwing.
+  - **Non-goals:** No numeric schema migration or backend data backfill.
+  - **Primary domain:** frontend
+  - **Likely touched paths:** `frontend/src/utils/formatters.ts`, inquiry/invoice/detail components, related shared display helpers, frontend regression tests
+  - **Dependencies:** UI-01.1
+  - **Blockers:** UI-01.1
+  - **Acceptance criteria:** Shared numeric/currency formatting paths tolerate `null`/`undefined`, known inquiry/invoice crash paths render stable fallback values, and duplicated inline `.toFixed()` risk is reduced or eliminated in touched surfaces.
+  - **Validation commands:** `npm -C frontend run verify-standards`; `npm -C frontend run test:ci`
+  - **Tenant/RLS impact:** None
+  - **Secrets/infra impact:** None
+  - **Risk level:** Medium
+  - **Rollback:** Revert the formatter consolidation and leaf-view patches together if the new boundary distorts displayed values.
+  - **Completion evidence destination:** `.github/MASTER_PLAN.md`
+
+- [ ] **UI-01.3 breadcrumb-uuid-resolution-engine**
+  - **Status:** Blocked
+  - **Why now:** Operators are still navigating through raw UUID breadcrumb segments, which makes nested supplier/customer/plant paths look broken and slows navigation.
+  - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 14.5 / Breadcrumb UUID resolution
+  - **Scope:** Upgrade breadcrumb rendering to resolve entity UUID/path params into display names via one canonical route-loader or shared dictionary strategy, while preserving stable fallback labels when lookup data is unavailable.
+  - **Non-goals:** No full router architecture rewrite or unrelated navigation redesign.
+  - **Primary domain:** frontend
+  - **Likely touched paths:** `frontend/src/components/Layout/BreadcrumbBar.tsx`, route config/loaders, entity service-layer helpers, shared record/detail pages, frontend regression tests
+  - **Dependencies:** UI-01.2
+  - **Blockers:** UI-01.2
+  - **Acceptance criteria:** Breadcrumbs resolve human-readable labels for supported entity routes, UUID segments no longer dominate nested navigation on key record paths, and fallback behavior remains stable when resolution fails.
+  - **Validation commands:** `npm -C frontend run verify-standards`; `npm -C frontend run test:ci`
+  - **Tenant/RLS impact:** Low through entity lookup scope
+  - **Secrets/infra impact:** None
+  - **Risk level:** Medium
+  - **Rollback:** Revert breadcrumb resolution logic while preserving existing route behavior if the shared lookup path introduces incorrect labels or expensive fetch churn.
+  - **Completion evidence destination:** `.github/MASTER_PLAN.md`
+
 - [ ] **GA-03.4 governance-schedules-and-evidence-runbook**
   - **Status:** Blocked
   - **Why now:** Governance work is incomplete until archival/redaction have scheduled enforcement and operator evidence collection.
