@@ -19,7 +19,7 @@ import { Skeleton } from 'antd';
 
 import { ActivityFeed, RecordPaymentModal, PaymentHistoryList, EntityFormSurface } from '../../components/Shared';
 import { apiClient } from '../../services/apiService';
-import { formatCurrency } from '../../shared/utils';
+import { coerceFiniteNumber, formatCurrency } from '../../shared/utils';
 import { formatDateLocal, formatToLocal } from '../../utils/formatters';
 
 // ============================================================================
@@ -541,9 +541,9 @@ const Invoices: React.FC = () => {
                         <TableCell>{invoice.our_sales_order_num || '-'}</TableCell>
                         <TableCell>{formatDateLocal(invoice.date_time_stamp)}</TableCell>
                         <TableCell>{invoice.due_date ? formatDateLocal(invoice.due_date) : '-'}</TableCell>
-                        <TableCell>{formatCurrency(parseFloat(invoice.total_amount))}</TableCell>
+                        <TableCell>{formatCurrency(invoice.total_amount)}</TableCell>
                         <TableCell>
-                          {formatCurrency(parseFloat(invoice.outstanding_amount || invoice.total_amount))}
+                          {formatCurrency(invoice.outstanding_amount || invoice.total_amount)}
                         </TableCell>
                         <TableCell>
                           <StatusBadge status={invoice.status}>
@@ -607,9 +607,9 @@ const Invoices: React.FC = () => {
             <DetailSection>
               <DetailLabel>Financial Summary</DetailLabel>
               <DetailValue>
-                <div>Total: {formatCurrency(parseFloat(selectedInvoice.total_amount))}</div>
+                <div>Total: {formatCurrency(selectedInvoice.total_amount)}</div>
                 <div>
-                  Outstanding: {formatCurrency(parseFloat(selectedInvoice.outstanding_amount || selectedInvoice.total_amount))}
+                  Outstanding: {formatCurrency(selectedInvoice.outstanding_amount || selectedInvoice.total_amount)}
                 </div>
               </DetailValue>
             </DetailSection>
@@ -654,7 +654,11 @@ const Invoices: React.FC = () => {
               entityType="invoice"
               entityId={selectedInvoice.id}
               entityReference={selectedInvoice.invoice_number}
-              outstandingAmount={parseFloat(selectedInvoice.outstanding_amount || selectedInvoice.total_amount || '0')}
+              outstandingAmount={
+                coerceFiniteNumber(
+                  selectedInvoice.outstanding_amount || selectedInvoice.total_amount
+                ) ?? 0
+              }
               onSuccess={() => {
                 fetchInvoices();
                 setShowPaymentModal(false);
