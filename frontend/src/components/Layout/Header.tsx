@@ -4,6 +4,7 @@ import ProfileDropdown from '../ProfileDropdown';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Theme } from '../../config/theme';
+import { ConnectivityStatus, useConnectivity } from '../../contexts/ConnectivityContext';
 import { useQuickActions } from '../../contexts/QuickActionsContext';
 import QuickActionsEditor from '../QuickActions/QuickActionsEditor';
 import { useOnboarding } from '../Onboarding';
@@ -18,7 +19,6 @@ interface HeaderProps {
   // No props needed currently
 }
 
-
 const Header: React.FC<HeaderProps> = () => {
   const { theme, themeName, toggleTheme } = useTheme();
   const navigate = useNavigate();
@@ -32,16 +32,19 @@ const Header: React.FC<HeaderProps> = () => {
   const quickMenuRef = useRef<HTMLDivElement>(null);
   const onboardingMenuRef = useRef<HTMLDivElement>(null);
   const { getTourStatus, hasCompletedTour, launchTour } = useOnboarding();
-  
+  const { status: connectivityStatus } = useConnectivity();
+
   // Get current user info
   const [user, setUser] = useState<UserProfile | null>(null);
 
   useEffect(() => {
-    void Promise.resolve(authService.getCurrentUser()).then(setUser).catch(() => setUser(null));
+    void Promise.resolve(authService.getCurrentUser())
+      .then(setUser)
+      .catch(() => setUser(null));
   }, []);
 
   const isSuperuser = user?.is_superuser || false;
-  
+
   // Quick Actions context
   const {
     quickActions,
@@ -52,7 +55,7 @@ const Header: React.FC<HeaderProps> = () => {
     openEditor,
     closeEditor,
   } = useQuickActions();
-  
+
   // Get tenant name from localStorage
   const tenantName = localStorage.getItem('tenantName') || 'Meats Central';
 
@@ -70,14 +73,11 @@ const Header: React.FC<HeaderProps> = () => {
       if (quickMenuRef.current && !quickMenuRef.current.contains(event.target as Node)) {
         setShowQuickMenu(false);
       }
-      if (
-        onboardingMenuRef.current &&
-        !onboardingMenuRef.current.contains(event.target as Node)
-      ) {
+      if (onboardingMenuRef.current && !onboardingMenuRef.current.contains(event.target as Node)) {
         setShowOnboardingMenu(false);
       }
     };
-    
+
     if (showQuickMenu || showOnboardingMenu) {
       document.addEventListener('mousedown', handleClickOutside);
     }
@@ -104,8 +104,8 @@ const Header: React.FC<HeaderProps> = () => {
     navigate(path);
     setShowQuickMenu(false);
   };
-  
-  const handleQuickActionClick = (action: typeof quickActions[0]) => {
+
+  const handleQuickActionClick = (action: (typeof quickActions)[0]) => {
     if (action.type === 'form' && action.form_id) {
       openFormModal(action.form_id);
       setShowQuickMenu(false);
@@ -128,22 +128,23 @@ const Header: React.FC<HeaderProps> = () => {
   };
 
   const navigateToCockpitSearch = React.useMemo(
-    () => debounce((rawQuery: string) => {
-      const q = rawQuery.trim();
+    () =>
+      debounce((rawQuery: string) => {
+        const q = rawQuery.trim();
 
-      // Clear cockpit search if we're already there
-      if (!q) {
-        if (location.pathname.startsWith('/cockpit')) {
-          navigate('/cockpit', { replace: true });
+        // Clear cockpit search if we're already there
+        if (!q) {
+          if (location.pathname.startsWith('/cockpit')) {
+            navigate('/cockpit', { replace: true });
+          }
+          return;
         }
-        return;
-      }
 
-      // Don't navigate for 1-character noise
-      if (q.length < 2) return;
+        // Don't navigate for 1-character noise
+        if (q.length < 2) return;
 
-      navigate(`/cockpit?q=${encodeURIComponent(q)}`, { replace: true });
-    }, 250),
+        navigate(`/cockpit?q=${encodeURIComponent(q)}`, { replace: true });
+      }, 250),
     [location.pathname, navigate]
   );
 
@@ -157,7 +158,7 @@ const Header: React.FC<HeaderProps> = () => {
     if (!q) return;
     navigate(`/cockpit?q=${encodeURIComponent(q)}`);
   };
-  
+
   const handleEditClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     setShowQuickMenu(false);
@@ -170,10 +171,7 @@ const Header: React.FC<HeaderProps> = () => {
   const onWorkflowRoute =
     location.pathname.startsWith('/workflows') || location.pathname.startsWith('/workforms');
 
-  const getTourActionLabel = (
-    tourName: 'cockpit' | 'workflow-editor',
-    fallback: string,
-  ) => {
+  const getTourActionLabel = (tourName: 'cockpit' | 'workflow-editor', fallback: string) => {
     if (hasCompletedTour(tourName)) {
       return `Replay ${fallback}`;
     }
@@ -199,10 +197,7 @@ const Header: React.FC<HeaderProps> = () => {
 
   const handleWorkflowTourClick = () => {
     setShowOnboardingMenu(false);
-    void launchTour(
-      'workflow-editor',
-      hasCompletedTour('workflow-editor') ? 'restart' : 'resume',
-    );
+    void launchTour('workflow-editor', hasCompletedTour('workflow-editor') ? 'restart' : 'resume');
   };
 
   // Use custom quick actions if available, otherwise default items
@@ -211,10 +206,10 @@ const Header: React.FC<HeaderProps> = () => {
   return (
     <HeaderContainer $theme={theme}>
       <HeaderTitle $theme={theme}>{tenantName}</HeaderTitle>
-      
+
       {/* Tenant Selector for Superusers */}
       <TenantSelector theme={theme} isSuperuser={isSuperuser} />
-      
+
       {/* Global Search */}
       <SearchForm onSubmit={handleSearchSubmit}>
         <SearchInputWrapper $theme={theme}>
@@ -236,8 +231,20 @@ const Header: React.FC<HeaderProps> = () => {
           />
         </SearchInputWrapper>
       </SearchForm>
-      
+
       <HeaderActions>
+        {connectivityStatus !== 'online' && (
+          <ConnectivityPill
+            $status={connectivityStatus}
+            $theme={theme}
+            aria-live="polite"
+            role="status"
+          >
+            <ConnectivityDot $status={connectivityStatus} $theme={theme} aria-hidden="true" />
+            <span>{connectivityStatus === 'offline' ? 'Offline' : 'Reconnecting'}</span>
+          </ConnectivityPill>
+        )}
+
         <QuickMenuContainer ref={onboardingMenuRef}>
           <QuickMenuButton
             onClick={() => {
@@ -298,15 +305,11 @@ const Header: React.FC<HeaderProps> = () => {
               {/* Header with Edit Button */}
               <QuickMenuHeader $theme={theme}>
                 <span>Quick Actions</span>
-                <EditButton 
-                  $theme={theme} 
-                  onClick={handleEditClick}
-                  title="Edit Quick Actions"
-                >
+                <EditButton $theme={theme} onClick={handleEditClick} title="Edit Quick Actions">
                   ✏️
                 </EditButton>
               </QuickMenuHeader>
-              
+
               {quickActionsLoading ? (
                 <QuickMenuItem $theme={theme} style={{ justifyContent: 'center' }}>
                   <span>Loading...</span>
@@ -319,7 +322,9 @@ const Header: React.FC<HeaderProps> = () => {
                     onClick={() => handleQuickActionClick(action)}
                     $theme={theme}
                   >
-                    <IconWrapper><Icon name={action.icon} size={18} /></IconWrapper>
+                    <IconWrapper>
+                      <Icon name={action.icon} size={18} />
+                    </IconWrapper>
                     <span>{action.label}</span>
                   </QuickMenuItem>
                 ))
@@ -331,12 +336,14 @@ const Header: React.FC<HeaderProps> = () => {
                     onClick={() => handleQuickMenuClick(item.path)}
                     $theme={theme}
                   >
-                    <IconWrapper><Icon name={item.icon} size={18} /></IconWrapper>
+                    <IconWrapper>
+                      <Icon name={item.icon} size={18} />
+                    </IconWrapper>
                     <span>{item.label}</span>
                   </QuickMenuItem>
                 ))
               )}
-              
+
               {/* Forms Submenu - Always show regardless of custom actions */}
               <QuickMenuDivider />
               <QuickMenuItem
@@ -351,14 +358,12 @@ const Header: React.FC<HeaderProps> = () => {
                   <IconWrapper>📋</IconWrapper>
                   <span>Forms</span>
                 </div>
-                <span style={{ fontSize: '12px' }}>
-                  {showFormsSubmenu ? '▴' : '▾'}
-                </span>
+                <span style={{ fontSize: '12px' }}>{showFormsSubmenu ? '▴' : '▾'}</span>
               </QuickMenuItem>
-              
+
               {showFormsSubmenu && (
                 <FormsSubmenu $theme={theme}>
-                  <SubmenuItem 
+                  <SubmenuItem
                     $theme={theme}
                     onClick={() => {
                       navigate('/workflows');
@@ -369,7 +374,7 @@ const Header: React.FC<HeaderProps> = () => {
                     <span>🗂️</span>
                     <span>View Legacy Workflows</span>
                   </SubmenuItem>
-                  
+
                   {availableForms.filter((f) => (f.type ?? 'form') === 'form').length > 0 && (
                     <>
                       <SubmenuDivider />
@@ -403,13 +408,15 @@ const Header: React.FC<HeaderProps> = () => {
                           }}
                         >
                           <span>
-                            +{availableForms.filter((f) => (f.type ?? 'form') === 'form').length - 5} more forms...
+                            +
+                            {availableForms.filter((f) => (f.type ?? 'form') === 'form').length - 5}{' '}
+                            more forms...
                           </span>
                         </SubmenuItem>
                       )}
                     </>
                   )}
-                  
+
                   {availableForms.filter((f) => (f.type ?? 'form') === 'workflow').length > 0 && (
                     <>
                       <SubmenuDivider />
@@ -432,7 +439,8 @@ const Header: React.FC<HeaderProps> = () => {
                             <span>{wf.name}</span>
                           </SubmenuItem>
                         ))}
-                      {availableForms.filter((f) => (f.type ?? 'form') === 'workflow').length > 5 && (
+                      {availableForms.filter((f) => (f.type ?? 'form') === 'workflow').length >
+                        5 && (
                         <SubmenuItem
                           $theme={theme}
                           style={{ fontSize: '11px', fontStyle: 'italic' }}
@@ -443,7 +451,10 @@ const Header: React.FC<HeaderProps> = () => {
                           }}
                         >
                           <span>
-                            +{availableForms.filter((f) => (f.type ?? 'form') === 'workflow').length - 5} more workforms...
+                            +
+                            {availableForms.filter((f) => (f.type ?? 'form') === 'workflow')
+                              .length - 5}{' '}
+                            more workforms...
                           </span>
                         </SubmenuItem>
                       )}
@@ -451,17 +462,23 @@ const Header: React.FC<HeaderProps> = () => {
                   )}
 
                   {availableForms.filter((f) => (f.type ?? 'form') === 'form').length === 0 &&
-                    availableForms.filter((f) => (f.type ?? 'form') === 'workflow').length === 0 && (
+                    availableForms.filter((f) => (f.type ?? 'form') === 'workflow').length ===
+                      0 && (
                       <SubmenuItem
                         $theme={theme}
-                        style={{ fontSize: '12px', fontStyle: 'italic', cursor: 'default', opacity: 0.6 }}
+                        style={{
+                          fontSize: '12px',
+                          fontStyle: 'italic',
+                          cursor: 'default',
+                          opacity: 0.6,
+                        }}
                       >
                         <span>No published Forms or WorkForms yet</span>
                       </SubmenuItem>
                     )}
                 </FormsSubmenu>
               )}
-              
+
               {/* Customize Link */}
               {!hasCustomActions && (
                 <QuickMenuFooter $theme={theme} onClick={handleEditClick}>
@@ -472,7 +489,7 @@ const Header: React.FC<HeaderProps> = () => {
             </QuickMenuDropdown>
           )}
         </QuickMenuContainer>
-        
+
         {/* Quick Actions Editor Modal */}
         <QuickActionsEditor isOpen={isEditorOpen} onClose={closeEditor} />
 
@@ -597,7 +614,7 @@ const SearchInput = styled.input<{ $theme: Theme }>`
   @media (max-width: 520px) {
     font-size: 16px; /* iOS Safari zoom-on-focus prevention */
   }
-  
+
   &::placeholder {
     color: ${(props) => props.$theme.colors.textSecondary};
   }
@@ -615,6 +632,37 @@ const HeaderActions = styled.div`
     flex-wrap: wrap;
     justify-content: flex-end;
   }
+`;
+
+const ConnectivityPill = styled.div<{
+  $status: Exclude<ConnectivityStatus, 'online'>;
+  $theme: Theme;
+}>`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid
+    ${(props) =>
+      props.$status === 'offline' ? props.$theme.colors.error : props.$theme.colors.warning};
+  background: ${(props) => props.$theme.colors.surface};
+  color: ${(props) =>
+    props.$status === 'offline' ? props.$theme.colors.error : props.$theme.colors.warning};
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+`;
+
+const ConnectivityDot = styled.span<{
+  $status: Exclude<ConnectivityStatus, 'online'>;
+  $theme: Theme;
+}>`
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: ${(props) =>
+    props.$status === 'offline' ? props.$theme.colors.error : props.$theme.colors.warning};
 `;
 
 const QuickMenuContainer = styled.div`
@@ -691,7 +739,7 @@ const EditButton = styled.button<{ $theme: Theme }>`
   font-size: 14px;
   padding: 4px 8px;
   border-radius: 4px;
-  
+
   &:hover {
     background: ${(props) => props.$theme.colors.surfaceHover};
   }

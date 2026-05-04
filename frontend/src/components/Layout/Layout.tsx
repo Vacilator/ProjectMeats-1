@@ -8,7 +8,9 @@ import Breadcrumb from '../Navigation/Breadcrumb';
 import Omnibox from '../AIAssistant/Omnibox';
 import { CommandPalette } from '../Navigation/CommandPalette';
 import { AIAgentWidget } from '../AIAssistant/AIAgentWidget';
+import { ConnectivityBanner } from '../common/ConnectivityBanner';
 import { useNavigation } from '../../contexts/NavigationContext';
+import { ConnectivityProvider } from '../../contexts/ConnectivityContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import { Theme } from '../../config/theme';
 import { useGlobalShortcuts } from '../../hooks/useGlobalShortcuts';
@@ -40,29 +42,33 @@ const Layout: React.FC = () => {
   };
 
   return (
-    <LayoutContainer $theme={theme}>
-      <Sidebar isOpen={sidebarOpen} onToggle={toggleSidebar} onHoverChange={handleSidebarHoverChange} />
-      <MainArea $sidebarOpen={sidebarOpen} $sidebarHovered={sidebarHovered}>
-        <Header />
-        <PinnedToolsBar />
-        <Content $theme={theme}>
-          <CenteredContainer>
-            <Breadcrumb />
-            <Outlet />
-          </CenteredContainer>
-        </Content>
-      </MainArea>
-      <Omnibox
-        isOpen={showOmnibox}
-        onClose={() => setShowOmnibox(false)}
-        onSubmit={handleOmniboxSubmit}
-      />
-      <CommandPalette
-        isOpen={showCommandPalette}
-        onClose={() => setShowCommandPalette(false)}
-      />
-      <AIAgentWidget />
-    </LayoutContainer>
+    <ConnectivityProvider>
+      <LayoutContainer $theme={theme}>
+        <Sidebar
+          isOpen={sidebarOpen}
+          onToggle={toggleSidebar}
+          onHoverChange={handleSidebarHoverChange}
+        />
+        <MainArea $sidebarOpen={sidebarOpen} $sidebarHovered={sidebarHovered}>
+          <Header />
+          <ConnectivityBanner />
+          <PinnedToolsBar />
+          <Content $theme={theme}>
+            <CenteredContainer>
+              <Breadcrumb />
+              <Outlet />
+            </CenteredContainer>
+          </Content>
+        </MainArea>
+        <Omnibox
+          isOpen={showOmnibox}
+          onClose={() => setShowOmnibox(false)}
+          onSubmit={handleOmniboxSubmit}
+        />
+        <CommandPalette isOpen={showCommandPalette} onClose={() => setShowCommandPalette(false)} />
+        <AIAgentWidget />
+      </LayoutContainer>
+    </ConnectivityProvider>
   );
 };
 
