@@ -1,6 +1,6 @@
 /**
  * Header Component Tests
- * 
+ *
  * Tests for main application header with search, quick actions, and user controls
  */
 import React from 'react';
@@ -25,8 +25,20 @@ const onboardingMock = vi.hoisted(() => ({
   launchTour: vi.fn(),
 }));
 
+const connectivityMock = vi.hoisted(() => ({
+  useConnectivity: vi.fn(() => ({
+    status: 'online',
+    isOnline: true,
+    lastChangedAt: null,
+  })),
+}));
+
 vi.mock('../Onboarding', () => ({
   useOnboarding: () => onboardingMock,
+}));
+
+vi.mock('../../contexts/ConnectivityContext', () => ({
+  useConnectivity: connectivityMock.useConnectivity,
 }));
 
 import Header from './Header';
@@ -107,9 +119,8 @@ vi.mock('./TenantSelector', () => ({
 
 // Mock QuickActionsEditor
 vi.mock('../QuickActions/QuickActionsEditor', () => ({
-  default: ({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) => (
-    isOpen ? <div data-testid="quick-actions-editor">Editor</div> : null
-  ),
+  default: ({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) =>
+    isOpen ? <div data-testid="quick-actions-editor">Editor</div> : null,
 }));
 
 // Mock Icon component
@@ -141,11 +152,7 @@ vi.mock('../../contexts/NotificationsContext', () => ({
 // Mock NotificationBell component
 vi.mock('../Notifications', () => ({
   NotificationBell: () => (
-    <button 
-      title="Notifications" 
-      aria-label="Notifications"
-      data-testid="notification-bell"
-    >
+    <button title="Notifications" aria-label="Notifications" data-testid="notification-bell">
       🔔
     </button>
   ),
@@ -154,6 +161,11 @@ vi.mock('../Notifications', () => ({
 describe('Header', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    connectivityMock.useConnectivity.mockReturnValue({
+      status: 'online',
+      isOnline: true,
+      lastChangedAt: null,
+    });
     onboardingMock.getTourStatus.mockImplementation(() => ({
       status: 'not_started',
       last_event: null,
@@ -234,6 +246,22 @@ describe('Header', () => {
       );
 
       expect(screen.getByRole('button', { name: /notifications/i })).toBeInTheDocument();
+    });
+
+    it('renders the offline status pill when disconnected', () => {
+      connectivityMock.useConnectivity.mockReturnValue({
+        status: 'offline',
+        isOnline: false,
+        lastChangedAt: Date.now(),
+      });
+
+      render(
+        <MemoryRouter>
+          <Header />
+        </MemoryRouter>
+      );
+
+      expect(screen.getByRole('status')).toHaveTextContent('Offline');
     });
 
     it('renders profile dropdown', () => {
@@ -407,7 +435,7 @@ describe('Header', () => {
       });
 
       fireEvent.click(screen.getByText('New Supplier'));
-      
+
       expect(mockNavigate).toHaveBeenCalledWith('/suppliers/new');
     });
 
@@ -426,7 +454,7 @@ describe('Header', () => {
       });
 
       fireEvent.click(screen.getByText('New Supplier'));
-      
+
       // Menu should close after click
       await waitFor(() => {
         expect(screen.queryByText('Customize Quick Actions')).not.toBeInTheDocument();
@@ -463,7 +491,7 @@ describe('Header', () => {
       });
 
       fireEvent.click(screen.getByTitle('Edit Quick Actions'));
-      
+
       expect(mockOpenEditor).toHaveBeenCalled();
     });
 
@@ -490,7 +518,7 @@ describe('Header', () => {
       );
 
       const quickActionsBtn = screen.getByRole('button', { name: /quick actions/i });
-      
+
       // Open
       fireEvent.click(quickActionsBtn);
       await waitFor(() => {
@@ -545,7 +573,7 @@ describe('Header', () => {
   describe('Tenant Name Display', () => {
     it('shows tenant name from localStorage', () => {
       localStorage.setItem('tenantName', 'Custom Tenant');
-      
+
       render(
         <MemoryRouter>
           <Header />
@@ -557,7 +585,7 @@ describe('Header', () => {
 
     it('shows default name when localStorage is empty', () => {
       localStorage.removeItem('tenantName');
-      
+
       render(
         <MemoryRouter>
           <Header />
