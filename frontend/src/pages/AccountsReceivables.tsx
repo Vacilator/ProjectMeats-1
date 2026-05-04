@@ -3,6 +3,7 @@ import styled from 'styled-components';
 import { Skeleton } from 'antd';
 
 import { confirmDialog, showAlert } from '@/utils/uiDialogs';
+import { formatCurrency } from '../shared/utils';
 import { apiService, Invoice } from '../services/apiService';
 
 // Styled Components
@@ -500,15 +501,15 @@ const AccountsReceivables: React.FC = () => {
           <StatLabel>Total Invoices</StatLabel>
         </StatCard>
         <StatCard>
-          <StatNumber>${getTotalAmount().toFixed(2)}</StatNumber>
+          <StatNumber>{formatCurrency(getTotalAmount())}</StatNumber>
           <StatLabel>Total Amount</StatLabel>
         </StatCard>
         <StatCard>
-          <StatNumber>${getPendingAmount().toFixed(2)}</StatNumber>
+          <StatNumber>{formatCurrency(getPendingAmount())}</StatNumber>
           <StatLabel>Pending</StatLabel>
         </StatCard>
         <StatCard>
-          <StatNumber>${getOverdueAmount().toFixed(2)}</StatNumber>
+          <StatNumber>{formatCurrency(getOverdueAmount())}</StatNumber>
           <StatLabel>Overdue</StatLabel>
         </StatCard>
       </StatsCards>
@@ -547,7 +548,7 @@ const AccountsReceivables: React.FC = () => {
               >
                 <TableCell>{receivable.invoice_number}</TableCell>
                 <TableCell>{receivable.customer_name || receivable.customer}</TableCell>
-                <TableCell>${(Number(receivable.total) || 0).toFixed(2)}</TableCell>
+                <TableCell>{formatCurrency(receivable.total)}</TableCell>
                 <TableCell>{receivable.due_date ? new Date(receivable.due_date).toLocaleDateString() : 'N/A'}</TableCell>
                 <TableCell>
                   <StatusBadge $color={getStatusColor(receivable.status)}>

@@ -27,6 +27,7 @@ import styled from 'styled-components';
 import { Modal as AntModal } from 'antd';
 import { useNavigate } from 'react-router-dom';
 import { apiClient } from '../../services/apiService';
+import { formatCurrency } from '../../shared/utils';
 import { 
   Building2, Users, ShoppingCart, Receipt, Package, 
   Truck, User, FileText, Phone, Mail, MapPin, Calendar,
@@ -134,7 +135,7 @@ const ENTITY_CONFIG: Record<string, {
       { key: 'status', label: 'Status' },
       { key: 'order_date', label: 'Order Date', icon: Calendar, format: (val) => new Date(val).toLocaleDateString() },
       { key: 'expected_delivery', label: 'Expected Delivery', icon: Calendar, format: (val) => val ? new Date(val).toLocaleDateString() : 'TBD' },
-      { key: 'total_amount', label: 'Total Amount', format: (val) => val ? `$${parseFloat(val).toFixed(2)}` : 'N/A' },
+      { key: 'total_amount', label: 'Total Amount', format: (val) => formatCurrency(val, 'N/A') },
     ],
   },
   sales_order: {
@@ -148,7 +149,7 @@ const ENTITY_CONFIG: Record<string, {
       { key: 'status', label: 'Status' },
       { key: 'order_date', label: 'Order Date', icon: Calendar, format: (val) => new Date(val).toLocaleDateString() },
       { key: 'expected_delivery', label: 'Expected Delivery', icon: Calendar, format: (val) => val ? new Date(val).toLocaleDateString() : 'TBD' },
-      { key: 'total_amount', label: 'Total Amount', format: (val) => val ? `$${parseFloat(val).toFixed(2)}` : 'N/A' },
+      { key: 'total_amount', label: 'Total Amount', format: (val) => formatCurrency(val, 'N/A') },
     ],
   },
   product: {
@@ -161,7 +162,7 @@ const ENTITY_CONFIG: Record<string, {
       { key: 'description', label: 'Description' },
       { key: 'category', label: 'Category' },
       { key: 'unit', label: 'Unit' },
-      { key: 'price', label: 'Price', format: (val) => val ? `$${parseFloat(val).toFixed(2)}` : 'N/A' },
+      { key: 'price', label: 'Price', format: (val) => formatCurrency(val, 'N/A') },
       { key: 'created_at', label: 'Created', icon: Calendar, format: (val) => new Date(val).toLocaleDateString() },
     ],
   },
@@ -211,7 +212,7 @@ const ENTITY_CONFIG: Record<string, {
     fields: [
       { key: 'invoice_number', label: 'Invoice Number', icon: FileText },
       { key: 'customer_name', label: 'Customer', icon: Users },
-      { key: 'amount', label: 'Amount', format: (val) => val ? `$${parseFloat(val).toFixed(2)}` : 'N/A' },
+      { key: 'amount', label: 'Amount', format: (val) => formatCurrency(val, 'N/A') },
       { key: 'status', label: 'Status' },
       { key: 'created_at', label: 'Created', icon: Calendar, format: (val) => new Date(val).toLocaleDateString() },
     ],

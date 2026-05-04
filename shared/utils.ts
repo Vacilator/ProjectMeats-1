@@ -3,11 +3,47 @@
 /**
  * Format currency values
  */
-export const formatCurrency = (amount: number): string => {
+export const coerceFiniteNumber = (value: unknown): number | null => {
+  if (typeof value === 'number') {
+    return Number.isFinite(value) ? value : null;
+  }
+
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (!trimmed) {
+      return null;
+    }
+
+    const parsed = Number(trimmed);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+
+  return null;
+};
+
+export const formatCurrency = (amount: unknown, fallback = '-'): string => {
+  const numericAmount = coerceFiniteNumber(amount);
+  if (numericAmount === null) {
+    return fallback;
+  }
+
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
     currency: 'USD',
-  }).format(amount);
+  }).format(numericAmount);
+};
+
+export const formatFixedNumber = (
+  value: unknown,
+  fractionDigits = 2,
+  fallback = '-'
+): string => {
+  const numericValue = coerceFiniteNumber(value);
+  if (numericValue === null) {
+    return fallback;
+  }
+
+  return numericValue.toFixed(fractionDigits);
 };
 
 /**
