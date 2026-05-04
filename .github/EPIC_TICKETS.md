@@ -469,7 +469,7 @@
 ### Epic EH-01 - SDLC + supply-chain hardening
 
 - [ ] **EH-01.1 drift-gate-depth**
-  - **Status:** Blocked
+  - **Status:** Ready
   - **Why now:** The current golden verification is false-green for stale authority docs and workflow reality drift, which undermines every later ticket.
   - **Canonical source reference:** `MASTER_PLAN.md` -> P0/P1 CI guardrails + Phase 12
   - **Scope:** Expand repo drift validation so authoritative/current docs and workflow reality are checked together, and force `docs/reference/GOLDEN_PIPELINE.md` to act as a pointer or parity-checked reference to `docs/GOLDEN_PIPELINE.md` instead of an independent authority.
@@ -477,7 +477,7 @@
   - **Primary domain:** CI/docs
   - **Likely touched paths:** `scripts/verify_golden_state.sh`, `.github/scripts/check_infrastructure.sh`, `.github/workflows/README.md`, `docs/guides/BRANCH_PROTECTION_SETUP.md`, `docs/reference/GOLDEN_PIPELINE.md`
   - **Dependencies:** EH-00.1
-  - **Blockers:** Phase 14 GA tickets now define the canonical top-of-backlog work and must execute first
+  - **Blockers:** None
   - **Acceptance criteria:**
     1. Before the fix is applied, running `bash scripts/verify_golden_state.sh` demonstrates at least one failing parity/drift check for the current doc/workflow contradiction, proving the validator was not already sufficient.
     2. After the fix is applied, drift checks fail when a `CURRENT` doc references nonexistent workflows, wrong branch names, or forbidden deployment patterns.
