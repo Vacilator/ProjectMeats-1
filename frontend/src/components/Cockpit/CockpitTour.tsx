@@ -3,7 +3,7 @@
  * 
  * Features:
  * - Step-by-step walkthrough of Cockpit features
- * - Auto-starts on first visit (localStorage tracking)
+ * - Auto-starts on first visit using the shared onboarding contract
  * - Skip/dismiss functionality
  * - Responsive tooltips
  * - ARIA-compliant for accessibility
@@ -11,9 +11,8 @@
  * @module components/Cockpit/CockpitTour
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
-  EVENTS,
   Joyride,
   STATUS,
   type EventData,
@@ -22,8 +21,7 @@ import {
   type Step,
   type Styles,
 } from 'react-joyride';
-
-const TOUR_COMPLETED_KEY = 'cockpit_tour_completed';
+import { useOnboarding } from '../Onboarding';
 
 interface CockpitTourProps {
   /**
@@ -152,34 +150,29 @@ export const CockpitTour: React.FC<CockpitTourProps> = ({
   enabled = true, 
   onComplete 
 }) => {
+  const { isReady, hasCompletedTour, markTourCompleted, resetTourCompletion } = useOnboarding();
   const [runTour, setRunTour] = useState(false);
 
   useEffect(() => {
-    if (!enabled) return;
-
-    // Check if tour has been completed
-    const tourCompleted = localStorage.getItem(TOUR_COMPLETED_KEY);
-    
-    if (!tourCompleted) {
-      // Delay tour start to ensure DOM elements are rendered
-      const timer = setTimeout(() => {
-        setRunTour(true);
-      }, 1000);
-
-      return () => clearTimeout(timer);
+    if (!enabled || !isReady || hasCompletedTour('cockpit')) {
+      return;
     }
-  }, [enabled]);
+
+    const timer = window.setTimeout(() => {
+      setRunTour(true);
+    }, 1000);
+
+    return () => window.clearTimeout(timer);
+  }, [enabled, hasCompletedTour, isReady]);
 
   const handleJoyrideCallback = (data: EventData) => {
-    const { status, type } = data;
+    const { status } = data;
 
     // Tour finished or skipped
     if ([STATUS.FINISHED, STATUS.SKIPPED].includes(status as any)) {
       setRunTour(false);
-      
-      // Mark tour as completed
-      localStorage.setItem(TOUR_COMPLETED_KEY, 'true');
-      
+      void markTourCompleted('cockpit');
+
       if (onComplete) {
         onComplete();
       }
@@ -189,9 +182,10 @@ export const CockpitTour: React.FC<CockpitTourProps> = ({
   /**
    * Manually restart the tour (can be called from help menu)
    */
-  const restartTour = () => {
+  const restartTour = useCallback(() => {
+    void resetTourCompletion('cockpit');
     setRunTour(true);
-  };
+  }, [resetTourCompletion]);
 
   // Expose restart function to parent
   useEffect(() => {
@@ -199,7 +193,7 @@ export const CockpitTour: React.FC<CockpitTourProps> = ({
     return () => {
       delete (window as any).restartCockpitTour;
     };
-  }, []);
+  }, [restartTour]);
 
   if (!enabled) return null;
 
@@ -259,18 +253,4 @@ export const CockpitTour: React.FC<CockpitTourProps> = ({
       }}
     />
   );
-};
-
-/**
- * Manually reset the tour (for testing or admin override)
- */
-export const resetCockpitTour = () => {
-  localStorage.removeItem(TOUR_COMPLETED_KEY);
-};
-
-/**
- * Check if tour has been completed
- */
-export const hasCompletedTour = (): boolean => {
-  return !!localStorage.getItem(TOUR_COMPLETED_KEY);
 };

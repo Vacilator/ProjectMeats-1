@@ -19,6 +19,7 @@ import { CockpitNavigationProvider } from './contexts/CockpitNavigationContext';
 import { CockpitPinnedToolsProvider } from './contexts/CockpitPinnedToolsContext';
 import { ToastProvider } from './hooks/useToast';
 import Layout from './components/Layout/Layout';
+import { OnboardingProvider } from './components/Onboarding';
 import './i18n/config'; // Initialize i18n
 
 // Create QueryClient for data fetching (React Query)
@@ -225,15 +226,16 @@ const App: React.FC = () => {
       <QueryClientProvider client={queryClient}>
         <ToastProvider>
           <AuthProvider>
-            <ThemeProvider>
-              <NotificationsProvider>
-                <ActionItemsProvider>
-                  <QuickActionsProvider>
-                    <CockpitNavigationProvider>
-                      <CockpitPinnedToolsProvider>
-                        <Router>
-                        <SessionManagerProvider>
-                          <NavigationProvider>
+            <OnboardingProvider>
+              <ThemeProvider>
+                <NotificationsProvider>
+                  <ActionItemsProvider>
+                    <QuickActionsProvider>
+                      <CockpitNavigationProvider>
+                        <CockpitPinnedToolsProvider>
+                          <Router>
+                          <SessionManagerProvider>
+                            <NavigationProvider>
                     <Routes>
                 <Route path="/login" element={<Login />} />
                 <Route path="/signup" element={<SignUp />} />
@@ -453,16 +455,17 @@ const App: React.FC = () => {
             </Routes>
             {/* Form Submission Modal - rendered at app level */}
             <FormSubmissionWrapper />
-                          </NavigationProvider>
-                        </SessionManagerProvider>
-                      </Router>
-                    </CockpitPinnedToolsProvider>
+                            </NavigationProvider>
+                          </SessionManagerProvider>
+                        </Router>
+                      </CockpitPinnedToolsProvider>
                     </CockpitNavigationProvider>
                   </QuickActionsProvider>
                 </ActionItemsProvider>
               </NotificationsProvider>
-        </ThemeProvider>
-      </AuthProvider>
+            </ThemeProvider>
+          </OnboardingProvider>
+        </AuthProvider>
       </ToastProvider>
     </QueryClientProvider>
     </ProductionErrorBoundary>

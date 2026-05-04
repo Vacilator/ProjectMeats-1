@@ -8,6 +8,7 @@ from rest_framework.test import APITestCase
 from rest_framework import status
 from rest_framework.authtoken.models import Token
 from apps.core.models import UserPreferences
+from apps.core.serializers import UserPreferencesSerializer
 
 
 class UserPreferencesModelTest(TestCase):
@@ -57,6 +58,61 @@ class UserPreferencesModelTest(TestCase):
         """Test string representation."""
         preferences = UserPreferences.objects.create(user=self.user)
         self.assertEqual(str(preferences), f"Preferences for {self.user.username}")
+
+
+class UserPreferencesSerializerTest(TestCase):
+    """Tests for the canonical onboarding preferences contract."""
+
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username='serializer-user',
+            email='serializer@example.com',
+            password='testpass123'
+        )
+
+    def test_serializer_exposes_default_onboarding_state(self):
+        preferences = UserPreferences.objects.create(user=self.user)
+
+        serializer = UserPreferencesSerializer(preferences)
+
+        self.assertEqual(serializer.data['onboarding_state'], {'completed_tours': []})
+
+    def test_serializer_merges_onboarding_state_without_clobbering_widget_preferences(self):
+        preferences = UserPreferences.objects.create(
+            user=self.user,
+            widget_preferences={'sales': {'collapsed': False}}
+        )
+
+        serializer = UserPreferencesSerializer(
+            preferences,
+            data={
+                'onboarding_state': {
+                    'completed_tours': [' cockpit ', 'workflow-editor', 'cockpit'],
+                }
+            },
+            partial=True
+        )
+
+        self.assertTrue(serializer.is_valid(), serializer.errors)
+        updated_preferences = serializer.save()
+
+        self.assertEqual(updated_preferences.widget_preferences['sales'], {'collapsed': False})
+        self.assertEqual(
+            updated_preferences.widget_preferences['onboarding'],
+            {'completed_tours': ['cockpit', 'workflow-editor']}
+        )
+
+    def test_serializer_rejects_invalid_onboarding_state(self):
+        preferences = UserPreferences.objects.create(user=self.user)
+
+        serializer = UserPreferencesSerializer(
+            preferences,
+            data={'onboarding_state': {'completed_tours': 'cockpit'}},
+            partial=True
+        )
+
+        self.assertFalse(serializer.is_valid())
+        self.assertIn('onboarding_state', serializer.errors)
 
 
 @skip("Requires complex django-tenants test setup - UserPreferences is a shared model")
