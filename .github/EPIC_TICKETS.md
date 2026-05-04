@@ -334,8 +334,8 @@
   - **Rollback:** Revert the cockpit empty-state components without affecting existing data-fetch logic.
   - **Completion evidence destination:** `.github/MASTER_PLAN.md` (PR #4846)
 
-- [ ] **GA-04.3 transactional-surface-empty-states**
-  - **Status:** Ready
+- [x] **GA-04.3 transactional-surface-empty-states**
+  - **Status:** Shipped (PR #4848)
   - **Why now:** Orders, freight, and document-heavy surfaces still need “create your first X” guidance to prevent first-run abandonment.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 14 / Epic 4
   - **Scope:** Roll the empty-state CTA system through priority transaction/list surfaces (purchase orders, sales orders, freight orders, invoices, document vault-adjacent pages).
@@ -353,7 +353,7 @@
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
 - [ ] **GA-04.4 onboarding-telemetry-and-resume-controls**
-  - **Status:** Blocked
+  - **Status:** Ready
   - **Why now:** GA needs evidence that onboarding works and lets users skip/resume without getting trapped.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 14 / Epic 4
   - **Scope:** Track onboarding completion/skip/resume events and add a simple help/restart surface in the app shell.
@@ -361,7 +361,7 @@
   - **Primary domain:** frontend/backend
   - **Likely touched paths:** `frontend/src/components/Layout/Header.tsx`, `frontend/src/components/Onboarding/`, `frontend/src/contexts/AuthContext.tsx`, `backend/apps/core/{models,serializers,views}.py`, tests
   - **Dependencies:** GA-04.1, GA-04.3
-  - **Blockers:** GA-04.1 and GA-04.3
+  - **Blockers:** None
   - **Acceptance criteria:** Users can restart or dismiss tours intentionally, completion data is persisted predictably, and onboarding regressions are covered by tests.
   - **Validation commands:** `cd backend && python manage.py test apps.core`; `npm -C frontend run verify-standards`; `npm -C frontend run test:ci`
   - **Tenant/RLS impact:** Low
