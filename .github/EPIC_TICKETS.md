@@ -298,8 +298,8 @@
 
 ### Epic GA-04 - In-app user onboarding
 
-- [ ] **GA-04.1 tour-provider-and-user-preference-contract**
-  - **Status:** Ready
+- [x] **GA-04.1 tour-provider-and-user-preference-contract**
+  - **Status:** Shipped (PR #4844)
   - **Why now:** New tenants currently land in a blank-feeling experience and tour state is scattered across local-only onboarding hooks.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 14 / Epic 4
   - **Scope:** Standardize guided-tour orchestration by reusing `react-joyride`, `CockpitTour`, FlowEditor onboarding hooks, and `UserPreferences` so first-run state is durable per user.
@@ -314,10 +314,10 @@
   - **Secrets/infra impact:** None
   - **Risk level:** Medium
   - **Rollback:** Revert provider/preference changes together and fall back to the existing Cockpit-local tour behavior.
-  - **Completion evidence destination:** `.github/MASTER_PLAN.md`
+  - **Completion evidence destination:** `.github/MASTER_PLAN.md` (PR #4844)
 
 - [ ] **GA-04.2 cockpit-empty-state-system**
-  - **Status:** Blocked
+  - **Status:** Ready
   - **Why now:** The first tenant experience should teach actions immediately on the dashboard instead of showing inert whitespace.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 14 / Epic 4
   - **Scope:** Create a reusable empty-state pattern for dashboard/cockpit surfaces with direct CTA buttons and help text tailored to first-run workflows.
@@ -325,7 +325,7 @@
   - **Primary domain:** frontend
   - **Likely touched paths:** `frontend/src/pages/Cockpit/CockpitDashboard.tsx`, `frontend/src/components/Admin/EmptyState.tsx`, `frontend/src/components/Widgets/`, `frontend/src/components/Onboarding/`
   - **Dependencies:** GA-04.1
-  - **Blockers:** GA-04.1
+  - **Blockers:** None
   - **Acceptance criteria:** Cockpit/dashboard empty states route users directly into first actions and remain theme-compliant/accessibility-safe.
   - **Validation commands:** `npm -C frontend run verify-standards`; `npm -C frontend run test:ci`
   - **Tenant/RLS impact:** None directly
