@@ -29,6 +29,17 @@ logger = logging.getLogger(__name__)
 
 EventType = Literal["email", "user_chat", "webhook"]
 
+
+def _build_non_retryable_tool_message(tool_name: str, error: Dict[str, Any]) -> str:
+    message = str(error.get('message') or 'The tool failed.')
+    hint = str(error.get('hint') or '').strip()
+    hint_suffix = f' Hint: {hint}' if hint else ''
+    return (
+        f'System: Tool "{tool_name}" failed with a non-retryable error: "{message}". '
+        'Do not retry this tool. Ask the human user for the missing information or a clarifying choice.'
+        f'{hint_suffix}'
+    )
+
 def build_swarm_system_prompt(
     *,
     outlook_connected: bool,
@@ -404,6 +415,7 @@ class SwarmOrchestrator:
         max_rounds = int(getattr(settings, 'SWARM_TOOL_MAX_ROUNDS', 3) or 3)
         rounds = 0
         tool_signatures: List[str] = []
+        blocked_tools: set[str] = set()
         loop_warning_injected = False
         run = None
         validated_session_id = session_id
@@ -492,7 +504,33 @@ class SwarmOrchestrator:
                     and tool_signatures[-2] == signature
                 )
 
-                if repeated_signature:
+                if tool_name in blocked_tools:
+                    result = json.dumps(
+                        {
+                            'ok': False,
+                            'tool': tool_name,
+                            'tenant_id': str(getattr(tenant, 'id', '') or ''),
+                            'error': {
+                                'code': 'TOOL_RETRY_BLOCKED',
+                                'message': 'This tool already failed with a non-retryable error in this run.',
+                                'hint': 'Do not retry this tool. Ask the user for the missing information instead.',
+                                'retryable': False,
+                            },
+                        }
+                    )
+                    messages.append(
+                        {
+                            'role': 'system',
+                            'content': (
+                                f'System: Tool "{tool_name}" is blocked for the rest of this run because '
+                                'it already failed with a non-retryable error. Ask the user for clarification.'
+                            ),
+                        }
+                    )
+                    if not loop_warning_injected:
+                        max_rounds += 1
+                        loop_warning_injected = True
+                elif repeated_signature:
                     result = json.dumps(
                         {
                             'ok': False,
@@ -560,6 +598,18 @@ class SwarmOrchestrator:
                 except Exception:
                     parsed_result = {}
                 tool_data = parsed_result.get('data') if isinstance(parsed_result, dict) else {}
+                tool_error = parsed_result.get('error') if isinstance(parsed_result, dict) else None
+                if isinstance(tool_error, dict) and tool_error.get('retryable') is False:
+                    blocked_tools.add(tool_name)
+                    messages.append(
+                        {
+                            'role': 'system',
+                            'content': _build_non_retryable_tool_message(tool_name, tool_error),
+                        }
+                    )
+                    if not loop_warning_injected:
+                        max_rounds += 1
+                        loop_warning_injected = True
                 if isinstance(tool_data, dict) and tool_data.get('approval_required'):
                     response_text = str(tool_data.get('message') or 'Approval is required before this AI task can execute.').strip()
                     if run is not None:

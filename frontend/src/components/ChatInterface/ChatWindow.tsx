@@ -4,7 +4,7 @@
  * Main chat interface for the AI assistant.
  * Enhanced from PR #63 to integrate file upload into MessageInput and remove separate DocumentUpload component.
  */
-import React, { useMemo, useState, useEffect, useRef, useCallback } from 'react';
+import React, { useMemo, useState, useEffect, useCallback } from 'react';
 import styled from 'styled-components';
 import { useLocation } from 'react-router-dom';
 import { ChatSession, ChatMessage } from '../../types';
@@ -16,6 +16,8 @@ import {
 } from '../../services/aiService';
 import { useCockpitNavigation } from '@/contexts/CockpitNavigationContext';
 import { buildAIPageContext } from '@/services/aiContext';
+import { groupChatSessionsByDate } from './sessionHistory';
+import { useStickyAutoScroll } from '@/hooks/useStickyAutoScroll';
 import { logger } from '../../utils/logger';
 import MessageList from './MessageList';
 import MessageInput from './MessageInput';
@@ -24,6 +26,8 @@ interface ChatWindowProps {
   sessionId?: string;
   onSessionChange?: (session: ChatSession | null) => void;
 }
+
+const PAGE_SESSION_STORAGE_KEY = 'pm.ai.page.sessionId';
 
 const ChatWindow: React.FC<ChatWindowProps> = ({ sessionId, onSessionChange }) => {
   const location = useLocation();
@@ -35,14 +39,38 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ sessionId, onSessionChange }) =
   );
 
   const [session, setSession] = useState<ChatSession | null>(null);
+  const [sessions, setSessions] = useState<ChatSession[]>([]);
+  const [activeSessionId, setActiveSessionId] = useState<string | null>(() => {
+    if (sessionId) {
+      return sessionId;
+    }
+
+    try {
+      return localStorage.getItem(PAGE_SESSION_STORAGE_KEY);
+    } catch {
+      return null;
+    }
+  });
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const { containerRef: messagesRef } = useStickyAutoScroll<HTMLDivElement>([
+    activeSessionId,
+    loading,
+    messages.length,
+  ]);
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
+  const groupedSessions = useMemo(() => groupChatSessionsByDate(sessions), [sessions]);
+
+  const loadSessions = useCallback(async () => {
+    try {
+      const sessionList = await chatSessionsApi.list();
+      setSessions(sessionList);
+    } catch (err) {
+      logger.error('[ChatWindow] Error loading session list:', err);
+      setSessions([]);
+    }
+  }, []);
 
   const loadSession = useCallback(
     async (id: string) => {
@@ -68,23 +96,65 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ sessionId, onSessionChange }) =
     [onSessionChange]
   );
 
-  // Load session and messages
   useEffect(() => {
     if (sessionId) {
-      loadSession(sessionId);
-    } else {
-      // Reset state when no session
+      setActiveSessionId(sessionId);
+      return;
+    }
+
+    try {
+      const persisted = localStorage.getItem(PAGE_SESSION_STORAGE_KEY);
+      if (persisted) {
+        setActiveSessionId(persisted);
+      }
+    } catch {
+      // ignore
+    }
+  }, [sessionId]);
+
+  useEffect(() => {
+    void loadSessions();
+  }, [loadSessions]);
+
+  useEffect(() => {
+    if (!sessions.length) {
+      if (!activeSessionId) {
+        setSession(null);
+        setMessages([]);
+        onSessionChange?.(null);
+      }
+      return;
+    }
+
+    if (activeSessionId && sessions.some((item) => item.id === activeSessionId)) {
+      return;
+    }
+
+    const fallbackSessionId = sessionId && sessions.some((item) => item.id === sessionId)
+      ? sessionId
+      : sessions[0]?.id;
+    if (fallbackSessionId) {
+      setActiveSessionId(fallbackSessionId);
+    }
+  }, [activeSessionId, onSessionChange, sessionId, sessions]);
+
+  useEffect(() => {
+    if (!activeSessionId) {
       setSession(null);
       setMessages([]);
       setError(null);
       onSessionChange?.(null);
+      return;
     }
-  }, [sessionId, loadSession, onSessionChange]);
 
-  // Auto-scroll to bottom when messages change
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
+    try {
+      localStorage.setItem(PAGE_SESSION_STORAGE_KEY, activeSessionId);
+    } catch {
+      // ignore
+    }
+
+    void loadSession(activeSessionId);
+  }, [activeSessionId, loadSession, onSessionChange]);
 
   const sendMessage = async (messageContent: string) => {
     try {
@@ -93,24 +163,23 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ sessionId, onSessionChange }) =
 
       const response = await chatApi.sendMessage({
         message: messageContent,
-        session_id: session?.id,
+        session_id: activeSessionId ?? session?.id,
         context: {
           ui_source: 'ChatWindow',
           ...pageContext,
         },
       });
 
-      // If no session existed, we now have one
-      if (!session && response.session_id) {
-        const newSession = await chatSessionsApi.get(response.session_id);
-        setSession(newSession);
-        onSessionChange?.(newSession);
-      }
-
-      // Reload messages to get the latest
       if (response.session_id) {
-        const updatedMessages = await chatSessionsApi.getMessages(response.session_id);
+        setActiveSessionId(response.session_id);
+        const [nextSession, updatedMessages] = await Promise.all([
+          chatSessionsApi.get(response.session_id),
+          chatSessionsApi.getMessages(response.session_id),
+        ]);
+        setSession(nextSession);
         setMessages(await hydrateDocumentMessageMetadata(updatedMessages));
+        onSessionChange?.(nextSession);
+        await loadSessions();
       }
     } catch (err) {
       logger.error('[ChatWindow] Error sending message:', err);
@@ -125,10 +194,8 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ sessionId, onSessionChange }) =
       setLoading(true);
       setError(null);
 
-      // Upload document
-      const uploadResponse = await documentsApi.upload(file, session?.id);
+      const uploadResponse = await documentsApi.upload(file, activeSessionId ?? session?.id);
 
-      // Send a message about the upload
       const uploadMessage = `📄 I've uploaded "${file.name}" for analysis. What would you like me to help you with regarding this document?`;
       await sendMessage(uploadMessage);
 
@@ -140,6 +207,32 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ sessionId, onSessionChange }) =
       logger.error('[ChatWindow] Error uploading document:', err);
       setError('Failed to upload document. Please try again.');
       throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSelectSession = (nextSessionId: string) => {
+    setActiveSessionId(nextSessionId);
+  };
+
+  const handleNewChat = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const nextSession = await chatSessionsApi.create({
+        title: `Chat ${new Date().toLocaleString()}`,
+        context_data: { ui_source: 'ChatWindow', ...pageContext },
+      });
+      setActiveSessionId(nextSession.id);
+      setSession(nextSession);
+      setMessages([]);
+      onSessionChange?.(nextSession);
+      await loadSessions();
+    } catch (err) {
+      logger.error('[ChatWindow] Error creating session:', err);
+      setError('Failed to start a new chat session.');
     } finally {
       setLoading(false);
     }
@@ -219,43 +312,180 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ sessionId, onSessionChange }) =
 
   return (
     <ChatContainer>
-      {error && (
-        <ErrorBanner>
-          <ErrorIcon>⚠️</ErrorIcon>
-          <ErrorText>{error}</ErrorText>
-          <ErrorClose onClick={() => setError(null)}>×</ErrorClose>
-        </ErrorBanner>
-      )}
+      <SessionSidebar>
+        <SidebarHeader>
+          <SidebarTitle>History</SidebarTitle>
+          <NewChatButton type="button" onClick={() => void handleNewChat()}>
+            New Chat
+          </NewChatButton>
+        </SidebarHeader>
+        <SessionList>
+          {groupedSessions.length ? (
+            groupedSessions.map((group) => (
+              <div key={group.label}>
+                <SessionGroupHeader>{group.label}</SessionGroupHeader>
+                {group.sessions.map((item) => (
+                  <SessionButton
+                    key={item.id}
+                    type="button"
+                    $active={item.id === activeSessionId}
+                    onClick={() => handleSelectSession(item.id)}
+                  >
+                    <SessionButtonTitle>{item.title || `Session ${item.id.slice(0, 8)}…`}</SessionButtonTitle>
+                    <SessionButtonMeta>
+                      {typeof item.message_count === 'number' ? `${item.message_count} msgs` : '—'}
+                      {item.last_activity ? ` • ${new Date(item.last_activity).toLocaleString()}` : ''}
+                    </SessionButtonMeta>
+                  </SessionButton>
+                ))}
+              </div>
+            ))
+          ) : (
+            <EmptySidebarText>No prior sessions yet.</EmptySidebarText>
+          )}
+        </SessionList>
+      </SessionSidebar>
 
-      {/* Messages Area */}
-      <MessagesArea>
-        {messages.length === 0 ? renderWelcomeMessage() : <MessageList messages={messages} />}
-        <div ref={messagesEndRef} />
-      </MessagesArea>
+      <ConversationPane>
+        {error && (
+          <ErrorBanner>
+            <ErrorIcon>⚠️</ErrorIcon>
+            <ErrorText>{error}</ErrorText>
+            <ErrorClose onClick={() => setError(null)}>×</ErrorClose>
+          </ErrorBanner>
+        )}
 
-      {/* Input Area */}
-      <InputArea>
-        <MessageInput
-          onSendMessage={sendMessage}
-          onFileUpload={uploadDocument}
-          disabled={loading}
-          placeholder={
-            !session
-              ? 'Start a conversation or upload a document...'
-              : 'Type your message or drag files here...'
-          }
-        />
-      </InputArea>
+        <MessagesArea ref={messagesRef}>
+          {messages.length === 0 ? renderWelcomeMessage() : <MessageList messages={messages} />}
+        </MessagesArea>
+
+        <InputArea>
+          <MessageInput
+            onSendMessage={sendMessage}
+            onFileUpload={uploadDocument}
+            disabled={loading}
+            placeholder={
+              !session
+                ? 'Start a conversation or upload a document...'
+                : 'Type your message or drag files here...'
+            }
+          />
+        </InputArea>
+      </ConversationPane>
     </ChatContainer>
   );
 };
 
 // Styled Components
 const ChatContainer = styled.div`
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: minmax(240px, 280px) minmax(0, 1fr);
   height: 100%;
   background: rgb(var(--color-background));
+
+  @media (max-width: 900px) {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+`;
+
+const SessionSidebar = styled.aside`
+  border-right: 1px solid rgb(var(--color-border));
+  background: rgb(var(--color-surface));
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+
+  @media (max-width: 900px) {
+    border-right: none;
+    border-bottom: 1px solid rgb(var(--color-border));
+  }
+`;
+
+const SidebarHeader = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px;
+  border-bottom: 1px solid rgb(var(--color-border));
+`;
+
+const SidebarTitle = styled.h2`
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+  color: rgb(var(--color-text-primary));
+`;
+
+const NewChatButton = styled.button`
+  border: 1px solid rgb(var(--color-border));
+  background: rgb(var(--color-surface));
+  color: rgb(var(--color-text-primary));
+  border-radius: 8px;
+  padding: 8px 10px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+
+  &:hover {
+    background: rgb(var(--color-primary) / 0.08);
+  }
+`;
+
+const SessionList = styled.div`
+  flex: 1;
+  overflow-y: auto;
+  padding: 10px;
+`;
+
+const SessionGroupHeader = styled.div`
+  padding: 8px 6px 6px;
+  font-size: 11px;
+  font-weight: 700;
+  color: rgb(var(--color-text-secondary));
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+`;
+
+const SessionButton = styled.button<{ $active: boolean }>`
+  width: 100%;
+  text-align: left;
+  border: 1px solid ${({ $active }) =>
+    $active ? 'rgb(var(--color-primary) / 0.35)' : 'transparent'};
+  background: ${({ $active }) =>
+    $active ? 'rgb(var(--color-primary) / 0.08)' : 'transparent'};
+  color: rgb(var(--color-text-primary));
+  border-radius: 12px;
+  padding: 10px;
+  cursor: pointer;
+
+  &:hover {
+    background: rgb(var(--color-primary) / 0.08);
+  }
+`;
+
+const SessionButtonTitle = styled.div`
+  font-size: 13px;
+  font-weight: 600;
+`;
+
+const SessionButtonMeta = styled.div`
+  margin-top: 4px;
+  font-size: 11px;
+  color: rgb(var(--color-text-secondary));
+`;
+
+const EmptySidebarText = styled.div`
+  padding: 12px 6px;
+  font-size: 13px;
+  color: rgb(var(--color-text-secondary));
+`;
+
+const ConversationPane = styled.div`
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
 `;
 
 const ErrorBanner = styled.div`

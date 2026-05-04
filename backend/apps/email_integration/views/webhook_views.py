@@ -128,6 +128,20 @@ def _set_webhook_tenant_context(request, *, tenant_id):
     return tenant
 
 
+def _get_outlook_access_token(email_account: EmailAccount) -> str:
+    access_token = email_account.get_valid_access_token()
+    if access_token:
+        return access_token
+    raise ValueError('Access token expired. Please reconnect your Outlook account.')
+
+
+def _build_gmail_credentials(email_account: EmailAccount):
+    creds = email_account.build_google_credentials()
+    if creds is None:
+        raise ValueError('Access token missing. Please reconnect your Gmail account.')
+    return creds
+
+
 # ============================================================================
 # Microsoft Graph Webhook Management
 # ============================================================================
@@ -158,17 +172,19 @@ def outlook_webhook_subscribe(request, account_id):
             provider='outlook',
         )
         
-        if email_account.is_token_expired:
-            return Response({
-                'error': 'Access token expired',
-                'detail': 'Please reconnect your Outlook account'
-            }, status=status.HTTP_401_UNAUTHORIZED)
+        try:
+            access_token = _get_outlook_access_token(email_account)
+        except ValueError as exc:
+            return Response(
+                {'error': 'Access token expired', 'detail': str(exc)},
+                status=status.HTTP_401_UNAUTHORIZED,
+            )
         
         # Microsoft Graph subscription endpoint
         graph_url = 'https://graph.microsoft.com/v1.0/subscriptions'
         
         headers = {
-            'Authorization': f'Bearer {email_account.access_token}',
+            'Authorization': f'Bearer {access_token}',
             'Content-Type': 'application/json'
         }
         
@@ -260,6 +276,14 @@ def outlook_webhook_renew(request, account_id):
             provider='outlook',
         )
         
+        try:
+            access_token = _get_outlook_access_token(email_account)
+        except ValueError as exc:
+            return Response(
+                {'error': 'Access token expired', 'detail': str(exc)},
+                status=status.HTTP_401_UNAUTHORIZED,
+            )
+
         if not email_account.webhook_id:
             return Response({
                 'error': 'No active subscription',
@@ -270,7 +294,7 @@ def outlook_webhook_renew(request, account_id):
         graph_url = f'https://graph.microsoft.com/v1.0/subscriptions/{email_account.webhook_id}'
         
         headers = {
-            'Authorization': f'Bearer {email_account.access_token}',
+            'Authorization': f'Bearer {access_token}',
             'Content-Type': 'application/json'
         }
         
@@ -349,11 +373,19 @@ def outlook_webhook_unsubscribe(request, account_id):
                 'message': 'No active subscription to delete'
             })
         
+        try:
+            access_token = _get_outlook_access_token(email_account)
+        except ValueError as exc:
+            return Response(
+                {'error': 'Access token expired', 'detail': str(exc)},
+                status=status.HTTP_401_UNAUTHORIZED,
+            )
+
         # Delete subscription
         graph_url = f'https://graph.microsoft.com/v1.0/subscriptions/{email_account.webhook_id}'
         
         headers = {
-            'Authorization': f'Bearer {email_account.access_token}'
+            'Authorization': f'Bearer {access_token}'
         }
         
         response = requests.delete(
@@ -489,8 +521,16 @@ def process_outlook_notification(*, email_account: EmailAccount, resource, chang
         if 'messages/' in resource:
             message_id = resource.split('messages/')[-1]
 
+            access_token = email_account.get_valid_access_token()
+            if not access_token:
+                logger.warning(
+                    'Skipping Outlook webhook message fetch: no valid token for account=%s',
+                    email_account.id,
+                )
+                return
+
             headers = {
-                'Authorization': f'Bearer {email_account.access_token}',
+                'Authorization': f'Bearer {access_token}',
             }
 
             message_url = f'https://graph.microsoft.com/v1.0/me/messages/{message_id}'
@@ -547,7 +587,6 @@ def gmail_webhook_subscribe(request, account_id):
     Gmail uses Google Cloud Pub/Sub for webhooks.
     Requires: GCP project with Gmail API + Pub/Sub enabled.
     """
-    from google.oauth2.credentials import Credentials
     from googleapiclient.discovery import build
 
     try:
@@ -565,20 +604,14 @@ def gmail_webhook_subscribe(request, account_id):
             provider='gmail',
         )
         
-        if email_account.is_token_expired:
-            return Response({
-                'error': 'Access token expired',
-                'detail': 'Please reconnect your Gmail account'
-            }, status=status.HTTP_401_UNAUTHORIZED)
-        
         # Create credentials object
-        creds = Credentials(
-            token=email_account.access_token,
-            refresh_token=email_account.refresh_token,
-            token_uri='https://oauth2.googleapis.com/token',
-            client_id=settings.GOOGLE_CLIENT_ID,
-            client_secret=settings.GOOGLE_CLIENT_SECRET
-        )
+        try:
+            creds = _build_gmail_credentials(email_account)
+        except ValueError as exc:
+            return Response(
+                {'error': 'Access token expired', 'detail': str(exc)},
+                status=status.HTTP_401_UNAUTHORIZED,
+            )
         
         # Build Gmail API service
         service = build('gmail', 'v1', credentials=creds)
@@ -648,7 +681,6 @@ def gmail_webhook_unsubscribe(request, account_id):
     """
     Stop Gmail Pub/Sub watch.
     """
-    from google.oauth2.credentials import Credentials
     from googleapiclient.discovery import build
 
     try:
@@ -667,13 +699,13 @@ def gmail_webhook_unsubscribe(request, account_id):
         )
         
         # Create credentials
-        creds = Credentials(
-            token=email_account.access_token,
-            refresh_token=email_account.refresh_token,
-            token_uri='https://oauth2.googleapis.com/token',
-            client_id=settings.GOOGLE_CLIENT_ID,
-            client_secret=settings.GOOGLE_CLIENT_SECRET
-        )
+        try:
+            creds = _build_gmail_credentials(email_account)
+        except ValueError as exc:
+            return Response(
+                {'error': 'Access token expired', 'detail': str(exc)},
+                status=status.HTTP_401_UNAUTHORIZED,
+            )
         
         # Build Gmail API service
         service = build('gmail', 'v1', credentials=creds)
@@ -778,7 +810,6 @@ def process_gmail_notification(email_address, history_id, *, tenant=None):
     Process a Gmail Pub/Sub notification.
     Fetches new messages and triggers workflows.
     """
-    from google.oauth2.credentials import Credentials
     from googleapiclient.discovery import build
     
     try:
@@ -802,13 +833,11 @@ def process_gmail_notification(email_address, history_id, *, tenant=None):
             return
         
         # Create credentials
-        creds = Credentials(
-            token=email_account.access_token,
-            refresh_token=email_account.refresh_token,
-            token_uri='https://oauth2.googleapis.com/token',
-            client_id=settings.GOOGLE_CLIENT_ID,
-            client_secret=settings.GOOGLE_CLIENT_SECRET
-        )
+        try:
+            creds = _build_gmail_credentials(email_account)
+        except ValueError as exc:
+            logger.warning('Skipping Gmail notification: %s', str(exc))
+            return
         
         # Build Gmail API service
         service = build('gmail', 'v1', credentials=creds)

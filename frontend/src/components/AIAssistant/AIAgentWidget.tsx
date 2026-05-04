@@ -40,7 +40,9 @@ import {
   CHAT_UPLOAD_SUPPORTED_EXTENSIONS,
   getChatUploadFileKind,
 } from '@/components/ChatInterface/fileUploadConfig';
-import { aiStaffApi, chatApi, hydrateDocumentMessageMetadata } from '@/services/aiService';
+import { groupChatSessionsByDate } from '@/components/ChatInterface/sessionHistory';
+import { aiStaffApi, chatApi, chatSessionsApi, hydrateDocumentMessageMetadata } from '@/services/aiService';
+import { useStickyAutoScroll } from '@/hooks/useStickyAutoScroll';
 import type { DocumentProcessingMetadata, DocumentSourceMetadata } from '@/types';
 
 type AgentState = 'idle' | 'thinking' | 'action_required';
@@ -350,6 +352,15 @@ const SessionRowMeta = styled.div`
   color: rgb(var(--color-text-secondary));
 `;
 
+const SessionGroupLabel = styled.div`
+  padding: 8px 6px 6px;
+  font-size: 11px;
+  font-weight: 900;
+  color: rgb(var(--color-text-secondary));
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+`;
+
 const IntegrationBanner = styled.div`
   display: flex;
   align-items: center;
@@ -599,23 +610,17 @@ export const AIAgentWidget: React.FC = () => {
   const [dragOver, setDragOver] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const sendTextRef = useRef<
     (text: string, contextOverride?: Record<string, unknown>) => Promise<void>
   >(async () => {});
+  const { containerRef: messagesRef } = useStickyAutoScroll<HTMLDivElement>([messages.length, expanded]);
 
   const defaultActionMessage = useMemo(
     () => 'I just processed a Purchase Order from Sysco, but the delivery date is unclear. Can you verify?',
     []
   );
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
-
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages.length, expanded]);
+  const groupedSessions = useMemo(() => groupChatSessionsByDate(sessions), [sessions]);
 
   useEffect(() => {
     if (!expanded) return;
@@ -645,8 +650,7 @@ export const AIAgentWidget: React.FC = () => {
 
     const loadSessions = async () => {
       try {
-        const res = await businessApi.get('/ai-assistant/ai-sessions/');
-        setSessions(normalizeSessions(res.data));
+        setSessions(normalizeSessions(await chatSessionsApi.list()));
       } catch {
         setSessions([]);
       }
@@ -661,9 +665,8 @@ export const AIAgentWidget: React.FC = () => {
 
     const loadHistory = async () => {
       try {
-        const res = await businessApi.get(`/ai-assistant/ai-sessions/${sessionId}/messages/`);
-        const serverMsgs = normalizeServerMessages(res.data);
-        const ui = toUiMessages(serverMsgs);
+        const serverMsgs = normalizeServerMessages(await chatSessionsApi.getMessages(sessionId));
+        const ui = await hydrateDocumentMessageMetadata(toUiMessages(serverMsgs));
         if (ui.length) {
           setMessages(ui);
           setState(hasHumanReviewMessage(ui) ? 'action_required' : 'idle');
@@ -857,12 +860,12 @@ export const AIAgentWidget: React.FC = () => {
   const ensureSession = async (): Promise<string> => {
     if (sessionId) return sessionId;
 
-    const res = await businessApi.post<ServerSession>('/ai-assistant/ai-sessions/', {
+    const res = await chatSessionsApi.create({
       title: `Chat ${new Date().toLocaleString()}`,
       context_data: { ui_source: 'AIAgentWidget' },
     });
 
-    const nextId = res.data?.id;
+    const nextId = res?.id;
     if (!nextId) throw new Error('Failed to create session');
 
     setSessionId(nextId);
@@ -877,16 +880,14 @@ export const AIAgentWidget: React.FC = () => {
 
   const reloadSessions = async () => {
     try {
-      const res = await businessApi.get('/ai-assistant/ai-sessions/');
-      setSessions(normalizeSessions(res.data));
+      setSessions(normalizeSessions(await chatSessionsApi.list()));
     } catch {
       // ignore
     }
   };
 
   const loadSessionMessages = async (id: string) => {
-    const res = await businessApi.get(`/ai-assistant/ai-sessions/${id}/messages/`);
-    const serverMsgs = normalizeServerMessages(res.data);
+    const serverMsgs = normalizeServerMessages(await chatSessionsApi.getMessages(id));
     const ui = await hydrateDocumentMessageMetadata(toUiMessages(serverMsgs));
     setMessages(
       ui.length
@@ -909,12 +910,12 @@ export const AIAgentWidget: React.FC = () => {
   const handleNewChat = async () => {
     setState('thinking');
     try {
-      const res = await businessApi.post<ServerSession>('/ai-assistant/ai-sessions/', {
+      const res = await chatSessionsApi.create({
         title: `Chat ${new Date().toLocaleString()}`,
         context_data: { ui_source: 'AIAgentWidget' },
       });
 
-      const nextId = res.data?.id;
+      const nextId = res?.id;
       if (!nextId) throw new Error('Failed to create session');
 
       setSessionsOpen(false);
@@ -1365,20 +1366,25 @@ export const AIAgentWidget: React.FC = () => {
 
             {sessionsOpen ? (
               <SessionMenu role="dialog" aria-label="Session history">
-                {sessions.length ? (
-                  sessions.slice(0, 25).map((s) => (
-                    <SessionRow
-                      key={s.id}
-                      type="button"
-                      $active={s.id === sessionId}
-                      onClick={() => void handleSelectSession(s.id)}
-                    >
-                      <SessionRowTitle>{s.title || `Session ${s.id.slice(0, 8)}…`}</SessionRowTitle>
-                      <SessionRowMeta>
-                        {typeof s.message_count === 'number' ? `${s.message_count} msgs` : '—'}
-                        {s.last_activity ? ` • ${new Date(s.last_activity).toLocaleString()}` : ''}
-                      </SessionRowMeta>
-                    </SessionRow>
+                {groupedSessions.length ? (
+                  groupedSessions.map((group) => (
+                    <div key={group.label}>
+                      <SessionGroupLabel>{group.label}</SessionGroupLabel>
+                      {group.sessions.slice(0, 25).map((s) => (
+                        <SessionRow
+                          key={s.id}
+                          type="button"
+                          $active={s.id === sessionId}
+                          onClick={() => void handleSelectSession(s.id)}
+                        >
+                          <SessionRowTitle>{s.title || `Session ${s.id.slice(0, 8)}…`}</SessionRowTitle>
+                          <SessionRowMeta>
+                            {typeof s.message_count === 'number' ? `${s.message_count} msgs` : '—'}
+                            {s.last_activity ? ` • ${new Date(s.last_activity).toLocaleString()}` : ''}
+                          </SessionRowMeta>
+                        </SessionRow>
+                      ))}
+                    </div>
                   ))
                 ) : (
                   <SessionRow as="div">No sessions yet.</SessionRow>
@@ -1393,6 +1399,7 @@ export const AIAgentWidget: React.FC = () => {
             </IntegrationBanner>
 
             <Messages
+              ref={messagesRef}
               $dragOver={dragOver}
               onDragOver={(e) => {
                 e.preventDefault();
@@ -1491,7 +1498,6 @@ export const AIAgentWidget: React.FC = () => {
                   </Bubble>
                 );
               })}
-              <div ref={messagesEndRef} />
             </Messages>
 
             <Composer

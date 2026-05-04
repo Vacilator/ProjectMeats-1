@@ -72,3 +72,22 @@ class EmailOAuthSecurityTests(APITestCase):
         self.assertEqual(resp.status_code, 302)
         self.assertIn('oauth_error=tenant_denied', resp['Location'])
         self.assertEqual(EmailAccount.objects.count(), 0)
+
+    def test_email_account_syncs_encrypted_refresh_token_to_canonical_provider(self):
+        account = EmailAccount.objects.create(
+            tenant=self.tenant_a,
+            user=self.user,
+            provider='outlook',
+            email_address='buyer@example.com',
+            status='active',
+            access_token='plain-access',
+            refresh_token='plain-refresh',
+        )
+
+        account.ensure_tokens_encrypted()
+        provider = account.sync_external_provider_credentials()
+
+        self.assertIsNotNone(provider)
+        self.assertEqual(provider.provider_type, 'microsoft')
+        self.assertNotEqual(provider.refresh_token, 'plain-refresh')
+        self.assertEqual(provider.get_decrypted_token('refresh'), 'plain-refresh')

@@ -7,10 +7,19 @@ Enables trigger/action nodes in Workforms for email automation.
 Created: 2026-02-23 - Email Integrations Phase 1
 """
 
-from django.db import models
-from django.db.models import Q
+import logging
+from datetime import timedelta
+
+from cryptography.fernet import Fernet, InvalidToken
+from django.conf import settings
 from django.contrib.auth import get_user_model
+from django.db import models, transaction
+from django.db.models import Q
 from django.utils import timezone
+
+from apps.integrations.models import ExternalAuthProvider
+
+logger = logging.getLogger(__name__)
 
 User = get_user_model()
 
@@ -62,9 +71,9 @@ class EmailAccount(models.Model):
         default='active'
     )
     
-    # OAuth tokens (stored encrypted via settings.SECRET_KEY)
-    access_token = models.CharField(max_length=1024)
-    refresh_token = models.CharField(max_length=1024, blank=True)
+    # OAuth tokens (stored encrypted via settings.SECRET_KEY / OAUTH_ENCRYPTION_KEY)
+    access_token = models.TextField()
+    refresh_token = models.TextField(blank=True)
     token_expires_at = models.DateTimeField(null=True, blank=True)
     
     # Provider-specific IDs
@@ -105,13 +114,164 @@ class EmailAccount(models.Model):
     
     def __str__(self):
         return f'{self.email_address} ({self.get_provider_display()})'
+
+    @staticmethod
+    def _token_field_name(token_type: str) -> str:
+        if token_type == 'access':
+            return 'access_token'
+        if token_type == 'refresh':
+            return 'refresh_token'
+        raise ValueError(f'Invalid token type: {token_type}')
+
+    @staticmethod
+    def _looks_encrypted(value: str) -> bool:
+        return str(value or '').startswith('gAAAAA')
+
+    def set_encrypted_token(self, token_type: str, token: str) -> None:
+        if not token:
+            return
+
+        encrypted = Fernet(ExternalAuthProvider._get_primary_encryption_key()).encrypt(
+            token.encode('utf-8')
+        )
+        setattr(self, self._token_field_name(token_type), encrypted.decode('utf-8'))
+
+    def get_decrypted_token(self, token_type: str) -> str:
+        encrypted = getattr(self, self._token_field_name(token_type), '') or ''
+        if not encrypted:
+            return ''
+
+        if not self._looks_encrypted(encrypted):
+            logger.warning(
+                'Legacy plaintext %s token detected for EmailAccount id=%s; re-encryption required.',
+                token_type,
+                self.id,
+            )
+            return str(encrypted)
+
+        last_error: Exception | None = None
+        for key in ExternalAuthProvider._get_decryption_keys():
+            try:
+                return Fernet(key).decrypt(str(encrypted).encode('utf-8')).decode('utf-8')
+            except InvalidToken as exc:
+                last_error = exc
+            except Exception as exc:
+                last_error = exc
+
+        if last_error is not None:
+            raise InvalidToken() from last_error
+        raise InvalidToken()
+
+    def ensure_tokens_encrypted(self, *, save: bool = True) -> bool:
+        changed_fields: list[str] = []
+        for token_type in ('access', 'refresh'):
+            field_name = self._token_field_name(token_type)
+            raw_value = getattr(self, field_name, '') or ''
+            if raw_value and not self._looks_encrypted(raw_value):
+                self.set_encrypted_token(token_type, str(raw_value))
+                changed_fields.append(field_name)
+
+        if changed_fields and save:
+            self.save(update_fields=[*changed_fields, 'updated_at'])
+
+        return bool(changed_fields)
+
+    def sync_external_provider_credentials(self):
+        if not self.tenant_id:
+            return None
+
+        self.ensure_tokens_encrypted(save=False)
+
+        provider_type = {
+            'outlook': 'microsoft',
+            'gmail': 'google',
+        }.get(self.provider, self.provider)
+
+        access_token = self.get_decrypted_token('access')
+        if not access_token:
+            return None
+
+        with transaction.atomic():
+            provider, _ = ExternalAuthProvider.objects.select_for_update().update_or_create(
+                tenant=self.tenant,
+                provider_type=provider_type,
+                defaults={
+                    'is_active': self.status not in {'revoked', 'error'},
+                    'token_expiry': self.token_expires_at or timezone.now(),
+                    'connected_email': self.email_address,
+                    'connected_name': self.display_name or self.email_address,
+                    'access_token': self.access_token,
+                    'refresh_token': self.refresh_token or None,
+                },
+            )
+        return provider
+
+    def refresh_if_needed(self) -> bool:
+        self.ensure_tokens_encrypted()
+        if not self.is_token_expired:
+            return False
+
+        if self.provider != 'outlook' or not self.tenant_id:
+            return False
+
+        refresh_token = self.get_decrypted_token('refresh')
+        if not refresh_token:
+            self.status = 'expired'
+            self.save(update_fields=['status', 'updated_at'])
+            return False
+
+        from apps.integrations.providers import MicrosoftGraphProvider
+
+        provider = MicrosoftGraphProvider(self.tenant_id)
+        token_response = provider.refresh_token(refresh_token)
+
+        self.set_encrypted_token('access', token_response.access_token)
+        if token_response.refresh_token:
+            self.set_encrypted_token('refresh', token_response.refresh_token)
+        self.token_expires_at = timezone.now() + timedelta(seconds=token_response.expires_in)
+        self.status = 'active'
+        self.save(
+            update_fields=[
+                'access_token',
+                'refresh_token',
+                'token_expires_at',
+                'status',
+                'updated_at',
+            ]
+        )
+        self.sync_external_provider_credentials()
+        return True
+
+    def get_valid_access_token(self) -> str:
+        self.ensure_tokens_encrypted()
+        if self.is_token_expired:
+            self.refresh_if_needed()
+        if self.is_token_expired:
+            return ''
+        return self.get_decrypted_token('access')
+
+    def build_google_credentials(self):
+        from google.oauth2.credentials import Credentials
+
+        self.ensure_tokens_encrypted()
+        access_token = self.get_decrypted_token('access')
+        if not access_token:
+            return None
+
+        return Credentials(
+            token=access_token,
+            refresh_token=self.get_decrypted_token('refresh') or None,
+            token_uri='https://oauth2.googleapis.com/token',
+            client_id=settings.GOOGLE_CLIENT_ID,
+            client_secret=settings.GOOGLE_CLIENT_SECRET,
+        )
     
     @property
     def is_token_expired(self):
         """Check if access token has expired"""
         if not self.token_expires_at:
             return False
-        return timezone.now() >= self.token_expires_at
+        return timezone.now() >= (self.token_expires_at - timedelta(minutes=5))
     
     @property
     def needs_webhook_renewal(self):

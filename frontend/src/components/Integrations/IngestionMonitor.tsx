@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { List, Tag, Button, Space, Typography, Empty, message, Spin } from 'antd';
 import { SyncOutlined, MailOutlined, CheckCircleOutlined, ExclamationCircleOutlined, ClockCircleOutlined } from '@ant-design/icons';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 import { businessApi } from '@/services/businessApi';
 import {
@@ -17,11 +17,18 @@ interface EmailLog {
   message_id: string;
   subject: string;
   sender: string;
-  status: 'logged' | 'ai_parsing' | 'order_created' | 'failed' | 'ignored';
+  status: 'logged' | 'ai_parsing' | 'draft_created' | 'order_created' | 'failed' | 'ignored';
   provider_type: string | null;
   has_attachments: boolean;
   extracted_data: Record<string, any> | null;
   related_order_id: string | null;
+  draft: {
+    id: string;
+    draft_type: string;
+    status: string;
+    summary: string;
+    classification_confidence: number;
+  } | null;
   error_message: string | null;
   created_at: string;
   processed_at: string | null;
@@ -39,6 +46,7 @@ const getStatusTag = (status: EmailLog['status']) => {
   const statusConfig = {
     logged: { color: 'blue', icon: <MailOutlined />, text: 'Logged' },
     ai_parsing: { color: 'processing', icon: <SyncOutlined spin />, text: 'AI Parsing' },
+    draft_created: { color: 'warning', icon: <ExclamationCircleOutlined />, text: 'Draft Ready' },
     order_created: { color: 'success', icon: <CheckCircleOutlined />, text: 'Order Created' },
     failed: { color: 'error', icon: <ExclamationCircleOutlined />, text: 'Failed' },
     ignored: { color: 'default', icon: <ClockCircleOutlined />, text: 'Ignored' },
@@ -60,9 +68,11 @@ const getStatusTag = (status: EmailLog['status']) => {
  */
 export const IngestionMonitor: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [emails, setEmails] = useState<EmailLog[]>([]);
   const [loading, setLoading] = useState(false);
   const [syncing, setSyncing] = useState(false);
+  const highlightedDraftId = new URLSearchParams(location.search).get('draft');
 
   /**
    * Fetch email logs from API
@@ -222,14 +232,33 @@ export const IngestionMonitor: React.FC = () => {
             <List
               itemLayout="horizontal"
               dataSource={emails}
-              renderItem={(email) => (
-                <List.Item
-                  key={email.id}
-                  actions={[
-                    getStatusTag(email.status),
-                    email.related_order_id && (
-                      <Button
-                        type="link"
+                renderItem={(email) => (
+                  <List.Item
+                    key={email.id}
+                    style={
+                      highlightedDraftId && email.draft?.id === highlightedDraftId
+                        ? {
+                            border: '1px solid rgb(var(--color-primary))',
+                            borderRadius: 12,
+                            paddingInline: 12,
+                            background: 'rgb(var(--color-primary) / 0.05)',
+                          }
+                        : undefined
+                    }
+                    actions={[
+                      getStatusTag(email.status),
+                      email.draft && (
+                        <Button
+                          type="link"
+                          size="small"
+                          onClick={() => navigate(`/settings/email-integrations?draft=${email.draft?.id}`)}
+                        >
+                          Review Draft
+                        </Button>
+                      ),
+                      email.related_order_id && (
+                        <Button
+                          type="link"
                         size="small"
                         href={`/orders/${email.related_order_id}`}
                       >
@@ -248,6 +277,11 @@ export const IngestionMonitor: React.FC = () => {
                             Error: {email.error_message}
                           </Text>
                         )}
+                        {email.draft?.summary && (
+                          <Text style={{ fontSize: '12px', color: 'rgb(var(--color-text-primary))' }}>
+                            {email.draft.summary}
+                          </Text>
+                        )}
                       </Space>
                     }
                     description={
@@ -257,6 +291,11 @@ export const IngestionMonitor: React.FC = () => {
                           {new Date(email.created_at).toLocaleString()}
                           {email.has_attachments && ' • Has attachments'}
                         </Text>
+                        {email.draft?.draft_type && (
+                          <Text type="secondary" style={{ fontSize: '12px' }}>
+                            Draft Type: {email.draft.draft_type.replace(/_/g, ' ')}
+                          </Text>
+                        )}
                         {email.extracted_data?.confidence && (
                           <Text type="secondary" style={{ fontSize: '12px' }}>
                             AI Confidence: {Math.round(email.extracted_data.confidence * 100)}%
