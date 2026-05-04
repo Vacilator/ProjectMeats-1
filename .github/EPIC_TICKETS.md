@@ -260,14 +260,14 @@
   - **Rollback:** Revert the formatter consolidation and leaf-view patches together if the new boundary distorts displayed values.
   - **Completion evidence destination:** `.github/MASTER_PLAN.md` (PR #4838)
 
-- [ ] **UI-01.3 breadcrumb-uuid-resolution-engine**
-  - **Status:** Ready
+- [x] **UI-01.3 breadcrumb-uuid-resolution-engine**
+  - **Status:** Done
   - **Why now:** Operators are still navigating through raw UUID breadcrumb segments, which makes nested supplier/customer/plant paths look broken and slows navigation.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 14.5 / Breadcrumb UUID resolution
   - **Scope:** Upgrade breadcrumb rendering to resolve entity UUID/path params into display names via one canonical route-loader or shared dictionary strategy, while preserving stable fallback labels when lookup data is unavailable.
   - **Non-goals:** No full router architecture rewrite or unrelated navigation redesign.
   - **Primary domain:** frontend
-  - **Likely touched paths:** `frontend/src/components/Layout/BreadcrumbBar.tsx`, route config/loaders, entity service-layer helpers, shared record/detail pages, frontend regression tests
+  - **Likely touched paths:** `frontend/src/components/Navigation/Breadcrumb.tsx`, entity service-layer helpers, shared record/detail pages, frontend regression tests
   - **Dependencies:** UI-01.2
   - **Blockers:** None
   - **Acceptance criteria:** Breadcrumbs resolve human-readable labels for supported entity routes, UUID segments no longer dominate nested navigation on key record paths, and fallback behavior remains stable when resolution fails.
@@ -276,10 +276,10 @@
   - **Secrets/infra impact:** None
   - **Risk level:** Medium
   - **Rollback:** Revert breadcrumb resolution logic while preserving existing route behavior if the shared lookup path introduces incorrect labels or expensive fetch churn.
-  - **Completion evidence destination:** `.github/MASTER_PLAN.md`
+  - **Completion evidence destination:** `.github/MASTER_PLAN.md` (PR #4840)
 
 - [ ] **GA-03.4 governance-schedules-and-evidence-runbook**
-  - **Status:** Blocked
+  - **Status:** Ready
   - **Why now:** Governance work is incomplete until archival/redaction have scheduled enforcement and operator evidence collection.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 14 / Epic 3
   - **Scope:** Add scheduled enforcement hooks, evidence checklist/runbooks, and operational verification paths for retention/redaction posture.
@@ -287,7 +287,7 @@
   - **Primary domain:** ops/docs
   - **Likely touched paths:** `backend/projectmeats/celery.py`, `backend/apps/system/tasks.py`, `.github/workflows/99-ops-management-command.yml`, `docs/runbooks/DATA_RETENTION.md`, `docs/runbooks/INCIDENT_RESPONSE.md`
   - **Dependencies:** GA-03.2, GA-03.3, UI-01.3
-  - **Blockers:** UI-01.3
+  - **Blockers:** None
   - **Acceptance criteria:** Scheduled jobs and operator runbooks exist for archive/redaction checks, and evidence paths are explicit for audits.
   - **Validation commands:** `bash scripts/verify_golden_state.sh`; `cd backend && python manage.py test apps.system apps.core`
   - **Tenant/RLS impact:** Medium
