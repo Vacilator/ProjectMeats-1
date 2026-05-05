@@ -101,6 +101,33 @@ export interface DocumentProcessingMetadata {
   parse_error_message?: string;
   truncated?: boolean;
   warnings?: string[];
+  semantic_indexing?: DocumentSemanticIndexingMetadata;
+}
+
+export interface DocumentSemanticIndexingMetadata {
+  status?: 'indexed' | 'degraded' | 'skipped';
+  mode?: 'semantic' | 'lexical_fallback' | 'empty';
+  chunk_count?: number;
+  parser?: string;
+  indexed_at?: string;
+  detail?: string;
+  model?: string;
+}
+
+export interface DocumentLineageEventSummary {
+  event_type: string;
+  summary: string;
+  created_on?: string;
+  source_type?: string;
+  target_type?: string;
+}
+
+export interface DocumentLineageSummary {
+  event_count: number;
+  latest_event_type?: string;
+  latest_summary?: string;
+  latest_created_on?: string;
+  recent_events: DocumentLineageEventSummary[];
 }
 
 export interface UploadedDocument {
@@ -115,6 +142,7 @@ export interface UploadedDocument {
   processing_status: 'pending' | 'processing' | 'completed' | 'failed';
   source_metadata?: DocumentSourceMetadata;
   processing_metadata?: DocumentProcessingMetadata;
+  lineage_summary?: DocumentLineageSummary | null;
   extracted_text?: string;
   extracted_data?: Record<string, unknown>;
   created_on: string;

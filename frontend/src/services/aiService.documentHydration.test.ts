@@ -31,6 +31,12 @@ describe('hydrateDocumentMessageMetadata', () => {
         processing_status: 'completed',
         source_metadata: { source: 'manual_upload' },
         processing_metadata: { parser: 'unstructured' },
+        lineage_summary: {
+          event_count: 2,
+          latest_event_type: 'document_parsed',
+          latest_summary: 'Document parsed successfully.',
+          recent_events: [],
+        },
         created_on: '2026-01-01T00:00:00Z',
       },
     });
@@ -50,6 +56,12 @@ describe('hydrateDocumentMessageMetadata', () => {
       processing_status: 'completed',
       source_metadata: { source: 'manual_upload' },
       processing_metadata: { parser: 'unstructured' },
+      lineage_summary: {
+        event_count: 2,
+        latest_event_type: 'document_parsed',
+        latest_summary: 'Document parsed successfully.',
+        recent_events: [],
+      },
     });
   });
 

@@ -16,6 +16,7 @@ from .models import (
 from .session_utils import bind_context_to_tenant, get_request_tenant_id, session_matches_tenant
 from .services.document_parser import validate_ai_document_upload
 from .services.extract_to_schema import EXTRACT_TO_SCHEMA_CHOICES
+from .services.lineage import get_document_lineage_summary
 
 
 
@@ -239,6 +240,7 @@ class AIDocumentSerializer(serializers.ModelSerializer):
     document_type = serializers.SerializerMethodField(read_only=True)
     source_metadata = serializers.SerializerMethodField(read_only=True)
     processing_metadata = serializers.SerializerMethodField(read_only=True)
+    lineage_summary = serializers.SerializerMethodField(read_only=True)
 
     def validate_session(self, value):
         return _validate_request_session(value, self.context.get('request'))
@@ -294,6 +296,13 @@ class AIDocumentSerializer(serializers.ModelSerializer):
             result[key] = value
         return result
 
+    def get_lineage_summary(self, obj):
+        view = self.context.get('view')
+        action = getattr(view, 'action', '')
+        if action == 'list':
+            return None
+        return get_document_lineage_summary(obj)
+
     def validate_file(self, value):
         try:
             validate_ai_document_upload(
@@ -320,6 +329,7 @@ class AIDocumentSerializer(serializers.ModelSerializer):
             'document_type',
             'source_metadata',
             'processing_metadata',
+            'lineage_summary',
             'created_on',
         ]
         read_only_fields = ['id', 'tenant', 'owner', 'content_type', 'file_type', 'file_size', 'document_type', 'created_on']

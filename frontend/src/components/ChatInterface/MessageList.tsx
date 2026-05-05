@@ -7,6 +7,7 @@ import React from 'react';
 import styled from 'styled-components';
 import {
   ChatMessage,
+  DocumentLineageSummary,
   DocumentProcessingMetadata,
   DocumentSourceMetadata,
 } from '../../types';
@@ -24,6 +25,11 @@ interface MessageMetadataType {
   processing_status?: string;
   source_metadata?: DocumentSourceMetadata;
   processing_metadata?: DocumentProcessingMetadata;
+  lineage_summary?: DocumentLineageSummary | null;
+  control_plane?: {
+    approval_required?: boolean;
+    tool_name?: string;
+  };
   original_filename?: string;
   file_url?: string;
 }
@@ -91,6 +97,7 @@ const MessageList: React.FC<MessageListProps> = ({ messages }) => {
                 processingStatus={(message.metadata as MessageMetadataType | undefined)?.processing_status}
                 sourceMetadata={(message.metadata as MessageMetadataType | undefined)?.source_metadata}
                 processingMetadata={(message.metadata as MessageMetadataType | undefined)?.processing_metadata}
+                lineageSummary={(message.metadata as MessageMetadataType | undefined)?.lineage_summary}
               />
             </>
           ) : (
@@ -112,6 +119,14 @@ const MessageList: React.FC<MessageListProps> = ({ messages }) => {
               {(message.metadata as MessageMetadataType).tokens_used && (
                 <MetadataItem>
                   Tokens: {(message.metadata as MessageMetadataType).tokens_used}
+                </MetadataItem>
+              )}
+              {(message.metadata as MessageMetadataType).control_plane?.approval_required && (
+                <MetadataItem>
+                  Approval pending
+                  {(message.metadata as MessageMetadataType).control_plane?.tool_name
+                    ? ` • ${(message.metadata as MessageMetadataType).control_plane?.tool_name}`
+                    : ''}
                 </MetadataItem>
               )}
             </MessageMetadata>

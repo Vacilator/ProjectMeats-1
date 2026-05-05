@@ -281,6 +281,7 @@ export const hydrateDocumentMessageMetadata = async <
         // Preserve existing provenance details only when the hydrated document payload omits them.
         source_metadata: document.source_metadata ?? currentMetadata.source_metadata,
         processing_metadata: document.processing_metadata ?? currentMetadata.processing_metadata,
+        lineage_summary: document.lineage_summary ?? currentMetadata.lineage_summary,
       },
     };
   });

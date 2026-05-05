@@ -9,7 +9,9 @@ import {
 } from 'lucide-react';
 
 import type {
+  DocumentLineageSummary,
   DocumentProcessingMetadata,
+  DocumentSemanticIndexingMetadata,
   DocumentSourceMetadata,
   UploadedDocument,
 } from '@/types';
@@ -118,19 +120,85 @@ export const getDocumentStatusDescriptor = (
   };
 };
 
+const getSemanticIndexDescriptor = (
+  processingStatus?: UploadedDocument['processing_status'] | string | null,
+  semanticMetadata?: DocumentSemanticIndexingMetadata | null
+): StatusDescriptor | null => {
+  if (!semanticMetadata) {
+    const normalizedStatus = String(processingStatus || '').trim().toLowerCase();
+    if (normalizedStatus === 'pending' || normalizedStatus === 'processing') {
+      return {
+        label: 'Index pending',
+        tone: 'neutral',
+        icon: <Clock3 size={12} aria-hidden="true" />,
+      };
+    }
+    return null;
+  }
+
+  const semanticStatus = String(semanticMetadata.status || '').trim().toLowerCase();
+  const chunkCount =
+    typeof semanticMetadata.chunk_count === 'number' ? `${semanticMetadata.chunk_count} chunks` : undefined;
+  const detail = String(semanticMetadata.detail || '').trim() || chunkCount;
+
+  if (semanticStatus === 'indexed') {
+    return {
+      label: 'Indexed',
+      tone: 'success',
+      detail,
+      title: detail,
+      icon: <CheckCircle2 size={12} aria-hidden="true" />,
+    };
+  }
+
+  if (semanticStatus === 'degraded') {
+    return {
+      label: 'Lexical fallback',
+      tone: 'warning',
+      detail,
+      title: detail,
+      icon: <RefreshCcw size={12} aria-hidden="true" />,
+    };
+  }
+
+  if (semanticStatus === 'skipped') {
+    return {
+      label: 'Index skipped',
+      tone: 'neutral',
+      detail,
+      title: detail,
+      icon: <Clock3 size={12} aria-hidden="true" />,
+    };
+  }
+
+  return null;
+};
+
 export interface DocumentAuditBadgesProps {
   processingStatus?: UploadedDocument['processing_status'] | string | null;
   sourceMetadata?: DocumentSourceMetadata | null;
   processingMetadata?: DocumentProcessingMetadata | null;
+  lineageSummary?: DocumentLineageSummary | null;
 }
 
 export const DocumentAuditBadges: React.FC<DocumentAuditBadgesProps> = ({
   processingStatus,
   sourceMetadata,
   processingMetadata,
+  lineageSummary,
 }) => {
   const sourceLabel = getDocumentSourceLabel(sourceMetadata);
   const status = getDocumentStatusDescriptor(processingStatus, processingMetadata);
+  const semanticStatus = getSemanticIndexDescriptor(
+    processingStatus,
+    processingMetadata?.semantic_indexing
+  );
+  const lineageText =
+    typeof lineageSummary?.latest_summary === 'string' && lineageSummary.latest_summary
+      ? `Lineage: ${lineageSummary.latest_summary}${
+          typeof lineageSummary.event_count === 'number' ? ` (${lineageSummary.event_count} events)` : ''
+        }`
+      : null;
 
   return (
     <BadgeStack>
@@ -146,8 +214,22 @@ export const DocumentAuditBadges: React.FC<DocumentAuditBadgesProps> = ({
           {status.icon}
           <span>{status.label}</span>
         </Badge>
+        {semanticStatus ? (
+          <Badge
+            $tone={semanticStatus.tone}
+            title={semanticStatus.title}
+            aria-label={`Semantic index: ${semanticStatus.label}${
+              semanticStatus.detail ? ` (${semanticStatus.detail})` : ''
+            }`}
+          >
+            {semanticStatus.icon}
+            <span>{semanticStatus.label}</span>
+          </Badge>
+        ) : null}
       </BadgeRow>
       {status.detail ? <DetailText>{status.detail}</DetailText> : null}
+      {semanticStatus?.detail ? <DetailText>{semanticStatus.detail}</DetailText> : null}
+      {lineageText ? <DetailText>{lineageText}</DetailText> : null}
     </BadgeStack>
   );
 };
