@@ -1809,15 +1809,32 @@ def find_step(job_name, step_name):
 migrate_step = find_step('migrate', 'Run migrations via Docker with tunnel')
 envfile_step = find_step('deploy-backend', 'Create Backend .env File Locally')
 deploy_backend_step = find_step('deploy-backend', 'Deploy backend container')
+migrate_secret_gate_step = find_step('migrate', 'Fail fast if required backend secrets are missing')
+deploy_secret_gate_step = find_step('deploy-backend', 'Fail fast if required backend secrets are missing')
 post_deploy_smoke = jobs.get('post-deploy-smoke') or {}
 
 for label, step_obj in (
     ('jobs.migrate step Run migrations via Docker with tunnel', migrate_step),
+    ('jobs.migrate step Fail fast if required backend secrets are missing', migrate_secret_gate_step),
     ('jobs.deploy-backend step Create Backend .env File Locally', envfile_step),
+    ('jobs.deploy-backend step Fail fast if required backend secrets are missing', deploy_secret_gate_step),
     ('jobs.deploy-backend step Deploy backend container', deploy_backend_step),
 ):
     if step_obj is None:
         errors.append(f"{reusable_path.name}: missing {label}")
+
+for label, step_obj in (
+    ('jobs.migrate step Fail fast if required backend secrets are missing', migrate_secret_gate_step),
+    ('jobs.deploy-backend step Fail fast if required backend secrets are missing', deploy_secret_gate_step),
+):
+    if step_obj is None:
+        continue
+    env_map = step_obj.get('env') or {}
+    if env_map.get('REQUIRE_REDIS_READINESS') != '${{ inputs.require_redis_readiness }}':
+        errors.append(
+            f"{reusable_path.name}: {label} env.REQUIRE_REDIS_READINESS must be "
+            "${{ inputs.require_redis_readiness }}"
+        )
 
 if migrate_step is not None:
     env_map = migrate_step.get('env') or {}
