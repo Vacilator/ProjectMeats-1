@@ -1,45 +1,15 @@
 # ProjectMeats - PR Reference Master Plan (GitHub)
 
+> ⚠️ **TRANSITIONING TO V3.0 FINAL PUSH (Consolidation • Reusability • Polish)**
+> 
+> Blueprint: `docs/plans/V3_FINAL_PUSH_PERFECTION.md`
+
 This file is the **append-only PR-referenceable execution log**.
 
 - **Canonical plan + status snapshot:** repo-root `MASTER_PLAN.md`
-- **Execution backlog:** `.github/EPIC_TICKETS.md`
-- **Normative delivery rules:** `.github/SDLC_PROTOCOLS.md`
 - This file should not claim global completion percentages; it should only record shipped PRs and notable operational notes.
 
 ## Operational Notes
-
-- **2026-04-29** — Planning governance: refreshed the enterprise hardening audit surfaces (`GAP_ANALYSIS_REPORT.md`, `STRATEGIC_BLUEPRINT.md`, `.github/TECH_DEBT_REGISTER.md`, `.github/SDLC_PROTOCOLS.md`, `.github/EPIC_TICKETS.md`) so autonomous continuation starts from one ordered backlog and one normative protocol set. This is an execution scaffold note for the current branch; append shipped PR evidence after merge.
-
-- **2026-04-30** — Planning governance: integrated the Phase 14 General Availability roadmap into the canonical root `MASTER_PLAN.md` and moved the ordered autonomous backlog in `.github/EPIC_TICKETS.md` to start with `GA-01.1 day-0-etl-source-contracts`. This is a planning-state note only; append shipped PR evidence after actual execution merges.
-
-- **2026-04-30** — Planning governance: integrated the Phase 15 B2B Network & Financial Settlement roadmap into the canonical root `MASTER_PLAN.md`, appended blocked Phase 15 tickets to the bottom of `.github/EPIC_TICKETS.md`, and marked the architecture as sealed in planning only. This is a planning-state note only; append shipped PR evidence after actual execution merges.
-
-- **2026-05-05** — GA-01.1 Day-0 ETL source contracts are now execution-ready on the current branch. The ETL scaffold defines deterministic master/header/line-item mapping contracts (`backend/apps/core/services/etl/contracts.py`, `mapping_registry.py`), tenant-explicit manifest assertions and dry-run-only command entry (`backend/apps/core/management/commands/import_golden_legacy_data.py`), fixture-backed contract coverage (`backend/apps/core/tests/test_etl_contracts.py`, `test_import_golden_legacy_data_command.py`, `test_etl_runbook.py`), and the canonical runbook (`docs/runbooks/GOLDEN_SCHEMA_ETL.md`). Also hardened `TenantInvitation` model validation so admin invite flows that call `full_clean()` before `save()` generate runtime defaults first instead of failing on blank token/expiry fields. Validation: `bash scripts/verify_golden_state.sh`; `cd backend && python manage.py test apps.core apps.tenants`; `cd backend && python manage.py makemigrations --check`.
-
-- **2026-05-05** — GA-01.2 dry-run engine is now implemented on the current branch. `import_golden_legacy_data` now reads manifest-relative CSV/XLS/XLSX sources, builds deterministic batch/row journals via `backend/apps/core/services/etl/dry_run.py`, classifies `create`/`update`/`skip`/`error` actions without mutating business tables, detects duplicate source keys plus header/line-item linkage errors, and can emit the full report payload with `--report-json`. Added regression coverage in `backend/apps/core/tests/test_etl_dry_run.py` and expanded command coverage in `test_import_golden_legacy_data_command.py`; updated `docs/runbooks/GOLDEN_SCHEMA_ETL.md` to reflect the live dry-run engine. Validation: `bash scripts/verify_golden_state.sh`; `cd backend && python manage.py test apps.core apps.tenants`; `cd backend && python manage.py makemigrations --check`.
-
-- **2026-05-05** — GA-01.3 master-data import pass is now implemented on the current branch. `import_golden_legacy_data --apply-master-data` now applies the master/reference entity subset (`products`, `suppliers`, `customers`, `carriers`, `locations`, `plants`, `contacts`) using `backend/apps/core/services/etl/master_data.py`, preserves tenant-explicit matching under `tenant_rls(...)`, emits updated row journals/counts through the same report JSON contract, and fails closed on cross-tenant references. Also added ETL-aware suppression for supplier/customer cache-bump signals so write mode still honors the side-effect suppression contract, plus fixture-backed regression coverage in `backend/apps/core/tests/test_etl_master_data_import.py`. Updated `docs/runbooks/GOLDEN_SCHEMA_ETL.md` with the live master-data write order and command behavior. Validation: `bash scripts/verify_golden_state.sh`; `cd backend && python manage.py test apps.core apps.tenants`; `cd backend && python manage.py test tenant_apps.contacts`; `cd backend && python manage.py makemigrations --check`.
-
-- **2026-05-05** — GA-01.4 transactional import and reconciliation is now implemented on the current branch. `import_golden_legacy_data --apply-transactional` now reuses the ETL journal contract to apply purchase orders, sales orders, invoices, carrier purchase orders, and their line items in deterministic dependency order via `backend/apps/core/services/etl/master_data.py`, with transactional resolver coverage for product, contact, pickup/delivery location, and parent document lookups. Purchase order save-time side effects now honor ETL suppression so reruns remain idempotent and do not emit `PurchaseOrderHistory` rows during imports. Added regression coverage in `backend/apps/core/tests/test_etl_transactional_import.py` and updated `docs/runbooks/GOLDEN_SCHEMA_ETL.md` for the live transactional pass. Validation: `cd backend && python manage.py test apps.core.tests.test_etl_contracts apps.core.tests.test_etl_runbook apps.core.tests.test_etl_dry_run apps.core.tests.test_import_golden_legacy_data_command apps.core.tests.test_etl_master_data_import apps.core.tests.test_etl_transactional_import apps.tenants.test_admin_invite_view -v 2`; `cd backend && python manage.py test tenant_apps.purchase_orders tenant_apps.sales_orders tenant_apps.invoices -v 2`; `cd backend && python manage.py makemigrations --check`.
-
-- **2026-05-05** — GA-02.1 infrastructure desired-state and IaC scaffold is now implemented on the current branch. Added the first additive scaffold under `deploy/terraform/` (`README.md`, `versions.tf`, `variables.tf`, `main.tf`, `outputs.tf`) using non-secret variables and placeholder `terraform_data` resources to model app host identity, runner-driven DB access, Redis/worker posture, durable backup targets, and alerting placeholders without mutating live infrastructure. Updated `docs/architecture/INFRASTRUCTURE_ARCHITECTURE.md` with the current repo-truth runtime topology and explicit manual-vs-codified boundaries, and registered the scaffold in `manifests/GOLDEN_FILES.md`. Validation: `bash scripts/verify_golden_state.sh`; `bash .github/scripts/check_infrastructure.sh`.
-
-- **2026-05-05** — GA-02.2 Postgres restore drill is now implemented on the current branch. Added `.github/workflows/97-postgres-restore-drill.yml` to verify that host-retained UAT/production pre-migration backups can be fetched and expanded by `pg_restore` without mutating live databases, created the canonical `docs/runbooks/DISASTER_RECOVERY.md` runbook with explicit snapshot-restore posture, RPO/RTO expectations, and live restore steps, and linked the recovery surfaces from `.github/workflows/README.md`, `docs/guides/DATABASE_SYNC_GUIDE.md`, and `manifests/GOLDEN_FILES.md`. Validation: `bash scripts/verify_golden_state.sh`; `bash .github/scripts/check_infrastructure.sh`; `python config/manage_env.py audit`.
-
-- **2026-05-05** — GA-02.3 Celery worker scaling envelope is now implemented on the current branch. Celery settings now codify queue classes and routing for integrations, workflows, AI, and maintenance workloads in `backend/projectmeats/settings/base.py`, with an explicit workload envelope and a fairness-oriented `CELERY_WORKER_PREFETCH_MULTIPLIER=1` default. The same queue envelope is mirrored into `deploy/terraform/main.tf`, and `docs/runbooks/DISASTER_RECOVERY.md` now documents backlog thresholds and operator guardrails for async saturation. Validation: `cd backend && python manage.py test apps.integrations apps.system -v 2`; `bash .github/scripts/check_infrastructure.sh`.
-
-- **2026-05-05** — GA-02.4 Redis eviction and queue-health guardrails are now implemented on the current branch. `backend/apps/core/utils/health.py` now inspects Redis eviction policy, memory usage, and per-queue backlog depth against the explicit Celery workload envelope, while `backend/projectmeats/health.py` surfaces policy drift and queue-pressure warnings through `/api/v1/health/`. The shared-instance desired posture is now codified as `REDIS_EVICTION_POLICY=noeviction` in `backend/projectmeats/settings/base.py`, mirrored in `deploy/terraform/main.tf`, and documented in `docs/runbooks/DISASTER_RECOVERY.md`; focused coverage lives in `backend/apps/core/tests/test_health.py`. Validation: `cd backend && python manage.py test apps.core.tests.test_health apps.integrations apps.system -v 2`; `bash scripts/verify_golden_state.sh`; `bash .github/scripts/check_infrastructure.sh`; `python config/manage_env.py audit`.
-
-- **2026-05-05** — GA-03.1 retention inventory and archive contract are now implemented on the current branch. Added `backend/apps/core/services/data_governance.py` as the canonical seven-year retention contract for transactional documents, inquiry/fulfillment records, commercial communications, and audit/change evidence, with explicit legal-hold scopes, required metadata, and restore expectations for future archive tooling. Created the authoritative runbook at `docs/runbooks/DATA_RETENTION.md`, registered it in `manifests/GOLDEN_FILES.md`, and added focused regression coverage in `backend/apps/core/tests/test_data_governance.py` so GA-03.2 can build on one deterministic policy surface instead of re-deriving model coverage. Validation: `cd backend && python manage.py test apps.core -v 2`; `bash scripts/verify_golden_state.sh`.
-
-- **2026-05-05** — **[COMPLETED] Mirror Protocol / plant edit stabilization** shipped in PR #4897. Restored the legacy `/plants/:id` path to the record-pivot standard by replacing the read-only form wall with `PlantDetailView` record sections plus modal edit via `EntityFormSurface`, added breadcrumb UUID masking so Cockpit trails fall back to human-readable entity labels, wired `/ws/ai/inbox/` end-to-end (Channels consumer, tenant-group broadcasts on `AIFeedbackLog` changes, widget reconnect/auth handling, unread inbox pill + toast), and added the permanent PR validation guardrail banning `useQueries` under `frontend/src/features/system/`. Focused regression coverage now lives in `frontend/src/pages/Plants/PlantDetailView.test.tsx`, `frontend/src/components/Cockpit/BreadcrumbBar.test.tsx`, `frontend/src/components/AIAssistant/AIAgentWidget.test.tsx`, and `backend/tenant_apps/ai_assistant/test_inbox_websocket.py`. Validation: `npm -C frontend run type-check`; `npm -C frontend run verify-standards`; `npm -C frontend run test:ci -- src/pages/Plants/PlantDetailView.test.tsx src/components/Cockpit/BreadcrumbBar.test.tsx src/components/AIAssistant/AIAgentWidget.test.tsx`; `cd backend && python manage.py test tenant_apps.ai_assistant.test_inbox_websocket --verbosity=2`; `cd backend && python manage.py makemigrations --check`.
-
-- **2026-05-05** — GA-03.2 seven-year archive command is now implemented on the current branch. Added `backend/apps/core/management/commands/archive_historical_records.py` as a dry-run-first, tenant-scoped archive/snapshot command backed by the canonical contract in `backend/apps/core/services/data_governance.py`, including legal-hold manifest support, execute-mode snapshot payload generation, and skip-safe handling for local schema drift. Extended `docs/runbooks/DATA_RETENTION.md` with the command-backed archive posture, and added focused regression coverage in `backend/apps/core/tests/test_archive_historical_records_command.py`. Validation: `cd backend && python manage.py test apps.core -v 2`; `cd backend && python manage.py archive_historical_records --tenant-id <local-tenant> --dry-run`; `cd backend && python manage.py makemigrations --check`.
-
-- **2026-05-05** — GA-03.3 PII redaction for logging and Sentry is now implemented on the current branch. Added central backend redaction helpers in `backend/apps/core/utils/redaction.py`, wired `PiiRedactionFilter` into Django/production logging handlers, and scrubbed backend Sentry events/breadcrumbs before transport in `backend/projectmeats/settings/base.py`. Frontend observability now uses the shared scrubber in `frontend/src/utils/redaction.ts`, with `frontend/src/utils/logger.ts` and `frontend/src/utils/sentry.ts` redacting emails, phone numbers, bearer tokens, and secret-bearing keys before console/Sentry emission. Updated `docs/runbooks/DATA_RETENTION.md` with the observability redaction contract and added regression coverage in `backend/apps/core/tests/test_redaction.py` and `frontend/src/utils/redaction.test.ts`. Validation: `cd backend && python manage.py test apps.core -v 2`; `cd frontend && npm run test -- src/utils/redaction.test.ts --run`; `cd frontend && npm run verify-standards`.
-
-- **2026-05-05** — GA-03.4 governance schedules and evidence runbook are now implemented on the current branch. Added the weekly `system.audit_governance_posture` Celery task in `backend/apps/system/tasks.py`, scheduled it from `backend/projectmeats/celery.py`, and folded it into the maintenance workload envelope in `backend/projectmeats/settings/base.py` so archive/redaction posture is checked continuously without mutating live records. Updated `.github/workflows/99-ops-management-command.yml`, `docs/runbooks/DATA_RETENTION.md`, and `docs/runbooks/INCIDENT_RESPONSE.md` so the manual evidence path matches the scheduled audit, and added regression coverage in `backend/apps/system/tests/test_audit_governance_posture.py`. Validation: `bash scripts/verify_golden_state.sh`; `cd backend && python manage.py test apps.system apps.core -v 2`.
 
 - **2026-03-31** — WorkForms runtime: Quick Actions workflow items now execute via `/workforms/execute/:id` (not editor). Backend adds `POST /api/v1/tenant-workforms/:id/execute/` to create `TenantWorkFormExecution` and run async via Celery; adds `/api/v1/workflows/workform-executions/` and surfaces active executions in WorkForms Monitoring; Catalog supports deleting draft/archived WorkForms with confirmation. (PR: #4320)
 
@@ -1822,74 +1792,3 @@ Deliverables:
 - **2026-04-28** — [COMPLETED] Unified Trade Abstraction: added tenant-safe `deals` APIs with `Deal` + `DealActionItem` models linking purchase orders, sales orders, and fulfillments while exposing live revenue/COGS/freight/net-margin calculations for trader dashboards.
 - **2026-04-28** — [COMPLETED] Document State Machine: extended fulfillments with `freight_cost` and `document_milestones`, then auto-created follow-up reminder items when a linked load transitions into shipped/in-transit status.
 - **2026-04-28** — [COMPLETED] Deal Desk Dashboard: added the `/deals` trader ledger page with spreadsheet-dense columns, next-action visibility, and past-due follow-up highlighting.
-
-## Phase 16: The Core Trading Engine (End-to-End Automation)
-
-**Date Added:** 2026-05-04  
-**Priority:** Planned-only follow-on architecture  
-**Status:** PLANNING ONLY — translated into blocked tickets in `.github/EPIC_TICKETS.md`; execution remains blocked behind the active higher-priority backlog.
-
-### Happy-path state machine
-1. **Ingestion & Decision Node**
-   - AI email extraction lands in `Inquiry`.
-   - An inventory availability service decides `route = FULFILL` or `route = BROKER`.
-   - Operators receive a live “New Inquiry Received / Action Required” alert.
-2. **Brokerage / RFQ Engine (Branch A)**
-   - `BROKER` inquiries match suppliers by master product/protein.
-   - The system sends outbound RFQs.
-   - Structured supplier-reply parsing creates draft supplier purchase orders from positive replies.
-3. **Human-in-the-Loop Approval Flow**
-   - Orders use a generic approval progression: `draft` -> `pending_review` -> `approved`.
-   - Supplier PO approval triggers PDF generation plus outbound supplier email.
-4. **Sales & Logistics Cascade**
-   - Approved supplier sourcing, or direct `FULFILL`, generates the draft sales order.
-   - Sales-order approval triggers PDF generation plus outbound customer email.
-   - Carrier RFQs, reply parsing, and draft carrier purchase order generation complete the logistics branch.
-
-### 16b: Distributed Hardening & Trade Lineage
-1. **Trade Lineage & Traceability**
-   - Generate a durable `trade_id` / `TradeSession` UUID at the inquiry node.
-   - Cascade that lineage key into `PurchaseOrder`, `SalesOrder`, and `CarrierPurchaseOrder`.
-   - Expose a lineage visualization in detail views so operators can answer “which inbound email created this carrier PO?” directly from the UI.
-2. **Event-Driven State Transitions (Saga Pattern)**
-   - Replace synchronous side-effect chaining with event-driven transitions.
-   - Example: when a supplier PO transitions to approved, publish a `supplier_po_approved` event; Celery consumers create downstream sales/logistics artifacts and trigger PDF/email work.
-3. **Concurrency Locks & Idempotency**
-   - Use `select_for_update()` in transition services/views that mutate order state.
-   - Enforce `idempotency_key` on AI/webhook/document-creation endpoints so retries never duplicate downstream artifacts.
-4. **Exception Control Tower**
-   - Introduce an `ExceptionQueue`/dead-letter queue for failed automated trade steps.
-   - Halt the affected trade/session and route it to a “Trades Requiring Intervention” dashboard instead of silently dropping the failure.
-
-### Deliverables + expected results
-- A deterministic hardcoded trading engine built on the existing `Inquiry`, `PurchaseOrder`, `SalesOrder`, and `CarrierPurchaseOrder` models
-- Explicit AI structured-output parsing tied to draft commercial documents instead of freeform operator interpretation
-- Transition-driven PDF/email side effects instead of ad hoc UI-only actions
-- A future-ready state machine that a later visual editor can map onto, rather than inventing behavior from scratch
-
-### Acceptance criteria
-1. Phase 16 is represented consistently across `MASTER_PLAN.md`, `.github/MASTER_PLAN.md`, and `.github/EPIC_TICKETS.md`.
-2. Every Phase 16 ticket is blocked so the backlog still has one active `Ready` ticket above it.
-3. The backlog explicitly ties OpenAI structured outputs, outbound email, and PDF generation to `PurchaseOrder`, `SalesOrder`, and `CarrierPurchaseOrder` state transitions.
-4. Phase 16 hardening explicitly names Celery/Saga execution, trade-lineage propagation, `select_for_update()`, and `idempotency_key` enforcement.
-
-### Dependencies
-- Phase 14 remains the active execution lane.
-- Phase 15 trade-invariants work should land before Phase 16 executes against live order documents.
-- Inventory availability must be formalized first because the repo has no dedicated inventory source-of-truth model yet.
-- Distributed hardening must layer onto the same hardcoded happy-path state machine, not bypass it with a parallel orchestration surface.
-
-### Risk register + mitigations
-1. **Inventory routing guesses from weak data** -> define an explicit availability contract before automating `FULFILL`.
-2. **AI-generated commercial commitments are wrong** -> keep AI outputs draft-only and human-approved.
-3. **Duplicate send/PDF side effects** -> make approval transitions idempotent and audit-backed.
-4. **Async/event failures become invisible** -> add exception-queue lineage and intervention UI.
-5. **Concurrent transitions duplicate downstream records** -> require `select_for_update()` and `idempotency_key` safeguards.
-
-### Testing strategy
-- Planning/docs: `bash scripts/verify_golden_state.sh`
-- Execution tickets: targeted backend/frontend suites for inquiries, orders, AI ingestion, notifications, and document send flows
-- Distributed hardening tickets: targeted Celery/event, concurrency, idempotency, lineage, and operator-intervention queue tests
-
-### Rollback
-- Revert this planning batch if Phase 16 wording or backlog ordering proves contradictory.
