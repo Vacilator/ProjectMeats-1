@@ -10,6 +10,7 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import styled from 'styled-components';
 import { useSearchParams } from 'react-router-dom';
+import { Table, Tag } from 'antd';
 import { showAlert } from '@/utils/uiDialogs';
 import { logger } from '@/utils/logger';
 import { useNotifications, ActionItem } from '../../contexts/NotificationsContext';
@@ -678,8 +679,8 @@ export const MyTasks: React.FC = () => {
       const items = await aiStaffApi.listPendingReviews();
       setPendingReviews(items);
     } catch (err) {
-      logger.error('Failed to fetch AI review queue', err);
-      setReviewError('Unable to load the AI review queue right now.');
+      logger.error('Failed to fetch AI inbox queue', err);
+      setReviewError('Unable to load the AI inbox right now.');
       setPendingReviews([]);
     } finally {
       setReviewLoading(false);
@@ -935,6 +936,40 @@ export const MyTasks: React.FC = () => {
     ? pendingReviews.length
     : actionItemCounts?.total;
 
+  const aiInboxColumns = useMemo(
+    () => [
+      {
+        title: 'Sender',
+        dataIndex: 'sender',
+        key: 'sender',
+        render: (value: string | undefined) => value || 'Unknown sender',
+      },
+      {
+        title: 'Detected Intent',
+        dataIndex: 'intent_label',
+        key: 'intent_label',
+        render: (_value: string | undefined, item: PendingReviewItem) => (
+          <Tag color="blue">{item.intent_label || item.document_type || 'AI Draft'}</Tag>
+        ),
+      },
+      {
+        title: 'Date',
+        dataIndex: 'created_on',
+        key: 'created_on',
+        render: (value: string | undefined) =>
+          value ? new Date(value).toLocaleString() : 'Recently',
+      },
+      {
+        title: 'Action',
+        key: 'action',
+        render: (_value: unknown, item: PendingReviewItem) => (
+          <ActionButton onClick={() => openReview(item)}>Review &amp; Save</ActionButton>
+        ),
+      },
+    ],
+    [openReview],
+  );
+
   return (
     <Container>
       <Header>
@@ -962,7 +997,7 @@ export const MyTasks: React.FC = () => {
           Operational Tasks
         </TabButton>
         <TabButton $active={activeTab === 'ai-review'} onClick={() => setTab('ai-review')}>
-          AI Review Queue
+          AI Inbox
         </TabButton>
       </TabsRow>
 
@@ -977,7 +1012,7 @@ export const MyTasks: React.FC = () => {
                 </ReviewQueueSubtitle>
               </div>
               <ActionButton onClick={() => void fetchPendingReviews()} disabled={reviewLoading}>
-                Refresh Queue
+                Refresh Inbox
               </ActionButton>
             </SectionHeader>
 
@@ -986,45 +1021,43 @@ export const MyTasks: React.FC = () => {
             {reviewLoading ? (
               <LoadingSpinner />
             ) : pendingReviews.length === 0 ? (
-              <EmptyState>
-                <EmptyIcon>📥</EmptyIcon>
-                <EmptyTitle>No AI drafts pending review</EmptyTitle>
-                <EmptyText>
-                  Potential purchase orders and BOL drafts will appear here when the AI needs human approval.
-                </EmptyText>
-              </EmptyState>
-            ) : (
-              <ReviewQueueList>
-                {pendingReviews.map((item) => (
-                  <ReviewQueueCard key={item.id}>
-                    <ReviewQueueMeta>
-                      <ReviewQueueTitle>{item.source_subject || item.intent_label || 'AI Draft'}</ReviewQueueTitle>
-                      <ReviewQueueSubtitle>
-                        {item.source_summary || 'Open the draft to inspect the parsed payload and save the final entity.'}
-                      </ReviewQueueSubtitle>
-                      <ReviewQueueDetails>
-                        <span>Sender: {item.sender || 'Unknown sender'}</span>
-                        <span>Received: {item.created_on ? new Date(item.created_on).toLocaleString() : 'Recently'}</span>
-                        {item.source_document_name ? <span>Attachment: {item.source_document_name}</span> : null}
-                      </ReviewQueueDetails>
-                      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                        <ReviewQueueBadge>{item.intent_label || 'AI Draft'}</ReviewQueueBadge>
-                        <ReviewQueueBadge $tone="warning">
-                          Confidence {(Number(item.confidence_score || 0) * 100).toFixed(0)}%
-                        </ReviewQueueBadge>
-                      </div>
-                    </ReviewQueueMeta>
-
-                    <TaskActions>
-                      <ActionButton onClick={() => openReview(item)}>
-                        Review &amp; Save
-                      </ActionButton>
-                    </TaskActions>
-                  </ReviewQueueCard>
-                ))}
-              </ReviewQueueList>
-            )}
-          </WorkflowsSection>
+                <EmptyState>
+                  <EmptyIcon>📥</EmptyIcon>
+                  <EmptyTitle>No AI Inbox drafts pending review</EmptyTitle>
+                  <EmptyText>
+                    Potential purchase orders and BOL drafts will appear here when the AI needs human approval.
+                  </EmptyText>
+                </EmptyState>
+              ) : (
+                <div style={{ overflowX: 'auto' }}>
+                  <Table
+                    rowKey="id"
+                    dataSource={pendingReviews}
+                    columns={aiInboxColumns}
+                    pagination={false}
+                    expandable={{
+                      expandedRowRender: (item: PendingReviewItem) => (
+                        <div style={{ display: 'grid', gap: 8 }}>
+                          <div>{item.source_subject || 'AI Draft'}</div>
+                          <div style={{ color: 'rgb(var(--color-text-secondary, 127 140 141))' }}>
+                            {item.source_summary ||
+                              'Open the draft to inspect the parsed payload and save the final entity.'}
+                          </div>
+                          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                            {item.source_document_name ? (
+                              <Tag>Attachment: {item.source_document_name}</Tag>
+                            ) : null}
+                            <Tag color="gold">
+                              Confidence {(Number(item.confidence_score || 0) * 100).toFixed(0)}%
+                            </Tag>
+                          </div>
+                        </div>
+                      ),
+                    }}
+                  />
+                </div>
+              )}
+            </WorkflowsSection>
 
           <AIDraftReviewModal
             open={Boolean(selectedReview)}

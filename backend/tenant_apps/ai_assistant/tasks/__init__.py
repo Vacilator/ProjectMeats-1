@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 
 # Expose auto-tuner task for Celery autodiscovery
 from .auto_tuner import orchestrate_rlhf_finetuning  # noqa: F401
-from .watchdog import run_daily_watchdog  # noqa: F401
+from .watchdog import run_ai_inbox_watchdog, run_daily_watchdog  # noqa: F401
 
 
 @shared_task(name='ai_assistant.process_rlhf_flywheel')

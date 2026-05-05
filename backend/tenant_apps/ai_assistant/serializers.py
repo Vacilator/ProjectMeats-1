@@ -47,6 +47,30 @@ class PendingReviewResolveRequestSerializer(serializers.Serializer):
         return value
 
 
+class ContextualSuggestionsRequestSerializer(serializers.Serializer):
+    entity_type = serializers.CharField(max_length=100)
+    entity_id = serializers.CharField(max_length=100)
+    current_state = serializers.JSONField(required=False, default=dict)
+
+    def validate_current_state(self, value):
+        if not isinstance(value, dict):
+            raise serializers.ValidationError('current_state must be an object')
+        return value
+
+
+class ContextualSuggestionSerializer(serializers.Serializer):
+    action = serializers.CharField()
+    label = serializers.CharField()
+    confidence = serializers.FloatField()
+    reason = serializers.CharField(required=False, allow_blank=True)
+    prompt = serializers.CharField(required=False, allow_blank=True)
+    target_url = serializers.CharField(required=False, allow_blank=True)
+
+
+class ContextualSuggestionsResponseSerializer(serializers.Serializer):
+    suggestions = ContextualSuggestionSerializer(many=True)
+
+
 class AIFeedbackSubmitSerializer(serializers.Serializer):
     """Public-ish write path for HITL corrections.
 

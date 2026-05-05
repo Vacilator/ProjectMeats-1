@@ -610,6 +610,7 @@ export const AIAgentWidget: React.FC = () => {
   const [dragOver, setDragOver] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const toastSuccessRef = useRef(toast.success);
   const sendTextRef = useRef<
     (text: string, contextOverride?: Record<string, unknown>) => Promise<void>
   >(async () => {});
@@ -621,6 +622,10 @@ export const AIAgentWidget: React.FC = () => {
   );
 
   const groupedSessions = useMemo(() => groupChatSessionsByDate(sessions), [sessions]);
+
+  useEffect(() => {
+    toastSuccessRef.current = toast.success;
+  }, [toast]);
 
   useEffect(() => {
     if (!expanded) return;
@@ -659,6 +664,63 @@ export const AIAgentWidget: React.FC = () => {
     void loadOutlookStatus();
     void loadSessions();
   }, [expanded]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    const tenantId = localStorage.getItem('tenantId');
+    const accessToken =
+      localStorage.getItem('accessToken') ||
+      localStorage.getItem('authToken') ||
+      localStorage.getItem('refreshToken');
+
+    if (!tenantId || !accessToken) {
+      return;
+    }
+
+    const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
+    const wsUrl =
+      `${protocol}://${window.location.host}/ws/ai/inbox/` +
+      `?tenant_id=${encodeURIComponent(tenantId)}` +
+      `&access_token=${encodeURIComponent(accessToken)}`;
+
+    const socket = new WebSocket(wsUrl);
+
+    socket.onmessage = (event) => {
+      try {
+        const payload = JSON.parse(event.data) as Record<string, unknown>;
+        if (payload.type !== 'ai.inbox.notification') {
+          return;
+        }
+
+        const content =
+          typeof payload.message === 'string' && payload.message.trim()
+            ? payload.message.trim()
+            : 'I found new AI Inbox items while you were away. Check your AI Inbox.';
+
+        toastSuccessRef.current(content);
+        setExpanded(true);
+        setState('action_required');
+        setMessages((current) => [
+          ...current,
+          {
+            id: newId(),
+            role: 'assistant',
+            content,
+            createdAt: Date.now(),
+          },
+        ]);
+      } catch {
+        // Ignore malformed realtime payloads.
+      }
+    };
+
+    return () => {
+      socket.close();
+    };
+  }, []);
 
   useEffect(() => {
     if (!expanded || !sessionId) return;

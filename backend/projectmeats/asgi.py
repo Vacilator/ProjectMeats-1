@@ -21,6 +21,7 @@ from channels.auth import AuthMiddlewareStack
 from channels.routing import ProtocolTypeRouter, URLRouter
 from channels.security.websocket import AllowedHostsOriginValidator
 
+import tenant_apps.ai_assistant.routing
 import tenant_apps.workflows.routing
 from apps.tenants.channels_middleware import JwtAuthMiddleware, TenantContextMiddleware
 
@@ -30,7 +31,12 @@ application = ProtocolTypeRouter(
         "websocket": AllowedHostsOriginValidator(
             AuthMiddlewareStack(
                 JwtAuthMiddleware(
-                    TenantContextMiddleware(URLRouter(tenant_apps.workflows.routing.websocket_urlpatterns))
+                    TenantContextMiddleware(
+                        URLRouter(
+                            tenant_apps.workflows.routing.websocket_urlpatterns
+                            + tenant_apps.ai_assistant.routing.websocket_urlpatterns
+                        )
+                    )
                 )
             )
         ),

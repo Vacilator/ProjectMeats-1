@@ -46,6 +46,8 @@ from .serializers import (
     AIFeedbackLogSerializer,
     AIFeedbackSubmitSerializer,
     AILearningMetricsSerializer,
+    ContextualSuggestionsRequestSerializer,
+    ContextualSuggestionsResponseSerializer,
     ExtractToSchemaRequestSerializer,
     ExtractToSchemaResponseSerializer,
     ChatBotRequestSerializer,
@@ -148,6 +150,88 @@ def _infer_review_entity_type(document_type: str, payload: dict[str, object]) ->
         return 'carrier-pos'
 
     return ''
+
+
+def build_contextual_suggestions(
+    *,
+    tenant,
+    entity_type: str,
+    entity_id: str,
+    current_state: dict[str, object],
+) -> list[dict[str, object]]:
+    suggestions: list[dict[str, object]] = []
+    normalized_type = str(entity_type or '').strip().lower()
+    current_state = current_state if isinstance(current_state, dict) else {}
+
+    def add_suggestion(
+        *,
+        action: str,
+        label: str,
+        confidence: float,
+        reason: str,
+        prompt: str = '',
+        target_url: str = '',
+    ) -> None:
+        suggestions.append(
+            {
+                'action': action,
+                'label': label,
+                'confidence': confidence,
+                'reason': reason,
+                'prompt': prompt,
+                'target_url': target_url,
+            }
+        )
+
+    status_value = _first_non_empty_string(
+        current_state.get('status'),
+        current_state.get('order_status'),
+    ).upper()
+
+    if normalized_type in {'supplier', 'customer'}:
+        add_suggestion(
+            action='draft_check_in_email',
+            label='Draft Check-in Email',
+            confidence=0.93,
+            reason='Relationship records support contextual follow-up drafting.',
+            prompt=f'Draft a concise check-in email for this {normalized_type} using recent orders, balances, and delays.',
+        )
+
+    if normalized_type == 'plant':
+        from tenant_apps.plants.models import Plant
+
+        plant = (
+            Plant.objects.filter(tenant=tenant, id=entity_id)
+            .only('id', 'name', 'booking_contact_email')
+            .first()
+        )
+        if plant and not plant.booking_contact_email:
+            add_suggestion(
+                action='update_booking_contact',
+                label='Add booking contact details',
+                confidence=0.89,
+                reason='This plant is missing a booking contact email.',
+                prompt='Open the plant edit form and add booking contact details so logistics teams can route scheduling updates.',
+            )
+        else:
+            add_suggestion(
+                action='review_plant_profile',
+                label='Review plant continuity profile',
+                confidence=0.76,
+                reason='Static plant editing is available for business continuity.',
+                prompt='Review the plant profile and booking details for this facility.',
+            )
+
+    if normalized_type in {'purchase_order', 'sales_order'} and status_value == 'APPROVED':
+        add_suggestion(
+            action='generate_pdf',
+            label='Generate & Email PDF',
+            confidence=0.98,
+            reason='Approved orders are good candidates for document generation and customer communication.',
+            prompt='Generate the approved order PDF and prepare the outbound email for review.',
+        )
+
+    return suggestions[:3]
 
 
 def _humanize_review_intent(document_type: str, payload: dict[str, object]) -> str:
@@ -1294,6 +1378,30 @@ class PendingReviewAPIView(APIView):
 
         payload = PendingReviewItemSerializer(items, many=True).data
         return Response({'results': payload}, status=status.HTTP_200_OK)
+
+
+class ContextualSuggestionsAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(
+        request=ContextualSuggestionsRequestSerializer,
+        responses={200: ContextualSuggestionsResponseSerializer, 400: OpenApiTypes.OBJECT},
+    )
+    def post(self, request):
+        serializer = ContextualSuggestionsRequestSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        tenant = getattr(request, 'tenant', None)
+        if not tenant:
+            return Response({'error': 'Tenant context missing'}, status=status.HTTP_400_BAD_REQUEST)
+
+        suggestions = build_contextual_suggestions(
+            tenant=tenant,
+            entity_type=serializer.validated_data['entity_type'],
+            entity_id=serializer.validated_data['entity_id'],
+            current_state=serializer.validated_data.get('current_state') or {},
+        )
+        return Response({'suggestions': suggestions}, status=status.HTTP_200_OK)
 
 
 class AIFeedbackViewSet(mixins.CreateModelMixin, mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.GenericViewSet):

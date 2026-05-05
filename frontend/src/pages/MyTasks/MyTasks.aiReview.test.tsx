@@ -70,7 +70,7 @@ describe('MyTasks AI review queue', () => {
     ] as any);
   });
 
-  it('renders the AI review queue and auto-opens the highlighted draft', async () => {
+  it('renders the AI inbox queue and auto-opens the highlighted draft', async () => {
     render(
       <MemoryRouter initialEntries={['/my-tasks?tab=ai-review&draft=draft-1']}>
         <Routes>
@@ -79,13 +79,11 @@ describe('MyTasks AI review queue', () => {
       </MemoryRouter>
     );
 
-    expect(screen.getByRole('button', { name: 'AI Review Queue' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'AI Inbox' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'AI Review Queue' })).toBeInTheDocument();
 
-    await waitFor(() => {
-      expect(screen.getByText('Potential Purchase Order')).toBeInTheDocument();
-    });
-
-    expect(screen.getByText(/Sender: dispatch@example.com/)).toBeInTheDocument();
+    expect(await screen.findByText('dispatch@example.com')).toBeInTheDocument();
+    expect(screen.getByText('Purchase Order')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Review & Save/i })).toBeInTheDocument();
     await waitFor(() => {
       expect(screen.getByTestId('ai-draft-modal')).toHaveTextContent('draft-1:purchase_order');

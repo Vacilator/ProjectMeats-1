@@ -49,6 +49,25 @@ export interface DocumentProcessingResponse {
   message: string;
 }
 
+export interface ContextualSuggestionRequest {
+  entity_type: string;
+  entity_id: string;
+  current_state?: Record<string, unknown>;
+}
+
+export interface ContextualSuggestion {
+  action: string;
+  label: string;
+  confidence: number;
+  reason?: string;
+  prompt?: string;
+  target_url?: string;
+}
+
+export interface ContextualSuggestionsResponse {
+  suggestions: ContextualSuggestion[];
+}
+
 export type DocumentUploadResponse = UploadedDocument;
 
 export interface ExtractToSchemaRequest {
@@ -123,6 +142,18 @@ export const aiStaffApi = {
       data,
     );
     return unwrap(res);
+  },
+};
+
+export const ambientAiApi = {
+  getContextualSuggestions: async (
+    data: ContextualSuggestionRequest,
+  ): Promise<ContextualSuggestion[]> => {
+    const res = await businessApi.post<ContextualSuggestionsResponse>(
+      '/ai-assistant/suggestions/contextual/',
+      data,
+    );
+    return unwrap(res).suggestions || [];
   },
 };
 
