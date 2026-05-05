@@ -5,7 +5,8 @@ collaboration for the WorkForms editor.
 
 Notes:
 - HTTP traffic continues to use the standard Django ASGI application.
-- WebSocket routes are registered in tenant_apps.workflows.routing.
+- WebSocket routes are registered in tenant_apps.workflows.routing and
+  tenant_apps.ai_assistant.routing.
 - Tenant isolation for broadcast is enforced via tenant-scoped group names.
 """
 
@@ -21,8 +22,14 @@ from channels.auth import AuthMiddlewareStack
 from channels.routing import ProtocolTypeRouter, URLRouter
 from channels.security.websocket import AllowedHostsOriginValidator
 
+import tenant_apps.ai_assistant.routing
 import tenant_apps.workflows.routing
 from apps.tenants.channels_middleware import JwtAuthMiddleware, TenantContextMiddleware
+
+websocket_urlpatterns = (
+    tenant_apps.workflows.routing.websocket_urlpatterns
+    + tenant_apps.ai_assistant.routing.websocket_urlpatterns
+)
 
 application = ProtocolTypeRouter(
     {
@@ -30,7 +37,7 @@ application = ProtocolTypeRouter(
         "websocket": AllowedHostsOriginValidator(
             AuthMiddlewareStack(
                 JwtAuthMiddleware(
-                    TenantContextMiddleware(URLRouter(tenant_apps.workflows.routing.websocket_urlpatterns))
+                    TenantContextMiddleware(URLRouter(websocket_urlpatterns))
                 )
             )
         ),

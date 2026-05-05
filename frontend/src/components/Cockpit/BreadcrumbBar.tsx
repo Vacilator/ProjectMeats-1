@@ -92,6 +92,41 @@ type ExtraCrumb = {
   label: string;
 };
 
+const UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+const isUUID = (value: string): boolean => UUID_PATTERN.test(String(value || '').trim());
+
+const humanizeStepType = (value: string): string => {
+  const raw = String(value || '')
+    .split('.')
+    .pop()
+    ?.replace(/[_-]+/g, ' ')
+    .trim();
+
+  if (!raw) return 'Record';
+
+  return raw.replace(/\b\w/g, (char) => char.toUpperCase());
+};
+
+const resolveCrumbLabel = (step: { type?: string; label?: string; subtitle?: string }): string => {
+  const label = String(step.label || '').trim();
+  if (!label) {
+    return `${humanizeStepType(String(step.type || 'record'))} Details`;
+  }
+
+  if (!isUUID(label)) {
+    return label;
+  }
+
+  const subtitle = String(step.subtitle || '').trim();
+  if (subtitle && !isUUID(subtitle)) {
+    return subtitle;
+  }
+
+  return `${humanizeStepType(String(step.type || 'record'))} Details`;
+};
+
 interface BreadcrumbBarProps {
   extraCrumbs?: ExtraCrumb[];
 }
@@ -129,7 +164,7 @@ export const BreadcrumbBar: React.FC<BreadcrumbBarProps> = ({ extraCrumbs = [] }
               onClick={() => isClickable && goToStep(index)}
               disabled={!isClickable}
             >
-              <CrumbLabel>{step.label}</CrumbLabel>
+              <CrumbLabel>{resolveCrumbLabel(step)}</CrumbLabel>
             </Crumb>
           </React.Fragment>
         );
