@@ -1918,3 +1918,10 @@ Deliverables:
 
 ### Rollback
 - Revert this planning batch if Phase 16 wording or backlog ordering proves contradictory.
+
+### 2026-05-05 — AI Assistant: semantic response cache hardening
+- Added a tenant-scoped semantic response cache in `backend/tenant_apps/ai_assistant/services/semantic_cache.py` with configurable enablement, TTL, similarity threshold, and bounded entry count in `backend/projectmeats/settings/base.py`.
+- Wired `ChatBotAPIViewSet.chat()` to reuse safe cache hits for repeated same-context prompts while still persisting assistant chat messages and lineage events, and to store only tool-free, control-plane-free responses.
+- Added regression coverage in `backend/tenant_apps/ai_assistant/tests/test_semantic_cache.py` and `backend/tenant_apps/ai_assistant/tests/test_models.py` for tenant isolation, threshold enforcement, and cache-hit bypass behavior.
+- Validation: `cd backend && python manage.py makemigrations --check`; `cd backend && python manage.py test tenant_apps.ai_assistant.tests.test_semantic_cache tenant_apps.ai_assistant.tests.test_models`; `cd backend && python manage.py test tenant_apps.ai_assistant apps.core.tests.test_viewset_permissions`; `cd backend && ruff check projectmeats/settings/base.py tenant_apps/ai_assistant/views.py tenant_apps/ai_assistant/services/semantic_cache.py tenant_apps/ai_assistant/tests/test_semantic_cache.py tenant_apps/ai_assistant/tests/test_models.py`.
+- PR: #4894.

@@ -10,6 +10,7 @@ import unittest
 import json
 import uuid
 from unittest.mock import patch
+from django.test import override_settings
 
 from django.conf import settings
 from django.contrib.auth.models import User
@@ -820,6 +821,54 @@ class ChatSessionTenantBindingTests(TestCase):
         self.assertEqual(response.status_code, 404)
         legacy_session.refresh_from_db()
         self.assertIsNone(legacy_session.tenant_id)
+
+    @override_settings(OPENAI_API_KEY='test-key', AI_SEMANTIC_CACHE_ENABLED=True)
+    @patch("tenant_apps.ai_assistant.views.ai_semantic_cache.lookup_cached_response")
+    @patch("tenant_apps.ai_assistant.views.ai_semantic_cache.build_context_signature", return_value="ctx-a")
+    @patch("tenant_apps.ai_assistant.views.ai_semantic_cache.store_cached_response")
+    @patch("tenant_apps.ai_assistant.swarm.router.SwarmOrchestrator.run_tool_loop")
+    def test_chat_api_uses_semantic_cache_hits_without_running_tool_loop(
+        self,
+        mock_run_tool_loop,
+        mock_store_cached_response,
+        _mock_signature,
+        mock_lookup_cached_response,
+    ):
+        from tenant_apps.ai_assistant.services.semantic_cache import SemanticCacheHit
+        from tenant_apps.ai_assistant.views import ChatBotAPIViewSet
+
+        mock_lookup_cached_response.return_value = SemanticCacheHit(
+            entry_id='cache-entry-1',
+            response_text='Cached answer',
+            similarity=0.991,
+            model_name='gpt-4o-mini',
+            created_at='2026-05-05T00:00:00+00:00',
+        )
+        mock_run_tool_loop.side_effect = AssertionError("Tool loop should not execute on cache hit")
+
+        response = ChatBotAPIViewSet.as_view({"post": "chat"})(
+            self._request(
+                "post",
+                "/api/v1/ai-assistant/chat/chat/",
+                self.tenant_a,
+                {
+                    "message": "What is the latest beef market update?",
+                    "session_id": str(self.session_a.id),
+                },
+            )
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["response"], "Cached answer")
+        self.assertTrue(response.data["metadata"]["cache_hit"])
+        self.assertEqual(response.data["metadata"]["response_type"], "semantic_cache_hit")
+        self.assertFalse(mock_store_cached_response.called)
+        assistant_message = ChatMessage.objects.filter(
+            session=self.session_a,
+            message_type=MessageTypeChoices.ASSISTANT,
+        ).latest("created_on")
+        self.assertEqual(assistant_message.content, "Cached answer")
+        self.assertTrue(assistant_message.metadata["cache_hit"])
 
 
 class ChatSessionRlsRegressionTests(TestCase):
