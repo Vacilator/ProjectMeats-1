@@ -358,9 +358,11 @@ jobs:
         run: npm ci
 
       - name: Install Playwright Chromium
+        working-directory: ./frontend
         run: npx playwright install --with-deps chromium
 
       - name: Run production-preview entity form smoke
+        working-directory: ./frontend
         env:
           CI: 'true'
           VITE_ENABLE_E2E_SMOKE: '1'
@@ -368,8 +370,8 @@ jobs:
           PLAYWRIGHT_CHROMIUM_ONLY: '1'
         run: >
           npx playwright test
-          --config frontend/playwright.config.ts
-          frontend/e2e/entity-form-surface-smoke.spec.ts
+          --config playwright.config.ts
+          e2e/entity-form-surface-smoke.spec.ts
           --project=chromium
 
       - name: Upload Playwright artifacts on failure
