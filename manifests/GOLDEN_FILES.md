@@ -35,6 +35,8 @@ Golden template for workflow suggestion engine with meat industry context
 | **Infrastructure desired state / IaC scaffold** | `deploy/terraform/README.md`, `deploy/terraform/*.tf` | AUTHORITATIVE scaffold |
 | **Non-dev observability ownership** | `docs/GOLDEN_PIPELINE.md`, `docs/runbooks/INCIDENT_RESPONSE.md`, `manifests/env.manifest.json` | AUTHORITATIVE |
 | **Architecture** | `docs/architecture/ARCHITECTURE.md` | Design doc |
+| **Architecture decisions** | `docs/adr/*.md` | AUTHORITATIVE rationale ledger |
+| **AI SDLC rules** | `.cursorrules`, `.github/SDLC_PROTOCOLS.md` | ENFORCEMENT |
 | **Execution status / priorities** | `MASTER_PLAN.md` | CANONICAL |
 | **Roadmaps** | `ROADMAP.md`, `UI_ROADMAP.md` | Reference-only unless promoted in `MASTER_PLAN.md` |
 | **Incident response** | `docs/runbooks/INCIDENT_RESPONSE.md` | AUTHORITATIVE |

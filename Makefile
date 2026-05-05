@@ -1,7 +1,7 @@
 # ProjectMeats Development Makefile
 # Provides essential development commands for Django + React application
 
-.PHONY: help setup dev start stop test clean docs format lint env-dev env-staging env-prod env-validate env-secrets deploy-test deploy-check health-check deploy-simulate up down migrate-all
+.PHONY: help setup dev start stop test clean docs format lint env-dev env-staging env-prod env-validate env-secrets deploy-test deploy-check health-check deploy-simulate up down migrate-all ai-task
 
 # Default target
 help:
@@ -42,6 +42,7 @@ help:
 	@echo "  make lint       - Lint code (flake8)"
 	@echo "  make docs       - Generate API documentation"
 	@echo "  make clean      - Clean build artifacts"
+	@echo "  make ai-task    - Bundle the next AI task prompt to your clipboard"
 	@echo ""
 	@echo "Environment Management:"
 	@echo "  make env-dev      - Set up development environment"  
@@ -233,3 +234,6 @@ health-check:
 deploy-simulate:
 	@echo "🎭 Simulating full deployment process..."
 	python simulate_deployment.py --environment production --dry-run
+
+ai-task:
+	@bash scripts/dev/bundle_ai_context.sh

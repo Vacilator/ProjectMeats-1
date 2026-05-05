@@ -8,6 +8,9 @@ This directory contains the live GitHub Actions entrypoints for ProjectMeats. Fo
 - `.github/workflows/pr-validation.yml`
   - PR gate for `development`, `uat`, and `main`
   - Runs the infrastructure drift gate, migration validation, backend tests, frontend type-check/unit tests, mobile checks, and squad validation
+- `.github/workflows/ai-pr-reviewer.yml`
+  - AI gatekeeper for pull requests targeting `development` and `main`
+  - Uses `.cursorrules` + `.github/SDLC_PROTOCOLS.md` plus deterministic guardrails to request changes on Golden Rule violations
 - `.github/workflows/main-pipeline.yml`
   - Push/manual deploy entrypoint for `development`, `uat`, and `main`
   - Routes to `.github/workflows/reusable-deploy.yml`
@@ -43,6 +46,7 @@ This directory contains the live GitHub Actions entrypoints for ProjectMeats. Fo
 ```text
 development push
   -> .github/workflows/pr-validation.yml (on PRs)
+  -> .github/workflows/ai-pr-reviewer.yml (on PRs to development/main)
   -> .github/workflows/main-pipeline.yml
      -> .github/workflows/reusable-deploy.yml (development lane)
      -> .github/workflows/41-auto-promote-dev-to-uat.yml
@@ -55,6 +59,7 @@ uat push
 
 main push
   -> .github/workflows/pr-validation.yml (on PRs)
+  -> .github/workflows/ai-pr-reviewer.yml (on PRs to development/main)
   -> .github/workflows/main-pipeline.yml
      -> .github/workflows/reusable-deploy.yml (production lane)
 ```

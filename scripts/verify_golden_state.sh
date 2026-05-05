@@ -92,15 +92,16 @@ check_doc_workflow_refs() {
 }
 
 check_branch_protection_status_check_parity() {
-    local workflow=".github/workflows/pr-validation.yml"
+    local primary_workflow=".github/workflows/pr-validation.yml"
+    local ai_workflow=".github/workflows/ai-pr-reviewer.yml"
     local guide="docs/guides/BRANCH_PROTECTION_SETUP.md"
     local workflow_checks
     local guide_checks
     workflow_checks=$(mktemp)
     guide_checks=$(mktemp)
 
-    if [[ ! -f "$workflow" ]]; then
-        fail "$workflow missing while validating branch-protection status checks"
+    if [[ ! -f "$primary_workflow" ]]; then
+        fail "$primary_workflow missing while validating branch-protection status checks"
         rm -f "$workflow_checks" "$guide_checks"
         return
     fi
@@ -111,7 +112,12 @@ check_branch_protection_status_check_parity() {
         return
     fi
 
-    grep '^    name:' "$workflow" | sed -E 's/^    name:[[:space:]]*//' | sort -u > "$workflow_checks"
+    {
+        grep '^    name:' "$primary_workflow" | sed -E 's/^    name:[[:space:]]*//'
+        if [[ -f "$ai_workflow" ]]; then
+            grep '^    name:' "$ai_workflow" | sed -E 's/^    name:[[:space:]]*//'
+        fi
+    } | sort -u > "$workflow_checks"
     awk '
         /^## Required status checks$/ { in_section=1; next }
         /^---$/ && in_section { exit }
@@ -148,7 +154,10 @@ check_branch_protection_status_check_parity() {
     stale_in_guide=$(format_file_list "$stale_file")
 
     if [[ -n "$missing_in_guide" || -n "$stale_in_guide" ]]; then
-        local message="$guide required status checks drift from $workflow"
+        local message="$guide required status checks drift from $primary_workflow"
+        if [[ -f "$ai_workflow" ]]; then
+            message="$message + $ai_workflow"
+        fi
         if [[ -n "$missing_in_guide" ]]; then
             message="$message (missing in guide: $missing_in_guide)"
         fi
@@ -157,7 +166,11 @@ check_branch_protection_status_check_parity() {
         fi
         fail "$message"
     else
-        pass "$guide required status checks match $workflow"
+        local matched_workflows="$primary_workflow"
+        if [[ -f "$ai_workflow" ]]; then
+            matched_workflows="$matched_workflows + $ai_workflow"
+        fi
+        pass "$guide required status checks match $matched_workflows"
     fi
 
     rm -f "$workflow_checks" "$guide_checks" "$missing_file" "$stale_file"
@@ -276,6 +289,18 @@ fi
 check_doc_workflow_refs ".github/workflows/README.md"
 check_doc_workflow_refs "docs/guides/BRANCH_PROTECTION_SETUP.md"
 check_doc_workflow_refs "docs/reference/GOLDEN_PIPELINE.md"
+check_file_exists ".github/workflows/ai-pr-reviewer.yml" "AI PR gatekeeper workflow exists"
+check_required_pattern ".github/workflows/ai-pr-reviewer.yml" '^on:[[:space:]]*$' \
+    "ai-pr-reviewer.yml declares workflow triggers"
+check_required_pattern ".github/workflows/ai-pr-reviewer.yml" 'pull_request_target:' \
+    "ai-pr-reviewer.yml uses pull_request_target for safe secret access"
+check_required_pattern ".github/workflows/ai-pr-reviewer.yml" 'OPENAI_API_KEY' \
+    "ai-pr-reviewer.yml uses manifest-defined OPENAI_API_KEY"
+check_file_exists "scripts/ci/ai_pr_guard.py" "AI PR gatekeeper script exists"
+check_required_pattern "scripts/ci/ai_pr_guard.py" 'REQUEST_CHANGES' \
+    "ai_pr_guard.py drives hard-fail PR review outcomes"
+check_required_pattern ".github/workflows/README.md" 'ai-pr-reviewer\.yml' \
+    ".github/workflows/README.md documents the AI gatekeeper workflow"
 
 # 11. Check CURRENT workflow docs for canonical branch/deploy guidance
 check_required_pattern ".github/workflows/README.md" '^- Branches: `development`, `uat`, `main`$' \
@@ -289,6 +314,19 @@ check_no_pattern "docs/guides/BRANCH_PROTECTION_SETUP.md" 'Branch name pattern:[
     "BRANCH_PROTECTION_SETUP.md uses canonical lowercase uat branch references"
 check_no_pattern "docs/guides/BRANCH_PROTECTION_SETUP.md" '`build-and-push`|`test-frontend`|`test-backend`' \
     "BRANCH_PROTECTION_SETUP.md avoids obsolete status check names"
+check_pattern "docs/guides/BRANCH_PROTECTION_SETUP.md" 'AI PR Gatekeeper' \
+    "BRANCH_PROTECTION_SETUP.md requires the AI PR Gatekeeper status check"
+
+# 12b. Check ADR governance surfaces exist
+check_file_exists "docs/adr/0001-record-architecture-decisions.md" "ADR 0001 exists"
+check_file_exists "docs/adr/0002-the-air-gap-form-pattern.md" "ADR 0002 exists"
+check_file_exists "docs/adr/0003-eradication-of-usequeries.md" "ADR 0003 exists"
+check_pattern ".cursorrules" 'major architectural change.*docs/adr/' \
+    ".cursorrules requires ADR creation for major architectural changes"
+check_pattern "manifests/GOLDEN_FILES.md" 'Architecture decisions' \
+    "GOLDEN_FILES.md registers ADRs as an authoritative source"
+check_pattern "manifests/GOLDEN_FILES.md" 'AI SDLC rules' \
+    "GOLDEN_FILES.md registers AI SDLC rules as an enforcement surface"
 
 # 13. Check reference Golden Pipeline companion for canonical secret path + pointer-only parity
 if grep -q '`manifests/env.manifest.json`' docs/reference/GOLDEN_PIPELINE.md 2>/dev/null; then
