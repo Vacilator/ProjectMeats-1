@@ -189,6 +189,8 @@ export const QuickActionsWidget: React.FC<QuickActionsWidgetProps> = ({
     <WidgetCard
       title="Quick Actions"
       icon={<Zap size={16} />}
+      id="tour-quick-actions"
+      data-testid="tour-quick-actions"
       data-tour="quick-actions"
     >
       <ActionsGrid>

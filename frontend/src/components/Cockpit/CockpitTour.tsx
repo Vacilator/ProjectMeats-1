@@ -11,7 +11,7 @@
  * @module components/Cockpit/CockpitTour
  */
 
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ACTIONS,
   EVENTS,
@@ -32,6 +32,8 @@ interface CockpitTourProps {
    * Set to false to disable tour completely
    */
   enabled?: boolean;
+  isCockpitLoaded?: boolean;
+  availableSelectors?: string[];
   
   /**
    * Callback when tour completes or is skipped
@@ -39,7 +41,52 @@ interface CockpitTourProps {
   onComplete?: () => void;
 }
 
-const tourSteps: Step[] = [
+export const COCKPIT_TOUR_SELECTORS = {
+  smartSearch: '#tour-smart-search',
+  widgetGrid: '#tour-cockpit-grid',
+  quickActions: '#tour-quick-actions',
+} as const;
+
+const DEFAULT_AVAILABLE_SELECTORS = Object.values(COCKPIT_TOUR_SELECTORS);
+const AUTO_START_DELAY_MS = 250;
+const TARGET_WAIT_TIMEOUT_MS = 4000;
+const TARGET_WAIT_INTERVAL_MS = 150;
+
+interface CockpitTourStep extends Step {
+  requiredSelector?: string;
+}
+
+const normalizeAvailableSelectors = (availableSelectors: string[]): string[] =>
+  Array.from(new Set(availableSelectors.filter(Boolean)));
+
+const resolveCockpitTourSteps = (
+  availableSelectors: string[],
+  root: ParentNode | null,
+): Step[] => {
+  const allowedSelectors = new Set(normalizeAvailableSelectors(availableSelectors));
+
+  return cockpitTourSteps
+    .filter((step) => {
+      if (!step.requiredSelector) {
+        return true;
+      }
+
+      if (!allowedSelectors.has(step.requiredSelector)) {
+        return false;
+      }
+
+      return root?.querySelector(step.requiredSelector) != null;
+    })
+    .map(({ requiredSelector, ...step }) => step);
+};
+
+const getPendingSelectors = (availableSelectors: string[], root: ParentNode | null): string[] => {
+  const allowedSelectors = normalizeAvailableSelectors(availableSelectors);
+
+  return allowedSelectors.filter((selector) => root?.querySelector(selector) == null);
+};
+
+const cockpitTourSteps: CockpitTourStep[] = [
   {
     target: 'body',
     content: (
@@ -58,7 +105,8 @@ const tourSteps: Step[] = [
     skipBeacon: true,
   },
   {
-    target: '[data-tour="search-input"]',
+    target: COCKPIT_TOUR_SELECTORS.smartSearch,
+    requiredSelector: COCKPIT_TOUR_SELECTORS.smartSearch,
     content: (
       <div>
         <h3>Smart Search</h3>
@@ -83,7 +131,8 @@ const tourSteps: Step[] = [
     placement: 'bottom',
   },
   {
-    target: '[data-tour="search-results"]',
+    target: COCKPIT_TOUR_SELECTORS.widgetGrid,
+    requiredSelector: COCKPIT_TOUR_SELECTORS.widgetGrid,
     content: (
       <div>
         <h3>Widget Dashboard</h3>
@@ -104,7 +153,8 @@ const tourSteps: Step[] = [
     placement: 'center',
   },
   {
-    target: '[data-tour="quick-actions"]',
+    target: COCKPIT_TOUR_SELECTORS.quickActions,
+    requiredSelector: COCKPIT_TOUR_SELECTORS.quickActions,
     content: (
       <div>
         <h3>Quick Actions</h3>
@@ -149,9 +199,11 @@ const tourSteps: Step[] = [
   },
 ];
 
-export const CockpitTour: React.FC<CockpitTourProps> = ({ 
-  enabled = true, 
-  onComplete 
+export const CockpitTour: React.FC<CockpitTourProps> = ({
+  enabled = true,
+  isCockpitLoaded = true,
+  availableSelectors = DEFAULT_AVAILABLE_SELECTORS,
+  onComplete,
 }) => {
   const {
     isReady,
@@ -164,40 +216,216 @@ export const CockpitTour: React.FC<CockpitTourProps> = ({
     markTourStarted,
   } = useOnboarding();
   const [runTour, setRunTour] = useState(false);
+  const [stepIndex, setStepIndex] = useState(0);
+  const [resolvedSteps, setResolvedSteps] = useState<Step[]>(() =>
+    typeof document === 'undefined'
+      ? cockpitTourSteps
+          .filter((step) => !step.requiredSelector)
+          .map(({ requiredSelector, ...step }) => step)
+      : resolveCockpitTourSteps(DEFAULT_AVAILABLE_SELECTORS, document),
+  );
+  const [pendingLaunch, setPendingLaunch] = useState<{ key: number; source: 'auto' | 'manual' } | null>(
+    null,
+  );
   const cockpitTourStatus = getTourStatus('cockpit');
   const cockpitLaunchNonce = getLaunchNonce('cockpit');
+  const retryTimerRef = useRef<number | null>(null);
+  const normalizedAvailableSelectors = useMemo(
+    () => normalizeAvailableSelectors(availableSelectors),
+    [availableSelectors],
+  );
+  const availableSelectorsSignature = useMemo(
+    () => normalizedAvailableSelectors.join('|'),
+    [normalizedAvailableSelectors],
+  );
+
+  const clearRetryTimer = useCallback(() => {
+    if (retryTimerRef.current !== null) {
+      window.clearTimeout(retryTimerRef.current);
+      retryTimerRef.current = null;
+    }
+  }, []);
+
+  useEffect(() => () => {
+    clearRetryTimer();
+  }, [clearRetryTimer]);
 
   useEffect(() => {
     if (
       !enabled ||
       !isReady ||
+      !isCockpitLoaded ||
+      runTour ||
+      pendingLaunch !== null ||
       hasCompletedTour('cockpit') ||
-      cockpitTourStatus.status === 'skipped'
+      cockpitTourStatus.status === 'skipped' ||
+      cockpitTourStatus.status === 'in_progress'
     ) {
       return;
     }
 
     const timer = window.setTimeout(() => {
-      void markTourStarted('cockpit', 'auto');
-      setRunTour(true);
-    }, 1000);
+      setPendingLaunch({ key: Date.now(), source: 'auto' });
+    }, AUTO_START_DELAY_MS);
 
     return () => window.clearTimeout(timer);
-  }, [cockpitTourStatus.status, enabled, hasCompletedTour, isReady, markTourStarted]);
+  }, [
+    cockpitTourStatus.status,
+    enabled,
+    hasCompletedTour,
+    isCockpitLoaded,
+    isReady,
+    pendingLaunch,
+    runTour,
+  ]);
 
   useEffect(() => {
-    if (!enabled || cockpitLaunchNonce === 0) {
+    if (!enabled || !isCockpitLoaded || cockpitLaunchNonce === 0) {
       return;
     }
 
-    setRunTour(true);
-  }, [cockpitLaunchNonce, enabled]);
+    setPendingLaunch({ key: cockpitLaunchNonce, source: 'manual' });
+  }, [cockpitLaunchNonce, enabled, isCockpitLoaded]);
 
-  const handleJoyrideCallback = (data: EventData) => {
-    const { action, origin, status, type } = data;
+  useEffect(() => {
+    if (!enabled || typeof document === 'undefined' || pendingLaunch !== null) {
+      return;
+    }
+
+    setResolvedSteps(resolveCockpitTourSteps(normalizedAvailableSelectors, document));
+  }, [availableSelectorsSignature, enabled, normalizedAvailableSelectors, pendingLaunch]);
+
+  useEffect(() => {
+    if (
+      !enabled ||
+      !isReady ||
+      !isCockpitLoaded ||
+      pendingLaunch === null ||
+      typeof document === 'undefined'
+    ) {
+      return;
+    }
+
+    let isCancelled = false;
+    const launchStartedAt = Date.now();
+
+    const resolveLaunch = () => {
+      const pendingSelectors = getPendingSelectors(normalizedAvailableSelectors, document);
+      if (
+        pendingSelectors.length > 0 &&
+        Date.now() - launchStartedAt < TARGET_WAIT_TIMEOUT_MS
+      ) {
+        retryTimerRef.current = window.setTimeout(() => {
+          resolveLaunch();
+        }, TARGET_WAIT_INTERVAL_MS);
+        return;
+      }
+
+      clearRetryTimer();
+      if (isCancelled) {
+        return;
+      }
+
+      const nextSteps = resolveCockpitTourSteps(normalizedAvailableSelectors, document);
+      setResolvedSteps(nextSteps);
+      setStepIndex(0);
+      setPendingLaunch(null);
+
+      if (nextSteps.length <= 1) {
+        return;
+      }
+
+      if (pendingLaunch.source === 'auto') {
+        void markTourStarted('cockpit', 'auto');
+      }
+
+      if (!isCancelled) {
+        setRunTour(true);
+      }
+    };
+
+    resolveLaunch();
+
+    return () => {
+      isCancelled = true;
+      clearRetryTimer();
+    };
+  }, [
+    availableSelectorsSignature,
+    clearRetryTimer,
+    enabled,
+    isCockpitLoaded,
+    isReady,
+    markTourStarted,
+    normalizedAvailableSelectors,
+    pendingLaunch,
+  ]);
+
+  const waitForStepTarget = useCallback(
+    (currentIndex: number) => {
+      if (typeof document === 'undefined') {
+        return;
+      }
+
+      clearRetryTimer();
+      const currentStep = resolvedSteps[currentIndex];
+      const targetSelector =
+        currentStep && typeof currentStep.target === 'string' ? currentStep.target : null;
+
+      if (!targetSelector || targetSelector === 'body') {
+        const nextIndex = Math.min(resolvedSteps.length - 1, currentIndex + 1);
+        if (nextIndex !== currentIndex) {
+          setStepIndex(nextIndex);
+          setRunTour(true);
+        } else {
+          setRunTour(false);
+          setStepIndex(0);
+          void markTourCompleted('cockpit');
+          if (onComplete) {
+            onComplete();
+          }
+        }
+        return;
+      }
+
+      const waitStartedAt = Date.now();
+      const resumeTour = () => {
+        if (document.querySelector(targetSelector)) {
+          setStepIndex(currentIndex);
+          setRunTour(true);
+          return;
+        }
+
+        if (Date.now() - waitStartedAt >= TARGET_WAIT_TIMEOUT_MS) {
+          const nextIndex = Math.min(resolvedSteps.length - 1, currentIndex + 1);
+          if (nextIndex !== currentIndex) {
+            setStepIndex(nextIndex);
+            setRunTour(true);
+          } else {
+            setRunTour(false);
+            setStepIndex(0);
+            void markTourCompleted('cockpit');
+            if (onComplete) {
+              onComplete();
+            }
+          }
+          return;
+        }
+
+        retryTimerRef.current = window.setTimeout(resumeTour, TARGET_WAIT_INTERVAL_MS);
+      };
+
+      resumeTour();
+    },
+    [clearRetryTimer, markTourCompleted, onComplete, resolvedSteps],
+  );
+
+  const handleJoyrideCallback = useCallback((data: EventData) => {
+    const { action, index, origin, status, type } = data;
 
     if (status === STATUS.FINISHED) {
       setRunTour(false);
+      setStepIndex(0);
       void markTourCompleted('cockpit');
 
       if (onComplete) {
@@ -214,9 +442,27 @@ export const CockpitTour: React.FC<CockpitTourProps> = ({
       type === EVENTS.ERROR
     ) {
       setRunTour(false);
+      setStepIndex(0);
       void markTourSkipped('cockpit');
+      if (onComplete) {
+        onComplete();
+      }
+      return;
     }
-  };
+
+    if (type === EVENTS.TARGET_NOT_FOUND) {
+      setRunTour(false);
+      waitForStepTarget(index);
+      return;
+    }
+
+    if (type === EVENTS.STEP_AFTER) {
+      const delta = action === ACTIONS.PREV ? -1 : 1;
+      const maxIndex = Math.max(0, resolvedSteps.length - 1);
+      const nextIndex = Math.min(maxIndex, Math.max(0, index + delta));
+      setStepIndex(nextIndex);
+    }
+  }, [markTourCompleted, markTourSkipped, onComplete, resolvedSteps.length, waitForStepTarget]);
 
   /**
    * Manually restart the tour (can be called from help menu)
@@ -274,9 +520,10 @@ export const CockpitTour: React.FC<CockpitTourProps> = ({
   };
 
   return (
-    <Joyride
-      steps={tourSteps}
+      <Joyride
+      steps={resolvedSteps}
       run={runTour}
+      stepIndex={stepIndex}
       continuous
       options={options}
       styles={styles}

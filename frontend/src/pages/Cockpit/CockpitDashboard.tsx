@@ -13,7 +13,7 @@
  * 
  * Updated: 2026-02-04 - Refactored from Workspace.tsx
  */
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import styled from 'styled-components';
 import { 
   LayoutGrid, Lock, Unlock, Plus,
@@ -36,13 +36,19 @@ import {
   EmailIntegrationWidget,
   EmailIngestionMonitorWidget,
 } from '../../components/Widgets';
-import { CockpitTour, SmartSearch, BreadcrumbBar } from '../../components/Cockpit';
+import {
+  CockpitTour,
+  COCKPIT_TOUR_SELECTORS,
+  SmartSearch,
+  BreadcrumbBar,
+} from '../../components/Cockpit';
 import { AILearningMetricsWidget } from '../../components/Cockpit/AILearningMetricsWidget';
 import { EmptyState } from '../../components/Admin';
 import { CockpitWelcomeEmptyState, useOnboarding } from '../../components/Onboarding';
 import { useCockpitNavigation } from '../../contexts/CockpitNavigationContext';
 import { businessApi } from '../../services/businessApi';
 import { useCockpitPinnedTools } from '../../contexts/CockpitPinnedToolsContext';
+import { logger } from '../../utils/logger';
 
 // ============================================================================
 // TypeScript Interfaces
@@ -60,6 +66,14 @@ interface SavedLayout {
 
 const STORAGE_KEY = 'cockpit_dashboard_layout';
 const LAYOUT_VERSION = 1;
+
+const normalizeWidgetType = (widgetType: string): string =>
+  widgetType.includes('-')
+    ? `${widgetType
+        .split('-')
+        .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+        .join('')}Widget`
+    : widgetType;
 
 // Default widgets configuration
 const DEFAULT_WIDGETS: WidgetConfig[] = [
@@ -421,6 +435,7 @@ export const CockpitDashboard: React.FC = () => {
   const [isCatalogOpen, setIsCatalogOpen] = useState(false);
   const [gridWidth, setGridWidth] = useState(1200);
   const [isSaving, setIsSaving] = useState(false);
+  const [isLayoutLoaded, setIsLayoutLoaded] = useState(false);
   
   // Header owns global Ctrl+K search. Cockpit reads query from URL.
   const [searchParams, setSearchParams] = useSearchParams();
@@ -462,6 +477,24 @@ export const CockpitDashboard: React.FC = () => {
   const isRecordActive = navigation.path.length > 0;
   const showDashboardWidgets = !isSearchActive && !isRecordActive;
   const showWelcomeEmptyState = showDashboardWidgets && !hasCompletedTour('cockpit');
+  const hasQuickActionsWidget = useMemo(
+    () => widgets.some((widget) => normalizeWidgetType(widget.type) === 'QuickActionsWidget'),
+    [widgets],
+  );
+  const cockpitTourAvailableSelectors = useMemo(() => {
+    const selectors: string[] = [COCKPIT_TOUR_SELECTORS.smartSearch];
+
+    if (showDashboardWidgets && !showWelcomeEmptyState) {
+      selectors.push(COCKPIT_TOUR_SELECTORS.widgetGrid);
+
+      if (hasQuickActionsWidget) {
+        selectors.push(COCKPIT_TOUR_SELECTORS.quickActions);
+      }
+    }
+
+    return selectors;
+  }, [hasQuickActionsWidget, showDashboardWidgets, showWelcomeEmptyState]);
+  const isCockpitLoaded = isLayoutLoaded && gridWidth > 0;
 
   // If the user edits the search input, we should exit any selected record context
   // so results refresh immediately on every keystroke.
@@ -522,33 +555,45 @@ export const CockpitDashboard: React.FC = () => {
   useEffect(() => {
     const loadLayout = async () => {
       try {
-        // Try backend API first
-        const response = await businessApi.get('cockpit/workspace-layout/');
-        const saved = response.data;
-        if (saved.version === LAYOUT_VERSION) {
-          setWidgets(saved.widgets);
-          setLayout(saved.layout);
-          return;
-        }
-      } catch (err: any) {
-        // 404 means no saved layout - fall through to localStorage
-        if (err.response?.status !== 404) {
-          console.error('Failed to load cockpit layout from API:', err);
-        }
-      }
-
-      // Fallback to localStorage
-      try {
-        const saved = localStorage.getItem(STORAGE_KEY);
-        if (saved) {
-          const parsed: SavedLayout = JSON.parse(saved);
-          if (parsed.version === LAYOUT_VERSION) {
-            setWidgets(parsed.widgets);
-            setLayout(parsed.layout);
+        try {
+          // Try backend API first
+          const response = await businessApi.get('cockpit/workspace-layout/');
+          const saved = response.data;
+          if (saved.version === LAYOUT_VERSION) {
+            setWidgets(saved.widgets);
+            setLayout(saved.layout);
+            return;
+          }
+        } catch (err: any) {
+          // 404 means no saved layout - fall through to localStorage
+          if (err.response?.status !== 404) {
+            logger.error(
+              'Failed to load cockpit layout from API',
+              { component: 'CockpitDashboard' },
+              err,
+            );
           }
         }
-      } catch (err) {
-        console.error('Failed to load cockpit layout from localStorage:', err);
+
+        // Fallback to localStorage
+        try {
+          const saved = localStorage.getItem(STORAGE_KEY);
+          if (saved) {
+            const parsed: SavedLayout = JSON.parse(saved);
+            if (parsed.version === LAYOUT_VERSION) {
+              setWidgets(parsed.widgets);
+              setLayout(parsed.layout);
+            }
+          }
+        } catch (err) {
+          logger.error(
+            'Failed to load cockpit layout from localStorage',
+            { component: 'CockpitDashboard' },
+            err,
+          );
+        }
+      } finally {
+        setIsLayoutLoaded(true);
       }
     };
 
@@ -580,7 +625,11 @@ export const CockpitDashboard: React.FC = () => {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
     } catch (err) {
-      console.error('Failed to save cockpit layout to localStorage:', err);
+      logger.error(
+        'Failed to save cockpit layout to localStorage',
+        { component: 'CockpitDashboard' },
+        err,
+      );
     }
 
     // Also save to backend API
@@ -588,7 +637,11 @@ export const CockpitDashboard: React.FC = () => {
       setIsSaving(true);
       await businessApi.put('cockpit/workspace-layout/', data);
     } catch (err) {
-      console.error('Failed to save cockpit layout to API:', err);
+      logger.error(
+        'Failed to save cockpit layout to API',
+        { component: 'CockpitDashboard' },
+        err,
+      );
     } finally {
       setIsSaving(false);
     }
@@ -614,14 +667,18 @@ export const CockpitDashboard: React.FC = () => {
     // Also delete from backend (silently handle 404 as expected)
     try {
       await businessApi.delete('cockpit/workspace-layout/');
-    } catch (err) {
-      // Silently ignore 404 (expected when no saved layout exists)
-      // Only log other errors
-      if ((err as any).response?.status !== 404) {
-        console.error('Failed to reset cockpit layout in API:', err);
+      } catch (err) {
+        // Silently ignore 404 (expected when no saved layout exists)
+        // Only log other errors
+        if ((err as any).response?.status !== 404) {
+          logger.error(
+            'Failed to reset cockpit layout in API',
+            { component: 'CockpitDashboard' },
+            err,
+          );
+        }
+        // Suppress 404 completely - it's expected
       }
-      // Suppress 404 completely - it's expected
-    }
     
     setIsEditing(false);
   }, []);
@@ -656,11 +713,7 @@ export const CockpitDashboard: React.FC = () => {
 
   // Render widget based on type
   const renderWidget = useCallback((widget: WidgetConfig) => {
-    // Handle both old format (widget id as type) and new format (widget type)
-    // Old saved data may use 'quick-actions' instead of 'QuickActionsWidget'
-    const normalizedType = widget.type.includes('-') 
-      ? widget.type.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join('') + 'Widget'
-      : widget.type;
+    const normalizedType = normalizeWidgetType(widget.type);
     
     switch (normalizedType) {
       case 'QuickStatsWidget':
@@ -687,7 +740,11 @@ export const CockpitDashboard: React.FC = () => {
       case 'EmailIngestionMonitorWidget':
         return <EmailIngestionMonitorWidget />;
       default:
-        console.warn(`Unknown widget type: ${widget.type} (normalized: ${normalizedType})`);
+        logger.warn('Unknown cockpit widget type encountered', {
+          component: 'CockpitDashboard',
+          widgetType: widget.type,
+          normalizedType,
+        });
         return (
           <div style={{ 
             padding: '20px', 
@@ -704,7 +761,11 @@ export const CockpitDashboard: React.FC = () => {
   return (
     <Container>
       {/* Guided Tour */}
-      <CockpitTour enabled={true} />
+      <CockpitTour
+        enabled={true}
+        isCockpitLoaded={isCockpitLoaded}
+        availableSelectors={cockpitTourAvailableSelectors}
+      />
 
       {/* Breadcrumb navigation bar - Elevated above search and grid */}
       {navigation.path.length > 0 && (
@@ -814,7 +875,12 @@ export const CockpitDashboard: React.FC = () => {
 
       {/* Widget Grid (hidden when searching or a record is active) */}
       {showDashboardWidgets && !showWelcomeEmptyState && (
-        <GridWrapper ref={containerRef} data-tour="search-results">
+        <GridWrapper
+          ref={containerRef}
+          id="tour-cockpit-grid"
+          data-testid="tour-cockpit-grid"
+          data-tour="search-results"
+        >
           {widgets.length === 0 ? (
             <EmptyState
               icon={<LayoutGrid size={48} />}
