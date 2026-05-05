@@ -1,16 +1,131 @@
-import { apiClient } from './apiService';
+import { businessApi } from './businessApi';
+
+type UnknownRecord = Record<string, unknown>;
+
+const DEFAULT_COLOR_VAR = '--color-info';
+
+const isRecord = (value: unknown): value is UnknownRecord =>
+  typeof value === 'object' && value !== null && !Array.isArray(value);
+
+const asString = (value: unknown): string => {
+  if (typeof value === 'string') return value;
+  if (typeof value === 'number') return String(value);
+  return '';
+};
+
+const asOptionalString = (value: unknown): string | undefined => {
+  const normalized = asString(value).trim();
+  return normalized ? normalized : undefined;
+};
+
+const asNumber = (value: unknown): number | undefined => {
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : undefined;
+};
+
+const normalizeLabels = (value: unknown): string[] => {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((entry) => {
+      if (typeof entry === 'string') return entry.trim();
+      if (isRecord(entry)) return asString(entry.text).trim();
+      return '';
+    })
+    .filter(Boolean);
+};
+
+const normalizeMetadata = (value: unknown): Record<string, unknown> =>
+  isRecord(value) ? value : {};
+
+const SEARCH_TYPE_ALIASES: Record<string, string> = {
+  carrier: 'carrier',
+  carriers: 'carrier',
+  contact: 'contact',
+  contacts: 'contact',
+  customer: 'customer',
+  customers: 'customer',
+  invoice: 'invoice',
+  invoices: 'invoice',
+  plant: 'plant',
+  plants: 'plant',
+  po: 'purchase_order',
+  purchase_order: 'purchase_order',
+  purchase_orders: 'purchase_order',
+  product: 'product',
+  products: 'product',
+  so: 'sales_order',
+  sales_order: 'sales_order',
+  sales_orders: 'sales_order',
+  supplier: 'supplier',
+  suppliers: 'supplier',
+};
+
+const RANKED_TYPE_PARAMS: Record<string, string> = {
+  contact: 'contact',
+  customer: 'customer',
+  product: 'product',
+  purchase_order: 'po',
+  sales_order: 'so',
+  supplier: 'supplier',
+};
+
+const SEARCH_TYPE_ROUTES: Record<string, string> = {
+  carrier: '/carriers',
+  contact: '/contacts',
+  customer: '/customers',
+  invoice: '/accounting/invoices',
+  plant: '/plants',
+  product: '/products',
+  purchase_order: '/purchase-orders',
+  sales_order: '/sales-orders',
+  supplier: '/suppliers',
+};
+
+const SEARCH_TYPE_ICONS: Record<string, string> = {
+  carrier: 'Truck',
+  contact: 'User',
+  customer: 'Users',
+  invoice: 'Receipt',
+  plant: 'Factory',
+  product: 'Package',
+  purchase_order: 'Package',
+  sales_order: 'FileText',
+  supplier: 'Building2',
+};
+
+const COLOR_TOKEN_MAP: Record<string, string> = {
+  error: '--color-error',
+  info: '--color-info',
+  primary: '--color-primary',
+  success: '--color-success',
+  warning: '--color-warning',
+};
+
+const TYPE_COLOR_MAP: Record<string, string> = {
+  carrier: '--color-warning',
+  contact: '--color-info',
+  customer: '--color-info',
+  invoice: '--color-error',
+  plant: '--color-primary',
+  product: '--color-success',
+  purchase_order: '--color-success',
+  sales_order: '--color-warning',
+  supplier: '--color-primary',
+};
 
 export interface SearchItem {
   id: string;
   type: string;
   title: string;
   subtitle?: string;
+  icon: string;
+  color?: string;
+  colorVar: string;
   route: string;
-  icon?: string;
-  score?: number;
+  score: number;
   labels: string[];
   metadata: Record<string, unknown>;
-  colorVar: string;
 }
 
 export interface SearchResponse {
@@ -18,257 +133,175 @@ export interface SearchResponse {
   results: SearchItem[];
   counts: Record<string, number>;
   total: number;
+  message?: string;
 }
 
-interface RawSearchItem {
-  id?: string | number;
-  type?: string;
-  entity_type?: string;
-  title?: string;
-  name?: string;
-  label?: string;
-  subtitle?: string;
-  route?: string;
-  icon?: string;
-  score?: string | number;
-  labels?: unknown;
-  color?: unknown;
-  colorVar?: unknown;
-  metadata?: Record<string, unknown> | null;
-}
-
-interface RawSearchResponse {
-  query?: string;
-  results?: RawSearchItem[];
-  counts?: Record<string, unknown>;
-  total?: string | number;
-}
-
-export interface RankedSearchParams {
+export interface RankedSearchOptions {
   query: string;
   dateRange?: string;
   entityTypes?: string[];
   limit?: number;
 }
 
-export interface UniversalSearchParams {
+export interface UniversalSearchOptions {
   query: string;
   entityTypes?: string[];
   limit?: number;
 }
 
-export interface RecentSearchItemPayload {
-  type: string;
-  id: string | number;
-  title: string;
-}
+const getDefaultIcon = (type: string): string =>
+  SEARCH_TYPE_ICONS[normalizeSearchType(type)] ?? 'File';
 
-const DEFAULT_RESULT_COLOR_VAR = '--color-primary';
-
-const TYPE_ALIASES: Record<string, string> = {
-  customer: 'customer',
-  customers: 'customer',
-  supplier: 'supplier',
-  suppliers: 'supplier',
-  product: 'product',
-  products: 'product',
-  contact: 'contact',
-  contacts: 'contact',
-  po: 'purchase_order',
-  purchase_order: 'purchase_order',
-  'purchase-order': 'purchase_order',
-  purchase_orders: 'purchase_order',
-  'purchase-orders': 'purchase_order',
-  so: 'sales_order',
-  sales_order: 'sales_order',
-  'sales-order': 'sales_order',
-  sales_orders: 'sales_order',
-  'sales-orders': 'sales_order',
-  invoice: 'invoice',
-  invoices: 'invoice',
-  plant: 'plant',
-  plants: 'plant',
-  carrier: 'carrier',
-  carriers: 'carrier',
+const getDefaultRoute = (type: string, id: string): string => {
+  const canonicalType = normalizeSearchType(type);
+  const baseRoute = SEARCH_TYPE_ROUTES[canonicalType] ?? `/${canonicalType}s`;
+  return id ? `${baseRoute}/${id}` : baseRoute;
 };
 
-const extractColorVar = (value: unknown): string | null => {
-  if (typeof value !== 'string') return null;
-  const normalized = value.trim();
-
+const toColorVar = (value: unknown): string | undefined => {
+  const normalized = asString(value).trim().toLowerCase();
+  if (!normalized) return undefined;
   if (normalized.startsWith('--color-')) return normalized;
-  if (/^(primary|info|success|warning|error)$/.test(normalized)) return `--color-${normalized}`;
-
-  const colorVarMatch = normalized.match(/var\(--(color-[a-z0-9-]+)\)/i);
-  if (colorVarMatch?.[1]) {
-    return `--${colorVarMatch[1]}`;
-  }
-
-  return null;
+  return COLOR_TOKEN_MAP[normalized];
 };
 
 export const normalizeSearchType = (value: unknown): string => {
-  const normalized = String(value ?? '').trim().toLowerCase();
-  return TYPE_ALIASES[normalized] ?? normalized;
+  const normalized = asString(value).trim().toLowerCase();
+  if (!normalized) return 'unknown';
+  return SEARCH_TYPE_ALIASES[normalized] ?? normalized;
 };
 
-export const getSearchColorVar = (item: {
-  type?: unknown;
-  color?: unknown;
+export const getSearchColorVar = (value: {
+  type: string;
   colorVar?: unknown;
-  metadata?: Record<string, unknown> | null;
+  color?: unknown;
+  metadata?: Record<string, unknown>;
 }): string => {
-  const normalizedType = normalizeSearchType(item.type);
+  const explicit =
+    toColorVar(value.colorVar) ??
+    toColorVar(value.color) ??
+    toColorVar(value.metadata?.color);
 
-  return (
-    extractColorVar(item.colorVar) ??
-    extractColorVar(item.color) ??
-    extractColorVar(item.metadata?.color) ??
-    ({
-      purchase_order: '--color-info',
-      sales_order: '--color-success',
-      customer: '--color-warning',
-      supplier: '--color-primary',
-      product: '--color-warning',
-      contact: '--color-success',
-    }[normalizedType] ?? DEFAULT_RESULT_COLOR_VAR)
-  );
+  return explicit ?? TYPE_COLOR_MAP[normalizeSearchType(value.type)] ?? DEFAULT_COLOR_VAR;
 };
 
-const normalizeSearchLabels = (labels: unknown): string[] => {
-  if (!Array.isArray(labels)) return [];
-
-  return labels
-    .map((label) => {
-      if (typeof label === 'string') return label;
-      if (label && typeof label === 'object' && 'text' in label && typeof label.text === 'string') {
-        return label.text;
-      }
-      return null;
-    })
-    .filter((label): label is string => Boolean(label));
-};
-
-const buildDefaultRoute = (type: string, id: string): string => {
-  switch (type) {
-    case 'customer':
-      return `/customers/${id}`;
-    case 'supplier':
-      return `/suppliers/${id}`;
-    case 'product':
-      return `/products/${id}`;
-    case 'contact':
-      return `/contacts/${id}`;
-    case 'purchase_order':
-      return `/purchase-orders/${id}`;
-    case 'sales_order':
-      return `/sales-orders/${id}`;
-    case 'plant':
-      return `/plants/${id}`;
-    case 'carrier':
-      return `/carriers/${id}`;
-    case 'invoice':
-      return `/invoices/${id}`;
-    default:
-      return `/${type}s/${id}`;
-  }
-};
-
-export const normalizeSearchItem = (item: RawSearchItem): SearchItem => {
-  const id = String(item.id ?? '');
-  const type = normalizeSearchType(item.type ?? item.entity_type);
-  const metadata = item.metadata ?? {};
-  const title = String(item.title ?? item.name ?? item.label ?? `${type} ${id}`).trim();
-  const numericScore = Number(item.score);
+export const normalizeSearchItem = (value: unknown): SearchItem => {
+  const record = isRecord(value) ? value : {};
+  const metadata = normalizeMetadata(record.metadata);
+  const id = asString(record.id).trim();
+  const type = normalizeSearchType(record.type ?? record.entity_type);
 
   return {
     id,
     type,
-    title: title || `${type} ${id}`,
-    subtitle: item.subtitle ? String(item.subtitle) : '',
-    route: item.route ? String(item.route) : buildDefaultRoute(type, id),
-    icon: item.icon ? String(item.icon) : undefined,
-    score: Number.isFinite(numericScore) ? numericScore : undefined,
-    labels: normalizeSearchLabels(item.labels),
+    title:
+      asOptionalString(record.title) ??
+      asOptionalString(record.name) ??
+      asOptionalString(record.label) ??
+      'Unnamed',
+    subtitle:
+      asOptionalString(record.subtitle) ??
+      asOptionalString(record.description),
+    icon: asOptionalString(record.icon) ?? getDefaultIcon(type),
+    color: asOptionalString(record.color) ?? asOptionalString(metadata.color),
+    colorVar: getSearchColorVar({
+      type,
+      colorVar: record.colorVar,
+      color: record.color,
+      metadata,
+    }),
+    route: asOptionalString(record.route) ?? getDefaultRoute(type, id),
+    score: asNumber(record.score) ?? 0,
+    labels: normalizeLabels(record.labels),
     metadata,
-    colorVar: getSearchColorVar(item),
   };
 };
 
-const normalizeCounts = (counts: Record<string, unknown> | undefined): Record<string, number> => {
-  if (!counts || typeof counts !== "object") {
-    return {};
+export const normalizeSearchResults = (value: unknown): SearchItem[] => {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map(normalizeSearchItem)
+    .filter((item) => item.id && item.type !== 'unknown');
+};
+
+const normalizeCounts = (value: unknown, results: SearchItem[]): Record<string, number> => {
+  if (isRecord(value)) {
+    return Object.entries(value).reduce<Record<string, number>>((acc, [key, raw]) => {
+      const type = normalizeSearchType(key);
+      const parsed = asNumber(raw) ?? 0;
+      acc[type] = (acc[type] ?? 0) + parsed;
+      return acc;
+    }, {});
   }
 
-  return Object.entries(counts).reduce<Record<string, number>>((acc, [rawType, rawCount]) => {
-    const normalizedType = normalizeSearchType(rawType);
-    const count = Number(rawCount ?? 0);
-    acc[normalizedType] = (acc[normalizedType] ?? 0) + (Number.isFinite(count) ? count : 0);
+  return results.reduce<Record<string, number>>((acc, item) => {
+    acc[item.type] = (acc[item.type] ?? 0) + 1;
     return acc;
   }, {});
 };
 
-const normalizeSearchResponse = (response: RawSearchResponse): SearchResponse => {
-  const results = Array.isArray(response.results) ? response.results.map(normalizeSearchItem) : [];
-  const total = Number(response.total ?? results.length);
+const normalizeSearchResponse = (value: unknown, fallbackQuery: string): SearchResponse => {
+  const record = isRecord(value) ? value : {};
+  const results = normalizeSearchResults(record.results);
 
   return {
-    query: String(response.query ?? ''),
+    query: asOptionalString(record.query) ?? fallbackQuery,
     results,
-    counts: normalizeCounts(response.counts),
-    total: Number.isFinite(total) ? total : results.length,
+    counts: normalizeCounts(record.counts, results),
+    total: asNumber(record.total) ?? results.length,
+    message: asOptionalString(record.message),
   };
 };
 
-const encodeRankedEntityType = (value: string): string => {
-  const normalized = normalizeSearchType(value);
-  if (normalized === 'purchase_order') return 'po';
-  if (normalized === 'sales_order') return 'so';
-  return normalized;
-};
-
-export const groupSearchResultsByType = (results: SearchItem[]): Record<string, SearchItem[]> => {
-  return results.reduce<Record<string, SearchItem[]>>((acc, item) => {
-    if (!acc[item.type]) {
-      acc[item.type] = [];
-    }
+export const groupSearchResultsByType = (
+  results: SearchItem[],
+): Record<string, SearchItem[]> =>
+  results.reduce<Record<string, SearchItem[]>>((acc, item) => {
+    if (!acc[item.type]) acc[item.type] = [];
     acc[item.type].push(item);
     return acc;
   }, {});
-};
 
 export const searchRanked = async ({
   query,
   dateRange = 'all',
   entityTypes,
   limit = 8,
-}: RankedSearchParams): Promise<SearchResponse> => {
-  const response = await apiClient.get<RawSearchResponse>('system/search/ranked/', {
+}: RankedSearchOptions): Promise<SearchResponse> => {
+  const response = await businessApi.get('/system/search/ranked/', {
     params: {
       q: query,
       date_range: dateRange,
       limit,
-      entity_types: entityTypes?.map(encodeRankedEntityType).join(',') || undefined,
+      ...(entityTypes && entityTypes.length > 0
+        ? {
+            entity_types: entityTypes
+              .map((type) => RANKED_TYPE_PARAMS[normalizeSearchType(type)] ?? normalizeSearchType(type))
+              .join(','),
+          }
+        : {}),
     },
   });
 
-  return normalizeSearchResponse(response.data);
+  return normalizeSearchResponse(response.data, query);
 };
 
 export const searchUniversal = async ({
   query,
   entityTypes,
   limit = 5,
-}: UniversalSearchParams): Promise<SearchResponse> => {
-  const response = await apiClient.get<RawSearchResponse>('search/universal/', {
+}: UniversalSearchOptions): Promise<SearchResponse> => {
+  const response = await businessApi.get('/search/universal/', {
     params: {
       q: query,
       limit,
-      types: entityTypes?.map(normalizeSearchType).join(',') || undefined,
+      ...(entityTypes && entityTypes.length > 0
+        ? { types: entityTypes.map((type) => normalizeSearchType(type)).join(',') }
+        : {}),
     },
   });
 
-  return normalizeSearchResponse(response.data);
+  return normalizeSearchResponse(response.data, query);
 };
 
 export const searchContinuous = async ({
@@ -282,25 +315,44 @@ export const searchContinuous = async ({
 }): Promise<SearchItem[]> => {
   const response = await searchUniversal({
     query,
-    limit,
     entityTypes: [entityType],
+    limit,
   });
 
   return response.results;
 };
 
-export const getRecentItems = async (limit = 5): Promise<SearchItem[]> => {
-  const response = await apiClient.get<{ items?: RawSearchItem[] }>('search/recent/', {
+export const getRecentItems = async (limit = 10): Promise<SearchItem[]> => {
+  const response = await businessApi.get('/search/recent/', {
     params: { limit },
   });
-
-  return Array.isArray(response.data.items) ? response.data.items.map(normalizeSearchItem) : [];
+  const data = isRecord(response.data) ? response.data : {};
+  return normalizeSearchResults(data.items);
 };
 
-export const trackRecentItem = async ({ type, id, title }: RecentSearchItemPayload): Promise<void> => {
-  await apiClient.post('search/recent/', {
+export const trackRecentItem = async ({
+  type,
+  id,
+  title,
+}: {
+  type: string;
+  id: string | number;
+  title: string;
+}): Promise<void> => {
+  await businessApi.post('/search/recent/', {
     entity_type: normalizeSearchType(type),
     entity_id: id,
     title,
   });
+};
+
+export const searchService = {
+  getRecentItems,
+  groupSearchResultsByType,
+  normalizeSearchItem,
+  normalizeSearchType,
+  searchContinuous,
+  searchRanked,
+  searchUniversal,
+  trackRecentItem,
 };

@@ -658,8 +658,8 @@
   - **Rollback:** Keep the cache-clear fallback behind a temporary guard until migrated surfaces are verified.
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
-- [ ] **EH-04.2 search-contract-unification**
-  - **Status:** Ready
+- [x] **EH-04.2 search-contract-unification**
+  - **Status:** Shipped (PR #4876)
   - **Why now:** Search surfaces still speak different contracts and ranking semantics.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Cockpit Search relevance + Phase 12
   - **Scope:** Create one search SDK/result taxonomy and move command/search surfaces onto it without changing user-facing entrypoints.
@@ -677,7 +677,7 @@
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
 - [ ] **EH-04.3 floweditor-decomposition-phase-1**
-  - **Status:** Blocked
+  - **Status:** Ready
   - **Why now:** `UnifiedFlowEditor.tsx` is too large and too risky to keep extending without module boundaries.
   - **Canonical source reference:** `MASTER_PLAN.md` -> WorkForms runtime/observability + Phase 12
   - **Scope:** Establish the first safe decomposition boundary and regression harness for FlowEditor.

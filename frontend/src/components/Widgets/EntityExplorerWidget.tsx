@@ -21,8 +21,9 @@ import {
   ChevronRight, Star, Clock
 } from 'lucide-react';
 import { WidgetCard } from './WidgetCard';
-import { apiClient } from '../../services/apiService';
 import { EntityDetailModal } from '../Shared/EntityDetailModal';
+import { getRecentItems } from '@/services/searchService';
+import { logger } from '@/utils/logger';
 
 // ============================================================================
 // TypeScript Interfaces
@@ -78,6 +79,36 @@ const ENTITY_CONFIG: Record<EntityType, { icon: React.ReactNode; color: string; 
     path: '/accounting/invoices',
     label: 'Invoices',
   },
+};
+
+const EMPTY_ENTITIES: Record<EntityType, RecentEntity[]> = {
+  suppliers: [],
+  customers: [],
+  purchase_orders: [],
+  sales_orders: [],
+  invoices: [],
+};
+
+const toEntityExplorerType = (rawType: string): EntityType | null => {
+  switch (rawType) {
+    case 'supplier':
+    case 'suppliers':
+      return 'suppliers';
+    case 'customer':
+    case 'customers':
+      return 'customers';
+    case 'purchase_order':
+    case 'purchase_orders':
+      return 'purchase_orders';
+    case 'sales_order':
+    case 'sales_orders':
+      return 'sales_orders';
+    case 'invoice':
+    case 'invoices':
+      return 'invoices';
+    default:
+      return null;
+  }
 };
 
 // ============================================================================
@@ -232,13 +263,7 @@ export const EntityExplorerWidget: React.FC<EntityExplorerWidgetProps> = ({
   const navigate = useNavigate();
   const cockpitNavigation = useCockpitNavigation();
   const [activeTab, setActiveTab] = useState<EntityType>('suppliers');
-  const [entities, setEntities] = useState<Record<EntityType, RecentEntity[]>>({
-    suppliers: [],
-    customers: [],
-    purchase_orders: [],
-    sales_orders: [],
-    invoices: [],
-  });
+  const [entities, setEntities] = useState<Record<EntityType, RecentEntity[]>>(EMPTY_ENTITIES);
   const [loading, setLoading] = useState(true);
   
   // Entity detail modal state
@@ -246,63 +271,36 @@ export const EntityExplorerWidget: React.FC<EntityExplorerWidgetProps> = ({
 
   const fetchEntities = useCallback(async () => {
     try {
-      // Try to fetch from API, fall back to mock data
-      const response = await apiClient.get('search/recent/').catch(() => null);
-      
-      if (response?.data?.recent_items) {
-        // Group by type
-        const grouped: Record<EntityType, RecentEntity[]> = {
-          suppliers: [],
-          customers: [],
-          purchase_orders: [],
-          sales_orders: [],
-          invoices: [],
-        };
-        
-        response.data.recent_items.forEach((item: any) => {
-          const type = item.type as EntityType;
-          if (grouped[type]) {
-            grouped[type].push({
+      const grouped = getRecentItems(20).then((items) =>
+        items.reduce<Record<EntityType, RecentEntity[]>>(
+          (acc, item) => {
+            const type = toEntityExplorerType(item.type);
+            if (!type) return acc;
+
+            acc[type].push({
               id: item.id,
               type,
-              name: item.name,
+              name: item.title,
               subtitle: item.subtitle,
-              isFavorite: item.is_favorite,
-              lastAccessed: item.last_accessed,
+              isFavorite: false,
+              lastAccessed: '',
             });
+            return acc;
+          },
+          {
+            suppliers: [],
+            customers: [],
+            purchase_orders: [],
+            sales_orders: [],
+            invoices: [],
           }
-        });
-        
-        setEntities(grouped);
-      } else {
-        // Mock data for development
-        setEntities({
-          suppliers: [
-            { id: '1', type: 'suppliers', name: 'Prime Beef Co', subtitle: 'Active • 12 orders', isFavorite: true, lastAccessed: new Date().toISOString() },
-            { id: '2', type: 'suppliers', name: 'Quality Pork LLC', subtitle: 'Active • 8 orders', lastAccessed: new Date().toISOString() },
-            { id: '3', type: 'suppliers', name: 'Fresh Poultry Inc', subtitle: 'Active • 15 orders', lastAccessed: new Date().toISOString() },
-          ],
-          customers: [
-            { id: '1', type: 'customers', name: 'Acme Foods Inc', subtitle: 'Houston, TX', isFavorite: true, lastAccessed: new Date().toISOString() },
-            { id: '2', type: 'customers', name: 'Metro Restaurants', subtitle: 'Dallas, TX', lastAccessed: new Date().toISOString() },
-            { id: '3', type: 'customers', name: 'Fresh Mart Chain', subtitle: 'Austin, TX', lastAccessed: new Date().toISOString() },
-          ],
-          purchase_orders: [
-            { id: '1', type: 'purchase_orders', name: 'PO-2026-001234', subtitle: '$12,450 • Pending', lastAccessed: new Date().toISOString() },
-            { id: '2', type: 'purchase_orders', name: 'PO-2026-001233', subtitle: '$8,900 • Shipped', lastAccessed: new Date().toISOString() },
-          ],
-          sales_orders: [
-            { id: '1', type: 'sales_orders', name: 'SO-2026-000567', subtitle: '$15,200 • Processing', lastAccessed: new Date().toISOString() },
-            { id: '2', type: 'sales_orders', name: 'SO-2026-000566', subtitle: '$9,800 • Completed', lastAccessed: new Date().toISOString() },
-          ],
-          invoices: [
-            { id: '1', type: 'invoices', name: 'INV-2026-000789', subtitle: '$12,450 • Due Feb 15', lastAccessed: new Date().toISOString() },
-            { id: '2', type: 'invoices', name: 'INV-2026-000788', subtitle: '$8,900 • Paid', lastAccessed: new Date().toISOString() },
-          ],
-        });
-      }
+        )
+      );
+
+      setEntities(await grouped);
     } catch (err) {
-      console.error('Failed to fetch entities:', err);
+      logger.error('Failed to fetch entities:', err);
+      setEntities(EMPTY_ENTITIES);
     } finally {
       setLoading(false);
     }
