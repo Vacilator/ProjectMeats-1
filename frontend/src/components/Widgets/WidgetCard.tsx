@@ -34,6 +34,9 @@ export interface WidgetCardProps {
   noPadding?: boolean;
   badge?: string | number;
   badgeVariant?: 'default' | 'danger' | 'warning' | 'success';
+  id?: string;
+  'data-testid'?: string;
+  'data-tour'?: string;
 }
 
 // ============================================================================
@@ -180,6 +183,9 @@ export const WidgetCard: React.FC<WidgetCardProps> = ({
   noPadding = false,
   badge,
   badgeVariant = 'default',
+  id,
+  'data-testid': dataTestId,
+  'data-tour': dataTour,
 }) => {
   const widgetInstance = useWidgetInstance();
   const pinnedTools = useCockpitPinnedTools();
@@ -187,7 +193,12 @@ export const WidgetCard: React.FC<WidgetCardProps> = ({
   const isPinned = widgetInstance?.widget ? pinnedTools.isWidgetPinned(widgetInstance.widget.id) : false;
 
   return (
-    <CardContainer className={className}>
+    <CardContainer
+      className={className}
+      id={id}
+      data-testid={dataTestId}
+      data-tour={dataTour}
+    >
       <CardHeader>
         <HeaderLeft>
           {icon && <HeaderIcon>{icon}</HeaderIcon>}

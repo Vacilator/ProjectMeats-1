@@ -14,7 +14,7 @@
  */
 import React, { useCallback, useState, useRef, useEffect } from 'react';
 import styled from 'styled-components';
-import { Search, Command } from 'lucide-react';
+import { Search } from 'lucide-react';
 import { useTranslation } from '../../i18n';
 
 // ============================================================================
@@ -141,7 +141,6 @@ export const CommandBar: React.FC<CommandBarProps> = ({
 }) => {
   const { t } = useTranslation();
   const resolvedPlaceholder = placeholder ?? t('cockpit.searchPlaceholder');
-  const [isFocused, setIsFocused] = useState(false);
   const inputRef = useRef<HTMLButtonElement>(null);
   const [showMacKey, setShowMacKey] = useState(true);
 
@@ -163,13 +162,17 @@ export const CommandBar: React.FC<CommandBarProps> = ({
   }, [onOpenPalette]);
 
   return (
-    <Container $compact={compact} className={className} data-tour="search-input">
+    <Container
+      $compact={compact}
+      className={className}
+      id="tour-smart-search"
+      data-testid="tour-smart-search"
+      data-tour="search-input"
+    >
       <SearchInputWrapper
         ref={inputRef}
         onClick={handleClick}
         onKeyDown={handleKeyDown}
-        onFocus={() => setIsFocused(true)}
-        onBlur={() => setIsFocused(false)}
         $compact={compact}
         role="button"
         aria-label={t('cockpit.openSearch')}
