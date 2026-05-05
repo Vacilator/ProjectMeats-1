@@ -1919,6 +1919,14 @@ Deliverables:
 ### Rollback
 - Revert this planning batch if Phase 16 wording or backlog ordering proves contradictory.
 
+### 2026-05-05 — AI Assistant: chat context compaction
+- Added tenant-safe chat context compaction settings in `backend/projectmeats/settings/base.py` plus session watermark helpers in `backend/tenant_apps/ai_assistant/session_utils.py`.
+- Reused `TenantAIMemory` via `backend/tenant_apps/ai_assistant/services/tenant_memory_service.py` to roll older raw chat messages into a durable per-session summary while keeping `ChatMessage` rows intact for audit.
+- Updated `backend/tenant_apps/ai_assistant/views.py` and `backend/tenant_apps/ai_assistant/swarm/router.py` so replay history remains explicitly tenant-filtered, compacted raw messages drop out of the prompt tail once summarized, and the session summary is injected into the swarm system prompt.
+- Added regression coverage in `backend/tenant_apps/ai_assistant/tests/test_models.py` and `backend/tenant_apps/ai_assistant/test_swarm_email_tools.py` for durable compaction, raw-tail replay trimming, and session-memory prompt injection.
+- Validation: `cd backend && python manage.py makemigrations --check`; `cd backend && ruff check projectmeats/settings/base.py tenant_apps/ai_assistant/session_utils.py tenant_apps/ai_assistant/services/tenant_memory_service.py tenant_apps/ai_assistant/views.py tenant_apps/ai_assistant/swarm/router.py tenant_apps/ai_assistant/tests/test_models.py tenant_apps/ai_assistant/test_swarm_email_tools.py`; `cd backend && python manage.py test tenant_apps.ai_assistant.tests.test_models tenant_apps.ai_assistant.test_swarm_email_tools tenant_apps.ai_assistant.tests_document_upload`; `cd backend && printf 'yes\n' | python manage.py test tenant_apps.ai_assistant apps.core.tests.test_viewset_permissions`.
+- PR: #4895.
+
 ### 2026-05-05 — AI Assistant: semantic response cache hardening
 - Added a tenant-scoped semantic response cache in `backend/tenant_apps/ai_assistant/services/semantic_cache.py` with configurable enablement, TTL, similarity threshold, and bounded entry count in `backend/projectmeats/settings/base.py`.
 - Wired `ChatBotAPIViewSet.chat()` to reuse safe cache hits for repeated same-context prompts while still persisting assistant chat messages and lineage events, and to store only tool-free, control-plane-free responses.
