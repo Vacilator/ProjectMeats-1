@@ -88,6 +88,7 @@ ProjectMeats uses a **shared-schema multi-tenancy** approach exclusively:
 """
 
 import os
+from datetime import timedelta
 from pathlib import Path
 
 from kombu import Queue
@@ -308,7 +309,6 @@ REST_FRAMEWORK = {
 # ==============================================================================
 # Replace perpetual tokens with industry-standard JWT
 # Access tokens expire quickly; refresh tokens rotate on use
-from datetime import timedelta
 
 SIMPLE_JWT = {
     # Token lifetimes
@@ -540,6 +540,12 @@ REQUIRE_REDIS_READINESS = _env_flag("REQUIRE_REDIS_READINESS", False)
 REDIS_EXPECTED_MAXMEMORY_POLICY = "noeviction"
 REDIS_MEMORY_WARN_RATIO = 0.70
 REDIS_MEMORY_CRITICAL_RATIO = 0.85
+AI_SEMANTIC_CACHE_ENABLED = _env_flag("AI_SEMANTIC_CACHE_ENABLED", True)
+AI_SEMANTIC_CACHE_TTL_SECONDS = int(os.environ.get("AI_SEMANTIC_CACHE_TTL_SECONDS", "3600"))
+AI_SEMANTIC_CACHE_SIMILARITY_THRESHOLD = float(
+    os.environ.get("AI_SEMANTIC_CACHE_SIMILARITY_THRESHOLD", "0.95")
+)
+AI_SEMANTIC_CACHE_MAX_ENTRIES = int(os.environ.get("AI_SEMANTIC_CACHE_MAX_ENTRIES", "50"))
 
 if REDIS_BACKEND_URL:
     # Redis cache for production (Phases 3, 8: Real-time search, parallelization)

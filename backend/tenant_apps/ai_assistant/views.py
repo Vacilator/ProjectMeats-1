@@ -10,7 +10,7 @@ import uuid
 from datetime import timedelta
 
 from django.conf import settings
-from django.db import DatabaseError, ProgrammingError, connection, models, transaction
+from django.db import DatabaseError, ProgrammingError, connection, transaction
 from django.db.models import Avg
 from django.db.models.functions import TruncDate
 from django.utils import timezone
@@ -69,6 +69,8 @@ from .serializers import (
 )
 from .session_utils import bind_context_to_tenant, get_request_tenant_id, session_matches_tenant
 from .services.extract_to_schema import ExtractToSchemaError, extract_document_to_schema, get_extract_document
+from .services import semantic_cache as ai_semantic_cache
+from .swarm.executor import DEFAULT_OPENAI_TOOLS
 
 logger = logging.getLogger(__name__)
 
@@ -291,10 +293,6 @@ def build_pending_review_items(tenant_id: str) -> list[dict[str, object]]:
         )
 
     return items
-
-from tenant_apps.ai_assistant.swarm.executor import DEFAULT_OPENAI_TOOLS
-
-
 def ai_not_configured_response() -> Response:
     return Response(
         {
@@ -577,6 +575,73 @@ class ChatBotAPIViewSet(viewsets.ViewSet):
                 except Exception:
                     pass
 
+                context_signature = ai_semantic_cache.build_context_signature(
+                    history=history,
+                    context=context,
+                )
+                cached_response = ai_semantic_cache.lookup_cached_response(
+                    tenant_id=tenant_id,
+                    user_message=user_message,
+                    context_signature=context_signature,
+                )
+                if cached_response is not None:
+                    metadata = {
+                        'model': cached_response.model_name or model_name,
+                        'provider': 'openai',
+                        'tokens_used': None,
+                        'response_type': 'semantic_cache_hit',
+                        'tools_used': [],
+                        'cache_hit': True,
+                        'cache_similarity': round(float(cached_response.similarity), 4),
+                        'cache_provider': 'redis',
+                        'cache_entry_id': cached_response.entry_id,
+                    }
+                    ai_msg = ChatMessage.objects.create(
+                        session=session,
+                        tenant=tenant,
+                        message_type=MessageTypeChoices.ASSISTANT,
+                        content=cached_response.response_text,
+                        metadata=metadata,
+                        owner=request.user,
+                        created_by=request.user,
+                        modified_by=request.user,
+                    )
+                    try:
+                        from .services.lineage import create_lineage_event
+
+                        create_lineage_event(
+                            tenant=tenant,
+                            event_type='semantic_cache_hit',
+                            source_type='semantic_cache',
+                            source_id=cached_response.entry_id,
+                            target_type='chat_message',
+                            target_id=str(ai_msg.id),
+                            summary='Served an AI assistant response from the semantic cache.',
+                            metadata={
+                                'session_id': str(session.id),
+                                'similarity': round(float(cached_response.similarity), 4),
+                            },
+                        )
+                    except Exception:
+                        logger.warning(
+                            'Failed to record semantic cache hit lineage message=%s',
+                            ai_msg.id,
+                            exc_info=True,
+                        )
+
+                    processing_time = time.time() - start_time
+                    response_serializer = ChatBotResponseSerializer(
+                        data={
+                            "response": cached_response.response_text,
+                            "session_id": session.id,
+                            "message_id": ai_msg.id,
+                            "processing_time": processing_time,
+                            "metadata": metadata,
+                        }
+                    )
+                    response_serializer.is_valid(raise_exception=True)
+                    return Response(response_serializer.data, status=status.HTTP_200_OK)
+
                 orch = SwarmOrchestrator(tenant_id=str(getattr(tenant, 'id', '') or ''))
                 result = orch.run_tool_loop(
                     user_message=user_message,
@@ -627,6 +692,19 @@ class ChatBotAPIViewSet(viewsets.ViewSet):
             }
             if control_plane:
                 metadata['control_plane'] = control_plane
+            else:
+                cached_entry = ai_semantic_cache.store_cached_response(
+                    tenant_id=tenant_id,
+                    user_message=user_message,
+                    response_text=response_text,
+                    context_signature=context_signature,
+                    model_name=model_name,
+                ) if not tools_used and response_text else None
+                if cached_entry is not None:
+                    metadata['cache_store'] = {
+                        'entry_id': cached_entry['entry_id'],
+                        'provider': 'redis',
+                    }
 
             # Create AI response message
             ai_msg = ChatMessage.objects.create(
@@ -639,6 +717,26 @@ class ChatBotAPIViewSet(viewsets.ViewSet):
                 created_by=request.user,
                 modified_by=request.user,
             )
+            if metadata.get('cache_store'):
+                try:
+                    from .services.lineage import create_lineage_event
+
+                    create_lineage_event(
+                        tenant=tenant,
+                        event_type='semantic_cache_store',
+                        source_type='chat_message',
+                        source_id=str(ai_msg.id),
+                        target_type='semantic_cache',
+                        target_id=str(metadata['cache_store']['entry_id']),
+                        summary='Stored an AI assistant response in the semantic cache.',
+                        metadata={'session_id': str(session.id)},
+                    )
+                except Exception:
+                    logger.warning(
+                        'Failed to record semantic cache store lineage message=%s',
+                        ai_msg.id,
+                        exc_info=True,
+                    )
 
             processing_time = time.time() - start_time
 
