@@ -1036,6 +1036,66 @@ class AIControlPlaneFlowTest(TestCase):
         self.assertEqual(second.status_code, 409)
         self.assertEqual(CommunicationLog.objects.filter(tenant=self.tenant_a).count(), 1)
 
+    def test_approve_returns_404_for_cross_tenant_approval_id(self):
+        from tenant_apps.ai_assistant.views import AIApprovalViewSet
+
+        foreign_run = self._create_run(
+            tenant=self.tenant_b,
+            requested_by=self.other_user,
+            user_message='Foreign approval',
+        )
+        foreign_task = AITask.objects.create(
+            tenant=self.tenant_b,
+            run=foreign_run,
+            requested_by=self.other_user,
+            tool_name='draft_vendor_email',
+            sequence=1,
+            status=AITaskStatus.APPROVAL_REQUIRED,
+            requires_approval=True,
+            input_payload={'context': 'Foreign approval payload'},
+        )
+        foreign_approval = AIApproval.objects.create(
+            tenant=self.tenant_b,
+            run=foreign_run,
+            task=foreign_task,
+            requested_by=self.other_user,
+            tool_name='draft_vendor_email',
+            status=AIApprovalStatus.PENDING,
+            request_payload=foreign_task.input_payload,
+        )
+
+        response = AIApprovalViewSet.as_view({'post': 'approve'})(
+            self._request(
+                'post',
+                f'/api/v1/ai-assistant/approvals/{foreign_approval.id}/approve/',
+                tenant=self.tenant_a,
+                user=self.owner,
+                data={'resolution_note': 'Should not cross tenant boundary'},
+            ),
+            pk=str(foreign_approval.id),
+        )
+
+        self.assertEqual(response.status_code, 404)
+        foreign_approval.refresh_from_db()
+        self.assertEqual(foreign_approval.status, AIApprovalStatus.PENDING)
+
+    def test_deny_returns_404_for_missing_approval_id(self):
+        from tenant_apps.ai_assistant.views import AIApprovalViewSet
+
+        missing_id = uuid.uuid4()
+        response = AIApprovalViewSet.as_view({'post': 'deny'})(
+            self._request(
+                'post',
+                f'/api/v1/ai-assistant/approvals/{missing_id}/deny/',
+                tenant=self.tenant_a,
+                user=self.owner,
+                data={'resolution_note': 'Missing approval'},
+            ),
+            pk=str(missing_id),
+        )
+
+        self.assertEqual(response.status_code, 404)
+
     def test_run_and_approval_queries_are_tenant_scoped(self):
         from tenant_apps.ai_assistant.views import AIApprovalViewSet, AIRunViewSet
 

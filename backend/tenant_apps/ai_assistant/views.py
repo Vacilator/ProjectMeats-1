@@ -726,6 +726,32 @@ class AIApprovalViewSet(_TenantScopedAIControlPlaneViewSet):
             return queryset
         return queryset.filter(requested_by=self.request.user)
 
+    def _load_approval_bundle(self, *, approval_id: str, tenant_id: str):
+        try:
+            approval = AIApproval.objects.select_for_update().get(
+                pk=approval_id,
+                tenant_id=tenant_id,
+            )
+            task = AITask.objects.select_for_update().get(
+                pk=approval.task_id,
+                tenant_id=tenant_id,
+            )
+            run = AIRun.objects.select_for_update().get(
+                pk=approval.run_id,
+                tenant_id=tenant_id,
+            )
+        except (AIApproval.DoesNotExist, AITask.DoesNotExist, AIRun.DoesNotExist):
+            return None
+
+        if (
+            str(approval.tenant_id) != tenant_id
+            or str(task.tenant_id) != str(approval.tenant_id)
+            or str(run.tenant_id) != str(approval.tenant_id)
+        ):
+            return None
+
+        return approval, task, run
+
     @extend_schema(
         request=AIApprovalResolutionRequestSerializer,
         responses={200: AIApprovalActionResponseSerializer, 403: OpenApiTypes.OBJECT, 409: OpenApiTypes.OBJECT},
@@ -743,21 +769,15 @@ class AIApprovalViewSet(_TenantScopedAIControlPlaneViewSet):
 
         with transaction.atomic():
             request_tenant_id = str(get_request_tenant_id(request) or '')
-            approval = AIApproval.objects.select_for_update().get(
-                pk=pk,
+            approval_bundle = self._load_approval_bundle(
+                approval_id=pk,
                 tenant_id=request_tenant_id,
             )
+            if approval_bundle is None:
+                return Response({'error': 'Approval not found'}, status=status.HTTP_404_NOT_FOUND)
+            approval, task, run = approval_bundle
             if approval.status != AIApprovalStatus.PENDING:
                 return Response({'error': 'Approval already resolved'}, status=status.HTTP_409_CONFLICT)
-
-            task = AITask.objects.select_for_update().get(pk=approval.task_id, tenant_id=request_tenant_id)
-            run = AIRun.objects.select_for_update().get(pk=approval.run_id, tenant_id=request_tenant_id)
-            if (
-                str(approval.tenant_id) != request_tenant_id
-                or str(task.tenant_id) != str(approval.tenant_id)
-                or str(run.tenant_id) != str(approval.tenant_id)
-            ):
-                return Response({'error': 'Approval not found'}, status=status.HTTP_404_NOT_FOUND)
 
             approval.status = AIApprovalStatus.APPROVED
             approval.resolved_by = request.user
@@ -836,21 +856,15 @@ class AIApprovalViewSet(_TenantScopedAIControlPlaneViewSet):
 
         with transaction.atomic():
             request_tenant_id = str(get_request_tenant_id(request) or '')
-            approval = AIApproval.objects.select_for_update().get(
-                pk=pk,
+            approval_bundle = self._load_approval_bundle(
+                approval_id=pk,
                 tenant_id=request_tenant_id,
             )
+            if approval_bundle is None:
+                return Response({'error': 'Approval not found'}, status=status.HTTP_404_NOT_FOUND)
+            approval, task, run = approval_bundle
             if approval.status != AIApprovalStatus.PENDING:
                 return Response({'error': 'Approval already resolved'}, status=status.HTTP_409_CONFLICT)
-
-            task = AITask.objects.select_for_update().get(pk=approval.task_id, tenant_id=request_tenant_id)
-            run = AIRun.objects.select_for_update().get(pk=approval.run_id, tenant_id=request_tenant_id)
-            if (
-                str(approval.tenant_id) != request_tenant_id
-                or str(task.tenant_id) != str(approval.tenant_id)
-                or str(run.tenant_id) != str(approval.tenant_id)
-            ):
-                return Response({'error': 'Approval not found'}, status=status.HTTP_404_NOT_FOUND)
 
             resolved_at = timezone.now()
             resolution_note = serializer.validated_data.get('resolution_note', '')
