@@ -716,8 +716,8 @@
 
 ### Epic EH-02 - Deferred execution item with EH-05 dependency
 
-- [ ] **EH-02.4 atomic-workflow-collaboration-locks**
-  - **Status:** Ready
+- [x] **EH-02.4 atomic-workflow-collaboration-locks**
+  - **Status:** Done
   - **Why now:** Current workflow lock semantics are not safe for concurrent multi-node execution.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 12
   - **Scope:** Replace `get` + `set` lock acquisition with an atomic distributed primitive and wire it into runtime/collaboration paths.
@@ -735,7 +735,7 @@
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
 - [ ] **EH-05.2 observability-and-rollback-drill**
-  - **Status:** Blocked
+  - **Status:** Ready
   - **Why now:** Production observability and rollback readiness are not yet at enterprise baseline.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Operational excellence + Phase 12
   - **Scope:** Require lane-wide observability ownership and validate rollback procedures in UAT.
@@ -743,7 +743,7 @@
   - **Primary domain:** ops
   - **Likely touched paths:** `docs/runbooks/INCIDENT_RESPONSE.md`, `.github/scripts/deployment-rollback.sh`, `manifests/GOLDEN_FILES.md`, relevant workflows/docs
   - **Dependencies:** EH-05.1
-  - **Blockers:** EH-02.4 (ordered next ready ticket)
+  - **Blockers:** None
   - **Acceptance criteria:** UAT rollback drill and non-dev observability expectations are explicitly documented and reproducible.
   - **Validation commands:** `bash scripts/verify_golden_state.sh`; `bash .github/scripts/check_infrastructure.sh`
   - **Tenant/RLS impact:** None directly
