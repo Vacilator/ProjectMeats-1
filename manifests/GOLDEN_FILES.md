@@ -84,30 +84,23 @@ ProjectMeats uses **environment-scoped secrets** across 6 deployment lanes:
 
 ## Infrastructure Connectivity (Quad Services Stack)
 
-**Diagnostic Tool**: `scripts/infrastructure_diagnostics.py`
+**Diagnostic Tool**: `scripts/infrastructure_diagnostics.py`  
 **Management Command**: `python manage.py check_infrastructure`  
-**Last Audit**: March 18, 2026
+**Reference note**: Treat `manifests/env.manifest.json`, `docs/GOLDEN_PIPELINE.md`, and `docs/runbooks/INCIDENT_RESPONSE.md` as the source of truth for current non-dev Redis and Sentry expectations. This registry section defines the verification surfaces, not a static environment-status matrix.
 
-| Service | Dev Status | UAT Status | Prod Status | Purpose |
-|---------|-----------|-----------|-------------|---------|
-| **Redis** | ✅ **VERIFIED** | ⏳ Not Configured | ⏳ Not Configured | Caching, Celery broker, AI response caching (10-min TTL) |
-| **OpenAI** | ✅ **VERIFIED** | ⏳ Not Configured | ⏳ Not Configured | AI-powered workflow suggestions (gpt-4o-mini), field recommendations |
-| **Sentry** | ✅ **VERIFIED** | ⏳ Not Configured | ⏳ Not Configured | Real-time error tracking, APM, performance monitoring, session replay |
-| **Microsoft Graph** | ✅ **VERIFIED** | ⏳ Not Configured | ⏳ Not Configured | Email ingestion, Outlook integration, OAuth authentication |
-
-**Status Definitions**:
-- ✅ **VERIFIED**: Infrastructure deployed, service operational, multi-tenant isolation confirmed
-- ⏳ **Pending Audit**: Credentials configured, awaiting diagnostic run
-- ⚠️ **Degraded**: Service reachable but with issues
-- ❌ **Failed**: Connection failed or credentials invalid
-- 🔒 **Not Configured**: Credentials not yet added to GitHub Secrets
+| Service | Verification Surface | Purpose |
+|---------|----------------------|---------|
+| **Redis / Valkey** | `python manage.py check_infrastructure --require-redis-readiness`; `/api/v1/ready/` | Caching, channels, Celery broker, non-dev readiness gating |
+| **OpenAI** | `python manage.py check_infrastructure`; `/api/v1/health/` integration summary | AI-powered workflow suggestions, parsing, and assistant services |
+| **Sentry** | manifest-defined `SENTRY_ENABLED` / `SENTRY_DSN` contract plus `/api/v1/health/` review | Real-time error tracking, APM, performance monitoring |
+| **Microsoft Graph** | `python manage.py check_infrastructure`; `/api/v1/health/` integration summary | Email ingestion, Outlook integration, OAuth authentication |
 
 **Readiness Gate**: `/api/v1/health/` remains the broad liveness/integration surface, while backend deploy and smoke gates in non-dev must use `/api/v1/ready/`. For backend lanes, `/api/v1/ready/` now requires Redis/Valkey-backed cache and channels unless `REQUIRE_REDIS_READINESS` is explicitly disabled for that lane.
 
 ## Non-dev observability and rollback ownership
 
 - **Backend lane owner**: validates `REDIS_URL` / `VALKEY_URL` readiness, backend `SENTRY_ENABLED` / `SENTRY_DSN` expectations, and `/api/v1/health/` integration summaries before traffic is reopened.
-- **Frontend lane owner**: validates direct container health on `127.0.0.1:8080`, the deployed immutable frontend digest, and the `REACT_APP_SENTRY_DSN` / shared `SENTRY_DSN` pass-through contract.
+- **Frontend lane owner**: validates direct container health on `127.0.0.1:8080`, the deployed immutable frontend digest, and the shared `SENTRY_DSN` runtime pass-through contract.
 - **Rollback drill source of truth**: use `.github/scripts/deployment-rollback.sh` for development and explicit immutable `BACKEND_IMAGE_REF` / `FRONTEND_IMAGE_REF` inputs for UAT/production, following `docs/runbooks/INCIDENT_RESPONSE.md`.
 
 ### Dev Environment Verification Summary (March 3, 2026)
