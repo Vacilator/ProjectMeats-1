@@ -3,10 +3,8 @@ Tests for UserPreferences model and API.
 """
 from django.contrib.auth.models import User
 from django.test import TestCase
-from unittest import skip
 from rest_framework.test import APITestCase
 from rest_framework import status
-from rest_framework.authtoken.models import Token
 from apps.core.models import UserPreferences
 from apps.core.serializers import UserPreferencesSerializer
 
@@ -166,29 +164,11 @@ class UserPreferencesSerializerTest(TestCase):
         self.assertFalse(serializer.is_valid())
         self.assertIn('onboarding_state', serializer.errors)
 
-
-@skip("Requires complex django-tenants test setup - UserPreferences is a shared model")
 class UserPreferencesAPITest(APITestCase):
     """Tests for UserPreferences API endpoints."""
     
     def setUp(self):
-        """Set up test users and authentication (shared-schema approach)."""
-        # Import here to avoid circular imports
-        from apps.tenants.models import Tenant, TenantDomain
-        
-        # Create test tenant in shared schema (no schema_context needed)
-        self.tenant = Tenant.objects.create(
-            slug='test-tenant',
-            name='Test Tenant',
-            contact_email='test@testtenantcom'
-        )
-        TenantDomain.objects.create(
-            domain='test.localhost',
-            tenant=self.tenant,
-            is_primary=True
-        )
-        
-        # Create test users (all in shared schema)
+        """Set up test users and authentication."""
         self.user1 = User.objects.create_user(
             username='user1',
             email='user1@example.com',
@@ -199,29 +179,26 @@ class UserPreferencesAPITest(APITestCase):
             email='user2@example.com',
             password='testpass123'
         )
-        self.token1 = Token.objects.create(user=self.user1)
-        self.token2 = Token.objects.create(user=self.user2)
     
-    def _make_request(self, method, url, token, data=None):
-        """Helper to make requests with tenant domain header."""
-        self.client.credentials(
-            HTTP_AUTHORIZATION=f'Token {token.key}',
-            HTTP_HOST='test.localhost'  # Required for django-tenants
-        )
+    def _make_request(self, method, url, user=None, data=None):
+        """Helper to make requests with optional authentication."""
+        self.client.force_authenticate(user=user)
         if method == 'GET':
             return self.client.get(url)
-        elif method == 'PATCH':
+        if method == 'PATCH':
             return self.client.patch(url, data, format='json')
-        elif method == 'PUT':
+        if method == 'PUT':
             return self.client.put(url, data, format='json')
+        raise AssertionError(f'Unsupported method: {method}')
     
     def test_get_or_create_preferences(self):
         """Test GET /api/v1/preferences/me/ creates preferences if not exists."""
-        response = self._make_request('GET', '/api/v1/preferences/me/', self.token1)
+        response = self._make_request('GET', '/api/v1/preferences/me/', self.user1)
         
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data['user'], self.user1.id)
         self.assertEqual(response.data['theme'], 'light')
+        self.assertEqual(response.data['onboarding_state'], {'completed_tours': [], 'tour_statuses': {}})
         
         # Verify it was created in database
         self.assertTrue(
@@ -231,22 +208,46 @@ class UserPreferencesAPITest(APITestCase):
     def test_update_preferences_partial(self):
         """Test PATCH /api/v1/preferences/me/ updates preferences."""
         # First create preferences
-        self._make_request('GET', '/api/v1/preferences/me/', self.token1)
+        self._make_request('GET', '/api/v1/preferences/me/', self.user1)
         
-        # Update theme only
+        # Update onboarding state only
         response = self._make_request(
             'PATCH',
             '/api/v1/preferences/me/',
-            self.token1,
-            {'theme': 'dark'}
+            self.user1,
+            {
+                'onboarding_state': {
+                    'completed_tours': ['workflow-editor'],
+                    'tour_statuses': {
+                        'workflow-editor': {
+                            'status': 'completed',
+                            'last_event': 'completed',
+                            'last_event_at': '2026-05-05T18:00:00Z',
+                            'started_at': '2026-05-05T17:59:00Z',
+                            'completed_at': '2026-05-05T18:00:00Z',
+                            'skipped_at': None,
+                            'start_count': 1,
+                            'complete_count': 1,
+                            'skip_count': 0,
+                            'resume_count': 0,
+                        },
+                    },
+                },
+            }
         )
         
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.data['theme'], 'dark')
+        self.assertEqual(
+            response.data['onboarding_state']['completed_tours'],
+            ['workflow-editor'],
+        )
         
         # Verify in database
         preferences = UserPreferences.objects.get(user=self.user1)
-        self.assertEqual(preferences.theme, 'dark')
+        self.assertEqual(
+            preferences.widget_preferences['onboarding']['completed_tours'],
+            ['workflow-editor'],
+        )
     
     def test_update_preferences_full(self):
         """Test PUT /api/v1/preferences/me/ updates all preferences."""
@@ -255,15 +256,33 @@ class UserPreferencesAPITest(APITestCase):
             'sidebar_collapsed': True,
             'dashboard_layout': {'widgets': ['sales']},
             'quick_menu_items': ['/suppliers'],
-            'widget_preferences': {'sales': {'period': 'month'}}
+            'widget_preferences': {'sales': {'period': 'month'}},
+            'onboarding_state': {
+                'completed_tours': ['cockpit'],
+                'tour_statuses': {
+                    'cockpit': {
+                        'status': 'completed',
+                        'last_event': 'completed',
+                        'last_event_at': '2026-05-05T18:30:00Z',
+                        'started_at': '2026-05-05T18:29:00Z',
+                        'completed_at': '2026-05-05T18:30:00Z',
+                        'skipped_at': None,
+                        'start_count': 1,
+                        'complete_count': 1,
+                        'skip_count': 0,
+                        'resume_count': 0,
+                    },
+                },
+            },
         }
         
-        response = self._make_request('PUT', '/api/v1/preferences/me/', self.token1, data)
+        response = self._make_request('PUT', '/api/v1/preferences/me/', self.user1, data)
         
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data['theme'], 'dark')
         self.assertTrue(response.data['sidebar_collapsed'])
         self.assertEqual(response.data['dashboard_layout'], {'widgets': ['sales']})
+        self.assertEqual(response.data['onboarding_state']['completed_tours'], ['cockpit'])
     
     def test_user_isolation(self):
         """Test users can only access their own preferences."""
@@ -271,7 +290,7 @@ class UserPreferencesAPITest(APITestCase):
         response1 = self._make_request(
             'PATCH',
             '/api/v1/preferences/me/',
-            self.token1,
+            self.user1,
             {'theme': 'dark'}
         )
         self.assertEqual(response1.status_code, status.HTTP_200_OK)
@@ -281,22 +300,38 @@ class UserPreferencesAPITest(APITestCase):
         response2 = self._make_request(
             'PATCH',
             '/api/v1/preferences/me/',
-            self.token2,
-            {'theme': 'light'}
+            self.user2,
+            {
+                'onboarding_state': {
+                    'completed_tours': ['cockpit'],
+                    'tour_statuses': {
+                        'cockpit': {
+                            'status': 'completed',
+                            'last_event': 'completed',
+                            'last_event_at': '2026-05-05T19:00:00Z',
+                            'started_at': None,
+                            'completed_at': '2026-05-05T19:00:00Z',
+                            'skipped_at': None,
+                            'start_count': 0,
+                            'complete_count': 1,
+                            'skip_count': 0,
+                            'resume_count': 0,
+                        },
+                    },
+                },
+            }
         )
         self.assertEqual(response2.status_code, status.HTTP_200_OK)
-        self.assertEqual(response2.data['theme'], 'light')
+        self.assertEqual(response2.data['onboarding_state']['completed_tours'], ['cockpit'])
         
         # Verify users have different preferences
         pref1 = UserPreferences.objects.get(user=self.user1)
         pref2 = UserPreferences.objects.get(user=self.user2)
         self.assertEqual(pref1.theme, 'dark')
-        self.assertEqual(pref2.theme, 'light')
+        self.assertEqual(pref2.widget_preferences['onboarding']['completed_tours'], ['cockpit'])
     
     def test_unauthenticated_access_denied(self):
         """Test unauthenticated users cannot access preferences."""
-        # Make request with tenant domain but no auth
-        self.client.credentials(HTTP_HOST='test.localhost')
         response = self.client.get('/api/v1/preferences/me/')
         # DRF may return 401 or 403 depending on authentication configuration
         self.assertIn(response.status_code, [status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN])

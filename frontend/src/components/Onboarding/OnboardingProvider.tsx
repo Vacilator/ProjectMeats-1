@@ -12,6 +12,8 @@ import { apiClient } from '../../services/apiService';
 import { logger } from '../../utils/logger';
 
 const ONBOARDING_STORAGE_KEY = 'projectmeats_onboarding_state';
+const LEGACY_COCKPIT_TOUR_COMPLETED_KEY = 'cockpit_tour_completed';
+const LEGACY_TOURS_COMPLETED_KEY = 'projectmeats_tours_completed';
 
 export type OnboardingTourRunState =
   | 'not_started'
@@ -253,9 +255,10 @@ const recordTourStarted = (
   tourName: string,
   source: 'auto' | 'resume' | 'restart',
 ): OnboardingState => {
+  const baseState = source === 'restart' ? recordTourReset(state, tourName) : state;
   const timestamp = new Date().toISOString();
 
-  return updateTourStatus(state, tourName, (currentStatus) => ({
+  return updateTourStatus(baseState, tourName, (currentStatus) => ({
     ...currentStatus,
     status: 'in_progress',
     last_event: source === 'resume' ? 'resumed' : 'started',
@@ -267,6 +270,76 @@ const recordTourStarted = (
         ? currentStatus.resume_count + 1
         : currentStatus.resume_count,
   }));
+};
+
+const recordLegacyTourCompletion = (state: OnboardingState, tourName: string): OnboardingState => {
+  const nextState = updateCompletedTours(state, tourName, true);
+
+  return updateTourStatus(nextState, tourName, (currentStatus) => ({
+    ...currentStatus,
+    status: currentStatus.status === 'completed' ? currentStatus.status : 'completed',
+  }));
+};
+
+const readLegacyOnboardingState = (): OnboardingState => {
+  if (typeof window === 'undefined') {
+    return DEFAULT_ONBOARDING_STATE;
+  }
+
+  let nextState = DEFAULT_ONBOARDING_STATE;
+
+  if (window.localStorage.getItem(LEGACY_COCKPIT_TOUR_COMPLETED_KEY)) {
+    nextState = recordLegacyTourCompletion(nextState, 'cockpit');
+  }
+
+  try {
+    const rawTours = window.localStorage.getItem(LEGACY_TOURS_COMPLETED_KEY);
+    const legacyTours = rawTours ? JSON.parse(rawTours) : [];
+    if (Array.isArray(legacyTours)) {
+      legacyTours.forEach((tourName) => {
+        if (typeof tourName !== 'string') {
+          return;
+        }
+
+        nextState = recordLegacyTourCompletion(nextState, tourName);
+      });
+    }
+  } catch {
+    // Ignore malformed legacy payloads and continue with the canonical contract.
+  }
+
+  return nextState;
+};
+
+const clearLegacyOnboardingState = () => {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  window.localStorage.removeItem(LEGACY_COCKPIT_TOUR_COMPLETED_KEY);
+  window.localStorage.removeItem(LEGACY_TOURS_COMPLETED_KEY);
+};
+
+const mergeOnboardingState = (
+  currentState: OnboardingState,
+  incomingState: OnboardingState,
+): OnboardingState => {
+  const mergedCompletedTours = Array.from(
+    new Set([...currentState.completed_tours, ...incomingState.completed_tours]),
+  );
+
+  const mergedTourStatuses = { ...currentState.tour_statuses };
+  Object.entries(incomingState.tour_statuses).forEach(([tourName, incomingStatus]) => {
+    const existingStatus = mergedTourStatuses[tourName];
+    if (!existingStatus || existingStatus.status === 'not_started') {
+      mergedTourStatuses[tourName] = incomingStatus;
+    }
+  });
+
+  return {
+    completed_tours: mergedCompletedTours,
+    tour_statuses: mergedTourStatuses,
+  };
 };
 
 const recordTourCompleted = (state: OnboardingState, tourName: string): OnboardingState => {
@@ -324,50 +397,6 @@ export const OnboardingProvider: React.FC<{ children: ReactNode }> = ({ children
     writeCachedOnboardingState(onboardingState);
   }, [onboardingState]);
 
-  useEffect(() => {
-    if (loading) {
-      return;
-    }
-
-    if (!isAuthenticated) {
-      setOnboardingState(DEFAULT_ONBOARDING_STATE);
-      setIsReady(true);
-      return;
-    }
-
-    let isCancelled = false;
-    setIsReady(false);
-
-    const loadOnboardingState = async () => {
-      try {
-        const response = await apiClient.get('/preferences/me/');
-        const nextState = normalizeOnboardingState(response.data?.onboarding_state);
-        if (!isCancelled) {
-          setOnboardingState(nextState);
-        }
-      } catch (error) {
-        logger.error(
-          'Failed to load onboarding preferences',
-          { component: 'OnboardingProvider' },
-          error,
-        );
-        if (!isCancelled) {
-          setOnboardingState(readCachedOnboardingState());
-        }
-      } finally {
-        if (!isCancelled) {
-          setIsReady(true);
-        }
-      }
-    };
-
-    void loadOnboardingState();
-
-    return () => {
-      isCancelled = true;
-    };
-  }, [isAuthenticated, loading]);
-
   const syncOnboardingState = useCallback(
     async (nextState: OnboardingState) => {
       if (!isAuthenticated) {
@@ -388,6 +417,57 @@ export const OnboardingProvider: React.FC<{ children: ReactNode }> = ({ children
     },
     [isAuthenticated],
   );
+
+  useEffect(() => {
+    if (loading) {
+      return;
+    }
+
+    if (!isAuthenticated) {
+      setOnboardingState(DEFAULT_ONBOARDING_STATE);
+      setIsReady(true);
+      return;
+    }
+
+    let isCancelled = false;
+    setIsReady(false);
+
+    const loadOnboardingState = async () => {
+      try {
+        const response = await apiClient.get('/preferences/me/');
+        const nextState = mergeOnboardingState(
+          normalizeOnboardingState(response.data?.onboarding_state),
+          readLegacyOnboardingState(),
+        );
+        if (!isCancelled) {
+          setOnboardingState(nextState);
+        }
+        clearLegacyOnboardingState();
+        void syncOnboardingState(nextState);
+      } catch (error) {
+        logger.error(
+          'Failed to load onboarding preferences',
+          { component: 'OnboardingProvider' },
+          error,
+        );
+        if (!isCancelled) {
+          setOnboardingState(
+            mergeOnboardingState(readCachedOnboardingState(), readLegacyOnboardingState()),
+          );
+        }
+      } finally {
+        if (!isCancelled) {
+          setIsReady(true);
+        }
+      }
+    };
+
+    void loadOnboardingState();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [isAuthenticated, loading, syncOnboardingState]);
 
   const hasCompletedTour = useCallback(
     (tourName: string) => {
