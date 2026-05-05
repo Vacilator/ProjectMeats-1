@@ -1590,8 +1590,10 @@ jobs:
           set -euo pipefail
 
           # Install sshpass for password-based SSH (same as backend)
-          timeout 120 sudo apt-get update -qq
-          timeout 120 sudo apt-get install -y sshpass
+          if ! command -v sshpass >/dev/null 2>&1; then
+            sudo apt-get update -qq
+            sudo DEBIAN_FRONTEND=noninteractive apt-get install -yqq sshpass
+          fi
 
           # Fail fast on SSH connectivity issues instead of hanging on ssh-keyscan.
           timeout 30 sshpass -e ssh \
