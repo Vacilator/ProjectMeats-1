@@ -304,6 +304,18 @@ jobs:
         working-directory: ./frontend
         run: npm ci
 
+      - name: "Guardrail: ban useQueries in form engine"
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if grep -R -n "useQueries" frontend/src/features/system/; then
+            echo "❌ useQueries is banned in frontend/src/features/system/. Use the single-key fetch pattern instead." >&2
+            exit 1
+          fi
+
+          echo "✓ No useQueries usage found in frontend/src/features/system/"
+
       - name: Verify frontend standards
         working-directory: ./frontend
         run: npm run verify-standards
