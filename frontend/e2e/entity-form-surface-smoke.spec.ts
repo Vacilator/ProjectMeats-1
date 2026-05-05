@@ -131,6 +131,23 @@ test.beforeEach(async ({ page }) => {
       return;
     }
 
+    if (path.endsWith('/workflows/entity-options/customer/')) {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          entity_type: 'customer',
+          entity_label: 'Customer',
+          options: [{ value: '123', label: 'Acme Foods' }],
+          count: 1,
+          total_count: 1,
+          has_more: false,
+          can_create: true,
+        }),
+      });
+      return;
+    }
+
     await route.fulfill({
       status: method === 'DELETE' ? 204 : 200,
       contentType: 'application/json',
@@ -166,16 +183,9 @@ test('renders the plant edit form in production preview without hitting max upda
   await expect(page.getByTestId('entity-form-smoke-title')).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Plant' })).toBeVisible();
   await expect(page.getByRole('textbox', { name: 'Plant Name *' })).toHaveValue('North Plant');
-  await expect(page.getByText('Customer')).toBeVisible();
+  await expect(page.getByText('Customer', { exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: /Acme Foods/ })).toBeVisible();
   await expect(page.getByTestId('entity-form-loading')).toHaveCount(0);
-
-  const customerSelect = page.locator('.ant-select').first();
-  await customerSelect.click();
-  const customerOption = page
-    .locator('.ant-select-dropdown .ant-select-item-option-content')
-    .filter({ hasText: 'Acme Foods' });
-  await expect(customerOption).toBeVisible();
-  await customerOption.click();
 
   await page.waitForTimeout(3000);
 

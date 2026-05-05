@@ -42,7 +42,7 @@ export const PlantDetail: React.FC = () => {
   const { loading: authLoading, isAuthenticated } = useAuthState();
 
   const [refreshKey, setRefreshKey] = useState(0);
-  const [showEditModal, setShowEditModal] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
 
   const [loading, setLoading] = useState(true);
   const [supplier, setSupplier] = useState<SupplierRow | null>(null);
@@ -241,6 +241,33 @@ export const PlantDetail: React.FC = () => {
 
   const showAuthFallback = !authLoading && (!isAuthenticated || authError);
 
+  if (isEditing && pid && !showAuthFallback) {
+    return (
+      <div style={{ padding: 16 }}>
+        <Card>
+          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+            <Button onClick={() => setIsEditing(false)}>Back to Details</Button>
+          </div>
+
+          <div style={{ marginTop: 16 }}>
+            <EntityFormSurface
+              entityType="plant"
+              mode="edit"
+              variant="inline"
+              entityId={pid}
+              isOpen={true}
+              onClose={() => setIsEditing(false)}
+              onSuccess={() => {
+                setIsEditing(false);
+                setRefreshKey((k) => k + 1);
+              }}
+            />
+          </div>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div style={{ padding: 16 }}>
       <div
@@ -278,25 +305,11 @@ export const PlantDetail: React.FC = () => {
         </div>
 
         <div style={{ display: 'flex', gap: 8 }}>
-          <Button type="primary" onClick={() => setShowEditModal(true)} disabled={!pid || loading || showAuthFallback}>
+          <Button type="primary" onClick={() => setIsEditing(true)} disabled={!pid || loading || showAuthFallback}>
             Edit Plant
           </Button>
         </div>
       </div>
-
-      {showEditModal && pid && !showAuthFallback && (
-        <EntityFormSurface
-          entityType="plant"
-          mode="edit"
-          entityId={pid}
-          isOpen={showEditModal}
-          onClose={() => setShowEditModal(false)}
-          onSuccess={() => {
-            setShowEditModal(false);
-            setRefreshKey((k) => k + 1);
-          }}
-        />
-      )}
 
       <div style={{ marginTop: 12 }}>
         {authLoading || loading ? (

@@ -26,12 +26,24 @@ const basePathFor = (raw: string): string => {
   return '/cockpit';
 };
 
-export const UniversalEntityRecordRoute: React.FC = () => {
+type UniversalEntityRecordRouteProps = {
+  mode?: 'view' | 'edit';
+};
+
+export const UniversalEntityRecordRoute: React.FC<UniversalEntityRecordRouteProps> = ({
+  mode = 'view',
+}) => {
   const { entityType } = useParams<RouteParams>();
 
   const basePath = useMemo(() => basePathFor(String(entityType || '')), [entityType]);
 
-  return <UniversalEntityRecordPage entityType={String(entityType || '')} basePath={basePath} mode="view" />;
+  return (
+    <UniversalEntityRecordPage
+      entityType={String(entityType || '')}
+      basePath={basePath}
+      mode={mode}
+    />
+  );
 };
 
 export default UniversalEntityRecordRoute;
