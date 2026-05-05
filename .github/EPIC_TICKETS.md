@@ -696,8 +696,8 @@
 
 ### Epic EH-05 - Runtime / ops reliability
 
-- [ ] **EH-05.1 non-dev-redis-readiness-gate**
-  - **Status:** Ready
+- [x] **EH-05.1 non-dev-redis-readiness-gate**
+  - **Status:** Done
   - **Why now:** Locks, channels, cache, and circuit breakers cannot be considered production-grade while non-dev can fall back to memory semantics.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Graceful degradation / feature flags + Phase 12
   - **Scope:** Require Redis/Valkey readiness for non-dev environments and document the gate.
@@ -717,7 +717,7 @@
 ### Epic EH-02 - Deferred execution item with EH-05 dependency
 
 - [ ] **EH-02.4 atomic-workflow-collaboration-locks**
-  - **Status:** Blocked
+  - **Status:** Ready
   - **Why now:** Current workflow lock semantics are not safe for concurrent multi-node execution.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 12
   - **Scope:** Replace `get` + `set` lock acquisition with an atomic distributed primitive and wire it into runtime/collaboration paths.
@@ -725,7 +725,7 @@
   - **Primary domain:** backend
   - **Likely touched paths:** `backend/tenant_apps/workflows/services/locking.py`, collaboration endpoints/tests
   - **Dependencies:** EH-02.1, EH-05.1
-  - **Blockers:** EH-05.1
+  - **Blockers:** None
   - **Acceptance criteria:** Concurrent lock acquisition is deterministic and covered by race/concurrency tests.
   - **Validation commands:** `cd backend && python manage.py test tenant_apps.workflows.tests.test_collaboration_websocket_security tenant_apps.workflows.tests.test_workflow_tasks_rls_context tenant_apps.workflows.services.tests.test_workflow_executor`
   - **Tenant/RLS impact:** Medium
@@ -743,7 +743,7 @@
   - **Primary domain:** ops
   - **Likely touched paths:** `docs/runbooks/INCIDENT_RESPONSE.md`, `.github/scripts/deployment-rollback.sh`, `manifests/GOLDEN_FILES.md`, relevant workflows/docs
   - **Dependencies:** EH-05.1
-  - **Blockers:** EH-05.1
+  - **Blockers:** EH-02.4 (ordered next ready ticket)
   - **Acceptance criteria:** UAT rollback drill and non-dev observability expectations are explicitly documented and reproducible.
   - **Validation commands:** `bash scripts/verify_golden_state.sh`; `bash .github/scripts/check_infrastructure.sh`
   - **Tenant/RLS impact:** None directly

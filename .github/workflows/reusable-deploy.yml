@@ -770,6 +770,7 @@ jobs:
           DJANGO_SETTINGS_MODULE: ${{ secrets.DJANGO_SETTINGS_MODULE }}
           REDIS_URL: ${{ secrets.REDIS_URL }}
           VALKEY_URL: ${{ secrets.VALKEY_URL }}
+          REQUIRE_REDIS_READINESS: ${{ inputs.require_redis_readiness }}
         run: |
           set -euo pipefail
           bash .github/scripts/validate-environment.sh \
@@ -1184,6 +1185,7 @@ jobs:
           DJANGO_SETTINGS_MODULE: ${{ secrets.DJANGO_SETTINGS_MODULE }}
           REDIS_URL: ${{ secrets.REDIS_URL }}
           VALKEY_URL: ${{ secrets.VALKEY_URL }}
+          REQUIRE_REDIS_READINESS: ${{ inputs.require_redis_readiness }}
         run: |
           set -euo pipefail
           bash .github/scripts/validate-environment.sh \
