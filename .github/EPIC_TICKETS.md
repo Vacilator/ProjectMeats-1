@@ -676,8 +676,8 @@
   - **Rollback:** Keep existing UI shells and compatibility adapters until the unified service proves stable.
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
-- [ ] **EH-04.3 floweditor-decomposition-phase-1**
-  - **Status:** Ready
+- [x] **EH-04.3 floweditor-decomposition-phase-1**
+  - **Status:** Shipped (PR #4878)
   - **Why now:** `UnifiedFlowEditor.tsx` is too large and too risky to keep extending without module boundaries.
   - **Canonical source reference:** `MASTER_PLAN.md` -> WorkForms runtime/observability + Phase 12
   - **Scope:** Establish the first safe decomposition boundary and regression harness for FlowEditor.
@@ -697,7 +697,7 @@
 ### Epic EH-05 - Runtime / ops reliability
 
 - [ ] **EH-05.1 non-dev-redis-readiness-gate**
-  - **Status:** Blocked
+  - **Status:** Ready
   - **Why now:** Locks, channels, cache, and circuit breakers cannot be considered production-grade while non-dev can fall back to memory semantics.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Graceful degradation / feature flags + Phase 12
   - **Scope:** Require Redis/Valkey readiness for non-dev environments and document the gate.

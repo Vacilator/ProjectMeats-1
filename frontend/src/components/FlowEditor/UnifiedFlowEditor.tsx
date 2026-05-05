@@ -38,11 +38,10 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { adminClient } from '../../services/apiService';
 import { workformsMetadataService } from '@/services/workformsMetadataService';
 import { withTenantQueryKey } from '@/utils/queryKeys';
-import toast, { Toaster } from 'react-hot-toast'; // Phase 8.1
+import toast from 'react-hot-toast'; // Phase 8.1
 import * as Sentry from '@sentry/react'; // Error tracking
 import { logger } from '../../utils/logger'; // Centralized logging
 import { isTypingInInput } from './utils/keyboardUtils'; // Phase 4
-import { Joyride } from 'react-joyride'; // Gap Analysis Phase 1.1
 import { useRenderPerformance } from '../../utils/performance'; // Phase 7.5
 import {
   useOnboardingTour,
@@ -146,6 +145,7 @@ import { calculateContainerLayout, autoConnectSequentialSteps, LAYOUT_CONSTANTS 
 import { buildFlowHistoryState, shouldAutoSaveWorkflow, type FlowHistoryState } from './utils/editorState';
 import { NodeContextMenu, useContextMenu } from './NodeContextMenu'; // Phase E.3
 import { EnhancedContextMenu, useEnhancedContextMenu } from './components/EnhancedContextMenu'; // Phase 2: UI/UX
+import { FlowEditorPassiveOverlays } from './components/FlowEditorPassiveOverlays';
 import { saveWorkflow, loadWorkflow, listWorkflows, deleteWorkflow, type WorkflowListItem } from './utils/workflowPersistence'; // Phase 7, 8.3
 import { workformsApi } from '../../services/workformsApi'; // Task 2: Ghost Node Deletion
 import { sortNodesTopologically } from './utils/nodeSorting'; // Phase 2 Critical Fix
@@ -175,16 +175,11 @@ import { ErrorBoundary } from './ErrorBoundary';
 // import { CreateRecordConfigPanel } from './ConfigPanel/CreateRecordConfigPanel';
 // import { FormReferenceConfigPanel } from './ConfigPanel/FormReferenceConfigPanel';
 import Fuse from 'fuse.js'; // PROMPT 2: Added fuzzy search
-import { HelpModal } from './HelpModal'; // Workform Editor Enhancements
 import { TemplateSelector } from './templates/TemplateSelector';
 import { FlowTemplate, FLOW_TEMPLATES } from './templates/flowTemplates';
 import { SidePanel } from './SidePanel';
 import { FormProcessModal, type ContainerData } from './Modals/FormProcessModal';
 import { WorkflowManagementModal, type WorkflowMetadata } from './Modals/WorkflowManagementModal'; // Phase 8.2
-import { WorkflowExecutionModal } from '../FormSubmission/WorkflowExecutionModal'; // Task 1: Integration
-import { PreviewPanel } from './panels/PreviewPanel';
-import { DryRunDebuggerPanel } from './panels/DryRunDebuggerPanel';
-import { FlowPreviewModal } from './Modals/FlowPreviewModal'; // Phase 1: Hybrid Functionality
 import { DataMappingPanel } from './ConfigPanel/DataMappingPanel'; // Phase 1: Hybrid Functionality
 
 // ============================================================================
@@ -1323,201 +1318,6 @@ const LoadMenuEmpty = styled.div`
   text-align: center;
   color: rgb(var(--color-text-secondary));
   font-size: 14px;
-`;
-
-const ConfirmModal = styled.div`
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(var(--color-overlay), 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 10001;
-  backdrop-filter: blur(4px);
-  
-  /* Phase 8.4: Smooth fade-in animation */
-  animation: fadeIn 0.2s ease;
-  
-  @keyframes fadeIn {
-    from {
-      opacity: 0;
-    }
-    to {
-      opacity: 1;
-    }
-  }
-`;
-
-const ConfirmContent = styled.div`
-  background: rgb(var(--color-surface));
-  border: 1px solid rgb(var(--color-border));
-  border-radius: var(--radius-lg);
-  width: 90%;
-  max-width: 400px;
-  padding: 24px;
-  box-shadow: 0 20px 25px -5px rgba(var(--color-overlay), 0.1);
-  
-  /* Phase 8.4: Smooth scale-in animation */
-  animation: scaleIn 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  
-  @keyframes scaleIn {
-    from {
-      opacity: 0;
-      transform: scale(0.9) translateY(-20px);
-    }
-    to {
-      opacity: 1;
-      transform: scale(1) translateY(0);
-    }
-  }
-`;
-
-const ConfirmTitle = styled.h3`
-  font-size: 16px;
-  font-weight: 600;
-  color: rgb(var(--color-text-primary));
-  margin: 0 0 8px 0;
-`;
-
-const ConfirmMessage = styled.p`
-  font-size: 14px;
-  color: rgb(var(--color-text-secondary));
-  margin: 0 0 20px 0;
-  line-height: 1.5;
-`;
-
-const ConfirmActions = styled.div`
-  display: flex;
-  gap: 12px;
-  justify-content: flex-end;
-`;
-
-const ConfirmButton = styled.button<{ $variant?: 'danger' | 'secondary' }>`
-  padding: 8px 16px;
-  font-size: 14px;
-  font-weight: 600;
-  color: ${props => props.$variant === 'danger' ? 'rgb(var(--color-primary-foreground))' : 'rgb(var(--color-text-primary))'};
-  background: ${props => props.$variant === 'danger' ? 'rgb(var(--color-error))' : 'transparent'};
-  border: 1px solid ${props => props.$variant === 'danger' ? 'rgb(var(--color-error))' : 'rgb(var(--color-border))'};
-  border-radius: var(--radius-md);
-  cursor: pointer;
-  transition: all 0.15s ease;
-  
-  &:hover {
-    background: ${props => props.$variant === 'danger' ? 'rgb(var(--color-danger))' : 'rgb(var(--color-background))'};
-  }
-  
-  &:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
-`;
-
-// ============================================================================
-// Keyboard Shortcuts Help Modal (Phase 8.6)
-// ============================================================================
-
-const KeyboardShortcutsModal = styled.div`
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(var(--color-overlay), 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 10002;
-  backdrop-filter: blur(4px);
-  animation: fadeIn 0.2s ease;
-`;
-
-const KeyboardShortcutsContent = styled.div`
-  background: rgb(var(--color-surface));
-  border: 1px solid rgb(var(--color-border));
-  border-radius: var(--radius-lg);
-  width: 90%;
-  max-width: 600px;
-  max-height: 80vh;
-  overflow-y: auto;
-  box-shadow: 0 20px 25px -5px rgba(var(--color-overlay), 0.1);
-  animation: scaleIn 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-`;
-
-const KeyboardShortcutsHeader = styled.div`
-  padding: 20px 24px;
-  border-bottom: 1px solid rgb(var(--color-border));
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-`;
-
-const KeyboardShortcutsTitle = styled.h3`
-  font-size: 18px;
-  font-weight: 600;
-  color: rgb(var(--color-text-primary));
-  margin: 0;
-`;
-
-const KeyboardShortcutsBody = styled.div`
-  padding: 24px;
-`;
-
-const ShortcutSection = styled.div`
-  margin-bottom: 24px;
-  
-  &:last-child {
-    margin-bottom: 0;
-  }
-`;
-
-const ShortcutSectionTitle = styled.h4`
-  font-size: 14px;
-  font-weight: 600;
-  color: rgb(var(--color-text-secondary));
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  margin: 0 0 12px 0;
-`;
-
-const ShortcutList = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-`;
-
-const ShortcutItem = styled.div`
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 8px 12px;
-  background: rgb(var(--color-background));
-  border-radius: var(--radius-md);
-`;
-
-const ShortcutLabel = styled.span`
-  font-size: 14px;
-  color: rgb(var(--color-text-primary));
-`;
-
-const ShortcutKeys = styled.div`
-  display: flex;
-  gap: 4px;
-`;
-
-const ShortcutKey = styled.kbd`
-  padding: 2px 8px;
-  font-size: 12px;
-  font-family: monospace;
-  font-weight: 600;
-  color: rgb(var(--color-text-primary));
-  background: rgb(var(--color-surface));
-  border: 1px solid rgb(var(--color-border));
-  border-radius: var(--radius-sm);
-  box-shadow: 0 1px 2px rgba(var(--color-overlay), 0.05);
 `;
 
 const ViewportToolbar = styled.div`
@@ -8356,212 +8156,36 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         )}
       </SidePanel>
       
-      {/* Preview Panel (Phase 5.1) */}
-      <PreviewPanel
+      <FlowEditorPassiveOverlays
+        currentWorkflowId={currentWorkflowId ?? null}
+        currentWorkflowName={currentWorkflowName}
+        deleteConfirmOpen={deleteConfirmOpen}
+        edges={edges}
+        isDeleting={isDeleting}
+        isExecutionModalOpen={isExecutionModalOpen}
+        isFlowPreviewOpen={isFlowPreviewOpen}
+        isHelpModalOpen={isHelpModalOpen}
+        isPreviewVisible={isPreviewVisible}
         nodes={nodes}
-        isVisible={isPreviewVisible}
-        onClose={() => setIsPreviewVisible(false)}
+        onCloseDebugger={() => setShowDebugger(false)}
+        onCloseDeleteConfirm={() => setDeleteConfirmOpen(false)}
+        onCloseExecutionModal={() => setIsExecutionModalOpen(false)}
+        onCloseFlowPreview={() => setIsFlowPreviewOpen(false)}
+        onCloseHelpModal={() => setIsHelpModalOpen(false)}
+        onCloseKeyboardShortcuts={() => setShowKeyboardShortcuts(false)}
+        onClosePreview={() => setIsPreviewVisible(false)}
+        onConfirmDelete={handleConfirmDelete}
+        onTourEvent={handleTourCallback}
+        runTour={runTour}
+        selectedNodeForDebug={selectedNodeForDebug}
+        showDebugger={showDebugger}
+        showKeyboardShortcuts={showKeyboardShortcuts}
+        tourOptions={tourOptions}
+        tourStepIndex={tourStepIndex}
+        tourSteps={tourSteps}
+        tourStyles={tourStyles}
+        workflowToDelete={workflowToDelete}
       />
-      
-      {/* Phase 8.1: Toast Notifications */}
-      <Toaster
-        position="top-right"
-        toastOptions={{
-          duration: 4000,
-          style: {
-            background: 'rgb(var(--color-surface))',
-            color: 'rgb(var(--color-text-primary))',
-            border: '1px solid rgb(var(--color-border))',
-          },
-          success: {
-            iconTheme: {
-              primary: 'rgb(var(--color-success))', // green-500
-              secondary: 'rgb(var(--color-text-inverse))',
-            },
-          },
-          error: {
-            iconTheme: {
-              primary: 'rgb(var(--color-error))', // red-500
-              secondary: 'rgb(var(--color-text-inverse))',
-            },
-          },
-          loading: {
-            iconTheme: {
-              primary: 'rgb(var(--color-primary))',
-              secondary: 'rgb(var(--color-text-inverse))',
-            },
-          },
-        }}
-      />
-      
-      {/* Phase 8.3: Delete Confirmation Modal */}
-      {deleteConfirmOpen && workflowToDelete && (
-        <ConfirmModal onClick={() => !isDeleting && setDeleteConfirmOpen(false)}>
-          <ConfirmContent onClick={(e) => e.stopPropagation()}>
-            <ConfirmTitle>Delete Workflow?</ConfirmTitle>
-            <ConfirmMessage>
-              Are you sure you want to delete "<strong>{workflowToDelete.name}</strong>"? 
-              This action cannot be undone.
-            </ConfirmMessage>
-            <ConfirmActions>
-              <ConfirmButton
-                $variant="secondary"
-                onClick={() => setDeleteConfirmOpen(false)}
-                disabled={isDeleting}
-              >
-                Cancel
-              </ConfirmButton>
-              <ConfirmButton
-                $variant="danger"
-                onClick={handleConfirmDelete}
-                disabled={isDeleting}
-              >
-                {isDeleting ? 'Deleting...' : 'Delete'}
-              </ConfirmButton>
-            </ConfirmActions>
-          </ConfirmContent>
-        </ConfirmModal>
-      )}
-      
-      {/* Phase 7/9.5: Dry Run Debugger Panel */}
-      <DryRunDebuggerPanel
-        isVisible={showDebugger}
-        selectedNode={selectedNodeForDebug}
-        onClose={() => setShowDebugger(false)}
-      />
-
-      {/* Phase 8.6: Keyboard Shortcuts Help Modal */}
-      {showKeyboardShortcuts && (
-        <KeyboardShortcutsModal onClick={() => setShowKeyboardShortcuts(false)}>
-          <KeyboardShortcutsContent onClick={(e) => e.stopPropagation()}>
-            <KeyboardShortcutsHeader>
-              <KeyboardShortcutsTitle>Keyboard Shortcuts</KeyboardShortcutsTitle>
-              <button
-                onClick={() => setShowKeyboardShortcuts(false)}
-                style={{
-                  background: 'transparent',
-                  border: 'none',
-                  cursor: 'pointer',
-                  color: 'rgb(var(--color-text-secondary))',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  width: '32px',
-                  height: '32px',
-                }}
-              >
-                <X />
-              </button>
-            </KeyboardShortcutsHeader>
-            <KeyboardShortcutsBody>
-              <ShortcutSection>
-                <ShortcutSectionTitle>General</ShortcutSectionTitle>
-                <ShortcutList>
-                  <ShortcutItem>
-                    <ShortcutLabel>Show keyboard shortcuts</ShortcutLabel>
-                    <ShortcutKeys>
-                      <ShortcutKey>?</ShortcutKey>
-                    </ShortcutKeys>
-                  </ShortcutItem>
-                  <ShortcutItem>
-                    <ShortcutLabel>Close modal</ShortcutLabel>
-                    <ShortcutKeys>
-                      <ShortcutKey>ESC</ShortcutKey>
-                    </ShortcutKeys>
-                  </ShortcutItem>
-                </ShortcutList>
-              </ShortcutSection>
-              
-              <ShortcutSection>
-                <ShortcutSectionTitle>Workflow</ShortcutSectionTitle>
-                <ShortcutList>
-                  <ShortcutItem>
-                    <ShortcutLabel>Save workflow</ShortcutLabel>
-                    <ShortcutKeys>
-                      <ShortcutKey>Ctrl</ShortcutKey>
-                      <ShortcutKey>S</ShortcutKey>
-                    </ShortcutKeys>
-                  </ShortcutItem>
-                  <ShortcutItem>
-                    <ShortcutLabel>New workflow</ShortcutLabel>
-                    <ShortcutKeys>
-                      <ShortcutKey>Ctrl</ShortcutKey>
-                      <ShortcutKey>N</ShortcutKey>
-                    </ShortcutKeys>
-                  </ShortcutItem>
-                </ShortcutList>
-              </ShortcutSection>
-              
-              <ShortcutSection>
-                <ShortcutSectionTitle>Canvas</ShortcutSectionTitle>
-                <ShortcutList>
-                  <ShortcutItem>
-                    <ShortcutLabel>Select all nodes</ShortcutLabel>
-                    <ShortcutKeys>
-                      <ShortcutKey>Ctrl</ShortcutKey>
-                      <ShortcutKey>A</ShortcutKey>
-                    </ShortcutKeys>
-                  </ShortcutItem>
-                  <ShortcutItem>
-                    <ShortcutLabel>Delete selected nodes</ShortcutLabel>
-                    <ShortcutKeys>
-                      <ShortcutKey>Delete</ShortcutKey>
-                    </ShortcutKeys>
-                  </ShortcutItem>
-                  <ShortcutItem>
-                    <ShortcutLabel>Undo</ShortcutLabel>
-                    <ShortcutKeys>
-                      <ShortcutKey>Ctrl</ShortcutKey>
-                      <ShortcutKey>Z</ShortcutKey>
-                    </ShortcutKeys>
-                  </ShortcutItem>
-                  <ShortcutItem>
-                    <ShortcutLabel>Redo</ShortcutLabel>
-                    <ShortcutKeys>
-                      <ShortcutKey>Ctrl</ShortcutKey>
-                      <ShortcutKey>Y</ShortcutKey>
-                    </ShortcutKeys>
-                  </ShortcutItem>
-                  <ShortcutItem>
-                    <ShortcutLabel>Fit view</ShortcutLabel>
-                    <ShortcutKeys>
-                      <ShortcutKey>Ctrl</ShortcutKey>
-                      <ShortcutKey>0</ShortcutKey>
-                    </ShortcutKeys>
-                  </ShortcutItem>
-                </ShortcutList>
-              </ShortcutSection>
-            </KeyboardShortcutsBody>
-          </KeyboardShortcutsContent>
-        </KeyboardShortcutsModal>
-      )}
-      
-      {/* Task 1: Workflow Execution Integration */}
-      {isExecutionModalOpen && currentWorkflowId && (
-        <WorkflowExecutionModal
-          isOpen={isExecutionModalOpen}
-          onClose={() => setIsExecutionModalOpen(false)}
-          workflow={{
-            id: currentWorkflowId,
-            name: currentWorkflowName || 'Untitled Workflow',
-            nodes,
-            edges,
-          }}
-        />
-      )}
-      
-      {/* Phase 1: Flow Preview Modal */}
-      {isFlowPreviewOpen && (
-        <FlowPreviewModal
-          isOpen={isFlowPreviewOpen}
-          onClose={() => setIsFlowPreviewOpen(false)}
-        />
-      )}
-
-      {/* Help Modal (Workform Batch 2) */}
-      {isHelpModalOpen && (
-        <HelpModal isOpen={isHelpModalOpen} onClose={() => setIsHelpModalOpen(false)} />
-      )}
 
       {/* FormBuilder Modal (Phase 6) */}
       {isFormBuilderOpen && editingNodeId && (
@@ -8573,23 +8197,6 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         />
       )}
       
-      {/* Onboarding Tour (Gap Analysis Phase 1.1) */}
-      <Joyride
-        steps={tourSteps}
-        run={runTour}
-        stepIndex={tourStepIndex}
-        onEvent={handleTourCallback}
-        continuous
-        options={tourOptions}
-        styles={tourStyles}
-        locale={{
-          back: 'Back',
-          close: 'Close',
-          last: 'Finish',
-          next: 'Next',
-          skip: 'Skip tour',
-        }}
-      />
       </EditorContainer>
     </FlowEditorProvider>
     </FormBuilderProvider>
