@@ -5,7 +5,7 @@
  * Full Business Management System with AI Assistant
  */
 import React, { Suspense, lazy, useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { Skeleton } from 'antd';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider } from './contexts/AuthContext';
@@ -21,6 +21,11 @@ import { ToastProvider } from './hooks/useToast';
 import Layout from './components/Layout/Layout';
 import { OnboardingProvider } from './components/Onboarding';
 import './i18n/config'; // Initialize i18n
+
+const MyTasksRedirect: React.FC = () => {
+  const location = useLocation();
+  return <Navigate to={`/workforms/tasks${location.search || ''}`} replace />;
+};
 
 // Create QueryClient for data fetching (React Query)
 const queryClient = new QueryClient({
@@ -271,6 +276,10 @@ const App: React.FC = () => {
                 />
                 <Route path="suppliers/:id/products" element={<SupplierProducts />} />
                 <Route path="plants/:id" element={<PlantDetailView />} />
+                <Route
+                  path="plants/:id/edit"
+                  element={<UniversalEntityRecordPage entityType="plant" basePath="/plants" mode="edit" />}
+                />
                 <Route path="plants/:id/products" element={<PlantProducts />} />
                 <Route path="locations/:id" element={<LocationDetailView />} />
                 
@@ -384,7 +393,7 @@ const App: React.FC = () => {
                 
                 {/* Form Submissions */}
                 <Route path="my-submissions" element={<MySubmissions />} />
-                <Route path="my-tasks" element={<Navigate to="/workforms/tasks" replace />} />
+                <Route path="my-tasks" element={<MyTasksRedirect />} />
                 
                 {/* Admin Workspace - Wrapped with error boundary */}
                 <Route path="workspace" element={

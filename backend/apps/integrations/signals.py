@@ -31,11 +31,12 @@ def _notify_actionable_email(instance: EmailLog, draft: EmailReviewDraft, catego
         f'Received potential {category_label} from {instance.sender_email}. '
         'Click here to review and save.'
     )
-    action_url = f'/settings/email-integrations?draft={draft.id}'
+    action_url = f'/my-tasks?tab=ai-review&draft={draft.id}'
     metadata = {
         'email_log_id': str(instance.id),
         'draft_id': str(draft.id),
         'category': category,
+        'review_target_url': action_url,
     }
 
     for tenant_user in recipients:

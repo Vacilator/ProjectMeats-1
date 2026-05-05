@@ -1065,6 +1065,7 @@ class UserNotificationSerializer(serializers.ModelSerializer):
     notification_type_display = serializers.CharField(source='get_notification_type_display', read_only=True)
     priority_display = serializers.CharField(source='get_priority_display', read_only=True)
     time_ago = serializers.SerializerMethodField()
+    action_url = serializers.SerializerMethodField()
     
     class Meta:
         model = UserNotification
@@ -1099,6 +1100,55 @@ class UserNotificationSerializer(serializers.ModelSerializer):
             return f"{days}d ago"
         else:
             return obj.created_at.strftime("%b %d")
+
+    def get_action_url(self, obj):
+        metadata = obj.metadata if isinstance(obj.metadata, dict) else {}
+        explicit_target = str(metadata.get('review_target_url') or '').strip()
+        if explicit_target:
+            return explicit_target
+
+        feedback_id = str(
+            metadata.get('feedback_id')
+            or metadata.get('draft_id')
+            or metadata.get('review_id')
+            or ''
+        ).strip()
+        action_url = str(obj.action_url or '').strip()
+        entity_type = str(obj.entity_type or '').strip().lower()
+        notification_text = ' '.join(
+            [
+                str(obj.title or ''),
+                str(obj.message or ''),
+                str(metadata.get('document_type') or ''),
+                str(metadata.get('intent') or ''),
+            ]
+        ).lower()
+
+        looks_like_ai_review = (
+            action_url.startswith('/settings/email-integrations')
+            and (
+                any(
+                    token in notification_text
+                    for token in (
+                        'potential',
+                        'review draft',
+                        'needs review',
+                        'purchase order',
+                        'bill of lading',
+                        'po',
+                        'bol',
+                    )
+                )
+                or entity_type in {'ai_review', 'email_review_draft', 'ai_feedback'}
+                or any(key in metadata for key in ('document_id', 'feedback_id', 'draft_id', 'review_id'))
+            )
+        )
+
+        if looks_like_ai_review:
+            base_url = '/my-tasks?tab=ai-review'
+            return f'{base_url}&draft={feedback_id}' if feedback_id else base_url
+
+        return obj.action_url
 
 
 class UserNotificationCreateSerializer(serializers.ModelSerializer):

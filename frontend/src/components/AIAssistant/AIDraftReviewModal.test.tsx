@@ -1,0 +1,84 @@
+import React from 'react';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { MemoryRouter } from 'react-router-dom';
+import { render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+
+import { AIDraftReviewModal } from './AIDraftReviewModal';
+
+const mockResolvePendingReview = vi.fn();
+
+vi.mock('@/services/aiService', () => ({
+  aiStaffApi: {
+    resolvePendingReview: (...args: unknown[]) => mockResolvePendingReview(...args),
+  },
+}));
+
+vi.mock('@/components/Shared/EntityFormSurface', () => ({
+  EntityFormSurface: ({ entityType, initialValues, onSuccess }: any) => (
+    <div>
+      <div data-testid="entity-type">{entityType}</div>
+      <pre data-testid="initial-values">{JSON.stringify(initialValues)}</pre>
+      <button onClick={() => onSuccess({ id: 'saved-po-1', order_number: 'PO-1001' })}>
+        Simulate Save
+      </button>
+    </div>
+  ),
+}));
+
+describe('AIDraftReviewModal', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('hydrates purchase order drafts and resolves after save', async () => {
+    const onClose = vi.fn();
+    const onResolved = vi.fn();
+
+    render(
+      <MemoryRouter>
+        <AIDraftReviewModal
+          open
+          onClose={onClose}
+          onResolved={onResolved}
+          item={{
+            id: 'draft-1',
+            document_id: 'document-1',
+            document_type: 'purchase_order',
+            confidence_score: 0.62,
+            precision_delta: 0,
+            created_on: new Date().toISOString(),
+            intent_label: 'Purchase Order',
+            review_entity_type: 'purchase_order',
+            original_extracted_data: {
+              order_number: 'PO-1001',
+              vendor_name: 'Acme Meats',
+              items: [
+                {
+                  description: 'Beef trim',
+                  quantity: 4,
+                  total_net_weight: 1200,
+                  weight_unit: 'LBS',
+                },
+              ],
+            },
+          }}
+        />
+      </MemoryRouter>
+    );
+
+    expect(screen.getByTestId('entity-type')).toHaveTextContent('purchase_order');
+    expect(screen.getByTestId('initial-values').textContent).toContain('PO-1001');
+    expect(screen.getByTestId('initial-values').textContent).toContain('Acme Meats');
+
+    await userEvent.click(screen.getByRole('button', { name: /Simulate Save/i }));
+
+    await waitFor(() => {
+      expect(mockResolvePendingReview).toHaveBeenCalledWith('draft-1', {
+        user_corrected_data: { id: 'saved-po-1', order_number: 'PO-1001' },
+      });
+    });
+    expect(onResolved).toHaveBeenCalledWith('draft-1');
+    expect(onClose).toHaveBeenCalled();
+  });
+});
