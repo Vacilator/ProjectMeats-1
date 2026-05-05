@@ -466,6 +466,87 @@ Hardcode the exact happy-path B2B trading pipeline around Inquiry intake, routin
 
 **Planning conclusion only:** the target Phase 16 Core Trading Engine architecture is now frozen for planning and backlog decomposition. This seals the intended happy-path seams from inquiry intake through supplier/customer/carrier document generation. It does **not** mean Phase 16 is implemented, shipped, or execution-complete. Current execution priority remains Phase 14 and its named prerequisites.
 
+## Phase 19: Ambient AI & Contextual Next-Best-Actions
+
+### Goal
+Evolve the AI from a reactive chat surface into an ambient assistant that can silently evaluate page/entity context, surface high-confidence next-best actions in the record UI, warn on anomalous business inputs before save, and draft operational emails without forcing users into a chat prompt first.
+
+### Architecture status
+- **Execution status:** planned only, not started.
+- **Backlog placement:** appended to the bottom of `.github/EPIC_TICKETS.md` so the active Phase 14 / Phase 12 lanes and already-planned future phases retain priority.
+- **Execution order once unblocked:** contextual suggestion contract/engine first, then inline suggestion surfaces, then anomaly detection in form flows, then contextual email drafting.
+- **Current repo reality:** `UniversalEntityRecordPage`, `EntityProfileHeader`, `UniversalEntityForm`, Outlook/email ingestion, and AI assistant service layers already exist, but there is no canonical route-context suggestion endpoint, no ambient banner component, and no anomaly-baseline service tied to form validation.
+
+### Deliverables + expected results
+1. **Next-Best-Action engine**
+   - Add a fast contextual suggestions API (`POST /api/v1/ai-assistant/suggestions/contextual/`) that accepts `entity_type`, `entity_id`, and `current_state`, then returns structured suggestion objects with action identifiers, UX labels, confidence, rationale, and execution metadata.
+   - Combine deterministic heuristics with a bounded LLM assist (`gpt-4o-mini`) so obvious cases stay cheap/fast while still allowing context-rich recommendations.
+2. **Ambient inline suggestion UI**
+   - Introduce an `AmbientSuggestions` frontend surface that mounts below record headers and quietly fetches contextual suggestions when entity pages load.
+   - Suggestions render as subtle, one-click action cards instead of being trapped inside the chat widget.
+3. **Predictive anomaly detection**
+   - Add a data-aware warning layer to `UniversalEntityForm` so outlier prices/weights/quantities can trigger a soft confirmation before save when they diverge materially from tenant history.
+   - Warnings stay advisory and explain the historical baseline used for comparison.
+4. **Contextual email drafting**
+   - Add ambient drafting actions on Supplier/Customer detail pages that synthesize recent order cadence, outstanding balances, and delay history into an Outlook-ready draft.
+   - Draft generation reuses existing integration/auth surfaces rather than introducing a second email stack.
+
+### Epic breakdown
+
+#### Epic AMB-01: The Next-Best-Action (NBA) Engine
+- **Business value:** turns latent entity state into proactive, explainable AI suggestions before the user opens chat or asks for help.
+- **Technical scope:** define the contextual suggestion contract, add a bounded heuristic + LLM orchestration service, expose the new API endpoint, and capture telemetry/cache semantics for repeated page views.
+- **Guardrail:** default to deterministic heuristics first; LLM enrichment must be bounded, tenant-safe, and optional when AI infra is unavailable.
+
+#### Epic AMB-02: Inline Page Suggestion Cards (Ghost UI)
+- **Business value:** brings AI recommendations into the operator’s existing workflow instead of requiring chat discovery.
+- **Technical scope:** build `AmbientSuggestions`, inject it into `UniversalEntityRecordPage` and `EntityProfileHeader`, and wire action execution through approved service-layer APIs.
+- **Guardrail:** suggestion fetches must be referentially stable, page-local, and dismissible; no heavy modal-first UX for simple next actions.
+
+#### Epic AMB-03: Predictive Anomaly Detection
+- **Business value:** reduces costly pricing/data-entry mistakes before records are committed.
+- **Technical scope:** baseline service for 90-day historical averages and dispersion thresholds, form-safe anomaly checks, and a soft-warning UX that lets informed users proceed explicitly.
+- **Guardrail:** anomaly warnings must never silently rewrite submitted values or block save without an operator-visible override path.
+
+#### Epic AMB-04: Contextual Email Drafting
+- **Business value:** removes repetitive outreach work by prebuilding relevant check-in/dispute emails at the point of need.
+- **Technical scope:** aggregate recent transactional signals, generate personalized drafts, and hand them into the Outlook integration/send flow from supplier/customer pages.
+- **Guardrail:** drafts stay reviewable by the user; no autonomous send behavior in this phase.
+
+### Acceptance criteria
+1. Phase 19 is represented consistently in `MASTER_PLAN.md`, `.github/MASTER_PLAN.md`, `.github/EPIC_TICKETS.md`, and the session plan without implying execution has started.
+2. The backlog contains atomic `AMB-*` tickets with concrete paths, dependencies, validation commands, risks, and rollback notes.
+3. Ambient AI remains explicitly queued behind the active execution lane; the first unchecked `Ready` ticket above it does not change.
+4. The plan names the canonical backend/frontend seams for contextual suggestions, anomaly checks, and contextual email drafting so a future implementation pass can start without rediscovery.
+
+### Dependencies
+1. **Execution priority stays unchanged:** Phase 14, Phase 12 hardening, and already-sealed Phase 15/16 lanes remain ahead in `.github/EPIC_TICKETS.md`.
+2. **AI review queue groundwork exists:** the newly shipped AI inbox/review surfaces provide an operational precedent for proactive AI review UX but do not unblock or reorder Ambient AI.
+3. **Outlook/email integration must stay canonical:** contextual email drafting must reuse the existing integrations/service-layer seams and tenant-scoped auth models.
+4. **Universal forms/record pages remain the integration point:** anomaly detection and ghost UI depend on the current `UniversalEntityForm`, `UniversalEntityRecordPage`, and `EntityProfileHeader` surfaces staying canonical.
+
+### Risk register + mitigations
+1. **Suggestion spam or low-value recommendations** (Medium x High)
+   - Mitigation: require explicit confidence/rationale fields, start with high-signal heuristics, and support page-level dismissal/telemetry before expanding breadth.
+2. **Latency/cost regressions from per-page LLM calls** (High x Medium)
+   - Mitigation: heuristics first, short-lived tenant-safe caching, bounded `gpt-4o-mini` use, and graceful no-suggestion fallback when infra is unavailable.
+3. **False-positive anomaly warnings slow operators down** (Medium x Medium)
+   - Mitigation: use configurable thresholds, show baseline context, and keep warnings soft/overrideable instead of hard-blocking save.
+4. **Contextual drafts expose sensitive/internal wording** (Medium x High)
+   - Mitigation: draft-only output, reuse tenant-safe data aggregations, and keep the final send step explicitly user-controlled.
+
+### Testing strategy
+1. **Planning/docs validation:** `bash scripts/verify_golden_state.sh` and `bash .github/scripts/check_infrastructure.sh`
+2. **NBA engine execution tickets:** targeted backend tests for the contextual suggestion service/API plus graceful-degradation coverage when AI services are unavailable.
+3. **Ghost UI execution tickets:** `npm -C frontend run verify-standards`, targeted React tests for stable query wiring/rendering, and route-level regression coverage on record pages.
+4. **Anomaly detection + email drafting execution tickets:** backend aggregation tests, frontend form warning tests, and integration tests around Outlook draft creation/auth handoff.
+
+### Rollback / safe-change approach
+1. Keep ambient AI execution additive and feature-flagged at the route/component level.
+2. Disable contextual suggestions or drafting actions independently if quality/cost regressions appear.
+3. Revert anomaly warning hooks before touching existing form validation/save contracts.
+4. Preserve telemetry and operator dismissal data if UI surfaces are rolled back so suggestion quality can still be analyzed.
+
 ### Historical context (kept for traceability)
 
 ## Historical: Recovery Execution Plan (as of 2026-03-27T17:03Z)
