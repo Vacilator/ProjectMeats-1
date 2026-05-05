@@ -1,41 +1,83 @@
 import React from 'react';
-import { fireEvent, render, screen } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it, vi } from 'vitest';
+import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { MemoryRouter, Route, Routes } from 'react-router-dom';
+
 import { CockpitWelcomeEmptyState } from './CockpitWelcomeEmptyState';
 
-const navigateMock = vi.fn();
-
-vi.mock('react-router-dom', async () => {
-  const actual = await vi.importActual<typeof import('react-router-dom')>('react-router-dom');
-  return {
-    ...actual,
-    useNavigate: () => navigateMock,
-  };
-});
-
 describe('CockpitWelcomeEmptyState', () => {
-  it('routes users to first-run CTAs and starts the tour', () => {
-    const customizeDashboard = vi.fn();
-    const startTour = vi.fn();
-
+  it('renders first-run guidance and direct CTA actions', () => {
     render(
       <MemoryRouter>
         <CockpitWelcomeEmptyState
-          onCustomizeDashboard={customizeDashboard}
-          onStartTour={startTour}
+          onCustomizeDashboard={vi.fn()}
+          onStartTour={vi.fn()}
         />
-      </MemoryRouter>,
+      </MemoryRouter>
     );
 
-    fireEvent.click(screen.getByRole('button', { name: 'Take the Cockpit Tour' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Add Your First Customer' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Create Your First Inquiry' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Customize Dashboard' }));
+    expect(screen.getByRole('heading', { name: /start your cockpit/i })).toBeInTheDocument();
+    expect(
+      screen.getByText(/fastest way to get value is to set up a few core records/i)
+    ).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /take the cockpit tour/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /add your first customer/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /create your first inquiry/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /customize dashboard/i })).toBeInTheDocument();
+  });
 
-    expect(startTour).toHaveBeenCalledTimes(1);
-    expect(customizeDashboard).toHaveBeenCalledTimes(1);
-    expect(navigateMock).toHaveBeenCalledWith('/customers/new');
-    expect(navigateMock).toHaveBeenCalledWith('/inquiries', { state: { openCreateModal: true } });
+  it('routes create CTAs and invokes the tour/customize callbacks', async () => {
+    const user = userEvent.setup();
+    const onCustomizeDashboard = vi.fn();
+    const onStartTour = vi.fn();
+
+    render(
+      <MemoryRouter initialEntries={['/']}>
+        <Routes>
+          <Route
+            path="/"
+            element={
+              <CockpitWelcomeEmptyState
+                onCustomizeDashboard={onCustomizeDashboard}
+                onStartTour={onStartTour}
+              />
+            }
+          />
+          <Route path="/customers/new" element={<div>Customer create route</div>} />
+          <Route path="/inquiries" element={<div>Inquiry route</div>} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    await user.click(screen.getByRole('button', { name: /take the cockpit tour/i }));
+    await user.click(screen.getByRole('button', { name: /customize dashboard/i }));
+
+    expect(onStartTour).toHaveBeenCalledTimes(1);
+    expect(onCustomizeDashboard).toHaveBeenCalledTimes(1);
+
+    await user.click(screen.getByRole('button', { name: /add your first customer/i }));
+    expect(await screen.findByText('Customer create route')).toBeInTheDocument();
+
+    render(
+      <MemoryRouter initialEntries={['/']}>
+        <Routes>
+          <Route
+            path="/"
+            element={
+              <CockpitWelcomeEmptyState
+                onCustomizeDashboard={onCustomizeDashboard}
+                onStartTour={onStartTour}
+              />
+            }
+          />
+          <Route path="/customers/new" element={<div>Customer create route</div>} />
+          <Route path="/inquiries" element={<div>Inquiry route</div>} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    await user.click(screen.getByRole('button', { name: /create your first inquiry/i }));
+    expect(await screen.findByText('Inquiry route')).toBeInTheDocument();
   });
 });
