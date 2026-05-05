@@ -21,6 +21,7 @@ from .views import (
     ChatMessageViewSet,
     ChatSessionViewSet,
     ExtractToSchemaAPIView,
+    ContextualSuggestionsAPIView,
     PendingReviewResolveAPIView,
     PendingReviewView,
     RecentErrorsAPIView,
@@ -52,6 +53,7 @@ urlpatterns = [
     path('metrics/', AILearningMetricsAPIView.as_view(), name='ai-metrics'),
     path('extract-to-schema/', ExtractToSchemaAPIView.as_view(), name='ai-extract-to-schema'),
     path('review/pending/', PendingReviewView.as_view(), name='pending-review'),
+    path('suggestions/contextual/', ContextualSuggestionsAPIView.as_view(), name='contextual-suggestions'),
     path('tools/openapi/', ToolsOpenAPIView.as_view(), name='tools-openapi'),
     path('errors/recent/', RecentErrorsAPIView.as_view(), name='ai-recent-errors'),
     # Backward/ops-friendly alias (admin-only): matches runbooks that refer to /diagnostics/recent-errors/

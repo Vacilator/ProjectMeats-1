@@ -108,6 +108,7 @@ export interface Plant {
   manager?: string;
   plant_type?: 'processing' | 'distribution' | 'storage' | 'office' | 'other';
   capacity?: number;
+  export_approved?: boolean;
   is_active?: boolean;
   created_on?: string;
   modified_on?: string;

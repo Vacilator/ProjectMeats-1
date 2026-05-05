@@ -3,6 +3,8 @@ import styled from 'styled-components';
 import { Spin, Typography, message, Tag, Select } from 'antd';
 import debounce from 'lodash/debounce';
 import { businessApi } from '../../services/businessApi';
+import { logger } from '@/utils/logger';
+import AmbientSuggestions from '@/components/AIAssistant/AmbientSuggestions';
 
 const { Text } = Typography;
 
@@ -333,7 +335,7 @@ const ProductListSection: React.FC<{
           return Array.from(map.values());
         });
       } catch (err) {
-        console.error('[EntityProfileHeader] Failed to search products:', err);
+        logger.error('[EntityProfileHeader] Failed to search products:', err);
       } finally {
         setLoadingOptions(false);
       }
@@ -427,7 +429,7 @@ export const EntityProfileHeader: React.FC<EntityProfileHeaderProps> = ({
       } else {
         const err: any = detailRes.reason;
         const status = err?.response?.status;
-        console.error('[EntityProfileHeader] Failed to load entity:', err);
+        logger.error('Failed to load entity profile header details', { component: 'EntityProfileHeader' }, err);
 
         // During backend outages, avoid toast-spam; render a stable placeholder instead.
         if (status === 500 || status === 502 || status === 503 || status === 504) {
@@ -489,7 +491,7 @@ export const EntityProfileHeader: React.FC<EntityProfileHeaderProps> = ({
       return resp.data as EntityDetailResponse;
     } catch (err: any) {
       const status = err?.response?.status;
-      console.error('[EntityProfileHeader] Failed to update field:', err);
+      logger.error('Failed to update entity profile header field', { component: 'EntityProfileHeader' }, err);
 
       if (status === 500 || status === 502 || status === 503 || status === 504) {
         message.error('Server temporarily unavailable. Please try again in a moment.');
@@ -713,6 +715,8 @@ export const EntityProfileHeader: React.FC<EntityProfileHeaderProps> = ({
           )}
         </div>
       </TitleRow>
+
+      <AmbientSuggestions entityType={entityType} entityId={entityId} />
 
       {loading ? (
         <div style={{ padding: 12 }}><Spin /></div>

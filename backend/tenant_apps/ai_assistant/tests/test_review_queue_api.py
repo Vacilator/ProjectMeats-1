@@ -10,8 +10,9 @@ if 'tenant_apps.ai_assistant' not in settings.INSTALLED_APPS:
     raise unittest.SkipTest('tenant_apps.ai_assistant is excluded from INSTALLED_APPS in test settings')
 
 from apps.tenants.models import Tenant, TenantUser
+from tenant_apps.plants.models import Plant
 from tenant_apps.ai_assistant.models import AIFeedbackLog
-from tenant_apps.ai_assistant.views import PendingReviewView
+from tenant_apps.ai_assistant.views import ContextualSuggestionsAPIView, PendingReviewView
 
 
 class PendingReviewViewTests(TestCase):
@@ -68,3 +69,30 @@ class PendingReviewViewTests(TestCase):
         self.assertEqual(payload['intent_label'], 'Bill Of Lading')
         self.assertEqual(payload['review_entity_type'], 'carrier-pos')
         self.assertEqual(payload['review_target_url'], f'/my-tasks?tab=ai-review&draft={feedback.id}')
+
+    def test_contextual_suggestions_returns_plant_continuity_actions(self):
+        plant = Plant.objects.create(
+            tenant=self.tenant,
+            name='Continuity Plant',
+            plant_type='processing',
+            city='Chicago',
+            state='IL',
+            country='USA',
+        )
+
+        request = self.factory.post(
+            '/api/v1/ai-assistant/suggestions/contextual/',
+            {
+                'entity_type': 'plant',
+                'entity_id': str(plant.id),
+                'current_state': {},
+            },
+            format='json',
+        )
+        force_authenticate(request, user=self.user)
+        request.tenant = self.tenant
+
+        response = ContextualSuggestionsAPIView.as_view()(request)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data['suggestions'][0]['action'], 'update_booking_contact')

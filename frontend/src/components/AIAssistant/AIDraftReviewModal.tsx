@@ -216,7 +216,7 @@ export const AIDraftReviewModal: React.FC<AIDraftReviewModalProps> = ({
       open={open}
       onCancel={resolving ? undefined : onClose}
       footer={null}
-      title="AI Draft Review"
+      title="AI Inbox Review"
       width={1100}
       destroyOnHidden
       mask={{ closable: !resolving }}

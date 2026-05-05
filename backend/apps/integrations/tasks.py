@@ -11,6 +11,7 @@ from celery import group, shared_task
 from apps.integrations.models import ExternalAuthProvider
 from apps.tenants.models import Tenant
 from apps.tenants.rls import tenant_rls
+from tenant_apps.ai_assistant.tasks.watchdog import sync_ai_feedback_queue_for_tenant
 from tenant_apps.integrations.services.email_ingestion import EmailIngestionService
 
 logger = logging.getLogger(__name__)
@@ -89,6 +90,7 @@ def sync_email_provider_inbox(self, provider_id: int, tenant_id: str):
         with tenant_rls(str(tenant_id)):
             service = EmailIngestionService()
             stats = service.poll_provider_by_id(provider_id, tenant_id=str(tenant_id))
+            ai_inbox = sync_ai_feedback_queue_for_tenant(str(tenant_id))
 
         logger.info(
             'Email sync provider complete: provider_id=%s tenant=%s saved=%s fetched=%s errors=%s',
@@ -103,6 +105,7 @@ def sync_email_provider_inbox(self, provider_id: int, tenant_id: str):
             'success': True,
             'provider_id': provider_id,
             'stats': stats,
+            'ai_inbox': ai_inbox,
         }
 
     except Exception as e:

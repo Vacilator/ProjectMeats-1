@@ -716,6 +716,7 @@ export interface Plant {
   booking_contact_phone?: string;
   booking_contact_phone_type?: 'mobile' | 'office';
   capacity?: number;
+  export_approved?: boolean;
   is_active?: boolean;
   fcfs?: boolean;
   created_at: string;
