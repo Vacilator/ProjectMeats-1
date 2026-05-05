@@ -52,6 +52,10 @@ vi.mock('./UniversalEntityForm', async (importOriginal) => {
 import { EntityFormSurface } from './EntityFormSurface';
 import { withTenantQueryKey } from '@/utils/queryKeys';
 
+const FK_BATCH_SIGNATURE = JSON.stringify([
+  { key: 'customer', relatedEntity: 'customers.Customer' },
+]);
+
 describe('EntityFormSurface', () => {
   beforeEach(() => {
     businessApiMock.get.mockReset();
@@ -164,7 +168,7 @@ describe('EntityFormSurface', () => {
     expect(formLifecycle.unmounts).toBe(0);
   });
 
-  it('does not churn cached FK query observers when parent rebuilds identical seed objects', async () => {
+  it('does not churn cached FK batch queries when parent rebuilds identical seed objects', async () => {
     const queryClient = createQueryClient();
 
     queryClient.setQueryData(withTenantQueryKey('entity-form-schema', 'plant'), {
@@ -186,8 +190,10 @@ describe('EntityFormSurface', () => {
       customer: '123',
     });
     queryClient.setQueryData(
-      withTenantQueryKey('entity-form-fk-options', 'plant', 'customer', 'customers.Customer'),
-      [{ id: '123', name: 'Acme Foods' }]
+      withTenantQueryKey('entity-form-fk-options-batch', 'plant', FK_BATCH_SIGNATURE),
+      {
+        customer: [{ id: '123', name: 'Acme Foods' }],
+      }
     );
 
     const Parent: React.FC = () => {

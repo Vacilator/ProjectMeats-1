@@ -14,7 +14,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { Modal, Skeleton } from 'antd';
-import { useQueries, useQuery } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { isEqual } from 'lodash';
 
 import { getRuntimeConfigBoolean } from '@/config/runtime';
@@ -89,6 +89,9 @@ const normalizeEntityType = (raw: string): string => {
 
 const buildUnauthorizedLoadError = () => ({ response: { status: 401 } });
 const EMPTY_INITIAL_VALUES: Record<string, unknown> = {};
+type FkOption = { id: string | number; name: string };
+type FkOptionsMap = Record<string, FkOption[]>;
+type FkDescriptor = { fieldKey: string; relatedEntity: string };
 
 function useDeepStableValue<T>(value: T): T {
   const ref = useRef(value);
@@ -110,6 +113,33 @@ const humanizeEntityType = (value: string): string => {
   if (!tail) return 'Record';
 
   return tail.replace(/\b\w/g, (char) => char.toUpperCase());
+};
+
+const fetchEntityFormFkOptionsBatch = async (
+  descriptors: FkDescriptor[],
+): Promise<FkOptionsMap> => {
+  if (!descriptors.length) {
+    return {};
+  }
+
+  const entries = await Promise.all(
+    descriptors.map(async (descriptor) => {
+      const options = await fetchUniversalEntityFkOptions({
+        key: descriptor.fieldKey,
+        related_entity: descriptor.relatedEntity,
+      } as BackendField);
+
+      return [descriptor.fieldKey, options] as const;
+    }),
+  );
+
+  return entries.reduce<FkOptionsMap>((accumulator, [fieldKey, options]) => {
+    if (options.length > 0) {
+      accumulator[fieldKey] = options;
+    }
+
+    return accumulator;
+  }, {});
 };
 
 export const EntityFormSurface: React.FC<EntityFormSurfaceProps> = ({
@@ -278,62 +308,40 @@ export const EntityFormSurface: React.FC<EntityFormSurfaceProps> = ({
   }
 
   const hasAugmentedSchema = Boolean(augmentedSchema);
-  const fkQueryOptions = useMemo(
-    () =>
-      stableFkDescriptorsRef.current.map((descriptor) => ({
-        queryKey: withTenantQueryKey(
-          'entity-form-fk-options',
-          normalizedEntityKey,
-          descriptor.fieldKey,
-          descriptor.relatedEntity,
-        ),
-        queryFn: () =>
-          fetchUniversalEntityFkOptions({
-            key: descriptor.fieldKey,
-            related_entity: descriptor.relatedEntity,
-          } as BackendField),
-        enabled: shouldHydrate && hasAugmentedSchema,
-        staleTime: 5 * 60 * 1000,
-      })),
-    [fkFieldSignature, hasAugmentedSchema, normalizedEntityKey, shouldHydrate]
-  );
-
-  const fkQueries = useQueries({
-    queries: fkQueryOptions,
+  const stableFkDescriptors = stableFkDescriptorsRef.current;
+  const fkOptionsQuery = useQuery({
+    queryKey: withTenantQueryKey(
+      'entity-form-fk-options-batch',
+      normalizedEntityKey,
+      fkFieldSignature,
+    ),
+    queryFn: () => fetchEntityFormFkOptionsBatch(stableFkDescriptors),
+    enabled: shouldHydrate && hasAugmentedSchema && stableFkDescriptors.length > 0,
+    staleTime: 5 * 60 * 1000,
   });
+  const fkOptions = useMemo<FkOptionsMap>(() => fkOptionsQuery.data ?? {}, [fkOptionsQuery.data]);
 
-  const fkOptions = useMemo(() => {
-    const next: Record<string, Array<{ id: string | number; name: string }>> = {};
-
-    fkFields.forEach((field, index) => {
-      const options = fkQueries[index]?.data;
-      if (options?.length) {
-        next[field.key] = options;
-      }
-    });
-
-    return next;
-  }, [fkFields, fkQueries]);
-
-  const fkQueriesLoading =
+  const fkOptionsLoading =
     shouldHydrate &&
-    fkQueryOptions.length > 0 &&
-    fkQueries.some((query) => query.isLoading);
+    stableFkDescriptors.length > 0 &&
+    (fkOptionsQuery.isLoading || fkOptionsQuery.isPending);
   const formLoading =
     (isOpen && authLoading) ||
     (shouldHydrate &&
       (schemaQuery.isLoading ||
         schemaQuery.isPending ||
         (shouldLoadRecord && (recordQuery.isLoading || recordQuery.isPending)) ||
-        fkQueriesLoading));
+        fkOptionsLoading));
   const formReady =
     hasAugmentedSchema &&
     (!shouldLoadRecord || Boolean(recordQuery.data || recordQuery.error)) &&
-    (!shouldHydrate || !fkQueryOptions.length || fkQueries.every((query) => !query.isLoading));
+    (!shouldHydrate ||
+      !stableFkDescriptors.length ||
+      !(fkOptionsQuery.isLoading || fkOptionsQuery.isPending));
   const formLoadError =
     !authLoading && !isAuthenticated && isOpen
       ? buildUnauthorizedLoadError()
-      : schemaQuery.error || recordQuery.error || fkQueries.find((query) => query.error)?.error || null;
+      : schemaQuery.error || recordQuery.error || fkOptionsQuery.error || null;
   const formKey = useMemo(
     () =>
       getStableSignature({
