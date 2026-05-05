@@ -48,7 +48,7 @@ describe('IngestionMonitor', () => {
 
   it('renders actionable draft emails with a review action', async () => {
     render(
-      <MemoryRouter initialEntries={['/settings/email-integrations?draft=draft-1']}>
+      <MemoryRouter initialEntries={['/my-tasks?tab=ai-review&draft=draft-1']}>
         <IngestionMonitor />
       </MemoryRouter>,
     );
@@ -58,7 +58,7 @@ describe('IngestionMonitor', () => {
     });
 
     expect(screen.getByText('Potential PO from accounting@nameats.com')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Review Draft' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Review in AI Queue' })).toBeInTheDocument();
     expect(screen.getByText('Draft Ready')).toBeInTheDocument();
   });
 });

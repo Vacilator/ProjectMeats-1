@@ -444,6 +444,13 @@ class PendingReviewItemSerializer(serializers.Serializer):
     precision_delta = serializers.FloatField()
     created_on = serializers.DateTimeField()
     original_extracted_data = serializers.JSONField()
+    sender = serializers.CharField(required=False, allow_blank=True)
+    source_subject = serializers.CharField(required=False, allow_blank=True)
+    source_summary = serializers.CharField(required=False, allow_blank=True)
+    source_document_name = serializers.CharField(required=False, allow_blank=True)
+    intent_label = serializers.CharField(required=False, allow_blank=True)
+    review_entity_type = serializers.CharField(required=False, allow_blank=True)
+    review_target_url = serializers.CharField(required=False, allow_blank=True)
 
 
 class PendingReviewListResponseSerializer(serializers.Serializer):

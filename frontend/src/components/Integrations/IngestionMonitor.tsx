@@ -251,9 +251,9 @@ export const IngestionMonitor: React.FC = () => {
                         <Button
                           type="link"
                           size="small"
-                          onClick={() => navigate(`/settings/email-integrations?draft=${email.draft?.id}`)}
+                          onClick={() => navigate(`/my-tasks?tab=ai-review&draft=${email.draft?.id}`)}
                         >
-                          Review Draft
+                          Review in AI Queue
                         </Button>
                       ),
                       email.related_order_id && (
@@ -325,7 +325,7 @@ export const IngestionMonitor: React.FC = () => {
               {getStatusTag('logged')} New email received
               {getStatusTag('ai_parsing')} AI extracting order data
               {getStatusTag('order_created')} Order created successfully
-              {getStatusTag('ignored')} Low confidence, needs review
+              {getStatusTag('ignored')} Routed to My Tasks AI review queue
               {getStatusTag('failed')} Processing error
             </Space>
           </div>

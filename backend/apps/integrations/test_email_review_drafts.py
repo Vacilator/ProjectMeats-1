@@ -63,4 +63,4 @@ class EmailReviewDraftSignalTests(TestCase):
         self.assertEqual(email_log.status, 'draft_created')
         self.assertEqual(draft.draft_type, 'purchase_order')
         self.assertEqual(notification.entity_id, draft.id)
-        self.assertIn(f'draft={draft.id}', notification.action_url)
+        self.assertEqual(notification.action_url, f'/my-tasks?tab=ai-review&draft={draft.id}')

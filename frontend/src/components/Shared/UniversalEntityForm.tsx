@@ -274,6 +274,9 @@ export const normalizeEntityKey = (entityType: string): string => {
   // Common UI paths → introspection aliases.
   if (lower === 'sales-orders' || lower === 'sales_orders') return 'sales_order';
   if (lower === 'purchase-orders' || lower === 'purchase_orders') return 'purchase_order';
+  if (lower === 'carrier-pos' || lower === 'carrier_po' || lower === 'carrier_purchase_order') {
+    return 'carrier-pos';
+  }
 
   // Plural resources commonly used in UI routes.
   if (lower === 'customers' || lower === 'customer') return 'customer';
@@ -297,6 +300,8 @@ export const normalizeEntityEndpoint = (entityType: string): string => {
     return 'sales-orders/';
   if (lower === 'purchase-orders' || lower === 'purchase_orders' || lower === 'purchase_order')
     return 'purchase-orders/';
+  if (lower === 'carrier-pos' || lower === 'carrier_po' || lower === 'carrier_purchase_order')
+    return 'carrier-pos/';
   if (lower === 'inquiries' || lower === 'inquiry') return 'inquiries/';
 
   // Accounting canonical paths (legacy aliases still exist server-side).

@@ -168,6 +168,13 @@ export const PlantDetailView: React.FC = () => {
           <Button onClick={() => navigate(-1)}>Back</Button>
           <div style={{ fontSize: 16, fontWeight: 700, color: 'rgb(var(--color-text-primary))' }}>Plant</div>
         </div>
+        <Button
+          type="primary"
+          onClick={() => plantId && navigate(`/plants/${encodeURIComponent(plantId)}/edit`)}
+          disabled={!plantId || showAuthFallback}
+        >
+          Edit Plant
+        </Button>
       </div>
 
       <div style={{ marginTop: 12 }}>

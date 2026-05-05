@@ -21,7 +21,15 @@ import type {
 
 export type ChatRequest = ContractAiChatRequest;
 export type ChatResponse = ContractAiChatResponse;
-export type PendingReviewItem = ContractPendingReviewItem;
+export type PendingReviewItem = ContractPendingReviewItem & {
+  sender?: string;
+  source_subject?: string;
+  source_summary?: string;
+  source_document_name?: string;
+  intent_label?: string;
+  review_entity_type?: string;
+  review_target_url?: string;
+};
 export type PendingReviewListResponse = ContractPendingReviewListResponse;
 export type PendingReviewResolveRequest = ContractPendingReviewResolveRequest;
 export type PendingReviewResolveResponse = ContractPendingReviewResolveResponse;

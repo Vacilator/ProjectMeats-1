@@ -9,11 +9,14 @@
  */
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import styled from 'styled-components';
+import { useSearchParams } from 'react-router-dom';
 import { showAlert } from '@/utils/uiDialogs';
 import { logger } from '@/utils/logger';
 import { useNotifications, ActionItem } from '../../contexts/NotificationsContext';
 import { DelegateTaskModal, DelegationData, User } from '../../components/Delegation';
 import { DelegationHistory } from '../../components/Delegation';
+import AIDraftReviewModal from '../../components/AIAssistant/AIDraftReviewModal';
+import { aiStaffApi, PendingReviewItem } from '../../services/aiService';
 import { workflowExecutionService } from '../../services/workflowExecutionService';
 import { WorkflowExecution } from '../../types/workflows';
 import { compareTasksSmart, isAtRiskTask, daysUntilDue } from '../../utils/taskPrioritization';
@@ -63,6 +66,23 @@ const CountBadge = styled.span`
   padding: 4px 12px;
   border-radius: 16px;
   margin-left: 12px;
+`;
+
+const TabsRow = styled.div`
+  display: flex;
+  gap: 12px;
+  margin-bottom: 24px;
+`;
+
+const TabButton = styled.button<{ $active: boolean }>`
+  padding: 10px 16px;
+  border-radius: 999px;
+  border: 1px solid ${props => props.$active ? 'rgb(var(--color-primary))' : 'rgb(var(--color-border, 224 224 224))'};
+  background: ${props => props.$active ? 'rgba(var(--color-primary), 0.12)' : 'rgb(var(--color-surface, 255 255 255))'};
+  color: ${props => props.$active ? 'rgb(var(--color-primary))' : 'rgb(var(--color-text-primary, 44 62 80))'};
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
 `;
 
 const FiltersBar = styled.div`
@@ -353,6 +373,65 @@ const WorkflowsSection = styled.div`
   margin-bottom: 32px;
 `;
 
+const ReviewQueueList = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+`;
+
+const ReviewQueueCard = styled.div`
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 20px;
+  background: rgb(var(--color-surface, 255 255 255));
+  border: 1px solid rgb(var(--color-border, 224 224 224));
+  border-radius: 12px;
+  box-shadow: var(--shadow-sm);
+`;
+
+const ReviewQueueMeta = styled.div`
+  display: grid;
+  gap: 8px;
+`;
+
+const ReviewQueueTitle = styled.h3`
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: rgb(var(--color-text-primary, 44 62 80));
+`;
+
+const ReviewQueueSubtitle = styled.p`
+  margin: 0;
+  font-size: 14px;
+  color: rgb(var(--color-text-secondary, 127 140 141));
+`;
+
+const ReviewQueueDetails = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  font-size: 13px;
+  color: rgb(var(--color-text-secondary, 127 140 141));
+`;
+
+const ReviewQueueBadge = styled.span<{ $tone?: 'info' | 'warning' }>`
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  background: ${props => props.$tone === 'warning'
+    ? 'rgba(var(--color-warning), 0.12)'
+    : 'rgba(var(--color-info), 0.12)'};
+  color: ${props => props.$tone === 'warning'
+    ? 'rgb(var(--color-warning))'
+    : 'rgb(var(--color-info))'};
+`;
+
 const SectionHeader = styled.div`
   display: flex;
   align-items: center;
@@ -522,6 +601,7 @@ const ErrorMessage = styled.div`
 // Filter types
 type PriorityFilter = 'all' | 'urgent' | 'high' | 'normal' | 'low';
 type StatusFilter = 'all' | 'action_needed' | 'in_progress' | 'waiting' | 'overdue';
+type TasksTab = 'tasks' | 'ai-review';
 
 // Format date helper
 const formatDueDate = (dateStr: string | null): string => {
@@ -544,13 +624,20 @@ const formatDueDate = (dateStr: string | null): string => {
  * MyTasks page component.
  */
 export const MyTasks: React.FC = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
   const { actionItems, actionItemCounts, loading, error, fetchActionItems } = useNotifications();
+  const activeTab: TasksTab = searchParams.get('tab') === 'ai-review' ? 'ai-review' : 'tasks';
+  const highlightedDraftId = searchParams.get('draft');
   
   // Workflow executions state
   const [workflowExecutions, setWorkflowExecutions] = useState<WorkflowExecution[]>([]);
   const [workflowsLoading, setWorkflowsLoading] = useState(true);
   const [workflowsError, setWorkflowsError] = useState('');
   const [resumingId, setResumingId] = useState<string | null>(null);
+  const [pendingReviews, setPendingReviews] = useState<PendingReviewItem[]>([]);
+  const [reviewLoading, setReviewLoading] = useState(false);
+  const [reviewError, setReviewError] = useState('');
+  const [selectedReview, setSelectedReview] = useState<PendingReviewItem | null>(null);
   
   // Local filter state
   const [priorityFilter, setPriorityFilter] = useState<PriorityFilter>('all');
@@ -583,6 +670,21 @@ export const MyTasks: React.FC = () => {
       status: 'active' as const,
     },
   ]);
+
+  const fetchPendingReviews = useCallback(async () => {
+    setReviewLoading(true);
+    setReviewError('');
+    try {
+      const items = await aiStaffApi.listPendingReviews();
+      setPendingReviews(items);
+    } catch (err) {
+      logger.error('Failed to fetch AI review queue', err);
+      setReviewError('Unable to load the AI review queue right now.');
+      setPendingReviews([]);
+    } finally {
+      setReviewLoading(false);
+    }
+  }, []);
 
   // Fetch workflow executions
   const fetchWorkflowExecutions = useCallback(async () => {
@@ -617,6 +719,23 @@ export const MyTasks: React.FC = () => {
   useEffect(() => {
     fetchWorkflowExecutions();
   }, [fetchWorkflowExecutions]);
+
+  useEffect(() => {
+    if (activeTab !== 'ai-review' && !highlightedDraftId) {
+      return;
+    }
+    void fetchPendingReviews();
+  }, [activeTab, fetchPendingReviews, highlightedDraftId]);
+
+  useEffect(() => {
+    if (!highlightedDraftId || !pendingReviews.length) {
+      return;
+    }
+    const matched = pendingReviews.find((item) => item.id === highlightedDraftId);
+    if (matched) {
+      setSelectedReview(matched);
+    }
+  }, [highlightedDraftId, pendingReviews]);
 
   // Handle resume workflow
   const handleResumeWorkflow = async (execution: WorkflowExecution) => {
@@ -768,6 +887,38 @@ export const MyTasks: React.FC = () => {
     // In production, this would call the API
   }, []);
 
+  const setTab = useCallback((tab: TasksTab) => {
+    const next = new URLSearchParams(searchParams);
+    if (tab === 'ai-review') {
+      next.set('tab', 'ai-review');
+    } else {
+      next.delete('tab');
+      next.delete('draft');
+    }
+    setSearchParams(next, { replace: true });
+  }, [searchParams, setSearchParams]);
+
+  const openReview = useCallback((item: PendingReviewItem) => {
+    setSelectedReview(item);
+    const next = new URLSearchParams(searchParams);
+    next.set('tab', 'ai-review');
+    next.set('draft', item.id);
+    setSearchParams(next, { replace: true });
+  }, [searchParams, setSearchParams]);
+
+  const closeReview = useCallback(() => {
+    setSelectedReview(null);
+    const next = new URLSearchParams(searchParams);
+    next.delete('draft');
+    setSearchParams(next, { replace: true });
+  }, [searchParams, setSearchParams]);
+
+  const handleReviewResolved = useCallback((reviewId: string) => {
+    setPendingReviews((current) => current.filter((item) => item.id !== reviewId));
+    closeReview();
+    void fetchPendingReviews();
+  }, [closeReview, fetchPendingReviews]);
+
   // Render loading state
   if (loading && actionItems.length === 0) {
     return (
@@ -780,21 +931,110 @@ export const MyTasks: React.FC = () => {
     );
   }
 
+  const headerCount = activeTab === 'ai-review'
+    ? pendingReviews.length
+    : actionItemCounts?.total;
+
   return (
     <Container>
       <Header>
         <div style={{ display: 'flex', alignItems: 'center' }}>
           <Title>My Tasks</Title>
-          {actionItemCounts && (
-            <CountBadge>{actionItemCounts.total}</CountBadge>
+          {typeof headerCount === 'number' && (
+            <CountBadge>{headerCount}</CountBadge>
           )}
         </div>
-        <ActionButton onClick={() => fetchActionItems()}>
+        <ActionButton onClick={() => {
+          if (activeTab === 'ai-review') {
+            void fetchPendingReviews();
+            return;
+          }
+          fetchActionItems();
+        }}>
           Refresh
         </ActionButton>
       </Header>
 
       {error && <ErrorMessage>{error}</ErrorMessage>}
+
+      <TabsRow>
+        <TabButton $active={activeTab === 'tasks'} onClick={() => setTab('tasks')}>
+          Operational Tasks
+        </TabButton>
+        <TabButton $active={activeTab === 'ai-review'} onClick={() => setTab('ai-review')}>
+          AI Review Queue
+        </TabButton>
+      </TabsRow>
+
+      {activeTab === 'ai-review' ? (
+        <>
+          <WorkflowsSection>
+            <SectionHeader>
+              <div>
+                <SectionTitle>AI Review Queue</SectionTitle>
+                <ReviewQueueSubtitle>
+                  Review AI-generated drafts, confirm the form, and save the real record.
+                </ReviewQueueSubtitle>
+              </div>
+              <ActionButton onClick={() => void fetchPendingReviews()} disabled={reviewLoading}>
+                Refresh Queue
+              </ActionButton>
+            </SectionHeader>
+
+            {reviewError && <ErrorMessage>{reviewError}</ErrorMessage>}
+
+            {reviewLoading ? (
+              <LoadingSpinner />
+            ) : pendingReviews.length === 0 ? (
+              <EmptyState>
+                <EmptyIcon>📥</EmptyIcon>
+                <EmptyTitle>No AI drafts pending review</EmptyTitle>
+                <EmptyText>
+                  Potential purchase orders and BOL drafts will appear here when the AI needs human approval.
+                </EmptyText>
+              </EmptyState>
+            ) : (
+              <ReviewQueueList>
+                {pendingReviews.map((item) => (
+                  <ReviewQueueCard key={item.id}>
+                    <ReviewQueueMeta>
+                      <ReviewQueueTitle>{item.source_subject || item.intent_label || 'AI Draft'}</ReviewQueueTitle>
+                      <ReviewQueueSubtitle>
+                        {item.source_summary || 'Open the draft to inspect the parsed payload and save the final entity.'}
+                      </ReviewQueueSubtitle>
+                      <ReviewQueueDetails>
+                        <span>Sender: {item.sender || 'Unknown sender'}</span>
+                        <span>Received: {item.created_on ? new Date(item.created_on).toLocaleString() : 'Recently'}</span>
+                        {item.source_document_name ? <span>Attachment: {item.source_document_name}</span> : null}
+                      </ReviewQueueDetails>
+                      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                        <ReviewQueueBadge>{item.intent_label || 'AI Draft'}</ReviewQueueBadge>
+                        <ReviewQueueBadge $tone="warning">
+                          Confidence {(Number(item.confidence_score || 0) * 100).toFixed(0)}%
+                        </ReviewQueueBadge>
+                      </div>
+                    </ReviewQueueMeta>
+
+                    <TaskActions>
+                      <ActionButton onClick={() => openReview(item)}>
+                        Review &amp; Save
+                      </ActionButton>
+                    </TaskActions>
+                  </ReviewQueueCard>
+                ))}
+              </ReviewQueueList>
+            )}
+          </WorkflowsSection>
+
+          <AIDraftReviewModal
+            open={Boolean(selectedReview)}
+            item={selectedReview}
+            onClose={closeReview}
+            onResolved={handleReviewResolved}
+          />
+        </>
+      ) : (
+        <>
 
       {/* In Progress Workflows Section */}
       <WorkflowsSection>
@@ -1031,6 +1271,8 @@ export const MyTasks: React.FC = () => {
         availableUsers={availableUsers}
         isLoading={isDelegating}
       />
+        </>
+      )}
     </Container>
   );
 };

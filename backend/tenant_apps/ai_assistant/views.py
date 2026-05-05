@@ -82,6 +82,132 @@ SWARM_SYSTEM_PROMPT = (
     "Be highly analytical, concise, and proactive."
 )
 
+
+def _first_non_empty_string(*values: object) -> str:
+    for value in values:
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+    return ''
+
+
+def _extract_review_sender(payload: dict[str, object]) -> str:
+    return _first_non_empty_string(
+        payload.get('sender'),
+        payload.get('sender_email'),
+        payload.get('from_email'),
+        payload.get('email'),
+        payload.get('vendor_name'),
+        payload.get('supplier_name'),
+        payload.get('customer_name'),
+    )
+
+
+def _extract_review_subject(payload: dict[str, object], document_type: str) -> str:
+    return _first_non_empty_string(
+        payload.get('subject'),
+        payload.get('email_subject'),
+        payload.get('title'),
+        payload.get('document_name'),
+        document_type.replace('_', ' ').replace('-', ' ').title(),
+    )
+
+
+def _extract_review_summary(payload: dict[str, object]) -> str:
+    summary = _first_non_empty_string(
+        payload.get('notes'),
+        payload.get('summary'),
+        payload.get('email_body'),
+        payload.get('body'),
+        payload.get('text'),
+    )
+    return summary[:1000]
+
+
+def _normalize_review_document_type(document_type: str) -> str:
+    normalized = str(document_type or '').strip().lower().replace(' ', '_').replace('-', '_')
+    return normalized
+
+
+def _infer_review_entity_type(document_type: str, payload: dict[str, object]) -> str:
+    normalized = _normalize_review_document_type(document_type)
+
+    if normalized in {'purchase_order', 'po'}:
+        return 'purchase_order'
+    if normalized in {'bill_of_lading', 'bol', 'shipment', 'carrier_purchase_order', 'carrier_po'}:
+        return 'carrier-pos'
+    if normalized in {'invoice'}:
+        return 'invoice'
+    if normalized in {'sales_order', 'so'}:
+        return 'sales_order'
+    if normalized in {'inquiry', 'quote'}:
+        return 'inquiry'
+
+    if any(key in payload for key in ('order_number', 'vendor_name', 'supplier_name')):
+        return 'purchase_order'
+    if any(key in payload for key in ('bol_number', 'carrier_name', 'pickup_date', 'pick_up_date')):
+        return 'carrier-pos'
+
+    return ''
+
+
+def _humanize_review_intent(document_type: str, payload: dict[str, object]) -> str:
+    entity_type = _infer_review_entity_type(document_type, payload)
+    if entity_type == 'carrier-pos':
+        return 'Bill Of Lading'
+    if entity_type == 'purchase_order':
+        return 'Purchase Order'
+    if entity_type:
+        return entity_type.replace('-', ' ').replace('_', ' ').title()
+    normalized = _normalize_review_document_type(document_type)
+    return normalized.replace('_', ' ').title() or 'AI Draft'
+
+
+def build_pending_review_items(tenant_id: str) -> list[dict[str, object]]:
+    qs = (
+        AIFeedbackLog.objects.filter(
+            tenant_id=tenant_id,
+            resolved_by__isnull=True,
+            confidence_score__lt=0.85,
+        )
+        .order_by('-created_on')
+    )
+
+    document_ids = [row.document_id for row in qs[:25] if row.document_id is not None]
+    documents = {
+        document.id: document
+        for document in AIDocument.objects.filter(tenant_id=tenant_id, id__in=document_ids).only(
+            'id',
+            'original_filename',
+        )
+    }
+
+    items: list[dict[str, object]] = []
+    for row in qs[:25]:
+        payload = row.original_extracted_data if isinstance(row.original_extracted_data, dict) else {}
+        document = documents.get(row.document_id)
+        review_entity_type = _infer_review_entity_type(row.document_type, payload)
+
+        items.append(
+            {
+                'id': row.id,
+                'document_id': row.document_id,
+                'document_type': row.document_type,
+                'confidence_score': float(row.confidence_score or 0.0),
+                'precision_delta': float(row.precision_delta or 0.0),
+                'created_on': row.created_on,
+                'original_extracted_data': payload,
+                'sender': _extract_review_sender(payload),
+                'source_subject': _extract_review_subject(payload, row.document_type),
+                'source_summary': _extract_review_summary(payload),
+                'source_document_name': str(getattr(document, 'original_filename', '') or ''),
+                'intent_label': _humanize_review_intent(row.document_type, payload),
+                'review_entity_type': review_entity_type,
+                'review_target_url': f'/my-tasks?tab=ai-review&draft={row.id}',
+            }
+        )
+
+    return items
+
 from tenant_apps.ai_assistant.swarm.executor import DEFAULT_OPENAI_TOOLS
 
 
@@ -1164,27 +1290,7 @@ class PendingReviewAPIView(APIView):
         if not tenant_id:
             return Response({'error': 'Tenant context missing'}, status=status.HTTP_400_BAD_REQUEST)
 
-        qs = (
-            AIFeedbackLog.objects.filter(
-                tenant_id=tenant_id,
-                resolved_by__isnull=True,
-                confidence_score__lt=0.85,
-            )
-            .order_by('-created_on')
-        )
-
-        items = [
-            {
-                'id': row.id,
-                'document_id': row.document_id,
-                'document_type': row.document_type,
-                'confidence_score': float(row.confidence_score or 0.0),
-                'precision_delta': float(row.precision_delta or 0.0),
-                'created_on': row.created_on,
-                'original_extracted_data': row.original_extracted_data or {},
-            }
-            for row in qs[:25]
-        ]
+        items = build_pending_review_items(tenant_id)
 
         payload = PendingReviewItemSerializer(items, many=True).data
         return Response({'results': payload}, status=status.HTTP_200_OK)
@@ -1406,27 +1512,7 @@ class PendingReviewView(APIView):
         if not tenant_id:
             return Response({'error': 'Tenant context missing'}, status=status.HTTP_400_BAD_REQUEST)
 
-        qs = (
-            AIFeedbackLog.objects.filter(
-                tenant_id=tenant_id,
-                resolved_by__isnull=True,
-                confidence_score__lt=0.85,
-            )
-            .order_by('-created_on')
-        )
-
-        items = [
-            {
-                'id': row.id,
-                'document_id': row.document_id,
-                'document_type': row.document_type,
-                'confidence_score': float(row.confidence_score or 0.0),
-                'precision_delta': float(row.precision_delta or 0.0),
-                'created_on': row.created_on,
-                'original_extracted_data': row.original_extracted_data or {},
-            }
-            for row in qs[:25]
-        ]
+        items = build_pending_review_items(tenant_id)
 
         payload = PendingReviewItemSerializer(items, many=True).data
         return Response({'pending_reviews': payload, 'results': payload}, status=status.HTTP_200_OK)

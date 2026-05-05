@@ -120,13 +120,14 @@ describe('PlantDetail workflows tab', () => {
     expect(await screen.findByTestId('activity-feed')).toHaveTextContent('plant:2');
   });
 
-  it('air-gaps plant editing into an inline full-surface render instead of reopening the detail tree in a modal', async () => {
+  it('clones the supplier edit flow by routing plant edits onto the dedicated edit page', async () => {
     const user = userEvent.setup();
 
     render(
       <MemoryRouter initialEntries={['/suppliers/1/plants/2']}>
         <Routes>
           <Route path="/suppliers/:supplierId/plants/:plantId" element={<PlantDetail />} />
+          <Route path="/plants/:id/edit" element={<div data-testid="plant-edit-route">Plant Edit Route</div>} />
         </Routes>
       </MemoryRouter>
     );
@@ -135,10 +136,8 @@ describe('PlantDetail workflows tab', () => {
 
     await user.click(screen.getByRole('button', { name: /edit plant/i }));
 
-    expect(screen.getByRole('button', { name: /back to details/i })).toBeInTheDocument();
-    expect(screen.getByTestId('entity-form-surface')).toHaveTextContent('plant:edit:inline');
+    expect(await screen.findByTestId('plant-edit-route')).toBeInTheDocument();
     expect(screen.queryByTestId('ai-overview-card')).not.toBeInTheDocument();
-    expect(screen.queryByRole('tab', { name: /automation/i })).not.toBeInTheDocument();
   });
 
   it('fails closed on unauthorized detail loads instead of rendering the heavy detail tree', async () => {
