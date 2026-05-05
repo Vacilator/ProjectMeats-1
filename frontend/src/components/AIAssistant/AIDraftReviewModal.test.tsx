@@ -7,6 +7,20 @@ import userEvent from '@testing-library/user-event';
 import { AIDraftReviewModal } from './AIDraftReviewModal';
 
 const mockResolvePendingReview = vi.fn();
+const mockMessageSuccess = vi.fn();
+const mockMessageError = vi.fn();
+
+vi.mock('antd', async () => {
+  const actual = await vi.importActual<typeof import('antd')>('antd');
+  return {
+    ...actual,
+    message: {
+      ...actual.message,
+      success: (...args: unknown[]) => mockMessageSuccess(...args),
+      error: (...args: unknown[]) => mockMessageError(...args),
+    },
+  };
+});
 
 vi.mock('@/services/aiService', () => ({
   aiStaffApi: {

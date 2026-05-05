@@ -46,6 +46,7 @@ import { AILearningMetricsWidget } from '../../components/Cockpit/AILearningMetr
 import { EmptyState } from '../../components/Admin';
 import { CockpitWelcomeEmptyState, useOnboarding } from '../../components/Onboarding';
 import { useCockpitNavigation } from '../../contexts/CockpitNavigationContext';
+import { useCockpitStats, type CockpitStats } from '../../hooks/useCockpitStats';
 import { businessApi } from '../../services/businessApi';
 import { useCockpitPinnedTools } from '../../contexts/CockpitPinnedToolsContext';
 import { logger } from '../../utils/logger';
@@ -74,6 +75,25 @@ const normalizeWidgetType = (widgetType: string): string =>
         .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
         .join('')}Widget`
     : widgetType;
+
+const isCockpitBlankSlate = (stats: CockpitStats | null): boolean => {
+  if (!stats) {
+    return false;
+  }
+
+  return (
+    stats.quick_stats.total_orders === 0 &&
+    stats.quick_stats.total_revenue === 0 &&
+    stats.quick_stats.total_customers === 0 &&
+    stats.quick_stats.total_suppliers === 0 &&
+    stats.todays_numbers.orders_today === 0 &&
+    stats.todays_numbers.pending_orders === 0 &&
+    stats.todays_numbers.completed_today === 0 &&
+    stats.todays_numbers.active_customers === 0 &&
+    stats.recent_activity.length === 0 &&
+    stats.upcoming_calls.length === 0
+  );
+};
 
 // Default widgets configuration
 const DEFAULT_WIDGETS: WidgetConfig[] = [
@@ -428,6 +448,7 @@ type InlineActionState = {
 export const CockpitDashboard: React.FC = () => {
   const containerRef = useRef<HTMLDivElement>(null);
   const { hasCompletedTour, launchTour } = useOnboarding();
+  const { stats } = useCockpitStats();
   const [widgets, setWidgets] = useState<WidgetConfig[]>(DEFAULT_WIDGETS);
   const [inlineAction, setInlineAction] = useState<InlineActionState>(null);
   const [layout, setLayout] = useState<WidgetLayout[]>(DEFAULT_LAYOUT);
@@ -476,7 +497,11 @@ export const CockpitDashboard: React.FC = () => {
   const isSearchActive = cockpitQuery.trim().length > 0;
   const isRecordActive = navigation.path.length > 0;
   const showDashboardWidgets = !isSearchActive && !isRecordActive;
-  const showWelcomeEmptyState = showDashboardWidgets && !hasCompletedTour('cockpit');
+  const showWelcomeEmptyState =
+    showDashboardWidgets &&
+    !isEditing &&
+    !isCatalogOpen &&
+    (!hasCompletedTour('cockpit') || isCockpitBlankSlate(stats));
   const hasQuickActionsWidget = useMemo(
     () => widgets.some((widget) => normalizeWidgetType(widget.type) === 'QuickActionsWidget'),
     [widgets],
