@@ -33,7 +33,7 @@ This runbook standardizes how we triage, mitigate, and recover from incidents in
   - Confirm the manifest-defined backend Sentry contract (`SENTRY_ENABLED=true` for `uat-backend` / `production-backend`; `SENTRY_DSN` set when backend error tracking is expected).
 - **Frontend lane owner**
   - Verify `http://127.0.0.1:8080/` directly after rollback/deploy.
-  - Confirm the frontend Sentry contract uses `REACT_APP_SENTRY_DSN` or the shared `SENTRY_DSN` pass-through from the deploy pipeline.
+  - Confirm the frontend Sentry contract uses the shared `SENTRY_DSN` runtime pass-through from the deploy pipeline.
   - Record the exact immutable frontend digest restored during a rollback drill.
 
 ## Golden Pipeline triage (deployment/migrations)

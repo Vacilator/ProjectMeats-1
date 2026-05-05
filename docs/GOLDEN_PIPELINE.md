@@ -143,7 +143,7 @@ gh workflow run "🎮 Ops - Run Management Command" \
   - Review `/api/v1/health/` for `integration_summary` / `integration_warnings` after rollback or deploy, and gate traffic reopen on `/api/v1/ready/`.
 - **Frontend lane owner**
   - Confirm direct container health on `http://127.0.0.1:8080/`.
-  - Confirm frontend Sentry wiring uses `REACT_APP_SENTRY_DSN` or the shared `SENTRY_DSN` pass-through defined in the manifest/workflows.
+  - Confirm frontend Sentry wiring uses the shared `SENTRY_DSN` runtime pass-through defined in the workflow/runtime config.
   - Capture the exact immutable frontend digest used for rollback evidence.
 
 ### UAT rollback drill

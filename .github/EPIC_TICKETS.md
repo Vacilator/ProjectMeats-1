@@ -734,8 +734,8 @@
   - **Rollback:** Keep the new lock path behind a feature flag until race tests are stable.
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
-- [ ] **EH-05.2 observability-and-rollback-drill**
-  - **Status:** Ready
+- [x] **EH-05.2 observability-and-rollback-drill**
+  - **Status:** Done
   - **Why now:** Production observability and rollback readiness are not yet at enterprise baseline.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Operational excellence + Phase 12
   - **Scope:** Require lane-wide observability ownership and validate rollback procedures in UAT.
@@ -757,7 +757,7 @@
 ### Epic EH-06 - AI autonomy platform
 
 - [ ] **EH-06.1 autonomous-control-plane-foundation**
-  - **Status:** Blocked
+  - **Status:** Ready
   - **Why now:** AI tooling is still scaffolded; autonomy must be persisted and governed before it can scale.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 13
   - **Scope:** Add persisted AI run/task/approval models and the first governed execution flow.
@@ -765,7 +765,7 @@
   - **Primary domain:** backend/AI
   - **Likely touched paths:** `backend/tenant_apps/ai_assistant/models.py`, `backend/tenant_apps/ai_assistant/views.py`, `backend/tenant_apps/ai_assistant/swarm/router.py`, new migrations/tests
   - **Dependencies:** EH-05.2
-  - **Blockers:** EH-05.2
+  - **Blockers:** None
   - **Acceptance criteria:** AI runs are tenant-native, persisted, approval-aware, and queryable.
   - **Validation commands:** `cd backend && python manage.py test tenant_apps.ai_assistant apps.core.tests.test_viewset_permissions apps.core.tests.test_audit_rls_compliance`
   - **Tenant/RLS impact:** High
