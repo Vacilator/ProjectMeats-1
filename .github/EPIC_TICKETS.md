@@ -1522,3 +1522,155 @@
   - **Risk level:** Medium
   - **Rollback:** Revert the dashboard/UI/API while preserving exception-queue data for manual recovery.
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
+
+### Epic AMB-01 - Next-Best-Action (NBA) engine
+
+- [ ] **AMB-01.1 contextual-suggestion-contract-and-heuristic-rules**
+  - **Status:** Blocked
+  - **Why now:** Ambient AI cannot execute safely until there is one canonical suggestion payload and one deterministic rule layer that names what context is evaluated per entity.
+  - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 19 / Epic AMB-01
+  - **Scope:** Define the `POST /api/v1/ai-assistant/suggestions/contextual/` contract (`entity_type`, `entity_id`, `current_state`), suggestion payload schema, heuristic rule inputs/outputs, cache semantics, and LLM-bounded escalation rules.
+  - **Non-goals:** No UI surface or executable actions yet.
+  - **Primary domain:** backend/docs/ai
+  - **Likely touched paths:** `backend/tenant_apps/ai_assistant/serializers.py`, `backend/tenant_apps/ai_assistant/views.py`, `backend/tenant_apps/ai_assistant/services/`, `openapi-schema.json`, `manifests/openapi/openapi-schema.baseline.json`, `MASTER_PLAN.md`
+  - **Dependencies:** CTE-08.2
+  - **Blockers:** CTE-08.2 and all earlier unchecked tickets remain ahead in file order.
+  - **Acceptance criteria:** The contract names request/response shape, confidence/rationale fields, cache behavior, and deterministic heuristic-first escalation into `gpt-4o-mini` without implementation guesswork.
+  - **Validation commands:** `bash scripts/verify_golden_state.sh`; `cd backend && python manage.py spectacular --validate --file /tmp/projectmeats-openapi.yaml`
+  - **Tenant/RLS impact:** Medium; context lookups must remain tenant-scoped and fail closed when entity ownership is ambiguous.
+  - **Secrets/infra impact:** Medium; LLM use depends on existing AI credentials but must degrade gracefully when absent.
+  - **Risk level:** Medium
+  - **Rollback:** Revert the additive contract/docs baseline only; no runtime suggestion endpoint should ship from this ticket.
+  - **Completion evidence destination:** `.github/MASTER_PLAN.md`
+
+- [ ] **AMB-01.2 contextual-suggestions-endpoint-and-service**
+  - **Status:** Blocked
+  - **Why now:** Record pages need a fast backend suggestion source before any ambient UI can render contextual recommendations.
+  - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 19 / Epic AMB-01
+  - **Scope:** Implement the contextual suggestion service and `POST /api/v1/ai-assistant/suggestions/contextual/` endpoint with tenant-safe entity loading, heuristic evaluation, bounded `gpt-4o-mini` enrichment, telemetry, and graceful no-suggestion fallbacks.
+  - **Non-goals:** No page-header UI integration yet.
+  - **Primary domain:** backend/ai
+  - **Likely touched paths:** `backend/tenant_apps/ai_assistant/views.py`, `backend/tenant_apps/ai_assistant/services/`, `backend/tenant_apps/ai_assistant/tests/`, `backend/projectmeats/urls.py`, `openapi-schema.json`, `manifests/openapi/openapi-schema.baseline.json`
+  - **Dependencies:** AMB-01.1
+  - **Blockers:** AMB-01.1
+  - **Acceptance criteria:** The endpoint returns deterministic structured suggestions, falls back cleanly when AI infra is unavailable, and never evaluates or returns cross-tenant entity context.
+  - **Validation commands:** `cd backend && python manage.py test tenant_apps.ai_assistant apps.tenants`; `cd backend && python manage.py spectacular --validate --file /tmp/projectmeats-openapi.yaml`
+  - **Tenant/RLS impact:** High
+  - **Secrets/infra impact:** Medium
+  - **Risk level:** High
+  - **Rollback:** Feature-flag or disable the endpoint/service while leaving additive telemetry tables or schema in place if needed.
+  - **Completion evidence destination:** `.github/MASTER_PLAN.md`
+
+### Epic AMB-02 - Inline page suggestion cards
+
+- [ ] **AMB-02.1 ambient-suggestions-component-and-service-hook**
+  - **Status:** Blocked
+  - **Why now:** The frontend needs one stable ambient suggestion surface before record pages can render proactive AI recommendations consistently.
+  - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 19 / Epic AMB-02
+  - **Scope:** Build `AmbientSuggestions`, add the service-layer client/hook for contextual suggestions, and ensure query keys/dependencies stay memoized and page-safe.
+  - **Non-goals:** No record-page injection or action execution yet.
+  - **Primary domain:** frontend
+  - **Likely touched paths:** new `frontend/src/components/AIAssistant/AmbientSuggestions.tsx`, `frontend/src/services/aiService.ts`, new hook under `frontend/src/hooks/`, related tests
+  - **Dependencies:** AMB-01.2
+  - **Blockers:** AMB-01.2
+  - **Acceptance criteria:** A standalone component can fetch and render contextual suggestions via the approved service layer without unstable query identities or chat-widget coupling.
+  - **Validation commands:** `npm -C frontend run verify-standards`; `npm -C frontend run test:ci -- AmbientSuggestions`
+  - **Tenant/RLS impact:** None directly
+  - **Secrets/infra impact:** Low
+  - **Risk level:** Medium
+  - **Rollback:** Revert the new component/hook and leave backend suggestion generation untouched.
+  - **Completion evidence destination:** `.github/MASTER_PLAN.md`
+
+- [ ] **AMB-02.2 record-page-header-integration-and-action-wiring**
+  - **Status:** Blocked
+  - **Why now:** Ambient recommendations only become useful once the record header surfaces can display and execute them in context.
+  - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 19 / Epic AMB-02
+  - **Scope:** Inject `AmbientSuggestions` into `UniversalEntityRecordPage.tsx` and `EntityProfileHeader.tsx`, add one-click execution wiring for safe actions, and keep the banner subtle/dismissible.
+  - **Non-goals:** No anomaly detection or email drafting yet.
+  - **Primary domain:** frontend
+  - **Likely touched paths:** `frontend/src/pages/UniversalEntityRecordPage.tsx`, `frontend/src/components/Shared/EntityProfileHeader.tsx`, `frontend/src/components/AIAssistant/`, related tests/E2E
+  - **Dependencies:** AMB-02.1
+  - **Blockers:** AMB-02.1
+  - **Acceptance criteria:** Record pages render a stable, animated ambient suggestion banner only when suggestions exist, and actions route through approved service-layer APIs without chat-widget dependence.
+  - **Validation commands:** `npm -C frontend run verify-standards`; `npm -C frontend run test:ci`
+  - **Tenant/RLS impact:** None directly
+  - **Secrets/infra impact:** Low
+  - **Risk level:** Medium
+  - **Rollback:** Remove the header injections and keep the standalone component available for future use.
+  - **Completion evidence destination:** `.github/MASTER_PLAN.md`
+
+### Epic AMB-03 - Predictive anomaly detection
+
+- [ ] **AMB-03.1 product-anomaly-baseline-service-and-threshold-contract**
+  - **Status:** Blocked
+  - **Why now:** Form-level anomaly warnings need one canonical baseline/threshold service before any UI can warn operators about suspicious values.
+  - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 19 / Epic AMB-03
+  - **Scope:** Define and implement the 90-day historical baseline service for price/weight/value outliers, including per-product aggregation rules, threshold semantics, and tenant-safe access patterns.
+  - **Non-goals:** No form UX yet.
+  - **Primary domain:** backend/data
+  - **Likely touched paths:** `backend/tenant_apps/ai_assistant/services/` or `backend/apps/core/services/`, relevant transactional apps/tests, optional analytics endpoint wiring
+  - **Dependencies:** AMB-02.2
+  - **Blockers:** AMB-02.2
+  - **Acceptance criteria:** A deterministic service can evaluate whether submitted values deviate materially from tenant history, returning baseline context suitable for a soft warning.
+  - **Validation commands:** `cd backend && python manage.py test apps.core tenant_apps.products tenant_apps.sales_orders tenant_apps.purchase_orders`
+  - **Tenant/RLS impact:** High
+  - **Secrets/infra impact:** None
+  - **Risk level:** High
+  - **Rollback:** Revert the additive baseline service and any supporting endpoint without altering stored transactional data.
+  - **Completion evidence destination:** `.github/MASTER_PLAN.md`
+
+- [ ] **AMB-03.2 universal-form-soft-warning-anomaly-flow**
+  - **Status:** Blocked
+  - **Why now:** Operators need anomaly feedback inside the save flow instead of discovering suspect values after records are committed.
+  - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 19 / Epic AMB-03
+  - **Scope:** Hook anomaly checks into `UniversalEntityForm` save/validation flow, render a soft confirmation warning when values exceed thresholds, and preserve explicit operator override behavior.
+  - **Non-goals:** No autonomous correction of submitted values.
+  - **Primary domain:** frontend/backend
+  - **Likely touched paths:** `frontend/src/components/Shared/UniversalEntityForm.tsx`, `frontend/src/services/aiService.ts` or a dedicated anomaly service, related backend endpoint/tests
+  - **Dependencies:** AMB-03.1
+  - **Blockers:** AMB-03.1
+  - **Acceptance criteria:** Relevant forms surface an advisory anomaly warning with 90-day average context before save, and proceeding requires an explicit user confirmation.
+  - **Validation commands:** `npm -C frontend run verify-standards`; `npm -C frontend run test:ci`; `cd backend && python manage.py test tenant_apps.ai_assistant`
+  - **Tenant/RLS impact:** Medium
+  - **Secrets/infra impact:** Low
+  - **Risk level:** High
+  - **Rollback:** Disable the form hook/warning UI first while preserving the baseline service for future reuse.
+  - **Completion evidence destination:** `.github/MASTER_PLAN.md`
+
+### Epic AMB-04 - Contextual email drafting
+
+- [ ] **AMB-04.1 contextual-email-draft-service-and-outlook-contract**
+  - **Status:** Blocked
+  - **Why now:** Supplier/customer pages cannot offer hyper-personalized draft actions until one canonical backend service can summarize recent order, balance, and delay context into a safe email draft payload.
+  - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 19 / Epic AMB-04
+  - **Scope:** Build the contextual email-draft service/contract that reads the last five orders, outstanding balances, and recent delays, then generates an Outlook-ready draft payload with reviewable subject/body metadata.
+  - **Non-goals:** No page action or send UI yet.
+  - **Primary domain:** backend/ai/integrations
+  - **Likely touched paths:** `backend/tenant_apps/ai_assistant/services/`, `backend/apps/integrations/`, `backend/tenant_apps/{customers,suppliers,sales_orders,invoices}/`, related tests
+  - **Dependencies:** AMB-03.2
+  - **Blockers:** AMB-03.2
+  - **Acceptance criteria:** The service produces tenant-safe draft payloads grounded in recent business context and can gracefully decline when Outlook integration/auth is unavailable.
+  - **Validation commands:** `cd backend && python manage.py test apps.integrations tenant_apps.ai_assistant tenant_apps.customers tenant_apps.suppliers tenant_apps.invoices`
+  - **Tenant/RLS impact:** High
+  - **Secrets/infra impact:** Medium
+  - **Risk level:** Medium
+  - **Rollback:** Disable the draft service/action while preserving existing Outlook integration flows.
+  - **Completion evidence destination:** `.github/MASTER_PLAN.md`
+
+- [ ] **AMB-04.2 supplier-customer-ambient-draft-actions**
+  - **Status:** Blocked
+  - **Why now:** The final operator value is the one-click ambient action on supplier/customer records that opens a ready-to-review draft.
+  - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 19 / Epic AMB-04
+  - **Scope:** Add ambient draft-email actions on Supplier and Customer detail pages, wire them to the contextual draft service, and hand the generated payload into the existing Outlook review/send flow.
+  - **Non-goals:** No autonomous send behavior.
+  - **Primary domain:** frontend/integrations
+  - **Likely touched paths:** `frontend/src/pages/Suppliers/`, `frontend/src/pages/Customers/`, `frontend/src/components/AIAssistant/`, `frontend/src/services/`, related tests/E2E
+  - **Dependencies:** AMB-04.1
+  - **Blockers:** AMB-04.1
+  - **Acceptance criteria:** Supplier/customer pages expose a reviewable ambient email-draft action only when context exists, and the final send continues through the approved Outlook integration path.
+  - **Validation commands:** `npm -C frontend run verify-standards`; `npm -C frontend run test:ci`; `cd backend && python manage.py test apps.integrations`
+  - **Tenant/RLS impact:** Medium
+  - **Secrets/infra impact:** Medium
+  - **Risk level:** Medium
+  - **Rollback:** Remove the ambient page actions and keep the backend draft service disabled for later reuse.
+  - **Completion evidence destination:** `.github/MASTER_PLAN.md`
