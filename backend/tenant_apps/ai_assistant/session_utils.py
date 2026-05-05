@@ -12,6 +12,7 @@ from django.utils.dateparse import parse_datetime
 SESSION_ATTACHMENT_ALLOWLIST_KEY = 'graph_attachment_allowlist'
 SESSION_ATTACHMENT_ALLOWLIST_TTL = timedelta(minutes=30)
 SESSION_ATTACHMENT_ALLOWLIST_MAX_ENTRIES = 100
+SESSION_COMPACTION_KEY = 'compaction'
 
 
 def get_tenant_id(tenant: Any) -> str:
@@ -154,3 +155,58 @@ def get_staged_attachment_status(
     if isinstance(raw_entries, dict) and key in raw_entries:
         return 'expired', None
     return 'missing', None
+
+
+def get_session_compaction_state(context_data: Any) -> dict[str, Any]:
+    """Return normalized session compaction state from session context."""
+    if not isinstance(context_data, dict):
+        return {}
+    raw_state = context_data.get(SESSION_COMPACTION_KEY)
+    if not isinstance(raw_state, dict):
+        return {}
+    state = dict(raw_state)
+    memory_key = str(state.get('memory_key') or '').strip()
+    if memory_key:
+        state['memory_key'] = memory_key
+    else:
+        state.pop('memory_key', None)
+    return state
+
+
+def get_session_compaction_watermark(context_data: Any):
+    """Return the parsed compaction watermark timestamp, if present."""
+    state = get_session_compaction_state(context_data)
+    raw_value = str(state.get('last_compacted_created_on') or '').strip()
+    if not raw_value:
+        return None
+    parsed = parse_datetime(raw_value)
+    if parsed is None:
+        return None
+    if timezone.is_naive(parsed):
+        parsed = timezone.make_aware(parsed)
+    return parsed
+
+
+def bind_session_compaction_state(
+    context_data: Any,
+    tenant: Any,
+    *,
+    memory_key: str,
+    last_compacted_created_on: Any,
+    last_compacted_message_id: Any,
+    compacted_count: int,
+) -> dict:
+    """Bind session compaction metadata while preserving tenant affinity."""
+    bound = bind_context_to_tenant(context_data, tenant)
+    watermark = last_compacted_created_on
+    if hasattr(watermark, 'isoformat'):
+        watermark = watermark.isoformat()
+
+    bound[SESSION_COMPACTION_KEY] = {
+        'memory_key': str(memory_key or '').strip(),
+        'last_compacted_created_on': str(watermark or '').strip(),
+        'last_compacted_message_id': str(last_compacted_message_id or '').strip(),
+        'compacted_count': max(0, int(compacted_count or 0)),
+        'updated_at': timezone.now().isoformat(),
+    }
+    return bound

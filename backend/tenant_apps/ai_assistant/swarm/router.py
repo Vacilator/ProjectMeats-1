@@ -47,6 +47,7 @@ def build_swarm_system_prompt(
     outlook_expired: bool,
     lessons_block: str = '',
     memory_block: str = '',
+    session_memory_block: str = '',
     document_context_block: str = '',
 ) -> str:
     base = (
@@ -118,6 +119,9 @@ def build_swarm_system_prompt(
 
     if memory_block:
         base = base + str(memory_block)
+
+    if session_memory_block:
+        base = base + str(session_memory_block)
 
     if document_context_block:
         base = base + str(document_context_block)
@@ -417,6 +421,19 @@ class SwarmOrchestrator:
         except Exception as e:
             logger.warning('[SwarmOrchestrator] Tenant memory lookup failed; continuing without memory: %s', str(e))
 
+        session_memory_block = ''
+        if session_id:
+            try:
+                from tenant_apps.ai_assistant.services.tenant_memory_service import (
+                    format_session_memory_block,
+                    get_session_compaction_memory,
+                )
+
+                session_memory = get_session_compaction_memory(tenant=tenant, session_id=session_id)
+                session_memory_block = format_session_memory_block(session_memory)
+            except Exception as e:
+                logger.warning('[SwarmOrchestrator] Session memory lookup failed; continuing without session memory: %s', str(e))
+
         document_context_block = ''
         try:
             from tenant_apps.ai_assistant.services.semantic_indexing import (
@@ -494,6 +511,7 @@ class SwarmOrchestrator:
                     outlook_expired=outlook_expired,
                     lessons_block=lessons_block,
                     memory_block=memory_block,
+                    session_memory_block=session_memory_block,
                     document_context_block=document_context_block,
                 ),
             }

@@ -1265,6 +1265,51 @@ class SwarmRouterLoopDetectionTests(TestCase):
             )
         )
 
+    @override_settings(OPENAI_API_KEY='test-key', SWARM_TOOL_MAX_ROUNDS=3)
+    @patch('tenant_apps.ai_assistant.services.memory_service.get_relevant_lessons', return_value=[])
+    @patch('tenant_apps.ai_assistant.services.memory_service.format_lessons_block', return_value='')
+    @patch('tenant_apps.ai_assistant.services.tenant_memory_service.get_relevant_memories', return_value=[])
+    @patch('tenant_apps.ai_assistant.services.tenant_memory_service.format_memory_block', return_value='')
+    @patch('tenant_apps.ai_assistant.services.tenant_memory_service.get_session_compaction_memory')
+    @patch(
+        'tenant_apps.ai_assistant.services.tenant_memory_service.format_session_memory_block',
+        return_value='\n\nSession Memory (durable summary of older messages in this chat):\n- Prior compacted context\n',
+    )
+    @patch('apps.system.services.ai_model_resolver.get_active_openai_model_id', return_value='gpt-4o-mini')
+    @patch('openai.OpenAI')
+    def test_run_tool_loop_injects_session_memory_block_into_system_prompt(
+        self,
+        mock_openai,
+        _mock_model,
+        _mock_session_memory_block,
+        mock_session_memory,
+        _mock_format_memory,
+        _mock_memories,
+        _mock_format_lessons,
+        _mock_lessons,
+    ):
+        mock_session_memory.return_value = SimpleNamespace(memory_text='Prior compacted context')
+        fake_client = SimpleNamespace(
+            chat=SimpleNamespace(
+                completions=SimpleNamespace(
+                    create=Mock(side_effect=[self._completion_with_text('Used session memory.')])
+                )
+            )
+        )
+        mock_openai.return_value = fake_client
+
+        result = SwarmOrchestrator(tenant_id=str(self.tenant.id)).run_tool_loop(
+            user_message='Continue the prior routing discussion.',
+            tenant=self.tenant,
+            user=self.user,
+            session_id=str(uuid.uuid4()),
+        )
+
+        self.assertEqual(result['response'], 'Used session memory.')
+        first_call_messages = fake_client.chat.completions.create.call_args_list[0].kwargs['messages']
+        self.assertIn('Session Memory (durable summary of older messages in this chat)', first_call_messages[0]['content'])
+        self.assertIn('Prior compacted context', first_call_messages[0]['content'])
+
 
 class AIDocumentAuditSurfaceTests(TestCase):
     def test_serializer_exposes_source_metadata_from_custom_data(self):

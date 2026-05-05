@@ -9,11 +9,13 @@ Note: The test settings (`projectmeats.settings.test`) may exclude `tenant_apps.
 import unittest
 import json
 import uuid
+from datetime import timedelta
 from unittest.mock import patch
 from django.test import override_settings
 
 from django.conf import settings
 from django.contrib.auth.models import User
+from django.utils import timezone
 from django.db import connection
 from django.test import TestCase
 from rest_framework.response import Response
@@ -36,6 +38,7 @@ from tenant_apps.ai_assistant.models import (
     CommunicationLog,
     MessageTypeChoices,
 )
+from tenant_apps.ai_assistant.session_utils import bind_context_to_tenant
 from apps.tenants.models import Tenant, TenantUser
 
 
@@ -869,6 +872,183 @@ class ChatSessionTenantBindingTests(TestCase):
         ).latest("created_on")
         self.assertEqual(assistant_message.content, "Cached answer")
         self.assertTrue(assistant_message.metadata["cache_hit"])
+
+    @override_settings(
+        OPENAI_API_KEY='test-key',
+        AI_SEMANTIC_CACHE_ENABLED=False,
+        AI_CHAT_COMPACTION_ENABLED=True,
+        AI_CHAT_COMPACTION_MIN_MESSAGES=4,
+        AI_CHAT_COMPACTION_TAIL_MESSAGES=2,
+        AI_CHAT_COMPACTION_MAX_SUMMARY_CHARS=800,
+    )
+    @patch("tenant_apps.ai_assistant.swarm.router.SwarmOrchestrator.run_tool_loop")
+    def test_chat_api_compacts_older_session_messages_into_durable_memory(self, mock_run_tool_loop):
+        from tenant_apps.ai_assistant.models import TenantAIMemory
+        from tenant_apps.ai_assistant.services.tenant_memory_service import session_memory_key
+        from tenant_apps.ai_assistant.views import ChatBotAPIViewSet
+
+        mock_run_tool_loop.return_value = {
+            "response": "Latest answer",
+            "messages": [{"role": "assistant", "content": "Latest answer"}],
+        }
+
+        starting_count = ChatMessage.objects.filter(session=self.session_a).count()
+        base_time = timezone.now() - timedelta(minutes=30)
+        historical_messages = []
+        for index, (message_type, content) in enumerate(
+            [
+                (MessageTypeChoices.USER, "User asked about plant routing."),
+                (MessageTypeChoices.ASSISTANT, "Assistant explained the routing constraints."),
+                (MessageTypeChoices.USER, "User added the delivery window."),
+                (MessageTypeChoices.ASSISTANT, "Assistant confirmed the updated schedule."),
+                (MessageTypeChoices.DOCUMENT, "routing.pdf"),
+            ]
+        ):
+            message = ChatMessage.objects.create(
+                session=self.session_a,
+                tenant=self.tenant_a,
+                owner=self.user,
+                created_by=self.user,
+                modified_by=self.user,
+                message_type=message_type,
+                content=content,
+                metadata={"original_filename": "routing.pdf"} if message_type == MessageTypeChoices.DOCUMENT else {},
+            )
+            ChatMessage.objects.filter(id=message.id).update(created_on=base_time + timedelta(minutes=index))
+            historical_messages.append(message)
+
+        response = ChatBotAPIViewSet.as_view({"post": "chat"})(
+            self._request(
+                "post",
+                "/api/v1/ai-assistant/chat/chat/",
+                self.tenant_a,
+                {
+                    "message": "Can you continue that routing discussion?",
+                    "session_id": str(self.session_a.id),
+                },
+            )
+        )
+
+        self.assertEqual(response.status_code, 200)
+
+        session_memory = TenantAIMemory.objects.get(
+            tenant=self.tenant_a,
+            key=session_memory_key(self.session_a.id),
+        )
+        self.assertIn("Compacted", session_memory.memory_text)
+        self.assertEqual(session_memory.memory_json["kind"], "session_compaction")
+        self.assertEqual(session_memory.memory_json["session_id"], str(self.session_a.id))
+        self.assertGreaterEqual(session_memory.memory_json["source_count"], 4)
+
+        self.session_a.refresh_from_db()
+        compaction_state = self.session_a.context_data["compaction"]
+        self.assertEqual(compaction_state["memory_key"], session_memory.key)
+        self.assertGreaterEqual(compaction_state["compacted_count"], 4)
+        self.assertEqual(
+            ChatMessage.objects.filter(session=self.session_a).count(),
+            starting_count + len(historical_messages) + 2,
+        )
+
+    @override_settings(
+        OPENAI_API_KEY='test-key',
+        AI_SEMANTIC_CACHE_ENABLED=False,
+        AI_CHAT_COMPACTION_ENABLED=True,
+    )
+    @patch("tenant_apps.ai_assistant.views.ai_semantic_cache.build_context_signature", return_value="ctx-compaction")
+    @patch("tenant_apps.ai_assistant.views.ai_semantic_cache.lookup_cached_response")
+    @patch("tenant_apps.ai_assistant.views.ai_semantic_cache.store_cached_response")
+    @patch("tenant_apps.ai_assistant.swarm.router.SwarmOrchestrator.run_tool_loop")
+    def test_chat_api_only_replays_uncompacted_raw_tail_when_session_memory_exists(
+        self,
+        mock_run_tool_loop,
+        _mock_store,
+        mock_lookup_cached_response,
+        _mock_signature,
+    ):
+        from tenant_apps.ai_assistant.models import TenantAIMemory
+        from tenant_apps.ai_assistant.services.tenant_memory_service import session_memory_key
+        from tenant_apps.ai_assistant.views import ChatBotAPIViewSet
+
+        mock_lookup_cached_response.return_value = None
+        _mock_store.return_value = None
+        mock_run_tool_loop.return_value = {
+            "response": "Tail only answer",
+            "messages": [{"role": "assistant", "content": "Tail only answer"}],
+        }
+
+        old_message = ChatMessage.objects.create(
+            session=self.session_a,
+            tenant=self.tenant_a,
+            owner=self.user,
+            created_by=self.user,
+            modified_by=self.user,
+            message_type=MessageTypeChoices.USER,
+            content="Older context that should be compacted away.",
+        )
+        older_assistant = ChatMessage.objects.create(
+            session=self.session_a,
+            tenant=self.tenant_a,
+            owner=self.user,
+            created_by=self.user,
+            modified_by=self.user,
+            message_type=MessageTypeChoices.ASSISTANT,
+            content="Older assistant response that should be compacted away.",
+        )
+        recent_message = ChatMessage.objects.create(
+            session=self.session_a,
+            tenant=self.tenant_a,
+            owner=self.user,
+            created_by=self.user,
+            modified_by=self.user,
+            message_type=MessageTypeChoices.USER,
+            content="Recent raw tail that should stay in history.",
+        )
+
+        base_time = timezone.now() - timedelta(minutes=10)
+        ChatMessage.objects.filter(id=old_message.id).update(created_on=base_time)
+        ChatMessage.objects.filter(id=older_assistant.id).update(created_on=base_time + timedelta(minutes=1))
+        ChatMessage.objects.filter(id=recent_message.id).update(created_on=base_time + timedelta(minutes=2))
+        old_message.refresh_from_db()
+        older_assistant.refresh_from_db()
+        recent_message.refresh_from_db()
+
+        TenantAIMemory.objects.create(
+            tenant=self.tenant_a,
+            key=session_memory_key(self.session_a.id),
+            memory_text="Prior compacted summary",
+            memory_json={"kind": "session_compaction", "session_id": str(self.session_a.id)},
+        )
+        self.session_a.context_data = bind_context_to_tenant(
+            {
+                "compaction": {
+                    "memory_key": session_memory_key(self.session_a.id),
+                    "last_compacted_created_on": older_assistant.created_on.isoformat(),
+                    "last_compacted_message_id": str(older_assistant.id),
+                    "compacted_count": 2,
+                }
+            },
+            self.tenant_a,
+        )
+        self.session_a.save(update_fields=["context_data"])
+
+        response = ChatBotAPIViewSet.as_view({"post": "chat"})(
+            self._request(
+                "post",
+                "/api/v1/ai-assistant/chat/chat/",
+                self.tenant_a,
+                {
+                    "message": "Continue from the recent tail.",
+                    "session_id": str(self.session_a.id),
+                },
+            )
+        )
+
+        self.assertEqual(response.status_code, 200)
+        history = mock_run_tool_loop.call_args.kwargs["history"]
+        contents = [entry["content"] for entry in history if isinstance(entry, dict)]
+        self.assertIn("Recent raw tail that should stay in history.", contents)
+        self.assertNotIn("Older context that should be compacted away.", contents)
+        self.assertNotIn("Older assistant response that should be compacted away.", contents)
 
 
 class ChatSessionRlsRegressionTests(TestCase):
