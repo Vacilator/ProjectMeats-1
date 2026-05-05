@@ -489,7 +489,7 @@ class UserPreferences(models.Model):
     Stores theme preferences, layout configurations, widget arrangements,
     and other user-specific UI settings.
     """
-    
+
     user = models.OneToOneField(
         User,
         on_delete=models.CASCADE,
