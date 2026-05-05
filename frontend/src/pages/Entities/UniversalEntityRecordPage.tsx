@@ -3,7 +3,7 @@ import { Breadcrumb, Button, Card, Spin, Tabs } from 'antd';
 import { Building2, ClipboardList, MessageSquarePlus, UsersRound } from 'lucide-react';
 
 import { EntityWorkflowStatusPanel } from '@/components/Entities/EntityWorkflowStatusPanel';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 
 import { AIOverviewCard, EntityProfileHeader } from '@/components/Cockpit';
 import {
@@ -49,11 +49,16 @@ const getRecordPath = (entityType: string, id: string) => {
   return `/records/${encodeURIComponent(t)}/${encodeURIComponent(id)}`;
 };
 
+const getRecordEditPath = (entityType: string, id: string) => {
+  return `${getRecordPath(entityType, id)}/edit`;
+};
+
 export const UniversalEntityRecordPage: React.FC<UniversalEntityRecordPageProps> = ({
   entityType,
   basePath,
   mode,
 }) => {
+  const location = useLocation();
   const navigate = useNavigate();
   const { id } = useParams<RouteParams>();
 
@@ -76,7 +81,6 @@ export const UniversalEntityRecordPage: React.FC<UniversalEntityRecordPageProps>
   const [childRows, setChildRows] = useState<Record<string, unknown>[]>([]);
   const [childLoading, setChildLoading] = useState(false);
   const [childCreateOpen, setChildCreateOpen] = useState(false);
-  const [editOpen, setEditOpen] = useState(false);
 
   const [deptContactsRows, setDeptContactsRows] = useState<Record<string, unknown>[]>([]);
   const [deptContactsLoading, setDeptContactsLoading] = useState(false);
@@ -84,6 +88,17 @@ export const UniversalEntityRecordPage: React.FC<UniversalEntityRecordPageProps>
   const [overviewLoading, setOverviewLoading] = useState(false);
   const [relationshipCounts, setRelationshipCounts] = useState<Record<string, number>>({});
   const [relationships, setRelationships] = useState<Record<string, unknown[]>>({});
+  const editPath = useMemo(
+    () => (entityId ? getRecordEditPath(normalizedEntityType, entityId) : null),
+    [entityId, normalizedEntityType]
+  );
+  const viewPath = useMemo(() => {
+    if (!entityId) return basePath;
+    if (location.pathname.startsWith('/records/')) {
+      return getRecordPath(normalizedEntityType, entityId);
+    }
+    return `${basePath}/${encodeURIComponent(entityId)}`;
+  }, [basePath, entityId, location.pathname, normalizedEntityType]);
 
   const loadChildRows = useCallback(async () => {
     if (!entityId || !(isSupplier || isCustomer) || mode !== 'view') return;
@@ -381,14 +396,14 @@ export const UniversalEntityRecordPage: React.FC<UniversalEntityRecordPageProps>
                 }}
               />
             ) : null}
-            <Button type="primary" onClick={() => setEditOpen(true)}>
+            <Button type="primary" onClick={() => editPath && navigate(editPath)}>
               Edit
             </Button>
           </SpaceWrap>
         )}
 
         {mode === 'edit' && entityId && (
-          <Button onClick={() => navigate(`${basePath}/${encodeURIComponent(entityId)}`)}>Cancel</Button>
+          <Button onClick={() => navigate(viewPath)}>Cancel</Button>
         )}
       </div>
 
@@ -410,7 +425,7 @@ export const UniversalEntityRecordPage: React.FC<UniversalEntityRecordPageProps>
             }
 
             if (mode === 'edit' && entityId) {
-              navigate(`${basePath}/${encodeURIComponent(entityId)}`);
+              navigate(viewPath);
               return;
             }
           }}
@@ -420,21 +435,6 @@ export const UniversalEntityRecordPage: React.FC<UniversalEntityRecordPageProps>
       {/* View mode becomes the unified record pivot + standard tabs. */}
       {showTabs && entityId && (
         <>
-          <EntityFormSurface
-            entityType={entityType}
-            mode="edit"
-            variant="modal"
-            isOpen={editOpen}
-            entityId={entityId}
-            onClose={() => setEditOpen(false)}
-            onSuccess={() => {
-              setEditOpen(false);
-              void loadOverview();
-              void loadChildRows();
-              void loadDeptContacts();
-            }}
-          />
-
           <AIOverviewCard entityType={normalizedEntityType} entityId={entityId} />
 
           <EntityProfileHeader
@@ -652,7 +652,7 @@ export const UniversalEntityRecordPage: React.FC<UniversalEntityRecordPageProps>
                                   : [
                                       {
                                         label: 'Edit Record',
-                                        onClick: () => setEditOpen(true),
+                                        onClick: () => editPath && navigate(editPath),
                                         variant: 'primary' as const,
                                       },
                                     ]
@@ -697,12 +697,12 @@ export const UniversalEntityRecordPage: React.FC<UniversalEntityRecordPageProps>
                                     },
                                   ]
                                 : [
-                                    {
-                                      label: 'Edit Record',
-                                      onClick: () => setEditOpen(true),
-                                      variant: 'primary' as const,
-                                    },
-                                  ]
+                                     {
+                                       label: 'Edit Record',
+                                       onClick: () => editPath && navigate(editPath),
+                                       variant: 'primary' as const,
+                                     },
+                                   ]
                             }
                           />
                         )

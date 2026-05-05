@@ -31,7 +31,19 @@ vi.mock('@/components/Shared', () => ({
       {entityType}:{String(entityId)}
     </div>
   ),
-  EntityFormSurface: () => null,
+  EntityFormSurface: ({
+    entityType,
+    mode,
+    variant,
+  }: {
+    entityType: string;
+    mode: string;
+    variant?: string;
+  }) => (
+    <div data-testid="entity-form-surface">
+      {entityType}:{mode}:{variant ?? 'modal'}
+    </div>
+  ),
 }));
 
 const apiGet = vi.fn(async (url: string) => {
@@ -106,6 +118,27 @@ describe('PlantDetail workflows tab', () => {
 
     await user.click(await screen.findByRole('tab', { name: /activity/i }));
     expect(await screen.findByTestId('activity-feed')).toHaveTextContent('plant:2');
+  });
+
+  it('air-gaps plant editing into an inline full-surface render instead of reopening the detail tree in a modal', async () => {
+    const user = userEvent.setup();
+
+    render(
+      <MemoryRouter initialEntries={['/suppliers/1/plants/2']}>
+        <Routes>
+          <Route path="/suppliers/:supplierId/plants/:plantId" element={<PlantDetail />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByTestId('ai-overview-card')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /edit plant/i }));
+
+    expect(screen.getByRole('button', { name: /back to details/i })).toBeInTheDocument();
+    expect(screen.getByTestId('entity-form-surface')).toHaveTextContent('plant:edit:inline');
+    expect(screen.queryByTestId('ai-overview-card')).not.toBeInTheDocument();
+    expect(screen.queryByRole('tab', { name: /automation/i })).not.toBeInTheDocument();
   });
 
   it('fails closed on unauthorized detail loads instead of rendering the heavy detail tree', async () => {

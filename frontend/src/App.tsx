@@ -244,6 +244,7 @@ const App: React.FC = () => {
 
                 {/* Canonical record destination */}
                 <Route path="records/:entityType/:id" element={<UniversalEntityRecordRoute />} />
+                <Route path="records/:entityType/:id/edit" element={<UniversalEntityRecordRoute mode="edit" />} />
                 
                 {/* Suppliers & Related */}
                 <Route path="suppliers" element={<Suppliers />} />
