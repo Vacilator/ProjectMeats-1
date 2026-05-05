@@ -240,7 +240,7 @@ class AIDocumentSerializer(serializers.ModelSerializer):
     document_type = serializers.SerializerMethodField(read_only=True)
     source_metadata = serializers.SerializerMethodField(read_only=True)
     processing_metadata = serializers.SerializerMethodField(read_only=True)
-    lineage_summary = serializers.SerializerMethodField(read_only=True)
+    lineage_summary = serializers.SerializerMethodField(read_only=True, required=False)
 
     def validate_session(self, value):
         return _validate_request_session(value, self.context.get('request'))
