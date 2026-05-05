@@ -8,6 +8,7 @@
  */
 import { useQuery } from '@tanstack/react-query';
 import { logger } from '@/utils/logger';
+import { withTenantQueryKey } from '../utils/queryKeys';
 
 import { businessApi } from './businessApi';
 
@@ -170,7 +171,7 @@ export const getFieldTypeIcon = (fieldType: string): string => {
  */
 export const useEntityList = () => {
   const query = useQuery({
-    queryKey: ['entities'],
+    queryKey: withTenantQueryKey('entities'),
     queryFn: getEntityTypes,
     staleTime: 5 * 60 * 1000, // 5 minutes
     gcTime: 10 * 60 * 1000, // 10 minutes (formerly cacheTime)
@@ -209,7 +210,7 @@ export const useEntityFields = (
   options?: { enabled?: boolean }
 ) => {
   return useQuery({
-    queryKey: ['entity-fields', entityId],
+    queryKey: withTenantQueryKey('entity-fields', entityId),
     queryFn: () => getEntityFields(entityId!),
     enabled: !!entityId && (options?.enabled !== false),
     staleTime: 5 * 60 * 1000, // 5 minutes
@@ -232,7 +233,7 @@ export const useEntityDisplayFields = (
   options?: { enabled?: boolean }
 ) => {
   return useQuery({
-    queryKey: ['entity-display-fields', entityId],
+    queryKey: withTenantQueryKey('entity-display-fields', entityId),
     queryFn: () => getEntityDisplayFields(entityId!),
     enabled: !!entityId && (options?.enabled !== false),
     staleTime: 5 * 60 * 1000, // 5 minutes

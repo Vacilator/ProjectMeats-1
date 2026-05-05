@@ -96,7 +96,6 @@ import AdminWorkspaceHome from './pages/Admin/Home';
 import AdminErrorBoundary from './components/Admin/AdminErrorBoundary';
 import { ErrorBoundary as ProductionErrorBoundary } from './components/common/ErrorBoundary';
 import { logger } from './utils/logger';
-import { isTenantScopedQueryKey } from './utils/queryKeys';
 import { getValidTenantId } from './utils/tenantId';
 const CockpitPage = lazy(() => import('./pages/Cockpit'));
 import CockpitDashboard from './pages/Cockpit/CockpitDashboard';
@@ -138,18 +137,6 @@ const App: React.FC = () => {
 
   useEffect(() => {
     const currentTenantId = getValidTenantId();
-    const previousTenantId = sessionStorage.getItem('currentTenantId');
-
-    if (currentTenantId !== previousTenantId) {
-      logger.debug('[App] Tenant changed - removing legacy non-tenant query cache', {
-        component: 'App',
-        previousTenantId,
-        currentTenantId,
-      });
-      queryClient.removeQueries({
-        predicate: (query) => !isTenantScopedQueryKey(query.queryKey),
-      });
-    }
 
     if (currentTenantId) {
       sessionStorage.setItem('currentTenantId', currentTenantId);

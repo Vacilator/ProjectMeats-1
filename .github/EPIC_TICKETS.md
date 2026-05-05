@@ -640,8 +640,8 @@
 
 ### Epic EH-04 - Frontend enterprise compliance
 
-- [ ] **EH-04.1 tenant-aware-query-keys-and-cache-clear-removal**
-  - **Status:** Ready
+- [x] **EH-04.1 tenant-aware-query-keys-and-cache-clear-removal**
+  - **Status:** Shipped (PR #4874)
   - **Why now:** Frontend tenant safety still relies on a global query-cache clear workaround.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Type safety gate / Cockpit Search / Phase 12
   - **Scope:** Introduce tenant-aware query keys and remove the app-level cache clearing hack after migration.
@@ -659,7 +659,7 @@
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
 - [ ] **EH-04.2 search-contract-unification**
-  - **Status:** Blocked
+  - **Status:** Ready
   - **Why now:** Search surfaces still speak different contracts and ranking semantics.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Cockpit Search relevance + Phase 12
   - **Scope:** Create one search SDK/result taxonomy and move command/search surfaces onto it without changing user-facing entrypoints.
@@ -667,7 +667,7 @@
   - **Primary domain:** frontend
   - **Likely touched paths:** `frontend/src/components/Navigation/CommandPalette.tsx`, `frontend/src/components/Cockpit/SmartSearch.tsx`, `frontend/src/components/Search/ContinuousSearch.tsx`, shared search service/hooks
   - **Dependencies:** EH-04.1
-  - **Blockers:** EH-04.1
+  - **Blockers:** None
   - **Acceptance criteria:** Search surfaces share one contract and have deterministic ranking/tenant scoping behavior.
   - **Validation commands:** `npm -C frontend run verify-standards`; `npm -C frontend run test:ci`
   - **Tenant/RLS impact:** Medium
@@ -685,7 +685,7 @@
   - **Primary domain:** frontend
   - **Likely touched paths:** `frontend/src/components/FlowEditor/UnifiedFlowEditor.tsx`, supporting FlowEditor modules/tests, `frontend/src/components/Workflow/PurchaseOrderWorkflow.tsx`, `frontend/src/components/EntityGraph/EntityGraph.tsx`
   - **Dependencies:** EH-04.1, EH-03.2
-  - **Blockers:** EH-04.1
+  - **Blockers:** None
   - **Acceptance criteria:** The first extracted module boundary lands with regression coverage and no dual-library expansion.
   - **Validation commands:** `npm -C frontend run verify-standards`; `npm -C frontend run test:ci -- src/components/FlowEditor`
   - **Tenant/RLS impact:** None directly

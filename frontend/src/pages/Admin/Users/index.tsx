@@ -23,6 +23,7 @@ import { useToast } from '@/hooks/useToast';
 import { useAdminPermissions } from '@/hooks/useAdminPermissions';
 import { useHealth } from '@/hooks/useHealth';
 import { useAuth } from '@/contexts/AuthContext';
+import { withTenantQueryKey } from '@/utils/queryKeys';
 import { Modal as AntModal } from 'antd';
 
 interface TenantUser {
@@ -84,7 +85,7 @@ const UsersPage: React.FC = () => {
     isLoading: usersLoading,
     isError: usersIsError,
   } = useQuery<TenantUser[]>({
-    queryKey: ['tenant-users'],
+    queryKey: withTenantQueryKey('tenant-users'),
     enabled: canAccess,
     queryFn: async () => {
       const response = await apiClient.get('/tenant-users/');
@@ -98,7 +99,7 @@ const UsersPage: React.FC = () => {
     isLoading: invitationsLoading,
     isError: invitationsIsError,
   } = useQuery<Invitation[]>({
-    queryKey: ['tenant-invitations'],
+    queryKey: withTenantQueryKey('tenant-invitations'),
     enabled: canAccess,
     queryFn: async () => {
       const response = await apiClient.get('/invitations/', {
@@ -177,7 +178,7 @@ const UsersPage: React.FC = () => {
   const inviteMutation = useMutation({
     mutationFn: async (data: { email: string; role: string }) => apiClient.post('/invitations/', data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['tenant-invitations'] });
+      queryClient.invalidateQueries({ queryKey: withTenantQueryKey('tenant-invitations') });
       toast.success(emailEnabled ? 'Invitation sent successfully' : 'Invitation created (email sending is disabled)');
       setShowInviteModal(false);
       setInviteEmail('');
@@ -191,7 +192,7 @@ const UsersPage: React.FC = () => {
     mutationFn: async (data: { id: number; role: string }) =>
       apiClient.patch(`/tenant-users/${data.id}/`, { role: data.role }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['tenant-users'] });
+      queryClient.invalidateQueries({ queryKey: withTenantQueryKey('tenant-users') });
       toast.success('User role updated');
       setShowEditModal(false);
     },
@@ -203,7 +204,7 @@ const UsersPage: React.FC = () => {
   const deactivateMutation = useMutation({
     mutationFn: async (id: number) => apiClient.patch(`/tenant-users/${id}/`, { is_active: false }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['tenant-users'] });
+      queryClient.invalidateQueries({ queryKey: withTenantQueryKey('tenant-users') });
       toast.success('User deactivated');
       setShowDeactivateConfirm(false);
     },
@@ -215,7 +216,7 @@ const UsersPage: React.FC = () => {
   const reactivateMutation = useMutation({
     mutationFn: async (id: number) => apiClient.patch(`/tenant-users/${id}/`, { is_active: true }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['tenant-users'] });
+      queryClient.invalidateQueries({ queryKey: withTenantQueryKey('tenant-users') });
       toast.success('User reactivated');
     },
     onError: (error: any) => {
@@ -226,7 +227,7 @@ const UsersPage: React.FC = () => {
   const deleteMutation = useMutation({
     mutationFn: async (id: number) => apiClient.delete(`/tenant-users/${id}/`),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['tenant-users'] });
+      queryClient.invalidateQueries({ queryKey: withTenantQueryKey('tenant-users') });
       toast.success('User removed');
       setShowRemoveConfirm(false);
       setSelectedUser(null);
@@ -239,7 +240,7 @@ const UsersPage: React.FC = () => {
   const revokeMutation = useMutation({
     mutationFn: async (id: number) => apiClient.post(`/invitations/${id}/revoke/`),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['tenant-invitations'] });
+      queryClient.invalidateQueries({ queryKey: withTenantQueryKey('tenant-invitations') });
       toast.success('Invitation revoked');
     },
     onError: (error: any) => {
@@ -250,7 +251,7 @@ const UsersPage: React.FC = () => {
   const resendMutation = useMutation({
     mutationFn: async (id: number) => apiClient.post(`/invitations/${id}/resend/`),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['tenant-invitations'] });
+      queryClient.invalidateQueries({ queryKey: withTenantQueryKey('tenant-invitations') });
       toast.success('Invitation resent');
     },
     onError: (error: any) => {
@@ -275,7 +276,7 @@ const UsersPage: React.FC = () => {
       return { succeeded, failed };
     },
     onSuccess: (result) => {
-      queryClient.invalidateQueries({ queryKey: ['tenant-invitations'] });
+      queryClient.invalidateQueries({ queryKey: withTenantQueryKey('tenant-invitations') });
       setSelectedInvitationIds([]);
       setInvitationTableKey((k) => k + 1);
 
@@ -317,7 +318,7 @@ const UsersPage: React.FC = () => {
       return { succeeded, failed };
     },
     onSuccess: (result) => {
-      queryClient.invalidateQueries({ queryKey: ['tenant-invitations'] });
+      queryClient.invalidateQueries({ queryKey: withTenantQueryKey('tenant-invitations') });
       setSelectedInvitationIds([]);
       setInvitationTableKey((k) => k + 1);
       setShowBulkRevokeConfirm(false);

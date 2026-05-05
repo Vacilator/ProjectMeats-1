@@ -3,6 +3,7 @@ import { Alert, Empty, Spin, Timeline, Typography } from 'antd';
 import { useQuery } from '@tanstack/react-query';
 
 import { businessApi } from '@/services/businessApi';
+import { withTenantQueryKey } from '@/utils/queryKeys';
 
 import { getDocumentEntityConfig } from './documentOperations';
 
@@ -51,7 +52,7 @@ export const AuditHistoryTimeline: React.FC<AuditHistoryTimelineProps> = ({
   const config = useMemo(() => getDocumentEntityConfig(entityType), [entityType]);
 
   const query = useQuery({
-    queryKey: ['audit-history', config?.auditEntityType ?? entityType, String(entityId), maxItems],
+    queryKey: withTenantQueryKey('audit-history', config?.auditEntityType ?? entityType, String(entityId), maxItems),
     queryFn: async () => {
       const response = await businessApi.get('/audit-events/', {
         params: {

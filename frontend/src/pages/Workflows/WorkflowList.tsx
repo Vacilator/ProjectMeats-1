@@ -14,6 +14,7 @@ import styled from 'styled-components';
 import { PageContainer } from '../../components/ui/PageContainer';
 import { Card, CardHeader, CardContent, CardFooter } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
+import { withTenantQueryKey } from '../../utils/queryKeys';
 
 interface Blueprint {
   id: string;
@@ -113,7 +114,7 @@ export const WorkflowList: React.FC = () => {
     error,
     refetch 
   } = useQuery<Blueprint[]>({
-    queryKey: ['availableWorkflows'],
+    queryKey: withTenantQueryKey('availableWorkflows'),
     queryFn: async () => {
       const response = await adminClient.get<Blueprint[]>(
         '/admin/system-config/api/available-workflows/'

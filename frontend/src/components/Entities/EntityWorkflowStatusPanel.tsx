@@ -8,6 +8,7 @@ import {
   type WorkFormExecution,
   type WorkFormExecutionAuditEvent,
 } from '@/services/workformExecutionService';
+import { withTenantQueryKey } from '@/utils/queryKeys';
 
 export interface EntityWorkflowStatusPanelProps {
   entityType: string;
@@ -37,7 +38,7 @@ export const EntityWorkflowStatusPanel: React.FC<EntityWorkflowStatusPanelProps>
   const navigate = useNavigate();
   const queryOptions = useMemo(
     () => ({
-      queryKey: ['entity-workflow-status', entityType, entityId],
+      queryKey: withTenantQueryKey('entity-workflow-status', entityType, entityId),
       queryFn: async () =>
         workformExecutionService.getExecutions({
           entity_type: entityType,

@@ -22,6 +22,7 @@ import { DownloadOutlined } from '@ant-design/icons';
 
 import { apiClient } from '@/services/apiService';
 import { AdminGuard, AdminPage, EmptyState, LoadingSkeleton } from '@/components/Admin';
+import { withTenantQueryKey } from '@/utils/queryKeys';
 
 const { Text } = Typography;
 
@@ -75,7 +76,7 @@ const BILLING_CONFIG_KEYS = {
 
 const BillingPage: React.FC = () => {
   const currentTenantQuery = useQuery<TenantCurrent>({
-    queryKey: ['tenants', 'current', 'billing-dashboard'],
+    queryKey: withTenantQueryKey('tenants', 'current', 'billing-dashboard'),
     queryFn: async () => {
       const res = await apiClient.get('/tenants/current/');
       return res.data;
@@ -86,7 +87,7 @@ const BillingPage: React.FC = () => {
   const tenant = currentTenantQuery.data;
 
   const billingConfigsQuery = useQuery<TenantConfiguration[]>({
-    queryKey: ['tenant-configurations', 'billing'],
+    queryKey: withTenantQueryKey('tenant-configurations', 'billing'),
     queryFn: async () => {
       const res = await apiClient.get('/configurations/', { params: { search: 'billing.' } });
       const raw = res.data as unknown;
@@ -132,7 +133,7 @@ const BillingPage: React.FC = () => {
   const activeUsers = tenant?.user_count ?? 0;
 
   const subscriptionInvoicesQuery = useQuery<any[]>({
-    queryKey: ['invoices', 'subscription', tenant?.id],
+    queryKey: withTenantQueryKey('invoices', 'subscription', tenant?.id),
     enabled: Boolean(tenant?.id),
     queryFn: async () => {
       const res = await apiClient.get('/invoices/', { params: { is_subscription: true } });

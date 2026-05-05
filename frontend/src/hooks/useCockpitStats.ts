@@ -16,6 +16,7 @@
  */
 import { useQuery } from '@tanstack/react-query';
 import { apiClient } from '../services/apiService';
+import { withTenantQueryKey } from '../utils/queryKeys';
 
 // ============================================================================
 // TypeScript Interfaces
@@ -84,7 +85,7 @@ const REFETCH_INTERVAL = 5 * 60 * 1000; // 5 minutes
 
 export const useCockpitStats = (): UseCockpitStatsReturn => {
   const query = useQuery({
-    queryKey: ['cockpit', 'stats'],
+    queryKey: withTenantQueryKey('cockpit', 'stats'),
     queryFn: async () => {
       const response = await apiClient.get<CockpitStats>('cockpit/stats/');
       return response.data;

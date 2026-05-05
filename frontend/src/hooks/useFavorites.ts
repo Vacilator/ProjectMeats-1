@@ -14,6 +14,7 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '../services/apiService';
+import { withTenantQueryKey } from '../utils/queryKeys';
 
 // ============================================================================
 // TypeScript Interfaces
@@ -71,8 +72,7 @@ const checkIsFavorited = async (entity_type: string, entity_id: number): Promise
 
 export const useFavorites = () => {
   const queryClient = useQueryClient();
-  const tenantId = localStorage.getItem('tenantId') ?? 'unknown-tenant';
-  const favoritesKey = ['favorites', tenantId] as const;
+  const favoritesKey = withTenantQueryKey('favorites');
 
   // Query for fetching all favorites
   const {

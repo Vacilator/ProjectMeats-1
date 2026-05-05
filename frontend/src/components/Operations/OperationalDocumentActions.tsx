@@ -16,6 +16,7 @@ import { DownloadOutlined, MailOutlined } from '@ant-design/icons';
 
 import { useConnectivity } from '@/contexts/ConnectivityContext';
 import { businessApi } from '@/services/businessApi';
+import { withTenantQueryKey } from '@/utils/queryKeys';
 
 import {
   getDocumentEntityConfig,
@@ -118,7 +119,7 @@ export const OperationalDocumentActions: React.FC<OperationalDocumentActionsProp
   );
   const hasQueuedTransition = offlineQueueEnabled && Boolean(queuedTransition);
   const workflowQueryKey = useMemo(
-    () => ['document-status-workflow', normalizedEntityType, normalizedEntityId] as const,
+    () => withTenantQueryKey('document-status-workflow', normalizedEntityType, normalizedEntityId),
     [normalizedEntityId, normalizedEntityType]
   );
 
@@ -190,7 +191,7 @@ export const OperationalDocumentActions: React.FC<OperationalDocumentActionsProp
         );
 
         await queryClient.invalidateQueries({
-          queryKey: ['document-status-workflow', item.entityType, item.entityId],
+          queryKey: withTenantQueryKey('document-status-workflow', item.entityType, item.entityId),
         });
 
         if (item.entityType === normalizedEntityType && item.entityId === normalizedEntityId) {

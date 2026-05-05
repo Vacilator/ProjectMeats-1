@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 
 import { apiClient } from '@/services/apiService';
+import { withTenantQueryKey } from '@/utils/queryKeys';
 export interface HealthResponse {
   status: string;
   timestamp: string;
@@ -25,7 +26,7 @@ const fetchHealth = async (): Promise<HealthResponse> => {
 
 export const useHealth = () => {
   return useQuery({
-    queryKey: ['health'],
+    queryKey: withTenantQueryKey('health'),
     queryFn: fetchHealth,
     staleTime: 60_000,
     gcTime: 10 * 60_000,

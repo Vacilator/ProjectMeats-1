@@ -11,6 +11,7 @@ import { useAuthState } from '@/contexts/AuthContext';
 import { businessApi } from '@/services/businessApi';
 import { isAuthError } from '@/utils/isAuthError';
 import { useToast } from '@/hooks/useToast';
+import { withTenantQueryKey } from '@/utils/queryKeys';
 
 type CanonicalEntityType = 'customer' | 'supplier';
 
@@ -512,7 +513,7 @@ export const CustomerDetailView: React.FC<CustomerDetailViewProps> = ({
   const queryEnabled = !authLoading && isAuthenticated && Boolean(canonicalType && entityId);
 
   const entityQuery = useQuery({
-    queryKey: ['cockpit-entity', canonicalType, entityId],
+    queryKey: withTenantQueryKey('cockpit-entity', canonicalType, entityId),
     enabled: queryEnabled,
     queryFn: async () => {
       if (!canonicalType) throw new Error('Unknown entity type');
@@ -525,7 +526,7 @@ export const CustomerDetailView: React.FC<CustomerDetailViewProps> = ({
   });
 
   const countsQuery = useQuery({
-    queryKey: ['cockpit-entity-counts', canonicalType, entityId],
+    queryKey: withTenantQueryKey('cockpit-entity-counts', canonicalType, entityId),
     enabled: queryEnabled,
     queryFn: async () => {
       if (!canonicalType) throw new Error('Unknown entity type');
@@ -537,7 +538,7 @@ export const CustomerDetailView: React.FC<CustomerDetailViewProps> = ({
   });
 
   const locationsQuery = useQuery({
-    queryKey: ['cockpit-entity-locations', canonicalType, entityId],
+    queryKey: withTenantQueryKey('cockpit-entity-locations', canonicalType, entityId),
     enabled: queryEnabled,
     queryFn: async () => {
       if (!canonicalType) throw new Error('Unknown entity type');
@@ -551,7 +552,7 @@ export const CustomerDetailView: React.FC<CustomerDetailViewProps> = ({
   });
 
   const productsQuery = useQuery({
-    queryKey: ['cockpit-entity-products', canonicalType, entityId],
+    queryKey: withTenantQueryKey('cockpit-entity-products', canonicalType, entityId),
     enabled: queryEnabled,
     queryFn: async () => {
       if (!canonicalType) throw new Error('Unknown entity type');
@@ -563,7 +564,7 @@ export const CustomerDetailView: React.FC<CustomerDetailViewProps> = ({
   });
 
   const masterProductsQuery = useQuery({
-    queryKey: ['cockpit-master-products'],
+    queryKey: withTenantQueryKey('cockpit-master-products'),
     enabled: Boolean(queryEnabled && canonicalType === 'customer' && activeTab === 'products' && productInsightsTab === 'aggregatedPreferences'),
     queryFn: async () => {
       const res = await businessApi.get('/master-products/', { params: { page_size: 5000 } });
@@ -576,7 +577,7 @@ export const CustomerDetailView: React.FC<CustomerDetailViewProps> = ({
   });
 
   const tabItemsQuery = useQuery({
-    queryKey: ['cockpit-entity-tab', canonicalType, entityId, activeTab],
+    queryKey: withTenantQueryKey('cockpit-entity-tab', canonicalType, entityId, activeTab),
     enabled: queryEnabled,
     queryFn: async () => {
       if (!canonicalType) throw new Error('Unknown entity type');

@@ -50,6 +50,7 @@ vi.mock('./UniversalEntityForm', async (importOriginal) => {
 });
 
 import { EntityFormSurface } from './EntityFormSurface';
+import { withTenantQueryKey } from '@/utils/queryKeys';
 
 describe('EntityFormSurface', () => {
   beforeEach(() => {
@@ -166,7 +167,7 @@ describe('EntityFormSurface', () => {
   it('does not churn cached FK query observers when parent rebuilds identical seed objects', async () => {
     const queryClient = createQueryClient();
 
-    queryClient.setQueryData(['entity-form-schema', 'plant'], {
+    queryClient.setQueryData(withTenantQueryKey('entity-form-schema', 'plant'), {
       name: 'Plant',
       description: 'Plant schema',
       fields: [
@@ -179,13 +180,13 @@ describe('EntityFormSurface', () => {
         },
       ],
     });
-    queryClient.setQueryData(['entity-form-record', 'plant', '2769'], {
+    queryClient.setQueryData(withTenantQueryKey('entity-form-record', 'plant', '2769'), {
       id: 2769,
       name: 'North Plant',
       customer: '123',
     });
     queryClient.setQueryData(
-      ['entity-form-fk-options', 'plant', 'customer', 'customers.Customer'],
+      withTenantQueryKey('entity-form-fk-options', 'plant', 'customer', 'customers.Customer'),
       [{ id: '123', name: 'Acme Foods' }]
     );
 

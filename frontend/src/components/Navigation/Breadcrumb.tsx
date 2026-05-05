@@ -4,6 +4,7 @@ import { Link, useLocation } from 'react-router-dom';
 import styled from 'styled-components';
 
 import { businessApi } from '@/services/businessApi';
+import { withTenantQueryKey } from '@/utils/queryKeys';
 
 /**
  * Context-aware Breadcrumb Component
@@ -190,7 +191,7 @@ const Breadcrumb: React.FC = () => {
   const resolvedNameQueries = useMemo(
     () =>
       resolvableItems.map((item) => ({
-        queryKey: ['breadcrumb-name', item.resolver?.apiPath, item.pathname],
+        queryKey: withTenantQueryKey('breadcrumb-name', item.resolver?.apiPath, item.pathname),
         queryFn: async () => {
           if (!item.resolver) return null;
           const response = await businessApi.get(`${item.resolver.apiPath}/${item.pathname}/`);

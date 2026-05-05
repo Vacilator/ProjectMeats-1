@@ -14,6 +14,7 @@ import { AuditHistoryTimeline } from '@/components/Operations/AuditHistoryTimeli
 import { OperationalDocumentActions } from '@/components/Operations/OperationalDocumentActions';
 import { EntityFormSurface } from '@/components/Shared';
 import { businessApi } from '@/services/businessApi';
+import { withTenantQueryKey } from '@/utils/queryKeys';
 
 const { Text, Title } = Typography;
 
@@ -48,7 +49,7 @@ const FreightOrders: React.FC = () => {
   const [editingOrderId, setEditingOrderId] = useState<string | null>(null);
 
   const freightOrdersQuery = useQuery({
-    queryKey: ['freight-orders'],
+    queryKey: withTenantQueryKey('freight-orders'),
     queryFn: async () => {
       const response = await businessApi.get('/carrier-pos/');
       const payload = response.data;

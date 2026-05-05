@@ -14,6 +14,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Wand2, Eye, Code2, Lock } from 'lucide-react';
 
 import { logger } from '@/utils/logger';
+import { withTenantQueryKey } from '@/utils/queryKeys';
 import { toApiErrorText } from '@/services/apiErrorPresentation';
 import { UnifiedFlowEditor } from '../../components/FlowEditor';
 import { FLOW_TEMPLATES } from '../../components/FlowEditor/templates/flowTemplates';
@@ -328,7 +329,7 @@ export const WorkFormsEditor: React.FC = () => {
   }, [id, templateId, cloneId]);
 
   const existingWorkFormQuery = useQuery<LoadWorkflowResponse>({
-    queryKey: ['tenant-workform', id],
+    queryKey: withTenantQueryKey('tenant-workform', id),
     queryFn: async () => {
       if (!id) throw new Error('Missing workflow id');
       return loadWorkflow(id);
@@ -337,7 +338,7 @@ export const WorkFormsEditor: React.FC = () => {
   });
 
   const cloneWorkFormQuery = useQuery<LoadWorkflowResponse>({
-    queryKey: ['tenant-workform-clone', cloneId],
+    queryKey: withTenantQueryKey('tenant-workform-clone', cloneId),
     queryFn: async () => {
       if (!cloneId) throw new Error('Missing clone id');
       return loadWorkflow(cloneId);
@@ -621,4 +622,3 @@ export const WorkFormsEditor: React.FC = () => {
 };
 
 export default WorkFormsEditor;
-

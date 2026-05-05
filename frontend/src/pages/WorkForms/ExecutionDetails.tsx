@@ -12,13 +12,14 @@ import { workformExecutionService } from '@/services/workformExecutionService';
 import { formSubmissionService } from '@/services/quickActionsService';
 import { getWorkformsErrorUi } from '@/features/workforms/workformsErrors';
 import { ExecutionStoryView } from '@/features/workforms/ExecutionStoryView';
+import { withTenantQueryKey } from '@/utils/queryKeys';
 
 export const WorkFormExecutionDetails: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
 
   const query = useQuery({
-    queryKey: ['workform-execution', id],
+    queryKey: withTenantQueryKey('workform-execution', id),
     queryFn: async () => {
       if (!id) throw new Error('Missing execution id');
       return workformExecutionService.getExecution(id);
@@ -49,7 +50,7 @@ export const WorkFormExecutionDetails: React.FC = () => {
   }, [execution]);
 
   const submissionQuery = useQuery({
-    queryKey: ['form-submission', submissionId],
+    queryKey: withTenantQueryKey('form-submission', submissionId),
     queryFn: async () => {
       if (!submissionId) throw new Error('Missing submission id');
       return formSubmissionService.get(submissionId);

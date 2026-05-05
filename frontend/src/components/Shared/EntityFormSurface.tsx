@@ -19,6 +19,7 @@ import { isEqual } from 'lodash';
 
 import { getRuntimeConfigBoolean } from '@/config/runtime';
 import { useAuthState } from '@/contexts/AuthContext';
+import { withTenantQueryKey } from '@/utils/queryKeys';
 
 import UniversalEntityForm, {
   augmentSchemaForFrontend,
@@ -209,7 +210,7 @@ export const EntityFormSurface: React.FC<EntityFormSurfaceProps> = ({
 
   const schemaQueryOptions = useMemo(
     () => ({
-      queryKey: ['entity-form-schema', normalizedEntityKey],
+      queryKey: withTenantQueryKey('entity-form-schema', normalizedEntityKey),
       queryFn: () => fetchUniversalEntitySchema(entityType),
       enabled: shouldHydrate,
       staleTime: 5 * 60 * 1000,
@@ -220,7 +221,7 @@ export const EntityFormSurface: React.FC<EntityFormSurfaceProps> = ({
 
   const recordQueryOptions = useMemo(
     () => ({
-      queryKey: ['entity-form-record', normalizedEntityKey, entityId == null ? 'new' : String(entityId)],
+      queryKey: withTenantQueryKey('entity-form-record', normalizedEntityKey, entityId == null ? 'new' : String(entityId)),
       queryFn: () => fetchUniversalEntityRecord(entityType, entityId as string | number),
       enabled: shouldLoadRecord,
       staleTime: Number.POSITIVE_INFINITY,
@@ -280,12 +281,12 @@ export const EntityFormSurface: React.FC<EntityFormSurfaceProps> = ({
   const fkQueryOptions = useMemo(
     () =>
       stableFkDescriptorsRef.current.map((descriptor) => ({
-        queryKey: [
+        queryKey: withTenantQueryKey(
           'entity-form-fk-options',
           normalizedEntityKey,
           descriptor.fieldKey,
           descriptor.relatedEntity,
-        ],
+        ),
         queryFn: () =>
           fetchUniversalEntityFkOptions({
             key: descriptor.fieldKey,
