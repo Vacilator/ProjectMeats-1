@@ -14,6 +14,7 @@ Prevent branch divergence and enforce the repo's shipping flow:
 
 Use this guide together with:
 - `.github/workflows/pr-validation.yml`
+- `.github/workflows/ai-pr-reviewer.yml`
 - `.github/workflows/main-pipeline.yml`
 - `.github/workflows/41-auto-promote-dev-to-uat.yml`
 - `.github/workflows/42-auto-promote-uat-to-main.yml`
@@ -22,7 +23,7 @@ Use this guide together with:
 
 ## Required status checks
 
-The current PR gate is `.github/workflows/pr-validation.yml`. Require these checks on protected branches:
+The current PR gate is `.github/workflows/pr-validation.yml` plus `.github/workflows/ai-pr-reviewer.yml`. Require these checks on protected branches:
 
 - `Infrastructure Drift Gate`
 - `Dependency Review`
@@ -35,8 +36,9 @@ The current PR gate is `.github/workflows/pr-validation.yml`. Require these chec
 - `Frontend Prod Smoke`
 - `Mobile Lint/Test/Type Check`
 - `Validate Copilot Squad`
+- `AI PR Gatekeeper`
 
-If GitHub shows different check labels after a workflow rename, update this guide immediately and keep it aligned with `.github/workflows/pr-validation.yml`.
+If GitHub shows different check labels after a workflow rename, update this guide immediately and keep it aligned with `.github/workflows/pr-validation.yml` and `.github/workflows/ai-pr-reviewer.yml`.
 
 ---
 
@@ -134,7 +136,7 @@ Expected state:
 Expected. Open a PR instead.
 
 ### "Status checks failed"
-Inspect `.github/workflows/pr-validation.yml`, fix the failing job, and rerun.
+Inspect `.github/workflows/pr-validation.yml` or `.github/workflows/ai-pr-reviewer.yml`, fix the failing job, and rerun.
 
 ### "main is ahead of development"
 Create the missing backport PR immediately and inspect whether a hotfix bypassed the normal promotion flow.

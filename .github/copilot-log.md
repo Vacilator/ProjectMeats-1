@@ -2,6 +2,31 @@
 
 This file tracks lessons learned, misses, and efficiency improvements for each task completed by the Copilot agent.
 
+## Task: Activate SDLC V2 Autonomous Shield - 2026-05-05
+
+- **Actions Taken**:
+  - Added `.github/workflows/ai-pr-reviewer.yml` as a `pull_request_target` AI gatekeeper for `development` and `main`
+  - Implemented `scripts/ci/ai_pr_guard.py` to review PR diffs via GitHub API, inject `.cursorrules` + `.github/SDLC_PROTOCOLS.md` into the AI prompt, request changes on Golden Rule violations, and dismiss stale bot reviews on re-scan
+  - Created `docs/adr/0001` through `0003` to preserve the rationale for ADR usage, the Air Gap form pattern, and the `useQueries` eradication rule
+  - Added `scripts/dev/bundle_ai_context.sh` and `make ai-task` to bundle the next unchecked ticket, Golden Schema digest, and `.cursorrules` into a paste-ready context prompt
+  - Extended `scripts/verify_golden_state.sh`, workflow docs, the branch-protection guide, and the golden-file registry so the new enforcement surfaces cannot silently drift
+
+- **Misses/Failures**:
+  - Initial golden-state validation failed because the branch-protection parity helper only inventoried `pr-validation.yml`, not the new AI gatekeeper workflow
+  - The first deterministic `useEffect` dependency detector used an invalid regex and would never match real hook bodies
+  - The first non-interactive `make ai-task` validation path skipped clipboard fallback because stdout was redirected, even though `/dev/tty` was still available
+
+- **Lessons Learned**:
+  - `pull_request_target` is the safest way to combine PR-time AI review with secrets, but only if the workflow reads the PR diff through the GitHub API and avoids checking out untrusted head code
+  - Branch-protection parity checks must union all required PR-check workflows, not just the main validation workflow
+  - For hook-pattern guardrails, a tiny parser is more reliable than a regex once callback bodies contain nested parentheses or commas
+  - OSC52 is a practical clipboard fallback for terminal-first tooling, and `/dev/tty` support matters for validation commands that redirect stdout
+
+- **Efficiency Suggestions**:
+  - Add lightweight unit fixtures for `scripts/ci/ai_pr_guard.py` so future guardrail changes can exercise diff parsing without needing a live PR event
+  - Consider a dedicated validator that compares branch-protection docs against all PR-triggered workflows automatically instead of growing one bash helper
+  - Promote the AI gatekeeper workflow status check in repo admin settings immediately so the new request-changes review and failing job both participate in merge blocking
+
 ## Task: Grant Django Admin Permissions to Guest User - 2025-01-13
 
 - **Actions Taken**: 
@@ -273,4 +298,3 @@ This file tracks lessons learned, misses, and efficiency improvements for each t
   - Consider creating a shared error type interface for common API error structures
   - Add automated tests that verify error handling works correctly with the new type-safe pattern
   - Create a code snippet/template in VSCode for the type-safe error handling pattern
-

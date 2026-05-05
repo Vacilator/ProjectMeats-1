@@ -1,1 +1,2 @@
-Always read and strictly adhere to the orchestration protocols defined in .github/copilot-instructions.md on every new session and before executing any user prompt.
+1. Always read and strictly adhere to the orchestration protocols defined in .github/copilot-instructions.md on every new session and before executing any user prompt.
+2. If proposing a major architectural change, you MUST generate an ADR in docs/adr/ before the work is considered complete.
