@@ -313,6 +313,7 @@ class EmailIngestionServiceEmailFetchTests(TestCase):
     ):
         session = ChatSession.objects.create(
             title='Attachment search',
+            tenant=self.tenant,
             context_data={'tenant_id': str(self.tenant.id)},
             owner=self.user,
             created_by=self.user,
@@ -467,6 +468,7 @@ class ToolExecutorEmailToolTests(TestCase):
     def test_execute_injects_session_id_into_fetch_emails(self, mock_fetch, _mock_rls):
         session = ChatSession.objects.create(
             title='Attachment thread',
+            tenant=self.tenant,
             context_data={'tenant_id': str(self.tenant.id)},
             owner=self.user,
             created_by=self.user,
@@ -493,6 +495,7 @@ class ToolExecutorEmailToolTests(TestCase):
     def test_check_unread_emails_forwards_session_id(self, mock_fetch, _mock_rls):
         session = ChatSession.objects.create(
             title='Unread attachment thread',
+            tenant=self.tenant,
             context_data={'tenant_id': str(self.tenant.id)},
             owner=self.user,
             created_by=self.user,
@@ -518,6 +521,7 @@ class ToolExecutorEmailToolTests(TestCase):
     def test_execute_skips_unsupported_attachment_before_download(self, mock_get, _mock_rls):
         session = ChatSession.objects.create(
             title='Attachment thread',
+            tenant=self.tenant,
             context_data={'tenant_id': str(self.tenant.id)},
             owner=self.user,
             created_by=self.user,
@@ -568,6 +572,7 @@ class ToolExecutorEmailToolTests(TestCase):
     ):
         session = ChatSession.objects.create(
             title='Attachment thread',
+            tenant=self.tenant,
             context_data={'tenant_id': str(self.tenant.id)},
             owner=self.user,
             created_by=self.user,
@@ -668,6 +673,7 @@ class ToolExecutorEmailToolTests(TestCase):
     ):
         session = ChatSession.objects.create(
             title='Attachment thread',
+            tenant=self.tenant,
             context_data={'tenant_id': str(self.tenant.id)},
             owner=self.user,
             created_by=self.user,
@@ -726,6 +732,7 @@ class ToolExecutorEmailToolTests(TestCase):
     ):
         session = ChatSession.objects.create(
             title='Attachment thread',
+            tenant=self.tenant,
             context_data={'tenant_id': str(self.tenant.id)},
             owner=self.user,
             created_by=self.user,
@@ -785,6 +792,7 @@ class ToolExecutorEmailToolTests(TestCase):
     ):
         session = ChatSession.objects.create(
             title='Attachment thread',
+            tenant=self.tenant,
             context_data={'tenant_id': str(self.tenant.id)},
             owner=self.user,
             created_by=self.user,
@@ -840,6 +848,7 @@ class ToolExecutorEmailToolTests(TestCase):
     def test_execute_rejects_unstaged_attachment(self, mock_get, _mock_rls):
         session = ChatSession.objects.create(
             title='Attachment thread',
+            tenant=self.tenant,
             context_data={'tenant_id': str(self.tenant.id)},
             owner=self.user,
             created_by=self.user,
@@ -869,6 +878,7 @@ class ToolExecutorEmailToolTests(TestCase):
     def test_execute_rejects_expired_staged_attachment(self, mock_get, _mock_rls):
         session = ChatSession.objects.create(
             title='Attachment thread',
+            tenant=self.tenant,
             context_data={'tenant_id': str(self.tenant.id)},
             owner=self.user,
             created_by=self.user,
@@ -912,6 +922,7 @@ class ToolExecutorEmailToolTests(TestCase):
     ):
         session = ChatSession.objects.create(
             title='Attachment thread',
+            tenant=self.tenant,
             context_data={'tenant_id': str(self.tenant.id)},
             owner=self.user,
             created_by=self.user,
@@ -970,6 +981,7 @@ class ToolExecutorEmailToolTests(TestCase):
     ):
         session = ChatSession.objects.create(
             title='Attachment thread',
+            tenant=self.tenant,
             context_data={'tenant_id': str(self.tenant.id)},
             owner=self.user,
             created_by=self.user,
