@@ -67,9 +67,16 @@ from .serializers import (
     SwarmInvokeResponseSerializer,
     ToolsOpenResponseSerializer,
 )
-from .session_utils import bind_context_to_tenant, get_request_tenant_id, session_matches_tenant
+from .session_utils import (
+    bind_context_to_tenant,
+    get_request_tenant_id,
+    get_session_compaction_state,
+    get_session_compaction_watermark,
+    session_matches_tenant,
+)
 from .services.extract_to_schema import ExtractToSchemaError, extract_document_to_schema, get_extract_document
 from .services import semantic_cache as ai_semantic_cache
+from .services import tenant_memory_service as ai_tenant_memory_service
 from .swarm.executor import DEFAULT_OPENAI_TOOLS
 
 logger = logging.getLogger(__name__)
@@ -507,6 +514,8 @@ class ChatBotAPIViewSet(viewsets.ViewSet):
                 model_name = get_active_openai_model_id(fallback='gpt-4o-mini')
 
                 history = []
+                session_compaction_memory = None
+                session_compaction_state = {}
 
                 # --- RAG-lite context injection: last 5 ingested emails for this tenant ---
                 try:
@@ -536,10 +545,26 @@ class ChatBotAPIViewSet(viewsets.ViewSet):
 
                 # Include recent session message history (excluding this user message)
                 try:
+                    session_compaction_memory = ai_tenant_memory_service.get_session_compaction_memory(
+                        tenant=tenant,
+                        session_id=session.id,
+                    )
+                    session_compaction_state = (
+                        get_session_compaction_state(session.context_data)
+                        if session_compaction_memory is not None
+                        else {}
+                    )
+                    history_qs = ChatMessage.objects.filter(session=session, tenant=tenant).exclude(id=user_msg.id)
+                    compaction_watermark = (
+                        get_session_compaction_watermark(session.context_data)
+                        if session_compaction_memory is not None
+                        else None
+                    )
+                    if compaction_watermark is not None:
+                        history_qs = history_qs.filter(created_on__gt=compaction_watermark)
+
                     recent = (
-                        ChatMessage.objects.filter(session=session)
-                        .exclude(id=user_msg.id)
-                        .order_by('-created_on')[:20]
+                        history_qs.order_by('-created_on')[:20]
                     )
                     for row in reversed(list(recent)):
                         role = None
@@ -577,7 +602,16 @@ class ChatBotAPIViewSet(viewsets.ViewSet):
 
                 context_signature = ai_semantic_cache.build_context_signature(
                     history=history,
-                    context=context,
+                    context={
+                        **(context if isinstance(context, dict) else {}),
+                        '_session_memory': {
+                            'key': str(getattr(session_compaction_memory, 'key', '') or ''),
+                            'memory_text': str(getattr(session_compaction_memory, 'memory_text', '') or ''),
+                            'last_compacted_created_on': str(
+                                session_compaction_state.get('last_compacted_created_on') or ''
+                            ),
+                        },
+                    },
                 )
                 cached_response = ai_semantic_cache.lookup_cached_response(
                     tenant_id=tenant_id,
@@ -626,6 +660,14 @@ class ChatBotAPIViewSet(viewsets.ViewSet):
                         logger.warning(
                             'Failed to record semantic cache hit lineage message=%s',
                             ai_msg.id,
+                            exc_info=True,
+                        )
+                    try:
+                        ai_tenant_memory_service.compact_session_messages(tenant=tenant, session=session)
+                    except Exception:
+                        logger.warning(
+                            'Failed to compact chat context after semantic cache hit session=%s',
+                            session.id,
                             exc_info=True,
                         )
 
@@ -737,6 +779,14 @@ class ChatBotAPIViewSet(viewsets.ViewSet):
                         ai_msg.id,
                         exc_info=True,
                     )
+            try:
+                ai_tenant_memory_service.compact_session_messages(tenant=tenant, session=session)
+            except Exception:
+                logger.warning(
+                    'Failed to compact chat context after assistant response session=%s',
+                    session.id,
+                    exc_info=True,
+                )
 
             processing_time = time.time() - start_time
 
