@@ -34,4 +34,35 @@ describe('DocumentAuditBadges', () => {
       getDocumentStatusDescriptor('completed', { parse_error_code: 'IGNORED' }).label
     ).toBe('Ready');
   });
+
+  it('renders semantic indexing and lineage summary details', () => {
+    render(
+      <DocumentAuditBadges
+        processingStatus="completed"
+        sourceMetadata={{ source: 'manual_upload' }}
+        processingMetadata={{
+          parser: 'tabular_markdown',
+          semantic_indexing: {
+            status: 'degraded',
+            mode: 'lexical_fallback',
+            chunk_count: 4,
+            detail: 'Embeddings unavailable; lexical fallback retained.',
+          },
+        }}
+        lineageSummary={{
+          event_count: 3,
+          latest_event_type: 'document_parsed',
+          latest_summary: 'Document parsed successfully.',
+          recent_events: [],
+        }}
+      />
+    );
+
+    expect(
+      screen.getByLabelText(
+        'Semantic index: Lexical fallback (Embeddings unavailable; lexical fallback retained.)'
+      )
+    ).toBeInTheDocument();
+    expect(screen.getByText('Lineage: Document parsed successfully. (3 events)')).toBeInTheDocument();
+  });
 });

@@ -1065,7 +1065,7 @@ class UserNotificationSerializer(serializers.ModelSerializer):
     notification_type_display = serializers.CharField(source='get_notification_type_display', read_only=True)
     priority_display = serializers.CharField(source='get_priority_display', read_only=True)
     time_ago = serializers.SerializerMethodField()
-    action_url = serializers.SerializerMethodField()
+    action_url = serializers.SerializerMethodField(required=False)
     
     class Meta:
         model = UserNotification
@@ -1161,6 +1161,9 @@ class UserNotificationCreateSerializer(serializers.ModelSerializer):
             'priority', 'entity_type', 'entity_id', 'action_url',
             'metadata', 'expires_at'
         ]
+        extra_kwargs = {
+            'action_url': {'required': False, 'allow_blank': True},
+        }
 
 
 class UserNotificationPreferencesSerializer(serializers.ModelSerializer):

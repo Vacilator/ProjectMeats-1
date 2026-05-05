@@ -43,7 +43,11 @@ import {
 import { groupChatSessionsByDate } from '@/components/ChatInterface/sessionHistory';
 import { aiStaffApi, chatApi, chatSessionsApi, hydrateDocumentMessageMetadata } from '@/services/aiService';
 import { useStickyAutoScroll } from '@/hooks/useStickyAutoScroll';
-import type { DocumentProcessingMetadata, DocumentSourceMetadata } from '@/types';
+import type {
+  DocumentLineageSummary,
+  DocumentProcessingMetadata,
+  DocumentSourceMetadata,
+} from '@/types';
 
 type AgentState = 'idle' | 'thinking' | 'action_required';
 
@@ -92,6 +96,14 @@ type UploadedAttachment = {
   original_filename: string;
   file_url?: string;
   content_type?: string;
+};
+
+type ControlPlaneMetadata = {
+  run_id?: string;
+  task_id?: string;
+  approval_id?: string;
+  approval_required?: boolean;
+  tool_name?: string;
 };
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
@@ -461,6 +473,28 @@ const DocumentMeta = styled.div`
     color: rgb(var(--color-text-secondary));
     font-size: 11px;
   }
+`;
+
+const BubbleMetaRow = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+`;
+
+const BubbleMetaPill = styled.span`
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 22px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  border: 1px solid rgb(var(--color-warning) / 0.25);
+  background: rgb(var(--color-warning) / 0.10);
+  color: rgb(var(--color-warning));
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
 `;
 
 const Composer = styled.form`
@@ -1480,6 +1514,7 @@ export const AIAgentWidget: React.FC = () => {
             >
               {messages.map((m) => {
                 const requiresReview = Boolean(m.metadata?.requires_human_review);
+                const controlPlane = getMetadataObject<ControlPlaneMetadata>(m.metadata, 'control_plane');
                 const extractedData = (m.metadata?.extracted_data || m.metadata?.original_extracted_data) as
                   | Record<string, unknown>
                   | undefined;
@@ -1534,12 +1569,25 @@ export const AIAgentWidget: React.FC = () => {
                               m.metadata,
                               'processing_metadata'
                             )}
+                            lineageSummary={getMetadataObject<DocumentLineageSummary>(
+                              m.metadata,
+                              'lineage_summary'
+                            )}
                           />
                         </DocumentMeta>
                       </DocumentRow>
                     ) : (
                       m.content
                     )}
+
+                    {m.role === 'assistant' && controlPlane?.approval_required ? (
+                      <BubbleMetaRow>
+                        <BubbleMetaPill>
+                          Approval pending
+                          {controlPlane.tool_name ? ` • ${controlPlane.tool_name}` : ''}
+                        </BubbleMetaPill>
+                      </BubbleMetaRow>
+                    ) : null}
 
                     {requiresReview && extractedData && documentId ? (
                       <HITLReviewCard

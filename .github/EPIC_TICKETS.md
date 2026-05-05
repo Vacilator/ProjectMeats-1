@@ -774,8 +774,8 @@
   - **Rollback:** Run in shadow mode first and keep autonomous execution denied by default.
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
-- [ ] **EH-06.2 semantic-index-lineage-and-durable-exports**
-  - **Status:** Ready
+- [x] **EH-06.2 semantic-index-lineage-and-durable-exports**
+  - **Status:** Done
   - **Why now:** Semantic retrieval, lineage, and export governance remain incomplete even after AI parser hardening.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 13
   - **Scope:** Add real semantic indexing, end-to-end lineage, Graph resilience improvements, and durable export storage.

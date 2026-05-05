@@ -24,6 +24,7 @@ from tenant_apps.ai_assistant.models import (
     AIApproval,
     AIApprovalStatus,
     AIConfiguration,
+    AILineageEvent,
     AIRun,
     AIRunStatus,
     AITask,
@@ -493,8 +494,18 @@ class AIDocumentViewSetTenantScopingTests(TestCase):
         file_a = SimpleUploadedFile("a.txt", b"hello a", content_type="text/plain")
         file_b = SimpleUploadedFile("b.txt", b"hello b", content_type="text/plain")
 
-        AIDocument.objects.create(tenant=self.tenant_a, owner=self.user, file=file_a, original_filename="a.txt")
-        AIDocument.objects.create(tenant=self.tenant_b, owner=self.user, file=file_b, original_filename="b.txt")
+        self.document_a = AIDocument.objects.create(
+            tenant=self.tenant_a,
+            owner=self.user,
+            file=file_a,
+            original_filename="a.txt",
+        )
+        self.document_b = AIDocument.objects.create(
+            tenant=self.tenant_b,
+            owner=self.user,
+            file=file_b,
+            original_filename="b.txt",
+        )
 
     def _get(self, tenant):
         request = self.factory.get("/api/v1/ai-assistant/documents/")
@@ -508,6 +519,12 @@ class AIDocumentViewSetTenantScopingTests(TestCase):
             return data["results"]
         return data
 
+    def _retrieve(self, tenant, document_id):
+        request = self.factory.get(f"/api/v1/ai-assistant/documents/{document_id}/")
+        self._force_authenticate(request, user=self.user)
+        request.tenant = tenant
+        return request
+
     def test_documents_are_scoped_and_fail_closed(self):
         from tenant_apps.ai_assistant.views import AIDocumentViewSet
 
@@ -520,6 +537,49 @@ class AIDocumentViewSetTenantScopingTests(TestCase):
         resp2 = AIDocumentViewSet.as_view({"get": "list"})(self._get(None))
         self.assertEqual(resp2.status_code, 200)
         self.assertEqual(len(self._items(resp2)), 0)
+
+    def test_document_detail_includes_lineage_summary_for_active_tenant(self):
+        from tenant_apps.ai_assistant.views import AIDocumentViewSet
+
+        AILineageEvent.objects.create(
+            tenant=self.tenant_a,
+            document=self.document_a,
+            event_type='document_ingested',
+            source_type='upload',
+            target_type='document',
+            summary='Document uploaded into the AI assistant.',
+        )
+        AILineageEvent.objects.create(
+            tenant=self.tenant_a,
+            document=self.document_a,
+            event_type='document_parsed',
+            source_type='document',
+            target_type='parsed_document',
+            summary='Document parsed successfully.',
+        )
+        AILineageEvent.objects.create(
+            tenant=self.tenant_b,
+            document=self.document_b,
+            event_type='document_ingested',
+            source_type='upload',
+            target_type='document',
+            summary='Foreign tenant lineage event.',
+        )
+
+        response = AIDocumentViewSet.as_view({"get": "retrieve"})(
+            self._retrieve(self.tenant_a, self.document_a.id),
+            pk=str(self.document_a.id),
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data['original_filename'], 'a.txt')
+        self.assertEqual(response.data['lineage_summary']['event_count'], 2)
+        self.assertEqual(response.data['lineage_summary']['latest_event_type'], 'document_parsed')
+        self.assertEqual(
+            response.data['lineage_summary']['latest_summary'],
+            'Document parsed successfully.',
+        )
+        self.assertEqual(len(response.data['lineage_summary']['recent_events']), 2)
 
 class ChatSessionTenantBindingTests(TestCase):
     def setUp(self):
