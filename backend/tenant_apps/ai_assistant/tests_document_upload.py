@@ -44,6 +44,7 @@ class AIDocumentUploadTests(APITestCase):
         self.client.force_login(self.user)
         self.session = ChatSession.objects.create(
             title='Upload Session',
+            tenant=self.tenant,
             context_data={'tenant_id': str(self.tenant.id)},
             owner=self.user,
             created_by=self.user,
@@ -143,6 +144,7 @@ class AIDocumentUploadTests(APITestCase):
         TenantUser.objects.create(tenant=other_tenant, user=self.user, role='owner', is_active=True)
         other_session = ChatSession.objects.create(
             title='Upload Session B',
+            tenant=other_tenant,
             context_data={'tenant_id': str(other_tenant.id)},
             owner=self.user,
             created_by=self.user,
