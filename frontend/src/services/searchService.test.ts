@@ -1,5 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+const mockBusinessApi = vi.hoisted(() => ({
+  get: vi.fn(),
+  post: vi.fn(),
+}));
+
+vi.mock('./businessApi', () => ({
+  businessApi: mockBusinessApi,
+}));
+
 import {
   getRecentItems,
   getSearchColorVar,
@@ -11,14 +20,6 @@ import {
   searchUniversal,
   trackRecentItem,
 } from './searchService';
-import { apiClient } from './apiService';
-
-vi.mock('./apiService', () => ({
-  apiClient: {
-    get: vi.fn(),
-    post: vi.fn(),
-  },
-}));
 
 describe('searchService', () => {
   beforeEach(() => {
@@ -59,7 +60,7 @@ describe('searchService', () => {
   });
 
   it('requests ranked search and normalizes aliased types and counts', async () => {
-    vi.mocked(apiClient.get).mockResolvedValueOnce({
+    mockBusinessApi.get.mockResolvedValueOnce({
       data: {
         query: 'po',
         total: 1,
@@ -68,9 +69,13 @@ describe('searchService', () => {
       },
     });
 
-    const response = await searchRanked({ query: 'po', entityTypes: ['purchase_order'], limit: 8 });
+    const response = await searchRanked({
+      query: 'po',
+      entityTypes: ['purchase_order'],
+      limit: 8,
+    });
 
-    expect(apiClient.get).toHaveBeenCalledWith('system/search/ranked/', {
+    expect(mockBusinessApi.get).toHaveBeenCalledWith('/system/search/ranked/', {
       params: {
         q: 'po',
         date_range: 'all',
@@ -83,7 +88,7 @@ describe('searchService', () => {
   });
 
   it('uses universal search for continuous results', async () => {
-    vi.mocked(apiClient.get).mockResolvedValueOnce({
+    mockBusinessApi.get.mockResolvedValueOnce({
       data: {
         query: 'ac',
         total: 1,
@@ -94,7 +99,7 @@ describe('searchService', () => {
 
     const results = await searchContinuous({ query: 'ac', entityType: 'customers' });
 
-    expect(apiClient.get).toHaveBeenCalledWith('search/universal/', {
+    expect(mockBusinessApi.get).toHaveBeenCalledWith('/search/universal/', {
       params: {
         q: 'ac',
         limit: 20,
@@ -105,7 +110,7 @@ describe('searchService', () => {
   });
 
   it('normalizes recent items and tracks canonical recent entity types', async () => {
-    vi.mocked(apiClient.get).mockResolvedValueOnce({
+    mockBusinessApi.get.mockResolvedValueOnce({
       data: {
         items: [{ id: 5, type: 'so', title: 'SO-5' }],
       },
@@ -115,7 +120,7 @@ describe('searchService', () => {
     await trackRecentItem({ type: 'so', id: '5', title: 'SO-5' });
 
     expect(items[0]).toMatchObject({ type: 'sales_order', route: '/sales-orders/5' });
-    expect(apiClient.post).toHaveBeenCalledWith('search/recent/', {
+    expect(mockBusinessApi.post).toHaveBeenCalledWith('/search/recent/', {
       entity_type: 'sales_order',
       entity_id: '5',
       title: 'SO-5',
@@ -123,12 +128,22 @@ describe('searchService', () => {
   });
 
   it('prefers explicit color vars and metadata colors when present', () => {
-    expect(getSearchColorVar({ type: 'supplier', colorVar: '--color-info' })).toBe('--color-info');
-    expect(getSearchColorVar({ type: 'supplier', metadata: { color: 'warning' } })).toBe('--color-warning');
+    expect(
+      getSearchColorVar({
+        type: 'supplier',
+        colorVar: '--color-info',
+      })
+    ).toBe('--color-info');
+    expect(
+      getSearchColorVar({
+        type: 'supplier',
+        metadata: { color: 'warning' },
+      })
+    ).toBe('--color-warning');
   });
 
   it('normalizes universal search responses', async () => {
-    vi.mocked(apiClient.get).mockResolvedValueOnce({
+    mockBusinessApi.get.mockResolvedValueOnce({
       data: {
         query: 'acme',
         total: 1,
@@ -137,7 +152,11 @@ describe('searchService', () => {
       },
     });
 
-    const response = await searchUniversal({ query: 'acme', entityTypes: ['suppliers'], limit: 5 });
+    const response = await searchUniversal({
+      query: 'acme',
+      entityTypes: ['suppliers'],
+      limit: 5,
+    });
 
     expect(response.counts).toEqual({ supplier: 1 });
     expect(response.results[0]).toMatchObject({ type: 'supplier', title: 'Acme Meats' });

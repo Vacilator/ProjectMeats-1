@@ -5,8 +5,8 @@
  * Call from browser console: searchDiagnostic()
  */
 
-import { apiClient } from '../services/apiService';
 import { logger } from '@/utils/logger';
+import { searchUniversal } from '@/services/searchService';
 
 
 export const searchDiagnostic = async (query: string = 'test') => {
@@ -16,31 +16,27 @@ export const searchDiagnostic = async (query: string = 'test') => {
     logger.debug('1. Testing search endpoint...');
     logger.debug('   Query:', query);
     
-    const response = await apiClient.get('/search/universal/', {
-      params: { q: query, limit: 10 }
-    });
+    const response = await searchUniversal({ query, limit: 10 });
     
     logger.debug('2. Response received:', response);
-    logger.debug('   Status:', response.status);
-    logger.debug('   Data:', response.data);
     
-    if (response.data.results) {
-      logger.debug('3. Results found:', response.data.results.length);
-      logger.debug('   Results by type:', response.data.counts);
+    if (response.results) {
+      logger.debug('3. Results found:', response.results.length);
+      logger.debug('   Results by type:', response.counts);
       
-      if (response.data.results.length === 0) {
+      if (response.results.length === 0) {
         logger.warn('⚠️ No results found. Possible reasons:');
         logger.warn('   - No data in database for current tenant');
         logger.warn('   - Search term too specific');
         logger.warn('   - Tenant context not set properly');
       } else {
         logger.debug('✅ Search working! Sample results:');
-        response.data.results.slice(0, 3).forEach((r: any) => {
+        response.results.slice(0, 3).forEach((r) => {
           logger.debug(`   - ${r.type}: ${r.title}`);
         });
       }
     } else {
-      logger.error('❌ Invalid response format:', response.data);
+      logger.error('❌ Invalid response format:', response);
     }
     
   } catch (error: any) {

@@ -8,26 +8,25 @@ import { BrowserRouter } from 'react-router-dom';
 import React from 'react';
 import { CockpitNavigationProvider } from '../../contexts/CockpitNavigationContext';
 
-// Mock axios with create method
-vi.mock('axios', () => ({
-  default: {
-    create: () => ({
-      get: vi.fn().mockResolvedValue({ data: { results: [] } }),
-      post: vi.fn().mockResolvedValue({ data: {} }),
-      interceptors: {
-        request: { use: vi.fn() },
-        response: { use: vi.fn() },
-      },
-    }),
-    get: vi.fn().mockResolvedValue({ data: { results: [] } }),
-  },
-}));
-
-// Mock apiService to avoid axios issues
-vi.mock('../../../services/apiService', () => ({
-  apiService: {
+vi.mock('@/services/searchService', () => ({
+  getRecentItems: vi.fn().mockResolvedValue([]),
+  getSearchColorVar: vi.fn().mockReturnValue('--color-info'),
+  searchRanked: vi.fn().mockResolvedValue({
+    query: '',
+    results: [],
+    counts: {},
+    total: 0,
+  }),
+  trackRecentItem: vi.fn().mockResolvedValue(undefined),
+  searchService: {
     getRecentItems: vi.fn().mockResolvedValue([]),
-    searchEntities: vi.fn().mockResolvedValue({ results: [] }),
+    searchRanked: vi.fn().mockResolvedValue({
+      query: '',
+      results: [],
+      counts: {},
+      total: 0,
+    }),
+    trackRecentItem: vi.fn().mockResolvedValue(undefined),
   },
 }));
 
