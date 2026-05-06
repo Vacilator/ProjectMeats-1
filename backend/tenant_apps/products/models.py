@@ -34,6 +34,14 @@ class MasterProduct(TenantAwareModel):
     item_name = models.CharField(max_length=100)
     type = models.CharField(max_length=20, choices=TYPE_CHOICES)
     trim = models.CharField(max_length=30, choices=TRIM_CHOICES)
+    system_product = models.ForeignKey(
+        'system.Product',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='master_products',
+        help_text='Explicit bridge to the shared system product used for availability routing.',
+    )
 
     display_name = models.CharField(max_length=255, editable=False)
     is_active = models.BooleanField(default=True)

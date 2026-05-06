@@ -19,7 +19,8 @@ from tenant_apps.inquiries.models import (
 )
 from tenant_apps.inquiries.serializers import InquiryCreateSerializer, InquiryDetailSerializer
 from tenant_apps.products.models import MasterProduct
-from tenant_apps.suppliers.models import Supplier
+from tenant_apps.suppliers.models import Supplier, SupplierAvailableItem
+from apps.system.models import Product
 from tenant_apps.customers.models import Customer
 from apps.integrations.models import EmailLog, ExternalAuthProvider
 from apps.tenants.models import Tenant, TenantUser
@@ -278,6 +279,24 @@ class InquiryTradingContractSerializerTest(TestCase):
             type='whole',
             trim='trimmed',
         )
+        cls.system_product = Product.objects.create(
+            product_code=f'BEEF-BRISKET-{unique_id}',
+            name='Brisket',
+            protein_type='beef',
+            category='BEEF',
+        )
+        cls.master_product.system_product = cls.system_product
+        cls.master_product.save(update_fields=['system_product'])
+        cls.fulfill_supplier = Supplier.objects.create(
+            tenant=cls.tenant,
+            name=f'Contract Supplier {unique_id}',
+        )
+        SupplierAvailableItem.objects.create(
+            tenant=cls.tenant,
+            supplier=cls.fulfill_supplier,
+            product=cls.system_product,
+            is_active=True,
+        )
         cls.provider = ExternalAuthProvider.objects.create(
             tenant=cls.tenant,
             provider_type='microsoft',
@@ -341,7 +360,7 @@ class InquiryTradingContractSerializerTest(TestCase):
                 'source_type': InquirySourceChoices.EMAIL,
                 'source_email': self.email_log.id,
                 'requested_master_product': self.master_product.id,
-                'route_decision': InquiryRouteDecisionChoices.FULFILL,
+                'route_decision': InquiryRouteDecisionChoices.BROKER,
             },
             context={'request': SimpleNamespace(tenant=self.tenant, user=self.user)},
         )
@@ -360,6 +379,30 @@ class InquiryTradingContractSerializerTest(TestCase):
             inquiry.requested_protein,
             self.master_product.protein,
         )
+        self.assertEqual(inquiry.route_decision, InquiryRouteDecisionChoices.FULFILL)
+
+    def test_create_serializer_routes_broker_when_master_product_is_unmapped(self):
+        unmapped_master_product = MasterProduct.objects.create(
+            tenant=self.tenant,
+            protein='beef',
+            item_name='Chuck',
+            type='whole',
+            trim='trimmed',
+        )
+        serializer = InquiryCreateSerializer(
+            data={
+                'entity_type': InquiryEntityTypeChoices.CUSTOMER,
+                'customer': self.customer.id,
+                'source_type': InquirySourceChoices.EMAIL,
+                'source_email': self.email_log.id,
+                'requested_master_product': unmapped_master_product.id,
+            },
+            context={'request': SimpleNamespace(tenant=self.tenant, user=self.user)},
+        )
+
+        self.assertTrue(serializer.is_valid(), serializer.errors)
+        inquiry = serializer.save()
+        self.assertEqual(inquiry.route_decision, InquiryRouteDecisionChoices.BROKER)
 
     def test_create_serializer_rejects_cross_tenant_contract_references(self):
         serializer = InquiryCreateSerializer(
