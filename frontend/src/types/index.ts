@@ -477,6 +477,7 @@ export type InquiryEntityType = 'supplier' | 'customer';
  * Inquiry source choices
  */
 export type InquirySource = 'scheduled_call' | 'inbound_call' | 'email' | 'website' | 'referral' | 'trade_show' | 'other';
+export type InquiryRouteDecision = '' | 'FULFILL' | 'BROKER';
 
 /**
  * InquiryProduct - line items with desired vs actual values
@@ -526,6 +527,7 @@ export interface Inquiry {
   tenant: string;
   inquiry_number: string;
   status: InquiryStatus;
+  route_decision?: InquiryRouteDecision;
   entity_type: InquiryEntityType;
   shipping_type?: ShippingType;
   supplier?: string;
@@ -542,6 +544,9 @@ export interface Inquiry {
   contact_snapshot_position?: string;
   // Source tracking
   source: InquirySource;
+  source_email_message_id?: string;
+  source_email_thread_id?: string;
+  requested_protein?: string;
   scheduled_call?: string;
   // Products (through InquiryProduct)
   products: InquiryProduct[];
@@ -629,6 +634,7 @@ export interface InquiryListItem {
   id: string;
   inquiry_number: string;
   status: InquiryStatus;
+  route_decision?: InquiryRouteDecision;
   entity_type: InquiryEntityType;
   shipping_type?: ShippingType;
   supplier_name?: string;

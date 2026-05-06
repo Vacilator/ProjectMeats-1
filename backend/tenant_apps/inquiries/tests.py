@@ -24,6 +24,8 @@ from apps.system.models import Product
 from tenant_apps.customers.models import Customer
 from apps.integrations.models import EmailLog, ExternalAuthProvider
 from apps.tenants.models import Tenant, TenantUser
+from tenant_apps.ai_assistant.models import AIFeedbackLog
+from tenant_apps.workflows.models import UserNotification
 
 
 class InquiryModelTest(TestCase):
@@ -435,6 +437,95 @@ class InquiryTradingContractSerializerTest(TestCase):
             'carrier_purchase_order',
         ):
             self.assertIn(field_name, field_names)
+
+
+class InquiryAlertingSignalTests(TestCase):
+    def setUp(self):
+        unique_id = uuid.uuid4().hex[:8]
+        self.user = User.objects.create_user(
+            username=f'inquiry-alert-{unique_id}',
+            email=f'inquiry-alert-{unique_id}@example.com',
+            password='testpass123',
+            is_staff=True,
+        )
+        self.tenant = Tenant.objects.create(
+            name=f'Inquiry Alert Tenant {unique_id}',
+            slug=f'inquiry-alert-tenant-{unique_id}',
+            contact_email=f'inquiry-alert-{unique_id}@example.com',
+            created_by=self.user,
+        )
+        TenantUser.objects.create(tenant=self.tenant, user=self.user, role='admin', is_active=True)
+        self.customer = Customer.objects.create(name=f'Alert Customer {unique_id}', tenant=self.tenant)
+
+        other_user = User.objects.create_user(
+            username=f'inquiry-alert-other-{unique_id}',
+            email=f'inquiry-alert-other-{unique_id}@example.com',
+            password='testpass123',
+            is_staff=True,
+        )
+        other_tenant = Tenant.objects.create(
+            name=f'Inquiry Alert Other {unique_id}',
+            slug=f'inquiry-alert-other-{unique_id}',
+            contact_email=f'inquiry-alert-other-{unique_id}@example.com',
+            created_by=other_user,
+        )
+        TenantUser.objects.create(tenant=other_tenant, user=other_user, role='admin', is_active=True)
+
+    def test_create_inquiry_emits_notification_and_review_queue(self):
+        with self.captureOnCommitCallbacks(execute=True):
+            inquiry = Inquiry.objects.create(
+                tenant=self.tenant,
+                entity_type=InquiryEntityTypeChoices.CUSTOMER,
+                customer=self.customer,
+                source_type=InquirySourceChoices.EMAIL,
+                route_decision=InquiryRouteDecisionChoices.BROKER,
+                created_by=self.user,
+            )
+
+        notification = UserNotification.objects.get(tenant=self.tenant, user=self.user)
+        feedback = AIFeedbackLog.objects.get(tenant=self.tenant, document_type='inquiry')
+
+        self.assertEqual(notification.entity_type, 'inquiry')
+        self.assertIsNone(notification.entity_id)
+        self.assertEqual(notification.metadata['inquiry_id'], inquiry.id)
+        self.assertEqual(
+            notification.action_url,
+            f'/inquiries?review=inquiry&inquiry={inquiry.id}',
+        )
+        self.assertEqual(feedback.original_extracted_data['review_target_url'], notification.action_url)
+        self.assertEqual(UserNotification.objects.count(), 1)
+
+    def test_route_change_reopens_review_queue_without_spam_on_unrelated_save(self):
+        with self.captureOnCommitCallbacks(execute=True):
+            inquiry = Inquiry.objects.create(
+                tenant=self.tenant,
+                entity_type=InquiryEntityTypeChoices.CUSTOMER,
+                customer=self.customer,
+                source_type=InquirySourceChoices.EMAIL,
+                route_decision=InquiryRouteDecisionChoices.BROKER,
+                created_by=self.user,
+            )
+
+        feedback = AIFeedbackLog.objects.get(tenant=self.tenant, document_type='inquiry')
+        feedback.resolved_by = self.user
+        feedback.save(update_fields=['resolved_by'])
+
+        with self.captureOnCommitCallbacks(execute=True):
+            inquiry.contact_name = 'Updated Reviewer'
+            inquiry.save(update_fields=['contact_name'])
+
+        self.assertEqual(UserNotification.objects.count(), 1)
+        feedback.refresh_from_db()
+        self.assertEqual(feedback.resolved_by, self.user)
+
+        with self.captureOnCommitCallbacks(execute=True):
+            inquiry.route_decision = InquiryRouteDecisionChoices.FULFILL
+            inquiry.save(update_fields=['route_decision'])
+
+        self.assertEqual(UserNotification.objects.count(), 2)
+        feedback.refresh_from_db()
+        self.assertIsNone(feedback.resolved_by)
+        self.assertEqual(feedback.original_extracted_data['route_decision'], InquiryRouteDecisionChoices.FULFILL)
 
 
 class InquiryTemplateModelTest(TestCase):

@@ -11,12 +11,12 @@
  */
 import React, { useState } from 'react';
 import styled from 'styled-components';
-import { apiClient } from '../../services/apiService';
 import { 
   Inquiry, 
   InquiryProduct,
   InquiryStatus,
 } from '../../types';
+import { inquiryService } from '../../services/inquiryService';
 import { CreateFulfillmentModal } from '../Fulfillment';
 import { InquiryModalContainer, InquiryModalOverlay } from './InquiryModalFrame';
 import {
@@ -33,6 +33,7 @@ interface InquiryDetailModalProps {
   isOpen: boolean;
   onClose: () => void;
   inquiry: Inquiry | null;
+  reviewMode?: boolean;
   onUpdate?: (inquiry: Inquiry) => void;
   onClone?: (inquiry: Inquiry) => void;
 }
@@ -354,6 +355,26 @@ const EmptyNotes = styled.div`
   font-style: italic;
 `;
 
+const ReviewBanner = styled.div`
+  margin-bottom: 1.5rem;
+  padding: 1rem 1.25rem;
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(var(--color-warning), 0.4);
+  background: rgba(var(--color-warning), 0.12);
+  color: rgb(var(--color-text-primary));
+
+  strong {
+    display: block;
+    margin-bottom: 0.25rem;
+  }
+
+  span {
+    display: block;
+    font-size: 0.875rem;
+    color: rgb(var(--color-text-secondary));
+  }
+`;
+
 // ============================================================================
 // Component
 // ============================================================================
@@ -362,6 +383,7 @@ export const InquiryDetailModal: React.FC<InquiryDetailModalProps> = ({
   isOpen,
   onClose,
   inquiry,
+  reviewMode = false,
   onUpdate,
   onClone,
 }) => {
@@ -373,11 +395,9 @@ export const InquiryDetailModal: React.FC<InquiryDetailModalProps> = ({
   const handleStatusUpdate = async (newStatus: InquiryStatus) => {
     setUpdatingStatus(true);
     try {
-      const response = await apiClient.post(`inquiries/${inquiry.id}/update-status/`, {
-        status: newStatus,
-      });
+      const response = await inquiryService.updateInquiryStatus(String(inquiry.id), newStatus);
       if (onUpdate) {
-        onUpdate(response.data);
+        onUpdate(response);
       }
     } catch (err) {
       console.error('Failed to update status:', err);
@@ -386,11 +406,10 @@ export const InquiryDetailModal: React.FC<InquiryDetailModalProps> = ({
     }
   };
 
-  const handleFulfillmentSuccess = (fulfillment: any) => {
+  const handleFulfillmentSuccess = () => {
     setShowFulfillmentModal(false);
     // Update inquiry status to fulfilled
     handleStatusUpdate('fulfilled');
-    console.log('Fulfillment created:', fulfillment.fulfillment_number);
   };
 
   const canCreateFulfillment = inquiry.status === 'accepted';
@@ -405,7 +424,7 @@ export const InquiryDetailModal: React.FC<InquiryDetailModalProps> = ({
   return (
     <>
       <InquiryModalOverlay $open={isOpen} onClick={onClose}>
-        <InquiryModalContainer $maxWidth={900} onClick={(e) => e.stopPropagation()}>
+        <InquiryModalContainer data-testid="inquiry-detail-modal" $maxWidth={900} onClick={(e) => e.stopPropagation()}>
           <ModalHeader>
             <HeaderLeft>
               <ModalTitle>
@@ -420,6 +439,13 @@ export const InquiryDetailModal: React.FC<InquiryDetailModalProps> = ({
           </ModalHeader>
 
           <ModalBody>
+            {reviewMode && (
+              <ReviewBanner>
+                <strong>Action Required</strong>
+                <span>Review the route decision and source provenance before changing inquiry status.</span>
+              </ReviewBanner>
+            )}
+
             {/* Status & Actions */}
             <Section>
               <SectionHeader>
@@ -497,6 +523,18 @@ export const InquiryDetailModal: React.FC<InquiryDetailModalProps> = ({
                 <InfoItem>
                   <span className="label">Source</span>
                   <span className="value">{inquiry.source.replace(/_/g, ' ')}</span>
+                </InfoItem>
+                <InfoItem>
+                  <span className="label">Route Decision</span>
+                  <span className="value">{inquiry.route_decision || 'BROKER'}</span>
+                </InfoItem>
+                <InfoItem>
+                  <span className="label">Requested Protein</span>
+                  <span className="value">{inquiry.requested_protein || '-'}</span>
+                </InfoItem>
+                <InfoItem>
+                  <span className="label">Source Email Message ID</span>
+                  <span className="value">{inquiry.source_email_message_id || '-'}</span>
                 </InfoItem>
                 <InfoItem>
                   <span className="label">Valid Until</span>

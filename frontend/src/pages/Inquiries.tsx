@@ -11,7 +11,7 @@
  * - Clone existing inquiries
  * - Create from templates
  */
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Skeleton } from 'antd';
 import styled from 'styled-components';
@@ -19,10 +19,10 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { logger } from '@/utils/logger';
 import { withTenantQueryKey } from '@/utils/queryKeys';
 import { showAlert } from '@/utils/uiDialogs';
-import { apiClient } from '../services/apiService';
 import { InquiryListItem, InquiryStatus, InquiryTemplateListItem } from '../types';
 import { InquiryDetailModal, CloneInquiryModal } from '../components/Inquiry';
 import { EntityFormSurface } from '../components/Shared';
+import { inquiryService } from '../services/inquiryService';
 
 // ============================================================================
 // Styled Components
@@ -457,6 +457,7 @@ const Inquiries: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const didInitFromStateRef = useRef(false);
+  const didInitReviewRef = useRef<string | null>(null);
 
   const [prefillEntityType, setPrefillEntityType] = useState<'customer' | 'supplier' | undefined>(undefined);
   const [prefillEntityId, setPrefillEntityId] = useState<string | undefined>(undefined);
@@ -474,7 +475,7 @@ const Inquiries: React.FC = () => {
     () => ({
       queryKey: withTenantQueryKey('inquiries', page, pageSize, search, statusFilter, entityTypeFilter),
       queryFn: async () => {
-        const params: Record<string, any> = {
+        const params: Record<string, unknown> = {
           page,
           page_size: pageSize,
         };
@@ -483,11 +484,7 @@ const Inquiries: React.FC = () => {
         if (statusFilter) params.status = statusFilter;
         if (entityTypeFilter) params.entity_type = entityTypeFilter;
 
-        const response = await apiClient.get('inquiries/', { params });
-        const data = response.data;
-        const items: InquiryListItem[] = data.results || data;
-        const count: number = data.count || (Array.isArray(items) ? items.length : 0);
-        return { items, count };
+        return inquiryService.listInquiries(params);
       },
     }),
     [entityTypeFilter, page, pageSize, search, statusFilter]
@@ -510,16 +507,20 @@ const Inquiries: React.FC = () => {
   const [selectedInquiry, setSelectedInquiry] = useState<any | null>(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [showCloneModal, setShowCloneModal] = useState(false);
+  const [detailReviewMode, setDetailReviewMode] = useState(false);
   
   // Templates
   const [templates, setTemplates] = useState<InquiryTemplateListItem[]>([]);
   const [showTemplateMenu, setShowTemplateMenu] = useState(false);
+  const reviewSearchParams = useMemo(() => new URLSearchParams(location.search), [location.search]);
+  const reviewInquiryId = reviewSearchParams.get('inquiry');
+  const isReviewLink = reviewSearchParams.get('review') === 'inquiry';
 
   
   // Fetch templates on mount
   useEffect(() => {
-    apiClient.get('inquiry-templates/', { params: { is_active: true } })
-      .then(res => setTemplates(res.data.results || res.data))
+    inquiryService.listInquiryTemplates()
+      .then(setTemplates)
       .catch(console.error);
   }, []);
 
@@ -540,15 +541,49 @@ const Inquiries: React.FC = () => {
     }
   }, [location.pathname, location.state, navigate]);
 
-  const handleRowClick = async (inquiry: InquiryListItem) => {
+  const clearReviewParams = useCallback(() => {
+    if (!isReviewLink && !reviewInquiryId) {
+      return;
+    }
+
+    const params = new URLSearchParams(location.search);
+    params.delete('review');
+    params.delete('inquiry');
+    navigate(
+      {
+        pathname: location.pathname,
+        search: params.toString() ? `?${params.toString()}` : '',
+      },
+      { replace: true, state: location.state }
+    );
+  }, [isReviewLink, location.pathname, location.search, location.state, navigate, reviewInquiryId]);
+
+  const openInquiryDetail = useCallback(async (inquiryId: string, reviewMode = false) => {
     try {
-      // Fetch full inquiry details
-      const response = await apiClient.get(`inquiries/${inquiry.id}/`);
-      setSelectedInquiry(response.data);
+      const detail = await inquiryService.getInquiryDetail(inquiryId);
+      setSelectedInquiry(detail);
+      setDetailReviewMode(reviewMode);
       setShowDetailModal(true);
     } catch (err) {
       console.error('Failed to fetch inquiry details:', err);
     }
+  }, []);
+
+  useEffect(() => {
+    if (!isReviewLink || !reviewInquiryId) {
+      didInitReviewRef.current = null;
+      return;
+    }
+    if (didInitReviewRef.current === reviewInquiryId) {
+      return;
+    }
+
+    didInitReviewRef.current = reviewInquiryId;
+    void openInquiryDetail(reviewInquiryId, true);
+  }, [isReviewLink, openInquiryDetail, reviewInquiryId]);
+
+  const handleRowClick = async (inquiry: InquiryListItem) => {
+    await openInquiryDetail(String(inquiry.id));
   };
 
   const handleCreateSuccess = () => {
@@ -562,6 +597,7 @@ const Inquiries: React.FC = () => {
   };
   
   const handleClone = (inquiry: any) => {
+    setDetailReviewMode(false);
     setSelectedInquiry(inquiry);
     setShowDetailModal(false);
     setShowCloneModal(true);
@@ -572,14 +608,16 @@ const Inquiries: React.FC = () => {
     void inquiriesQuery.refetch();
     // Open the newly cloned inquiry
     setSelectedInquiry(newInquiry);
+    setDetailReviewMode(false);
     setShowDetailModal(true);
   };
   
   const handleCreateFromTemplate = async (templateId: string) => {
     setShowTemplateMenu(false);
     try {
-      const response = await apiClient.post(`inquiries/from-template/${templateId}/`, {});
-      setSelectedInquiry(response.data);
+      const detail = await inquiryService.createInquiryFromTemplate(templateId);
+      setSelectedInquiry(detail);
+      setDetailReviewMode(false);
       setShowDetailModal(true);
       void inquiriesQuery.refetch();
     } catch (err) {
@@ -783,8 +821,13 @@ const Inquiries: React.FC = () => {
       {showDetailModal && selectedInquiry ? (
         <InquiryDetailModal
           isOpen={showDetailModal}
-          onClose={() => setShowDetailModal(false)}
+          onClose={() => {
+            setShowDetailModal(false);
+            setDetailReviewMode(false);
+            clearReviewParams();
+          }}
           inquiry={selectedInquiry}
+          reviewMode={detailReviewMode}
           onUpdate={handleUpdateInquiry}
           onClone={handleClone}
         />
