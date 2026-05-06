@@ -4,6 +4,7 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
+  formatCalendarDate,
   formatToLocal,
   formatDateLocal,
   formatTimeLocal,
@@ -70,6 +71,10 @@ describe('formatters', () => {
       const result = formatDateLocal('2026-12-25T12:00:00Z');
       expect(result).toMatch(/Dec\s+25,\s+2026/);
     });
+
+    it('preserves calendar dates for date-only values', () => {
+      expect(formatDateLocal('2026-03-10')).toBe('Mar 10, 2026');
+    });
   });
 
   describe('formatTimeLocal', () => {
@@ -106,6 +111,12 @@ describe('formatters', () => {
       // Should contain date and time with seconds
       expect(result).toMatch(/Jan\s+15,\s+2026/);
       expect(result).toMatch(/:\d{2}\s*(AM|PM)/i);
+    });
+  });
+
+  describe('formatCalendarDate', () => {
+    it('formats calendar dates without timezone drift', () => {
+      expect(formatCalendarDate('2026-01-08')).toBe('Jan 8, 2026');
     });
   });
 

@@ -15,6 +15,8 @@ import { OperationalDocumentActions } from '@/components/Operations/OperationalD
 import { EntityFormSurface } from '@/components/Shared';
 import { businessApi } from '@/services/businessApi';
 import { withTenantQueryKey } from '@/utils/queryKeys';
+import type { TradeTimelinePayload, TradeWeightPayload } from '@/utils/trade';
+import { formatTradeDate, formatTradeWeight } from '@/utils/trade';
 
 const { Text, Title } = Typography;
 
@@ -31,10 +33,10 @@ interface FreightOrder {
   type_of_protein?: string;
   quantity?: number | null;
   total_weight?: string | null;
+  weight_unit?: string | null;
+  trade_weight?: TradeWeightPayload | null;
+  trade_timeline?: TradeTimelinePayload;
 }
-
-const formatDate = (value?: string | null): string =>
-  value ? new Date(value).toLocaleDateString() : '—';
 
 const formatStatus = (value?: string): string =>
   String(value || 'draft')
@@ -80,13 +82,15 @@ const FreightOrders: React.FC = () => {
         title: 'Pickup Date',
         dataIndex: 'pick_up_date',
         key: 'pick_up_date',
-        render: (value: string | null | undefined) => formatDate(value),
+        render: (_value: string | null | undefined, record) =>
+          formatTradeDate(record.trade_timeline, 'pick_up_date', record.pick_up_date),
       },
       {
         title: 'Delivery Date',
         dataIndex: 'delivery_date',
         key: 'delivery_date',
-        render: (value: string | null | undefined) => formatDate(value),
+        render: (_value: string | null | undefined, record) =>
+          formatTradeDate(record.trade_timeline, 'delivery_date', record.delivery_date),
       },
       {
         title: 'Status',
@@ -225,13 +229,25 @@ const FreightOrders: React.FC = () => {
                 <Text>Carrier: {selectedOrder.carrier_name || '—'}</Text>
                 <Text>Protein: {selectedOrder.type_of_protein || '—'}</Text>
                 <Text>Quantity: {selectedOrder.quantity ?? '—'}</Text>
-                <Text>Total Weight: {selectedOrder.total_weight || '—'}</Text>
+                <Text>Total Weight: {formatTradeWeight(selectedOrder)}</Text>
               </Space>
             </Card>
             <Card size="small" title="Logistics">
               <Space direction="vertical" size={4}>
-                <Text>Pickup Date: {formatDate(selectedOrder.pick_up_date)}</Text>
-                <Text>Delivery Date: {formatDate(selectedOrder.delivery_date)}</Text>
+                <Text>
+                  Pickup Date: {formatTradeDate(
+                    selectedOrder.trade_timeline,
+                    'pick_up_date',
+                    selectedOrder.pick_up_date
+                  )}
+                </Text>
+                <Text>
+                  Delivery Date: {formatTradeDate(
+                    selectedOrder.trade_timeline,
+                    'delivery_date',
+                    selectedOrder.delivery_date
+                  )}
+                </Text>
                 <Text>Carrier Ref: {selectedOrder.our_carrier_po_num || '—'}</Text>
               </Space>
             </Card>

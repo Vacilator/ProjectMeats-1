@@ -10,6 +10,26 @@
  *   formatTimeLocal('2026-01-08T14:00:00Z') // → "9:00 AM"
  */
 
+const DATE_ONLY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+
+export const isDateOnlyString = (value: string): boolean => DATE_ONLY_PATTERN.test(value);
+
+export const formatCalendarDate = (dateString: string): string => {
+  const date = new Date(`${dateString}T00:00:00Z`);
+
+  if (isNaN(date.getTime())) {
+    console.warn('Invalid date string:', dateString);
+    return 'Invalid Date';
+  }
+
+  return new Intl.DateTimeFormat('en-US', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    timeZone: 'UTC',
+  }).format(date);
+};
+
 /**
  * Format UTC datetime to local timezone with full date and time
  * Format: "MMM d, yyyy h:mm a" (e.g., "Jan 8, 2026 9:00 AM")
@@ -48,6 +68,10 @@ export const formatDateLocal = (dateString: string | null | undefined): string =
   if (!dateString) return 'N/A';
   
   try {
+    if (isDateOnlyString(dateString)) {
+      return formatCalendarDate(dateString);
+    }
+
     const date = new Date(dateString);
     
     if (isNaN(date.getTime())) {
@@ -74,6 +98,10 @@ export const formatTimeLocal = (dateString: string | null | undefined): string =
   if (!dateString) return 'N/A';
   
   try {
+    if (isDateOnlyString(dateString)) {
+      return '12:00 AM';
+    }
+
     const date = new Date(dateString);
     
     if (isNaN(date.getTime())) {
@@ -100,6 +128,10 @@ export const formatToLocalWithSeconds = (dateString: string | null | undefined):
   if (!dateString) return 'N/A';
   
   try {
+    if (isDateOnlyString(dateString)) {
+      return formatCalendarDate(dateString);
+    }
+
     const date = new Date(dateString);
     
     if (isNaN(date.getTime())) {

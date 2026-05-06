@@ -23,6 +23,7 @@ import {
   isUsingJwt,
 } from './jwtService';
 import { ApiServiceError, createCircuitBreakerError } from './apiErrors';
+import type { TradeTimelinePayload, TradeWeightPayload } from '../utils/trade';
 
 // API Configuration
 const API_BASE_URL = config.API_BASE_URL;
@@ -686,6 +687,8 @@ export interface PurchaseOrder {
   logistics_scenario?: string;
   pick_up_location?: string | null; // Phase 4: Location UUID
   delivery_location?: string | null; // Phase 4: Location UUID
+  trade_weight?: TradeWeightPayload | null;
+  trade_timeline?: TradeTimelinePayload;
 }
 
 export interface Contact {
@@ -758,6 +761,8 @@ export interface Invoice {
   product?: number;
   pick_up_date?: string;
   delivery_date?: string;
+  trade_weight?: TradeWeightPayload | null;
+  trade_timeline?: TradeTimelinePayload;
   due_date?: string;
   our_sales_order_num?: string;
   delivery_po_num?: string;

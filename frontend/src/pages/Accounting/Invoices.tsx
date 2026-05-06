@@ -26,7 +26,8 @@ import {
 import { ActivityFeed, RecordPaymentModal, PaymentHistoryList, EntityFormSurface } from '../../components/Shared';
 import { apiClient } from '../../services/apiService';
 import { coerceFiniteNumber, formatCurrency } from '../../shared/utils';
-import { formatDateLocal, formatToLocal } from '../../utils/formatters';
+import type { TradeTimelinePayload, TradeWeightPayload } from '../../utils/trade';
+import { formatTradeDate, formatTradeWeight } from '../../utils/trade';
 
 // ============================================================================
 // TypeScript Interfaces
@@ -51,6 +52,10 @@ interface Invoice {
   created_by_name: string;
   created_on: string;
   updated_on: string;
+  total_weight?: string | null;
+  weight_unit?: string | null;
+  trade_weight?: TradeWeightPayload | null;
+  trade_timeline?: TradeTimelinePayload;
 }
 
 type InvoiceStatus = 'draft' | 'sent' | 'paid' | 'overdue' | 'cancelled';
@@ -599,8 +604,17 @@ const Invoices: React.FC = () => {
                         <TableCell>{invoice.invoice_number}</TableCell>
                         <TableCell>{invoice.customer_name || `Customer #${invoice.customer}`}</TableCell>
                         <TableCell>{invoice.our_sales_order_num || '-'}</TableCell>
-                        <TableCell>{formatDateLocal(invoice.date_time_stamp)}</TableCell>
-                        <TableCell>{invoice.due_date ? formatDateLocal(invoice.due_date) : '-'}</TableCell>
+                        <TableCell>
+                          {formatTradeDate(
+                            invoice.trade_timeline,
+                            'date_time_stamp',
+                            invoice.date_time_stamp,
+                            '-'
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {formatTradeDate(invoice.trade_timeline, 'due_date', invoice.due_date, '-')}
+                        </TableCell>
                         <TableCell>{formatCurrency(invoice.total_amount)}</TableCell>
                         <TableCell>
                           {formatCurrency(invoice.outstanding_amount || invoice.total_amount)}
@@ -654,14 +668,30 @@ const Invoices: React.FC = () => {
 
             <DetailSection>
               <DetailLabel>Invoice Date</DetailLabel>
-              <DetailValue>{formatDateLocal(selectedInvoice.date_time_stamp)}</DetailValue>
+              <DetailValue>
+                {formatTradeDate(
+                  selectedInvoice.trade_timeline,
+                  'date_time_stamp',
+                  selectedInvoice.date_time_stamp
+                )}
+              </DetailValue>
             </DetailSection>
 
             <DetailSection>
               <DetailLabel>Due Date</DetailLabel>
               <DetailValue>
-                {selectedInvoice.due_date ? formatDateLocal(selectedInvoice.due_date) : 'Not set'}
+                {formatTradeDate(
+                  selectedInvoice.trade_timeline,
+                  'due_date',
+                  selectedInvoice.due_date,
+                  'Not set'
+                )}
               </DetailValue>
+            </DetailSection>
+
+            <DetailSection>
+              <DetailLabel>Total Weight</DetailLabel>
+              <DetailValue>{formatTradeWeight(selectedInvoice)}</DetailValue>
             </DetailSection>
 
             <DetailSection>
