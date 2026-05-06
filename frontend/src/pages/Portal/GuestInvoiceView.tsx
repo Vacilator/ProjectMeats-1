@@ -1,17 +1,15 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
 import { Alert, Skeleton } from 'antd';
 import { useParams, useSearchParams } from 'react-router-dom';
 import styled from 'styled-components';
 
 import PortalPageShell from '../../components/Portal/PortalPageShell';
+import { usePortalGrantSnapshot } from '../../hooks/usePortalGrantSnapshot';
 import {
-  getPortalGrantSnapshot,
   PortalDocumentReference,
   PortalFulfillmentTracking,
   PortalGrantSnapshot,
   PortalInvoiceSummary,
-  PortalServiceError,
 } from '../../services/portalService';
 import { formatCurrency } from '../../shared/utils';
 
@@ -269,16 +267,10 @@ const GuestInvoiceView: React.FC = () => {
     }
   }, [portalToken, searchParams, setSearchParams, storageKey]);
 
-  const snapshotQuery = useQuery<PortalGrantSnapshot, PortalServiceError>({
-    queryKey: ['portal-grant-snapshot', tenantId, grantId, portalToken],
-    enabled: Boolean(tenantId && grantId && portalToken),
-    queryFn: () =>
-      getPortalGrantSnapshot({
-        tenantId,
-        grantId,
-        token: portalToken,
-      }),
-    retry: false,
+  const snapshotQuery = usePortalGrantSnapshot({
+    tenantId,
+    grantId,
+    token: portalToken,
   });
 
   useEffect(() => {
