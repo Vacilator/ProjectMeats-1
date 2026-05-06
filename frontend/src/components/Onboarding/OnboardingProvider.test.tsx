@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { OnboardingProvider, useOnboarding } from './OnboardingProvider';
-import { apiClient } from '../../services/apiService';
+import { userPreferencesService } from '../../services/userPreferencesService';
 
 const mockUseAuthState = vi.fn();
 
@@ -10,14 +10,14 @@ vi.mock('../../contexts/AuthContext', () => ({
   useAuthState: () => mockUseAuthState(),
 }));
 
-vi.mock('../../services/apiService', () => ({
-  apiClient: {
-    get: vi.fn(),
-    patch: vi.fn(),
+vi.mock('../../services/userPreferencesService', () => ({
+  userPreferencesService: {
+    getCurrent: vi.fn(),
+    updateCurrent: vi.fn(),
   },
 }));
 
-const mockedApiClient = vi.mocked(apiClient, true);
+const mockedUserPreferencesService = vi.mocked(userPreferencesService, true);
 
 const TestConsumer: React.FC = () => {
   const {
@@ -63,18 +63,14 @@ describe('OnboardingProvider', () => {
       loading: false,
     });
 
-    mockedApiClient.get.mockResolvedValue({
-      data: {
-        onboarding_state: {
-          completed_tours: [],
-          tour_statuses: {},
-        },
+    mockedUserPreferencesService.getCurrent.mockResolvedValue({
+      onboarding_state: {
+        completed_tours: [],
+        tour_statuses: {},
       },
     } as any);
 
-    mockedApiClient.patch.mockResolvedValue({
-      data: {},
-    } as any);
+    mockedUserPreferencesService.updateCurrent.mockResolvedValue({} as any);
   });
 
   afterEach(() => {
@@ -96,7 +92,7 @@ describe('OnboardingProvider', () => {
       expect(screen.getByTestId('completed')).toHaveTextContent('true');
     });
 
-    expect(mockedApiClient.patch).toHaveBeenCalledWith('/preferences/me/', {
+    expect(mockedUserPreferencesService.updateCurrent).toHaveBeenCalledWith({
       onboarding_state: {
         completed_tours: ['cockpit', 'workflow-editor'],
         tour_statuses: {

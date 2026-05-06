@@ -8,7 +8,7 @@ import React, {
   type ReactNode,
 } from 'react';
 import { useAuthState } from '../../contexts/AuthContext';
-import { apiClient } from '../../services/apiService';
+import { userPreferencesService } from '../../services/userPreferencesService';
 import { logger } from '../../utils/logger';
 
 const ONBOARDING_STORAGE_KEY = 'projectmeats_onboarding_state';
@@ -404,7 +404,7 @@ export const OnboardingProvider: React.FC<{ children: ReactNode }> = ({ children
       }
 
       try {
-        await apiClient.patch('/preferences/me/', {
+        await userPreferencesService.updateCurrent({
           onboarding_state: nextState,
         });
       } catch (error) {
@@ -434,9 +434,9 @@ export const OnboardingProvider: React.FC<{ children: ReactNode }> = ({ children
 
     const loadOnboardingState = async () => {
       try {
-        const response = await apiClient.get('/preferences/me/');
+        const preferences = await userPreferencesService.getCurrent();
         const nextState = mergeOnboardingState(
-          normalizeOnboardingState(response.data?.onboarding_state),
+          normalizeOnboardingState(preferences.onboarding_state),
           readLegacyOnboardingState(),
         );
         if (!isCancelled) {
