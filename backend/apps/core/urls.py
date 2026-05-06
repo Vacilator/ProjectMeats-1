@@ -100,6 +100,26 @@ urlpatterns = [
         portal_views.PortalFulfillmentTrackingView.as_view(),
         name="portal-fulfillment-tracking",
     ),
+    path(
+        "portal/targets/<str:entity_type>/<str:entity_id>/grants/",
+        portal_views.PortalGrantOperatorTargetView.as_view(),
+        name="portal-operator-target-grants",
+    ),
+    path(
+        "portal/grants/<uuid:grant_id>/resend/",
+        portal_views.PortalGrantResendView.as_view(),
+        name="portal-operator-grant-resend",
+    ),
+    path(
+        "portal/grants/<uuid:grant_id>/revoke/",
+        portal_views.PortalGrantRevokeView.as_view(),
+        name="portal-operator-grant-revoke",
+    ),
+    path(
+        "portal/grants/<uuid:grant_id>/history/",
+        portal_views.PortalGrantHistoryView.as_view(),
+        name="portal-operator-grant-history",
+    ),
 
     # Include router URLs
     path("", include(router.urls)),

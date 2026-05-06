@@ -11,6 +11,7 @@ import {
   TransactionalEmptyStateGuidanceItem,
 } from '@/components/Onboarding';
 import { AuditHistoryTimeline } from '@/components/Operations/AuditHistoryTimeline';
+import SharePortalLinkPanel from '@/components/Portal/SharePortalLinkPanel';
 import { OperationalDocumentActions } from '@/components/Operations/OperationalDocumentActions';
 import { EntityFormSurface } from '@/components/Shared';
 import { businessApi } from '@/services/businessApi';
@@ -49,6 +50,7 @@ const FreightOrders: React.FC = () => {
   const [selectedOrder, setSelectedOrder] = useState<FreightOrder | null>(null);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [editingOrderId, setEditingOrderId] = useState<string | null>(null);
+  const [portalAccessOrderId, setPortalAccessOrderId] = useState<string | null>(null);
 
   const freightOrdersQuery = useQuery({
     queryKey: withTenantQueryKey('freight-orders'),
@@ -215,6 +217,9 @@ const FreightOrders: React.FC = () => {
                   void freightOrdersQuery.refetch();
                 }}
               />
+              <Button onClick={() => setPortalAccessOrderId(String(selectedOrder.id))}>
+                Portal Access
+              </Button>
               <Button type="primary" onClick={() => setEditingOrderId(String(selectedOrder.id))}>
                 Edit
               </Button>
@@ -222,42 +227,50 @@ const FreightOrders: React.FC = () => {
             </Space>
           }
         >
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16 }}>
-            <Card size="small" title="General">
-              <Space direction="vertical" size={4}>
-                <Text>Status: {formatStatus(selectedOrder.status)}</Text>
-                <Text>Carrier: {selectedOrder.carrier_name || '—'}</Text>
-                <Text>Protein: {selectedOrder.type_of_protein || '—'}</Text>
-                <Text>Quantity: {selectedOrder.quantity ?? '—'}</Text>
-                <Text>Total Weight: {formatTradeWeight(selectedOrder)}</Text>
-              </Space>
-            </Card>
-            <Card size="small" title="Logistics">
-              <Space direction="vertical" size={4}>
-                <Text>
-                  Pickup Date: {formatTradeDate(
-                    selectedOrder.trade_timeline,
-                    'pick_up_date',
-                    selectedOrder.pick_up_date
-                  )}
-                </Text>
-                <Text>
-                  Delivery Date: {formatTradeDate(
-                    selectedOrder.trade_timeline,
-                    'delivery_date',
-                    selectedOrder.delivery_date
-                  )}
-                </Text>
-                <Text>Carrier Ref: {selectedOrder.our_carrier_po_num || '—'}</Text>
-              </Space>
-            </Card>
-            <Card size="small" title="Audit History">
-              <AuditHistoryTimeline
-                entityType="carrier_purchase_order"
-                entityId={selectedOrder.id}
-              />
-            </Card>
-          </div>
+          {portalAccessOrderId === String(selectedOrder.id) ? (
+            <SharePortalLinkPanel
+              entityType="freight-orders"
+              entityId={selectedOrder.id}
+              onBack={() => setPortalAccessOrderId(null)}
+            />
+          ) : (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16 }}>
+              <Card size="small" title="General">
+                <Space direction="vertical" size={4}>
+                  <Text>Status: {formatStatus(selectedOrder.status)}</Text>
+                  <Text>Carrier: {selectedOrder.carrier_name || '—'}</Text>
+                  <Text>Protein: {selectedOrder.type_of_protein || '—'}</Text>
+                  <Text>Quantity: {selectedOrder.quantity ?? '—'}</Text>
+                  <Text>Total Weight: {formatTradeWeight(selectedOrder)}</Text>
+                </Space>
+              </Card>
+              <Card size="small" title="Logistics">
+                <Space direction="vertical" size={4}>
+                  <Text>
+                    Pickup Date: {formatTradeDate(
+                      selectedOrder.trade_timeline,
+                      'pick_up_date',
+                      selectedOrder.pick_up_date
+                    )}
+                  </Text>
+                  <Text>
+                    Delivery Date: {formatTradeDate(
+                      selectedOrder.trade_timeline,
+                      'delivery_date',
+                      selectedOrder.delivery_date
+                    )}
+                  </Text>
+                  <Text>Carrier Ref: {selectedOrder.our_carrier_po_num || '—'}</Text>
+                </Space>
+              </Card>
+              <Card size="small" title="Audit History">
+                <AuditHistoryTimeline
+                  entityType="carrier_purchase_order"
+                  entityId={selectedOrder.id}
+                />
+              </Card>
+            </div>
+          )}
         </Card>
       ) : null}
 

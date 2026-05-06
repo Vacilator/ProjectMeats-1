@@ -23,6 +23,7 @@ import {
   TransactionalEmptyStateGuidance,
   TransactionalEmptyStateGuidanceItem,
 } from '../../components/Onboarding';
+import SharePortalLinkPanel from '../../components/Portal/SharePortalLinkPanel';
 import { ActivityFeed, RecordPaymentModal, PaymentHistoryList, EntityFormSurface } from '../../components/Shared';
 import { apiClient } from '../../services/apiService';
 import { coerceFiniteNumber, formatCurrency } from '../../shared/utils';
@@ -418,6 +419,7 @@ const Invoices: React.FC = () => {
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [showPortalAccess, setShowPortalAccess] = useState(false);
 
   // Fetch invoices
   const fetchInvoices = async () => {
@@ -636,124 +638,143 @@ const Invoices: React.FC = () => {
         {selectedInvoice && (
           <SidePanel>
             <SidePanelHeader>
-              <SidePanelTitle>{selectedInvoice.invoice_number}</SidePanelTitle>
+              <SidePanelTitle>
+                {showPortalAccess ? 'Portal Access' : selectedInvoice.invoice_number}
+              </SidePanelTitle>
               <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-                <RecordPaymentButton
-                  onClick={() =>
-                    navigate(`/records/invoice/${encodeURIComponent(String(selectedInvoice.id))}`)
-                  }
-                >
-                  Open Record
-                </RecordPaymentButton>
-                {selectedInvoice.status !== 'paid' && selectedInvoice.status !== 'cancelled' && (
-                  <RecordPaymentButton onClick={() => setShowPaymentModal(true)}>
-                    💰 Record Payment
-                  </RecordPaymentButton>
-                )}
+                {!showPortalAccess ? (
+                  <>
+                    <RecordPaymentButton
+                      onClick={() =>
+                        navigate(`/records/invoice/${encodeURIComponent(String(selectedInvoice.id))}`)
+                      }
+                    >
+                      Open Record
+                    </RecordPaymentButton>
+                    <RecordPaymentButton onClick={() => setShowPortalAccess(true)}>
+                      Portal Access
+                    </RecordPaymentButton>
+                    {selectedInvoice.status !== 'paid' && selectedInvoice.status !== 'cancelled' && (
+                      <RecordPaymentButton onClick={() => setShowPaymentModal(true)}>
+                        💰 Record Payment
+                      </RecordPaymentButton>
+                    )}
+                  </>
+                ) : null}
                 <CloseButton onClick={() => setSelectedInvoice(null)}>×</CloseButton>
               </div>
             </SidePanelHeader>
 
-            <DetailSection>
-              <DetailLabel>Customer</DetailLabel>
-              <DetailValue>
-                {selectedInvoice.customer_name || `Customer #${selectedInvoice.customer}`}
-              </DetailValue>
-            </DetailSection>
+            {showPortalAccess ? (
+              <SharePortalLinkPanel
+                entityType="invoice"
+                entityId={selectedInvoice.id}
+                onBack={() => setShowPortalAccess(false)}
+              />
+            ) : (
+              <>
+                <DetailSection>
+                  <DetailLabel>Customer</DetailLabel>
+                  <DetailValue>
+                    {selectedInvoice.customer_name || `Customer #${selectedInvoice.customer}`}
+                  </DetailValue>
+                </DetailSection>
 
-            <DetailSection>
-              <DetailLabel>Sales Order</DetailLabel>
-              <DetailValue>{selectedInvoice.our_sales_order_num || 'N/A'}</DetailValue>
-            </DetailSection>
+                <DetailSection>
+                  <DetailLabel>Sales Order</DetailLabel>
+                  <DetailValue>{selectedInvoice.our_sales_order_num || 'N/A'}</DetailValue>
+                </DetailSection>
 
-            <DetailSection>
-              <DetailLabel>Invoice Date</DetailLabel>
-              <DetailValue>
-                {formatTradeDate(
-                  selectedInvoice.trade_timeline,
-                  'date_time_stamp',
-                  selectedInvoice.date_time_stamp
+                <DetailSection>
+                  <DetailLabel>Invoice Date</DetailLabel>
+                  <DetailValue>
+                    {formatTradeDate(
+                      selectedInvoice.trade_timeline,
+                      'date_time_stamp',
+                      selectedInvoice.date_time_stamp
+                    )}
+                  </DetailValue>
+                </DetailSection>
+
+                <DetailSection>
+                  <DetailLabel>Due Date</DetailLabel>
+                  <DetailValue>
+                    {formatTradeDate(
+                      selectedInvoice.trade_timeline,
+                      'due_date',
+                      selectedInvoice.due_date,
+                      'Not set'
+                    )}
+                  </DetailValue>
+                </DetailSection>
+
+                <DetailSection>
+                  <DetailLabel>Total Weight</DetailLabel>
+                  <DetailValue>{formatTradeWeight(selectedInvoice)}</DetailValue>
+                </DetailSection>
+
+                <DetailSection>
+                  <DetailLabel>Financial Summary</DetailLabel>
+                  <DetailValue>
+                    <div>Total: {formatCurrency(selectedInvoice.total_amount)}</div>
+                    <div>
+                      Outstanding: {formatCurrency(selectedInvoice.outstanding_amount || selectedInvoice.total_amount)}
+                    </div>
+                  </DetailValue>
+                </DetailSection>
+
+                <DetailSection>
+                  <DetailLabel>Status</DetailLabel>
+                  <DetailValue>
+                    <StatusBadge status={selectedInvoice.status}>
+                      {selectedInvoice.status.toUpperCase()}
+                    </StatusBadge>
+                  </DetailValue>
+                </DetailSection>
+
+                {selectedInvoice.notes && (
+                  <DetailSection>
+                    <DetailLabel>Notes</DetailLabel>
+                    <DetailValue>{selectedInvoice.notes}</DetailValue>
+                  </DetailSection>
                 )}
-              </DetailValue>
-            </DetailSection>
 
-            <DetailSection>
-              <DetailLabel>Due Date</DetailLabel>
-              <DetailValue>
-                {formatTradeDate(
-                  selectedInvoice.trade_timeline,
-                  'due_date',
-                  selectedInvoice.due_date,
-                  'Not set'
-                )}
-              </DetailValue>
-            </DetailSection>
+                <DetailSection>
+                  <DetailLabel>Payment History</DetailLabel>
+                  <PaymentHistoryList
+                    entityType="invoice"
+                    entityId={selectedInvoice.id}
+                  />
+                </DetailSection>
 
-            <DetailSection>
-              <DetailLabel>Total Weight</DetailLabel>
-              <DetailValue>{formatTradeWeight(selectedInvoice)}</DetailValue>
-            </DetailSection>
+                <DetailSection>
+                  <DetailLabel>Activity Log</DetailLabel>
+                  <ActivityFeed
+                    entityType="invoice"
+                    entityId={selectedInvoice.id}
+                    showCreateForm={true}
+                    maxHeight="400px"
+                  />
+                </DetailSection>
 
-            <DetailSection>
-              <DetailLabel>Financial Summary</DetailLabel>
-              <DetailValue>
-                <div>Total: {formatCurrency(selectedInvoice.total_amount)}</div>
-                <div>
-                  Outstanding: {formatCurrency(selectedInvoice.outstanding_amount || selectedInvoice.total_amount)}
-                </div>
-              </DetailValue>
-            </DetailSection>
-
-            <DetailSection>
-              <DetailLabel>Status</DetailLabel>
-              <DetailValue>
-                <StatusBadge status={selectedInvoice.status}>
-                  {selectedInvoice.status.toUpperCase()}
-                </StatusBadge>
-              </DetailValue>
-            </DetailSection>
-
-            {selectedInvoice.notes && (
-              <DetailSection>
-                <DetailLabel>Notes</DetailLabel>
-                <DetailValue>{selectedInvoice.notes}</DetailValue>
-              </DetailSection>
+                <RecordPaymentModal
+                  isOpen={showPaymentModal}
+                  onClose={() => setShowPaymentModal(false)}
+                  entityType="invoice"
+                  entityId={selectedInvoice.id}
+                  entityReference={selectedInvoice.invoice_number}
+                  outstandingAmount={
+                    coerceFiniteNumber(
+                      selectedInvoice.outstanding_amount || selectedInvoice.total_amount
+                    ) ?? 0
+                  }
+                  onSuccess={() => {
+                    fetchInvoices();
+                    setShowPaymentModal(false);
+                  }}
+                />
+              </>
             )}
-
-            <DetailSection>
-              <DetailLabel>Payment History</DetailLabel>
-              <PaymentHistoryList
-                entityType="invoice"
-                entityId={selectedInvoice.id}
-              />
-            </DetailSection>
-
-            <DetailSection>
-              <DetailLabel>Activity Log</DetailLabel>
-              <ActivityFeed
-                entityType="invoice"
-                entityId={selectedInvoice.id}
-                showCreateForm={true}
-                maxHeight="400px"
-              />
-            </DetailSection>
-
-            <RecordPaymentModal
-              isOpen={showPaymentModal}
-              onClose={() => setShowPaymentModal(false)}
-              entityType="invoice"
-              entityId={selectedInvoice.id}
-              entityReference={selectedInvoice.invoice_number}
-              outstandingAmount={
-                coerceFiniteNumber(
-                  selectedInvoice.outstanding_amount || selectedInvoice.total_amount
-                ) ?? 0
-              }
-              onSuccess={() => {
-                fetchInvoices();
-                setShowPaymentModal(false);
-              }}
-            />
           </SidePanel>
         )}
       </ContentContainer>
