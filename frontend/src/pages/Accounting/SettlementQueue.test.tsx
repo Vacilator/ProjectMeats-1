@@ -75,6 +75,8 @@ describe('SettlementQueue', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /override \/ relink/i }));
 
+    expect(await screen.findByText('Override settlement event')).toBeInTheDocument();
+
     fireEvent.change(screen.getByRole('spinbutton', { name: /target record id/i }), {
       target: { value: '12' },
     });

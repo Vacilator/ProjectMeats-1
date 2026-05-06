@@ -9,7 +9,6 @@ import {
   Form,
   Input,
   InputNumber,
-  Modal,
   Select,
   Space,
   Table,
@@ -100,8 +99,7 @@ export const SettlementQueue: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string>('');
-  const [overrideOpen, setOverrideOpen] = useState(false);
-  const [rejectOpen, setRejectOpen] = useState(false);
+  const [activeAction, setActiveAction] = useState<'override' | 'reject' | null>(null);
   const [overrideForm] = Form.useForm();
   const [rejectForm] = Form.useForm();
 
@@ -188,7 +186,7 @@ export const SettlementQueue: React.FC = () => {
         review_note: values.review_note || '',
       });
       message.success('Settlement override applied.');
-      setOverrideOpen(false);
+      setActiveAction(null);
       overrideForm.resetFields();
       setSelectedEvent(null);
       await loadQueue();
@@ -211,7 +209,7 @@ export const SettlementQueue: React.FC = () => {
         review_note: values.review_note || '',
       });
       message.success('Settlement event rejected.');
-      setRejectOpen(false);
+      setActiveAction(null);
       rejectForm.resetFields();
       setSelectedEvent(null);
       await loadQueue();
@@ -282,13 +280,18 @@ export const SettlementQueue: React.FC = () => {
         <Drawer
           title={selectedEvent ? `Settlement event #${selectedEvent.id}` : 'Settlement event'}
           open={Boolean(selectedEvent)}
-          onClose={() => setSelectedEvent(null)}
+          onClose={() => {
+            setSelectedEvent(null);
+            setActiveAction(null);
+            overrideForm.resetFields();
+            rejectForm.resetFields();
+          }}
           size="large"
           extra={
             selectedEvent ? (
               <Space>
-                <Button onClick={() => setRejectOpen(true)}>Reject</Button>
-                <Button type="primary" onClick={() => setOverrideOpen(true)}>
+                <Button onClick={() => setActiveAction('reject')}>Reject</Button>
+                <Button type="primary" onClick={() => setActiveAction('override')}>
                   Override / Relink
                 </Button>
               </Space>
@@ -338,71 +341,79 @@ export const SettlementQueue: React.FC = () => {
                   {selectedRawPayload}
                 </Typography.Paragraph>
               </Card>
+
+              {activeAction === 'override' ? (
+                <Card size="small" title="Override settlement event">
+                  <Form
+                    form={overrideForm}
+                    layout="vertical"
+                    initialValues={{ target_type: 'invoice', target_id: undefined, review_note: '' }}
+                  >
+                    <Form.Item
+                      label="Target type"
+                      name="target_type"
+                      rules={[{ required: true, message: 'Select a target type.' }]}
+                    >
+                      <Select
+                        options={[
+                          { label: 'Invoice', value: 'invoice' },
+                          { label: 'Sales Order', value: 'sales_order' },
+                          { label: 'Purchase Order', value: 'purchase_order' },
+                        ]}
+                      />
+                    </Form.Item>
+                    <Form.Item
+                      label="Target record ID"
+                      name="target_id"
+                      rules={[{ required: true, message: 'Enter the target record id.' }]}
+                    >
+                      <InputNumber min={1} precision={0} style={{ width: '100%' }} />
+                    </Form.Item>
+                    <Form.Item label="Review note" name="review_note">
+                      <Input.TextArea rows={4} placeholder="Why this event was relinked" />
+                    </Form.Item>
+                    <Space>
+                      <Button
+                        onClick={() => {
+                          setActiveAction(null);
+                          overrideForm.resetFields();
+                        }}
+                      >
+                        Cancel
+                      </Button>
+                      <Button type="primary" loading={submitting} onClick={() => void handleOverride()}>
+                        Apply override
+                      </Button>
+                    </Space>
+                  </Form>
+                </Card>
+              ) : null}
+
+              {activeAction === 'reject' ? (
+                <Card size="small" title="Reject settlement event">
+                  <Form form={rejectForm} layout="vertical">
+                    <Form.Item label="Review note" name="review_note">
+                      <Input.TextArea rows={4} placeholder="Why this event should stay ignored" />
+                    </Form.Item>
+                    <Space>
+                      <Button
+                        onClick={() => {
+                          setActiveAction(null);
+                          rejectForm.resetFields();
+                        }}
+                      >
+                        Cancel
+                      </Button>
+                      <Button danger loading={submitting} onClick={() => void handleReject()}>
+                        Reject event
+                      </Button>
+                    </Space>
+                  </Form>
+                </Card>
+              ) : null}
             </Space>
           ) : null}
         </Drawer>
-
-        <Modal
-          title="Override settlement event"
-          open={overrideOpen}
-          onCancel={() => {
-            setOverrideOpen(false);
-            overrideForm.resetFields();
-          }}
-          onOk={() => void handleOverride()}
-          confirmLoading={submitting}
-          okText="Apply override"
-          destroyOnHidden
-        >
-          <Form
-            form={overrideForm}
-            layout="vertical"
-            initialValues={{ target_type: 'invoice', target_id: undefined, review_note: '' }}
-          >
-            <Form.Item
-              label="Target type"
-              name="target_type"
-              rules={[{ required: true, message: 'Select a target type.' }]}
-            >
-              <Select
-                options={[
-                  { label: 'Invoice', value: 'invoice' },
-                  { label: 'Sales Order', value: 'sales_order' },
-                  { label: 'Purchase Order', value: 'purchase_order' },
-                ]}
-              />
-            </Form.Item>
-            <Form.Item
-              label="Target record ID"
-              name="target_id"
-              rules={[{ required: true, message: 'Enter the target record id.' }]}
-            >
-              <InputNumber min={1} precision={0} style={{ width: '100%' }} />
-            </Form.Item>
-            <Form.Item label="Review note" name="review_note">
-              <Input.TextArea rows={4} placeholder="Why this event was relinked" />
-            </Form.Item>
-          </Form>
-        </Modal>
-
-        <Modal
-          title="Reject settlement event"
-          open={rejectOpen}
-          onCancel={() => {
-            setRejectOpen(false);
-            rejectForm.resetFields();
-          }}
-          onOk={() => void handleReject()}
-          confirmLoading={submitting}
-          okText="Reject event"
-          destroyOnHidden
-        >
-          <Form form={rejectForm} layout="vertical">
-            <Form.Item label="Review note" name="review_note">
-              <Input.TextArea rows={4} placeholder="Why this event should stay ignored" />
-            </Form.Item>
-          </Form>
-        </Modal>
       </Space>
     </AdminGuard>
   );
