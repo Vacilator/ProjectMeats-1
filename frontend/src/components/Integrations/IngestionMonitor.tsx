@@ -17,7 +17,7 @@ interface EmailLog {
   message_id: string;
   subject: string;
   sender: string;
-  status: 'logged' | 'ai_parsing' | 'order_created' | 'failed' | 'ignored';
+  status: 'logged' | 'ai_parsing' | 'order_created' | 'failed' | 'action_required' | 'ignored';
   provider_type: string | null;
   has_attachments: boolean;
   extracted_data: Record<string, any> | null;
@@ -40,8 +40,9 @@ const getStatusTag = (status: EmailLog['status']) => {
     logged: { color: 'blue', icon: <MailOutlined />, text: 'Logged' },
     ai_parsing: { color: 'processing', icon: <SyncOutlined spin />, text: 'AI Parsing' },
     order_created: { color: 'success', icon: <CheckCircleOutlined />, text: 'Order Created' },
+    action_required: { color: 'warning', icon: <ClockCircleOutlined />, text: 'Action Required' },
     failed: { color: 'error', icon: <ExclamationCircleOutlined />, text: 'Failed' },
-    ignored: { color: 'default', icon: <ClockCircleOutlined />, text: 'Ignored' },
+    ignored: { color: 'warning', icon: <ClockCircleOutlined />, text: 'Action Required' },
   };
 
   const config = statusConfig[status];
@@ -286,7 +287,7 @@ export const IngestionMonitor: React.FC = () => {
               {getStatusTag('logged')} New email received
               {getStatusTag('ai_parsing')} AI extracting order data
               {getStatusTag('order_created')} Order created successfully
-              {getStatusTag('ignored')} Low confidence, needs review
+              {getStatusTag('action_required')} Pending operator review
               {getStatusTag('failed')} Processing error
             </Space>
           </div>

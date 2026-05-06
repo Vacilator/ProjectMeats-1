@@ -1,7 +1,8 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Button, Card, Empty, Spin, Tabs, Tag } from 'antd';
 import { useNavigate, useParams } from 'react-router-dom';
 
+import { AIOverviewCard, EntityProfileHeader } from '@/components/Cockpit';
 import { EntityFormSurface } from '@/components/Shared';
 import { apiClient } from '@/services/apiService';
 
@@ -89,6 +90,8 @@ export const LocationDetailView: React.FC = () => {
 
   const locationId = String(id || '').trim();
 
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [editOpen, setEditOpen] = useState(false);
   const [loadingContacts, setLoadingContacts] = useState(false);
   const [contacts, setContacts] = useState<ContactRow[]>([]);
 
@@ -120,6 +123,42 @@ export const LocationDetailView: React.FC = () => {
     };
   }, [locationId]);
 
+  const handleNavigateToEntity = useCallback(
+    (entityType: string, entityId: string, _label: string) => {
+      const type = String(entityType || '').trim().toLowerCase();
+      const nextId = String(entityId || '').trim();
+      if (!type || !nextId) return;
+
+      if (type === 'customer') {
+        navigate(`/customers/${nextId}`);
+        return;
+      }
+
+      if (type === 'location') {
+        navigate(`/locations/${nextId}`);
+        return;
+      }
+
+      if (type === 'contact') {
+        navigate(`/records/contact/${encodeURIComponent(nextId)}`);
+        return;
+      }
+
+      if (type === 'supplier') {
+        navigate(`/suppliers/${nextId}`);
+        return;
+      }
+
+      if (type === 'plant') {
+        navigate(`/plants/${nextId}`);
+        return;
+      }
+
+      navigate(`/${type}/${nextId}`);
+    },
+    [navigate]
+  );
+
   const grouped = useMemo(() => {
     const buckets: Record<string, ContactRow[]> = {
       sales: [],
@@ -142,18 +181,37 @@ export const LocationDetailView: React.FC = () => {
           <Button onClick={() => navigate(-1)}>Back</Button>
           <div style={{ fontSize: 16, fontWeight: 700, color: 'rgb(var(--color-text-primary))' }}>Location</div>
         </div>
+
+        <Button type="primary" onClick={() => setEditOpen(true)} disabled={!locationId}>
+          Edit Location
+        </Button>
       </div>
 
       <div style={{ marginTop: 12 }}>
-        <EntityFormSurface
+        <AIOverviewCard entityType="location" entityId={locationId} />
+        <EntityProfileHeader
+          key={`${locationId}-${refreshKey}`}
           entityType="location"
-          mode="view"
-          variant="inline"
-          isOpen={true}
           entityId={locationId}
-          onClose={() => navigate('/customers')}
+          variant="full"
+          onNavigateToEntity={handleNavigateToEntity}
         />
       </div>
+
+      {locationId ? (
+        <EntityFormSurface
+          entityType="location"
+          mode="edit"
+          variant="modal"
+          isOpen={editOpen}
+          entityId={locationId}
+          onClose={() => setEditOpen(false)}
+          onSuccess={() => {
+            setEditOpen(false);
+            setRefreshKey((key) => key + 1);
+          }}
+        />
+      ) : null}
 
       <Card style={{ marginTop: 16 }} title="Contacts">
         {loadingContacts ? (

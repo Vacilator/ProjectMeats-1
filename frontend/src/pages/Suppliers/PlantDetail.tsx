@@ -39,7 +39,7 @@ export const PlantDetail: React.FC = () => {
   const pid = String(plantId || '').trim();
 
   const [refreshKey, setRefreshKey] = useState(0);
-  const [showEditModal, setShowEditModal] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
 
   const [loading, setLoading] = useState(true);
   const [supplier, setSupplier] = useState<SupplierRow | null>(null);
@@ -234,25 +234,26 @@ export const PlantDetail: React.FC = () => {
         </div>
 
         <div style={{ display: 'flex', gap: 8 }}>
-          <Button type="primary" onClick={() => setShowEditModal(true)} disabled={!pid || loading}>
+          <Button type="primary" onClick={() => setEditOpen(true)} disabled={!pid || loading}>
             Edit Plant
           </Button>
         </div>
       </div>
 
-      {showEditModal && pid && (
+      {pid ? (
         <EntityFormSurface
           entityType="plant"
           mode="edit"
+          variant="modal"
           entityId={pid}
-          isOpen={showEditModal}
-          onClose={() => setShowEditModal(false)}
+          isOpen={editOpen}
+          onClose={() => setEditOpen(false)}
           onSuccess={() => {
-            setShowEditModal(false);
-            setRefreshKey((k) => k + 1);
+            setEditOpen(false);
+            setRefreshKey((key) => key + 1);
           }}
         />
-      )}
+      ) : null}
 
       <div style={{ marginTop: 12 }}>
         {loading ? (

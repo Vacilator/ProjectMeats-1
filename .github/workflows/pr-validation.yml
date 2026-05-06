@@ -204,12 +204,12 @@ jobs:
         run: |
           set -euo pipefail
 
-          if grep -R -n "useQueries" frontend/src/features/system/; then
-            echo "❌ useQueries is banned in frontend/src/features/system/. Use the single-key fetch pattern instead." >&2
+          if grep -R -n "useQueries" frontend/src/components/Shared/ frontend/src/features/system/; then
+            echo "❌ useQueries is banned in form engine surfaces. Use the single-key fetch pattern instead." >&2
             exit 1
           fi
 
-          echo "✓ No useQueries usage found in frontend/src/features/system/"
+          echo "✓ No useQueries usage found in form engine surfaces"
 
       - name: Verify frontend standards
         working-directory: ./frontend

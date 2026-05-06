@@ -1,10 +1,31 @@
 import React from 'react';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 
 import { PlantDetail } from './PlantDetail';
+
+const entityFormSurfaceMock = vi.fn(
+  ({
+    entityType,
+    entityId,
+    mode,
+    variant,
+    isOpen,
+  }: {
+    entityType: string;
+    entityId?: string | number;
+    mode: string;
+    variant?: string;
+    isOpen?: boolean;
+  }) =>
+    isOpen ? (
+      <div data-testid="entity-form-surface">
+        {entityType}:{mode}:{variant || 'modal'}:{String(entityId || '')}
+      </div>
+    ) : null
+);
 
 vi.mock('@/components/Cockpit', () => ({
   EntityProfileHeader: () => <div data-testid="entity-profile-header" />,
@@ -25,7 +46,13 @@ vi.mock('@/components/Shared', () => ({
       {entityType}:{String(entityId)}
     </div>
   ),
-  EntityFormSurface: () => null,
+  EntityFormSurface: (props: {
+    entityType: string;
+    entityId?: string | number;
+    mode: string;
+    variant?: string;
+    isOpen?: boolean;
+  }) => entityFormSurfaceMock(props),
 }));
 
 const apiGet = vi.fn(async (url: string) => {
@@ -40,6 +67,10 @@ vi.mock('@/services/businessApi', () => ({
     get: (url: string, _config?: unknown) => apiGet(url),
   },
 }));
+
+beforeEach(() => {
+  entityFormSurfaceMock.mockClear();
+});
 
 describe('PlantDetail workflows tab', () => {
   it('renders an Automation tab that shows the entity workflow status panel', async () => {
@@ -90,5 +121,22 @@ describe('PlantDetail workflows tab', () => {
 
     await user.click(await screen.findByRole('tab', { name: /activity/i }));
     expect(await screen.findByTestId('activity-feed')).toHaveTextContent('plant:2');
+  });
+
+  it('opens plant editing in a modal surface without replacing the detail view', async () => {
+    const user = userEvent.setup();
+
+    render(
+      <MemoryRouter initialEntries={['/suppliers/1/plants/2']}>
+        <Routes>
+          <Route path="/suppliers/:supplierId/plants/:plantId" element={<PlantDetail />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    await user.click(await screen.findByRole('button', { name: /edit plant/i }));
+
+    expect(await screen.findByTestId('entity-profile-header')).toBeInTheDocument();
+    expect(await screen.findByTestId('entity-form-surface')).toHaveTextContent('plant:edit:modal:2');
   });
 });
