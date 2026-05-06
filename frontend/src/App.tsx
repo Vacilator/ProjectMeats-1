@@ -76,6 +76,7 @@ import Login from './pages/Login';
 import SignUp from './pages/SignUp';
 import Profile from './pages/Profile';
 import Settings from './pages/Settings';
+import GuestInvoiceView from './pages/Portal/GuestInvoiceView';
 import { ComingSoon } from './pages/ComingSoon';
 import ApiTestComponent from './components/ApiTestComponent';
 import { WorkflowRunner, PerfHarness } from './pages/Workflows';
@@ -232,6 +233,10 @@ const App: React.FC = () => {
                     <Routes>
                 <Route path="/login" element={<Login />} />
                 <Route path="/signup" element={<SignUp />} />
+                <Route
+                  path="/portal/tenants/:tenantId/grants/:grantId"
+                  element={<GuestInvoiceView />}
+                />
                 {enableEntityFormSmokeRoute && (
                   <Route
                     path="/diagnostics/entity-form-surface-smoke"

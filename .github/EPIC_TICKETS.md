@@ -924,18 +924,18 @@
   - **Rollback:** Revoke portal grants and disable the public routes before reverting serializers/views.
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
-- [ ] **B2B-01.4 frontend-public-portal-shell-and-magic-link-consume**
-  - **Status:** Ready
+- [x] **B2B-01.4 frontend-public-portal-shell-and-magic-link-consume** _(shipped in PR #4907)_
+  - **Status:** Shipped
   - **Why now:** External users need a separate portal shell that does not inherit internal auth or tenant-header assumptions.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 15 / Epic 1
-  - **Scope:** Build standalone public portal routes/pages/services for guest invoice/order views, document download metadata, and tracking, including signed-link exchange and deterministic expired-link UX.
+  - **Scope:** Built standalone public portal routes/pages/services for guest invoice/order views, document download metadata, and tracking, including signed-link exchange, deterministic expired-link UX, and a single aggregate portal snapshot read so one-time grants do not self-expire on first render.
   - **Non-goals:** No internal cockpit navigation reuse.
-  - **Primary domain:** frontend
-  - **Likely touched paths:** `frontend/src/App.tsx`, new `frontend/src/pages/Portal/GuestInvoiceView.tsx`, new `frontend/src/components/Portal/`, new `frontend/src/services/portalService.ts`, related tests/E2E
+  - **Primary domain:** frontend/backend
+  - **Likely touched paths:** `frontend/src/App.tsx`, new `frontend/src/pages/Portal/GuestInvoiceView.tsx`, new `frontend/src/components/Portal/`, new `frontend/src/services/portalService.ts`, `backend/apps/core/portal_views.py`, `backend/apps/core/urls.py`, related tests
   - **Dependencies:** B2B-01.3 (shipped in PR #4906), B2B-02.4 (shipped in PR #4903)
   - **Blockers:** None
-  - **Acceptance criteria:** Portal routes work logged out, do not auto-attach internal auth/tenant headers, strip raw tokens from visible history where applicable, and render only guest-safe data.
-  - **Validation commands:** `npm -C frontend run verify-standards`; `npm -C frontend run test:ci`; `npm -C frontend run test:e2e`
+  - **Acceptance criteria:** Portal routes work logged out, do not auto-attach internal auth/tenant headers, strip raw tokens from visible history where applicable, render only guest-safe data, and use one signed snapshot read so one-time/partial-scope grants do not misclassify as expired.
+  - **Validation commands:** `cd backend && python manage.py test apps.core.tests.test_portal_views --verbosity=2 --keepdb`; `cd backend && python manage.py spectacular --validate --file /tmp/projectmeats-portal-snapshot-openapi.yaml`; `cd backend && python manage.py makemigrations --check`; `cd backend && python manage.py migrate --plan`; `npm -C frontend run verify-standards`; `npm -C frontend run test:ci -- GuestInvoiceView portalService`; `npm -C frontend run type-check`; `bash scripts/verify_golden_state.sh`; `bash .github/scripts/check_infrastructure.sh`
   - **Tenant/RLS impact:** Medium
   - **Secrets/infra impact:** None
   - **Risk level:** Medium
@@ -943,7 +943,7 @@
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
 - [ ] **B2B-01.5 operator-issue-resend-revoke-controls**
-  - **Status:** Blocked
+  - **Status:** Ready
   - **Why now:** Tenant operators need controlled issuance and revocation of external access once portal links exist.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 15 / Epic 1
   - **Scope:** Add issue/resend/revoke controls and access history visibility to the relevant internal accounting/logistics surfaces.
@@ -951,7 +951,7 @@
   - **Primary domain:** frontend/backend
   - **Likely touched paths:** `frontend/src/pages/Accounting/Invoices.tsx`, `frontend/src/pages/FreightOrders.tsx`, new `frontend/src/components/Portal/SharePortalLinkModal.tsx`, backend portal serializers/views/tests
   - **Dependencies:** B2B-01.4
-  - **Blockers:** B2B-01.4
+  - **Blockers:** None
   - **Acceptance criteria:** Operators can issue, resend, revoke, and inspect portal grants with audit evidence and no cross-tenant issuance path.
   - **Validation commands:** `cd backend && python manage.py test apps.core apps.tenants`; `npm -C frontend run verify-standards`; `npm -C frontend run test:ci`
   - **Tenant/RLS impact:** High on issuance controls

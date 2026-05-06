@@ -86,6 +86,11 @@ urlpatterns = [
         name="portal-invoice-summary",
     ),
     path(
+        "tenants/<uuid:tenant_id>/portal/grants/<uuid:grant_id>/snapshot/",
+        portal_views.PortalGrantSnapshotView.as_view(),
+        name="portal-grant-snapshot",
+    ),
+    path(
         "tenants/<uuid:tenant_id>/portal/grants/<uuid:grant_id>/documents/",
         portal_views.PortalDocumentMetadataView.as_view(),
         name="portal-document-metadata",

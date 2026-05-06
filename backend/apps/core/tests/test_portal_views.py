@@ -147,6 +147,7 @@ class PortalReadAPITests(APITestCase):
 
         base = f"/api/v1/tenants/{self.tenant.id}/portal/grants/{self.grant.id}"
         self.invoice_url = f"{base}/invoice-summary/"
+        self.snapshot_url = f"{base}/snapshot/"
         self.documents_url = f"{base}/documents/"
         self.fulfillment_url = f"{base}/fulfillment-tracking/"
 
@@ -212,6 +213,50 @@ class PortalReadAPITests(APITestCase):
         )
         self.assertEqual(audit_event.snapshot_after["endpoint"], "portal.invoice-summary")
 
+    def test_snapshot_endpoint_returns_guest_safe_bundle(self):
+        response = self.client.get(self.snapshot_url, {"token": self.raw_token})
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["grant_id"], str(self.grant.id))
+        self.assertEqual(len(response.data["invoices"]), 1)
+        self.assertEqual(len(response.data["documents"]), 1)
+        self.assertEqual(len(response.data["fulfillments"]), 1)
+        self.assertNotIn("id", response.data["invoices"][0])
+        self.assertNotIn("id", response.data["documents"][0])
+        self.assertNotIn("id", response.data["fulfillments"][0])
+        self.assertEqual(
+            TenantAuditEvent.objects.filter(
+                tenant=self.tenant,
+                action=TenantAuditEvent.Action.ACCESS,
+                snapshot_after__endpoint="portal.snapshot",
+            ).count(),
+            3,
+        )
+
+    def test_snapshot_endpoint_allows_partial_scope_without_failing_closed(self):
+        invoice_only_grant = PortalGrant(
+            tenant=self.tenant,
+            subject_email="invoice-only@example.com",
+            resource_scope={"invoice": [str(self.invoice.id)]},
+            document_sources=["invoice_summary"],
+            expires_at=timezone.now() + timedelta(days=1),
+            created_by=self.user,
+            max_uses=3,
+        )
+        invoice_only_token = "invoice-only-token"
+        invoice_only_grant.issue_token(invoice_only_token)
+        invoice_only_grant.save()
+        snapshot_url = (
+            f"/api/v1/tenants/{self.tenant.id}/portal/grants/{invoice_only_grant.id}/snapshot/"
+        )
+
+        response = self.client.get(snapshot_url, {"token": invoice_only_token})
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data["invoices"]), 1)
+        self.assertEqual(response.data["documents"], [])
+        self.assertEqual(response.data["fulfillments"], [])
+
     def test_invoice_summary_rejects_wrong_token(self):
         response = self.client.get(self.invoice_url, {"token": "bad-token"})
 
@@ -265,7 +310,7 @@ class PortalReadAPITests(APITestCase):
             tenant=self.tenant,
             subject_email="one-time@example.com",
             resource_scope={"invoice": [str(self.invoice.id)]},
-            document_sources=["invoice_summary"],
+            document_sources=["invoice_summary", "invoice_pdf", "fulfillment_tracking"],
             expires_at=timezone.now() + timedelta(days=1),
             created_by=self.user,
             max_uses=1,
@@ -274,7 +319,7 @@ class PortalReadAPITests(APITestCase):
         one_time_grant.issue_token(one_time_token)
         one_time_grant.save()
         one_time_url = (
-            f"/api/v1/tenants/{self.tenant.id}/portal/grants/{one_time_grant.id}/invoice-summary/"
+            f"/api/v1/tenants/{self.tenant.id}/portal/grants/{one_time_grant.id}/snapshot/"
         )
 
         first_response = self.client.get(one_time_url, {"token": one_time_token})
