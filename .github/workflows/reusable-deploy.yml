@@ -744,7 +744,7 @@ jobs:
   
   migrate:
     name: "Run Database Migrations"
-    # Gate all mutation steps on tests + security scans to avoid "DB advanced but deploy blocked" failures.
+    # Gate schema changes on tests + security scans to avoid "DB advanced but deploy blocked" failures.
     needs: [build-backend, check-migrations, test-frontend, security-scan-backend, security-scan-frontend]
     runs-on: ubuntu-latest
     environment: ${{ inputs.backend_environment }}
@@ -1040,13 +1040,12 @@ jobs:
           
           echo ""
           echo "✓ Migrations completed successfully"
-          
+
           echo ""
           echo "================================"
           echo "Collecting Static Files"
           echo "================================"
-          
-          # Run collectstatic to prepare static files
+
           docker run --rm \
             --network host \
             -e DATABASE_URL="$DATABASE_URL" \
@@ -1059,10 +1058,83 @@ jobs:
             "$BACKEND_RUN_REF" \
             python manage.py collectstatic --noinput --clear
           
-          echo "✓ Static files collected"
-      
-      - name: Setup Superuser
+      - name: Cleanup SSH tunnel
+        if: always()
+        run: |
+          echo "Cleaning up SSH tunnel..."
+          # Find and force-kill processes using port 5433
+          TUNNEL_PIDS=$(lsof -ti:5433 2>/dev/null || true)
+          if [ -n "$TUNNEL_PIDS" ]; then
+            for pid in $TUNNEL_PIDS; do
+              kill -9 "$pid" 2>/dev/null || true
+            done
+            echo "✓ Force-killed tunnel processes: $TUNNEL_PIDS"
+          else
+            echo "✓ No tunnel processes found"
+          fi
+
+  bootstrap-backend:
+    name: "Bootstrap Backend Data"
+    needs: [build-backend, deploy-backend, deploy-frontend]
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.backend_environment }}
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          ref: ${{ inputs.ref }}
+
+      - name: Fail fast if required backend secrets are missing
         env:
+          DO_ACCESS_TOKEN: ${{ secrets.DO_ACCESS_TOKEN }}
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          SSH_PASSWORD: ${{ secrets.SSH_PASSWORD }}
+          DB_HOST: ${{ secrets.DB_HOST }}
+          DB_PORT: ${{ secrets.DB_PORT || '5432' }}
+          DB_NAME: ${{ secrets.DB_NAME }}
+          DB_USER: ${{ secrets.DB_USER }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          DJANGO_SECRET_KEY: ${{ secrets.DJANGO_SECRET_KEY }}
+          DJANGO_SETTINGS_MODULE: ${{ secrets.DJANGO_SETTINGS_MODULE }}
+          REDIS_URL: ${{ secrets.REDIS_URL }}
+          VALKEY_URL: ${{ secrets.VALKEY_URL }}
+          REQUIRE_REDIS_READINESS: ${{ inputs.require_redis_readiness }}
+        run: |
+          set -euo pipefail
+          bash .github/scripts/validate-environment.sh \
+            --environment "${{ inputs.backend_environment }}" \
+            --workflow reusable-deploy.yml
+
+      - name: Login to GHCR
+        uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121 # v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install SSH and PostgreSQL tools
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y openssh-client sshpass postgresql-client lsof
+
+      - name: Setup SSH tunnel to database
+        env:
+          SSHPASS: ${{ secrets.SSH_PASSWORD }}
+          DB_HOST: ${{ secrets.DB_HOST }}
+          DB_PORT: ${{ secrets.DB_PORT || '5432' }}
+          BASTION_USER: ${{ secrets.SSH_USER }}
+          BASTION_HOST: ${{ secrets.SSH_HOST }}
+        run: bash .github/scripts/setup-ssh-tunnel.sh
+
+      - name: Bootstrap backend system data
+        env:
+          BACKEND_TAG_REF: ${{ needs.build-backend.outputs.image_tag_ref }}
+          BACKEND_DIGEST_REF: ${{ needs.build-backend.outputs.image_digest_ref }}
           DB_USER: ${{ secrets.DB_USER }}
           DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
           DB_NAME: ${{ secrets.DB_NAME }}
@@ -1074,19 +1146,56 @@ jobs:
           REDIS_URL: ${{ secrets.REDIS_URL }}
           VALKEY_URL: ${{ secrets.VALKEY_URL }}
           REQUIRE_REDIS_READINESS: ${{ inputs.require_redis_readiness }}
+          DEPLOY_BY_DIGEST: ${{ inputs.deploy_by_digest }}
         run: |
-          echo "================================"
-          echo "Setting up Django Superuser"
-          echo "================================"
-          
-          # Construct DATABASE_URL pointing to tunnel
+          set -euo pipefail
           DATABASE_URL="postgresql://$DB_USER:$DB_PASSWORD@127.0.0.1:5433/$DB_NAME"
-          
-          echo "Using image ref: $BACKEND_RUN_REF"
-          echo ""
-          echo "Creating/updating superuser..."
-          
-          # Run setup_superuser management command
+
+          to_ghcr_ref() {
+            printf '%s' "$1" | sed "s#^${{ env.REGISTRY }}#${{ env.GHCR_REGISTRY }}#"
+          }
+
+          pull_with_retry() {
+            local image="$1"
+            local attempt=1
+            local max_attempts=5
+            local delay=5
+
+            while [ $attempt -le $max_attempts ]; do
+              echo "docker pull attempt ${attempt}/${max_attempts}: ${image}"
+              if docker pull "$image"; then
+                return 0
+              fi
+
+              if [ $attempt -lt $max_attempts ]; then
+                echo "Pull failed; retrying in ${delay}s..."
+                sleep "$delay"
+                delay=$((delay * 2))
+              fi
+
+              attempt=$((attempt + 1))
+            done
+
+            echo "✗ docker pull failed after ${max_attempts} attempts"
+            return 1
+          }
+
+          BACKEND_RUN_REF="$BACKEND_TAG_REF"
+          BACKEND_RUN_REF="$(to_ghcr_ref "$BACKEND_RUN_REF")"
+          if [ "$DEPLOY_BY_DIGEST" = "true" ]; then
+            BACKEND_GHCR_DIGEST_REF="$(to_ghcr_ref "$BACKEND_DIGEST_REF")"
+            if echo "$BACKEND_GHCR_DIGEST_REF" | grep -q '@sha256:'; then
+              BACKEND_RUN_REF="$BACKEND_DIGEST_REF"
+              BACKEND_RUN_REF="$(to_ghcr_ref "$BACKEND_RUN_REF")"
+            else
+              echo "✗ Deploy-by-digest enabled, but backend digest could not be resolved"
+              exit 1
+            fi
+          fi
+
+          echo "Using backend image ref: $BACKEND_RUN_REF"
+          pull_with_retry "$BACKEND_RUN_REF"
+
           docker run --rm \
             --network host \
             -e DATABASE_URL="$DATABASE_URL" \
@@ -1101,33 +1210,7 @@ jobs:
             -e REQUIRE_REDIS_READINESS="$REQUIRE_REDIS_READINESS" \
             "$BACKEND_RUN_REF" \
             python manage.py setup_superuser
-          
-          echo ""
-          echo "✓ Superuser setup completed"
-      
-      - name: Seed System Products (Golden List)
-        env:
-          DB_USER: ${{ secrets.DB_USER }}
-          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
-          DB_NAME: ${{ secrets.DB_NAME }}
-          DJANGO_SECRET_KEY: ${{ secrets.DJANGO_SECRET_KEY }}
-          DJANGO_SETTINGS_MODULE: ${{ secrets.DJANGO_SETTINGS_MODULE }}
-          REDIS_URL: ${{ secrets.REDIS_URL }}
-          VALKEY_URL: ${{ secrets.VALKEY_URL }}
-          REQUIRE_REDIS_READINESS: ${{ inputs.require_redis_readiness }}
-        run: |
-          echo "================================"
-          echo "Seeding Products"
-          echo "================================"
-          
-          # Construct DATABASE_URL pointing to tunnel
-          DATABASE_URL="postgresql://$DB_USER:$DB_PASSWORD@127.0.0.1:5433/$DB_NAME"
-          
-          echo "Using image ref: $BACKEND_RUN_REF"
-          echo ""
-          echo "Seeding products for all active tenants..."
-          
-          # Seed system-wide products (idempotent)
+
           docker run --rm \
             --network host \
             -e DATABASE_URL="$DATABASE_URL" \
@@ -1139,15 +1222,11 @@ jobs:
             -e REQUIRE_REDIS_READINESS="$REQUIRE_REDIS_READINESS" \
             "$BACKEND_RUN_REF" \
             python manage.py seed_system_products
-          
-          echo ""
-          echo "✓ Product seeding completed"
-      
+
       - name: Cleanup SSH tunnel
         if: always()
         run: |
           echo "Cleaning up SSH tunnel..."
-          # Find and force-kill processes using port 5433
           TUNNEL_PIDS=$(lsof -ti:5433 2>/dev/null || true)
           if [ -n "$TUNNEL_PIDS" ]; then
             for pid in $TUNNEL_PIDS; do
@@ -1500,9 +1579,6 @@ jobs:
           done
 
           sleep 5
-
-          echo "Collecting static files for Django admin (best-effort)..."
-          docker exec pm-backend python manage.py collectstatic --noinput || echo "⚠ collectstatic failed (continuing)"
 
           # Health check with self-healing retry
           MAX_ATTEMPTS=20
@@ -2059,21 +2135,13 @@ jobs:
           echo "Note: Host nginx proxies external traffic to this container"
           SSH
 
-      - name: Reload Nginx
-        uses: appleboy/ssh-action@029f5b4aeeeb58fdfe1410a5d17f967dacf36262 # v1.0.3
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          password: ${{ secrets.SSH_PASSWORD }}
-          script: sudo nginx -t && sudo systemctl reload nginx
-
   # ==========================================
   # Post-deploy smoke gates (Golden-compliant)
   # ==========================================
 
   post-deploy-smoke:
     name: "Post-Deploy Smoke Gates"
-    needs: [deploy-backend, deploy-frontend]
+    needs: [bootstrap-backend]
     uses: ./.github/workflows/reusable-postdeploy-smoke.yml
     secrets: inherit
     with:

@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Clock, GitBranch, Check, X, History, RotateCcw } from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Clock, GitBranch, X, History, RotateCcw } from 'lucide-react';
 import { adminClient } from '@/services/apiService';
 import { confirmDialog, showAlert } from '@/utils/uiDialogs';
 
@@ -32,11 +32,7 @@ export const VersionHistory: React.FC<VersionHistoryProps> = ({
   const [selectedForCompare, setSelectedForCompare] = useState<string | null>(null);
   const [comparisonData, setComparisonData] = useState<any>(null);
 
-  useEffect(() => {
-    fetchVersionHistory();
-  }, [blueprintId]);
-
-  const fetchVersionHistory = async () => {
+  const fetchVersionHistory = useCallback(async () => {
     setLoading(true);
     try {
       const response = await adminClient.get(
@@ -51,7 +47,11 @@ export const VersionHistory: React.FC<VersionHistoryProps> = ({
     } finally {
       setLoading(false);
     }
-  };
+  }, [blueprintId]);
+
+  useEffect(() => {
+    void fetchVersionHistory();
+  }, [fetchVersionHistory]);
 
   const handleRollback = async (versionId: string, versionNumber: number) => {
     const ok = await confirmDialog({
@@ -75,7 +75,7 @@ export const VersionHistory: React.FC<VersionHistoryProps> = ({
         type: 'success',
       });
       onRollback(response.data.new_version_id);
-      fetchVersionHistory();
+      void fetchVersionHistory();
     } catch (error) {
       console.error('Rollback failed:', error);
       showAlert({

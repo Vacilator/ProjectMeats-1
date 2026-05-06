@@ -724,8 +724,7 @@ const SortableRow: React.FC<{
               </div>
             )}
             {columnId === 'options' && (
-              <>
-                {row.original.type === 'reference' ? (
+              row.original.type === 'reference' ? (
                   <Select
                     value={row.original.referenceEntity || ''}
                     onChange={(newValue) => onUpdate(row.original.id, 'referenceEntity', newValue)}
@@ -750,8 +749,7 @@ const SortableRow: React.FC<{
                     placeholder="Option 1, Option 2, ..."
                     disabled={row.original.type !== 'select' && row.original.type !== 'radio'}
                   />
-                )}
-              </>
+                )
             )}
             {columnId === 'required' && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', width: '100%' }}>
@@ -1028,102 +1026,6 @@ const SchemaEditor: React.FC = () => {
     }
   }, [history, historyIndex]);
 
-  // Keyboard shortcuts
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      // Ctrl/Cmd + S: Save
-      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
-        e.preventDefault();
-        handleSave();
-      }
-      // Ctrl/Cmd + Z: Undo
-      if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
-        e.preventDefault();
-        handleUndo();
-      }
-      // Ctrl/Cmd + Shift + Z or Ctrl/Cmd + Y: Redo
-      if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) {
-        e.preventDefault();
-        handleRedo();
-      }
-      // Ctrl/Cmd + C: Copy
-      if ((e.ctrlKey || e.metaKey) && e.key === 'c' && selectedFields.size > 0) {
-        e.preventDefault();
-        handleCopy();
-      }
-      // Ctrl/Cmd + V: Paste
-      if ((e.ctrlKey || e.metaKey) && e.key === 'v' && clipboard.length > 0) {
-        e.preventDefault();
-        handlePaste();
-      }
-      // Delete: Delete selected
-      if (e.key === 'Delete' && selectedFields.size > 0) {
-        e.preventDefault();
-        void handleBulkDelete();
-      }
-      // Escape: Clear selection
-      if (e.key === 'Escape') {
-        setSelectedFields(new Set());
-        setIsTemplatesOpen(false);
-        setIsPreviewOpen(false);
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedFields, clipboard, handleUndo, handleRedo]);
-
-  // Auto-save with debounce
-  const triggerAutoSave = useCallback(() => {
-    setSaveStatus('unsaved');
-    if (saveTimeoutRef.current) {
-      clearTimeout(saveTimeoutRef.current);
-    }
-    saveTimeoutRef.current = setTimeout(() => {
-      handleSave();
-    }, 2000); // Auto-save after 2 seconds of inactivity
-  }, []);
-
-  // Copy selected fields
-  const handleCopy = () => {
-    const copiedFields = fields.filter(f => selectedFields.has(f.id));
-    setClipboard(JSON.parse(JSON.stringify(copiedFields)));
-  };
-
-  // Paste copied fields
-  const handlePaste = () => {
-    const pastedFields = clipboard.map(f => ({
-      ...f,
-      id: `field_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-      label: `${f.label} (Copy)`,
-      key: `${f.key}_copy`,
-    }));
-    const newFields = [...fields, ...pastedFields];
-    setFields(newFields);
-    saveToHistory(newFields, 'Paste fields');
-    triggerAutoSave();
-  };
-
-  // Bulk delete selected fields
-  const handleBulkDelete = async () => {
-    if (selectedFields.size === 0) return;
-
-    const ok = await confirmDialog({
-      title: `Delete ${selectedFields.size} selected field(s)?`,
-      content: 'This cannot be undone.',
-      okText: 'Delete',
-      cancelText: 'Cancel',
-      danger: true,
-    });
-    if (!ok) return;
-
-    const newFields = fields.filter(f => !selectedFields.has(f.id));
-    setFields(newFields);
-    setSelectedFields(new Set());
-    saveToHistory(newFields, 'Bulk delete');
-    triggerAutoSave();
-  };
-
   // Select all fields
   const handleSelectAll = () => {
     if (selectedFields.size === fields.length) {
@@ -1226,7 +1128,7 @@ const SchemaEditor: React.FC = () => {
               triggerAutoSave();
             })();
           }
-        } catch (err) {
+        } catch {
           showAlert({
             title: 'Invalid JSON',
             content: 'Invalid JSON file. Please check the format.',
@@ -1428,6 +1330,102 @@ const SchemaEditor: React.FC = () => {
       notify.error(`Failed to save schema: ${error.message || 'Unknown error'}`);
     }
   }, [fields, blueprintId]);
+
+  // Auto-save with debounce
+  const triggerAutoSave = useCallback(() => {
+    setSaveStatus('unsaved');
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+    }
+    saveTimeoutRef.current = setTimeout(() => {
+      void handleSave();
+    }, 2000); // Auto-save after 2 seconds of inactivity
+  }, [handleSave]);
+
+  // Copy selected fields
+  const handleCopy = useCallback(() => {
+    const copiedFields = fields.filter(f => selectedFields.has(f.id));
+    setClipboard(JSON.parse(JSON.stringify(copiedFields)));
+  }, [fields, selectedFields]);
+
+  // Paste copied fields
+  const handlePaste = useCallback(() => {
+    const pastedFields = clipboard.map(f => ({
+      ...f,
+      id: `field_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      label: `${f.label} (Copy)`,
+      key: `${f.key}_copy`,
+    }));
+    const newFields = [...fields, ...pastedFields];
+    setFields(newFields);
+    saveToHistory(newFields, 'Paste fields');
+    triggerAutoSave();
+  }, [clipboard, fields, saveToHistory, triggerAutoSave]);
+
+  // Bulk delete selected fields
+  const handleBulkDelete = useCallback(async () => {
+    if (selectedFields.size === 0) return;
+
+    const ok = await confirmDialog({
+      title: `Delete ${selectedFields.size} selected field(s)?`,
+      content: 'This cannot be undone.',
+      okText: 'Delete',
+      cancelText: 'Cancel',
+      danger: true,
+    });
+    if (!ok) return;
+
+    const newFields = fields.filter(f => !selectedFields.has(f.id));
+    setFields(newFields);
+    setSelectedFields(new Set());
+    saveToHistory(newFields, 'Bulk delete');
+    triggerAutoSave();
+  }, [fields, saveToHistory, selectedFields, triggerAutoSave]);
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ctrl/Cmd + S: Save
+      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+        e.preventDefault();
+        void handleSave();
+      }
+      // Ctrl/Cmd + Z: Undo
+      if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
+        e.preventDefault();
+        handleUndo();
+      }
+      // Ctrl/Cmd + Shift + Z or Ctrl/Cmd + Y: Redo
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) {
+        e.preventDefault();
+        handleRedo();
+      }
+      // Ctrl/Cmd + C: Copy
+      if ((e.ctrlKey || e.metaKey) && e.key === 'c' && selectedFields.size > 0) {
+        e.preventDefault();
+        handleCopy();
+      }
+      // Ctrl/Cmd + V: Paste
+      if ((e.ctrlKey || e.metaKey) && e.key === 'v' && clipboard.length > 0) {
+        e.preventDefault();
+        handlePaste();
+      }
+      // Delete: Delete selected
+      if (e.key === 'Delete' && selectedFields.size > 0) {
+        e.preventDefault();
+        void handleBulkDelete();
+      }
+      // Escape: Clear selection
+      if (e.key === 'Escape') {
+        setSelectedFields(new Set());
+        setIsTemplatesOpen(false);
+        setIsPreviewOpen(false);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [clipboard, handleBulkDelete, handleCopy, handlePaste, handleRedo, handleSave, handleUndo, selectedFields]);
 
   // Render preview of a field
   const renderPreviewField = (field: FieldDefinition) => {

@@ -96,8 +96,8 @@ jobs:
           dockerfile: frontend/Dockerfile
           failure-threshold: error
 
-  validate-migrations:
-    name: Validate Migrations
+  openapi-artifact:
+    name: OpenAPI Artifact
     runs-on: ubuntu-latest
     timeout-minutes: 20
 
@@ -149,6 +149,42 @@ jobs:
           path: openapi-schema.json
           if-no-files-found: error
           retention-days: 7
+
+  validate-migrations:
+    name: Validate Migrations
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    services:
+      postgres:
+        # Digest-pinned (multi-arch manifest) for deterministic CI
+        image: postgres:15@sha256:3e43515057e113ee741fca2f621f15300be34a6d4a8dfcf2e20651288c8272f3
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: test_projectmeats
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+          cache-dependency-path: backend/requirements.txt
+
+      - name: Install backend deps
+        working-directory: ./backend
+        run: pip install -r requirements.txt
 
       - name: Validate migrations
         env:
@@ -349,6 +385,10 @@ jobs:
     name: Frontend Prod Smoke
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
 
     steps:
       - name: Checkout
@@ -386,12 +426,13 @@ jobs:
           --config playwright.config.ts
           e2e/entity-form-surface-smoke.spec.ts
           --project=chromium
+          --shard=${{ matrix.shard }}/3
 
       - name: Upload Playwright artifacts on failure
         if: ${{ failure() }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
-          name: frontend-prod-smoke-artifacts
+          name: frontend-prod-smoke-artifacts-${{ matrix.shard }}
           path: |
             frontend/playwright-report
             frontend/test-results
@@ -402,7 +443,7 @@ jobs:
     name: Mobile Lint/Test/Type Check
     runs-on: ubuntu-latest
     timeout-minutes: 25
-    needs: [validate-migrations]
+    needs: [openapi-artifact]
 
     steps:
       - name: Checkout
