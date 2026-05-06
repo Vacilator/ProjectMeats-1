@@ -4,7 +4,9 @@ import uuid
 from types import SimpleNamespace
 from unittest.mock import patch
 
+from django.conf import settings
 from django.contrib.auth.models import User
+from django.core.cache import cache
 from django.test import TestCase
 from django.test.utils import override_settings
 from rest_framework.test import APIClient
@@ -18,6 +20,7 @@ class WorkflowWebhookTenantPathTests(TestCase):
     def setUp(self):
         unique = uuid.uuid4().hex[:8]
         self.client = APIClient()
+        cache.clear()
 
         self.user = User.objects.create_user(username=f'u-{unique}', password='pw')
 
@@ -60,6 +63,9 @@ class WorkflowWebhookTenantPathTests(TestCase):
             },
             created_by=self.user,
         )
+
+    def tearDown(self):
+        cache.clear()
 
     @patch('tenant_apps.workflows.views_triggers.set_current_tenant')
     @patch('tenant_apps.workflows.views_triggers.execute_workflow')
@@ -164,3 +170,41 @@ class WorkflowWebhookTenantPathTests(TestCase):
         self.assertEqual(resp.status_code, 200)
         set_current_tenant.assert_called_with(str(self.tenant.id))
         execute_workflow.assert_called()
+
+    @patch('tenant_apps.workflows.views_triggers.set_current_tenant')
+    @patch('tenant_apps.workflows.views_triggers.execute_workflow')
+    def test_public_webhooks_ignore_global_throttles(self, execute_workflow, set_current_tenant):
+        set_current_tenant.return_value = SimpleNamespace(ok=True)
+        execute_workflow.return_value = SimpleNamespace(id=uuid.uuid4(), status='success')
+
+        tenant_url = (
+            f'/api/v1/tenants/{self.tenant.id}/workflows/webhooks/'
+            f'{self.workflow.id}/{self.webhook_token}/'
+        )
+        legacy_url = f'/api/v1/workflows/webhooks/{self.workflow.id}/{self.webhook_token}/'
+        throttled_settings = {
+            **settings.REST_FRAMEWORK,
+            'DEFAULT_THROTTLE_RATES': {
+                **settings.REST_FRAMEWORK.get('DEFAULT_THROTTLE_RATES', {}),
+                'anon': '1/minute',
+                'user': '1/minute',
+            },
+        }
+
+        with override_settings(REST_FRAMEWORK=throttled_settings):
+            first_response = self.client.post(
+                tenant_url,
+                data={'hello': 'world'},
+                format='json',
+                HTTP_AUTHORIZATION=f'Bearer {self.webhook_secret}',
+            )
+            second_response = self.client.post(
+                legacy_url,
+                data={'hello': 'world'},
+                format='json',
+                HTTP_AUTHORIZATION=f'Bearer {self.webhook_secret}',
+                HTTP_HOST=self.tenant_domain.domain,
+            )
+
+        self.assertEqual(first_response.status_code, 200, first_response.content)
+        self.assertEqual(second_response.status_code, 200, second_response.content)
