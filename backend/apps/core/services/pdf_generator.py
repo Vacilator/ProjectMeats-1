@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 from dataclasses import dataclass
 from io import BytesIO
 from typing import Iterable
@@ -15,6 +16,8 @@ from reportlab.lib.pagesizes import letter
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import inch
 from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+
+from apps.core.conversions import format_trade_date, format_trade_datetime, format_trade_weight
 
 
 @dataclass(frozen=True)
@@ -144,7 +147,8 @@ def _document_subtitle(instance) -> str:
     status_label = getattr(instance, "get_status_display", lambda: _string_value(getattr(instance, "status", "")))()
     created_at = getattr(instance, "date_time_stamp", None) or getattr(instance, "date_time_stamp_created", None)
     timestamp = created_at or getattr(instance, "created_on", None)
-    rendered_timestamp = timestamp.strftime("%Y-%m-%d %H:%M") if timestamp else timezone.now().strftime("%Y-%m-%d %H:%M")
+    timezone_name = _trade_render_timezone_name(instance)
+    rendered_timestamp = format_trade_datetime(timestamp or timezone.now(), timezone_name=timezone_name)
     return f"{reference} · {status_label} · Generated {rendered_timestamp}"
 
 
@@ -240,7 +244,7 @@ def _document_sections(instance) -> list[tuple[str, list[tuple[str, str]]]]:
         ("Fresh / Frozen", _string_value(getattr(instance, "fresh_or_frozen", ""))),
         ("Package Type", _string_value(getattr(instance, "package_type", ""))),
         ("Quantity", _string_value(getattr(instance, "quantity", ""))),
-        ("Weight", _join_parts(getattr(instance, "total_weight", ""), getattr(instance, "weight_unit", ""))),
+        ("Weight", format_trade_weight(getattr(instance, "total_weight", None), getattr(instance, "weight_unit", None))),
     ]
     sections.append(("Product Summary", product_rows))
     return sections
@@ -262,7 +266,7 @@ def _line_items(instance) -> list[dict[str, str]]:
                 "package": _string_value(getattr(item, "package_type", "")),
                 "quantity": _string_value(getattr(item, "quantity", "")),
                 "uom": _string_value(getattr(item, "uom", "")),
-                "weight": _string_value(getattr(item, "total_net_weight", "")),
+                "weight": format_trade_weight(getattr(item, "total_net_weight", None), getattr(item, "uom", None)),
             }
         )
     return items
@@ -342,12 +346,23 @@ def _join_parts(*parts) -> str:
     return ", ".join(part for part in rendered if part)
 
 
-def _string_value(value) -> str:
+def _trade_render_timezone_name(instance) -> str | None:
+    for relation_name in ("plant", "pick_up_location", "delivery_location"):
+        relation = getattr(instance, relation_name, None)
+        if relation is None:
+            continue
+        for attr in ("timezone", "time_zone"):
+            timezone_name = getattr(relation, attr, None)
+            if timezone_name:
+                return str(timezone_name)
+    return None
+
+
+def _string_value(value, *, timezone_name: str | None = None) -> str:
     if value is None:
         return ""
+    if isinstance(value, datetime):
+        return format_trade_datetime(value, timezone_name=timezone_name, include_timezone=False)
     if hasattr(value, "strftime"):
-        try:
-            return value.strftime("%Y-%m-%d")
-        except Exception:
-            return str(value)
+        return format_trade_date(value, timezone_name=timezone_name)
     return str(value).strip()
