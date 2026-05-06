@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+import hmac
 import json
+import time
 import uuid
 from datetime import datetime, timezone as dt_timezone
 from decimal import Decimal
+from hashlib import sha256
 from types import SimpleNamespace
 from unittest.mock import patch
 
@@ -457,6 +460,85 @@ class SettlementIngestApiTests(APITestCase):
         event = SettlementEvent.objects.get()
         self.assertEqual(event.delivery_count, 2)
         delay_mock.assert_called_once()
+
+    @patch.dict('os.environ', {'STRIPE_SETTLEMENT_WEBHOOK_SECRET': 'whsec_test'}, clear=False)
+    @patch('tenant_apps.integrations.views.process_settlement_event.delay')
+    def test_public_ingest_with_stripe_treasury_signature_accepts(self, delay_mock):
+        delay_mock.return_value = SimpleNamespace(id='task-123')
+        source = SettlementSource.objects.create(
+            tenant=self.tenant,
+            name='Stripe Treasury Source',
+            provider_code='stripe_treasury',
+            provider_account_reference='treasury-acct-1',
+            auth_mode=SettlementSourceAuthMode.PROVIDER_HMAC_SIGNATURE,
+            created_by=self.user,
+        )
+        body = json.dumps(
+            {
+                'id': 'evt_stripe_1',
+                'type': 'treasury.credit_reversal.created',
+                'created': 1715000000,
+                'data': {
+                    'object': {
+                        'id': 'trxn_123',
+                        'amount': 2550,
+                        'currency': 'usd',
+                        'metadata': {
+                            'invoice_number': 'INV-STRIPE-1',
+                        },
+                    }
+                },
+            },
+            separators=(',', ':'),
+        ).encode('utf-8')
+        signature = _build_stripe_signature(body, 'whsec_test', timestamp=int(time.time()))
+
+        response = self.client.generic(
+            'POST',
+            f'/api/v1/tenants/{self.tenant.id}/integrations/settlement-sources/{source.public_id}/events/',
+            data=body,
+            content_type='application/json',
+            HTTP_STRIPE_SIGNATURE=signature,
+        )
+
+        self.assertEqual(response.status_code, 202, response.content)
+        event = SettlementEvent.objects.get(tenant=self.tenant, external_event_id='evt_stripe_1')
+        self.assertEqual(event.provider_code, 'stripe_treasury')
+        self.assertEqual(event.raw_payload, body.decode('utf-8'))
+        delay_mock.assert_called_once()
+
+    @patch.dict('os.environ', {'STRIPE_SETTLEMENT_WEBHOOK_SECRET': 'whsec_test'}, clear=False)
+    @patch('tenant_apps.integrations.views.process_settlement_event.delay')
+    def test_public_ingest_with_stripe_treasury_invalid_signature_fails_closed(self, delay_mock):
+        source = SettlementSource.objects.create(
+            tenant=self.tenant,
+            name='Stripe Treasury Source',
+            provider_code='stripe_treasury',
+            provider_account_reference='treasury-acct-2',
+            auth_mode=SettlementSourceAuthMode.PROVIDER_HMAC_SIGNATURE,
+            created_by=self.user,
+        )
+        body = json.dumps(
+            {
+                'id': 'evt_stripe_2',
+                'type': 'treasury.credit_reversal.created',
+                'created': 1715000000,
+                'data': {'object': {'id': 'trxn_999', 'amount': 2550, 'currency': 'usd'}},
+            },
+            separators=(',', ':'),
+        ).encode('utf-8')
+
+        response = self.client.generic(
+            'POST',
+            f'/api/v1/tenants/{self.tenant.id}/integrations/settlement-sources/{source.public_id}/events/',
+            data=body,
+            content_type='application/json',
+            HTTP_STRIPE_SIGNATURE='t=1715000000,v1=bad',
+        )
+
+        self.assertEqual(response.status_code, 404)
+        self.assertEqual(SettlementEvent.objects.filter(tenant=self.tenant).count(), 0)
+        delay_mock.assert_not_called()
 
 
 class SettlementReviewQueueApiTests(APITestCase):
@@ -930,6 +1012,50 @@ class SettlementTaskTests(TestCase):
         )
         self.assertEqual(PaymentTransaction.objects.count(), 0)
 
+    @patch.dict('os.environ', {'STRIPE_SETTLEMENT_WEBHOOK_SECRET': 'whsec_test'}, clear=False)
+    def test_process_settlement_event_normalizes_stripe_treasury_payload(self):
+        customer = Customer.objects.create(name='Stripe Customer', tenant=self.tenant)
+        invoice = Invoice.objects.create(
+            tenant=self.tenant,
+            customer=customer,
+            invoice_number='INV-STRIPE-2',
+            total_amount=Decimal('25.50'),
+            outstanding_amount=Decimal('25.50'),
+        )
+        self.event.provider_code = 'stripe_treasury'
+        self.event.raw_payload = json.dumps(
+            {
+                'id': 'evt_stripe_3',
+                'type': 'treasury.credit_reversal.created',
+                'created': 1715000000,
+                'data': {
+                    'object': {
+                        'id': 'trxn_555',
+                        'amount': 2550,
+                        'currency': 'usd',
+                        'metadata': {
+                            'invoice_number': 'INV-STRIPE-2',
+                        },
+                    }
+                },
+            },
+            separators=(',', ':'),
+        )
+        self.event.save(update_fields=['provider_code', 'raw_payload', 'modified_on'])
+
+        result = process_settlement_event.run(self.event.id, str(self.tenant.id))
+
+        self.event.refresh_from_db()
+        payment = PaymentTransaction.objects.get()
+        invoice.refresh_from_db()
+
+        self.assertTrue(result['success'])
+        self.assertEqual(self.event.state, SettlementEventState.POSTED)
+        self.assertEqual(self.event.normalized_payload['invoice_number'], 'INV-STRIPE-2')
+        self.assertEqual(self.event.normalized_payload['reference_number'], 'trxn_555')
+        self.assertEqual(payment.invoice_id, invoice.id)
+        self.assertEqual(invoice.payment_status, 'paid')
+
 
 class SettlementContractTests(TestCase):
     def test_settlement_contract_anchors_webhook_first_payment_ledger(self):
@@ -949,5 +1075,11 @@ class SettlementContractTests(TestCase):
         self.assertIn('raw_payload_sha256', contract['idempotency_fallback_fields'])
         self.assertIn('exact_invoice_match', contract['reconciliation_reason_codes'])
         self.assertIn('ambiguous_match', contract['reconciliation_reason_codes'])
-        self.assertIn('direct_bank_feed', contract['deferred_adapters'])
+        self.assertIn('stripe_treasury_webhook', contract['provider_managed_adapters'])
         self.assertIn('invoice', contract['payment_transaction_parent_links'])
+
+
+def _build_stripe_signature(body: bytes, secret: str, *, timestamp: int) -> str:
+    payload = f'{timestamp}.{body.decode("utf-8")}'.encode('utf-8')
+    digest = hmac.new(secret.encode('utf-8'), payload, sha256).hexdigest()
+    return f't={timestamp},v1={digest}'

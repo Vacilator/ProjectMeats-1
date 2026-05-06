@@ -5,7 +5,7 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Final
 
-SETTLEMENT_CONTRACT_VERSION: Final[str] = 'b2b-03.1.v1'
+SETTLEMENT_CONTRACT_VERSION: Final[str] = 'b2b-03.5.v1'
 CANONICAL_POSTED_PAYMENT_LEDGER: Final[str] = 'tenant_apps.invoices.models.PaymentTransaction'
 INITIAL_SETTLEMENT_ADAPTER: Final[str] = 'webhook'
 RAW_PAYLOAD_HASH_ALGORITHM: Final[str] = 'sha256'
@@ -57,8 +57,10 @@ ACCEPTED_SETTLEMENT_AUTH_MODES: Final[tuple[str, ...]] = (
     'provider_hmac_signature',
 )
 DEFERRED_SETTLEMENT_ADAPTERS: Final[tuple[str, ...]] = (
-    'direct_bank_feed',
     'file_import',
+)
+PROVIDER_MANAGED_SETTLEMENT_ADAPTERS: Final[tuple[str, ...]] = (
+    'stripe_treasury_webhook',
 )
 SETTLEMENT_RECONCILIATION_REASON_CODES: Final[tuple[str, ...]] = (
     'exact_invoice_match',
@@ -93,6 +95,7 @@ def get_settlement_reconciliation_contract() -> dict[str, object]:
         'payment_transaction_parent_links': PAYMENT_TRANSACTION_PARENT_LINKS,
         'accepted_authentication_modes': ACCEPTED_SETTLEMENT_AUTH_MODES,
         'deferred_adapters': DEFERRED_SETTLEMENT_ADAPTERS,
+        'provider_managed_adapters': PROVIDER_MANAGED_SETTLEMENT_ADAPTERS,
         'reconciliation_reason_codes': SETTLEMENT_RECONCILIATION_REASON_CODES,
         'prohibited_shortcuts': PROHIBITED_SETTLEMENT_SHORTCUTS,
     }

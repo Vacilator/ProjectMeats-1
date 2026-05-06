@@ -1,12 +1,13 @@
 # Settlement Reconciliation Runbook
 
-**Status:** B2B-03.1 through B2B-03.4 contract with webhook ingest, raw journal, deterministic exact-match posting,
-and accountant review queue overrides
-**Contract version:** `b2b-03.1.v1`
+**Status:** B2B-03.1 through B2B-03.5 contract with webhook ingest, raw journal, deterministic exact-match posting,
+and accountant review queue overrides plus provider-managed Stripe Treasury normalization
+**Contract version:** `b2b-03.5.v1`
 
 This runbook defines the canonical **settlement ingestion and reconciliation contract** for ProjectMeats. It now covers
 the shipped webhook-first ingest path, the raw settlement event journal, deterministic reconciliation that posts exact
-matches into `PaymentTransaction`, and the accountant review queue used to manually post or reject non-exact cases.
+matches into `PaymentTransaction`, the accountant review queue used to manually post or reject non-exact cases, and a
+provider-managed Stripe Treasury adapter that normalizes upstream webhook payloads into the same contract.
 
 ## Scope and current constraints
 
@@ -99,6 +100,9 @@ Required lifecycle states for the raw journal:
    `purchase_order`, producing `manual_invoice_override`, `manual_sales_order_override`, or
    `manual_purchase_order_override`; they may also reject a queued event with `accountant_rejected`.
 9. **Current review audit fields:** `reviewed_by`, `reviewed_at`, and `review_note` on `SettlementEvent`.
+10. **Current provider-managed adapter:** `stripe_treasury` may authenticate with the manifest-defined
+    `STRIPE_SETTLEMENT_WEBHOOK_SECRET` and must still write the exact upstream body to `raw_payload` while projecting a
+    canonical JSON object into `normalized_payload`.
 
 ### 6. Explicit prohibitions
 
@@ -143,11 +147,14 @@ Required lifecycle states for the raw journal:
    outcomes.
 8. `frontend/src/services/settlementEventsService.ts` and `frontend/src/pages/Accounting/SettlementQueue.tsx` -
    accountant review queue UI and service layer.
+9. `backend/tenant_apps/integrations/providers/stripe_treasury.py` - provider signature verification and canonical
+   normalization for `stripe_treasury`.
 
 ## Current non-goals
 
 - No fuzzy matching by amount/date/customer-only heuristics.
-- No direct bank-feed adapter yet.
+- No polling/cursor-based bank-feed adapter yet.
+- No tenant-stored provider secret bypass for Stripe Treasury; the webhook secret must stay manifest-defined.
 
 ## Validation
 

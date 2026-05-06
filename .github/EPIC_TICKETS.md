@@ -1034,18 +1034,18 @@
   - **Rollback:** Revert the queue UI and override endpoints while leaving raw event journals intact.
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
-- [ ] **B2B-03.5 bank-feed-provider-adapter-and-secret-parity**
-  - **Status:** Ready
+- [x] **B2B-03.5 bank-feed-provider-adapter-and-secret-parity**
+  - **Status:** Shipped in PR #4916
   - **Why now:** Direct bank-feed providers are follow-on work only after the webhook-first settlement path is stable and governed.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 15 / Epic 3
-  - **Scope:** Add a provider-specific bank-feed adapter (Plaid/Stripe Treasury or equivalent) using the same settlement journal/reconciliation contract, plus manifest-defined secret handling.
+  - **Scope:** Add a provider-specific bank-feed adapter (Stripe Treasury webhook normalization) using the same settlement journal/reconciliation contract, plus manifest-defined secret handling.
   - **Non-goals:** No bespoke second reconciliation engine.
   - **Primary domain:** integrations/ops
-  - **Likely touched paths:** `backend/apps/integrations/providers/`, `backend/apps/integrations/{models.py,views.py}`, `frontend/src/pages/Settings/IntegrationSettings.tsx`, `manifests/env.manifest.json`, relevant workflows/docs
+  - **Likely touched paths:** `backend/tenant_apps/integrations/providers/`, `backend/tenant_apps/integrations/{views.py,tasks.py,tests.py,settlement_contract.py}`, `manifests/env.manifest.json`, `.github/workflows/reusable-deploy.yml`, `docs/runbooks/SETTLEMENT_RECONCILIATION.md`
   - **Dependencies:** B2B-03.1, B2B-03.4
   - **Blockers:** None
   - **Acceptance criteria:** Any new provider secrets are manifest-defined, provider adapters feed the same raw event journal/matcher path, and Golden Pipeline workflow rules remain intact.
-  - **Validation commands:** `python config/manage_env.py audit`; `bash scripts/verify_golden_state.sh`; `bash .github/scripts/check_infrastructure.sh`; `cd backend && python manage.py test apps.integrations tenant_apps.integrations`
+  - **Validation commands:** `python config/manage_env.py audit`; `bash scripts/verify_golden_state.sh`; `bash .github/scripts/check_infrastructure.sh`; `cd backend && python manage.py test apps.integrations tenant_apps.integrations --noinput`; `cd backend && python manage.py makemigrations --check`
   - **Tenant/RLS impact:** Medium
   - **Secrets/infra impact:** High
   - **Risk level:** Medium
