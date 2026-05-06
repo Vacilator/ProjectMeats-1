@@ -285,6 +285,7 @@ Extend ProjectMeats from an internal ERP into a partner-facing B2B network with 
 - **Execution status:** execution is now open at `B2B-02.1 trade-invariants-contract-and-surface-audit`; downstream Phase 15 tickets remain blocked until that contract lands.
 - **Backlog placement:** `B2B-02.1` is now the first unchecked `Ready` ticket in `.github/EPIC_TICKETS.md`.
 - **Execution order:** trade invariants first, then guest portals, then settlement reconciliation.
+- **Canonical contract source:** `docs/runbooks/GLOBAL_TRADE_ENGINE.md` plus the non-adopted helper seam in `backend/apps/core/conversions.py`.
 
 ### Deliverables + expected results
 1. **B2B Extranet (guest portals)**
