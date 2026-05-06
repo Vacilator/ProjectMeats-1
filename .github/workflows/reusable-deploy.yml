@@ -148,6 +148,9 @@ on:
       OAUTH_ENCRYPTION_KEY:
         required: false
         description: "Fernet key for encrypting stored OAuth tokens"
+      STRIPE_SETTLEMENT_WEBHOOK_SECRET:
+        required: false
+        description: "Stripe Treasury settlement webhook signing secret"
 
 env:
   REGISTRY: registry.digitalocean.com/meatscentral
@@ -1224,11 +1227,12 @@ jobs:
           	OPENAI_MODEL=${{ secrets.OPENAI_MODEL }}
           	MICROSOFT_CLIENT_ID=${{ secrets.MICROSOFT_CLIENT_ID }}
           	MICROSOFT_CLIENT_SECRET=${{ secrets.MICROSOFT_CLIENT_SECRET }}
-          	MICROSOFT_TENANT_ID=${{ secrets.MICROSOFT_TENANT_ID }}
-          	MICROSOFT_REDIRECT_URI=${{ secrets.MICROSOFT_REDIRECT_URI }}
-          	OAUTH_ENCRYPTION_KEY=${{ secrets.OAUTH_ENCRYPTION_KEY }}
-          	GIT_COMMIT_SHA=${{ github.sha }}
-          	EOF
+           	MICROSOFT_TENANT_ID=${{ secrets.MICROSOFT_TENANT_ID }}
+           	MICROSOFT_REDIRECT_URI=${{ secrets.MICROSOFT_REDIRECT_URI }}
+           	OAUTH_ENCRYPTION_KEY=${{ secrets.OAUTH_ENCRYPTION_KEY }}
+           	STRIPE_SETTLEMENT_WEBHOOK_SECRET=${{ secrets.STRIPE_SETTLEMENT_WEBHOOK_SECRET }}
+           	GIT_COMMIT_SHA=${{ github.sha }}
+           	EOF
 
           chmod 600 backend.env
           

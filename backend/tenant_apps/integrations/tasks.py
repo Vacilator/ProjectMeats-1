@@ -8,10 +8,12 @@ from typing import Any, Dict
 
 import requests
 from celery import shared_task
+from django.core.exceptions import ValidationError as DjangoValidationError
 from django.utils import timezone
 
 from .reconciliation import reconcile_settlement_event
 from .models import SettlementEvent, SettlementEventState, TenantWebhook
+from .providers import build_stripe_treasury_canonical_payload, is_stripe_treasury_provider
 from .signing import sign_timestamped_body, stable_json
 
 logger = logging.getLogger(__name__)
@@ -146,13 +148,18 @@ def process_settlement_event(self, event_id: int, tenant_id: str):
             return reconcile_settlement_event(event=event)
 
         try:
-            normalized_payload = json.loads(event.raw_payload)
-        except json.JSONDecodeError as exc:
+            if is_stripe_treasury_provider(event.provider_code):
+                normalized_payload = build_stripe_treasury_canonical_payload(event.raw_payload)
+            else:
+                raw_payload = json.loads(event.raw_payload)
+                normalized_payload = raw_payload if isinstance(raw_payload, dict) else {'body': raw_payload}
+        except (json.JSONDecodeError, DjangoValidationError) as exc:
+            message = str(exc)
             event.state = SettlementEventState.FAILED
-            event.last_error = f'json_parse_error:{exc.msg}'
+            event.last_error = f'normalization_error:{message}'
             event.processed_at = timezone.now()
             event.save(update_fields=['state', 'last_error', 'processed_at', 'modified_on'])
-            return {'success': False, 'reason': 'json_parse_error', 'state': event.state}
+            return {'success': False, 'reason': 'normalization_error', 'state': event.state}
 
         event.normalized_payload = normalized_payload if isinstance(normalized_payload, dict) else {'body': normalized_payload}
         event.state = SettlementEventState.VALIDATED

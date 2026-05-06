@@ -35,6 +35,11 @@ from .serializers import (
     TenantWebhookRotateSecretSerializer,
     TenantWebhookSerializer,
 )
+from .providers import (
+    build_stripe_treasury_canonical_payload,
+    is_stripe_treasury_provider,
+    verify_stripe_treasury_signature,
+)
 from .reconciliation import override_settlement_event, reject_settlement_event
 from django.core.exceptions import ValidationError as DjangoValidationError
 from .settlement_contract import build_raw_payload_sha256, build_settlement_idempotency_key
@@ -265,7 +270,12 @@ class SettlementEventIngestAPIView(APIView):
             return _settlement_not_found()
 
         raw_payload = request.body.decode('utf-8')
-        serializer = SettlementEventIngestSerializer(data=request.data)
+        payload_data = (
+            build_stripe_treasury_canonical_payload(raw_payload)
+            if is_stripe_treasury_provider(source.provider_code)
+            else request.data
+        )
+        serializer = SettlementEventIngestSerializer(data=payload_data)
         serializer.is_valid(raise_exception=True)
         payload = serializer.validated_data
         now = timezone.now()
@@ -338,6 +348,10 @@ class SettlementEventIngestAPIView(APIView):
         )
 
     def _authenticate_source(self, request, source: SettlementSource) -> bool:
+        if is_stripe_treasury_provider(source.provider_code):
+            signature = request.headers.get('Stripe-Signature', '')
+            return verify_stripe_treasury_signature(body=request.body, signature_header=signature)
+
         if source.auth_mode == SettlementSourceAuthMode.TENANT_API_KEY:
             auth_header = request.headers.get('Authorization', '')
             prefix = 'Bearer '
