@@ -260,7 +260,6 @@ def build_pending_review_items(tenant_id: str) -> list[dict[str, object]]:
         AIFeedbackLog.objects.filter(
             tenant_id=tenant_id,
             resolved_by__isnull=True,
-            confidence_score__lt=0.85,
         )
         .order_by('-created_on')
     )
@@ -1525,7 +1524,7 @@ class SwarmInvokeAPIView(APIView):
 class PendingReviewAPIView(APIView):
     """Staff-only queue of HITL items requiring human review.
 
-    Backed by AIFeedbackLog (unresolved rows with low confidence).
+    Backed by unresolved AIFeedbackLog rows awaiting operator review.
     """
 
     permission_classes = [IsAdminUser]

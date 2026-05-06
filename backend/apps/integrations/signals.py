@@ -1,15 +1,12 @@
-"""
-Django signals for integrations app.
-
-Post-save hooks for EmailLog to trigger AI processing.
-"""
 import logging
+import uuid
 
 from django.db.models.signals import post_save
 from django.dispatch import receiver
+from django.utils import timezone
 
 from apps.tenants.models import TenantUser
-from django.utils import timezone
+from tenant_apps.ai_assistant.models import AIFeedbackLog
 from tenant_apps.workflows.models import NotificationPriority, NotificationType, UserNotification
 
 from .ai_classification import classify_ingested_email
@@ -18,96 +15,138 @@ from .models import EmailLog, EmailReviewDraft
 logger = logging.getLogger(__name__)
 
 
-def _notify_actionable_email(instance: EmailLog, draft: EmailReviewDraft, category: str) -> None:
-    recipients = TenantUser.objects.filter(
+def _email_feedback_document_id(instance: EmailLog) -> uuid.UUID:
+    identifier = instance.message_id or str(instance.pk or uuid.uuid4())
+    return uuid.uuid5(uuid.NAMESPACE_URL, f'apps.integrations.EmailLog:{identifier}')
+
+
+def _upsert_action_required_feedback(instance: EmailLog, extracted_data: dict | None) -> None:
+    payload = dict(extracted_data or {})
+    subject = str(payload.get('subject') or instance.subject or '').strip()
+    if subject:
+        payload.setdefault('subject', subject)
+    sender_email = str(payload.get('sender_email') or instance.sender_email or '').strip()
+    if sender_email:
+        payload.setdefault('sender_email', sender_email)
+
+    AIFeedbackLog.objects.update_or_create(
         tenant=instance.tenant,
-        is_active=True,
-        role__in=['owner', 'admin'],
-    ).select_related('user')
-
-    category_label = category.lower()
-    title = f'Potential {category_label} received'
-    message = (
-        f'Received potential {category_label} from {instance.sender_email}. '
-        'Click here to review and save.'
+        document_id=_email_feedback_document_id(instance),
+        defaults={
+            'document_type': payload.get('document_type') or payload.get('draft_type') or payload.get('category') or 'purchase_order',
+            'original_extracted_data': payload,
+            'user_corrected_data': {},
+            'confidence_score': float(payload.get('confidence_score') or payload.get('confidence') or 0.0),
+            'resolved_by': None,
+        },
     )
-    action_url = f'/my-tasks?tab=ai-review&draft={draft.id}'
-    metadata = {
-        'email_log_id': str(instance.id),
-        'draft_id': str(draft.id),
-        'category': category,
-        'review_target_url': action_url,
-    }
 
-    for tenant_user in recipients:
-        UserNotification.objects.create(
-            user=tenant_user.user,
+
+def _notify_actionable_email(instance: EmailLog, draft: EmailReviewDraft, classification: dict) -> None:
+    reviewer_qs = (
+        TenantUser.objects.select_related('user')
+        .filter(tenant=instance.tenant, is_active=True)
+        .exclude(user__isnull=True)
+    )
+    recipients = []
+    for membership in reviewer_qs:
+        user = membership.user
+        if not user:
+            continue
+        if user.is_superuser or user.is_staff or membership.role in {'owner', 'manager'}:
+            recipients.append(user)
+
+    if not recipients:
+        logger.info('No actionable-email reviewers found for tenant %s', instance.tenant_id)
+        return
+
+    title = f'AI review required: {draft.get_draft_type_display()}'
+    subject = (instance.subject or '').strip() or 'Email review item'
+    category = classification.get('category') or 'actionable'
+    message = (
+        f'{subject} from {instance.sender_email} requires review '
+        f'({category.replace("_", " ")}).'
+    )
+    target_url = f'/my-tasks?tab=ai-review&draft={draft.id}'
+
+    now = timezone.now()
+    notifications = [
+        UserNotification(
             tenant=instance.tenant,
+            user=user,
             notification_type=NotificationType.SYSTEM,
+            priority=NotificationPriority.HIGH,
             title=title,
             message=message,
-            priority=NotificationPriority.HIGH,
-            entity_type='email_review_draft',
-            entity_id=draft.id,
-            action_url=action_url,
-            metadata=metadata,
+            target_url=target_url,
+            is_read=False,
+            created_at=now,
         )
+        for user in recipients
+    ]
+    UserNotification.objects.bulk_create(notifications, ignore_conflicts=False)
 
-    draft.notification_sent_at = timezone.now()
-    draft.save(update_fields=['notification_sent_at', 'updated_at'])
+    logger.info(
+        'Queued %s actionable-email notifications for tenant %s draft=%s',
+        len(notifications),
+        instance.tenant_id,
+        draft.id,
+    )
 
 
 @receiver(post_save, sender=EmailLog)
 def trigger_ai_extraction(sender, instance, created, **kwargs):
     """
-    Trigger AI extraction when a new email is logged.
-    
-    Called automatically after EmailLog.save() via Django signals.
-    Only processes newly created emails in 'logged' status.
+    Automatically trigger AI extraction when a new EmailLog is created.
+
+    This signal fires after an email is logged from OAuth sync.
+    In production, should be replaced with Celery task for async processing.
     """
-    # Only process newly created emails
     if not created:
         return
-    
-    # Only process emails in 'logged' status (skip already processed)
+
     if instance.status != 'logged':
         return
-    
-    logger.info(f"Triggering AI extraction for email {instance.id}: {instance.subject}")
-    
+
     try:
-        # Mark as processing
         instance.mark_as_processing()
-        
+
         classification = classify_ingested_email(
             subject=instance.subject,
+            body_text=instance.body_text,
             sender_email=instance.sender_email,
-            body_text=instance.body_text or instance.body_html,
-            has_attachments=instance.has_attachments,
+            metadata={
+                'message_id': instance.message_id,
+                'has_attachments': instance.has_attachments,
+                'attachment_count': instance.attachment_count,
+            },
         )
+
+        _upsert_action_required_feedback(instance, classification)
 
         if classification.get('actionable') and classification.get('draft_type'):
             draft, _ = EmailReviewDraft.objects.update_or_create(
-                tenant=instance.tenant,
                 email_log=instance,
                 defaults={
-                    'draft_type': str(classification['draft_type']),
+                    'tenant': instance.tenant,
+                    'draft_type': classification['draft_type'],
+                    'classification': classification,
+                    'source_subject': instance.subject,
+                    'source_sender': instance.sender_email,
+                    'source_excerpt': (instance.body_text or instance.body_html or '')[:2000],
                     'status': 'pending_review',
-                    'summary': str(classification.get('summary') or ''),
-                    'classification_confidence': float(classification.get('confidence') or 0.0),
-                    'extracted_payload': classification,
                 },
             )
-            _notify_actionable_email(instance, draft, str(classification['category']))
+            _notify_actionable_email(instance, draft, classification)
             instance.mark_as_draft_created(extracted_data=classification)
         else:
             logger.info(
-                "Email %s classified as %s; marking as ignored",
+                'Email %s classified as %s; leaving operator-visible for follow-up',
                 instance.id,
                 classification.get('category'),
             )
             instance.mark_as_completed(extracted_data=classification)
-            
+
     except Exception as e:
-        logger.error(f"AI extraction failed for email {instance.id}: {str(e)}", exc_info=True)
+        logger.exception('AI extraction failed for email %s', instance.id)
         instance.mark_as_failed(str(e))

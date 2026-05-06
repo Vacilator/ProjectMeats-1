@@ -40,6 +40,8 @@ export const PlantDetail: React.FC = () => {
   const sid = String(supplierId || '').trim();
   const pid = String(plantId || '').trim();
   const { loading: authLoading, isAuthenticated } = useAuthState();
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [editOpen, setEditOpen] = useState(false);
 
   const [loading, setLoading] = useState(true);
   const [supplier, setSupplier] = useState<SupplierRow | null>(null);
@@ -275,16 +277,26 @@ export const PlantDetail: React.FC = () => {
         </div>
 
         <div style={{ display: 'flex', gap: 8 }}>
-          <Button
-            type="primary"
-            onClick={() => pid && navigate(`/plants/${encodeURIComponent(pid)}/edit`)}
-            disabled={!pid || loading || showAuthFallback}
-          >
+          <Button type="primary" onClick={() => setEditOpen(true)} disabled={!pid || loading || showAuthFallback}>
             Edit Plant
           </Button>
         </div>
       </div>
 
+      {pid ? (
+        <EntityFormSurface
+          entityType="plant"
+          mode="edit"
+          variant="modal"
+          entityId={pid}
+          isOpen={editOpen}
+          onClose={() => setEditOpen(false)}
+          onSuccess={() => {
+            setEditOpen(false);
+            setRefreshKey((key) => key + 1);
+          }}
+        />
+      ) : null}
       <div style={{ marginTop: 12 }}>
         {authLoading || loading ? (
           <Card>
@@ -303,6 +315,7 @@ export const PlantDetail: React.FC = () => {
           <>
             <AIOverviewCard entityType="plant" entityId={pid} />
             <EntityProfileHeader
+              key={`${pid}-${refreshKey}`}
               entityType="plant"
               entityId={pid}
               variant="full"

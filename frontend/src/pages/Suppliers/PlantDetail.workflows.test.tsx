@@ -11,6 +11,26 @@ const useAuthStateMock = vi.fn(() => ({ loading: false, isAuthenticated: true })
 vi.mock('@/contexts/AuthContext', () => ({
   useAuthState: () => useAuthStateMock(),
 }));
+const entityFormSurfaceMock = vi.fn(
+  ({
+    entityType,
+    entityId,
+    mode,
+    variant,
+    isOpen,
+  }: {
+    entityType: string;
+    entityId?: string | number;
+    mode: string;
+    variant?: string;
+    isOpen?: boolean;
+  }) =>
+    isOpen ? (
+      <div data-testid="entity-form-surface">
+        {entityType}:{mode}:{variant || 'modal'}:{String(entityId || '')}
+      </div>
+    ) : null
+);
 
 vi.mock('@/components/Cockpit', () => ({
   EntityProfileHeader: () => <div data-testid="entity-profile-header" />,
@@ -31,19 +51,13 @@ vi.mock('@/components/Shared', () => ({
       {entityType}:{String(entityId)}
     </div>
   ),
-  EntityFormSurface: ({
-    entityType,
-    mode,
-    variant,
-  }: {
+  EntityFormSurface: (props: {
     entityType: string;
+    entityId?: string | number;
     mode: string;
     variant?: string;
-  }) => (
-    <div data-testid="entity-form-surface">
-      {entityType}:{mode}:{variant ?? 'modal'}
-    </div>
-  ),
+    isOpen?: boolean;
+  }) => entityFormSurfaceMock(props),
 }));
 
 const apiGet = vi.fn(async (url: string) => {
@@ -58,6 +72,10 @@ vi.mock('@/services/businessApi', () => ({
     get: (url: string, _config?: unknown) => apiGet(url),
   },
 }));
+
+beforeEach(() => {
+  entityFormSurfaceMock.mockClear();
+});
 
 describe('PlantDetail workflows tab', () => {
   beforeEach(() => {
@@ -120,24 +138,21 @@ describe('PlantDetail workflows tab', () => {
     expect(await screen.findByTestId('activity-feed')).toHaveTextContent('plant:2');
   });
 
-  it('clones the supplier edit flow by routing plant edits onto the dedicated edit page', async () => {
+  it('opens plant editing in a modal surface without replacing the detail view', async () => {
     const user = userEvent.setup();
 
     render(
       <MemoryRouter initialEntries={['/suppliers/1/plants/2']}>
         <Routes>
           <Route path="/suppliers/:supplierId/plants/:plantId" element={<PlantDetail />} />
-          <Route path="/plants/:id/edit" element={<div data-testid="plant-edit-route">Plant Edit Route</div>} />
         </Routes>
       </MemoryRouter>
     );
 
-    expect(await screen.findByTestId('ai-overview-card')).toBeInTheDocument();
+    await user.click(await screen.findByRole('button', { name: /edit plant/i }));
 
-    await user.click(screen.getByRole('button', { name: /edit plant/i }));
-
-    expect(await screen.findByTestId('plant-edit-route')).toBeInTheDocument();
-    expect(screen.queryByTestId('ai-overview-card')).not.toBeInTheDocument();
+    expect(await screen.findByTestId('entity-profile-header')).toBeInTheDocument();
+    expect(await screen.findByTestId('entity-form-surface')).toHaveTextContent('plant:edit:modal:2');
   });
 
   it('fails closed on unauthorized detail loads instead of rendering the heavy detail tree', async () => {

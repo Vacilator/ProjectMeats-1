@@ -29,7 +29,7 @@ interface EmailLog {
   message_id: string;
   subject: string;
   sender: string;
-  status: 'logged' | 'ai_parsing' | 'order_created' | 'failed' | 'ignored';
+  status: 'logged' | 'ai_parsing' | 'order_created' | 'failed' | 'action_required' | 'ignored';
   provider_type: string | null;
   has_attachments: boolean;
   extracted_data: Record<string, any> | null;
@@ -179,10 +179,11 @@ const StatusBadge = styled.div<{ $status: EmailLog['status'] }>`
           background: rgba(239, 68, 68, 0.1);
           color: rgb(239, 68, 68);
         `;
+      case 'action_required':
       case 'ignored':
         return `
-          background: rgba(156, 163, 175, 0.1);
-          color: rgb(107, 114, 128);
+          background: rgba(234, 179, 8, 0.1);
+          color: rgb(234, 179, 8);
         `;
     }
   }}
@@ -364,8 +365,11 @@ export const EmailIngestionMonitorWidget: React.FC<EmailIngestionMonitorWidgetPr
         return { icon: <CheckCircle size={12} />, label: 'Order Created' };
       case 'failed':
         return { icon: <AlertCircle size={12} />, label: 'Failed' };
+      case 'action_required':
       case 'ignored':
         return { icon: <Clock size={12} />, label: 'Review Needed' };
+      default:
+        return { icon: <Mail size={12} />, label: 'New' };
     }
   };
 
