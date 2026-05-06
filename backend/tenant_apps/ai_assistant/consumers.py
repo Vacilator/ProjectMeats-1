@@ -76,7 +76,12 @@ class AIInboxConsumer(AsyncJsonWebsocketConsumer):
             self.group_name = get_ai_inbox_group_name(self.tenant_id)
             await self.channel_layer.group_add(self.group_name, self.channel_name)
 
-        await self.accept()
+        requested_subprotocols = {str(value) for value in (self.scope.get("subprotocols") or []) if value}
+        accepted_subprotocol = "pm.ai.inbox" if "pm.ai.inbox" in requested_subprotocols else None
+        if accepted_subprotocol:
+            await self.accept(accepted_subprotocol)
+        else:
+            await self.accept()
 
         snapshot = (
             await load_ai_inbox_snapshot(self.tenant_id)

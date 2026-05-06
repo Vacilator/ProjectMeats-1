@@ -42,15 +42,21 @@ class AIInboxWebsocketTests(TransactionTestCase):
         TenantUser.objects.create(tenant=self.tenant, user=self.staff_user, role="admin", is_active=True)
         TenantUser.objects.create(tenant=self.tenant, user=self.member_user, role="member", is_active=True)
 
-    def _communicator(self, *, user, tenant_id: str | None):
+    def _communicator(self, *, user, tenant_id: str | None, use_subprotocol_token: bool = False):
         token = str(AccessToken.for_user(user))
-        params = [f"access_token={token}"]
+        params = []
+        subprotocols = None
+        if use_subprotocol_token:
+            subprotocols = ["pm.ai.inbox", "access_token", token]
+        else:
+            params.append(f"access_token={token}")
         if tenant_id is not None:
             params.append(f"tenant_id={tenant_id}")
         path = f"/ws/ai/inbox/?{'&'.join(params)}"
         return WebsocketCommunicator(
             application,
             path,
+            subprotocols=subprotocols,
             headers=[(b"host", b"testserver"), (b"origin", b"http://testserver")],
         )
 
@@ -118,6 +124,32 @@ class AIInboxWebsocketTests(TransactionTestCase):
             self.assertEqual(snapshot.get("type"), "ai.inbox.snapshot")
             self.assertEqual(snapshot.get("pending_count"), 0)
             self.assertEqual(snapshot.get("results"), [])
+
+            await communicator.disconnect()
+
+        async_to_sync(run)()
+
+    def test_staff_user_can_authenticate_via_subprotocol_token(self):
+        AIFeedbackLog.objects.create(
+            tenant=self.tenant,
+            document_id=uuid.uuid4(),
+            document_type="purchase_order",
+            original_extracted_data={"order_number": "PO-3"},
+            confidence_score=0.75,
+        )
+
+        async def run():
+            communicator = self._communicator(
+                user=self.staff_user,
+                tenant_id=str(self.tenant.id),
+                use_subprotocol_token=True,
+            )
+            connected, _ = await communicator.connect(timeout=1)
+            self.assertTrue(connected)
+
+            snapshot = await communicator.receive_json_from(timeout=1)
+            self.assertEqual(snapshot.get("type"), "ai.inbox.snapshot")
+            self.assertEqual(snapshot.get("pending_count"), 1)
 
             await communicator.disconnect()
 

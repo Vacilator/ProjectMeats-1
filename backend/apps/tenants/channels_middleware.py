@@ -36,6 +36,22 @@ def _get_bearer_token(scope: dict[str, Any]) -> str | None:
     if token:
         return token
 
+    subprotocols = scope.get('subprotocols') or []
+    if isinstance(subprotocols, list):
+        for index, value in enumerate(subprotocols):
+            protocol = str(value or '').strip()
+            if protocol in {'access_token', 'token', 'jwt', 'bearer'}:
+                if index + 1 < len(subprotocols):
+                    candidate = str(subprotocols[index + 1] or '').strip()
+                    if candidate:
+                        return candidate
+                continue
+            for prefix in ('access_token.', 'token.', 'jwt.', 'bearer.'):
+                if protocol.startswith(prefix):
+                    candidate = protocol[len(prefix):].strip()
+                    if candidate:
+                        return candidate
+
     headers = _headers_dict(scope)
     auth = headers.get('authorization')
     if not auth:

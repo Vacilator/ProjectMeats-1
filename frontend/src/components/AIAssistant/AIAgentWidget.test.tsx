@@ -25,9 +25,11 @@ class MockWebSocket {
   onclose: ((event: CloseEvent) => void) | null = null;
   onerror: ((event: Event) => void) | null = null;
   url: string;
+  protocols?: string | string[];
 
-  constructor(url: string) {
+  constructor(url: string, protocols?: string | string[]) {
     this.url = url;
+    this.protocols = protocols;
     websocketInstances.push(this);
   }
 
@@ -125,6 +127,7 @@ describe('AIAgentWidget', () => {
     expect(websocketInstances[0].url).toContain('/ws/ai/inbox/');
     expect(websocketInstances[0].url).toContain('tenant_id=tenant-123');
     expect(websocketInstances[0].url).toContain('access_token=access-token');
+    expect(websocketInstances[0].protocols).toEqual(['pm.ai.inbox', 'access_token', 'access-token']);
 
     fireEvent.click(screen.getByRole('button', { name: 'AI chat widget' }));
 
@@ -155,5 +158,10 @@ describe('AIAgentWidget', () => {
     });
 
     expect(websocketInstances[0].url).toContain('access_token=refreshed-access-token');
+    expect(websocketInstances[0].protocols).toEqual([
+      'pm.ai.inbox',
+      'access_token',
+      'refreshed-access-token',
+    ]);
   });
 });
