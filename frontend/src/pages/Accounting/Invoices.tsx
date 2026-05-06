@@ -23,6 +23,7 @@ import {
   TransactionalEmptyStateGuidance,
   TransactionalEmptyStateGuidanceItem,
 } from '../../components/Onboarding';
+import SharePortalLinkModal from '../../components/Portal/SharePortalLinkModal';
 import { ActivityFeed, RecordPaymentModal, PaymentHistoryList, EntityFormSurface } from '../../components/Shared';
 import { apiClient } from '../../services/apiService';
 import { coerceFiniteNumber, formatCurrency } from '../../shared/utils';
@@ -418,6 +419,7 @@ const Invoices: React.FC = () => {
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [showPortalAccess, setShowPortalAccess] = useState(false);
 
   // Fetch invoices
   const fetchInvoices = async () => {
@@ -645,6 +647,9 @@ const Invoices: React.FC = () => {
                 >
                   Open Record
                 </RecordPaymentButton>
+                <RecordPaymentButton onClick={() => setShowPortalAccess(true)}>
+                  Portal Access
+                </RecordPaymentButton>
                 {selectedInvoice.status !== 'paid' && selectedInvoice.status !== 'cancelled' && (
                   <RecordPaymentButton onClick={() => setShowPaymentModal(true)}>
                     💰 Record Payment
@@ -753,6 +758,13 @@ const Invoices: React.FC = () => {
                 fetchInvoices();
                 setShowPaymentModal(false);
               }}
+            />
+
+            <SharePortalLinkModal
+              entityType="invoice"
+              entityId={selectedInvoice.id}
+              isOpen={showPortalAccess}
+              onClose={() => setShowPortalAccess(false)}
             />
           </SidePanel>
         )}

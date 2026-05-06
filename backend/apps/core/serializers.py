@@ -13,6 +13,7 @@ from apps.core.security import (
     B2B_PORTAL_ALLOWED_DOCUMENT_SOURCES,
     B2B_PORTAL_ALLOWED_ENTITY_SCOPES,
 )
+from apps.core.serializers_audit import TenantAuditEventSerializer
 
 
 class UserPreferencesSerializer(serializers.ModelSerializer):
@@ -621,3 +622,106 @@ class PortalGrantDocumentAccessSerializer(serializers.ModelSerializer):
                 {"tenant": "Portal document access tenant context does not match the existing record."}
             )
         return super().update(instance, validated_data)
+
+
+class PortalGrantOperatorSummarySerializer(serializers.ModelSerializer):
+    """Operator-safe summary for managing portal grants."""
+
+    tenant_id = serializers.UUIDField(source="tenant.id", read_only=True)
+    documents = serializers.SerializerMethodField()
+    is_expired = serializers.SerializerMethodField()
+    is_active = serializers.SerializerMethodField()
+    can_resend = serializers.SerializerMethodField()
+
+    class Meta:
+        model = PortalGrant
+        fields = [
+            "id",
+            "tenant_id",
+            "subject_email",
+            "status",
+            "resource_scope",
+            "document_sources",
+            "expires_at",
+            "revoked_at",
+            "revoked_reason",
+            "last_accessed_at",
+            "max_uses",
+            "use_count",
+            "created_on",
+            "modified_on",
+            "is_expired",
+            "is_active",
+            "can_resend",
+            "documents",
+        ]
+        read_only_fields = fields
+
+    def get_documents(self, obj):
+        links = getattr(obj, "_prefetched_objects_cache", {}).get("document_links")
+        if links is None:
+            links = (
+                obj.document_links.select_related("document_reference")
+                .order_by("sort_order", "created_on")
+            )
+
+        documents = [
+            link.document_reference
+            for link in links
+            if link.document_reference.is_active
+            and link.document_reference.source_kind in obj.document_sources
+        ]
+        return PortalDocumentReferencePublicSerializer(documents, many=True).data
+
+    def get_is_expired(self, obj):
+        return obj.is_expired
+
+    def get_is_active(self, obj):
+        return obj.is_active
+
+    def get_can_resend(self, obj):
+        return obj.is_active
+
+
+class PortalGrantOperatorTargetSerializer(serializers.Serializer):
+    """Resolved operator target metadata for portal grant management."""
+
+    entity_type = serializers.CharField()
+    entity_id = serializers.CharField()
+    label = serializers.CharField()
+    resource_scope = serializers.JSONField()
+    default_document_sources = serializers.ListField(child=serializers.CharField())
+    issue_blocker = serializers.CharField(allow_blank=True, allow_null=True)
+    available_documents = PortalDocumentReferencePublicSerializer(many=True)
+
+
+class PortalGrantOperatorTargetResponseSerializer(serializers.Serializer):
+    target = PortalGrantOperatorTargetSerializer()
+    grants = PortalGrantOperatorSummarySerializer(many=True)
+
+
+class PortalGrantIssueRequestSerializer(serializers.Serializer):
+    subject_email = serializers.EmailField()
+    expires_at = serializers.DateTimeField()
+    max_uses = serializers.IntegerField(required=False, min_value=1, default=1)
+
+    def validate_expires_at(self, value):
+        from django.utils import timezone
+
+        if value <= timezone.now():
+            raise serializers.ValidationError("Portal grants must expire in the future.")
+        return value
+
+
+class PortalGrantRevokeRequestSerializer(serializers.Serializer):
+    reason = serializers.CharField(required=False, allow_blank=True, max_length=255, default="")
+
+
+class PortalGrantIssueResponseSerializer(serializers.Serializer):
+    grant = PortalGrantOperatorSummarySerializer()
+    raw_token = serializers.CharField()
+    share_path = serializers.CharField()
+
+
+class PortalGrantHistoryResponseSerializer(serializers.Serializer):
+    events = TenantAuditEventSerializer(many=True)

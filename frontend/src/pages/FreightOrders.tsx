@@ -11,6 +11,7 @@ import {
   TransactionalEmptyStateGuidanceItem,
 } from '@/components/Onboarding';
 import { AuditHistoryTimeline } from '@/components/Operations/AuditHistoryTimeline';
+import SharePortalLinkModal from '@/components/Portal/SharePortalLinkModal';
 import { OperationalDocumentActions } from '@/components/Operations/OperationalDocumentActions';
 import { EntityFormSurface } from '@/components/Shared';
 import { businessApi } from '@/services/businessApi';
@@ -49,6 +50,7 @@ const FreightOrders: React.FC = () => {
   const [selectedOrder, setSelectedOrder] = useState<FreightOrder | null>(null);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [editingOrderId, setEditingOrderId] = useState<string | null>(null);
+  const [portalAccessOrderId, setPortalAccessOrderId] = useState<string | null>(null);
 
   const freightOrdersQuery = useQuery({
     queryKey: withTenantQueryKey('freight-orders'),
@@ -215,6 +217,9 @@ const FreightOrders: React.FC = () => {
                   void freightOrdersQuery.refetch();
                 }}
               />
+              <Button onClick={() => setPortalAccessOrderId(String(selectedOrder.id))}>
+                Portal Access
+              </Button>
               <Button type="primary" onClick={() => setEditingOrderId(String(selectedOrder.id))}>
                 Edit
               </Button>
@@ -285,6 +290,15 @@ const FreightOrders: React.FC = () => {
           void freightOrdersQuery.refetch();
         }}
       />
+
+      {selectedOrder ? (
+        <SharePortalLinkModal
+          entityType="freight-orders"
+          entityId={portalAccessOrderId || selectedOrder.id}
+          isOpen={Boolean(portalAccessOrderId)}
+          onClose={() => setPortalAccessOrderId(null)}
+        />
+      ) : null}
     </div>
   );
 };
