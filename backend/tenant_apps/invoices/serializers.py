@@ -1,6 +1,7 @@
 """
 Serializers for Invoices app.
 """
+from django.core.exceptions import ObjectDoesNotExist
 from rest_framework import serializers
 from apps.core.serializers_trade import TradeTimelineSerializerMixin, TradeWeightSerializerMixin
 from apps.core.serializers_documents import DocumentStatusValidationMixin
@@ -203,6 +204,10 @@ class PaymentTransactionSerializer(serializers.ModelSerializer):
     created_by_name = serializers.SerializerMethodField()
     entity_type = serializers.SerializerMethodField()
     entity_reference = serializers.SerializerMethodField()
+    source_settlement_event_id = serializers.SerializerMethodField()
+    source_settlement_reason_code = serializers.SerializerMethodField()
+    source_settlement_provider_code = serializers.SerializerMethodField()
+    source_settlement_review_action = serializers.SerializerMethodField()
     
     class Meta:
         model = PaymentTransaction
@@ -210,9 +215,15 @@ class PaymentTransactionSerializer(serializers.ModelSerializer):
             'id', 'tenant', 'purchase_order', 'sales_order', 'invoice',
             'amount', 'payment_date', 'payment_method', 'reference_number',
             'notes', 'created_by', 'created_by_name', 'created_on', 'modified_on',
-            'entity_type', 'entity_reference'
+            'entity_type', 'entity_reference', 'source_settlement_event_id',
+            'source_settlement_reason_code', 'source_settlement_provider_code',
+            'source_settlement_review_action'
         ]
-        read_only_fields = ['id', 'tenant', 'created_on', 'modified_on', 'created_by_name', 'entity_type', 'entity_reference']
+        read_only_fields = [
+            'id', 'tenant', 'created_on', 'modified_on', 'created_by_name', 'entity_type',
+            'entity_reference', 'source_settlement_event_id', 'source_settlement_reason_code',
+            'source_settlement_provider_code', 'source_settlement_review_action',
+        ]
     
     def get_created_by_name(self, obj):
         """Get the name of the user who created the payment."""
@@ -239,6 +250,28 @@ class PaymentTransactionSerializer(serializers.ModelSerializer):
         elif obj.invoice:
             return obj.invoice.invoice_number
         return None
+
+    def _get_settlement_event(self, obj):
+        try:
+            return obj.source_settlement_event
+        except ObjectDoesNotExist:
+            return None
+
+    def get_source_settlement_event_id(self, obj):
+        event = self._get_settlement_event(obj)
+        return event.id if event else None
+
+    def get_source_settlement_reason_code(self, obj):
+        event = self._get_settlement_event(obj)
+        return event.reconciliation_reason_code if event else None
+
+    def get_source_settlement_provider_code(self, obj):
+        event = self._get_settlement_event(obj)
+        return event.provider_code if event else None
+
+    def get_source_settlement_review_action(self, obj):
+        event = self._get_settlement_event(obj)
+        return event.review_action if event else None
 
 
 class PortalInvoiceSummarySerializer(

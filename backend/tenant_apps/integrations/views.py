@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from django.contrib.contenttypes.models import ContentType
 from django.db import IntegrityError, transaction
 from django.db.models import F
 from django.utils import timezone
@@ -12,9 +13,11 @@ from rest_framework.views import APIView
 
 from apps.tenants.models import Tenant, TenantUser
 from apps.tenants.rls import set_current_tenant
+from apps.core.models import TenantAuditEvent
 
 from .models import (
     SettlementEvent,
+    SettlementReviewAction,
     SettlementEventState,
     SettlementSource,
     SettlementSourceAuthMode,
@@ -22,7 +25,11 @@ from .models import (
     TenantWebhook,
 )
 from .serializers import (
+    SettlementApproveSerializer,
+    SettlementEventDetailSerializer,
     SettlementEventIngestSerializer,
+    SettlementRejectSerializer,
+    SettlementRelinkSerializer,
     SettlementEventSerializer,
     SettlementSourceCreateSerializer,
     SettlementSourceSerializer,
@@ -31,6 +38,11 @@ from .serializers import (
     TenantWebhookCreateSerializer,
     TenantWebhookRotateSecretSerializer,
     TenantWebhookSerializer,
+)
+from .reconciliation import (
+    manually_approve_settlement_event,
+    manually_reject_settlement_event,
+    manually_relink_settlement_event,
 )
 from .settlement_contract import build_raw_payload_sha256, build_settlement_idempotency_key
 from .signing import verify_timestamped_signature
@@ -159,9 +171,167 @@ class SettlementSourceViewSet(TenantAdminOnlyMixin, viewsets.ModelViewSet):
 
 
 class SettlementEventViewSet(TenantAdminOnlyMixin, viewsets.ReadOnlyModelViewSet):
-    queryset = SettlementEvent.objects.select_related('source')
+    queryset = SettlementEvent.objects.select_related(
+        'source',
+        'reviewed_by',
+        'matched_invoice',
+        'matched_sales_order',
+        'matched_purchase_order',
+        'payment_transaction',
+    )
     serializer_class = SettlementEventSerializer
     permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        queryset = super().get_queryset().order_by('-received_at', '-id')
+        state = str(self.request.query_params.get('state') or '').strip()
+        if state:
+            queryset = queryset.filter(state=state)
+        return queryset
+
+    def get_serializer_class(self):
+        if self.action == 'retrieve':
+            return SettlementEventDetailSerializer
+        if self.action == 'approve':
+            return SettlementApproveSerializer
+        if self.action == 'relink':
+            return SettlementRelinkSerializer
+        if self.action == 'reject':
+            return SettlementRejectSerializer
+        return SettlementEventSerializer
+
+    @action(detail=True, methods=['post'])
+    def approve(self, request, pk=None):
+        self._assert_admin()
+        event = self.get_object()
+        serializer = SettlementApproveSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        before = _build_settlement_event_snapshot(event)
+        try:
+            event = manually_approve_settlement_event(
+                event=event,
+                actor=request.user,
+                note=serializer.validated_data['note'],
+            )
+        except ValueError as exc:
+            return Response({'error': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+        after = _build_settlement_event_snapshot(event)
+        _create_settlement_audit_event(
+            request,
+            event=event,
+            action=SettlementReviewAction.APPROVE,
+            snapshot_before=before,
+            snapshot_after=after,
+        )
+        event.refresh_from_db()
+        return Response(
+            SettlementEventDetailSerializer(event, context=self.get_serializer_context()).data,
+            status=status.HTTP_200_OK,
+        )
+
+    @action(detail=True, methods=['post'])
+    def relink(self, request, pk=None):
+        self._assert_admin()
+        event = self.get_object()
+        serializer = SettlementRelinkSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        before = _build_settlement_event_snapshot(event)
+        try:
+            event = manually_relink_settlement_event(
+                event=event,
+                actor=request.user,
+                note=serializer.validated_data['note'],
+                entity_type=serializer.validated_data['entity_type'],
+                object_id=serializer.validated_data['object_id'],
+            )
+        except LookupError:
+            return Response({'error': 'Not found'}, status=status.HTTP_404_NOT_FOUND)
+        except ValueError as exc:
+            return Response({'error': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+        after = _build_settlement_event_snapshot(event)
+        _create_settlement_audit_event(
+            request,
+            event=event,
+            action=SettlementReviewAction.RELINK,
+            snapshot_before=before,
+            snapshot_after=after,
+        )
+        event.refresh_from_db()
+        return Response(
+            SettlementEventDetailSerializer(event, context=self.get_serializer_context()).data,
+            status=status.HTTP_200_OK,
+        )
+
+    @action(detail=True, methods=['post'])
+    def reject(self, request, pk=None):
+        self._assert_admin()
+        event = self.get_object()
+        serializer = SettlementRejectSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        before = _build_settlement_event_snapshot(event)
+        try:
+            event = manually_reject_settlement_event(
+                event=event,
+                actor=request.user,
+                note=serializer.validated_data['note'],
+            )
+        except ValueError as exc:
+            return Response({'error': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+        after = _build_settlement_event_snapshot(event)
+        _create_settlement_audit_event(
+            request,
+            event=event,
+            action=SettlementReviewAction.REJECT,
+            snapshot_before=before,
+            snapshot_after=after,
+        )
+        event.refresh_from_db()
+        return Response(
+            SettlementEventDetailSerializer(event, context=self.get_serializer_context()).data,
+            status=status.HTTP_200_OK,
+        )
+
+
+def _build_settlement_event_snapshot(event: SettlementEvent) -> dict[str, object]:
+    event.refresh_from_db()
+    return {
+        'state': event.state,
+        'reconciliation_reason_code': event.reconciliation_reason_code,
+        'payment_transaction_id': event.payment_transaction_id,
+        'matched_invoice_id': event.matched_invoice_id,
+        'matched_sales_order_id': event.matched_sales_order_id,
+        'matched_purchase_order_id': event.matched_purchase_order_id,
+        'review_action': event.review_action,
+        'review_note': event.review_note,
+        'reviewed_at': event.reviewed_at.isoformat() if event.reviewed_at else None,
+        'reviewed_by_id': event.reviewed_by_id,
+    }
+
+
+def _create_settlement_audit_event(
+    request,
+    *,
+    event: SettlementEvent,
+    action: str,
+    snapshot_before: dict[str, object],
+    snapshot_after: dict[str, object],
+) -> None:
+    content_type = ContentType.objects.get_for_model(event.__class__)
+    TenantAuditEvent.objects.create(
+        tenant=event.tenant,
+        content_type=content_type,
+        object_id=str(event.pk),
+        entity_type=event.__class__.__name__,
+        entity_name=(event.external_event_id or event.idempotency_key[:12])[:255],
+        action=TenantAuditEvent.Action.UPDATE,
+        changed_fields=['state', 'reconciliation_reason_code', 'payment_transaction_id', 'review_action', 'review_note'],
+        snapshot_before=snapshot_before,
+        snapshot_after={**snapshot_after, 'manual_action': action},
+        actor=request.user,
+        actor_email=getattr(request.user, 'email', '') or '',
+        ip_address=request.META.get('REMOTE_ADDR'),
+        user_agent=request.META.get('HTTP_USER_AGENT', '')[:500],
+    )
 
 
 class SettlementEventIngestAPIView(APIView):

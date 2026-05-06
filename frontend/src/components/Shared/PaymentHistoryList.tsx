@@ -16,30 +16,21 @@
  *   entityId={123}
  * />
  */
-import React, { useState, useEffect } from 'react';
+import React, { useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import styled from 'styled-components';
-import { getErrorMessage } from '../../hooks/useToast';
-import { apiClient } from '../../services/apiService';
 import { formatCurrency } from '../../shared/utils';
+import { paymentHistoryService, type PaymentHistoryRecord } from '../../services/paymentHistoryService';
+import type { SettlementEntityType } from '../../services/settlementQueueService';
 import { formatDateLocal } from '../../utils/formatters';
+import { withTenantQueryKey } from '../../utils/queryKeys';
 
 // ============================================================================
 // TypeScript Interfaces
 // ============================================================================
 
-interface PaymentTransaction {
-  id: number;
-  amount: string;
-  payment_date: string;
-  payment_method: string;
-  reference_number: string;
-  notes: string;
-  created_by_name: string;
-  created_on: string;
-}
-
 interface PaymentHistoryListProps {
-  entityType: 'purchase_order' | 'sales_order' | 'invoice';
+  entityType: SettlementEntityType;
   entityId: number;
 }
 
@@ -55,12 +46,12 @@ const Container = styled.div`
 
 const PaymentItem = styled.div`
   padding: 12px;
-  background: var(--color-bg-secondary);
-  border-radius: 6px;
-  border: 1px solid var(--color-border);
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
+   background: rgb(var(--color-surface-hover));
+   border-radius: 6px;
+   border: 1px solid rgb(var(--color-border));
+   display: flex;
+   flex-direction: column;
+   gap: 6px;
 `;
 
 const PaymentHeader = styled.div`
@@ -72,20 +63,21 @@ const PaymentHeader = styled.div`
 const PaymentDate = styled.span`
   font-size: 14px;
   font-weight: 600;
-  color: var(--color-text-primary);
+   color: rgb(var(--color-text-primary));
 `;
 
 const PaymentAmount = styled.span`
   font-size: 16px;
   font-weight: 700;
-  color: var(--color-success);
+   color: rgb(var(--color-success));
 `;
 
 const PaymentDetails = styled.div`
   display: flex;
+   flex-wrap: wrap;
   gap: 16px;
   font-size: 13px;
-  color: var(--color-text-secondary);
+   color: rgb(var(--color-text-secondary));
 `;
 
 const DetailItem = styled.div`
@@ -98,32 +90,40 @@ const DetailLabel = styled.span`
 `;
 
 const DetailValue = styled.span`
-  color: var(--color-text-primary);
+  color: rgb(var(--color-text-primary));
 `;
 
 const EmptyState = styled.div`
   padding: 24px;
   text-align: center;
-  color: var(--color-text-secondary);
+   color: rgb(var(--color-text-secondary));
   font-size: 14px;
-  background: var(--color-bg-secondary);
+   background: rgb(var(--color-surface-hover));
   border-radius: 6px;
-  border: 1px dashed var(--color-border);
+   border: 1px dashed rgb(var(--color-border));
 `;
 
 const LoadingState = styled.div`
   padding: 24px;
   text-align: center;
-  color: var(--color-text-secondary);
+   color: rgb(var(--color-text-secondary));
   font-size: 14px;
 `;
 
 const ErrorState = styled.div`
   padding: 16px;
   background: rgba(239, 68, 68, 0.1);
-  color: var(--color-error);
+   color: rgb(var(--color-error));
   border-radius: 6px;
   font-size: 14px;
+`;
+
+const Provenance = styled.div`
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  font-size: 12px;
+  color: rgb(var(--color-text-secondary));
 `;
 
 // ============================================================================
@@ -134,43 +134,15 @@ export const PaymentHistoryList: React.FC<PaymentHistoryListProps> = ({
   entityType, 
   entityId 
 }) => {
-  const [payments, setPayments] = useState<PaymentTransaction[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    fetchPaymentHistory();
-  }, [entityType, entityId]);
-
-  const fetchPaymentHistory = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      
-      const response = await apiClient.get('payments/', {
-        params: { [entityType]: entityId },
-      });
-
-      const raw: unknown = response.data;
-      const responseData: PaymentTransaction[] =
-        Array.isArray(raw) ? (raw as PaymentTransaction[]) : Array.isArray((raw as any)?.results) ? ((raw as any).results as PaymentTransaction[]) : [];
-
-      // Sort by payment date (newest first)
-      const sortedPayments = responseData
-        .slice()
-        .sort((a: PaymentTransaction, b: PaymentTransaction) => {
-          return new Date(b.payment_date).getTime() - new Date(a.payment_date).getTime();
-        });
-
-      setPayments(sortedPayments);
-    } catch (err: unknown) {
-      console.error('Error fetching payment history:', err);
-      setPayments([]);
-      setError(getErrorMessage(err, 'Failed to load payment history'));
-    } finally {
-      setLoading(false);
-    }
-  };
+  const queryKey = useMemo(
+    () => withTenantQueryKey('payment-history', entityType, entityId),
+    [entityType, entityId],
+  );
+  const paymentsQuery = useQuery({
+    queryKey,
+    queryFn: () => paymentHistoryService.listPayments(entityType, entityId),
+    enabled: entityId > 0,
+  });
 
   const getPaymentMethodLabel = (method: string): string => {
     const labels: Record<string, string> = {
@@ -184,15 +156,32 @@ export const PaymentHistoryList: React.FC<PaymentHistoryListProps> = ({
     return labels[method] || method;
   };
 
-  if (loading) {
+  const getSettlementSummary = (payment: PaymentHistoryRecord): string | null => {
+    if (!payment.source_settlement_event_id) {
+      return null;
+    }
+    const parts = ['Settlement'];
+    if (payment.source_settlement_provider_code) {
+      parts.push(payment.source_settlement_provider_code);
+    }
+    if (payment.source_settlement_reason_code) {
+      parts.push(payment.source_settlement_reason_code.replace(/_/g, ' '));
+    }
+    if (payment.source_settlement_review_action) {
+      parts.push(payment.source_settlement_review_action.replace(/_/g, ' '));
+    }
+    return parts.join(' · ');
+  };
+
+  if (paymentsQuery.isLoading) {
     return <LoadingState>Loading payment history...</LoadingState>;
   }
 
-  if (error) {
-    return <ErrorState>{error}</ErrorState>;
+  if (paymentsQuery.isError) {
+    return <ErrorState>Failed to load payment history</ErrorState>;
   }
 
-  if (payments.length === 0) {
+  if ((paymentsQuery.data ?? []).length === 0) {
     return (
       <EmptyState>
         No payment history yet
@@ -202,7 +191,7 @@ export const PaymentHistoryList: React.FC<PaymentHistoryListProps> = ({
 
   return (
     <Container>
-      {payments.map(payment => (
+      {(paymentsQuery.data ?? []).map(payment => (
         <PaymentItem key={payment.id}>
           <PaymentHeader>
             <PaymentDate>{formatDateLocal(payment.payment_date)}</PaymentDate>
@@ -227,6 +216,8 @@ export const PaymentHistoryList: React.FC<PaymentHistoryListProps> = ({
               <DetailValue>{payment.created_by_name}</DetailValue>
             </DetailItem>
           </PaymentDetails>
+
+          {getSettlementSummary(payment) && <Provenance>{getSettlementSummary(payment)}</Provenance>}
           
           {payment.notes && (
             <DetailItem style={{ fontSize: '12px', marginTop: '4px' }}>

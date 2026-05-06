@@ -9,8 +9,10 @@ from unittest.mock import patch
 
 from django.contrib.auth.models import User
 from django.test import TestCase
+from rest_framework import status
 from rest_framework.test import APITestCase
 
+from apps.core.models import TenantAuditEvent
 from tenant_apps.customers.models import Customer
 from apps.tenants.models import Tenant, TenantUser
 from apps.tenants.rls import RlsSetResult
@@ -23,6 +25,7 @@ from .models import (
     SettlementEvent,
     SettlementEventState,
     SettlementReconciliationReason,
+    SettlementReviewAction,
     SettlementSource,
     SettlementSourceAuthMode,
     TenantAPIKey,
@@ -457,6 +460,330 @@ class SettlementIngestApiTests(APITestCase):
         event = SettlementEvent.objects.get()
         self.assertEqual(event.delivery_count, 2)
         delay_mock.assert_called_once()
+
+
+class SettlementQueueApiTests(APITestCase):
+    def setUp(self):
+        unique = uuid.uuid4().hex[:8]
+        self.user = User.objects.create_user(username=f'queue-admin-{unique}', password='pw')
+        self.other_user = User.objects.create_user(username=f'queue-other-{unique}', password='pw')
+        self.client.force_login(self.user)
+        self.tenant = Tenant.objects.create(
+            name=f'Queue Tenant {unique}',
+            slug=f'queue-tenant-{unique}',
+            contact_email=f'queue-{unique}@example.com',
+            created_by=self.user,
+        )
+        self.other_tenant = Tenant.objects.create(
+            name=f'Queue Other {unique}',
+            slug=f'queue-other-{unique}',
+            contact_email=f'queue-other-{unique}@example.com',
+            created_by=self.other_user,
+        )
+        TenantUser.objects.create(tenant=self.tenant, user=self.user, role='owner', is_active=True)
+        self.tenant_header = {'HTTP_X_TENANT_ID': str(self.tenant.id)}
+        self.source = SettlementSource.objects.create(
+            tenant=self.tenant,
+            name='Queue Source',
+            provider_code='stripe',
+            provider_account_reference='acct_queue',
+            auth_mode=SettlementSourceAuthMode.PROVIDER_HMAC_SIGNATURE,
+            created_by=self.user,
+        )
+        raw_payload = '{"external_event_id":"evt-queue","invoice_number":"INV-QUEUE"}'
+        payload_hash = build_raw_payload_sha256(raw_payload)
+        self.event = SettlementEvent.objects.create(
+            tenant=self.tenant,
+            source=self.source,
+            provider_code='stripe',
+            provider_account_reference='acct_queue',
+            external_event_id='evt-queue',
+            event_type='payment.settled',
+            direction='credit',
+            occurred_at=datetime(2026, 5, 6, 10, 0, tzinfo=dt_timezone.utc),
+            amount=Decimal('25.50'),
+            currency='USD',
+            raw_payload=raw_payload,
+            raw_payload_sha256=payload_hash,
+            idempotency_key=build_settlement_idempotency_key(
+                tenant_id=str(self.tenant.id),
+                provider_code='stripe',
+                external_event_id='evt-queue',
+                provider_account_reference='acct_queue',
+                occurred_at=datetime(2026, 5, 6, 10, 0, tzinfo=dt_timezone.utc),
+                amount=Decimal('25.50'),
+                direction='credit',
+                raw_payload_sha256=payload_hash,
+            ),
+            normalized_payload={'invoice_number': 'INV-QUEUE'},
+            state=SettlementEventState.READY_TO_POST,
+            reconciliation_reason_code=SettlementReconciliationReason.REFERENCE_NOT_FOUND,
+        )
+
+    def test_settlement_queue_list_filters_current_tenant_and_state(self):
+        other_source = SettlementSource.objects.create(
+            tenant=self.other_tenant,
+            name='Other Queue Source',
+            provider_code='stripe',
+            provider_account_reference='acct_other',
+            auth_mode=SettlementSourceAuthMode.PROVIDER_HMAC_SIGNATURE,
+            created_by=self.other_user,
+        )
+        SettlementEvent.objects.create(
+            tenant=self.other_tenant,
+            source=other_source,
+            provider_code='stripe',
+            provider_account_reference='acct_other',
+            external_event_id='evt-other',
+            event_type='payment.settled',
+            direction='credit',
+            occurred_at=datetime(2026, 5, 6, 10, 0, tzinfo=dt_timezone.utc),
+            amount=Decimal('25.50'),
+            currency='USD',
+            raw_payload='{}',
+            raw_payload_sha256=build_raw_payload_sha256('{}'),
+            idempotency_key=build_settlement_idempotency_key(
+                tenant_id=str(self.other_tenant.id),
+                provider_code='stripe',
+                external_event_id='evt-other',
+                provider_account_reference='acct_other',
+                occurred_at=datetime(2026, 5, 6, 10, 0, tzinfo=dt_timezone.utc),
+                amount=Decimal('25.50'),
+                direction='credit',
+                raw_payload_sha256=build_raw_payload_sha256('{}'),
+            ),
+            state=SettlementEventState.READY_TO_POST,
+        )
+
+        response = self.client.get('/api/v1/settlement-events/?state=ready_to_post', **self.tenant_header)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        results = response.data.get('results', response.data)
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0]['id'], self.event.id)
+        self.assertEqual(results[0]['state'], SettlementEventState.READY_TO_POST)
+        self.assertEqual(results[0]['source_name'], 'Queue Source')
+
+    def test_settlement_event_detail_includes_candidate_matches(self):
+        customer = Customer.objects.create(name='Queue Customer', tenant=self.tenant)
+        Invoice.objects.create(
+            tenant=self.tenant,
+            customer=customer,
+            invoice_number='INV-QUEUE',
+            total_amount=Decimal('25.50'),
+            outstanding_amount=Decimal('25.50'),
+        )
+
+        response = self.client.get(f'/api/v1/settlement-events/{self.event.id}/', **self.tenant_header)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data['candidate_matches']), 1)
+        self.assertTrue(response.data['candidate_matches'][0]['exact_amount_match'])
+
+    def test_approve_settlement_event_posts_payment_and_audits(self):
+        customer = Customer.objects.create(name='Approve Customer', tenant=self.tenant)
+        invoice = Invoice.objects.create(
+            tenant=self.tenant,
+            customer=customer,
+            invoice_number='INV-QUEUE',
+            total_amount=Decimal('25.50'),
+            outstanding_amount=Decimal('25.50'),
+        )
+
+        response = self.client.post(
+            f'/api/v1/settlement-events/{self.event.id}/approve/',
+            {'note': 'Reviewed and approved.'},
+            format='json',
+            **self.tenant_header,
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK, response.content)
+        self.event.refresh_from_db()
+        self.assertEqual(self.event.state, SettlementEventState.POSTED)
+        self.assertEqual(self.event.review_action, SettlementReviewAction.APPROVE)
+        self.assertEqual(self.event.reconciliation_reason_code, SettlementReconciliationReason.MANUAL_APPROVED)
+        self.assertEqual(self.event.matched_invoice_id, invoice.id)
+        self.assertEqual(PaymentTransaction.objects.count(), 1)
+        audit_event = TenantAuditEvent.objects.get(object_id=str(self.event.id), entity_type='SettlementEvent')
+        self.assertEqual(audit_event.action, TenantAuditEvent.Action.UPDATE)
+        self.assertEqual(audit_event.actor_id, self.user.id)
+
+    def test_approve_settlement_event_rejects_without_exact_match(self):
+        customer = Customer.objects.create(name='Mismatch Customer', tenant=self.tenant)
+        Invoice.objects.create(
+            tenant=self.tenant,
+            customer=customer,
+            invoice_number='INV-QUEUE',
+            total_amount=Decimal('40.00'),
+            outstanding_amount=Decimal('40.00'),
+        )
+
+        response = self.client.post(
+            f'/api/v1/settlement-events/{self.event.id}/approve/',
+            {'note': 'Tried to force an amount mismatch.'},
+            format='json',
+            **self.tenant_header,
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.data['error'], 'Manual approve requires exactly one exact candidate match.')
+        self.event.refresh_from_db()
+        self.assertEqual(self.event.state, SettlementEventState.READY_TO_POST)
+        self.assertEqual(PaymentTransaction.objects.count(), 0)
+
+    def test_approve_settlement_event_rejects_with_multiple_exact_matches(self):
+        customer = Customer.objects.create(name='Ambiguous Customer', tenant=self.tenant)
+        supplier = Supplier.objects.create(name='Ambiguous Supplier', tenant=self.tenant)
+        Invoice.objects.create(
+            tenant=self.tenant,
+            customer=customer,
+            invoice_number='INV-QUEUE',
+            total_amount=Decimal('25.50'),
+            outstanding_amount=Decimal('25.50'),
+        )
+        SalesOrder.objects.create(
+            tenant=self.tenant,
+            supplier=supplier,
+            customer=customer,
+            our_sales_order_num='SO-QUEUE',
+            total_amount=Decimal('25.50'),
+            outstanding_amount=Decimal('25.50'),
+        )
+        self.event.normalized_payload = {
+            'invoice_number': 'INV-QUEUE',
+            'sales_order_number': 'SO-QUEUE',
+        }
+        self.event.save(update_fields=['normalized_payload', 'modified_on'])
+
+        response = self.client.post(
+            f'/api/v1/settlement-events/{self.event.id}/approve/',
+            {'note': 'Two exact matches should stay review-required.'},
+            format='json',
+            **self.tenant_header,
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.data['error'], 'Manual approve requires exactly one exact candidate match.')
+        self.event.refresh_from_db()
+        self.assertEqual(self.event.state, SettlementEventState.READY_TO_POST)
+        self.assertEqual(PaymentTransaction.objects.count(), 0)
+
+    def test_relink_settlement_event_posts_selected_invoice_and_audits(self):
+        customer = Customer.objects.create(name='Relink Customer', tenant=self.tenant)
+        invoice = Invoice.objects.create(
+            tenant=self.tenant,
+            customer=customer,
+            invoice_number='INV-MANUAL',
+            total_amount=Decimal('90.00'),
+            outstanding_amount=Decimal('90.00'),
+        )
+        self.event.normalized_payload = {'invoice_number': 'INV-NOT-FOUND'}
+        self.event.reconciliation_reason_code = SettlementReconciliationReason.REFERENCE_NOT_FOUND
+        self.event.save(update_fields=['normalized_payload', 'reconciliation_reason_code', 'modified_on'])
+
+        response = self.client.post(
+            f'/api/v1/settlement-events/{self.event.id}/relink/',
+            {'entity_type': 'invoice', 'object_id': invoice.id, 'note': 'Matched by accountant.'},
+            format='json',
+            **self.tenant_header,
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK, response.content)
+        self.event.refresh_from_db()
+        self.assertEqual(self.event.state, SettlementEventState.POSTED)
+        self.assertEqual(self.event.review_action, SettlementReviewAction.RELINK)
+        self.assertEqual(self.event.reconciliation_reason_code, SettlementReconciliationReason.MANUAL_RELINKED)
+        self.assertEqual(self.event.matched_invoice_id, invoice.id)
+        self.assertEqual(PaymentTransaction.objects.count(), 1)
+
+    def test_relink_settlement_event_rejects_cross_tenant_target(self):
+        other_customer = Customer.objects.create(name='Other Customer', tenant=self.other_tenant)
+        invoice = Invoice.objects.create(
+            tenant=self.other_tenant,
+            customer=other_customer,
+            invoice_number='INV-OTHER',
+            total_amount=Decimal('25.50'),
+            outstanding_amount=Decimal('25.50'),
+        )
+
+        response = self.client.post(
+            f'/api/v1/settlement-events/{self.event.id}/relink/',
+            {'entity_type': 'invoice', 'object_id': invoice.id, 'note': 'Should fail.'},
+            format='json',
+            **self.tenant_header,
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+        self.event.refresh_from_db()
+        self.assertIsNone(self.event.payment_transaction_id)
+
+    def test_reject_settlement_event_marks_ignored_and_audits(self):
+        response = self.client.post(
+            f'/api/v1/settlement-events/{self.event.id}/reject/',
+            {'note': 'Rejected after review.'},
+            format='json',
+            **self.tenant_header,
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK, response.content)
+        self.event.refresh_from_db()
+        self.assertEqual(self.event.state, SettlementEventState.IGNORED)
+        self.assertEqual(self.event.review_action, SettlementReviewAction.REJECT)
+        self.assertEqual(self.event.reconciliation_reason_code, SettlementReconciliationReason.MANUAL_REJECTED)
+        self.assertEqual(PaymentTransaction.objects.count(), 0)
+        self.assertTrue(
+            TenantAuditEvent.objects.filter(
+                object_id=str(self.event.id),
+                entity_type='SettlementEvent',
+                action=TenantAuditEvent.Action.UPDATE,
+            ).exists()
+        )
+
+    def test_manual_actions_reject_already_posted_event(self):
+        customer = Customer.objects.create(name='Posted Customer', tenant=self.tenant)
+        invoice = Invoice.objects.create(
+            tenant=self.tenant,
+            customer=customer,
+            invoice_number='INV-QUEUE',
+            total_amount=Decimal('25.50'),
+            outstanding_amount=Decimal('25.50'),
+        )
+        payment = PaymentTransaction.objects.create(
+            tenant=self.tenant,
+            invoice=invoice,
+            amount=Decimal('25.50'),
+            payment_date=datetime(2026, 5, 6, tzinfo=dt_timezone.utc).date(),
+            created_by=self.user,
+        )
+        self.event.state = SettlementEventState.POSTED
+        self.event.payment_transaction = payment
+        self.event.save(update_fields=['state', 'payment_transaction', 'modified_on'])
+
+        approve = self.client.post(
+            f'/api/v1/settlement-events/{self.event.id}/approve/',
+            {'note': 'Should not re-approve.'},
+            format='json',
+            **self.tenant_header,
+        )
+        relink = self.client.post(
+            f'/api/v1/settlement-events/{self.event.id}/relink/',
+            {'entity_type': 'invoice', 'object_id': invoice.id, 'note': 'Should not relink.'},
+            format='json',
+            **self.tenant_header,
+        )
+        reject = self.client.post(
+            f'/api/v1/settlement-events/{self.event.id}/reject/',
+            {'note': 'Should not reject.'},
+            format='json',
+            **self.tenant_header,
+        )
+
+        self.assertEqual(approve.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(relink.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(reject.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(approve.data['error'], 'Settlement event is already posted.')
+        self.assertEqual(relink.data['error'], 'Settlement event is already posted.')
+        self.assertEqual(reject.data['error'], 'Settlement event is already posted.')
 
 
 class SettlementTaskTests(TestCase):

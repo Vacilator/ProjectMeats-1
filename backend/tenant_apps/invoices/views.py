@@ -142,7 +142,12 @@ class PaymentTransactionViewSet(viewsets.ModelViewSet):
         if not tenant:
             return PaymentTransaction.objects.none()
 
-        return super().get_queryset().filter(tenant=tenant)
+        queryset = super().get_queryset().filter(tenant=tenant)
+        for field_name in ('invoice', 'sales_order', 'purchase_order'):
+            raw_value = self.request.query_params.get(field_name)
+            if raw_value:
+                queryset = queryset.filter(**{f'{field_name}_id': raw_value})
+        return queryset.select_related('source_settlement_event')
     
     def perform_create(self, serializer):
         """Set tenant and created_by when creating payment."""

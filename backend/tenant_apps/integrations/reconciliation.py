@@ -3,6 +3,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 from decimal import Decimal
+from typing import Any
 
 from django.db import transaction
 from django.db.models import Q
@@ -12,7 +13,12 @@ from tenant_apps.invoices.models import Invoice, PaymentMethod, PaymentTransacti
 from tenant_apps.purchase_orders.models import PurchaseOrder
 from tenant_apps.sales_orders.models import SalesOrder
 
-from .models import SettlementEvent, SettlementEventState, SettlementReconciliationReason
+from .models import (
+    SettlementEvent,
+    SettlementEventState,
+    SettlementReconciliationReason,
+    SettlementReviewAction,
+)
 
 _CAMEL_BOUNDARY = re.compile(r'(?<!^)(?=[A-Z])')
 
@@ -100,7 +106,7 @@ def reconcile_settlement_event(*, event: SettlementEvent) -> dict[str, object]:
                 'requires_review': True,
             }
 
-        raw_candidates = _find_reference_candidates(locked_event, reference_map)
+        raw_candidates = _find_reference_candidates(locked_event, reference_map, lock_targets=True)
         if not raw_candidates:
             _mark_event_for_review(
                 locked_event,
@@ -149,6 +155,87 @@ def reconcile_settlement_event(*, event: SettlementEvent) -> dict[str, object]:
         }
 
 
+def list_candidate_matches(*, event: SettlementEvent) -> list[dict[str, Any]]:
+    payload = event.normalized_payload if isinstance(event.normalized_payload, dict) else {}
+    reference_map = _collect_reference_values(payload)
+    candidates = _find_reference_candidates(event, reference_map, lock_targets=False)
+    return [
+        {
+            'entity_type': candidate.entity_type,
+            'object_id': candidate.object_id,
+            'reference_value': candidate.reference_value,
+            'outstanding_amount': str(candidate.outstanding_amount),
+            'exact_amount_match': candidate.outstanding_amount == event.amount,
+        }
+        for candidate in candidates
+    ]
+
+
+def manually_approve_settlement_event(*, event: SettlementEvent, actor, note: str) -> SettlementEvent:
+    with transaction.atomic():
+        locked_event = _get_locked_event(event=event)
+        _assert_manual_reviewable(locked_event)
+        payload = locked_event.normalized_payload if isinstance(locked_event.normalized_payload, dict) else {}
+        reference_map = _collect_reference_values(payload)
+        candidates = _find_reference_candidates(locked_event, reference_map, lock_targets=True)
+        exact_candidates = [candidate for candidate in candidates if candidate.outstanding_amount == locked_event.amount]
+        if len(exact_candidates) != 1:
+            raise ValueError('Manual approve requires exactly one exact candidate match.')
+        payment = _create_payment_transaction(locked_event, exact_candidates[0], payload, created_by=actor)
+        _mark_event_posted(
+            locked_event,
+            exact_candidates[0],
+            payment,
+            reason_code=SettlementReconciliationReason.MANUAL_APPROVED,
+            review_action=SettlementReviewAction.APPROVE,
+            reviewed_by=actor,
+            review_note=note,
+        )
+        return locked_event
+
+
+def manually_relink_settlement_event(
+    *,
+    event: SettlementEvent,
+    actor,
+    note: str,
+    entity_type: str,
+    object_id: int,
+) -> SettlementEvent:
+    with transaction.atomic():
+        locked_event = _get_locked_event(event=event)
+        _assert_manual_reviewable(locked_event)
+        candidate = _get_manual_candidate(
+            entity_type=entity_type,
+            object_id=object_id,
+            event=locked_event,
+        )
+        payload = locked_event.normalized_payload if isinstance(locked_event.normalized_payload, dict) else {}
+        payment = _create_payment_transaction(locked_event, candidate, payload, created_by=actor)
+        _mark_event_posted(
+            locked_event,
+            candidate,
+            payment,
+            reason_code=SettlementReconciliationReason.MANUAL_RELINKED,
+            review_action=SettlementReviewAction.RELINK,
+            reviewed_by=actor,
+            review_note=note,
+        )
+        return locked_event
+
+
+def manually_reject_settlement_event(*, event: SettlementEvent, actor, note: str) -> SettlementEvent:
+    with transaction.atomic():
+        locked_event = _get_locked_event(event=event)
+        _assert_manual_reviewable(locked_event)
+        _mark_event_rejected(
+            locked_event,
+            reviewed_by=actor,
+            review_note=note,
+        )
+        return locked_event
+
+
 def _collect_reference_values(payload: dict[str, object]) -> dict[str, set[str]]:
     return {
         'invoice': _collect_alias_values(payload, INVOICE_REFERENCE_ALIASES),
@@ -187,12 +274,16 @@ def _normalize_reference_value(value: object) -> str:
 def _find_reference_candidates(
     event: SettlementEvent,
     reference_map: dict[str, set[str]],
+    *,
+    lock_targets: bool,
 ) -> list[SettlementMatchCandidate]:
     candidates: dict[tuple[str, int], SettlementMatchCandidate] = {}
 
     invoice_refs = reference_map['invoice']
     if invoice_refs:
-        queryset = Invoice.objects.select_for_update().filter(tenant=event.tenant, invoice_number__in=invoice_refs)
+        queryset = Invoice.objects.filter(tenant=event.tenant, invoice_number__in=invoice_refs)
+        if lock_targets:
+            queryset = queryset.select_for_update()
         for invoice in queryset:
             candidates[('invoice', invoice.id)] = SettlementMatchCandidate(
                 entity_type='invoice',
@@ -206,7 +297,9 @@ def _find_reference_candidates(
         sales_query = Q()
         for value in sales_refs:
             sales_query |= Q(our_sales_order_num=value) | Q(our_sales_order_number_for_customer=value)
-        queryset = SalesOrder.objects.select_for_update().filter(tenant=event.tenant).filter(sales_query)
+        queryset = SalesOrder.objects.filter(tenant=event.tenant).filter(sales_query)
+        if lock_targets:
+            queryset = queryset.select_for_update()
         for sales_order in queryset:
             candidates[('sales_order', sales_order.id)] = SettlementMatchCandidate(
                 entity_type='sales_order',
@@ -224,7 +317,9 @@ def _find_reference_candidates(
             purchase_query |= Q(our_purchase_order_number_to_supplier=value)
             purchase_query |= Q(supplier_confirmation_order_num=value)
             purchase_query |= Q(supplier_confirmation_order_number=value)
-        queryset = PurchaseOrder.objects.select_for_update().filter(tenant=event.tenant).filter(purchase_query)
+        queryset = PurchaseOrder.objects.filter(tenant=event.tenant).filter(purchase_query)
+        if lock_targets:
+            queryset = queryset.select_for_update()
         for purchase_order in queryset:
             candidates[('purchase_order', purchase_order.id)] = SettlementMatchCandidate(
                 entity_type='purchase_order',
@@ -248,6 +343,8 @@ def _create_payment_transaction(
     event: SettlementEvent,
     candidate: SettlementMatchCandidate,
     payload: dict[str, object],
+    *,
+    created_by=None,
 ) -> PaymentTransaction:
     payment_kwargs: dict[str, object] = {
         'tenant': event.tenant,
@@ -256,6 +353,7 @@ def _create_payment_transaction(
         'payment_method': _resolve_payment_method(payload),
         'reference_number': _resolve_reference_number(event, payload),
         'notes': _build_payment_notes(event, candidate),
+        'created_by': created_by,
     }
     if candidate.entity_type == 'invoice':
         payment_kwargs['invoice_id'] = candidate.object_id
@@ -320,12 +418,21 @@ def _mark_event_posted(
     event: SettlementEvent,
     candidate: SettlementMatchCandidate,
     payment: PaymentTransaction,
+    *,
+    reason_code: str | SettlementReconciliationReason | None = None,
+    review_action: str = '',
+    reviewed_by=None,
+    review_note: str = '',
 ) -> None:
     event.state = SettlementEventState.POSTED
     event.payment_transaction = payment
-    event.reconciliation_reason_code = _exact_match_reason(candidate.entity_type)
+    event.reconciliation_reason_code = reason_code or _exact_match_reason(candidate.entity_type)
     event.last_error = ''
     event.processed_at = timezone.now()
+    event.review_action = review_action
+    event.reviewed_by = reviewed_by
+    event.review_note = review_note
+    event.reviewed_at = timezone.now() if review_action else event.reviewed_at
     event.matched_invoice_id = payment.invoice_id
     event.matched_sales_order_id = payment.sales_order_id
     event.matched_purchase_order_id = payment.purchase_order_id
@@ -336,12 +443,113 @@ def _mark_event_posted(
             'reconciliation_reason_code',
             'last_error',
             'processed_at',
+            'review_action',
+            'reviewed_by',
+            'review_note',
+            'reviewed_at',
             'matched_invoice',
             'matched_sales_order',
             'matched_purchase_order',
             'modified_on',
         ]
     )
+
+
+def _mark_event_rejected(
+    event: SettlementEvent,
+    *,
+    reviewed_by,
+    review_note: str,
+) -> None:
+    event.state = SettlementEventState.IGNORED
+    event.reconciliation_reason_code = SettlementReconciliationReason.MANUAL_REJECTED
+    event.review_action = SettlementReviewAction.REJECT
+    event.reviewed_by = reviewed_by
+    event.reviewed_at = timezone.now()
+    event.review_note = review_note
+    event.processed_at = timezone.now()
+    event.save(
+        update_fields=[
+            'state',
+            'reconciliation_reason_code',
+            'review_action',
+            'reviewed_by',
+            'reviewed_at',
+            'review_note',
+            'processed_at',
+            'modified_on',
+        ]
+    )
+
+
+def _get_locked_event(*, event: SettlementEvent) -> SettlementEvent:
+    locked_event = (
+        SettlementEvent.objects.select_for_update()
+        .select_related('source')
+        .filter(id=event.id, tenant=event.tenant)
+        .first()
+    )
+    if not locked_event:
+        raise ValueError('Settlement event not found.')
+    if locked_event.payment_transaction_id or locked_event.state == SettlementEventState.POSTED:
+        raise ValueError('Settlement event is already posted.')
+    return locked_event
+
+
+def _assert_manual_reviewable(event: SettlementEvent) -> None:
+    if event.state not in {SettlementEventState.READY_TO_POST, SettlementEventState.FAILED}:
+        raise ValueError('Settlement event is not available for manual review.')
+
+
+def _get_manual_candidate(
+    *,
+    entity_type: str,
+    object_id: int,
+    event: SettlementEvent,
+) -> SettlementMatchCandidate:
+    if entity_type == 'invoice':
+        invoice = (
+            Invoice.objects.select_for_update()
+            .filter(tenant=event.tenant, id=object_id)
+            .first()
+        )
+        if not invoice:
+            raise LookupError('Settlement target not found.')
+        return SettlementMatchCandidate(
+            entity_type='invoice',
+            object_id=invoice.id,
+            reference_value=invoice.invoice_number,
+            outstanding_amount=_get_outstanding_amount(invoice.outstanding_amount, invoice.total_amount),
+        )
+    if entity_type == 'sales_order':
+        sales_order = (
+            SalesOrder.objects.select_for_update()
+            .filter(tenant=event.tenant, id=object_id)
+            .first()
+        )
+        if not sales_order:
+            raise LookupError('Settlement target not found.')
+        return SettlementMatchCandidate(
+            entity_type='sales_order',
+            object_id=sales_order.id,
+            reference_value=sales_order.our_sales_order_num,
+            outstanding_amount=_get_outstanding_amount(sales_order.outstanding_amount, sales_order.total_amount),
+        )
+    if entity_type == 'purchase_order':
+        purchase_order = (
+            PurchaseOrder.objects.select_for_update()
+            .filter(tenant=event.tenant, id=object_id)
+            .first()
+        )
+        if not purchase_order:
+            raise LookupError('Settlement target not found.')
+        return SettlementMatchCandidate(
+            entity_type='purchase_order',
+            object_id=purchase_order.id,
+            reference_value=purchase_order.order_number,
+            outstanding_amount=_get_outstanding_amount(purchase_order.outstanding_amount, purchase_order.total_amount),
+        )
+    raise LookupError('Settlement target not found.')
 
 
 def _exact_match_reason(entity_type: str) -> str:

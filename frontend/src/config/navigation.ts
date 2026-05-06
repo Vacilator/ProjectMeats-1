@@ -144,11 +144,11 @@ export const navigation: NavigationItem[] = [
   {
     label: 'Accounting',
     icon: '💰',
-    children: [
-      {
-        label: 'Payables',
-        icon: '💸',
-        path: '/accounting/payables',
+        children: [
+          {
+            label: 'Payables',
+            icon: '💸',
+            path: '/accounting/payables',
         children: [
           {
             label: 'Claims',
@@ -158,13 +158,19 @@ export const navigation: NavigationItem[] = [
           {
             label: "P.O.'s",
             icon: '📦',
-            path: '/accounting/payables/pos',
-          },
-        ],
-      },
-      {
-        label: 'Receivables',
-        icon: '💵',
+              path: '/accounting/payables/pos',
+            },
+          ],
+        },
+        {
+          label: 'Settlements',
+          icon: '🏦',
+          path: '/accounting/settlements',
+          roles: ['admin', 'owner', 'superuser'],
+        },
+        {
+          label: 'Receivables',
+          icon: '💵',
         path: '/accounts-receivables',
         children: [
           {

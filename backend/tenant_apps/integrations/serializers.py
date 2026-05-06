@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from rest_framework import serializers
 
+from .reconciliation import list_candidate_matches
 from .models import (
     SettlementEvent,
     SettlementSource,
@@ -171,6 +172,9 @@ class SettlementSourceCreateSerializer(SettlementSourceSerializer):
 class SettlementEventSerializer(serializers.ModelSerializer):
     source_public_id = serializers.UUIDField(source='source.public_id', read_only=True)
     source_name = serializers.CharField(source='source.name', read_only=True)
+    reviewed_by_name = serializers.CharField(source='reviewed_by.username', read_only=True)
+    matched_entity_type = serializers.SerializerMethodField()
+    matched_entity_reference = serializers.SerializerMethodField()
 
     class Meta:
         model = SettlementEvent
@@ -193,9 +197,16 @@ class SettlementEventSerializer(serializers.ModelSerializer):
             'state',
             'normalized_payload',
             'reconciliation_reason_code',
+            'reviewed_by',
+            'reviewed_by_name',
+            'reviewed_at',
+            'review_action',
+            'review_note',
             'matched_purchase_order',
             'matched_sales_order',
             'matched_invoice',
+            'matched_entity_type',
+            'matched_entity_reference',
             'payment_transaction',
             'delivery_count',
             'received_at',
@@ -207,6 +218,48 @@ class SettlementEventSerializer(serializers.ModelSerializer):
             'modified_on',
         ]
         read_only_fields = fields
+
+    def get_matched_entity_type(self, obj: SettlementEvent) -> str | None:
+        if obj.matched_invoice_id:
+            return 'invoice'
+        if obj.matched_sales_order_id:
+            return 'sales_order'
+        if obj.matched_purchase_order_id:
+            return 'purchase_order'
+        return None
+
+    def get_matched_entity_reference(self, obj: SettlementEvent) -> str | None:
+        if obj.matched_invoice_id:
+            return getattr(obj.matched_invoice, 'invoice_number', None)
+        if obj.matched_sales_order_id:
+            return getattr(obj.matched_sales_order, 'our_sales_order_num', None)
+        if obj.matched_purchase_order_id:
+            return getattr(obj.matched_purchase_order, 'order_number', None)
+        return None
+
+
+class SettlementEventDetailSerializer(SettlementEventSerializer):
+    candidate_matches = serializers.SerializerMethodField()
+
+    class Meta(SettlementEventSerializer.Meta):
+        fields = SettlementEventSerializer.Meta.fields + ['candidate_matches']
+
+    def get_candidate_matches(self, obj: SettlementEvent):
+        return list_candidate_matches(event=obj)
+
+
+class SettlementApproveSerializer(serializers.Serializer):
+    note = serializers.CharField(trim_whitespace=True, max_length=1000)
+
+
+class SettlementRejectSerializer(serializers.Serializer):
+    note = serializers.CharField(trim_whitespace=True, max_length=1000)
+
+
+class SettlementRelinkSerializer(serializers.Serializer):
+    entity_type = serializers.ChoiceField(choices=['invoice', 'sales_order', 'purchase_order'])
+    object_id = serializers.IntegerField(min_value=1)
+    note = serializers.CharField(trim_whitespace=True, max_length=1000)
 
 
 class SettlementEventIngestSerializer(serializers.Serializer):

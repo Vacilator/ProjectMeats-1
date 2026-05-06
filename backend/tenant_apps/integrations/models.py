@@ -155,11 +155,20 @@ class SettlementReconciliationReason(models.TextChoices):
     EXACT_INVOICE_MATCH = 'exact_invoice_match', 'Exact Invoice Match'
     EXACT_SALES_ORDER_MATCH = 'exact_sales_order_match', 'Exact Sales Order Match'
     EXACT_PURCHASE_ORDER_MATCH = 'exact_purchase_order_match', 'Exact Purchase Order Match'
+    MANUAL_APPROVED = 'manual_approved', 'Manual Approved'
+    MANUAL_RELINKED = 'manual_relinked', 'Manual Relinked'
+    MANUAL_REJECTED = 'manual_rejected', 'Manual Rejected'
     MISSING_REFERENCE = 'missing_reference', 'Missing Reference'
     REFERENCE_NOT_FOUND = 'reference_not_found', 'Reference Not Found'
     AMOUNT_MISMATCH = 'amount_mismatch', 'Amount Mismatch'
     AMBIGUOUS_MATCH = 'ambiguous_match', 'Ambiguous Match'
     UNSUPPORTED_DIRECTION = 'unsupported_direction', 'Unsupported Direction'
+
+
+class SettlementReviewAction(models.TextChoices):
+    APPROVE = 'approve', 'Approve'
+    RELINK = 'relink', 'Relink'
+    REJECT = 'reject', 'Reject'
 
 
 class SettlementSource(TenantAwareModel):
@@ -262,6 +271,21 @@ class SettlementEvent(TenantAwareModel):
     processed_at = models.DateTimeField(null=True, blank=True)
     processing_task_id = models.CharField(max_length=64, blank=True, default='')
     last_error = models.TextField(blank=True, default='')
+    reviewed_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='reviewed_settlement_events',
+    )
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    review_action = models.CharField(
+        max_length=32,
+        choices=SettlementReviewAction.choices,
+        blank=True,
+        default='',
+    )
+    review_note = models.TextField(blank=True, default='')
     matched_purchase_order = models.ForeignKey(
         'purchase_orders.PurchaseOrder',
         on_delete=models.SET_NULL,

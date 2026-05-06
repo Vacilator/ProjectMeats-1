@@ -4,7 +4,7 @@ Tests for Invoices app models.
 Uses shared-schema multi-tenancy with tenant ForeignKey isolation.
 """
 import uuid
-from datetime import date
+from datetime import date, datetime, timezone
 from django.core import mail
 from django.test import TestCase, override_settings
 from django.contrib.auth.models import User
@@ -12,9 +12,21 @@ from decimal import Decimal
 from rest_framework import status
 from rest_framework.test import APITestCase
 from tenant_apps.invoices.models import Invoice, InvoiceItem, InvoiceStatus, PaymentTransaction
-from tenant_apps.invoices.serializers import InvoiceSerializer
+from tenant_apps.invoices.serializers import InvoiceSerializer, PaymentTransactionSerializer
 from tenant_apps.customers.models import Customer
 from apps.tenants.models import Tenant, TenantUser
+from tenant_apps.integrations.models import (
+    SettlementEvent,
+    SettlementEventState,
+    SettlementReconciliationReason,
+    SettlementReviewAction,
+    SettlementSource,
+    SettlementSourceAuthMode,
+)
+from tenant_apps.integrations.settlement_contract import (
+    build_raw_payload_sha256,
+    build_settlement_idempotency_key,
+)
 
 
 class InvoiceModelTest(TestCase):
@@ -202,6 +214,67 @@ class InvoiceModelTest(TestCase):
         self.assertEqual(invoice.payment_status, "paid")
         self.assertEqual(invoice.status, InvoiceStatus.PAID)
 
+    def test_payment_transaction_serializer_exposes_settlement_provenance(self):
+        unique_id = uuid.uuid4().hex[:8]
+        invoice = Invoice.objects.create(
+            invoice_number=f"INV-{unique_id}",
+            customer=self.customer,
+            total_amount=Decimal("300.00"),
+            outstanding_amount=Decimal("300.00"),
+            tenant=self.tenant,
+        )
+        source = SettlementSource.objects.create(
+            tenant=self.tenant,
+            name='Invoice Provenance Source',
+            provider_code='stripe',
+            provider_account_reference='acct-invoice',
+            auth_mode=SettlementSourceAuthMode.PROVIDER_HMAC_SIGNATURE,
+            created_by=self.user,
+        )
+        event = SettlementEvent.objects.create(
+            tenant=self.tenant,
+            source=source,
+            provider_code='stripe',
+            provider_account_reference='acct-invoice',
+            external_event_id='evt-invoice',
+            event_type='payment.settled',
+            direction='credit',
+            occurred_at=datetime(2026, 5, 6, 10, 0, tzinfo=timezone.utc),
+            amount=Decimal("300.00"),
+            currency='USD',
+            raw_payload='{}',
+            raw_payload_sha256=build_raw_payload_sha256('{}'),
+            idempotency_key=build_settlement_idempotency_key(
+                tenant_id=str(self.tenant.id),
+                provider_code='stripe',
+                external_event_id='evt-invoice',
+                provider_account_reference='acct-invoice',
+                occurred_at=datetime(2026, 5, 6, 10, 0, tzinfo=timezone.utc),
+                amount=Decimal("300.00"),
+                direction='credit',
+                raw_payload_sha256=build_raw_payload_sha256('{}'),
+            ),
+            state=SettlementEventState.POSTED,
+            reconciliation_reason_code=SettlementReconciliationReason.MANUAL_RELINKED,
+        )
+        payment = PaymentTransaction.objects.create(
+            tenant=self.tenant,
+            invoice=invoice,
+            amount=Decimal("300.00"),
+            payment_date=date(2026, 5, 6),
+            created_by=self.user,
+        )
+        event.payment_transaction = payment
+        event.review_action = SettlementReviewAction.RELINK
+        event.save(update_fields=['payment_transaction', 'review_action', 'modified_on'])
+
+        data = PaymentTransactionSerializer(payment).data
+
+        self.assertEqual(data['source_settlement_event_id'], event.id)
+        self.assertEqual(data['source_settlement_reason_code'], SettlementReconciliationReason.MANUAL_RELINKED)
+        self.assertEqual(data['source_settlement_provider_code'], 'stripe')
+        self.assertEqual(data['source_settlement_review_action'], SettlementReviewAction.RELINK)
+
 
 @override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend")
 class InvoiceDocumentOperationsAPITests(APITestCase):
@@ -263,3 +336,40 @@ class InvoiceDocumentOperationsAPITests(APITestCase):
         self.assertEqual(len(mail.outbox), 1)
         self.assertEqual(mail.outbox[0].to, ["ap@example.com"])
         self.assertEqual(mail.outbox[0].attachments[0][2], "application/pdf")
+
+    def test_payment_history_endpoint_filters_by_invoice(self):
+        other_customer = Customer.objects.create(
+            name="Other Payment Customer",
+            tenant=self.tenant,
+        )
+        other_invoice = Invoice.objects.create(
+            tenant=self.tenant,
+            customer=other_customer,
+            invoice_number=f"INV-OTHER-{uuid.uuid4().hex[:6]}",
+            total_amount=Decimal("200.00"),
+            status=InvoiceStatus.DRAFT,
+        )
+        PaymentTransaction.objects.create(
+            tenant=self.tenant,
+            invoice=self.invoice,
+            amount=Decimal("125.00"),
+            payment_date=date(2026, 2, 1),
+            created_by=self.user,
+        )
+        PaymentTransaction.objects.create(
+            tenant=self.tenant,
+            invoice=other_invoice,
+            amount=Decimal("75.00"),
+            payment_date=date(2026, 2, 2),
+            created_by=self.user,
+        )
+
+        response = self.client.get(
+            f"/api/v1/payments/?invoice={self.invoice.id}",
+            **self.tenant_header,
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        results = response.data.get('results', response.data)
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0]['invoice'], self.invoice.id)
