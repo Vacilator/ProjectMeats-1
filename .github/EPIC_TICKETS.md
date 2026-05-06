@@ -942,8 +942,8 @@
   - **Rollback:** Disable public portal routes and revert the portal service/components without impacting internal routes.
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
-- [ ] **B2B-01.5 operator-issue-resend-revoke-controls**
-  - **Status:** Ready
+- [x] **B2B-01.5 operator-issue-resend-revoke-controls**
+  - **Status:** Shipped in PR #4908
   - **Why now:** Tenant operators need controlled issuance and revocation of external access once portal links exist.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 15 / Epic 1
   - **Scope:** Add issue/resend/revoke controls and access history visibility to the relevant internal accounting/logistics surfaces.
@@ -963,7 +963,7 @@
 ### Epic B2B-03 - Financial Settlement & Reconciliation
 
 - [ ] **B2B-03.1 settlement-ingest-contract-and-webhook-first-adapter-plan**
-  - **Status:** Blocked
+  - **Status:** Ready
   - **Why now:** Financial settlement should start from one replay-safe ingest contract layered on the existing payment ledger instead of ad hoc manual matching.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 15 / Epic 3
   - **Scope:** Define the settlement ingestion/reconciliation contract, starting with a webhook-first adapter and leaving bank-feed providers as follow-on integrations.
@@ -971,7 +971,7 @@
   - **Primary domain:** backend/docs
   - **Likely touched paths:** new `docs/runbooks/SETTLEMENT_RECONCILIATION.md`, `backend/tenant_apps/integrations/`, `backend/tenant_apps/invoices/models.py`, `MASTER_PLAN.md`
   - **Dependencies:** B2B-02.2
-  - **Blockers:** B2B-02.2
+  - **Blockers:** None
   - **Acceptance criteria:** The contract reuses `PaymentTransaction` as the canonical payment ledger, defines raw-event journal/idempotency rules, and explains why webhook-first is the MVP over direct bank-feed coupling.
   - **Validation commands:** `bash scripts/verify_golden_state.sh`; `cd backend && python manage.py test tenant_apps.invoices tenant_apps.integrations`
   - **Tenant/RLS impact:** High
