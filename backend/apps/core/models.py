@@ -628,6 +628,7 @@ class TenantAuditEvent(models.Model):
         CREATE = 'CREATE', 'Created'
         UPDATE = 'UPDATE', 'Updated'
         DELETE = 'DELETE', 'Deleted'
+        ACCESS = 'ACCESS', 'Accessed'
 
     tenant = models.ForeignKey(
         'tenants.Tenant',

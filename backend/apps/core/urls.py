@@ -9,6 +9,7 @@ from . import report_views
 from apps.system import workform_views  # Phase 1: WorkForms Enhancement
 from .audit_views import TenantAuditEventViewSet
 from .comment_views import CommentViewSet
+from . import portal_views
 
 # Create a router for ViewSets
 router = DefaultRouter()
@@ -77,6 +78,23 @@ urlpatterns = [
     
     # Webhooks (Sentry-GitHub-Copilot Loop)
     path('webhooks/sentry/issue-created/', views.sentry_issue_created_webhook, name='sentry-issue-created'),
+
+    # Signed-grant public portal endpoints (tenant selected via path).
+    path(
+        "tenants/<uuid:tenant_id>/portal/grants/<uuid:grant_id>/invoice-summary/",
+        portal_views.PortalInvoiceSummaryView.as_view(),
+        name="portal-invoice-summary",
+    ),
+    path(
+        "tenants/<uuid:tenant_id>/portal/grants/<uuid:grant_id>/documents/",
+        portal_views.PortalDocumentMetadataView.as_view(),
+        name="portal-document-metadata",
+    ),
+    path(
+        "tenants/<uuid:tenant_id>/portal/grants/<uuid:grant_id>/fulfillment-tracking/",
+        portal_views.PortalFulfillmentTrackingView.as_view(),
+        name="portal-fulfillment-tracking",
+    ),
 
     # Include router URLs
     path("", include(router.urls)),

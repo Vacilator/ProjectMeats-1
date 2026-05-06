@@ -906,8 +906,8 @@
   - **Rollback:** Revert the additive schema and keep portal routes disabled if the grant model proves unsafe.
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
-- [ ] **B2B-01.3 public-portal-read-apis-and-audit-trail**
-  - **Status:** Ready
+- [x] **B2B-01.3 public-portal-read-apis-and-audit-trail**
+  - **Status:** Shipped (PR #4906)
   - **Why now:** Guest links need dedicated read-only endpoints and audit visibility before a portal frontend can ship.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 15 / Epic 1
   - **Scope:** Create signed-grant public APIs for invoice summary, curated document download metadata, and live fulfillment/tracking state, plus audit logging for every access.
@@ -925,15 +925,15 @@
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
 - [ ] **B2B-01.4 frontend-public-portal-shell-and-magic-link-consume**
-  - **Status:** Blocked
+  - **Status:** Ready
   - **Why now:** External users need a separate portal shell that does not inherit internal auth or tenant-header assumptions.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 15 / Epic 1
   - **Scope:** Build standalone public portal routes/pages/services for guest invoice/order views, document download metadata, and tracking, including signed-link exchange and deterministic expired-link UX.
   - **Non-goals:** No internal cockpit navigation reuse.
   - **Primary domain:** frontend
   - **Likely touched paths:** `frontend/src/App.tsx`, new `frontend/src/pages/Portal/GuestInvoiceView.tsx`, new `frontend/src/components/Portal/`, new `frontend/src/services/portalService.ts`, related tests/E2E
-  - **Dependencies:** B2B-01.3, B2B-02.4
-  - **Blockers:** B2B-01.3 and B2B-02.4
+  - **Dependencies:** B2B-01.3 (shipped in PR #4906), B2B-02.4 (shipped in PR #4903)
+  - **Blockers:** None
   - **Acceptance criteria:** Portal routes work logged out, do not auto-attach internal auth/tenant headers, strip raw tokens from visible history where applicable, and render only guest-safe data.
   - **Validation commands:** `npm -C frontend run verify-standards`; `npm -C frontend run test:ci`; `npm -C frontend run test:e2e`
   - **Tenant/RLS impact:** Medium

@@ -239,3 +239,46 @@ class PaymentTransactionSerializer(serializers.ModelSerializer):
         elif obj.invoice:
             return obj.invoice.invoice_number
         return None
+
+
+class PortalInvoiceSummarySerializer(
+    TradeWeightSerializerMixin,
+    TradeTimelineSerializerMixin,
+    serializers.ModelSerializer,
+):
+    """Guest-safe invoice summary serializer for signed portal reads."""
+
+    trade_weight = serializers.SerializerMethodField()
+    trade_timeline = serializers.SerializerMethodField()
+    customer_name = serializers.CharField(source="customer.name", read_only=True)
+    sales_order_num = serializers.CharField(
+        source="sales_order.our_sales_order_num",
+        read_only=True,
+        allow_null=True,
+    )
+    trade_weight_value_field = "total_weight"
+    trade_weight_unit_field = "weight_unit"
+    trade_datetime_fields = ("date_time_stamp", "created_on", "modified_on")
+    trade_date_fields = ("pick_up_date", "delivery_date", "due_date")
+
+    class Meta:
+        model = Invoice
+        fields = [
+            "invoice_number",
+            "customer_name",
+            "sales_order_num",
+            "pick_up_date",
+            "delivery_date",
+            "due_date",
+            "total_weight",
+            "weight_unit",
+            "trade_weight",
+            "total_amount",
+            "tax_amount",
+            "status",
+            "payment_status",
+            "outstanding_amount",
+            "trade_timeline",
+            "created_on",
+        ]
+        read_only_fields = fields
