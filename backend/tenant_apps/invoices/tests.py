@@ -4,6 +4,7 @@ Tests for Invoices app models.
 Uses shared-schema multi-tenancy with tenant ForeignKey isolation.
 """
 import uuid
+from datetime import date
 from django.core import mail
 from django.test import TestCase, override_settings
 from django.contrib.auth.models import User
@@ -11,6 +12,7 @@ from decimal import Decimal
 from rest_framework import status
 from rest_framework.test import APITestCase
 from tenant_apps.invoices.models import Invoice, InvoiceItem, InvoiceStatus
+from tenant_apps.invoices.serializers import InvoiceSerializer
 from tenant_apps.customers.models import Customer
 from apps.tenants.models import Tenant, TenantUser
 
@@ -145,6 +147,24 @@ class InvoiceModelTest(TestCase):
 
         self.assertEqual(item.tenant, self.tenant)
         self.assertEqual(item.invoice, invoice)
+
+    def test_invoice_serializer_exposes_trade_invariants(self):
+        unique_id = uuid.uuid4().hex[:8]
+        invoice = Invoice.objects.create(
+            invoice_number=f"INV-{unique_id}",
+            customer=self.customer,
+            total_amount=Decimal("1500.00"),
+            total_weight=Decimal("1000.50"),
+            weight_unit="LBS",
+            due_date=date(2026, 1, 15),
+            tenant=self.tenant,
+        )
+
+        data = InvoiceSerializer(invoice).data
+
+        self.assertEqual(data["trade_weight"]["normalized_lbs"], "1000.50")
+        self.assertEqual(data["trade_weight"]["normalized_kg"], "453.82")
+        self.assertEqual(data["trade_timeline"]["date_fields"]["due_date"], "2026-01-15")
 
 
 @override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend")

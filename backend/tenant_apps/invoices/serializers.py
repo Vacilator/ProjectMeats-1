@@ -2,12 +2,17 @@
 Serializers for Invoices app.
 """
 from rest_framework import serializers
+from apps.core.serializers_trade import TradeTimelineSerializerMixin, TradeWeightSerializerMixin
 from apps.core.serializers_documents import DocumentStatusValidationMixin
 from .models import Claim, Invoice, InvoiceItem, PaymentTransaction
 
 
-class InvoiceItemSerializer(serializers.ModelSerializer):
+class InvoiceItemSerializer(TradeWeightSerializerMixin, serializers.ModelSerializer):
     """Serializer for invoice line items."""
+
+    trade_weight = serializers.SerializerMethodField()
+    trade_weight_value_field = "total_net_weight"
+    trade_weight_unit_field = "uom"
 
     class Meta:
         model = InvoiceItem
@@ -24,6 +29,7 @@ class InvoiceItemSerializer(serializers.ModelSerializer):
             "edible_or_inedible",
             "tested_product",
             "total_net_weight",
+            "trade_weight",
             "unit_price",
             "line_total",
             "notes",
@@ -31,8 +37,20 @@ class InvoiceItemSerializer(serializers.ModelSerializer):
         read_only_fields = ["id"]
 
 
-class InvoiceSerializer(DocumentStatusValidationMixin, serializers.ModelSerializer):
+class InvoiceSerializer(
+    TradeWeightSerializerMixin,
+    TradeTimelineSerializerMixin,
+    DocumentStatusValidationMixin,
+    serializers.ModelSerializer,
+):
     """Serializer for Invoice model."""
+
+    trade_weight = serializers.SerializerMethodField()
+    trade_timeline = serializers.SerializerMethodField()
+    trade_weight_value_field = "total_weight"
+    trade_weight_unit_field = "weight_unit"
+    trade_datetime_fields = ("date_time_stamp", "created_on", "modified_on")
+    trade_date_fields = ("pick_up_date", "delivery_date", "due_date")
     
     customer_name = serializers.CharField(source="customer.name", read_only=True)
     sales_order_num = serializers.CharField(source="sales_order.our_sales_order_num", read_only=True, allow_null=True)
@@ -89,6 +107,7 @@ class InvoiceSerializer(DocumentStatusValidationMixin, serializers.ModelSerializ
             "quantity",
             "total_weight",
             "weight_unit",
+            "trade_weight",
             "edible_or_inedible",
             "tested_product",
             "unit_price",
@@ -99,6 +118,7 @@ class InvoiceSerializer(DocumentStatusValidationMixin, serializers.ModelSerializ
             "outstanding_amount",
             "notes",
             "items",
+            "trade_timeline",
             "created_on",
             "modified_on",
         ]

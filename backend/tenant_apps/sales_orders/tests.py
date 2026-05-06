@@ -4,9 +4,11 @@ Tests for Sales Orders app models.
 Uses shared-schema multi-tenancy with tenant ForeignKey isolation.
 """
 import uuid
+from datetime import date
 from django.test import TestCase
 from django.contrib.auth.models import User
 from tenant_apps.sales_orders.models import SalesOrder, SalesOrderItem, SalesOrderStatus
+from tenant_apps.sales_orders.serializers import SalesOrderSerializer
 from tenant_apps.suppliers.models import Supplier
 from tenant_apps.customers.models import Customer
 from apps.tenants.models import Tenant, TenantUser
@@ -156,3 +158,23 @@ class SalesOrderModelTest(TestCase):
 
         self.assertEqual(item.tenant, self.tenant)
         self.assertEqual(item.sales_order, sales_order)
+
+    def test_sales_order_serializer_exposes_trade_invariants(self):
+        unique_id = uuid.uuid4().hex[:8]
+        sales_order = SalesOrder.objects.create(
+            our_sales_order_num=f"SO-{unique_id}",
+            supplier=self.supplier,
+            customer=self.customer,
+            quantity=100,
+            total_weight=1000.50,
+            weight_unit=WeightUnitChoices.LBS,
+            pick_up_date=date(2026, 1, 8),
+            delivery_date=date(2026, 1, 9),
+            tenant=self.tenant,
+        )
+
+        data = SalesOrderSerializer(sales_order).data
+
+        self.assertEqual(data["trade_weight"]["entered_unit"], "LBS")
+        self.assertEqual(data["trade_weight"]["normalized_kg"], "453.82")
+        self.assertEqual(data["trade_timeline"]["date_fields"]["delivery_date"], "2026-01-09")

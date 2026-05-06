@@ -8,6 +8,7 @@ from django.test import TestCase
 from django.contrib.auth.models import User
 from datetime import date
 from tenant_apps.fulfillments.models import Fulfillment, FulfillmentStatusChoices
+from tenant_apps.fulfillments.serializers import FulfillmentDetailSerializer, FulfillmentListSerializer
 from tenant_apps.suppliers.models import Supplier
 from tenant_apps.customers.models import Customer
 from tenant_apps.carriers.models import Carrier
@@ -191,6 +192,21 @@ class FulfillmentModelTest(TestCase):
         
         self.assertEqual(fulfillment.carrier, self.carrier)
         self.assertIn(fulfillment, self.carrier.fulfillments.all())
+
+    def test_fulfillment_serializers_expose_trade_timeline(self):
+        fulfillment = Fulfillment.objects.create(
+            inquiry=self.inquiry,
+            ship_date=date(2026, 1, 8),
+            expected_delivery=date(2026, 1, 10),
+            tenant=self.tenant,
+        )
+
+        detail_data = FulfillmentDetailSerializer(fulfillment).data
+        list_data = FulfillmentListSerializer(fulfillment).data
+
+        self.assertEqual(detail_data["trade_timeline"]["storage_timezone"], "UTC")
+        self.assertEqual(detail_data["trade_timeline"]["date_fields"]["ship_date"], "2026-01-08")
+        self.assertEqual(list_data["trade_timeline"]["date_fields"]["expected_delivery"], "2026-01-10")
 
 
 class FulfillmentRLSMigrationTest(TestCase):

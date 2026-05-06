@@ -832,8 +832,8 @@
   - **Rollback:** Revert the shared service and callers together, leaving source units/timestamps untouched.
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
-- [ ] **B2B-02.3 transactional-api-adoption-for-orders-invoices-fulfillments**
-  - **Status:** Ready
+- [x] **B2B-02.3 transactional-api-adoption-for-orders-invoices-fulfillments**
+  - **Status:** Shipped in PR #4902
   - **Why now:** Portal views, PDFs, and reconciliation logic need normalized API semantics before partner-facing features can be trusted.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 15 / Epic 2
   - **Scope:** Apply the canonical trade engine to transactional serializers/views for purchase orders, sales orders, invoices, fulfillments, and related document exports while preserving backward compatibility.
@@ -851,15 +851,15 @@
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
 - [ ] **B2B-02.4 frontend-display-and-input-normalization**
-  - **Status:** Blocked
+  - **Status:** Ready
   - **Why now:** Partner and operator interfaces must render the same weights/times from the same canonical contract.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 15 / Epic 2
   - **Scope:** Add one frontend conversion/formatting path for transactional displays and inputs, adopting the backend contract without duplicating business math ad hoc in components.
   - **Non-goals:** No portal-specific routes yet.
   - **Primary domain:** frontend
   - **Likely touched paths:** `frontend/src/utils/formatters.ts`, new `frontend/src/utils/trade.ts`, `frontend/src/pages/{PurchaseOrders.tsx,FreightOrders.tsx}`, `frontend/src/pages/SalesOrders/SalesOrders.tsx`, `frontend/src/pages/Accounting/Invoices.tsx`, related tests
-  - **Dependencies:** B2B-02.3
-  - **Blockers:** B2B-02.3
+  - **Dependencies:** B2B-02.3 (shipped in PR #4902)
+  - **Blockers:** None
   - **Acceptance criteria:** No touched page shows mixed unit semantics or timezone drift, and formatter/unit tests use deterministic timezones and exact decimal expectations.
   - **Validation commands:** `npm -C frontend run verify-standards`; `npm -C frontend run test:ci`
   - **Tenant/RLS impact:** None directly

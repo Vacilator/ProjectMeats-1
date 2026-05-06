@@ -2,13 +2,18 @@
 Serializers for Sales Orders app.
 """
 from rest_framework import serializers
+from apps.core.serializers_trade import TradeTimelineSerializerMixin, TradeWeightSerializerMixin
 from apps.core.serializers_documents import DocumentStatusValidationMixin
 from .models import SalesOrder, SalesOrderItem
 from tenant_apps.locations.serializers import LocationListSerializer
 
 
-class SalesOrderItemSerializer(serializers.ModelSerializer):
+class SalesOrderItemSerializer(TradeWeightSerializerMixin, serializers.ModelSerializer):
     """Serializer for sales order line items."""
+
+    trade_weight = serializers.SerializerMethodField()
+    trade_weight_value_field = "total_net_weight"
+    trade_weight_unit_field = "uom"
 
     class Meta:
         model = SalesOrderItem
@@ -25,13 +30,26 @@ class SalesOrderItemSerializer(serializers.ModelSerializer):
             "edible_or_inedible",
             "tested_product",
             "total_net_weight",
+            "trade_weight",
             "notes",
         ]
         read_only_fields = ["id"]
 
 
-class SalesOrderSerializer(DocumentStatusValidationMixin, serializers.ModelSerializer):
+class SalesOrderSerializer(
+    TradeWeightSerializerMixin,
+    TradeTimelineSerializerMixin,
+    DocumentStatusValidationMixin,
+    serializers.ModelSerializer,
+):
     """Serializer for SalesOrder model."""
+
+    trade_weight = serializers.SerializerMethodField()
+    trade_timeline = serializers.SerializerMethodField()
+    trade_weight_value_field = "total_weight"
+    trade_weight_unit_field = "weight_unit"
+    trade_datetime_fields = ("date_time_stamp", "created_on", "modified_on")
+    trade_date_fields = ("pick_up_date", "delivery_date")
     
     supplier_name = serializers.CharField(source="supplier.name", read_only=True)
     customer_name = serializers.CharField(source="customer.name", read_only=True)
@@ -78,6 +96,7 @@ class SalesOrderSerializer(DocumentStatusValidationMixin, serializers.ModelSeria
             "quantity",
             "total_weight",
             "weight_unit",
+            "trade_weight",
             "status",
             "payment_status",
             "outstanding_amount",
@@ -100,6 +119,7 @@ class SalesOrderSerializer(DocumentStatusValidationMixin, serializers.ModelSeria
             "shipping_building_name",
             "notes",
             "items",
+            "trade_timeline",
             "created_on",
             "modified_on",
         ]
