@@ -1,5 +1,8 @@
 """Serializers for Inquiries app."""
 from rest_framework import serializers
+
+from apps.core.services.inventory_availability import evaluate_inquiry_route
+
 from .models import (
     Inquiry,
     InquiryProduct,
@@ -82,6 +85,18 @@ class InquiryContractValidationMixin:
                     ),
                 })
             data['requested_protein'] = requested_master_product.protein
+
+        tenant = self._get_active_tenant()
+        if tenant is not None:
+            route_evaluation = evaluate_inquiry_route(
+                tenant=tenant,
+                requested_master_product=requested_master_product,
+                requested_protein=data.get(
+                    'requested_protein',
+                    self._get_existing_value('requested_protein'),
+                ) or '',
+            )
+            data['route_decision'] = route_evaluation.route_decision
 
         return data
 
@@ -297,7 +312,8 @@ class InquiryDetailSerializer(InquiryContractValidationMixin, serializers.ModelS
         ]
         read_only_fields = [
             'id', 'inquiry_number', 'created_on', 'modified_on',
-            'total_desired', 'total_actual', 'total_margin', 'total_margin_percent'
+            'total_desired', 'total_actual', 'total_margin', 'total_margin_percent',
+            'route_decision',
         ]
     
     def get_entity_name(self, obj):
@@ -329,6 +345,7 @@ class InquiryCreateSerializer(InquiryContractValidationMixin, serializers.ModelS
             'notes', 'competitor_names', 'competitor_pricing_notes',
             'products'
         ]
+        read_only_fields = ['route_decision']
     
     def validate(self, data):
         """Validate entity type matches entity link."""

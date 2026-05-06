@@ -1098,8 +1098,8 @@
   - **Rollback:** Disable the inquiry-creation hook and preserve source-email audit rows for replay before reverting parser wiring.
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
-- [ ] **CTE-01.3 inventory-availability-contract-and-routing-service**
-  - **Status:** Ready
+- [x] **CTE-01.3 inventory-availability-contract-and-routing-service**
+  - **Status:** Shipped
   - **Why now:** `FULFILL` vs `BROKER` routing is impossible to automate safely because the repo does not yet contain a dedicated inventory source-of-truth model.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 16 / Epic 1
   - **Scope:** Define and implement the authoritative inventory availability contract/service, then use it to flag inquiries as `FULFILL` or `BROKER` based on requested product/protein and available stock/reservation rules.
@@ -1112,15 +1112,15 @@
     1. One explicit availability source and routing rule exists; the route does not rely on ad hoc product metadata.
     2. `Inquiry` can be flagged deterministically as `FULFILL` or `BROKER`.
     3. Reservation/availability semantics are documented well enough for future order allocation work.
-  - **Validation commands:** `cd backend && python manage.py test tenant_apps.inquiries apps.system apps.core`; `cd backend && python manage.py makemigrations --check`
+  - **Validation commands:** `cd backend && python manage.py test apps.core.tests.test_inventory_availability tenant_apps.products tenant_apps.inquiries apps.integrations.test_email_review_drafts --noinput`; `cd backend && python manage.py test apps.core apps.system tenant_apps.products tenant_apps.inquiries apps.integrations --noinput`; `cd backend && python manage.py test tenant_apps.inquiries --noinput`; `cd backend && python manage.py makemigrations --check`; `cd backend && python manage.py migrate --plan`
   - **Tenant/RLS impact:** High
   - **Secrets/infra impact:** None
   - **Risk level:** High
   - **Rollback:** Revert routing service and additive schema together, leaving inquiries in manual-triage mode.
-  - **Completion evidence destination:** `.github/MASTER_PLAN.md`
+  - **Completion evidence destination:** `.github/MASTER_PLAN.md` (PR #4927)
 
 - [ ] **CTE-01.4 live-inquiry-alerting-and-operator-review-queue**
-  - **Status:** Blocked
+  - **Status:** Ready
   - **Why now:** Operators need immediate visibility into new inquiries and route decisions before the automated cascade becomes trustworthy.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 16 / Epic 1
   - **Scope:** Add real-time or near-real-time operator alerting for new inquiries and route outcomes using existing notification/live-update patterns, plus an inquiry review queue surface for action-required demand.
@@ -1128,7 +1128,7 @@
   - **Primary domain:** frontend/backend notifications
   - **Likely touched paths:** `backend/tenant_apps/workflows/models.py`, `backend/tenant_apps/inquiries/`, `frontend/src/pages/Inquiries.tsx`, notification services/components, related tests
   - **Dependencies:** CTE-01.3
-  - **Blockers:** CTE-01.3
+  - **Blockers:** None
   - **Acceptance criteria:** New inquiries surface an operator-visible “Action Required” alert and a linked review surface without cross-tenant leakage.
   - **Validation commands:** `cd backend && python manage.py test tenant_apps.inquiries tenant_apps.workflows`; `npm -C frontend run verify-standards`; `npm -C frontend run test:ci`
   - **Tenant/RLS impact:** High

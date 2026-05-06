@@ -6,7 +6,10 @@ from unittest.mock import patch
 from apps.integrations.inquiry_drafts import upsert_inquiry_draft_from_email
 from apps.integrations.models import EmailLog, EmailReviewDraft, ExternalAuthProvider
 from apps.tenants.models import Tenant, TenantUser
+from apps.system.models import Product
 from tenant_apps.inquiries.models import Inquiry, InquiryEntityTypeChoices, InquirySourceChoices
+from tenant_apps.products.models import MasterProduct
+from tenant_apps.suppliers.models import Supplier, SupplierAvailableItem
 from tenant_apps.ai_assistant.models import AIFeedbackLog
 from tenant_apps.ai_assistant.tasks.watchdog import sync_ai_feedback_queue_for_tenant
 from tenant_apps.workflows.models import UserNotification
@@ -114,6 +117,7 @@ class EmailReviewDraftSignalTests(TestCase):
         self.assertEqual(inquiry.contact_email, 'buyer@northmeats.com')
         self.assertEqual(inquiry.contact_company, 'North Meats')
         self.assertEqual(inquiry.requested_protein, 'Beef')
+        self.assertEqual(inquiry.route_decision, 'BROKER')
         self.assertEqual(inquiry.source_email_message_id, 'graph-message-inquiry-1')
         self.assertEqual(inquiry.source_email_thread_id, 'thread-inquiry-1')
         self.assertEqual(
@@ -185,6 +189,30 @@ class EmailReviewDraftSignalTests(TestCase):
             contact_email='buyer@repeatcustomer.com',
             notes='Keep my manual note.',
         )
+        system_product = Product.objects.create(
+            product_code='PORK-BELLY-INQUIRY-DRAFT',
+            name='Pork Belly',
+            protein_type='pork',
+            category='PORK',
+        )
+        master_product = MasterProduct.objects.create(
+            tenant=self.tenant,
+            protein='Pork',
+            item_name='Belly',
+            type='flat',
+            trim='trimmed',
+            system_product=system_product,
+        )
+        supplier = Supplier.objects.create(tenant=self.tenant, name='Repeat Supplier')
+        SupplierAvailableItem.objects.create(
+            tenant=self.tenant,
+            supplier=supplier,
+            product=system_product,
+            is_active=True,
+        )
+        inquiry.requested_master_product = master_product
+        inquiry.requested_protein = 'Pork'
+        inquiry.save(update_fields=['requested_master_product', 'requested_protein'])
 
         result, created = upsert_inquiry_draft_from_email(
             email_log,
@@ -210,6 +238,7 @@ class EmailReviewDraftSignalTests(TestCase):
         self.assertEqual(result.status, 'pending')
         self.assertEqual(result.notes, 'Keep my manual note.')
         self.assertEqual(result.requested_protein, 'Pork')
+        self.assertEqual(result.route_decision, 'FULFILL')
         self.assertEqual(
             Inquiry.objects.filter(tenant=self.tenant, source_email=email_log).count(),
             1,

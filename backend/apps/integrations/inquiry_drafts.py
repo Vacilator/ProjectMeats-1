@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 from apps.core.models import ProteinTypeChoices
+from apps.core.services.inventory_availability import evaluate_inquiry_route
 from tenant_apps.inquiries.models import (
     Inquiry,
     InquiryEntityTypeChoices,
@@ -129,6 +130,12 @@ def upsert_inquiry_draft_from_email(email_log, classification: dict[str, Any]) -
         inquiry.requested_protein = normalized_protein
     if not inquiry.notes:
         inquiry.notes = _build_notes(email_log, classification)
+    route_evaluation = evaluate_inquiry_route(
+        tenant=email_log.tenant,
+        requested_master_product=inquiry.requested_master_product,
+        requested_protein=inquiry.requested_protein,
+    )
+    inquiry.route_decision = route_evaluation.route_decision
     inquiry.custom_data = _merge_email_intake_custom_data(
         inquiry=inquiry,
         email_log=email_log,

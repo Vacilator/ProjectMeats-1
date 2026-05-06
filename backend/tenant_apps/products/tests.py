@@ -6,7 +6,10 @@ Uses shared-schema multi-tenancy with tenant ForeignKey isolation.
 import uuid
 from django.test import TestCase
 from django.contrib.auth.models import User
+
+from apps.system.models import Product
 from tenant_apps.products.models import MasterProduct
+from tenant_apps.products.serializers import ProductSerializer
 from apps.tenants.models import Tenant, TenantUser
 from apps.core.models import ProteinTypeChoices
 
@@ -92,4 +95,42 @@ class MasterProductModelTest(TestCase):
         self.assertEqual(MasterProduct.objects.for_tenant(other_tenant).count(), 1)
         self.assertEqual(MasterProduct.objects.for_tenant(self.tenant).first().id, mp1.id)
 
+    def test_product_serializer_accepts_matching_system_product_bridge(self):
+        system_product = Product.objects.create(
+            product_code='BEEF-BRISKET-SERIALIZER',
+            name='Brisket',
+            protein_type='beef',
+            category='BEEF',
+        )
+        serializer = ProductSerializer(
+            data={
+                'protein': ProteinTypeChoices.BEEF,
+                'item_name': 'Brisket',
+                'type': 'flat',
+                'trim': 'trimmed',
+                'system_product': str(system_product.id),
+            }
+        )
+
+        self.assertTrue(serializer.is_valid(), serializer.errors)
+
+    def test_product_serializer_rejects_mismatched_system_product_bridge(self):
+        system_product = Product.objects.create(
+            product_code='PORK-BELLY-SERIALIZER',
+            name='Pork Belly',
+            protein_type='pork',
+            category='PORK',
+        )
+        serializer = ProductSerializer(
+            data={
+                'protein': ProteinTypeChoices.BEEF,
+                'item_name': 'Brisket',
+                'type': 'flat',
+                'trim': 'trimmed',
+                'system_product': str(system_product.id),
+            }
+        )
+
+        self.assertFalse(serializer.is_valid())
+        self.assertIn('system_product', serializer.errors)
 
