@@ -164,3 +164,52 @@ class DeliverFulfillmentSerializer(serializers.Serializer):
         required=False,
         help_text="Actual delivery date (defaults to today)"
     )
+
+
+class PortalFulfillmentTrackingSerializer(TradeTimelineSerializerMixin, serializers.ModelSerializer):
+    """Guest-safe fulfillment tracking serializer for signed portal reads."""
+
+    trade_timeline = serializers.SerializerMethodField()
+    document_milestones = serializers.SerializerMethodField()
+    trade_datetime_fields = ("created_on", "modified_on")
+    trade_date_fields = ("ship_date", "expected_delivery", "actual_delivery")
+    supplier_name = serializers.CharField(source="supplier.name", read_only=True)
+    customer_name = serializers.CharField(source="customer.name", read_only=True)
+    carrier_name = serializers.CharField(source="carrier.name", read_only=True)
+
+    class Meta:
+        model = Fulfillment
+        fields = [
+            "fulfillment_number",
+            "status",
+            "supplier_name",
+            "customer_name",
+            "carrier_name",
+            "shipping_type",
+            "ship_date",
+            "expected_delivery",
+            "actual_delivery",
+            "tracking_numbers",
+            "document_milestones",
+            "trade_timeline",
+            "created_on",
+        ]
+        read_only_fields = fields
+
+    def get_document_milestones(self, obj):
+        allowed_keys = {
+            "bol_received",
+            "bol_requested",
+            "coa_received",
+            "coa_sent",
+            "pod_received",
+            "proforma_received",
+            "proforma_requested",
+        }
+        raw_value = obj.document_milestones if isinstance(obj.document_milestones, dict) else {}
+        sanitized = {}
+        for key, value in raw_value.items():
+            if key not in allowed_keys or isinstance(value, (dict, list)):
+                continue
+            sanitized[key] = value
+        return sanitized

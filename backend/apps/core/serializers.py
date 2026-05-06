@@ -534,7 +534,6 @@ class PortalDocumentReferencePublicSerializer(serializers.ModelSerializer):
     class Meta:
         model = PortalDocumentReference
         fields = [
-            "id",
             "source_kind",
             "source_record_type",
             "source_record_id",
