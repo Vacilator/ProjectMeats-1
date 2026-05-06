@@ -2,7 +2,17 @@
 Serializers for Core app.
 """
 from rest_framework import serializers
-from apps.core.models import UserPreferences, UserFavorite
+from apps.core.models import (
+    PortalDocumentReference,
+    PortalGrant,
+    PortalGrantDocumentAccess,
+    UserFavorite,
+    UserPreferences,
+)
+from apps.core.security import (
+    B2B_PORTAL_ALLOWED_DOCUMENT_SOURCES,
+    B2B_PORTAL_ALLOWED_ENTITY_SCOPES,
+)
 
 
 class UserPreferencesSerializer(serializers.ModelSerializer):
@@ -238,3 +248,377 @@ class UserFavoriteSerializer(serializers.ModelSerializer):
 class LoginRequestSerializer(serializers.Serializer):
     username = serializers.CharField()
     password = serializers.CharField(write_only=True)
+
+
+def _redact_portal_metadata(value):
+    """Expose only explicitly portal-safe metadata keys."""
+    if not isinstance(value, dict):
+        return {}
+
+    allowed_metadata_keys = {
+        "carrier_name",
+        "counterpart_name",
+        "delivered_at",
+        "document_number",
+        "fulfillment_number",
+        "invoice_number",
+        "issued_at",
+        "note",
+        "notes",
+        "order_number",
+        "posted_at",
+        "purchase_order_number",
+        "sales_order_number",
+        "status",
+        "tracking_number",
+    }
+    suspicious_value_fragments = (
+        "://",
+        "s3://",
+        "gs://",
+        "azure://",
+        "tenants/",
+        "/tenants/",
+        "storage_key",
+        "presigned",
+    )
+
+    redacted = {}
+    for key, nested_value in value.items():
+        if key not in allowed_metadata_keys:
+            continue
+        if isinstance(nested_value, (dict, list)):
+            continue
+        if isinstance(nested_value, str):
+            lowered = nested_value.lower()
+            if any(fragment in lowered for fragment in suspicious_value_fragments):
+                continue
+        redacted[key] = nested_value
+    return redacted
+
+
+def _get_bound_tenant_from_context(serializer):
+    tenant = _peek_bound_tenant_from_context(serializer)
+    if tenant is None:
+        raise serializers.ValidationError(
+            {"tenant": "Tenant-scoped portal serializers must bind tenant from server context."}
+        )
+    return tenant
+
+
+def _peek_bound_tenant_from_context(serializer):
+    tenant = serializer.context.get("tenant")
+    request = serializer.context.get("request")
+    if tenant is None and request is not None:
+        tenant = getattr(request, "tenant", None)
+    return tenant
+
+
+class PortalGrantSerializer(serializers.ModelSerializer):
+    """Internal serializer for portal grant creation/update workflows."""
+
+    raw_token = serializers.CharField(write_only=True, required=True, trim_whitespace=False)
+
+    class Meta:
+        model = PortalGrant
+        fields = [
+            "id",
+            "tenant",
+            "subject_email",
+            "raw_token",
+            "token_hash",
+            "status",
+            "resource_scope",
+            "document_sources",
+            "expires_at",
+            "revoked_at",
+            "revoked_by",
+            "revoked_reason",
+            "created_by",
+            "last_accessed_at",
+            "max_uses",
+            "use_count",
+            "created_on",
+            "modified_on",
+        ]
+        read_only_fields = [
+            "id",
+            "tenant",
+            "token_hash",
+            "last_accessed_at",
+            "use_count",
+            "created_on",
+            "modified_on",
+        ]
+
+    def validate_resource_scope(self, value):
+        if not isinstance(value, dict):
+            raise serializers.ValidationError("Resource scope must be an object keyed by entity type.")
+
+        if not value:
+            raise serializers.ValidationError("Resource scope must include at least one allowed entity type.")
+
+        normalized_scope = {}
+        unsupported = sorted(set(value.keys()) - set(B2B_PORTAL_ALLOWED_ENTITY_SCOPES))
+        if unsupported:
+            raise serializers.ValidationError(
+                f"Unsupported portal entity scopes: {', '.join(unsupported)}."
+            )
+
+        for entity_type, record_ids in value.items():
+            if not isinstance(record_ids, list) or not record_ids:
+                raise serializers.ValidationError(
+                    f"Resource scope for {entity_type} must be a non-empty list of record ids."
+                )
+
+            normalized_ids = []
+            seen = set()
+            for record_id in record_ids:
+                if not isinstance(record_id, str):
+                    raise serializers.ValidationError(
+                        f"Resource scope ids for {entity_type} must be strings."
+                    )
+                normalized_id = record_id.strip()
+                if not normalized_id or normalized_id in seen:
+                    continue
+                normalized_ids.append(normalized_id)
+                seen.add(normalized_id)
+
+            if not normalized_ids:
+                raise serializers.ValidationError(
+                    f"Resource scope for {entity_type} must contain at least one record id."
+                )
+
+            normalized_scope[entity_type] = normalized_ids
+
+        return normalized_scope
+
+    def validate_document_sources(self, value):
+        if not isinstance(value, list):
+            raise serializers.ValidationError("Document sources must be a list of portal-safe source ids.")
+
+        normalized_sources = []
+        unsupported = []
+        seen = set()
+        for item in value:
+            if not isinstance(item, str):
+                raise serializers.ValidationError("Document sources must contain only strings.")
+            normalized_item = item.strip()
+            if not normalized_item or normalized_item in seen:
+                continue
+            if normalized_item not in B2B_PORTAL_ALLOWED_DOCUMENT_SOURCES:
+                unsupported.append(normalized_item)
+                continue
+            normalized_sources.append(normalized_item)
+            seen.add(normalized_item)
+
+        if unsupported:
+            raise serializers.ValidationError(
+                f"Unsupported portal document sources: {', '.join(sorted(unsupported))}."
+            )
+
+        if not normalized_sources:
+            raise serializers.ValidationError("Document sources must include at least one allowed source.")
+
+        return normalized_sources
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        expires_at = attrs.get("expires_at", getattr(self.instance, "expires_at", None))
+        max_uses = attrs.get("max_uses", getattr(self.instance, "max_uses", 1))
+        errors = {}
+
+        if (self.instance is None or not self.partial) and "resource_scope" not in attrs:
+            errors["resource_scope"] = "Portal grants require at least one scoped entity."
+
+        if (self.instance is None or not self.partial) and "document_sources" not in attrs:
+            errors["document_sources"] = "Portal grants require at least one document source."
+
+        if self.instance and "tenant" in getattr(self, "initial_data", {}):
+            errors["tenant"] = "Portal grant tenant cannot be changed."
+
+        if errors:
+            raise serializers.ValidationError(errors)
+
+        if max_uses < 1:
+            raise serializers.ValidationError({"max_uses": "Portal grants must allow at least one use."})
+
+        if expires_at is None:
+            raise serializers.ValidationError({"expires_at": "Portal grants require an expiration timestamp."})
+
+        return attrs
+
+    def create(self, validated_data):
+        raw_token = validated_data.pop("raw_token", None)
+        validated_data["tenant"] = _get_bound_tenant_from_context(self)
+        grant = PortalGrant(**validated_data)
+        grant.issue_token(raw_token)
+        grant.save()
+        return grant
+
+    def update(self, instance, validated_data):
+        raw_token = validated_data.pop("raw_token", None)
+        bound_tenant = _get_bound_tenant_from_context(self)
+
+        if instance.tenant_id != bound_tenant.id:
+            raise serializers.ValidationError(
+                {"tenant": "Portal grant tenant context does not match the existing record."}
+            )
+
+        for attribute, value in validated_data.items():
+            setattr(instance, attribute, value)
+
+        if raw_token:
+            instance.issue_token(raw_token)
+
+        instance.save()
+        return instance
+
+
+class PortalDocumentReferenceSerializer(serializers.ModelSerializer):
+    """Internal serializer for curated portal document registry rows."""
+
+    class Meta:
+        model = PortalDocumentReference
+        fields = [
+            "id",
+            "tenant",
+            "source_kind",
+            "source_record_type",
+            "source_record_id",
+            "display_name",
+            "original_filename",
+            "mime_type",
+            "byte_size",
+            "checksum",
+            "storage_backend",
+            "storage_key",
+            "metadata",
+            "is_active",
+            "published_at",
+            "created_by",
+            "created_on",
+            "modified_on",
+        ]
+        read_only_fields = ["id", "tenant", "created_on", "modified_on"]
+
+    def validate_metadata(self, value):
+        if not isinstance(value, dict):
+            raise serializers.ValidationError("Portal document metadata must be an object.")
+        return _redact_portal_metadata(value)
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        if self.instance and "tenant" in getattr(self, "initial_data", {}):
+            raise serializers.ValidationError({"tenant": "Portal document tenant cannot be changed."})
+        return attrs
+
+    def create(self, validated_data):
+        validated_data["tenant"] = _get_bound_tenant_from_context(self)
+        return super().create(validated_data)
+
+    def update(self, instance, validated_data):
+        bound_tenant = _get_bound_tenant_from_context(self)
+        if instance.tenant_id != bound_tenant.id:
+            raise serializers.ValidationError(
+                {"tenant": "Portal document tenant context does not match the existing record."}
+            )
+        return super().update(instance, validated_data)
+
+
+class PortalDocumentReferencePublicSerializer(serializers.ModelSerializer):
+    """Portal-safe serializer that intentionally omits internal storage locators."""
+
+    metadata = serializers.SerializerMethodField()
+
+    class Meta:
+        model = PortalDocumentReference
+        fields = [
+            "id",
+            "source_kind",
+            "source_record_type",
+            "source_record_id",
+            "display_name",
+            "original_filename",
+            "mime_type",
+            "byte_size",
+            "metadata",
+            "published_at",
+        ]
+
+    def get_metadata(self, obj):
+        return _redact_portal_metadata(obj.metadata)
+
+
+class PortalGrantDocumentAccessSerializer(serializers.ModelSerializer):
+    """Internal serializer for linking grants to curated portal documents."""
+
+    document_reference_detail = PortalDocumentReferencePublicSerializer(
+        source="document_reference",
+        read_only=True,
+    )
+
+    class Meta:
+        model = PortalGrantDocumentAccess
+        fields = [
+            "id",
+            "tenant",
+            "grant",
+            "document_reference",
+            "document_reference_detail",
+            "linked_by",
+            "linked_at",
+            "sort_order",
+            "created_on",
+            "modified_on",
+        ]
+        read_only_fields = ["id", "tenant", "created_on", "modified_on"]
+
+    def get_fields(self):
+        fields = super().get_fields()
+        bound_tenant = _peek_bound_tenant_from_context(self)
+
+        if bound_tenant is None:
+            fields["grant"].queryset = PortalGrant.objects.none()
+            fields["document_reference"].queryset = PortalDocumentReference.objects.none()
+            return fields
+
+        fields["grant"].queryset = PortalGrant.objects.filter(tenant=bound_tenant)
+        fields["document_reference"].queryset = PortalDocumentReference.objects.filter(tenant=bound_tenant)
+        return fields
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        bound_tenant = _get_bound_tenant_from_context(self)
+        if self.instance and "tenant" in getattr(self, "initial_data", {}):
+            raise serializers.ValidationError({"tenant": "Portal document access tenant cannot be changed."})
+
+        grant = attrs.get("grant", getattr(self.instance, "grant", None))
+        document_reference = attrs.get(
+            "document_reference",
+            getattr(self.instance, "document_reference", None),
+        )
+
+        if grant and grant.tenant_id != bound_tenant.id:
+            raise serializers.ValidationError(
+                {"grant": "Portal document access grant must belong to the bound tenant."}
+            )
+
+        if document_reference and document_reference.tenant_id != bound_tenant.id:
+            raise serializers.ValidationError(
+                {"document_reference": "Portal document access document must belong to the bound tenant."}
+            )
+
+        return attrs
+
+    def create(self, validated_data):
+        validated_data["tenant"] = _get_bound_tenant_from_context(self)
+        return super().create(validated_data)
+
+    def update(self, instance, validated_data):
+        bound_tenant = _get_bound_tenant_from_context(self)
+        if instance.tenant_id != bound_tenant.id:
+            raise serializers.ValidationError(
+                {"tenant": "Portal document access tenant context does not match the existing record."}
+            )
+        return super().update(instance, validated_data)

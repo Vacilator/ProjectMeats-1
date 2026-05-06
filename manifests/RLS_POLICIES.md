@@ -146,13 +146,16 @@ All workflow-related tables have Row-Level Security **ENABLED** and **FORCED**:
 
 ---
 
-## Governance Module (3 tables) - 🟡 Pending next deployment audit
+## Governance Module (6 tables) - 🟡 Pending next deployment audit
 
 | Table Name | RLS Enabled | Migration | Deployment Date |
 |------------|-------------|-----------|-----------------|
 | `core_archivebatch` | ✅ | `core/0011_archive_historical_records` | Pending next deployment audit |
 | `core_archivelegalhold` | ✅ | `core/0011_archive_historical_records` | Pending next deployment audit |
 | `core_archiverecordsnapshot` | ✅ | `core/0011_archive_historical_records` | Pending next deployment audit |
+| `core_portaldocumentreference` | ✅ | `core/0012_portaldocumentreference_portalgrant_and_more` | Pending next deployment audit |
+| `core_portalgrant` | ✅ | `core/0012_portaldocumentreference_portalgrant_and_more` | Pending next deployment audit |
+| `core_portalgrantdocumentaccess` | ✅ | `core/0012_portaldocumentreference_portalgrant_and_more` | Pending next deployment audit |
 
 ---
 
@@ -190,6 +193,7 @@ All workflow-related tables have Row-Level Security **ENABLED** and **FORCED**:
 - `core_comment` is now covered by an additive RLS migration so fresh databases and CI audits stay fully compliant.
 - `core_idempotencykey` is now covered by an additive RLS migration so idempotent mutation state remains tenant-isolated.
 - `core_archivebatch`, `core_archivelegalhold`, and `core_archiverecordsnapshot` are covered by additive RLS policies in `core/0011_archive_historical_records`.
+- `core_portaldocumentreference`, `core_portalgrant`, and `core_portalgrantdocumentaccess` are covered by additive RLS policies in `core/0012_portaldocumentreference_portalgrant_and_more`.
 - `ai_assistant.ChatSession` and `ai_assistant.ChatMessage` were migrated to tenant-native tables in `0016`; verify policy rollout separately if upgrading an older shared database.
 - `deals_deal` and `deals_dealactionitem` are now covered by additive RLS policies in `deals/0001_initial`.
 - Repo-wide strict-audit compliance remains a separate backlog item outside EH-06.2.
