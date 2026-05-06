@@ -4,14 +4,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { OnboardingProvider } from '../../Onboarding';
 import { useOnboardingTour } from './useOnboardingTour';
 
-const apiServiceMock = vi.hoisted(() => ({
-  apiClient: {
-    get: vi.fn(),
-    patch: vi.fn(),
+const userPreferencesServiceMock = vi.hoisted(() => ({
+  userPreferencesService: {
+    getCurrent: vi.fn(),
+    updateCurrent: vi.fn(),
   },
 }));
 
-vi.mock('../../../services/apiService', () => apiServiceMock);
+vi.mock('../../../services/userPreferencesService', () => userPreferencesServiceMock);
 vi.mock('react-joyride', () => ({
   ACTIONS: {
     CLOSE: 'close',
@@ -32,7 +32,7 @@ vi.mock('react-joyride', () => ({
   },
 }));
 
-const { apiClient } = apiServiceMock;
+const { userPreferencesService } = userPreferencesServiceMock;
 
 const wrapper = ({ children }: PropsWithChildren) => (
   <OnboardingProvider>{children}</OnboardingProvider>
@@ -44,10 +44,10 @@ describe('useOnboardingTour', () => {
     vi.useFakeTimers();
     localStorage.clear();
     localStorage.setItem('accessToken', 'token');
-    (apiClient.get as ReturnType<typeof vi.fn>).mockResolvedValue({
-      data: { onboarding_state: { completed_tours: [], tour_statuses: {} } },
+    (userPreferencesService.getCurrent as ReturnType<typeof vi.fn>).mockResolvedValue({
+      onboarding_state: { completed_tours: [], tour_statuses: {} },
     });
-    (apiClient.patch as ReturnType<typeof vi.fn>).mockResolvedValue({ data: {} });
+    (userPreferencesService.updateCurrent as ReturnType<typeof vi.fn>).mockResolvedValue({});
   });
 
   afterEach(() => {
@@ -64,7 +64,7 @@ describe('useOnboardingTour', () => {
       await Promise.resolve();
     });
 
-    expect(apiClient.get).toHaveBeenCalledWith('/preferences/me/');
+    expect(userPreferencesService.getCurrent).toHaveBeenCalled();
     expect(result.current.run).toBe(false);
 
     await act(async () => {
@@ -76,12 +76,10 @@ describe('useOnboardingTour', () => {
   });
 
   it('does not auto-start a tour that the user intentionally skipped earlier', async () => {
-    (apiClient.get as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
-      data: {
-        onboarding_state: {
-          completed_tours: [],
-          tour_statuses: { 'workflow-editor': { status: 'skipped', skip_count: 1 } },
-        },
+    (userPreferencesService.getCurrent as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      onboarding_state: {
+        completed_tours: [],
+        tour_statuses: { 'workflow-editor': { status: 'skipped', skip_count: 1 } },
       },
     });
 
@@ -99,12 +97,10 @@ describe('useOnboardingTour', () => {
   });
 
   it('resets a completed tour through the shared onboarding provider', async () => {
-    (apiClient.get as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
-      data: {
-        onboarding_state: {
-          completed_tours: ['workflow-editor'],
-          tour_statuses: { 'workflow-editor': { status: 'completed', complete_count: 1 } },
-        },
+    (userPreferencesService.getCurrent as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      onboarding_state: {
+        completed_tours: ['workflow-editor'],
+        tour_statuses: { 'workflow-editor': { status: 'completed', complete_count: 1 } },
       },
     });
 
@@ -117,7 +113,7 @@ describe('useOnboardingTour', () => {
       await Promise.resolve();
     });
 
-    expect(apiClient.get).toHaveBeenCalledWith('/preferences/me/');
+    expect(userPreferencesService.getCurrent).toHaveBeenCalled();
 
     await act(async () => {
       result.current.resetTour();
@@ -125,7 +121,7 @@ describe('useOnboardingTour', () => {
     });
 
     expect(result.current.run).toBe(true);
-    expect(apiClient.patch).toHaveBeenCalledWith('/preferences/me/', {
+    expect(userPreferencesService.updateCurrent).toHaveBeenCalledWith({
       onboarding_state: {
         completed_tours: [],
         tour_statuses: {
