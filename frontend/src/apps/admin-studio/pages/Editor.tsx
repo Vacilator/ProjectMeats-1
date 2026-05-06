@@ -7,7 +7,7 @@ import { logger } from '@/utils/logger';
 import { UnifiedFlowEditor } from '../../../components/FlowEditor';
 import { VersionHistory } from '../components/VersionHistory';
 
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 
 interface EditorProps {}
 
@@ -41,6 +41,7 @@ const Editor: React.FC<EditorProps> = () => {
     if (bpId && token) {
       fetchBlueprintStatus(bpId, token);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only bootstrap from URL, DOM, and cookie state
   }, []);
 
   const fetchBlueprintStatus = async (id: string, token: string) => {

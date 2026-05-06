@@ -4,6 +4,7 @@ Pytest Configuration for ProjectMeats Backend
 Provides fixtures and configuration for running backend tests.
 """
 import os
+import uuid
 import pytest
 from django.conf import settings
 
@@ -29,25 +30,27 @@ def api_client():
 
 
 @pytest.fixture
-def authenticated_client(api_client, django_user_model):
-    """Return authenticated API client."""
-    user = django_user_model.objects.create_user(
-        username='testuser',
-        email='test@example.com',
+def tenant_owner(django_user_model):
+    """Create a tenant owner used by shared test fixtures."""
+    unique = uuid.uuid4().hex[:8]
+    return django_user_model.objects.create_user(
+        username=f'tenant_owner_{unique}',
+        email=f'tenant-owner-{unique}@example.com',
         password='testpass123'
     )
-    api_client.force_authenticate(user=user)
-    return api_client
 
 
 @pytest.fixture
-def test_tenant(db):
+def test_tenant(db, tenant_owner):
     """Create a test tenant."""
     from apps.tenants.models import Tenant
+    unique = uuid.uuid4().hex[:8]
     return Tenant.objects.create(
-        name='Test Tenant',
-        slug='test-tenant',
+        name=f'Test Tenant {unique}',
+        slug=f'test-tenant-{unique}',
+        contact_email=f'test-tenant-{unique}@example.com',
         is_active=True,
+        created_by=tenant_owner,
     )
 
 
@@ -61,9 +64,10 @@ def tenant(test_tenant):
 def tenant_user(django_user_model, test_tenant):
     """Create a user associated with test tenant."""
     from apps.tenants.models import TenantUser
+    unique = uuid.uuid4().hex[:8]
     user = django_user_model.objects.create_user(
-        username='tenant_user',
-        email='tenant@example.com',
+        username=f'tenant_user_{unique}',
+        email=f'tenant-user-{unique}@example.com',
         password='testpass123'
     )
     TenantUser.objects.create(
@@ -76,11 +80,17 @@ def tenant_user(django_user_model, test_tenant):
 
 
 @pytest.fixture
-def authenticated_tenant_client(api_client, tenant_user, test_tenant):
-    """Return API client authenticated with tenant context."""
+def authenticated_client(api_client, tenant_user, test_tenant):
+    """Return authenticated API client with tenant membership and header defaults."""
     api_client.force_authenticate(user=tenant_user)
     api_client.defaults['HTTP_X_TENANT_ID'] = str(test_tenant.id)
     return api_client
+
+
+@pytest.fixture
+def authenticated_tenant_client(authenticated_client):
+    """Alias shared tenant-aware authenticated client fixture."""
+    return authenticated_client
 
 
 # ============================================================================

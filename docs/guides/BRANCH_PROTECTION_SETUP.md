@@ -28,6 +28,7 @@ The current PR gate is `.github/workflows/pr-validation.yml` plus `.github/workf
 - `Infrastructure Drift Gate`
 - `Dependency Review`
 - `Automation Security`
+- `OpenAPI Artifact`
 - `Validate Migrations`
 - `Backend Smoke Tests`
 - `Backend Tests`
