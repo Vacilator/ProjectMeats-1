@@ -70,6 +70,30 @@ class PendingReviewViewTests(TestCase):
         self.assertEqual(payload['review_entity_type'], 'carrier-pos')
         self.assertEqual(payload['review_target_url'], f'/my-tasks?tab=ai-review&draft={feedback.id}')
 
+    def test_pending_review_uses_explicit_review_target_url_from_payload(self):
+        feedback = AIFeedbackLog.objects.create(
+            tenant=self.tenant,
+            document_id=uuid.uuid4(),
+            document_type='inquiry',
+            confidence_score=1.0,
+            original_extracted_data={
+                'inquiry_id': 17,
+                'review_target_url': '/inquiries?review=inquiry&inquiry=17',
+                'route_decision': 'BROKER',
+            },
+        )
+
+        request = self.factory.get('/api/v1/ai-assistant/review/pending/')
+        force_authenticate(request, user=self.user)
+        request.tenant = self.tenant
+
+        response = PendingReviewView.as_view()(request)
+
+        self.assertEqual(response.status_code, 200)
+        payload = next(item for item in response.data['results'] if str(item['id']) == str(feedback.id))
+        self.assertEqual(payload['review_entity_type'], 'inquiry')
+        self.assertEqual(payload['review_target_url'], '/inquiries?review=inquiry&inquiry=17')
+
     def test_contextual_suggestions_returns_plant_continuity_actions(self):
         plant = Plant.objects.create(
             tenant=self.tenant,

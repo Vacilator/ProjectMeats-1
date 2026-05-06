@@ -294,11 +294,13 @@ def build_pending_review_items(tenant_id: str) -> list[dict[str, object]]:
                 'source_document_name': str(getattr(document, 'original_filename', '') or ''),
                 'intent_label': _humanize_review_intent(row.document_type, payload),
                 'review_entity_type': review_entity_type,
-                'review_target_url': f'/my-tasks?tab=ai-review&draft={row.id}',
+                'review_target_url': str(payload.get('review_target_url') or f'/my-tasks?tab=ai-review&draft={row.id}'),
             }
         )
 
     return items
+
+
 def ai_not_configured_response() -> Response:
     return Response(
         {

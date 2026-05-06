@@ -1119,8 +1119,8 @@
   - **Rollback:** Revert routing service and additive schema together, leaving inquiries in manual-triage mode.
   - **Completion evidence destination:** `.github/MASTER_PLAN.md` (PR #4927)
 
-- [ ] **CTE-01.4 live-inquiry-alerting-and-operator-review-queue**
-  - **Status:** Ready
+- [x] **CTE-01.4 live-inquiry-alerting-and-operator-review-queue**
+  - **Status:** Shipped (PR #4928)
   - **Why now:** Operators need immediate visibility into new inquiries and route decisions before the automated cascade becomes trustworthy.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 16 / Epic 1
   - **Scope:** Add real-time or near-real-time operator alerting for new inquiries and route outcomes using existing notification/live-update patterns, plus an inquiry review queue surface for action-required demand.
@@ -1135,12 +1135,12 @@
   - **Secrets/infra impact:** None
   - **Risk level:** Medium
   - **Rollback:** Revert alerting/UI changes and keep inquiry creation/routing intact.
-  - **Completion evidence destination:** `.github/MASTER_PLAN.md`
+  - **Completion evidence destination:** `.github/MASTER_PLAN.md` (PR #4928)
 
 ### Epic CTE-02 - Brokerage / RFQ Engine (Branch A)
 
 - [ ] **CTE-02.1 supplier-match-engine-for-broker-route**
-  - **Status:** Blocked
+  - **Status:** Ready
   - **Why now:** Brokered inquiries need a deterministic supplier target list before any outbound RFQ can be generated.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 16 / Epic 2
   - **Scope:** Build the supplier-match service that takes a broker-routed inquiry and returns eligible suppliers based on master product/protein, tenant-safe supplier data, and any required commercial filters.
@@ -1148,7 +1148,7 @@
   - **Primary domain:** backend/matching
   - **Likely touched paths:** `backend/tenant_apps/inquiries/`, `backend/tenant_apps/suppliers/`, `backend/apps/system/models/product.py`, new matching service/tests
   - **Dependencies:** CTE-01.4
-  - **Blockers:** CTE-01.4
+  - **Blockers:** None
   - **Acceptance criteria:** Broker-routed inquiries can produce a deterministic supplier candidate list keyed to the master product/protein contract.
   - **Validation commands:** `cd backend && python manage.py test tenant_apps.inquiries tenant_apps.suppliers apps.system`
   - **Tenant/RLS impact:** High

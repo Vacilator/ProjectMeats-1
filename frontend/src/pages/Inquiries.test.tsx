@@ -3,6 +3,12 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+const mockNavigate = vi.hoisted(() => vi.fn());
+const routerLocation = vi.hoisted(() => ({
+  pathname: '/inquiries',
+  search: '',
+  state: {},
+}));
 const refetchMock = vi.hoisted(() => vi.fn());
 const cloneLifecycle = vi.hoisted(() => ({
   mounts: 0,
@@ -42,14 +48,17 @@ vi.mock('react-router-dom', async (importOriginal) => {
 
   return {
     ...actual,
-    useNavigate: () => vi.fn(),
-    useLocation: () => ({ pathname: '/inquiries', state: {} }),
+    useNavigate: () => mockNavigate,
+    useLocation: () => routerLocation,
   };
 });
 
-vi.mock('../services/apiService', () => ({
-  apiClient: {
-    get: vi.fn(),
+vi.mock('../services/inquiryService', () => ({
+  inquiryService: {
+    listInquiryTemplates: vi.fn(),
+    getInquiryDetail: vi.fn(),
+    createInquiryFromTemplate: vi.fn(),
+    updateInquiryStatus: vi.fn(),
   },
 }));
 
@@ -98,36 +107,33 @@ vi.mock('../components/Inquiry', async () => {
   };
 });
 
-import { apiClient } from '../services/apiService';
+import { inquiryService } from '../services/inquiryService';
 import Inquiries from './Inquiries';
 
 describe('Inquiries page', () => {
   beforeEach(() => {
+    routerLocation.search = '';
+    routerLocation.state = {};
     cloneLifecycle.mounts = 0;
     cloneLifecycle.unmounts = 0;
     refetchMock.mockReset();
+    mockNavigate.mockReset();
 
-    vi.mocked(apiClient.get).mockImplementation((url: string) => {
-      if (url === 'inquiry-templates/') {
-        return Promise.resolve({ data: [] } as never);
-      }
-
-      if (url === 'inquiries/1/') {
-        return Promise.resolve({
-          data: {
-            id: 1,
-            inquiry_number: 'INQ-1',
-            status: 'pending',
-            entity_type: 'customer',
-            customer_name: 'Acme Foods',
-            supplier_name: '',
-            contact_name: 'Jane Buyer',
-          },
-        } as never);
-      }
-
-      return Promise.reject(new Error(`Unexpected GET ${url}`));
-    });
+    vi.mocked(inquiryService.listInquiryTemplates).mockResolvedValue([]);
+    vi.mocked(inquiryService.getInquiryDetail).mockResolvedValue({
+      id: '1',
+      inquiry_number: 'INQ-1',
+      status: 'pending',
+      route_decision: 'BROKER',
+      entity_type: 'customer',
+      customer_name: 'Acme Foods',
+      supplier_name: '',
+      contact_name: 'Jane Buyer',
+      source: 'email',
+      products: [],
+      created_on: '2026-05-04T00:00:00Z',
+      modified_on: '2026-05-04T00:00:00Z',
+    } as never);
   });
 
   it('only mounts the clone modal while the clone flow is open', async () => {
@@ -153,5 +159,14 @@ describe('Inquiries page', () => {
       expect(screen.queryByTestId('clone-inquiry-modal')).not.toBeInTheDocument();
     });
     expect(cloneLifecycle.unmounts).toBe(1);
+  });
+
+  it('opens inquiry detail automatically from review query params', async () => {
+    routerLocation.search = '?review=inquiry&inquiry=1';
+
+    render(<Inquiries />);
+
+    expect(await screen.findByTestId('inquiry-detail-modal')).toBeInTheDocument();
+    expect(inquiryService.getInquiryDetail).toHaveBeenCalledWith('1');
   });
 });

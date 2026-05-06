@@ -6,6 +6,7 @@ from apps.core.services.inventory_availability import evaluate_inquiry_route
 from .models import (
     Inquiry,
     InquiryProduct,
+    InquiryRouteDecisionChoices,
     InquirySourceChoices,
     InquiryTemplate,
     InquiryTemplateProduct,
@@ -165,6 +166,11 @@ class InquiryListSerializer(serializers.ModelSerializer):
     customer_name = serializers.CharField(source='customer.name', read_only=True)
     supplier_name = serializers.CharField(source='supplier.name', read_only=True)
     source = serializers.CharField(source='source_type', read_only=True)
+    route_decision = serializers.ChoiceField(
+        choices=InquiryRouteDecisionChoices.choices,
+        read_only=True,
+        required=False,
+    )
     product_count = serializers.IntegerField(source='products.count', read_only=True)
     total_desired = serializers.DecimalField(max_digits=12, decimal_places=2, read_only=True)
     total_actual = serializers.DecimalField(max_digits=12, decimal_places=2, read_only=True)
@@ -222,6 +228,11 @@ class InquiryDetailSerializer(InquiryContractValidationMixin, serializers.ModelS
     customer_name = serializers.CharField(source='customer.name', read_only=True)
     supplier_name = serializers.CharField(source='supplier.name', read_only=True)
     source = serializers.CharField(source='source_type', read_only=True)
+    route_decision = serializers.ChoiceField(
+        choices=InquiryRouteDecisionChoices.choices,
+        read_only=True,
+        required=False,
+    )
     scheduled_call = serializers.IntegerField(source='source_call_id', read_only=True, allow_null=True, required=False)
 
     contact_snapshot_name = serializers.CharField(source='contact_name', read_only=True)
@@ -329,6 +340,11 @@ class InquiryCreateSerializer(InquiryContractValidationMixin, serializers.ModelS
     """Serializer for creating inquiries with nested products."""
     
     products = InquiryProductSerializer(many=True, required=False)
+    route_decision = serializers.ChoiceField(
+        choices=InquiryRouteDecisionChoices.choices,
+        read_only=True,
+        required=False,
+    )
     
     class Meta:
         model = Inquiry
