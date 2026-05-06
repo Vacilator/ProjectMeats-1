@@ -3,15 +3,23 @@ Core models for ProjectMeats.
 
 Provides base models and common functionality used across all apps.
 """
+import hashlib
+import hmac
+import secrets
 import uuid
 
 from django.contrib.auth.models import User
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
+from django.core.exceptions import ValidationError
 from django.core.validators import RegexValidator
 from django.db import models
 from django.utils import timezone
 
+from apps.core.security import (
+    B2B_PORTAL_ALLOWED_DOCUMENT_SOURCES,
+    B2B_PORTAL_ALLOWED_ENTITY_SCOPES,
+)
 
 class TenantManager(models.Manager):
     """
@@ -909,6 +917,266 @@ class ArchiveRecordSnapshot(TenantAwareModel):
 
     def __str__(self) -> str:
         return f"{self.batch_id} {self.model_label}:{self.object_pk}"
+
+
+class PortalGrant(TenantAwareModel):
+    """Tenant-scoped signed grants for future read-only B2B portal access."""
+
+    class Status(models.TextChoices):
+        ACTIVE = "active", "Active"
+        CONSUMED = "consumed", "Consumed"
+        REVOKED = "revoked", "Revoked"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    subject_email = models.EmailField(db_index=True)
+    token_hash = models.CharField(
+        max_length=64,
+        help_text="SHA-256 digest of the opaque grant secret. Raw tokens are never stored.",
+    )
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.ACTIVE, db_index=True)
+    resource_scope = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text="Tenant-explicit record scope keyed by entity type.",
+    )
+    document_sources = models.JSONField(
+        default=list,
+        blank=True,
+        help_text="Allowed guest-safe document source categories for this grant.",
+    )
+    expires_at = models.DateTimeField(db_index=True)
+    revoked_at = models.DateTimeField(null=True, blank=True, db_index=True)
+    revoked_by = models.ForeignKey(
+        User,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="portal_grants_revoked",
+    )
+    revoked_reason = models.CharField(max_length=255, blank=True, default="")
+    created_by = models.ForeignKey(
+        User,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="portal_grants_created",
+    )
+    last_accessed_at = models.DateTimeField(null=True, blank=True)
+    max_uses = models.PositiveIntegerField(default=1)
+    use_count = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        ordering = ["-created_on"]
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(max_uses__gte=1),
+                name="core_pgrant_max_uses_gte_1",
+            ),
+            models.UniqueConstraint(fields=["tenant", "token_hash"], name="core_pgrant_tenant_hash_uniq"),
+        ]
+        indexes = [
+            models.Index(fields=["tenant", "status", "expires_at"], name="core_pgrant_status_idx"),
+            models.Index(fields=["tenant", "subject_email"], name="core_pgrant_subject_idx"),
+            models.Index(fields=["tenant", "revoked_at"], name="core_pgrant_revoke_idx"),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.tenant_id} {self.subject_email} {self.status}"
+
+    def clean(self):
+        super().clean()
+
+        if not isinstance(self.resource_scope, dict) or not self.resource_scope:
+            raise ValidationError({"resource_scope": "Portal grants require at least one scoped entity."})
+
+        unsupported_scopes = set(self.resource_scope.keys()) - set(B2B_PORTAL_ALLOWED_ENTITY_SCOPES)
+        if unsupported_scopes:
+            raise ValidationError(
+                {"resource_scope": f"Unsupported portal entity scopes: {', '.join(sorted(unsupported_scopes))}."}
+            )
+
+        if not isinstance(self.document_sources, list) or not self.document_sources:
+            raise ValidationError({"document_sources": "Portal grants require at least one document source."})
+
+        unsupported_sources = set(self.document_sources) - set(B2B_PORTAL_ALLOWED_DOCUMENT_SOURCES)
+        if unsupported_sources:
+            raise ValidationError(
+                {
+                    "document_sources": (
+                        "Unsupported portal document sources: "
+                        f"{', '.join(sorted(unsupported_sources))}."
+                    )
+                }
+            )
+
+        if self.max_uses < 1:
+            raise ValidationError({"max_uses": "Portal grants must allow at least one use."})
+
+    def issue_token(self, raw_token: str | None = None) -> str:
+        """Generate or assign a raw portal token and store only its digest."""
+        raw_token = raw_token or secrets.token_urlsafe(48)
+        self.token_hash = hashlib.sha256(raw_token.encode("utf-8")).hexdigest()
+        return raw_token
+
+    def token_matches(self, raw_token: str) -> bool:
+        """Check a raw token against the persisted SHA-256 digest."""
+        expected = hashlib.sha256(raw_token.encode("utf-8")).hexdigest()
+        return hmac.compare_digest(self.token_hash, expected)
+
+    @property
+    def is_expired(self) -> bool:
+        """Return True when the grant is no longer within its TTL window."""
+        return timezone.now() >= self.expires_at
+
+    @property
+    def is_active(self) -> bool:
+        """Return True when the grant can still authorize a portal read."""
+        if self.status != self.Status.ACTIVE:
+            return False
+        if self.revoked_at is not None or self.is_expired:
+            return False
+        return self.use_count < self.max_uses
+
+    def revoke(self, *, user: User | None = None, reason: str = "") -> None:
+        """Revoke this grant and persist the evidence fields."""
+        self.status = self.Status.REVOKED
+        self.revoked_at = timezone.now()
+        self.revoked_by = user
+        self.revoked_reason = reason
+
+    def mark_accessed(self) -> None:
+        """Record a portal read and consume one bounded-use slot."""
+        self.use_count += 1
+        self.last_accessed_at = timezone.now()
+        if self.use_count >= self.max_uses:
+            self.status = self.Status.CONSUMED
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)
+
+
+class PortalDocumentReference(TenantAwareModel):
+    """Curated registry entry for a portal-safe document or status artifact."""
+
+    class SourceKind(models.TextChoices):
+        INVOICE_SUMMARY = "invoice_summary", "Invoice Summary"
+        INVOICE_PDF = "invoice_pdf", "Invoice PDF"
+        SALES_ORDER_STATUS = "sales_order_status", "Sales Order Status"
+        PURCHASE_ORDER_STATUS = "purchase_order_status", "Purchase Order Status"
+        FULFILLMENT_TRACKING = "fulfillment_tracking", "Fulfillment Tracking"
+        FULFILLMENT_BOL = "fulfillment_bol", "Fulfillment BOL"
+        FULFILLMENT_POD = "fulfillment_pod", "Fulfillment POD"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    source_kind = models.CharField(max_length=50, choices=SourceKind.choices, db_index=True)
+    source_record_type = models.CharField(max_length=100, db_index=True)
+    source_record_id = models.CharField(max_length=255, db_index=True)
+    display_name = models.CharField(max_length=255)
+    original_filename = models.CharField(max_length=255, blank=True, default="")
+    mime_type = models.CharField(max_length=100, blank=True, default="")
+    byte_size = models.PositiveBigIntegerField(default=0)
+    checksum = models.CharField(max_length=64, blank=True, default="", db_index=True)
+    storage_backend = models.CharField(
+        max_length=100,
+        blank=True,
+        default="default",
+        help_text="Internal storage backend identifier. Do not expose in portal serializers.",
+    )
+    storage_key = models.CharField(
+        max_length=500,
+        help_text="Internal-only storage locator. Never expose to portal clients.",
+    )
+    metadata = models.JSONField(default=dict, blank=True)
+    is_active = models.BooleanField(default=True, db_index=True)
+    published_at = models.DateTimeField(default=timezone.now, db_index=True)
+    created_by = models.ForeignKey(
+        User,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="portal_document_references_created",
+    )
+
+    class Meta:
+        ordering = ["-published_at", "-created_on"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["tenant", "storage_backend", "storage_key"],
+                name="core_pdocref_tenant_key_uniq",
+            ),
+        ]
+        indexes = [
+            models.Index(fields=["tenant", "source_kind", "published_at"], name="core_pdocref_source_idx"),
+            models.Index(
+                fields=["tenant", "source_record_type", "source_record_id"],
+                name="core_pdocref_record_idx",
+            ),
+            models.Index(fields=["tenant", "is_active", "published_at"], name="core_pdocref_active_idx"),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.tenant_id} {self.source_kind} {self.display_name}"
+
+
+class PortalGrantDocumentAccess(TenantAwareModel):
+    """Explicit tenant-scoped link between a portal grant and curated document rows."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    grant = models.ForeignKey(
+        PortalGrant,
+        on_delete=models.CASCADE,
+        related_name="document_links",
+        help_text="Portal grant that may expose this curated document.",
+    )
+    document_reference = models.ForeignKey(
+        PortalDocumentReference,
+        on_delete=models.CASCADE,
+        related_name="grant_links",
+        help_text="Curated portal-safe document registry entry.",
+    )
+    linked_by = models.ForeignKey(
+        User,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="portal_grant_document_links_created",
+    )
+    linked_at = models.DateTimeField(default=timezone.now)
+    sort_order = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        ordering = ["grant_id", "sort_order", "created_on"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["tenant", "grant", "document_reference"],
+                name="core_pgrantdoc_tenant_link_uniq",
+            ),
+        ]
+        indexes = [
+            models.Index(fields=["tenant", "grant", "sort_order"], name="core_pgrantdoc_grant_idx"),
+            models.Index(fields=["tenant", "document_reference"], name="core_pgrantdoc_doc_idx"),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.grant_id} -> {self.document_reference_id}"
+
+    def clean(self):
+        super().clean()
+        if not self.grant_id or not self.document_reference_id:
+            return
+
+        if self.grant.tenant_id != self.document_reference.tenant_id:
+            raise ValidationError("Portal grant/document link must stay within one tenant.")
+
+        if self.tenant_id and self.tenant_id != self.grant.tenant_id:
+            raise ValidationError("Portal grant/document link tenant must match the linked grant.")
+
+    def save(self, *args, **kwargs):
+        if self.grant_id:
+            self.tenant_id = self.grant.tenant_id
+        self.full_clean()
+        super().save(*args, **kwargs)
 
 
 class Comment(TenantAwareModel):
