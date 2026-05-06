@@ -29,7 +29,6 @@ def get_ai_inbox_snapshot(tenant_id: str) -> dict[str, Any]:
             AIFeedbackLog.objects.filter(
                 tenant_id=tenant_id,
                 resolved_by__isnull=True,
-                confidence_score__lt=0.85,
             )
             .order_by("-created_on")
         )

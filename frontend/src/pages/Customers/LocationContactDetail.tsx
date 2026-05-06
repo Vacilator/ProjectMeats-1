@@ -1,9 +1,8 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Breadcrumb, Button, Card, Spin } from 'antd';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 
-import { AIOverviewCard } from '@/components/Cockpit';
-import { EntityFormSurface } from '@/components/Shared';
+import { AIOverviewCard, EntityProfileHeader } from '@/components/Cockpit';
 import { apiClient } from '@/services/apiService';
 
 type RouteParams = { customerId?: string; locationId?: string; contactId?: string };
@@ -60,6 +59,42 @@ export const LocationContactDetail: React.FC = () => {
     return name || (coid ? `Contact #${coid}` : 'Contact');
   }, [coid, contact?.first_name, contact?.last_name]);
 
+  const handleNavigateToEntity = useCallback(
+    (entityType: string, entityId: string, _label: string) => {
+      const type = String(entityType || '').trim().toLowerCase();
+      const nextId = String(entityId || '').trim();
+      if (!type || !nextId) return;
+
+      if (type === 'customer') {
+        navigate(`/customers/${nextId}`);
+        return;
+      }
+
+      if (type === 'location') {
+        navigate(cid ? `/customers/${cid}/locations/${nextId}` : `/locations/${nextId}`);
+        return;
+      }
+
+      if (type === 'contact') {
+        navigate(`/records/contact/${encodeURIComponent(nextId)}`);
+        return;
+      }
+
+      if (type === 'supplier') {
+        navigate(`/suppliers/${nextId}`);
+        return;
+      }
+
+      if (type === 'plant') {
+        navigate(`/plants/${nextId}`);
+        return;
+      }
+
+      navigate(`/${type}/${nextId}`);
+    },
+    [cid, navigate]
+  );
+
   return (
     <div style={{ padding: 16 }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
@@ -101,13 +136,11 @@ export const LocationContactDetail: React.FC = () => {
         ) : (
           <>
             <AIOverviewCard entityType="contact" entityId={coid} />
-            <EntityFormSurface
+            <EntityProfileHeader
               entityType="contact"
-              mode="view"
-              variant="inline"
-              isOpen={true}
               entityId={coid}
-              onClose={() => navigate(`/customers/${cid}/locations/${lid}`)}
+              variant="full"
+              onNavigateToEntity={handleNavigateToEntity}
             />
           </>
         )}

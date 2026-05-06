@@ -12,9 +12,10 @@ from rest_framework.test import APITestCase
 from unittest.mock import patch
 
 from apps.integrations import urls as app_integrations_urls
-from apps.tenants.models import Tenant, TenantUser
-from apps.integrations.models import ExternalAuthProvider
 from integrations.views.oauth import OAuthAuthorizeView, OAuthCallbackView
+from apps.integrations.models import EmailLog, ExternalAuthProvider
+from apps.tenants.models import Tenant, TenantUser
+from tenant_apps.ai_assistant.models import AIFeedbackLog
 
 
 class EmailSyncTests(APITestCase):
@@ -98,6 +99,37 @@ class EmailSyncTests(APITestCase):
         self.assertEqual(resp.data.get('error'), 'Token invalid/expired')
         self.assertEqual(resp.data.get('error_code'), 'token_invalid')
         self.assertEqual(resp.data.get('cta', {}).get('url'), '/settings/email-integrations')
+
+    @patch('apps.integrations.signals.classify_ingested_email')
+    def test_new_email_creates_action_required_feedback_log(self, classify_ingested_email):
+        provider = ExternalAuthProvider.objects.get(tenant=self.tenant, provider_type='microsoft')
+        classify_ingested_email.return_value = {
+            'document_type': 'purchase_order',
+            'draft_type': 'purchase_order',
+            'order_number': 'PO-123',
+            'confidence_score': 0.42,
+            'actionable': False,
+        }
+
+        email = EmailLog.objects.create(
+            tenant=self.tenant,
+            provider=provider,
+            message_id='message-1',
+            subject='Purchase Order 123',
+            sender_email='buyer@example.com',
+            received_at=timezone.now(),
+            body_text='Please book PO-123.',
+        )
+
+        email.refresh_from_db()
+        self.assertEqual(email.status, 'action_required')
+        self.assertEqual(email.extracted_data, classify_ingested_email.return_value)
+
+        feedback = AIFeedbackLog.objects.get(tenant=self.tenant)
+        self.assertEqual(feedback.document_type, 'purchase_order')
+        self.assertAlmostEqual(feedback.confidence_score, 0.42)
+        self.assertIsNone(feedback.resolved_by)
+        self.assertEqual(feedback.original_extracted_data.get('order_number'), 'PO-123')
 
     def test_oauth_status_returns_active_connection(self):
         resp = self.client.get(

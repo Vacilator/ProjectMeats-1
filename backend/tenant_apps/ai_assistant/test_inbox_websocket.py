@@ -77,6 +77,29 @@ class AIInboxWebsocketTests(TransactionTestCase):
 
         async_to_sync(run)()
 
+    def test_staff_user_receives_high_confidence_unresolved_snapshot(self):
+        AIFeedbackLog.objects.create(
+            tenant=self.tenant,
+            document_id=uuid.uuid4(),
+            document_type="purchase_order",
+            original_extracted_data={"order_number": "PO-2"},
+            confidence_score=0.97,
+        )
+
+        async def run():
+            communicator = self._communicator(user=self.staff_user, tenant_id=str(self.tenant.id))
+            connected, _ = await communicator.connect(timeout=1)
+            self.assertTrue(connected)
+
+            snapshot = await communicator.receive_json_from(timeout=1)
+            self.assertEqual(snapshot.get("type"), "ai.inbox.snapshot")
+            self.assertEqual(snapshot.get("pending_count"), 1)
+            self.assertEqual(len(snapshot.get("results") or []), 1)
+
+            await communicator.disconnect()
+
+        async_to_sync(run)()
+
     def test_non_staff_user_receives_zeroed_snapshot(self):
         AIFeedbackLog.objects.create(
             tenant=self.tenant,

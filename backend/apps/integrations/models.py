@@ -264,6 +264,8 @@ class EmailLog(models.Model):
         ('ai_parsing', 'AI Parsing'),
         ('draft_created', 'Draft Created'),
         ('order_created', 'Order Created'),
+        ('action_required', 'Action Required'),
+        # Backward-compatible for older rows; new ingestion should use action_required instead.
         ('failed', 'Failed'),
         ('ignored', 'Ignored'),
     ]
@@ -356,29 +358,54 @@ class EmailLog(models.Model):
     def mark_as_processing(self):
         """Update status to AI parsing."""
         self.status = 'ai_parsing'
-        self.save(update_fields=['status', 'updated_at'])
+        self.updated_at = timezone.now()
+        type(self).objects.filter(pk=self.pk).update(status=self.status, updated_at=self.updated_at)
     
     def mark_as_completed(self, extracted_data: dict = None, order_id: int = None):
-        """Mark email processing as complete."""
-        self.status = 'order_created' if order_id else 'ignored'
+        """Mark email processing as complete.
+
+        Until automatic PO creation is wired, parsed emails without an order_id
+        stay operator-visible instead of silently falling into the legacy
+        ignored state.
+        """
+        self.status = 'order_created' if order_id else 'action_required'
         self.extracted_data = extracted_data
         self.related_order_id = order_id
         self.processed_at = timezone.now()
-        self.save(update_fields=['status', 'extracted_data', 'related_order_id', 'processed_at', 'updated_at'])
+        self.updated_at = self.processed_at
+        type(self).objects.filter(pk=self.pk).update(
+            status=self.status,
+            extracted_data=self.extracted_data,
+            related_order_id=self.related_order_id,
+            processed_at=self.processed_at,
+            updated_at=self.updated_at,
+        )
 
     def mark_as_draft_created(self, extracted_data: dict | None = None):
         """Mark email processing as actionable and awaiting operator review."""
         self.status = 'draft_created'
         self.extracted_data = extracted_data
         self.processed_at = timezone.now()
-        self.save(update_fields=['status', 'extracted_data', 'processed_at', 'updated_at'])
+        self.updated_at = self.processed_at
+        type(self).objects.filter(pk=self.pk).update(
+            status=self.status,
+            extracted_data=self.extracted_data,
+            processed_at=self.processed_at,
+            updated_at=self.updated_at,
+        )
     
     def mark_as_failed(self, error_message: str):
         """Mark email processing as failed."""
         self.status = 'failed'
         self.processing_error = error_message
         self.processed_at = timezone.now()
-        self.save(update_fields=['status', 'processing_error', 'processed_at', 'updated_at'])
+        self.updated_at = self.processed_at
+        type(self).objects.filter(pk=self.pk).update(
+            status=self.status,
+            processing_error=self.processing_error,
+            processed_at=self.processed_at,
+            updated_at=self.updated_at,
+        )
 
 
 class EmailReviewDraft(models.Model):
