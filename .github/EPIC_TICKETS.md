@@ -980,8 +980,8 @@
   - **Rollback:** Revert the planning/runbook contract only; no new ingest endpoints should ship in this ticket.
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
-- [ ] **B2B-03.2 settlement-event-store-and-public-ingest-endpoint**
-  - **Status:** Ready
+- [x] **B2B-03.2 settlement-event-store-and-public-ingest-endpoint**
+  - **Status:** Shipped in PR #4910
   - **Why now:** Reconciliation needs an auditable raw event journal and authenticated ingress before any auto-matching can occur.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 15 / Epic 3
   - **Scope:** Add tenant-scoped settlement source/event models, a signed/HMAC public ingest endpoint or provider webhook endpoint, and async handoff for processing.
@@ -999,7 +999,7 @@
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
 - [ ] **B2B-03.3 reconciliation-engine-into-paymenttransaction**
-  - **Status:** Blocked
+  - **Status:** Ready
   - **Why now:** The system needs a deterministic matcher from settlement events to invoices/orders before payment status can update automatically.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 15 / Epic 3
   - **Scope:** Implement the reconciliation engine that maps settlement events into `PaymentTransaction` updates, match/review states, and reversible source-event linkage.
@@ -1007,7 +1007,7 @@
   - **Primary domain:** backend
   - **Likely touched paths:** new `backend/apps/core/services/settlement_reconciliation.py` or `backend/tenant_apps/invoices/services/`, `backend/tenant_apps/invoices/{models.py,serializers.py,views.py,tests.py}`, related order tests
   - **Dependencies:** B2B-03.2, B2B-02.3
-  - **Blockers:** B2B-03.2 and B2B-02.3
+  - **Blockers:** None
   - **Acceptance criteria:** Exact and ambiguous matches are handled deterministically, duplicate/replayed events do not duplicate payments, and mismatches surface explicit reason codes for review.
   - **Validation commands:** `cd backend && python manage.py test tenant_apps.invoices tenant_apps.sales_orders tenant_apps.purchase_orders`; `cd backend && python manage.py makemigrations --check`
   - **Tenant/RLS impact:** High
