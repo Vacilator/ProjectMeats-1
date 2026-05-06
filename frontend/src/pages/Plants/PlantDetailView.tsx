@@ -10,14 +10,6 @@ import HardcodedPlantForm from './HardcodedPlantForm';
 
 type RouteParams = { id?: string };
 
-type PlantRow = {
-  id: string | number;
-  name?: string;
-  supplier?: string | number | null;
-  supplier_name?: string | null;
-  plant_est_num?: string | null;
-};
-
 type ContactRow = {
   id: string | number;
   first_name?: string;
@@ -169,36 +161,11 @@ export const PlantDetailView: React.FC = () => {
 
     let mounted = true;
     const load = async () => {
-      setLoadingPlant(true);
-      try {
-        const resp = await businessApi.get(`plants/${plantId}/`);
-        const payload = resp.data as unknown;
-
-        if (!mounted) return;
-        setPlant(
-          (payload && typeof payload === 'object' ? (payload as PlantRow) : null) || null
-        );
-      } finally {
-        if (mounted) setLoadingPlant(false);
-      }
-    };
-
-    void load();
-    return () => {
-      mounted = false;
-    };
-  }, [plantId, refreshKey]);
-
-  useEffect(() => {
-    if (!plantId) return;
-
-    let mounted = true;
-    const load = async () => {
       setLoadingContacts(true);
       setAuthError(false);
       setContactsError(null);
       try {
-        const resp = await businessApi.get('contacts/', {
+        const resp = await apiClient.get('contacts/', {
           params: { plant: plantId, page_size: 200, limit: 200 },
         });
         const payload = resp.data as unknown;
@@ -261,46 +228,10 @@ export const PlantDetailView: React.FC = () => {
 
   return (
     <div style={{ padding: 16 }}>
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: 12,
-          flexWrap: 'wrap',
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <Button onClick={() => navigate(-1)}>Back</Button>
-          <Breadcrumb
-            items={[
-              {
-                title: supplierId ? (
-                  <span>
-                    Supplier:{' '}
-                    <Link to={`/suppliers/${supplierId}`}>
-                      {String(plant?.supplier_name || '').trim() || `Supplier #${supplierId}`}
-                    </Link>
-                  </span>
-                ) : (
-                  <span>Plants</span>
-                ),
-              },
-              {
-                title: (
-                  <span>
-                    Plant: <span style={{ fontWeight: 700 }}>{title}</span>
-                  </span>
-                ),
-              },
-            ]}
-          />
-        </div>
-
-        <div style={{ display: 'flex', gap: 8 }}>
-          <Button type="primary" onClick={() => setEditOpen(true)} disabled={!plantId || loadingPlant}>
-            Edit Plant
-          </Button>
+          <div style={{ fontSize: 16, fontWeight: 700, color: 'rgb(var(--color-text-primary))' }}>Plant</div>
         </div>
         <Button
           type="primary"
