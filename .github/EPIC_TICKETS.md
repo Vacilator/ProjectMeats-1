@@ -1017,7 +1017,7 @@
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
 - [ ] **B2B-03.4 accounting-settlement-queue-and-override-ui**
-  - **Status:** Ready
+  - **Status:** In PR #4912
   - **Why now:** Accountants need a review queue for unmatched, partial, and disputed settlement items before auto-reconciliation can be trusted operationally.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 15 / Epic 3
   - **Scope:** Build the accountant-facing settlement queue, override flows, and audit display on top of the reconciliation engine.
