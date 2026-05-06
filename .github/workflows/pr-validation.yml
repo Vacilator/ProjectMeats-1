@@ -304,17 +304,18 @@ jobs:
         working-directory: ./frontend
         run: npm ci
 
-      - name: "Guardrail: ban useQueries in form engine"
+      - name: "Guardrail: ban batched query hook in form engine"
         shell: bash
         run: |
           set -euo pipefail
 
-          if grep -R -n "useQueries" frontend/src/components/Shared/ frontend/src/features/system/; then
-            echo "❌ useQueries is banned in form engine surfaces. Use the single-key fetch pattern instead." >&2
+          FORBIDDEN_HOOK="$(printf 'use%s' 'Queries')"
+          if grep -R -n "$FORBIDDEN_HOOK" frontend/src/components/Shared/ frontend/src/features/system/; then
+            echo "❌ The banned batched query hook is not allowed in form engine surfaces. Use the single-key fetch pattern instead." >&2
             exit 1
           fi
 
-          echo "✓ No useQueries usage found in form engine surfaces"
+          echo "✓ No banned batched query hook usage found in form engine surfaces"
 
       - name: Verify frontend standards
         working-directory: ./frontend

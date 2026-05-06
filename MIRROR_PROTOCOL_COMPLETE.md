@@ -6,7 +6,7 @@
 - Routed detail pages that previously mounted inline form walls (`/plants/:id`, `/suppliers/:supplierId/plants/:plantId`, `/locations/:id`, and the nested contact detail routes) now use record headers with modal edit or read-only profile surfaces.
 - Cockpit breadcrumbs mask UUID-only labels to human-readable entity detail labels.
 - Email ingestion now creates unresolved `AIFeedbackLog` review items, marks emails as `action_required`, and feeds the AI inbox websocket/action-required badge path.
-- PR validation now fails if `useQueries` appears in the form-engine surfaces under `frontend/src/components/Shared/` or `frontend/src/features/system/`.
+- PR validation now fails if the banned batched-query hook appears in the form-engine surfaces under `frontend/src/components/Shared/` or `frontend/src/features/system/`.
 
 ## Expected Results
 
@@ -23,7 +23,7 @@
 - BreadcrumbBar shows `Plant Details`-style fallbacks instead of UUIDs.
 - Staff AI inbox websocket connections receive unresolved pending review counts; non-staff connect safely with zeroed snapshots.
 - New ingested PO emails become `action_required` and emit an `AIFeedbackLog` entry for the AI inbox.
-- CI blocks future `useQueries` reintroduction in the form engine surface area.
+- CI blocks future reintroduction of the banned batched-query hook in the form engine surface area.
 
 ## Risks and Mitigations
 
