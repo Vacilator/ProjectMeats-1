@@ -1,5 +1,6 @@
 """Serializers for Fulfillments app."""
 from rest_framework import serializers
+from apps.core.serializers_trade import TradeTimelineSerializerMixin
 from .models import Fulfillment, FulfillmentProduct
 
 
@@ -27,8 +28,12 @@ class FulfillmentProductSerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'created_on', 'modified_on']
 
 
-class FulfillmentListSerializer(serializers.ModelSerializer):
+class FulfillmentListSerializer(TradeTimelineSerializerMixin, serializers.ModelSerializer):
     """Lightweight serializer for fulfillment list views."""
+
+    trade_timeline = serializers.SerializerMethodField()
+    trade_datetime_fields = ("created_on",)
+    trade_date_fields = ("ship_date", "expected_delivery", "actual_delivery")
     
     inquiry_number = serializers.CharField(source='inquiry.inquiry_number', read_only=True)
     supplier_name = serializers.CharField(source='supplier.name', read_only=True)
@@ -49,12 +54,17 @@ class FulfillmentListSerializer(serializers.ModelSerializer):
             'ship_date', 'expected_delivery', 'actual_delivery',
             'product_count', 'total_value', 'tracking_numbers',
             'freight_cost', 'document_milestones',
+            'trade_timeline',
             'created_on'
         ]
 
 
-class FulfillmentDetailSerializer(serializers.ModelSerializer):
+class FulfillmentDetailSerializer(TradeTimelineSerializerMixin, serializers.ModelSerializer):
     """Full serializer for fulfillment detail views."""
+
+    trade_timeline = serializers.SerializerMethodField()
+    trade_datetime_fields = ("created_on", "modified_on")
+    trade_date_fields = ("ship_date", "expected_delivery", "actual_delivery")
     
     products = FulfillmentProductSerializer(many=True, read_only=True)
     inquiry_number = serializers.CharField(source='inquiry.inquiry_number', read_only=True)
@@ -83,6 +93,7 @@ class FulfillmentDetailSerializer(serializers.ModelSerializer):
             'tracking_numbers', 'freight_cost', 'document_milestones', 'notes',
             'products', 'total_value', 'is_partial',
             'created_by', 'created_by_name', 'shipped_by', 'shipped_by_name',
+            'trade_timeline',
             'created_on', 'modified_on'
         ]
         read_only_fields = [

@@ -4,6 +4,7 @@ Purchase Orders serializers for ProjectMeats.
 Provides serialization for purchase order API endpoints.
 """
 from rest_framework import serializers
+from apps.core.serializers_trade import TradeTimelineSerializerMixin, TradeWeightSerializerMixin
 from apps.core.serializers_documents import DocumentStatusValidationMixin
 from tenant_apps.purchase_orders.models import (
     CarrierPOItem,
@@ -16,8 +17,12 @@ from tenant_apps.purchase_orders.models import (
 from tenant_apps.locations.serializers import LocationListSerializer
 
 
-class PurchaseOrderItemSerializer(serializers.ModelSerializer):
+class PurchaseOrderItemSerializer(TradeWeightSerializerMixin, serializers.ModelSerializer):
     """Serializer for purchase order line items."""
+
+    trade_weight = serializers.SerializerMethodField()
+    trade_weight_value_field = "total_net_weight"
+    trade_weight_unit_field = "uom"
 
     class Meta:
         model = PurchaseOrderItem
@@ -34,13 +39,26 @@ class PurchaseOrderItemSerializer(serializers.ModelSerializer):
             "edible_or_inedible",
             "tested_product",
             "total_net_weight",
+            "trade_weight",
             "notes",
         ]
         read_only_fields = ["id"]
 
 
-class PurchaseOrderSerializer(DocumentStatusValidationMixin, serializers.ModelSerializer):
+class PurchaseOrderSerializer(
+    TradeWeightSerializerMixin,
+    TradeTimelineSerializerMixin,
+    DocumentStatusValidationMixin,
+    serializers.ModelSerializer,
+):
     """Serializer for PurchaseOrder model."""
+
+    trade_weight = serializers.SerializerMethodField()
+    trade_timeline = serializers.SerializerMethodField()
+    trade_weight_value_field = "total_weight"
+    trade_weight_unit_field = "weight_unit"
+    trade_datetime_fields = ("created_on", "modified_on")
+    trade_date_fields = ("order_date", "delivery_date", "pick_up_date")
     
     # Nested location serializers (read-only)
     pick_up_location_details = LocationListSerializer(source='pick_up_location', read_only=True)
@@ -63,6 +81,7 @@ class PurchaseOrderSerializer(DocumentStatusValidationMixin, serializers.ModelSe
             "quantity",
             "total_weight",
             "weight_unit",
+            "trade_weight",
             "price_per_unit",
             "total_amount",
             "status",
@@ -113,6 +132,7 @@ class PurchaseOrderSerializer(DocumentStatusValidationMixin, serializers.ModelSe
             "credit_limit",
             "notes",
             "items",
+            "trade_timeline",
             "created_on",
             "modified_on",
         ]
@@ -143,8 +163,12 @@ class PurchaseOrderSerializer(DocumentStatusValidationMixin, serializers.ModelSe
         return instance
 
 
-class CarrierPOItemSerializer(serializers.ModelSerializer):
+class CarrierPOItemSerializer(TradeWeightSerializerMixin, serializers.ModelSerializer):
     """Serializer for carrier PO line items."""
+
+    trade_weight = serializers.SerializerMethodField()
+    trade_weight_value_field = "total_net_weight"
+    trade_weight_unit_field = "uom"
 
     class Meta:
         model = CarrierPOItem
@@ -161,6 +185,7 @@ class CarrierPOItemSerializer(serializers.ModelSerializer):
             "edible_or_inedible",
             "tested_product",
             "total_net_weight",
+            "trade_weight",
             "notes",
         ]
         read_only_fields = ["id"]
@@ -179,8 +204,20 @@ class CarrierPOItemSerializer(serializers.ModelSerializer):
         return instance
 
 
-class CarrierPurchaseOrderSerializer(DocumentStatusValidationMixin, serializers.ModelSerializer):
+class CarrierPurchaseOrderSerializer(
+    TradeWeightSerializerMixin,
+    TradeTimelineSerializerMixin,
+    DocumentStatusValidationMixin,
+    serializers.ModelSerializer,
+):
     """Serializer for CarrierPurchaseOrder model."""
+
+    trade_weight = serializers.SerializerMethodField()
+    trade_timeline = serializers.SerializerMethodField()
+    trade_weight_value_field = "total_weight"
+    trade_weight_unit_field = "weight_unit"
+    trade_datetime_fields = ("date_time_stamp_created", "created_on", "modified_on")
+    trade_date_fields = ("pick_up_date", "delivery_date")
     
     # Nested location serializers (read-only)
     pick_up_location_details = LocationListSerializer(source='pick_up_location', read_only=True)
@@ -224,6 +261,7 @@ class CarrierPurchaseOrderSerializer(DocumentStatusValidationMixin, serializers.
             "edible_or_inedible",
             "total_weight",
             "weight_unit",
+            "trade_weight",
             "quantity",
             "how_to_make_appointment",
             "how_carrier_make_appointment",
@@ -245,6 +283,7 @@ class CarrierPurchaseOrderSerializer(DocumentStatusValidationMixin, serializers.
             "shipping_address_state_zip",
             "shipping_building_name",
             "items",
+            "trade_timeline",
             "created_on",
             "modified_on",
         ]

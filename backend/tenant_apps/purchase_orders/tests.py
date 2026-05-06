@@ -4,6 +4,7 @@ Tests for Purchase Orders app models.
 Uses shared-schema multi-tenancy with tenant ForeignKey isolation.
 """
 import uuid
+from datetime import date
 from decimal import Decimal
 from django.test import TestCase
 from django.contrib.auth.models import User
@@ -17,6 +18,7 @@ from tenant_apps.purchase_orders.models import (
     CarrierPurchaseOrder,
     ColdStorageEntry,
 )
+from tenant_apps.purchase_orders.serializers import CarrierPurchaseOrderSerializer, PurchaseOrderSerializer
 from tenant_apps.suppliers.models import Supplier
 from tenant_apps.carriers.models import Carrier
 from tenant_apps.customers.models import Customer
@@ -380,6 +382,31 @@ class DocumentOperationsAPITests(APITestCase):
         self.assertTrue(
             any(event.get("entity_type") == "CarrierPurchaseOrder" for event in results)
         )
+
+    def test_purchase_order_serializer_exposes_trade_invariants(self):
+        self.purchase_order.total_weight = Decimal("1000.50")
+        self.purchase_order.weight_unit = WeightUnitChoices.LBS
+        self.purchase_order.pick_up_date = date(2026, 1, 8)
+        self.purchase_order.save(update_fields=["total_weight", "weight_unit", "pick_up_date"])
+
+        data = PurchaseOrderSerializer(self.purchase_order).data
+
+        self.assertEqual(data["trade_weight"]["entered_unit"], "LBS")
+        self.assertEqual(data["trade_weight"]["normalized_kg"], "453.82")
+        self.assertEqual(data["trade_timeline"]["storage_timezone"], "UTC")
+        self.assertEqual(data["trade_timeline"]["date_fields"]["pick_up_date"], "2026-01-08")
+
+    def test_carrier_purchase_order_serializer_exposes_trade_invariants(self):
+        self.carrier_po.total_weight = Decimal("500.00")
+        self.carrier_po.weight_unit = WeightUnitChoices.LBS
+        self.carrier_po.delivery_date = date(2026, 1, 9)
+        self.carrier_po.save(update_fields=["total_weight", "weight_unit", "delivery_date"])
+
+        data = CarrierPurchaseOrderSerializer(self.carrier_po).data
+
+        self.assertEqual(data["trade_weight"]["normalized_lbs"], "500.00")
+        self.assertEqual(data["trade_weight"]["normalized_kg"], "226.80")
+        self.assertEqual(data["trade_timeline"]["date_fields"]["delivery_date"], "2026-01-09")
 
 class ColdStorageEntryModelTest(TestCase):
     """Test cases for ColdStorageEntry model."""
