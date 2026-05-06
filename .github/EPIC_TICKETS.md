@@ -36,7 +36,7 @@
   - **Secrets/infra impact:** None
   - **Risk level:** High
   - **Rollback:** Revert the ETL contract/runbook scaffolding only; no imported rows should exist from this ticket.
-  - **Completion evidence destination:** `.github/MASTER_PLAN.md`
+  - **Completion evidence destination:** `.github/MASTER_PLAN.md` (PR #4926)
 
 - [x] **GA-01.2 etl-journal-and-dry-run-engine**
   - **Status:** Shipped (PR #4814)
