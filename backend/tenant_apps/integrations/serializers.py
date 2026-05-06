@@ -171,6 +171,7 @@ class SettlementSourceCreateSerializer(SettlementSourceSerializer):
 class SettlementEventSerializer(serializers.ModelSerializer):
     source_public_id = serializers.UUIDField(source='source.public_id', read_only=True)
     source_name = serializers.CharField(source='source.name', read_only=True)
+    reviewed_by_name = serializers.SerializerMethodField()
 
     class Meta:
         model = SettlementEvent
@@ -197,6 +198,10 @@ class SettlementEventSerializer(serializers.ModelSerializer):
             'matched_sales_order',
             'matched_invoice',
             'payment_transaction',
+            'reviewed_by',
+            'reviewed_by_name',
+            'reviewed_at',
+            'review_note',
             'delivery_count',
             'received_at',
             'last_received_at',
@@ -207,6 +212,28 @@ class SettlementEventSerializer(serializers.ModelSerializer):
             'modified_on',
         ]
         read_only_fields = fields
+
+    def get_reviewed_by_name(self, obj: SettlementEvent) -> str:
+        if not obj.reviewed_by:
+            return ''
+        full_name = f'{obj.reviewed_by.first_name} {obj.reviewed_by.last_name}'.strip()
+        return full_name or obj.reviewed_by.username
+
+
+class SettlementEventOverrideSerializer(serializers.Serializer):
+    TARGET_CHOICES = (
+        ('invoice', 'Invoice'),
+        ('sales_order', 'Sales Order'),
+        ('purchase_order', 'Purchase Order'),
+    )
+
+    target_type = serializers.ChoiceField(choices=TARGET_CHOICES)
+    target_id = serializers.IntegerField(min_value=1)
+    review_note = serializers.CharField(required=False, allow_blank=True, trim_whitespace=True)
+
+
+class SettlementEventRejectSerializer(serializers.Serializer):
+    review_note = serializers.CharField(required=False, allow_blank=True, trim_whitespace=True)
 
 
 class SettlementEventIngestSerializer(serializers.Serializer):

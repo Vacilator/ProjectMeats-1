@@ -184,6 +184,12 @@ export const navigation: NavigationItem[] = [
           },
         ],
       },
+      {
+        label: 'Settlements',
+        icon: '🏦',
+        path: '/accounting/settlements',
+        roles: ['admin', 'owner', 'superuser'],
+      },
     ],
   },
   {

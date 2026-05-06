@@ -142,7 +142,22 @@ class PaymentTransactionViewSet(viewsets.ModelViewSet):
         if not tenant:
             return PaymentTransaction.objects.none()
 
-        return super().get_queryset().filter(tenant=tenant)
+        queryset = super().get_queryset().filter(tenant=tenant)
+
+        for query_param, field_name in (
+            ('invoice', 'invoice_id'),
+            ('sales_order', 'sales_order_id'),
+            ('purchase_order', 'purchase_order_id'),
+        ):
+            value = str(self.request.query_params.get(query_param) or '').strip()
+            if not value:
+                continue
+            try:
+                queryset = queryset.filter(**{field_name: int(value)})
+            except ValueError as exc:
+                raise DRFValidationError({query_param: 'Must be a valid integer id.'}) from exc
+
+        return queryset
     
     def perform_create(self, serializer):
         """Set tenant and created_by when creating payment."""

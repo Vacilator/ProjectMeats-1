@@ -998,8 +998,8 @@
   - **Rollback:** Disable the ingest endpoint and preserve the raw event journal for replay/cleanup before reverting models/tasks.
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
-- [ ] **B2B-03.3 reconciliation-engine-into-paymenttransaction**
-  - **Status:** In PR #4911
+- [x] **B2B-03.3 reconciliation-engine-into-paymenttransaction**
+  - **Status:** Shipped in PR #4911
   - **Why now:** The system needs a deterministic matcher from settlement events to invoices/orders before payment status can update automatically.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 15 / Epic 3
   - **Scope:** Implement the reconciliation engine that maps settlement events into `PaymentTransaction` updates, match/review states, and reversible source-event linkage.
@@ -1016,18 +1016,18 @@
   - **Rollback:** Disable execute-mode reconciliation first, preserve the raw event/source journal, and revert matcher writes via source-event linkage.
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
-- [ ] **B2B-03.4 accounting-settlement-queue-and-override-ui**
-  - **Status:** Blocked
+- [x] **B2B-03.4 accounting-settlement-queue-and-override-ui**
+  - **Status:** Shipped in PR #4915
   - **Why now:** Accountants need a review queue for unmatched, partial, and disputed settlement items before auto-reconciliation can be trusted operationally.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 15 / Epic 3
   - **Scope:** Build the accountant-facing settlement queue, override flows, and audit display on top of the reconciliation engine.
   - **Non-goals:** No external partner portal reuse.
   - **Primary domain:** frontend/backend
-  - **Likely touched paths:** new `frontend/src/pages/Accounting/Settlements.tsx`, `frontend/src/config/navigation.ts`, new `frontend/src/services/settlementService.ts`, `frontend/src/components/Shared/PaymentHistoryList.tsx`, corresponding backend serializers/views/tests
+  - **Likely touched paths:** `frontend/src/pages/Accounting/SettlementQueue.tsx`, `frontend/src/services/settlementEventsService.ts`, `frontend/src/config/navigation.ts`, `frontend/src/App.tsx`, `backend/tenant_apps/integrations/{models.py,serializers.py,reconciliation.py,views.py,tests.py,migrations/0004_settlementevent_review_fields.py}`, `backend/tenant_apps/invoices/{views.py,tests.py}`, `docs/runbooks/SETTLEMENT_RECONCILIATION.md`
   - **Dependencies:** B2B-03.3
-  - **Blockers:** B2B-03.3
+  - **Blockers:** None
   - **Acceptance criteria:** Accountants can review, approve, relink, or reject settlement items with audit evidence, and invoice/payment history surfaces reflect reconciled outcomes.
-  - **Validation commands:** `cd backend && python manage.py test tenant_apps.invoices tenant_apps.integrations`; `npm -C frontend run verify-standards`; `npm -C frontend run test:ci`
+  - **Validation commands:** `cd backend && python manage.py test tenant_apps.integrations tenant_apps.invoices tenant_apps.sales_orders tenant_apps.purchase_orders --noinput`; `cd backend && python manage.py makemigrations --check`; `cd frontend && npm run verify-standards`; `cd frontend && npm test -- --run src/services/settlementEventsService.test.ts src/pages/Accounting/SettlementQueue.test.tsx`
   - **Tenant/RLS impact:** Medium
   - **Secrets/infra impact:** None
   - **Risk level:** Medium
@@ -1035,7 +1035,7 @@
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
 - [ ] **B2B-03.5 bank-feed-provider-adapter-and-secret-parity**
-  - **Status:** Blocked
+  - **Status:** Ready
   - **Why now:** Direct bank-feed providers are follow-on work only after the webhook-first settlement path is stable and governed.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 15 / Epic 3
   - **Scope:** Add a provider-specific bank-feed adapter (Plaid/Stripe Treasury or equivalent) using the same settlement journal/reconciliation contract, plus manifest-defined secret handling.
@@ -1043,7 +1043,7 @@
   - **Primary domain:** integrations/ops
   - **Likely touched paths:** `backend/apps/integrations/providers/`, `backend/apps/integrations/{models.py,views.py}`, `frontend/src/pages/Settings/IntegrationSettings.tsx`, `manifests/env.manifest.json`, relevant workflows/docs
   - **Dependencies:** B2B-03.1, B2B-03.4
-  - **Blockers:** B2B-03.1 and B2B-03.4
+  - **Blockers:** None
   - **Acceptance criteria:** Any new provider secrets are manifest-defined, provider adapters feed the same raw event journal/matcher path, and Golden Pipeline workflow rules remain intact.
   - **Validation commands:** `python config/manage_env.py audit`; `bash scripts/verify_golden_state.sh`; `bash .github/scripts/check_infrastructure.sh`; `cd backend && python manage.py test apps.integrations tenant_apps.integrations`
   - **Tenant/RLS impact:** Medium

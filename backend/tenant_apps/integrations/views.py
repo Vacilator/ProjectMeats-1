@@ -5,6 +5,7 @@ from django.db.models import F
 from django.utils import timezone
 from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import action
+from rest_framework.exceptions import ValidationError as DRFValidationError
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
@@ -22,6 +23,8 @@ from .models import (
     TenantWebhook,
 )
 from .serializers import (
+    SettlementEventOverrideSerializer,
+    SettlementEventRejectSerializer,
     SettlementEventIngestSerializer,
     SettlementEventSerializer,
     SettlementSourceCreateSerializer,
@@ -32,6 +35,8 @@ from .serializers import (
     TenantWebhookRotateSecretSerializer,
     TenantWebhookSerializer,
 )
+from .reconciliation import override_settlement_event, reject_settlement_event
+from django.core.exceptions import ValidationError as DjangoValidationError
 from .settlement_contract import build_raw_payload_sha256, build_settlement_idempotency_key
 from .signing import verify_timestamped_signature
 from .tasks import process_settlement_event
@@ -162,6 +167,79 @@ class SettlementEventViewSet(TenantAdminOnlyMixin, viewsets.ReadOnlyModelViewSet
     queryset = SettlementEvent.objects.select_related('source')
     serializer_class = SettlementEventSerializer
     permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        queryset = super().get_queryset().select_related('source', 'reviewed_by')
+
+        state_values = [
+            value.strip()
+            for value in (self.request.query_params.get('state') or '').split(',')
+            if value.strip()
+        ]
+        if state_values:
+            queryset = queryset.filter(state__in=state_values)
+
+        reason_codes = [
+            value.strip()
+            for value in (self.request.query_params.get('reason_code') or '').split(',')
+            if value.strip()
+        ]
+        if reason_codes:
+            queryset = queryset.filter(reconciliation_reason_code__in=reason_codes)
+
+        queue_only = str(self.request.query_params.get('queue_only') or '').strip().lower()
+        if queue_only in {'1', 'true', 'yes'}:
+            queryset = queryset.filter(state=SettlementEventState.READY_TO_POST)
+
+        return queryset.order_by('-occurred_at', '-received_at')
+
+    @action(detail=True, methods=['post'])
+    def override(self, request, pk=None):
+        self._assert_admin()
+        event = self.get_object()
+        serializer = SettlementEventOverrideSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        try:
+            updated_event = override_settlement_event(
+                event=event,
+                reviewer=request.user,
+                target_type=serializer.validated_data['target_type'],
+                target_id=serializer.validated_data['target_id'],
+                review_note=serializer.validated_data.get('review_note', ''),
+            )
+        except DjangoValidationError as exc:
+            detail = exc.messages[0] if getattr(exc, 'messages', None) else str(exc)
+            raise DRFValidationError({'detail': detail}) from exc
+
+        updated_event.refresh_from_db()
+        return Response(
+            SettlementEventSerializer(updated_event, context=self.get_serializer_context()).data,
+            status=status.HTTP_200_OK,
+        )
+
+    @action(detail=True, methods=['post'])
+    def reject(self, request, pk=None):
+        self._assert_admin()
+        event = self.get_object()
+        serializer = SettlementEventRejectSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        try:
+            updated_event = reject_settlement_event(
+                event=event,
+                reviewer=request.user,
+                review_note=serializer.validated_data.get('review_note', ''),
+            )
+        except DjangoValidationError as exc:
+            detail = exc.messages[0] if getattr(exc, 'messages', None) else str(exc)
+            raise DRFValidationError({'detail': detail}) from exc
+
+        updated_event.refresh_from_db()
+        return Response(
+            SettlementEventSerializer(updated_event, context=self.get_serializer_context()).data,
+            status=status.HTTP_200_OK,
+        )
 
 
 class SettlementEventIngestAPIView(APIView):

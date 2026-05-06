@@ -459,6 +459,163 @@ class SettlementIngestApiTests(APITestCase):
         delay_mock.assert_called_once()
 
 
+class SettlementReviewQueueApiTests(APITestCase):
+    def setUp(self):
+        unique = uuid.uuid4().hex[:8]
+        self.user = User.objects.create_user(username=f'reviewer-{unique}', password='pw')
+        self.client.force_login(self.user)
+        self.tenant = Tenant.objects.create(
+            name=f'Review Tenant {unique}',
+            slug=f'review-tenant-{unique}',
+            contact_email=f'review-{unique}@example.com',
+            created_by=self.user,
+        )
+        TenantUser.objects.create(tenant=self.tenant, user=self.user, role='owner', is_active=True)
+        self.other_tenant = Tenant.objects.create(
+            name=f'Other Review {unique}',
+            slug=f'other-review-{unique}',
+            contact_email=f'other-review-{unique}@example.com',
+            created_by=self.user,
+        )
+        self.source = SettlementSource.objects.create(
+            tenant=self.tenant,
+            name='Review Source',
+            provider_code='stripe',
+            provider_account_reference='acct_review',
+            auth_mode=SettlementSourceAuthMode.PROVIDER_HMAC_SIGNATURE,
+            created_by=self.user,
+        )
+        raw_payload = (
+            '{"external_event_id":"evt-review","event_type":"payment.settled","direction":"credit",'
+            '"occurred_at":"2026-05-06T10:00:00Z","amount":"25.50","currency":"USD","invoice_number":"INV-REVIEW"}'
+        )
+        payload_hash = build_raw_payload_sha256(raw_payload)
+        self.event = SettlementEvent.objects.create(
+            tenant=self.tenant,
+            source=self.source,
+            provider_code='stripe',
+            provider_account_reference='acct_review',
+            external_event_id='evt-review',
+            event_type='payment.settled',
+            direction='credit',
+            occurred_at=datetime(2026, 5, 6, 10, 0, tzinfo=dt_timezone.utc),
+            amount=Decimal('25.50'),
+            currency='USD',
+            raw_payload=raw_payload,
+            raw_payload_sha256=payload_hash,
+            idempotency_key=build_settlement_idempotency_key(
+                tenant_id=str(self.tenant.id),
+                provider_code='stripe',
+                external_event_id='evt-review',
+                provider_account_reference='acct_review',
+                occurred_at=datetime(2026, 5, 6, 10, 0, tzinfo=dt_timezone.utc),
+                amount=Decimal('25.50'),
+                direction='credit',
+                raw_payload_sha256=payload_hash,
+            ),
+            state=SettlementEventState.READY_TO_POST,
+            reconciliation_reason_code=SettlementReconciliationReason.AMOUNT_MISMATCH,
+            normalized_payload={'invoice_number': 'INV-REVIEW'},
+        )
+        self.tenant_header = {'HTTP_X_TENANT_ID': str(self.tenant.id)}
+
+    def test_queue_only_filters_to_ready_to_post_events(self):
+        SettlementEvent.objects.create(
+            tenant=self.tenant,
+            source=self.source,
+            provider_code='stripe',
+            provider_account_reference='acct_review',
+            external_event_id='evt-posted',
+            event_type='payment.settled',
+            direction='credit',
+            occurred_at=datetime(2026, 5, 7, 10, 0, tzinfo=dt_timezone.utc),
+            amount=Decimal('25.50'),
+            currency='USD',
+            raw_payload='{}',
+            raw_payload_sha256=build_raw_payload_sha256('{}'),
+            idempotency_key=build_settlement_idempotency_key(
+                tenant_id=str(self.tenant.id),
+                provider_code='stripe',
+                external_event_id='evt-posted',
+                provider_account_reference='acct_review',
+                occurred_at=datetime(2026, 5, 7, 10, 0, tzinfo=dt_timezone.utc),
+                amount=Decimal('25.50'),
+                direction='credit',
+                raw_payload_sha256=build_raw_payload_sha256('{}'),
+            ),
+            state=SettlementEventState.POSTED,
+            reconciliation_reason_code=SettlementReconciliationReason.EXACT_INVOICE_MATCH,
+        )
+
+        response = self.client.get('/api/v1/settlement-events/?queue_only=true', **self.tenant_header)
+
+        self.assertEqual(response.status_code, 200, response.content)
+        results = response.data['results'] if isinstance(response.data, dict) else response.data
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0]['id'], self.event.id)
+
+    def test_manual_override_posts_payment_and_records_reviewer_metadata(self):
+        customer = Customer.objects.create(name='Review Customer', tenant=self.tenant)
+        invoice = Invoice.objects.create(
+            tenant=self.tenant,
+            customer=customer,
+            invoice_number='INV-REVIEW',
+            total_amount=Decimal('25.50'),
+            outstanding_amount=Decimal('25.50'),
+        )
+
+        response = self.client.post(
+            f'/api/v1/settlement-events/{self.event.id}/override/',
+            {
+                'target_type': 'invoice',
+                'target_id': invoice.id,
+                'review_note': 'Matched to the remittance advice.',
+            },
+            format='json',
+            **self.tenant_header,
+        )
+
+        self.assertEqual(response.status_code, 200, response.content)
+        self.event.refresh_from_db()
+        invoice.refresh_from_db()
+        payment = PaymentTransaction.objects.get(id=self.event.payment_transaction_id)
+
+        self.assertEqual(self.event.state, SettlementEventState.POSTED)
+        self.assertEqual(
+            self.event.reconciliation_reason_code,
+            SettlementReconciliationReason.MANUAL_INVOICE_OVERRIDE,
+        )
+        self.assertEqual(self.event.matched_invoice_id, invoice.id)
+        self.assertEqual(self.event.reviewed_by_id, self.user.id)
+        self.assertEqual(self.event.review_note, 'Matched to the remittance advice.')
+        self.assertIsNotNone(self.event.reviewed_at)
+        self.assertEqual(payment.invoice_id, invoice.id)
+        self.assertEqual(invoice.payment_status, 'paid')
+
+    def test_reject_marks_event_ignored_without_creating_payment(self):
+        response = self.client.post(
+            f'/api/v1/settlement-events/{self.event.id}/reject/',
+            {'review_note': 'Rejected because the customer disputed the bank reference.'},
+            format='json',
+            **self.tenant_header,
+        )
+
+        self.assertEqual(response.status_code, 200, response.content)
+        self.event.refresh_from_db()
+
+        self.assertEqual(self.event.state, SettlementEventState.IGNORED)
+        self.assertEqual(
+            self.event.reconciliation_reason_code,
+            SettlementReconciliationReason.ACCOUNTANT_REJECTED,
+        )
+        self.assertEqual(self.event.reviewed_by_id, self.user.id)
+        self.assertEqual(
+            self.event.review_note,
+            'Rejected because the customer disputed the bank reference.',
+        )
+        self.assertEqual(PaymentTransaction.objects.count(), 0)
+
+
 class SettlementTaskTests(TestCase):
     def setUp(self):
         self.user = User.objects.create_user(username='task-user', password='pw')

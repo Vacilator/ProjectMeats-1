@@ -155,6 +155,10 @@ class SettlementReconciliationReason(models.TextChoices):
     EXACT_INVOICE_MATCH = 'exact_invoice_match', 'Exact Invoice Match'
     EXACT_SALES_ORDER_MATCH = 'exact_sales_order_match', 'Exact Sales Order Match'
     EXACT_PURCHASE_ORDER_MATCH = 'exact_purchase_order_match', 'Exact Purchase Order Match'
+    MANUAL_INVOICE_OVERRIDE = 'manual_invoice_override', 'Manual Invoice Override'
+    MANUAL_SALES_ORDER_OVERRIDE = 'manual_sales_order_override', 'Manual Sales Order Override'
+    MANUAL_PURCHASE_ORDER_OVERRIDE = 'manual_purchase_order_override', 'Manual Purchase Order Override'
+    ACCOUNTANT_REJECTED = 'accountant_rejected', 'Accountant Rejected'
     MISSING_REFERENCE = 'missing_reference', 'Missing Reference'
     REFERENCE_NOT_FOUND = 'reference_not_found', 'Reference Not Found'
     AMOUNT_MISMATCH = 'amount_mismatch', 'Amount Mismatch'
@@ -290,6 +294,15 @@ class SettlementEvent(TenantAwareModel):
         blank=True,
         related_name='source_settlement_event',
     )
+    reviewed_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='reviewed_settlement_events',
+    )
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    review_note = models.TextField(blank=True, default='')
 
     class Meta:
         constraints = [

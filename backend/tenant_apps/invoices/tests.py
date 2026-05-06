@@ -263,3 +263,64 @@ class InvoiceDocumentOperationsAPITests(APITestCase):
         self.assertEqual(len(mail.outbox), 1)
         self.assertEqual(mail.outbox[0].to, ["ap@example.com"])
         self.assertEqual(mail.outbox[0].attachments[0][2], "application/pdf")
+
+
+class PaymentTransactionFilterApiTests(APITestCase):
+    def setUp(self):
+        unique_id = uuid.uuid4().hex[:8]
+        self.user = User.objects.create_user(
+            username=f'payment-filter-{unique_id}',
+            email=f'payment-filter-{unique_id}@example.com',
+            password='testpass123',
+        )
+        self.client.force_login(self.user)
+        self.tenant = Tenant.objects.create(
+            name=f'Payment Filter Tenant {unique_id}',
+            slug=f'payment-filter-tenant-{unique_id}',
+            contact_email=f'payment-filter-{unique_id}@example.com',
+            created_by=self.user,
+        )
+        TenantUser.objects.create(tenant=self.tenant, user=self.user, role='owner', is_active=True)
+        self.customer = Customer.objects.create(
+            name=f'Filter Customer {unique_id}',
+            email=f'filter-customer-{unique_id}@example.com',
+            tenant=self.tenant,
+        )
+        self.invoice = Invoice.objects.create(
+            tenant=self.tenant,
+            customer=self.customer,
+            invoice_number=f'INV-FILTER-{unique_id}',
+            total_amount=Decimal('900.00'),
+        )
+        other_invoice = Invoice.objects.create(
+            tenant=self.tenant,
+            customer=self.customer,
+            invoice_number=f'INV-OTHER-{unique_id}',
+            total_amount=Decimal('400.00'),
+        )
+        PaymentTransaction.objects.create(
+            tenant=self.tenant,
+            invoice=self.invoice,
+            amount=Decimal('300.00'),
+            payment_date=date(2026, 2, 1),
+            created_by=self.user,
+        )
+        PaymentTransaction.objects.create(
+            tenant=self.tenant,
+            invoice=other_invoice,
+            amount=Decimal('100.00'),
+            payment_date=date(2026, 2, 2),
+            created_by=self.user,
+        )
+        self.tenant_header = {'HTTP_X_TENANT_ID': str(self.tenant.id)}
+
+    def test_list_filters_payments_by_invoice_query_param(self):
+        response = self.client.get(
+            f'/api/v1/accounting/payments/?invoice={self.invoice.id}',
+            **self.tenant_header,
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        results = response.data['results'] if isinstance(response.data, dict) else response.data
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0]['invoice'], self.invoice.id)
