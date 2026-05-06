@@ -11,7 +11,7 @@ from django.contrib.auth.models import User
 from decimal import Decimal
 from rest_framework import status
 from rest_framework.test import APITestCase
-from tenant_apps.invoices.models import Invoice, InvoiceItem, InvoiceStatus
+from tenant_apps.invoices.models import Invoice, InvoiceItem, InvoiceStatus, PaymentTransaction
 from tenant_apps.invoices.serializers import InvoiceSerializer
 from tenant_apps.customers.models import Customer
 from apps.tenants.models import Tenant, TenantUser
@@ -165,6 +165,42 @@ class InvoiceModelTest(TestCase):
         self.assertEqual(data["trade_weight"]["normalized_lbs"], "1000.50")
         self.assertEqual(data["trade_weight"]["normalized_kg"], "453.82")
         self.assertEqual(data["trade_timeline"]["date_fields"]["due_date"], "2026-01-15")
+
+    def test_payment_transaction_reconciles_invoice_outstanding_balance(self):
+        unique_id = uuid.uuid4().hex[:8]
+        invoice = Invoice.objects.create(
+            invoice_number=f"INV-{unique_id}",
+            customer=self.customer,
+            total_amount=Decimal("900.00"),
+            status=InvoiceStatus.DRAFT,
+            tenant=self.tenant,
+        )
+
+        PaymentTransaction.objects.create(
+            tenant=self.tenant,
+            invoice=invoice,
+            amount=Decimal("300.00"),
+            payment_date=date(2026, 2, 1),
+            created_by=self.user,
+        )
+
+        invoice.refresh_from_db()
+        self.assertEqual(invoice.outstanding_amount, Decimal("600.00"))
+        self.assertEqual(invoice.payment_status, "partial")
+        self.assertEqual(invoice.status, InvoiceStatus.DRAFT)
+
+        PaymentTransaction.objects.create(
+            tenant=self.tenant,
+            invoice=invoice,
+            amount=Decimal("600.00"),
+            payment_date=date(2026, 2, 2),
+            created_by=self.user,
+        )
+
+        invoice.refresh_from_db()
+        self.assertEqual(invoice.outstanding_amount, Decimal("0.00"))
+        self.assertEqual(invoice.payment_status, "paid")
+        self.assertEqual(invoice.status, InvoiceStatus.PAID)
 
 
 @override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend")
