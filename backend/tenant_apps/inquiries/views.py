@@ -9,7 +9,13 @@ from django.db.models import F, Count, Sum, Q, Avg
 from django.db.models.functions import TruncWeek
 from datetime import timedelta
 
-from .models import Inquiry, InquiryProduct, InquiryTemplate, InquiryTemplateProduct
+from .models import (
+    Inquiry,
+    InquiryProduct,
+    InquiryRouteDecisionChoices,
+    InquiryTemplate,
+    InquiryTemplateProduct,
+)
 from .serializers import (
     InquiryListSerializer,
     InquiryDetailSerializer,
@@ -45,7 +51,18 @@ class InquiryViewSet(viewsets.ModelViewSet):
 
         qs = (
             Inquiry.objects.filter(tenant=tenant)
-            .select_related('supplier', 'customer', 'contact', 'source_call', 'created_by')
+            .select_related(
+                'supplier',
+                'customer',
+                'contact',
+                'source_call',
+                'source_email',
+                'requested_master_product',
+                'supplier_purchase_order',
+                'sales_order',
+                'carrier_purchase_order',
+                'created_by',
+            )
             .prefetch_related('products')
         )
 
@@ -58,6 +75,10 @@ class InquiryViewSet(viewsets.ModelViewSet):
         entity_type = params.get('entity_type')
         if entity_type in ('customer', 'supplier'):
             qs = qs.filter(entity_type=entity_type)
+
+        route_decision = params.get('route_decision')
+        if route_decision in InquiryRouteDecisionChoices.values:
+            qs = qs.filter(route_decision=route_decision)
 
         customer_id = params.get('customer') or params.get('customer_id')
         if customer_id:
@@ -274,9 +295,12 @@ class InquiryViewSet(viewsets.ModelViewSet):
             status='draft',
             source_type=inquiry.source_type,
             entity_type=inquiry.entity_type,
+            route_decision=inquiry.route_decision,
             supplier_id=new_entity_id if new_entity_id and inquiry.entity_type == 'supplier' else inquiry.supplier_id,
             customer_id=new_entity_id if new_entity_id and inquiry.entity_type == 'customer' else inquiry.customer_id,
             contact_id=new_contact_id or inquiry.contact_id,
+            requested_master_product=inquiry.requested_master_product,
+            requested_protein=inquiry.requested_protein,
             contact_name=inquiry.contact_name,
             contact_email=inquiry.contact_email,
             contact_phone=inquiry.contact_phone,

@@ -10,7 +10,7 @@ from decimal import Decimal
 from django.db import models
 from django.utils import timezone
 
-from apps.core.models import PhoneTypeChoices, TenantAwareModel
+from apps.core.models import PhoneTypeChoices, ProteinTypeChoices, TenantAwareModel
 
 
 class InquiryStatusChoices(models.TextChoices):
@@ -46,6 +46,12 @@ class InquiryShippingTypeChoices(models.TextChoices):
     TENANT = "tenant", "Tenant"
     CUSTOMER_PICKUP = "customer_pickup", "Customer Pick-Up"
     SUPPLIER_DELIVERING = "supplier_delivering", "Supplier Delivering"
+
+
+class InquiryRouteDecisionChoices(models.TextChoices):
+    """Hardcoded happy-path route chosen for this inquiry."""
+    FULFILL = "FULFILL", "Fulfill"
+    BROKER = "BROKER", "Broker"
 
 
 class UOMChoices(models.TextChoices):
@@ -95,6 +101,34 @@ class Inquiry(TenantAwareModel):
         related_name='inquiries',
         help_text="Source scheduled call (if applicable)"
     )
+    route_decision = models.CharField(
+        max_length=16,
+        choices=InquiryRouteDecisionChoices.choices,
+        blank=True,
+        default='',
+        db_index=True,
+        help_text="Trading engine route chosen for this inquiry (FULFILL or BROKER)",
+    )
+    source_email = models.ForeignKey(
+        'integrations.EmailLog',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='inquiries',
+        help_text="Source email record when this inquiry originated from inbound email",
+    )
+    source_email_message_id = models.CharField(
+        max_length=255,
+        blank=True,
+        default='',
+        help_text="Snapshot of the source email message ID for durable lineage",
+    )
+    source_email_thread_id = models.CharField(
+        max_length=255,
+        blank=True,
+        default='',
+        help_text="Snapshot of the source email thread/conversation ID for durable lineage",
+    )
     
     # Entity link (supplier OR customer)
     entity_type = models.CharField(
@@ -133,6 +167,46 @@ class Inquiry(TenantAwareModel):
         default=InquiryShippingTypeChoices.TENANT,
         db_index=True,
         help_text="Shipping type (cascades into fulfillment/logistics)",
+    )
+    requested_master_product = models.ForeignKey(
+        'products.MasterProduct',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='trading_inquiries',
+        help_text="Tenant-scoped master product anchor for the requested item",
+    )
+    requested_protein = models.CharField(
+        max_length=50,
+        choices=ProteinTypeChoices.choices,
+        blank=True,
+        default='',
+        db_index=True,
+        help_text="Requested protein anchor used by the hardcoded trading path",
+    )
+    supplier_purchase_order = models.ForeignKey(
+        'purchase_orders.PurchaseOrder',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='source_inquiries',
+        help_text="Supplier purchase order created from this inquiry",
+    )
+    sales_order = models.ForeignKey(
+        'sales_orders.SalesOrder',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='source_inquiries',
+        help_text="Sales order created from this inquiry",
+    )
+    carrier_purchase_order = models.ForeignKey(
+        'purchase_orders.CarrierPurchaseOrder',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='source_inquiries',
+        help_text="Carrier purchase order created from this inquiry",
     )
     
     # Contact info snapshot (preserved at time of inquiry)
