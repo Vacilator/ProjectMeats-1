@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 
@@ -59,6 +59,8 @@ describe('IngestionMonitor', () => {
 
     expect(screen.getByText('Potential PO from accounting@nameats.com')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Review in AI Queue' })).toBeInTheDocument();
-    expect(screen.getByText('Draft Ready')).toBeInTheDocument();
+    const listItem = screen.getByText('PO 12345').closest('.ant-list-item');
+    expect(listItem).not.toBeNull();
+    expect(within(listItem as HTMLElement).getByText('Draft Ready')).toBeInTheDocument();
   });
 });

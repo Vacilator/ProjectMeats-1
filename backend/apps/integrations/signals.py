@@ -53,7 +53,7 @@ def _notify_actionable_email(instance: EmailLog, draft: EmailReviewDraft, classi
         user = membership.user
         if not user:
             continue
-        if user.is_superuser or user.is_staff or membership.role in {'owner', 'manager'}:
+        if user.is_superuser or user.is_staff or membership.role in {'owner', 'admin', 'manager'}:
             recipients.append(user)
 
     if not recipients:
@@ -67,7 +67,7 @@ def _notify_actionable_email(instance: EmailLog, draft: EmailReviewDraft, classi
         f'{subject} from {instance.sender_email} requires review '
         f'({category.replace("_", " ")}).'
     )
-    target_url = f'/my-tasks?tab=ai-review&draft={draft.id}'
+    action_url = f'/my-tasks?tab=ai-review&draft={draft.id}'
 
     now = timezone.now()
     notifications = [
@@ -78,13 +78,16 @@ def _notify_actionable_email(instance: EmailLog, draft: EmailReviewDraft, classi
             priority=NotificationPriority.HIGH,
             title=title,
             message=message,
-            target_url=target_url,
+            entity_type='email_review_draft',
+            entity_id=draft.id,
+            action_url=action_url,
             is_read=False,
             created_at=now,
         )
         for user in recipients
     ]
     UserNotification.objects.bulk_create(notifications, ignore_conflicts=False)
+    EmailReviewDraft.objects.filter(pk=draft.pk).update(notification_sent_at=now)
 
     logger.info(
         'Queued %s actionable-email notifications for tenant %s draft=%s',
@@ -130,10 +133,11 @@ def trigger_ai_extraction(sender, instance, created, **kwargs):
                 defaults={
                     'tenant': instance.tenant,
                     'draft_type': classification['draft_type'],
-                    'classification': classification,
-                    'source_subject': instance.subject,
-                    'source_sender': instance.sender_email,
-                    'source_excerpt': (instance.body_text or instance.body_html or '')[:2000],
+                    'summary': str(classification.get('summary') or '').strip(),
+                    'extracted_payload': classification,
+                    'classification_confidence': float(
+                        classification.get('confidence_score') or classification.get('confidence') or 0.0
+                    ),
                     'status': 'pending_review',
                 },
             )
