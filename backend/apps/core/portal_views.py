@@ -47,6 +47,14 @@ class PortalFulfillmentTrackingResponseSerializer(serializers.Serializer):
     fulfillments = PortalFulfillmentTrackingSerializer(many=True)
 
 
+class PortalGrantSnapshotResponseSerializer(serializers.Serializer):
+    grant_id = serializers.UUIDField()
+    subject_email = serializers.EmailField()
+    invoices = PortalInvoiceSummarySerializer(many=True)
+    documents = PortalDocumentReferencePublicSerializer(many=True)
+    fulfillments = PortalFulfillmentTrackingSerializer(many=True)
+
+
 class PortalGrantAccessMixin(APIView):
     """Common tenant-explicit signed-grant access helpers for portal read APIs."""
 
@@ -92,13 +100,19 @@ class PortalGrantAccessMixin(APIView):
 
     def get_scoped_ids(self, grant: PortalGrant) -> list[int]:
         raw_ids = grant.resource_scope.get(self.scoped_entity_type or "", [])
+        return self._normalize_scoped_ids(raw_ids, required=True)
+
+    def get_scoped_ids_for(self, grant: PortalGrant, entity_type: str) -> list[int]:
+        return self._normalize_scoped_ids(grant.resource_scope.get(entity_type, []), required=False)
+
+    def _normalize_scoped_ids(self, raw_ids, *, required: bool) -> list[int]:
         scoped_ids: list[int] = []
         for raw_id in raw_ids:
             try:
                 scoped_ids.append(int(str(raw_id).strip()))
             except (TypeError, ValueError):
                 continue
-        if not scoped_ids:
+        if required and not scoped_ids:
             raise self._portal_not_found()
         return scoped_ids
 
@@ -194,6 +208,131 @@ class PortalInvoiceSummaryView(PortalGrantAccessMixin):
                     "grant_id": grant.id,
                     "subject_email": grant.subject_email,
                     "invoices": invoices,
+                }
+            ).data
+
+        return Response(payload)
+
+
+class PortalGrantSnapshotView(PortalGrantAccessMixin):
+    audit_endpoint = "portal.snapshot"
+
+    @extend_schema(
+        responses=OpenApiResponse(PortalGrantSnapshotResponseSerializer),
+        parameters=[
+            OpenApiParameter(
+                name=PORTAL_TOKEN_QUERY_PARAM,
+                type=str,
+                location=OpenApiParameter.QUERY,
+                required=False,
+                description="Opaque portal grant token from the counterpart magic link.",
+            ),
+            OpenApiParameter(
+                name=PORTAL_TOKEN_HEADER,
+                type=str,
+                location=OpenApiParameter.HEADER,
+                required=False,
+                description="Opaque portal grant token sent after magic-link consumption.",
+            ),
+        ],
+    )
+    def get(self, request, tenant_id, grant_id):
+        tenant = self.get_tenant(tenant_id)
+        request.tenant = tenant
+
+        with transaction.atomic(), tenant_rls(str(tenant.id), strict=True):
+            grant = self.get_grant(tenant, grant_id, self.get_portal_token(request))
+
+            invoices = []
+            invoice_ids = self.get_scoped_ids_for(grant, "invoice")
+            if invoice_ids and "invoice_summary" in grant.document_sources:
+                invoices = list(
+                    Invoice.objects.filter(tenant=tenant, pk__in=invoice_ids)
+                    .select_related("customer", "sales_order")
+                    .order_by("invoice_number")
+                )
+
+            links = []
+            documents = []
+            if grant.document_sources:
+                links = list(
+                    PortalGrantDocumentAccess.objects.filter(tenant=tenant, grant=grant)
+                    .select_related("document_reference")
+                    .order_by("sort_order", "created_on")
+                )
+                documents = [
+                    link.document_reference
+                    for link in links
+                    if link.document_reference.is_active
+                    and link.document_reference.source_kind in grant.document_sources
+                ]
+
+            fulfillments = []
+            fulfillment_ids = self.get_scoped_ids_for(grant, "fulfillment")
+            if fulfillment_ids and "fulfillment_tracking" in grant.document_sources:
+                fulfillments = list(
+                    Fulfillment.objects.filter(tenant=tenant, pk__in=fulfillment_ids)
+                    .select_related("supplier", "customer", "carrier")
+                    .order_by("fulfillment_number")
+                )
+
+            if not invoices and not documents and not fulfillments:
+                raise self._portal_not_found()
+
+            for invoice in invoices:
+                self.create_audit_event(
+                    request,
+                    tenant=tenant,
+                    grant=grant,
+                    content_object=invoice,
+                    entity_name=invoice.invoice_number,
+                    snapshot_after={
+                        "endpoint": self.audit_endpoint,
+                        "grant_id": str(grant.id),
+                        "subject_email": grant.subject_email,
+                        "section": "invoices",
+                    },
+                )
+
+            for document in documents:
+                self.create_audit_event(
+                    request,
+                    tenant=tenant,
+                    grant=grant,
+                    content_object=document,
+                    entity_name=document.display_name,
+                    snapshot_after={
+                        "endpoint": self.audit_endpoint,
+                        "grant_id": str(grant.id),
+                        "subject_email": grant.subject_email,
+                        "section": "documents",
+                        "source_kind": document.source_kind,
+                    },
+                )
+
+            for fulfillment in fulfillments:
+                self.create_audit_event(
+                    request,
+                    tenant=tenant,
+                    grant=grant,
+                    content_object=fulfillment,
+                    entity_name=fulfillment.fulfillment_number,
+                    snapshot_after={
+                        "endpoint": self.audit_endpoint,
+                        "grant_id": str(grant.id),
+                        "subject_email": grant.subject_email,
+                        "section": "fulfillments",
+                    },
+                )
+
+            self.mark_grant_accessed(grant)
+            payload = PortalGrantSnapshotResponseSerializer(
+                {
+                    "grant_id": grant.id,
+                    "subject_email": grant.subject_email,
+                    "invoices": invoices,
+                    "documents": documents,
+                    "fulfillments": fulfillments,
                 }
             ).data
 
