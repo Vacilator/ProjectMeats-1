@@ -32,6 +32,7 @@ import {
 
 import { useToast } from '../../hooks/useToast';
 import { businessApi } from '../../services/businessApi';
+import { getAccessToken, getTenantFromToken, refreshAccessToken } from '@/services/jwtService';
 import { useHealth } from '@/hooks/useHealth';
 import { HITLReviewCard } from './HITLReviewCard';
 import DocumentAuditBadges from './DocumentAuditBadges';
@@ -106,8 +107,15 @@ type ControlPlaneMetadata = {
   tool_name?: string;
 };
 
+type AIInboxSocketMessage = {
+  type?: string;
+  pending_count?: number;
+  results?: unknown[];
+};
+
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 const LOCAL_STORAGE_SESSION_KEY = 'pm.ai.widget.sessionId';
+const AI_INBOX_SOCKET_PATH = '/ws/ai/inbox/';
 
 const getMetadataString = (
   metadata: Record<string, unknown> | undefined,
@@ -564,6 +572,18 @@ const Input = styled.input`
 
 const newId = () => `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 
+const deriveAIInboxSocketUrl = (tenantId: string, accessToken: string): string | null => {
+  if (typeof window === 'undefined' || !tenantId || !accessToken) {
+    return null;
+  }
+
+  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+  const url = new URL(`${protocol}//${window.location.host}${AI_INBOX_SOCKET_PATH}`);
+  url.searchParams.set('tenant_id', tenantId);
+  url.searchParams.set('access_token', accessToken);
+  return url.toString();
+};
+
 const normalizeSessions = (raw: unknown): ServerSession[] => {
   if (Array.isArray(raw)) return raw as ServerSession[];
   if (raw && typeof raw === 'object') {
@@ -614,6 +634,7 @@ export const AIAgentWidget: React.FC = () => {
   const [expanded, setExpanded] = useState(false);
   const { data: health } = useHealth();
   const aiEnabled = health?.features?.ai ?? true;
+  const [aiInboxCount, setAiInboxCount] = useState(0);
   const [detail, setDetail] = useState<ReviewRequiredDetail>({});
   const [draft, setDraft] = useState('');
 
@@ -645,6 +666,13 @@ export const AIAgentWidget: React.FC = () => {
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const toastSuccessRef = useRef(toast.success);
+  const inboxSocketRef = useRef<WebSocket | null>(null);
+  const inboxReconnectTimerRef = useRef<number | null>(null);
+  const inboxReconnectAttemptsRef = useRef(0);
+  const inboxRefreshAttemptedRef = useRef(false);
+  const expandedRef = useRef(expanded);
+  const inboxCountRef = useRef(aiInboxCount);
+  const toastRef = useRef(toast);
   const sendTextRef = useRef<
     (text: string, contextOverride?: Record<string, unknown>) => Promise<void>
   >(async () => {});
@@ -660,6 +688,175 @@ export const AIAgentWidget: React.FC = () => {
   useEffect(() => {
     toastSuccessRef.current = toast.success;
   }, [toast]);
+
+  useEffect(() => {
+    expandedRef.current = expanded;
+  }, [expanded]);
+
+  useEffect(() => {
+    inboxCountRef.current = aiInboxCount;
+  }, [aiInboxCount]);
+
+  useEffect(() => {
+    toastRef.current = toast;
+  }, [toast]);
+
+  useEffect(() => {
+    if (!aiEnabled || typeof window === 'undefined' || typeof WebSocket === 'undefined') {
+      return;
+    }
+
+    let disposed = false;
+
+    const clearReconnectTimer = () => {
+      if (inboxReconnectTimerRef.current != null) {
+        window.clearTimeout(inboxReconnectTimerRef.current);
+        inboxReconnectTimerRef.current = null;
+      }
+    };
+
+    const closeSocket = () => {
+      const socket = inboxSocketRef.current;
+      inboxSocketRef.current = null;
+      if (
+        socket &&
+        (socket.readyState === WebSocket.CONNECTING || socket.readyState === WebSocket.OPEN)
+      ) {
+        try {
+          socket.close(1000, 'widget_cleanup');
+        } catch {
+          // ignore
+        }
+      }
+    };
+
+    const scheduleReconnect = (attemptRefresh: boolean) => {
+      if (disposed) return;
+
+      clearReconnectTimer();
+      inboxReconnectAttemptsRef.current += 1;
+
+      const baseDelayMs = Math.min(15_000, 500 * 2 ** (inboxReconnectAttemptsRef.current - 1));
+      const jitterFactor = 0.8 + Math.random() * 0.4;
+      const delayMs = Math.max(250, Math.round(baseDelayMs * jitterFactor));
+
+      inboxReconnectTimerRef.current = window.setTimeout(() => {
+        void connect(attemptRefresh);
+      }, delayMs);
+    };
+
+    const connect = async (attemptRefresh: boolean) => {
+      if (disposed) return;
+
+      const tenantId = getTenantFromToken()?.defaultTenantId;
+      if (!tenantId) {
+        setAiInboxCount(0);
+        return;
+      }
+
+      let accessToken = getAccessToken();
+      if (!accessToken && attemptRefresh) {
+        accessToken = await refreshAccessToken();
+      }
+
+      if (!accessToken) {
+        if (!attemptRefresh) {
+          scheduleReconnect(true);
+        }
+        return;
+      }
+
+      const wsUrl = deriveAIInboxSocketUrl(tenantId, accessToken);
+      if (!wsUrl) return;
+
+      closeSocket();
+
+      try {
+        const socket = new WebSocket(wsUrl);
+        inboxSocketRef.current = socket;
+
+        socket.onopen = () => {
+          if (disposed) return;
+          inboxReconnectAttemptsRef.current = 0;
+          inboxRefreshAttemptedRef.current = false;
+        };
+
+        socket.onmessage = (event) => {
+          let parsed: unknown;
+          try {
+            parsed = JSON.parse(String(event.data));
+          } catch {
+            return;
+          }
+
+          if (!parsed || typeof parsed !== 'object') {
+            return;
+          }
+
+          const message = parsed as AIInboxSocketMessage;
+          const messageType = String(message.type || '');
+          if (messageType !== 'ai.inbox.snapshot' && messageType !== 'ai.inbox.update') {
+            return;
+          }
+
+          const nextCount = Math.max(0, Number(message.pending_count || 0));
+          const previousCount = inboxCountRef.current;
+
+          inboxCountRef.current = nextCount;
+          setAiInboxCount(nextCount);
+
+          if (nextCount > 0) {
+            setState((current) => (current === 'thinking' ? current : 'action_required'));
+          }
+
+          if (
+            messageType === 'ai.inbox.update' &&
+            nextCount > previousCount &&
+            !expandedRef.current
+          ) {
+            const delta = nextCount - previousCount;
+            const noun = delta === 1 ? 'review item' : 'review items';
+            toastRef.current.info(
+              `I found ${delta} new AI ${noun} while you were away. Check your AI Inbox.`
+            );
+          }
+        };
+
+        socket.onerror = () => {
+          // Let onclose own retry logic.
+        };
+
+        socket.onclose = (event) => {
+          if (disposed) return;
+          if (inboxSocketRef.current === socket) {
+            inboxSocketRef.current = null;
+          }
+
+          if (event.code === 1000) {
+            return;
+          }
+
+          if ((event.code === 4401 || event.code === 4403) && !inboxRefreshAttemptedRef.current) {
+            inboxRefreshAttemptedRef.current = true;
+            scheduleReconnect(true);
+            return;
+          }
+
+          scheduleReconnect(false);
+        };
+      } catch {
+        scheduleReconnect(attemptRefresh);
+      }
+    };
+
+    void connect(true);
+
+    return () => {
+      disposed = true;
+      clearReconnectTimer();
+      closeSocket();
+    };
+  }, [aiEnabled]);
 
   useEffect(() => {
     if (!expanded) return;
@@ -841,11 +1038,16 @@ export const AIAgentWidget: React.FC = () => {
   }, [defaultActionMessage]);
 
   const pill =
-    state === 'action_required'
-      ? { text: 'Action required', variant: 'warn' as const }
-      : state === 'thinking'
-        ? { text: 'Thinking', variant: 'info' as const }
-        : { text: 'Idle', variant: 'ok' as const };
+    state === 'thinking'
+      ? { text: 'Thinking', variant: 'info' as const }
+      : aiInboxCount > 0
+        ? {
+            text: `${aiInboxCount} in Inbox`,
+            variant: 'warn' as const,
+          }
+        : state === 'action_required'
+          ? { text: 'Action required', variant: 'warn' as const }
+          : { text: 'Idle', variant: 'ok' as const };
 
   const outlookBannerText = (() => {
     if (!outlookStatus) return 'Status unavailable';
@@ -1616,15 +1818,15 @@ export const AIAgentWidget: React.FC = () => {
                 void handleSend();
               }}
             >
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  multiple
-                  accept={CHAT_UPLOAD_ACCEPT_ATTR}
-                  style={{ display: 'none' }}
-                  onChange={(e) => {
-                    const list = e.target.files ? Array.from(e.target.files) : [];
-                    if (list.length) void addAttachments(list);
+              <input
+                ref={fileInputRef}
+                type="file"
+                multiple
+                accept={CHAT_UPLOAD_ACCEPT_ATTR}
+                style={{ display: 'none' }}
+                onChange={(e) => {
+                  const list = e.target.files ? Array.from(e.target.files) : [];
+                  if (list.length) void addAttachments(list);
                   e.target.value = '';
                 }}
               />
