@@ -6,7 +6,7 @@ import { EntityFormSurface } from '@/components/Shared';
 import { useAuthState } from '@/contexts/AuthContext';
 import { apiClient } from '@/services/apiService';
 import { isAuthError } from '@/utils/isAuthError';
-import HardcodedPlantForm from './HardcodedPlantForm';
+import StandalonePlantEditForm from './StandalonePlantEditForm';
 
 type RouteParams = { id?: string };
 
@@ -94,59 +94,10 @@ export const PlantDetailView: React.FC = () => {
   const plantId = String(id || '').trim();
 
   const [isEditing, setIsEditing] = useState(false);
-  const [plantData, setPlantData] = useState<Record<string, unknown> | null>(null);
-  const [loadingPlant, setLoadingPlant] = useState(false);
-  const [plantError, setPlantError] = useState<string | null>(null);
   const [loadingContacts, setLoadingContacts] = useState(false);
   const [contacts, setContacts] = useState<ContactRow[]>([]);
   const [contactsError, setContactsError] = useState<string | null>(null);
   const [authError, setAuthError] = useState(false);
-
-  useEffect(() => {
-    if (authLoading) return;
-    if (!plantId) return;
-    if (!isAuthenticated) {
-      setAuthError(true);
-      setPlantData(null);
-      setPlantError(null);
-      setLoadingPlant(false);
-      return;
-    }
-
-    let mounted = true;
-    const loadPlant = async () => {
-      setLoadingPlant(true);
-      setPlantError(null);
-      try {
-        const response = await apiClient.get(`/plants/${plantId}/`);
-        if (mounted) {
-          setPlantData(
-            response.data && typeof response.data === 'object'
-              ? (response.data as Record<string, unknown>)
-              : null,
-          );
-        }
-      } catch (error: unknown) {
-        if (!mounted) return;
-        if (isAuthError(error)) {
-          setAuthError(true);
-          setPlantData(null);
-          setPlantError(null);
-          return;
-        }
-        setPlantError('Failed to load plant details.');
-      } finally {
-        if (mounted) {
-          setLoadingPlant(false);
-        }
-      }
-    };
-
-    void loadPlant();
-    return () => {
-      mounted = false;
-    };
-  }, [authLoading, isAuthenticated, plantId]);
 
   useEffect(() => {
     if (authLoading) return;
@@ -212,14 +163,12 @@ export const PlantDetailView: React.FC = () => {
 
   const showAuthFallback = !authLoading && (!isAuthenticated || authError);
 
-  if (isEditing && plantData) {
+  if (isEditing) {
     return (
-      <HardcodedPlantForm
+      <StandalonePlantEditForm
         plantId={plantId}
-        initialValues={plantData}
         onCancel={() => setIsEditing(false)}
-        onSaved={(nextPlant) => {
-          setPlantData(nextPlant as unknown as Record<string, unknown>);
+        onSaved={() => {
           setIsEditing(false);
         }}
       />
@@ -236,20 +185,11 @@ export const PlantDetailView: React.FC = () => {
         <Button
           type="primary"
           onClick={() => setIsEditing(true)}
-          disabled={!plantId || showAuthFallback || loadingPlant || !plantData}
+          disabled={!plantId || showAuthFallback}
         >
           Edit Plant
         </Button>
       </div>
-
-      {plantError ? (
-        <Alert
-          style={{ marginTop: 12 }}
-          type="error"
-          showIcon
-          message={plantError}
-        />
-      ) : null}
 
       <div style={{ marginTop: 12 }}>
         {!showAuthFallback && (
@@ -259,7 +199,7 @@ export const PlantDetailView: React.FC = () => {
             variant="inline"
             isOpen={true}
             entityId={plantId}
-            onClose={() => navigate('/suppliers')}
+            onClose={() => navigate('/plants')}
           />
         )}
       </div>

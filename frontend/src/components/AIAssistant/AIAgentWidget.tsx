@@ -584,6 +584,10 @@ const deriveAIInboxSocketUrl = (tenantId: string, accessToken: string): string |
   return url.toString();
 };
 
+const deriveAIInboxSocketProtocols = (accessToken: string): string[] => {
+  return ['pm.ai.inbox', 'access_token', accessToken];
+};
+
 const normalizeSessions = (raw: unknown): ServerSession[] => {
   if (Array.isArray(raw)) return raw as ServerSession[];
   if (raw && typeof raw === 'object') {
@@ -772,7 +776,7 @@ export const AIAgentWidget: React.FC = () => {
       closeSocket();
 
       try {
-        const socket = new WebSocket(wsUrl);
+        const socket = new WebSocket(wsUrl, deriveAIInboxSocketProtocols(accessToken));
         inboxSocketRef.current = socket;
 
         socket.onopen = () => {

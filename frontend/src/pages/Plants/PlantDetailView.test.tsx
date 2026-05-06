@@ -21,12 +21,17 @@ vi.mock('@/components/Shared', () => ({
   ),
 }));
 
+vi.mock('./StandalonePlantEditForm', () => ({
+  default: ({
+    plantId,
+  }: {
+    plantId: string;
+  }) => <div data-testid="standalone-plant-edit-form">standalone:{plantId}</div>,
+}));
+
 vi.mock('@/services/apiService', () => ({
   apiClient: {
     get: (url: string, config?: unknown) => apiGet(url, config),
-  },
-  apiService: {
-    updatePlant: vi.fn(),
   },
 }));
 
@@ -35,20 +40,6 @@ describe('PlantDetailView', () => {
     vi.clearAllMocks();
     useAuthStateMock.mockReturnValue({ loading: false, isAuthenticated: true });
     apiGet.mockImplementation(async (url: string) => {
-      if (url === '/plants/2/') {
-        return {
-          data: {
-            id: 2,
-            name: 'West Plant',
-            plant_type: 'processing',
-            city: 'Chicago',
-            state: 'IL',
-            country: 'USA',
-            booking_contact_email: '',
-          },
-        };
-      }
-
       if (url === 'contacts/') {
         return { data: { results: [] } };
       }
@@ -57,7 +48,7 @@ describe('PlantDetailView', () => {
     });
   });
 
-  it('swaps into the static hardcoded plant form when edit is clicked', async () => {
+  it('unmounts the detail surface and mounts the standalone plant edit form when edit is clicked', async () => {
     const user = userEvent.setup();
 
     render(
@@ -76,8 +67,7 @@ describe('PlantDetailView', () => {
 
     await user.click(screen.getByRole('button', { name: /edit plant/i }));
 
-    expect(await screen.findByRole('heading', { name: /edit plant/i })).toBeInTheDocument();
-    expect(screen.getByText(/Static business-continuity form/i)).toBeInTheDocument();
+    expect(await screen.findByTestId('standalone-plant-edit-form')).toHaveTextContent('standalone:2');
     expect(screen.queryByTestId('entity-form-surface')).not.toBeInTheDocument();
   });
 });
