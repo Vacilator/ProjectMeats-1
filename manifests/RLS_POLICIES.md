@@ -126,12 +126,14 @@ All workflow-related tables have Row-Level Security **ENABLED** and **FORCED**:
 
 ---
 
-## Tenant Integrations Module (2 tables) - ✅ 100% COMPLIANT
+## Tenant Integrations Module (4 tables) - ✅ 100% COMPLIANT (code)
 
 | Table Name | RLS Enabled | Policy Name | Session Variable |
 |------------|-------------|-------------|------------------|
 | `tenant_integrations_tenantapikey` | ✅ | `tenantapikey_tenant_isolation` | `app.current_tenant` |
 | `tenant_integrations_tenantwebhook` | ✅ | `tenantwebhook_tenant_isolation` | `app.current_tenant` |
+| `tenant_integrations_settlementsource` | ✅ | `settlementsource_tenant_isolation` | `app.current_tenant` |
+| `tenant_integrations_settlementevent` | ✅ | `settlementevent_tenant_isolation` | `app.current_tenant` |
 
 ---
 
