@@ -17,27 +17,15 @@ import {
 interface SharePortalLinkPanelProps {
   entityType: PortalGrantManagementEntityType;
   entityId: string | number;
-  isOpen: boolean;
-  onClose: () => void;
+  onBack: () => void;
 }
 
-const Backdrop = styled.div`
-  position: fixed;
-  inset: 0;
-  z-index: 1200;
-  background: rgba(15, 23, 42, 0.48);
-  display: flex;
-  justify-content: flex-end;
-`;
-
-const Panel = styled.div`
-  width: min(560px, 100vw);
-  height: 100%;
+const Container = styled.div`
   background: rgb(var(--color-background));
   color: rgb(var(--color-text-primary));
   display: flex;
   flex-direction: column;
-  box-shadow: -12px 0 32px rgba(15, 23, 42, 0.2);
+  gap: 1rem;
 `;
 
 const Header = styled.div`
@@ -68,21 +56,28 @@ const Subtitle = styled.p`
 `;
 
 const CloseButton = styled.button`
-  border: none;
+  border-radius: var(--radius-md);
+  border: 1px solid rgb(var(--color-border));
   background: transparent;
-  color: rgb(var(--color-text-secondary));
-  font-size: 1.5rem;
-  line-height: 1;
+  color: rgb(var(--color-text-primary));
+  padding: 0.55rem 0.85rem;
+  font-size: 0.875rem;
   cursor: pointer;
 `;
 
 const Body = styled.div`
-  flex: 1;
-  overflow-y: auto;
-  padding: 1.5rem;
   display: flex;
   flex-direction: column;
   gap: 1rem;
+`;
+
+const InlineTextButton = styled.button`
+  border: none;
+  background: transparent;
+  color: rgb(var(--color-text-secondary));
+  padding: 0;
+  font-size: 0.875rem;
+  cursor: pointer;
 `;
 
 const Section = styled.section`
@@ -322,8 +317,7 @@ const describeHistoryEvent = (event: PortalGrantHistoryEvent): string => {
 export const SharePortalLinkPanel: React.FC<SharePortalLinkPanelProps> = ({
   entityType,
   entityId,
-  isOpen,
-  onClose,
+  onBack,
 }) => {
   const [target, setTarget] = useState<PortalGrantTarget | null>(null);
   const [grants, setGrants] = useState<PortalGrantSummary[]>([]);
@@ -356,26 +350,8 @@ export const SharePortalLinkPanel: React.FC<SharePortalLinkPanelProps> = ({
   }, [entityId, entityType]);
 
   useEffect(() => {
-    if (!isOpen) {
-      return;
-    }
     void loadTarget();
-  }, [isOpen, loadTarget]);
-
-  useEffect(() => {
-    if (!isOpen) {
-      return;
-    }
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        onClose();
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, onClose]);
+  }, [loadTarget]);
 
   const headerSubtitle = useMemo(() => {
     if (target?.label) {
@@ -471,195 +447,187 @@ export const SharePortalLinkPanel: React.FC<SharePortalLinkPanelProps> = ({
     }
   };
 
-  if (!isOpen) {
-    return null;
-  }
-
   return (
-    <Backdrop onClick={onClose}>
-      <Panel
-        role="dialog"
-        aria-modal="true"
-        aria-label="Portal access controls"
-        onClick={(event) => event.stopPropagation()}
-      >
-        <Header>
-          <TitleBlock>
-            <Title>Portal access</Title>
-            <Subtitle>{headerSubtitle}</Subtitle>
-          </TitleBlock>
-          <CloseButton aria-label="Close portal access controls" onClick={onClose}>
-            ×
-          </CloseButton>
-        </Header>
+    <Container data-testid="share-portal-link-panel">
+      <Header>
+        <TitleBlock>
+          <InlineTextButton type="button" onClick={onBack}>
+            ← Back to record details
+          </InlineTextButton>
+          <Title>Portal access</Title>
+          <Subtitle>{headerSubtitle}</Subtitle>
+        </TitleBlock>
+        <CloseButton type="button" aria-label="Back to record details" onClick={onBack}>
+          Back
+        </CloseButton>
+      </Header>
 
-        <Body>
-          {error ? <AlertBox tone="error">{error}</AlertBox> : null}
-          {actionMessage ? <AlertBox tone="success">{actionMessage}</AlertBox> : null}
+      <Body>
+        {error ? <AlertBox tone="error">{error}</AlertBox> : null}
+        {actionMessage ? <AlertBox tone="success">{actionMessage}</AlertBox> : null}
 
-          <Section>
-            <SectionTitle>Issue a new link</SectionTitle>
-            <SectionCopy>
-              Create a bounded, tenant-scoped portal link for the selected record.
-            </SectionCopy>
-            {target?.issueBlocker ? <AlertBox tone="warning">{target.issueBlocker}</AlertBox> : null}
-            <form onSubmit={handleIssue}>
-              <InputRow>
-                <Label>
-                  Counterparty email
-                  <Input
-                    aria-label="Counterparty email"
-                    type="email"
-                    value={subjectEmail}
-                    onChange={(event) => setSubjectEmail(event.target.value)}
-                    placeholder="counterparty@example.com"
-                    required
-                  />
-                </Label>
-                <Label>
-                  Expiration
-                  <Input
-                    aria-label="Expiration"
-                    type="datetime-local"
-                    value={expiresAt}
-                    onChange={(event) => setExpiresAt(event.target.value)}
-                    required
-                  />
-                </Label>
-                <Label>
-                  Allowed opens
-                  <Input
-                    aria-label="Allowed opens"
-                    type="number"
-                    min="1"
-                    value={maxUses}
-                    onChange={(event) => setMaxUses(event.target.value)}
-                    required
-                  />
-                </Label>
-              </InputRow>
-              <ActionRow style={{ marginTop: '0.75rem' }}>
-                <PrimaryButton
-                  type="submit"
-                  disabled={submitting || loading || Boolean(target?.issueBlocker)}
-                >
-                  {submitting ? 'Issuing…' : 'Issue link'}
-                </PrimaryButton>
-                {shareUrl ? (
-                  <SecondaryButton type="button" onClick={() => void handleCopyShareUrl()}>
-                    Copy latest link
-                  </SecondaryButton>
-                ) : null}
-              </ActionRow>
-            </form>
-            {shareUrl ? (
+        <Section>
+          <SectionTitle>Issue a new link</SectionTitle>
+          <SectionCopy>
+            Create a bounded, tenant-scoped portal link for the selected record.
+          </SectionCopy>
+          {target?.issueBlocker ? <AlertBox tone="warning">{target.issueBlocker}</AlertBox> : null}
+          <form onSubmit={handleIssue}>
+            <InputRow>
               <Label>
-                Latest portal link
+                Counterparty email
                 <Input
-                  aria-label="Latest portal link"
-                  type="text"
-                  readOnly
-                  value={shareUrl}
+                  aria-label="Counterparty email"
+                  type="email"
+                  value={subjectEmail}
+                  onChange={(event) => setSubjectEmail(event.target.value)}
+                  placeholder="counterparty@example.com"
+                  required
                 />
               </Label>
-            ) : null}
-          </Section>
+              <Label>
+                Expiration
+                <Input
+                  aria-label="Expiration"
+                  type="datetime-local"
+                  value={expiresAt}
+                  onChange={(event) => setExpiresAt(event.target.value)}
+                  required
+                />
+              </Label>
+              <Label>
+                Allowed opens
+                <Input
+                  aria-label="Allowed opens"
+                  type="number"
+                  min="1"
+                  value={maxUses}
+                  onChange={(event) => setMaxUses(event.target.value)}
+                  required
+                />
+              </Label>
+            </InputRow>
+            <ActionRow style={{ marginTop: '0.75rem' }}>
+              <PrimaryButton
+                type="submit"
+                disabled={submitting || loading || Boolean(target?.issueBlocker)}
+              >
+                {submitting ? 'Issuing…' : 'Issue link'}
+              </PrimaryButton>
+              {shareUrl ? (
+                <SecondaryButton type="button" onClick={() => void handleCopyShareUrl()}>
+                  Copy latest link
+                </SecondaryButton>
+              ) : null}
+            </ActionRow>
+          </form>
+          {shareUrl ? (
+            <Label>
+              Latest portal link
+              <Input
+                aria-label="Latest portal link"
+                type="text"
+                readOnly
+                value={shareUrl}
+              />
+            </Label>
+          ) : null}
+        </Section>
 
-          <Section>
-            <SectionTitle>Available portal-safe documents</SectionTitle>
-            {loading ? (
-              <SectionCopy>Loading portal grant details…</SectionCopy>
-            ) : target?.availableDocuments?.length ? (
-              <DocumentList>
-                {target.availableDocuments.map((document) => (
-                  <li key={`${document.sourceKind}-${document.sourceRecordId}-${document.displayName}`}>
-                    {document.displayName}
-                  </li>
-                ))}
-              </DocumentList>
-            ) : (
-              <EmptyState>No curated portal-safe documents are currently attached.</EmptyState>
-            )}
-          </Section>
+        <Section>
+          <SectionTitle>Available portal-safe documents</SectionTitle>
+          {loading ? (
+            <SectionCopy>Loading portal grant details…</SectionCopy>
+          ) : target?.availableDocuments?.length ? (
+            <DocumentList>
+              {target.availableDocuments.map((document) => (
+                <li key={`${document.sourceKind}-${document.sourceRecordId}-${document.displayName}`}>
+                  {document.displayName}
+                </li>
+              ))}
+            </DocumentList>
+          ) : (
+            <EmptyState>No curated portal-safe documents are currently attached.</EmptyState>
+          )}
+        </Section>
 
-          <Section>
-            <SectionTitle>Existing grants</SectionTitle>
-            {loading ? (
-              <SectionCopy>Loading grant history…</SectionCopy>
-            ) : grants.length ? (
-              grants.map((grant) => (
-                <GrantCard key={grant.id}>
-                  <GrantHeader>
-                    <GrantMeta>
-                      <GrantTitle>{grant.subjectEmail}</GrantTitle>
-                      <GrantSubtle>
-                        Expires {formatDateTime(grant.expiresAt)} · {grant.useCount}/{grant.maxUses}{' '}
-                        opens used
-                      </GrantSubtle>
-                    </GrantMeta>
-                    <StatusPill state={grant.status}>{grant.status}</StatusPill>
-                  </GrantHeader>
+        <Section>
+          <SectionTitle>Existing grants</SectionTitle>
+          {loading ? (
+            <SectionCopy>Loading grant history…</SectionCopy>
+          ) : grants.length ? (
+            grants.map((grant) => (
+              <GrantCard key={grant.id}>
+                <GrantHeader>
+                  <GrantMeta>
+                    <GrantTitle>{grant.subjectEmail}</GrantTitle>
+                    <GrantSubtle>
+                      Expires {formatDateTime(grant.expiresAt)} · {grant.useCount}/{grant.maxUses}{' '}
+                      opens used
+                    </GrantSubtle>
+                  </GrantMeta>
+                  <StatusPill state={grant.status}>{grant.status}</StatusPill>
+                </GrantHeader>
 
-                  {grant.documents.length ? (
-                    <DocumentList>
-                      {grant.documents.map((document) => (
-                        <li key={`${document.sourceKind}-${document.sourceRecordId}-${document.displayName}`}>
-                          {document.displayName}
-                        </li>
+                {grant.documents.length ? (
+                  <DocumentList>
+                    {grant.documents.map((document) => (
+                      <li key={`${document.sourceKind}-${document.sourceRecordId}-${document.displayName}`}>
+                        {document.displayName}
+                      </li>
+                    ))}
+                  </DocumentList>
+                ) : null}
+
+                <ActionRow>
+                  <SecondaryButton
+                    type="button"
+                    disabled={!grant.canResend || submitting}
+                    onClick={() => void handleResend(grant.id)}
+                  >
+                    Resend
+                  </SecondaryButton>
+                  <SecondaryButton
+                    type="button"
+                    disabled={submitting || grant.status === 'revoked'}
+                    onClick={() => void handleRevoke(grant.id)}
+                  >
+                    Revoke
+                  </SecondaryButton>
+                  <SecondaryButton
+                    type="button"
+                    onClick={() => void handleInspectHistory(grant.id)}
+                  >
+                    {expandedGrantId === grant.id ? 'Hide history' : 'Inspect history'}
+                  </SecondaryButton>
+                </ActionRow>
+
+                {expandedGrantId === grant.id ? (
+                  historyLoadingGrantId === grant.id ? (
+                    <SectionCopy>Loading grant history…</SectionCopy>
+                  ) : historyByGrant[grant.id]?.length ? (
+                    <HistoryList>
+                      {historyByGrant[grant.id].map((event) => (
+                        <HistoryItem key={event.id}>
+                          <div>{describeHistoryEvent(event)}</div>
+                          <HistoryMeta>
+                            {(event.actorEmail || 'System')} · {formatDateTime(event.createdAt)}
+                          </HistoryMeta>
+                        </HistoryItem>
                       ))}
-                    </DocumentList>
-                  ) : null}
-
-                  <ActionRow>
-                    <SecondaryButton
-                      type="button"
-                      disabled={!grant.canResend || submitting}
-                      onClick={() => void handleResend(grant.id)}
-                    >
-                      Resend
-                    </SecondaryButton>
-                    <SecondaryButton
-                      type="button"
-                      disabled={submitting || grant.status === 'revoked'}
-                      onClick={() => void handleRevoke(grant.id)}
-                    >
-                      Revoke
-                    </SecondaryButton>
-                    <SecondaryButton
-                      type="button"
-                      onClick={() => void handleInspectHistory(grant.id)}
-                    >
-                      {expandedGrantId === grant.id ? 'Hide history' : 'Inspect history'}
-                    </SecondaryButton>
-                  </ActionRow>
-
-                  {expandedGrantId === grant.id ? (
-                    historyLoadingGrantId === grant.id ? (
-                      <SectionCopy>Loading grant history…</SectionCopy>
-                    ) : historyByGrant[grant.id]?.length ? (
-                      <HistoryList>
-                        {historyByGrant[grant.id].map((event) => (
-                          <HistoryItem key={event.id}>
-                            <div>{describeHistoryEvent(event)}</div>
-                            <HistoryMeta>
-                              {(event.actorEmail || 'System')} · {formatDateTime(event.createdAt)}
-                            </HistoryMeta>
-                          </HistoryItem>
-                        ))}
-                      </HistoryList>
-                    ) : (
-                      <EmptyState>No grant history recorded yet.</EmptyState>
-                    )
-                  ) : null}
-                </GrantCard>
-              ))
-            ) : (
-              <EmptyState>No portal grants have been issued for this record yet.</EmptyState>
-            )}
-          </Section>
-        </Body>
-      </Panel>
-    </Backdrop>
+                    </HistoryList>
+                  ) : (
+                    <EmptyState>No grant history recorded yet.</EmptyState>
+                  )
+                ) : null}
+              </GrantCard>
+            ))
+          ) : (
+            <EmptyState>No portal grants have been issued for this record yet.</EmptyState>
+          )}
+        </Section>
+      </Body>
+    </Container>
   );
 };
 

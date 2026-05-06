@@ -77,8 +77,7 @@ describe('SharePortalLinkPanel', () => {
       <SharePortalLinkPanel
         entityType="invoice"
         entityId="42"
-        isOpen
-        onClose={vi.fn()}
+        onBack={vi.fn()}
       />
     );
 
@@ -152,8 +151,7 @@ describe('SharePortalLinkPanel', () => {
       <SharePortalLinkPanel
         entityType="freight-orders"
         entityId="77"
-        isOpen
-        onClose={vi.fn()}
+        onBack={vi.fn()}
       />
     );
 
