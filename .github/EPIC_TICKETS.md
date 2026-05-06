@@ -962,8 +962,8 @@
 
 ### Epic B2B-03 - Financial Settlement & Reconciliation
 
-- [ ] **B2B-03.1 settlement-ingest-contract-and-webhook-first-adapter-plan**
-  - **Status:** Ready
+- [x] **B2B-03.1 settlement-ingest-contract-and-webhook-first-adapter-plan**
+  - **Status:** Shipped in PR #4909
   - **Why now:** Financial settlement should start from one replay-safe ingest contract layered on the existing payment ledger instead of ad hoc manual matching.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 15 / Epic 3
   - **Scope:** Define the settlement ingestion/reconciliation contract, starting with a webhook-first adapter and leaving bank-feed providers as follow-on integrations.
@@ -981,7 +981,7 @@
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
 - [ ] **B2B-03.2 settlement-event-store-and-public-ingest-endpoint**
-  - **Status:** Blocked
+  - **Status:** Ready
   - **Why now:** Reconciliation needs an auditable raw event journal and authenticated ingress before any auto-matching can occur.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 15 / Epic 3
   - **Scope:** Add tenant-scoped settlement source/event models, a signed/HMAC public ingest endpoint or provider webhook endpoint, and async handoff for processing.
@@ -989,7 +989,7 @@
   - **Primary domain:** backend
   - **Likely touched paths:** `backend/tenant_apps/integrations/{models.py,serializers.py,views.py,urls.py,tasks.py}`, new migrations, `backend/projectmeats/urls.py`, backend tests, `manifests/RLS_POLICIES.md`
   - **Dependencies:** B2B-03.1
-  - **Blockers:** B2B-03.1
+  - **Blockers:** None
   - **Acceptance criteria:** Provider event IDs are idempotent per tenant, signature validation fails closed, raw events are journaled for replay/review, and async processing preserves tenant context.
   - **Validation commands:** `cd backend && python manage.py test tenant_apps.integrations tenant_apps.invoices apps.integrations`; `cd backend && python manage.py makemigrations --check`
   - **Tenant/RLS impact:** High

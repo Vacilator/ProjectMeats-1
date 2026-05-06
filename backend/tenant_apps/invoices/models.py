@@ -458,6 +458,7 @@ class PaymentTransaction(TenantAwareModel):
     
     This model records all payment transactions, whether they are payments made
     to suppliers (purchase orders) or payments received from customers (sales orders/invoices).
+    It is the canonical posted-payment ledger for settlement reconciliation.
     """
     
     # Related entities (polymorphic - can link to PO, SO, or Invoice)

@@ -9,6 +9,7 @@ from apps.tenants.models import Tenant
 from apps.tenants.rls import RlsSetResult
 
 from .models import TenantAPIKey, TenantWebhook, TenantWebhookEventType, generate_api_key
+from .settlement_contract import SETTLEMENT_CONTRACT_VERSION, get_settlement_reconciliation_contract
 from .tasks import dispatch_webhook_payload
 
 
@@ -111,3 +112,23 @@ class TenantIntegrationsTaskTests(TestCase):
         self.assertIn('db unavailable', result.get('error', ''))
         mock_set_current_tenant.assert_called_once_with(str(self.tenant.id))
         mock_post.assert_not_called()
+
+
+class SettlementContractTests(TestCase):
+    def test_settlement_contract_anchors_webhook_first_payment_ledger(self):
+        contract = get_settlement_reconciliation_contract()
+
+        self.assertEqual(contract['version'], SETTLEMENT_CONTRACT_VERSION)
+        self.assertEqual(
+            contract['canonical_posted_payment_ledger'],
+            'tenant_apps.invoices.models.PaymentTransaction',
+        )
+        self.assertEqual(contract['initial_adapter'], 'webhook')
+        self.assertEqual(contract['raw_payload_hash_algorithm'], 'sha256')
+        self.assertEqual(contract['raw_payload_hash_input_rule'], 'utf8_exact_raw_payload_string')
+        self.assertIn('tenant_api_key', contract['accepted_authentication_modes'])
+        self.assertIn('provider_hmac_signature', contract['accepted_authentication_modes'])
+        self.assertIn('external_event_id', contract['idempotency_key_fields'])
+        self.assertIn('raw_payload_sha256', contract['idempotency_fallback_fields'])
+        self.assertIn('direct_bank_feed', contract['deferred_adapters'])
+        self.assertIn('invoice', contract['payment_transaction_parent_links'])
