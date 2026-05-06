@@ -7,6 +7,11 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { PlantDetail } from './PlantDetail';
 
 const useAuthStateMock = vi.fn(() => ({ loading: false, isAuthenticated: true }));
+const standalonePlantEditFormMock = vi.fn(
+  ({ plantId }: { plantId: string }) => (
+    <div data-testid="standalone-plant-edit-form">standalone:{plantId}</div>
+  )
+);
 
 vi.mock('@/contexts/AuthContext', () => ({
   useAuthState: () => useAuthStateMock(),
@@ -35,6 +40,10 @@ const entityFormSurfaceMock = vi.fn(
 vi.mock('@/components/Cockpit', () => ({
   EntityProfileHeader: () => <div data-testid="entity-profile-header" />,
   AIOverviewCard: () => <div data-testid="ai-overview-card" />,
+}));
+
+vi.mock('@/pages/Plants/StandalonePlantEditForm', () => ({
+  default: (props: { plantId: string }) => standalonePlantEditFormMock(props),
 }));
 
 vi.mock('@/components/Entities/EntityWorkflowStatusPanel', () => ({
@@ -75,6 +84,7 @@ vi.mock('@/services/businessApi', () => ({
 
 beforeEach(() => {
   entityFormSurfaceMock.mockClear();
+  standalonePlantEditFormMock.mockClear();
 });
 
 describe('PlantDetail workflows tab', () => {
@@ -138,7 +148,7 @@ describe('PlantDetail workflows tab', () => {
     expect(await screen.findByTestId('activity-feed')).toHaveTextContent('plant:2');
   });
 
-  it('opens plant editing in a modal surface without replacing the detail view', async () => {
+  it('unmounts the detail tree and mounts the standalone editor when edit is clicked', async () => {
     const user = userEvent.setup();
 
     render(
@@ -151,8 +161,9 @@ describe('PlantDetail workflows tab', () => {
 
     await user.click(await screen.findByRole('button', { name: /edit plant/i }));
 
-    expect(await screen.findByTestId('entity-profile-header')).toBeInTheDocument();
-    expect(await screen.findByTestId('entity-form-surface')).toHaveTextContent('plant:edit:modal:2');
+    expect(await screen.findByTestId('standalone-plant-edit-form')).toHaveTextContent('standalone:2');
+    expect(screen.queryByTestId('entity-profile-header')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('entity-form-surface')).not.toBeInTheDocument();
   });
 
   it('fails closed on unauthorized detail loads instead of rendering the heavy detail tree', async () => {

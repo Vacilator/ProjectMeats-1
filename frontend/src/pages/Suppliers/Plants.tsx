@@ -193,7 +193,6 @@ const Plants: React.FC = () => {
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
-  const [editingPlant, setEditingPlant] = useState<Plant | null>(null);
   const [contextSupplierId, setContextSupplierId] = useState<number | null>(null);
   const [searchText, setSearchText] = useState('');
   const plantFormInitialValues = useMemo(
@@ -282,13 +281,19 @@ const Plants: React.FC = () => {
   };
 
   const handleAdd = () => {
-    setEditingPlant(null);
     setShowModal(true);
   };
 
   const handleEdit = (plant: Plant) => {
-    setEditingPlant(plant);
-    setShowModal(true);
+    const nextSupplierId = contextSupplierId ?? plant.supplier ?? null;
+    if (nextSupplierId) {
+      navigate(`/suppliers/${nextSupplierId}/plants/${plant.id}`, {
+        state: { startEditing: true },
+      });
+      return;
+    }
+
+    navigate(`/plants/${plant.id}/edit`);
   };
 
   const handleDelete = async (plant: Plant) => {
@@ -511,17 +516,14 @@ const Plants: React.FC = () => {
       {showModal && (
         <EntityFormSurface
           entityType="plant"
-          mode={editingPlant ? 'edit' : 'create'}
-          entityId={editingPlant?.id}
+          mode="create"
           isOpen={showModal}
           onClose={() => {
             setShowModal(false);
-            setEditingPlant(null);
           }}
           initialValues={plantFormInitialValues}
           onSuccess={() => {
             setShowModal(false);
-            setEditingPlant(null);
             void loadPlants(contextSupplierId);
           }}
         />

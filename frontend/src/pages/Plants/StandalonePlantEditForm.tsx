@@ -154,7 +154,7 @@ export const StandalonePlantEditForm: React.FC<StandalonePlantEditFormProps> = (
     return (
       <div style={{ padding: 16 }}>
         <Card>
-          <Space direction="vertical" size={16} style={{ width: '100%' }}>
+          <Space orientation="vertical" size={16} style={{ width: '100%' }}>
             <div>
               <Button onClick={onCancel}>Back to Details</Button>
             </div>
@@ -188,7 +188,7 @@ export const StandalonePlantEditForm: React.FC<StandalonePlantEditFormProps> = (
           background: 'rgb(var(--color-surface))',
         }}
       >
-        <Space direction="vertical" size={16} style={{ width: '100%' }}>
+        <Space orientation="vertical" size={16} style={{ width: '100%' }}>
           <div>
             <Button onClick={onCancel}>Back to Details</Button>
           </div>

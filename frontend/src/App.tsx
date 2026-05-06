@@ -57,6 +57,7 @@ import CustomerLocations from './pages/Customers/Locations';
 import CustomerProducts from './pages/Customers/Products';
 import PlantProducts from './pages/Plants/Products';
 import PlantDetailView from './pages/Plants/PlantDetailView';
+import StandalonePlantEditRoute from './pages/Plants/StandalonePlantEditRoute';
 import LocationDetailView from './pages/Locations/LocationDetailView';
 import SupplierPlantDetail from './pages/Suppliers/PlantDetail';
 import SupplierPlantContactDetail from './pages/Suppliers/PlantContactDetail';
@@ -284,7 +285,7 @@ const App: React.FC = () => {
                 <Route path="plants/:id" element={<PlantDetailView />} />
                 <Route
                   path="plants/:id/edit"
-                  element={<UniversalEntityRecordPage entityType="plant" basePath="/plants" mode="edit" />}
+                  element={<StandalonePlantEditRoute />}
                 />
                 <Route path="plants/:id/products" element={<PlantProducts />} />
                 <Route path="locations/:id" element={<LocationDetailView />} />

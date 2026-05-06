@@ -2,6 +2,7 @@ import React from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { message } from 'antd';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { apiService } from '@/services/apiService';
@@ -39,6 +40,8 @@ const renderForm = (props?: Partial<React.ComponentProps<typeof StandalonePlantE
 describe('StandalonePlantEditForm', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.spyOn(message, 'success').mockImplementation(() => undefined as never);
+    vi.spyOn(message, 'error').mockImplementation(() => undefined as never);
     mockedApiService.getPlant.mockResolvedValue({
       id: 2,
       name: 'West Plant',

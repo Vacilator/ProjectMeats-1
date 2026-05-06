@@ -1,14 +1,15 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Alert, Breadcrumb, Button, Card, Empty, Spin, Table, Tabs } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 
 import { AIOverviewCard, EntityProfileHeader } from '@/components/Cockpit';
 import { EntityWorkflowStatusPanel } from '@/components/Entities/EntityWorkflowStatusPanel';
-import { ActivityFeed, EntityFormSurface } from '@/components/Shared';
+import { ActivityFeed } from '@/components/Shared';
 import { useAuthState } from '@/contexts/AuthContext';
 import { businessApi } from '@/services/businessApi';
 import { isAuthError } from '@/utils/isAuthError';
+import StandalonePlantEditForm from '@/pages/Plants/StandalonePlantEditForm';
 
 type RouteParams = { supplierId?: string; plantId?: string };
 
@@ -34,14 +35,18 @@ const asRows = (payload: unknown): any[] => {
 };
 
 export const PlantDetail: React.FC = () => {
+  const location = useLocation();
   const navigate = useNavigate();
   const { supplierId, plantId } = useParams<RouteParams>();
+  const startEditing = Boolean(
+    (location.state as { startEditing?: boolean } | null)?.startEditing
+  );
 
   const sid = String(supplierId || '').trim();
   const pid = String(plantId || '').trim();
   const { loading: authLoading, isAuthenticated } = useAuthState();
   const [refreshKey, setRefreshKey] = useState(0);
-  const [editOpen, setEditOpen] = useState(false);
+  const [isEditing, setIsEditing] = useState(startEditing);
 
   const [loading, setLoading] = useState(true);
   const [supplier, setSupplier] = useState<SupplierRow | null>(null);
@@ -153,6 +158,12 @@ export const PlantDetail: React.FC = () => {
     };
   }, [authError, authLoading, isAuthenticated, pid]);
 
+  useEffect(() => {
+    if (startEditing) {
+      setIsEditing(true);
+    }
+  }, [startEditing]);
+
   const title = useMemo(() => {
     const name = String(plant?.name || '').trim();
     return name || (pid ? `Plant #${pid}` : 'Plant');
@@ -240,6 +251,19 @@ export const PlantDetail: React.FC = () => {
 
   const showAuthFallback = !authLoading && (!isAuthenticated || authError);
 
+  if (isEditing) {
+    return (
+      <StandalonePlantEditForm
+        plantId={pid}
+        onCancel={() => setIsEditing(false)}
+        onSaved={() => {
+          setIsEditing(false);
+          setRefreshKey((key) => key + 1);
+        }}
+      />
+    );
+  }
+
   return (
     <div style={{ padding: 16 }}>
       <div
@@ -277,26 +301,11 @@ export const PlantDetail: React.FC = () => {
         </div>
 
         <div style={{ display: 'flex', gap: 8 }}>
-          <Button type="primary" onClick={() => setEditOpen(true)} disabled={!pid || loading || showAuthFallback}>
+          <Button type="primary" onClick={() => setIsEditing(true)} disabled={!pid || loading || showAuthFallback}>
             Edit Plant
           </Button>
         </div>
       </div>
-
-      {pid ? (
-        <EntityFormSurface
-          entityType="plant"
-          mode="edit"
-          variant="modal"
-          entityId={pid}
-          isOpen={editOpen}
-          onClose={() => setEditOpen(false)}
-          onSuccess={() => {
-            setEditOpen(false);
-            setRefreshKey((key) => key + 1);
-          }}
-        />
-      ) : null}
       <div style={{ marginTop: 12 }}>
         {authLoading || loading ? (
           <Card>
