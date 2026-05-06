@@ -1056,8 +1056,8 @@
 
 ### Epic CTE-01 - Inquiry ingestion & routing
 
-- [ ] **CTE-01.1 inquiry-happy-path-contract-and-routing-fields**
-  - **Status:** Ready
+- [x] **CTE-01.1 inquiry-happy-path-contract-and-routing-fields**
+  - **Status:** Shipped (PR #4923)
   - **Why now:** The hardcoded happy path cannot exist until `Inquiry` explicitly carries the route decision, source-email lineage, requested master product/protein anchors, and downstream document/state references.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 16 / Epic 1
   - **Scope:** Audit and extend the existing `tenant_apps.inquiries.models.Inquiry` contract so it can anchor the trading engine, including route flags (`FULFILL`/`BROKER`), source-email references, requested product/protein fields, and linkage to downstream supplier/sales/carrier documents.
@@ -1075,10 +1075,10 @@
   - **Secrets/infra impact:** None
   - **Risk level:** High
   - **Rollback:** Revert additive inquiry-contract changes only; no runtime automation should be active from this ticket.
-  - **Completion evidence destination:** `.github/MASTER_PLAN.md`
+  - **Completion evidence destination:** `.github/MASTER_PLAN.md` (PR #4923)
 
 - [ ] **CTE-01.2 ai-email-extractor-to-inquiry-draft**
-  - **Status:** Blocked
+  - **Status:** Ready
   - **Why now:** The trading engine starts with inbound demand, and the current email ingestion stack stops short of creating a first-class inquiry.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 16 / Epic 1
   - **Scope:** Hook AI email ingestion to the `Inquiry` model so qualifying inbound customer-demand emails create or update draft inquiries using OpenAI structured outputs, explicit source-email lineage, and fail-closed parsing.
@@ -1086,7 +1086,7 @@
   - **Primary domain:** backend/ai/integrations
   - **Likely touched paths:** `backend/apps/integrations/{signals.py,models.py}`, `backend/tenant_apps/integrations/services/email_ingestion.py`, `backend/tenant_apps/ai_assistant/`, `backend/tenant_apps/inquiries/`, related tests
   - **Dependencies:** CTE-01.1
-  - **Blockers:** CTE-01.1
+  - **Blockers:** None
   - **Acceptance criteria:**
     1. Structured extraction can create a draft inquiry with source-email traceability.
     2. Failed or ambiguous parses stay fail-closed and operator-visible instead of silently creating bad demand records.
