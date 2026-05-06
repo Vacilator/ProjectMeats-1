@@ -69,6 +69,7 @@ import Claims from './pages/Accounting/Claims';
 import PayablePOs from './pages/Accounting/PayablePOs';
 import ReceivableSOs from './pages/Accounting/ReceivableSOs';
 import Invoices from './pages/Accounting/Invoices';
+import SettlementQueue from './pages/Accounting/SettlementQueue';
 import FreightOrders from './pages/FreightOrders';
 import DealDesk from './pages/Deals/DealDesk';
 import Reports from './pages/Reports';
@@ -329,6 +330,7 @@ const App: React.FC = () => {
                 <Route path="accounting/receivables/invoices" element={<Invoices />} />
                 <Route path="accounting/payables" element={<Payables />} />
                 <Route path="accounting/payables/pos" element={<PayablePOs />} />
+                <Route path="accounting/settlements" element={<SettlementQueue />} />
                 
                 {/* Other Pages */}
                 <Route path="cold-storage" element={<ColdStorage />} />

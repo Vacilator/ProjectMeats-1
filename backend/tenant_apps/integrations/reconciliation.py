@@ -4,6 +4,8 @@ import re
 from dataclasses import dataclass
 from decimal import Decimal
 
+from django.contrib.auth.models import User
+from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.db.models import Q
 from django.utils import timezone
@@ -149,6 +151,87 @@ def reconcile_settlement_event(*, event: SettlementEvent) -> dict[str, object]:
         }
 
 
+def override_settlement_event(
+    *,
+    event: SettlementEvent,
+    reviewer: User,
+    target_type: str,
+    target_id: int,
+    review_note: str = '',
+) -> SettlementEvent:
+    with transaction.atomic():
+        locked_event = (
+            SettlementEvent.objects.select_for_update()
+            .select_related('source')
+            .filter(id=event.id, tenant=event.tenant)
+            .first()
+        )
+        if not locked_event:
+            raise ValidationError('Settlement event no longer exists.')
+        if locked_event.state == SettlementEventState.POSTED or locked_event.payment_transaction_id:
+            raise ValidationError('This settlement event has already been posted.')
+        if locked_event.state != SettlementEventState.READY_TO_POST:
+            raise ValidationError('Only review-queue settlement events can be overridden.')
+
+        candidate = _resolve_override_candidate(
+            event=locked_event,
+            target_type=target_type,
+            target_id=target_id,
+        )
+        payload = locked_event.normalized_payload if isinstance(locked_event.normalized_payload, dict) else {}
+        payment = _create_payment_transaction(
+            locked_event,
+            candidate,
+            payload,
+            notes_override=_build_manual_payment_notes(locked_event, candidate, reviewer, review_note),
+        )
+        _mark_event_reviewed(locked_event, reviewer=reviewer, review_note=review_note)
+        _mark_event_posted(
+            locked_event,
+            candidate,
+            payment,
+            reason_code=_manual_override_reason(candidate.entity_type),
+        )
+        return locked_event
+
+
+def reject_settlement_event(
+    *,
+    event: SettlementEvent,
+    reviewer: User,
+    review_note: str = '',
+) -> SettlementEvent:
+    with transaction.atomic():
+        locked_event = (
+            SettlementEvent.objects.select_for_update()
+            .filter(id=event.id, tenant=event.tenant)
+            .first()
+        )
+        if not locked_event:
+            raise ValidationError('Settlement event no longer exists.')
+        if locked_event.state == SettlementEventState.POSTED or locked_event.payment_transaction_id:
+            raise ValidationError('Posted settlement events cannot be rejected.')
+
+        locked_event.state = SettlementEventState.IGNORED
+        locked_event.reconciliation_reason_code = SettlementReconciliationReason.ACCOUNTANT_REJECTED
+        locked_event.last_error = ''
+        locked_event.processed_at = timezone.now()
+        _mark_event_reviewed(locked_event, reviewer=reviewer, review_note=review_note)
+        locked_event.save(
+            update_fields=[
+                'state',
+                'reconciliation_reason_code',
+                'last_error',
+                'processed_at',
+                'reviewed_by',
+                'reviewed_at',
+                'review_note',
+                'modified_on',
+            ]
+        )
+        return locked_event
+
+
 def _collect_reference_values(payload: dict[str, object]) -> dict[str, set[str]]:
     return {
         'invoice': _collect_alias_values(payload, INVOICE_REFERENCE_ALIASES),
@@ -248,6 +331,8 @@ def _create_payment_transaction(
     event: SettlementEvent,
     candidate: SettlementMatchCandidate,
     payload: dict[str, object],
+    *,
+    notes_override: str | None = None,
 ) -> PaymentTransaction:
     payment_kwargs: dict[str, object] = {
         'tenant': event.tenant,
@@ -255,7 +340,7 @@ def _create_payment_transaction(
         'payment_date': event.occurred_at.date(),
         'payment_method': _resolve_payment_method(payload),
         'reference_number': _resolve_reference_number(event, payload),
-        'notes': _build_payment_notes(event, candidate),
+        'notes': notes_override or _build_payment_notes(event, candidate),
     }
     if candidate.entity_type == 'invoice':
         payment_kwargs['invoice_id'] = candidate.object_id
@@ -320,10 +405,12 @@ def _mark_event_posted(
     event: SettlementEvent,
     candidate: SettlementMatchCandidate,
     payment: PaymentTransaction,
+    *,
+    reason_code: str | None = None,
 ) -> None:
     event.state = SettlementEventState.POSTED
     event.payment_transaction = payment
-    event.reconciliation_reason_code = _exact_match_reason(candidate.entity_type)
+    event.reconciliation_reason_code = reason_code or _exact_match_reason(candidate.entity_type)
     event.last_error = ''
     event.processed_at = timezone.now()
     event.matched_invoice_id = payment.invoice_id
@@ -339,6 +426,9 @@ def _mark_event_posted(
             'matched_invoice',
             'matched_sales_order',
             'matched_purchase_order',
+            'reviewed_by',
+            'reviewed_at',
+            'review_note',
             'modified_on',
         ]
     )
@@ -350,3 +440,87 @@ def _exact_match_reason(entity_type: str) -> str:
     if entity_type == 'sales_order':
         return SettlementReconciliationReason.EXACT_SALES_ORDER_MATCH
     return SettlementReconciliationReason.EXACT_PURCHASE_ORDER_MATCH
+
+
+def _manual_override_reason(entity_type: str) -> str:
+    if entity_type == 'invoice':
+        return SettlementReconciliationReason.MANUAL_INVOICE_OVERRIDE
+    if entity_type == 'sales_order':
+        return SettlementReconciliationReason.MANUAL_SALES_ORDER_OVERRIDE
+    return SettlementReconciliationReason.MANUAL_PURCHASE_ORDER_OVERRIDE
+
+
+def _resolve_override_candidate(
+    *,
+    event: SettlementEvent,
+    target_type: str,
+    target_id: int,
+) -> SettlementMatchCandidate:
+    if target_type == 'invoice':
+        invoice = (
+            Invoice.objects.select_for_update()
+            .filter(tenant=event.tenant, id=target_id)
+            .first()
+        )
+        if not invoice:
+            raise ValidationError('Selected invoice was not found for this tenant.')
+        return SettlementMatchCandidate(
+            entity_type='invoice',
+            object_id=invoice.id,
+            reference_value=invoice.invoice_number,
+            outstanding_amount=_get_outstanding_amount(invoice.outstanding_amount, invoice.total_amount),
+        )
+
+    if target_type == 'sales_order':
+        sales_order = (
+            SalesOrder.objects.select_for_update()
+            .filter(tenant=event.tenant, id=target_id)
+            .first()
+        )
+        if not sales_order:
+            raise ValidationError('Selected sales order was not found for this tenant.')
+        return SettlementMatchCandidate(
+            entity_type='sales_order',
+            object_id=sales_order.id,
+            reference_value=sales_order.our_sales_order_num,
+            outstanding_amount=_get_outstanding_amount(sales_order.outstanding_amount, sales_order.total_amount),
+        )
+
+    if target_type == 'purchase_order':
+        purchase_order = (
+            PurchaseOrder.objects.select_for_update()
+            .filter(tenant=event.tenant, id=target_id)
+            .first()
+        )
+        if not purchase_order:
+            raise ValidationError('Selected purchase order was not found for this tenant.')
+        return SettlementMatchCandidate(
+            entity_type='purchase_order',
+            object_id=purchase_order.id,
+            reference_value=purchase_order.order_number,
+            outstanding_amount=_get_outstanding_amount(purchase_order.outstanding_amount, purchase_order.total_amount),
+        )
+
+    raise ValidationError('Unsupported override target type.')
+
+
+def _build_manual_payment_notes(
+    event: SettlementEvent,
+    candidate: SettlementMatchCandidate,
+    reviewer: User,
+    review_note: str,
+) -> str:
+    event_reference = event.external_event_id or event.idempotency_key[:12]
+    reviewer_label = reviewer.get_full_name().strip() or reviewer.username
+    note_suffix = f' Note: {review_note.strip()}' if review_note.strip() else ''
+    return (
+        f'Settlement manual override from {event.provider_code} '
+        f'event {event_reference} to {candidate.entity_type}:{candidate.reference_value} '
+        f'by {reviewer_label}.{note_suffix}'
+    )
+
+
+def _mark_event_reviewed(event: SettlementEvent, *, reviewer: User, review_note: str) -> None:
+    event.reviewed_by = reviewer
+    event.reviewed_at = timezone.now()
+    event.review_note = review_note.strip()

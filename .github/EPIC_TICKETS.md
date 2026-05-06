@@ -998,8 +998,8 @@
   - **Rollback:** Disable the ingest endpoint and preserve the raw event journal for replay/cleanup before reverting models/tasks.
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
-- [ ] **B2B-03.3 reconciliation-engine-into-paymenttransaction**
-  - **Status:** In PR #4911
+- [x] **B2B-03.3 reconciliation-engine-into-paymenttransaction**
+  - **Status:** Shipped in PR #4911
   - **Why now:** The system needs a deterministic matcher from settlement events to invoices/orders before payment status can update automatically.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 15 / Epic 3
   - **Scope:** Implement the reconciliation engine that maps settlement events into `PaymentTransaction` updates, match/review states, and reversible source-event linkage.
@@ -1017,7 +1017,7 @@
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
 - [ ] **B2B-03.4 accounting-settlement-queue-and-override-ui**
-  - **Status:** Blocked
+  - **Status:** Ready
   - **Why now:** Accountants need a review queue for unmatched, partial, and disputed settlement items before auto-reconciliation can be trusted operationally.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 15 / Epic 3
   - **Scope:** Build the accountant-facing settlement queue, override flows, and audit display on top of the reconciliation engine.
@@ -1025,7 +1025,7 @@
   - **Primary domain:** frontend/backend
   - **Likely touched paths:** new `frontend/src/pages/Accounting/Settlements.tsx`, `frontend/src/config/navigation.ts`, new `frontend/src/services/settlementService.ts`, `frontend/src/components/Shared/PaymentHistoryList.tsx`, corresponding backend serializers/views/tests
   - **Dependencies:** B2B-03.3
-  - **Blockers:** B2B-03.3
+  - **Blockers:** None
   - **Acceptance criteria:** Accountants can review, approve, relink, or reject settlement items with audit evidence, and invoice/payment history surfaces reflect reconciled outcomes.
   - **Validation commands:** `cd backend && python manage.py test tenant_apps.invoices tenant_apps.integrations`; `npm -C frontend run verify-standards`; `npm -C frontend run test:ci`
   - **Tenant/RLS impact:** Medium

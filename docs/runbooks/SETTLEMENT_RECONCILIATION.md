@@ -1,11 +1,12 @@
 # Settlement Reconciliation Runbook
 
-**Status:** B2B-03.1 through B2B-03.3 contract with webhook ingest, raw journal, and deterministic exact-match posting
+**Status:** B2B-03.1 through B2B-03.4 contract with webhook ingest, raw journal, deterministic exact-match posting,
+and accountant review queue overrides
 **Contract version:** `b2b-03.1.v1`
 
 This runbook defines the canonical **settlement ingestion and reconciliation contract** for ProjectMeats. It now covers
-the shipped webhook-first ingest path, the raw settlement event journal, and the first deterministic reconciliation
-engine that posts exact matches into `PaymentTransaction` while leaving non-exact cases queued for review.
+the shipped webhook-first ingest path, the raw settlement event journal, deterministic reconciliation that posts exact
+matches into `PaymentTransaction`, and the accountant review queue used to manually post or reject non-exact cases.
 
 ## Scope and current constraints
 
@@ -91,9 +92,13 @@ Required lifecycle states for the raw journal:
 5. **No fuzzy auto-posting:** if multiple candidates match, no candidates match, the outstanding amount differs, or the
    direction is unsupported, the event must remain non-posting and carry an explicit machine-readable reason code.
 6. **Current review reason codes:** `missing_reference`, `reference_not_found`, `amount_mismatch`,
-   `ambiguous_match`, and `unsupported_direction`.
+    `ambiguous_match`, and `unsupported_direction`.
 7. **Current exact-match posting reason codes:** `exact_invoice_match`, `exact_sales_order_match`,
-   `exact_purchase_order_match`.
+    `exact_purchase_order_match`.
+8. **Current manual review outcomes:** tenant admins may relink a queued event to an `invoice`, `sales_order`, or
+   `purchase_order`, producing `manual_invoice_override`, `manual_sales_order_override`, or
+   `manual_purchase_order_override`; they may also reject a queued event with `accountant_rejected`.
+9. **Current review audit fields:** `reviewed_by`, `reviewed_at`, and `review_note` on `SettlementEvent`.
 
 ### 6. Explicit prohibitions
 
@@ -127,20 +132,21 @@ Required lifecycle states for the raw journal:
 1. `backend/tenant_apps/integrations/settlement_contract.py` - frozen names/constants for downstream settlement work.
 2. `backend/tenant_apps/integrations/{models.py,serializers.py,views.py,urls.py}` - settlement source/event journal and
    authenticated ingest endpoint.
-3. `backend/tenant_apps/integrations/reconciliation.py` - deterministic exact-match reconciliation service.
+3. `backend/tenant_apps/integrations/reconciliation.py` - deterministic exact-match reconciliation service plus
+   accountant override/reject helpers.
 4. `backend/tenant_apps/integrations/tasks.py` - async validation plus reconciliation execution entrypoint.
 5. `backend/tenant_apps/integrations/migrations/0002_*.py` and `0003_*.py` - additive journal schema and reconciliation
-   linkage fields.
+   linkage fields, plus `0004_*.py` for review audit metadata.
 6. `backend/tenant_apps/invoices/models.py` - continues as the canonical posted-payment ledger; no new settlement ledger
    model should be introduced.
 7. `backend/tenant_apps/integrations/tests.py` - contract guardrails for adapter, auth, replay, and exact-vs-review
    outcomes.
+8. `frontend/src/services/settlementEventsService.ts` and `frontend/src/pages/Accounting/SettlementQueue.tsx` -
+   accountant review queue UI and service layer.
 
 ## Current non-goals
 
 - No fuzzy matching by amount/date/customer-only heuristics.
-- No accountant review queue UI yet.
-- No manual override/relink flow yet.
 - No direct bank-feed adapter yet.
 
 ## Validation
