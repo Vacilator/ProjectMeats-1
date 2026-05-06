@@ -282,6 +282,7 @@ class TenantScopedWebhookReceiverAPIView(APIView):
 
     permission_classes = [AllowAny]
     authentication_classes = []
+    throttle_classes = []
 
     def post(self, request, tenant_id, workflow_id, webhook_token):
         try:
@@ -308,6 +309,7 @@ class WebhookReceiverAPIView(APIView):
 
     permission_classes = [AllowAny]
     authentication_classes = []
+    throttle_classes = []
 
     def post(self, request, workflow_id, webhook_token):
         # Legacy endpoint has no tenant_id in the path.
