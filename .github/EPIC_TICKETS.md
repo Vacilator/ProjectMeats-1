@@ -850,8 +850,8 @@
   - **Rollback:** Keep additive fields/helpers and revert callers if downstream consumers regress.
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
-- [ ] **B2B-02.4 frontend-display-and-input-normalization**
-  - **Status:** Ready
+- [x] **B2B-02.4 frontend-display-and-input-normalization**
+  - **Status:** Shipped in PR #4903
   - **Why now:** Partner and operator interfaces must render the same weights/times from the same canonical contract.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 15 / Epic 2
   - **Scope:** Add one frontend conversion/formatting path for transactional displays and inputs, adopting the backend contract without duplicating business math ad hoc in components.
@@ -871,15 +871,15 @@
 ### Epic B2B-01 - B2B Extranet (guest portals)
 
 - [ ] **B2B-01.1 guest-portal-access-contract-and-doc-source-inventory**
-  - **Status:** Blocked
+  - **Status:** Ready
   - **Why now:** External access must be designed as a dedicated, read-only B2B portal instead of reusing internal auth or exposing arbitrary documents.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 15 / Epic 1
   - **Scope:** Define the guest-portal access contract, token lifecycle, allowed document sources, public route shape, and guest-safe data scope for invoice/order/tracking access.
   - **Non-goals:** No public endpoints or frontend routes yet.
   - **Primary domain:** backend/docs
   - **Likely touched paths:** new `docs/runbooks/B2B_EXTRANET_PORTAL.md`, `backend/apps/core/security.py`, `backend/projectmeats/urls.py`, `backend/apps/core/urls.py`, `tenant_apps/{invoices,fulfillments}/`, `MASTER_PLAN.md`
-  - **Dependencies:** B2B-02.4
-  - **Blockers:** B2B-02.4 must finish the transactional trade-engine rollout before guest portal contracts start
+  - **Dependencies:** B2B-02.4 (shipped in PR #4903)
+  - **Blockers:** None
   - **Acceptance criteria:** The contract explicitly forbids reuse of internal guest-login flows and direct `AIDocument` exposure, defines signed-grant rules, and names the first backend/frontend files to create.
   - **Validation commands:** `bash scripts/verify_golden_state.sh`; `cd backend && python manage.py test apps.tenants apps.core tenant_apps.invoices tenant_apps.fulfillments`
   - **Tenant/RLS impact:** High; anonymous portal access must stay tenant-explicit and fail closed
