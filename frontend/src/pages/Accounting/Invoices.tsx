@@ -23,7 +23,7 @@ import {
   TransactionalEmptyStateGuidance,
   TransactionalEmptyStateGuidanceItem,
 } from '../../components/Onboarding';
-import SharePortalLinkModal from '../../components/Portal/SharePortalLinkModal';
+import SharePortalLinkPanel from '../../components/Portal/SharePortalLinkPanel';
 import { ActivityFeed, RecordPaymentModal, PaymentHistoryList, EntityFormSurface } from '../../components/Shared';
 import { apiClient } from '../../services/apiService';
 import { coerceFiniteNumber, formatCurrency } from '../../shared/utils';
@@ -760,7 +760,7 @@ const Invoices: React.FC = () => {
               }}
             />
 
-            <SharePortalLinkModal
+            <SharePortalLinkPanel
               entityType="invoice"
               entityId={selectedInvoice.id}
               isOpen={showPortalAccess}

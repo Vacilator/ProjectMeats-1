@@ -11,7 +11,7 @@ import {
   TransactionalEmptyStateGuidanceItem,
 } from '@/components/Onboarding';
 import { AuditHistoryTimeline } from '@/components/Operations/AuditHistoryTimeline';
-import SharePortalLinkModal from '@/components/Portal/SharePortalLinkModal';
+import SharePortalLinkPanel from '@/components/Portal/SharePortalLinkPanel';
 import { OperationalDocumentActions } from '@/components/Operations/OperationalDocumentActions';
 import { EntityFormSurface } from '@/components/Shared';
 import { businessApi } from '@/services/businessApi';
@@ -292,7 +292,7 @@ const FreightOrders: React.FC = () => {
       />
 
       {selectedOrder ? (
-        <SharePortalLinkModal
+        <SharePortalLinkPanel
           entityType="freight-orders"
           entityId={portalAccessOrderId || selectedOrder.id}
           isOpen={Boolean(portalAccessOrderId)}
