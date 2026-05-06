@@ -25,6 +25,7 @@ workforms_router.register(r'tenant-workforms', workform_views.TenantWorkFormView
 urlpatterns = [
     # Legacy auth endpoints (for backward compatibility)
     path("auth/login/", views.login, name="login"),
+    # Demo guest mode only. Future B2B portal access must use signed tenant-scoped grants instead.
     path("auth/guest-login/", views.guest_login, name="guest-login"),
     path("auth/signup/", views.signup, name="signup"),
     path("auth/logout/", views.logout, name="logout"),

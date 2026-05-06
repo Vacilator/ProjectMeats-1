@@ -870,8 +870,8 @@
 
 ### Epic B2B-01 - B2B Extranet (guest portals)
 
-- [ ] **B2B-01.1 guest-portal-access-contract-and-doc-source-inventory**
-  - **Status:** Ready
+- [x] **B2B-01.1 guest-portal-access-contract-and-doc-source-inventory**
+  - **Status:** Shipped in PR #4904
   - **Why now:** External access must be designed as a dedicated, read-only B2B portal instead of reusing internal auth or exposing arbitrary documents.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 15 / Epic 1
   - **Scope:** Define the guest-portal access contract, token lifecycle, allowed document sources, public route shape, and guest-safe data scope for invoice/order/tracking access.
@@ -889,15 +889,15 @@
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
 - [ ] **B2B-01.2 portal-grant-and-document-registry-schema**
-  - **Status:** Blocked
+  - **Status:** Ready
   - **Why now:** Safe external access requires tenant-aware grant records and curated document references before public endpoints can exist.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 15 / Epic 1
   - **Scope:** Add the portal grant schema, hashed token storage, expiry/revocation semantics, and a curated document registry/attachment reference model for portal-safe document exposure.
   - **Non-goals:** No portal UI yet.
   - **Primary domain:** backend
   - **Likely touched paths:** `backend/apps/core/models.py` or new portal model module, new migrations, `backend/apps/core/serializers.py`, `backend/apps/core/tests/`, `manifests/RLS_POLICIES.md`
-  - **Dependencies:** B2B-01.1
-  - **Blockers:** B2B-01.1
+  - **Dependencies:** B2B-01.1 (shipped in PR #4904)
+  - **Blockers:** None
   - **Acceptance criteria:** Portal grants are tenant-scoped, revocable, one-time or TTL-constrained as designed, and curated document references do not leak raw internal storage paths.
   - **Validation commands:** `cd backend && python manage.py test apps.core apps.tenants`; `cd backend && python manage.py makemigrations --check`
   - **Tenant/RLS impact:** High

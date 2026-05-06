@@ -33,6 +33,7 @@ Golden template for workflow suggestion engine with meat industry context
 | **Disaster recovery** | `docs/runbooks/DISASTER_RECOVERY.md` | AUTHORITATIVE |
 | **Business record retention** | `docs/runbooks/DATA_RETENTION.md`, `backend/apps/core/services/data_governance.py`, `backend/apps/core/management/commands/archive_historical_records.py` | AUTHORITATIVE |
 | **Trade invariants contract** | `docs/runbooks/GLOBAL_TRADE_ENGINE.md`, `backend/apps/core/conversions.py` | AUTHORITATIVE |
+| **B2B extranet portal contract** | `docs/runbooks/B2B_EXTRANET_PORTAL.md`, `backend/apps/core/security.py` | AUTHORITATIVE |
 | **Infrastructure desired state / IaC scaffold** | `deploy/terraform/README.md`, `deploy/terraform/*.tf` | AUTHORITATIVE scaffold |
 | **Non-dev observability ownership** | `docs/GOLDEN_PIPELINE.md`, `docs/runbooks/INCIDENT_RESPONSE.md`, `manifests/env.manifest.json` | AUTHORITATIVE |
 | **Architecture** | `docs/architecture/ARCHITECTURE.md` | Design doc |

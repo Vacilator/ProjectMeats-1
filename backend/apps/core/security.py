@@ -17,6 +17,63 @@ from django.core.exceptions import ValidationError
 import bleach
 
 
+B2B_PORTAL_FORBIDDEN_AUTH_ENDPOINTS = frozenset(
+    {
+        "/api/v1/auth/guest-login/",
+        "/api/v1/auth/login/",
+        "/api/v1/auth/token/",
+        "/api/v1/auth/token/refresh/",
+        "/api/v1/auth/token/verify/",
+    }
+)
+
+B2B_PORTAL_ALLOWED_ENTITY_SCOPES = frozenset(
+    {
+        "invoice",
+        "sales_order",
+        "purchase_order",
+        "fulfillment",
+    }
+)
+
+B2B_PORTAL_ALLOWED_DOCUMENT_SOURCES = frozenset(
+    {
+        "invoice_summary",
+        "invoice_pdf",
+        "sales_order_status",
+        "purchase_order_status",
+        "fulfillment_tracking",
+        "fulfillment_bol",
+        "fulfillment_pod",
+    }
+)
+
+B2B_PORTAL_FORBIDDEN_MODEL_SURFACES = frozenset({"AIDocument"})
+
+B2B_PORTAL_REQUIRED_GRANT_FIELDS = (
+    "tenant_id",
+    "grant_id",
+    "subject_email",
+    "resource_scope",
+    "document_sources",
+    "expires_at",
+    "revoked_at",
+    "created_by",
+)
+
+
+def get_b2b_portal_contract() -> Dict[str, tuple[str, ...]]:
+    """Expose the canonical B2B portal allow/deny contract for future callers/tests."""
+
+    return {
+        "forbidden_auth_endpoints": tuple(sorted(B2B_PORTAL_FORBIDDEN_AUTH_ENDPOINTS)),
+        "allowed_entity_scopes": tuple(sorted(B2B_PORTAL_ALLOWED_ENTITY_SCOPES)),
+        "allowed_document_sources": tuple(sorted(B2B_PORTAL_ALLOWED_DOCUMENT_SOURCES)),
+        "forbidden_model_surfaces": tuple(sorted(B2B_PORTAL_FORBIDDEN_MODEL_SURFACES)),
+        "required_grant_fields": B2B_PORTAL_REQUIRED_GRANT_FIELDS,
+    }
+
+
 class SecurityUtils:
     """
     Security utilities for OWASP Top 10 compliance.
