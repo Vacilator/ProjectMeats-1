@@ -20,22 +20,19 @@ from typing import Any, Callable, Iterable, Iterator, List, Sequence, Tuple, Uni
 from django.http import StreamingHttpResponse
 from django.utils import timezone
 
+from apps.core.conversions import normalize_temporal_for_export
+
 
 CsvAccessor = Union[str, Callable[[Any], Any]]
 CsvColumn = Tuple[str, CsvAccessor]
 
 
-def _normalize_cell(raw: Any) -> str:
+def _normalize_cell(raw: Any, *, timezone_name: str | None = None) -> str:
     if raw is None:
         return ""
 
     if isinstance(raw, (datetime, date)):
-        try:
-            if isinstance(raw, datetime) and timezone.is_aware(raw):
-                raw = timezone.localtime(raw)
-        except Exception:
-            pass
-        return raw.isoformat()
+        return normalize_temporal_for_export(raw, timezone_name=timezone_name)
 
     if isinstance(raw, (int, float, bool)):
         return str(raw)
@@ -96,9 +93,15 @@ class CsvExportMixin:
         base = getattr(self, "basename", None) or self.__class__.__name__.replace("ViewSet", "").lower()
         return f"{base}_{timezone.now().date().isoformat()}.csv"
 
+    def get_trade_render_timezone_name(self) -> str | None:
+        """Override when a CSV export has an explicit facility timezone source."""
+
+        return None
+
     def _iter_csv(self, queryset) -> Iterator[str]:
         columns = list(self.get_csv_export_columns())
         headers = [h for h, _ in columns]
+        render_timezone_name = self.get_trade_render_timezone_name()
 
         buffer = io.StringIO()
         writer = csv.writer(buffer)
@@ -109,7 +112,10 @@ class CsvExportMixin:
         buffer.truncate(0)
 
         for obj in queryset.iterator(chunk_size=2000):
-            row = [_normalize_cell(_resolve_accessor(obj, accessor)) for _, accessor in columns]
+            row = [
+                _normalize_cell(_resolve_accessor(obj, accessor), timezone_name=render_timezone_name)
+                for _, accessor in columns
+            ]
             writer.writerow(row)
             yield buffer.getvalue()
             buffer.seek(0)
