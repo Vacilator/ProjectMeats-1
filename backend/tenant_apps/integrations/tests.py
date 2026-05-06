@@ -11,13 +11,18 @@ from django.contrib.auth.models import User
 from django.test import TestCase
 from rest_framework.test import APITestCase
 
+from tenant_apps.customers.models import Customer
 from apps.tenants.models import Tenant, TenantUser
 from apps.tenants.rls import RlsSetResult
-from tenant_apps.invoices.models import PaymentTransaction
+from tenant_apps.invoices.models import Invoice, PaymentTransaction
+from tenant_apps.purchase_orders.models import PurchaseOrder
+from tenant_apps.sales_orders.models import SalesOrder
+from tenant_apps.suppliers.models import Supplier
 
 from .models import (
     SettlementEvent,
     SettlementEventState,
+    SettlementReconciliationReason,
     SettlementSource,
     SettlementSourceAuthMode,
     TenantAPIKey,
@@ -509,11 +514,264 @@ class SettlementTaskTests(TestCase):
 
         self.event.refresh_from_db()
         self.assertTrue(result['success'])
-        self.assertEqual(self.event.state, SettlementEventState.VALIDATED)
+        self.assertEqual(self.event.state, SettlementEventState.READY_TO_POST)
+        self.assertEqual(
+            self.event.reconciliation_reason_code,
+            SettlementReconciliationReason.MISSING_REFERENCE,
+        )
         self.assertEqual(self.event.normalized_payload['external_event_id'], 'evt-task')
         self.assertEqual(PaymentTransaction.objects.count(), 0)
         mock_set_current_tenant.assert_called_once_with(str(self.tenant.id))
         mock_reset_current_tenant.assert_called_once()
+
+    def test_process_settlement_event_posts_exact_invoice_match_once(self):
+        customer = Customer.objects.create(name='Invoice Customer', tenant=self.tenant)
+        invoice = Invoice.objects.create(
+            tenant=self.tenant,
+            customer=customer,
+            invoice_number='INV-100',
+            total_amount=Decimal('25.50'),
+            outstanding_amount=Decimal('25.50'),
+        )
+        self.event.raw_payload = (
+            '{"external_event_id":"evt-task","event_type":"payment.settled","direction":"credit",'
+            '"occurred_at":"2026-05-06T10:00:00Z","amount":"25.50","currency":"USD","invoice_number":"INV-100"}'
+        )
+        self.event.save(update_fields=['raw_payload', 'modified_on'])
+
+        first_result = process_settlement_event.run(self.event.id, str(self.tenant.id))
+        second_result = process_settlement_event.run(self.event.id, str(self.tenant.id))
+
+        self.event.refresh_from_db()
+        payment = PaymentTransaction.objects.get()
+        invoice.refresh_from_db()
+
+        self.assertTrue(first_result['success'])
+        self.assertTrue(second_result['success'])
+        self.assertTrue(second_result['skipped'])
+        self.assertEqual(self.event.state, SettlementEventState.POSTED)
+        self.assertEqual(
+            self.event.reconciliation_reason_code,
+            SettlementReconciliationReason.EXACT_INVOICE_MATCH,
+        )
+        self.assertEqual(self.event.payment_transaction_id, payment.id)
+        self.assertEqual(self.event.matched_invoice_id, invoice.id)
+        self.assertEqual(PaymentTransaction.objects.count(), 1)
+        self.assertEqual(payment.invoice_id, invoice.id)
+        self.assertEqual(payment.reference_number, 'evt-task')
+        self.assertEqual(invoice.payment_status, 'paid')
+        self.assertEqual(invoice.outstanding_amount, Decimal('0.00'))
+
+    def test_process_settlement_event_posts_exact_sales_order_match(self):
+        customer = Customer.objects.create(name='Sales Customer', tenant=self.tenant)
+        supplier = Supplier.objects.create(name='Sales Supplier', tenant=self.tenant)
+        sales_order = SalesOrder.objects.create(
+            tenant=self.tenant,
+            supplier=supplier,
+            customer=customer,
+            our_sales_order_num='SO-100',
+            total_amount=Decimal('25.50'),
+            outstanding_amount=Decimal('25.50'),
+        )
+        self.event.raw_payload = (
+            '{"external_event_id":"evt-task","event_type":"payment.settled","direction":"credit",'
+            '"occurred_at":"2026-05-06T10:00:00Z","amount":"25.50","currency":"USD","sales_order_number":"SO-100"}'
+        )
+        self.event.save(update_fields=['raw_payload', 'modified_on'])
+
+        process_settlement_event.run(self.event.id, str(self.tenant.id))
+
+        self.event.refresh_from_db()
+        payment = PaymentTransaction.objects.get()
+        sales_order.refresh_from_db()
+
+        self.assertEqual(self.event.state, SettlementEventState.POSTED)
+        self.assertEqual(
+            self.event.reconciliation_reason_code,
+            SettlementReconciliationReason.EXACT_SALES_ORDER_MATCH,
+        )
+        self.assertEqual(self.event.matched_sales_order_id, sales_order.id)
+        self.assertEqual(payment.sales_order_id, sales_order.id)
+        self.assertEqual(sales_order.payment_status, 'paid')
+        self.assertEqual(sales_order.outstanding_amount, Decimal('0.00'))
+
+    def test_process_settlement_event_posts_exact_purchase_order_match(self):
+        supplier = Supplier.objects.create(name='PO Supplier', tenant=self.tenant)
+        purchase_order = PurchaseOrder.objects.create(
+            tenant=self.tenant,
+            supplier=supplier,
+            order_number='PO-100',
+            total_amount=Decimal('25.50'),
+            outstanding_amount=Decimal('25.50'),
+            order_date=datetime(2026, 5, 1, tzinfo=dt_timezone.utc).date(),
+        )
+        self.event.raw_payload = (
+            '{"external_event_id":"evt-task","event_type":"payment.settled","direction":"credit",'
+            '"occurred_at":"2026-05-06T10:00:00Z","amount":"25.50","currency":"USD","purchase_order_number":"PO-100"}'
+        )
+        self.event.save(update_fields=['raw_payload', 'modified_on'])
+
+        process_settlement_event.run(self.event.id, str(self.tenant.id))
+
+        self.event.refresh_from_db()
+        payment = PaymentTransaction.objects.get()
+        purchase_order.refresh_from_db()
+
+        self.assertEqual(self.event.state, SettlementEventState.POSTED)
+        self.assertEqual(
+            self.event.reconciliation_reason_code,
+            SettlementReconciliationReason.EXACT_PURCHASE_ORDER_MATCH,
+        )
+        self.assertEqual(self.event.matched_purchase_order_id, purchase_order.id)
+        self.assertEqual(payment.purchase_order_id, purchase_order.id)
+        self.assertEqual(purchase_order.payment_status, 'paid')
+        self.assertEqual(purchase_order.outstanding_amount, Decimal('0.00'))
+
+    def test_process_settlement_event_marks_ambiguous_when_multiple_exact_candidates_exist(self):
+        customer = Customer.objects.create(name='Ambiguous Customer', tenant=self.tenant)
+        supplier = Supplier.objects.create(name='Ambiguous Supplier', tenant=self.tenant)
+        invoice = Invoice.objects.create(
+            tenant=self.tenant,
+            customer=customer,
+            invoice_number='INV-200',
+            total_amount=Decimal('25.50'),
+            outstanding_amount=Decimal('25.50'),
+        )
+        sales_order = SalesOrder.objects.create(
+            tenant=self.tenant,
+            supplier=supplier,
+            customer=customer,
+            our_sales_order_num='SO-200',
+            total_amount=Decimal('25.50'),
+            outstanding_amount=Decimal('25.50'),
+        )
+        self.event.raw_payload = (
+            '{"external_event_id":"evt-task","event_type":"payment.settled","direction":"credit",'
+            '"occurred_at":"2026-05-06T10:00:00Z","amount":"25.50","currency":"USD",'
+            '"invoice_number":"INV-200","sales_order_number":"SO-200"}'
+        )
+        self.event.save(update_fields=['raw_payload', 'modified_on'])
+
+        result = process_settlement_event.run(self.event.id, str(self.tenant.id))
+
+        self.event.refresh_from_db()
+        self.assertTrue(result['success'])
+        self.assertEqual(self.event.state, SettlementEventState.READY_TO_POST)
+        self.assertEqual(
+            self.event.reconciliation_reason_code,
+            SettlementReconciliationReason.AMBIGUOUS_MATCH,
+        )
+        self.assertEqual(self.event.matched_invoice_id, None)
+        self.assertEqual(self.event.matched_sales_order_id, None)
+        self.assertEqual(PaymentTransaction.objects.count(), 0)
+        self.assertIsNotNone(invoice.id)
+        self.assertIsNotNone(sales_order.id)
+
+    def test_process_settlement_event_marks_amount_mismatch_for_reference_hit(self):
+        customer = Customer.objects.create(name='Mismatch Customer', tenant=self.tenant)
+        Invoice.objects.create(
+            tenant=self.tenant,
+            customer=customer,
+            invoice_number='INV-300',
+            total_amount=Decimal('40.00'),
+            outstanding_amount=Decimal('40.00'),
+        )
+        self.event.raw_payload = (
+            '{"external_event_id":"evt-task","event_type":"payment.settled","direction":"credit",'
+            '"occurred_at":"2026-05-06T10:00:00Z","amount":"25.50","currency":"USD","invoice_number":"INV-300"}'
+        )
+        self.event.save(update_fields=['raw_payload', 'modified_on'])
+
+        process_settlement_event.run(self.event.id, str(self.tenant.id))
+
+        self.event.refresh_from_db()
+        self.assertEqual(self.event.state, SettlementEventState.READY_TO_POST)
+        self.assertEqual(
+            self.event.reconciliation_reason_code,
+            SettlementReconciliationReason.AMOUNT_MISMATCH,
+        )
+        self.assertEqual(PaymentTransaction.objects.count(), 0)
+
+    def test_process_settlement_event_retry_preserves_ready_to_post_reason_code(self):
+        self.event.state = SettlementEventState.READY_TO_POST
+        self.event.reconciliation_reason_code = SettlementReconciliationReason.AMBIGUOUS_MATCH
+        self.event.normalized_payload = {'invoice_number': 'INV-REVIEW'}
+        self.event.save(
+            update_fields=[
+                'state',
+                'reconciliation_reason_code',
+                'normalized_payload',
+                'modified_on',
+            ]
+        )
+
+        result = process_settlement_event.run(self.event.id, str(self.tenant.id))
+
+        self.event.refresh_from_db()
+        self.assertTrue(result['success'])
+        self.assertTrue(result['skipped'])
+        self.assertEqual(self.event.state, SettlementEventState.READY_TO_POST)
+        self.assertEqual(
+            self.event.reconciliation_reason_code,
+            SettlementReconciliationReason.AMBIGUOUS_MATCH,
+        )
+        self.assertEqual(PaymentTransaction.objects.count(), 0)
+
+    def test_process_settlement_event_retry_from_validated_continues_reconciliation(self):
+        customer = Customer.objects.create(name='Validated Retry Customer', tenant=self.tenant)
+        invoice = Invoice.objects.create(
+            tenant=self.tenant,
+            customer=customer,
+            invoice_number='INV-VALIDATED',
+            total_amount=Decimal('25.50'),
+            outstanding_amount=Decimal('25.50'),
+        )
+        self.event.state = SettlementEventState.VALIDATED
+        self.event.normalized_payload = {
+            'invoice_number': 'INV-VALIDATED',
+            'external_event_id': 'evt-task',
+            'direction': 'credit',
+        }
+        self.event.save(update_fields=['state', 'normalized_payload', 'modified_on'])
+
+        result = process_settlement_event.run(self.event.id, str(self.tenant.id))
+
+        self.event.refresh_from_db()
+        self.assertTrue(result['success'])
+        self.assertEqual(self.event.state, SettlementEventState.POSTED)
+        self.assertEqual(self.event.matched_invoice_id, invoice.id)
+        self.assertEqual(PaymentTransaction.objects.count(), 1)
+
+    def test_process_settlement_event_does_not_cross_tenants(self):
+        other_tenant = Tenant.objects.create(
+            name='Other Tenant',
+            slug='other-tenant-for-match',
+            contact_email='other-match@example.com',
+            created_by=self.user,
+        )
+        other_customer = Customer.objects.create(name='Other Customer', tenant=other_tenant)
+        Invoice.objects.create(
+            tenant=other_tenant,
+            customer=other_customer,
+            invoice_number='INV-OTHER',
+            total_amount=Decimal('25.50'),
+            outstanding_amount=Decimal('25.50'),
+        )
+        self.event.raw_payload = (
+            '{"external_event_id":"evt-task","event_type":"payment.settled","direction":"credit",'
+            '"occurred_at":"2026-05-06T10:00:00Z","amount":"25.50","currency":"USD","invoice_number":"INV-OTHER"}'
+        )
+        self.event.save(update_fields=['raw_payload', 'modified_on'])
+
+        process_settlement_event.run(self.event.id, str(self.tenant.id))
+
+        self.event.refresh_from_db()
+        self.assertEqual(self.event.state, SettlementEventState.READY_TO_POST)
+        self.assertEqual(
+            self.event.reconciliation_reason_code,
+            SettlementReconciliationReason.REFERENCE_NOT_FOUND,
+        )
+        self.assertEqual(PaymentTransaction.objects.count(), 0)
 
 
 class SettlementContractTests(TestCase):
@@ -532,5 +790,7 @@ class SettlementContractTests(TestCase):
         self.assertIn('provider_hmac_signature', contract['accepted_authentication_modes'])
         self.assertIn('external_event_id', contract['idempotency_key_fields'])
         self.assertIn('raw_payload_sha256', contract['idempotency_fallback_fields'])
+        self.assertIn('exact_invoice_match', contract['reconciliation_reason_codes'])
+        self.assertIn('ambiguous_match', contract['reconciliation_reason_codes'])
         self.assertIn('direct_bank_feed', contract['deferred_adapters'])
         self.assertIn('invoice', contract['payment_transaction_parent_links'])
