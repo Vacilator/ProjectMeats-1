@@ -796,8 +796,8 @@
 
 ### Epic B2B-02 - Global Trade Engine (determinism)
 
-- [ ] **B2B-02.1 trade-invariants-contract-and-surface-audit**
-  - **Status:** Ready
+- [x] **B2B-02.1 trade-invariants-contract-and-surface-audit**
+  - **Status:** Shipped (PR #4900)
   - **Why now:** Partner portals and settlement automation will be untrustworthy until weights, units, and time handling share one deterministic contract.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 15 / Epic 2
   - **Scope:** Define the canonical trade-invariants contract for base-unit storage, LBS/KG conversion, UTC storage, and plant-local rendering; identify every current surface that must adopt it.
@@ -815,15 +815,15 @@
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
 - [ ] **B2B-02.2 backend-trade-engine-service-and-tests**
-  - **Status:** Blocked
+  - **Status:** Ready
   - **Why now:** Backend calculations, exports, and alerts need one canonical service before UI or reconciliation can adopt the invariant safely.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 15 / Epic 2
   - **Scope:** Implement the backend conversion/timezone service with deterministic decimal math, DST-safe datetime helpers, and regression coverage for weight/time invariants.
   - **Non-goals:** No UI rollout yet.
   - **Primary domain:** backend
   - **Likely touched paths:** new `backend/apps/core/conversions.py`, `backend/apps/core/tests/test_conversions.py`, `backend/apps/core/exporting.py`, `backend/apps/core/services/`
-  - **Dependencies:** B2B-02.1
-  - **Blockers:** B2B-02.1
+  - **Dependencies:** B2B-02.1 (shipped in PR #4900)
+  - **Blockers:** None
   - **Acceptance criteria:** Decimal-based unit conversions are deterministic, date-only values do not shift calendar days, and DST boundary tests pass.
   - **Validation commands:** `cd backend && python manage.py test apps.core tenant_apps.purchase_orders tenant_apps.sales_orders tenant_apps.invoices tenant_apps.fulfillments`; `cd backend && python manage.py makemigrations --check`
   - **Tenant/RLS impact:** Low directly, but downstream tenant data must consume the service consistently
