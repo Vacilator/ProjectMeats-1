@@ -888,8 +888,8 @@
   - **Rollback:** Revert the planning/runbook contract only; no public routes should exist from this ticket.
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
-- [ ] **B2B-01.2 portal-grant-and-document-registry-schema**
-  - **Status:** Ready
+- [x] **B2B-01.2 portal-grant-and-document-registry-schema**
+  - **Status:** Shipped (PR #4905)
   - **Why now:** Safe external access requires tenant-aware grant records and curated document references before public endpoints can exist.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 15 / Epic 1
   - **Scope:** Add the portal grant schema, hashed token storage, expiry/revocation semantics, and a curated document registry/attachment reference model for portal-safe document exposure.
@@ -907,15 +907,15 @@
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
 - [ ] **B2B-01.3 public-portal-read-apis-and-audit-trail**
-  - **Status:** Blocked
+  - **Status:** Ready
   - **Why now:** Guest links need dedicated read-only endpoints and audit visibility before a portal frontend can ship.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 15 / Epic 1
   - **Scope:** Create signed-grant public APIs for invoice summary, curated document download metadata, and live fulfillment/tracking state, plus audit logging for every access.
   - **Non-goals:** No authenticated cockpit reuse.
   - **Primary domain:** backend
   - **Likely touched paths:** new `backend/apps/core/portal_views.py`, `backend/apps/core/urls.py`, `backend/projectmeats/urls.py`, guest-safe serializers under `tenant_apps/{invoices,fulfillments}/`, relevant tests
-  - **Dependencies:** B2B-01.2, B2B-02.3
-  - **Blockers:** B2B-01.2 and B2B-02.3
+  - **Dependencies:** B2B-01.2 (shipped in PR #4905), B2B-02.3 (shipped in PR #4902)
+  - **Blockers:** None
   - **Acceptance criteria:** Anonymous requests resolve only by signed grant/tenant path, ignore stale anonymous tenant headers, fail closed on expired/revoked/mismatched grants, and record audit evidence.
   - **Validation commands:** `cd backend && python manage.py test apps.core apps.tenants tenant_apps.invoices tenant_apps.fulfillments`; `cd backend && python manage.py spectacular --validate --file /tmp/projectmeats-openapi.yaml`
   - **Tenant/RLS impact:** High
