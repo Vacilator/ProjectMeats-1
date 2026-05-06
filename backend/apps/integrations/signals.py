@@ -10,6 +10,7 @@ from tenant_apps.ai_assistant.models import AIFeedbackLog
 from tenant_apps.workflows.models import NotificationPriority, NotificationType, UserNotification
 
 from .ai_classification import classify_ingested_email
+from .inquiry_drafts import upsert_inquiry_draft_from_email
 from .models import EmailLog, EmailReviewDraft
 
 logger = logging.getLogger(__name__)
@@ -118,12 +119,16 @@ def trigger_ai_extraction(sender, instance, created, **kwargs):
             subject=instance.subject,
             body_text=instance.body_text,
             sender_email=instance.sender_email,
-            metadata={
-                'message_id': instance.message_id,
-                'has_attachments': instance.has_attachments,
-                'attachment_count': instance.attachment_count,
-            },
+            has_attachments=instance.has_attachments,
         )
+
+        inquiry, _ = upsert_inquiry_draft_from_email(instance, classification)
+        if inquiry is not None:
+            classification = {
+                **classification,
+                'inquiry_id': str(inquiry.id),
+                'inquiry_number': inquiry.inquiry_number,
+            }
 
         _upsert_action_required_feedback(instance, classification)
 

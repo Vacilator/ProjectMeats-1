@@ -8,6 +8,7 @@ from typing import Any
 
 from django.conf import settings
 
+from apps.core.models import ProteinTypeChoices
 from apps.system.services.ai_model_resolver import get_active_openai_model_id
 
 ACTIONABLE_EMAIL_CATEGORIES: dict[str, str] = {
@@ -15,7 +16,9 @@ ACTIONABLE_EMAIL_CATEGORIES: dict[str, str] = {
     'BOL': 'bill_of_lading',
     'New Customer': 'new_customer',
 }
+INQUIRY_EMAIL_CATEGORIES = {'Purchase Order', 'New Customer'}
 SUPPORTED_EMAIL_CATEGORIES = tuple([*ACTIONABLE_EMAIL_CATEGORIES.keys(), 'Spam/Other'])
+SUPPORTED_PROTEIN_VALUES = ('', *(choice.value for choice in ProteinTypeChoices))
 
 
 def classify_ingested_email(
@@ -45,6 +48,11 @@ def classify_ingested_email(
         '2. Keep summary under 160 characters.\n'
         '3. Confidence must be a number between 0 and 1.\n'
         '4. actionable must be true only for Purchase Order, BOL, or New Customer.\n\n'
+        '5. Extract contact/company/product details only when clearly supported by the email.\n'
+        '6. requested_protein must be one of: '
+        + ', '.join(value for value in SUPPORTED_PROTEIN_VALUES if value)
+        + ' or an empty string when unknown.\n'
+        '7. requested_quantity and requested_uom must stay as plain strings and can be empty.\n\n'
         f'Subject: {subject}\n'
         f'Sender: {sender_email}\n'
         f'Has attachments: {has_attachments}\n'
@@ -70,8 +78,29 @@ def classify_ingested_email(
                     'summary': {'type': 'string'},
                     'rationale': {'type': 'string'},
                     'actionable': {'type': 'boolean'},
+                    'contact_name': {'type': 'string'},
+                    'contact_company': {'type': 'string'},
+                    'requested_product_name': {'type': 'string'},
+                    'requested_protein': {
+                        'type': 'string',
+                        'enum': list(SUPPORTED_PROTEIN_VALUES),
+                    },
+                    'requested_quantity': {'type': 'string'},
+                    'requested_uom': {'type': 'string'},
                 },
-                'required': ['category', 'confidence', 'summary', 'rationale', 'actionable'],
+                'required': [
+                    'category',
+                    'confidence',
+                    'summary',
+                    'rationale',
+                    'actionable',
+                    'contact_name',
+                    'contact_company',
+                    'requested_product_name',
+                    'requested_protein',
+                    'requested_quantity',
+                    'requested_uom',
+                ],
                 'additionalProperties': False,
             },
         },
@@ -109,6 +138,9 @@ def classify_ingested_email(
     summary = str(parsed.get('summary') or '').strip()
     rationale = str(parsed.get('rationale') or '').strip()
     actionable = category in ACTIONABLE_EMAIL_CATEGORIES
+    requested_protein = str(parsed.get('requested_protein') or '').strip()
+    if requested_protein not in SUPPORTED_PROTEIN_VALUES:
+        requested_protein = ''
 
     return {
         'category': category,
@@ -117,4 +149,11 @@ def classify_ingested_email(
         'summary': summary,
         'rationale': rationale,
         'actionable': actionable,
+        'inquiry_candidate': actionable and category in INQUIRY_EMAIL_CATEGORIES,
+        'contact_name': str(parsed.get('contact_name') or '').strip(),
+        'contact_company': str(parsed.get('contact_company') or '').strip(),
+        'requested_product_name': str(parsed.get('requested_product_name') or '').strip(),
+        'requested_protein': requested_protein,
+        'requested_quantity': str(parsed.get('requested_quantity') or '').strip(),
+        'requested_uom': str(parsed.get('requested_uom') or '').strip(),
     }

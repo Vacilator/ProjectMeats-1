@@ -36,7 +36,7 @@
   - **Secrets/infra impact:** None
   - **Risk level:** High
   - **Rollback:** Revert the ETL contract/runbook scaffolding only; no imported rows should exist from this ticket.
-  - **Completion evidence destination:** `.github/MASTER_PLAN.md`
+  - **Completion evidence destination:** `.github/MASTER_PLAN.md` (PR #4926)
 
 - [x] **GA-01.2 etl-journal-and-dry-run-engine**
   - **Status:** Shipped (PR #4814)
@@ -1077,8 +1077,8 @@
   - **Rollback:** Revert additive inquiry-contract changes only; no runtime automation should be active from this ticket.
   - **Completion evidence destination:** `.github/MASTER_PLAN.md` (PR #4923)
 
-- [ ] **CTE-01.2 ai-email-extractor-to-inquiry-draft**
-  - **Status:** Ready
+- [x] **CTE-01.2 ai-email-extractor-to-inquiry-draft**
+  - **Status:** Shipped
   - **Why now:** The trading engine starts with inbound demand, and the current email ingestion stack stops short of creating a first-class inquiry.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 16 / Epic 1
   - **Scope:** Hook AI email ingestion to the `Inquiry` model so qualifying inbound customer-demand emails create or update draft inquiries using OpenAI structured outputs, explicit source-email lineage, and fail-closed parsing.
@@ -1091,7 +1091,7 @@
     1. Structured extraction can create a draft inquiry with source-email traceability.
     2. Failed or ambiguous parses stay fail-closed and operator-visible instead of silently creating bad demand records.
     3. The created inquiry preserves tenant isolation and source provenance.
-  - **Validation commands:** `cd backend && python manage.py test apps.integrations tenant_apps.integrations tenant_apps.ai_assistant tenant_apps.inquiries`; `cd backend && python manage.py makemigrations --check`
+  - **Validation commands:** `cd backend && python manage.py test apps.integrations tenant_apps.inquiries --noinput`; `cd backend && python manage.py test apps.integrations tenant_apps.ai_assistant tenant_apps.inquiries --noinput`; `cd backend && python manage.py makemigrations --check`; `bash scripts/verify_golden_state.sh`
   - **Tenant/RLS impact:** High
   - **Secrets/infra impact:** Medium
   - **Risk level:** High
@@ -1099,7 +1099,7 @@
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
 - [ ] **CTE-01.3 inventory-availability-contract-and-routing-service**
-  - **Status:** Blocked
+  - **Status:** Ready
   - **Why now:** `FULFILL` vs `BROKER` routing is impossible to automate safely because the repo does not yet contain a dedicated inventory source-of-truth model.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 16 / Epic 1
   - **Scope:** Define and implement the authoritative inventory availability contract/service, then use it to flag inquiries as `FULFILL` or `BROKER` based on requested product/protein and available stock/reservation rules.
@@ -1107,7 +1107,7 @@
   - **Primary domain:** backend/inventory
   - **Likely touched paths:** new `backend/apps/core/services/inventory_availability.py` or equivalent domain service, `backend/tenant_apps/inquiries/`, `backend/apps/system/models/product.py`, additive schema/tests, `MASTER_PLAN.md`
   - **Dependencies:** CTE-01.2
-  - **Blockers:** CTE-01.2
+  - **Blockers:** None
   - **Acceptance criteria:**
     1. One explicit availability source and routing rule exists; the route does not rely on ad hoc product metadata.
     2. `Inquiry` can be flagged deterministically as `FULFILL` or `BROKER`.
