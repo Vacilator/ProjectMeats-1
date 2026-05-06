@@ -26,7 +26,8 @@ import {
 import { ActivityFeed, EntityFormSurface } from '../../components/Shared';
 import { apiClient } from '../../services/apiService';
 import { formatCurrency } from '../../shared/utils';
-import { formatDateLocal, formatToLocal } from '../../utils/formatters';
+import type { TradeTimelinePayload, TradeWeightPayload } from '../../utils/trade';
+import { formatTradeDate, formatTradeDateTime, formatTradeWeight } from '../../utils/trade';
 
 // ============================================================================
 // TypeScript Interfaces
@@ -47,6 +48,10 @@ interface SalesOrder {
   created_by_name: string;
   created_on: string;
   updated_on: string;
+  total_weight?: string | null;
+  weight_unit?: string | null;
+  trade_weight?: TradeWeightPayload | null;
+  trade_timeline?: TradeTimelinePayload;
 }
 
 type OrderStatus = 'draft' | 'confirmed' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
@@ -802,8 +807,17 @@ export const SalesOrdersPage: React.FC = () => {
                     >
                       <TableCell>{order.order_number}</TableCell>
                       <TableCell>{order.customer_name || `Customer #${order.customer}`}</TableCell>
-                      <TableCell>{formatDateLocal(order.order_date)}</TableCell>
-                      <TableCell>{order.delivery_date ? formatDateLocal(order.delivery_date) : 'Not scheduled'}</TableCell>
+                      <TableCell>
+                        {formatTradeDate(order.trade_timeline, 'order_date', order.order_date)}
+                      </TableCell>
+                      <TableCell>
+                        {formatTradeDate(
+                          order.trade_timeline,
+                          'delivery_date',
+                          order.delivery_date,
+                          'Not scheduled'
+                        )}
+                      </TableCell>
                       <TableCell>{formatCurrency(parseFloat(order.total_amount))}</TableCell>
                       <TableCell>
                         <StatusBadge status={order.status}>
@@ -866,15 +880,32 @@ export const SalesOrdersPage: React.FC = () => {
 
               <DetailSection>
                 <DetailLabel>Order Date</DetailLabel>
-                <DetailValue>{formatToLocal(selectedOrder.order_date)}</DetailValue>
+                <DetailValue>
+                  {formatTradeDateTime(
+                    selectedOrder.trade_timeline,
+                    'order_date',
+                    selectedOrder.order_date
+                  )}
+                </DetailValue>
               </DetailSection>
 
               {selectedOrder.delivery_date && (
                 <DetailSection>
                   <DetailLabel>Delivery Date</DetailLabel>
-                  <DetailValue>{formatToLocal(selectedOrder.delivery_date)}</DetailValue>
+                  <DetailValue>
+                    {formatTradeDateTime(
+                      selectedOrder.trade_timeline,
+                      'delivery_date',
+                      selectedOrder.delivery_date
+                    )}
+                  </DetailValue>
                 </DetailSection>
               )}
+
+              <DetailSection>
+                <DetailLabel>Total Weight</DetailLabel>
+                <DetailValue>{formatTradeWeight(selectedOrder)}</DetailValue>
+              </DetailSection>
 
               {selectedOrder.notes && (
                 <DetailSection>

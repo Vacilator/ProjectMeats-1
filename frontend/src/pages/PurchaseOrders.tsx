@@ -14,6 +14,12 @@ import { LocationSelector } from '../components/Shared';
 import PurchaseOrderWorkflow from '../components/Workflow/PurchaseOrderWorkflow';
 import { SmartProductAutocomplete } from '../components/Inquiry/SmartProductAutocomplete';
 import { getChoices, type ChoiceOption } from '@/services/choicesService';
+import {
+  formatTradeDate,
+  getTradeDateInputValue,
+  getTradeWeightInputValue,
+  normalizeTradeUnit,
+} from '@/utils/trade';
 
 // Styled Components
 const Header = styled.div`
@@ -718,7 +724,7 @@ const PurchaseOrders: React.FC = () => {
         package_type: formData.package_type || undefined,
         quantity: formData.quantity ? parseInt(formData.quantity) : undefined,
         total_weight: formData.total_weight ? parseFloat(formData.total_weight) : undefined,
-        weight_unit: formData.weight_unit || undefined,
+        weight_unit: normalizeTradeUnit(formData.weight_unit) || undefined,
         price_per_unit: formData.price_per_unit ? parseFloat(formData.price_per_unit) : undefined,
       };
 
@@ -792,13 +798,17 @@ const PurchaseOrders: React.FC = () => {
       weight_per_unit: '',
       price_per_unit: purchaseOrder.price_per_unit != null ? String(purchaseOrder.price_per_unit) : '',
 
-      total_weight: purchaseOrder.total_weight != null ? String(purchaseOrder.total_weight) : '',
-      weight_unit: purchaseOrder.weight_unit || 'LBS',
+      total_weight: getTradeWeightInputValue(purchaseOrder).totalWeight,
+      weight_unit: getTradeWeightInputValue(purchaseOrder).weightUnit,
 
       total_amount: purchaseOrder.total_amount.toString(),
       status: purchaseOrder.status,
-      order_date: purchaseOrder.order_date,
-      delivery_date: purchaseOrder.delivery_date || '',
+      order_date: getTradeDateInputValue(purchaseOrder.trade_timeline, 'order_date', purchaseOrder.order_date),
+      delivery_date: getTradeDateInputValue(
+        purchaseOrder.trade_timeline,
+        'delivery_date',
+        purchaseOrder.delivery_date || ''
+      ),
       notes: purchaseOrder.notes || '',
       logistics_scenario: purchaseOrder.logistics_scenario || 'supplier_delivery',
       pick_up_location: purchaseOrder.pick_up_location || null, // Phase 4: Populate location
@@ -1060,11 +1070,20 @@ const PurchaseOrders: React.FC = () => {
                       {purchaseOrder.status.toUpperCase()}
                     </StatusBadge>
                   </TableCell>
-                  <TableCell>{new Date(purchaseOrder.order_date).toLocaleDateString()}</TableCell>
                   <TableCell>
-                    {purchaseOrder.delivery_date
-                      ? new Date(purchaseOrder.delivery_date).toLocaleDateString()
-                      : 'Not set'}
+                    {formatTradeDate(
+                      purchaseOrder.trade_timeline,
+                      'order_date',
+                      purchaseOrder.order_date
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    {formatTradeDate(
+                      purchaseOrder.trade_timeline,
+                      'delivery_date',
+                      purchaseOrder.delivery_date,
+                      'Not set'
+                    )}
                   </TableCell>
                   <TableCell>
                     <ActionButton
