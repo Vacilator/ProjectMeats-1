@@ -814,8 +814,8 @@
   - **Rollback:** Revert the contract/runbook planning batch only; no schema or runtime behavior should change in this ticket.
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
-- [ ] **B2B-02.2 backend-trade-engine-service-and-tests**
-  - **Status:** Ready
+- [x] **B2B-02.2 backend-trade-engine-service-and-tests**
+  - **Status:** Shipped (PR #4901)
   - **Why now:** Backend calculations, exports, and alerts need one canonical service before UI or reconciliation can adopt the invariant safely.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 15 / Epic 2
   - **Scope:** Implement the backend conversion/timezone service with deterministic decimal math, DST-safe datetime helpers, and regression coverage for weight/time invariants.
@@ -833,15 +833,15 @@
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
 - [ ] **B2B-02.3 transactional-api-adoption-for-orders-invoices-fulfillments**
-  - **Status:** Blocked
+  - **Status:** Ready
   - **Why now:** Portal views, PDFs, and reconciliation logic need normalized API semantics before partner-facing features can be trusted.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 15 / Epic 2
   - **Scope:** Apply the canonical trade engine to transactional serializers/views for purchase orders, sales orders, invoices, fulfillments, and related document exports while preserving backward compatibility.
   - **Non-goals:** No broad frontend rollout yet.
   - **Primary domain:** backend/contracts
   - **Likely touched paths:** `backend/tenant_apps/{purchase_orders,sales_orders,invoices,fulfillments}/serializers.py`, corresponding `views.py`/`tests.py`, `openapi-schema.json`, `manifests/openapi/openapi-schema.baseline.json`
-  - **Dependencies:** B2B-02.2
-  - **Blockers:** B2B-02.2
+  - **Dependencies:** B2B-02.2 (shipped in PR #4901)
+  - **Blockers:** None
   - **Acceptance criteria:** Transactional APIs expose consistent normalized weight/time semantics, OpenAPI stays backward-compatible, and existing internal consumers keep working.
   - **Validation commands:** `cd backend && python manage.py spectacular --validate --file /tmp/projectmeats-openapi.yaml`; `cd backend && python manage.py test tenant_apps.purchase_orders tenant_apps.sales_orders tenant_apps.invoices tenant_apps.fulfillments`
   - **Tenant/RLS impact:** Medium
@@ -878,8 +878,8 @@
   - **Non-goals:** No public endpoints or frontend routes yet.
   - **Primary domain:** backend/docs
   - **Likely touched paths:** new `docs/runbooks/B2B_EXTRANET_PORTAL.md`, `backend/apps/core/security.py`, `backend/projectmeats/urls.py`, `backend/apps/core/urls.py`, `tenant_apps/{invoices,fulfillments}/`, `MASTER_PLAN.md`
-  - **Dependencies:** B2B-02.1
-  - **Blockers:** B2B-02.1 must define the deterministic trade/time contract first
+  - **Dependencies:** B2B-02.4
+  - **Blockers:** B2B-02.4 must finish the transactional trade-engine rollout before guest portal contracts start
   - **Acceptance criteria:** The contract explicitly forbids reuse of internal guest-login flows and direct `AIDocument` exposure, defines signed-grant rules, and names the first backend/frontend files to create.
   - **Validation commands:** `bash scripts/verify_golden_state.sh`; `cd backend && python manage.py test apps.tenants apps.core tenant_apps.invoices tenant_apps.fulfillments`
   - **Tenant/RLS impact:** High; anonymous portal access must stay tenant-explicit and fail closed
