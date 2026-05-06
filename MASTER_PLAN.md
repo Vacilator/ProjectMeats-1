@@ -2,7 +2,7 @@
 
 **Status**: 🔄 Living document (canonical source of truth)  
 **Last Updated**: 2026-05-06  
-**Primary Focus**: Phase 15 execution now starts with `B2B-02.1 trade-invariants-contract-and-surface-audit`; downstream Phase 15 work remains blocked behind that contract and Phase 16 Core Trading Engine planning remains sealed  
+**Primary Focus**: Phase 15 execution continues with `B2B-02.2 backend-trade-engine-service-and-tests` now that the trade invariants contract is shipped; downstream Phase 15 work remains blocked behind the B2B-02 lane and Phase 16 Core Trading Engine planning remains sealed  
 
 This file is the **canonical plan + current truth snapshot**.
 - **PR execution log (append-only):** `.github/MASTER_PLAN.md`
@@ -14,10 +14,10 @@ This file is the **canonical plan + current truth snapshot**.
 
 ### What is true right now
 - **WorkForms E2E** is shipped end-to-end (execute + monitoring + notifications + Quick Actions + Gmail connector MVP).
-- **Primary execution focus (P0):** start Phase 15 from the top of `.github/EPIC_TICKETS.md` with `B2B-02.1 trade-invariants-contract-and-surface-audit`, now that the previously higher-priority GA / EH backlog above it is shipped and no longer blocks autonomous continuation.
+- **Primary execution focus (P0):** continue Phase 15 from the top of `.github/EPIC_TICKETS.md` with `B2B-02.2 backend-trade-engine-service-and-tests`, now that `B2B-02.1 trade-invariants-contract-and-surface-audit` has shipped the canonical contract and the previously higher-priority GA / EH backlog above it is already complete.
 - **Strategic enterprise audit is now complete:** the repo has a fresh baseline in `GAP_ANALYSIS_REPORT.md`, `STRATEGIC_BLUEPRINT.md`, `.github/TECH_DEBT_REGISTER.md`, `.github/SDLC_PROTOCOLS.md`, and `.github/EPIC_TICKETS.md`. Those files translate the current gap analysis into execution-ordered, machine-readable work without replacing this canonical plan.
 - **Phase 14 execution is sealed:** the full GA / UX stabilization lane is now shipped on `development` across `GA-01` ETL (PRs #4813, #4814, #4816, #4817), `GA-02` infrastructure + DR guardrails (PRs #4818-#4821), `GA-03` governance (PRs #4822, #4823, #4832, #4842), `Phase 14.5 / UI-01` stabilization (PRs #4836, #4838, #4840), `GA-04` onboarding (PRs #4844, #4846, #4848, #4850), and `GA-05` edge resilience (PRs #4852, #4854, #4856, #4858). Phase 12 has now restarted with `EH-01.1 drift-gate-depth` shipped in PR #4863, the previously merged `EH-01.2 manifest-required-secret-parity` work revalidated from PRs #4751/#4764, the already-merged `EH-01.3 pr-security-gates-and-dependabot-scope` hardening revalidated from PR #4766, `EH-01.4 rollback-release-automation-alignment` revalidated as already shipped via PR #4769, `EH-02.1 fail-closed-tenant-rls-runtime` revalidated as already shipped via PR #4771, `EH-02.2 platform-idempotency-keys` revalidated as already shipped via PRs #4773/#4776, `EH-02.3 chat-session-tenant-fk-rls` shipped in PR #4871, `EH-03.1 openapi-ai-and-high-churn-surface-coverage` revalidated as already shipped via PR #4775, `EH-03.2 openapi-ts-mobile-typegen` revalidated as already shipped via PRs #4777 and #4562, `EH-04.1 tenant-aware-query-keys-and-cache-clear-removal` shipped in PR #4874, `EH-04.2 search-contract-unification` shipped in PR #4876, and `EH-04.3 floweditor-decomposition-phase-1` shipped in PR #4878, promoting `EH-05.1 non-dev-redis-readiness-gate` as the next ready hardening item.
-- **Phase 15 planning is complete and execution is now open:** the B2B Network epics remain architecturally sealed below, and `B2B-02.1 trade-invariants-contract-and-surface-audit` is now the first unchecked `Ready` ticket in `.github/EPIC_TICKETS.md`.
+- **Phase 15 planning is complete and execution is now open:** the B2B Network epics remain architecturally sealed below, `B2B-02.1 trade-invariants-contract-and-surface-audit` has shipped the canonical contract, and `B2B-02.2 backend-trade-engine-service-and-tests` is now the first unchecked `Ready` ticket in `.github/EPIC_TICKETS.md`.
 - **Phase 16 planning is now complete:** the Core Trading Engine happy-path state machine plus distributed hardening epics are documented below and translated into atomic blocked tickets at the bottom of `.github/EPIC_TICKETS.md`. This remains planning-only and stays blocked behind the active Phase 15 trade-invariants lane.
 - **AI email/document lane** is now fail-closed through Graph attachment ingest and parser lifecycle hardening: tabular uploads parse safely, Outlook attachments bridge into `AIDocument`, unsupported attachment kinds are rejected pre-download, repeated same-session ingests dedupe with provenance, AI sessions are tenant-bound, attachment ingest requires a session-staged allowlist from `fetch_emails`, and `parse_document` now persists explicit processing/completed/failed metadata while raising structured parser/auth/unreachable errors.
 - **Newly shipped since last snapshot (evidence; see `.github/MASTER_PLAN.md`)**:
@@ -282,9 +282,10 @@ Eliminate the recurring modal-crash, null-formatting, and breadcrumb-clarity def
 Extend ProjectMeats from an internal ERP into a partner-facing B2B network with secure extranet access, deterministic trade math, and automated settlement/reconciliation planning.
 
 ### Architecture status
-- **Execution status:** execution is now open at `B2B-02.1 trade-invariants-contract-and-surface-audit`; downstream Phase 15 tickets remain blocked until that contract lands.
-- **Backlog placement:** `B2B-02.1` is now the first unchecked `Ready` ticket in `.github/EPIC_TICKETS.md`.
+- **Execution status:** `B2B-02.1 trade-invariants-contract-and-surface-audit` is shipped, and execution now continues at `B2B-02.2 backend-trade-engine-service-and-tests`.
+- **Backlog placement:** `B2B-02.2` is now the first unchecked `Ready` ticket in `.github/EPIC_TICKETS.md`.
 - **Execution order:** trade invariants first, then guest portals, then settlement reconciliation.
+- **Canonical contract source:** `docs/runbooks/GLOBAL_TRADE_ENGINE.md` plus the non-adopted helper seam in `backend/apps/core/conversions.py`.
 
 ### Deliverables + expected results
 1. **B2B Extranet (guest portals)**
@@ -316,8 +317,8 @@ Extend ProjectMeats from an internal ERP into a partner-facing B2B network with 
 
 ### Acceptance criteria
 1. Phase 15 is represented consistently across `MASTER_PLAN.md`, `.github/MASTER_PLAN.md`, and `.github/EPIC_TICKETS.md`.
-2. Phase 15 is clearly marked as execution-open only for `B2B-02.1`; no wording implies the partner network or settlement automation is already shipped.
-3. The backlog has exactly one first unchecked `Ready` ticket (`B2B-02.1`), and every downstream Phase 15 ticket remains explicitly blocked.
+2. Phase 15 is clearly marked as execution-open only for the `B2B-02` trade-invariants lane; no wording implies the partner network or settlement automation is already shipped.
+3. The backlog has exactly one first unchecked `Ready` ticket (`B2B-02.2`), and every downstream Phase 15 ticket remains explicitly blocked.
 4. Each Phase 15 ticket identifies concrete repo paths, validation commands, dependencies, and rollback guidance.
 
 ### Dependencies
@@ -334,7 +335,7 @@ Extend ProjectMeats from an internal ERP into a partner-facing B2B network with 
 3. **Duplicate settlement events create duplicate payments** (High x High)
    - Mitigation: provider event journals, idempotent external keys, transactional reconciliation, and reversal-safe source linkage.
 4. **Execution-lane promotion overstates readiness** (Medium x Medium)
-   - Mitigation: keep only `B2B-02.1` ready, and leave downstream Phase 15/16/19 work blocked until the trade-invariants contract lands.
+   - Mitigation: keep only the active `B2B-02` ticket ready, and leave downstream Phase 15/16/19 work blocked until the trade-invariants rollout lands.
 
 ### Testing strategy
 1. **Docs/planning validation:** `bash scripts/verify_golden_state.sh` and `bash .github/scripts/check_infrastructure.sh`
@@ -350,7 +351,7 @@ Extend ProjectMeats from an internal ERP into a partner-facing B2B network with 
 
 ## ARCHITECTURE SEALED
 
-**Execution boundary:** the target Phase 15 B2B Network architecture remains frozen at the design level, and execution is now opened only at `B2B-02.1 trade-invariants-contract-and-surface-audit`. This does **not** mean the partner network or settlement automation is implemented, shipped, or execution-complete. Downstream Phase 15 work and all Phase 16 tickets remain blocked behind the trade-invariants contract.
+**Execution boundary:** the target Phase 15 B2B Network architecture remains frozen at the design level, and execution is currently limited to the `B2B-02` trade-invariants lane (`B2B-02.1` shipped, `B2B-02.2` ready). This does **not** mean the partner network or settlement automation is implemented, shipped, or execution-complete. Downstream Phase 15 work and all Phase 16 tickets remain blocked behind the trade-invariants rollout.
 
 ## Phase 16: The Core Trading Engine (End-to-End Automation)
 

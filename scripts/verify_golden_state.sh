@@ -438,6 +438,11 @@ check_pattern "docs/runbooks/DATA_RETENTION.md" 'ArchiveBatch|ArchiveRecordSnaps
     "DATA_RETENTION.md defines retention scope, legal hold, and restore boundaries"
 check_pattern "manifests/GOLDEN_FILES.md" 'Business record retention.*DATA_RETENTION\.md.*data_governance\.py.*archive_historical_records\.py' \
     "GOLDEN_FILES.md registers the business record retention contract"
+check_file_exists "docs/runbooks/GLOBAL_TRADE_ENGINE.md" "GLOBAL_TRADE_ENGINE runbook exists"
+check_pattern "docs/runbooks/GLOBAL_TRADE_ENGINE.md" 'b2b-02\.1\.v1|TIME_ZONE = "UTC"|USE_TZ = True|frontend/src/utils/formatters\.ts|backend/apps/core/exporting\.py' \
+    "GLOBAL_TRADE_ENGINE.md defines the trade invariants contract and key adoption seams"
+check_pattern "manifests/GOLDEN_FILES.md" 'Trade invariants contract.*GLOBAL_TRADE_ENGINE\.md.*conversions\.py' \
+    "GOLDEN_FILES.md registers the trade invariants contract"
 check_pattern "manifests/RLS_POLICIES.md" 'core_archivebatch|core_archivelegalhold|core_archiverecordsnapshot' \
     "RLS_POLICIES.md registers the archive evidence tables"
 
