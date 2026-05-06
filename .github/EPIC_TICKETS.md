@@ -1057,19 +1057,19 @@
 ### Epic CTE-01 - Inquiry ingestion & routing
 
 - [ ] **CTE-01.1 inquiry-happy-path-contract-and-routing-fields**
-  - **Status:** Blocked
+  - **Status:** Ready
   - **Why now:** The hardcoded happy path cannot exist until `Inquiry` explicitly carries the route decision, source-email lineage, requested master product/protein anchors, and downstream document/state references.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 16 / Epic 1
   - **Scope:** Audit and extend the existing `tenant_apps.inquiries.models.Inquiry` contract so it can anchor the trading engine, including route flags (`FULFILL`/`BROKER`), source-email references, requested product/protein fields, and linkage to downstream supplier/sales/carrier documents.
   - **Non-goals:** No automated email parsing, routing execution, or outbound side effects yet.
   - **Primary domain:** backend/contracts
   - **Likely touched paths:** `backend/tenant_apps/inquiries/{models.py,serializers.py,views.py,tests.py}`, `backend/apps/integrations/{models.py,signals.py}`, additive migrations, `MASTER_PLAN.md`
-  - **Dependencies:** B2B-02.1 and any remaining higher-priority unchecked tickets above Phase 16
-  - **Blockers:** Phase 14 remains active; Phase 15 trade-invariants planning/work stays ahead of this execution lane
+  - **Dependencies:** B2B-02.1 (shipped in PR #4900)
+  - **Blockers:** None
   - **Acceptance criteria:**
     1. The inquiry contract names the fields required to drive the happy path without guessing.
     2. Inquiry-to-document linkage is defined for supplier PO, sales order, and carrier PO relationships.
-    3. The ticket leaves the current backlog ordering intact and does not imply execution has started.
+    3. The ticket leaves the current backlog ordering intact and provides a concrete starting point without introducing runtime automation yet.
   - **Validation commands:** `bash scripts/verify_golden_state.sh`; `cd backend && python manage.py test tenant_apps.inquiries apps.integrations`; `cd backend && python manage.py makemigrations --check`
   - **Tenant/RLS impact:** High
   - **Secrets/infra impact:** None
