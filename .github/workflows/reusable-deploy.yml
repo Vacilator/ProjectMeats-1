@@ -1199,40 +1199,40 @@ jobs:
         run: |
           # backend.env contains secrets; lock down permissions on the runner and ensure it is cleaned up.
           umask 077
-          cat <<- 'EOF' > backend.env
-          	# Django reads SECRET_KEY at runtime; keep DJANGO_SECRET_KEY for backward compatibility.
-          	SECRET_KEY=${{ secrets.DJANGO_SECRET_KEY }}
-          	DJANGO_SECRET_KEY=${{ secrets.DJANGO_SECRET_KEY }}
-          	DJANGO_SETTINGS_MODULE=${{ secrets.DJANGO_SETTINGS_MODULE }}
-          	ALLOWED_HOSTS=${{ secrets.ALLOWED_HOSTS }}
-          	DEBUG=${{ secrets.DEBUG }}
-          	DB_NAME=${{ secrets.DB_NAME }}
-          	DB_USER=${{ secrets.DB_USER }}
-          	DB_PASSWORD=${{ secrets.DB_PASSWORD }}
-           	DB_HOST=${{ secrets.DB_HOST }}
-           	DB_PORT=${{ secrets.DB_PORT || '5432' }}
-            	DB_ENGINE=django.db.backends.postgresql
-            	REDIS_URL=${{ secrets.REDIS_URL }}
-            	VALKEY_URL=${{ secrets.VALKEY_URL }}
-            	REQUIRE_REDIS_READINESS=${{ inputs.require_redis_readiness }}
-            	EMAIL_HOST_PASSWORD=${{ secrets.EMAIL_HOST_PASSWORD }}
-           	DEFAULT_FROM_EMAIL=no-reply@meatscentral.com
-          	SENTRY_DSN=${{ secrets.SENTRY_DSN }}
-          	SENTRY_ENABLED=${{ secrets.SENTRY_ENABLED }}
-          	SENTRY_AUTH_TOKEN=${{ secrets.SENTRY_AUTH_TOKEN }}
-          	SENTRY_ORG_SLUG=${{ secrets.SENTRY_ORG_SLUG }}
-          	SENTRY_BASE_URL=${{ secrets.SENTRY_BASE_URL }}
-          	OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}
-          	OPENAI_ORG_ID=${{ secrets.OPENAI_ORG_ID }}
-          	OPENAI_MODEL=${{ secrets.OPENAI_MODEL }}
-          	MICROSOFT_CLIENT_ID=${{ secrets.MICROSOFT_CLIENT_ID }}
-          	MICROSOFT_CLIENT_SECRET=${{ secrets.MICROSOFT_CLIENT_SECRET }}
-           	MICROSOFT_TENANT_ID=${{ secrets.MICROSOFT_TENANT_ID }}
-           	MICROSOFT_REDIRECT_URI=${{ secrets.MICROSOFT_REDIRECT_URI }}
-           	OAUTH_ENCRYPTION_KEY=${{ secrets.OAUTH_ENCRYPTION_KEY }}
-           	STRIPE_SETTLEMENT_WEBHOOK_SECRET=${{ secrets.STRIPE_SETTLEMENT_WEBHOOK_SECRET }}
-           	GIT_COMMIT_SHA=${{ github.sha }}
-           	EOF
+          cat <<'EOF' | sed 's/^          //' > backend.env
+          # Django reads SECRET_KEY at runtime; keep DJANGO_SECRET_KEY for backward compatibility.
+          SECRET_KEY=${{ secrets.DJANGO_SECRET_KEY }}
+          DJANGO_SECRET_KEY=${{ secrets.DJANGO_SECRET_KEY }}
+          DJANGO_SETTINGS_MODULE=${{ secrets.DJANGO_SETTINGS_MODULE }}
+          ALLOWED_HOSTS=${{ secrets.ALLOWED_HOSTS }}
+          DEBUG=${{ secrets.DEBUG }}
+          DB_NAME=${{ secrets.DB_NAME }}
+          DB_USER=${{ secrets.DB_USER }}
+          DB_PASSWORD=${{ secrets.DB_PASSWORD }}
+          DB_HOST=${{ secrets.DB_HOST }}
+          DB_PORT=${{ secrets.DB_PORT || '5432' }}
+          DB_ENGINE=django.db.backends.postgresql
+          REDIS_URL=${{ secrets.REDIS_URL }}
+          VALKEY_URL=${{ secrets.VALKEY_URL }}
+          REQUIRE_REDIS_READINESS=${{ inputs.require_redis_readiness }}
+          EMAIL_HOST_PASSWORD=${{ secrets.EMAIL_HOST_PASSWORD }}
+          DEFAULT_FROM_EMAIL=no-reply@meatscentral.com
+          SENTRY_DSN=${{ secrets.SENTRY_DSN }}
+          SENTRY_ENABLED=${{ secrets.SENTRY_ENABLED }}
+          SENTRY_AUTH_TOKEN=${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG_SLUG=${{ secrets.SENTRY_ORG_SLUG }}
+          SENTRY_BASE_URL=${{ secrets.SENTRY_BASE_URL }}
+          OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}
+          OPENAI_ORG_ID=${{ secrets.OPENAI_ORG_ID }}
+          OPENAI_MODEL=${{ secrets.OPENAI_MODEL }}
+          MICROSOFT_CLIENT_ID=${{ secrets.MICROSOFT_CLIENT_ID }}
+          MICROSOFT_CLIENT_SECRET=${{ secrets.MICROSOFT_CLIENT_SECRET }}
+          MICROSOFT_TENANT_ID=${{ secrets.MICROSOFT_TENANT_ID }}
+          MICROSOFT_REDIRECT_URI=${{ secrets.MICROSOFT_REDIRECT_URI }}
+          OAUTH_ENCRYPTION_KEY=${{ secrets.OAUTH_ENCRYPTION_KEY }}
+          STRIPE_SETTLEMENT_WEBHOOK_SECRET=${{ secrets.STRIPE_SETTLEMENT_WEBHOOK_SECRET }}
+          GIT_COMMIT_SHA=${{ github.sha }}
+          EOF
 
           chmod 600 backend.env
           
