@@ -151,6 +151,17 @@ class SettlementEventState(models.TextChoices):
     FAILED = 'failed', 'Failed'
 
 
+class SettlementReconciliationReason(models.TextChoices):
+    EXACT_INVOICE_MATCH = 'exact_invoice_match', 'Exact Invoice Match'
+    EXACT_SALES_ORDER_MATCH = 'exact_sales_order_match', 'Exact Sales Order Match'
+    EXACT_PURCHASE_ORDER_MATCH = 'exact_purchase_order_match', 'Exact Purchase Order Match'
+    MISSING_REFERENCE = 'missing_reference', 'Missing Reference'
+    REFERENCE_NOT_FOUND = 'reference_not_found', 'Reference Not Found'
+    AMOUNT_MISMATCH = 'amount_mismatch', 'Amount Mismatch'
+    AMBIGUOUS_MATCH = 'ambiguous_match', 'Ambiguous Match'
+    UNSUPPORTED_DIRECTION = 'unsupported_direction', 'Unsupported Direction'
+
+
 class SettlementSource(TenantAwareModel):
     """Tenant-scoped settlement ingress source configuration."""
 
@@ -244,12 +255,41 @@ class SettlementEvent(TenantAwareModel):
         db_index=True,
     )
     normalized_payload = models.JSONField(default=dict, blank=True)
+    reconciliation_reason_code = models.CharField(max_length=64, blank=True, default='', db_index=True)
     delivery_count = models.PositiveIntegerField(default=1)
     received_at = models.DateTimeField(default=timezone.now, db_index=True)
     last_received_at = models.DateTimeField(default=timezone.now)
     processed_at = models.DateTimeField(null=True, blank=True)
     processing_task_id = models.CharField(max_length=64, blank=True, default='')
     last_error = models.TextField(blank=True, default='')
+    matched_purchase_order = models.ForeignKey(
+        'purchase_orders.PurchaseOrder',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='matched_settlement_events',
+    )
+    matched_sales_order = models.ForeignKey(
+        'sales_orders.SalesOrder',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='matched_settlement_events',
+    )
+    matched_invoice = models.ForeignKey(
+        'invoices.Invoice',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='matched_settlement_events',
+    )
+    payment_transaction = models.OneToOneField(
+        'invoices.PaymentTransaction',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='source_settlement_event',
+    )
 
     class Meta:
         constraints = [
@@ -267,6 +307,7 @@ class SettlementEvent(TenantAwareModel):
             models.Index(fields=['tenant', 'state', 'received_at']),
             models.Index(fields=['tenant', 'source', 'occurred_at']),
             models.Index(fields=['tenant', 'provider_code', 'external_event_id']),
+            models.Index(fields=['tenant', 'reconciliation_reason_code', 'received_at']),
         ]
 
     def __str__(self) -> str:

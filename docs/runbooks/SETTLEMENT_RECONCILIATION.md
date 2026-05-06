@@ -1,22 +1,22 @@
 # Settlement Reconciliation Runbook
 
-**Status:** B2B-03.1 contract and webhook-first adapter plan only  
+**Status:** B2B-03.1 through B2B-03.3 contract with webhook ingest, raw journal, and deterministic exact-match posting
 **Contract version:** `b2b-03.1.v1`
 
-This runbook defines the canonical **settlement ingestion and reconciliation contract** for ProjectMeats. It is a
-planning/contract artifact only. It does **not** add public ingest endpoints, settlement source models, or
-execute-mode auto-reconciliation in this ticket.
+This runbook defines the canonical **settlement ingestion and reconciliation contract** for ProjectMeats. It now covers
+the shipped webhook-first ingest path, the raw settlement event journal, and the first deterministic reconciliation
+engine that posts exact matches into `PaymentTransaction` while leaving non-exact cases queued for review.
 
 ## Scope and current constraints
 
 - `tenant_apps.invoices.models.PaymentTransaction` already exists and is the only shipped posted-payment ledger. Future
   settlement work must reconcile into that model instead of inventing a second payment ledger.
-- `tenant_apps.integrations` already owns tenant-scoped API keys, webhook secrets, and signed delivery behavior, but it
-  does **not** yet expose an inbound settlement endpoint or raw settlement event journal.
-- The first implementation target is a **webhook-first adapter** because providers can push signed payment/settlement
-  events immediately, while direct bank-feed coupling introduces longer credential, polling, and normalization work.
-- This ticket freezes the contract and enforcement surfaces for downstream work. It does not ship live settlement
-  ingestion.
+- `tenant_apps.integrations` now owns the tenant-scoped settlement source registry, the public tenant-path settlement
+  ingest endpoint, the replay-safe raw event journal, and the async reconciliation task handoff.
+- The implementation remains **webhook-first** because providers can push signed payment/settlement events immediately,
+  while direct bank-feed coupling introduces longer credential, polling, and normalization work.
+- Current execute-mode reconciliation is intentionally strict: only deterministic exact matches auto-post; ambiguous or
+  incomplete cases remain reviewable instead of guessing.
 
 ## Canonical invariants
 
@@ -79,7 +79,23 @@ Required lifecycle states for the raw journal:
 4. **Deferred adapters:** direct bank-feed polling/coupling and file-based importers are follow-on integrations after
    the raw journal and webhook path exist.
 
-### 5. Explicit prohibitions
+### 5. Deterministic reconciliation contract
+
+1. **Canonical auto-post ledger target:** `PaymentTransaction` remains the only posted-payment record.
+2. **Current exact-match targets:** `invoice`, `sales_order`, and `purchase_order`.
+3. **Current exact-match locator families:** downstream providers must supply one of the canonical business references
+   already used in ProjectMeats records, specifically invoice number, sales order number, or purchase order number
+   (including the existing legacy alias fields mirrored in the models).
+4. **One event, at most one posted payment:** a single settlement event may link to zero or one `PaymentTransaction`;
+   replays must reuse the same linkage instead of creating a second posted payment row.
+5. **No fuzzy auto-posting:** if multiple candidates match, no candidates match, the outstanding amount differs, or the
+   direction is unsupported, the event must remain non-posting and carry an explicit machine-readable reason code.
+6. **Current review reason codes:** `missing_reference`, `reference_not_found`, `amount_mismatch`,
+   `ambiguous_match`, and `unsupported_direction`.
+7. **Current exact-match posting reason codes:** `exact_invoice_match`, `exact_sales_order_match`,
+   `exact_purchase_order_match`.
+
+### 6. Explicit prohibitions
 
 1. **No raw event -> `PaymentTransaction` direct write** without a durable journal row and idempotency check.
 2. **No cross-tenant matching** based on shared references or provider account ids.
@@ -106,20 +122,25 @@ Required lifecycle states for the raw journal:
 | Canonical payment ledger | `backend/tenant_apps/invoices/models.py` |
 | Execution status | `MASTER_PLAN.md`, `.github/EPIC_TICKETS.md`, `.github/MASTER_PLAN.md` |
 
-## First implementation files for follow-up tickets
+## Current implementation files
 
 1. `backend/tenant_apps/integrations/settlement_contract.py` - frozen names/constants for downstream settlement work.
-2. `backend/tenant_apps/integrations/{models.py,serializers.py,views.py,urls.py}` - raw journal model and authenticated
-   ingest endpoint in `B2B-03.2`.
-3. `backend/tenant_apps/invoices/models.py` - continues as the canonical posted-payment ledger; no new settlement ledger
+2. `backend/tenant_apps/integrations/{models.py,serializers.py,views.py,urls.py}` - settlement source/event journal and
+   authenticated ingest endpoint.
+3. `backend/tenant_apps/integrations/reconciliation.py` - deterministic exact-match reconciliation service.
+4. `backend/tenant_apps/integrations/tasks.py` - async validation plus reconciliation execution entrypoint.
+5. `backend/tenant_apps/integrations/migrations/0002_*.py` and `0003_*.py` - additive journal schema and reconciliation
+   linkage fields.
+6. `backend/tenant_apps/invoices/models.py` - continues as the canonical posted-payment ledger; no new settlement ledger
    model should be introduced.
-4. `backend/tenant_apps/integrations/tests.py` - contract guardrails for adapter, auth, and idempotency invariants.
+7. `backend/tenant_apps/integrations/tests.py` - contract guardrails for adapter, auth, replay, and exact-vs-review
+   outcomes.
 
-## Non-goals for B2B-03.1
+## Current non-goals
 
-- No public or provider-facing ingest endpoint yet.
-- No settlement source/event journal model or migration yet.
-- No auto-match or execute-mode reconciliation yet.
+- No fuzzy matching by amount/date/customer-only heuristics.
+- No accountant review queue UI yet.
+- No manual override/relink flow yet.
 - No direct bank-feed adapter yet.
 
 ## Validation

@@ -10,6 +10,7 @@ import requests
 from celery import shared_task
 from django.utils import timezone
 
+from .reconciliation import reconcile_settlement_event
 from .models import SettlementEvent, SettlementEventState, TenantWebhook
 from .signing import sign_timestamped_body, stable_json
 
@@ -135,12 +136,14 @@ def process_settlement_event(self, event_id: int, tenant_id: str):
             return {'success': False, 'reason': 'event_not_found'}
 
         if event.state in {
-            SettlementEventState.VALIDATED,
-            SettlementEventState.READY_TO_POST,
             SettlementEventState.POSTED,
+            SettlementEventState.READY_TO_POST,
             SettlementEventState.IGNORED,
-        }:
+        } or event.payment_transaction_id:
             return {'success': True, 'skipped': True, 'state': event.state}
+
+        if event.state == SettlementEventState.VALIDATED and event.normalized_payload:
+            return reconcile_settlement_event(event=event)
 
         try:
             normalized_payload = json.loads(event.raw_payload)
@@ -153,9 +156,19 @@ def process_settlement_event(self, event_id: int, tenant_id: str):
 
         event.normalized_payload = normalized_payload if isinstance(normalized_payload, dict) else {'body': normalized_payload}
         event.state = SettlementEventState.VALIDATED
+        event.reconciliation_reason_code = ''
         event.last_error = ''
         event.processed_at = timezone.now()
-        event.save(update_fields=['normalized_payload', 'state', 'last_error', 'processed_at', 'modified_on'])
-        return {'success': True, 'state': event.state}
+        event.save(
+            update_fields=[
+                'normalized_payload',
+                'state',
+                'reconciliation_reason_code',
+                'last_error',
+                'processed_at',
+                'modified_on',
+            ]
+        )
+        return reconcile_settlement_event(event=event)
     finally:
         reset_current_tenant()

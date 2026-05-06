@@ -999,13 +999,13 @@
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
 - [ ] **B2B-03.3 reconciliation-engine-into-paymenttransaction**
-  - **Status:** Ready
+  - **Status:** In PR #4911
   - **Why now:** The system needs a deterministic matcher from settlement events to invoices/orders before payment status can update automatically.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 15 / Epic 3
   - **Scope:** Implement the reconciliation engine that maps settlement events into `PaymentTransaction` updates, match/review states, and reversible source-event linkage.
   - **Non-goals:** No accountant UI yet.
   - **Primary domain:** backend
-  - **Likely touched paths:** new `backend/apps/core/services/settlement_reconciliation.py` or `backend/tenant_apps/invoices/services/`, `backend/tenant_apps/invoices/{models.py,serializers.py,views.py,tests.py}`, related order tests
+  - **Likely touched paths:** `backend/tenant_apps/integrations/{models.py,reconciliation.py,serializers.py,tasks.py,tests.py,migrations/0003_settlementevent_matched_invoice_and_more.py}`, `docs/runbooks/SETTLEMENT_RECONCILIATION.md`
   - **Dependencies:** B2B-03.2, B2B-02.3
   - **Blockers:** None
   - **Acceptance criteria:** Exact and ambiguous matches are handled deterministically, duplicate/replayed events do not duplicate payments, and mismatches surface explicit reason codes for review.

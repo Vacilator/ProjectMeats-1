@@ -60,6 +60,16 @@ DEFERRED_SETTLEMENT_ADAPTERS: Final[tuple[str, ...]] = (
     'direct_bank_feed',
     'file_import',
 )
+SETTLEMENT_RECONCILIATION_REASON_CODES: Final[tuple[str, ...]] = (
+    'exact_invoice_match',
+    'exact_sales_order_match',
+    'exact_purchase_order_match',
+    'missing_reference',
+    'reference_not_found',
+    'amount_mismatch',
+    'ambiguous_match',
+    'unsupported_direction',
+)
 PROHIBITED_SETTLEMENT_SHORTCUTS: Final[tuple[str, ...]] = (
     'post_raw_event_directly_to_paymenttransaction',
     'cross_tenant_match_by_shared_reference',
@@ -83,6 +93,7 @@ def get_settlement_reconciliation_contract() -> dict[str, object]:
         'payment_transaction_parent_links': PAYMENT_TRANSACTION_PARENT_LINKS,
         'accepted_authentication_modes': ACCEPTED_SETTLEMENT_AUTH_MODES,
         'deferred_adapters': DEFERRED_SETTLEMENT_ADAPTERS,
+        'reconciliation_reason_codes': SETTLEMENT_RECONCILIATION_REASON_CODES,
         'prohibited_shortcuts': PROHIBITED_SETTLEMENT_SHORTCUTS,
     }
 
