@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import hashlib
+from datetime import datetime
+from decimal import Decimal
 from typing import Final
 
 SETTLEMENT_CONTRACT_VERSION: Final[str] = 'b2b-03.1.v1'
@@ -82,3 +85,37 @@ def get_settlement_reconciliation_contract() -> dict[str, object]:
         'deferred_adapters': DEFERRED_SETTLEMENT_ADAPTERS,
         'prohibited_shortcuts': PROHIBITED_SETTLEMENT_SHORTCUTS,
     }
+
+
+def build_raw_payload_sha256(raw_payload: str) -> str:
+    """Hash the exact stored UTF-8 payload string without normalization."""
+
+    return hashlib.sha256(raw_payload.encode('utf-8')).hexdigest()
+
+
+def build_settlement_idempotency_key(
+    *,
+    tenant_id: str,
+    provider_code: str,
+    external_event_id: str,
+    provider_account_reference: str,
+    occurred_at: datetime,
+    amount: Decimal,
+    direction: str,
+    raw_payload_sha256: str,
+) -> str:
+    """Build the primary-or-fallback idempotency digest defined by the settlement contract."""
+
+    if external_event_id:
+        parts = [tenant_id, provider_code, external_event_id]
+    else:
+        parts = [
+            tenant_id,
+            provider_code,
+            provider_account_reference,
+            occurred_at.isoformat(),
+            str(amount),
+            direction,
+            raw_payload_sha256,
+        ]
+    return hashlib.sha256('|'.join(parts).encode('utf-8')).hexdigest()

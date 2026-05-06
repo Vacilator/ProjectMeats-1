@@ -451,6 +451,8 @@ check_pattern "backend/tenant_apps/integrations/settlement_contract.py" 'SETTLEM
     "settlement_contract.py freezes the settlement adapter and ledger contract"
 check_pattern "manifests/GOLDEN_FILES.md" 'Settlement reconciliation contract.*SETTLEMENT_RECONCILIATION\.md.*settlement_contract\.py.*invoices/models\.py' \
     "GOLDEN_FILES.md registers the settlement reconciliation contract"
+check_pattern "manifests/RLS_POLICIES.md" 'tenant_integrations_settlementsource|tenant_integrations_settlementevent' \
+    "RLS_POLICIES.md registers the settlement source and event tables"
 check_file_exists "docs/runbooks/B2B_EXTRANET_PORTAL.md" "B2B_EXTRANET_PORTAL runbook exists"
 check_pattern "docs/runbooks/B2B_EXTRANET_PORTAL.md" 'b2b-01\.1\.v1|guest-login|AIDocument|signed-grant|invoice_pdf|fulfillment_tracking' \
     "B2B_EXTRANET_PORTAL.md defines the guest-portal contract and forbidden reuse surfaces"

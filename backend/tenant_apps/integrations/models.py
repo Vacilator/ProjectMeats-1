@@ -1,9 +1,11 @@
 import hashlib
 import secrets
+import uuid
 from typing import Optional, Tuple
 
 from django.contrib.auth.models import User
 from django.db import models
+from django.db.models import Q
 from django.utils import timezone
 
 from apps.core.models import TenantAwareModel
@@ -132,3 +134,140 @@ class TenantWebhook(TenantAwareModel):
         self.signing_secret = new_secret
         self.save(update_fields=['signing_secret', 'modified_on'])
         return new_secret
+
+
+class SettlementSourceAuthMode(models.TextChoices):
+    TENANT_API_KEY = 'tenant_api_key', 'Tenant API Key'
+    PROVIDER_HMAC_SIGNATURE = 'provider_hmac_signature', 'Provider HMAC Signature'
+
+
+class SettlementEventState(models.TextChoices):
+    RECEIVED = 'received', 'Received'
+    VALIDATED = 'validated', 'Validated'
+    DUPLICATE = 'duplicate', 'Duplicate'
+    READY_TO_POST = 'ready_to_post', 'Ready to Post'
+    POSTED = 'posted', 'Posted'
+    IGNORED = 'ignored', 'Ignored'
+    FAILED = 'failed', 'Failed'
+
+
+class SettlementSource(TenantAwareModel):
+    """Tenant-scoped settlement ingress source configuration."""
+
+    public_id = models.UUIDField(default=uuid.uuid4, unique=True, editable=False, db_index=True)
+    name = models.CharField(max_length=120)
+    provider_code = models.CharField(max_length=64)
+    provider_account_reference = models.CharField(max_length=120)
+    auth_mode = models.CharField(
+        max_length=32,
+        choices=SettlementSourceAuthMode.choices,
+        default=SettlementSourceAuthMode.TENANT_API_KEY,
+    )
+    api_key = models.ForeignKey(
+        TenantAPIKey,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='settlement_sources',
+    )
+    signing_secret = models.CharField(max_length=128, blank=True, default='')
+    is_active = models.BooleanField(default=True, db_index=True)
+    last_received_at = models.DateTimeField(null=True, blank=True)
+    created_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='settlement_sources_created',
+    )
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=['tenant', 'provider_code', 'provider_account_reference'],
+                name='unique_tenant_settlement_source_provider_account',
+            ),
+        ]
+        indexes = [
+            models.Index(fields=['tenant', 'provider_code', 'is_active']),
+            models.Index(fields=['tenant', 'public_id']),
+        ]
+
+    def __str__(self) -> str:
+        return f'{self.tenant_id} {self.provider_code}:{self.provider_account_reference}'
+
+    def provision_credential(self, *, created_by: Optional[User] = None) -> tuple[str, str]:
+        if self.auth_mode == SettlementSourceAuthMode.TENANT_API_KEY:
+            full_key, prefix, secret_hash = generate_api_key()
+            if self.api_key and self.api_key.is_active:
+                self.api_key.revoke()
+            api_key = TenantAPIKey.objects.create(
+                tenant=self.tenant,
+                name=f'Settlement Source: {self.name}',
+                key_prefix=prefix,
+                key_hash=secret_hash,
+                created_by=created_by,
+            )
+            self.api_key = api_key
+            self.signing_secret = ''
+            self.save(update_fields=['api_key', 'signing_secret', 'modified_on'])
+            return 'api_key', full_key
+
+        signing_secret = generate_webhook_secret()
+        if self.api_key and self.api_key.is_active:
+            self.api_key.revoke()
+        self.api_key = None
+        self.signing_secret = signing_secret
+        self.save(update_fields=['api_key', 'signing_secret', 'modified_on'])
+        return 'signing_secret', signing_secret
+
+
+class SettlementEvent(TenantAwareModel):
+    """Replay-safe raw settlement event journal."""
+
+    source = models.ForeignKey(SettlementSource, on_delete=models.CASCADE, related_name='events')
+    provider_code = models.CharField(max_length=64)
+    provider_account_reference = models.CharField(max_length=120)
+    external_event_id = models.CharField(max_length=120, blank=True, default='')
+    event_type = models.CharField(max_length=64)
+    direction = models.CharField(max_length=32)
+    occurred_at = models.DateTimeField()
+    amount = models.DecimalField(max_digits=12, decimal_places=2)
+    currency = models.CharField(max_length=3)
+    raw_payload = models.TextField()
+    raw_payload_sha256 = models.CharField(max_length=64)
+    idempotency_key = models.CharField(max_length=64)
+    state = models.CharField(
+        max_length=32,
+        choices=SettlementEventState.choices,
+        default=SettlementEventState.RECEIVED,
+        db_index=True,
+    )
+    normalized_payload = models.JSONField(default=dict, blank=True)
+    delivery_count = models.PositiveIntegerField(default=1)
+    received_at = models.DateTimeField(default=timezone.now, db_index=True)
+    last_received_at = models.DateTimeField(default=timezone.now)
+    processed_at = models.DateTimeField(null=True, blank=True)
+    processing_task_id = models.CharField(max_length=64, blank=True, default='')
+    last_error = models.TextField(blank=True, default='')
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=['tenant', 'idempotency_key'],
+                name='unique_tenant_settlement_event_idempotency',
+            ),
+            models.UniqueConstraint(
+                fields=['tenant', 'provider_code', 'external_event_id'],
+                condition=~Q(external_event_id=''),
+                name='unique_tenant_settlement_provider_event',
+            ),
+        ]
+        indexes = [
+            models.Index(fields=['tenant', 'state', 'received_at']),
+            models.Index(fields=['tenant', 'source', 'occurred_at']),
+            models.Index(fields=['tenant', 'provider_code', 'external_event_id']),
+        ]
+
+    def __str__(self) -> str:
+        return f'{self.provider_code}:{self.external_event_id or self.idempotency_key[:8]}'

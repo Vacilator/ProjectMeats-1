@@ -20,6 +20,7 @@ from apps.core.health_api import (
     ReadyCheckAPIView,
 )
 from apps.core.admin_site import admin_site
+from tenant_apps.integrations.views import SettlementEventIngestAPIView
 from tenant_apps.workflows.views import SuggestNodesView
 from tenant_apps.workflows.views_triggers import TenantScopedWebhookReceiverAPIView
 from apps.email_integration.views.webhook_views import (
@@ -64,6 +65,11 @@ urlpatterns = [
         "api/v1/tenants/<uuid:tenant_id>/workflows/email/gmail/webhook/notifications/",
         tenant_gmail_webhook_notifications,
         name="tenant-gmail-email-webhook-notifications",
+    ),
+    path(
+        "api/v1/tenants/<uuid:tenant_id>/integrations/settlement-sources/<uuid:source_id>/events/",
+        SettlementEventIngestAPIView.as_view(),
+        name="tenant-settlement-event-ingest",
     ),
 
     path('api/v1/integrations/', include('integrations.urls')),

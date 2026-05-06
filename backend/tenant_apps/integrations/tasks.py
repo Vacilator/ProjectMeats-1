@@ -1,29 +1,19 @@
 from __future__ import annotations
 
-import hmac
 import json
 import logging
 import random
 import time
-from hashlib import sha256
 from typing import Any, Dict
 
 import requests
 from celery import shared_task
+from django.utils import timezone
 
-from .models import TenantWebhook
+from .models import SettlementEvent, SettlementEventState, TenantWebhook
+from .signing import sign_timestamped_body, stable_json
 
 logger = logging.getLogger(__name__)
-
-
-def _stable_json(payload: Dict[str, Any]) -> str:
-    return json.dumps(payload, separators=(',', ':'), sort_keys=True, default=str)
-
-
-def _sign(secret: str, timestamp: str, body: str) -> str:
-    msg = f"{timestamp}.{body}".encode('utf-8')
-    digest = hmac.new(secret.encode('utf-8'), msg=msg, digestmod=sha256).hexdigest()
-    return f"v1={digest}"
 
 
 @shared_task(
@@ -61,7 +51,7 @@ def dispatch_webhook_payload(self, webhook_id: int, tenant_id: str, event_type: 
         if not webhook.is_active:
             return {'success': True, 'skipped': True, 'reason': 'inactive'}
 
-        body = _stable_json(payload)
+        body = stable_json(payload)
         timestamp = str(int(time.time()))
 
         headers = {
@@ -73,7 +63,7 @@ def dispatch_webhook_payload(self, webhook_id: int, tenant_id: str, event_type: 
         }
 
         if webhook.signing_secret:
-            headers['X-PM-Signature'] = _sign(webhook.signing_secret, timestamp, body)
+            headers['X-PM-Signature'] = sign_timestamped_body(webhook.signing_secret, timestamp, body)
 
         try:
             resp = requests.post(webhook.target_url, data=body, headers=headers, timeout=10)
@@ -114,5 +104,58 @@ def dispatch_webhook_payload(self, webhook_id: int, tenant_id: str, event_type: 
             )
             raise self.retry(exc=e, countdown=countdown)
 
+    finally:
+        reset_current_tenant()
+
+
+@shared_task(
+    name='tenant_integrations.process_settlement_event',
+    bind=True,
+    max_retries=3,
+    soft_time_limit=20,
+    time_limit=30,
+)
+def process_settlement_event(self, event_id: int, tenant_id: str):
+    """Validate and stage a settlement event without writing to the payment ledger."""
+
+    from apps.tenants.rls import reset_current_tenant, set_current_tenant
+
+    rls = set_current_tenant(str(tenant_id))
+    if not rls.ok:
+        logger.warning('[Settlement] Skipping event=%s (RLS set failed: %s)', event_id, rls.error)
+        return {'success': False, 'reason': 'rls_set_failed', 'error': rls.error}
+
+    try:
+        event = (
+            SettlementEvent.objects.select_related('source')
+            .filter(id=event_id, tenant_id=tenant_id)
+            .first()
+        )
+        if not event:
+            return {'success': False, 'reason': 'event_not_found'}
+
+        if event.state in {
+            SettlementEventState.VALIDATED,
+            SettlementEventState.READY_TO_POST,
+            SettlementEventState.POSTED,
+            SettlementEventState.IGNORED,
+        }:
+            return {'success': True, 'skipped': True, 'state': event.state}
+
+        try:
+            normalized_payload = json.loads(event.raw_payload)
+        except json.JSONDecodeError as exc:
+            event.state = SettlementEventState.FAILED
+            event.last_error = f'json_parse_error:{exc.msg}'
+            event.processed_at = timezone.now()
+            event.save(update_fields=['state', 'last_error', 'processed_at', 'modified_on'])
+            return {'success': False, 'reason': 'json_parse_error', 'state': event.state}
+
+        event.normalized_payload = normalized_payload if isinstance(normalized_payload, dict) else {'body': normalized_payload}
+        event.state = SettlementEventState.VALIDATED
+        event.last_error = ''
+        event.processed_at = timezone.now()
+        event.save(update_fields=['normalized_payload', 'state', 'last_error', 'processed_at', 'modified_on'])
+        return {'success': True, 'state': event.state}
     finally:
         reset_current_tenant()
