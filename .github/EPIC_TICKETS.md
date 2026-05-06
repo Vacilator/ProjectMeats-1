@@ -797,15 +797,15 @@
 ### Epic B2B-02 - Global Trade Engine (determinism)
 
 - [ ] **B2B-02.1 trade-invariants-contract-and-surface-audit**
-  - **Status:** Blocked
+  - **Status:** Ready
   - **Why now:** Partner portals and settlement automation will be untrustworthy until weights, units, and time handling share one deterministic contract.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 15 / Epic 2
   - **Scope:** Define the canonical trade-invariants contract for base-unit storage, LBS/KG conversion, UTC storage, and plant-local rendering; identify every current surface that must adopt it.
   - **Non-goals:** No settlement execution, no public portal routes yet.
   - **Primary domain:** backend/frontend contracts
   - **Likely touched paths:** new `backend/apps/core/conversions.py`, `backend/apps/core/services/`, `frontend/src/utils/formatters.ts`, `docs/runbooks/GLOBAL_TRADE_ENGINE.md`, `MASTER_PLAN.md`
-  - **Dependencies:** GA-05.4 and any remaining higher-priority unchecked tickets above Phase 15
-  - **Blockers:** Phase 14 execution remains active and must complete before Phase 15 work starts
+  - **Dependencies:** Previously higher-priority Phase 12 / Phase 14 backlog above this lane is shipped
+  - **Blockers:** None
   - **Acceptance criteria:** One explicit conversion/timezone contract exists, impacted backend/frontend/PDF surfaces are inventoried, and deterministic decimal/timezone rules are documented without contradicting current `USE_TZ` or existing unit fields.
   - **Validation commands:** `bash scripts/verify_golden_state.sh`; `cd backend && python manage.py test apps.core tenant_apps.purchase_orders tenant_apps.sales_orders tenant_apps.invoices`
   - **Tenant/RLS impact:** Medium; tenant-aware plants/locations drive display timezone behavior
