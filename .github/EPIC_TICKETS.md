@@ -1139,8 +1139,8 @@
 
 ### Epic CTE-02 - Brokerage / RFQ Engine (Branch A)
 
-- [ ] **CTE-02.1 supplier-match-engine-for-broker-route**
-  - **Status:** Ready
+- [x] **CTE-02.1 supplier-match-engine-for-broker-route**
+  - **Status:** Shipped
   - **Why now:** Brokered inquiries need a deterministic supplier target list before any outbound RFQ can be generated.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 16 / Epic 2
   - **Scope:** Build the supplier-match service that takes a broker-routed inquiry and returns eligible suppliers based on master product/protein, tenant-safe supplier data, and any required commercial filters.
@@ -1155,10 +1155,10 @@
   - **Secrets/infra impact:** None
   - **Risk level:** Medium
   - **Rollback:** Revert supplier matching service only; broker inquiries remain manually sourced.
-  - **Completion evidence destination:** `.github/MASTER_PLAN.md`
+  - **Completion evidence destination:** `.github/MASTER_PLAN.md` (PR #4929)
 
 - [ ] **CTE-02.2 outbound-supplier-rfq-email-service-and-audit-log**
-  - **Status:** Blocked
+  - **Status:** Ready
   - **Why now:** Once suppliers are matched, the engine needs a canonical outbound RFQ send path and audit trail rather than ad hoc emails.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 16 / Epic 2
   - **Scope:** Implement the outbound supplier RFQ email service for brokered inquiries, persist send/audit records, and tie outbound messages to the inquiry/state machine.
@@ -1166,7 +1166,7 @@
   - **Primary domain:** backend/integrations
   - **Likely touched paths:** `backend/tenant_apps/ai_assistant/swarm/executor.py`, `backend/apps/email_integration/`, `backend/apps/integrations/`, `backend/tenant_apps/inquiries/`, related tests
   - **Dependencies:** CTE-02.1
-  - **Blockers:** CTE-02.1
+  - **Blockers:** None
   - **Acceptance criteria:** The engine can send RFQs to matched suppliers and persist enough audit metadata to correlate future replies back to the inquiry.
   - **Validation commands:** `cd backend && python manage.py test apps.integrations apps.email_integration tenant_apps.inquiries tenant_apps.ai_assistant`
   - **Tenant/RLS impact:** High
