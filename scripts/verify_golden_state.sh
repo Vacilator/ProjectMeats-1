@@ -443,6 +443,11 @@ check_pattern "docs/runbooks/GLOBAL_TRADE_ENGINE.md" 'b2b-02\.1\.v1|TIME_ZONE = 
     "GLOBAL_TRADE_ENGINE.md defines the trade invariants contract and key adoption seams"
 check_pattern "manifests/GOLDEN_FILES.md" 'Trade invariants contract.*GLOBAL_TRADE_ENGINE\.md.*conversions\.py' \
     "GOLDEN_FILES.md registers the trade invariants contract"
+check_file_exists "docs/runbooks/B2B_EXTRANET_PORTAL.md" "B2B_EXTRANET_PORTAL runbook exists"
+check_pattern "docs/runbooks/B2B_EXTRANET_PORTAL.md" 'b2b-01\.1\.v1|guest-login|AIDocument|signed-grant|invoice_pdf|fulfillment_tracking' \
+    "B2B_EXTRANET_PORTAL.md defines the guest-portal contract and forbidden reuse surfaces"
+check_pattern "manifests/GOLDEN_FILES.md" 'B2B extranet portal contract.*B2B_EXTRANET_PORTAL\.md.*security\.py' \
+    "GOLDEN_FILES.md registers the B2B extranet portal contract"
 check_pattern "manifests/RLS_POLICIES.md" 'core_archivebatch|core_archivelegalhold|core_archiverecordsnapshot' \
     "RLS_POLICIES.md registers the archive evidence tables"
 

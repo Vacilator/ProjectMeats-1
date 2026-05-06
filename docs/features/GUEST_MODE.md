@@ -12,6 +12,8 @@
 
 Guest mode allows users to try ProjectMeats without creating an account. Guest users are automatically assigned to a dedicated "Guest Demo Organization" tenant with admin-level permissions, but they do NOT have superuser privileges.
 
+> **Not the B2B portal.** This demo guest flow is an internal trial-mode surface only. Future counterpart/partner access must follow `docs/runbooks/B2B_EXTRANET_PORTAL.md` and must **not** reuse `guest-login`, the guest demo tenant, or any internal record routes.
+
 ---
 
 ## Architecture
@@ -134,7 +136,7 @@ TenantUser.objects.create(
 
 ## API Usage
 
-### Guest Login Endpoint
+### Guest Login Endpoint (demo mode only)
 
 **Endpoint**: `POST /api/v1/core/auth/guest-login/`
 
