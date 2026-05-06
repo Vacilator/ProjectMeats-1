@@ -4,18 +4,24 @@ Tests for Inquiries app models.
 Uses shared-schema multi-tenancy with tenant ForeignKey isolation.
 """
 import uuid
+from types import SimpleNamespace
 from django.test import TestCase
 from django.contrib.auth.models import User
 from datetime import date, timedelta
+from django.utils import timezone
 from tenant_apps.inquiries.models import (
     Inquiry,
+    InquiryRouteDecisionChoices,
     InquiryStatusChoices,
     InquirySourceChoices,
     InquiryEntityTypeChoices,
     InquiryTemplate,
 )
+from tenant_apps.inquiries.serializers import InquiryCreateSerializer, InquiryDetailSerializer
+from tenant_apps.products.models import MasterProduct
 from tenant_apps.suppliers.models import Supplier
 from tenant_apps.customers.models import Customer
+from apps.integrations.models import EmailLog, ExternalAuthProvider
 from apps.tenants.models import Tenant, TenantUser
 
 
@@ -217,6 +223,175 @@ class InquiryModelTest(TestCase):
         
         self.assertIn(inquiry.inquiry_number, str(inquiry))
         self.assertIn(self.customer.name, str(inquiry))
+
+    def test_inquiry_core_trading_contract_fields_exist(self):
+        """CTE-01.1 contract fields are present on Inquiry before automation lands."""
+        route_decision_field = Inquiry._meta.get_field('route_decision')
+        self.assertEqual(route_decision_field.choices, InquiryRouteDecisionChoices.choices)
+        self.assertTrue(route_decision_field.db_index)
+
+        requested_master_product_field = Inquiry._meta.get_field('requested_master_product')
+        self.assertEqual(
+            requested_master_product_field.related_model.__name__,
+            'MasterProduct',
+        )
+
+        source_email_field = Inquiry._meta.get_field('source_email')
+        self.assertEqual(source_email_field.related_model.__name__, 'EmailLog')
+
+        supplier_po_field = Inquiry._meta.get_field('supplier_purchase_order')
+        self.assertEqual(supplier_po_field.related_model.__name__, 'PurchaseOrder')
+
+        sales_order_field = Inquiry._meta.get_field('sales_order')
+        self.assertEqual(sales_order_field.related_model.__name__, 'SalesOrder')
+
+        carrier_po_field = Inquiry._meta.get_field('carrier_purchase_order')
+        self.assertEqual(
+            carrier_po_field.related_model.__name__,
+            'CarrierPurchaseOrder',
+        )
+
+
+class InquiryTradingContractSerializerTest(TestCase):
+    """Focused contract tests for CTE-01.1 inquiry routing fields."""
+
+    @classmethod
+    def setUpTestData(cls):
+        unique_id = uuid.uuid4().hex[:8]
+        cls.user = User.objects.create_user(
+            username=f"contract-user-{unique_id}",
+            email=f"contract-{unique_id}@example.com",
+            password="testpass123",
+        )
+        cls.tenant = Tenant.objects.create(
+            name=f"Contract Tenant {unique_id}",
+            slug=f"contract-tenant-{unique_id}",
+            contact_email=f"contract-{unique_id}@example.com",
+            created_by=cls.user,
+        )
+        TenantUser.objects.create(tenant=cls.tenant, user=cls.user, role="owner")
+        cls.customer = Customer.objects.create(name=f"Customer {unique_id}", tenant=cls.tenant)
+        cls.master_product = MasterProduct.objects.create(
+            tenant=cls.tenant,
+            protein='beef',
+            item_name='Brisket',
+            type='whole',
+            trim='trimmed',
+        )
+        cls.provider = ExternalAuthProvider.objects.create(
+            tenant=cls.tenant,
+            provider_type='microsoft',
+            connected_email=f"inbox-{unique_id}@example.com",
+            is_active=True,
+            token_expiry=timezone.now() + timedelta(days=1),
+        )
+        cls.email_log = EmailLog.objects.create(
+            tenant=cls.tenant,
+            provider=cls.provider,
+            message_id=f"message-{unique_id}",
+            thread_id=f"thread-{unique_id}",
+            subject='Need beef',
+            sender_email='buyer@example.com',
+            received_at=timezone.now(),
+            body_text='Please quote brisket.',
+        )
+
+        other_user = User.objects.create_user(
+            username=f"other-contract-user-{unique_id}",
+            email=f"other-contract-{unique_id}@example.com",
+            password="testpass123",
+        )
+        cls.other_tenant = Tenant.objects.create(
+            name=f"Other Contract Tenant {unique_id}",
+            slug=f"other-contract-tenant-{unique_id}",
+            contact_email=f"other-contract-{unique_id}@example.com",
+            created_by=other_user,
+        )
+        TenantUser.objects.create(tenant=cls.other_tenant, user=other_user, role="owner")
+        cls.other_master_product = MasterProduct.objects.create(
+            tenant=cls.other_tenant,
+            protein='pork',
+            item_name='Belly',
+            type='flat',
+            trim='trimmed',
+        )
+        other_provider = ExternalAuthProvider.objects.create(
+            tenant=cls.other_tenant,
+            provider_type='microsoft',
+            connected_email=f"other-inbox-{unique_id}@example.com",
+            is_active=True,
+            token_expiry=timezone.now() + timedelta(days=1),
+        )
+        cls.other_email_log = EmailLog.objects.create(
+            tenant=cls.other_tenant,
+            provider=other_provider,
+            message_id=f"other-message-{unique_id}",
+            thread_id=f"other-thread-{unique_id}",
+            subject='Wrong tenant',
+            sender_email='other@example.com',
+            received_at=timezone.now(),
+            body_text='Do not link me.',
+        )
+
+    def test_create_serializer_snapshots_email_lineage_and_protein_anchor(self):
+        serializer = InquiryCreateSerializer(
+            data={
+                'entity_type': InquiryEntityTypeChoices.CUSTOMER,
+                'customer': self.customer.id,
+                'source_type': InquirySourceChoices.EMAIL,
+                'source_email': self.email_log.id,
+                'requested_master_product': self.master_product.id,
+                'route_decision': InquiryRouteDecisionChoices.FULFILL,
+            },
+            context={'request': SimpleNamespace(tenant=self.tenant, user=self.user)},
+        )
+
+        self.assertTrue(serializer.is_valid(), serializer.errors)
+        inquiry = serializer.save()
+        self.assertEqual(
+            inquiry.source_email_message_id,
+            self.email_log.message_id,
+        )
+        self.assertEqual(
+            inquiry.source_email_thread_id,
+            self.email_log.thread_id,
+        )
+        self.assertEqual(
+            inquiry.requested_protein,
+            self.master_product.protein,
+        )
+
+    def test_create_serializer_rejects_cross_tenant_contract_references(self):
+        serializer = InquiryCreateSerializer(
+            data={
+                'entity_type': InquiryEntityTypeChoices.CUSTOMER,
+                'customer': self.customer.id,
+                'source_type': InquirySourceChoices.EMAIL,
+                'source_email': self.other_email_log.id,
+                'requested_master_product': self.other_master_product.id,
+            },
+            context={'request': SimpleNamespace(tenant=self.tenant, user=self.user)},
+        )
+
+        self.assertFalse(serializer.is_valid())
+        self.assertIn('source_email', serializer.errors)
+
+    def test_detail_serializer_exposes_trading_contract_fields(self):
+        serializer = InquiryDetailSerializer()
+        field_names = serializer.get_fields().keys()
+
+        for field_name in (
+            'route_decision',
+            'source_email',
+            'source_email_message_id',
+            'source_email_thread_id',
+            'requested_master_product',
+            'requested_protein',
+            'supplier_purchase_order',
+            'sales_order',
+            'carrier_purchase_order',
+        ):
+            self.assertIn(field_name, field_names)
 
 
 class InquiryTemplateModelTest(TestCase):

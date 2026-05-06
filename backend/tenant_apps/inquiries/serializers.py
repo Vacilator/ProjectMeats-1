@@ -1,8 +1,107 @@
 """Serializers for Inquiries app."""
 from rest_framework import serializers
 from .models import (
-    Inquiry, InquiryProduct, InquiryTemplate, InquiryTemplateProduct
+    Inquiry,
+    InquiryProduct,
+    InquirySourceChoices,
+    InquiryTemplate,
+    InquiryTemplateProduct,
 )
+
+
+class InquiryContractValidationMixin:
+    """Fail closed for tenant-scoped lineage and routing anchors."""
+
+    tenant_scoped_relation_fields = (
+        'source_email',
+        'requested_master_product',
+        'supplier_purchase_order',
+        'sales_order',
+        'carrier_purchase_order',
+    )
+
+    def _get_request_tenant(self):
+        request = self.context.get('request')
+        return getattr(request, 'tenant', None)
+
+    def _get_existing_value(self, field_name):
+        if self.instance is None:
+            return None
+        return getattr(self.instance, field_name, None)
+
+    def _get_active_tenant(self):
+        request_tenant = self._get_request_tenant()
+        return request_tenant or getattr(self.instance, 'tenant', None)
+
+    def _validate_tenant_scoped_relation(self, field_name, relation):
+        tenant = self._get_active_tenant()
+        if relation is None or tenant is None:
+            return relation
+
+        relation_tenant = getattr(relation, 'tenant', None)
+        if relation_tenant is not None and getattr(relation_tenant, 'id', None) != getattr(tenant, 'id', None):
+            raise serializers.ValidationError('Selected record must belong to the active tenant.')
+        return relation
+
+    def validate_source_email(self, value):
+        return self._validate_tenant_scoped_relation('source_email', value)
+
+    def validate_requested_master_product(self, value):
+        return self._validate_tenant_scoped_relation('requested_master_product', value)
+
+    def validate_supplier_purchase_order(self, value):
+        return self._validate_tenant_scoped_relation('supplier_purchase_order', value)
+
+    def validate_sales_order(self, value):
+        return self._validate_tenant_scoped_relation('sales_order', value)
+
+    def validate_carrier_purchase_order(self, value):
+        return self._validate_tenant_scoped_relation('carrier_purchase_order', value)
+
+    def _apply_contract_defaults(self, data):
+        source_email = data.get('source_email', self._get_existing_value('source_email'))
+        if source_email:
+            if not data.get('source_email_message_id'):
+                data['source_email_message_id'] = source_email.message_id or ''
+            if not data.get('source_email_thread_id'):
+                data['source_email_thread_id'] = source_email.thread_id or ''
+
+        requested_master_product = data.get(
+            'requested_master_product',
+            self._get_existing_value('requested_master_product'),
+        )
+        requested_protein = data.get(
+            'requested_protein',
+            self._get_existing_value('requested_protein'),
+        )
+        if requested_master_product:
+            if requested_protein and requested_protein != requested_master_product.protein:
+                raise serializers.ValidationError({
+                    'requested_protein': (
+                        'Requested protein must match the selected requested master product.'
+                    ),
+                })
+            data['requested_protein'] = requested_master_product.protein
+
+        return data
+
+    def validate(self, data):
+        data = super().validate(data)
+
+        source_email = data.get('source_email', self._get_existing_value('source_email'))
+        source_type = data.get('source_type', self._get_existing_value('source_type'))
+        if source_email and source_type != InquirySourceChoices.EMAIL:
+            raise serializers.ValidationError({
+                'source_email': 'Source email may only be set when source_type is email.',
+            })
+
+        return self._apply_contract_defaults(data)
+
+    def create(self, validated_data):
+        return super().create(self._apply_contract_defaults(validated_data))
+
+    def update(self, instance, validated_data):
+        return super().update(instance, self._apply_contract_defaults(validated_data))
 
 
 class InquiryProductSerializer(serializers.ModelSerializer):
@@ -64,8 +163,11 @@ class InquiryListSerializer(serializers.ModelSerializer):
             'status',
             # Canonical model fields
             'source_type',
+            'route_decision',
             'entity_type',
             'shipping_type',
+            'requested_master_product',
+            'requested_protein',
             # Convenience aliases (frontend)
             'source',
             'customer',
@@ -93,7 +195,7 @@ class InquiryListSerializer(serializers.ModelSerializer):
         return None
 
 
-class InquiryDetailSerializer(serializers.ModelSerializer):
+class InquiryDetailSerializer(InquiryContractValidationMixin, serializers.ModelSerializer):
     """Full serializer for inquiry detail views.
 
     Exposes frontend-friendly aliases additively (source, customer_name/supplier_name,
@@ -134,8 +236,17 @@ class InquiryDetailSerializer(serializers.ModelSerializer):
             'status',
             # Canonical model fields
             'source_type',
+            'route_decision',
             'entity_type',
             'shipping_type',
+            'requested_master_product',
+            'requested_protein',
+            'source_email',
+            'source_email_message_id',
+            'source_email_thread_id',
+            'supplier_purchase_order',
+            'sales_order',
+            'carrier_purchase_order',
             # Convenience aliases (frontend)
             'source',
             'customer_name',
@@ -198,7 +309,7 @@ class InquiryDetailSerializer(serializers.ModelSerializer):
         return None
 
 
-class InquiryCreateSerializer(serializers.ModelSerializer):
+class InquiryCreateSerializer(InquiryContractValidationMixin, serializers.ModelSerializer):
     """Serializer for creating inquiries with nested products."""
     
     products = InquiryProductSerializer(many=True, required=False)
@@ -206,16 +317,22 @@ class InquiryCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Inquiry
         fields = [
-            'entity_type', 'shipping_type', 'supplier', 'customer', 'contact',
+            'entity_type', 'shipping_type', 'route_decision',
+            'supplier', 'customer', 'contact',
             'contact_name', 'contact_email', 'contact_phone', 'contact_phone_type',
             'contact_company', 'contact_position',
-            'source_type', 'source_call', 'valid_until',
+            'source_type', 'source_call', 'source_email',
+            'source_email_message_id', 'source_email_thread_id',
+            'requested_master_product', 'requested_protein',
+            'supplier_purchase_order', 'sales_order', 'carrier_purchase_order',
+            'valid_until',
             'notes', 'competitor_names', 'competitor_pricing_notes',
             'products'
         ]
     
     def validate(self, data):
         """Validate entity type matches entity link."""
+        data = super().validate(data)
         entity_type = data.get('entity_type')
         supplier = data.get('supplier')
         customer = data.get('customer')
@@ -233,6 +350,7 @@ class InquiryCreateSerializer(serializers.ModelSerializer):
     
     def create(self, validated_data):
         """Create inquiry with nested products."""
+        validated_data = self._apply_contract_defaults(validated_data)
         products_data = validated_data.pop('products', [])
         
         # Set tenant and created_by from context
