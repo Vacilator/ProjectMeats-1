@@ -161,29 +161,29 @@ const StatusBadge = styled.div<{ $status: EmailLog['status'] }>`
     switch (props.$status) {
       case 'logged':
         return `
-          background: rgba(59, 130, 246, 0.1);
-          color: rgb(59, 130, 246);
+          background: rgba(var(--color-info), 0.1);
+          color: rgb(var(--color-info));
         `;
       case 'ai_parsing':
         return `
-          background: rgba(234, 179, 8, 0.1);
-          color: rgb(234, 179, 8);
+          background: rgba(var(--color-warning), 0.1);
+          color: rgb(var(--color-warning));
         `;
       case 'order_created':
         return `
-          background: rgba(34, 197, 94, 0.1);
-          color: rgb(34, 197, 94);
+          background: rgba(var(--color-success), 0.1);
+          color: rgb(var(--color-success));
         `;
       case 'failed':
         return `
-          background: rgba(239, 68, 68, 0.1);
-          color: rgb(239, 68, 68);
+          background: rgba(var(--color-error), 0.1);
+          color: rgb(var(--color-error));
         `;
       case 'action_required':
       case 'ignored':
         return `
-          background: rgba(234, 179, 8, 0.1);
-          color: rgb(234, 179, 8);
+          background: rgba(var(--color-warning), 0.1);
+          color: rgb(var(--color-warning));
         `;
     }
   }}

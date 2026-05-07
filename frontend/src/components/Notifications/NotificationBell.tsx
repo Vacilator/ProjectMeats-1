@@ -72,7 +72,7 @@ const Badge = styled.span<{ $count: number }>`
   line-height: 18px;
   text-align: center;
   color: white;
-  background-color: rgb(239, 68, 68); /* Error red */
+  background-color: rgb(var(--color-error));
   border-radius: 9px;
   
   /* Adjust for large numbers */

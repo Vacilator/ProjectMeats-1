@@ -87,7 +87,7 @@ const ApprovalCard = styled.div<{ $expanded?: boolean }>`
 
   ${(p) => p.$expanded && `
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-    border-color: rgba(234, 179, 8, 0.4);
+    border-color: rgba(var(--color-warning), 0.4);
   `}
 `;
 
@@ -111,8 +111,8 @@ const StatusIcon = styled.div`
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(234, 179, 8, 0.1);
-  color: rgb(202, 138, 4);
+  background: rgba(var(--color-warning), 0.1);
+  color: rgb(var(--color-warning));
   flex-shrink: 0;
 `;
 
@@ -203,7 +203,7 @@ const CommentInput = styled.textarea`
 
   &:focus {
     outline: none;
-    border-color: rgb(59, 130, 246);
+    border-color: rgb(var(--color-info));
   }
 
   &::placeholder {
@@ -232,15 +232,15 @@ const ActionBtn = styled.button<{ $variant: 'approve' | 'reject' }>`
   ${(p) =>
     p.$variant === 'approve'
       ? `
-    background: rgb(34, 197, 94);
+    background: rgb(var(--color-success));
     color: white;
-    &:hover { background: rgb(22, 163, 74); }
+    &:hover { background: rgb(var(--color-success)); opacity: 0.9; }
   `
       : `
-    background: rgba(239, 68, 68, 0.1);
-    color: rgb(220, 38, 38);
-    border: 1px solid rgba(239, 68, 68, 0.3);
-    &:hover { background: rgba(239, 68, 68, 0.15); }
+    background: rgba(var(--color-error), 0.1);
+    color: rgb(var(--color-error));
+    border: 1px solid rgba(var(--color-error), 0.3);
+    &:hover { background: rgba(var(--color-error), 0.15); }
   `}
 
   &:disabled {
@@ -270,7 +270,7 @@ const BadgeCount = styled.span`
   border-radius: 999px;
   font-size: 11px;
   font-weight: 700;
-  background: rgba(234, 179, 8, 0.15);
+  background: rgba(var(--color-warning), 0.15);
   color: rgb(161, 98, 7);
 `;
 

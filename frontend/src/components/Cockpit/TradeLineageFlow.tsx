@@ -81,18 +81,18 @@ export interface TradeLineageFlowProps {
 // ============================================================================
 
 const STATUS_COLORS: Record<string, string> = {
-  pending: 'rgb(234, 179, 8)',
-  in_progress: 'rgb(59, 130, 246)',
-  sourcing: 'rgb(59, 130, 246)',
+  pending: 'rgb(var(--color-warning))',
+  in_progress: 'rgb(var(--color-info))',
+  sourcing: 'rgb(var(--color-info))',
   quoted: 'rgb(139, 92, 246)',
-  ordered: 'rgb(34, 197, 94)',
-  completed: 'rgb(34, 197, 94)',
-  approved: 'rgb(34, 197, 94)',
+  ordered: 'rgb(var(--color-success))',
+  completed: 'rgb(var(--color-success))',
+  approved: 'rgb(var(--color-success))',
   draft: 'rgb(156, 163, 175)',
-  cancelled: 'rgb(239, 68, 68)',
-  halted: 'rgb(239, 68, 68)',
-  initiated: 'rgb(234, 179, 8)',
-  logistics: 'rgb(59, 130, 246)',
+  cancelled: 'rgb(var(--color-error))',
+  halted: 'rgb(var(--color-error))',
+  initiated: 'rgb(var(--color-warning))',
+  logistics: 'rgb(var(--color-info))',
 };
 
 const getStatusColor = (status: string): string =>
@@ -138,7 +138,7 @@ const ErrorContainer = styled.div`
   justify-content: center;
   height: 100%;
   gap: 8px;
-  color: rgb(239, 68, 68);
+  color: rgb(var(--color-error));
   font-size: 14px;
 `;
 
@@ -303,7 +303,7 @@ const UnassignedBadge = styled.div`
   gap: 4px;
   margin-top: 6px;
   font-size: 10px;
-  color: rgb(234, 179, 8);
+  color: rgb(var(--color-warning));
   font-style: italic;
 `;
 

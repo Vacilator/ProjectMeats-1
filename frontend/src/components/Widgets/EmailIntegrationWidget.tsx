@@ -101,10 +101,10 @@ const AccountCard = styled.div<{ $status: string }>`
   background: rgb(var(--color-surface));
   border: 1px solid ${props => {
     switch (props.$status) {
-      case 'active': return 'rgba(34, 197, 94, 0.3)';
-      case 'expired': return 'rgba(234, 179, 8, 0.3)';
+      case 'active': return 'rgba(var(--color-success), 0.3)';
+      case 'expired': return 'rgba(var(--color-warning), 0.3)';
       case 'error':
-      case 'revoked': return 'rgba(239, 68, 68, 0.3)';
+      case 'revoked': return 'rgba(var(--color-error), 0.3)';
       default: return 'rgb(var(--color-border))';
     }
   }};
@@ -162,19 +162,19 @@ const StatusIndicator = styled.div<{ $status: string }>`
   font-weight: 600;
   background: ${props => {
     switch (props.$status) {
-      case 'active': return 'rgba(34, 197, 94, 0.1)';
-      case 'expired': return 'rgba(234, 179, 8, 0.1)';
+      case 'active': return 'rgba(var(--color-success), 0.1)';
+      case 'expired': return 'rgba(var(--color-warning), 0.1)';
       case 'error':
-      case 'revoked': return 'rgba(239, 68, 68, 0.1)';
+      case 'revoked': return 'rgba(var(--color-error), 0.1)';
       default: return 'rgba(148, 163, 184, 0.1)';
     }
   }};
   color: ${props => {
     switch (props.$status) {
-      case 'active': return 'rgb(34, 197, 94)';
-      case 'expired': return 'rgb(234, 179, 8)';
+      case 'active': return 'rgb(var(--color-success))';
+      case 'expired': return 'rgb(var(--color-warning))';
       case 'error':
-      case 'revoked': return 'rgb(239, 68, 68)';
+      case 'revoked': return 'rgb(var(--color-error))';
       default: return 'rgb(148, 163, 184)';
     }
   }};
@@ -211,10 +211,10 @@ const Actions = styled.div`
 const ActionButton = styled.button<{ $variant?: 'danger' | 'primary' }>`
   flex: 1;
   padding: 8px 12px;
-  background: ${props => props.$variant === 'danger' ? 'rgba(239, 68, 68, 0.1)' : 'rgb(var(--color-background))'};
-  border: 1px solid ${props => props.$variant === 'danger' ? 'rgba(239, 68, 68, 0.3)' : 'rgb(var(--color-border))'};
+  background: ${props => props.$variant === 'danger' ? 'rgba(var(--color-error), 0.1)' : 'rgb(var(--color-background))'};
+  border: 1px solid ${props => props.$variant === 'danger' ? 'rgba(var(--color-error), 0.3)' : 'rgb(var(--color-border))'};
   border-radius: var(--radius-sm);
-  color: ${props => props.$variant === 'danger' ? 'rgb(239, 68, 68)' : 'rgb(var(--color-text-primary))'};
+  color: ${props => props.$variant === 'danger' ? 'rgb(var(--color-error))' : 'rgb(var(--color-text-primary))'};
   font-size: 12px;
   font-weight: 600;
   cursor: pointer;

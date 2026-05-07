@@ -320,7 +320,7 @@ const IconBtn = styled.button<{ $danger?: boolean }>`
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  color: ${(p) => (p.$danger ? 'rgb(239, 68, 68)' : 'rgb(var(--color-text-secondary))')};
+  color: ${(p) => (p.$danger ? 'rgb(var(--color-error))' : 'rgb(var(--color-text-secondary))')};
 
   .pm-spin {
     animation: pm-spin 1s linear infinite;
@@ -337,7 +337,7 @@ const IconBtn = styled.button<{ $danger?: boolean }>`
 
   &:hover {
     background: rgb(var(--color-primary) / 0.10);
-    color: ${(p) => (p.$danger ? 'rgb(239, 68, 68)' : 'rgb(var(--color-text-primary))')};
+    color: ${(p) => (p.$danger ? 'rgb(var(--color-error))' : 'rgb(var(--color-text-primary))')};
   }
 `;
 

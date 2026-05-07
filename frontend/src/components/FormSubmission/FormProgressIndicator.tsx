@@ -80,7 +80,7 @@ const HorizontalConnector = styled.div<{ $completed: boolean }>`
   right: calc(-50% + 20px);
   height: 2px;
   background: ${props => props.$completed 
-    ? 'rgb(34, 197, 94)' 
+    ? 'rgb(var(--color-success))' 
     : 'rgb(var(--color-border, 224 224 224))'};
   z-index: 1;
   transition: background 0.3s ease;
@@ -120,7 +120,7 @@ const VerticalConnector = styled.div<{ $completed: boolean }>`
   width: 2px;
   bottom: 0;
   background: ${props => props.$completed 
-    ? 'rgb(34, 197, 94)' 
+    ? 'rgb(var(--color-success))' 
     : 'rgb(var(--color-border, 224 224 224))'};
   z-index: 1;
   transition: background 0.3s ease;
@@ -156,7 +156,7 @@ const CompactProgressBar = styled.div`
 const CompactProgressFill = styled.div<{ $progress: number }>`
   height: 100%;
   width: ${props => props.$progress}%;
-  background: linear-gradient(90deg, rgb(34, 197, 94), rgb(102, 126, 234));
+  background: linear-gradient(90deg, rgb(var(--color-success)), rgb(102, 126, 234));
   border-radius: 3px;
   transition: width 0.3s ease;
 `;
@@ -193,9 +193,9 @@ const StepCircle = styled.div<{
     switch (props.$status) {
       case 'completed':
         return css`
-          background: rgb(34, 197, 94);
+          background: rgb(var(--color-success));
           color: white;
-          border: 2px solid rgb(34, 197, 94);
+          border: 2px solid rgb(var(--color-success));
         `;
       case 'current':
         return css`
@@ -206,9 +206,9 @@ const StepCircle = styled.div<{
         `;
       case 'error':
         return css`
-          background: rgb(239, 68, 68);
+          background: rgb(var(--color-error));
           color: white;
-          border: 2px solid rgb(239, 68, 68);
+          border: 2px solid rgb(var(--color-error));
         `;
       case 'skipped':
         return css`
@@ -235,11 +235,11 @@ const StepLabel = styled.span<{ $status: FormStep['status'] }>`
   color: ${props => {
     switch (props.$status) {
       case 'completed':
-        return 'rgb(34, 197, 94)';
+        return 'rgb(var(--color-success))';
       case 'current':
         return 'rgb(var(--color-primary, 102 126 234))';
       case 'error':
-        return 'rgb(239, 68, 68)';
+        return 'rgb(var(--color-error))';
       default:
         return 'rgb(var(--color-text-secondary, 127 140 141))';
     }
@@ -253,11 +253,11 @@ const VerticalLabel = styled.div<{ $status: FormStep['status'] }>`
   color: ${props => {
     switch (props.$status) {
       case 'completed':
-        return 'rgb(34, 197, 94)';
+        return 'rgb(var(--color-success))';
       case 'current':
         return 'rgb(var(--color-text-primary, 44 62 80))';
       case 'error':
-        return 'rgb(239, 68, 68)';
+        return 'rgb(var(--color-error))';
       default:
         return 'rgb(var(--color-text-secondary, 127 140 141))';
     }

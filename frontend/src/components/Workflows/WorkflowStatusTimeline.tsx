@@ -52,8 +52,8 @@ export interface WorkflowStatusTimelineProps {
 // ============================================================================
 
 const pulse = keyframes`
-  0%, 100% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.4); }
-  50% { box-shadow: 0 0 0 8px rgba(59, 130, 246, 0); }
+  0%, 100% { box-shadow: 0 0 0 0 rgba(var(--color-info), 0.4); }
+  50% { box-shadow: 0 0 0 8px rgba(var(--color-info), 0); }
 `;
 
 const fadeIn = keyframes`
@@ -93,7 +93,7 @@ const StepConnectorLine = styled.div<{ $completed: boolean; $isLast: boolean }>`
   top: 32px;
   bottom: 0;
   width: 2px;
-  background: ${props => props.$completed ? 'rgb(34, 197, 94)' : 'transparent'};
+  background: ${props => props.$completed ? 'rgb(var(--color-success))' : 'transparent'};
   z-index: 1;
   display: ${props => props.$isLast ? 'none' : 'block'};
 `;
@@ -113,7 +113,7 @@ const StepIndicator = styled.div<{ $status: TimelineStepStatus; $isCurrent: bool
   ${props => {
     if (props.$isCurrent) {
       return css`
-        background: rgb(59, 130, 246);
+        background: rgb(var(--color-info));
         color: white;
         animation: ${pulse} 2s infinite;
       `;
@@ -122,17 +122,17 @@ const StepIndicator = styled.div<{ $status: TimelineStepStatus; $isCurrent: bool
     switch (props.$status) {
       case 'completed':
         return css`
-          background: rgb(34, 197, 94);
+          background: rgb(var(--color-success));
           color: white;
         `;
       case 'approved':
         return css`
-          background: rgb(34, 197, 94);
+          background: rgb(var(--color-success));
           color: white;
         `;
       case 'rejected':
         return css`
-          background: rgb(239, 68, 68);
+          background: rgb(var(--color-error));
           color: white;
         `;
       case 'skipped':
@@ -143,12 +143,12 @@ const StepIndicator = styled.div<{ $status: TimelineStepStatus; $isCurrent: bool
         `;
       case 'blocked':
         return css`
-          background: rgb(234, 179, 8);
+          background: rgb(var(--color-warning));
           color: white;
         `;
       case 'in_progress':
         return css`
-          background: rgb(59, 130, 246);
+          background: rgb(var(--color-info));
           color: white;
           animation: ${pulse} 2s infinite;
         `;
@@ -180,11 +180,11 @@ const StepName = styled.h4<{ $status: TimelineStepStatus; $isCurrent: boolean }>
   font-weight: 600;
   margin: 0;
   color: ${props => {
-    if (props.$isCurrent) return 'rgb(59, 130, 246)';
+    if (props.$isCurrent) return 'rgb(var(--color-info))';
     if (props.$status === 'completed' || props.$status === 'approved') {
       return 'rgb(var(--color-text-primary, 44 62 80))';
     }
-    if (props.$status === 'rejected') return 'rgb(239, 68, 68)';
+    if (props.$status === 'rejected') return 'rgb(var(--color-error))';
     return 'rgb(var(--color-text-secondary, 127 140 141))';
   }};
 `;
@@ -200,27 +200,27 @@ const StepBadge = styled.span<{ $status: TimelineStepStatus }>`
     switch (props.$status) {
       case 'completed':
         return css`
-          background: rgba(34, 197, 94, 0.1);
-          color: rgb(34, 197, 94);
+          background: rgba(var(--color-success), 0.1);
+          color: rgb(var(--color-success));
         `;
       case 'approved':
         return css`
-          background: rgba(34, 197, 94, 0.1);
-          color: rgb(34, 197, 94);
+          background: rgba(var(--color-success), 0.1);
+          color: rgb(var(--color-success));
         `;
       case 'rejected':
         return css`
-          background: rgba(239, 68, 68, 0.1);
-          color: rgb(239, 68, 68);
+          background: rgba(var(--color-error), 0.1);
+          color: rgb(var(--color-error));
         `;
       case 'in_progress':
         return css`
-          background: rgba(59, 130, 246, 0.1);
-          color: rgb(59, 130, 246);
+          background: rgba(var(--color-info), 0.1);
+          color: rgb(var(--color-info));
         `;
       case 'blocked':
         return css`
-          background: rgba(234, 179, 8, 0.1);
+          background: rgba(var(--color-warning), 0.1);
           color: rgb(180, 140, 8);
         `;
       case 'skipped':
@@ -312,11 +312,11 @@ const ActionButton = styled.button<{ $variant: 'primary' | 'secondary' | 'danger
         `;
       case 'danger':
         return css`
-          background: rgba(239, 68, 68, 0.1);
-          color: rgb(239, 68, 68);
-          border: 1px solid rgb(239, 68, 68);
+          background: rgba(var(--color-error), 0.1);
+          color: rgb(var(--color-error));
+          border: 1px solid rgb(var(--color-error));
           
-          &:hover { background: rgba(239, 68, 68, 0.2); }
+          &:hover { background: rgba(var(--color-error), 0.2); }
         `;
       default:
         return css`

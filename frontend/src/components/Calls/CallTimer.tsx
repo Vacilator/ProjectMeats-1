@@ -131,7 +131,7 @@ const PulsingDot = styled.span<{ $isRunning: boolean }>`
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: ${props => props.$isRunning ? 'rgb(34, 197, 94)' : 'rgb(var(--color-text-secondary))'};
+  background: ${props => props.$isRunning ? 'rgb(var(--color-success))' : 'rgb(var(--color-text-secondary))'};
   animation: ${props => props.$isRunning ? 'pulse 1.5s infinite' : 'none'};
   
   @keyframes pulse {

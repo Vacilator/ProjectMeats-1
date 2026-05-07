@@ -230,31 +230,31 @@ const ActionButton = styled.button<{ $variant: string }>`
     switch (p.$variant) {
       case 'primary':
         return `
-          background: rgba(59, 130, 246, 0.08);
-          color: rgb(59, 130, 246);
-          border-color: rgba(59, 130, 246, 0.2);
-          &:hover { background: rgba(59, 130, 246, 0.15); }
+          background: rgba(var(--color-info), 0.08);
+          color: rgb(var(--color-info));
+          border-color: rgba(var(--color-info), 0.2);
+          &:hover { background: rgba(var(--color-info), 0.15); }
         `;
       case 'success':
         return `
-          background: rgba(34, 197, 94, 0.08);
-          color: rgb(34, 197, 94);
-          border-color: rgba(34, 197, 94, 0.2);
-          &:hover { background: rgba(34, 197, 94, 0.15); }
+          background: rgba(var(--color-success), 0.08);
+          color: rgb(var(--color-success));
+          border-color: rgba(var(--color-success), 0.2);
+          &:hover { background: rgba(var(--color-success), 0.15); }
         `;
       case 'danger':
         return `
-          background: rgba(239, 68, 68, 0.08);
-          color: rgb(239, 68, 68);
-          border-color: rgba(239, 68, 68, 0.2);
-          &:hover { background: rgba(239, 68, 68, 0.15); }
+          background: rgba(var(--color-error), 0.08);
+          color: rgb(var(--color-error));
+          border-color: rgba(var(--color-error), 0.2);
+          &:hover { background: rgba(var(--color-error), 0.15); }
         `;
       case 'warning':
         return `
-          background: rgba(234, 179, 8, 0.08);
-          color: rgb(202, 138, 4);
-          border-color: rgba(234, 179, 8, 0.2);
-          &:hover { background: rgba(234, 179, 8, 0.15); }
+          background: rgba(var(--color-warning), 0.08);
+          color: rgb(var(--color-warning));
+          border-color: rgba(var(--color-warning), 0.2);
+          &:hover { background: rgba(var(--color-warning), 0.15); }
         `;
       default:
         return `

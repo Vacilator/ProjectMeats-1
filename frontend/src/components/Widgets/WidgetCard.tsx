@@ -91,9 +91,9 @@ const HeaderBadge = styled.span<{ $variant: 'default' | 'danger' | 'warning' | '
   font-weight: 600;
   background: ${props => {
     switch (props.$variant) {
-      case 'danger': return 'rgb(239, 68, 68)';
-      case 'warning': return 'rgb(234, 179, 8)';
-      case 'success': return 'rgb(34, 197, 94)';
+      case 'danger': return 'rgb(var(--color-error))';
+      case 'warning': return 'rgb(var(--color-warning))';
+      case 'success': return 'rgb(var(--color-success))';
       default: return 'rgb(var(--color-primary))';
     }
   }};
@@ -152,7 +152,7 @@ const ErrorMessage = styled.div`
   justify-content: center;
   height: 100%;
   min-height: 100px;
-  color: rgb(239, 68, 68);
+  color: rgb(var(--color-error));
   font-size: 14px;
   text-align: center;
   padding: 16px;

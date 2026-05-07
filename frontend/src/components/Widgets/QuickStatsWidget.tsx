@@ -122,7 +122,7 @@ export const QuickStatsWidget: React.FC<QuickStatsWidgetProps> = () => {
       label: 'Total Orders',
       value: stats.quick_stats.total_orders.toLocaleString(),
       icon: <Package size={16} />,
-      color: 'rgb(59, 130, 246)',
+      color: 'rgb(var(--color-info))',
       href: '/purchase-orders',
     },
     {
@@ -130,7 +130,7 @@ export const QuickStatsWidget: React.FC<QuickStatsWidgetProps> = () => {
       label: 'Total Revenue',
       value: `$${stats.quick_stats.total_revenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
       icon: <DollarSign size={16} />,
-      color: 'rgb(34, 197, 94)',
+      color: 'rgb(var(--color-success))',
       href: '/dashboard',
     },
     {
@@ -146,7 +146,7 @@ export const QuickStatsWidget: React.FC<QuickStatsWidgetProps> = () => {
       label: 'Total Suppliers',
       value: stats.quick_stats.total_suppliers.toLocaleString(),
       icon: <Building size={16} />,
-      color: 'rgb(234, 179, 8)',
+      color: 'rgb(var(--color-warning))',
       href: '/suppliers',
     },
   ] : [];

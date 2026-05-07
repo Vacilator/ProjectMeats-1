@@ -156,17 +156,17 @@ const getColorForEntityType = (entityType: string) => {
   const normalized = normalizeEntityTypeForModal(entityType) ?? entityType.toLowerCase();
   switch (normalized) {
     case 'purchase_order':
-      return 'rgb(59, 130, 246)';
+      return 'rgb(var(--color-info))';
     case 'sales_order':
       return 'rgb(168, 85, 247)';
     case 'customer':
-      return 'rgb(34, 197, 94)';
+      return 'rgb(var(--color-success))';
     case 'supplier':
-      return 'rgb(234, 179, 8)';
+      return 'rgb(var(--color-warning))';
     case 'invoice':
-      return 'rgb(239, 68, 68)';
+      return 'rgb(var(--color-error))';
     default:
-      return 'rgb(107, 114, 128)';
+      return 'rgb(var(--color-neutral))';
   }
 };
 
