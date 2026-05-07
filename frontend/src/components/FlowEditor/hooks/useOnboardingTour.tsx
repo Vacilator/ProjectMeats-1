@@ -13,6 +13,7 @@
  * Created: 2026-02-26 - Gap Analysis Phase 1.1
  */
 import { useState, useEffect, useCallback } from 'react';
+import styled from 'styled-components';
 import {
   ACTIONS,
   EVENTS,
@@ -151,6 +152,33 @@ export const useOnboardingTour = (tourConfig: TourConfig) => {
   };
 };
 
+// ============================================================================
+// Styled Components (tour step content)
+// ============================================================================
+
+const TourStepTitle = styled.h3`
+  margin: 0 0 8px 0;
+`;
+
+const TourStepText = styled.p`
+  margin: 0;
+`;
+
+const TourStepTextSpaced = styled.p`
+  margin: 0 0 8px 0;
+`;
+
+const TourStepList = styled.ol`
+  margin: 0;
+  padding-left: 20px;
+`;
+
+const TourStepHint = styled.p`
+  margin: 8px 0 0 0;
+  font-size: 14px;
+  color: rgb(var(--color-text-secondary));
+`;
+
 /**
  * Tour steps for Workflow Editor
  */
@@ -159,11 +187,11 @@ export const workflowEditorTourSteps: Step[] = [
     target: 'body',
     content: (
       <div>
-        <h3 style={{ margin: '0 0 8px 0' }}>👋 Welcome to Workforms!</h3>
-        <p style={{ margin: 0 }}>
+        <TourStepTitle>👋 Welcome to Workforms!</TourStepTitle>
+        <TourStepText>
           Let's take a quick tour to help you create your first workflow.
           This will only take 60 seconds.
-        </p>
+        </TourStepText>
       </div>
     ),
     placement: 'center',
@@ -172,11 +200,11 @@ export const workflowEditorTourSteps: Step[] = [
     target: '.node-palette',
     content: (
       <div>
-        <h3 style={{ margin: '0 0 8px 0' }}>🎨 Node Palette</h3>
-        <p style={{ margin: 0 }}>
+        <TourStepTitle>🎨 Node Palette</TourStepTitle>
+        <TourStepText>
           Drag nodes from here onto the canvas to build your workflow.
           Each node type performs a different action.
-        </p>
+        </TourStepText>
       </div>
     ),
     placement: 'right',
@@ -185,11 +213,11 @@ export const workflowEditorTourSteps: Step[] = [
     target: '.react-flow__pane',
     content: (
       <div>
-        <h3 style={{ margin: '0 0 8px 0' }}>🖌️ Canvas</h3>
-        <p style={{ margin: 0 }}>
+        <TourStepTitle>🖌️ Canvas</TourStepTitle>
+        <TourStepText>
           Drop nodes here and connect them to create workflows.
           Drag to pan, scroll to zoom, or use the toolbar controls.
-        </p>
+        </TourStepText>
       </div>
     ),
     placement: 'top',
@@ -198,11 +226,11 @@ export const workflowEditorTourSteps: Step[] = [
     target: '[data-tour="toolbar"]',
     content: (
       <div>
-        <h3 style={{ margin: '0 0 8px 0' }}>🛠️ Toolbar</h3>
-        <p style={{ margin: 0 }}>
+        <TourStepTitle>🛠️ Toolbar</TourStepTitle>
+        <TourStepText>
           Quick access to common actions: undo/redo, zoom, alignment,
           and save. Use keyboard shortcuts for faster editing!
-        </p>
+        </TourStepText>
       </div>
     ),
     placement: 'bottom',
@@ -213,11 +241,11 @@ export const workflowEditorTourSteps: Step[] = [
     target: '.react-flow__pane',
     content: (
       <div>
-        <h3 style={{ margin: '0 0 8px 0' }}>⚙️ Configuration Panel</h3>
-        <p style={{ margin: 0 }}>
+        <TourStepTitle>⚙️ Configuration Panel</TourStepTitle>
+        <TourStepText>
           Click any node on the canvas to open the Configuration Panel and edit its properties.
           Changes are saved automatically as you type.
-        </p>
+        </TourStepText>
       </div>
     ),
     placement: 'top',
@@ -227,19 +255,19 @@ export const workflowEditorTourSteps: Step[] = [
     target: 'body',
     content: (
       <div>
-        <h3 style={{ margin: '0 0 8px 0' }}>🚀 You're Ready!</h3>
-        <p style={{ margin: '0 0 8px 0' }}>
+        <TourStepTitle>🚀 You're Ready!</TourStepTitle>
+        <TourStepTextSpaced>
           That's it! Now try creating your first workflow:
-        </p>
-        <ol style={{ margin: 0, paddingLeft: '20px' }}>
+        </TourStepTextSpaced>
+        <TourStepList>
           <li>Drag a <strong>Form</strong> node to the canvas</li>
           <li>Click it to configure the form fields</li>
           <li>Add more nodes and connect them</li>
           <li>Click <strong>Save</strong> when done</li>
-        </ol>
-        <p style={{ margin: '8px 0 0 0', fontSize: '14px', color: 'rgb(var(--color-text-secondary))' }}>
+        </TourStepList>
+        <TourStepHint>
           💡 Press <code>Shift+?</code> anytime to see all keyboard shortcuts
-        </p>
+        </TourStepHint>
       </div>
     ),
     placement: 'center',
@@ -254,11 +282,11 @@ export const catalogTourSteps: Step[] = [
     target: 'body',
     content: (
       <div>
-        <h3 style={{ margin: '0 0 8px 0' }}>📚 Welcome to the Catalog!</h3>
-        <p style={{ margin: 0 }}>
+        <TourStepTitle>📚 Welcome to the Catalog!</TourStepTitle>
+        <TourStepText>
           This is where you manage all your workflows and forms.
           Let's explore what you can do here.
-        </p>
+        </TourStepText>
       </div>
     ),
     placement: 'center',
@@ -267,11 +295,11 @@ export const catalogTourSteps: Step[] = [
     target: '[data-tour="create-button"]',
     content: (
       <div>
-        <h3 style={{ margin: '0 0 8px 0' }}>✨ Create New</h3>
-        <p style={{ margin: 0 }}>
+        <TourStepTitle>✨ Create New</TourStepTitle>
+        <TourStepText>
           Click here to create a new workflow or form from scratch,
           or choose from pre-built templates.
-        </p>
+        </TourStepText>
       </div>
     ),
     placement: 'bottom',
@@ -280,11 +308,11 @@ export const catalogTourSteps: Step[] = [
     target: '[data-tour="search-bar"]',
     content: (
       <div>
-        <h3 style={{ margin: '0 0 8px 0' }}>🔍 Search & Filter</h3>
-        <p style={{ margin: 0 }}>
+        <TourStepTitle>🔍 Search & Filter</TourStepTitle>
+        <TourStepText>
           Quickly find workflows by name, status, or category.
           Use filters to narrow down results.
-        </p>
+        </TourStepText>
       </div>
     ),
     placement: 'bottom',
@@ -293,11 +321,11 @@ export const catalogTourSteps: Step[] = [
     target: '[data-tour="workflow-card"]',
     content: (
       <div>
-        <h3 style={{ margin: '0 0 8px 0' }}>📄 Workflow Cards</h3>
-        <p style={{ margin: 0 }}>
+        <TourStepTitle>📄 Workflow Cards</TourStepTitle>
+        <TourStepText>
           Each card shows a workflow summary. Click to edit,
           or use the menu for more actions (duplicate, export, delete).
-        </p>
+        </TourStepText>
       </div>
     ),
     placement: 'top',
@@ -307,10 +335,10 @@ export const catalogTourSteps: Step[] = [
     target: 'body',
     content: (
       <div>
-        <h3 style={{ margin: '0 0 8px 0' }}>🎉 You're All Set!</h3>
-        <p style={{ margin: 0 }}>
+        <TourStepTitle>🎉 You're All Set!</TourStepTitle>
+        <TourStepText>
           Now you know how to manage your workflows. Ready to build something amazing?
-        </p>
+        </TourStepText>
       </div>
     ),
     placement: 'center',

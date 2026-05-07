@@ -6,6 +6,7 @@
  */
 
 import React, { useEffect, useState } from 'react';
+import styled from 'styled-components';
 import {
   Card,
   Row,
@@ -437,7 +438,7 @@ export const WorkflowAnalyticsDashboard: React.FC<WorkflowAnalyticsDashboardProp
   };
 
   return (
-    <div style={{ padding: 24, background: 'rgb(var(--color-bg-secondary))', minHeight: '100vh' }}>
+    <DashboardContainer>
       <Space direction="vertical" size="large" style={{ width: '100%' }}>
         {/* Header */}
         <Card>
@@ -494,12 +495,12 @@ export const WorkflowAnalyticsDashboard: React.FC<WorkflowAnalyticsDashboardProp
         {/* Content */}
         {loading ? (
           <Card>
-            <div style={{ textAlign: 'center', padding: '60px 0' }}>
+            <LoadingContainer>
               <Spin size="large" />
-              <div style={{ marginTop: 16 }}>
+              <LoadingText>
                 <Text type="secondary">Loading analytics...</Text>
-              </div>
-            </div>
+              </LoadingText>
+            </LoadingContainer>
           </Card>
         ) : !selectedWorkflowId ? (
           <Card>
@@ -531,6 +532,25 @@ export const WorkflowAnalyticsDashboard: React.FC<WorkflowAnalyticsDashboardProp
           </>
         )}
       </Space>
-    </div>
+    </DashboardContainer>
   );
 };
+
+// ============================================================================
+// Styled Components
+// ============================================================================
+
+const DashboardContainer = styled.div`
+  padding: 24px;
+  background: rgb(var(--color-bg-secondary));
+  min-height: 100vh;
+`;
+
+const LoadingContainer = styled.div`
+  text-align: center;
+  padding: 60px 0;
+`;
+
+const LoadingText = styled.div`
+  margin-top: 16px;
+`;

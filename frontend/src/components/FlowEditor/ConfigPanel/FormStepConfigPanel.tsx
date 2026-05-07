@@ -587,21 +587,13 @@ export const FormStepConfigPanel: React.FC<FormStepConfigPanelProps> = ({
                 <Database size={14} style={{ marginRight: '4px', display: 'inline', verticalAlign: 'middle' }} />
                 Entity Type <RequiredIndicator>*</RequiredIndicator>
               </Label>
-              <select
+              <EntitySelect
                 value={localStep.entityType || ''}
                 onChange={(e) => {
                   handleUpdate({ entityType: e.target.value, fields: [] }); // Clear fields when entity changes
                 }}
-                style={{
-                  width: '100%',
-                  padding: '10px 12px',
-                  fontSize: '14px',
-                  border: entitiesError ? '1px solid rgb(var(--color-error))' : '1px solid rgb(var(--color-border))',
-                  borderRadius: '6px',
-                  background: 'rgb(var(--color-background))',
-                  color: 'rgb(var(--color-text-primary))',
-                  cursor: entitiesLoading ? 'wait' : 'pointer',
-                }}
+                $hasError={!!entitiesError}
+                $isLoading={entitiesLoading}
                 disabled={entitiesLoading}
               >
                 <option value="">
@@ -618,7 +610,7 @@ export const FormStepConfigPanel: React.FC<FormStepConfigPanelProps> = ({
                 ) : !entitiesLoading && (
                   <option disabled>No entities available</option>
                 )}
-              </select>
+              </EntitySelect>
               <HelpText style={{ color: entitiesError ? 'rgb(var(--color-error))' : undefined }}>
                 {entitiesLoading ? (
                   '⏳ Loading entities...'
@@ -648,20 +640,15 @@ export const FormStepConfigPanel: React.FC<FormStepConfigPanelProps> = ({
                 <Zap size={14} style={{ marginRight: '4px', display: 'inline', verticalAlign: 'middle' }} />
                 Smart Auto-Map
                 {suggestions && suggestions.suggestions.length > 0 && (
-                  <span style={{ 
-                    marginLeft: '8px', 
-                    fontSize: '12px', 
-                    color: 'rgb(var(--color-primary))',
-                    fontWeight: 'normal'
-                  }}>
+                  <SuggestionCount>
                     ({suggestions.suggestions.length} suggestions)
-                  </span>
+                  </SuggestionCount>
                 )}
               </SectionTitle>
               {showAutoMapping ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
             </SectionHeader>
             <SectionContent $collapsed={!showAutoMapping}>
-              <div style={{ marginBottom: '16px' }}>
+              <AutoMapActions>
                 <HelpText>
                   Automatically suggest field mappings from upstream nodes based on name similarity and type compatibility.
                 </HelpText>
@@ -676,7 +663,7 @@ export const FormStepConfigPanel: React.FC<FormStepConfigPanelProps> = ({
                 >
                   {autoMappingLoading ? 'Analyzing...' : 'Generate Suggestions'}
                 </PrimaryButton>
-              </div>
+              </AutoMapActions>
               
               {suggestions && suggestions.suggestions.length > 0 && (
                 <AutoMappingSuggestionsPanel
@@ -1007,8 +994,8 @@ export const FormStepConfigPanel: React.FC<FormStepConfigPanelProps> = ({
                   }
                 })}
               >
-                <div style={{ marginBottom: '4px', fontWeight: 700 }}>All Fields</div>
-                <div style={{ fontSize: '11px', opacity: 0.7 }}>All required fields must be valid</div>
+                <ValidationModeTitle>All Fields</ValidationModeTitle>
+                <ValidationModeSubtitle>All required fields must be valid</ValidationModeSubtitle>
               </ValidationModeButton>
               <ValidationModeButton
                 $active={localStep.validation?.mode === 'minimum'}
@@ -1020,8 +1007,8 @@ export const FormStepConfigPanel: React.FC<FormStepConfigPanelProps> = ({
                   }
                 })}
               >
-                <div style={{ marginBottom: '4px', fontWeight: 700 }}>Minimum Required</div>
-                <div style={{ fontSize: '11px', opacity: 0.7 }}>At least N fields must be filled</div>
+                <ValidationModeTitle>Minimum Required</ValidationModeTitle>
+                <ValidationModeSubtitle>At least N fields must be filled</ValidationModeSubtitle>
               </ValidationModeButton>
             </ValidationModeSelector>
 
@@ -1079,68 +1066,27 @@ export const FormStepConfigPanel: React.FC<FormStepConfigPanelProps> = ({
 
       {/* Phase C.1.3: Entity Field Picker Modal */}
       {showFieldPicker && localStep.entityType && (
-        <div
-          style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            background: 'rgba(var(--color-overlay), 0.5)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 10000,
-            padding: '20px',
-          }}
+        <ModalOverlay
           onClick={(e) => e.target === e.currentTarget && setShowFieldPicker(false)}
         >
-          <div
-            style={{
-              background: 'rgb(var(--color-surface))',
-              borderRadius: '8px',
-              maxWidth: '900px',
-              width: '100%',
-              maxHeight: '90vh',
-              overflow: 'hidden',
-              display: 'flex',
-              flexDirection: 'column',
-              boxShadow: '0 10px 40px rgba(var(--color-overlay), 0.3)',
-            }}
-          >
-            <div
-              style={{
-                padding: '20px',
-                borderBottom: '1px solid rgb(var(--color-border))',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-              }}
-            >
-              <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 600 }}>
+          <ModalContent>
+            <ModalHeader>
+              <ModalTitle>
                 Select Fields from {entities.find(e => e.id === localStep.entityType)?.label_plural}
-              </h3>
+              </ModalTitle>
               <SecondaryButton onClick={() => setShowFieldPicker(false)}>
                 Close
               </SecondaryButton>
-            </div>
-            <div style={{ flex: 1, overflow: 'auto', padding: '20px' }}>
+            </ModalHeader>
+            <ModalBody>
               <EntityFieldPicker
                 selectedFields={pickedFields}
                 onFieldsChange={setPickedFields}
                 initialEntityType={localStep.entityType}
                 multiSelectMode={true}
               />
-            </div>
-            <div
-              style={{
-                padding: '16px 20px',
-                borderTop: '1px solid rgb(var(--color-border))',
-                display: 'flex',
-                justifyContent: 'flex-end',
-                gap: '12px',
-              }}
-            >
+            </ModalBody>
+            <ModalFooter>
               <SecondaryButton onClick={() => setShowFieldPicker(false)}>
                 Cancel
               </SecondaryButton>
@@ -1150,9 +1096,9 @@ export const FormStepConfigPanel: React.FC<FormStepConfigPanelProps> = ({
               >
                 Add {pickedFields.length} Field{pickedFields.length !== 1 ? 's' : ''}
               </PrimaryButton>
-            </div>
-          </div>
-        </div>
+            </ModalFooter>
+          </ModalContent>
+        </ModalOverlay>
       )}
 
       {/* Phase C.1.3: Field Properties Editor Modal */}
@@ -1172,3 +1118,93 @@ export const FormStepConfigPanel: React.FC<FormStepConfigPanelProps> = ({
 };
 
 export default FormStepConfigPanel;
+
+// ============================================================================
+// Additional Styled Components (inline style conversions)
+// ============================================================================
+
+const EntitySelect = styled.select<{ $hasError?: boolean; $isLoading?: boolean }>`
+  width: 100%;
+  padding: 10px 12px;
+  font-size: 14px;
+  border: 1px solid ${props => props.$hasError ? 'rgb(var(--color-error))' : 'rgb(var(--color-border))'};
+  border-radius: 6px;
+  background: rgb(var(--color-background));
+  color: rgb(var(--color-text-primary));
+  cursor: ${props => props.$isLoading ? 'wait' : 'pointer'};
+`;
+
+const SuggestionCount = styled.span`
+  margin-left: 8px;
+  font-size: 12px;
+  color: rgb(var(--color-primary));
+  font-weight: normal;
+`;
+
+const AutoMapActions = styled.div`
+  margin-bottom: 16px;
+`;
+
+const ValidationModeTitle = styled.div`
+  margin-bottom: 4px;
+  font-weight: 700;
+`;
+
+const ValidationModeSubtitle = styled.div`
+  font-size: 11px;
+  opacity: 0.7;
+`;
+
+const ModalOverlay = styled.div`
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(var(--color-overlay), 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  padding: 20px;
+`;
+
+const ModalContent = styled.div`
+  background: rgb(var(--color-surface));
+  border-radius: 8px;
+  max-width: 900px;
+  width: 100%;
+  max-height: 90vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 10px 40px rgba(var(--color-overlay), 0.3);
+`;
+
+const ModalHeader = styled.div`
+  padding: 20px;
+  border-bottom: 1px solid rgb(var(--color-border));
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+`;
+
+const ModalTitle = styled.h3`
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+`;
+
+const ModalBody = styled.div`
+  flex: 1;
+  overflow: auto;
+  padding: 20px;
+`;
+
+const ModalFooter = styled.div`
+  padding: 16px 20px;
+  border-top: 1px solid rgb(var(--color-border));
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+`;
