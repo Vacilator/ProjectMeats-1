@@ -31,7 +31,7 @@ vi.mock('../../features/system/DynamicFormEngine', () => ({
   },
 }));
 
-import { UniversalEntityForm } from './UniversalEntityForm';
+import { augmentSchemaForFrontend, UniversalEntityForm } from './UniversalEntityForm';
 
 describe('UniversalEntityForm stability', () => {
   beforeEach(() => {
@@ -144,5 +144,101 @@ describe('UniversalEntityForm stability', () => {
 
     await user.click(screen.getByRole('button', { name: /autofill from document/i }));
     expect(onExtract).toHaveBeenCalledTimes(1);
+  });
+
+  it('prioritizes plant contact type and department-driven fields for plant contacts', () => {
+    const augmented = augmentSchemaForFrontend(
+      'contact',
+      {
+        name: 'Contact',
+        fields: [
+          {
+            key: 'department',
+            label: 'Department',
+            type: 'select',
+            choices: [
+              { value: 'sales', label: 'Sales' },
+              { value: 'qa', label: 'Quality Assurance' },
+              { value: 'shipping', label: 'Shipping / Loadout' },
+              { value: 'certification', label: 'Certification' },
+              { value: 'accounting', label: 'Accounting' },
+              { value: 'booking', label: 'Booking (Deprecated)' },
+            ],
+          },
+          { key: 'contact_type', label: 'Contact Type', type: 'select' },
+          { key: 'first_name', label: 'First Name', type: 'text' },
+          { key: 'last_name', label: 'Last Name', type: 'text' },
+          { key: 'email', label: 'Email', type: 'email' },
+          { key: 'position', label: 'Position', type: 'text' },
+          { key: 'mobile_phone', label: 'Mobile Phone', type: 'text' },
+          { key: 'office_phone', label: 'Office Phone', type: 'text' },
+          { key: 'office_phone_ext', label: 'Office Ext', type: 'text' },
+          { key: 'protein_types_responsible', label: 'Protein Types Responsible For', type: 'select' },
+          { key: 'items_responsible', label: 'Items Responsible For', type: 'select' },
+          { key: 'documents_responsible_for', label: 'Documents Responsible For', type: 'select' },
+          { key: 'notes', label: 'Notes', type: 'textarea' },
+        ],
+      },
+      { plant: '2', supplier: '1' }
+    );
+
+    const departmentField = augmented?.fields.find((field) => field.key === 'department');
+    const contactTypeField = augmented?.fields.find((field) => field.key === 'contact_type');
+    const shippingTitleField = augmented?.fields.find((field) => field.key === 'shipping_loadout_title');
+    const proteinField = augmented?.fields.find((field) => field.key === 'protein_types_responsible');
+    const itemsField = augmented?.fields.find((field) => field.key === 'items_responsible');
+    const documentsField = augmented?.fields.find((field) => field.key === 'documents_responsible_for');
+
+    expect(augmented?.key_fields?.slice(0, 5)).toEqual([
+      'department',
+      'first_name',
+      'last_name',
+      'email',
+      'mobile_phone',
+    ]);
+    expect(departmentField).toMatchObject({
+      label: 'Plant Contact Type',
+      required: true,
+    });
+    expect(departmentField?.choices?.map((choice) => choice.value)).toEqual([
+      'sales',
+      'qa',
+      'shipping',
+      'certification',
+      'accounting',
+    ]);
+    expect(contactTypeField).toBeUndefined();
+    expect(shippingTitleField).toMatchObject({
+      api_key: 'position',
+      label: 'Title',
+      ui: {
+        widget: 'select',
+        visible_when: {
+          field: 'department',
+          equals: 'shipping',
+        },
+      },
+    });
+    expect(proteinField?.ui).toMatchObject({
+      visible_when: {
+        field: 'department',
+        equals: 'sales',
+      },
+    });
+    expect(itemsField?.ui).toMatchObject({
+      visible_when: {
+        field: 'department',
+        equals: 'sales',
+      },
+    });
+    expect(documentsField?.ui).toMatchObject({
+      visible_when: {
+        field: 'department',
+        truthy: true,
+      },
+    });
+    expect(
+      (documentsField?.ui as { option_groups?: Record<string, unknown> } | undefined)?.option_groups?.shipping
+    ).toBeDefined();
   });
 });

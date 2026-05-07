@@ -2,7 +2,7 @@ import React from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 
 import { PlantDetail } from './PlantDetail';
 
@@ -23,19 +23,26 @@ const entityFormSurfaceMock = vi.fn(
     mode,
     variant,
     isOpen,
+    initialValues,
   }: {
     entityType: string;
     entityId?: string | number;
     mode: string;
     variant?: string;
     isOpen?: boolean;
+    initialValues?: Record<string, unknown>;
   }) =>
     isOpen ? (
       <div data-testid="entity-form-surface">
-        {entityType}:{mode}:{variant || 'modal'}:{String(entityId || '')}
+        {entityType}:{mode}:{variant || 'modal'}:{String(entityId || '')}:{String(initialValues?.plant || '')}:{String(initialValues?.supplier || '')}
       </div>
     ) : null
 );
+
+const LocationProbe = () => {
+  const location = useLocation();
+  return <div data-testid="location-probe">{location.pathname}{location.search}</div>;
+};
 
 vi.mock('@/components/Cockpit', () => ({
   EntityProfileHeader: () => <div data-testid="entity-profile-header" />,
@@ -66,6 +73,7 @@ vi.mock('@/components/Shared', () => ({
     mode: string;
     variant?: string;
     isOpen?: boolean;
+    initialValues?: Record<string, unknown>;
   }) => entityFormSurfaceMock(props),
 }));
 
@@ -115,14 +123,14 @@ describe('PlantDetail workflows tab', () => {
     expect(await screen.findByTestId('entity-workflow-status-panel')).toHaveTextContent('plant:2');
   });
 
-  it('navigates plant contacts to the standard contact create flow', async () => {
+  it('opens plant contact creation on the plant detail route with plant context', async () => {
     const user = userEvent.setup();
 
     render(
       <MemoryRouter initialEntries={['/suppliers/1/plants/2']}>
+        <LocationProbe />
         <Routes>
           <Route path="/suppliers/:supplierId/plants/:plantId" element={<PlantDetail />} />
-          <Route path="/contacts" element={<div data-testid="contacts-route" />} />
         </Routes>
       </MemoryRouter>
     );
@@ -130,7 +138,24 @@ describe('PlantDetail workflows tab', () => {
     expect(await screen.findByRole('tab', { name: /plant dept\. contacts/i })).toBeInTheDocument();
 
     await user.click(await screen.findByRole('button', { name: /\+ add department contact/i }));
-    expect(await screen.findByTestId('contacts-route')).toBeInTheDocument();
+
+    expect(await screen.findByTestId('location-probe')).toHaveTextContent(
+      '/suppliers/1/plants/2?createDeptContact=1'
+    );
+    expect(await screen.findByTestId('entity-form-surface')).toHaveTextContent(
+      'contact:create:modal::2:1'
+    );
+
+    expect(
+      entityFormSurfaceMock.mock.calls.some(
+        ([props]) =>
+          Boolean(props?.isOpen) &&
+          props?.entityType === 'contact' &&
+          props?.mode === 'create' &&
+          props?.initialValues?.plant === '2' &&
+          props?.initialValues?.supplier === '1'
+      )
+    ).toBe(true);
   });
 
   it('passes plant ids to activity as strings without numeric coercion', async () => {

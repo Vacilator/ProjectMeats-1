@@ -497,6 +497,12 @@ const asSchemaChoices = (value: unknown): SchemaChoice[] => {
     .filter((item): item is SchemaChoice => item !== null);
 };
 
+const hasContextValue = (value: unknown): boolean => {
+  if (value == null) return false;
+  if (typeof value === 'string') return value.trim().length > 0;
+  return true;
+};
+
 const inferContactFormContext = (values?: Record<string, unknown> | null): ContactFormContext => {
   const rawContext = String(values?.contact_context ?? values?.contactContext ?? '').trim().toLowerCase();
   if (rawContext === 'shipping_loadout' || rawContext === 'shipping/loadout' || rawContext === 'loadout') {
@@ -505,8 +511,8 @@ const inferContactFormContext = (values?: Record<string, unknown> | null): Conta
   if (rawContext === 'certification') return 'certification';
 
   const department = String(values?.department ?? '').trim().toLowerCase();
-  if (department === 'booking') return 'shipping_loadout';
-  if (department === 'qa' && rawContext === 'certification') return 'certification';
+  if (department === 'shipping' || department === 'booking') return 'shipping_loadout';
+  if (department === 'certification') return 'certification';
   return 'default';
 };
 
@@ -879,6 +885,11 @@ export const augmentSchemaForFrontend = (
   if (normalizedEntityKey !== 'contact') return schema;
 
   const context = inferContactFormContext(values);
+  const isDepartmentScopedContact = hasContextValue(values?.plant) || hasContextValue(values?.location);
+  const scopedContactTypeLabel =
+    hasContextValue(values?.location) && !hasContextValue(values?.plant)
+      ? 'Location Contact Type'
+      : 'Plant Contact Type';
   const shippingTitleChoices = getShippingLoadoutTitleChoices(values);
   const providedDocumentChoices = asSchemaChoices(values?.documentsResponsibleOptions);
   const documentChoices =
@@ -904,35 +915,93 @@ export const augmentSchemaForFrontend = (
     }
   };
 
-  const nextFields = [...fields].map((field) => {
-    const key = String(field.key || '').toLowerCase();
-    if (key !== 'department') return field;
+  const nextFields = [...fields]
+    .filter((field) => {
+      const key = String(field.key || '').toLowerCase();
+      if (!isDepartmentScopedContact) return true;
+      return key !== 'contact_type' && key !== 'position';
+    })
+    .map((field) => {
+      const key = String(field.key || '').toLowerCase();
+      if (key !== 'department') return field;
 
-    const currentDept = String(values?.department ?? '').trim().toLowerCase();
+      const currentDept = String(values?.department ?? '').trim().toLowerCase();
 
-    const filteredChoices = (field.choices || []).filter((choice) => {
-      const value = String(choice.value).toLowerCase();
+      const filteredChoices = (field.choices || []).filter((choice) => {
+        const value = String(choice.value).toLowerCase();
 
-      // Hide legacy BOOKING unless the record already has it.
-      if (value === 'booking' && currentDept !== 'booking') return false;
-      return true;
-    });
+        // Hide legacy BOOKING unless the record already has it.
+        if (value === 'booking' && currentDept !== 'booking') return false;
+        return true;
+      });
 
-    const choices = filteredChoices.map((choice) => {
-      if (String(choice.value).toLowerCase() !== 'booking') return choice;
+      const choices = filteredChoices.map((choice) => {
+        if (String(choice.value).toLowerCase() !== 'booking') return choice;
+        return {
+          ...choice,
+          label: 'Shipping / Loadout (Legacy)',
+        };
+      });
+
       return {
-        ...choice,
-        label: 'Shipping / Loadout (Legacy)',
+        ...field,
+        label: isDepartmentScopedContact ? scopedContactTypeLabel : field.label,
+        required: isDepartmentScopedContact ? true : field.required,
+        placeholder:
+          isDepartmentScopedContact
+            ? field.placeholder || `Select ${scopedContactTypeLabel.toLowerCase()}`
+            : field.placeholder,
+        help_text:
+          isDepartmentScopedContact
+            ? field.help_text || 'Select the department first to reveal the right responsibility fields.'
+            : field.help_text,
+        choices,
       };
     });
 
-    return {
-      ...field,
-      choices,
-    };
-  });
+  if (isDepartmentScopedContact) {
+    withField(nextFields, 'shipping_loadout_title', (existing) => ({
+      ...(existing || { key: 'shipping_loadout_title' }),
+      api_key: 'position',
+      label: 'Title',
+      type: 'select',
+      required: Boolean(existing?.required),
+      placeholder: 'Select a shipping / loadout title',
+      help_text:
+        existing?.help_text ||
+        'Shown for Shipping / Loadout contacts.',
+      choices: shippingTitleChoices,
+      ui: {
+        ...((existing?.ui as Record<string, unknown> | null) || {}),
+        widget: 'select',
+        visible_when: {
+          field: 'department',
+          equals: 'shipping',
+        },
+      },
+    }));
 
-  if (context === 'shipping_loadout') {
+    withField(nextFields, 'legacy_shipping_loadout_title', (existing) => ({
+      ...(existing || { key: 'legacy_shipping_loadout_title' }),
+      api_key: 'position',
+      label: 'Title',
+      type: 'select',
+      required: Boolean(existing?.required),
+      placeholder: 'Select a shipping / loadout title',
+      help_text:
+        existing?.help_text ||
+        'Shown only for legacy Booking contacts.',
+      choices: shippingTitleChoices,
+      ui: {
+        ...((existing?.ui as Record<string, unknown> | null) || {}),
+        widget: 'select',
+        visible_when: {
+          field: 'department',
+          equals: 'booking',
+        },
+      },
+    }));
+  } else if (context === 'shipping_loadout') {
     withField(nextFields, 'position', (existing) => ({
       ...(existing || { key: 'position' }),
       label: 'Title',
@@ -966,6 +1035,14 @@ export const augmentSchemaForFrontend = (
         type: 'choice_list',
         list: 'protein_types',
       },
+      ...(isDepartmentScopedContact
+        ? {
+            visible_when: {
+              field: 'department',
+              equals: 'sales',
+            },
+          }
+        : {}),
     },
   }));
 
@@ -984,6 +1061,14 @@ export const augmentSchemaForFrontend = (
       data_source: {
         type: 'master_products',
       },
+      ...(isDepartmentScopedContact
+        ? {
+            visible_when: {
+              field: 'department',
+              equals: 'sales',
+            },
+          }
+        : {}),
     },
   }));
 
@@ -999,9 +1084,18 @@ export const augmentSchemaForFrontend = (
     ui: {
       ...((existing?.ui as Record<string, unknown> | null) || {}),
       widget: 'multi_select',
+      ...(isDepartmentScopedContact
+        ? {
+            visible_when: {
+              field: 'department',
+              truthy: true,
+            },
+          }
+        : {}),
       option_groups: {
         default: context === 'certification' ? documentChoices : CONTACT_DOCUMENT_OPTIONS.default,
         sales: CONTACT_DOCUMENT_OPTIONS.sales,
+        shipping: CONTACT_DOCUMENT_OPTIONS.shipping_loadout,
         booking: CONTACT_DOCUMENT_OPTIONS.booking,
         qa: context === 'certification' ? documentChoices : CONTACT_DOCUMENT_OPTIONS.qa,
         accounting: CONTACT_DOCUMENT_OPTIONS.accounting,
@@ -1024,9 +1118,25 @@ export const augmentSchemaForFrontend = (
     },
   }));
 
-  const prioritizedKeyFields = context === 'shipping_loadout'
-    ? ['position', 'first_name', 'last_name', 'email', 'mobile_phone', 'office_phone', 'office_phone_ext', 'department', 'protein_types_responsible', 'items_responsible', 'documents_responsible_for', 'notes']
-    : ['first_name', 'last_name', 'email', 'mobile_phone', 'office_phone', 'office_phone_ext', 'department', 'protein_types_responsible', 'items_responsible', 'documents_responsible_for', 'notes'];
+  const prioritizedKeyFields = isDepartmentScopedContact
+    ? [
+        'department',
+        'first_name',
+        'last_name',
+        'email',
+        'mobile_phone',
+        'office_phone',
+        'office_phone_ext',
+        'shipping_loadout_title',
+        'legacy_shipping_loadout_title',
+        'protein_types_responsible',
+        'items_responsible',
+        'documents_responsible_for',
+        'notes',
+      ]
+    : context === 'shipping_loadout'
+      ? ['position', 'first_name', 'last_name', 'email', 'mobile_phone', 'office_phone', 'office_phone_ext', 'department', 'protein_types_responsible', 'items_responsible', 'documents_responsible_for', 'notes']
+      : ['first_name', 'last_name', 'email', 'mobile_phone', 'office_phone', 'office_phone_ext', 'department', 'protein_types_responsible', 'items_responsible', 'documents_responsible_for', 'notes'];
 
   return {
     ...schema,
