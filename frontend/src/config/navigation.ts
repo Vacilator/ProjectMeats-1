@@ -85,6 +85,11 @@ export const navigation: NavigationItem[] = [
     path: '/suppliers',
   },
   {
+    label: 'Activity',
+    icon: '🕒',
+    path: '/activity',
+  },
+  {
     label: 'Customers',
     icon: '👥',
     path: '/customers',

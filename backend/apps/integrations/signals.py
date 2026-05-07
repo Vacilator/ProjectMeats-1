@@ -7,7 +7,7 @@ from django.utils import timezone
 
 from apps.tenants.models import TenantUser
 from tenant_apps.inquiries.services import parse_supplier_quote_reply
-from tenant_apps.ai_assistant.models import AIFeedbackLog
+from tenant_apps.ai_assistant.models import AIFeedbackLog, AILineageEvent
 from tenant_apps.workflows.models import NotificationPriority, NotificationType, UserNotification
 
 from .ai_classification import classify_ingested_email
@@ -20,6 +20,40 @@ logger = logging.getLogger(__name__)
 def _email_feedback_document_id(instance: EmailLog) -> uuid.UUID:
     identifier = instance.message_id or str(instance.pk or uuid.uuid4())
     return uuid.uuid5(uuid.NAMESPACE_URL, f'apps.integrations.EmailLog:{identifier}')
+
+
+def _build_lineage_metadata(instance: EmailLog, **extra) -> dict:
+    metadata = {
+        'email_log_id': str(instance.pk),
+        'message_id': str(instance.message_id or ''),
+        'thread_id': str(instance.thread_id or ''),
+        'subject': str(instance.subject or ''),
+        'sender_email': str(instance.sender_email or ''),
+        'sender_name': str(instance.sender_name or ''),
+    }
+    metadata.update({key: value for key, value in extra.items() if value not in (None, '')})
+    return metadata
+
+
+def _record_email_lineage_event(
+    instance: EmailLog,
+    *,
+    event_type: str,
+    summary: str,
+    target_type: str = '',
+    target_id: str = '',
+    metadata: dict | None = None,
+) -> None:
+    AILineageEvent.objects.create(
+        tenant=instance.tenant,
+        event_type=event_type,
+        source_type='email_log',
+        source_id=str(instance.pk),
+        target_type=str(target_type or ''),
+        target_id=str(target_id or ''),
+        summary=str(summary or '')[:255],
+        metadata=_build_lineage_metadata(instance, **(metadata or {})),
+    )
 
 
 def _upsert_action_required_feedback(instance: EmailLog, extracted_data: dict | None) -> None:
@@ -60,6 +94,19 @@ def _notify_actionable_email(instance: EmailLog, draft: EmailReviewDraft, classi
 
     if not recipients:
         logger.info('No actionable-email reviewers found for tenant %s', instance.tenant_id)
+        _record_email_lineage_event(
+            instance,
+            event_type='email_review_notification_skipped',
+            summary='Skipped AI review notification because no eligible reviewers were found.',
+            target_type='email_review_draft',
+            target_id=str(draft.id),
+            metadata={
+                'draft_id': str(draft.id),
+                'draft_type': str(draft.draft_type or ''),
+                'category': str(classification.get('category') or ''),
+                'recipient_count': 0,
+            },
+        )
         return
 
     title = f'AI review required: {draft.get_draft_type_display()}'
@@ -90,6 +137,20 @@ def _notify_actionable_email(instance: EmailLog, draft: EmailReviewDraft, classi
     ]
     UserNotification.objects.bulk_create(notifications, ignore_conflicts=False)
     EmailReviewDraft.objects.filter(pk=draft.pk).update(notification_sent_at=now)
+    _record_email_lineage_event(
+        instance,
+        event_type='email_review_notification_queued',
+        summary=f'Queued AI review notification for {len(notifications)} reviewer(s).',
+        target_type='email_review_draft',
+        target_id=str(draft.id),
+        metadata={
+            'draft_id': str(draft.id),
+            'draft_type': str(draft.draft_type or ''),
+            'category': str(classification.get('category') or ''),
+            'recipient_count': len(notifications),
+            'recipient_user_ids': [notification.user_id for notification in notifications],
+        },
+    )
 
     logger.info(
         'Queued %s actionable-email notifications for tenant %s draft=%s',
@@ -119,6 +180,23 @@ def trigger_ai_extraction(sender, instance, created, **kwargs):
         supplier_reply = parse_supplier_quote_reply(email_log=instance)
         if supplier_reply is not None:
             _upsert_action_required_feedback(instance, supplier_reply)
+            supplier_reply_parse = supplier_reply.get('supplier_reply_parse') or {}
+            supplier_lineage = supplier_reply_parse.get('lineage') or {}
+            _record_email_lineage_event(
+                instance,
+                event_type='supplier_reply_parsed',
+                summary=str(supplier_reply.get('summary') or 'AI parsed supplier quote reply.'),
+                target_type='inquiry' if supplier_lineage.get('inquiry_id') else '',
+                target_id=str(supplier_lineage.get('inquiry_id') or ''),
+                metadata={
+                    'category': str(supplier_reply.get('category') or ''),
+                    'parse_status': str(supplier_reply_parse.get('parse_status') or ''),
+                    'correlation_status': str(supplier_reply_parse.get('correlation_status') or ''),
+                    'supplier_id': supplier_lineage.get('supplier_id'),
+                    'rfq_id': supplier_lineage.get('rfq_id'),
+                    'inquiry_id': supplier_lineage.get('inquiry_id'),
+                },
+            )
             logger.info(
                 'Email %s matched supplier RFQ reply flow with parse_status=%s',
                 instance.id,
@@ -141,8 +219,36 @@ def trigger_ai_extraction(sender, instance, created, **kwargs):
                 'inquiry_id': str(inquiry.id),
                 'inquiry_number': inquiry.inquiry_number,
             }
+            _record_email_lineage_event(
+                instance,
+                event_type='inquiry_draft_created_from_email',
+                summary=f'Created inquiry draft {inquiry.inquiry_number} from inbound email.',
+                target_type='inquiry',
+                target_id=str(inquiry.id),
+                metadata={
+                    'inquiry_id': str(inquiry.id),
+                    'inquiry_number': str(inquiry.inquiry_number or ''),
+                    'draft_type': str(classification.get('draft_type') or ''),
+                    'category': str(classification.get('category') or ''),
+                },
+            )
 
         _upsert_action_required_feedback(instance, classification)
+        _record_email_lineage_event(
+            instance,
+            event_type='email_classified',
+            summary=str(classification.get('summary') or 'AI classified inbound email.'),
+            target_type='inquiry' if inquiry is not None else '',
+            target_id=str(getattr(inquiry, 'id', '') or ''),
+            metadata={
+                'category': str(classification.get('category') or ''),
+                'draft_type': str(classification.get('draft_type') or ''),
+                'actionable': bool(classification.get('actionable')),
+                'confidence_score': classification.get('confidence_score') or classification.get('confidence'),
+                'inquiry_id': str(getattr(inquiry, 'id', '') or ''),
+                'inquiry_number': str(getattr(inquiry, 'inquiry_number', '') or ''),
+            },
+        )
 
         if classification.get('actionable') and classification.get('draft_type'):
             draft, _ = EmailReviewDraft.objects.update_or_create(
@@ -156,6 +262,19 @@ def trigger_ai_extraction(sender, instance, created, **kwargs):
                         classification.get('confidence_score') or classification.get('confidence') or 0.0
                     ),
                     'status': 'pending_review',
+                },
+            )
+            _record_email_lineage_event(
+                instance,
+                event_type='email_review_draft_created',
+                summary=f'Created AI review draft for {draft.get_draft_type_display()}.',
+                target_type='email_review_draft',
+                target_id=str(draft.id),
+                metadata={
+                    'draft_id': str(draft.id),
+                    'draft_type': str(draft.draft_type or ''),
+                    'category': str(classification.get('category') or ''),
+                    'confidence_score': classification.get('confidence_score') or classification.get('confidence'),
                 },
             )
             _notify_actionable_email(instance, draft, classification)

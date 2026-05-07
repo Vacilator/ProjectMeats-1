@@ -1,7 +1,11 @@
 import logging
+from datetime import datetime, time, timedelta
 
 from django.contrib.auth import authenticate
 from django.contrib.auth.models import User
+from django.db.models import Q
+from django.utils import timezone
+from django.utils.dateparse import parse_date
 from drf_spectacular.utils import OpenApiTypes, extend_schema
 from rest_framework import status, viewsets
 from rest_framework.decorators import api_view, permission_classes, throttle_classes, action
@@ -10,9 +14,12 @@ from rest_framework.response import Response
 from rest_framework.authtoken.models import Token
 from rest_framework.serializers import ValidationError
 from apps.tenants.models import TenantUser
+from tenant_apps.ai_assistant.models import AILineageEvent
+from tenant_apps.cockpit.models import ActivityLog
+from tenant_apps.workflows.models import ExecutionEventLog
 from apps.core.throttling import AuthRateThrottle
-from apps.core.models import UserFavorite
-from apps.core.serializers import LoginRequestSerializer, UserFavoriteSerializer
+from apps.core.models import TenantAuditEvent, UserFavorite
+from apps.core.serializers import LoginRequestSerializer, UserFavoriteSerializer, WorkspaceActivityItemSerializer
 
 logger = logging.getLogger(__name__)
 
@@ -923,12 +930,378 @@ class WorkspaceStatsView(APIView):
 
 class WorkspaceActivityView(APIView):
     """
-    Recent activity feed for workspace widgets.
-    
+    Normalized tenant-scoped activity feed for workspace and entity views.
+
     GET /api/v1/workspace/activity/recent/
     """
     permission_classes = [IsAuthenticated]
-    
+
+    SOURCE_LABELS = {
+        'audit': 'Audit',
+        'ai': 'AI',
+        'workflow': 'WorkForm',
+        'note': 'Note',
+    }
+    AUDIT_ENTITY_TYPE_MAP = {
+        'supplier': 'Supplier',
+        'customer': 'Customer',
+        'plant': 'Plant',
+        'location': 'Location',
+        'contact': 'Contact',
+        'purchase_order': 'PurchaseOrder',
+        'sales_order': 'SalesOrder',
+        'invoice': 'Invoice',
+        'carrier': 'Carrier',
+        'inquiry': 'Inquiry',
+        'fulfillment': 'Fulfillment',
+        'product': 'MasterProduct',
+        'communication_log': 'CommunicationLog',
+        'workform_execution': 'TenantWorkFormExecution',
+    }
+
+    def _get_limit(self, request):
+        try:
+            return max(1, min(int(request.query_params.get('limit', 50)), 200))
+        except (TypeError, ValueError):
+            return 50
+
+    def _parse_sources(self, request):
+        raw_sources = request.query_params.get('sources') or request.query_params.get('source') or ''
+        requested = {
+            str(value).strip().lower()
+            for value in raw_sources.split(',')
+            if str(value).strip()
+        }
+        supported = set(self.SOURCE_LABELS.keys())
+        return requested & supported if requested else supported
+
+    def _parse_date_range(self, request):
+        start_date = parse_date(str(request.query_params.get('start_date') or '').strip() or '')
+        end_date = parse_date(str(request.query_params.get('end_date') or '').strip() or '')
+        tz = timezone.get_current_timezone()
+
+        start_at = timezone.make_aware(datetime.combine(start_date, time.min), tz) if start_date else None
+        end_at = timezone.make_aware(datetime.combine(end_date, time.max), tz) if end_date else None
+        return start_at, end_at
+
+    @staticmethod
+    def _humanize_token(value):
+        return str(value or '').replace('_', ' ').replace('-', ' ').strip().title()
+
+    @staticmethod
+    def _normalize_entity_type(value):
+        return str(value or '').strip().lower()
+
+    @staticmethod
+    def _normalize_entity_id(value):
+        return str(value or '').strip()
+
+    def _matches_entity(self, item_entity_type, item_entity_id, entity_type, entity_id):
+        if not entity_type:
+            return True
+        if self._normalize_entity_type(item_entity_type) != entity_type:
+            return False
+        if entity_id and self._normalize_entity_id(item_entity_id) != entity_id:
+            return False
+        return True
+
+    @staticmethod
+    def _truncate_text(value, length=255):
+        text = str(value or '').strip()
+        if len(text) <= length:
+            return text
+        return f'{text[: max(length - 1, 0)].rstrip()}…'
+
+    @staticmethod
+    def _actor_name(user, fallback_email='', fallback_label='System'):
+        if user is not None:
+            full_name = f'{user.first_name} {user.last_name}'.strip()
+            if full_name:
+                return full_name
+            username = getattr(user, 'username', '')
+            if username:
+                return username
+        if fallback_email:
+            return fallback_email
+        return fallback_label
+
+    @staticmethod
+    def _parse_tags(raw_tags):
+        if not raw_tags:
+            return []
+        if isinstance(raw_tags, list):
+            return [str(tag).strip() for tag in raw_tags if str(tag).strip()]
+        return [tag.strip() for tag in str(raw_tags).split(',') if tag.strip()]
+
+    def _build_audit_description(self, event):
+        if event.action == TenantAuditEvent.Action.CREATE:
+            return f'Created {event.entity_name}.' if event.entity_name else 'Created record.'
+        if event.action == TenantAuditEvent.Action.DELETE:
+            return f'Deleted {event.entity_name}.' if event.entity_name else 'Deleted record.'
+
+        changed_fields = event.changed_fields or {}
+        if isinstance(changed_fields, dict) and changed_fields:
+            field_names = list(changed_fields.keys())
+            preview = ', '.join(field_names[:4])
+            suffix = '…' if len(field_names) > 4 else ''
+            return f'Updated {len(field_names)} field(s): {preview}{suffix}'
+        return 'Updated record.'
+
+    def _build_ai_title(self, event):
+        summary = str(event.summary or '').strip()
+        if summary:
+            return self._truncate_text(summary, 120)
+        return self._humanize_token(event.event_type)
+
+    def _build_ai_description(self, event):
+        metadata = event.metadata if isinstance(event.metadata, dict) else {}
+        subject = str(metadata.get('subject') or '').strip()
+        sender_email = str(metadata.get('sender_email') or '').strip()
+        category = str(metadata.get('category') or '').strip()
+        parts = []
+        if subject:
+            parts.append(subject)
+        if sender_email:
+            parts.append(f'from {sender_email}')
+        if category:
+            parts.append(f'({category.replace("_", " ")})')
+        if parts:
+            return ' '.join(parts).strip()
+        return self._humanize_token(event.event_type)
+
+    def _build_workflow_title(self, event):
+        workform_name = str(getattr(getattr(event, 'workform', None), 'name', '') or '').strip()
+        prefix = workform_name or 'WorkForm'
+        return f'{prefix}: {self._humanize_token(event.event_type)}'
+
+    def _build_workflow_description(self, event):
+        payload = event.payload if isinstance(event.payload, dict) else {}
+        node_label = str(payload.get('node_label') or payload.get('label') or '').strip()
+        error = str(payload.get('error') or '').strip()
+        routed_to = str(payload.get('routed_to') or '').strip()
+        parts = []
+        if node_label:
+            parts.append(f'Node {node_label}')
+        elif event.node_id:
+            parts.append(f'Node {event.node_id}')
+        if error:
+            parts.append(error)
+        if routed_to:
+            parts.append(f'Routed to {routed_to}')
+        if parts:
+            return ' - '.join(parts)
+        return self._humanize_token(event.status)
+
+    def _resolve_workflow_entity(self, event):
+        execution = getattr(event, 'workform_execution', None)
+        if execution is None:
+            return '', ''
+
+        candidates = []
+        if isinstance(getattr(execution, 'initial_data', None), dict):
+            candidates.append(execution.initial_data)
+        if isinstance(getattr(execution, 'context_data', None), dict):
+            candidates.append(execution.context_data)
+
+        for payload in candidates:
+            entity_type = self._normalize_entity_type(payload.get('entity_type'))
+            entity_id = self._normalize_entity_id(payload.get('entity_id'))
+            if entity_type and entity_id:
+                return entity_type, entity_id
+
+        return '', ''
+
+    def _build_audit_items(self, tenant, entity_type, entity_id, start_at, end_at, limit):
+        queryset = TenantAuditEvent.objects.filter(tenant=tenant).select_related('actor').order_by('-created_at')
+        audit_entity_type = self.AUDIT_ENTITY_TYPE_MAP.get(entity_type)
+        if audit_entity_type:
+            queryset = queryset.filter(entity_type=audit_entity_type)
+        if entity_id:
+            queryset = queryset.filter(object_id=entity_id)
+        if start_at:
+            queryset = queryset.filter(created_at__gte=start_at)
+        if end_at:
+            queryset = queryset.filter(created_at__lte=end_at)
+
+        items = []
+        for event in queryset[:limit]:
+            normalized_entity_type = next(
+                (
+                    frontend_entity_type
+                    for frontend_entity_type, model_name in self.AUDIT_ENTITY_TYPE_MAP.items()
+                    if model_name == event.entity_type
+                ),
+                self._normalize_entity_type(event.entity_type),
+            )
+            items.append(
+                {
+                    'id': f'audit:{event.id}',
+                    'source': 'audit',
+                    'source_label': self.SOURCE_LABELS['audit'],
+                    'action': str(event.action or '').lower(),
+                    'title': f'{self._humanize_token(normalized_entity_type)} {str(event.action or "").title()}',
+                    'description': self._build_audit_description(event),
+                    'actor_name': self._actor_name(event.actor, event.actor_email),
+                    'actor_email': str(event.actor_email or ''),
+                    'entity_type': normalized_entity_type,
+                    'entity_id': str(event.object_id or ''),
+                    'entity_label': str(event.entity_name or ''),
+                    'source_record_id': str(event.id),
+                    'occurred_at': event.created_at,
+                    'editable': False,
+                    'tags': [],
+                    'metadata': {
+                        'changed_fields': event.changed_fields or {},
+                    },
+                    '_sort_at': event.created_at,
+                }
+            )
+        return items
+
+    def _build_ai_items(self, tenant, entity_type, entity_id, start_at, end_at, limit):
+        queryset = AILineageEvent.objects.filter(tenant=tenant).order_by('-created_on')
+        if start_at:
+            queryset = queryset.filter(created_on__gte=start_at)
+        if end_at:
+            queryset = queryset.filter(created_on__lte=end_at)
+        if entity_type:
+            queryset = queryset.filter(
+                Q(target_type__iexact=entity_type) | Q(source_type__iexact=entity_type)
+            )
+        if entity_id:
+            queryset = queryset.filter(Q(target_id=entity_id) | Q(source_id=entity_id))
+
+        items = []
+        for event in queryset[:limit]:
+            normalized_entity_type = self._normalize_entity_type(event.target_type or event.source_type)
+            normalized_entity_id = self._normalize_entity_id(event.target_id or event.source_id)
+            if not self._matches_entity(normalized_entity_type, normalized_entity_id, entity_type, entity_id):
+                continue
+
+            metadata = event.metadata if isinstance(event.metadata, dict) else {}
+            items.append(
+                {
+                    'id': f'ai:{event.id}',
+                    'source': 'ai',
+                    'source_label': self.SOURCE_LABELS['ai'],
+                    'action': self._normalize_entity_type(event.event_type),
+                    'title': self._build_ai_title(event),
+                    'description': self._build_ai_description(event),
+                    'actor_name': str(metadata.get('actor_name') or 'AI Inbox'),
+                    'actor_email': str(metadata.get('actor_email') or ''),
+                    'entity_type': normalized_entity_type,
+                    'entity_id': normalized_entity_id,
+                    'entity_label': str(metadata.get('entity_label') or metadata.get('inquiry_number') or ''),
+                    'source_record_id': str(event.id),
+                    'occurred_at': event.created_on,
+                    'editable': False,
+                    'tags': [self._humanize_token(event.event_type)],
+                    'metadata': metadata,
+                    '_sort_at': event.created_on,
+                }
+            )
+        return items
+
+    def _build_workflow_items(self, tenant, entity_type, entity_id, start_at, end_at, limit):
+        queryset = (
+            ExecutionEventLog.objects.filter(tenant=tenant)
+            .select_related('workform', 'workform_execution')
+            .order_by('-started_at', '-created_on')
+        )
+        if start_at:
+            queryset = queryset.filter(started_at__gte=start_at)
+        if end_at:
+            queryset = queryset.filter(started_at__lte=end_at)
+        if entity_type == 'workform_execution' and entity_id:
+            queryset = queryset.filter(workform_execution_id=entity_id)
+
+        items = []
+        for event in queryset[:limit]:
+            occurred_at = event.completed_at or event.started_at or event.created_on
+            related_entity_type, related_entity_id = self._resolve_workflow_entity(event)
+            if entity_type and entity_type != 'workform_execution':
+                if not self._matches_entity(related_entity_type, related_entity_id, entity_type, entity_id):
+                    continue
+
+            item_entity_type = related_entity_type or 'workform_execution'
+            item_entity_id = related_entity_id or str(event.workform_execution_id or '')
+            item_entity_label = str(getattr(getattr(event, 'workform', None), 'name', '') or '')
+            if entity_type == 'workform_execution':
+                item_entity_type = 'workform_execution'
+                item_entity_id = str(event.workform_execution_id or '')
+            items.append(
+                {
+                    'id': f'workflow:{event.id}',
+                    'source': 'workflow',
+                    'source_label': self.SOURCE_LABELS['workflow'],
+                    'action': self._normalize_entity_type(event.event_type),
+                    'title': self._build_workflow_title(event),
+                    'description': self._build_workflow_description(event),
+                    'actor_name': 'Workflow Engine',
+                    'actor_email': '',
+                    'entity_type': item_entity_type,
+                    'entity_id': item_entity_id,
+                    'entity_label': item_entity_label,
+                    'source_record_id': str(event.id),
+                    'occurred_at': occurred_at or timezone.now(),
+                    'editable': False,
+                    'tags': [self._humanize_token(event.status)],
+                    'metadata': {
+                        'workform_id': str(event.workform_id or ''),
+                        'node_id': str(event.node_id or ''),
+                        'node_type': str(event.node_type or ''),
+                        'duration_ms': event.duration_ms,
+                        'status': str(event.status or ''),
+                        'workform_execution_id': str(event.workform_execution_id or ''),
+                        'related_entity_type': related_entity_type,
+                        'related_entity_id': related_entity_id,
+                    },
+                    '_sort_at': occurred_at or timezone.now(),
+                }
+            )
+        return items
+
+    def _build_note_items(self, tenant, entity_type, entity_id, start_at, end_at, limit):
+        queryset = ActivityLog.objects.filter(tenant=tenant).select_related('created_by').order_by('-created_on')
+        if entity_type:
+            queryset = queryset.filter(entity_type__iexact=entity_type)
+        if entity_id:
+            try:
+                queryset = queryset.filter(entity_id=int(entity_id))
+            except (TypeError, ValueError):
+                return []
+        if start_at:
+            queryset = queryset.filter(created_on__gte=start_at)
+        if end_at:
+            queryset = queryset.filter(created_on__lte=end_at)
+
+        items = []
+        for event in queryset[:limit]:
+            items.append(
+                {
+                    'id': f'note:{event.id}',
+                    'source': 'note',
+                    'source_label': self.SOURCE_LABELS['note'],
+                    'action': 'note',
+                    'title': str(event.title or 'Note'),
+                    'description': str(event.content or ''),
+                    'actor_name': self._actor_name(event.created_by),
+                    'actor_email': str(getattr(event.created_by, 'email', '') or ''),
+                    'entity_type': self._normalize_entity_type(event.entity_type),
+                    'entity_id': str(event.entity_id),
+                    'entity_label': '',
+                    'source_record_id': str(event.id),
+                    'occurred_at': event.created_on,
+                    'editable': True,
+                    'tags': self._parse_tags(event.tags),
+                    'metadata': {
+                        'is_pinned': bool(event.is_pinned),
+                    },
+                    '_sort_at': event.created_on,
+                }
+            )
+        return items
+
     def get(self, request):
         """Get recent activity for the current tenant."""
         if not hasattr(request, 'tenant') or not request.tenant:
@@ -936,14 +1309,32 @@ class WorkspaceActivityView(APIView):
                 {'error': 'Tenant context required'},
                 status=status.HTTP_403_FORBIDDEN
             )
-        
-        min(int(request.query_params.get('limit', 10)), 50)
-        
-        # For now, return empty - this would integrate with an activity log
-        # or audit trail system in a full implementation
+
+        limit = self._get_limit(request)
+        sources = self._parse_sources(request)
+        entity_type = self._normalize_entity_type(request.query_params.get('entity_type'))
+        entity_id = self._normalize_entity_id(request.query_params.get('entity_id'))
+        start_at, end_at = self._parse_date_range(request)
+
+        activities = []
+        if 'audit' in sources:
+            activities.extend(self._build_audit_items(request.tenant, entity_type, entity_id, start_at, end_at, limit))
+        if 'ai' in sources:
+            activities.extend(self._build_ai_items(request.tenant, entity_type, entity_id, start_at, end_at, limit))
+        if 'workflow' in sources:
+            activities.extend(self._build_workflow_items(request.tenant, entity_type, entity_id, start_at, end_at, limit))
+        if 'note' in sources:
+            activities.extend(self._build_note_items(request.tenant, entity_type, entity_id, start_at, end_at, limit))
+
+        activities.sort(key=lambda item: item.get('_sort_at') or timezone.now(), reverse=True)
+        sliced_activities = activities[:limit]
+        for item in sliced_activities:
+            item.pop('_sort_at', None)
+
+        serializer = WorkspaceActivityItemSerializer(sliced_activities, many=True)
         return Response({
-            'activities': [],
-            'total': 0
+            'results': serializer.data,
+            'count': len(serializer.data),
         })
 
 

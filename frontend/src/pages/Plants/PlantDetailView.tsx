@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Alert, Button, Card, Empty, Spin, Tabs, Tag } from 'antd';
 import { useNavigate, useParams } from 'react-router-dom';
 
-import { EntityFormSurface } from '@/components/Shared';
+import { ActivityFeed, EntityFormSurface } from '@/components/Shared';
 import { useAuthState } from '@/contexts/AuthContext';
 import { apiClient } from '@/services/apiService';
 import { isAuthError } from '@/utils/isAuthError';
@@ -205,47 +205,67 @@ export const PlantDetailView: React.FC = () => {
         )}
       </div>
 
-      <Card style={{ marginTop: 16 }} title="Contacts">
-        {authLoading || loadingContacts ? (
-          <div style={{ padding: 12 }}>
-            <Spin />
-          </div>
-        ) : showAuthFallback ? (
-          <Alert
-            type="warning"
-            showIcon
-            title="Authentication required"
-            description="Your session expired while loading this plant. Please sign in again."
-          />
-        ) : contactsError ? (
-          <Alert type="error" showIcon title={contactsError} />
-        ) : (
-          <Tabs
-            items={[
-              {
-                key: 'sales',
-                label: `Sales (${grouped.sales.length})`,
-                children: grouped.sales.length ? grouped.sales.map(renderContact) : <Empty description="No sales contacts" />,
-              },
-              {
-                key: 'qa',
-                label: `QA (${grouped.qa.length})`,
-                children: grouped.qa.length ? grouped.qa.map(renderContact) : <Empty description="No QA contacts" />,
-              },
-              {
-                key: 'booking',
-                label: `Booking (${grouped.booking.length})`,
-                children: grouped.booking.length ? grouped.booking.map(renderContact) : <Empty description="No booking contacts" />,
-              },
-              {
-                key: 'accounting',
-                label: `Accounting (${grouped.accounting.length})`,
-                children: grouped.accounting.length ? grouped.accounting.map(renderContact) : <Empty description="No accounting contacts" />,
-              },
-            ]}
-          />
-        )}
-      </Card>
+      <Tabs
+        style={{ marginTop: 16 }}
+        items={[
+          {
+            key: 'contacts',
+            label: 'Contacts',
+            children: (
+              <Card title="Contacts">
+                {authLoading || loadingContacts ? (
+                  <div style={{ padding: 12 }}>
+                    <Spin />
+                  </div>
+                ) : showAuthFallback ? (
+                  <Alert
+                    type="warning"
+                    showIcon
+                    title="Authentication required"
+                    description="Your session expired while loading this plant. Please sign in again."
+                  />
+                ) : contactsError ? (
+                  <Alert type="error" showIcon title={contactsError} />
+                ) : (
+                  <Tabs
+                    items={[
+                      {
+                        key: 'sales',
+                        label: `Sales (${grouped.sales.length})`,
+                        children: grouped.sales.length ? grouped.sales.map(renderContact) : <Empty description="No sales contacts" />,
+                      },
+                      {
+                        key: 'qa',
+                        label: `QA (${grouped.qa.length})`,
+                        children: grouped.qa.length ? grouped.qa.map(renderContact) : <Empty description="No QA contacts" />,
+                      },
+                      {
+                        key: 'booking',
+                        label: `Booking (${grouped.booking.length})`,
+                        children: grouped.booking.length ? grouped.booking.map(renderContact) : <Empty description="No booking contacts" />,
+                      },
+                      {
+                        key: 'accounting',
+                        label: `Accounting (${grouped.accounting.length})`,
+                        children: grouped.accounting.length ? grouped.accounting.map(renderContact) : <Empty description="No accounting contacts" />,
+                      },
+                    ]}
+                  />
+                )}
+              </Card>
+            ),
+          },
+          {
+            key: 'activity',
+            label: 'Activity',
+            children: plantId ? (
+              <ActivityFeed entityType="plant" entityId={plantId} showCreateForm maxHeight="520px" />
+            ) : (
+              <Empty description="Activity unavailable" />
+            ),
+          },
+        ]}
+      />
     </div>
   );
 };

@@ -14,6 +14,14 @@ vi.mock('@/services/workformExecutionService', () => ({
   },
 }));
 
+vi.mock('@/components/Shared', () => ({
+  ActivityFeed: ({ entityType, entityId }: { entityType: string; entityId: string | number }) => (
+    <div data-testid="activity-feed">
+      {entityType}:{String(entityId)}
+    </div>
+  ),
+}));
+
 describe('WorkFormExecutionDetails', () => {
   afterEach(() => {
     vi.useRealTimers();
@@ -93,6 +101,43 @@ describe('WorkFormExecutionDetails', () => {
     expect(await screen.findByText(/^Inputs$/i)).toBeInTheDocument();
     await userEvent.click(screen.getByText(/View raw inputs/i));
     expect(await screen.findByText(/entity_type/i)).toBeInTheDocument();
+  });
+
+  it('renders an activity tab scoped to the execution id', async () => {
+    vi.mocked(workformExecutionService.getExecution).mockResolvedValueOnce({
+      id: 'ex-1',
+      tenant: 't1',
+      workform: 'wf-1',
+      workform_name: 'My WorkForm',
+      status: 'completed',
+      initial_data: {},
+      context_data: {},
+      audit_trail: [],
+      node_statuses: {},
+      node_labels: {},
+      errors: [],
+      created_on: '2026-01-01T00:00:00Z',
+      modified_on: '2026-01-01T00:00:01Z',
+    } as any);
+
+    const client = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false },
+      },
+    });
+
+    render(
+      <QueryClientProvider client={client}>
+        <MemoryRouter initialEntries={['/workforms/executions/ex-1']}>
+          <Routes>
+            <Route path="/workforms/executions/:id" element={<WorkFormExecutionDetails />} />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>
+    );
+
+    await userEvent.click(await screen.findByRole('tab', { name: /activity/i }));
+    expect(await screen.findByTestId('activity-feed')).toHaveTextContent('workform_execution:ex-1');
   });
 
   const advance = async (ms: number) => {

@@ -1,63 +1,121 @@
-/**
- * Activity Feed Component
- * 
- * Universal widget for displaying activity logs/notes for any entity.
- * Used in Cockpit Call Log, Supplier pages, Customer pages, Order details, etc.
- * 
- * Features:
- * - Fetches activity logs from backend API
- * - Displays in chronological timeline format
- * - Shows metadata (created by, timestamp)
- * - Supports adding new activity logs
- * - Fully theme-compliant (no hardcoded colors)
- * 
- * Usage:
- *   <ActivityFeed entityType="supplier" entityId={123} />
- *   <ActivityFeed entityType="customer" entityId={456} showCreateForm />
- */
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Alert } from 'antd';
 import styled from 'styled-components';
-import { formatToLocal } from '../../utils/formatters';
-import { businessApi } from '../../services/businessApi';
 
-// ============================================================================
-// TypeScript Interfaces
-// ============================================================================
+import { activityFeedService, type ActivityFeedItem, type ActivityNoteResponse, type ActivitySource } from '@/services/activityFeedService';
+import { formatToLocal } from '@/utils/formatters';
 
-interface ActivityLog {
-  id: number;
-  tenant: string;
-  entity_type: string;
-  entity_id: string | number;
-  title: string;
-  content: string;
-  created_by: number | null;
-  created_by_name: string;
-  created_on: string;
-  updated_on: string;
-}
+type ActivityEntityType =
+  | 'supplier'
+  | 'customer'
+  | 'plant'
+  | 'location'
+  | 'purchase_order'
+  | 'sales_order'
+  | 'carrier'
+  | 'product'
+  | 'invoice'
+  | 'contact'
+  | 'inquiry'
+  | 'fulfillment'
+  | 'workform_execution';
+
+type FilterSource = ActivitySource | 'all';
 
 interface ActivityFeedProps {
-  entityType:
-    | 'supplier'
-    | 'customer'
-    | 'plant'
-    | 'location'
-    | 'purchase_order'
-    | 'sales_order'
-    | 'carrier'
-    | 'product'
-    | 'invoice'
-    | 'contact';
-  entityId: string | number;
+  entityType?: ActivityEntityType;
+  entityId?: string | number;
   showCreateForm?: boolean;
+  showFilters?: boolean;
+  title?: string;
   maxHeight?: string;
+  limit?: number;
 }
 
-// ============================================================================
-// Styled Components (Theme-Compliant)
-// ============================================================================
+type EditableFormState = {
+  title: string;
+  content: string;
+};
+
+const NOTE_SUPPORTED_ENTITY_TYPES = new Set<ActivityEntityType>([
+  'supplier',
+  'customer',
+  'plant',
+  'location',
+  'purchase_order',
+  'sales_order',
+  'carrier',
+  'product',
+  'invoice',
+  'contact',
+  'inquiry',
+  'fulfillment',
+]);
+
+const SOURCE_OPTIONS: Array<{ value: FilterSource; label: string }> = [
+  { value: 'all', label: 'All sources' },
+  { value: 'audit', label: 'Audit' },
+  { value: 'ai', label: 'AI' },
+  { value: 'workflow', label: 'WorkForms' },
+  { value: 'note', label: 'Notes' },
+];
+
+const ENTITY_OPTIONS: Array<{ value: ActivityEntityType; label: string }> = [
+  { value: 'supplier', label: 'Supplier' },
+  { value: 'customer', label: 'Customer' },
+  { value: 'plant', label: 'Plant' },
+  { value: 'location', label: 'Location' },
+  { value: 'contact', label: 'Contact' },
+  { value: 'purchase_order', label: 'Purchase Order' },
+  { value: 'sales_order', label: 'Sales Order' },
+  { value: 'invoice', label: 'Invoice' },
+  { value: 'carrier', label: 'Carrier' },
+  { value: 'product', label: 'Product' },
+  { value: 'inquiry', label: 'Inquiry' },
+  { value: 'fulfillment', label: 'Fulfillment' },
+  { value: 'workform_execution', label: 'WorkForm Run' },
+];
+
+const supportsNoteCreation = (entityType?: string, entityId?: string) => {
+  const normalizedType = String(entityType || '').trim().toLowerCase() as ActivityEntityType;
+  if (!NOTE_SUPPORTED_ENTITY_TYPES.has(normalizedType)) {
+    return false;
+  }
+
+  const numericEntityId = Number(entityId);
+  return Number.isFinite(numericEntityId) && numericEntityId > 0;
+};
+
+const parseTags = (rawTags: string[] | string | undefined): string[] => {
+  if (Array.isArray(rawTags)) {
+    return rawTags.map((tag) => String(tag).trim()).filter(Boolean);
+  }
+  return String(rawTags || '')
+    .split(',')
+    .map((tag) => tag.trim())
+    .filter(Boolean);
+};
+
+const mapNoteToFeedItem = (note: ActivityNoteResponse): ActivityFeedItem => ({
+  id: `note:${note.id}`,
+  source: 'note',
+  source_label: 'Note',
+  action: 'note',
+  title: note.title || 'Note',
+  description: note.content || '',
+  actor_name: note.created_by_name || 'System',
+  actor_email: '',
+  entity_type: String(note.entity_type || '').trim().toLowerCase(),
+  entity_id: String(note.entity_id || ''),
+  entity_label: '',
+  source_record_id: String(note.id),
+  occurred_at: note.modified_on || note.created_on,
+  editable: true,
+  tags: parseTags(note.tags),
+  metadata: {
+    is_pinned: Boolean(note.is_pinned),
+  },
+});
 
 const FeedContainer = styled.div`
   width: 100%;
@@ -67,335 +125,322 @@ const FeedHeader = styled.div`
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 1rem;
+  gap: 12px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
 `;
 
 const FeedTitle = styled.h3`
-  font-size: 24px;
+  margin: 0;
+  font-size: 20px;
   font-weight: 600;
   color: rgb(var(--color-text-primary));
-  margin: 0;
 `;
 
-const AddButton = styled.button`
+const Controls = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 16px;
+`;
+
+const Control = styled.label`
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 160px;
+  color: rgb(var(--color-text-secondary));
+  font-size: 12px;
+  font-weight: 600;
+`;
+
+const InputBase = `
+  width: 100%;
+  min-height: 40px;
+  border: 1px solid rgb(var(--color-border));
+  border-radius: var(--radius-md);
+  background: rgb(var(--color-surface));
+  color: rgb(var(--color-text-primary));
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+
+  &:focus {
+    outline: none;
+    border-color: rgb(var(--color-primary));
+  }
+`;
+
+const SelectInput = styled.select`
+  ${InputBase}
+`;
+
+const TextInput = styled.input`
+  ${InputBase}
+`;
+
+const TextArea = styled.textarea`
+  ${InputBase}
+  min-height: 110px;
+  resize: vertical;
+  font-family: inherit;
+`;
+
+const ActionButton = styled.button`
+  min-height: 40px;
   padding: 0.5rem 1rem;
+  border-radius: var(--radius-md);
+  border: 1px solid rgb(var(--color-border));
   background: rgb(var(--color-primary));
   color: rgb(var(--color-primary-foreground));
-  border: none;
-  border-radius: var(--radius-md);
   font-size: 0.875rem;
-  font-weight: 500;
+  font-weight: 600;
   cursor: pointer;
-  transition: opacity 0.2s ease;
-
-  &:hover {
-    opacity: 0.9;
-  }
 
   &:disabled {
-    opacity: 0.5;
+    opacity: 0.6;
     cursor: not-allowed;
   }
+`;
+
+const SecondaryButton = styled(ActionButton)`
+  background: transparent;
+  color: rgb(var(--color-text-secondary));
+`;
+
+const NoteForm = styled.form`
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 16px;
+  padding: 16px;
+  border: 1px solid rgb(var(--color-border));
+  border-radius: var(--radius-lg);
+  background: rgb(var(--color-surface));
 `;
 
 const TimelineContainer = styled.div<{ maxHeight?: string }>`
   display: flex;
   flex-direction: column;
-  gap: 1rem;
-  max-height: ${props => props.maxHeight || 'none'};
+  gap: 12px;
+  max-height: ${({ maxHeight }) => maxHeight || 'none'};
   overflow-y: auto;
-  padding-right: 0.5rem;
-
-  /* Custom scrollbar for dark mode compatibility */
-  &::-webkit-scrollbar {
-    width: 8px;
-  }
-
-  &::-webkit-scrollbar-track {
-    background: rgb(var(--color-surface));
-  }
-
-  &::-webkit-scrollbar-thumb {
-    background: rgb(var(--color-border));
-    border-radius: 4px;
-  }
-
-  &::-webkit-scrollbar-thumb:hover {
-    background: rgb(var(--color-text-secondary));
-  }
+  padding-right: 4px;
 `;
 
-const ActivityCard = styled.div`
-  position: relative;
-  padding: 1rem;
-  background: rgb(var(--color-surface));
+const ItemCard = styled.article`
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px;
   border: 1px solid rgb(var(--color-border));
-  border-radius: var(--radius-md);
-  transition: border-color 0.2s ease;
-
-  &:hover {
-    border-color: rgb(var(--color-primary));
-  }
-
-  /* Timeline connector */
-  &:not(:last-child)::after {
-    content: '';
-    position: absolute;
-    left: -12px;
-    top: 50%;
-    width: 2px;
-    height: calc(100% + 1rem);
-    background: rgb(var(--color-border));
-  }
+  border-radius: var(--radius-lg);
+  background: rgb(var(--color-surface));
 `;
 
-const ActivityHeader = styled.div`
+const ItemHeader = styled.div`
   display: flex;
   justify-content: space-between;
+  gap: 12px;
   align-items: flex-start;
-  margin-bottom: 0.5rem;
+  flex-wrap: wrap;
 `;
 
-const ActivityTitle = styled.h4`
+const TitleBlock = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+`;
+
+const ItemTitle = styled.h4`
+  margin: 0;
+  color: rgb(var(--color-text-primary));
   font-size: 1rem;
   font-weight: 600;
-  color: rgb(var(--color-text-primary));
-  margin: 0;
 `;
 
-const ActivityMeta = styled.div`
+const BadgeRow = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+`;
+
+const Badge = styled.span<{ $tone?: 'primary' | 'secondary' }>`
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  border: 1px solid
+    ${({ $tone }) =>
+      $tone === 'primary' ? 'rgb(var(--color-primary))' : 'rgb(var(--color-border))'};
+  color: ${({ $tone }) =>
+    $tone === 'primary'
+      ? 'rgb(var(--color-primary))'
+      : 'rgb(var(--color-text-secondary))'};
+  background: rgb(var(--color-surface));
+`;
+
+const MetaBlock = styled.div`
   display: flex;
   flex-direction: column;
-  align-items: flex-end;
-  gap: 0.25rem;
-`;
-
-const MetaText = styled.span`
-  font-size: 0.75rem;
+  gap: 4px;
   color: rgb(var(--color-text-secondary));
+  font-size: 12px;
+  text-align: right;
 `;
 
-const ActivityContent = styled.p`
-  font-size: 0.875rem;
-  line-height: 1.6;
-  color: rgb(var(--color-text-primary));
+const ItemDescription = styled.p`
   margin: 0;
+  color: rgb(var(--color-text-primary));
   white-space: pre-wrap;
-  word-wrap: break-word;
+  line-height: 1.5;
 `;
 
-const CreateForm = styled.form`
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-  padding: 1rem;
-  background: rgb(var(--color-surface));
-  border: 1px solid rgb(var(--color-border));
-  border-radius: var(--radius-md);
-  margin-bottom: 1rem;
-`;
-
-const FormInput = styled.input`
-  padding: 0.5rem;
-  background: rgb(var(--color-surface));
-  color: rgb(var(--color-text-primary));
-  border: 1px solid rgb(var(--color-border));
-  border-radius: var(--radius-sm);
-  font-size: 0.875rem;
-
-  &:focus {
-    outline: none;
-    border-color: rgb(var(--color-primary));
-  }
-`;
-
-const FormTextarea = styled.textarea`
-  padding: 0.5rem;
-  background: rgb(var(--color-surface));
-  color: rgb(var(--color-text-primary));
-  border: 1px solid rgb(var(--color-border));
-  border-radius: var(--radius-sm);
-  font-size: 0.875rem;
-  min-height: 100px;
-  resize: vertical;
-  font-family: inherit;
-
-  &:focus {
-    outline: none;
-    border-color: rgb(var(--color-primary));
-  }
-`;
-
-const FormActions = styled.div`
-  display: flex;
-  gap: 0.5rem;
-  justify-content: flex-end;
-`;
-
-const SubmitButton = styled.button`
-  padding: 0.5rem 1rem;
-  background: rgb(var(--color-primary));
-  color: rgb(var(--color-primary-foreground));
-  border: none;
-  border-radius: var(--radius-sm);
-  font-size: 0.875rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: opacity 0.2s ease;
-
-  &:hover {
-    opacity: 0.9;
-  }
-
-  &:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
-`;
-
-const CancelButton = styled.button`
-  padding: 0.5rem 1rem;
-  background: transparent;
+const EntityMeta = styled.div`
   color: rgb(var(--color-text-secondary));
-  border: 1px solid rgb(var(--color-border));
-  border-radius: var(--radius-sm);
-  font-size: 0.875rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s ease;
-
-  &:hover {
-    background: rgb(var(--color-surface-hover));
-    border-color: rgb(var(--color-text-secondary));
-  }
+  font-size: 12px;
 `;
 
 const EmptyState = styled.div`
-  text-align: center;
-  padding: 3rem 1rem;
+  padding: 32px 16px;
+  border: 1px dashed rgb(var(--color-border));
+  border-radius: var(--radius-lg);
   color: rgb(var(--color-text-secondary));
-  font-size: 0.875rem;
+  text-align: center;
 `;
 
 const LoadingState = styled.div`
-  text-align: center;
-  padding: 2rem 1rem;
+  padding: 24px 16px;
   color: rgb(var(--color-text-secondary));
-  font-size: 0.875rem;
+  text-align: center;
 `;
-
-// ============================================================================
-// Component
-// ============================================================================
 
 export const ActivityFeed: React.FC<ActivityFeedProps> = ({
   entityType,
   entityId,
   showCreateForm = false,
-  maxHeight = '600px'
+  showFilters = true,
+  title = 'Activity Feed',
+  maxHeight = '600px',
+  limit = 50,
 }) => {
-  const [activities, setActivities] = useState<ActivityLog[]>([]);
+  const fixedEntityType = useMemo(() => String(entityType || '').trim().toLowerCase(), [entityType]);
+  const fixedEntityId = useMemo(() => String(entityId ?? '').trim(), [entityId]);
+
+  const [items, setItems] = useState<ActivityFeedItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [showForm, setShowForm] = useState(false);
-  const [formData, setFormData] = useState({ title: '', content: '' });
+  const [showNoteForm, setShowNoteForm] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-
-  const [editingId, setEditingId] = useState<number | null>(null);
-  const [editData, setEditData] = useState({ title: '', content: '' });
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [savingEdit, setSavingEdit] = useState(false);
+  const [createState, setCreateState] = useState<EditableFormState>({ title: '', content: '' });
+  const [editState, setEditState] = useState<EditableFormState>({ title: '', content: '' });
+  const [sourceFilter, setSourceFilter] = useState<FilterSource>('all');
+  const [entityTypeFilter, setEntityTypeFilter] = useState(fixedEntityType);
+  const [entityIdFilter, setEntityIdFilter] = useState(fixedEntityId);
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
 
-  // Fetch activity logs on mount and when entity changes
   useEffect(() => {
-    fetchActivities();
-  }, [entityType, entityId]);
+    if (fixedEntityType) {
+      setEntityTypeFilter(fixedEntityType);
+    }
+  }, [fixedEntityType]);
 
-  const fetchActivities = async () => {
+  useEffect(() => {
+    if (fixedEntityId) {
+      setEntityIdFilter(fixedEntityId);
+    }
+  }, [fixedEntityId]);
+
+  const resolvedEntityType = fixedEntityType || entityTypeFilter;
+  const resolvedEntityId = fixedEntityId || entityIdFilter;
+  const canCreateNotes = showCreateForm && supportsNoteCreation(resolvedEntityType, resolvedEntityId);
+
+  const fetchActivities = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
-      
-      const response = await businessApi.get('workspace/activity-logs/', {
-        params: {
-          entity_type: entityType,
-          entity_id: entityId,
-        },
+      const response = await activityFeedService.list({
+        entityType: resolvedEntityType || undefined,
+        entityId: resolvedEntityId || undefined,
+        sources: sourceFilter === 'all' ? undefined : [sourceFilter],
+        startDate: startDate || undefined,
+        endDate: endDate || undefined,
+        limit,
       });
-
-      setActivities(response.data.results || response.data);
+      setItems(response.results || []);
     } catch (err: any) {
-      console.error('Failed to fetch activity logs:', err);
-      setError(err.response?.data?.detail || 'Failed to load activity logs');
+      setError(err?.response?.data?.detail || err?.response?.data?.error || 'Failed to load activity.');
     } finally {
       setLoading(false);
     }
-  };
+  }, [endDate, limit, resolvedEntityId, resolvedEntityType, sourceFilter, startDate]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  useEffect(() => {
+    void fetchActivities();
+  }, [fetchActivities]);
 
-    if (!formData.content.trim()) {
+  const handleCreateNote = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!canCreateNotes || !createState.content.trim()) {
       return;
     }
 
     try {
       setSubmitting(true);
-      
-      const response = await businessApi.post('workspace/activity-logs/', {
-        entity_type: entityType,
-        entity_id: entityId,
-        title: formData.title.trim() || 'Note',
-        content: formData.content.trim(),
+      setError(null);
+      const createdNote = await activityFeedService.createNote({
+        entityType: resolvedEntityType,
+        entityId: resolvedEntityId,
+        title: createState.title,
+        content: createState.content,
       });
-
-      // Add new activity to the top of the list
-      setActivities([response.data, ...activities]);
-      
-      // Reset form
-      setFormData({ title: '', content: '' });
-      setShowForm(false);
+      setItems((currentItems) => [mapNoteToFeedItem(createdNote), ...currentItems]);
+      setCreateState({ title: '', content: '' });
+      setShowNoteForm(false);
     } catch (err: any) {
-      console.error('Failed to create activity log:', err);
-      setError(err.response?.data?.detail || 'Failed to create activity log');
+      setError(err?.response?.data?.detail || err?.response?.data?.error || 'Failed to save note.');
     } finally {
       setSubmitting(false);
     }
   };
 
-  const handleCancel = () => {
-    setFormData({ title: '', content: '' });
-    setShowForm(false);
-  };
-
-  const startEdit = (activity: ActivityLog) => {
-    setEditingId(activity.id);
-    setEditData({
-      title: activity.title || 'Note',
-      content: activity.content || '',
+  const startEdit = (item: ActivityFeedItem) => {
+    setEditingId(item.id);
+    setEditState({
+      title: item.title || 'Note',
+      content: item.description || '',
     });
   };
 
   const cancelEdit = () => {
     setEditingId(null);
-    setEditData({ title: '', content: '' });
+    setEditState({ title: '', content: '' });
   };
 
-  const saveEdit = async () => {
-    if (!editingId) return;
-    if (!editData.content.trim()) return;
+  const saveEdit = async (item: ActivityFeedItem) => {
+    if (!item.source_record_id || !editState.content.trim()) {
+      return;
+    }
 
     try {
       setSavingEdit(true);
-      const response = await businessApi.patch(`workspace/activity-logs/${editingId}/`, {
-        title: editData.title.trim() || 'Note',
-        content: editData.content.trim(),
+      setError(null);
+      const updatedNote = await activityFeedService.updateNote(item.source_record_id, {
+        title: editState.title,
+        content: editState.content,
       });
-
-      setActivities(activities.map((a) => (a.id === editingId ? { ...a, ...response.data } : a)));
+      setItems((currentItems) =>
+        currentItems.map((currentItem) =>
+          currentItem.id === item.id ? mapNoteToFeedItem(updatedNote) : currentItem
+        )
+      );
       cancelEdit();
     } catch (err: any) {
-      console.error('Failed to update activity log:', err);
-      setError(err.response?.data?.detail || 'Failed to update note');
+      setError(err?.response?.data?.detail || err?.response?.data?.error || 'Failed to update note.');
     } finally {
       setSavingEdit(false);
     }
@@ -404,109 +449,199 @@ export const ActivityFeed: React.FC<ActivityFeedProps> = ({
   return (
     <FeedContainer>
       <FeedHeader>
-        <FeedTitle>Activity Log</FeedTitle>
-        {showCreateForm && !showForm && (
-          <AddButton onClick={() => setShowForm(true)}>
-            + Add Note
-          </AddButton>
-        )}
+        <FeedTitle>{title}</FeedTitle>
+        {canCreateNotes && !showNoteForm ? (
+          <ActionButton type="button" onClick={() => setShowNoteForm(true)}>
+            Add Note
+          </ActionButton>
+        ) : null}
       </FeedHeader>
 
-      {/* Create Form */}
-      {showForm && (
-        <CreateForm onSubmit={handleSubmit}>
-          <FormInput
+      {showFilters ? (
+        <Controls>
+          <Control>
+            Source
+            <SelectInput
+              aria-label="Filter activity by source"
+              value={sourceFilter}
+              onChange={(event) => setSourceFilter(event.target.value as FilterSource)}
+            >
+              {SOURCE_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </SelectInput>
+          </Control>
+
+          {!fixedEntityType ? (
+            <Control>
+              Entity
+              <SelectInput
+                aria-label="Filter activity by entity type"
+                value={entityTypeFilter}
+                onChange={(event) => setEntityTypeFilter(event.target.value)}
+              >
+                <option value="">All entities</option>
+                {ENTITY_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </SelectInput>
+            </Control>
+          ) : null}
+
+          {!fixedEntityId ? (
+            <Control>
+              Entity ID
+              <TextInput
+                aria-label="Filter activity by entity id"
+                type="text"
+                value={entityIdFilter}
+                onChange={(event) => setEntityIdFilter(event.target.value)}
+                placeholder="e.g. 42 or execution UUID"
+              />
+            </Control>
+          ) : null}
+
+          <Control>
+            From
+            <TextInput
+              aria-label="Filter activity start date"
+              type="date"
+              value={startDate}
+              onChange={(event) => setStartDate(event.target.value)}
+            />
+          </Control>
+
+          <Control>
+            To
+            <TextInput
+              aria-label="Filter activity end date"
+              type="date"
+              value={endDate}
+              onChange={(event) => setEndDate(event.target.value)}
+            />
+          </Control>
+        </Controls>
+      ) : null}
+
+      {showNoteForm ? (
+        <NoteForm onSubmit={handleCreateNote}>
+          <TextInput
+            aria-label="Note title"
             type="text"
-            placeholder="Title (optional)"
-            value={formData.title}
-            onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+            placeholder="Title"
+            value={createState.title}
+            onChange={(event) => setCreateState((current) => ({ ...current, title: event.target.value }))}
             disabled={submitting}
           />
-          <FormTextarea
-            placeholder="Enter your note..."
-            value={formData.content}
-            onChange={(e) => setFormData({ ...formData, content: e.target.value })}
+          <TextArea
+            aria-label="Note content"
+            placeholder="What changed, who handled it, and any next-step context."
+            value={createState.content}
+            onChange={(event) => setCreateState((current) => ({ ...current, content: event.target.value }))}
             disabled={submitting}
             required
           />
-          <FormActions>
-            <CancelButton type="button" onClick={handleCancel} disabled={submitting}>
+          <BadgeRow>
+            <SecondaryButton
+              type="button"
+              onClick={() => {
+                setCreateState({ title: '', content: '' });
+                setShowNoteForm(false);
+              }}
+              disabled={submitting}
+            >
               Cancel
-            </CancelButton>
-            <SubmitButton type="submit" disabled={submitting || !formData.content.trim()}>
-              {submitting ? 'Saving...' : 'Save Note'}
-            </SubmitButton>
-          </FormActions>
-        </CreateForm>
-      )}
+            </SecondaryButton>
+            <ActionButton type="submit" disabled={submitting || !createState.content.trim()}>
+              {submitting ? 'Saving…' : 'Save Note'}
+            </ActionButton>
+          </BadgeRow>
+        </NoteForm>
+      ) : null}
 
-      {/* Loading State */}
-      {loading && (
-        <LoadingState>Loading activity logs...</LoadingState>
-      )}
+      {error ? <Alert type="error" showIcon message={error} style={{ marginBottom: 16 }} /> : null}
 
-      {/* Error State */}
-      {error && (
-        <Alert type="error" showIcon title={error} style={{ marginBottom: 16 }} />
-      )}
+      {loading ? <LoadingState>Loading activity…</LoadingState> : null}
 
-      {/* Timeline */}
-      {!loading && !error && (
+      {!loading && !error ? (
         <TimelineContainer maxHeight={maxHeight}>
-          {activities.length === 0 ? (
-            <EmptyState>
-              No activity logs yet.
-              {showCreateForm && ' Click "Add Note" to create the first one.'}
-            </EmptyState>
+          {items.length === 0 ? (
+            <EmptyState>No matching activity yet.</EmptyState>
           ) : (
-            activities.map((activity) => (
-              <ActivityCard key={activity.id}>
-                <ActivityHeader>
-                  <ActivityTitle>{activity.title || 'Note'}</ActivityTitle>
-                  <ActivityMeta>
-                    <MetaText>{activity.created_by_name || 'Unknown User'}</MetaText>
-                    <MetaText>{formatToLocal(activity.created_on)}</MetaText>
-                    {editingId !== activity.id && (
-                      <CancelButton type="button" onClick={() => startEdit(activity)}>
-                        Edit
-                      </CancelButton>
-                    )}
-                  </ActivityMeta>
-                </ActivityHeader>
+            items.map((item) => (
+              <ItemCard key={item.id}>
+                <ItemHeader>
+                  <TitleBlock>
+                    <BadgeRow>
+                      <Badge $tone="primary">{item.source_label}</Badge>
+                      <Badge>{item.action.replace(/_/g, ' ')}</Badge>
+                      {(item.tags || []).map((tag) => (
+                        <Badge key={`${item.id}:${tag}`}>{tag}</Badge>
+                      ))}
+                    </BadgeRow>
+                    <ItemTitle>{item.title}</ItemTitle>
+                  </TitleBlock>
 
-                {editingId === activity.id ? (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                    <FormInput
+                  <MetaBlock>
+                    <span>{item.actor_name || 'System'}</span>
+                    <span>{formatToLocal(item.occurred_at)}</span>
+                    {item.editable && editingId !== item.id ? (
+                      <SecondaryButton type="button" onClick={() => startEdit(item)}>
+                        Edit
+                      </SecondaryButton>
+                    ) : null}
+                  </MetaBlock>
+                </ItemHeader>
+
+                {!fixedEntityType || !fixedEntityId ? (
+                  <EntityMeta>
+                    Entity: {item.entity_label || item.entity_type || 'Unknown'}
+                    {item.entity_id ? ` • ${item.entity_id}` : ''}
+                  </EntityMeta>
+                ) : null}
+
+                {editingId === item.id ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                    <TextInput
+                      aria-label="Edit note title"
                       type="text"
-                      placeholder="Title (optional)"
-                      value={editData.title}
-                      onChange={(e) => setEditData({ ...editData, title: e.target.value })}
+                      value={editState.title}
+                      onChange={(event) => setEditState((current) => ({ ...current, title: event.target.value }))}
                       disabled={savingEdit}
                     />
-                    <FormTextarea
-                      placeholder="Enter your note..."
-                      value={editData.content}
-                      onChange={(e) => setEditData({ ...editData, content: e.target.value })}
+                    <TextArea
+                      aria-label="Edit note content"
+                      value={editState.content}
+                      onChange={(event) => setEditState((current) => ({ ...current, content: event.target.value }))}
                       disabled={savingEdit}
-                      required
                     />
-                    <FormActions>
-                      <CancelButton type="button" onClick={cancelEdit} disabled={savingEdit}>
+                    <BadgeRow>
+                      <SecondaryButton type="button" onClick={cancelEdit} disabled={savingEdit}>
                         Cancel
-                      </CancelButton>
-                      <SubmitButton type="button" onClick={() => void saveEdit()} disabled={savingEdit || !editData.content.trim()}>
-                        {savingEdit ? 'Saving...' : 'Save Changes'}
-                      </SubmitButton>
-                    </FormActions>
+                      </SecondaryButton>
+                      <ActionButton
+                        type="button"
+                        onClick={() => void saveEdit(item)}
+                        disabled={savingEdit || !editState.content.trim()}
+                      >
+                        {savingEdit ? 'Saving…' : 'Save Changes'}
+                      </ActionButton>
+                    </BadgeRow>
                   </div>
                 ) : (
-                  <ActivityContent>{activity.content}</ActivityContent>
+                  <ItemDescription>{item.description || 'No details provided.'}</ItemDescription>
                 )}
-              </ActivityCard>
+
+                {item.actor_email ? <EntityMeta>{item.actor_email}</EntityMeta> : null}
+              </ItemCard>
             ))
           )}
         </TimelineContainer>
-      )}
+      ) : null}
     </FeedContainer>
   );
 };
