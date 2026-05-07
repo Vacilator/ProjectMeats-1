@@ -55,6 +55,8 @@ Golden template for workflow suggestion engine with meat industry context
 | **FlowEditor Config Types** | `frontend/src/components/FlowEditor/config/types.ts` | Schema field type system contract |
 | **Smart Auto-Map** | `frontend/src/components/FlowEditor/utils/autoMappingService.ts` | Upstream variable inference + mapping suggestions |
 | **AI Prompts** | `/manifests/ai_standards/` | Templates |
+| **Keyboard Shortcuts** | `docs/SHORTCUTS.md` | AUTHORITATIVE |
+| **Auto Pipeline (Email→Fulfillment)** | `backend/apps/integrations/auto_pipeline.py` | AUTHORITATIVE |
 
 ## Environment Structure (6-Lane System)
 
