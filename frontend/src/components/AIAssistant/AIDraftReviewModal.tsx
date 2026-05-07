@@ -2,6 +2,10 @@ import React, { useCallback, useMemo, useRef, useState } from 'react';
 import { Alert, Button, Modal, Space, Tag, Typography, message } from 'antd';
 import { useNavigate } from 'react-router-dom';
 
+import {
+  AIInboxFeedbackActions,
+  type AIInboxFeedbackSubmission,
+} from '@/components/AIAssistant/AIInboxFeedbackActions';
 import { EntityFormSurface } from '@/components/Shared/EntityFormSurface';
 import { aiStaffApi, type PendingReviewItem } from '@/services/aiService';
 import { buildReviewDetailsPathFromItem } from '@/utils/reviewDetailsPath';
@@ -13,6 +17,7 @@ type AIDraftReviewModalProps = {
   item: PendingReviewItem | null;
   onClose: () => void;
   onResolved?: (reviewId: string) => void;
+  onFeedbackSubmitted?: (reviewId: string, submission: AIInboxFeedbackSubmission) => void;
 };
 
 type AIDraftReviewContentProps = {
@@ -20,6 +25,7 @@ type AIDraftReviewContentProps = {
   item: PendingReviewItem | null;
   onClose?: () => void;
   onResolved?: (reviewId: string) => void;
+  onFeedbackSubmitted?: (reviewId: string, submission: AIInboxFeedbackSubmission) => void;
   closeOnResolved?: boolean;
   onResolvingChange?: (resolving: boolean) => void;
 };
@@ -216,6 +222,7 @@ export const AIDraftReviewContent: React.FC<AIDraftReviewContentProps> = ({
   item,
   onClose,
   onResolved,
+  onFeedbackSubmitted,
   closeOnResolved = false,
   onResolvingChange,
 }) => {
@@ -331,6 +338,15 @@ export const AIDraftReviewContent: React.FC<AIDraftReviewContentProps> = ({
                 </Text>
               </Space>
             ) : null}
+            <AIInboxFeedbackActions
+              item={item}
+              onSubmitted={(submission) => {
+                if (!item?.id) {
+                  return;
+                }
+                onFeedbackSubmitted?.(item.id, submission);
+              }}
+            />
           </div>
         </div>
 
@@ -391,6 +407,7 @@ export const AIDraftReviewModal: React.FC<AIDraftReviewModalProps> = ({
   item,
   onClose,
   onResolved,
+  onFeedbackSubmitted,
 }) => {
   const [resolving, setResolving] = useState(false);
 
@@ -410,6 +427,7 @@ export const AIDraftReviewModal: React.FC<AIDraftReviewModalProps> = ({
         item={item}
         onClose={onClose}
         onResolved={onResolved}
+        onFeedbackSubmitted={onFeedbackSubmitted}
         closeOnResolved
         onResolvingChange={setResolving}
       />

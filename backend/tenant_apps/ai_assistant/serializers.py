@@ -85,6 +85,14 @@ class AIFeedbackSubmitSerializer(serializers.Serializer):
     user_corrected_data = serializers.JSONField(required=False, default=dict)
 
     confidence_score = serializers.FloatField(required=False, default=0.0)
+    feedback_signal = serializers.ChoiceField(
+        choices=AIFeedbackLog.FeedbackSignal.choices,
+        required=False,
+        allow_null=True,
+        default=None,
+    )
+    feedback_comment = serializers.CharField(required=False, allow_blank=True, default='', max_length=4000)
+    feedback_source = serializers.CharField(required=False, allow_blank=True, default='', max_length=64)
 
     def validate_original_extracted_data(self, value):
         if not isinstance(value, dict):
@@ -95,6 +103,16 @@ class AIFeedbackSubmitSerializer(serializers.Serializer):
         if not isinstance(value, dict):
             raise serializers.ValidationError('user_corrected_data must be an object')
         return value
+
+    def validate(self, attrs):
+        signal = attrs.get('feedback_signal')
+        comment = (attrs.get('feedback_comment') or '').strip()
+        if signal == AIFeedbackLog.FeedbackSignal.THUMBS_DOWN and not comment:
+            raise serializers.ValidationError({'feedback_comment': 'A reason is required for thumbs-down feedback.'})
+
+        attrs['feedback_comment'] = comment
+        attrs['feedback_source'] = (attrs.get('feedback_source') or '').strip()
+        return attrs
 
 
 class AILearningMetricsSerializer(serializers.Serializer):
@@ -485,6 +503,10 @@ class PendingReviewItemSerializer(serializers.Serializer):
     intent_label = serializers.CharField(required=False, allow_blank=True)
     review_entity_type = serializers.CharField(required=False, allow_blank=True)
     review_target_url = serializers.CharField(required=False, allow_blank=True)
+    feedback_signal = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    feedback_comment = serializers.CharField(required=False, allow_blank=True)
+    retraining_status = serializers.CharField(required=False, allow_blank=True)
+    retraining_queued_at = serializers.DateTimeField(required=False, allow_null=True)
 
 
 class PendingReviewListResponseSerializer(serializers.Serializer):
@@ -512,6 +534,12 @@ class AIFeedbackLogSerializer(serializers.ModelSerializer):
             'user_corrected_data',
             'confidence_score',
             'precision_delta',
+            'feedback_signal',
+            'feedback_comment',
+            'feedback_source',
+            'submitted_by',
+            'retraining_status',
+            'retraining_queued_at',
             'resolved_by',
             'created_on',
             'modified_on',

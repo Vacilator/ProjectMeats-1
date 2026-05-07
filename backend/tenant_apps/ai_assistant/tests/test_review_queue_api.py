@@ -13,6 +13,7 @@ from apps.tenants.models import Tenant, TenantUser
 from tenant_apps.plants.models import Plant
 from tenant_apps.ai_assistant.models import AIFeedbackLog
 from tenant_apps.ai_assistant.views import (
+    AIFeedbackViewSet,
     ContextualSuggestionsAPIView,
     PendingReviewResolveAPIView,
     PendingReviewView,
@@ -182,6 +183,99 @@ class PendingReviewViewTests(TestCase):
         self.assertEqual(response.status_code, 200)
         feedback.refresh_from_db()
         self.assertEqual(feedback.resolved_by_id, self.manager_user.id)
+
+    def test_feedback_submission_requires_comment_for_thumbs_down(self):
+        create_view = AIFeedbackViewSet.as_view({'post': 'create'})
+        document_id = uuid.uuid4()
+
+        request = self.factory.post(
+            '/api/v1/ai-assistant/feedback/',
+            {
+                'document_id': str(document_id),
+                'document_type': 'inquiry',
+                'feedback_signal': AIFeedbackLog.FeedbackSignal.THUMBS_DOWN,
+            },
+            format='json',
+        )
+        force_authenticate(request, user=self.manager_user)
+        request.tenant = self.tenant
+
+        response = create_view(request)
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('feedback_comment', response.data)
+
+    def test_feedback_submission_queues_retraining_without_resolving_draft(self):
+        document_id = uuid.uuid4()
+        feedback = AIFeedbackLog.objects.create(
+            tenant=self.tenant,
+            document_id=document_id,
+            document_type='inquiry',
+            confidence_score=0.49,
+            original_extracted_data={'customer_name': 'North Meats'},
+        )
+        create_view = AIFeedbackViewSet.as_view({'post': 'create'})
+
+        request = self.factory.post(
+            '/api/v1/ai-assistant/feedback/',
+            {
+                'document_id': str(document_id),
+                'document_type': 'inquiry',
+                'feedback_signal': AIFeedbackLog.FeedbackSignal.THUMBS_UP,
+                'feedback_source': 'ai_inbox',
+                'original_extracted_data': {'customer_name': 'North Meats'},
+            },
+            format='json',
+        )
+        force_authenticate(request, user=self.manager_user)
+        request.tenant = self.tenant
+
+        response = create_view(request)
+
+        self.assertEqual(response.status_code, 200)
+        feedback.refresh_from_db()
+        self.assertEqual(feedback.feedback_signal, AIFeedbackLog.FeedbackSignal.THUMBS_UP)
+        self.assertEqual(feedback.feedback_source, 'ai_inbox')
+        self.assertEqual(feedback.submitted_by_id, self.manager_user.id)
+        self.assertEqual(feedback.retraining_status, AIFeedbackLog.RetrainingStatus.QUEUED)
+        self.assertIsNotNone(feedback.retraining_queued_at)
+        self.assertIsNone(feedback.resolved_by_id)
+
+        request = self.factory.get('/api/v1/ai-assistant/review/pending/')
+        force_authenticate(request, user=self.manager_user)
+        request.tenant = self.tenant
+
+        pending_response = PendingReviewView.as_view()(request)
+        payload = next(item for item in pending_response.data['results'] if str(item['id']) == str(feedback.id))
+        self.assertEqual(payload['feedback_signal'], AIFeedbackLog.FeedbackSignal.THUMBS_UP)
+        self.assertEqual(payload['retraining_status'], AIFeedbackLog.RetrainingStatus.QUEUED)
+
+    def test_manager_resolve_queues_retraining_for_corrected_data(self):
+        feedback = AIFeedbackLog.objects.create(
+            tenant=self.tenant,
+            document_id=uuid.uuid4(),
+            document_type='purchase_order',
+            confidence_score=0.61,
+            original_extracted_data={'order_number': 'PO-3001'},
+        )
+
+        request = self.factory.post(
+            f'/api/v1/ai-assistant/review/{feedback.id}/resolve/',
+            {'user_corrected_data': {'order_number': 'PO-3001', 'supplier_name': 'Acme Meats'}},
+            format='json',
+        )
+        force_authenticate(request, user=self.manager_user)
+        request.tenant = self.tenant
+
+        response = PendingReviewResolveAPIView.as_view()(request, feedback_id=str(feedback.id))
+
+        self.assertEqual(response.status_code, 200)
+        feedback.refresh_from_db()
+        self.assertEqual(feedback.resolved_by_id, self.manager_user.id)
+        self.assertEqual(feedback.submitted_by_id, self.manager_user.id)
+        self.assertEqual(feedback.feedback_source, 'ai_inbox')
+        self.assertEqual(feedback.retraining_status, AIFeedbackLog.RetrainingStatus.QUEUED)
+        self.assertIsNotNone(feedback.retraining_queued_at)
 
     def test_contextual_suggestions_returns_plant_continuity_actions(self):
         plant = Plant.objects.create(

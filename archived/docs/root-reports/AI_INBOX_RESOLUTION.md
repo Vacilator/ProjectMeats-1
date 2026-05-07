@@ -8,12 +8,15 @@
 - Moved the stale integrations-side draft CTA to the queue by updating `frontend/src/components/Integrations/IngestionMonitor.tsx`.
 - Added tenant-scoped auto-sync orchestration via `POST /api/v1/integrations/email/auto-sync/`, the existing `integrations.sync_single_tenant` task, and a 15-minute Celery beat cadence for scheduled inbox refresh.
 - Added an app-level `AIInboxSyncProvider` that requests an immediate sync after authenticated session bootstrap and re-queues inbox refresh every 15 minutes while the user stays logged in.
+- Added thumbs-up / thumbs-down feedback controls to AI Inbox items and the draft review modal, requiring a note for thumbs-down submissions before they can be queued for retraining.
+- Extended `AIFeedbackLog` metadata so inbox feedback captures operator sentiment, optional comment, submitting user, and retraining queue state without replacing the existing review/resolve flow.
 
 ## Expected Results
 - AI draft notifications now land on an operational review hub instead of Settings.
 - Staff users can review a pending AI draft, open a hydrated entity form, save the real record, and clear the draft from the queue.
 - The old settings-side review entrypoint now forwards users to the operational queue instead of trapping them in Integrations.
 - AI Inbox ingestion now gets a login-time refresh plus a steady 15-minute background cadence without blocking the UI or bypassing tenant scoping.
+- Operators can now leave quick AI quality feedback directly from the inbox list or review modal, and negative feedback always includes the missing context for retraining.
 
 ## Acceptance Criteria
 - Pending AI draft notifications route to `/my-tasks?tab=ai-review`.
@@ -21,12 +24,16 @@
 - Reviewing a draft opens a populated form and resolving the save removes it from the queue.
 - Logged-in sessions queue an inbox sync immediately after authentication settles.
 - Logged-in sessions continue queueing inbox sync every 15 minutes, and the AI Inbox view refreshes when that sync completes.
+- Every AI Inbox row exposes thumbs-up / thumbs-down feedback controls.
+- Thumbs-down feedback cannot be submitted without a reason/comment.
+- Feedback and corrected draft saves are both marked as queued for retraining.
 
 ## Dependencies
 - Existing `AIFeedbackLog` pending-review/resolve endpoints.
 - Existing `EntityFormSurface` / `UniversalEntityForm` save flow.
 - Existing `EmailReviewDraft` notification producer in `apps.integrations.signals`.
 - Existing `EmailIngestionService`, Celery routing, and tenant-aware `sync_ai_feedback_queue_for_tenant`.
+- Existing `AIFeedbackViewSet` and pending-review resolve API for tenant-scoped AI review actions.
 
 ## Risks + Mitigations
 - **Mixed legacy/new notification data:** mitigated with a serializer fallback that rewrites legacy settings URLs into the queue route.
@@ -34,10 +41,14 @@
 - **Queue data drift:** mitigated by deriving queue metadata from the stored draft payload and linked `AIDocument`, not a parallel table.
 - **Duplicate sync storms across tabs:** mitigated with client-side coalescing before auto-sync requests are enqueued.
 - **Login-path regressions:** mitigated by keeping auto-sync soft-fail and asynchronous so auth completion never depends on inbox polling success.
+- **Accidentally clearing unresolved drafts on simple feedback:** mitigated by keeping feedback submission separate from queue resolution and only resolving when corrected data is saved.
+- **Low-signal negative feedback:** mitigated by requiring a reason before thumbs-down can be submitted.
 
 ## Testing Strategy
 - `python backend/manage.py test backend.apps.integrations.test_email_review_drafts backend.tenant_apps.ai_assistant.tests.test_review_queue_api backend.tenant_apps.workflows.tests.test_user_notification_serializer`
 - `npx vitest run src/components/AIAssistant/AIDraftReviewModal.test.tsx src/pages/MyTasks/MyTasks.aiReview.test.tsx src/components/Integrations/IngestionMonitor.test.tsx src/pages/Suppliers/PlantDetail.workflows.test.tsx`
+- `source /venv/bin/activate && python backend/manage.py test tenant_apps.ai_assistant.tests.test_review_queue_api --keepdb --noinput`
+- `npm --prefix frontend exec vitest run src/components/AIAssistant/AIInboxFeedbackActions.test.tsx src/components/AIAssistant/AIDraftReviewModal.test.tsx src/pages/MyTasks/MyTasks.aiReview.test.tsx`
 - `npm run type-check`
 - `source /venv/bin/activate && python backend/manage.py test apps.integrations.tests apps.integrations.test_tasks_rls_scope projectmeats.tests.test_celery_config`
 - `npm --prefix frontend exec vitest run src/contexts/AIInboxSyncContext.test.tsx src/pages/MyTasks/MyTasks.aiReview.test.tsx src/components/Integrations/IngestionMonitor.test.tsx`

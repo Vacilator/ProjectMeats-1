@@ -18,6 +18,10 @@ import { DelegateTaskModal, DelegationData, User } from '../../components/Delega
 import { DelegationHistory } from '../../components/Delegation';
 import AIDraftReviewModal from '../../components/AIAssistant/AIDraftReviewModal';
 import {
+  AIInboxFeedbackActions,
+  type AIInboxFeedbackSubmission,
+} from '../../components/AIAssistant/AIInboxFeedbackActions';
+import {
   AI_INBOX_REFRESH_EVENT,
   aiStaffApi,
   PendingReviewItem,
@@ -945,6 +949,39 @@ export const MyTasks: React.FC = () => {
     void fetchPendingReviews();
   }, [closeReview, fetchPendingReviews]);
 
+  const handleFeedbackSubmitted = useCallback(
+    (reviewId: string, submission: AIInboxFeedbackSubmission) => {
+      setPendingReviews((current) => current.map((item) => {
+        if (item.id !== reviewId) {
+          return item;
+        }
+
+        return {
+          ...item,
+          feedback_signal: submission.feedbackSignal,
+          feedback_comment: submission.feedbackComment,
+          retraining_status: submission.retrainingStatus ?? item.retraining_status,
+          retraining_queued_at: submission.retrainingQueuedAt ?? item.retraining_queued_at,
+        };
+      }));
+
+      setSelectedReview((current) => {
+        if (!current || current.id !== reviewId) {
+          return current;
+        }
+
+        return {
+          ...current,
+          feedback_signal: submission.feedbackSignal,
+          feedback_comment: submission.feedbackComment,
+          retraining_status: submission.retrainingStatus ?? current.retraining_status,
+          retraining_queued_at: submission.retrainingQueuedAt ?? current.retraining_queued_at,
+        };
+      });
+    },
+    [],
+  );
+
   const headerCount = activeTab === 'ai-review'
     ? pendingReviews.length
     : actionItemCounts?.total;
@@ -976,11 +1013,17 @@ export const MyTasks: React.FC = () => {
         title: 'Action',
         key: 'action',
         render: (_value: unknown, item: PendingReviewItem) => (
-          <ActionButton onClick={() => openReview(item)}>Review &amp; Save</ActionButton>
+          <div style={{ display: 'grid', gap: 8 }}>
+            <ActionButton onClick={() => openReview(item)}>Review &amp; Save</ActionButton>
+            <AIInboxFeedbackActions
+              item={item}
+              onSubmitted={(submission) => handleFeedbackSubmitted(item.id, submission)}
+            />
+          </div>
         ),
       },
     ],
-    [openReview],
+    [handleFeedbackSubmitted, openReview],
   );
 
   // Render loading state
@@ -1089,6 +1132,7 @@ export const MyTasks: React.FC = () => {
             item={selectedReview}
             onClose={closeReview}
             onResolved={handleReviewResolved}
+            onFeedbackSubmitted={handleFeedbackSubmitted}
           />
         </>
       ) : (

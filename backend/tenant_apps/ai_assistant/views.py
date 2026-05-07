@@ -309,6 +309,10 @@ def build_pending_review_items(
                 'intent_label': _humanize_review_intent(row.document_type, payload),
                 'review_entity_type': review_entity_type,
                 'review_target_url': str(payload.get('review_target_url') or f'/my-tasks?tab=ai-review&draft={row.id}'),
+                'feedback_signal': row.feedback_signal,
+                'feedback_comment': row.feedback_comment,
+                'retraining_status': row.retraining_status,
+                'retraining_queued_at': row.retraining_queued_at,
             }
         )
 
@@ -1619,7 +1623,7 @@ class AIFeedbackViewSet(mixins.CreateModelMixin, mixins.ListModelMixin, mixins.R
 
     def get_queryset(self):
         tenant = getattr(self.request, 'tenant', None)
-        qs = AIFeedbackLog.objects.all().select_related('tenant', 'resolved_by')
+        qs = AIFeedbackLog.objects.all().select_related('tenant', 'resolved_by', 'submitted_by')
 
         if self.request.user.is_superuser:
             return qs
@@ -1644,6 +1648,11 @@ class AIFeedbackViewSet(mixins.CreateModelMixin, mixins.ListModelMixin, mixins.R
         original = serializer.validated_data.get('original_extracted_data') or {}
         corrected = serializer.validated_data.get('user_corrected_data') or {}
         confidence = float(serializer.validated_data.get('confidence_score') or 0.0)
+        feedback_signal = serializer.validated_data.get('feedback_signal')
+        feedback_comment = serializer.validated_data.get('feedback_comment') or ''
+        feedback_source = (serializer.validated_data.get('feedback_source') or '').strip()
+        should_queue_retraining = bool(corrected or feedback_signal)
+        retraining_queued_at = timezone.now() if should_queue_retraining else None
 
         row = (
             AIFeedbackLog.objects.filter(tenant_id=tenant_id, document_id=document_id)
@@ -1659,21 +1668,48 @@ class AIFeedbackViewSet(mixins.CreateModelMixin, mixins.ListModelMixin, mixins.R
                 original_extracted_data=original,
                 user_corrected_data=corrected,
                 confidence_score=confidence,
-                resolved_by=request.user,
+                feedback_signal=feedback_signal,
+                feedback_comment=feedback_comment,
+                feedback_source=feedback_source,
+                submitted_by=request.user,
+                retraining_status=(
+                    AIFeedbackLog.RetrainingStatus.QUEUED
+                    if should_queue_retraining
+                    else AIFeedbackLog.RetrainingStatus.NOT_QUEUED
+                ),
+                retraining_queued_at=retraining_queued_at,
+                resolved_by=request.user if corrected else None,
             )
             created = True
         else:
-            row.document_type = row.document_type or document_type
-            row.original_extracted_data = original or (row.original_extracted_data or {})
-            row.user_corrected_data = corrected
-            row.confidence_score = confidence or row.confidence_score
-            row.resolved_by = request.user
+            if document_type:
+                row.document_type = row.document_type or document_type
+            if original:
+                row.original_extracted_data = original
+            if corrected:
+                row.user_corrected_data = corrected
+                row.resolved_by = request.user
+            if confidence:
+                row.confidence_score = confidence
+            if feedback_signal:
+                row.feedback_signal = feedback_signal
+            if feedback_signal or feedback_comment:
+                row.feedback_comment = feedback_comment
+            if feedback_source:
+                row.feedback_source = feedback_source
+            row.submitted_by = request.user
+            if should_queue_retraining:
+                row.retraining_status = AIFeedbackLog.RetrainingStatus.QUEUED
+                row.retraining_queued_at = retraining_queued_at
             row.save()
 
         payload = {
             'id': str(row.id),
             'created': created,
             'document_id': str(row.document_id),
+            'feedback_signal': row.feedback_signal,
+            'retraining_status': row.retraining_status,
+            'retraining_queued_at': row.retraining_queued_at.isoformat() if row.retraining_queued_at else None,
         }
         return Response(payload, status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
 
@@ -1873,11 +1909,19 @@ class PendingReviewResolveAPIView(APIView):
             )
 
         corrected = serializer.validated_data.get('user_corrected_data')
+        update_fields = ['resolved_by', 'modified_on']
         if corrected is not None:
             row.user_corrected_data = corrected
+            row.submitted_by = request.user
+            row.feedback_source = row.feedback_source or 'ai_inbox'
+            row.retraining_status = AIFeedbackLog.RetrainingStatus.QUEUED
+            row.retraining_queued_at = timezone.now()
+            update_fields.extend(
+                ['user_corrected_data', 'submitted_by', 'feedback_source', 'retraining_status', 'retraining_queued_at']
+            )
 
         row.resolved_by = request.user
-        row.save(update_fields=['user_corrected_data', 'resolved_by', 'precision_delta', 'modified_on'])
+        row.save(update_fields=update_fields + ['precision_delta'])
 
         return Response(
             {
