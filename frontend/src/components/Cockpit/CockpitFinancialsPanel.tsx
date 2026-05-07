@@ -55,11 +55,11 @@ interface PortfolioSummary {
 function riskColor(level: string): string {
   switch (level) {
     case 'high':
-      return '#ef4444';
+      return 'rgb(var(--color-error))';
     case 'medium':
-      return '#f59e0b';
+      return 'rgb(var(--color-warning))';
     default:
-      return '#22c55e';
+      return 'rgb(var(--color-success))';
   }
 }
 
@@ -176,7 +176,7 @@ export function CockpitFinancialsPanel(): React.ReactElement {
         dataIndex: 'net_exposure',
         key: 'net_exposure',
         render: (val: number) => (
-          <span style={{ color: val > 0 ? '#ef4444' : '#22c55e' }}>
+          <span style={{ color: val > 0 ? 'rgb(var(--color-error))' : 'rgb(var(--color-success))' }}>
             {formatCurrency(val)}
           </span>
         ),
@@ -240,7 +240,7 @@ export function CockpitFinancialsPanel(): React.ReactElement {
             prefix={<PercentageOutlined />}
             suffix="%"
             valueStyle={{
-              color: summary.average_margin >= 5 ? '#22c55e' : '#ef4444',
+              color: summary.average_margin >= 5 ? 'rgb(var(--color-success))' : 'rgb(var(--color-error))',
             }}
           />
         </Card>
@@ -258,13 +258,13 @@ export function CockpitFinancialsPanel(): React.ReactElement {
             value={summary.trades_at_risk}
             prefix={
               summary.trades_at_risk > 0 ? (
-                <WarningOutlined style={{ color: '#ef4444' }} />
+                <WarningOutlined style={{ color: 'rgb(var(--color-error))' }} />
               ) : (
-                <CheckCircleOutlined style={{ color: '#22c55e' }} />
+                <CheckCircleOutlined style={{ color: 'rgb(var(--color-success))' }} />
               )
             }
             valueStyle={{
-              color: summary.trades_at_risk > 0 ? '#ef4444' : '#22c55e',
+              color: summary.trades_at_risk > 0 ? 'rgb(var(--color-error))' : 'rgb(var(--color-success))',
             }}
           />
         </Card>

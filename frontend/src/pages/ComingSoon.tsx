@@ -1,7 +1,8 @@
 /**
  * ComingSoon Component
- * 
- * Placeholder page for features in development
+ *
+ * Polished placeholder for features in development. Shows an optional
+ * feature list and a "Go Back" button. Uses CSS custom properties only.
  */
 import React from 'react';
 import styled from 'styled-components';
@@ -10,20 +11,34 @@ import { useNavigate } from 'react-router-dom';
 interface ComingSoonProps {
   title: string;
   description?: string;
+  icon?: string;
+  features?: string[];
 }
 
-export const ComingSoon: React.FC<ComingSoonProps> = ({ 
-  title, 
-  description = 'This feature is currently under development and will be available soon.' 
+export const ComingSoon: React.FC<ComingSoonProps> = ({
+  title,
+  icon = '🚧',
+  description = 'This feature is currently under development and will be available soon.',
+  features,
 }) => {
   const navigate = useNavigate();
 
   return (
     <Container>
       <Content>
-        <Icon>🚧</Icon>
+        <Icon>{icon}</Icon>
         <Title>{title}</Title>
         <Description>{description}</Description>
+        {features && features.length > 0 && (
+          <FeatureList>
+            {features.map((f, i) => (
+              <FeatureItem key={i}>
+                <FeatureCheck>✓</FeatureCheck>
+                {f}
+              </FeatureItem>
+            ))}
+          </FeatureList>
+        )}
         <BackButton onClick={() => navigate(-1)}>
           ← Go Back
         </BackButton>
@@ -46,22 +61,44 @@ const Content = styled.div`
 `;
 
 const Icon = styled.div`
-  font-size: 80px;
+  font-size: 64px;
   margin-bottom: 1.5rem;
 `;
 
 const Title = styled.h1`
-  font-size: 2rem;
+  font-size: 1.75rem;
   font-weight: 600;
   color: rgb(var(--color-text-primary));
-  margin-bottom: 1rem;
+  margin-bottom: 0.75rem;
 `;
 
 const Description = styled.p`
-  font-size: 1.125rem;
+  font-size: 1rem;
   color: rgb(var(--color-text-secondary));
-  margin-bottom: 2rem;
+  margin-bottom: 1.5rem;
   line-height: 1.6;
+`;
+
+const FeatureList = styled.div`
+  text-align: left;
+  max-width: 360px;
+  margin: 0 auto 2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+`;
+
+const FeatureItem = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.875rem;
+  color: rgb(var(--color-text-primary));
+`;
+
+const FeatureCheck = styled.span`
+  color: rgb(var(--color-success));
+  font-weight: 600;
 `;
 
 const BackButton = styled.button`

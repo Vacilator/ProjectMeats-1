@@ -203,7 +203,7 @@ function VersionHistoryModal({
           items={versions.map((v) => ({
             color: v.is_current ? 'green' : 'gray',
             dot: v.is_current ? (
-              <CheckCircleOutlined style={{ color: '#22c55e' }} />
+              <CheckCircleOutlined style={{ color: 'rgb(var(--color-success))' }} />
             ) : undefined,
             children: (
               <div>

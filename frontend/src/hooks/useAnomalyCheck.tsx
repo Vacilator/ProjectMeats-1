@@ -133,9 +133,9 @@ export function useAnomalyCheck(config: AnomalyCheckConfig): AnomalyCheckHook {
                       padding: '8px 12px',
                       marginBottom: 8,
                       borderRadius: 6,
-                      border: `1px solid ${a.severity === 'critical' ? '#fecaca' : '#fef3c7'}`,
+                      border: `1px solid ${a.severity === 'critical' ? 'rgb(var(--color-error-border))' : 'rgb(var(--color-warning-border))'}`,
                       background:
-                        a.severity === 'critical' ? '#fef2f2' : '#fffbeb',
+                        a.severity === 'critical' ? 'rgb(var(--color-error-bg))' : 'rgb(var(--color-warning-bg))',
                     }}
                   >
                     <div
@@ -143,18 +143,18 @@ export function useAnomalyCheck(config: AnomalyCheckConfig): AnomalyCheckHook {
                         fontWeight: 600,
                         fontSize: 13,
                         color:
-                          a.severity === 'critical' ? '#dc2626' : '#d97706',
+                          a.severity === 'critical' ? 'rgb(var(--color-error))' : 'rgb(var(--color-warning))',
                       }}
                     >
                       {a.field_name}: {a.submitted_value}
                     </div>
-                    <div style={{ fontSize: 12, color: '#6b7280' }}>
+                    <div style={{ fontSize: 12, color: 'rgb(var(--color-text-secondary))' }}>
                       {a.message}
                     </div>
                   </div>
                 ))}
                 <p
-                  style={{ marginTop: 12, fontSize: 12, color: '#6b7280' }}
+                  style={{ marginTop: 12, fontSize: 12, color: 'rgb(var(--color-text-secondary))' }}
                 >
                   Do you want to proceed with these values?
                 </p>

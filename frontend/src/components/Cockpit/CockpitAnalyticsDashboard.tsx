@@ -277,7 +277,7 @@ export function CockpitAnalyticsDashboard(): React.ReactElement {
             precision={1}
             suffix="%"
             valueStyle={{
-              color: data.summary.average_margin >= 5 ? '#22c55e' : '#ef4444',
+              color: data.summary.average_margin >= 5 ? 'rgb(var(--color-success))' : 'rgb(var(--color-error))',
             }}
           />
         </Card>
@@ -297,7 +297,7 @@ export function CockpitAnalyticsDashboard(): React.ReactElement {
             precision={0}
             suffix="%"
             prefix={<TrophyOutlined />}
-            valueStyle={{ color: '#f59e0b' }}
+            valueStyle={{ color: 'rgb(var(--color-warning))' }}
           />
         </Card>
       </div>
@@ -321,7 +321,7 @@ export function CockpitAnalyticsDashboard(): React.ReactElement {
                   <div
                     className="text-lg font-semibold"
                     style={{
-                      color: dp.average_margin >= 5 ? '#22c55e' : '#ef4444',
+                      color: dp.average_margin >= 5 ? 'rgb(var(--color-success))' : 'rgb(var(--color-error))',
                     }}
                   >
                     {dp.average_margin.toFixed(1)}%

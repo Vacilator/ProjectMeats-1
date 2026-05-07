@@ -169,7 +169,7 @@ export function AmbientDraftAction({
           <div style={{ display: 'grid', gap: 16 }}>
             <div>
               <label
-                style={{ fontSize: 12, color: '#6b7280', display: 'block', marginBottom: 4 }}
+                style={{ fontSize: 12, color: 'rgb(var(--color-text-secondary))', display: 'block', marginBottom: 4 }}
               >
                 To
               </label>
@@ -178,7 +178,7 @@ export function AmbientDraftAction({
 
             <div>
               <label
-                style={{ fontSize: 12, color: '#6b7280', display: 'block', marginBottom: 4 }}
+                style={{ fontSize: 12, color: 'rgb(var(--color-text-secondary))', display: 'block', marginBottom: 4 }}
               >
                 Subject
               </label>
@@ -190,7 +190,7 @@ export function AmbientDraftAction({
 
             <div>
               <label
-                style={{ fontSize: 12, color: '#6b7280', display: 'block', marginBottom: 4 }}
+                style={{ fontSize: 12, color: 'rgb(var(--color-text-secondary))', display: 'block', marginBottom: 4 }}
               >
                 Body
               </label>
@@ -205,10 +205,10 @@ export function AmbientDraftAction({
             <div
               style={{
                 padding: '8px 12px',
-                background: '#f9fafb',
+                background: 'rgb(var(--color-neutral-bg))',
                 borderRadius: 6,
                 fontSize: 12,
-                color: '#6b7280',
+                color: 'rgb(var(--color-text-secondary))',
               }}
             >
               <strong>Context:</strong> {draft.context_summary}
