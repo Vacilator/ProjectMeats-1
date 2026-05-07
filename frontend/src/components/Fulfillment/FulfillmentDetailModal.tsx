@@ -171,24 +171,24 @@ const StatusBadge = styled.span<{ $status: string }>`
   font-weight: 500;
   background: ${props => {
     switch (props.$status) {
-      case 'pending': return 'rgba(251, 191, 36, 0.1)';
-      case 'in_progress': return 'rgba(59, 130, 246, 0.1)';
+      case 'pending': return 'rgba(var(--color-warning), 0.1)';
+      case 'in_progress': return 'rgba(var(--color-info), 0.1)';
       case 'shipped': return 'rgba(147, 51, 234, 0.1)';
-      case 'delivered': return 'rgba(34, 197, 94, 0.1)';
-      case 'completed': return 'rgba(22, 163, 74, 0.1)';
-      case 'cancelled': return 'rgba(239, 68, 68, 0.1)';
+      case 'delivered': return 'rgba(var(--color-success), 0.1)';
+      case 'completed': return 'rgba(var(--color-success), 0.1)';
+      case 'cancelled': return 'rgba(var(--color-error), 0.1)';
       default: return 'rgba(156, 163, 175, 0.1)';
     }
   }};
   color: ${props => {
     switch (props.$status) {
-      case 'pending': return 'rgb(180, 83, 9)';
-      case 'in_progress': return 'rgb(37, 99, 235)';
+      case 'pending': return 'rgb(var(--color-warning))';
+      case 'in_progress': return 'rgb(var(--color-info))';
       case 'shipped': return 'rgb(126, 34, 206)';
-      case 'delivered': return 'rgb(22, 163, 74)';
-      case 'completed': return 'rgb(21, 128, 61)';
-      case 'cancelled': return 'rgb(220, 38, 38)';
-      default: return 'rgb(107, 114, 128)';
+      case 'delivered': return 'rgb(var(--color-success))';
+      case 'completed': return 'rgb(var(--color-success))';
+      case 'cancelled': return 'rgb(var(--color-error))';
+      default: return 'rgb(var(--color-neutral))';
     }
   }};
 `;
@@ -295,17 +295,17 @@ const Button = styled.button<{ $variant?: 'primary' | 'secondary' | 'success' | 
         `;
       case 'success':
         return `
-          background: rgb(34, 197, 94);
+          background: rgb(var(--color-success));
           color: white;
           border: none;
-          &:hover { background: rgb(22, 163, 74); }
+          &:hover { background: rgb(var(--color-success)); opacity: 0.85; }
         `;
       case 'danger':
         return `
-          background: rgb(239, 68, 68);
+          background: rgb(var(--color-error));
           color: white;
           border: none;
-          &:hover { background: rgb(220, 38, 38); }
+          &:hover { background: rgb(var(--color-error)); opacity: 0.85; }
         `;
       default:
         return `
@@ -635,7 +635,7 @@ export const FulfillmentDetailModal: React.FC<FulfillmentDetailModalProps> = ({
         <Footer>
           <div>
             {fulfillment?.is_partial && (
-              <span style={{ color: 'rgb(251, 191, 36)', fontSize: '0.875rem' }}>
+              <span style={{ color: 'rgb(var(--color-warning))', fontSize: '0.875rem' }}>
                 ⚠️ Partial Fulfillment
               </span>
             )}

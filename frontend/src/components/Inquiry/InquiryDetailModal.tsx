@@ -157,24 +157,24 @@ const StatusBadge = styled.span<{ status: string }>`
   font-weight: 500;
   background: ${props => {
     switch (props.status) {
-      case 'accepted': return 'rgba(34, 197, 94, 0.1)';
-      case 'fulfilled': return 'rgba(34, 197, 94, 0.2)';
-      case 'pending': return 'rgba(234, 179, 8, 0.1)';
-      case 'quoted': return 'rgba(59, 130, 246, 0.1)';
-      case 'rejected': return 'rgba(239, 68, 68, 0.1)';
-      case 'expired': return 'rgba(107, 114, 128, 0.1)';
-      default: return 'rgba(107, 114, 128, 0.1)';
+      case 'accepted': return 'rgba(var(--color-success), 0.1)';
+      case 'fulfilled': return 'rgba(var(--color-success), 0.2)';
+      case 'pending': return 'rgba(var(--color-warning), 0.1)';
+      case 'quoted': return 'rgba(var(--color-info), 0.1)';
+      case 'rejected': return 'rgba(var(--color-error), 0.1)';
+      case 'expired': return 'rgba(var(--color-neutral), 0.1)';
+      default: return 'rgba(var(--color-neutral), 0.1)';
     }
   }};
   color: ${props => {
     switch (props.status) {
-      case 'accepted': return 'rgb(22, 163, 74)';
-      case 'fulfilled': return 'rgb(22, 163, 74)';
-      case 'pending': return 'rgb(202, 138, 4)';
-      case 'quoted': return 'rgb(37, 99, 235)';
-      case 'rejected': return 'rgb(220, 38, 38)';
-      case 'expired': return 'rgb(75, 85, 99)';
-      default: return 'rgb(75, 85, 99)';
+      case 'accepted': return 'rgb(var(--color-success))';
+      case 'fulfilled': return 'rgb(var(--color-success))';
+      case 'pending': return 'rgb(var(--color-warning))';
+      case 'quoted': return 'rgb(var(--color-info))';
+      case 'rejected': return 'rgb(var(--color-error))';
+      case 'expired': return 'rgb(var(--color-neutral))';
+      default: return 'rgb(var(--color-neutral))';
     }
   }};
 `;
@@ -230,15 +230,15 @@ const ProductInfo = styled.div`
 const PriceCell = styled.div<{ variant?: 'desired' | 'actual' }>`
   font-size: 0.875rem;
   color: ${props => props.variant === 'actual' 
-    ? 'rgb(22, 163, 74)' 
-    : 'rgb(37, 99, 235)'};
+    ? 'rgb(var(--color-success))' 
+    : 'rgb(var(--color-info))'};
   font-weight: 500;
 `;
 
 const MarginCell = styled.div<{ $positive?: boolean }>`
   font-size: 0.875rem;
   font-weight: 600;
-  color: ${props => props.$positive ? 'rgb(22, 163, 74)' : 'rgb(220, 38, 38)'};
+  color: ${props => props.$positive ? 'rgb(var(--color-success))' : 'rgb(var(--color-error))'};
 `;
 
 const TotalsRow = styled.div`
@@ -272,14 +272,14 @@ const ActionButton = styled.button<{ variant?: 'primary' | 'secondary' | 'succes
         `;
       case 'success':
         return `
-          background: rgb(22, 163, 74);
+          background: rgb(var(--color-success));
           color: white;
           border: none;
           &:hover { opacity: 0.9; }
         `;
       case 'danger':
         return `
-          background: rgb(220, 38, 38);
+          background: rgb(var(--color-error));
           color: white;
           border: none;
           &:hover { opacity: 0.9; }
@@ -540,7 +540,7 @@ export const InquiryDetailModal: React.FC<InquiryDetailModalProps> = ({
                 </InfoItem>
                 <InfoItem>
                   <span className="label">Valid Until</span>
-                  <span className="value" style={{ color: inquiry.is_expired ? 'rgb(220, 38, 38)' : undefined }}>
+                  <span className="value" style={{ color: inquiry.is_expired ? 'rgb(var(--color-error))' : undefined }}>
                     {formatDate(inquiry.valid_until)} {inquiry.is_expired && '(Expired)'}
                   </span>
                 </InfoItem>

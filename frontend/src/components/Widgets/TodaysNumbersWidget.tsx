@@ -127,7 +127,7 @@ export const TodaysNumbersWidget: React.FC<TodaysNumbersWidgetProps> = () => {
       value: stats.todays_numbers.orders_today,
       formattedValue: stats.todays_numbers.orders_today.toLocaleString(),
       icon: <Package size={18} />,
-      color: 'rgb(59, 130, 246)',
+      color: 'rgb(var(--color-info))',
       link: '/purchase-orders',
     },
     {
@@ -136,7 +136,7 @@ export const TodaysNumbersWidget: React.FC<TodaysNumbersWidgetProps> = () => {
       value: stats.todays_numbers.pending_orders,
       formattedValue: stats.todays_numbers.pending_orders.toLocaleString(),
       icon: <Clock size={18} />,
-      color: 'rgb(234, 179, 8)',
+      color: 'rgb(var(--color-warning))',
       link: '/purchase-orders',
     },
     {
@@ -145,7 +145,7 @@ export const TodaysNumbersWidget: React.FC<TodaysNumbersWidgetProps> = () => {
       value: stats.todays_numbers.completed_today,
       formattedValue: stats.todays_numbers.completed_today.toLocaleString(),
       icon: <CheckCircle size={18} />,
-      color: 'rgb(34, 197, 94)',
+      color: 'rgb(var(--color-success))',
       link: '/purchase-orders',
     },
     {

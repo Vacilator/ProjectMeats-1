@@ -125,7 +125,7 @@ const RemoveButton = styled.button`
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgb(239, 68, 68);
+  background: rgb(var(--color-error));
   color: white;
   border: none;
   border-radius: 50%;
@@ -135,7 +135,7 @@ const RemoveButton = styled.button`
   z-index: 10;
 
   &:hover {
-    background: rgb(220, 38, 38);
+    background: rgb(var(--color-error));
   }
 
   ${WidgetWrapper}:hover & {

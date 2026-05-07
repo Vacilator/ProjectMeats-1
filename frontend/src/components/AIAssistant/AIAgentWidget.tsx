@@ -255,8 +255,8 @@ const StatusPill = styled.div<{ $variant: 'ok' | 'warn' | 'info' }>`
   border-radius: 999px;
   border: 1px solid rgb(var(--color-border));
   color: ${(p) => {
-    if (p.$variant === 'warn') return 'rgb(234, 179, 8)';
-    if (p.$variant === 'ok') return 'rgb(34, 197, 94)';
+    if (p.$variant === 'warn') return 'rgb(var(--color-warning))';
+    if (p.$variant === 'ok') return 'rgb(var(--color-success))';
     return 'rgb(var(--color-text-secondary))';
   }};
   background: rgb(var(--color-primary) / 0.06);
@@ -320,7 +320,7 @@ const IconBtn = styled.button<{ $danger?: boolean }>`
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  color: ${(p) => (p.$danger ? 'rgb(239, 68, 68)' : 'rgb(var(--color-text-secondary))')};
+  color: ${(p) => (p.$danger ? 'rgb(var(--color-error))' : 'rgb(var(--color-text-secondary))')};
 
   .pm-spin {
     animation: pm-spin 1s linear infinite;
@@ -337,7 +337,7 @@ const IconBtn = styled.button<{ $danger?: boolean }>`
 
   &:hover {
     background: rgb(var(--color-primary) / 0.10);
-    color: ${(p) => (p.$danger ? 'rgb(239, 68, 68)' : 'rgb(var(--color-text-primary))')};
+    color: ${(p) => (p.$danger ? 'rgb(var(--color-error))' : 'rgb(var(--color-text-primary))')};
   }
 `;
 
@@ -405,7 +405,7 @@ const IntegrationDot = styled.span<{ $connected: boolean }>`
   width: 8px;
   height: 8px;
   border-radius: 999px;
-  background: ${(p) => (p.$connected ? 'rgb(34, 197, 94)' : 'rgb(239, 68, 68)')};
+  background: ${(p) => (p.$connected ? 'rgb(var(--color-success))' : 'rgb(var(--color-error))')};
 `;
 
 const IntegrationLink = styled.a`

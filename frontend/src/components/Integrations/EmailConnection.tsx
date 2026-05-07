@@ -236,18 +236,18 @@ const StatusBadge = styled.div<{ status: 'success' | 'warning' | 'danger' }>`
   width: fit-content;
   
   ${props => props.status === 'success' && `
-    background: rgb(34, 197, 94, 0.1);
-    color: rgb(34, 197, 94);
+    background: rgba(var(--color-success), 0.1);
+    color: rgb(var(--color-success));
   `}
   
   ${props => props.status === 'warning' && `
-    background: rgb(234, 179, 8, 0.1);
-    color: rgb(234, 179, 8);
+    background: rgba(var(--color-warning), 0.1);
+    color: rgb(var(--color-warning));
   `}
 
   ${props => props.status === 'danger' && `
-    background: rgb(239, 68, 68, 0.1);
-    color: rgb(239, 68, 68);
+    background: rgba(var(--color-error), 0.1);
+    color: rgb(var(--color-error));
   `}
   
   svg {

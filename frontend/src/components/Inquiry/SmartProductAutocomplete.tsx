@@ -63,7 +63,7 @@ const Container = styled.div`
 const SearchInput = styled.input<{ $error?: boolean; $hasValue?: boolean }>`
   width: 100%;
   padding: 10px 40px 10px 38px;
-  border: 1.5px solid ${props => props.$error ? 'rgb(239, 68, 68)' : props.$hasValue ? 'rgb(var(--color-primary))' : 'rgb(var(--color-border))'};
+  border: 1.5px solid ${props => props.$error ? 'rgb(var(--color-error))' : props.$hasValue ? 'rgb(var(--color-primary))' : 'rgb(var(--color-border))'};
   border-radius: 8px;
   font-size: 14px;
   transition: all 0.2s ease;
@@ -71,8 +71,8 @@ const SearchInput = styled.input<{ $error?: boolean; $hasValue?: boolean }>`
   
   &:focus {
     outline: none;
-    border-color: ${props => props.$error ? 'rgb(239, 68, 68)' : 'rgb(var(--color-primary))'};
-    box-shadow: 0 0 0 3px ${props => props.$error ? 'rgba(239, 68, 68, 0.1)' : 'rgba(var(--color-primary), 0.1)'};
+    border-color: ${props => props.$error ? 'rgb(var(--color-error))' : 'rgb(var(--color-primary))'};
+    box-shadow: 0 0 0 3px ${props => props.$error ? 'rgba(var(--color-error), 0.1)' : 'rgba(var(--color-primary), 0.1)'};
   }
   
   &:disabled {
@@ -155,8 +155,8 @@ const SectionHeader = styled.div<{ $variant?: 'suggested' | 'results' }>`
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: ${props => props.$variant === 'suggested' ? 'rgb(234, 179, 8)' : 'rgb(var(--color-text-secondary))'};
-  background: ${props => props.$variant === 'suggested' ? 'rgba(234, 179, 8, 0.05)' : 'transparent'};
+  color: ${props => props.$variant === 'suggested' ? 'rgb(var(--color-warning))' : 'rgb(var(--color-text-secondary))'};
+  background: ${props => props.$variant === 'suggested' ? 'rgba(var(--color-warning), 0.05)' : 'transparent'};
   border-bottom: 1px solid rgb(var(--color-border));
   position: sticky;
   top: 0;
@@ -200,8 +200,8 @@ const SuggestedBadge = styled.span`
   align-items: center;
   gap: 4px;
   padding: 2px 8px;
-  background: rgba(234, 179, 8, 0.15);
-  color: rgb(202, 138, 4);
+  background: rgba(var(--color-warning), 0.15);
+  color: rgb(var(--color-warning));
   border-radius: 4px;
   font-size: 11px;
   font-weight: 600;
@@ -212,7 +212,7 @@ const SuggestedBadge = styled.span`
 const PriceTag = styled.div`
   font-size: 14px;
   font-weight: 600;
-  color: rgb(34, 197, 94);
+  color: rgb(var(--color-success));
   display: flex;
   align-items: center;
   gap: 4px;

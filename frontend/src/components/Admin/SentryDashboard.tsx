@@ -83,17 +83,17 @@ const StatusBadge = styled(Tag)<{ $status: 'healthy' | 'warning' | 'critical' }>
   
   background: ${props => {
     switch (props.$status) {
-      case 'healthy': return 'rgba(34, 197, 94, 0.1)';
-      case 'warning': return 'rgba(234, 179, 8, 0.1)';
-      case 'critical': return 'rgba(239, 68, 68, 0.1)';
+      case 'healthy': return 'rgba(var(--color-success), 0.1)';
+      case 'warning': return 'rgba(var(--color-warning), 0.1)';
+      case 'critical': return 'rgba(var(--color-error), 0.1)';
     }
   }};
   
   color: ${props => {
     switch (props.$status) {
-      case 'healthy': return 'rgb(22, 163, 74)';
-      case 'warning': return 'rgb(202, 138, 4)';
-      case 'critical': return 'rgb(220, 38, 38)';
+      case 'healthy': return 'rgb(var(--color-success))';
+      case 'warning': return 'rgb(var(--color-warning))';
+      case 'critical': return 'rgb(var(--color-error))';
     }
   }};
   
@@ -328,10 +328,10 @@ export const SentryDashboard: React.FC = () => {
                     }
                     valueStyle={{
                       color: getHealthStatus(stats.healthScore) === 'healthy'
-                        ? 'rgb(22, 163, 74)'
+                        ? 'rgb(var(--color-success))'
                         : getHealthStatus(stats.healthScore) === 'warning'
-                          ? 'rgb(202, 138, 4)'
-                          : 'rgb(220, 38, 38)',
+                          ? 'rgb(var(--color-warning))'
+                          : 'rgb(var(--color-error))',
                     }}
                   />
                 </StatCard>
@@ -344,7 +344,7 @@ export const SentryDashboard: React.FC = () => {
                     value={stats.errorRate}
                     suffix="/min"
                     prefix={<AlertTriangle size={18} />}
-                    valueStyle={{ color: stats.errorRate > 1 ? 'rgb(239, 68, 68)' : undefined }}
+                    valueStyle={{ color: stats.errorRate > 1 ? 'rgb(var(--color-error))' : undefined }}
                   />
                 </StatCard>
               </Col>
@@ -378,7 +378,7 @@ export const SentryDashboard: React.FC = () => {
                     value={stats.avgResponseTime}
                     suffix="ms"
                     prefix={<Clock size={18} />}
-                    valueStyle={{ color: stats.avgResponseTime > 500 ? 'rgb(234, 179, 8)' : undefined }}
+                    valueStyle={{ color: stats.avgResponseTime > 500 ? 'rgb(var(--color-warning))' : undefined }}
                   />
                 </StatCard>
               </Col>

@@ -119,13 +119,13 @@ const StatusBadge = styled.span<{ $variant: 'success' | 'warning' | 'error' | 'i
   ${(p) => {
     switch (p.$variant) {
       case 'success':
-        return 'background: rgba(34, 197, 94, 0.1); color: rgb(34, 197, 94);';
+        return 'background: rgba(var(--color-success), 0.1); color: rgb(var(--color-success));';
       case 'warning':
-        return 'background: rgba(234, 179, 8, 0.1); color: rgb(234, 179, 8);';
+        return 'background: rgba(var(--color-warning), 0.1); color: rgb(var(--color-warning));';
       case 'error':
-        return 'background: rgba(239, 68, 68, 0.1); color: rgb(239, 68, 68);';
+        return 'background: rgba(var(--color-error), 0.1); color: rgb(var(--color-error));';
       case 'info':
-        return 'background: rgba(59, 130, 246, 0.1); color: rgb(59, 130, 246);';
+        return 'background: rgba(var(--color-info), 0.1); color: rgb(var(--color-info));';
       default:
         return 'background: rgba(156, 163, 175, 0.1); color: rgb(156, 163, 175);';
     }
@@ -145,8 +145,8 @@ const FailureBar = styled.div`
   align-items: flex-start;
   gap: 10px;
   padding: 10px 14px;
-  background: rgba(239, 68, 68, 0.05);
-  border: 1px solid rgba(239, 68, 68, 0.2);
+  background: rgba(var(--color-error), 0.05);
+  border: 1px solid rgba(var(--color-error), 0.2);
   border-radius: var(--radius-md);
   margin-bottom: 8px;
 `;
@@ -158,7 +158,7 @@ const FailureContent = styled.div`
 const FailureMessage = styled.div`
   font-size: 13px;
   font-weight: 500;
-  color: rgb(239, 68, 68);
+  color: rgb(var(--color-error));
   margin-bottom: 4px;
 `;
 
@@ -172,14 +172,14 @@ const RetryButton = styled.button`
   font-size: 12px;
   padding: 4px 10px;
   border-radius: var(--radius-sm);
-  border: 1px solid rgba(59, 130, 246, 0.3);
-  background: rgba(59, 130, 246, 0.1);
-  color: rgb(59, 130, 246);
+  border: 1px solid rgba(var(--color-info), 0.3);
+  background: rgba(var(--color-info), 0.1);
+  color: rgb(var(--color-info));
   cursor: pointer;
   white-space: nowrap;
 
   &:hover {
-    background: rgba(59, 130, 246, 0.2);
+    background: rgba(var(--color-info), 0.2);
   }
 `;
 
@@ -262,8 +262,8 @@ const Tag = styled.span`
   font-size: 11px;
   padding: 2px 6px;
   border-radius: 4px;
-  background: rgba(59, 130, 246, 0.1);
-  color: rgb(59, 130, 246);
+  background: rgba(var(--color-info), 0.1);
+  color: rgb(var(--color-info));
 `;
 
 const SummaryRow = styled.div`
@@ -463,7 +463,7 @@ export const ProcessFlowHeader: React.FC<ProcessFlowHeaderProps> = ({
 
       {data.failure_info && (
         <FailureBar>
-          <XCircle size={18} color="rgb(239, 68, 68)" style={{ flexShrink: 0, marginTop: 1 }} />
+          <XCircle size={18} color="rgb(var(--color-error))" style={{ flexShrink: 0, marginTop: 1 }} />
           <FailureContent>
             <FailureMessage>
               {data.failure_info.plain_message || `Step "${data.failure_info.step_label}" failed`}

@@ -700,8 +700,8 @@ const FieldMeta = styled.div`
 
 const MetaBadge = styled.span`
   padding: 4px 8px;
-  background: rgba(107, 114, 128, 0.1);
-  color: rgb(107, 114, 128);
+  background: rgba(var(--color-neutral), 0.1);
+  color: rgb(var(--color-neutral));
   font-size: 12px;
   font-weight: 500;
   border-radius: 4px;

@@ -56,10 +56,10 @@ const TimerContainer = styled.div<{ $mode: 'compact' | 'full'; $isRunning: boole
   gap: ${props => props.$mode === 'compact' ? '8px' : '12px'};
   padding: ${props => props.$mode === 'compact' ? '6px 12px' : '12px 16px'};
   background: ${props => props.$isRunning 
-    ? 'rgba(34, 197, 94, 0.1)' 
+    ? 'rgba(var(--color-success), 0.1)' 
     : 'rgb(var(--color-surface))'};
   border: 1px solid ${props => props.$isRunning 
-    ? 'rgba(34, 197, 94, 0.3)' 
+    ? 'rgba(var(--color-success), 0.3)' 
     : 'rgb(var(--color-border))'};
   border-radius: 8px;
   transition: all 0.2s ease;
@@ -70,7 +70,7 @@ const TimerDisplay = styled.div<{ $isRunning: boolean }>`
   font-size: 18px;
   font-weight: 600;
   color: ${props => props.$isRunning 
-    ? 'rgb(34, 197, 94)' 
+    ? 'rgb(var(--color-success))' 
     : 'rgb(var(--color-text-primary))'};
   min-width: 72px;
   text-align: center;
@@ -81,7 +81,7 @@ const TimerIcon = styled.div<{ $isRunning: boolean }>`
   align-items: center;
   justify-content: center;
   color: ${props => props.$isRunning 
-    ? 'rgb(34, 197, 94)' 
+    ? 'rgb(var(--color-success))' 
     : 'rgb(var(--color-text-secondary))'};
 `;
 
@@ -103,9 +103,9 @@ const TimerButton = styled.button<{ $variant?: 'start' | 'stop' | 'pause' }>`
   
   background: ${props => {
     switch (props.$variant) {
-      case 'start': return 'rgb(34, 197, 94)';
-      case 'stop': return 'rgb(239, 68, 68)';
-      case 'pause': return 'rgb(234, 179, 8)';
+      case 'start': return 'rgb(var(--color-success))';
+      case 'stop': return 'rgb(var(--color-error))';
+      case 'pause': return 'rgb(var(--color-warning))';
       default: return 'rgb(var(--color-primary))';
     }
   }};
@@ -131,7 +131,7 @@ const PulsingDot = styled.span<{ $isRunning: boolean }>`
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: ${props => props.$isRunning ? 'rgb(34, 197, 94)' : 'rgb(var(--color-text-secondary))'};
+  background: ${props => props.$isRunning ? 'rgb(var(--color-success))' : 'rgb(var(--color-text-secondary))'};
   animation: ${props => props.$isRunning ? 'pulse 1.5s infinite' : 'none'};
   
   @keyframes pulse {

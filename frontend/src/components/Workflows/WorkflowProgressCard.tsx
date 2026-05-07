@@ -115,18 +115,18 @@ const StatusBadge = styled.span<{ $status: WorkflowProgressCardProps['status'] }
     switch (props.$status) {
       case 'completed':
         return css`
-          background: rgba(34, 197, 94, 0.1);
-          color: rgb(34, 197, 94);
+          background: rgba(var(--color-success), 0.1);
+          color: rgb(var(--color-success));
         `;
       case 'in_progress':
         return css`
-          background: rgba(59, 130, 246, 0.1);
-          color: rgb(59, 130, 246);
+          background: rgba(var(--color-info), 0.1);
+          color: rgb(var(--color-info));
         `;
       case 'rejected':
         return css`
-          background: rgba(239, 68, 68, 0.1);
-          color: rgb(239, 68, 68);
+          background: rgba(var(--color-error), 0.1);
+          color: rgb(var(--color-error));
         `;
       case 'cancelled':
         return css`
@@ -135,7 +135,7 @@ const StatusBadge = styled.span<{ $status: WorkflowProgressCardProps['status'] }
         `;
       default: // draft
         return css`
-          background: rgba(234, 179, 8, 0.1);
+          background: rgba(var(--color-warning), 0.1);
           color: rgb(180, 140, 8);
         `;
     }
@@ -162,13 +162,13 @@ const ProgressFill = styled.div<{ $progress: number; $status: WorkflowProgressCa
   
   ${props => {
     if (props.$status === 'rejected' || props.$status === 'cancelled') {
-      return css`background: rgb(239, 68, 68);`;
+      return css`background: rgb(var(--color-error));`;
     }
     if (props.$status === 'completed') {
-      return css`background: rgb(34, 197, 94);`;
+      return css`background: rgb(var(--color-success));`;
     }
     return css`
-      background: linear-gradient(90deg, rgb(59, 130, 246), rgb(102, 126, 234));
+      background: linear-gradient(90deg, rgb(var(--color-info)), rgb(102, 126, 234));
       background-size: 200% 100%;
       animation: ${shimmer} 2s infinite linear;
     `;
@@ -209,8 +209,8 @@ const StepDot = styled.div<{ $status: WorkflowStepStatus; $isCurrent: boolean }>
   ${props => {
     if (props.$isCurrent) {
       return css`
-        background: rgb(59, 130, 246);
-        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.3);
+        background: rgb(var(--color-info));
+        box-shadow: 0 0 0 3px rgba(var(--color-info), 0.3);
         animation: ${pulse} 2s infinite;
       `;
     }
@@ -218,19 +218,19 @@ const StepDot = styled.div<{ $status: WorkflowStepStatus; $isCurrent: boolean }>
     switch (props.$status) {
       case 'completed':
       case 'approved':
-        return css`background: rgb(34, 197, 94);`;
+        return css`background: rgb(var(--color-success));`;
       case 'rejected':
-        return css`background: rgb(239, 68, 68);`;
+        return css`background: rgb(var(--color-error));`;
       case 'skipped':
         return css`
           background: transparent;
           border: 2px dashed rgb(var(--color-border, 224 224 224));
         `;
       case 'blocked':
-        return css`background: rgb(234, 179, 8);`;
+        return css`background: rgb(var(--color-warning));`;
       case 'in_progress':
         return css`
-          background: rgb(59, 130, 246);
+          background: rgb(var(--color-info));
           animation: ${pulse} 2s infinite;
         `;
       default:
@@ -245,7 +245,7 @@ const StepConnector = styled.div<{ $completed: boolean }>`
   max-width: 24px;
   height: 2px;
   background: ${props => props.$completed 
-    ? 'rgb(34, 197, 94)' 
+    ? 'rgb(var(--color-success))' 
     : 'rgb(var(--color-border, 224 224 224))'};
   transition: background 0.3s ease;
 `;
@@ -255,9 +255,9 @@ const CurrentStepInfo = styled.div`
   align-items: center;
   gap: 8px;
   padding: 12px;
-  background: rgba(59, 130, 246, 0.05);
+  background: rgba(var(--color-info), 0.05);
   border-radius: 8px;
-  border-left: 3px solid rgb(59, 130, 246);
+  border-left: 3px solid rgb(var(--color-info));
 `;
 
 const CurrentStepIcon = styled.span`
@@ -272,7 +272,7 @@ const CurrentStepLabel = styled.span`
   font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  color: rgb(59, 130, 246);
+  color: rgb(var(--color-info));
   display: block;
 `;
 

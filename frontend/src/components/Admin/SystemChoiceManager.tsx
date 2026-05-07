@@ -863,20 +863,20 @@ const MetaBadge = styled.span<{ $color: string }>`
   padding: 4px 8px;
   background: ${props => {
     switch (props.$color) {
-      case 'blue': return 'rgba(59, 130, 246, 0.1)';
-      case 'green': return 'rgba(34, 197, 94, 0.1)';
+      case 'blue': return 'rgba(var(--color-info), 0.1)';
+      case 'green': return 'rgba(var(--color-success), 0.1)';
       case 'purple': return 'rgba(168, 85, 247, 0.1)';
       case 'gray':
-      default: return 'rgba(107, 114, 128, 0.1)';
+      default: return 'rgba(var(--color-neutral), 0.1)';
     }
   }};
   color: ${props => {
     switch (props.$color) {
-      case 'blue': return 'rgb(59, 130, 246)';
-      case 'green': return 'rgb(34, 197, 94)';
+      case 'blue': return 'rgb(var(--color-info))';
+      case 'green': return 'rgb(var(--color-success))';
       case 'purple': return 'rgb(168, 85, 247)';
       case 'gray':
-      default: return 'rgb(107, 114, 128)';
+      default: return 'rgb(var(--color-neutral))';
     }
   }};
   font-size: 12px;

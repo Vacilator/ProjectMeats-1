@@ -80,11 +80,11 @@ const StatusBanner = styled.div<{ $status: ApprovalGateStatus }>`
     switch ($status) {
       case 'approved':
       case 'auto_approved':
-        return 'background: rgba(34, 197, 94, 0.1); color: rgb(22, 163, 74);';
+        return 'background: rgba(var(--color-success), 0.1); color: rgb(var(--color-success));';
       case 'rejected':
-        return 'background: rgba(239, 68, 68, 0.1); color: rgb(220, 38, 38);';
+        return 'background: rgba(var(--color-error), 0.1); color: rgb(var(--color-error));';
       case 'pending':
-        return 'background: rgba(234, 179, 8, 0.1); color: rgb(161, 98, 7);';
+        return 'background: rgba(var(--color-warning), 0.1); color: rgb(161, 98, 7);';
       default:
         return 'background: rgba(var(--color-border), 0.3); color: rgb(var(--color-text-secondary));';
     }
@@ -105,9 +105,9 @@ const RuleItem = styled.div<{ $passed?: boolean }>`
   font-size: 10px;
   color: ${(p) =>
     p.$passed === true
-      ? 'rgb(22, 163, 74)'
+      ? 'rgb(var(--color-success))'
       : p.$passed === false
-        ? 'rgb(220, 38, 38)'
+        ? 'rgb(var(--color-error))'
         : 'rgb(var(--color-text-secondary))'};
 `;
 

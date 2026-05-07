@@ -315,12 +315,12 @@ export const FavoritesWidget: React.FC<FavoritesWidgetProps> = ({
 // Helper function (should match SmartSearch)
 const getEntityColor = (type: string) => {
   switch (type) {
-    case 'customer': return 'rgb(34, 197, 94)';
+    case 'customer': return 'rgb(var(--color-success))';
     case 'supplier': return 'rgb(168, 85, 247)';
-    case 'contact': return 'rgb(59, 130, 246)';
+    case 'contact': return 'rgb(var(--color-info))';
     case 'product': return 'rgb(249, 115, 22)';
-    case 'order': return 'rgb(234, 179, 8)';
-    case 'inquiry': return 'rgb(239, 68, 68)';
+    case 'order': return 'rgb(var(--color-warning))';
+    case 'inquiry': return 'rgb(var(--color-error))';
     default: return 'rgb(var(--color-primary))';
   }
 };

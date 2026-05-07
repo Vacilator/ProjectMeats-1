@@ -399,7 +399,7 @@ const ErrorMessage = styled.div`
   color: rgb(var(--color-error));
   font-size: 0.875rem;
   padding: 0.75rem;
-  background: rgba(220, 38, 38, 0.1);
+  background: rgba(var(--color-error), 0.1);
   border-radius: var(--radius-md);
   margin-bottom: 1rem;
 `;
@@ -425,18 +425,18 @@ const StatusBadge = styled.span<{ status: string }>`
   font-weight: 500;
   background: ${props => {
     switch (props.status) {
-      case 'accepted': return 'rgba(34, 197, 94, 0.1)';
-      case 'pending': return 'rgba(234, 179, 8, 0.1)';
-      case 'quoted': return 'rgba(59, 130, 246, 0.1)';
-      default: return 'rgba(107, 114, 128, 0.1)';
+      case 'accepted': return 'rgba(var(--color-success), 0.1)';
+      case 'pending': return 'rgba(var(--color-warning), 0.1)';
+      case 'quoted': return 'rgba(var(--color-info), 0.1)';
+      default: return 'rgba(var(--color-neutral), 0.1)';
     }
   }};
   color: ${props => {
     switch (props.status) {
-      case 'accepted': return 'rgb(34, 197, 94)';
-      case 'pending': return 'rgb(234, 179, 8)';
-      case 'quoted': return 'rgb(59, 130, 246)';
-      default: return 'rgb(107, 114, 128)';
+      case 'accepted': return 'rgb(var(--color-success))';
+      case 'pending': return 'rgb(var(--color-warning))';
+      case 'quoted': return 'rgb(var(--color-info))';
+      default: return 'rgb(var(--color-neutral))';
     }
   }};
 `;

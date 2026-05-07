@@ -51,7 +51,7 @@ export interface EntityExplorerWidgetProps {
 const ENTITY_CONFIG: Record<EntityType, { icon: React.ReactNode; color: string; path: string; label: string }> = {
   suppliers: {
     icon: <Building2 size={14} />,
-    color: 'rgb(59, 130, 246)',
+    color: 'rgb(var(--color-info))',
     path: '/suppliers',
     label: 'Suppliers',
   },
@@ -63,13 +63,13 @@ const ENTITY_CONFIG: Record<EntityType, { icon: React.ReactNode; color: string; 
   },
   purchase_orders: {
     icon: <Package size={14} />,
-    color: 'rgb(34, 197, 94)',
+    color: 'rgb(var(--color-success))',
     path: '/purchase-orders',
     label: 'Purchase Orders',
   },
   sales_orders: {
     icon: <Package size={14} />,
-    color: 'rgb(234, 179, 8)',
+    color: 'rgb(var(--color-warning))',
     path: '/sales-orders',
     label: 'Sales Orders',
   },
@@ -204,13 +204,13 @@ const EntitySubtitle = styled.div`
 `;
 
 const FavoriteIcon = styled.div<{ $active: boolean }>`
-  color: ${props => props.$active ? 'rgb(234, 179, 8)' : 'rgb(var(--color-text-tertiary))'};
+  color: ${props => props.$active ? 'rgb(var(--color-warning))' : 'rgb(var(--color-text-tertiary))'};
   opacity: ${props => props.$active ? 1 : 0.3};
   cursor: pointer;
   
   &:hover {
     opacity: 1;
-    color: rgb(234, 179, 8);
+    color: rgb(var(--color-warning));
   }
 `;
 

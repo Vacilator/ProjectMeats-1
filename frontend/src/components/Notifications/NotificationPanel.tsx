@@ -127,8 +127,8 @@ const NotificationItem = styled.div<{ $isUnread: boolean; $priority: string }>`
   cursor: pointer;
   transition: background-color 0.15s ease;
   border-left: 3px solid ${({ $priority }) => 
-    $priority === 'urgent' ? 'rgb(239, 68, 68)' :
-    $priority === 'high' ? 'rgb(234, 179, 8)' :
+    $priority === 'urgent' ? 'rgb(var(--color-error))' :
+    $priority === 'high' ? 'rgb(var(--color-warning))' :
     'transparent'
   };
   background-color: ${({ $isUnread }) => 
@@ -250,16 +250,16 @@ function getIconBackground(type: NotificationType): string {
   switch (type) {
     case 'task_assigned':
     case 'task_due_soon':
-      return 'rgb(59, 130, 246, 0.1)';
+      return 'rgba(var(--color-info), 0.1)';
     case 'task_overdue':
-      return 'rgb(239, 68, 68, 0.1)';
+      return 'rgba(var(--color-error), 0.1)';
     case 'task_completed':
     case 'form_approved':
-      return 'rgb(34, 197, 94, 0.1)';
+      return 'rgba(var(--color-success), 0.1)';
     case 'form_rejected':
-      return 'rgb(239, 68, 68, 0.1)';
+      return 'rgba(var(--color-error), 0.1)';
     case 'form_submitted':
-      return 'rgb(234, 179, 8, 0.1)';
+      return 'rgba(var(--color-warning), 0.1)';
     case 'mention':
     case 'comment':
       return 'rgb(139, 92, 246, 0.1)';
@@ -276,16 +276,16 @@ function getIconColor(type: NotificationType): string {
   switch (type) {
     case 'task_assigned':
     case 'task_due_soon':
-      return 'rgb(59, 130, 246)';
+      return 'rgb(var(--color-info))';
     case 'task_overdue':
-      return 'rgb(239, 68, 68)';
+      return 'rgb(var(--color-error))';
     case 'task_completed':
     case 'form_approved':
-      return 'rgb(34, 197, 94)';
+      return 'rgb(var(--color-success))';
     case 'form_rejected':
-      return 'rgb(239, 68, 68)';
+      return 'rgb(var(--color-error))';
     case 'form_submitted':
-      return 'rgb(234, 179, 8)';
+      return 'rgb(var(--color-warning))';
     case 'mention':
     case 'comment':
       return 'rgb(139, 92, 246)';

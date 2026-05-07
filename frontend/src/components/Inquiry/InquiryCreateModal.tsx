@@ -227,10 +227,10 @@ const FieldError = styled.div`
 const Error = styled.div`
   margin-top: 0.75rem;
   padding: 0.75rem 1rem;
-  border: 1px solid rgba(239, 68, 68, 0.35);
-  background: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(var(--color-error), 0.35);
+  background: rgba(var(--color-error), 0.08);
   border-radius: var(--radius-md);
-  color: rgb(239, 68, 68);
+  color: rgb(var(--color-error));
   font-size: 0.875rem;
 `;
 
@@ -292,9 +292,9 @@ const ComputedValue = styled.div<{ $tone?: 'positive' | 'negative' | 'neutral' }
   background: rgba(var(--color-primary), 0.03);
   color: ${(p) =>
     p.$tone === 'positive'
-      ? 'rgb(34, 197, 94)'
+      ? 'rgb(var(--color-success))'
       : p.$tone === 'negative'
-        ? 'rgb(239, 68, 68)'
+        ? 'rgb(var(--color-error))'
         : 'rgb(var(--color-text-secondary))'};
   text-align: right;
   font-variant-numeric: tabular-nums;

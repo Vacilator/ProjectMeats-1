@@ -50,8 +50,8 @@ export interface MissingDependencyResolverProps {
 // ============================================================================
 
 const Container = styled.div<{ $compact?: boolean }>`
-  border: 1px solid rgba(234, 179, 8, 0.3);
-  background: rgba(234, 179, 8, 0.04);
+  border: 1px solid rgba(var(--color-warning), 0.3);
+  background: rgba(var(--color-warning), 0.04);
   border-radius: var(--radius-md);
   padding: ${(p) => (p.$compact ? '10px 12px' : '14px 16px')};
 `;
@@ -81,8 +81,8 @@ const DepRow = styled.div<{ $resolved?: boolean }>`
   gap: 10px;
   padding: 6px 10px;
   border-radius: var(--radius-sm);
-  background: ${(p) => (p.$resolved ? 'rgba(34, 197, 94, 0.06)' : 'rgb(var(--color-surface))')};
-  border: 1px solid ${(p) => (p.$resolved ? 'rgba(34, 197, 94, 0.2)' : 'rgb(var(--color-border))')};
+  background: ${(p) => (p.$resolved ? 'rgba(var(--color-success), 0.06)' : 'rgb(var(--color-surface))')};
+  border: 1px solid ${(p) => (p.$resolved ? 'rgba(var(--color-success), 0.2)' : 'rgb(var(--color-border))')};
   transition: all 0.15s;
 `;
 
@@ -93,8 +93,8 @@ const DepIcon = styled.div<{ $resolved?: boolean }>`
   display: flex;
   align-items: center;
   justify-content: center;
-  background: ${(p) => (p.$resolved ? 'rgba(34, 197, 94, 0.1)' : 'rgba(59, 130, 246, 0.08)')};
-  color: ${(p) => (p.$resolved ? 'rgb(34, 197, 94)' : 'rgb(59, 130, 246)')};
+  background: ${(p) => (p.$resolved ? 'rgba(var(--color-success), 0.1)' : 'rgba(var(--color-info), 0.08)')};
+  color: ${(p) => (p.$resolved ? 'rgb(var(--color-success))' : 'rgb(var(--color-info))')};
   flex-shrink: 0;
 `;
 
@@ -130,13 +130,13 @@ const CreateBtn = styled.button<{ $resolved?: boolean }>`
   ${(p) =>
     p.$resolved
       ? `
-    background: rgba(34, 197, 94, 0.1);
-    color: rgb(22, 163, 74);
+    background: rgba(var(--color-success), 0.1);
+    color: rgb(var(--color-success));
   `
       : `
-    background: rgb(59, 130, 246);
+    background: rgb(var(--color-info));
     color: white;
-    &:hover { background: rgb(37, 99, 235); }
+    &:hover { background: rgb(var(--color-info)); opacity: 0.9; }
   `}
 `;
 
@@ -191,7 +191,7 @@ export const MissingDependencyResolver: React.FC<MissingDependencyResolverProps>
   return (
     <Container $compact={compact} className={className}>
       <Header>
-        <AlertTriangle size={14} color="rgb(202, 138, 4)" />
+        <AlertTriangle size={14} color="rgb(var(--color-warning))" />
         <HeaderText>
           {unresolvedCount === 0
             ? 'All dependencies resolved ✓'

@@ -75,9 +75,9 @@ const PriorityIndicator = styled.div<{ $priority: string }>`
   border-radius: 2px;
   background: ${props => {
     switch (props.$priority) {
-      case 'high': return 'rgb(239, 68, 68)';
-      case 'medium': return 'rgb(234, 179, 8)';
-      case 'low': return 'rgb(34, 197, 94)';
+      case 'high': return 'rgb(var(--color-error))';
+      case 'medium': return 'rgb(var(--color-warning))';
+      case 'low': return 'rgb(var(--color-success))';
       default: return 'rgb(var(--color-border))';
     }
   }};
@@ -111,10 +111,10 @@ const MetaBadge = styled.div<{ $warning?: boolean }>`
   padding: 2px 8px;
   border-radius: 4px;
   background: ${props => props.$warning 
-    ? 'rgba(239, 68, 68, 0.1)' 
+    ? 'rgba(var(--color-error), 0.1)' 
     : 'rgba(var(--color-primary), 0.1)'};
   color: ${props => props.$warning 
-    ? 'rgb(239, 68, 68)' 
+    ? 'rgb(var(--color-error))' 
     : 'rgb(var(--color-primary))'};
 `;
 

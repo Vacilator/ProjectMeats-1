@@ -131,10 +131,10 @@ const MetricCard = styled.div<{ $variant?: 'success' | 'danger' | 'primary' | 'w
     font-weight: 700;
     color: ${props => {
       switch (props.$variant) {
-        case 'success': return 'rgb(34, 197, 94)';
-        case 'danger': return 'rgb(239, 68, 68)';
+        case 'success': return 'rgb(var(--color-success))';
+        case 'danger': return 'rgb(var(--color-error))';
         case 'primary': return 'rgb(var(--color-primary))';
-        case 'warning': return 'rgb(251, 191, 36)';
+        case 'warning': return 'rgb(var(--color-warning))';
         default: return 'rgb(var(--color-text-primary))';
       }
     }};
@@ -156,7 +156,7 @@ const WinRateCard = styled(MetricCard)`
     bottom: 0;
     left: 0;
     height: 4px;
-    background: rgb(34, 197, 94);
+    background: rgb(var(--color-success));
     transition: width 0.5s ease;
   }
 `;
@@ -199,8 +199,8 @@ const TrendBar = styled.div<{ $height: number; $variant: 'total' | 'won' | 'lost
   height: ${props => props.$height}%;
   background: ${props => {
     switch (props.$variant) {
-      case 'won': return 'rgb(34, 197, 94)';
-      case 'lost': return 'rgb(239, 68, 68)';
+      case 'won': return 'rgb(var(--color-success))';
+      case 'lost': return 'rgb(var(--color-error))';
       default: return 'rgba(var(--color-primary), 0.3)';
     }
   }};
@@ -317,11 +317,11 @@ const ReasonsList = styled.div`
 const ReasonItem = styled.div<{ $variant: 'win' | 'loss' }>`
   padding: 0.5rem 0.75rem;
   background: ${props => props.$variant === 'win' 
-    ? 'rgba(34, 197, 94, 0.05)' 
-    : 'rgba(239, 68, 68, 0.05)'};
+    ? 'rgba(var(--color-success), 0.05)' 
+    : 'rgba(var(--color-error), 0.05)'};
   border-left: 3px solid ${props => props.$variant === 'win' 
-    ? 'rgb(34, 197, 94)' 
-    : 'rgb(239, 68, 68)'};
+    ? 'rgb(var(--color-success))' 
+    : 'rgb(var(--color-error))'};
   border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
   font-size: 0.8125rem;
   color: rgb(var(--color-text-primary));
@@ -343,25 +343,25 @@ const StatusBadge = styled.span<{ $status: string }>`
   background: ${props => {
     switch (props.$status) {
       case 'draft': return 'rgba(156, 163, 175, 0.1)';
-      case 'pending': return 'rgba(251, 191, 36, 0.1)';
-      case 'quoted': return 'rgba(59, 130, 246, 0.1)';
-      case 'accepted': return 'rgba(34, 197, 94, 0.1)';
-      case 'rejected': return 'rgba(239, 68, 68, 0.1)';
+      case 'pending': return 'rgba(var(--color-warning), 0.1)';
+      case 'quoted': return 'rgba(var(--color-info), 0.1)';
+      case 'accepted': return 'rgba(var(--color-success), 0.1)';
+      case 'rejected': return 'rgba(var(--color-error), 0.1)';
       case 'fulfilled': return 'rgba(147, 51, 234, 0.1)';
-      case 'cancelled': return 'rgba(107, 114, 128, 0.1)';
+      case 'cancelled': return 'rgba(var(--color-neutral), 0.1)';
       default: return 'rgba(156, 163, 175, 0.1)';
     }
   }};
   color: ${props => {
     switch (props.$status) {
-      case 'draft': return 'rgb(107, 114, 128)';
+      case 'draft': return 'rgb(var(--color-neutral))';
       case 'pending': return 'rgb(180, 83, 9)';
-      case 'quoted': return 'rgb(37, 99, 235)';
-      case 'accepted': return 'rgb(22, 163, 74)';
-      case 'rejected': return 'rgb(220, 38, 38)';
+      case 'quoted': return 'rgb(var(--color-info))';
+      case 'accepted': return 'rgb(var(--color-success))';
+      case 'rejected': return 'rgb(var(--color-error))';
       case 'fulfilled': return 'rgb(126, 34, 206)';
-      case 'cancelled': return 'rgb(75, 85, 99)';
-      default: return 'rgb(107, 114, 128)';
+      case 'cancelled': return 'rgb(var(--color-neutral))';
+      default: return 'rgb(var(--color-neutral))';
     }
   }};
   
@@ -544,11 +544,11 @@ export const InquiryAnalyticsDashboard: React.FC<InquiryAnalyticsDashboardProps>
               </TrendChart>
               <TrendLegend>
                 <span className="item">
-                  <span className="dot" style={{ background: 'rgb(34, 197, 94)' }} />
+                  <span className="dot" style={{ background: 'rgb(var(--color-success))' }} />
                   Won
                 </span>
                 <span className="item">
-                  <span className="dot" style={{ background: 'rgb(239, 68, 68)' }} />
+                  <span className="dot" style={{ background: 'rgb(var(--color-error))' }} />
                   Lost
                 </span>
               </TrendLegend>

@@ -226,10 +226,10 @@ const EmptyState = styled.div`
 
 const getEventColor = (type: string): string => {
   switch (type) {
-    case 'meeting': return 'rgb(59, 130, 246)';
-    case 'deadline': return 'rgb(239, 68, 68)';
-    case 'reminder': return 'rgb(234, 179, 8)';
-    default: return 'rgb(34, 197, 94)';
+    case 'meeting': return 'rgb(var(--color-info))';
+    case 'deadline': return 'rgb(var(--color-error))';
+    case 'reminder': return 'rgb(var(--color-warning))';
+    default: return 'rgb(var(--color-success))';
   }
 };
 

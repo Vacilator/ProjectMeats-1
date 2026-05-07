@@ -99,7 +99,7 @@ export const AILearningMetricsWidget: React.FC<AILearningMetricsWidgetProps> = (
               <Line
                 type="monotone"
                 dataKey="confidence"
-                stroke="rgb(59, 130, 246)"
+                stroke="rgb(var(--color-info))"
                 strokeWidth={2}
                 dot={false}
               />

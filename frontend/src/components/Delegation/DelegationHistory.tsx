@@ -77,20 +77,20 @@ const DelegationCard = styled.div<{ $status: DelegationRecord['status'] }>`
   animation: ${fadeIn} 0.3s ease;
   
   ${props => props.$status === 'active' && css`
-    border-left: 3px solid rgb(59, 130, 246);
+    border-left: 3px solid rgb(var(--color-info));
   `}
   
   ${props => props.$status === 'completed' && css`
-    border-left: 3px solid rgb(34, 197, 94);
+    border-left: 3px solid rgb(var(--color-success));
   `}
   
   ${props => props.$status === 'revoked' && css`
-    border-left: 3px solid rgb(239, 68, 68);
+    border-left: 3px solid rgb(var(--color-error));
     opacity: 0.7;
   `}
   
   ${props => props.$status === 'expired' && css`
-    border-left: 3px solid rgb(234, 179, 8);
+    border-left: 3px solid rgb(var(--color-warning));
     opacity: 0.7;
   `}
 `;
@@ -157,23 +157,23 @@ const StatusBadge = styled.span<{ $status: DelegationRecord['status'] }>`
     switch (props.$status) {
       case 'active':
         return css`
-          background: rgba(59, 130, 246, 0.1);
-          color: rgb(59, 130, 246);
+          background: rgba(var(--color-info), 0.1);
+          color: rgb(var(--color-info));
         `;
       case 'completed':
         return css`
-          background: rgba(34, 197, 94, 0.1);
-          color: rgb(34, 197, 94);
+          background: rgba(var(--color-success), 0.1);
+          color: rgb(var(--color-success));
         `;
       case 'revoked':
         return css`
-          background: rgba(239, 68, 68, 0.1);
-          color: rgb(239, 68, 68);
+          background: rgba(var(--color-error), 0.1);
+          color: rgb(var(--color-error));
         `;
       case 'expired':
         return css`
-          background: rgba(234, 179, 8, 0.1);
-          color: rgb(180, 140, 8);
+          background: rgba(var(--color-warning), 0.1);
+          color: rgb(var(--color-warning));
         `;
       default:
         return '';
@@ -212,8 +212,8 @@ const ReasonText = styled.div`
 
 const RevokeButton = styled.button`
   background: none;
-  border: 1px solid rgb(239, 68, 68);
-  color: rgb(239, 68, 68);
+  border: 1px solid rgb(var(--color-error));
+  color: rgb(var(--color-error));
   padding: 4px 12px;
   border-radius: 4px;
   font-size: 12px;
@@ -222,7 +222,7 @@ const RevokeButton = styled.button`
   transition: all 0.15s ease;
   
   &:hover {
-    background: rgba(239, 68, 68, 0.1);
+    background: rgba(var(--color-error), 0.1);
   }
 `;
 
