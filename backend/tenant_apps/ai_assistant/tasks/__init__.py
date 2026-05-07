@@ -103,3 +103,28 @@ def compile_rlhf_data(days: int = 7, limit: int = 5000, out: str | None = None, 
     except Exception as e:
         logger.warning('[RLHF] Compile task failed: %s', str(e), exc_info=True)
         return {'status': 'error', 'error': str(e)}
+
+
+@shared_task(name='ai_assistant.queue_feedback_for_training')
+def queue_feedback_for_training(feedback_id: str) -> Dict[str, Any]:
+    """Queue a single feedback entry for model retraining (RT-02.3).
+
+    Called asynchronously after feedback submission to decouple
+    the user-facing response from the training pipeline signal.
+
+    Args:
+        feedback_id: Primary key of the AIFeedbackLog row.
+
+    Returns:
+        Status dict with queuing result.
+    """
+    try:
+        from tenant_apps.ai_assistant.services.feedback_service import queue_single_feedback
+
+        result = queue_single_feedback(feedback_id)
+        logger.info('[RLHF] queue_feedback_for_training: %s', result)
+        return result
+
+    except Exception as e:
+        logger.warning('[RLHF] queue_feedback_for_training failed: %s', str(e), exc_info=True)
+        return {'status': 'error', 'error': str(e), 'feedback_id': feedback_id}

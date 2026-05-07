@@ -1703,6 +1703,63 @@ class AIFeedbackViewSet(mixins.CreateModelMixin, mixins.ListModelMixin, mixins.R
                 row.retraining_queued_at = retraining_queued_at
             row.save()
 
+        # --- RT-02.3: Telemetry + training queue + corrections ---
+        try:
+            from tenant_apps.ai_assistant.services.feedback_service import (
+                EVENT_CORRECTION_APPLIED,
+                EVENT_FEEDBACK_SUBMITTED,
+                emit_feedback_telemetry,
+                process_feedback_with_deps,
+                suggest_corrections,
+            )
+            from tenant_apps.ai_assistant.tasks import queue_feedback_for_training
+
+            # Emit telemetry for submission
+            emit_feedback_telemetry(
+                tenant=tenant,
+                event_type=EVENT_FEEDBACK_SUBMITTED,
+                feedback_id=str(row.pk),
+                actor_user_id=str(request.user.pk),
+                payload={
+                    "signal": feedback_signal,
+                    "has_correction": bool(corrected),
+                    "confidence": confidence,
+                    "source": feedback_source,
+                },
+            )
+
+            # If corrections were applied, emit correction event
+            if corrected:
+                emit_feedback_telemetry(
+                    tenant=tenant,
+                    event_type=EVENT_CORRECTION_APPLIED,
+                    feedback_id=str(row.pk),
+                    actor_user_id=str(request.user.pk),
+                    payload={"fields_corrected": list(corrected.keys())},
+                )
+                # Resolve missing dependencies from corrected data
+                process_feedback_with_deps(tenant=tenant, feedback_row=row, user=request.user)
+
+            # Queue for training asynchronously
+            if should_queue_retraining:
+                queue_feedback_for_training.delay(str(row.pk))
+
+        except Exception:
+            # Telemetry/queue failures must not break the user-facing response
+            logger.exception("RT-02.3 post-feedback processing failed (non-blocking)")
+
+        # Build response with suggestions for negative feedback
+        suggestions = {}
+        if feedback_signal == AIFeedbackLog.FeedbackSignal.THUMBS_DOWN:
+            try:
+                from tenant_apps.ai_assistant.services.feedback_service import suggest_corrections
+                suggestions = suggest_corrections(
+                    original_data=original,
+                    confidence_score=confidence,
+                )
+            except Exception:
+                pass
+
         payload = {
             'id': str(row.id),
             'created': created,
@@ -1710,6 +1767,7 @@ class AIFeedbackViewSet(mixins.CreateModelMixin, mixins.ListModelMixin, mixins.R
             'feedback_signal': row.feedback_signal,
             'retraining_status': row.retraining_status,
             'retraining_queued_at': row.retraining_queued_at.isoformat() if row.retraining_queued_at else None,
+            'suggestions': suggestions,
         }
         return Response(payload, status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
 
