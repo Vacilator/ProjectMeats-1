@@ -1,5 +1,6 @@
 # Services package for Inquiry app
 from .pdf_generator import InquiryPDFGenerator
+from .supplier_quote_reply_parser import parse_supplier_quote_reply
 from .supplier_rfq_email import send_supplier_rfqs_for_inquiry
 
-__all__ = ['InquiryPDFGenerator', 'send_supplier_rfqs_for_inquiry']
+__all__ = ['InquiryPDFGenerator', 'parse_supplier_quote_reply', 'send_supplier_rfqs_for_inquiry']

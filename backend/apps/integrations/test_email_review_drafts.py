@@ -1,3 +1,5 @@
+import uuid
+
 from django.contrib.auth.models import User
 from django.test import TestCase
 from django.utils import timezone
@@ -126,6 +128,81 @@ class EmailReviewDraftSignalTests(TestCase):
         )
         self.assertEqual(email_log.extracted_data['inquiry_id'], str(inquiry.id))
         self.assertEqual(draft.extracted_payload['inquiry_number'], inquiry.inquiry_number)
+
+    @patch('apps.integrations.signals.classify_ingested_email')
+    @patch('apps.integrations.signals.parse_supplier_quote_reply')
+    def test_supplier_quote_reply_bypasses_generic_classifier(
+        self,
+        parse_supplier_quote_reply,
+        classify_ingested_email,
+    ):
+        parse_supplier_quote_reply.return_value = {
+            'category': 'supplier_quote_reply',
+            'draft_type': '',
+            'actionable': False,
+            'inquiry_candidate': False,
+            'confidence': 0.84,
+            'summary': 'Supplier quoted 20,000 LBS at 2.45 USD/lb.',
+            'rationale': 'Matched outbound RFQ reply by thread.',
+            'supplier_reply_parse': {
+                'parse_status': 'parsed',
+                'correlation_status': 'matched',
+                'correlation_method': 'thread_id',
+                'confidence': 0.84,
+                'errors': [],
+                'normalized_quote': {
+                    'availability_status': 'affirmative',
+                    'offered_product_name': 'Ribeye',
+                    'price_per_unit': 2.45,
+                    'currency': 'USD',
+                    'quantity': 20000,
+                    'uom': 'LBS',
+                    'lead_time_text': '7 days',
+                    'lead_time_days_min': 7,
+                    'lead_time_days_max': 7,
+                    'notes': '',
+                },
+                'lineage': {
+                    'email_log_id': None,
+                    'email_message_id': 'graph-message-supplier-reply-1',
+                    'email_thread_id': 'thread-supplier-reply-1',
+                    'rfq_id': 17,
+                    'inquiry_id': 23,
+                    'supplier_id': 5,
+                    'correlation_key': '11111111-1111-1111-1111-111111111111',
+                    'candidate_rfqs': [],
+                },
+            },
+        }
+
+        email_log = EmailLog.objects.create(
+            tenant=self.tenant,
+            provider=self.provider,
+            message_id='graph-message-supplier-reply-1',
+            thread_id='thread-supplier-reply-1',
+            subject='Re: RFQ for ribeye',
+            sender_email='supplier@example.com',
+            sender_name='Supplier Rep',
+            received_at=timezone.now(),
+            body_text='We can offer 20,000 lbs at $2.45/lb next week.',
+            body_html='',
+            has_attachments=False,
+            attachment_count=0,
+            status='logged',
+        )
+
+        email_log.refresh_from_db()
+        feedback = AIFeedbackLog.objects.get(
+            tenant=self.tenant,
+            document_id=uuid.uuid5(uuid.NAMESPACE_URL, 'apps.integrations.EmailLog:graph-message-supplier-reply-1'),
+        )
+
+        self.assertEqual(email_log.status, 'action_required')
+        self.assertEqual(email_log.extracted_data['category'], 'supplier_quote_reply')
+        self.assertEqual(email_log.extracted_data['supplier_reply_parse']['parse_status'], 'parsed')
+        self.assertFalse(EmailReviewDraft.objects.filter(email_log=email_log).exists())
+        self.assertEqual(feedback.document_type, 'supplier_quote_reply')
+        classify_ingested_email.assert_not_called()
 
     @patch('apps.integrations.signals.classify_ingested_email')
     def test_bol_email_does_not_create_inquiry_draft(self, classify_ingested_email):
