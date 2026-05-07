@@ -6,6 +6,7 @@ import { EntityWorkflowStatusPanel } from '@/components/Entities/EntityWorkflowS
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 
 import { AIOverviewCard, EntityProfileHeader } from '@/components/Cockpit';
+import { AmbientSuggestions } from '@/components/AIAssistant/AmbientSuggestions';
 import {
   TransactionalEmptyState,
   TransactionalEmptyStateGuidance,
@@ -460,6 +461,11 @@ export const UniversalEntityRecordPage: React.FC<UniversalEntityRecordPageProps>
             onTitleResolved={setRecordDisplay}
             layout="grid"
             variant="full"
+          />
+
+          <AmbientSuggestions
+            entityType={normalizedEntityType}
+            entityId={entityId}
           />
 
           <Tabs
