@@ -345,3 +345,106 @@ class RowenaTXIntegrationTest(TestCase):
         self.assertIsNotNone(entities.contact)
         self.assertEqual(entities.contact.email, "rowena@txfoods.com")
         self.assertEqual(entities.contact.first_name, "Rowena")
+
+
+class TotalAmountExtractionTest(TestCase):
+    """Test total amount extraction from various formats."""
+
+    def test_dollar_total_explicit(self):
+        result = parse_trade_email(
+            subject="PO#226052",
+            body="Total: $250,000.00 for 40,000 lbs ground beef.",
+            sender_email="buyer@example.com",
+        )
+        self.assertEqual(result.total_amount, "250000.00")
+
+    def test_dollar_amount_contextual(self):
+        result = parse_trade_email(
+            subject="Order confirmation",
+            body="Order value: $125,500 USD. Ship by Jan 15.",
+            sender_email="buyer@example.com",
+        )
+        self.assertEqual(result.total_amount, "125500")
+
+    def test_large_standalone_amount(self):
+        result = parse_trade_email(
+            subject="PO 9001",
+            body="Please process $45,000.00 for our order.",
+            sender_email="buyer@example.com",
+        )
+        self.assertEqual(result.total_amount, "45000.00")
+
+    def test_ignores_small_amounts(self):
+        """Small amounts like $5.50/lb should not be picked up as total."""
+        result = parse_trade_email(
+            subject="PO 9002",
+            body="Unit price $5.50/lb. 10,000 lbs ground beef.",
+            sender_email="buyer@example.com",
+        )
+        self.assertEqual(result.total_amount, "")
+
+
+class CustomerExtractionTest(TestCase):
+    """Test customer/buyer name extraction."""
+
+    def test_customer_label(self):
+        result = parse_trade_email(
+            subject="PO 5001",
+            body="Customer: ABC Foods International\nPO 5001 for 20,000 lbs",
+            sender_email="buyer@abc.com",
+        )
+        self.assertEqual(result.customer_name, "ABC Foods International")
+
+    def test_buyer_label(self):
+        result = parse_trade_email(
+            subject="PO 5002",
+            body="Buyer: Smith Trading Co\nConfirming order.",
+            sender_email="info@smith.com",
+        )
+        self.assertEqual(result.customer_name, "Smith Trading Co")
+
+
+class LogisticsExtractionTest(TestCase):
+    """Test logistics/shipping info extraction."""
+
+    def test_fob_incoterm(self):
+        result = parse_trade_email(
+            subject="PO 6001",
+            body="FOB Houston, TX. Ship by Jan 20, 2026.",
+            sender_email="buyer@example.com",
+        )
+        self.assertEqual(result.incoterm, "FOB")
+
+    def test_ship_from_location(self):
+        result = parse_trade_email(
+            subject="PO 6002",
+            body="Ship from: Dallas Cold Storage\nDelivery date: 02/15/2026",
+            sender_email="buyer@example.com",
+        )
+        self.assertEqual(result.ship_from, "Dallas Cold Storage")
+
+    def test_complete_rowena_example(self):
+        """Full Rowena/TX PO 226052 example with all new fields."""
+        result = parse_trade_email(
+            subject="RE: PO#226052 - 40k lbs ground beef FOB Houston",
+            body=(
+                "Hi,\n\n"
+                "Please confirm our PO#226052 for 40,000 lbs 80/20 ground beef.\n"
+                "Price: $5.50/lb\n"
+                "Total: $220,000.00\n"
+                "Customer: Meats Central LLC\n"
+                "FOB Houston, TX\n"
+                "Ship from: TX Foods Warehouse\n"
+                "Delivery by Jan 20, 2026\n\n"
+                "Thanks,\nRowena Johnson"
+            ),
+            sender_email="rowena@txfoods.com",
+            sender_name="Rowena Johnson",
+        )
+        self.assertIn("226052", result.po_numbers)
+        self.assertEqual(result.total_amount, "220000.00")
+        self.assertEqual(result.customer_name, "Meats Central LLC")
+        self.assertEqual(result.incoterm, "FOB")
+        self.assertEqual(result.ship_from, "TX Foods Warehouse")
+        self.assertEqual(result.delivery_date, "Jan 20, 2026")
+        self.assertGreater(result.confidence, 0.8)
