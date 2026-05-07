@@ -11,8 +11,11 @@ from rest_framework.exceptions import ValidationError as DRFValidationError
 from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.utils import timezone
-from tenant_apps.sales_orders.models import SalesOrder
+from tenant_apps.sales_orders.models import SalesOrder, SalesOrderStatus
 from tenant_apps.sales_orders.serializers import SalesOrderSerializer
+from tenant_apps.sales_orders.services.approval_dispatch import (
+    approve_sales_order_and_send_to_customer,
+)
 from apps.core.exporting import CsvExportMixin
 from apps.core.viewsets_documents import OperationalDocumentActionsMixin
 import logging
@@ -71,6 +74,23 @@ class SalesOrderViewSet(OperationalDocumentActionsMixin, CsvExportMixin, viewset
             return SalesOrder.all_objects.for_tenant(self.request.tenant)
 
         return SalesOrder.objects.for_tenant(self.request.tenant)
+
+    def perform_document_status_transition(self, request, document, next_status):
+        """Override to trigger approval dispatch on APPROVED transition."""
+        if next_status == SalesOrderStatus.APPROVED:
+            result = approve_sales_order_and_send_to_customer(
+                tenant=request.tenant,
+                sales_order=document,
+                user=request.user if request.user.is_authenticated else None,
+            )
+            if not result.success:
+                return Response(
+                    {"error": result.error_message, "code": result.error_code},
+                    status=result.http_status,
+                )
+            document.refresh_from_db()
+            return Response(SalesOrderSerializer(document).data)
+        return super().perform_document_status_transition(request, document, next_status)
 
     def perform_destroy(self, instance):
         instance.soft_delete()
