@@ -33,16 +33,17 @@
 | Shipped | CTE-07.2 idempotency-key-enforcement | Phase 16 | backend |
 | Shipped | CTE-08.1 exception-queue-dead-letter | Phase 16 | backend |
 | Shipped | INFRA-01.1 backend-test-factory-library | Phase 16 | backend |
-| **P0 (Now)** | RT-01.1 end-to-end-inquiry-to-po-template | Phase 17 | backend |
+| **P0 (Now)** | CTE-08.2 trades-requiring-intervention-dashboard | Phase 16 | full-stack |
+| Shipped | RT-01.1 end-to-end-inquiry-to-po-template | Phase 17 | backend |
 | Shipped | RT-02.1 ai-inbox-auto-sync | Phase 17 | backend |
-| Shipped | RT-02.2 ai-inbox-parsing-overhaul | Phase 17 | backend |
-| Shipped | RT-02.3–04 (AI feedback + cockpit routing) | Phase 17 | full-stack |
-| P1 | RT-03.1 process-cockpit-consolidation | Phase 17 | frontend |
-| P2 | CTE-05.2 trade-lineage-visualization | Phase 16 | frontend |
-| P3 | RT-05 (editor stabilization) | Phase 17 | frontend |
-| P4 | RT-06–09 (scale & analytics) | Phase 18 | full-stack |
-| P5 | RT-10 (template library) | Phase 18 | full-stack |
-| P6 | AMB-01–04 (ambient AI) | Phase 19 | full-stack |
+| Shipped | RT-02.2–04 (AI parsing + feedback + cockpit routing) | Phase 17 | full-stack |
+| Shipped | RT-03.1–03 (cockpit + React Flow + dynamic headers) | Phase 17 | frontend |
+| Shipped | RT-04.1–02 (contact enrichment + cockpit visualization) | Phase 17 | full-stack |
+| P1 | RT-04.3 quick-master-data-creation-in-context | Phase 17 | full-stack |
+| P2 | RT-05 (editor stabilization) | Phase 17 | frontend |
+| P3 | RT-06–09 (scale & analytics) | Phase 18 | full-stack |
+| P4 | RT-10 (template library) | Phase 18 | full-stack |
+| P5 | AMB-01–04 (ambient AI) | Phase 19 | full-stack |
 
 ## Dependency Graph
 
@@ -331,8 +332,8 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
   - **Rollback:** Revert additive lineage schema together and preserve existing inquiry/order links.
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
-- [ ] **CTE-05.2 trade-lineage-visualization-on-detail-surfaces**
-  - **Status: ✅ Shipped (PR #4974)
+- [x] **CTE-05.2 trade-lineage-visualization-on-detail-surfaces**
+  - **Status:** ✅ Shipped (PR #4981)
   - **Why now:** A lineage key only creates operator value when users can see the trade path and current state directly on detail pages.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 16 / 16b / Epic 5
   - **Scope:** Build a lineage visualization component for relevant detail screens that renders inquiry -> supplier PO -> sales order -> carrier PO progression plus current state and exception markers.
@@ -417,7 +418,7 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
 - [x] **CTE-07.2 idempotency-key-enforcement-on-ai-and-webhook-creators**
-  - **Status: ✅ Shipped (PR #4981 — CTE-05.2 TradeLineageFlow)
+  - **Status:** ✅ Shipped (PR #4969)
   - **Why now:** AI retries, supplier/carrier email replays, and webhook duplication must not create multiple sales orders, carrier POs, or repeated sends.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 16 / 16b / Epic 7
   - **Scope:** Add `idempotency_key` requirements/enforcement to AI-to-database creation endpoints, inbound automation hooks, and event-consumer create paths for downstream trade artifacts.
@@ -440,7 +441,7 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
 #### Epic CTE-08: Exception Handling & Intervention
 
 - [x] **CTE-08.1 exception-queue-model-and-trade-halt-contract**
-  - **Status: ✅ Shipped (PR #4983)
+  - **Status:** ✅ Shipped (PR #4971)
   - **Why now:** Failed async steps currently risk stalling the trade silently unless the engine has a first-class dead-letter model and halt semantics.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 16 / 16b / Epic 8
   - **Scope:** Add an `ExceptionQueue`/dead-letter model with trade-lineage linkage, failure reason codes, halt state, retry metadata, and ownership semantics for automated trade-step failures.
@@ -458,7 +459,7 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
 - [ ] **CTE-08.2 trades-requiring-intervention-dashboard**
-  - **Status: ✅ Shipped (PR #4984)
+  - **Status:** Ready
   - **Why now:** Operators need a dedicated control tower to see halted trades, understand failure causes, and recover them without database spelunking.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 16 / 16b / Epic 8
   - **Scope:** Build the “Trades Requiring Intervention” dashboard and supporting APIs, surfacing exception-queue entries, lineage context, current trade state, and operator recovery affordances.
@@ -466,7 +467,7 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
   - **Primary domain:** frontend/backend operations
   - **Likely touched paths:** new frontend dashboard page/components, supporting backend serializers/views/services, notification hooks, tests
   - **Dependencies:** CTE-08.1
-  - **Blockers:** CTE-08.1
+  - **Blockers:** None
   - **Acceptance criteria:** Failed automated trade steps become visible in a dedicated operator dashboard with actionable lineage and intervention context.
   - **Validation commands:** `cd backend && python manage.py test apps.core tenant_apps.inquiries tenant_apps.purchase_orders tenant_apps.sales_orders`; `npm -C frontend run verify-standards`; `npm -C frontend run test:ci`
   - **Tenant/RLS impact:** High
@@ -663,7 +664,7 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
 - [x] **RT-02.1 ai-inbox-15-minute-auto-sync-and-login-refresh**
-  - **Status:** Blocked
+  - **Status:** ✅ Shipped (PR #4954)
   - **Why now:** Reliable auto-sync is the foundation for AI Inbox production readiness.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 17 / Epic RT-02
   - **Scope:** Implement Celery beat task for 15-minute email sync cycle plus frontend polling with instant login refresh trigger.
@@ -743,7 +744,7 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
 - [x] **RT-03.1 process-cockpit-consolidation**
-  - **Status:** Blocked
+  - **Status:** ✅ Shipped (PR #4980)
   - **Why now:** Single entry point for all process monitoring eliminates fragmented UX.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 17 / Epic RT-03
   - **Scope:** Consolidate Workforms Monitoring, In Progress, History, Operational Tasks, and AI Inbox into a single `/process-cockpit` route with tabbed/filtered views.
@@ -761,7 +762,7 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
 - [x] **RT-03.2 per-entity-react-flow-process-diagram**
-  - **Status:** Blocked
+  - **Status:** ✅ Shipped (PR #4981)
   - **Why now:** Visual process flow per entity is the key differentiator for the cockpit.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 17 / Epic RT-03
   - **Scope:** Add "View Process Flow" button on every entity record (Inquiry, SO, PO, Bid) that opens a scoped React Flow diagram showing the entity's execution path with current step highlighted.
@@ -779,7 +780,7 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
 - [x] **RT-03.3 cockpit-dynamic-header-and-failure-messaging**
-  - **Status:** Blocked
+  - **Status:** ✅ Shipped (PR #4986)
   - **Why now:** Clickable nodes with contact details and clear failure messaging eliminate "forever-running" confusion.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 17 / Epic RT-03
   - **Scope:** Implement dynamic header on flow diagrams with clickable nodes showing contact details (Plant Contact Type, Title, Responsibilities), status, docs, and plain-English inputs/outputs. Improve failure messaging to eliminate ambiguous "forever-running" states.
@@ -797,7 +798,7 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
 - [x] **RT-04.1 node-plant-contact-enrichment**
-  - **Status:** Blocked
+  - **Status:** ✅ Shipped (PR #4984)
   - **Why now:** Workform nodes must intelligently use Plant Contact Type, Title, and "Responsible For" for RFQ/PO recipient selection.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 17 / Epic RT-04
   - **Scope:** Update SendEmail/RFQ node, Purchase Order Form Nodes, and BidSelection to resolve recipients using Plant Contact Type, Title, and "Responsible For" multi-selects from the enriched contact model.
@@ -814,8 +815,8 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
   - **Rollback:** Revert to manual recipient selection; existing node behavior unchanged.
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
-- [ ] **RT-04.2 cockpit-contact-visualization**
-  - **Status:** Blocked
+- [x] **RT-04.2 cockpit-contact-visualization**
+  - **Status:** ✅ Shipped (PR #4987)
   - **Why now:** Operators need to see which contact is responsible at each process step.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 17 / Epic RT-04
   - **Scope:** Surface enriched Plant Contact data (Type, Title, Responsibilities, email, phone) in all Workform nodes and Process Cockpit flow visualizations.
@@ -841,7 +842,7 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
   - **Primary domain:** frontend + backend
   - **Likely touched paths:** `frontend/src/components/AIInbox/`, `frontend/src/components/QuickCreate/`, `backend/tenant_apps/{suppliers,customers,contacts}/views.py`
   - **Dependencies:** RT-02.2, RT-04.1
-  - **Blockers:** RT-02.2, RT-04.1
+  - **Blockers:** CTE-08.2 remains ahead in file order
   - **Acceptance criteria:** Missing dependency triggers inline creation form; created entity immediately available in the process context; no page navigation required.
   - **Validation commands:** `cd backend && python manage.py test tenant_apps.suppliers tenant_apps.customers --noinput`; `npm -C frontend run test:ci`
   - **Tenant/RLS impact:** High (creates tenant-scoped records)
