@@ -8,17 +8,22 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ProcessCockpitPage } from './ProcessCockpitPage';
 import { businessApi } from '@/services/businessApi';
 import { tradeExceptionQueueService } from '@/services/tradeExceptionQueueService';
+import { workflowExecutionService } from '@/services/workflowExecutionService';
 
-vi.mock('../../components/Cockpit/InterventionsPanel', () => ({
-  InterventionsPanel: () => <div data-testid="interventions-panel">interventions-panel</div>,
+vi.mock('../../components/Cockpit/ProcessQuickActions', () => ({
+  ProcessQuickActions: () => <div data-testid="quick-actions">quick-actions</div>,
 }));
 
-vi.mock('./ProcessMonitor', () => ({
-  default: () => <div data-testid="process-monitor">process-monitor</div>,
+vi.mock('../../components/Cockpit/TradeLineageFlow', () => ({
+  TradeLineageFlow: () => <div data-testid="lineage-flow">lineage-flow</div>,
 }));
 
-vi.mock('../../components/Cockpit/EmailIngestionCockpitPanel', () => ({
-  default: () => <div data-testid="email-ingestion-panel">email-ingestion-panel</div>,
+vi.mock('../../components/Cockpit/ProcessFlowHeader', () => ({
+  ProcessFlowHeader: () => <div data-testid="flow-header">flow-header</div>,
+}));
+
+vi.mock('../../components/AIAssistant/AIDraftReviewModal', () => ({
+  default: () => <div data-testid="draft-review-modal">draft-review-modal</div>,
 }));
 
 vi.mock('@/utils/tenantId', () => ({
@@ -37,6 +42,26 @@ vi.mock('@/services/tradeExceptionQueueService', () => ({
   },
 }));
 
+vi.mock('@/services/workflowExecutionService', () => ({
+  workflowExecutionService: {
+    getExecutions: vi.fn(),
+  },
+}));
+
+vi.mock('@/services/aiService', () => ({
+  aiStaffApi: {
+    listPendingReviews: vi.fn().mockResolvedValue([]),
+  },
+  AI_INBOX_REFRESH_EVENT: 'pm:ai-inbox-refresh',
+}));
+
+vi.mock('../../contexts/NotificationsContext', () => ({
+  useNotifications: () => ({
+    actionItems: [],
+    fetchActionItems: vi.fn(),
+  }),
+}));
+
 const LocationProbe: React.FC = () => {
   const location = useLocation();
   return <div data-testid="location-probe">{location.search}</div>;
@@ -46,19 +71,23 @@ describe('ProcessCockpitPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(businessApi.get).mockResolvedValue({
-      data: {
-        results: [],
-      },
+      data: { results: [] },
     } as never);
     vi.mocked(tradeExceptionQueueService.listExceptions).mockResolvedValue({
-      count: 3,
+      count: 0,
+      next: null,
+      previous: null,
+      results: [],
+    });
+    vi.mocked(workflowExecutionService.getExecutions).mockResolvedValue({
+      count: 0,
       next: null,
       previous: null,
       results: [],
     });
   });
 
-  const renderPage = (initialEntry = '/process-cockpit?view=interventions') => {
+  const renderPage = (initialEntry = '/process-cockpit') => {
     const queryClient = new QueryClient({
       defaultOptions: { queries: { retry: false } },
     });
@@ -73,28 +102,40 @@ describe('ProcessCockpitPage', () => {
     );
   };
 
-  it('honors the interventions view deep-link and shows the badge count', async () => {
+  it('renders three tabs: All Processes, Action Required, Completed', async () => {
     renderPage();
 
-    expect(await screen.findByTestId('interventions-panel')).toBeInTheDocument();
-    const interventionsButton = screen.getByRole('button', { name: /Interventions/i });
+    expect(await screen.findByRole('button', { name: /All Processes/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Action Required/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Completed/i })).toBeInTheDocument();
+  });
+
+  it('updates the query-string when switching tabs', async () => {
+    renderPage('/process-cockpit');
+    const user = userEvent.setup();
+
+    await user.click(await screen.findByRole('button', { name: /Action Required/i }));
+
     await waitFor(() => {
-      expect(interventionsButton).toHaveTextContent('3');
+      expect(screen.getByTestId('location-probe')).toHaveTextContent('view=action-required');
+    });
+
+    await user.click(screen.getByRole('button', { name: /Completed/i }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('location-probe')).toHaveTextContent('view=completed');
     });
   });
 
-  it('updates the query-string when switching views', async () => {
-    renderPage('/process-cockpit?view=interventions&draft=draft-42');
-    const user = userEvent.setup();
+  it('shows empty state for All Processes when no data', async () => {
+    renderPage();
 
-    await waitFor(() => {
-      expect(screen.getByTestId('location-probe')).toHaveTextContent('?view=interventions&draft=draft-42');
-    });
+    expect(await screen.findByText(/No active processes/i)).toBeInTheDocument();
+  });
 
-    await user.click(screen.getByRole('button', { name: /Live Activity/i }));
+  it('shows empty state for Action Required when caught up', async () => {
+    renderPage('/process-cockpit?view=action-required');
 
-    await waitFor(() => {
-      expect(screen.getByTestId('location-probe')).toHaveTextContent('?view=activity&draft=draft-42');
-    });
+    expect(await screen.findByText(/You're all caught up/i)).toBeInTheDocument();
   });
 });

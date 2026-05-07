@@ -33,6 +33,12 @@ export const navigation: NavigationItem[] = [
     path: '/cockpit',
     children: [
       {
+        label: 'Process Monitor',
+        icon: '📡',
+        path: '/process-cockpit',
+        badgeKey: 'actionRequired',
+      },
+      {
         label: 'Calls',
         icon: '📞',
         path: '/calls',
@@ -46,28 +52,11 @@ export const navigation: NavigationItem[] = [
         label: 'WorkForms',
         icon: '📋',
         path: '/workforms',
-        badgeKey: 'actionRequired',
         children: [
-          {
-            label: 'My Tasks',
-            icon: '✅',
-            path: '/workforms/tasks',
-            badgeKey: 'actionRequired',
-          },
-          {
-            label: 'In Progress',
-            icon: '⏳',
-            path: '/workforms/in-progress',
-          },
           {
             label: 'Catalog',
             icon: '📚',
             path: '/workforms/catalog',
-          },
-          {
-            label: 'History',
-            icon: '📜',
-            path: '/workforms/history',
           },
           {
             label: 'Editor',
@@ -83,11 +72,6 @@ export const navigation: NavigationItem[] = [
     label: 'Suppliers',
     icon: '🏭',
     path: '/suppliers',
-  },
-  {
-    label: 'Activity',
-    icon: '🕒',
-    path: '/activity',
   },
   {
     label: 'Customers',

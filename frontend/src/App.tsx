@@ -352,7 +352,7 @@ const App: React.FC = () => {
                 <Route path="call-log" element={<Navigate to="/calls" replace />} />
                 <Route path="processes" element={<Navigate to="/forms-flows/catalog" replace />} />
                 <Route path="reports" element={<Reports />} />
-                <Route path="activity" element={<ActivityFeedPage />} />
+                <Route path="activity" element={<Navigate to="/process-cockpit" replace />} />
                 <Route path="profile" element={<Profile />} />
                 <Route path="settings" element={<Settings />} />
                 <Route path="settings/email-integrations" element={<Settings />} />
@@ -367,7 +367,7 @@ const App: React.FC = () => {
                 
                 {/* WorkForms (consolidated forms + workflows) */}
                 <Route path="workforms" element={<WorkFormsLayout />}>
-                  <Route index element={<Navigate to="/workforms/tasks" replace />} />
+                  <Route index element={<Navigate to="/workforms/catalog" replace />} />
                   <Route path="tasks" element={<MyTasks />} />
                   <Route path="in-progress" element={<WorkFormsInProgress />} />
                   <Route path="in-progress/:id" element={<WorkFormsInProgress />} />
@@ -466,7 +466,7 @@ const App: React.FC = () => {
                 </Route>
                 <Route
                   path="cockpit/interventions"
-                  element={<Navigate to="/process-cockpit?view=interventions" replace />}
+                  element={<Navigate to="/process-cockpit?view=action-required" replace />}
                 />
                 
                 {/* Backward compatibility redirect */}
