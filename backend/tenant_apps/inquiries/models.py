@@ -6,6 +6,7 @@ desired vs actual pricing/dates for margin calculation.
 
 Implements tenant ForeignKey field for shared-schema multi-tenancy.
 """
+import uuid
 from decimal import Decimal
 from django.db import models
 from django.utils import timezone
@@ -52,6 +53,15 @@ class InquiryRouteDecisionChoices(models.TextChoices):
     """Hardcoded happy-path route chosen for this inquiry."""
     FULFILL = "FULFILL", "Fulfill"
     BROKER = "BROKER", "Broker"
+
+
+class InquirySupplierRFQStatusChoices(models.TextChoices):
+    """Status for supplier RFQ dispatch audit rows."""
+
+    PENDING = "pending", "Pending"
+    SENT = "sent", "Sent"
+    FAILED = "failed", "Failed"
+    CANCELLED = "cancelled", "Cancelled"
 
 
 class UOMChoices(models.TextChoices):
@@ -385,6 +395,71 @@ class Inquiry(TenantAwareModel):
     def entity(self):
         """Return the linked entity (supplier or customer)."""
         return self.supplier if self.entity_type == InquiryEntityTypeChoices.SUPPLIER else self.customer
+
+
+class InquirySupplierRFQ(TenantAwareModel):
+    """Tenant-scoped outbound RFQ audit row for one inquiry/supplier pair."""
+
+    correlation_key = models.UUIDField(default=uuid.uuid4, editable=False, db_index=True)
+    inquiry = models.ForeignKey(
+        Inquiry,
+        on_delete=models.CASCADE,
+        related_name="supplier_rfqs",
+    )
+    supplier = models.ForeignKey(
+        "suppliers.Supplier",
+        on_delete=models.CASCADE,
+        related_name="inquiry_rfqs",
+    )
+    created_by = models.ForeignKey(
+        "auth.User",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="created_inquiry_supplier_rfqs",
+    )
+    sender_provider = models.ForeignKey(
+        "integrations.ExternalAuthProvider",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="inquiry_supplier_rfqs",
+    )
+    sender_email = models.EmailField(blank=True, default="")
+    recipient_email = models.EmailField()
+    recipient_name = models.CharField(max_length=255, blank=True, default="")
+    subject = models.CharField(max_length=300, default="")
+    body = models.TextField(default="")
+    provider = models.CharField(max_length=32, default="microsoft")
+    status = models.CharField(
+        max_length=16,
+        choices=InquirySupplierRFQStatusChoices.choices,
+        default=InquirySupplierRFQStatusChoices.PENDING,
+        db_index=True,
+    )
+    attempt_count = models.PositiveIntegerField(default=0)
+    last_attempted_at = models.DateTimeField(null=True, blank=True)
+    sent_at = models.DateTimeField(null=True, blank=True)
+    provider_message_id = models.CharField(max_length=255, blank=True, default="")
+    provider_thread_id = models.CharField(max_length=255, blank=True, default="")
+    provider_internet_message_id = models.CharField(max_length=255, blank=True, default="")
+    error_message = models.TextField(blank=True, default="")
+
+    class Meta:
+        ordering = ["-created_on"]
+        verbose_name = "Inquiry Supplier RFQ"
+        verbose_name_plural = "Inquiry Supplier RFQs"
+        indexes = [
+            models.Index(fields=["tenant", "inquiry", "status"], name="inq_rfq_tenant_inquiry_idx"),
+            models.Index(fields=["tenant", "supplier", "status"], name="inq_rfq_tenant_supplier_idx"),
+            models.Index(fields=["tenant", "correlation_key"], name="inq_rfq_tenant_corr_idx"),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["tenant", "inquiry", "supplier"],
+                name="unique_inquiry_supplier_rfq_per_tenant",
+            ),
+        ]
 
 
 class InquiryProduct(TenantAwareModel):

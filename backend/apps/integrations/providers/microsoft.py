@@ -9,6 +9,7 @@ from urllib.parse import urlencode
 from .base import (
     EmailProvider,
     EmailParams,
+    EmailSendResult,
     EmailProviderError,
     AuthenticationError,
     TokenExpiredError,
@@ -176,7 +177,7 @@ class MicrosoftGraphProvider(EmailProvider):
         except requests.exceptions.RequestException as e:
             raise EmailProviderError(f"Failed to get user info: {str(e)}")
     
-    def send_email(self, access_token: str, params: EmailParams) -> Dict[str, Any]:
+    def send_email(self, access_token: str, params: EmailParams) -> EmailSendResult:
         """
         Send email via Microsoft Graph API.
         
@@ -229,29 +230,53 @@ class MicrosoftGraphProvider(EmailProvider):
                     "contentType": attachment.get("content_type", "application/octet-stream"),
                 })
         
-        # Send email
+        if params.get("headers"):
+            message["internetMessageHeaders"] = [
+                {"name": name, "value": value}
+                for name, value in params["headers"].items()
+            ]
+
         headers = {
             "Authorization": f"Bearer {access_token}",
             "Content-Type": "application/json",
         }
-        
+
         try:
-            response = requests.post(
-                f"{self.GRAPH_API_BASE}/me/sendMail",
+            draft_response = requests.post(
+                f"{self.GRAPH_API_BASE}/me/messages",
                 headers=headers,
-                json={"message": message, "saveToSentItems": "true"},
+                json=message,
                 timeout=30
             )
-            
-            if response.status_code == 401:
+
+            if draft_response.status_code == 401:
                 raise TokenExpiredError("Access token expired")
-            
-            response.raise_for_status()
-            
+
+            draft_response.raise_for_status()
+            draft_payload = draft_response.json()
+            draft_id = draft_payload.get("id")
+            if not draft_id:
+                raise EmailProviderError("Microsoft Graph did not return a draft message id")
+
+            send_response = requests.post(
+                f"{self.GRAPH_API_BASE}/me/messages/{draft_id}/send",
+                headers=headers,
+                timeout=30,
+            )
+
+            if send_response.status_code == 401:
+                raise TokenExpiredError("Access token expired")
+
+            send_response.raise_for_status()
+
             return {
                 "status": "sent",
                 "provider": "microsoft",
                 "message": "Email sent successfully",
+                "provider_message_id": draft_id,
+                "provider_thread_id": draft_payload.get("conversationId", ""),
+                "provider_internet_message_id": draft_payload.get("internetMessageId", ""),
+                "provider_web_link": draft_payload.get("webLink", ""),
             }
             
         except requests.exceptions.HTTPError as e:
