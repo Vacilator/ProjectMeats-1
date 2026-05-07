@@ -23,18 +23,26 @@
 | Shipped | CTE-04.2 sales-order-approval-pdf | Phase 16 | backend |
 | Shipped | CTE-04.3 carrier-rfq-match | Phase 16 | backend |
 | Shipped | CTE-04.4 carrier-reply-parser | Phase 16 | backend |
+| Shipped | CTE-04.5 happy-path-orchestrator-e2e | Phase 16 | full-stack |
+| Shipped | CTE-04.6 structured-logging-trace-ids | Phase 16 | backend |
 | Shipped | CTE-04.7 unified-inquiry-po-form | Phase 16 | frontend |
 | Shipped | CTE-05.1 trade-session-lineage-schema | Phase 16 | backend |
 | Shipped | CTE-06.1 domain-event-contracts | Phase 16 | backend |
-| **P0 (Now)** | CTE-05.2 trade-lineage-visualization | Phase 16 | frontend |
-| P1 | CTE-04.6 structured-logging-trace-ids | Phase 16 | backend |
-| P2 | CTE-06.2 celery-saga-consumers | Phase 16 | backend |
-| P5 | CTE-05.3–08 (distributed hardening) | Phase 16 | backend |
-| P6 | RT-01–04 (runtime intelligence) | Phase 17 | full-stack |
-| P7 | RT-05 (editor stabilization) | Phase 17 | frontend |
-| P8 | RT-06–09 (scale & analytics) | Phase 18 | full-stack |
-| P9 | RT-10 (template library) | Phase 18 | full-stack |
-| P10 | AMB-01–04 (ambient AI) | Phase 19 | full-stack |
+| Shipped | CTE-06.2 celery-saga-consumers | Phase 16 | backend |
+| Shipped | CTE-07.1 select-for-update-transition-locking | Phase 16 | backend |
+| Shipped | CTE-07.2 idempotency-key-enforcement | Phase 16 | backend |
+| Shipped | CTE-08.1 exception-queue-dead-letter | Phase 16 | backend |
+| Shipped | INFRA-01.1 backend-test-factory-library | Phase 16 | backend |
+| **P0 (Now)** | RT-01.1 end-to-end-inquiry-to-po-template | Phase 17 | backend |
+| P1 | RT-02.1 ai-inbox-auto-sync | Phase 17 | backend |
+| P2 | RT-02.2 ai-inbox-parsing-overhaul | Phase 17 | backend |
+| P3 | RT-03.1 process-cockpit-consolidation | Phase 17 | frontend |
+| P4 | CTE-05.2 trade-lineage-visualization | Phase 16 | frontend |
+| P5 | RT-02.3–04 (AI feedback + cockpit routing) | Phase 17 | full-stack |
+| P6 | RT-05 (editor stabilization) | Phase 17 | frontend |
+| P7 | RT-06–09 (scale & analytics) | Phase 18 | full-stack |
+| P8 | RT-10 (template library) | Phase 18 | full-stack |
+| P9 | AMB-01–04 (ambient AI) | Phase 19 | full-stack |
 
 ## Dependency Graph
 
@@ -364,7 +372,7 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
   - **Rollback:** Revert event-contract scaffolding only; synchronous/manual behavior remains intact.
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
-- [ ] **CTE-06.2 celery-saga-consumers-for-trade-side-effects**
+- [x] **CTE-06.2 celery-saga-consumers-for-trade-side-effects**
   - **Status:** Blocked
   - **Why now:** PDF generation, outbound email, and downstream entity creation must move off the request thread into reliable asynchronous consumers.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 16 / 16b / Epic 6
@@ -390,7 +398,7 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
 
 #### Epic CTE-07: Distributed Concurrency Hardening
 
-- [ ] **CTE-07.1 select-for-update-transition-locking**
+- [x] **CTE-07.1 select-for-update-transition-locking**
   - **Status:** Blocked
   - **Why now:** Double-click approvals and concurrent workers can create duplicate downstream transitions unless state mutations take row-level locks.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 16 / 16b / Epic 7
@@ -408,7 +416,7 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
   - **Rollback:** Revert locking/service-layer changes while preserving additive event contracts and lineage data.
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
-- [ ] **CTE-07.2 idempotency-key-enforcement-on-ai-and-webhook-creators**
+- [x] **CTE-07.2 idempotency-key-enforcement-on-ai-and-webhook-creators**
   - **Status:** Blocked
   - **Why now:** AI retries, supplier/carrier email replays, and webhook duplication must not create multiple sales orders, carrier POs, or repeated sends.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 16 / 16b / Epic 7
@@ -431,7 +439,7 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
 
 #### Epic CTE-08: Exception Handling & Intervention
 
-- [ ] **CTE-08.1 exception-queue-model-and-trade-halt-contract**
+- [x] **CTE-08.1 exception-queue-model-and-trade-halt-contract**
   - **Status:** Blocked
   - **Why now:** Failed async steps currently risk stalling the trade silently unless the engine has a first-class dead-letter model and halt semantics.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 16 / 16b / Epic 8
@@ -637,7 +645,7 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
 > **Canonical reference:** `MASTER_PLAN.md` → Phase 17
 
 - [ ] **RT-01.1 end-to-end-inquiry-to-po-process-workform-template**
-  - **Status:** Blocked
+  - **Status:** Ready
   - **Why now:** The complete multi-trigger EndToEndInquiryToPOProcess template is the runtime foundation that all other Phase 17 epics depend on.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 17 / Epic RT-01
   - **Scope:** Create and register the production-ready JSON template with all 5 triggers (New Inquiry, Direct Customer PO, Standalone Bid, Manual SO, Trader PO), "no preceding process" safety check, FormProcess group, ForEachSupplier loop, DoUntilDueDate, BidSelection (margin logic), Generate/Send Sales Order, PO wait logic, Supplier Plant Department Contacts integration (Plant Contact Type dropdown + conditional fields + multi-selects), and telemetry events for every major step.
@@ -1204,7 +1212,7 @@ Packages 12+13+14 verified ──▶ Package 15 (RT-10.1 + RT-10.2)
 
 ### Gap 1: Cross-Phase — Test Infrastructure (High ROI, Low Risk)
 
-- [ ] **INFRA-01.1 backend-test-fixtures-factory-library**
+- [x] **INFRA-01.1 backend-test-fixtures-factory-library**
   - **Status:** Blocked
   - **Why now:** Every Phase 16–18 ticket requires tenant-scoped test data. A factory library (factory_boy) eliminates repetitive fixture creation and reduces test setup from ~30 lines to ~3 lines per test.
   - **Scope:** Create `backend/apps/core/tests/factories.py` with TenantFactory, UserFactory, InquiryFactory, SupplierFactory, PurchaseOrderFactory, SalesOrderFactory, ContactFactory, PlantFactory. All factories auto-create tenant hierarchy.
@@ -1234,7 +1242,7 @@ Packages 12+13+14 verified ──▶ Package 15 (RT-10.1 + RT-10.2)
 
 ### Gap 2: Phase 16 — Observability Bridge (High Impact)
 
-- [ ] **CTE-04.6 structured-logging-and-trace-ids-for-trading-pipeline**
+- [x] **CTE-04.6 structured-logging-and-trace-ids-for-trading-pipeline**
   - **Status:** Blocked
   - **Why now:** The trading pipeline (CTE-01 through CTE-04) has no structured logging. When processes fail in production, debugging requires manual log correlation. Adding trace IDs now (while the pipeline is fresh) is 10x cheaper than retrofitting later.
   - **Scope:** Add a `trade_trace_id` UUID that propagates through all CTE services (inquiry → RFQ → reply → PO → SO). Emit structured JSON logs at each service boundary with trace_id, tenant_id, entity_id, step_name, duration_ms. Wire into existing Sentry transaction tracing.
