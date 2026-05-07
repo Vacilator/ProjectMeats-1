@@ -34,15 +34,15 @@
 | Shipped | CTE-08.1 exception-queue-dead-letter | Phase 16 | backend |
 | Shipped | INFRA-01.1 backend-test-factory-library | Phase 16 | backend |
 | **P0 (Now)** | RT-01.1 end-to-end-inquiry-to-po-template | Phase 17 | backend |
-| P1 | RT-02.1 ai-inbox-auto-sync | Phase 17 | backend |
-| P2 | RT-02.2 ai-inbox-parsing-overhaul | Phase 17 | backend |
-| P3 | RT-03.1 process-cockpit-consolidation | Phase 17 | frontend |
-| P4 | CTE-05.2 trade-lineage-visualization | Phase 16 | frontend |
-| P5 | RT-02.3–04 (AI feedback + cockpit routing) | Phase 17 | full-stack |
-| P6 | RT-05 (editor stabilization) | Phase 17 | frontend |
-| P7 | RT-06–09 (scale & analytics) | Phase 18 | full-stack |
-| P8 | RT-10 (template library) | Phase 18 | full-stack |
-| P9 | AMB-01–04 (ambient AI) | Phase 19 | full-stack |
+| Shipped | RT-02.1 ai-inbox-auto-sync | Phase 17 | backend |
+| Shipped | RT-02.2 ai-inbox-parsing-overhaul | Phase 17 | backend |
+| Shipped | RT-02.3–04 (AI feedback + cockpit routing) | Phase 17 | full-stack |
+| P1 | RT-03.1 process-cockpit-consolidation | Phase 17 | frontend |
+| P2 | CTE-05.2 trade-lineage-visualization | Phase 16 | frontend |
+| P3 | RT-05 (editor stabilization) | Phase 17 | frontend |
+| P4 | RT-06–09 (scale & analytics) | Phase 18 | full-stack |
+| P5 | RT-10 (template library) | Phase 18 | full-stack |
+| P6 | AMB-01–04 (ambient AI) | Phase 19 | full-stack |
 
 ## Dependency Graph
 
@@ -680,8 +680,8 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
   - **Rollback:** Disable Celery beat task; manual sync remains functional.
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
-- [ ] **RT-02.2 ai-inbox-parsing-engine-overhaul**
-  - **Status:** Blocked
+- [x] **RT-02.2 ai-inbox-parsing-engine-overhaul**
+  - **Status: ✅ Shipped (PR #4975)
   - **Why now:** Reliable extraction of PO numbers and form fields enables auto-creation of missing dependencies.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 17 / Epic RT-02
   - **Scope:** Overhaul parsing engine to extract PO numbers, all universal form fields, and auto-create missing dependencies (Supplier → Customer → Contact → Plant) in correct creation order with idempotent retry.
@@ -698,8 +698,8 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
   - **Rollback:** Disable auto-creation; manual entry remains available.
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
-- [ ] **RT-02.3 ai-inbox-feedback-loop-training**
-  - **Status:** Blocked
+- [x] **RT-02.3 ai-inbox-feedback-loop-training**
+  - **Status: ✅ Shipped (PR #4977)
   - **Why now:** Thumbs up/down + mandatory comment enables continuous model improvement.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 17 / Epic RT-02
   - **Scope:** Add thumbs up/down + mandatory comment feedback UI on every parsed inbox item; persist feedback in tenant-scoped table; wire to model retraining pipeline signal.
@@ -724,8 +724,8 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
   - **Rollback:** Hide feedback UI; data persists for future use.
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
-- [ ] **RT-02.4 ai-inbox-process-cockpit-routing**
-  - **Status:** Blocked
+- [x] **RT-02.4 ai-inbox-process-cockpit-routing**
+  - **Status: ✅ Shipped (PR #4978)
   - **Why now:** "Action required" items must route into Process Cockpit with editable draft forms.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 17 / Epic RT-02
   - **Scope:** Route every "action required" inbox item directly into Process Cockpit with editable draft form pre-populated with full parsed payload.
