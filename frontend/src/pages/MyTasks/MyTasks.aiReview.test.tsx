@@ -88,6 +88,7 @@ describe('MyTasks AI review queue', () => {
     await waitFor(() => {
       expect(screen.getByTestId('ai-draft-modal')).toHaveTextContent('draft-1:carrier-pos');
     });
+    expect(mockListPendingReviews).toHaveBeenCalledWith({ highlightedId: 'draft-1' });
   });
 
   it('navigates purchase-order reviews to the dedicated review route', async () => {

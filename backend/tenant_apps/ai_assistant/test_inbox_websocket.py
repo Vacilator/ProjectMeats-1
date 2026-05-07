@@ -33,6 +33,10 @@ class AIInboxWebsocketTests(TransactionTestCase):
             username=f"member-{unique}",
             password="pw",
         )
+        self.manager_user = User.objects.create_user(
+            username=f"manager-{unique}",
+            password="pw",
+        )
         self.tenant = Tenant.objects.create(
             name=f"Tenant {unique}",
             slug=f"tenant-{unique}",
@@ -41,6 +45,7 @@ class AIInboxWebsocketTests(TransactionTestCase):
         )
         TenantUser.objects.create(tenant=self.tenant, user=self.staff_user, role="admin", is_active=True)
         TenantUser.objects.create(tenant=self.tenant, user=self.member_user, role="member", is_active=True)
+        TenantUser.objects.create(tenant=self.tenant, user=self.manager_user, role="manager", is_active=True)
 
     def _communicator(self, *, user, tenant_id: str | None, use_subprotocol_token: bool = False):
         token = str(AccessToken.for_user(user))
@@ -124,6 +129,33 @@ class AIInboxWebsocketTests(TransactionTestCase):
             self.assertEqual(snapshot.get("type"), "ai.inbox.snapshot")
             self.assertEqual(snapshot.get("pending_count"), 0)
             self.assertEqual(snapshot.get("results"), [])
+
+            await communicator.disconnect()
+
+        async_to_sync(run)()
+
+    def test_manager_user_receives_contextual_snapshot(self):
+        AIFeedbackLog.objects.create(
+            tenant=self.tenant,
+            document_id=uuid.uuid4(),
+            document_type="bill_of_lading",
+            original_extracted_data={
+                "from_email": "dispatch@example.com",
+                "subject": "Potential BOL received",
+            },
+            confidence_score=0.5,
+        )
+
+        async def run():
+            communicator = self._communicator(user=self.manager_user, tenant_id=str(self.tenant.id))
+            connected, _ = await communicator.connect(timeout=1)
+            self.assertTrue(connected)
+
+            snapshot = await communicator.receive_json_from(timeout=1)
+            self.assertEqual(snapshot.get("type"), "ai.inbox.snapshot")
+            self.assertEqual(snapshot.get("pending_count"), 1)
+            self.assertEqual(snapshot["results"][0]["sender"], "dispatch@example.com")
+            self.assertEqual(snapshot["results"][0]["source_subject"], "Potential BOL received")
 
             await communicator.disconnect()
 

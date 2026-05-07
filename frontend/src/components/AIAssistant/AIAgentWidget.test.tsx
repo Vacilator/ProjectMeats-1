@@ -107,6 +107,7 @@ describe('AIAgentWidget', () => {
     jwtServiceMock.refreshAccessToken.mockClear();
     vi.stubGlobal('WebSocket', MockWebSocket as unknown as typeof WebSocket);
     vi.stubGlobal('scrollTo', vi.fn());
+    localStorage.clear();
     Object.defineProperty(Element.prototype, 'scrollIntoView', {
       configurable: true,
       value: vi.fn(),
@@ -132,7 +133,18 @@ describe('AIAgentWidget', () => {
     fireEvent.click(screen.getByRole('button', { name: 'AI chat widget' }));
 
     act(() => {
-      websocketInstances[0].emitMessage({ type: 'ai.inbox.snapshot', pending_count: 3 });
+      websocketInstances[0].emitMessage({
+        type: 'ai.inbox.snapshot',
+        pending_count: 3,
+        results: [
+          {
+            id: 'draft-1',
+            sender: 'dispatch@example.com',
+            source_subject: 'Potential BOL received',
+            intent_label: 'Bill Of Lading',
+          },
+        ],
+      });
     });
 
     await waitFor(() => {
@@ -163,5 +175,43 @@ describe('AIAgentWidget', () => {
       'access_token',
       'refreshed-access-token',
     ]);
+  });
+
+  it('falls back to the stored tenant id and shows a contextual inbox update message', async () => {
+    jwtServiceMock.getTenantFromToken.mockReturnValue(null);
+    localStorage.setItem('tenantId', 'tenant-local');
+
+    render(
+      <MemoryRouter>
+        <AIAgentWidget />
+      </MemoryRouter>
+    );
+
+    await waitFor(() => {
+      expect(websocketInstances).toHaveLength(1);
+    });
+
+    expect(websocketInstances[0].url).toContain('tenant_id=tenant-local');
+
+    act(() => {
+      websocketInstances[0].emitMessage({
+        type: 'ai.inbox.update',
+        pending_count: 1,
+        results: [
+          {
+            id: 'draft-2',
+            sender: 'dispatch@example.com',
+            source_subject: 'Potential BOL received',
+            intent_label: 'Bill Of Lading',
+          },
+        ],
+      });
+    });
+
+    await waitFor(() => {
+      expect(toastMock.info).toHaveBeenCalledWith(
+        'Bill Of Lading from dispatch@example.com: Potential BOL received'
+      );
+    });
   });
 });

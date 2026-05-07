@@ -128,8 +128,15 @@ export const aiStaffApi = {
     return unwrap(res);
   },
 
-  listPendingReviews: async (): Promise<PendingReviewItem[]> => {
-    const res = await businessApi.get<PendingReviewListResponse>('/ai-assistant/review/pending/');
+  listPendingReviews: async (options?: { highlightedId?: string | null }): Promise<PendingReviewItem[]> => {
+    const params = new URLSearchParams();
+    if (options?.highlightedId) {
+      params.set('draft', options.highlightedId);
+    }
+    const query = params.toString();
+    const res = await businessApi.get<PendingReviewListResponse>(
+      `/ai-assistant/review/pending/${query ? `?${query}` : ''}`
+    );
     return extractPendingReviewItems(unwrap(res));
   },
 
