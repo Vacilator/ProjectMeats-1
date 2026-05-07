@@ -192,7 +192,7 @@ psql -d projectmeats -c "SELECT tablename, policyname FROM pg_policies WHERE pol
 - [ ] I have read and followed the `.github/copilot-instructions.md` standards
 - [ ] I have reviewed my own code for quality and security
 - [ ] I have tested these changes locally (dev environment)
-- [ ] I have updated the `ROADMAP.md` if this completes a phase task
+- [ ] I have updated `MASTER_PLAN.md` and/or `.github/MASTER_PLAN.md` if this changes canonical status or shipped evidence
 - [ ] I have added this PR to the relevant GitHub Project board
 - [ ] I have assigned appropriate reviewers
 - [ ] All CI/CD checks are passing

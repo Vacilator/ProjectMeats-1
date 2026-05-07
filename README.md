@@ -12,15 +12,14 @@
 
 **For All Contributors:**
 - **[MASTER_PLAN.md](MASTER_PLAN.md)** - ✅ Canonical priorities + current truth snapshot
-- **[.github/MASTER_PLAN.md](.github/MASTER_PLAN.md)** - 🧾 Append-only PR execution log (shipped evidence)
-- **[ROADMAP.md](ROADMAP.md)** - 📊 Reference roadmap (non-canonical; may be outdated)
 - **[manifests/GOLDEN_FILES.md](manifests/GOLDEN_FILES.md)** - 🗂️ Source of truth registry
 - **[docs/GOLDEN_PIPELINE.md](docs/GOLDEN_PIPELINE.md)** - 🏆 Deployment standards (authoritative)
+- **[docs/plans/DOCUMENTATION_STANDARDS.md](docs/plans/DOCUMENTATION_STANDARDS.md)** - 📚 Documentation source-of-truth rules
 
 **For AI Agents:**
 - **ALWAYS** reference `/manifests/GOLDEN_FILES.md` before proposing schema changes
 - Use `MASTER_PLAN.md` as the single source of truth for current priorities/status
-- Treat `ROADMAP.md` / `UI_ROADMAP.md` as reference-only
+- Put any new scoped plan docs under `docs/plans/` using the `YYYY-MM-*` naming rule
 
 ---
 
@@ -283,4 +282,3 @@ Proprietary - All rights reserved
 **Last Updated**: March 22, 2026  
 **Status**: ✅ Active Development  
 **Architecture Version**: Golden Pipeline v1.0
-

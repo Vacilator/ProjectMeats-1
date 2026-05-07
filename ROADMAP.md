@@ -1,4 +1,6 @@
-# ProjectMeats Development Roadmap (Reference)
+# ARCHIVED - Reference Only - See MASTER_PLAN.md
+
+## ProjectMeats Development Roadmap (Historical Snapshot)
 
 **Authority:** This is **REFERENCE ONLY**. It is not maintained as a source of current truth.
 

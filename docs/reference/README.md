@@ -25,5 +25,5 @@
 
 ## See Also
 
-- [Roadmap](../ROADMAP.md) - CI/CD evolution phases
-- [Master Plan](../plans/PROJECTMEATS_V2_MASTER_PLAN.md) - Overall project plan
+- [Master Plan](../../MASTER_PLAN.md) - Canonical project plan and execution status
+- [Documentation Standards](../plans/DOCUMENTATION_STANDARDS.md) - Planning and documentation rules

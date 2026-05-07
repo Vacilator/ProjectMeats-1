@@ -1,7 +1,7 @@
 # ProjectMeats Backend Requirements
 # Django REST Framework backend for PowerApps migration
 #
-# For planned version upgrades, see docs/ROADMAP.md
+# For active upgrade priorities, see MASTER_PLAN.md
 
 # Core Django and DRF
 Django>=5.0

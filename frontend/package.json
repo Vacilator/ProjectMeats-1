@@ -1,7 +1,7 @@
 {
   "name": "projectmeats-frontend",
   "version": "1.0.0",
-  "description": "React frontend for ProjectMeats - migrated from PowerApps. For planned upgrades, see docs/ROADMAP.md",
+  "description": "React frontend for ProjectMeats - migrated from PowerApps. For active priorities, see MASTER_PLAN.md",
   "type": "module",
   "private": true,
   "_comments": {

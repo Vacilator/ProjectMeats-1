@@ -104,7 +104,7 @@ Currently, migrations run via SSH on deployment servers because GitHub Actions r
 **Tasks:**
 - [ ] Update `README.md` to reference new `DEVELOPMENT_PIPELINE.md`
 - [ ] Update `CONTRIBUTING.md` with new workflow instructions
-- [ ] Update `ROADMAP.md` to reflect completed pipeline work
+- [ ] Update `MASTER_PLAN.md` or a `docs/plans/YYYY-MM-*` document to reflect completed pipeline work
 - [ ] Archive remaining root-level docs to `docs/` subdirectories
 - [ ] Create `docs/TROUBLESHOOTING.md` with common deployment issues
 
