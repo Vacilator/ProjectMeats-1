@@ -25,6 +25,19 @@ const LEGACY_FORM_STEP_TYPE_MAP: Record<string, 'form'> = {
   formStepSingleNode: 'form',
 };
 
+/**
+ * RT-05.1: Alias map for template node types that use simplified names.
+ * The EndToEndInquiryToPOProcess template uses: group, condition, loop, action, end.
+ * These map to the canonical editor node types for proper rendering.
+ */
+const TEMPLATE_TYPE_ALIAS_MAP: Record<string, string> = {
+  group: 'formProcess',
+  condition: 'conditionIf',
+  loop: 'loopForEach',
+  action: 'actionScript',
+  end: 'endSuccess',
+};
+
 function getDataParentId(node: Node): string | undefined {
   const raw = (node.data as any)?.parentId ?? (node.data as any)?.parent_id;
   if (raw === null || raw === undefined || raw === '') return undefined;
@@ -111,6 +124,22 @@ export function normalizeNodeData(node: Node): Node {
       data: {
         ...(next.data || {}),
         nodeType: canonicalFormType,
+      },
+    } as Node;
+  }
+
+  // --------------------------------------------------------------------------
+  // RT-05.1: Resolve simplified template type aliases (group, condition, loop, etc.)
+  // --------------------------------------------------------------------------
+  const aliasedType = TEMPLATE_TYPE_ALIAS_MAP[String(next.type ?? '')];
+  if (aliasedType) {
+    next = {
+      ...next,
+      type: aliasedType,
+      data: {
+        ...(next.data || {}),
+        nodeType: aliasedType,
+        _originalTemplateType: next.type, // preserve for debugging/audit
       },
     } as Node;
   }
