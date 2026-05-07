@@ -251,6 +251,27 @@ class LoginRequestSerializer(serializers.Serializer):
     password = serializers.CharField(write_only=True)
 
 
+class WorkspaceActivityItemSerializer(serializers.Serializer):
+    """Normalized item returned by the workspace activity feed endpoint."""
+
+    id = serializers.CharField()
+    source = serializers.CharField()
+    source_label = serializers.CharField()
+    action = serializers.CharField()
+    title = serializers.CharField()
+    description = serializers.CharField()
+    actor_name = serializers.CharField()
+    actor_email = serializers.CharField(allow_blank=True)
+    entity_type = serializers.CharField(allow_blank=True)
+    entity_id = serializers.CharField(allow_blank=True)
+    entity_label = serializers.CharField(allow_blank=True)
+    source_record_id = serializers.CharField(allow_blank=True)
+    occurred_at = serializers.DateTimeField()
+    editable = serializers.BooleanField()
+    tags = serializers.ListField(child=serializers.CharField(), required=False)
+    metadata = serializers.JSONField(required=False)
+
+
 def _redact_portal_metadata(value):
     """Expose only explicitly portal-safe metadata keys."""
     if not isinstance(value, dict):

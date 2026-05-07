@@ -20,7 +20,13 @@ _TRACKED_MODELS = [
     ('invoices', 'Invoice'),
     ('suppliers', 'Supplier'),
     ('plants', 'Plant'),
+    ('customers', 'Customer'),
+    ('locations', 'Location'),
+    ('contacts', 'Contact'),
+    ('inquiries', 'Inquiry'),
+    ('fulfillments', 'Fulfillment'),
     ('products', 'MasterProduct'),
+    ('ai_assistant', 'CommunicationLog'),
 ]
 
 _IGNORE_FIELDS = {
@@ -49,6 +55,31 @@ def _tracked_instances():
 
 
 _TRACKED = _tracked_instances()
+
+
+def _resolve_entity_name(instance):
+    for attr in (
+        'name',
+        'subject',
+        'order_number',
+        'our_purchase_order_num',
+        'our_sales_order_num',
+        'invoice_number',
+        'our_carrier_po_num',
+        'inquiry_number',
+        'display_name',
+    ):
+        value = getattr(instance, attr, None)
+        if value:
+            return str(value)[:255]
+
+    first_name = str(getattr(instance, 'first_name', '') or '').strip()
+    last_name = str(getattr(instance, 'last_name', '') or '').strip()
+    full_name = ' '.join(part for part in [first_name, last_name] if part).strip()
+    if full_name:
+        return full_name[:255]
+
+    return ''
 
 
 @receiver(pre_save)
@@ -80,19 +111,7 @@ def audit_post_save(sender, instance, created, **kwargs):
 
     content_type = ContentType.objects.get_for_model(sender)
 
-    entity_name = ''
-    for attr in (
-        'name',
-        'order_number',
-        'our_purchase_order_num',
-        'our_sales_order_num',
-        'invoice_number',
-        'our_carrier_po_num',
-    ):
-        value = getattr(instance, attr, None)
-        if value:
-            entity_name = str(value)[:255]
-            break
+    entity_name = _resolve_entity_name(instance)
 
     if created:
         TenantAuditEvent.objects.create(

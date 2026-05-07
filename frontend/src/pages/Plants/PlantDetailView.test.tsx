@@ -19,6 +19,11 @@ vi.mock('@/components/Shared', () => ({
       {entityType}:{mode}
     </div>
   ),
+  ActivityFeed: ({ entityType, entityId }: { entityType: string; entityId: string | number }) => (
+    <div data-testid="activity-feed">
+      {entityType}:{String(entityId)}
+    </div>
+  ),
 }));
 
 vi.mock('./StandalonePlantEditForm', () => ({
@@ -69,5 +74,20 @@ describe('PlantDetailView', () => {
 
     expect(await screen.findByTestId('standalone-plant-edit-form')).toHaveTextContent('standalone:2');
     expect(screen.queryByTestId('entity-form-surface')).not.toBeInTheDocument();
+  });
+
+  it('shows an activity tab for the plant record', async () => {
+    const user = userEvent.setup();
+
+    render(
+      <MemoryRouter initialEntries={['/plants/2']}>
+        <Routes>
+          <Route path="/plants/:id" element={<PlantDetailView />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    await user.click(await screen.findByRole('tab', { name: /activity/i }));
+    expect(await screen.findByTestId('activity-feed')).toHaveTextContent('plant:2');
   });
 });

@@ -12,7 +12,7 @@ from apps.system.models import Product
 from tenant_apps.inquiries.models import Inquiry, InquiryEntityTypeChoices, InquirySourceChoices
 from tenant_apps.products.models import MasterProduct
 from tenant_apps.suppliers.models import Supplier, SupplierAvailableItem
-from tenant_apps.ai_assistant.models import AIFeedbackLog
+from tenant_apps.ai_assistant.models import AIFeedbackLog, AILineageEvent
 from tenant_apps.ai_assistant.tasks.watchdog import sync_ai_feedback_queue_for_tenant
 from tenant_apps.workflows.models import UserNotification
 
@@ -68,11 +68,17 @@ class EmailReviewDraftSignalTests(TestCase):
         email_log.refresh_from_db()
         draft = EmailReviewDraft.objects.get(email_log=email_log)
         notification = UserNotification.objects.get(tenant=self.tenant, user=self.user)
+        lineage_events = list(
+            AILineageEvent.objects.filter(tenant=self.tenant, source_id=str(email_log.id)).values_list('event_type', flat=True)
+        )
 
         self.assertEqual(email_log.status, 'draft_created')
         self.assertEqual(draft.draft_type, 'purchase_order')
         self.assertEqual(notification.entity_id, draft.id)
         self.assertEqual(notification.action_url, f'/my-tasks?tab=ai-review&draft={draft.id}')
+        self.assertIn('email_classified', lineage_events)
+        self.assertIn('email_review_draft_created', lineage_events)
+        self.assertIn('email_review_notification_queued', lineage_events)
 
     @patch('apps.integrations.signals.classify_ingested_email')
     def test_demand_email_creates_draft_inquiry_with_lineage(self, classify_ingested_email):
@@ -111,6 +117,12 @@ class EmailReviewDraftSignalTests(TestCase):
         email_log.refresh_from_db()
         inquiry = Inquiry.objects.get(tenant=self.tenant, source_email=email_log)
         draft = EmailReviewDraft.objects.get(email_log=email_log)
+        inquiry_lineage = AILineageEvent.objects.get(
+            tenant=self.tenant,
+            event_type='inquiry_draft_created_from_email',
+            target_type='inquiry',
+            target_id=str(inquiry.id),
+        )
 
         self.assertEqual(inquiry.status, Inquiry._meta.get_field('status').default)
         self.assertEqual(inquiry.source_type, InquirySourceChoices.EMAIL)
@@ -128,6 +140,7 @@ class EmailReviewDraftSignalTests(TestCase):
         )
         self.assertEqual(email_log.extracted_data['inquiry_id'], str(inquiry.id))
         self.assertEqual(draft.extracted_payload['inquiry_number'], inquiry.inquiry_number)
+        self.assertIn(inquiry.inquiry_number, inquiry_lineage.summary)
 
     @patch('apps.integrations.signals.classify_ingested_email')
     @patch('apps.integrations.signals.parse_supplier_quote_reply')
@@ -196,12 +209,18 @@ class EmailReviewDraftSignalTests(TestCase):
             tenant=self.tenant,
             document_id=uuid.uuid5(uuid.NAMESPACE_URL, 'apps.integrations.EmailLog:graph-message-supplier-reply-1'),
         )
+        lineage_event = AILineageEvent.objects.get(
+            tenant=self.tenant,
+            event_type='supplier_reply_parsed',
+            source_id=str(email_log.id),
+        )
 
         self.assertEqual(email_log.status, 'action_required')
         self.assertEqual(email_log.extracted_data['category'], 'supplier_quote_reply')
         self.assertEqual(email_log.extracted_data['supplier_reply_parse']['parse_status'], 'parsed')
         self.assertFalse(EmailReviewDraft.objects.filter(email_log=email_log).exists())
         self.assertEqual(feedback.document_type, 'supplier_quote_reply')
+        self.assertEqual(lineage_event.metadata.get('parse_status'), 'parsed')
         classify_ingested_email.assert_not_called()
 
     @patch('apps.integrations.signals.classify_ingested_email')

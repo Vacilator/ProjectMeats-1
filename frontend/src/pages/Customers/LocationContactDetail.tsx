@@ -1,8 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Breadcrumb, Button, Card, Spin } from 'antd';
+import { Breadcrumb, Button, Card, Empty, Spin, Tabs } from 'antd';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 
 import { AIOverviewCard, EntityProfileHeader } from '@/components/Cockpit';
+import { ActivityFeed } from '@/components/Shared';
 import { apiClient } from '@/services/apiService';
 import { resolveEntityDisplay } from '@/utils/entityDisplay';
 
@@ -165,15 +166,34 @@ export const LocationContactDetail: React.FC = () => {
             <Spin />
           </Card>
         ) : (
-          <>
-            <AIOverviewCard entityType="contact" entityId={coid} />
-            <EntityProfileHeader
-              entityType="contact"
-              entityId={coid}
-              variant="full"
-              onNavigateToEntity={handleNavigateToEntity}
-            />
-          </>
+          <Tabs
+            items={[
+              {
+                key: 'profile',
+                label: 'Profile',
+                children: (
+                  <>
+                    <AIOverviewCard entityType="contact" entityId={coid} />
+                    <EntityProfileHeader
+                      entityType="contact"
+                      entityId={coid}
+                      variant="full"
+                      onNavigateToEntity={handleNavigateToEntity}
+                    />
+                  </>
+                ),
+              },
+              {
+                key: 'activity',
+                label: 'Activity',
+                children: coid ? (
+                  <ActivityFeed entityType="contact" entityId={coid} showCreateForm maxHeight="520px" />
+                ) : (
+                  <Empty description="Activity unavailable" />
+                ),
+              },
+            ]}
+          />
         )}
       </div>
     </div>

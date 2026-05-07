@@ -102,6 +102,7 @@ import AdminProfilePage from './pages/Admin/Profile';
 import BillingPage from './pages/Admin/Billing';
 import ActivityPage from './pages/Admin/Activity';
 import AdminWorkspaceHome from './pages/Admin/Home';
+import ActivityFeedPage from './pages/ActivityFeedPage';
 import AdminErrorBoundary from './components/Admin/AdminErrorBoundary';
 import { ErrorBoundary as ProductionErrorBoundary } from './components/common/ErrorBoundary';
 import { logger } from './utils/logger';
@@ -349,6 +350,7 @@ const App: React.FC = () => {
                 <Route path="call-log" element={<Navigate to="/calls" replace />} />
                 <Route path="processes" element={<Navigate to="/forms-flows/catalog" replace />} />
                 <Route path="reports" element={<Reports />} />
+                <Route path="activity" element={<ActivityFeedPage />} />
                 <Route path="profile" element={<Profile />} />
                 <Route path="settings" element={<Settings />} />
                 <Route path="settings/email-integrations" element={<Settings />} />
