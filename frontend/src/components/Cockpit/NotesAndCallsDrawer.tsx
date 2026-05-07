@@ -244,7 +244,7 @@ export const NotesAndCallsDrawer: React.FC<NotesAndCallsDrawerProps> = ({
       width={420}
       open={open}
       onClose={onClose}
-      destroyOnClose={false}
+      destroyOnHidden={false}
     >
       <HeaderRow>
         <div style={{ minWidth: 0 }}>
@@ -318,7 +318,7 @@ export const NotesAndCallsDrawer: React.FC<NotesAndCallsDrawerProps> = ({
         okText="Save"
         confirmLoading={savingEdit}
         okButtonProps={{ disabled: !editContent.trim() }}
-        destroyOnClose
+        destroyOnHidden
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           <Input value={editTitle} onChange={(e) => setEditTitle(e.target.value)} placeholder="Title" />

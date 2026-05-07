@@ -496,7 +496,7 @@ export const SystemChoiceManager: React.FC<SystemChoiceManagerProps> = ({
           </ModalFooter>
         }
         width={720}
-        destroyOnClose
+        destroyOnHidden
       >
         {editingList && (
           <Form>
@@ -599,7 +599,7 @@ export const SystemChoiceManager: React.FC<SystemChoiceManagerProps> = ({
           </ModalFooter>
         }
         width={640}
-        destroyOnClose
+        destroyOnHidden
       >
         {editingItem && (
           <Form>

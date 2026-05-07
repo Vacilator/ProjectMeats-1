@@ -558,7 +558,7 @@ export const OptionListModal: React.FC<OptionListModalProps> = ({
       footer={null}
       title={null}
       width={800}
-      destroyOnClose
+      destroyOnHidden
       styles={{ body: { padding: 0 } }}
     >
       <ModalContent>

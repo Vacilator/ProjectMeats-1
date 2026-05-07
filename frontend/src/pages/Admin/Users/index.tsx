@@ -695,7 +695,7 @@ const UsersPage: React.FC = () => {
         onCancel={() => setShowInviteModal(false)}
         title="Invite User"
         footer={null}
-        destroyOnClose
+        destroyOnHidden
       >
         {!emailEnabled && (
           <InlineWarning role="status">
@@ -750,7 +750,7 @@ const UsersPage: React.FC = () => {
         onCancel={() => setShowEditModal(false)}
         title="Edit Role"
         footer={null}
-        destroyOnClose
+        destroyOnHidden
       >
         <Form
           onSubmit={(e) => {
