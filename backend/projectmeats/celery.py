@@ -68,6 +68,15 @@ app.conf.beat_schedule = {
             'routing_key': 'pm.trade',
         },
     },
+    'auto-pipeline-sweep-every-5-minutes': {
+        'task': 'integrations.auto_process_approved_emails',
+        'schedule': 300.0,  # 5 minutes
+        'options': {
+            'expires': 240.0,
+            'queue': 'pm.ops',
+            'routing_key': 'pm.ops',
+        },
+    },
 }
 
 # Set timezone for scheduled tasks
