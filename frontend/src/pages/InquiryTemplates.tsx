@@ -111,7 +111,7 @@ const StatusBadge = styled.span<{ $active: boolean }>`
   font-size: 0.75rem;
   font-weight: 500;
   background: ${props => props.$active 
-    ? 'rgba(34, 197, 94, 0.1)' 
+    ? 'rgba(var(--color-success), 0.1)' 
     : 'rgba(var(--color-border), 0.5)'};
   color: ${props => props.$active 
     ? 'rgb(var(--color-success))' 
@@ -124,8 +124,8 @@ const EntityTypeBadge = styled.span<{ $type: InquiryEntityType }>`
   font-size: 0.75rem;
   font-weight: 500;
   background: ${props => props.$type === 'customer' 
-    ? 'rgba(59, 130, 246, 0.1)' 
-    : 'rgba(245, 158, 11, 0.1)'};
+    ? 'rgba(var(--color-info), 0.1)' 
+    : 'rgba(var(--color-warning), 0.1)'};
   color: ${props => props.$type === 'customer' 
     ? 'rgb(var(--color-primary))' 
     : 'rgb(var(--color-warning))'};
@@ -208,7 +208,7 @@ const ActionButton = styled.button<{ $variant?: 'primary' | 'danger' }>`
     border: 1px solid rgb(var(--color-error));
     
     &:hover {
-      background: rgba(239, 68, 68, 0.1);
+      background: rgba(var(--color-error), 0.1);
     }
   ` : `
     background: transparent;

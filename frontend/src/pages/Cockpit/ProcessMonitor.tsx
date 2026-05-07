@@ -181,25 +181,25 @@ const Badge = styled.span<{ $variant?: 'info' | 'warning' | 'danger' | 'success'
   color: ${p => {
     switch (p.$variant) {
       case 'danger':
-        return 'rgb(239, 68, 68)';
+        return 'rgb(var(--color-error))';
       case 'warning':
-        return 'rgb(234, 179, 8)';
+        return 'rgb(var(--color-warning))';
       case 'success':
-        return 'rgb(34, 197, 94)';
+        return 'rgb(var(--color-success))';
       default:
-        return 'rgb(59, 130, 246)';
+        return 'rgb(var(--color-info))';
     }
   }};
   background: ${p => {
     switch (p.$variant) {
       case 'danger':
-        return 'rgb(239, 68, 68 / 0.08)';
+        return 'rgb(var(--color-error) / 0.08)';
       case 'warning':
-        return 'rgb(234, 179, 8 / 0.10)';
+        return 'rgb(var(--color-warning) / 0.10)';
       case 'success':
-        return 'rgb(34, 197, 94 / 0.10)';
+        return 'rgb(var(--color-success) / 0.10)';
       default:
-        return 'rgb(59, 130, 246 / 0.08)';
+        return 'rgb(var(--color-info) / 0.08)';
     }
   }};
 `;

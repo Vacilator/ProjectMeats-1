@@ -274,16 +274,16 @@ const StatusBadge = styled.span<{ status: InvoiceStatus }>`
   ${props => {
     switch (props.status) {
       case 'paid':
-        return 'background: rgba(34, 197, 94, 0.15); color: rgba(34, 197, 94, 1);';
+        return 'background: rgba(var(--color-success), 0.15); color: rgba(var(--color-success), 1);';
       case 'sent':
-        return 'background: rgba(59, 130, 246, 0.15); color: rgba(59, 130, 246, 1);';
+        return 'background: rgba(var(--color-info), 0.15); color: rgba(var(--color-info), 1);';
       case 'overdue':
-        return 'background: rgba(239, 68, 68, 0.15); color: rgba(239, 68, 68, 1);';
+        return 'background: rgba(var(--color-error), 0.15); color: rgba(var(--color-error), 1);';
       case 'cancelled':
-        return 'background: rgba(107, 114, 128, 0.15); color: rgba(107, 114, 128, 1);';
+        return 'background: rgba(var(--color-neutral), 0.15); color: rgba(var(--color-neutral), 1);';
       case 'draft':
       default:
-        return 'background: rgba(234, 179, 8, 0.15); color: rgba(234, 179, 8, 1);';
+        return 'background: rgba(var(--color-warning), 0.15); color: rgba(var(--color-warning), 1);';
     }
   }}
 `;
@@ -343,9 +343,9 @@ const CloseButton = styled.button`
 `;
 
 const RecordPaymentButton = styled.button`
-  background: rgba(34, 197, 94, 0.1);
-  border: 1px solid rgba(34, 197, 94, 0.3);
-  color: rgb(34, 197, 94);
+  background: rgba(var(--color-success), 0.1);
+  border: 1px solid rgba(var(--color-success), 0.3);
+  color: rgb(var(--color-success));
   padding: 0.5rem 1rem;
   border-radius: 6px;
   font-size: 0.875rem;
@@ -354,8 +354,8 @@ const RecordPaymentButton = styled.button`
   transition: all 0.2s ease;
   
   &:hover {
-    background: rgba(34, 197, 94, 0.15);
-    border-color: rgba(34, 197, 94, 0.5);
+    background: rgba(var(--color-success), 0.15);
+    border-color: rgba(var(--color-success), 0.5);
   }
   
   &:active {
@@ -392,7 +392,7 @@ const LoadingMessage = styled.div`
 const ErrorMessage = styled.div`
   padding: 3rem;
   text-align: center;
-  color: rgba(239, 68, 68, 1);
+  color: rgba(var(--color-error), 1);
   font-size: 0.875rem;
 `;
 

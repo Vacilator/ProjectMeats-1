@@ -225,7 +225,7 @@ const ActionButton = styled.button<{ $variant?: 'primary' | 'secondary' | 'dange
         `;
       case 'danger':
         return `
-          background: rgb(239, 68, 68);
+          background: rgb(var(--color-error));
           color: white;
           border: none;
           &:hover { opacity: 0.9; }
@@ -246,7 +246,7 @@ const EditBadge = styled.span`
   align-items: center;
   padding: 4px 8px;
   border-radius: var(--radius-sm);
-  background: rgb(234, 179, 8);
+  background: rgb(var(--color-warning));
   color: black;
   font-size: 11px;
   font-weight: 600;

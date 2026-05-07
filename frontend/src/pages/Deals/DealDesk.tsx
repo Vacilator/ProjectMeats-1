@@ -141,10 +141,10 @@ const TableHead = styled.th`
 
 const TableRow = styled.tr<{ pastDue?: boolean }>`
   border-bottom: 1px solid rgb(var(--color-border));
-  background: ${props => props.pastDue ? 'rgba(234, 179, 8, 0.12)' : 'transparent'};
+  background: ${props => props.pastDue ? 'rgba(var(--color-warning), 0.12)' : 'transparent'};
 
   &:hover {
-    background: ${props => props.pastDue ? 'rgba(234, 179, 8, 0.16)' : 'rgba(var(--color-primary), 0.05)'};
+    background: ${props => props.pastDue ? 'rgba(var(--color-warning), 0.16)' : 'rgba(var(--color-primary), 0.05)'};
   }
 `;
 
@@ -165,15 +165,15 @@ const StatusBadge = styled.span<{ status: DealStatus }>`
   ${props => {
     switch (props.status) {
       case 'completed':
-        return 'background: rgba(34, 197, 94, 0.15); color: rgb(34, 197, 94);';
+        return 'background: rgba(var(--color-success), 0.15); color: rgb(var(--color-success));';
       case 'delivered':
-        return 'background: rgba(59, 130, 246, 0.15); color: rgb(59, 130, 246);';
+        return 'background: rgba(var(--color-info), 0.15); color: rgb(var(--color-info));';
       case 'in_transit':
-        return 'background: rgba(234, 179, 8, 0.18); color: rgb(180, 83, 9);';
+        return 'background: rgba(var(--color-warning), 0.18); color: rgb(180, 83, 9);';
       case 'cancelled':
-        return 'background: rgba(107, 114, 128, 0.15); color: rgb(107, 114, 128);';
+        return 'background: rgba(var(--color-neutral), 0.15); color: rgb(var(--color-neutral));';
       case 'active':
-        return 'background: rgba(59, 130, 246, 0.12); color: rgb(37, 99, 235);';
+        return 'background: rgba(var(--color-info), 0.12); color: rgb(var(--color-info));';
       case 'draft':
       default:
         return 'background: rgba(148, 163, 184, 0.18); color: rgb(71, 85, 105);';
@@ -183,7 +183,7 @@ const StatusBadge = styled.span<{ status: DealStatus }>`
 
 const ProfitValue = styled.span<{ positive: boolean }>`
   font-weight: 700;
-  color: ${props => props.positive ? 'rgb(34, 197, 94)' : 'rgb(239, 68, 68)'};
+  color: ${props => props.positive ? 'rgb(var(--color-success))' : 'rgb(var(--color-error))'};
 `;
 
 const Muted = styled.div`
@@ -194,7 +194,7 @@ const Muted = styled.div`
 const ErrorMessage = styled.div`
   padding: 3rem;
   text-align: center;
-  color: rgb(239, 68, 68);
+  color: rgb(var(--color-error));
 `;
 
 const EmptyMessage = styled.div`

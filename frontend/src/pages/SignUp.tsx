@@ -331,9 +331,9 @@ const Subtitle = styled.p`
 `;
 
 const ErrorMessage = styled.div`
-  background: rgba(239, 68, 68, 0.15);
-  border: 1px solid rgb(239, 68, 68);
-  color: rgb(239, 68, 68);
+  background: rgba(var(--color-error), 0.15);
+  border: 1px solid rgb(var(--color-error));
+  color: rgb(var(--color-error));
   padding: 12px 16px;
   border-radius: 8px;
   margin-bottom: 24px;

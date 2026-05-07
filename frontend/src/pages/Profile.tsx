@@ -295,9 +295,9 @@ const Message = styled.div<{ $type: 'success' | 'error' }>`
   padding: 12px 16px;
   border-radius: 8px;
   margin-bottom: 20px;
-  background: ${(props) => (props.$type === 'success' ? 'rgba(34, 197, 94, 0.15)' : 'rgba(239, 68, 68, 0.15)')};
-  border: 1px solid ${(props) => (props.$type === 'success' ? 'rgb(34, 197, 94)' : 'rgb(239, 68, 68)')};
-  color: ${(props) => (props.$type === 'success' ? 'rgb(34, 197, 94)' : 'rgb(239, 68, 68)')};
+  background: ${(props) => (props.$type === 'success' ? 'rgba(var(--color-success), 0.15)' : 'rgba(var(--color-error), 0.15)')};
+  border: 1px solid ${(props) => (props.$type === 'success' ? 'rgb(var(--color-success))' : 'rgb(var(--color-error))')};
+  color: ${(props) => (props.$type === 'success' ? 'rgb(var(--color-success))' : 'rgb(var(--color-error))')};
 `;
 
 const MessageIcon = styled.span`
@@ -478,8 +478,8 @@ const DetailValue = styled.span`
 `;
 
 const StatusBadge = styled.span<{ $active: boolean }>`
-  background: ${(props) => (props.$active ? 'rgba(34, 197, 94, 0.15)' : 'rgba(239, 68, 68, 0.15)')};
-  color: ${(props) => (props.$active ? 'rgb(34, 197, 94)' : 'rgb(239, 68, 68)')};
+  background: ${(props) => (props.$active ? 'rgba(var(--color-success), 0.15)' : 'rgba(var(--color-error), 0.15)')};
+  color: ${(props) => (props.$active ? 'rgb(var(--color-success))' : 'rgb(var(--color-error))')};
   padding: 4px 12px;
   border-radius: 20px;
   font-size: 12px;

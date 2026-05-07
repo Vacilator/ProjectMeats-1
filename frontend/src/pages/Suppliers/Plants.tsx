@@ -164,12 +164,12 @@ const Label = styled.label`
 `;
 
 const RequiredMark = styled.span`
-  color: rgb(239, 68, 68);
+  color: rgb(var(--color-error));
   margin-left: 4px;
 `;
 
 const ErrorMessage = styled.div`
-  color: rgb(239, 68, 68);
+  color: rgb(var(--color-error));
   font-size: 0.875rem;
   margin-top: 0.25rem;
   display: flex;
