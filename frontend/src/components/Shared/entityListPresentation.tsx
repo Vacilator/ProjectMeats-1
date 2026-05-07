@@ -7,6 +7,7 @@ export type EntityListItem = {
   type: string;
   name: string;
   subtitle?: string;
+  tooltip?: string;
 };
 
 export const getEntityIcon = (rawType: string, size = 20) => {
@@ -118,12 +119,13 @@ const Subtitle = styled.div`
 
 export const EntityListPrimaryCell: React.FC<{ item: EntityListItem }> = ({ item }) => {
   const tone = getEntityTone(item.type);
+  const title = item.tooltip || item.name;
 
   return (
     <Cell>
       <Icon $tone={tone}>{getEntityIcon(item.type, 16)}</Icon>
       <TextBlock>
-        <Title title={item.name}>{item.name}</Title>
+        <Title title={title}>{item.name}</Title>
         {item.subtitle ? <Subtitle title={item.subtitle}>{item.subtitle}</Subtitle> : null}
       </TextBlock>
     </Cell>

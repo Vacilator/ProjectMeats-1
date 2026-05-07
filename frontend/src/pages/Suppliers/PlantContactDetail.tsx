@@ -4,6 +4,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 
 import { AIOverviewCard, EntityProfileHeader } from '@/components/Cockpit';
 import { apiClient } from '@/services/apiService';
+import { resolveEntityDisplay } from '@/utils/entityDisplay';
 
 type RouteParams = { supplierId?: string; plantId?: string; contactId?: string };
 
@@ -55,9 +56,29 @@ export const PlantContactDetail: React.FC = () => {
   }, [cid, pid, sid]);
 
   const contactLabel = useMemo(() => {
-    const name = `${String(contact?.first_name || '').trim()} ${String(contact?.last_name || '').trim()}`.trim();
-    return name || (cid ? `Contact #${cid}` : 'Contact');
+    return resolveEntityDisplay(
+      { first_name: contact?.first_name, last_name: contact?.last_name, id: cid },
+      { entityType: 'contact', fallbackStyle: 'id' }
+    );
   }, [cid, contact?.first_name, contact?.last_name]);
+
+  const supplierDisplay = useMemo(
+    () =>
+      resolveEntityDisplay(
+        { name: supplier?.name, id: sid },
+        { entityType: 'supplier', fallbackStyle: 'id' }
+      ),
+    [sid, supplier?.name]
+  );
+
+  const plantDisplay = useMemo(
+    () =>
+      resolveEntityDisplay(
+        { name: plant?.name, id: pid },
+        { entityType: 'plant', fallbackStyle: 'id' }
+      ),
+    [pid, plant?.name]
+  );
 
   const handleNavigateToEntity = useCallback(
     (entityType: string, entityId: string, _label: string) => {
@@ -107,7 +128,9 @@ export const PlantContactDetail: React.FC = () => {
                   <span>
                     Supplier:{' '}
                     <Link to={sid ? `/suppliers/${sid}` : '/suppliers'}>
-                      {String(supplier?.name || '').trim() || (sid ? `Supplier #${sid}` : 'Suppliers')}
+                      <span title={supplierDisplay.tooltip || supplierDisplay.text}>
+                        {supplierDisplay.text}
+                      </span>
                     </Link>
                   </span>
                 ),
@@ -117,12 +140,20 @@ export const PlantContactDetail: React.FC = () => {
                   <span>
                     Plants:{' '}
                     <Link to={`/suppliers/${sid}/plants/${pid}`}>
-                      {String(plant?.name || '').trim() || (pid ? `Plant #${pid}` : 'Plants')}
+                      <span title={plantDisplay.tooltip || plantDisplay.text}>
+                        {plantDisplay.text}
+                      </span>
                     </Link>
                   </span>
                 ),
               },
-              { title: <span style={{ fontWeight: 700 }}>{contactLabel}</span> },
+              {
+                title: (
+                  <span style={{ fontWeight: 700 }} title={contactLabel.tooltip || contactLabel.text}>
+                    {contactLabel.text}
+                  </span>
+                ),
+              },
             ]}
           />
         </div>

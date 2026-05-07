@@ -9,6 +9,7 @@ import { ActivityFeed, EntityFormSurface } from '@/components/Shared';
 import { useAuthState } from '@/contexts/AuthContext';
 import { apiClient } from '@/services/apiService';
 import { isAuthError } from '@/utils/isAuthError';
+import { resolveEntityDisplay } from '@/utils/entityDisplay';
 
 type RouteParams = { customerId?: string; locationId?: string };
 
@@ -154,9 +155,20 @@ export const LocationDetail: React.FC = () => {
   }, [authError, authLoading, isAuthenticated, lid]);
 
   const title = useMemo(() => {
-    const name = String(location?.name || '').trim();
-    return name || (lid ? `Location #${lid}` : 'Location');
+    return resolveEntityDisplay(
+      { name: location?.name, id: lid },
+      { entityType: 'location', fallbackStyle: 'id' }
+    );
   }, [lid, location?.name]);
+
+  const customerDisplay = useMemo(
+    () =>
+      resolveEntityDisplay(
+        { name: customer?.name, id: cid },
+        { entityType: 'customer', fallbackStyle: 'id' }
+      ),
+    [cid, customer?.name]
+  );
 
   const handleNavigateToEntity = useCallback(
     (entityType: string, entityId: string, _label: string) => {
@@ -204,7 +216,8 @@ export const LocationDetail: React.FC = () => {
       {
         title: 'Name',
         key: 'name',
-        render: (_, c) => `${c.first_name || ''} ${c.last_name || ''}`.trim() || 'Unnamed',
+        render: (_, c) =>
+          resolveEntityDisplay(c, { entityType: 'contact', fallbackStyle: 'id' }).text,
       },
       {
         title: 'Department',
@@ -260,18 +273,23 @@ export const LocationDetail: React.FC = () => {
                   <span>
                     Customer:{' '}
                     <Link to={cid ? `/customers/${cid}` : '/customers'}>
-                      {String(customer?.name || '').trim() || (cid ? `Customer #${cid}` : 'Customers')}
+                      <span title={customerDisplay.tooltip || customerDisplay.text}>
+                        {customerDisplay.text}
+                      </span>
                     </Link>
                   </span>
                 ),
               },
               {
                 title: (
-                  <span>
-                    Locations: <span style={{ fontWeight: 700 }}>{title}</span>
-                  </span>
-                ),
-              },
+                    <span>
+                     Locations:{' '}
+                     <span style={{ fontWeight: 700 }} title={title.tooltip || title.text}>
+                       {title.text}
+                     </span>
+                    </span>
+                  ),
+                },
             ]}
           />
         </div>

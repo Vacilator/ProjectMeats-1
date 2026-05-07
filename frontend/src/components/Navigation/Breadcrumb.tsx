@@ -247,10 +247,14 @@ const Breadcrumb: React.FC = () => {
         return (
           <BreadcrumbItem key={routeTo}>
             {isLast ? (
-              <BreadcrumbText aria-current="page">{displayName}</BreadcrumbText>
+              <BreadcrumbText aria-current="page">
+                {displayName}
+              </BreadcrumbText>
             ) : (
               <>
-                <BreadcrumbLink to={routeTo}>{displayName}</BreadcrumbLink>
+                <BreadcrumbLink to={routeTo}>
+                  {displayName}
+                </BreadcrumbLink>
                 <Separator aria-hidden="true">/</Separator>
               </>
             )}

@@ -80,4 +80,25 @@ describe('UnifiedEntityTable', () => {
     expect(formSurface.getAttribute('data-entity-id')).toBe('42');
     expect(navigateMock).not.toHaveBeenCalled();
   });
+
+  it('uses a readable fallback instead of rendering a raw UUID row title', async () => {
+    const uuid = '7d9154f4-1a4d-4f47-b7d4-6223479c1fe7';
+    businessApiMock.get.mockResolvedValue({
+      data: {
+        fields: [],
+      },
+    });
+
+    render(
+      <MemoryRouter>
+        <UnifiedEntityTable entityType="plant" data={[{ id: uuid }]} />
+      </MemoryRouter>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText(/Plant 7d9154f4/i)).toBeInTheDocument();
+    });
+
+    expect(screen.queryByText(uuid)).not.toBeInTheDocument();
+  });
 });
