@@ -13,10 +13,19 @@ on:
         required: false
         type: boolean
         default: false
+      run_backend_lane:
+        required: false
+        type: boolean
+        default: true
+      run_frontend_lane:
+        required: false
+        type: boolean
+        default: true
 
 jobs:
   smoke-backend-container:
     name: "Smoke: Backend Container"
+    if: ${{ inputs.run_backend_lane }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     environment: ${{ inputs.backend_environment }}
@@ -24,8 +33,10 @@ jobs:
     steps:
       - name: Setup SSH
         run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y sshpass
+          if ! command -v sshpass >/dev/null 2>&1; then
+            sudo apt-get update -qq
+            sudo apt-get install -y sshpass
+          fi
           mkdir -p ~/.ssh
           chmod 700 ~/.ssh
           ssh-keyscan -H "${{ secrets.SSH_HOST }}" >> ~/.ssh/known_hosts 2>&1
@@ -59,6 +70,7 @@ jobs:
 
   smoke-frontend-container:
     name: "Smoke: Frontend Container"
+    if: ${{ inputs.run_frontend_lane }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     environment: ${{ inputs.frontend_environment }}
@@ -66,8 +78,10 @@ jobs:
     steps:
       - name: Setup SSH
         run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y sshpass
+          if ! command -v sshpass >/dev/null 2>&1; then
+            sudo apt-get update -qq
+            sudo apt-get install -y sshpass
+          fi
           mkdir -p ~/.ssh
           chmod 700 ~/.ssh
           ssh-keyscan -H "${{ secrets.SSH_HOST }}" >> ~/.ssh/known_hosts 2>&1
@@ -98,10 +112,24 @@ jobs:
 
   post-deploy-validation:
     name: "Post-Deploy Validation"
+    if: ${{ always() }}
     needs: [smoke-backend-container, smoke-frontend-container]
     runs-on: ubuntu-latest
     timeout-minutes: 5
 
     steps:
       - name: Report success
-        run: echo "✓ Post-deploy smoke gates passed"
+        run: |
+          set -euo pipefail
+
+          if [ "${{ inputs.run_backend_lane }}" = "true" ] && [ "${{ needs.smoke-backend-container.result }}" != "success" ]; then
+            echo "✗ smoke-backend-container result: ${{ needs.smoke-backend-container.result }}" >&2
+            exit 1
+          fi
+
+          if [ "${{ inputs.run_frontend_lane }}" = "true" ] && [ "${{ needs.smoke-frontend-container.result }}" != "success" ]; then
+            echo "✗ smoke-frontend-container result: ${{ needs.smoke-frontend-container.result }}" >&2
+            exit 1
+          fi
+
+          echo "✓ Post-deploy smoke gates passed"

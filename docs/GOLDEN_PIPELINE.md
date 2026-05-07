@@ -86,6 +86,20 @@ python config/manage_env.py audit
 7. Deploy frontend (docker run)
 8. Post-deploy health checks
 
+### Environment-aware performance standard
+
+- `main-pipeline.yml` must resolve exactly one target environment per run:
+  - `development` push -> development deploy path
+  - `uat` push -> UAT deploy path
+  - `main` push -> production deploy path
+- Development may prune a single swimlane **only** when the diff is clearly isolated:
+  - `backend/**`-only changes may skip the frontend lane
+  - `frontend/**`-only changes may skip the backend lane
+- Mixed changes, infra/workflow/config changes, shared code, manifests, deploy assets, or anything outside a clearly isolated frontend/backend diff must run the full development path.
+- UAT and production must always run the full Golden backend + frontend path, including all current migration, scan, and smoke requirements.
+- Do not duplicate the infrastructure drift gate outside the selected reusable deploy path; Golden validation should run once per deploy path, not once in the router and again in the callee.
+- Queue-skipping should happen before expensive deploy work so stale development runs fail fast without paying the full validation cost.
+
 ### Release automation (post-deploy only)
 
 - `.github/workflows/release.yml` is a **post-production-deploy** step. It may compute semantic versions, changelog notes, and GitHub Releases only after the Golden deploy path has already succeeded.
