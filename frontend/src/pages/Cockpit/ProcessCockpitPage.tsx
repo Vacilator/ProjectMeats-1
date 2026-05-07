@@ -22,8 +22,6 @@ import {
   ClipboardList,
   Search,
   RefreshCw,
-  Clock,
-  Filter,
   Zap,
   Activity,
   ChevronRight,

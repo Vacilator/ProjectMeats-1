@@ -73,16 +73,17 @@ describe('ProcessCockpitPage', () => {
     );
   };
 
-  it('honors the interventions tab deep-link and shows the badge count', async () => {
+  it('honors the interventions view deep-link and shows the badge count', async () => {
     renderPage();
 
     expect(await screen.findByTestId('interventions-panel')).toBeInTheDocument();
+    const interventionsButton = screen.getByRole('button', { name: /Interventions/i });
     await waitFor(() => {
-      expect(screen.getByText('3')).toBeInTheDocument();
+      expect(interventionsButton).toHaveTextContent('3');
     });
   });
 
-  it('updates the query-string when switching tabs', async () => {
+  it('updates the query-string when switching views', async () => {
     renderPage('/process-cockpit?view=interventions&draft=draft-42');
     const user = userEvent.setup();
 
