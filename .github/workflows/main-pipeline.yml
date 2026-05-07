@@ -189,3 +189,19 @@ jobs:
       api_base_url: 'https://meatscentral.com'
       deploy_by_digest: true
       require_redis_readiness: true
+
+  create-release:
+    name: "Create GitHub Release"
+    if: |
+      needs.check-latest.outputs.should_deploy == 'true' &&
+      ((github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'production'))
+    needs: [check-latest, deploy-prod]
+    permissions:
+      contents: write
+    uses: ./.github/workflows/release.yml
+    secrets: inherit
+    with:
+      preview_only: false
+      source_sha: ${{ github.sha }}
+      source_ref: ${{ github.ref }}

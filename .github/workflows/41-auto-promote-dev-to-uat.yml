@@ -12,6 +12,22 @@ permissions:
   pull-requests: write
 
 jobs:
+  release-preview:
+    name: Preview next semantic release
+    if: >-
+      ${{
+        github.event.workflow_run.conclusion == 'success' &&
+        github.event.workflow_run.head_branch == 'development'
+      }}
+    permissions:
+      contents: read
+    uses: ./.github/workflows/release.yml
+    secrets: inherit
+    with:
+      preview_only: true
+      source_sha: ${{ github.event.workflow_run.head_sha }}
+      source_ref: ${{ format('refs/heads/{0}', github.event.workflow_run.head_branch) }}
+
   create-pr:
     name: Create PR development → uat
     if: >-
@@ -19,6 +35,7 @@ jobs:
         github.event.workflow_run.conclusion == 'success' &&
         github.event.workflow_run.head_branch == 'development'
       }}
+    needs: [release-preview]
     runs-on: ubuntu-latest
 
     steps:
@@ -38,15 +55,35 @@ jobs:
 
           sha="${{ github.event.workflow_run.head_sha }}"
           msg="${{ github.event.workflow_run.head_commit.message }}"
+          release_tag="${{ needs.release-preview.outputs.release_tag }}"
+          release_summary=$(cat <<'EOF'
+          ${{ needs.release-preview.outputs.release_summary }}
+          EOF
+          )
 
           title="🚀 Promote development → uat (${sha:0:7})"
           if [ -n "${msg}" ]; then
             title="🚀 Promote development → uat - ${msg}"
           fi
 
+          body=$(cat <<EOF
+          Automated promotion PR created after successful development deployment.
+
+          - Source: development
+          - Target: uat
+          - Commit: $sha
+          - Release preview: ${release_tag}
+
+          Preview changelog:
+          ${release_summary}
+
+          This PR does not bypass any gates; please review + merge when ready.
+          EOF
+          )
+
           gh pr create \
             --repo "$REPO" \
             --base uat \
             --head development \
             --title "$title" \
-            --body "Automated promotion PR created after successful development deployment.\n\n- Source: development\n- Target: uat\n- Commit: $sha\n\nThis PR does not bypass any gates; please review + merge when ready."
+            --body "$body"
