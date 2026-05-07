@@ -1309,3 +1309,109 @@ Packages 12+13+14 verified ──▶ Package 15 (RT-10.1 + RT-10.2)
   - **Risk level:** Medium
   - **Rollback:** Disable reconciliation job; financial fields still update via events.
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
+
+---
+
+## Phase 20: UI/UX — Stupidly Simple & Powerful
+
+- [ ] **UX-20.1 dashboard-simplification-and-4-widget-cap**
+  - **Status:** Ready
+  - **Why now:** All runtime backlog (55 tickets) shipped. User feedback: dashboard is cluttered. Reduce to ≤4 core sections for maximum clarity.
+  - **Scope:** Audit current dashboard, remove/consolidate widgets to ≤4, implement spacious card-based layout with generous whitespace. Sections: AI Inbox, Live Activity, Quick Actions, Recent History.
+  - **Primary domain:** frontend
+  - **Dependencies:** None
+  - **Blockers:** None
+  - **Acceptance criteria:** Dashboard renders ≤4 top-level sections; no functionality lost (moved to sub-pages); Lighthouse performance score ≥90; zero TypeScript errors.
+  - **Validation commands:** `cd frontend && npx tsc --noEmit && npm run test -- --passWithNoTests`
+  - **Tenant/RLS impact:** None
+  - **Risk level:** Low
+  - **Rollback:** Revert to previous dashboard layout.
+  - **Completion evidence destination:** `.github/MASTER_PLAN.md`
+
+- [ ] **UX-20.2 universal-ctrl-k-command-palette**
+  - **Status:** Blocked
+  - **Why now:** Keyboard-first navigation is the #1 UX gap. Ctrl+K should be the primary way to navigate, search entities, and trigger actions.
+  - **Scope:** Enhance existing CommandPalette with: global entity search (customers, suppliers, orders, contacts), recent items, quick actions (create order, send RFQ), and fuzzy matching.
+  - **Primary domain:** frontend
+  - **Dependencies:** UX-20.1
+  - **Blockers:** UX-20.1
+  - **Acceptance criteria:** Ctrl+K opens palette from any page; search returns entities within 200ms; top 5 recent items shown by default; keyboard navigation (arrows + enter) works throughout.
+  - **Validation commands:** `cd frontend && npx tsc --noEmit && npm run test -- --passWithNoTests`
+  - **Tenant/RLS impact:** None (frontend-only, uses existing API)
+  - **Risk level:** Low
+  - **Rollback:** Hide palette behind feature flag.
+  - **Completion evidence destination:** `.github/MASTER_PLAN.md`
+
+- [ ] **UX-20.3 keyboard-shortcuts-and-documentation**
+  - **Status:** Blocked
+  - **Why now:** Power users need one-keystroke actions. Document all shortcuts in docs/SHORTCUTS.md.
+  - **Scope:** Add keyboard shortcuts for: navigation (g+d = dashboard, g+i = inbox, g+c = cockpit), actions (n = new, e = edit, Esc = close), and table operations (j/k = up/down, Enter = open). Create docs/SHORTCUTS.md.
+  - **Primary domain:** frontend
+  - **Dependencies:** UX-20.2
+  - **Blockers:** UX-20.2
+  - **Acceptance criteria:** All shortcuts work without conflicts; docs/SHORTCUTS.md created; "?" key shows shortcut overlay.
+  - **Validation commands:** `cd frontend && npx tsc --noEmit && npm run test -- --passWithNoTests`
+  - **Tenant/RLS impact:** None
+  - **Risk level:** Low
+  - **Rollback:** Remove shortcut bindings.
+  - **Completion evidence destination:** `.github/MASTER_PLAN.md`
+
+## Phase 21: Full End-to-End Automation (Email → Fulfillment)
+
+- [ ] **AUTO-21.1 celery-auto-pipeline-email-to-fulfillment**
+  - **Status:** Blocked
+  - **Why now:** Close the final 5% human gaps. Auto-create PO → confirm with supplier → update inventory → generate SO → trigger fulfillment → generate invoice.
+  - **Scope:** New Celery task chain: auto_process_approved_email → create_purchase_order → await_supplier_confirmation → update_inventory → generate_sales_order → trigger_fulfillment → generate_invoice. Each step emits telemetry events.
+  - **Primary domain:** backend/celery
+  - **Dependencies:** UX-20.1 (cockpit must be simplified first for monitoring)
+  - **Blockers:** UX-20.1
+  - **Acceptance criteria:** End-to-end pipeline processes test email within 5 minutes; each step logged in ExecutionEventLog; human fallback triggered on <98% confidence; all steps idempotent.
+  - **Validation commands:** `cd backend && python manage.py test tenant_apps.workflows.tests.test_auto_pipeline --noinput`
+  - **Tenant/RLS impact:** High (creates records across multiple tenant models)
+  - **Risk level:** Medium
+  - **Rollback:** Disable Celery task; manual processing continues.
+  - **Completion evidence destination:** `.github/MASTER_PLAN.md`
+
+- [ ] **AUTO-21.2 confidence-scoring-dashboard**
+  - **Status:** Blocked
+  - **Why now:** Visibility into AI parsing quality. Show confidence scores per email, per field, with drill-down.
+  - **Scope:** New Cockpit panel showing: average confidence by day, lowest-confidence emails, field-level breakdown, trend chart. Filter by date range and entity type.
+  - **Primary domain:** frontend + backend API
+  - **Dependencies:** AUTO-21.1
+  - **Blockers:** AUTO-21.1
+  - **Acceptance criteria:** Dashboard loads within 2s; shows last 30 days by default; export to CSV; confidence threshold configurable per tenant.
+  - **Validation commands:** `cd frontend && npx tsc --noEmit && npm run test -- --passWithNoTests`
+  - **Tenant/RLS impact:** Medium (queries tenant-scoped AI feedback data)
+  - **Risk level:** Low
+  - **Rollback:** Hide dashboard tab.
+  - **Completion evidence destination:** `.github/MASTER_PLAN.md`
+
+## Phase 22: Repo + CI/CD + Golden Pipeline Perfection
+
+- [ ] **CICD-22.1 golden-files-full-audit-and-sync**
+  - **Status:** Blocked
+  - **Why now:** Ensure zero drift between golden files and actual state. Audit GOLDEN_FILES.md, env.manifest.json, and all golden docs.
+  - **Scope:** Run full audit against manifests/GOLDEN_FILES.md. Fix any drift. Add CI check that fails on golden file drift. Update all golden docs with current status.
+  - **Primary domain:** CI/CD + docs
+  - **Dependencies:** AUTO-21.1 (automation must be stable before locking pipeline)
+  - **Blockers:** AUTO-21.1
+  - **Acceptance criteria:** `bash scripts/verify_golden_state.sh` passes; CI check added to PR validation; all golden docs reflect current state.
+  - **Validation commands:** `bash scripts/verify_golden_state.sh && bash .github/scripts/validate-workflows.sh`
+  - **Tenant/RLS impact:** None
+  - **Risk level:** Low
+  - **Rollback:** Remove CI check.
+  - **Completion evidence destination:** `.github/MASTER_PLAN.md`
+
+- [ ] **CICD-22.2 archive-non-canonical-files**
+  - **Status:** Blocked
+  - **Why now:** Clean repo of stale/duplicate documentation. Move non-canonical files to .archive/.
+  - **Scope:** Identify files that duplicate or contradict canonical sources. Move to archived/ with git history preserved. Update any references.
+  - **Primary domain:** docs
+  - **Dependencies:** CICD-22.1
+  - **Blockers:** CICD-22.1
+  - **Acceptance criteria:** No duplicate documentation outside archived/; all references updated; repo passes lint checks.
+  - **Validation commands:** `git status && bash scripts/verify_golden_state.sh`
+  - **Tenant/RLS impact:** None
+  - **Risk level:** Low
+  - **Rollback:** Restore from archived/.
+  - **Completion evidence destination:** `.github/MASTER_PLAN.md`

@@ -2,7 +2,7 @@
 
 **Status**: 🔄 Living document (canonical source of truth)  
 **Last Updated**: 2026-05-07  
-**Primary Focus**: Phase 19 execution now advances to `AMB-03.1 product-anomaly-baseline-service-and-threshold-contract` after the ambient contextual suggestion and header-integration lanes shipped on `development`
+**Primary Focus**: Industry Leader State execution — all Phase 12-19 backlog items shipped; advancing to zero-touch SaaS excellence across 3 new phases.
 
 This file is the **canonical plan + current truth snapshot**.
 - **PR execution log (append-only):** `.github/MASTER_PLAN.md`
@@ -10,11 +10,69 @@ This file is the **canonical plan + current truth snapshot**.
 
 ---
 
-## Current Execution Snapshot (as of 2026-05-07)
+## Industry Leader State — Zero-Touch SaaS Excellence
+
+**Core Vision**
+Meats Central is the simplest, most powerful end-to-end meat supply-chain platform on earth.
+- Email → Order → Fulfillment with 95%+ zero human touch.
+- User-facing: Minimalist cockpit (search-first, keyboard-driven, ≤4 widgets). Less is best.
+- Internal: Pristine repo, immutable golden pipeline, daily zero-downtime releases.
+
+**Current Strengths**
+- Mature Django + React + React Native multi-tenant stack (55 EPIC tickets shipped).
+- AI inbox, email ingestion, Cockpit, activity feeds, supplier POs, autonomous shield live.
+- MASTER_PLAN.md, GOLDEN_PIPELINE.md, MIGRATION_STANDARDS.md, and manifests/env.manifest.json as single sources of truth.
+- CI/CD: DRY composite actions, skip-redundant-dev-tests, immutable SHA-tagged deploys.
+- Full Core Trading Engine: inquiry → supplier RFQ → PO → SO → carrier → fulfillment → invoice (all shipped).
+
+**Identified Gaps & Prioritized Improvements**
+1. **End-to-End Automation** — Close final 5% human gaps in email → PO/SO → fulfillment → invoice.
+2. **UI/UX Minimalism** — Universal Ctrl+K search, one-keystroke actions, AI suggestion chips.
+3. **Mobile & Tenant Parity** — Full React Native feature match.
+4. **Repo & CI/CD Hygiene** — Zero drift, immutable images, secret scanning.
+5. **Golden Pipeline Hardening** — Additive-only migrations, instant UAT→prod.
+6. **Analytics & AI Precision** — Real-time 99%+ confidence scoring.
+
+### Phase 20: UI/UX — Stupidly Simple & Powerful (User-Facing First)
+- Reduce dashboard to ≤4 core sections.
+- Universal search (Ctrl+K) as primary navigation.
+- Keyboard shortcuts for every action (document in `docs/SHORTCUTS.md`).
+- Beautiful public demo view, no 401s for guests.
+- React 19 + TypeScript strict, zero console warnings.
+- AI-suggested next-action floating chips.
+- Run full Playwright E2E after changes.
+
+### Phase 21: Full End-to-End Automation (Email → Fulfillment)
+- Extend AI inbox + email ingestion to 95%+ zero-touch.
+- New Celery tasks: auto-PO → supplier confirm → inventory → SO → fulfillment → invoice.
+- Confidence scoring dashboard.
+- Human fallback only on <98% confidence.
+- Additive-only migrations per MIGRATION_STANDARDS.md.
+- End-to-end tests with sample emails in dev.
+
+### Phase 22: Repo + CI/CD + Golden Pipeline Perfection
+- Full audit against GOLDEN_FILES.md and env.manifest.json.
+- Immutable Docker images + bastion tunnels in all workflows.
+- Enforce .sync-marker and verify-phase scripts on every merge.
+- Secret scanning + pre-commit hooks.
+- Clean non-canonical files to .archive/.
+- Update all golden docs with current status.
+
+**Acceptance Criteria for All Phases**
+- Every change passes golden-state verification scripts.
+- No breaking migrations.
+- UI remains ≤4 widgets, keyboard-first.
+- Automation reaches 95%+ zero-touch.
+- Commit messages follow golden format.
+- After each phase: merge to development → promote to UAT via golden pipeline.
+
+--- (as of 2026-05-07)
 
 ### What is true right now
-- **WorkForms E2E** is shipped end-to-end (execute + monitoring + notifications + Quick Actions + Gmail connector MVP).
-- **Primary execution focus (P0):** continue from the top of `.github/EPIC_TICKETS.md` with `AMB-03.1 product-anomaly-baseline-service-and-threshold-contract`, now that the Phase 19 contextual suggestion contract/service and record-page ambient suggestion header lanes are shipped on `development`.
+- **All Phase 12-19 backlog items (55 EPIC tickets) are shipped.** The full execution queue from enterprise hardening through ambient AI is complete on `development`.
+- **CI/CD pipeline optimized:** DRY composite actions (.github/actions/), nginx template extraction, dev-deploy skip-tests optimization shipped in PRs #5011-#5015. Pipeline fully green (Run #2703).
+- **Industry Leader State vision active:** Phases 20-22 added to MASTER_PLAN.md and EPIC_TICKETS.md — UI/UX minimalism, end-to-end automation, and golden pipeline perfection.
+- **Primary execution focus (P0):** `UX-20.1 dashboard-simplification-and-4-widget-cap` — the first ticket in the new Phase 20 UI/UX lane.
 - **Strategic enterprise audit is now complete:** the repo has a fresh baseline in `GAP_ANALYSIS_REPORT.md`, `STRATEGIC_BLUEPRINT.md`, `.github/TECH_DEBT_REGISTER.md`, `.github/SDLC_PROTOCOLS.md`, and `.github/EPIC_TICKETS.md`. Those files translate the current gap analysis into execution-ordered, machine-readable work without replacing this canonical plan.
 - **Phase 14 execution is sealed:** the full GA / UX stabilization lane is now shipped on `development` across `GA-01` ETL (PRs #4813, #4814, #4816, #4817), `GA-02` infrastructure + DR guardrails (PRs #4818-#4821), `GA-03` governance (PRs #4822, #4823, #4832, #4842), `Phase 14.5 / UI-01` stabilization (PRs #4836, #4838, #4840), `GA-04` onboarding (PRs #4844, #4846, #4848, #4850), and `GA-05` edge resilience (PRs #4852, #4854, #4856, #4858). Phase 12 has now restarted with `EH-01.1 drift-gate-depth` shipped in PR #4863, the previously merged `EH-01.2 manifest-required-secret-parity` work revalidated from PRs #4751/#4764, the already-merged `EH-01.3 pr-security-gates-and-dependabot-scope` hardening revalidated from PR #4766, `EH-01.4 rollback-release-automation-alignment` revalidated as already shipped via PR #4769, `EH-02.1 fail-closed-tenant-rls-runtime` revalidated as already shipped via PR #4771, `EH-02.2 platform-idempotency-keys` revalidated as already shipped via PRs #4773/#4776, `EH-02.3 chat-session-tenant-fk-rls` shipped in PR #4871, `EH-03.1 openapi-ai-and-high-churn-surface-coverage` revalidated as already shipped via PR #4775, `EH-03.2 openapi-ts-mobile-typegen` revalidated as already shipped via PRs #4777 and #4562, `EH-04.1 tenant-aware-query-keys-and-cache-clear-removal` shipped in PR #4874, `EH-04.2 search-contract-unification` shipped in PR #4876, and `EH-04.3 floweditor-decomposition-phase-1` shipped in PR #4878, promoting `EH-05.1 non-dev-redis-readiness-gate` as the next ready hardening item.
 - **Phase 15 execution is sealed:** the full `B2B-02` trade-engine rollout (`B2B-02.1` through `B2B-02.4`), the full `B2B-01` guest-portal lane (`B2B-01.1` through `B2B-01.5`), and the full `B2B-03` settlement lane (`B2B-03.1` through `B2B-03.5`) are now shipped on `development`, and the deploy-recovery / pipeline-stabilization follow-ups landed separately in PRs #4918, #4919, #4920, and #4921.
@@ -87,11 +145,11 @@ This file is the **canonical plan + current truth snapshot**.
   - AI email/document hardening: bridge Outlook attachments into `AIDocument`, preflight attachment metadata, persist provenance + same-session dedupe, hard-bind AI sessions/messages/uploads to `request.tenant`, enforce a session-scoped attachment allowlist before ingest, and normalize `parse_document` lifecycle/error handling for operator-visible status metadata (PRs #4733–#4739).
 
 ### P0 priorities (next)
-- **Phase 12 - Enterprise Hardening & Tech Debt Eradication (active execution lane)**
-  - **Next ready ticket:** `EH-05.1 non-dev-redis-readiness-gate`
-  - **Why now:** the first FlowEditor extraction seam is in place, so the next highest-risk platform gap is non-dev runtime safety still allowing Redis/channel fallbacks that undermine the production lock/cache contract.
-  - **Near-term execution ordering:** `EH-05.1`, then continue through the remaining ready `EH-05.*` and `EH-06.*` foundations in backlog order.
-  - **Definition of ready:** `.github/EPIC_TICKETS.md` exposes exactly one first unchecked `Ready` ticket (`EH-05.1`) and keeps later hardening / planning tickets blocked or queued behind it.
+- **Phase 20 — UI/UX Stupidly Simple & Powerful (active execution lane)**
+  - **Next ready ticket:** `UX-20.1 dashboard-simplification-and-4-widget-cap`
+  - **Why now:** All runtime and infrastructure backlog is complete. The biggest remaining impact is user-facing simplicity — reducing cognitive load and making the platform keyboard-first.
+  - **Near-term execution ordering:** `UX-20.1` → `UX-20.2` → `UX-20.3`, then advance to Phase 21 automation.
+  - **Definition of ready:** `.github/EPIC_TICKETS.md` exposes `UX-20.1` as the first unchecked `Ready` ticket.
 
 - **Core API reliability**: ✅ shipped (PR #4652). Next: expand smoke coverage for always-on endpoints (health, tenant resolution, auth bootstrap) and keep them in PR gates.
 
