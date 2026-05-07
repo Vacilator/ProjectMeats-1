@@ -14,6 +14,7 @@ This directory contains the live GitHub Actions entrypoints for ProjectMeats. Fo
 - `.github/workflows/main-pipeline.yml`
   - Push/manual deploy entrypoint for `development`, `uat`, and `main`
   - Routes to `.github/workflows/reusable-deploy.yml`
+  - Calls `.github/workflows/release.yml` after successful production deploys
 - `.github/workflows/reusable-deploy.yml`
   - Shared deploy implementation for backend/frontend swimlanes, runner-driven migrations, SHA-tagged images, and post-deploy validation
 - `.github/workflows/reusable-postdeploy-smoke.yml`
@@ -22,8 +23,14 @@ This directory contains the live GitHub Actions entrypoints for ProjectMeats. Fo
 ### Promotion and maintenance
 - `.github/workflows/41-auto-promote-dev-to-uat.yml`
   - Creates PRs from `development` -> `uat` after successful dev deployment
+  - Calls `.github/workflows/release.yml` in preview mode so promotion PRs show the next semantic version + changelog
 - `.github/workflows/42-auto-promote-uat-to-main.yml`
   - Creates PRs from `uat` -> `main` after successful UAT deployment
+  - Calls `.github/workflows/release.yml` in preview mode so promotion PRs show the upcoming production release
+- `.github/workflows/release.yml`
+  - Reusable/manual semantic release workflow for version planning, changelog generation, GitHub Release publication, and immutable artifact manifests
+- `.github/workflows/43-release-rollback.yml`
+  - Manual production rollback helper that redeploys the immutable backend/frontend digests attached to a published GitHub Release
 - `.github/workflows/nightly-drift-gate.yml`
   - Nightly replay of the Golden drift checks
 - `.github/workflows/secrets-audit.yml`
@@ -62,6 +69,7 @@ main push
   -> .github/workflows/ai-pr-reviewer.yml (on PRs to development/main)
   -> .github/workflows/main-pipeline.yml
      -> .github/workflows/reusable-deploy.yml (production lane)
+     -> .github/workflows/release.yml (post-deploy semantic release)
 ```
 
 ## Branches and environments
@@ -75,21 +83,9 @@ main push
 1. **PR Validation is the quality gate** before merges.
 2. **Main Pipeline is the deploy orchestrator**; it is not split into legacy `11/12/13` workflow files.
 3. **Auto-promotion creates PRs only**; it does not bypass required reviews or status checks.
-4. **Secrets are manifest-defined** in `manifests/env.manifest.json`.
-5. **Golden drift checks must stay green** for PRs and deploys.
-6. **Release governance is explicit**: production deploys still flow from `main`, and GitHub Releases are created manually until a dedicated release workflow exists.
-
-## Release and rollback governance
-
-- There is **no standalone release workflow** today; production release boundaries are still the successful deploys triggered from `main`.
-- If a GitHub Release is needed, create it manually from the deployed commit SHA:
-
-```bash
-gh release create <tag> --target <deployed-sha> --generate-notes
-```
-
-- Auto-promotion workflows create reviewable PRs only; they do not create tags or releases.
-- Operational rollback uses `.github/scripts/deployment-rollback.sh` for development/tag-retained hosts, while UAT/Production use the previous successful deploy digest refs from GitHub Actions logs.
+4. **Release automation is post-deploy only**; it must not reorder Golden build/test/migrate/deploy execution.
+5. **Secrets are manifest-defined** in `manifests/env.manifest.json`.
+6. **Golden drift checks must stay green** for PRs and deploys.
 
 ## Related docs
 

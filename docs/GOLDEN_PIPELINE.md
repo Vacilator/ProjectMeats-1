@@ -84,6 +84,26 @@ python config/manage_env.py audit
 7. Deploy frontend (docker run)
 8. Post-deploy health checks
 
+### Release automation (post-deploy only)
+
+- `.github/workflows/release.yml` is a **post-production-deploy** step. It may compute semantic versions, changelog notes, and GitHub Releases only after the Golden deploy path has already succeeded.
+- Semantic versioning is derived from conventional commits since the previous semantic tag:
+  - `BREAKING CHANGE` / `!` → major
+  - `feat:` → minor
+  - everything else → patch
+- Each published GitHub Release must attach an immutable artifact manifest containing:
+  - backend image tag `production-${github.sha}`
+  - frontend image tag `production-${github.sha}`
+  - the resolved DOCR digest refs for both images
+  - the source SHA and previous semantic tag
+- Auto-promotion workflows may call the release workflow in **preview mode only** to enrich promotion PRs. Preview mode must never create tags, releases, or deployment side effects.
+- `.github/workflows/43-release-rollback.yml` is the manual rollback helper. It consumes the attached release manifest, redeploys the recorded digests, and then reruns the direct-to-container smoke checks.
+- Guardrails:
+  - ✅ keep the existing Golden build/test/migrate/deploy ordering untouched
+  - ✅ keep SHA-tagged images and optional deploy-by-digest behavior unchanged
+  - ❌ never run migrations during release publication
+  - ❌ never run migrations during rollback
+
 ### Migrations (idempotent)
 
 Use standard Django migrations:
@@ -125,6 +145,17 @@ gh workflow run "🎮 Ops - Run Management Command" \
   --repo Meats-Central/ProjectMeats \
   -f environment=dev \
   -f command=audit_rls_compliance
+
+# Preview or publish a semantic release manually
+gh workflow run "📦 Release Automation" \
+  --repo Meats-Central/ProjectMeats \
+  -f preview_only=true \
+  -f source_ref=refs/heads/main
+
+# Roll back production by immutable release manifest
+gh workflow run "↩ Roll Back Production Release (By Digest)" \
+  --repo Meats-Central/ProjectMeats \
+  -f release_tag=v1.2.3
 ```
 
 ## Rollback and release governance

@@ -1,0 +1,439 @@
+name: "📦 Release Automation"
+
+on:
+  workflow_call:
+    inputs:
+      preview_only:
+        description: "If true, compute the next semantic version + changelog without creating a GitHub Release."
+        required: false
+        type: boolean
+        default: false
+      source_sha:
+        description: "Commit SHA to release or preview. Defaults to the caller SHA."
+        required: false
+        type: string
+        default: ""
+      source_ref:
+        description: "Git ref to check out before computing release metadata."
+        required: false
+        type: string
+        default: ""
+      force_version:
+        description: "Optional manual override for the semantic version tag (for example v1.2.3)."
+        required: false
+        type: string
+        default: ""
+    outputs:
+      release_tag:
+        description: "Resolved semantic version tag."
+        value: ${{ jobs.plan-release.outputs.release_tag }}
+      release_name:
+        description: "Resolved GitHub Release title."
+        value: ${{ jobs.plan-release.outputs.release_name }}
+      next_version:
+        description: "Resolved semantic version without the leading v."
+        value: ${{ jobs.plan-release.outputs.next_version }}
+      previous_tag:
+        description: "Previous semantic version tag, if one exists."
+        value: ${{ jobs.plan-release.outputs.previous_tag }}
+      release_summary:
+        description: "Markdown summary generated from conventional commits."
+        value: ${{ jobs.plan-release.outputs.release_summary }}
+      source_sha:
+        description: "Resolved source SHA used for the release plan."
+        value: ${{ jobs.plan-release.outputs.source_sha }}
+      has_release:
+        description: "Whether a GitHub Release already exists for the resolved semantic version tag."
+        value: ${{ jobs.plan-release.outputs.has_release }}
+  workflow_dispatch:
+    inputs:
+      preview_only:
+        description: "Preview semantic version + changelog only"
+        required: false
+        type: boolean
+        default: false
+      source_sha:
+        description: "Optional commit SHA to preview/publish"
+        required: false
+        type: string
+        default: ""
+      source_ref:
+        description: "Optional git ref to check out (defaults to main)"
+        required: false
+        type: string
+        default: "refs/heads/main"
+      force_version:
+        description: "Optional semantic version override (for example v1.2.3)"
+        required: false
+        type: string
+        default: ""
+
+concurrency:
+  group: release-${{ inputs.source_sha || github.sha }}-${{ inputs.preview_only || github.event.inputs.preview_only || false }}
+  cancel-in-progress: false
+
+jobs:
+  plan-release:
+    name: "Plan semantic release"
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      release_tag: ${{ steps.plan.outputs.release_tag }}
+      release_name: ${{ steps.plan.outputs.release_name }}
+      next_version: ${{ steps.plan.outputs.next_version }}
+      previous_tag: ${{ steps.plan.outputs.previous_tag }}
+      release_summary: ${{ steps.plan.outputs.release_summary }}
+      source_sha: ${{ steps.plan.outputs.source_sha }}
+      has_release: ${{ steps.release_state.outputs.has_release }}
+    steps:
+      - name: Checkout release source
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          fetch-depth: 0
+          ref: ${{ inputs.source_ref != '' && inputs.source_ref || github.event.inputs.source_ref != '' && github.event.inputs.source_ref || github.ref }}
+
+      - name: Fetch tags
+        run: git fetch --force --tags origin
+
+      - name: Resolve semantic version + changelog
+        id: plan
+        env:
+          TARGET_SHA: ${{ inputs.source_sha != '' && inputs.source_sha || github.event.inputs.source_sha != '' && github.event.inputs.source_sha || github.sha }}
+          FORCE_VERSION: ${{ inputs.force_version != '' && inputs.force_version || github.event.inputs.force_version != '' && github.event.inputs.force_version || '' }}
+        run: |
+          python <<'PY'
+          import os
+          import re
+          import subprocess
+          from collections import OrderedDict
+
+          SEMVER_PATTERN = re.compile(r"^v(\d+)\.(\d+)\.(\d+)$")
+          CONVENTIONAL_PATTERN = re.compile(
+              r"^(?P<type>[A-Za-z][A-Za-z0-9_-]*)(?:\((?P<scope>[^)]+)\))?(?P<breaking>!)?: (?P<description>.+)$"
+          )
+
+          def git_output(*args: str) -> str:
+              return subprocess.check_output(["git", *args], text=True).strip()
+
+          def git_lines(*args: str) -> list[str]:
+              output = git_output(*args)
+              return [line.strip() for line in output.splitlines() if line.strip()]
+
+          def parse_semver(tag: str) -> tuple[int, int, int]:
+              match = SEMVER_PATTERN.match(tag)
+              if not match:
+                  raise ValueError(f"Invalid semver tag: {tag}")
+              return tuple(int(part) for part in match.groups())
+
+          def bump_version(current: tuple[int, int, int], bump: str) -> tuple[int, int, int]:
+              major, minor, patch = current
+              if bump == "major":
+                  return (major + 1, 0, 0)
+              if bump == "minor":
+                  return (major, minor + 1, 0)
+              return (major, minor, patch + 1)
+
+          def write_output(name: str, value: str) -> None:
+              output_path = os.environ["GITHUB_OUTPUT"]
+              with open(output_path, "a", encoding="utf-8") as handle:
+                  handle.write(f"{name}<<__VALUE__\n{value}\n__VALUE__\n")
+
+          target_sha = os.environ.get("TARGET_SHA", "").strip() or git_output("rev-parse", "HEAD")
+          force_version = os.environ.get("FORCE_VERSION", "").strip()
+
+          points_at_tags = [
+              tag for tag in git_lines("tag", "--points-at", target_sha) if SEMVER_PATTERN.match(tag)
+          ]
+          current_tag = sorted(points_at_tags, key=parse_semver, reverse=True)[0] if points_at_tags else ""
+
+          semver_tags = [
+              tag for tag in git_lines("tag", "--list", "v*", "--sort=-version:refname") if SEMVER_PATTERN.match(tag)
+          ]
+          if current_tag:
+              previous_tag = next((tag for tag in semver_tags if tag != current_tag), "")
+              release_tag = current_tag
+          elif force_version:
+              previous_tag = semver_tags[0] if semver_tags else ""
+              if not SEMVER_PATTERN.match(force_version):
+                  raise SystemExit(f"force_version must match vMAJOR.MINOR.PATCH; got: {force_version}")
+              release_tag = force_version
+          else:
+              previous_tag = semver_tags[0] if semver_tags else ""
+              base_version = parse_semver(previous_tag) if previous_tag else (0, 0, 0)
+              range_spec = f"{previous_tag}..{target_sha}" if previous_tag else target_sha
+              raw_log = subprocess.check_output(
+                  ["git", "log", "--no-merges", "--format=%H%x1f%s%x1f%b%x1e", range_spec],
+                  text=True,
+              )
+              bump_rank = 0
+              for chunk in raw_log.split("\x1e"):
+                  chunk = chunk.strip()
+                  if not chunk:
+                      continue
+                  parts = chunk.split("\x1f")
+                  if len(parts) < 3:
+                      continue
+                  commit_sha, subject, body = parts[0].strip(), parts[1].strip(), parts[2].strip()
+                  match = CONVENTIONAL_PATTERN.match(subject)
+                  commit_type = (match.group("type").lower() if match else "other")
+                  scope = match.group("scope").strip() if match and match.group("scope") else ""
+                  description = match.group("description").strip() if match else subject
+                  is_breaking = bool(match and match.group("breaking")) or "BREAKING CHANGE:" in body or "BREAKING-CHANGE:" in body
+                  if is_breaking:
+                      bump_rank = max(bump_rank, 3)
+                  elif commit_type == "feat":
+                      bump_rank = max(bump_rank, 2)
+                  else:
+                      bump_rank = max(bump_rank, 1)
+
+              if bump_rank == 0:
+                  bump_rank = 1
+              bump = {3: "major", 2: "minor"}.get(bump_rank, "patch")
+              release_tag = "v%d.%d.%d" % bump_version(base_version, bump)
+
+          range_spec = f"{previous_tag}..{target_sha}" if previous_tag else target_sha
+          raw_log = subprocess.check_output(
+              ["git", "log", "--no-merges", "--format=%H%x1f%s%x1f%b%x1e", range_spec],
+              text=True,
+          )
+
+          sections = OrderedDict(
+              [
+                  ("Features", []),
+                  ("Fixes", []),
+                  ("Performance", []),
+                  ("Refactors", []),
+                  ("Documentation", []),
+                  ("Tests", []),
+                  ("Build / CI", []),
+                  ("Chores", []),
+                  ("Reverts", []),
+                  ("Other Changes", []),
+              ]
+          )
+          type_to_section = {
+              "feat": "Features",
+              "fix": "Fixes",
+              "perf": "Performance",
+              "refactor": "Refactors",
+              "docs": "Documentation",
+              "test": "Tests",
+              "build": "Build / CI",
+              "ci": "Build / CI",
+              "chore": "Chores",
+              "revert": "Reverts",
+          }
+
+          total_entries = 0
+          truncated = False
+          for chunk in raw_log.split("\x1e"):
+              chunk = chunk.strip()
+              if not chunk:
+                  continue
+              parts = chunk.split("\x1f")
+              if len(parts) < 3:
+                  continue
+              commit_sha, subject, body = parts[0].strip(), parts[1].strip(), parts[2].strip()
+              match = CONVENTIONAL_PATTERN.match(subject)
+              commit_type = (match.group("type").lower() if match else "other")
+              scope = match.group("scope").strip() if match and match.group("scope") else ""
+              description = match.group("description").strip() if match else subject
+              is_breaking = bool(match and match.group("breaking")) or "BREAKING CHANGE:" in body or "BREAKING-CHANGE:" in body
+
+              section_name = type_to_section.get(commit_type, "Other Changes")
+              prefix = f"**{scope}:** " if scope else ""
+              breaking_prefix = "**BREAKING** " if is_breaking else ""
+              line = f"- {breaking_prefix}{prefix}{description} (`{commit_sha[:7]}`)"
+              if len(sections[section_name]) < 8:
+                  sections[section_name].append(line)
+              else:
+                  truncated = True
+              total_entries += 1
+
+          if total_entries == 0:
+              summary = "No conventional commits were detected for this release range."
+          else:
+              summary_parts = []
+              for heading, lines in sections.items():
+                  if not lines:
+                      continue
+                  summary_parts.append(f"### {heading}")
+                  summary_parts.extend(lines)
+                  summary_parts.append("")
+              if truncated:
+                  summary_parts.append("_Additional commits were omitted from this preview for brevity._")
+              summary = "\n".join(summary_parts).strip()
+
+          release_name = f"ProjectMeats {release_tag}"
+
+          write_output("release_tag", release_tag)
+          write_output("next_version", release_tag.removeprefix("v"))
+          write_output("release_name", release_name)
+          write_output("previous_tag", previous_tag)
+          write_output("release_summary", summary)
+          write_output("source_sha", target_sha)
+          PY
+
+      - name: Check for existing GitHub Release
+        id: release_state
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ steps.plan.outputs.release_tag }}
+        run: |
+          if gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "has_release=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_release=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  publish-release:
+    name: "Publish GitHub Release"
+    if: >-
+      ${{
+        (inputs.preview_only != true && github.event.inputs.preview_only != 'true')
+        && needs.plan-release.outputs.has_release != 'true'
+      }}
+    needs: [plan-release]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout release source
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          fetch-depth: 0
+          ref: ${{ needs.plan-release.outputs.source_sha }}
+
+      - name: Login to DigitalOcean Container Registry
+        uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121 # v4
+        with:
+          registry: registry.digitalocean.com
+          username: ${{ secrets.DO_ACCESS_TOKEN }}
+          password: ${{ secrets.DO_ACCESS_TOKEN }}
+
+      - name: Resolve immutable artifact digests
+        id: artifacts
+        env:
+          RELEASE_TAG: ${{ needs.plan-release.outputs.release_tag }}
+          RELEASE_NAME: ${{ needs.plan-release.outputs.release_name }}
+          RELEASE_SUMMARY: ${{ needs.plan-release.outputs.release_summary }}
+          PREVIOUS_TAG: ${{ needs.plan-release.outputs.previous_tag }}
+          SOURCE_SHA: ${{ needs.plan-release.outputs.source_sha }}
+        run: |
+          set -euo pipefail
+          mkdir -p .release
+
+          BACKEND_TAG="production-${SOURCE_SHA}"
+          FRONTEND_TAG="production-${SOURCE_SHA}"
+          BACKEND_IMAGE="registry.digitalocean.com/meatscentral/projectmeats-backend:${BACKEND_TAG}"
+          FRONTEND_IMAGE="registry.digitalocean.com/meatscentral/projectmeats-frontend:${FRONTEND_TAG}"
+
+          docker pull "$BACKEND_IMAGE"
+          docker pull "$FRONTEND_IMAGE"
+
+          BACKEND_DIGEST_REF="$(docker image inspect --format='{{index .RepoDigests 0}}' "$BACKEND_IMAGE")"
+          FRONTEND_DIGEST_REF="$(docker image inspect --format='{{index .RepoDigests 0}}' "$FRONTEND_IMAGE")"
+          BACKEND_DIGEST="${BACKEND_DIGEST_REF##*@}"
+          FRONTEND_DIGEST="${FRONTEND_DIGEST_REF##*@}"
+
+          export RELEASE_TAG RELEASE_NAME RELEASE_SUMMARY PREVIOUS_TAG SOURCE_SHA
+          export BACKEND_TAG FRONTEND_TAG BACKEND_IMAGE FRONTEND_IMAGE BACKEND_DIGEST_REF FRONTEND_DIGEST_REF BACKEND_DIGEST FRONTEND_DIGEST
+
+          python <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          release_tag = os.environ["RELEASE_TAG"]
+          release_name = os.environ["RELEASE_NAME"]
+          release_summary = os.environ["RELEASE_SUMMARY"].strip()
+          previous_tag = os.environ.get("PREVIOUS_TAG", "").strip()
+          source_sha = os.environ["SOURCE_SHA"]
+
+          manifest = {
+              "release_tag": release_tag,
+              "release_name": release_name,
+              "source_sha": source_sha,
+              "previous_tag": previous_tag,
+              "generated_at": __import__("datetime").datetime.now(__import__("datetime").timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z"),
+              "artifacts": {
+                  "production": {
+                      "backend": {
+                          "tag": os.environ["BACKEND_TAG"],
+                          "tag_ref": os.environ["BACKEND_IMAGE"],
+                          "digest": os.environ["BACKEND_DIGEST"],
+                          "digest_ref": os.environ["BACKEND_DIGEST_REF"],
+                      },
+                      "frontend": {
+                          "tag": os.environ["FRONTEND_TAG"],
+                          "tag_ref": os.environ["FRONTEND_IMAGE"],
+                          "digest": os.environ["FRONTEND_DIGEST"],
+                          "digest_ref": os.environ["FRONTEND_DIGEST_REF"],
+                      },
+                  }
+              },
+          }
+
+          Path(".release/release-manifest.json").write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+
+          notes = [
+              "## Changelog",
+              "",
+              release_summary or "No conventional commits were detected for this release range.",
+              "",
+              "## Immutable production artifacts",
+              "",
+              f"- Backend tag: `{os.environ['BACKEND_IMAGE']}`",
+              f"- Backend digest: `{os.environ['BACKEND_DIGEST_REF']}`",
+              f"- Frontend tag: `{os.environ['FRONTEND_IMAGE']}`",
+              f"- Frontend digest: `{os.environ['FRONTEND_DIGEST_REF']}`",
+              "",
+              "## Release metadata",
+              "",
+              f"- Source SHA: `{source_sha}`",
+              f"- Previous semantic tag: `{previous_tag or 'none'}`",
+              "- Rollback workflow: `.github/workflows/43-release-rollback.yml` (consumes the attached manifest)",
+          ]
+          Path(".release/release-notes.md").write_text("\n".join(notes).strip() + "\n", encoding="utf-8")
+          PY
+
+          {
+            echo "backend_digest_ref=${BACKEND_DIGEST_REF}"
+            echo "frontend_digest_ref=${FRONTEND_DIGEST_REF}"
+            echo "manifest_path=.release/release-manifest.json"
+            echo "notes_path=.release/release-notes.md"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Create GitHub Release
+        id: create_release
+        uses: actions/create-release@0cb9c9b65d5d1901c1f53e5e66eaf4afd303e70e # v1
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        with:
+          tag_name: ${{ needs.plan-release.outputs.release_tag }}
+          release_name: ${{ needs.plan-release.outputs.release_name }}
+          body_path: ${{ steps.artifacts.outputs.notes_path }}
+          draft: false
+          prerelease: false
+          commitish: ${{ needs.plan-release.outputs.source_sha }}
+
+      - name: Upload release manifest asset
+        uses: actions/upload-release-asset@e8f9f06c4b078e705bd2ea027f0926603fc9b4d5 # v1
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ${{ steps.artifacts.outputs.manifest_path }}
+          asset_name: ${{ needs.plan-release.outputs.release_tag }}-artifacts.json
+          asset_content_type: application/json
+
+      - name: Upload release notes asset
+        uses: actions/upload-release-asset@e8f9f06c4b078e705bd2ea027f0926603fc9b4d5 # v1
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ${{ steps.artifacts.outputs.notes_path }}
+          asset_name: ${{ needs.plan-release.outputs.release_tag }}-changelog.md
+          asset_content_type: text/markdown
