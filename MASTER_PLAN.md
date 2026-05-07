@@ -564,6 +564,95 @@ Deliver the production-grade process execution layer: a multi-trigger EndToEndIn
 - Template versioning allows side-by-side old/new
 - Editor changes isolated to new node type renderers (existing nodes unchanged)
 
+## Phase 18: Process Intelligence Scale & Self-Service Operations
+
+### Goal
+Build the intelligence, automation, and self-service layers on top of Phase 17's runtime foundation: intelligent notifications routed to the right contacts, configurable multi-level approval gates, financial visibility and invoice automation, trader analytics dashboards, and a self-service template library with safe variant creation.
+
+### Architecture status
+- **Execution status:** planned only, not started. Blocked by Phase 17 runtime (RT-01 through RT-04) shipping on `development`.
+- **Backlog placement:** appended to `.github/EPIC_TICKETS.md` after Phase 17 tickets.
+- **Execution order once unblocked:** RT-06 (notifications) → RT-07 (approvals) → RT-08 (financials) → RT-09 (analytics) → RT-10 (template library, gated on RT-06–09 verification on dev).
+
+### Epics
+
+#### RT-06: Intelligent Notifications & Global Quick Action Center
+- In-app + email notifications for every major EndToEndInquiryToPOProcess event (new bid, due date approaching, PO received, approval needed, etc.)
+- Persistent "Quick Actions" panel in Process Cockpit and entity detail pages (Approve Bid, Send RFQ, Generate SO, etc.)
+- Route notifications to correct person using Plant Contact Type + Responsibilities enrichment
+- User preference settings for notification frequency (realtime / daily digest / off)
+- **Deliverable:** Notification service + Quick Action Center component + preference API
+
+#### RT-07: Automated Multi-Level Approval Workflows
+- New `ApprovalGate` node type insertable into FormProcess or after BidSelection
+- Rule engine: margin threshold, credit limit, supplier risk score, order value
+- Pending approvals surface in Process Cockpit with React Flow visualization and one-click approve/reject
+- Integration with contact types so correct department (Accounting, QA, Procurement) is notified
+- Example gate inserted into EndToEndInquiryToPOProcess template
+- **Deliverable:** ApprovalGate node + rule engine + cockpit approval panel
+
+#### RT-08: Financials & Invoicing Automation Layer
+- Real-time calculated fields on SO/PO: Outstanding Amount, Margin %, Payment Status
+- Auto-generate and attach invoices/statements when final PO is received
+- "Financials" tab inside Process Cockpit (per-trade and aggregated views)
+- Leverage Plant Contact Type (Accounting department) for invoice routing
+- No schema changes to existing orders — computed fields + background Celery jobs
+- **Deliverable:** Financial computed service + invoice generator + Cockpit Financials tab
+
+#### RT-09: Trader Analytics & Performance Dashboard
+- New "Analytics" view in Process Cockpit: win-rate by supplier, average margin trend, process cycle time, top contacts
+- Filter by date range, trader, or specific Workform run
+- Export to CSV/PDF
+- Surface key metrics on main dashboard and per-entity React Flow header
+- Reuse existing telemetry events as data source
+- **Deliverable:** Analytics service + dashboard components + export endpoints
+
+#### RT-10: Workform Template Library & "Create Variant" Feature
+- "Template Library" page showing official EndToEndInquiryToPOProcess + safe variants
+- "Create New from Main Process" button: clones core template, restricts modifications to allowed branches
+- Editor validation prevents breaking the golden pipeline (locked nodes, required connections)
+- Version history and one-click publish for templates
+- **Execution gate:** only begins after RT-06–09 verified on `development`
+- **Deliverable:** Template Library page + variant system + version history + publish flow
+
+### Acceptance Criteria
+1. Every major process event triggers correct notification to the right contact within 60s
+2. Quick Actions panel shows context-appropriate actions on every entity page and in cockpit
+3. ApprovalGate node blocks process until authorized approver acts; timeout escalation works
+4. Financial calculated fields update within 5 minutes of PO/SO status change
+5. Analytics dashboard loads within 3s with up to 10k process records
+6. Template Library shows all published templates; "Create Variant" produces valid clone with restricted edit zones
+
+### Dependencies
+- Phase 17 RT-01 through RT-04 must ship first (runtime foundation)
+- RT-06 depends on existing telemetry events (shipped in RT-01) and email service (shipped)
+- RT-07 depends on RT-06 (notifications for approval routing)
+- RT-08 depends on RT-07 (approval gates trigger financial events)
+- RT-09 depends on existing telemetry + RT-06 events as data source
+- RT-10 is double-gated: requires RT-06–09 verified on dev
+
+### Risk Register
+| Risk | L×I | Mitigation |
+|------|-----|------------|
+| Notification spam overwhelms users | M×H | Frequency preferences + digest mode + smart batching |
+| Approval gate creates process bottlenecks | M×M | Timeout escalation + delegation rules + bypass for emergency |
+| Financial calculations drift from source | L×H | Background reconciliation job + audit trail + manual override flag |
+| Analytics query performance with large datasets | M×M | Pre-aggregated materialized views + date-range partitioning |
+| Template variant diverges from golden template | M×H | Locked nodes + required connections + validation on publish |
+
+### Testing Strategy
+- Unit: Notification routing logic, approval rule engine, financial calculations, analytics aggregation
+- Integration: End-to-end notification delivery, approval workflow complete cycle, invoice generation
+- E2E: Quick Action panel interactions, approval UI flow, analytics chart rendering, template clone + publish
+- Tenant safety: All notifications, approvals, financials, analytics scoped to executing tenant
+- Performance: Analytics dashboard with 10k+ records; notification delivery under 60s
+
+### Rollback Approach
+- All changes additive-only (no existing functionality removal)
+- Feature flags on notification delivery, approval gates, financial calculations, analytics
+- Template Library is a new route (existing editor unchanged)
+- Approval gates can be disabled per-template without removing the node type
+
 ## Phase 19: Ambient AI & Contextual Next-Best-Actions
 
 ### Goal
