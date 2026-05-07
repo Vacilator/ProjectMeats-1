@@ -20,6 +20,7 @@ from .views import (
     ChatBotAPIViewSet,
     ChatMessageViewSet,
     ChatSessionViewSet,
+    CockpitDraftFormViewSet,
     ExtractToSchemaAPIView,
     ContextualSuggestionsAPIView,
     PendingReviewResolveAPIView,
@@ -38,6 +39,7 @@ router.register(r'feedback', AIFeedbackViewSet, basename='ai-feedback')
 router.register(r'runs', AIRunViewSet, basename='ai-run')
 router.register(r'tasks', AITaskViewSet, basename='ai-task')
 router.register(r'approvals', AIApprovalViewSet, basename='ai-approval')
+router.register(r'cockpit-drafts', CockpitDraftFormViewSet, basename='cockpit-draft')
 
 # Legacy router resources (keep existing clients working)
 router.register(r'ai-sessions', ChatSessionViewSet, basename='ai-session')

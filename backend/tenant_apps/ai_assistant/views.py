@@ -1989,3 +1989,120 @@ class PendingReviewResolveAPIView(APIView):
             },
             status=status.HTTP_200_OK,
         )
+
+
+# ---------------------------------------------------------------------------
+# RT-02.4: Cockpit Draft Form ViewSet
+# ---------------------------------------------------------------------------
+
+
+class CockpitDraftFormViewSet(viewsets.ModelViewSet):
+    """CRUD for cockpit draft forms routed from AI Inbox.
+
+    Endpoints:
+    - POST /api/v1/ai-assistant/cockpit-drafts/ (create from feedback)
+    - GET /api/v1/ai-assistant/cockpit-drafts/ (list for tenant)
+    - GET /api/v1/ai-assistant/cockpit-drafts/{id}/ (retrieve)
+    - PATCH /api/v1/ai-assistant/cockpit-drafts/{id}/ (update form_data/status)
+    """
+
+    permission_classes = [IsAuthenticated]
+    lookup_field = 'pk'
+
+    def get_serializer_class(self):
+        from tenant_apps.ai_assistant.serializers import (
+            CockpitDraftCreateSerializer,
+            CockpitDraftFormSerializer,
+            CockpitDraftUpdateSerializer,
+        )
+
+        if self.action == 'create':
+            return CockpitDraftCreateSerializer
+        if self.action in ('partial_update', 'update'):
+            return CockpitDraftUpdateSerializer
+        return CockpitDraftFormSerializer
+
+    def get_queryset(self):
+        from tenant_apps.ai_assistant.models import CockpitDraftForm
+
+        tenant = getattr(self.request, 'tenant', None)
+        if not tenant:
+            return CockpitDraftForm.objects.none()
+        qs = CockpitDraftForm.objects.filter(tenant=tenant)
+
+        # Optional filters
+        form_type = self.request.query_params.get('form_type')
+        if form_type:
+            qs = qs.filter(form_type=form_type)
+        draft_status = self.request.query_params.get('status')
+        if draft_status:
+            qs = qs.filter(status=draft_status)
+
+        return qs.select_related('assigned_to', 'submitted_by')
+
+    def create(self, request, *args, **kwargs):
+        from tenant_apps.ai_assistant.models import AIFeedbackLog
+        from tenant_apps.ai_assistant.serializers import CockpitDraftCreateSerializer, CockpitDraftFormSerializer
+        from tenant_apps.ai_assistant.services.cockpit_routing import create_draft_from_feedback
+
+        serializer = CockpitDraftCreateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        tenant = getattr(request, 'tenant', None)
+        if not tenant:
+            return Response({'error': 'Tenant context missing'}, status=status.HTTP_400_BAD_REQUEST)
+
+        feedback_id = serializer.validated_data['feedback_id']
+        try:
+            feedback_row = AIFeedbackLog.objects.get(pk=feedback_id, tenant=tenant)
+        except AIFeedbackLog.DoesNotExist:
+            return Response({'error': f'Feedback item {feedback_id} not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        draft = create_draft_from_feedback(
+            tenant=tenant,
+            feedback_row=feedback_row,
+            user=request.user,
+        )
+
+        if serializer.validated_data.get('notes'):
+            draft.notes = serializer.validated_data['notes']
+            draft.save(update_fields=['notes', 'modified_on'])
+
+        out = CockpitDraftFormSerializer(draft)
+        return Response(out.data, status=status.HTTP_201_CREATED)
+
+    def partial_update(self, request, *args, **kwargs):
+        from tenant_apps.ai_assistant.models import CockpitDraftForm
+        from tenant_apps.ai_assistant.serializers import CockpitDraftFormSerializer, CockpitDraftUpdateSerializer
+        from tenant_apps.ai_assistant.services.cockpit_routing import update_draft_status
+
+        draft = self.get_object()
+        serializer = CockpitDraftUpdateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        # Update form_data if provided
+        if 'form_data' in serializer.validated_data:
+            draft.form_data = serializer.validated_data['form_data']
+            draft.save(update_fields=['form_data', 'modified_on'])
+
+        # Update notes if provided
+        if serializer.validated_data.get('notes'):
+            draft.notes = serializer.validated_data['notes']
+            draft.save(update_fields=['notes', 'modified_on'])
+
+        # Transition status if provided
+        new_status = serializer.validated_data.get('status')
+        if new_status:
+            try:
+                draft = update_draft_status(
+                    draft=draft,
+                    new_status=new_status,
+                    user=request.user,
+                    submitted_entity_type=serializer.validated_data.get('submitted_entity_type', ''),
+                    submitted_entity_id=serializer.validated_data.get('submitted_entity_id', ''),
+                )
+            except ValueError as e:
+                return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+        out = CockpitDraftFormSerializer(draft)
+        return Response(out.data, status=status.HTTP_200_OK)
