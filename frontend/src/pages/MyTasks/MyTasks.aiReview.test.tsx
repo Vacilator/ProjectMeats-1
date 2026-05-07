@@ -56,16 +56,16 @@ describe('MyTasks AI review queue', () => {
       {
         id: 'draft-1',
         document_id: 'doc-1',
-        document_type: 'purchase_order',
+        document_type: 'bill_of_lading',
         confidence_score: 0.44,
         precision_delta: 0,
         created_on: '2026-05-05T12:00:00Z',
         sender: 'dispatch@example.com',
         source_subject: 'Potential Purchase Order',
         source_summary: 'AI parsed a low-confidence purchase order draft.',
-        intent_label: 'Purchase Order',
-        review_entity_type: 'purchase_order',
-        original_extracted_data: { order_number: 'PO-1001' },
+        intent_label: 'Bill Of Lading',
+        review_entity_type: 'carrier-pos',
+        original_extracted_data: { bol_number: 'BOL-1001' },
       },
     ] as any);
   });
@@ -83,10 +83,49 @@ describe('MyTasks AI review queue', () => {
     expect(screen.getByRole('heading', { name: 'AI Review Queue' })).toBeInTheDocument();
 
     expect(await screen.findByText('dispatch@example.com')).toBeInTheDocument();
-    expect(screen.getByText('Purchase Order')).toBeInTheDocument();
+    expect(screen.getByText('Bill Of Lading')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Review & Save/i })).toBeInTheDocument();
     await waitFor(() => {
-      expect(screen.getByTestId('ai-draft-modal')).toHaveTextContent('draft-1:purchase_order');
+      expect(screen.getByTestId('ai-draft-modal')).toHaveTextContent('draft-1:carrier-pos');
     });
+  });
+
+  it('navigates purchase-order reviews to the dedicated review route', async () => {
+    mockListPendingReviews.mockResolvedValueOnce([
+      {
+        id: 'draft-po',
+        document_id: 'doc-po',
+        document_type: 'purchase_order',
+        confidence_score: 0.95,
+        precision_delta: 0,
+        created_on: '2026-05-05T12:00:00Z',
+        sender: 'quotes@example.com',
+        source_subject: 'Supplier quote',
+        source_summary: 'Supplier quote draft requires approval.',
+        intent_label: 'Purchase Order',
+        review_entity_type: 'purchase_order',
+        review_target_url: '/purchase-orders/44/review',
+        original_extracted_data: { order_number: 'PO-1001' },
+      },
+    ] as any);
+
+    render(
+      <MemoryRouter initialEntries={['/my-tasks?tab=ai-review']}>
+        <Routes>
+          <Route path="/my-tasks" element={<MyTasks />} />
+          <Route path="/purchase-orders/:id/review" element={<div>PO review route</div>} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByText('quotes@example.com')).toBeInTheDocument();
+    expect(screen.getByText('Purchase Order')).toBeInTheDocument();
+
+    await waitFor(async () => {
+      screen.getByRole('button', { name: /Review & Save/i }).click();
+    });
+
+    expect(await screen.findByText('PO review route')).toBeInTheDocument();
+    expect(screen.queryByTestId('ai-draft-modal')).not.toBeInTheDocument();
   });
 });

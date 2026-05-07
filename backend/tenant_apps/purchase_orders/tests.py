@@ -24,6 +24,12 @@ from tenant_apps.carriers.models import Carrier
 from tenant_apps.customers.models import Customer
 from apps.system.models import Product
 from tenant_apps.locations.models import Location
+from tenant_apps.inquiries.models import (
+    Inquiry,
+    InquiryEntityTypeChoices,
+    InquiryRouteDecisionChoices,
+    InquirySupplierRFQ,
+)
 from tenant_apps.sales_orders.models import SalesOrder
 from apps.tenants.models import Tenant, TenantUser
 from apps.core.models import (
@@ -310,6 +316,58 @@ class DocumentOperationsAPITests(APITestCase):
             pick_up_location=self.location,
             delivery_location=self.location,
         )
+        self.review_inquiry = Inquiry.objects.create(
+            tenant=self.tenant,
+            entity_type=InquiryEntityTypeChoices.CUSTOMER,
+            customer=self.customer,
+            route_decision=InquiryRouteDecisionChoices.BROKER,
+            requested_protein=ProteinTypeChoices.BEEF,
+            contact_name="Buyer Jane",
+            contact_email="buyer@example.com",
+            supplier_purchase_order=self.purchase_order,
+        )
+        self.review_rfq = InquirySupplierRFQ.objects.create(
+            tenant=self.tenant,
+            inquiry=self.review_inquiry,
+            supplier=self.supplier,
+            created_by=self.user,
+            recipient_email=self.supplier.email,
+            recipient_name=self.supplier.name,
+            subject="Quoted offer for inquiry",
+            status="sent",
+            provider_message_id=f"msg-{unique_id}",
+            provider_thread_id=f"thread-{unique_id}",
+        )
+        self.purchase_order.custom_data = {
+            "review_state": "pending_review",
+            "source_lineage": {
+                "inquiry_id": self.review_inquiry.id,
+                "inquiry_number": self.review_inquiry.inquiry_number,
+                "rfq_id": self.review_rfq.id,
+                "supplier_id": self.supplier.id,
+                "correlation_key": str(self.review_rfq.correlation_key),
+                "email_log_id": 321,
+                "email_message_id": f"msg-{unique_id}",
+                "email_thread_id": f"thread-{unique_id}",
+            },
+            "normalized_quote": {
+                "availability_status": "affirmative",
+                "offered_product_name": "Beef Trim Combo",
+                "quantity": 20000,
+                "uom": "LBS",
+                "price_per_unit": "2.45",
+                "lead_time_text": "2 business days",
+                "notes": "Packed fresh and ready to ship.",
+            },
+            "supplier_reply_parse": {
+                "parse_status": "parsed",
+                "correlation_status": "matched",
+                "correlation_method": "thread_id",
+                "confidence": 0.97,
+                "summary": "Supplier can cover the requested volume.",
+            },
+        }
+        self.purchase_order.save(update_fields=["custom_data"])
         self.sales_order = SalesOrder.objects.create(
             tenant=self.tenant,
             supplier=self.supplier,
@@ -344,6 +402,104 @@ class DocumentOperationsAPITests(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn("status", response.data)
+
+    def test_purchase_order_review_context_returns_curated_quote_lineage(self):
+        response = self.client.get(
+            f"/api/v1/purchase-orders/{self.purchase_order.id}/review-context/",
+            **self.tenant_header,
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertTrue(response.data["review_context_complete"])
+        self.assertEqual(response.data["review_state"], "pending_review")
+        self.assertEqual(response.data["purchase_order"]["id"], self.purchase_order.id)
+        self.assertEqual(response.data["inquiry"]["id"], self.review_inquiry.id)
+        self.assertEqual(response.data["rfq"]["id"], self.review_rfq.id)
+        self.assertEqual(response.data["source_lineage"]["rfq_id"], self.review_rfq.id)
+        self.assertEqual(response.data["normalized_quote"]["offered_product_name"], "Beef Trim Combo")
+        self.assertEqual(
+            response.data["supplier_reply_parse"]["summary"],
+            "Supplier can cover the requested volume.",
+        )
+        self.assertEqual(response.data["workflow"]["current_status"], "pending")
+        self.assertIn("pending_approval", response.data["workflow"]["allowed_transitions"])
+
+    def test_purchase_order_review_context_blocks_cross_tenant_access(self):
+        foreign_user = User.objects.create_user(
+            username=f"foreign-po-{uuid.uuid4().hex[:8]}",
+            email=f"foreign-po-{uuid.uuid4().hex[:8]}@example.com",
+            password="testpass123",
+        )
+        foreign_tenant = Tenant.objects.create(
+            name=f"Foreign Tenant {uuid.uuid4().hex[:8]}",
+            slug=f"foreign-tenant-{uuid.uuid4().hex[:8]}",
+            contact_email=f"foreign-{uuid.uuid4().hex[:8]}@example.com",
+            created_by=foreign_user,
+        )
+        TenantUser.objects.create(tenant=foreign_tenant, user=foreign_user, role="owner", is_active=True)
+        foreign_supplier = Supplier.objects.create(name="Foreign Supplier", tenant=foreign_tenant)
+        foreign_po = PurchaseOrder.objects.create(
+            tenant=foreign_tenant,
+            supplier=foreign_supplier,
+            order_number=f"PO-FOREIGN-{uuid.uuid4().hex[:8]}",
+            order_date=timezone.now().date(),
+            total_amount=Decimal("10.00"),
+            status="draft",
+        )
+
+        response = self.client.get(
+            f"/api/v1/purchase-orders/{foreign_po.id}/review-context/",
+            **self.tenant_header,
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_purchase_order_review_context_does_not_follow_poisoned_lineage(self):
+        foreign_user = User.objects.create_user(
+            username=f"poisoned-po-{uuid.uuid4().hex[:8]}",
+            email=f"poisoned-po-{uuid.uuid4().hex[:8]}@example.com",
+            password="testpass123",
+        )
+        foreign_tenant = Tenant.objects.create(
+            name=f"Poisoned Tenant {uuid.uuid4().hex[:8]}",
+            slug=f"poisoned-tenant-{uuid.uuid4().hex[:8]}",
+            contact_email=f"poisoned-{uuid.uuid4().hex[:8]}@example.com",
+            created_by=foreign_user,
+        )
+        TenantUser.objects.create(tenant=foreign_tenant, user=foreign_user, role="owner", is_active=True)
+        foreign_customer = Customer.objects.create(name="Foreign Customer", tenant=foreign_tenant)
+        foreign_supplier = Supplier.objects.create(name="Foreign Supplier", tenant=foreign_tenant)
+        foreign_inquiry = Inquiry.objects.create(
+            tenant=foreign_tenant,
+            entity_type=InquiryEntityTypeChoices.CUSTOMER,
+            customer=foreign_customer,
+            route_decision=InquiryRouteDecisionChoices.BROKER,
+            supplier_purchase_order=None,
+        )
+        foreign_rfq = InquirySupplierRFQ.objects.create(
+            tenant=foreign_tenant,
+            inquiry=foreign_inquiry,
+            supplier=foreign_supplier,
+            recipient_email="foreign@example.com",
+        )
+
+        poisoned_custom_data = dict(self.purchase_order.custom_data or {})
+        poisoned_lineage = dict(poisoned_custom_data.get("source_lineage") or {})
+        poisoned_lineage["inquiry_id"] = foreign_inquiry.id
+        poisoned_lineage["rfq_id"] = foreign_rfq.id
+        poisoned_custom_data["source_lineage"] = poisoned_lineage
+        self.purchase_order.custom_data = poisoned_custom_data
+        self.purchase_order.save(update_fields=["custom_data"])
+
+        response = self.client.get(
+            f"/api/v1/purchase-orders/{self.purchase_order.id}/review-context/",
+            **self.tenant_header,
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertFalse(response.data["review_context_complete"])
+        self.assertIsNone(response.data["inquiry"])
+        self.assertIsNone(response.data["rfq"])
 
     def test_purchase_order_pdf_endpoint_returns_pdf_attachment(self):
         response = self.client.get(

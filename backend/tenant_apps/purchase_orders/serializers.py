@@ -4,6 +4,7 @@ Purchase Orders serializers for ProjectMeats.
 Provides serialization for purchase order API endpoints.
 """
 from rest_framework import serializers
+from apps.core.services.document_workflows import get_status_workflow_payload
 from apps.core.serializers_trade import TradeTimelineSerializerMixin, TradeWeightSerializerMixin
 from apps.core.serializers_documents import DocumentStatusValidationMixin
 from tenant_apps.purchase_orders.models import (
@@ -14,6 +15,7 @@ from tenant_apps.purchase_orders.models import (
     PurchaseOrderHistory,
     PurchaseOrderItem,
 )
+from tenant_apps.inquiries.models import Inquiry, InquirySupplierRFQ
 from tenant_apps.locations.serializers import LocationListSerializer
 
 
@@ -161,6 +163,97 @@ class PurchaseOrderSerializer(
         if items_data is not None:
             self._replace_items(instance, items_data)
         return instance
+
+
+class PurchaseOrderReviewSourceLineageSerializer(serializers.Serializer):
+    inquiry_id = serializers.IntegerField(required=False, allow_null=True)
+    inquiry_number = serializers.CharField(required=False, allow_blank=True)
+    rfq_id = serializers.IntegerField(required=False, allow_null=True)
+    supplier_id = serializers.IntegerField(required=False, allow_null=True)
+    correlation_key = serializers.CharField(required=False, allow_blank=True)
+    email_log_id = serializers.IntegerField(required=False, allow_null=True)
+    email_message_id = serializers.CharField(required=False, allow_blank=True)
+    email_thread_id = serializers.CharField(required=False, allow_blank=True)
+
+
+class PurchaseOrderReviewInquirySerializer(serializers.ModelSerializer):
+    customer_name = serializers.CharField(source="customer.name", read_only=True, default="")
+    supplier_name = serializers.CharField(source="supplier.name", read_only=True, default="")
+    requested_master_product_name = serializers.CharField(
+        source="requested_master_product.item_name",
+        read_only=True,
+        default="",
+    )
+
+    class Meta:
+        model = Inquiry
+        fields = [
+            "id",
+            "inquiry_number",
+            "entity_type",
+            "route_decision",
+            "requested_protein",
+            "requested_master_product_name",
+            "customer_name",
+            "supplier_name",
+            "contact_name",
+            "contact_email",
+            "source_email_message_id",
+            "source_email_thread_id",
+        ]
+
+
+class PurchaseOrderReviewRFQSerializer(serializers.ModelSerializer):
+    supplier_name = serializers.CharField(source="supplier.name", read_only=True, default="")
+
+    class Meta:
+        model = InquirySupplierRFQ
+        fields = [
+            "id",
+            "correlation_key",
+            "status",
+            "supplier_name",
+            "recipient_email",
+            "recipient_name",
+            "subject",
+            "sent_at",
+            "provider_message_id",
+            "provider_thread_id",
+        ]
+
+
+class PurchaseOrderReviewNormalizedQuoteSerializer(serializers.Serializer):
+    availability_status = serializers.CharField(required=False, allow_blank=True)
+    offered_product_name = serializers.CharField(required=False, allow_blank=True)
+    quantity = serializers.JSONField(required=False)
+    uom = serializers.CharField(required=False, allow_blank=True)
+    price_per_unit = serializers.JSONField(required=False)
+    lead_time_text = serializers.CharField(required=False, allow_blank=True)
+    notes = serializers.CharField(required=False, allow_blank=True)
+
+
+class PurchaseOrderReviewParseSerializer(serializers.Serializer):
+    parse_status = serializers.CharField(required=False, allow_blank=True)
+    correlation_status = serializers.CharField(required=False, allow_blank=True)
+    correlation_method = serializers.CharField(required=False, allow_blank=True)
+    confidence = serializers.FloatField(required=False)
+    summary = serializers.CharField(required=False, allow_blank=True)
+
+
+class PurchaseOrderReviewContextSerializer(serializers.Serializer):
+    purchase_order = PurchaseOrderSerializer(read_only=True)
+    review_state = serializers.CharField(required=False, allow_blank=True)
+    review_context_complete = serializers.BooleanField()
+    workflow = serializers.SerializerMethodField()
+    source_lineage = PurchaseOrderReviewSourceLineageSerializer(required=False, allow_null=True)
+    inquiry = PurchaseOrderReviewInquirySerializer(required=False, allow_null=True)
+    rfq = PurchaseOrderReviewRFQSerializer(required=False, allow_null=True)
+    normalized_quote = PurchaseOrderReviewNormalizedQuoteSerializer(required=False, allow_null=True)
+    supplier_reply_parse = PurchaseOrderReviewParseSerializer(required=False, allow_null=True)
+
+    def get_workflow(self, obj: dict[str, object]) -> dict[str, object]:
+        purchase_order = obj.get("purchase_order")
+        return get_status_workflow_payload(purchase_order) if isinstance(purchase_order, PurchaseOrder) else {}
 
 
 class CarrierPOItemSerializer(TradeWeightSerializerMixin, serializers.ModelSerializer):

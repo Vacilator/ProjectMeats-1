@@ -9,7 +9,7 @@
  */
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import styled from 'styled-components';
-import { useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Table, Tag } from 'antd';
 import { showAlert } from '@/utils/uiDialogs';
 import { logger } from '@/utils/logger';
@@ -625,6 +625,7 @@ const formatDueDate = (dateStr: string | null): string => {
  * MyTasks page component.
  */
 export const MyTasks: React.FC = () => {
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { actionItems, actionItemCounts, loading, error, fetchActionItems } = useNotifications();
   const activeTab: TasksTab = searchParams.get('tab') === 'ai-review' ? 'ai-review' : 'tasks';
@@ -900,12 +901,17 @@ export const MyTasks: React.FC = () => {
   }, [searchParams, setSearchParams]);
 
   const openReview = useCallback((item: PendingReviewItem) => {
+    if (item.review_entity_type === 'purchase_order' && item.review_target_url) {
+      navigate(item.review_target_url);
+      return;
+    }
+
     setSelectedReview(item);
     const next = new URLSearchParams(searchParams);
     next.set('tab', 'ai-review');
     next.set('draft', item.id);
     setSearchParams(next, { replace: true });
-  }, [searchParams, setSearchParams]);
+  }, [navigate, searchParams, setSearchParams]);
 
   const closeReview = useCallback(() => {
     setSelectedReview(null);
@@ -919,18 +925,6 @@ export const MyTasks: React.FC = () => {
     closeReview();
     void fetchPendingReviews();
   }, [closeReview, fetchPendingReviews]);
-
-  // Render loading state
-  if (loading && actionItems.length === 0) {
-    return (
-      <Container>
-        <Header>
-          <Title>My Tasks</Title>
-        </Header>
-        <LoadingSpinner />
-      </Container>
-    );
-  }
 
   const headerCount = activeTab === 'ai-review'
     ? pendingReviews.length
@@ -969,6 +963,18 @@ export const MyTasks: React.FC = () => {
     ],
     [openReview],
   );
+
+  // Render loading state
+  if (loading && actionItems.length === 0) {
+    return (
+      <Container>
+        <Header>
+          <Title>My Tasks</Title>
+        </Header>
+        <LoadingSpinner />
+      </Container>
+    );
+  }
 
   return (
     <Container>
