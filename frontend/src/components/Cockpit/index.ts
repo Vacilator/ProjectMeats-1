@@ -10,5 +10,7 @@ export { EntityProfileHeader } from './EntityProfileHeader';
 export { AIOverviewCard } from './AIOverviewCard';
 export { CockpitTour } from './CockpitTour';
 export { COCKPIT_TOUR_SELECTORS } from './CockpitTour';
+export { TradeLineageFlow } from './TradeLineageFlow';
+export type { TradeLineageFlowProps } from './TradeLineageFlow';
 export type { SearchEntity, RelationalChunk, SmartSearchProps } from './SmartSearch';
 export type { CommandBarProps } from './CommandBar';
