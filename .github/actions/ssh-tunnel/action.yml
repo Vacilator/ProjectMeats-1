@@ -31,22 +31,20 @@ runs:
       run: |
         if ! command -v sshpass &>/dev/null || ! command -v lsof &>/dev/null; then
           sudo apt-get update -qq
-          sudo apt-get install -y openssh-client sshpass postgresql-client lsof
+          sudo apt-get install -y openssh-client sshpass postgresql-client netcat-openbsd lsof
         fi
 
     - name: Setup SSH tunnel
       shell: bash
       env:
         SSHPASS: ${{ inputs.ssh_password }}
+        LOCAL_PORT: ${{ inputs.local_port }}
+        DB_HOST: ${{ inputs.db_host }}
+        DB_PORT: ${{ inputs.db_port }}
+        BASTION_USER: ${{ inputs.ssh_user }}
+        BASTION_HOST: ${{ inputs.ssh_host }}
       run: |
         set -euo pipefail
-
-        LOCAL_PORT="${{ inputs.local_port }}"
-        DB_HOST="${{ inputs.db_host }}"
-        DB_PORT="${{ inputs.db_port }}"
-        BASTION_USER="${{ inputs.ssh_user }}"
-        BASTION_HOST="${{ inputs.ssh_host }}"
-
         bash .github/scripts/setup-ssh-tunnel.sh
 
     - name: Verify tunnel connectivity
