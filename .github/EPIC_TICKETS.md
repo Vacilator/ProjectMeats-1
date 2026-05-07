@@ -33,12 +33,13 @@
 | Shipped | CTE-07.2 idempotency-key-enforcement | Phase 16 | backend |
 | Shipped | CTE-08.1 exception-queue-dead-letter | Phase 16 | backend |
 | Shipped | INFRA-01.1 backend-test-factory-library | Phase 16 | backend |
-| **P0 (Now)** | CTE-08.2 trades-requiring-intervention-dashboard | Phase 16 | full-stack |
+| Shipped | CTE-08.2 trades-requiring-intervention-dashboard | Phase 16 | full-stack |
 | Shipped | RT-01.1 end-to-end-inquiry-to-po-template | Phase 17 | backend |
 | Shipped | RT-02.1 ai-inbox-auto-sync | Phase 17 | backend |
 | Shipped | RT-02.2–04 (AI parsing + feedback + cockpit routing) | Phase 17 | full-stack |
 | Shipped | RT-03.1–03 (cockpit + React Flow + dynamic headers) | Phase 17 | frontend |
 | Shipped | RT-04.1–02 (contact enrichment + cockpit visualization) | Phase 17 | full-stack |
+| **P0 (Now)** | AMB-01.1 contextual-suggestion-contract-and-heuristic-rules | Phase 19 | backend/docs/ai |
 | P1 | RT-04.3 quick-master-data-creation-in-context | Phase 17 | full-stack |
 | P2 | RT-05 (editor stabilization) | Phase 17 | frontend |
 | P3 | RT-06–09 (scale & analytics) | Phase 18 | full-stack |
@@ -148,7 +149,7 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
 </details>
 
 <details>
-<summary><strong>Phase 16 — Core Trading Engine (11 tickets SHIPPED of 22 total)</strong></summary>
+<summary><strong>Phase 16 — Core Trading Engine (22 tickets, ALL SHIPPED)</strong></summary>
 
 | Ticket | Title | PR |
 |--------|-------|-----|
@@ -171,7 +172,7 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
 ## Active Backlog (Execution Order)
 
 
-### Phase 16 — Core Trading Engine (Remaining: 8 tickets)
+### Phase 16 — Core Trading Engine (Remaining: 0 tickets)
 
 #### Epic CTE-04: Sales & Logistics Cascade
 
@@ -459,7 +460,7 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
 - [x] **CTE-08.2 trades-requiring-intervention-dashboard**
-  - **Status:** Ready
+  - **Status:** Shipped on `development` (PR #4998)
   - **Why now:** Operators need a dedicated control tower to see halted trades, understand failure causes, and recover them without database spelunking.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 16 / 16b / Epic 8
   - **Scope:** Build the “Trades Requiring Intervention” dashboard and supporting APIs, surfacing exception-queue entries, lineage context, current trade state, and operator recovery affordances.
@@ -485,8 +486,8 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
 
 > **Note:** Phase 19 is independent of Phases 17/18 and can execute in parallel once Phase 16 completes.
 
-- [x] **AMB-01.1 contextual-suggestion-contract-and-heuristic-rules**
-  - **Status:** Blocked
+- [ ] **AMB-01.1 contextual-suggestion-contract-and-heuristic-rules**
+  - **Status:** Ready
   - **Why now:** Ambient AI cannot execute safely until there is one canonical suggestion payload and one deterministic rule layer that names what context is evaluated per entity.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 19 / Epic AMB-01
   - **Scope:** Define the `POST /api/v1/ai-assistant/suggestions/contextual/` contract (`entity_type`, `entity_id`, `current_state`), suggestion payload schema, heuristic rule inputs/outputs, cache semantics, and LLM-bounded escalation rules.
@@ -494,7 +495,7 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
   - **Primary domain:** backend/docs/ai
   - **Likely touched paths:** `backend/tenant_apps/ai_assistant/serializers.py`, `backend/tenant_apps/ai_assistant/views.py`, `backend/tenant_apps/ai_assistant/services/`, `openapi-schema.json`, `manifests/openapi/openapi-schema.baseline.json`, `MASTER_PLAN.md`
   - **Dependencies:** CTE-08.2
-  - **Blockers:** CTE-08.2 and all earlier unchecked tickets remain ahead in file order.
+  - **Blockers:** None
   - **Acceptance criteria:** The contract names request/response shape, confidence/rationale fields, cache behavior, and deterministic heuristic-first escalation into `gpt-4o-mini` without implementation guesswork.
   - **Validation commands:** `bash scripts/verify_golden_state.sh`; `cd backend && python manage.py spectacular --validate --file /tmp/projectmeats-openapi.yaml`
   - **Tenant/RLS impact:** Medium; context lookups must remain tenant-scoped and fail closed when entity ownership is ambiguous.
@@ -842,7 +843,7 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
   - **Primary domain:** frontend + backend
   - **Likely touched paths:** `frontend/src/components/AIInbox/`, `frontend/src/components/QuickCreate/`, `backend/tenant_apps/{suppliers,customers,contacts}/views.py`
   - **Dependencies:** RT-02.2, RT-04.1
-  - **Blockers:** CTE-08.2 remains ahead in file order
+  - **Blockers:** AMB-01.1 and all earlier unchecked tickets remain ahead in file order
   - **Acceptance criteria:** Missing dependency triggers inline creation form; created entity immediately available in the process context; no page navigation required.
   - **Validation commands:** `cd backend && python manage.py test tenant_apps.suppliers tenant_apps.customers --noinput`; `npm -C frontend run test:ci`
   - **Tenant/RLS impact:** High (creates tenant-scoped records)
