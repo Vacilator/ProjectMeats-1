@@ -299,7 +299,7 @@ export const Metrics: React.FC = () => {
         <KPICard>
           <KPIHeader>
             <KPILabel>Total Executions</KPILabel>
-            <KPIIcon $color="rgb(59, 130, 246)">
+            <KPIIcon $color="rgb(var(--color-info))">
               <Activity size={20} />
             </KPIIcon>
           </KPIHeader>
@@ -313,7 +313,7 @@ export const Metrics: React.FC = () => {
         <KPICard>
           <KPIHeader>
             <KPILabel>Completion Rate</KPILabel>
-            <KPIIcon $color="rgb(34, 197, 94)">
+            <KPIIcon $color="rgb(var(--color-success))">
               <CheckCircle size={20} />
             </KPIIcon>
           </KPIHeader>
@@ -327,7 +327,7 @@ export const Metrics: React.FC = () => {
         <KPICard>
           <KPIHeader>
             <KPILabel>Avg Completion Time</KPILabel>
-            <KPIIcon $color="rgb(234, 179, 8)">
+            <KPIIcon $color="rgb(var(--color-warning))">
               <Clock size={20} />
             </KPIIcon>
           </KPIHeader>
@@ -373,21 +373,21 @@ export const Metrics: React.FC = () => {
               <Line 
                 type="monotone" 
                 dataKey="executions" 
-                stroke="rgb(59, 130, 246)" 
+                stroke="rgb(var(--color-info))" 
                 strokeWidth={2}
                 name="Total Executions"
               />
               <Line 
                 type="monotone" 
                 dataKey="completions" 
-                stroke="rgb(34, 197, 94)" 
+                stroke="rgb(var(--color-success))" 
                 strokeWidth={2}
                 name="Completions"
               />
               <Line 
                 type="monotone" 
                 dataKey="failures" 
-                stroke="rgb(239, 68, 68)" 
+                stroke="rgb(var(--color-error))" 
                 strokeWidth={2}
                 name="Failures"
               />
@@ -408,7 +408,7 @@ export const Metrics: React.FC = () => {
               <XAxis dataKey="name" tick={{ fontSize: 12 }} />
               <YAxis tick={{ fontSize: 12 }} />
               <Tooltip />
-              <Bar dataKey="value" fill="rgb(59, 130, 246)" radius={[8, 8, 0, 0]} />
+              <Bar dataKey="value" fill="rgb(var(--color-info))" radius={[8, 8, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </ChartCard>

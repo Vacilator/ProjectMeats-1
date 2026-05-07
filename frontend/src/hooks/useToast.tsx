@@ -247,10 +247,10 @@ const CloseButton = styled.button`
 // Helper function to get border color based on toast type
 function getBorderColor(type: ToastType): string {
   const colors: Record<ToastType, string> = {
-    success: 'rgb(34, 197, 94)', // Green
-    error: 'rgb(239, 68, 68)',   // Red
-    info: 'rgb(59, 130, 246)',   // Blue
-    warning: 'rgb(234, 179, 8)', // Yellow
+    success: 'rgb(var(--color-success))',
+    error: 'rgb(var(--color-error))',
+    info: 'rgb(var(--color-info))',
+    warning: 'rgb(var(--color-warning))',
   };
   return colors[type];
 }
