@@ -36,6 +36,8 @@ const TEMPLATE_TYPE_ALIAS_MAP: Record<string, string> = {
   loop: 'loopForEach',
   action: 'actionScript',
   end: 'endSuccess',
+  approval: 'approvalGate',
+  approval_gate: 'approvalGate',
 };
 
 function getDataParentId(node: Node): string | undefined {
