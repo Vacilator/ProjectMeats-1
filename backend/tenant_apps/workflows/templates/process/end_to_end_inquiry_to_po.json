@@ -1,0 +1,344 @@
+{
+  "templateId": "end-to-end-inquiry-to-po-process",
+  "version": "1.0.0",
+  "name": "End-to-End Inquiry to PO Process",
+  "description": "Complete multi-trigger trading workflow from initial inquiry through to final Purchase Order, covering all 5 entry paths with supplier sourcing, bid evaluation, and order generation.",
+  "category": "trading",
+  "isSystemTemplate": true,
+  "telemetryPrefix": "e2e_inquiry_to_po",
+
+  "triggers": [
+    {
+      "id": "trigger-new-inquiry",
+      "type": "trigger",
+      "position": {"x": 100, "y": 100},
+      "data": {
+        "label": "New Inquiry",
+        "triggerType": "event",
+        "eventType": "inquiry.created",
+        "description": "Triggered when a new inquiry is received (email or manual)",
+        "preconditionCheck": "no_preceding_process",
+        "telemetryEvent": "e2e_inquiry_to_po.trigger.new_inquiry"
+      }
+    },
+    {
+      "id": "trigger-direct-customer-po",
+      "type": "trigger",
+      "position": {"x": 350, "y": 100},
+      "data": {
+        "label": "Direct Customer PO",
+        "triggerType": "event",
+        "eventType": "purchase_order.customer_direct",
+        "description": "Customer sends PO directly without prior inquiry",
+        "preconditionCheck": "no_preceding_process",
+        "telemetryEvent": "e2e_inquiry_to_po.trigger.direct_customer_po"
+      }
+    },
+    {
+      "id": "trigger-standalone-bid",
+      "type": "trigger",
+      "position": {"x": 600, "y": 100},
+      "data": {
+        "label": "Standalone Bid",
+        "triggerType": "event",
+        "eventType": "bid.standalone_created",
+        "description": "Trader creates standalone bid without existing inquiry",
+        "preconditionCheck": "no_preceding_process",
+        "telemetryEvent": "e2e_inquiry_to_po.trigger.standalone_bid"
+      }
+    },
+    {
+      "id": "trigger-manual-so",
+      "type": "trigger",
+      "position": {"x": 850, "y": 100},
+      "data": {
+        "label": "Manual Sales Order",
+        "triggerType": "manual",
+        "description": "Trader manually creates a Sales Order from scratch",
+        "preconditionCheck": "no_preceding_process",
+        "telemetryEvent": "e2e_inquiry_to_po.trigger.manual_so"
+      }
+    },
+    {
+      "id": "trigger-trader-po",
+      "type": "trigger",
+      "position": {"x": 1100, "y": 100},
+      "data": {
+        "label": "Trader PO",
+        "triggerType": "manual",
+        "description": "Trader creates a PO directly (repeat business, known pricing)",
+        "preconditionCheck": "no_preceding_process",
+        "telemetryEvent": "e2e_inquiry_to_po.trigger.trader_po"
+      }
+    }
+  ],
+
+  "nodes": [
+    {
+      "id": "safety-check",
+      "type": "condition",
+      "position": {"x": 600, "y": 250},
+      "data": {
+        "label": "No Preceding Process Check",
+        "conditionType": "expression",
+        "expression": "!context.trade_session?.existing_process_id",
+        "description": "Ensures this inquiry/PO has not already been assigned to another process instance",
+        "telemetryEvent": "e2e_inquiry_to_po.safety_check"
+      }
+    },
+    {
+      "id": "form-process-group",
+      "type": "group",
+      "position": {"x": 200, "y": 400},
+      "data": {
+        "label": "FormProcess: Supplier Sourcing & Evaluation",
+        "groupType": "form_process",
+        "description": "Core processing group: RFQ dispatch, bid collection, evaluation, and order generation",
+        "telemetryEvent": "e2e_inquiry_to_po.form_process.start"
+      }
+    },
+    {
+      "id": "resolve-contacts",
+      "type": "action",
+      "position": {"x": 300, "y": 500},
+      "parentNode": "form-process-group",
+      "data": {
+        "label": "Resolve Supplier Plant Contacts",
+        "actionType": "resolve_contacts",
+        "description": "Query plant contacts using Plant Contact Type, Title, and Responsibilities to determine correct RFQ recipients",
+        "contactResolution": {
+          "plantContactType": "dropdown",
+          "filterByResponsibility": true,
+          "includeDocumentAttachments": true,
+          "conditionalFields": ["certifications", "shipping_preferences"]
+        },
+        "telemetryEvent": "e2e_inquiry_to_po.contacts.resolved"
+      }
+    },
+    {
+      "id": "for-each-supplier",
+      "type": "loop",
+      "position": {"x": 300, "y": 650},
+      "parentNode": "form-process-group",
+      "data": {
+        "label": "ForEachSupplier",
+        "loopType": "for_each",
+        "iteratorSource": "context.matched_suppliers",
+        "iteratorVariable": "current_supplier",
+        "description": "Iterate over each matched supplier to dispatch RFQs",
+        "telemetryEvent": "e2e_inquiry_to_po.for_each_supplier.iteration"
+      }
+    },
+    {
+      "id": "send-rfq",
+      "type": "action",
+      "position": {"x": 350, "y": 750},
+      "parentNode": "for-each-supplier",
+      "data": {
+        "label": "Send RFQ",
+        "actionType": "send_email",
+        "description": "Send Request for Quotation to current supplier's plant contact",
+        "emailConfig": {
+          "recipientSource": "current_supplier.plant_contact.email",
+          "templateId": "rfq_request",
+          "attachDocuments": true,
+          "useContactType": "Sales",
+          "fallbackContactType": "General"
+        },
+        "telemetryEvent": "e2e_inquiry_to_po.rfq.sent"
+      }
+    },
+    {
+      "id": "do-until-due-date",
+      "type": "loop",
+      "position": {"x": 300, "y": 900},
+      "parentNode": "form-process-group",
+      "data": {
+        "label": "DoUntilDueDate",
+        "loopType": "do_until",
+        "condition": "context.current_date >= context.bid_due_date || context.all_bids_received",
+        "pollInterval": "15m",
+        "maxIterations": 672,
+        "description": "Wait for supplier bids until the due date or all expected bids are received",
+        "telemetryEvent": "e2e_inquiry_to_po.bid_wait.poll"
+      }
+    },
+    {
+      "id": "check-bids",
+      "type": "action",
+      "position": {"x": 350, "y": 1000},
+      "parentNode": "do-until-due-date",
+      "data": {
+        "label": "Check Incoming Bids",
+        "actionType": "check_bids",
+        "description": "Check for new bid responses from suppliers via email or manual entry",
+        "telemetryEvent": "e2e_inquiry_to_po.bids.checked"
+      }
+    },
+    {
+      "id": "bid-selection",
+      "type": "action",
+      "position": {"x": 300, "y": 1150},
+      "parentNode": "form-process-group",
+      "data": {
+        "label": "Bid Selection (Margin Logic)",
+        "actionType": "bid_selection",
+        "description": "Evaluate received bids using margin calculation, supplier reliability, and pricing strategy",
+        "selectionCriteria": {
+          "marginCalculation": true,
+          "minimumMarginPercent": 5.0,
+          "factorsWeighted": [
+            {"factor": "price", "weight": 0.4},
+            {"factor": "reliability", "weight": 0.25},
+            {"factor": "lead_time", "weight": 0.2},
+            {"factor": "quality_score", "weight": 0.15}
+          ],
+          "requireApprovalAboveThreshold": 25000.00
+        },
+        "telemetryEvent": "e2e_inquiry_to_po.bid.selected"
+      }
+    },
+    {
+      "id": "generate-sales-order",
+      "type": "action",
+      "position": {"x": 300, "y": 1350},
+      "parentNode": "form-process-group",
+      "data": {
+        "label": "Generate Sales Order",
+        "actionType": "generate_sales_order",
+        "description": "Auto-generate draft Sales Order from winning bid with enriched contact data",
+        "salesOrderConfig": {
+          "autoPopulateFromBid": true,
+          "includeMarginBreakdown": true,
+          "attachPdfToEmail": true,
+          "useContactType": "Accounting",
+          "lineageTracking": true
+        },
+        "telemetryEvent": "e2e_inquiry_to_po.sales_order.generated"
+      }
+    },
+    {
+      "id": "send-sales-order",
+      "type": "action",
+      "position": {"x": 300, "y": 1500},
+      "parentNode": "form-process-group",
+      "data": {
+        "label": "Send Sales Order to Customer",
+        "actionType": "send_email",
+        "description": "Email generated Sales Order PDF to customer contact",
+        "emailConfig": {
+          "recipientSource": "context.customer.primary_contact.email",
+          "templateId": "sales_order_dispatch",
+          "attachDocuments": true,
+          "attachPdf": "sales_order_pdf"
+        },
+        "telemetryEvent": "e2e_inquiry_to_po.sales_order.sent"
+      }
+    },
+    {
+      "id": "await-customer-po",
+      "type": "loop",
+      "position": {"x": 300, "y": 1650},
+      "parentNode": "form-process-group",
+      "data": {
+        "label": "Await Customer PO",
+        "loopType": "do_until",
+        "condition": "context.customer_po_received || context.days_elapsed > 14",
+        "pollInterval": "30m",
+        "maxIterations": 672,
+        "description": "Wait for customer to respond with a Purchase Order confirming the Sales Order",
+        "telemetryEvent": "e2e_inquiry_to_po.po_wait.poll"
+      }
+    },
+    {
+      "id": "po-received-check",
+      "type": "condition",
+      "position": {"x": 300, "y": 1850},
+      "data": {
+        "label": "PO Received?",
+        "conditionType": "expression",
+        "expression": "context.customer_po_received === true",
+        "description": "Check if customer PO was received within the waiting period",
+        "telemetryEvent": "e2e_inquiry_to_po.po_received.check"
+      }
+    },
+    {
+      "id": "create-supplier-po",
+      "type": "action",
+      "position": {"x": 200, "y": 2000},
+      "data": {
+        "label": "Create Supplier Purchase Order",
+        "actionType": "create_purchase_order",
+        "description": "Generate PO to the winning supplier based on customer PO confirmation",
+        "purchaseOrderConfig": {
+          "sourceFromBid": true,
+          "useContactType": "Sales",
+          "notifySupplierContact": true,
+          "lineageTracking": true
+        },
+        "telemetryEvent": "e2e_inquiry_to_po.supplier_po.created"
+      }
+    },
+    {
+      "id": "process-complete",
+      "type": "end",
+      "position": {"x": 600, "y": 2150},
+      "data": {
+        "label": "Process Complete",
+        "description": "End-to-end trading process completed successfully",
+        "telemetryEvent": "e2e_inquiry_to_po.process.completed"
+      }
+    },
+    {
+      "id": "escalate-no-po",
+      "type": "action",
+      "position": {"x": 700, "y": 2000},
+      "data": {
+        "label": "Escalate: No PO Received",
+        "actionType": "escalation",
+        "description": "Customer did not respond with PO — escalate to trader for follow-up",
+        "escalationConfig": {
+          "reason": "customer_po_timeout",
+          "notifyTrader": true,
+          "createTask": true
+        },
+        "telemetryEvent": "e2e_inquiry_to_po.escalation.no_po"
+      }
+    }
+  ],
+
+  "edges": [
+    {"id": "e-t1-sc", "source": "trigger-new-inquiry", "target": "safety-check"},
+    {"id": "e-t2-sc", "source": "trigger-direct-customer-po", "target": "safety-check"},
+    {"id": "e-t3-sc", "source": "trigger-standalone-bid", "target": "safety-check"},
+    {"id": "e-t4-sc", "source": "trigger-manual-so", "target": "safety-check"},
+    {"id": "e-t5-sc", "source": "trigger-trader-po", "target": "safety-check"},
+    {"id": "e-sc-fp", "source": "safety-check", "target": "form-process-group", "label": "pass"},
+    {"id": "e-fp-rc", "source": "form-process-group", "target": "resolve-contacts", "label": "entry"},
+    {"id": "e-rc-fes", "source": "resolve-contacts", "target": "for-each-supplier"},
+    {"id": "e-fes-rfq", "source": "for-each-supplier", "target": "send-rfq", "label": "each"},
+    {"id": "e-rfq-dud", "source": "for-each-supplier", "target": "do-until-due-date", "label": "after_all"},
+    {"id": "e-dud-cb", "source": "do-until-due-date", "target": "check-bids", "label": "each_poll"},
+    {"id": "e-dud-bs", "source": "do-until-due-date", "target": "bid-selection", "label": "completed"},
+    {"id": "e-bs-gso", "source": "bid-selection", "target": "generate-sales-order"},
+    {"id": "e-gso-sso", "source": "generate-sales-order", "target": "send-sales-order"},
+    {"id": "e-sso-acp", "source": "send-sales-order", "target": "await-customer-po"},
+    {"id": "e-acp-prc", "source": "await-customer-po", "target": "po-received-check", "label": "completed"},
+    {"id": "e-prc-csp", "source": "po-received-check", "target": "create-supplier-po", "label": "yes"},
+    {"id": "e-prc-esc", "source": "po-received-check", "target": "escalate-no-po", "label": "no"},
+    {"id": "e-csp-end", "source": "create-supplier-po", "target": "process-complete"},
+    {"id": "e-esc-end", "source": "escalate-no-po", "target": "process-complete"}
+  ],
+
+  "metadata": {
+    "estimatedDuration": "2-14 days",
+    "complexity": "high",
+    "requiredEntities": ["Inquiry", "Supplier", "Customer", "Contact", "Plant", "PurchaseOrder", "SalesOrder"],
+    "requiredContactTypes": ["Sales", "Accounting", "General"],
+    "nodeCount": 15,
+    "edgeCount": 20,
+    "triggerCount": 5,
+    "loopCount": 3,
+    "formProcessGroups": 1
+  }
+}
