@@ -65,3 +65,10 @@ repos:
         language: script
         files: ^(\.github/workflows/.*\.(yml|yaml)|docker-compose.*\.(yml|yaml))$
         pass_filenames: false
+
+      - id: enforce-master-plan-canonical
+        name: Enforce MASTER_PLAN canonical references
+        entry: python3 scripts/check_master_plan_references.py
+        language: system
+        files: ^(README\.md|ROADMAP\.md|UI_ROADMAP\.md|docs/.*|\.github/.*|frontend/package\.json|backend/requirements\.txt)$
+        pass_filenames: false

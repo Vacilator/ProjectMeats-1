@@ -1,4 +1,6 @@
-# UI Roadmap (Reference)
+# ARCHIVED - Reference Only - See MASTER_PLAN.md
+
+## UI Roadmap (Historical Snapshot)
 
 **Authority:** This is **REFERENCE ONLY**. For current truth, backlog, and shipped evidence, see **`MASTER_PLAN.md` (canonical)**.
 

@@ -37,6 +37,9 @@ jobs:
       - name: Verify golden pipeline invariants
         run: bash .github/scripts/check_infrastructure.sh
 
+      - name: Enforce MASTER_PLAN as canonical planning source
+        run: python3 scripts/check_master_plan_references.py
+
   dependency-review:
     name: Dependency Review
     runs-on: ubuntu-latest

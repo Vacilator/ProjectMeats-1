@@ -147,9 +147,9 @@ docs/
 ### 📋 Planning & Roadmap
 | Document | Description | Status |
 |----------|-------------|--------|
-| [Master Plan v3.1](plans/PROJECTMEATS_V2_MASTER_PLAN.md) | Complete v2.0 overhaul plan | 🎯 **Active** |
+| [MASTER_PLAN.md](../MASTER_PLAN.md) | Canonical priorities, sequencing, and current truth | 🎯 **Active** |
 | [Progress Tracker](plans/PROGRESS_TRACKER.md) | Real-time progress tracking | 🎯 **Active** |
-| [Roadmap](ROADMAP.md) | CI/CD evolution roadmap | 🎯 **Active** |
+| [Documentation Standards](plans/DOCUMENTATION_STANDARDS.md) | Canonical planning and naming rules | 🎯 **Active** |
 | [Forms Enhancement](plans/FORMS_FLOWS_ENHANCEMENT_PLAN.md) | Forms & workflows plan | 🎯 **Active** |
 | [Doc Organization](plans/DOCUMENTATION_ORGANIZATION_PLAN.md) | This reorganization effort | 🎯 **Active** |
 
