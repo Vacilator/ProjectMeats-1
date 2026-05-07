@@ -16,8 +16,18 @@ Key design decisions:
 
 from __future__ import annotations
 
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
+from datetime import datetime, timedelta
+from decimal import Decimal
 from typing import Optional
+
+from django.utils import timezone
+
+from apps.core.models import WeightUnitChoices
+from tenant_apps.invoices.models import Invoice, InvoiceStatus
+from tenant_apps.purchase_orders.models import PurchaseOrder, PurchaseOrderStatus
+from tenant_apps.sales_orders.models import SalesOrder, SalesOrderStatus
 
 
 # -------------------------------------------------------------------
@@ -111,6 +121,226 @@ DEFAULT_THRESHOLDS: dict[str, AnomalyThreshold] = {
 }
 
 FALLBACK_THRESHOLD = AnomalyThreshold(warn_sigma=2.0, block_sigma=4.0, min_absolute_deviation=0.01)
+
+
+# -------------------------------------------------------------------
+# Historical baseline loading
+# -------------------------------------------------------------------
+
+HistoryLoader = Callable[[str, str, datetime], list[float]]
+
+PURCHASE_ORDER_EXCLUDED_STATUSES = {
+    PurchaseOrderStatus.DRAFT,
+    PurchaseOrderStatus.CANCELLED,
+}
+SALES_ORDER_EXCLUDED_STATUSES = {
+    SalesOrderStatus.DRAFT,
+    SalesOrderStatus.CANCELLED,
+}
+INVOICE_EXCLUDED_STATUSES = {
+    InvoiceStatus.DRAFT,
+    InvoiceStatus.CANCELLED,
+}
+
+
+def _require_context(*, tenant_id: str, product_id: str, field_name: str) -> None:
+    if not tenant_id:
+        raise ValueError("tenant_id is required")
+    if not product_id:
+        raise ValueError("product_id is required")
+    if not field_name:
+        raise ValueError("field_name is required")
+
+
+def _window_start(as_of: Optional[datetime], window_days: int) -> datetime:
+    reference = as_of or timezone.now()
+    if timezone.is_naive(reference):
+        reference = timezone.make_aware(reference, timezone.get_current_timezone())
+    return reference - timedelta(days=window_days)
+
+
+def _as_float_list(raw_values) -> list[float]:
+    values: list[float] = []
+    for value in raw_values:
+        if value is None:
+            continue
+        if isinstance(value, Decimal):
+            values.append(float(value))
+        else:
+            values.append(float(value))
+    return values
+
+
+def _load_purchase_order_values(
+    field_name: str,
+    tenant_id: str,
+    product_id: str,
+    since: datetime,
+) -> list[float]:
+    queryset = (
+        PurchaseOrder.objects.filter(
+            tenant_id=tenant_id,
+            product_id=product_id,
+            order_date__gte=since.date(),
+        )
+        .exclude(status__in=PURCHASE_ORDER_EXCLUDED_STATUSES)
+        .order_by("order_date", "id")
+    )
+
+    if field_name == "unit_price":
+        return _as_float_list(queryset.values_list("price_per_unit", flat=True))
+    if field_name == "total_amount":
+        return _as_float_list(queryset.values_list("total_amount", flat=True))
+    if field_name == "quantity":
+        return _as_float_list(queryset.values_list("quantity", flat=True))
+    if field_name == "weight":
+        return _as_float_list(
+            queryset.filter(weight_unit=WeightUnitChoices.LBS).values_list("total_weight", flat=True)
+        )
+    return []
+
+
+def _load_sales_order_values(
+    field_name: str,
+    tenant_id: str,
+    product_id: str,
+    since: datetime,
+) -> list[float]:
+    queryset = (
+        SalesOrder.objects.filter(
+            tenant_id=tenant_id,
+            product_id=product_id,
+            created_on__gte=since,
+        )
+        .exclude(status__in=SALES_ORDER_EXCLUDED_STATUSES)
+        .order_by("created_on", "id")
+    )
+
+    if field_name == "total_amount":
+        return _as_float_list(queryset.values_list("total_amount", flat=True))
+    if field_name == "quantity":
+        return _as_float_list(queryset.values_list("quantity", flat=True))
+    if field_name == "weight":
+        return _as_float_list(
+            queryset.filter(weight_unit=WeightUnitChoices.LBS).values_list("total_weight", flat=True)
+        )
+    return []
+
+
+def _load_invoice_values(
+    field_name: str,
+    tenant_id: str,
+    product_id: str,
+    since: datetime,
+) -> list[float]:
+    queryset = (
+        Invoice.objects.filter(
+            tenant_id=tenant_id,
+            product_id=product_id,
+            created_on__gte=since,
+        )
+        .exclude(status__in=INVOICE_EXCLUDED_STATUSES)
+        .order_by("created_on", "id")
+    )
+
+    if field_name == "unit_price":
+        return _as_float_list(queryset.values_list("unit_price", flat=True))
+    if field_name == "total_amount":
+        return _as_float_list(queryset.values_list("total_amount", flat=True))
+    if field_name == "quantity":
+        return _as_float_list(queryset.values_list("quantity", flat=True))
+    if field_name == "weight":
+        return _as_float_list(
+            queryset.filter(weight_unit=WeightUnitChoices.LBS).values_list("total_weight", flat=True)
+        )
+    return []
+
+
+FIELD_HISTORY_LOADERS: dict[str, tuple[HistoryLoader, ...]] = {
+    "unit_price": (_load_purchase_order_values, _load_invoice_values),
+    "total_amount": (
+        _load_purchase_order_values,
+        _load_sales_order_values,
+        _load_invoice_values,
+    ),
+    "quantity": (
+        _load_purchase_order_values,
+        _load_sales_order_values,
+        _load_invoice_values,
+    ),
+    "weight": (
+        _load_purchase_order_values,
+        _load_sales_order_values,
+        _load_invoice_values,
+    ),
+}
+
+
+def get_historical_field_values(
+    *,
+    tenant_id: str,
+    product_id: str,
+    field_name: str,
+    as_of: Optional[datetime] = None,
+    window_days: int = 90,
+) -> list[float]:
+    """Return deterministic 90-day historical values for one tenant-scoped product field."""
+    _require_context(tenant_id=tenant_id, product_id=product_id, field_name=field_name)
+    since = _window_start(as_of, window_days)
+    values: list[float] = []
+    for loader in FIELD_HISTORY_LOADERS.get(field_name, ()):
+        values.extend(loader(field_name, tenant_id, product_id, since))
+    values.sort()
+    return values
+
+
+def build_product_baseline(
+    *,
+    tenant_id: str,
+    product_id: str,
+    field_name: str,
+    as_of: Optional[datetime] = None,
+    window_days: int = 90,
+) -> ProductBaseline:
+    """Build a tenant-safe 90-day product baseline from committed transaction history."""
+    values = get_historical_field_values(
+        tenant_id=tenant_id,
+        product_id=product_id,
+        field_name=field_name,
+        as_of=as_of,
+        window_days=window_days,
+    )
+    return build_baseline_from_history(
+        product_id=product_id,
+        field_name=field_name,
+        values=values,
+        window_days=window_days,
+    )
+
+
+def evaluate_product_submission(
+    *,
+    tenant_id: str,
+    product_id: str,
+    submitted_fields: Mapping[str, float],
+    thresholds: Optional[dict[str, AnomalyThreshold]] = None,
+    as_of: Optional[datetime] = None,
+    window_days: int = 90,
+) -> AnomalyEvaluationResponse:
+    """Evaluate submitted product values against tenant-specific baselines."""
+    _require_context(tenant_id=tenant_id, product_id=product_id, field_name="submitted_fields")
+
+    checks: list[tuple[float, ProductBaseline]] = []
+    for field_name in sorted(submitted_fields):
+        baseline = build_product_baseline(
+            tenant_id=tenant_id,
+            product_id=product_id,
+            field_name=field_name,
+            as_of=as_of,
+            window_days=window_days,
+        )
+        checks.append((float(submitted_fields[field_name]), baseline))
+    return evaluate_submission(checks, thresholds)
 
 
 # -------------------------------------------------------------------
