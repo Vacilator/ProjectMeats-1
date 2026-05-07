@@ -61,7 +61,7 @@ class FormProcessPersistenceService:
         form_groups = []
         
         for node in nodes:
-            node_type = node.get('type') or node.get('data', {}).get('nodeType')
+            node_type = node.get('data', {}).get('nodeType') or node.get('type')
             if node_type in ['formProcessGroup', 'formMultiStepContainer']:
                 form_groups.append(node)
         
@@ -89,7 +89,7 @@ class FormProcessPersistenceService:
         
         for node in all_nodes:
             parent_id = node.get('parentNode') or node.get('parentId')
-            node_type = node.get('type') or node.get('data', {}).get('nodeType')
+            node_type = node.get('data', {}).get('nodeType') or node.get('type')
             
             if parent_id == group_id and node_type in ['formStep', 'form']:
                 children.append(node)

@@ -13,6 +13,7 @@ from django.utils import timezone
 from apps.integrations.models import EmailLog
 from apps.tenants.rls import tenant_rls
 from tenant_apps.ai_assistant.models import AIFeedbackLog
+from tenant_apps.contacts.services import resolve_supplier_order_contact_routes
 from tenant_apps.inquiries.models import Inquiry, InquiryRouteDecisionChoices, InquirySupplierRFQ
 from tenant_apps.purchase_orders.models import PurchaseOrder, PurchaseOrderStatus
 
@@ -92,6 +93,8 @@ def create_supplier_quote_purchase_order_draft(
             )
             return SupplierQuotePODraftResult(purchase_order=existing, rfq=rfq, created=False)
 
+        contact_routing = _build_contact_routing(tenant=tenant, inquiry=inquiry, rfq=rfq)
+        supplier_contact = dict(contact_routing.get("supplier_contact") or {})
         purchase_order = PurchaseOrder.objects.create(
             tenant=tenant,
             supplier=rfq.supplier,
@@ -106,9 +109,15 @@ def create_supplier_quote_purchase_order_draft(
             order_date=timezone.now().date(),
             delivery_date=None,
             type_of_protein=inquiry.requested_protein or "",
-            supplier_contact_name=getattr(rfq.supplier, "contact_person", "") or "",
-            supplier_contact_phone=getattr(rfq.supplier, "phone", "") or "",
-            supplier_contact_email=rfq.recipient_email,
+            supplier_contact_name=str(
+                supplier_contact.get("recipient_name") or getattr(rfq.supplier, "contact_person", "") or ""
+            ),
+            supplier_contact_phone=str(
+                supplier_contact.get("phone") or getattr(rfq.supplier, "phone", "") or ""
+            ),
+            supplier_contact_email=str(
+                supplier_contact.get("recipient_email") or rfq.recipient_email or ""
+            ),
             notes=_build_purchase_order_notes(
                 inquiry=inquiry,
                 rfq=rfq,
@@ -120,6 +129,7 @@ def create_supplier_quote_purchase_order_draft(
                 rfq=rfq,
                 latest_reply_parse=latest_reply_parse,
                 normalized_quote=normalized_quote,
+                contact_routing=contact_routing,
             ),
         )
 
@@ -277,6 +287,7 @@ def _build_purchase_order_custom_data(
     rfq: InquirySupplierRFQ,
     latest_reply_parse: dict[str, Any],
     normalized_quote: dict[str, Any],
+    contact_routing: dict[str, dict[str, Any]],
 ) -> dict[str, Any]:
     lineage = dict(latest_reply_parse.get("lineage") or {})
     return {
@@ -294,7 +305,42 @@ def _build_purchase_order_custom_data(
         },
         "normalized_quote": normalized_quote,
         "supplier_reply_parse": latest_reply_parse,
+        "selected_bid": {
+            "rfq_id": rfq.id,
+            "supplier_id": rfq.supplier_id,
+            "supplier_name": getattr(rfq.supplier, "name", ""),
+            "recipient_email": rfq.recipient_email,
+            "contact_routing": {
+                "supplier_contact": dict(contact_routing.get("supplier_contact") or {}),
+            },
+            "normalized_quote": normalized_quote,
+        },
+        "contact_routing": contact_routing,
     }
+
+
+def _build_contact_routing(
+    *,
+    tenant: Any,
+    inquiry: Inquiry,
+    rfq: InquirySupplierRFQ,
+) -> dict[str, dict[str, Any]]:
+    routing = {
+        role: resolution.as_dict()
+        for role, resolution in resolve_supplier_order_contact_routes(
+            tenant=tenant,
+            supplier=rfq.supplier,
+            inquiry=inquiry,
+        ).items()
+    }
+    rfq_routing = dict((rfq.custom_data or {}).get("recipient_routing") or {})
+    if rfq_routing:
+        existing = dict(routing.get("supplier_contact") or {})
+        for key, value in rfq_routing.items():
+            if existing.get(key) in (None, "", [], {}):
+                existing[key] = value
+        routing["supplier_contact"] = existing
+    return routing
 
 
 def _backwrite_rfq_lineage(

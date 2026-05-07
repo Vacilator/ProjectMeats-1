@@ -41,6 +41,7 @@ from apps.core.model_mixins import (
     sync_alias_pair,
 )
 from tenant_apps.orders.models import OrderMethodsMixin, PaymentStatus
+from tenant_apps.contacts.services import resolve_supplier_order_contact_routes
 
 
 class PurchaseOrderStatus(models.TextChoices):
@@ -961,17 +962,22 @@ def auto_populate_supplier_fields(sender, instance, **kwargs):
     """
     if instance.supplier:
         supplier = instance.supplier
+        contact_routing = _resolve_purchase_order_contact_routing(instance)
         
         # Auto-populate only if fields are empty
         if not instance.supplier_corporate_address and supplier.address:
             instance.supplier_corporate_address = supplier.address
-        
+
+        _apply_contact_snapshot(instance, "supplier_contact", contact_routing.get("supplier_contact") or {})
+        _apply_contact_snapshot(instance, "billing_contact", contact_routing.get("billing_contact") or {})
+        _apply_contact_snapshot(instance, "shipping_contact", contact_routing.get("shipping_contact") or {})
+
         if not instance.supplier_contact_name and supplier.contact_person:
             instance.supplier_contact_name = supplier.contact_person
-        
+
         if not instance.supplier_contact_phone and supplier.phone:
             instance.supplier_contact_phone = supplier.phone
-        
+
         if not instance.supplier_contact_email and supplier.email:
             instance.supplier_contact_email = supplier.email
 
@@ -994,6 +1000,55 @@ def auto_populate_supplier_fields(sender, instance, **kwargs):
             instance.billing_address_state_zip = " ".join(
                 part for part in [supplier.state or "", supplier.zip_code or ""] if part
             )
+
+
+def _resolve_purchase_order_contact_routing(instance: PurchaseOrder) -> dict[str, dict]:
+    custom_data = dict(instance.custom_data or {})
+    stored_routing = custom_data.get("contact_routing")
+    contact_routing = dict(stored_routing) if isinstance(stored_routing, dict) else {}
+
+    tenant = getattr(instance, "tenant", None)
+    supplier = getattr(instance, "supplier", None)
+    if not tenant or not supplier:
+        return contact_routing
+
+    resolved = resolve_supplier_order_contact_routes(
+        tenant=tenant,
+        supplier=supplier,
+    )
+    for role, resolution in resolved.items():
+        contact_routing[role] = _merge_contact_routing_payload(
+            existing=contact_routing.get(role),
+            generated=resolution.as_dict(),
+        )
+
+    custom_data["contact_routing"] = contact_routing
+    instance.custom_data = custom_data
+    return contact_routing
+
+
+def _merge_contact_routing_payload(*, existing, generated: dict[str, object]) -> dict[str, object]:
+    next_payload = dict(existing) if isinstance(existing, dict) else {}
+    for key, value in generated.items():
+        if next_payload.get(key) in (None, "", [], {}):
+            next_payload[key] = value
+    return next_payload
+
+
+def _apply_contact_snapshot(instance: PurchaseOrder, prefix: str, payload: dict[str, object]) -> None:
+    name_key = f"{prefix}_name"
+    phone_key = f"{prefix}_phone"
+    email_key = f"{prefix}_email"
+    title_key = f"{prefix}_title"
+
+    if hasattr(instance, name_key) and not getattr(instance, name_key):
+        setattr(instance, name_key, str(payload.get("recipient_name") or ""))
+    if hasattr(instance, phone_key) and not getattr(instance, phone_key):
+        setattr(instance, phone_key, str(payload.get("phone") or ""))
+    if hasattr(instance, email_key) and not getattr(instance, email_key):
+        setattr(instance, email_key, str(payload.get("recipient_email") or ""))
+    if hasattr(instance, title_key) and not getattr(instance, title_key):
+        setattr(instance, title_key, str(payload.get("title") or ""))
 
 
 @receiver(post_save, sender=PurchaseOrder)

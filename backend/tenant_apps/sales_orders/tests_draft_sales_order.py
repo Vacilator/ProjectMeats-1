@@ -176,6 +176,33 @@ class DraftSalesOrderApprovedSourceTests(TestCase):
                     "rfq_id": "123",
                     "supplier_id": str(self.supplier.id),
                 },
+                "selected_bid": {
+                    "rfq_id": "123",
+                    "supplier_id": str(self.supplier.id),
+                    "supplier_name": self.supplier.name,
+                    "contact_routing": {
+                        "supplier_contact": {
+                            "recipient_name": "Price Desk",
+                            "recipient_email": "sales@supplier.example.com",
+                            "department": "sales",
+                            "title": "Account Manager",
+                        }
+                    },
+                },
+                "contact_routing": {
+                    "billing_contact": {
+                        "recipient_name": "AP Desk",
+                        "recipient_email": "ap@supplier.example.com",
+                        "department": "accounting",
+                        "title": "Accounts Payable",
+                    },
+                    "shipping_contact": {
+                        "recipient_name": "Loadout Desk",
+                        "recipient_email": "shipping@supplier.example.com",
+                        "department": "shipping",
+                        "title": "Shipping Supervisor",
+                    },
+                },
             },
         )
         # Link inquiry to PO
@@ -198,6 +225,14 @@ class DraftSalesOrderApprovedSourceTests(TestCase):
         self.assertEqual(so.custom_data["source_type"], "approved_source")
         self.assertEqual(so.custom_data["source_inquiry_id"], str(self.inquiry.id))
         self.assertEqual(so.custom_data["source_purchase_order_id"], str(self.purchase_order.id))
+        self.assertEqual(
+            so.custom_data["contact_routing"]["shipping_contact"]["recipient_email"],
+            "shipping@supplier.example.com",
+        )
+        self.assertEqual(
+            so.custom_data["process_cockpit"]["selected_bid"]["contact_routing"]["supplier_contact"]["title"],
+            "Account Manager",
+        )
 
     def test_approved_source_idempotent(self):
         """Second call returns existing SO without duplicate."""

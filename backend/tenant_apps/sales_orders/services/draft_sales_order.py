@@ -340,6 +340,33 @@ def _build_custom_data(
         if po_lineage:
             data["supplier_rfq_id"] = po_lineage.get("rfq_id", "")
             data["supplier_id"] = po_lineage.get("supplier_id", "")
+        selected_bid = (source_purchase_order.custom_data or {}).get("selected_bid", {})
+        if isinstance(selected_bid, dict) and selected_bid:
+            data["selected_bid"] = selected_bid
+        contact_routing = (source_purchase_order.custom_data or {}).get("contact_routing", {})
+        if isinstance(contact_routing, dict) and contact_routing:
+            data["contact_routing"] = contact_routing
+
+    process_cockpit: dict[str, Any] = {}
+    if inquiry.contact_id:
+        process_cockpit["customer_contact"] = {
+            "contact_id": inquiry.contact_id,
+            "name": " ".join(
+                part
+                for part in [
+                    getattr(inquiry.contact, "first_name", "") or "",
+                    getattr(inquiry.contact, "last_name", "") or "",
+                ]
+                if part
+            ).strip(),
+            "email": getattr(inquiry.contact, "email", "") or "",
+        }
+    if "selected_bid" in data:
+        process_cockpit["selected_bid"] = data["selected_bid"]
+    if "contact_routing" in data:
+        process_cockpit["supplier_contacts"] = data["contact_routing"]
+    if process_cockpit:
+        data["process_cockpit"] = process_cockpit
 
     return data
 

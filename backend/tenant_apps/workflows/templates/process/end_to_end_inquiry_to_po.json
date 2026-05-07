@@ -1,6 +1,6 @@
 {
   "templateId": "end-to-end-inquiry-to-po-process",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "name": "End-to-End Inquiry to PO Process",
   "description": "Complete multi-trigger trading workflow from initial inquiry through to final Purchase Order, covering all 5 entry paths with supplier sourcing, bid evaluation, and order generation.",
   "category": "trading",
@@ -91,9 +91,21 @@
       "type": "group",
       "position": {"x": 200, "y": 400},
       "data": {
+        "nodeType": "formProcessGroup",
         "label": "FormProcess: Supplier Sourcing & Evaluation",
         "groupType": "form_process",
         "description": "Core processing group: RFQ dispatch, bid collection, evaluation, and order generation",
+        "formNodes": [
+          "form-step-inquiry",
+          "form-step-sales-order",
+          "form-step-po-customer-tree",
+          "form-step-po-trader-supplier"
+        ],
+        "contactOutputContract": {
+          "supplierContactPath": "records.purchase_order.contact_routing.supplier_contact",
+          "billingContactPath": "records.purchase_order.contact_routing.billing_contact",
+          "shippingContactPath": "records.purchase_order.contact_routing.shipping_contact"
+        },
         "telemetryEvent": "e2e_inquiry_to_po.form_process.start"
       }
     },
@@ -110,9 +122,33 @@
           "plantContactType": "dropdown",
           "filterByResponsibility": true,
           "includeDocumentAttachments": true,
-          "conditionalFields": ["certifications", "shipping_preferences"]
+          "conditionalFields": ["certifications", "shipping_preferences"],
+          "orderRoles": {
+            "supplier_contact": "pricing",
+            "billing_contact": "accounting",
+            "shipping_contact": "logistics"
+          }
         },
         "telemetryEvent": "e2e_inquiry_to_po.contacts.resolved"
+      }
+    },
+    {
+      "id": "form-step-inquiry",
+      "type": "formStep",
+      "position": {"x": 700, "y": 500},
+      "parentNode": "form-process-group",
+      "data": {
+        "label": "Form Node 1: Inquiry",
+        "nodeType": "formStep",
+        "stepIndex": 1,
+        "entityType": "inquiry",
+        "description": "Capture the inquiry header and sourcing inputs before supplier fan-out begins.",
+        "entityConfig": {
+          "formVariant": "inquiry",
+          "syncToTradeSession": true,
+          "fieldGroups": ["requested_product", "customer_contact", "supplier_match_inputs"]
+        },
+        "telemetryEvent": "e2e_inquiry_to_po.form.inquiry.ready"
       }
     },
     {
@@ -139,7 +175,9 @@
         "actionType": "send_email",
         "description": "Send Request for Quotation to current supplier's plant contact",
         "emailConfig": {
-          "recipientSource": "current_supplier.plant_contact.email",
+          "recipientStrategy": "supplier_plant_contact",
+          "routingFocus": "pricing",
+          "recipientSource": "current_supplier.contact_routing.supplier_contact.recipient_email",
           "templateId": "rfq_request",
           "attachDocuments": true,
           "useContactType": "Sales",
@@ -195,7 +233,36 @@
           ],
           "requireApprovalAboveThreshold": 25000.00
         },
+        "outputContract": {
+          "selectedBidPath": "context.selected_bid",
+          "supplierContactPath": "context.selected_bid.contact_routing.supplier_contact",
+          "billingContactPath": "context.contact_routing.billing_contact",
+          "shippingContactPath": "context.contact_routing.shipping_contact",
+          "displayInCockpit": true
+        },
         "telemetryEvent": "e2e_inquiry_to_po.bid.selected"
+      }
+    },
+    {
+      "id": "form-step-sales-order",
+      "type": "formStep",
+      "position": {"x": 700, "y": 1350},
+      "parentNode": "form-process-group",
+      "data": {
+        "label": "Form Node 2: Sales Order",
+        "nodeType": "formStep",
+        "stepIndex": 2,
+        "entityType": "sales_order",
+        "description": "Prepare the downstream sales-order draft and customer dispatch context.",
+        "entityConfig": {
+          "formVariant": "sales_order",
+          "prefillFromSelectedBid": true,
+          "outputPaths": {
+            "selectedBid": "context.selected_bid",
+            "supplierContacts": "context.contact_routing"
+          }
+        },
+        "telemetryEvent": "e2e_inquiry_to_po.form.sales_order.ready"
       }
     },
     {
@@ -212,7 +279,22 @@
           "includeMarginBreakdown": true,
           "attachPdfToEmail": true,
           "useContactType": "Accounting",
-          "lineageTracking": true
+          "lineageTracking": true,
+          "contactOutputs": {
+            "customerDispatchContactPath": "records.sales_order.process_cockpit.customer_contact",
+            "supplierContactPath": "records.sales_order.contact_routing.supplier_contact",
+            "billingContactPath": "records.sales_order.contact_routing.billing_contact",
+            "shippingContactPath": "records.sales_order.contact_routing.shipping_contact"
+          }
+        },
+        "outputContract": {
+          "salesOrderIdPath": "records.sales_order.id",
+          "selectedBidPath": "records.sales_order.selected_bid",
+          "customerContactPath": "records.sales_order.process_cockpit.customer_contact",
+          "supplierContactPath": "records.sales_order.contact_routing.supplier_contact",
+          "billingContactPath": "records.sales_order.contact_routing.billing_contact",
+          "shippingContactPath": "records.sales_order.contact_routing.shipping_contact",
+          "displayInCockpit": true
         },
         "telemetryEvent": "e2e_inquiry_to_po.sales_order.generated"
       }
@@ -263,6 +345,70 @@
       }
     },
     {
+      "id": "form-step-po-customer-tree",
+      "type": "formStep",
+      "position": {"x": 520, "y": 2000},
+      "parentNode": "form-process-group",
+      "data": {
+        "label": "Form Node 3: Purchase Order (Customer Tree)",
+        "nodeType": "formStep",
+        "stepIndex": 3,
+        "entityType": "purchase_order",
+        "description": "Customer-confirmed PO view that mirrors the department-contact conditional display without mutating the contact record.",
+        "entityConfig": {
+          "formVariant": "purchase_order",
+          "purchaseOrderVariant": "customer_tree",
+          "contactPrepopulation": {
+            "supplierContactRole": "supplier_contact",
+            "billingContactRole": "billing_contact",
+            "shippingContactRole": "shipping_contact",
+            "sourcePath": "records.purchase_order.contact_routing"
+          },
+          "conditionalDisplay": {
+            "mirrorDepartmentContactForm": true,
+            "departmentFieldMap": {
+              "supplier_contact": "supplier_contact_department",
+              "billing_contact": "billing_contact_department",
+              "shipping_contact": "shipping_contact_department"
+            }
+          }
+        },
+        "telemetryEvent": "e2e_inquiry_to_po.form.purchase_order_customer_tree.ready"
+      }
+    },
+    {
+      "id": "form-step-po-trader-supplier",
+      "type": "formStep",
+      "position": {"x": 840, "y": 2000},
+      "parentNode": "form-process-group",
+      "data": {
+        "label": "Form Node 4: Purchase Order (Trader to Supplier)",
+        "nodeType": "formStep",
+        "stepIndex": 4,
+        "entityType": "purchase_order",
+        "description": "Trader-facing supplier PO variant with typed supplier, accounting, and shipping contacts pre-populated from plant contact roles.",
+        "entityConfig": {
+          "formVariant": "purchase_order",
+          "purchaseOrderVariant": "trader_to_supplier",
+          "contactPrepopulation": {
+            "supplierContactRole": "supplier_contact",
+            "billingContactRole": "billing_contact",
+            "shippingContactRole": "shipping_contact",
+            "sourcePath": "records.purchase_order.contact_routing"
+          },
+          "conditionalDisplay": {
+            "mirrorDepartmentContactForm": true,
+            "departmentFieldMap": {
+              "supplier_contact": "supplier_contact_department",
+              "billing_contact": "billing_contact_department",
+              "shipping_contact": "shipping_contact_department"
+            }
+          }
+        },
+        "telemetryEvent": "e2e_inquiry_to_po.form.purchase_order_trader_supplier.ready"
+      }
+    },
+    {
       "id": "create-supplier-po",
       "type": "action",
       "position": {"x": 200, "y": 2000},
@@ -274,7 +420,23 @@
           "sourceFromBid": true,
           "useContactType": "Sales",
           "notifySupplierContact": true,
-          "lineageTracking": true
+          "lineageTracking": true,
+          "contactPrepopulation": {
+            "supplierContactRole": "supplier_contact",
+            "billingContactRole": "billing_contact",
+            "shippingContactRole": "shipping_contact",
+            "sourcePath": "records.purchase_order.contact_routing"
+          },
+          "conditionalDisplay": {
+            "mirrorDepartmentContactForm": true
+          }
+        },
+        "outputContract": {
+          "purchaseOrderIdPath": "records.purchase_order.id",
+          "supplierContactPath": "records.purchase_order.contact_routing.supplier_contact",
+          "billingContactPath": "records.purchase_order.contact_routing.billing_contact",
+          "shippingContactPath": "records.purchase_order.contact_routing.shipping_contact",
+          "displayInCockpit": true
         },
         "telemetryEvent": "e2e_inquiry_to_po.supplier_po.created"
       }
@@ -315,16 +477,20 @@
     {"id": "e-t5-sc", "source": "trigger-trader-po", "target": "safety-check"},
     {"id": "e-sc-fp", "source": "safety-check", "target": "form-process-group", "label": "pass"},
     {"id": "e-fp-rc", "source": "form-process-group", "target": "resolve-contacts", "label": "entry"},
-    {"id": "e-rc-fes", "source": "resolve-contacts", "target": "for-each-supplier"},
+    {"id": "e-rc-f1", "source": "resolve-contacts", "target": "form-step-inquiry"},
+    {"id": "e-f1-fes", "source": "form-step-inquiry", "target": "for-each-supplier"},
     {"id": "e-fes-rfq", "source": "for-each-supplier", "target": "send-rfq", "label": "each"},
     {"id": "e-rfq-dud", "source": "for-each-supplier", "target": "do-until-due-date", "label": "after_all"},
     {"id": "e-dud-cb", "source": "do-until-due-date", "target": "check-bids", "label": "each_poll"},
     {"id": "e-dud-bs", "source": "do-until-due-date", "target": "bid-selection", "label": "completed"},
-    {"id": "e-bs-gso", "source": "bid-selection", "target": "generate-sales-order"},
+    {"id": "e-bs-f2", "source": "bid-selection", "target": "form-step-sales-order"},
+    {"id": "e-f2-gso", "source": "form-step-sales-order", "target": "generate-sales-order"},
     {"id": "e-gso-sso", "source": "generate-sales-order", "target": "send-sales-order"},
     {"id": "e-sso-acp", "source": "send-sales-order", "target": "await-customer-po"},
     {"id": "e-acp-prc", "source": "await-customer-po", "target": "po-received-check", "label": "completed"},
-    {"id": "e-prc-csp", "source": "po-received-check", "target": "create-supplier-po", "label": "yes"},
+    {"id": "e-prc-f3", "source": "po-received-check", "target": "form-step-po-customer-tree", "label": "yes"},
+    {"id": "e-f3-f4", "source": "form-step-po-customer-tree", "target": "form-step-po-trader-supplier", "label": "validated_customer_po"},
+    {"id": "e-f4-csp", "source": "form-step-po-trader-supplier", "target": "create-supplier-po", "label": "generate_supplier_po"},
     {"id": "e-prc-esc", "source": "po-received-check", "target": "escalate-no-po", "label": "no"},
     {"id": "e-csp-end", "source": "create-supplier-po", "target": "process-complete"},
     {"id": "e-esc-end", "source": "escalate-no-po", "target": "process-complete"}
@@ -335,10 +501,11 @@
     "complexity": "high",
     "requiredEntities": ["Inquiry", "Supplier", "Customer", "Contact", "Plant", "PurchaseOrder", "SalesOrder"],
     "requiredContactTypes": ["Sales", "Accounting", "General"],
-    "nodeCount": 15,
-    "edgeCount": 20,
+    "nodeCount": 19,
+    "edgeCount": 24,
     "triggerCount": 5,
     "loopCount": 3,
-    "formProcessGroups": 1
+    "formProcessGroups": 1,
+    "formStepCount": 4
   }
 }
