@@ -3,8 +3,9 @@ import styled from 'styled-components';
 import { Spin, Typography, message, Tag, Select } from 'antd';
 import debounce from 'lodash/debounce';
 import { businessApi } from '../../services/businessApi';
-import { logger } from '@/utils/logger';
 import AmbientSuggestions from '@/components/AIAssistant/AmbientSuggestions';
+import { logger } from '@/utils/logger';
+import { resolveEntityDisplay, type ResolvedEntityDisplay } from '../../utils/entityDisplay';
 
 const { Text } = Typography;
 
@@ -76,6 +77,7 @@ export interface EntityProfileHeaderProps {
   entityType: string;
   entityId: string;
   onNavigateToEntity: (entityType: string, entityId: string, label: string) => void;
+  onTitleResolved?: (resolved: ResolvedEntityDisplay) => void;
 
   /**
    * When set to "compact", only the most important fields are shown.
@@ -405,6 +407,7 @@ export const EntityProfileHeader: React.FC<EntityProfileHeaderProps> = ({
   entityType,
   entityId,
   onNavigateToEntity,
+  onTitleResolved,
   variant = 'full',
 }) => {
   const [data, setData] = useState<EntityDetailResponse | null>(null);
@@ -425,7 +428,9 @@ export const EntityProfileHeader: React.FC<EntityProfileHeaderProps> = ({
       ]);
 
       if (detailRes.status === 'fulfilled') {
-        setData(detailRes.value.data as EntityDetailResponse);
+        const nextData = detailRes.value.data as EntityDetailResponse;
+        setData(nextData);
+        onTitleResolved?.(resolveEntityDisplay(nextData, { entityType, fallbackStyle: 'id' }));
       } else {
         const err: any = detailRes.reason;
         const status = err?.response?.status;
@@ -449,7 +454,7 @@ export const EntityProfileHeader: React.FC<EntityProfileHeaderProps> = ({
     } finally {
       setLoading(false);
     }
-  }, [entityId, entityType]);
+  }, [entityId, entityType, onTitleResolved]);
 
   useEffect(() => {
     void load();
@@ -487,8 +492,10 @@ export const EntityProfileHeader: React.FC<EntityProfileHeaderProps> = ({
         `/system/entities/${encodeURIComponent(entityType)}/${encodeURIComponent(entityId)}/`,
         { field, value }
       );
-      setData(resp.data as EntityDetailResponse);
-      return resp.data as EntityDetailResponse;
+      const nextData = resp.data as EntityDetailResponse;
+      setData(nextData);
+      onTitleResolved?.(resolveEntityDisplay(nextData, { entityType, fallbackStyle: 'id' }));
+      return nextData;
     } catch (err: any) {
       const status = err?.response?.status;
       logger.error('Failed to update entity profile header field', { component: 'EntityProfileHeader' }, err);
@@ -502,7 +509,7 @@ export const EntityProfileHeader: React.FC<EntityProfileHeaderProps> = ({
       void load();
       throw err;
     }
-  }, [entityType, entityId, load]);
+  }, [entityType, entityId, load, onTitleResolved]);
 
   const debouncedPatch = useMemo(
     () => debounce(async (field: string, value: unknown) => {
@@ -728,16 +735,22 @@ export const EntityProfileHeader: React.FC<EntityProfileHeaderProps> = ({
                 {groupedHeaderFieldEntries.length > 1 && <GroupHeading>{group.label}</GroupHeading>}
                 {group.fields.map(({ key, label: fieldLabel, value, readOnly }) => {
                   if (isEntityReference(value) && value.type && value.id !== null && value.id !== undefined) {
-                    const linkLabel = value.title || `${value.type} ${value.id}`;
+                    const linkLabel = resolveEntityDisplay(value, {
+                      entityType: String(value.type || ''),
+                      preferredKeys: ['title', 'name', 'label', 'display_name', 'displayName'],
+                      fallbackStyle: 'details',
+                    });
                     return (
                       <FieldRow key={key}>
                         <FieldLabel>{String(fieldLabel || key)}</FieldLabel>
                         <FieldValue>
                           <LinkButton
-                            onClick={() => onNavigateToEntity(String(value.type), String(value.id), linkLabel)}
-                            title="Navigate"
+                            onClick={() =>
+                              onNavigateToEntity(String(value.type), String(value.id), linkLabel.text)
+                            }
+                            title={linkLabel.tooltip || linkLabel.text}
                           >
-                            {linkLabel}
+                            {linkLabel.text}
                           </LinkButton>
                         </FieldValue>
                       </FieldRow>

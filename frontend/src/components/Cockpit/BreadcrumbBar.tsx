@@ -11,6 +11,7 @@ import React from 'react';
 import styled from 'styled-components';
 import { ChevronRight, Home } from 'lucide-react';
 import { useCockpitNavigation } from '../../contexts/CockpitNavigationContext';
+import { resolveEntityDisplay } from '../../utils/entityDisplay';
 
 // ============================================================================
 // Styled Components
@@ -92,40 +93,17 @@ type ExtraCrumb = {
   label: string;
 };
 
-const UUID_PATTERN =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-
-const isUUID = (value: string): boolean => UUID_PATTERN.test(String(value || '').trim());
-
-const humanizeStepType = (value: string): string => {
-  const raw = String(value || '')
-    .split('.')
-    .pop()
-    ?.replace(/[_-]+/g, ' ')
-    .trim();
-
-  if (!raw) return 'Record';
-
-  return raw.replace(/\b\w/g, (char) => char.toUpperCase());
-};
-
-const resolveCrumbLabel = (step: { type?: string; label?: string; subtitle?: string }): string => {
-  const label = String(step.label || '').trim();
-  if (!label) {
-    return `${humanizeStepType(String(step.type || 'record'))} Details`;
-  }
-
-  if (!isUUID(label)) {
-    return label;
-  }
-
-  const subtitle = String(step.subtitle || '').trim();
-  if (subtitle && !isUUID(subtitle)) {
-    return subtitle;
-  }
-
-  return `${humanizeStepType(String(step.type || 'record'))} Details`;
-};
+const resolveCrumbLabel = (step: {
+  id?: string;
+  type?: string;
+  label?: string;
+  subtitle?: string;
+}) =>
+  resolveEntityDisplay(step, {
+    entityType: String(step.type || 'record').split('.').pop(),
+    preferredKeys: ['label', 'subtitle', 'title', 'name'],
+    fallbackStyle: 'details',
+  });
 
 interface BreadcrumbBarProps {
   extraCrumbs?: ExtraCrumb[];
@@ -155,16 +133,18 @@ export const BreadcrumbBar: React.FC<BreadcrumbBarProps> = ({ extraCrumbs = [] }
         const isLast = index === fullPath.length - 1;
         const isRealPathStep = index < path.length;
         const isClickable = isRealPathStep && index !== path.length - 1;
+        const resolvedLabel = resolveCrumbLabel(step);
 
         return (
           <React.Fragment key={`${step.type}-${step.id}-${step.timestamp}-${index}`}>
             <Separator size={16} />
             <Crumb
-              $isLast={isLast}
-              onClick={() => isClickable && goToStep(index)}
-              disabled={!isClickable}
-            >
-              <CrumbLabel>{resolveCrumbLabel(step)}</CrumbLabel>
+               $isLast={isLast}
+               onClick={() => isClickable && goToStep(index)}
+               disabled={!isClickable}
+               title={resolvedLabel.tooltip || resolvedLabel.text}
+             >
+              <CrumbLabel>{resolvedLabel.text}</CrumbLabel>
             </Crumb>
           </React.Fragment>
         );

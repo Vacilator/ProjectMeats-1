@@ -7,6 +7,7 @@ import { useAuthState } from '@/contexts/AuthContext';
 import { apiClient } from '@/services/apiService';
 import { isAuthError } from '@/utils/isAuthError';
 import StandalonePlantEditForm from './StandalonePlantEditForm';
+import { resolveEntityDisplay } from '@/utils/entityDisplay';
 
 type RouteParams = { id?: string };
 
@@ -33,7 +34,7 @@ const normalizeDept = (dept: unknown): string => {
 };
 
 const renderContact = (c: ContactRow) => {
-  const name = `${c.first_name || ''} ${c.last_name || ''}`.trim() || 'Unnamed';
+  const name = resolveEntityDisplay(c, { entityType: 'contact', fallbackStyle: 'id' }).text;
   const phones = [
     c.mobile_phone ? `Mobile: ${c.mobile_phone}` : null,
     c.office_phone ? `Office: ${c.office_phone}${c.office_phone_ext ? ` x${c.office_phone_ext}` : ''}` : null,

@@ -44,4 +44,22 @@ describe('BreadcrumbBar', () => {
       screen.queryByText('7d9154f4-1a4d-4f47-b7d4-6223479c1fe7')
     ).not.toBeInTheDocument();
   });
+
+  it('masks composite labels that still contain a UUID token', () => {
+    cockpitNavigationMock.path = [
+      {
+        id: '7d9154f4-1a4d-4f47-b7d4-6223479c1fe7',
+        type: 'plant',
+        label: 'plant 7d9154f4-1a4d-4f47-b7d4-6223479c1fe7',
+        timestamp: Date.now(),
+      },
+    ];
+
+    render(<BreadcrumbBar />);
+
+    expect(screen.getByText('Plant Details')).toBeInTheDocument();
+    expect(
+      screen.queryByText('plant 7d9154f4-1a4d-4f47-b7d4-6223479c1fe7')
+    ).not.toBeInTheDocument();
+  });
 });
