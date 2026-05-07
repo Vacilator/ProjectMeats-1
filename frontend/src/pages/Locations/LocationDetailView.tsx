@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Alert, Button, Card, Empty, Spin, Tabs, Tag } from 'antd';
+import styled from 'styled-components';
 import { useNavigate, useParams } from 'react-router-dom';
 
 import { AIOverviewCard, EntityProfileHeader } from '@/components/Cockpit';
@@ -41,46 +42,46 @@ const renderContact = (c: ContactRow) => {
 
   return (
     <Card key={String(c.id)} size="small" style={{ marginBottom: 10 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
-        <div style={{ fontWeight: 700, color: 'rgb(var(--color-text-primary))' }}>{name}</div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+      <ContactHeader>
+        <ContactName>{name}</ContactName>
+        <ContactActions>
           {c.department ? <Tag>{c.department}</Tag> : null}
           {c.email ? (
-            <a href={`mailto:${c.email}`} style={{ color: 'rgb(var(--color-primary))' }}>
+            <EmailLink href={`mailto:${c.email}`}>
               {c.email}
-            </a>
+            </EmailLink>
           ) : null}
-        </div>
-      </div>
+        </ContactActions>
+      </ContactHeader>
 
       {phones.length ? (
-        <div style={{ marginTop: 6, fontSize: 12, color: 'rgb(var(--color-text-secondary))' }}>
+        <PhoneInfo>
           {phones.join(' • ')}
-        </div>
+        </PhoneInfo>
       ) : null}
 
       {(c.protein_types_responsible?.length || 0) > 0 && (
-        <div style={{ marginTop: 8 }}>
-          <div style={{ fontSize: 11, fontWeight: 700, color: 'rgb(var(--color-text-tertiary))' }}>
+        <TagSection>
+          <TagSectionLabel>
             Protein Types
-          </div>
-          <div style={{ marginTop: 4, display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+          </TagSectionLabel>
+          <TagRow>
             {(c.protein_types_responsible || []).map((v) => (
               <Tag key={v}>{v}</Tag>
             ))}
-          </div>
-        </div>
+          </TagRow>
+        </TagSection>
       )}
 
       {(c.items_responsible?.length || 0) > 0 && (
-        <div style={{ marginTop: 8 }}>
-          <div style={{ fontSize: 11, fontWeight: 700, color: 'rgb(var(--color-text-tertiary))' }}>Items</div>
-          <div style={{ marginTop: 4, display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+        <TagSection>
+          <TagSectionLabel>Items</TagSectionLabel>
+          <TagRow>
             {(c.items_responsible || []).map((v) => (
               <Tag key={v}>{v}</Tag>
             ))}
-          </div>
-        </div>
+          </TagRow>
+        </TagSection>
       )}
     </Card>
   );
@@ -201,19 +202,19 @@ export const LocationDetailView: React.FC = () => {
   const showAuthFallback = !authLoading && (!isAuthenticated || authError);
 
   return (
-    <div style={{ padding: 16 }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+    <PageWrapper>
+      <TopBar>
+        <TitleGroup>
           <Button onClick={() => navigate(-1)}>Back</Button>
-          <div style={{ fontSize: 16, fontWeight: 700, color: 'rgb(var(--color-text-primary))' }}>Location</div>
-        </div>
+          <PageTitle>Location</PageTitle>
+        </TitleGroup>
 
         <Button type="primary" onClick={() => setEditOpen(true)} disabled={!locationId || showAuthFallback}>
           Edit Location
         </Button>
-      </div>
+      </TopBar>
 
-      <div style={{ marginTop: 12 }}>
+      <ContentSection>
         {!showAuthFallback && (
           <>
             <AIOverviewCard entityType="location" entityId={locationId} />
@@ -226,7 +227,7 @@ export const LocationDetailView: React.FC = () => {
             />
           </>
         )}
-      </div>
+      </ContentSection>
 
       {locationId ? (
         <EntityFormSurface
@@ -245,9 +246,9 @@ export const LocationDetailView: React.FC = () => {
 
       <Card style={{ marginTop: 16 }} title="Contacts">
         {authLoading || loadingContacts ? (
-          <div style={{ padding: 12 }}>
+          <LoadingWrapper>
             <Spin />
-          </div>
+          </LoadingWrapper>
         ) : showAuthFallback ? (
           <Alert
             type="warning"
@@ -284,8 +285,85 @@ export const LocationDetailView: React.FC = () => {
           />
         )}
       </Card>
-    </div>
+    </PageWrapper>
   );
 };
 
 export default LocationDetailView;
+
+// --- Styled Components ---
+
+const PageWrapper = styled.div`
+  padding: 16px;
+`;
+
+const TopBar = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+`;
+
+const TitleGroup = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+`;
+
+const PageTitle = styled.div`
+  font-size: 16px;
+  font-weight: 700;
+  color: rgb(var(--color-text-primary));
+`;
+
+const ContentSection = styled.div`
+  margin-top: 12px;
+`;
+
+const LoadingWrapper = styled.div`
+  padding: 12px;
+`;
+
+const ContactHeader = styled.div`
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+`;
+
+const ContactName = styled.div`
+  font-weight: 700;
+  color: rgb(var(--color-text-primary));
+`;
+
+const ContactActions = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+`;
+
+const EmailLink = styled.a`
+  color: rgb(var(--color-primary));
+`;
+
+const PhoneInfo = styled.div`
+  margin-top: 6px;
+  font-size: 12px;
+  color: rgb(var(--color-text-secondary));
+`;
+
+const TagSection = styled.div`
+  margin-top: 8px;
+`;
+
+const TagSectionLabel = styled.div`
+  font-size: 11px;
+  font-weight: 700;
+  color: rgb(var(--color-text-tertiary));
+`;
+
+const TagRow = styled.div`
+  margin-top: 4px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+`;

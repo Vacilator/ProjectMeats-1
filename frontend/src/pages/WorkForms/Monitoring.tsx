@@ -13,6 +13,7 @@ import React from 'react';
 
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
+import styled from 'styled-components';
 
 import { ErrorBoundary } from '@/components/common/ErrorBoundary';
 import { Card } from '@/components/ui/Card';
@@ -50,14 +51,14 @@ export const Monitoring: React.FC = () => {
   return (
     <ErrorBoundary>
       <PageContainer title="Monitoring">
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <PageStack>
           <Card padding="lg">
-            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+            <SectionHeader>
               <div>
-                <div style={{ fontWeight: 700 }}>Execution Analytics</div>
-                <div style={{ color: 'rgb(var(--color-text-secondary))', fontSize: 14, marginTop: 4 }}>
+                <SectionTitle>Execution Analytics</SectionTitle>
+                <SectionSubtitle>
                   Telemetry-backed summary for the last 30 days.
-                </div>
+                </SectionSubtitle>
               </div>
               <Button
                 variant="secondary"
@@ -69,19 +70,13 @@ export const Monitoring: React.FC = () => {
               >
                 Refresh
               </Button>
-            </div>
+            </SectionHeader>
 
             {analyticsQuery.isLoading ? (
-              <div style={{ marginTop: 12 }}>Loading analytics…</div>
+              <LoadingText>Loading analytics…</LoadingText>
             ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginTop: 12 }}>
-                <div
-                  style={{
-                    display: 'grid',
-                    gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
-                    gap: 12,
-                  }}
-                >
+              <AnalyticsContent>
+                <MetricGrid>
                   {[
                     { label: 'Total runs', value: String(summary?.total_runs ?? 0) },
                     { label: 'Active runs', value: String(summary?.active_runs ?? 0) },
@@ -90,104 +85,72 @@ export const Monitoring: React.FC = () => {
                     { label: 'Success rate', value: `${summary?.success_rate ?? 0}%` },
                     { label: 'Avg duration', value: formatDuration(summary?.avg_duration_ms) },
                   ].map((item) => (
-                    <div
-                      key={item.label}
-                      style={{
-                        border: '1px solid rgb(var(--color-border))',
-                        borderRadius: 12,
-                        padding: 12,
-                        background: 'rgb(var(--color-surface))',
-                      }}
-                    >
-                      <div style={{ color: 'rgb(var(--color-text-secondary))', fontSize: 12 }}>{item.label}</div>
-                      <div style={{ fontSize: 24, fontWeight: 700, marginTop: 6 }}>{item.value}</div>
-                    </div>
+                    <MetricCard key={item.label}>
+                      <MetricLabel>{item.label}</MetricLabel>
+                      <MetricValue>{item.value}</MetricValue>
+                    </MetricCard>
                   ))}
-                </div>
+                </MetricGrid>
 
-                <div
-                  style={{
-                    display: 'grid',
-                    gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
-                    gap: 12,
-                  }}
-                >
-                  <div
-                    style={{
-                      border: '1px solid rgb(var(--color-border))',
-                      borderRadius: 12,
-                      padding: 12,
-                    }}
-                  >
-                    <div style={{ fontWeight: 600, marginBottom: 8 }}>Top WorkForms</div>
+                <DetailGrid>
+                  <DetailPanel>
+                    <PanelTitle>Top WorkForms</PanelTitle>
                     {topWorkforms.length === 0 ? (
-                      <div style={{ color: 'rgb(var(--color-text-secondary))' }}>No runs in the selected window.</div>
+                      <SecondaryText>No runs in the selected window.</SecondaryText>
                     ) : (
-                      <ul style={{ margin: 0, paddingLeft: 18, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                      <DetailList>
                         {topWorkforms.map((row) => (
                           <li key={row.workform_id}>
                             <strong>{row.workform_name}</strong> — {row.total_runs} runs, {row.success_rate}% success
                           </li>
                         ))}
-                      </ul>
+                      </DetailList>
                     )}
-                  </div>
+                  </DetailPanel>
 
-                  <div
-                    style={{
-                      border: '1px solid rgb(var(--color-border))',
-                      borderRadius: 12,
-                      padding: 12,
-                    }}
-                  >
-                    <div style={{ fontWeight: 600, marginBottom: 8 }}>Top failed steps</div>
+                  <DetailPanel>
+                    <PanelTitle>Top failed steps</PanelTitle>
                     {topFailedNodes.length === 0 ? (
-                      <div style={{ color: 'rgb(var(--color-text-secondary))' }}>No failed steps recorded.</div>
+                      <SecondaryText>No failed steps recorded.</SecondaryText>
                     ) : (
-                      <ul style={{ margin: 0, paddingLeft: 18, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                      <DetailList>
                         {topFailedNodes.map((row) => (
                           <li key={`${row.workform_id}:${row.node_id}:failed`}>
                             <strong>{row.node_label ?? row.node_id}</strong> — {row.failure_count} failures
-                            <div style={{ color: 'rgb(var(--color-text-secondary))', fontSize: 12 }}>
+                            <DetailMeta>
                               {row.workform_name}
-                            </div>
+                            </DetailMeta>
                           </li>
                         ))}
-                      </ul>
+                      </DetailList>
                     )}
-                  </div>
+                  </DetailPanel>
 
-                  <div
-                    style={{
-                      border: '1px solid rgb(var(--color-border))',
-                      borderRadius: 12,
-                      padding: 12,
-                    }}
-                  >
-                    <div style={{ fontWeight: 600, marginBottom: 8 }}>Slowest actions</div>
+                  <DetailPanel>
+                    <PanelTitle>Slowest actions</PanelTitle>
                     {slowestActions.length === 0 ? (
-                      <div style={{ color: 'rgb(var(--color-text-secondary))' }}>No completed action timings yet.</div>
+                      <SecondaryText>No completed action timings yet.</SecondaryText>
                     ) : (
-                      <ul style={{ margin: 0, paddingLeft: 18, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                      <DetailList>
                         {slowestActions.map((row) => (
                           <li key={`${row.workform_id}:${row.node_id}:slow`}>
                             <strong>{row.node_label ?? row.node_id}</strong> — {formatDuration(row.avg_duration_ms)}
-                            <div style={{ color: 'rgb(var(--color-text-secondary))', fontSize: 12 }}>
+                            <DetailMeta>
                               {row.workform_name} • {row.sample_count} sample(s)
-                            </div>
+                            </DetailMeta>
                           </li>
                         ))}
-                      </ul>
+                      </DetailList>
                     )}
-                  </div>
-                </div>
-              </div>
+                  </DetailPanel>
+                </DetailGrid>
+              </AnalyticsContent>
             )}
           </Card>
 
           <Card padding="lg">
-            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
-              <div style={{ fontWeight: 700 }}>Active WorkForm Executions</div>
+            <SectionHeader>
+              <SectionTitle>Active WorkForm Executions</SectionTitle>
               <Button
                 variant="secondary"
                 onClick={() => activeExecutionsQuery.refetch()}
@@ -195,14 +158,14 @@ export const Monitoring: React.FC = () => {
               >
                 Refresh
               </Button>
-            </div>
+            </SectionHeader>
 
             {activeExecutionsQuery.isLoading ? (
-              <div style={{ marginTop: 12 }}>Loading…</div>
+              <LoadingText>Loading…</LoadingText>
             ) : active.length === 0 ? (
-              <div style={{ marginTop: 12, color: 'rgb(var(--color-text-secondary))' }}>No active executions.</div>
+              <EmptyStateText>No active executions.</EmptyStateText>
             ) : (
-              <ul style={{ marginTop: 12, paddingLeft: 18 }}>
+              <ExecutionList>
                 {active.map((ex) => (
                   <li key={ex.id}>
                     <Link to={`/workforms/executions/${ex.id}`}>
@@ -210,16 +173,118 @@ export const Monitoring: React.FC = () => {
                     </Link>
                   </li>
                 ))}
-              </ul>
+              </ExecutionList>
             )}
           </Card>
 
           {/* Legacy monitor (FormSubmission-based) */}
           <ProcessMonitor />
-        </div>
+        </PageStack>
       </PageContainer>
     </ErrorBoundary>
   );
 };
 
 export default Monitoring;
+
+const PageStack = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+`;
+
+const SectionHeader = styled.div`
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+`;
+
+const SectionTitle = styled.div`
+  font-weight: 700;
+`;
+
+const SectionSubtitle = styled.div`
+  color: rgb(var(--color-text-secondary));
+  font-size: 14px;
+  margin-top: 4px;
+`;
+
+const LoadingText = styled.div`
+  margin-top: 12px;
+`;
+
+const AnalyticsContent = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-top: 12px;
+`;
+
+const MetricGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+`;
+
+const MetricCard = styled.div`
+  border: 1px solid rgb(var(--color-border));
+  border-radius: 12px;
+  padding: 12px;
+  background: rgb(var(--color-surface));
+`;
+
+const MetricLabel = styled.div`
+  color: rgb(var(--color-text-secondary));
+  font-size: 12px;
+`;
+
+const MetricValue = styled.div`
+  font-size: 24px;
+  font-weight: 700;
+  margin-top: 6px;
+`;
+
+const DetailGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 12px;
+`;
+
+const DetailPanel = styled.div`
+  border: 1px solid rgb(var(--color-border));
+  border-radius: 12px;
+  padding: 12px;
+`;
+
+const PanelTitle = styled.div`
+  font-weight: 600;
+  margin-bottom: 8px;
+`;
+
+const SecondaryText = styled.div`
+  color: rgb(var(--color-text-secondary));
+`;
+
+const DetailList = styled.ul`
+  margin: 0;
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+`;
+
+const DetailMeta = styled.div`
+  color: rgb(var(--color-text-secondary));
+  font-size: 12px;
+`;
+
+const EmptyStateText = styled.div`
+  margin-top: 12px;
+  color: rgb(var(--color-text-secondary));
+`;
+
+const ExecutionList = styled.ul`
+  margin-top: 12px;
+  padding-left: 18px;
+`;

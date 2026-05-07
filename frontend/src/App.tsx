@@ -81,7 +81,6 @@ import SignUp from './pages/SignUp';
 import Profile from './pages/Profile';
 import Settings from './pages/Settings';
 import GuestInvoiceView from './pages/Portal/GuestInvoiceView';
-import { ComingSoon } from './pages/ComingSoon';
 import ApiTestComponent from './components/ApiTestComponent';
 import { WorkflowRunner, PerfHarness } from './pages/Workflows';
 import { WorkflowMonitor } from './pages/Workflows/WorkflowMonitor';
@@ -103,7 +102,6 @@ import AdminProfilePage from './pages/Admin/Profile';
 import BillingPage from './pages/Admin/Billing';
 import ActivityPage from './pages/Admin/Activity';
 import AdminWorkspaceHome from './pages/Admin/Home';
-import ActivityFeedPage from './pages/ActivityFeedPage';
 import AdminErrorBoundary from './components/Admin/AdminErrorBoundary';
 import { ErrorBoundary as ProductionErrorBoundary } from './components/common/ErrorBoundary';
 import { logger } from './utils/logger';
@@ -326,9 +324,9 @@ const App: React.FC = () => {
                 {/* Orders */}
                 <Route path="purchase-orders" element={<PurchaseOrders />} />
                 <Route path="purchase-orders/:id/review" element={<PurchaseOrderReview />} />
-                <Route path="purchase-orders/attachments" element={<ComingSoon title="Purchase Order Attachments" icon="📎" description="View and manage attachments for purchase orders." />} />
+                <Route path="purchase-orders/attachments" element={<Navigate to="/purchase-orders" replace />} />
                 <Route path="sales-orders" element={<SalesOrders />} />
-                <Route path="sales-orders/attachments" element={<ComingSoon title="Sales Order Attachments" icon="📎" description="View and manage attachments for sales orders." />} />
+                <Route path="sales-orders/attachments" element={<Navigate to="/sales-orders" replace />} />
                 <Route path="deals" element={<DealDesk />} />
                 
                 {/* Accounting */}
@@ -349,7 +347,7 @@ const App: React.FC = () => {
                 <Route path="contacts" element={<Contacts />} />
                 <Route path="ai-assistant" element={<AIAssistant />} />
                 <Route path="calls" element={<Navigate to="/cockpit/calls" replace />} />
-                <Route path="call-log" element={<Navigate to="/calls" replace />} />
+                <Route path="call-log" element={<Navigate to="/cockpit/calls" replace />} />
                 <Route path="processes" element={<Navigate to="/workforms/catalog" replace />} />
                 <Route path="reports" element={<Reports />} />
                 <Route path="activity" element={<Navigate to="/process-cockpit" replace />} />
