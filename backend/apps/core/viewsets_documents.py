@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+from django.db import transaction
 from django.http import HttpResponse
+from django.shortcuts import get_object_or_404
+from django.utils import timezone
 from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -29,14 +32,21 @@ class OperationalDocumentActionsMixin:
 
     @action(detail=True, methods=["post"], url_path="transition-status")
     def transition_status(self, request, pk=None):
-        document = self.get_object()
-        serializer = DocumentStatusTransitionSerializer(
-            data=request.data,
-            context={"document": document},
-        )
-        serializer.is_valid(raise_exception=True)
-        document.status = serializer.validated_data["status"]
-        document.save(update_fields=["status"])
+        with transaction.atomic():
+            queryset = self.filter_queryset(self.get_queryset()).select_for_update(of=("self",))
+            document = get_object_or_404(queryset, pk=pk)
+            self.check_object_permissions(request, document)
+            serializer = DocumentStatusTransitionSerializer(
+                data=request.data,
+                context={"document": document},
+            )
+            serializer.is_valid(raise_exception=True)
+            document.status = serializer.validated_data["status"]
+            update_fields = ["status"]
+            if hasattr(document, "modified_on"):
+                document.modified_on = timezone.now()
+                update_fields.append("modified_on")
+            document.save(update_fields=update_fields)
         return Response(self.get_serializer(document).data)
 
     @action(detail=True, methods=["get"], url_path="pdf")
