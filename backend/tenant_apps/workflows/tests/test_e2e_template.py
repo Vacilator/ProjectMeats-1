@@ -30,7 +30,7 @@ class TemplateFileTest(TestCase):
     def test_template_has_required_fields(self):
         data = get_e2e_template_data()
         self.assertEqual(data["templateId"], "end-to-end-inquiry-to-po-process")
-        self.assertEqual(data["version"], "1.1.0")
+        self.assertEqual(data["version"], "1.2.0")
         self.assertEqual(data["category"], "trading")
         self.assertTrue(data["isSystemTemplate"])
 
@@ -150,6 +150,36 @@ class TemplateFileTest(TestCase):
             self.assertEqual(config["supplierContactRole"], "supplier_contact")
             self.assertEqual(config["billingContactRole"], "billing_contact")
             self.assertEqual(config["shippingContactRole"], "shipping_contact")
+
+    def test_template_has_approval_gate(self):
+        data = get_e2e_template_data()
+        approval_nodes = [n for n in data["nodes"] if n["type"] == "approvalGate"]
+        self.assertEqual(len(approval_nodes), 1)
+        gate = approval_nodes[0]
+        self.assertEqual(gate["id"], "approval-gate-margin")
+        config = gate["data"]["approvalConfig"]
+        self.assertEqual(len(config["rules"]), 3)
+        rule_types = [r["ruleType"] for r in config["rules"]]
+        self.assertIn("margin_threshold", rule_types)
+        self.assertIn("order_amount", rule_types)
+        self.assertIn("supplier_risk", rule_types)
+        self.assertEqual(config["approverRouting"]["contactType"], "Accounting")
+        self.assertEqual(config["timeoutHours"], 48)
+
+    def test_approval_gate_wired_between_bid_selection_and_sales_order(self):
+        data = get_e2e_template_data()
+        edges = data["edges"]
+        # bid-selection -> approval-gate-margin
+        bs_to_ag = [e for e in edges if e["source"] == "bid-selection" and e["target"] == "approval-gate-margin"]
+        self.assertEqual(len(bs_to_ag), 1)
+        # approval-gate-margin -> form-step-sales-order (approved)
+        ag_to_f2 = [e for e in edges if e["source"] == "approval-gate-margin" and e["target"] == "form-step-sales-order"]
+        self.assertEqual(len(ag_to_f2), 1)
+        self.assertEqual(ag_to_f2[0].get("label"), "approved")
+        # approval-gate-margin -> rejection escalation
+        ag_to_rej = [e for e in edges if e["source"] == "approval-gate-margin" and e["target"] == "approval-rejected-escalation"]
+        self.assertEqual(len(ag_to_rej), 1)
+        self.assertEqual(ag_to_rej[0].get("label"), "rejected")
 
     def test_metadata_accuracy(self):
         data = get_e2e_template_data()
