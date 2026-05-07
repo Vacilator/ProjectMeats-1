@@ -68,7 +68,7 @@ def email_document_pdf(instance, *, to: Iterable[str], subject: str, body: str) 
     return generated
 
 
-def generate_document_pdf_for_instance(instance) -> GeneratedDocument:
+def generate_document_pdf_for_instance(instance, *, generated_at=None) -> GeneratedDocument:
     """Render a transactional document into a PDF attachment."""
 
     buffer = BytesIO()
@@ -103,7 +103,7 @@ def generate_document_pdf_for_instance(instance) -> GeneratedDocument:
 
     story = [
         Paragraph(_document_title(instance), title_style),
-        Paragraph(_document_subtitle(instance), body_style),
+        Paragraph(_document_subtitle(instance, generated_at=generated_at), body_style),
         Spacer(1, 0.15 * inch),
     ]
 
@@ -142,13 +142,13 @@ def _document_title(instance) -> str:
     return titles.get(instance.__class__.__name__, instance.__class__.__name__)
 
 
-def _document_subtitle(instance) -> str:
+def _document_subtitle(instance, *, generated_at=None) -> str:
     reference = _primary_reference(instance)
     status_label = getattr(instance, "get_status_display", lambda: _string_value(getattr(instance, "status", "")))()
     created_at = getattr(instance, "date_time_stamp", None) or getattr(instance, "date_time_stamp_created", None)
     timestamp = created_at or getattr(instance, "created_on", None)
     timezone_name = _trade_render_timezone_name(instance)
-    rendered_timestamp = format_trade_datetime(timestamp or timezone.now(), timezone_name=timezone_name)
+    rendered_timestamp = format_trade_datetime(generated_at or timestamp or timezone.now(), timezone_name=timezone_name)
     return f"{reference} · {status_label} · Generated {rendered_timestamp}"
 
 

@@ -159,6 +159,11 @@ class PurchaseOrderSerializer(
 
     def update(self, instance, validated_data):
         items_data = validated_data.pop("items", None)
+        next_status = validated_data.get("status")
+        if next_status is not None and str(next_status) != str(instance.status):
+            raise serializers.ValidationError(
+                {"status": "Use the explicit transition-status action for purchase order status changes."}
+            )
         instance = super().update(instance, validated_data)
         if items_data is not None:
             self._replace_items(instance, items_data)

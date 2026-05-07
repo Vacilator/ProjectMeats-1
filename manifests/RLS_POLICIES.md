@@ -72,6 +72,7 @@ All workflow-related tables have Row-Level Security **ENABLED** and **FORCED**:
 | Table Name | RLS Enabled | Migration | Deployment Date |
 |------------|-------------|-----------|-----------------|
 | `purchase_orders_purchaseorder` | ✅ | `purchase_orders/0013_refactor_to_tenantaware` | Feb 27, 2026 00:45 UTC |
+| `purchase_orders_purchaseorderapprovaldispatch` | ✅ | `purchase_orders/0020_purchaseorderapprovaldispatch` | Pending next deployment audit |
 | `purchase_orders_purchaseorderitem` | ✅ | `purchase_orders/0018_golden_schema_refactor` | Pending next deployment audit |
 | `purchase_orders_carrierpurchaseorder` | ✅ | `purchase_orders/0013_refactor_to_tenantaware` | Feb 27, 2026 00:45 UTC |
 | `purchase_orders_carrierpoitem` | ✅ | `purchase_orders/0018_golden_schema_refactor` | Pending next deployment audit |

@@ -1,12 +1,18 @@
 from __future__ import annotations
 
 import uuid
+from datetime import timedelta
+from decimal import Decimal
 
 from django.contrib.auth.models import User
 from django.test import TestCase
+from django.utils import timezone
 
+from apps.integrations.models import ExternalAuthProvider
 from apps.system.models import TenantWorkForm
 from apps.tenants.models import Tenant, TenantUser
+from tenant_apps.purchase_orders.models import PurchaseOrder
+from tenant_apps.suppliers.models import Supplier
 from tenant_apps.workflows.models import NotificationType, TenantWorkFormExecution, UserNotification
 from tenant_apps.workflows.services.action_executor import ActionExecutor
 
@@ -99,3 +105,51 @@ class ActionExecutorSendNotificationTests(TestCase):
         self.assertFalse(result.get('success'))
         self.assertIn('tenant', str(result.get('error', '')).lower())
         self.assertEqual(UserNotification.objects.filter(tenant=self.tenant, user=other).count(), 0)
+
+
+class ActionExecutorPurchaseOrderGuardTests(TestCase):
+    def setUp(self):
+        unique = uuid.uuid4().hex[:8]
+
+        self.user = User.objects.create_user(username=f'po-guard-{unique}', password='pw')
+        self.tenant = Tenant.objects.create(
+            name=f'PO Guard Tenant {unique}',
+            slug=f'po-guard-tenant-{unique}',
+            contact_email=f'{unique}@example.com',
+            is_active=True,
+            created_by=self.user,
+        )
+        TenantUser.objects.create(tenant=self.tenant, user=self.user, role='admin', is_active=True)
+        self.supplier = Supplier.objects.create(name=f'Supplier {unique}', email=f'supplier-{unique}@example.com', tenant=self.tenant)
+        self.provider = ExternalAuthProvider.objects.create(
+            tenant=self.tenant,
+            provider_type='microsoft',
+            access_token='placeholder',
+            token_expiry=timezone.now() + timedelta(hours=1),
+            connected_email=f'sender-{unique}@example.com',
+        )
+        self.provider.set_encrypted_token('access', 'token')
+        self.provider.save(update_fields=['access_token'])
+        self.purchase_order = PurchaseOrder.objects.create(
+            tenant=self.tenant,
+            supplier=self.supplier,
+            order_number=f'PO-{unique}',
+            order_date=timezone.now().date(),
+            total_amount=Decimal('100.00'),
+            status='pending_approval',
+        )
+
+    def test_update_record_rejects_purchase_order_status_mutation(self):
+        executor = ActionExecutor(self.tenant, context={'variables': {}})
+
+        result = executor.execute(
+            'update_record',
+            {
+                'entity_type': 'purchase_order',
+                'entity_id': str(self.purchase_order.id),
+                'field_updates': {'status': 'approved'},
+            },
+        )
+
+        self.assertFalse(result.get('success'))
+        self.assertIn('transition-status', str(result.get('error', '')))

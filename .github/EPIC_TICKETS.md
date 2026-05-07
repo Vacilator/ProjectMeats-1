@@ -1249,8 +1249,8 @@
   - **Rollback:** Revert the review UI/API and preserve draft orders plus approval metadata.
   - **Completion evidence destination:** `.github/MASTER_PLAN.md` (PR #4934)
 
-- [ ] **CTE-03.3 supplier-po-approved-pdf-generation-and-email-send**
-  - **Status:** Ready
+- [x] **CTE-03.3 supplier-po-approved-pdf-generation-and-email-send**
+  - **Status:** Shipped
   - **Why now:** Supplier PO approval should eliminate document busywork and send the approved commitment immediately through a deterministic side-effect path.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 16 / Epic 3
   - **Scope:** Tie `PurchaseOrder` approval transitions to PDF generation and supplier outbound email, making both side effects idempotent, auditable, and driven by explicit approved-state changes rather than ad hoc UI actions.
@@ -1268,12 +1268,12 @@
   - **Secrets/infra impact:** Medium
   - **Risk level:** High
   - **Rollback:** Disable approval side effects first, preserving approved-state data and audit logs before reverting PDF/email code.
-  - **Completion evidence destination:** `.github/MASTER_PLAN.md`
+  - **Completion evidence destination:** `.github/MASTER_PLAN.md` (PR #4935)
 
 ### Epic CTE-04 - Sales & logistics cascade
 
 - [ ] **CTE-04.1 draft-sales-order-generation-from-fulfill-or-approved-source**
-  - **Status:** Blocked
+  - **Status:** Ready
   - **Why now:** The engine needs one deterministic way to create draft sales orders either directly from `FULFILL` inquiries or from approved supplier sourcing.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 16 / Epic 4
   - **Scope:** Auto-generate draft `SalesOrder` rows from either (a) direct `FULFILL` inquiry routing or (b) approved supplier POs, persisting route/source lineage and avoiding duplicate sales-order creation.
@@ -1281,7 +1281,7 @@
   - **Primary domain:** backend/orders
   - **Likely touched paths:** `backend/tenant_apps/inquiries/`, `backend/tenant_apps/sales_orders/`, `backend/tenant_apps/purchase_orders/`, related tests
   - **Dependencies:** CTE-03.3
-  - **Blockers:** CTE-03.3
+  - **Blockers:** None
   - **Acceptance criteria:** A single draft `SalesOrder` creation path exists for both happy-path branches, with explicit source linkage back to inquiry and/or supplier PO.
   - **Validation commands:** `cd backend && python manage.py test tenant_apps.sales_orders tenant_apps.purchase_orders tenant_apps.inquiries`; `cd backend && python manage.py makemigrations --check`
   - **Tenant/RLS impact:** High

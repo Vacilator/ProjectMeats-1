@@ -53,6 +53,15 @@ def _request_audit_context(request):
 class OperationalDocumentActionsMixin:
     """Attach workflow, PDF, and email actions to a document viewset."""
 
+    def perform_document_status_transition(self, request, document, next_status):
+        document.status = next_status
+        update_fields = ["status"]
+        if hasattr(document, "modified_on"):
+            document.modified_on = timezone.now()
+            update_fields.append("modified_on")
+        document.save(update_fields=update_fields)
+        return None
+
     @action(detail=True, methods=["get"], url_path="status-workflow")
     def status_workflow(self, request, pk=None):
         document = self.get_object()
@@ -70,12 +79,13 @@ class OperationalDocumentActionsMixin:
                     context={"document": document},
                 )
                 serializer.is_valid(raise_exception=True)
-                document.status = serializer.validated_data["status"]
-                update_fields = ["status"]
-                if hasattr(document, "modified_on"):
-                    document.modified_on = timezone.now()
-                    update_fields.append("modified_on")
-                document.save(update_fields=update_fields)
+                transition_response = self.perform_document_status_transition(
+                    request,
+                    document,
+                    serializer.validated_data["status"],
+                )
+                if transition_response is not None:
+                    return transition_response
         return Response(self.get_serializer(document).data)
 
     @action(detail=True, methods=["get"], url_path="pdf")
