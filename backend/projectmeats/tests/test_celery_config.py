@@ -51,8 +51,12 @@ class CeleryQueueContractTests(SimpleTestCase):
         beat_schedule = app.conf.beat_schedule
 
         self.assertEqual(
-            beat_schedule['sync-tenant-emails-every-5-minutes']['options']['queue'],
+            beat_schedule['sync-tenant-emails-every-15-minutes']['options']['queue'],
             'pm.ops',
+        )
+        self.assertEqual(
+            beat_schedule['sync-tenant-emails-every-15-minutes']['schedule'],
+            900.0,
         )
         self.assertEqual(
             beat_schedule['compile-rlhf-data-weekly']['options']['queue'],

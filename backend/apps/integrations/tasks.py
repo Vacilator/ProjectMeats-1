@@ -27,7 +27,7 @@ logger = logging.getLogger(__name__)
 def sync_tenant_emails(self):
     """Orchestrate email polling across tenants (Phase 8.3 fan-out).
 
-    This task runs every 5 minutes via Celery Beat.
+    This task runs every 15 minutes via Celery Beat.
 
     IMPORTANT: ExternalAuthProvider is RLS-protected. Celery workers must set
     tenant context explicitly or queries will return 0 rows under FORCE RLS.
@@ -132,6 +132,7 @@ def sync_single_tenant(self, tenant_id: str):
         with tenant_rls(str(tenant_id)):
             service = EmailIngestionService()
             stats = service.poll_tenant_by_id(tenant_id)
+            ai_inbox = sync_ai_feedback_queue_for_tenant(str(tenant_id))
 
         logger.info(
             'Manual sync completed for tenant %s: saved=%s fetched=%s errors=%s',
@@ -145,6 +146,7 @@ def sync_single_tenant(self, tenant_id: str):
             'success': True,
             'tenant_id': tenant_id,
             'stats': stats,
+            'ai_inbox': ai_inbox,
         }
 
     except Exception as e:

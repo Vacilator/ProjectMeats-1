@@ -8,6 +8,7 @@ import secrets
 from datetime import timedelta
 from urllib.parse import quote
 
+from celery.result import AsyncResult
 from django.conf import settings
 from django.core import signing
 from django.shortcuts import redirect
@@ -23,6 +24,16 @@ from .providers import MicrosoftGraphProvider
 from .providers.base import EmailProviderError, AuthenticationError
 
 logger = logging.getLogger(__name__)
+
+AUTO_SYNC_SOURCES = {'login', 'interval', 'manual'}
+
+
+def _normalize_auto_sync_source(raw_source):
+    if isinstance(raw_source, str):
+        normalized = raw_source.strip().lower()
+        if normalized in AUTO_SYNC_SOURCES:
+            return normalized
+    return 'interval'
 
 
 @api_view(['GET'])
@@ -331,6 +342,100 @@ def disconnect_provider(request):
             {"error": "Provider not found"},
             status=status.HTTP_404_NOT_FOUND
         )
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def schedule_email_sync(request):
+    """Queue a tenant-scoped email sync for login and background AI inbox refresh."""
+    tenant = getattr(request, 'tenant', None)
+    if not tenant:
+        return Response({"error": "Tenant not found"}, status=status.HTTP_400_BAD_REQUEST)
+
+    tenant_id = str(tenant.id)
+    source = _normalize_auto_sync_source(getattr(request, 'data', {}).get('source'))
+    provider = ExternalAuthProvider.objects.filter(
+        tenant=tenant,
+        provider_type='microsoft',
+        is_active=True,
+    ).first()
+    if not provider:
+        return Response(
+            {
+                "ok": False,
+                "accepted": False,
+                "message": "No active Microsoft account connected.",
+                "code": "not_connected",
+                "tenant_id": tenant_id,
+                "source": source,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+    try:
+        from apps.integrations.tasks import sync_single_tenant
+
+        task = sync_single_tenant.apply_async(args=[tenant_id])
+    except Exception as sync_err:
+        logger.error(
+            'Failed to queue email auto-sync for tenant %s: %s',
+            tenant_id,
+            str(sync_err),
+            exc_info=True,
+        )
+        return Response(
+            {
+                "ok": False,
+                "accepted": False,
+                "message": "Email sync could not be queued right now.",
+                "code": "sync_schedule_failed",
+                "tenant_id": tenant_id,
+                "source": source,
+                "details": {
+                    "type": sync_err.__class__.__name__,
+                },
+            },
+            status=status.HTTP_200_OK,
+        )
+
+    return Response(
+        {
+            "ok": True,
+            "accepted": True,
+            "message": "Email sync queued",
+            "tenant_id": tenant_id,
+            "source": source,
+            "provider_email": provider.connected_email,
+            "task_id": task.id,
+        },
+        status=status.HTTP_202_ACCEPTED,
+    )
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_scheduled_email_sync_status(request, task_id):
+    """Return task status for a previously queued tenant email sync."""
+    tenant = getattr(request, 'tenant', None)
+    if not tenant:
+        return Response({"error": "Tenant not found"}, status=status.HTTP_400_BAD_REQUEST)
+
+    result = AsyncResult(task_id)
+    payload = {
+        "task_id": task_id,
+        "state": result.state,
+        "ready": result.ready(),
+        "successful": result.successful(),
+        "failed": result.failed(),
+    }
+
+    if result.ready() and isinstance(result.result, dict):
+        task_tenant_id = str(result.result.get('tenant_id') or '').strip()
+        if task_tenant_id and task_tenant_id != str(tenant.id):
+            return Response({"error": "Sync task not found"}, status=status.HTTP_404_NOT_FOUND)
+        payload["result"] = result.result
+
+    return Response(payload, status=status.HTTP_200_OK)
 
 
 @api_view(['POST'])

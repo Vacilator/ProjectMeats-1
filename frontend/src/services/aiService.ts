@@ -19,6 +19,11 @@ import type {
   ContractSwarmInvokeResponse,
 } from '../../../shared/types/openapi';
 
+export const AI_INBOX_AUTO_SYNC_INTERVAL_MS = 15 * 60 * 1000;
+export const AI_INBOX_AUTO_SYNC_COALESCE_MS = 60 * 1000;
+export const AI_INBOX_AUTO_SYNC_STATUS_POLL_MS = 5 * 1000;
+export const AI_INBOX_REFRESH_EVENT = 'pm:ai-inbox-refresh';
+
 export type ChatRequest = ContractAiChatRequest;
 export type ChatResponse = ContractAiChatResponse;
 export type PendingReviewItem = ContractPendingReviewItem & {
@@ -66,6 +71,32 @@ export interface ContextualSuggestion {
 
 export interface ContextualSuggestionsResponse {
   suggestions: ContextualSuggestion[];
+}
+
+export type AIInboxSyncSource = 'login' | 'interval' | 'manual';
+
+export interface AIInboxSyncTriggerRequest {
+  source?: AIInboxSyncSource;
+}
+
+export interface AIInboxSyncTriggerResponse {
+  ok: boolean;
+  accepted: boolean;
+  message?: string;
+  source?: AIInboxSyncSource | string;
+  tenant_id?: string;
+  provider_email?: string;
+  task_id?: string;
+  code?: string;
+}
+
+export interface AIInboxSyncStatusResponse {
+  task_id: string;
+  state: string;
+  ready: boolean;
+  successful: boolean;
+  failed: boolean;
+  result?: Record<string, unknown>;
 }
 
 export type DocumentUploadResponse = UploadedDocument;
@@ -150,6 +181,36 @@ export const aiStaffApi = {
     );
     return unwrap(res);
   },
+};
+
+export const aiInboxSyncApi = {
+  trigger: async (
+    data: AIInboxSyncTriggerRequest = {},
+  ): Promise<AIInboxSyncTriggerResponse> => {
+    const res = await businessApi.post<AIInboxSyncTriggerResponse>(
+      '/integrations/email/auto-sync/',
+      data,
+    );
+    return unwrap(res);
+  },
+  getStatus: async (taskId: string): Promise<AIInboxSyncStatusResponse> => {
+    const res = await businessApi.get<AIInboxSyncStatusResponse>(
+      `/integrations/email/auto-sync/${taskId}/`,
+    );
+    return unwrap(res);
+  },
+};
+
+export const emitAIInboxRefreshEvent = (reason: AIInboxSyncSource): void => {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  window.dispatchEvent(
+    new CustomEvent(AI_INBOX_REFRESH_EVENT, {
+      detail: { reason },
+    }),
+  );
 };
 
 export const ambientAiApi = {

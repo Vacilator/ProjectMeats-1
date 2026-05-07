@@ -16,6 +16,8 @@ urlpatterns = [
     path('oauth/disconnect/', views.disconnect_provider, name='oauth-disconnect'),
     
     # Email sync endpoints (Phase 5.5)
+    path('email/auto-sync/', views.schedule_email_sync, name='email-auto-sync'),
+    path('email/auto-sync/<str:task_id>/', views.get_scheduled_email_sync_status, name='email-auto-sync-status'),
     path('email/sync/', views.sync_emails, name='email-sync'),
     path('email/logs/', views.get_email_logs, name='email-logs'),
     

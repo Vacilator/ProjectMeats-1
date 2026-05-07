@@ -811,7 +811,7 @@ FLAGS = {
 # Celery Configuration (Task Queue & Scheduled Jobs)
 # ==============================================================================
 # Celery is used for:
-# - Email polling (every 5 minutes)
+# - Email polling (every 15 minutes)
 # - Scheduled workflow execution
 # - Background notifications
 # - AI processing jobs

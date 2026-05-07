@@ -20,11 +20,11 @@ app.autodiscover_tasks()
 
 # Configure periodic tasks
 app.conf.beat_schedule = {
-    'sync-tenant-emails-every-5-minutes': {
+    'sync-tenant-emails-every-15-minutes': {
         'task': 'integrations.sync_tenant_emails',
-        'schedule': 300.0,  # 5 minutes in seconds
+        'schedule': 900.0,  # 15 minutes in seconds
         'options': {
-            'expires': 240.0,  # Task expires if not run within 4 minutes
+            'expires': 840.0,  # Task expires if not run within 14 minutes
             'queue': 'pm.ops',
             'routing_key': 'pm.ops',
         },

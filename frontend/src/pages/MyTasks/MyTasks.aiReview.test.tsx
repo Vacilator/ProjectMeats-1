@@ -1,12 +1,12 @@
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
-import { render, screen, waitFor } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 
 import { MyTasks } from './MyTasks';
 import * as NotificationsContext from '../../contexts/NotificationsContext';
 import { workflowExecutionService } from '../../services/workflowExecutionService';
-import { aiStaffApi } from '../../services/aiService';
+import { AI_INBOX_REFRESH_EVENT, aiStaffApi } from '../../services/aiService';
 
 vi.mock('../../contexts/NotificationsContext', () => ({
   useNotifications: vi.fn(),
@@ -31,6 +31,7 @@ vi.mock('../../components/AIAssistant/AIDraftReviewModal', () => ({
 }));
 
 vi.mock('../../services/aiService', () => ({
+  AI_INBOX_REFRESH_EVENT: 'pm:ai-inbox-refresh',
   aiStaffApi: {
     listPendingReviews: vi.fn(),
     resolvePendingReview: vi.fn(),
@@ -128,5 +129,26 @@ describe('MyTasks AI review queue', () => {
 
     expect(await screen.findByText('PO review route')).toBeInTheDocument();
     expect(screen.queryByTestId('ai-draft-modal')).not.toBeInTheDocument();
+  });
+
+  it('refreshes the AI inbox when the global sync event fires', async () => {
+    render(
+      <MemoryRouter initialEntries={['/my-tasks?tab=ai-review']}>
+        <Routes>
+          <Route path="/my-tasks" element={<MyTasks />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    await screen.findByText('dispatch@example.com');
+    expect(mockListPendingReviews).toHaveBeenCalledTimes(1);
+
+    act(() => {
+      window.dispatchEvent(new CustomEvent(AI_INBOX_REFRESH_EVENT));
+    });
+
+    await waitFor(() => {
+      expect(mockListPendingReviews).toHaveBeenCalledTimes(2);
+    });
   });
 });

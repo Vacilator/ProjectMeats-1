@@ -9,6 +9,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'r
 import { Skeleton } from 'antd';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider } from './contexts/AuthContext';
+import { AIInboxSyncProvider } from './contexts/AIInboxSyncContext';
 import { NavigationProvider } from './contexts/NavigationContext';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { QuickActionsProvider } from './contexts/QuickActionsContext';
@@ -232,12 +233,13 @@ const App: React.FC = () => {
               <ThemeProvider>
                 <NotificationsProvider>
                   <ActionItemsProvider>
-                    <QuickActionsProvider>
-                      <CockpitNavigationProvider>
-                        <CockpitPinnedToolsProvider>
-                          <Router>
-                          <SessionManagerProvider>
-                            <NavigationProvider>
+                    <AIInboxSyncProvider>
+                      <QuickActionsProvider>
+                        <CockpitNavigationProvider>
+                          <CockpitPinnedToolsProvider>
+                            <Router>
+                            <SessionManagerProvider>
+                              <NavigationProvider>
                     <Routes>
                 <Route path="/login" element={<Login />} />
                 <Route path="/signup" element={<SignUp />} />
@@ -475,12 +477,13 @@ const App: React.FC = () => {
             </Routes>
             {/* Form Submission Modal - rendered at app level */}
             <FormSubmissionWrapper />
-                            </NavigationProvider>
-                          </SessionManagerProvider>
-                        </Router>
-                      </CockpitPinnedToolsProvider>
-                    </CockpitNavigationProvider>
-                  </QuickActionsProvider>
+                              </NavigationProvider>
+                            </SessionManagerProvider>
+                          </Router>
+                        </CockpitPinnedToolsProvider>
+                      </CockpitNavigationProvider>
+                    </QuickActionsProvider>
+                  </AIInboxSyncProvider>
                 </ActionItemsProvider>
               </NotificationsProvider>
             </ThemeProvider>
