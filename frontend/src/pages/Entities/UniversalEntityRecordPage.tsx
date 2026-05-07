@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Breadcrumb, Button, Card, Spin, Tabs } from 'antd';
 import { Building2, ClipboardList, MessageSquarePlus, UsersRound } from 'lucide-react';
+import styled from 'styled-components';
 
 import { EntityWorkflowStatusPanel } from '@/components/Entities/EntityWorkflowStatusPanel';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
@@ -304,15 +305,14 @@ export const UniversalEntityRecordPage: React.FC<UniversalEntityRecordPageProps>
                 : 'sales_order';
 
       return (
-        <Card
+        <RelationCard
           key={relKey}
           size="small"
-          style={{ marginBottom: 12 }}
           title={
             <span>
               {label}{' '}
               {relationshipCounts[relKey] != null ? (
-                <span style={{ color: 'rgb(var(--color-text-tertiary))' }}>({relationshipCounts[relKey]})</span>
+                <CountSpan>({relationshipCounts[relKey]})</CountSpan>
               ) : null}
             </span>
           }
@@ -328,7 +328,7 @@ export const UniversalEntityRecordPage: React.FC<UniversalEntityRecordPageProps>
               return getRecordPath(rowType, rowId);
             }}
           />
-        </Card>
+        </RelationCard>
       );
     },
     [relationshipCounts, relationships]
@@ -358,41 +358,25 @@ export const UniversalEntityRecordPage: React.FC<UniversalEntityRecordPageProps>
   );
 
   return (
-    <div style={{ padding: 16 }}>
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          gap: 12,
-          marginBottom: 12,
-        }}
-      >
+    <PageWrapper>
+      <PageToolbar>
         <Breadcrumb
           items={[
             {
               title: (
-                <button
-                  type="button"
-                  onClick={() => navigate(basePath)}
-                  style={{
-                    border: 'none',
-                    padding: 0,
-                    background: 'transparent',
-                    cursor: 'pointer',
-                    color: 'rgb(var(--color-primary))',
-                    fontWeight: 700,
-                  }}
-                >
+                  <BreadcrumbLink
+                    type="button"
+                    onClick={() => navigate(basePath)}
+                  >
                   {sectionLabel}
-                </button>
+                  </BreadcrumbLink>
               ),
             },
             {
               title: (
-                <span style={{ color: 'rgb(var(--color-text-primary))', fontWeight: 700 }}>
+                <BreadcrumbTitle>
                   <span title={recordDisplay?.tooltip || title}>{title}</span>
-                </span>
+                </BreadcrumbTitle>
               ),
             },
           ]}
@@ -420,9 +404,7 @@ export const UniversalEntityRecordPage: React.FC<UniversalEntityRecordPageProps>
         {mode === 'edit' && entityId && (
           <Button onClick={() => navigate(viewPath)}>Cancel</Button>
         )}
-      </div>
-
-      {/* Create/Edit keep the form-first experience. */}
+      </PageToolbar>
       {mode !== 'view' && (
         <EntityFormSurface
           entityType={entityType}
@@ -468,8 +450,7 @@ export const UniversalEntityRecordPage: React.FC<UniversalEntityRecordPageProps>
             entityId={entityId}
           />
 
-          <Tabs
-            style={{ marginTop: 12 }}
+          <TabsSection
             defaultActiveKey={requestedTabKey}
             items={
               isSupplier || isCustomer
@@ -488,9 +469,9 @@ export const UniversalEntityRecordPage: React.FC<UniversalEntityRecordPageProps>
                           }
                         >
                           {childLoading ? (
-                            <div style={{ padding: 12 }}>
+                            <SpinnerPad>
                               <Spin />
-                            </div>
+                            </SpinnerPad>
                           ) : (
                             childRows.length ? (
                               <UnifiedEntityTable
@@ -541,9 +522,9 @@ export const UniversalEntityRecordPage: React.FC<UniversalEntityRecordPageProps>
                       children: (
                         <Card size="small" title="Dept. Contacts">
                           {deptContactsLoading ? (
-                            <div style={{ padding: 12 }}>
+                            <SpinnerPad>
                               <Spin />
-                            </div>
+                            </SpinnerPad>
                           ) : deptContactsRows.length ? (
                             <UnifiedEntityTable entityType="contact" data={deptContactsRows as any} />
                           ) : (
@@ -573,9 +554,9 @@ export const UniversalEntityRecordPage: React.FC<UniversalEntityRecordPageProps>
                       label: 'Documents',
                       children: (
                         <Card size="small" title="Documents">
-                          <span style={{ color: 'rgb(var(--color-text-tertiary))' }}>
+                          <TertiaryHint>
                             Document management is coming soon.
-                          </span>
+                          </TertiaryHint>
                         </Card>
                       ),
                     },
@@ -623,7 +604,7 @@ export const UniversalEntityRecordPage: React.FC<UniversalEntityRecordPageProps>
                       children: numericEntityId ? (
                         <ActivityFeed entityType={normalizedEntityType as any} entityId={numericEntityId} showCreateForm />
                       ) : (
-                        <span style={{ color: 'rgb(var(--color-text-tertiary))' }}>Recent activity unavailable.</span>
+                        <TertiaryHint>Recent activity unavailable.</TertiaryHint>
                       ),
                     },
                   ]
@@ -632,22 +613,22 @@ export const UniversalEntityRecordPage: React.FC<UniversalEntityRecordPageProps>
                       key: 'overview',
                       label: 'Overview',
                       children: overviewLoading ? (
-                        <div style={{ padding: 12 }}>
+                        <SpinnerPad>
                           <Spin />
-                        </div>
+                        </SpinnerPad>
                       ) : (
                         <Card size="small" title="Counts">
                           {Object.keys(relationshipCounts).length ? (
-                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+                            <CountsGrid>
                               {Object.entries(relationshipCounts).map(([k, v]) => (
-                                <div key={k} style={{ minWidth: 160 }}>
-                                  <div style={{ fontSize: 12, color: 'rgb(var(--color-text-tertiary))' }}>{k}</div>
-                                  <div style={{ fontSize: 16, fontWeight: 600, color: 'rgb(var(--color-text-primary))' }}>
+                                <CountCard key={k}>
+                                  <CountLabel>{k}</CountLabel>
+                                  <CountValue>
                                     {v}
-                                  </div>
-                                </div>
+                                  </CountValue>
+                                </CountCard>
                               ))}
-                            </div>
+                            </CountsGrid>
                           ) : (
                             <TransactionalEmptyState
                               icon={<MessageSquarePlus size={36} />}
@@ -745,9 +726,9 @@ export const UniversalEntityRecordPage: React.FC<UniversalEntityRecordPageProps>
                           <AuditHistoryTimeline entityType={normalizedEntityType} entityId={entityId} />
                         </Card>
                       ) : (
-                        <span style={{ color: 'rgb(var(--color-text-tertiary))' }}>
+                        <TertiaryHint>
                           Audit history unavailable.
-                        </span>
+                        </TertiaryHint>
                       ),
                     },
                     {
@@ -761,7 +742,7 @@ export const UniversalEntityRecordPage: React.FC<UniversalEntityRecordPageProps>
                       children: numericEntityId ? (
                         <ActivityFeed entityType={normalizedEntityType as any} entityId={numericEntityId} showCreateForm />
                       ) : (
-                        <span style={{ color: 'rgb(var(--color-text-tertiary))' }}>Timeline unavailable.</span>
+                        <TertiaryHint>Timeline unavailable.</TertiaryHint>
                       ),
                     },
                   ]
@@ -784,12 +765,88 @@ export const UniversalEntityRecordPage: React.FC<UniversalEntityRecordPageProps>
           )}
         </>
       )}
-    </div>
+    </PageWrapper>
   );
 };
 
 export default UniversalEntityRecordPage;
 
+/* ─── Styled Components ─── */
+
+const PageWrapper = styled.div`
+  padding: 16px;
+`;
+
+const PageToolbar = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+`;
+
+const BreadcrumbLink = styled.button`
+  border: none;
+  padding: 0;
+  background: transparent;
+  cursor: pointer;
+  color: rgb(var(--color-primary));
+  font-weight: 700;
+`;
+
+const BreadcrumbTitle = styled.span`
+  color: rgb(var(--color-text-primary));
+  font-weight: 700;
+`;
+
+const RelationCard = styled(Card)`
+  margin-bottom: 12px;
+`;
+
+const CountSpan = styled.span`
+  color: rgb(var(--color-text-tertiary));
+`;
+
+const TertiaryHint = styled.span`
+  color: rgb(var(--color-text-tertiary));
+`;
+
+const SpinnerPad = styled.div`
+  padding: 12px;
+`;
+
+const TabsSection = styled(Tabs)`
+  margin-top: 12px;
+`;
+
+const CountsGrid = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+`;
+
+const CountCard = styled.div`
+  min-width: 160px;
+`;
+
+const CountLabel = styled.div`
+  font-size: 12px;
+  color: rgb(var(--color-text-tertiary));
+`;
+
+const CountValue = styled.div`
+  font-size: 16px;
+  font-weight: 600;
+  color: rgb(var(--color-text-primary));
+`;
+
 const SpaceWrap: React.FC<React.PropsWithChildren> = ({ children }) => (
-  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, justifyContent: 'flex-end' }}>{children}</div>
+  <SpaceWrapRow>{children}</SpaceWrapRow>
 );
+
+const SpaceWrapRow = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+`;

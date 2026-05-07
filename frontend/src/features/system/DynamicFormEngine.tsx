@@ -759,7 +759,7 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
       const itemNormalizedKey = String(itemField.key).toLowerCase();
       if (isStateLikeKey(itemNormalizedKey) || itemField.ui?.widget === 'state_select') {
         return (
-          <FieldGroup key={namePath} style={{ marginBottom: 12 }}>
+          <ItemFieldGroup key={namePath}>
             <Label required={formConfig.showRequiredIndicator && itemField.required}>{itemField.label}</Label>
             <Controller
               name={namePath as never}
@@ -775,13 +775,13 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
               )}
             />
             {hasItemError && <ErrorText>{String(itemErr?.message || 'Invalid value')}</ErrorText>}
-          </FieldGroup>
+          </ItemFieldGroup>
         );
       }
 
       if (itemField.ui?.widget === 'tags') {
         return (
-          <FieldGroup key={namePath} style={{ marginBottom: 12 }}>
+          <ItemFieldGroup key={namePath}>
             <Label required={formConfig.showRequiredIndicator && itemField.required}>{itemField.label}</Label>
             <Controller
               name={namePath as never}
@@ -799,7 +799,7 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
               )}
             />
             {hasItemError && <ErrorText>{String(itemErr?.message || 'Invalid value')}</ErrorText>}
-          </FieldGroup>
+          </ItemFieldGroup>
         );
       }
 
@@ -812,7 +812,7 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
           isSubmitting || ((itemField.dependencies || []).length > 0 && dependencyItems.length === 0);
 
         return (
-          <FieldGroup key={namePath} style={{ marginBottom: 12 }}>
+          <ItemFieldGroup key={namePath}>
             <Label required={formConfig.showRequiredIndicator && itemField.required}>{itemField.label}</Label>
             <Controller
               name={namePath as never}
@@ -833,13 +833,13 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
               )}
             />
             {hasItemError && <ErrorText>{String((itemErr as any)?.message || 'Invalid value')}</ErrorText>}
-          </FieldGroup>
+          </ItemFieldGroup>
         );
       }
 
       if (itemField.type === 'select') {
         return (
-          <FieldGroup key={namePath} style={{ marginBottom: 12 }}>
+          <ItemFieldGroup key={namePath}>
             <Label required={formConfig.showRequiredIndicator && itemField.required}>{itemField.label}</Label>
             <Controller
               name={namePath as never}
@@ -855,7 +855,7 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
               )}
             />
             {hasItemError && <ErrorText>{String(itemErr?.message || 'Invalid value')}</ErrorText>}
-          </FieldGroup>
+          </ItemFieldGroup>
         );
       }
 
@@ -867,7 +867,7 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
             : itemField.type;
 
       return (
-        <FieldGroup key={namePath} style={{ marginBottom: 12 }}>
+        <ItemFieldGroup key={namePath}>
           <Label htmlFor={namePath} required={formConfig.showRequiredIndicator && itemField.required}>
             {itemField.label}
           </Label>
@@ -887,13 +887,13 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
             disabled={isSubmitting}
           />
           {hasItemError && <ErrorText>{String(itemErr?.message || 'Invalid value')}</ErrorText>}
-        </FieldGroup>
+        </ItemFieldGroup>
       );
     };
 
     return (
       <FieldGroup key={field.key}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+        <ArrayFieldHeader>
           <Label required={showRequired}>{field.label}</Label>
           <Button
             type="button"
@@ -903,28 +903,22 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
           >
             + {field.add_button_label || 'Add'}
           </Button>
-        </div>
+        </ArrayFieldHeader>
 
         {items.length === 0 ? (
-          <div style={{ marginTop: 8, fontSize: 12, color: 'rgb(var(--color-text-secondary))' }}>
+          <ArrayEmptyMessage>
             No entries added yet.
-          </div>
+          </ArrayEmptyMessage>
         ) : (
-          <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <ArrayItemsContainer>
             {items.map((item, idx) => (
-              <div
+              <ArrayItemCard
                 key={item.id}
-                style={{
-                  border: '1px solid rgb(var(--color-border))',
-                  borderRadius: 10,
-                  padding: 12,
-                  background: 'rgb(var(--color-surface))',
-                }}
               >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
-                  <div style={{ fontSize: 12, fontWeight: 600, color: 'rgb(var(--color-text-primary))' }}>
+                <ArrayItemHeader>
+                  <ArrayItemLabel>
                     {field.item_label || 'Item'} #{idx + 1}
-                  </div>
+                  </ArrayItemLabel>
                   <Button
                     type="button"
                     variant="outline"
@@ -933,16 +927,16 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
                   >
                     Remove
                   </Button>
-                </div>
+                </ArrayItemHeader>
 
-                <div style={{ marginTop: 12 }}>
+                <ArrayItemBody>
                   {itemFields.map((itemField) =>
                     renderItemField(itemField, `${field.key}.${idx}.${itemField.key}`, idx)
                   )}
-                </div>
-              </div>
+                </ArrayItemBody>
+              </ArrayItemCard>
             ))}
-          </div>
+          </ArrayItemsContainer>
         )}
 
         {formConfig.showHelpText && field.help_text && <HelpText>{field.help_text}</HelpText>}
@@ -1381,7 +1375,7 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
       {(hasKeySplit ? keyFields : stableFields).map((field) => renderField(field))}
 
       {hasKeySplit && otherFields.length > 0 && showAllFieldsToggle && (
-        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8 }}>
+        <ToggleRow>
           <Button
             type="button"
             variant="outline"
@@ -1390,13 +1384,13 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
           >
             {effectiveShowAllFields ? 'Hide remaining fields' : 'Show all fields'}
           </Button>
-        </div>
+        </ToggleRow>
       )}
 
       {hasKeySplit && otherFields.length > 0 && (
-        <div style={{ display: effectiveShowAllFields ? 'block' : 'none' }}>
+        <CollapsibleSection $visible={effectiveShowAllFields}>
           {otherFields.map((field) => renderField(field))}
-        </div>
+        </CollapsibleSection>
       )}
 
       <FormActions>
@@ -1414,3 +1408,63 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
 };
 
 export default DynamicFormEngine;
+
+/* ─── Additional Styled Components ─── */
+
+const ItemFieldGroup = styled(FieldGroup)`
+  margin-bottom: 12px;
+`;
+
+const ArrayFieldHeader = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+`;
+
+const ArrayEmptyMessage = styled.div`
+  margin-top: 8px;
+  font-size: 12px;
+  color: rgb(var(--color-text-secondary));
+`;
+
+const ArrayItemsContainer = styled.div`
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+`;
+
+const ArrayItemCard = styled.div`
+  border: 1px solid rgb(var(--color-border));
+  border-radius: 10px;
+  padding: 12px;
+  background: rgb(var(--color-surface));
+`;
+
+const ArrayItemHeader = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+`;
+
+const ArrayItemLabel = styled.div`
+  font-size: 12px;
+  font-weight: 600;
+  color: rgb(var(--color-text-primary));
+`;
+
+const ArrayItemBody = styled.div`
+  margin-top: 12px;
+`;
+
+const ToggleRow = styled.div`
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 8px;
+`;
+
+const CollapsibleSection = styled.div<{ $visible: boolean }>`
+  display: ${p => p.$visible ? 'block' : 'none'};
+`;

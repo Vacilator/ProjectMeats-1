@@ -1,4 +1,5 @@
 import React from 'react';
+import styled from 'styled-components';
 
 import type { WorkFormExecution } from '@/services/workformExecutionService';
 import { buildExecutionStory } from './executionStory';
@@ -49,19 +50,11 @@ export const ExecutionStoryView: React.FC<{ execution: WorkFormExecution }> = ({
 
   return (
     <section aria-labelledby="execution-story-heading">
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: 12,
-          flexWrap: 'wrap',
-        }}
-      >
-        <h2 id="execution-story-heading" style={{ margin: 0, fontSize: 15, fontWeight: 700 }}>
+      <StoryHeaderRow>
+        <StoryHeading id="execution-story-heading">
           Execution story
-        </h2>
-        <div style={{ color: 'rgb(var(--color-text-tertiary))', fontSize: 12 }}>
+        </StoryHeading>
+        <TimestampText>
           {execution.started_at ? (
             <time dateTime={execution.started_at}>Started: {formatTs(execution.started_at)}</time>
           ) : null}
@@ -71,101 +64,174 @@ export const ExecutionStoryView: React.FC<{ execution: WorkFormExecution }> = ({
               <time dateTime={execution.completed_at}>Completed: {formatTs(execution.completed_at)}</time>
             </>
           ) : null}
-        </div>
-      </div>
+        </TimestampText>
+      </StoryHeaderRow>
 
       {events.length === 0 ? (
-        <div style={{ color: 'rgb(var(--color-text-secondary))', marginTop: 8 }}>
+        <EmptyMessage>
           No events recorded yet.
-        </div>
+        </EmptyMessage>
       ) : (
-        <ol
+        <EventList
           role="list"
           aria-label="Execution story"
-          style={{
-            margin: '12px 0 0',
-            padding: 0,
-            listStyle: 'none',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 10,
-          }}
         >
           {events.map((ev) => {
             const styles = variantStyles(ev.variant);
             return (
-              <li
+              <EventItem
                 key={ev.key}
                 role="listitem"
-                style={{
-                  border: `1px solid ${styles.border}`,
-                  borderRadius: 12,
-                  padding: 12,
-                  background: styles.background,
-                }}
+                $borderColor={styles.border}
+                $bgColor={styles.background}
               >
-                <div
-                  style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'flex-start',
-                    gap: 12,
-                    flexWrap: 'wrap',
-                  }}
-                >
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                    <div style={{ fontWeight: 700, color: 'rgb(var(--color-text-primary))' }}>{ev.title}</div>
+                <EventContentRow>
+                  <EventDetailsColumn>
+                    <EventTitle>{ev.title}</EventTitle>
 
                     {ev.node?.id ? (
-                      <div style={{ color: 'rgb(var(--color-text-secondary))', fontSize: 13 }}>
+                      <StepInfo>
                         Step:{' '}
-                        <span style={{ fontWeight: 600 }}>
+                        <BoldSpan>
                           {ev.node.label ?? ev.node.id}
-                        </span>
+                        </BoldSpan>
                         {ev.node.label ? (
-                          <span style={{ color: 'rgb(var(--color-text-tertiary))' }}> ({ev.node.id})</span>
+                          <TertiarySpan> ({ev.node.id})</TertiarySpan>
                         ) : null}
                         {ev.node.type ? <span> • {ev.node.type}</span> : null}
-                      </div>
+                      </StepInfo>
                     ) : null}
 
                     {ev.description ? (
-                      <div style={{ color: styles.color, fontSize: 13, fontWeight: 600 }}>{ev.description}</div>
+                      <EventDescription style={{ color: styles.color }}>{ev.description}</EventDescription>
                     ) : null}
-                  </div>
+                  </EventDetailsColumn>
 
                   {ev.ts ? (
-                    <time dateTime={ev.ts} style={{ color: 'rgb(var(--color-text-tertiary))', fontSize: 12 }}>
+                    <EventTimestamp dateTime={ev.ts}>
                       {formatTs(ev.ts)}
-                    </time>
+                    </EventTimestamp>
                   ) : null}
-                </div>
+                </EventContentRow>
 
                 {ev.meta ? (
-                  <details style={{ marginTop: 8 }}>
-                    <summary style={{ cursor: 'pointer', color: 'rgb(var(--color-text-secondary))' }}>
+                  <DetailsSection>
+                    <DetailsSummary>
                       Details (JSON)
-                    </summary>
-                    <pre
-                      style={{
-                        background: 'rgb(var(--color-surface))',
-                        border: '1px solid rgb(var(--color-border))',
-                        borderRadius: 8,
-                        padding: 12,
-                        overflow: 'auto',
-                        maxHeight: 240,
-                        marginTop: 8,
-                      }}
-                    >
+                    </DetailsSummary>
+                    <CodeBlock>
                       {JSON.stringify(ev.meta, null, 2)}
-                    </pre>
-                  </details>
+                    </CodeBlock>
+                  </DetailsSection>
                 ) : null}
-              </li>
+              </EventItem>
             );
           })}
-        </ol>
+        </EventList>
       )}
     </section>
   );
 };
+
+/* ─── Styled Components ─── */
+
+const StoryHeaderRow = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+`;
+
+const StoryHeading = styled.h2`
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+`;
+
+const TimestampText = styled.div`
+  color: rgb(var(--color-text-tertiary));
+  font-size: 12px;
+`;
+
+const EmptyMessage = styled.div`
+  color: rgb(var(--color-text-secondary));
+  margin-top: 8px;
+`;
+
+const EventList = styled.ol`
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+`;
+
+const EventItem = styled.li<{ $borderColor: string; $bgColor: string }>`
+  border: 1px solid ${p => p.$borderColor};
+  border-radius: 12px;
+  padding: 12px;
+  background: ${p => p.$bgColor};
+`;
+
+const EventContentRow = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  flex-wrap: wrap;
+`;
+
+const EventDetailsColumn = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+`;
+
+const EventTitle = styled.div`
+  font-weight: 700;
+  color: rgb(var(--color-text-primary));
+`;
+
+const StepInfo = styled.div`
+  color: rgb(var(--color-text-secondary));
+  font-size: 13px;
+`;
+
+const BoldSpan = styled.span`
+  font-weight: 600;
+`;
+
+const TertiarySpan = styled.span`
+  color: rgb(var(--color-text-tertiary));
+`;
+
+const EventDescription = styled.div`
+  font-size: 13px;
+  font-weight: 600;
+`;
+
+const EventTimestamp = styled.time`
+  color: rgb(var(--color-text-tertiary));
+  font-size: 12px;
+`;
+
+const DetailsSection = styled.details`
+  margin-top: 8px;
+`;
+
+const DetailsSummary = styled.summary`
+  cursor: pointer;
+  color: rgb(var(--color-text-secondary));
+`;
+
+const CodeBlock = styled.pre`
+  background: rgb(var(--color-surface));
+  border: 1px solid rgb(var(--color-border));
+  border-radius: 8px;
+  padding: 12px;
+  overflow: auto;
+  max-height: 240px;
+  margin-top: 8px;
+`;

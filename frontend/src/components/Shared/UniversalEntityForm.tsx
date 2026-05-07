@@ -1690,19 +1690,7 @@ const AutofillToolbar: React.FC<NonNullable<UniversalEntityFormProps['autofill']
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   return (
-    <div
-      style={{
-        display: 'flex',
-        flexWrap: 'wrap',
-        alignItems: 'center',
-        gap: 8,
-        marginBottom: 16,
-        padding: 12,
-        border: '1px solid rgb(var(--color-border))',
-        borderRadius: 8,
-        background: 'rgb(var(--color-surface))',
-      }}
-    >
+    <AutofillToolbarContainer>
       <Select
         style={{ minWidth: 260, flex: '1 1 260px' }}
         placeholder="Select AI document"
@@ -1734,7 +1722,7 @@ const AutofillToolbar: React.FC<NonNullable<UniversalEntityFormProps['autofill']
           event.target.value = '';
         }}
       />
-    </div>
+    </AutofillToolbarContainer>
   );
 };
 
@@ -2898,7 +2886,7 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
   const modeSwitchControls =
     entityId != null &&
     canSwitchModes && (
-      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginBottom: 10 }}>
+      <ModeSwitchRow>
         {activeMode === 'view' ? (
           <Button type="primary" onClick={() => setActiveMode('edit')}>
             Edit
@@ -2908,26 +2896,26 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
             View
           </Button>
         ) : null}
-      </div>
+      </ModeSwitchRow>
     );
 
   const content = (
     <Container $variant={variant}>
       {resolvedLoading ? (
-        <div style={{ padding: 16 }}>
+        <FormLoadingWrapper>
           <Skeleton active paragraph={{ rows: 6 }} />
-        </div>
+        </FormLoadingWrapper>
       ) : resolvedLoadError ? (
-        <div style={{ padding: 12, color: 'rgb(var(--color-text-secondary))', fontSize: 13 }}>
+        <FormStatusMessage>
           {(resolvedLoadError as any)?.response?.status === 401 ||
           (resolvedLoadError as any)?.response?.status === 403
             ? 'Authentication required. Redirecting to login…'
             : 'Unable to load form.'}
-        </div>
+        </FormStatusMessage>
       ) : !resolvedSchema ? (
-        <div style={{ padding: 12, color: 'rgb(var(--color-text-secondary))', fontSize: 13 }}>
+        <FormStatusMessage>
           Unable to load form.
-        </div>
+        </FormStatusMessage>
       ) : (
         <>
           {activeMode !== 'view' && autofill && (
@@ -2940,7 +2928,7 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
           {modeSwitchControls}
 
           {(keyFkFields.length > 0 || otherFkFields.length > 0) && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 10 }}>
+            <FkFieldsColumn>
               {[...keyFkFields, ...otherFkFields.filter((f) => !f.is_advanced), ...(showAdvanced ? otherFkFields.filter((f) => Boolean(f.is_advanced)) : [])].map((f) => {
                 const related = String(f.related_entity || '').toLowerCase();
                 const isProduct =
@@ -2956,28 +2944,12 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
 
                   return (
                     <div key={f.key}>
-                      <div
-                        style={{
-                          fontSize: 12,
-                          fontWeight: 600,
-                          color: 'rgb(var(--color-text-secondary))',
-                          marginBottom: 6,
-                        }}
-                      >
+                      <FkFieldLabel>
                         {f.label || f.key}
-                      </div>
-                      <div
-                        style={{
-                          padding: '10px 12px',
-                          border: '1px solid rgb(var(--color-border))',
-                          borderRadius: 8,
-                          background: 'rgb(var(--color-input-readonly))',
-                          color: 'rgb(var(--color-text-primary))',
-                          fontSize: 13,
-                        }}
-                      >
+                      </FkFieldLabel>
+                      <ReadonlyFieldValue>
                         {formatValue(getValueAtPath(formInitialValues, f.key)) || '—'}
-                      </div>
+                      </ReadonlyFieldValue>
                     </div>
                   );
                 }
@@ -2985,16 +2957,9 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
                 if (isProduct) {
                   return (
                     <div key={f.key}>
-                      <div
-                        style={{
-                          fontSize: 12,
-                          fontWeight: 600,
-                          color: 'rgb(var(--color-text-secondary))',
-                          marginBottom: 6,
-                        }}
-                      >
+                      <FkFieldLabel>
                         {f.label || f.key}
-                      </div>
+                      </FkFieldLabel>
                       <Select
                         showSearch
                         filterOption={false}
@@ -3021,16 +2986,9 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
                 if (mapped && mapped !== 'product') {
                   return (
                     <div key={f.key}>
-                      <div
-                        style={{
-                          fontSize: 12,
-                          fontWeight: 600,
-                          color: 'rgb(var(--color-text-secondary))',
-                          marginBottom: 6,
-                        }}
-                      >
+                      <FkFieldLabel>
                         {f.label || f.key}
-                      </div>
+                      </FkFieldLabel>
                       <EntityOptionsSelect
                         entityType={mapped}
                         value={value}
@@ -3046,16 +3004,9 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
                 const options = resolvedFkOptions[f.key] || [];
                 return (
                   <div key={f.key}>
-                    <div
-                      style={{
-                        fontSize: 12,
-                        fontWeight: 600,
-                        color: 'rgb(var(--color-text-secondary))',
-                        marginBottom: 6,
-                      }}
-                    >
+                    <FkFieldLabel>
                       {f.label || f.key}
-                    </div>
+                    </FkFieldLabel>
                     <Select
                       showSearch
                       options={options.map((o) => ({ value: String(o.id), label: o.name }))}
@@ -3071,22 +3022,22 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
                   </div>
                 );
               })}
-            </div>
+            </FkFieldsColumn>
           )}
 
           {showVisibilityToggle && (
-            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 14 }}>
+            <VisibilityToggleRow>
               <Button
                 type="dashed"
                 onClick={() => setShowAdvanced((v) => !v)}
               >
                 {showAdvanced ? 'Hide details' : 'Expand details'}
               </Button>
-            </div>
+            </VisibilityToggleRow>
           )}
 
           {activeMode === 'view' ? (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <ViewFieldsColumn>
               {visibleScalarFields.map((f) => {
                 if (Boolean(f.is_advanced) && !hasDisplayValue(getValueAtPath(formInitialValues, f.key))) {
                   return null;
@@ -3094,33 +3045,17 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
 
                 return (
                   <div key={f.key}>
-                  <div
-                    style={{
-                      fontSize: 12,
-                      fontWeight: 600,
-                      color: 'rgb(var(--color-text-secondary))',
-                      marginBottom: 6,
-                    }}
-                  >
+                  <FkFieldLabel>
                     {f.label || f.key}
-                  </div>
-                  <div
-                    style={{
-                      padding: '10px 12px',
-                      border: '1px solid rgb(var(--color-border))',
-                      borderRadius: 8,
-                      background: 'rgb(var(--color-input-readonly))',
-                      color: 'rgb(var(--color-text-primary))',
-                      fontSize: 13,
-                    }}
-                  >
+                  </FkFieldLabel>
+                  <ReadonlyFieldValue>
                     {formatValue(getValueAtPath(formInitialValues, f.key)) || '—'}
-                  </div>
+                  </ReadonlyFieldValue>
                   </div>
                 );
               })}
 
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 8 }}>
+              <ViewActionsRow>
                 <Button onClick={onClose} disabled={submitting}>
                   Close
                 </Button>
@@ -3129,8 +3064,8 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
                     Edit
                   </Button>
                 )}
-              </div>
-            </div>
+              </ViewActionsRow>
+            </ViewFieldsColumn>
           ) : (
             <DynamicFormEngine
               schema={stableDynamicSchema as any}
@@ -3185,3 +3120,76 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
 };
 
 export default UniversalEntityForm;
+
+/* ─── Additional Styled Components ─── */
+
+const AutofillToolbarContainer = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+  padding: 12px;
+  border: 1px solid rgb(var(--color-border));
+  border-radius: 8px;
+  background: rgb(var(--color-surface));
+`;
+
+const FormLoadingWrapper = styled.div`
+  padding: 16px;
+`;
+
+const FormStatusMessage = styled.div`
+  padding: 12px;
+  color: rgb(var(--color-text-secondary));
+  font-size: 13px;
+`;
+
+const ModeSwitchRow = styled.div`
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-bottom: 10px;
+`;
+
+const FkFieldsColumn = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 10px;
+`;
+
+const FkFieldLabel = styled.div`
+  font-size: 12px;
+  font-weight: 600;
+  color: rgb(var(--color-text-secondary));
+  margin-bottom: 6px;
+`;
+
+const ReadonlyFieldValue = styled.div`
+  padding: 10px 12px;
+  border: 1px solid rgb(var(--color-border));
+  border-radius: 8px;
+  background: rgb(var(--color-input-readonly));
+  color: rgb(var(--color-text-primary));
+  font-size: 13px;
+`;
+
+const VisibilityToggleRow = styled.div`
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 14px;
+`;
+
+const ViewFieldsColumn = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+`;
+
+const ViewActionsRow = styled.div`
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 8px;
+`;

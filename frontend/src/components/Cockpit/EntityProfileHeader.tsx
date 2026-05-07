@@ -349,17 +349,17 @@ const ProductListSection: React.FC<{
 
   return (
     <PreferredProductsSection>
-      <PreferredProductsTitle style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+      <ProductSectionHeader>
         <span>{title}</span>
         {canEdit && (
           <LinkButton type="button" onClick={() => setEditing((v) => !v)}>
             {editing ? 'Cancel' : 'Edit'}
           </LinkButton>
         )}
-      </PreferredProductsTitle>
+      </ProductSectionHeader>
 
       {editing ? (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <VerticalStack>
           <Select
             mode="multiple"
             value={value}
@@ -372,7 +372,7 @@ const ProductListSection: React.FC<{
             notFoundContent={loadingOptions ? <Spin size="small" /> : null}
             style={{ width: '100%' }}
           />
-          <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+          <ActionsEndRow>
             <LinkButton
               type="button"
               onClick={async () => {
@@ -382,10 +382,10 @@ const ProductListSection: React.FC<{
             >
               Save
             </LinkButton>
-          </div>
-        </div>
+          </ActionsEndRow>
+        </VerticalStack>
       ) : entries.length ? (
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        <TagsWrapRow>
           {entries.map((p) => {
             const label = `${p.product_code ? `${p.product_code} - ` : ''}${p.name || ''}`.trim() || p.id;
             return (
@@ -394,9 +394,9 @@ const ProductListSection: React.FC<{
               </Tag>
             );
           })}
-        </div>
+        </TagsWrapRow>
       ) : (
-        <div style={{ color: 'rgb(var(--color-text-tertiary))', fontSize: 12 }}>—</div>
+        <EmptyPlaceholder>—</EmptyPlaceholder>
       )}
     </PreferredProductsSection>
   );
@@ -693,11 +693,11 @@ export const EntityProfileHeader: React.FC<EntityProfileHeaderProps> = ({
           <Title title={data?.title || ''}>{data?.title || 'Record'}</Title>
           <Subtitle>
             <Tag color="blue">{variant === 'compact' ? `${entityType} · key fields` : entityType}</Tag>
-            <span style={{ marginLeft: 8 }}>ID: {entityId}</span>
+            <IdSpan>ID: {entityId}</IdSpan>
           </Subtitle>
         </TitleBlock>
 
-        <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+        <HeaderActionsRow>
           {variant === 'compact' && (
             <LinkButton type="button" onClick={() => setShowAllFields((v) => !v)}>
               {showAllFields ? 'Show fewer fields' : 'Show all fields'}
@@ -720,13 +720,13 @@ export const EntityProfileHeader: React.FC<EntityProfileHeaderProps> = ({
               {isEditMode ? 'Done' : 'Edit'}
             </LinkButton>
           )}
-        </div>
+        </HeaderActionsRow>
       </TitleRow>
 
       <AmbientSuggestions entityType={entityType} entityId={entityId} />
 
       {loading ? (
-        <div style={{ padding: 12 }}><Spin /></div>
+        <SpinnerWrapper><Spin /></SpinnerWrapper>
       ) : (
         <>
           <FieldsGrid>
@@ -774,7 +774,7 @@ export const EntityProfileHeader: React.FC<EntityProfileHeaderProps> = ({
 
                     if (isEditingMulti) {
                       return (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                        <VerticalStack>
                           <Select
                             mode="tags"
                             value={arrayDraft}
@@ -784,7 +784,7 @@ export const EntityProfileHeader: React.FC<EntityProfileHeaderProps> = ({
                             onChange={(vals) => setArrayDraft(vals as string[])}
                             style={{ width: '100%' }}
                           />
-                          <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+                          <ActionsEndRow>
                             <LinkButton
                               type="button"
                               onClick={() => {
@@ -804,23 +804,23 @@ export const EntityProfileHeader: React.FC<EntityProfileHeaderProps> = ({
                             >
                               Save
                             </LinkButton>
-                          </div>
-                        </div>
+                          </ActionsEndRow>
+                        </VerticalStack>
                       );
                     }
 
                     return (
-                      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 }}>
+                      <MultiValueRow>
                         {values.length ? (
-                          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                          <TagsWrapRow>
                             {values.map((v) => (
                               <Tag key={`${key}:${v}`} color="geekblue">
                                 {v}
                               </Tag>
                             ))}
-                          </div>
+                          </TagsWrapRow>
                         ) : (
-                          <span style={{ color: 'rgb(var(--color-text-tertiary))' }}>—</span>
+                          <TertiaryPlaceholder>—</TertiaryPlaceholder>
                         )}
 
                         {canEdit && isEditMode && !readOnly && (
@@ -834,7 +834,7 @@ export const EntityProfileHeader: React.FC<EntityProfileHeaderProps> = ({
                             Edit
                           </LinkButton>
                         )}
-                      </div>
+                      </MultiValueRow>
                     );
                   };
 
@@ -858,10 +858,10 @@ export const EntityProfileHeader: React.FC<EntityProfileHeaderProps> = ({
                                 : false
                             }
                           >
-                            {scalar || <span style={{ color: 'rgb(var(--color-text-tertiary))' }}>—</span>}
+                            {scalar || <TertiaryPlaceholder>—</TertiaryPlaceholder>}
                           </Text>
                         ) : (
-                          scalar || <span style={{ color: 'rgb(var(--color-text-tertiary))' }}>—</span>
+                          scalar || <TertiaryPlaceholder>—</TertiaryPlaceholder>
                         )}
                       </FieldValue>
                     </FieldRow>
@@ -930,3 +930,60 @@ export const EntityProfileHeader: React.FC<EntityProfileHeaderProps> = ({
 };
 
 export default EntityProfileHeader;
+
+/* ─── Additional Styled Components ─── */
+
+const ProductSectionHeader = styled(PreferredProductsTitle)`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+`;
+
+const VerticalStack = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+`;
+
+const ActionsEndRow = styled.div`
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+`;
+
+const TagsWrapRow = styled.div`
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+`;
+
+const EmptyPlaceholder = styled.div`
+  color: rgb(var(--color-text-tertiary));
+  font-size: 12px;
+`;
+
+const TertiaryPlaceholder = styled.span`
+  color: rgb(var(--color-text-tertiary));
+`;
+
+const IdSpan = styled.span`
+  margin-left: 8px;
+`;
+
+const HeaderActionsRow = styled.div`
+  display: flex;
+  gap: 12px;
+  align-items: center;
+`;
+
+const SpinnerWrapper = styled.div`
+  padding: 12px;
+`;
+
+const MultiValueRow = styled.div`
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+`;
