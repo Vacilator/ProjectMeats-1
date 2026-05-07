@@ -113,7 +113,7 @@ const IconButton = styled.button<{ variant?: 'danger' }>`
   border-radius: 6px;
   background: transparent;
   color: ${props => props.variant === 'danger' 
-    ? 'rgb(239, 68, 68)' 
+    ? 'rgb(var(--color-error))' 
     : 'rgb(var(--color-text-secondary))'};
   cursor: pointer;
   transition: all 0.2s;
@@ -123,7 +123,7 @@ const IconButton = styled.button<{ variant?: 'danger' }>`
   
   &:hover {
     background: ${props => props.variant === 'danger'
-      ? 'rgba(239, 68, 68, 0.1)'
+      ? 'rgba(var(--color-error), 0.1)'
       : 'rgb(var(--color-surface-active))'};
   }
 `;

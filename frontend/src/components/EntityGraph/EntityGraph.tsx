@@ -120,7 +120,7 @@ const ErrorMessage = styled.div`
   align-items: center;
   justify-content: center;
   height: 100%;
-  color: rgb(239, 68, 68);
+  color: rgb(var(--color-error));
   padding: 2rem;
   text-align: center;
 `;

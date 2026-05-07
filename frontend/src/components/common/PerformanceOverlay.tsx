@@ -44,15 +44,15 @@ export const PerformanceOverlay: React.FC = () => {
 
   // Determine LCP status
   const lcpStatus = !lcp ? 'unknown' : lcp < 2500 ? 'good' : lcp < 4000 ? 'needs-improvement' : 'poor';
-  const lcpColor = lcpStatus === 'good' ? 'rgb(34, 197, 94)' : lcpStatus === 'needs-improvement' ? 'rgb(234, 179, 8)' : 'rgb(239, 68, 68)';
+  const lcpColor = lcpStatus === 'good' ? 'rgb(var(--color-success))' : lcpStatus === 'needs-improvement' ? 'rgb(var(--color-warning))' : 'rgb(var(--color-error))';
 
   // Determine FID status
   const fidStatus = !fid ? 'unknown' : fid < 100 ? 'good' : fid < 300 ? 'needs-improvement' : 'poor';
-  const fidColor = fidStatus === 'good' ? 'rgb(34, 197, 94)' : fidStatus === 'needs-improvement' ? 'rgb(234, 179, 8)' : 'rgb(239, 68, 68)';
+  const fidColor = fidStatus === 'good' ? 'rgb(var(--color-success))' : fidStatus === 'needs-improvement' ? 'rgb(var(--color-warning))' : 'rgb(var(--color-error))';
 
   // Memory status
   const memoryStatus = !memoryUsage ? 'unknown' : memoryUsage < 50 ? 'good' : memoryUsage < 100 ? 'needs-improvement' : 'poor';
-  const memoryColor = memoryStatus === 'good' ? 'rgb(34, 197, 94)' : memoryStatus === 'needs-improvement' ? 'rgb(234, 179, 8)' : 'rgb(239, 68, 68)';
+  const memoryColor = memoryStatus === 'good' ? 'rgb(var(--color-success))' : memoryStatus === 'needs-improvement' ? 'rgb(var(--color-warning))' : 'rgb(var(--color-error))';
 
   return (
     <Card
@@ -155,7 +155,7 @@ export const PerformanceOverlay: React.FC = () => {
               <Col span={12}>
                 <Text type="secondary">Failed:</Text>
                 <br />
-                <Text strong style={{ color: networkMetrics.failedRequests > 0 ? 'rgb(239, 68, 68)' : 'rgb(34, 197, 94)' }}>
+                <Text strong style={{ color: networkMetrics.failedRequests > 0 ? 'rgb(var(--color-error))' : 'rgb(var(--color-success))' }}>
                   {networkMetrics.failedRequests}
                 </Text>
               </Col>

@@ -602,7 +602,7 @@ export const ScheduleCallModal: React.FC<ScheduleCallModalProps> = ({
                 ))}
               </Select>
               {entityOptions.length === 0 && !loadingEntities && (
-                <HelpText style={{ color: 'rgb(239, 68, 68)' }}>
+                <HelpText style={{ color: 'rgb(var(--color-error))' }}>
                   No {entityType}s found. Please create one first.
                 </HelpText>
               )}

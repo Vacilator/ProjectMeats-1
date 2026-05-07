@@ -128,8 +128,8 @@ const ConfirmButton = styled(Button)<{ variant: 'primary' | 'danger' | 'warning'
 function getVariantColor(variant: 'primary' | 'danger' | 'warning'): string {
   const colors = {
     primary: 'rgb(var(--color-primary))',
-    danger: 'rgb(239, 68, 68)',
-    warning: 'rgb(234, 179, 8)',
+    danger: 'rgb(var(--color-error))',
+    warning: 'rgb(var(--color-warning))',
   };
   return colors[variant];
 }

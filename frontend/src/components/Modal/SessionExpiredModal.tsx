@@ -109,8 +109,8 @@ const IconWrapper = styled.div`
   width: 80px;
   height: 80px;
   border-radius: 50%;
-  background: rgb(234, 179, 8, 0.1);
-  color: rgb(234, 179, 8);
+  background: rgba(var(--color-warning), 0.1);
+  color: rgb(var(--color-warning));
   display: flex;
   align-items: center;
   justify-content: center;

@@ -126,7 +126,7 @@ const RuleText = styled.span`
 const DeleteButton = styled.button`
   background: none;
   border: none;
-  color: rgb(239, 68, 68);
+  color: rgb(var(--color-error));
   cursor: pointer;
   padding: 4px 8px;
   border-radius: 4px;
@@ -135,7 +135,7 @@ const DeleteButton = styled.button`
   transition: background 0.15s ease;
   
   &:hover {
-    background: rgba(239, 68, 68, 0.1);
+    background: rgba(var(--color-error), 0.1);
   }
 `;
 
@@ -162,10 +162,10 @@ const LogicalOperatorBadge = styled.div<{ $operator: LogicalOperator }>`
   text-align: center;
   
   ${props => props.$operator === 'AND' ? css`
-    background: rgba(59, 130, 246, 0.1);
-    color: rgb(59, 130, 246);
+    background: rgba(var(--color-info), 0.1);
+    color: rgb(var(--color-info));
   ` : css`
-    background: rgba(234, 179, 8, 0.1);
+    background: rgba(var(--color-warning), 0.1);
     color: rgb(180, 140, 8);
   `}
 `;
@@ -209,7 +209,7 @@ const RemoveConditionButton = styled.button`
   font-size: 16px;
   
   &:hover {
-    color: rgb(239, 68, 68);
+    color: rgb(var(--color-error));
   }
 `;
 
@@ -246,13 +246,13 @@ const LogicalToggle = styled.button<{ $isAnd: boolean }>`
   margin-top: 12px;
   
   ${props => props.$isAnd ? css`
-    background: rgba(59, 130, 246, 0.1);
-    color: rgb(59, 130, 246);
-    border: 1px solid rgb(59, 130, 246);
+    background: rgba(var(--color-info), 0.1);
+    color: rgb(var(--color-info));
+    border: 1px solid rgb(var(--color-info));
   ` : css`
-    background: rgba(234, 179, 8, 0.1);
-    color: rgb(180, 140, 8);
-    border: 1px solid rgb(234, 179, 8);
+    background: rgba(var(--color-warning), 0.1);
+    color: rgb(var(--color-warning));
+    border: 1px solid rgb(var(--color-warning));
   `}
 `;
 
@@ -291,7 +291,7 @@ const EmptyIcon = styled.span`
 `;
 
 const ErrorMessage = styled.div`
-  color: rgb(239, 68, 68);
+  color: rgb(var(--color-error));
   font-size: 12px;
   margin-top: 4px;
   animation: ${shake} 0.3s ease;

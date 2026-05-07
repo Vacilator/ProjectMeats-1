@@ -126,13 +126,13 @@ const ConfidenceBadge = styled.span<{ confidence: string }>`
   font-size: 11px;
   font-weight: 500;
   background: ${props => {
-    if (props.confidence === 'high') return 'rgba(34, 197, 94, 0.15)';
-    if (props.confidence === 'medium') return 'rgba(234, 179, 8, 0.15)';
+    if (props.confidence === 'high') return 'rgba(var(--color-success), 0.15)';
+    if (props.confidence === 'medium') return 'rgba(var(--color-warning), 0.15)';
     return 'rgba(var(--color-primary), 0.15)';
   }};
   color: ${props => {
-    if (props.confidence === 'high') return 'rgb(34, 197, 94)';
-    if (props.confidence === 'medium') return 'rgb(234, 179, 8)';
+    if (props.confidence === 'high') return 'rgb(var(--color-success))';
+    if (props.confidence === 'medium') return 'rgb(var(--color-warning))';
     return 'rgb(var(--color-primary))';
   }};
   display: flex;

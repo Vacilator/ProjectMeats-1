@@ -43,13 +43,13 @@ const RELATIONSHIP_COLORS: Record<string, string> = {
   child: 'rgb(var(--color-primary))',
   
   // Business relationships
-  supplies: 'rgb(34, 197, 94)',      // success green
-  purchases: 'rgb(59, 130, 246)',    // info blue
-  has_order: 'rgb(234, 179, 8)',     // warning yellow
+  supplies: 'rgb(var(--color-success))',      // success green
+  purchases: 'rgb(var(--color-info))',    // info blue
+  has_order: 'rgb(var(--color-warning))',     // warning yellow
   
   // Financial
   invoiced: 'rgb(168, 85, 247)',     // purple
-  payment: 'rgb(34, 197, 94)',       // success green
+  payment: 'rgb(var(--color-success))',       // success green
   
   // Default
   default: 'rgb(var(--color-text-tertiary))',

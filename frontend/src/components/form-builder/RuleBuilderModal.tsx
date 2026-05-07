@@ -102,13 +102,13 @@ const IconButton = styled.button`
   padding: 8px;
   background: transparent;
   border: none;
-  color: rgb(239, 68, 68);
+  color: rgb(var(--color-error));
   cursor: pointer;
   border-radius: 6px;
   display: flex;
   
   &:hover {
-    background: rgba(239, 68, 68, 0.1);
+    background: rgba(var(--color-error), 0.1);
   }
 `;
 
