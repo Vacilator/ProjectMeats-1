@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from contextlib import contextmanager
+
 from django.db import transaction
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
@@ -19,7 +21,33 @@ from apps.core.services.pdf_generator import (
     email_document_pdf,
     generate_document_pdf_for_instance,
 )
+from apps.core.utils.audit_context import (
+    AuditRequestContext,
+    clear_audit_context,
+    get_audit_context,
+    set_audit_context,
+)
 from apps.tenants.email_utils import classify_email_send_exception
+
+
+@contextmanager
+def _request_audit_context(request):
+    previous_context = get_audit_context()
+    set_audit_context(
+        AuditRequestContext(
+            tenant=getattr(request, "tenant", None) or previous_context.tenant,
+            user=getattr(request, "user", None),
+            ip_address=previous_context.ip_address,
+            user_agent=previous_context.user_agent or (request.META.get("HTTP_USER_AGENT") or "")[:500],
+        )
+    )
+    try:
+        yield
+    finally:
+        if previous_context == AuditRequestContext():
+            clear_audit_context()
+        else:
+            set_audit_context(previous_context)
 
 
 class OperationalDocumentActionsMixin:
@@ -32,21 +60,22 @@ class OperationalDocumentActionsMixin:
 
     @action(detail=True, methods=["post"], url_path="transition-status")
     def transition_status(self, request, pk=None):
-        with transaction.atomic():
-            queryset = self.filter_queryset(self.get_queryset()).select_for_update(of=("self",))
-            document = get_object_or_404(queryset, pk=pk)
-            self.check_object_permissions(request, document)
-            serializer = DocumentStatusTransitionSerializer(
-                data=request.data,
-                context={"document": document},
-            )
-            serializer.is_valid(raise_exception=True)
-            document.status = serializer.validated_data["status"]
-            update_fields = ["status"]
-            if hasattr(document, "modified_on"):
-                document.modified_on = timezone.now()
-                update_fields.append("modified_on")
-            document.save(update_fields=update_fields)
+        with _request_audit_context(request):
+            with transaction.atomic():
+                queryset = self.filter_queryset(self.get_queryset()).select_for_update(of=("self",))
+                document = get_object_or_404(queryset, pk=pk)
+                self.check_object_permissions(request, document)
+                serializer = DocumentStatusTransitionSerializer(
+                    data=request.data,
+                    context={"document": document},
+                )
+                serializer.is_valid(raise_exception=True)
+                document.status = serializer.validated_data["status"]
+                update_fields = ["status"]
+                if hasattr(document, "modified_on"):
+                    document.modified_on = timezone.now()
+                    update_fields.append("modified_on")
+                document.save(update_fields=update_fields)
         return Response(self.get_serializer(document).data)
 
     @action(detail=True, methods=["get"], url_path="pdf")
