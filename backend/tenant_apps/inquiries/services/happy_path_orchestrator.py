@@ -25,13 +25,23 @@ from typing import Any
 from django.utils import timezone
 
 from apps.tenants.rls import tenant_rls
+from tenant_apps.contacts.models import Contact, ContactDepartmentChoices
 from tenant_apps.inquiries.models import (
     Inquiry,
     InquiryRouteDecisionChoices,
     InquiryStatusChoices,
+    InquirySupplierRFQ,
 )
 
 logger = logging.getLogger(__name__)
+
+CONTACT_ROLE_LABELS: dict[str, str] = {
+    "rfq_recipient": "RFQ Recipient",
+    "supplier_contact": "Supplier Contact",
+    "shipping_contact": "Shipping Contact",
+    "billing_contact": "Billing Contact",
+    "customer_contact": "Customer Contact",
+}
 
 
 # ---------------------------------------------------------------------------
@@ -229,7 +239,45 @@ def get_lineage_chain(*, tenant: Any, inquiry: Inquiry) -> dict[str, Any]:
             "carrier_purchase_order",
             "customer",
             "supplier",
+            "contact",
         ).get(id=inquiry.id, tenant=tenant)
+
+        latest_rfq = (
+            InquirySupplierRFQ.objects.filter(tenant=tenant, inquiry=inquiry)
+            .select_related("supplier")
+            .order_by("-sent_at", "-modified_on", "-created_on")
+            .first()
+        )
+
+        contact_ids = set()
+        if inquiry.contact_id:
+            try:
+                contact_ids.add(int(inquiry.contact_id))
+            except (TypeError, ValueError):
+                pass
+
+        rfq_routing = dict((latest_rfq.custom_data or {}).get("recipient_routing") or {}) if latest_rfq else {}
+        _collect_contact_ids(contact_ids, rfq_routing)
+
+        po_contact_routing = {}
+        if inquiry.supplier_purchase_order and isinstance(inquiry.supplier_purchase_order.custom_data, dict):
+            po_contact_routing = dict(inquiry.supplier_purchase_order.custom_data.get("contact_routing") or {})
+            _collect_contact_ids(contact_ids, po_contact_routing)
+
+        so_process_cockpit = {}
+        so_supplier_contacts = {}
+        if inquiry.sales_order and isinstance(inquiry.sales_order.custom_data, dict):
+            so_process_cockpit = dict(inquiry.sales_order.custom_data.get("process_cockpit") or {})
+            so_supplier_contacts = dict(so_process_cockpit.get("supplier_contacts") or {})
+            _collect_contact_ids(contact_ids, so_process_cockpit)
+            _collect_contact_ids(contact_ids, so_supplier_contacts)
+
+        contacts_by_id = {
+            contact.id: contact
+            for contact in Contact.objects.filter(tenant=tenant, id__in=contact_ids).select_related(
+                "supplier", "plant", "customer", "location"
+            )
+        }
 
     chain: dict[str, Any] = {
         "inquiry": {
@@ -239,6 +287,12 @@ def get_lineage_chain(*, tenant: Any, inquiry: Inquiry) -> dict[str, Any]:
             "route_decision": inquiry.route_decision,
             "customer": str(inquiry.customer) if inquiry.customer else None,
             "supplier": str(inquiry.supplier) if inquiry.supplier else None,
+            "contact_roles": _build_inquiry_contact_roles(
+                inquiry=inquiry,
+                latest_rfq=latest_rfq,
+                rfq_routing=rfq_routing,
+                contacts_by_id=contacts_by_id,
+            ),
         },
         "supplier_purchase_order": None,
         "sales_order": None,
@@ -252,6 +306,13 @@ def get_lineage_chain(*, tenant: Any, inquiry: Inquiry) -> dict[str, Any]:
             "id": str(po.id),
             "number": po.order_number or str(po.id)[:8],
             "status": po.status,
+            "contact_roles": _build_role_cards(
+                po_contact_routing,
+                contacts_by_id=contacts_by_id,
+                action_prefix="Supplier PO routed to",
+                fallback_company=getattr(getattr(po, "supplier", None), "name", "") or getattr(inquiry.supplier, "name", ""),
+                preferred_roles=("supplier_contact", "shipping_contact", "billing_contact"),
+            ),
         }
 
     if inquiry.sales_order:
@@ -260,6 +321,11 @@ def get_lineage_chain(*, tenant: Any, inquiry: Inquiry) -> dict[str, Any]:
             "id": str(so.id),
             "number": so.our_sales_order_num or str(so.id)[:8],
             "status": so.status,
+            "contact_roles": _build_sales_order_contact_roles(
+                process_cockpit=so_process_cockpit,
+                supplier_contacts=so_supplier_contacts,
+                contacts_by_id=contacts_by_id,
+            ),
         }
 
     if inquiry.carrier_purchase_order:
@@ -271,6 +337,220 @@ def get_lineage_chain(*, tenant: Any, inquiry: Inquiry) -> dict[str, Any]:
         }
 
     return chain
+
+
+def _collect_contact_ids(bucket: set[int], payload: Any) -> None:
+    if isinstance(payload, dict):
+        contact_id = payload.get("contact_id")
+        if contact_id not in (None, ""):
+            try:
+                bucket.add(int(contact_id))
+            except (TypeError, ValueError):
+                pass
+        for value in payload.values():
+            _collect_contact_ids(bucket, value)
+    elif isinstance(payload, list):
+        for value in payload:
+            _collect_contact_ids(bucket, value)
+
+
+def _build_inquiry_contact_roles(
+    *,
+    inquiry: Inquiry,
+    latest_rfq: InquirySupplierRFQ | None,
+    rfq_routing: dict[str, Any],
+    contacts_by_id: dict[int, Contact],
+) -> list[dict[str, Any]]:
+    cards: list[dict[str, Any]] = []
+    if rfq_routing:
+        fallback_company = getattr(getattr(latest_rfq, "supplier", None), "name", "") or getattr(inquiry.supplier, "name", "")
+        card = _build_contact_role_card(
+            role="rfq_recipient",
+            payload=rfq_routing,
+            contacts_by_id=contacts_by_id,
+            action_prefix="RFQ sent to",
+            fallback_company=fallback_company,
+        )
+        if card:
+            cards.append(card)
+    elif inquiry.contact_id:
+        inquiry_card = _build_contact_role_card(
+            role="customer_contact",
+            payload={
+                "contact_id": inquiry.contact_id,
+                "name": " ".join(
+                    part
+                    for part in [
+                        getattr(inquiry.contact, "first_name", "") or "",
+                        getattr(inquiry.contact, "last_name", "") or "",
+                    ]
+                    if part
+                ).strip(),
+                "email": getattr(inquiry.contact, "email", "") or "",
+            },
+            contacts_by_id=contacts_by_id,
+            action_prefix="Inquiry contact",
+            fallback_company=getattr(inquiry.customer, "name", "") or getattr(inquiry.supplier, "name", ""),
+        )
+        if inquiry_card:
+            cards.append(inquiry_card)
+    return cards
+
+
+def _build_sales_order_contact_roles(
+    *,
+    process_cockpit: dict[str, Any],
+    supplier_contacts: dict[str, Any],
+    contacts_by_id: dict[int, Contact],
+) -> list[dict[str, Any]]:
+    cards = _build_role_cards(
+        supplier_contacts,
+        contacts_by_id=contacts_by_id,
+        action_prefix="Sales Order uses",
+        preferred_roles=("supplier_contact", "shipping_contact", "billing_contact"),
+    )
+    customer_contact = _build_contact_role_card(
+        role="customer_contact",
+        payload=dict(process_cockpit.get("customer_contact") or {}),
+        contacts_by_id=contacts_by_id,
+        action_prefix="Customer review with",
+    )
+    if customer_contact:
+        cards.append(customer_contact)
+    return cards
+
+
+def _build_role_cards(
+    payload: dict[str, Any],
+    *,
+    contacts_by_id: dict[int, Contact],
+    action_prefix: str,
+    fallback_company: str = "",
+    preferred_roles: tuple[str, ...],
+) -> list[dict[str, Any]]:
+    cards: list[dict[str, Any]] = []
+    for role in preferred_roles:
+        card = _build_contact_role_card(
+            role=role,
+            payload=dict(payload.get(role) or {}),
+            contacts_by_id=contacts_by_id,
+            action_prefix=action_prefix,
+            fallback_company=fallback_company,
+        )
+        if card:
+            cards.append(card)
+    return cards
+
+
+def _build_contact_role_card(
+    *,
+    role: str,
+    payload: dict[str, Any],
+    contacts_by_id: dict[int, Contact],
+    action_prefix: str,
+    fallback_company: str = "",
+) -> dict[str, Any] | None:
+    if not isinstance(payload, dict) or not payload:
+        return None
+
+    contact = _lookup_contact(payload.get("contact_id"), contacts_by_id)
+    name = _first_non_empty(
+        payload.get("recipient_name"),
+        payload.get("name"),
+        _contact_name(contact),
+    )
+    email = _first_non_empty(payload.get("recipient_email"), payload.get("email"), getattr(contact, "email", ""))
+    if not name and not email:
+        return None
+
+    department = _first_non_empty(payload.get("department"), getattr(contact, "department", ""))
+    title = _first_non_empty(
+        payload.get("title"),
+        getattr(contact, "title", ""),
+        getattr(contact, "position", ""),
+    )
+    company = _first_non_empty(
+        payload.get("plant_name"),
+        getattr(getattr(contact, "plant", None), "name", ""),
+        getattr(getattr(contact, "supplier", None), "name", ""),
+        getattr(getattr(contact, "customer", None), "name", ""),
+        fallback_company,
+    )
+
+    target_label = _department_label(department) or CONTACT_ROLE_LABELS.get(role, role.replace("_", " ").title())
+    header = f"{action_prefix} {target_label} - {name or email}"
+    if company:
+        header = f"{header} ({company})"
+
+    return {
+        "role": role,
+        "role_label": CONTACT_ROLE_LABELS.get(role, role.replace("_", " ").title()),
+        "header": header,
+        "contact_id": str(contact.id) if contact else str(payload.get("contact_id") or "") or None,
+        "detail_path": f"/records/contact/{contact.id}" if contact else None,
+        "name": name,
+        "email": email,
+        "department": department or None,
+        "department_label": _department_label(department) or None,
+        "title": title or None,
+        "company": company or None,
+        "responsibilities": _responsibility_highlights(payload),
+    }
+
+
+def _lookup_contact(contact_id: Any, contacts_by_id: dict[int, Contact]) -> Contact | None:
+    try:
+        return contacts_by_id.get(int(contact_id))
+    except (TypeError, ValueError):
+        return None
+
+
+def _contact_name(contact: Contact | None) -> str:
+    if contact is None:
+        return ""
+    return " ".join(
+        part for part in [getattr(contact, "first_name", "") or "", getattr(contact, "last_name", "") or ""] if part
+    ).strip()
+
+
+def _department_label(value: Any) -> str:
+    normalized = str(value or "").strip()
+    if not normalized:
+        return ""
+    try:
+        return str(ContactDepartmentChoices(normalized).label)
+    except ValueError:
+        return normalized.replace("_", " ").title()
+
+
+def _responsibility_highlights(payload: dict[str, Any]) -> list[str]:
+    values: list[str] = []
+    for key in (
+        "matched_items",
+        "matched_proteins",
+        "matched_documents",
+        "responsible_items",
+        "responsible_proteins",
+        "responsible_documents",
+    ):
+        raw = payload.get(key)
+        if not isinstance(raw, list):
+            continue
+        for item in raw:
+            label = str(item or "").strip()
+            if label and label not in values:
+                values.append(label)
+            if len(values) >= 4:
+                return values
+    return values
+
+
+def _first_non_empty(*values: Any) -> str:
+    for value in values:
+        text = str(value or "").strip()
+        if text:
+            return text
+    return ""
 
 
 # ---------------------------------------------------------------------------

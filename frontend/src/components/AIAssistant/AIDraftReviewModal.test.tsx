@@ -141,4 +141,45 @@ describe('AIDraftReviewModal', () => {
     expect(screen.getByTestId('initial-values').textContent).toContain('2026-05-10');
     expect(screen.getByTestId('feedback-actions')).toHaveTextContent('draft-2');
   });
+
+  it('renders routed contact context when the parsed payload includes contact routing', async () => {
+    render(
+      <MemoryRouter>
+        <AIDraftReviewModal
+          open
+          onClose={() => {}}
+          item={{
+            id: 'draft-3',
+            document_id: 'document-3',
+            document_type: 'purchase_order',
+            confidence_score: 0.88,
+            precision_delta: 0,
+            created_on: new Date().toISOString(),
+            intent_label: 'Purchase Order',
+            review_entity_type: 'purchase_order',
+            original_extracted_data: {
+              order_number: 'PO-2001',
+              contact_routing: {
+                supplier_contact: {
+                  contact_id: 42,
+                  recipient_name: 'Angie Sanchez',
+                  recipient_email: 'angie@example.com',
+                  department: 'sales',
+                  title: 'Account Manager',
+                  plant_name: 'Allen Lund',
+                  matched_items: ['Beef Trim'],
+                  matched_documents: ['Spec Sheets'],
+                },
+              },
+            },
+          }}
+        />
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByText(/Contact Routing/i)).toBeInTheDocument();
+    expect(screen.getByText(/Resolved Sales - Angie Sanchez \(Allen Lund\)/i)).toBeInTheDocument();
+    expect(screen.getByText('Spec Sheets')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Open contact/i })).toBeInTheDocument();
+  });
 });
