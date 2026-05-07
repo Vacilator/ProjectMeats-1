@@ -13,8 +13,13 @@ from apps.integrations.models import ExternalAuthProvider
 from apps.integrations.providers.base import EmailProviderError, TokenExpiredError
 from apps.integrations.providers.microsoft import MicrosoftGraphProvider
 from apps.tenants.rls import set_current_tenant
+from tenant_apps.contacts.services import (
+    build_supplier_contact_context_lines,
+    resolve_supplier_contact_route,
+)
 from tenant_apps.inquiries.models import (
     InquiryRouteDecisionChoices,
+    InquiryShippingTypeChoices,
     InquirySupplierRFQ,
     InquirySupplierRFQStatusChoices,
 )
@@ -53,7 +58,12 @@ def _build_subject(inquiry) -> str:
     return f"RFQ {inquiry.inquiry_number}: {anchor}".strip(": ")
 
 
-def _build_body(*, inquiry, supplier_name: str, correlation_key: str) -> str:
+def _resolve_rfq_focus(inquiry) -> str:
+    shipping_type = getattr(inquiry, "shipping_type", "")
+    return "logistics" if shipping_type == InquiryShippingTypeChoices.SUPPLIER_DELIVERING else "pricing"
+
+
+def _build_body(*, inquiry, supplier_name: str, correlation_key: str, contact_resolution) -> str:
     entity_name = getattr(getattr(inquiry, "entity", None), "name", "") or inquiry.contact_company or "our team"
     lines: list[str] = [
         f"Hello {supplier_name},",
@@ -80,27 +90,28 @@ def _build_body(*, inquiry, supplier_name: str, correlation_key: str) -> str:
     if inquiry.notes:
         lines.extend(["", "Notes:", inquiry.notes.strip()])
 
+    contact_context_lines = build_supplier_contact_context_lines(
+        resolution=contact_resolution,
+        include_90_day_confirm=True,
+    )
+    if contact_context_lines:
+        lines.extend(["", *contact_context_lines])
+
     lines.extend(
         [
             "",
             f"Shipping type: {inquiry.get_shipping_type_display()}",
             f"RFQ reference: {correlation_key}",
             "",
-            "Please reply with availability, pricing, lead time, and any shipping constraints.",
+            "Please reply with availability, pricing, lead time, plant details, and any shipping constraints.",
+            "If an alternate plant will fulfill this inquiry, include that plant and the applicable establishment details.",
+            "If you can support the attached document packet, please return those items with your reply.",
             "",
             "Thank you,",
             inquiry.created_by.get_full_name().strip() if inquiry.created_by and inquiry.created_by.get_full_name().strip() else "ProjectMeats",
         ]
     )
     return "\n".join(lines)
-
-
-def _resolve_supplier_email(supplier: Supplier) -> str:
-    direct_email = str(supplier.email or "").strip()
-    if direct_email:
-        return direct_email
-    contact = supplier.contacts.order_by("id").first()
-    return str(getattr(contact, "email", "") or "").strip()
 
 
 def _get_sender_provider(*, tenant) -> ExternalAuthProvider:
@@ -177,11 +188,18 @@ def send_supplier_rfqs_for_inquiry(*, tenant, inquiry, user=None, supplier_ids: 
 
     dispatched_count = 0
     entries: list[SupplierRFQDispatchEntry] = []
+    rfq_focus = _resolve_rfq_focus(inquiry)
     for supplier_id in candidate_ids:
         supplier = supplier_map.get(supplier_id)
         if supplier is None:
             continue
-        recipient_email = _resolve_supplier_email(supplier)
+        contact_resolution = resolve_supplier_contact_route(
+            tenant=tenant,
+            supplier=supplier,
+            inquiry=inquiry,
+            focus=rfq_focus,
+        )
+        recipient_email = contact_resolution.recipient_email
         if not recipient_email:
             entries.append(
                 SupplierRFQDispatchEntry(
@@ -204,7 +222,7 @@ def send_supplier_rfqs_for_inquiry(*, tenant, inquiry, user=None, supplier_ids: 
                     "sender_provider": sender_provider,
                     "sender_email": sender_provider.connected_email or "",
                     "recipient_email": recipient_email,
-                    "recipient_name": supplier.name,
+                    "recipient_name": contact_resolution.recipient_name or supplier.name,
                     "subject": "",
                     "body": "",
                     "provider": sender_provider.provider_type,
@@ -228,14 +246,15 @@ def send_supplier_rfqs_for_inquiry(*, tenant, inquiry, user=None, supplier_ids: 
             subject = _build_subject(inquiry)
             body = _build_body(
                 inquiry=inquiry,
-                supplier_name=supplier.name,
+                supplier_name=contact_resolution.recipient_name or supplier.name,
                 correlation_key=str(rfq.correlation_key),
+                contact_resolution=contact_resolution,
             )
             rfq.created_by = user or rfq.created_by
             rfq.sender_provider = sender_provider
             rfq.sender_email = sender_provider.connected_email or rfq.sender_email
             rfq.recipient_email = recipient_email
-            rfq.recipient_name = supplier.name
+            rfq.recipient_name = contact_resolution.recipient_name or supplier.name
             rfq.subject = subject[:300]
             rfq.body = body
             rfq.provider = sender_provider.provider_type
@@ -247,6 +266,8 @@ def send_supplier_rfqs_for_inquiry(*, tenant, inquiry, user=None, supplier_ids: 
                 **(rfq.custom_data or {}),
                 "inquiry_number": inquiry.inquiry_number,
                 "route_decision": inquiry.route_decision,
+                "rfq_focus": rfq_focus,
+                "recipient_routing": contact_resolution.as_dict(),
             }
             rfq.save()
 
@@ -262,6 +283,10 @@ def send_supplier_rfqs_for_inquiry(*, tenant, inquiry, user=None, supplier_ids: 
                         "X-ProjectMeats-Inquiry-RFQ": str(rfq.correlation_key),
                         "X-ProjectMeats-Inquiry-Id": str(inquiry.id),
                     },
+                    "attachments": [
+                        attachment.as_email_payload()
+                        for attachment in contact_resolution.attachments
+                    ],
                 },
             )
             rfq.status = InquirySupplierRFQStatusChoices.SENT

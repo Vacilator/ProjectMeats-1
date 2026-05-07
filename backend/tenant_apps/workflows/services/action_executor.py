@@ -13,14 +13,17 @@ Handlers:
 - store_document: Archive document (stub)
 - send_notification: In-app notifications
 """
+import base64
 import logging
 import re
 from typing import Dict, Any
-from django.core.mail import send_mail
+
 from django.conf import settings
 from django.apps import apps
+from django.core.mail import EmailMultiAlternatives
 
 from apps.tenants.email_utils import is_sendgrid_quota_exceeded
+from tenant_apps.contacts.services import resolve_supplier_contact_route
 
 logger = logging.getLogger(__name__)
 
@@ -83,45 +86,131 @@ class ActionExecutor:
             body: Email body with {{variables}}
             cc: Optional CC addresses
             bcc: Optional BCC addresses
+            recipient_strategy: Optional opt-in supplier routing strategy
         """
         try:
-            # Resolve template variables
-            to_email = self._resolve_template(config.get('to', ''))
+            recipients, routing_metadata, attachments = self._resolve_email_routing(config)
             subject = self._resolve_template(config.get('subject', ''))
             body = self._resolve_template(config.get('body', ''))
-            
-            if not to_email or not subject:
+
+            cc = self._resolve_email_list(config.get('cc', []))
+            bcc = self._resolve_email_list(config.get('bcc', []))
+
+            if not recipients or not subject:
                 return {'success': False, 'error': 'Missing required fields: to, subject'}
-            
-            # Send email
-            send_mail(
+
+            message = EmailMultiAlternatives(
                 subject=subject,
-                message=body,
+                body=body,
                 from_email=settings.DEFAULT_FROM_EMAIL,
-                recipient_list=[to_email],
-                fail_silently=False,
+                to=recipients,
+                cc=cc,
+                bcc=bcc,
             )
-            
-            logger.info(f"Email sent to {to_email}: {subject}")
-            
+            for attachment in attachments:
+                message.attach(
+                    attachment['name'],
+                    base64.b64decode(attachment['content_base64']),
+                    attachment.get('content_type', 'application/octet-stream'),
+                )
+            message.send(fail_silently=False)
+
+            logger.info("Email sent to %s: %s", ", ".join(recipients), subject)
+
             return {
                 'success': True,
-                'to': to_email,
+                'to': recipients,
                 'subject': subject,
+                'routing': routing_metadata,
+                'attachment_count': len(attachments),
             }
-            
+
         except Exception as e:
             if is_sendgrid_quota_exceeded(e):
                 logger.critical(
                     "🚨 SendGrid quota exceeded — workflow action email to %s NOT sent. "
                     "Please upgrade the SendGrid plan or wait for the quota to reset. "
                     "Error: %s",
-                    to_email,
+                    ", ".join(recipients) if 'recipients' in locals() else '',
                     e,
                 )
             else:
                 logger.exception(f"Error sending email: {str(e)}")
             return {'success': False, 'error': str(e)}
+
+    def _resolve_email_routing(self, config: Dict[str, Any]) -> tuple[list[str], dict[str, Any], list[dict[str, str]]]:
+        strategy = str(config.get('recipient_strategy') or '').strip().lower()
+        if strategy != 'supplier_plant_contact':
+            return self._resolve_email_list(config.get('to', '')), {}, []
+
+        supplier_id = self._resolve_config_id(config.get('supplier_id'))
+        inquiry_id = self._resolve_config_id(config.get('inquiry_id'))
+        if not supplier_id:
+            return [], {}, []
+
+        Supplier = apps.get_model('suppliers', 'Supplier')
+        Inquiry = apps.get_model('inquiries', 'Inquiry')
+
+        supplier = Supplier.objects.filter(id=supplier_id, tenant=self.tenant).first()
+        inquiry = (
+            Inquiry.objects.select_related('requested_master_product', 'requested_master_product__system_product')
+            .prefetch_related('products__product')
+            .filter(id=inquiry_id, tenant=self.tenant)
+            .first()
+            if inquiry_id
+            else None
+        )
+
+        if supplier is None:
+            return [], {}, []
+
+        focus = str(config.get('email_focus') or '').strip().lower() or 'pricing'
+        if focus == 'auto' and inquiry is not None:
+            shipping_type = str(getattr(inquiry, 'shipping_type', '')).strip().lower()
+            focus = 'logistics' if shipping_type == 'supplier_delivering' else 'pricing'
+
+        resolution = resolve_supplier_contact_route(
+            tenant=self.tenant,
+            supplier=supplier,
+            inquiry=inquiry,
+            focus=focus,
+        )
+        attachments = (
+            [attachment.as_email_payload() for attachment in resolution.attachments]
+            if config.get('include_responsibility_attachment', True)
+            else []
+        )
+        recipients = [resolution.recipient_email] if resolution.recipient_email else []
+        return recipients, resolution.as_dict(), attachments
+
+    def _resolve_email_list(self, raw_value: Any) -> list[str]:
+        values: list[str] = []
+        if isinstance(raw_value, list):
+            candidates = raw_value
+        elif isinstance(raw_value, str):
+            candidates = [item.strip() for item in raw_value.split(',')]
+        else:
+            candidates = [raw_value]
+
+        for candidate in candidates:
+            if isinstance(candidate, str):
+                resolved = self._resolve_template(candidate).strip()
+            else:
+                resolved = str(candidate or '').strip()
+            if resolved and resolved not in values:
+                values.append(resolved)
+        return values
+
+    def _resolve_config_id(self, raw_value: Any) -> int | None:
+        if raw_value in (None, ''):
+            return None
+        resolved = self._resolve_template(str(raw_value)).strip() if isinstance(raw_value, str) else str(raw_value).strip()
+        if not resolved:
+            return None
+        try:
+            return int(resolved)
+        except (TypeError, ValueError):
+            return None
     
     def create_record(self, config: Dict[str, Any]) -> Dict[str, Any]:
         """
