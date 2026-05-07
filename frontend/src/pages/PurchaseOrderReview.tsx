@@ -10,6 +10,7 @@ import {
   type PurchaseOrderReviewContext,
 } from '@/services/purchaseOrderReviewService';
 import { withTenantQueryKey } from '@/utils/queryKeys';
+import { TradeLineageFlow } from '@/components/Cockpit/TradeLineageFlow';
 
 const { Paragraph, Text, Title } = Typography;
 
@@ -363,6 +364,13 @@ export const PurchaseOrderReview: React.FC = () => {
           },
         ]}
       />
+
+      {/* Trade Lineage Visualization */}
+      {data.inquiry?.id && (
+        <Card title="Trade Process Flow" size="small" style={{ marginTop: 16 }}>
+          <TradeLineageFlow inquiryId={String(data.inquiry.id)} compact />
+        </Card>
+      )}
     </main>
   );
 };

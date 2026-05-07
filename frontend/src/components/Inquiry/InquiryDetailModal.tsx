@@ -24,6 +24,7 @@ import {
   formatFixedWithFallback,
   formatIntegerValue,
 } from './numberFormatting';
+import { TradeLineageFlow } from '../Cockpit/TradeLineageFlow';
 
 // ============================================================================
 // TypeScript Interfaces
@@ -626,6 +627,14 @@ export const InquiryDetailModal: React.FC<InquiryDetailModalProps> = ({
                 )}
               </Section>
             )}
+
+            {/* Trade Lineage Flow */}
+            <Section>
+              <SectionHeader>
+                <SectionTitle>Process Flow</SectionTitle>
+              </SectionHeader>
+              <TradeLineageFlow inquiryId={String(inquiry.id)} compact />
+            </Section>
 
             {/* Notes */}
             <Section>
