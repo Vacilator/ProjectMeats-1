@@ -737,7 +737,7 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
     const entityId = (action.metadata?.entityId as string | number | undefined) ?? action.id;
 
     if (!actionType) {
-      console.warn('[SmartSearch] Quick action missing actionType', action);
+      logger.warn('Quick action missing actionType', { component: 'SmartSearch', metadata: { action: action as unknown as Record<string, unknown> } });
       return;
     }
 
@@ -820,7 +820,7 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
         navigate(`/sales-orders?customer_id=${entityId}`);
         break;
       default:
-        console.warn('Unhandled quick action:', actionType, 'for entity', entityId);
+        logger.warn('Unhandled quick action', { component: 'SmartSearch', metadata: { actionType, entityId } });
     }
   }, [navigate, navigation.path, onOpenInlineCreate, query, searchParams, setSearchParams]);
 

@@ -900,7 +900,7 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
         });
       } catch (error) {
         // Keep defaults if config resolution fails
-        console.debug('Using default form config, resolution failed:', error);
+        logger.debug('Form config resolution failed, using defaults', { component: 'FormSubmissionModal', metadata: { error } });
       }
     };
     
@@ -1051,7 +1051,7 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
               }
             } catch (e) {
               // Effective choices endpoint might not exist for this field, fall back to static
-              console.debug(`No effective choices override for ${step.entity_type}.${field.key}, trying static choices`);
+              logger.debug(`No effective choices override for ${step.entity_type}.${field.key}, trying static choices`, { component: 'FormSubmissionModal' });
             }
             
             // Fall back to static choices if no override exists
