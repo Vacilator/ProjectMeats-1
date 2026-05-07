@@ -59,6 +59,66 @@ class EmailSyncTests(APITestCase):
         self.assertNotIn('boom', resp.data.get('error', ''))
         self.assertEqual(resp.data.get('details', {}).get('type'), 'RuntimeError')
 
+    @patch('apps.integrations.tasks.sync_single_tenant.apply_async')
+    def test_auto_sync_queues_single_tenant_sync(self, apply_async):
+        apply_async.return_value = SimpleNamespace(id='task-123')
+
+        resp = self.client.post(
+            '/api/v1/integrations/email/auto-sync/',
+            {'source': 'login'},
+            format='json',
+            HTTP_X_TENANT_ID=str(self.tenant.id),
+        )
+
+        self.assertEqual(resp.status_code, status.HTTP_202_ACCEPTED)
+        self.assertEqual(resp.data.get('ok'), True)
+        self.assertEqual(resp.data.get('accepted'), True)
+        self.assertEqual(resp.data.get('source'), 'login')
+        self.assertEqual(resp.data.get('task_id'), 'task-123')
+        apply_async.assert_called_once_with(args=[str(self.tenant.id)])
+
+    @patch('apps.integrations.views.AsyncResult')
+    def test_auto_sync_status_returns_task_state(self, async_result_cls):
+        async_result_cls.return_value = SimpleNamespace(
+            state='SUCCESS',
+            ready=lambda: True,
+            successful=lambda: True,
+            failed=lambda: False,
+            result={
+                'tenant_id': str(self.tenant.id),
+                'success': True,
+                'stats': {'emails_saved': 1},
+            },
+        )
+
+        resp = self.client.get(
+            '/api/v1/integrations/email/auto-sync/task-123/',
+            HTTP_X_TENANT_ID=str(self.tenant.id),
+        )
+
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+        self.assertEqual(resp.data.get('task_id'), 'task-123')
+        self.assertEqual(resp.data.get('state'), 'SUCCESS')
+        self.assertEqual(resp.data.get('ready'), True)
+        self.assertEqual(resp.data.get('successful'), True)
+        self.assertEqual(resp.data.get('result', {}).get('tenant_id'), str(self.tenant.id))
+
+    def test_auto_sync_soft_fails_when_not_connected(self):
+        ExternalAuthProvider.objects.filter(tenant=self.tenant, provider_type='microsoft').update(is_active=False)
+
+        resp = self.client.post(
+            '/api/v1/integrations/email/auto-sync/',
+            {'source': 'interval'},
+            format='json',
+            HTTP_X_TENANT_ID=str(self.tenant.id),
+        )
+
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+        self.assertEqual(resp.data.get('ok'), False)
+        self.assertEqual(resp.data.get('accepted'), False)
+        self.assertEqual(resp.data.get('code'), 'not_connected')
+        self.assertEqual(resp.data.get('source'), 'interval')
+
     def test_sync_emails_returns_not_connected_payload(self):
         ExternalAuthProvider.objects.filter(tenant=self.tenant, provider_type='microsoft').update(is_active=False)
 

@@ -17,7 +17,11 @@ import { useNotifications, ActionItem } from '../../contexts/NotificationsContex
 import { DelegateTaskModal, DelegationData, User } from '../../components/Delegation';
 import { DelegationHistory } from '../../components/Delegation';
 import AIDraftReviewModal from '../../components/AIAssistant/AIDraftReviewModal';
-import { aiStaffApi, PendingReviewItem } from '../../services/aiService';
+import {
+  AI_INBOX_REFRESH_EVENT,
+  aiStaffApi,
+  PendingReviewItem,
+} from '../../services/aiService';
 import { workflowExecutionService } from '../../services/workflowExecutionService';
 import { WorkflowExecution } from '../../types/workflows';
 import { compareTasksSmart, isAtRiskTask, daysUntilDue } from '../../utils/taskPrioritization';
@@ -727,6 +731,21 @@ export const MyTasks: React.FC = () => {
       return;
     }
     void fetchPendingReviews();
+  }, [activeTab, fetchPendingReviews, highlightedDraftId]);
+
+  useEffect(() => {
+    if (activeTab !== 'ai-review' && !highlightedDraftId) {
+      return;
+    }
+
+    const handleRefresh = () => {
+      void fetchPendingReviews();
+    };
+
+    window.addEventListener(AI_INBOX_REFRESH_EVENT, handleRefresh);
+    return () => {
+      window.removeEventListener(AI_INBOX_REFRESH_EVENT, handleRefresh);
+    };
   }, [activeTab, fetchPendingReviews, highlightedDraftId]);
 
   useEffect(() => {
