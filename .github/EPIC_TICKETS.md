@@ -1157,8 +1157,8 @@
   - **Rollback:** Revert supplier matching service only; broker inquiries remain manually sourced.
   - **Completion evidence destination:** `.github/MASTER_PLAN.md` (PR #4929)
 
-- [ ] **CTE-02.2 outbound-supplier-rfq-email-service-and-audit-log**
-  - **Status:** Ready
+- [x] **CTE-02.2 outbound-supplier-rfq-email-service-and-audit-log**
+  - **Status:** Shipped
   - **Why now:** Once suppliers are matched, the engine needs a canonical outbound RFQ send path and audit trail rather than ad hoc emails.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 16 / Epic 2
   - **Scope:** Implement the outbound supplier RFQ email service for brokered inquiries, persist send/audit records, and tie outbound messages to the inquiry/state machine.
@@ -1173,10 +1173,10 @@
   - **Secrets/infra impact:** Medium
   - **Risk level:** High
   - **Rollback:** Disable RFQ send path and retain the audit log for operator replay before reverting integration code.
-  - **Completion evidence destination:** `.github/MASTER_PLAN.md`
+  - **Completion evidence destination:** `.github/MASTER_PLAN.md` (PR #4930)
 
 - [ ] **CTE-02.3 structured-supplier-reply-parser-and-quote-normalization**
-  - **Status:** Blocked
+  - **Status:** Ready
   - **Why now:** Supplier replies need deterministic quote extraction before any draft purchase order can be created safely.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 16 / Epic 2
   - **Scope:** Enhance inbound reply parsing to use OpenAI structured outputs for supplier quote replies, normalize affirmative/price/quantity/lead-time data, and tie parsed quotes back to the originating inquiry/RFQ.
@@ -1184,7 +1184,7 @@
   - **Primary domain:** backend/ai/integrations
   - **Likely touched paths:** `backend/apps/integrations/{signals.py,models.py}`, `backend/tenant_apps/integrations/services/email_ingestion.py`, `backend/tenant_apps/ai_assistant/`, `backend/tenant_apps/inquiries/`, tests
   - **Dependencies:** CTE-02.2
-  - **Blockers:** CTE-02.2
+  - **Blockers:** None
   - **Acceptance criteria:** Supplier replies can be normalized into quote payloads with explicit confidence/error states and no freeform draft-order guessing.
   - **Validation commands:** `cd backend && python manage.py test apps.integrations tenant_apps.integrations tenant_apps.ai_assistant tenant_apps.inquiries`
   - **Tenant/RLS impact:** High
