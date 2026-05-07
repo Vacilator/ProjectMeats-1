@@ -826,6 +826,7 @@ class TradeSessionStatus(models.TextChoices):
     LOGISTICS = "logistics", "Logistics"
     COMPLETED = "completed", "Completed"
     CANCELLED = "cancelled", "Cancelled"
+    HALTED = "halted", "Halted"
 
 
 class TradeSession(TenantAwareModel):
