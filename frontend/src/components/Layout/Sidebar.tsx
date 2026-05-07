@@ -158,7 +158,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle, onHoverChange }) =>
       <SidebarFooter $isExpanded={isExpanded} $isDarkMode={isDarkMode}>
         {isExpanded && (
           <FooterText $isDarkMode={isDarkMode}>
-            © 2025 Meats Central
+            © 2026 Meats Central
           </FooterText>
         )}
       </SidebarFooter>
