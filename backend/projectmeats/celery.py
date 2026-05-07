@@ -59,6 +59,15 @@ app.conf.beat_schedule = {
             'routing_key': 'pm.ops',
         },
     },
+    'trade-saga-sweep-every-5-minutes': {
+        'task': 'trade.process_unprocessed_events',
+        'schedule': 300.0,  # 5 minutes
+        'options': {
+            'expires': 240.0,
+            'queue': 'pm.trade',
+            'routing_key': 'pm.trade',
+        },
+    },
 }
 
 # Set timezone for scheduled tasks
