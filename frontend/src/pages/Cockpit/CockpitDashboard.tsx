@@ -95,27 +95,21 @@ const isCockpitBlankSlate = (stats: CockpitStats | null): boolean => {
   );
 };
 
-// Default widgets configuration
+// Default widgets configuration — limited to ≤4 focused sections for clarity.
+// Users can add more widgets from the catalog via edit mode.
 const DEFAULT_WIDGETS: WidgetConfig[] = [
   { id: 'todays-numbers', type: 'TodaysNumbersWidget', title: "Today's Numbers" },
-  { id: 'my-tasks', type: 'MyTasksWidget', title: 'My Tasks' },
-  { id: 'quick-stats', type: 'QuickStatsWidget', title: 'Quick Stats' },
-  { id: 'recent-activity', type: 'RecentActivityWidget', title: 'Recent Activity' },
-  { id: 'upcoming-calls', type: 'UpcomingCallsWidget', title: 'Upcoming Calls' },
   { id: 'quick-actions', type: 'QuickActionsWidget', title: 'Quick Actions' },
-  { id: 'entity-explorer', type: 'EntityExplorerWidget', title: 'Entity Explorer' },
+  { id: 'recent-activity', type: 'RecentActivityWidget', title: 'Recent Activity' },
+  { id: 'my-tasks', type: 'MyTasksWidget', title: 'My Tasks' },
 ];
 
-// Default layout configuration
+// Default layout — spacious 2×2 grid with generous sizing
 const DEFAULT_LAYOUT: WidgetLayout[] = [
-  // Wider defaults to reduce horizontal overflow and improve scanability
-  { i: 'todays-numbers', x: 0, y: 0, w: 8, h: 4 },
-  { i: 'my-tasks', x: 8, y: 0, w: 4, h: 4 },
-  { i: 'quick-stats', x: 0, y: 4, w: 6, h: 3 },
-  { i: 'quick-actions', x: 6, y: 4, w: 6, h: 3 },
-  { i: 'recent-activity', x: 0, y: 7, w: 6, h: 3 },
-  { i: 'upcoming-calls', x: 6, y: 7, w: 6, h: 3 },
-  { i: 'entity-explorer', x: 0, y: 10, w: 12, h: 3 },
+  { i: 'todays-numbers', x: 0, y: 0, w: 6, h: 5 },
+  { i: 'quick-actions', x: 6, y: 0, w: 6, h: 5 },
+  { i: 'recent-activity', x: 0, y: 5, w: 6, h: 5 },
+  { i: 'my-tasks', x: 6, y: 5, w: 6, h: 5 },
 ];
 
 // Widget catalog for adding new widgets - organized by category
