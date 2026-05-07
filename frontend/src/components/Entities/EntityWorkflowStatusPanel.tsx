@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Alert, Button, Card, Collapse, Modal, Spin } from 'antd';
 import { useQuery } from '@tanstack/react-query';
 import { useLocation, useNavigate } from 'react-router-dom';
+import styled from 'styled-components';
 
 import { UnifiedFlowEditor } from '@/components/FlowEditor/UnifiedFlowEditor';
 import {
@@ -150,37 +151,29 @@ export const EntityWorkflowStatusPanel: React.FC<EntityWorkflowStatusPanelProps>
     });
 
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-        <div style={{ fontWeight: 600 }}>Step status</div>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+      <StatusColumn>
+        <SectionLabel>Step status</SectionLabel>
+        <NodeBadgeRow>
           {entries.map(([nodeId, status]) => {
             const label = labels[nodeId];
             return (
-              <span
+              <NodeBadge
                 key={`${execution.id}:node:${nodeId}`}
-                style={{
-                  border: '1px solid rgb(var(--color-border))',
-                  background: 'rgb(var(--color-surface))',
-                  borderRadius: 999,
-                  padding: '2px 8px',
-                  fontSize: 12,
-                  color: 'rgb(var(--color-text-secondary))',
-                }}
               >
                 {label ? (
                   <>
                     {label}{' '}
-                    <span style={{ color: 'rgb(var(--color-text-tertiary))' }}>({nodeId})</span>
+                    <TertiarySpan>({nodeId})</TertiarySpan>
                   </>
                 ) : (
                   nodeId
                 )}
-                : <span style={{ fontWeight: 600 }}>{String(status)}</span>
-              </span>
+                : <BoldSpan>{String(status)}</BoldSpan>
+              </NodeBadge>
             );
           })}
-        </div>
-      </div>
+        </NodeBadgeRow>
+      </StatusColumn>
     );
   };
 
@@ -191,14 +184,14 @@ export const EntityWorkflowStatusPanel: React.FC<EntityWorkflowStatusPanelProps>
 
     if (trail.length === 0) {
       return (
-        <div style={{ color: 'rgb(var(--color-text-tertiary))' }}>
+        <TertiaryText>
           No step events recorded yet.
-        </div>
+        </TertiaryText>
       );
     }
 
     return (
-      <ol style={{ margin: 0, paddingLeft: 18, display: 'flex', flexDirection: 'column', gap: 6 }}>
+      <AuditList>
         {trail.map((raw: WorkFormExecutionAuditEvent, idx: number) => {
           const event = typeof raw?.event === 'string' ? raw.event : 'event';
           const nodeId = typeof raw?.node_id === 'string' ? raw.node_id : null;
@@ -206,18 +199,18 @@ export const EntityWorkflowStatusPanel: React.FC<EntityWorkflowStatusPanelProps>
 
           return (
             <li key={`${execution.id}:${idx}`}>
-              <span style={{ fontWeight: 600 }}>{event}</span>
+              <BoldSpan>{event}</BoldSpan>
               {nodeId ? <span> • node {nodeId}</span> : null}
               {ts ? (
-                <span style={{ color: 'rgb(var(--color-text-tertiary))' }}>
+                <TertiarySpan>
                   {' '}
                   • {formatTimestamp(ts)}
-                </span>
+                </TertiarySpan>
               ) : null}
             </li>
           );
         })}
-      </ol>
+      </AuditList>
     );
   };
 
@@ -226,65 +219,65 @@ export const EntityWorkflowStatusPanel: React.FC<EntityWorkflowStatusPanelProps>
   const flowEdges = Array.isArray(workflowDefinition?.edges) ? workflowDefinition.edges : [];
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+    <PanelStack>
       <Card size="small" title="WorkForm runs">
         {query.isLoading ? (
-          <div style={{ padding: 12 }}>
+          <LoadingWrapper>
             <Spin />
-          </div>
+          </LoadingWrapper>
         ) : query.isError ? (
           <Alert type="error" showIcon title={getErrorMessage(query.error)} />
         ) : executions.length === 0 ? (
-          <div style={{ color: 'rgb(var(--color-text-tertiary))' }}>
+          <TertiaryText>
             No WorkForm runs found for this record.
-          </div>
+          </TertiaryText>
         ) : (
           <Collapse
             items={executions.map((execution) => ({
               key: execution.id,
               label: (
-                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, width: '100%' }}>
-                  <span style={{ fontWeight: 600 }}>{execution.workform_name}</span>
-                  <span style={{ color: 'rgb(var(--color-text-secondary))' }}>{execution.status}</span>
-                </div>
+                <CollapseHeader>
+                  <BoldSpan>{execution.workform_name}</BoldSpan>
+                  <SecondarySpan>{execution.status}</SecondarySpan>
+                </CollapseHeader>
               ),
               children: (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, color: 'rgb(var(--color-text-secondary))' }}>
+                <ExecutionContent>
+                  <MetaRow>
                     {execution.started_at ? <span>Started: {formatTimestamp(execution.started_at)}</span> : null}
                     {execution.completed_at ? <span>Completed: {formatTimestamp(execution.completed_at)}</span> : null}
                     {execution.started_by_name ? <span>By: {execution.started_by_name}</span> : null}
-                  </div>
+                  </MetaRow>
 
                   {execution.error_message ? (
-                    <div style={{ color: 'rgb(var(--color-error))' }}>{execution.error_message}</div>
+                    <ErrorText>{execution.error_message}</ErrorText>
                   ) : null}
 
-                  <div style={{ color: 'rgb(var(--color-text-secondary))' }}>
+                  <SecondaryText>
                     Current step:{' '}
-                    <span style={{ fontWeight: 600 }}>
+                    <BoldSpan>
                       {execution.current_node_label ?? execution.current_node_id ?? '—'}
-                    </span>
+                    </BoldSpan>
                     {execution.current_node_label && execution.current_node_id ? (
-                      <span style={{ color: 'rgb(var(--color-text-tertiary))' }}>
+                      <TertiarySpan>
                         {' '}
                         ({execution.current_node_id})
-                      </span>
+                      </TertiarySpan>
                     ) : null}
                     {execution.current_node_type ? <span> • {execution.current_node_type}</span> : null}
-                  </div>
+                  </SecondaryText>
 
                   {execution.errors && execution.errors.length > 0 ? (
-                    <div style={{ color: 'rgb(var(--color-error))' }}>
+                    <ErrorText>
                       {execution.errors.length} error{execution.errors.length === 1 ? '' : 's'}
-                    </div>
+                    </ErrorText>
                   ) : null}
 
                   {renderNodeStatuses(execution)}
 
                   <div>{renderAudit(execution)}</div>
 
-                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  <ActionRow>
                     <Button
                       onClick={() => navigate(`/workforms/executions/${execution.id}`)}
                     >
@@ -296,8 +289,8 @@ export const EntityWorkflowStatusPanel: React.FC<EntityWorkflowStatusPanelProps>
                     >
                       View Process Flow
                     </Button>
-                  </div>
-                </div>
+                  </ActionRow>
+                </ExecutionContent>
               ),
             }))}
           />
@@ -313,9 +306,9 @@ export const EntityWorkflowStatusPanel: React.FC<EntityWorkflowStatusPanelProps>
         destroyOnHidden
       >
         {flowQuery.isLoading ? (
-          <div style={{ padding: 16, textAlign: 'center' }}>
+          <ModalLoading>
             <Spin />
-          </div>
+          </ModalLoading>
         ) : flowQuery.isError ? (
           <Alert type="error" showIcon message="Failed to load workflow definition." />
         ) : flowNodes.length === 0 ? (
@@ -325,19 +318,19 @@ export const EntityWorkflowStatusPanel: React.FC<EntityWorkflowStatusPanelProps>
             message="This execution does not expose a saved flow definition yet."
           />
         ) : (
-          <div style={{ display: 'grid', gap: 12 }}>
+          <FlowGrid>
             <TextBlock execution={selectedExecution} />
-            <div style={{ minHeight: 540, border: '1px solid rgb(var(--color-border))', borderRadius: 12, overflow: 'hidden' }}>
+            <FlowEditorWrapper>
               <UnifiedFlowEditor
                 readOnly
                 initialNodes={flowNodes as any}
                 initialEdges={flowEdges as any}
               />
-            </div>
-          </div>
+            </FlowEditorWrapper>
+          </FlowGrid>
         )}
       </Modal>
-    </div>
+    </PanelStack>
   );
 };
 
@@ -347,12 +340,124 @@ const TextBlock: React.FC<{ execution: WorkFormExecution | null }> = ({ executio
   }
 
   return (
-    <div style={{ color: 'rgb(var(--color-text-secondary))' }}>
+    <SecondaryText>
       Viewing the canonical process flow for this record. Current step:{' '}
       <strong>{execution.current_node_label ?? execution.current_node_id ?? '—'}</strong>
       {execution.current_node_type ? ` • ${execution.current_node_type}` : ''}
-    </div>
+    </SecondaryText>
   );
 };
 
 export default EntityWorkflowStatusPanel;
+
+/* ─── Styled Components ─── */
+
+const PanelStack = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+`;
+
+const LoadingWrapper = styled.div`
+  padding: 12px;
+`;
+
+const StatusColumn = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+`;
+
+const SectionLabel = styled.div`
+  font-weight: 600;
+`;
+
+const NodeBadgeRow = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+`;
+
+const NodeBadge = styled.span`
+  border: 1px solid rgb(var(--color-border));
+  background: rgb(var(--color-surface));
+  border-radius: 999px;
+  padding: 2px 8px;
+  font-size: 12px;
+  color: rgb(var(--color-text-secondary));
+`;
+
+const BoldSpan = styled.span`
+  font-weight: 600;
+`;
+
+const TertiarySpan = styled.span`
+  color: rgb(var(--color-text-tertiary));
+`;
+
+const TertiaryText = styled.div`
+  color: rgb(var(--color-text-tertiary));
+`;
+
+const SecondarySpan = styled.span`
+  color: rgb(var(--color-text-secondary));
+`;
+
+const SecondaryText = styled.div`
+  color: rgb(var(--color-text-secondary));
+`;
+
+const ErrorText = styled.div`
+  color: rgb(var(--color-error));
+`;
+
+const AuditList = styled.ol`
+  margin: 0;
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+`;
+
+const CollapseHeader = styled.div`
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+`;
+
+const ExecutionContent = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+`;
+
+const MetaRow = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  color: rgb(var(--color-text-secondary));
+`;
+
+const ActionRow = styled.div`
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+`;
+
+const ModalLoading = styled.div`
+  padding: 16px;
+  text-align: center;
+`;
+
+const FlowGrid = styled.div`
+  display: grid;
+  gap: 12px;
+`;
+
+const FlowEditorWrapper = styled.div`
+  min-height: 540px;
+  border: 1px solid rgb(var(--color-border));
+  border-radius: 12px;
+  overflow: hidden;
+`;
