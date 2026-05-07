@@ -248,14 +248,14 @@ const DisconnectButton = styled.button`
   gap: 8px;
   padding: 8px 16px;
   background: transparent;
-  border: 1px solid rgb(239, 68, 68, 0.3);
-  color: rgb(239, 68, 68);
+  border: 1px solid rgba(var(--color-error), 0.3);
+  color: rgb(var(--color-error));
   border-radius: 6px;
   cursor: pointer;
   font-size: 14px;
   
   &:hover:not(:disabled) {
-    background: rgb(239, 68, 68, 0.1);
+    background: rgba(var(--color-error), 0.1);
   }
   
   &:disabled {

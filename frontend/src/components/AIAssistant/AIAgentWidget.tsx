@@ -255,8 +255,8 @@ const StatusPill = styled.div<{ $variant: 'ok' | 'warn' | 'info' }>`
   border-radius: 999px;
   border: 1px solid rgb(var(--color-border));
   color: ${(p) => {
-    if (p.$variant === 'warn') return 'rgb(234, 179, 8)';
-    if (p.$variant === 'ok') return 'rgb(34, 197, 94)';
+    if (p.$variant === 'warn') return 'rgb(var(--color-warning))';
+    if (p.$variant === 'ok') return 'rgb(var(--color-success))';
     return 'rgb(var(--color-text-secondary))';
   }};
   background: rgb(var(--color-primary) / 0.06);
@@ -405,7 +405,7 @@ const IntegrationDot = styled.span<{ $connected: boolean }>`
   width: 8px;
   height: 8px;
   border-radius: 999px;
-  background: ${(p) => (p.$connected ? 'rgb(34, 197, 94)' : 'rgb(239, 68, 68)')};
+  background: ${(p) => (p.$connected ? 'rgb(var(--color-success))' : 'rgb(var(--color-error))')};
 `;
 
 const IntegrationLink = styled.a`

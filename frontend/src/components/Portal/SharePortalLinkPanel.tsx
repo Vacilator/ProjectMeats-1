@@ -108,17 +108,17 @@ const AlertBox = styled.div<{ tone?: 'error' | 'warning' | 'success' }>`
   border: 1px solid
     ${({ tone }) =>
       tone === 'error'
-        ? 'rgb(239, 68, 68)'
+        ? 'rgb(var(--color-error))'
         : tone === 'warning'
-          ? 'rgb(234, 179, 8)'
-          : 'rgb(34, 197, 94)'};
+          ? 'rgb(var(--color-warning))'
+          : 'rgb(var(--color-success))'};
   background:
     ${({ tone }) =>
       tone === 'error'
-        ? 'rgba(239, 68, 68, 0.08)'
+        ? 'rgba(var(--color-error), 0.08)'
         : tone === 'warning'
-          ? 'rgba(234, 179, 8, 0.08)'
-          : 'rgba(34, 197, 94, 0.08)'};
+          ? 'rgba(var(--color-warning), 0.08)'
+          : 'rgba(var(--color-success), 0.08)'};
   color: rgb(var(--color-text-primary));
   font-size: 0.875rem;
 `;
@@ -228,17 +228,17 @@ const StatusPill = styled.span<{ state: string }>`
   background:
     ${({ state }) =>
       state === 'active'
-        ? 'rgba(34, 197, 94, 0.12)'
+        ? 'rgba(var(--color-success), 0.12)'
         : state === 'revoked'
-          ? 'rgba(239, 68, 68, 0.12)'
-          : 'rgba(234, 179, 8, 0.12)'};
+          ? 'rgba(var(--color-error), 0.12)'
+          : 'rgba(var(--color-warning), 0.12)'};
   color:
     ${({ state }) =>
       state === 'active'
-        ? 'rgb(34, 197, 94)'
+        ? 'rgb(var(--color-success))'
         : state === 'revoked'
-          ? 'rgb(239, 68, 68)'
-          : 'rgb(234, 179, 8)'};
+          ? 'rgb(var(--color-error))'
+          : 'rgb(var(--color-warning))'};
 `;
 
 const DocumentList = styled.ul`
