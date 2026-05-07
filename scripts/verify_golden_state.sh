@@ -91,6 +91,52 @@ check_doc_workflow_refs() {
     fi
 }
 
+emit_workflow_status_checks() {
+    local workflow_path="$1"
+    local job_name=""
+    local reusable_workflow=""
+
+    emit_current_job() {
+        if [[ -z "$job_name" ]]; then
+            return
+        fi
+
+        if [[ -n "$reusable_workflow" && -f "$reusable_workflow" ]]; then
+            local reusable_names
+            reusable_names=$(grep '^    name:' "$reusable_workflow" | sed -E 's/^    name:[[:space:]]*//')
+            if [[ -n "$reusable_names" ]]; then
+                while IFS= read -r nested_name; do
+                    [[ -z "$nested_name" ]] && continue
+                    echo "$job_name / $nested_name"
+                done <<< "$reusable_names"
+                return
+            fi
+        fi
+
+        echo "$job_name"
+    }
+
+    while IFS= read -r line; do
+        if [[ "$line" =~ ^[[:space:]]{2}[A-Za-z0-9_-]+: ]]; then
+            emit_current_job
+            job_name=""
+            reusable_workflow=""
+            continue
+        fi
+
+        if [[ "$line" =~ ^[[:space:]]{4}name:[[:space:]]*(.+)$ ]]; then
+            job_name="${BASH_REMATCH[1]}"
+            continue
+        fi
+
+        if [[ "$line" =~ ^[[:space:]]{4}uses:[[:space:]]+\./(.github/workflows/[A-Za-z0-9._/-]+\.yml)$ ]]; then
+            reusable_workflow="${BASH_REMATCH[1]}"
+        fi
+    done < "$workflow_path"
+
+    emit_current_job
+}
+
 check_branch_protection_status_check_parity() {
     local primary_workflow=".github/workflows/pr-validation.yml"
     local ai_workflow=".github/workflows/ai-pr-reviewer.yml"
@@ -113,9 +159,9 @@ check_branch_protection_status_check_parity() {
     fi
 
     {
-        grep '^    name:' "$primary_workflow" | sed -E 's/^    name:[[:space:]]*//'
+        emit_workflow_status_checks "$primary_workflow"
         if [[ -f "$ai_workflow" ]]; then
-            grep '^    name:' "$ai_workflow" | sed -E 's/^    name:[[:space:]]*//'
+            emit_workflow_status_checks "$ai_workflow"
         fi
     } | sort -u > "$workflow_checks"
     awk '
