@@ -10,12 +10,15 @@ from rest_framework.test import APIClient
 from rest_framework import status
 
 from apps.tenants.models import Tenant, TenantUser
+from apps.core.models import TradeExceptionQueue, TradeEventLog
+from apps.core.tests.factories import TradeSessionFactory
 from tenant_apps.customers.models import Customer
 from tenant_apps.suppliers.models import Supplier
 from tenant_apps.purchase_orders.models import PurchaseOrder
 from tenant_apps.plants.models import Plant
 from tenant_apps.locations.models import Location
 from tenant_apps.contacts.models import Contact
+from tenant_apps.inquiries.models import TradeSessionStatus
 
 
 class CockpitSearchTestCase(TestCase):
@@ -236,3 +239,186 @@ class CockpitEntityAIOverviewTestCase(TestCase):
             payload = resp.json()
             self.assertIn('status', payload)
             self.assertIn('summary', payload)
+
+
+class CockpitTradeExceptionQueueTestCase(TestCase):
+    """Intervention dashboard endpoints stay tenant-safe and actionable."""
+
+    def setUp(self):
+        self.client = APIClient()
+        unique_id = uuid.uuid4().hex[:8]
+        self.tenant = Tenant.objects.create(
+            name=f"Trade Exception Tenant {unique_id}",
+            slug=f"trade-exception-{unique_id}",
+            contact_email=f"trade-exception-{unique_id}@example.com",
+            is_active=True,
+        )
+        self.user = User.objects.create_user(
+            username=f"trade-operator-{unique_id}",
+            password="testpass123",
+            email=f"trade-operator-{unique_id}@example.com",
+        )
+        TenantUser.objects.create(user=self.user, tenant=self.tenant, role="admin", is_active=True)
+        self.client.force_login(self.user)
+        self.tenant_header = {"HTTP_X_TENANT_ID": str(self.tenant.id)}
+
+    def _create_trade_session(self, *, status_value=TradeSessionStatus.HALTED):
+        return TradeSessionFactory(tenant=self.tenant, status=status_value)
+
+    def test_trade_exception_list_defaults_to_active_items(self):
+        trade_session = self._create_trade_session()
+        active = TradeExceptionQueue.objects.create(
+            tenant=self.tenant,
+            trade_session_id=trade_session.pk,
+            trade_id=trade_session.trade_id,
+            failed_step="sales_order.dispatch",
+            reason_code="EMAIL_DISPATCH_FAILED",
+            error_message="SMTP timeout",
+            status="open",
+        )
+        TradeExceptionQueue.objects.create(
+            tenant=self.tenant,
+            trade_session_id=trade_session.pk,
+            trade_id=trade_session.trade_id,
+            failed_step="sales_order.dispatch",
+            reason_code="EMAIL_DISPATCH_FAILED",
+            error_message="Already resolved",
+            status="resolved",
+        )
+
+        response = self.client.get("/api/v1/workspace/trade-exceptions/", **self.tenant_header)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        payload = response.json()
+        results = payload.get("results", payload)
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0]["id"], active.pk)
+        self.assertEqual(results[0]["trade_session"]["trade_id"], trade_session.trade_id)
+
+    def test_trade_exception_list_is_tenant_scoped(self):
+        trade_session = self._create_trade_session()
+        TradeExceptionQueue.objects.create(
+            tenant=self.tenant,
+            trade_session_id=trade_session.pk,
+            trade_id=trade_session.trade_id,
+            failed_step="rfq.send",
+            reason_code="EMAIL_DISPATCH_FAILED",
+            error_message="Tenant-visible failure",
+            status="open",
+        )
+
+        other_tenant = Tenant.objects.create(
+            name="Other Trade Exception Tenant",
+            slug=f"other-trade-{uuid.uuid4().hex[:8]}",
+            contact_email=f"other-trade-{uuid.uuid4().hex[:8]}@example.com",
+            is_active=True,
+        )
+        other_session = TradeSessionFactory(tenant=other_tenant, status=TradeSessionStatus.HALTED)
+        TradeExceptionQueue.objects.create(
+            tenant=other_tenant,
+            trade_session_id=other_session.pk,
+            trade_id=other_session.trade_id,
+            failed_step="po.generate",
+            reason_code="PDF_GENERATION_FAILED",
+            error_message="Other tenant failure",
+            status="open",
+        )
+
+        response = self.client.get("/api/v1/workspace/trade-exceptions/", **self.tenant_header)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        payload = response.json()
+        results = payload.get("results", payload)
+        self.assertEqual(len(results), 1)
+        self.assertNotIn(other_session.trade_id, [row["trade_id"] for row in results])
+
+    def test_trade_exception_detail_includes_recent_events(self):
+        trade_session = self._create_trade_session()
+        exception = TradeExceptionQueue.objects.create(
+            tenant=self.tenant,
+            trade_session_id=trade_session.pk,
+            trade_id=trade_session.trade_id,
+            failed_step="rfq.send",
+            reason_code="EMAIL_DISPATCH_FAILED",
+            error_message="SMTP timeout",
+            status="open",
+        )
+        TradeEventLog.objects.create(
+            tenant=self.tenant,
+            event_id=str(uuid.uuid4()),
+            event_type="supplier_rfq.sent",
+            trade_session_id=trade_session.pk,
+            trade_id=trade_session.trade_id,
+            entity_type="inquiry",
+            entity_id=str(trade_session.inquiry_id),
+            payload={"status": "sent"},
+        )
+
+        response = self.client.get(
+            f"/api/v1/workspace/trade-exceptions/{exception.pk}/",
+            **self.tenant_header,
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        payload = response.json()
+        self.assertEqual(payload["id"], exception.pk)
+        self.assertEqual(payload["trade_session"]["id"], trade_session.pk)
+        self.assertEqual(len(payload["recent_events"]), 1)
+
+    def test_retry_action_updates_status(self):
+        trade_session = self._create_trade_session()
+        exception = TradeExceptionQueue.objects.create(
+            tenant=self.tenant,
+            trade_session_id=trade_session.pk,
+            trade_id=trade_session.trade_id,
+            failed_step="rfq.send",
+            reason_code="EMAIL_DISPATCH_FAILED",
+            error_message="SMTP timeout",
+            status="open",
+        )
+
+        response = self.client.post(
+            f"/api/v1/workspace/trade-exceptions/{exception.pk}/retry/",
+            {},
+            format="json",
+            **self.tenant_header,
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        exception.refresh_from_db()
+        self.assertEqual(exception.status, "retrying")
+        self.assertEqual(exception.retry_count, 1)
+
+    def test_resolve_action_does_not_resume_while_sibling_exception_is_active(self):
+        trade_session = self._create_trade_session()
+        primary = TradeExceptionQueue.objects.create(
+            tenant=self.tenant,
+            trade_session_id=trade_session.pk,
+            trade_id=trade_session.trade_id,
+            failed_step="rfq.send",
+            reason_code="EMAIL_DISPATCH_FAILED",
+            error_message="SMTP timeout",
+            status="open",
+        )
+        TradeExceptionQueue.objects.create(
+            tenant=self.tenant,
+            trade_session_id=trade_session.pk,
+            trade_id=trade_session.trade_id,
+            failed_step="sales_order.generate",
+            reason_code="PDF_GENERATION_FAILED",
+            error_message="Missing template",
+            status="retrying",
+        )
+
+        response = self.client.post(
+            f"/api/v1/workspace/trade-exceptions/{primary.pk}/resolve/",
+            {"resolution_notes": "Operator fixed sender configuration."},
+            format="json",
+            **self.tenant_header,
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        trade_session.refresh_from_db()
+        self.assertEqual(trade_session.status, TradeSessionStatus.HALTED)
+        self.assertEqual(response.json()["trade_resumed"], False)
+        self.assertIn("resume_blocked_reason", response.json())

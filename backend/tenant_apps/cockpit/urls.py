@@ -7,6 +7,7 @@ from .views import (
     CockpitSlotViewSet,
     ActivityLogViewSet,
     ScheduledCallViewSet,
+    TradeExceptionQueueViewSet,
     WorkspaceLayoutView,
     WorkspaceStatsView,
     EntityAIOverviewView,
@@ -16,6 +17,7 @@ router = DefaultRouter()
 router.register(r'slots', CockpitSlotViewSet, basename='cockpit-slots')
 router.register(r'activity-logs', ActivityLogViewSet, basename='activity-log')
 router.register(r'scheduled-calls', ScheduledCallViewSet, basename='scheduled-call')
+router.register(r'trade-exceptions', TradeExceptionQueueViewSet, basename='trade-exception')
 
 urlpatterns = [
     path('', include(router.urls)),
@@ -27,4 +29,3 @@ urlpatterns = [
     path('workspace-layout/', WorkspaceLayoutView.as_view(), name='workspace-layout'),
     path('stats/', WorkspaceStatsView.as_view(), name='workspace-stats'),
 ]
-

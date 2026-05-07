@@ -156,6 +156,47 @@ class ResolveExceptionTest(_TenantMixin, TestCase):
         # Should be back to a non-halted state (sourcing is default resume)
         self.assertNotEqual(session.status, TradeSessionStatus.HALTED)
 
+    def test_resolve_keeps_session_halted_when_sibling_exception_is_active(self):
+        """The trade must remain halted until the final active exception is resolved."""
+        from tenant_apps.inquiries.models import Inquiry, TradeSession, TradeSessionStatus
+
+        inquiry = Inquiry.objects.create(
+            tenant=self.tenant,
+            inquiry_number="INQ-2026-00101",
+        )
+        session = TradeSession.objects.create(
+            tenant=self.tenant,
+            trade_id="TRD-2026-00101",
+            status=TradeSessionStatus.HALTED,
+            inquiry=inquiry,
+        )
+        primary_exception = TradeExceptionQueue.objects.create(
+            tenant=self.tenant,
+            trade_session_id=session.pk,
+            failed_step="po.approval",
+            reason_code="APPROVAL_TIMEOUT",
+            error_message="Approval timeout",
+            status="open",
+        )
+        TradeExceptionQueue.objects.create(
+            tenant=self.tenant,
+            trade_session_id=session.pk,
+            failed_step="sales_order.dispatch",
+            reason_code="EMAIL_DISPATCH_FAILED",
+            error_message="SMTP timeout",
+            status="retrying",
+        )
+
+        resolve_exception(
+            exception_id=primary_exception.pk,
+            tenant=self.tenant,
+            resolved_by="operator-2",
+            resolution_notes="Resolved one failure path",
+        )
+
+        session.refresh_from_db()
+        self.assertEqual(session.status, TradeSessionStatus.HALTED)
+
 
 class RetryExceptionTest(_TenantMixin, TestCase):
     """Test retry_exception service."""
