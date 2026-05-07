@@ -4,6 +4,7 @@ Carriers models for ProjectMeats.
 Implements tenant ForeignKey field for shared-schema multi-tenancy.
 """
 
+from django.conf import settings
 from django.contrib.postgres.fields import ArrayField
 from django.db import models
 from django.contrib.auth.models import User
@@ -152,3 +153,108 @@ class Carrier(FinancialTermsMixin, TenantAwareModel):
 
     def __str__(self):
         return f"{self.code} - {self.name}"
+
+
+class CarrierFreightInquiryStatus(models.TextChoices):
+    """Status for carrier freight inquiry (outbound RFQ) lifecycle."""
+
+    PENDING = "pending", "Pending"
+    SENDING = "sending", "Sending"
+    SENT = "sent", "Sent"
+    REPLIED = "replied", "Replied"
+    ACCEPTED = "accepted", "Accepted"
+    DECLINED = "declined", "Declined"
+    EXPIRED = "expired", "Expired"
+    FAILED = "failed", "Failed"
+
+
+def carrier_freight_inquiry_upload_to(instance, filename):
+    return f"carriers/freight_inquiries/{instance.tenant_id}/{filename}"
+
+
+class CarrierFreightInquiry(TenantAwareModel):
+    """Durable audit row for an outbound freight inquiry (carrier RFQ) email.
+
+    Each row represents one carrier contacted for one freight lane,
+    linked to the originating sales order.
+    """
+
+    carrier = models.ForeignKey(
+        Carrier,
+        on_delete=models.CASCADE,
+        related_name="freight_inquiries",
+    )
+    sales_order = models.ForeignKey(
+        "sales_orders.SalesOrder",
+        on_delete=models.CASCADE,
+        related_name="carrier_freight_inquiries",
+    )
+    initiated_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="carrier_freight_inquiries_initiated",
+    )
+    sender_provider = models.ForeignKey(
+        "integrations.ExternalAuthProvider",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="carrier_freight_inquiries",
+    )
+
+    # Email details
+    sender_email = models.EmailField(blank=True, default="")
+    recipient_email = models.EmailField(blank=True, default="")
+    recipient_name = models.CharField(max_length=255, blank=True, default="")
+    subject = models.CharField(max_length=300, default="")
+    body = models.TextField(default="")
+
+    # Freight details (copied from SO at time of inquiry for immutability)
+    origin_city = models.CharField(max_length=100, blank=True, default="")
+    origin_state = models.CharField(max_length=100, blank=True, default="")
+    destination_city = models.CharField(max_length=100, blank=True, default="")
+    destination_state = models.CharField(max_length=100, blank=True, default="")
+    commodity = models.CharField(max_length=255, blank=True, default="")
+    weight = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    weight_unit = models.CharField(max_length=10, blank=True, default="lbs")
+    pickup_date = models.DateField(null=True, blank=True)
+    delivery_date = models.DateField(null=True, blank=True)
+    special_instructions = models.TextField(blank=True, default="")
+
+    # Attachment
+    inquiry_pdf = models.FileField(
+        upload_to=carrier_freight_inquiry_upload_to,
+        blank=True,
+        default="",
+    )
+
+    # Dispatch status
+    status = models.CharField(
+        max_length=16,
+        choices=CarrierFreightInquiryStatus.choices,
+        default=CarrierFreightInquiryStatus.PENDING,
+        db_index=True,
+    )
+    attempt_count = models.PositiveIntegerField(default=0)
+    last_attempted_at = models.DateTimeField(null=True, blank=True)
+    sent_at = models.DateTimeField(null=True, blank=True)
+    provider_message_id = models.CharField(max_length=255, blank=True, default="")
+    provider_thread_id = models.CharField(max_length=255, blank=True, default="")
+    provider_internet_message_id = models.CharField(max_length=255, blank=True, default="")
+    error_message = models.TextField(blank=True, default="")
+
+    class Meta:
+        ordering = ["-created_on"]
+        verbose_name = "Carrier Freight Inquiry"
+        verbose_name_plural = "Carrier Freight Inquiries"
+        indexes = [
+            models.Index(fields=["tenant", "status"], name="cfi_tenant_status_idx"),
+            models.Index(fields=["tenant", "sales_order"], name="cfi_tenant_so_idx"),
+            models.Index(fields=["tenant", "carrier"], name="cfi_tenant_carrier_idx"),
+        ]
+
+    def __str__(self):
+        carrier_name = self.carrier.name if self.carrier_id else "unbound"
+        return f"Freight inquiry to {carrier_name} (status={self.status})"
