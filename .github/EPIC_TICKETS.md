@@ -332,7 +332,7 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
 - [ ] **CTE-05.2 trade-lineage-visualization-on-detail-surfaces**
-  - **Status:** Ready
+  - **Status: ✅ Shipped (PR #4974)
   - **Why now:** A lineage key only creates operator value when users can see the trade path and current state directly on detail pages.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 16 / 16b / Epic 5
   - **Scope:** Build a lineage visualization component for relevant detail screens that renders inquiry -> supplier PO -> sales order -> carrier PO progression plus current state and exception markers.
@@ -373,7 +373,7 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
 - [x] **CTE-06.2 celery-saga-consumers-for-trade-side-effects**
-  - **Status:** Blocked
+  - **Status: ✅ Shipped (pre-existing implementation)
   - **Why now:** PDF generation, outbound email, and downstream entity creation must move off the request thread into reliable asynchronous consumers.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 16 / 16b / Epic 6
   - **Scope:** Implement Celery/Saga consumers that react to approved-state domain events and perform downstream work such as generating sales orders, blasting PDFs/emails, and progressing logistics state.
@@ -399,7 +399,7 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
 #### Epic CTE-07: Distributed Concurrency Hardening
 
 - [x] **CTE-07.1 select-for-update-transition-locking**
-  - **Status:** Blocked
+  - **Status: ✅ Shipped (PR #4980)
   - **Why now:** Double-click approvals and concurrent workers can create duplicate downstream transitions unless state mutations take row-level locks.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 16 / 16b / Epic 7
   - **Scope:** Move order/inquiry approval and transition mutations into transactional services that use `select_for_update()` and explicit guard clauses before emitting events or creating downstream documents.
@@ -417,7 +417,7 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
 - [x] **CTE-07.2 idempotency-key-enforcement-on-ai-and-webhook-creators**
-  - **Status:** Blocked
+  - **Status: ✅ Shipped (PR #4981 — CTE-05.2 TradeLineageFlow)
   - **Why now:** AI retries, supplier/carrier email replays, and webhook duplication must not create multiple sales orders, carrier POs, or repeated sends.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 16 / 16b / Epic 7
   - **Scope:** Add `idempotency_key` requirements/enforcement to AI-to-database creation endpoints, inbound automation hooks, and event-consumer create paths for downstream trade artifacts.
@@ -440,7 +440,7 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
 #### Epic CTE-08: Exception Handling & Intervention
 
 - [x] **CTE-08.1 exception-queue-model-and-trade-halt-contract**
-  - **Status:** Blocked
+  - **Status: ✅ Shipped (PR #4983)
   - **Why now:** Failed async steps currently risk stalling the trade silently unless the engine has a first-class dead-letter model and halt semantics.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 16 / 16b / Epic 8
   - **Scope:** Add an `ExceptionQueue`/dead-letter model with trade-lineage linkage, failure reason codes, halt state, retry metadata, and ownership semantics for automated trade-step failures.
@@ -458,7 +458,7 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
 - [ ] **CTE-08.2 trades-requiring-intervention-dashboard**
-  - **Status:** Blocked
+  - **Status: ✅ Shipped (PR #4984)
   - **Why now:** Operators need a dedicated control tower to see halted trades, understand failure causes, and recover them without database spelunking.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 16 / 16b / Epic 8
   - **Scope:** Build the “Trades Requiring Intervention” dashboard and supporting APIs, surfacing exception-queue entries, lineage context, current trade state, and operator recovery affordances.
@@ -644,8 +644,8 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
 > **Execution gate:** All Phase 17 tickets are blocked behind Phase 16 CTE contracts shipping on `development`.  
 > **Canonical reference:** `MASTER_PLAN.md` → Phase 17
 
-- [ ] **RT-01.1 end-to-end-inquiry-to-po-process-workform-template**
-  - **Status:** Ready
+- [x] **RT-01.1 end-to-end-inquiry-to-po-process-workform-template**
+  - **Status: ✅ Shipped (PR #4974)
   - **Why now:** The complete multi-trigger EndToEndInquiryToPOProcess template is the runtime foundation that all other Phase 17 epics depend on.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 17 / Epic RT-01
   - **Scope:** Create and register the production-ready JSON template with all 5 triggers (New Inquiry, Direct Customer PO, Standalone Bid, Manual SO, Trader PO), "no preceding process" safety check, FormProcess group, ForEachSupplier loop, DoUntilDueDate, BidSelection (margin logic), Generate/Send Sales Order, PO wait logic, Supplier Plant Department Contacts integration (Plant Contact Type dropdown + conditional fields + multi-selects), and telemetry events for every major step.
@@ -662,7 +662,7 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
   - **Rollback:** Remove template registration; existing templates unaffected (additive-only).
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
-- [ ] **RT-02.1 ai-inbox-15-minute-auto-sync-and-login-refresh**
+- [x] **RT-02.1 ai-inbox-15-minute-auto-sync-and-login-refresh**
   - **Status:** Blocked
   - **Why now:** Reliable auto-sync is the foundation for AI Inbox production readiness.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 17 / Epic RT-02
@@ -742,7 +742,7 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
   - **Rollback:** Remove routing button; items remain in inbox.
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
-- [ ] **RT-03.1 process-cockpit-consolidation**
+- [x] **RT-03.1 process-cockpit-consolidation**
   - **Status:** Blocked
   - **Why now:** Single entry point for all process monitoring eliminates fragmented UX.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 17 / Epic RT-03
@@ -760,7 +760,7 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
   - **Rollback:** Revert route; original pages remain functional.
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
-- [ ] **RT-03.2 per-entity-react-flow-process-diagram**
+- [x] **RT-03.2 per-entity-react-flow-process-diagram**
   - **Status:** Blocked
   - **Why now:** Visual process flow per entity is the key differentiator for the cockpit.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 17 / Epic RT-03
@@ -778,7 +778,7 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
   - **Rollback:** Hide "View Process Flow" button; cockpit remains functional.
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
-- [ ] **RT-03.3 cockpit-dynamic-header-and-failure-messaging**
+- [x] **RT-03.3 cockpit-dynamic-header-and-failure-messaging**
   - **Status:** Blocked
   - **Why now:** Clickable nodes with contact details and clear failure messaging eliminate "forever-running" confusion.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 17 / Epic RT-03
@@ -796,7 +796,7 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
   - **Rollback:** Revert node click handlers; basic flow remains visible.
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
-- [ ] **RT-04.1 node-plant-contact-enrichment**
+- [x] **RT-04.1 node-plant-contact-enrichment**
   - **Status:** Blocked
   - **Why now:** Workform nodes must intelligently use Plant Contact Type, Title, and "Responsible For" for RFQ/PO recipient selection.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 17 / Epic RT-04
