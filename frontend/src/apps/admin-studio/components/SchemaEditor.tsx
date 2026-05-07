@@ -161,9 +161,9 @@ const SaveIndicator = styled.span<{ status: 'saved' | 'saving' | 'unsaved' }>`
   }};
   color: ${props => {
     switch(props.status) {
-      case 'saved': return 'rgb(34, 197, 94)';
-      case 'saving': return 'rgb(234, 179, 8)';
-      case 'unsaved': return 'rgb(239, 68, 68)';
+      case 'saved': return 'rgb(var(--color-success))';
+      case 'saving': return 'rgb(var(--color-warning))';
+      case 'unsaved': return 'rgb(var(--color-error))';
     }
   }};
 `;
@@ -556,8 +556,8 @@ const TypeBadge = styled.span<{ fieldType: string }>`
   }};
   color: ${props => {
     const colors: Record<string, string> = {
-      text: 'rgb(59, 130, 246)',
-      number: 'rgb(34, 197, 94)',
+      text: 'rgb(var(--color-info))',
+      number: 'rgb(var(--color-success))',
       date: 'rgb(249, 115, 22)',
       datetime: 'rgb(249, 115, 22)',
       select: 'rgb(168, 85, 247)',
@@ -566,12 +566,12 @@ const TypeBadge = styled.span<{ fieldType: string }>`
       phone: 'rgb(14, 165, 233)',
       url: 'rgb(14, 165, 233)',
       textarea: 'rgb(100, 116, 139)',
-      checkbox: 'rgb(34, 197, 94)',
+      checkbox: 'rgb(var(--color-success))',
       radio: 'rgb(168, 85, 247)',
-      file: 'rgb(234, 179, 8)',
+      file: 'rgb(var(--color-warning))',
       currency: 'rgb(16, 185, 129)',
       percent: 'rgb(245, 158, 11)',
-      rating: 'rgb(251, 191, 36)',
+      rating: 'rgb(var(--color-warning))',
       color: 'rgb(236, 72, 153)',
       json: 'rgb(99, 102, 241)',
     };
@@ -1714,7 +1714,7 @@ const SchemaEditor: React.FC = () => {
                 <PreviewField key={field.id}>
                   <PreviewLabel>
                     {field.label || 'Untitled Field'}
-                    {field.required && <span style={{ color: 'rgb(239, 68, 68)', marginLeft: '0.25rem' }}>*</span>}
+                    {field.required && <span style={{ color: 'rgb(var(--color-error))', marginLeft: '0.25rem' }}>*</span>}
                     {field.helpText && <HelpTooltip title={field.helpText}>ⓘ</HelpTooltip>}
                   </PreviewLabel>
                   {renderPreviewField(field)}
