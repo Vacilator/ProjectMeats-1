@@ -485,7 +485,7 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
 
 > **Note:** Phase 19 is independent of Phases 17/18 and can execute in parallel once Phase 16 completes.
 
-- [ ] **AMB-01.1 contextual-suggestion-contract-and-heuristic-rules**
+- [x] **AMB-01.1 contextual-suggestion-contract-and-heuristic-rules**
   - **Status:** Blocked
   - **Why now:** Ambient AI cannot execute safely until there is one canonical suggestion payload and one deterministic rule layer that names what context is evaluated per entity.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 19 / Epic AMB-01
@@ -503,7 +503,7 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
   - **Rollback:** Revert the additive contract/docs baseline only; no runtime suggestion endpoint should ship from this ticket.
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
-- [ ] **AMB-01.2 contextual-suggestions-endpoint-and-service**
+- [x] **AMB-01.2 contextual-suggestions-endpoint-and-service**
   - **Status:** Blocked
   - **Why now:** Record pages need a fast backend suggestion source before any ambient UI can render contextual recommendations.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 19 / Epic AMB-01
@@ -523,7 +523,7 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
 
 ### Epic AMB-02 - Inline page suggestion cards
 
-- [ ] **AMB-02.1 ambient-suggestions-component-and-service-hook**
+- [x] **AMB-02.1 ambient-suggestions-component-and-service-hook**
   - **Status:** Blocked
   - **Why now:** The frontend needs one stable ambient suggestion surface before record pages can render proactive AI recommendations consistently.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 19 / Epic AMB-02
