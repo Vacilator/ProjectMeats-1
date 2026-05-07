@@ -41,6 +41,7 @@ import { withTenantQueryKey } from '@/utils/queryKeys';
 import toast from 'react-hot-toast'; // Phase 8.1
 import * as Sentry from '@sentry/react'; // Error tracking
 import { logger } from '../../utils/logger'; // Centralized logging
+import { reloadApplication } from '@/utils/chunkLoadRecovery';
 import { isTypingInInput } from './utils/keyboardUtils'; // Phase 4
 import { useRenderPerformance } from '../../utils/performance'; // Phase 7.5
 import {
@@ -1738,12 +1739,12 @@ class ConfigPanelErrorBoundary extends React.Component<
           <p style={{ color: 'rgb(var(--color-text-secondary))', marginBottom: '15px' }}>
             {this.state.error?.message || 'Unknown error occurred'}
           </p>
-          <button
-            onClick={() => {
-              this.setState({ hasError: false, error: null });
-              window.location.reload();
-            }}
-            style={{
+            <button
+              onClick={() => {
+                this.setState({ hasError: false, error: null });
+                reloadApplication('flow-editor-config-panel-retry');
+              }}
+              style={{
               padding: '8px 16px',
               background: 'rgb(var(--color-primary))',
               color: 'rgb(var(--color-primary-foreground))',

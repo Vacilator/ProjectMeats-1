@@ -284,41 +284,34 @@ export const EntityFormSurface: React.FC<EntityFormSurfaceProps> = ({
       ),
     [augmentedSchema?.fields]
   );
-  const fkFieldSignature = useMemo(
+  const fkDescriptors = useMemo(
     () =>
-      getStableSignature(
-        fkFields.map((field) => ({
-          key: String(field.key),
-          relatedEntity: String(field.related_entity || ''),
-        }))
-      ),
+      fkFields.map((field) => ({
+        fieldKey: String(field.key),
+        relatedEntity: String(field.related_entity || ''),
+      })),
     [fkFields]
   );
-  const stableFkDescriptorsRef = useRef<
-    Array<{ fieldKey: string; relatedEntity: string }>
-  >([]);
-  const stableFkSignatureRef = useRef('');
-
-  if (stableFkSignatureRef.current !== fkFieldSignature) {
-    stableFkSignatureRef.current = fkFieldSignature;
-    stableFkDescriptorsRef.current = fkFields.map((field) => ({
-      fieldKey: String(field.key),
-      relatedEntity: String(field.related_entity || ''),
-    }));
-  }
-
+  const stableFkDescriptors = useDeepStableValue(fkDescriptors);
+  const fkFieldSignature = useMemo(
+    () => getStableSignature(stableFkDescriptors),
+    [stableFkDescriptors]
+  );
   const hasAugmentedSchema = Boolean(augmentedSchema);
-  const stableFkDescriptors = stableFkDescriptorsRef.current;
-  const fkOptionsQuery = useQuery({
-    queryKey: withTenantQueryKey(
-      'entity-form-fk-options-batch',
-      normalizedEntityKey,
-      fkFieldSignature,
-    ),
-    queryFn: () => fetchEntityFormFkOptionsBatch(stableFkDescriptors),
-    enabled: shouldHydrate && hasAugmentedSchema && stableFkDescriptors.length > 0,
-    staleTime: 5 * 60 * 1000,
-  });
+  const fkOptionsQueryOptions = useMemo(
+    () => ({
+      queryKey: withTenantQueryKey(
+        'entity-form-fk-options-batch',
+        normalizedEntityKey,
+        fkFieldSignature,
+      ),
+      queryFn: () => fetchEntityFormFkOptionsBatch(stableFkDescriptors),
+      enabled: shouldHydrate && hasAugmentedSchema && stableFkDescriptors.length > 0,
+      staleTime: 5 * 60 * 1000,
+    }),
+    [fkFieldSignature, hasAugmentedSchema, normalizedEntityKey, shouldHydrate, stableFkDescriptors]
+  );
+  const fkOptionsQuery = useQuery(fkOptionsQueryOptions);
   const fkOptions = useMemo<FkOptionsMap>(() => fkOptionsQuery.data ?? {}, [fkOptionsQuery.data]);
 
   const fkOptionsLoading =

@@ -9,9 +9,13 @@ import React, { Suspense, useEffect, useMemo, useState } from 'react';
 import styled from 'styled-components';
 
 import { IS_DEV_BUILD } from '@/utils/buildFlags';
+import { lazyWithChunkRecovery } from '@/utils/chunkLoadRecovery';
 import { Button } from './shared/StyledComponents';
 
-const MonacoEditor = React.lazy(() => import('@monaco-editor/react'));
+const MonacoEditor = lazyWithChunkRecovery(
+  () => import('@monaco-editor/react'),
+  'DeveloperJsonEditor.MonacoEditor'
+);
 
 function stripUnsafeKeys(value: unknown): unknown {
   if (Array.isArray(value)) {

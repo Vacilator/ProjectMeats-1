@@ -53,7 +53,7 @@ import { EntityFormSurface } from './EntityFormSurface';
 import { withTenantQueryKey } from '@/utils/queryKeys';
 
 const FK_BATCH_SIGNATURE = JSON.stringify([
-  { key: 'customer', relatedEntity: 'customers.Customer' },
+  { fieldKey: 'customer', relatedEntity: 'customers.Customer' },
 ]);
 
 describe('EntityFormSurface', () => {

@@ -7,6 +7,7 @@
 
 import { logger } from './logger';
 import { sanitizeTelemetryData } from './telemetrySanitizer';
+import { attemptChunkRecovery } from './chunkLoadRecovery';
 
 export function initGlobalErrorHandlers(appName: string = 'frontend'): void {
   if (typeof window === 'undefined') return;
@@ -23,6 +24,10 @@ export function initGlobalErrorHandlers(appName: string = 'frontend'): void {
         reason: sanitizeTelemetryData(reason),
       },
     }, error);
+
+    if (attemptChunkRecovery(error, { source: `${appName}-unhandledrejection` })) {
+      event.preventDefault();
+    }
   });
 
   window.addEventListener('error', (event: ErrorEvent) => {
@@ -37,5 +42,34 @@ export function initGlobalErrorHandlers(appName: string = 'frontend'): void {
         colno: event.colno,
       },
     }, error);
+
+    if (attemptChunkRecovery(error, { source: `${appName}-window-error` })) {
+      event.preventDefault();
+    }
+  });
+
+  window.addEventListener('vite:preloadError', (event: Event) => {
+    const preloadEvent = event as CustomEvent<unknown>;
+    const detail = preloadEvent.detail;
+    const error =
+      detail instanceof Error
+        ? detail
+        : new Error(typeof detail === 'string' ? detail : 'Vite preload error');
+
+    logger.error(
+      'Vite preload error',
+      {
+        component: 'GlobalErrorHandlers',
+        metadata: {
+          app: appName,
+          detail: sanitizeTelemetryData(detail),
+        },
+      },
+      error
+    );
+
+    if (attemptChunkRecovery(error, { source: `${appName}-vite-preload` })) {
+      event.preventDefault();
+    }
   });
 }

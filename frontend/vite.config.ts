@@ -118,6 +118,7 @@ export default defineConfig({
   // Build configuration
   build: {
     outDir: 'build',
+    manifest: true,
     sourcemap: true,
     // Split chunks for better caching
     rollupOptions: {

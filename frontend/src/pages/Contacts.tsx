@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import styled from 'styled-components';
 import { useParams, useSearchParams } from 'react-router-dom';
@@ -180,12 +180,29 @@ const Contacts: React.FC = () => {
   const { supplierId, customerId } = useParams<{ supplierId?: string; customerId?: string }>();
   const [searchParams, setSearchParams] = useSearchParams();
 
-  const contactFilters = {
-    supplier: supplierId ?? searchParams.get('supplier') ?? undefined,
-    customer: customerId ?? searchParams.get('customer') ?? undefined,
-    plant: searchParams.get('plant') ?? undefined,
-    location: searchParams.get('location') ?? undefined,
-  };
+  const contactFilters = useMemo(
+    () => ({
+      supplier: supplierId ?? searchParams.get('supplier') ?? undefined,
+      customer: customerId ?? searchParams.get('customer') ?? undefined,
+      plant: searchParams.get('plant') ?? undefined,
+      location: searchParams.get('location') ?? undefined,
+    }),
+    [customerId, searchParams, supplierId]
+  );
+  const contactInitialValues = useMemo(
+    () => ({
+      ...(contactFilters.supplier ? { supplier: String(contactFilters.supplier) } : {}),
+      ...(contactFilters.customer ? { customer: String(contactFilters.customer) } : {}),
+      ...(contactFilters.plant ? { plant: String(contactFilters.plant) } : {}),
+      ...(contactFilters.location ? { location: String(contactFilters.location) } : {}),
+    }),
+    [
+      contactFilters.customer,
+      contactFilters.location,
+      contactFilters.plant,
+      contactFilters.supplier,
+    ]
+  );
 
   const contactsQuery = useQuery({
     queryKey: withTenantQueryKey(
@@ -336,12 +353,7 @@ const Contacts: React.FC = () => {
             setEditingContact(null);
             clearCreateParam();
           }}
-          initialValues={{
-            ...(contactFilters.supplier ? { supplier: String(contactFilters.supplier) } : {}),
-            ...(contactFilters.customer ? { customer: String(contactFilters.customer) } : {}),
-            ...(contactFilters.plant ? { plant: String(contactFilters.plant) } : {}),
-            ...(contactFilters.location ? { location: String(contactFilters.location) } : {}),
-          }}
+          initialValues={contactInitialValues}
           onSuccess={() => {
             setShowForm(false);
             setEditingContact(null);
