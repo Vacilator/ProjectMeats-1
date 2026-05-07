@@ -17,6 +17,7 @@
 import React from 'react';
 import styled from 'styled-components';
 import { Bug } from 'lucide-react';
+import { logger } from '../utils/logger';
 
 // ============================================================================
 // TypeScript Interfaces
@@ -61,7 +62,7 @@ const getCurrentUser = (): string => {
       return user.email || user.username || 'Unknown User';
     }
   } catch (e) {
-    console.error('Failed to get current user:', e);
+    logger.error('Failed to get current user', { component: 'ReportBugButton' }, e);
   }
   return 'Not logged in';
 };

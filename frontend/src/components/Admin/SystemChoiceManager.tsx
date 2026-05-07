@@ -25,6 +25,7 @@ import {
 import { Modal as AntModal } from 'antd';
 import { apiClient } from '../../services/apiService';
 import { confirmDialog } from '@/utils/uiDialogs';
+import { logger } from '@/utils/logger';
 
 // ============================================================================
 // TypeScript Interfaces
@@ -86,10 +87,9 @@ export const SystemChoiceManager: React.FC<SystemChoiceManagerProps> = ({
     setIsLoading(true);
     try {
       const response = await apiClient.get('/system/choice-lists/');
-      console.log('[SystemChoiceManager] Loaded choice lists:', response.data);
       setChoiceLists(response.data.results || response.data);
     } catch (error) {
-      console.error('[SystemChoiceManager] Failed to load choice lists:', error);
+      logger.error('Failed to load choice lists', { component: 'SystemChoiceManager' }, error);
     } finally {
       setIsLoading(false);
     }
@@ -102,12 +102,11 @@ export const SystemChoiceManager: React.FC<SystemChoiceManagerProps> = ({
     setIsLoading(true);
     try {
       const response = await apiClient.get(`/system/choice-lists/${listId}/items/?limit=1000`);
-      console.log('[SystemChoiceManager] Loaded items:', response.data);
       const raw = response.data as any;
       const data = Array.isArray(raw) ? raw : Array.isArray(raw?.results) ? raw.results : [];
       setItems(data);
     } catch (error) {
-      console.error('[SystemChoiceManager] Failed to load items:', error);
+      logger.error('Failed to load items', { component: 'SystemChoiceManager' }, error);
       setItems([]);
     } finally {
       setIsLoading(false);
@@ -174,7 +173,7 @@ export const SystemChoiceManager: React.FC<SystemChoiceManagerProps> = ({
       setIsEditModalOpen(false);
       setEditingList(null);
     } catch (error) {
-      console.error('[SystemChoiceManager] Failed to save list:', error);
+      logger.error('Failed to save list', { component: 'SystemChoiceManager' }, error);
     }
   }, [editingList, loadChoiceLists]);
 
@@ -199,7 +198,7 @@ export const SystemChoiceManager: React.FC<SystemChoiceManagerProps> = ({
         setSelectedList(null);
       }
     } catch (error) {
-      console.error('[SystemChoiceManager] Failed to delete list:', error);
+      logger.error('Failed to delete list', { component: 'SystemChoiceManager' }, error);
     }
   }, [loadChoiceLists, selectedList]);
 
@@ -227,7 +226,7 @@ export const SystemChoiceManager: React.FC<SystemChoiceManagerProps> = ({
       setIsItemModalOpen(false);
       setEditingItem(null);
     } catch (error) {
-      console.error('[SystemChoiceManager] Failed to save item:', error);
+      logger.error('Failed to save item', { component: 'SystemChoiceManager' }, error);
     }
   }, [editingItem, selectedList, loadItems]);
 
@@ -251,7 +250,7 @@ export const SystemChoiceManager: React.FC<SystemChoiceManagerProps> = ({
         await loadItems(selectedList.slug);
       }
     } catch (error) {
-      console.error('[SystemChoiceManager] Failed to delete item:', error);
+      logger.error('Failed to delete item', { component: 'SystemChoiceManager' }, error);
     }
   }, [selectedList, loadItems]);
 
@@ -267,7 +266,7 @@ export const SystemChoiceManager: React.FC<SystemChoiceManagerProps> = ({
         await loadItems(selectedList.slug);
       }
     } catch (error) {
-      console.error('[SystemChoiceManager] Failed to toggle item:', error);
+      logger.error('Failed to toggle item', { component: 'SystemChoiceManager' }, error);
     }
   }, [selectedList, loadItems]);
 

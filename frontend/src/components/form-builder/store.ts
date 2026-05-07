@@ -10,6 +10,7 @@
 
 import { create } from 'zustand';
 import { FormBuilderState, FormStep, FormField, FormRule, FieldMapping } from './types';
+import { logger } from '../../utils/logger';
 
 /**
  * Generate unique ID
@@ -267,7 +268,7 @@ export const useFormBuilderStore = create<FormBuilderState>((set, get) => ({
   
   autoMapFields: (stepId: string) => {
     // TODO: Implement Auto-Map algorithm in Phase 5
-    console.log('Auto-Map not yet implemented - Phase 5');
+    logger.debug('Auto-Map not yet implemented - Phase 5', { component: 'FormBuilderStore' });
   },
   
   // Preview actions
