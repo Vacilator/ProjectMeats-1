@@ -3,17 +3,28 @@ Tests for Purchase Orders app models.
 
 Uses shared-schema multi-tenancy with tenant ForeignKey isolation.
 """
+import shutil
+import tempfile
 import uuid
 from datetime import date
 from decimal import Decimal
+from datetime import timedelta
+from unittest.mock import patch
+
+from django.conf import settings
 from django.test import TestCase
 from django.contrib.auth.models import User
 from rest_framework import status
 from rest_framework.test import APIClient, APITestCase
 from django.utils import timezone
+from django.test.utils import override_settings
+
+from apps.integrations.models import ExternalAuthProvider
 from tenant_apps.purchase_orders.models import (
     CarrierPOItem,
     PurchaseOrder,
+    PurchaseOrderApprovalDispatch,
+    PurchaseOrderApprovalDispatchStatus,
     PurchaseOrderItem,
     CarrierPurchaseOrder,
     ColdStorageEntry,
@@ -256,6 +267,9 @@ class DocumentOperationsAPITests(APITestCase):
     """Regression coverage for workflow, PDF, email, and audit endpoints."""
 
     def setUp(self):
+        self.media_root = tempfile.mkdtemp(prefix="po-dispatch-media-")
+        self.override_media = override_settings(MEDIA_ROOT=self.media_root)
+        self.override_media.enable()
         unique_id = uuid.uuid4().hex[:8]
         self.user = User.objects.create_user(
             username=f"doc-ops-{unique_id}",
@@ -338,6 +352,15 @@ class DocumentOperationsAPITests(APITestCase):
             provider_message_id=f"msg-{unique_id}",
             provider_thread_id=f"thread-{unique_id}",
         )
+        self.provider = ExternalAuthProvider.objects.create(
+            tenant=self.tenant,
+            provider_type="microsoft",
+            access_token="placeholder",
+            token_expiry=timezone.now() + timedelta(hours=1),
+            connected_email=f"sender-{unique_id}@example.com",
+        )
+        self.provider.set_encrypted_token("access", "token")
+        self.provider.save(update_fields=["access_token"])
         self.purchase_order.custom_data = {
             "review_state": "pending_review",
             "source_lineage": {
@@ -391,6 +414,11 @@ class DocumentOperationsAPITests(APITestCase):
             pick_up_location=self.location,
             delivery_location=self.location,
         )
+
+    def tearDown(self):
+        self.override_media.disable()
+        shutil.rmtree(self.media_root, ignore_errors=True)
+        super().tearDown()
 
     def test_purchase_order_transition_endpoint_blocks_invalid_jump(self):
         response = self.client.post(
@@ -511,6 +539,122 @@ class DocumentOperationsAPITests(APITestCase):
         self.assertEqual(response["Content-Type"], "application/pdf")
         self.assertIn(".pdf", response["Content-Disposition"])
         self.assertTrue(response.content.startswith(b"%PDF"))
+
+    @patch("tenant_apps.purchase_orders.services.approval_dispatch.MicrosoftGraphProvider")
+    def test_purchase_order_approval_generates_pdf_and_dispatches_supplier_email_once(self, graph_provider_mock):
+        graph_provider_mock.return_value.send_email.return_value = {
+            "provider_message_id": "msg-approved",
+            "provider_thread_id": "thread-approved",
+            "provider_internet_message_id": "internet-approved",
+            "provider_web_link": "https://example.com/message",
+        }
+        self.purchase_order.status = "pending_approval"
+        self.purchase_order.save(update_fields=["status"])
+
+        response = self.client.post(
+            f"/api/v1/purchase-orders/{self.purchase_order.id}/transition-status/",
+            {"status": "approved"},
+            format="json",
+            **self.tenant_header,
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.purchase_order.refresh_from_db()
+        self.assertEqual(self.purchase_order.status, "approved")
+        self.assertEqual(self.purchase_order.custom_data["review_state"], "approved")
+
+        dispatch = PurchaseOrderApprovalDispatch.objects.get(purchase_order=self.purchase_order, tenant=self.tenant)
+        self.assertEqual(dispatch.status, PurchaseOrderApprovalDispatchStatus.SENT)
+        self.assertTrue(dispatch.approved_pdf.name.endswith(".pdf"))
+        self.assertGreater(dispatch.approved_pdf_byte_size, 0)
+        self.assertEqual(dispatch.approved_pdf_checksum, dispatch.approved_pdf_checksum.lower())
+        self.assertEqual(dispatch.provider_message_id, "msg-approved")
+        self.assertEqual(dispatch.recipient_email, self.review_rfq.recipient_email)
+        graph_provider_mock.return_value.send_email.assert_called_once()
+        attachment = graph_provider_mock.return_value.send_email.call_args.args[1]["attachments"][0]
+        self.assertEqual(attachment["content_type"], "application/pdf")
+        self.assertTrue(attachment["content_base64"])
+
+    @patch("tenant_apps.purchase_orders.services.approval_dispatch.MicrosoftGraphProvider")
+    def test_purchase_order_approval_retry_reuses_existing_pdf_and_send_evidence(self, graph_provider_mock):
+        graph_provider_mock.return_value.send_email.side_effect = [
+            ValueError("Transient send failure"),
+            {
+                "provider_message_id": "msg-retry",
+                "provider_thread_id": "thread-retry",
+                "provider_internet_message_id": "internet-retry",
+            },
+        ]
+        self.purchase_order.status = "pending_approval"
+        self.purchase_order.save(update_fields=["status"])
+
+        first = self.client.post(
+            f"/api/v1/purchase-orders/{self.purchase_order.id}/transition-status/",
+            {"status": "approved"},
+            format="json",
+            **self.tenant_header,
+        )
+        self.assertEqual(first.status_code, status.HTTP_400_BAD_REQUEST)
+        self.purchase_order.refresh_from_db()
+        self.assertEqual(self.purchase_order.status, "pending_approval")
+
+        dispatch = PurchaseOrderApprovalDispatch.objects.get(purchase_order=self.purchase_order, tenant=self.tenant)
+        first_pdf_name = dispatch.approved_pdf.name
+        first_checksum = dispatch.approved_pdf_checksum
+        first_generated_at = dispatch.pdf_generated_at
+        self.assertEqual(dispatch.status, PurchaseOrderApprovalDispatchStatus.FAILED)
+
+        second = self.client.post(
+            f"/api/v1/purchase-orders/{self.purchase_order.id}/transition-status/",
+            {"status": "approved"},
+            format="json",
+            **self.tenant_header,
+        )
+        self.assertEqual(second.status_code, status.HTTP_200_OK)
+        self.purchase_order.refresh_from_db()
+        self.assertEqual(self.purchase_order.status, "approved")
+
+        dispatch.refresh_from_db()
+        self.assertEqual(dispatch.status, PurchaseOrderApprovalDispatchStatus.SENT)
+        self.assertEqual(dispatch.approved_pdf.name, first_pdf_name)
+        self.assertEqual(dispatch.approved_pdf_checksum, first_checksum)
+        self.assertEqual(dispatch.pdf_generated_at, first_generated_at)
+        self.assertEqual(dispatch.attempt_count, 2)
+        self.assertEqual(graph_provider_mock.return_value.send_email.call_count, 2)
+
+    def test_purchase_order_approval_fails_closed_without_supplier_email(self):
+        self.review_rfq.recipient_email = ""
+        self.review_rfq.save(update_fields=["recipient_email"])
+        self.purchase_order.supplier_contact_email = ""
+        self.purchase_order.supplier.email = ""
+        self.purchase_order.supplier.save(update_fields=["email"])
+        self.purchase_order.status = "pending_approval"
+        self.purchase_order.save(update_fields=["status", "supplier_contact_email"])
+
+        response = self.client.post(
+            f"/api/v1/purchase-orders/{self.purchase_order.id}/transition-status/",
+            {"status": "approved"},
+            format="json",
+            **self.tenant_header,
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.purchase_order.refresh_from_db()
+        self.assertEqual(self.purchase_order.status, "pending_approval")
+        dispatch = PurchaseOrderApprovalDispatch.objects.get(purchase_order=self.purchase_order, tenant=self.tenant)
+        self.assertEqual(dispatch.status, PurchaseOrderApprovalDispatchStatus.FAILED)
+        self.assertIn("Supplier email is required", dispatch.error_message)
+
+    def test_purchase_order_patch_rejects_status_changes(self):
+        response = self.client.patch(
+            f"/api/v1/purchase-orders/{self.purchase_order.id}/",
+            {"status": "approved"},
+            format="json",
+            **self.tenant_header,
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("status", response.data)
 
     def test_carrier_po_audit_feed_is_visible_to_active_member(self):
         transition_response = self.client.post(

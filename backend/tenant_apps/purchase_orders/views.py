@@ -3,22 +3,30 @@ Purchase Orders views for ProjectMeats.
 
 Provides REST API endpoints for purchase order management.
 """
+from django.shortcuts import get_object_or_404
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
+from rest_framework.exceptions import ValidationError as DRFValidationError
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from rest_framework.exceptions import ValidationError as DRFValidationError
 from django.core.exceptions import ValidationError
 from tenant_apps.inquiries.models import Inquiry, InquirySupplierRFQ
-from tenant_apps.purchase_orders.models import CarrierPurchaseOrder, PurchaseOrder, PurchaseOrderHistory
+from tenant_apps.purchase_orders.models import (
+    CarrierPurchaseOrder,
+    PurchaseOrder,
+    PurchaseOrderHistory,
+    PurchaseOrderStatus,
+)
 from tenant_apps.purchase_orders.serializers import (
     CarrierPurchaseOrderSerializer,
     PurchaseOrderReviewContextSerializer,
     PurchaseOrderSerializer,
     PurchaseOrderHistorySerializer,
 )
+from tenant_apps.purchase_orders.services.approval_dispatch import approve_purchase_order_and_send_to_supplier
 from apps.core.exporting import CsvExportMixin
-from apps.core.viewsets_documents import OperationalDocumentActionsMixin
+from apps.core.serializers_documents import DocumentStatusTransitionSerializer
+from apps.core.viewsets_documents import OperationalDocumentActionsMixin, _request_audit_context
 import logging
 from django.utils import timezone
 
@@ -111,6 +119,36 @@ class PurchaseOrderViewSet(OperationalDocumentActionsMixin, CsvExportMixin, view
 
         # Delegate order_number generation to the model layer (2YYNNN format).
         serializer.save(tenant=tenant)
+
+    @action(detail=True, methods=["post"], url_path="transition-status")
+    def transition_status(self, request, pk=None):
+        document = self.get_object()
+        serializer = DocumentStatusTransitionSerializer(
+            data=request.data,
+            context={"document": document},
+        )
+        serializer.is_valid(raise_exception=True)
+        next_status = serializer.validated_data["status"]
+
+        if next_status != PurchaseOrderStatus.APPROVED:
+            return super().transition_status(request, pk=pk)
+
+        with _request_audit_context(request):
+            result = approve_purchase_order_and_send_to_supplier(
+                tenant=request.tenant,
+                purchase_order=document,
+                user=request.user if request.user.is_authenticated else None,
+            )
+        if not result.success:
+            return Response(
+                {
+                    "error": result.error_message,
+                    "code": result.error_code,
+                },
+                status=result.http_status,
+            )
+        refreshed = get_object_or_404(self.get_queryset(), pk=pk)
+        return Response(self.get_serializer(refreshed).data)
 
     def create(self, request, *args, **kwargs):
         """Create a new purchase order with enhanced error handling."""

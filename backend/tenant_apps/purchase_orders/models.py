@@ -6,6 +6,7 @@ Defines purchase order entities and related business logic.
 Implements tenant ForeignKey field for shared-schema multi-tenancy.
 Uses OrderMethodsMixin for shared order behavior (payment calculations, status checks).
 """
+import uuid
 from decimal import Decimal
 from django.db import models
 from django.contrib.auth.models import User
@@ -84,6 +85,23 @@ class LogisticsScenarioChoices(models.TextChoices):
     CUSTOMER_PICKUP = "customer_pickup", "Customer - Picking Up"
     SUPPLIER_DELIVERY = "supplier_delivery", "Supplier - Delivering"
     WE_PICKUP = "we_pickup", "Tenant - Pickup (We Handle Logistics)"
+
+
+class PurchaseOrderApprovalDispatchStatus(models.TextChoices):
+    """Delivery lifecycle for the approved supplier PO artifact/send bundle."""
+
+    PENDING = "pending", "Pending"
+    SENDING = "sending", "Sending"
+    SENT = "sent", "Sent"
+    FAILED = "failed", "Failed"
+
+
+def purchase_order_approval_dispatch_upload_to(instance, filename: str) -> str:
+    """Keep approved supplier-PO PDFs tenant-scoped and collision-safe."""
+
+    tenant_part = str(getattr(instance, "tenant_id", None) or "unknown-tenant")
+    safe_name = str(filename or "approved-purchase-order.pdf").replace("\\", "/").rsplit("/", 1)[-1]
+    return f"purchase_orders/approved_dispatches/{tenant_part}_{uuid.uuid4().hex}_{safe_name}"
 
 
 class PurchaseOrder(
@@ -851,6 +869,71 @@ class PurchaseOrderHistory(TimestampModel):
 
     def __str__(self):
         return f"History for {self.purchase_order.order_number} at {self.created_on}"
+
+
+class PurchaseOrderApprovalDispatch(TenantAwareModel):
+    """Durable audit row for the one approved-PDF + supplier-email dispatch per PO."""
+
+    purchase_order = models.OneToOneField(
+        PurchaseOrder,
+        on_delete=models.CASCADE,
+        related_name="approval_dispatch",
+    )
+    approved_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="purchase_order_approval_dispatches",
+    )
+    sender_provider = models.ForeignKey(
+        "integrations.ExternalAuthProvider",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="purchase_order_approval_dispatches",
+    )
+    approved_pdf = models.FileField(
+        upload_to=purchase_order_approval_dispatch_upload_to,
+        blank=True,
+        default="",
+    )
+    approved_pdf_checksum = models.CharField(max_length=64, blank=True, default="")
+    approved_pdf_byte_size = models.PositiveBigIntegerField(default=0)
+    pdf_generated_at = models.DateTimeField(null=True, blank=True)
+    approved_at = models.DateTimeField(null=True, blank=True)
+    sender_email = models.EmailField(blank=True, default="")
+    recipient_email = models.EmailField(blank=True, default="")
+    recipient_name = models.CharField(max_length=255, blank=True, default="")
+    subject = models.CharField(max_length=300, default="")
+    body = models.TextField(default="")
+    provider = models.CharField(max_length=32, default="microsoft")
+    status = models.CharField(
+        max_length=16,
+        choices=PurchaseOrderApprovalDispatchStatus.choices,
+        default=PurchaseOrderApprovalDispatchStatus.PENDING,
+        db_index=True,
+    )
+    attempt_count = models.PositiveIntegerField(default=0)
+    last_attempted_at = models.DateTimeField(null=True, blank=True)
+    sent_at = models.DateTimeField(null=True, blank=True)
+    provider_message_id = models.CharField(max_length=255, blank=True, default="")
+    provider_thread_id = models.CharField(max_length=255, blank=True, default="")
+    provider_internet_message_id = models.CharField(max_length=255, blank=True, default="")
+    error_message = models.TextField(blank=True, default="")
+
+    class Meta:
+        ordering = ["-created_on"]
+        verbose_name = "Purchase Order Approval Dispatch"
+        verbose_name_plural = "Purchase Order Approval Dispatches"
+        indexes = [
+            models.Index(fields=["tenant", "status"], name="po_dispatch_tenant_status_idx"),
+            models.Index(fields=["tenant", "sent_at"], name="po_dispatch_tenant_sent_idx"),
+        ]
+
+    def __str__(self):
+        reference = self.purchase_order.order_number if self.purchase_order_id else "unbound"
+        return f"Approval dispatch for {reference}"
 
 
 @receiver(pre_save, sender=PurchaseOrder)

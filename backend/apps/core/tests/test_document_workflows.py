@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import uuid
 from decimal import Decimal
+from unittest.mock import patch
 
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
@@ -25,6 +26,7 @@ from tenant_apps.carriers.models import Carrier
 from tenant_apps.customers.models import Customer
 from tenant_apps.locations.models import Location
 from tenant_apps.purchase_orders.models import CarrierPurchaseOrder, PurchaseOrder
+from tenant_apps.purchase_orders.services.approval_dispatch import PurchaseOrderApprovalDispatchResult
 from tenant_apps.sales_orders.models import SalesOrder
 from tenant_apps.suppliers.models import Supplier
 
@@ -196,6 +198,51 @@ class DocumentWorkflowActionTests(APITestCase):
                 )
                 self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
                 self.assertIn("status", response.data)
+
+    @patch("tenant_apps.purchase_orders.views.approve_purchase_order_and_send_to_supplier")
+    def test_purchase_order_approved_transition_uses_dispatch_service(self, dispatch_mock):
+        self.purchase_order.status = "pending_approval"
+        self.purchase_order.save(update_fields=["status"])
+        dispatch_mock.return_value = PurchaseOrderApprovalDispatchResult(success=True)
+
+        response = self.client.post(
+            f"/api/v1/purchase-orders/{self.purchase_order.id}/transition-status/",
+            {"status": "approved"},
+            format="json",
+            **self.tenant_header,
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        dispatch_mock.assert_called_once()
+
+    @patch("tenant_apps.purchase_orders.views.approve_purchase_order_and_send_to_supplier")
+    def test_purchase_order_approved_transition_still_fails_closed_across_tenants(self, dispatch_mock):
+        self.purchase_order.status = "pending_approval"
+        self.purchase_order.save(update_fields=["status"])
+
+        other_user = User.objects.create_user(
+            username="workflow-approved-other-user",
+            email="workflow-approved-other@example.com",
+            password="testpass123",
+        )
+        other_tenant = Tenant.objects.create(
+            name="Workflow Approved Other Tenant",
+            slug="workflow-approved-other-tenant",
+            contact_email="workflow-approved-other@example.com",
+            created_by=other_user,
+        )
+        TenantUser.objects.create(tenant=other_tenant, user=other_user, role="owner", is_active=True)
+
+        self.client.force_login(other_user)
+        response = self.client.post(
+            f"/api/v1/purchase-orders/{self.purchase_order.id}/transition-status/",
+            {"status": "approved"},
+            format="json",
+            HTTP_X_TENANT_ID=str(other_tenant.id),
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+        dispatch_mock.assert_not_called()
 
     def test_create_endpoints_reject_approved_initial_status(self):
         unique_id = uuid.uuid4().hex[:6]

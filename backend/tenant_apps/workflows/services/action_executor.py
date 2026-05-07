@@ -183,7 +183,13 @@ class ActionExecutor:
             
             if not entity_type or not entity_id_template:
                 return {'success': False, 'error': 'Missing entity_type or entity_id'}
-            
+
+            if entity_type in {'purchase_order', 'purchaseorder'} and 'status' in field_updates:
+                return {
+                    'success': False,
+                    'error': 'PurchaseOrder status updates must use the explicit transition-status action.',
+                }
+             
             # Resolve entity ID
             entity_id = self._resolve_template(str(entity_id_template))
             
