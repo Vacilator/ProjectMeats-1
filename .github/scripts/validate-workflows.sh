@@ -577,9 +577,15 @@ if migrate_job.get('runs-on') != 'ubuntu-latest':
 steps = migrate_job.get('steps') or []
 run_text = "\n".join([s.get('run','') for s in steps if isinstance(s, dict) and isinstance(s.get('run'), str)])
 
-# Must use SSH tunnel (bastion) and bind to local 5433
-if 'sshpass' not in run_text or '-L 5433:' not in run_text:
-    print("ERROR: migrate must establish an SSH tunnel (-L 5433:...) using sshpass", file=sys.stderr)
+# Must use SSH tunnel (bastion) via composite action or inline sshpass + bind to local 5433
+uses_ssh_tunnel_action = any(
+    isinstance(s, dict) and 'actions/ssh-tunnel' in str(s.get('uses', ''))
+    for s in steps
+)
+if uses_ssh_tunnel_action:
+    pass  # SSH tunnel handled by composite action (includes sshpass + -L 5433 internally)
+elif 'sshpass' not in run_text or '-L 5433:' not in run_text:
+    print("ERROR: migrate must establish an SSH tunnel (-L 5433:...) using sshpass or .github/actions/ssh-tunnel", file=sys.stderr)
     raise SystemExit(1)
 
 # Must run migrations in Docker with host networking so container can reach localhost tunnel.
@@ -1640,13 +1646,14 @@ def step(job_name, step_name):
     steps = (reusable_jobs.get(job_name) or {}).get('steps') or []
     return next((s for s in steps if isinstance(s, dict) and s.get('name') == step_name), None)
 
+migrate_resolve_step = step('migrate', 'Resolve backend image reference')
 migrate_step = step('migrate', 'Run migrations via Docker with tunnel')
 backend_deploy_step = step('deploy-backend', 'Deploy backend container')
 frontend_deploy_step = step('deploy-frontend', 'Deploy frontend container')
 
 expected_env_refs = [
-    (migrate_step, 'BACKEND_TAG_REF', '${{ needs.build-backend.outputs.image_tag_ref }}', 'jobs.migrate step Run migrations via Docker with tunnel'),
-    (migrate_step, 'BACKEND_DIGEST_REF', '${{ needs.build-backend.outputs.image_digest_ref }}', 'jobs.migrate step Run migrations via Docker with tunnel'),
+    (migrate_resolve_step, 'BACKEND_TAG_REF', '${{ needs.build-backend.outputs.image_tag_ref }}', 'jobs.migrate step Resolve backend image reference'),
+    (migrate_resolve_step, 'BACKEND_DIGEST_REF', '${{ needs.build-backend.outputs.image_digest_ref }}', 'jobs.migrate step Resolve backend image reference'),
     (backend_deploy_step, 'BACKEND_TAG_REF', '${{ needs.build-backend.outputs.image_tag_ref }}', 'jobs.deploy-backend step Deploy backend container'),
     (backend_deploy_step, 'BACKEND_DIGEST_REF', '${{ needs.build-backend.outputs.image_digest_ref }}', 'jobs.deploy-backend step Deploy backend container'),
     (frontend_deploy_step, 'FRONTEND_TAG_REF', '${{ needs.build-frontend.outputs.image_tag_ref }}', 'jobs.deploy-frontend step Deploy frontend container'),
@@ -1661,10 +1668,9 @@ for step_obj, env_key, expected_value, label in expected_env_refs:
     if env_map.get(env_key) != expected_value:
         errors.append(f"{reusable_path.name}: {label} env.{env_key} must be {expected_value}")
 
-if migrate_step is not None and 'BACKEND_RUN_REF="$BACKEND_DIGEST_REF"' not in (migrate_step.get('run') or ''):
-    errors.append(f"{reusable_path.name}: migrate step must switch BACKEND_RUN_REF to BACKEND_DIGEST_REF when digest deploy is enabled")
-if migrate_step is not None and 'pull_with_retry "$BACKEND_RUN_REF"' not in (migrate_step.get('run') or ''):
-    errors.append(f"{reusable_path.name}: migrate step must pull BACKEND_RUN_REF after selecting tag vs digest")
+# Migrate: digest resolution is now in the Resolve step (uses composite action for pull)
+if migrate_resolve_step is not None and 'IMAGE_REF="$BACKEND_DIGEST_REF"' not in (migrate_resolve_step.get('run') or ''):
+    errors.append(f"{reusable_path.name}: migrate resolve step must switch to BACKEND_DIGEST_REF when digest deploy is enabled")
 if backend_deploy_step is not None and 'RUN_REF="${BACKEND_DIGEST_REF}"' not in (backend_deploy_step.get('run') or ''):
     errors.append(f"{reusable_path.name}: deploy-backend step must run the build-exported backend digest ref")
 if frontend_deploy_step is not None and 'RUN_REF="${FRONTEND_DIGEST_REF}"' not in (frontend_deploy_step.get('run') or ''):

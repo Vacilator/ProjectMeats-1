@@ -828,25 +828,15 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       
-      - name: Install SSH and PostgreSQL tools
-        if: ${{ inputs.run_backend_lane }}
-        run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y openssh-client sshpass postgresql-client netcat-openbsd lsof
-      
       - name: Setup SSH tunnel to database
         if: ${{ inputs.run_backend_lane }}
-        env:
-          SSHPASS: ${{ secrets.SSH_PASSWORD }}
-          DB_HOST: ${{ secrets.DB_HOST }}
-          DB_PORT: ${{ secrets.DB_PORT || '5432' }}
-          BASTION_USER: ${{ secrets.SSH_USER }}
-          BASTION_HOST: ${{ secrets.SSH_HOST }}
-        run: |
-          # Establish SSH tunnel via bastion using sshpass and bind to local 5433.
-          # Invariants (validated): sshpass + "-L 5433:" must exist in this job's run steps.
-          # sshpass ... -L 5433:$DB_HOST:$DB_PORT $BASTION_USER@$BASTION_HOST
-          bash .github/scripts/setup-ssh-tunnel.sh
+        uses: ./.github/actions/ssh-tunnel
+        with:
+          ssh_host: ${{ secrets.SSH_HOST }}
+          ssh_user: ${{ secrets.SSH_USER }}
+          ssh_password: ${{ secrets.SSH_PASSWORD }}
+          db_host: ${{ secrets.DB_HOST }}
+          db_port: ${{ secrets.DB_PORT || '5432' }}
       
       - name: Test tunnel connectivity
         if: ${{ inputs.run_backend_lane }}
@@ -859,14 +849,12 @@ jobs:
           echo "Testing Tunnel Connectivity"
           echo "================================"
           
-          # Faster retry with connection timeout
           MAX_ATTEMPTS=3
           ATTEMPT=1
           
           while [ "$ATTEMPT" -le "$MAX_ATTEMPTS" ]; do
             echo "Connection attempt $ATTEMPT/$MAX_ATTEMPTS..."
             
-            # Use connection timeout to fail fast (10 seconds)
             if timeout 10 bash -c "PGPASSWORD='$DB_PASSWORD' psql \
               -h 127.0.0.1 \
               -p 5433 \
@@ -885,10 +873,6 @@ jobs:
           
           echo ""
           echo "✗ Failed to connect to database after $MAX_ATTEMPTS attempts"
-          echo "Tunnel status:"
-          pgrep -af 'ssh.*5433' || echo "No tunnel process found"
-          echo "Port status:"
-          netstat -an | grep 5433 || echo "Port 5433 not in use"
           exit 1
 
       - name: Pre-migration DB backup (UAT/Prod only)
@@ -965,11 +949,40 @@ jobs:
               ls -1t '$BACKUP_DIR'/pgdump_${ENVIRONMENT}_*.dump 2>/dev/null | tail -n +\$((KEEP_COUNT + 1)) | xargs -r rm -f; \
               echo \"✓ Retention enforced (kept last $KEEP_COUNT)\""
 
-      - name: Run migrations via Docker with tunnel
+      - name: Resolve backend image reference
+        id: resolve-migrate-image
         if: ${{ inputs.run_backend_lane }}
         env:
           BACKEND_TAG_REF: ${{ needs.build-backend.outputs.image_tag_ref }}
           BACKEND_DIGEST_REF: ${{ needs.build-backend.outputs.image_digest_ref }}
+          DEPLOY_BY_DIGEST: ${{ inputs.deploy_by_digest }}
+        run: |
+          set -euo pipefail
+          IMAGE_REF="$BACKEND_TAG_REF"
+          if [ "$DEPLOY_BY_DIGEST" = "true" ]; then
+            if echo "$BACKEND_DIGEST_REF" | grep -q '@sha256:'; then
+              echo "✓ Using backend digest ref"
+              IMAGE_REF="$BACKEND_DIGEST_REF"
+            else
+              echo "✗ Deploy-by-digest enabled, but backend digest could not be resolved" >&2
+              exit 1
+            fi
+          fi
+          echo "image_ref=$IMAGE_REF" >> "$GITHUB_OUTPUT"
+
+      - name: Pull backend image
+        if: ${{ inputs.run_backend_lane }}
+        id: pull-migrate-image
+        uses: ./.github/actions/docker-pull-retry
+        with:
+          image_ref: ${{ steps.resolve-migrate-image.outputs.image_ref }}
+          docr_registry: ${{ env.REGISTRY }}
+          ghcr_registry: ${{ env.GHCR_REGISTRY }}
+
+      - name: Run migrations via Docker with tunnel
+        if: ${{ inputs.run_backend_lane }}
+        env:
+          BACKEND_RUN_REF: ${{ steps.pull-migrate-image.outputs.resolved_ref }}
           DB_USER: ${{ secrets.DB_USER }}
           DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
           DB_NAME: ${{ secrets.DB_NAME }}
@@ -978,65 +991,14 @@ jobs:
           REDIS_URL: ${{ secrets.REDIS_URL }}
           VALKEY_URL: ${{ secrets.VALKEY_URL }}
           REQUIRE_REDIS_READINESS: ${{ inputs.require_redis_readiness }}
-          DEPLOY_BY_DIGEST: ${{ inputs.deploy_by_digest }}
         run: |
           echo "================================"
           echo "Running Django Migrations"
           echo "================================"
           
-          # Construct DATABASE_URL pointing to tunnel
           DATABASE_URL="postgresql://$DB_USER:$DB_PASSWORD@127.0.0.1:5433/$DB_NAME"
-          
-          to_ghcr_ref() {
-            printf '%s' "$1" | sed "s#^${{ env.REGISTRY }}#${{ env.GHCR_REGISTRY }}#"
-          }
-
-          BACKEND_GHCR_TAG_REF="$(to_ghcr_ref "$BACKEND_TAG_REF")"
-          BACKEND_GHCR_DIGEST_REF="$(to_ghcr_ref "$BACKEND_DIGEST_REF")"
-
-          echo "Using backend image ref: $BACKEND_GHCR_TAG_REF"
-
-          pull_with_retry() {
-            local image="$1"
-            local attempt=1
-            local max_attempts=5
-            local delay=5
-
-            while [ $attempt -le $max_attempts ]; do
-              echo "docker pull attempt ${attempt}/${max_attempts}: ${image}"
-              if docker pull "$image"; then
-                return 0
-              fi
-
-              if [ $attempt -lt $max_attempts ]; then
-                echo "Pull failed; retrying in ${delay}s..."
-                sleep "$delay"
-                delay=$((delay * 2))
-              fi
-
-              attempt=$((attempt + 1))
-            done
-
-            echo "✗ docker pull failed after ${max_attempts} attempts"
-            return 1
-          }
-
-          BACKEND_RUN_REF="$BACKEND_TAG_REF"
-          BACKEND_RUN_REF="$(to_ghcr_ref "$BACKEND_RUN_REF")"
-          if [ "$DEPLOY_BY_DIGEST" = "true" ]; then
-            if echo "$BACKEND_GHCR_DIGEST_REF" | grep -q '@sha256:'; then
-              echo "✓ Using backend digest ref: $BACKEND_GHCR_DIGEST_REF"
-              BACKEND_RUN_REF="$BACKEND_DIGEST_REF"
-              BACKEND_RUN_REF="$(to_ghcr_ref "$BACKEND_RUN_REF")"
-            else
-              echo "✗ Deploy-by-digest enabled, but backend digest could not be resolved"
-              exit 1
-            fi
-          fi
-
-          pull_with_retry "$BACKEND_RUN_REF"
-
           echo "BACKEND_RUN_REF=$BACKEND_RUN_REF" >> "$GITHUB_ENV"
+
           REDIS_GATE_ARGS=""
           if [ "$REQUIRE_REDIS_READINESS" = "true" ]; then
             REDIS_GATE_ARGS="--require-redis-readiness"
@@ -1059,8 +1021,6 @@ jobs:
           echo ""
           echo "Running migrations..."
           
-          # Run migrations using Docker container with host networking
-          # This allows container to access tunnel on localhost:5433
           docker run --rm \
             --network host \
             -e DATABASE_URL="$DATABASE_URL" \
@@ -1169,24 +1129,46 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Install SSH and PostgreSQL tools
-        run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y openssh-client sshpass postgresql-client lsof
-
       - name: Setup SSH tunnel to database
-        env:
-          SSHPASS: ${{ secrets.SSH_PASSWORD }}
-          DB_HOST: ${{ secrets.DB_HOST }}
-          DB_PORT: ${{ secrets.DB_PORT || '5432' }}
-          BASTION_USER: ${{ secrets.SSH_USER }}
-          BASTION_HOST: ${{ secrets.SSH_HOST }}
-        run: bash .github/scripts/setup-ssh-tunnel.sh
+        uses: ./.github/actions/ssh-tunnel
+        with:
+          ssh_host: ${{ secrets.SSH_HOST }}
+          ssh_user: ${{ secrets.SSH_USER }}
+          ssh_password: ${{ secrets.SSH_PASSWORD }}
+          db_host: ${{ secrets.DB_HOST }}
+          db_port: ${{ secrets.DB_PORT || '5432' }}
 
-      - name: Bootstrap backend system data
+      - name: Resolve backend image reference
+        id: resolve-bootstrap-image
         env:
           BACKEND_TAG_REF: ${{ needs.build-backend.outputs.image_tag_ref }}
           BACKEND_DIGEST_REF: ${{ needs.build-backend.outputs.image_digest_ref }}
+          DEPLOY_BY_DIGEST: ${{ inputs.deploy_by_digest }}
+        run: |
+          set -euo pipefail
+          IMAGE_REF="$BACKEND_TAG_REF"
+          if [ "$DEPLOY_BY_DIGEST" = "true" ]; then
+            if echo "$BACKEND_DIGEST_REF" | grep -q '@sha256:'; then
+              echo "✓ Using backend digest ref"
+              IMAGE_REF="$BACKEND_DIGEST_REF"
+            else
+              echo "✗ Deploy-by-digest enabled, but backend digest could not be resolved" >&2
+              exit 1
+            fi
+          fi
+          echo "image_ref=$IMAGE_REF" >> "$GITHUB_OUTPUT"
+
+      - name: Pull backend image
+        id: pull-bootstrap-image
+        uses: ./.github/actions/docker-pull-retry
+        with:
+          image_ref: ${{ steps.resolve-bootstrap-image.outputs.image_ref }}
+          docr_registry: ${{ env.REGISTRY }}
+          ghcr_registry: ${{ env.GHCR_REGISTRY }}
+
+      - name: Bootstrap backend system data
+        env:
+          BACKEND_RUN_REF: ${{ steps.pull-bootstrap-image.outputs.resolved_ref }}
           DB_USER: ${{ secrets.DB_USER }}
           DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
           DB_NAME: ${{ secrets.DB_NAME }}
@@ -1198,55 +1180,9 @@ jobs:
           REDIS_URL: ${{ secrets.REDIS_URL }}
           VALKEY_URL: ${{ secrets.VALKEY_URL }}
           REQUIRE_REDIS_READINESS: ${{ inputs.require_redis_readiness }}
-          DEPLOY_BY_DIGEST: ${{ inputs.deploy_by_digest }}
         run: |
           set -euo pipefail
           DATABASE_URL="postgresql://$DB_USER:$DB_PASSWORD@127.0.0.1:5433/$DB_NAME"
-
-          to_ghcr_ref() {
-            printf '%s' "$1" | sed "s#^${{ env.REGISTRY }}#${{ env.GHCR_REGISTRY }}#"
-          }
-
-          pull_with_retry() {
-            local image="$1"
-            local attempt=1
-            local max_attempts=5
-            local delay=5
-
-            while [ $attempt -le $max_attempts ]; do
-              echo "docker pull attempt ${attempt}/${max_attempts}: ${image}"
-              if docker pull "$image"; then
-                return 0
-              fi
-
-              if [ $attempt -lt $max_attempts ]; then
-                echo "Pull failed; retrying in ${delay}s..."
-                sleep "$delay"
-                delay=$((delay * 2))
-              fi
-
-              attempt=$((attempt + 1))
-            done
-
-            echo "✗ docker pull failed after ${max_attempts} attempts"
-            return 1
-          }
-
-          BACKEND_RUN_REF="$BACKEND_TAG_REF"
-          BACKEND_RUN_REF="$(to_ghcr_ref "$BACKEND_RUN_REF")"
-          if [ "$DEPLOY_BY_DIGEST" = "true" ]; then
-            BACKEND_GHCR_DIGEST_REF="$(to_ghcr_ref "$BACKEND_DIGEST_REF")"
-            if echo "$BACKEND_GHCR_DIGEST_REF" | grep -q '@sha256:'; then
-              BACKEND_RUN_REF="$BACKEND_DIGEST_REF"
-              BACKEND_RUN_REF="$(to_ghcr_ref "$BACKEND_RUN_REF")"
-            else
-              echo "✗ Deploy-by-digest enabled, but backend digest could not be resolved"
-              exit 1
-            fi
-          fi
-
-          echo "Using backend image ref: $BACKEND_RUN_REF"
-          pull_with_retry "$BACKEND_RUN_REF"
 
           docker run --rm \
             --network host \

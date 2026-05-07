@@ -260,8 +260,9 @@ else
     fail "manage_env.py missing audit_secrets"
 fi
 
-# 3. Check workflow has bastion tunnel (in reusable-deploy.yml)
-if grep -q "ssh.*5433" .github/workflows/reusable-deploy.yml 2>/dev/null; then
+# 3. Check workflow has bastion tunnel (in reusable-deploy.yml or ssh-tunnel composite action)
+if grep -q "ssh.*5433" .github/workflows/reusable-deploy.yml 2>/dev/null || \
+   grep -q "actions/ssh-tunnel" .github/workflows/reusable-deploy.yml 2>/dev/null; then
     pass "reusable-deploy.yml uses SSH tunnel (port 5433)"
 else
     fail "reusable-deploy.yml missing SSH tunnel"
