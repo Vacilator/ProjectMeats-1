@@ -1175,8 +1175,8 @@
   - **Rollback:** Disable RFQ send path and retain the audit log for operator replay before reverting integration code.
   - **Completion evidence destination:** `.github/MASTER_PLAN.md` (PR #4930)
 
-- [ ] **CTE-02.3 structured-supplier-reply-parser-and-quote-normalization**
-  - **Status:** Ready
+- [x] **CTE-02.3 structured-supplier-reply-parser-and-quote-normalization**
+  - **Status:** Shipped — PR #4931
   - **Why now:** Supplier replies need deterministic quote extraction before any draft purchase order can be created safely.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 16 / Epic 2
   - **Scope:** Enhance inbound reply parsing to use OpenAI structured outputs for supplier quote replies, normalize affirmative/price/quantity/lead-time data, and tie parsed quotes back to the originating inquiry/RFQ.
@@ -1191,10 +1191,10 @@
   - **Secrets/infra impact:** Medium
   - **Risk level:** High
   - **Rollback:** Disable supplier-reply automation and preserve normalized quote journals/source-email lineage for manual review.
-  - **Completion evidence destination:** `.github/MASTER_PLAN.md`
+  - **Completion evidence destination:** `.github/MASTER_PLAN.md` (PR #4931)
 
 - [ ] **CTE-02.4 draft-supplier-purchase-order-generation-from-quotes**
-  - **Status:** Blocked
+  - **Status:** Ready
   - **Why now:** Normalized quotes should create trader-reviewable supplier POs instead of forcing manual re-entry.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 16 / Epic 2
   - **Scope:** Generate draft `PurchaseOrder` records from accepted/qualifying supplier quote replies, persist linkage back to the originating inquiry and quote payload, and move the new order into the approval flow rather than sending it externally.
@@ -1202,7 +1202,7 @@
   - **Primary domain:** backend/orders
   - **Likely touched paths:** `backend/tenant_apps/purchase_orders/`, `backend/tenant_apps/inquiries/`, `backend/apps/integrations/`, additive tests/migrations if needed
   - **Dependencies:** CTE-02.3
-  - **Blockers:** CTE-02.3
+  - **Blockers:** None
   - **Acceptance criteria:** Supplier quote replies can create draft `PurchaseOrder` rows with exact inquiry/source linkage and explicit pending-review state.
   - **Validation commands:** `cd backend && python manage.py test tenant_apps.purchase_orders tenant_apps.inquiries apps.integrations`; `cd backend && python manage.py makemigrations --check`
   - **Tenant/RLS impact:** High
