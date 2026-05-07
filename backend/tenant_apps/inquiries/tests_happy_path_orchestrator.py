@@ -15,6 +15,7 @@ from django.test import TestCase
 from django.utils import timezone
 
 from apps.tenants.models import Tenant
+from tenant_apps.contacts.models import Contact
 from tenant_apps.carriers.models import (
     Carrier,
     CarrierFreightInquiry,
@@ -101,6 +102,18 @@ class OrchestratorTestBase(TestCase):
         }
         defaults.update(kwargs)
         return PurchaseOrder.objects.create(**defaults)
+
+    def _make_sales_order(self, **kwargs):
+        defaults = {
+            "tenant": self.tenant,
+            "our_sales_order_num": f"SO-{uuid.uuid4().hex[:6]}",
+            "supplier": self.supplier,
+            "customer": self.customer,
+            "status": SalesOrderStatus.DRAFT,
+            "total_amount": Decimal("1250.00"),
+        }
+        defaults.update(kwargs)
+        return SalesOrder.objects.create(**defaults)
 
 
 class OrchestratorStateDerivationTests(OrchestratorTestBase):
@@ -300,3 +313,114 @@ class LineageChainTests(OrchestratorTestBase):
         self.assertEqual(
             chain["supplier_purchase_order"]["status"], PurchaseOrderStatus.APPROVED
         )
+
+    def test_lineage_chain_includes_contact_role_summaries(self):
+        supplier_contact = Contact.objects.create(
+            tenant=self.tenant,
+            supplier=self.supplier,
+            first_name="Angie",
+            last_name="Sanchez",
+            email="angie@example.com",
+            department="sales",
+            title="Account Manager",
+            protein_types_responsible=["Beef"],
+            items_responsible=["Beef Trim"],
+            documents_responsible_for=["spec sheets"],
+        )
+        customer_contact = Contact.objects.create(
+            tenant=self.tenant,
+            customer=self.customer,
+            first_name="Alex",
+            last_name="Buyer",
+            email="alex@example.com",
+            title="Procurement",
+        )
+        supplier_po = self._make_purchase_order(
+            custom_data={
+                "contact_routing": {
+                    "supplier_contact": {
+                        "contact_id": supplier_contact.id,
+                        "recipient_name": "Angie Sanchez",
+                        "department": "sales",
+                        "title": "Account Manager",
+                        "plant_name": "Allen Lund",
+                        "matched_items": ["Beef Trim"],
+                        "matched_documents": ["Spec Sheets"],
+                    },
+                    "shipping_contact": {
+                        "contact_id": supplier_contact.id,
+                        "recipient_name": "Angie Sanchez",
+                        "department": "shipping",
+                        "title": "Shipping Supervisor",
+                        "plant_name": "Allen Lund",
+                    },
+                }
+            },
+        )
+        sales_order = self._make_sales_order(
+            custom_data={
+                "process_cockpit": {
+                    "customer_contact": {
+                        "contact_id": customer_contact.id,
+                        "name": "Alex Buyer",
+                        "email": "alex@example.com",
+                    },
+                    "supplier_contacts": {
+                        "supplier_contact": {
+                            "contact_id": supplier_contact.id,
+                            "recipient_name": "Angie Sanchez",
+                            "department": "sales",
+                            "title": "Account Manager",
+                            "plant_name": "Allen Lund",
+                            "matched_items": ["Beef Trim"],
+                        }
+                    },
+                }
+            },
+        )
+        inquiry = self._make_inquiry(
+            route="BROKER",
+            supplier_purchase_order=supplier_po,
+            sales_order=sales_order,
+            contact=customer_contact,
+        )
+        InquirySupplierRFQ.objects.create(
+            tenant=self.tenant,
+            inquiry=inquiry,
+            supplier=self.supplier,
+            correlation_key=uuid.uuid4(),
+            sender_email="ops@example.com",
+            recipient_email="angie@example.com",
+            recipient_name="Angie Sanchez",
+            subject="RFQ",
+            body="Test body",
+            provider="microsoft",
+            status="sent",
+            custom_data={
+                "recipient_routing": {
+                    "contact_id": supplier_contact.id,
+                    "recipient_name": "Angie Sanchez",
+                    "department": "sales",
+                    "title": "Account Manager",
+                    "plant_name": "Allen Lund",
+                    "matched_items": ["Beef Trim"],
+                }
+            },
+        )
+
+        chain = get_lineage_chain(tenant=self.tenant, inquiry=inquiry)
+
+        inquiry_roles = chain["inquiry"]["contact_roles"]
+        self.assertEqual(inquiry_roles[0]["detail_path"], f"/records/contact/{supplier_contact.id}")
+        self.assertIn("RFQ sent to Sales", inquiry_roles[0]["header"])
+        self.assertIn("Beef Trim", inquiry_roles[0]["responsibilities"])
+
+        po_roles = chain["supplier_purchase_order"]["contact_roles"]
+        self.assertEqual(po_roles[0]["role"], "supplier_contact")
+        self.assertEqual(po_roles[0]["department_label"], "Sales")
+        self.assertEqual(po_roles[0]["name"], "Angie Sanchez")
+
+        so_roles = chain["sales_order"]["contact_roles"]
+        self.assertEqual(so_roles[0]["role"], "supplier_contact")
+        self.assertEqual(so_roles[-1]["role"], "customer_contact")
+        self.assertEqual(so_roles[-1]["detail_path"], f"/records/contact/{customer_contact.id}")

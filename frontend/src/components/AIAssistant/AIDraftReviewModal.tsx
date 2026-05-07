@@ -49,6 +49,147 @@ const firstString = (...values: unknown[]): string | undefined => {
   return undefined;
 };
 
+type ReviewContactRole = {
+  key: string;
+  header: string;
+  roleLabel: string;
+  title?: string;
+  email?: string;
+  responsibilities: string[];
+  detailPath?: string;
+};
+
+const departmentLabel = (value: unknown): string | undefined => {
+  const normalized = typeof value === 'string' ? value.trim().toLowerCase() : '';
+  if (!normalized) {
+    return undefined;
+  }
+  const labels: Record<string, string> = {
+    sales: 'Sales',
+    qa: 'QA',
+    shipping: 'Shipping / Loadout',
+    certification: 'Certification',
+    accounting: 'Accounting',
+    booking: 'Booking',
+  };
+  return labels[normalized] ?? normalized.replace(/_/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase());
+};
+
+const uniqueStrings = (...groups: unknown[]): string[] => {
+  const seen = new Set<string>();
+  const values: string[] = [];
+  for (const group of groups) {
+    if (!Array.isArray(group)) {
+      continue;
+    }
+    for (const raw of group) {
+      const value = typeof raw === 'string' ? raw.trim() : '';
+      if (value && !seen.has(value)) {
+        seen.add(value);
+        values.push(value);
+      }
+    }
+  }
+  return values;
+};
+
+const buildReviewContactRole = (
+  key: string,
+  payload: Record<string, unknown>,
+  prefix: string,
+): ReviewContactRole | null => {
+  const name = firstString(payload.recipient_name, payload.name);
+  const email = firstString(payload.recipient_email, payload.email);
+  if (!name && !email) {
+    return null;
+  }
+
+  const roleLabel =
+    departmentLabel(payload.department) ||
+    firstString(payload.role_label) ||
+    key.replace(/_/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase());
+  const title = firstString(payload.title);
+  const company = firstString(payload.plant_name, payload.company);
+  const headerBase = `${prefix} ${roleLabel} - ${name || email}`;
+  const responsibilities = uniqueStrings(
+    payload.matched_items,
+    payload.matched_proteins,
+    payload.matched_documents,
+    payload.responsible_items,
+    payload.responsible_proteins,
+    payload.responsible_documents,
+  );
+
+  return {
+    key,
+    header: company ? `${headerBase} (${company})` : headerBase,
+    roleLabel,
+    title,
+    email,
+    responsibilities,
+    detailPath:
+      typeof payload.contact_id === 'number' || (typeof payload.contact_id === 'string' && payload.contact_id.trim())
+        ? `/records/contact/${encodeURIComponent(String(payload.contact_id))}`
+        : undefined,
+  };
+};
+
+const appendReviewContactRoles = (
+  target: ReviewContactRole[],
+  payload: Record<string, unknown>,
+  prefix: string,
+) => {
+  for (const [key, value] of Object.entries(payload)) {
+    const record = asRecord(value);
+    const card = buildReviewContactRole(key, record, prefix);
+    if (card) {
+      target.push(card);
+    }
+  }
+};
+
+const extractReviewContactRoles = (
+  payload: Record<string, unknown>,
+  initialValues: Record<string, unknown>,
+): ReviewContactRole[] => {
+  const cards: ReviewContactRole[] = [];
+
+  appendReviewContactRoles(cards, asRecord(payload.contact_routing), 'Resolved');
+  appendReviewContactRoles(cards, asRecord(asRecord(payload.selected_bid).contact_routing), 'Selected bid');
+  appendReviewContactRoles(cards, asRecord(asRecord(payload.process_cockpit).supplier_contacts), 'Process');
+
+  const recipientRouting = buildReviewContactRole(
+    'rfq_recipient',
+    asRecord(payload.recipient_routing),
+    'RFQ sent to',
+  );
+  if (recipientRouting) {
+    cards.unshift(recipientRouting);
+  }
+
+  if (cards.length === 0) {
+    const fallbackName = firstString(
+      initialValues.supplier_contact_name,
+      initialValues.contact_name,
+    );
+    const fallbackEmail = firstString(
+      initialValues.supplier_contact_email,
+      initialValues.contact_email,
+    );
+    if (fallbackName || fallbackEmail) {
+      cards.push({
+        key: 'fallback-contact',
+        header: `Draft contact - ${fallbackName || fallbackEmail}`,
+        roleLabel: 'Draft Contact',
+        email: fallbackEmail,
+        responsibilities: [],
+      });
+    }
+  }
+
+  return cards;
+};
+
 export {
   resolveDraftEntityType as resolveReviewEntityType,
   mapDraftToInitialValues,
@@ -78,6 +219,10 @@ export const AIDraftReviewContent: React.FC<AIDraftReviewContentProps> = ({
         payload.text,
       ),
     [item?.source_summary, payload],
+  );
+  const contactRoles = useMemo(
+    () => extractReviewContactRoles(payload, initialValues),
+    [initialValues, payload],
   );
 
   const setResolvingState = useCallback(
@@ -186,6 +331,55 @@ export const AIDraftReviewContent: React.FC<AIDraftReviewContentProps> = ({
             />
           </div>
         </div>
+
+        {contactRoles.length > 0 ? (
+          <div
+            style={{
+              border: '1px solid rgb(var(--color-border))',
+              borderRadius: 12,
+              padding: 16,
+              background: 'rgb(var(--color-surface))',
+            }}
+          >
+            <Title level={5} style={{ marginTop: 0 }}>
+              Contact Routing
+            </Title>
+            <div style={{ display: 'grid', gap: 10 }}>
+              {contactRoles.map((role) => (
+                <div
+                  key={role.key}
+                  style={{
+                    border: '1px solid rgb(var(--color-border))',
+                    borderRadius: 10,
+                    padding: 12,
+                    background: 'rgb(var(--color-background))',
+                    display: 'grid',
+                    gap: 6,
+                  }}
+                >
+                  <Space size={8} wrap>
+                    <Tag color="blue">{role.roleLabel}</Tag>
+                    {role.title ? <Text type="secondary">{role.title}</Text> : null}
+                  </Space>
+                  <Text strong>{role.header}</Text>
+                  {role.email ? <Text type="secondary">{role.email}</Text> : null}
+                  {role.responsibilities.length > 0 ? (
+                    <Space size={[4, 4]} wrap>
+                      {role.responsibilities.slice(0, 4).map((value) => (
+                        <Tag key={value}>{value}</Tag>
+                      ))}
+                    </Space>
+                  ) : null}
+                  {role.detailPath ? (
+                    <Button type="link" style={{ paddingLeft: 0 }} onClick={() => navigate(role.detailPath!)}>
+                      Open contact
+                    </Button>
+                  ) : null}
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : null}
 
         <div
           style={{

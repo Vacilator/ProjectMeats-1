@@ -19,6 +19,7 @@ import ReactFlow, {
 import 'reactflow/dist/style.css';
 import styled from 'styled-components';
 import { useQuery } from '@tanstack/react-query';
+import { useNavigate } from 'react-router-dom';
 import { businessApi } from '../../services/businessApi';
 import { withTenantQueryKey } from '../../utils/queryKeys';
 import {
@@ -43,6 +44,20 @@ interface LineageEntity {
   customer?: string | null;
   supplier?: string | null;
   route_decision?: string;
+  contact_roles?: LineageContactRole[];
+}
+
+interface LineageContactRole {
+  role: string;
+  role_label: string;
+  header: string;
+  detail_path?: string | null;
+  department?: string | null;
+  department_label?: string | null;
+  title?: string | null;
+  name?: string | null;
+  company?: string | null;
+  responsibilities?: string[];
 }
 
 interface LineageChain {
@@ -95,7 +110,7 @@ const ENTITY_ICONS: Record<string, React.FC<{ size?: number }>> = {
 
 const FlowContainer = styled.div<{ $compact?: boolean }>`
   width: 100%;
-  height: ${(p) => (p.$compact ? '180px' : '300px')};
+  height: ${(p) => (p.$compact ? '240px' : '360px')};
   background: rgb(var(--color-background));
   border: 1px solid rgb(var(--color-border));
   border-radius: var(--radius-lg);
@@ -147,6 +162,15 @@ interface LineageNodeData {
   subtitle?: string;
   isActive: boolean;
   isEmpty: boolean;
+  contactRoles?: Array<{
+    role: string;
+    roleLabel: string;
+    header: string;
+    detailPath?: string | null;
+    departmentLabel?: string | null;
+    title?: string | null;
+    responsibilities?: string[];
+  }>;
 }
 
 const NodeWrapper = styled.div<{ $color: string; $isActive: boolean; $isEmpty: boolean }>`
@@ -155,7 +179,7 @@ const NodeWrapper = styled.div<{ $color: string; $isActive: boolean; $isEmpty: b
   background: ${(p) => (p.$isEmpty ? 'rgb(var(--color-surface))' : 'rgb(var(--color-surface))')};
   border: 2px solid ${(p) => (p.$isEmpty ? 'rgb(var(--color-border))' : p.$color)};
   opacity: ${(p) => (p.$isEmpty ? 0.5 : 1)};
-  min-width: 130px;
+  min-width: 210px;
   cursor: ${(p) => (p.$isEmpty ? 'default' : 'pointer')};
   transition: all 0.2s ease;
   box-shadow: ${(p) =>
@@ -185,6 +209,14 @@ const NodeNumber = styled.div`
   font-family: monospace;
 `;
 
+const ContactHeadline = styled.div`
+  margin-top: 8px;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.4;
+  color: rgb(var(--color-text-primary));
+`;
+
 const StatusBadge = styled.span<{ $color: string }>`
   display: inline-block;
   font-size: 10px;
@@ -197,9 +229,79 @@ const StatusBadge = styled.span<{ $color: string }>`
   text-transform: capitalize;
 `;
 
+const ContactRoleList = styled.div`
+  display: grid;
+  gap: 6px;
+  margin-top: 8px;
+`;
+
+const ContactRoleCard = styled.div`
+  border: 1px solid rgb(var(--color-border));
+  border-radius: 10px;
+  padding: 8px;
+  background: rgb(var(--color-background));
+  display: grid;
+  gap: 6px;
+`;
+
+const ContactRoleMeta = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+`;
+
+const ContactRoleBadge = styled.span`
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: rgb(var(--color-primary) / 0.12);
+  color: rgb(var(--color-primary));
+`;
+
+const ContactRoleTitle = styled.span`
+  font-size: 10px;
+  color: rgb(var(--color-text-secondary));
+`;
+
+const ResponsibilityList = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+`;
+
+const ResponsibilityChip = styled.span`
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: rgb(var(--color-surface));
+  color: rgb(var(--color-text-secondary));
+  border: 1px solid rgb(var(--color-border));
+`;
+
+const ContactLinkButton = styled.button`
+  justify-self: start;
+  border: none;
+  background: transparent;
+  color: rgb(var(--color-primary));
+  font-size: 11px;
+  font-weight: 600;
+  padding: 0;
+  cursor: pointer;
+`;
+
+const MoreRolesText = styled.div`
+  font-size: 10px;
+  color: rgb(var(--color-text-secondary));
+`;
+
 const LineageNodeComponent: React.FC<{ data: LineageNodeData }> = ({ data }) => {
+  const navigate = useNavigate();
   const color = getStatusColor(data.status);
   const Icon = ENTITY_ICONS[data.entityType] ?? FileText;
+  const visibleRoles = data.contactRoles?.slice(0, 2) ?? [];
+  const remainingRoleCount = Math.max((data.contactRoles?.length ?? 0) - visibleRoles.length, 0);
 
   return (
     <NodeWrapper $color={color} $isActive={data.isActive} $isEmpty={data.isEmpty}>
@@ -211,6 +313,40 @@ const LineageNodeComponent: React.FC<{ data: LineageNodeData }> = ({ data }) => 
         <>
           <NodeNumber>{data.subtitle}</NodeNumber>
           <StatusBadge $color={color}>{data.status}</StatusBadge>
+          {visibleRoles.length > 0 ? (
+            <ContactRoleList>
+              {visibleRoles.map((role) => (
+                <ContactRoleCard key={`${data.entityType}-${role.role}-${role.header}`}>
+                  <ContactRoleMeta>
+                    <ContactRoleBadge>{role.departmentLabel ?? role.roleLabel}</ContactRoleBadge>
+                    {role.title ? <ContactRoleTitle>{role.title}</ContactRoleTitle> : null}
+                  </ContactRoleMeta>
+                  <ContactHeadline>{role.header}</ContactHeadline>
+                  {role.responsibilities && role.responsibilities.length > 0 ? (
+                    <ResponsibilityList>
+                      {role.responsibilities.slice(0, 3).map((value) => (
+                        <ResponsibilityChip key={value}>{value}</ResponsibilityChip>
+                      ))}
+                    </ResponsibilityList>
+                  ) : null}
+                  {role.detailPath ? (
+                    <ContactLinkButton
+                      type="button"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        navigate(role.detailPath || '/');
+                      }}
+                    >
+                      Open contact
+                    </ContactLinkButton>
+                  ) : null}
+                </ContactRoleCard>
+              ))}
+              {remainingRoleCount > 0 ? (
+                <MoreRolesText>+{remainingRoleCount} more contact role(s)</MoreRolesText>
+              ) : null}
+            </ContactRoleList>
+          ) : null}
         </>
       )}
       {data.isEmpty && (
@@ -259,6 +395,17 @@ function buildGraph(
       subtitle: entity.data?.number ?? '',
       isActive: currentStep.toLowerCase().includes(entity.key.replace('_', '')),
       isEmpty: entity.data === null,
+      contactRoles: Array.isArray(entity.data?.contact_roles)
+        ? entity.data.contact_roles.map((role) => ({
+            role: role.role,
+            roleLabel: role.role_label,
+            header: role.header,
+            detailPath: role.detail_path,
+            departmentLabel: role.department_label,
+            title: role.title,
+            responsibilities: Array.isArray(role.responsibilities) ? role.responsibilities : [],
+          }))
+        : [],
     },
   }));
 
