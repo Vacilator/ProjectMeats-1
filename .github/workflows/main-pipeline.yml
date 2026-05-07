@@ -51,30 +51,6 @@ concurrency:
   cancel-in-progress: false  # NEVER cancel in-progress deployments - only skip queued ones via check-latest
 
 jobs:
-  check_infrastructure:
-    name: "Check Infrastructure (Golden Drift Gate)"
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-
-      - name: Set up Python
-        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6
-        with:
-          python-version: '3.12'
-
-      - name: Cache pip (infra)
-        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5
-        with:
-          path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-infra-${{ hashFiles('.github/scripts/check_infrastructure.sh', '.github/scripts/validate-workflows.sh') }}
-          restore-keys: |
-            ${{ runner.os }}-pip-infra-
-
-      - name: Run infrastructure checks
-        run: bash .github/scripts/check_infrastructure.sh
-
   # ==========================================
   # Detect Latest Commit (Smart Queue Management)
   # ==========================================
@@ -93,7 +69,6 @@ jobs:
   check-latest:
     runs-on: ubuntu-latest
     timeout-minutes: 5
-    needs: [check_infrastructure]
     outputs:
       should_deploy: ${{ steps.check.outputs.should_deploy }}
       latest_sha: ${{ steps.check.outputs.latest_sha }}
@@ -127,76 +102,200 @@ jobs:
           
           echo "latest_sha=$LATEST_SHA" >> "$GITHUB_OUTPUT"
 
-  # ==========================================
-  # Route to Development
-  # ==========================================
+  resolve-deploy-plan:
+    name: "Resolve environment-aware deploy plan"
+    if: |
+      needs.check-latest.outputs.should_deploy == 'true' &&
+      (
+        (github.event_name == 'push' && (github.ref == 'refs/heads/development' || github.ref == 'refs/heads/uat' || github.ref == 'refs/heads/main')) ||
+        github.event_name == 'workflow_dispatch'
+      )
+    needs: [check-latest]
+    runs-on: ubuntu-latest
+    outputs:
+      target_environment: ${{ steps.plan.outputs.target_environment }}
+      deploy_by_digest: ${{ steps.plan.outputs.deploy_by_digest }}
+      require_redis_readiness: ${{ steps.plan.outputs.require_redis_readiness }}
+      run_backend_lane: ${{ steps.plan.outputs.run_backend_lane }}
+      run_frontend_lane: ${{ steps.plan.outputs.run_frontend_lane }}
+      plan_reason: ${{ steps.plan.outputs.plan_reason }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          fetch-depth: 10
+
+      - name: Resolve deploy plan
+        id: plan
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          REF_NAME: ${{ github.ref_name }}
+          MANUAL_ENVIRONMENT: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.environment || '' }}
+          MANUAL_DEPLOY_BY_DIGEST: ${{ github.event_name == 'workflow_dispatch' && (github.event.inputs.deploy_by_digest == 'true' || github.event.inputs.deploy_by_digest == true) && 'true' || 'false' }}
+          BEFORE_SHA: ${{ github.event.before }}
+          CURRENT_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+
+          TARGET_ENVIRONMENT=""
+          DEPLOY_BY_DIGEST="false"
+          REQUIRE_REDIS_READINESS="false"
+          RUN_BACKEND_LANE="true"
+          RUN_FRONTEND_LANE="true"
+          PLAN_REASON="full"
+
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            case "$MANUAL_ENVIRONMENT" in
+              development)
+                TARGET_ENVIRONMENT="development"
+                DEPLOY_BY_DIGEST="$MANUAL_DEPLOY_BY_DIGEST"
+                REQUIRE_REDIS_READINESS="false"
+                ;;
+              uat)
+                TARGET_ENVIRONMENT="uat"
+                DEPLOY_BY_DIGEST="true"
+                REQUIRE_REDIS_READINESS="true"
+                ;;
+              production)
+                TARGET_ENVIRONMENT="production"
+                DEPLOY_BY_DIGEST="true"
+                REQUIRE_REDIS_READINESS="true"
+                ;;
+              *)
+                echo "Unsupported workflow_dispatch environment: $MANUAL_ENVIRONMENT" >&2
+                exit 1
+                ;;
+            esac
+          else
+            case "$REF_NAME" in
+              development)
+                TARGET_ENVIRONMENT="development"
+                DEPLOY_BY_DIGEST="false"
+                REQUIRE_REDIS_READINESS="false"
+                ;;
+              uat)
+                TARGET_ENVIRONMENT="uat"
+                DEPLOY_BY_DIGEST="true"
+                REQUIRE_REDIS_READINESS="true"
+                ;;
+              main)
+                TARGET_ENVIRONMENT="production"
+                DEPLOY_BY_DIGEST="true"
+                REQUIRE_REDIS_READINESS="true"
+                ;;
+              *)
+                echo "No deployment route for branch: $REF_NAME" >&2
+                exit 1
+                ;;
+            esac
+          fi
+
+          if [ "$TARGET_ENVIRONMENT" = "development" ] && [ "$EVENT_NAME" = "push" ]; then
+            ZERO_SHA="0000000000000000000000000000000000000000"
+            if [ -n "$BEFORE_SHA" ] && [ "$BEFORE_SHA" != "$ZERO_SHA" ]; then
+              git fetch --no-tags --depth=1 origin "$BEFORE_SHA" || true
+              CHANGED_FILES="$(git diff --name-only "$BEFORE_SHA" "$CURRENT_SHA")"
+            else
+              CHANGED_FILES="$(git show --pretty='' --name-only "$CURRENT_SHA")"
+            fi
+
+            ONLY_BACKEND="true"
+            ONLY_FRONTEND="true"
+
+            while IFS= read -r path; do
+              [ -z "$path" ] && continue
+              case "$path" in
+                backend/*)
+                  ONLY_FRONTEND="false"
+                  ;;
+                frontend/*)
+                  ONLY_BACKEND="false"
+                  ;;
+                *)
+                  ONLY_BACKEND="false"
+                  ONLY_FRONTEND="false"
+                  ;;
+              esac
+            done <<< "$CHANGED_FILES"
+
+            if [ "$ONLY_BACKEND" = "true" ] && [ "$ONLY_FRONTEND" = "false" ]; then
+              RUN_FRONTEND_LANE="false"
+              PLAN_REASON="backend-only"
+            elif [ "$ONLY_FRONTEND" = "true" ] && [ "$ONLY_BACKEND" = "false" ]; then
+              RUN_BACKEND_LANE="false"
+              PLAN_REASON="frontend-only"
+            fi
+          fi
+
+          echo "Deploy plan: target=$TARGET_ENVIRONMENT backend_lane=$RUN_BACKEND_LANE frontend_lane=$RUN_FRONTEND_LANE reason=$PLAN_REASON"
+
+          {
+            echo "target_environment=$TARGET_ENVIRONMENT"
+            echo "deploy_by_digest=$DEPLOY_BY_DIGEST"
+            echo "require_redis_readiness=$REQUIRE_REDIS_READINESS"
+            echo "run_backend_lane=$RUN_BACKEND_LANE"
+            echo "run_frontend_lane=$RUN_FRONTEND_LANE"
+            echo "plan_reason=$PLAN_REASON"
+          } >> "$GITHUB_OUTPUT"
+
   deploy-dev:
-    if: |
-      needs.check-latest.outputs.should_deploy == 'true' &&
-      ((github.event_name == 'push' && github.ref == 'refs/heads/development') ||
-      (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'development'))
-    needs: [check-latest]
+    name: "Deploy Development"
+    if: ${{ needs.check-latest.outputs.should_deploy == 'true' && needs.resolve-deploy-plan.outputs.target_environment == 'development' }}
+    needs: [check-latest, resolve-deploy-plan]
     uses: ./.github/workflows/reusable-deploy.yml
     secrets: inherit  # Environment context set in reusable workflow jobs
     with:
-      environment: 'development'
+      environment: development
       ref: ${{ github.ref }}
-      image_tag: 'development-${{ github.sha }}'
-      backend_environment: 'dev-backend'
-      frontend_environment: 'dev-frontend'
-      api_base_url: 'https://dev.meatscentral.com'
-      deploy_by_digest: ${{ github.event_name == 'workflow_dispatch' && (github.event.inputs.deploy_by_digest == 'true' || github.event.inputs.deploy_by_digest == true) || false }}
+      image_tag: development-${{ github.sha }}
+      backend_environment: dev-backend
+      frontend_environment: dev-frontend
+      api_base_url: https://dev.meatscentral.com
+      deploy_by_digest: ${{ needs.resolve-deploy-plan.outputs.deploy_by_digest == 'true' }}
       require_redis_readiness: false
+      run_backend_lane: ${{ needs.resolve-deploy-plan.outputs.run_backend_lane == 'true' }}
+      run_frontend_lane: ${{ needs.resolve-deploy-plan.outputs.run_frontend_lane == 'true' }}
 
-  # ==========================================
-  # Route to UAT
-  # ==========================================
   deploy-uat:
-    if: |
-      needs.check-latest.outputs.should_deploy == 'true' &&
-      ((github.event_name == 'push' && github.ref == 'refs/heads/uat') ||
-      (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'uat'))
-    needs: [check-latest]
+    name: "Deploy UAT"
+    if: ${{ needs.check-latest.outputs.should_deploy == 'true' && needs.resolve-deploy-plan.outputs.target_environment == 'uat' }}
+    needs: [check-latest, resolve-deploy-plan]
     uses: ./.github/workflows/reusable-deploy.yml
-    secrets: inherit  # Environment context set in reusable workflow jobs
+    secrets: inherit
     with:
-      environment: 'uat'
+      environment: uat
       ref: ${{ github.ref }}
-      image_tag: 'uat-${{ github.sha }}'
-      backend_environment: 'uat-backend'
-      frontend_environment: 'uat-frontend'
-      api_base_url: 'https://uat.meatscentral.com'
+      image_tag: uat-${{ github.sha }}
+      backend_environment: uat-backend
+      frontend_environment: uat-frontend
+      api_base_url: https://uat.meatscentral.com
       deploy_by_digest: true
       require_redis_readiness: true
+      run_backend_lane: true
+      run_frontend_lane: true
 
-  # ==========================================
-  # Route to Production
-  # ==========================================
   deploy-prod:
-    if: |
-      needs.check-latest.outputs.should_deploy == 'true' &&
-      ((github.event_name == 'push' && github.ref == 'refs/heads/main') ||
-      (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'production'))
-    needs: [check-latest]
+    name: "Deploy Production"
+    if: ${{ needs.check-latest.outputs.should_deploy == 'true' && needs.resolve-deploy-plan.outputs.target_environment == 'production' }}
+    needs: [check-latest, resolve-deploy-plan]
     uses: ./.github/workflows/reusable-deploy.yml
-    secrets: inherit  # Environment context set in reusable workflow jobs
+    secrets: inherit
     with:
-      environment: 'production'
+      environment: production
       ref: ${{ github.ref }}
-      image_tag: 'production-${{ github.sha }}'
-      backend_environment: 'production-backend'
-      frontend_environment: 'production-frontend'
-      api_base_url: 'https://meatscentral.com'
+      image_tag: production-${{ github.sha }}
+      backend_environment: production-backend
+      frontend_environment: production-frontend
+      api_base_url: https://meatscentral.com
       deploy_by_digest: true
       require_redis_readiness: true
+      run_backend_lane: true
+      run_frontend_lane: true
 
   create-release:
     name: "Create GitHub Release"
-    if: |
-      needs.check-latest.outputs.should_deploy == 'true' &&
-      ((github.event_name == 'push' && github.ref == 'refs/heads/main') ||
-      (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'production'))
-    needs: [check-latest, deploy-prod]
+    if: ${{ needs.check-latest.outputs.should_deploy == 'true' && needs.resolve-deploy-plan.outputs.target_environment == 'production' }}
+    needs: [check-latest, resolve-deploy-plan, deploy-prod]
     permissions:
       contents: write
     uses: ./.github/workflows/release.yml

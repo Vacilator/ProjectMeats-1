@@ -16,10 +16,12 @@ This directory contains the live GitHub Actions entrypoints for ProjectMeats. Fo
   - Uses `.cursorrules` + `.github/SDLC_PROTOCOLS.md` plus deterministic guardrails to request changes on Golden Rule violations
 - `.github/workflows/main-pipeline.yml`
   - Push/manual deploy entrypoint for `development`, `uat`, and `main`
-  - Routes to `.github/workflows/reusable-deploy.yml`
+  - Resolves one environment-aware deploy plan per run, then routes to `.github/workflows/reusable-deploy.yml`
+  - Development pushes may prune one isolated swimlane (`backend/**`-only or `frontend/**`-only) while UAT/production always keep the full Golden path
   - Calls `.github/workflows/release.yml` after successful production deploys
 - `.github/workflows/reusable-deploy.yml`
   - Shared deploy implementation for backend/frontend swimlanes, runner-driven migrations, SHA-tagged images, and post-deploy validation
+  - Keeps drift validation inside the selected deploy path and uses lane-ready gates so skipped dev swimlanes do not break downstream dependencies
 - `.github/workflows/reusable-postdeploy-smoke.yml`
   - Reusable smoke checks for deployed environments
 

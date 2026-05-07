@@ -39,6 +39,16 @@ on:
         type: boolean
         description: "If true, require Redis-backed cache and channels readiness for backend mutation/deploy checks"
         default: false
+      run_backend_lane:
+        required: false
+        type: boolean
+        description: "If true, execute the backend swimlane for this deployment"
+        default: true
+      run_frontend_lane:
+        required: false
+        type: boolean
+        description: "If true, execute the frontend swimlane for this deployment"
+        default: true
     secrets:
       DO_ACCESS_TOKEN:
         required: true
@@ -191,6 +201,7 @@ jobs:
   
   build-backend:
     name: "Build & Push Backend Image"
+    if: ${{ inputs.run_backend_lane }}
     runs-on: ubuntu-latest
     timeout-minutes: 45
     needs: [check_infrastructure]
@@ -274,10 +285,10 @@ jobs:
             ${{ env.GHCR_REGISTRY }}/${{ env.BACKEND_IMAGE }}:${{ inputs.environment }}-${{ github.sha }}
           cache-from: |
             type=registry,ref=${{ env.REGISTRY }}/${{ env.BACKEND_IMAGE }}:cache
-            type=gha
+            type=gha,scope=backend-${{ inputs.environment }}
           cache-to: |
             type=registry,ref=${{ env.REGISTRY }}/${{ env.BACKEND_IMAGE }}:cache,mode=max
-            type=gha,mode=max
+            type=gha,scope=backend-${{ inputs.environment }},mode=max
 
       - name: Export backend image refs
         id: backend_image_refs
@@ -295,6 +306,7 @@ jobs:
 
   security-scan-backend:
     name: "Security Scan: Backend"
+    if: ${{ inputs.run_backend_lane }}
     needs: [build-backend]
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -387,6 +399,7 @@ jobs:
 
   test-backend:
     name: "Test Backend"
+    if: ${{ inputs.run_backend_lane }}
     needs: [build-backend]
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -451,6 +464,7 @@ jobs:
   
   build-frontend:
     name: "Build & Push Frontend Image"
+    if: ${{ inputs.run_frontend_lane }}
     runs-on: ubuntu-latest
     timeout-minutes: 45
     needs: [check_infrastructure]
@@ -534,10 +548,10 @@ jobs:
             ${{ env.GHCR_REGISTRY }}/${{ env.FRONTEND_IMAGE }}:${{ inputs.environment }}-${{ github.sha }}
           cache-from: |
             type=registry,ref=${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE }}:cache
-            type=gha
+            type=gha,scope=frontend-${{ inputs.environment }}
           cache-to: |
             type=registry,ref=${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE }}:cache,mode=max
-            type=gha,mode=max
+            type=gha,scope=frontend-${{ inputs.environment }},mode=max
 
       - name: Export frontend image refs
         id: frontend_image_refs
@@ -554,7 +568,8 @@ jobs:
           } >> "$GITHUB_OUTPUT"
 
   security-scan-frontend:
-    name: "Security Scan: Frontend"
+    name: "Security Scan: Frontend (Selected Lane)"
+    if: ${{ always() }}
     needs: [build-frontend]
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -562,7 +577,24 @@ jobs:
       contents: read
       security-events: write
     steps:
+      - name: Validate frontend scan lane
+        run: |
+          set -euo pipefail
+
+          if [ "${{ inputs.run_frontend_lane }}" != "true" ]; then
+            echo "Frontend lane not selected; skipping frontend security scan."
+            exit 0
+          fi
+
+          if [ "${{ needs.build-frontend.result }}" != "success" ]; then
+            echo "✗ build-frontend result: ${{ needs.build-frontend.result }}" >&2
+            exit 1
+          fi
+
+          echo "✓ Frontend scan prerequisites satisfied"
+
       - name: Cache Trivy DB
+        if: ${{ inputs.run_frontend_lane }}
         uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5
         with:
           path: ~/.cache/trivy
@@ -572,6 +604,7 @@ jobs:
 
       # SARIF generation should not gate deployments (see backend scan notes).
       - name: Run Trivy vulnerability scanner (SARIF)
+        if: ${{ inputs.run_frontend_lane }}
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           image-ref: ${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE }}:${{ inputs.environment }}-${{ github.sha }}
@@ -587,6 +620,7 @@ jobs:
           TRIVY_PASSWORD: ${{ secrets.DO_ACCESS_TOKEN }}
 
       - name: Enforce Trivy severity gate (CRITICAL,HIGH)
+        if: ${{ inputs.run_frontend_lane }}
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           image-ref: ${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE }}:${{ inputs.environment }}-${{ github.sha }}
@@ -602,7 +636,7 @@ jobs:
           TRIVY_PASSWORD: ${{ secrets.DO_ACCESS_TOKEN }}
 
       - name: Trivy summary (table)
-        if: always()
+        if: ${{ inputs.run_frontend_lane && always() }}
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           image-ref: ${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE }}:${{ inputs.environment }}-${{ github.sha }}
@@ -617,7 +651,7 @@ jobs:
           TRIVY_PASSWORD: ${{ secrets.DO_ACCESS_TOKEN }}
 
       - name: Generate SBOM (CycloneDX)
-        if: always()
+        if: ${{ inputs.run_frontend_lane && always() }}
         continue-on-error: true
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
@@ -630,7 +664,7 @@ jobs:
           TRIVY_PASSWORD: ${{ secrets.DO_ACCESS_TOKEN }}
 
       - name: Upload SBOM (frontend)
-        if: always()
+        if: ${{ inputs.run_frontend_lane && always() }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: sbom-frontend-${{ inputs.environment }}-${{ github.sha }}
@@ -638,23 +672,42 @@ jobs:
           if-no-files-found: ignore
 
       - name: Upload Trivy results to GitHub Security
-        if: always()
+        if: ${{ inputs.run_frontend_lane && always() }}
         uses: github/codeql-action/upload-sarif@95e58e9a2cdfd71adc6e0353d5c52f41a045d225 # v4
         with:
           sarif_file: 'trivy-results-frontend.sarif'
 
   test-frontend:
-    name: "Test Frontend"
+    name: "Test Frontend (Selected Lane)"
+    if: ${{ always() }}
     needs: [build-frontend]
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
+      - name: Validate frontend test lane
+        run: |
+          set -euo pipefail
+
+          if [ "${{ inputs.run_frontend_lane }}" != "true" ]; then
+            echo "Frontend lane not selected; skipping frontend tests."
+            exit 0
+          fi
+
+          if [ "${{ needs.build-frontend.result }}" != "success" ]; then
+            echo "✗ build-frontend result: ${{ needs.build-frontend.result }}" >&2
+            exit 1
+          fi
+
+          echo "✓ Frontend test prerequisites satisfied"
+
       - name: Checkout code
+        if: ${{ inputs.run_frontend_lane }}
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           ref: ${{ inputs.ref }}
 
       - name: Set up Node
+        if: ${{ inputs.run_frontend_lane }}
         uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
         with:
           node-version: '20'
@@ -662,14 +715,17 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
 
       - name: Install frontend deps
+        if: ${{ inputs.run_frontend_lane }}
         working-directory: ./frontend
         run: npm ci
 
       - name: Verify frontend standards
+        if: ${{ inputs.run_frontend_lane }}
         working-directory: ./frontend
         run: npm run verify-standards
 
       - name: Run frontend unit tests
+        if: ${{ inputs.run_frontend_lane }}
         working-directory: ./frontend
         env:
           CI: '1'
@@ -683,6 +739,7 @@ jobs:
   
   check-migrations:
     name: "Check Migration State"
+    if: ${{ inputs.run_backend_lane }}
     needs: [test-backend]
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -745,7 +802,8 @@ jobs:
   migrate:
     name: "Run Database Migrations"
     # Gate schema changes on tests + security scans to avoid "DB advanced but deploy blocked" failures.
-    needs: [build-backend, check-migrations, test-frontend, security-scan-backend, security-scan-frontend]
+    if: ${{ always() }}
+    needs: [build-backend, check-migrations, security-scan-backend, security-scan-frontend, test-frontend]
     runs-on: ubuntu-latest
     environment: ${{ inputs.backend_environment }}
     timeout-minutes: 15
@@ -753,12 +811,50 @@ jobs:
       contents: read
       packages: read
     steps:
+      - name: Validate migration lane
+        run: |
+          set -euo pipefail
+
+          if [ "${{ inputs.run_backend_lane }}" != "true" ]; then
+            echo "Backend lane not selected; skipping migrations."
+            exit 0
+          fi
+
+          if [ "${{ needs.build-backend.result }}" != "success" ]; then
+            echo "✗ build-backend result: ${{ needs.build-backend.result }}" >&2
+            exit 1
+          fi
+
+          if [ "${{ needs.check-migrations.result }}" != "success" ]; then
+            echo "✗ check-migrations result: ${{ needs.check-migrations.result }}" >&2
+            exit 1
+          fi
+
+          if [ "${{ needs.security-scan-backend.result }}" != "success" ]; then
+            echo "✗ security-scan-backend result: ${{ needs.security-scan-backend.result }}" >&2
+            exit 1
+          fi
+
+          if [ "${{ needs.security-scan-frontend.result }}" != "success" ]; then
+            echo "✗ security-scan-frontend result: ${{ needs.security-scan-frontend.result }}" >&2
+            exit 1
+          fi
+
+          if [ "${{ needs.test-frontend.result }}" != "success" ]; then
+            echo "✗ test-frontend result: ${{ needs.test-frontend.result }}" >&2
+            exit 1
+          fi
+
+          echo "✓ Migration prerequisites satisfied"
+
       - name: Checkout code
+        if: ${{ inputs.run_backend_lane }}
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           ref: ${{ inputs.ref }}
 
       - name: Fail fast if required backend secrets are missing
+        if: ${{ inputs.run_backend_lane }}
         env:
           DO_ACCESS_TOKEN: ${{ secrets.DO_ACCESS_TOKEN }}
           SSH_HOST: ${{ secrets.SSH_HOST }}
@@ -781,6 +877,7 @@ jobs:
             --workflow reusable-deploy.yml
 
       - name: Free up runner disk space
+        if: ${{ inputs.run_backend_lane }}
         run: |
           echo "Disk before cleanup:"
           df -h
@@ -791,6 +888,7 @@ jobs:
           df -h
       
       - name: Login to GHCR
+        if: ${{ inputs.run_backend_lane }}
         uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121 # v4
         with:
           registry: ghcr.io
@@ -798,11 +896,13 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
       
       - name: Install SSH and PostgreSQL tools
+        if: ${{ inputs.run_backend_lane }}
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y openssh-client sshpass postgresql-client netcat-openbsd lsof
       
       - name: Setup SSH tunnel to database
+        if: ${{ inputs.run_backend_lane }}
         env:
           SSHPASS: ${{ secrets.SSH_PASSWORD }}
           DB_HOST: ${{ secrets.DB_HOST }}
@@ -816,6 +916,7 @@ jobs:
           bash .github/scripts/setup-ssh-tunnel.sh
       
       - name: Test tunnel connectivity
+        if: ${{ inputs.run_backend_lane }}
         env:
           DB_USER: ${{ secrets.DB_USER }}
           DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
@@ -932,6 +1033,7 @@ jobs:
               echo \"✓ Retention enforced (kept last $KEEP_COUNT)\""
 
       - name: Run migrations via Docker with tunnel
+        if: ${{ inputs.run_backend_lane }}
         env:
           BACKEND_TAG_REF: ${{ needs.build-backend.outputs.image_tag_ref }}
           BACKEND_DIGEST_REF: ${{ needs.build-backend.outputs.image_digest_ref }}
@@ -1075,7 +1177,8 @@ jobs:
 
   bootstrap-backend:
     name: "Bootstrap Backend Data"
-    needs: [build-backend, deploy-backend, deploy-frontend]
+    if: ${{ inputs.run_backend_lane }}
+    needs: [build-backend, deploy-backend]
     runs-on: ubuntu-latest
     environment: ${{ inputs.backend_environment }}
     timeout-minutes: 15
@@ -1209,19 +1312,7 @@ jobs:
             -e VALKEY_URL="$VALKEY_URL" \
             -e REQUIRE_REDIS_READINESS="$REQUIRE_REDIS_READINESS" \
             "$BACKEND_RUN_REF" \
-            python manage.py setup_superuser
-
-          docker run --rm \
-            --network host \
-            -e DATABASE_URL="$DATABASE_URL" \
-            -e DJANGO_SETTINGS_MODULE="$DJANGO_SETTINGS_MODULE" \
-            -e SECRET_KEY="$DJANGO_SECRET_KEY" \
-            -e DB_ENGINE="django.db.backends.postgresql" \
-            -e REDIS_URL="$REDIS_URL" \
-            -e VALKEY_URL="$VALKEY_URL" \
-            -e REQUIRE_REDIS_READINESS="$REQUIRE_REDIS_READINESS" \
-            "$BACKEND_RUN_REF" \
-            python manage.py seed_system_products
+            /bin/sh -lc 'python manage.py setup_superuser && python manage.py seed_system_products'
 
       - name: Cleanup SSH tunnel
         if: always()
@@ -1239,6 +1330,7 @@ jobs:
 
   deploy-backend:
     name: "Deploy Backend Container"
+    if: ${{ inputs.run_backend_lane }}
     needs: [build-backend, migrate, security-scan-backend]
     runs-on: ubuntu-latest
     environment: ${{ inputs.backend_environment }}
@@ -1637,7 +1729,8 @@ jobs:
   deploy-frontend:
     name: "Deploy Frontend Container"
     # Frontend deploy must wait for migrations (but must NOT depend on deploy-backend).
-    needs: [build-frontend, migrate, test-frontend, security-scan-frontend]
+    if: ${{ inputs.run_frontend_lane }}
+    needs: [build-frontend, migrate, security-scan-frontend, test-frontend]
     runs-on: ubuntu-latest
     timeout-minutes: 20
     environment: ${{ inputs.frontend_environment }}
@@ -2135,16 +2228,41 @@ jobs:
           echo "Note: Host nginx proxies external traffic to this container"
           SSH
 
+  smoke-ready:
+    name: "Smoke Ready"
+    if: ${{ always() }}
+    needs: [deploy-frontend, bootstrap-backend]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Validate selected lanes before smoke
+        run: |
+          set -euo pipefail
+
+          if [ "${{ inputs.run_frontend_lane }}" = "true" ] && [ "${{ needs.deploy-frontend.result }}" != "success" ]; then
+            echo "✗ deploy-frontend result: ${{ needs.deploy-frontend.result }}" >&2
+            exit 1
+          fi
+
+          if [ "${{ inputs.run_backend_lane }}" = "true" ] && [ "${{ needs.bootstrap-backend.result }}" != "success" ]; then
+            echo "✗ bootstrap-backend result: ${{ needs.bootstrap-backend.result }}" >&2
+            exit 1
+          fi
+
+          echo "✓ Selected lanes are ready for smoke validation"
+
   # ==========================================
   # Post-deploy smoke gates (Golden-compliant)
   # ==========================================
 
   post-deploy-smoke:
     name: "Post-Deploy Smoke Gates"
-    needs: [bootstrap-backend]
+    needs: [smoke-ready]
     uses: ./.github/workflows/reusable-postdeploy-smoke.yml
     secrets: inherit
     with:
       backend_environment: ${{ inputs.backend_environment }}
       frontend_environment: ${{ inputs.frontend_environment }}
       require_redis_readiness: ${{ inputs.require_redis_readiness }}
+      run_backend_lane: ${{ inputs.run_backend_lane }}
+      run_frontend_lane: ${{ inputs.run_frontend_lane }}
