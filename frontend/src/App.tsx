@@ -111,7 +111,6 @@ import { lazyWithChunkRecovery } from './utils/chunkLoadRecovery';
 import { getValidTenantId } from './utils/tenantId';
 const CockpitPage = lazyWithChunkRecovery(() => import('./pages/Cockpit'), 'App.CockpitPage');
 import CockpitDashboard from './pages/Cockpit/CockpitDashboard';
-import ProcessMonitor from './pages/Cockpit/ProcessMonitor';
 import ProcessCockpitPage from './pages/Cockpit/ProcessCockpitPage';
 import CockpitEntityRedirect from './pages/Cockpit/CockpitEntityRedirect';
 import { NotificationPreferences } from './pages/Settings/index';
@@ -465,6 +464,10 @@ const App: React.FC = () => {
                 >
                   <Route index element={<ProcessCockpitPage />} />
                 </Route>
+                <Route
+                  path="cockpit/interventions"
+                  element={<Navigate to="/process-cockpit?view=interventions" replace />}
+                />
                 
                 {/* Backward compatibility redirect */}
                 <Route path="admin/*" element={<Navigate to={`/workspace/${window.location.pathname.replace('/admin/', '')}`} replace />} />

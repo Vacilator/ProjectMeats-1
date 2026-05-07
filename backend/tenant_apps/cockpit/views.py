@@ -4,6 +4,7 @@ Cockpit views for aggregated search across tenant models.
 Provides polymorphic search API respecting tenant schema isolation.
 """
 from rest_framework import viewsets, status
+from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.exceptions import ValidationError
@@ -29,8 +30,13 @@ from .serializers import (
     UserWorkspaceLayoutSerializer,
     WorkspaceLayoutPayloadSerializer,
     EntityAIOverviewResponseSerializer,
+    TradeExceptionQueueListSerializer,
+    TradeExceptionQueueDetailSerializer,
+    TradeExceptionResolveRequestSerializer,
 )
 from .models import ActivityLog, ScheduledCall, UserWorkspaceLayout
+from apps.core.models import TradeExceptionQueue
+from apps.core.services.exception_queue import resolve_exception, retry_exception
 from tenant_apps.customers.models import Customer
 from tenant_apps.suppliers.models import Supplier
 from tenant_apps.purchase_orders.models import PurchaseOrder
@@ -531,6 +537,108 @@ class ScheduledCallViewSet(viewsets.ModelViewSet):
             created_by=user,
             tags='call,scheduled-call,auto-generated'
         )
+
+
+@extend_schema(tags=["Cockpit", "Trade Exceptions"])
+class TradeExceptionQueueViewSet(viewsets.ReadOnlyModelViewSet):
+    """Tenant-safe intervention queue for halted trades."""
+
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        tenant = getattr(self.request, "tenant", None)
+        if not tenant:
+            return TradeExceptionQueue.objects.none()
+
+        queryset = TradeExceptionQueue.objects.filter(tenant=tenant).order_by("-created_on")
+
+        if self.action == "list":
+            status_param = self.request.query_params.get("status", "").strip()
+            if status_param:
+                statuses = [item.strip() for item in status_param.split(",") if item.strip()]
+                if statuses:
+                    queryset = queryset.filter(status__in=statuses)
+            else:
+                queryset = queryset.filter(status__in=["open", "retrying"])
+
+            trade_session_id = self.request.query_params.get("trade_session_id")
+            if trade_session_id:
+                queryset = queryset.filter(trade_session_id=trade_session_id)
+
+            trade_id = self.request.query_params.get("trade_id")
+            if trade_id:
+                queryset = queryset.filter(trade_id__icontains=trade_id)
+
+            failed_step = self.request.query_params.get("failed_step")
+            if failed_step:
+                queryset = queryset.filter(failed_step__icontains=failed_step)
+
+            reason_code = self.request.query_params.get("reason_code")
+            if reason_code:
+                queryset = queryset.filter(reason_code__iexact=reason_code)
+
+            search_query = self.request.query_params.get("q", "").strip()
+            if search_query:
+                queryset = queryset.filter(
+                    Q(trade_id__icontains=search_query)
+                    | Q(failed_step__icontains=search_query)
+                    | Q(reason_code__icontains=search_query)
+                    | Q(error_message__icontains=search_query)
+                    | Q(entity_type__icontains=search_query)
+                    | Q(entity_id__icontains=search_query)
+                )
+
+        return queryset
+
+    def get_serializer_class(self):
+        if self.action == "retrieve":
+            return TradeExceptionQueueDetailSerializer
+        if self.action == "resolve":
+            return TradeExceptionResolveRequestSerializer
+        return TradeExceptionQueueListSerializer
+
+    @action(detail=True, methods=["post"])
+    def retry(self, request, pk=None):
+        entry = self.get_object()
+        if entry.status in {"resolved", "exhausted"}:
+            return Response(
+                {"detail": "Only open or retrying exceptions can be retried."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        updated = retry_exception(
+            exception_id=entry.pk,
+            tenant=request.tenant,
+            retried_by=request.user.get_full_name() or request.user.username,
+        )
+        serializer = TradeExceptionQueueDetailSerializer(updated, context={"request": request})
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    @action(detail=True, methods=["post"])
+    def resolve(self, request, pk=None):
+        request_serializer = self.get_serializer(data=request.data)
+        request_serializer.is_valid(raise_exception=True)
+
+        entry = self.get_object()
+        updated = resolve_exception(
+            exception_id=entry.pk,
+            tenant=request.tenant,
+            resolved_by=request.user.get_full_name() or request.user.username,
+            resolution_notes=request_serializer.validated_data["resolution_notes"],
+        )
+        updated.refresh_from_db()
+        serializer = TradeExceptionQueueDetailSerializer(updated, context={"request": request})
+        payload = dict(serializer.data)
+        trade_session = payload.get("trade_session")
+        trade_resumed = bool(
+            trade_session
+            and trade_session.get("status") != "halted"
+            and updated.trade_session_id
+        )
+        payload["trade_resumed"] = trade_resumed
+        if updated.trade_session_id and not trade_resumed and payload.get("active_sibling_count", 0) > 0:
+            payload["resume_blocked_reason"] = "Other active exceptions still block this trade session."
+        return Response(payload, status=status.HTTP_200_OK)
 
 
 @extend_schema(tags=["Cockpit"])

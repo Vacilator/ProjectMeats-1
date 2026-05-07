@@ -211,6 +211,12 @@ def resolve_exception(
             .get(pk=exception_id)
         )
 
+        if entry.trade_session_id:
+            _lock_trade_session(
+                tenant_id=resolved_tenant_id,
+                trade_session_id=entry.trade_session_id,
+            )
+
         if entry.status == "resolved":
             return entry  # Idempotent
 
@@ -222,7 +228,16 @@ def resolve_exception(
             "status", "resolved_by", "resolved_at", "resolution_notes", "modified_on"
         ])
 
-        if resume_trade and entry.trade_session_id:
+        has_active_siblings = (
+            entry.trade_session_id
+            and _has_active_trade_exceptions(
+                tenant_id=resolved_tenant_id,
+                trade_session_id=entry.trade_session_id,
+                exclude_exception_id=entry.pk,
+            )
+        )
+
+        if resume_trade and entry.trade_session_id and not has_active_siblings:
             _resume_trade_session(
                 tenant_id=resolved_tenant_id,
                 trade_session_id=entry.trade_session_id,
@@ -351,3 +366,32 @@ def _resume_trade_session(*, tenant_id: str, trade_session_id: int) -> None:
             logger.info(f"Trade session {trade_session_id} resumed")
     except Exception as exc:
         logger.warning(f"Failed to resume trade session {trade_session_id}: {exc}")
+
+
+def _has_active_trade_exceptions(
+    *,
+    tenant_id: str,
+    trade_session_id: int,
+    exclude_exception_id: int | None = None,
+) -> bool:
+    """Return True when another open/retrying exception still blocks the trade."""
+    from apps.core.models import TradeExceptionQueue
+
+    queryset = TradeExceptionQueue.objects.filter(
+        tenant_id=tenant_id,
+        trade_session_id=trade_session_id,
+        status__in=["open", "retrying"],
+    )
+    if exclude_exception_id:
+        queryset = queryset.exclude(pk=exclude_exception_id)
+    return queryset.exists()
+
+
+def _lock_trade_session(*, tenant_id: str, trade_session_id: int) -> None:
+    """Serialize resume/halt decisions for one trade session."""
+    from tenant_apps.inquiries.models import TradeSession
+
+    TradeSession.objects.select_for_update().filter(
+        tenant_id=tenant_id,
+        pk=trade_session_id,
+    ).first()

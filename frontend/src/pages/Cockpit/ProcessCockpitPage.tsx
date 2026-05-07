@@ -12,7 +12,7 @@
  */
 import React, { useMemo, useState, useCallback } from 'react';
 import styled, { keyframes } from 'styled-components';
-import { Badge, Input, Select, Segmented } from 'antd';
+import { Input } from 'antd';
 import { useSearchParams } from 'react-router-dom';
 import {
   Workflow,
@@ -22,8 +22,6 @@ import {
   ClipboardList,
   Search,
   RefreshCw,
-  Clock,
-  Filter,
   Zap,
   Activity,
   ChevronRight,
@@ -31,15 +29,17 @@ import {
   AlertCircle,
   Loader2,
   X,
+  AlertTriangle,
 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 
-import ProcessMonitor from './ProcessMonitor';
 import EmailIngestionCockpitPanel from '../../components/Cockpit/EmailIngestionCockpitPanel';
 import { ProcessQuickActions } from '../../components/Cockpit/ProcessQuickActions';
 import { TradeLineageFlow } from '../../components/Cockpit/TradeLineageFlow';
 import { ProcessFlowHeader } from '../../components/Cockpit/ProcessFlowHeader';
+import { InterventionsPanel } from '../../components/Cockpit/InterventionsPanel';
 import { businessApi } from '../../services/businessApi';
+import { tradeExceptionQueueService } from '../../services/tradeExceptionQueueService';
 import { withTenantQueryKey } from '../../utils/queryKeys';
 import { getValidTenantId } from '../../utils/tenantId';
 
@@ -47,7 +47,7 @@ import { getValidTenantId } from '../../utils/tenantId';
 // Types
 // ============================================================================
 
-type CockpitView = 'activity' | 'inbox' | 'drafts' | 'history' | 'tasks';
+type CockpitView = 'activity' | 'interventions' | 'inbox' | 'drafts' | 'history' | 'tasks';
 
 interface ActivityItem {
   id: string;
@@ -62,7 +62,7 @@ interface ActivityItem {
 }
 
 // ============================================================================
-// Animations
+// Styled Components
 // ============================================================================
 
 const fadeIn = keyframes`
@@ -527,7 +527,11 @@ const TasksPanel: React.FC = () => (
 const ProcessCockpitPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const tenantId = getValidTenantId();
-  const activeView = (searchParams.get('view') || 'activity') as CockpitView;
+  const activeView = (
+    searchParams.get('view') ||
+    searchParams.get('tab') ||
+    'activity'
+  ) as CockpitView;
   const [selectedItem, setSelectedItem] = useState<ActivityItem | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -587,11 +591,26 @@ const ProcessCockpitPage: React.FC = () => {
 
   const handleViewChange = useCallback(
     (view: string) => {
-      setSearchParams({ view });
+      const nextParams = new URLSearchParams(searchParams);
+      nextParams.set('view', view);
+      nextParams.delete('tab');
+      setSearchParams(nextParams);
       setSelectedItem(null);
     },
-    [setSearchParams],
+    [searchParams, setSearchParams],
   );
+
+  const { data: interventionCountData } = useQuery({
+    queryKey: withTenantQueryKey('cockpit-interventions-count'),
+    queryFn: async () =>
+      tradeExceptionQueueService.listExceptions({
+        page_size: 1,
+      }),
+    enabled: !!tenantId,
+    refetchInterval: 60_000,
+  });
+
+  const pendingInterventions = interventionCountData?.count ?? 0;
 
   const handleItemClick = useCallback((item: ActivityItem) => {
     setSelectedItem((prev) => (prev?.id === item.id ? null : item));
@@ -611,6 +630,21 @@ const ProcessCockpitPage: React.FC = () => {
 
   const renderContent = () => {
     switch (activeView) {
+      case 'interventions':
+        return (
+          <SectionCard>
+            <SectionHeader>
+              <SectionTitle>
+                <AlertTriangle size={16} /> Trades Requiring Intervention
+                {pendingInterventions > 0 && <NavBadge>{pendingInterventions}</NavBadge>}
+              </SectionTitle>
+            </SectionHeader>
+            <SectionContent>
+              <InterventionsPanel />
+            </SectionContent>
+          </SectionCard>
+        );
+
       case 'inbox':
         return (
           <SectionCard>
@@ -791,6 +825,10 @@ const ProcessCockpitPage: React.FC = () => {
       <NavBar>
         <NavItem $active={activeView === 'activity'} onClick={() => handleViewChange('activity')}>
           <Activity size={15} /> Live Activity
+        </NavItem>
+        <NavItem $active={activeView === 'interventions'} onClick={() => handleViewChange('interventions')}>
+          <AlertTriangle size={15} /> Interventions
+          {pendingInterventions > 0 && <NavBadge>{pendingInterventions}</NavBadge>}
         </NavItem>
         <NavItem $active={activeView === 'inbox'} onClick={() => handleViewChange('inbox')}>
           <Mail size={15} /> AI Inbox
