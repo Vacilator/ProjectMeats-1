@@ -6,6 +6,7 @@ from django.dispatch import receiver
 from django.utils import timezone
 
 from apps.tenants.models import TenantUser
+from tenant_apps.inquiries.services import parse_supplier_quote_reply
 from tenant_apps.ai_assistant.models import AIFeedbackLog
 from tenant_apps.workflows.models import NotificationPriority, NotificationType, UserNotification
 
@@ -114,6 +115,17 @@ def trigger_ai_extraction(sender, instance, created, **kwargs):
 
     try:
         instance.mark_as_processing()
+
+        supplier_reply = parse_supplier_quote_reply(email_log=instance)
+        if supplier_reply is not None:
+            _upsert_action_required_feedback(instance, supplier_reply)
+            logger.info(
+                'Email %s matched supplier RFQ reply flow with parse_status=%s',
+                instance.id,
+                supplier_reply.get('supplier_reply_parse', {}).get('parse_status'),
+            )
+            instance.mark_as_completed(extracted_data=supplier_reply)
+            return
 
         classification = classify_ingested_email(
             subject=instance.subject,
