@@ -6,6 +6,7 @@ Defines sales order entities and related business logic.
 Implements tenant ForeignKey field for shared-schema multi-tenancy.
 Uses OrderMethodsMixin for shared order behavior (payment calculations, status checks).
 """
+from django.conf import settings
 from django.db import models
 from apps.core.models import (
     SoftDeleteModel,
@@ -258,3 +259,81 @@ class SalesOrderItem(BaseLineItem):
         if self.sales_order_id and not self.tenant_id:
             self.tenant = self.sales_order.tenant
         super().save(*args, **kwargs)
+
+
+class SalesOrderApprovalDispatchStatus(models.TextChoices):
+    """Status for the sales order approval dispatch lifecycle."""
+
+    PENDING = "pending", "Pending"
+    SENDING = "sending", "Sending"
+    SENT = "sent", "Sent"
+    FAILED = "failed", "Failed"
+
+
+def sales_order_approval_dispatch_upload_to(instance, filename):
+    return f"sales_orders/approval_dispatch/{instance.tenant_id}/{filename}"
+
+
+class SalesOrderApprovalDispatch(TenantAwareModel):
+    """Durable audit row for the one approved-PDF + customer-email dispatch per SO."""
+
+    sales_order = models.OneToOneField(
+        SalesOrder,
+        on_delete=models.CASCADE,
+        related_name="approval_dispatch",
+    )
+    approved_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="sales_order_approval_dispatches",
+    )
+    sender_provider = models.ForeignKey(
+        "integrations.ExternalAuthProvider",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="sales_order_approval_dispatches",
+    )
+    approved_pdf = models.FileField(
+        upload_to=sales_order_approval_dispatch_upload_to,
+        blank=True,
+        default="",
+    )
+    approved_pdf_checksum = models.CharField(max_length=64, blank=True, default="")
+    approved_pdf_byte_size = models.PositiveBigIntegerField(default=0)
+    pdf_generated_at = models.DateTimeField(null=True, blank=True)
+    approved_at = models.DateTimeField(null=True, blank=True)
+    sender_email = models.EmailField(blank=True, default="")
+    recipient_email = models.EmailField(blank=True, default="")
+    recipient_name = models.CharField(max_length=255, blank=True, default="")
+    subject = models.CharField(max_length=300, default="")
+    body = models.TextField(default="")
+    provider = models.CharField(max_length=32, default="microsoft")
+    status = models.CharField(
+        max_length=16,
+        choices=SalesOrderApprovalDispatchStatus.choices,
+        default=SalesOrderApprovalDispatchStatus.PENDING,
+        db_index=True,
+    )
+    attempt_count = models.PositiveIntegerField(default=0)
+    last_attempted_at = models.DateTimeField(null=True, blank=True)
+    sent_at = models.DateTimeField(null=True, blank=True)
+    provider_message_id = models.CharField(max_length=255, blank=True, default="")
+    provider_thread_id = models.CharField(max_length=255, blank=True, default="")
+    provider_internet_message_id = models.CharField(max_length=255, blank=True, default="")
+    error_message = models.TextField(blank=True, default="")
+
+    class Meta:
+        ordering = ["-created_on"]
+        verbose_name = "Sales Order Approval Dispatch"
+        verbose_name_plural = "Sales Order Approval Dispatches"
+        indexes = [
+            models.Index(fields=["tenant", "status"], name="so_dispatch_tenant_status_idx"),
+            models.Index(fields=["tenant", "sent_at"], name="so_dispatch_tenant_sent_idx"),
+        ]
+
+    def __str__(self):
+        reference = self.sales_order.our_sales_order_num if self.sales_order_id else "unbound"
+        return f"SO Approval dispatch for {reference}"
