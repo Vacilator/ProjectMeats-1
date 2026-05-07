@@ -1162,6 +1162,50 @@ class AILearningMetricsAPIView(APIView):
         return Response(out.data, status=status.HTTP_200_OK)
 
 
+class AIConfidenceMetricsAPIView(APIView):
+    """Tenant-scoped confidence scoring metrics for the Cockpit dashboard (AUTO-21.2)."""
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        tenant = getattr(request, 'tenant', None)
+        tenant_id = getattr(tenant, 'id', None)
+        if not tenant_id:
+            return Response({'error': 'Tenant context missing'}, status=status.HTTP_400_BAD_REQUEST)
+
+        from apps.integrations.models import EmailLog
+        from django.db.models import Count, Q
+
+        thirty_days_ago = timezone.now() - timedelta(days=30)
+        email_qs = EmailLog.objects.filter(
+            tenant_id=tenant_id,
+            created_at__gte=thirty_days_ago,
+        )
+
+        total_processed = email_qs.exclude(status='logged').count()
+        action_required = email_qs.filter(status='action_required').count()
+        auto_processed = email_qs.filter(status='order_created').count()
+
+        # Compute confidence from AIFeedbackLog
+        feedback_qs = AIFeedbackLog.objects.filter(
+            tenant_id=tenant_id,
+            created_on__gte=thirty_days_ago,
+        )
+        avg_conf = feedback_qs.aggregate(avg=Avg('confidence_score')).get('avg') or 0.0
+        high_confidence = feedback_qs.filter(confidence_score__gte=0.98).count()
+        low_confidence = feedback_qs.filter(confidence_score__lt=0.98).count()
+
+        payload = {
+            'average_confidence': round(float(avg_conf), 4),
+            'total_processed': total_processed,
+            'high_confidence_count': high_confidence,
+            'low_confidence_count': low_confidence,
+            'action_required_count': action_required,
+            'auto_processed_count': auto_processed,
+        }
+        return Response(payload, status=status.HTTP_200_OK)
+
+
 class AIDocumentViewSet(viewsets.ModelViewSet):
     """ViewSet for uploading and listing AI documents."""
 

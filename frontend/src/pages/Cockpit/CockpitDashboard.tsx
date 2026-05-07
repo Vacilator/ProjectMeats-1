@@ -35,6 +35,7 @@ import {
   CalendarWidget,
   EmailIntegrationWidget,
   EmailIngestionMonitorWidget,
+  ConfidenceScoringWidget,
 } from '../../components/Widgets';
 import {
   CockpitTour,
@@ -176,6 +177,13 @@ const WIDGET_CATALOG = [
     description: 'Track order-related emails and AI processing',
     category: 'integrations',
     icon: '📬',
+  },
+  { 
+    type: 'ConfidenceScoringWidget', 
+    title: 'AI Confidence', 
+    description: 'AI parsing confidence metrics and auto-processing stats',
+    category: 'metrics',
+    icon: '🧠',
   },
 ];
 
@@ -758,6 +766,8 @@ export const CockpitDashboard: React.FC = () => {
         return <EmailIntegrationWidget />;
       case 'EmailIngestionMonitorWidget':
         return <EmailIngestionMonitorWidget />;
+      case 'ConfidenceScoringWidget':
+        return <ConfidenceScoringWidget />;
       default:
         logger.warn('Unknown cockpit widget type encountered', {
           component: 'CockpitDashboard',
