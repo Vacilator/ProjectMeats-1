@@ -215,10 +215,15 @@ class SalesOrder(
         default='',
         help_text="Additional notes",
     )
+    trade_session = models.ForeignKey(
+        "inquiries.TradeSession",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="sales_orders",
+        help_text="Trade session lineage key (CTE-05.1).",
+    )
     class Meta:
-        ordering = ["-date_time_stamp", "-created_on"]
-        verbose_name = "Sales Order"
-        verbose_name_plural = "Sales Orders"
         indexes = [
             models.Index(fields=['tenant', 'our_sales_order_num']),
         ]

@@ -809,3 +809,110 @@ class InquiryTemplateProduct(TenantAwareModel):
     def parent_tenant(self):
         """Tenant derived from the parent template (legacy call sites)."""
         return self.template.tenant
+
+
+# ---------------------------------------------------------------------------
+# TradeSession — durable lineage key for the full trading pipeline (CTE-05.1)
+# ---------------------------------------------------------------------------
+
+
+class TradeSessionStatus(models.TextChoices):
+    """Status for a trade session (lifecycle of a single trading deal)."""
+
+    INITIATED = "initiated", "Initiated"
+    SOURCING = "sourcing", "Sourcing"
+    QUOTED = "quoted", "Quoted"
+    ORDERED = "ordered", "Ordered"
+    LOGISTICS = "logistics", "Logistics"
+    COMPLETED = "completed", "Completed"
+    CANCELLED = "cancelled", "Cancelled"
+
+
+class TradeSession(TenantAwareModel):
+    """Durable lineage key tying inquiry → supplier PO → sales order → carrier PO.
+
+    Created at inquiry creation and cascaded to every downstream commercial
+    document. Provides operators a single ID to trace the full trade.
+
+    Source email provenance is stored so the system can always answer:
+    "Which inbound message initiated this trade?"
+    """
+
+    # Unique, human-readable trade identifier
+    trade_id = models.CharField(
+        max_length=50,
+        unique=True,
+        help_text="Unique trade session identifier (e.g., TRD-2026-00001)",
+    )
+
+    status = models.CharField(
+        max_length=20,
+        choices=TradeSessionStatus.choices,
+        default=TradeSessionStatus.INITIATED,
+        help_text="Current lifecycle status of the trade.",
+    )
+
+    # Root inquiry (always present)
+    inquiry = models.OneToOneField(
+        "inquiries.Inquiry",
+        on_delete=models.CASCADE,
+        related_name="trade_session",
+        help_text="Root inquiry that initiated this trade.",
+    )
+
+    # Source email provenance (optional — trade may start from a call)
+    source_email_message_id = models.CharField(
+        max_length=512,
+        blank=True,
+        default="",
+        help_text="Internet message-ID of the email that initiated this trade.",
+    )
+    source_email_thread_id = models.CharField(
+        max_length=512,
+        blank=True,
+        default="",
+        help_text="Provider thread ID of the originating email thread.",
+    )
+    source_email_subject = models.CharField(
+        max_length=1024,
+        blank=True,
+        default="",
+        help_text="Subject of the originating email.",
+    )
+    source_email_sender = models.EmailField(
+        blank=True,
+        default="",
+        help_text="Sender of the originating email.",
+    )
+
+    # Route decision (cached from inquiry for fast queries)
+    route_decision = models.CharField(
+        max_length=20,
+        choices=InquiryRouteDecisionChoices.choices,
+        blank=True,
+        default="",
+        help_text="Route decision (FULFILL or BROKER) cached for queries.",
+    )
+
+    # Timestamps
+    initiated_at = models.DateTimeField(
+        auto_now_add=True,
+        help_text="When the trade session was initiated.",
+    )
+    completed_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="When the trade session completed (all docs fulfilled).",
+    )
+
+    class Meta:
+        ordering = ["-initiated_at"]
+        verbose_name = "Trade Session"
+        verbose_name_plural = "Trade Sessions"
+        indexes = [
+            models.Index(fields=["tenant", "trade_id"]),
+            models.Index(fields=["tenant", "status"]),
+        ]
+
+    def __str__(self):
+        return self.trade_id
