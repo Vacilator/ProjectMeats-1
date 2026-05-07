@@ -542,7 +542,7 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
   - **Rollback:** Revert the new component/hook and leave backend suggestion generation untouched.
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
-- [ ] **AMB-02.2 record-page-header-integration-and-action-wiring**
+- [x] **AMB-02.2 record-page-header-integration-and-action-wiring**
   - **Status:** Blocked
   - **Why now:** Ambient recommendations only become useful once the record header surfaces can display and execute them in context.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 19 / Epic AMB-02
