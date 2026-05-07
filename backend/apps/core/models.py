@@ -1279,3 +1279,92 @@ class IdempotencyKey(TenantAwareModel):
 
     def __str__(self):
         return f'{self.tenant_id}:{self.idempotency_key}'
+
+
+# ---------------------------------------------------------------------------
+# TradeEventLog — Durable storage for domain events (CTE-06.1)
+# ---------------------------------------------------------------------------
+
+
+class TradeEventLog(TenantAwareModel):
+    """Durable log of domain events for the trading engine.
+
+    Stores every trade-state transition event for audit, replay,
+    and saga consumer processing. Events are immutable once stored.
+    """
+
+    event_id = models.CharField(
+        max_length=36,
+        unique=True,
+        help_text="Unique UUID for this event instance.",
+    )
+    event_type = models.CharField(
+        max_length=50,
+        db_index=True,
+        help_text="Canonical event type (e.g., 'supplier_po.approved').",
+    )
+    trade_session_id = models.BigIntegerField(
+        null=True,
+        blank=True,
+        db_index=True,
+        help_text="FK to TradeSession (stored as int for flexibility).",
+    )
+    trade_id = models.CharField(
+        max_length=50,
+        blank=True,
+        default="",
+        db_index=True,
+        help_text="Human-readable trade ID (TRD-YYYY-NNNNN).",
+    )
+    entity_type = models.CharField(
+        max_length=100,
+        blank=True,
+        default="",
+        help_text="Source entity class name.",
+    )
+    entity_id = models.CharField(
+        max_length=36,
+        blank=True,
+        default="",
+        help_text="Source entity PK.",
+    )
+    actor_user_id = models.CharField(
+        max_length=36,
+        blank=True,
+        default="",
+        help_text="User who triggered the event.",
+    )
+    payload = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text="Full serialized event payload.",
+    )
+    route_decision = models.CharField(
+        max_length=20,
+        blank=True,
+        default="",
+        help_text="FULFILL or BROKER route.",
+    )
+    processed = models.BooleanField(
+        default=False,
+        help_text="Whether this event has been consumed by saga handlers.",
+    )
+    processed_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="When this event was processed.",
+    )
+
+    class Meta:
+        ordering = ["-created_on"]
+        verbose_name = "Trade Event Log"
+        verbose_name_plural = "Trade Event Logs"
+        indexes = [
+            models.Index(fields=["tenant", "event_type"]),
+            models.Index(fields=["tenant", "trade_session_id"]),
+            models.Index(fields=["tenant", "trade_id"]),
+            models.Index(fields=["tenant", "processed", "-created_on"]),
+        ]
+
+    def __str__(self):
+        return f"{self.event_type} [{self.event_id[:8]}]"
