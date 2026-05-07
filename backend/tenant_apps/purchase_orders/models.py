@@ -382,10 +382,15 @@ class PurchaseOrder(
         default="",
         help_text="Special instructions or notes"
     )
+    trade_session = models.ForeignKey(
+        "inquiries.TradeSession",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="purchase_orders",
+        help_text="Trade session lineage key (CTE-05.1).",
+    )
     class Meta:
-        ordering = ["-order_date", "-created_on"]
-        verbose_name = "Purchase Order"
-        verbose_name_plural = "Purchase Orders"
         indexes = [
             models.Index(fields=['tenant', 'order_number']),
             models.Index(fields=['tenant', 'order_date']),
@@ -673,10 +678,15 @@ class CarrierPurchaseOrder(
         default="",
         help_text="Departments (comma-separated: BOL, COA, POD, etc.)",
     )
+    trade_session = models.ForeignKey(
+        "inquiries.TradeSession",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="carrier_purchase_orders",
+        help_text="Trade session lineage key (CTE-05.1).",
+    )
     class Meta:
-        ordering = ["-date_time_stamp_created", "-created_on"]
-        verbose_name = "Carrier Purchase Order"
-        verbose_name_plural = "Carrier Purchase Orders"
         indexes = [
             models.Index(fields=['tenant', 'our_carrier_po_num']),
         ]
