@@ -833,7 +833,7 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
   - **Rollback:** Hide contact display; nodes remain functional.
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
-- [ ] **RT-04.3 quick-master-data-creation-in-context**
+- [x] **RT-04.3 quick-master-data-creation-in-context**
   - **Status:** Blocked
   - **Why now:** Operators must be able to create missing dependencies without leaving the process context.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 17 / Epic RT-04
@@ -851,7 +851,7 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
   - **Rollback:** Remove inline creation; operators use existing master-data pages.
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
-- [ ] **RT-05.1 editor-visual-support-for-complex-nodes**
+- [x] **RT-05.1 editor-visual-support-for-complex-nodes**
   - **Status:** Blocked
   - **Why now:** The editor must render FormProcess groups, ForEach/DoUntil nodes, conditional fields, and multi-selects for the EndToEndInquiryToPOProcess template.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 17 / Epic RT-05
@@ -894,7 +894,7 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
 > **Execution gate:** All Phase 18 tickets are blocked behind Phase 17 runtime (RT-01 through RT-04) shipping on `development`.  
 > **Canonical reference:** `MASTER_PLAN.md` → Phase 18
 
-- [ ] **RT-06.1 in-app-email-notification-service**
+- [x] **RT-06.1 in-app-email-notification-service**
   - **Status:** Blocked
   - **Why now:** Operators need real-time awareness of process events without polling the cockpit.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 18 / Epic RT-06
@@ -912,7 +912,7 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
   - **Rollback:** Disable notification Celery task; processes continue without notifications.
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
-- [ ] **RT-06.2 quick-action-center-panel**
+- [x] **RT-06.2 quick-action-center-panel**
   - **Status:** Blocked
   - **Why now:** Operators need one-click access to common actions without navigating through forms.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 18 / Epic RT-06
@@ -930,7 +930,7 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
   - **Rollback:** Hide Quick Actions panel; all actions remain available through normal navigation.
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
-- [ ] **RT-06.3 notification-user-preferences**
+- [x] **RT-06.3 notification-user-preferences**
   - **Status:** Blocked
   - **Why now:** Users must control notification frequency to prevent overload.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 18 / Epic RT-06
@@ -948,7 +948,7 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
   - **Rollback:** Remove preference UI; all notifications default to realtime.
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
-- [ ] **RT-06.4 notification-contact-routing-intelligence**
+- [x] **RT-06.4 notification-contact-routing-intelligence**
   - **Status:** Blocked
   - **Why now:** Notifications must reach the right person based on their role in the process.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 18 / Epic RT-06
