@@ -1314,8 +1314,8 @@ Packages 12+13+14 verified ──▶ Package 15 (RT-10.1 + RT-10.2)
 
 ## Phase 20: UI/UX — Stupidly Simple & Powerful
 
-- [ ] **UX-20.1 dashboard-simplification-and-4-widget-cap**
-  - **Status:** Ready
+- [x] **UX-20.1 dashboard-simplification-and-4-widget-cap**
+  - **Status:** Shipped (PR #5017)
   - **Why now:** All runtime backlog (55 tickets) shipped. User feedback: dashboard is cluttered. Reduce to ≤4 core sections for maximum clarity.
   - **Scope:** Audit current dashboard, remove/consolidate widgets to ≤4, implement spacious card-based layout with generous whitespace. Sections: AI Inbox, Live Activity, Quick Actions, Recent History.
   - **Primary domain:** frontend
@@ -1328,8 +1328,8 @@ Packages 12+13+14 verified ──▶ Package 15 (RT-10.1 + RT-10.2)
   - **Rollback:** Revert to previous dashboard layout.
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
-- [ ] **UX-20.2 universal-ctrl-k-command-palette**
-  - **Status:** Blocked
+- [x] **UX-20.2 universal-ctrl-k-command-palette**
+  - **Status:** Shipped (already implemented)
   - **Why now:** Keyboard-first navigation is the #1 UX gap. Ctrl+K should be the primary way to navigate, search entities, and trigger actions.
   - **Scope:** Enhance existing CommandPalette with: global entity search (customers, suppliers, orders, contacts), recent items, quick actions (create order, send RFQ), and fuzzy matching.
   - **Primary domain:** frontend
@@ -1342,8 +1342,8 @@ Packages 12+13+14 verified ──▶ Package 15 (RT-10.1 + RT-10.2)
   - **Rollback:** Hide palette behind feature flag.
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
-- [ ] **UX-20.3 keyboard-shortcuts-and-documentation**
-  - **Status:** Blocked
+- [x] **UX-20.3 keyboard-shortcuts-and-documentation**
+  - **Status:** Shipped (PR #5018)
   - **Why now:** Power users need one-keystroke actions. Document all shortcuts in docs/SHORTCUTS.md.
   - **Scope:** Add keyboard shortcuts for: navigation (g+d = dashboard, g+i = inbox, g+c = cockpit), actions (n = new, e = edit, Esc = close), and table operations (j/k = up/down, Enter = open). Create docs/SHORTCUTS.md.
   - **Primary domain:** frontend
@@ -1358,8 +1358,8 @@ Packages 12+13+14 verified ──▶ Package 15 (RT-10.1 + RT-10.2)
 
 ## Phase 21: Full End-to-End Automation (Email → Fulfillment)
 
-- [ ] **AUTO-21.1 celery-auto-pipeline-email-to-fulfillment**
-  - **Status:** Blocked
+- [x] **AUTO-21.1 celery-auto-pipeline-email-to-fulfillment**
+  - **Status:** Shipped (PR #5019)
   - **Why now:** Close the final 5% human gaps. Auto-create PO → confirm with supplier → update inventory → generate SO → trigger fulfillment → generate invoice.
   - **Scope:** New Celery task chain: auto_process_approved_email → create_purchase_order → await_supplier_confirmation → update_inventory → generate_sales_order → trigger_fulfillment → generate_invoice. Each step emits telemetry events.
   - **Primary domain:** backend/celery
@@ -1372,8 +1372,8 @@ Packages 12+13+14 verified ──▶ Package 15 (RT-10.1 + RT-10.2)
   - **Rollback:** Disable Celery task; manual processing continues.
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
-- [ ] **AUTO-21.2 confidence-scoring-dashboard**
-  - **Status:** Blocked
+- [x] **AUTO-21.2 confidence-scoring-dashboard**
+  - **Status:** Shipped (PR #5020)
   - **Why now:** Visibility into AI parsing quality. Show confidence scores per email, per field, with drill-down.
   - **Scope:** New Cockpit panel showing: average confidence by day, lowest-confidence emails, field-level breakdown, trend chart. Filter by date range and entity type.
   - **Primary domain:** frontend + backend API
@@ -1389,7 +1389,7 @@ Packages 12+13+14 verified ──▶ Package 15 (RT-10.1 + RT-10.2)
 ## Phase 22: Repo + CI/CD + Golden Pipeline Perfection
 
 - [ ] **CICD-22.1 golden-files-full-audit-and-sync**
-  - **Status:** Blocked
+  - **Status:** In Progress
   - **Why now:** Ensure zero drift between golden files and actual state. Audit GOLDEN_FILES.md, env.manifest.json, and all golden docs.
   - **Scope:** Run full audit against manifests/GOLDEN_FILES.md. Fix any drift. Add CI check that fails on golden file drift. Update all golden docs with current status.
   - **Primary domain:** CI/CD + docs
