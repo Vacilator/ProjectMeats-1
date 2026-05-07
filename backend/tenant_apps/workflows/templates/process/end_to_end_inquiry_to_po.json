@@ -1,6 +1,6 @@
 {
   "templateId": "end-to-end-inquiry-to-po-process",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "name": "End-to-End Inquiry to PO Process",
   "description": "Complete multi-trigger trading workflow from initial inquiry through to final Purchase Order, covering all 5 entry paths with supplier sourcing, bid evaluation, and order generation.",
   "category": "trading",
@@ -244,6 +244,73 @@
       }
     },
     {
+      "id": "approval-gate-margin",
+      "type": "approvalGate",
+      "position": {"x": 300, "y": 1250},
+      "parentNode": "form-process-group",
+      "data": {
+        "label": "Approval Gate: Margin & Amount",
+        "nodeType": "approvalGate",
+        "description": "Evaluates selected bid against margin threshold and order amount rules. Auto-approves if all criteria pass; otherwise routes to designated approver.",
+        "approvalConfig": {
+          "rules": [
+            {
+              "id": "rule-min-margin",
+              "ruleType": "margin_threshold",
+              "parameter": "minimum_margin_percent",
+              "threshold": 5.0,
+              "operator": "gte",
+              "autoApproveOnPass": true,
+              "description": "Bid must achieve at least 5% margin"
+            },
+            {
+              "id": "rule-high-value",
+              "ruleType": "order_amount",
+              "parameter": "order_total",
+              "threshold": 25000.00,
+              "operator": "lte",
+              "autoApproveOnPass": true,
+              "description": "Orders above $25k require manual approval"
+            },
+            {
+              "id": "rule-supplier-risk",
+              "ruleType": "supplier_risk",
+              "parameter": "supplier_risk_score",
+              "threshold": 7,
+              "operator": "lte",
+              "autoApproveOnPass": false,
+              "description": "High-risk suppliers (score > 7) always require manual review"
+            }
+          ],
+          "approverRouting": {
+            "contactType": "Accounting",
+            "fallbackContactType": "General",
+            "useResponsibleFor": ["pricing_approval", "trade_authorization"]
+          },
+          "timeoutHours": 48,
+          "escalateOnTimeout": true
+        },
+        "telemetryEvent": "e2e_inquiry_to_po.approval_gate.evaluated"
+      }
+    },
+    {
+      "id": "approval-rejected-escalation",
+      "type": "action",
+      "position": {"x": 600, "y": 1250},
+      "data": {
+        "label": "Escalate: Approval Rejected",
+        "actionType": "escalation",
+        "description": "Bid did not pass approval gate — escalate for renegotiation or alternative supplier selection",
+        "escalationConfig": {
+          "reason": "approval_gate_rejected",
+          "notifyTrader": true,
+          "createTask": true,
+          "suggestAction": "renegotiate_or_reselect"
+        },
+        "telemetryEvent": "e2e_inquiry_to_po.approval_gate.rejected"
+      }
+    },
+    {
       "id": "form-step-sales-order",
       "type": "formStep",
       "position": {"x": 700, "y": 1350},
@@ -483,7 +550,10 @@
     {"id": "e-rfq-dud", "source": "for-each-supplier", "target": "do-until-due-date", "label": "after_all"},
     {"id": "e-dud-cb", "source": "do-until-due-date", "target": "check-bids", "label": "each_poll"},
     {"id": "e-dud-bs", "source": "do-until-due-date", "target": "bid-selection", "label": "completed"},
-    {"id": "e-bs-f2", "source": "bid-selection", "target": "form-step-sales-order"},
+    {"id": "e-bs-ag", "source": "bid-selection", "target": "approval-gate-margin"},
+    {"id": "e-ag-f2", "source": "approval-gate-margin", "target": "form-step-sales-order", "label": "approved"},
+    {"id": "e-ag-rej", "source": "approval-gate-margin", "target": "approval-rejected-escalation", "label": "rejected"},
+    {"id": "e-agrej-end", "source": "approval-rejected-escalation", "target": "process-complete"},
     {"id": "e-f2-gso", "source": "form-step-sales-order", "target": "generate-sales-order"},
     {"id": "e-gso-sso", "source": "generate-sales-order", "target": "send-sales-order"},
     {"id": "e-sso-acp", "source": "send-sales-order", "target": "await-customer-po"},
@@ -501,11 +571,12 @@
     "complexity": "high",
     "requiredEntities": ["Inquiry", "Supplier", "Customer", "Contact", "Plant", "PurchaseOrder", "SalesOrder"],
     "requiredContactTypes": ["Sales", "Accounting", "General"],
-    "nodeCount": 19,
-    "edgeCount": 24,
+    "nodeCount": 21,
+    "edgeCount": 27,
     "triggerCount": 5,
     "loopCount": 3,
     "formProcessGroups": 1,
-    "formStepCount": 4
+    "formStepCount": 4,
+    "approvalGateCount": 1
   }
 }
