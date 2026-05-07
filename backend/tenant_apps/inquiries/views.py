@@ -308,7 +308,42 @@ class InquiryViewSet(viewsets.ModelViewSet):
             },
             status=response_status,
         )
-    
+
+    @action(detail=True, methods=['post'], url_path='create-sales-order-draft')
+    def create_sales_order_draft(self, request, pk=None):
+        """Create or return the draft sales order for a FULFILL-routed inquiry.
+
+        POST /api/v1/inquiries/{id}/create-sales-order-draft/
+        """
+        from tenant_apps.sales_orders.services.draft_sales_order import (
+            create_draft_from_fulfill,
+            DraftSalesOrderError,
+        )
+        from tenant_apps.sales_orders.serializers import SalesOrderSerializer as SOSerializer
+
+        inquiry = self.get_object()
+
+        try:
+            result = create_draft_from_fulfill(
+                tenant=request.tenant,
+                inquiry=inquiry,
+            )
+        except DraftSalesOrderError as exc:
+            raise ValidationError({'detail': str(exc)}) from exc
+
+        response_status = status.HTTP_201_CREATED if result.created else status.HTTP_200_OK
+        return Response(
+            {
+                'created': result.created,
+                'source_type': result.source_type,
+                'sales_order': SOSerializer(
+                    result.sales_order,
+                    context={'request': request},
+                ).data,
+            },
+            status=response_status,
+        )
+
     @action(detail=True, methods=['post'])
     def clone(self, request, pk=None):
         """Clone an existing inquiry, optionally with products and pricing."""

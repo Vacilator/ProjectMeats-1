@@ -213,6 +213,41 @@ class PurchaseOrderViewSet(OperationalDocumentActionsMixin, CsvExportMixin, view
         serializer = PurchaseOrderHistorySerializer(history_entries, many=True)
         return Response(serializer.data)
 
+    @action(detail=True, methods=["post"], url_path="create-sales-order-draft")
+    def create_sales_order_draft(self, request, pk=None):
+        """Create or return the draft sales order from an approved supplier PO.
+
+        POST /api/v1/purchase-orders/{id}/create-sales-order-draft/
+        """
+        from tenant_apps.sales_orders.services.draft_sales_order import (
+            create_draft_from_approved_source,
+            DraftSalesOrderError,
+        )
+        from tenant_apps.sales_orders.serializers import SalesOrderSerializer as SOSerializer
+
+        purchase_order = self.get_object()
+
+        try:
+            result = create_draft_from_approved_source(
+                tenant=request.tenant,
+                purchase_order=purchase_order,
+            )
+        except DraftSalesOrderError as exc:
+            raise DRFValidationError({'detail': str(exc)}) from exc
+
+        response_status = status.HTTP_201_CREATED if result.created else status.HTTP_200_OK
+        return Response(
+            {
+                'created': result.created,
+                'source_type': result.source_type,
+                'sales_order': SOSerializer(
+                    result.sales_order,
+                    context={'request': request},
+                ).data,
+            },
+            status=response_status,
+        )
+
     @action(detail=True, methods=["get"], url_path="review-context")
     def review_context(self, request, pk=None):
         purchase_order = self.get_object()
