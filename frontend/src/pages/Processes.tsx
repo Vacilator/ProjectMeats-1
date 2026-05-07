@@ -31,10 +31,10 @@ const Processes: React.FC = () => {
 
   const getStatusBadge = (status: string) => {
     const statusColors: Record<string, string> = {
-      pending: 'rgb(234, 179, 8)',
-      approved: 'rgb(34, 197, 94)',
-      delivered: 'rgb(59, 130, 246)',
-      cancelled: 'rgb(239, 68, 68)',
+      pending: 'rgb(var(--color-warning))',
+      approved: 'rgb(var(--color-success))',
+      delivered: 'rgb(var(--color-info))',
+      cancelled: 'rgb(var(--color-error))',
     };
     return statusColors[status] || 'rgb(var(--color-text-secondary))';
   };

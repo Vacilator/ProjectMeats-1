@@ -350,7 +350,7 @@ const App: React.FC = () => {
                 <Route path="ai-assistant" element={<AIAssistant />} />
                 <Route path="calls" element={<Navigate to="/cockpit/calls" replace />} />
                 <Route path="call-log" element={<Navigate to="/calls" replace />} />
-                <Route path="processes" element={<Navigate to="/forms-flows/catalog" replace />} />
+                <Route path="processes" element={<Navigate to="/workforms/catalog" replace />} />
                 <Route path="reports" element={<Reports />} />
                 <Route path="activity" element={<Navigate to="/process-cockpit" replace />} />
                 <Route path="profile" element={<Profile />} />

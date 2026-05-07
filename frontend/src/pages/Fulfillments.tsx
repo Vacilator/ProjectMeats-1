@@ -161,24 +161,24 @@ const StatusBadge = styled.span<{ status: string }>`
   font-weight: 500;
   background: ${props => {
     switch (props.status) {
-      case 'completed': return 'rgba(34, 197, 94, 0.2)';
-      case 'delivered': return 'rgba(34, 197, 94, 0.1)';
-      case 'shipped': return 'rgba(59, 130, 246, 0.1)';
-      case 'in_progress': return 'rgba(234, 179, 8, 0.1)';
-      case 'pending': return 'rgba(107, 114, 128, 0.1)';
-      case 'cancelled': return 'rgba(239, 68, 68, 0.1)';
-      default: return 'rgba(107, 114, 128, 0.1)';
+      case 'completed':
+      case 'delivered': return 'rgba(var(--color-success), 0.15)';
+      case 'shipped': return 'rgba(var(--color-info), 0.1)';
+      case 'in_progress': return 'rgba(var(--color-warning), 0.1)';
+      case 'pending': return 'rgba(var(--color-neutral), 0.1)';
+      case 'cancelled': return 'rgba(var(--color-error), 0.1)';
+      default: return 'rgba(var(--color-neutral), 0.1)';
     }
   }};
   color: ${props => {
     switch (props.status) {
-      case 'completed': return 'rgb(22, 163, 74)';
-      case 'delivered': return 'rgb(22, 163, 74)';
-      case 'shipped': return 'rgb(37, 99, 235)';
-      case 'in_progress': return 'rgb(202, 138, 4)';
-      case 'pending': return 'rgb(75, 85, 99)';
-      case 'cancelled': return 'rgb(220, 38, 38)';
-      default: return 'rgb(75, 85, 99)';
+      case 'completed':
+      case 'delivered': return 'rgb(var(--color-success))';
+      case 'shipped': return 'rgb(var(--color-info))';
+      case 'in_progress': return 'rgb(var(--color-warning))';
+      case 'pending': return 'rgb(var(--color-neutral))';
+      case 'cancelled': return 'rgb(var(--color-error))';
+      default: return 'rgb(var(--color-neutral))';
     }
   }};
 `;
@@ -220,7 +220,7 @@ const ActionButton = styled.button<{ variant?: 'primary' | 'success' | 'secondar
         `;
       case 'success':
         return `
-          background: rgb(22, 163, 74);
+          background: rgb(var(--color-success));
           color: white;
           border: none;
           &:hover { opacity: 0.9; }
@@ -310,8 +310,8 @@ const PartialBadge = styled.span`
   font-size: 0.625rem;
   padding: 0.125rem 0.375rem;
   border-radius: var(--radius-xs);
-  background: rgba(234, 179, 8, 0.1);
-  color: rgb(202, 138, 4);
+  background: rgba(var(--color-warning), 0.1);
+  color: rgb(var(--color-warning));
   margin-left: 0.5rem;
 `;
 

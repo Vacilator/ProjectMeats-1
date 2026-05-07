@@ -95,7 +95,7 @@ const Toggle = styled.button<{ $active: boolean; $disabled?: boolean }>`
   border-radius: 13px;
   border: none;
   cursor: ${props => props.$disabled ? 'not-allowed' : 'pointer'};
-  background: ${props => props.$active ? 'rgb(34, 197, 94)' : 'rgb(var(--color-border, 224 224 224))'};
+  background: ${props => props.$active ? 'rgb(var(--color-success))' : 'rgb(var(--color-border, 224 224 224))'};
   position: relative;
   transition: background 0.2s ease;
   opacity: ${props => props.$disabled ? 0.5 : 1};
@@ -117,7 +117,7 @@ const Toggle = styled.button<{ $active: boolean; $disabled?: boolean }>`
 
   &:focus {
     outline: none;
-    box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.3);
+    box-shadow: 0 0 0 3px rgba(var(--color-success), 0.3);
   }
 `;
 
@@ -163,7 +163,7 @@ const DeliveryBadge = styled.button<{ $active: boolean; $disabled?: boolean }>`
   font-size: 12px;
   border-radius: 4px;
   border: 1px solid ${props => props.$active ? 'rgb(var(--color-primary, 102 126 234))' : 'rgb(var(--color-border, 224 224 224))'};
-  background: ${props => props.$active ? 'rgba(102, 126, 234, 0.1)' : 'transparent'};
+  background: ${props => props.$active ? 'rgba(var(--color-primary), 0.1)' : 'transparent'};
   color: ${props => props.$active ? 'rgb(var(--color-primary, 102 126 234))' : 'rgb(var(--color-text-secondary, 127 140 141))'};
   cursor: ${props => props.$disabled ? 'not-allowed' : 'pointer'};
   transition: all 0.15s ease;
@@ -174,7 +174,7 @@ const DeliveryBadge = styled.button<{ $active: boolean; $disabled?: boolean }>`
 
   &:focus {
     outline: none;
-    box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.3);
+    box-shadow: 0 0 0 2px rgba(var(--color-primary), 0.3);
   }
 `;
 
@@ -244,10 +244,10 @@ const ButtonRow = styled.div`
 
 const SuccessMessage = styled.div`
   padding: 12px 16px;
-  background: rgba(34, 197, 94, 0.1);
-  border: 1px solid rgba(34, 197, 94, 0.3);
+  background: rgba(var(--color-success), 0.1);
+  border: 1px solid rgba(var(--color-success), 0.3);
   border-radius: 8px;
-  color: rgb(34, 197, 94);
+  color: rgb(var(--color-success));
   font-size: 14px;
   margin-bottom: 24px;
   display: flex;
@@ -257,10 +257,10 @@ const SuccessMessage = styled.div`
 
 const ErrorMessage = styled.div`
   padding: 12px 16px;
-  background: rgba(239, 68, 68, 0.1);
-  border: 1px solid rgba(239, 68, 68, 0.3);
+  background: rgba(var(--color-error), 0.1);
+  border: 1px solid rgba(var(--color-error), 0.3);
   border-radius: 8px;
-  color: rgb(239, 68, 68);
+  color: rgb(var(--color-error));
   font-size: 14px;
   margin-bottom: 24px;
 `;
