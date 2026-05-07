@@ -771,3 +771,112 @@ class AIApproval(TenantAwareModel):
 
     def __str__(self):
         return f"{self.tool_name} approval ({self.status})"
+
+
+# ---------------------------------------------------------------------------
+# RT-02.4: Cockpit Draft Form — routes parsed inbox items into Process Cockpit
+# ---------------------------------------------------------------------------
+
+
+class CockpitDraftStatus(models.TextChoices):
+    PENDING = "pending", "Pending Review"
+    IN_PROGRESS = "in_progress", "In Progress"
+    SUBMITTED = "submitted", "Submitted"
+    DISCARDED = "discarded", "Discarded"
+
+
+class CockpitDraftForm(TenantAwareModel):
+    """Draft form entry routed from AI Inbox to Process Cockpit.
+
+    Stores pre-populated form data from parsed emails, enabling users
+    to review, edit, and submit as proper entity records (PO, Inquiry, etc.).
+
+    Lifecycle: pending → in_progress → submitted/discarded
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
+    # Link to source
+    source_feedback_id = models.BigIntegerField(
+        null=True,
+        blank=True,
+        db_index=True,
+        help_text="FK to AIFeedbackLog that triggered this draft.",
+    )
+    source_document_id = models.UUIDField(
+        null=True,
+        blank=True,
+        help_text="Source document/email UUID.",
+    )
+
+    # Form type and data
+    form_type = models.CharField(
+        max_length=64,
+        db_index=True,
+        help_text="Target form type: purchase_order, inquiry, sales_order, bid, etc.",
+    )
+    form_data = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text="Pre-populated form fields from parsed email/document.",
+    )
+    parsed_payload = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text="Full parsed payload (provenance) from email parser.",
+    )
+
+    # Status tracking
+    status = models.CharField(
+        max_length=16,
+        choices=CockpitDraftStatus.choices,
+        default=CockpitDraftStatus.PENDING,
+        db_index=True,
+    )
+    assigned_to = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="cockpit_draft_assignments",
+        help_text="User assigned to review this draft.",
+    )
+
+    # Result tracking
+    submitted_entity_type = models.CharField(
+        max_length=64,
+        blank=True,
+        default="",
+        help_text="Entity type created on submission (e.g., PurchaseOrder).",
+    )
+    submitted_entity_id = models.CharField(
+        max_length=64,
+        blank=True,
+        default="",
+        help_text="PK of created entity.",
+    )
+    submitted_at = models.DateTimeField(null=True, blank=True)
+    submitted_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="cockpit_draft_submissions",
+    )
+
+    # Notes
+    notes = models.TextField(blank=True, default="")
+
+    class Meta:
+        db_table = "ai_assistant_cockpit_drafts"
+        verbose_name = "Cockpit Draft Form"
+        verbose_name_plural = "Cockpit Draft Forms"
+        ordering = ["-created_on"]
+        indexes = [
+            models.Index(fields=["tenant", "status", "-created_on"], name="ai_draft_tenant_status_idx"),
+            models.Index(fields=["tenant", "form_type", "-created_on"], name="ai_draft_tenant_type_idx"),
+            models.Index(fields=["tenant", "assigned_to", "status"], name="ai_draft_assigned_idx"),
+        ]
+
+    def __str__(self):
+        return f"Draft({self.form_type}) [{self.status}]"

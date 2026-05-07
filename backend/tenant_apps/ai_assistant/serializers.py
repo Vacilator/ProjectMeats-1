@@ -545,3 +545,57 @@ class AIFeedbackLogSerializer(serializers.ModelSerializer):
             'modified_on',
         ]
         read_only_fields = ['id', 'tenant', 'precision_delta', 'created_on', 'modified_on']
+
+
+# ---------------------------------------------------------------------------
+# RT-02.4: Cockpit Draft Form serializers
+# ---------------------------------------------------------------------------
+
+
+class CockpitDraftFormSerializer(serializers.ModelSerializer):
+    """Read serializer for CockpitDraftForm."""
+
+    class Meta:
+        from tenant_apps.ai_assistant.models import CockpitDraftForm
+
+        model = CockpitDraftForm
+        fields = [
+            'id',
+            'tenant',
+            'source_feedback_id',
+            'source_document_id',
+            'form_type',
+            'form_data',
+            'parsed_payload',
+            'status',
+            'assigned_to',
+            'submitted_entity_type',
+            'submitted_entity_id',
+            'submitted_at',
+            'submitted_by',
+            'notes',
+            'created_on',
+            'modified_on',
+        ]
+        read_only_fields = ['id', 'tenant', 'created_on', 'modified_on']
+
+
+class CockpitDraftCreateSerializer(serializers.Serializer):
+    """Create a draft from an existing feedback item (route to cockpit)."""
+
+    feedback_id = serializers.IntegerField(help_text="AIFeedbackLog PK to route")
+    notes = serializers.CharField(required=False, allow_blank=True, default='')
+
+
+class CockpitDraftUpdateSerializer(serializers.Serializer):
+    """Update draft form_data or status."""
+
+    form_data = serializers.JSONField(required=False)
+    status = serializers.ChoiceField(
+        choices=[('in_progress', 'In Progress'), ('submitted', 'Submitted'), ('discarded', 'Discarded')],
+        required=False,
+    )
+    submitted_entity_type = serializers.CharField(required=False, allow_blank=True, default='')
+    submitted_entity_id = serializers.CharField(required=False, allow_blank=True, default='')
+    notes = serializers.CharField(required=False, allow_blank=True, default='')
+
