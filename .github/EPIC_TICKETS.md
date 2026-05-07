@@ -22,9 +22,10 @@
 | Shipped | CTE-04.1 draft-sales-order-generation | Phase 16 | backend |
 | Shipped | CTE-04.2 sales-order-approval-pdf | Phase 16 | backend |
 | Shipped | CTE-04.3 carrier-rfq-match | Phase 16 | backend |
-| **P0 (Now)** | CTE-04.4 carrier-reply-parser | Phase 16 | backend |
-| P1 | CTE-04.5 happy-path-orchestrator-e2e | Phase 16 | full-stack |
-| P1.5 | CTE-04.7 unified-inquiry-po-form | Phase 16 | frontend |
+| Shipped | CTE-04.4 carrier-reply-parser | Phase 16 | backend |
+| Shipped | CTE-04.5 happy-path-orchestrator-e2e | Phase 16 | full-stack |
+| **P0 (Now)** | CTE-04.7 unified-inquiry-po-form | Phase 16 | frontend |
+| P1 | CTE-04.6 structured-logging-trace-ids | Phase 16 | backend |
 | P5 | CTE-05–08 (distributed hardening) | Phase 16 | backend |
 | P6 | RT-01–04 (runtime intelligence) | Phase 17 | full-stack |
 | P7 | RT-05 (editor stabilization) | Phase 17 | frontend |
@@ -229,8 +230,8 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
   - **Rollback:** Disable carrier RFQ send path and retain source-order linkage for manual logistics handling.
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
-- [ ] **CTE-04.4 structured-carrier-reply-parser-and-draft-carrier-po**
-  - **Status:** Ready
+- [x] **CTE-04.4 structured-carrier-reply-parser-and-draft-carrier-po**
+  - **Status:** Shipped — merged via PR #4959
   - **Why now:** Carrier responses need to become draft logistics commitments instead of staying trapped in unstructured inbox replies.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 16 / Epic 4
   - **Scope:** Parse carrier replies with OpenAI structured outputs, normalize freight quote/acceptance data, and generate draft `CarrierPurchaseOrder` rows linked to the originating trade documents.
@@ -247,8 +248,8 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
   - **Rollback:** Disable carrier-reply automation and preserve normalized freight quotes/source-email journals for manual carrier PO creation.
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
-- [ ] **CTE-04.5 hardcoded-happy-path-orchestrator-and-end-to-end-regressions**
-  - **Status:** Blocked
+- [x] **CTE-04.5 hardcoded-happy-path-orchestrator-and-end-to-end-regressions**
+  - **Status:** Shipped — merged via PR #4961
   - **Why now:** The final value of Phase 16 is the deterministic end-to-end happy path, not a collection of isolated document generators.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 16 / Epic 4
   - **Scope:** Wire the hardcoded state-machine orchestrator across inquiry routing, sourcing, approval, sales, and logistics; add end-to-end regression coverage and operator audit surfaces proving the happy path is traceable from source inquiry to downstream commercial documents.
@@ -256,7 +257,7 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
   - **Primary domain:** backend/frontend integration
   - **Likely touched paths:** orchestration services across `tenant_apps/inquiries`, `tenant_apps/purchase_orders`, `tenant_apps/sales_orders`, notification/review UI surfaces, end-to-end tests, `MASTER_PLAN.md`
   - **Dependencies:** CTE-04.4
-  - **Blockers:** CTE-04.4
+  - **Blockers:** None
   - **Acceptance criteria:**
     1. The hardcoded happy path runs deterministically for both `FULFILL` and `BROKER` branches.
     2. Operators can trace the inquiry -> supplier PO -> sales order -> carrier PO chain in one coherent audit path.
@@ -269,7 +270,7 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
 - [ ] **CTE-04.7 unified-inquiry-po-form-consolidation**
-  - **Status:** Blocked
+  - **Status:** Ready
   - **Why now:** Form fragmentation increases maintenance burden and UX inconsistency; a single UnifiedForm eliminates duplicate logic and enables direct AI Inbox → form routing.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 16 / Sprint Execution Package 12
   - **Scope:** Create a single `UnifiedForm` component supporting modes: create / edit / clone / view / draft for both Inquiry and Purchase Order entities. Integrate Plant Contact Type + conditional field logic into PO form sections. Ensure AI Inbox "action required" items open directly into correct mode with pre-filled parsed payload. Add localStorage autosave every 30 seconds.
@@ -284,7 +285,7 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
   - **Primary domain:** frontend
   - **Likely touched paths:** `frontend/src/components/UnifiedForm/`, `frontend/src/components/AIInbox/`, `frontend/src/pages/Inquiries/`, `frontend/src/pages/PurchaseOrders/`
   - **Dependencies:** CTE-04.1 (SO generation uses the form), RT-02.4 (inbox routing)
-  - **Blockers:** CTE-04.1
+  - **Blockers:** None
   - **Acceptance criteria:** A single form component handles Inquiry and PO create/edit/view/clone/draft modes; AI Inbox items open with parsed payload pre-filled; autosave works; existing forms still function via wrapper; zero regressions in existing Workform templates.
   - **Validation commands:** `npm -C frontend run test:ci`; `npm -C frontend run verify-standards`
   - **Tenant/RLS impact:** Low (frontend only; backend already tenant-safe)
@@ -1236,7 +1237,7 @@ Packages 12+13+14 verified ──▶ Package 15 (RT-10.1 + RT-10.2)
   - **Scope:** Add a `trade_trace_id` UUID that propagates through all CTE services (inquiry → RFQ → reply → PO → SO). Emit structured JSON logs at each service boundary with trace_id, tenant_id, entity_id, step_name, duration_ms. Wire into existing Sentry transaction tracing.
   - **Primary domain:** backend
   - **Dependencies:** CTE-04.5 (after happy-path orchestrator exists)
-  - **Blockers:** CTE-04.5
+  - **Blockers:** None — lower execution priority than CTE-04.7
   - **Acceptance criteria:** Every trade execution gets a unique trace_id; all service logs include it; Sentry shows end-to-end trace; log aggregation can filter by trace_id.
   - **Validation commands:** `cd backend && python manage.py test apps.core.tests.test_structured_logging --noinput`
   - **Tenant/RLS impact:** Low (logging only)
