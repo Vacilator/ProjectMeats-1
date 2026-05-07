@@ -10,6 +10,7 @@
  */
 import React from 'react';
 import styled from 'styled-components';
+import { useNavigate } from 'react-router-dom';
 import { 
   Bell, Check, CheckCheck, X, Clock, AlertCircle, 
   CheckCircle, MessageSquare, FileText, Workflow, Info
@@ -366,6 +367,7 @@ interface NotificationPanelProps {
 }
 
 const NotificationPanel: React.FC<NotificationPanelProps> = ({ onClose }) => {
+  const navigate = useNavigate();
   const { 
     notifications, 
     unreadCount, 
@@ -378,13 +380,17 @@ const NotificationPanel: React.FC<NotificationPanelProps> = ({ onClose }) => {
   const groupedNotifications = groupNotificationsByTime(notifications);
   const hasNotifications = notifications.length > 0;
   
-  const handleNotificationClick = (notification: Notification) => {
+  const handleNotificationClick = async (notification: Notification) => {
     if (!notification.is_read) {
-      markAsRead(notification.id);
+      try {
+        await markAsRead(notification.id);
+      } catch {
+        // Preserve navigation even if the read call fails.
+      }
     }
-    
+
     if (notification.action_url) {
-      window.location.href = notification.action_url;
+      navigate(notification.action_url);
       onClose();
     }
   };
@@ -444,7 +450,7 @@ const NotificationPanel: React.FC<NotificationPanelProps> = ({ onClose }) => {
                       data-testid={`notification-item-${notification.id}`}
                       $isUnread={!notification.is_read}
                       $priority={notification.priority}
-                      onClick={() => handleNotificationClick(notification)}
+                      onClick={() => void handleNotificationClick(notification)}
                     >
                       <IconContainer $type={notification.notification_type}>
                         <Icon size={18} />

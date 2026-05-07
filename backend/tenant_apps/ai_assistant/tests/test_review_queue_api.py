@@ -12,7 +12,11 @@ if 'tenant_apps.ai_assistant' not in settings.INSTALLED_APPS:
 from apps.tenants.models import Tenant, TenantUser
 from tenant_apps.plants.models import Plant
 from tenant_apps.ai_assistant.models import AIFeedbackLog
-from tenant_apps.ai_assistant.views import ContextualSuggestionsAPIView, PendingReviewView
+from tenant_apps.ai_assistant.views import (
+    ContextualSuggestionsAPIView,
+    PendingReviewResolveAPIView,
+    PendingReviewView,
+)
 
 
 class PendingReviewViewTests(TestCase):
@@ -25,6 +29,11 @@ class PendingReviewViewTests(TestCase):
             password='pw',
             is_staff=True,
         )
+        self.manager_user = User.objects.create_user(
+            username=f'ai-review-manager-{unique}',
+            email=f'ai-review-manager-{unique}@example.com',
+            password='pw',
+        )
         self.tenant = Tenant.objects.create(
             name=f'AI Review Tenant {unique}',
             slug=f'ai-review-tenant-{unique}',
@@ -33,6 +42,7 @@ class PendingReviewViewTests(TestCase):
             created_by=self.user,
         )
         TenantUser.objects.create(tenant=self.tenant, user=self.user, role='admin', is_active=True)
+        TenantUser.objects.create(tenant=self.tenant, user=self.manager_user, role='manager', is_active=True)
 
     def test_pending_review_payload_includes_operational_hub_metadata(self):
         feedback = AIFeedbackLog.objects.create(
@@ -119,6 +129,59 @@ class PendingReviewViewTests(TestCase):
         self.assertEqual(payload['intent_label'], 'Purchase Order')
         self.assertEqual(payload['review_entity_type'], 'purchase_order')
         self.assertEqual(payload['review_target_url'], '/purchase-orders/44/review')
+
+    def test_pending_review_deep_link_includes_highlighted_manager_draft(self):
+        highlighted = AIFeedbackLog.objects.create(
+            tenant=self.tenant,
+            document_id=uuid.uuid4(),
+            document_type='bill_of_lading',
+            confidence_score=0.51,
+            original_extracted_data={
+                'from_email': 'dispatch@example.com',
+                'subject': 'Potential BOL received',
+            },
+        )
+        for index in range(26):
+            AIFeedbackLog.objects.create(
+                tenant=self.tenant,
+                document_id=uuid.uuid4(),
+                document_type='purchase_order',
+                confidence_score=0.9,
+                original_extracted_data={'order_number': f'PO-{index}'},
+            )
+
+        request = self.factory.get(f'/api/v1/ai-assistant/review/pending/?draft={highlighted.id}')
+        force_authenticate(request, user=self.manager_user)
+        request.tenant = self.tenant
+
+        response = PendingReviewView.as_view()(request)
+
+        self.assertEqual(response.status_code, 200)
+        ids = [str(item['id']) for item in response.data['results']]
+        self.assertIn(str(highlighted.id), ids)
+
+    def test_manager_can_resolve_pending_review_item(self):
+        feedback = AIFeedbackLog.objects.create(
+            tenant=self.tenant,
+            document_id=uuid.uuid4(),
+            document_type='purchase_order',
+            confidence_score=0.84,
+            original_extracted_data={'order_number': 'PO-2001'},
+        )
+
+        request = self.factory.post(
+            f'/api/v1/ai-assistant/review/{feedback.id}/resolve/',
+            {'user_corrected_data': {'order_number': 'PO-2001'}},
+            format='json',
+        )
+        force_authenticate(request, user=self.manager_user)
+        request.tenant = self.tenant
+
+        response = PendingReviewResolveAPIView.as_view()(request, feedback_id=str(feedback.id))
+
+        self.assertEqual(response.status_code, 200)
+        feedback.refresh_from_db()
+        self.assertEqual(feedback.resolved_by_id, self.manager_user.id)
 
     def test_contextual_suggestions_returns_plant_continuity_actions(self):
         plant = Plant.objects.create(

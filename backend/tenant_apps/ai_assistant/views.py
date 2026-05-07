@@ -255,7 +255,12 @@ def _humanize_review_intent(document_type: str, payload: dict[str, object]) -> s
     return normalized.replace('_', ' ').title() or 'AI Draft'
 
 
-def build_pending_review_items(tenant_id: str) -> list[dict[str, object]]:
+def build_pending_review_items(
+    tenant_id: str,
+    *,
+    highlighted_id: str | None = None,
+    limit: int = 25,
+) -> list[dict[str, object]]:
     qs = (
         AIFeedbackLog.objects.filter(
             tenant_id=tenant_id,
@@ -264,7 +269,16 @@ def build_pending_review_items(tenant_id: str) -> list[dict[str, object]]:
         .order_by('-created_on')
     )
 
-    document_ids = [row.document_id for row in qs[:25] if row.document_id is not None]
+    rows = list(qs[:limit])
+    if highlighted_id:
+        try:
+            highlighted_row = qs.filter(id=highlighted_id).first()
+        except (TypeError, ValueError):
+            highlighted_row = None
+        if highlighted_row and all(str(row.id) != str(highlighted_row.id) for row in rows):
+            rows = [highlighted_row, *rows[: max(limit - 1, 0)]]
+
+    document_ids = [row.document_id for row in rows if row.document_id is not None]
     documents = {
         document.id: document
         for document in AIDocument.objects.filter(tenant_id=tenant_id, id__in=document_ids).only(
@@ -274,7 +288,7 @@ def build_pending_review_items(tenant_id: str) -> list[dict[str, object]]:
     }
 
     items: list[dict[str, object]] = []
-    for row in qs[:25]:
+    for row in rows:
         payload = row.original_extracted_data if isinstance(row.original_extracted_data, dict) else {}
         document = documents.get(row.document_id)
         review_entity_type = _infer_review_entity_type(row.document_type, payload)
@@ -328,6 +342,14 @@ def _tenant_membership_role(*, user, tenant) -> str:
 
 def _can_review_ai_approvals(*, user, tenant) -> bool:
     return _tenant_membership_role(user=user, tenant=tenant) in {'owner', 'admin'}
+
+
+def can_access_ai_review_queue(*, user, tenant) -> bool:
+    if not user or not getattr(user, 'is_authenticated', False) or tenant is None:
+        return False
+    if getattr(user, 'is_staff', False) or getattr(user, 'is_superuser', False):
+        return True
+    return _tenant_membership_role(user=user, tenant=tenant) in {'owner', 'admin', 'manager'}
 
 
 class ChatSessionViewSet(viewsets.ModelViewSet):
@@ -1765,25 +1787,25 @@ class ToolsOpenAPIView(APIView):
 class PendingReviewView(APIView):
     """Pending-review queue for the frontend widget.
 
-    Safety rule:
-    - Non-staff users must not be able to access the HITL queue, so they always
-      receive an empty list.
-    - Staff users receive the same underlying queue as PendingReviewAPIView.
+    Queue access matches the roles that receive actionable AI review notifications.
+    If a highlighted draft is provided, include it even when it falls outside the
+    default queue window so deep links stay deterministic.
     """
 
     permission_classes = [IsAuthenticated]
 
     @extend_schema(responses={200: PendingReviewListResponseSerializer, 400: OpenApiTypes.OBJECT})
     def get(self, request):
-        if not (request.user.is_staff or request.user.is_superuser):
+        tenant = getattr(request, 'tenant', None)
+        if not can_access_ai_review_queue(user=request.user, tenant=tenant):
             return Response({'pending_reviews': [], 'results': []}, status=status.HTTP_200_OK)
 
-        tenant = getattr(request, 'tenant', None)
         tenant_id = str(getattr(tenant, 'id', '') or '')
         if not tenant_id:
             return Response({'error': 'Tenant context missing'}, status=status.HTTP_400_BAD_REQUEST)
 
-        items = build_pending_review_items(tenant_id)
+        highlighted_id = str(request.query_params.get('draft') or '').strip() or None
+        items = build_pending_review_items(tenant_id, highlighted_id=highlighted_id)
 
         payload = PendingReviewItemSerializer(items, many=True).data
         return Response({'pending_reviews': payload, 'results': payload}, status=status.HTTP_200_OK)
@@ -1809,12 +1831,12 @@ class AIAgentChatView(APIView):
 
 
 class PendingReviewResolveAPIView(APIView):
-    """Staff-only endpoint to resolve a HITL item.
+    """Resolve a HITL item for users who can work the AI review queue.
 
     Marks AIFeedbackLog.resolved_by and optionally stores user_corrected_data.
     """
 
-    permission_classes = [IsAdminUser]
+    permission_classes = [IsAuthenticated]
     throttle_classes = [UserRateThrottle, ScopedRateThrottle]
     throttle_scope = 'ai_feedback'
 
@@ -1828,6 +1850,9 @@ class PendingReviewResolveAPIView(APIView):
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
         tenant = getattr(request, 'tenant', None)
+        if not can_access_ai_review_queue(user=request.user, tenant=tenant):
+            return Response({'error': 'You do not have access to this AI review queue'}, status=status.HTTP_403_FORBIDDEN)
+
         tenant_id = str(getattr(tenant, 'id', '') or '')
         if not tenant_id:
             return Response({'error': 'Tenant context missing'}, status=status.HTTP_400_BAD_REQUEST)

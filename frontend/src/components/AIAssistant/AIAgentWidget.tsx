@@ -113,6 +113,15 @@ type AIInboxSocketMessage = {
   results?: unknown[];
 };
 
+type AIInboxPreviewItem = {
+  id: string;
+  sender?: string;
+  source_subject?: string;
+  source_summary?: string;
+  source_document_name?: string;
+  intent_label?: string;
+};
+
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 const LOCAL_STORAGE_SESSION_KEY = 'pm.ai.widget.sessionId';
 const AI_INBOX_SOCKET_PATH = '/ws/ai/inbox/';
@@ -588,6 +597,69 @@ const deriveAIInboxSocketProtocols = (accessToken: string): string[] => {
   return ['pm.ai.inbox', 'access_token', accessToken];
 };
 
+const resolveAIInboxTenantId = (): string | null => {
+  const tokenTenantId = getTenantFromToken()?.defaultTenantId;
+  if (typeof tokenTenantId === 'string' && tokenTenantId.trim()) {
+    return tokenTenantId.trim();
+  }
+  if (typeof window === 'undefined') {
+    return null;
+  }
+  try {
+    const tenantId = localStorage.getItem('tenantId');
+    return tenantId && tenantId.trim() ? tenantId.trim() : null;
+  } catch {
+    return null;
+  }
+};
+
+const normalizeAIInboxPreviewItems = (results: unknown[]): AIInboxPreviewItem[] => {
+  return results.flatMap((result) => {
+    if (!result || typeof result !== 'object') {
+      return [];
+    }
+    const item = result as Record<string, unknown>;
+    const id = typeof item.id === 'string' ? item.id : '';
+    if (!id) {
+      return [];
+    }
+    return [
+      {
+        id,
+        sender: typeof item.sender === 'string' ? item.sender : undefined,
+        source_subject: typeof item.source_subject === 'string' ? item.source_subject : undefined,
+        source_summary: typeof item.source_summary === 'string' ? item.source_summary : undefined,
+        source_document_name:
+          typeof item.source_document_name === 'string' ? item.source_document_name : undefined,
+        intent_label: typeof item.intent_label === 'string' ? item.intent_label : undefined,
+      },
+    ];
+  });
+};
+
+const buildAIInboxAnnouncement = (
+  latestItem: AIInboxPreviewItem | undefined,
+  delta: number
+): string => {
+  if (!latestItem) {
+    const noun = delta === 1 ? 'review item' : 'review items';
+    return `I found ${delta} new AI ${noun} while you were away. Check your AI Inbox.`;
+  }
+
+  const intent = latestItem.intent_label?.trim() || 'AI draft';
+  const sender = latestItem.sender?.trim() || latestItem.source_document_name?.trim() || 'your inbox';
+  const subject =
+    latestItem.source_subject?.trim() ||
+    latestItem.source_summary?.trim() ||
+    'A new draft is ready for review.';
+
+  if (delta === 1) {
+    return `${intent} from ${sender}: ${subject}`;
+  }
+
+  return `${intent} from ${sender}: ${subject} (${delta} new review items total).`;
+};
+
 const normalizeSessions = (raw: unknown): ServerSession[] => {
   if (Array.isArray(raw)) return raw as ServerSession[];
   if (raw && typeof raw === 'object') {
@@ -654,6 +726,9 @@ export const AIAgentWidget: React.FC = () => {
   const [sessionsOpen, setSessionsOpen] = useState(false);
 
   const [outlookStatus, setOutlookStatus] = useState<OutlookStatus | null>(null);
+  const [aiInboxRealtimeStatus, setAiInboxRealtimeStatus] = useState<
+    'idle' | 'connecting' | 'live' | 'degraded'
+  >('idle');
   const [messages, setMessages] = useState<ChatMessage[]>(() => [
     {
       id: newId(),
@@ -669,11 +744,11 @@ export const AIAgentWidget: React.FC = () => {
   const [dragOver, setDragOver] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const toastSuccessRef = useRef(toast.success);
   const inboxSocketRef = useRef<WebSocket | null>(null);
   const inboxReconnectTimerRef = useRef<number | null>(null);
   const inboxReconnectAttemptsRef = useRef(0);
   const inboxRefreshAttemptedRef = useRef(false);
+  const inboxAnnouncementRef = useRef<string | null>(null);
   const expandedRef = useRef(expanded);
   const inboxCountRef = useRef(aiInboxCount);
   const toastRef = useRef(toast);
@@ -688,10 +763,6 @@ export const AIAgentWidget: React.FC = () => {
   );
 
   const groupedSessions = useMemo(() => groupChatSessionsByDate(sessions), [sessions]);
-
-  useEffect(() => {
-    toastSuccessRef.current = toast.success;
-  }, [toast]);
 
   useEffect(() => {
     expandedRef.current = expanded;
@@ -752,18 +823,21 @@ export const AIAgentWidget: React.FC = () => {
     const connect = async (attemptRefresh: boolean) => {
       if (disposed) return;
 
-      const tenantId = getTenantFromToken()?.defaultTenantId;
+      const tenantId = resolveAIInboxTenantId();
       if (!tenantId) {
+        setAiInboxRealtimeStatus('idle');
         setAiInboxCount(0);
         return;
       }
 
+      setAiInboxRealtimeStatus('connecting');
       let accessToken = getAccessToken();
       if (!accessToken && attemptRefresh) {
         accessToken = await refreshAccessToken();
       }
 
       if (!accessToken) {
+        setAiInboxRealtimeStatus('idle');
         if (!attemptRefresh) {
           scheduleReconnect(true);
         }
@@ -783,6 +857,7 @@ export const AIAgentWidget: React.FC = () => {
           if (disposed) return;
           inboxReconnectAttemptsRef.current = 0;
           inboxRefreshAttemptedRef.current = false;
+          setAiInboxRealtimeStatus('live');
         };
 
         socket.onmessage = (event) => {
@@ -803,6 +878,9 @@ export const AIAgentWidget: React.FC = () => {
             return;
           }
 
+          const previewItems = normalizeAIInboxPreviewItems(
+            Array.isArray(message.results) ? message.results : []
+          );
           const nextCount = Math.max(0, Number(message.pending_count || 0));
           const previousCount = inboxCountRef.current;
 
@@ -818,11 +896,37 @@ export const AIAgentWidget: React.FC = () => {
             nextCount > previousCount &&
             !expandedRef.current
           ) {
-            const delta = nextCount - previousCount;
-            const noun = delta === 1 ? 'review item' : 'review items';
-            toastRef.current.info(
-              `I found ${delta} new AI ${noun} while you were away. Check your AI Inbox.`
+            const announcement = buildAIInboxAnnouncement(
+              previewItems[0],
+              nextCount - previousCount
             );
+            if (announcement !== inboxAnnouncementRef.current) {
+              inboxAnnouncementRef.current = announcement;
+              toastRef.current.info(announcement);
+            }
+          }
+
+          if (
+            messageType === 'ai.inbox.update' &&
+            nextCount > previousCount &&
+            expandedRef.current
+          ) {
+            const announcement = buildAIInboxAnnouncement(
+              previewItems[0],
+              nextCount - previousCount
+            );
+            if (announcement !== inboxAnnouncementRef.current) {
+              inboxAnnouncementRef.current = announcement;
+              setMessages((current) => [
+                ...current,
+                {
+                  id: newId(),
+                  role: 'assistant',
+                  content: announcement,
+                  createdAt: Date.now(),
+                },
+              ]);
+            }
           }
         };
 
@@ -837,9 +941,11 @@ export const AIAgentWidget: React.FC = () => {
           }
 
           if (event.code === 1000) {
+            setAiInboxRealtimeStatus('idle');
             return;
           }
 
+          setAiInboxRealtimeStatus('degraded');
           if ((event.code === 4401 || event.code === 4403) && !inboxRefreshAttemptedRef.current) {
             inboxRefreshAttemptedRef.current = true;
             scheduleReconnect(true);
@@ -849,6 +955,7 @@ export const AIAgentWidget: React.FC = () => {
           scheduleReconnect(false);
         };
       } catch {
+        setAiInboxRealtimeStatus('degraded');
         scheduleReconnect(attemptRefresh);
       }
     };
@@ -899,63 +1006,6 @@ export const AIAgentWidget: React.FC = () => {
     void loadOutlookStatus();
     void loadSessions();
   }, [expanded]);
-
-  useEffect(() => {
-    if (typeof window === 'undefined') {
-      return;
-    }
-
-    const tenantId = localStorage.getItem('tenantId');
-    const accessToken =
-      localStorage.getItem('accessToken') ||
-      localStorage.getItem('authToken') ||
-      localStorage.getItem('refreshToken');
-
-    if (!tenantId || !accessToken) {
-      return;
-    }
-
-    const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
-    const wsUrl =
-      `${protocol}://${window.location.host}/ws/ai/inbox/` +
-      `?tenant_id=${encodeURIComponent(tenantId)}` +
-      `&access_token=${encodeURIComponent(accessToken)}`;
-
-    const socket = new WebSocket(wsUrl);
-
-    socket.onmessage = (event) => {
-      try {
-        const payload = JSON.parse(event.data) as Record<string, unknown>;
-        if (payload.type !== 'ai.inbox.notification') {
-          return;
-        }
-
-        const content =
-          typeof payload.message === 'string' && payload.message.trim()
-            ? payload.message.trim()
-            : 'I found new AI Inbox items while you were away. Check your AI Inbox.';
-
-        toastSuccessRef.current(content);
-        setExpanded(true);
-        setState('action_required');
-        setMessages((current) => [
-          ...current,
-          {
-            id: newId(),
-            role: 'assistant',
-            content,
-            createdAt: Date.now(),
-          },
-        ]);
-      } catch {
-        // Ignore malformed realtime payloads.
-      }
-    };
-
-    return () => {
-      socket.close();
-    };
-  }, []);
 
   useEffect(() => {
     if (!expanded || !sessionId) return;
@@ -1049,6 +1099,8 @@ export const AIAgentWidget: React.FC = () => {
             text: `${aiInboxCount} in Inbox`,
             variant: 'warn' as const,
           }
+        : aiInboxRealtimeStatus === 'degraded'
+          ? { text: 'Inbox reconnecting', variant: 'info' as const }
         : state === 'action_required'
           ? { text: 'Action required', variant: 'warn' as const }
           : { text: 'Idle', variant: 'ok' as const };

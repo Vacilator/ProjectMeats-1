@@ -677,7 +677,7 @@ export const MyTasks: React.FC = () => {
     setReviewLoading(true);
     setReviewError('');
     try {
-      const items = await aiStaffApi.listPendingReviews();
+      const items = await aiStaffApi.listPendingReviews({ highlightedId: highlightedDraftId });
       setPendingReviews(items);
     } catch (err) {
       logger.error('Failed to fetch AI inbox queue', err);
@@ -686,7 +686,7 @@ export const MyTasks: React.FC = () => {
     } finally {
       setReviewLoading(false);
     }
-  }, []);
+  }, [highlightedDraftId]);
 
   // Fetch workflow executions
   const fetchWorkflowExecutions = useCallback(async () => {
