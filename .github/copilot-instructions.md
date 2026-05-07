@@ -788,7 +788,7 @@ const Button = styled.button`
 - [ ] ARIA labels provided for screen readers
 - [ ] Color contrast meets WCAG 2.1 AA standards
 
-**Authority**: `.github/PULL_REQUEST_TEMPLATE.md` (to be updated with this checklist)
+**Authority**: `.github/pull_request_template.md` (to be updated with this checklist)
 
 ---
 

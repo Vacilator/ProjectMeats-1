@@ -97,7 +97,7 @@ main push
 
 - Canonical deploy rules: `docs/GOLDEN_PIPELINE.md`
 - Branch protection guide: `docs/guides/BRANCH_PROTECTION_SETUP.md`
-- PR checklist: `.github/PULL_REQUEST_TEMPLATE.md`
+- PR checklist: `.github/pull_request_template.md`
 
 - All workflows use GitHub Actions permissions scoping
 - Secrets are managed through GitHub Secrets
