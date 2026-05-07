@@ -724,6 +724,112 @@ class InquiryViewSet(viewsets.ModelViewSet):
         chain = get_lineage_chain(tenant=request.tenant, inquiry=inquiry)
         return Response(chain)
 
+    @action(detail=True, methods=['get'], url_path='lineage/node-detail')
+    def lineage_node_detail(self, request, pk=None):
+        """Get enriched node detail for the trade lineage diagram (RT-03.3).
+
+        GET /api/v1/inquiries/{id}/lineage/node-detail/?entity_type=...&entity_id=...
+
+        Returns contact info, documents, inputs/outputs summary for a specific
+        entity in the trade lineage chain.
+        """
+        inquiry = self.get_object()
+        entity_type = request.query_params.get('entity_type', '')
+        entity_id = request.query_params.get('entity_id', '')
+
+        if not entity_type or not entity_id:
+            return Response(
+                {'detail': 'entity_type and entity_id are required'},
+                status=400,
+            )
+
+        detail = self._resolve_node_detail(
+            inquiry=inquiry,
+            entity_type=entity_type,
+            entity_id=entity_id,
+            tenant=request.tenant,
+        )
+        return Response(detail)
+
+    def _resolve_node_detail(self, *, inquiry, entity_type, entity_id, tenant):
+        """Resolve enriched detail for a lineage node."""
+        from tenant_apps.purchase_orders.models import PurchaseOrder
+        from tenant_apps.sales_orders.models import SalesOrder
+
+        result = {
+            'entity_type': entity_type,
+            'entity_id': entity_id,
+            'label': '',
+            'status': '',
+            'contact': None,
+            'documents': [],
+            'inputs_summary': None,
+            'outputs_summary': None,
+        }
+
+        if entity_type == 'inquiry':
+            result['label'] = f"Inquiry {getattr(inquiry, 'inquiry_number', '') or str(inquiry.id)[:8]}"
+            result['status'] = inquiry.status
+            result['inputs_summary'] = f"Customer: {inquiry.customer}" if inquiry.customer else None
+            result['outputs_summary'] = f"Route: {inquiry.route_decision}" if inquiry.route_decision else None
+            contact = getattr(inquiry, 'contact', None)
+            if contact:
+                result['contact'] = {
+                    'name': str(contact),
+                    'email': getattr(contact, 'email', ''),
+                    'phone': getattr(contact, 'phone', ''),
+                    'contact_type': getattr(contact, 'contact_type', ''),
+                    'title': getattr(contact, 'title', ''),
+                    'responsibilities': [],
+                }
+
+        elif entity_type == 'supplier_purchase_order':
+            try:
+                po = PurchaseOrder.objects.select_related('supplier').get(
+                    id=entity_id, tenant=tenant
+                )
+                result['label'] = f"Supplier PO {po.order_number or str(po.id)[:8]}"
+                result['status'] = po.status
+                result['outputs_summary'] = f"Supplier: {po.supplier}" if po.supplier else None
+                if hasattr(po, 'supplier') and po.supplier:
+                    # Try to get plant contact
+                    plant = po.supplier.plants.first()
+                    if plant:
+                        contact = plant.contacts.first()
+                        if contact:
+                            result['contact'] = {
+                                'name': str(contact),
+                                'email': getattr(contact, 'email', ''),
+                                'phone': getattr(contact, 'phone', ''),
+                                'contact_type': getattr(contact, 'contact_type', ''),
+                                'title': getattr(contact, 'title', ''),
+                                'responsibilities': list(
+                                    getattr(contact, 'responsibilities', None) or []
+                                ),
+                            }
+            except PurchaseOrder.DoesNotExist:
+                result['label'] = 'Supplier PO (not found)'
+
+        elif entity_type == 'sales_order':
+            try:
+                so = SalesOrder.objects.get(id=entity_id, tenant=tenant)
+                result['label'] = f"Sales Order {so.our_sales_order_num or str(so.id)[:8]}"
+                result['status'] = so.status
+                result['inputs_summary'] = f"From bid selection"
+                result['outputs_summary'] = f"Amount: {getattr(so, 'total_amount', 'N/A')}"
+            except SalesOrder.DoesNotExist:
+                result['label'] = 'Sales Order (not found)'
+
+        elif entity_type == 'carrier_purchase_order':
+            try:
+                cpo = PurchaseOrder.objects.get(id=entity_id, tenant=tenant)
+                result['label'] = f"Carrier PO {getattr(cpo, 'our_carrier_po_num', '') or str(cpo.id)[:8]}"
+                result['status'] = cpo.status
+            except PurchaseOrder.DoesNotExist:
+                result['label'] = 'Carrier PO (not found)'
+
+        return result
+
 
 class InquiryProductViewSet(viewsets.ModelViewSet):
     """ViewSet for InquiryProduct CRUD operations."""
