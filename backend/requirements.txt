@@ -74,7 +74,7 @@ google-api-python-client>=2.120.0  # Gmail API client
 reportlab>=4.0.0  # For generating PDF quotes and invoices
 
 # Asynchronous Task Queue (Phase 5 Part 2)
-celery[redis]>=5.4.0  # Task queue for scheduled workflows and background jobs
+celery[redis]>=5.6.3  # Task queue for scheduled workflows and background jobs
 redis>=5.0.0  # Redis as Celery broker and result backend
 django-redis>=5.4.0  # Django cache backend used by non-dev Redis/Valkey readiness contract
 django-celery-beat>=2.5.0  # Database-backed periodic task scheduler
