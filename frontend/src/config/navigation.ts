@@ -108,25 +108,11 @@ export const navigation: NavigationItem[] = [
         label: "P.O.'s",
         icon: '📦',
         path: '/purchase-orders',
-        children: [
-          {
-            label: 'Attachments',
-            icon: '📎',
-            path: '/purchase-orders/attachments',
-          },
-        ],
       },
       {
         label: "S.O.'s",
         icon: '🚚',
         path: '/sales-orders',
-        children: [
-          {
-            label: 'Attachments',
-            icon: '📎',
-            path: '/sales-orders/attachments',
-          },
-        ],
       },
     ],
   },
